@@ -1,0 +1,44 @@
+{
+  "debug": true,
+  "verbose_debug": false,
+  "profile": false,
+  "environment": "development",
+  "bitcoin_interface": "rpc",
+  "datastore": {
+    "debug": false,
+    "type": "cassandra"
+  },
+  "cache": {
+    "engine": "redis"
+  },
+  "rest_client": {
+    "server": "http://localhost:8332"
+  },
+  "rpc_client": {
+    "host": "localhost:8332",
+    "user": "",
+    "password": ""
+  },
+  "redis": {
+    "url": "localhost:6379",
+    "use_tls": false,
+    "dependency_mode": "",
+    "max_active_connections": 0,
+    "max_connection_lifetime": 0,
+    "max_idle_connections": 0,
+    "max_idle_timeout": 0
+  },
+  "server": {
+    "ip_address": "0.0.0.0",
+    "port": 8080
+  },
+  "zero_mq": {
+    "enabled": true,
+    "endpoint": "tcp://localhost:48332",
+    "topics": [
+      "rawtx2",
+      "discardedfrommempool",
+      "removedfrommempoolblock"
+    ]
+  }
+}

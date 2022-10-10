@@ -1,0 +1,343 @@
+openapi: 3.0.1
+info:
+  title: Merchant API
+  version: 2.0.0
+paths:
+  /mapi/v2/feeQuote:
+    get:
+      tags:
+        - Mapi
+      summary: Get a fee quote.
+      description: >-
+        This endpoint returns the fees charged by a specific BSV miner.
+      responses:
+        200:
+          description: Success
+          headers:
+            signature:
+              schema:
+                type: string
+              description: ECDSA signature for response
+              example: keyId="...minerId...", algorithm="ecdsa", signature="GdUqDgy94Z8mSYUjr/rL6qrLX/jmudS..."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeQuote'
+        401:
+          $ref: '#/components/responses/NotAuthorized'
+        500:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /mapi/v2/policyQuote:
+    get:
+      tags:
+        - Mapi
+      summary: Get a policy quote.
+      description: >-
+        This endpoint returns the fees charged by a specific BSV miner and set policies.
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyQuote'
+        401:
+          $ref: '#/components/responses/NotAuthorized'
+        500:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /mapi/v2/tx/{id}:
+    get:
+      tags:
+        - Mapi
+      summary: Query transaction status.
+      description: >-
+        This endpoint is used to check the current status of a previously
+        submitted transaction.
+      parameters:
+        - name: id
+          in: path
+          description: The transaction ID (32 byte hash) hex string
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionStatus'
+        401:
+          $ref: '#/components/responses/NotAuthorized'
+        500:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /mapi/v2/tx:
+    post:
+      tags:
+        - Mapi
+      summary: Submit a transaction.
+      description: >-
+        This endpoint is used to send a raw transaction to a miner for inclusion
+        in the next block that the miner creates.
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitTransaction'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmitTransactionResponse'
+  /mapi/v2/txs:
+    post:
+      tags:
+        - Mapi
+      summary: Submit multiple transactions.
+      description: >-
+        This endpoint is used to send multiple raw transactions to a miner for
+        inclusion in the next block that the miner creates.
+      parameters:
+        - name: defaultCallbackUrl
+          in: query
+          description: >-
+            Default double spend and merkle proof notification callback
+            endpoint.
+          schema:
+            type: string
+        - name: defaultCallbackToken
+          in: query
+          description: Default access token for notification callback endpoint.
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/SubmitTransaction'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmitTransactionResponse'
+components:
+  schemas:
+    BasicResponse:
+      type: object
+      properties:
+        apiVersion:
+          type: string
+          nullable: false
+        timestamp:
+          type: string
+          format: date-time
+          nullable: false
+        minerId:
+          type: string
+          nullable: true
+    Callback:
+      type: object
+      properties:
+        url:
+          type: string
+          nullable: true
+        token:
+          type: string
+          nullable: true
+      additionalProperties: false
+    FeeAmount:
+      type: object
+      properties:
+        satoshis:
+          type: integer
+          format: uint64
+        bytes:
+          type: integer
+          format: uint64
+      additionalProperties: false
+    FeeQuote:
+      allOf:
+        - $ref: '#/components/schemas/BasicResponse'
+        - type: object
+          properties:
+            expiryTime:
+              type: string
+              format: date-time
+            fees:
+              type: array
+              items:
+                $ref: '#/components/schemas/Fee'
+              nullable: true
+          additionalProperties: false
+    Fee:
+      type: object
+      properties:
+        feeType:
+          type: string
+          nullable: true
+        miningFee:
+          $ref: '#/components/schemas/FeeAmount'
+        relayFee:
+          $ref: '#/components/schemas/FeeAmount'
+      additionalProperties: false
+    PolicyQuote:
+      allOf:
+        - $ref: '#/components/schemas/BasicResponse'
+        - $ref: '#/components/schemas/FeeQuote'
+        - type: object
+          properties:
+            callbacks:
+              type: array
+              items:
+                $ref: '#/components/schemas/Callback'
+              nullable: true
+            policies:
+              type: object
+              additionalProperties: {}
+              nullable: true
+          additionalProperties: false
+    TransactionStatus:
+      allOf:
+        - $ref: '#/components/schemas/BasicResponse'
+        - type: object
+          properties:
+            txid:
+              type: string
+              nullable: false
+            statusCode:
+              type: number
+              nullable: false
+            status:
+              type: string
+              nullable: false
+            blockHash:
+              type: string
+              nullable: true
+            blockHeight:
+              type: integer
+              format: int64
+              nullable: true
+            confirmations:
+              type: integer
+              format: int64
+              nullable: true
+            minerId:
+              type: string
+              nullable: true
+            txSecondMempoolExpiry:
+              type: integer
+              format: int32
+              nullable: true
+          additionalProperties: false
+    SubmitTransactionConflicted:
+      type: object
+      properties:
+        txid:
+          type: string
+          nullable: true
+        size:
+          type: integer
+          format: int64
+        hex:
+          type: string
+          nullable: true
+      additionalProperties: false
+    SubmitTransactionResponse:
+      allOf:
+        - $ref: '#/components/schemas/BasicResponse'
+        - type: object
+          properties:
+            txid:
+              type: string
+              nullable: false
+            statusCode:
+              type: number
+              nullable: false
+            status:
+              type: string
+              nullable: false
+            currentHighestBlockHash:
+              type: string
+              nullable: true
+            currentHighestBlockHeight:
+              type: integer
+              format: int64
+              nullable: true
+            txSecondMempoolExpiry:
+              type: integer
+              format: int64
+              nullable: true
+            conflictedWith:
+              type: array
+              items:
+                $ref: >-
+                  #/components/schemas/SubmitTransactionConflicted
+              nullable: true
+          additionalProperties: false
+    SubmitTransaction:
+      type: object
+      properties:
+        rawTx:
+          type: string
+          nullable: false
+        callbackUrl:
+          type: string
+          nullable: true
+        callbackToken:
+          type: string
+          nullable: true
+        merkleProof:
+          type: boolean
+          nullable: true
+      additionalProperties: false
+    Error:
+      type: object
+      properties:
+        code:
+          type: number
+        message:
+          type: string
+      required:
+        - code
+        - message
+  responses:
+    NotAuthorized:
+      description: The requester is unauthorized.
+  securitySchemes:
+    Bearer:
+      type: apiKey
+      description: >-
+        Please enter JWT with Bearer needed to access MAPI into field.
+        Authorization: Bearer JWT
+      name: Authorization
+      in: header
+    Api-Key:
+      type: apiKey
+      description: >-
+        Please enter API key needed to access admin endpoints into field.
+        Api-Key: My_API_Key
+      name: Api-Key
+      in: header
+security:
+  - Bearer: []
+  - Api-Key: []

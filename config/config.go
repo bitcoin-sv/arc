@@ -2,9 +2,12 @@
 package config
 
 import (
+	"encoding/hex"
 	"time"
 
+	"github.com/libsv/go-bk/wif"
 	"github.com/mrz1836/go-cachestore"
+	"github.com/mrz1836/go-datastore"
 )
 
 type Environment string
@@ -42,11 +45,12 @@ type (
 		Debug            bool              `json:"debug" mapstructure:"debug"`
 		VerboseDebug     bool              `json:"verbose_debug" mapstructure:"verbose_debug"`
 		Environment      Environment       `json:"environment" mapstructure:"environment"`
-		MinerID          string            `json:"miner_id" mapstructure:"miner_id"`
+		MinerID          *MinerIDConfig    `json:"miner_id" mapstructure:"miner_id"`
 		Profile          bool              `json:"profile" mapstructure:"profile"` // whether to start the profiling http server
 		RestClient       *RestClientConfig `json:"rest_client" mapstructure:"rest_client"`
 		RPCClient        *RPCClientConfig  `json:"rpc_client" mapstructure:"rpc_client"`
 		Redis            *RedisConfig      `json:"redis" mapstructure:"redis"`
+		Security         *SecurityConfig   `json:"security" mapstructure:"security"`
 		Server           *ServerConfig     `json:"server" mapstructure:"server"`
 		WorkingDirectory string            `json:"working_directory" mapstructure:"working_directory"`
 		ZeroMQ           *ZeroMQConfig     `json:"zero_mq" mapstructure:"zero_mq"`
@@ -60,8 +64,13 @@ type (
 
 	// DatastoreConfig is a configuration for the datastore
 	DatastoreConfig struct {
-		Debug bool   `json:"debug" mapstructure:"debug"`
-		Type  string `json:"type" mapstructure:"type"`
+		AutoMigrate bool                     `json:"auto_migrate" mapstructure:"auto_migrate"` // loads a blank database
+		Debug       bool                     `json:"debug" mapstructure:"debug"`               // true for sql statements
+		Engine      datastore.Engine         `json:"engine" mapstructure:"engine"`             // mysql, sqlite
+		TablePrefix string                   `json:"table_prefix" mapstructure:"table_prefix"` // pre_users (pre)
+		Mongo       *datastore.MongoDBConfig `json:"mongodb" mapstructure:"mongodb"`
+		SQL         *datastore.SQLConfig     `json:"sql" mapstructure:"sql"`
+		SQLite      *datastore.SQLiteConfig  `json:"sqlite" mapstructure:"sqlite"`
 	}
 
 	// RedisConfig is a configuration for Redis cachestore or taskmanager
@@ -75,6 +84,11 @@ type (
 		UseTLS                bool          `json:"use_tls" mapstructure:"use_tls"`                                 // Flag for using TLS
 	}
 
+	// MinerIDConfig is a configuration for the miner id
+	MinerIDConfig struct {
+		PrivateKey string `json:"private_key" mapstructure:"private_key"`
+	}
+
 	// RestClientConfig is a configuration for the bitcoin node rest interface
 	RestClientConfig struct {
 		Server string `json:"server" mapstructure:"server"`
@@ -85,6 +99,12 @@ type (
 		Host     string `json:"host" mapstructure:"host"`
 		User     string `json:"user" mapstructure:"user"`
 		Password string `json:"password" mapstructure:"password"`
+	}
+
+	// SecurityConfig is a configuration for the security of the MAPI server
+	SecurityConfig struct {
+		Provider string `json:"provider" mapstructure:"provider"` // bearer, api key or ""
+		Secret   string `json:"secret" mapstructure:"secret"`     // JWT secret
 	}
 
 	// ServerConfig is a configuration for the MAPI server
@@ -104,4 +124,16 @@ type (
 // GetUserAgent will return the outgoing user agent
 func (a *AppConfig) GetUserAgent() string {
 	return "MAPI " + string(a.Environment) + " " + Version
+}
+
+func (m *MinerIDConfig) GetMinerID() (string, error) {
+
+	minerIDPrivKey, err := wif.DecodeWIF(m.PrivateKey)
+	if err != nil {
+		return "", err
+	}
+
+	minerID := hex.EncodeToString(minerIDPrivKey.SerialisePubKey())
+
+	return minerID, nil
 }

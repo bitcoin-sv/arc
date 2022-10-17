@@ -4,9 +4,16 @@
   "profile": false,
   "environment": "development",
   "bitcoin_interface": "rpc",
+  "miner_id": {
+    "private_key": "KznvCNc6Yf4iztSThoMH6oHWzH9EgjfodKxmeuUGPq5DEX5maspS"
+  },
   "datastore": {
     "debug": false,
-    "type": "cassandra"
+    "type": "sqlite",
+    "sqlite": {
+      "database_path": "./mapi.db",
+      "shared": true
+    }
   },
   "cache": {
     "engine": "redis"
@@ -27,6 +34,9 @@
     "max_connection_lifetime": 0,
     "max_idle_connections": 0,
     "max_idle_timeout": 0
+  },
+  "security": {
+    "provider": ""
   },
   "server": {
     "ip_address": "0.0.0.0",

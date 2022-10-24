@@ -1,4 +1,4 @@
-module github.com/taal/mapi
+module github.com/TAAL-GmbH/mapi
 
 go 1.18
 

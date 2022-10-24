@@ -5,18 +5,18 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/TAAL-GmbH/mapi"
+	"github.com/TAAL-GmbH/mapi/client"
+	"github.com/TAAL-GmbH/mapi/config"
+	"github.com/TAAL-GmbH/mapi/dictionary"
+	"github.com/TAAL-GmbH/mapi/handler"
+	"github.com/TAAL-GmbH/mapi/models"
+	"github.com/TAAL-GmbH/mapi/server"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/mrz1836/go-logger"
-	"github.com/taal/mapi"
-	"github.com/taal/mapi/client"
-	"github.com/taal/mapi/config"
-	"github.com/taal/mapi/dictionary"
-	"github.com/taal/mapi/handler"
-	"github.com/taal/mapi/models"
-	"github.com/taal/mapi/server"
 )
 
 func main() {

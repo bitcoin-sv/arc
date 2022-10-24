@@ -5,10 +5,10 @@ import (
 	"encoding/hex"
 	"io"
 
+	"github.com/TAAL-GmbH/mapi/client"
+	"github.com/TAAL-GmbH/mapi/config"
+	"github.com/TAAL-GmbH/mapi/models"
 	"github.com/labstack/echo/v4"
-	"github.com/taal/mapi/client"
-	"github.com/taal/mapi/config"
-	"github.com/taal/mapi/models"
 )
 
 // NewLogger returns a Logger middleware with config.

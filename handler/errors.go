@@ -1,6 +1,6 @@
 package handler
 
-import "github.com/taal/mapi"
+import "github.com/TAAL-GmbH/mapi"
 
 const MapiDocServerUrl = "https://mapi.bitcoinsv.com"
 

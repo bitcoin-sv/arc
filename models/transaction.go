@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/TAAL-GmbH/mapi"
 	"github.com/libsv/go-bt/v2"
 	"github.com/mrz1836/go-datastore"
-	"github.com/taal/mapi"
 )
 
 // ModelNameTransaction defines the model name

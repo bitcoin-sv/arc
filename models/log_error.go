@@ -3,9 +3,9 @@ package models
 import (
 	"context"
 
+	"github.com/TAAL-GmbH/mapi"
 	"github.com/labstack/gommon/random"
 	"github.com/mrz1836/go-datastore"
-	"github.com/taal/mapi"
 )
 
 // ModelNameLogError defines the model name

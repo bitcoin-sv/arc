@@ -1,10 +1,10 @@
 package handler
 
 import (
+	"github.com/TAAL-GmbH/mapi/config"
+	"github.com/TAAL-GmbH/mapi/server"
 	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
-	"github.com/taal/mapi/config"
-	"github.com/taal/mapi/server"
 )
 
 type User struct {

@@ -3,8 +3,8 @@ package validator_test
 import (
 	"testing"
 
+	"github.com/TAAL-GmbH/mapi/validator"
 	"github.com/libsv/go-bt/v2"
-	"github.com/taal/mapi/validator"
 )
 
 func TestDefaultValidator(t *testing.T) {

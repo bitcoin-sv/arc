@@ -3,10 +3,10 @@ package models
 import (
 	"testing"
 
+	"github.com/TAAL-GmbH/mapi"
 	"github.com/mrz1836/go-datastore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/taal/mapi"
 )
 
 // TestPolicy_getPolicy will test the method getPolicy()

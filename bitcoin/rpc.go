@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/taal/mapi/config"
+	"github.com/TAAL-GmbH/mapi/config"
 )
 
 type RPC handler

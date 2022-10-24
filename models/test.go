@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/TAAL-GmbH/mapi/client"
 	"github.com/labstack/gommon/random"
 	"github.com/mrz1836/go-datastore"
 	"github.com/stretchr/testify/require"
-	"github.com/taal/mapi/client"
 )
 
 // CreateTestSQLiteClient will create a test client for SQLite

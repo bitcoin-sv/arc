@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/TAAL-GmbH/mapi"
 	"github.com/deepmap/oapi-codegen/pkg/securityprovider"
-	"github.com/taal/mapi"
 )
 
 func main() {

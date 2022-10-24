@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/TAAL-GmbH/mapi"
 	"github.com/mrz1836/go-datastore"
-	"github.com/taal/mapi"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/bsontype"
 	"gorm.io/gorm"

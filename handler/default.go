@@ -8,11 +8,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/TAAL-GmbH/mapi"
+	"github.com/TAAL-GmbH/mapi/client"
+	"github.com/TAAL-GmbH/mapi/models"
 	"github.com/labstack/echo/v4"
 	"github.com/mrz1836/go-datastore"
-	"github.com/taal/mapi"
-	"github.com/taal/mapi/client"
-	"github.com/taal/mapi/models"
 )
 
 type MapiDefaultHandler struct {

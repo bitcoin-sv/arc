@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	"github.com/taal/mapi/client"
+	"github.com/TAAL-GmbH/mapi/client"
 )
 
 // enrich is run after getting a record from the database

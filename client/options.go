@@ -1,9 +1,9 @@
 package client
 
 import (
+	"github.com/TAAL-GmbH/mapi/bitcoin"
+	"github.com/TAAL-GmbH/mapi/config"
 	"github.com/mrz1836/go-datastore"
-	"github.com/taal/mapi/bitcoin"
-	"github.com/taal/mapi/config"
 )
 
 type Options func(c *clientOptions)

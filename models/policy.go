@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/TAAL-GmbH/mapi"
 	"github.com/labstack/gommon/random"
 	"github.com/mrz1836/go-datastore"
-	"github.com/taal/mapi"
 )
 
 // ModelNamePolicy defines the model name

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/TAAL-GmbH/mapi/dictionary"
 	"github.com/mrz1836/go-logger"
 	"github.com/spf13/viper"
-	"github.com/taal/mapi/dictionary"
 )
 
 // isValidEnvironment will return true if the testEnv is a known valid environment

@@ -3,10 +3,10 @@ package client
 import (
 	"context"
 
+	"github.com/TAAL-GmbH/mapi/bitcoin"
+	"github.com/TAAL-GmbH/mapi/dictionary"
 	"github.com/mrz1836/go-datastore"
 	"github.com/mrz1836/go-logger"
-	"github.com/taal/mapi/bitcoin"
-	"github.com/taal/mapi/dictionary"
 )
 
 type Interface interface {

@@ -4,15 +4,21 @@
   "profile": false,
   "environment": "development",
   "bitcoin_interface": "rpc",
+  "log_request_body": true,
   "miner_id": {
     "private_key": "KznvCNc6Yf4iztSThoMH6oHWzH9EgjfodKxmeuUGPq5DEX5maspS"
   },
   "datastore": {
     "debug": false,
-    "type": "sqlite",
+    "engine": "mongodb",
     "sqlite": {
       "database_path": "./mapi.db",
       "shared": true
+    },
+    "mongodb": {
+      "database_name": "mapi",
+      "transactions": false,
+      "uri": "mongodb://localhost:27017/mapi"
     }
   },
   "cache": {
@@ -36,7 +42,9 @@
     "max_idle_timeout": 0
   },
   "security": {
-    "provider": ""
+    "provider": "BearerAuth",
+    "issuer": "MAPI v2 test issuer",
+    "bearer_key": "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
   },
   "server": {
     "ip_address": "0.0.0.0",

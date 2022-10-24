@@ -6,9 +6,11 @@ require (
 	github.com/99designs/gqlgen v0.17.20
 	github.com/deepmap/oapi-codegen v1.11.0
 	github.com/getkin/kin-openapi v0.103.0
+	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/labstack/echo/v4 v4.9.0
 	github.com/labstack/gommon v0.3.1
 	github.com/libsv/go-bk v0.1.6
+	github.com/libsv/go-bt/v2 v2.1.0-beta.4
 	github.com/mrz1836/go-cachestore v0.1.3
 	github.com/mrz1836/go-datastore v0.1.7
 	github.com/mrz1836/go-logger v0.3.1
@@ -27,7 +29,6 @@ require (
 	github.com/go-openapi/swag v0.21.1 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/gofrs/uuid v4.3.0+incompatible // indirect
-	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect

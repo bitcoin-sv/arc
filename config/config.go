@@ -35,11 +35,20 @@ var (
 	}
 )
 
+type SecurityType string
+
+var (
+	SecurityTypeBearerAuth SecurityType = "BearerAuth"
+	SecurityTypeApiKey     SecurityType = "ApiKey"
+)
+
 // The global configuration settings
 type (
 
 	// AppConfig is the configuration values and associated env vars
 	AppConfig struct {
+		LogRequestBody   bool              `json:"log_request_body" mapstructure:"log_request_body"`   // Whether the whole request body should be logged
+		LogResponseBody  bool              `json:"log_response_body" mapstructure:"log_response_body"` // Whether the whole response body should be logged
 		Cachestore       *CachestoreConfig `json:"cache" mapstructure:"cache"`
 		Datastore        *DatastoreConfig  `json:"datastore" mapstructure:"datastore"`
 		Debug            bool              `json:"debug" mapstructure:"debug"`
@@ -103,8 +112,9 @@ type (
 
 	// SecurityConfig is a configuration for the security of the MAPI server
 	SecurityConfig struct {
-		Provider string `json:"provider" mapstructure:"provider"` // bearer, api key or ""
-		Secret   string `json:"secret" mapstructure:"secret"`     // JWT secret
+		Provider  SecurityType `json:"provider" mapstructure:"provider"`     // BearerAuth, ApiKey or ""
+		Issuer    string       `json:"issuer" mapstructure:"issuer"`         // Token issuer
+		BearerKey string       `json:"bearer_key" mapstructure:"bearer_key"` // JWT bearer secret key
 	}
 
 	// ServerConfig is a configuration for the MAPI server

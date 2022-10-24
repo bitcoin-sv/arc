@@ -38,12 +38,12 @@ type ModelInterface interface {
 	Migrate(client datastore.ClientInterface) error
 	Name() string
 	New()
+	NotNew()
 	Save(ctx context.Context) (err error)
+	SetOptions(opts ...ModelOps)
+	SetRecordTime(created bool)
 	UpdateMetadata(metadata Metadata)
 }
-
-// ModelName is the model name type
-type ModelName string
 
 // NewBaseModel create an empty base model
 func NewBaseModel(name ModelName, opts ...ModelOps) (m *Model) {
@@ -56,6 +56,9 @@ func NewBaseModel(name ModelName, opts ...ModelOps) (m *Model) {
 	return
 }
 
+// ModelName is the model name type
+type ModelName string
+
 // String is the string version of the name
 func (n ModelName) String() string {
 	return string(n)
@@ -64,4 +67,12 @@ func (n ModelName) String() string {
 // IsEmpty tests if the model name is empty
 func (n ModelName) IsEmpty() bool {
 	return n == "empty"
+}
+
+// TableName is the model db table name type
+type TableName string
+
+// String is the string version of the name
+func (t TableName) String() string {
+	return string(t)
 }

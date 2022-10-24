@@ -2,87 +2,79 @@
   "openapi": "3.0.1",
   "info": {
     "title": "Merchant API",
-    "version": "2.0.0"
+    "version": "2.0.0",
+    "license": {
+      "name": "Open BSV License",
+      "url": "https://bitcoinassociation.net/open-bsv-license/"
+    }
   },
   "paths": {
-    "/mapi/v2/feeQuote": {
+    "/mapi/v2/policy": {
       "get": {
         "tags": [
           "Mapi"
         ],
-        "summary": "Get a fee quote.",
-        "description": "This endpoint returns the fees charged by a specific BSV miner.",
-        "responses": {
-          "200": {
-            "description": "Success",
-            "headers": {
-              "signature": {
-                "schema": {
-                  "type": "string"
-                },
-                "description": "ECDSA signature for response",
-                "example": "keyId=\"...minerId...\", algorithm=\"ecdsa\", signature=\"GdUqDgy94Z8mSYUjr/rL6qrLX/jmudS...\""
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FeeQuote"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/NotAuthorized"
-          },
-          "500": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/mapi/v2/policyQuote": {
-      "get": {
-        "tags": [
-          "Mapi"
-        ],
-        "summary": "Get a policy quote.",
-        "description": "This endpoint returns the fees charged by a specific BSV miner and set policies.",
+        "summary": "Get the miner policy",
+        "description": "This endpoint returns the miner policies and fees charged.",
         "responses": {
           "200": {
             "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PolicyQuote"
+                  "$ref": "#/components/schemas/Policy"
                 }
               }
             }
           },
-          "401": {
+          "403": {
             "$ref": "#/components/responses/NotAuthorized"
           },
-          "500": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
+          "404": {
+            "description": "Not found"
           }
         }
       }
     },
     "/mapi/v2/tx/{id}": {
+      "get": {
+        "tags": [
+          "Mapi"
+        ],
+        "summary": "Query transaction",
+        "description": "This endpoint is used to get a previously submitted transaction.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The transaction ID (32 byte hash) hex string",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/NotAuthorized"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/mapi/v2/txStatus/{id}": {
       "get": {
         "tags": [
           "Mapi"
@@ -111,18 +103,11 @@
               }
             }
           },
-          "401": {
+          "403": {
             "$ref": "#/components/responses/NotAuthorized"
           },
-          "500": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
+          "404": {
+            "description": "Not found"
           }
         }
       }
@@ -133,13 +118,38 @@
           "Mapi"
         ],
         "summary": "Submit a transaction.",
-        "description": "This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.",
+        "description": "This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.  The header parameters can be used to override the global settings in your MAPI dashboard for these transactions.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/callbackUrl"
+          },
+          {
+            "$ref": "#/components/parameters/callbackToken"
+          },
+          {
+            "$ref": "#/components/parameters/merkleProof"
+          }
+        ],
         "requestBody": {
           "description": "",
           "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string",
+                "example": "<transaction hex string>"
+              }
+            },
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SubmitTransaction"
+                "type": "string",
+                "example": "<transaction hex string>"
+              }
+            },
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "example": "<transaction binary data>",
+                "description": "test"
               }
             }
           }
@@ -150,7 +160,93 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SubmitTransactionResponse"
+                  "$ref": "#/components/schemas/TransactionResponse"
+                },
+                "examples": {
+                  "mined": {
+                    "summary": "Already mined",
+                    "value": {
+                      "apiVersion": "v2.0.0",
+                      "timestamp": "2022-10-18T13:30:22.653Z",
+                      "minerId": "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270",
+                      "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0",
+                      "blockHash": "000000000000000001d8f4bb24dd93d4e91ce926cc7a971be018c2b8d46d45ff",
+                      "blockHeight": 761868
+                    }
+                  },
+                  "mempool": {
+                    "summary": "Already in mempool",
+                    "value": {
+                      "apiVersion": "v2.0.0",
+                      "timestamp": "2022-10-18T13:30:22.653Z",
+                      "minerId": "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270",
+                      "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Added to block template",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionResponse"
+                },
+                "examples": {
+                  "success": {
+                    "summary": "Added to block template",
+                    "value": {
+                      "apiVersion": "v2.0.0",
+                      "timestamp": "2022-10-18T13:30:22.653Z",
+                      "minerId": "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270",
+                      "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBadRequest"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Fee too low",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorFee"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/NotAuthorized"
+          },
+          "409": {
+            "description": "Conflicting transaction found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorConflict"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable entity - with IETF RFC 7807 Error object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -164,48 +260,126 @@
           "Mapi"
         ],
         "summary": "Submit multiple transactions.",
-        "description": "This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates.",
+        "description": "This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates. The header parameters can be used to override the global settings in your MAPI dashboard for these transactions.",
         "parameters": [
           {
-            "name": "defaultCallbackUrl",
-            "in": "query",
-            "description": "Default double spend and merkle proof notification callback endpoint.",
-            "schema": {
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/callbackUrl"
           },
           {
-            "name": "defaultCallbackToken",
-            "in": "query",
-            "description": "Default access token for notification callback endpoint.",
-            "schema": {
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/callbackToken"
+          },
+          {
+            "$ref": "#/components/parameters/merkleProof"
           }
         ],
         "requestBody": {
           "description": "",
           "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string",
+                "example": "<transaction hex string>\n<transaction hex string>"
+              }
+            },
             "application/json": {
               "schema": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/SubmitTransaction"
+                  "type": "string",
+                  "example": "<transaction hex string>"
                 }
+              }
+            },
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "example": "<transaction binary data>"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "Already in block template, or already mined",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SubmitTransactionResponse"
+                  "$ref": "#/components/schemas/TransactionResponses"
+                },
+                "examples": {
+                  "mined": {
+                    "summary": "Already mined",
+                    "value": {
+                      "apiVersion": "v2.0.0",
+                      "timestamp": "2022-10-18T13:30:22.653Z",
+                      "minerId": "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270",
+                      "transactions": [
+                        {
+                          "status": 200,
+                          "title": "Already mined",
+                          "blockHash": "000000000000000001d8f4bb24dd93d4e91ce926cc7a971be018c2b8d46d45ff",
+                          "blockHeight": 761868,
+                          "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
+                        }
+                      ]
+                    }
+                  },
+                  "added": {
+                    "summary": "Added to block template",
+                    "value": {
+                      "apiVersion": "v2.0.0",
+                      "timestamp": "2022-10-18T13:30:22.653Z",
+                      "minerId": "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270",
+                      "transactions": [
+                        {
+                          "status": 201,
+                          "title": "Added to block template",
+                          "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
+                        }
+                      ]
+                    }
+                  },
+                  "error": {
+                    "summary": "Fee too low",
+                    "value": {
+                      "apiVersion": "v2.0.0",
+                      "timestamp": "2022-10-18T13:30:22.653Z",
+                      "minerId": "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270",
+                      "transactions": [
+                        {
+                          "type": "https://mapi.bitcoinsv.com/errors/402",
+                          "title": "Fee too low",
+                          "status": 402,
+                          "detail": "The fee in the transaction is too low to be included in a block",
+                          "instance": "https://mapi.taal.com/errors/123452",
+                          "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
+                        }
+                      ]
+                    }
+                  }
                 }
               }
             }
+          },
+          "400": {
+            "description": "IETF RFC 7807 Error object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBadRequest"
+                },
+                "example": {
+                  "type": "https://mapi.bitcoinsv.com/errors/400",
+                  "title": "Bad request",
+                  "status": 400,
+                  "detail": "The request seems to be malformed and cannot be processed",
+                  "instance": "https://mapi.taal.com/errors/1234556"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/NotAuthorized"
           }
         }
       }
@@ -215,9 +389,15 @@
     "schemas": {
       "BasicResponse": {
         "type": "object",
+        "required": [
+          "apiVersion",
+          "timestamp",
+          "minerId"
+        ],
         "properties": {
           "apiVersion": {
             "type": "string",
+            "example": "v2.0.0",
             "nullable": false
           },
           "timestamp": {
@@ -227,26 +407,86 @@
           },
           "minerId": {
             "type": "string",
-            "nullable": true
+            "example": "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270",
+            "nullable": false
           }
         }
       },
-      "Callback": {
-        "type": "object",
-        "properties": {
-          "url": {
-            "type": "string",
-            "nullable": true
+      "Policy": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BasicResponse"
           },
-          "token": {
+          {
+            "$ref": "#/components/schemas/FeeQuote"
+          },
+          {
+            "type": "object",
+            "required": [
+              "policies"
+            ],
+            "properties": {
+              "policies": {
+                "type": "object",
+                "additionalProperties": {},
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
+      "FeeQuote": {
+        "type": "object",
+        "required": [
+          "expiryTime",
+          "fees"
+        ],
+        "properties": {
+          "expiryTime": {
             "type": "string",
+            "format": "date-time"
+          },
+          "fees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Fee"
+            },
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Fee": {
+        "type": "object",
+        "required": [
+          "feeType",
+          "miningFee",
+          "relayFee"
+        ],
+        "properties": {
+          "feeType": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "data"
+            ],
+            "nullable": false
+          },
+          "miningFee": {
+            "$ref": "#/components/schemas/FeeAmount"
+          },
+          "relayFee": {
+            "$ref": "#/components/schemas/FeeAmount"
           }
         },
         "additionalProperties": false
       },
       "FeeAmount": {
         "type": "object",
+        "required": [
+          "satoshis",
+          "bytes"
+        ],
         "properties": {
           "satoshis": {
             "type": "integer",
@@ -259,68 +499,28 @@
         },
         "additionalProperties": false
       },
-      "FeeQuote": {
+      "Transaction": {
         "allOf": [
           {
             "$ref": "#/components/schemas/BasicResponse"
           },
           {
+            "$ref": "#/components/schemas/ChainInfo"
+          },
+          {
             "type": "object",
+            "required": [
+              "txid",
+              "tx"
+            ],
             "properties": {
-              "expiryTime": {
+              "txid": {
                 "type": "string",
-                "format": "date-time"
+                "nullable": false
               },
-              "fees": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/Fee"
-                },
-                "nullable": true
-              }
-            },
-            "additionalProperties": false
-          }
-        ]
-      },
-      "Fee": {
-        "type": "object",
-        "properties": {
-          "feeType": {
-            "type": "string",
-            "nullable": true
-          },
-          "miningFee": {
-            "$ref": "#/components/schemas/FeeAmount"
-          },
-          "relayFee": {
-            "$ref": "#/components/schemas/FeeAmount"
-          }
-        },
-        "additionalProperties": false
-      },
-      "PolicyQuote": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/BasicResponse"
-          },
-          {
-            "$ref": "#/components/schemas/FeeQuote"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "callbacks": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/Callback"
-                },
-                "nullable": true
-              },
-              "policies": {
-                "type": "object",
-                "additionalProperties": {},
-                "nullable": true
+              "tx": {
+                "type": "string",
+                "nullable": false
               }
             },
             "additionalProperties": false
@@ -333,153 +533,419 @@
             "$ref": "#/components/schemas/BasicResponse"
           },
           {
+            "$ref": "#/components/schemas/ChainInfo"
+          },
+          {
             "type": "object",
+            "required": [
+              "txid"
+            ],
             "properties": {
               "txid": {
                 "type": "string",
                 "nullable": false
-              },
-              "statusCode": {
-                "type": "number",
-                "nullable": false
-              },
-              "status": {
-                "type": "string",
-                "nullable": false
-              },
-              "blockHash": {
-                "type": "string",
-                "nullable": true
-              },
-              "blockHeight": {
-                "type": "integer",
-                "format": "int64",
-                "nullable": true
-              },
-              "confirmations": {
-                "type": "integer",
-                "format": "int64",
-                "nullable": true
-              },
-              "minerId": {
-                "type": "string",
-                "nullable": true
-              },
-              "txSecondMempoolExpiry": {
-                "type": "integer",
-                "format": "int32",
-                "nullable": true
               }
             },
             "additionalProperties": false
           }
         ]
       },
-      "SubmitTransactionConflicted": {
-        "type": "object",
-        "properties": {
-          "txid": {
-            "type": "string",
-            "nullable": true
-          },
-          "size": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "hex": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "SubmitTransactionResponse": {
+      "TransactionResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/BasicResponse"
           },
           {
+            "$ref": "#/components/schemas/ChainInfo"
+          },
+          {
+            "$ref": "#/components/schemas/TransactionDetails"
+          }
+        ],
+        "additionalProperties": false
+      },
+      "TransactionResponses": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BasicResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ChainInfo"
+          },
+          {
             "type": "object",
             "properties": {
-              "txid": {
-                "type": "string",
-                "nullable": false
-              },
-              "statusCode": {
-                "type": "number",
-                "nullable": false
-              },
-              "status": {
-                "type": "string",
-                "nullable": false
-              },
-              "currentHighestBlockHash": {
-                "type": "string",
-                "nullable": true
-              },
-              "currentHighestBlockHeight": {
-                "type": "integer",
-                "format": "int64",
-                "nullable": true
-              },
-              "txSecondMempoolExpiry": {
-                "type": "integer",
-                "format": "int64",
-                "nullable": true
-              },
-              "conflictedWith": {
+              "transactions": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/SubmitTransactionConflicted"
-                },
-                "nullable": true
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/TransactionDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                }
               }
             },
             "additionalProperties": false
           }
         ]
       },
-      "SubmitTransaction": {
+      "ChainInfo": {
         "type": "object",
         "properties": {
-          "rawTx": {
+          "blockHash": {
             "type": "string",
             "nullable": false
           },
-          "callbackUrl": {
-            "type": "string",
-            "nullable": true
-          },
-          "callbackToken": {
-            "type": "string",
-            "nullable": true
-          },
-          "merkleProof": {
-            "type": "boolean",
-            "nullable": true
+          "blockHeight": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": false
           }
-        },
-        "additionalProperties": false
+        }
       },
-      "Error": {
+      "TransactionSubmitStatus": {
         "type": "object",
         "properties": {
-          "code": {
-            "type": "number"
+          "status": {
+            "type": "number",
+            "example": 201,
+            "nullable": false
           },
-          "message": {
-            "type": "string"
+          "title": {
+            "type": "string",
+            "example": "Added to mempool",
+            "nullable": false
           }
-        },
-        "required": [
-          "code",
-          "message"
+        }
+      },
+      "TransactionDetails": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TransactionSubmitStatus"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "txid": {
+                "type": "string",
+                "description": "Transaction ID in hex",
+                "example": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0",
+                "nullable": false
+              },
+              "conflictedWith": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "description": "Transaction ID in hex",
+                  "example": "d7d2c6519da8b02a2e765cb3c93846d9d63c91c38eb8b78c7d7bc46eac25285e"
+                },
+                "nullable": true
+              }
+            }
+          }
         ]
+      },
+      "Error": {
+        "description": "An HTTP Problem Details object, as defined in IETF RFC 7807 (https://tools.ietf.org/html/rfc7807).",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ErrorUnlockingScripts"
+          },
+          {
+            "$ref": "#/components/schemas/ErrorInputs"
+          },
+          {
+            "$ref": "#/components/schemas/ErrorMalformed"
+          },
+          {
+            "$ref": "#/components/schemas/ErrorFrozenPolicy"
+          },
+          {
+            "$ref": "#/components/schemas/ErrorFrozenConsensus"
+          }
+        ]
+      },
+      "ErrorBadRequest": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://mapi.bitcoinsv.com/errors/400"
+              },
+              "title": {
+                "example": "Bad request"
+              },
+              "status": {
+                "example": 400
+              },
+              "detail": {
+                "example": "The request seems to be malformed and cannot be processed"
+              },
+              "instance": {
+                "example": "https://mapi.taal.com/errors/1234556"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorFee": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://mapi.bitcoinsv.com/errors/402"
+              },
+              "title": {
+                "example": "Fee too low"
+              },
+              "status": {
+                "example": 402
+              },
+              "detail": {
+                "example": "The fee in the transaction is too low to be included in a block"
+              },
+              "instance": {
+                "example": "https://mapi.taal.com/errors/123452"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorConflict": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://mapi.bitcoinsv.com/errors/409"
+              },
+              "title": {
+                "example": "Conflicting tx found"
+              },
+              "status": {
+                "example": 409
+              },
+              "detail": {
+                "example": "Tx is valid, but there is a conflicting tx in the block template"
+              },
+              "instance": {
+                "example": "https://mapi.taal.com/errors/123453"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorUnlockingScripts": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://mapi.bitcoinsv.com/errors/461"
+              },
+              "title": {
+                "example": "Invalid unlocking scripts"
+              },
+              "status": {
+                "example": 461
+              },
+              "detail": {
+                "example": "Tx is invalid because the unlock scripts are invalid"
+              },
+              "instance": {
+                "example": "https://mapi.taal.com/errors/123452"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorInputs": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://mapi.bitcoinsv.com/errors/462"
+              },
+              "title": {
+                "example": "Invalid inputs"
+              },
+              "status": {
+                "example": 462
+              },
+              "detail": {
+                "example": "Tx is invalid because the inputs are non-existent or spent"
+              },
+              "instance": {
+                "example": "https://mapi.taal.com/errors/123452"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorMalformed": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://mapi.bitcoinsv.com/errors/463"
+              },
+              "title": {
+                "example": "Malformed transaction"
+              },
+              "status": {
+                "example": 463
+              },
+              "detail": {
+                "example": "Tx is malformed"
+              },
+              "instance": {
+                "example": "https://mapi.taal.com/errors/123452"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorFrozenPolicy": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://mapi.bitcoinsv.com/errors/471"
+              },
+              "title": {
+                "example": "Input Frozen"
+              },
+              "status": {
+                "example": 471
+              },
+              "detail": {
+                "example": "Input Frozen (blacklist manager policy blacklisted)"
+              },
+              "instance": {
+                "example": "https://mapi.taal.com/errors/123452"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorFrozenConsensus": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://mapi.bitcoinsv.com/errors/472"
+              },
+              "title": {
+                "example": "Input Frozen"
+              },
+              "status": {
+                "example": 472
+              },
+              "detail": {
+                "example": "Input Frozen (blacklist manager consensus blacklisted)"
+              },
+              "instance": {
+                "example": "https://mapi.taal.com/errors/123452"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorFields": {
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Type of error, with link to more information",
+            "nullable": false
+          },
+          "title": {
+            "type": "string",
+            "description": "Descriptive text for error",
+            "nullable": false
+          },
+          "status": {
+            "type": "number",
+            "description": "Error code",
+            "example": 402,
+            "nullable": false
+          },
+          "detail": {
+            "type": "string",
+            "description": "Longer description of error",
+            "example": "The fee in the transaction is too low to be included in a block.",
+            "nullable": false
+          },
+          "instance": {
+            "type": "string",
+            "description": "(Optional) Link to actual error on server",
+            "nullable": true
+          },
+          "txid": {
+            "type": "string",
+            "description": "Transaction ID this error is referring to",
+            "nullable": true
+          },
+          "extraInfo": {
+            "type": "string",
+            "description": "Optional extra information about the error from the miner",
+            "nullable": true
+          }
+        }
       }
     },
     "responses": {
       "NotAuthorized": {
-        "description": "The requester is unauthorized."
+        "description": "Security requirements failed"
       }
     },
     "securitySchemes": {
@@ -494,6 +960,32 @@
         "description": "Please enter API key needed to access admin endpoints into field. Api-Key: My_API_Key",
         "name": "Api-Key",
         "in": "header"
+      }
+    },
+    "parameters": {
+      "callbackUrl": {
+        "name": "X-CallbackUrl",
+        "in": "header",
+        "description": "Default double spend and merkle proof notification callback endpoint.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "callbackToken": {
+        "name": "X-CallbackToken",
+        "in": "header",
+        "description": "Access token for notification callback endpoint.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "merkleProof": {
+        "name": "X-MerkleProof",
+        "in": "header",
+        "description": "Whether to include merkle proofs in the callbacks (true | false).",
+        "schema": {
+          "type": "string"
+        }
       }
     }
   },

@@ -83,8 +83,8 @@ const (
 	ErrorGettingMinerID     = 20
 	ErrorMissingHandler     = 21
 
-	// TODO what should we use here and what format?
-	ErrorMAPIFeesNotFound = 501
+	// ErrorMAPIFeesNotFound TODO what should we use here and what format?
+	ErrorMAPIFeesNotFound = 404
 
 	errorCodeLast = iota
 )

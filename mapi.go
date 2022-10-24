@@ -24,123 +24,312 @@ import (
 )
 
 const (
-	Api_KeyScopes = "Api_Key.Scopes"
-	BearerScopes  = "Bearer.Scopes"
+	ApiKeyAuthScopes = "ApiKeyAuth.Scopes"
+)
+
+// Defines values for FeeFeeType.
+const (
+	Data     FeeFeeType = "data"
+	Standard FeeFeeType = "standard"
 )
 
 // BasicResponse defines model for BasicResponse.
 type BasicResponse struct {
-	ApiVersion *string    `json:"apiVersion,omitempty"`
-	MinerId    *string    `json:"minerId"`
-	Timestamp  *time.Time `json:"timestamp,omitempty"`
+	ApiVersion string    `json:"apiVersion"`
+	MinerId    string    `json:"minerId"`
+	Timestamp  time.Time `json:"timestamp"`
 }
 
-// Callback defines model for Callback.
-type Callback struct {
-	Token *string `json:"token"`
-	Url   *string `json:"url"`
+// ChainInfo defines model for ChainInfo.
+type ChainInfo struct {
+	BlockHash   *string `json:"blockHash,omitempty"`
+	BlockHeight *uint64 `json:"blockHeight,omitempty"`
 }
 
-// Error defines model for Error.
-type Error struct {
-	Code    float32 `json:"code"`
-	Message string  `json:"message"`
+// An HTTP Problem Details object, as defined in IETF RFC 7807 (https://tools.ietf.org/html/rfc7807).
+type Error interface{}
+
+// ErrorBadRequest defines model for ErrorBadRequest.
+type ErrorBadRequest struct {
+	Detail interface{} `json:"detail"`
+
+	// Optional extra information about the error from the miner
+	ExtraInfo *string      `json:"extraInfo"`
+	Instance  *interface{} `json:"instance,omitempty"`
+	Status    interface{}  `json:"status"`
+	Title     interface{}  `json:"title"`
+
+	// Transaction ID this error is referring to
+	Txid *string     `json:"txid"`
+	Type interface{} `json:"type"`
+}
+
+// ErrorConflict defines model for ErrorConflict.
+type ErrorConflict struct {
+	ConflictedWith *interface{} `json:"conflictedWith,omitempty"`
+	Detail         interface{}  `json:"detail"`
+
+	// Optional extra information about the error from the miner
+	ExtraInfo *string      `json:"extraInfo"`
+	Instance  *interface{} `json:"instance,omitempty"`
+	Status    interface{}  `json:"status"`
+	Title     interface{}  `json:"title"`
+
+	// Transaction ID this error is referring to
+	Txid *string     `json:"txid"`
+	Type interface{} `json:"type"`
+}
+
+// ErrorFee defines model for ErrorFee.
+type ErrorFee struct {
+	Detail interface{} `json:"detail"`
+
+	// Optional extra information about the error from the miner
+	ExtraInfo *string      `json:"extraInfo"`
+	Instance  *interface{} `json:"instance,omitempty"`
+	Status    interface{}  `json:"status"`
+	Title     interface{}  `json:"title"`
+
+	// Transaction ID this error is referring to
+	Txid *string     `json:"txid"`
+	Type interface{} `json:"type"`
+}
+
+// ErrorFields defines model for ErrorFields.
+type ErrorFields struct {
+	// Longer description of error
+	Detail string `json:"detail"`
+
+	// Optional extra information about the error from the miner
+	ExtraInfo *string `json:"extraInfo"`
+
+	// (Optional) Link to actual error on server
+	Instance *string `json:"instance"`
+
+	// Error code
+	Status uint `json:"status"`
+
+	// Descriptive text for error
+	Title string `json:"title"`
+
+	// Transaction ID this error is referring to
+	Txid *string `json:"txid"`
+
+	// Type of error, with link to more information
+	Type string `json:"type"`
+}
+
+// ErrorFrozenConsensus defines model for ErrorFrozenConsensus.
+type ErrorFrozenConsensus struct {
+	Detail interface{} `json:"detail"`
+
+	// Optional extra information about the error from the miner
+	ExtraInfo *string      `json:"extraInfo"`
+	Instance  *interface{} `json:"instance,omitempty"`
+	Status    interface{}  `json:"status"`
+	Title     interface{}  `json:"title"`
+
+	// Transaction ID this error is referring to
+	Txid *string     `json:"txid"`
+	Type interface{} `json:"type"`
+}
+
+// ErrorFrozenPolicy defines model for ErrorFrozenPolicy.
+type ErrorFrozenPolicy struct {
+	Detail interface{} `json:"detail"`
+
+	// Optional extra information about the error from the miner
+	ExtraInfo *string      `json:"extraInfo"`
+	Instance  *interface{} `json:"instance,omitempty"`
+	Status    interface{}  `json:"status"`
+	Title     interface{}  `json:"title"`
+
+	// Transaction ID this error is referring to
+	Txid *string     `json:"txid"`
+	Type interface{} `json:"type"`
+}
+
+// ErrorInputs defines model for ErrorInputs.
+type ErrorInputs struct {
+	Detail interface{} `json:"detail"`
+
+	// Optional extra information about the error from the miner
+	ExtraInfo *string      `json:"extraInfo"`
+	Instance  *interface{} `json:"instance,omitempty"`
+	Status    interface{}  `json:"status"`
+	Title     interface{}  `json:"title"`
+
+	// Transaction ID this error is referring to
+	Txid *string     `json:"txid"`
+	Type interface{} `json:"type"`
+}
+
+// ErrorMalformed defines model for ErrorMalformed.
+type ErrorMalformed struct {
+	Detail interface{} `json:"detail"`
+
+	// Optional extra information about the error from the miner
+	ExtraInfo *string      `json:"extraInfo"`
+	Instance  *interface{} `json:"instance,omitempty"`
+	Status    interface{}  `json:"status"`
+	Title     interface{}  `json:"title"`
+
+	// Transaction ID this error is referring to
+	Txid *string     `json:"txid"`
+	Type interface{} `json:"type"`
+}
+
+// ErrorUnlockingScripts defines model for ErrorUnlockingScripts.
+type ErrorUnlockingScripts struct {
+	Detail interface{} `json:"detail"`
+
+	// Optional extra information about the error from the miner
+	ExtraInfo *string      `json:"extraInfo"`
+	Instance  *interface{} `json:"instance,omitempty"`
+	Status    interface{}  `json:"status"`
+	Title     interface{}  `json:"title"`
+
+	// Transaction ID this error is referring to
+	Txid *string     `json:"txid"`
+	Type interface{} `json:"type"`
 }
 
 // Fee defines model for Fee.
 type Fee struct {
-	FeeType   *string    `json:"feeType"`
-	MiningFee *FeeAmount `json:"miningFee,omitempty"`
-	RelayFee  *FeeAmount `json:"relayFee,omitempty"`
+	FeeType   FeeFeeType `json:"feeType"`
+	MiningFee FeeAmount  `json:"miningFee"`
+	RelayFee  FeeAmount  `json:"relayFee"`
 }
+
+// FeeFeeType defines model for Fee.FeeType.
+type FeeFeeType string
 
 // FeeAmount defines model for FeeAmount.
 type FeeAmount struct {
-	Bytes    *uint64 `json:"bytes,omitempty"`
-	Satoshis *uint64 `json:"satoshis,omitempty"`
+	Bytes    uint64 `json:"bytes"`
+	Satoshis uint64 `json:"satoshis"`
 }
 
 // FeeQuote defines model for FeeQuote.
 type FeeQuote struct {
-	ApiVersion *string    `json:"apiVersion,omitempty"`
-	ExpiryTime *time.Time `json:"expiryTime,omitempty"`
-	Fees       *[]Fee     `json:"fees"`
-	MinerId    *string    `json:"minerId"`
-	Timestamp  *time.Time `json:"timestamp,omitempty"`
+	ExpiryTime time.Time `json:"expiryTime"`
+	Fees       *[]Fee    `json:"fees"`
 }
 
-// PolicyQuote defines model for PolicyQuote.
-type PolicyQuote struct {
-	ApiVersion *string               `json:"apiVersion,omitempty"`
-	Callbacks  *[]Callback           `json:"callbacks"`
-	ExpiryTime *time.Time            `json:"expiryTime,omitempty"`
-	Fees       *[]Fee                `json:"fees"`
-	MinerId    *string               `json:"minerId"`
-	Policies   *PolicyQuote_Policies `json:"policies"`
-	Timestamp  *time.Time            `json:"timestamp,omitempty"`
+// Policy defines model for Policy.
+type Policy struct {
+	ApiVersion string           `json:"apiVersion"`
+	ExpiryTime time.Time        `json:"expiryTime"`
+	Fees       *[]Fee           `json:"fees"`
+	MinerId    string           `json:"minerId"`
+	Policies   *Policy_Policies `json:"policies"`
+	Timestamp  time.Time        `json:"timestamp"`
 }
 
-// PolicyQuote_Policies defines model for PolicyQuote.Policies.
-type PolicyQuote_Policies struct {
+// Policy_Policies defines model for Policy.Policies.
+type Policy_Policies struct {
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
-// SubmitTransaction defines model for SubmitTransaction.
-type SubmitTransaction struct {
-	CallbackToken *string `json:"callbackToken"`
-	CallbackUrl   *string `json:"callbackUrl"`
-	MerkleProof   *bool   `json:"merkleProof"`
-	RawTx         *string `json:"rawTx,omitempty"`
+// Transaction defines model for Transaction.
+type Transaction struct {
+	ApiVersion  string    `json:"apiVersion"`
+	BlockHash   *string   `json:"blockHash,omitempty"`
+	BlockHeight *uint64   `json:"blockHeight,omitempty"`
+	MinerId     string    `json:"minerId"`
+	Timestamp   time.Time `json:"timestamp"`
+	Tx          string    `json:"tx"`
+	Txid        string    `json:"txid"`
 }
 
-// SubmitTransactionConflicted defines model for SubmitTransactionConflicted.
-type SubmitTransactionConflicted struct {
-	Hex  *string `json:"hex"`
-	Size *int64  `json:"size,omitempty"`
-	Txid *string `json:"txid"`
+// TransactionDetails defines model for TransactionDetails.
+type TransactionDetails struct {
+	ConflictedWith *[]string `json:"conflictedWith"`
+	Status         uint      `json:"status"`
+	Title          string    `json:"title"`
+
+	// Transaction ID in hex
+	Txid *string `json:"txid,omitempty"`
 }
 
-// SubmitTransactionResponse defines model for SubmitTransactionResponse.
-type SubmitTransactionResponse struct {
-	ApiVersion                *string                        `json:"apiVersion,omitempty"`
-	ConflictedWith            *[]SubmitTransactionConflicted `json:"conflictedWith"`
-	CurrentHighestBlockHash   *string                        `json:"currentHighestBlockHash"`
-	CurrentHighestBlockHeight *int64                         `json:"currentHighestBlockHeight"`
-	MinerId                   *string                        `json:"minerId"`
-	Status                    *string                        `json:"status,omitempty"`
-	StatusCode                *float32                       `json:"statusCode,omitempty"`
-	Timestamp                 *time.Time                     `json:"timestamp,omitempty"`
-	TxSecondMempoolExpiry     *int64                         `json:"txSecondMempoolExpiry"`
-	Txid                      *string                        `json:"txid,omitempty"`
+// TransactionResponse defines model for TransactionResponse.
+type TransactionResponse struct {
+	ApiVersion     string    `json:"apiVersion"`
+	BlockHash      *string   `json:"blockHash,omitempty"`
+	BlockHeight    *uint64   `json:"blockHeight,omitempty"`
+	ConflictedWith *[]string `json:"conflictedWith"`
+	MinerId        string    `json:"minerId"`
+	Status         uint      `json:"status"`
+	Timestamp      time.Time `json:"timestamp"`
+	Title          string    `json:"title"`
+
+	// Transaction ID in hex
+	Txid *string `json:"txid,omitempty"`
+}
+
+// TransactionResponses defines model for TransactionResponses.
+type TransactionResponses struct {
+	ApiVersion   string         `json:"apiVersion"`
+	BlockHash    *string        `json:"blockHash,omitempty"`
+	BlockHeight  *uint64        `json:"blockHeight,omitempty"`
+	MinerId      string         `json:"minerId"`
+	Timestamp    time.Time      `json:"timestamp"`
+	Transactions *[]interface{} `json:"transactions,omitempty"`
 }
 
 // TransactionStatus defines model for TransactionStatus.
 type TransactionStatus struct {
-	ApiVersion            *string    `json:"apiVersion,omitempty"`
-	BlockHash             *string    `json:"blockHash"`
-	BlockHeight           *int64     `json:"blockHeight"`
-	Confirmations         *int64     `json:"confirmations"`
-	MinerId               *string    `json:"minerId"`
-	Status                *string    `json:"status,omitempty"`
-	StatusCode            *float32   `json:"statusCode,omitempty"`
-	Timestamp             *time.Time `json:"timestamp,omitempty"`
-	TxSecondMempoolExpiry *int32     `json:"txSecondMempoolExpiry"`
-	Txid                  *string    `json:"txid,omitempty"`
+	ApiVersion  string    `json:"apiVersion"`
+	BlockHash   *string   `json:"blockHash,omitempty"`
+	BlockHeight *uint64   `json:"blockHeight,omitempty"`
+	MinerId     string    `json:"minerId"`
+	Timestamp   time.Time `json:"timestamp"`
+	Txid        string    `json:"txid"`
 }
 
+// TransactionSubmitStatus defines model for TransactionSubmitStatus.
+type TransactionSubmitStatus struct {
+	Status uint   `json:"status"`
+	Title  string `json:"title"`
+}
+
+// CallbackToken defines model for callbackToken.
+type CallbackToken = string
+
+// CallbackUrl defines model for callbackUrl.
+type CallbackUrl = string
+
+// MerkleProof defines model for merkleProof.
+type MerkleProof = string
+
 // PostMapiV2TxJSONBody defines parameters for PostMapiV2Tx.
-type PostMapiV2TxJSONBody = SubmitTransaction
+type PostMapiV2TxJSONBody = string
+
+// PostMapiV2TxParams defines parameters for PostMapiV2Tx.
+type PostMapiV2TxParams struct {
+	// Default double spend and merkle proof notification callback endpoint.
+	XCallbackUrl *CallbackUrl `json:"X-CallbackUrl,omitempty"`
+
+	// Access token for notification callback endpoint.
+	XCallbackToken *CallbackToken `json:"X-CallbackToken,omitempty"`
+
+	// Whether to include merkle proofs in the callbacks (true | false).
+	XMerkleProof *MerkleProof `json:"X-MerkleProof,omitempty"`
+}
 
 // PostMapiV2TxsJSONBody defines parameters for PostMapiV2Txs.
-type PostMapiV2TxsJSONBody = []SubmitTransaction
+type PostMapiV2TxsJSONBody = []string
 
 // PostMapiV2TxsParams defines parameters for PostMapiV2Txs.
 type PostMapiV2TxsParams struct {
 	// Default double spend and merkle proof notification callback endpoint.
-	DefaultCallbackUrl *string `form:"defaultCallbackUrl,omitempty" json:"defaultCallbackUrl,omitempty"`
+	XCallbackUrl *CallbackUrl `json:"X-CallbackUrl,omitempty"`
 
-	// Default access token for notification callback endpoint.
-	DefaultCallbackToken *string `form:"defaultCallbackToken,omitempty" json:"defaultCallbackToken,omitempty"`
+	// Access token for notification callback endpoint.
+	XCallbackToken *CallbackToken `json:"X-CallbackToken,omitempty"`
+
+	// Whether to include merkle proofs in the callbacks (true | false).
+	XMerkleProof *MerkleProof `json:"X-MerkleProof,omitempty"`
 }
 
 // PostMapiV2TxJSONRequestBody defines body for PostMapiV2Tx for application/json ContentType.
@@ -149,25 +338,25 @@ type PostMapiV2TxJSONRequestBody = PostMapiV2TxJSONBody
 // PostMapiV2TxsJSONRequestBody defines body for PostMapiV2Txs for application/json ContentType.
 type PostMapiV2TxsJSONRequestBody = PostMapiV2TxsJSONBody
 
-// Getter for additional properties for PolicyQuote_Policies. Returns the specified
+// Getter for additional properties for Policy_Policies. Returns the specified
 // element and whether it was found
-func (a PolicyQuote_Policies) Get(fieldName string) (value interface{}, found bool) {
+func (a Policy_Policies) Get(fieldName string) (value interface{}, found bool) {
 	if a.AdditionalProperties != nil {
 		value, found = a.AdditionalProperties[fieldName]
 	}
 	return
 }
 
-// Setter for additional properties for PolicyQuote_Policies
-func (a *PolicyQuote_Policies) Set(fieldName string, value interface{}) {
+// Setter for additional properties for Policy_Policies
+func (a *Policy_Policies) Set(fieldName string, value interface{}) {
 	if a.AdditionalProperties == nil {
 		a.AdditionalProperties = make(map[string]interface{})
 	}
 	a.AdditionalProperties[fieldName] = value
 }
 
-// Override default JSON handling for PolicyQuote_Policies to handle AdditionalProperties
-func (a *PolicyQuote_Policies) UnmarshalJSON(b []byte) error {
+// Override default JSON handling for Policy_Policies to handle AdditionalProperties
+func (a *Policy_Policies) UnmarshalJSON(b []byte) error {
 	object := make(map[string]json.RawMessage)
 	err := json.Unmarshal(b, &object)
 	if err != nil {
@@ -188,8 +377,8 @@ func (a *PolicyQuote_Policies) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// Override default JSON handling for PolicyQuote_Policies to handle AdditionalProperties
-func (a PolicyQuote_Policies) MarshalJSON() ([]byte, error) {
+// Override default JSON handling for Policy_Policies to handle AdditionalProperties
+func (a Policy_Policies) MarshalJSON() ([]byte, error) {
 	var err error
 	object := make(map[string]json.RawMessage)
 
@@ -275,19 +464,19 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// GetMapiV2FeeQuote request
-	GetMapiV2FeeQuote(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// GetMapiV2PolicyQuote request
-	GetMapiV2PolicyQuote(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GetMapiV2Policy request
+	GetMapiV2Policy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PostMapiV2Tx request with any body
-	PostMapiV2TxWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PostMapiV2TxWithBody(ctx context.Context, params *PostMapiV2TxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PostMapiV2Tx(ctx context.Context, body PostMapiV2TxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PostMapiV2Tx(ctx context.Context, params *PostMapiV2TxParams, body PostMapiV2TxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetMapiV2TxId request
 	GetMapiV2TxId(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetMapiV2TxStatusId request
+	GetMapiV2TxStatusId(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PostMapiV2Txs request with any body
 	PostMapiV2TxsWithBody(ctx context.Context, params *PostMapiV2TxsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -295,8 +484,8 @@ type ClientInterface interface {
 	PostMapiV2Txs(ctx context.Context, params *PostMapiV2TxsParams, body PostMapiV2TxsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) GetMapiV2FeeQuote(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetMapiV2FeeQuoteRequest(c.Server)
+func (c *Client) GetMapiV2Policy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetMapiV2PolicyRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -307,8 +496,8 @@ func (c *Client) GetMapiV2FeeQuote(ctx context.Context, reqEditors ...RequestEdi
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetMapiV2PolicyQuote(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetMapiV2PolicyQuoteRequest(c.Server)
+func (c *Client) PostMapiV2TxWithBody(ctx context.Context, params *PostMapiV2TxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostMapiV2TxRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -319,20 +508,8 @@ func (c *Client) GetMapiV2PolicyQuote(ctx context.Context, reqEditors ...Request
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostMapiV2TxWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostMapiV2TxRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) PostMapiV2Tx(ctx context.Context, body PostMapiV2TxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostMapiV2TxRequest(c.Server, body)
+func (c *Client) PostMapiV2Tx(ctx context.Context, params *PostMapiV2TxParams, body PostMapiV2TxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostMapiV2TxRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -345,6 +522,18 @@ func (c *Client) PostMapiV2Tx(ctx context.Context, body PostMapiV2TxJSONRequestB
 
 func (c *Client) GetMapiV2TxId(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetMapiV2TxIdRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetMapiV2TxStatusId(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetMapiV2TxStatusIdRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -379,8 +568,8 @@ func (c *Client) PostMapiV2Txs(ctx context.Context, params *PostMapiV2TxsParams,
 	return c.Client.Do(req)
 }
 
-// NewGetMapiV2FeeQuoteRequest generates requests for GetMapiV2FeeQuote
-func NewGetMapiV2FeeQuoteRequest(server string) (*http.Request, error) {
+// NewGetMapiV2PolicyRequest generates requests for GetMapiV2Policy
+func NewGetMapiV2PolicyRequest(server string) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -388,34 +577,7 @@ func NewGetMapiV2FeeQuoteRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/mapi/v2/feeQuote")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewGetMapiV2PolicyQuoteRequest generates requests for GetMapiV2PolicyQuote
-func NewGetMapiV2PolicyQuoteRequest(server string) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/mapi/v2/policyQuote")
+	operationPath := fmt.Sprintf("/mapi/v2/policy")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -434,18 +596,18 @@ func NewGetMapiV2PolicyQuoteRequest(server string) (*http.Request, error) {
 }
 
 // NewPostMapiV2TxRequest calls the generic PostMapiV2Tx builder with application/json body
-func NewPostMapiV2TxRequest(server string, body PostMapiV2TxJSONRequestBody) (*http.Request, error) {
+func NewPostMapiV2TxRequest(server string, params *PostMapiV2TxParams, body PostMapiV2TxJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewPostMapiV2TxRequestWithBody(server, "application/json", bodyReader)
+	return NewPostMapiV2TxRequestWithBody(server, params, "application/json", bodyReader)
 }
 
 // NewPostMapiV2TxRequestWithBody generates requests for PostMapiV2Tx with any type of body
-func NewPostMapiV2TxRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+func NewPostMapiV2TxRequestWithBody(server string, params *PostMapiV2TxParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -470,6 +632,39 @@ func NewPostMapiV2TxRequestWithBody(server string, contentType string, body io.R
 
 	req.Header.Add("Content-Type", contentType)
 
+	if params.XCallbackUrl != nil {
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithLocation("simple", false, "X-CallbackUrl", runtime.ParamLocationHeader, *params.XCallbackUrl)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-CallbackUrl", headerParam0)
+	}
+
+	if params.XCallbackToken != nil {
+		var headerParam1 string
+
+		headerParam1, err = runtime.StyleParamWithLocation("simple", false, "X-CallbackToken", runtime.ParamLocationHeader, *params.XCallbackToken)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-CallbackToken", headerParam1)
+	}
+
+	if params.XMerkleProof != nil {
+		var headerParam2 string
+
+		headerParam2, err = runtime.StyleParamWithLocation("simple", false, "X-MerkleProof", runtime.ParamLocationHeader, *params.XMerkleProof)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MerkleProof", headerParam2)
+	}
+
 	return req, nil
 }
 
@@ -490,6 +685,40 @@ func NewGetMapiV2TxIdRequest(server string, id string) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/mapi/v2/tx/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetMapiV2TxStatusIdRequest generates requests for GetMapiV2TxStatusId
+func NewGetMapiV2TxStatusIdRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/mapi/v2/txStatus/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -537,48 +766,45 @@ func NewPostMapiV2TxsRequestWithBody(server string, params *PostMapiV2TxsParams,
 		return nil, err
 	}
 
-	queryValues := queryURL.Query()
-
-	if params.DefaultCallbackUrl != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "defaultCallbackUrl", runtime.ParamLocationQuery, *params.DefaultCallbackUrl); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
-				}
-			}
-		}
-
-	}
-
-	if params.DefaultCallbackToken != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "defaultCallbackToken", runtime.ParamLocationQuery, *params.DefaultCallbackToken); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
-				}
-			}
-		}
-
-	}
-
-	queryURL.RawQuery = queryValues.Encode()
-
 	req, err := http.NewRequest("POST", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	if params.XCallbackUrl != nil {
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithLocation("simple", false, "X-CallbackUrl", runtime.ParamLocationHeader, *params.XCallbackUrl)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-CallbackUrl", headerParam0)
+	}
+
+	if params.XCallbackToken != nil {
+		var headerParam1 string
+
+		headerParam1, err = runtime.StyleParamWithLocation("simple", false, "X-CallbackToken", runtime.ParamLocationHeader, *params.XCallbackToken)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-CallbackToken", headerParam1)
+	}
+
+	if params.XMerkleProof != nil {
+		var headerParam2 string
+
+		headerParam2, err = runtime.StyleParamWithLocation("simple", false, "X-MerkleProof", runtime.ParamLocationHeader, *params.XMerkleProof)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MerkleProof", headerParam2)
+	}
 
 	return req, nil
 }
@@ -626,19 +852,19 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// GetMapiV2FeeQuote request
-	GetMapiV2FeeQuoteWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetMapiV2FeeQuoteResponse, error)
-
-	// GetMapiV2PolicyQuote request
-	GetMapiV2PolicyQuoteWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetMapiV2PolicyQuoteResponse, error)
+	// GetMapiV2Policy request
+	GetMapiV2PolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetMapiV2PolicyResponse, error)
 
 	// PostMapiV2Tx request with any body
-	PostMapiV2TxWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostMapiV2TxResponse, error)
+	PostMapiV2TxWithBodyWithResponse(ctx context.Context, params *PostMapiV2TxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostMapiV2TxResponse, error)
 
-	PostMapiV2TxWithResponse(ctx context.Context, body PostMapiV2TxJSONRequestBody, reqEditors ...RequestEditorFn) (*PostMapiV2TxResponse, error)
+	PostMapiV2TxWithResponse(ctx context.Context, params *PostMapiV2TxParams, body PostMapiV2TxJSONRequestBody, reqEditors ...RequestEditorFn) (*PostMapiV2TxResponse, error)
 
 	// GetMapiV2TxId request
 	GetMapiV2TxIdWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetMapiV2TxIdResponse, error)
+
+	// GetMapiV2TxStatusId request
+	GetMapiV2TxStatusIdWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetMapiV2TxStatusIdResponse, error)
 
 	// PostMapiV2Txs request with any body
 	PostMapiV2TxsWithBodyWithResponse(ctx context.Context, params *PostMapiV2TxsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostMapiV2TxsResponse, error)
@@ -646,15 +872,14 @@ type ClientWithResponsesInterface interface {
 	PostMapiV2TxsWithResponse(ctx context.Context, params *PostMapiV2TxsParams, body PostMapiV2TxsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostMapiV2TxsResponse, error)
 }
 
-type GetMapiV2FeeQuoteResponse struct {
+type GetMapiV2PolicyResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *FeeQuote
-	JSON500      *Error
+	JSON200      *Policy
 }
 
 // Status returns HTTPResponse.Status
-func (r GetMapiV2FeeQuoteResponse) Status() string {
+func (r GetMapiV2PolicyResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -662,30 +887,7 @@ func (r GetMapiV2FeeQuoteResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetMapiV2FeeQuoteResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type GetMapiV2PolicyQuoteResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *PolicyQuote
-	JSON500      *Error
-}
-
-// Status returns HTTPResponse.Status
-func (r GetMapiV2PolicyQuoteResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r GetMapiV2PolicyQuoteResponse) StatusCode() int {
+func (r GetMapiV2PolicyResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -695,8 +897,12 @@ func (r GetMapiV2PolicyQuoteResponse) StatusCode() int {
 type PostMapiV2TxResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *SubmitTransactionResponse
-	JSON500      *Error
+	JSON200      *TransactionResponse
+	JSON201      *TransactionResponse
+	JSON400      *ErrorBadRequest
+	JSON402      *ErrorFee
+	JSON409      *ErrorConflict
+	JSON422      *Error
 }
 
 // Status returns HTTPResponse.Status
@@ -718,8 +924,7 @@ func (r PostMapiV2TxResponse) StatusCode() int {
 type GetMapiV2TxIdResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *TransactionStatus
-	JSON500      *Error
+	JSON200      *Transaction
 }
 
 // Status returns HTTPResponse.Status
@@ -738,11 +943,33 @@ func (r GetMapiV2TxIdResponse) StatusCode() int {
 	return 0
 }
 
+type GetMapiV2TxStatusIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TransactionStatus
+}
+
+// Status returns HTTPResponse.Status
+func (r GetMapiV2TxStatusIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetMapiV2TxStatusIdResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type PostMapiV2TxsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *SubmitTransactionResponse
-	JSON500      *Error
+	JSON200      *TransactionResponses
+	JSON400      *ErrorBadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -761,35 +988,26 @@ func (r PostMapiV2TxsResponse) StatusCode() int {
 	return 0
 }
 
-// GetMapiV2FeeQuoteWithResponse request returning *GetMapiV2FeeQuoteResponse
-func (c *ClientWithResponses) GetMapiV2FeeQuoteWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetMapiV2FeeQuoteResponse, error) {
-	rsp, err := c.GetMapiV2FeeQuote(ctx, reqEditors...)
+// GetMapiV2PolicyWithResponse request returning *GetMapiV2PolicyResponse
+func (c *ClientWithResponses) GetMapiV2PolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetMapiV2PolicyResponse, error) {
+	rsp, err := c.GetMapiV2Policy(ctx, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetMapiV2FeeQuoteResponse(rsp)
-}
-
-// GetMapiV2PolicyQuoteWithResponse request returning *GetMapiV2PolicyQuoteResponse
-func (c *ClientWithResponses) GetMapiV2PolicyQuoteWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetMapiV2PolicyQuoteResponse, error) {
-	rsp, err := c.GetMapiV2PolicyQuote(ctx, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseGetMapiV2PolicyQuoteResponse(rsp)
+	return ParseGetMapiV2PolicyResponse(rsp)
 }
 
 // PostMapiV2TxWithBodyWithResponse request with arbitrary body returning *PostMapiV2TxResponse
-func (c *ClientWithResponses) PostMapiV2TxWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostMapiV2TxResponse, error) {
-	rsp, err := c.PostMapiV2TxWithBody(ctx, contentType, body, reqEditors...)
+func (c *ClientWithResponses) PostMapiV2TxWithBodyWithResponse(ctx context.Context, params *PostMapiV2TxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostMapiV2TxResponse, error) {
+	rsp, err := c.PostMapiV2TxWithBody(ctx, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParsePostMapiV2TxResponse(rsp)
 }
 
-func (c *ClientWithResponses) PostMapiV2TxWithResponse(ctx context.Context, body PostMapiV2TxJSONRequestBody, reqEditors ...RequestEditorFn) (*PostMapiV2TxResponse, error) {
-	rsp, err := c.PostMapiV2Tx(ctx, body, reqEditors...)
+func (c *ClientWithResponses) PostMapiV2TxWithResponse(ctx context.Context, params *PostMapiV2TxParams, body PostMapiV2TxJSONRequestBody, reqEditors ...RequestEditorFn) (*PostMapiV2TxResponse, error) {
+	rsp, err := c.PostMapiV2Tx(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -803,6 +1021,15 @@ func (c *ClientWithResponses) GetMapiV2TxIdWithResponse(ctx context.Context, id 
 		return nil, err
 	}
 	return ParseGetMapiV2TxIdResponse(rsp)
+}
+
+// GetMapiV2TxStatusIdWithResponse request returning *GetMapiV2TxStatusIdResponse
+func (c *ClientWithResponses) GetMapiV2TxStatusIdWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetMapiV2TxStatusIdResponse, error) {
+	rsp, err := c.GetMapiV2TxStatusId(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetMapiV2TxStatusIdResponse(rsp)
 }
 
 // PostMapiV2TxsWithBodyWithResponse request with arbitrary body returning *PostMapiV2TxsResponse
@@ -822,66 +1049,26 @@ func (c *ClientWithResponses) PostMapiV2TxsWithResponse(ctx context.Context, par
 	return ParsePostMapiV2TxsResponse(rsp)
 }
 
-// ParseGetMapiV2FeeQuoteResponse parses an HTTP response from a GetMapiV2FeeQuoteWithResponse call
-func ParseGetMapiV2FeeQuoteResponse(rsp *http.Response) (*GetMapiV2FeeQuoteResponse, error) {
+// ParseGetMapiV2PolicyResponse parses an HTTP response from a GetMapiV2PolicyWithResponse call
+func ParseGetMapiV2PolicyResponse(rsp *http.Response) (*GetMapiV2PolicyResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetMapiV2FeeQuoteResponse{
+	response := &GetMapiV2PolicyResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest FeeQuote
+		var dest Policy
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseGetMapiV2PolicyQuoteResponse parses an HTTP response from a GetMapiV2PolicyQuoteWithResponse call
-func ParseGetMapiV2PolicyQuoteResponse(rsp *http.Response) (*GetMapiV2PolicyQuoteResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &GetMapiV2PolicyQuoteResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest PolicyQuote
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
 
 	}
 
@@ -903,18 +1090,46 @@ func ParsePostMapiV2TxResponse(rsp *http.Response) (*PostMapiV2TxResponse, error
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest SubmitTransactionResponse
+		var dest TransactionResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest TransactionResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorBadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 402:
+		var dest ErrorFee
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON402 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ErrorConflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON500 = &dest
+		response.JSON422 = &dest
 
 	}
 
@@ -936,18 +1151,37 @@ func ParseGetMapiV2TxIdResponse(rsp *http.Response) (*GetMapiV2TxIdResponse, err
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest TransactionStatus
+		var dest Transaction
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest Error
+	}
+
+	return response, nil
+}
+
+// ParseGetMapiV2TxStatusIdResponse parses an HTTP response from a GetMapiV2TxStatusIdWithResponse call
+func ParseGetMapiV2TxStatusIdResponse(rsp *http.Response) (*GetMapiV2TxStatusIdResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetMapiV2TxStatusIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TransactionStatus
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON500 = &dest
+		response.JSON200 = &dest
 
 	}
 
@@ -969,18 +1203,18 @@ func ParsePostMapiV2TxsResponse(rsp *http.Response) (*PostMapiV2TxsResponse, err
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest SubmitTransactionResponse
+		var dest TransactionResponses
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest Error
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorBadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON500 = &dest
+		response.JSON400 = &dest
 
 	}
 
@@ -989,18 +1223,18 @@ func ParsePostMapiV2TxsResponse(rsp *http.Response) (*PostMapiV2TxsResponse, err
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Get a fee quote.
-	// (GET /mapi/v2/feeQuote)
-	GetMapiV2FeeQuote(ctx echo.Context) error
-	// Get a policy quote.
-	// (GET /mapi/v2/policyQuote)
-	GetMapiV2PolicyQuote(ctx echo.Context) error
+	// Get the miner policy
+	// (GET /mapi/v2/policy)
+	GetMapiV2Policy(ctx echo.Context) error
 	// Submit a transaction.
 	// (POST /mapi/v2/tx)
-	PostMapiV2Tx(ctx echo.Context) error
-	// Query transaction status.
+	PostMapiV2Tx(ctx echo.Context, params PostMapiV2TxParams) error
+	// Query transaction
 	// (GET /mapi/v2/tx/{id})
 	GetMapiV2TxId(ctx echo.Context, id string) error
+	// Query transaction status.
+	// (GET /mapi/v2/txStatus/{id})
+	GetMapiV2TxStatusId(ctx echo.Context, id string) error
 	// Submit multiple transactions.
 	// (POST /mapi/v2/txs)
 	PostMapiV2Txs(ctx echo.Context, params PostMapiV2TxsParams) error
@@ -1011,29 +1245,14 @@ type ServerInterfaceWrapper struct {
 	Handler ServerInterface
 }
 
-// GetMapiV2FeeQuote converts echo context to params.
-func (w *ServerInterfaceWrapper) GetMapiV2FeeQuote(ctx echo.Context) error {
+// GetMapiV2Policy converts echo context to params.
+func (w *ServerInterfaceWrapper) GetMapiV2Policy(ctx echo.Context) error {
 	var err error
 
-	ctx.Set(BearerScopes, []string{""})
-
-	ctx.Set(Api_KeyScopes, []string{""})
+	ctx.Set(ApiKeyAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.GetMapiV2FeeQuote(ctx)
-	return err
-}
-
-// GetMapiV2PolicyQuote converts echo context to params.
-func (w *ServerInterfaceWrapper) GetMapiV2PolicyQuote(ctx echo.Context) error {
-	var err error
-
-	ctx.Set(BearerScopes, []string{""})
-
-	ctx.Set(Api_KeyScopes, []string{""})
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.GetMapiV2PolicyQuote(ctx)
+	err = w.Handler.GetMapiV2Policy(ctx)
 	return err
 }
 
@@ -1041,12 +1260,60 @@ func (w *ServerInterfaceWrapper) GetMapiV2PolicyQuote(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) PostMapiV2Tx(ctx echo.Context) error {
 	var err error
 
-	ctx.Set(BearerScopes, []string{""})
+	ctx.Set(ApiKeyAuthScopes, []string{""})
 
-	ctx.Set(Api_KeyScopes, []string{""})
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostMapiV2TxParams
+
+	headers := ctx.Request().Header
+	// ------------- Optional header parameter "X-CallbackUrl" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CallbackUrl")]; found {
+		var XCallbackUrl CallbackUrl
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-CallbackUrl, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-CallbackUrl", runtime.ParamLocationHeader, valueList[0], &XCallbackUrl)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-CallbackUrl: %s", err))
+		}
+
+		params.XCallbackUrl = &XCallbackUrl
+	}
+	// ------------- Optional header parameter "X-CallbackToken" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CallbackToken")]; found {
+		var XCallbackToken CallbackToken
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-CallbackToken, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-CallbackToken", runtime.ParamLocationHeader, valueList[0], &XCallbackToken)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-CallbackToken: %s", err))
+		}
+
+		params.XCallbackToken = &XCallbackToken
+	}
+	// ------------- Optional header parameter "X-MerkleProof" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MerkleProof")]; found {
+		var XMerkleProof MerkleProof
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-MerkleProof, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-MerkleProof", runtime.ParamLocationHeader, valueList[0], &XMerkleProof)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-MerkleProof: %s", err))
+		}
+
+		params.XMerkleProof = &XMerkleProof
+	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.PostMapiV2Tx(ctx)
+	err = w.Handler.PostMapiV2Tx(ctx, params)
 	return err
 }
 
@@ -1061,12 +1328,28 @@ func (w *ServerInterfaceWrapper) GetMapiV2TxId(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
-	ctx.Set(BearerScopes, []string{""})
-
-	ctx.Set(Api_KeyScopes, []string{""})
+	ctx.Set(ApiKeyAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.GetMapiV2TxId(ctx, id)
+	return err
+}
+
+// GetMapiV2TxStatusId converts echo context to params.
+func (w *ServerInterfaceWrapper) GetMapiV2TxStatusId(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(ApiKeyAuthScopes, []string{""})
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.GetMapiV2TxStatusId(ctx, id)
 	return err
 }
 
@@ -1074,24 +1357,56 @@ func (w *ServerInterfaceWrapper) GetMapiV2TxId(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) PostMapiV2Txs(ctx echo.Context) error {
 	var err error
 
-	ctx.Set(BearerScopes, []string{""})
-
-	ctx.Set(Api_KeyScopes, []string{""})
+	ctx.Set(ApiKeyAuthScopes, []string{""})
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params PostMapiV2TxsParams
-	// ------------- Optional query parameter "defaultCallbackUrl" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "defaultCallbackUrl", ctx.QueryParams(), &params.DefaultCallbackUrl)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter defaultCallbackUrl: %s", err))
+	headers := ctx.Request().Header
+	// ------------- Optional header parameter "X-CallbackUrl" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CallbackUrl")]; found {
+		var XCallbackUrl CallbackUrl
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-CallbackUrl, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-CallbackUrl", runtime.ParamLocationHeader, valueList[0], &XCallbackUrl)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-CallbackUrl: %s", err))
+		}
+
+		params.XCallbackUrl = &XCallbackUrl
 	}
+	// ------------- Optional header parameter "X-CallbackToken" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CallbackToken")]; found {
+		var XCallbackToken CallbackToken
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-CallbackToken, got %d", n))
+		}
 
-	// ------------- Optional query parameter "defaultCallbackToken" -------------
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-CallbackToken", runtime.ParamLocationHeader, valueList[0], &XCallbackToken)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-CallbackToken: %s", err))
+		}
 
-	err = runtime.BindQueryParameter("form", true, false, "defaultCallbackToken", ctx.QueryParams(), &params.DefaultCallbackToken)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter defaultCallbackToken: %s", err))
+		params.XCallbackToken = &XCallbackToken
+	}
+	// ------------- Optional header parameter "X-MerkleProof" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MerkleProof")]; found {
+		var XMerkleProof MerkleProof
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-MerkleProof, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-MerkleProof", runtime.ParamLocationHeader, valueList[0], &XMerkleProof)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-MerkleProof: %s", err))
+		}
+
+		params.XMerkleProof = &XMerkleProof
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
@@ -1127,10 +1442,10 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.GET(baseURL+"/mapi/v2/feeQuote", wrapper.GetMapiV2FeeQuote)
-	router.GET(baseURL+"/mapi/v2/policyQuote", wrapper.GetMapiV2PolicyQuote)
+	router.GET(baseURL+"/mapi/v2/policy", wrapper.GetMapiV2Policy)
 	router.POST(baseURL+"/mapi/v2/tx", wrapper.PostMapiV2Tx)
 	router.GET(baseURL+"/mapi/v2/tx/:id", wrapper.GetMapiV2TxId)
+	router.GET(baseURL+"/mapi/v2/txStatus/:id", wrapper.GetMapiV2TxStatusId)
 	router.POST(baseURL+"/mapi/v2/txs", wrapper.PostMapiV2Txs)
 
 }
@@ -1138,32 +1453,55 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"+NQWXPPGc3xanpb/BQAA//+68mkLLh4AAA==",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

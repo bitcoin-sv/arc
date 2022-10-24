@@ -18,6 +18,7 @@ type Interface interface {
 	GetNodes() []*bitcoin.Node
 	GetRandomNode() *bitcoin.Node
 	GetRandomNodes(number int) []*bitcoin.Node
+	Models() []interface{}
 }
 
 func New(opts ...Options) (Interface, error) {
@@ -76,8 +77,9 @@ func (c *Client) Load(ctx context.Context) (err error) {
 	if c.options.datastoreOptions != nil {
 		var opts []datastore.ClientOps
 		opts = append(opts, c.options.datastoreOptions)
-		if len(c.options.migrateModels) > 0 {
-			opts = append(opts, datastore.WithAutoMigrate(c.options.migrateModels...))
+		if len(c.Models()) > 0 {
+			// this will create the base tables from the gorm definition
+			opts = append(opts, datastore.WithAutoMigrate(c.Models()...))
 		}
 		c.options.datastore, err = datastore.NewClient(ctx, opts...)
 	} else {
@@ -87,8 +89,9 @@ func (c *Client) Load(ctx context.Context) (err error) {
 			DatabasePath: "./mapi.db",
 			Shared:       true,
 		}))
-		if len(c.options.migrateModels) > 0 {
-			opts = append(opts, datastore.WithAutoMigrate(c.options.migrateModels...))
+		if len(c.Models()) > 0 {
+			// this will create the base tables from the gorm definition
+			opts = append(opts, datastore.WithAutoMigrate(c.Models()...))
 		}
 		c.options.datastore, err = datastore.NewClient(ctx, opts...)
 	}
@@ -107,6 +110,11 @@ func (c *Client) GetMinerID() (minerID string) {
 
 	}
 	return minerID
+}
+
+// Models returns the models registered with the client
+func (c *Client) Models() []interface{} {
+	return c.options.migrateModels
 }
 
 // Datastore returns the datastore being used

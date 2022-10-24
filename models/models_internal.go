@@ -3,7 +3,6 @@ package models
 import (
 	"time"
 
-	"github.com/mrz1836/go-datastore"
 	"github.com/taal/mapi/client"
 )
 
@@ -98,16 +97,4 @@ func (m *Model) SetOptions(opts ...ModelOps) {
 	for _, opt := range opts {
 		opt(m)
 	}
-}
-
-func (m *Model) GetModelName() string {
-	return m.name.String()
-}
-
-func (m *Model) GetModelTableName() string {
-	return m.name.String() + "s" // default
-}
-
-func (m *Model) Migrate(_ datastore.ClientInterface) error {
-	return nil
 }

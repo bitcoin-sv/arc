@@ -84,7 +84,7 @@ func (m MapiDefaultHandler) PostMapiV2Tx(ctx echo.Context, params mapi.PostMapiV
 		return ctx.JSON(http.StatusBadRequest, e)
 	}
 
-	// TODO check for an exising transaction in our DB
+	// TODO check for an existing transaction in our DB
 
 	var transaction *models.Transaction
 	switch ctx.Request().Header.Get("Content-Type") {

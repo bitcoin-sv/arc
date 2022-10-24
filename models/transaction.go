@@ -27,16 +27,15 @@ const (
 type Transaction struct {
 	Model `bson:",inline"`
 
-	ID          string            `json:"id" toml:"id" yaml:"id" gorm:"<-:create;type:char(64);primaryKey;comment:This is the unique hash of the fee" bson:"_id"`
-	BlockHash   string            `json:"block_hash" toml:"block_hash" yaml:"block_hash" gorm:"<-;type:char(64);comment:This is the related block when the transaction was mined" bson:"block_hash,omitempty"`
-	BlockHeight uint64            `json:"block_height" toml:"block_height" yaml:"block_height" gorm:"<-;type:bigint;comment:This is the related block when the transaction was mined" bson:"block_height,omitempty"`
-	Tx          []byte            `json:"tx" toml:"tx" yaml:"tx" gorm:"<-:create;type:blob;comment:This is the raw transaction in binary" bson:"tx"`
-	Status      TransactionStatus `json:"status" toml:"status" yaml:"status" gorm:"<-type:varchar(7);comment:Internal status of the transaction" bson:"status"`
-	ClientID    string            `json:"client_id,omitempty" toml:"client_id" yaml:"client_id" gorm:"<-:create;comment:ClientID for this record" bson:"client_id"`
-
-	CallbackURL   string `json:"callback_url,omitempty" toml:"callback_url" yaml:"callback_url" gorm:"<-:create;type:text;comment:Callback URL" bson:"callback_url,omitempty"`
-	CallbackToken string `json:"callback_token,omitempty" toml:"callback_token" yaml:"callback_token" gorm:"<-:create;comment:Callback URL token" bson:"callback_token,omitempty"`
-	MerkleProof   bool   `json:"merkle_proof" toml:"merkle_proof" yaml:"merkle_proof" gorm:"<-:create;comment:Whether to callback with a merkle proof" bson:"merkle_proof,omitempty"`
+	ID            string            `json:"id" toml:"id" yaml:"id" gorm:"<-:create;type:char(64);primaryKey;comment:This is the unique hash of the fee" bson:"_id"`
+	BlockHash     string            `json:"block_hash" toml:"block_hash" yaml:"block_hash" gorm:"<-;type:char(64);comment:This is the related block when the transaction was mined" bson:"block_hash,omitempty"`
+	BlockHeight   uint64            `json:"block_height" toml:"block_height" yaml:"block_height" gorm:"<-;type:bigint;comment:This is the related block when the transaction was mined" bson:"block_height,omitempty"`
+	Tx            []byte            `json:"tx" toml:"tx" yaml:"tx" gorm:"<-:create;type:blob;comment:This is the raw transaction in binary" bson:"tx"`
+	Status        TransactionStatus `json:"status" toml:"status" yaml:"status" gorm:"<-type:varchar(7);comment:Internal status of the transaction" bson:"status"`
+	ClientID      string            `json:"client_id,omitempty" toml:"client_id" yaml:"client_id" gorm:"<-:create;comment:ClientID for this record" bson:"client_id"`
+	CallbackURL   string            `json:"callback_url,omitempty" toml:"callback_url" yaml:"callback_url" gorm:"<-:create;type:text;comment:Callback URL" bson:"callback_url,omitempty"`
+	CallbackToken string            `json:"callback_token,omitempty" toml:"callback_token" yaml:"callback_token" gorm:"<-:create;comment:Callback URL token" bson:"callback_token,omitempty"`
+	MerkleProof   bool              `json:"merkle_proof" toml:"merkle_proof" yaml:"merkle_proof" gorm:"<-:create;comment:Whether to callback with a merkle proof" bson:"merkle_proof,omitempty"`
 
 	// Private for internal use
 	parsedTx *bt.Tx `gorm:"-" bson:"-"` // The go-bt version of the transaction

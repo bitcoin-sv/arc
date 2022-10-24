@@ -1,0 +1,48 @@
+@startuml
+hide footbox
+
+actor "Incoming\ntransaction" as tx
+participant handler
+participant auth
+participant validator
+participant queue
+database store
+participant multiplex
+database node1
+database node2
+participant "activity\nqueue" as aqueue
+
+
+title Submit transaction via P2P
+
+tx -> handler ++: tx
+
+  handler -> auth ++: apikey
+  return
+
+  handler -> validator ++: tx
+  return
+
+  handler -> queue ++: tx
+
+    queue -> store ++: tx
+    return
+
+    queue -> multiplex ++: tx
+    
+      multiplex -> node1: tx
+    
+      multiplex -> node2: tx
+
+      node1 -> multiplex: ack
+    return
+
+    queue -> queue: Wait for ack
+
+  return success
+
+  handler -> aqueue: save activity
+
+return response
+
+@enduml

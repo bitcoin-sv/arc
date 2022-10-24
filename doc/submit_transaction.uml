@@ -1,0 +1,31 @@
+@startuml
+hide footbox
+
+actor client_app
+participant tapi
+participant account_manager
+database store
+database BitcoinSV
+
+
+title Submit transaction via P2P
+
+client_app -> tapi ++: Raw bitcoin transaction
+  
+  tapi -> tapi: Extract API key
+
+  tapi -> account_manager ++: Get fees for account
+  return fees
+
+  tapi -> tapi: Check fees
+
+  tapi ->  : Persist raw transaction
+
+  tapi -> BitcoinSV ++: Send raw transaction
+  return txid
+
+  tapi -> account_manager: Save activity
+
+return Response
+
+@enduml

@@ -1,0 +1,36 @@
+@startuml
+hide footbox
+
+actor client_app
+participant mapi
+participant account_manager
+participant minerId
+database bstore
+database BitcoinSV
+
+
+title Submit MAPI transaction
+
+client_app -> mapi ++: Raw bitcoin transaction
+  
+  mapi -> mapi: Extract API key
+
+  mapi -> account_manager ++: Get fees for account
+  return fees
+
+  mapi -> mapi: Check fees
+
+  mapi -> bstore: Persist raw transaction
+
+  mapi -> BitcoinSV ++: Send raw transaction
+  return txid
+
+  mapi -> account_manager: Save activity
+
+  mapi -> mapi: Create JSON envelope
+
+  mapi -> minerId: Sign JSON envelope
+  minerId --> mapi
+return JSON envelope
+
+@enduml

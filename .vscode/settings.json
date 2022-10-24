@@ -1,13 +1,20 @@
 {
   "cSpell.words": [
+    "bitcoinsv",
+    "bsvd",
+    "bsvutil",
     "codegen",
     "deepmap",
     "echomiddleware",
     "getkin",
     "labstack",
+    "libsv",
     "Mapi",
+    "merkle",
+    "Nops",
     "oapi",
     "openapi",
-    "securityprovider"
+    "securityprovider",
+    "txscript"
   ]
 }

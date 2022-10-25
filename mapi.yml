@@ -406,7 +406,7 @@ components:
       properties:
         status:
           type: integer
-          format: uint
+          format: int
           example: 201
           nullable: false
         title:
@@ -602,7 +602,7 @@ components:
           nullable: false
         status:
           type: integer
-          format: uint
+          format: int
           description: Error code
           example: 402
           nullable: false

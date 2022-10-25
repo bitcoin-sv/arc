@@ -24,14 +24,12 @@
   "cache": {
     "engine": "redis"
   },
-  "rest_client": {
-    "server": "http://localhost:8332"
-  },
-  "rpc_client": {
-    "host": "localhost:8332",
+  "nodes": [{
+    "host": "localhost",
+    "port": 8332,
     "user": "",
     "password": ""
-  },
+  }],
   "redis": {
     "url": "localhost:6379",
     "use_tls": false,

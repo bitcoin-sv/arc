@@ -17,6 +17,7 @@ import (
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/mrz1836/go-logger"
+	"github.com/ordishs/go-bitcoin"
 )
 
 func main() {
@@ -35,21 +36,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	mapiClient, api := loadMapiHandler(appConfig)
-
 	// Clear out the servers array in the swagger spec, that skips validating
 	// that server names match. We don't know how this thing will be run.
 	swagger.Servers = nil
 
 	// Set up a basic Echo router
 	e := echo.New()
-	// Log all requests
-	e.Pre(handler.NewLogger(mapiClient, appConfig))
 
 	// TODO should this be activated?
 	//e.Use(middleware.OapiRequestValidator(swagger))
-
-	TEMPTEMPGenerateTestToken(err, appConfig)
 
 	// Use our validation middleware to check all requests against the OpenAPI schema.
 	if appConfig.Security != nil {
@@ -69,8 +64,16 @@ func main() {
 		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete},
 	}))
 
+	TEMPTEMPGenerateTestToken(err, appConfig)
+
+	mapiClient, api := loadMapiHandler(appConfig)
+	// TODO mapi after hook for response
+
 	// Register the MAPI API
 	mapi.RegisterHandlers(e, api)
+
+	// Add the MAPI specific logger, logs to DB
+	e.Pre(handler.NewLogger(mapiClient, appConfig))
 
 	// Serve HTTP until the world ends.
 	e.Logger.Fatal(e.Start(fmt.Sprintf("%s:%d", appConfig.Server.IPAddress, appConfig.Server.Port)))
@@ -103,11 +106,16 @@ func loadMapiHandler(appConfig *config.AppConfig) (client.Interface, mapi.Server
 	opts = append(opts, client.WithMinerID(appConfig.MinerID))
 	opts = append(opts, client.WithMigrateModels(models.BaseModels))
 
-	// MAPI does not work without an RPC compatible client
-	if appConfig.RPCClient == nil {
-		panic("rpc client configuration missing")
+	// add custom node configuration, overwriting the default localhost node config
+	if appConfig.Nodes != nil {
+		for _, nodeConfig := range appConfig.Nodes {
+			node, err := bitcoin.New(nodeConfig.Host, nodeConfig.Port, nodeConfig.User, nodeConfig.Password, nodeConfig.UseSSL)
+			if err != nil {
+				panic(err)
+			}
+			opts = append(opts, client.WithNode(node))
+		}
 	}
-	opts = append(opts, client.WithBitcoinRPCServer(appConfig.RPCClient))
 
 	// Add datastore
 	// by default an SQLite database will be used in ./mapi.db if no datastore options are set in config

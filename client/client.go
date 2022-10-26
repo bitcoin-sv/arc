@@ -2,11 +2,12 @@ package client
 
 import (
 	"context"
+	"sync"
 
-	"github.com/TAAL-GmbH/mapi/bitcoin"
 	"github.com/TAAL-GmbH/mapi/dictionary"
 	"github.com/mrz1836/go-datastore"
 	"github.com/mrz1836/go-logger"
+	"github.com/ordishs/go-bitcoin"
 )
 
 type Interface interface {
@@ -14,28 +15,34 @@ type Interface interface {
 	Load(ctx context.Context) (err error)
 	Datastore() datastore.ClientInterface
 	GetMinerID() (minerID string)
-	GetNode(index int) *bitcoin.Node
-	GetNodes() []*bitcoin.Node
-	GetRandomNode() *bitcoin.Node
-	GetRandomNodes(number int) []*bitcoin.Node
+	GetNode(index int) Node
+	GetNodes() []Node
+	GetRandomNode() Node
+	GetRandomNodes(number int) []Node
 	Models() []interface{}
+	GetTransactionFromNodes(txID string) (*bitcoin.RawTransaction, error)
 }
 
 func New(opts ...Options) (Interface, error) {
 
-	// default to localhost node with rest service
-	node := bitcoin.NewRest("http://locahost:8332")
 	client := &Client{
 		&clientOptions{
-			nodes: []*bitcoin.Node{
-				&node,
-			},
+			nodes: []Node{},
 		},
 	}
 
 	// Overwrite defaults with any custom options provided by the user
 	for _, opt := range opts {
 		opt(client.options)
+	}
+
+	if len(client.options.nodes) == 0 {
+		// default to localhost node, if none configured
+		node, err := bitcoin.New("localhost", 8332, "", "", false)
+		if err != nil {
+			return nil, err
+		}
+		client.options.nodes = append(client.options.nodes, node)
 	}
 
 	if err := client.Load(context.Background()); err != nil {
@@ -49,7 +56,7 @@ func (c *Client) Close() {
 	_ = c.Datastore().Close(context.Background())
 }
 
-func (c *Client) GetNode(index int) *bitcoin.Node {
+func (c *Client) GetNode(index int) Node {
 	if len(c.options.nodes) < index-1 {
 		return nil
 	}
@@ -57,18 +64,40 @@ func (c *Client) GetNode(index int) *bitcoin.Node {
 	return c.options.nodes[index]
 }
 
-func (c *Client) GetNodes() []*bitcoin.Node {
+func (c *Client) GetNodes() []Node {
 	return c.options.nodes
 }
 
-func (c *Client) GetRandomNode() *bitcoin.Node {
+func (c *Client) GetRandomNode() Node {
 	//TODO implement me
 	return c.options.nodes[0]
 }
 
-func (c *Client) GetRandomNodes(number int) []*bitcoin.Node {
+func (c *Client) GetRandomNodes(number int) []Node {
 	//TODO implement me
 	return c.options.nodes
+}
+
+func (c *Client) GetTransactionFromNodes(txID string) (*bitcoin.RawTransaction, error) {
+
+	btTxChan := make(chan *bitcoin.RawTransaction)
+	var wg sync.WaitGroup
+	for _, node := range c.options.nodes {
+		wg.Add(1)
+		go func(node Node) {
+			if tx, err := node.GetRawTransaction(txID); err == nil && tx != nil {
+				btTxChan <- tx
+			}
+			wg.Done()
+		}(node)
+	}
+
+	go func() {
+		wg.Wait()
+		close(btTxChan)
+	}()
+
+	return <-btTxChan, nil
 }
 
 // Load all services in the Client
@@ -82,8 +111,8 @@ func (c *Client) Load(ctx context.Context) (err error) {
 			opts = append(opts, datastore.WithAutoMigrate(c.Models()...))
 		}
 		c.options.datastore, err = datastore.NewClient(ctx, opts...)
-	} else {
-		// we initialize a SQL lite db by default
+	} else if c.options.datastore == nil {
+		// we initialize a SQL lite db by default, if no other database connection has been set
 		var opts []datastore.ClientOps
 		opts = append(opts, datastore.WithSQLite(&datastore.SQLiteConfig{
 			DatabasePath: "./mapi.db",

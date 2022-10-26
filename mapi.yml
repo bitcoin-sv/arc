@@ -406,7 +406,7 @@ components:
       properties:
         status:
           type: integer
-          format: uint
+          format: int
           example: 201
           nullable: false
         title:
@@ -602,7 +602,7 @@ components:
           nullable: false
         status:
           type: integer
-          format: uint
+          format: int
           description: Error code
           example: 402
           nullable: false
@@ -627,12 +627,11 @@ components:
     NotAuthorized:
       description: Security requirements failed
   securitySchemes:
-    ApiKeyAuth:
-      type: apiKey
+    BearerAuth:
+      type: http
+      scheme: bearer
       description: >-
-        Please enter API key needed to access admin endpoints into field (RFC 7235)
-      name: Authorization
-      in: header
+        Bearer authentication as defined in RFC 6750
   parameters:
     callbackUrl:
       name: X-CallbackUrl
@@ -654,4 +653,4 @@ components:
       schema:
         type: string
 security:
-  - ApiKeyAuth: []
+  - BearerAuth: []

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"github.com/TAAL-GmbH/mapi/bitcoin"
 	"github.com/TAAL-GmbH/mapi/config"
 	"github.com/mrz1836/go-datastore"
 )
@@ -18,7 +17,7 @@ type (
 		datastoreOptions datastore.ClientOps
 		migrateModels    []interface{}
 		minerID          *config.MinerIDConfig
-		nodes            []*bitcoin.Node
+		nodes            []Node
 	}
 )
 
@@ -74,70 +73,28 @@ func WithSQLite(config *datastore.SQLiteConfig) Options {
 }
 
 // WithNode sets a single node to use in calls
-func WithNode(node *bitcoin.Node) Options {
+func WithNode(node Node) Options {
 	return func(o *clientOptions) {
-		o.nodes = []*bitcoin.Node{
+		o.nodes = []Node{
 			node,
 		}
 	}
 }
 
 // WithNodes sets multiple nodes to use in calls
-func WithNodes(nodes []bitcoin.Node) Options {
+func WithNodes(nodes []Node) Options {
 	return func(o *clientOptions) {
-		o.nodes = []*bitcoin.Node{}
+		o.nodes = []Node{}
 		for _, node := range nodes {
 			addNode := node
-			o.nodes = append(o.nodes, &addNode)
-		}
-	}
-}
-
-// WithBitcoinRestServer sets a single node to use in calls
-func WithBitcoinRestServer(server string) Options {
-	return func(o *clientOptions) {
-		node := bitcoin.NewRest(server)
-		o.nodes = []*bitcoin.Node{
-			&node,
-		}
-	}
-}
-
-// WithBitcoinRestServers sets multiple nodes to use in calls
-func WithBitcoinRestServers(servers []string) Options {
-	return func(o *clientOptions) {
-		o.nodes = []*bitcoin.Node{}
-		for _, nodeEndpoint := range servers {
-			node := bitcoin.NewRest(nodeEndpoint)
-			o.nodes = append(o.nodes, &node)
-		}
-	}
-}
-
-// WithBitcoinRPCServer sets a single node to use in calls
-func WithBitcoinRPCServer(config *config.RPCClientConfig) Options {
-	return func(o *clientOptions) {
-		node := bitcoin.NewRPC(config)
-		o.nodes = []*bitcoin.Node{
-			&node,
-		}
-	}
-}
-
-// WithBitcoinRPCSServers sets multiple rpc servers to use in calls
-func WithBitcoinRPCSServers(servers []string) Options {
-	return func(o *clientOptions) {
-		o.nodes = []*bitcoin.Node{}
-		for _, nodeEndpoint := range servers {
-			node := bitcoin.NewRest(nodeEndpoint)
-			o.nodes = append(o.nodes, &node)
+			o.nodes = append(o.nodes, addNode)
 		}
 	}
 }
 
 // WithMinerID sets the miner ID to use in all calls
-func WithMinerID(config *config.MinerIDConfig) Options {
+func WithMinerID(conf *config.MinerIDConfig) Options {
 	return func(o *clientOptions) {
-		o.minerID = config
+		o.minerID = conf
 	}
 }

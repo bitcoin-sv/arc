@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/TAAL-GmbH/mapi"
+	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bk/wif"
 	"github.com/mrz1836/go-cachestore"
 	"github.com/mrz1836/go-datastore"
@@ -38,8 +40,8 @@ var (
 type SecurityType string
 
 var (
-	SecurityTypeBearerAuth SecurityType = "BearerAuth"
-	SecurityTypeApiKey     SecurityType = "ApiKey"
+	SecurityTypeJWT    SecurityType = "jwt"
+	SecurityTypeCustom SecurityType = "custom"
 )
 
 // The global configuration settings
@@ -56,8 +58,7 @@ type (
 		Environment      Environment       `json:"environment" mapstructure:"environment"`
 		MinerID          *MinerIDConfig    `json:"miner_id" mapstructure:"miner_id"`
 		Profile          bool              `json:"profile" mapstructure:"profile"` // whether to start the profiling http server
-		RestClient       *RestClientConfig `json:"rest_client" mapstructure:"rest_client"`
-		RPCClient        *RPCClientConfig  `json:"rpc_client" mapstructure:"rpc_client"`
+		Nodes            []*NodeConfig     `json:"nodes" mapstructure:"nodes"`
 		Redis            *RedisConfig      `json:"redis" mapstructure:"redis"`
 		Security         *SecurityConfig   `json:"security" mapstructure:"security"`
 		Server           *ServerConfig     `json:"server" mapstructure:"server"`
@@ -98,23 +99,21 @@ type (
 		PrivateKey string `json:"private_key" mapstructure:"private_key"`
 	}
 
-	// RestClientConfig is a configuration for the bitcoin node rest interface
-	RestClientConfig struct {
-		Server string `json:"server" mapstructure:"server"`
-	}
-
-	// RPCClientConfig is a configuration for the bitcoin node rpc interface
-	RPCClientConfig struct {
+	// NodeConfig is a configuration for the bitcoin node rpc interface
+	NodeConfig struct {
 		Host     string `json:"host" mapstructure:"host"`
+		Port     int    `json:"port" mapstructure:"port"`
 		User     string `json:"user" mapstructure:"user"`
 		Password string `json:"password" mapstructure:"password"`
+		UseSSL   bool   `json:"use_ssl" mapstructure:"use_ssl"`
 	}
 
 	// SecurityConfig is a configuration for the security of the MAPI server
 	SecurityConfig struct {
-		Provider  SecurityType `json:"provider" mapstructure:"provider"`     // BearerAuth, ApiKey or ""
-		Issuer    string       `json:"issuer" mapstructure:"issuer"`         // Token issuer
-		BearerKey string       `json:"bearer_key" mapstructure:"bearer_key"` // JWT bearer secret key
+		Type          SecurityType                               `json:"type" mapstructure:"type"`             // jwt or custom
+		Issuer        string                                     `json:"issuer" mapstructure:"issuer"`         // Token issuer
+		BearerKey     string                                     `json:"bearer_key" mapstructure:"bearer_key"` // JWT bearer secret key
+		CustomGetUser func(ctx echo.Context) (*mapi.User, error) `json:"-"`
 	}
 
 	// ServerConfig is a configuration for the MAPI server

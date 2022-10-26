@@ -3,7 +3,6 @@
   "verbose_debug": false,
   "profile": false,
   "environment": "development",
-  "bitcoin_interface": "rpc",
   "log_request_body": true,
   "miner_id": {
     "private_key": "KznvCNc6Yf4iztSThoMH6oHWzH9EgjfodKxmeuUGPq5DEX5maspS"
@@ -24,14 +23,17 @@
   "cache": {
     "engine": "redis"
   },
-  "rest_client": {
-    "server": "http://localhost:8332"
-  },
-  "rpc_client": {
-    "host": "localhost:8332",
-    "user": "",
-    "password": ""
-  },
+  "nodes": [{
+    "host": "localhost",
+    "port": 8332,
+    "user": "bitcoinsv",
+    "password": "whyamiusingaplaintextpasswordhere"
+  },{
+    "host": "localhost",
+    "port": 8332,
+    "user": "bitcoinsv",
+    "password": "whyamiusingaplaintextpasswordhere"
+  }],
   "redis": {
     "url": "localhost:6379",
     "use_tls": false,
@@ -42,21 +44,12 @@
     "max_idle_timeout": 0
   },
   "security": {
-    "provider": "BearerAuth",
+    "type": "jwt",
     "issuer": "MAPI v2 test issuer",
     "bearer_key": "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
   },
   "server": {
     "ip_address": "0.0.0.0",
     "port": 8080
-  },
-  "zero_mq": {
-    "enabled": true,
-    "endpoint": "tcp://localhost:48332",
-    "topics": [
-      "rawtx2",
-      "discardedfrommempool",
-      "removedfrommempoolblock"
-    ]
   }
 }

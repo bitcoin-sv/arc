@@ -34,9 +34,13 @@ func NewDefault(c client.Interface, opts ...Options) (mapi.HandlerInterface, err
 // GetMapiV2Policy ...
 func (m MapiDefaultHandler) GetMapiV2Policy(ctx echo.Context) error {
 
-	user := GetEchoUser(ctx, m.options.security)
+	user, err := GetEchoUser(ctx, m.options.security)
+	if err != nil {
+		return err
+	}
 
-	policy, err := models.GetPolicyForClient(ctx.Request().Context(), user.ClientID, models.WithClient(m.Client))
+	var policy *models.Policy
+	policy, err = models.GetPolicyForClient(ctx.Request().Context(), user.ClientID, models.WithClient(m.Client))
 	if err != nil && !errors.Is(err, datastore.ErrNoResults) {
 		return err
 	}
@@ -75,9 +79,13 @@ func (m MapiDefaultHandler) GetMapiV2Policy(ctx echo.Context) error {
 // PostMapiV2Tx ...
 func (m MapiDefaultHandler) PostMapiV2Tx(ctx echo.Context, params mapi.PostMapiV2TxParams) error {
 
-	user := GetEchoUser(ctx, m.options.security)
+	user, err := GetEchoUser(ctx, m.options.security)
+	if err != nil {
+		return err
+	}
 
-	body, err := io.ReadAll(ctx.Request().Body)
+	var body []byte
+	body, err = io.ReadAll(ctx.Request().Body)
 	if err != nil {
 		errStr := err.Error()
 		e := mapi.ErrBadRequest

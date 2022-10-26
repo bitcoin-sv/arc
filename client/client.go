@@ -111,8 +111,8 @@ func (c *Client) Load(ctx context.Context) (err error) {
 			opts = append(opts, datastore.WithAutoMigrate(c.Models()...))
 		}
 		c.options.datastore, err = datastore.NewClient(ctx, opts...)
-	} else {
-		// we initialize a SQL lite db by default
+	} else if c.options.datastore == nil {
+		// we initialize a SQL lite db by default, if no other database connection has been set
 		var opts []datastore.ClientOps
 		opts = append(opts, datastore.WithSQLite(&datastore.SQLiteConfig{
 			DatabasePath: "./mapi.db",

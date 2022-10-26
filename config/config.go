@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/TAAL-GmbH/mapi"
+	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bk/wif"
 	"github.com/mrz1836/go-cachestore"
 	"github.com/mrz1836/go-datastore"
@@ -38,8 +40,8 @@ var (
 type SecurityType string
 
 var (
-	SecurityTypeBearerAuth SecurityType = "BearerAuth"
-	SecurityTypeApiKey     SecurityType = "ApiKey"
+	SecurityTypeJWT    SecurityType = "jwt"
+	SecurityTypeCustom SecurityType = "custom"
 )
 
 // The global configuration settings
@@ -108,9 +110,10 @@ type (
 
 	// SecurityConfig is a configuration for the security of the MAPI server
 	SecurityConfig struct {
-		Provider  SecurityType `json:"provider" mapstructure:"provider"`     // BearerAuth, ApiKey or ""
-		Issuer    string       `json:"issuer" mapstructure:"issuer"`         // Token issuer
-		BearerKey string       `json:"bearer_key" mapstructure:"bearer_key"` // JWT bearer secret key
+		Type          SecurityType                               `json:"type" mapstructure:"type"`             // jwt or custom
+		Issuer        string                                     `json:"issuer" mapstructure:"issuer"`         // Token issuer
+		BearerKey     string                                     `json:"bearer_key" mapstructure:"bearer_key"` // JWT bearer secret key
+		CustomGetUser func(ctx echo.Context) (*mapi.User, error) `json:"-"`
 	}
 
 	// ServerConfig is a configuration for the MAPI server

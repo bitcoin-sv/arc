@@ -1,37 +1,30 @@
 package handler
 
 import (
+	"github.com/TAAL-GmbH/mapi"
 	"github.com/TAAL-GmbH/mapi/config"
-	"github.com/TAAL-GmbH/mapi/server"
 	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 )
 
-type User struct {
-	ClientID string `json:"client_id"`
-	Name     string `json:"name"`
-	Admin    bool   `json:"admin"`
-}
-
-func GetEchoUser(ctx echo.Context, securityConfig *config.SecurityConfig) *User {
+func GetEchoUser(ctx echo.Context, securityConfig *config.SecurityConfig) (*mapi.User, error) {
 
 	if securityConfig != nil {
-		if securityConfig.Provider == config.SecurityTypeBearerAuth {
+		if securityConfig.Type == config.SecurityTypeJWT {
 			user := ctx.Get("user").(*jwt.Token)
-			claims := user.Claims.(*server.JWTCustomClaims)
+			claims := user.Claims.(*mapi.JWTCustomClaims)
 
-			return &User{
+			return &mapi.User{
 				ClientID: claims.ClientID,
 				Name:     claims.Name,
 				Admin:    claims.Admin,
-			}
-		} else if securityConfig.Provider == config.SecurityTypeApiKey {
-			// the api_key_user should have been set by the api key handler
-			if user, ok := ctx.Get("api_key_user").(*User); ok {
-				return user
+			}, nil
+		} else if securityConfig.Type == config.SecurityTypeCustom {
+			if securityConfig.CustomGetUser != nil {
+				return securityConfig.CustomGetUser(ctx)
 			}
 		}
 	}
 
-	return &User{}
+	return &mapi.User{}, nil
 }

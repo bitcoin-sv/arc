@@ -129,12 +129,12 @@ func CheckSecurity(e *echo.Echo, appConfig *config.AppConfig) {
 
 	if appConfig.Security != nil {
 		if appConfig.Security.Type == config.SecurityTypeJWT {
-			e.Use(echomiddleware.JWTWithConfig(echomiddleware.JWTConfig{
+			e.Pre(echomiddleware.JWTWithConfig(echomiddleware.JWTConfig{
 				SigningKey: []byte(appConfig.Security.BearerKey),
 				Claims:     &mapi.JWTCustomClaims{},
 			}))
 		} else if appConfig.Security.Type == config.SecurityTypeCustom {
-			e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+			e.Pre(func(next echo.HandlerFunc) echo.HandlerFunc {
 				return func(ctx echo.Context) error {
 					_, err := appConfig.Security.CustomGetUser(ctx)
 					if err != nil {

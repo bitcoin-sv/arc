@@ -39,6 +39,8 @@ type Transaction struct {
 	MerkleProof   bool              `json:"merkle_proof" toml:"merkle_proof" yaml:"merkle_proof" gorm:"<-:create;comment:Whether to callback with a merkle proof" bson:"merkle_proof,omitempty"`
 	Status        TransactionStatus `json:"status" toml:"status" yaml:"status" gorm:"<-type:varchar(7);comment:Internal status of the transaction" bson:"status"`
 	ErrStatus     int               `json:"err_status" toml:"err_status" yaml:"err_status" gorm:"<-;comment:Internal mapi error status" bson:"err_status,omitempty"`
+	ErrInstanceID string            `json:"err_instance_id" toml:"err_instance_id" yaml:"err_instance_id" gorm:"<-;type:text;comment:Internal error ID" bson:"err_instance_id,omitempty"`
+	ErrExtraInfo  string            `json:"err_extra_info" toml:"err_extra_info" yaml:"err_extra_info" gorm:"<-;type:text;comment:External error information" bson:"err_extra_info,omitempty"`
 
 	// Private for internal use
 	parsedTx *bt.Tx `gorm:"-" bson:"-"` // The go-bt version of the transaction

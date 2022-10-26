@@ -106,10 +106,10 @@ func main() {
 	}
 
 	// Register the MAPI API
-	mapi.RegisterHandlers(e, api)
-	// or with a base url
-	// mapi.RegisterHandlersWithBaseURL(e. api, "/mySubdir")
 	// the mapi handler registers routes under /mapi/v2/...
+	mapi.RegisterHandlers(e, api)
+	// or with a base url => /mySubDir/mapi/v2/...
+	// mapi.RegisterHandlersWithBaseURL(e. api, "/mySubDir")
 
 	// Add the echo standard logger
 	e.Use(echomiddleware.Logger())

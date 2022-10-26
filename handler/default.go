@@ -96,7 +96,7 @@ func (m MapiDefaultHandler) PostMapiV2Tx(ctx echo.Context, params mapi.PostMapiV
 	var transaction *models.Transaction
 	switch ctx.Request().Header.Get("Content-Type") {
 	case "text/plain":
-		if transaction, err = models.NewTransactionFromHex(string(body)); err != nil {
+		if transaction, err = models.NewTransactionFromHex(string(body), models.WithClient(m.Client), models.New()); err != nil {
 			errStr := err.Error()
 			e := mapi.ErrMalformed
 			e.ExtraInfo = &errStr
@@ -107,19 +107,21 @@ func (m MapiDefaultHandler) PostMapiV2Tx(ctx echo.Context, params mapi.PostMapiV
 		if err = json.Unmarshal(body, &txHex); err != nil {
 			return ctx.JSON(mapi.ErrStatusMalformed, mapi.ErrBadRequest)
 		}
-		if transaction, err = models.NewTransactionFromHex(txHex); err != nil {
+		if transaction, err = models.NewTransactionFromHex(txHex, models.WithClient(m.Client), models.New()); err != nil {
 			errStr := err.Error()
 			e := mapi.ErrMalformed
 			e.ExtraInfo = &errStr
 			return ctx.JSON(mapi.ErrStatusMalformed, e)
 		}
 	case "application/octet-stream":
-		if transaction, err = models.NewTransactionFromBytes(body); err != nil {
+		if transaction, err = models.NewTransactionFromBytes(body, models.WithClient(m.Client), models.New()); err != nil {
 			errStr := err.Error()
 			e := mapi.ErrMalformed
 			e.ExtraInfo = &errStr
 			return ctx.JSON(mapi.ErrStatusMalformed, e)
 		}
+	default:
+		return ctx.JSON(mapi.ErrBadRequest.Status, mapi.ErrBadRequest)
 	}
 	transaction.ClientID = user.ClientID
 	if params.XCallbackUrl != nil {
@@ -157,28 +159,30 @@ func (m MapiDefaultHandler) PostMapiV2Tx(ctx echo.Context, params mapi.PostMapiV
 			status = mapi.StatusAlreadyMined
 		case models.TransactionStatusError:
 			// return the actual error status stored on the transaction record
-			status = transaction.ErrStatus
+			status = existingTransaction.ErrStatus
 		default:
 			// TODO should we send a different status code here?
 			status = http.StatusOK
 		}
 
+		if status >= 400 {
+			// an error was previously thrown, just rethrow the same error
+			mapiError := mapi.ErrByStatus[status]
+			mapiError.Txid = &existingTransaction.ID
+			return ctx.JSON(status, mapiError)
+		}
+
 		return ctx.JSON(status, mapi.TransactionResponse{
 			ApiVersion:  mapi.APIVersion,
-			BlockHash:   &transaction.BlockHash,
-			BlockHeight: &transaction.BlockHeight,
+			BlockHash:   &existingTransaction.BlockHash,
+			BlockHeight: &existingTransaction.BlockHeight,
 			MinerId:     m.Client.GetMinerID(),
 			Timestamp:   time.Now(),
-			Txid:        &transaction.ID,
+			Txid:        &existingTransaction.ID,
 		})
 	}
 
 	if status, err = transaction.Validate(); err != nil || status >= 400 {
-		transaction.Status = models.TransactionStatusError
-		transaction.ErrStatus = status
-		if err = transaction.Save(ctx.Request().Context()); err != nil {
-			return err
-		}
 		return m.handleError(ctx, status, transaction, err)
 	}
 
@@ -193,11 +197,6 @@ func (m MapiDefaultHandler) PostMapiV2Tx(ctx echo.Context, params mapi.PostMapiV
 	var conflictedWith []string
 	status, conflictedWith, err = transaction.SubmitToNodes()
 	if status >= 400 || err != nil {
-		transaction.Status = models.TransactionStatusError
-		transaction.ErrStatus = status
-		if saveErr := transaction.Save(ctx.Request().Context()); saveErr != nil {
-			return saveErr
-		}
 		return m.handleError(ctx, status, transaction, err)
 	}
 
@@ -303,17 +302,27 @@ func (m MapiDefaultHandler) handleError(ctx echo.Context, status int, transactio
 		mapiError.ExtraInfo = &extraInfo
 	}
 
-	logError := models.NewLogError(models.WithClient(m.Client))
+	logError := models.NewLogError(models.WithClient(m.Client), models.New())
 	logError.Error = mapiError
-	logError.Status = status
 	logError.TxID = transaction.ID
 
-	if logAccess, ok := ctx.Get("access_log").(*models.LogAccess); ok {
-		logError.LogAccessID = logAccess.ID
+	if accessLog, ok := ctx.Get("access_log").(*models.LogAccess); ok {
+		logError.LogAccessID = accessLog.ID
+		logError.ClientID = accessLog.ClientID
 	}
 
 	if err := logError.Save(ctx.Request().Context()); err != nil {
 		return err
+	}
+
+	if transaction != nil {
+		transaction.Status = models.TransactionStatusError
+		transaction.ErrStatus = mapiError.Status
+		transaction.ErrInstanceID = logError.ID
+		transaction.ErrExtraInfo = *mapiError.ExtraInfo
+		if err := transaction.Save(ctx.Request().Context()); err != nil {
+			return err
+		}
 	}
 
 	return ctx.JSON(status, mapiError)

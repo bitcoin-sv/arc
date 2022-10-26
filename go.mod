@@ -16,6 +16,7 @@ require (
 	github.com/mrz1836/go-cachestore v0.1.3
 	github.com/mrz1836/go-datastore v0.1.7
 	github.com/mrz1836/go-logger v0.3.1
+	github.com/ordishs/go-bitcoin v1.0.69
 	github.com/spf13/viper v1.13.0
 	github.com/stretchr/testify v1.8.0
 	go.mongodb.org/mongo-driver v1.10.2
@@ -23,6 +24,7 @@ require (
 )
 
 require (
+	bitbucket.org/simon_ordish/cryptolib v1.0.48 // indirect
 	github.com/bitcoinsv/bsvlog v0.0.0-20181216181007-cb81b076bf2e // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/coocood/freecache v1.2.2 // indirect
@@ -31,6 +33,8 @@ require (
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/swag v0.21.1 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
+	github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
+	github.com/go-zeromq/zmq4 v0.13.0 // indirect
 	github.com/gofrs/uuid v4.3.0+incompatible // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
@@ -62,6 +66,7 @@ require (
 	github.com/mrz1836/go-cache v0.7.3 // indirect
 	github.com/newrelic/go-agent/v3 v3.19.2 // indirect
 	github.com/newrelic/go-agent/v3/integrations/nrmongo v1.0.2 // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect

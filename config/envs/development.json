@@ -26,13 +26,8 @@
   "nodes": [{
     "host": "localhost",
     "port": 8332,
-    "user": "bitcoinsv",
-    "password": "whyamiusingaplaintextpasswordhere"
-  },{
-    "host": "localhost",
-    "port": 8332,
-    "user": "bitcoinsv",
-    "password": "whyamiusingaplaintextpasswordhere"
+    "user": "bitcoin",
+    "password": "bitcoin"
   }],
   "redis": {
     "url": "localhost:6379",

@@ -18,14 +18,14 @@ import (
 
 type MapiDefaultHandler struct {
 	Client  client.Interface
-	options handlerOptions
+	Options handlerOptions
 }
 
 func NewDefault(c client.Interface, opts ...Options) (mapi.HandlerInterface, error) {
 	bitcoinHandler := &MapiDefaultHandler{Client: c}
 
 	for _, opt := range opts {
-		opt(&bitcoinHandler.options)
+		opt(&bitcoinHandler.Options)
 	}
 
 	return bitcoinHandler, nil
@@ -34,7 +34,7 @@ func NewDefault(c client.Interface, opts ...Options) (mapi.HandlerInterface, err
 // GetMapiV2Policy ...
 func (m MapiDefaultHandler) GetMapiV2Policy(ctx echo.Context) error {
 
-	user, err := GetEchoUser(ctx, m.options.security)
+	user, err := GetEchoUser(ctx, m.Options.security)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func (m MapiDefaultHandler) GetMapiV2Policy(ctx echo.Context) error {
 // PostMapiV2Tx ...
 func (m MapiDefaultHandler) PostMapiV2Tx(ctx echo.Context, params mapi.PostMapiV2TxParams) error {
 
-	user, err := GetEchoUser(ctx, m.options.security)
+	user, err := GetEchoUser(ctx, m.Options.security)
 	if err != nil {
 		return err
 	}
@@ -214,24 +214,9 @@ func (m MapiDefaultHandler) PostMapiV2Tx(ctx echo.Context, params mapi.PostMapiV
 // GetMapiV2TxStatusId ...
 func (m MapiDefaultHandler) GetMapiV2TxStatusId(ctx echo.Context, id string) error {
 
-	tx, err := models.GetTransaction(ctx.Request().Context(), id, models.WithClient(m.Client))
-	if err != nil && !errors.Is(err, datastore.ErrNoResults) {
+	tx, _, err := m.getTransaction(ctx, id)
+	if err != nil {
 		return err
-	}
-
-	if tx == nil {
-		var rawTx *bitcoin.RawTransaction
-		if rawTx, err = m.Client.GetTransactionFromNodes(id); err != nil {
-			return err
-		}
-		if rawTx == nil {
-			return ctx.JSON(http.StatusNotFound, nil)
-		}
-		tx = &models.Transaction{
-			ID:          rawTx.TxID,
-			BlockHash:   rawTx.BlockHash,
-			BlockHeight: rawTx.BlockHeight,
-		}
 	}
 
 	return ctx.JSON(http.StatusOK, mapi.TransactionStatus{
@@ -247,28 +232,13 @@ func (m MapiDefaultHandler) GetMapiV2TxStatusId(ctx echo.Context, id string) err
 // GetMapiV2TxId Similar to GetMapiV2TxStatusId, but also returns the whole transaction
 func (m MapiDefaultHandler) GetMapiV2TxId(ctx echo.Context, id string) error {
 
-	tx, err := models.GetTransaction(ctx.Request().Context(), id, models.WithClient(m.Client))
-	if err != nil && !errors.Is(err, datastore.ErrNoResults) {
+	tx, txHex, err := m.getTransaction(ctx, id)
+	if err != nil {
 		return err
 	}
 
-	var txHex string
-	if tx == nil {
-		var rawTx *bitcoin.RawTransaction
-		if rawTx, err = m.Client.GetTransactionFromNodes(id); err != nil {
-			return err
-		}
-		if rawTx == nil {
-			return ctx.JSON(http.StatusNotFound, nil)
-		}
-		tx = &models.Transaction{
-			ID:          rawTx.TxID,
-			BlockHash:   rawTx.BlockHash,
-			BlockHeight: rawTx.BlockHeight,
-		}
-		txHex = rawTx.Hex
-	} else {
-		txHex = hex.EncodeToString(tx.Tx)
+	if txHex == "" {
+		return ctx.JSON(http.StatusNotFound, nil)
 	}
 
 	return ctx.JSON(http.StatusOK, mapi.Transaction{
@@ -280,6 +250,35 @@ func (m MapiDefaultHandler) GetMapiV2TxId(ctx echo.Context, id string) error {
 		Tx:          txHex,
 		Txid:        tx.ID,
 	})
+}
+
+func (m MapiDefaultHandler) getTransaction(ctx echo.Context, id string) (*models.Transaction, string, error) {
+
+	tx, err := models.GetTransaction(ctx.Request().Context(), id, models.WithClient(m.Client))
+	if err != nil && !errors.Is(err, datastore.ErrNoResults) {
+		return nil, "", err
+	}
+
+	var txHex string
+	if tx == nil {
+		var rawTx *bitcoin.RawTransaction
+		if rawTx, err = m.Client.GetTransactionFromNodes(id); err != nil {
+			return nil, "", err
+		}
+		if rawTx == nil {
+			return nil, "", nil
+		}
+		tx = &models.Transaction{
+			ID:          rawTx.TxID,
+			BlockHash:   rawTx.BlockHash,
+			BlockHeight: rawTx.BlockHeight,
+		}
+		txHex = rawTx.Hex
+	} else {
+		txHex = hex.EncodeToString(tx.Tx)
+	}
+
+	return tx, txHex, nil
 }
 
 // PostMapiV2Txs ...

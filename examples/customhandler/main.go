@@ -6,15 +6,11 @@ import (
 	"net/http"
 
 	"github.com/TAAL-GmbH/mapi"
-	"github.com/TAAL-GmbH/mapi/client"
-	"github.com/TAAL-GmbH/mapi/config"
 	"github.com/TAAL-GmbH/mapi/handler"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
-	"github.com/mrz1836/go-datastore"
-	"github.com/ordishs/go-bitcoin"
 )
 
 // This example does not use the configuration files or env variables,
@@ -59,43 +55,12 @@ func main() {
 		}),
 	)
 
-	// add a single bitcoin node
-	node, err := bitcoin.New("localhost", 8332, "user", "mypassword", false)
+	//
+	// initialise our Custom mapi handler
+	// which also initialises the client and datastore etc.
+	//
+	api, err := NewCustomHandler()
 	if err != nil {
-		panic(err)
-	}
-
-	// create a mapi client
-	var c client.Interface
-	c, err = client.New(
-		client.WithMinerID(&config.MinerIDConfig{
-			PrivateKey: "KznvCNc6Yf4iztSThoMH6oHWzH9EgjfodKxmeuUGPq5DEX5maspS",
-		}),
-		client.WithNode(node),
-		client.WithSQL(datastore.PostgreSQL, []*datastore.SQLConfig{{
-			CommonConfig: datastore.CommonConfig{
-				TablePrefix: "mapi_",
-			},
-			Host: "localhost",
-		}}),
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	// initialise the mapi default api handler, with our client and any handler options
-	var api mapi.HandlerInterface
-	if api, err = handler.NewDefault(c, handler.WithSecurityConfig(&config.SecurityConfig{
-		Type: config.SecurityTypeCustom,
-		// when setting a custom security handler, it is highly recommended defining a custom user function
-		CustomGetUser: func(ctx echo.Context) (*mapi.User, error) {
-			return &mapi.User{
-				ClientID: "test",
-				Name:     "Test user",
-				Admin:    false,
-			}, nil
-		},
-	})); err != nil {
 		panic(err)
 	}
 

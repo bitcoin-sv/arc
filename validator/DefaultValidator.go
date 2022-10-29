@@ -55,7 +55,10 @@ func checkScripts(txBytes []byte, parentData map[Outpoint]OutpointData) error {
 			Idx:  in.PreviousOutPoint.Index,
 		}
 
-		outpointData := parentData[outpoint]
+		outpointData, found := parentData[outpoint]
+		if !found {
+			return fmt.Errorf("Outpoint %#v not found", outpoint)
+		}
 
 		vm, err := txscript.NewEngine(outpointData.ScriptPubKey, tx, i, flags, nil, sigHashes, outpointData.Satoshis)
 		if err != nil {
@@ -63,9 +66,10 @@ func checkScripts(txBytes []byte, parentData map[Outpoint]OutpointData) error {
 		}
 
 		if err := vm.Execute(); err != nil {
-			return fmt.Errorf("Script execution failed: %w", err)
+			if err.Error() != "script returned early" {
+				return fmt.Errorf("Script execution failed: %w", err)
+			}
 		}
-
 	}
 
 	return nil

@@ -29,7 +29,7 @@ func Save(ctx context.Context, model ModelInterface) (err error) {
 			return err
 		}
 
-		// rest the new flag, if applicable
+		// reset the new flag, if applicable
 		model.NotNew()
 		return nil
 	})

@@ -28,18 +28,18 @@ var (
 		Type:   MapiDocServerUrl + "/errors/400",
 	}
 
-	ErrConflict = ErrorFields{
+	ErrGeneric = ErrorFields{
 		Detail: "Transaction could not be processed",
 		Status: ErrStatusGeneric,
 		Title:  "Generic error",
-		Type:   MapiDocServerUrl + "/errors/461",
+		Type:   MapiDocServerUrl + "/errors/409",
 	}
 
-	ErrGeneric = ErrorFields{
+	ErrConflict = ErrorFields{
 		Detail: "Transaction is valid, but there is a conflicting tx in the block template",
 		Status: ErrStatusConflict,
 		Title:  "Conflicting tx found",
-		Type:   MapiDocServerUrl + "/errors/461",
+		Type:   MapiDocServerUrl + "/errors/460",
 	}
 
 	ErrUnlockingScripts = ErrorFields{
@@ -80,8 +80,8 @@ var (
 
 var ErrByStatus = map[int]*ErrorFields{
 	ErrStatusBadRequest:       &ErrBadRequest,
-	ErrStatusGeneric:          &ErrConflict,
-	ErrStatusConflict:         &ErrGeneric,
+	ErrStatusGeneric:          &ErrGeneric,
+	ErrStatusConflict:         &ErrConflict,
 	ErrStatusUnlockingScripts: &ErrUnlockingScripts,
 	ErrStatusInputs:           &ErrInputs,
 	ErrStatusMalformed:        &ErrMalformed,

@@ -431,7 +431,7 @@ func (m MapiDefaultHandler) processTransaction(ctx echo.Context, transaction *mo
 	// now that the transaction is stored in our DB, fire it off to the mempool and try to get it mined
 	// this should return a 200 or 201 if 1 or more of the nodes accept the transaction
 	var conflictedWith []string
-	status, conflictedWith, err = transaction.SubmitToNodes()
+	status, conflictedWith, err = transaction.Submit()
 	if status >= 400 || err != nil {
 		return m.handleError(ctx, status, transaction, err)
 	}

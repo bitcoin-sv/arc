@@ -111,7 +111,7 @@ func (t *Transaction) Validate() (int, error) {
 	return mapi.StatusAddedBlockTemplate, nil
 }
 
-func (t *Transaction) SubmitToNodes() (int, []string, error) {
+func (t *Transaction) Submit() (int, []string, error) {
 
 	// TODO this needs to be extended with all the good stuff of getting transactions on-chain
 	// and figuring out what the actual error is, if an error is thrown

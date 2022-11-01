@@ -181,6 +181,8 @@ func TestDefaultValidatorFile1(t *testing.T) {
 
 	tx, _ := bt.NewTxFromBytes(txBytes)
 
+	t.Logf("TXID: %s", tx.TxID())
+
 	parentData := make(map[validator.Outpoint]validator.OutpointData)
 
 	for inIndex, in := range tx.Inputs {

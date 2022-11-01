@@ -106,11 +106,11 @@ func (m MapiDefaultHandler) PostMapiV2Tx(ctx echo.Context, params mapi.PostMapiV
 			return ctx.JSON(mapi.ErrStatusMalformed, e)
 		}
 	case "application/json":
-		var txHex string
-		if err = json.Unmarshal(body, &txHex); err != nil {
+		var txJson mapi.PostMapiV2TxJSONBody
+		if err = json.Unmarshal(body, &txJson); err != nil {
 			return ctx.JSON(mapi.ErrStatusMalformed, mapi.ErrBadRequest)
 		}
-		if transaction, err = models.NewTransactionFromHex(txHex, models.WithClient(m.Client), models.New()); err != nil {
+		if transaction, err = models.NewTransactionFromHex(txJson.RawTx, models.WithClient(m.Client), models.New()); err != nil {
 			errStr := err.Error()
 			e := mapi.ErrMalformed
 			e.ExtraInfo = &errStr

@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.1",
   "info": {
-    "title": "Merchant API",
+    "title": "BSV MAPI",
     "version": "2.0.0",
     "license": {
       "name": "Open BSV License",
@@ -65,7 +65,7 @@
               }
             }
           },
-          "403": {
+          "401": {
             "$ref": "#/components/responses/NotAuthorized"
           },
           "404": {
@@ -428,8 +428,28 @@
             "properties": {
               "policies": {
                 "type": "object",
-                "additionalProperties": {},
-                "nullable": true
+                "nullable": true,
+                "example": {
+                  "skipscriptflags": [
+                    "MINIMALDATA",
+                    "DERSIG",
+                    "NULLDUMMY",
+                    "CLEANSTACK"
+                  ],
+                  "maxtxsizepolicy": 99999,
+                  "datacarriersize": 100000,
+                  "maxscriptsizepolicy": 100000,
+                  "maxscriptnumlengthpolicy": 100000,
+                  "maxstackmemoryusagepolicy": 10000000,
+                  "limitancestorcount": 1000,
+                  "limitcpfpgroupmemberscount": 10,
+                  "acceptnonstdoutputs": true,
+                  "datacarrier": true,
+                  "maxstdtxvalidationduration": 99,
+                  "maxnonstdtxvalidationduration": 100,
+                  "dustrelayfee": 150,
+                  "dustlimitfactor": 500
+                }
               }
             }
           }
@@ -602,16 +622,21 @@
           },
           "blockHeight": {
             "type": "integer",
-            "format": "int64",
+            "format": "uint64",
             "nullable": false
           }
         }
       },
       "TransactionSubmitStatus": {
         "type": "object",
+        "required": [
+          "status",
+          "title"
+        ],
         "properties": {
           "status": {
-            "type": "number",
+            "type": "integer",
+            "format": "int",
             "example": 201,
             "nullable": false
           },
@@ -624,6 +649,9 @@
       },
       "TransactionDetails": {
         "type": "object",
+        "required": [
+          "txid"
+        ],
         "allOf": [
           {
             "$ref": "#/components/schemas/TransactionSubmitStatus"
@@ -749,6 +777,11 @@
               },
               "instance": {
                 "example": "https://mapi.taal.com/errors/123453"
+              },
+              "conflictedWith": {
+                "example": [
+                  "0231d4135c5ca1e070b6c03d1f91f2f8cdac4d1de01b6289dd7c68adb685a69b"
+                ]
               }
             }
           }
@@ -914,7 +947,8 @@
             "nullable": false
           },
           "status": {
-            "type": "number",
+            "type": "integer",
+            "format": "int",
             "description": "Error code",
             "example": 402,
             "nullable": false
@@ -949,17 +983,10 @@
       }
     },
     "securitySchemes": {
-      "Bearer": {
-        "type": "apiKey",
-        "description": "Please enter JWT with Bearer needed to access MAPI into field. Authorization: Bearer JWT",
-        "name": "Authorization",
-        "in": "header"
-      },
-      "Api-Key": {
-        "type": "apiKey",
-        "description": "Please enter API key needed to access admin endpoints into field. Api-Key: My_API_Key",
-        "name": "Api-Key",
-        "in": "header"
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Bearer authentication as defined in RFC 6750"
       }
     },
     "parameters": {
@@ -991,10 +1018,7 @@
   },
   "security": [
     {
-      "Bearer": []
-    },
-    {
-      "Api-Key": []
+      "BearerAuth": []
     }
   ]
 }

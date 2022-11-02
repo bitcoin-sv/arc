@@ -45,7 +45,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Transaction'
-        403:
+        401:
           $ref: '#/components/responses/NotAuthorized'
         404:
           description: Not found

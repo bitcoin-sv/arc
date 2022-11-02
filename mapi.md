@@ -1,5 +1,5 @@
 ---
-title: Merchant API v2.0.0
+title: BSV MAPI v2.0.0
 language_tabs:
   - http: HTTP
   - javascript: JavaScript
@@ -26,7 +26,7 @@ headingLevel: 2
 
 <!-- Generator: Widdershins v4.0.1 -->
 
-<h1 id="merchant-api">Merchant API v2.0.0</h1>
+<h1 id="bsv-mapi">BSV MAPI v2.0.0</h1>
 
 > Scroll down for code samples, example requests and responses. Select a language for code samples from the tabs above or the mobile navigation menu.
 
@@ -34,13 +34,9 @@ License: <a href="https://bitcoinassociation.net/open-bsv-license/">Open BSV Lic
 
 # Authentication
 
-* API Key (Bearer)
-    - Parameter Name: **Authorization**, in: header. Please enter JWT with Bearer needed to access MAPI into field. Authorization: Bearer JWT
+- HTTP Authentication, scheme: bearer Bearer authentication as defined in RFC 6750
 
-* API Key (Api-Key)
-    - Parameter Name: **Api-Key**, in: header. Please enter API key needed to access admin endpoints into field. Api-Key: My_API_Key
-
-<h1 id="merchant-api-mapi">Mapi</h1>
+<h1 id="bsv-mapi-mapi">Mapi</h1>
 
 ## Get the miner policy
 
@@ -57,7 +53,7 @@ Accept: application/json
 
 const headers = {
   'Accept':'application/json',
-  'Authorization':'API_KEY'
+  'Authorization':'Bearer {access-token}'
 };
 
 fetch('/mapi/v2/policy',
@@ -103,7 +99,7 @@ func main() {
 
     headers := map[string][]string{
         "Accept": []string{"application/json"},
-        "Authorization": []string{"API_KEY"},
+        "Authorization": []string{"Bearer {access-token}"},
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
@@ -123,7 +119,7 @@ require 'json'
 
 headers = {
   'Accept' => 'application/json',
-  'Authorization' => 'API_KEY'
+  'Authorization' => 'Bearer {access-token}'
 }
 
 result = RestClient.get '/mapi/v2/policy',
@@ -138,7 +134,7 @@ p JSON.parse(result)
 import requests
 headers = {
   'Accept': 'application/json',
-  'Authorization': 'API_KEY'
+  'Authorization': 'Bearer {access-token}'
 }
 
 r = requests.get('/mapi/v2/policy', headers = headers)
@@ -151,7 +147,7 @@ print(r.json())
 # You can also use wget
 curl -X GET /mapi/v2/policy \
   -H 'Accept: application/json' \
-  -H 'Authorization: API_KEY'
+  -H 'Authorization: Bearer {access-token}'
 
 ```
 
@@ -183,8 +179,25 @@ This endpoint returns the miner policies and fees charged.
     }
   ],
   "policies": {
-    "property1": null,
-    "property2": null
+    "skipscriptflags": [
+      "MINIMALDATA",
+      "DERSIG",
+      "NULLDUMMY",
+      "CLEANSTACK"
+    ],
+    "maxtxsizepolicy": 99999,
+    "datacarriersize": 100000,
+    "maxscriptsizepolicy": 100000,
+    "maxscriptnumlengthpolicy": 100000,
+    "maxstackmemoryusagepolicy": 10000000,
+    "limitancestorcount": 1000,
+    "limitcpfpgroupmemberscount": 10,
+    "acceptnonstdoutputs": true,
+    "datacarrier": true,
+    "maxstdtxvalidationduration": 99,
+    "maxnonstdtxvalidationduration": 100,
+    "dustrelayfee": 150,
+    "dustlimitfactor": 500
   }
 }
 ```
@@ -199,7 +212,7 @@ This endpoint returns the miner policies and fees charged.
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-Bearer, Api-Key
+BearerAuth
 </aside>
 
 ## Query transaction
@@ -217,7 +230,7 @@ Accept: application/json
 
 const headers = {
   'Accept':'application/json',
-  'Authorization':'API_KEY'
+  'Authorization':'Bearer {access-token}'
 };
 
 fetch('/mapi/v2/tx/{id}',
@@ -263,7 +276,7 @@ func main() {
 
     headers := map[string][]string{
         "Accept": []string{"application/json"},
-        "Authorization": []string{"API_KEY"},
+        "Authorization": []string{"Bearer {access-token}"},
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
@@ -283,7 +296,7 @@ require 'json'
 
 headers = {
   'Accept' => 'application/json',
-  'Authorization' => 'API_KEY'
+  'Authorization' => 'Bearer {access-token}'
 }
 
 result = RestClient.get '/mapi/v2/tx/{id}',
@@ -298,7 +311,7 @@ p JSON.parse(result)
 import requests
 headers = {
   'Accept': 'application/json',
-  'Authorization': 'API_KEY'
+  'Authorization': 'Bearer {access-token}'
 }
 
 r = requests.get('/mapi/v2/tx/{id}', headers = headers)
@@ -311,7 +324,7 @@ print(r.json())
 # You can also use wget
 curl -X GET /mapi/v2/tx/{id} \
   -H 'Accept: application/json' \
-  -H 'Authorization: API_KEY'
+  -H 'Authorization: Bearer {access-token}'
 
 ```
 
@@ -346,12 +359,12 @@ This endpoint is used to get a previously submitted transaction.
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Success|[Transaction](#schematransaction)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|Security requirements failed|None|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Security requirements failed|None|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Not found|None|
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-Bearer, Api-Key
+BearerAuth
 </aside>
 
 ## Query transaction status.
@@ -369,7 +382,7 @@ Accept: application/json
 
 const headers = {
   'Accept':'application/json',
-  'Authorization':'API_KEY'
+  'Authorization':'Bearer {access-token}'
 };
 
 fetch('/mapi/v2/txStatus/{id}',
@@ -415,7 +428,7 @@ func main() {
 
     headers := map[string][]string{
         "Accept": []string{"application/json"},
-        "Authorization": []string{"API_KEY"},
+        "Authorization": []string{"Bearer {access-token}"},
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
@@ -435,7 +448,7 @@ require 'json'
 
 headers = {
   'Accept' => 'application/json',
-  'Authorization' => 'API_KEY'
+  'Authorization' => 'Bearer {access-token}'
 }
 
 result = RestClient.get '/mapi/v2/txStatus/{id}',
@@ -450,7 +463,7 @@ p JSON.parse(result)
 import requests
 headers = {
   'Accept': 'application/json',
-  'Authorization': 'API_KEY'
+  'Authorization': 'Bearer {access-token}'
 }
 
 r = requests.get('/mapi/v2/txStatus/{id}', headers = headers)
@@ -463,7 +476,7 @@ print(r.json())
 # You can also use wget
 curl -X GET /mapi/v2/txStatus/{id} \
   -H 'Accept: application/json' \
-  -H 'Authorization: API_KEY'
+  -H 'Authorization: Bearer {access-token}'
 
 ```
 
@@ -502,7 +515,7 @@ This endpoint is used to check the current status of a previously submitted tran
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-Bearer, Api-Key
+BearerAuth
 </aside>
 
 ## Submit a transaction.
@@ -528,7 +541,7 @@ const headers = {
   'X-CallbackUrl':'string',
   'X-CallbackToken':'string',
   'X-MerkleProof':'string',
-  'Authorization':'API_KEY'
+  'Authorization':'Bearer {access-token}'
 };
 
 fetch('/mapi/v2/tx',
@@ -578,7 +591,7 @@ func main() {
         "X-CallbackUrl": []string{"string"},
         "X-CallbackToken": []string{"string"},
         "X-MerkleProof": []string{"string"},
-        "Authorization": []string{"API_KEY"},
+        "Authorization": []string{"Bearer {access-token}"},
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
@@ -602,7 +615,7 @@ headers = {
   'X-CallbackUrl' => 'string',
   'X-CallbackToken' => 'string',
   'X-MerkleProof' => 'string',
-  'Authorization' => 'API_KEY'
+  'Authorization' => 'Bearer {access-token}'
 }
 
 result = RestClient.post '/mapi/v2/tx',
@@ -621,7 +634,7 @@ headers = {
   'X-CallbackUrl': 'string',
   'X-CallbackToken': 'string',
   'X-MerkleProof': 'string',
-  'Authorization': 'API_KEY'
+  'Authorization': 'Bearer {access-token}'
 }
 
 r = requests.post('/mapi/v2/tx', headers = headers)
@@ -638,7 +651,7 @@ curl -X POST /mapi/v2/tx \
   -H 'X-CallbackUrl: string' \
   -H 'X-CallbackToken: string' \
   -H 'X-MerkleProof: string' \
-  -H 'Authorization: API_KEY'
+  -H 'Authorization: Bearer {access-token}'
 
 ```
 
@@ -734,7 +747,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-Bearer, Api-Key
+BearerAuth
 </aside>
 
 ## Submit multiple transactions.
@@ -761,7 +774,7 @@ const headers = {
   'X-CallbackUrl':'string',
   'X-CallbackToken':'string',
   'X-MerkleProof':'string',
-  'Authorization':'API_KEY'
+  'Authorization':'Bearer {access-token}'
 };
 
 fetch('/mapi/v2/txs',
@@ -811,7 +824,7 @@ func main() {
         "X-CallbackUrl": []string{"string"},
         "X-CallbackToken": []string{"string"},
         "X-MerkleProof": []string{"string"},
-        "Authorization": []string{"API_KEY"},
+        "Authorization": []string{"Bearer {access-token}"},
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
@@ -835,7 +848,7 @@ headers = {
   'X-CallbackUrl' => 'string',
   'X-CallbackToken' => 'string',
   'X-MerkleProof' => 'string',
-  'Authorization' => 'API_KEY'
+  'Authorization' => 'Bearer {access-token}'
 }
 
 result = RestClient.post '/mapi/v2/txs',
@@ -854,7 +867,7 @@ headers = {
   'X-CallbackUrl': 'string',
   'X-CallbackToken': 'string',
   'X-MerkleProof': 'string',
-  'Authorization': 'API_KEY'
+  'Authorization': 'Bearer {access-token}'
 }
 
 r = requests.post('/mapi/v2/txs', headers = headers)
@@ -871,7 +884,7 @@ curl -X POST /mapi/v2/txs \
   -H 'X-CallbackUrl: string' \
   -H 'X-CallbackToken: string' \
   -H 'X-MerkleProof: string' \
-  -H 'Authorization: API_KEY'
+  -H 'Authorization: Bearer {access-token}'
 
 ```
 
@@ -984,7 +997,7 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-Bearer, Api-Key
+BearerAuth
 </aside>
 
 # Schemas
@@ -1040,8 +1053,25 @@ Bearer, Api-Key
     }
   ],
   "policies": {
-    "property1": null,
-    "property2": null
+    "skipscriptflags": [
+      "MINIMALDATA",
+      "DERSIG",
+      "NULLDUMMY",
+      "CLEANSTACK"
+    ],
+    "maxtxsizepolicy": 99999,
+    "datacarriersize": 100000,
+    "maxscriptsizepolicy": 100000,
+    "maxscriptnumlengthpolicy": 100000,
+    "maxstackmemoryusagepolicy": 10000000,
+    "limitancestorcount": 1000,
+    "limitcpfpgroupmemberscount": 10,
+    "acceptnonstdoutputs": true,
+    "datacarrier": true,
+    "maxstdtxvalidationduration": 99,
+    "maxnonstdtxvalidationduration": 100,
+    "dustrelayfee": 150,
+    "dustlimitfactor": 500
   }
 }
 
@@ -1067,7 +1097,6 @@ and
 |---|---|---|---|---|
 |*anonymous*|object|false|none|none|
 |» policies|object¦null|true|none|none|
-|»» **additionalProperties**|any|false|none|none|
 
 <h2 id="tocS_FeeQuote">FeeQuote</h2>
 <!-- backwards compatibility -->
@@ -1369,7 +1398,7 @@ xor
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
 |blockHash|string|false|none|none|
-|blockHeight|integer(int64)|false|none|none|
+|blockHeight|integer(uint64)|false|none|none|
 
 <h2 id="tocS_TransactionSubmitStatus">TransactionSubmitStatus</h2>
 <!-- backwards compatibility -->
@@ -1390,8 +1419,8 @@ xor
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|status|number|false|none|none|
-|title|string|false|none|none|
+|status|integer(int)|true|none|none|
+|title|string|true|none|none|
 
 <h2 id="tocS_TransactionDetails">TransactionDetails</h2>
 <!-- backwards compatibility -->
@@ -1575,7 +1604,10 @@ and
   "detail": "Tx is valid, but there is a conflicting tx in the block template",
   "instance": "https://mapi.taal.com/errors/123453",
   "txid": "string",
-  "extraInfo": "string"
+  "extraInfo": "string",
+  "conflictedWith": [
+    "0231d4135c5ca1e070b6c03d1f91f2f8cdac4d1de01b6289dd7c68adb685a69b"
+  ]
 }
 
 ```
@@ -1598,6 +1630,7 @@ and
 |» status|any|false|none|none|
 |» detail|any|false|none|none|
 |» instance|any|false|none|none|
+|» conflictedWith|any|false|none|none|
 
 <h2 id="tocS_ErrorUnlockingScripts">ErrorUnlockingScripts</h2>
 <!-- backwards compatibility -->
@@ -1820,7 +1853,7 @@ and
 |---|---|---|---|---|
 |type|string|true|none|Type of error, with link to more information|
 |title|string|true|none|Descriptive text for error|
-|status|number|true|none|Error code|
+|status|integer(int)|true|none|Error code|
 |detail|string|true|none|Longer description of error|
 |instance|string¦null|false|none|(Optional) Link to actual error on server|
 |txid|string¦null|false|none|Transaction ID this error is referring to|

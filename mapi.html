@@ -7,7 +7,7 @@
     <meta charset="utf-8">
     <meta content="IE=edge,chrome=1" http-equiv="X-UA-Compatible">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    <title>Merchant API v2.0.0</title>
+    <title>BSV MAPI v2.0.0</title>
 
     <style>
     </style>
@@ -1537,7 +1537,7 @@ Darkula color scheme from the JetBrains family of IDEs
 	  	<ul class="toc-list-h1">
         
           <li>
-            <a href="#merchant-api" class="toc-h1 toc-link" data-title="Merchant API v2.0.0">Merchant API v2.0.0</a>
+            <a href="#bsv-mapi" class="toc-h1 toc-link" data-title="BSV MAPI v2.0.0">BSV MAPI v2.0.0</a>
             
           </li>
         
@@ -1547,7 +1547,7 @@ Darkula color scheme from the JetBrains family of IDEs
           </li>
         
           <li>
-            <a href="#merchant-api-mapi" class="toc-h1 toc-link" data-title="Mapi">Mapi</a>
+            <a href="#bsv-mapi-mapi" class="toc-h1 toc-link" data-title="Mapi">Mapi</a>
             
               <ul class="toc-list-h2">
                 
@@ -1710,27 +1710,16 @@ Darkula color scheme from the JetBrains family of IDEs
     <div class="page-wrapper">
       <div class="dark-box"></div>
       <div class="content">
-        <h1 id="merchant-api">Merchant API v2.0.0</h1>
+        <h1 id="bsv-mapi">BSV MAPI v2.0.0</h1>
 <blockquote>
 <p>Scroll down for code samples, example requests and responses. Select a language for code samples from the tabs above or the mobile navigation menu.</p>
 </blockquote>
 <p>License: <a href="https://bitcoinassociation.net/open-bsv-license/">Open BSV License</a></p>
 <h1 id="authentication">Authentication</h1>
 <ul>
-<li>
-<p>API Key (Bearer)</p>
-<ul>
-<li>Parameter Name: <strong>Authorization</strong>, in: header. Please enter JWT with Bearer needed to access MAPI into field. Authorization: Bearer JWT</li>
+<li>HTTP Authentication, scheme: bearer Bearer authentication as defined in RFC 6750</li>
 </ul>
-</li>
-<li>
-<p>API Key (Api-Key)</p>
-<ul>
-<li>Parameter Name: <strong>Api-Key</strong>, in: header. Please enter API key needed to access admin endpoints into field. Api-Key: My_API_Key</li>
-</ul>
-</li>
-</ul>
-<h1 id="merchant-api-mapi">Mapi</h1>
+<h1 id="bsv-mapi-mapi">Mapi</h1>
 <h2 id="get-the-miner-policy">Get the miner policy</h2>
 <blockquote>
 <p>Code samples</p>
@@ -1743,7 +1732,7 @@ Darkula color scheme from the JetBrains family of IDEs
 <pre class="highlight tab tab-javascript"><code>
 <span class="hljs-keyword">const</span> headers = {
   <span class="hljs-string">&#x27;Accept&#x27;</span>:<span class="hljs-string">&#x27;application/json&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span>:<span class="hljs-string">&#x27;API_KEY&#x27;</span>
+  <span class="hljs-string">&#x27;Authorization&#x27;</span>:<span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 };
 
 fetch(<span class="hljs-string">&#x27;/mapi/v2/policy&#x27;</span>,
@@ -1785,7 +1774,7 @@ System.out.println(response.toString());
 
     headers := <span class="hljs-keyword">map</span>[<span class="hljs-keyword">string</span>][]<span class="hljs-keyword">string</span>{
         <span class="hljs-string">&quot;Accept&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;application/json&quot;</span>},
-        <span class="hljs-string">&quot;Authorization&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;API_KEY&quot;</span>},
+        <span class="hljs-string">&quot;Authorization&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;Bearer {access-token}&quot;</span>},
     }
 
     data := bytes.NewBuffer([]<span class="hljs-keyword">byte</span>{jsonReq})
@@ -1803,7 +1792,7 @@ System.out.println(response.toString());
 
 headers = {
   <span class="hljs-string">&#x27;Accept&#x27;</span> =&gt; <span class="hljs-string">&#x27;application/json&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span> =&gt; <span class="hljs-string">&#x27;API_KEY&#x27;</span>
+  <span class="hljs-string">&#x27;Authorization&#x27;</span> =&gt; <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
 result = RestClient.get <span class="hljs-string">&#x27;/mapi/v2/policy&#x27;</span>,
@@ -1816,7 +1805,7 @@ p JSON.parse(result)
 <pre class="highlight tab tab-python"><code><span class="hljs-keyword">import</span> requests
 headers = {
   <span class="hljs-string">&#x27;Accept&#x27;</span>: <span class="hljs-string">&#x27;application/json&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span>: <span class="hljs-string">&#x27;API_KEY&#x27;</span>
+  <span class="hljs-string">&#x27;Authorization&#x27;</span>: <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
 r = requests.get(<span class="hljs-string">&#x27;/mapi/v2/policy&#x27;</span>, headers = headers)
@@ -1827,7 +1816,7 @@ r = requests.get(<span class="hljs-string">&#x27;/mapi/v2/policy&#x27;</span>, h
 <pre class="highlight tab tab-shell"><code><span class="hljs-comment"># You can also use wget</span>
 curl -X GET /mapi/v2/policy \
   -H <span class="hljs-string">&#x27;Accept: application/json&#x27;</span> \
-  -H <span class="hljs-string">&#x27;Authorization: API_KEY&#x27;</span>
+  -H <span class="hljs-string">&#x27;Authorization: Bearer {access-token}&#x27;</span>
 
 </code></pre>
 <p><code>GET /mapi/v2/policy</code></p>
@@ -1857,8 +1846,25 @@ curl -X GET /mapi/v2/policy \
     }
   ],
   <span class="hljs-attr">&quot;policies&quot;</span>: {
-    <span class="hljs-attr">&quot;property1&quot;</span>: <span class="hljs-literal">null</span>,
-    <span class="hljs-attr">&quot;property2&quot;</span>: <span class="hljs-literal">null</span>
+    <span class="hljs-attr">&quot;skipscriptflags&quot;</span>: [
+      <span class="hljs-string">&quot;MINIMALDATA&quot;</span>,
+      <span class="hljs-string">&quot;DERSIG&quot;</span>,
+      <span class="hljs-string">&quot;NULLDUMMY&quot;</span>,
+      <span class="hljs-string">&quot;CLEANSTACK&quot;</span>
+    ],
+    <span class="hljs-attr">&quot;maxtxsizepolicy&quot;</span>: <span class="hljs-number">99999</span>,
+    <span class="hljs-attr">&quot;datacarriersize&quot;</span>: <span class="hljs-number">100000</span>,
+    <span class="hljs-attr">&quot;maxscriptsizepolicy&quot;</span>: <span class="hljs-number">100000</span>,
+    <span class="hljs-attr">&quot;maxscriptnumlengthpolicy&quot;</span>: <span class="hljs-number">100000</span>,
+    <span class="hljs-attr">&quot;maxstackmemoryusagepolicy&quot;</span>: <span class="hljs-number">10000000</span>,
+    <span class="hljs-attr">&quot;limitancestorcount&quot;</span>: <span class="hljs-number">1000</span>,
+    <span class="hljs-attr">&quot;limitcpfpgroupmemberscount&quot;</span>: <span class="hljs-number">10</span>,
+    <span class="hljs-attr">&quot;acceptnonstdoutputs&quot;</span>: <span class="hljs-literal">true</span>,
+    <span class="hljs-attr">&quot;datacarrier&quot;</span>: <span class="hljs-literal">true</span>,
+    <span class="hljs-attr">&quot;maxstdtxvalidationduration&quot;</span>: <span class="hljs-number">99</span>,
+    <span class="hljs-attr">&quot;maxnonstdtxvalidationduration&quot;</span>: <span class="hljs-number">100</span>,
+    <span class="hljs-attr">&quot;dustrelayfee&quot;</span>: <span class="hljs-number">150</span>,
+    <span class="hljs-attr">&quot;dustlimitfactor&quot;</span>: <span class="hljs-number">500</span>
   }
 }
 </code></pre>
@@ -1895,7 +1901,7 @@ curl -X GET /mapi/v2/policy \
 </table>
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-Bearer, Api-Key
+BearerAuth
 </aside>
 <h2 id="query-transaction">Query transaction</h2>
 <blockquote>
@@ -1909,7 +1915,7 @@ Bearer, Api-Key
 <pre class="highlight tab tab-javascript"><code>
 <span class="hljs-keyword">const</span> headers = {
   <span class="hljs-string">&#x27;Accept&#x27;</span>:<span class="hljs-string">&#x27;application/json&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span>:<span class="hljs-string">&#x27;API_KEY&#x27;</span>
+  <span class="hljs-string">&#x27;Authorization&#x27;</span>:<span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 };
 
 fetch(<span class="hljs-string">&#x27;/mapi/v2/tx/{id}&#x27;</span>,
@@ -1951,7 +1957,7 @@ System.out.println(response.toString());
 
     headers := <span class="hljs-keyword">map</span>[<span class="hljs-keyword">string</span>][]<span class="hljs-keyword">string</span>{
         <span class="hljs-string">&quot;Accept&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;application/json&quot;</span>},
-        <span class="hljs-string">&quot;Authorization&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;API_KEY&quot;</span>},
+        <span class="hljs-string">&quot;Authorization&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;Bearer {access-token}&quot;</span>},
     }
 
     data := bytes.NewBuffer([]<span class="hljs-keyword">byte</span>{jsonReq})
@@ -1969,7 +1975,7 @@ System.out.println(response.toString());
 
 headers = {
   <span class="hljs-string">&#x27;Accept&#x27;</span> =&gt; <span class="hljs-string">&#x27;application/json&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span> =&gt; <span class="hljs-string">&#x27;API_KEY&#x27;</span>
+  <span class="hljs-string">&#x27;Authorization&#x27;</span> =&gt; <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
 result = RestClient.get <span class="hljs-string">&#x27;/mapi/v2/tx/{id}&#x27;</span>,
@@ -1982,7 +1988,7 @@ p JSON.parse(result)
 <pre class="highlight tab tab-python"><code><span class="hljs-keyword">import</span> requests
 headers = {
   <span class="hljs-string">&#x27;Accept&#x27;</span>: <span class="hljs-string">&#x27;application/json&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span>: <span class="hljs-string">&#x27;API_KEY&#x27;</span>
+  <span class="hljs-string">&#x27;Authorization&#x27;</span>: <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
 r = requests.get(<span class="hljs-string">&#x27;/mapi/v2/tx/{id}&#x27;</span>, headers = headers)
@@ -1993,7 +1999,7 @@ r = requests.get(<span class="hljs-string">&#x27;/mapi/v2/tx/{id}&#x27;</span>, 
 <pre class="highlight tab tab-shell"><code><span class="hljs-comment"># You can also use wget</span>
 curl -X GET /mapi/v2/tx/{id} \
   -H <span class="hljs-string">&#x27;Accept: application/json&#x27;</span> \
-  -H <span class="hljs-string">&#x27;Authorization: API_KEY&#x27;</span>
+  -H <span class="hljs-string">&#x27;Authorization: Bearer {access-token}&#x27;</span>
 
 </code></pre>
 <p><code>GET /mapi/v2/tx/{id}</code></p>
@@ -2053,8 +2059,8 @@ curl -X GET /mapi/v2/tx/{id} \
 <td><a href="#schematransaction">Transaction</a></td>
 </tr>
 <tr>
-<td>403</td>
-<td><a href="https://tools.ietf.org/html/rfc7231#section-6.5.3">Forbidden</a></td>
+<td>401</td>
+<td><a href="https://tools.ietf.org/html/rfc7235#section-3.1">Unauthorized</a></td>
 <td>Security requirements failed</td>
 <td>None</td>
 </tr>
@@ -2068,7 +2074,7 @@ curl -X GET /mapi/v2/tx/{id} \
 </table>
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-Bearer, Api-Key
+BearerAuth
 </aside>
 <h2 id="query-transaction-status-">Query transaction status.</h2>
 <blockquote>
@@ -2082,7 +2088,7 @@ Bearer, Api-Key
 <pre class="highlight tab tab-javascript"><code>
 <span class="hljs-keyword">const</span> headers = {
   <span class="hljs-string">&#x27;Accept&#x27;</span>:<span class="hljs-string">&#x27;application/json&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span>:<span class="hljs-string">&#x27;API_KEY&#x27;</span>
+  <span class="hljs-string">&#x27;Authorization&#x27;</span>:<span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 };
 
 fetch(<span class="hljs-string">&#x27;/mapi/v2/txStatus/{id}&#x27;</span>,
@@ -2124,7 +2130,7 @@ System.out.println(response.toString());
 
     headers := <span class="hljs-keyword">map</span>[<span class="hljs-keyword">string</span>][]<span class="hljs-keyword">string</span>{
         <span class="hljs-string">&quot;Accept&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;application/json&quot;</span>},
-        <span class="hljs-string">&quot;Authorization&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;API_KEY&quot;</span>},
+        <span class="hljs-string">&quot;Authorization&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;Bearer {access-token}&quot;</span>},
     }
 
     data := bytes.NewBuffer([]<span class="hljs-keyword">byte</span>{jsonReq})
@@ -2142,7 +2148,7 @@ System.out.println(response.toString());
 
 headers = {
   <span class="hljs-string">&#x27;Accept&#x27;</span> =&gt; <span class="hljs-string">&#x27;application/json&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span> =&gt; <span class="hljs-string">&#x27;API_KEY&#x27;</span>
+  <span class="hljs-string">&#x27;Authorization&#x27;</span> =&gt; <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
 result = RestClient.get <span class="hljs-string">&#x27;/mapi/v2/txStatus/{id}&#x27;</span>,
@@ -2155,7 +2161,7 @@ p JSON.parse(result)
 <pre class="highlight tab tab-python"><code><span class="hljs-keyword">import</span> requests
 headers = {
   <span class="hljs-string">&#x27;Accept&#x27;</span>: <span class="hljs-string">&#x27;application/json&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span>: <span class="hljs-string">&#x27;API_KEY&#x27;</span>
+  <span class="hljs-string">&#x27;Authorization&#x27;</span>: <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
 r = requests.get(<span class="hljs-string">&#x27;/mapi/v2/txStatus/{id}&#x27;</span>, headers = headers)
@@ -2166,7 +2172,7 @@ r = requests.get(<span class="hljs-string">&#x27;/mapi/v2/txStatus/{id}&#x27;</s
 <pre class="highlight tab tab-shell"><code><span class="hljs-comment"># You can also use wget</span>
 curl -X GET /mapi/v2/txStatus/{id} \
   -H <span class="hljs-string">&#x27;Accept: application/json&#x27;</span> \
-  -H <span class="hljs-string">&#x27;Authorization: API_KEY&#x27;</span>
+  -H <span class="hljs-string">&#x27;Authorization: Bearer {access-token}&#x27;</span>
 
 </code></pre>
 <p><code>GET /mapi/v2/txStatus/{id}</code></p>
@@ -2240,7 +2246,7 @@ curl -X GET /mapi/v2/txStatus/{id} \
 </table>
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-Bearer, Api-Key
+BearerAuth
 </aside>
 <h2 id="submit-a-transaction-">Submit a transaction.</h2>
 <blockquote>
@@ -2262,7 +2268,7 @@ X-MerkleProof: <span class="hljs-built_in">string</span>
   <span class="hljs-string">&#x27;X-CallbackUrl&#x27;</span>:<span class="hljs-string">&#x27;string&#x27;</span>,
   <span class="hljs-string">&#x27;X-CallbackToken&#x27;</span>:<span class="hljs-string">&#x27;string&#x27;</span>,
   <span class="hljs-string">&#x27;X-MerkleProof&#x27;</span>:<span class="hljs-string">&#x27;string&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span>:<span class="hljs-string">&#x27;API_KEY&#x27;</span>
+  <span class="hljs-string">&#x27;Authorization&#x27;</span>:<span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 };
 
 fetch(<span class="hljs-string">&#x27;/mapi/v2/tx&#x27;</span>,
@@ -2308,7 +2314,7 @@ System.out.println(response.toString());
         <span class="hljs-string">&quot;X-CallbackUrl&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;string&quot;</span>},
         <span class="hljs-string">&quot;X-CallbackToken&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;string&quot;</span>},
         <span class="hljs-string">&quot;X-MerkleProof&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;string&quot;</span>},
-        <span class="hljs-string">&quot;Authorization&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;API_KEY&quot;</span>},
+        <span class="hljs-string">&quot;Authorization&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;Bearer {access-token}&quot;</span>},
     }
 
     data := bytes.NewBuffer([]<span class="hljs-keyword">byte</span>{jsonReq})
@@ -2330,7 +2336,7 @@ headers = {
   <span class="hljs-string">&#x27;X-CallbackUrl&#x27;</span> =&gt; <span class="hljs-string">&#x27;string&#x27;</span>,
   <span class="hljs-string">&#x27;X-CallbackToken&#x27;</span> =&gt; <span class="hljs-string">&#x27;string&#x27;</span>,
   <span class="hljs-string">&#x27;X-MerkleProof&#x27;</span> =&gt; <span class="hljs-string">&#x27;string&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span> =&gt; <span class="hljs-string">&#x27;API_KEY&#x27;</span>
+  <span class="hljs-string">&#x27;Authorization&#x27;</span> =&gt; <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
 result = RestClient.post <span class="hljs-string">&#x27;/mapi/v2/tx&#x27;</span>,
@@ -2347,7 +2353,7 @@ headers = {
   <span class="hljs-string">&#x27;X-CallbackUrl&#x27;</span>: <span class="hljs-string">&#x27;string&#x27;</span>,
   <span class="hljs-string">&#x27;X-CallbackToken&#x27;</span>: <span class="hljs-string">&#x27;string&#x27;</span>,
   <span class="hljs-string">&#x27;X-MerkleProof&#x27;</span>: <span class="hljs-string">&#x27;string&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span>: <span class="hljs-string">&#x27;API_KEY&#x27;</span>
+  <span class="hljs-string">&#x27;Authorization&#x27;</span>: <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
 r = requests.post(<span class="hljs-string">&#x27;/mapi/v2/tx&#x27;</span>, headers = headers)
@@ -2362,7 +2368,7 @@ curl -X POST /mapi/v2/tx \
   -H <span class="hljs-string">&#x27;X-CallbackUrl: string&#x27;</span> \
   -H <span class="hljs-string">&#x27;X-CallbackToken: string&#x27;</span> \
   -H <span class="hljs-string">&#x27;X-MerkleProof: string&#x27;</span> \
-  -H <span class="hljs-string">&#x27;Authorization: API_KEY&#x27;</span>
+  -H <span class="hljs-string">&#x27;Authorization: Bearer {access-token}&#x27;</span>
 
 </code></pre>
 <p><code>POST /mapi/v2/tx</code></p>
@@ -2522,7 +2528,7 @@ curl -X POST /mapi/v2/tx \
 </table>
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-Bearer, Api-Key
+BearerAuth
 </aside>
 <h2 id="submit-multiple-transactions-">Submit multiple transactions.</h2>
 <blockquote>
@@ -2545,7 +2551,7 @@ X-MerkleProof: <span class="hljs-built_in">string</span>
   <span class="hljs-string">&#x27;X-CallbackUrl&#x27;</span>:<span class="hljs-string">&#x27;string&#x27;</span>,
   <span class="hljs-string">&#x27;X-CallbackToken&#x27;</span>:<span class="hljs-string">&#x27;string&#x27;</span>,
   <span class="hljs-string">&#x27;X-MerkleProof&#x27;</span>:<span class="hljs-string">&#x27;string&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span>:<span class="hljs-string">&#x27;API_KEY&#x27;</span>
+  <span class="hljs-string">&#x27;Authorization&#x27;</span>:<span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 };
 
 fetch(<span class="hljs-string">&#x27;/mapi/v2/txs&#x27;</span>,
@@ -2591,7 +2597,7 @@ System.out.println(response.toString());
         <span class="hljs-string">&quot;X-CallbackUrl&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;string&quot;</span>},
         <span class="hljs-string">&quot;X-CallbackToken&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;string&quot;</span>},
         <span class="hljs-string">&quot;X-MerkleProof&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;string&quot;</span>},
-        <span class="hljs-string">&quot;Authorization&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;API_KEY&quot;</span>},
+        <span class="hljs-string">&quot;Authorization&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;Bearer {access-token}&quot;</span>},
     }
 
     data := bytes.NewBuffer([]<span class="hljs-keyword">byte</span>{jsonReq})
@@ -2613,7 +2619,7 @@ headers = {
   <span class="hljs-string">&#x27;X-CallbackUrl&#x27;</span> =&gt; <span class="hljs-string">&#x27;string&#x27;</span>,
   <span class="hljs-string">&#x27;X-CallbackToken&#x27;</span> =&gt; <span class="hljs-string">&#x27;string&#x27;</span>,
   <span class="hljs-string">&#x27;X-MerkleProof&#x27;</span> =&gt; <span class="hljs-string">&#x27;string&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span> =&gt; <span class="hljs-string">&#x27;API_KEY&#x27;</span>
+  <span class="hljs-string">&#x27;Authorization&#x27;</span> =&gt; <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
 result = RestClient.post <span class="hljs-string">&#x27;/mapi/v2/txs&#x27;</span>,
@@ -2630,7 +2636,7 @@ headers = {
   <span class="hljs-string">&#x27;X-CallbackUrl&#x27;</span>: <span class="hljs-string">&#x27;string&#x27;</span>,
   <span class="hljs-string">&#x27;X-CallbackToken&#x27;</span>: <span class="hljs-string">&#x27;string&#x27;</span>,
   <span class="hljs-string">&#x27;X-MerkleProof&#x27;</span>: <span class="hljs-string">&#x27;string&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span>: <span class="hljs-string">&#x27;API_KEY&#x27;</span>
+  <span class="hljs-string">&#x27;Authorization&#x27;</span>: <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
 r = requests.post(<span class="hljs-string">&#x27;/mapi/v2/txs&#x27;</span>, headers = headers)
@@ -2645,7 +2651,7 @@ curl -X POST /mapi/v2/txs \
   -H <span class="hljs-string">&#x27;X-CallbackUrl: string&#x27;</span> \
   -H <span class="hljs-string">&#x27;X-CallbackToken: string&#x27;</span> \
   -H <span class="hljs-string">&#x27;X-MerkleProof: string&#x27;</span> \
-  -H <span class="hljs-string">&#x27;Authorization: API_KEY&#x27;</span>
+  -H <span class="hljs-string">&#x27;Authorization: Bearer {access-token}&#x27;</span>
 
 </code></pre>
 <p><code>POST /mapi/v2/txs</code></p>
@@ -2801,7 +2807,7 @@ curl -X POST /mapi/v2/txs \
 </table>
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-Bearer, Api-Key
+BearerAuth
 </aside>
 <h1 id="schemas">Schemas</h1>
 <h2 id="tocs_basicresponse">BasicResponse</h2>
@@ -2875,8 +2881,25 @@ Bearer, Api-Key
     }
   ],
   <span class="hljs-attr">&quot;policies&quot;</span>: {
-    <span class="hljs-attr">&quot;property1&quot;</span>: <span class="hljs-literal">null</span>,
-    <span class="hljs-attr">&quot;property2&quot;</span>: <span class="hljs-literal">null</span>
+    <span class="hljs-attr">&quot;skipscriptflags&quot;</span>: [
+      <span class="hljs-string">&quot;MINIMALDATA&quot;</span>,
+      <span class="hljs-string">&quot;DERSIG&quot;</span>,
+      <span class="hljs-string">&quot;NULLDUMMY&quot;</span>,
+      <span class="hljs-string">&quot;CLEANSTACK&quot;</span>
+    ],
+    <span class="hljs-attr">&quot;maxtxsizepolicy&quot;</span>: <span class="hljs-number">99999</span>,
+    <span class="hljs-attr">&quot;datacarriersize&quot;</span>: <span class="hljs-number">100000</span>,
+    <span class="hljs-attr">&quot;maxscriptsizepolicy&quot;</span>: <span class="hljs-number">100000</span>,
+    <span class="hljs-attr">&quot;maxscriptnumlengthpolicy&quot;</span>: <span class="hljs-number">100000</span>,
+    <span class="hljs-attr">&quot;maxstackmemoryusagepolicy&quot;</span>: <span class="hljs-number">10000000</span>,
+    <span class="hljs-attr">&quot;limitancestorcount&quot;</span>: <span class="hljs-number">1000</span>,
+    <span class="hljs-attr">&quot;limitcpfpgroupmemberscount&quot;</span>: <span class="hljs-number">10</span>,
+    <span class="hljs-attr">&quot;acceptnonstdoutputs&quot;</span>: <span class="hljs-literal">true</span>,
+    <span class="hljs-attr">&quot;datacarrier&quot;</span>: <span class="hljs-literal">true</span>,
+    <span class="hljs-attr">&quot;maxstdtxvalidationduration&quot;</span>: <span class="hljs-number">99</span>,
+    <span class="hljs-attr">&quot;maxnonstdtxvalidationduration&quot;</span>: <span class="hljs-number">100</span>,
+    <span class="hljs-attr">&quot;dustrelayfee&quot;</span>: <span class="hljs-number">150</span>,
+    <span class="hljs-attr">&quot;dustlimitfactor&quot;</span>: <span class="hljs-number">500</span>
   }
 }
 
@@ -2947,13 +2970,6 @@ Bearer, Api-Key
 <td>» policies</td>
 <td>object¦null</td>
 <td>true</td>
-<td>none</td>
-<td>none</td>
-</tr>
-<tr>
-<td>»» <strong>additionalProperties</strong></td>
-<td>any</td>
-<td>false</td>
 <td>none</td>
 <td>none</td>
 </tr>
@@ -3554,7 +3570,7 @@ Bearer, Api-Key
 </tr>
 <tr>
 <td>blockHeight</td>
-<td>integer(int64)</td>
+<td>integer(uint64)</td>
 <td>false</td>
 <td>none</td>
 <td>none</td>
@@ -3586,15 +3602,15 @@ Bearer, Api-Key
 <tbody>
 <tr>
 <td>status</td>
-<td>number</td>
-<td>false</td>
+<td>integer(int)</td>
+<td>true</td>
 <td>none</td>
 <td>none</td>
 </tr>
 <tr>
 <td>title</td>
 <td>string</td>
-<td>false</td>
+<td>true</td>
 <td>none</td>
 <td>none</td>
 </tr>
@@ -3995,7 +4011,10 @@ Bearer, Api-Key
   <span class="hljs-attr">&quot;detail&quot;</span>: <span class="hljs-string">&quot;Tx is valid, but there is a conflicting tx in the block template&quot;</span>,
   <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://mapi.taal.com/errors/123453&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
-  <span class="hljs-attr">&quot;extraInfo&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
+  <span class="hljs-attr">&quot;extraInfo&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+  <span class="hljs-attr">&quot;conflictedWith&quot;</span>: [
+    <span class="hljs-string">&quot;0231d4135c5ca1e070b6c03d1f91f2f8cdac4d1de01b6289dd7c68adb685a69b&quot;</span>
+  ]
 }
 
 </code></pre>
@@ -4070,6 +4089,13 @@ Bearer, Api-Key
 </tr>
 <tr>
 <td>» instance</td>
+<td>any</td>
+<td>false</td>
+<td>none</td>
+<td>none</td>
+</tr>
+<tr>
+<td>» conflictedWith</td>
 <td>any</td>
 <td>false</td>
 <td>none</td>
@@ -4591,7 +4617,7 @@ Bearer, Api-Key
 </tr>
 <tr>
 <td>status</td>
-<td>number</td>
+<td>integer(int)</td>
 <td>true</td>
 <td>none</td>
 <td>Error code</td>

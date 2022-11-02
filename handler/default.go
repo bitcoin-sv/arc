@@ -112,8 +112,12 @@ func (m MapiDefaultHandler) PostMapiV2Tx(ctx echo.Context, params mapi.PostMapiV
 	case "application/json":
 		var txHex string
 		if err = json.Unmarshal(body, &txHex); err != nil {
-			return ctx.JSON(mapi.ErrStatusMalformed, mapi.ErrBadRequest)
+			errStr := err.Error()
+			e := mapi.ErrMalformed
+			e.ExtraInfo = &errStr
+			return ctx.JSON(mapi.ErrStatusMalformed, e)
 		}
+
 		if transaction, err = models.NewTransactionFromHex(txHex, models.WithClient(m.Client), models.New()); err != nil {
 			errStr := err.Error()
 			e := mapi.ErrMalformed
@@ -426,7 +430,7 @@ func (m MapiDefaultHandler) processTransaction(ctx echo.Context, transaction *mo
 		}, nil
 	}
 
-	if status, err = transaction.Validate(); err != nil || status >= 400 {
+	if status, err = transaction.Validate(ctx.Request().Context()); err != nil || status >= 400 {
 		return m.handleError(ctx, status, transaction, err)
 	}
 
@@ -515,7 +519,9 @@ func (m MapiDefaultHandler) handleError(ctx echo.Context, status int, transactio
 		transaction.Status = models.TransactionStatusError
 		transaction.ErrStatus = mapiError.Status
 		transaction.ErrInstanceID = logError.ID
-		transaction.ErrExtraInfo = *mapiError.ExtraInfo
+		if mapiError.ExtraInfo != nil {
+			transaction.ErrExtraInfo = *mapiError.ExtraInfo
+		}
 		if err := transaction.Save(ctx.Request().Context()); err != nil {
 			return 0, nil, err
 		}

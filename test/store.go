@@ -2,15 +2,18 @@ package test
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/mrz1836/go-datastore"
+	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
 )
 
 type Datastore struct {
 	CreateInBatchesError error
 	ExecuteResult        []*gorm.DB
+	GetModelResult       []interface{}
 }
 
 func (d *Datastore) AutoMigrateDatabase(_ context.Context, _ ...interface{}) error {
@@ -36,10 +39,21 @@ func (d *Datastore) Execute(query string) *gorm.DB {
 	return nil
 }
 
-func (d *Datastore) GetModel(ctx context.Context, model interface{}, conditions map[string]interface{},
-	timeout time.Duration, forceWriteDB bool) error {
+func (d *Datastore) GetModel(_ context.Context, model interface{}, _ map[string]interface{},
+	_ time.Duration, _ bool) error {
 
-	return nil
+	if d.GetModelResult != nil {
+		// pop the first result of the stack and return it
+		var m interface{}
+		m, d.GetModelResult = d.GetModelResult[0], d.GetModelResult[1:]
+
+		// model is a pointer to a model struct
+		mm, _ := json.Marshal(m)
+		_ = json.Unmarshal(mm, model)
+
+		return nil
+	}
+	return datastore.ErrNoResults
 }
 
 func (d *Datastore) GetModels(ctx context.Context, models interface{}, conditions map[string]interface{}, queryParams *datastore.QueryParams,
@@ -86,4 +100,79 @@ func (d *Datastore) Raw(query string) *gorm.DB {
 
 func (d *Datastore) SaveModel(ctx context.Context, model interface{}, tx *datastore.Transaction, newRecord, commitTx bool) error {
 	return nil
+}
+
+func (d *Datastore) GetArrayFields() []string {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *Datastore) GetDatabaseName() string {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *Datastore) GetMongoCollection(collectionName string) *mongo.Collection {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *Datastore) GetMongoCollectionByTableName(tableName string) *mongo.Collection {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *Datastore) GetMongoConditionProcessor() func(conditions *map[string]interface{}) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *Datastore) GetMongoIndexer() func() map[string][]mongo.IndexModel {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *Datastore) GetObjectFields() []string {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *Datastore) GetTableName(modelName string) string {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *Datastore) Close(ctx context.Context) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *Datastore) Debug(on bool) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *Datastore) DebugLog(ctx context.Context, text string) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *Datastore) Engine() datastore.Engine {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *Datastore) IsAutoMigrate() bool {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *Datastore) IsDebug() bool {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *Datastore) IsNewRelicEnabled() bool {
+	//TODO implement me
+	panic("implement me")
 }

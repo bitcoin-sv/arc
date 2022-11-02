@@ -298,8 +298,28 @@ components:
           properties:
             policies:
               type: object
-              additionalProperties: {}
               nullable: true
+              example: {
+                "skipscriptflags": [
+                  "MINIMALDATA",
+                  "DERSIG",
+                  "NULLDUMMY",
+                  "CLEANSTACK"
+                ],
+                "maxtxsizepolicy":99999,
+                "datacarriersize":100000,
+                "maxscriptsizepolicy":100000,
+                "maxscriptnumlengthpolicy":100000,
+                "maxstackmemoryusagepolicy":10000000,
+                "limitancestorcount":1000,
+                "limitcpfpgroupmemberscount":10,
+                "acceptnonstdoutputs":true,
+                "datacarrier":true,
+                "maxstdtxvalidationduration":99,
+                "maxnonstdtxvalidationduration":100,
+                "dustrelayfee":150,
+                "dustlimitfactor":500
+              }
     FeeQuote:
       type: object
       required:

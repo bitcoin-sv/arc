@@ -9,6 +9,7 @@ import (
 	"github.com/TAAL-GmbH/mapi/validator"
 	"github.com/libsv/go-bt/v2"
 	"github.com/mrz1836/go-datastore"
+	"github.com/ordishs/go-bitcoin"
 )
 
 // ModelNameTransaction defines the model name
@@ -98,11 +99,46 @@ func GetTransaction(ctx context.Context, id string, opts ...ModelOps) (*Transact
 }
 
 // Validate validates a transaction and returns the mapi status and internal error, if applicable
-func (t *Transaction) Validate() (int, error) {
+func (t *Transaction) Validate(ctx context.Context) (int, error) {
 
 	txValidator := validator.New()
-	// TODO Where to get the outpoints ?
-	var parentData map[validator.Outpoint]validator.OutpointData
+	parentData := make(map[validator.Outpoint]validator.OutpointData)
+	for _, input := range t.parsedTx.Inputs {
+		txID := hex.EncodeToString(input.PreviousTxID())
+		parentTx := &Transaction{
+			Model: *NewBaseModel(ModelNamePolicy, WithClient(t.Client())),
+		}
+		if err := t.Client().Datastore().GetModel(ctx, parentTx, map[string]interface{}{
+			"id": txID,
+		}, 5*time.Second, false); err != nil {
+			var rawTx *bitcoin.RawTransaction
+			if rawTx, err = t.Client().GetTransactionFromNodes(txID); err != nil {
+				return mapi.ErrStatusInputs, err
+			}
+			if rawTx == nil {
+				return mapi.ErrStatusInputs, nil
+			}
+
+			parentTx, err = NewTransactionFromHex(rawTx.Hex, WithClient(t.Client()))
+			if err != nil {
+				return mapi.ErrStatusInputs, err
+			}
+		}
+
+		btTx, err := bt.NewTxFromBytes(parentTx.Tx)
+		if err != nil {
+			return mapi.ErrStatusInputs, err
+		}
+
+		parentData[validator.Outpoint{
+			Txid: hex.EncodeToString(input.PreviousTxID()),
+			Idx:  input.PreviousTxOutIndex,
+		}] = validator.OutpointData{
+			ScriptPubKey: btTx.Outputs[input.PreviousTxOutIndex].Bytes(),
+			Satoshis:     int64(btTx.Outputs[input.PreviousTxOutIndex].Satoshis),
+		}
+	}
+
 	if err := txValidator.ValidateTransaction(t.parsedTx, parentData); err != nil {
 		// TODO return the status for the real reason this transaction did not validate
 		return mapi.ErrStatusMalformed, err

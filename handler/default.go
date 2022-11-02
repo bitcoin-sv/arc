@@ -51,10 +51,14 @@ func (m MapiDefaultHandler) GetMapiV2Policy(ctx echo.Context) error {
 		policy, err = models.GetDefaultPolicy(ctx.Request().Context(), models.WithClient(m.Client))
 		if err != nil {
 			if errors.Is(err, datastore.ErrNoResults) {
-				return echo.NewHTTPError(http.StatusNotFound, "not found")
+				return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 			}
 			return err
 		}
+	}
+
+	if policy == nil {
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 	}
 
 	mapiPolicy := mapi.Policy{
@@ -70,9 +74,9 @@ func (m MapiDefaultHandler) GetMapiV2Policy(ctx echo.Context) error {
 	}
 	mapiPolicy.Fees = &fees
 
-	policies := mapi.Policy_Policies{}
+	policies := map[string]interface{}{}
 	for key, p := range policy.Policies {
-		policies.Set(key, p)
+		policies[key] = p
 	}
 	mapiPolicy.Policies = &policies
 
@@ -158,6 +162,10 @@ func (m MapiDefaultHandler) GetMapiV2TxStatusId(ctx echo.Context, id string) err
 		return err
 	}
 
+	if tx == nil {
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+	}
+
 	return ctx.JSON(http.StatusOK, mapi.TransactionStatus{
 		ApiVersion:  mapi.APIVersion,
 		BlockHash:   &tx.BlockHash,
@@ -177,7 +185,7 @@ func (m MapiDefaultHandler) GetMapiV2TxId(ctx echo.Context, id string) error {
 	}
 
 	if txHex == "" {
-		return ctx.JSON(http.StatusNotFound, nil)
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 	}
 
 	return ctx.JSON(http.StatusOK, mapi.Transaction{
@@ -418,7 +426,7 @@ func (m MapiDefaultHandler) processTransaction(ctx echo.Context, transaction *mo
 		}, nil
 	}
 
-	if status, err = transaction.Validate(); err != nil || status >= 400 {
+	if status, err = transaction.Validate(ctx.Request().Context()); err != nil || status >= 400 {
 		return m.handleError(ctx, status, transaction, err)
 	}
 
@@ -507,7 +515,9 @@ func (m MapiDefaultHandler) handleError(ctx echo.Context, status int, transactio
 		transaction.Status = models.TransactionStatusError
 		transaction.ErrStatus = mapiError.Status
 		transaction.ErrInstanceID = logError.ID
-		transaction.ErrExtraInfo = *mapiError.ExtraInfo
+		if mapiError.ExtraInfo != nil {
+			transaction.ErrExtraInfo = *mapiError.ExtraInfo
+		}
 		if err := transaction.Save(ctx.Request().Context()); err != nil {
 			return 0, nil, err
 		}

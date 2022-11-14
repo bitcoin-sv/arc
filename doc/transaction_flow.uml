@@ -1,48 +1,85 @@
 @startuml
 hide footbox
+skinparam ParticipantPadding 15
+skinparam BoxPadding 10
 
-actor "Incoming\ntransaction" as tx
+actor "client" as tx
+
+box api server
 participant handler
 participant auth
 participant validator
-participant queue
-database store
-participant multiplex
-database node1
-database node2
+end box
+
+box metamorph
+participant grpc
+participant worker
+database "transient\nstore" as store
+participant "peer\nserver" as peer
+participant "zmq\nlistener" as zmq
 participant "activity\nqueue" as aqueue
+end box
+
+database "bitcoin\nnetwork" as bsv
 
 
 title Submit transaction via P2P
 
-tx -> handler ++: tx
+tx -> handler ++: extended\nraw tx 
 
   handler -> auth ++: apikey
   return
 
-  handler -> validator ++: tx
-  return
-
-  handler -> queue ++: tx
-
-    queue -> store ++: tx
-    return
-
-    queue -> multiplex ++: tx
-    
-      multiplex -> node1: tx
-    
-      multiplex -> node2: tx
-
-      node1 -> multiplex: ack
-    return
-
-    queue -> queue: Wait for ack
-
+  handler -> validator ++: extended\nraw tx
   return success
 
-  handler -> aqueue: save activity
+  handler -> grpc ++: extended tx
 
-return response
+    grpc -> worker ++: extended tx
+      worker -> store++: register txid
+      worker -> store: tx
+      worker -> store: raw tx
+    return STORED
+
+    worker -> peer: txid
+
+    peer -> bsv: inv txid
+    peer -> store: ANNOUNCED
+
+    store -> worker: ANNOUNCED
+
+
+    bsv -> peer++: getdata txid
+      peer -> store: REQUESTED
+      store -> worker: REQUESTED
+      peer -> store ++ : get tx
+      return raw tx
+      
+    return tx
+      
+    peer -> store ++: SENT
+    return
+    
+    store -> worker: SENT
+
+
+  
+    bsv -> zmq: txid
+    zmq -> store++: ACCEPTED
+    return
+
+    store -> worker: ACCEPTED
+
+    worker -> aqueue: save activity
+    return ACCEPTED
+
+
+  grpc -> grpc: wait for ACCEPTED\nor TIMEOUT
+    
+  return ACCEPTED
+
+  
+  
+return ACCEPTED
 
 @enduml

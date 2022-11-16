@@ -30,15 +30,14 @@ tx -> handler ++: extended\nraw tx
   handler -> auth ++: apikey
   return
 
-  handler -> validator ++: extended\nraw tx
+  handler -> validator ++: tx
   return success
 
-  handler -> grpc ++: extended tx
+  handler -> grpc ++: tx
 
-    grpc -> worker ++: extended tx
+    grpc -> worker ++: tx
       worker -> store++: register txid
       worker -> store: tx
-      worker -> store: raw tx
     return STORED
 
     worker -> peer: txid
@@ -57,16 +56,14 @@ tx -> handler ++: extended\nraw tx
       
     return tx
       
-    peer -> store ++: SENT
-    return
+    peer -> store: SENT
     
     store -> worker: SENT
 
 
   
     bsv -> zmq: txid
-    zmq -> store++: ACCEPTED
-    return
+    zmq -> store: ACCEPTED
 
     store -> worker: ACCEPTED
 

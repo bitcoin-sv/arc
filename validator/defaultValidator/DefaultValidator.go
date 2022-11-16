@@ -4,24 +4,24 @@ import (
 	"fmt"
 
 	"github.com/TAAL-GmbH/mapi/validator"
-	"github.com/bitcoinsv/bsvd/txscript"
-	"github.com/bitcoinsv/bsvutil"
 	"github.com/libsv/go-bt/v2"
+
+	"github.com/libsv/go-bt/v2/bscript/interpreter"
+	_ "github.com/libsv/go-bt/v2/bscript/interpreter"
 )
 
-type DefaultValidator struct {
-}
+type DefaultValidator struct{}
 
 func New() validator.Validator {
 	return &DefaultValidator{}
 }
 
-func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx, parentData map[validator.Outpoint]validator.OutpointData) error {
+func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx) error {
 	if err := checkFees(tx); err != nil {
 		return err
 	}
 
-	if err := checkScripts(tx.Bytes(), parentData); err != nil {
+	if err := checkScripts(tx); err != nil {
 		return err
 	}
 
@@ -32,46 +32,24 @@ func checkFees(tx *bt.Tx) error {
 	return nil
 }
 
-func checkScripts(txBytes []byte, parentData map[validator.Outpoint]validator.OutpointData) error {
-	// Convert the go-bt transaction in to a bsvd.Msg
-	tmp, err := bsvutil.NewTxFromBytes(txBytes)
-	if err != nil {
-		return fmt.Errorf("Could not read tx bytes: %w", err)
-	}
+func checkScripts(tx *bt.Tx) error {
 
-	tx := tmp.MsgTx()
+	for i, in := range tx.Inputs {
 
-	sigHashes := txscript.NewTxSigHashes(tx)
-
-	flags := txscript.ScriptBip16 |
-		txscript.ScriptVerifyDERSignatures |
-		txscript.ScriptStrictMultiSig |
-		txscript.ScriptDiscourageUpgradableNops |
-		txscript.ScriptVerifyBip143SigHash
-
-	for i, in := range tx.TxIn {
-
-		outpoint := validator.Outpoint{
-			Txid: in.PreviousOutPoint.Hash.String(),
-			Idx:  in.PreviousOutPoint.Index,
+		prevOutput := &bt.Output{
+			Satoshis:      in.PreviousTxSatoshis,
+			LockingScript: in.PreviousTxScript,
 		}
 
-		outpointData, found := parentData[outpoint]
-		if !found {
-			return fmt.Errorf("Outpoint %#v not found", outpoint)
-		}
-
-		vm, err := txscript.NewEngine(outpointData.ScriptPubKey, tx, i, flags, nil, sigHashes, outpointData.Satoshis)
-		if err != nil {
-			return fmt.Errorf("Could not create VM: %w", err)
-		}
-
-		if err := vm.Execute(); err != nil {
-			if err.Error() != "script returned early" {
-				return fmt.Errorf("Script execution failed: %w", err)
-			}
+		if err := interpreter.NewEngine().Execute(
+			interpreter.WithTx(tx, i, prevOutput),
+			interpreter.WithForkID(),
+			interpreter.WithAfterGenesis(),
+		); err != nil {
+			return fmt.Errorf("Script execution failed: %w", err)
 		}
 	}
 
 	return nil
+
 }

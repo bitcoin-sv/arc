@@ -6,8 +6,7 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/mapi"
-	"github.com/TAAL-GmbH/mapi/validator"
-	"github.com/TAAL-GmbH/mapi/validator/gobtvalidator"
+	"github.com/TAAL-GmbH/mapi/validator/defaultvalidator"
 	"github.com/libsv/go-bt/v2"
 	"github.com/mrz1836/go-datastore"
 	"github.com/ordishs/go-bitcoin"
@@ -102,13 +101,14 @@ func GetTransaction(ctx context.Context, id string, opts ...ModelOps) (*Transact
 // Validate validates a transaction and returns the mapi status and internal error, if applicable
 func (t *Transaction) Validate(ctx context.Context) (int, error) {
 
-	txValidator := gobtvalidator.New()
-	parentData := make(map[validator.Outpoint]validator.OutpointData)
+	txValidator := defaultvalidator.New()
+
 	for _, input := range t.parsedTx.Inputs {
 		txID := hex.EncodeToString(input.PreviousTxID())
 		parentTx := &Transaction{
 			Model: *NewBaseModel(ModelNamePolicy, WithClient(t.Client())),
 		}
+
 		if err := t.Client().Datastore().GetModel(ctx, parentTx, map[string]interface{}{
 			"id": txID,
 		}, 5*time.Second, false); err != nil {
@@ -131,16 +131,11 @@ func (t *Transaction) Validate(ctx context.Context) (int, error) {
 			return mapi.ErrStatusInputs, err
 		}
 
-		parentData[validator.Outpoint{
-			Txid: hex.EncodeToString(input.PreviousTxID()),
-			Idx:  input.PreviousTxOutIndex,
-		}] = validator.OutpointData{
-			ScriptPubKey: btTx.Outputs[input.PreviousTxOutIndex].Bytes(),
-			Satoshis:     int64(btTx.Outputs[input.PreviousTxOutIndex].Satoshis),
-		}
+		input.PreviousTxScript = btTx.Outputs[input.PreviousTxOutIndex].LockingScript
+		input.PreviousTxSatoshis = btTx.Outputs[input.PreviousTxOutIndex].Satoshis
 	}
 
-	if err := txValidator.ValidateTransaction(t.parsedTx, parentData); err != nil {
+	if err := txValidator.ValidateTransaction(t.parsedTx); err != nil {
 		// TODO return the status for the real reason this transaction did not validate
 		return mapi.ErrStatusMalformed, err
 	}

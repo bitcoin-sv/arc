@@ -1,8 +1,9 @@
-package validator
+package defaultvalidator
 
 import (
 	"fmt"
 
+	"github.com/TAAL-GmbH/mapi/validator"
 	"github.com/bitcoinsv/bsvd/txscript"
 	"github.com/bitcoinsv/bsvutil"
 	"github.com/libsv/go-bt/v2"
@@ -11,11 +12,11 @@ import (
 type DefaultValidator struct {
 }
 
-func New() Validator {
+func New() validator.Validator {
 	return &DefaultValidator{}
 }
 
-func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx, parentData map[Outpoint]OutpointData) error {
+func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx, parentData map[validator.Outpoint]validator.OutpointData) error {
 	if err := checkFees(tx); err != nil {
 		return err
 	}
@@ -31,7 +32,7 @@ func checkFees(tx *bt.Tx) error {
 	return nil
 }
 
-func checkScripts(txBytes []byte, parentData map[Outpoint]OutpointData) error {
+func checkScripts(txBytes []byte, parentData map[validator.Outpoint]validator.OutpointData) error {
 	// Convert the go-bt transaction in to a bsvd.Msg
 	tmp, err := bsvutil.NewTxFromBytes(txBytes)
 	if err != nil {
@@ -50,7 +51,7 @@ func checkScripts(txBytes []byte, parentData map[Outpoint]OutpointData) error {
 
 	for i, in := range tx.TxIn {
 
-		outpoint := Outpoint{
+		outpoint := validator.Outpoint{
 			Txid: in.PreviousOutPoint.Hash.String(),
 			Idx:  in.PreviousOutPoint.Index,
 		}

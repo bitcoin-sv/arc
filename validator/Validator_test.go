@@ -22,7 +22,7 @@ func TestMap(t *testing.T) {
 
 	od2 := m[o]
 
-	if bytes.Compare(od.ScriptPubKey, od2.ScriptPubKey) != 0 {
+	if !bytes.Equal(od.ScriptPubKey, od2.ScriptPubKey) {
 		t.Errorf("Expected %x, got %x", od.ScriptPubKey, od2.ScriptPubKey)
 	}
 

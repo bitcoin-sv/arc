@@ -7,6 +7,7 @@ import (
 
 	"github.com/TAAL-GmbH/mapi"
 	"github.com/TAAL-GmbH/mapi/validator"
+	"github.com/TAAL-GmbH/mapi/validator/gobtvalidator"
 	"github.com/libsv/go-bt/v2"
 	"github.com/mrz1836/go-datastore"
 	"github.com/ordishs/go-bitcoin"
@@ -101,7 +102,7 @@ func GetTransaction(ctx context.Context, id string, opts ...ModelOps) (*Transact
 // Validate validates a transaction and returns the mapi status and internal error, if applicable
 func (t *Transaction) Validate(ctx context.Context) (int, error) {
 
-	txValidator := validator.New()
+	txValidator := gobtvalidator.New()
 	parentData := make(map[validator.Outpoint]validator.OutpointData)
 	for _, input := range t.parsedTx.Inputs {
 		txID := hex.EncodeToString(input.PreviousTxID())

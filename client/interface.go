@@ -1,8 +1,13 @@
 package client
 
-import "github.com/ordishs/go-bitcoin"
+import (
+	"context"
 
-type Node interface {
-	GetRawTransaction(txID string) (rawTx *bitcoin.RawTransaction, err error)
-	SendRawTransaction(tx string) (txID string, err error)
+	"github.com/TAAL-GmbH/mapi"
+	"github.com/ordishs/go-bitcoin"
+)
+
+type TransactionHandler interface {
+	GetTransaction(ctx context.Context, txID string) (rawTx *bitcoin.RawTransaction, err error)
+	SubmitTransaction(ctx context.Context, tx string, options *mapi.TransactionOptions) (rawTx *bitcoin.RawTransaction, err error)
 }

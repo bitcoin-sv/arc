@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -13,6 +15,8 @@ import (
 	"github.com/TAAL-GmbH/mapi"
 	"github.com/TAAL-GmbH/mapi/client"
 	"github.com/TAAL-GmbH/mapi/models"
+	"github.com/TAAL-GmbH/mapi/validator"
+	defaultValidator "github.com/TAAL-GmbH/mapi/validator/default"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/mrz1836/go-datastore"
@@ -36,56 +40,31 @@ func NewDefault(c client.Interface, opts ...Options) (mapi.HandlerInterface, err
 
 // GetMapiV2Policy ...
 func (m MapiDefaultHandler) GetMapiV2Policy(ctx echo.Context) error {
-
 	user, err := GetEchoUser(ctx, m.Options.security)
 	if err != nil {
 		return err
 	}
 
-	var policy *models.Policy
-	policy, err = models.GetPolicyForClient(ctx.Request().Context(), user.ClientID, models.WithClient(m.Client))
-	if err != nil && !errors.Is(err, datastore.ErrNoResults) {
-		return err
-	}
-	if policy == nil {
-		policy, err = models.GetDefaultPolicy(ctx.Request().Context(), models.WithClient(m.Client))
-		if err != nil {
-			if errors.Is(err, datastore.ErrNoResults) {
-				return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
-			}
-			return err
+	var policy *mapi.Policy
+	policy, err = getPolicy(ctx, m.Client, user.ClientID)
+	if err != nil {
+		status, response, responseErr := m.handleError(ctx, nil, err)
+		if responseErr != nil {
+			// if an error is returned, the processing failed and we should return a 500 error
+			return responseErr
 		}
+		return ctx.JSON(int(status), response)
 	}
 
 	if policy == nil {
 		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 	}
 
-	mapiPolicy := mapi.Policy{
-		ApiVersion: mapi.APIVersion,
-		ExpiryTime: time.Now().Add(30 * time.Second), // TODO get from config
-		MinerId:    m.Client.GetMinerID(),
-		Timestamp:  time.Now(),
-	}
-
-	fees := make([]mapi.Fee, len(policy.Fees))
-	for index, fee := range policy.Fees {
-		fees[index] = fee
-	}
-	mapiPolicy.Fees = &fees
-
-	policies := map[string]interface{}{}
-	for key, p := range policy.Policies {
-		policies[key] = p
-	}
-	mapiPolicy.Policies = &policies
-
-	return ctx.JSON(http.StatusOK, mapiPolicy)
+	return ctx.JSON(http.StatusOK, policy)
 }
 
 // PostMapiV2Tx ...
 func (m MapiDefaultHandler) PostMapiV2Tx(ctx echo.Context, params mapi.PostMapiV2TxParams) error {
-
 	user, err := GetEchoUser(ctx, m.Options.security)
 	if err != nil {
 		return err
@@ -100,64 +79,69 @@ func (m MapiDefaultHandler) PostMapiV2Tx(ctx echo.Context, params mapi.PostMapiV
 		return ctx.JSON(http.StatusBadRequest, e)
 	}
 
-	var transaction *models.Transaction
+	var transaction *bt.Tx
 	switch ctx.Request().Header.Get("Content-Type") {
 	case "text/plain":
-		if transaction, err = models.NewTransactionFromHex(string(body), models.WithClient(m.Client), models.New()); err != nil {
+		if transaction, err = bt.NewTxFromString(string(body)); err != nil {
 			errStr := err.Error()
 			e := mapi.ErrMalformed
 			e.ExtraInfo = &errStr
-			return ctx.JSON(mapi.ErrStatusMalformed, e)
+			return ctx.JSON(int(mapi.ErrStatusMalformed), e)
 		}
 	case "application/json":
-		var txJson mapi.PostMapiV2TxJSONBody
-		if err = json.Unmarshal(body, &txJson); err != nil {
-			return ctx.JSON(mapi.ErrStatusMalformed, mapi.ErrBadRequest)
-		}
-		if transaction, err = models.NewTransactionFromHex(txJson.RawTx, models.WithClient(m.Client), models.New()); err != nil {
+		var txHex string
+		if err = json.Unmarshal(body, &txHex); err != nil {
 			errStr := err.Error()
 			e := mapi.ErrMalformed
 			e.ExtraInfo = &errStr
-			return ctx.JSON(mapi.ErrStatusMalformed, e)
+			return ctx.JSON(int(mapi.ErrStatusMalformed), e)
+		}
+
+		if transaction, err = bt.NewTxFromString(txHex); err != nil {
+			errStr := err.Error()
+			e := mapi.ErrMalformed
+			e.ExtraInfo = &errStr
+			return ctx.JSON(int(mapi.ErrStatusMalformed), e)
 		}
 	case "application/octet-stream":
-		if transaction, err = models.NewTransactionFromBytes(body, models.WithClient(m.Client), models.New()); err != nil {
+		if transaction, err = bt.NewTxFromBytes(body); err != nil {
 			errStr := err.Error()
 			e := mapi.ErrMalformed
 			e.ExtraInfo = &errStr
-			return ctx.JSON(mapi.ErrStatusMalformed, e)
+			return ctx.JSON(int(mapi.ErrStatusMalformed), e)
 		}
 	default:
 		return ctx.JSON(mapi.ErrBadRequest.Status, mapi.ErrBadRequest)
 	}
-	transaction.ClientID = user.ClientID
+	transactionOptions := &mapi.TransactionOptions{
+		ClientID: user.ClientID,
+	}
 	if params.XCallbackUrl != nil {
-		transaction.CallbackURL = *params.XCallbackUrl
+		transactionOptions.CallbackURL = *params.XCallbackUrl
 		if params.XCallbackToken != nil {
-			transaction.CallbackToken = *params.XCallbackToken
+			transactionOptions.CallbackToken = *params.XCallbackToken
 		}
 	}
 
-	transaction.MerkleProof = false
 	if params.XMerkleProof != nil {
 		if *params.XMerkleProof == "true" || *params.XMerkleProof == "1" {
-			transaction.MerkleProof = true
+			transactionOptions.MerkleProof = true
 		}
 	}
 
-	status, response, responseErr := m.processTransaction(ctx, transaction)
+	status, response, responseErr := m.processTransaction(ctx, transaction, transactionOptions)
 	if responseErr != nil {
 		// if an error is returned, the processing failed and we should return a 500 error
 		return responseErr
 	}
 
-	return ctx.JSON(status, response)
+	return ctx.JSON(int(status), response)
 }
 
 // GetMapiV2TxStatusId ...
 func (m MapiDefaultHandler) GetMapiV2TxStatusId(ctx echo.Context, id string) error {
 
-	tx, _, err := m.getTransaction(ctx, id)
+	tx, err := m.getTransaction(ctx.Request().Context(), id)
 	if err != nil {
 		return err
 	}
@@ -172,20 +156,16 @@ func (m MapiDefaultHandler) GetMapiV2TxStatusId(ctx echo.Context, id string) err
 		BlockHeight: &tx.BlockHeight,
 		MinerId:     m.Client.GetMinerID(),
 		Timestamp:   time.Now(),
-		Txid:        tx.ID,
+		Txid:        tx.TxID,
 	})
 }
 
 // GetMapiV2TxId Similar to GetMapiV2TxStatusId, but also returns the whole transaction
 func (m MapiDefaultHandler) GetMapiV2TxId(ctx echo.Context, id string) error {
 
-	tx, txHex, err := m.getTransaction(ctx, id)
+	tx, err := m.getTransaction(ctx.Request().Context(), id)
 	if err != nil {
 		return err
-	}
-
-	if txHex == "" {
-		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 	}
 
 	return ctx.JSON(http.StatusOK, mapi.Transaction{
@@ -194,8 +174,8 @@ func (m MapiDefaultHandler) GetMapiV2TxId(ctx echo.Context, id string) error {
 		BlockHeight: &tx.BlockHeight,
 		MinerId:     m.Client.GetMinerID(),
 		Timestamp:   time.Now(),
-		Tx:          txHex,
-		Txid:        tx.ID,
+		Tx:          tx.Hex,
+		Txid:        tx.TxID,
 	})
 }
 
@@ -209,6 +189,7 @@ func (m MapiDefaultHandler) PostMapiV2Txs(ctx echo.Context, params mapi.PostMapi
 
 	// set the globals for all transactions in this request
 	transactionOptions := getTransactionOptions(params)
+	transactionOptions.ClientID = user.ClientID
 
 	var wg sync.WaitGroup
 	var transactions []interface{}
@@ -232,7 +213,7 @@ func (m MapiDefaultHandler) PostMapiV2Txs(ctx echo.Context, params mapi.PostMapi
 			wg.Add(1)
 			go func(index int, tx string) {
 				defer wg.Done()
-				transactions[index] = m.getTransactionResponse(ctx, tx, transactionOptions, user)
+				transactions[index] = m.getTransactionResponse(ctx, tx, transactionOptions)
 			}(index, tx)
 		}
 		wg.Wait()
@@ -248,7 +229,7 @@ func (m MapiDefaultHandler) PostMapiV2Txs(ctx echo.Context, params mapi.PostMapi
 
 		var txHex []string
 		if err = json.Unmarshal(body, &txHex); err != nil {
-			return ctx.JSON(mapi.ErrStatusMalformed, mapi.ErrBadRequest)
+			return ctx.JSON(int(mapi.ErrStatusMalformed), mapi.ErrBadRequest)
 		}
 
 		transactions = make([]interface{}, len(txHex))
@@ -257,7 +238,7 @@ func (m MapiDefaultHandler) PostMapiV2Txs(ctx echo.Context, params mapi.PostMapi
 			wg.Add(1)
 			go func(index int, tx string) {
 				defer wg.Done()
-				transactions[index] = m.getTransactionResponse(ctx, tx, transactionOptions, user)
+				transactions[index] = m.getTransactionResponse(ctx, tx, transactionOptions)
 			}(index, tx)
 		}
 		wg.Wait()
@@ -286,41 +267,27 @@ func (m MapiDefaultHandler) PostMapiV2Txs(ctx echo.Context, params mapi.PostMapi
 
 			var mu sync.Mutex
 			wg.Add(1)
-			go func(btTx *bt.Tx) {
+			go func(transaction *bt.Tx) {
 				defer func() {
 					<-limit
 					wg.Done()
 				}()
 
-				var transaction *models.Transaction
-				if transaction, err = models.NewTransactionFromBytes(btTx.Bytes()); err != nil {
-					e := mapi.ErrGeneric
-					errStr := err.Error()
-					e.ExtraInfo = &errStr
-					mu.Lock()
-					transactions = append(transactions, e)
-					mu.Unlock()
-				} else {
-					transaction.CallbackURL = transactionOptions.CallbackURL
-					transaction.CallbackToken = transactionOptions.CallbackToken
-					transaction.MerkleProof = transactionOptions.MerkleProof
-					transaction.ClientID = user.ClientID
-					_, response, responseError := m.processTransaction(ctx, transaction)
-					if responseError != nil {
-						// what to do here, the transaction failed due to server failure?
-						if response == nil {
-							e := mapi.ErrGeneric
-							errStr := responseError.Error()
-							e.ExtraInfo = &errStr
-							mu.Lock()
-							transactions = append(transactions, e)
-							mu.Unlock()
-						}
-					} else {
+				_, response, responseError := m.processTransaction(ctx, transaction, transactionOptions)
+				if responseError != nil {
+					// what to do here, the transaction failed due to server failure?
+					if response == nil {
+						e := mapi.ErrGeneric
+						errStr := responseError.Error()
+						e.ExtraInfo = &errStr
 						mu.Lock()
-						transactions = append(transactions, response)
+						transactions = append(transactions, e)
 						mu.Unlock()
 					}
+				} else {
+					mu.Lock()
+					transactions = append(transactions, response)
+					mu.Unlock()
 				}
 			}(btTx)
 		}
@@ -334,9 +301,9 @@ func (m MapiDefaultHandler) PostMapiV2Txs(ctx echo.Context, params mapi.PostMapi
 	return ctx.JSON(http.StatusOK, transactions)
 }
 
-func (m MapiDefaultHandler) getTransactionResponse(ctx echo.Context, tx string, transactionOptions TransactionOptions, user *mapi.User) interface{} {
+func (m MapiDefaultHandler) getTransactionResponse(ctx echo.Context, tx string, transactionOptions *mapi.TransactionOptions) interface{} {
 
-	transaction, err := models.NewTransactionFromHex(tx, models.WithClient(m.Client), models.New())
+	transaction, err := bt.NewTxFromString(tx)
 	if err != nil {
 		errStr := err.Error()
 		e := mapi.ErrMalformed
@@ -344,11 +311,7 @@ func (m MapiDefaultHandler) getTransactionResponse(ctx echo.Context, tx string, 
 		return e
 	}
 
-	transaction.CallbackURL = transactionOptions.CallbackURL
-	transaction.CallbackToken = transactionOptions.CallbackToken
-	transaction.MerkleProof = transactionOptions.MerkleProof
-	transaction.ClientID = user.ClientID
-	_, response, responseError := m.processTransaction(ctx, transaction)
+	_, response, responseError := m.processTransaction(ctx, transaction, transactionOptions)
 	if responseError != nil {
 		// what to do here, the transaction failed due to server failure?
 		if response == nil {
@@ -362,8 +325,8 @@ func (m MapiDefaultHandler) getTransactionResponse(ctx echo.Context, tx string, 
 	return response
 }
 
-func getTransactionOptions(params mapi.PostMapiV2TxsParams) TransactionOptions {
-	transactionOptions := TransactionOptions{}
+func getTransactionOptions(params mapi.PostMapiV2TxsParams) *mapi.TransactionOptions {
+	transactionOptions := &mapi.TransactionOptions{}
 	if params.XCallbackUrl != nil {
 		transactionOptions.CallbackURL = *params.XCallbackUrl
 		if params.XCallbackToken != nil {
@@ -378,126 +341,73 @@ func getTransactionOptions(params mapi.PostMapiV2TxsParams) TransactionOptions {
 	return transactionOptions
 }
 
-func (m MapiDefaultHandler) processTransaction(ctx echo.Context, transaction *models.Transaction) (int, interface{}, error) {
-
-	var status int
-
-	// Check whether we have already processed this transaction and saved it in our DB
-	// no need to do any further validation. If it is not processed yet, it will be.
-	existingTransaction, err := models.GetTransaction(ctx.Request().Context(), transaction.ID, models.WithClient(m.Client))
-	if err == nil && existingTransaction != nil {
-
-		switch existingTransaction.Status {
-		case models.TransactionStatusNew:
-			// TODO this should never be the case. Why would we store an invalid transaction
-			// should we return another error message here?
-			status = mapi.StatusAddedBlockTemplate
-		case models.TransactionStatusValid:
-			status = mapi.StatusAddedBlockTemplate
-		case models.TransactionStatusMempool:
-			status = mapi.StatusAlreadyInMempool
-		case models.TransactionStatusMined:
-			status = mapi.StatusAlreadyMined
-		case models.TransactionStatusError:
-			// return the actual error status stored on the transaction record
-			status = existingTransaction.ErrStatus
-		default:
-			// TODO should we send a different status code here?
-			status = http.StatusOK
-		}
-
-		if status >= 400 {
-			// an error was previously thrown, just rethrow the same error
-			mapiError := mapi.ErrByStatus[status]
-			mapiError.Txid = &existingTransaction.ID
-			if existingTransaction.ErrExtraInfo != "" {
-				mapiError.ExtraInfo = &existingTransaction.ErrExtraInfo
-			}
-			return status, mapiError, nil
-		}
-
-		return status, mapi.TransactionResponse{
-			ApiVersion:  mapi.APIVersion,
-			BlockHash:   &existingTransaction.BlockHash,
-			BlockHeight: &existingTransaction.BlockHeight,
-			MinerId:     m.Client.GetMinerID(),
-			Timestamp:   time.Now(),
-			Txid:        &existingTransaction.ID,
-		}, nil
+func (m MapiDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.Tx, transactionOptions *mapi.TransactionOptions) (mapi.ErrStatus, interface{}, error) {
+	policy, err := getPolicy(ctx, m.Client, transactionOptions.ClientID)
+	if err != nil {
+		return m.handleError(ctx, transaction, err)
 	}
 
-	if status, err = transaction.Validate(ctx.Request().Context()); err != nil || status >= 400 {
-		return m.handleError(ctx, status, transaction, err)
+	txValidator := defaultValidator.New(policy)
+	if err = txValidator.ValidateTransaction(transaction); err != nil {
+		return m.handleError(ctx, transaction, err)
 	}
 
-	// the transaction has been validated, store in our DB and continue processing
-	transaction.Status = models.TransactionStatusValid
-	if err = transaction.Save(ctx.Request().Context()); err != nil {
-		return 0, nil, err
-	}
-
-	// now that the transaction is stored in our DB, fire it off to the mempool and try to get it mined
+	// now that we have validated the transaction, fire it off to the mempool and try to get it mined
 	// this should return a 200 or 201 if 1 or more of the nodes accept the transaction
 	var conflictedWith []string
-	status, conflictedWith, err = transaction.Submit()
-	if status >= 400 || err != nil {
-		return m.handleError(ctx, status, transaction, err)
+	node := m.Client.GetRandomNode()
+	var tx *bitcoin.RawTransaction
+	tx, err = node.SubmitTransaction(ctx.Request().Context(), hex.EncodeToString(transaction.Bytes()), transactionOptions)
+	if err != nil {
+		return m.handleError(ctx, transaction, err)
 	}
 
-	return status, mapi.TransactionResponse{
+	// TODO differentiate between 200 and 201
+	return mapi.StatusAddedBlockTemplate, mapi.TransactionResponse{
 		ApiVersion:     mapi.APIVersion,
-		BlockHash:      &transaction.BlockHash,
-		BlockHeight:    &transaction.BlockHeight,
+		BlockHash:      &tx.BlockHash,
+		BlockHeight:    &tx.BlockHeight,
 		ConflictedWith: &conflictedWith,
 		MinerId:        m.Client.GetMinerID(),
 		Timestamp:      time.Now(),
-		Txid:           &transaction.ID,
+		Txid:           &tx.TxID,
 	}, nil
 }
 
-func (m MapiDefaultHandler) getTransaction(ctx echo.Context, id string) (*models.Transaction, string, error) {
+func (m MapiDefaultHandler) getTransaction(ctx context.Context, id string) (*bitcoin.RawTransaction, error) {
+	node := m.Client.GetRandomNode()
 
-	tx, err := models.GetTransaction(ctx.Request().Context(), id, models.WithClient(m.Client))
-	if err != nil && !errors.Is(err, datastore.ErrNoResults) {
-		return nil, "", err
+	tx, err := node.GetTransaction(ctx, id)
+	if err != nil {
+		return nil, err
 	}
 
-	var txHex string
-	if tx == nil {
-		var rawTx *bitcoin.RawTransaction
-		if rawTx, err = m.Client.GetTransactionFromNodes(id); err != nil {
-			return nil, "", err
-		}
-		if rawTx == nil {
-			return nil, "", nil
-		}
-		tx = &models.Transaction{
-			ID:          rawTx.TxID,
-			BlockHash:   rawTx.BlockHash,
-			BlockHeight: rawTx.BlockHeight,
-		}
-		txHex = rawTx.Hex
-	} else {
-		txHex = hex.EncodeToString(tx.Tx)
-	}
-
-	return tx, txHex, nil
+	return tx, nil
 }
 
-func (m MapiDefaultHandler) handleError(ctx echo.Context, status int, transaction *models.Transaction, submitErr error) (int, interface{}, error) {
+func (m MapiDefaultHandler) handleError(_ echo.Context, transaction *bt.Tx, submitErr error) (mapi.ErrStatus, interface{}, error) {
+	status := mapi.ErrStatusGeneric
+	isMapiError, ok := submitErr.(*validator.Error)
+	if ok {
+		status = isMapiError.MapiErrorStatus
+	}
 
 	// enrich the response with the error details
 	mapiError := mapi.ErrByStatus[status]
 	if mapiError == nil {
-		return mapi.ErrGeneric.Status, mapi.ErrGeneric, nil
+		return mapi.ErrStatusGeneric, mapi.ErrGeneric, nil
 	}
 
-	mapiError.Txid = &transaction.ID
+	if transaction != nil {
+		txID := transaction.TxID()
+		mapiError.Txid = &txID
+	}
 	if submitErr != nil {
 		extraInfo := submitErr.Error()
 		mapiError.ExtraInfo = &extraInfo
 	}
 
+	/* TODO log error
 	logError := models.NewLogError(models.WithClient(m.Client), models.New())
 	logError.Error = mapiError
 	logError.TxID = transaction.ID
@@ -506,22 +416,51 @@ func (m MapiDefaultHandler) handleError(ctx echo.Context, status int, transactio
 		logError.LogAccessID = accessLog.ID
 		logError.ClientID = accessLog.ClientID
 	}
-
-	if err := logError.Save(ctx.Request().Context()); err != nil {
-		return 0, nil, err
-	}
-
-	if transaction != nil {
-		transaction.Status = models.TransactionStatusError
-		transaction.ErrStatus = mapiError.Status
-		transaction.ErrInstanceID = logError.ID
-		if mapiError.ExtraInfo != nil {
-			transaction.ErrExtraInfo = *mapiError.ExtraInfo
-		}
-		if err := transaction.Save(ctx.Request().Context()); err != nil {
-			return 0, nil, err
-		}
-	}
+	*/
 
 	return status, mapiError, nil
+}
+
+func getPolicy(ctx echo.Context, c client.Interface, clientID string) (*mapi.Policy, error) {
+	// TODO add caching for the clientID, so we don't have to query the DB for every request
+
+	policy, err := models.GetPolicyForClient(ctx.Request().Context(), clientID, models.WithClient(c))
+	if err != nil && !errors.Is(err, datastore.ErrNoResults) {
+		return nil, err
+	}
+	if policy == nil {
+		policy, err = models.GetDefaultPolicy(ctx.Request().Context(), models.WithClient(c))
+		if err != nil {
+			if errors.Is(err, datastore.ErrNoResults) {
+				return nil, validator.NewError(fmt.Errorf("no policy found for client"), http.StatusNotFound)
+			}
+			return nil, err
+		}
+	}
+
+	if policy == nil {
+		// TODO change to mapi error
+		return nil, validator.NewError(fmt.Errorf("no policy found for client"), http.StatusNotFound)
+	}
+
+	mapiPolicy := &mapi.Policy{
+		ApiVersion: mapi.APIVersion,
+		ExpiryTime: time.Now().Add(30 * time.Second), // TODO get from config
+		MinerId:    c.GetMinerID(),
+		Timestamp:  time.Now(),
+	}
+
+	fees := make([]mapi.Fee, len(policy.Fees))
+	for index, fee := range policy.Fees {
+		fees[index] = fee
+	}
+	mapiPolicy.Fees = &fees
+
+	policies := map[string]interface{}{}
+	for key, p := range policy.Policies {
+		policies[key] = p
+	}
+	mapiPolicy.Policies = &policies
+
+	return mapiPolicy, nil
 }

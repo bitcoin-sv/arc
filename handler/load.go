@@ -1,21 +1,30 @@
 package handler
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/base64"
 	"fmt"
+	"io"
+	"net"
+	"net/http"
 	"os"
+	"sync"
 
 	"github.com/TAAL-GmbH/mapi"
 	"github.com/TAAL-GmbH/mapi/client"
 	"github.com/TAAL-GmbH/mapi/config"
 	"github.com/TAAL-GmbH/mapi/dictionary"
 	"github.com/TAAL-GmbH/mapi/models"
+	"github.com/bitcoinsv/bsvd/chaincfg/chainhash"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
+	"github.com/libsv/go-bk/bec"
+	"github.com/libsv/go-bk/wif"
 	"github.com/mrz1836/go-logger"
-	"github.com/ordishs/go-bitcoin"
 )
 
 func LoadMapiHandler(e *echo.Echo, appConfig *config.AppConfig) error {
@@ -34,7 +43,7 @@ func LoadMapiHandler(e *echo.Echo, appConfig *config.AppConfig) error {
 	// add custom node configuration, overwriting the default localhost node config
 	if appConfig.Nodes != nil {
 		for _, nodeConfig := range appConfig.Nodes {
-			node, err := bitcoin.New(nodeConfig.Host, nodeConfig.Port, nodeConfig.User, nodeConfig.Password, nodeConfig.UseSSL)
+			node, err := client.NewBitcoinNode(nodeConfig.Host, nodeConfig.Port, nodeConfig.User, nodeConfig.Password, nodeConfig.UseSSL)
 			if err != nil {
 				return err
 			}
@@ -74,8 +83,7 @@ func LoadMapiHandler(e *echo.Echo, appConfig *config.AppConfig) error {
 	// Register the MAPI API
 	mapi.RegisterHandlers(e, api)
 
-	// Add the MAPI specific logger, logs to DB
-	e.Pre(NewLogger(c, appConfig))
+	// e.Use(signBody(appConfig))
 
 	TEMPTEMPGenerateTestToken(appConfig)
 
@@ -101,6 +109,90 @@ func TEMPTEMPGenerateTestToken(appConfig *config.AppConfig) {
 		panic(err)
 	}
 	fmt.Println(signedToken)
+}
+
+type bodyResponseWriter struct {
+	io.Writer
+	http.ResponseWriter
+	buffer    *bytes.Buffer
+	wroteBody bool
+}
+
+func (w *bodyResponseWriter) WriteHeader(code int) {
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *bodyResponseWriter) Write(b []byte) (int, error) {
+	w.wroteBody = true
+	return w.Writer.Write(b)
+}
+
+func (w *bodyResponseWriter) Flush() {
+	// noop
+}
+
+func (w *bodyResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return w.ResponseWriter.(http.Hijacker).Hijack()
+}
+
+func bufferPool() sync.Pool {
+	return sync.Pool{
+		New: func() interface{} {
+			b := &bytes.Buffer{}
+			return b
+		},
+	}
+}
+
+// signBody buffers the body and signs it with the minerID
+// TODO this is not working yet - need to figure it out
+func signBody(config *config.AppConfig) echo.MiddlewareFunc {
+	bpool := bufferPool()
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if config.MinerID != nil {
+				res := c.Response()
+				buf := bpool.Get().(*bytes.Buffer)
+				buf.Reset()
+
+				// create a buffer writer
+				writer := &bodyResponseWriter{Writer: buf, ResponseWriter: res.Writer, buffer: buf}
+				res.Writer = writer
+
+				res.After(func() {
+					privateKey, err := PrivateKeyFromString(config.MinerID.PrivateKey)
+					messageHash := chainhash.HashB(writer.buffer.Bytes())
+					var sigBytes []byte
+					if sigBytes, err = bec.SignCompact(bec.S256(), privateKey, messageHash, true); err != nil {
+						fmt.Printf("ERROR: %s", err.Error())
+					}
+					base64Sig := base64.StdEncoding.EncodeToString(sigBytes)
+					fmt.Printf("Signature: %s", base64Sig)
+					res.Header().Add("Signature", base64Sig)
+
+					// flush the buffered response
+					_, _ = writer.ResponseWriter.Write(writer.buffer.Bytes())
+					if flusher, ok := writer.ResponseWriter.(http.Flusher); ok {
+						flusher.Flush()
+					}
+				})
+			}
+
+			return next(c)
+		}
+	}
+}
+
+// PrivateKeyFromString turns a private key (hex encoded string) into a bec.PrivateKey
+// from github.com/BitcoinSchema/go-bitcoin
+func PrivateKeyFromString(privateKey string) (*bec.PrivateKey, error) {
+
+	decodedWif, err := wif.DecodeWIF(privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return decodedWif.PrivKey, nil
 }
 
 // CheckSwagger validates the request against the swagger definition

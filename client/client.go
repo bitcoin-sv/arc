@@ -15,19 +15,19 @@ type Interface interface {
 	Load(ctx context.Context) (err error)
 	Datastore() datastore.ClientInterface
 	GetMinerID() (minerID string)
-	GetNode(index int) Node
-	GetNodes() []Node
-	GetRandomNode() Node
-	GetRandomNodes(number int) []Node
+	GetNode(index int) TransactionHandler
+	GetNodes() []TransactionHandler
+	GetRandomNode() TransactionHandler
+	GetRandomNodes(number int) []TransactionHandler
 	Models() []interface{}
-	GetTransactionFromNodes(txID string) (*bitcoin.RawTransaction, error)
+	GetTransactionFromNodes(ctx context.Context, txID string) (*bitcoin.RawTransaction, error)
 }
 
 func New(opts ...Options) (Interface, error) {
 
 	client := &Client{
 		&clientOptions{
-			nodes: []Node{},
+			nodes: []TransactionHandler{},
 		},
 	}
 
@@ -38,7 +38,7 @@ func New(opts ...Options) (Interface, error) {
 
 	if len(client.options.nodes) == 0 {
 		// default to localhost node, if none configured
-		node, err := bitcoin.New("localhost", 8332, "", "", false)
+		node, err := NewBitcoinNode("localhost", 8332, "", "", false)
 		if err != nil {
 			return nil, err
 		}
@@ -56,7 +56,7 @@ func (c *Client) Close() {
 	_ = c.Datastore().Close(context.Background())
 }
 
-func (c *Client) GetNode(index int) Node {
+func (c *Client) GetNode(index int) TransactionHandler {
 	if len(c.options.nodes) < index-1 {
 		return nil
 	}
@@ -64,28 +64,28 @@ func (c *Client) GetNode(index int) Node {
 	return c.options.nodes[index]
 }
 
-func (c *Client) GetNodes() []Node {
+func (c *Client) GetNodes() []TransactionHandler {
 	return c.options.nodes
 }
 
-func (c *Client) GetRandomNode() Node {
+func (c *Client) GetRandomNode() TransactionHandler {
 	//TODO implement me
 	return c.options.nodes[0]
 }
 
-func (c *Client) GetRandomNodes(number int) []Node {
+func (c *Client) GetRandomNodes(number int) []TransactionHandler {
 	//TODO implement me
 	return c.options.nodes
 }
 
-func (c *Client) GetTransactionFromNodes(txID string) (*bitcoin.RawTransaction, error) {
+func (c *Client) GetTransactionFromNodes(ctx context.Context, txID string) (*bitcoin.RawTransaction, error) {
 
 	btTxChan := make(chan *bitcoin.RawTransaction)
 	var wg sync.WaitGroup
 	for _, node := range c.options.nodes {
 		wg.Add(1)
-		go func(node Node) {
-			if tx, err := node.GetRawTransaction(txID); err == nil && tx != nil {
+		go func(node TransactionHandler) {
+			if tx, err := node.GetTransaction(ctx, txID); err == nil && tx != nil {
 				btTxChan <- tx
 			}
 			wg.Done()

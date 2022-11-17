@@ -10,13 +10,6 @@ type (
 	}
 )
 
-// TransactionOptions options passed from header when creating transactions
-type TransactionOptions struct {
-	CallbackURL   string `json:"callback_url,omitempty"`
-	CallbackToken string `json:"callback_token,omitempty"`
-	MerkleProof   bool   `json:"merkle_proof,omitempty"`
-}
-
 // WithSecurityConfig will set the security config being used
 func WithSecurityConfig(security *config.SecurityConfig) Options {
 	return func(c *handlerOptions) {

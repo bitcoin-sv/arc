@@ -17,7 +17,7 @@ type (
 		datastoreOptions datastore.ClientOps
 		migrateModels    []interface{}
 		minerID          *config.MinerIDConfig
-		nodes            []Node
+		nodes            []TransactionHandler
 	}
 )
 
@@ -73,18 +73,18 @@ func WithSQLite(config *datastore.SQLiteConfig) Options {
 }
 
 // WithNode sets a single node to use in calls
-func WithNode(node Node) Options {
+func WithNode(node TransactionHandler) Options {
 	return func(o *clientOptions) {
-		o.nodes = []Node{
+		o.nodes = []TransactionHandler{
 			node,
 		}
 	}
 }
 
 // WithNodes sets multiple nodes to use in calls
-func WithNodes(nodes []Node) Options {
+func WithNodes(nodes []TransactionHandler) Options {
 	return func(o *clientOptions) {
-		o.nodes = []Node{}
+		o.nodes = []TransactionHandler{}
 		for _, node := range nodes {
 			addNode := node
 			o.nodes = append(o.nodes, addNode)

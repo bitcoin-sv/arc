@@ -30,6 +30,9 @@ func main() {
 		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete},
 	}))
 
+	// use the standard echo logger
+	e.Use(echomiddleware.Logger())
+
 	// load the MAPI handler from config
 	// If you want to customize this for your own server, see examples dir
 	if err = handler.LoadMapiHandler(e, appConfig); err != nil {

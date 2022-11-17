@@ -14,7 +14,6 @@ import (
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/mrz1836/go-datastore"
-	"github.com/ordishs/go-bitcoin"
 )
 
 // This example does not use the configuration files or env variables,
@@ -60,7 +59,8 @@ func main() {
 	)
 
 	// add a single bitcoin node
-	node, err := bitcoin.New("localhost", 8332, "user", "mypassword", false)
+	// TODO this should be replaced by a metamorph transaction handler
+	node, err := client.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
 	if err != nil {
 		panic(err)
 	}

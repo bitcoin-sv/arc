@@ -39,10 +39,6 @@ func main() {
 			Options: openapi3filter.Options{
 				AuthenticationFunc: func(c context.Context, input *openapi3filter.AuthenticationInput) error {
 					// in here you can add any kind of authentication check, like a database lookup on an api-key
-					if input.SecuritySchemeName != "BearerAuth" {
-						return fmt.Errorf("security scheme %s != 'BearerAuth'", input.SecuritySchemeName)
-					}
-
 					apiKey := input.RequestValidationInput.Request.Header.Get("X-API-KEY")
 					// don't do this in production
 					if apiKey == "test-key" {

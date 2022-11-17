@@ -14,6 +14,7 @@ type Datastore struct {
 	CreateInBatchesError error
 	ExecuteResult        []*gorm.DB
 	GetModelResult       []interface{}
+	SaveModelInput       []interface{}
 }
 
 func (d *Datastore) AutoMigrateDatabase(_ context.Context, _ ...interface{}) error {
@@ -42,17 +43,19 @@ func (d *Datastore) Execute(query string) *gorm.DB {
 func (d *Datastore) GetModel(_ context.Context, model interface{}, _ map[string]interface{},
 	_ time.Duration, _ bool) error {
 
-	if d.GetModelResult != nil {
+	if d.GetModelResult != nil && len(d.GetModelResult) > 0 {
 		// pop the first result of the stack and return it
 		var m interface{}
 		m, d.GetModelResult = d.GetModelResult[0], d.GetModelResult[1:]
 
-		// model is a pointer to a model struct
-		mm, _ := json.Marshal(m)
-		_ = json.Unmarshal(mm, model)
-
-		return nil
+		if m != nil {
+			// model is a pointer to a model struct
+			mm, _ := json.Marshal(m)
+			_ = json.Unmarshal(mm, model)
+			return nil
+		}
 	}
+
 	return datastore.ErrNoResults
 }
 
@@ -91,14 +94,18 @@ func (d *Datastore) IndexMetadata(tableName, field string) error {
 }
 
 func (d *Datastore) NewTx(ctx context.Context, fn func(*datastore.Transaction) error) error {
-	return nil
+	tx := &datastore.Transaction{}
+	return fn(tx)
 }
 
 func (d *Datastore) Raw(query string) *gorm.DB {
 	return nil
 }
 
-func (d *Datastore) SaveModel(ctx context.Context, model interface{}, tx *datastore.Transaction, newRecord, commitTx bool) error {
+func (d *Datastore) SaveModel(_ context.Context, model interface{}, _ *datastore.Transaction, _, _ bool) error {
+
+	d.SaveModelInput = append(d.SaveModelInput, model)
+
 	return nil
 }
 
@@ -158,8 +165,7 @@ func (d *Datastore) DebugLog(ctx context.Context, text string) {
 }
 
 func (d *Datastore) Engine() datastore.Engine {
-	//TODO implement me
-	panic("implement me")
+	return "mock"
 }
 
 func (d *Datastore) IsAutoMigrate() bool {

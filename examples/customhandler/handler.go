@@ -10,7 +10,6 @@ import (
 	"github.com/TAAL-GmbH/mapi/handler"
 	"github.com/labstack/echo/v4"
 	"github.com/mrz1836/go-datastore"
-	"github.com/ordishs/go-bitcoin"
 )
 
 // CustomHandler is our custom mapi handler
@@ -21,9 +20,8 @@ type CustomHandler struct {
 }
 
 func NewCustomHandler() (mapi.HandlerInterface, error) {
-
 	// add a single bitcoin node
-	node, err := bitcoin.New("localhost", 8332, "user", "mypassword", false)
+	node, err := client.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
 	if err != nil {
 		return nil, err
 	}

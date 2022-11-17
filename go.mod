@@ -4,6 +4,8 @@ go 1.18
 
 require (
 	github.com/99designs/gqlgen v0.17.20
+	github.com/bitcoinsv/bsvd v0.0.0-20190609155523-4c29707f7173
+	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9
 	github.com/deepmap/oapi-codegen v1.11.0
 	github.com/getkin/kin-openapi v0.103.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
@@ -23,8 +25,7 @@ require (
 
 require (
 	bitbucket.org/simon_ordish/cryptolib v1.0.48 // indirect
-	github.com/bitcoinsv/bsvd v0.0.0-20190609155523-4c29707f7173 // indirect
-	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9 // indirect
+	github.com/bitcoinsv/bsvlog v0.0.0-20181216181007-cb81b076bf2e // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/coocood/freecache v1.2.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

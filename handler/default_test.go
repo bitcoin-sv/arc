@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/TAAL-GmbH/mapi"
+	"github.com/TAAL-GmbH/mapi/config"
 	"github.com/TAAL-GmbH/mapi/models"
 	"github.com/TAAL-GmbH/mapi/test"
 	"github.com/labstack/echo/v4"
@@ -24,13 +25,13 @@ var contentTypes = []string{
 	echo.MIMEOctetStream,
 }
 
-var (
+const (
 	testMinerKey = "KznvCNc6Yf4iztSThoMH6oHWzH9EgjfodKxmeuUGPq5DEX5maspS"
 	testMinerID  = "02798913bc057b344de675dac34faafe3dc2f312c758cd9068209f810877306d66"
 	// TODO same as validator, store somewhere centrally?
-	validTx   = "02000000010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000"
-	validTxID = "daedb57812f407ff91f874b22fc49b6be7b1dd5adc609e6d306bd3c4934f53b0"
-	parentTx  = "02000000010000000000000000000000000000000000000000000000000000000000000000ffffffff03520101ffffffff0100f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac00000000"
+	validTx         = "0100000001c04e2d8baa442e7445f81ec12c68eb841027211a199176e653fb5e7ef78da0ec8f0000006a4730440220068baf45d1adceba1319511cae65f3c90ec9cdca6ca56350aa6e8e3488424790022033f5efb1740d04f9836c20c07a58ef726d561a51aafc7d3d852bacae2bc30ebb4121035a92fd2b399f6b34941ed245ceb25a416fd2e1af815b315b744293c81fe532c3ffffffff01000000000000000044006a20506b2b9386e05d31a7122b20dec0646b48f690c2e682d3ff3b171cbaf03df11720f360068507c5c9a92ccc74c832665cfa2de09d14f1fc5264193f236e2eec5e4600000000"
+	validExtendedTx = "010000000000000000ef01eca08df77e5efb53e67691191a21271084eb682cc11ef845742e44aa8b2d4ec08f0000006a4730440220068baf45d1adceba1319511cae65f3c90ec9cdca6ca56350aa6e8e3488424790022033f5efb1740d04f9836c20c07a58ef726d561a51aafc7d3d852bacae2bc30ebb4121035a92fd2b399f6b34941ed245ceb25a416fd2e1af815b315b744293c81fe532c3ffffffff0c000000000000001976a914cbf0f02390a1de60a00d47ad076fab8378d95c6a88ac01000000000000000044006a20506b2b9386e05d31a7122b20dec0646b48f690c2e682d3ff3b171cbaf03df11720f360068507c5c9a92ccc74c832665cfa2de09d14f1fc5264193f236e2eec5e4600000000"
+	validTxID       = "9ba52edfdf32edac89db53b3a384ae26d65c21c2c70189692a8faa5cbb2dee33"
 )
 
 func TestNewDefault(t *testing.T) {
@@ -42,7 +43,7 @@ func TestNewDefault(t *testing.T) {
 	})
 }
 
-func TestGetMapiV2Policy(t *testing.T) {
+func TestGetMapiV2Policy(t *testing.T) { //nolint:funlen
 	t.Run("no policy", func(t *testing.T) {
 		testStore := &test.Datastore{}
 		testClient := &test.Client{
@@ -108,7 +109,7 @@ func TestGetMapiV2Policy(t *testing.T) {
 	})
 }
 
-func TestPostMapiV2Tx(t *testing.T) {
+func TestPostMapiV2Tx(t *testing.T) { //nolint:funlen
 	t.Run("empty tx", func(t *testing.T) {
 		testStore := &test.Datastore{}
 		testClient := &test.Client{
@@ -166,7 +167,7 @@ func TestPostMapiV2Tx(t *testing.T) {
 		expectedErrors := map[string]string{
 			echo.MIMETextPlain:       "encoding/hex: invalid byte: U+0074 't'",
 			echo.MIMEApplicationJSON: "invalid character 'e' in literal true (expecting 'r')",
-			echo.MIMEOctetStream:     "too short to be a tx - even an empty tx has 10 bytes",
+			echo.MIMEOctetStream:     "could not read varint type: EOF",
 		}
 
 		for contentType, expectedError := range expectedErrors {
@@ -207,17 +208,16 @@ func TestPostMapiV2Tx(t *testing.T) {
 			rec, ctx := createEchoRequest(inputTx, contentType, "/mapi/v2/tx")
 			err = defaultHandler.PostMapiV2Tx(ctx, mapi.PostMapiV2TxParams{})
 			require.NoError(t, err)
-			assert.Equal(t, mapi.ErrStatusFees, mapi.ErrStatus(rec.Code))
+			assert.Equal(t, mapi.ErrStatusTxFormat, mapi.ErrStatus(rec.Code))
 
 			b := rec.Body.Bytes()
 			var bErr mapi.ErrorFee
 			_ = json.Unmarshal(b, &bErr)
 
-			assert.Equal(t, "mapi error 464: transaction fee is too low", *bErr.ExtraInfo)
+			assert.Equal(t, "mapi error 460: transaction is not in extended format", *bErr.ExtraInfo)
 		}
 	})
 
-	/* TODO this test needs an extended format tx
 	t.Run("valid tx", func(t *testing.T) {
 		testStore := &test.Datastore{}
 		testNode := &test.Node{}
@@ -230,11 +230,11 @@ func TestPostMapiV2Tx(t *testing.T) {
 		defaultHandler, err := NewDefault(testClient)
 		require.NoError(t, err)
 
-		validTxBytes, _ := hex.DecodeString(validTx)
+		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)
 		inputTxs := map[string]io.Reader{
-			echo.MIMETextPlain:       strings.NewReader(validTx),
-			echo.MIMEApplicationJSON: strings.NewReader("\"" + validTx + "\""),
-			echo.MIMEOctetStream:     bytes.NewReader(validTxBytes),
+			echo.MIMETextPlain:       strings.NewReader(validExtendedTx),
+			echo.MIMEApplicationJSON: strings.NewReader("\"" + validExtendedTx + "\""),
+			echo.MIMEOctetStream:     bytes.NewReader(validExtendedTxBytes),
 		}
 
 		for contentType, inputTx := range inputTxs {
@@ -253,7 +253,6 @@ func TestPostMapiV2Tx(t *testing.T) {
 			require.Equal(t, validTxID, bResponse.Txid)
 		}
 	})
-	*/
 }
 
 func addPolicy(testStore *test.Datastore) {
@@ -264,12 +263,22 @@ func addPolicy(testStore *test.Datastore) {
 			Fees: models.Fees{{
 				FeeType: mapi.Standard,
 				MiningFee: mapi.FeeAmount{
-					Bytes:    123,
-					Satoshis: 12,
+					Satoshis: 50,
+					Bytes:    1000,
 				},
 				RelayFee: mapi.FeeAmount{
-					Bytes:    321,
-					Satoshis: 32,
+					Satoshis: 50,
+					Bytes:    1000,
+				},
+			}, {
+				FeeType: mapi.Data,
+				MiningFee: mapi.FeeAmount{
+					Satoshis: 50,
+					Bytes:    1000,
+				},
+				RelayFee: mapi.FeeAmount{
+					Satoshis: 50,
+					Bytes:    1000,
 				},
 			}},
 			Policies: models.Policies{

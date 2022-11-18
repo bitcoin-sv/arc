@@ -204,7 +204,7 @@ func (m MapiDefaultHandler) PostMapiV2Txs(ctx echo.Context, params mapi.PostMapi
 			return ctx.JSON(http.StatusBadRequest, e)
 		}
 
-		txString := strings.Replace(string(body), "\r", "", -1)
+		txString := strings.ReplaceAll(string(body), "\r", "")
 		txs := strings.Split(txString, "\n")
 		transactions = make([]interface{}, len(txs))
 
@@ -302,7 +302,6 @@ func (m MapiDefaultHandler) PostMapiV2Txs(ctx echo.Context, params mapi.PostMapi
 }
 
 func (m MapiDefaultHandler) getTransactionResponse(ctx echo.Context, tx string, transactionOptions *mapi.TransactionOptions) interface{} {
-
 	transaction, err := bt.NewTxFromString(tx)
 	if err != nil {
 		errStr := err.Error()
@@ -314,12 +313,10 @@ func (m MapiDefaultHandler) getTransactionResponse(ctx echo.Context, tx string, 
 	_, response, responseError := m.processTransaction(ctx, transaction, transactionOptions)
 	if responseError != nil {
 		// what to do here, the transaction failed due to server failure?
-		if response == nil {
-			e := mapi.ErrGeneric
-			errStr := responseError.Error()
-			e.ExtraInfo = &errStr
-			return e
-		}
+		e := mapi.ErrGeneric
+		errStr := responseError.Error()
+		e.ExtraInfo = &errStr
+		return e
 	}
 
 	return response

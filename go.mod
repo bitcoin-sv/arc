@@ -12,7 +12,7 @@ require (
 	github.com/labstack/echo/v4 v4.9.0
 	github.com/labstack/gommon v0.3.1
 	github.com/libsv/go-bk v0.1.6
-	github.com/libsv/go-bt/v2 v2.1.0-beta.4
+	github.com/libsv/go-bt/v2 v2.1.0-beta.4.0.20221116173735-4208458b22d6
 	github.com/mrz1836/go-cachestore v0.1.3
 	github.com/mrz1836/go-datastore v0.1.7
 	github.com/mrz1836/go-logger v0.3.1

@@ -40,21 +40,27 @@ func LoadMapiHandler(e *echo.Echo, appConfig *config.AppConfig) error {
 	opts = append(opts, client.WithMinerID(appConfig.MinerID))
 	opts = append(opts, client.WithMigrateModels(models.BaseModels))
 
-	// add custom node configuration, overwriting the default localhost node config
-	if appConfig.Nodes != nil {
-		for _, nodeConfig := range appConfig.Nodes {
-			node, err := client.NewBitcoinNode(nodeConfig.Host, nodeConfig.Port, nodeConfig.User, nodeConfig.Password, nodeConfig.UseSSL)
-			if err != nil {
-				return err
-			}
-			opts = append(opts, client.WithNode(node))
-		}
+	// Add cachestore
+	if appConfig.Cachestore.Engine == "redis" {
+		opts = append(opts, client.WithRedis(appConfig.Redis))
+	} else {
+		// setup an in memory local cache, using free cache
+		opts = append(opts, client.WithFreeCache())
 	}
 
 	// Add datastore
 	// by default an SQLite database will be used in ./mapi.db if no datastore options are set in config
 	if appConfig.Datastore != nil {
 		opts = append(opts, client.WithDatastore(appConfig.Datastore))
+	}
+
+	// set the nodes config, if set
+	if appConfig.Nodes != nil {
+		opts = append(opts, client.WithNodeConfig(appConfig.Nodes))
+	}
+
+	if len(appConfig.Metamorph) > 0 {
+		opts = append(opts, client.WithMetamorphs(appConfig.Metamorph))
 	}
 
 	// load the api, using the default handler

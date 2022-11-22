@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,7 +19,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/mrz1836/go-datastore"
-	"github.com/ordishs/go-bitcoin"
 )
 
 type MapiDefaultHandler struct {
@@ -42,7 +40,10 @@ func NewDefault(c client.Interface, opts ...Options) (mapi.HandlerInterface, err
 func (m MapiDefaultHandler) GetMapiV2Policy(ctx echo.Context) error {
 	user, err := GetEchoUser(ctx, m.Options.security)
 	if err != nil {
-		return err
+		errStr := err.Error()
+		e := mapi.ErrGeneric
+		e.ExtraInfo = &errStr
+		return ctx.JSON(int(mapi.ErrStatusGeneric), e)
 	}
 
 	var policy *mapi.Policy
@@ -67,7 +68,10 @@ func (m MapiDefaultHandler) GetMapiV2Policy(ctx echo.Context) error {
 func (m MapiDefaultHandler) PostMapiV2Tx(ctx echo.Context, params mapi.PostMapiV2TxParams) error {
 	user, err := GetEchoUser(ctx, m.Options.security)
 	if err != nil {
-		return err
+		errStr := err.Error()
+		e := mapi.ErrGeneric
+		e.ExtraInfo = &errStr
+		return ctx.JSON(int(mapi.ErrStatusGeneric), e)
 	}
 
 	var body []byte
@@ -141,13 +145,16 @@ func (m MapiDefaultHandler) PostMapiV2Tx(ctx echo.Context, params mapi.PostMapiV
 // GetMapiV2TxStatusId ...
 func (m MapiDefaultHandler) GetMapiV2TxStatusId(ctx echo.Context, id string) error {
 
-	tx, err := m.getTransaction(ctx.Request().Context(), id)
+	tx, err := m.getTransactionStatus(ctx.Request().Context(), id)
 	if err != nil {
-		return err
+		errStr := err.Error()
+		e := mapi.ErrGeneric
+		e.ExtraInfo = &errStr
+		return ctx.JSON(int(mapi.ErrStatusGeneric), e)
 	}
 
 	if tx == nil {
-		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+		return echo.NewHTTPError(http.StatusNotFound, mapi.ErrNotFound)
 	}
 
 	return ctx.JSON(http.StatusOK, mapi.TransactionStatus{
@@ -155,6 +162,7 @@ func (m MapiDefaultHandler) GetMapiV2TxStatusId(ctx echo.Context, id string) err
 		BlockHash:   &tx.BlockHash,
 		BlockHeight: &tx.BlockHeight,
 		MinerId:     m.Client.GetMinerID(),
+		TxStatus:    &tx.Status,
 		Timestamp:   time.Now(),
 		Txid:        tx.TxID,
 	})
@@ -165,7 +173,14 @@ func (m MapiDefaultHandler) GetMapiV2TxId(ctx echo.Context, id string) error {
 
 	tx, err := m.getTransaction(ctx.Request().Context(), id)
 	if err != nil {
-		return err
+		errStr := err.Error()
+		e := mapi.ErrGeneric
+		e.ExtraInfo = &errStr
+		return ctx.JSON(int(mapi.ErrStatusGeneric), e)
+	}
+
+	if tx == nil {
+		return echo.NewHTTPError(http.StatusNotFound, mapi.ErrNotFound)
 	}
 
 	return ctx.JSON(http.StatusOK, mapi.Transaction{
@@ -173,6 +188,7 @@ func (m MapiDefaultHandler) GetMapiV2TxId(ctx echo.Context, id string) error {
 		BlockHash:   &tx.BlockHash,
 		BlockHeight: &tx.BlockHeight,
 		MinerId:     m.Client.GetMinerID(),
+		TxStatus:    &tx.Status,
 		Timestamp:   time.Now(),
 		Tx:          tx.Hex,
 		Txid:        tx.TxID,
@@ -184,7 +200,10 @@ func (m MapiDefaultHandler) PostMapiV2Txs(ctx echo.Context, params mapi.PostMapi
 
 	user, err := GetEchoUser(ctx, m.Options.security)
 	if err != nil {
-		return err
+		errStr := err.Error()
+		e := mapi.ErrGeneric
+		e.ExtraInfo = &errStr
+		return ctx.JSON(int(mapi.ErrStatusGeneric), e)
 	}
 
 	// set the globals for all transactions in this request
@@ -353,8 +372,8 @@ func (m MapiDefaultHandler) processTransaction(ctx echo.Context, transaction *bt
 	// this should return a 200 or 201 if 1 or more of the nodes accept the transaction
 	var conflictedWith []string
 	node := m.Client.GetRandomNode()
-	var tx *bitcoin.RawTransaction
-	tx, err = node.SubmitTransaction(ctx.Request().Context(), hex.EncodeToString(transaction.Bytes()), transactionOptions)
+	var tx *client.TransactionStatus
+	tx, err = node.SubmitTransaction(ctx.Request().Context(), transaction.Bytes(), transactionOptions)
 	if err != nil {
 		return m.handleError(ctx, transaction, err)
 	}
@@ -366,15 +385,27 @@ func (m MapiDefaultHandler) processTransaction(ctx echo.Context, transaction *bt
 		BlockHeight:    &tx.BlockHeight,
 		ConflictedWith: &conflictedWith,
 		MinerId:        m.Client.GetMinerID(),
+		TxStatus:       &tx.Status,
 		Timestamp:      time.Now(),
 		Txid:           &tx.TxID,
 	}, nil
 }
 
-func (m MapiDefaultHandler) getTransaction(ctx context.Context, id string) (*bitcoin.RawTransaction, error) {
+func (m MapiDefaultHandler) getTransaction(ctx context.Context, id string) (*client.RawTransaction, error) {
 	node := m.Client.GetRandomNode()
 
 	tx, err := node.GetTransaction(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}
+
+func (m MapiDefaultHandler) getTransactionStatus(ctx context.Context, id string) (*client.TransactionStatus, error) {
+	node := m.Client.GetRandomNode()
+
+	tx, err := node.GetTransactionStatus(ctx, id)
 	if err != nil {
 		return nil, err
 	}

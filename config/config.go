@@ -58,6 +58,7 @@ type (
 		Environment      Environment       `json:"environment" mapstructure:"environment"`
 		MinerID          *MinerIDConfig    `json:"miner_id" mapstructure:"miner_id"`
 		Profile          bool              `json:"profile" mapstructure:"profile"` // whether to start the profiling http server
+		Metamorph        []string          `json:"metamorph" mapstructure:"metamorph"`
 		Nodes            []*NodeConfig     `json:"nodes" mapstructure:"nodes"`
 		Redis            *RedisConfig      `json:"redis" mapstructure:"redis"`
 		Security         *SecurityConfig   `json:"security" mapstructure:"security"`
@@ -68,8 +69,7 @@ type (
 
 	// CachestoreConfig is a configuration for cachestore
 	CachestoreConfig struct {
-		Engine       cachestore.Engine `json:"engine" mapstructure:"engine"` // Cache engine to use (redis, freecache)
-		Transactions string            `json:"transactions" mapstructure:"transactions"`
+		Engine cachestore.Engine `json:"engine" mapstructure:"engine"` // Cache engine to use (redis, freecache)
 	}
 
 	// DatastoreConfig is a configuration for the datastore

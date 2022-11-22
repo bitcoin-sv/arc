@@ -29,6 +29,9 @@
     "user": "bitcoin",
     "password": "bitcoin"
   }],
+  "metamorph": [
+    "127.0.0.1:8000"
+  ],
   "redis": {
     "url": "localhost:6379",
     "use_tls": false,

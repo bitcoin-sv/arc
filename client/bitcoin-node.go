@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"encoding/hex"
+	"encoding/json"
 
 	"github.com/TAAL-GmbH/mapi"
 	"github.com/ordishs/go-bitcoin"
@@ -25,16 +27,51 @@ func NewBitcoinNode(host string, port int, user, passwd string, useSSL bool) (*B
 }
 
 // GetTransaction gets a raw transaction from the bitcoin node
-func (b *BitcoinNode) GetTransaction(_ context.Context, txID string) (rawTx *bitcoin.RawTransaction, err error) {
-	return b.Node.GetRawTransaction(txID) //nolint:contextcheck - no context
+func (b *BitcoinNode) GetTransaction(_ context.Context, txID string) (rawTx *RawTransaction, err error) {
+	var bRawTx *bitcoin.RawTransaction
+	if bRawTx, err = b.Node.GetRawTransaction(txID); err != nil { //nolint:contextcheck - no context
+		return nil, err
+	}
+
+	var jb []byte
+	if jb, err = json.Marshal(bRawTx); err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(jb, &rawTx)
+	return rawTx, err
+}
+
+// GetTransactionStatus gets a raw transaction from the bitcoin node
+func (b *BitcoinNode) GetTransactionStatus(_ context.Context, txID string) (status *TransactionStatus, err error) {
+	var rawTx *bitcoin.RawTransaction
+	rawTx, err = b.Node.GetRawTransaction(txID) //nolint:contextcheck - no context
+
+	return &TransactionStatus{
+		BlockHash:   rawTx.BlockHash,
+		BlockHeight: rawTx.BlockHeight,
+		Status:      "",
+		TxID:        txID,
+	}, nil
 }
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format
-func (b *BitcoinNode) SubmitTransaction(_ context.Context, tx string, _ *mapi.TransactionOptions) (*bitcoin.RawTransaction, error) {
-	txID, err := b.Node.SendRawTransaction(tx) //nolint:contextcheck - no context
+func (b *BitcoinNode) SubmitTransaction(_ context.Context, tx []byte, _ *mapi.TransactionOptions) (*TransactionStatus, error) {
+	txID, err := b.Node.SendRawTransaction(hex.EncodeToString(tx)) //nolint:contextcheck - no context
 	if err != nil {
 		return nil, err
 	}
 
-	return b.Node.GetRawTransaction(txID) //nolint:contextcheck - no context
+	var rawTx *bitcoin.RawTransaction
+	rawTx, err = b.Node.GetRawTransaction(txID) //nolint:contextcheck - no context
+	if err != nil {
+		return nil, err
+	}
+
+	return &TransactionStatus{
+		BlockHash:   rawTx.BlockHash,
+		BlockHeight: rawTx.BlockHeight,
+		Status:      "",
+		TxID:        txID,
+	}, nil
 }

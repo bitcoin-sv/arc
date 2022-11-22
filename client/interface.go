@@ -8,6 +8,21 @@ import (
 )
 
 type TransactionHandler interface {
-	GetTransaction(ctx context.Context, txID string) (rawTx *bitcoin.RawTransaction, err error)
-	SubmitTransaction(ctx context.Context, tx string, options *mapi.TransactionOptions) (rawTx *bitcoin.RawTransaction, err error)
+	GetTransaction(ctx context.Context, txID string) (*RawTransaction, error)
+	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
+	SubmitTransaction(ctx context.Context, tx []byte, options *mapi.TransactionOptions) (*TransactionStatus, error)
+}
+
+type RawTransaction struct {
+	bitcoin.RawTransaction
+	Status string `json:"status"`
+}
+
+// TransactionStatus defines model for TransactionStatus.
+type TransactionStatus struct {
+	TxID        string `json:"tx_id"`
+	BlockHash   string `json:"blockHash,omitempty"`
+	BlockHeight uint64 `json:"blockHeight,omitempty"`
+	Status      string `json:"status"`
+	Timestamp   int64  `json:"timestamp"`
 }

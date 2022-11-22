@@ -8,7 +8,6 @@ import (
 	"github.com/TAAL-GmbH/mapi/dictionary"
 	"github.com/mrz1836/go-datastore"
 	"github.com/mrz1836/go-logger"
-	"github.com/ordishs/go-bitcoin"
 )
 
 // Client is a Client compatible struct that can be used in tests
@@ -55,14 +54,6 @@ func (t *Client) GetRandomNode() client.TransactionHandler {
 	return t.Node
 }
 
-func (t *Client) GetRandomNodes(_ int) []client.TransactionHandler {
-	return []client.TransactionHandler{t.Node}
-}
-
 func (t *Client) Models() []interface{} {
 	return nil
-}
-
-func (t *Client) GetTransactionFromNodes(ctx context.Context, txID string) (*bitcoin.RawTransaction, error) {
-	return t.Node.GetTransaction(ctx, txID)
 }

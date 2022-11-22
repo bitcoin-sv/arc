@@ -382,6 +382,9 @@ components:
             tx:
               type: string
               nullable: false
+            txStatus:
+              type: string
+              nullable: false
           additionalProperties: false
     TransactionStatus:
       allOf:
@@ -390,8 +393,12 @@ components:
         - type: object
           required:
             - txid
+            - status
           properties:
             txid:
+              type: string
+              nullable: false
+            txStatus:
               type: string
               nullable: false
           additionalProperties: false
@@ -451,6 +458,11 @@ components:
               type: string
               description: Transaction ID in hex
               example: "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
+              nullable: false
+            txStatus:
+              type: string
+              description: Transaction status
+              example: "ACCEPTED"
               nullable: false
             conflictedWith:
               type: array

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/TAAL-GmbH/mapi/client"
+	"github.com/TAAL-GmbH/arc/client"
 	"github.com/mrz1836/go-datastore"
 	customTypes "github.com/mrz1836/go-datastore/custom_types"
 )

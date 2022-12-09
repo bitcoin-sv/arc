@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/TAAL-GmbH/mapi/client"
+	"github.com/TAAL-GmbH/arc/client"
 	"github.com/labstack/gommon/random"
 	"github.com/mrz1836/go-datastore"
 	"github.com/stretchr/testify/require"

@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/TAAL-GmbH/mapi"
+	arc "github.com/TAAL-GmbH/arc"
 	"github.com/mrz1836/go-datastore"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/bsontype"
@@ -15,7 +15,7 @@ import (
 )
 
 // Fees struct to tell database systems how to marshal and unmarshal
-type Fees []mapi.Fee
+type Fees []arc.Fee
 
 // GormDataType type in gorm
 func (f Fees) GormDataType() string {
@@ -98,7 +98,7 @@ func (f *Fees) UnmarshalBSONValue(t bsontype.Type, data []byte) error {
 		if err != nil {
 			return err
 		}
-		var mf mapi.Fee
+		var mf arc.Fee
 		if err = json.Unmarshal(b, &mf); err != nil {
 			return err
 		}

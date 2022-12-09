@@ -1,61 +1,39 @@
-openapi: 3.0.
+openapi: 3.0.0
 info:
-  title: BSV MAPI
-  version: 2.0.0
+  title: BSV ARC
+  version: 1.0.0
   license:
-    name: Open BSV License
+    name: Open BSV Licence
     url: https://bitcoinassociation.net/open-bsv-license/
+
 paths:
-  /mapi/v2/policy:
+
+  # Get Fees
+  /arc/v1/fees:
     get:
       tags:
-        - Mapi
-      summary: Get the miner policy
+        - Arc
+      summary: Get the transaction fees required
       description: >-
-        This endpoint returns the miner policies and fees charged.
+        This endpoint returns the fees required for the api key used.
       responses:
         200:
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Policy'
+                $ref: '#/components/schemas/FeesResponse'
         401:
           $ref: '#/components/responses/NotAuthorized'
-        404:
-          description: Not found
-  /mapi/v2/tx/{id}:
+  
+  # Get transaction status
+  /arc/v1/tx/{id}:
     get:
       tags:
-        - Mapi
-      summary: Query transaction
+        - Arc
+      summary: Get transaction status.
       description: >-
-        This endpoint is used to get a previously submitted transaction.
-      parameters:
-        - name: id
-          in: path
-          description: The transaction ID (32 byte hash) hex string
-          required: true
-          schema:
-            type: string
-      responses:
-        200:
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Transaction'
-        401:
-          $ref: '#/components/responses/NotAuthorized'
-        404:
-          description: Not found
-  /mapi/v2/txStatus/{id}:
-    get:
-      tags:
-        - Mapi
-      summary: Query transaction status.
-      description: >-
-        This endpoint is used to check the current status of a previously submitted transaction.
+        This endpoint is used to get the current status of a previously submitted transaction.
       parameters:
         - name: id
           in: path
@@ -74,13 +52,15 @@ paths:
           $ref: '#/components/responses/NotAuthorized'
         404:
           description: Not found
-  /mapi/v2/tx:
+  
+  # Post transaction
+  /arc/v1/tx:
     post:
       tags:
-        - Mapi
+        - Arc
       summary: Submit a transaction.
       description: >-
-        This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.  The header parameters can be used to override the global settings in your MAPI dashboard for these transactions.
+        This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.  The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
       parameters:
         - $ref: '#/components/parameters/callbackUrl'
         - $ref: '#/components/parameters/callbackToken'
@@ -94,7 +74,7 @@ paths:
               example: "<transaction hex string>"
           application/json:
             schema:
-              $ref: '#/components/schemas/SubmitTransactionModel'
+              $ref: '#/components/schemas/TransactionRequest'
           application/octet-stream:
             schema:
               type: string
@@ -110,9 +90,7 @@ paths:
                 success:
                   summary: Added to block template
                   value:
-                    apiVersion: "v2.0.0"
                     timestamp: "2022-10-18T13:30:22.653Z"
-                    minerId: "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270"
                     txid: "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
         200:
           description: Success
@@ -124,18 +102,14 @@ paths:
                 mined:
                   summary: Already mined
                   value:
-                    apiVersion: "v2.0.0"
                     timestamp: "2022-10-18T13:30:22.653Z"
-                    minerId: "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270"
                     txid: "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
                     blockHash: "000000000000000001d8f4bb24dd93d4e91ce926cc7a971be018c2b8d46d45ff"
                     blockHeight: 761868
                 mempool:
                   summary: Already in mempool
                   value:
-                    apiVersion: "v2.0.0"
                     timestamp: "2022-10-18T13:30:22.653Z"
-                    minerId: "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270"
                     txid: "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
         400:
           description: Bad request
@@ -163,13 +137,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /mapi/v2/txs:
+  /arc/v1/txs:
     post:
       tags:
-        - Mapi
+        - Arc
       summary: Submit multiple transactions.
       description: >-
-        This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates. The header parameters can be used to override the global settings in your MAPI dashboard for these transactions.
+        This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates. The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
       parameters:
         - $ref: '#/components/parameters/callbackUrl'
         - $ref: '#/components/parameters/callbackToken'
@@ -235,11 +209,11 @@ paths:
                     minerId: "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270"
                     transactions: [
                       {
-                        type: "https://mapi.bitcoinsv.com/errors/402",
+                        type: "https://arc.bitcoinsv.com/errors/402",
                         title: "Fee too low",
                         status: 402,
                         detail: "The fee in the transaction is too low to be included in a block",
-                        instance: "https://mapi.taal.com/errors/123452",
+                        instance: "https://arc.taal.com/errors/123452",
                         txid: "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
                       }
                     ]
@@ -251,90 +225,55 @@ paths:
                 $ref: '#/components/schemas/ErrorBadRequest'
               example:
                 {
-                  "type": "https://mapi.bitcoinsv.com/errors/400",
+                  "type": "https://arc.bitcoinsv.com/errors/400",
                   "title": "Bad request",
                   "status": 400,
                   "detail": "The request seems to be malformed and cannot be processed",
-                  "instance": "https://mapi.taal.com/errors/1234556"
+                  "instance": "https://arc.taal.com/errors/1234556"
                 }
         403:
           $ref: '#/components/responses/NotAuthorized'
+
 components:
+
   schemas:
-    SubmitTransactionModel:
+    
+    # Common response object
+    CommonResponse:
       type: object
       required:
-        - rawTx
-      properties:
-        rawTx:
-          type: string
-          nullable: false
-    BasicResponse:
-      type: object
-      required:
-        - apiVersion
         - timestamp
-        - minerId
       properties:
-        apiVersion:
-          type: string
-          example: "v2.0.0"
-          nullable: false
         timestamp:
           type: string
           format: date-time
           nullable: false
-        minerId:
+
+    ChainInfo:
+      type: object
+      properties:
+        blockHash:
           type: string
-          example: "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270"
           nullable: false
-    Policy:
+        blockHeight:
+          type: integer
+          format: uint64
+          nullable: false
+
+    FeesResponse:
       allOf:
-        - $ref: '#/components/schemas/BasicResponse'
-        - $ref: '#/components/schemas/FeeQuote'
+        - $ref: '#/components/schemas/CommonResponse'
         - type: object
           required:
-            - policies
+            - fees
           properties:
-            policies:
-              type: object
+            fees:
+              type: array
+              items:
+                $ref: '#/components/schemas/Fee'
               nullable: true
-              example: {
-                "skipscriptflags": [
-                  "MINIMALDATA",
-                  "DERSIG",
-                  "NULLDUMMY",
-                  "CLEANSTACK"
-                ],
-                "maxtxsizepolicy":99999,
-                "datacarriersize":100000,
-                "maxscriptsizepolicy":100000,
-                "maxscriptnumlengthpolicy":100000,
-                "maxstackmemoryusagepolicy":10000000,
-                "limitancestorcount":1000,
-                "limitcpfpgroupmemberscount":10,
-                "acceptnonstdoutputs":true,
-                "datacarrier":true,
-                "maxstdtxvalidationduration":99,
-                "maxnonstdtxvalidationduration":100,
-                "dustrelayfee":150,
-                "dustlimitfactor":500
-              }
-    FeeQuote:
-      type: object
-      required:
-        - expiryTime
-        - fees
-      properties:
-        expiryTime:
-          type: string
-          format: date-time
-        fees:
-          type: array
-          items:
-            $ref: '#/components/schemas/Fee'
-          nullable: true
-      additionalProperties: false
+          additionalProperties: false
+
     Fee:
       type: object
       required:
@@ -354,6 +293,7 @@ components:
         relayFee:
           $ref: '#/components/schemas/FeeAmount'
       additionalProperties: false
+
     FeeAmount:
       type: object
       required:
@@ -367,9 +307,20 @@ components:
           type: integer
           format: uint64
       additionalProperties: false
-    Transaction:
+
+    # Transaction request for application/json
+    TransactionRequest:
+      type: object
+      required:
+        - rawTx
+      properties:
+        rawTx:
+          type: string
+          nullable: false
+
+    TransactionResponse000:
       allOf:
-        - $ref: '#/components/schemas/BasicResponse'
+        - $ref: '#/components/schemas/CommonResponse'
         - $ref: '#/components/schemas/ChainInfo'
         - type: object
           required:
@@ -386,9 +337,10 @@ components:
               type: string
               nullable: false
           additionalProperties: false
+    
     TransactionStatus:
       allOf:
-        - $ref: '#/components/schemas/BasicResponse'
+        - $ref: '#/components/schemas/CommonResponse'
         - $ref: '#/components/schemas/ChainInfo'
         - type: object
           required:
@@ -402,15 +354,17 @@ components:
               type: string
               nullable: false
           additionalProperties: false
+    
     TransactionResponse:
       allOf:
-        - $ref: '#/components/schemas/BasicResponse'
+        - $ref: '#/components/schemas/CommonResponse'
         - $ref: '#/components/schemas/ChainInfo'
         - $ref: '#/components/schemas/TransactionDetails'
       additionalProperties: false
+    
     TransactionResponses:
       allOf:
-        - $ref: '#/components/schemas/BasicResponse'
+        - $ref: '#/components/schemas/CommonResponse'
         - $ref: '#/components/schemas/ChainInfo'
         - type: object
           properties:
@@ -421,16 +375,7 @@ components:
                   - $ref: '#/components/schemas/TransactionDetails'
                   - $ref: '#/components/schemas/Error'
           additionalProperties: false
-    ChainInfo:
-      type: object
-      properties:
-        blockHash:
-          type: string
-          nullable: false
-        blockHeight:
-          type: integer
-          format: uint64
-          nullable: false
+    
     TransactionSubmitStatus:
       type: object
       required:
@@ -446,6 +391,7 @@ components:
           type: string
           example: "Added to mempool"
           nullable: false
+
     TransactionDetails:
       type: object
       required:
@@ -461,16 +407,21 @@ components:
               nullable: false
             txStatus:
               type: string
+              enum: [
+                "UNKNOWN",
+                "RECEIVED", 
+                "STORED", 
+                "ANNOUNCED_TO_NETWORK", 
+                "SENT_TO_NETWORK", 
+                "SEEN_ON_NETWORK", 
+                "MINED", 
+                "CONFIRMED", 
+                "REJECTED" 
+              ]
               description: Transaction status
               example: "ACCEPTED"
               nullable: false
-            conflictedWith:
-              type: array
-              items:
-                type: string
-                description: Transaction ID in hex
-                example: "d7d2c6519da8b02a2e765cb3c93846d9d63c91c38eb8b78c7d7bc46eac25285e"
-              nullable: true
+    
     Error:
       description: An HTTP Problem Details object, as defined in IETF RFC 7807 (https://tools.ietf.org/html/rfc7807).
       oneOf: [
@@ -497,7 +448,7 @@ components:
         - type: object
           properties:
             type:
-              example: "https://mapi.bitcoinsv.com/errors/400"
+              example: "https://arc.bitcoinsv.com/errors/400"
             title:
               example: "Bad request"
             status:
@@ -505,7 +456,7 @@ components:
             detail:
               example: "The request seems to be malformed and cannot be processed"
             instance:
-              example: "https://mapi.taal.com/errors/1234556"
+              example: "https://arc.taal.com/errors/1234556"
     ErrorFee:
       type: object
       allOf:
@@ -513,7 +464,7 @@ components:
         - type: object
           properties:
             type:
-              example: "https://mapi.bitcoinsv.com/errors/402"
+              example: "https://arc.bitcoinsv.com/errors/402"
             title:
               example: "Fee too low"
             status:
@@ -521,7 +472,7 @@ components:
             detail:
               example: "The fee in the transaction is too low to be included in a block"
             instance:
-              example: "https://mapi.taal.com/errors/123452"
+              example: "https://arc.taal.com/errors/123452"
     ErrorConflict:
       type: object
       allOf:
@@ -529,7 +480,7 @@ components:
         - type: object
           properties:
             type:
-              example: "https://mapi.bitcoinsv.com/errors/409"
+              example: "https://arc.bitcoinsv.com/errors/409"
             title:
               example: "Conflicting tx found"
             status:
@@ -537,11 +488,8 @@ components:
             detail:
               example: "Tx is valid, but there is a conflicting tx in the block template"
             instance:
-              example: "https://mapi.taal.com/errors/123453"
-            conflictedWith:
-              example: [
-                "0231d4135c5ca1e070b6c03d1f91f2f8cdac4d1de01b6289dd7c68adb685a69b"
-              ]
+              example: "https://arc.taal.com/errors/123453"
+
     ErrorUnlockingScripts:
       type: object
       allOf:
@@ -549,7 +497,7 @@ components:
         - type: object
           properties:
             type:
-              example: "https://mapi.bitcoinsv.com/errors/461"
+              example: "https://arc.bitcoinsv.com/errors/461"
             title:
               example: "Invalid unlocking scripts"
             status:
@@ -557,7 +505,7 @@ components:
             detail:
               example: "Tx is invalid because the unlock scripts are invalid"
             instance:
-              example: "https://mapi.taal.com/errors/123452"
+              example: "https://arc.taal.com/errors/123452"
     ErrorInputs:
       type: object
       allOf:
@@ -565,7 +513,7 @@ components:
         - type: object
           properties:
             type:
-              example: "https://mapi.bitcoinsv.com/errors/462"
+              example: "https://arc.bitcoinsv.com/errors/462"
             title:
               example: "Invalid inputs"
             status:
@@ -573,7 +521,7 @@ components:
             detail:
               example: "Tx is invalid because the inputs are non-existent or spent"
             instance:
-              example: "https://mapi.taal.com/errors/123452"
+              example: "https://arc.taal.com/errors/123452"
     ErrorMalformed:
       type: object
       allOf:
@@ -581,7 +529,7 @@ components:
         - type: object
           properties:
             type:
-              example: "https://mapi.bitcoinsv.com/errors/463"
+              example: "https://arc.bitcoinsv.com/errors/463"
             title:
               example: "Malformed transaction"
             status:
@@ -589,7 +537,7 @@ components:
             detail:
               example: "Tx is malformed"
             instance:
-              example: "https://mapi.taal.com/errors/123452"
+              example: "https://arc.taal.com/errors/123452"
     ErrorFrozenPolicy:
       type: object
       allOf:
@@ -597,7 +545,7 @@ components:
         - type: object
           properties:
             type:
-              example: "https://mapi.bitcoinsv.com/errors/471"
+              example: "https://arc.bitcoinsv.com/errors/471"
             title:
               example: "Input Frozen"
             status:
@@ -605,7 +553,7 @@ components:
             detail:
               example: "Input Frozen (blacklist manager policy blacklisted)"
             instance:
-              example: "https://mapi.taal.com/errors/123452"
+              example: "https://arc.taal.com/errors/123452"
     ErrorFrozenConsensus:
       type: object
       allOf:
@@ -613,7 +561,7 @@ components:
         - type: object
           properties:
             type:
-              example: "https://mapi.bitcoinsv.com/errors/472"
+              example: "https://arc.bitcoinsv.com/errors/472"
             title:
               example: "Input Frozen"
             status:
@@ -621,7 +569,7 @@ components:
             detail:
               example: "Input Frozen (blacklist manager consensus blacklisted)"
             instance:
-              example: "https://mapi.taal.com/errors/123452"
+              example: "https://arc.taal.com/errors/123452"
     ErrorFields:
       type: object
       required:
@@ -690,5 +638,6 @@ components:
       description: Whether to include merkle proofs in the callbacks (true | false).
       schema:
         type: string
+
 security:
   - BearerAuth: []

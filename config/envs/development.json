@@ -11,13 +11,13 @@
     "debug": false,
     "engine": "mongodb",
     "sqlite": {
-      "database_path": "./mapi.db",
+      "database_path": "./arc.db",
       "shared": true
     },
     "mongodb": {
-      "database_name": "mapi",
+      "database_name": "arc",
       "transactions": false,
-      "uri": "mongodb://localhost:27017/mapi"
+      "uri": "mongodb://localhost:27017/arc"
     }
   },
   "cache": {
@@ -43,7 +43,7 @@
   },
   "security": {
     "type": "jwt",
-    "issuer": "MAPI v2 test issuer",
+    "issuer": "ARC v1 test issuer",
     "bearer_key": "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
   },
   "server": {

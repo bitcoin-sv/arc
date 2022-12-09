@@ -1,4 +1,4 @@
-package mapi
+package arc
 
 // APIVersion version of this api
 // this should be automatically generated from the yaml file

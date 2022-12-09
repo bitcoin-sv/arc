@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/TAAL-GmbH/mapi/config"
-	"github.com/TAAL-GmbH/mapi/dictionary"
-	"github.com/TAAL-GmbH/mapi/handler"
+	"github.com/TAAL-GmbH/arc/config"
+	"github.com/TAAL-GmbH/arc/dictionary"
+	"github.com/TAAL-GmbH/arc/handler"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/mrz1836/go-logger"
@@ -33,9 +33,9 @@ func main() {
 	// use the standard echo logger
 	e.Use(echomiddleware.Logger())
 
-	// load the MAPI handler from config
+	// load the ARC handler from config
 	// If you want to customize this for your own server, see examples dir
-	if err = handler.LoadMapiHandler(e, appConfig); err != nil {
+	if err = handler.LoadArcHandler(e, appConfig); err != nil {
 		panic(err)
 	}
 

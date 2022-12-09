@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"time"
 
-	"github.com/TAAL-GmbH/mapi"
+	arc "github.com/TAAL-GmbH/arc"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bk/wif"
 	"github.com/mrz1836/go-cachestore"
@@ -16,11 +16,11 @@ type Environment string
 
 // Config constants used for optimization and value testing
 const (
-	ApplicationName                    = "MAPI"
-	CurrentMajorVersion                = "v2"
-	Version                            = "v2.0.0"
-	EnvironmentKey                     = "MAPI_ENVIRONMENT"
-	EnvironmentPrefix                  = "mapi"
+	ApplicationName                    = "ARC"
+	CurrentMajorVersion                = "v1"
+	Version                            = "v1.0.0"
+	EnvironmentKey                     = "ARC_ENVIRONMENT"
+	EnvironmentPrefix                  = "arc"
 	EnvironmentDevelopment Environment = "development"
 	EnvironmentProduction  Environment = "production"
 	EnvironmentStaging     Environment = "staging"
@@ -108,15 +108,15 @@ type (
 		UseSSL   bool   `json:"use_ssl" mapstructure:"use_ssl"`
 	}
 
-	// SecurityConfig is a configuration for the security of the MAPI server
+	// SecurityConfig is a configuration for the security of the ARC server
 	SecurityConfig struct {
-		Type          SecurityType                               `json:"type" mapstructure:"type"`             // jwt or custom
-		Issuer        string                                     `json:"issuer" mapstructure:"issuer"`         // Token issuer
-		BearerKey     string                                     `json:"bearer_key" mapstructure:"bearer_key"` // JWT bearer secret key
-		CustomGetUser func(ctx echo.Context) (*mapi.User, error) `json:"-"`
+		Type          SecurityType                              `json:"type" mapstructure:"type"`             // jwt or custom
+		Issuer        string                                    `json:"issuer" mapstructure:"issuer"`         // Token issuer
+		BearerKey     string                                    `json:"bearer_key" mapstructure:"bearer_key"` // JWT bearer secret key
+		CustomGetUser func(ctx echo.Context) (*arc.User, error) `json:"-"`
 	}
 
-	// ServerConfig is a configuration for the MAPI server
+	// ServerConfig is a configuration for the ARC server
 	ServerConfig struct {
 		IPAddress string `json:"ip_address" mapstructure:"ip_address"`
 		Port      uint   `json:"port" mapstructure:"port"`
@@ -132,7 +132,7 @@ type (
 
 // GetUserAgent will return the outgoing user agent
 func (a *AppConfig) GetUserAgent() string {
-	return "MAPI " + string(a.Environment) + " " + Version
+	return "ARC " + string(a.Environment) + " " + Version
 }
 
 func (m *MinerIDConfig) GetMinerID() (string, error) {

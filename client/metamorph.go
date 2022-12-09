@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/TAAL-GmbH/mapi"
+	arc "github.com/TAAL-GmbH/arc"
 	"github.com/TAAL-GmbH/metamorph/metamorph_api"
 	"github.com/ordishs/go-bitcoin"
 	"google.golang.org/grpc"
@@ -94,7 +94,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 }
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format
-func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, _ *mapi.TransactionOptions) (*TransactionStatus, error) {
+func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, _ *arc.TransactionOptions) (*TransactionStatus, error) {
 	target, client, err := m.getRandomMetamorphClient()
 	if err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, _ *mapi.Tr
 
 	// TODO add retry logic if the put fails
 	var response *metamorph_api.TransactionStatus
-	response, err = client.PutTransaction(ctx, &metamorph_api.Transaction{
+	response, err = client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
 		RawTx: tx,
 	})
 	if err != nil {

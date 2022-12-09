@@ -3,9 +3,10 @@ package test
 import (
 	"context"
 
-	"github.com/TAAL-GmbH/mapi/client"
-	"github.com/TAAL-GmbH/mapi/config"
-	"github.com/TAAL-GmbH/mapi/dictionary"
+	"github.com/TAAL-GmbH/arc/client"
+	"github.com/TAAL-GmbH/arc/config"
+	"github.com/TAAL-GmbH/arc/dictionary"
+	"github.com/mrz1836/go-cachestore"
 	"github.com/mrz1836/go-datastore"
 	"github.com/mrz1836/go-logger"
 )
@@ -55,5 +56,9 @@ func (t *Client) GetRandomNode() client.TransactionHandler {
 }
 
 func (t *Client) Models() []interface{} {
+	return nil
+}
+
+func (c *Client) Cachestore() cachestore.ClientInterface {
 	return nil
 }

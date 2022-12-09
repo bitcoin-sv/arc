@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TAAL-GmbH/mapi"
-	"github.com/TAAL-GmbH/mapi/config"
-	"github.com/TAAL-GmbH/mapi/models"
-	"github.com/TAAL-GmbH/mapi/test"
+	"github.com/TAAL-GmbH/arc"
+	"github.com/TAAL-GmbH/arc/config"
+	"github.com/TAAL-GmbH/arc/models"
+	"github.com/TAAL-GmbH/arc/test"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,7 +43,7 @@ func TestNewDefault(t *testing.T) {
 	})
 }
 
-func TestGetMapiV2Policy(t *testing.T) { //nolint:funlen
+func TestGetArcV1Fees(t *testing.T) { //nolint:funlen
 	t.Run("no policy", func(t *testing.T) {
 		testStore := &test.Datastore{}
 		testClient := &test.Client{
@@ -54,24 +54,24 @@ func TestGetMapiV2Policy(t *testing.T) { //nolint:funlen
 		defaultHandler, err := NewDefault(testClient)
 		require.NoError(t, err)
 		e := echo.New()
-		req := httptest.NewRequest(http.MethodPost, "/mapi/v2/policy", strings.NewReader(""))
+		req := httptest.NewRequest(http.MethodPost, "/arc/v1/fees", strings.NewReader(""))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
 
-		err = defaultHandler.GetMapiV2Policy(ctx)
+		err = defaultHandler.GetArcV1Fees(ctx)
 		require.Nil(t, err)
-		require.Equal(t, int(mapi.ErrStatusNotFound), rec.Code)
+		require.Equal(t, int(arc.ErrStatusNotFound), rec.Code)
 
 		response := rec.Body.Bytes()
-		var mError mapi.ErrorFields
+		var mError arc.ErrorFields
 		_ = json.Unmarshal(response, &mError)
-		assert.Equal(t, mapi.ErrStatusNotFound, mapi.ErrStatus(mError.Status))
+		assert.Equal(t, arc.ErrStatusNotFound, arc.ErrorCode(mError.Status))
 	})
 
-	t.Run("default policy", func(t *testing.T) {
+	t.Run("default fees", func(t *testing.T) {
 		testStore := &test.Datastore{}
-		addPolicy(testStore)
+		addFees(testStore)
 		testClient := &test.Client{
 			Store: testStore,
 			Node:  nil, // not needed here
@@ -80,36 +80,30 @@ func TestGetMapiV2Policy(t *testing.T) { //nolint:funlen
 		defaultHandler, err := NewDefault(testClient)
 		require.NoError(t, err)
 		e := echo.New()
-		req := httptest.NewRequest(http.MethodPost, "/mapi/v2/policy", strings.NewReader(""))
+		req := httptest.NewRequest(http.MethodPost, "/arc/v1/fees", strings.NewReader(""))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
 
-		err = defaultHandler.GetMapiV2Policy(ctx)
+		err = defaultHandler.GetArcV1Fees(ctx)
 		require.Nil(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 
 		bPolicy := rec.Body.Bytes()
-		var policy mapi.Policy
-		_ = json.Unmarshal(bPolicy, &policy)
+		var feesResponse arc.FeesResponse
+		_ = json.Unmarshal(bPolicy, &feesResponse)
 
-		assert.Equal(t, mapi.APIVersion, policy.ApiVersion)
-
-		require.NotNil(t, policy.Fees)
-		fees := *policy.Fees
-		assert.Equal(t, mapi.Standard, fees[0].FeeType)
+		require.NotNil(t, feesResponse.Fees)
+		fees := *feesResponse.Fees
+		assert.Equal(t, arc.Standard, fees[0].FeeType)
 		assert.Equal(t, uint64(123), fees[0].MiningFee.Bytes)
 		assert.Equal(t, uint64(12), fees[0].MiningFee.Satoshis)
 		assert.Equal(t, uint64(321), fees[0].RelayFee.Bytes)
 		assert.Equal(t, uint64(32), fees[0].RelayFee.Satoshis)
-
-		require.NotNil(t, policy.Policies)
-		policies := *policy.Policies
-		assert.Equal(t, "policy1-value", policies["policy1-key"])
 	})
 }
 
-func TestPostMapiV2Tx(t *testing.T) { //nolint:funlen
+func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 	t.Run("empty tx", func(t *testing.T) {
 		testStore := &test.Datastore{}
 		testClient := &test.Client{
@@ -122,14 +116,14 @@ func TestPostMapiV2Tx(t *testing.T) { //nolint:funlen
 
 		for _, contentType := range contentTypes {
 			e := echo.New()
-			req := httptest.NewRequest(http.MethodPost, "/mapi/v2/tx", strings.NewReader(""))
+			req := httptest.NewRequest(http.MethodPost, "/arc/v1/tx", strings.NewReader(""))
 			req.Header.Set(echo.HeaderContentType, contentType)
 			rec := httptest.NewRecorder()
 			ctx := e.NewContext(req, rec)
 
-			err = defaultHandler.PostMapiV2Tx(ctx, mapi.PostMapiV2TxParams{})
+			err = defaultHandler.PostArcV1Tx(ctx, arc.PostArcV1TxParams{})
 			require.NoError(t, err)
-			assert.Equal(t, rec.Code, mapi.ErrMalformed.Status)
+			assert.Equal(t, rec.Code, arc.ErrMalformed.Status)
 		}
 	})
 
@@ -144,14 +138,14 @@ func TestPostMapiV2Tx(t *testing.T) { //nolint:funlen
 		require.NoError(t, err)
 
 		e := echo.New()
-		req := httptest.NewRequest(http.MethodPost, "/mapi/v2/tx", strings.NewReader(""))
+		req := httptest.NewRequest(http.MethodPost, "/arc/v1/tx", strings.NewReader(""))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationXML)
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
 
-		err = defaultHandler.PostMapiV2Tx(ctx, mapi.PostMapiV2TxParams{})
+		err = defaultHandler.PostArcV1Tx(ctx, arc.PostArcV1TxParams{})
 		require.NoError(t, err)
-		assert.Equal(t, rec.Code, mapi.ErrBadRequest.Status)
+		assert.Equal(t, rec.Code, arc.ErrBadRequest.Status)
 	})
 
 	t.Run("invalid tx", func(t *testing.T) {
@@ -171,13 +165,13 @@ func TestPostMapiV2Tx(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, expectedError := range expectedErrors {
-			rec, ctx := createEchoRequest(strings.NewReader("test"), contentType, "/mapi/v2/tx")
-			err = defaultHandler.PostMapiV2Tx(ctx, mapi.PostMapiV2TxParams{})
+			rec, ctx := createEchoRequest(strings.NewReader("test"), contentType, "/arc/v1/tx")
+			err = defaultHandler.PostArcV1Tx(ctx, arc.PostArcV1TxParams{})
 			require.NoError(t, err)
-			assert.Equal(t, mapi.ErrMalformed.Status, rec.Code)
+			assert.Equal(t, arc.ErrMalformed.Status, rec.Code)
 
 			b := rec.Body.Bytes()
-			var bErr mapi.ErrorMalformed
+			var bErr arc.ErrorMalformed
 			_ = json.Unmarshal(b, &bErr)
 
 			require.NotNil(t, bErr.ExtraInfo)
@@ -204,17 +198,17 @@ func TestPostMapiV2Tx(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
-			addPolicy(testStore)
-			rec, ctx := createEchoRequest(inputTx, contentType, "/mapi/v2/tx")
-			err = defaultHandler.PostMapiV2Tx(ctx, mapi.PostMapiV2TxParams{})
+			addFees(testStore)
+			rec, ctx := createEchoRequest(inputTx, contentType, "/arc/v1/tx")
+			err = defaultHandler.PostArcV1Tx(ctx, arc.PostArcV1TxParams{})
 			require.NoError(t, err)
-			assert.Equal(t, mapi.ErrStatusTxFormat, mapi.ErrStatus(rec.Code))
+			assert.Equal(t, arc.ErrStatusTxFormat, arc.ErrorCode(rec.Code))
 
 			b := rec.Body.Bytes()
-			var bErr mapi.ErrorFee
+			var bErr arc.ErrorFee
 			_ = json.Unmarshal(b, &bErr)
 
-			assert.Equal(t, "mapi error 460: transaction is not in extended format", *bErr.ExtraInfo)
+			assert.Equal(t, "arc error 460: transaction is not in extended format", *bErr.ExtraInfo)
 		}
 	})
 
@@ -238,53 +232,46 @@ func TestPostMapiV2Tx(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
-			addPolicy(testStore)
-			rec, ctx := createEchoRequest(inputTx, contentType, "/mapi/v2/tx")
-			err = defaultHandler.PostMapiV2Tx(ctx, mapi.PostMapiV2TxParams{})
+			addFees(testStore)
+			rec, ctx := createEchoRequest(inputTx, contentType, "/arc/v1/tx")
+			err = defaultHandler.PostArcV1Tx(ctx, arc.PostArcV1TxParams{})
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusCreated, rec.Code)
 
 			b := rec.Body.Bytes()
-			var bResponse mapi.TransactionResponse
+			var bResponse arc.TransactionResponse
 			_ = json.Unmarshal(b, &bResponse)
 
-			require.Equal(t, mapi.APIVersion, bResponse.ApiVersion)
-			require.Equal(t, testMinerID, bResponse.MinerId)
 			require.Equal(t, validTxID, bResponse.Txid)
 		}
 	})
 }
 
-func addPolicy(testStore *test.Datastore) {
+func addFees(testStore *test.Datastore) {
 	testStore.GetModelResult = []interface{}{
 		// this mocks the database record being returned
-		&models.Policy{
-			ID: "test-id",
-			Fees: models.Fees{{
-				FeeType: mapi.Standard,
-				MiningFee: mapi.FeeAmount{
+		&models.Fees{
+			{
+				FeeType: arc.Standard,
+				MiningFee: arc.FeeAmount{
 					Satoshis: 50,
 					Bytes:    1000,
 				},
-				RelayFee: mapi.FeeAmount{
+				RelayFee: arc.FeeAmount{
 					Satoshis: 50,
 					Bytes:    1000,
 				},
 			}, {
-				FeeType: mapi.Data,
-				MiningFee: mapi.FeeAmount{
+				FeeType: arc.Data,
+				MiningFee: arc.FeeAmount{
 					Satoshis: 50,
 					Bytes:    1000,
 				},
-				RelayFee: mapi.FeeAmount{
+				RelayFee: arc.FeeAmount{
 					Satoshis: 50,
 					Bytes:    1000,
 				},
-			}},
-			Policies: models.Policies{
-				"policy1-key": "policy1-value",
 			},
-			ClientID: "test-client",
 		},
 	}
 }

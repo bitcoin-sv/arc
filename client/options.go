@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/TAAL-GmbH/mapi/config"
+	"github.com/TAAL-GmbH/arc/config"
 	"github.com/coocood/freecache"
 	"github.com/mrz1836/go-cache"
 	"github.com/mrz1836/go-cachestore"

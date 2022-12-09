@@ -7,7 +7,7 @@
     <meta charset="utf-8">
     <meta content="IE=edge,chrome=1" http-equiv="X-UA-Compatible">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    <title>BSV MAPI v2.0.0</title>
+    <title>BSV ARC v1.0.0</title>
 
     <style>
     </style>
@@ -1537,7 +1537,7 @@ Darkula color scheme from the JetBrains family of IDEs
 	  	<ul class="toc-list-h1">
         
           <li>
-            <a href="#bsv-mapi" class="toc-h1 toc-link" data-title="BSV MAPI v2.0.0">BSV MAPI v2.0.0</a>
+            <a href="#bsv-arc" class="toc-h1 toc-link" data-title="BSV ARC v1.0.0">BSV ARC v1.0.0</a>
             
           </li>
         
@@ -1547,22 +1547,17 @@ Darkula color scheme from the JetBrains family of IDEs
           </li>
         
           <li>
-            <a href="#bsv-mapi-mapi" class="toc-h1 toc-link" data-title="Mapi">Mapi</a>
+            <a href="#bsv-arc-arc" class="toc-h1 toc-link" data-title="Arc">Arc</a>
             
               <ul class="toc-list-h2">
                 
                   <li>
-                    <a href="#get-the-miner-policy" class="toc-h2 toc-link" data-title="">Get the miner policy</a>
+                    <a href="#get-the-transaction-fees-required" class="toc-h2 toc-link" data-title="">Get the transaction fees required</a>
                     
                   </li>
                 
                   <li>
-                    <a href="#query-transaction" class="toc-h2 toc-link" data-title="">Query transaction</a>
-                    
-                  </li>
-                
-                  <li>
-                    <a href="#query-transaction-status-" class="toc-h2 toc-link" data-title="">Query transaction status.</a>
+                    <a href="#get-transaction-status-" class="toc-h2 toc-link" data-title="">Get transaction status.</a>
                     
                   </li>
                 
@@ -1586,17 +1581,17 @@ Darkula color scheme from the JetBrains family of IDEs
               <ul class="toc-list-h2">
                 
                   <li>
-                    <a href="#tocs_basicresponse" class="toc-h2 toc-link" data-title="">BasicResponse</a>
+                    <a href="#tocs_commonresponse" class="toc-h2 toc-link" data-title="">CommonResponse</a>
                     
                   </li>
                 
                   <li>
-                    <a href="#tocs_policy" class="toc-h2 toc-link" data-title="">Policy</a>
+                    <a href="#tocs_chaininfo" class="toc-h2 toc-link" data-title="">ChainInfo</a>
                     
                   </li>
                 
                   <li>
-                    <a href="#tocs_feequote" class="toc-h2 toc-link" data-title="">FeeQuote</a>
+                    <a href="#tocs_feesresponse" class="toc-h2 toc-link" data-title="">FeesResponse</a>
                     
                   </li>
                 
@@ -1611,7 +1606,12 @@ Darkula color scheme from the JetBrains family of IDEs
                   </li>
                 
                   <li>
-                    <a href="#tocs_transaction" class="toc-h2 toc-link" data-title="">Transaction</a>
+                    <a href="#tocs_transactionrequest" class="toc-h2 toc-link" data-title="">TransactionRequest</a>
+                    
+                  </li>
+                
+                  <li>
+                    <a href="#tocs_transactionresponse000" class="toc-h2 toc-link" data-title="">TransactionResponse000</a>
                     
                   </li>
                 
@@ -1627,11 +1627,6 @@ Darkula color scheme from the JetBrains family of IDEs
                 
                   <li>
                     <a href="#tocs_transactionresponses" class="toc-h2 toc-link" data-title="">TransactionResponses</a>
-                    
-                  </li>
-                
-                  <li>
-                    <a href="#tocs_chaininfo" class="toc-h2 toc-link" data-title="">ChainInfo</a>
                     
                   </li>
                 
@@ -1710,21 +1705,21 @@ Darkula color scheme from the JetBrains family of IDEs
     <div class="page-wrapper">
       <div class="dark-box"></div>
       <div class="content">
-        <h1 id="bsv-mapi">BSV MAPI v2.0.0</h1>
+        <h1 id="bsv-arc">BSV ARC v1.0.0</h1>
 <blockquote>
 <p>Scroll down for code samples, example requests and responses. Select a language for code samples from the tabs above or the mobile navigation menu.</p>
 </blockquote>
-<p>License: <a href="https://bitcoinassociation.net/open-bsv-license/">Open BSV License</a></p>
+<p>License: <a href="https://bitcoinassociation.net/open-bsv-license/">Open BSV Licence</a></p>
 <h1 id="authentication">Authentication</h1>
 <ul>
 <li>HTTP Authentication, scheme: bearer Bearer authentication as defined in RFC 6750</li>
 </ul>
-<h1 id="bsv-mapi-mapi">Mapi</h1>
-<h2 id="get-the-miner-policy">Get the miner policy</h2>
+<h1 id="bsv-arc-arc">Arc</h1>
+<h2 id="get-the-transaction-fees-required">Get the transaction fees required</h2>
 <blockquote>
 <p>Code samples</p>
 </blockquote>
-<pre class="highlight tab tab-http"><code><span class="hljs-keyword">GET</span> <span class="hljs-string">/mapi/v2/policy</span> <span class="hljs-meta">HTTP/1.1</span>
+<pre class="highlight tab tab-http"><code><span class="hljs-keyword">GET</span> <span class="hljs-string">/arc/v1/fees</span> <span class="hljs-meta">HTTP/1.1</span>
 
 <span class="ada"><span class="hljs-keyword">Accept</span>: application/json
 
@@ -1735,7 +1730,7 @@ Darkula color scheme from the JetBrains family of IDEs
   <span class="hljs-string">&#x27;Authorization&#x27;</span>:<span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 };
 
-fetch(<span class="hljs-string">&#x27;/mapi/v2/policy&#x27;</span>,
+fetch(<span class="hljs-string">&#x27;/arc/v1/fees&#x27;</span>,
 {
   <span class="hljs-attr">method</span>: <span class="hljs-string">&#x27;GET&#x27;</span>,
 
@@ -1748,7 +1743,7 @@ fetch(<span class="hljs-string">&#x27;/mapi/v2/policy&#x27;</span>,
 });
 
 </code></pre>
-<pre class="highlight tab tab-java"><code>URL obj = <span class="hljs-keyword">new</span> URL(<span class="hljs-string">&quot;/mapi/v2/policy&quot;</span>);
+<pre class="highlight tab tab-java"><code>URL obj = <span class="hljs-keyword">new</span> URL(<span class="hljs-string">&quot;/arc/v1/fees&quot;</span>);
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod(<span class="hljs-string">&quot;GET&quot;</span>);
 <span class="hljs-keyword">int</span> responseCode = con.getResponseCode();
@@ -1778,7 +1773,7 @@ System.out.println(response.toString());
     }
 
     data := bytes.NewBuffer([]<span class="hljs-keyword">byte</span>{jsonReq})
-    req, err := http.NewRequest(<span class="hljs-string">&quot;GET&quot;</span>, <span class="hljs-string">&quot;/mapi/v2/policy&quot;</span>, data)
+    req, err := http.NewRequest(<span class="hljs-string">&quot;GET&quot;</span>, <span class="hljs-string">&quot;/arc/v1/fees&quot;</span>, data)
     req.Header = headers
 
     client := &amp;http.Client{}
@@ -1795,7 +1790,7 @@ headers = {
   <span class="hljs-string">&#x27;Authorization&#x27;</span> =&gt; <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
-result = RestClient.get <span class="hljs-string">&#x27;/mapi/v2/policy&#x27;</span>,
+result = RestClient.get <span class="hljs-string">&#x27;/arc/v1/fees&#x27;</span>,
   <span class="hljs-symbol">params:</span> {
   }, <span class="hljs-symbol">headers:</span> headers
 
@@ -1808,19 +1803,19 @@ headers = {
   <span class="hljs-string">&#x27;Authorization&#x27;</span>: <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
-r = requests.get(<span class="hljs-string">&#x27;/mapi/v2/policy&#x27;</span>, headers = headers)
+r = requests.get(<span class="hljs-string">&#x27;/arc/v1/fees&#x27;</span>, headers = headers)
 
 <span class="hljs-built_in">print</span>(r.json())
 
 </code></pre>
 <pre class="highlight tab tab-shell"><code><span class="hljs-comment"># You can also use wget</span>
-curl -X GET /mapi/v2/policy \
+curl -X GET /arc/v1/fees \
   -H <span class="hljs-string">&#x27;Accept: application/json&#x27;</span> \
   -H <span class="hljs-string">&#x27;Authorization: Bearer {access-token}&#x27;</span>
 
 </code></pre>
-<p><code>GET /mapi/v2/policy</code></p>
-<p>This endpoint returns the miner policies and fees charged.</p>
+<p><code>GET /arc/v1/fees</code></p>
+<p>This endpoint returns the fees required for the api key used.</p>
 <blockquote>
 <p>Example responses</p>
 </blockquote>
@@ -1828,10 +1823,7 @@ curl -X GET /mapi/v2/policy \
 <p>200 Response</p>
 </blockquote>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;apiVersion&quot;</span>: <span class="hljs-string">&quot;v2.0.0&quot;</span>,
   <span class="hljs-attr">&quot;timestamp&quot;</span>: <span class="hljs-string">&quot;2019-08-24T14:15:22Z&quot;</span>,
-  <span class="hljs-attr">&quot;minerId&quot;</span>: <span class="hljs-string">&quot;03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270&quot;</span>,
-  <span class="hljs-attr">&quot;expiryTime&quot;</span>: <span class="hljs-string">&quot;2019-08-24T14:15:22Z&quot;</span>,
   <span class="hljs-attr">&quot;fees&quot;</span>: [
     {
       <span class="hljs-attr">&quot;feeType&quot;</span>: <span class="hljs-string">&quot;standard&quot;</span>,
@@ -1844,31 +1836,10 @@ curl -X GET /mapi/v2/policy \
         <span class="hljs-attr">&quot;bytes&quot;</span>: <span class="hljs-number">0</span>
       }
     }
-  ],
-  <span class="hljs-attr">&quot;policies&quot;</span>: {
-    <span class="hljs-attr">&quot;skipscriptflags&quot;</span>: [
-      <span class="hljs-string">&quot;MINIMALDATA&quot;</span>,
-      <span class="hljs-string">&quot;DERSIG&quot;</span>,
-      <span class="hljs-string">&quot;NULLDUMMY&quot;</span>,
-      <span class="hljs-string">&quot;CLEANSTACK&quot;</span>
-    ],
-    <span class="hljs-attr">&quot;maxtxsizepolicy&quot;</span>: <span class="hljs-number">99999</span>,
-    <span class="hljs-attr">&quot;datacarriersize&quot;</span>: <span class="hljs-number">100000</span>,
-    <span class="hljs-attr">&quot;maxscriptsizepolicy&quot;</span>: <span class="hljs-number">100000</span>,
-    <span class="hljs-attr">&quot;maxscriptnumlengthpolicy&quot;</span>: <span class="hljs-number">100000</span>,
-    <span class="hljs-attr">&quot;maxstackmemoryusagepolicy&quot;</span>: <span class="hljs-number">10000000</span>,
-    <span class="hljs-attr">&quot;limitancestorcount&quot;</span>: <span class="hljs-number">1000</span>,
-    <span class="hljs-attr">&quot;limitcpfpgroupmemberscount&quot;</span>: <span class="hljs-number">10</span>,
-    <span class="hljs-attr">&quot;acceptnonstdoutputs&quot;</span>: <span class="hljs-literal">true</span>,
-    <span class="hljs-attr">&quot;datacarrier&quot;</span>: <span class="hljs-literal">true</span>,
-    <span class="hljs-attr">&quot;maxstdtxvalidationduration&quot;</span>: <span class="hljs-number">99</span>,
-    <span class="hljs-attr">&quot;maxnonstdtxvalidationduration&quot;</span>: <span class="hljs-number">100</span>,
-    <span class="hljs-attr">&quot;dustrelayfee&quot;</span>: <span class="hljs-number">150</span>,
-    <span class="hljs-attr">&quot;dustlimitfactor&quot;</span>: <span class="hljs-number">500</span>
-  }
+  ]
 }
 </code></pre>
-<h3 id="get-the-miner-policy-responses">Responses</h3>
+<h3 id="get-the-transaction-fees-required-responses">Responses</h3>
 <table>
 <thead>
 <tr>
@@ -1883,18 +1854,12 @@ curl -X GET /mapi/v2/policy \
 <td>200</td>
 <td><a href="https://tools.ietf.org/html/rfc7231#section-6.3.1">OK</a></td>
 <td>Success</td>
-<td><a href="#schemapolicy">Policy</a></td>
+<td><a href="#schemafeesresponse">FeesResponse</a></td>
 </tr>
 <tr>
-<td>403</td>
-<td><a href="https://tools.ietf.org/html/rfc7231#section-6.5.3">Forbidden</a></td>
+<td>401</td>
+<td><a href="https://tools.ietf.org/html/rfc7235#section-3.1">Unauthorized</a></td>
 <td>Security requirements failed</td>
-<td>None</td>
-</tr>
-<tr>
-<td>404</td>
-<td><a href="https://tools.ietf.org/html/rfc7231#section-6.5.4">Not Found</a></td>
-<td>Not found</td>
 <td>None</td>
 </tr>
 </tbody>
@@ -1903,11 +1868,11 @@ curl -X GET /mapi/v2/policy \
 To perform this operation, you must be authenticated by means of one of the following methods:
 BearerAuth
 </aside>
-<h2 id="query-transaction">Query transaction</h2>
+<h2 id="get-transaction-status-">Get transaction status.</h2>
 <blockquote>
 <p>Code samples</p>
 </blockquote>
-<pre class="highlight tab tab-http"><code><span class="hljs-keyword">GET</span> <span class="hljs-string">/mapi/v2/tx/{id}</span> <span class="hljs-meta">HTTP/1.1</span>
+<pre class="highlight tab tab-http"><code><span class="hljs-keyword">GET</span> <span class="hljs-string">/arc/v1/tx/{id}</span> <span class="hljs-meta">HTTP/1.1</span>
 
 <span class="ada"><span class="hljs-keyword">Accept</span>: application/json
 
@@ -1918,7 +1883,7 @@ BearerAuth
   <span class="hljs-string">&#x27;Authorization&#x27;</span>:<span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 };
 
-fetch(<span class="hljs-string">&#x27;/mapi/v2/tx/{id}&#x27;</span>,
+fetch(<span class="hljs-string">&#x27;/arc/v1/tx/{id}&#x27;</span>,
 {
   <span class="hljs-attr">method</span>: <span class="hljs-string">&#x27;GET&#x27;</span>,
 
@@ -1931,7 +1896,7 @@ fetch(<span class="hljs-string">&#x27;/mapi/v2/tx/{id}&#x27;</span>,
 });
 
 </code></pre>
-<pre class="highlight tab tab-java"><code>URL obj = <span class="hljs-keyword">new</span> URL(<span class="hljs-string">&quot;/mapi/v2/tx/{id}&quot;</span>);
+<pre class="highlight tab tab-java"><code>URL obj = <span class="hljs-keyword">new</span> URL(<span class="hljs-string">&quot;/arc/v1/tx/{id}&quot;</span>);
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod(<span class="hljs-string">&quot;GET&quot;</span>);
 <span class="hljs-keyword">int</span> responseCode = con.getResponseCode();
@@ -1961,7 +1926,7 @@ System.out.println(response.toString());
     }
 
     data := bytes.NewBuffer([]<span class="hljs-keyword">byte</span>{jsonReq})
-    req, err := http.NewRequest(<span class="hljs-string">&quot;GET&quot;</span>, <span class="hljs-string">&quot;/mapi/v2/tx/{id}&quot;</span>, data)
+    req, err := http.NewRequest(<span class="hljs-string">&quot;GET&quot;</span>, <span class="hljs-string">&quot;/arc/v1/tx/{id}&quot;</span>, data)
     req.Header = headers
 
     client := &amp;http.Client{}
@@ -1978,7 +1943,7 @@ headers = {
   <span class="hljs-string">&#x27;Authorization&#x27;</span> =&gt; <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
-result = RestClient.get <span class="hljs-string">&#x27;/mapi/v2/tx/{id}&#x27;</span>,
+result = RestClient.get <span class="hljs-string">&#x27;/arc/v1/tx/{id}&#x27;</span>,
   <span class="hljs-symbol">params:</span> {
   }, <span class="hljs-symbol">headers:</span> headers
 
@@ -1991,20 +1956,20 @@ headers = {
   <span class="hljs-string">&#x27;Authorization&#x27;</span>: <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
-r = requests.get(<span class="hljs-string">&#x27;/mapi/v2/tx/{id}&#x27;</span>, headers = headers)
+r = requests.get(<span class="hljs-string">&#x27;/arc/v1/tx/{id}&#x27;</span>, headers = headers)
 
 <span class="hljs-built_in">print</span>(r.json())
 
 </code></pre>
 <pre class="highlight tab tab-shell"><code><span class="hljs-comment"># You can also use wget</span>
-curl -X GET /mapi/v2/tx/{id} \
+curl -X GET /arc/v1/tx/{id} \
   -H <span class="hljs-string">&#x27;Accept: application/json&#x27;</span> \
   -H <span class="hljs-string">&#x27;Authorization: Bearer {access-token}&#x27;</span>
 
 </code></pre>
-<p><code>GET /mapi/v2/tx/{id}</code></p>
-<p>This endpoint is used to get a previously submitted transaction.</p>
-<h3 id="query-transaction-parameters">Parameters</h3>
+<p><code>GET /arc/v1/tx/{id}</code></p>
+<p>This endpoint is used to get the current status of a previously submitted transaction.</p>
+<h3 id="get-transaction-status--parameters">Parameters</h3>
 <table>
 <thead>
 <tr>
@@ -2032,16 +1997,14 @@ curl -X GET /mapi/v2/tx/{id} \
 <p>200 Response</p>
 </blockquote>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;apiVersion&quot;</span>: <span class="hljs-string">&quot;v2.0.0&quot;</span>,
   <span class="hljs-attr">&quot;timestamp&quot;</span>: <span class="hljs-string">&quot;2019-08-24T14:15:22Z&quot;</span>,
-  <span class="hljs-attr">&quot;minerId&quot;</span>: <span class="hljs-string">&quot;03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270&quot;</span>,
   <span class="hljs-attr">&quot;blockHash&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
   <span class="hljs-attr">&quot;blockHeight&quot;</span>: <span class="hljs-number">0</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
-  <span class="hljs-attr">&quot;tx&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
+  <span class="hljs-attr">&quot;txStatus&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
 }
 </code></pre>
-<h3 id="query-transaction-responses">Responses</h3>
+<h3 id="get-transaction-status--responses">Responses</h3>
 <table>
 <thead>
 <tr>
@@ -2056,7 +2019,7 @@ curl -X GET /mapi/v2/tx/{id} \
 <td>200</td>
 <td><a href="https://tools.ietf.org/html/rfc7231#section-6.3.1">OK</a></td>
 <td>Success</td>
-<td><a href="#schematransaction">Transaction</a></td>
+<td><a href="#schematransactionstatus">TransactionStatus</a></td>
 </tr>
 <tr>
 <td>401</td>
@@ -2076,183 +2039,11 @@ curl -X GET /mapi/v2/tx/{id} \
 To perform this operation, you must be authenticated by means of one of the following methods:
 BearerAuth
 </aside>
-<h2 id="query-transaction-status-">Query transaction status.</h2>
-<blockquote>
-<p>Code samples</p>
-</blockquote>
-<pre class="highlight tab tab-http"><code><span class="hljs-keyword">GET</span> <span class="hljs-string">/mapi/v2/txStatus/{id}</span> <span class="hljs-meta">HTTP/1.1</span>
-
-<span class="ada"><span class="hljs-keyword">Accept</span>: application/json
-
-</span></code></pre>
-<pre class="highlight tab tab-javascript"><code>
-<span class="hljs-keyword">const</span> headers = {
-  <span class="hljs-string">&#x27;Accept&#x27;</span>:<span class="hljs-string">&#x27;application/json&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span>:<span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
-};
-
-fetch(<span class="hljs-string">&#x27;/mapi/v2/txStatus/{id}&#x27;</span>,
-{
-  <span class="hljs-attr">method</span>: <span class="hljs-string">&#x27;GET&#x27;</span>,
-
-  <span class="hljs-attr">headers</span>: headers
-})
-.then(<span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">res</span>) </span>{
-    <span class="hljs-keyword">return</span> res.json();
-}).then(<span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">body</span>) </span>{
-    <span class="hljs-built_in">console</span>.log(body);
-});
-
-</code></pre>
-<pre class="highlight tab tab-java"><code>URL obj = <span class="hljs-keyword">new</span> URL(<span class="hljs-string">&quot;/mapi/v2/txStatus/{id}&quot;</span>);
-HttpURLConnection con = (HttpURLConnection) obj.openConnection();
-con.setRequestMethod(<span class="hljs-string">&quot;GET&quot;</span>);
-<span class="hljs-keyword">int</span> responseCode = con.getResponseCode();
-BufferedReader in = <span class="hljs-keyword">new</span> BufferedReader(
-    <span class="hljs-keyword">new</span> InputStreamReader(con.getInputStream()));
-String inputLine;
-StringBuffer response = <span class="hljs-keyword">new</span> StringBuffer();
-<span class="hljs-keyword">while</span> ((inputLine = in.readLine()) != <span class="hljs-keyword">null</span>) {
-    response.append(inputLine);
-}
-in.close();
-System.out.println(response.toString());
-
-</code></pre>
-<pre class="highlight tab tab-go"><code><span class="hljs-keyword">package</span> main
-
-<span class="hljs-keyword">import</span> (
-       <span class="hljs-string">&quot;bytes&quot;</span>
-       <span class="hljs-string">&quot;net/http&quot;</span>
-)
-
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> {
-
-    headers := <span class="hljs-keyword">map</span>[<span class="hljs-keyword">string</span>][]<span class="hljs-keyword">string</span>{
-        <span class="hljs-string">&quot;Accept&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;application/json&quot;</span>},
-        <span class="hljs-string">&quot;Authorization&quot;</span>: []<span class="hljs-keyword">string</span>{<span class="hljs-string">&quot;Bearer {access-token}&quot;</span>},
-    }
-
-    data := bytes.NewBuffer([]<span class="hljs-keyword">byte</span>{jsonReq})
-    req, err := http.NewRequest(<span class="hljs-string">&quot;GET&quot;</span>, <span class="hljs-string">&quot;/mapi/v2/txStatus/{id}&quot;</span>, data)
-    req.Header = headers
-
-    client := &amp;http.Client{}
-    resp, err := client.Do(req)
-    <span class="hljs-comment">// ...</span>
-}
-
-</code></pre>
-<pre class="highlight tab tab-ruby"><code><span class="hljs-keyword">require</span> <span class="hljs-string">&#x27;rest-client&#x27;</span>
-<span class="hljs-keyword">require</span> <span class="hljs-string">&#x27;json&#x27;</span>
-
-headers = {
-  <span class="hljs-string">&#x27;Accept&#x27;</span> =&gt; <span class="hljs-string">&#x27;application/json&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span> =&gt; <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
-}
-
-result = RestClient.get <span class="hljs-string">&#x27;/mapi/v2/txStatus/{id}&#x27;</span>,
-  <span class="hljs-symbol">params:</span> {
-  }, <span class="hljs-symbol">headers:</span> headers
-
-p JSON.parse(result)
-
-</code></pre>
-<pre class="highlight tab tab-python"><code><span class="hljs-keyword">import</span> requests
-headers = {
-  <span class="hljs-string">&#x27;Accept&#x27;</span>: <span class="hljs-string">&#x27;application/json&#x27;</span>,
-  <span class="hljs-string">&#x27;Authorization&#x27;</span>: <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
-}
-
-r = requests.get(<span class="hljs-string">&#x27;/mapi/v2/txStatus/{id}&#x27;</span>, headers = headers)
-
-<span class="hljs-built_in">print</span>(r.json())
-
-</code></pre>
-<pre class="highlight tab tab-shell"><code><span class="hljs-comment"># You can also use wget</span>
-curl -X GET /mapi/v2/txStatus/{id} \
-  -H <span class="hljs-string">&#x27;Accept: application/json&#x27;</span> \
-  -H <span class="hljs-string">&#x27;Authorization: Bearer {access-token}&#x27;</span>
-
-</code></pre>
-<p><code>GET /mapi/v2/txStatus/{id}</code></p>
-<p>This endpoint is used to check the current status of a previously submitted transaction.</p>
-<h3 id="query-transaction-status--parameters">Parameters</h3>
-<table>
-<thead>
-<tr>
-<th>Name</th>
-<th>In</th>
-<th>Type</th>
-<th>Required</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>id</td>
-<td>path</td>
-<td>string</td>
-<td>true</td>
-<td>The transaction ID (32 byte hash) hex string</td>
-</tr>
-</tbody>
-</table>
-<blockquote>
-<p>Example responses</p>
-</blockquote>
-<blockquote>
-<p>200 Response</p>
-</blockquote>
-<pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;apiVersion&quot;</span>: <span class="hljs-string">&quot;v2.0.0&quot;</span>,
-  <span class="hljs-attr">&quot;timestamp&quot;</span>: <span class="hljs-string">&quot;2019-08-24T14:15:22Z&quot;</span>,
-  <span class="hljs-attr">&quot;minerId&quot;</span>: <span class="hljs-string">&quot;03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270&quot;</span>,
-  <span class="hljs-attr">&quot;blockHash&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
-  <span class="hljs-attr">&quot;blockHeight&quot;</span>: <span class="hljs-number">0</span>,
-  <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
-}
-</code></pre>
-<h3 id="query-transaction-status--responses">Responses</h3>
-<table>
-<thead>
-<tr>
-<th>Status</th>
-<th>Meaning</th>
-<th>Description</th>
-<th>Schema</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>200</td>
-<td><a href="https://tools.ietf.org/html/rfc7231#section-6.3.1">OK</a></td>
-<td>Success</td>
-<td><a href="#schematransactionstatus">TransactionStatus</a></td>
-</tr>
-<tr>
-<td>403</td>
-<td><a href="https://tools.ietf.org/html/rfc7231#section-6.5.3">Forbidden</a></td>
-<td>Security requirements failed</td>
-<td>None</td>
-</tr>
-<tr>
-<td>404</td>
-<td><a href="https://tools.ietf.org/html/rfc7231#section-6.5.4">Not Found</a></td>
-<td>Not found</td>
-<td>None</td>
-</tr>
-</tbody>
-</table>
-<aside class="warning">
-To perform this operation, you must be authenticated by means of one of the following methods:
-BearerAuth
-</aside>
 <h2 id="submit-a-transaction-">Submit a transaction.</h2>
 <blockquote>
 <p>Code samples</p>
 </blockquote>
-<pre class="highlight tab tab-http"><code><span class="hljs-keyword">POST</span> <span class="hljs-string">/mapi/v2/tx</span> <span class="hljs-meta">HTTP/1.1</span>
+<pre class="highlight tab tab-http"><code><span class="hljs-keyword">POST</span> <span class="hljs-string">/arc/v1/tx</span> <span class="hljs-meta">HTTP/1.1</span>
 
 <span class="applescript">Content-Type: <span class="hljs-built_in">text</span>/plain
 Accept: <span class="hljs-built_in">application</span>/json
@@ -2271,7 +2062,7 @@ X-MerkleProof: <span class="hljs-built_in">string</span>
   <span class="hljs-string">&#x27;Authorization&#x27;</span>:<span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 };
 
-fetch(<span class="hljs-string">&#x27;/mapi/v2/tx&#x27;</span>,
+fetch(<span class="hljs-string">&#x27;/arc/v1/tx&#x27;</span>,
 {
   <span class="hljs-attr">method</span>: <span class="hljs-string">&#x27;POST&#x27;</span>,
   <span class="hljs-attr">body</span>: inputBody,
@@ -2284,7 +2075,7 @@ fetch(<span class="hljs-string">&#x27;/mapi/v2/tx&#x27;</span>,
 });
 
 </code></pre>
-<pre class="highlight tab tab-java"><code>URL obj = <span class="hljs-keyword">new</span> URL(<span class="hljs-string">&quot;/mapi/v2/tx&quot;</span>);
+<pre class="highlight tab tab-java"><code>URL obj = <span class="hljs-keyword">new</span> URL(<span class="hljs-string">&quot;/arc/v1/tx&quot;</span>);
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod(<span class="hljs-string">&quot;POST&quot;</span>);
 <span class="hljs-keyword">int</span> responseCode = con.getResponseCode();
@@ -2318,7 +2109,7 @@ System.out.println(response.toString());
     }
 
     data := bytes.NewBuffer([]<span class="hljs-keyword">byte</span>{jsonReq})
-    req, err := http.NewRequest(<span class="hljs-string">&quot;POST&quot;</span>, <span class="hljs-string">&quot;/mapi/v2/tx&quot;</span>, data)
+    req, err := http.NewRequest(<span class="hljs-string">&quot;POST&quot;</span>, <span class="hljs-string">&quot;/arc/v1/tx&quot;</span>, data)
     req.Header = headers
 
     client := &amp;http.Client{}
@@ -2339,7 +2130,7 @@ headers = {
   <span class="hljs-string">&#x27;Authorization&#x27;</span> =&gt; <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
-result = RestClient.post <span class="hljs-string">&#x27;/mapi/v2/tx&#x27;</span>,
+result = RestClient.post <span class="hljs-string">&#x27;/arc/v1/tx&#x27;</span>,
   <span class="hljs-symbol">params:</span> {
   }, <span class="hljs-symbol">headers:</span> headers
 
@@ -2356,13 +2147,13 @@ headers = {
   <span class="hljs-string">&#x27;Authorization&#x27;</span>: <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
-r = requests.post(<span class="hljs-string">&#x27;/mapi/v2/tx&#x27;</span>, headers = headers)
+r = requests.post(<span class="hljs-string">&#x27;/arc/v1/tx&#x27;</span>, headers = headers)
 
 <span class="hljs-built_in">print</span>(r.json())
 
 </code></pre>
 <pre class="highlight tab tab-shell"><code><span class="hljs-comment"># You can also use wget</span>
-curl -X POST /mapi/v2/tx \
+curl -X POST /arc/v1/tx \
   -H <span class="hljs-string">&#x27;Content-Type: text/plain&#x27;</span> \
   -H <span class="hljs-string">&#x27;Accept: application/json&#x27;</span> \
   -H <span class="hljs-string">&#x27;X-CallbackUrl: string&#x27;</span> \
@@ -2371,8 +2162,8 @@ curl -X POST /mapi/v2/tx \
   -H <span class="hljs-string">&#x27;Authorization: Bearer {access-token}&#x27;</span>
 
 </code></pre>
-<p><code>POST /mapi/v2/tx</code></p>
-<p>This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.  The header parameters can be used to override the global settings in your MAPI dashboard for these transactions.</p>
+<p><code>POST /arc/v1/tx</code></p>
+<p>This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.  The header parameters can be used to override the global settings in your Arc dashboard for these transactions.</p>
 <blockquote>
 <p>Body parameter</p>
 </blockquote>
@@ -2433,18 +2224,14 @@ curl -X POST /mapi/v2/tx \
 <p>Success</p>
 </blockquote>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;apiVersion&quot;</span>: <span class="hljs-string">&quot;v2.0.0&quot;</span>,
   <span class="hljs-attr">&quot;timestamp&quot;</span>: <span class="hljs-string">&quot;2022-10-18T13:30:22.653Z&quot;</span>,
-  <span class="hljs-attr">&quot;minerId&quot;</span>: <span class="hljs-string">&quot;03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0&quot;</span>,
   <span class="hljs-attr">&quot;blockHash&quot;</span>: <span class="hljs-string">&quot;000000000000000001d8f4bb24dd93d4e91ce926cc7a971be018c2b8d46d45ff&quot;</span>,
   <span class="hljs-attr">&quot;blockHeight&quot;</span>: <span class="hljs-number">761868</span>
 }
 </code></pre>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;apiVersion&quot;</span>: <span class="hljs-string">&quot;v2.0.0&quot;</span>,
   <span class="hljs-attr">&quot;timestamp&quot;</span>: <span class="hljs-string">&quot;2022-10-18T13:30:22.653Z&quot;</span>,
-  <span class="hljs-attr">&quot;minerId&quot;</span>: <span class="hljs-string">&quot;03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0&quot;</span>
 }
 </code></pre>
@@ -2452,9 +2239,7 @@ curl -X POST /mapi/v2/tx \
 <p>Added to block template</p>
 </blockquote>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;apiVersion&quot;</span>: <span class="hljs-string">&quot;v2.0.0&quot;</span>,
   <span class="hljs-attr">&quot;timestamp&quot;</span>: <span class="hljs-string">&quot;2022-10-18T13:30:22.653Z&quot;</span>,
-  <span class="hljs-attr">&quot;minerId&quot;</span>: <span class="hljs-string">&quot;03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0&quot;</span>
 }
 </code></pre>
@@ -2462,11 +2247,11 @@ curl -X POST /mapi/v2/tx \
 <p>400 Response</p>
 </blockquote>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://mapi.bitcoinsv.com/errors/400&quot;</span>,
+  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://arc.bitcoinsv.com/errors/400&quot;</span>,
   <span class="hljs-attr">&quot;title&quot;</span>: <span class="hljs-string">&quot;Bad request&quot;</span>,
   <span class="hljs-attr">&quot;status&quot;</span>: <span class="hljs-number">400</span>,
   <span class="hljs-attr">&quot;detail&quot;</span>: <span class="hljs-string">&quot;The request seems to be malformed and cannot be processed&quot;</span>,
-  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://mapi.taal.com/errors/1234556&quot;</span>,
+  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://arc.taal.com/errors/1234556&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
   <span class="hljs-attr">&quot;extraInfo&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
 }
@@ -2501,16 +2286,16 @@ curl -X POST /mapi/v2/tx \
 <td><a href="#schemaerrorbadrequest">ErrorBadRequest</a></td>
 </tr>
 <tr>
+<td>401</td>
+<td><a href="https://tools.ietf.org/html/rfc7235#section-3.1">Unauthorized</a></td>
+<td>Security requirements failed</td>
+<td>None</td>
+</tr>
+<tr>
 <td>402</td>
 <td><a href="https://tools.ietf.org/html/rfc7231#section-6.5.2">Payment Required</a></td>
 <td>Fee too low</td>
 <td><a href="#schemaerrorfee">ErrorFee</a></td>
-</tr>
-<tr>
-<td>403</td>
-<td><a href="https://tools.ietf.org/html/rfc7231#section-6.5.3">Forbidden</a></td>
-<td>Security requirements failed</td>
-<td>None</td>
 </tr>
 <tr>
 <td>409</td>
@@ -2534,7 +2319,7 @@ BearerAuth
 <blockquote>
 <p>Code samples</p>
 </blockquote>
-<pre class="highlight tab tab-http"><code><span class="hljs-keyword">POST</span> <span class="hljs-string">/mapi/v2/txs</span> <span class="hljs-meta">HTTP/1.1</span>
+<pre class="highlight tab tab-http"><code><span class="hljs-keyword">POST</span> <span class="hljs-string">/arc/v1/txs</span> <span class="hljs-meta">HTTP/1.1</span>
 
 <span class="applescript">Content-Type: <span class="hljs-built_in">text</span>/plain
 Accept: <span class="hljs-built_in">application</span>/json
@@ -2554,7 +2339,7 @@ X-MerkleProof: <span class="hljs-built_in">string</span>
   <span class="hljs-string">&#x27;Authorization&#x27;</span>:<span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 };
 
-fetch(<span class="hljs-string">&#x27;/mapi/v2/txs&#x27;</span>,
+fetch(<span class="hljs-string">&#x27;/arc/v1/txs&#x27;</span>,
 {
   <span class="hljs-attr">method</span>: <span class="hljs-string">&#x27;POST&#x27;</span>,
   <span class="hljs-attr">body</span>: inputBody,
@@ -2567,7 +2352,7 @@ fetch(<span class="hljs-string">&#x27;/mapi/v2/txs&#x27;</span>,
 });
 
 </code></pre>
-<pre class="highlight tab tab-java"><code>URL obj = <span class="hljs-keyword">new</span> URL(<span class="hljs-string">&quot;/mapi/v2/txs&quot;</span>);
+<pre class="highlight tab tab-java"><code>URL obj = <span class="hljs-keyword">new</span> URL(<span class="hljs-string">&quot;/arc/v1/txs&quot;</span>);
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod(<span class="hljs-string">&quot;POST&quot;</span>);
 <span class="hljs-keyword">int</span> responseCode = con.getResponseCode();
@@ -2601,7 +2386,7 @@ System.out.println(response.toString());
     }
 
     data := bytes.NewBuffer([]<span class="hljs-keyword">byte</span>{jsonReq})
-    req, err := http.NewRequest(<span class="hljs-string">&quot;POST&quot;</span>, <span class="hljs-string">&quot;/mapi/v2/txs&quot;</span>, data)
+    req, err := http.NewRequest(<span class="hljs-string">&quot;POST&quot;</span>, <span class="hljs-string">&quot;/arc/v1/txs&quot;</span>, data)
     req.Header = headers
 
     client := &amp;http.Client{}
@@ -2622,7 +2407,7 @@ headers = {
   <span class="hljs-string">&#x27;Authorization&#x27;</span> =&gt; <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
-result = RestClient.post <span class="hljs-string">&#x27;/mapi/v2/txs&#x27;</span>,
+result = RestClient.post <span class="hljs-string">&#x27;/arc/v1/txs&#x27;</span>,
   <span class="hljs-symbol">params:</span> {
   }, <span class="hljs-symbol">headers:</span> headers
 
@@ -2639,13 +2424,13 @@ headers = {
   <span class="hljs-string">&#x27;Authorization&#x27;</span>: <span class="hljs-string">&#x27;Bearer {access-token}&#x27;</span>
 }
 
-r = requests.post(<span class="hljs-string">&#x27;/mapi/v2/txs&#x27;</span>, headers = headers)
+r = requests.post(<span class="hljs-string">&#x27;/arc/v1/txs&#x27;</span>, headers = headers)
 
 <span class="hljs-built_in">print</span>(r.json())
 
 </code></pre>
 <pre class="highlight tab tab-shell"><code><span class="hljs-comment"># You can also use wget</span>
-curl -X POST /mapi/v2/txs \
+curl -X POST /arc/v1/txs \
   -H <span class="hljs-string">&#x27;Content-Type: text/plain&#x27;</span> \
   -H <span class="hljs-string">&#x27;Accept: application/json&#x27;</span> \
   -H <span class="hljs-string">&#x27;X-CallbackUrl: string&#x27;</span> \
@@ -2654,8 +2439,8 @@ curl -X POST /mapi/v2/txs \
   -H <span class="hljs-string">&#x27;Authorization: Bearer {access-token}&#x27;</span>
 
 </code></pre>
-<p><code>POST /mapi/v2/txs</code></p>
-<p>This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates. The header parameters can be used to override the global settings in your MAPI dashboard for these transactions.</p>
+<p><code>POST /arc/v1/txs</code></p>
+<p>This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates. The header parameters can be used to override the global settings in your Arc dashboard for these transactions.</p>
 <blockquote>
 <p>Body parameter</p>
 </blockquote>
@@ -2753,11 +2538,11 @@ curl -X POST /mapi/v2/txs \
   <span class="hljs-attr">&quot;minerId&quot;</span>: <span class="hljs-string">&quot;03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270&quot;</span>,
   <span class="hljs-attr">&quot;transactions&quot;</span>: [
     {
-      <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://mapi.bitcoinsv.com/errors/402&quot;</span>,
+      <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://arc.bitcoinsv.com/errors/402&quot;</span>,
       <span class="hljs-attr">&quot;title&quot;</span>: <span class="hljs-string">&quot;Fee too low&quot;</span>,
       <span class="hljs-attr">&quot;status&quot;</span>: <span class="hljs-number">402</span>,
       <span class="hljs-attr">&quot;detail&quot;</span>: <span class="hljs-string">&quot;The fee in the transaction is too low to be included in a block&quot;</span>,
-      <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://mapi.taal.com/errors/123452&quot;</span>,
+      <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://arc.taal.com/errors/123452&quot;</span>,
       <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0&quot;</span>
     }
   ]
@@ -2767,11 +2552,11 @@ curl -X POST /mapi/v2/txs \
 <p>400 Response</p>
 </blockquote>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://mapi.bitcoinsv.com/errors/400&quot;</span>,
+  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://arc.bitcoinsv.com/errors/400&quot;</span>,
   <span class="hljs-attr">&quot;title&quot;</span>: <span class="hljs-string">&quot;Bad request&quot;</span>,
   <span class="hljs-attr">&quot;status&quot;</span>: <span class="hljs-number">400</span>,
   <span class="hljs-attr">&quot;detail&quot;</span>: <span class="hljs-string">&quot;The request seems to be malformed and cannot be processed&quot;</span>,
-  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://mapi.taal.com/errors/1234556&quot;</span>
+  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://arc.taal.com/errors/1234556&quot;</span>
 }
 </code></pre>
 <h3 id="submit-multiple-transactions--responses">Responses</h3>
@@ -2810,15 +2595,13 @@ To perform this operation, you must be authenticated by means of one of the foll
 BearerAuth
 </aside>
 <h1 id="schemas">Schemas</h1>
-<h2 id="tocs_basicresponse">BasicResponse</h2>
-<p><a id="schemabasicresponse"></a>
-<a id="schema_BasicResponse"></a>
-<a id="tocSbasicresponse"></a>
-<a id="tocsbasicresponse"></a></p>
+<h2 id="tocs_commonresponse">CommonResponse</h2>
+<p><a id="schemacommonresponse"></a>
+<a id="schema_CommonResponse"></a>
+<a id="tocScommonresponse"></a>
+<a id="tocscommonresponse"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;apiVersion&quot;</span>: <span class="hljs-string">&quot;v2.0.0&quot;</span>,
-  <span class="hljs-attr">&quot;timestamp&quot;</span>: <span class="hljs-string">&quot;2019-08-24T14:15:22Z&quot;</span>,
-  <span class="hljs-attr">&quot;minerId&quot;</span>: <span class="hljs-string">&quot;03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270&quot;</span>
+  <span class="hljs-attr">&quot;timestamp&quot;</span>: <span class="hljs-string">&quot;2019-08-24T14:15:22Z&quot;</span>
 }
 
 </code></pre>
@@ -2835,38 +2618,60 @@ BearerAuth
 </thead>
 <tbody>
 <tr>
-<td>apiVersion</td>
-<td>string</td>
-<td>true</td>
-<td>none</td>
-<td>none</td>
-</tr>
-<tr>
 <td>timestamp</td>
 <td>string(date-time)</td>
 <td>true</td>
 <td>none</td>
 <td>none</td>
 </tr>
+</tbody>
+</table>
+<h2 id="tocs_chaininfo">ChainInfo</h2>
+<p><a id="schemachaininfo"></a>
+<a id="schema_ChainInfo"></a>
+<a id="tocSchaininfo"></a>
+<a id="tocschaininfo"></a></p>
+<pre class="highlight tab tab-json"><code>{
+  <span class="hljs-attr">&quot;blockHash&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+  <span class="hljs-attr">&quot;blockHeight&quot;</span>: <span class="hljs-number">0</span>
+}
+
+</code></pre>
+<h3 id="properties-2">Properties</h3>
+<table>
+<thead>
 <tr>
-<td>minerId</td>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Restrictions</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>blockHash</td>
 <td>string</td>
-<td>true</td>
+<td>false</td>
+<td>none</td>
+<td>none</td>
+</tr>
+<tr>
+<td>blockHeight</td>
+<td>integer(uint64)</td>
+<td>false</td>
 <td>none</td>
 <td>none</td>
 </tr>
 </tbody>
 </table>
-<h2 id="tocs_policy">Policy</h2>
-<p><a id="schemapolicy"></a>
-<a id="schema_Policy"></a>
-<a id="tocSpolicy"></a>
-<a id="tocspolicy"></a></p>
+<h2 id="tocs_feesresponse">FeesResponse</h2>
+<p><a id="schemafeesresponse"></a>
+<a id="schema_FeesResponse"></a>
+<a id="tocSfeesresponse"></a>
+<a id="tocsfeesresponse"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;apiVersion&quot;</span>: <span class="hljs-string">&quot;v2.0.0&quot;</span>,
   <span class="hljs-attr">&quot;timestamp&quot;</span>: <span class="hljs-string">&quot;2019-08-24T14:15:22Z&quot;</span>,
-  <span class="hljs-attr">&quot;minerId&quot;</span>: <span class="hljs-string">&quot;03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270&quot;</span>,
-  <span class="hljs-attr">&quot;expiryTime&quot;</span>: <span class="hljs-string">&quot;2019-08-24T14:15:22Z&quot;</span>,
   <span class="hljs-attr">&quot;fees&quot;</span>: [
     {
       <span class="hljs-attr">&quot;feeType&quot;</span>: <span class="hljs-string">&quot;standard&quot;</span>,
@@ -2879,32 +2684,11 @@ BearerAuth
         <span class="hljs-attr">&quot;bytes&quot;</span>: <span class="hljs-number">0</span>
       }
     }
-  ],
-  <span class="hljs-attr">&quot;policies&quot;</span>: {
-    <span class="hljs-attr">&quot;skipscriptflags&quot;</span>: [
-      <span class="hljs-string">&quot;MINIMALDATA&quot;</span>,
-      <span class="hljs-string">&quot;DERSIG&quot;</span>,
-      <span class="hljs-string">&quot;NULLDUMMY&quot;</span>,
-      <span class="hljs-string">&quot;CLEANSTACK&quot;</span>
-    ],
-    <span class="hljs-attr">&quot;maxtxsizepolicy&quot;</span>: <span class="hljs-number">99999</span>,
-    <span class="hljs-attr">&quot;datacarriersize&quot;</span>: <span class="hljs-number">100000</span>,
-    <span class="hljs-attr">&quot;maxscriptsizepolicy&quot;</span>: <span class="hljs-number">100000</span>,
-    <span class="hljs-attr">&quot;maxscriptnumlengthpolicy&quot;</span>: <span class="hljs-number">100000</span>,
-    <span class="hljs-attr">&quot;maxstackmemoryusagepolicy&quot;</span>: <span class="hljs-number">10000000</span>,
-    <span class="hljs-attr">&quot;limitancestorcount&quot;</span>: <span class="hljs-number">1000</span>,
-    <span class="hljs-attr">&quot;limitcpfpgroupmemberscount&quot;</span>: <span class="hljs-number">10</span>,
-    <span class="hljs-attr">&quot;acceptnonstdoutputs&quot;</span>: <span class="hljs-literal">true</span>,
-    <span class="hljs-attr">&quot;datacarrier&quot;</span>: <span class="hljs-literal">true</span>,
-    <span class="hljs-attr">&quot;maxstdtxvalidationduration&quot;</span>: <span class="hljs-number">99</span>,
-    <span class="hljs-attr">&quot;maxnonstdtxvalidationduration&quot;</span>: <span class="hljs-number">100</span>,
-    <span class="hljs-attr">&quot;dustrelayfee&quot;</span>: <span class="hljs-number">150</span>,
-    <span class="hljs-attr">&quot;dustlimitfactor&quot;</span>: <span class="hljs-number">500</span>
-  }
+  ]
 }
 
 </code></pre>
-<h3 id="properties-2">Properties</h3>
+<h3 id="properties-3">Properties</h3>
 <p>allOf</p>
 <table>
 <thead>
@@ -2919,28 +2703,7 @@ BearerAuth
 <tbody>
 <tr>
 <td><em>anonymous</em></td>
-<td><a href="#schemabasicresponse">BasicResponse</a></td>
-<td>false</td>
-<td>none</td>
-<td>none</td>
-</tr>
-</tbody>
-</table>
-<p>and</p>
-<table>
-<thead>
-<tr>
-<th>Name</th>
-<th>Type</th>
-<th>Required</th>
-<th>Restrictions</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><em>anonymous</em></td>
-<td><a href="#schemafeequote">FeeQuote</a></td>
+<td><a href="#schemacommonresponse">CommonResponse</a></td>
 <td>false</td>
 <td>none</td>
 <td>none</td>
@@ -2967,58 +2730,7 @@ BearerAuth
 <td>none</td>
 </tr>
 <tr>
-<td>» policies</td>
-<td>object¦null</td>
-<td>true</td>
-<td>none</td>
-<td>none</td>
-</tr>
-</tbody>
-</table>
-<h2 id="tocs_feequote">FeeQuote</h2>
-<p><a id="schemafeequote"></a>
-<a id="schema_FeeQuote"></a>
-<a id="tocSfeequote"></a>
-<a id="tocsfeequote"></a></p>
-<pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;expiryTime&quot;</span>: <span class="hljs-string">&quot;2019-08-24T14:15:22Z&quot;</span>,
-  <span class="hljs-attr">&quot;fees&quot;</span>: [
-    {
-      <span class="hljs-attr">&quot;feeType&quot;</span>: <span class="hljs-string">&quot;standard&quot;</span>,
-      <span class="hljs-attr">&quot;miningFee&quot;</span>: {
-        <span class="hljs-attr">&quot;satoshis&quot;</span>: <span class="hljs-number">0</span>,
-        <span class="hljs-attr">&quot;bytes&quot;</span>: <span class="hljs-number">0</span>
-      },
-      <span class="hljs-attr">&quot;relayFee&quot;</span>: {
-        <span class="hljs-attr">&quot;satoshis&quot;</span>: <span class="hljs-number">0</span>,
-        <span class="hljs-attr">&quot;bytes&quot;</span>: <span class="hljs-number">0</span>
-      }
-    }
-  ]
-}
-
-</code></pre>
-<h3 id="properties-3">Properties</h3>
-<table>
-<thead>
-<tr>
-<th>Name</th>
-<th>Type</th>
-<th>Required</th>
-<th>Restrictions</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>expiryTime</td>
-<td>string(date-time)</td>
-<td>true</td>
-<td>none</td>
-<td>none</td>
-</tr>
-<tr>
-<td>fees</td>
+<td>» fees</td>
 <td>[<a href="#schemafee">Fee</a>]¦null</td>
 <td>true</td>
 <td>none</td>
@@ -3137,23 +2849,53 @@ BearerAuth
 </tr>
 </tbody>
 </table>
-<h2 id="tocs_transaction">Transaction</h2>
-<p><a id="schematransaction"></a>
-<a id="schema_Transaction"></a>
-<a id="tocStransaction"></a>
-<a id="tocstransaction"></a></p>
+<h2 id="tocs_transactionrequest">TransactionRequest</h2>
+<p><a id="schematransactionrequest"></a>
+<a id="schema_TransactionRequest"></a>
+<a id="tocStransactionrequest"></a>
+<a id="tocstransactionrequest"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;apiVersion&quot;</span>: <span class="hljs-string">&quot;v2.0.0&quot;</span>,
-  <span class="hljs-attr">&quot;timestamp&quot;</span>: <span class="hljs-string">&quot;2019-08-24T14:15:22Z&quot;</span>,
-  <span class="hljs-attr">&quot;minerId&quot;</span>: <span class="hljs-string">&quot;03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270&quot;</span>,
-  <span class="hljs-attr">&quot;blockHash&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
-  <span class="hljs-attr">&quot;blockHeight&quot;</span>: <span class="hljs-number">0</span>,
-  <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
-  <span class="hljs-attr">&quot;tx&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
+  <span class="hljs-attr">&quot;rawTx&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
 }
 
 </code></pre>
 <h3 id="properties-6">Properties</h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Restrictions</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>rawTx</td>
+<td>string</td>
+<td>true</td>
+<td>none</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<h2 id="tocs_transactionresponse000">TransactionResponse000</h2>
+<p><a id="schematransactionresponse000"></a>
+<a id="schema_TransactionResponse000"></a>
+<a id="tocStransactionresponse000"></a>
+<a id="tocstransactionresponse000"></a></p>
+<pre class="highlight tab tab-json"><code>{
+  <span class="hljs-attr">&quot;timestamp&quot;</span>: <span class="hljs-string">&quot;2019-08-24T14:15:22Z&quot;</span>,
+  <span class="hljs-attr">&quot;blockHash&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+  <span class="hljs-attr">&quot;blockHeight&quot;</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+  <span class="hljs-attr">&quot;tx&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+  <span class="hljs-attr">&quot;txStatus&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
+}
+
+</code></pre>
+<h3 id="properties-7">Properties</h3>
 <p>allOf</p>
 <table>
 <thead>
@@ -3168,7 +2910,7 @@ BearerAuth
 <tbody>
 <tr>
 <td><em>anonymous</em></td>
-<td><a href="#schemabasicresponse">BasicResponse</a></td>
+<td><a href="#schemacommonresponse">CommonResponse</a></td>
 <td>false</td>
 <td>none</td>
 <td>none</td>
@@ -3229,6 +2971,13 @@ BearerAuth
 <td>none</td>
 <td>none</td>
 </tr>
+<tr>
+<td>» txStatus</td>
+<td>string</td>
+<td>false</td>
+<td>none</td>
+<td>none</td>
+</tr>
 </tbody>
 </table>
 <h2 id="tocs_transactionstatus">TransactionStatus</h2>
@@ -3237,16 +2986,15 @@ BearerAuth
 <a id="tocStransactionstatus"></a>
 <a id="tocstransactionstatus"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;apiVersion&quot;</span>: <span class="hljs-string">&quot;v2.0.0&quot;</span>,
   <span class="hljs-attr">&quot;timestamp&quot;</span>: <span class="hljs-string">&quot;2019-08-24T14:15:22Z&quot;</span>,
-  <span class="hljs-attr">&quot;minerId&quot;</span>: <span class="hljs-string">&quot;03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270&quot;</span>,
   <span class="hljs-attr">&quot;blockHash&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
   <span class="hljs-attr">&quot;blockHeight&quot;</span>: <span class="hljs-number">0</span>,
-  <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
+  <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+  <span class="hljs-attr">&quot;txStatus&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
 }
 
 </code></pre>
-<h3 id="properties-7">Properties</h3>
+<h3 id="properties-8">Properties</h3>
 <p>allOf</p>
 <table>
 <thead>
@@ -3261,7 +3009,7 @@ BearerAuth
 <tbody>
 <tr>
 <td><em>anonymous</em></td>
-<td><a href="#schemabasicresponse">BasicResponse</a></td>
+<td><a href="#schemacommonresponse">CommonResponse</a></td>
 <td>false</td>
 <td>none</td>
 <td>none</td>
@@ -3315,6 +3063,13 @@ BearerAuth
 <td>none</td>
 <td>none</td>
 </tr>
+<tr>
+<td>» txStatus</td>
+<td>string</td>
+<td>false</td>
+<td>none</td>
+<td>none</td>
+</tr>
 </tbody>
 </table>
 <h2 id="tocs_transactionresponse">TransactionResponse</h2>
@@ -3323,21 +3078,17 @@ BearerAuth
 <a id="tocStransactionresponse"></a>
 <a id="tocstransactionresponse"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;apiVersion&quot;</span>: <span class="hljs-string">&quot;v2.0.0&quot;</span>,
   <span class="hljs-attr">&quot;timestamp&quot;</span>: <span class="hljs-string">&quot;2019-08-24T14:15:22Z&quot;</span>,
-  <span class="hljs-attr">&quot;minerId&quot;</span>: <span class="hljs-string">&quot;03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270&quot;</span>,
   <span class="hljs-attr">&quot;blockHash&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
   <span class="hljs-attr">&quot;blockHeight&quot;</span>: <span class="hljs-number">0</span>,
   <span class="hljs-attr">&quot;status&quot;</span>: <span class="hljs-number">201</span>,
   <span class="hljs-attr">&quot;title&quot;</span>: <span class="hljs-string">&quot;Added to mempool&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0&quot;</span>,
-  <span class="hljs-attr">&quot;conflictedWith&quot;</span>: [
-    <span class="hljs-string">&quot;d7d2c6519da8b02a2e765cb3c93846d9d63c91c38eb8b78c7d7bc46eac25285e&quot;</span>
-  ]
+  <span class="hljs-attr">&quot;txStatus&quot;</span>: <span class="hljs-string">&quot;ACCEPTED&quot;</span>
 }
 
 </code></pre>
-<h3 id="properties-8">Properties</h3>
+<h3 id="properties-9">Properties</h3>
 <p>allOf</p>
 <table>
 <thead>
@@ -3352,7 +3103,7 @@ BearerAuth
 <tbody>
 <tr>
 <td><em>anonymous</em></td>
-<td><a href="#schemabasicresponse">BasicResponse</a></td>
+<td><a href="#schemacommonresponse">CommonResponse</a></td>
 <td>false</td>
 <td>none</td>
 <td>none</td>
@@ -3407,9 +3158,7 @@ BearerAuth
 <a id="tocStransactionresponses"></a>
 <a id="tocstransactionresponses"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;apiVersion&quot;</span>: <span class="hljs-string">&quot;v2.0.0&quot;</span>,
   <span class="hljs-attr">&quot;timestamp&quot;</span>: <span class="hljs-string">&quot;2019-08-24T14:15:22Z&quot;</span>,
-  <span class="hljs-attr">&quot;minerId&quot;</span>: <span class="hljs-string">&quot;03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270&quot;</span>,
   <span class="hljs-attr">&quot;blockHash&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
   <span class="hljs-attr">&quot;blockHeight&quot;</span>: <span class="hljs-number">0</span>,
   <span class="hljs-attr">&quot;transactions&quot;</span>: [
@@ -3417,15 +3166,13 @@ BearerAuth
       <span class="hljs-attr">&quot;status&quot;</span>: <span class="hljs-number">201</span>,
       <span class="hljs-attr">&quot;title&quot;</span>: <span class="hljs-string">&quot;Added to mempool&quot;</span>,
       <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0&quot;</span>,
-      <span class="hljs-attr">&quot;conflictedWith&quot;</span>: [
-        <span class="hljs-string">&quot;d7d2c6519da8b02a2e765cb3c93846d9d63c91c38eb8b78c7d7bc46eac25285e&quot;</span>
-      ]
+      <span class="hljs-attr">&quot;txStatus&quot;</span>: <span class="hljs-string">&quot;ACCEPTED&quot;</span>
     }
   ]
 }
 
 </code></pre>
-<h3 id="properties-9">Properties</h3>
+<h3 id="properties-10">Properties</h3>
 <p>allOf</p>
 <table>
 <thead>
@@ -3440,7 +3187,7 @@ BearerAuth
 <tbody>
 <tr>
 <td><em>anonymous</em></td>
-<td><a href="#schemabasicresponse">BasicResponse</a></td>
+<td><a href="#schemacommonresponse">CommonResponse</a></td>
 <td>false</td>
 <td>none</td>
 <td>none</td>
@@ -3538,45 +3285,6 @@ BearerAuth
 </tr>
 </tbody>
 </table>
-<h2 id="tocs_chaininfo">ChainInfo</h2>
-<p><a id="schemachaininfo"></a>
-<a id="schema_ChainInfo"></a>
-<a id="tocSchaininfo"></a>
-<a id="tocschaininfo"></a></p>
-<pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;blockHash&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
-  <span class="hljs-attr">&quot;blockHeight&quot;</span>: <span class="hljs-number">0</span>
-}
-
-</code></pre>
-<h3 id="properties-10">Properties</h3>
-<table>
-<thead>
-<tr>
-<th>Name</th>
-<th>Type</th>
-<th>Required</th>
-<th>Restrictions</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>blockHash</td>
-<td>string</td>
-<td>false</td>
-<td>none</td>
-<td>none</td>
-</tr>
-<tr>
-<td>blockHeight</td>
-<td>integer(uint64)</td>
-<td>false</td>
-<td>none</td>
-<td>none</td>
-</tr>
-</tbody>
-</table>
 <h2 id="tocs_transactionsubmitstatus">TransactionSubmitStatus</h2>
 <p><a id="schematransactionsubmitstatus"></a>
 <a id="schema_TransactionSubmitStatus"></a>
@@ -3625,9 +3333,7 @@ BearerAuth
   <span class="hljs-attr">&quot;status&quot;</span>: <span class="hljs-number">201</span>,
   <span class="hljs-attr">&quot;title&quot;</span>: <span class="hljs-string">&quot;Added to mempool&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0&quot;</span>,
-  <span class="hljs-attr">&quot;conflictedWith&quot;</span>: [
-    <span class="hljs-string">&quot;d7d2c6519da8b02a2e765cb3c93846d9d63c91c38eb8b78c7d7bc46eac25285e&quot;</span>
-  ]
+  <span class="hljs-attr">&quot;txStatus&quot;</span>: <span class="hljs-string">&quot;ACCEPTED&quot;</span>
 }
 
 </code></pre>
@@ -3680,11 +3386,58 @@ BearerAuth
 <td>Transaction ID in hex</td>
 </tr>
 <tr>
-<td>» conflictedWith</td>
-<td>[string]¦null</td>
+<td>» txStatus</td>
+<td>string</td>
 <td>false</td>
 <td>none</td>
-<td>none</td>
+<td>Transaction status</td>
+</tr>
+</tbody>
+</table>
+<h4 id="enumerated-values-2">Enumerated Values</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>txStatus</td>
+<td>UNKNOWN</td>
+</tr>
+<tr>
+<td>txStatus</td>
+<td>RECEIVED</td>
+</tr>
+<tr>
+<td>txStatus</td>
+<td>STORED</td>
+</tr>
+<tr>
+<td>txStatus</td>
+<td>ANNOUNCED_TO_NETWORK</td>
+</tr>
+<tr>
+<td>txStatus</td>
+<td>SENT_TO_NETWORK</td>
+</tr>
+<tr>
+<td>txStatus</td>
+<td>SEEN_ON_NETWORK</td>
+</tr>
+<tr>
+<td>txStatus</td>
+<td>MINED</td>
+</tr>
+<tr>
+<td>txStatus</td>
+<td>CONFIRMED</td>
+</tr>
+<tr>
+<td>txStatus</td>
+<td>REJECTED</td>
 </tr>
 </tbody>
 </table>
@@ -3694,11 +3447,11 @@ BearerAuth
 <a id="tocSerror"></a>
 <a id="tocserror"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://mapi.bitcoinsv.com/errors/461&quot;</span>,
+  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://arc.bitcoinsv.com/errors/461&quot;</span>,
   <span class="hljs-attr">&quot;title&quot;</span>: <span class="hljs-string">&quot;Invalid unlocking scripts&quot;</span>,
   <span class="hljs-attr">&quot;status&quot;</span>: <span class="hljs-number">461</span>,
   <span class="hljs-attr">&quot;detail&quot;</span>: <span class="hljs-string">&quot;Tx is invalid because the unlock scripts are invalid&quot;</span>,
-  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://mapi.taal.com/errors/123452&quot;</span>,
+  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://arc.taal.com/errors/123452&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
   <span class="hljs-attr">&quot;extraInfo&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
 }
@@ -3817,11 +3570,11 @@ BearerAuth
 <a id="tocSerrorbadrequest"></a>
 <a id="tocserrorbadrequest"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://mapi.bitcoinsv.com/errors/400&quot;</span>,
+  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://arc.bitcoinsv.com/errors/400&quot;</span>,
   <span class="hljs-attr">&quot;title&quot;</span>: <span class="hljs-string">&quot;Bad request&quot;</span>,
   <span class="hljs-attr">&quot;status&quot;</span>: <span class="hljs-number">400</span>,
   <span class="hljs-attr">&quot;detail&quot;</span>: <span class="hljs-string">&quot;The request seems to be malformed and cannot be processed&quot;</span>,
-  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://mapi.taal.com/errors/1234556&quot;</span>,
+  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://arc.taal.com/errors/1234556&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
   <span class="hljs-attr">&quot;extraInfo&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
 }
@@ -3911,11 +3664,11 @@ BearerAuth
 <a id="tocSerrorfee"></a>
 <a id="tocserrorfee"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://mapi.bitcoinsv.com/errors/402&quot;</span>,
+  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://arc.bitcoinsv.com/errors/402&quot;</span>,
   <span class="hljs-attr">&quot;title&quot;</span>: <span class="hljs-string">&quot;Fee too low&quot;</span>,
   <span class="hljs-attr">&quot;status&quot;</span>: <span class="hljs-number">402</span>,
   <span class="hljs-attr">&quot;detail&quot;</span>: <span class="hljs-string">&quot;The fee in the transaction is too low to be included in a block&quot;</span>,
-  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://mapi.taal.com/errors/123452&quot;</span>,
+  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://arc.taal.com/errors/123452&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
   <span class="hljs-attr">&quot;extraInfo&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
 }
@@ -4005,16 +3758,13 @@ BearerAuth
 <a id="tocSerrorconflict"></a>
 <a id="tocserrorconflict"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://mapi.bitcoinsv.com/errors/409&quot;</span>,
+  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://arc.bitcoinsv.com/errors/409&quot;</span>,
   <span class="hljs-attr">&quot;title&quot;</span>: <span class="hljs-string">&quot;Conflicting tx found&quot;</span>,
   <span class="hljs-attr">&quot;status&quot;</span>: <span class="hljs-number">409</span>,
   <span class="hljs-attr">&quot;detail&quot;</span>: <span class="hljs-string">&quot;Tx is valid, but there is a conflicting tx in the block template&quot;</span>,
-  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://mapi.taal.com/errors/123453&quot;</span>,
+  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://arc.taal.com/errors/123453&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
-  <span class="hljs-attr">&quot;extraInfo&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
-  <span class="hljs-attr">&quot;conflictedWith&quot;</span>: [
-    <span class="hljs-string">&quot;0231d4135c5ca1e070b6c03d1f91f2f8cdac4d1de01b6289dd7c68adb685a69b&quot;</span>
-  ]
+  <span class="hljs-attr">&quot;extraInfo&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
 }
 
 </code></pre>
@@ -4094,13 +3844,6 @@ BearerAuth
 <td>none</td>
 <td>none</td>
 </tr>
-<tr>
-<td>» conflictedWith</td>
-<td>any</td>
-<td>false</td>
-<td>none</td>
-<td>none</td>
-</tr>
 </tbody>
 </table>
 <h2 id="tocs_errorunlockingscripts">ErrorUnlockingScripts</h2>
@@ -4109,11 +3852,11 @@ BearerAuth
 <a id="tocSerrorunlockingscripts"></a>
 <a id="tocserrorunlockingscripts"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://mapi.bitcoinsv.com/errors/461&quot;</span>,
+  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://arc.bitcoinsv.com/errors/461&quot;</span>,
   <span class="hljs-attr">&quot;title&quot;</span>: <span class="hljs-string">&quot;Invalid unlocking scripts&quot;</span>,
   <span class="hljs-attr">&quot;status&quot;</span>: <span class="hljs-number">461</span>,
   <span class="hljs-attr">&quot;detail&quot;</span>: <span class="hljs-string">&quot;Tx is invalid because the unlock scripts are invalid&quot;</span>,
-  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://mapi.taal.com/errors/123452&quot;</span>,
+  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://arc.taal.com/errors/123452&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
   <span class="hljs-attr">&quot;extraInfo&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
 }
@@ -4203,11 +3946,11 @@ BearerAuth
 <a id="tocSerrorinputs"></a>
 <a id="tocserrorinputs"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://mapi.bitcoinsv.com/errors/462&quot;</span>,
+  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://arc.bitcoinsv.com/errors/462&quot;</span>,
   <span class="hljs-attr">&quot;title&quot;</span>: <span class="hljs-string">&quot;Invalid inputs&quot;</span>,
   <span class="hljs-attr">&quot;status&quot;</span>: <span class="hljs-number">462</span>,
   <span class="hljs-attr">&quot;detail&quot;</span>: <span class="hljs-string">&quot;Tx is invalid because the inputs are non-existent or spent&quot;</span>,
-  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://mapi.taal.com/errors/123452&quot;</span>,
+  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://arc.taal.com/errors/123452&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
   <span class="hljs-attr">&quot;extraInfo&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
 }
@@ -4297,11 +4040,11 @@ BearerAuth
 <a id="tocSerrormalformed"></a>
 <a id="tocserrormalformed"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://mapi.bitcoinsv.com/errors/463&quot;</span>,
+  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://arc.bitcoinsv.com/errors/463&quot;</span>,
   <span class="hljs-attr">&quot;title&quot;</span>: <span class="hljs-string">&quot;Malformed transaction&quot;</span>,
   <span class="hljs-attr">&quot;status&quot;</span>: <span class="hljs-number">463</span>,
   <span class="hljs-attr">&quot;detail&quot;</span>: <span class="hljs-string">&quot;Tx is malformed&quot;</span>,
-  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://mapi.taal.com/errors/123452&quot;</span>,
+  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://arc.taal.com/errors/123452&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
   <span class="hljs-attr">&quot;extraInfo&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
 }
@@ -4391,11 +4134,11 @@ BearerAuth
 <a id="tocSerrorfrozenpolicy"></a>
 <a id="tocserrorfrozenpolicy"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://mapi.bitcoinsv.com/errors/471&quot;</span>,
+  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://arc.bitcoinsv.com/errors/471&quot;</span>,
   <span class="hljs-attr">&quot;title&quot;</span>: <span class="hljs-string">&quot;Input Frozen&quot;</span>,
   <span class="hljs-attr">&quot;status&quot;</span>: <span class="hljs-number">471</span>,
   <span class="hljs-attr">&quot;detail&quot;</span>: <span class="hljs-string">&quot;Input Frozen (blacklist manager policy blacklisted)&quot;</span>,
-  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://mapi.taal.com/errors/123452&quot;</span>,
+  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://arc.taal.com/errors/123452&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
   <span class="hljs-attr">&quot;extraInfo&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
 }
@@ -4485,11 +4228,11 @@ BearerAuth
 <a id="tocSerrorfrozenconsensus"></a>
 <a id="tocserrorfrozenconsensus"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://mapi.bitcoinsv.com/errors/472&quot;</span>,
+  <span class="hljs-attr">&quot;type&quot;</span>: <span class="hljs-string">&quot;https://arc.bitcoinsv.com/errors/472&quot;</span>,
   <span class="hljs-attr">&quot;title&quot;</span>: <span class="hljs-string">&quot;Input Frozen&quot;</span>,
   <span class="hljs-attr">&quot;status&quot;</span>: <span class="hljs-number">472</span>,
   <span class="hljs-attr">&quot;detail&quot;</span>: <span class="hljs-string">&quot;Input Frozen (blacklist manager consensus blacklisted)&quot;</span>,
-  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://mapi.taal.com/errors/123452&quot;</span>,
+  <span class="hljs-attr">&quot;instance&quot;</span>: <span class="hljs-string">&quot;https://arc.taal.com/errors/123452&quot;</span>,
   <span class="hljs-attr">&quot;txid&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
   <span class="hljs-attr">&quot;extraInfo&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
 }

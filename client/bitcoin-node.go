@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
-	"github.com/TAAL-GmbH/mapi"
+	"github.com/TAAL-GmbH/arc"
 	"github.com/ordishs/go-bitcoin"
 )
 
@@ -56,7 +56,7 @@ func (b *BitcoinNode) GetTransactionStatus(_ context.Context, txID string) (stat
 }
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format
-func (b *BitcoinNode) SubmitTransaction(_ context.Context, tx []byte, _ *mapi.TransactionOptions) (*TransactionStatus, error) {
+func (b *BitcoinNode) SubmitTransaction(_ context.Context, tx []byte, _ *arc.TransactionOptions) (*TransactionStatus, error) {
 	txID, err := b.Node.SendRawTransaction(hex.EncodeToString(tx)) //nolint:contextcheck - no context
 	if err != nil {
 		return nil, err

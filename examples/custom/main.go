@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/TAAL-GmbH/mapi"
-	"github.com/TAAL-GmbH/mapi/client"
-	"github.com/TAAL-GmbH/mapi/config"
-	"github.com/TAAL-GmbH/mapi/handler"
+	"github.com/TAAL-GmbH/arc"
+	"github.com/TAAL-GmbH/arc/client"
+	"github.com/TAAL-GmbH/arc/config"
+	"github.com/TAAL-GmbH/arc/handler"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/labstack/echo/v4"
@@ -17,7 +17,7 @@ import (
 )
 
 // This example does not use the configuration files or env variables,
-// but demonstrates how to initialize the mapi server in a completely custom way
+// but demonstrates how to initialize the arc server in a completely custom way
 func main() {
 
 	// Set up a basic Echo router
@@ -65,7 +65,7 @@ func main() {
 		panic(err)
 	}
 
-	// create a mapi client
+	// create a arc client
 	var c client.Interface
 	c, err = client.New(
 		client.WithMinerID(&config.MinerIDConfig{
@@ -74,7 +74,7 @@ func main() {
 		client.WithNode(node),
 		client.WithSQL(datastore.PostgreSQL, []*datastore.SQLConfig{{
 			CommonConfig: datastore.CommonConfig{
-				TablePrefix: "mapi_",
+				TablePrefix: "arc_",
 			},
 			Host: "localhost",
 		}}),
@@ -83,13 +83,13 @@ func main() {
 		panic(err)
 	}
 
-	// initialise the mapi default api handler, with our client and any handler options
-	var api mapi.HandlerInterface
+	// initialise the arc default api handler, with our client and any handler options
+	var api arc.HandlerInterface
 	if api, err = handler.NewDefault(c, handler.WithSecurityConfig(&config.SecurityConfig{
 		Type: config.SecurityTypeCustom,
 		// when setting a custom security handler, it is highly recommended defining a custom user function
-		CustomGetUser: func(ctx echo.Context) (*mapi.User, error) {
-			return &mapi.User{
+		CustomGetUser: func(ctx echo.Context) (*arc.User, error) {
+			return &arc.User{
 				ClientID: "test",
 				Name:     "Test user",
 				Admin:    false,
@@ -99,11 +99,11 @@ func main() {
 		panic(err)
 	}
 
-	// Register the MAPI API
-	// the mapi handler registers routes under /mapi/v2/...
-	mapi.RegisterHandlers(e, api)
-	// or with a base url => /mySubDir/mapi/v2/...
-	// mapi.RegisterHandlersWithBaseURL(e. api, "/mySubDir")
+	// Register the ARC API
+	// the arc handler registers routes under /arc/v1/...
+	arc.RegisterHandlers(e, api)
+	// or with a base url => /mySubDir/arc/v1/...
+	// arc.RegisterHandlersWithBaseURL(e. api, "/mySubDir")
 
 	// Add the echo standard logger
 	e.Use(echomiddleware.Logger())

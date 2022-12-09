@@ -3,8 +3,8 @@ package test
 import (
 	"context"
 
-	"github.com/TAAL-GmbH/mapi"
-	"github.com/ordishs/go-bitcoin"
+	arc "github.com/TAAL-GmbH/arc"
+	"github.com/TAAL-GmbH/arc/client"
 )
 
 type Node struct {
@@ -12,7 +12,7 @@ type Node struct {
 	SendRawTransactionResult []interface{}
 }
 
-func (n *Node) GetTransaction(_ context.Context, _ string) (rawTx *bitcoin.RawTransaction, err error) {
+func (n *Node) GetTransaction(_ context.Context, _ string) (rawTx *client.RawTransaction, err error) {
 	if n.GetRawTransactionResult != nil {
 		var result interface{}
 		// pop the first result of the stack and return it
@@ -21,7 +21,7 @@ func (n *Node) GetTransaction(_ context.Context, _ string) (rawTx *bitcoin.RawTr
 		switch r := result.(type) {
 		case error:
 			return nil, r
-		case *bitcoin.RawTransaction:
+		case *client.RawTransaction:
 			return r, nil
 		}
 	}
@@ -29,7 +29,7 @@ func (n *Node) GetTransaction(_ context.Context, _ string) (rawTx *bitcoin.RawTr
 	return nil, nil
 }
 
-func (n *Node) SubmitTransaction(_ context.Context, _ string, _ *mapi.TransactionOptions) (rawTx *bitcoin.RawTransaction, err error) {
+func (n *Node) SubmitTransaction(_ context.Context, _ []byte, _ *arc.TransactionOptions) (rawTx *client.TransactionStatus, err error) {
 	if n.SendRawTransactionResult != nil {
 		var result interface{}
 		// pop the first result of the stack and return it
@@ -38,10 +38,14 @@ func (n *Node) SubmitTransaction(_ context.Context, _ string, _ *mapi.Transactio
 		switch r := result.(type) {
 		case error:
 			return nil, r
-		case *bitcoin.RawTransaction:
+		case *client.TransactionStatus:
 			return r, nil
 		}
 	}
 
 	return nil, nil
+}
+
+func (b *Node) GetTransactionStatus(_ context.Context, txID string) (status *client.TransactionStatus, err error) {
+	return
 }

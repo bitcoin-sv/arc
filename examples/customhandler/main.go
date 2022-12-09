@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/TAAL-GmbH/mapi"
-	"github.com/TAAL-GmbH/mapi/handler"
+	"github.com/TAAL-GmbH/arc"
+	"github.com/TAAL-GmbH/arc/handler"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/labstack/echo/v4"
@@ -14,7 +14,7 @@ import (
 )
 
 // This example does not use the configuration files or env variables,
-// but demonstrates how to initialize the mapi server in a completely custom way
+// but demonstrates how to initialize the arc server in a completely custom way
 func main() {
 
 	// Set up a basic Echo router
@@ -52,7 +52,7 @@ func main() {
 	)
 
 	//
-	// initialise our Custom mapi handler
+	// initialise our Custom arc handler
 	// which also initialises the client and datastore etc.
 	//
 	api, err := NewCustomHandler()
@@ -60,11 +60,11 @@ func main() {
 		panic(err)
 	}
 
-	// Register the MAPI API
-	// the mapi handler registers routes under /mapi/v2/...
-	mapi.RegisterHandlers(e, api)
-	// or with a base url => /mySubDir/mapi/v2/...
-	// mapi.RegisterHandlersWithBaseURL(e. api, "/mySubDir")
+	// Register the ARC API
+	// the arc handler registers routes under /arc/v2/...
+	arc.RegisterHandlers(e, api)
+	// or with a base url => /mySubDir/arc/v2/...
+	// arc.RegisterHandlersWithBaseURL(e. api, "/mySubDir")
 
 	// Add the echo standard logger
 	e.Use(echomiddleware.Logger())

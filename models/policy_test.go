@@ -3,7 +3,7 @@ package models
 import (
 	"testing"
 
-	"github.com/TAAL-GmbH/mapi"
+	arc "github.com/TAAL-GmbH/arc"
 	"github.com/mrz1836/go-datastore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,11 +30,11 @@ func TestPolicy_getPolicy(t *testing.T) {
 			ID:    "test",
 			Fees: Fees{{
 				FeeType: "data",
-				MiningFee: mapi.FeeAmount{
+				MiningFee: arc.FeeAmount{
 					Satoshis: 37,
 					Bytes:    1000,
 				},
-				RelayFee: mapi.FeeAmount{
+				RelayFee: arc.FeeAmount{
 					Satoshis: 4,
 					Bytes:    1000,
 				},
@@ -64,7 +64,7 @@ func TestPolicy_getPolicy(t *testing.T) {
 		policy, err = GetPolicy(ctx, "test", WithClient(c))
 		require.NoError(t, err)
 		require.NotNil(t, policy)
-		assert.Equal(t, mapi.FeeFeeType("data"), policy.Fees[0].FeeType)
+		assert.Equal(t, arc.FeeFeeType("data"), policy.Fees[0].FeeType)
 		assert.Equal(t, uint64(37), policy.Fees[0].MiningFee.Satoshis)
 	})
 }
@@ -87,21 +87,21 @@ func TestPolicy_GetPolicyForClient(t *testing.T) {
 		_policy := NewPolicy(WithClient(c))
 		_policy.Fees = Fees{{
 			FeeType: "standard",
-			MiningFee: mapi.FeeAmount{
+			MiningFee: arc.FeeAmount{
 				Satoshis: 50,
 				Bytes:    1000,
 			},
-			RelayFee: mapi.FeeAmount{
+			RelayFee: arc.FeeAmount{
 				Satoshis: 5,
 				Bytes:    1000,
 			},
 		}, {
 			FeeType: "data",
-			MiningFee: mapi.FeeAmount{
+			MiningFee: arc.FeeAmount{
 				Satoshis: 37,
 				Bytes:    1000,
 			},
-			RelayFee: mapi.FeeAmount{
+			RelayFee: arc.FeeAmount{
 				Satoshis: 4,
 				Bytes:    1000,
 			},
@@ -123,21 +123,21 @@ func TestPolicy_GetPolicyForClient(t *testing.T) {
 		_policy := NewPolicy(WithClient(c))
 		_policy.Fees = Fees{{
 			FeeType: "standard",
-			MiningFee: mapi.FeeAmount{
+			MiningFee: arc.FeeAmount{
 				Satoshis: 50,
 				Bytes:    1000,
 			},
-			RelayFee: mapi.FeeAmount{
+			RelayFee: arc.FeeAmount{
 				Satoshis: 5,
 				Bytes:    1000,
 			},
 		}, {
 			FeeType: "data",
-			MiningFee: mapi.FeeAmount{
+			MiningFee: arc.FeeAmount{
 				Satoshis: 37,
 				Bytes:    1000,
 			},
-			RelayFee: mapi.FeeAmount{
+			RelayFee: arc.FeeAmount{
 				Satoshis: 4,
 				Bytes:    1000,
 			},

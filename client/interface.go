@@ -3,14 +3,14 @@ package client
 import (
 	"context"
 
-	"github.com/TAAL-GmbH/mapi"
+	arc "github.com/TAAL-GmbH/arc"
 	"github.com/ordishs/go-bitcoin"
 )
 
 type TransactionHandler interface {
 	GetTransaction(ctx context.Context, txID string) (*RawTransaction, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
-	SubmitTransaction(ctx context.Context, tx []byte, options *mapi.TransactionOptions) (*TransactionStatus, error)
+	SubmitTransaction(ctx context.Context, tx []byte, options *arc.TransactionOptions) (*TransactionStatus, error)
 }
 
 type RawTransaction struct {

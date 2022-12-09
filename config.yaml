@@ -1,4 +1,4 @@
-package: mapi
+package: arc
 generate:
   echo-server: true
   client: true

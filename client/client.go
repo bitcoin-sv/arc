@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/TAAL-GmbH/mapi/dictionary"
+	"github.com/TAAL-GmbH/arc/dictionary"
 	"github.com/mrz1836/go-cachestore"
 	"github.com/mrz1836/go-datastore"
 	"github.com/mrz1836/go-logger"
@@ -109,7 +109,7 @@ func (c *Client) loadDatastore(ctx context.Context) (err error) {
 		// we initialize a SQL lite db by default, if no other database connection has been set
 		var opts []datastore.ClientOps
 		opts = append(opts, datastore.WithSQLite(&datastore.SQLiteConfig{
-			DatabasePath: "./mapi.db",
+			DatabasePath: "./arc.db",
 			Shared:       true,
 		}))
 		if len(c.Models()) > 0 {

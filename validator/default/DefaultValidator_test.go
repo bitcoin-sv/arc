@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TAAL-GmbH/mapi"
+	"github.com/TAAL-GmbH/arc"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/ordishs/go-bitcoin"
@@ -48,7 +48,7 @@ func TestValidator(t *testing.T) {
 		require.Error(t, err, "Validation should have returned an error")
 
 		if err != nil {
-			expected := "mapi error 461: script execution failed: false stack entry at end of script execution"
+			expected := "arc error 461: script execution failed: false stack entry at end of script execution"
 			if err.Error() != expected {
 				t.Errorf("Expected %s, got %s", expected, err.Error())
 			}
@@ -124,39 +124,33 @@ func TestValidator(t *testing.T) {
 	})
 }
 
-func getPolicy(satoshisPerKB uint64) *mapi.Policy {
-	policy := &mapi.Policy{
-		ApiVersion: mapi.APIVersion,
-		ExpiryTime: time.Now().Add(30 * time.Second),
-		Fees: &[]mapi.Fee{{
-			FeeType: mapi.Standard,
-			MiningFee: mapi.FeeAmount{
+func getPolicy(satoshisPerKB uint64) *arc.FeesResponse {
+	fees := &arc.FeesResponse{
+		Timestamp: time.Now(),
+		Fees: &[]arc.Fee{{
+			FeeType: arc.Standard,
+			MiningFee: arc.FeeAmount{
 				Satoshis: satoshisPerKB,
 				Bytes:    1000,
 			},
-			RelayFee: mapi.FeeAmount{
+			RelayFee: arc.FeeAmount{
 				Satoshis: satoshisPerKB,
 				Bytes:    1000,
 			},
 		}, {
-			FeeType: mapi.Data,
-			MiningFee: mapi.FeeAmount{
+			FeeType: arc.Data,
+			MiningFee: arc.FeeAmount{
 				Satoshis: satoshisPerKB,
 				Bytes:    1000,
 			},
-			RelayFee: mapi.FeeAmount{
+			RelayFee: arc.FeeAmount{
 				Satoshis: satoshisPerKB,
 				Bytes:    1000,
 			},
 		}},
-		MinerId: "minerID",
-		Policies: &map[string]interface{}{
-			"maxtxsizepolicy": 100000,
-		},
-		Timestamp: time.Now(),
 	}
 
-	return policy
+	return fees
 }
 
 // getTx is a helper function to get a transaction from the bitcoin node
@@ -177,7 +171,7 @@ func _(txID string) (*bt.Tx, error) {
 func Test_checkTxSize(t *testing.T) {
 	type args struct {
 		txSize int
-		policy *mapi.Policy
+		fees   *arc.FeesResponse
 	}
 	tests := []struct {
 		name    string
@@ -188,11 +182,7 @@ func Test_checkTxSize(t *testing.T) {
 			name: "valid tx size",
 			args: args{
 				txSize: 100,
-				policy: &mapi.Policy{
-					Policies: &map[string]interface{}{
-						"maxtxsizepolicy": 1000,
-					},
-				},
+				fees:   &arc.FeesResponse{},
 			},
 			wantErr: false,
 		},
@@ -200,18 +190,14 @@ func Test_checkTxSize(t *testing.T) {
 			name: "invalid tx size",
 			args: args{
 				txSize: 100,
-				policy: &mapi.Policy{
-					Policies: &map[string]interface{}{
-						"maxtxsizepolicy": 10,
-					},
-				},
+				fees:   &arc.FeesResponse{},
 			},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := checkTxSize(tt.args.txSize, tt.args.policy); (err != nil) != tt.wantErr {
+			if err := checkTxSize(tt.args.txSize, tt.args.fees); (err != nil) != tt.wantErr {
 				t.Errorf("checkTxSize() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -421,8 +407,8 @@ func Test_checkFeesTxs(t *testing.T) {
 
 func Test_sigOpsCheck(t *testing.T) {
 	type args struct {
-		tx     *bt.Tx
-		policy *mapi.Policy
+		tx   *bt.Tx
+		fees *arc.FeesResponse
 	}
 	tests := []struct {
 		name    string
@@ -435,7 +421,7 @@ func Test_sigOpsCheck(t *testing.T) {
 				tx: &bt.Tx{
 					Inputs: []*bt.Input{{PreviousTxScript: validLockingScript}},
 				},
-				policy: &mapi.Policy{Policies: &map[string]interface{}{"maxtxsigopscountspolicy": 1}},
+				fees: &arc.FeesResponse{},
 			},
 			wantErr: false,
 		},
@@ -449,7 +435,7 @@ func Test_sigOpsCheck(t *testing.T) {
 						PreviousTxScript: validLockingScript,
 					}},
 				},
-				policy: &mapi.Policy{Policies: &map[string]interface{}{"maxtxsigopscountspolicy": 1}},
+				fees: &arc.FeesResponse{},
 			},
 			wantErr: true,
 		},
@@ -463,14 +449,14 @@ func Test_sigOpsCheck(t *testing.T) {
 						PreviousTxScript: validLockingScript,
 					}},
 				},
-				policy: &mapi.Policy{Policies: &map[string]interface{}{}},
+				fees: &arc.FeesResponse{},
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := sigOpsCheck(tt.args.tx, tt.args.policy); (err != nil) != tt.wantErr {
+			if err := sigOpsCheck(tt.args.tx, tt.args.fees); (err != nil) != tt.wantErr {
 				t.Errorf("sigOpsCheck() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

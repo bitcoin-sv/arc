@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-oapi-codegen -config config.yaml mapi.yml > mapi.go
+oapi-codegen -config config.yaml arc.yml > arc.go

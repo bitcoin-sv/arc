@@ -1,6 +1,6 @@
 package handler
 
-import "github.com/TAAL-GmbH/mapi/config"
+import "github.com/TAAL-GmbH/arc/config"
 
 type Options func(c *handlerOptions)
 

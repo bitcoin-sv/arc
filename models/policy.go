@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/TAAL-GmbH/mapi"
+	arc "github.com/TAAL-GmbH/arc"
 	"github.com/labstack/gommon/random"
 	"github.com/mrz1836/go-datastore"
 )
@@ -72,7 +72,7 @@ func (m *Model) GetModelTableName() string {
 }
 
 func (m *Model) Migrate(client datastore.ClientInterface) error {
-	return client.IndexMetadata(TableNamePolicy.String(), mapi.MetadataField)
+	return client.IndexMetadata(TableNamePolicy.String(), arc.MetadataField)
 }
 
 func (p *Policy) Save(ctx context.Context) (err error) {

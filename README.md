@@ -1,9 +1,9 @@
-# MAPI
+# ARC
 
 ## build interface from yaml
 
 ```shell
-oapi-codegen -config config.yaml mapi.yml > mapi.go
+oapi-codegen -config config.yaml arc.yml > arc.go
 ```
 ## API errors coming from node
 

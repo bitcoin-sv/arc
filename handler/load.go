@@ -11,11 +11,11 @@ import (
 	"os"
 	"sync"
 
-	"github.com/TAAL-GmbH/mapi"
-	"github.com/TAAL-GmbH/mapi/client"
-	"github.com/TAAL-GmbH/mapi/config"
-	"github.com/TAAL-GmbH/mapi/dictionary"
-	"github.com/TAAL-GmbH/mapi/models"
+	arc "github.com/TAAL-GmbH/arc"
+	"github.com/TAAL-GmbH/arc/client"
+	"github.com/TAAL-GmbH/arc/config"
+	"github.com/TAAL-GmbH/arc/dictionary"
+	"github.com/TAAL-GmbH/arc/models"
 	"github.com/bitcoinsv/bsvd/chaincfg/chainhash"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3"
@@ -27,7 +27,7 @@ import (
 	"github.com/mrz1836/go-logger"
 )
 
-func LoadMapiHandler(e *echo.Echo, appConfig *config.AppConfig) error {
+func LoadArcHandler(e *echo.Echo, appConfig *config.AppConfig) error {
 
 	// check the swagger definition against our requests
 	CheckSwagger(e)
@@ -49,7 +49,7 @@ func LoadMapiHandler(e *echo.Echo, appConfig *config.AppConfig) error {
 	}
 
 	// Add datastore
-	// by default an SQLite database will be used in ./mapi.db if no datastore options are set in config
+	// by default an SQLite database will be used in ./arc.db if no datastore options are set in config
 	if appConfig.Datastore != nil {
 		opts = append(opts, client.WithDatastore(appConfig.Datastore))
 	}
@@ -81,13 +81,13 @@ func LoadMapiHandler(e *echo.Echo, appConfig *config.AppConfig) error {
 		}
 	}
 
-	var api mapi.HandlerInterface
+	var api arc.HandlerInterface
 	if api, err = NewDefault(c, WithSecurityConfig(appConfig.Security)); err != nil {
 		return err
 	}
 
-	// Register the MAPI API
-	mapi.RegisterHandlers(e, api)
+	// Register the ARC API
+	arc.RegisterHandlers(e, api)
 
 	// e.Use(signBody(appConfig))
 
@@ -98,7 +98,7 @@ func LoadMapiHandler(e *echo.Echo, appConfig *config.AppConfig) error {
 
 func TEMPTEMPGenerateTestToken(appConfig *config.AppConfig) {
 	// TEMP TEMP TEMP
-	claims := &mapi.JWTCustomClaims{
+	claims := &arc.JWTCustomClaims{
 		ClientID:       "test",
 		Name:           "Test User",
 		Admin:          false,
@@ -204,7 +204,7 @@ func PrivateKeyFromString(privateKey string) (*bec.PrivateKey, error) {
 // CheckSwagger validates the request against the swagger definition
 func CheckSwagger(e *echo.Echo) *openapi3.T {
 
-	swagger, err := mapi.GetSwagger()
+	swagger, err := arc.GetSwagger()
 	if err != nil {
 		logger.Fatalf(dictionary.GetInternalMessage(dictionary.ErrorLoadingSwaggerSpec), err.Error())
 		os.Exit(1)
@@ -229,7 +229,7 @@ func CheckSecurity(e *echo.Echo, appConfig *config.AppConfig) {
 		if appConfig.Security.Type == config.SecurityTypeJWT {
 			e.Pre(echomiddleware.JWTWithConfig(echomiddleware.JWTConfig{
 				SigningKey: []byte(appConfig.Security.BearerKey),
-				Claims:     &mapi.JWTCustomClaims{},
+				Claims:     &arc.JWTCustomClaims{},
 			}))
 		} else if appConfig.Security.Type == config.SecurityTypeCustom {
 			e.Pre(func(next echo.HandlerFunc) echo.HandlerFunc {

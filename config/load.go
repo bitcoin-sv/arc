@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/TAAL-GmbH/mapi/dictionary"
+	"github.com/TAAL-GmbH/arc/dictionary"
 	"github.com/mrz1836/go-logger"
 	"github.com/spf13/viper"
 )

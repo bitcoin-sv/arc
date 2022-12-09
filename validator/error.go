@@ -3,21 +3,21 @@ package validator
 import (
 	"fmt"
 
-	"github.com/TAAL-GmbH/mapi"
+	"github.com/TAAL-GmbH/arc"
 )
 
 type Error struct {
-	Err             error
-	MapiErrorStatus mapi.ErrStatus
+	Err            error
+	ArcErrorStatus arc.ErrorCode
 }
 
-func NewError(err error, status mapi.ErrStatus) *Error {
+func NewError(err error, status arc.ErrorCode) *Error {
 	return &Error{
-		Err:             err,
-		MapiErrorStatus: status,
+		Err:            err,
+		ArcErrorStatus: status,
 	}
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("mapi error %d: %s", e.MapiErrorStatus, e.Err.Error())
+	return fmt.Sprintf("arc error %d: %s", e.ArcErrorStatus, e.Err.Error())
 }

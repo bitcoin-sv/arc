@@ -83,8 +83,8 @@ const (
 	ErrorGettingMinerID     = 20
 	ErrorMissingHandler     = 21
 
-	// ErrorMAPIFeesNotFound TODO what should we use here and what format?
-	ErrorMAPIFeesNotFound = 404
+	// ErrorFeesNotFound TODO what should we use here and what format?
+	ErrorFeesNotFound = 404
 
 	errorCodeLast = iota
 )
@@ -130,9 +130,9 @@ func init() {
 	errorMessages[ErrorAuthenticationScheme] = ErrorMessage{Code: ErrorAuthenticationScheme, InternalMessage: "authentication scheme unknown: %s", PublicMessage: "authentication failed", StatusCode: http.StatusUnauthorized}
 	errorMessages[ErrorAuthenticationNotAdmin] = ErrorMessage{Code: ErrorAuthenticationNotAdmin, InternalMessage: "xpub provided is not an admin key: %s", PublicMessage: "authentication failed", StatusCode: http.StatusUnauthorized}
 
-	// MAPI specific
+	// ARC specific
 	errorMessages[ErrorLoadingSwaggerSpec] = ErrorMessage{Code: ErrorLoadingSwaggerSpec, InternalMessage: "error loading swagger spec", PublicMessage: "error loading swagger spec", StatusCode: http.StatusExpectationFailed}
 	errorMessages[ErrorGettingMinerID] = ErrorMessage{Code: ErrorGettingMinerID, InternalMessage: "error getting miner ID from private key", PublicMessage: "error getting miner ID", StatusCode: http.StatusExpectationFailed}
-	errorMessages[ErrorMissingHandler] = ErrorMessage{Code: ErrorMissingHandler, InternalMessage: "error missing mapi handler", PublicMessage: "error missing mapi handler", StatusCode: http.StatusExpectationFailed}
-	errorMessages[ErrorMAPIFeesNotFound] = ErrorMessage{Code: ErrorMAPIFeesNotFound, InternalMessage: "no fees found", PublicMessage: "no fees found", StatusCode: http.StatusOK}
+	errorMessages[ErrorMissingHandler] = ErrorMessage{Code: ErrorMissingHandler, InternalMessage: "error missing arc handler", PublicMessage: "error missing arc handler", StatusCode: http.StatusExpectationFailed}
+	errorMessages[ErrorFeesNotFound] = ErrorMessage{Code: ErrorFeesNotFound, InternalMessage: "no fees found", PublicMessage: "no fees found", StatusCode: http.StatusOK}
 }

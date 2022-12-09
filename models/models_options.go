@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/TAAL-GmbH/mapi/client"
+	"github.com/TAAL-GmbH/arc/client"
 )
 
 // ModelOps allow functional options to be supplied

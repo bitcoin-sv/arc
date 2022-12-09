@@ -1,4 +1,4 @@
-package mapi
+package arc
 
 import (
 	"github.com/libsv/go-bt/v2"

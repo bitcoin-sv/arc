@@ -1,6 +1,6 @@
-package mapi
+package arc
 
-// HandlerInterface is an interface for implementations of the mapi backends
+// HandlerInterface is an interface for implementations of the ARC backends
 // this is an extension of the generated interface, to allow additional methods
 type HandlerInterface interface {
 	ServerInterface

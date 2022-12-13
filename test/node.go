@@ -46,6 +46,6 @@ func (n *Node) SubmitTransaction(_ context.Context, _ []byte, _ *arc.Transaction
 	return nil, nil
 }
 
-func (b *Node) GetTransactionStatus(_ context.Context, txID string) (status *client.TransactionStatus, err error) {
+func (n *Node) GetTransactionStatus(_ context.Context, txID string) (status *client.TransactionStatus, err error) {
 	return
 }

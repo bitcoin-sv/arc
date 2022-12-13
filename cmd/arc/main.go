@@ -23,6 +23,8 @@ func main() {
 
 	// Set up a basic Echo router
 	e := echo.New()
+	// Recover returns a middleware which recovers from panics anywhere in the chain
+	e.Use(echomiddleware.Recover())
 
 	// Add CORS headers to the server - all request origins are allowed
 	e.Use(echomiddleware.CORSWithConfig(echomiddleware.CORSConfig{

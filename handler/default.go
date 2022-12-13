@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -13,12 +12,10 @@ import (
 
 	"github.com/TAAL-GmbH/arc"
 	"github.com/TAAL-GmbH/arc/client"
-	"github.com/TAAL-GmbH/arc/models"
 	"github.com/TAAL-GmbH/arc/validator"
 	defaultValidator "github.com/TAAL-GmbH/arc/validator/default"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
-	"github.com/mrz1836/go-datastore"
 )
 
 type ArcDefaultHandler struct {
@@ -36,7 +33,7 @@ func NewDefault(c client.Interface, opts ...Options) (arc.HandlerInterface, erro
 	return bitcoinHandler, nil
 }
 
-// GetArcV1Policy ...
+// GetArcV1Fees ...
 func (m ArcDefaultHandler) GetArcV1Fees(ctx echo.Context) error {
 	user, err := GetEchoUser(ctx, m.Options.security)
 	if err != nil {
@@ -51,7 +48,7 @@ func (m ArcDefaultHandler) GetArcV1Fees(ctx echo.Context) error {
 	if err != nil {
 		status, response, responseErr := m.handleError(ctx, nil, err)
 		if responseErr != nil {
-			// if an error is returned, the processing failed and we should return a 500 error
+			// if an error is returned, the processing failed, and we should return a 500 error
 			return responseErr
 		}
 		return ctx.JSON(int(status), response)
@@ -64,7 +61,7 @@ func (m ArcDefaultHandler) GetArcV1Fees(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, fees)
 }
 
-// PostArcV2Tx ...
+// PostArcV1Tx ...
 func (m ArcDefaultHandler) PostArcV1Tx(ctx echo.Context, params arc.PostArcV1TxParams) error {
 	user, err := GetEchoUser(ctx, m.Options.security)
 	if err != nil {
@@ -142,7 +139,7 @@ func (m ArcDefaultHandler) PostArcV1Tx(ctx echo.Context, params arc.PostArcV1TxP
 	return ctx.JSON(int(status), response)
 }
 
-// GetArcV2TxStatusId ...
+// GetArcV1TxStatusId ...
 func (m ArcDefaultHandler) GetArcV1TxStatusId(ctx echo.Context, id string) error {
 
 	tx, err := m.getTransactionStatus(ctx.Request().Context(), id)
@@ -166,7 +163,7 @@ func (m ArcDefaultHandler) GetArcV1TxStatusId(ctx echo.Context, id string) error
 	})
 }
 
-// GetArcV2TxId Similar to GetArcV2TxStatusId, but also returns the whole transaction
+// GetArcV1TxId Similar to GetArcV2TxStatusId, but also returns the whole transaction
 func (m ArcDefaultHandler) GetArcV1TxId(ctx echo.Context, id string) error {
 
 	tx, err := m.getTransaction(ctx.Request().Context(), id)
@@ -190,7 +187,7 @@ func (m ArcDefaultHandler) GetArcV1TxId(ctx echo.Context, id string) error {
 	})
 }
 
-// PostArcV2Txs ...
+// PostArcV1Txs ...
 func (m ArcDefaultHandler) PostArcV1Txs(ctx echo.Context, params arc.PostArcV1TxsParams) error {
 
 	user, err := GetEchoUser(ctx, m.Options.security)
@@ -353,21 +350,21 @@ func getTransactionOptions(params arc.PostArcV1TxsParams) *arc.TransactionOption
 }
 
 func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.Tx, transactionOptions *arc.TransactionOptions) (arc.ErrorCode, interface{}, error) {
-	policy, err := getFees(ctx, m.Client, transactionOptions.ClientID)
+	fees, err := getFees(ctx, m.Client, transactionOptions.ClientID)
 	if err != nil {
 		return m.handleError(ctx, transaction, err)
 	}
 
-	txValidator := defaultValidator.New(policy)
+	txValidator := defaultValidator.New(fees)
 	if err = txValidator.ValidateTransaction(transaction); err != nil {
 		return m.handleError(ctx, transaction, err)
 	}
 
 	// now that we have validated the transaction, fire it off to the mempool and try to get it mined
 	// this should return a 200 or 201 if 1 or more of the nodes accept the transaction
-	node := m.Client.GetRandomNode()
+	transactionHandler := m.Client.GetTransactionHandler()
 	var tx *client.TransactionStatus
-	tx, err = node.SubmitTransaction(ctx.Request().Context(), transaction.Bytes(), transactionOptions)
+	tx, err = transactionHandler.SubmitTransaction(ctx.Request().Context(), transaction.Bytes(), transactionOptions)
 	if err != nil {
 		return m.handleError(ctx, transaction, err)
 	}
@@ -383,9 +380,9 @@ func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.
 }
 
 func (m ArcDefaultHandler) getTransaction(ctx context.Context, id string) (*client.RawTransaction, error) {
-	node := m.Client.GetRandomNode()
+	transactionHandler := m.Client.GetTransactionHandler()
 
-	tx, err := node.GetTransaction(ctx, id)
+	tx, err := transactionHandler.GetTransaction(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -394,9 +391,9 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, id string) (*clie
 }
 
 func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) (*client.TransactionStatus, error) {
-	node := m.Client.GetRandomNode()
+	transactionHandler := m.Client.GetTransactionHandler()
 
-	tx, err := node.GetTransactionStatus(ctx, id)
+	tx, err := transactionHandler.GetTransactionStatus(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -426,51 +423,16 @@ func (m ArcDefaultHandler) handleError(_ echo.Context, transaction *bt.Tx, submi
 		arcError.ExtraInfo = &extraInfo
 	}
 
-	/* TODO log error
-	logError := models.NewLogError(models.WithClient(m.Client), models.New())
-	logError.Error = arcError
-	logError.TxID = transaction.ID
-
-	if accessLog, ok := ctx.Get("access_log").(*models.LogAccess); ok {
-		logError.LogAccessID = accessLog.ID
-		logError.ClientID = accessLog.ClientID
-	}
-	*/
-
 	return status, arcError, nil
 }
 
-func getFees(ctx echo.Context, c client.Interface, clientID string) (*arc.FeesResponse, error) {
-	// TODO add caching for the clientID, so we don't have to query the DB for every request
+func getFees(_ echo.Context, c client.Interface, _ string) (*arc.FeesResponse, error) {
 
-	policy, err := models.GetPolicyForClient(ctx.Request().Context(), clientID, models.WithClient(c))
-	if err != nil && !errors.Is(err, datastore.ErrNoResults) {
-		return nil, err
-	}
-	if policy == nil {
-		policy, err = models.GetDefaultPolicy(ctx.Request().Context(), models.WithClient(c))
-		if err != nil {
-			if errors.Is(err, datastore.ErrNoResults) {
-				return nil, validator.NewError(fmt.Errorf("no policy found for client"), http.StatusNotFound)
-			}
-			return nil, err
-		}
-	}
-
-	if policy == nil {
-		// TODO change to arc error
-		return nil, validator.NewError(fmt.Errorf("no policy found for client"), http.StatusNotFound)
-	}
-
+	defaultFees := c.GetDefaultFees()
 	feesResponse := &arc.FeesResponse{
 		Timestamp: time.Now(),
+		Fees:      &defaultFees,
 	}
-
-	fees := make([]arc.Fee, len(policy.Fees))
-	for index, fee := range policy.Fees {
-		fees[index] = fee
-	}
-	feesResponse.Fees = &fees
 
 	return feesResponse, nil
 }

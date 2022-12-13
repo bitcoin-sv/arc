@@ -2,12 +2,10 @@
 package config
 
 import (
-	"encoding/hex"
 	"time"
 
 	arc "github.com/TAAL-GmbH/arc"
 	"github.com/labstack/echo/v4"
-	"github.com/libsv/go-bk/wif"
 	"github.com/mrz1836/go-cachestore"
 	"github.com/mrz1836/go-datastore"
 )
@@ -56,7 +54,7 @@ type (
 		Debug            bool              `json:"debug" mapstructure:"debug"`
 		VerboseDebug     bool              `json:"verbose_debug" mapstructure:"verbose_debug"`
 		Environment      Environment       `json:"environment" mapstructure:"environment"`
-		MinerID          *MinerIDConfig    `json:"miner_id" mapstructure:"miner_id"`
+		Fees             []arc.Fee         `json:"fees" mapstructure:"fees"`
 		Profile          bool              `json:"profile" mapstructure:"profile"` // whether to start the profiling http server
 		Metamorph        []string          `json:"metamorph" mapstructure:"metamorph"`
 		Nodes            []*NodeConfig     `json:"nodes" mapstructure:"nodes"`
@@ -94,11 +92,6 @@ type (
 		UseTLS                bool          `json:"use_tls" mapstructure:"use_tls"`                                 // Flag for using TLS
 	}
 
-	// MinerIDConfig is a configuration for the miner id
-	MinerIDConfig struct {
-		PrivateKey string `json:"private_key" mapstructure:"private_key"`
-	}
-
 	// NodeConfig is a configuration for the bitcoin node rpc interface
 	NodeConfig struct {
 		Host     string `json:"host" mapstructure:"host"`
@@ -133,16 +126,4 @@ type (
 // GetUserAgent will return the outgoing user agent
 func (a *AppConfig) GetUserAgent() string {
 	return "ARC " + string(a.Environment) + " " + Version
-}
-
-func (m *MinerIDConfig) GetMinerID() (string, error) {
-
-	minerIDPrivKey, err := wif.DecodeWIF(m.PrivateKey)
-	if err != nil {
-		return "", err
-	}
-
-	minerID := hex.EncodeToString(minerIDPrivKey.SerialisePubKey())
-
-	return minerID, nil
 }

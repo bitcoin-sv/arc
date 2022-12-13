@@ -11,8 +11,6 @@ import (
 	"testing"
 
 	"github.com/TAAL-GmbH/arc"
-	"github.com/TAAL-GmbH/arc/config"
-	"github.com/TAAL-GmbH/arc/models"
 	"github.com/TAAL-GmbH/arc/test"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
@@ -44,37 +42,9 @@ func TestNewDefault(t *testing.T) {
 }
 
 func TestGetArcV1Fees(t *testing.T) { //nolint:funlen
-	t.Run("no policy", func(t *testing.T) {
-		testStore := &test.Datastore{}
-		testClient := &test.Client{
-			Store: testStore,
-			Node:  nil,
-		}
-
-		defaultHandler, err := NewDefault(testClient)
-		require.NoError(t, err)
-		e := echo.New()
-		req := httptest.NewRequest(http.MethodPost, "/arc/v1/fees", strings.NewReader(""))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		ctx := e.NewContext(req, rec)
-
-		err = defaultHandler.GetArcV1Fees(ctx)
-		require.Nil(t, err)
-		require.Equal(t, int(arc.ErrStatusNotFound), rec.Code)
-
-		response := rec.Body.Bytes()
-		var mError arc.ErrorFields
-		_ = json.Unmarshal(response, &mError)
-		assert.Equal(t, arc.ErrStatusNotFound, arc.ErrorCode(mError.Status))
-	})
-
 	t.Run("default fees", func(t *testing.T) {
-		testStore := &test.Datastore{}
-		addFees(testStore)
 		testClient := &test.Client{
-			Store: testStore,
-			Node:  nil, // not needed here
+			Node: nil, // not needed here
 		}
 
 		defaultHandler, err := NewDefault(testClient)
@@ -95,20 +65,18 @@ func TestGetArcV1Fees(t *testing.T) { //nolint:funlen
 
 		require.NotNil(t, feesResponse.Fees)
 		fees := *feesResponse.Fees
-		assert.Equal(t, arc.Standard, fees[0].FeeType)
-		assert.Equal(t, uint64(123), fees[0].MiningFee.Bytes)
-		assert.Equal(t, uint64(12), fees[0].MiningFee.Satoshis)
-		assert.Equal(t, uint64(321), fees[0].RelayFee.Bytes)
-		assert.Equal(t, uint64(32), fees[0].RelayFee.Satoshis)
+		assert.Equal(t, arc.Data, fees[0].FeeType)
+		assert.Equal(t, uint64(3), fees[0].MiningFee.Satoshis)
+		assert.Equal(t, uint64(1000), fees[0].MiningFee.Bytes)
+		assert.Equal(t, uint64(4), fees[0].RelayFee.Satoshis)
+		assert.Equal(t, uint64(1000), fees[0].RelayFee.Bytes)
 	})
 }
 
 func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 	t.Run("empty tx", func(t *testing.T) {
-		testStore := &test.Datastore{}
 		testClient := &test.Client{
-			Store: testStore,
-			Node:  nil,
+			Node: nil,
 		}
 
 		defaultHandler, err := NewDefault(testClient)
@@ -128,10 +96,8 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("invalid mime type", func(t *testing.T) {
-		testStore := &test.Datastore{}
 		testClient := &test.Client{
-			Store: testStore,
-			Node:  nil,
+			Node: nil,
 		}
 
 		defaultHandler, err := NewDefault(testClient)
@@ -149,10 +115,8 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("invalid tx", func(t *testing.T) {
-		testStore := &test.Datastore{}
 		testClient := &test.Client{
-			Store: testStore,
-			Node:  nil,
+			Node: nil,
 		}
 
 		defaultHandler, err := NewDefault(testClient)
@@ -180,11 +144,9 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("valid tx - missing inputs", func(t *testing.T) {
-		testStore := &test.Datastore{}
 		testNode := &test.Node{}
 		testClient := &test.Client{
-			Store: testStore,
-			Node:  testNode,
+			Node: testNode,
 		}
 
 		defaultHandler, err := NewDefault(testClient)
@@ -198,7 +160,6 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
-			addFees(testStore)
 			rec, ctx := createEchoRequest(inputTx, contentType, "/arc/v1/tx")
 			err = defaultHandler.PostArcV1Tx(ctx, arc.PostArcV1TxParams{})
 			require.NoError(t, err)
@@ -213,12 +174,9 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("valid tx", func(t *testing.T) {
-		testStore := &test.Datastore{}
 		testNode := &test.Node{}
 		testClient := &test.Client{
-			Store:         testStore,
-			Node:          testNode,
-			MinerIDConfig: &config.MinerIDConfig{PrivateKey: testMinerKey},
+			Node: testNode,
 		}
 
 		defaultHandler, err := NewDefault(testClient)
@@ -232,7 +190,6 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
-			addFees(testStore)
 			rec, ctx := createEchoRequest(inputTx, contentType, "/arc/v1/tx")
 			err = defaultHandler.PostArcV1Tx(ctx, arc.PostArcV1TxParams{})
 			require.NoError(t, err)
@@ -245,35 +202,6 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 			require.Equal(t, validTxID, bResponse.Txid)
 		}
 	})
-}
-
-func addFees(testStore *test.Datastore) {
-	testStore.GetModelResult = []interface{}{
-		// this mocks the database record being returned
-		&models.Fees{
-			{
-				FeeType: arc.Standard,
-				MiningFee: arc.FeeAmount{
-					Satoshis: 50,
-					Bytes:    1000,
-				},
-				RelayFee: arc.FeeAmount{
-					Satoshis: 50,
-					Bytes:    1000,
-				},
-			}, {
-				FeeType: arc.Data,
-				MiningFee: arc.FeeAmount{
-					Satoshis: 50,
-					Bytes:    1000,
-				},
-				RelayFee: arc.FeeAmount{
-					Satoshis: 50,
-					Bytes:    1000,
-				},
-			},
-		},
-	}
 }
 
 func createEchoRequest(inputTx io.Reader, contentType, target string) (*httptest.ResponseRecorder, echo.Context) {

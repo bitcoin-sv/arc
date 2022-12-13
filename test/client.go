@@ -3,19 +3,20 @@ package test
 import (
 	"context"
 
+	"github.com/TAAL-GmbH/arc"
 	"github.com/TAAL-GmbH/arc/client"
-	"github.com/TAAL-GmbH/arc/config"
-	"github.com/TAAL-GmbH/arc/dictionary"
 	"github.com/mrz1836/go-cachestore"
-	"github.com/mrz1836/go-datastore"
-	"github.com/mrz1836/go-logger"
 )
 
 // Client is a Client compatible struct that can be used in tests
 type Client struct {
-	Store         datastore.ClientInterface
-	Node          client.TransactionHandler
-	MinerIDConfig *config.MinerIDConfig
+	Node client.TransactionHandler
+}
+
+func NewTestClient(node client.TransactionHandler) client.Interface {
+	return &Client{
+		Node: node,
+	}
 }
 
 // Close is a noop
@@ -23,42 +24,41 @@ func (t *Client) Close() {
 	// noop
 }
 
+func (t *Client) GetDefaultFees() []arc.Fee {
+	return []arc.Fee{
+		{
+			FeeType: "data",
+			MiningFee: arc.FeeAmount{
+				Satoshis: 3,
+				Bytes:    1000,
+			},
+			RelayFee: arc.FeeAmount{
+				Satoshis: 4,
+				Bytes:    1000,
+			},
+		},
+		{
+			FeeType: "standard",
+			MiningFee: arc.FeeAmount{
+				Satoshis: 5,
+				Bytes:    1000,
+			},
+			RelayFee: arc.FeeAmount{
+				Satoshis: 6,
+				Bytes:    1000,
+			},
+		},
+	}
+}
+
+func (t *Client) GetTransactionHandler() client.TransactionHandler {
+	return t.Node
+}
+
 func (t *Client) Load(_ context.Context) (err error) {
 	return nil
 }
 
-func (t *Client) Datastore() datastore.ClientInterface {
-	return t.Store
-}
-
-func (t *Client) GetMinerID() (minerID string) {
-	if t.MinerIDConfig != nil {
-		var err error
-		minerID, err = t.MinerIDConfig.GetMinerID()
-		if err != nil {
-			logger.Fatalf(dictionary.GetInternalMessage(dictionary.ErrorGettingMinerID), err.Error())
-		}
-	}
-
-	return minerID
-}
-
-func (t *Client) GetNode(_ int) client.TransactionHandler {
-	return t.Node
-}
-
-func (t *Client) GetNodes() []client.TransactionHandler {
-	return []client.TransactionHandler{t.Node}
-}
-
-func (t *Client) GetRandomNode() client.TransactionHandler {
-	return t.Node
-}
-
-func (t *Client) Models() []interface{} {
-	return nil
-}
-
-func (c *Client) Cachestore() cachestore.ClientInterface {
+func (t *Client) Cachestore() cachestore.ClientInterface {
 	return nil
 }

@@ -3,7 +3,7 @@ package test
 import (
 	"context"
 
-	"github.com/TAAL-GmbH/arc"
+	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/client"
 	"github.com/mrz1836/go-cachestore"
 )
@@ -24,26 +24,26 @@ func (t *Client) Close() {
 	// noop
 }
 
-func (t *Client) GetDefaultFees() []arc.Fee {
-	return []arc.Fee{
+func (t *Client) GetDefaultFees() []api.Fee {
+	return []api.Fee{
 		{
 			FeeType: "data",
-			MiningFee: arc.FeeAmount{
+			MiningFee: api.FeeAmount{
 				Satoshis: 3,
 				Bytes:    1000,
 			},
-			RelayFee: arc.FeeAmount{
+			RelayFee: api.FeeAmount{
 				Satoshis: 4,
 				Bytes:    1000,
 			},
 		},
 		{
 			FeeType: "standard",
-			MiningFee: arc.FeeAmount{
+			MiningFee: api.FeeAmount{
 				Satoshis: 5,
 				Bytes:    1000,
 			},
-			RelayFee: arc.FeeAmount{
+			RelayFee: api.FeeAmount{
 				Satoshis: 6,
 				Bytes:    1000,
 			},

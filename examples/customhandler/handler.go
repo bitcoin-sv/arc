@@ -4,12 +4,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/TAAL-GmbH/arc"
+	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/client"
 	"github.com/TAAL-GmbH/arc/config"
 	"github.com/TAAL-GmbH/arc/handler"
 	"github.com/labstack/echo/v4"
-	"github.com/mrz1836/go-datastore"
 )
 
 // CustomHandler is our custom arc handler
@@ -19,7 +18,7 @@ type CustomHandler struct {
 	MyCustomVar string `json:"my_custom_var"`
 }
 
-func NewCustomHandler() (arc.HandlerInterface, error) {
+func NewCustomHandler() (api.HandlerInterface, error) {
 	// add a single bitcoin node
 	node, err := client.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
 	if err != nil {
@@ -29,16 +28,7 @@ func NewCustomHandler() (arc.HandlerInterface, error) {
 	// create a arc client
 	var c client.Interface
 	c, err = client.New(
-		client.WithMinerID(&config.MinerIDConfig{
-			PrivateKey: "KznvCNc6Yf4iztSThoMH6oHWzH9EgjfodKxmeuUGPq5DEX5maspS",
-		}),
 		client.WithNode(node),
-		client.WithSQL(datastore.PostgreSQL, []*datastore.SQLConfig{{
-			CommonConfig: datastore.CommonConfig{
-				TablePrefix: "arc_",
-			},
-			Host: "localhost",
-		}}),
 	)
 	if err != nil {
 		return nil, err
@@ -53,8 +43,8 @@ func NewCustomHandler() (arc.HandlerInterface, error) {
 	security := handler.WithSecurityConfig(&config.SecurityConfig{
 		Type: config.SecurityTypeCustom,
 		// when setting a custom security handler, it is highly recommended defining a custom user function
-		CustomGetUser: func(ctx echo.Context) (*arc.User, error) {
-			return &arc.User{
+		CustomGetUser: func(ctx echo.Context) (*api.User, error) {
+			return &api.User{
 				ClientID: "test",
 				Name:     "Test user",
 				Admin:    false,
@@ -69,7 +59,7 @@ func NewCustomHandler() (arc.HandlerInterface, error) {
 // GetArcV1Policy our custom policy request handler
 func (c *CustomHandler) GetArcV1Policy(ctx echo.Context) error {
 
-	arcPolicy := arc.FeesResponse{
+	arcPolicy := api.FeesResponse{
 		Timestamp: time.Now(),
 	}
 
@@ -81,7 +71,7 @@ func (c *CustomHandler) GetArcV1Policy(ctx echo.Context) error {
 	// db := c.Client.Datastore().Execute("SELECT ....")
 	//
 
-	arcPolicy.Fees = &[]arc.Fee{} // set the fees ...
+	arcPolicy.Fees = &[]api.Fee{} // set the fees ...
 
 	return ctx.JSON(http.StatusOK, arcPolicy)
 }

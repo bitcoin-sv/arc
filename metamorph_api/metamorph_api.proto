@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+option go_package = ".;metamorph_api";
+
+package metamorph_api;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+enum Status {
+  UNKNOWN = 0;
+  QUEUED = 1;
+  RECEIVED = 2;
+  STORED = 3;
+  ANNOUNCED_TO_NETWORK = 4;
+  SENT_TO_NETWORK = 5;
+  SEEN_ON_NETWORK = 6;
+  MINED = 7;
+  CONFIRMED = 108; // 100 confirmation blocks
+  REJECTED = 109;
+}
+
+service MetaMorphAPI {
+  rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
+  rpc PutTransaction (TransactionRequest) returns (TransactionStatus) {}
+  rpc GetTransactionStatus (TransactionStatusRequest) returns (TransactionStatus) {}
+}
+
+// swagger:model HealthResponse
+message HealthResponse {
+  bool ok = 1;
+  string details = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  int32 workers = 4;
+  float uptime = 5;
+  int32 queued = 6;
+  int32 processed = 7;
+  int32 waiting = 8;
+  float average = 9;
+  int32 mapSize = 10;
+}
+
+// swagger:model TransactionRequest
+message TransactionRequest {
+  int64 api_key_id = 1;
+  int64 standard_fee_id = 2;
+  int64 data_fee_id = 3;
+  string source_ip = 4;
+  string callback_url = 5;
+  string callback_token = 6;
+  bool merkle_proof = 7;
+  bytes raw_tx = 8;
+}
+
+// swagger:model TransactionStatus
+message TransactionStatus {
+  bool timed_out = 1;
+  google.protobuf.Timestamp stored_at = 2;
+  google.protobuf.Timestamp announced_at = 3;
+  google.protobuf.Timestamp mined_at = 4;
+  string txid = 5;
+  Status status = 6;
+  string reject_reason = 7;
+  int32 block_height = 8;
+  string block_hash = 9;
+}
+
+// swagger:model TransactionRequest
+message TransactionStatusRequest {
+  string txid = 1;
+}

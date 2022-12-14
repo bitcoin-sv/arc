@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	arc "github.com/TAAL-GmbH/arc"
+	api2 "github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/client"
 	"github.com/TAAL-GmbH/arc/config"
 	"github.com/TAAL-GmbH/arc/dictionary"
@@ -34,19 +34,33 @@ func LoadArcHandler(e *echo.Echo, appConfig *config.AppConfig) error {
 		opts = append(opts, client.WithFreeCache())
 	}
 
+	// set the node config, if set
+	if appConfig.Nodes != nil {
+		nodeConfig := appConfig.Nodes[0]
+		node, err := client.NewBitcoinNode(nodeConfig.Host, nodeConfig.Port, nodeConfig.User, nodeConfig.Password, nodeConfig.UseSSL)
+		if err != nil {
+			return err
+		}
+		opts = append(opts, client.WithNode(node))
+	}
+
+	if len(appConfig.Metamorph) > 0 {
+		opts = append(opts, client.WithMetamorphs(appConfig.Metamorph))
+	}
+
 	// load the api, using the default handler
 	c, err := client.New(opts...)
 	if err != nil {
 		return err
 	}
 
-	var api arc.HandlerInterface
+	var api api2.HandlerInterface
 	if api, err = NewDefault(c, WithSecurityConfig(appConfig.Security)); err != nil {
 		return err
 	}
 
 	// Register the ARC API
-	arc.RegisterHandlers(e, api)
+	api2.RegisterHandlers(e, api)
 
 	return nil
 }
@@ -54,7 +68,7 @@ func LoadArcHandler(e *echo.Echo, appConfig *config.AppConfig) error {
 // CheckSwagger validates the request against the swagger definition
 func CheckSwagger(e *echo.Echo) *openapi3.T {
 
-	swagger, err := arc.GetSwagger()
+	swagger, err := api2.GetSwagger()
 	if err != nil {
 		logger.Fatalf(dictionary.GetInternalMessage(dictionary.ErrorLoadingSwaggerSpec), err.Error())
 		os.Exit(1)
@@ -79,7 +93,7 @@ func CheckSecurity(e *echo.Echo, appConfig *config.AppConfig) {
 		if appConfig.Security.Type == config.SecurityTypeJWT {
 			e.Pre(echomiddleware.JWTWithConfig(echomiddleware.JWTConfig{
 				SigningKey: []byte(appConfig.Security.BearerKey),
-				Claims:     &arc.JWTCustomClaims{},
+				Claims:     &api2.JWTCustomClaims{},
 			}))
 		} else if appConfig.Security.Type == config.SecurityTypeCustom {
 			e.Pre(func(next echo.HandlerFunc) echo.HandlerFunc {

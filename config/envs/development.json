@@ -7,47 +7,10 @@
   "miner_id": {
     "private_key": "KznvCNc6Yf4iztSThoMH6oHWzH9EgjfodKxmeuUGPq5DEX5maspS"
   },
-  "fees": [
-    {
-      "feeType": "standard",
-      "miningFee": {
-        "bytes": 5,
-        "satoshis": 1000
-      },
-      "relayFee": {
-        "bytes": 5,
-        "satoshis": 1000
-      }
-    },
-    {
-      "feeType": "data",
-      "miningFee": {
-        "bytes": 5,
-        "satoshis": 1000
-      },
-      "relayFee": {
-        "bytes": 5,
-        "satoshis": 1000
-      }
-    }
-  ],
-  "datastore": {
-    "debug": false,
-    "engine": "mongodb",
-    "sqlite": {
-      "database_path": "./arc.db",
-      "shared": true
-    },
-    "mongodb": {
-      "database_name": "arc",
-      "transactions": false,
-      "uri": "mongodb://localhost:27017/arc"
-    }
-  },
   "cache": {
     "engine": "redis"
   },
-  "nodes": [
+  "node": [
     {
       "host": "localhost",
       "port": 8332,

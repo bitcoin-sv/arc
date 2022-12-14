@@ -1,7 +1,7 @@
 package handler
 
 import (
-	arc "github.com/TAAL-GmbH/arc"
+	arc "github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/config"
 	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"

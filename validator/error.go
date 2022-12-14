@@ -3,15 +3,15 @@ package validator
 import (
 	"fmt"
 
-	"github.com/TAAL-GmbH/arc"
+	"github.com/TAAL-GmbH/arc/api"
 )
 
 type Error struct {
 	Err            error
-	ArcErrorStatus arc.ErrorCode
+	ArcErrorStatus api.ErrorCode
 }
 
-func NewError(err error, status arc.ErrorCode) *Error {
+func NewError(err error, status api.ErrorCode) *Error {
 	return &Error{
 		Err:            err,
 		ArcErrorStatus: status,

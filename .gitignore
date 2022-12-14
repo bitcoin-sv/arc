@@ -1,1 +1,4 @@
 .history
+metamorph_*.tar.gz
+build/
+data/

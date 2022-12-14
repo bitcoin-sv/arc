@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/TAAL-GmbH/arc"
+	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/client"
 	"github.com/TAAL-GmbH/arc/config"
 	"github.com/TAAL-GmbH/arc/handler"
@@ -13,7 +13,6 @@ import (
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
-	"github.com/mrz1836/go-datastore"
 )
 
 // This example does not use the configuration files or env variables,
@@ -68,28 +67,19 @@ func main() {
 	// create a arc client
 	var c client.Interface
 	c, err = client.New(
-		client.WithMinerID(&config.MinerIDConfig{
-			PrivateKey: "KznvCNc6Yf4iztSThoMH6oHWzH9EgjfodKxmeuUGPq5DEX5maspS",
-		}),
 		client.WithNode(node),
-		client.WithSQL(datastore.PostgreSQL, []*datastore.SQLConfig{{
-			CommonConfig: datastore.CommonConfig{
-				TablePrefix: "arc_",
-			},
-			Host: "localhost",
-		}}),
 	)
 	if err != nil {
 		panic(err)
 	}
 
 	// initialise the arc default api handler, with our client and any handler options
-	var api arc.HandlerInterface
+	var api api.HandlerInterface
 	if api, err = handler.NewDefault(c, handler.WithSecurityConfig(&config.SecurityConfig{
 		Type: config.SecurityTypeCustom,
 		// when setting a custom security handler, it is highly recommended defining a custom user function
-		CustomGetUser: func(ctx echo.Context) (*arc.User, error) {
-			return &arc.User{
+		CustomGetUser: func(ctx echo.Context) (*api.User, error) {
+			return &api.User{
 				ClientID: "test",
 				Name:     "Test user",
 				Admin:    false,
@@ -101,7 +91,7 @@ func main() {
 
 	// Register the ARC API
 	// the arc handler registers routes under /arc/v1/...
-	arc.RegisterHandlers(e, api)
+	api.RegisterHandlers(e, api)
 	// or with a base url => /mySubDir/arc/v1/...
 	// arc.RegisterHandlersWithBaseURL(e. api, "/mySubDir")
 

@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+option go_package = ".;blocktx_api";
+
+package blocktx_api;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+service BlockTxAPI {
+  // Health returns the health of the API.
+  rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
+
+  // GetBlockTransactions returns a list of transaction hashes for a given block.
+  rpc GetBlockTransactions (Block) returns (Transactions) {}
+  
+  // GetTransactionBlocks returns a list of block hashes (including orphaned) for a given transaction hash. 
+  rpc GetTransactionBlocks (Transaction) returns (Blocks) {}
+  
+  // GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash. 
+  rpc GetTransactionBlock (Transaction) returns (Block) {}
+  
+  // GetBlockForHeight returns the non-orphaned block for a given block height.
+  rpc GetBlockForHeight (Height) returns (Block) {}
+
+  // GetMinedBlockTransactions returns a stream of mined transactions starting at a specific block height.
+  // If Height is 0, the stream starts from the current best block.
+  rpc GetMinedBlockTransactions (Height) returns (stream MinedTransaction) {}
+
+}
+
+// swagger:model HealthResponse
+message HealthResponse {
+  bool ok = 1;
+  string details = 2;
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+// swagger:model Blocks
+message Blocks {
+  repeated Block blocks = 1;
+}
+
+// swagger:model Block {
+message Block {
+  bytes hash = 1; // Little endian
+  bytes header = 2; // The header is not reversed because it is not a single value, but a list of values.
+  uint64 height = 3;
+  bool orphaned = 4;
+}
+
+// swagger:model Transactions
+message Transactions {
+  repeated Transaction transactions = 1;
+}
+
+// swagger:model MinedTransaction
+message MinedTransaction {
+  bytes blockhash = 1; // Little endian
+  repeated bytes txs = 2; // Little endian
+}
+
+// swagger:model Transaction
+message Transaction {
+  bytes hash = 1; // Little endian
+}
+
+// swagger:model Height
+message Height {
+  uint64 height = 1;
+}

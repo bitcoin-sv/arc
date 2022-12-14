@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/TAAL-GmbH/arc"
+	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/client"
 	"github.com/TAAL-GmbH/arc/validator"
 	defaultValidator "github.com/TAAL-GmbH/arc/validator/default"
@@ -23,7 +24,7 @@ type ArcDefaultHandler struct {
 	Options handlerOptions
 }
 
-func NewDefault(c client.Interface, opts ...Options) (arc.HandlerInterface, error) {
+func NewDefault(c client.Interface, opts ...Options) (api.HandlerInterface, error) {
 	bitcoinHandler := &ArcDefaultHandler{Client: c}
 
 	for _, opt := range opts {
@@ -38,12 +39,12 @@ func (m ArcDefaultHandler) GetArcV1Fees(ctx echo.Context) error {
 	user, err := GetEchoUser(ctx, m.Options.security)
 	if err != nil {
 		errStr := err.Error()
-		e := arc.ErrGeneric
+		e := api.ErrGeneric
 		e.ExtraInfo = &errStr
-		return ctx.JSON(int(arc.ErrStatusGeneric), e)
+		return ctx.JSON(int(api.ErrStatusGeneric), e)
 	}
 
-	var fees *arc.FeesResponse
+	var fees *api.FeesResponse
 	fees, err = getFees(ctx, m.Client, user.ClientID)
 	if err != nil {
 		status, response, responseErr := m.handleError(ctx, nil, err)
@@ -62,20 +63,20 @@ func (m ArcDefaultHandler) GetArcV1Fees(ctx echo.Context) error {
 }
 
 // PostArcV1Tx ...
-func (m ArcDefaultHandler) PostArcV1Tx(ctx echo.Context, params arc.PostArcV1TxParams) error {
+func (m ArcDefaultHandler) PostArcV1Tx(ctx echo.Context, params api.PostArcV1TxParams) error {
 	user, err := GetEchoUser(ctx, m.Options.security)
 	if err != nil {
 		errStr := err.Error()
-		e := arc.ErrGeneric
+		e := api.ErrGeneric
 		e.ExtraInfo = &errStr
-		return ctx.JSON(int(arc.ErrStatusGeneric), e)
+		return ctx.JSON(int(api.ErrStatusGeneric), e)
 	}
 
 	var body []byte
 	body, err = io.ReadAll(ctx.Request().Body)
 	if err != nil {
 		errStr := err.Error()
-		e := arc.ErrBadRequest
+		e := api.ErrBadRequest
 		e.ExtraInfo = &errStr
 		return ctx.JSON(http.StatusBadRequest, e)
 	}
@@ -85,36 +86,36 @@ func (m ArcDefaultHandler) PostArcV1Tx(ctx echo.Context, params arc.PostArcV1TxP
 	case "text/plain":
 		if transaction, err = bt.NewTxFromString(string(body)); err != nil {
 			errStr := err.Error()
-			e := arc.ErrMalformed
+			e := api.ErrMalformed
 			e.ExtraInfo = &errStr
-			return ctx.JSON(int(arc.ErrStatusMalformed), e)
+			return ctx.JSON(int(api.ErrStatusMalformed), e)
 		}
 	case "application/json":
 		var txHex string
 		if err = json.Unmarshal(body, &txHex); err != nil {
 			errStr := err.Error()
-			e := arc.ErrMalformed
+			e := api.ErrMalformed
 			e.ExtraInfo = &errStr
-			return ctx.JSON(int(arc.ErrStatusMalformed), e)
+			return ctx.JSON(int(api.ErrStatusMalformed), e)
 		}
 
 		if transaction, err = bt.NewTxFromString(txHex); err != nil {
 			errStr := err.Error()
-			e := arc.ErrMalformed
+			e := api.ErrMalformed
 			e.ExtraInfo = &errStr
-			return ctx.JSON(int(arc.ErrStatusMalformed), e)
+			return ctx.JSON(int(api.ErrStatusMalformed), e)
 		}
 	case "application/octet-stream":
 		if transaction, err = bt.NewTxFromBytes(body); err != nil {
 			errStr := err.Error()
-			e := arc.ErrMalformed
+			e := api.ErrMalformed
 			e.ExtraInfo = &errStr
-			return ctx.JSON(int(arc.ErrStatusMalformed), e)
+			return ctx.JSON(int(api.ErrStatusMalformed), e)
 		}
 	default:
-		return ctx.JSON(arc.ErrBadRequest.Status, arc.ErrBadRequest)
+		return ctx.JSON(api.ErrBadRequest.Status, api.ErrBadRequest)
 	}
-	transactionOptions := &arc.TransactionOptions{
+	transactionOptions := &api.TransactionOptions{
 		ClientID: user.ClientID,
 	}
 	if params.XCallbackUrl != nil {
@@ -145,16 +146,16 @@ func (m ArcDefaultHandler) GetArcV1TxStatusId(ctx echo.Context, id string) error
 	tx, err := m.getTransactionStatus(ctx.Request().Context(), id)
 	if err != nil {
 		errStr := err.Error()
-		e := arc.ErrGeneric
+		e := api.ErrGeneric
 		e.ExtraInfo = &errStr
-		return ctx.JSON(int(arc.ErrStatusGeneric), e)
+		return ctx.JSON(int(api.ErrStatusGeneric), e)
 	}
 
 	if tx == nil {
-		return echo.NewHTTPError(http.StatusNotFound, arc.ErrNotFound)
+		return echo.NewHTTPError(http.StatusNotFound, api.ErrNotFound)
 	}
 
-	return ctx.JSON(http.StatusOK, arc.TransactionStatus{
+	return ctx.JSON(http.StatusOK, api.TransactionStatus{
 		BlockHash:   &tx.BlockHash,
 		BlockHeight: &tx.BlockHeight,
 		TxStatus:    &tx.Status,
@@ -169,16 +170,16 @@ func (m ArcDefaultHandler) GetArcV1TxId(ctx echo.Context, id string) error {
 	tx, err := m.getTransaction(ctx.Request().Context(), id)
 	if err != nil {
 		errStr := err.Error()
-		e := arc.ErrGeneric
+		e := api.ErrGeneric
 		e.ExtraInfo = &errStr
-		return ctx.JSON(int(arc.ErrStatusGeneric), e)
+		return ctx.JSON(int(api.ErrStatusGeneric), e)
 	}
 
 	if tx == nil {
-		return echo.NewHTTPError(http.StatusNotFound, arc.ErrNotFound)
+		return echo.NewHTTPError(http.StatusNotFound, api.ErrNotFound)
 	}
 
-	return ctx.JSON(http.StatusOK, arc.TransactionResponse{
+	return ctx.JSON(http.StatusOK, api.TransactionResponse{
 		BlockHash:   &tx.BlockHash,
 		BlockHeight: &tx.BlockHeight,
 		// TODO TxStatus:    &tx.Status,
@@ -188,14 +189,14 @@ func (m ArcDefaultHandler) GetArcV1TxId(ctx echo.Context, id string) error {
 }
 
 // PostArcV1Txs ...
-func (m ArcDefaultHandler) PostArcV1Txs(ctx echo.Context, params arc.PostArcV1TxsParams) error {
+func (m ArcDefaultHandler) PostArcV1Txs(ctx echo.Context, params api.PostArcV1TxsParams) error {
 
 	user, err := GetEchoUser(ctx, m.Options.security)
 	if err != nil {
 		errStr := err.Error()
-		e := arc.ErrGeneric
+		e := api.ErrGeneric
 		e.ExtraInfo = &errStr
-		return ctx.JSON(int(arc.ErrStatusGeneric), e)
+		return ctx.JSON(int(api.ErrStatusGeneric), e)
 	}
 
 	// set the globals for all transactions in this request
@@ -210,7 +211,7 @@ func (m ArcDefaultHandler) PostArcV1Txs(ctx echo.Context, params arc.PostArcV1Tx
 		body, err = io.ReadAll(ctx.Request().Body)
 		if err != nil {
 			errStr := err.Error()
-			e := arc.ErrBadRequest
+			e := api.ErrBadRequest
 			e.ExtraInfo = &errStr
 			return ctx.JSON(http.StatusBadRequest, e)
 		}
@@ -233,14 +234,14 @@ func (m ArcDefaultHandler) PostArcV1Txs(ctx echo.Context, params arc.PostArcV1Tx
 		body, err = io.ReadAll(ctx.Request().Body)
 		if err != nil {
 			errStr := err.Error()
-			e := arc.ErrBadRequest
+			e := api.ErrBadRequest
 			e.ExtraInfo = &errStr
 			return ctx.JSON(http.StatusBadRequest, e)
 		}
 
 		var txHex []string
 		if err = json.Unmarshal(body, &txHex); err != nil {
-			return ctx.JSON(int(arc.ErrStatusMalformed), arc.ErrBadRequest)
+			return ctx.JSON(int(api.ErrStatusMalformed), api.ErrBadRequest)
 		}
 
 		transactions = make([]interface{}, len(txHex))
@@ -265,10 +266,10 @@ func (m ArcDefaultHandler) PostArcV1Txs(ctx echo.Context, params arc.PostArcV1Tx
 
 			if bytesRead, err = btTx.ReadFrom(reader); err != nil {
 				if !errors.Is(err, io.ErrShortBuffer) {
-					e := arc.ErrBadRequest
+					e := api.ErrBadRequest
 					errStr := err.Error()
 					e.ExtraInfo = &errStr
-					return ctx.JSON(arc.ErrBadRequest.Status, e)
+					return ctx.JSON(api.ErrBadRequest.Status, e)
 				}
 			}
 			if bytesRead == 0 {
@@ -288,7 +289,7 @@ func (m ArcDefaultHandler) PostArcV1Txs(ctx echo.Context, params arc.PostArcV1Tx
 				if responseError != nil {
 					// what to do here, the transaction failed due to server failure?
 					if response == nil {
-						e := arc.ErrGeneric
+						e := api.ErrGeneric
 						errStr := responseError.Error()
 						e.ExtraInfo = &errStr
 						mu.Lock()
@@ -304,7 +305,7 @@ func (m ArcDefaultHandler) PostArcV1Txs(ctx echo.Context, params arc.PostArcV1Tx
 		}
 		wg.Wait()
 	default:
-		return ctx.JSON(arc.ErrBadRequest.Status, arc.ErrBadRequest)
+		return ctx.JSON(api.ErrBadRequest.Status, api.ErrBadRequest)
 	}
 
 	// we cannot really return any other status here
@@ -312,11 +313,11 @@ func (m ArcDefaultHandler) PostArcV1Txs(ctx echo.Context, params arc.PostArcV1Tx
 	return ctx.JSON(http.StatusOK, transactions)
 }
 
-func (m ArcDefaultHandler) getTransactionResponse(ctx echo.Context, tx string, transactionOptions *arc.TransactionOptions) interface{} {
+func (m ArcDefaultHandler) getTransactionResponse(ctx echo.Context, tx string, transactionOptions *api.TransactionOptions) interface{} {
 	transaction, err := bt.NewTxFromString(tx)
 	if err != nil {
 		errStr := err.Error()
-		e := arc.ErrMalformed
+		e := api.ErrMalformed
 		e.ExtraInfo = &errStr
 		return e
 	}
@@ -324,7 +325,7 @@ func (m ArcDefaultHandler) getTransactionResponse(ctx echo.Context, tx string, t
 	_, response, responseError := m.processTransaction(ctx, transaction, transactionOptions)
 	if responseError != nil {
 		// what to do here, the transaction failed due to server failure?
-		e := arc.ErrGeneric
+		e := api.ErrGeneric
 		errStr := responseError.Error()
 		e.ExtraInfo = &errStr
 		return e
@@ -333,8 +334,8 @@ func (m ArcDefaultHandler) getTransactionResponse(ctx echo.Context, tx string, t
 	return response
 }
 
-func getTransactionOptions(params arc.PostArcV1TxsParams) *arc.TransactionOptions {
-	transactionOptions := &arc.TransactionOptions{}
+func getTransactionOptions(params api.PostArcV1TxsParams) *api.TransactionOptions {
+	transactionOptions := &api.TransactionOptions{}
 	if params.XCallbackUrl != nil {
 		transactionOptions.CallbackURL = *params.XCallbackUrl
 		if params.XCallbackToken != nil {
@@ -349,7 +350,7 @@ func getTransactionOptions(params arc.PostArcV1TxsParams) *arc.TransactionOption
 	return transactionOptions
 }
 
-func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.Tx, transactionOptions *arc.TransactionOptions) (arc.ErrorCode, interface{}, error) {
+func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.Tx, transactionOptions *api.TransactionOptions) (api.ErrorCode, interface{}, error) {
 	fees, err := getFees(ctx, m.Client, transactionOptions.ClientID)
 	if err != nil {
 		return m.handleError(ctx, transaction, err)
@@ -363,6 +364,10 @@ func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.
 	// now that we have validated the transaction, fire it off to the mempool and try to get it mined
 	// this should return a 200 or 201 if 1 or more of the nodes accept the transaction
 	transactionHandler := m.Client.GetTransactionHandler()
+	if transactionHandler == nil {
+		return m.handleError(ctx, transaction, fmt.Errorf("transaction handler not available"))
+	}
+
 	var tx *client.TransactionStatus
 	tx, err = transactionHandler.SubmitTransaction(ctx.Request().Context(), transaction.Bytes(), transactionOptions)
 	if err != nil {
@@ -370,7 +375,7 @@ func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.
 	}
 
 	// TODO differentiate between 200 and 201
-	return arc.StatusAddedBlockTemplate, arc.TransactionResponse{
+	return api.StatusAddedBlockTemplate, api.TransactionResponse{
 		BlockHash:   &tx.BlockHash,
 		BlockHeight: &tx.BlockHeight,
 		// TODO TxStatus:    &tx.Status,
@@ -381,6 +386,9 @@ func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.
 
 func (m ArcDefaultHandler) getTransaction(ctx context.Context, id string) (*client.RawTransaction, error) {
 	transactionHandler := m.Client.GetTransactionHandler()
+	if transactionHandler == nil {
+		return nil, fmt.Errorf("transaction handler not available")
+	}
 
 	tx, err := transactionHandler.GetTransaction(ctx, id)
 	if err != nil {
@@ -392,6 +400,9 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, id string) (*clie
 
 func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) (*client.TransactionStatus, error) {
 	transactionHandler := m.Client.GetTransactionHandler()
+	if transactionHandler == nil {
+		return nil, fmt.Errorf("transaction handler not available")
+	}
 
 	tx, err := transactionHandler.GetTransactionStatus(ctx, id)
 	if err != nil {
@@ -401,17 +412,17 @@ func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) 
 	return tx, nil
 }
 
-func (m ArcDefaultHandler) handleError(_ echo.Context, transaction *bt.Tx, submitErr error) (arc.ErrorCode, interface{}, error) {
-	status := arc.ErrStatusGeneric
+func (m ArcDefaultHandler) handleError(_ echo.Context, transaction *bt.Tx, submitErr error) (api.ErrorCode, interface{}, error) {
+	status := api.ErrStatusGeneric
 	isArcError, ok := submitErr.(*validator.Error)
 	if ok {
 		status = isArcError.ArcErrorStatus
 	}
 
 	// enrich the response with the error details
-	arcError := arc.ErrByStatus[status]
+	arcError := api.ErrByStatus[status]
 	if arcError == nil {
-		return arc.ErrStatusGeneric, arc.ErrGeneric, nil
+		return api.ErrStatusGeneric, api.ErrGeneric, nil
 	}
 
 	if transaction != nil {
@@ -426,10 +437,10 @@ func (m ArcDefaultHandler) handleError(_ echo.Context, transaction *bt.Tx, submi
 	return status, arcError, nil
 }
 
-func getFees(_ echo.Context, c client.Interface, _ string) (*arc.FeesResponse, error) {
+func getFees(_ echo.Context, c client.Interface, _ string) (*api.FeesResponse, error) {
 
 	defaultFees := c.GetDefaultFees()
-	feesResponse := &arc.FeesResponse{
+	feesResponse := &api.FeesResponse{
 		Timestamp: time.Now(),
 		Fees:      &defaultFees,
 	}

@@ -4,7 +4,7 @@ package config
 import (
 	"time"
 
-	arc "github.com/TAAL-GmbH/arc"
+	"github.com/TAAL-GmbH/arc/api"
 	"github.com/labstack/echo/v4"
 	"github.com/mrz1836/go-cachestore"
 	"github.com/mrz1836/go-datastore"
@@ -54,7 +54,7 @@ type (
 		Debug            bool              `json:"debug" mapstructure:"debug"`
 		VerboseDebug     bool              `json:"verbose_debug" mapstructure:"verbose_debug"`
 		Environment      Environment       `json:"environment" mapstructure:"environment"`
-		Fees             []arc.Fee         `json:"fees" mapstructure:"fees"`
+		Fees             []api.Fee         `json:"fees" mapstructure:"fees"`
 		Profile          bool              `json:"profile" mapstructure:"profile"` // whether to start the profiling http server
 		Metamorph        []string          `json:"metamorph" mapstructure:"metamorph"`
 		Nodes            []*NodeConfig     `json:"nodes" mapstructure:"nodes"`
@@ -106,7 +106,7 @@ type (
 		Type          SecurityType                              `json:"type" mapstructure:"type"`             // jwt or custom
 		Issuer        string                                    `json:"issuer" mapstructure:"issuer"`         // Token issuer
 		BearerKey     string                                    `json:"bearer_key" mapstructure:"bearer_key"` // JWT bearer secret key
-		CustomGetUser func(ctx echo.Context) (*arc.User, error) `json:"-"`
+		CustomGetUser func(ctx echo.Context) (*api.User, error) `json:"-"`
 	}
 
 	// ServerConfig is a configuration for the ARC server

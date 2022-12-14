@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TAAL-GmbH/arc"
+	"github.com/TAAL-GmbH/arc/api"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/ordishs/go-bitcoin"
@@ -124,26 +124,26 @@ func TestValidator(t *testing.T) {
 	})
 }
 
-func getPolicy(satoshisPerKB uint64) *arc.FeesResponse {
-	fees := &arc.FeesResponse{
+func getPolicy(satoshisPerKB uint64) *api.FeesResponse {
+	fees := &api.FeesResponse{
 		Timestamp: time.Now(),
-		Fees: &[]arc.Fee{{
-			FeeType: arc.Standard,
-			MiningFee: arc.FeeAmount{
+		Fees: &[]api.Fee{{
+			FeeType: api.Standard,
+			MiningFee: api.FeeAmount{
 				Satoshis: satoshisPerKB,
 				Bytes:    1000,
 			},
-			RelayFee: arc.FeeAmount{
+			RelayFee: api.FeeAmount{
 				Satoshis: satoshisPerKB,
 				Bytes:    1000,
 			},
 		}, {
-			FeeType: arc.Data,
-			MiningFee: arc.FeeAmount{
+			FeeType: api.Data,
+			MiningFee: api.FeeAmount{
 				Satoshis: satoshisPerKB,
 				Bytes:    1000,
 			},
-			RelayFee: arc.FeeAmount{
+			RelayFee: api.FeeAmount{
 				Satoshis: satoshisPerKB,
 				Bytes:    1000,
 			},
@@ -160,18 +160,18 @@ func _(txID string) (*bt.Tx, error) {
 		return nil, err
 	}
 
-	var hex *string
-	if hex, err = b.GetRawTransactionHex(txID); err != nil {
+	var hexStr *string
+	if hexStr, err = b.GetRawTransactionHex(txID); err != nil {
 		return nil, err
 	}
 
-	return bt.NewTxFromString(*hex)
+	return bt.NewTxFromString(*hexStr)
 }
 
 func Test_checkTxSize(t *testing.T) {
 	type args struct {
 		txSize int
-		fees   *arc.FeesResponse
+		fees   *api.FeesResponse
 	}
 	tests := []struct {
 		name    string
@@ -182,15 +182,15 @@ func Test_checkTxSize(t *testing.T) {
 			name: "valid tx size",
 			args: args{
 				txSize: 100,
-				fees:   &arc.FeesResponse{},
+				fees:   &api.FeesResponse{},
 			},
 			wantErr: false,
 		},
 		{
 			name: "invalid tx size",
 			args: args{
-				txSize: 100,
-				fees:   &arc.FeesResponse{},
+				txSize: MaxBlockSize + 1,
+				fees:   &api.FeesResponse{},
 			},
 			wantErr: true,
 		},
@@ -408,7 +408,7 @@ func Test_checkFeesTxs(t *testing.T) {
 func Test_sigOpsCheck(t *testing.T) {
 	type args struct {
 		tx   *bt.Tx
-		fees *arc.FeesResponse
+		fees *api.FeesResponse
 	}
 	tests := []struct {
 		name    string
@@ -421,7 +421,7 @@ func Test_sigOpsCheck(t *testing.T) {
 				tx: &bt.Tx{
 					Inputs: []*bt.Input{{PreviousTxScript: validLockingScript}},
 				},
-				fees: &arc.FeesResponse{},
+				fees: &api.FeesResponse{},
 			},
 			wantErr: false,
 		},
@@ -435,7 +435,7 @@ func Test_sigOpsCheck(t *testing.T) {
 						PreviousTxScript: validLockingScript,
 					}},
 				},
-				fees: &arc.FeesResponse{},
+				fees: &api.FeesResponse{},
 			},
 			wantErr: true,
 		},
@@ -449,7 +449,7 @@ func Test_sigOpsCheck(t *testing.T) {
 						PreviousTxScript: validLockingScript,
 					}},
 				},
-				fees: &arc.FeesResponse{},
+				fees: &api.FeesResponse{},
 			},
 			wantErr: false,
 		},

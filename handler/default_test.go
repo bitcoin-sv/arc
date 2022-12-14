@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TAAL-GmbH/arc"
+	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/test"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
@@ -60,12 +60,12 @@ func TestGetArcV1Fees(t *testing.T) { //nolint:funlen
 		assert.Equal(t, http.StatusOK, rec.Code)
 
 		bPolicy := rec.Body.Bytes()
-		var feesResponse arc.FeesResponse
+		var feesResponse api.FeesResponse
 		_ = json.Unmarshal(bPolicy, &feesResponse)
 
 		require.NotNil(t, feesResponse.Fees)
 		fees := *feesResponse.Fees
-		assert.Equal(t, arc.Data, fees[0].FeeType)
+		assert.Equal(t, api.Data, fees[0].FeeType)
 		assert.Equal(t, uint64(3), fees[0].MiningFee.Satoshis)
 		assert.Equal(t, uint64(1000), fees[0].MiningFee.Bytes)
 		assert.Equal(t, uint64(4), fees[0].RelayFee.Satoshis)
@@ -89,9 +89,9 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 			rec := httptest.NewRecorder()
 			ctx := e.NewContext(req, rec)
 
-			err = defaultHandler.PostArcV1Tx(ctx, arc.PostArcV1TxParams{})
+			err = defaultHandler.PostArcV1Tx(ctx, api.PostArcV1TxParams{})
 			require.NoError(t, err)
-			assert.Equal(t, rec.Code, arc.ErrMalformed.Status)
+			assert.Equal(t, rec.Code, api.ErrMalformed.Status)
 		}
 	})
 
@@ -109,9 +109,9 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
 
-		err = defaultHandler.PostArcV1Tx(ctx, arc.PostArcV1TxParams{})
+		err = defaultHandler.PostArcV1Tx(ctx, api.PostArcV1TxParams{})
 		require.NoError(t, err)
-		assert.Equal(t, rec.Code, arc.ErrBadRequest.Status)
+		assert.Equal(t, rec.Code, api.ErrBadRequest.Status)
 	})
 
 	t.Run("invalid tx", func(t *testing.T) {
@@ -130,12 +130,12 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 
 		for contentType, expectedError := range expectedErrors {
 			rec, ctx := createEchoRequest(strings.NewReader("test"), contentType, "/arc/v1/tx")
-			err = defaultHandler.PostArcV1Tx(ctx, arc.PostArcV1TxParams{})
+			err = defaultHandler.PostArcV1Tx(ctx, api.PostArcV1TxParams{})
 			require.NoError(t, err)
-			assert.Equal(t, arc.ErrMalformed.Status, rec.Code)
+			assert.Equal(t, api.ErrMalformed.Status, rec.Code)
 
 			b := rec.Body.Bytes()
-			var bErr arc.ErrorMalformed
+			var bErr api.ErrorMalformed
 			_ = json.Unmarshal(b, &bErr)
 
 			require.NotNil(t, bErr.ExtraInfo)
@@ -161,12 +161,12 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 
 		for contentType, inputTx := range inputTxs {
 			rec, ctx := createEchoRequest(inputTx, contentType, "/arc/v1/tx")
-			err = defaultHandler.PostArcV1Tx(ctx, arc.PostArcV1TxParams{})
+			err = defaultHandler.PostArcV1Tx(ctx, api.PostArcV1TxParams{})
 			require.NoError(t, err)
-			assert.Equal(t, arc.ErrStatusTxFormat, arc.ErrorCode(rec.Code))
+			assert.Equal(t, api.ErrStatusTxFormat, api.ErrorCode(rec.Code))
 
 			b := rec.Body.Bytes()
-			var bErr arc.ErrorFee
+			var bErr api.ErrorFee
 			_ = json.Unmarshal(b, &bErr)
 
 			assert.Equal(t, "arc error 460: transaction is not in extended format", *bErr.ExtraInfo)
@@ -191,12 +191,12 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 
 		for contentType, inputTx := range inputTxs {
 			rec, ctx := createEchoRequest(inputTx, contentType, "/arc/v1/tx")
-			err = defaultHandler.PostArcV1Tx(ctx, arc.PostArcV1TxParams{})
+			err = defaultHandler.PostArcV1Tx(ctx, api.PostArcV1TxParams{})
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusCreated, rec.Code)
 
 			b := rec.Body.Bytes()
-			var bResponse arc.TransactionResponse
+			var bResponse api.TransactionResponse
 			_ = json.Unmarshal(b, &bResponse)
 
 			require.Equal(t, validTxID, bResponse.Txid)

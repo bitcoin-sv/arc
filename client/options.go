@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/TAAL-GmbH/arc"
+	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/config"
 	"github.com/coocood/freecache"
 	"github.com/mrz1836/go-cache"
@@ -18,7 +18,9 @@ type (
 	clientOptions struct {
 		cachestore         cachestore.ClientInterface
 		cachestoreOptions  []cachestore.ClientOps
-		fees               []arc.Fee
+		fees               []api.Fee
+		metamorphs         []string
+		nodesOptions       []*config.NodeConfig
 		transactionHandler TransactionHandler
 	}
 )
@@ -27,6 +29,20 @@ type (
 func WithNode(transactionHandler TransactionHandler) Options {
 	return func(o *clientOptions) {
 		o.transactionHandler = transactionHandler
+	}
+}
+
+// WithNodeConfig sets nodes from a config
+func WithNodeConfig(nodesConfig []*config.NodeConfig) Options {
+	return func(o *clientOptions) {
+		o.nodesOptions = nodesConfig
+	}
+}
+
+// WithMetamorphs sets all metamorph servers to use
+func WithMetamorphs(servers []string) Options {
+	return func(o *clientOptions) {
+		o.metamorphs = servers
 	}
 }
 

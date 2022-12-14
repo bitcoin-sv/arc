@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	arc "github.com/TAAL-GmbH/arc"
+	arc "github.com/TAAL-GmbH/arc/api"
 	"github.com/ordishs/go-bitcoin"
 )
 

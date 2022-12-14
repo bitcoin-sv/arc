@@ -6,8 +6,8 @@ import (
 	"math/rand"
 	"time"
 
-	arc "github.com/TAAL-GmbH/arc"
-	"github.com/TAAL-GmbH/metamorph/metamorph_api"
+	arc "github.com/TAAL-GmbH/arc/api"
+	"github.com/TAAL-GmbH/arc/metamorph_api"
 	"github.com/ordishs/go-bitcoin"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

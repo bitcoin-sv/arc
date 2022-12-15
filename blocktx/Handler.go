@@ -99,11 +99,9 @@ func (h *MinedTransactionHandler) SendTx(blockHash []byte, txHash []byte) {
 
 // sendTxBatch sends a batch of transactions to the subscribers
 // The batch is grouped by block hash
-// If the block hash is different than the previous batch, a new batch is sent
-// If the block hash is the same as the previous batch, the transactions are appended to the previous batch
 func (h *MinedTransactionHandler) sendTxBatch(batch []*blockTx) {
 	mt := &pb.MinedTransaction{
-		Txs: make([][]byte, 0),
+		// Txs: make([][]byte, 0),
 	}
 
 	for _, btx := range batch {
@@ -112,7 +110,7 @@ func (h *MinedTransactionHandler) sendTxBatch(batch []*blockTx) {
 
 			mt = &pb.MinedTransaction{
 				Blockhash: btx.blockHash,
-				Txs:       mt.Txs[:0],
+				Txs:       nil,
 			}
 		}
 

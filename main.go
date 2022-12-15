@@ -6,6 +6,9 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/TAAL-GmbH/arc/blocktx"
+	"github.com/TAAL-GmbH/arc/blocktx/store/sql"
+	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
 )
 
@@ -54,6 +57,38 @@ func appCleanup() {
 }
 
 func start() {
-	ch := make(chan struct{})
-	<-ch
+	blockStore, err := sql.NewSQLStore("sqlite")
+	if err != nil {
+		panic("Could not connect to fn: " + err.Error())
+	}
+
+	// dbConn, err := memory.New()
+	// if err != nil {
+	// 	logger.Fatal(err)
+	// }
+
+	host, _ := gocore.Config().Get("bitcoinHost", "localhost")
+	port, _ := gocore.Config().GetInt("rpcPort", 8332)
+	username, _ := gocore.Config().Get("rpcUsername", "bitcoin")
+	password, _ := gocore.Config().Get("rpcPassword", "bitcoin")
+
+	b, err := bitcoin.New(host, port, username, password, false)
+	if err != nil {
+		logger.Fatalf("Could not connect to bitcoin: %v", err)
+	}
+
+	var p *blocktx.Processor
+	p, err = blocktx.NewBlockTxProcessor(blockStore, b)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	p.Start()
+
+	srv := blocktx.NewServer(blockStore, p, logger)
+
+	err = srv.StartGRPCServer()
+	if err != nil {
+		logger.Fatal(err)
+	}
 }

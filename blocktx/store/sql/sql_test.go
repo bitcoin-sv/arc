@@ -7,20 +7,9 @@ import (
 
 	pb "github.com/TAAL-GmbH/arc/blocktx_api"
 
-	"github.com/ordishs/gocore"
-
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-)
-
-var (
-	dbHost, _     = gocore.Config().Get("dbHost", "localhost")
-	dbPort, _     = gocore.Config().GetInt("dbPort", 5432)
-	dbName, _     = gocore.Config().Get("dbName", "blocktx")
-	dbUser, _     = gocore.Config().Get("dbUser", "blocktx")
-	dbPassword, _ = gocore.Config().Get("dbPassword", "blocktx")
-	// dbInfo        = fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", dbUser, dbPassword, dbName, dbHost, dbPort)
 )
 
 func TestInOut(t *testing.T) {
@@ -32,7 +21,7 @@ func TestInOut(t *testing.T) {
 		Height: 1,
 	}
 
-	s, err := New("postgres", dbHost, dbUser, dbPassword, dbName, dbPort)
+	s, err := NewSQLStore("sqlite")
 	require.NoError(t, err)
 
 	blockId, err := s.InsertBlock(ctx, block)
@@ -84,7 +73,7 @@ func TestInOut(t *testing.T) {
 func TestBlockNotExists(t *testing.T) {
 	ctx := context.Background()
 
-	s, err := New("postgres", dbHost, dbUser, dbPassword, dbName, dbPort)
+	s, err := NewSQLStore("sqlite")
 	require.NoError(t, err)
 
 	height := uint64(1000000)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/blocktx/store"
 
+	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -22,12 +23,12 @@ import (
 type Server struct {
 	store store.Interface
 	pb.UnsafeBlockTxAPIServer
-	logger    *gocore.Logger
+	logger    utils.Logger
 	processor *Processor
 }
 
 // NewServer will return a server instance with the logger stored within it
-func NewServer(storeI store.Interface, p *Processor, logger *gocore.Logger) *Server {
+func NewServer(storeI store.Interface, p *Processor, logger utils.Logger) *Server {
 
 	return &Server{
 		store:     storeI,

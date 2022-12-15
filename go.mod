@@ -18,7 +18,7 @@ require (
 	github.com/mrz1836/go-datastore v0.1.7
 	github.com/mrz1836/go-logger v0.3.1
 	github.com/ordishs/go-bitcoin v1.0.73
-	github.com/ordishs/go-utils v1.0.8
+	github.com/ordishs/go-utils v1.0.9
 	github.com/ordishs/gocore v1.0.20
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/viper v1.13.0

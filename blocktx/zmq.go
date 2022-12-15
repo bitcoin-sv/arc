@@ -42,5 +42,4 @@ func (z *ZMQ) Start() {
 	if err := zmq.Subscribe("hashblock", ch); err != nil {
 		z.logger.Fatal(err)
 	}
-
 }

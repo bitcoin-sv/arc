@@ -12,7 +12,7 @@ import (
 	pb "github.com/TAAL-GmbH/arc/blocktx_api"
 )
 
-type memblock struct {
+type memBlock struct {
 	block        *pb.Block
 	height       uint64
 	transactions *pb.Transactions
@@ -22,16 +22,16 @@ type memblock struct {
 
 type Store struct {
 	mu            sync.RWMutex
-	blocks        map[string]*memblock
-	blockByHeight map[uint64]*memblock
-	blockById     map[uint64]*memblock
+	blocks        map[string]*memBlock
+	blockByHeight map[uint64]*memBlock
+	blockById     map[uint64]*memBlock
 }
 
 func New() (store.Interface, error) {
 	return &Store{
-		blocks:        make(map[string]*memblock),
-		blockByHeight: make(map[uint64]*memblock),
-		blockById:     make(map[uint64]*memblock),
+		blocks:        make(map[string]*memBlock),
+		blockByHeight: make(map[uint64]*memBlock),
+		blockById:     make(map[uint64]*memBlock),
 	}, nil
 }
 
@@ -52,8 +52,8 @@ func (s *Store) GetBlockTransactions(_ context.Context, block *pb.Block) (*pb.Tr
 }
 
 func (s *Store) GetLastProcessedBlock(_ context.Context) (*pb.Block, error) {
-	// get the last memblock in the map
-	var lastBlock *memblock
+	// get the last memBlock in the map
+	var lastBlock *memBlock
 	for _, blk := range s.blocks { // HL
 		if lastBlock.processed && (lastBlock == nil || blk.height > lastBlock.height) {
 			lastBlock = blk
@@ -67,7 +67,7 @@ func (s *Store) GetLastProcessedBlock(_ context.Context) (*pb.Block, error) {
 }
 
 func (s *Store) GetTransactionBlock(_ context.Context, transaction *pb.Transaction) (*pb.Block, error) {
-	// get the memblock the transaction is found in, but only if it is not orphaned
+	// get the memBlock the transaction is found in, but only if it is not orphaned
 	for _, blk := range s.blocks {
 		if blk.orphaned {
 			continue
@@ -102,11 +102,11 @@ func (s *Store) GetTransactionBlocks(_ context.Context, transaction *pb.Transact
 }
 
 func (s *Store) InsertBlock(_ context.Context, block *pb.Block) (uint64, error) {
-	// insert new memblock
+	// insert new memBlock
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	insertBlock := memblock{
+	insertBlock := memBlock{
 		block:     block,
 		height:    block.Height,
 		processed: false,

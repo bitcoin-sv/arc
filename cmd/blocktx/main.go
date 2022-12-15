@@ -78,8 +78,6 @@ func start() {
 		logger.Fatal(err)
 	}
 
-	mtb := blocktx.NewHandler(logger)
-
 	host, _ := gocore.Config().Get("bitcoinHost", "localhost")
 	port, _ := gocore.Config().GetInt("rpcPort", 8332)
 	username, _ := gocore.Config().Get("rpcUsername", "bitcoin")
@@ -87,22 +85,14 @@ func start() {
 
 	b, err := bitcoin.New(host, port, username, password, false)
 	if err != nil {
-		logger.Fatalf("Could not connect to bitcoin: %w", err)
+		logger.Fatalf("Could not connect to bitcoin: %v", err)
 	}
 
 	var p *blocktx.Processor
-	p, err = blocktx.NewProcessor(dbConn, mtb, b)
+	p, err = blocktx.NewBlockTxProcessor(dbConn, b)
 	if err != nil {
 		logger.Fatal(err)
 	}
-
-	zmqHost, _ := gocore.Config().Get("peer_1_host", "localhost")
-	zmqPort, _ := gocore.Config().GetInt("peer_1_zmqPort", 28332)
-	z := blocktx.NewZMQ(p, zmqHost, zmqPort)
-
-	go p.Catchup()
-
-	z.Start()
 
 	srv := blocktx.NewServer(dbConn, p, logger)
 	err = srv.StartGRPCServer()

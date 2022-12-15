@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/blocktx/store"
@@ -23,32 +24,42 @@ type ProcessorBitcoinI interface {
 }
 
 type Processor struct {
-	store   store.Interface
-	bitcoin ProcessorBitcoinI
-	logger  *gocore.Logger
-	ch      chan string
-	Mtb     *MinedTransactionHandler
+	once      sync.Once
+	store     store.Interface
+	bitcoin   ProcessorBitcoinI
+	logger    *gocore.Logger
+	ch        chan string
+	catchupCh chan string
+	quitCh    chan bool
+	Mtb       *MinedTransactionHandler
 }
 
-func NewProcessor(storeI store.Interface, mtb *MinedTransactionHandler, bitcoin ProcessorBitcoinI) (*Processor, error) {
+func NewBlockTxProcessor(storeI store.Interface, bitcoin ProcessorBitcoinI) (*Processor, error) {
+	logger := gocore.Log("processor")
 
 	p := &Processor{
 		store:   storeI,
 		bitcoin: bitcoin,
-		logger:  gocore.Log("processor"),
-		ch:      make(chan string, 10),
-		Mtb:     mtb,
+		logger:  logger,
+		quitCh:  make(chan bool),
 	}
 
-	go func() {
-		for blockHash := range p.ch {
-			if err := p.processBlock(blockHash); err != nil {
-				p.logger.Errorf("Error processing block %s: %v", blockHash, err)
-			}
-		}
-	}()
-
 	return p, nil
+}
+
+func (p *Processor) Start() {
+	go p.Catchup()
+
+	zmqHost, _ := gocore.Config().Get("peer_1_host", "localhost")
+	zmqPort, _ := gocore.Config().GetInt("peer_1_zmqPort", 28332)
+
+	z := NewZMQ(p, zmqHost, zmqPort)
+
+	z.Start()
+}
+
+func (p *Processor) Close() {
+	close(p.quitCh)
 }
 
 func (p *Processor) GetBlockHashForHeight(height int) (string, error) {
@@ -60,6 +71,31 @@ func (p *Processor) GetBlockHashForHeight(height int) (string, error) {
 }
 
 func (p *Processor) ProcessBlock(hashStr string) {
+	p.once.Do(func() {
+		p.ch = make(chan string, 10)
+		p.catchupCh = make(chan string, 10)
+		p.Mtb = NewHandler(p.logger)
+
+		go func() {
+			for {
+				select {
+				case <-p.quitCh:
+					return
+
+				case blockHash := <-p.catchupCh:
+					if err := p.processBlock(blockHash); err != nil {
+						p.logger.Errorf("Error processing catchup block %s: %v", blockHash, err)
+					}
+
+				case blockHash := <-p.ch:
+					if err := p.processBlock(blockHash); err != nil {
+						p.logger.Errorf("Error processing zmq block %s: %v", blockHash, err)
+					}
+				}
+			}
+		}()
+	})
+
 	p.ch <- hashStr
 }
 
@@ -137,7 +173,9 @@ func (p *Processor) Catchup() {
 	block, err := p.store.GetLastProcessedBlock(context.Background())
 	if err != nil {
 		if err == sql.ErrNoRows {
-			p.logger.Infof("No blocks in database, starting from genesis")
+			p.logger.Infof("No blocks in database, starting from current block")
+			// TODO get current block height
+			height = 770000
 		} else {
 			p.logger.Fatal(err)
 		}

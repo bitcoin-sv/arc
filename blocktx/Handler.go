@@ -34,7 +34,7 @@ func NewHandler(l utils.Logger) *MinedTransactionHandler {
 		deadSubscriptions: make(chan pb.BlockTxAPI_GetMinedBlockTransactionsServer, 128),
 		mtCh:              make(chan *pb.MinedTransaction),
 	}
-	h.txBatcher = batcher.New(500, 500*time.Millisecond, h.sendTxBatch, false)
+	h.txBatcher = batcher.New(500, 500*time.Millisecond, h.sendTxBatch, true)
 
 	go func() {
 	OUT:

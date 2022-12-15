@@ -421,8 +421,8 @@ github.com/newrelic/go-agent/v3/integrations/nrmongo v1.0.2/go.mod h1:iz2tq3oBn0
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/ordishs/go-bitcoin v1.0.73 h1:NRQS7uyiKsve2BpCoYimWBlzZvQ40KT/vdZ/73vb9EU=
 github.com/ordishs/go-bitcoin v1.0.73/go.mod h1:7gXD2G745ETJK4OU4xXl0UBIOAc80615hBJRjPqKhWY=
-github.com/ordishs/go-utils v1.0.9 h1:WtnabYyqRmAogsR/YQj5i9dazL+WHq5puMoE5oYHgEk=
-github.com/ordishs/go-utils v1.0.9/go.mod h1:k9G7Bbv2GwoOn9fwZx70yM5jwwIymkv+90FUKLudtyc=
+github.com/ordishs/go-utils v1.0.10 h1:+27lKEchp3kHEkQfdWKx+8H57vYzVmtRXCmFehNNLMw=
+github.com/ordishs/go-utils v1.0.10/go.mod h1:k9G7Bbv2GwoOn9fwZx70yM5jwwIymkv+90FUKLudtyc=
 github.com/ordishs/gocore v1.0.20 h1:qGIbdnf4pzmPmYl++WxubjrHD9Rz6sQQQfI3OFtiXJQ=
 github.com/ordishs/gocore v1.0.20/go.mod h1:jDw6qSnZFcE/ddoIVrQWTZtPh3O5izA2SRWZ+1CS4Q0=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=

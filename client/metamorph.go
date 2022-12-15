@@ -82,6 +82,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 
 	if tx == nil {
 		// TODO get the transaction from the bitcoin node rpc
+		return nil, fmt.Errorf("transaction not found")
 	}
 
 	return &TransactionStatus{

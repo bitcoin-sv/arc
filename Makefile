@@ -17,7 +17,7 @@ test:
 
 .PHONY: lint
 lint:
-	golangci-lint run
+	golangci-lint run --skip-dirs p2p/wire
 
 .PHONY: run
 run:
@@ -32,13 +32,21 @@ gen:
 	--go-grpc_opt=paths=source_relative \
     metamorph_api/metamorph_api.proto
 
+	protoc \
+	--go_out=. \
+	--go_opt=paths=source_relative \
+	--go-grpc_out=. \
+	--go-grpc_opt=paths=source_relative \
+    blocktx_api/blocktx_api.proto
+
 .PHONY: clean_gen
 clean_gen:
 	rm -f ./metamorph_api/*.pb.go
+	rm -f ./blocktx_api/*.pb.go
 
 .PHONY: clean
 clean:
-	rm -f ./metamorph_*.tar.gz
+	rm -f ./arc_*.tar.gz
 	rm -rf build/
  
 .PHONY: install
@@ -48,7 +56,7 @@ install:
 
 .PHONY: docs
 docs:
-	sh enerate_docs.sh
+	sh generate_docs.sh
 
 .PHONY: api
 api:

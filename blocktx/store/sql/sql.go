@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/TAAL-GmbH/arc/blocktx/store"
 	_ "github.com/lib/pq"
 	"github.com/ordishs/gocore"
 )

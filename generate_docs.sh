@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 if ! [ -x "$(command -v widdershins)" ]; then
   npm install -g widdershins

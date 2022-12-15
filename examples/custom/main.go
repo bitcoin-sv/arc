@@ -74,8 +74,8 @@ func main() {
 	}
 
 	// initialise the arc default api handler, with our client and any handler options
-	var api api.HandlerInterface
-	if api, err = handler.NewDefault(c, handler.WithSecurityConfig(&config.SecurityConfig{
+	var apiHandler api.HandlerInterface
+	if apiHandler, err = handler.NewDefault(c, handler.WithSecurityConfig(&config.SecurityConfig{
 		Type: config.SecurityTypeCustom,
 		// when setting a custom security handler, it is highly recommended defining a custom user function
 		CustomGetUser: func(ctx echo.Context) (*api.User, error) {
@@ -91,7 +91,7 @@ func main() {
 
 	// Register the ARC API
 	// the arc handler registers routes under /arc/v1/...
-	api.RegisterHandlers(e, api)
+	api.RegisterHandlers(e, apiHandler)
 	// or with a base url => /mySubDir/arc/v1/...
 	// arc.RegisterHandlersWithBaseURL(e. api, "/mySubDir")
 

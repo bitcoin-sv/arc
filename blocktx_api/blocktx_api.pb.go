@@ -7,13 +7,12 @@
 package blocktx_api
 
 import (
-	reflect "reflect"
-	sync "sync"
-
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	reflect "reflect"
+	sync "sync"
 )
 
 const (
@@ -141,8 +140,8 @@ type Block struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Hash     []byte `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
-	Header   []byte `protobuf:"bytes,2,opt,name=header,proto3" json:"header,omitempty"`
+	Hash     []byte `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`     // Little endian
+	Header   []byte `protobuf:"bytes,2,opt,name=header,proto3" json:"header,omitempty"` // The header is not reversed because it is not a single value, but a list of values.
 	Height   uint64 `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
 	Orphaned bool   `protobuf:"varint,4,opt,name=orphaned,proto3" json:"orphaned,omitempty"`
 }
@@ -261,8 +260,8 @@ type MinedTransaction struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Blockhash []byte   `protobuf:"bytes,1,opt,name=blockhash,proto3" json:"blockhash,omitempty"`
-	Txs       [][]byte `protobuf:"bytes,2,rep,name=txs,proto3" json:"txs,omitempty"`
+	Blockhash []byte   `protobuf:"bytes,1,opt,name=blockhash,proto3" json:"blockhash,omitempty"` // Little endian
+	Txs       [][]byte `protobuf:"bytes,2,rep,name=txs,proto3" json:"txs,omitempty"`             // Little endian
 }
 
 func (x *MinedTransaction) Reset() {
@@ -317,7 +316,7 @@ type Transaction struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Hash []byte `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
+	Hash []byte `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"` // Little endian
 }
 
 func (x *Transaction) Reset() {

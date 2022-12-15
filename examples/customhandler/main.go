@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/handler"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3filter"
@@ -54,14 +55,14 @@ func main() {
 	// initialise our Custom arc handler
 	// which also initialises the client and datastore etc.
 	//
-	api, err := NewCustomHandler()
+	apiHandler, err := NewCustomHandler()
 	if err != nil {
 		panic(err)
 	}
 
 	// Register the ARC API
 	// the arc handler registers routes under /arc/v2/...
-	api.RegisterHandlers(e, api)
+	api.RegisterHandlers(e, apiHandler)
 	// or with a base url => /mySubDir/arc/v2/...
 	// arc.RegisterHandlersWithBaseURL(e. api, "/mySubDir")
 

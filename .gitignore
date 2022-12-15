@@ -2,3 +2,4 @@
 arc_*.tar.gz
 build/
 data/
+block-tx.db

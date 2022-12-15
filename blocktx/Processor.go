@@ -141,6 +141,8 @@ func (p *Processor) processBlock(hashStr string) error {
 
 	var transactions []*pb.Transaction
 
+	reversedBlockHash := utils.ReverseSlice(block.Hash)
+
 	for _, txid := range blockJson.Tx {
 		txHash, err := hex.DecodeString(txid) // Do not reverse the bytes for storage in database
 		if err != nil {
@@ -149,7 +151,7 @@ func (p *Processor) processBlock(hashStr string) error {
 
 		// The following line will send the transaction to the MinedTransactionHandler and
 		// we need all hashes to be little endian
-		p.Mtb.SendTx(utils.ReverseSlice(block.Hash), utils.ReverseSlice(txHash))
+		p.Mtb.SendTx(reversedBlockHash, utils.ReverseSlice(txHash))
 
 		transactions = append(transactions, &pb.Transaction{Hash: txHash})
 	}

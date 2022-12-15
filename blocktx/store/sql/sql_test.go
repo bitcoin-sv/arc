@@ -3,10 +3,9 @@ package sql
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"testing"
 
-	pb "github.com/TAAL-GmbH/arcblocktx_api"
+	pb "github.com/TAAL-GmbH/arc/blocktx_api"
 
 	"github.com/ordishs/gocore"
 
@@ -21,7 +20,7 @@ var (
 	dbName, _     = gocore.Config().Get("dbName", "blocktx")
 	dbUser, _     = gocore.Config().Get("dbUser", "blocktx")
 	dbPassword, _ = gocore.Config().Get("dbPassword", "blocktx")
-	dbInfo        = fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", dbUser, dbPassword, dbName, dbHost, dbPort)
+	// dbInfo        = fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", dbUser, dbPassword, dbName, dbHost, dbPort)
 )
 
 func TestInOut(t *testing.T) {

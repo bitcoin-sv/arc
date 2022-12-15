@@ -288,14 +288,12 @@ func (m ArcDefaultHandler) PostArcV1Txs(ctx echo.Context, params api.PostArcV1Tx
 				_, response, responseError := m.processTransaction(ctx, transaction, transactionOptions)
 				if responseError != nil {
 					// what to do here, the transaction failed due to server failure?
-					if response == nil {
-						e := api.ErrGeneric
-						errStr := responseError.Error()
-						e.ExtraInfo = &errStr
-						mu.Lock()
-						transactions = append(transactions, e)
-						mu.Unlock()
-					}
+					e := api.ErrGeneric
+					errStr := responseError.Error()
+					e.ExtraInfo = &errStr
+					mu.Lock()
+					transactions = append(transactions, e)
+					mu.Unlock()
 				} else {
 					mu.Lock()
 					transactions = append(transactions, response)

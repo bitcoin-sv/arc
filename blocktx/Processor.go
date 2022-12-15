@@ -16,28 +16,25 @@ import (
 	pb "github.com/TAAL-GmbH/arc/blocktx_api"
 )
 
+type ProcessorBitcoinI interface {
+	GetBlock(hash string) (*bitcoin.Block, error)
+	GetBlockHeaderHex(hash string) (*string, error)
+	GetBlockHash(height int) (string, error)
+}
+
 type Processor struct {
 	store   store.Interface
-	bitcoin *bitcoin.Bitcoind
+	bitcoin ProcessorBitcoinI
 	logger  *gocore.Logger
 	ch      chan string
 	Mtb     *MinedTransactionHandler
 }
 
-func NewProcessor(storeI store.Interface, mtb *MinedTransactionHandler) (*Processor, error) {
-	host, _ := gocore.Config().Get("bitcoinHost", "localhost")
-	port, _ := gocore.Config().GetInt("rpcPort", 8332)
-	username, _ := gocore.Config().Get("rpcUsername", "bitcoin")
-	password, _ := gocore.Config().Get("rpcPassword", "bitcoin")
-
-	b, err := bitcoin.New(host, port, username, password, false)
-	if err != nil {
-		return nil, fmt.Errorf("Could not connect to bitcoin: %w", err)
-	}
+func NewProcessor(storeI store.Interface, mtb *MinedTransactionHandler, bitcoin ProcessorBitcoinI) (*Processor, error) {
 
 	p := &Processor{
 		store:   storeI,
-		bitcoin: b,
+		bitcoin: bitcoin,
 		logger:  gocore.Log("processor"),
 		ch:      make(chan string, 10),
 		Mtb:     mtb,

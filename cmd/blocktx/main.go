@@ -8,6 +8,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/blocktx"
 	"github.com/TAAL-GmbH/arc/blocktx/store/memory"
+	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
 
 	_ "github.com/lib/pq"
@@ -22,13 +23,13 @@ var commit string
 
 var logger = gocore.Log(progname)
 
-var (
-	dbHost, _     = gocore.Config().Get("dbHost", "localhost")
-	dbPort, _     = gocore.Config().GetInt("dbPort", 5432)
-	dbName, _     = gocore.Config().Get("dbName", "blocktx")
-	dbUser, _     = gocore.Config().Get("dbUser", "blocktx")
-	dbPassword, _ = gocore.Config().Get("dbPassword", "blocktx")
-)
+// var (
+// 	dbHost, _     = gocore.Config().Get("dbHost", "localhost")
+// 	dbPort, _     = gocore.Config().GetInt("dbPort", 5432)
+// 	dbName, _     = gocore.Config().Get("dbName", "blocktx")
+// 	dbUser, _     = gocore.Config().Get("dbUser", "blocktx")
+// 	dbPassword, _ = gocore.Config().Get("dbPassword", "blocktx")
+// )
 
 func init() {
 	gocore.SetInfo(progname, version, commit)
@@ -79,8 +80,18 @@ func start() {
 
 	mtb := blocktx.NewHandler(logger)
 
+	host, _ := gocore.Config().Get("bitcoinHost", "localhost")
+	port, _ := gocore.Config().GetInt("rpcPort", 8332)
+	username, _ := gocore.Config().Get("rpcUsername", "bitcoin")
+	password, _ := gocore.Config().Get("rpcPassword", "bitcoin")
+
+	b, err := bitcoin.New(host, port, username, password, false)
+	if err != nil {
+		logger.Fatalf("Could not connect to bitcoin: %w", err)
+	}
+
 	var p *blocktx.Processor
-	p, err = blocktx.NewProcessor(dbConn, mtb)
+	p, err = blocktx.NewProcessor(dbConn, mtb, b)
 	if err != nil {
 		logger.Fatal(err)
 	}

@@ -73,7 +73,7 @@ func (s *Store) GetTransactionBlock(_ context.Context, transaction *pb.Transacti
 			continue
 		}
 		for _, tx := range blk.transactions.Transactions {
-			if bytes.Compare(tx.Hash, transaction.Hash) == 0 {
+			if bytes.Equal(tx.Hash, transaction.Hash) {
 				return blk.block, nil
 			}
 		}
@@ -88,7 +88,7 @@ func (s *Store) GetTransactionBlocks(_ context.Context, transaction *pb.Transact
 	blocks.Blocks = make([]*pb.Block, 0)
 	for _, blk := range s.blocks {
 		for _, tx := range blk.transactions.Transactions {
-			if bytes.Compare(tx.Hash, transaction.Hash) == 0 {
+			if bytes.Equal(tx.Hash, transaction.Hash) {
 				blocks.Blocks = append(blocks.Blocks, blk.block)
 			}
 		}

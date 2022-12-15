@@ -1,7 +1,7 @@
 package sql
 
 import (
-	pb "github.com/TAAL-GmbH/arcblocktx_api"
+	pb "github.com/TAAL-GmbH/arc/blocktx_api"
 
 	"context"
 )

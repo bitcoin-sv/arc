@@ -7,12 +7,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	pb "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/p2p"
-	"github.com/TAAL-GmbH/arc/store"
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/go-utils"
-
-	pb "github.com/TAAL-GmbH/arc/metamorph_api"
 
 	"github.com/ordishs/go-utils/expiringmap"
 	"github.com/ordishs/gocore"
@@ -149,7 +148,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status pb.Status, e
 			ok = utils.SafeSend(resp.ch, resp)
 		}
 
-		// Don't cache the channel if the client is not listening any more
+		// Don't cache the channel if the transactionHandler is not listening any more
 		// which will have been triggered by a status of SEEN or higher
 		if status >= pb.Status_SENT_TO_NETWORK {
 			p.processedCount.Add(1)

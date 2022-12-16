@@ -10,13 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/store"
-
+	pb "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 
 	"github.com/TAAL-GmbH/arc/p2p/bsvutil"
-
-	pb "github.com/TAAL-GmbH/arc/metamorph_api"
 
 	"github.com/ordishs/gocore"
 )

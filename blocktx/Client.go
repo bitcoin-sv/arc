@@ -56,8 +56,8 @@ func (btc *Client) Start(s store.Store) {
 
 			btc.logger.Infof("Block %x\n", mt.Blockhash)
 			for _, tx := range mt.Txs {
-				if err := s.UpdateStatus(ctx, tx, pb.Status_MINED, ""); err != nil {
-					btc.logger.Errorf("Could not update status of %x to %s: %v", utils.ReverseSlice(tx), pb.Status_MINED, err)
+				if err := s.UpdateStatus(ctx, tx.Hash, pb.Status_MINED, ""); err != nil {
+					btc.logger.Errorf("Could not update status of %x to %s: %v", utils.ReverseSlice(tx.Hash), pb.Status_MINED, err)
 				}
 			}
 		}

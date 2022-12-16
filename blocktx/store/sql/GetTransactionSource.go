@@ -2,6 +2,7 @@ package sql
 
 import (
 	"context"
+	"database/sql"
 )
 
 // GetTransactionSource returns the source of a transaction
@@ -16,11 +17,11 @@ func (s *SQL) GetTransactionSource(ctx context.Context, txhash []byte) (string, 
 		WHERE t.hash = $1
 	`
 
-	var source string
+	var source sql.NullString
 
 	if err := s.db.QueryRowContext(ctx, q, txhash).Scan(&source); err != nil {
 		return "", err
 	}
 
-	return source, nil
+	return source.String, nil
 }

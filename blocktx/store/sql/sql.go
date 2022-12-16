@@ -3,6 +3,9 @@ package sql
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"path"
+	"path/filepath"
 
 	"github.com/TAAL-GmbH/arc/blocktx/store"
 	_ "github.com/lib/pq"
@@ -17,6 +20,8 @@ type SQL struct {
 func NewSQLStore(engine string) (store.Interface, error) {
 	var db *sql.DB
 	var err error
+
+	var memory bool
 
 	switch engine {
 	case "postgres":
@@ -37,8 +42,24 @@ func NewSQLStore(engine string) (store.Interface, error) {
 			return nil, fmt.Errorf("failed to create postgres schema: %+v", err)
 		}
 
+	case "sqlite_memory":
+		memory = true
+		fallthrough
 	case "sqlite":
-		db, err = sql.Open("sqlite", "block-tx.db")
+		folder, _ := gocore.Config().Get("sqliteFolder", "")
+
+		filename, err := filepath.Abs(path.Join(folder, "block-tx.db"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to get absolute path for sqlite DB: %+v", err)
+		}
+
+		if memory {
+			filename = ":memory:"
+		}
+
+		log.Printf("Using sqlite DB: %s", filename)
+
+		db, err = sql.Open("sqlite", filename)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open sqlite DB: %+v", err)
 		}

@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	pb "github.com/TAAL-GmbH/arc/blocktx_api"
+	pb "github.com/TAAL-GmbH/arc/blocktx/api"
 )
 
 // Server type carries the logger within it
@@ -73,6 +73,17 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*pb.HealthResponse
 	return &pb.HealthResponse{
 		Ok:        true,
 		Timestamp: timestamppb.New(time.Now()),
+	}, nil
+}
+
+func (s *Server) LocateTransaction(ctx context.Context, transaction *pb.Transaction) (*pb.Source, error) {
+	source, err := s.store.GetTransactionSource(ctx, transaction.Hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.Source{
+		Source: source,
 	}, nil
 }
 

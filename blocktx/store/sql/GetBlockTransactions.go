@@ -3,7 +3,7 @@ package sql
 import (
 	"context"
 
-	pb "github.com/TAAL-GmbH/arc/blocktx_api"
+	pb "github.com/TAAL-GmbH/arc/blocktx/api"
 )
 
 // GetBlockTransactions returns the transaction hashes for a given block hash

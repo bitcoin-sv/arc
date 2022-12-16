@@ -14,7 +14,7 @@ import (
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 
-	pb "github.com/TAAL-GmbH/arc/blocktx_api"
+	pb "github.com/TAAL-GmbH/arc/blocktx/api"
 )
 
 type ProcessorBitcoinI interface {
@@ -72,9 +72,9 @@ func (p *Processor) GetBlockHashForHeight(height int) (string, error) {
 
 func (p *Processor) ProcessBlock(hashStr string) {
 	p.once.Do(func() {
-		p.ch = make(chan string, 10)
-		p.catchupCh = make(chan string, 10)
 		p.Mtb = NewHandler(p.logger)
+		p.catchupCh = make(chan string, 10)
+		p.ch = make(chan string, 10)
 
 		go func() {
 			for {

@@ -3,7 +3,7 @@ package sql
 import (
 	"context"
 
-	pb "github.com/TAAL-GmbH/arc/blocktx_api"
+	pb "github.com/TAAL-GmbH/arc/blocktx/api"
 )
 
 // InsertTransaction registers a transaction in the database
@@ -24,8 +24,8 @@ func (s *SQL) InsertTransaction(ctx context.Context, transaction *pb.Transaction
 
 	} else {
 		q = `
-			INSERT INTO transactions (hash) VALUES ($1)
-			ON CONFLICT DO UPDATE SET source = $2 WHERE source IS NULL -- TODO discuss this
+			INSERT INTO transactions (hash, source) VALUES ($1, $2)
+			ON CONFLICT DO UPDATE SET source = $2 WHERE source IS NOT NULL -- TODO discuss this
 			;
 		`
 		args = append(args, transaction.Hash, transaction.Source)

@@ -7,8 +7,10 @@ import (
 	"time"
 
 	arc "github.com/TAAL-GmbH/arc/api"
+	btcpb "github.com/TAAL-GmbH/arc/blocktx/api"
 	metamorph_api2 "github.com/TAAL-GmbH/arc/metamorph/api"
 	"github.com/ordishs/go-bitcoin"
+	"github.com/ordishs/go-utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -96,7 +98,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format
 func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, _ *arc.TransactionOptions) (*TransactionStatus, error) {
-	target, client, err := m.getRandomMetamorphClient()
+	_, client, err := m.getRandomMetamorphClient()
 	if err != nil {
 		return nil, err
 	}
@@ -106,11 +108,6 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, _ *arc.Tra
 	response, err = client.PutTransaction(ctx, &metamorph_api2.TransactionRequest{
 		RawTx: tx,
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	err = m.locationService.SetServer(ctx, response.Txid, target)
 	if err != nil {
 		return nil, err
 	}
@@ -137,13 +134,20 @@ func (m *Metamorph) getRandomMetamorphClient() (string, metamorph_api2.MetaMorph
 }
 
 func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (metamorph_api2.MetaMorphAPIClient, error) {
-	target, err := m.locationService.GetServer(ctx, txID)
+	hash, err := utils.DecodeAndReverseHexString(txID)
+	if err != nil {
+		return nil, err
+	}
+
+	target, err := m.locationService.GetServer(ctx, &btcpb.Transaction{
+		Hash: hash,
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	if target == "" {
-		// TODO what do we do in this case? Reach out to all metamporph servers or reach out to a node?
+		// TODO what do we do in this case? Reach out to all metamorph servers or reach out to a node?
 		return nil, fmt.Errorf("could not find transaction server")
 	}
 

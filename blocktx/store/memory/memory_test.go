@@ -5,7 +5,7 @@ import (
 	"context"
 	"testing"
 
-	pb "github.com/TAAL-GmbH/arc/blocktx_api"
+	pb "github.com/TAAL-GmbH/arc/blocktx/api"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

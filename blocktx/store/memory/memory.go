@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"sync"
 
+	pb "github.com/TAAL-GmbH/arc/blocktx/api"
 	"github.com/TAAL-GmbH/arc/blocktx/store"
-	pb "github.com/TAAL-GmbH/arc/blocktx_api"
 )
 
 type memBlock struct {

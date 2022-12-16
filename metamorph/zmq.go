@@ -5,8 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	pb "github.com/TAAL-GmbH/arc/metamorph_api"
-
+	pb "github.com/TAAL-GmbH/arc/metamorph/api"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
 )

@@ -30,7 +30,7 @@ gen:
 	--go_opt=paths=source_relative \
 	--go-grpc_out=. \
 	--go-grpc_opt=paths=source_relative \
-    metamorph_api/metamorph_api.proto
+    metamorph/api/metamorph_api.proto
 
 	protoc \
 	--go_out=. \
@@ -41,7 +41,7 @@ gen:
 
 .PHONY: clean_gen
 clean_gen:
-	rm -f ./metamorph_api/*.pb.go
+	rm -f ./metamorph/api/*.pb.go
 	rm -f ./blocktx_api/*.pb.go
 
 .PHONY: clean

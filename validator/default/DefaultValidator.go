@@ -116,7 +116,7 @@ func checkOutputs(tx *bt.Tx) error {
 	for index, output := range tx.Outputs {
 		isData := output.LockingScript.IsData()
 		switch {
-		case !isData && (output.Satoshis > MaxSatoshis || output.Satoshis < api.DustThreshold):
+		case !isData && (output.Satoshis > MaxSatoshis || output.Satoshis < bt.DustLimit):
 			return validator.NewError(fmt.Errorf("transaction output %d satoshis is invalid", index), api.ErrStatusOutputs)
 		case isData && output.Satoshis != 0:
 			return validator.NewError(fmt.Errorf("transaction output %d has non 0 value op return", index), api.ErrStatusOutputs)

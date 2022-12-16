@@ -8,6 +8,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/libsv/go-bt"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
@@ -15,14 +17,11 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	pb "github.com/TAAL-GmbH/arc/metamorph_api"
-	"github.com/TAAL-GmbH/arc/store"
 )
 
 // Server type carries the zmqLogger within it
 type Server struct {
-	pb.UnimplementedMetaMorphAPIServer
+	api.UnimplementedMetaMorphAPIServer
 	logger    *gocore.Logger
 	processor *Processor
 	store     store.Store
@@ -56,7 +55,7 @@ func (s *Server) StartGRPCServer() error {
 		return fmt.Errorf("GRPC server failed to listen [%w]", err)
 	}
 
-	pb.RegisterMetaMorphAPIServer(grpcServer, s)
+	api.RegisterMetaMorphAPIServer(grpcServer, s)
 
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcServer)
@@ -70,7 +69,7 @@ func (s *Server) StartGRPCServer() error {
 	return nil
 }
 
-func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*pb.HealthResponse, error) {
+func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*api.HealthResponse, error) {
 	stats := s.processor.GetStats()
 
 	avg := float32(0.0)
@@ -79,7 +78,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*pb.HealthResponse
 	}
 
 	details := fmt.Sprintf(`Peer stats (started: %s)`, stats.StartTime.UTC().Format(time.RFC3339))
-	return &pb.HealthResponse{
+	return &api.HealthResponse{
 		Ok:        true,
 		Details:   details,
 		Timestamp: timestamppb.New(time.Now()),
@@ -93,14 +92,14 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*pb.HealthResponse
 	}, nil
 }
 
-func (s *Server) PutTransaction(_ context.Context, req *pb.TransactionRequest) (*pb.TransactionStatus, error) {
+func (s *Server) PutTransaction(_ context.Context, req *api.TransactionRequest) (*api.TransactionStatus, error) {
 	responseChannel := make(chan *ProcessorResponse)
 	defer func() {
 		close(responseChannel)
 	}()
 
 	// Convert gRPC req to store.StoreData struct...
-	status := pb.Status_UNKNOWN
+	status := api.Status_UNKNOWN
 	hash := utils.Sha256d(req.RawTx)
 
 	storeData, err := s.store.Get(context.Background(), hash)
@@ -109,7 +108,7 @@ func (s *Server) PutTransaction(_ context.Context, req *pb.TransactionRequest) (
 	}
 	if storeData != nil {
 		// we found the transaction in the store, so we can just return it
-		return &pb.TransactionStatus{
+		return &api.TransactionStatus{
 			TimedOut:     false,
 			StoredAt:     timestamppb.New(storeData.StoredAt),
 			AnnouncedAt:  timestamppb.New(storeData.AnnouncedAt),
@@ -142,24 +141,24 @@ func (s *Server) PutTransaction(_ context.Context, req *pb.TransactionRequest) (
 	for {
 		select {
 		case <-timeout.C:
-			return &pb.TransactionStatus{
+			return &api.TransactionStatus{
 				TimedOut: true,
 				Status:   status,
 			}, nil
 		case res := <-responseChannel:
-			if res.Status != pb.Status_UNKNOWN {
+			if res.Status != api.Status_UNKNOWN {
 				status = res.Status
 			}
 
 			if res.Err != nil {
-				return &pb.TransactionStatus{
+				return &api.TransactionStatus{
 					Status:       status,
 					RejectReason: res.Err.Error(),
 				}, nil
 			}
 
-			if status >= pb.Status_SENT_TO_NETWORK {
-				return &pb.TransactionStatus{
+			if status >= api.Status_SENT_TO_NETWORK {
+				return &api.TransactionStatus{
 					Status: status,
 				}, nil
 			}
@@ -167,7 +166,7 @@ func (s *Server) PutTransaction(_ context.Context, req *pb.TransactionRequest) (
 	}
 }
 
-func (s *Server) GetTransactionStatus(ctx context.Context, req *pb.TransactionStatusRequest) (*pb.TransactionStatus, error) {
+func (s *Server) GetTransactionStatus(ctx context.Context, req *api.TransactionStatusRequest) (*api.TransactionStatus, error) {
 	txBytes, err := hex.DecodeString(req.Txid)
 	if err != nil {
 		return nil, err
@@ -181,7 +180,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *pb.TransactionSt
 		return nil, err
 	}
 
-	return &pb.TransactionStatus{
+	return &api.TransactionStatus{
 		Txid:         fmt.Sprintf("%x", bt.ReverseBytes(data.Hash)),
 		StoredAt:     timestamppb.New(data.StoredAt),
 		Status:       data.Status,

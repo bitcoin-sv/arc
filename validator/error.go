@@ -8,10 +8,10 @@ import (
 
 type Error struct {
 	Err            error
-	ArcErrorStatus api.ErrorCode
+	ArcErrorStatus api.StatusCode
 }
 
-func NewError(err error, status api.ErrorCode) *Error {
+func NewError(err error, status api.StatusCode) *Error {
 	return &Error{
 		Err:            err,
 		ArcErrorStatus: status,

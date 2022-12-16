@@ -76,6 +76,11 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*pb.HealthResponse
 	}, nil
 }
 
+func (s *Server) RegisterTransaction(ctx context.Context, transaction *pb.Transaction) (*emptypb.Empty, error) {
+	err := s.store.InsertTransaction(ctx, transaction)
+	return &emptypb.Empty{}, err
+}
+
 func (s *Server) GetBlockTransactions(ctx context.Context, block *pb.Block) (*pb.Transactions, error) {
 	return s.store.GetBlockTransactions(ctx, block)
 }
@@ -92,7 +97,7 @@ func (s *Server) GetBlockForHeight(ctx context.Context, height *pb.Height) (*pb.
 	return s.store.GetBlockForHeight(ctx, height.Height)
 }
 
-func (s *Server) GetMinedBlockTransactions(fromHeight *pb.Height, srv pb.BlockTxAPI_GetMinedBlockTransactionsServer) error {
-	s.processor.Mtb.NewSubscription(srv)
+func (s *Server) GetMinedBlockTransactions(heightAndSource *pb.HeightAndSource, srv pb.BlockTxAPI_GetMinedBlockTransactionsServer) error {
+	s.processor.Mtb.NewSubscription(heightAndSource, srv)
 	return nil
 }

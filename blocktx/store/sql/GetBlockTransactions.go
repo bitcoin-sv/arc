@@ -13,9 +13,10 @@ func (s *SQL) GetBlockTransactions(ctx context.Context, block *pb.Block) (*pb.Tr
 
 	q := `
 		SELECT 
-		 t.txhash
-		FROM block_transactions t
-		INNER JOIN blocks b ON b.id = t.blockid
+		 t.hash
+		FROM transactions t
+		INNER JOIN block_transactions_map m ON m.txid = t.id
+		INNER JOIN blocks b ON m.blockid = b.id
 		WHERE b.hash = $1
 	`
 

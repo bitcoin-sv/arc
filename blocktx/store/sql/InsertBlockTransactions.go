@@ -12,12 +12,12 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 	defer cancel()
 
 	q := `
-		INSERT INTO block_transactions (
+		INSERT INTO block_transactions_map (
 		 blockid
-		,txhash
+		,txid
 		) VALUES (
 		 $1
-		,$2
+		,(SELECT id FROM transactions WHERE hash = $2)
 		)
 		ON CONFLICT DO NOTHING
 	`

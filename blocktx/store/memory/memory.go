@@ -35,6 +35,15 @@ func New() (store.Interface, error) {
 	}, nil
 }
 
+func (s *Store) GetTransactionSource(_ context.Context, txid []byte) (string, error) {
+	// get the memBlock the transaction is found in, but only if it is not orphaned
+	return "", nil
+}
+
+func (s *Store) InsertTransaction(ctx context.Context, transaction *pb.Transaction) error {
+	return nil
+}
+
 func (s *Store) GetBlockForHeight(_ context.Context, height uint64) (*pb.Block, error) {
 	blk, ok := s.blockByHeight[height]
 	if !ok {

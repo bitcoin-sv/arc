@@ -11,6 +11,9 @@ service BlockTxAPI {
   // Health returns the health of the API.
   rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
 
+  // RegisterTransaction registers a transaction with the API.
+  rpc RegisterTransaction (Transaction) returns (google.protobuf.Empty) {}
+
   // GetBlockTransactions returns a list of transaction hashes for a given block.
   rpc GetBlockTransactions (Block) returns (Transactions) {}
   
@@ -25,7 +28,7 @@ service BlockTxAPI {
 
   // GetMinedBlockTransactions returns a stream of mined transactions starting at a specific block height.
   // If Height is 0, the stream starts from the current best block.
-  rpc GetMinedBlockTransactions (Height) returns (stream MinedTransaction) {}
+  rpc GetMinedBlockTransactions (HeightAndSource) returns (stream MinedTransaction) {}
 
 }
 
@@ -63,9 +66,16 @@ message MinedTransaction {
 // swagger:model Transaction
 message Transaction {
   bytes hash = 1; // Little endian
+  string source = 2;
 }
 
 // swagger:model Height
 message Height {
   uint64 height = 1;
+}
+
+// swagger:model HeightAndSource
+message HeightAndSource {
+  uint64 height = 1;
+  string source = 2;
 }

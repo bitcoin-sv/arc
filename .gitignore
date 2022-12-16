@@ -3,3 +3,4 @@ arc_*.tar.gz
 build/
 data/
 block-tx.db
+block-tx.db-journal

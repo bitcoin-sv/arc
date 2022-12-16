@@ -43,6 +43,11 @@ func NewSQLStore(engine string) (store.Interface, error) {
 			return nil, fmt.Errorf("failed to open sqlite DB: %+v", err)
 		}
 
+		if _, err := db.Exec(`PRAGMA foreign_keys = ON;`); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("Could not enable foreign keys support: %+v", err)
+		}
+
 		if err := createSqliteSchema(db); err != nil {
 			return nil, fmt.Errorf("failed to create sqlite schema: %+v", err)
 		}
@@ -58,7 +63,7 @@ func NewSQLStore(engine string) (store.Interface, error) {
 
 func createPostgresSchema(db *sql.DB) error {
 	if _, err := db.Exec(`
-		CREATE TABLE blocks (
+		CREATE TABLE IF NOT EXISTS blocks (
 		 id           BIGSERIAL PRIMARY KEY
 	  ,hash         BYTEA NOT NULL
 	  ,header       BYTEA NOT NULL
@@ -71,25 +76,41 @@ func createPostgresSchema(db *sql.DB) error {
 		return fmt.Errorf("Could not create blocks table - [%+v]\n", err)
 	}
 
-	if _, err := db.Exec(`CREATE UNIQUE INDEX ON blocks (hash);`); err != nil {
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_blocks_hash ON blocks (hash);`); err != nil {
 		db.Close()
 		return fmt.Errorf("Could not create blocks table - [%+v]\n", err)
 	}
 
-	if _, err := db.Exec(`CREATE UNIQUE INDEX PARTIAL ON blocks(height) WHERE orphanedyn = FALSE;`); err != nil {
+	if _, err := db.Exec(`CREATE UNIQUE INDEX PARTIAL IF NOT EXISTS pux_blocks_height ON blocks(height) WHERE orphanedyn = FALSE;`); err != nil {
 		db.Close()
 		return fmt.Errorf("Could not create blocks table - [%+v]\n", err)
 	}
 
 	if _, err := db.Exec(`
-		CREATE TABLE block_transactions (
-		 blockid      BIGINT NOT NULL REFERENCES blocks(id)
-	  ,txhash       BYTEA NOT NULL
-	  ,PRIMARY KEY (blockid, txhash)
+		CREATE TABLE IF NOT EXISTS transactions (
+		 id           BIGSERIAL PRIMARY KEY
+	  ,hash         BYTEA NOT NULL
+	  ,source       TEXT
 		);
 	`); err != nil {
 		db.Close()
-		return fmt.Errorf("Could not create blocks table - [%+v]\n", err)
+		return fmt.Errorf("Could not create transactions table - [%+v]\n", err)
+	}
+
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_hash ON transactions (hash);`); err != nil {
+		db.Close()
+		return fmt.Errorf("Could not create transactions hash index - [%+v]\n", err)
+	}
+
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS block_transactions_map (
+		 blockid      BIGINT NOT NULL REFERENCES blocks(id)
+	  ,txid       	BIGINT NOT NULL REFERENCES transactions(id)
+	  ,PRIMARY KEY (blockid, txid)
+		);
+	`); err != nil {
+		db.Close()
+		return fmt.Errorf("Could not create block_transactions_map table - [%+v]\n", err)
 	}
 
 	return nil
@@ -110,25 +131,43 @@ func createSqliteSchema(db *sql.DB) error {
 		return fmt.Errorf("Could not create blocks table - [%+v]\n", err)
 	}
 
-	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS unique_block ON blocks (hash);`); err != nil {
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_blocks_hash ON blocks (hash);`); err != nil {
 		db.Close()
 		return fmt.Errorf("Could not create blocks hash index - [%+v]\n", err)
 	}
 
-	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS orphan_check ON blocks(height) WHERE orphanedyn = FALSE;`); err != nil {
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS pux_blocks_height ON blocks(height) WHERE orphanedyn = FALSE;`); err != nil {
 		db.Close()
 		return fmt.Errorf("Could not create blocks height index - [%+v]\n", err)
 	}
 
 	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS block_transactions (
-		 blockid      INTEGER NOT NULL REFERENCES blocks(id)
-	  ,txhash       BLOB NOT NULL
-	  ,PRIMARY KEY (blockid, txhash)
+		CREATE TABLE IF NOT EXISTS transactions (
+		 id           INTEGER PRIMARY KEY AUTOINCREMENT,
+		 hash         BLOB NOT NULL
+	  ,source				TEXT
+	 	);
+	`); err != nil {
+		db.Close()
+		return fmt.Errorf("Could not create transactions table - [%+v]\n", err)
+	}
+
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_hash ON transactions (hash);`); err != nil {
+		db.Close()
+		return fmt.Errorf("Could not create transactions hash index - [%+v]\n", err)
+	}
+
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS block_transactions_map (
+		 blockid      INTEGER NOT NULL
+		,txid         INTEGER NOT NULL
+		,FOREIGN KEY (blockid) REFERENCES blocks(id)
+		,FOREIGN KEY (txid) REFERENCES transactions(id)
+	  ,PRIMARY KEY (blockid, txid)
 	  );
 	`); err != nil {
 		db.Close()
-		return fmt.Errorf("Could not create block_transactions table - [%+v]\n", err)
+		return fmt.Errorf("Could not create block_transactions_map table - [%+v]\n", err)
 	}
 
 	return nil

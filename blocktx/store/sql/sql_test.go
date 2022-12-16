@@ -3,6 +3,7 @@ package sql
 import (
 	"bytes"
 	"context"
+	"os"
 	"testing"
 
 	pb "github.com/TAAL-GmbH/arc/blocktx_api"
@@ -13,6 +14,8 @@ import (
 )
 
 func TestInOut(t *testing.T) {
+	os.Remove("block-tx.db")
+
 	ctx := context.Background()
 
 	block := &pb.Block{
@@ -34,6 +37,21 @@ func TestInOut(t *testing.T) {
 		{Hash: []byte("test transaction hash 4")},
 		{Hash: []byte("test transaction hash 5")},
 	}
+
+	for _, txn := range transactions {
+		err = s.InsertTransaction(ctx, txn)
+		require.NoError(t, err)
+	}
+
+	err = s.InsertTransaction(ctx, &pb.Transaction{
+		Hash:   []byte("test transaction hash 1"),
+		Source: "TEST",
+	})
+	require.NoError(t, err)
+
+	source, err := s.GetTransactionSource(ctx, []byte("test transaction hash 1"))
+	require.NoError(t, err)
+	assert.Equal(t, source, "TEST")
 
 	err = s.InsertBlockTransactions(ctx, blockId, transactions)
 	require.NoError(t, err)
@@ -71,6 +89,8 @@ func TestInOut(t *testing.T) {
 }
 
 func TestBlockNotExists(t *testing.T) {
+	os.Remove("block-tx.db")
+
 	ctx := context.Background()
 
 	s, err := NewSQLStore("sqlite")

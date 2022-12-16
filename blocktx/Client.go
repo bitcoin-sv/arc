@@ -36,7 +36,7 @@ func (btc *BlockTxClient) Start() {
 
 		client := btcpb.NewBlockTxAPIClient(conn)
 
-		stream, err := client.GetMinedBlockTransactions(context.Background(), &btcpb.Height{})
+		stream, err := client.GetMinedBlockTransactions(context.Background(), &btcpb.HeightAndSource{})
 		if err != nil {
 			panic(err)
 		}

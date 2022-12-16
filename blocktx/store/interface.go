@@ -7,6 +7,8 @@ import (
 )
 
 type Interface interface {
+	InsertTransaction(ctx context.Context, transaction *pb.Transaction) error
+	GetTransactionSource(ctx context.Context, txid []byte) (string, error)
 	GetBlockForHeight(ctx context.Context, height uint64) (*pb.Block, error)
 	GetBlockTransactions(ctx context.Context, block *pb.Block) (*pb.Transactions, error)
 	GetLastProcessedBlock(ctx context.Context) (*pb.Block, error)

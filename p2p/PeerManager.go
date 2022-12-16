@@ -5,13 +5,12 @@ import (
 	"sync"
 	"time"
 
+	pb "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/p2p/chaincfg/chainhash"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
-	"github.com/TAAL-GmbH/arc/store"
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/go-utils"
-
-	pb "github.com/TAAL-GmbH/arc/metamorph_api"
 
 	batcher "github.com/ordishs/go-utils/batcher"
 	"github.com/ordishs/gocore"

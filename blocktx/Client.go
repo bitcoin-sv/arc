@@ -4,34 +4,37 @@ import (
 	"context"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/store"
-
 	btcpb "github.com/TAAL-GmbH/arc/blocktx_api"
-	pb "github.com/TAAL-GmbH/arc/metamorph_api"
-
+	pb "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type BlockTxClient struct {
-	store  store.Store
-	logger utils.Logger
+// ClientI is the interface for the block-tx transactionHandler
+type ClientI interface {
+	Start(s store.Store)
+	GetTx(ctx interface{}, txID string) (string, error)
+	SetTx(ctx context.Context, txID string, server string) error
 }
 
-func New(s store.Store, l utils.Logger) *BlockTxClient {
-	return &BlockTxClient{
-		store:  s,
-		logger: l,
+type Client struct {
+	address string
+	logger  utils.Logger
+}
+
+func NewClient(l utils.Logger, address string) ClientI {
+	return &Client{
+		address: address,
+		logger:  l,
 	}
 }
 
-func (btc *BlockTxClient) Start() {
+func (btc *Client) Start(s store.Store) {
 	for {
-		address, _ := gocore.Config().Get("blockTxAddress", "localhost:8001")
-
-		conn, _ := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, _ := grpc.Dial(btc.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		defer conn.Close()
 
 		client := btcpb.NewBlockTxAPIClient(conn)
@@ -41,7 +44,7 @@ func (btc *BlockTxClient) Start() {
 			panic(err)
 		}
 
-		btc.logger.Infof("Connected to block-tx server at %s", address)
+		btc.logger.Infof("Connected to block-tx server at %s", btc.address)
 
 		ctx := context.Background()
 
@@ -53,7 +56,7 @@ func (btc *BlockTxClient) Start() {
 
 			btc.logger.Infof("Block %x\n", mt.Blockhash)
 			for _, tx := range mt.Txs {
-				if err := btc.store.UpdateStatus(ctx, tx, pb.Status_MINED, ""); err != nil {
+				if err := s.UpdateStatus(ctx, tx, pb.Status_MINED, ""); err != nil {
 					btc.logger.Errorf("Could not update status of %x to %s: %v", utils.ReverseSlice(tx), pb.Status_MINED, err)
 				}
 			}
@@ -64,4 +67,14 @@ func (btc *BlockTxClient) Start() {
 		btc.logger.Warnf("Retrying in 10 seconds")
 		time.Sleep(10 * time.Second)
 	}
+}
+
+func (btc *Client) GetTx(ctx interface{}, txID string) (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (btc *Client) SetTx(ctx context.Context, txID string, server string) error {
+	//TODO implement me
+	panic("implement me")
 }

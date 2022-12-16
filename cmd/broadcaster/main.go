@@ -10,8 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/metamorph_api"
-
+	metamorph_api2 "github.com/TAAL-GmbH/arc/metamorph/api"
 	"github.com/libsv/go-bk/bec"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
@@ -82,7 +81,7 @@ func main() {
 		panic(fmt.Errorf("DIALCONTEXT: %v", err))
 	}
 
-	client := metamorph_api.NewMetaMorphAPIClient(cc)
+	client := metamorph_api2.NewMetaMorphAPIClient(cc)
 
 	privKey, err := bec.NewPrivateKey(bec.S256())
 	if err != nil {
@@ -93,7 +92,7 @@ func main() {
 
 	if useFundingTx != nil && *useFundingTx {
 		fundingTx := newFundingTransaction(privKey, sendNrOfTransactions)
-		_, err = client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
+		_, err = client.PutTransaction(ctx, &metamorph_api2.TransactionRequest{
 			RawTx: fundingTx.Bytes(),
 		})
 		if err != nil {
@@ -158,11 +157,11 @@ func main() {
 	}
 }
 
-func processTransaction(ctx context.Context, client metamorph_api.MetaMorphAPIClient, tx *bt.Tx) error {
+func processTransaction(ctx context.Context, client metamorph_api2.MetaMorphAPIClient, tx *bt.Tx) error {
 	ctxClient, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
 
-	res, err := client.PutTransaction(ctxClient, &metamorph_api.TransactionRequest{
+	res, err := client.PutTransaction(ctxClient, &metamorph_api2.TransactionRequest{
 		RawTx: tx.Bytes(),
 	})
 	if err != nil {
@@ -283,7 +282,7 @@ func newTransaction(privKey *bec.PrivateKey, useUtxo *utxo) (*bt.Tx, *utxo) {
 }
 
 func sendToAddress(address string, satoshis uint64) (string, uint32, string, error) {
-	// // Create a new client instance
+	// // Create a new transactionHandler instance
 	host, _ := gocore.Config().Get("peer_1_host", "localhost")
 	port, _ := gocore.Config().GetInt("peer_1_rpcPort", 18332)
 	user, _ := gocore.Config().Get("peer_1_rpcUsername", "bitcoin")

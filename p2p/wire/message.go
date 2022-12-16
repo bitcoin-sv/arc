@@ -396,7 +396,7 @@ func ReadMessageWithEncodingN(r io.Reader, pver uint32, bsvnet BitcoinNet, enc M
 			err.Error())
 	}
 
-	// Check for maximum length based on the message type as a malicious client
+	// Check for maximum length based on the message type as a malicious transactionHandler
 	// could otherwise create a well-formed header and set the length to max
 	// numbers in order to exhaust the machine's memory.
 	mpl := msg.MaxPayloadLength(pver)

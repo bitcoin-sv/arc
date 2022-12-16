@@ -5,9 +5,8 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/api"
-	"github.com/TAAL-GmbH/arc/client"
-	"github.com/TAAL-GmbH/arc/config"
-	"github.com/TAAL-GmbH/arc/handler"
+	"github.com/TAAL-GmbH/arc/api/handler"
+	"github.com/TAAL-GmbH/arc/api/transactionHandler"
 	"github.com/labstack/echo/v4"
 )
 
@@ -20,44 +19,22 @@ type CustomHandler struct {
 
 func NewCustomHandler() (api.HandlerInterface, error) {
 	// add a single bitcoin node
-	node, err := client.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
-	if err != nil {
-		return nil, err
-	}
-
-	// create a arc client
-	var c client.Interface
-	c, err = client.New(
-		client.WithNode(node),
-	)
+	node, err := transactionHandler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
 	if err != nil {
 		return nil, err
 	}
 
 	bitcoinHandler := &CustomHandler{
 		ArcDefaultHandler: handler.ArcDefaultHandler{
-			Client: c,
+			TransactionHandler: node,
 		},
 	}
-
-	security := handler.WithSecurityConfig(&config.SecurityConfig{
-		Type: config.SecurityTypeCustom,
-		// when setting a custom security handler, it is highly recommended defining a custom user function
-		CustomGetUser: func(ctx echo.Context) (*api.User, error) {
-			return &api.User{
-				ClientID: "test",
-				Name:     "Test user",
-				Admin:    false,
-			}, nil
-		},
-	})
-	security(&bitcoinHandler.ArcDefaultHandler.Options)
 
 	return bitcoinHandler, nil
 }
 
-// GetArcV1Policy our custom policy request handler
-func (c *CustomHandler) GetArcV1Policy(ctx echo.Context) error {
+// GetArcV1Fees our custom policy request handler
+func (c *CustomHandler) GetArcV1Fees(ctx echo.Context) error {
 
 	arcPolicy := api.FeesResponse{
 		Timestamp: time.Now(),

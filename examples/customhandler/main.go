@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/TAAL-GmbH/arc/api"
-	"github.com/TAAL-GmbH/arc/handler"
+	"github.com/TAAL-GmbH/arc/api/handler"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/labstack/echo/v4"
@@ -38,7 +38,7 @@ func main() {
 		&middleware.Options{
 			Options: openapi3filter.Options{
 				AuthenticationFunc: func(c context.Context, input *openapi3filter.AuthenticationInput) error {
-					// in here you can add any kind of authentication check, like a database lookup on an api-key
+					// in here you can add any kind of authentication check, like a database lookup on an blocktx_api-key
 					apiKey := input.RequestValidationInput.Request.Header.Get("X-API-KEY")
 					// don't do this in production
 					if apiKey == "test-key" {
@@ -53,7 +53,7 @@ func main() {
 
 	//
 	// initialise our Custom arc handler
-	// which also initialises the client and datastore etc.
+	// which also initialises the transactionHandler and datastore etc.
 	//
 	apiHandler, err := NewCustomHandler()
 	if err != nil {
@@ -64,7 +64,7 @@ func main() {
 	// the arc handler registers routes under /arc/v2/...
 	api.RegisterHandlers(e, apiHandler)
 	// or with a base url => /mySubDir/arc/v2/...
-	// arc.RegisterHandlersWithBaseURL(e. api, "/mySubDir")
+	// arc.RegisterHandlersWithBaseURL(e. blocktx_api, "/mySubDir")
 
 	// Add the echo standard logger
 	e.Use(echomiddleware.Logger())

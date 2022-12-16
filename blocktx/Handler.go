@@ -124,7 +124,7 @@ func (h *MinedTransactionHandler) sendTxBatch(batch []*blockTx) {
 			}
 		}
 
-		mt.Txs = append(mt.Txs, btx.txHash)
+		mt.Txs = append(mt.Txs, &pb.Transaction{Hash: btx.txHash})
 	}
 
 	h.mtCh <- mt

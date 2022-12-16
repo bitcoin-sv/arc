@@ -7,7 +7,7 @@ import (
 	"os/signal"
 
 	"github.com/TAAL-GmbH/arc/blocktx"
-	"github.com/TAAL-GmbH/arc/blocktx/store/memory"
+	"github.com/TAAL-GmbH/arc/blocktx/store/sql"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
 
@@ -73,7 +73,7 @@ func start() {
 			panic("Could not connect to fn: " + err.Error())
 		}
 	*/
-	dbConn, err := memory.New()
+	dbConn, err := sql.NewSQLStore("sqlite_memory")
 	if err != nil {
 		logger.Fatal(err)
 	}

@@ -62,7 +62,7 @@ func start() {
 		panic("Could not connect to fn: " + err.Error())
 	}
 
-	// dbConn, err := memory.New()
+	// dbConn, err := memory.NewClient()
 	// if err != nil {
 	// 	logger.Fatal(err)
 	// }

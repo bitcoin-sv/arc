@@ -8,8 +8,8 @@ import (
 
 	"github.com/TAAL-GmbH/arc/blocktx"
 	"github.com/TAAL-GmbH/arc/metamorph"
+	"github.com/TAAL-GmbH/arc/metamorph/store/badgerhold"
 	"github.com/TAAL-GmbH/arc/p2p"
-	"github.com/TAAL-GmbH/arc/store/badgerhold"
 	"github.com/ordishs/gocore"
 )
 
@@ -88,8 +88,9 @@ func start() {
 		p.LoadUnseen()
 	}()
 
-	btc := blocktx.New(s, logger)
-	go btc.Start()
+	address, _ := gocore.Config().Get("blockTxAddress", "localhost:8001")
+	btc := blocktx.NewClient(logger, address)
+	go btc.Start(s)
 
 	serv := metamorph.NewServer(logger, s, p)
 	if err := serv.StartGRPCServer(); err != nil {

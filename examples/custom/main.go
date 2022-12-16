@@ -6,9 +6,8 @@ import (
 	"net/http"
 
 	"github.com/TAAL-GmbH/arc/api"
-	"github.com/TAAL-GmbH/arc/client"
-	"github.com/TAAL-GmbH/arc/config"
-	"github.com/TAAL-GmbH/arc/handler"
+	handler2 "github.com/TAAL-GmbH/arc/api/handler"
+	"github.com/TAAL-GmbH/arc/api/transactionHandler"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/labstack/echo/v4"
@@ -33,14 +32,14 @@ func main() {
 	//
 
 	// check the swagger definition against our requests
-	swagger := handler.CheckSwagger(e)
+	swagger := handler2.CheckSwagger(e)
 
 	// Set a custom authentication handler
 	e.Use(middleware.OapiRequestValidatorWithOptions(swagger,
 		&middleware.Options{
 			Options: openapi3filter.Options{
 				AuthenticationFunc: func(c context.Context, input *openapi3filter.AuthenticationInput) error {
-					// in here you can add any kind of authentication check, like a database lookup on an api-key
+					// in here you can add any kind of authentication check, like a database lookup on an blocktx_api-key
 					if input.SecuritySchemeName != "BearerAuth" {
 						return fmt.Errorf("security scheme %s != 'BearerAuth'", input.SecuritySchemeName)
 					}
@@ -58,34 +57,14 @@ func main() {
 	)
 
 	// add a single bitcoin node
-	// TODO this should be replaced by a metamorph transaction handler
-	node, err := client.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
+	transactionHandler, err := transactionHandler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
 	if err != nil {
 		panic(err)
 	}
 
-	// create a arc client
-	var c client.Interface
-	c, err = client.New(
-		client.WithNode(node),
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	// initialise the arc default api handler, with our client and any handler options
+	// initialise the arc default blocktx_api handler, with our transactionHandler and any handler options
 	var apiHandler api.HandlerInterface
-	if apiHandler, err = handler.NewDefault(c, handler.WithSecurityConfig(&config.SecurityConfig{
-		Type: config.SecurityTypeCustom,
-		// when setting a custom security handler, it is highly recommended defining a custom user function
-		CustomGetUser: func(ctx echo.Context) (*api.User, error) {
-			return &api.User{
-				ClientID: "test",
-				Name:     "Test user",
-				Admin:    false,
-			}, nil
-		},
-	})); err != nil {
+	if apiHandler, err = handler2.NewDefault(transactionHandler); err != nil {
 		panic(err)
 	}
 
@@ -93,7 +72,7 @@ func main() {
 	// the arc handler registers routes under /arc/v1/...
 	api.RegisterHandlers(e, apiHandler)
 	// or with a base url => /mySubDir/arc/v1/...
-	// arc.RegisterHandlersWithBaseURL(e. api, "/mySubDir")
+	// arc.RegisterHandlersWithBaseURL(e. blocktx_api, "/mySubDir")
 
 	// Add the echo standard logger
 	e.Use(echomiddleware.Logger())

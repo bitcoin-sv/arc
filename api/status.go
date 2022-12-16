@@ -6,34 +6,41 @@ import (
 
 const ArcDocServerUrl = "https://arc.bitcoinsv.com"
 
-const (
-	StatusAlreadyMined       = 200
-	StatusAlreadyInMempool   = 200
-	StatusAddedBlockTemplate = 201
-)
+type StatusCode int
 
-type ErrorCode int
+const (
+	StatusAlreadyMined       StatusCode = 200
+	StatusAlreadyInMempool   StatusCode = 200
+	StatusAddedBlockTemplate StatusCode = 201
+)
 
 // custom (http) status code
 const (
-	ErrStatusBadRequest       ErrorCode = 400
-	ErrStatusNotFound         ErrorCode = 404
-	ErrStatusGeneric          ErrorCode = 409
-	ErrStatusTxFormat         ErrorCode = 460
-	ErrStatusUnlockingScripts ErrorCode = 461
-	ErrStatusInputs           ErrorCode = 462
-	ErrStatusOutputs          ErrorCode = 463
-	ErrStatusMalformed        ErrorCode = 464
-	ErrStatusFees             ErrorCode = 465
-	ErrStatusConflict         ErrorCode = 466
-	ErrStatusFrozenPolicy     ErrorCode = 481
-	ErrStatusFrozenConsensus  ErrorCode = 482
+	ErrStatusBadRequest       StatusCode = 400
+	ErrStatusNotFound         StatusCode = 404
+	ErrStatusGeneric          StatusCode = 409
+	ErrStatusTxFormat         StatusCode = 460
+	ErrStatusUnlockingScripts StatusCode = 461
+	ErrStatusInputs           StatusCode = 462
+	ErrStatusOutputs          StatusCode = 463
+	ErrStatusMalformed        StatusCode = 464
+	ErrStatusFees             StatusCode = 465
+	ErrStatusConflict         StatusCode = 466
+	ErrStatusFrozenPolicy     StatusCode = 481
+	ErrStatusFrozenConsensus  StatusCode = 482
+)
+
+var (
+	StatusText = map[StatusCode]string{
+		StatusAlreadyInMempool:   "Already in mempool",
+		StatusAddedBlockTemplate: "Added to block template",
+	}
 )
 
 var (
 	ErrBadRequest = ErrorFields{
 		Detail: "The request seems to be malformed and cannot be processed",
-		Status: int(ErrStatusBadRequest), // TODO check if we can check ErrStatus from generated code from yaml
+		Status: int(ErrStatusBadRequest),
 		Title:  "Bad request",
 		Type:   ArcDocServerUrl + "/errors/" + strconv.Itoa(int(ErrStatusBadRequest)),
 	}
@@ -116,7 +123,7 @@ var (
 	}
 )
 
-var ErrByStatus = map[ErrorCode]*ErrorFields{
+var ErrByStatus = map[StatusCode]*ErrorFields{
 	ErrStatusNotFound:         &ErrNotFound,
 	ErrStatusBadRequest:       &ErrBadRequest,
 	ErrStatusGeneric:          &ErrGeneric,

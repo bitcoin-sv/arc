@@ -1,4 +1,4 @@
-package: api
+package: blocktx_api
 generate:
   echo-server: true
   client: true

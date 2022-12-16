@@ -57,7 +57,7 @@ func appCleanup() {
 }
 
 func start() {
-	blockStore, err := sql.NewSQLStore("sqlite")
+	blockStore, err := sql.NewSQLStore("sqlite_memory")
 	if err != nil {
 		panic("Could not connect to fn: " + err.Error())
 	}

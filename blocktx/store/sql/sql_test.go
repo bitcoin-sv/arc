@@ -3,7 +3,6 @@ package sql
 import (
 	"bytes"
 	"context"
-	"os"
 	"testing"
 
 	pb "github.com/TAAL-GmbH/arc/blocktx/api"
@@ -14,8 +13,6 @@ import (
 )
 
 func TestInOut(t *testing.T) {
-	os.Remove("block-tx.db")
-
 	ctx := context.Background()
 
 	block := &pb.Block{
@@ -24,14 +21,16 @@ func TestInOut(t *testing.T) {
 		Height: 1,
 	}
 
-	s, err := NewSQLStore("sqlite")
+	s, err := NewSQLStore("sqlite_memory")
 	require.NoError(t, err)
 
 	blockId, err := s.InsertBlock(ctx, block)
 	require.NoError(t, err)
 
+	firstHash := []byte("test transaction hash 1")
+
 	transactions := []*pb.Transaction{
-		{Hash: []byte("test transaction hash 1")},
+		{Hash: firstHash},
 		{Hash: []byte("test transaction hash 2")},
 		{Hash: []byte("test transaction hash 3")},
 		{Hash: []byte("test transaction hash 4")},
@@ -44,14 +43,14 @@ func TestInOut(t *testing.T) {
 	}
 
 	err = s.InsertTransaction(ctx, &pb.Transaction{
-		Hash:   []byte("test transaction hash 1"),
+		Hash:   firstHash,
 		Source: "TEST",
 	})
 	require.NoError(t, err)
 
-	source, err := s.GetTransactionSource(ctx, []byte("test transaction hash 1"))
+	source, err := s.GetTransactionSource(ctx, firstHash)
 	require.NoError(t, err)
-	assert.Equal(t, source, "TEST")
+	assert.Equal(t, "TEST", source)
 
 	err = s.InsertBlockTransactions(ctx, blockId, transactions)
 	require.NoError(t, err)
@@ -89,11 +88,9 @@ func TestInOut(t *testing.T) {
 }
 
 func TestBlockNotExists(t *testing.T) {
-	os.Remove("block-tx.db")
-
 	ctx := context.Background()
 
-	s, err := NewSQLStore("sqlite")
+	s, err := NewSQLStore("sqlite_memory")
 	require.NoError(t, err)
 
 	height := uint64(1000000)

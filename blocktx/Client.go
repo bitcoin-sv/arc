@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	btcpb "github.com/TAAL-GmbH/arc/blocktx_api"
+	btcpb "github.com/TAAL-GmbH/arc/blocktx/api"
 	pb "github.com/TAAL-GmbH/arc/metamorph/api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/ordishs/go-utils"
@@ -16,8 +16,8 @@ import (
 // ClientI is the interface for the block-tx transactionHandler
 type ClientI interface {
 	Start(s store.Store)
-	GetTx(ctx interface{}, txID string) (string, error)
-	SetTx(ctx context.Context, txID string, server string) error
+	LocateTransaction(ctx context.Context, transaction *btcpb.Transaction) (string, error)
+	RegisterTransaction(ctx context.Context, transaction *btcpb.Transaction) error
 }
 
 type Client struct {
@@ -69,12 +69,37 @@ func (btc *Client) Start(s store.Store) {
 	}
 }
 
-func (btc *Client) GetTx(ctx interface{}, txID string) (string, error) {
-	//TODO implement me
-	panic("implement me")
+func (btc *Client) LocateTransaction(ctx context.Context, transaction *btcpb.Transaction) (string, error) {
+	conn, err := grpc.Dial(btc.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return "", err
+	}
+
+	defer conn.Close()
+
+	client := btcpb.NewBlockTxAPIClient(conn)
+
+	location, err := client.LocateTransaction(ctx, transaction)
+	if err != nil {
+		return "", err
+	}
+
+	return location.Source, nil
 }
 
-func (btc *Client) SetTx(ctx context.Context, txID string, server string) error {
-	//TODO implement me
-	panic("implement me")
+func (btc *Client) RegisterTransaction(ctx context.Context, transaction *btcpb.Transaction) error {
+	conn, err := grpc.Dial(btc.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+
+	defer conn.Close()
+
+	client := btcpb.NewBlockTxAPIClient(conn)
+
+	if _, err := client.RegisterTransaction(ctx, transaction); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	pb "github.com/TAAL-GmbH/arc/blocktx_api"
+	pb "github.com/TAAL-GmbH/arc/blocktx/api"
 
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"

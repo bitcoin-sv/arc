@@ -3,7 +3,7 @@ package store
 import (
 	"context"
 
-	pb "github.com/TAAL-GmbH/arc/blocktx_api"
+	pb "github.com/TAAL-GmbH/arc/blocktx/api"
 )
 
 type Interface interface {

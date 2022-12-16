@@ -37,12 +37,12 @@ gen:
 	--go_opt=paths=source_relative \
 	--go-grpc_out=. \
 	--go-grpc_opt=paths=source_relative \
-    blocktx_api/blocktx_api.proto
+    blocktx/api/blocktx_api.proto
 
 .PHONY: clean_gen
 clean_gen:
 	rm -f ./metamorph/api/*.pb.go
-	rm -f ./blocktx_api/*.pb.go
+	rm -f ./blocktx/api/*.pb.go
 
 .PHONY: clean
 clean:

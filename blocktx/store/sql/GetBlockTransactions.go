@@ -3,11 +3,11 @@ package sql
 import (
 	"context"
 
-	pb "github.com/TAAL-GmbH/arc/blocktx/api"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 )
 
 // GetBlockTransactions returns the transaction hashes for a given block hash
-func (s *SQL) GetBlockTransactions(ctx context.Context, block *pb.Block) (*pb.Transactions, error) {
+func (s *SQL) GetBlockTransactions(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -28,21 +28,21 @@ func (s *SQL) GetBlockTransactions(ctx context.Context, block *pb.Block) (*pb.Tr
 
 	defer rows.Close()
 
-	var txHash []byte
-	var transactions []*pb.Transaction
+	var hash []byte
+	var transactions []*blocktx_api.Transaction
 
 	for rows.Next() {
-		err = rows.Scan(&txHash)
+		err = rows.Scan(&hash)
 		if err != nil {
 			return nil, err
 		}
 
-		transactions = append(transactions, &pb.Transaction{
-			Hash: txHash,
+		transactions = append(transactions, &blocktx_api.Transaction{
+			Hash: hash,
 		})
 	}
 
-	return &pb.Transactions{
+	return &blocktx_api.Transactions{
 		Transactions: transactions,
 	}, nil
 }

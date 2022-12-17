@@ -1,12 +1,12 @@
 package sql
 
 import (
-	pb "github.com/TAAL-GmbH/arc/blocktx/api"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 
 	"context"
 )
 
-func (s *SQL) GetTransactionBlock(ctx context.Context, transaction *pb.Transaction) (*pb.Block, error) {
+func (s *SQL) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Block, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -20,7 +20,7 @@ func (s *SQL) GetTransactionBlock(ctx context.Context, transaction *pb.Transacti
 		AND b.orphanedyn = false
 	`
 
-	var block *pb.Block
+	var block *blocktx_api.Block
 
 	if err := s.db.QueryRowContext(ctx, q, transaction.Hash).Scan(&block); err != nil {
 		return nil, err

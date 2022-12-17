@@ -3,13 +3,13 @@ package sql
 import (
 	"database/sql"
 
-	pb "github.com/TAAL-GmbH/arc/blocktx/api"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 
 	"context"
 )
 
 // InsertBlockTransactions inserts the transaction hashes for a given block hash
-func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, transactions []*pb.Transaction) error {
+func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.Transaction) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

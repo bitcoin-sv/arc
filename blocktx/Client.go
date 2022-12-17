@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	btcpb "github.com/TAAL-GmbH/arc/blocktx/api"
-	pb "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/ordishs/go-utils"
 
@@ -16,8 +16,8 @@ import (
 // ClientI is the interface for the block-tx transactionHandler
 type ClientI interface {
 	Start(s store.Store)
-	LocateTransaction(ctx context.Context, transaction *btcpb.Transaction) (string, error)
-	RegisterTransaction(ctx context.Context, transaction *btcpb.Transaction) error
+	LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
+	RegisterTransaction(ctx context.Context, transaction *blocktx_api.Transaction) error
 }
 
 type Client struct {
@@ -37,9 +37,9 @@ func (btc *Client) Start(s store.Store) {
 		conn, _ := grpc.Dial(btc.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		defer conn.Close()
 
-		client := btcpb.NewBlockTxAPIClient(conn)
+		client := blocktx_api.NewBlockTxAPIClient(conn)
 
-		stream, err := client.GetMinedBlockTransactions(context.Background(), &btcpb.HeightAndSource{})
+		stream, err := client.GetMinedBlockTransactions(context.Background(), &blocktx_api.HeightAndSource{})
 		if err != nil {
 			panic(err)
 		}
@@ -54,10 +54,10 @@ func (btc *Client) Start(s store.Store) {
 				break
 			}
 
-			btc.logger.Infof("Block %x\n", mt.Blockhash)
+			btc.logger.Infof("Block %x\n", mt.Block.Hash)
 			for _, tx := range mt.Txs {
-				if err := s.UpdateStatus(ctx, tx.Hash, pb.Status_MINED, ""); err != nil {
-					btc.logger.Errorf("Could not update status of %x to %s: %v", utils.ReverseSlice(tx.Hash), pb.Status_MINED, err)
+				if err := s.UpdateStatus(ctx, tx.Hash, metamorph_api.Status_MINED, ""); err != nil {
+					btc.logger.Errorf("Could not update status of %x to %s: %v", utils.ReverseSlice(tx.Hash), metamorph_api.Status_MINED, err)
 				}
 			}
 		}
@@ -69,7 +69,7 @@ func (btc *Client) Start(s store.Store) {
 	}
 }
 
-func (btc *Client) LocateTransaction(ctx context.Context, transaction *btcpb.Transaction) (string, error) {
+func (btc *Client) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
 	conn, err := grpc.Dial(btc.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return "", err
@@ -77,7 +77,7 @@ func (btc *Client) LocateTransaction(ctx context.Context, transaction *btcpb.Tra
 
 	defer conn.Close()
 
-	client := btcpb.NewBlockTxAPIClient(conn)
+	client := blocktx_api.NewBlockTxAPIClient(conn)
 
 	location, err := client.LocateTransaction(ctx, transaction)
 	if err != nil {
@@ -87,7 +87,7 @@ func (btc *Client) LocateTransaction(ctx context.Context, transaction *btcpb.Tra
 	return location.Source, nil
 }
 
-func (btc *Client) RegisterTransaction(ctx context.Context, transaction *btcpb.Transaction) error {
+func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.Transaction) error {
 	conn, err := grpc.Dial(btc.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func (btc *Client) RegisterTransaction(ctx context.Context, transaction *btcpb.T
 
 	defer conn.Close()
 
-	client := btcpb.NewBlockTxAPIClient(conn)
+	client := blocktx_api.NewBlockTxAPIClient(conn)
 
 	if _, err := client.RegisterTransaction(ctx, transaction); err != nil {
 		return err

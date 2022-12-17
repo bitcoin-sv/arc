@@ -14,7 +14,7 @@ import (
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 
-	pb "github.com/TAAL-GmbH/arc/blocktx/api"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 )
 
 type ProcessorBitcoinI interface {
@@ -124,7 +124,7 @@ func (p *Processor) processBlock(hashStr string) error {
 		return err
 	}
 
-	block := &pb.Block{
+	block := &blocktx_api.Block{
 		Hash:   blockHash,
 		Height: blockJson.Height,
 		Header: header,
@@ -139,7 +139,7 @@ func (p *Processor) processBlock(hashStr string) error {
 		return err
 	}
 
-	var transactions []*pb.Transaction
+	var transactions []*blocktx_api.Transaction
 
 	reversedBlockHash := utils.ReverseSlice(block.Hash)
 
@@ -153,7 +153,7 @@ func (p *Processor) processBlock(hashStr string) error {
 		// we need all hashes to be little endian
 		p.Mtb.SendTx(reversedBlockHash, utils.ReverseSlice(txHash))
 
-		transactions = append(transactions, &pb.Transaction{Hash: txHash})
+		transactions = append(transactions, &blocktx_api.Transaction{Hash: txHash})
 	}
 
 	if err := p.store.InsertBlockTransactions(ctx, blockId, transactions); err != nil {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	metamorph_api2 "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -24,10 +24,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	client := metamorph_api2.NewMetaMorphAPIClient(cc)
+	client := metamorph_api.NewMetaMorphAPIClient(cc)
 
-	var res *metamorph_api2.TransactionStatus
-	res, err = client.GetTransactionStatus(ctx, &metamorph_api2.TransactionStatusRequest{
+	var res *metamorph_api.TransactionStatus
+	res, err = client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txid,
 	})
 	if err != nil {

@@ -26,11 +26,16 @@ run:
 .PHONY: gen
 gen:
 	protoc \
+	--proto_path=${GOPATH}/src \
+	--proto_path=${GOPATH}/src/github.com/mwitkow/go-proto-validators/ \
+	--proto_path=. \
 	--go_out=. \
 	--go_opt=paths=source_relative \
 	--go-grpc_out=. \
 	--go-grpc_opt=paths=source_relative \
-	metamorph/api/metamorph_api.proto
+	--govalidators_out=. \
+	--govalidators_opt=paths=source_relative \
+	metamorph/metamorph_api/metamorph_api.proto
 
 	protoc \
 	--proto_path=${GOPATH}/src \
@@ -42,12 +47,13 @@ gen:
 	--go-grpc_opt=paths=source_relative \
 	--govalidators_out=. \
 	--govalidators_opt=paths=source_relative \
-	blocktx/api/blocktx_api.proto
+	blocktx/blocktx_api/blocktx_api.proto
+
 
 .PHONY: clean_gen
 clean_gen:
-	rm -f ./metamorph/api/*.pb.go
-	rm -f ./blocktx/api/*.pb.go
+	rm -f ./metamorph/metamorph_api/*.pb.go
+	rm -f ./blocktx/blocktx_api/*.pb.go
 
 .PHONY: clean
 clean:

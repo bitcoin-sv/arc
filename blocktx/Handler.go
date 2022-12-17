@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"time"
 
-	pb "github.com/TAAL-GmbH/arc/blocktx/api"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 
 	"github.com/ordishs/go-utils"
-	batcher "github.com/ordishs/go-utils/batcher"
+	"github.com/ordishs/go-utils/batcher"
 )
 
 type blockTx struct {
@@ -18,7 +18,7 @@ type blockTx struct {
 type subscriber struct {
 	height uint64
 	source string
-	stream pb.BlockTxAPI_GetMinedBlockTransactionsServer
+	stream blocktx_api.BlockTxAPI_GetMinedBlockTransactionsServer
 }
 
 type MinedTransactionHandler struct {
@@ -27,7 +27,7 @@ type MinedTransactionHandler struct {
 
 	newSubscriptions  chan subscriber
 	deadSubscriptions chan subscriber
-	mtCh              chan *pb.MinedTransaction
+	mtCh              chan *blocktx_api.MinedTransaction
 	quitCh            chan bool
 	txBatcher         *batcher.Batcher[blockTx]
 }
@@ -38,7 +38,7 @@ func NewHandler(l utils.Logger) *MinedTransactionHandler {
 		subscribers:       make(map[subscriber]bool),
 		newSubscriptions:  make(chan subscriber, 128),
 		deadSubscriptions: make(chan subscriber, 128),
-		mtCh:              make(chan *pb.MinedTransaction),
+		mtCh:              make(chan *blocktx_api.MinedTransaction),
 	}
 	h.txBatcher = batcher.New(500, 500*time.Millisecond, h.sendTxBatch, true)
 
@@ -86,7 +86,7 @@ func (h *MinedTransactionHandler) Shutdown() {
 }
 
 // NewSubscription adds a new subscription to the handler
-func (h *MinedTransactionHandler) NewSubscription(heightAndSource *pb.HeightAndSource, s pb.BlockTxAPI_GetMinedBlockTransactionsServer) {
+func (h *MinedTransactionHandler) NewSubscription(heightAndSource *blocktx_api.HeightAndSource, s blocktx_api.BlockTxAPI_GetMinedBlockTransactionsServer) {
 	h.newSubscriptions <- subscriber{
 		height: heightAndSource.Height,
 		source: heightAndSource.Source,
@@ -110,21 +110,21 @@ func (h *MinedTransactionHandler) SendTx(blockHash []byte, txHash []byte) {
 // sendTxBatch sends a batch of transactions to the subscribers
 // The batch is grouped by block hash
 func (h *MinedTransactionHandler) sendTxBatch(batch []*blockTx) {
-	mt := &pb.MinedTransaction{
-		// Txs: make([][]byte, 0),
+	mt := &blocktx_api.MinedTransaction{
+		Block: &blocktx_api.Block{},
 	}
 
 	for _, btx := range batch {
-		if mt.Blockhash == nil || !bytes.Equal(mt.Blockhash, btx.blockHash) {
+		if mt.Block.Hash == nil || !bytes.Equal(mt.Block.Hash, btx.blockHash) {
 			h.mtCh <- mt
 
-			mt = &pb.MinedTransaction{
-				Blockhash: btx.blockHash,
-				Txs:       nil,
+			mt = &blocktx_api.MinedTransaction{
+				Block: &blocktx_api.Block{Hash: btx.blockHash},
+				Txs:   nil,
 			}
 		}
 
-		mt.Txs = append(mt.Txs, &pb.Transaction{Hash: btx.txHash})
+		mt.Txs = append(mt.Txs, &blocktx_api.Transaction{Hash: btx.txHash})
 	}
 
 	h.mtCh <- mt

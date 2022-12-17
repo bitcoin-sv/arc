@@ -1,12 +1,12 @@
 package sql
 
 import (
-	pb "github.com/TAAL-GmbH/arc/blocktx/api"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 
 	"context"
 )
 
-func (s *SQL) GetTransactionBlocks(ctx context.Context, transaction *pb.Transaction) (*pb.Blocks, error) {
+func (s *SQL) GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Blocks, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -29,7 +29,7 @@ func (s *SQL) GetTransactionBlocks(ctx context.Context, transaction *pb.Transact
 
 	var blockHash []byte
 
-	var blocks []*pb.Block
+	var blocks []*blocktx_api.Block
 
 	for rows.Next() {
 		err := rows.Scan(&blockHash)
@@ -37,12 +37,12 @@ func (s *SQL) GetTransactionBlocks(ctx context.Context, transaction *pb.Transact
 			return nil, err
 		}
 
-		blocks = append(blocks, &pb.Block{
+		blocks = append(blocks, &blocktx_api.Block{
 			Hash: blockHash,
 		})
 	}
 
-	return &pb.Blocks{
+	return &blocktx_api.Blocks{
 		Blocks: blocks,
 	}, nil
 }

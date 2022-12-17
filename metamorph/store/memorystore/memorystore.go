@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	pb "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	store2 "github.com/TAAL-GmbH/arc/metamorph/store"
 )
 
@@ -43,7 +43,7 @@ func (m *MemoryStore) GetUnseen(_ context.Context, callback func(s *store2.Store
 	defer m.mu.RUnlock()
 
 	for _, v := range m.store {
-		if v.Status < pb.Status_SEEN_ON_NETWORK {
+		if v.Status < metamorph_api.Status_SEEN_ON_NETWORK {
 			callback(v)
 		}
 	}
@@ -52,7 +52,7 @@ func (m *MemoryStore) GetUnseen(_ context.Context, callback func(s *store2.Store
 }
 
 // UpdateStatus attempts to update the status of a transaction
-func (m *MemoryStore) UpdateStatus(_ context.Context, hash []byte, status pb.Status, rejectReason string) error {
+func (m *MemoryStore) UpdateStatus(_ context.Context, hash []byte, status metamorph_api.Status, rejectReason string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

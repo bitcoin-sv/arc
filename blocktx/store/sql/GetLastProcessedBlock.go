@@ -1,12 +1,12 @@
 package sql
 
 import (
-	pb "github.com/TAAL-GmbH/arc/blocktx/api"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 
 	"context"
 )
 
-func (s *SQL) GetLastProcessedBlock(ctx context.Context) (*pb.Block, error) {
+func (s *SQL) GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -22,7 +22,7 @@ func (s *SQL) GetLastProcessedBlock(ctx context.Context) (*pb.Block, error) {
 		LIMIT 1
 	`
 
-	block := &pb.Block{}
+	block := &blocktx_api.Block{}
 
 	if err := s.db.QueryRowContext(ctx, q).Scan(&block.Hash, &block.Header, &block.Height, &block.Orphaned); err != nil {
 		return nil, err

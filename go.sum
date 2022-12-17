@@ -202,6 +202,8 @@ github.com/ordishs/go-bitcoin v1.0.73 h1:NRQS7uyiKsve2BpCoYimWBlzZvQ40KT/vdZ/73v
 github.com/ordishs/go-bitcoin v1.0.73/go.mod h1:7gXD2G745ETJK4OU4xXl0UBIOAc80615hBJRjPqKhWY=
 github.com/ordishs/go-utils v1.0.11 h1:0XhMDzVZKAysn6jCp5Y/nIJe9UP1Vdrth2nOZur3EqE=
 github.com/ordishs/go-utils v1.0.11/go.mod h1:k9G7Bbv2GwoOn9fwZx70yM5jwwIymkv+90FUKLudtyc=
+github.com/ordishs/go-utils v1.0.12 h1:8Vk2XJu2xyLRoScu7ulOdK9D+STth2IQy2a3c9CYiRY=
+github.com/ordishs/go-utils v1.0.12/go.mod h1:k9G7Bbv2GwoOn9fwZx70yM5jwwIymkv+90FUKLudtyc=
 github.com/ordishs/gocore v1.0.20 h1:qGIbdnf4pzmPmYl++WxubjrHD9Rz6sQQQfI3OFtiXJQ=
 github.com/ordishs/gocore v1.0.20/go.mod h1:jDw6qSnZFcE/ddoIVrQWTZtPh3O5izA2SRWZ+1CS4Q0=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=

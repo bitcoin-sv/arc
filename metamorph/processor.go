@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	pb "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/p2p"
 	"github.com/libsv/go-bt/v2"
@@ -34,7 +34,7 @@ type ProcessorResponse struct {
 	Hash   []byte
 	Start  time.Time
 	Err    error
-	Status pb.Status
+	Status metamorph_api.Status
 }
 
 type ProcessorStats struct {
@@ -129,7 +129,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	p.ch <- req
 }
 
-func (p *Processor) SendStatusForTransaction(hashStr string, status pb.Status, err error) bool {
+func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_api.Status, err error) bool {
 	resp, ok := p.tx2ChMap.Get(hashStr)
 	if ok {
 		// we have cached this transaction, so process accordingly
@@ -150,7 +150,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status pb.Status, e
 
 		// Don't cache the channel if the transactionHandler is not listening any more
 		// which will have been triggered by a status of SEEN or higher
-		if status >= pb.Status_SENT_TO_NETWORK {
+		if status >= metamorph_api.Status_SENT_TO_NETWORK {
 			p.processedCount.Add(1)
 			p.processedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
 
@@ -158,7 +158,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status pb.Status, e
 		}
 
 		return ok
-	} else if status > pb.Status_SENT_TO_NETWORK {
+	} else if status > metamorph_api.Status_SENT_TO_NETWORK {
 		if err != nil {
 			// Print the error along with the status message
 			p.logger.Infof("Received status %s for tx %s: %s", status.String(), hashStr, err.Error())
@@ -211,13 +211,13 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	processorResponse := &ProcessorResponse{
 		ch:     req.ResponseChannel,
 		Hash:   req.Hash,
-		Status: pb.Status_UNKNOWN,
+		Status: metamorph_api.Status_UNKNOWN,
 		Start:  time.Now(),
 	}
 
 	p.queueLength.Add(-1)
 
-	processorResponse.Status = pb.Status_RECEIVED
+	processorResponse.Status = metamorph_api.Status_RECEIVED
 	utils.SafeSend(req.ResponseChannel, processorResponse)
 
 	p.logger.Debugf("Adding channel for %x", bt.ReverseBytes(req.Hash))
@@ -233,12 +233,12 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	} else {
 		p.logger.Infof("Stored tx %s", txidStr)
 
-		processorResponse.Status = pb.Status_STORED
+		processorResponse.Status = metamorph_api.Status_STORED
 		utils.SafeSend(req.ResponseChannel, processorResponse)
 
 		p.pm.AnnounceNewTransaction(req.Hash)
 
-		processorResponse.Status = pb.Status_ANNOUNCED_TO_NETWORK
+		processorResponse.Status = metamorph_api.Status_ANNOUNCED_TO_NETWORK
 		utils.SafeSend(req.ResponseChannel, processorResponse)
 	}
 

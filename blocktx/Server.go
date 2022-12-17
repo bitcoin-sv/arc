@@ -16,13 +16,13 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	pb "github.com/TAAL-GmbH/arc/blocktx/api"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 )
 
 // Server type carries the logger within it
 type Server struct {
 	store store.Interface
-	pb.UnsafeBlockTxAPIServer
+	blocktx_api.UnsafeBlockTxAPIServer
 	logger    utils.Logger
 	processor *Processor
 }
@@ -55,7 +55,7 @@ func (s *Server) StartGRPCServer() error {
 		return fmt.Errorf("GRPC server failed to listen [%w]", err)
 	}
 
-	pb.RegisterBlockTxAPIServer(grpcServer, s)
+	blocktx_api.RegisterBlockTxAPIServer(grpcServer, s)
 
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcServer)
@@ -69,46 +69,46 @@ func (s *Server) StartGRPCServer() error {
 	return nil
 }
 
-func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*pb.HealthResponse, error) {
-	return &pb.HealthResponse{
+func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.HealthResponse, error) {
+	return &blocktx_api.HealthResponse{
 		Ok:        true,
 		Timestamp: timestamppb.New(time.Now()),
 	}, nil
 }
 
-func (s *Server) LocateTransaction(ctx context.Context, transaction *pb.Transaction) (*pb.Source, error) {
+func (s *Server) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Source, error) {
 	source, err := s.store.GetTransactionSource(ctx, transaction.Hash)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.Source{
+	return &blocktx_api.Source{
 		Source: source,
 	}, nil
 }
 
-func (s *Server) RegisterTransaction(ctx context.Context, transaction *pb.Transaction) (*emptypb.Empty, error) {
+func (s *Server) RegisterTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (*emptypb.Empty, error) {
 	err := s.store.InsertTransaction(ctx, transaction)
 	return &emptypb.Empty{}, err
 }
 
-func (s *Server) GetBlockTransactions(ctx context.Context, block *pb.Block) (*pb.Transactions, error) {
+func (s *Server) GetBlockTransactions(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error) {
 	return s.store.GetBlockTransactions(ctx, block)
 }
 
-func (s *Server) GetTransactionBlocks(ctx context.Context, transaction *pb.Transaction) (*pb.Blocks, error) {
+func (s *Server) GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Blocks, error) {
 	return s.store.GetTransactionBlocks(ctx, transaction)
 }
 
-func (s *Server) GetTransactionBlock(ctx context.Context, transaction *pb.Transaction) (*pb.Block, error) {
+func (s *Server) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Block, error) {
 	return s.store.GetTransactionBlock(ctx, transaction)
 }
 
-func (s *Server) GetBlockForHeight(ctx context.Context, height *pb.Height) (*pb.Block, error) {
+func (s *Server) GetBlockForHeight(ctx context.Context, height *blocktx_api.Height) (*blocktx_api.Block, error) {
 	return s.store.GetBlockForHeight(ctx, height.Height)
 }
 
-func (s *Server) GetMinedBlockTransactions(heightAndSource *pb.HeightAndSource, srv pb.BlockTxAPI_GetMinedBlockTransactionsServer) error {
+func (s *Server) GetMinedBlockTransactions(heightAndSource *blocktx_api.HeightAndSource, srv blocktx_api.BlockTxAPI_GetMinedBlockTransactionsServer) error {
 	s.processor.Mtb.NewSubscription(heightAndSource, srv)
 	return nil
 }

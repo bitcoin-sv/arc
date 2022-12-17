@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 
@@ -105,7 +105,7 @@ func (p *Peer) readHandler() {
 			p.parentChannel <- &PMMessage{
 				Txid:   rejMsg.Hash.String(),
 				Err:    fmt.Errorf("P2P rejection: %s", rejMsg.Reason),
-				Status: pb.Status_REJECTED,
+				Status: metamorph_api.Status_REJECTED,
 			}
 
 		case wire.CmdVerAck:
@@ -158,7 +158,7 @@ func (p *Peer) writeChannelHandler() {
 		if msg.Command() == wire.CmdTx {
 			p.parentChannel <- &PMMessage{
 				Txid:   msg.(*wire.MsgTx).TxHash().String(),
-				Status: pb.Status_SENT_TO_NETWORK,
+				Status: metamorph_api.Status_SENT_TO_NETWORK,
 			}
 		}
 

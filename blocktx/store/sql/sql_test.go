@@ -5,7 +5,7 @@ import (
 	"context"
 	"testing"
 
-	pb "github.com/TAAL-GmbH/arc/blocktx/api"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +15,7 @@ import (
 func TestInOut(t *testing.T) {
 	ctx := context.Background()
 
-	block := &pb.Block{
+	block := &blocktx_api.Block{
 		Hash:   []byte("test block hash"),
 		Header: []byte("test block header"),
 		Height: 1,
@@ -29,7 +29,7 @@ func TestInOut(t *testing.T) {
 
 	firstHash := []byte("test transaction hash 1")
 
-	transactions := []*pb.Transaction{
+	transactions := []*blocktx_api.Transaction{
 		{Hash: firstHash},
 		{Hash: []byte("test transaction hash 2")},
 		{Hash: []byte("test transaction hash 3")},
@@ -42,7 +42,7 @@ func TestInOut(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	err = s.InsertTransaction(ctx, &pb.Transaction{
+	err = s.InsertTransaction(ctx, &blocktx_api.Transaction{
 		Hash:   firstHash,
 		Source: "TEST",
 	})

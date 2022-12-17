@@ -1,13 +1,13 @@
 package sql
 
 import (
-	pb "github.com/TAAL-GmbH/arc/blocktx/api"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 
 	"context"
 	"database/sql"
 )
 
-func (s *SQL) InsertBlock(ctx context.Context, block *pb.Block) (uint64, error) {
+func (s *SQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -30,7 +30,7 @@ func (s *SQL) InsertBlock(ctx context.Context, block *pb.Block) (uint64, error) 
 	if err := s.db.QueryRowContext(ctx, q, block.Hash, block.Header, block.Height).Scan(&blockId); err != nil {
 		if err == sql.ErrNoRows {
 			// The insert failed because the block already exists.
-			// We will mark the block as unorphaned whilst retrieving the id.
+			// We will mark the block as un-orphaned whilst retrieving the id.
 			q = `
 				UPDATE blocks SET
 				 orphanedyn = false

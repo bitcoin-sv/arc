@@ -5,14 +5,14 @@ import (
 	"sync"
 	"time"
 
-	pb "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/p2p/chaincfg/chainhash"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/go-utils"
 
-	batcher "github.com/ordishs/go-utils/batcher"
+	"github.com/ordishs/go-utils/batcher"
 	"github.com/ordishs/gocore"
 )
 
@@ -25,7 +25,7 @@ type PeerManager struct {
 type PMMessage struct {
 	Start  time.Time
 	Txid   string
-	Status pb.Status
+	Status metamorph_api.Status
 	Err    error
 }
 

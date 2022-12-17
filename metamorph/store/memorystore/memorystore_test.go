@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	pb "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/ordishs/go-utils"
 
@@ -91,7 +91,7 @@ func TestGetUnseen(t *testing.T) {
 		for _, hash := range hashes {
 			err = bh.Set(context.Background(), hash, &store.StoreData{
 				Hash:   hash,
-				Status: pb.Status_SEEN_ON_NETWORK,
+				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			})
 			require.NoError(t, err)
 		}
@@ -124,7 +124,7 @@ func TestGetUnseen(t *testing.T) {
 		for _, hash := range hashes {
 			err = bh.Set(context.Background(), hash, &store.StoreData{
 				Hash:   hash,
-				Status: pb.Status_ANNOUNCED_TO_NETWORK,
+				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			})
 			require.NoError(t, err)
 		}

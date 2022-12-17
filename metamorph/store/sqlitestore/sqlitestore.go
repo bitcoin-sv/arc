@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	pb "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	store2 "github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/pkg/errors"
 	_ "modernc.org/sqlite"
@@ -245,7 +245,7 @@ func (s *SqliteStore) GetUnseen(ctx context.Context, callback func(s *store2.Sto
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	rows, err := s.db.QueryContext(ctx, q, pb.Status_SEEN_ON_NETWORK)
+	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK)
 	if err != nil {
 		return err
 	}
@@ -303,7 +303,7 @@ func (s *SqliteStore) GetUnseen(ctx context.Context, callback func(s *store2.Sto
 	return nil
 }
 
-func (s *SqliteStore) UpdateStatus(ctx context.Context, hash []byte, status pb.Status, rejectReason string) error {
+func (s *SqliteStore) UpdateStatus(ctx context.Context, hash []byte, status metamorph_api.Status, rejectReason string) error {
 
 	q := `
 		UPDATE transactions

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	pb "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/timshannon/badgerhold/v3"
 
@@ -78,7 +78,7 @@ func (s *BadgerHold) Get(_ context.Context, hash []byte) (*store.StoreData, erro
 }
 
 // UpdateStatus attempts to update the status of a transaction
-func (s *BadgerHold) UpdateStatus(_ context.Context, hash []byte, status pb.Status, rejectReason string) error {
+func (s *BadgerHold) UpdateStatus(_ context.Context, hash []byte, status metamorph_api.Status, rejectReason string) error {
 	// we need a lock here since we are doing 2 operations that need to be atomic
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -109,9 +109,9 @@ func (s *BadgerHold) UpdateStatus(_ context.Context, hash []byte, status pb.Stat
 // GetUnseen returns all transactions that have not been seen on the network
 func (s *BadgerHold) GetUnseen(_ context.Context, callback func(s *store.StoreData)) error {
 	return s.store.ForEach(badgerhold.Where("Status").MatchFunc(func(ra *badgerhold.RecordAccess) (bool, error) {
-		field, ok := ra.Field().(pb.Status)
+		field, ok := ra.Field().(metamorph_api.Status)
 		if ok {
-			return field < pb.Status_SEEN_ON_NETWORK, nil
+			return field < metamorph_api.Status_SEEN_ON_NETWORK, nil
 		}
 		return false, nil
 	}), func(s *store.StoreData) error {

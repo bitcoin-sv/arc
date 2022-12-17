@@ -3,6 +3,7 @@
     "BIGSERIAL",
     "bitcoinsv",
     "blockid",
+    "Blocktime",
     "blocktx",
     "bsvd",
     "bsvutil",
@@ -36,6 +37,7 @@
     "TAAL",
     "timestamppb",
     "txns",
-    "txscript"
+    "txscript",
+    "Warnf"
   ]
 }

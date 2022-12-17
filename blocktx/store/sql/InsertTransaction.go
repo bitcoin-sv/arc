@@ -3,11 +3,11 @@ package sql
 import (
 	"context"
 
-	pb "github.com/TAAL-GmbH/arc/blocktx/api"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 )
 
 // InsertTransaction registers a transaction in the database
-func (s *SQL) InsertTransaction(ctx context.Context, transaction *pb.Transaction) error {
+func (s *SQL) InsertTransaction(ctx context.Context, transaction *blocktx_api.Transaction) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

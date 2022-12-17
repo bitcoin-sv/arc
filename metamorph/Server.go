@@ -8,7 +8,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/libsv/go-bt"
 	"github.com/ordishs/go-utils"
@@ -21,7 +21,7 @@ import (
 
 // Server type carries the zmqLogger within it
 type Server struct {
-	api.UnimplementedMetaMorphAPIServer
+	metamorph_api.UnimplementedMetaMorphAPIServer
 	logger    *gocore.Logger
 	processor *Processor
 	store     store.Store
@@ -55,7 +55,7 @@ func (s *Server) StartGRPCServer() error {
 		return fmt.Errorf("GRPC server failed to listen [%w]", err)
 	}
 
-	api.RegisterMetaMorphAPIServer(grpcServer, s)
+	metamorph_api.RegisterMetaMorphAPIServer(grpcServer, s)
 
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcServer)
@@ -69,7 +69,7 @@ func (s *Server) StartGRPCServer() error {
 	return nil
 }
 
-func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*api.HealthResponse, error) {
+func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.HealthResponse, error) {
 	stats := s.processor.GetStats()
 
 	avg := float32(0.0)
@@ -78,7 +78,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*api.HealthRespons
 	}
 
 	details := fmt.Sprintf(`Peer stats (started: %s)`, stats.StartTime.UTC().Format(time.RFC3339))
-	return &api.HealthResponse{
+	return &metamorph_api.HealthResponse{
 		Ok:        true,
 		Details:   details,
 		Timestamp: timestamppb.New(time.Now()),
@@ -92,14 +92,14 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*api.HealthRespons
 	}, nil
 }
 
-func (s *Server) PutTransaction(_ context.Context, req *api.TransactionRequest) (*api.TransactionStatus, error) {
+func (s *Server) PutTransaction(_ context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
 	responseChannel := make(chan *ProcessorResponse)
 	defer func() {
 		close(responseChannel)
 	}()
 
 	// Convert gRPC req to store.StoreData struct...
-	status := api.Status_UNKNOWN
+	status := metamorph_api.Status_UNKNOWN
 	hash := utils.Sha256d(req.RawTx)
 
 	storeData, err := s.store.Get(context.Background(), hash)
@@ -108,7 +108,7 @@ func (s *Server) PutTransaction(_ context.Context, req *api.TransactionRequest) 
 	}
 	if storeData != nil {
 		// we found the transaction in the store, so we can just return it
-		return &api.TransactionStatus{
+		return &metamorph_api.TransactionStatus{
 			TimedOut:     false,
 			StoredAt:     timestamppb.New(storeData.StoredAt),
 			AnnouncedAt:  timestamppb.New(storeData.AnnouncedAt),
@@ -141,24 +141,24 @@ func (s *Server) PutTransaction(_ context.Context, req *api.TransactionRequest) 
 	for {
 		select {
 		case <-timeout.C:
-			return &api.TransactionStatus{
+			return &metamorph_api.TransactionStatus{
 				TimedOut: true,
 				Status:   status,
 			}, nil
 		case res := <-responseChannel:
-			if res.Status != api.Status_UNKNOWN {
+			if res.Status != metamorph_api.Status_UNKNOWN {
 				status = res.Status
 			}
 
 			if res.Err != nil {
-				return &api.TransactionStatus{
+				return &metamorph_api.TransactionStatus{
 					Status:       status,
 					RejectReason: res.Err.Error(),
 				}, nil
 			}
 
-			if status >= api.Status_SENT_TO_NETWORK {
-				return &api.TransactionStatus{
+			if status >= metamorph_api.Status_SENT_TO_NETWORK {
+				return &metamorph_api.TransactionStatus{
 					Status: status,
 				}, nil
 			}
@@ -166,7 +166,7 @@ func (s *Server) PutTransaction(_ context.Context, req *api.TransactionRequest) 
 	}
 }
 
-func (s *Server) GetTransactionStatus(ctx context.Context, req *api.TransactionStatusRequest) (*api.TransactionStatus, error) {
+func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.TransactionStatus, error) {
 	txBytes, err := hex.DecodeString(req.Txid)
 	if err != nil {
 		return nil, err
@@ -180,7 +180,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *api.TransactionS
 		return nil, err
 	}
 
-	return &api.TransactionStatus{
+	return &metamorph_api.TransactionStatus{
 		Txid:         fmt.Sprintf("%x", bt.ReverseBytes(data.Hash)),
 		StoredAt:     timestamppb.New(data.StoredAt),
 		Status:       data.Status,

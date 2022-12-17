@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	pb "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 )
 
 type StoreData struct {
@@ -13,7 +13,7 @@ type StoreData struct {
 	AnnouncedAt   time.Time
 	MinedAt       time.Time
 	Hash          []byte `badgerhold:"key"`
-	Status        pb.Status
+	Status        metamorph_api.Status
 	BlockHeight   int32
 	BlockHash     []byte
 	ApiKeyId      int64
@@ -33,7 +33,7 @@ type Store interface {
 	Get(ctx context.Context, key []byte) (*StoreData, error)
 	GetUnseen(_ context.Context, callback func(s *StoreData)) error
 	Set(ctx context.Context, key []byte, value *StoreData) error
-	UpdateStatus(ctx context.Context, hash []byte, status pb.Status, rejectReason string) error
+	UpdateStatus(ctx context.Context, hash []byte, status metamorph_api.Status, rejectReason string) error
 	Del(ctx context.Context, key []byte) error
 	Close(ctx context.Context) error
 }

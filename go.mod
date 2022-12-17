@@ -16,7 +16,7 @@ require (
 	github.com/mrz1836/go-logger v0.3.1
 	github.com/mwitkow/go-proto-validators v0.3.2
 	github.com/ordishs/go-bitcoin v1.0.73
-	github.com/ordishs/go-utils v1.0.11
+	github.com/ordishs/go-utils v1.0.12
 	github.com/ordishs/gocore v1.0.20
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.1

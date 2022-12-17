@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	metamorph_api2 "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/libsv/go-bk/bec"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
@@ -81,7 +81,7 @@ func main() {
 		panic(fmt.Errorf("DIALCONTEXT: %v", err))
 	}
 
-	client := metamorph_api2.NewMetaMorphAPIClient(cc)
+	client := metamorph_api.NewMetaMorphAPIClient(cc)
 
 	privKey, err := bec.NewPrivateKey(bec.S256())
 	if err != nil {
@@ -92,7 +92,7 @@ func main() {
 
 	if useFundingTx != nil && *useFundingTx {
 		fundingTx := newFundingTransaction(privKey, sendNrOfTransactions)
-		_, err = client.PutTransaction(ctx, &metamorph_api2.TransactionRequest{
+		_, err = client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
 			RawTx: fundingTx.Bytes(),
 		})
 		if err != nil {
@@ -157,11 +157,11 @@ func main() {
 	}
 }
 
-func processTransaction(ctx context.Context, client metamorph_api2.MetaMorphAPIClient, tx *bt.Tx) error {
+func processTransaction(ctx context.Context, client metamorph_api.MetaMorphAPIClient, tx *bt.Tx) error {
 	ctxClient, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
 
-	res, err := client.PutTransaction(ctxClient, &metamorph_api2.TransactionRequest{
+	res, err := client.PutTransaction(ctxClient, &metamorph_api.TransactionRequest{
 		RawTx: tx.Bytes(),
 	})
 	if err != nil {

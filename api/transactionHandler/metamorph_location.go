@@ -4,12 +4,12 @@ import (
 	"context"
 
 	"github.com/TAAL-GmbH/arc/blocktx"
-	btcpb "github.com/TAAL-GmbH/arc/blocktx/api"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 )
 
 type MetamorphLocationI interface {
-	GetServer(ctx context.Context, transaction *btcpb.Transaction) (string, error)
-	SetServer(ctx context.Context, transaction *btcpb.Transaction) error
+	GetServer(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
+	SetServer(ctx context.Context, transaction *blocktx_api.Transaction) error
 }
 
 type MetamorphTxLocationService struct {
@@ -22,11 +22,11 @@ func NewMetamorphTxLocationService(blockTx blocktx.ClientI) MetamorphLocationI {
 	}
 }
 
-func (l *MetamorphTxLocationService) GetServer(ctx context.Context, transaction *btcpb.Transaction) (string, error) {
+func (l *MetamorphTxLocationService) GetServer(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
 	return l.blockTx.LocateTransaction(ctx, transaction)
 
 }
 
-func (l *MetamorphTxLocationService) SetServer(ctx context.Context, transaction *btcpb.Transaction) error {
+func (l *MetamorphTxLocationService) SetServer(ctx context.Context, transaction *blocktx_api.Transaction) error {
 	return l.blockTx.RegisterTransaction(ctx, transaction)
 }

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	arc "github.com/TAAL-GmbH/arc/api"
-	btcpb "github.com/TAAL-GmbH/arc/blocktx/api"
-	metamorph_api2 "github.com/TAAL-GmbH/arc/metamorph/api"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"google.golang.org/grpc"
@@ -17,20 +17,20 @@ import (
 
 // Metamorph is the connector to a metamorph server
 type Metamorph struct {
-	Servers         map[string]metamorph_api2.MetaMorphAPIClient
+	Servers         map[string]metamorph_api.MetaMorphAPIClient
 	locationService MetamorphLocationI
 }
 
 // NewMetamorph creates a connection to a list of metamorph servers via gRPC
 func NewMetamorph(targets []string, locationService MetamorphLocationI) (metamorph *Metamorph, err error) {
-	servers := make(map[string]metamorph_api2.MetaMorphAPIClient)
+	servers := make(map[string]metamorph_api.MetaMorphAPIClient)
 	for _, target := range targets {
 		var server *grpc.ClientConn
 		server, err = grpc.Dial(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			return nil, err
 		}
-		servers[target] = metamorph_api2.NewMetaMorphAPIClient(server)
+		servers[target] = metamorph_api.NewMetaMorphAPIClient(server)
 	}
 
 	return &Metamorph{
@@ -41,13 +41,13 @@ func NewMetamorph(targets []string, locationService MetamorphLocationI) (metamor
 
 // GetTransaction gets a raw transaction from the bitcoin node
 func (m *Metamorph) GetTransaction(ctx context.Context, txID string) (rawTx *RawTransaction, err error) {
-	var client metamorph_api2.MetaMorphAPIClient
+	var client metamorph_api.MetaMorphAPIClient
 	if client, err = m.getMetamorphClientForTx(ctx, txID); err != nil {
 		return nil, err
 	}
 
-	var tx *metamorph_api2.TransactionStatus
-	if tx, err = client.GetTransactionStatus(ctx, &metamorph_api2.TransactionStatusRequest{
+	var tx *metamorph_api.TransactionStatus
+	if tx, err = client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
 	}); err != nil {
 		return nil, err
@@ -69,13 +69,13 @@ func (m *Metamorph) GetTransaction(ctx context.Context, txID string) (rawTx *Raw
 
 // GetTransactionStatus gets the status of a transaction
 func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (status *TransactionStatus, err error) {
-	var client metamorph_api2.MetaMorphAPIClient
+	var client metamorph_api.MetaMorphAPIClient
 	if client, err = m.getMetamorphClientForTx(ctx, txID); err != nil {
 		return nil, err
 	}
 
-	var tx *metamorph_api2.TransactionStatus
-	tx, err = client.GetTransactionStatus(ctx, &metamorph_api2.TransactionStatusRequest{
+	var tx *metamorph_api.TransactionStatus
+	tx, err = client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
 	})
 	if err != nil {
@@ -104,8 +104,8 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, _ *arc.Tra
 	}
 
 	// TODO add retry logic if the put fails
-	var response *metamorph_api2.TransactionStatus
-	response, err = client.PutTransaction(ctx, &metamorph_api2.TransactionRequest{
+	var response *metamorph_api.TransactionStatus
+	response, err = client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
 		RawTx: tx,
 	})
 	if err != nil {
@@ -121,7 +121,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, _ *arc.Tra
 	}, nil
 }
 
-func (m *Metamorph) getRandomMetamorphClient() (string, metamorph_api2.MetaMorphAPIClient, error) {
+func (m *Metamorph) getRandomMetamorphClient() (string, metamorph_api.MetaMorphAPIClient, error) {
 	k := rand.Intn(len(m.Servers))
 	for target, server := range m.Servers {
 		if k == 0 {
@@ -133,13 +133,13 @@ func (m *Metamorph) getRandomMetamorphClient() (string, metamorph_api2.MetaMorph
 	return "", nil, fmt.Errorf("no metamorph server could be selected")
 }
 
-func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (metamorph_api2.MetaMorphAPIClient, error) {
+func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (metamorph_api.MetaMorphAPIClient, error) {
 	hash, err := utils.DecodeAndReverseHexString(txID)
 	if err != nil {
 		return nil, err
 	}
 
-	target, err := m.locationService.GetServer(ctx, &btcpb.Transaction{
+	target, err := m.locationService.GetServer(ctx, &blocktx_api.Transaction{
 		Hash: hash,
 	})
 	if err != nil {

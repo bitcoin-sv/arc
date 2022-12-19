@@ -9,9 +9,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/api/test"
+	"github.com/TAAL-GmbH/arc/api/transactionHandler"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,10 +26,9 @@ var contentTypes = []string{
 }
 
 const (
-	// TODO same as validator, store somewhere centrally?
-	validTx         = "0100000001c04e2d8baa442e7445f81ec12c68eb841027211a199176e653fb5e7ef78da0ec8f0000006a4730440220068baf45d1adceba1319511cae65f3c90ec9cdca6ca56350aa6e8e3488424790022033f5efb1740d04f9836c20c07a58ef726d561a51aafc7d3d852bacae2bc30ebb4121035a92fd2b399f6b34941ed245ceb25a416fd2e1af815b315b744293c81fe532c3ffffffff01000000000000000044006a20506b2b9386e05d31a7122b20dec0646b48f690c2e682d3ff3b171cbaf03df11720f360068507c5c9a92ccc74c832665cfa2de09d14f1fc5264193f236e2eec5e4600000000"
-	validExtendedTx = "010000000000000000ef01eca08df77e5efb53e67691191a21271084eb682cc11ef845742e44aa8b2d4ec08f0000006a4730440220068baf45d1adceba1319511cae65f3c90ec9cdca6ca56350aa6e8e3488424790022033f5efb1740d04f9836c20c07a58ef726d561a51aafc7d3d852bacae2bc30ebb4121035a92fd2b399f6b34941ed245ceb25a416fd2e1af815b315b744293c81fe532c3ffffffff0c000000000000001976a914cbf0f02390a1de60a00d47ad076fab8378d95c6a88ac01000000000000000044006a20506b2b9386e05d31a7122b20dec0646b48f690c2e682d3ff3b171cbaf03df11720f360068507c5c9a92ccc74c832665cfa2de09d14f1fc5264193f236e2eec5e4600000000"
-	validTxID       = "9ba52edfdf32edac89db53b3a384ae26d65c21c2c70189692a8faa5cbb2dee33"
+	validTx         = "0100000001358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffff02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
+	validExtendedTx = "010000000000000000ef01358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffffc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
+	validTxID       = "a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"
 )
 
 func TestNewDefault(t *testing.T) {
@@ -59,9 +60,9 @@ func TestGetArcV1Fees(t *testing.T) { //nolint:funlen
 		require.NotNil(t, feesResponse.Fees)
 		fees := *feesResponse.Fees
 		assert.Equal(t, api.Data, fees[0].FeeType)
-		assert.Equal(t, uint64(3), fees[0].MiningFee.Satoshis)
+		assert.Equal(t, uint64(5), fees[0].MiningFee.Satoshis)
 		assert.Equal(t, uint64(1000), fees[0].MiningFee.Bytes)
-		assert.Equal(t, uint64(4), fees[0].RelayFee.Satoshis)
+		assert.Equal(t, uint64(5), fees[0].RelayFee.Satoshis)
 		assert.Equal(t, uint64(1000), fees[0].RelayFee.Bytes)
 	})
 }
@@ -152,6 +153,16 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 
 	t.Run("valid tx", func(t *testing.T) {
 		testNode := &test.Node{}
+		txResult := &transactionHandler.TransactionStatus{
+			TxID:        validTxID,
+			BlockHash:   "",
+			BlockHeight: 0,
+			Status:      "OK",
+			Timestamp:   time.Now().Unix(),
+		}
+		// set the node/metamorph responses for the 3 test requests
+		testNode.SubmitTransactionResult = append(testNode.SubmitTransactionResult, txResult, txResult, txResult)
+
 		defaultHandler, err := NewDefault(testNode)
 		require.NoError(t, err)
 
@@ -172,7 +183,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 			var bResponse api.TransactionResponse
 			_ = json.Unmarshal(b, &bResponse)
 
-			require.Equal(t, validTxID, bResponse.Txid)
+			require.Equal(t, validTxID, *bResponse.Txid)
 		}
 	})
 }

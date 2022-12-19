@@ -24,7 +24,7 @@ func New() (store2.Store, error) {
 
 // Get implements the Store interface. It attempts to get a value for a given key.
 // If the key does not exist an error is returned, otherwise the retrieved value.
-func (m *MemoryStore) Get(ctx context.Context, key []byte) (value *store2.StoreData, err error) {
+func (m *MemoryStore) Get(_ context.Context, key []byte) (value *store2.StoreData, err error) {
 	hash := store2.HashString(key)
 
 	m.mu.RLock()

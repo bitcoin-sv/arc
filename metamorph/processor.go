@@ -40,7 +40,7 @@ type ProcessorResponse struct {
 type ProcessorStats struct {
 	StartTime       time.Time
 	UptimeMillis    int64
-	WorkerCount     int32
+	WorkerCount     int
 	QueueLength     int32
 	QueuedCount     int32
 	ProcessedCount  int32
@@ -57,14 +57,14 @@ type Processor struct {
 	logger     *gocore.Logger
 
 	startTime       time.Time
-	workerCount     int32
+	workerCount     int
 	queueLength     atomic.Int32
 	queuedCount     atomic.Int32
 	processedCount  atomic.Int32
 	processedMillis atomic.Int32
 }
 
-func NewProcessor(workerCount int32, s store.Store, pm *p2p.PeerManager) *Processor {
+func NewProcessor(workerCount int, s store.Store, pm *p2p.PeerManager) *Processor {
 	logger := gocore.Log("processor")
 
 	mapExpiryStr, _ := gocore.Config().Get("processorCacheExpiryTime", "10s")
@@ -97,7 +97,7 @@ func NewProcessor(workerCount int32, s store.Store, pm *p2p.PeerManager) *Proces
 		}
 	}()
 
-	for i := int32(0); i < workerCount; i++ {
+	for i := 0; i < workerCount; i++ {
 		go p.process(i)
 	}
 
@@ -201,7 +201,7 @@ func (p *Processor) GetStats() *ProcessorStats {
 	}
 }
 
-func (p *Processor) process(i int32) {
+func (p *Processor) process(i int) {
 	for req := range p.ch {
 		p.processTransaction(req)
 	}

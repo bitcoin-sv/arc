@@ -9,7 +9,7 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-const progname = "github.com/TAAL-GmbH/arc/blocktx_api"
+const progname = "arc"
 
 var logger = gocore.Log(progname)
 

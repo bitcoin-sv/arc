@@ -48,6 +48,8 @@ func NewBlockTxProcessor(storeI store.Interface, bitcoin ProcessorBitcoinI) (*Pr
 }
 
 func (p *Processor) Start() {
+	p.Mtb = NewHandler(p.logger)
+
 	go p.Catchup()
 
 	zmqHost, _ := gocore.Config().Get("peer_1_host", "localhost")
@@ -72,7 +74,6 @@ func (p *Processor) GetBlockHashForHeight(height int) (string, error) {
 
 func (p *Processor) ProcessBlock(hashStr string) {
 	p.once.Do(func() {
-		p.Mtb = NewHandler(p.logger)
 		p.catchupCh = make(chan string, 10)
 		p.ch = make(chan string, 10)
 

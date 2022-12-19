@@ -66,7 +66,7 @@ func start() {
 
 	workerCount, _ := gocore.Config().GetInt("processorWorkerCount", 10)
 
-	p := metamorph.NewProcessor(int32(workerCount), s, pm)
+	p := metamorph.NewProcessor(workerCount, s, pm)
 
 	go func() {
 		for message := range messageCh {

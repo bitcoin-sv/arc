@@ -60,10 +60,10 @@ func (s *Server) StartGRPCServer() error {
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcServer)
 
-	s.logger.Infof("GRPC server listening on %s", address)
+	s.logger.Infof("Metamorph GRPC server listening on %s", address)
 
 	if err := grpcServer.Serve(lis); err != nil {
-		return fmt.Errorf("GRPC server failed [%w]", err)
+		return fmt.Errorf("Metamorph GRPC server failed [%w]", err)
 	}
 
 	return nil
@@ -82,7 +82,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 		Ok:        true,
 		Details:   details,
 		Timestamp: timestamppb.New(time.Now()),
-		Workers:   stats.WorkerCount,
+		Workers:   int32(stats.WorkerCount),
 		Uptime:    float32(stats.UptimeMillis) / 1000.0,
 		Queued:    stats.QueuedCount,
 		Processed: stats.ProcessedCount,

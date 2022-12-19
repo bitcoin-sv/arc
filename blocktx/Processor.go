@@ -21,6 +21,7 @@ type ProcessorBitcoinI interface {
 	GetBlock(hash string) (*bitcoin.Block, error)
 	GetBlockHeaderHex(hash string) (*string, error)
 	GetBlockHash(height int) (string, error)
+	GetBestBlockHash() (string, error)
 }
 
 type Processor struct {
@@ -176,9 +177,17 @@ func (p *Processor) Catchup() {
 	block, err := p.store.GetLastProcessedBlock(context.Background())
 	if err != nil {
 		if err == sql.ErrNoRows {
-			p.logger.Infof("No blocks in database, starting from current block")
-			// TODO get current block height
-			height = 770000
+			p.logger.Warnf("No blocks in blocktx, retrieving best block from bitcoin node")
+			bestBlockHash, err := p.bitcoin.GetBestBlockHash()
+			if err != nil {
+				p.logger.Fatal(err)
+			}
+			bestBlock, err := p.bitcoin.GetBlock(bestBlockHash)
+			if err != nil {
+				p.logger.Fatal(err)
+			}
+
+			height = int(bestBlock.Height)
 		} else {
 			p.logger.Fatal(err)
 		}
@@ -191,6 +200,24 @@ func (p *Processor) Catchup() {
 	for {
 		hash, err := p.GetBlockHashForHeight(height)
 		if err != nil {
+			// If this is because the block is not yet mined, then we can end catchup
+			bestBlockHash, err := p.bitcoin.GetBestBlockHash()
+			if err != nil {
+				p.logger.Errorf("Could not get best block hash: %v", err)
+				break
+			}
+
+			bestBlock, err := p.bitcoin.GetBlock(bestBlockHash)
+			if err != nil {
+				p.logger.Errorf("Could not get best block: %v", err)
+				break
+			}
+
+			if height > int(bestBlock.Height) {
+				p.logger.Infof("Catchup complete")
+				break
+			}
+
 			p.logger.Errorf("Could not get hash for block height %d: %v", height, err)
 			break
 		}

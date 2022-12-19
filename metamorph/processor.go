@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -30,11 +31,39 @@ func NewProcessorRequest(req *store.StoreData, responseChannel chan *ProcessorRe
 }
 
 type ProcessorResponse struct {
+	mu     sync.Mutex
 	ch     chan *ProcessorResponse
 	Hash   []byte
 	Start  time.Time
-	Err    error
-	Status metamorph_api.Status
+	err    error
+	status metamorph_api.Status
+}
+
+func (r *ProcessorResponse) SetStatus(status metamorph_api.Status) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.status = status
+}
+
+func (r *ProcessorResponse) GetStatus() metamorph_api.Status {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.status
+}
+
+func (r *ProcessorResponse) SetErr(err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.err = err
+}
+
+func (r *ProcessorResponse) GetErr() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.err
 }
 
 type ProcessorStats struct {
@@ -111,7 +140,7 @@ func (p *Processor) LoadUnseen() {
 		p.tx2ChMap.Set(txidStr, &ProcessorResponse{
 			Hash:   record.Hash,
 			Start:  time.Now(),
-			Status: record.Status,
+			status: record.Status,
 		})
 		p.queuedCount.Add(1)
 		p.queueLength.Add(1)
@@ -133,10 +162,10 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 	resp, ok := p.tx2ChMap.Get(hashStr)
 	if ok {
 		// we have cached this transaction, so process accordingly
-		resp.Status = status
+		resp.SetStatus(status)
 		rejectReason := ""
 		if err != nil {
-			resp.Err = err
+			resp.SetErr(err)
 			rejectReason = err.Error()
 		}
 
@@ -181,7 +210,9 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		}
 		err = p.store.UpdateStatus(context.Background(), hash, status, rejectReason)
 		if err != nil {
-			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
+			if err != store.ErrNotFound {
+				p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
+			}
 		}
 	}
 
@@ -211,13 +242,13 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	processorResponse := &ProcessorResponse{
 		ch:     req.ResponseChannel,
 		Hash:   req.Hash,
-		Status: metamorph_api.Status_UNKNOWN,
+		status: metamorph_api.Status_UNKNOWN,
 		Start:  time.Now(),
 	}
 
 	p.queueLength.Add(-1)
 
-	processorResponse.Status = metamorph_api.Status_RECEIVED
+	processorResponse.SetStatus(metamorph_api.Status_RECEIVED)
 	utils.SafeSend(req.ResponseChannel, processorResponse)
 
 	p.logger.Debugf("Adding channel for %x", bt.ReverseBytes(req.Hash))
@@ -228,22 +259,22 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 
 	if err := p.store.Set(context.Background(), req.Hash, req.StoreData); err != nil {
 		p.logger.Errorf("Error storing transaction %s: %v", txidStr, err)
-		processorResponse.Err = err
+		processorResponse.SetErr(err)
 		utils.SafeSend(req.ResponseChannel, processorResponse)
 	} else {
 		p.logger.Infof("Stored tx %s", txidStr)
 
-		processorResponse.Status = metamorph_api.Status_STORED
+		processorResponse.SetStatus(metamorph_api.Status_STORED)
 		utils.SafeSend(req.ResponseChannel, processorResponse)
 
 		p.pm.AnnounceNewTransaction(req.Hash)
 
-		processorResponse.Status = metamorph_api.Status_ANNOUNCED_TO_NETWORK
+		processorResponse.SetStatus(metamorph_api.Status_ANNOUNCED_TO_NETWORK)
 		utils.SafeSend(req.ResponseChannel, processorResponse)
 	}
 
 	// update to the latest status of the transaction
-	err := p.store.UpdateStatus(context.Background(), req.Hash, processorResponse.Status, "")
+	err := p.store.UpdateStatus(context.Background(), req.Hash, processorResponse.GetStatus(), "")
 	if err != nil {
 		p.logger.Errorf("Error updating status for %x: %v", bt.ReverseBytes(req.Hash), err)
 	}

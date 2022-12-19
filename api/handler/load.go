@@ -31,8 +31,8 @@ func LoadArcHandler(e *echo.Echo, l utils.Logger) error {
 	}
 
 	metamorphs := make([]string, metamorphCount)
-	for i := 0; i <= metamorphCount; i++ {
-		host, _ := gocore.Config().Get(fmt.Sprintf("metamorph_%d_host", i), "localhost")
+	for i := 0; i < metamorphCount; i++ {
+		host, _ := gocore.Config().Get(fmt.Sprintf("metamorph_%d_host", i+1), "localhost")
 		metamorphs[i] = host
 	}
 

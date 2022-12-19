@@ -16,7 +16,7 @@ type MsgExtMsg struct {
 	MaxRecvPayloadLength uint64
 }
 
-// MaxProtoconfPayload is the maximum number of bytes a protoconf can be.
+// MaxExtMsgPayload is the maximum number of bytes a protoconf can be.
 // NumberOfFields 8 bytes + MaxRecvPayloadLength 4 bytes
 const MaxExtMsgPayload = 0xFFFFFFFFFFFFFFFF
 
@@ -56,7 +56,7 @@ func (msg *MsgExtMsg) MaxPayloadLength(pver uint32) uint64 {
 	return MaxProtoconfPayload
 }
 
-// NewMsgFeeFilter returns a new bitcoin feefilter message that conforms to
+// NewMsgExtMsg returns a new bitcoin feefilter message that conforms to
 // the Message interface.  See MsgFeeFilter for details.
 func NewMsgExtMsg(maxRecvPayloadLength uint64) *MsgExtMsg {
 	return &MsgExtMsg{

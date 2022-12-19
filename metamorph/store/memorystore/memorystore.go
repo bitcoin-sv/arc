@@ -70,6 +70,22 @@ func (m *MemoryStore) UpdateStatus(_ context.Context, hash []byte, status metamo
 	return nil
 }
 
+func (m *MemoryStore) UpdateMined(_ context.Context, hash []byte, blockHash []byte, blockHeight int32) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	tx, ok := m.store[store2.HashString(hash)]
+	if !ok {
+		return fmt.Errorf("transaction not found")
+	}
+
+	tx.Status = metamorph_api.Status_MINED
+	tx.BlockHash = blockHash
+	tx.BlockHeight = blockHeight
+
+	return nil
+}
+
 // Set implements the Store interface. It attempts to store a value for a given key
 // and namespace. If the key/value pair cannot be saved, an error is returned.
 func (m *MemoryStore) Set(ctx context.Context, key []byte, value *store2.StoreData) error {

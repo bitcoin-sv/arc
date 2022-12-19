@@ -85,7 +85,7 @@ func (s *BadgerHold) UpdateStatus(_ context.Context, hash []byte, status metamor
 
 	tx, err := s.Get(context.Background(), hash)
 	if err != nil {
-		if errors.Is(err, badgerhold.ErrNotFound) {
+		if errors.Is(err, store.ErrNotFound) {
 			// no need to update status if we don't have the transaction
 			// we also shouldn't need to return an error here
 			return nil
@@ -101,6 +101,32 @@ func (s *BadgerHold) UpdateStatus(_ context.Context, hash []byte, status metamor
 		if err = s.store.Update(hash, tx); err != nil {
 			return fmt.Errorf("failed to update data: %w", err)
 		}
+	}
+
+	return nil
+}
+
+// UpdateMined updates the transaction to mined
+func (s *BadgerHold) UpdateMined(_ context.Context, hash []byte, blockHash []byte, blockHeight int32) error {
+	// we need a lock here since we are doing 2 operations that need to be atomic
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, err := s.Get(context.Background(), hash)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			// no need to update status if we don't have the transaction
+			// we also shouldn't need to return an error here
+			return nil
+		}
+		return err
+	}
+
+	tx.Status = metamorph_api.Status_MINED
+	tx.BlockHash = blockHash
+	tx.BlockHeight = blockHeight
+	if err = s.store.Update(hash, tx); err != nil {
+		return fmt.Errorf("failed to update data: %w", err)
 	}
 
 	return nil

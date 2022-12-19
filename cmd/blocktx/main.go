@@ -73,15 +73,15 @@ func start() {
 			panic("Could not connect to fn: " + err.Error())
 		}
 	*/
-	dbConn, err := sql.NewSQLStore("sqlite_memory")
+	dbConn, err := sql.NewSQLStore("sqlite")
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	host, _ := gocore.Config().Get("bitcoinHost", "localhost")
-	port, _ := gocore.Config().GetInt("rpcPort", 8332)
-	username, _ := gocore.Config().Get("rpcUsername", "bitcoin")
-	password, _ := gocore.Config().Get("rpcPassword", "bitcoin")
+	host, _ := gocore.Config().Get("peer_1_host", "localhost")
+	port, _ := gocore.Config().GetInt("peer_1_rpcPort", 8332)
+	username, _ := gocore.Config().Get("peer_1_rpcUsername", "bitcoin")
+	password, _ := gocore.Config().Get("peer_1_rpcPassword", "bitcoin")
 
 	b, err := bitcoin.New(host, port, username, password, false)
 	if err != nil {
@@ -93,6 +93,8 @@ func start() {
 	if err != nil {
 		logger.Fatal(err)
 	}
+
+	p.Start()
 
 	srv := blocktx.NewServer(dbConn, p, logger)
 	err = srv.StartGRPCServer()

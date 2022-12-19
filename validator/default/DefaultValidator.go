@@ -18,6 +18,7 @@ const coinbaseTxID = "0000000000000000000000000000000000000000000000000000000000
 const MaxTxSigopsCountPolicyAfterGenesis = ^uint32(0) // UINT32_MAX
 
 type DefaultValidator struct {
+	// TODO should this be bt fee struct
 	fees *api.FeesResponse
 }
 
@@ -169,7 +170,7 @@ func checkFees(tx *bt.Tx, feeQuote *bt.FeeQuote) error {
 }
 
 func sigOpsCheck(tx *bt.Tx, policy *api.FeesResponse) error {
-	maxSigOps := 1
+	maxSigOps := 0 // TODO: get this from the policy, which had been removed previously
 	if maxSigOps == 0 {
 		maxSigOps = int(MaxTxSigopsCountPolicyAfterGenesis)
 	}

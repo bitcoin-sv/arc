@@ -45,7 +45,7 @@ func New(dbLocation string) (store2.Store, error) {
 		mined_at TEXT,
 		status INTEGER,
 		block_height BIGINT,
-		block_hash TEXT,
+		block_hash BLOB,
 		api_key_id BIGINT,
 		standard_fee_id BIGINT,
 		data_fee_id BIGINT,
@@ -304,7 +304,6 @@ func (s *SqliteStore) GetUnseen(ctx context.Context, callback func(s *store2.Sto
 }
 
 func (s *SqliteStore) UpdateStatus(ctx context.Context, hash []byte, status metamorph_api.Status, rejectReason string) error {
-
 	q := `
 		UPDATE transactions
 		SET status = $1
@@ -316,6 +315,23 @@ func (s *SqliteStore) UpdateStatus(ctx context.Context, hash []byte, status meta
 	defer s.mu.Unlock()
 
 	_, err := s.db.ExecContext(ctx, q, status, rejectReason, hash)
+
+	return err
+}
+
+func (s *SqliteStore) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight int32) error {
+	q := `
+		UPDATE transactions
+		SET status = $1
+			,block_hash = $2
+			,block_height = $3
+		WHERE hash = $4
+	;`
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, err := s.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHash, blockHeight, hash)
 
 	return err
 }

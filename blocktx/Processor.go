@@ -152,7 +152,7 @@ func (p *Processor) processBlock(hashStr string) error {
 
 		// The following line will send the transaction to the MinedTransactionHandler and
 		// we need all hashes to be little endian
-		p.Mtb.SendTx(reversedBlockHash, utils.ReverseSlice(txHash))
+		p.Mtb.SendTx(reversedBlockHash, block.Height, utils.ReverseSlice(txHash))
 
 		transactions = append(transactions, &blocktx_api.Transaction{Hash: txHash})
 	}

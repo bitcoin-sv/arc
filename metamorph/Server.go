@@ -180,10 +180,26 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		return nil, err
 	}
 
+	var announcedAt *timestamppb.Timestamp
+	if !data.AnnouncedAt.IsZero() {
+		announcedAt = timestamppb.New(data.AnnouncedAt)
+	}
+	var minedAt *timestamppb.Timestamp
+	if !data.MinedAt.IsZero() {
+		minedAt = timestamppb.New(data.MinedAt)
+	}
+	var storedAt *timestamppb.Timestamp
+	if !data.StoredAt.IsZero() {
+		storedAt = timestamppb.New(data.StoredAt)
+	}
 	return &metamorph_api.TransactionStatus{
 		Txid:         fmt.Sprintf("%x", bt.ReverseBytes(data.Hash)),
-		StoredAt:     timestamppb.New(data.StoredAt),
+		AnnouncedAt:  announcedAt,
+		StoredAt:     storedAt,
+		MinedAt:      minedAt,
 		Status:       data.Status,
+		BlockHeight:  data.BlockHeight,
+		BlockHash:    fmt.Sprintf("%x", bt.ReverseBytes(data.BlockHash)),
 		RejectReason: data.RejectReason,
 	}, nil
 }

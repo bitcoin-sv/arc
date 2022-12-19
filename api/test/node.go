@@ -8,15 +8,19 @@ import (
 )
 
 type Node struct {
-	GetRawTransactionResult  []interface{}
-	SendRawTransactionResult []interface{}
+	GetTransactionResult    []interface{}
+	SubmitTransactionResult []interface{}
 }
 
 func (n *Node) GetTransaction(_ context.Context, _ string) (rawTx *transactionHandler.RawTransaction, err error) {
-	if n.GetRawTransactionResult != nil {
+	if n.GetTransactionResult != nil {
 		var result interface{}
 		// pop the first result of the stack and return it
-		result, n.GetRawTransactionResult = n.GetRawTransactionResult[0], n.GetRawTransactionResult[1:]
+		if len(n.SubmitTransactionResult) > 1 {
+			result, n.GetTransactionResult = n.GetTransactionResult[0], n.GetTransactionResult[1:]
+		} else {
+			result, n.GetTransactionResult = n.GetTransactionResult[0], nil
+		}
 
 		switch r := result.(type) {
 		case error:
@@ -30,10 +34,14 @@ func (n *Node) GetTransaction(_ context.Context, _ string) (rawTx *transactionHa
 }
 
 func (n *Node) SubmitTransaction(_ context.Context, _ []byte, _ *arc.TransactionOptions) (rawTx *transactionHandler.TransactionStatus, err error) {
-	if n.SendRawTransactionResult != nil {
+	if n.SubmitTransactionResult != nil {
 		var result interface{}
 		// pop the first result of the stack and return it
-		result, n.SendRawTransactionResult = n.SendRawTransactionResult[0], n.SendRawTransactionResult[1:]
+		if len(n.SubmitTransactionResult) > 1 {
+			result, n.SubmitTransactionResult = n.SubmitTransactionResult[0], n.SubmitTransactionResult[1:]
+		} else {
+			result, n.SubmitTransactionResult = n.SubmitTransactionResult[0], nil
+		}
 
 		switch r := result.(type) {
 		case error:

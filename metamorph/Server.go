@@ -146,14 +146,16 @@ func (s *Server) PutTransaction(_ context.Context, req *metamorph_api.Transactio
 				Status:   status,
 			}, nil
 		case res := <-responseChannel:
-			if res.Status != metamorph_api.Status_UNKNOWN {
-				status = res.Status
+			resStatus := res.GetStatus()
+			if resStatus != metamorph_api.Status_UNKNOWN {
+				status = resStatus
 			}
 
-			if res.Err != nil {
+			resErr := res.GetErr()
+			if resErr != nil {
 				return &metamorph_api.TransactionStatus{
 					Status:       status,
-					RejectReason: res.Err.Error(),
+					RejectReason: resErr.Error(),
 				}, nil
 			}
 

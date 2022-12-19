@@ -11,8 +11,9 @@ import (
 )
 
 type blockTx struct {
-	blockHash []byte
-	txHash    []byte
+	blockHash   []byte
+	blockHeight uint64
+	txHash      []byte
 }
 
 type subscriber struct {
@@ -100,10 +101,11 @@ func (h *MinedTransactionHandler) NewSubscription(heightAndSource *blocktx_api.H
 	}
 }
 
-func (h *MinedTransactionHandler) SendTx(blockHash []byte, txHash []byte) {
+func (h *MinedTransactionHandler) SendTx(blockHash []byte, blockHeight uint64, txHash []byte) {
 	h.txBatcher.Put(&blockTx{
-		blockHash: blockHash,
-		txHash:    txHash,
+		blockHash:   blockHash,
+		blockHeight: blockHeight,
+		txHash:      txHash,
 	})
 }
 
@@ -119,8 +121,11 @@ func (h *MinedTransactionHandler) sendTxBatch(batch []*blockTx) {
 			h.mtCh <- mt
 
 			mt = &blocktx_api.MinedTransaction{
-				Block: &blocktx_api.Block{Hash: btx.blockHash},
-				Txs:   nil,
+				Block: &blocktx_api.Block{
+					Hash:   btx.blockHash,
+					Height: btx.blockHeight,
+				},
+				Txs: nil,
 			}
 		}
 

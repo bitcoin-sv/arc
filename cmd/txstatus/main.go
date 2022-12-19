@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -33,5 +34,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("res %s: %#v\n", txid, res)
+
+	var b []byte
+	b, err = json.Marshal(res)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%s\n", b)
 }

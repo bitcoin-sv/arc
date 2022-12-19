@@ -34,6 +34,7 @@ type Store interface {
 	GetUnseen(_ context.Context, callback func(s *StoreData)) error
 	Set(ctx context.Context, key []byte, value *StoreData) error
 	UpdateStatus(ctx context.Context, hash []byte, status metamorph_api.Status, rejectReason string) error
+	UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight int32) error
 	Del(ctx context.Context, key []byte) error
 	Close(ctx context.Context) error
 }

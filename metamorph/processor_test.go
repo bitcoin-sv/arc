@@ -90,7 +90,7 @@ func TestProcessTransaction(t *testing.T) {
 			metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 		}
 
-		responseChannel := make(chan *ProcessorResponse)
+		responseChannel := make(chan ProcessorResponse)
 
 		var wg sync.WaitGroup
 		wg.Add(len(expectedResponses))
@@ -98,13 +98,8 @@ func TestProcessTransaction(t *testing.T) {
 			n := 0
 			for response := range responseChannel {
 				status := response.status
-				fmt.Printf("response %d: %s, expected: %s\n", n, status, expectedResponses[n])
 				assert.Equal(t, tx1Bytes, response.Hash)
-				// something weird is going on here, the value of the response status is not always the same
-				// this is due to us passing a reference to the responseChannel, which might have been updated
-				// before we get the chance to read the status
-				// assert.Equal(t, expectedResponses[n], status)
-				assert.LessOrEqual(t, expectedResponses[n], status)
+				assert.Equal(t, expectedResponses[n], status)
 				wg.Done()
 				n++
 			}
@@ -159,13 +154,13 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		ok := processor.SendStatusForTransaction(tx1, metamorph_api.Status_SEEN_ON_NETWORK, nil)
+		ok := processor.SendStatusForTransaction(tx1, metamorph_api.Status_MINED, nil)
 		assert.True(t, ok)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
 		txStored, err := s.Get(context.Background(), tx1Bytes)
 		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, txStored.Status)
+		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
 	})
 
 	t.Run("SendStatusForTransaction known tx - no update", func(t *testing.T) {
@@ -196,7 +191,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		responseChannel := make(chan *ProcessorResponse)
+		responseChannel := make(chan ProcessorResponse)
 
 		var wg sync.WaitGroup
 		wg.Add(1)

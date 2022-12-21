@@ -11,11 +11,11 @@ import (
 )
 
 type ZMQ struct {
-	processor *Processor
+	processor ProcessorI
 	logger    *gocore.Logger
 }
 
-func NewZMQ(processor *Processor) *ZMQ {
+func NewZMQ(processor ProcessorI) *ZMQ {
 	var zmqLogger = gocore.Log("zmq")
 	return &ZMQ{
 		processor: processor,

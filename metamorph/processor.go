@@ -82,7 +82,7 @@ type Processor struct {
 	expiryChan chan *ProcessorResponse
 	store      store.Store
 	tx2ChMap   *expiringmap.ExpiringMap[string, *ProcessorResponse]
-	pm         *p2p.PeerManager
+	pm         p2p.PeerManagerI
 	logger     *gocore.Logger
 
 	startTime       time.Time
@@ -93,7 +93,14 @@ type Processor struct {
 	processedMillis atomic.Int32
 }
 
-func NewProcessor(workerCount int, s store.Store, pm *p2p.PeerManager) *Processor {
+func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI) *Processor {
+	if s == nil {
+		panic("store cannot be nil")
+	}
+	if pm == nil {
+		panic("peer manager cannot be nil")
+	}
+
 	logger := gocore.Log("processor")
 
 	mapExpiryStr, _ := gocore.Config().Get("processorCacheExpiryTime", "10s")
@@ -212,8 +219,11 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		if err != nil {
 			if err != store.ErrNotFound {
 				p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
+				return false
 			}
 		}
+
+		return true
 	}
 
 	return false

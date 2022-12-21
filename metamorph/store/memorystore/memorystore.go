@@ -10,27 +10,28 @@ import (
 )
 
 type MemoryStore struct {
-	mu    sync.RWMutex
-	store map[string]*store2.StoreData
+	mu sync.RWMutex
+	// the memory store is mainly used for testing, so we don't need to worry about this being public
+	Store map[string]*store2.StoreData
 }
 
 // New returns a new initialized MemoryStore database implementing the DB
 // interface. If the database cannot be initialized, an error will be returned.
-func New() (store2.Store, error) {
+func New() (*MemoryStore, error) {
 	return &MemoryStore{
-		store: make(map[string]*store2.StoreData),
+		Store: make(map[string]*store2.StoreData),
 	}, nil
 }
 
 // Get implements the Store interface. It attempts to get a value for a given key.
 // If the key does not exist an error is returned, otherwise the retrieved value.
-func (m *MemoryStore) Get(_ context.Context, key []byte) (value *store2.StoreData, err error) {
+func (m *MemoryStore) Get(_ context.Context, key []byte) (*store2.StoreData, error) {
 	hash := store2.HashString(key)
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	value, ok := m.store[hash]
+	value, ok := m.Store[hash]
 	if !ok {
 		return nil, store2.ErrNotFound
 	}
@@ -42,7 +43,7 @@ func (m *MemoryStore) GetUnseen(_ context.Context, callback func(s *store2.Store
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	for _, v := range m.store {
+	for _, v := range m.Store {
 		if v.Status < metamorph_api.Status_SEEN_ON_NETWORK {
 			callback(v)
 		}
@@ -56,7 +57,7 @@ func (m *MemoryStore) UpdateStatus(_ context.Context, hash []byte, status metamo
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	tx, ok := m.store[store2.HashString(hash)]
+	tx, ok := m.Store[store2.HashString(hash)]
 	if !ok {
 		return fmt.Errorf("transaction not found")
 	}
@@ -74,7 +75,7 @@ func (m *MemoryStore) UpdateMined(_ context.Context, hash []byte, blockHash []by
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	tx, ok := m.store[store2.HashString(hash)]
+	tx, ok := m.Store[store2.HashString(hash)]
 	if !ok {
 		return fmt.Errorf("transaction not found")
 	}
@@ -86,7 +87,7 @@ func (m *MemoryStore) UpdateMined(_ context.Context, hash []byte, blockHash []by
 	return nil
 }
 
-// Set implements the Store interface. It attempts to store a value for a given key
+// Set implements the Store interface. It attempts to Store a value for a given key
 // and namespace. If the key/value pair cannot be saved, an error is returned.
 func (m *MemoryStore) Set(ctx context.Context, key []byte, value *store2.StoreData) error {
 	hash := store2.HashString(key)
@@ -94,7 +95,7 @@ func (m *MemoryStore) Set(ctx context.Context, key []byte, value *store2.StoreDa
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.store[hash] = value
+	m.Store[hash] = value
 	return nil
 }
 
@@ -104,7 +105,7 @@ func (m *MemoryStore) Del(ctx context.Context, key []byte) (err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.store[hash] = nil
+	m.Store[hash] = nil
 	return nil
 }
 
@@ -116,6 +117,6 @@ func (m *MemoryStore) Close(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.store = make(map[string]*store2.StoreData)
+	m.Store = make(map[string]*store2.StoreData)
 	return nil
 }

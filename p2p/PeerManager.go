@@ -29,7 +29,7 @@ type PMMessage struct {
 	Err    error
 }
 
-func NewPeerManager(s store.Store, messageCh chan *PMMessage) *PeerManager {
+func NewPeerManager(s store.Store, messageCh chan *PMMessage) PeerManagerI {
 
 	pm := &PeerManager{
 		peers: make(map[string]*Peer),
@@ -51,21 +51,21 @@ func NewPeerManager(s store.Store, messageCh chan *PMMessage) *PeerManager {
 			logger.Fatalf("Error creating peer: %v", err)
 		}
 
-		pm.AddPeer(peer)
+		pm.addPeer(peer)
 	}
 
 	return pm
 }
 
-func (pm *PeerManager) AddPeer(peer *Peer) {
+func (pm *PeerManager) addPeer(peer *Peer) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
 	pm.peers[peer.address] = peer
 }
 
-func (pm *PeerManager) AnnounceNewTransaction(txid []byte) {
-	pm.invBatcher.Put(&txid)
+func (pm *PeerManager) AnnounceNewTransaction(txID []byte) {
+	pm.invBatcher.Put(&txID)
 }
 
 func (pm *PeerManager) sendInvBatch(batch []*[]byte) {

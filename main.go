@@ -102,12 +102,15 @@ func start() {
 
 	go func() {
 		for message := range messageCh {
+			logger.Infof("Received message from P2P %s: %s", message.Txid, message.Status)
 			metamorphProcessor.SendStatusForTransaction(message.Txid, message.Status, message.Err)
 		}
 	}()
 
-	z := metamorph.NewZMQ(metamorphProcessor)
-	go z.Start()
+	// The ZMQ listener is not needed anymore, when connected twice to a node,
+	// or to at least one node that is not getting transactions sent to it
+	// z := metamorph.NewZMQ(metamorphProcessor)
+	// go z.Start()
 
 	// The double invocation is the get PrintStatsOnKeypress to start and return a function
 	// that can be deferred to reset the TTY when the program exits.

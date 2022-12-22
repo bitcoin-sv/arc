@@ -152,18 +152,18 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	p.ch <- req
 }
 
-func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_api.Status, err error) bool {
+func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_api.Status, statusErr error) (bool, error) {
 	resp, ok := p.tx2ChMap.Get(hashStr)
 	if ok {
 		// we have cached this transaction, so process accordingly
 		resp.SetStatus(status)
 		rejectReason := ""
-		if err != nil {
-			resp.SetErr(err)
-			rejectReason = err.Error()
+		if statusErr != nil {
+			resp.SetErr(statusErr)
+			rejectReason = statusErr.Error()
 		}
 
-		err = p.store.UpdateStatus(context.Background(), resp.Hash, status, rejectReason)
+		err := p.store.UpdateStatus(context.Background(), resp.Hash, status, rejectReason)
 		if err != nil {
 			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
 		}
@@ -179,40 +179,39 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 			p.tx2ChMap.Delete(hashStr)
 		}
 
-		return ok
+		return ok, nil
 	} else if status > metamorph_api.Status_SEEN_ON_NETWORK {
-		if err != nil {
+		if statusErr != nil {
 			// Print the error along with the status message
-			p.logger.Infof("Received status %s for tx %s: %s", status.String(), hashStr, err.Error())
+			p.logger.Infof("Received status %s for tx %s: %s", status.String(), hashStr, statusErr.Error())
 		} else {
 			p.logger.Infof("Received status %s for tx %s", status.String(), hashStr)
 		}
 		// This is coming from zmq, after the transaction has been deleted from our tx2ChMap
 		// It could be a "seen", "confirmed", "mined" or "rejected" status, but should finalize the tx
-		var txIDBytes []byte
-		txIDBytes, err = hex.DecodeString(hashStr)
+		txIDBytes, err := hex.DecodeString(hashStr)
 		if err != nil {
 			p.logger.Errorf("Error decoding txID %s: %v", hashStr, err)
-			return false
+			return false, err
 		}
 
 		hash := bt.ReverseBytes(txIDBytes)
 		rejectReason := ""
-		if err != nil {
-			rejectReason = err.Error()
+		if statusErr != nil {
+			rejectReason = statusErr.Error()
 		}
 		err = p.store.UpdateStatus(context.Background(), hash, status, rejectReason)
 		if err != nil {
 			if err != store.ErrNotFound {
 				p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
-				return false
+				return false, err
 			}
 		}
 
-		return true
+		return true, nil
 	}
 
-	return false
+	return false, nil
 }
 
 func (p *Processor) GetStats() *ProcessorStats {

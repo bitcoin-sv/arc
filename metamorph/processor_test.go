@@ -2,6 +2,7 @@ package metamorph
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"sync"
 	"testing"
@@ -10,20 +11,8 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/metamorph/store/memorystore"
 	"github.com/TAAL-GmbH/arc/p2p"
-	"github.com/ordishs/go-utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-)
-
-var (
-	tx1         = "b042f298deabcebbf15355aa3a13c7d7cfe96c44ac4f492735f936f8e50d06f6"
-	tx1Bytes, _ = utils.DecodeAndReverseHexString(tx1)
-	tx2         = "1a8fda8c35b8fc30885e88d6eb0214e2b3a74c96c82c386cb463905446011fdf"
-	tx2Bytes, _ = utils.DecodeAndReverseHexString(tx2)
-	tx3         = "3f63399b3d9d94ba9c5b7398b9328dcccfcfd50f07ad8b214e766168c391642b"
-	tx3Bytes, _ = utils.DecodeAndReverseHexString(tx3)
-	tx4         = "88eab41a8d0b7b4bc395f8f988ea3d6e63c8bc339526fd2f00cb7ce6fd7df0f7"
-	tx4Bytes, _ = utils.DecodeAndReverseHexString(tx4)
 )
 
 func TestNewProcessor(t *testing.T) {
@@ -138,10 +127,47 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		ok := processor.SendStatusForTransaction(tx1, metamorph_api.Status_SEEN_ON_NETWORK, nil)
+		ok, sendErr := processor.SendStatusForTransaction(tx1, metamorph_api.Status_SEEN_ON_NETWORK, nil)
 		assert.False(t, ok)
+		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 		assert.Len(t, s.Store, 0)
+	})
+
+	t.Run("SendStatusForTransaction err", func(t *testing.T) {
+		s, err := memorystore.New()
+		require.NoError(t, err)
+		setStoreTestData(t, s)
+
+		pm := p2p.NewPeerManagerMock(s, nil)
+
+		processor := NewProcessor(1, s, pm)
+		assert.Equal(t, 0, processor.tx2ChMap.Len())
+
+		throwErr := fmt.Errorf("some error")
+		ok, sendErr := processor.SendStatusForTransaction(tx1, metamorph_api.Status_REJECTED, throwErr)
+		assert.True(t, ok)
+		assert.NoError(t, sendErr)
+		assert.Equal(t, 0, processor.tx2ChMap.Len())
+
+		txStored, err := s.Get(context.Background(), tx1Bytes)
+		require.NoError(t, err)
+		assert.Equal(t, metamorph_api.Status_REJECTED, txStored.Status)
+		assert.Equal(t, throwErr.Error(), txStored.RejectReason)
+	})
+
+	t.Run("SendStatusForTransaction invalid tx id", func(t *testing.T) {
+		s, err := memorystore.New()
+		require.NoError(t, err)
+
+		pm := p2p.NewPeerManagerMock(s, nil)
+
+		processor := NewProcessor(1, s, pm)
+		assert.Equal(t, 0, processor.tx2ChMap.Len())
+
+		ok, sendErr := processor.SendStatusForTransaction("test", metamorph_api.Status_REJECTED, nil)
+		assert.False(t, ok)
+		assert.ErrorIs(t, sendErr, hex.InvalidByteError('t'))
 	})
 
 	t.Run("SendStatusForTransaction known tx", func(t *testing.T) {
@@ -154,8 +180,9 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		ok := processor.SendStatusForTransaction(tx1, metamorph_api.Status_MINED, nil)
+		ok, sendErr := processor.SendStatusForTransaction(tx1, metamorph_api.Status_MINED, nil)
 		assert.True(t, ok)
+		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
 		txStored, err := s.Get(context.Background(), tx1Bytes)
@@ -173,8 +200,9 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		ok := processor.SendStatusForTransaction(tx1, metamorph_api.Status_ANNOUNCED_TO_NETWORK, nil)
+		ok, sendErr := processor.SendStatusForTransaction(tx1, metamorph_api.Status_ANNOUNCED_TO_NETWORK, nil)
 		assert.False(t, ok)
+		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
 		txStored, err := s.Get(context.Background(), tx1Bytes)
@@ -217,36 +245,13 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		assert.Equal(t, 1, processor.tx2ChMap.Len())
 
-		ok := processor.SendStatusForTransaction(tx1, metamorph_api.Status_SEEN_ON_NETWORK, nil)
+		ok, sendErr := processor.SendStatusForTransaction(tx1, metamorph_api.Status_SEEN_ON_NETWORK, nil)
 		assert.False(t, ok)
+		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.tx2ChMap.Len(), "should have been removed from the map")
 
 		txStored, err := s.Get(context.Background(), tx1Bytes)
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, txStored.Status)
 	})
-}
-
-func setStoreTestData(t *testing.T, s store.Store) {
-	ctx := context.Background()
-	err := s.Set(ctx, tx1Bytes, &store.StoreData{
-		Hash:   tx1Bytes,
-		Status: metamorph_api.Status_SENT_TO_NETWORK,
-	})
-	require.NoError(t, err)
-	err = s.Set(ctx, tx2Bytes, &store.StoreData{
-		Hash:   tx2Bytes,
-		Status: metamorph_api.Status_SENT_TO_NETWORK,
-	})
-	require.NoError(t, err)
-	err = s.Set(ctx, tx3Bytes, &store.StoreData{
-		Hash:   tx3Bytes,
-		Status: metamorph_api.Status_SEEN_ON_NETWORK,
-	})
-	require.NoError(t, err)
-	err = s.Set(ctx, tx4Bytes, &store.StoreData{
-		Hash:   tx4Bytes,
-		Status: metamorph_api.Status_REJECTED,
-	})
-	require.NoError(t, err)
 }

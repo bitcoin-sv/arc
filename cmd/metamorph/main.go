@@ -70,7 +70,10 @@ func start() {
 
 	go func() {
 		for message := range messageCh {
-			p.SendStatusForTransaction(message.Txid, message.Status, message.Err)
+			_, err := p.SendStatusForTransaction(message.Txid, message.Status, message.Err)
+			if err != nil {
+				logger.Errorf("Error sending status for transaction %s: %v", message.Txid, err)
+			}
 		}
 	}()
 

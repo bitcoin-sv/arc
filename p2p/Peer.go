@@ -91,6 +91,17 @@ func (p *Peer) readHandler() {
 		case wire.CmdInv:
 			invMsg := msg.(*wire.MsgInv)
 			logger.Infof("Recv INV (%d items)", len(invMsg.InvList))
+			go func(invList []*wire.InvVect) {
+				for _, invVect := range invList {
+					switch invVect.Type {
+					case wire.InvTypeTx:
+						p.parentChannel <- &PMMessage{
+							Txid:   invVect.Hash.String(),
+							Status: metamorph_api.Status_SEEN_ON_NETWORK,
+						}
+					}
+				}
+			}(invMsg.InvList)
 
 		case wire.CmdGetData:
 			dataMsg := msg.(*wire.MsgGetData)

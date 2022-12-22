@@ -23,12 +23,12 @@ import (
 type Server struct {
 	metamorph_api.UnimplementedMetaMorphAPIServer
 	logger    *gocore.Logger
-	processor *Processor
+	processor ProcessorI
 	store     store.Store
 }
 
 // NewServer will return a server instance with the zmqLogger stored within it
-func NewServer(logger *gocore.Logger, s store.Store, p *Processor) *Server {
+func NewServer(logger *gocore.Logger, s store.Store, p ProcessorI) *Server {
 
 	return &Server{
 		logger:    logger,
@@ -93,7 +93,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 }
 
 func (s *Server) PutTransaction(_ context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
-	responseChannel := make(chan *ProcessorResponse)
+	responseChannel := make(chan ProcessorResponse)
 	defer func() {
 		close(responseChannel)
 	}()

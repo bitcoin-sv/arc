@@ -105,12 +105,12 @@ func TestProcessTransaction(t *testing.T) {
 			}
 		}()
 
-		processor.ProcessTransaction(&ProcessorRequest{
-			StoreData: &store.StoreData{
+		processor.ProcessTransaction(NewProcessorRequest(
+			&store.StoreData{
 				Hash: tx1Bytes,
 			},
-			ResponseChannel: responseChannel,
-		})
+			responseChannel,
+		))
 		wg.Wait()
 
 		assert.Equal(t, 1, processor.tx2ChMap.Len())
@@ -207,12 +207,12 @@ func TestSendStatusForTransaction(t *testing.T) {
 			}
 		}()
 
-		processor.ProcessTransaction(&ProcessorRequest{
-			StoreData: &store.StoreData{
+		processor.ProcessTransaction(NewProcessorRequest(
+			&store.StoreData{
 				Hash: tx1Bytes,
 			},
-			ResponseChannel: responseChannel,
-		})
+			responseChannel,
+		))
 		wg.Wait()
 
 		assert.Equal(t, 1, processor.tx2ChMap.Len())

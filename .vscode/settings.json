@@ -9,6 +9,7 @@
     "bsvutil",
     "btcpb",
     "BYTEA",
+    "callbacker",
     "Cleanup",
     "codegen",
     "dbname",

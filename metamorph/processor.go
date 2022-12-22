@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"os"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -20,10 +19,10 @@ import (
 
 type ProcessorRequest struct {
 	*store.StoreData
-	ResponseChannel chan *ProcessorResponse
+	ResponseChannel chan ProcessorResponse
 }
 
-func NewProcessorRequest(req *store.StoreData, responseChannel chan *ProcessorResponse) *ProcessorRequest {
+func NewProcessorRequest(req *store.StoreData, responseChannel chan ProcessorResponse) *ProcessorRequest {
 	return &ProcessorRequest{
 		req,
 		responseChannel,
@@ -31,8 +30,7 @@ func NewProcessorRequest(req *store.StoreData, responseChannel chan *ProcessorRe
 }
 
 type ProcessorResponse struct {
-	mu     sync.Mutex
-	ch     chan *ProcessorResponse
+	ch     chan ProcessorResponse
 	Hash   []byte
 	Start  time.Time
 	err    error
@@ -40,29 +38,18 @@ type ProcessorResponse struct {
 }
 
 func (r *ProcessorResponse) SetStatus(status metamorph_api.Status) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	r.status = status
 }
 
 func (r *ProcessorResponse) GetStatus() metamorph_api.Status {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	return r.status
 }
 
 func (r *ProcessorResponse) SetErr(err error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	r.err = err
 }
 
 func (r *ProcessorResponse) GetErr() error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	return r.err
 }
 
@@ -82,7 +69,7 @@ type Processor struct {
 	expiryChan chan *ProcessorResponse
 	store      store.Store
 	tx2ChMap   *expiringmap.ExpiringMap[string, *ProcessorResponse]
-	pm         *p2p.PeerManager
+	pm         p2p.PeerManagerI
 	logger     *gocore.Logger
 
 	startTime       time.Time
@@ -93,7 +80,14 @@ type Processor struct {
 	processedMillis atomic.Int32
 }
 
-func NewProcessor(workerCount int, s store.Store, pm *p2p.PeerManager) *Processor {
+func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI) *Processor {
+	if s == nil {
+		panic("store cannot be nil")
+	}
+	if pm == nil {
+		panic("peer manager cannot be nil")
+	}
+
 	logger := gocore.Log("processor")
 
 	mapExpiryStr, _ := gocore.Config().Get("processorCacheExpiryTime", "10s")
@@ -119,9 +113,9 @@ func NewProcessor(workerCount int, s store.Store, pm *p2p.PeerManager) *Processo
 
 	go func() {
 		for resp := range expiryChan {
-			txidStr := hex.EncodeToString(bt.ReverseBytes(resp.Hash))
-			logger.Infof("Resending expired tx: %s", txidStr)
-			p.tx2ChMap.Set(txidStr, resp)
+			txIDStr := hex.EncodeToString(bt.ReverseBytes(resp.Hash))
+			logger.Infof("Resending expired tx: %s", txIDStr)
+			p.tx2ChMap.Set(txIDStr, resp)
 			p.pm.AnnounceNewTransaction(resp.Hash)
 		}
 	}()
@@ -136,8 +130,8 @@ func NewProcessor(workerCount int, s store.Store, pm *p2p.PeerManager) *Processo
 func (p *Processor) LoadUnseen() {
 	err := p.store.GetUnseen(context.Background(), func(record *store.StoreData) {
 		// add the records we have in the database, but that have not been processed, to the mempool watcher
-		txidStr := hex.EncodeToString(bt.ReverseBytes(record.Hash))
-		p.tx2ChMap.Set(txidStr, &ProcessorResponse{
+		txIDStr := hex.EncodeToString(bt.ReverseBytes(record.Hash))
+		p.tx2ChMap.Set(txIDStr, &ProcessorResponse{
 			Hash:   record.Hash,
 			Start:  time.Now(),
 			status: record.Status,
@@ -174,20 +168,19 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
 		}
 		if resp.ch != nil {
-			ok = utils.SafeSend(resp.ch, resp)
+			ok = utils.SafeSend(resp.ch, *resp)
 		}
 
-		// Don't cache the channel if the transactionHandler is not listening any more
+		// Don't cache the channel if the transactionHandler is not listening anymore
 		// which will have been triggered by a status of SEEN or higher
-		if status >= metamorph_api.Status_SENT_TO_NETWORK {
+		if status >= metamorph_api.Status_SEEN_ON_NETWORK {
 			p.processedCount.Add(1)
 			p.processedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
-
 			p.tx2ChMap.Delete(hashStr)
 		}
 
 		return ok
-	} else if status > metamorph_api.Status_SENT_TO_NETWORK {
+	} else if status > metamorph_api.Status_SEEN_ON_NETWORK {
 		if err != nil {
 			// Print the error along with the status message
 			p.logger.Infof("Received status %s for tx %s: %s", status.String(), hashStr, err.Error())
@@ -199,7 +192,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		var txIDBytes []byte
 		txIDBytes, err = hex.DecodeString(hashStr)
 		if err != nil {
-			p.logger.Errorf("Error decoding txid %s: %v", hashStr, err)
+			p.logger.Errorf("Error decoding txID %s: %v", hashStr, err)
 			return false
 		}
 
@@ -212,8 +205,11 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		if err != nil {
 			if err != store.ErrNotFound {
 				p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
+				return false
 			}
 		}
+
+		return true
 	}
 
 	return false
@@ -232,7 +228,7 @@ func (p *Processor) GetStats() *ProcessorStats {
 	}
 }
 
-func (p *Processor) process(i int) {
+func (p *Processor) process(_ int) {
 	for req := range p.ch {
 		p.processTransaction(req)
 	}
@@ -249,28 +245,28 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	p.queueLength.Add(-1)
 
 	processorResponse.SetStatus(metamorph_api.Status_RECEIVED)
-	utils.SafeSend(req.ResponseChannel, processorResponse)
+	utils.SafeSend(req.ResponseChannel, *processorResponse)
 
 	p.logger.Debugf("Adding channel for %x", bt.ReverseBytes(req.Hash))
 
-	txidStr := hex.EncodeToString(bt.ReverseBytes(req.Hash))
+	txIDStr := hex.EncodeToString(bt.ReverseBytes(req.Hash))
 
-	p.tx2ChMap.Set(txidStr, processorResponse)
+	p.tx2ChMap.Set(txIDStr, processorResponse)
 
 	if err := p.store.Set(context.Background(), req.Hash, req.StoreData); err != nil {
-		p.logger.Errorf("Error storing transaction %s: %v", txidStr, err)
+		p.logger.Errorf("Error storing transaction %s: %v", txIDStr, err)
 		processorResponse.SetErr(err)
-		utils.SafeSend(req.ResponseChannel, processorResponse)
+		utils.SafeSend(req.ResponseChannel, *processorResponse)
 	} else {
-		p.logger.Infof("Stored tx %s", txidStr)
+		p.logger.Infof("Stored tx %s", txIDStr)
 
 		processorResponse.SetStatus(metamorph_api.Status_STORED)
-		utils.SafeSend(req.ResponseChannel, processorResponse)
+		utils.SafeSend(req.ResponseChannel, *processorResponse)
 
 		p.pm.AnnounceNewTransaction(req.Hash)
 
 		processorResponse.SetStatus(metamorph_api.Status_ANNOUNCED_TO_NETWORK)
-		utils.SafeSend(req.ResponseChannel, processorResponse)
+		utils.SafeSend(req.ResponseChannel, *processorResponse)
 	}
 
 	// update to the latest status of the transaction
@@ -287,7 +283,7 @@ func (p *Processor) PrintStatsOnKeypress() func() {
 
 	// Print stats when the user presses a key...
 	go func() {
-		var b []byte = make([]byte, 1)
+		var b = make([]byte, 1)
 		for {
 			_, _ = os.Stdin.Read(b)
 

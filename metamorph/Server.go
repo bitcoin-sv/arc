@@ -25,16 +25,21 @@ type Server struct {
 	logger    *gocore.Logger
 	processor ProcessorI
 	store     store.Store
+	timeout   time.Duration
 }
 
 // NewServer will return a server instance with the zmqLogger stored within it
 func NewServer(logger *gocore.Logger, s store.Store, p ProcessorI) *Server {
-
 	return &Server{
 		logger:    logger,
 		processor: p,
 		store:     s,
+		timeout:   5 * time.Second,
 	}
+}
+
+func (s *Server) SetTimout(timeout time.Duration) {
+	s.timeout = timeout
 }
 
 // StartGRPCServer function
@@ -101,6 +106,11 @@ func (s *Server) PutTransaction(_ context.Context, req *metamorph_api.Transactio
 	// Convert gRPC req to store.StoreData struct...
 	status := metamorph_api.Status_UNKNOWN
 	hash := utils.Sha256d(req.RawTx)
+	btTx, _ := bt.NewTxFromBytes(req.RawTx)
+	hash2 := btTx.GetTxID()
+	fmt.Printf("hash2: %s\n", hash2)
+	fmt.Printf("hash: %x\n", hash)
+	fmt.Printf("hash reversed: %x\n", bt.ReverseBytes(hash))
 
 	storeData, err := s.store.Get(context.Background(), hash)
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
@@ -137,7 +147,7 @@ func (s *Server) PutTransaction(_ context.Context, req *metamorph_api.Transactio
 	s.processor.ProcessTransaction(NewProcessorRequest(sReq, responseChannel))
 
 	// normally a node would respond very quickly, unless it's under heavy load
-	timeout := time.NewTimer(5 * time.Second)
+	timeout := time.NewTimer(s.timeout)
 	for {
 		select {
 		case <-timeout.C:

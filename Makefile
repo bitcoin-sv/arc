@@ -13,7 +13,7 @@ build:
 
 .PHONY: test
 test:
-	go test -v -count=1 ./...
+	go test -race -v -count=1 ./...
 
 .PHONY: lint
 lint:
@@ -49,11 +49,19 @@ gen:
 	--govalidators_opt=paths=source_relative \
 	blocktx/blocktx_api/blocktx_api.proto
 
+	protoc \
+	--proto_path=. \
+	--go_out=. \
+	--go_opt=paths=source_relative \
+	--go-grpc_out=. \
+	--go-grpc_opt=paths=source_relative \
+	callbacker/callbacker_api/callbacker_api.proto
 
 .PHONY: clean_gen
 clean_gen:
 	rm -f ./metamorph/metamorph_api/*.pb.go
 	rm -f ./blocktx/blocktx_api/*.pb.go
+	rm -f ./callbacker/callbacker_api/*.pb.go
 
 .PHONY: clean
 clean:
@@ -62,6 +70,7 @@ clean:
  
 .PHONY: install
 install:
+	# arch -arm64 brew install golangci-lint
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	GO111MODULE=off go get -u github.com/mwitkow/go-proto-validators/protoc-gen-govalidators

@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+option go_package = ".;callbacker_api";
+
+package callbacker_api;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+service CallbackerAPI {
+  // Health returns the health of the API.
+  rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
+  rpc RegisterCallback (Callback) returns (google.protobuf.Empty) {}
+}
+
+// swagger:model HealthResponse
+message HealthResponse {
+  bool ok = 1;
+  string details = 2;
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+// swagger:model Callback
+message Callback {
+  bytes hash = 1;
+  string url = 2;
+  string token = 3;
+  int32 status = 4;
+}

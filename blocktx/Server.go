@@ -21,8 +21,8 @@ import (
 
 // Server type carries the logger within it
 type Server struct {
-	store store.Interface
 	blocktx_api.UnsafeBlockTxAPIServer
+	store     store.Interface
 	logger    utils.Logger
 	processor *Processor
 }

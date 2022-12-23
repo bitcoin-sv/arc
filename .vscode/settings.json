@@ -1,5 +1,10 @@
 {
+  "cSpell.ignorePaths": [
+    "p2p/wire",
+    "p2p/bsvutil",
+  ],
   "cSpell.words": [
+    "badgerdb",
     "badgerhold",
     "BIGSERIAL",
     "bitcoinsv",
@@ -7,8 +12,8 @@
     "Blocktime",
     "blocktx",
     "bsvd",
+    "bsvec",
     "bsvutil",
-    "btcpb",
     "BYTEA",
     "callbacker",
     "Cleanup",

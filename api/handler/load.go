@@ -26,7 +26,7 @@ func LoadArcHandler(e *echo.Echo, l utils.Logger) error {
 
 	// set the node config, if set
 
-	addresses, found := gocore.Config().Get(fmt.Sprintf("metamorphAddresses")) //, "localhost:8001")
+	addresses, found := gocore.Config().Get("metamorphAddresses") //, "localhost:8001")
 	if !found {
 		return fmt.Errorf("metamorphAddresses not found in config")
 	}

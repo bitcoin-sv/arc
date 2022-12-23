@@ -65,12 +65,15 @@ func start() {
 		panic("Could not connect to fn: " + err.Error())
 	}
 
-	host, _ := gocore.Config().Get("peer_1_host")            //, "localhost")
-	port, _ := gocore.Config().GetInt("peer_1_rpcPort")      //, 8332)
-	username, _ := gocore.Config().Get("peer_1_rpcUsername") //, "bitcoin")
-	password, _ := gocore.Config().Get("peer_1_rpcPassword") //, "bitcoin")
+	peer1Url, err, found := gocore.Config().GetURL("peer_1_rpc")
+	if !found {
+		logger.Fatal("No peer_1_rpc setting found.")
+	}
+	if err != nil {
+		logger.Fatal(err)
+	}
 
-	b, err := bitcoin.New(host, port, username, password, false)
+	b, err := bitcoin.NewFromURL(peer1Url, false)
 	if err != nil {
 		logger.Fatalf("Could not connect to bitcoin: %v", err)
 	}

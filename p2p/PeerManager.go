@@ -43,10 +43,15 @@ func NewPeerManager(s store.Store, messageCh chan *PMMessage) PeerManagerI {
 	}
 
 	for i := 1; i <= peerCount; i++ {
-		host, _ := gocore.Config().Get(fmt.Sprintf("peer_%d_host", i))       //, "localhost")
-		port, _ := gocore.Config().GetInt(fmt.Sprintf("peer_%d_p2pPort", i)) //, 18333)
+		p2pURL, err, found := gocore.Config().GetURL(fmt.Sprintf("peer_%d_p2p", i))
+		if !found {
+			logger.Fatalf("peer_%d_p2p must be set", i)
+		}
+		if err != nil {
+			logger.Fatalf("Error reading peer_%d_p2p: %v", i, err)
+		}
 
-		peer, err := NewPeer(fmt.Sprintf("%s:%d", host, port), s, messageCh)
+		peer, err := NewPeer(p2pURL.Host, s, messageCh)
 		if err != nil {
 			logger.Fatalf("Error creating peer: %v", err)
 		}

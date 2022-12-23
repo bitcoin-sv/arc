@@ -78,12 +78,15 @@ func start() {
 		logger.Fatal(err)
 	}
 
-	host, _ := gocore.Config().Get("peer_1_host")            //, "localhost")
-	port, _ := gocore.Config().GetInt("peer_1_rpcPort")      //, 8332)
-	username, _ := gocore.Config().Get("peer_1_rpcUsername") //, "bitcoin")
-	password, _ := gocore.Config().Get("peer_1_rpcPassword") //, "bitcoin")
+	rpcURL, err, found := gocore.Config().GetURL("peer_1_rpc")
+	if !found {
+		logger.Fatalf("Could not find peer_1_rpc in config: %v", err)
+	}
+	if err != nil {
+		logger.Fatalf("Could not parse peer_1_rpc: %v", err)
+	}
 
-	b, err := bitcoin.New(host, port, username, password, false)
+	b, err := bitcoin.NewFromURL(rpcURL, false)
 	if err != nil {
 		logger.Fatalf("Could not connect to bitcoin: %v", err)
 	}

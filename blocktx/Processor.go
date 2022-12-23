@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -53,10 +54,20 @@ func (p *Processor) Start() {
 
 	go p.Catchup()
 
-	zmqHost, _ := gocore.Config().Get("peer_1_host")       //, "localhost")
-	zmqPort, _ := gocore.Config().GetInt("peer_1_zmqPort") //, 28332)
+	zmqURL, err, found := gocore.Config().GetURL("peer_1_zmq")
+	if !found {
+		p.logger.Fatalf("Could not find peer_1_zmq in config: %v", err)
+	}
+	if err != nil {
+		p.logger.Fatalf("Could not get peer_1_zmq from config: %v", err)
+	}
 
-	z := NewZMQ(p, zmqHost, zmqPort)
+	port, err := strconv.Atoi(zmqURL.Port())
+	if err != nil {
+		p.logger.Fatalf("Could not parse port from peer_1_zmq: %v", err)
+	}
+
+	z := NewZMQ(p, zmqURL.Hostname(), port)
 
 	z.Start()
 }

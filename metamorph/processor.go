@@ -66,7 +66,7 @@ type ProcessorStats struct {
 
 type Processor struct {
 	ch         chan *ProcessorRequest
-	expiryChan chan *ProcessorResponse
+	expiryChan chan []*ProcessorResponse
 	store      store.Store
 	tx2ChMap   *expiringmap.ExpiringMap[string, *ProcessorResponse]
 	pm         p2p.PeerManagerI
@@ -98,13 +98,13 @@ func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI) *Processo
 
 	logger.Infof("Starting processor with %d workers and cache expiry of %s", workerCount, mapExpiryStr)
 
-	expiryChan := make(chan *ProcessorResponse)
+	expiryChan := make(chan []*ProcessorResponse)
 
 	p := &Processor{
 		startTime:   time.Now().UTC(),
 		ch:          make(chan *ProcessorRequest),
 		store:       s,
-		tx2ChMap:    expiringmap.New[string](mapExpiry, expiryChan),
+		tx2ChMap:    expiringmap.New[string, *ProcessorResponse](mapExpiry, expiryChan),
 		workerCount: workerCount,
 		expiryChan:  expiryChan,
 		pm:          pm,
@@ -112,11 +112,13 @@ func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI) *Processo
 	}
 
 	go func() {
-		for resp := range expiryChan {
-			txIDStr := hex.EncodeToString(bt.ReverseBytes(resp.Hash))
-			logger.Infof("Resending expired tx: %s", txIDStr)
-			p.tx2ChMap.Set(txIDStr, resp)
-			p.pm.AnnounceNewTransaction(resp.Hash)
+		for items := range expiryChan {
+			for _, resp := range items {
+				txIDStr := hex.EncodeToString(bt.ReverseBytes(resp.Hash))
+				logger.Infof("Resending expired tx: %s", txIDStr)
+				p.tx2ChMap.Set(txIDStr, resp)
+				p.pm.AnnounceNewTransaction(resp.Hash)
+			}
 		}
 	}()
 

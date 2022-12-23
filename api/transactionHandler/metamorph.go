@@ -3,6 +3,7 @@ package transactionHandler
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	arc "github.com/TAAL-GmbH/arc/api"
@@ -16,6 +17,7 @@ import (
 
 // Metamorph is the connector to a metamorph server
 type Metamorph struct {
+	mu              sync.RWMutex
 	Client          metamorph_api.MetaMorphAPIClient
 	ClientCache     map[string]metamorph_api.MetaMorphAPIClient
 	locationService MetamorphLocationI
@@ -23,7 +25,10 @@ type Metamorph struct {
 
 // NewMetamorph creates a connection to a list of metamorph servers via gRPC
 func NewMetamorph(targets string, locationService MetamorphLocationI) (metamorph *Metamorph, err error) {
-	conn, err := grpc.Dial(targets, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(targets,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +133,10 @@ func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (m
 		return nil, fmt.Errorf("could not find transaction server")
 	}
 
+	m.mu.RLock()
 	client, found := m.ClientCache[target]
+	m.mu.RUnlock()
+
 	if !found {
 		conn, err := grpc.Dial(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
@@ -136,7 +144,9 @@ func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (m
 		}
 		client = metamorph_api.NewMetaMorphAPIClient(conn)
 
+		m.mu.Lock()
 		m.ClientCache[target] = client
+		m.mu.Unlock()
 	}
 
 	return client, nil

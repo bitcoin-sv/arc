@@ -11,12 +11,11 @@ require (
 	github.com/labstack/echo/v4 v4.9.0
 	github.com/lib/pq v1.10.7
 	github.com/libsv/go-bk v0.1.6
-	github.com/libsv/go-bt v1.0.4
 	github.com/libsv/go-bt/v2 v2.1.0-beta.4.0.20221116173735-4208458b22d6
 	github.com/mrz1836/go-logger v0.3.1
 	github.com/mwitkow/go-proto-validators v0.3.2
 	github.com/ordishs/go-bitcoin v1.0.73
-	github.com/ordishs/go-utils v1.0.12
+	github.com/ordishs/go-utils v1.0.13
 	github.com/ordishs/gocore v1.0.20
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.1

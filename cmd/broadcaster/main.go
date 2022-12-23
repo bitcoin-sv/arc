@@ -78,6 +78,7 @@ func main() {
 	cc, err := grpc.DialContext(ctx,
 		addresses,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
 	)
 	if err != nil {
 		panic(fmt.Errorf("DIALCONTEXT: %v", err))

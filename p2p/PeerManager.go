@@ -43,8 +43,8 @@ func NewPeerManager(s store.Store, messageCh chan *PMMessage) PeerManagerI {
 	}
 
 	for i := 1; i <= peerCount; i++ {
-		host, _ := gocore.Config().Get(fmt.Sprintf("peer_%d_host", i), "localhost")
-		port, _ := gocore.Config().GetInt(fmt.Sprintf("peer_%d_p2pPort", i), 18333)
+		host, _ := gocore.Config().Get(fmt.Sprintf("peer_%d_host", i))       //, "localhost")
+		port, _ := gocore.Config().GetInt(fmt.Sprintf("peer_%d_p2pPort", i)) //, 18333)
 
 		peer, err := NewPeer(fmt.Sprintf("%s:%d", host, port), s, messageCh)
 		if err != nil {

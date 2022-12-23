@@ -65,10 +65,10 @@ func start() {
 		panic("Could not connect to fn: " + err.Error())
 	}
 
-	host, _ := gocore.Config().Get("peer_1_host", "localhost")
-	port, _ := gocore.Config().GetInt("peer_1_rpcPort", 8332)
-	username, _ := gocore.Config().Get("peer_1_rpcUsername", "bitcoin")
-	password, _ := gocore.Config().Get("peer_1_rpcPassword", "bitcoin")
+	host, _ := gocore.Config().Get("peer_1_host")            //, "localhost")
+	port, _ := gocore.Config().GetInt("peer_1_rpcPort")      //, 8332)
+	username, _ := gocore.Config().Get("peer_1_rpcUsername") //, "bitcoin")
+	password, _ := gocore.Config().Get("peer_1_rpcPassword") //, "bitcoin")
 
 	b, err := bitcoin.New(host, port, username, password, false)
 	if err != nil {
@@ -110,7 +110,7 @@ func start() {
 		}
 	}()
 
-	// The ZMQ listener is not needed anymore, when connected twice to a node,
+	// The ZMQ listener is not needed any more, when connected twice to a node,
 	// or to at least one node that is not getting transactions sent to it
 	// z := metamorph.NewZMQ(metamorphProcessor)
 	// go z.Start()
@@ -126,7 +126,7 @@ func start() {
 		metamorphProcessor.LoadUnseen()
 	}()
 
-	address, _ := gocore.Config().Get("blockTxAddress", "localhost:8001")
+	address, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
 	btc := blocktx.NewClient(logger, address)
 	go btc.Start(s)
 

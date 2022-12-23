@@ -73,8 +73,10 @@ func main() {
 
 	ctx := context.Background()
 
+	addresses, _ := gocore.Config().Get("metamorphAddresses") //, "localhost:8000")
+
 	cc, err := grpc.DialContext(ctx,
-		"localhost:8000",
+		addresses,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
@@ -283,10 +285,10 @@ func newTransaction(privKey *bec.PrivateKey, useUtxo *utxo) (*bt.Tx, *utxo) {
 
 func sendToAddress(address string, satoshis uint64) (string, uint32, string, error) {
 	// // Create a new transactionHandler instance
-	host, _ := gocore.Config().Get("peer_1_host", "localhost")
-	port, _ := gocore.Config().GetInt("peer_1_rpcPort", 18332)
-	user, _ := gocore.Config().Get("peer_1_rpcUsername", "bitcoin")
-	pass, _ := gocore.Config().Get("peer_1_rpcPassword", "bitcoin")
+	host, _ := gocore.Config().Get("peer_1_host")        //, "localhost")
+	port, _ := gocore.Config().GetInt("peer_1_rpcPort")  //, 18332)
+	user, _ := gocore.Config().Get("peer_1_rpcUsername") //, "bitcoin")
+	pass, _ := gocore.Config().Get("peer_1_rpcPassword") //, "bitcoin")
 
 	client, _ := bitcoin.New(host, port, user, pass, false)
 

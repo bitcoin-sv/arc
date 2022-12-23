@@ -40,7 +40,7 @@ func main() {
 	logger.Infof("STATS\n%s\nVERSION\n-------\n%s (%s)\n\n", stats, version, commit)
 
 	go func() {
-		profilerAddr, ok := gocore.Config().Get("profilerAddr.blocktx")
+		profilerAddr, ok := gocore.Config().Get("blocktx_profilerAddr")
 		if ok {
 			logger.Infof("Starting profile on http://%s/debug/pprof", profilerAddr)
 			logger.Fatalf("%v", http.ListenAndServe(profilerAddr, nil))
@@ -78,10 +78,10 @@ func start() {
 		logger.Fatal(err)
 	}
 
-	host, _ := gocore.Config().Get("peer_1_host", "localhost")
-	port, _ := gocore.Config().GetInt("peer_1_rpcPort", 8332)
-	username, _ := gocore.Config().Get("peer_1_rpcUsername", "bitcoin")
-	password, _ := gocore.Config().Get("peer_1_rpcPassword", "bitcoin")
+	host, _ := gocore.Config().Get("peer_1_host")            //, "localhost")
+	port, _ := gocore.Config().GetInt("peer_1_rpcPort")      //, 8332)
+	username, _ := gocore.Config().Get("peer_1_rpcUsername") //, "bitcoin")
+	password, _ := gocore.Config().Get("peer_1_rpcPassword") //, "bitcoin")
 
 	b, err := bitcoin.New(host, port, username, password, false)
 	if err != nil {

@@ -31,7 +31,7 @@ func main() {
 	logger.Infof("STATS\n%s\nVERSION\n-------\n%s (%s)\n\n", stats, version, commit)
 
 	go func() {
-		profilerAddr, ok := gocore.Config().Get("profilerAddr")
+		profilerAddr, ok := gocore.Config().Get("metamorph_profilerAddr")
 		if ok {
 			logger.Infof("Starting profile on http://%s/debug/pprof", profilerAddr)
 			logger.Fatalf("%v", http.ListenAndServe(profilerAddr, nil))
@@ -91,7 +91,7 @@ func start() {
 		p.LoadUnseen()
 	}()
 
-	address, _ := gocore.Config().Get("blockTxAddress", "localhost:8001")
+	address, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
 	btc := blocktx.NewClient(logger, address)
 	go btc.Start(s)
 

@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/ordishs/gocore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -21,7 +22,12 @@ func main() {
 
 	ctx := context.Background()
 
-	cc, err := grpc.DialContext(ctx, "localhost:8000", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	addresses, found := gocore.Config().Get("metamorphAddresses")
+	if !found {
+		panic("Missing metamorphAddresses")
+	}
+
+	cc, err := grpc.DialContext(ctx, addresses, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		panic(err)
 	}

@@ -35,9 +35,9 @@ func main() {
 		panic(err)
 	}
 
-	apiAddress, ok := gocore.Config().Get("apiAddress")
+	apiAddress, ok := gocore.Config().Get("arc_httpAddress") //, "localhost:8080")
 	if !ok {
-		panic("apiAddress not found in config")
+		panic("arc_httpAddress not found in config")
 	}
 	// Serve HTTP until the world ends.
 	e.Logger.Fatal(e.Start(apiAddress))

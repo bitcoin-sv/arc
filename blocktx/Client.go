@@ -13,7 +13,7 @@ import (
 
 // ClientI is the interface for the block-tx transactionHandler
 type ClientI interface {
-	Start(minedTxChan chan *blocktx_api.Transaction)
+	Start(minedBlockChan chan *blocktx_api.MinedTransaction)
 	LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 	RegisterTransaction(ctx context.Context, transaction *blocktx_api.Transaction) error
 }
@@ -30,7 +30,7 @@ func NewClient(l utils.Logger, address string) ClientI {
 	}
 }
 
-func (btc *Client) Start(minedTxChan chan *blocktx_api.Transaction) {
+func (btc *Client) Start(minedBlockChan chan *blocktx_api.MinedTransaction) {
 	for {
 		conn, _ := grpc.Dial(btc.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		defer conn.Close()
@@ -51,9 +51,7 @@ func (btc *Client) Start(minedTxChan chan *blocktx_api.Transaction) {
 			}
 
 			btc.logger.Infof("Block %x\n", utils.ReverseSlice(mt.Block.Hash))
-			for _, tx := range mt.Txs {
-				utils.SafeSend(minedTxChan, tx)
-			}
+			utils.SafeSend(minedBlockChan, mt)
 		}
 
 		btc.logger.Warnf("could not get message from block-tx stream: %v", err)

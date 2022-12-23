@@ -25,22 +25,17 @@ func LoadArcHandler(e *echo.Echo, l utils.Logger) error {
 	//CheckSecurity(e, appConfig)
 
 	// set the node config, if set
-	metamorphCount, _ := gocore.Config().GetInt("metamorphCount", 0)
-	if metamorphCount == 0 {
-		logger.Fatalf("metamorphCount must be set")
+
+	addresses, found := gocore.Config().Get(fmt.Sprintf("metamorphAddresses")) //, "localhost:8001")
+	if !found {
+		return fmt.Errorf("metamorphAddresses not found in config")
 	}
 
-	metamorphs := make([]string, metamorphCount)
-	for i := 0; i < metamorphCount; i++ {
-		host, _ := gocore.Config().Get(fmt.Sprintf("metamorph_%d_host", i+1), "localhost")
-		metamorphs[i] = host
-	}
-
-	blockTxAddress, _ := gocore.Config().Get("blockTxAddress", "localhost:8001")
-	bTx := blocktx.NewClient(l, blockTxAddress)
+	blocktxAddress, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
+	bTx := blocktx.NewClient(l, blocktxAddress)
 	locationService := transactionHandler2.NewMetamorphTxLocationService(bTx)
 
-	transactionHandler, err := transactionHandler2.NewMetamorph(metamorphs, locationService)
+	transactionHandler, err := transactionHandler2.NewMetamorph(addresses, locationService)
 	if err != nil {
 		return err
 	}

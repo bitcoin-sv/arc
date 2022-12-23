@@ -53,7 +53,7 @@ func TestPutTransaction(t *testing.T) {
 
 		processor := NewProcessorMock()
 		server := NewServer(nil, s, processor)
-		server.SetTimout(100 * time.Millisecond)
+		server.SetTimeout(100 * time.Millisecond)
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{

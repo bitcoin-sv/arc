@@ -1,5 +1,6 @@
 {
   "cSpell.words": [
+    "badgerhold",
     "BIGSERIAL",
     "bitcoinsv",
     "blockid",
@@ -24,11 +25,14 @@
     "libsv",
     "merkle",
     "metamorph",
+    "millis",
     "modernc",
     "Nops",
     "oapi",
     "openapi",
     "orphanedyn",
+    "prefund",
+    "priv",
     "processedyn",
     "progname",
     "protobuf",
@@ -39,6 +43,7 @@
     "timestamppb",
     "txns",
     "txscript",
+    "unlocker",
     "Warnf"
   ]
 }

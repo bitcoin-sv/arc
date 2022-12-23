@@ -3,7 +3,6 @@ package transactionHandler
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"time"
 
 	arc "github.com/TAAL-GmbH/arc/api"
@@ -17,24 +16,20 @@ import (
 
 // Metamorph is the connector to a metamorph server
 type Metamorph struct {
-	Servers         map[string]metamorph_api.MetaMorphAPIClient
+	Client          metamorph_api.MetaMorphAPIClient
+	ClientCache     map[string]metamorph_api.MetaMorphAPIClient
 	locationService MetamorphLocationI
 }
 
 // NewMetamorph creates a connection to a list of metamorph servers via gRPC
-func NewMetamorph(targets []string, locationService MetamorphLocationI) (metamorph *Metamorph, err error) {
-	servers := make(map[string]metamorph_api.MetaMorphAPIClient)
-	for _, target := range targets {
-		var server *grpc.ClientConn
-		server, err = grpc.Dial(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			return nil, err
-		}
-		servers[target] = metamorph_api.NewMetaMorphAPIClient(server)
+func NewMetamorph(targets string, locationService MetamorphLocationI) (metamorph *Metamorph, err error) {
+	conn, err := grpc.Dial(targets, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, err
 	}
 
 	return &Metamorph{
-		Servers:         servers,
+		Client:          metamorph_api.NewMetaMorphAPIClient(conn),
 		locationService: locationService,
 	}, nil
 }
@@ -98,14 +93,8 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format
 func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, _ *arc.TransactionOptions) (*TransactionStatus, error) {
-	_, client, err := m.getRandomMetamorphClient()
-	if err != nil {
-		return nil, err
-	}
-
 	// TODO add retry logic if the put fails
-	var response *metamorph_api.TransactionStatus
-	response, err = client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
+	response, err := m.Client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
 		RawTx: tx,
 	})
 	if err != nil {
@@ -119,18 +108,6 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, _ *arc.Tra
 		BlockHeight: 0,  // TODO proto
 		Timestamp:   time.Now().Unix(),
 	}, nil
-}
-
-func (m *Metamorph) getRandomMetamorphClient() (string, metamorph_api.MetaMorphAPIClient, error) {
-	k := rand.Intn(len(m.Servers))
-	for target, server := range m.Servers {
-		if k == 0 {
-			return target, server, nil
-		}
-		k--
-	}
-
-	return "", nil, fmt.Errorf("no metamorph server could be selected")
 }
 
 func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (metamorph_api.MetaMorphAPIClient, error) {
@@ -151,5 +128,16 @@ func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (m
 		return nil, fmt.Errorf("could not find transaction server")
 	}
 
-	return m.Servers[target], nil
+	client, found := m.ClientCache[target]
+	if !found {
+		conn, err := grpc.Dial(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return nil, err
+		}
+		client = metamorph_api.NewMetaMorphAPIClient(conn)
+
+		m.ClientCache[target] = client
+	}
+
+	return client, nil
 }

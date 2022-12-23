@@ -40,9 +40,9 @@ func NewServer(storeI store.Interface, p *Processor, logger utils.Logger) *Serve
 // StartGRPCServer function
 func (s *Server) StartGRPCServer() error {
 
-	address, ok := gocore.Config().Get("grpcAddress.blocktx", "localhost:8001")
+	address, ok := gocore.Config().Get("blocktx_grpcAddress") //, "localhost:8001")
 	if !ok {
-		return errors.New("No grpcAddress setting found.")
+		return errors.New("No blocktx_grpcAddress setting found.")
 	}
 
 	// LEVEL 0 - no security / no encryption

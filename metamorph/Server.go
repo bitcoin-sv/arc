@@ -38,16 +38,16 @@ func NewServer(logger *gocore.Logger, s store.Store, p ProcessorI) *Server {
 	}
 }
 
-func (s *Server) SetTimout(timeout time.Duration) {
+func (s *Server) SetTimeout(timeout time.Duration) {
 	s.timeout = timeout
 }
 
 // StartGRPCServer function
 func (s *Server) StartGRPCServer() error {
 
-	address, ok := gocore.Config().Get("grpcAddress")
+	address, ok := gocore.Config().Get("metamorph_grpcAddress", "localhost:8000")
 	if !ok {
-		return errors.New("No grpcAddress setting found.")
+		return errors.New("No metamorph_grpcAddress setting found.")
 	}
 
 	// LEVEL 0 - no security / no encryption

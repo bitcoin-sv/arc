@@ -53,8 +53,8 @@ func (p *Processor) Start() {
 
 	go p.Catchup()
 
-	zmqHost, _ := gocore.Config().Get("peer_1_host", "localhost")
-	zmqPort, _ := gocore.Config().GetInt("peer_1_zmqPort", 28332)
+	zmqHost, _ := gocore.Config().Get("peer_1_host")       //, "localhost")
+	zmqPort, _ := gocore.Config().GetInt("peer_1_zmqPort") //, 28332)
 
 	z := NewZMQ(p, zmqHost, zmqPort)
 

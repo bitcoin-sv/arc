@@ -129,20 +129,22 @@ func start() {
 	}()
 
 	// create a channel to receive mined tx messages from the block tx service
-	var minedTxChan = make(chan *blocktx_api.Transaction)
+	var minedBlockChan = make(chan *blocktx_api.MinedTransaction)
 	go func() {
-		for tx := range minedTxChan {
-			logger.Infof("Received MINED message from P2P %x", bt.ReverseBytes(tx.Hash))
-			_, err = metamorphProcessor.SendStatusMinedForTransaction(tx.Hash)
-			if err != nil {
-				logger.Errorf("Could not send mined status for transaction %x: %v", bt.ReverseBytes(tx.Hash), err)
+		for mt := range minedBlockChan {
+			for _, tx := range mt.Txs {
+				logger.Infof("Received MINED message from P2P %x", bt.ReverseBytes(tx.Hash))
+				_, err = metamorphProcessor.SendStatusMinedForTransaction(tx.Hash, mt.Block.Hash, int32(mt.Block.Height))
+				if err != nil {
+					logger.Errorf("Could not send mined status for transaction %x: %v", bt.ReverseBytes(tx.Hash), err)
+				}
 			}
 		}
 	}()
 
 	address, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
 	btc := blocktx.NewClient(logger, address)
-	go btc.Start(minedTxChan)
+	go btc.Start(minedBlockChan)
 
 	serv := metamorph.NewServer(logger, s, metamorphProcessor)
 	if err = serv.StartGRPCServer(); err != nil {

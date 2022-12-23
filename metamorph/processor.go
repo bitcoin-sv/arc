@@ -154,10 +154,10 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	p.ch <- req
 }
 
-func (p *Processor) SendStatusMinedForTransaction(hash []byte) (bool, error) {
+func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight int32) (bool, error) {
 	hashStr := hex.EncodeToString(bt.ReverseBytes(hash))
 
-	err := p.store.UpdateStatus(context.Background(), hash, metamorph_api.Status_MINED, "")
+	err := p.store.UpdateMined(context.Background(), hash, blockHash, blockHeight)
 	if err != nil {
 		if err != store.ErrNotFound {
 			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)

@@ -154,6 +154,28 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	p.ch <- req
 }
 
+func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight int32) (bool, error) {
+	hashStr := hex.EncodeToString(bt.ReverseBytes(hash))
+
+	err := p.store.UpdateMined(context.Background(), hash, blockHash, blockHeight)
+	if err != nil {
+		if err != store.ErrNotFound {
+			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
+			return false, err
+		}
+	}
+
+	// remove the transaction from the tx map, regardless of status
+	resp, ok := p.tx2ChMap.Get(hashStr)
+	if ok {
+		p.processedCount.Add(1)
+		p.processedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
+		p.tx2ChMap.Delete(hashStr)
+	}
+
+	return true, nil
+}
+
 func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_api.Status, statusErr error) (bool, error) {
 	resp, ok := p.tx2ChMap.Get(hashStr)
 	if ok {
@@ -191,13 +213,12 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		}
 		// This is coming from zmq, after the transaction has been deleted from our tx2ChMap
 		// It could be a "seen", "confirmed", "mined" or "rejected" status, but should finalize the tx
-		txIDBytes, err := hex.DecodeString(hashStr)
+		hash, err := utils.DecodeAndReverseHexString(hashStr)
 		if err != nil {
 			p.logger.Errorf("Error decoding txID %s: %v", hashStr, err)
 			return false, err
 		}
 
-		hash := bt.ReverseBytes(txIDBytes)
 		rejectReason := ""
 		if statusErr != nil {
 			rejectReason = statusErr.Error()

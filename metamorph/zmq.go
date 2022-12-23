@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/ordishs/go-bitcoin"
@@ -24,12 +25,22 @@ func NewZMQ(processor ProcessorI) *ZMQ {
 }
 
 func (z *ZMQ) Start() {
-	zmqHost, _ := gocore.Config().Get("peer_1_host", "localhost")
-	zmqPort, _ := gocore.Config().GetInt("peer_1_zmqPort", 28332)
+	zmqURL, err, found := gocore.Config().GetURL("peer_1_zmq")
+	if !found {
+		z.logger.Fatalf("Could not find peer_1_zmq in config: %v", err)
+	}
+	if err != nil {
+		z.logger.Fatalf("Could not find peer_1_zmq in config: %v", err)
+	}
 
-	z.logger.Infof("Listening to ZMQ on %s:%d", zmqHost, zmqPort)
+	port, err := strconv.Atoi(zmqURL.Port())
+	if err != nil {
+		z.logger.Fatalf("Could not parse port from peer_1_zmq: %v", err)
+	}
 
-	zmq := bitcoin.NewZMQ(zmqHost, zmqPort, z.logger)
+	z.logger.Infof("Listening to ZMQ on %s:%d", zmqURL.Hostname(), port)
+
+	zmq := bitcoin.NewZMQ(zmqURL.Hostname(), port, z.logger)
 
 	ch := make(chan []string)
 

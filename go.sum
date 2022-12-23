@@ -197,12 +197,12 @@ github.com/mrz1836/go-logger v0.3.1/go.mod h1:wvnL9EjhtiMOgABtr0Q8EwO4YNVTBTDMLl
 github.com/mwitkow/go-proto-validators v0.3.2 h1:qRlmpTzm2pstMKKzTdvwPCF5QfBNURSlAgN/R+qbKos=
 github.com/mwitkow/go-proto-validators v0.3.2/go.mod h1:ej0Qp0qMgHN/KtDyUt+Q1/tA7a5VarXUOUxD+oeD30w=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
-github.com/ordishs/go-bitcoin v1.0.73 h1:NRQS7uyiKsve2BpCoYimWBlzZvQ40KT/vdZ/73vb9EU=
-github.com/ordishs/go-bitcoin v1.0.73/go.mod h1:7gXD2G745ETJK4OU4xXl0UBIOAc80615hBJRjPqKhWY=
+github.com/ordishs/go-bitcoin v1.0.75 h1:0mEG6DRZUPWl39b73Pu8q0XJN5OiSJJPeAG0EmgJ9Wc=
+github.com/ordishs/go-bitcoin v1.0.75/go.mod h1:7gXD2G745ETJK4OU4xXl0UBIOAc80615hBJRjPqKhWY=
 github.com/ordishs/go-utils v1.0.13 h1:KoubG2irFKgcWlG2BBi2uw7Ugfc6mih+vXsISUlsK2M=
 github.com/ordishs/go-utils v1.0.13/go.mod h1:k9G7Bbv2GwoOn9fwZx70yM5jwwIymkv+90FUKLudtyc=
-github.com/ordishs/gocore v1.0.20 h1:qGIbdnf4pzmPmYl++WxubjrHD9Rz6sQQQfI3OFtiXJQ=
-github.com/ordishs/gocore v1.0.20/go.mod h1:jDw6qSnZFcE/ddoIVrQWTZtPh3O5izA2SRWZ+1CS4Q0=
+github.com/ordishs/gocore v1.0.21 h1:a5XaH/w7aodv9r9vm7C9fHW4aBinOd15RJONqZzdKdA=
+github.com/ordishs/gocore v1.0.21/go.mod h1:08x7HvxS4Irz4KArFjjOymfzxHVdrsoLEnY0k2lV5U4=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
 github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=

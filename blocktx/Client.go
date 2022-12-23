@@ -5,8 +5,6 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
-	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
-	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/ordishs/go-utils"
 
 	"google.golang.org/grpc"
@@ -15,7 +13,7 @@ import (
 
 // ClientI is the interface for the block-tx transactionHandler
 type ClientI interface {
-	Start(s store.Store)
+	Start(minedBlockChan chan *blocktx_api.MinedTransaction)
 	LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 	RegisterTransaction(ctx context.Context, transaction *blocktx_api.Transaction) error
 }
@@ -32,7 +30,7 @@ func NewClient(l utils.Logger, address string) ClientI {
 	}
 }
 
-func (btc *Client) Start(s store.Store) {
+func (btc *Client) Start(minedBlockChan chan *blocktx_api.MinedTransaction) {
 	for {
 		conn, _ := grpc.Dial(btc.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		defer conn.Close()
@@ -46,8 +44,6 @@ func (btc *Client) Start(s store.Store) {
 
 		btc.logger.Infof("Connected to block-tx server at %s", btc.address)
 
-		ctx := context.Background()
-
 		for {
 			mt, err := stream.Recv()
 			if err != nil {
@@ -55,11 +51,7 @@ func (btc *Client) Start(s store.Store) {
 			}
 
 			btc.logger.Infof("Block %x\n", utils.ReverseSlice(mt.Block.Hash))
-			for _, tx := range mt.Txs {
-				if err := s.UpdateMined(ctx, tx.Hash, mt.Block.Hash, int32(mt.Block.Height)); err != nil {
-					btc.logger.Errorf("Could not update status of %x to %s: %v", utils.ReverseSlice(tx.Hash), metamorph_api.Status_MINED, err)
-				}
-			}
+			utils.SafeSend(minedBlockChan, mt)
 		}
 
 		btc.logger.Warnf("could not get message from block-tx stream: %v", err)

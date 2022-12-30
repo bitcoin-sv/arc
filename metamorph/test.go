@@ -8,6 +8,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
+	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/go-utils"
 	"github.com/stretchr/testify/require"
 )
@@ -57,6 +58,15 @@ func (p *ProcessorMock) SendStatusForTransaction(hashStr string, status metamorp
 		HashStr: hashStr,
 		Status:  status,
 		Err:     err,
+	})
+	return true, nil
+}
+
+func (p *ProcessorMock) SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight int32) (bool, error) {
+	p.SendStatusForTransactionCalls = append(p.SendStatusForTransactionCalls, &SendStatusForTransactionCall{
+		HashStr: hex.EncodeToString(bt.ReverseBytes(hash)),
+		Status:  metamorph_api.Status_MINED,
+		Err:     nil,
 	})
 	return true, nil
 }

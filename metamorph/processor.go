@@ -3,6 +3,7 @@ package metamorph
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"sync/atomic"
 	"time"
@@ -13,7 +14,6 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/go-utils"
 
-	"github.com/ordishs/go-utils/expiringmap"
 	"github.com/ordishs/gocore"
 )
 
@@ -30,6 +30,7 @@ func NewProcessorRequest(req *store.StoreData, responseChannel chan ProcessorRes
 }
 
 type ProcessorResponse struct {
+	// mu     sync.RWMutex
 	ch     chan ProcessorResponse
 	Hash   []byte
 	Start  time.Time
@@ -37,19 +38,38 @@ type ProcessorResponse struct {
 	status metamorph_api.Status
 }
 
+func (r *ProcessorResponse) String() string {
+	if r.err != nil {
+		return fmt.Sprintf("%x: %s [%s] %s", utils.ReverseSlice(r.Hash), r.Start.Format(time.RFC3339), r.status.String(), r.err.Error())
+	}
+	return fmt.Sprintf("%x: %s [%s]", utils.ReverseSlice(r.Hash), r.Start.Format(time.RFC3339), r.status.String())
+}
+
 func (r *ProcessorResponse) SetStatus(status metamorph_api.Status) {
+	// r.mu.Lock()
+	// defer r.mu.Unlock()
+
 	r.status = status
 }
 
 func (r *ProcessorResponse) GetStatus() metamorph_api.Status {
+	// r.mu.RLock()
+	// defer r.mu.RUnlock()
+
 	return r.status
 }
 
 func (r *ProcessorResponse) SetErr(err error) {
+	// r.mu.Lock()
+	// defer r.mu.Unlock()
+
 	r.err = err
 }
 
 func (r *ProcessorResponse) GetErr() error {
+	// r.mu.RLock()
+	// defer r.mu.RUnlock()
+
 	return r.err
 }
 
@@ -65,12 +85,12 @@ type ProcessorStats struct {
 }
 
 type Processor struct {
-	ch         chan *ProcessorRequest
-	expiryChan chan []*ProcessorResponse
-	store      store.Store
-	tx2ChMap   *expiringmap.ExpiringMap[string, *ProcessorResponse]
-	pm         p2p.PeerManagerI
-	logger     *gocore.Logger
+	ch           chan *ProcessorRequest
+	evictionChan chan []*ProcessorResponse
+	store        store.Store
+	tx2ChMap     *ProcessorResponseMap
+	pm           p2p.PeerManagerI
+	logger       *gocore.Logger
 
 	startTime       time.Time
 	workerCount     int
@@ -90,7 +110,7 @@ func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI) *Processo
 
 	logger := gocore.Log("processor")
 
-	mapExpiryStr, _ := gocore.Config().Get("processorCacheExpiryTime", "10s")
+	mapExpiryStr, _ := gocore.Config().Get("processorCacheExpiryTime", "24h")
 	mapExpiry, err := time.ParseDuration(mapExpiryStr)
 	if err != nil {
 		logger.Fatalf("Invalid processorCacheExpiryTime: %s", mapExpiryStr)
@@ -98,29 +118,28 @@ func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI) *Processo
 
 	logger.Infof("Starting processor with %d workers and cache expiry of %s", workerCount, mapExpiryStr)
 
-	expiryChan := make(chan []*ProcessorResponse)
-
 	p := &Processor{
 		startTime:   time.Now().UTC(),
 		ch:          make(chan *ProcessorRequest),
 		store:       s,
-		tx2ChMap:    expiringmap.New[string, *ProcessorResponse](mapExpiry, expiryChan),
+		tx2ChMap:    NewProcessorResponseMap(mapExpiry),
 		workerCount: workerCount,
-		expiryChan:  expiryChan,
 		pm:          pm,
 		logger:      logger,
 	}
 
-	go func() {
-		for items := range expiryChan {
-			for _, resp := range items {
-				txIDStr := hex.EncodeToString(bt.ReverseBytes(resp.Hash))
-				logger.Infof("Resending expired tx: %s", txIDStr)
-				p.tx2ChMap.Set(txIDStr, resp)
-				p.pm.AnnounceNewTransaction(resp.Hash)
-			}
-		}
-	}()
+	// go func() {
+	// 	for items := range evictionChan {
+	// 		for _, resp := range items {
+	// 			if resp.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK {
+	// 				txIDStr := hex.EncodeToString(bt.ReverseBytes(resp.Hash))
+	// 				logger.Infof("Resending expired tx: %s", txIDStr)
+	// 				p.tx2ChMap.Set(txIDStr, resp)
+	// 				p.pm.AnnounceNewTransaction(resp.Hash)
+	// 			}
+	// 		}
+	// 	}
+	// }()
 
 	for i := 0; i < workerCount; i++ {
 		go p.process(i)
@@ -238,6 +257,9 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 }
 
 func (p *Processor) GetStats() *ProcessorStats {
+	for _, value := range p.tx2ChMap.Items() {
+		fmt.Printf("tx2ChMap: %s\n", value.String())
+	}
 	return &ProcessorStats{
 		StartTime:       p.startTime,
 		UptimeMillis:    time.Since(p.startTime).Milliseconds(),

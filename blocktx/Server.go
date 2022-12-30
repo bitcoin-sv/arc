@@ -42,7 +42,7 @@ func (s *Server) StartGRPCServer() error {
 
 	address, ok := gocore.Config().Get("blocktx_grpcAddress") //, "localhost:8001")
 	if !ok {
-		return errors.New("No blocktx_grpcAddress setting found.")
+		return errors.New("no blocktx_grpcAddress setting found")
 	}
 
 	// LEVEL 0 - no security / no encryption

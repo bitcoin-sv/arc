@@ -36,7 +36,7 @@ func (s *Server) StartGRPCServer() error {
 
 	address, ok := gocore.Config().Get("callbacker_grpcAddress") //, "localhost:8002")
 	if !ok {
-		return errors.New("No callbacker_grpcAddress setting found.")
+		return errors.New("no callbacker_grpcAddress setting found")
 	}
 
 	// LEVEL 0 - no security / no encryption

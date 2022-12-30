@@ -85,12 +85,12 @@ type ProcessorStats struct {
 }
 
 type Processor struct {
-	ch           chan *ProcessorRequest
-	evictionChan chan []*ProcessorResponse
-	store        store.Store
-	tx2ChMap     *ProcessorResponseMap
-	pm           p2p.PeerManagerI
-	logger       *gocore.Logger
+	ch chan *ProcessorRequest
+	//evictionChan chan []*ProcessorResponse
+	store    store.Store
+	tx2ChMap *ProcessorResponseMap
+	pm       p2p.PeerManagerI
+	logger   *gocore.Logger
 
 	startTime       time.Time
 	workerCount     int

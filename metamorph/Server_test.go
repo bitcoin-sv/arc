@@ -61,7 +61,8 @@ func TestPutTransaction(t *testing.T) {
 		}
 		go func() {
 			time.Sleep(10 * time.Millisecond)
-			processor.ProcessTransactionCalls[0].ResponseChannel <- ProcessorResponse{
+
+			processor.GetProcessRequest(0).ResponseChannel <- ProcessorResponse{
 				Hash:   tx1Bytes,
 				status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			}
@@ -85,7 +86,7 @@ func TestPutTransaction(t *testing.T) {
 		}
 		go func() {
 			time.Sleep(10 * time.Millisecond)
-			processor.ProcessTransactionCalls[0].ResponseChannel <- ProcessorResponse{
+			processor.GetProcessRequest(0).ResponseChannel <- ProcessorResponse{
 				Hash:   tx1Bytes,
 				status: metamorph_api.Status_SENT_TO_NETWORK,
 			}
@@ -109,7 +110,7 @@ func TestPutTransaction(t *testing.T) {
 		}
 		go func() {
 			time.Sleep(10 * time.Millisecond)
-			processor.ProcessTransactionCalls[0].ResponseChannel <- ProcessorResponse{
+			processor.GetProcessRequest(0).ResponseChannel <- ProcessorResponse{
 				Hash:   tx1Bytes,
 				status: metamorph_api.Status_REJECTED,
 				err:    fmt.Errorf("some error"),

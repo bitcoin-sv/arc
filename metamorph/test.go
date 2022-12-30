@@ -3,6 +3,7 @@ package metamorph
 import (
 	"context"
 	"encoding/hex"
+	"sync"
 	"testing"
 	"time"
 
@@ -35,14 +36,15 @@ type SendStatusForTransactionCall struct {
 
 type ProcessorMock struct {
 	Stats                         *ProcessorStats
-	ProcessTransactionCalls       []*ProcessorRequest
+	mu                            sync.Mutex
+	processTransactionCalls       []*ProcessorRequest
 	SendStatusForTransactionCalls []*SendStatusForTransactionCall
 }
 
 func NewProcessorMock() *ProcessorMock {
 	return &ProcessorMock{
 		Stats:                         &ProcessorStats{},
-		ProcessTransactionCalls:       make([]*ProcessorRequest, 0),
+		processTransactionCalls:       make([]*ProcessorRequest, 0),
 		SendStatusForTransactionCalls: make([]*SendStatusForTransactionCall, 0),
 	}
 }
@@ -50,7 +52,17 @@ func NewProcessorMock() *ProcessorMock {
 func (p *ProcessorMock) LoadUnseen() {}
 
 func (p *ProcessorMock) ProcessTransaction(req *ProcessorRequest) {
-	p.ProcessTransactionCalls = append(p.ProcessTransactionCalls, req)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.processTransactionCalls = append(p.processTransactionCalls, req)
+}
+
+func (p *ProcessorMock) GetProcessRequest(index int) *ProcessorRequest {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.processTransactionCalls[index]
 }
 
 func (p *ProcessorMock) SendStatusForTransaction(hashStr string, status metamorph_api.Status, err error) (bool, error) {

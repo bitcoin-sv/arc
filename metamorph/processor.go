@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -30,7 +31,7 @@ func NewProcessorRequest(req *store.StoreData, responseChannel chan ProcessorRes
 }
 
 type ProcessorResponse struct {
-	// mu     sync.RWMutex
+	mu     sync.RWMutex
 	ch     chan ProcessorResponse
 	Hash   []byte
 	Start  time.Time
@@ -46,29 +47,29 @@ func (r *ProcessorResponse) String() string {
 }
 
 func (r *ProcessorResponse) SetStatus(status metamorph_api.Status) {
-	// r.mu.Lock()
-	// defer r.mu.Unlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	r.status = status
 }
 
 func (r *ProcessorResponse) GetStatus() metamorph_api.Status {
-	// r.mu.RLock()
-	// defer r.mu.RUnlock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
 	return r.status
 }
 
 func (r *ProcessorResponse) SetErr(err error) {
-	// r.mu.Lock()
-	// defer r.mu.Unlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	r.err = err
 }
 
 func (r *ProcessorResponse) GetErr() error {
-	// r.mu.RLock()
-	// defer r.mu.RUnlock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
 	return r.err
 }

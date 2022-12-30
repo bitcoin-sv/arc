@@ -79,7 +79,7 @@ func (p *Processor) Close() {
 func (p *Processor) GetBlockHashForHeight(height int) (string, error) {
 	hash, err := p.bitcoin.GetBlockHash(height)
 	if err != nil {
-		return "", fmt.Errorf("Could not get block hash for height %d: %w", height, err)
+		return "", fmt.Errorf("could not get block hash for height %d: %w", height, err)
 	}
 	return hash, err
 }

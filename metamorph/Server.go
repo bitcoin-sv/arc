@@ -47,7 +47,7 @@ func (s *Server) StartGRPCServer() error {
 
 	address, ok := gocore.Config().Get("metamorph_grpcAddress", "localhost:8000")
 	if !ok {
-		return errors.New("No metamorph_grpcAddress setting found.")
+		return errors.New("no metamorph_grpcAddress setting found")
 	}
 
 	// LEVEL 0 - no security / no encryption
@@ -68,7 +68,7 @@ func (s *Server) StartGRPCServer() error {
 	s.logger.Infof("Metamorph GRPC server listening on %s", address)
 
 	if err := grpcServer.Serve(lis); err != nil {
-		return fmt.Errorf("Metamorph GRPC server failed [%w]", err)
+		return fmt.Errorf("metamorph GRPC server failed [%w]", err)
 	}
 
 	return nil

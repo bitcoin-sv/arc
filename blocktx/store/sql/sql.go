@@ -66,7 +66,7 @@ func NewSQLStore(engine string) (store.Interface, error) {
 
 		if _, err := db.Exec(`PRAGMA foreign_keys = ON;`); err != nil {
 			db.Close()
-			return nil, fmt.Errorf("Could not enable foreign keys support: %+v", err)
+			return nil, fmt.Errorf("could not enable foreign keys support: %+v", err)
 		}
 
 		if err := createSqliteSchema(db); err != nil {
@@ -94,17 +94,17 @@ func createPostgresSchema(db *sql.DB) error {
 		);
 	`); err != nil {
 		db.Close()
-		return fmt.Errorf("Could not create blocks table - [%+v]\n", err)
+		return fmt.Errorf("could not create blocks table - [%+v]", err)
 	}
 
 	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_blocks_hash ON blocks (hash);`); err != nil {
 		db.Close()
-		return fmt.Errorf("Could not create blocks table - [%+v]\n", err)
+		return fmt.Errorf("could not create blocks table - [%+v]", err)
 	}
 
 	if _, err := db.Exec(`CREATE UNIQUE INDEX PARTIAL IF NOT EXISTS pux_blocks_height ON blocks(height) WHERE orphanedyn = FALSE;`); err != nil {
 		db.Close()
-		return fmt.Errorf("Could not create blocks table - [%+v]\n", err)
+		return fmt.Errorf("could not create blocks table - [%+v]", err)
 	}
 
 	if _, err := db.Exec(`
@@ -115,12 +115,12 @@ func createPostgresSchema(db *sql.DB) error {
 		);
 	`); err != nil {
 		db.Close()
-		return fmt.Errorf("Could not create transactions table - [%+v]\n", err)
+		return fmt.Errorf("could not create transactions table - [%+v]", err)
 	}
 
 	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_hash ON transactions (hash);`); err != nil {
 		db.Close()
-		return fmt.Errorf("Could not create transactions hash index - [%+v]\n", err)
+		return fmt.Errorf("could not create transactions hash index - [%+v]", err)
 	}
 
 	if _, err := db.Exec(`
@@ -131,7 +131,7 @@ func createPostgresSchema(db *sql.DB) error {
 		);
 	`); err != nil {
 		db.Close()
-		return fmt.Errorf("Could not create block_transactions_map table - [%+v]\n", err)
+		return fmt.Errorf("could not create block_transactions_map table - [%+v]", err)
 	}
 
 	return nil
@@ -149,17 +149,17 @@ func createSqliteSchema(db *sql.DB) error {
 	 	);
 	`); err != nil {
 		db.Close()
-		return fmt.Errorf("Could not create blocks table - [%+v]\n", err)
+		return fmt.Errorf("could not create blocks table - [%+v]", err)
 	}
 
 	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_blocks_hash ON blocks (hash);`); err != nil {
 		db.Close()
-		return fmt.Errorf("Could not create blocks hash index - [%+v]\n", err)
+		return fmt.Errorf("could not create blocks hash index - [%+v]", err)
 	}
 
 	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS pux_blocks_height ON blocks(height) WHERE orphanedyn = FALSE;`); err != nil {
 		db.Close()
-		return fmt.Errorf("Could not create blocks height index - [%+v]\n", err)
+		return fmt.Errorf("could not create blocks height index - [%+v]", err)
 	}
 
 	if _, err := db.Exec(`
@@ -170,12 +170,12 @@ func createSqliteSchema(db *sql.DB) error {
 	 	);
 	`); err != nil {
 		db.Close()
-		return fmt.Errorf("Could not create transactions table - [%+v]\n", err)
+		return fmt.Errorf("could not create transactions table - [%+v]", err)
 	}
 
 	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_hash ON transactions (hash);`); err != nil {
 		db.Close()
-		return fmt.Errorf("Could not create transactions hash index - [%+v]\n", err)
+		return fmt.Errorf("could not create transactions hash index - [%+v]", err)
 	}
 
 	if _, err := db.Exec(`
@@ -188,7 +188,7 @@ func createSqliteSchema(db *sql.DB) error {
 	  );
 	`); err != nil {
 		db.Close()
-		return fmt.Errorf("Could not create block_transactions_map table - [%+v]\n", err)
+		return fmt.Errorf("could not create block_transactions_map table - [%+v]", err)
 	}
 
 	return nil

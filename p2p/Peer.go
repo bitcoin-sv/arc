@@ -45,7 +45,7 @@ func NewPeer(address string, s store.Store, parentChannel chan *PMMessage) (*Pee
 
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
-		return nil, fmt.Errorf("Could not dial node [%s]: %v", address, err)
+		return nil, fmt.Errorf("could not dial node [%s]: %v", address, err)
 	}
 
 	p := &Peer{

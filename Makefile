@@ -18,6 +18,7 @@ test:
 .PHONY: lint
 lint:
 	golangci-lint run --skip-dirs p2p/wire
+	staticcheck ./...
 
 .PHONY: run
 run:
@@ -26,27 +27,19 @@ run:
 .PHONY: gen
 gen:
 	protoc \
-	--proto_path=${GOPATH}/src \
-	--proto_path=${GOPATH}/src/github.com/mwitkow/go-proto-validators/ \
 	--proto_path=. \
 	--go_out=. \
 	--go_opt=paths=source_relative \
 	--go-grpc_out=. \
 	--go-grpc_opt=paths=source_relative \
-	--govalidators_out=. \
-	--govalidators_opt=paths=source_relative \
 	metamorph/metamorph_api/metamorph_api.proto
 
 	protoc \
-	--proto_path=${GOPATH}/src \
-	--proto_path=${GOPATH}/src/github.com/mwitkow/go-proto-validators/ \
 	--proto_path=. \
 	--go_out=. \
 	--go_opt=paths=source_relative \
 	--go-grpc_out=. \
 	--go-grpc_opt=paths=source_relative \
-	--govalidators_out=. \
-	--govalidators_opt=paths=source_relative \
 	blocktx/blocktx_api/blocktx_api.proto
 
 	protoc \
@@ -67,13 +60,16 @@ clean_gen:
 clean:
 	rm -f ./arc_*.tar.gz
 	rm -rf build/
- 
+
 .PHONY: install
 install:
 	# arch -arm64 brew install golangci-lint
+	brew install pre-commit
+	pre-commit install
+	go install honnef.co/go/tools/cmd/staticcheck@latest
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-	GO111MODULE=off go get -u github.com/mwitkow/go-proto-validators/protoc-gen-govalidators
+	# GO111MODULE=off go get -u github.com/mwitkow/go-proto-validators/protoc-gen-govalidators
 
 .PHONY: docs
 docs:

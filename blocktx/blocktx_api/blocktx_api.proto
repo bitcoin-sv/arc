@@ -6,7 +6,6 @@ package blocktx_api;
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
-import "github.com/mwitkow/go-proto-validators/validator.proto";
 
 service BlockTxAPI {
   // Health returns the health of the API.
@@ -19,13 +18,13 @@ service BlockTxAPI {
 
   // GetBlockTransactions returns a list of transaction hashes for a given block.
   rpc GetBlockTransactions (Block) returns (Transactions) {}
-  
-  // GetTransactionBlocks returns a list of block hashes (including orphaned) for a given transaction hash. 
+
+  // GetTransactionBlocks returns a list of block hashes (including orphaned) for a given transaction hash.
   rpc GetTransactionBlocks (Transaction) returns (Blocks) {}
-  
-  // GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash. 
+
+  // GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash.
   rpc GetTransactionBlock (Transaction) returns (Block) {}
-  
+
   // GetBlockForHeight returns the non-orphaned block for a given block height.
   rpc GetBlockForHeight (Height) returns (Block) {}
 
@@ -49,8 +48,8 @@ message Blocks {
 
 // swagger:model Block {
 message Block {
-  bytes hash = 1 [(validator.field) = {length_eq: 32}]; // Little endian
-  bytes header = 2 [(validator.field) = {length_eq: 80}]; // The header is not reversed because it is not a single value, but a list of values.
+  bytes hash = 1; // Little endian
+  bytes header = 2; // The header is not reversed because it is not a single value, but a list of values.
   uint64 height = 3;
   bool orphaned = 4;
 }
@@ -62,13 +61,13 @@ message Transactions {
 
 // swagger:model MinedTransaction
 message MinedTransaction {
-  Block block = 1 [(validator.field) = {length_eq: 32}]; // Little endian
+  Block block = 1; // Little endian
   repeated Transaction txs = 2; // Little endian
 }
 
 // swagger:model Transaction
 message Transaction {
-  bytes hash = 1 [(validator.field) = {length_eq: 32}]; // Little endian
+  bytes hash = 1; // Little endian
   string source = 2;
 }
 

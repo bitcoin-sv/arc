@@ -20,19 +20,25 @@ import (
 
 type ProcessorRequest struct {
 	*store.StoreData
-	ResponseChannel chan *ProcessorResponse
+	ResponseChannel chan StatusAndError
 }
 
-func NewProcessorRequest(req *store.StoreData, responseChannel chan *ProcessorResponse) *ProcessorRequest {
+func NewProcessorRequest(req *store.StoreData, responseChannel chan StatusAndError) *ProcessorRequest {
 	return &ProcessorRequest{
 		req,
 		responseChannel,
 	}
 }
 
+type StatusAndError struct {
+	Hash   []byte
+	Status metamorph_api.Status
+	Err    error
+}
+
 type ProcessorResponse struct {
 	mu     sync.RWMutex
-	ch     chan *ProcessorResponse
+	ch     chan StatusAndError
 	Hash   []byte
 	Start  time.Time
 	err    error
@@ -212,7 +218,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
 		}
 		if resp.ch != nil {
-			ok = utils.SafeSend(resp.ch, resp)
+			ok = utils.SafeSend(resp.ch, StatusAndError{Status: status})
 		}
 
 		// Don't cache the channel if the transactionHandler is not listening anymore
@@ -290,7 +296,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	p.queueLength.Add(-1)
 
 	processorResponse.SetStatus(metamorph_api.Status_RECEIVED)
-	utils.SafeSend(req.ResponseChannel, processorResponse)
+	utils.SafeSend(req.ResponseChannel, StatusAndError{Hash: req.Hash, Status: metamorph_api.Status_RECEIVED})
 
 	p.logger.Debugf("Adding channel for %x", bt.ReverseBytes(req.Hash))
 
@@ -301,17 +307,17 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	if err := p.store.Set(context.Background(), req.Hash, req.StoreData); err != nil {
 		p.logger.Errorf("Error storing transaction %s: %v", txIDStr, err)
 		processorResponse.SetErr(err)
-		utils.SafeSend(req.ResponseChannel, processorResponse)
+		utils.SafeSend(req.ResponseChannel, StatusAndError{Hash: req.Hash, Err: err})
 	} else {
 		p.logger.Infof("Stored tx %s", txIDStr)
 
 		processorResponse.SetStatus(metamorph_api.Status_STORED)
-		utils.SafeSend(req.ResponseChannel, processorResponse)
+		utils.SafeSend(req.ResponseChannel, StatusAndError{Hash: req.Hash, Status: metamorph_api.Status_STORED})
 
 		p.pm.AnnounceNewTransaction(req.Hash)
 
 		processorResponse.SetStatus(metamorph_api.Status_ANNOUNCED_TO_NETWORK)
-		utils.SafeSend(req.ResponseChannel, processorResponse)
+		utils.SafeSend(req.ResponseChannel, StatusAndError{Hash: req.Hash, Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK})
 	}
 
 	// update to the latest status of the transaction

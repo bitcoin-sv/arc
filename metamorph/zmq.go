@@ -48,7 +48,7 @@ func (z *ZMQ) Start() {
 		for c := range ch {
 			switch c[0] {
 			case "hashtx":
-				z.processor.SendStatusForTransaction(c[1], metamorph_api.Status_SEEN_ON_NETWORK, nil)
+				_, _ = z.processor.SendStatusForTransaction(c[1], metamorph_api.Status_SEEN_ON_NETWORK, nil)
 			case "invalidtx":
 				// c[1] is lots of info about the tx in json format encoded in hex
 				txInfo, err := z.parseTxInfo(c)
@@ -66,7 +66,7 @@ func (z *ZMQ) Start() {
 				if txInfo["isDoubleSpend"] != nil && txInfo["isDoubleSpend"].(bool) {
 					errReason += " - double spend"
 				}
-				z.processor.SendStatusForTransaction(txInfo["txid"].(string), metamorph_api.Status_REJECTED, fmt.Errorf(errReason))
+				_, _ = z.processor.SendStatusForTransaction(txInfo["txid"].(string), metamorph_api.Status_REJECTED, fmt.Errorf(errReason))
 			case "discardedfrommempool":
 				txInfo, err := z.parseTxInfo(c)
 				if err != nil {
@@ -78,7 +78,7 @@ func (z *ZMQ) Start() {
 					reason = txInfo["reason"].(string)
 				}
 				// reasons can be "collision-in-block-tx" and "unknown-reason"
-				z.processor.SendStatusForTransaction(txInfo["txid"].(string), metamorph_api.Status_REJECTED, fmt.Errorf("discarded from mempool: %s", reason))
+				_, _ = z.processor.SendStatusForTransaction(txInfo["txid"].(string), metamorph_api.Status_REJECTED, fmt.Errorf("discarded from mempool: %s", reason))
 			case "removedfrommempoolblock":
 				txInfo, err := z.parseTxInfo(c)
 				if err != nil {
@@ -87,7 +87,7 @@ func (z *ZMQ) Start() {
 				}
 				// TODO other reasons are "reorg" and "unknown-reason" - what to do then?
 				if txInfo["reason"] != nil && txInfo["reason"].(string) == "included-in-block" {
-					z.processor.SendStatusForTransaction(txInfo["txid"].(string), metamorph_api.Status_MINED, nil)
+					_, _ = z.processor.SendStatusForTransaction(txInfo["txid"].(string), metamorph_api.Status_MINED, nil)
 				} else {
 					z.logger.Error("removedfrommempoolblock: unable to handle reason", txInfo["reason"])
 				}

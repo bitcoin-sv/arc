@@ -53,7 +53,7 @@ func (m *Metamorph) GetTransaction(ctx context.Context, txID string) (rawTx *Raw
 		return nil, err
 	}
 
-	fmt.Printf("tx: %v\n", tx)
+	// fmt.Printf("tx: %v\n", tx)
 
 	return &RawTransaction{
 		RawTransaction: bitcoin.RawTransaction{

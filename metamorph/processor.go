@@ -45,6 +45,33 @@ type ProcessorResponse struct {
 	status metamorph_api.Status
 }
 
+func NewProcessorResponse(hash []byte) *ProcessorResponse {
+	return &ProcessorResponse{
+		Start:  time.Now(),
+		Hash:   hash,
+		status: metamorph_api.Status_UNKNOWN,
+	}
+}
+
+// NewProcessorResponseWithStatus creates a new ProcessorResponse with the given status.
+// It is used when restoring the ProcessorResponseMap from the database.
+func NewProcessorResponseWithStatus(hash []byte, status metamorph_api.Status) *ProcessorResponse {
+	return &ProcessorResponse{
+		Start:  time.Now(),
+		Hash:   hash,
+		status: status,
+	}
+}
+
+func NewProcessorResponseWithChannel(hash []byte, ch chan StatusAndError) *ProcessorResponse {
+	return &ProcessorResponse{
+		Start:  time.Now(),
+		Hash:   hash,
+		status: metamorph_api.Status_UNKNOWN,
+		ch:     ch,
+	}
+}
+
 func (r *ProcessorResponse) String() string {
 	if r.err != nil {
 		return fmt.Sprintf("%x: %s [%s] %s", utils.ReverseSlice(r.Hash), r.Start.Format(time.RFC3339), r.status.String(), r.err.Error())
@@ -52,11 +79,25 @@ func (r *ProcessorResponse) String() string {
 	return fmt.Sprintf("%x: %s [%s]", utils.ReverseSlice(r.Hash), r.Start.Format(time.RFC3339), r.status.String())
 }
 
-func (r *ProcessorResponse) SetStatus(status metamorph_api.Status) {
+func (r *ProcessorResponse) SetStatus(status metamorph_api.Status) bool {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	r.status = status
+
+	sae := StatusAndError{
+		Hash:   r.Hash,
+		Status: r.status,
+	}
+
+	ch := r.ch
+
+	r.mu.Unlock()
+
+	if ch != nil {
+		return utils.SafeSend(ch, sae)
+	}
+
+	return true
 }
 
 func (r *ProcessorResponse) GetStatus() metamorph_api.Status {
@@ -66,11 +107,49 @@ func (r *ProcessorResponse) GetStatus() metamorph_api.Status {
 	return r.status
 }
 
-func (r *ProcessorResponse) SetErr(err error) {
+func (r *ProcessorResponse) SetErr(err error) bool {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	r.err = err
+
+	sae := StatusAndError{
+		Hash:   r.Hash,
+		Status: r.status,
+		Err:    err,
+	}
+
+	ch := r.ch
+
+	r.mu.Unlock()
+
+	if ch != nil {
+		return utils.SafeSend(ch, sae)
+	}
+
+	return true
+}
+
+func (r *ProcessorResponse) SetStatusAndError(status metamorph_api.Status, err error) bool {
+	r.mu.Lock()
+
+	r.status = status
+	r.err = err
+
+	sae := StatusAndError{
+		Hash:   r.Hash,
+		Status: r.status,
+		Err:    err,
+	}
+
+	ch := r.ch
+
+	r.mu.Unlock()
+
+	if ch != nil {
+		return utils.SafeSend(ch, sae)
+	}
+
+	return true
 }
 
 func (r *ProcessorResponse) GetErr() error {
@@ -159,11 +238,8 @@ func (p *Processor) LoadUnseen() {
 	err := p.store.GetUnseen(context.Background(), func(record *store.StoreData) {
 		// add the records we have in the database, but that have not been processed, to the mempool watcher
 		txIDStr := hex.EncodeToString(bt.ReverseBytes(record.Hash))
-		p.tx2ChMap.Set(txIDStr, &ProcessorResponse{
-			Hash:   record.Hash,
-			Start:  time.Now(),
-			status: record.Status,
-		})
+		p.tx2ChMap.Set(txIDStr, NewProcessorResponseWithStatus(record.Hash, record.Status))
+
 		p.queuedCount.Add(1)
 		p.queueLength.Add(1)
 		p.pm.AnnounceNewTransaction(record.Hash)
@@ -206,10 +282,8 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 	resp, ok := p.tx2ChMap.Get(hashStr)
 	if ok {
 		// we have cached this transaction, so process accordingly
-		resp.SetStatus(status)
 		rejectReason := ""
 		if statusErr != nil {
-			resp.SetErr(statusErr)
 			rejectReason = statusErr.Error()
 		}
 
@@ -217,8 +291,11 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		if err != nil {
 			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
 		}
-		if resp.ch != nil {
-			ok = utils.SafeSend(resp.ch, StatusAndError{Status: status})
+
+		if statusErr != nil {
+			ok = resp.SetStatusAndError(status, statusErr)
+		} else {
+			ok = resp.SetStatus(status)
 		}
 
 		// Don't cache the channel if the transactionHandler is not listening anymore
@@ -264,9 +341,9 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 }
 
 func (p *Processor) GetStats() *ProcessorStats {
-	for _, value := range p.tx2ChMap.Items() {
-		fmt.Printf("tx2ChMap: %s\n", value.String())
-	}
+	// for _, value := range p.tx2ChMap.Items() {
+	// 	fmt.Printf("tx2ChMap: %s\n", value.String())
+	// }
 	return &ProcessorStats{
 		StartTime:       p.startTime,
 		UptimeMillis:    time.Since(p.startTime).Milliseconds(),
@@ -286,38 +363,27 @@ func (p *Processor) process(_ int) {
 }
 
 func (p *Processor) processTransaction(req *ProcessorRequest) {
-	processorResponse := &ProcessorResponse{
-		ch:     req.ResponseChannel,
-		Hash:   req.Hash,
-		status: metamorph_api.Status_UNKNOWN,
-		Start:  time.Now(),
-	}
-
 	p.queueLength.Add(-1)
-
-	processorResponse.SetStatus(metamorph_api.Status_RECEIVED)
-	utils.SafeSend(req.ResponseChannel, StatusAndError{Hash: req.Hash, Status: metamorph_api.Status_RECEIVED})
 
 	p.logger.Debugf("Adding channel for %x", bt.ReverseBytes(req.Hash))
 
-	txIDStr := hex.EncodeToString(bt.ReverseBytes(req.Hash))
+	processorResponse := NewProcessorResponseWithChannel(req.Hash, req.ResponseChannel)
+	processorResponse.SetStatus(metamorph_api.Status_RECEIVED)
 
+	txIDStr := hex.EncodeToString(bt.ReverseBytes(req.Hash))
 	p.tx2ChMap.Set(txIDStr, processorResponse)
 
 	if err := p.store.Set(context.Background(), req.Hash, req.StoreData); err != nil {
 		p.logger.Errorf("Error storing transaction %s: %v", txIDStr, err)
 		processorResponse.SetErr(err)
-		utils.SafeSend(req.ResponseChannel, StatusAndError{Hash: req.Hash, Err: err})
 	} else {
 		p.logger.Infof("Stored tx %s", txIDStr)
 
 		processorResponse.SetStatus(metamorph_api.Status_STORED)
-		utils.SafeSend(req.ResponseChannel, StatusAndError{Hash: req.Hash, Status: metamorph_api.Status_STORED})
 
 		p.pm.AnnounceNewTransaction(req.Hash)
 
 		processorResponse.SetStatus(metamorph_api.Status_ANNOUNCED_TO_NETWORK)
-		utils.SafeSend(req.ResponseChannel, StatusAndError{Hash: req.Hash, Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK})
 	}
 
 	// update to the latest status of the transaction

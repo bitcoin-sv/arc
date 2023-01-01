@@ -45,7 +45,7 @@ func (m *ProcessorResponseMap) Get(key string) (*ProcessorResponse, bool) {
 		return nil, false
 	}
 
-	if time.Since(processorResponse.Start) > m.expiry || processorResponse.status >= metamorph_api.Status_SEEN_ON_NETWORK {
+	if time.Since(processorResponse.Start) > m.expiry || processorResponse.GetStatus() >= metamorph_api.Status_SEEN_ON_NETWORK {
 		return nil, false
 	}
 

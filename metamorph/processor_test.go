@@ -79,16 +79,16 @@ func TestProcessTransaction(t *testing.T) {
 			metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 		}
 
-		responseChannel := make(chan ProcessorResponse)
+		responseChannel := make(chan *ProcessorResponse)
 
 		var wg sync.WaitGroup
 		wg.Add(len(expectedResponses))
 		go func() {
 			n := 0
 			for response := range responseChannel {
-				status := response.status
+				status := response.GetStatus()
 				assert.Equal(t, tx1Bytes, response.Hash)
-				assert.Equal(t, expectedResponses[n], status)
+				assert.Equalf(t, expectedResponses[n], status, "Iteration %d: Expected %s, got %s", n, expectedResponses[n].String(), status.String())
 				wg.Done()
 				n++
 			}
@@ -219,13 +219,13 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		responseChannel := make(chan ProcessorResponse)
+		responseChannel := make(chan *ProcessorResponse)
 
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
 			for response := range responseChannel {
-				status := response.status
+				status := response.GetStatus()
 				fmt.Printf("response: %s\n", status)
 				if status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
 					wg.Done()

@@ -98,7 +98,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 }
 
 func (s *Server) PutTransaction(_ context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
-	responseChannel := make(chan ProcessorResponse)
+	responseChannel := make(chan *ProcessorResponse)
 	defer func() {
 		close(responseChannel)
 	}()

@@ -108,7 +108,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, _ *arc.Tra
 
 	return &TransactionStatus{
 		TxID:        response.Txid,
-		Status:      response.Status.String(),
+		Status:      response.GetStatus().String(),
 		BlockHash:   "", // TODO proto
 		BlockHeight: 0,  // TODO proto
 		Timestamp:   time.Now().Unix(),

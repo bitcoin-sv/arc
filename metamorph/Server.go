@@ -97,7 +97,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 	}, nil
 }
 
-func (s *Server) PutTransaction(_ context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
+func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
 	responseChannel := make(chan StatusAndError)
 	defer func() {
 		close(responseChannel)
@@ -106,13 +106,8 @@ func (s *Server) PutTransaction(_ context.Context, req *metamorph_api.Transactio
 	// Convert gRPC req to store.StoreData struct...
 	status := metamorph_api.Status_UNKNOWN
 	hash := utils.Sha256d(req.RawTx)
-	// btTx, _ := bt.NewTxFromBytes(req.RawTx)
-	// hash2 := btTx.TxID()
-	// fmt.Printf("hash2: %s\n", hash2)
-	// fmt.Printf("hash: %x\n", hash)
-	// fmt.Printf("hash reversed: %x\n", bt.ReverseBytes(hash))
 
-	storeData, err := s.store.Get(context.Background(), hash)
+	storeData, err := s.store.Get(ctx, hash)
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		s.logger.Errorf("Error getting transaction from store: %v", err)
 	}

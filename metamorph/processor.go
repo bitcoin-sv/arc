@@ -3,8 +3,6 @@ package metamorph
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -17,145 +15,10 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-type ProcessorRequest struct {
-	*store.StoreData
-	ResponseChannel chan StatusAndError
-}
-
-func NewProcessorRequest(req *store.StoreData, responseChannel chan StatusAndError) *ProcessorRequest {
-	return &ProcessorRequest{
-		req,
-		responseChannel,
-	}
-}
-
 type StatusAndError struct {
 	Hash   []byte
 	Status metamorph_api.Status
 	Err    error
-}
-
-type ProcessorResponse struct {
-	mu     sync.RWMutex
-	ch     chan StatusAndError
-	Hash   []byte
-	Start  time.Time
-	err    error
-	status metamorph_api.Status
-}
-
-func NewProcessorResponse(hash []byte) *ProcessorResponse {
-	return &ProcessorResponse{
-		Start:  time.Now(),
-		Hash:   hash,
-		status: metamorph_api.Status_UNKNOWN,
-	}
-}
-
-// NewProcessorResponseWithStatus creates a new ProcessorResponse with the given status.
-// It is used when restoring the ProcessorResponseMap from the database.
-func NewProcessorResponseWithStatus(hash []byte, status metamorph_api.Status) *ProcessorResponse {
-	return &ProcessorResponse{
-		Start:  time.Now(),
-		Hash:   hash,
-		status: status,
-	}
-}
-
-func NewProcessorResponseWithChannel(hash []byte, ch chan StatusAndError) *ProcessorResponse {
-	return &ProcessorResponse{
-		Start:  time.Now(),
-		Hash:   hash,
-		status: metamorph_api.Status_UNKNOWN,
-		ch:     ch,
-	}
-}
-
-func (r *ProcessorResponse) String() string {
-	if r.err != nil {
-		return fmt.Sprintf("%x: %s [%s] %s", utils.ReverseSlice(r.Hash), r.Start.Format(time.RFC3339), r.status.String(), r.err.Error())
-	}
-	return fmt.Sprintf("%x: %s [%s]", utils.ReverseSlice(r.Hash), r.Start.Format(time.RFC3339), r.status.String())
-}
-
-func (r *ProcessorResponse) SetStatus(status metamorph_api.Status) bool {
-	r.mu.Lock()
-
-	r.status = status
-
-	sae := StatusAndError{
-		Hash:   r.Hash,
-		Status: r.status,
-	}
-
-	ch := r.ch
-
-	r.mu.Unlock()
-
-	if ch != nil {
-		return utils.SafeSend(ch, sae)
-	}
-
-	return true
-}
-
-func (r *ProcessorResponse) GetStatus() metamorph_api.Status {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	return r.status
-}
-
-func (r *ProcessorResponse) SetErr(err error) bool {
-	r.mu.Lock()
-
-	r.err = err
-
-	sae := StatusAndError{
-		Hash:   r.Hash,
-		Status: r.status,
-		Err:    err,
-	}
-
-	ch := r.ch
-
-	r.mu.Unlock()
-
-	if ch != nil {
-		return utils.SafeSend(ch, sae)
-	}
-
-	return true
-}
-
-func (r *ProcessorResponse) SetStatusAndError(status metamorph_api.Status, err error) bool {
-	r.mu.Lock()
-
-	r.status = status
-	r.err = err
-
-	sae := StatusAndError{
-		Hash:   r.Hash,
-		Status: r.status,
-		Err:    err,
-	}
-
-	ch := r.ch
-
-	r.mu.Unlock()
-
-	if ch != nil {
-		return utils.SafeSend(ch, sae)
-	}
-
-	return true
-}
-
-func (r *ProcessorResponse) GetErr() error {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	return r.err
 }
 
 type ProcessorStats struct {

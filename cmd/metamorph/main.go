@@ -62,7 +62,10 @@ func appCleanup() {
 func start() {
 	messageCh := make(chan *p2p.PMMessage)
 
-	s := badgerhold.New("")
+	s, err := badgerhold.New("")
+	if err != nil {
+		logger.Fatalf("Error creating metamorph store: %v", err)
+	}
 
 	pm := p2p.NewPeerManager(s, messageCh)
 

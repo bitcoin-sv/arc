@@ -10,6 +10,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
+	"github.com/TAAL-GmbH/arc/metamorph/store/tests"
 	"github.com/labstack/gommon/random"
 	"github.com/ordishs/go-utils"
 
@@ -96,62 +97,14 @@ func TestGetUnseen(t *testing.T) {
 
 		defer sqliteDB.Close(context.Background())
 
-		hashes := [][]byte{
-			utils.Sha256d([]byte("hello world")),
-			utils.Sha256d([]byte("hello again")),
-			utils.Sha256d([]byte("hello again again")),
-		}
-
-		for _, hash := range hashes {
-			err := sqliteDB.Set(context.Background(), hash, &store.StoreData{
-				Hash:   hash,
-				Status: metamorph_api.Status_SEEN_ON_NETWORK,
-			})
-			require.NoError(t, err)
-		}
-
-		unseen := make([]*store.StoreData, 0)
-		err := sqliteDB.GetUnseen(context.Background(), func(s *store.StoreData) {
-			unseen = append(unseen, s)
-		})
-		require.NoError(t, err)
-		assert.Equal(t, 0, len(unseen))
-
-		for _, hash := range hashes {
-			err = sqliteDB.Del(context.Background(), hash)
-			require.NoError(t, err)
-		}
+		tests.NoUnseen(t, sqliteDB)
 	})
 
 	t.Run("multiple unseen", func(t *testing.T) {
 		sqliteDB, closeDB := getTestDB(t)
 		defer closeDB()
 
-		hashes := [][]byte{
-			utils.Sha256d([]byte("hello world")),
-			utils.Sha256d([]byte("hello again")),
-			utils.Sha256d([]byte("hello again again")),
-		}
-
-		for _, hash := range hashes {
-			err := sqliteDB.Set(context.Background(), hash, &store.StoreData{
-				Hash:   hash,
-				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-			})
-			require.NoError(t, err)
-		}
-
-		unseen := make([]*store.StoreData, 0)
-		err := sqliteDB.GetUnseen(context.Background(), func(s *store.StoreData) {
-			unseen = append(unseen, s)
-		})
-		require.NoError(t, err)
-		assert.Equal(t, 3, len(unseen))
-
-		for _, hash := range hashes {
-			err = sqliteDB.Del(context.Background(), hash)
-			require.NoError(t, err)
-		}
+		tests.MultipleUnseen(t, sqliteDB)
 	})
 }
 
@@ -168,28 +121,7 @@ func TestUpdateMined(t *testing.T) {
 		sqliteDB, closeDB := getTestDB(t)
 		defer closeDB()
 
-		err := sqliteDB.Set(context.Background(), tx1Bytes, &store.StoreData{
-			Hash:   tx1Bytes,
-			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-		})
-		require.NoError(t, err)
-
-		var data *store.StoreData
-		data, err = sqliteDB.Get(context.Background(), tx1Bytes)
-		require.NoError(t, err)
-
-		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, data.Status)
-		assert.Equal(t, []byte(nil), data.BlockHash)
-		assert.Equal(t, int32(0), data.BlockHeight)
-
-		err = sqliteDB.UpdateMined(context.Background(), tx1Bytes, []byte("block hash"), 123)
-		require.NoError(t, err)
-
-		data, err = sqliteDB.Get(context.Background(), tx1Bytes)
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_MINED, data.Status)
-		assert.Equal(t, []byte("block hash"), data.BlockHash)
-		assert.Equal(t, int32(123), data.BlockHeight)
+		tests.UpdateMined(t, sqliteDB)
 	})
 }
 
@@ -205,57 +137,13 @@ func TestUpdateStatus(t *testing.T) {
 	t.Run("update status", func(t *testing.T) {
 		sqliteDB, closeDB := getTestDB(t)
 		defer closeDB()
-
-		err := sqliteDB.Set(context.Background(), tx1Bytes, &store.StoreData{
-			Hash:   tx1Bytes,
-			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-		})
-		require.NoError(t, err)
-
-		var data *store.StoreData
-		data, err = sqliteDB.Get(context.Background(), tx1Bytes)
-		require.NoError(t, err)
-
-		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, data.Status)
-		assert.Equal(t, "", data.RejectReason)
-		assert.Equal(t, []byte(nil), data.BlockHash)
-		assert.Equal(t, int32(0), data.BlockHeight)
-
-		err = sqliteDB.UpdateStatus(context.Background(), tx1Bytes, metamorph_api.Status_SENT_TO_NETWORK, "")
-		require.NoError(t, err)
-
-		data, err = sqliteDB.Get(context.Background(), tx1Bytes)
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, data.Status)
-		assert.Equal(t, "", data.RejectReason)
-		assert.Equal(t, []byte(nil), data.BlockHash)
-		assert.Equal(t, int32(0), data.BlockHeight)
+		tests.UpdateStatus(t, sqliteDB)
 	})
 
 	t.Run("update status with error", func(t *testing.T) {
 		sqliteDB, closeDB := getTestDB(t)
 		defer closeDB()
-
-		err := sqliteDB.Set(context.Background(), tx1Bytes, &store.StoreData{
-			Hash:   tx1Bytes,
-			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-		})
-		require.NoError(t, err)
-
-		var data *store.StoreData
-		data, err = sqliteDB.Get(context.Background(), tx1Bytes)
-		require.NoError(t, err)
-
-		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, data.Status)
-		assert.Equal(t, "", data.RejectReason)
-
-		err = sqliteDB.UpdateStatus(context.Background(), tx1Bytes, metamorph_api.Status_REJECTED, "error encountered")
-		require.NoError(t, err)
-
-		data, err = sqliteDB.Get(context.Background(), tx1Bytes)
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_REJECTED, data.Status)
-		assert.Equal(t, "error encountered", data.RejectReason)
+		tests.UpdateStatusWithError(t, sqliteDB)
 	})
 }
 

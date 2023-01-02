@@ -97,7 +97,10 @@ func start() {
 
 	messageCh := make(chan *p2p.PMMessage)
 
-	s := badgerhold.New("")
+	s, bErr := badgerhold.New("")
+	if bErr != nil {
+		logger.Fatalf("Error creating metamorph store: %v", bErr)
+	}
 
 	pm := p2p.NewPeerManager(s, messageCh)
 

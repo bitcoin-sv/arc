@@ -9,6 +9,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
+	"github.com/TAAL-GmbH/arc/metamorph/store/tests"
 	"github.com/labstack/gommon/random"
 	"github.com/ordishs/go-utils"
 
@@ -96,62 +97,15 @@ func TestGetUnseen(t *testing.T) {
 		bh, tearDown := setupSuite(t)
 		defer tearDown(t)
 
-		hashes := [][]byte{
-			utils.Sha256d([]byte("hello world")),
-			utils.Sha256d([]byte("hello again")),
-			utils.Sha256d([]byte("hello again again")),
-		}
+		tests.NoUnseen(t, bh)
 
-		for _, hash := range hashes {
-			err := bh.Set(context.Background(), hash, &store.StoreData{
-				Hash:   hash,
-				Status: metamorph_api.Status_SEEN_ON_NETWORK,
-			})
-			require.NoError(t, err)
-		}
-
-		unseen := make([]*store.StoreData, 0)
-		err := bh.GetUnseen(context.Background(), func(s *store.StoreData) {
-			unseen = append(unseen, s)
-		})
-		require.NoError(t, err)
-		assert.Equal(t, 0, len(unseen))
-
-		for _, hash := range hashes {
-			err = bh.Del(context.Background(), hash)
-			require.NoError(t, err)
-		}
 	})
 
 	t.Run("multiple unseen", func(t *testing.T) {
 		bh, tearDown := setupSuite(t)
 		defer tearDown(t)
 
-		hashes := [][]byte{
-			utils.Sha256d([]byte("hello world")),
-			utils.Sha256d([]byte("hello again")),
-			utils.Sha256d([]byte("hello again again")),
-		}
-
-		for _, hash := range hashes {
-			err := bh.Set(context.Background(), hash, &store.StoreData{
-				Hash:   hash,
-				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-			})
-			require.NoError(t, err)
-		}
-
-		unseen := make([]*store.StoreData, 0)
-		err := bh.GetUnseen(context.Background(), func(s *store.StoreData) {
-			unseen = append(unseen, s)
-		})
-		require.NoError(t, err)
-		assert.Equal(t, 3, len(unseen))
-
-		for _, hash := range hashes {
-			err = bh.Del(context.Background(), hash)
-			require.NoError(t, err)
-		}
+		tests.MultipleUnseen(t, bh)
 	})
 }
 func TestUpdateMined(t *testing.T) {
@@ -167,28 +121,7 @@ func TestUpdateMined(t *testing.T) {
 		bh, tearDown := setupSuite(t)
 		defer tearDown(t)
 
-		err := bh.Set(context.Background(), tx1Bytes, &store.StoreData{
-			Hash:   tx1Bytes,
-			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-		})
-		require.NoError(t, err)
-
-		var data *store.StoreData
-		data, err = bh.Get(context.Background(), tx1Bytes)
-		require.NoError(t, err)
-
-		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, data.Status)
-		assert.Equal(t, []byte(nil), data.BlockHash)
-		assert.Equal(t, int32(0), data.BlockHeight)
-
-		err = bh.UpdateMined(context.Background(), tx1Bytes, []byte("block hash"), 123)
-		require.NoError(t, err)
-
-		data, err = bh.Get(context.Background(), tx1Bytes)
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_MINED, data.Status)
-		assert.Equal(t, []byte("block hash"), data.BlockHash)
-		assert.Equal(t, int32(123), data.BlockHeight)
+		tests.UpdateMined(t, bh)
 	})
 }
 
@@ -205,56 +138,14 @@ func TestUpdateStatus(t *testing.T) {
 		bh, tearDown := setupSuite(t)
 		defer tearDown(t)
 
-		err := bh.Set(context.Background(), tx1Bytes, &store.StoreData{
-			Hash:   tx1Bytes,
-			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-		})
-		require.NoError(t, err)
-
-		var data *store.StoreData
-		data, err = bh.Get(context.Background(), tx1Bytes)
-		require.NoError(t, err)
-
-		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, data.Status)
-		assert.Equal(t, "", data.RejectReason)
-		assert.Equal(t, []byte(nil), data.BlockHash)
-		assert.Equal(t, int32(0), data.BlockHeight)
-
-		err = bh.UpdateStatus(context.Background(), tx1Bytes, metamorph_api.Status_SENT_TO_NETWORK, "")
-		require.NoError(t, err)
-
-		data, err = bh.Get(context.Background(), tx1Bytes)
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, data.Status)
-		assert.Equal(t, "", data.RejectReason)
-		assert.Equal(t, []byte(nil), data.BlockHash)
-		assert.Equal(t, int32(0), data.BlockHeight)
+		tests.UpdateStatus(t, bh)
 	})
 
 	t.Run("update status with error", func(t *testing.T) {
 		bh, tearDown := setupSuite(t)
 		defer tearDown(t)
 
-		err := bh.Set(context.Background(), tx1Bytes, &store.StoreData{
-			Hash:   tx1Bytes,
-			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-		})
-		require.NoError(t, err)
-
-		var data *store.StoreData
-		data, err = bh.Get(context.Background(), tx1Bytes)
-		require.NoError(t, err)
-
-		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, data.Status)
-		assert.Equal(t, "", data.RejectReason)
-
-		err = bh.UpdateStatus(context.Background(), tx1Bytes, metamorph_api.Status_REJECTED, "error encountered")
-		require.NoError(t, err)
-
-		data, err = bh.Get(context.Background(), tx1Bytes)
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_REJECTED, data.Status)
-		assert.Equal(t, "error encountered", data.RejectReason)
+		tests.UpdateStatusWithError(t, bh)
 	})
 }
 
@@ -264,7 +155,9 @@ func setupSuite(t *testing.T) (store.Store, func(t *testing.T)) {
 	err := os.RemoveAll(dataDir)
 	require.NoErrorf(t, err, "Could not delete old test data")
 
-	bh := New(dataDir)
+	var bh store.Store
+	bh, err = New(dataDir)
+	require.NoErrorf(t, err, "could not init badgerhold store")
 
 	// Return a function to tear down the test
 	return bh, func(t *testing.T) {

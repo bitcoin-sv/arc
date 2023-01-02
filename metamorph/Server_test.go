@@ -124,9 +124,10 @@ func TestPutTransaction(t *testing.T) {
 	})
 
 	t.Run("PutTransaction - Known tx", func(t *testing.T) {
+		ctx := context.Background()
 		s, err := memorystore.New()
 		require.NoError(t, err)
-		err = s.Set(context.Background(), tx1Bytes, &store.StoreData{
+		err = s.Set(ctx, tx1Bytes, &store.StoreData{
 			Hash:   tx1Bytes,
 			Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			RawTx:  tx1RawBytes,
@@ -136,12 +137,13 @@ func TestPutTransaction(t *testing.T) {
 		processor := NewProcessorMock()
 		server := NewServer(nil, s, processor)
 
-		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
 			RawTx: tx1RawBytes,
 		}
 
-		txStatus, err = server.PutTransaction(context.Background(), txRequest)
+		var txStatus *metamorph_api.TransactionStatus
+		txStatus, err = server.PutTransaction(ctx, txRequest)
+
 		assert.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, txStatus.Status)
 		assert.False(t, txStatus.TimedOut)

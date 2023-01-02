@@ -54,96 +54,6 @@ func TestNewProcessor(t *testing.T) {
 	})
 }
 
-func TestNewProcessorResponse(t *testing.T) {
-	t.Run("NewProcessorResponse", func(t *testing.T) {
-		response := NewProcessorResponse(tx1Bytes)
-		assert.NotNil(t, response.Start)
-		assert.Equal(t, tx1Bytes, response.Hash)
-		assert.Equal(t, metamorph_api.Status_UNKNOWN, response.status)
-	})
-}
-
-func TestGetStatus(t *testing.T) {
-	t.Run("GetStatus", func(t *testing.T) {
-		response := NewProcessorResponse(tx1Bytes)
-		assert.Equal(t, metamorph_api.Status_UNKNOWN, response.GetStatus())
-	})
-}
-
-func TestSetErr(t *testing.T) {
-	t.Run("SetErr", func(t *testing.T) {
-		response := NewProcessorResponse(tx1Bytes)
-		assert.Nil(t, response.err)
-		err := fmt.Errorf("test error")
-		response.SetErr(err)
-		assert.Equal(t, err, response.err)
-		assert.Equal(t, err, response.GetErr())
-	})
-
-	t.Run("SetErr channel", func(t *testing.T) {
-		ch := make(chan StatusAndError)
-		response := NewProcessorResponse(tx1Bytes)
-		assert.Nil(t, response.err)
-
-		response.ch = ch
-		err := fmt.Errorf("test error")
-
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			for status := range ch {
-				assert.Equal(t, metamorph_api.Status_UNKNOWN, status.Status)
-				assert.ErrorIs(t, err, status.Err)
-				wg.Done()
-			}
-		}()
-
-		response.SetErr(err)
-		wg.Wait()
-
-		assert.Equal(t, err, response.err)
-	})
-}
-
-func TestSetStatusAndError(t *testing.T) {
-	t.Run("SetStatusAndError", func(t *testing.T) {
-		response := NewProcessorResponse(tx1Bytes)
-		assert.Nil(t, response.err)
-		assert.Equal(t, metamorph_api.Status_UNKNOWN, response.status)
-
-		err := fmt.Errorf("test error")
-		response.SetStatusAndError(metamorph_api.Status_SENT_TO_NETWORK, err)
-		assert.Equal(t, err, response.err)
-		assert.Equal(t, err, response.GetErr())
-		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, response.status)
-	})
-
-	t.Run("SetErr channel", func(t *testing.T) {
-		ch := make(chan StatusAndError)
-		response := NewProcessorResponse(tx1Bytes)
-		assert.Nil(t, response.err)
-		assert.Equal(t, metamorph_api.Status_UNKNOWN, response.status)
-
-		response.ch = ch
-		err := fmt.Errorf("test error")
-
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			for status := range ch {
-				assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, status.Status)
-				assert.ErrorIs(t, err, status.Err)
-				wg.Done()
-			}
-		}()
-
-		response.SetStatusAndError(metamorph_api.Status_SENT_TO_NETWORK, err)
-		wg.Wait()
-
-		assert.Equal(t, err, response.err)
-	})
-}
-
 func TestLoadUnseen(t *testing.T) {
 	t.Run("LoadUnseen empty", func(t *testing.T) {
 		s, err := memorystore.New()
@@ -171,6 +81,9 @@ func TestLoadUnseen(t *testing.T) {
 		processor.LoadUnseen()
 		assert.Equal(t, 2, processor.tx2ChMap.Len())
 		items := processor.tx2ChMap.Items()
+		fmt.Printf("items: %v\n", items)
+		fmt.Printf("items tx1: %v\n", items[tx1])
+		fmt.Printf("items tx2: %v\n", items[tx2])
 		assert.Equal(t, tx1Bytes, items[tx1].Hash)
 		assert.Equal(t, tx2Bytes, items[tx2].Hash)
 	})

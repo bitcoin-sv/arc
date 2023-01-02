@@ -28,6 +28,120 @@ func TestNewProcessor(t *testing.T) {
 			t.Error("Expected a non-nil Processor")
 		}
 	})
+
+	t.Run("NewProcessor - err no store", func(t *testing.T) {
+		defer func() {
+			r := recover()
+			assert.Equal(t, "store cannot be nil", r.(string))
+		}()
+
+		_ = NewProcessor(1, nil, nil)
+	})
+
+	t.Run("NewProcessor - err no peer manager", func(t *testing.T) {
+		defer func() {
+			r := recover()
+			assert.Equal(t, "peer manager cannot be nil", r.(string))
+		}()
+
+		s, err := memorystore.New()
+		require.NoError(t, err)
+
+		processor := NewProcessor(1, s, nil)
+		if processor == nil {
+			t.Error("Expected a non-nil Processor")
+		}
+	})
+}
+
+func TestNewProcessorResponse(t *testing.T) {
+	t.Run("NewProcessorResponse", func(t *testing.T) {
+		response := NewProcessorResponse(tx1Bytes)
+		assert.NotNil(t, response.Start)
+		assert.Equal(t, tx1Bytes, response.Hash)
+		assert.Equal(t, metamorph_api.Status_UNKNOWN, response.status)
+	})
+}
+
+func TestGetStatus(t *testing.T) {
+	t.Run("GetStatus", func(t *testing.T) {
+		response := NewProcessorResponse(tx1Bytes)
+		assert.Equal(t, metamorph_api.Status_UNKNOWN, response.GetStatus())
+	})
+}
+
+func TestSetErr(t *testing.T) {
+	t.Run("SetErr", func(t *testing.T) {
+		response := NewProcessorResponse(tx1Bytes)
+		assert.Nil(t, response.err)
+		err := fmt.Errorf("test error")
+		response.SetErr(err)
+		assert.Equal(t, err, response.err)
+		assert.Equal(t, err, response.GetErr())
+	})
+
+	t.Run("SetErr channel", func(t *testing.T) {
+		ch := make(chan StatusAndError)
+		response := NewProcessorResponse(tx1Bytes)
+		assert.Nil(t, response.err)
+
+		response.ch = ch
+		err := fmt.Errorf("test error")
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			for status := range ch {
+				assert.Equal(t, metamorph_api.Status_UNKNOWN, status.Status)
+				assert.ErrorIs(t, err, status.Err)
+				wg.Done()
+			}
+		}()
+
+		response.SetErr(err)
+		wg.Wait()
+
+		assert.Equal(t, err, response.err)
+	})
+}
+
+func TestSetStatusAndError(t *testing.T) {
+	t.Run("SetStatusAndError", func(t *testing.T) {
+		response := NewProcessorResponse(tx1Bytes)
+		assert.Nil(t, response.err)
+		assert.Equal(t, metamorph_api.Status_UNKNOWN, response.status)
+
+		err := fmt.Errorf("test error")
+		response.SetStatusAndError(metamorph_api.Status_SENT_TO_NETWORK, err)
+		assert.Equal(t, err, response.err)
+		assert.Equal(t, err, response.GetErr())
+		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, response.status)
+	})
+
+	t.Run("SetErr channel", func(t *testing.T) {
+		ch := make(chan StatusAndError)
+		response := NewProcessorResponse(tx1Bytes)
+		assert.Nil(t, response.err)
+		assert.Equal(t, metamorph_api.Status_UNKNOWN, response.status)
+
+		response.ch = ch
+		err := fmt.Errorf("test error")
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			for status := range ch {
+				assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, status.Status)
+				assert.ErrorIs(t, err, status.Err)
+				wg.Done()
+			}
+		}()
+
+		response.SetStatusAndError(metamorph_api.Status_SENT_TO_NETWORK, err)
+		wg.Wait()
+
+		assert.Equal(t, err, response.err)
+	})
 }
 
 func TestLoadUnseen(t *testing.T) {
@@ -253,5 +367,86 @@ func TestSendStatusForTransaction(t *testing.T) {
 		txStored, err := s.Get(context.Background(), tx1Bytes)
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, txStored.Status)
+	})
+}
+
+func TestSendStatusMinedForTransaction(t *testing.T) {
+	t.Run("SendStatusMinedForTransaction unknown tx", func(t *testing.T) {
+		s, err := memorystore.New()
+		require.NoError(t, err)
+
+		pm := p2p.NewPeerManagerMock(s, nil)
+
+		processor := NewProcessor(1, s, pm)
+		assert.Equal(t, 0, processor.tx2ChMap.Len())
+
+		ok, sendErr := processor.SendStatusMinedForTransaction(tx1Bytes, []byte("hash1"), 1233)
+		assert.False(t, ok)
+		assert.NoError(t, sendErr)
+	})
+
+	t.Run("SendStatusMinedForTransaction known tx", func(t *testing.T) {
+		s, err := memorystore.New()
+		require.NoError(t, err)
+		setStoreTestData(t, s)
+
+		pm := p2p.NewPeerManagerMock(s, nil)
+
+		processor := NewProcessor(1, s, pm)
+		assert.Equal(t, 0, processor.tx2ChMap.Len())
+
+		ok, sendErr := processor.SendStatusMinedForTransaction(tx1Bytes, []byte("hash1"), 1233)
+		assert.True(t, ok)
+		assert.NoError(t, sendErr)
+		assert.Equal(t, 0, processor.tx2ChMap.Len())
+
+		txStored, err := s.Get(context.Background(), tx1Bytes)
+		require.NoError(t, err)
+		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
+	})
+
+	t.Run("SendStatusForTransaction known tx - processed", func(t *testing.T) {
+		s, err := memorystore.New()
+		require.NoError(t, err)
+
+		pm := p2p.NewPeerManagerMock(s, nil)
+
+		processor := NewProcessor(1, s, pm)
+		assert.Equal(t, 0, processor.tx2ChMap.Len())
+
+		responseChannel := make(chan StatusAndError)
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			for response := range responseChannel {
+				status := response.Status
+				fmt.Printf("response: %s\n", status)
+				if status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
+					wg.Done()
+					close(responseChannel)
+					return
+				}
+			}
+		}()
+
+		processor.ProcessTransaction(NewProcessorRequest(
+			&store.StoreData{
+				Hash: tx1Bytes,
+			},
+			responseChannel,
+		))
+		wg.Wait()
+
+		assert.Equal(t, 1, processor.tx2ChMap.Len())
+
+		ok, sendErr := processor.SendStatusMinedForTransaction(tx1Bytes, []byte("hash1"), 1233)
+		assert.True(t, ok)
+		assert.NoError(t, sendErr)
+		assert.Equal(t, 0, processor.tx2ChMap.Len(), "should have been removed from the map")
+
+		txStored, err := s.Get(context.Background(), tx1Bytes)
+		require.NoError(t, err)
+		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
 	})
 }

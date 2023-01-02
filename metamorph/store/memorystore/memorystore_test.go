@@ -14,6 +14,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	tx1         = "b042f298deabcebbf15355aa3a13c7d7cfe96c44ac4f492735f936f8e50d06f6"
+	tx1Bytes, _ = utils.DecodeAndReverseHexString(tx1)
+)
+
+func TestGet(t *testing.T) {
+	t.Run("get - error", func(t *testing.T) {
+		bh, err := New()
+		require.NoError(t, err)
+		defer bh.Close(context.Background())
+
+		_, err = bh.Get(context.Background(), []byte("hello world"))
+		require.ErrorIs(t, store.ErrNotFound, err)
+	})
+}
+
 func TestPutGetDelete(t *testing.T) {
 	bh, err := New()
 	require.NoError(t, err)
@@ -140,5 +156,119 @@ func TestGetUnseen(t *testing.T) {
 			err = bh.Del(context.Background(), hash)
 			require.NoError(t, err)
 		}
+	})
+}
+
+func TestUpdateMined(t *testing.T) {
+	t.Run("update mined - not found", func(t *testing.T) {
+		bh, err := New()
+		require.NoError(t, err)
+
+		defer bh.Close(context.Background())
+
+		err = bh.UpdateMined(context.Background(), tx1Bytes, []byte("block hash"), 123)
+		require.NoError(t, err) // an error is not thrown if not found
+	})
+
+	t.Run("update announced to mined", func(t *testing.T) {
+		bh, err := New()
+		require.NoError(t, err)
+
+		defer bh.Close(context.Background())
+
+		err = bh.Set(context.Background(), tx1Bytes, &store.StoreData{
+			Hash:   tx1Bytes,
+			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		})
+		require.NoError(t, err)
+
+		var data *store.StoreData
+		data, err = bh.Get(context.Background(), tx1Bytes)
+		require.NoError(t, err)
+
+		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, data.Status)
+		assert.Equal(t, []byte(nil), data.BlockHash)
+		assert.Equal(t, int32(0), data.BlockHeight)
+
+		err = bh.UpdateMined(context.Background(), tx1Bytes, []byte("block hash"), 123)
+		require.NoError(t, err)
+
+		data, err = bh.Get(context.Background(), tx1Bytes)
+		require.NoError(t, err)
+		assert.Equal(t, metamorph_api.Status_MINED, data.Status)
+		assert.Equal(t, []byte("block hash"), data.BlockHash)
+		assert.Equal(t, int32(123), data.BlockHeight)
+	})
+}
+
+func TestUpdateStatus(t *testing.T) {
+	t.Run("update status - not found", func(t *testing.T) {
+		bh, err := New()
+		require.NoError(t, err)
+
+		defer bh.Close(context.Background())
+
+		err = bh.UpdateStatus(context.Background(), tx1Bytes, metamorph_api.Status_SENT_TO_NETWORK, "")
+		require.NoError(t, err) // an error is not thrown if not found
+	})
+
+	t.Run("update status", func(t *testing.T) {
+		bh, err := New()
+		require.NoError(t, err)
+
+		defer bh.Close(context.Background())
+
+		err = bh.Set(context.Background(), tx1Bytes, &store.StoreData{
+			Hash:   tx1Bytes,
+			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		})
+		require.NoError(t, err)
+
+		var data *store.StoreData
+		data, err = bh.Get(context.Background(), tx1Bytes)
+		require.NoError(t, err)
+
+		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, data.Status)
+		assert.Equal(t, "", data.RejectReason)
+		assert.Equal(t, []byte(nil), data.BlockHash)
+		assert.Equal(t, int32(0), data.BlockHeight)
+
+		err = bh.UpdateStatus(context.Background(), tx1Bytes, metamorph_api.Status_SENT_TO_NETWORK, "")
+		require.NoError(t, err)
+
+		data, err = bh.Get(context.Background(), tx1Bytes)
+		require.NoError(t, err)
+		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, data.Status)
+		assert.Equal(t, "", data.RejectReason)
+		assert.Equal(t, []byte(nil), data.BlockHash)
+		assert.Equal(t, int32(0), data.BlockHeight)
+	})
+
+	t.Run("update status with error", func(t *testing.T) {
+		bh, err := New()
+		require.NoError(t, err)
+
+		defer bh.Close(context.Background())
+
+		err = bh.Set(context.Background(), tx1Bytes, &store.StoreData{
+			Hash:   tx1Bytes,
+			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		})
+		require.NoError(t, err)
+
+		var data *store.StoreData
+		data, err = bh.Get(context.Background(), tx1Bytes)
+		require.NoError(t, err)
+
+		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, data.Status)
+		assert.Equal(t, "", data.RejectReason)
+
+		err = bh.UpdateStatus(context.Background(), tx1Bytes, metamorph_api.Status_REJECTED, "error encountered")
+		require.NoError(t, err)
+
+		data, err = bh.Get(context.Background(), tx1Bytes)
+		require.NoError(t, err)
+		assert.Equal(t, metamorph_api.Status_REJECTED, data.Status)
+		assert.Equal(t, "error encountered", data.RejectReason)
 	})
 }

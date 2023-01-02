@@ -29,11 +29,18 @@ func (l loggerWrapper) Warningf(format string, args ...interface{}) {
 
 var logger = loggerWrapper{gocore.Log("badger")}
 
-func New() store.Store {
+func New(dir string) store.Store {
 	options := badgerhold.DefaultOptions
-	options.Dir = "data"
-	options.ValueDir = "data"
-	options.Logger = logger
+
+	options.Dir = dir
+	options.ValueDir = dir
+	if options.Dir == "" {
+		options.Dir = "data"
+		options.ValueDir = "data"
+	}
+	if options.Logger == nil {
+		options.Logger = logger
+	}
 
 	s, err := badgerhold.Open(options)
 	if err != nil {

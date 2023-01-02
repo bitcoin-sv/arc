@@ -381,7 +381,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
 		ok, sendErr := processor.SendStatusMinedForTransaction(tx1Bytes, []byte("hash1"), 1233)
-		assert.False(t, ok)
+		assert.True(t, ok)
 		assert.NoError(t, sendErr)
 	})
 

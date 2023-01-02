@@ -274,9 +274,6 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 		p.tx2ChMap.Delete(hashStr)
 	}
 
-	if err == store.ErrNotFound {
-		return false, nil
-	}
 	return true, nil
 }
 

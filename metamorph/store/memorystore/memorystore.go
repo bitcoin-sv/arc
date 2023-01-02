@@ -2,7 +2,6 @@ package memorystore
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
@@ -59,7 +58,8 @@ func (m *MemoryStore) UpdateStatus(_ context.Context, hash []byte, status metamo
 
 	tx, ok := m.Store[store2.HashString(hash)]
 	if !ok {
-		return fmt.Errorf("transaction not found")
+		// no need to return an error if not found when updating status
+		return nil
 	}
 	// only update the status to later in the life-cycle
 	// it is possible to get a SEEN_ON_NETWORK status again, when a block is mined
@@ -77,7 +77,8 @@ func (m *MemoryStore) UpdateMined(_ context.Context, hash []byte, blockHash []by
 
 	tx, ok := m.Store[store2.HashString(hash)]
 	if !ok {
-		return fmt.Errorf("transaction not found")
+		// no need to return an error if not found when updating status
+		return nil
 	}
 
 	tx.Status = metamorph_api.Status_MINED

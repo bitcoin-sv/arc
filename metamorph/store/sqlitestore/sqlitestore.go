@@ -114,6 +114,9 @@ func (s *SqliteStore) Get(ctx context.Context, hash []byte) (*store2.StoreData, 
 		&data.RawTx,
 	)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, store2.ErrNotFound
+		}
 		return nil, err
 	}
 

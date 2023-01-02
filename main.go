@@ -97,7 +97,7 @@ func start() {
 
 	messageCh := make(chan *p2p.PMMessage)
 
-	s := badgerhold.New()
+	s := badgerhold.New("")
 
 	pm := p2p.NewPeerManager(s, messageCh)
 

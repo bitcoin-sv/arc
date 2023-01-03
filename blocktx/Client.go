@@ -50,7 +50,7 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.MinedTransaction) {
 				break
 			}
 
-			btc.logger.Infof("Block %x\n", utils.ReverseSlice(mt.Block.Hash))
+			btc.logger.Infof("Block %s\n", utils.HexEncodeAndReverseBytes(mt.Block.Hash))
 			utils.SafeSend(minedBlockChan, mt)
 		}
 

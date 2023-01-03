@@ -35,9 +35,9 @@ func (p *PeerManagerMock) RemovePeer(peerURL string) error {
 	return nil
 }
 
-func (p *PeerManagerMock) GetPeers() []string {
-	peers := make([]string, 0, len(p.Peers))
-	for peer := range p.Peers {
+func (p *PeerManagerMock) GetPeers() []PeerI {
+	peers := make([]PeerI, 0, len(p.Peers))
+	for _, peer := range p.Peers {
 		peers = append(peers, peer)
 	}
 	return peers

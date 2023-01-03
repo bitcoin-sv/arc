@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -67,7 +68,27 @@ func start() {
 		logger.Fatalf("Error creating metamorph store: %v", err)
 	}
 
-	pm := p2p.NewPeerManager(s, messageCh)
+	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
+	if peerCount == 0 {
+		logger.Fatalf("peerCount must be set")
+	}
+	peers := make([]string, peerCount)
+	for i := 1; i <= peerCount; i++ {
+		p2pURL, err, found := gocore.Config().GetURL(fmt.Sprintf("peer_%d_p2p", i))
+		if !found {
+			logger.Fatalf("peer_%d_p2p must be set", i)
+		}
+		if err != nil {
+			logger.Fatalf("error reading peer_%d_p2p: %v", i, err)
+		}
+
+		peers[i-1] = p2pURL.Host
+	}
+
+	pm, pmErr := p2p.NewPeerManager(s, peers, messageCh)
+	if pmErr != nil {
+		logger.Fatalf("Error creating peer manager: %v", pmErr)
+	}
 
 	workerCount, _ := gocore.Config().GetInt("processorWorkerCount", 10)
 

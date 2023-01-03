@@ -40,7 +40,7 @@ type Peer struct {
 	quit          chan struct{}
 }
 
-func NewPeer(address string, s store.Store, parentChannel chan *PMMessage) (*Peer, error) {
+func NewPeer(address string, s store.Store, parentChannel chan *PMMessage) (PeerI, error) {
 	writeChan := make(chan wire.Message, 100)
 
 	conn, err := net.Dial("tcp", address)
@@ -63,6 +63,10 @@ func NewPeer(address string, s store.Store, parentChannel chan *PMMessage) (*Pee
 	writeChan <- versionMessage()
 
 	return p, nil
+}
+
+func (p *Peer) WriteChan() chan wire.Message {
+	return p.writeChan
 }
 
 func (p *Peer) String() string {

@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -11,15 +10,15 @@ import (
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/go-utils"
-
 	"github.com/ordishs/go-utils/batcher"
-	"github.com/ordishs/gocore"
 )
 
 type PeerManager struct {
 	mu         sync.RWMutex
-	peers      map[string]*Peer
+	peers      map[string]PeerI
 	invBatcher *batcher.Batcher[[]byte]
+	store      store.Store
+	messageCh  chan *PMMessage
 }
 
 type PMMessage struct {
@@ -29,44 +28,70 @@ type PMMessage struct {
 	Err    error
 }
 
-func NewPeerManager(s store.Store, messageCh chan *PMMessage) PeerManagerI {
-
+func NewPeerManager(s store.Store, peers []string, messageCh chan *PMMessage, batchDuration ...time.Duration) (PeerManagerI, error) {
 	pm := &PeerManager{
-		peers: make(map[string]*Peer),
+		peers:     make(map[string]PeerI),
+		store:     s,
+		messageCh: messageCh,
 	}
 
-	pm.invBatcher = batcher.New(500, 500*time.Millisecond, pm.sendInvBatch, true)
+	batchDelay := 500 * time.Millisecond
+	if len(batchDuration) > 0 {
+		batchDelay = batchDuration[0]
+	}
+	pm.invBatcher = batcher.New(500, batchDelay, pm.sendInvBatch, true)
 
-	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
-	if peerCount == 0 {
-		logger.Fatalf("peerCount must be set")
+	for _, peerURL := range peers {
+		if err := pm.AddPeer(peerURL); err != nil {
+			return nil, err
+		}
 	}
 
-	for i := 1; i <= peerCount; i++ {
-		p2pURL, err, found := gocore.Config().GetURL(fmt.Sprintf("peer_%d_p2p", i))
-		if !found {
-			logger.Fatalf("peer_%d_p2p must be set", i)
-		}
-		if err != nil {
-			logger.Fatalf("Error reading peer_%d_p2p: %v", i, err)
-		}
-
-		peer, err := NewPeer(p2pURL.Host, s, messageCh)
-		if err != nil {
-			logger.Fatalf("Error creating peer: %v", err)
-		}
-
-		pm.addPeer(peer)
-	}
-
-	return pm
+	return pm, nil
 }
 
-func (pm *PeerManager) addPeer(peer *Peer) {
+func (pm *PeerManager) AddPeer(peerAddress string) error {
+	// check peer is not already in the list
+	if _, ok := pm.peers[peerAddress]; ok {
+		return nil
+	}
+
+	peer, err := NewPeer(peerAddress, pm.store, pm.messageCh)
+	if err != nil {
+		return err
+	}
+
+	return pm.addPeer(peer)
+}
+
+func (pm *PeerManager) RemovePeer(peerURL string) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
-	pm.peers[peer.address] = peer
+	delete(pm.peers, peerURL)
+
+	return nil
+}
+
+func (pm *PeerManager) GetPeers() []string {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	peers := make([]string, 0, len(pm.peers))
+	for peerURL := range pm.peers {
+		peers = append(peers, peerURL)
+	}
+
+	return peers
+}
+
+func (pm *PeerManager) addPeer(peer PeerI) error {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	pm.peers[peer.String()] = peer
+
+	return nil
 }
 
 func (pm *PeerManager) AnnounceNewTransaction(txID []byte) {
@@ -90,12 +115,21 @@ func (pm *PeerManager) sendInvBatch(batch []*[]byte) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
+	// send to a subset of peers to be able to listen on the rest
+	sendToPeers := make([]PeerI, 0, len(pm.peers))
 	for _, peer := range pm.peers {
-		utils.SafeSend[wire.Message](peer.writeChan, invMsg)
+		if len(pm.peers) > 1 && len(sendToPeers) > len(pm.peers)/2 {
+			break
+		}
+		sendToPeers = append(sendToPeers, peer)
+	}
+
+	for _, peer := range sendToPeers {
+		utils.SafeSend[wire.Message](peer.WriteChan(), invMsg)
 	}
 
 	// if len(batch) <= 10 {
-	logger.Infof("Sent INV (%d items) to %d peers", len(batch), len(pm.peers))
+	logger.Infof("Sent INV (%d items) to %d peers", len(batch), len(sendToPeers))
 	for _, txid := range batch {
 		logger.Infof("        %x", bt.ReverseBytes(*txid))
 	}

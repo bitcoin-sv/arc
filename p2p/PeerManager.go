@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
-	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/p2p/chaincfg/chainhash"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/libsv/go-bt/v2"
@@ -17,7 +16,6 @@ type PeerManager struct {
 	mu         sync.RWMutex
 	peers      map[string]PeerI
 	invBatcher *batcher.Batcher[[]byte]
-	store      store.Store
 	messageCh  chan *PMMessage
 }
 

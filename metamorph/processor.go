@@ -76,18 +76,23 @@ func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI) *Processo
 		logger:      logger,
 	}
 
-	// go func() {
-	// 	for items := range evictionChan {
-	// 		for _, resp := range items {
-	// 			if resp.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK {
-	// 				txIDStr := hex.EncodeToString(bt.ReverseBytes(resp.Hash))
-	// 				logger.Infof("Resending expired tx: %s", txIDStr)
-	// 				p.tx2ChMap.Set(txIDStr, resp)
-	// 				p.pm.AnnounceNewTransaction(resp.Hash)
-	// 			}
-	// 		}
-	// 	}
-	// }()
+	// Start a goroutine to resend transactions that have not been seen on the network
+	go func() {
+		// filterFunc returns true if the transaction has not been seen on the network
+		filterFunc := func(p *ProcessorResponse) bool {
+			return p.status < metamorph_api.Status_SEEN_ON_NETWORK
+		}
+
+		// Resend transactions that have not been seen on the network every 60 seconds
+		// TODO: make this configurable
+		// The Items() method will return a copy of the map, so we can iterate over it without locking
+		for range time.NewTicker(60 * time.Second).C {
+			for _, hash := range p.tx2ChMap.Hashes(filterFunc) {
+				logger.Infof("Resending expired tx: %x", bt.ReverseBytes(hash))
+				p.pm.AnnounceNewTransaction(hash)
+			}
+		}
+	}()
 
 	for i := 0; i < workerCount; i++ {
 		go p.process(i)

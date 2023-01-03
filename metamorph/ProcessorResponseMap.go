@@ -66,14 +66,59 @@ func (m *ProcessorResponseMap) Len() int {
 	return len(m.items)
 }
 
-func (m *ProcessorResponseMap) Items() map[string]*ProcessorResponse {
+// Hashes will return a slice of the hashes in the map.
+// If a filter function is provided, only hashes that pass the filter will be returned.
+// If no filter function is provided, all hashes will be returned.
+// The filter function will be called with the lock held, so it should not block.
+func (m *ProcessorResponseMap) Hashes(filterFunc ...func(*ProcessorResponse) bool) [][]byte {
+	// Default filter function returns true for all items
+	fn := func(p *ProcessorResponse) bool {
+		return true
+	}
+
+	// If a filter function is provided, use it
+	if len(filterFunc) > 0 {
+		fn = filterFunc[0]
+	}
+
+	hashes := make([][]byte, 0, len(m.items))
+
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	for _, item := range m.items {
+		if fn(item) {
+			hashes = append(hashes, item.Hash)
+		}
+	}
+
+	return hashes
+}
+
+// Items will return a copy of the map.
+// If a filter function is provided, only items that pass the filter will be returned.
+// If no filter function is provided, all items will be returned.
+// The filter function will be called with the lock held, so it should not block.
+func (m *ProcessorResponseMap) Items(filterFunc ...func(*ProcessorResponse) bool) map[string]*ProcessorResponse {
+	// Default filter function returns true for all items
+	fn := func(p *ProcessorResponse) bool {
+		return true
+	}
+
+	// If a filter function is provided, use it
+	if len(filterFunc) > 0 {
+		fn = filterFunc[0]
+	}
+
 	items := make(map[string]*ProcessorResponse, len(m.items))
 
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
 	for key, item := range m.items {
-		items[key] = item
+		if fn(item) {
+			items[key] = item
+		}
 	}
 
 	return items

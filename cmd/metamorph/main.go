@@ -61,18 +61,22 @@ func appCleanup() {
 }
 
 func start() {
-	messageCh := make(chan *p2p.PMMessage)
-
 	s, err := badgerhold.New("")
 	if err != nil {
 		logger.Fatalf("Error creating metamorph store: %v", err)
 	}
 
+	messageCh := make(chan *p2p.PMMessage)
+
+	pm := p2p.NewPeerManager(messageCh)
+
+	peerStore := metamorph.NewMetamorphPeerStore(s)
+
 	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
 	if peerCount == 0 {
 		logger.Fatalf("peerCount must be set")
 	}
-	peers := make([]string, peerCount)
+
 	for i := 1; i <= peerCount; i++ {
 		p2pURL, err, found := gocore.Config().GetURL(fmt.Sprintf("peer_%d_p2p", i))
 		if !found {
@@ -82,12 +86,7 @@ func start() {
 			logger.Fatalf("error reading peer_%d_p2p: %v", i, err)
 		}
 
-		peers[i-1] = p2pURL.Host
-	}
-
-	pm, pmErr := p2p.NewPeerManager(s, peers, messageCh)
-	if pmErr != nil {
-		logger.Fatalf("Error creating peer manager: %v", pmErr)
+		pm.AddPeer(p2pURL.Host, peerStore)
 	}
 
 	workerCount, _ := gocore.Config().GetInt("processorWorkerCount", 10)

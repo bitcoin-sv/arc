@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -11,7 +10,6 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
-	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 
 	"github.com/TAAL-GmbH/arc/p2p/bsvutil"
@@ -31,16 +29,21 @@ func init() {
 	}
 }
 
+type PeerStoreI interface {
+	GetTransactionBytes(hash []byte) ([]byte, error)
+	ProcessBlock(hash []byte) error
+}
+
 type Peer struct {
 	address       string
 	conn          net.Conn
-	s             store.Store
+	peerStore     PeerStoreI
 	parentChannel chan *PMMessage
 	writeChan     chan wire.Message
 	quit          chan struct{}
 }
 
-func NewPeer(address string, s store.Store, parentChannel chan *PMMessage) (PeerI, error) {
+func NewPeer(address string, peerStore PeerStoreI) (*Peer, error) {
 	writeChan := make(chan wire.Message, 100)
 
 	conn, err := net.Dial("tcp", address)
@@ -49,20 +52,26 @@ func NewPeer(address string, s store.Store, parentChannel chan *PMMessage) (Peer
 	}
 
 	p := &Peer{
-		s:             s,
-		conn:          conn,
-		address:       address,
-		writeChan:     writeChan,
-		parentChannel: parentChannel,
+		conn:      conn,
+		address:   address,
+		writeChan: writeChan,
+		peerStore: peerStore,
 	}
 
 	go p.readHandler()
-	go p.writeChannelHandler()
 	go p.pingHandler()
 
 	writeChan <- versionMessage()
 
 	return p, nil
+}
+
+func (p *Peer) AddParentMessageChannel(parentChannel chan *PMMessage) *Peer {
+	p.parentChannel = parentChannel
+
+	go p.writeChannelHandler()
+
+	return p
 }
 
 func (p *Peer) WriteChan() chan wire.Message {
@@ -138,13 +147,18 @@ func (p *Peer) handleGetDataMsg(dataMsg *wire.MsgGetData) {
 		case wire.InvTypeTx:
 			logger.Infof("Request for TX: %s\n", invVect.Hash.String())
 
-			txBytes, err := p.s.Get(context.Background(), invVect.Hash.CloneBytes())
+			txBytes, err := p.peerStore.GetTransactionBytes(invVect.Hash.CloneBytes())
 			if err != nil {
 				logger.Errorf("Unable to fetch tx %s from store: %v", invVect.Hash.String(), err)
 				continue
 			}
 
-			tx, err := bsvutil.NewTxFromBytes(txBytes.RawTx)
+			if txBytes == nil {
+				logger.Warnf("Unable to fetch tx %s from store: %v", invVect.Hash.String(), err)
+				continue
+			}
+
+			tx, err := bsvutil.NewTxFromBytes(txBytes)
 			if err != nil {
 				log.Print(err) // Log and handle the error
 				continue

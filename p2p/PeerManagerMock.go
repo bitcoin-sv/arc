@@ -21,8 +21,8 @@ func (p *PeerManagerMock) AnnounceNewTransaction(txID []byte) {
 	p.Announced = append(p.Announced, txID)
 }
 
-func (p *PeerManagerMock) AddPeer(peerURL string) error {
-	peer, err := NewPeerMock(peerURL, p.store, p.messageCh)
+func (p *PeerManagerMock) AddPeer(peerURL string, peerStore PeerStoreI) error {
+	peer, err := NewPeerMock(peerURL, peerStore, p.messageCh)
 	if err != nil {
 		return err
 	}

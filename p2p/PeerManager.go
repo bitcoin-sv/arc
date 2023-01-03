@@ -68,13 +68,13 @@ func (pm *PeerManager) RemovePeer(peerURL string) error {
 	return nil
 }
 
-func (pm *PeerManager) GetPeers() []string {
+func (pm *PeerManager) GetPeers() []PeerI {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
-	peers := make([]string, 0, len(pm.peers))
-	for peerURL := range pm.peers {
-		peers = append(peers, peerURL)
+	peers := make([]PeerI, 0, len(pm.peers))
+	for _, peer := range pm.peers {
+		peers = append(peers, peer)
 	}
 
 	return peers

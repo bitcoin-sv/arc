@@ -14,6 +14,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/p2p/bsvutil"
 
+	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
 
@@ -60,6 +61,7 @@ func NewPeer(address string, peerStore PeerStoreI) (*Peer, error) {
 
 	go p.readHandler()
 	go p.pingHandler()
+	go p.writeChannelHandler()
 
 	writeChan <- versionMessage()
 
@@ -68,8 +70,6 @@ func NewPeer(address string, peerStore PeerStoreI) (*Peer, error) {
 
 func (p *Peer) AddParentMessageChannel(parentChannel chan *PMMessage) *Peer {
 	p.parentChannel = parentChannel
-
-	go p.writeChannelHandler()
 
 	return p
 }
@@ -108,10 +108,10 @@ func (p *Peer) readHandler() {
 				for _, invVect := range invList {
 					switch invVect.Type {
 					case wire.InvTypeTx:
-						p.parentChannel <- &PMMessage{
+						utils.SafeSend(p.parentChannel, &PMMessage{
 							Txid:   invVect.Hash.String(),
 							Status: metamorph_api.Status_SEEN_ON_NETWORK,
-						}
+						})
 					}
 				}
 			}(invMsg.InvList)
@@ -126,11 +126,11 @@ func (p *Peer) readHandler() {
 
 		case wire.CmdReject:
 			rejMsg := msg.(*wire.MsgReject)
-			p.parentChannel <- &PMMessage{
+			utils.SafeSend(p.parentChannel, &PMMessage{
 				Txid:   rejMsg.Hash.String(),
 				Err:    fmt.Errorf("P2P rejection: %s", rejMsg.Reason),
 				Status: metamorph_api.Status_REJECTED,
-			}
+			})
 
 		case wire.CmdVerAck:
 			// Ignore
@@ -169,6 +169,10 @@ func (p *Peer) handleGetDataMsg(dataMsg *wire.MsgGetData) {
 		case wire.InvTypeBlock:
 			logger.Infof("Request for Block: %s\n", invVect.Hash.String())
 
+			if err := p.peerStore.ProcessBlock(invVect.Hash.CloneBytes()); err != nil {
+				logger.Errorf("Unable to process block %s: %v", invVect.Hash.String(), err)
+			}
+
 		default:
 			logger.Warnf("Unknown type: %d\n", invVect.Type)
 		}
@@ -185,10 +189,10 @@ func (p *Peer) writeChannelHandler() {
 		}
 
 		if msg.Command() == wire.CmdTx {
-			p.parentChannel <- &PMMessage{
+			utils.SafeSend(p.parentChannel, &PMMessage{
 				Txid:   msg.(*wire.MsgTx).TxHash().String(),
 				Status: metamorph_api.Status_SENT_TO_NETWORK,
-			}
+			})
 		}
 
 		switch m := msg.(type) {

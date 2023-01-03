@@ -28,10 +28,9 @@ type PMMessage struct {
 	Err    error
 }
 
-func NewPeerManager(s store.Store, peers []string, messageCh chan *PMMessage, batchDuration ...time.Duration) (PeerManagerI, error) {
+func NewPeerManager(messageCh chan *PMMessage, batchDuration ...time.Duration) PeerManagerI {
 	pm := &PeerManager{
 		peers:     make(map[string]PeerI),
-		store:     s,
 		messageCh: messageCh,
 	}
 
@@ -41,24 +40,22 @@ func NewPeerManager(s store.Store, peers []string, messageCh chan *PMMessage, ba
 	}
 	pm.invBatcher = batcher.New(500, batchDelay, pm.sendInvBatch, true)
 
-	for _, peerURL := range peers {
-		if err := pm.AddPeer(peerURL); err != nil {
-			return nil, err
-		}
-	}
-
-	return pm, nil
+	return pm
 }
 
-func (pm *PeerManager) AddPeer(peerAddress string) error {
+func (pm *PeerManager) AddPeer(peerAddress string, peerStore PeerStoreI) error {
 	// check peer is not already in the list
 	if _, ok := pm.peers[peerAddress]; ok {
 		return nil
 	}
 
-	peer, err := NewPeer(peerAddress, pm.store, pm.messageCh)
+	peer, err := NewPeer(peerAddress, peerStore)
 	if err != nil {
 		return err
+	}
+
+	if pm.messageCh != nil {
+		peer.AddParentMessageChannel(pm.messageCh)
 	}
 
 	return pm.addPeer(peer)

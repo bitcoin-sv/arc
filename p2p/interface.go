@@ -4,7 +4,7 @@ import "github.com/TAAL-GmbH/arc/p2p/wire"
 
 type PeerManagerI interface {
 	AnnounceNewTransaction(txID []byte)
-	AddPeer(peerURL string) error
+	AddPeer(peerURL string, peerStore PeerStoreI) error
 	RemovePeer(peerURL string) error
 	GetPeers() []string
 	addPeer(peer PeerI) error

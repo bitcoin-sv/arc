@@ -3,24 +3,23 @@ package p2p
 import (
 	"sync"
 
-	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 )
 
 type PeerMock struct {
 	mu            sync.Mutex
 	address       string
-	s             store.Store
+	peerStore     PeerStoreI
 	parentChannel chan *PMMessage
 	writeChan     chan wire.Message
 	messages      []wire.Message
 }
 
-func NewPeerMock(address string, s store.Store, parentChannel chan *PMMessage) (*PeerMock, error) {
+func NewPeerMock(address string, peerStore PeerStoreI, parentChannel chan *PMMessage) (*PeerMock, error) {
 	writeChan := make(chan wire.Message)
 
 	p := &PeerMock{
-		s:             s,
+		peerStore:     peerStore,
 		address:       address,
 		writeChan:     writeChan,
 		parentChannel: parentChannel,

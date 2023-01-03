@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/metamorph/store/memorystore"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/ordishs/go-utils"
@@ -17,61 +18,75 @@ var (
 	tx1Bytes, _ = utils.DecodeAndReverseHexString(tx1)
 )
 
+type MockPeerStore struct {
+	s store.Store
+}
+
+func NewMockPeerStore() *MockPeerStore {
+	s, _ := memorystore.New()
+
+	return &MockPeerStore{
+		s: s,
+	}
+}
+
+func (m *MockPeerStore) GetTransactionBytes(txID []byte) ([]byte, error) {
+	return nil, nil
+}
+
+func (m *MockPeerStore) ProcessBlock(hash []byte) error {
+	return nil
+}
+
 func TestNewPeerManager(t *testing.T) {
 	t.Run("nil peers no error", func(t *testing.T) {
-		pm, pmErr := NewPeerManager(nil, nil, nil)
-		require.NoError(t, pmErr)
-		require.NotNil(t, pm)
-	})
-
-	t.Run("no peers no error", func(t *testing.T) {
-		peers := make([]string, 0)
-		pm, pmErr := NewPeerManager(nil, peers, nil)
-		require.NoError(t, pmErr)
+		pm := NewPeerManager(nil)
 		require.NotNil(t, pm)
 	})
 
 	t.Run("1 peer", func(t *testing.T) {
-		s, err := memorystore.New()
-		require.NoError(t, err)
-
-		peers := []string{
-			"localhost:18333",
-		}
-		pm, pmErr := NewPeerManager(s, peers, nil)
-		require.NoError(t, pmErr)
+		pm := NewPeerManager(nil)
 		require.NotNil(t, pm)
+
+		peerStore := NewMockPeerStore()
+
+		pm.AddPeer("localhost:18333", peerStore)
 		assert.Len(t, pm.GetPeers(), 1)
 	})
 
 	t.Run("1 peer - de dup", func(t *testing.T) {
-		s, err := memorystore.New()
-		require.NoError(t, err)
-
 		peers := []string{
 			"localhost:18333",
 			"localhost:18333",
 			"localhost:18333",
 			"localhost:18333",
 		}
-		pm, pmErr := NewPeerManager(s, peers, nil)
-		require.NoError(t, pmErr)
+
+		pm := NewPeerManager(nil)
 		require.NotNil(t, pm)
+
+		peerStore := NewMockPeerStore()
+
+		for _, peer := range peers {
+			pm.AddPeer(peer, peerStore)
+		}
+
 		assert.Len(t, pm.GetPeers(), 1)
 	})
 }
 
 func TestAnnounceNewTransaction(t *testing.T) {
 	t.Run("announce tx", func(t *testing.T) {
-		s, err := memorystore.New()
-		require.NoError(t, err)
 
 		var messageCh chan *PMMessage
-		pm, pmErr := NewPeerManager(s, nil, messageCh, 1*time.Millisecond)
-		require.NoError(t, pmErr)
 
-		peer, _ := NewPeerMock("localhost:18333", s, messageCh)
-		err = pm.addPeer(peer)
+		pm := NewPeerManager(messageCh, 1*time.Millisecond)
+		require.NotNil(t, pm)
+
+		peerStore := NewMockPeerStore()
+
+		peer, _ := NewPeerMock("localhost:18333", peerStore, messageCh)
+		err := pm.addPeer(peer)
 		require.NoError(t, err)
 
 		pm.AnnounceNewTransaction(tx1Bytes)
@@ -89,18 +104,17 @@ func TestAnnounceNewTransaction(t *testing.T) {
 	})
 
 	t.Run("announce tx - multiple peers", func(t *testing.T) {
-		s, err := memorystore.New()
-		require.NoError(t, err)
-
 		var messageCh chan *PMMessage
-		pm, pmErr := NewPeerManager(s, nil, messageCh, 1*time.Millisecond)
-		require.NoError(t, pmErr)
+		pm := NewPeerManager(messageCh, 1*time.Millisecond)
+		require.NotNil(t, pm)
+
+		peerStore := NewMockPeerStore()
 
 		numberOfPeers := 5
 		peers := make([]*PeerMock, numberOfPeers)
 		for i := 0; i < numberOfPeers; i++ {
-			peers[i], _ = NewPeerMock(fmt.Sprintf("localhost:1833%d", i), s, messageCh)
-			err = pm.addPeer(peers[i])
+			peers[i], _ = NewPeerMock(fmt.Sprintf("localhost:1833%d", i), peerStore, messageCh)
+			err := pm.addPeer(peers[i])
 			require.NoError(t, err)
 		}
 

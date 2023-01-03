@@ -1,16 +1,23 @@
 package metamorph
 
 import (
+	"fmt"
 	"os"
 	"time"
 
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/ordishs/go-utils"
 )
 
 func (p *Processor) GetStats() *ProcessorStats {
-	// for _, value := range p.tx2ChMap.Items() {
-	// 	fmt.Printf("tx2ChMap: %s\n", value.String())
-	// }
+	filterFunc := func(p *ProcessorResponse) bool {
+		return p.status < metamorph_api.Status_SEEN_ON_NETWORK
+	}
+
+	for _, value := range p.tx2ChMap.Items(filterFunc) {
+		fmt.Printf("tx2ChMap: %s\n", value.String())
+	}
+
 	return &ProcessorStats{
 		StartTime:       p.startTime,
 		UptimeMillis:    time.Since(p.startTime).Milliseconds(),

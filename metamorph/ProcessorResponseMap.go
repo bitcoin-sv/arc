@@ -81,10 +81,10 @@ func (m *ProcessorResponseMap) Hashes(filterFunc ...func(*ProcessorResponse) boo
 		fn = filterFunc[0]
 	}
 
-	hashes := make([][]byte, 0, len(m.items))
-
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+
+	hashes := make([][]byte, 0, m.Len())
 
 	for _, item := range m.items {
 		if fn(item) {
@@ -110,7 +110,7 @@ func (m *ProcessorResponseMap) Items(filterFunc ...func(*ProcessorResponse) bool
 		fn = filterFunc[0]
 	}
 
-	items := make(map[string]*ProcessorResponse, len(m.items))
+	items := make(map[string]*ProcessorResponse, m.Len())
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -142,8 +142,8 @@ func (m *ProcessorResponseMap) clean() {
 			delete(m.items, key)
 		}
 
-		if item.status >= metamorph_api.Status_SEEN_ON_NETWORK {
-			log.Printf("ProcessorResponseMap: Deleting %s (%s)", key, item.status.String())
+		if item.GetStatus() >= metamorph_api.Status_SEEN_ON_NETWORK {
+			log.Printf("ProcessorResponseMap: Deleting %s (%s)", key, item.GetStatus().String())
 			delete(m.items, key)
 		}
 	}

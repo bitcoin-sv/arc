@@ -37,7 +37,7 @@ func TestNewProcessorResponseMap(t *testing.T) {
 		proc.Set(tx1, NewProcessorResponseWithStatus(tx1Bytes, metamorph_api.Status_SENT_TO_NETWORK))
 		item, ok := proc.Get(tx1)
 		assert.True(t, ok)
-		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.status)
+		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.GetStatus())
 
 		time.Sleep(100 * time.Millisecond)
 
@@ -54,7 +54,7 @@ func TestProcessorResponseMap_Clear(t *testing.T) {
 		proc.Set(tx1, NewProcessorResponseWithStatus(tx1Bytes, metamorph_api.Status_SENT_TO_NETWORK))
 		item, ok := proc.Get(tx1)
 		assert.True(t, ok)
-		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.status)
+		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.GetStatus())
 
 		proc.Clear()
 
@@ -72,11 +72,11 @@ func TestProcessorResponseMap_Delete(t *testing.T) {
 
 		item, ok := proc.Get(tx1)
 		require.True(t, ok)
-		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.status)
+		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.GetStatus())
 
 		item2, ok2 := proc.Get(tx2)
 		require.True(t, ok2)
-		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, item2.status)
+		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, item2.GetStatus())
 
 		proc.Delete(tx1)
 
@@ -86,7 +86,7 @@ func TestProcessorResponseMap_Delete(t *testing.T) {
 
 		item2, ok2 = proc.Get(tx2)
 		require.True(t, ok2)
-		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, item2.status)
+		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, item2.GetStatus())
 	})
 }
 
@@ -103,7 +103,7 @@ func TestProcessorResponseMap_Get(t *testing.T) {
 
 		item, ok := proc.Get(tx1)
 		require.True(t, ok)
-		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.status)
+		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.GetStatus())
 	})
 
 	t.Run("status returned", func(t *testing.T) {
@@ -129,7 +129,7 @@ func TestProcessorResponseMap_Get(t *testing.T) {
 			item, ok := proc.Get(tx1)
 			require.Equal(t, ok, tt.ok)
 			if tt.ok {
-				assert.Equal(t, tt.status, item.status)
+				assert.Equal(t, tt.status, item.GetStatus())
 			}
 		}
 	})
@@ -175,7 +175,7 @@ func TestProcessorResponseMap_Set(t *testing.T) {
 		assert.Len(t, proc.items, 1)
 
 		item := proc.items[""]
-		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.status)
+		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.GetStatus())
 	})
 
 	t.Run("default", func(t *testing.T) {
@@ -187,7 +187,7 @@ func TestProcessorResponseMap_Set(t *testing.T) {
 		assert.Len(t, proc.items, 1)
 
 		item := proc.items[tx1]
-		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.status)
+		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.GetStatus())
 	})
 }
 

@@ -50,7 +50,8 @@ func TestNewPeerManager(t *testing.T) {
 
 		peerStore := NewMockPeerStore()
 
-		pm.AddPeer("localhost:18333", peerStore)
+		err := pm.AddPeer("localhost:18333", peerStore)
+		require.NoError(t, err)
 		assert.Len(t, pm.GetPeers(), 1)
 	})
 

@@ -5,11 +5,12 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/blocktx/store"
+	"github.com/TAAL-GmbH/arc/p2p"
+	"github.com/mrz1836/go-logger"
 
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
@@ -52,24 +53,39 @@ func NewBlockTxProcessor(storeI store.Interface, bitcoin ProcessorBitcoinI) (*Pr
 func (p *Processor) Start() {
 	p.Mtb = NewHandler(p.logger)
 
-	go p.Catchup()
+	pm := p2p.NewPeerManager(nil)
 
-	zmqURL, err, found := gocore.Config().GetURL("peer_1_zmq")
-	if !found {
-		p.logger.Fatalf("Could not find peer_1_zmq in config: %v", err)
-	}
-	if err != nil {
-		p.logger.Fatalf("Could not get peer_1_zmq from config: %v", err)
-	}
+	peerStore := NewBlockTxPeerStore()
 
-	port, err := strconv.Atoi(zmqURL.Port())
-	if err != nil {
-		p.logger.Fatalf("Could not parse port from peer_1_zmq: %v", err)
+	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
+	if peerCount == 0 {
+		logger.Fatalf("peerCount must be set")
 	}
 
-	z := NewZMQ(p, zmqURL.Hostname(), port)
+	for i := 1; i <= peerCount; i++ {
+		p2pURL, err, found := gocore.Config().GetURL(fmt.Sprintf("peer_%d_p2p", i))
+		if !found {
+			logger.Fatalf("peer_%d_p2p must be set", i)
+		}
+		if err != nil {
+			logger.Fatalf("error reading peer_%d_p2p: %v", i, err)
+		}
 
-	z.Start()
+		if err := pm.AddPeer(p2pURL.Host, peerStore); err != nil {
+			logger.Fatalf("error adding peer %s: %v", p2pURL.Host, err)
+		}
+	}
+
+	// Force a catchup on startup
+
+	// catchupHash, err := p.GetCatchupBlockHash()
+	// if err != nil {
+	// 	p.logger.Fatalf("Error getting catchup block hash: %v", err)
+	// }
+
+	// pm.GetBlocks(catchupHash)
+
+	<-p.quitCh
 }
 
 func (p *Processor) Close() {
@@ -182,9 +198,7 @@ func (p *Processor) processBlock(hashStr string) error {
 	return nil
 }
 
-func (p *Processor) Catchup() {
-	var height int
-
+func (p *Processor) GetCatchupBlockHash() ([]byte, error) {
 	block, err := p.store.GetLastProcessedBlock(context.Background())
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -193,53 +207,31 @@ func (p *Processor) Catchup() {
 			if err != nil {
 				p.logger.Fatal(err)
 			}
-			bestBlock, err := p.bitcoin.GetBlock(bestBlockHash)
+			block, err := p.bitcoin.GetBlock(bestBlockHash)
 			if err != nil {
 				p.logger.Fatal(err)
 			}
 
-			height = int(bestBlock.Height)
+			return utils.DecodeAndReverseHexString(block.Hash)
+
 		} else {
 			p.logger.Fatal(err)
 		}
-	} else {
-		height = int(block.Height)
 	}
 
-	p.logger.Infof("Starting catchup from height: %d", height)
-
-	for {
-		hash, err := p.GetBlockHashForHeight(height)
+	// Rewind 10 blocks
+	for i := 0; i < 10; i++ {
+		b, err := p.store.GetBlockForHeight(context.Background(), block.Height-1)
 		if err != nil {
-			// If this is because the block is not yet mined, then we can end catchup
-			bestBlockHash, err := p.bitcoin.GetBestBlockHash()
-			if err != nil {
-				p.logger.Errorf("Could not get best block hash: %v", err)
-				break
+			if err == sql.ErrNoRows {
+				break // block is still pointing to the last iteration
+			} else {
+				p.logger.Fatal(err)
 			}
-
-			bestBlock, err := p.bitcoin.GetBlock(bestBlockHash)
-			if err != nil {
-				p.logger.Errorf("Could not get best block: %v", err)
-				break
-			}
-
-			if height > int(bestBlock.Height) {
-				p.logger.Infof("Catchup complete")
-				break
-			}
-
-			p.logger.Errorf("Could not get hash for block height %d: %v", height, err)
-			break
 		}
 
-		if hash == "" {
-			p.logger.Infof("No block found for height %d", height)
-			break
-		}
-
-		p.ProcessBlock(hash)
-
-		height++
+		block = b
 	}
+
+	return block.Hash, nil
 }

@@ -121,7 +121,9 @@ func start() {
 			logger.Fatalf("error reading peer_%d_p2p: %v", i, err)
 		}
 
-		pm.AddPeer(p2pURL.Host, peerStore)
+		if err := pm.AddPeer(p2pURL.Host, peerStore); err != nil {
+			logger.Fatalf("error adding peer %s: %v", p2pURL.Host, err)
+		}
 	}
 
 	workerCount, _ := gocore.Config().GetInt("processorWorkerCount", 10)

@@ -13,7 +13,7 @@ type PeerMock struct {
 	s             store.Store
 	parentChannel chan *PMMessage
 	writeChan     chan wire.Message
-	Messages      []wire.Message
+	messages      []wire.Message
 }
 
 func NewPeerMock(address string, s store.Store, parentChannel chan *PMMessage) (*PeerMock, error) {
@@ -35,18 +35,25 @@ func NewPeerMock(address string, s store.Store, parentChannel chan *PMMessage) (
 	return p, nil
 }
 
+func (p *PeerMock) Len() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return len(p.messages)
+}
+
 func (p *PeerMock) message(msg wire.Message) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.Messages = append(p.Messages, msg)
+	p.messages = append(p.messages, msg)
 }
 
 func (p *PeerMock) getMessages() []wire.Message {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	return p.Messages
+	return p.messages
 }
 
 func (p *PeerMock) WriteChan() chan wire.Message {

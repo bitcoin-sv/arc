@@ -111,7 +111,7 @@ func TestAnnounceNewTransaction(t *testing.T) {
 
 		peersMessaged := 0
 		for _, peer := range peers {
-			if len(peer.Messages) == 0 {
+			if peer.Len() == 0 {
 				continue
 			}
 			messages := peer.getMessages()

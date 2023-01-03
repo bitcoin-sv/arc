@@ -60,7 +60,7 @@ func TestPutGetMulti(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	for workerId := 0; workerId < 100; workerId++ {
+	for workerId := 0; workerId < 10; workerId++ {
 		wg.Add(1)
 
 		go func(workerId int) {

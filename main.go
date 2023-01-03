@@ -131,7 +131,7 @@ func start() {
 
 	go func() {
 		for message := range messageCh {
-			logger.Infof("Received message from P2P %s: %s", message.Txid, message.Status)
+			logger.Infof("Status change reported: %s: %s", message.Txid, message.Status)
 			_, err = metamorphProcessor.SendStatusForTransaction(message.Txid, message.Status, message.Err)
 			if err != nil {
 				logger.Errorf("Could not send status for transaction %s: %v", message.Txid, err)

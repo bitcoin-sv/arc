@@ -8,7 +8,6 @@ import (
 	"github.com/TAAL-GmbH/arc/p2p/chaincfg/chainhash"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/libsv/go-bt/v2"
-	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/batcher"
 )
 
@@ -120,7 +119,7 @@ func (pm *PeerManager) sendInvBatch(batch []*[]byte) {
 	}
 
 	for _, peer := range sendToPeers {
-		utils.SafeSend[wire.Message](peer.WriteChan(), invMsg)
+		peer.WriteMsg(invMsg)
 	}
 
 	// if len(batch) <= 10 {

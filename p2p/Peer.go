@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
@@ -42,6 +43,7 @@ type Peer struct {
 	parentChannel chan *PMMessage
 	writeChan     chan wire.Message
 	quit          chan struct{}
+	initialized   sync.WaitGroup
 }
 
 func NewPeer(address string, peerStore PeerStoreI) (*Peer, error) {
@@ -53,17 +55,27 @@ func NewPeer(address string, peerStore PeerStoreI) (*Peer, error) {
 	}
 
 	p := &Peer{
-		conn:      conn,
-		address:   address,
-		writeChan: writeChan,
-		peerStore: peerStore,
+		conn:        conn,
+		address:     address,
+		writeChan:   writeChan,
+		peerStore:   peerStore,
+		initialized: sync.WaitGroup{},
 	}
+
+	// create the init lock for Version and VerAck
+	p.initialized.Add(2)
 
 	go p.readHandler()
 	go p.pingHandler()
 	go p.writeChannelHandler()
 
-	writeChan <- versionMessage()
+	// write version message to our peer directly and not through the write channel,
+	// write channel is not ready to send message until the VERACK handshake is done
+	msg := versionMessage()
+	if err = wire.WriteMessage(p.conn, msg, wire.ProtocolVersion, magic); err != nil {
+		return nil, fmt.Errorf("failed to write message: %v", err)
+	}
+	logger.Infof("Sent %s", strings.ToUpper(msg.Command()))
 
 	return p, nil
 }
@@ -74,8 +86,8 @@ func (p *Peer) AddParentMessageChannel(parentChannel chan *PMMessage) *Peer {
 	return p
 }
 
-func (p *Peer) WriteChan() chan wire.Message {
-	return p.writeChan
+func (p *Peer) WriteMsg(msg wire.Message) {
+	p.writeChan <- msg
 }
 
 func (p *Peer) String() string {
@@ -95,7 +107,13 @@ func (p *Peer) readHandler() {
 
 		switch msg.Command() {
 		case wire.CmdVersion:
-			p.writeChan <- wire.NewMsgVerAck()
+			logger.Infof("Recv %s", strings.ToUpper(msg.Command()))
+			verackMsg := wire.NewMsgVerAck()
+			if err = wire.WriteMessage(p.conn, verackMsg, wire.ProtocolVersion, magic); err != nil {
+				logger.Errorf("failed to write message: %v", err)
+			}
+			logger.Infof("Sent %s", strings.ToUpper(verackMsg.Command()))
+			p.initialized.Done()
 
 		case wire.CmdPing:
 			pingMsg := msg.(*wire.MsgPing)
@@ -112,6 +130,10 @@ func (p *Peer) readHandler() {
 							Txid:   invVect.Hash.String(),
 							Status: metamorph_api.Status_SEEN_ON_NETWORK,
 						})
+					case wire.InvTypeBlock:
+						if err = p.peerStore.ProcessBlock(invVect.Hash.CloneBytes()); err != nil {
+							logger.Errorf("Unable to process block %s: %v", invVect.Hash.String(), err)
+						}
 					}
 				}
 			}(invMsg.InvList)
@@ -133,7 +155,8 @@ func (p *Peer) readHandler() {
 			})
 
 		case wire.CmdVerAck:
-			// Ignore
+			logger.Infof("Recv %s", strings.ToUpper(msg.Command()))
+			p.initialized.Done()
 
 		default:
 			logger.Warnf("Ignored %s", strings.ToUpper(msg.Command()))
@@ -169,10 +192,6 @@ func (p *Peer) handleGetDataMsg(dataMsg *wire.MsgGetData) {
 		case wire.InvTypeBlock:
 			logger.Infof("Request for Block: %s\n", invVect.Hash.String())
 
-			if err := p.peerStore.ProcessBlock(invVect.Hash.CloneBytes()); err != nil {
-				logger.Errorf("Unable to process block %s: %v", invVect.Hash.String(), err)
-			}
-
 		default:
 			logger.Warnf("Unknown type: %d\n", invVect.Type)
 		}
@@ -180,6 +199,8 @@ func (p *Peer) handleGetDataMsg(dataMsg *wire.MsgGetData) {
 }
 
 func (p *Peer) writeChannelHandler() {
+	p.initialized.Wait() // wait to send new messages until we are initialized
+
 	for msg := range p.writeChan {
 		if err := wire.WriteMessage(p.conn, msg, wire.ProtocolVersion, magic); err != nil {
 			if errors.Is(err, io.EOF) {

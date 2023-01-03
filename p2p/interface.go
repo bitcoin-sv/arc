@@ -13,6 +13,6 @@ type PeerManagerI interface {
 }
 
 type PeerI interface {
-	WriteChan() chan wire.Message
+	WriteMsg(msg wire.Message)
 	String() string
 }

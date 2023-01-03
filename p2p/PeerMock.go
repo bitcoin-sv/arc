@@ -55,8 +55,8 @@ func (p *PeerMock) getMessages() []wire.Message {
 	return p.messages
 }
 
-func (p *PeerMock) WriteChan() chan wire.Message {
-	return p.writeChan
+func (p *PeerMock) WriteMsg(msg wire.Message) {
+	p.writeChan <- msg
 }
 
 func (p *PeerMock) String() string {

@@ -2,6 +2,7 @@ package blocktx
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
@@ -17,6 +18,7 @@ type BlockTxPeerStore struct {
 	workerCh       chan utils.Pair[[]byte, p2p.PeerI]
 	store          store.Interface
 	logger         utils.Logger
+	announcedMu    sync.Mutex
 	announcedCache *expiringmap.ExpiringMap[string, []p2p.PeerI]
 }
 
@@ -67,16 +69,19 @@ func (m *BlockTxPeerStore) GetTransactionBytes(txID []byte) ([]byte, error) {
 }
 
 func (m *BlockTxPeerStore) HandleBlockAnnouncement(hash []byte, peer p2p.PeerI) error {
-	item, found := m.announcedCache.Get(hash)
+	m.announcedMu.Lock()
+	defer m.announcedMu.Unlock()
+
+	id := utils.HexEncodeAndReverseBytes(hash)
+	item, found := m.announcedCache.Get(id)
 	if !found {
-		m.announcedCache.Set(hash, []p2p.PeerI{peer})
-
+		m.announcedCache.Set(id, []p2p.PeerI{peer})
 		pair := utils.NewPair(hash, peer)
-
 		utils.SafeSend(m.workerCh, pair)
 
 	} else {
 		item = append(item, peer)
+		m.announcedCache.Set(id, item)
 	}
 
 	return nil

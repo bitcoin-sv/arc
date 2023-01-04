@@ -17,6 +17,8 @@
     "bsvutil",
     "BYTEA",
     "callbacker",
+    "chaincfg",
+    "chainhash",
     "Cleanup",
     "codegen",
     "dbname",
@@ -26,6 +28,7 @@
     "echomiddleware",
     "emptypb",
     "Equalf",
+    "GETDATA",
     "getkin",
     "hashblock",
     "labstack",
@@ -55,6 +58,8 @@
     "txns",
     "txscript",
     "unlocker",
+    "Vect",
+    "VERACK",
     "Warnf"
   ]
 }

@@ -33,7 +33,10 @@ func init() {
 
 type PeerStoreI interface {
 	GetTransactionBytes(hash []byte) ([]byte, error)
-	ProcessBlock(hash []byte) error
+	HandleBlockAnnouncement(hash []byte, peer PeerI) error
+	InsertBlock(blockHash []byte, blockHeader []byte, height uint64) (uint64, error)
+	MarkTransactionsAsMined(blockId uint64, txHashes [][]byte) error
+	MarkBlockAsProcessed(blockId uint64) error
 }
 
 type Peer struct {
@@ -131,7 +134,7 @@ func (p *Peer) readHandler() {
 							Status: metamorph_api.Status_SEEN_ON_NETWORK,
 						})
 					case wire.InvTypeBlock:
-						if err = p.peerStore.ProcessBlock(invVect.Hash.CloneBytes()); err != nil {
+						if err = p.peerStore.HandleBlockAnnouncement(invVect.Hash.CloneBytes(), p); err != nil {
 							logger.Errorf("Unable to process block %s: %v", invVect.Hash.String(), err)
 						}
 					}
@@ -145,6 +148,33 @@ func (p *Peer) readHandler() {
 				logger.Infof("        %s", inv.Hash.String())
 			}
 			p.handleGetDataMsg(dataMsg)
+
+		case wire.CmdBlock:
+			blockMsg := msg.(*wire.MsgBlock)
+			logger.Infof("Recv %s", strings.ToUpper(msg.Command()))
+			logger.Infof("        %s", blockMsg.BlockHash().String())
+
+			blockHash := blockMsg.BlockHash()
+			blockHashBytes := blockHash.CloneBytes()
+
+			blockId, err := p.peerStore.InsertBlock(blockHashBytes, blockHashBytes, 0)
+			if err != nil {
+				logger.Errorf("Unable to insert block %s: %v", blockHash.String(), err)
+				continue
+			}
+
+			txs := make([][]byte, 0, len(blockMsg.Transactions))
+
+			for _, tx := range blockMsg.Transactions {
+				txHash := tx.TxHash()
+				txHashBytes := txHash.CloneBytes()
+
+				txs = append(txs, txHashBytes)
+			}
+
+			p.peerStore.MarkTransactionsAsMined(blockId, txs)
+
+			p.peerStore.MarkBlockAsProcessed(blockId)
 
 		case wire.CmdReject:
 			rejMsg := msg.(*wire.MsgReject)

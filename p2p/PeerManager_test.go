@@ -34,7 +34,19 @@ func (m *MockPeerStore) GetTransactionBytes(txID []byte) ([]byte, error) {
 	return nil, nil
 }
 
-func (m *MockPeerStore) ProcessBlock(hash []byte) error {
+func (m *MockPeerStore) HandleBlockAnnouncement(hash []byte, peer PeerI) error {
+	return nil
+}
+
+func (m *MockPeerStore) InsertBlock(blockHash []byte, blockHeader []byte, height uint64) (uint64, error) {
+	return 0, nil
+}
+
+func (m *MockPeerStore) MarkTransactionsAsMined(blockId uint64, txHashes [][]byte) error {
+	return nil
+}
+
+func (m *MockPeerStore) MarkBlockAsProcessed(blockId uint64) error {
 	return nil
 }
 

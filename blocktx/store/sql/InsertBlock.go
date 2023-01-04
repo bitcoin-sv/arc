@@ -16,12 +16,14 @@ func (s *SQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64
 	q := `
 		INSERT INTO blocks (
 		 hash
-		,header
+		,prevhash
+		,merkleroot
 		,height
 		) VALUES (
 		 $1
 		,$2
 		,$3
+		,$4
 		)
 		ON CONFLICT DO NOTHING
 		RETURNING id
@@ -29,7 +31,7 @@ func (s *SQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64
 
 	var blockId uint64
 
-	if err := s.db.QueryRowContext(ctx, q, block.Hash, block.Header, block.Height).Scan(&blockId); err != nil {
+	if err := s.db.QueryRowContext(ctx, q, block.Hash, block.Prevhash, block.Merkleroot, block.Height).Scan(&blockId); err != nil {
 		if err == sql.ErrNoRows {
 			// The insert failed because the block already exists.
 			// We will mark the block as un-orphaned whilst retrieving the id.

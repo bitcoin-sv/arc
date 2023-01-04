@@ -49,10 +49,11 @@ message Blocks {
 // swagger:model Block {
 message Block {
   bytes hash = 1; // Little endian
-  bytes header = 2; // The header is not reversed because it is not a single value, but a list of values.
-  uint64 height = 3;
-  bool orphaned = 4;
-  bool processed = 5;
+  bytes prevhash = 2; // Little endian
+  bytes merkleroot = 3; // Little endian
+  uint64 height = 4;
+  bool orphaned = 5;
+  bool processed = 6;
 }
 
 // swagger:model Transactions

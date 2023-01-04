@@ -23,9 +23,11 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 		INSERT INTO block_transactions_map (
 		 blockid
 		,txid
+		,pos
 		) VALUES (
 		 $1
 		,$2
+		,$3
 		)
 		ON CONFLICT DO NOTHING
 	`
@@ -35,7 +37,7 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 	// 	return err
 	// }
 
-	for _, tx := range transactions {
+	for pos, tx := range transactions {
 		var txid uint64
 
 		if err := s.db.QueryRowContext(ctx, qTx, tx.Hash).Scan(&txid); err != nil {
@@ -48,7 +50,7 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 			}
 		}
 
-		_, err := s.db.ExecContext(ctx, qMap, blockId, txid)
+		_, err := s.db.ExecContext(ctx, qMap, blockId, txid, pos)
 		if err != nil {
 			return err
 		}

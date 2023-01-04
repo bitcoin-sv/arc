@@ -36,7 +36,7 @@ func init() {
 type PeerStoreI interface {
 	GetTransactionBytes(hash []byte) ([]byte, error)
 	HandleBlockAnnouncement(hash []byte, peer PeerI) error
-	InsertBlock(blockHash []byte, blockHeader []byte, height uint64) (uint64, error)
+	InsertBlock(blockHash []byte, merkleRootHash []byte, previousBlockHash []byte, height uint64, peer PeerI) (uint64, error)
 	MarkTransactionsAsMined(blockId uint64, txHashes [][]byte) error
 	MarkBlockAsProcessed(blockId uint64) error
 }
@@ -173,7 +173,13 @@ func (p *Peer) readHandler() {
 
 			height := extractHeightFromCoinbaseTx(blockMsg.Transactions[0])
 
-			blockId, err := p.peerStore.InsertBlock(blockHashBytes, blockHashBytes, height)
+			previousBlockHash := blockMsg.Header.PrevBlock
+			previousBlockHashBytes := previousBlockHash.CloneBytes()
+
+			merkleRoot := blockMsg.Header.MerkleRoot
+			merkleRootBytes := merkleRoot.CloneBytes()
+
+			blockId, err := p.peerStore.InsertBlock(blockHashBytes, merkleRootBytes, previousBlockHashBytes, height, p)
 			if err != nil {
 				p.LogError("Unable to insert block %s: %v", blockHash.String(), err)
 				continue

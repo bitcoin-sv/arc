@@ -35,10 +35,11 @@ type ProcessorStats struct {
 type Processor struct {
 	ch chan *ProcessorRequest
 	//evictionChan chan []*ProcessorResponse
-	store    store.Store
-	tx2ChMap *ProcessorResponseMap
-	pm       p2p.PeerManagerI
-	logger   *gocore.Logger
+	store            store.Store
+	tx2ChMap         *ProcessorResponseMap
+	pm               p2p.PeerManagerI
+	logger           *gocore.Logger
+	metamorphAddress string
 
 	startTime       time.Time
 	workerCount     int
@@ -48,7 +49,7 @@ type Processor struct {
 	processedMillis atomic.Int32
 }
 
-func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI) *Processor {
+func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI, metamorphAddress string) *Processor {
 	if s == nil {
 		panic("store cannot be nil")
 	}
@@ -67,13 +68,14 @@ func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI) *Processo
 	logger.Infof("Starting processor with %d workers and cache expiry of %s", workerCount, mapExpiryStr)
 
 	p := &Processor{
-		startTime:   time.Now().UTC(),
-		ch:          make(chan *ProcessorRequest),
-		store:       s,
-		tx2ChMap:    NewProcessorResponseMap(mapExpiry),
-		workerCount: workerCount,
-		pm:          pm,
-		logger:      logger,
+		startTime:        time.Now().UTC(),
+		ch:               make(chan *ProcessorRequest),
+		store:            s,
+		tx2ChMap:         NewProcessorResponseMap(mapExpiry),
+		workerCount:      workerCount,
+		pm:               pm,
+		logger:           logger,
+		metamorphAddress: metamorphAddress,
 	}
 
 	// Start a goroutine to resend transactions that have not been seen on the network
@@ -231,6 +233,8 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 		p.logger.Infof("Stored tx %s", txIDStr)
 
 		processorResponse.SetStatus(metamorph_api.Status_STORED)
+
+		// Register
 
 		p.pm.AnnounceNewTransaction(req.Hash)
 

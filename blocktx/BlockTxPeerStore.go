@@ -2,7 +2,7 @@ package blocktx
 
 import (
 	"context"
-	"sync"
+	"database/sql"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
@@ -18,7 +18,6 @@ type BlockTxPeerStore struct {
 	workerCh       chan utils.Pair[[]byte, p2p.PeerI]
 	store          store.Interface
 	logger         utils.Logger
-	announcedMu    sync.Mutex
 	announcedCache *expiringmap.ExpiringMap[string, []p2p.PeerI]
 }
 
@@ -38,13 +37,18 @@ func NewBlockTxPeerStore(store store.Interface, logger utils.Logger) p2p.PeerSto
 				continue
 			}
 
-			// if _, err := store.GetBlock(context.Background(), hash.CloneBytes()); err != nil {
-			// 	if err == sql.ErrNoRows {
-			// store.InsertBlock(context.Background(), &blocktx_api.Block{
-			// 	Hash: hash.CloneBytes(),
-			// })
-
 			peer := pair.Second
+
+			id := hash.String()
+			item, found := s.announcedCache.Get(id)
+			if !found {
+				s.announcedCache.Set(id, []p2p.PeerI{peer})
+
+			} else {
+				item = append(item, peer)
+				s.announcedCache.Set(id, item)
+				continue
+			}
 
 			msg := wire.NewMsgGetData()
 			if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
@@ -54,10 +58,6 @@ func NewBlockTxPeerStore(store store.Interface, logger utils.Logger) p2p.PeerSto
 
 			peer.WriteMsg(msg)
 			logger.Infof("ProcessBlock: %s", hash.String())
-			// } else {
-			// 	logger.Errorf("ProcessBlock: %s", err)
-			// }
-			// }
 		}
 	}()
 
@@ -69,29 +69,29 @@ func (m *BlockTxPeerStore) GetTransactionBytes(txID []byte) ([]byte, error) {
 }
 
 func (m *BlockTxPeerStore) HandleBlockAnnouncement(hash []byte, peer p2p.PeerI) error {
-	m.announcedMu.Lock()
-	defer m.announcedMu.Unlock()
-
-	id := utils.HexEncodeAndReverseBytes(hash)
-	item, found := m.announcedCache.Get(id)
-	if !found {
-		m.announcedCache.Set(id, []p2p.PeerI{peer})
-		pair := utils.NewPair(hash, peer)
-		utils.SafeSend(m.workerCh, pair)
-
-	} else {
-		item = append(item, peer)
-		m.announcedCache.Set(id, item)
-	}
+	pair := utils.NewPair(hash, peer)
+	utils.SafeSend(m.workerCh, pair)
 
 	return nil
 }
 
-func (m *BlockTxPeerStore) InsertBlock(blockHash []byte, blockHeader []byte, height uint64) (uint64, error) {
+func (m *BlockTxPeerStore) InsertBlock(blockHash []byte, merkleRoot []byte, previousBlockHash []byte, height uint64, peer p2p.PeerI) (uint64, error) {
+	if height >= 1111 { // TODO get the first height we ever processed
+		if _, found := m.announcedCache.Get(utils.HexEncodeAndReverseBytes(previousBlockHash)); !found {
+			if _, err := m.store.GetBlock(context.Background(), previousBlockHash); err != nil {
+				if err == sql.ErrNoRows {
+					pair := utils.NewPair(previousBlockHash, peer)
+					utils.SafeSend(m.workerCh, pair)
+				}
+			}
+		}
+	}
+
 	return m.store.InsertBlock(context.Background(), &blocktx_api.Block{
-		Hash:   blockHash,
-		Header: blockHeader,
-		Height: height,
+		Hash:       blockHash,
+		Merkleroot: merkleRoot,
+		Prevhash:   previousBlockHash,
+		Height:     height,
 	})
 }
 

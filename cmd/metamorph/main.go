@@ -93,7 +93,12 @@ func start() {
 
 	workerCount, _ := gocore.Config().GetInt("processorWorkerCount", 10)
 
-	p := metamorph.NewProcessor(workerCount, s, pm)
+	metamorphAddress, ok := gocore.Config().Get("metamorph_grpcAddress", "localhost:8000")
+	if !ok {
+		logger.Fatalf("no metamorph_grpcAddress setting found")
+	}
+
+	p := metamorph.NewProcessor(workerCount, s, pm, metamorphAddress)
 
 	go func() {
 		for message := range messageCh {
@@ -136,7 +141,7 @@ func start() {
 	go btc.Start(minedBlockChan)
 
 	serv := metamorph.NewServer(logger, s, p)
-	if err := serv.StartGRPCServer(); err != nil {
+	if err := serv.StartGRPCServer(metamorphAddress); err != nil {
 		logger.Errorf("GRPCServer failed: %v", err)
 	}
 }

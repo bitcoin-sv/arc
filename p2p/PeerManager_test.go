@@ -38,7 +38,7 @@ func (m *MockPeerStore) HandleBlockAnnouncement(hash []byte, peer PeerI) error {
 	return nil
 }
 
-func (m *MockPeerStore) InsertBlock(blockHash []byte, blockHeader []byte, height uint64) (uint64, error) {
+func (m *MockPeerStore) InsertBlock(blockHash []byte, merkleRoot []byte, prevhash []byte, height uint64, peer PeerI) (uint64, error) {
 	return 0, nil
 }
 

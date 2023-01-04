@@ -13,7 +13,8 @@ func (s *SQL) GetBlock(ctx context.Context, hash []byte) (*blocktx_api.Block, er
 	q := `
 		SELECT
 		 b.hash
-		,b.header
+		,b.prevhash
+		,b.merkleroot
 		,b.height
 		,b.processedyn
 		,b.orphanedyn
@@ -25,7 +26,8 @@ func (s *SQL) GetBlock(ctx context.Context, hash []byte) (*blocktx_api.Block, er
 
 	if err := s.db.QueryRowContext(ctx, q, hash).Scan(
 		&block.Hash,
-		&block.Header,
+		&block.Prevhash,
+		&block.Merkleroot,
 		&block.Height,
 		&block.Processed,
 		&block.Orphaned,

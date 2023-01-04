@@ -264,7 +264,11 @@ func (p *Peer) writeChannelHandler() {
 
 		switch m := msg.(type) {
 		case *wire.MsgTx:
-			p.LogInfo("Sent TX: %s", m.TxHash().String())
+			p.LogInfo("Sent %s: %s", strings.ToUpper(msg.Command()), m.TxHash().String())
+		case *wire.MsgBlock:
+			p.LogInfo("Sent %s: %s", strings.ToUpper(msg.Command()), m.BlockHash().String())
+		case *wire.MsgGetData:
+			p.LogInfo("Sent %s: %s", strings.ToUpper(msg.Command()), m.InvList[0].Hash.String())
 		case *wire.MsgInv:
 		default:
 			p.LogInfo("Sent %s", strings.ToUpper(msg.Command()))

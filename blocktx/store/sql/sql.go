@@ -95,7 +95,8 @@ func createPostgresSchema(db *sql.DB) error {
 		CREATE TABLE IF NOT EXISTS blocks (
 		 id           BIGSERIAL PRIMARY KEY
 	  ,hash         BYTEA NOT NULL
-	  ,header       BYTEA NOT NULL
+	  ,prevhash     BYTEA NOT NULL
+	  ,merkleroot   BYTEA NOT NULL
 	  ,height       BIGINT NOT NULL
 	  ,processedyn  BOOLEAN NOT NULL DEFAULT FALSE
 	  ,orphanedyn   BOOLEAN NOT NULL DEFAULT FALSE
@@ -135,6 +136,7 @@ func createPostgresSchema(db *sql.DB) error {
 		CREATE TABLE IF NOT EXISTS block_transactions_map (
 		 blockid      BIGINT NOT NULL REFERENCES blocks(id)
 	  ,txid       	BIGINT NOT NULL REFERENCES transactions(id)
+		,pos					BIGINT NOT NULL
 	  ,PRIMARY KEY (blockid, txid)
 		);
 	`); err != nil {
@@ -150,7 +152,8 @@ func createSqliteSchema(db *sql.DB) error {
 		CREATE TABLE IF NOT EXISTS blocks (
 		 id           INTEGER PRIMARY KEY AUTOINCREMENT,
 		 hash         BLOB NOT NULL
-	  ,header       BLOB NOT NULL
+	  ,prevhash     BLOB NOT NULL
+		,merkleroot   BLOB NOT NULL
 	  ,height       BIGINT NOT NULL
 	  ,processedyn  BOOLEAN NOT NULL DEFAULT FALSE
 	  ,orphanedyn   BOOLEAN NOT NULL DEFAULT FALSE
@@ -190,6 +193,7 @@ func createSqliteSchema(db *sql.DB) error {
 		CREATE TABLE IF NOT EXISTS block_transactions_map (
 		 blockid      INTEGER NOT NULL
 		,txid         INTEGER NOT NULL
+		,pos					INTEGER NOT NULL
 		,FOREIGN KEY (blockid) REFERENCES blocks(id)
 		,FOREIGN KEY (txid) REFERENCES transactions(id)
 	  ,PRIMARY KEY (blockid, txid)

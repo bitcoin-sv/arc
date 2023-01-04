@@ -29,7 +29,7 @@ func (m *MetamorphPeerStore) HandleBlockAnnouncement(hash []byte, peer p2p.PeerI
 	return nil
 }
 
-func (m *MetamorphPeerStore) InsertBlock(blockHash []byte, blockHeader []byte, height uint64) (uint64, error) {
+func (m *MetamorphPeerStore) InsertBlock(blockHash []byte, merkleRoot []byte, prevhash []byte, height uint64, peer p2p.PeerI) (uint64, error) {
 	return 0, nil
 }
 

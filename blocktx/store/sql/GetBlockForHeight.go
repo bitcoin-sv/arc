@@ -14,7 +14,8 @@ func (s *SQL) GetBlockForHeight(ctx context.Context, height uint64) (*blocktx_ap
 	q := `
 		SELECT
 		 b.hash
-		,b.header
+		,b.prevhash
+		,b.merkleroot
 		,b.height
 		FROM blocks b
 		WHERE b.height = $1
@@ -23,7 +24,7 @@ func (s *SQL) GetBlockForHeight(ctx context.Context, height uint64) (*blocktx_ap
 
 	block := &blocktx_api.Block{}
 
-	if err := s.db.QueryRowContext(ctx, q, height).Scan(&block.Hash, &block.Header, &block.Height); err != nil {
+	if err := s.db.QueryRowContext(ctx, q, height).Scan(&block.Hash, &block.Prevhash, &block.Merkleroot, &block.Height); err != nil {
 		return nil, err
 	}
 

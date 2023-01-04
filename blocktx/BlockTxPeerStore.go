@@ -2,8 +2,7 @@ package blocktx
 
 import (
 	"context"
-	"database/sql"
-	"log"
+	"time"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/blocktx/store"
@@ -11,47 +10,52 @@ import (
 	"github.com/TAAL-GmbH/arc/p2p/chaincfg/chainhash"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/ordishs/go-utils"
+	"github.com/ordishs/go-utils/expiringmap"
 )
 
 type BlockTxPeerStore struct {
-	workerCh chan utils.Pair[[]byte, p2p.PeerI]
-	store    store.Interface
+	workerCh       chan utils.Pair[[]byte, p2p.PeerI]
+	store          store.Interface
+	logger         utils.Logger
+	announcedCache *expiringmap.ExpiringMap[string, []p2p.PeerI]
 }
 
-func NewBlockTxPeerStore(store store.Interface) p2p.PeerStoreI {
+func NewBlockTxPeerStore(store store.Interface, logger utils.Logger) p2p.PeerStoreI {
 	s := &BlockTxPeerStore{
-		store:    store,
-		workerCh: make(chan utils.Pair[[]byte, p2p.PeerI], 100),
+		store:          store,
+		logger:         logger,
+		workerCh:       make(chan utils.Pair[[]byte, p2p.PeerI], 100),
+		announcedCache: expiringmap.New[string, []p2p.PeerI](5 * time.Minute),
 	}
 
 	go func() {
 		for pair := range s.workerCh {
 			hash, err := chainhash.NewHash(pair.First)
 			if err != nil {
-				log.Printf("ERROR: ProcessBlock: %s", err)
+				logger.Errorf("ProcessBlock: %s", err)
 				continue
 			}
 
-			if _, err := store.GetBlock(context.Background(), hash.CloneBytes()); err != nil {
-				if err == sql.ErrNoRows {
-					store.InsertBlock(context.Background(), &blocktx_api.Block{
-						Hash: hash.CloneBytes(),
-					})
+			// if _, err := store.GetBlock(context.Background(), hash.CloneBytes()); err != nil {
+			// 	if err == sql.ErrNoRows {
+			// store.InsertBlock(context.Background(), &blocktx_api.Block{
+			// 	Hash: hash.CloneBytes(),
+			// })
 
-					peer := pair.Second
+			peer := pair.Second
 
-					msg := wire.NewMsgGetData()
-					if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
-						log.Printf("ERROR: ProcessBlock: %s", err)
-						continue
-					}
-
-					peer.WriteMsg(msg)
-					log.Printf("INFO: ProcessBlock: %s", hash.String())
-				} else {
-					log.Printf("ERROR: ProcessBlock: %s", err)
-				}
+			msg := wire.NewMsgGetData()
+			if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
+				logger.Errorf("ProcessBlock: %s", err)
+				continue
 			}
+
+			peer.WriteMsg(msg)
+			logger.Infof("ProcessBlock: %s", hash.String())
+			// } else {
+			// 	logger.Errorf("ProcessBlock: %s", err)
+			// }
+			// }
 		}
 	}()
 
@@ -63,9 +67,18 @@ func (m *BlockTxPeerStore) GetTransactionBytes(txID []byte) ([]byte, error) {
 }
 
 func (m *BlockTxPeerStore) HandleBlockAnnouncement(hash []byte, peer p2p.PeerI) error {
-	pair := utils.NewPair(hash, peer)
+	item, found := m.announcedCache.Get(hash)
+	if !found {
+		m.announcedCache.Set(hash, []p2p.PeerI{peer})
 
-	utils.SafeSend(m.workerCh, pair)
+		pair := utils.NewPair(hash, peer)
+
+		utils.SafeSend(m.workerCh, pair)
+
+	} else {
+		item = append(item, peer)
+	}
+
 	return nil
 }
 

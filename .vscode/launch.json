@@ -10,7 +10,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/main.go",
-      "console": "externalTerminal"
+      // "console": "externalTerminal"
     },
     {
       "name": "Broadcaster (10)",

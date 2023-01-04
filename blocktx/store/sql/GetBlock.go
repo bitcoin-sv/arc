@@ -21,11 +21,17 @@ func (s *SQL) GetBlock(ctx context.Context, hash []byte) (*blocktx_api.Block, er
 		WHERE b.hash = $1
 	`
 
-	var block *blocktx_api.Block
+	var block blocktx_api.Block
 
-	if err := s.db.QueryRowContext(ctx, q, hash).Scan(&block); err != nil {
+	if err := s.db.QueryRowContext(ctx, q, hash).Scan(
+		&block.Hash,
+		&block.Header,
+		&block.Height,
+		&block.Processed,
+		&block.Orphaned,
+	); err != nil {
 		return nil, err
 	}
 
-	return block, nil
+	return &block, nil
 }

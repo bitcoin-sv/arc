@@ -1,6 +1,8 @@
 package sql
 
 import (
+	"fmt"
+
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 
 	"context"
@@ -39,10 +41,10 @@ func (s *SQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64
 			`
 
 			if err := s.db.QueryRowContext(ctx, q, block.Hash).Scan(&blockId); err != nil {
-				return 0, err
+				return 0, fmt.Errorf("failed when updating block: %v", err)
 			}
 		} else {
-			return 0, err
+			return 0, fmt.Errorf("failed when inserting block: %v", err)
 		}
 	}
 

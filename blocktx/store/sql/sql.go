@@ -55,6 +55,9 @@ func NewSQLStore(engine string) (store.Interface, error) {
 
 		if memory {
 			filename = ":memory:"
+		} else {
+			// filename = fmt.Sprintf("file:%s?cache=shared&mode=rwc", filename)
+			filename = fmt.Sprintf("%s?_pragma=busy_timeout=10000&_pragma=journal_mode=WAL", filename)
 		}
 
 		log.Printf("Using sqlite DB: %s", filename)
@@ -67,6 +70,11 @@ func NewSQLStore(engine string) (store.Interface, error) {
 		if _, err := db.Exec(`PRAGMA foreign_keys = ON;`); err != nil {
 			db.Close()
 			return nil, fmt.Errorf("could not enable foreign keys support: %+v", err)
+		}
+
+		if _, err := db.Exec(`PRAGMA locking_mode = SHARED;`); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("could not enable shared locking mode: %+v", err)
 		}
 
 		if err := createSqliteSchema(db); err != nil {
@@ -99,12 +107,12 @@ func createPostgresSchema(db *sql.DB) error {
 
 	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_blocks_hash ON blocks (hash);`); err != nil {
 		db.Close()
-		return fmt.Errorf("could not create blocks table - [%+v]", err)
+		return fmt.Errorf("could not create ux_blocks_hash index - [%+v]", err)
 	}
 
-	if _, err := db.Exec(`CREATE UNIQUE INDEX PARTIAL IF NOT EXISTS pux_blocks_height ON blocks(height) WHERE orphanedyn = FALSE;`); err != nil {
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS pux_blocks_height ON blocks(height) WHERE orphanedyn = FALSE;`); err != nil {
 		db.Close()
-		return fmt.Errorf("could not create blocks table - [%+v]", err)
+		return fmt.Errorf("could not create pux_blocks_height index - [%+v]", err)
 	}
 
 	if _, err := db.Exec(`
@@ -154,12 +162,12 @@ func createSqliteSchema(db *sql.DB) error {
 
 	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_blocks_hash ON blocks (hash);`); err != nil {
 		db.Close()
-		return fmt.Errorf("could not create blocks hash index - [%+v]", err)
+		return fmt.Errorf("could not create ux_blocks_hash index - [%+v]", err)
 	}
 
 	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS pux_blocks_height ON blocks(height) WHERE orphanedyn = FALSE;`); err != nil {
 		db.Close()
-		return fmt.Errorf("could not create blocks height index - [%+v]", err)
+		return fmt.Errorf("could not create pux_blocks_height index - [%+v]", err)
 	}
 
 	if _, err := db.Exec(`

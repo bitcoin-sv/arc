@@ -52,6 +52,7 @@ message Block {
   bytes header = 2; // The header is not reversed because it is not a single value, but a list of values.
   uint64 height = 3;
   bool orphaned = 4;
+  bool processed = 5;
 }
 
 // swagger:model Transactions

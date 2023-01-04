@@ -9,6 +9,7 @@ import (
 type Interface interface {
 	InsertTransaction(ctx context.Context, transaction *blocktx_api.Transaction) error
 	GetTransactionSource(ctx context.Context, txid []byte) (string, error)
+	GetBlock(ctx context.Context, hash []byte) (*blocktx_api.Block, error)
 	GetBlockForHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error)
 	GetBlockTransactions(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error)
 	GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, error)

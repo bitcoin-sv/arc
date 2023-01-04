@@ -55,7 +55,7 @@ func (p *Processor) Start() {
 
 	pm := p2p.NewPeerManager(nil)
 
-	peerStore := NewBlockTxPeerStore()
+	peerStore := NewBlockTxPeerStore(p.store)
 
 	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
 	if peerCount == 0 {
@@ -84,8 +84,6 @@ func (p *Processor) Start() {
 	// }
 
 	// pm.GetBlocks(catchupHash)
-
-	<-p.quitCh
 }
 
 func (p *Processor) Close() {

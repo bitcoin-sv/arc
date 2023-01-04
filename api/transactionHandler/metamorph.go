@@ -7,6 +7,7 @@ import (
 	"time"
 
 	arc "github.com/TAAL-GmbH/arc/api"
+	"github.com/TAAL-GmbH/arc/blocktx"
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/ordishs/go-bitcoin"
@@ -17,14 +18,14 @@ import (
 
 // Metamorph is the connector to a metamorph server
 type Metamorph struct {
-	mu              sync.RWMutex
-	Client          metamorph_api.MetaMorphAPIClient
-	ClientCache     map[string]metamorph_api.MetaMorphAPIClient
-	locationService MetamorphLocationI
+	mu            sync.RWMutex
+	Client        metamorph_api.MetaMorphAPIClient
+	ClientCache   map[string]metamorph_api.MetaMorphAPIClient
+	blockTxClient blocktx.ClientI
 }
 
 // NewMetamorph creates a connection to a list of metamorph servers via gRPC
-func NewMetamorph(targets string, locationService MetamorphLocationI) (metamorph *Metamorph, err error) {
+func NewMetamorph(targets string, blockTxClient blocktx.ClientI) (*Metamorph, error) {
 	conn, err := grpc.Dial(targets,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
@@ -34,8 +35,8 @@ func NewMetamorph(targets string, locationService MetamorphLocationI) (metamorph
 	}
 
 	return &Metamorph{
-		Client:          metamorph_api.NewMetaMorphAPIClient(conn),
-		locationService: locationService,
+		Client:        metamorph_api.NewMetaMorphAPIClient(conn),
+		blockTxClient: blockTxClient,
 	}, nil
 }
 
@@ -53,15 +54,11 @@ func (m *Metamorph) GetTransaction(ctx context.Context, txID string) (rawTx *Raw
 		return nil, err
 	}
 
-	// fmt.Printf("tx: %v\n", tx)
-
 	return &RawTransaction{
 		RawTransaction: bitcoin.RawTransaction{
-			TxID: txID,
-			// Time:          tx.GetCreatedAt(), // created at should be a time
-			Blocktime:   0,
-			BlockHash:   "", // TODO add to proto
-			BlockHeight: 0,  // TODO add to proto
+			TxID:        txID,
+			BlockHash:   tx.BlockHash,
+			BlockHeight: uint64(tx.BlockHeight),
 		},
 		Status: tx.Status.String(),
 	}, nil
@@ -83,22 +80,20 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 	}
 
 	if tx == nil {
-		// TODO get the transaction from the bitcoin node rpc
 		return nil, fmt.Errorf("transaction not found")
 	}
 
 	return &TransactionStatus{
 		TxID:        txID,
 		Status:      tx.Status.String(),
-		BlockHash:   "",
-		BlockHeight: 0,
+		BlockHash:   tx.BlockHash,
+		BlockHeight: uint64(tx.BlockHeight),
 		Timestamp:   time.Now().Unix(),
 	}, nil
 }
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format
 func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, _ *arc.TransactionOptions) (*TransactionStatus, error) {
-	// TODO add retry logic if the put fails
 	response, err := m.Client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
 		RawTx: tx,
 	})
@@ -109,8 +104,8 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, _ *arc.Tra
 	return &TransactionStatus{
 		TxID:        response.Txid,
 		Status:      response.GetStatus().String(),
-		BlockHash:   "", // TODO proto
-		BlockHeight: 0,  // TODO proto
+		BlockHash:   response.BlockHash,
+		BlockHeight: uint64(response.BlockHeight),
 		Timestamp:   time.Now().Unix(),
 	}, nil
 }
@@ -121,10 +116,10 @@ func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (m
 		return nil, err
 	}
 
-	target, err := m.locationService.GetServer(ctx, &blocktx_api.Transaction{
+	var target string
+	if target, err = m.blockTxClient.LocateTransaction(ctx, &blocktx_api.Transaction{
 		Hash: hash,
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
 
@@ -138,8 +133,8 @@ func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (m
 	m.mu.RUnlock()
 
 	if !found {
-		conn, err := grpc.Dial(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
+		var conn *grpc.ClientConn
+		if conn, err = grpc.Dial(target, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
 			return nil, err
 		}
 		client = metamorph_api.NewMetaMorphAPIClient(conn)

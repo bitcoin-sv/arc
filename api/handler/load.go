@@ -6,7 +6,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/api/dictionary"
-	transactionHandler2 "github.com/TAAL-GmbH/arc/api/transactionHandler"
+	"github.com/TAAL-GmbH/arc/api/transactionHandler"
 	"github.com/TAAL-GmbH/arc/blocktx"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3"
@@ -33,16 +33,15 @@ func LoadArcHandler(e *echo.Echo, l utils.Logger) error {
 
 	blocktxAddress, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
 	bTx := blocktx.NewClient(l, blocktxAddress)
-	locationService := transactionHandler2.NewMetamorphTxLocationService(bTx)
 
-	transactionHandler, err := transactionHandler2.NewMetamorph(addresses, locationService)
+	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx)
 	if err != nil {
 		return err
 	}
 
 	var apiHandler api.HandlerInterface
 	// TODO WithSecurityConfig(appConfig.Security)
-	if apiHandler, err = NewDefault(transactionHandler); err != nil {
+	if apiHandler, err = NewDefault(txHandler); err != nil {
 		return err
 	}
 

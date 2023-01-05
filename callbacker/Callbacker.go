@@ -82,8 +82,8 @@ func (c *Callbacker) sendCallbacks() error {
 		return err
 	}
 
-	for key, callback := range callbacks { //nolint:govet
-		err = c.sendCallback(key, &callback)
+	for key, callback := range callbacks {
+		err = c.sendCallback(key, callback)
 		if err != nil {
 			c.logger.Errorf("failed to send callback: %v", err)
 		}

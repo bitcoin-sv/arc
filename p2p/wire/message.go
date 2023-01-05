@@ -414,6 +414,42 @@ func ReadMessageWithEncodingN(r io.Reader, pver uint32, bsvnet BitcoinNet, enc M
 		length = hdr.extLength
 	}
 
+	// in order to read big blocks, we need to pass a reader for the transactions
+	// instead of parsing all the transactions and returning a big slice of all of them
+	if hdr.command == CmdBlock {
+		blockMessage, ok := msg.(*MsgBlock)
+		if !ok {
+			return totalBytes, nil, nil, messageError("ReadMessage", "block message is not a block")
+		}
+
+		err = readBlockHeader(r, pver, &blockMessage.Header)
+		if err != nil {
+			return totalBytes, nil, nil, err
+		}
+
+		var txCount uint64
+		txCount, err = ReadVarInt(r, pver)
+		if err != nil {
+			return totalBytes, nil, nil, err
+		}
+
+		// Prevent more transactions than could possibly fit into a block.
+		// It would be possible to cause memory exhaustion and panics without
+		// a sane upper bound on this count.
+		if txCount > maxTxPerBlock() {
+			str := fmt.Sprintf("too many transactions to fit into a block "+
+				"[count %d, max %d]", txCount, maxTxPerBlock())
+			return totalBytes, nil, nil, messageError("MsgBlock.Bsvdecode", str)
+		}
+
+		blockMessage.TxCount = txCount
+		blockMessage.ProtocolVersion = pver
+		blockMessage.TransactionReader = r
+		blockMessage.MessageEncoding = enc
+
+		return 0, blockMessage, nil, nil
+	}
+
 	payload := make([]byte, length)
 	n, err = io.ReadFull(r, payload)
 	totalBytes += n

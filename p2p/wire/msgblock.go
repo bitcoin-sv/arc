@@ -44,20 +44,24 @@ type TxLoc struct {
 // block message.  It is used to deliver block and transaction information in
 // response to a getdata message (MsgGetData) for a given block hash.
 type MsgBlock struct {
-	Header       BlockHeader
-	Transactions []*MsgTx
+	Header            BlockHeader
+	TxCount           uint64
+	TransactionReader io.Reader
+	ProtocolVersion   uint32
+	MessageEncoding   MessageEncoding
+	transactions      []*MsgTx
 }
 
 // AddTransaction adds a transaction to the message.
 func (msg *MsgBlock) AddTransaction(tx *MsgTx) error {
-	msg.Transactions = append(msg.Transactions, tx)
+	msg.transactions = append(msg.transactions, tx)
 	return nil
 
 }
 
 // ClearTransactions removes all transactions from the message.
 func (msg *MsgBlock) ClearTransactions() {
-	msg.Transactions = make([]*MsgTx, 0, defaultTransactionAlloc)
+	msg.transactions = make([]*MsgTx, 0, defaultTransactionAlloc)
 }
 
 // Bsvdecode decodes r using the bitcoin protocol encoding into the receiver.
@@ -84,14 +88,14 @@ func (msg *MsgBlock) Bsvdecode(r io.Reader, pver uint32, enc MessageEncoding) er
 		return messageError("MsgBlock.Bsvdecode", str)
 	}
 
-	msg.Transactions = make([]*MsgTx, 0, txCount)
+	msg.transactions = make([]*MsgTx, 0, txCount)
 	for i := uint64(0); i < txCount; i++ {
 		tx := MsgTx{}
 		err := tx.Bsvdecode(r, pver, enc)
 		if err != nil {
 			return err
 		}
-		msg.Transactions = append(msg.Transactions, &tx)
+		msg.transactions = append(msg.transactions, &tx)
 	}
 
 	return nil
@@ -144,7 +148,7 @@ func (msg *MsgBlock) DeserializeTxLoc(r *bytes.Buffer) ([]TxLoc, error) {
 
 	// Deserialize each transaction while keeping track of its location
 	// within the byte stream.
-	msg.Transactions = make([]*MsgTx, 0, txCount)
+	msg.transactions = make([]*MsgTx, 0, txCount)
 	txLocs := make([]TxLoc, txCount)
 	for i := uint64(0); i < txCount; i++ {
 		txLocs[i].TxStart = fullLen - r.Len()
@@ -153,7 +157,7 @@ func (msg *MsgBlock) DeserializeTxLoc(r *bytes.Buffer) ([]TxLoc, error) {
 		if err != nil {
 			return nil, err
 		}
-		msg.Transactions = append(msg.Transactions, &tx)
+		msg.transactions = append(msg.transactions, &tx)
 		txLocs[i].TxLen = (fullLen - r.Len()) - txLocs[i].TxStart
 	}
 
@@ -170,12 +174,12 @@ func (msg *MsgBlock) BsvEncode(w io.Writer, pver uint32, enc MessageEncoding) er
 		return err
 	}
 
-	err = WriteVarInt(w, pver, uint64(len(msg.Transactions)))
+	err = WriteVarInt(w, pver, uint64(len(msg.transactions)))
 	if err != nil {
 		return err
 	}
 
-	for _, tx := range msg.Transactions {
+	for _, tx := range msg.transactions {
 		err = tx.BsvEncode(w, pver, enc)
 		if err != nil {
 			return err
@@ -206,9 +210,9 @@ func (msg *MsgBlock) Serialize(w io.Writer) error {
 func (msg *MsgBlock) SerializeSize() int {
 	// Block header bytes + Serialized varint size for the number of
 	// transactions.
-	n := blockHeaderLen + VarIntSerializeSize(uint64(len(msg.Transactions)))
+	n := blockHeaderLen + VarIntSerializeSize(uint64(len(msg.transactions)))
 
-	for _, tx := range msg.Transactions {
+	for _, tx := range msg.transactions {
 		n += tx.SerializeSize()
 	}
 
@@ -237,8 +241,8 @@ func (msg *MsgBlock) BlockHash() chainhash.Hash {
 
 // TxHashes returns a slice of hashes of all of transactions in this block.
 func (msg *MsgBlock) TxHashes() ([]chainhash.Hash, error) {
-	hashList := make([]chainhash.Hash, 0, len(msg.Transactions))
-	for _, tx := range msg.Transactions {
+	hashList := make([]chainhash.Hash, 0, len(msg.transactions))
+	for _, tx := range msg.transactions {
 		hashList = append(hashList, tx.TxHash())
 	}
 	return hashList, nil
@@ -249,6 +253,6 @@ func (msg *MsgBlock) TxHashes() ([]chainhash.Hash, error) {
 func NewMsgBlock(blockHeader *BlockHeader) *MsgBlock {
 	return &MsgBlock{
 		Header:       *blockHeader,
-		Transactions: make([]*MsgTx, 0, defaultTransactionAlloc),
+		transactions: make([]*MsgTx, 0, defaultTransactionAlloc),
 	}
 }

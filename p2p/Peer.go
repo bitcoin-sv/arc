@@ -171,7 +171,18 @@ func (p *Peer) readHandler() {
 			blockHash := blockMsg.BlockHash()
 			blockHashBytes := blockHash.CloneBytes()
 
-			height := extractHeightFromCoinbaseTx(blockMsg.Transactions[0])
+			txs := make([][]byte, blockMsg.TxCount)
+
+			coinbaseTx := wire.NewMsgTx(1)
+			if err := coinbaseTx.Bsvdecode(blockMsg.TransactionReader, blockMsg.ProtocolVersion, blockMsg.MessageEncoding); err != nil {
+				p.LogError("Unable to read transaction from block %s: %v", blockHash.String(), err)
+				continue
+			}
+			txHash := coinbaseTx.TxHash()
+			// coinbase tx is always the first tx in the block
+			txs[0] = txHash.CloneBytes()
+
+			height := extractHeightFromCoinbaseTx(coinbaseTx)
 
 			previousBlockHash := blockMsg.Header.PrevBlock
 			previousBlockHashBytes := previousBlockHash.CloneBytes()
@@ -185,18 +196,25 @@ func (p *Peer) readHandler() {
 				continue
 			}
 
-			txs := make([][]byte, 0, len(blockMsg.Transactions))
-
-			for _, tx := range blockMsg.Transactions {
-				txHash := tx.TxHash()
-				txHashBytes := txHash.CloneBytes()
-
-				txs = append(txs, txHashBytes)
+			for i := uint64(1); i < blockMsg.TxCount; i++ {
+				tx := wire.NewMsgTx(1)
+				if err := tx.Bsvdecode(blockMsg.TransactionReader, blockMsg.ProtocolVersion, blockMsg.MessageEncoding); err != nil {
+					p.LogError("Unable to read transaction from block %s: %v", blockHash.String(), err)
+					continue
+				}
+				txHash = tx.TxHash()
+				txs[i] = txHash.CloneBytes()
 			}
 
-			p.peerStore.MarkTransactionsAsMined(blockId, txs)
+			if err := p.peerStore.MarkTransactionsAsMined(blockId, txs); err != nil {
+				p.LogError("Unable to mark block as mined %s: %v", blockHash.String(), err)
+				continue
+			}
 
-			p.peerStore.MarkBlockAsProcessed(blockId)
+			if err := p.peerStore.MarkBlockAsProcessed(blockId); err != nil {
+				p.LogError("Unable to mark block as processed %s: %v", blockHash.String(), err)
+				continue
+			}
 
 		case wire.CmdReject:
 			rejMsg := msg.(*wire.MsgReject)

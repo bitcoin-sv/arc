@@ -88,10 +88,10 @@ func (m *BlockTxPeerStore) InsertBlock(blockHash []byte, merkleRoot []byte, prev
 	}
 
 	return m.store.InsertBlock(context.Background(), &blocktx_api.Block{
-		Hash:       blockHash,
-		Merkleroot: merkleRoot,
-		Prevhash:   previousBlockHash,
-		Height:     height,
+		Hash:         blockHash,
+		MerkleRoot:   merkleRoot,
+		PreviousHash: previousBlockHash,
+		Height:       height,
 	})
 }
 

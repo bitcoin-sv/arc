@@ -108,7 +108,11 @@ func (s *Server) GetBlockForHeight(ctx context.Context, height *blocktx_api.Heig
 	return s.store.GetBlockForHeight(ctx, height.Height)
 }
 
-func (s *Server) GetMinedBlockTransactions(heightAndSource *blocktx_api.HeightAndSource, srv blocktx_api.BlockTxAPI_GetMinedBlockTransactionsServer) error {
-	s.processor.Mtb.NewSubscription(heightAndSource, srv)
+func (s *Server) GetBlockNotificationStream(height *blocktx_api.Height, srv blocktx_api.BlockTxAPI_GetBlockNotificationStreamServer) error {
+	s.processor.blockHandler.NewSubscription(height, srv)
 	return nil
+}
+
+func (s *Server) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
+	return s.store.GetMinedTransactionsForBlock(ctx, blockAndSource)
 }

@@ -16,6 +16,9 @@ type PeerManager struct {
 	peers      map[string]PeerI
 	invBatcher *batcher.Batcher[[]byte]
 	messageCh  chan *PMMessage
+
+	// this is needed to be able to mock the peer creation in the peer manager
+	peerCreator func(peerAddress string, peerStore PeerStoreI) (PeerI, error)
 }
 
 type PMMessage struct {
@@ -29,6 +32,9 @@ func NewPeerManager(messageCh chan *PMMessage, batchDuration ...time.Duration) P
 	pm := &PeerManager{
 		peers:     make(map[string]PeerI),
 		messageCh: messageCh,
+		peerCreator: func(peerAddress string, peerStore PeerStoreI) (PeerI, error) {
+			return NewPeer(peerAddress, peerStore)
+		},
 	}
 
 	batchDelay := 500 * time.Millisecond
@@ -40,13 +46,17 @@ func NewPeerManager(messageCh chan *PMMessage, batchDuration ...time.Duration) P
 	return pm
 }
 
+func (pm *PeerManager) PeerCreator(peerCreator func(peerAddress string, peerStore PeerStoreI) (PeerI, error)) {
+	pm.peerCreator = peerCreator
+}
+
 func (pm *PeerManager) AddPeer(peerAddress string, peerStore PeerStoreI) error {
 	// check peer is not already in the list
 	if _, ok := pm.peers[peerAddress]; ok {
 		return nil
 	}
 
-	peer, err := NewPeer(peerAddress, peerStore)
+	peer, err := pm.peerCreator(peerAddress, peerStore)
 	if err != nil {
 		return err
 	}

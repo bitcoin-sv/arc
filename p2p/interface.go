@@ -9,10 +9,12 @@ type PeerManagerI interface {
 	AddPeer(peerURL string, peerStore PeerStoreI) error
 	RemovePeer(peerURL string) error
 	GetPeers() []PeerI
+	PeerCreator(peerCreator func(peerAddress string, peerStore PeerStoreI) (PeerI, error))
 	addPeer(peer PeerI) error
 }
 
 type PeerI interface {
+	AddParentMessageChannel(parentMessageCh chan *PMMessage) PeerI
 	WriteMsg(msg wire.Message)
 	String() string
 }

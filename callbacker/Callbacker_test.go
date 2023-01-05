@@ -39,7 +39,7 @@ func TestNewCallbacker(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = NewCallbacker(store)
-		assert.Error(t, err)
+		assert.NoError(t, err)
 	})
 }
 

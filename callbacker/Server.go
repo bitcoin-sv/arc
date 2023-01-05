@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"time"
 
 	"github.com/ordishs/go-utils"
@@ -20,14 +21,15 @@ import (
 // Server type carries the logger within it
 type Server struct {
 	callbacker_api.UnsafeCallbackerAPIServer
-	logger utils.Logger
+	logger     utils.Logger
+	callbacker *Callbacker
 }
 
 // NewServer will return a server instance with the logger stored within it
-func NewServer(logger utils.Logger) *Server {
-
+func NewServer(logger utils.Logger, c *Callbacker) *Server {
 	return &Server{
-		logger: logger,
+		logger:     logger,
+		callbacker: c,
 	}
 }
 
@@ -54,7 +56,7 @@ func (s *Server) StartGRPCServer() error {
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcServer)
 
-	s.logger.Infof("GRPC server listening on %s", address)
+	s.logger.Infof("[Callbacker] GRPC server listening on %s", address)
 
 	if err := grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("GRPC server failed [%w]", err)
@@ -70,7 +72,17 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*callbacker_api.He
 	}, nil
 }
 
-func (s *Server) RegisterCallback(ctx context.Context, callback *callbacker_api.Callback) (*emptypb.Empty, error) {
+func (s *Server) RegisterCallback(ctx context.Context, callback *callbacker_api.Callback) (*callbacker_api.RegisterCallbackResponse, error) {
+	if _, err := url.ParseRequestURI(callback.Url); err != nil {
+		return nil, fmt.Errorf("invalid URL [%w]", err)
+	}
 
-	return &emptypb.Empty{}, nil
+	key, err := s.callbacker.AddCallback(ctx, callback)
+	if err != nil {
+		return nil, err
+	}
+
+	return &callbacker_api.RegisterCallbackResponse{
+		Key: key,
+	}, nil
 }

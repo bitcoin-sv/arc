@@ -60,7 +60,7 @@ func (s *Server) StartGRPCServer() error {
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcServer)
 
-	s.logger.Infof("GRPC server listening on %s", address)
+	s.logger.Infof("[BlockTx] GRPC server listening on %s", address)
 
 	if err := grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("GRPC server failed [%w]", err)

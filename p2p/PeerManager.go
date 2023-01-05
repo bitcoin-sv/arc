@@ -112,7 +112,7 @@ func (pm *PeerManager) sendInvBatch(batch []*[]byte) {
 	// send to a subset of peers to be able to listen on the rest
 	sendToPeers := make([]PeerI, 0, len(pm.peers))
 	for _, peer := range pm.peers {
-		if len(pm.peers) > 1 && len(sendToPeers) > len(pm.peers)/2 {
+		if len(pm.peers) > 1 && len(sendToPeers) >= len(pm.peers)/2 {
 			break
 		}
 		sendToPeers = append(sendToPeers, peer)

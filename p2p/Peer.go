@@ -88,7 +88,7 @@ func NewPeer(address string, peerStore PeerStoreI) (*Peer, error) {
 	return p, nil
 }
 
-func (p *Peer) AddParentMessageChannel(parentChannel chan *PMMessage) *Peer {
+func (p *Peer) AddParentMessageChannel(parentChannel chan *PMMessage) PeerI {
 	p.parentChannel = parentChannel
 
 	return p

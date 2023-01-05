@@ -59,6 +59,9 @@ func TestNewPeerManager(t *testing.T) {
 	t.Run("1 peer", func(t *testing.T) {
 		pm := NewPeerManager(nil)
 		require.NotNil(t, pm)
+		pm.PeerCreator(func(peerAddress string, peerStore PeerStoreI) (PeerI, error) {
+			return NewPeerMock(peerAddress, peerStore)
+		})
 
 		peerStore := NewMockPeerStore()
 
@@ -77,11 +80,14 @@ func TestNewPeerManager(t *testing.T) {
 
 		pm := NewPeerManager(nil)
 		require.NotNil(t, pm)
+		pm.PeerCreator(func(peerAddress string, peerStore PeerStoreI) (PeerI, error) {
+			return NewPeerMock(peerAddress, peerStore)
+		})
 
 		peerStore := NewMockPeerStore()
 
 		for _, peer := range peers {
-			pm.AddPeer(peer, peerStore)
+			_ = pm.AddPeer(peer, peerStore)
 		}
 
 		assert.Len(t, pm.GetPeers(), 1)
@@ -98,7 +104,8 @@ func TestAnnounceNewTransaction(t *testing.T) {
 
 		peerStore := NewMockPeerStore()
 
-		peer, _ := NewPeerMock("localhost:18333", peerStore, messageCh)
+		peer, _ := NewPeerMock("localhost:18333", peerStore)
+		peer.AddParentMessageChannel(messageCh)
 		err := pm.addPeer(peer)
 		require.NoError(t, err)
 
@@ -126,7 +133,8 @@ func TestAnnounceNewTransaction(t *testing.T) {
 		numberOfPeers := 5
 		peers := make([]*PeerMock, numberOfPeers)
 		for i := 0; i < numberOfPeers; i++ {
-			peers[i], _ = NewPeerMock(fmt.Sprintf("localhost:1833%d", i), peerStore, messageCh)
+			peers[i], _ = NewPeerMock(fmt.Sprintf("localhost:1833%d", i), peerStore)
+			peers[i].AddParentMessageChannel(messageCh)
 			err := pm.addPeer(peers[i])
 			require.NoError(t, err)
 		}

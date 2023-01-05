@@ -15,14 +15,13 @@ type PeerMock struct {
 	messages      []wire.Message
 }
 
-func NewPeerMock(address string, peerStore PeerStoreI, parentChannel chan *PMMessage) (*PeerMock, error) {
+func NewPeerMock(address string, peerStore PeerStoreI) (*PeerMock, error) {
 	writeChan := make(chan wire.Message)
 
 	p := &PeerMock{
-		peerStore:     peerStore,
-		address:       address,
-		writeChan:     writeChan,
-		parentChannel: parentChannel,
+		peerStore: peerStore,
+		address:   address,
+		writeChan: writeChan,
 	}
 
 	go func() {
@@ -32,6 +31,11 @@ func NewPeerMock(address string, peerStore PeerStoreI, parentChannel chan *PMMes
 	}()
 
 	return p, nil
+}
+
+func (p *PeerMock) AddParentMessageChannel(parentMessageCh chan *PMMessage) PeerI {
+	p.parentChannel = parentMessageCh
+	return p
 }
 
 func (p *PeerMock) Len() int {

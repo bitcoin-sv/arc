@@ -3,10 +3,11 @@ package p2p
 import "github.com/TAAL-GmbH/arc/metamorph/store"
 
 type PeerManagerMock struct {
-	store     store.Store
-	Peers     map[string]PeerI
-	messageCh chan *PMMessage
-	Announced [][]byte
+	store       store.Store
+	Peers       map[string]PeerI
+	messageCh   chan *PMMessage
+	Announced   [][]byte
+	peerCreator func(peerAddress string, peerStore PeerStoreI) (PeerI, error)
 }
 
 func NewPeerManagerMock(s store.Store, messageCh chan *PMMessage) *PeerManagerMock {
@@ -21,11 +22,15 @@ func (p *PeerManagerMock) AnnounceNewTransaction(txID []byte) {
 	p.Announced = append(p.Announced, txID)
 }
 
+func (p *PeerManagerMock) PeerCreator(peerCreator func(peerAddress string, peerStore PeerStoreI) (PeerI, error)) {
+	p.peerCreator = peerCreator
+}
 func (p *PeerManagerMock) AddPeer(peerURL string, peerStore PeerStoreI) error {
-	peer, err := NewPeerMock(peerURL, peerStore, p.messageCh)
+	peer, err := NewPeerMock(peerURL, peerStore)
 	if err != nil {
 		return err
 	}
+	peer.AddParentMessageChannel(p.messageCh)
 
 	return p.addPeer(peer)
 }

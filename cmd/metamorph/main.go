@@ -66,9 +66,9 @@ func start() {
 		logger.Fatalf("Error creating metamorph store: %v", err)
 	}
 
-	messageCh := make(chan *p2p.PMMessage)
+	peerMessageCh := make(chan *p2p.PMMessage)
 
-	pm := p2p.NewPeerManager(messageCh)
+	pm := p2p.NewPeerManager(peerMessageCh)
 
 	peerStore := metamorph.NewMetamorphPeerStore(s)
 
@@ -101,16 +101,13 @@ func start() {
 	p := metamorph.NewProcessor(workerCount, s, pm, metamorphAddress)
 
 	go func() {
-		for message := range messageCh {
-			_, err := p.SendStatusForTransaction(message.Txid, message.Status, message.Err)
+		for message := range peerMessageCh {
+			_, err = p.SendStatusForTransaction(message.Txid, message.Status, message.Err)
 			if err != nil {
 				logger.Errorf("Error sending status for transaction %s: %v", message.Txid, err)
 			}
 		}
 	}()
-
-	z := metamorph.NewZMQ(p)
-	go z.Start()
 
 	// The double invocation is the get PrintStatsOnKeypress to start and return a function
 	// that can be deferred to reset the TTY when the program exits.
@@ -128,7 +125,7 @@ func start() {
 	go func() {
 		for mt := range minedBlockChan {
 			for _, tx := range mt.Txs {
-				_, err := p.SendStatusMinedForTransaction(tx.Hash, mt.Block.Hash, int32(mt.Block.Height))
+				_, err = p.SendStatusMinedForTransaction(tx.Hash, mt.Block.Hash, int32(mt.Block.Height))
 				if err != nil {
 					logger.Errorf("Could not send mined status for transaction %x: %v", bt.ReverseBytes(tx.Hash), err)
 				}

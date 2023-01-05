@@ -11,7 +11,7 @@ import (
 
 func (p *Processor) GetStats() *ProcessorStats {
 	filterFunc := func(p *ProcessorResponse) bool {
-		return p.status < metamorph_api.Status_SEEN_ON_NETWORK
+		return p.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK
 	}
 
 	for _, value := range p.tx2ChMap.Items(filterFunc) {

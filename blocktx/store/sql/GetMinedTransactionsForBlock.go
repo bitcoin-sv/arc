@@ -2,6 +2,7 @@ package sql
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 )
@@ -17,8 +18,8 @@ func (s *SQL) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *
 		,b.height
 		,b.merkleroot
 		,b.prevhash
-		,b.orphaned
-		,b.processed
+		,b.orphanedyn
+		,b.processedyn
 		FROM blocks b
 		WHERE b.hash = $1
 	`
@@ -30,7 +31,7 @@ func (s *SQL) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *
 		INNER JOIN block_transactions_map m ON m.txid = t.id
 		INNER JOIN blocks b ON m.blockid = b.id
 		WHERE b.hash = $1
-		AND t.source = $2
+		--AND t.source = $2
 	`
 
 	var block blocktx_api.Block
@@ -43,10 +44,13 @@ func (s *SQL) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *
 		&block.Orphaned,
 		&block.Processed,
 	); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 
-	rows, err := s.db.QueryContext(ctx, qTransactions, blockAndSource.Hash, blockAndSource.Source)
+	rows, err := s.db.QueryContext(ctx, qTransactions, blockAndSource.Hash /*, blockAndSource.Source*/)
 	if err != nil {
 		return nil, err
 	}

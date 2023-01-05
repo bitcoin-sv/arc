@@ -27,7 +27,7 @@ func (s *Store) Get(_ context.Context, key string) (*callbacker_api.Callback, er
 	return callback, nil
 }
 
-func (s *Store) GetExpired(_ context.Context) (map[string]callbacker_api.Callback, error) {
+func (s *Store) GetExpired(_ context.Context) (map[string]*callbacker_api.Callback, error) {
 	return nil, nil
 }
 

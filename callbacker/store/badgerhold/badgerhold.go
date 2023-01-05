@@ -84,16 +84,16 @@ func (bh *BadgerHold) Get(_ context.Context, key string) (*callbacker_api.Callba
 	}, nil
 }
 
-func (bh *BadgerHold) GetExpired(_ context.Context) (map[string]callbacker_api.Callback, error) {
+func (bh *BadgerHold) GetExpired(_ context.Context) (map[string]*callbacker_api.Callback, error) {
 	var result []*BadgerData
 
 	if err := bh.store.Find(&result, badgerhold.Where("CallbackAfter").Lt(time.Now())); err != nil {
 		return nil, fmt.Errorf("failed to get data: %w", err)
 	}
 
-	callbacks := make(map[string]callbacker_api.Callback)
+	callbacks := make(map[string]*callbacker_api.Callback)
 	for _, callback := range result {
-		callbacks[callback.Key] = callbacker_api.Callback{
+		callbacks[callback.Key] = &callbacker_api.Callback{
 			Hash:   callback.Hash,
 			Url:    callback.Url,
 			Token:  callback.Token,

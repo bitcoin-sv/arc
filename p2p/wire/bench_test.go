@@ -234,7 +234,7 @@ func BenchmarkReadTxOut(b *testing.B) {
 // BenchmarkWriteTxOut performs a benchmark on how long it takes to write
 // a transaction output.
 func BenchmarkWriteTxOut(b *testing.B) {
-	txOut := blockOne.Transactions[0].TxOut[0]
+	txOut := blockOne.transactions[0].TxOut[0]
 	for i := 0; i < b.N; i++ {
 		WriteTxOut(io.Discard, 0, 0, txOut)
 	}
@@ -265,7 +265,7 @@ func BenchmarkReadTxIn(b *testing.B) {
 // BenchmarkWriteTxIn performs a benchmark on how long it takes to write
 // a transaction input.
 func BenchmarkWriteTxIn(b *testing.B) {
-	txIn := blockOne.Transactions[0].TxIn[0]
+	txIn := blockOne.transactions[0].TxIn[0]
 	for i := 0; i < b.N; i++ {
 		writeTxIn(io.Discard, 0, 0, txIn)
 	}
@@ -336,7 +336,7 @@ func BenchmarkDeserializeTxLarge(b *testing.B) {
 // BenchmarkSerializeTx performs a benchmark on how long it takes to serialize
 // a transaction.
 func BenchmarkSerializeTx(b *testing.B) {
-	tx := blockOne.Transactions[0]
+	tx := blockOne.transactions[0]
 	for i := 0; i < b.N; i++ {
 		tx.Serialize(io.Discard)
 

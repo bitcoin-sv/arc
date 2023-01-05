@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/TAAL-GmbH/arc/p2p/blockchain"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 
 	"github.com/TAAL-GmbH/arc/p2p/bsvutil"
@@ -208,6 +210,12 @@ func (p *Peer) readHandler() {
 
 			if err := p.peerStore.MarkTransactionsAsMined(blockId, txs); err != nil {
 				p.LogError("Unable to mark block as mined %s: %v", blockHash.String(), err)
+				continue
+			}
+
+			calculatedMerkleRoot := blockchain.BuildMerkleTreeStore(txs)
+			if !bytes.Equal(calculatedMerkleRoot[len(calculatedMerkleRoot)-1], merkleRootBytes) {
+				p.LogError("Merkle root mismatch for block %s", blockHash.String())
 				continue
 			}
 

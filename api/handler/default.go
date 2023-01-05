@@ -116,8 +116,8 @@ func (m ArcDefaultHandler) PostArcV1Tx(ctx echo.Context, params api.PostArcV1TxP
 	return ctx.JSON(int(status), response)
 }
 
-// GetArcV1TxStatusId ...
-func (m ArcDefaultHandler) GetArcV1TxStatusId(ctx echo.Context, id string) error {
+// GetArcV1TxId Similar to GetArcV2TxStatusId, but also returns the whole transaction
+func (m ArcDefaultHandler) GetArcV1TxId(ctx echo.Context, id string) error {
 
 	tx, err := m.getTransactionStatus(ctx.Request().Context(), id)
 	if err != nil {
@@ -137,32 +137,6 @@ func (m ArcDefaultHandler) GetArcV1TxStatusId(ctx echo.Context, id string) error
 		TxStatus:    &tx.Status,
 		Timestamp:   time.Now(),
 		Txid:        tx.TxID,
-	})
-}
-
-// GetArcV1TxId Similar to GetArcV2TxStatusId, but also returns the whole transaction
-func (m ArcDefaultHandler) GetArcV1TxId(ctx echo.Context, id string) error {
-
-	tx, err := m.getTransaction(ctx.Request().Context(), id)
-	if err != nil {
-		errStr := err.Error()
-		e := api.ErrGeneric
-		e.ExtraInfo = &errStr
-		return ctx.JSON(int(api.ErrStatusGeneric), e)
-	}
-
-	if tx == nil {
-		return echo.NewHTTPError(http.StatusNotFound, api.ErrNotFound)
-	}
-
-	return ctx.JSON(http.StatusOK, api.TransactionResponse{
-		BlockHash:   &tx.BlockHash,
-		BlockHeight: &tx.BlockHeight,
-		Status:      http.StatusOK,
-		Title:       api.StatusText[http.StatusOK],
-		TxStatus:    (*api.TransactionResponseTxStatus)(&tx.Status),
-		Timestamp:   time.Now(),
-		Txid:        &tx.TxID,
 	})
 }
 
@@ -343,15 +317,6 @@ func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.
 		Timestamp:   time.Now(),
 		Txid:        &tx.TxID,
 	}, nil
-}
-
-func (m ArcDefaultHandler) getTransaction(ctx context.Context, id string) (*transactionHandler.RawTransaction, error) {
-	tx, err := m.TransactionHandler.GetTransaction(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	return tx, nil
 }
 
 func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) (*transactionHandler.TransactionStatus, error) {

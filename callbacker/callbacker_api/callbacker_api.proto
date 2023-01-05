@@ -10,7 +10,12 @@ import "google/protobuf/empty.proto";
 service CallbackerAPI {
   // Health returns the health of the API.
   rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
-  rpc RegisterCallback (Callback) returns (google.protobuf.Empty) {}
+  rpc RegisterCallback (Callback) returns (RegisterCallbackResponse) {}
+}
+
+// swagger:model RegisterCallbackResponse
+message RegisterCallbackResponse {
+  string key = 1;
 }
 
 // swagger:model HealthResponse
@@ -26,4 +31,6 @@ message Callback {
   string url = 2;
   string token = 3;
   int32 status = 4;
+  bytes block_hash = 5;
+  uint64 block_height = 6;
 }

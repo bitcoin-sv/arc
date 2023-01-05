@@ -59,7 +59,7 @@ func (s *Server) StartGRPCServer(address string) error {
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcServer)
 
-	s.logger.Infof("Metamorph GRPC server listening on %s", address)
+	s.logger.Infof("[Metamorph] GRPC server listening on %s", address)
 
 	if err := grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("metamorph GRPC server failed [%w]", err)

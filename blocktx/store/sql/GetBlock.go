@@ -26,8 +26,8 @@ func (s *SQL) GetBlock(ctx context.Context, hash []byte) (*blocktx_api.Block, er
 
 	if err := s.db.QueryRowContext(ctx, q, hash).Scan(
 		&block.Hash,
-		&block.Prevhash,
-		&block.Merkleroot,
+		&block.PreviousHash,
+		&block.MerkleRoot,
 		&block.Height,
 		&block.Processed,
 		&block.Orphaned,

@@ -27,6 +27,7 @@ type BlockTxAPIClient interface {
 	Health(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HealthResponse, error)
 	// RegisterTransaction registers a transaction with the API.
 	RegisterTransaction(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// LocateTransaction returns the source of a transaction.
 	LocateTransaction(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*Source, error)
 	// GetBlockTransactions returns a list of transaction hashes for a given block.
 	GetBlockTransactions(ctx context.Context, in *Block, opts ...grpc.CallOption) (*Transactions, error)
@@ -36,9 +37,11 @@ type BlockTxAPIClient interface {
 	GetTransactionBlock(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*Block, error)
 	// GetBlockForHeight returns the non-orphaned block for a given block height.
 	GetBlockForHeight(ctx context.Context, in *Height, opts ...grpc.CallOption) (*Block, error)
-	// GetMinedBlockTransactions returns a stream of mined transactions starting at a specific block height.
+	// GetMyTransactionsForBlock returns a list of transaction hashes for a given block that were registered by this API.
+	GetMinedTransactionsForBlock(ctx context.Context, in *BlockAndSource, opts ...grpc.CallOption) (*MinedTransactions, error)
+	// GetBlockNotificationStream returns a stream of mined blocks starting at a specific block height.
 	// If Height is 0, the stream starts from the current best block.
-	GetMinedBlockTransactions(ctx context.Context, in *HeightAndSource, opts ...grpc.CallOption) (BlockTxAPI_GetMinedBlockTransactionsClient, error)
+	GetBlockNotificationStream(ctx context.Context, in *Height, opts ...grpc.CallOption) (BlockTxAPI_GetBlockNotificationStreamClient, error)
 }
 
 type blockTxAPIClient struct {
@@ -112,12 +115,21 @@ func (c *blockTxAPIClient) GetBlockForHeight(ctx context.Context, in *Height, op
 	return out, nil
 }
 
-func (c *blockTxAPIClient) GetMinedBlockTransactions(ctx context.Context, in *HeightAndSource, opts ...grpc.CallOption) (BlockTxAPI_GetMinedBlockTransactionsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &BlockTxAPI_ServiceDesc.Streams[0], "/blocktx_api.BlockTxAPI/GetMinedBlockTransactions", opts...)
+func (c *blockTxAPIClient) GetMinedTransactionsForBlock(ctx context.Context, in *BlockAndSource, opts ...grpc.CallOption) (*MinedTransactions, error) {
+	out := new(MinedTransactions)
+	err := c.cc.Invoke(ctx, "/blocktx_api.BlockTxAPI/GetMinedTransactionsForBlock", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &blockTxAPIGetMinedBlockTransactionsClient{stream}
+	return out, nil
+}
+
+func (c *blockTxAPIClient) GetBlockNotificationStream(ctx context.Context, in *Height, opts ...grpc.CallOption) (BlockTxAPI_GetBlockNotificationStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &BlockTxAPI_ServiceDesc.Streams[0], "/blocktx_api.BlockTxAPI/GetBlockNotificationStream", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &blockTxAPIGetBlockNotificationStreamClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -127,17 +139,17 @@ func (c *blockTxAPIClient) GetMinedBlockTransactions(ctx context.Context, in *He
 	return x, nil
 }
 
-type BlockTxAPI_GetMinedBlockTransactionsClient interface {
-	Recv() (*MinedTransaction, error)
+type BlockTxAPI_GetBlockNotificationStreamClient interface {
+	Recv() (*Block, error)
 	grpc.ClientStream
 }
 
-type blockTxAPIGetMinedBlockTransactionsClient struct {
+type blockTxAPIGetBlockNotificationStreamClient struct {
 	grpc.ClientStream
 }
 
-func (x *blockTxAPIGetMinedBlockTransactionsClient) Recv() (*MinedTransaction, error) {
-	m := new(MinedTransaction)
+func (x *blockTxAPIGetBlockNotificationStreamClient) Recv() (*Block, error) {
+	m := new(Block)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -152,6 +164,7 @@ type BlockTxAPIServer interface {
 	Health(context.Context, *emptypb.Empty) (*HealthResponse, error)
 	// RegisterTransaction registers a transaction with the API.
 	RegisterTransaction(context.Context, *Transaction) (*emptypb.Empty, error)
+	// LocateTransaction returns the source of a transaction.
 	LocateTransaction(context.Context, *Transaction) (*Source, error)
 	// GetBlockTransactions returns a list of transaction hashes for a given block.
 	GetBlockTransactions(context.Context, *Block) (*Transactions, error)
@@ -161,9 +174,11 @@ type BlockTxAPIServer interface {
 	GetTransactionBlock(context.Context, *Transaction) (*Block, error)
 	// GetBlockForHeight returns the non-orphaned block for a given block height.
 	GetBlockForHeight(context.Context, *Height) (*Block, error)
-	// GetMinedBlockTransactions returns a stream of mined transactions starting at a specific block height.
+	// GetMyTransactionsForBlock returns a list of transaction hashes for a given block that were registered by this API.
+	GetMinedTransactionsForBlock(context.Context, *BlockAndSource) (*MinedTransactions, error)
+	// GetBlockNotificationStream returns a stream of mined blocks starting at a specific block height.
 	// If Height is 0, the stream starts from the current best block.
-	GetMinedBlockTransactions(*HeightAndSource, BlockTxAPI_GetMinedBlockTransactionsServer) error
+	GetBlockNotificationStream(*Height, BlockTxAPI_GetBlockNotificationStreamServer) error
 	mustEmbedUnimplementedBlockTxAPIServer()
 }
 
@@ -192,8 +207,11 @@ func (UnimplementedBlockTxAPIServer) GetTransactionBlock(context.Context, *Trans
 func (UnimplementedBlockTxAPIServer) GetBlockForHeight(context.Context, *Height) (*Block, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBlockForHeight not implemented")
 }
-func (UnimplementedBlockTxAPIServer) GetMinedBlockTransactions(*HeightAndSource, BlockTxAPI_GetMinedBlockTransactionsServer) error {
-	return status.Errorf(codes.Unimplemented, "method GetMinedBlockTransactions not implemented")
+func (UnimplementedBlockTxAPIServer) GetMinedTransactionsForBlock(context.Context, *BlockAndSource) (*MinedTransactions, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMinedTransactionsForBlock not implemented")
+}
+func (UnimplementedBlockTxAPIServer) GetBlockNotificationStream(*Height, BlockTxAPI_GetBlockNotificationStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetBlockNotificationStream not implemented")
 }
 func (UnimplementedBlockTxAPIServer) mustEmbedUnimplementedBlockTxAPIServer() {}
 
@@ -334,24 +352,42 @@ func _BlockTxAPI_GetBlockForHeight_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BlockTxAPI_GetMinedBlockTransactions_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(HeightAndSource)
+func _BlockTxAPI_GetMinedTransactionsForBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BlockAndSource)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlockTxAPIServer).GetMinedTransactionsForBlock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/blocktx_api.BlockTxAPI/GetMinedTransactionsForBlock",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlockTxAPIServer).GetMinedTransactionsForBlock(ctx, req.(*BlockAndSource))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BlockTxAPI_GetBlockNotificationStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Height)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(BlockTxAPIServer).GetMinedBlockTransactions(m, &blockTxAPIGetMinedBlockTransactionsServer{stream})
+	return srv.(BlockTxAPIServer).GetBlockNotificationStream(m, &blockTxAPIGetBlockNotificationStreamServer{stream})
 }
 
-type BlockTxAPI_GetMinedBlockTransactionsServer interface {
-	Send(*MinedTransaction) error
+type BlockTxAPI_GetBlockNotificationStreamServer interface {
+	Send(*Block) error
 	grpc.ServerStream
 }
 
-type blockTxAPIGetMinedBlockTransactionsServer struct {
+type blockTxAPIGetBlockNotificationStreamServer struct {
 	grpc.ServerStream
 }
 
-func (x *blockTxAPIGetMinedBlockTransactionsServer) Send(m *MinedTransaction) error {
+func (x *blockTxAPIGetBlockNotificationStreamServer) Send(m *Block) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -390,11 +426,15 @@ var BlockTxAPI_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetBlockForHeight",
 			Handler:    _BlockTxAPI_GetBlockForHeight_Handler,
 		},
+		{
+			MethodName: "GetMinedTransactionsForBlock",
+			Handler:    _BlockTxAPI_GetMinedTransactionsForBlock_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "GetMinedBlockTransactions",
-			Handler:       _BlockTxAPI_GetMinedBlockTransactions_Handler,
+			StreamName:    "GetBlockNotificationStream",
+			Handler:       _BlockTxAPI_GetBlockNotificationStream_Handler,
 			ServerStreams: true,
 		},
 	},

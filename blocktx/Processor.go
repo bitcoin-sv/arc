@@ -19,12 +19,12 @@ type ProcessorBitcoinI interface {
 }
 
 type Processor struct {
-	store   store.Interface
-	bitcoin ProcessorBitcoinI
-	logger  *gocore.Logger
-	ch      chan string
-	quitCh  chan bool
-	Mtb     *MinedTransactionHandler
+	store        store.Interface
+	bitcoin      ProcessorBitcoinI
+	logger       *gocore.Logger
+	ch           chan string
+	quitCh       chan bool
+	blockHandler *BlockHandler
 }
 
 func NewBlockTxProcessor(storeI store.Interface, bitcoin ProcessorBitcoinI) (*Processor, error) {
@@ -41,7 +41,7 @@ func NewBlockTxProcessor(storeI store.Interface, bitcoin ProcessorBitcoinI) (*Pr
 }
 
 func (p *Processor) Start() {
-	p.Mtb = NewHandler(p.logger)
+	p.blockHandler = NewHandler(p.logger)
 
 	pm := p2p.NewPeerManager(nil)
 

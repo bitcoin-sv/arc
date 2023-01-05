@@ -25,7 +25,7 @@ func (s *SQL) GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, er
 
 	block := &blocktx_api.Block{}
 
-	if err := s.db.QueryRowContext(ctx, q).Scan(&block.Hash, &block.Prevhash, &block.Merkleroot, &block.Height, &block.Orphaned); err != nil {
+	if err := s.db.QueryRowContext(ctx, q).Scan(&block.Hash, &block.PreviousHash, &block.MerkleRoot, &block.Height, &block.Orphaned); err != nil {
 		return nil, err
 	}
 

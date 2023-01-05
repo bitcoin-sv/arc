@@ -14,6 +14,7 @@ service BlockTxAPI {
   // RegisterTransaction registers a transaction with the API.
   rpc RegisterTransaction (Transaction) returns (google.protobuf.Empty) {}
 
+  // LocateTransaction returns the source of a transaction.
   rpc LocateTransaction(Transaction) returns (Source) {}
 
   // GetBlockTransactions returns a list of transaction hashes for a given block.
@@ -28,10 +29,12 @@ service BlockTxAPI {
   // GetBlockForHeight returns the non-orphaned block for a given block height.
   rpc GetBlockForHeight (Height) returns (Block) {}
 
-  // GetMinedBlockTransactions returns a stream of mined transactions starting at a specific block height.
-  // If Height is 0, the stream starts from the current best block.
-  rpc GetMinedBlockTransactions (HeightAndSource) returns (stream MinedTransaction) {}
+  // GetMyTransactionsForBlock returns a list of transaction hashes for a given block that were registered by this API.
+  rpc GetMinedTransactionsForBlock(BlockAndSource) returns (MinedTransactions) {}
 
+  // GetBlockNotificationStream returns a stream of mined blocks starting at a specific block height.
+  // If Height is 0, the stream starts from the current best block.
+  rpc GetBlockNotificationStream (Height) returns (stream Block) {}
 }
 
 // swagger:model HealthResponse
@@ -49,8 +52,8 @@ message Blocks {
 // swagger:model Block {
 message Block {
   bytes hash = 1; // Little endian
-  bytes prevhash = 2; // Little endian
-  bytes merkleroot = 3; // Little endian
+  bytes previous_hash = 2; // Little endian
+  bytes merkle_root = 3; // Little endian
   uint64 height = 4;
   bool orphaned = 5;
   bool processed = 6;
@@ -61,16 +64,16 @@ message Transactions {
   repeated Transaction transactions = 1;
 }
 
-// swagger:model MinedTransaction
-message MinedTransaction {
+// swagger:model MinedTransactions
+message MinedTransactions {
   Block block = 1; // Little endian
-  repeated Transaction txs = 2; // Little endian
+  repeated Transaction transactions = 2; // Little endian
 }
 
 // swagger:model Transaction
 message Transaction {
   bytes hash = 1; // Little endian
-  string source = 2;
+  string source = 2; // This is the metamorph address:port
 }
 
 // swagger:model Height
@@ -83,8 +86,8 @@ message Source {
   string source = 1;
 }
 
-// swagger:model HeightAndSource
-message HeightAndSource {
-  uint64 height = 1;
+// swagger:model BlockAndSource
+message BlockAndSource {
+  bytes hash = 1;
   string source = 2;
 }

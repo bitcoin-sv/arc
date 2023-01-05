@@ -1,47 +1,34 @@
 package blocktx
 
 import (
-	"bytes"
-	"time"
-
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 
 	"github.com/ordishs/go-utils"
-	"github.com/ordishs/go-utils/batcher"
 )
-
-type blockTx struct {
-	blockHash   []byte
-	blockHeight uint64
-	txHash      []byte
-}
 
 type subscriber struct {
 	height uint64
-	source string
-	stream blocktx_api.BlockTxAPI_GetMinedBlockTransactionsServer
+	stream blocktx_api.BlockTxAPI_GetBlockNotificationStreamServer
 }
 
-type MinedTransactionHandler struct {
+type BlockHandler struct {
 	logger      utils.Logger
 	subscribers map[subscriber]bool
 
 	newSubscriptions  chan subscriber
 	deadSubscriptions chan subscriber
-	mtCh              chan *blocktx_api.MinedTransaction
+	blockCh           chan *blocktx_api.Block
 	quitCh            chan bool
-	txBatcher         *batcher.Batcher[blockTx]
 }
 
-func NewHandler(l utils.Logger) *MinedTransactionHandler {
-	h := &MinedTransactionHandler{
+func NewHandler(l utils.Logger) *BlockHandler {
+	h := &BlockHandler{
 		logger:            l,
 		subscribers:       make(map[subscriber]bool),
 		newSubscriptions:  make(chan subscriber, 128),
 		deadSubscriptions: make(chan subscriber, 128),
-		mtCh:              make(chan *blocktx_api.MinedTransaction),
+		blockCh:           make(chan *blocktx_api.Block),
 	}
-	h.txBatcher = batcher.New(500, 500*time.Millisecond, h.sendTxBatch, true)
 
 	go func() {
 	OUT:
@@ -59,16 +46,12 @@ func NewHandler(l utils.Logger) *MinedTransactionHandler {
 
 			case s := <-h.deadSubscriptions:
 				delete(h.subscribers, s)
-				h.logger.Infof("MinedTransaction subscription removed (Total=%d).", len(h.subscribers))
+				h.logger.Infof("BlockNotification subscription removed (Total=%d).", len(h.subscribers))
 
-			case mt := <-h.mtCh:
-				if len(mt.Txs) == 0 {
-					continue
-				}
-
+			case block := <-h.blockCh:
 				for sub := range h.subscribers {
 					go func(s subscriber) {
-						if err := s.stream.Send(mt); err != nil {
+						if err := s.stream.Send(block); err != nil {
 							h.logger.Errorf("Error sending config")
 							h.deadSubscriptions <- s
 						}
@@ -82,15 +65,14 @@ func NewHandler(l utils.Logger) *MinedTransactionHandler {
 }
 
 // Shutdown stops the handler
-func (h *MinedTransactionHandler) Shutdown() {
+func (h *BlockHandler) Shutdown() {
 	h.quitCh <- true
 }
 
 // NewSubscription adds a new subscription to the handler
-func (h *MinedTransactionHandler) NewSubscription(heightAndSource *blocktx_api.HeightAndSource, s blocktx_api.BlockTxAPI_GetMinedBlockTransactionsServer) {
+func (h *BlockHandler) NewSubscription(heightAndSource *blocktx_api.Height, s blocktx_api.BlockTxAPI_GetBlockNotificationStreamServer) {
 	h.newSubscriptions <- subscriber{
 		height: heightAndSource.Height,
-		source: heightAndSource.Source,
 		stream: s,
 	}
 
@@ -101,36 +83,11 @@ func (h *MinedTransactionHandler) NewSubscription(heightAndSource *blocktx_api.H
 	}
 }
 
-func (h *MinedTransactionHandler) SendTx(blockHash []byte, blockHeight uint64, txHash []byte) {
-	h.txBatcher.Put(&blockTx{
-		blockHash:   blockHash,
-		blockHeight: blockHeight,
-		txHash:      txHash,
-	})
-}
-
-// sendTxBatch sends a batch of transactions to the subscribers
-// The batch is grouped by block hash
-func (h *MinedTransactionHandler) sendTxBatch(batch []*blockTx) {
-	mt := &blocktx_api.MinedTransaction{
-		Block: &blocktx_api.Block{},
+func (h *BlockHandler) SendBlock(blockHash []byte, blockHeight uint64, txHash []byte) {
+	block := &blocktx_api.Block{
+		Hash:   blockHash,
+		Height: blockHeight,
 	}
 
-	for _, btx := range batch {
-		if mt.Block.Hash == nil || !bytes.Equal(mt.Block.Hash, btx.blockHash) {
-			h.mtCh <- mt
-
-			mt = &blocktx_api.MinedTransaction{
-				Block: &blocktx_api.Block{
-					Hash:   btx.blockHash,
-					Height: btx.blockHeight,
-				},
-				Txs: nil,
-			}
-		}
-
-		mt.Txs = append(mt.Txs, &blocktx_api.Transaction{Hash: btx.txHash})
-	}
-
-	h.mtCh <- mt
+	h.blockCh <- block
 }

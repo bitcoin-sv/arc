@@ -16,10 +16,10 @@ func TestInOut(t *testing.T) {
 	ctx := context.Background()
 
 	block := &blocktx_api.Block{
-		Hash:       []byte("test block hash"),
-		Merkleroot: []byte("test merkleroot"),
-		Prevhash:   []byte("test prevhash"),
-		Height:     1,
+		Hash:         []byte("test block hash"),
+		MerkleRoot:   []byte("test merkleroot"),
+		PreviousHash: []byte("test prevhash"),
+		Height:       1,
 	}
 
 	s, err := NewSQLStore("sqlite_memory")

@@ -13,9 +13,10 @@ import (
 
 // ClientI is the interface for the block-tx transactionHandler
 type ClientI interface {
-	Start(minedBlockChan chan *blocktx_api.MinedTransaction)
+	Start(minedBlockChan chan *blocktx_api.Block)
 	LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 	RegisterTransaction(ctx context.Context, transaction *blocktx_api.Transaction) error
+	GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
 }
 
 type Client struct {
@@ -30,14 +31,14 @@ func NewClient(l utils.Logger, address string) ClientI {
 	}
 }
 
-func (btc *Client) Start(minedBlockChan chan *blocktx_api.MinedTransaction) {
+func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 	for {
 		conn, _ := grpc.Dial(btc.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		defer conn.Close()
 
 		client := blocktx_api.NewBlockTxAPIClient(conn)
 
-		stream, err := client.GetMinedBlockTransactions(context.Background(), &blocktx_api.HeightAndSource{})
+		stream, err := client.GetBlockNotificationStream(context.Background(), &blocktx_api.Height{})
 		if err != nil {
 			panic(err)
 		}
@@ -45,13 +46,13 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.MinedTransaction) {
 		btc.logger.Infof("Connected to block-tx server at %s", btc.address)
 
 		for {
-			mt, err := stream.Recv()
+			block, err := stream.Recv()
 			if err != nil {
 				break
 			}
 
-			btc.logger.Infof("Block %s\n", utils.HexEncodeAndReverseBytes(mt.Block.Hash))
-			utils.SafeSend(minedBlockChan, mt)
+			btc.logger.Infof("Block %s\n", utils.HexEncodeAndReverseBytes(block.Hash))
+			utils.SafeSend(minedBlockChan, block)
 		}
 
 		btc.logger.Warnf("could not get message from block-tx stream: %v", err)
@@ -94,4 +95,22 @@ func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx
 	}
 
 	return nil
+}
+
+func (btc *Client) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
+	conn, err := grpc.Dial(btc.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, err
+	}
+
+	defer conn.Close()
+
+	client := blocktx_api.NewBlockTxAPIClient(conn)
+
+	mt, err := client.GetMinedTransactionsForBlock(ctx, blockAndSource)
+	if err != nil {
+		return nil, err
+	}
+
+	return mt, nil
 }

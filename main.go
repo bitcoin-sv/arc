@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
@@ -161,12 +162,26 @@ func start() {
 		metamorphProcessor.LoadUnseen()
 	}()
 
-	// create a channel to receive mined tx messages from the block tx service
-	var minedBlockChan = make(chan *blocktx_api.MinedTransaction)
+	address, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
+	btc := blocktx.NewClient(logger, address)
+
+	// create a channel to receive mined block messages from the block tx service
+	var blockChan = make(chan *blocktx_api.Block)
 	go func() {
-		for mt := range minedBlockChan {
-			for _, tx := range mt.Txs {
-				logger.Infof("Received MINED message from P2P %x", bt.ReverseBytes(tx.Hash))
+		for block := range blockChan {
+			blockAndSource := &blocktx_api.BlockAndSource{
+				Hash:   block.Hash,
+				Source: metamorphAddress,
+			}
+
+			mt, err := btc.GetMinedTransactionsForBlock(context.Background(), blockAndSource)
+			if err != nil {
+				logger.Errorf("Could not get mined transactions for block %x: %v", bt.ReverseBytes(block.Hash), err)
+				continue
+			}
+
+			for _, tx := range mt.Transactions {
+				logger.Infof("Received MINED message from BlockTX %x", bt.ReverseBytes(tx.Hash))
 				_, err = metamorphProcessor.SendStatusMinedForTransaction(tx.Hash, mt.Block.Hash, int32(mt.Block.Height))
 				if err != nil {
 					logger.Errorf("Could not send mined status for transaction %x: %v", bt.ReverseBytes(tx.Hash), err)
@@ -175,9 +190,7 @@ func start() {
 		}
 	}()
 
-	address, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
-	btc := blocktx.NewClient(logger, address)
-	go btc.Start(minedBlockChan)
+	go btc.Start(blockChan)
 
 	serv := metamorph.NewServer(logger, s, metamorphProcessor)
 	if err = serv.StartGRPCServer(metamorphAddress); err != nil {

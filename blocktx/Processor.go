@@ -22,7 +22,6 @@ type Processor struct {
 	store        store.Interface
 	bitcoin      ProcessorBitcoinI
 	logger       *gocore.Logger
-	ch           chan string
 	quitCh       chan bool
 	blockHandler *BlockHandler
 }
@@ -45,7 +44,7 @@ func (p *Processor) Start() {
 
 	pm := p2p.NewPeerManager(nil)
 
-	peerStore := NewBlockTxPeerStore(p.store, p.logger)
+	peerStore := NewBlockTxPeerStore(p)
 
 	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
 	if peerCount == 0 {
@@ -70,116 +69,3 @@ func (p *Processor) Start() {
 func (p *Processor) Close() {
 	close(p.quitCh)
 }
-
-func (p *Processor) ProcessBlock(hashStr string) {
-	p.ch <- hashStr
-}
-
-// func (p *Processor) processBlock(hashStr string) error {
-// 	ctx := context.Background()
-
-// 	start := time.Now()
-
-// 	blockHeaderHex, err := p.bitcoin.GetBlockHeaderHex(hashStr)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	header, err := hex.DecodeString(*blockHeaderHex) // No NOT reverse the bytes
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	blockJson, err := p.bitcoin.GetBlock(hashStr)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	blockHash, err := hex.DecodeString(hashStr) // No not reverse the bytes for storage in database
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	block := &blocktx_api.Block{
-// 		Hash:   blockHash,
-// 		Height: blockJson.Height,
-// 		Merkleroot: //header,
-// 		Prev
-// 	}
-
-// 	if err := p.store.OrphanHeight(ctx, blockJson.Height); err != nil {
-// 		return err
-// 	}
-
-// 	blockId, err := p.store.InsertBlock(ctx, block)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	var transactions []*blocktx_api.Transaction
-
-// 	reversedBlockHash := utils.ReverseSlice(block.Hash)
-
-// 	for _, txid := range blockJson.Tx {
-// 		txHash, err := hex.DecodeString(txid) // Do not reverse the bytes for storage in database
-// 		if err != nil {
-// 			return err
-// 		}
-
-// 		// The following line will send the transaction to the MinedTransactionHandler and
-// 		// we need all hashes to be little endian
-// 		p.Mtb.SendTx(reversedBlockHash, block.Height, utils.ReverseSlice(txHash))
-
-// 		transactions = append(transactions, &blocktx_api.Transaction{Hash: txHash})
-// 	}
-
-// 	if err := p.store.InsertBlockTransactions(ctx, blockId, transactions); err != nil {
-// 		return err
-// 	}
-
-// 	if err := p.store.MarkBlockAsDone(ctx, blockId); err != nil {
-// 		return err
-// 	}
-
-// 	p.logger.Infof("Processed block height %d (%d txns in %d ms)", block.Height, len(transactions), time.Since(start).Milliseconds())
-
-// 	return nil
-// }
-
-// func (p *Processor) GetCatchupBlockHash() ([]byte, error) {
-// 	block, err := p.store.GetLastProcessedBlock(context.Background())
-// 	if err != nil {
-// 		if err == sql.ErrNoRows {
-// 			p.logger.Warnf("No blocks in blocktx, retrieving best block from bitcoin node")
-// 			bestBlockHash, err := p.bitcoin.GetBestBlockHash()
-// 			if err != nil {
-// 				p.logger.Fatal(err)
-// 			}
-// 			block, err := p.bitcoin.GetBlock(bestBlockHash)
-// 			if err != nil {
-// 				p.logger.Fatal(err)
-// 			}
-
-// 			return utils.DecodeAndReverseHexString(block.Hash)
-
-// 		} else {
-// 			p.logger.Fatal(err)
-// 		}
-// 	}
-
-// 	// Rewind 10 blocks
-// 	for i := 0; i < 10; i++ {
-// 		b, err := p.store.GetBlockForHeight(context.Background(), block.Height-1)
-// 		if err != nil {
-// 			if err == sql.ErrNoRows {
-// 				break // block is still pointing to the last iteration
-// 			} else {
-// 				p.logger.Fatal(err)
-// 			}
-// 		}
-
-// 		block = b
-// 	}
-
-// 	return block.Hash, nil
-// }

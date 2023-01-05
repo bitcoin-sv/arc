@@ -126,7 +126,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 }
 
 func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight int32) (bool, error) {
-	hashStr := hex.EncodeToString(bt.ReverseBytes(hash))
+	hashStr := utils.HexEncodeAndReverseBytes(hash)
 
 	err := p.store.UpdateMined(context.Background(), hash, blockHash, blockHeight)
 	if err != nil {

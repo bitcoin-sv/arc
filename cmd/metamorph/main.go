@@ -128,25 +128,17 @@ func start() {
 	var blockChan = make(chan *blocktx_api.Block)
 	go func() {
 		for block := range blockChan {
-			blockAndSource := &blocktx_api.BlockAndSource{
+			processBlock(btc, p, &blocktx_api.BlockAndSource{
 				Hash:   block.Hash,
 				Source: metamorphAddress,
-			}
+			})
 
-			mt, err := btc.GetMinedTransactionsForBlock(context.Background(), blockAndSource)
-			if err != nil {
-				logger.Errorf("Could not get mined transactions for block %x: %v", bt.ReverseBytes(block.Hash), err)
-				continue
-			}
-
-			for _, tx := range mt.Transactions {
-				logger.Infof("Received MINED message from BlockTX %x", bt.ReverseBytes(tx.Hash))
-
-				_, err := p.SendStatusMinedForTransaction(tx.Hash, mt.Block.Hash, int32(mt.Block.Height))
-				if err != nil {
-					logger.Errorf("Could not send mined status for transaction %x: %v", bt.ReverseBytes(tx.Hash), err)
-				}
-			}
+			// For catchup, process the previous block hash too...
+			// TODO - don't do this is we have already seen the previous block
+			processBlock(btc, p, &blocktx_api.BlockAndSource{
+				Hash:   block.PreviousHash,
+				Source: metamorphAddress,
+			})
 		}
 	}()
 
@@ -155,5 +147,22 @@ func start() {
 	serv := metamorph.NewServer(logger, s, p)
 	if err := serv.StartGRPCServer(metamorphAddress); err != nil {
 		logger.Errorf("GRPCServer failed: %v", err)
+	}
+}
+
+func processBlock(btc blocktx.ClientI, p metamorph.ProcessorI, blockAndSource *blocktx_api.BlockAndSource) {
+	mt, err := btc.GetMinedTransactionsForBlock(context.Background(), blockAndSource)
+	if err != nil {
+		logger.Errorf("Could not get mined transactions for block %x: %v", bt.ReverseBytes(blockAndSource.Hash), err)
+		return
+	}
+
+	for _, tx := range mt.Transactions {
+		logger.Infof("Received MINED message from BlockTX for transaction %x", bt.ReverseBytes(tx.Hash))
+
+		_, err := p.SendStatusMinedForTransaction(tx.Hash, mt.Block.Hash, int32(mt.Block.Height))
+		if err != nil {
+			logger.Errorf("Could not send mined status for transaction %x: %v", bt.ReverseBytes(tx.Hash), err)
+		}
 	}
 }

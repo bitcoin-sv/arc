@@ -19,21 +19,23 @@ type BlockTxPeerStore struct {
 	store          store.Interface
 	logger         utils.Logger
 	announcedCache *expiringmap.ExpiringMap[string, []p2p.PeerI]
+	processor      *Processor
 }
 
-func NewBlockTxPeerStore(store store.Interface, logger utils.Logger) p2p.PeerStoreI {
+func NewBlockTxPeerStore(processor *Processor) p2p.PeerStoreI {
 	s := &BlockTxPeerStore{
-		store:          store,
-		logger:         logger,
+		store:          processor.store,
+		logger:         processor.logger,
 		workerCh:       make(chan utils.Pair[[]byte, p2p.PeerI], 100),
 		announcedCache: expiringmap.New[string, []p2p.PeerI](5 * time.Minute),
+		processor:      processor,
 	}
 
 	go func() {
 		for pair := range s.workerCh {
 			hash, err := chainhash.NewHash(pair.First)
 			if err != nil {
-				logger.Errorf("ProcessBlock: %s", err)
+				processor.logger.Errorf("ProcessBlock: %s", err)
 				continue
 			}
 
@@ -52,12 +54,12 @@ func NewBlockTxPeerStore(store store.Interface, logger utils.Logger) p2p.PeerSto
 
 			msg := wire.NewMsgGetData()
 			if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
-				logger.Errorf("ProcessBlock: %s", err)
+				processor.logger.Errorf("ProcessBlock: %s", err)
 				continue
 			}
 
 			peer.WriteMsg(msg)
-			logger.Infof("ProcessBlock: %s", hash.String())
+			processor.logger.Infof("ProcessBlock: %s", hash.String())
 		}
 	}()
 
@@ -87,12 +89,16 @@ func (m *BlockTxPeerStore) InsertBlock(blockHash []byte, merkleRoot []byte, prev
 		}
 	}
 
-	return m.store.InsertBlock(context.Background(), &blocktx_api.Block{
+	block := &blocktx_api.Block{
 		Hash:         blockHash,
 		MerkleRoot:   merkleRoot,
 		PreviousHash: previousBlockHash,
 		Height:       height,
-	})
+	}
+
+	m.processor.blockHandler.blockCh <- block
+
+	return m.store.InsertBlock(context.Background(), block)
 }
 
 func (m *BlockTxPeerStore) MarkTransactionsAsMined(blockId uint64, transactions [][]byte) error {

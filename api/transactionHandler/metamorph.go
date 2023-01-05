@@ -10,7 +10,6 @@ import (
 	"github.com/TAAL-GmbH/arc/blocktx"
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
-	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -37,30 +36,6 @@ func NewMetamorph(targets string, blockTxClient blocktx.ClientI) (*Metamorph, er
 	return &Metamorph{
 		Client:        metamorph_api.NewMetaMorphAPIClient(conn),
 		blockTxClient: blockTxClient,
-	}, nil
-}
-
-// GetTransaction gets a raw transaction from the bitcoin node
-func (m *Metamorph) GetTransaction(ctx context.Context, txID string) (rawTx *RawTransaction, err error) {
-	var client metamorph_api.MetaMorphAPIClient
-	if client, err = m.getMetamorphClientForTx(ctx, txID); err != nil {
-		return nil, err
-	}
-
-	var tx *metamorph_api.TransactionStatus
-	if tx, err = client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
-		Txid: txID,
-	}); err != nil {
-		return nil, err
-	}
-
-	return &RawTransaction{
-		RawTransaction: bitcoin.RawTransaction{
-			TxID:        txID,
-			BlockHash:   tx.BlockHash,
-			BlockHeight: uint64(tx.BlockHeight),
-		},
-		Status: tx.Status.String(),
 	}, nil
 }
 

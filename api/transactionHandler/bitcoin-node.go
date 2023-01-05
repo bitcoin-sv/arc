@@ -3,9 +3,9 @@ package transactionHandler
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 
 	"github.com/TAAL-GmbH/arc/api"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/ordishs/go-bitcoin"
 )
 
@@ -26,22 +26,6 @@ func NewBitcoinNode(host string, port int, user, passwd string, useSSL bool) (*B
 	}, nil
 }
 
-// GetTransaction gets a raw transaction from the bitcoin node
-func (b *BitcoinNode) GetTransaction(_ context.Context, txID string) (rawTx *RawTransaction, err error) {
-	var bRawTx *bitcoin.RawTransaction
-	if bRawTx, err = b.Node.GetRawTransaction(txID); err != nil {
-		return nil, err
-	}
-
-	var jb []byte
-	if jb, err = json.Marshal(bRawTx); err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(jb, &rawTx)
-	return rawTx, err
-}
-
 // GetTransactionStatus gets a raw transaction from the bitcoin node
 func (b *BitcoinNode) GetTransactionStatus(_ context.Context, txID string) (status *TransactionStatus, err error) {
 	var rawTx *bitcoin.RawTransaction
@@ -50,11 +34,17 @@ func (b *BitcoinNode) GetTransactionStatus(_ context.Context, txID string) (stat
 		return nil, err
 	}
 
+	// if we get here, we have a raw transaction, and it has been seen on the network
+	statusText := metamorph_api.Status_SEEN_ON_NETWORK.String()
+	if rawTx.BlockHash != "" {
+		statusText = metamorph_api.Status_MINED.String()
+	}
+
 	return &TransactionStatus{
+		TxID:        txID,
 		BlockHash:   rawTx.BlockHash,
 		BlockHeight: rawTx.BlockHeight,
-		Status:      "",
-		TxID:        txID,
+		Status:      statusText,
 	}, nil
 }
 
@@ -74,7 +64,7 @@ func (b *BitcoinNode) SubmitTransaction(_ context.Context, tx []byte, _ *api.Tra
 	return &TransactionStatus{
 		BlockHash:   rawTx.BlockHash,
 		BlockHeight: rawTx.BlockHeight,
-		Status:      "",
+		Status:      metamorph_api.Status_SENT_TO_NETWORK.String(),
 		TxID:        txID,
 	}, nil
 }

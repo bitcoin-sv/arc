@@ -4,18 +4,11 @@ import (
 	"context"
 
 	arc "github.com/TAAL-GmbH/arc/api"
-	"github.com/ordishs/go-bitcoin"
 )
 
 type TransactionHandler interface {
-	GetTransaction(ctx context.Context, txID string) (*RawTransaction, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
 	SubmitTransaction(ctx context.Context, tx []byte, options *arc.TransactionOptions) (*TransactionStatus, error)
-}
-
-type RawTransaction struct {
-	bitcoin.RawTransaction
-	Status string `json:"status"`
 }
 
 // TransactionStatus defines model for TransactionStatus.

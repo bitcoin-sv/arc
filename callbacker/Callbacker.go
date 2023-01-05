@@ -39,16 +39,10 @@ func NewCallbacker(s store.Store) (*Callbacker, error) {
 func (c *Callbacker) Start() {
 	c.ticker = time.NewTicker(30 * time.Second)
 	go func() {
-	out:
-		for {
-			select {
-			case <-c.ticker.C:
-				err := c.sendCallbacks()
-				if err != nil {
-					c.logger.Errorf("failed to send callbacks: %v", err)
-				}
-			default:
-				break out
+		for range c.ticker.C {
+			err := c.sendCallbacks()
+			if err != nil {
+				c.logger.Errorf("failed to send callbacks: %v", err)
 			}
 		}
 	}()

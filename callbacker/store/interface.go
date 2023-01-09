@@ -7,7 +7,10 @@ import (
 	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
 )
 
-var ErrNotFound = errors.New("key could not be found")
+var (
+	ErrNotFound   = errors.New("key could not be found")
+	ErrMaxRetries = errors.New("max retries reached")
+)
 
 type Store interface {
 	Get(ctx context.Context, key string) (*callbacker_api.Callback, error)

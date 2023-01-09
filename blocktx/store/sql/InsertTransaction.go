@@ -7,7 +7,7 @@ import (
 )
 
 // InsertTransaction registers a transaction in the database
-func (s *SQL) InsertTransaction(ctx context.Context, transaction *blocktx_api.Transaction) error {
+func (s *SQL) InsertTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

@@ -30,7 +30,7 @@ func TestInOut(t *testing.T) {
 
 	firstHash := []byte("test transaction hash 1")
 
-	transactions := []*blocktx_api.Transaction{
+	transactions := []*blocktx_api.TransactionAndSource{
 		{Hash: firstHash},
 		{Hash: []byte("test transaction hash 2")},
 		{Hash: []byte("test transaction hash 3")},
@@ -43,7 +43,7 @@ func TestInOut(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	err = s.InsertTransaction(ctx, &blocktx_api.Transaction{
+	err = s.InsertTransaction(ctx, &blocktx_api.TransactionAndSource{
 		Hash:   firstHash,
 		Source: "TEST",
 	})
@@ -63,7 +63,9 @@ func TestInOut(t *testing.T) {
 		assert.Equal(t, bytes.Equal(transactions[i].Hash, txn.Hash), true)
 	}
 
-	blocks, err := s.GetTransactionBlocks(ctx, transactions[0])
+	blocks, err := s.GetTransactionBlocks(ctx, &blocktx_api.Transaction{
+		Hash: transactions[0].Hash,
+	})
 	require.NoError(t, err)
 
 	for i, block := range blocks.Blocks {

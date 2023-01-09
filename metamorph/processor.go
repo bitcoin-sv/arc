@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/TAAL-GmbH/arc/blocktx"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/p2p"
@@ -36,6 +38,7 @@ type Processor struct {
 	ch chan *ProcessorRequest
 	//evictionChan chan []*ProcessorResponse
 	store            store.Store
+	blockTxClient    blocktx.ClientI
 	tx2ChMap         *ProcessorResponseMap
 	pm               p2p.PeerManagerI
 	logger           *gocore.Logger
@@ -49,7 +52,7 @@ type Processor struct {
 	processedMillis atomic.Int32
 }
 
-func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI, metamorphAddress string) *Processor {
+func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI, metamorphAddress string, btc blocktx.ClientI) *Processor {
 	if s == nil {
 		panic("store cannot be nil")
 	}
@@ -71,6 +74,7 @@ func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI, metamorph
 		startTime:        time.Now().UTC(),
 		ch:               make(chan *ProcessorRequest),
 		store:            s,
+		blockTxClient:    btc,
 		tx2ChMap:         NewProcessorResponseMap(mapExpiry),
 		workerCount:      workerCount,
 		pm:               pm,
@@ -234,7 +238,12 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 
 		processorResponse.SetStatus(metamorph_api.Status_STORED)
 
-		// Register
+		if err := p.blockTxClient.RegisterTransaction(context.Background(), &blocktx_api.TransactionAndSource{
+			Hash:   req.Hash,
+			Source: p.metamorphAddress,
+		}); err != nil {
+			p.logger.Errorf("Error registering transaction %s: %v", txIDStr, err)
+		}
 
 		p.pm.AnnounceNewTransaction(req.Hash)
 

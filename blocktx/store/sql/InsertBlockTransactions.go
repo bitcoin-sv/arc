@@ -9,7 +9,7 @@ import (
 )
 
 // InsertBlockTransactions inserts the transaction hashes for a given block hash
-func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.Transaction) error {
+func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

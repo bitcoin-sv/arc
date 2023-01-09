@@ -16,26 +16,26 @@ import (
 
 type BlockTxPeerStore struct {
 	workerCh       chan utils.Pair[[]byte, p2p.PeerI]
+	blockCh        chan *blocktx_api.Block
 	store          store.Interface
 	logger         utils.Logger
 	announcedCache *expiringmap.ExpiringMap[string, []p2p.PeerI]
-	processor      *Processor
 }
 
-func NewBlockTxPeerStore(processor *Processor) p2p.PeerStoreI {
+func NewBlockTxPeerStore(storeI store.Interface, logger utils.Logger, blockCh chan *blocktx_api.Block) p2p.PeerStoreI {
 	s := &BlockTxPeerStore{
-		store:          processor.store,
-		logger:         processor.logger,
+		store:          storeI,
+		blockCh:        blockCh,
+		logger:         logger,
 		workerCh:       make(chan utils.Pair[[]byte, p2p.PeerI], 100),
 		announcedCache: expiringmap.New[string, []p2p.PeerI](5 * time.Minute),
-		processor:      processor,
 	}
 
 	go func() {
 		for pair := range s.workerCh {
 			hash, err := chainhash.NewHash(pair.First)
 			if err != nil {
-				processor.logger.Errorf("ProcessBlock: %s", err)
+				logger.Errorf("ProcessBlock: %s", err)
 				continue
 			}
 
@@ -54,36 +54,36 @@ func NewBlockTxPeerStore(processor *Processor) p2p.PeerStoreI {
 
 			msg := wire.NewMsgGetData()
 			if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
-				processor.logger.Errorf("ProcessBlock: %s", err)
+				logger.Errorf("ProcessBlock: %s", err)
 				continue
 			}
 
 			peer.WriteMsg(msg)
-			processor.logger.Infof("ProcessBlock: %s", hash.String())
+			logger.Infof("ProcessBlock: %s", hash.String())
 		}
 	}()
 
 	return s
 }
 
-func (m *BlockTxPeerStore) GetTransactionBytes(txID []byte) ([]byte, error) {
+func (bs *BlockTxPeerStore) GetTransactionBytes(txID []byte) ([]byte, error) {
 	return nil, nil
 }
 
-func (m *BlockTxPeerStore) HandleBlockAnnouncement(hash []byte, peer p2p.PeerI) error {
+func (bs *BlockTxPeerStore) HandleBlockAnnouncement(hash []byte, peer p2p.PeerI) error {
 	pair := utils.NewPair(hash, peer)
-	utils.SafeSend(m.workerCh, pair)
+	utils.SafeSend(bs.workerCh, pair)
 
 	return nil
 }
 
-func (m *BlockTxPeerStore) InsertBlock(blockHash []byte, merkleRoot []byte, previousBlockHash []byte, height uint64, peer p2p.PeerI) (uint64, error) {
+func (bs *BlockTxPeerStore) InsertBlock(blockHash []byte, merkleRoot []byte, previousBlockHash []byte, height uint64, peer p2p.PeerI) (uint64, error) {
 	if height >= 1111 { // TODO get the first height we ever processed
-		if _, found := m.announcedCache.Get(utils.HexEncodeAndReverseBytes(previousBlockHash)); !found {
-			if _, err := m.store.GetBlock(context.Background(), previousBlockHash); err != nil {
+		if _, found := bs.announcedCache.Get(utils.HexEncodeAndReverseBytes(previousBlockHash)); !found {
+			if _, err := bs.store.GetBlock(context.Background(), previousBlockHash); err != nil {
 				if err == sql.ErrNoRows {
 					pair := utils.NewPair(previousBlockHash, peer)
-					utils.SafeSend(m.workerCh, pair)
+					utils.SafeSend(bs.workerCh, pair)
 				}
 			}
 		}
@@ -96,27 +96,27 @@ func (m *BlockTxPeerStore) InsertBlock(blockHash []byte, merkleRoot []byte, prev
 		Height:       height,
 	}
 
-	m.processor.blockHandler.blockCh <- block
+	utils.SafeSend(bs.blockCh, block)
 
-	return m.store.InsertBlock(context.Background(), block)
+	return bs.store.InsertBlock(context.Background(), block)
 }
 
-func (m *BlockTxPeerStore) MarkTransactionsAsMined(blockId uint64, transactions [][]byte) error {
-	txs := make([]*blocktx_api.Transaction, 0, len(transactions))
+func (bs *BlockTxPeerStore) MarkTransactionsAsMined(blockId uint64, transactions [][]byte) error {
+	txs := make([]*blocktx_api.TransactionAndSource, 0, len(transactions))
 
 	for _, tx := range transactions {
-		txs = append(txs, &blocktx_api.Transaction{
+		txs = append(txs, &blocktx_api.TransactionAndSource{
 			Hash: tx,
 		})
 	}
 
-	if err := m.store.InsertBlockTransactions(context.Background(), blockId, txs); err != nil {
+	if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (m *BlockTxPeerStore) MarkBlockAsProcessed(blockId uint64) error {
-	return m.store.MarkBlockAsDone(context.Background(), blockId)
+func (bs *BlockTxPeerStore) MarkBlockAsProcessed(blockId uint64) error {
+	return bs.store.MarkBlockAsDone(context.Background(), blockId)
 }

@@ -15,7 +15,7 @@ import (
 type ClientI interface {
 	Start(minedBlockChan chan *blocktx_api.Block)
 	LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
-	RegisterTransaction(ctx context.Context, transaction *blocktx_api.Transaction) error
+	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error
 	GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
 }
 
@@ -80,7 +80,7 @@ func (btc *Client) LocateTransaction(ctx context.Context, transaction *blocktx_a
 	return location.Source, nil
 }
 
-func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.Transaction) error {
+func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
 	conn, err := grpc.Dial(btc.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err

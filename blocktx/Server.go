@@ -22,18 +22,18 @@ import (
 // Server type carries the logger within it
 type Server struct {
 	blocktx_api.UnsafeBlockTxAPIServer
-	store     store.Interface
-	logger    utils.Logger
-	processor *Processor
+	store         store.Interface
+	logger        utils.Logger
+	blockNotifier *BlockNotifier
 }
 
 // NewServer will return a server instance with the logger stored within it
-func NewServer(storeI store.Interface, p *Processor, logger utils.Logger) *Server {
+func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger utils.Logger) *Server {
 
 	return &Server{
-		store:     storeI,
-		logger:    logger,
-		processor: p,
+		store:         storeI,
+		logger:        logger,
+		blockNotifier: blockNotifier,
 	}
 }
 
@@ -87,7 +87,7 @@ func (s *Server) LocateTransaction(ctx context.Context, transaction *blocktx_api
 	}, nil
 }
 
-func (s *Server) RegisterTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (*emptypb.Empty, error) {
+func (s *Server) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
 	err := s.store.InsertTransaction(ctx, transaction)
 	return &emptypb.Empty{}, err
 }
@@ -109,7 +109,7 @@ func (s *Server) GetBlockForHeight(ctx context.Context, height *blocktx_api.Heig
 }
 
 func (s *Server) GetBlockNotificationStream(height *blocktx_api.Height, srv blocktx_api.BlockTxAPI_GetBlockNotificationStreamServer) error {
-	s.processor.blockHandler.NewSubscription(height, srv)
+	s.blockNotifier.NewSubscription(height, srv)
 	return nil
 }
 

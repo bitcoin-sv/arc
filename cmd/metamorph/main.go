@@ -92,6 +92,9 @@ func start() {
 		}
 	}
 
+	address, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
+	btc := blocktx.NewClient(logger, address)
+
 	workerCount, _ := gocore.Config().GetInt("processorWorkerCount", 10)
 
 	metamorphAddress, ok := gocore.Config().Get("metamorph_grpcAddress", "localhost:8000")
@@ -99,7 +102,7 @@ func start() {
 		logger.Fatalf("no metamorph_grpcAddress setting found")
 	}
 
-	p := metamorph.NewProcessor(workerCount, s, pm, metamorphAddress)
+	p := metamorph.NewProcessor(workerCount, s, pm, metamorphAddress, btc)
 
 	go func() {
 		for message := range peerMessageCh {
@@ -120,9 +123,6 @@ func start() {
 		// TODO should this be synchronous instead of in a goroutine?
 		p.LoadUnseen()
 	}()
-
-	address, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
-	btc := blocktx.NewClient(logger, address)
 
 	// create a channel to receive mined block messages from the block tx service
 	var blockChan = make(chan *blocktx_api.Block)

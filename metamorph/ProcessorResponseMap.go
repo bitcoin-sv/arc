@@ -1,11 +1,10 @@
 package metamorph
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
-
-	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 )
 
 type ProcessorResponseMap struct {
@@ -45,7 +44,7 @@ func (m *ProcessorResponseMap) Get(key string) (*ProcessorResponse, bool) {
 		return nil, false
 	}
 
-	if time.Since(processorResponse.Start) > m.expiry || processorResponse.GetStatus() >= metamorph_api.Status_SEEN_ON_NETWORK {
+	if time.Since(processorResponse.Start) > m.expiry {
 		return nil, false
 	}
 
@@ -124,6 +123,16 @@ func (m *ProcessorResponseMap) Items(filterFunc ...func(*ProcessorResponse) bool
 	return items
 }
 
+func (m *ProcessorResponseMap) PrintItems() {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	for _, value := range m.items {
+		fmt.Printf("tx2ChMap: %s\n", value.String())
+	}
+
+}
+
 // Clear clears the map.
 func (m *ProcessorResponseMap) Clear() {
 	m.mu.Lock()
@@ -142,9 +151,5 @@ func (m *ProcessorResponseMap) clean() {
 			delete(m.items, key)
 		}
 
-		if item.GetStatus() >= metamorph_api.Status_SEEN_ON_NETWORK {
-			log.Printf("ProcessorResponseMap: Deleting %s (%s)", key, item.GetStatus().String())
-			delete(m.items, key)
-		}
 	}
 }

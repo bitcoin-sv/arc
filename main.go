@@ -212,6 +212,8 @@ func processBlock(btc blocktx.ClientI, p metamorph.ProcessorI, blockAndSource *b
 		return
 	}
 
+	logger.Infof("Incoming BLOCK %x", bt.ReverseBytes(mt.Block.Hash))
+
 	for _, tx := range mt.Transactions {
 		logger.Infof("Received MINED message from BlockTX for transaction %x", bt.ReverseBytes(tx.Hash))
 

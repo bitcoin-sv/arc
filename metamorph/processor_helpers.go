@@ -1,22 +1,14 @@
 package metamorph
 
 import (
-	"fmt"
 	"os"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/ordishs/go-utils"
 )
 
 func (p *Processor) GetStats() *ProcessorStats {
-	filterFunc := func(p *ProcessorResponse) bool {
-		return p.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK
-	}
-
-	for _, value := range p.tx2ChMap.Items(filterFunc) {
-		fmt.Printf("tx2ChMap: %s\n", value.String())
-	}
+	p.tx2ChMap.PrintItems()
 
 	return &ProcessorStats{
 		StartTime:       p.startTime,

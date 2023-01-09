@@ -117,10 +117,10 @@ func TestProcessorResponseMap_Get(t *testing.T) {
 			{status: metamorph_api.Status_STORED, ok: true},
 			{status: metamorph_api.Status_ANNOUNCED_TO_NETWORK, ok: true},
 			{status: metamorph_api.Status_SENT_TO_NETWORK, ok: true},
-			{status: metamorph_api.Status_SEEN_ON_NETWORK, ok: false},
-			{status: metamorph_api.Status_MINED, ok: false},
-			{status: metamorph_api.Status_CONFIRMED, ok: false},
-			{status: metamorph_api.Status_REJECTED, ok: false},
+			{status: metamorph_api.Status_SEEN_ON_NETWORK, ok: true},
+			{status: metamorph_api.Status_MINED, ok: true},
+			{status: metamorph_api.Status_CONFIRMED, ok: true},
+			{status: metamorph_api.Status_REJECTED, ok: true},
 		}
 		for _, tt := range tests {
 			proc := NewProcessorResponseMap(2 * time.Second)
@@ -200,20 +200,6 @@ func TestProcessorResponseMap_clean(t *testing.T) {
 		proc.clean()
 
 		assert.Equal(t, 2, proc.Len())
-	})
-
-	t.Run("seen", func(t *testing.T) {
-		proc := NewProcessorResponseMap(2 * time.Second)
-		proc.Set(tx1, NewProcessorResponseWithStatus(tx1Bytes, metamorph_api.Status_SENT_TO_NETWORK))
-		proc.Set(tx2, NewProcessorResponseWithStatus(tx2Bytes, metamorph_api.Status_SEEN_ON_NETWORK))
-
-		proc.clean()
-
-		assert.Equal(t, 1, proc.Len())
-		_, ok := proc.Get(tx1)
-		require.True(t, ok)
-		_, ok = proc.Get(tx2)
-		require.False(t, ok)
 	})
 
 	t.Run("expiry", func(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/metamorph/store/memorystore"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
@@ -46,7 +47,7 @@ func (m *MockPeerStore) MarkTransactionsAsMined(blockId uint64, txHashes [][]byt
 	return nil
 }
 
-func (m *MockPeerStore) MarkBlockAsProcessed(blockId uint64) error {
+func (m *MockPeerStore) MarkBlockAsProcessed(block *blocktx_api.Block) error {
 	return nil
 }
 

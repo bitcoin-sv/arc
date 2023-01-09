@@ -174,3 +174,38 @@ func setupSuite(t *testing.T) (*BadgerHold, func(t *testing.T)) {
 		require.NoErrorf(t, err, "Could not delete old test data")
 	}
 }
+
+func TestBadgerHold_UpdateExpiry(t *testing.T) {
+	t.Run("update expiry - no key", func(t *testing.T) {
+		bh, tearDown := setupSuite(t)
+		defer tearDown(t)
+
+		err := bh.UpdateExpiry(context.Background(), "key")
+		require.ErrorIs(t, err, store.ErrNotFound)
+	})
+
+	t.Run("update expiry", func(t *testing.T) {
+		bh, tearDown := setupSuite(t)
+		defer tearDown(t)
+
+		key, _ := bh.Set(context.Background(), testCallback)
+
+		err := bh.UpdateExpiry(context.Background(), key)
+		require.NoError(t, err)
+	})
+
+	t.Run("update expiry - max retries", func(t *testing.T) {
+		bh, tearDown := setupSuite(t)
+		defer tearDown(t)
+
+		key, _ := bh.Set(context.Background(), testCallback)
+
+		for i := 0; i < bh.maxCallbackRetries; i++ {
+			err := bh.UpdateExpiry(context.Background(), key)
+			require.NoError(t, err)
+		}
+
+		err := bh.UpdateExpiry(context.Background(), key)
+		require.ErrorIs(t, err, store.ErrMaxRetries)
+	})
+}

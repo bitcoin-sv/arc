@@ -143,7 +143,7 @@ func (bh *BadgerHold) UpdateExpiry(_ context.Context, key string) error {
 		if err := bh.Del(context.Background(), key); err != nil {
 			return fmt.Errorf("failed to delete data: %w", err)
 		}
-		return fmt.Errorf("callback count exceeded")
+		return store.ErrMaxRetries
 	}
 
 	nextTry := bh.incrementInterval(bh.interval, data.CallbackCount)

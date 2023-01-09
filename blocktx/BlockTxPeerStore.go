@@ -96,8 +96,6 @@ func (bs *BlockTxPeerStore) InsertBlock(blockHash []byte, merkleRoot []byte, pre
 		Height:       height,
 	}
 
-	utils.SafeSend(bs.blockCh, block)
-
 	return bs.store.InsertBlock(context.Background(), block)
 }
 
@@ -117,6 +115,13 @@ func (bs *BlockTxPeerStore) MarkTransactionsAsMined(blockId uint64, transactions
 	return nil
 }
 
-func (bs *BlockTxPeerStore) MarkBlockAsProcessed(blockId uint64) error {
-	return bs.store.MarkBlockAsDone(context.Background(), blockId)
+func (bs *BlockTxPeerStore) MarkBlockAsProcessed(block *blocktx_api.Block) error {
+	err := bs.store.MarkBlockAsDone(context.Background(), block.Hash)
+	if err != nil {
+		return err
+	}
+
+	utils.SafeSend(bs.blockCh, block)
+
+	return nil
 }

@@ -3,6 +3,7 @@ package metamorph
 import (
 	"context"
 
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/p2p"
 )
@@ -37,6 +38,6 @@ func (m *MetamorphPeerStore) MarkTransactionsAsMined(blockId uint64, txHashes []
 	return nil
 }
 
-func (m *MetamorphPeerStore) MarkBlockAsProcessed(blockId uint64) error {
+func (m *MetamorphPeerStore) MarkBlockAsProcessed(*blocktx_api.Block) error {
 	return nil
 }

@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/p2p/blockchain"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
@@ -40,7 +41,7 @@ type PeerStoreI interface {
 	HandleBlockAnnouncement(hash []byte, peer PeerI) error
 	InsertBlock(blockHash []byte, merkleRootHash []byte, previousBlockHash []byte, height uint64, peer PeerI) (uint64, error)
 	MarkTransactionsAsMined(blockId uint64, txHashes [][]byte) error
-	MarkBlockAsProcessed(blockId uint64) error
+	MarkBlockAsProcessed(*blocktx_api.Block) error
 }
 
 type Peer struct {
@@ -219,7 +220,14 @@ func (p *Peer) readHandler() {
 				continue
 			}
 
-			if err := p.peerStore.MarkBlockAsProcessed(blockId); err != nil {
+			block := &blocktx_api.Block{
+				Hash:         blockHashBytes,
+				MerkleRoot:   merkleRootBytes,
+				PreviousHash: previousBlockHashBytes,
+				Height:       height,
+			}
+
+			if err := p.peerStore.MarkBlockAsProcessed(block); err != nil {
 				p.LogError("Unable to mark block as processed %s: %v", blockHash.String(), err)
 				continue
 			}

@@ -47,6 +47,9 @@ func NewProcessorResponseWithChannel(hash []byte, ch chan StatusAndError) *Proce
 }
 
 func (r *ProcessorResponse) String() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	if r.err != nil {
 		return fmt.Sprintf("%x: %s [%s] %s", bt.ReverseBytes(r.Hash), r.Start.Format(time.RFC3339), r.status.String(), r.err.Error())
 	}

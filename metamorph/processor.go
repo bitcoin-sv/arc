@@ -86,7 +86,7 @@ func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI, metamorph
 	go func() {
 		// filterFunc returns true if the transaction has not been seen on the network
 		filterFunc := func(p *ProcessorResponse) bool {
-			return p.status < metamorph_api.Status_SEEN_ON_NETWORK
+			return p.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK
 		}
 
 		// Resend transactions that have not been seen on the network every 60 seconds
@@ -143,6 +143,8 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 	// remove the transaction from the tx map, regardless of status
 	resp, ok := p.tx2ChMap.Get(hashStr)
 	if ok {
+		resp.SetStatus(metamorph_api.Status_MINED)
+
 		p.processedCount.Add(1)
 		p.processedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
 		p.tx2ChMap.Delete(hashStr)

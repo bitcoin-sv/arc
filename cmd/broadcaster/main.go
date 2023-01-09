@@ -96,6 +96,7 @@ func main() {
 
 	if useFundingTx != nil && *useFundingTx {
 		fundingTx := newFundingTransaction(privKey, sendNrOfTransactions)
+		log.Printf("funding tx: %s\n", fundingTx.TxID())
 		_, err = client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
 			RawTx: fundingTx.Bytes(),
 		})

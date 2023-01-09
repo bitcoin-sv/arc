@@ -18,7 +18,6 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/store/badgerhold"
 	"github.com/TAAL-GmbH/arc/p2p"
 	"github.com/libsv/go-bt/v2"
-	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
 )
 
@@ -75,27 +74,9 @@ func start() {
 		panic("Could not connect to fn: " + err.Error())
 	}
 
-	peer1Url, err, found := gocore.Config().GetURL("peer_1_rpc")
-	if !found {
-		logger.Fatal("No peer_1_rpc setting found.")
-	}
-	if err != nil {
-		logger.Fatal(err)
-	}
+	blockNotifier := blocktx.NewBlockNotifier(blockStore, logger)
 
-	b, err := bitcoin.NewFromURL(peer1Url, false)
-	if err != nil {
-		logger.Fatalf("Could not connect to bitcoin: %v", err)
-	}
-
-	blockTxProcessor, err := blocktx.NewBlockTxProcessor(blockStore, b)
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	blockTxProcessor.Start()
-
-	blockTxServer := blocktx.NewServer(blockStore, blockTxProcessor, logger)
+	blockTxServer := blocktx.NewServer(blockStore, blockNotifier, logger)
 
 	go func() {
 		if err := blockTxServer.StartGRPCServer(); err != nil {
@@ -119,10 +100,13 @@ func start() {
 	callbackWorker.Start()
 
 	srv := callbacker.NewServer(logger, callbackWorker)
-	err = srv.StartGRPCServer()
-	if err != nil {
-		logger.Fatal(err)
-	}
+
+	go func() {
+		err = srv.StartGRPCServer()
+		if err != nil {
+			logger.Fatal(err)
+		}
+	}()
 
 	//////
 	// Metamorph
@@ -157,6 +141,9 @@ func start() {
 		}
 	}
 
+	address, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
+	btc := blocktx.NewClient(logger, address)
+
 	workerCount, _ := gocore.Config().GetInt("processorWorkerCount", 10)
 
 	metamorphAddress, ok := gocore.Config().Get("metamorph_grpcAddress", "localhost:8000")
@@ -164,7 +151,7 @@ func start() {
 		logger.Fatalf("no metamorph_grpcAddress setting found")
 	}
 
-	metamorphProcessor := metamorph.NewProcessor(workerCount, s, pm, metamorphAddress)
+	metamorphProcessor := metamorph.NewProcessor(workerCount, s, pm, metamorphAddress, btc)
 
 	go func() {
 		for message := range messageCh {
@@ -191,9 +178,6 @@ func start() {
 		// TODO should this be synchronous instead of in a goroutine?
 		metamorphProcessor.LoadUnseen()
 	}()
-
-	address, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
-	btc := blocktx.NewClient(logger, address)
 
 	// create a channel to receive mined block messages from the block tx service
 	var blockChan = make(chan *blocktx_api.Block)

@@ -8,7 +8,6 @@ import (
 
 	"github.com/TAAL-GmbH/arc/blocktx"
 	"github.com/TAAL-GmbH/arc/blocktx/store/sql"
-	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
 
 	_ "github.com/lib/pq"
@@ -78,28 +77,12 @@ func start() {
 		logger.Fatal(err)
 	}
 
-	rpcURL, err, found := gocore.Config().GetURL("peer_1_rpc")
-	if !found {
-		logger.Fatalf("Could not find peer_1_rpc in config: %v", err)
-	}
-	if err != nil {
-		logger.Fatalf("Could not parse peer_1_rpc: %v", err)
-	}
-
-	b, err := bitcoin.NewFromURL(rpcURL, false)
-	if err != nil {
-		logger.Fatalf("Could not connect to bitcoin: %v", err)
-	}
-
-	var p *blocktx.Processor
-	p, err = blocktx.NewBlockTxProcessor(dbConn, b)
+	blockNotifier := blocktx.NewBlockNotifier(dbConn, logger)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	p.Start()
-
-	srv := blocktx.NewServer(dbConn, p, logger)
+	srv := blocktx.NewServer(dbConn, blockNotifier, logger)
 	err = srv.StartGRPCServer()
 	if err != nil {
 		logger.Fatal(err)

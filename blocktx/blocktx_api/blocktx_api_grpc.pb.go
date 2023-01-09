@@ -26,7 +26,7 @@ type BlockTxAPIClient interface {
 	// Health returns the health of the API.
 	Health(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HealthResponse, error)
 	// RegisterTransaction registers a transaction with the API.
-	RegisterTransaction(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	RegisterTransaction(ctx context.Context, in *TransactionAndSource, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// LocateTransaction returns the source of a transaction.
 	LocateTransaction(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*Source, error)
 	// GetBlockTransactions returns a list of transaction hashes for a given block.
@@ -61,7 +61,7 @@ func (c *blockTxAPIClient) Health(ctx context.Context, in *emptypb.Empty, opts .
 	return out, nil
 }
 
-func (c *blockTxAPIClient) RegisterTransaction(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *blockTxAPIClient) RegisterTransaction(ctx context.Context, in *TransactionAndSource, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, "/blocktx_api.BlockTxAPI/RegisterTransaction", in, out, opts...)
 	if err != nil {
@@ -163,7 +163,7 @@ type BlockTxAPIServer interface {
 	// Health returns the health of the API.
 	Health(context.Context, *emptypb.Empty) (*HealthResponse, error)
 	// RegisterTransaction registers a transaction with the API.
-	RegisterTransaction(context.Context, *Transaction) (*emptypb.Empty, error)
+	RegisterTransaction(context.Context, *TransactionAndSource) (*emptypb.Empty, error)
 	// LocateTransaction returns the source of a transaction.
 	LocateTransaction(context.Context, *Transaction) (*Source, error)
 	// GetBlockTransactions returns a list of transaction hashes for a given block.
@@ -189,7 +189,7 @@ type UnimplementedBlockTxAPIServer struct {
 func (UnimplementedBlockTxAPIServer) Health(context.Context, *emptypb.Empty) (*HealthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Health not implemented")
 }
-func (UnimplementedBlockTxAPIServer) RegisterTransaction(context.Context, *Transaction) (*emptypb.Empty, error) {
+func (UnimplementedBlockTxAPIServer) RegisterTransaction(context.Context, *TransactionAndSource) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterTransaction not implemented")
 }
 func (UnimplementedBlockTxAPIServer) LocateTransaction(context.Context, *Transaction) (*Source, error) {
@@ -245,7 +245,7 @@ func _BlockTxAPI_Health_Handler(srv interface{}, ctx context.Context, dec func(i
 }
 
 func _BlockTxAPI_RegisterTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Transaction)
+	in := new(TransactionAndSource)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -257,7 +257,7 @@ func _BlockTxAPI_RegisterTransaction_Handler(srv interface{}, ctx context.Contex
 		FullMethod: "/blocktx_api.BlockTxAPI/RegisterTransaction",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BlockTxAPIServer).RegisterTransaction(ctx, req.(*Transaction))
+		return srv.(BlockTxAPIServer).RegisterTransaction(ctx, req.(*TransactionAndSource))
 	}
 	return interceptor(ctx, in, info, handler)
 }

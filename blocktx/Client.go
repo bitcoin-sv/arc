@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/TAAL-GmbH/arc/tracing"
 	"github.com/ordishs/go-utils"
 
 	"google.golang.org/grpc"
@@ -33,7 +34,12 @@ func NewClient(l utils.Logger, address string) ClientI {
 
 func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 	for {
-		conn, _ := grpc.Dial(btc.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := btc.dialGRPC()
+		if err != nil {
+			btc.logger.Errorf("failed to dial: %v", err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
 		defer conn.Close()
 
 		client := blocktx_api.NewBlockTxAPIClient(conn)
@@ -63,11 +69,10 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 }
 
 func (btc *Client) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
-	conn, err := grpc.Dial(btc.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := btc.dialGRPC()
 	if err != nil {
 		return "", err
 	}
-
 	defer conn.Close()
 
 	client := blocktx_api.NewBlockTxAPIClient(conn)
@@ -81,7 +86,7 @@ func (btc *Client) LocateTransaction(ctx context.Context, transaction *blocktx_a
 }
 
 func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
-	conn, err := grpc.Dial(btc.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := btc.dialGRPC()
 	if err != nil {
 		return err
 	}
@@ -98,7 +103,7 @@ func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx
 }
 
 func (btc *Client) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
-	conn, err := grpc.Dial(btc.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := btc.dialGRPC()
 	if err != nil {
 		return nil, err
 	}
@@ -113,4 +118,12 @@ func (btc *Client) GetMinedTransactionsForBlock(ctx context.Context, blockAndSou
 	}
 
 	return mt, nil
+}
+
+func (btc *Client) dialGRPC() (*grpc.ClientConn, error) {
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+
+	return grpc.Dial(btc.address, tracing.AddGRPCDialOptions(opts)...)
 }

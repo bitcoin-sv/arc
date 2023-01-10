@@ -10,6 +10,7 @@ import (
 	"github.com/TAAL-GmbH/arc/blocktx"
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/TAAL-GmbH/arc/tracing"
 	"github.com/ordishs/go-utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -25,10 +26,11 @@ type Metamorph struct {
 
 // NewMetamorph creates a connection to a list of metamorph servers via gRPC
 func NewMetamorph(targets string, blockTxClient blocktx.ClientI) (*Metamorph, error) {
-	conn, err := grpc.Dial(targets,
+	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
-	)
+	}
+	conn, err := grpc.Dial(targets, tracing.AddGRPCDialOptions(opts)...)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +111,10 @@ func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (m
 
 	if !found {
 		var conn *grpc.ClientConn
-		if conn, err = grpc.Dial(target, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
+		opts := []grpc.DialOption{
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		}
+		if conn, err = grpc.Dial(target, tracing.AddGRPCDialOptions(opts)...); err != nil {
 			return nil, err
 		}
 		client = metamorph_api.NewMetaMorphAPIClient(conn)

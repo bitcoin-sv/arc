@@ -8,6 +8,8 @@ import (
 	"os/signal"
 
 	"github.com/TAAL-GmbH/arc/cmd"
+	"github.com/TAAL-GmbH/arc/tracing"
+	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/gocore"
 )
 
@@ -36,54 +38,56 @@ func main() {
 		}
 	}()
 
-	var startApi bool
-	flag.BoolVar(&startApi, "api", false, "start ARC api server")
-	flag.BoolVar(&startApi, "a", false, "start ARC api server (shorthand)")
-
-	var startBlockTx bool
-	flag.BoolVar(&startBlockTx, "blocktx", false, "start blocktx")
-	flag.BoolVar(&startBlockTx, "b", false, "start blocktx (shorthand)")
-
-	var startCallbacker bool
-	flag.BoolVar(&startCallbacker, "callbacker", false, "start callbacker")
-	flag.BoolVar(&startCallbacker, "c", false, "start callbacker (shorthand)")
-
-	var startMetamorph bool
-	flag.BoolVar(&startMetamorph, "metamorph", false, "start metamorph")
-	flag.BoolVar(&startMetamorph, "m", false, "start metamorph (shorthand)")
+	startApi := flag.Bool("api", false, "start ARC api server")
+	startBlockTx := flag.Bool("blocktx", false, "start blocktx")
+	startCallbacker := flag.Bool("callbacker", false, "start callbacker")
+	startMetamorph := flag.Bool("metamorph", false, "start metamorph")
+	useTracer := flag.Bool("tracer", false, "start tracer")
 
 	flag.Parse()
 
-	if !startApi && !startBlockTx && !startCallbacker && !startMetamorph {
-		logger.Infof("No service selected, starting all")
-		startApi = true
-		startBlockTx = true
-		startCallbacker = true
-		startMetamorph = true
+	if useTracer != nil && *useTracer {
+		logger.Infof("Starting tracer")
+		// Start the tracer
+		tracer, closer := tracing.InitTracer(logger, progname)
+		defer closer.Close()
+
+		if tracer != nil {
+			// set the global tracer to use in all services
+			opentracing.SetGlobalTracer(tracer)
+		}
 	}
 
-	if startBlockTx {
+	if !isFlagPassed("api") && !isFlagPassed("blocktx") && !isFlagPassed("callbacker") && !isFlagPassed("metamorph") {
+		logger.Infof("No service selected, starting all")
+		*startApi = true
+		*startBlockTx = true
+		*startCallbacker = true
+		*startMetamorph = true
+	}
+
+	if startBlockTx != nil && *startBlockTx {
 		logger.Infof("Starting BlockTx")
 		var blockTxLogger = gocore.Log("btx")
 		go cmd.StartBlockTx(blockTxLogger)
 	}
 
-	if startCallbacker {
+	if startCallbacker != nil && *startCallbacker {
 		logger.Infof("Starting Callbacker")
 		var callbackerLogger = gocore.Log("cbk")
 		go cmd.StartCallbacker(callbackerLogger)
 	}
 
-	if startMetamorph {
+	if startMetamorph != nil && *startMetamorph {
 		logger.Infof("Starting Metamorph")
 		var metamorphLogger = gocore.Log("mtm")
 		go cmd.StartMetamorph(metamorphLogger)
 	}
 
-	if startApi {
+	if startApi != nil && *startApi {
 		logger.Infof("Starting ARC api server")
-		var apiLogger = gocore.Log("arc")
-		go cmd.StartArcAPIServer(apiLogger)
+		var apiLogger = gocore.Log("api")
+		go cmd.StartAPIServer(apiLogger)
 	}
 
 	// setup signal catching
@@ -97,4 +101,14 @@ func main() {
 
 func appCleanup() {
 	logger.Infof("Shutting down...")
+}
+
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
 }

@@ -7,8 +7,10 @@ import (
 	"github.com/TAAL-GmbH/arc/blocktx"
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store/badgerhold"
 	"github.com/TAAL-GmbH/arc/p2p"
+	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/gocore"
 )
@@ -40,8 +42,8 @@ func StartMetamorph(logger *gocore.Logger) {
 
 	go func() {
 		for message := range peerMessageCh {
-			logger.Infof("Status change reported: %s: %s", message.Txid, message.Status)
-			_, err = metamorphProcessor.SendStatusForTransaction(message.Txid, message.Status, message.Err)
+			logger.Infof("Status change reported: %s: %s", message.Txid, metamorph_api.Status(message.Status))
+			_, err = metamorphProcessor.SendStatusForTransaction(message.Txid, metamorph_api.Status(message.Status), message.Err)
 			if err != nil {
 				logger.Errorf("Could not send status for transaction %s: %v", message.Txid, err)
 			}
@@ -85,8 +87,13 @@ func StartMetamorph(logger *gocore.Logger) {
 }
 
 func initPeerManager(logger *gocore.Logger, s *badgerhold.BadgerHold) (p2p.PeerManagerI, chan *p2p.PMMessage) {
+	network := wire.TestNet
+	if gocore.Config().GetBool("mainnet", false) {
+		network = wire.MainNet
+	}
+
 	messageCh := make(chan *p2p.PMMessage)
-	pm := p2p.NewPeerManager(messageCh)
+	pm := p2p.NewPeerManager(logger, messageCh, network)
 
 	peerStore := metamorph.NewMetamorphPeerStore(s)
 

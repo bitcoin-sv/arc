@@ -1,6 +1,7 @@
 package metamorph
 
 import (
+	"context"
 	"testing"
 
 	"github.com/TAAL-GmbH/arc/metamorph/store"
@@ -12,7 +13,7 @@ func TestNewProcessorRequest(t *testing.T) {
 		s := &store.StoreData{}
 		responseChannel := make(chan StatusAndError)
 
-		processorRequest := NewProcessorRequest(s, responseChannel)
+		processorRequest := NewProcessorRequest(context.Background(), s, responseChannel)
 
 		assert.NotNil(t, processorRequest)
 		assert.Equal(t, s, processorRequest.StoreData)

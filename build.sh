@@ -1,1 +1,1 @@
-../ilumis/development/build.sh
+../development/build.sh

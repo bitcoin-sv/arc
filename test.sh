@@ -1,1 +1,1 @@
-../ilumis/development/test.sh
+../development/test.sh

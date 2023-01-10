@@ -1,0 +1,1 @@
+../development/proto_all.sh

@@ -1,0 +1,1 @@
+../development/test_all.sh

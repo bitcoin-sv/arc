@@ -58,7 +58,7 @@ func (s *Server) StartGRPCServer() error {
 
 	s.logger.Infof("[Callbacker] GRPC server listening on %s", address)
 
-	if err := grpcServer.Serve(lis); err != nil {
+	if err = grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("GRPC server failed [%w]", err)
 	}
 

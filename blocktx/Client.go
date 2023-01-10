@@ -40,19 +40,19 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 
 		stream, err := client.GetBlockNotificationStream(context.Background(), &blocktx_api.Height{})
 		if err != nil {
-			panic(err)
-		}
+			btc.logger.Errorf("Error getting block notification stream: %v", err)
+		} else {
+			btc.logger.Infof("Connected to block-tx server at %s", btc.address)
 
-		btc.logger.Infof("Connected to block-tx server at %s", btc.address)
+			for {
+				block, err := stream.Recv()
+				if err != nil {
+					break
+				}
 
-		for {
-			block, err := stream.Recv()
-			if err != nil {
-				break
+				btc.logger.Infof("Block %s\n", utils.HexEncodeAndReverseBytes(block.Hash))
+				utils.SafeSend(minedBlockChan, block)
 			}
-
-			btc.logger.Infof("Block %s\n", utils.HexEncodeAndReverseBytes(block.Hash))
-			utils.SafeSend(minedBlockChan, block)
 		}
 
 		btc.logger.Warnf("could not get message from block-tx stream: %v", err)

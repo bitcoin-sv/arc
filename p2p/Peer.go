@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"net"
 	"strconv"
 	"strings"
@@ -320,9 +319,7 @@ func (p *Peer) writeChannelHandler() {
 func versionMessage(address string) *wire.MsgVersion {
 	lastBlock := int32(0)
 
-	myPort := rand.Intn(100) + 9000
-
-	tcpAddrMe := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: myPort}
+	tcpAddrMe := &net.TCPAddr{IP: nil, Port: 0}
 	me := wire.NewNetAddress(tcpAddrMe, wire.SFNodeNetwork)
 
 	parts := strings.Split(address, ":")

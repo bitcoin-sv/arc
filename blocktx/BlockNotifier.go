@@ -6,6 +6,7 @@ import (
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/blocktx/store"
 	"github.com/TAAL-GmbH/arc/p2p"
+	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/mrz1836/go-logger"
 
 	"github.com/ordishs/go-utils"
@@ -38,7 +39,12 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 		blockCh:           make(chan *blocktx_api.Block),
 	}
 
-	pm := p2p.NewPeerManager(nil)
+	network := wire.TestNet
+	if gocore.Config().GetBool("mainnet", false) {
+		network = wire.MainNet
+	}
+
+	pm := p2p.NewPeerManager(l, nil, network)
 
 	peerStore := NewBlockTxPeerStore(storeI, l, bn.blockCh)
 

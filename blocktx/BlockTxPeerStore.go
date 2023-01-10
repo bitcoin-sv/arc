@@ -115,13 +115,18 @@ func (bs *BlockTxPeerStore) MarkTransactionsAsMined(blockId uint64, transactions
 	return nil
 }
 
-func (bs *BlockTxPeerStore) MarkBlockAsProcessed(block *blocktx_api.Block) error {
+func (bs *BlockTxPeerStore) MarkBlockAsProcessed(block *p2p.Block) error {
 	err := bs.store.MarkBlockAsDone(context.Background(), block.Hash)
 	if err != nil {
 		return err
 	}
 
-	utils.SafeSend(bs.blockCh, block)
+	utils.SafeSend(bs.blockCh, &blocktx_api.Block{
+		Hash:         block.Hash,
+		PreviousHash: block.PreviousHash,
+		MerkleRoot:   block.MerkleRoot,
+		Height:       block.Height,
+	})
 
 	return nil
 }

@@ -47,6 +47,8 @@ func TestNewCallbacker(t *testing.T) {
 }
 
 func TestCallbacker_AddCallback(t *testing.T) {
+	t.Parallel()
+
 	t.Run("add callback", func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
@@ -69,7 +71,7 @@ func TestCallbacker_AddCallback(t *testing.T) {
 		assert.IsType(t, "", key)
 
 		// wait for the initial callback to be sent
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(40 * time.Millisecond)
 
 		info := httpmock.GetCallCountInfo()
 		assert.Equal(t, 1, info[fmt.Sprintf("POST %s", testURL)])
@@ -100,7 +102,7 @@ func TestCallbacker_AddCallback(t *testing.T) {
 		assert.IsType(t, "", key)
 
 		// wait for the initial callback to be sent
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(40 * time.Millisecond)
 
 		info := httpmock.GetCallCountInfo()
 		assert.Equal(t, 1, info[fmt.Sprintf("POST %s", testURL)])

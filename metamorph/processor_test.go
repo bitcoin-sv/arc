@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/metamorph/store/memorystore"
@@ -97,7 +98,19 @@ func TestProcessTransaction(t *testing.T) {
 		messageCh := make(chan *p2p.PMMessage)
 		pm := p2p.NewPeerManagerMock(s, messageCh)
 
-		processor := NewProcessor(1, s, pm, "test", nil)
+		registerCh := make(chan *blocktx_api.TransactionAndSource)
+
+		var wgRegister sync.WaitGroup
+		wgRegister.Add(1)
+		go func() {
+			for tx := range registerCh {
+				assert.Equal(t, tx1Bytes, tx.Hash)
+				assert.Equal(t, "test", tx.Source)
+				wgRegister.Done()
+			}
+		}()
+
+		processor := NewProcessor(1, s, pm, "test", registerCh)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
 		expectedResponses := []metamorph_api.Status{
@@ -128,6 +141,7 @@ func TestProcessTransaction(t *testing.T) {
 			responseChannel,
 		))
 		wg.Wait()
+		wgRegister.Wait()
 
 		assert.Equal(t, 1, processor.tx2ChMap.Len())
 		items := processor.tx2ChMap.Items()

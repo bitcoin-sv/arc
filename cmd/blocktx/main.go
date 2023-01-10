@@ -6,8 +6,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/TAAL-GmbH/arc/blocktx"
-	"github.com/TAAL-GmbH/arc/blocktx/store/sql"
+	"github.com/TAAL-GmbH/arc/cmd"
 	"github.com/ordishs/gocore"
 
 	_ "github.com/lib/pq"
@@ -21,14 +20,6 @@ var version string
 var commit string
 
 var logger = gocore.Log(progname)
-
-// var (
-// 	dbHost, _     = gocore.Config().Get("dbHost", "localhost")
-// 	dbPort, _     = gocore.Config().GetInt("dbPort", 5432)
-// 	dbName, _     = gocore.Config().Get("dbName", "blocktx")
-// 	dbUser, _     = gocore.Config().Get("dbUser", "blocktx")
-// 	dbPassword, _ = gocore.Config().Get("dbPassword", "blocktx")
-// )
 
 func init() {
 	gocore.SetInfo(progname, version, commit)
@@ -58,33 +49,9 @@ func main() {
 		os.Exit(1)
 	}()
 
-	start()
+	cmd.StartBlockTx(logger)
 }
 
 func appCleanup() {
 	logger.Infof("Shutting down...")
-}
-
-func start() {
-	/*
-		dbConn, err := sql.NewProcessor("postgres", dbHost, dbUser, dbPassword, dbName, dbPort)
-		if err != nil {
-			panic("Could not connect to fn: " + err.Error())
-		}
-	*/
-	dbConn, err := sql.NewSQLStore("sqlite")
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	blockNotifier := blocktx.NewBlockNotifier(dbConn, logger)
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	srv := blocktx.NewServer(dbConn, blockNotifier, logger)
-	err = srv.StartGRPCServer()
-	if err != nil {
-		logger.Fatal(err)
-	}
 }

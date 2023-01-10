@@ -12,6 +12,9 @@ import (
 func StartArcAPIServer(logger *gocore.Logger) {
 	// Set up a basic Echo router
 	e := echo.New()
+	e.HideBanner = true
+	e.HidePort = true
+
 	// Recover returns a middleware which recovers from panics anywhere in the chain
 	e.Use(echomiddleware.Recover())
 

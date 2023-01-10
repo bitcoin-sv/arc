@@ -9,6 +9,7 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -79,7 +80,7 @@ func NewPeer(address string, peerStore PeerStoreI) (*Peer, error) {
 
 	// write version message to our peer directly and not through the write channel,
 	// write channel is not ready to send message until the VERACK handshake is done
-	msg := versionMessage()
+	msg := versionMessage(address)
 
 	if err = wire.WriteMessage(p.conn, msg, wire.ProtocolVersion, magic); err != nil {
 		return nil, fmt.Errorf("failed to write message: %v", err)
@@ -316,15 +317,25 @@ func (p *Peer) writeChannelHandler() {
 	}
 }
 
-func versionMessage() *wire.MsgVersion {
+func versionMessage(address string) *wire.MsgVersion {
 	lastBlock := int32(0)
 
-	port := rand.Intn(100) + 9000
+	myPort := rand.Intn(100) + 9000
 
-	tcpAddrMe := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: port}
+	tcpAddrMe := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: myPort}
 	me := wire.NewNetAddress(tcpAddrMe, wire.SFNodeNetwork)
 
-	tcpAddrYou := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 18333}
+	parts := strings.Split(address, ":")
+	if len(parts) != 2 {
+		panic(fmt.Sprintf("Could not parse address %s", address))
+	}
+
+	p, err := strconv.Atoi(parts[1])
+	if err != nil {
+		panic(fmt.Sprintf("Could not parse port %s", parts[1]))
+	}
+
+	tcpAddrYou := &net.TCPAddr{IP: net.ParseIP(parts[0]), Port: p}
 	you := wire.NewNetAddress(tcpAddrYou, wire.SFNodeNetwork)
 
 	nonce, err := wire.RandomUint64()

@@ -1,1 +1,1 @@
-../ilumis/development/restart.sh
+../development/restart.sh

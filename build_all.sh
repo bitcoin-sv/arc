@@ -1,0 +1,1 @@
+../development/build_all.sh

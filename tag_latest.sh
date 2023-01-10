@@ -1,1 +1,1 @@
-../ilumis/development/tag_latest.sh
+../development/tag_latest.sh

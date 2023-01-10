@@ -1,1 +1,1 @@
-../ilumis/development/deploy.sh
+../development/deploy.sh

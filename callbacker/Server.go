@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/TAAL-GmbH/arc/tracing"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"google.golang.org/grpc"
@@ -35,14 +36,14 @@ func NewServer(logger utils.Logger, c *Callbacker) *Server {
 
 // StartGRPCServer function
 func (s *Server) StartGRPCServer() error {
-
 	address, ok := gocore.Config().Get("callbacker_grpcAddress") //, "localhost:8002")
 	if !ok {
 		return errors.New("no callbacker_grpcAddress setting found")
 	}
 
 	// LEVEL 0 - no security / no encryption
-	grpcServer := grpc.NewServer()
+	var opts []grpc.ServerOption
+	grpcServer := grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
 
 	gocore.SetAddress(address)
 

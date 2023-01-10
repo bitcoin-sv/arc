@@ -5,10 +5,8 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"time"
 
-	"github.com/TAAL-GmbH/arc/callbacker"
-	"github.com/TAAL-GmbH/arc/callbacker/store/badgerhold"
+	"github.com/TAAL-GmbH/arc/cmd"
 	"github.com/ordishs/gocore"
 
 	_ "github.com/lib/pq"
@@ -44,41 +42,16 @@ func main() {
 
 	signal.Notify(signalChan, os.Interrupt)
 
-	shutdown := start()
+	cmd.StartCallbacker(logger)
 
 	go func() {
 		<-signalChan
 
-		appCleanup(shutdown)
+		appCleanup()
 		os.Exit(1)
 	}()
 }
 
-func appCleanup(shutdown func()) {
+func appCleanup() {
 	logger.Infof("Shutting down...")
-	shutdown()
-}
-
-func start() func() {
-	callbackStore, err := badgerhold.New("data_callbacker", 2*time.Minute)
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	var callbackWorker *callbacker.Callbacker
-	callbackWorker, err = callbacker.NewCallbacker(callbackStore)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	callbackWorker.Start()
-
-	srv := callbacker.NewServer(logger, callbackWorker)
-	err = srv.StartGRPCServer()
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	return func() {
-		callbackWorker.Stop()
-	}
 }

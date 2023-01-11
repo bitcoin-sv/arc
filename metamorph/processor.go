@@ -35,8 +35,7 @@ type ProcessorStats struct {
 }
 
 type Processor struct {
-	ch chan *ProcessorRequest
-	//evictionChan chan []*ProcessorResponse
+	ch               chan *ProcessorRequest
 	store            store.Store
 	registerCh       chan *blocktx_api.TransactionAndSource
 	tx2ChMap         *ProcessorResponseMap
@@ -248,6 +247,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 		processorResponse.SetStatus(metamorph_api.Status_STORED)
 
 		if p.registerCh != nil {
+			p.logger.Infof("Sending tx %s to register", txIDStr)
 			utils.SafeSend(p.registerCh, &blocktx_api.TransactionAndSource{
 				Hash:   req.Hash,
 				Source: p.metamorphAddress,

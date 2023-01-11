@@ -3,7 +3,10 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
+	"github.com/TAAL-GmbH/arc/asynccaller"
 	"github.com/TAAL-GmbH/arc/blocktx"
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph"
@@ -12,10 +15,41 @@ import (
 	"github.com/TAAL-GmbH/arc/p2p"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/libsv/go-bt/v2"
+	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
 
-const ISO8601 = "2006-01-02T15:04:05.999Z"
+type RegisterTransactionCallerClient struct {
+	btc blocktx.ClientI
+}
+
+func (r *RegisterTransactionCallerClient) Caller(data *blocktx_api.TransactionAndSource) error {
+	if err := r.btc.RegisterTransaction(context.Background(), data); err != nil {
+		return fmt.Errorf("error registering transaction %x: %v", bt.ReverseBytes(data.Hash), err)
+	}
+	return nil
+}
+
+func (r *RegisterTransactionCallerClient) MarshalString(data *blocktx_api.TransactionAndSource) (string, error) {
+	return fmt.Sprintf("%x,%s", bt.ReverseBytes(data.Hash), data.Source), nil
+}
+
+func (r *RegisterTransactionCallerClient) UnmarshalString(data string) (*blocktx_api.TransactionAndSource, error) {
+	parts := strings.Split(data, ",")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("could not unmarshal data: %s", data)
+	}
+
+	hash, err := utils.DecodeAndReverseHexString(parts[0])
+	if err != nil {
+		return nil, fmt.Errorf("could not decode hash: %v", err)
+	}
+
+	return &blocktx_api.TransactionAndSource{
+		Hash:   hash,
+		Source: parts[1],
+	}, nil
+}
 
 func StartMetamorph(logger *gocore.Logger) {
 	s, err := badgerhold.New("")
@@ -35,10 +69,21 @@ func StartMetamorph(logger *gocore.Logger) {
 
 	pm, peerMessageCh := initPeerManager(logger, s)
 
-	// create a batcher to store all the transaction registrations that cannot be sent to blocktx right away
-	registerCh := initRegisterTransactionChannel(logger, btc)
+	// create an async caller to store all the transaction registrations that cannot be sent to blocktx right away
+	var asyncCaller *asynccaller.AsyncCaller[blocktx_api.TransactionAndSource]
+	asyncCaller, err = asynccaller.New[blocktx_api.TransactionAndSource](
+		logger,
+		"./tx-register",
+		10*time.Second,
+		&RegisterTransactionCallerClient{
+			btc: btc,
+		},
+	)
+	if err != nil {
+		logger.Fatalf("error creating async caller: %v", err)
+	}
 
-	metamorphProcessor := metamorph.NewProcessor(workerCount, s, pm, metamorphAddress, registerCh)
+	metamorphProcessor := metamorph.NewProcessor(workerCount, s, pm, metamorphAddress, asyncCaller.GetChannel())
 
 	go func() {
 		for message := range peerMessageCh {

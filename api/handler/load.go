@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/TAAL-GmbH/arc/api"
@@ -11,7 +12,6 @@ import (
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
-	"github.com/mrz1836/go-logger"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
@@ -56,7 +56,7 @@ func CheckSwagger(e *echo.Echo) *openapi3.T {
 
 	swagger, err := api.GetSwagger()
 	if err != nil {
-		logger.Fatalf(dictionary.GetInternalMessage(dictionary.ErrorLoadingSwaggerSpec), err.Error())
+		log.Fatalf(dictionary.GetInternalMessage(dictionary.ErrorLoadingSwaggerSpec), err.Error())
 		os.Exit(1)
 	}
 

@@ -7,7 +7,6 @@ import (
 	"github.com/TAAL-GmbH/arc/blocktx/store"
 	"github.com/TAAL-GmbH/arc/p2p"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
-	"github.com/mrz1836/go-logger"
 
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
@@ -50,20 +49,20 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 
 	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
 	if peerCount == 0 {
-		logger.Fatalf("peerCount must be set")
+		l.Fatalf("peerCount must be set")
 	}
 
 	for i := 1; i <= peerCount; i++ {
 		p2pURL, err, found := gocore.Config().GetURL(fmt.Sprintf("peer_%d_p2p", i))
 		if !found {
-			logger.Fatalf("peer_%d_p2p must be set", i)
+			l.Fatalf("peer_%d_p2p must be set", i)
 		}
 		if err != nil {
-			logger.Fatalf("error reading peer_%d_p2p: %v", i, err)
+			l.Fatalf("error reading peer_%d_p2p: %v", i, err)
 		}
 
 		if err := pm.AddPeer(p2pURL.Host, peerStore); err != nil {
-			logger.Fatalf("error adding peer %s: %v", p2pURL.Host, err)
+			l.Fatalf("error adding peer %s: %v", p2pURL.Host, err)
 		}
 	}
 

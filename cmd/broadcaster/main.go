@@ -16,7 +16,6 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/libsv/go-bt/v2/unlocker"
-	"github.com/mrz1836/go-logger"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
 	"google.golang.org/grpc"
@@ -291,15 +290,15 @@ func sendToAddress(address string, satoshis uint64) (string, uint32, string, err
 	// // Create a new transactionHandler instance
 	rpcURL, err, found := gocore.Config().GetURL("peer_rpc")
 	if !found {
-		logger.Fatalf("Could not find peer_rpc in config: %v", err)
+		log.Fatalf("Could not find peer_rpc in config: %v", err)
 	}
 	if err != nil {
-		logger.Fatalf("Could not parse peer_rpc: %v", err)
+		log.Fatalf("Could not parse peer_rpc: %v", err)
 	}
 
 	client, err := bitcoin.NewFromURL(rpcURL, false)
 	if err != nil {
-		logger.Fatalf("Could not create bitcoin client: %v", err)
+		log.Fatalf("Could not create bitcoin client: %v", err)
 	}
 
 	amount := float64(satoshis) / float64(1e8)

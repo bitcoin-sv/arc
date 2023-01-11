@@ -3,7 +3,6 @@ package sql
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"path"
 	"path/filepath"
 
@@ -22,6 +21,8 @@ func NewSQLStore(engine string) (store.Interface, error) {
 	var err error
 
 	var memory bool
+
+	logger := gocore.Log("sqlite")
 
 	switch engine {
 	case "postgres":
@@ -60,7 +61,7 @@ func NewSQLStore(engine string) (store.Interface, error) {
 			filename = fmt.Sprintf("%s?_pragma=busy_timeout=10000&_pragma=journal_mode=WAL", filename)
 		}
 
-		log.Printf("Using sqlite DB: %s", filename)
+		logger.Infof("Using sqlite DB: %s", filename)
 
 		db, err = sql.Open("sqlite", filename)
 		if err != nil {

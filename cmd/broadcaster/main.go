@@ -288,12 +288,12 @@ func newTransaction(privKey *bec.PrivateKey, useUtxo *utxo) (*bt.Tx, *utxo) {
 
 func sendToAddress(address string, satoshis uint64) (string, uint32, string, error) {
 	// // Create a new transactionHandler instance
-	rpcURL, err, found := gocore.Config().GetURL("peer_1_rpc")
+	rpcURL, err, found := gocore.Config().GetURL("peer_rpc")
 	if !found {
-		logger.Fatalf("Could not find peer_1_rpc in config: %v", err)
+		logger.Fatalf("Could not find peer_rpc in config: %v", err)
 	}
 	if err != nil {
-		logger.Fatalf("Could not parse peer_1_rpc: %v", err)
+		logger.Fatalf("Could not parse peer_rpc: %v", err)
 	}
 
 	client, err := bitcoin.NewFromURL(rpcURL, false)

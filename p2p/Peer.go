@@ -116,7 +116,8 @@ func (p *Peer) readHandler() {
 		msg, b, err := wire.ReadMessage(p.conn, wire.ProtocolVersion, magic)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				panic(fmt.Sprintf("READ EOF whilst reading from %s [%d bytes]\n%s", p.address, len(b), string(b)))
+				p.LogError(fmt.Sprintf("READ EOF whilst reading from %s [%d bytes]\n%s", p.address, len(b), string(b)))
+				break
 			}
 			p.LogError("Failed to read message: %v", err)
 			continue

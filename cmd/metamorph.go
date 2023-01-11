@@ -26,7 +26,7 @@ func StartMetamorph(logger *gocore.Logger) {
 	address, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
 	btc := blocktx.NewClient(logger, address)
 
-	workerCount, _ := gocore.Config().GetInt("processorWorkerCount", 10)
+	workerCount, _ := gocore.Config().GetInt("processorWorkerCount", 16)
 
 	metamorphAddress, ok := gocore.Config().Get("metamorph_grpcAddress", "localhost:8000")
 	if !ok {

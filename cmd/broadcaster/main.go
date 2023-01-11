@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/TAAL-GmbH/arc/tracing"
 	"github.com/libsv/go-bk/bec"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
@@ -76,11 +77,11 @@ func main() {
 
 	addresses, _ := gocore.Config().Get("metamorphAddresses") //, "localhost:8000")
 
-	cc, err := grpc.DialContext(ctx,
-		addresses,
+	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
-	)
+	}
+	cc, err := grpc.DialContext(ctx, addresses, tracing.AddGRPCDialOptions(opts)...)
 	if err != nil {
 		panic(fmt.Errorf("DIALCONTEXT: %v", err))
 	}

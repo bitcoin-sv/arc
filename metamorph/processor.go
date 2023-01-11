@@ -11,6 +11,7 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/p2p"
 	"github.com/libsv/go-bt/v2"
+	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-utils"
 
 	"github.com/ordishs/gocore"
@@ -221,6 +222,9 @@ func (p *Processor) process(_ int) {
 }
 
 func (p *Processor) processTransaction(req *ProcessorRequest) {
+	span, _ := opentracing.StartSpanFromContext(req.ctx, "Processor:processTransaction")
+	defer span.Finish()
+
 	p.queueLength.Add(-1)
 
 	p.logger.Debugf("Adding channel for %x", bt.ReverseBytes(req.Hash))

@@ -6,10 +6,16 @@ import (
 	"github.com/TAAL-GmbH/arc/api/handler"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
+	apmecho "github.com/opentracing-contrib/echo"
+	"github.com/opentracing/opentracing-go"
+	"github.com/ordishs/go-utils"
+
 	"github.com/ordishs/gocore"
 )
 
-func StartArcAPIServer(logger *gocore.Logger) {
+const progname = "arc"
+
+func StartAPIServer(logger utils.Logger) {
 	// Set up a basic Echo router
 	e := echo.New()
 	e.HideBanner = true
@@ -17,6 +23,10 @@ func StartArcAPIServer(logger *gocore.Logger) {
 
 	// Recover returns a middleware which recovers from panics anywhere in the chain
 	e.Use(echomiddleware.Recover())
+
+	if opentracing.GlobalTracer() != nil {
+		e.Use(apmecho.Middleware(progname))
+	}
 
 	// Add CORS headers to the server - all request origins are allowed
 	e.Use(echomiddleware.CORSWithConfig(echomiddleware.CORSConfig{

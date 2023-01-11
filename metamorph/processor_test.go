@@ -4,14 +4,18 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
+	"github.com/TAAL-GmbH/arc/metamorph/store/badger"
 	"github.com/TAAL-GmbH/arc/metamorph/store/memorystore"
 	"github.com/TAAL-GmbH/arc/p2p"
+	"github.com/labstack/gommon/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -382,23 +386,38 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 }
 
 func BenchmarkProcessTransaction(b *testing.B) {
-	s, err := memorystore.New()
+	direName := fmt.Sprintf("./test-benchmark-%s", random.String(6))
+	s, err := badger.New(direName)
 	require.NoError(b, err)
+	defer func() {
+		_ = s.Close(context.Background())
+		_ = os.RemoveAll(direName)
+	}()
 
 	pm := p2p.NewPeerManagerMock(nil)
-	processor := NewProcessor(1, s, pm, "test", nil)
+	processor := NewProcessor(16, s, pm, "test", nil)
+	processor.SetLogger(p2p.TestLogger{})
 	assert.Equal(b, 0, processor.tx2ChMap.Len())
+
+	txs := make(map[string][]byte)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		txID := fmt.Sprintf("%x", i)
+		txHash := []byte(txID)
+		txs[txID] = txHash
 		processor.ProcessTransaction(NewProcessorRequest(
 			context.Background(),
 			&store.StoreData{
-				Hash:   tx1Bytes,
+				Hash:   txHash,
 				Status: metamorph_api.Status_UNKNOWN,
 				RawTx:  tx1RawBytes,
 			},
 			nil,
 		))
 	}
+	b.StopTimer()
+
+	// wait for the last items to be written to the store
+	time.Sleep(1 * time.Second)
 }

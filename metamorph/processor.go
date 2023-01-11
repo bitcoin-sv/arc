@@ -41,7 +41,7 @@ type Processor struct {
 	registerCh       chan *blocktx_api.TransactionAndSource
 	tx2ChMap         *ProcessorResponseMap
 	pm               p2p.PeerManagerI
-	logger           *gocore.Logger
+	logger           utils.Logger
 	metamorphAddress string
 
 	startTime       time.Time
@@ -105,6 +105,10 @@ func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI, metamorph
 	}
 
 	return p
+}
+
+func (p *Processor) SetLogger(logger utils.Logger) {
+	p.logger = logger
 }
 
 func (p *Processor) LoadUnseen() {
@@ -227,7 +231,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 
 	p.queueLength.Add(-1)
 
-	p.logger.Debugf("Adding channel for %x", bt.ReverseBytes(req.Hash))
+	p.logger.Infof("Adding channel for %x", bt.ReverseBytes(req.Hash))
 
 	processorResponse := NewProcessorResponseWithChannel(req.Hash, req.ResponseChannel)
 	processorResponse.SetStatus(metamorph_api.Status_RECEIVED)

@@ -70,9 +70,12 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 }
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format
-func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, _ *arc.TransactionOptions) (*TransactionStatus, error) {
+func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions *arc.TransactionOptions) (*TransactionStatus, error) {
 	response, err := m.Client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
-		RawTx: tx,
+		RawTx:         tx,
+		CallbackUrl:   txOptions.CallbackURL,
+		CallbackToken: txOptions.CallbackToken,
+		MerkleProof:   txOptions.MerkleProof,
 	})
 	if err != nil {
 		return nil, err

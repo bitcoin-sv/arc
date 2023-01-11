@@ -5,9 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
-	"github.com/TAAL-GmbH/arc/metamorph/store"
-	"github.com/TAAL-GmbH/arc/metamorph/store/memorystore"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/ordishs/go-utils"
 	"github.com/stretchr/testify/assert"
@@ -17,48 +14,17 @@ import (
 var (
 	tx1         = "b042f298deabcebbf15355aa3a13c7d7cfe96c44ac4f492735f936f8e50d06f6"
 	tx1Bytes, _ = utils.DecodeAndReverseHexString(tx1)
+	logger      = TestLogger{}
 )
-
-type MockPeerStore struct {
-	s store.Store
-}
-
-func NewMockPeerStore() *MockPeerStore {
-	s, _ := memorystore.New()
-
-	return &MockPeerStore{
-		s: s,
-	}
-}
-
-func (m *MockPeerStore) GetTransactionBytes(txID []byte) ([]byte, error) {
-	return nil, nil
-}
-
-func (m *MockPeerStore) HandleBlockAnnouncement(hash []byte, peer PeerI) error {
-	return nil
-}
-
-func (m *MockPeerStore) InsertBlock(blockHash []byte, merkleRoot []byte, prevhash []byte, height uint64, peer PeerI) (uint64, error) {
-	return 0, nil
-}
-
-func (m *MockPeerStore) MarkTransactionsAsMined(blockId uint64, txHashes [][]byte) error {
-	return nil
-}
-
-func (m *MockPeerStore) MarkBlockAsProcessed(block *blocktx_api.Block) error {
-	return nil
-}
 
 func TestNewPeerManager(t *testing.T) {
 	t.Run("nil peers no error", func(t *testing.T) {
-		pm := NewPeerManager(nil)
+		pm := NewPeerManager(logger, nil, wire.TestNet)
 		require.NotNil(t, pm)
 	})
 
 	t.Run("1 peer", func(t *testing.T) {
-		pm := NewPeerManager(nil)
+		pm := NewPeerManager(logger, nil, wire.TestNet)
 		require.NotNil(t, pm)
 		pm.PeerCreator(func(peerAddress string, peerStore PeerStoreI) (PeerI, error) {
 			return NewPeerMock(peerAddress, peerStore)
@@ -79,7 +45,7 @@ func TestNewPeerManager(t *testing.T) {
 			"localhost:18333",
 		}
 
-		pm := NewPeerManager(nil)
+		pm := NewPeerManager(logger, nil, wire.TestNet)
 		require.NotNil(t, pm)
 		pm.PeerCreator(func(peerAddress string, peerStore PeerStoreI) (PeerI, error) {
 			return NewPeerMock(peerAddress, peerStore)
@@ -100,7 +66,7 @@ func TestAnnounceNewTransaction(t *testing.T) {
 
 		var messageCh chan *PMMessage
 
-		pm := NewPeerManager(messageCh, 1*time.Millisecond)
+		pm := NewPeerManager(logger, messageCh, wire.TestNet, 1*time.Millisecond)
 		require.NotNil(t, pm)
 
 		peerStore := NewMockPeerStore()
@@ -126,7 +92,7 @@ func TestAnnounceNewTransaction(t *testing.T) {
 
 	t.Run("announce tx - multiple peers", func(t *testing.T) {
 		var messageCh chan *PMMessage
-		pm := NewPeerManager(messageCh, 1*time.Millisecond)
+		pm := NewPeerManager(logger, messageCh, wire.TestNet, 1*time.Millisecond)
 		require.NotNil(t, pm)
 
 		peerStore := NewMockPeerStore()

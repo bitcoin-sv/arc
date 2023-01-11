@@ -10,7 +10,9 @@ import (
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
+	"github.com/TAAL-GmbH/arc/tracing"
 	"github.com/libsv/go-bt/v2"
+	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"google.golang.org/grpc"
@@ -45,7 +47,8 @@ func (s *Server) SetTimeout(timeout time.Duration) {
 // StartGRPCServer function
 func (s *Server) StartGRPCServer(address string) error {
 	// LEVEL 0 - no security / no encryption
-	grpcServer := grpc.NewServer()
+	var opts []grpc.ServerOption
+	grpcServer := grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
 
 	gocore.SetAddress(address)
 
@@ -92,6 +95,9 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 }
 
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction")
+	defer span.Finish()
+
 	responseChannel := make(chan StatusAndError)
 	defer func() {
 		close(responseChannel)
@@ -133,7 +139,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		RawTx:         req.RawTx,
 	}
 
-	s.processor.ProcessTransaction(NewProcessorRequest(sReq, responseChannel))
+	s.processor.ProcessTransaction(NewProcessorRequest(ctx, sReq, responseChannel))
 
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeout := time.NewTimer(s.timeout)

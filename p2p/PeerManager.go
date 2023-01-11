@@ -4,18 +4,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/p2p/chaincfg/chainhash"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/libsv/go-bt/v2"
+	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/batcher"
 )
 
 type PeerManager struct {
 	mu         sync.RWMutex
 	peers      map[string]PeerI
+	network    wire.BitcoinNet
 	invBatcher *batcher.Batcher[[]byte]
 	messageCh  chan *PMMessage
+	logger     utils.Logger
 
 	// this is needed to be able to mock the peer creation in the peer manager
 	peerCreator func(peerAddress string, peerStore PeerStoreI) (PeerI, error)
@@ -24,16 +26,22 @@ type PeerManager struct {
 type PMMessage struct {
 	Start  time.Time
 	Txid   string
-	Status metamorph_api.Status
+	Status Status
 	Err    error
 }
 
-func NewPeerManager(messageCh chan *PMMessage, batchDuration ...time.Duration) PeerManagerI {
+// NewPeerManager creates a new PeerManager
+// messageCh is a channel that will be used to send messages from peers to the parent process
+// this is used to pass INV messages from the bitcoin network peers to the parent process
+// at the moment this is only used for Inv tx message for "seen", "sent" and "rejected" transactions
+func NewPeerManager(logger utils.Logger, messageCh chan *PMMessage, network wire.BitcoinNet, batchDuration ...time.Duration) PeerManagerI {
 	pm := &PeerManager{
 		peers:     make(map[string]PeerI),
+		network:   network,
 		messageCh: messageCh,
+		logger:    logger,
 		peerCreator: func(peerAddress string, peerStore PeerStoreI) (PeerI, error) {
-			return NewPeer(peerAddress, peerStore)
+			return NewPeer(logger, peerAddress, peerStore, network)
 		},
 	}
 
@@ -108,7 +116,7 @@ func (pm *PeerManager) sendInvBatch(batch []*[]byte) {
 	for _, txid := range batch {
 		hash, err := chainhash.NewHash(*txid)
 		if err != nil {
-			logger.Infof("ERROR announcing new tx [%x]: %v", txid, err)
+			pm.logger.Infof("ERROR announcing new tx [%x]: %v", txid, err)
 			continue
 		}
 
@@ -133,11 +141,11 @@ func (pm *PeerManager) sendInvBatch(batch []*[]byte) {
 	}
 
 	// if len(batch) <= 10 {
-	logger.Infof("Sent INV (%d items) to %d peers", len(batch), len(sendToPeers))
+	pm.logger.Infof("Sent INV (%d items) to %d peers", len(batch), len(sendToPeers))
 	for _, txid := range batch {
-		logger.Infof("        %x", bt.ReverseBytes(*txid))
+		pm.logger.Infof("        %x", bt.ReverseBytes(*txid))
 	}
 	// } else {
-	// 	logger.Infof("Sent INV (%d items) to %d peers", len(batch), len(pm.peers))
+	// 	pm.logger.Infof("Sent INV (%d items) to %d peers", len(batch), len(pm.peers))
 	// }
 }

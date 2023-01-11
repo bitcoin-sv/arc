@@ -1,18 +1,21 @@
 package p2p
 
-import "github.com/TAAL-GmbH/arc/metamorph/store"
+type TestLogger struct{}
+
+func (l TestLogger) Infof(format string, args ...interface{})  {}
+func (l TestLogger) Warnf(format string, args ...interface{})  {}
+func (l TestLogger) Errorf(format string, args ...interface{}) {}
+func (l TestLogger) Fatalf(format string, args ...interface{}) {}
 
 type PeerManagerMock struct {
-	store       store.Store
 	Peers       map[string]PeerI
 	messageCh   chan *PMMessage
 	Announced   [][]byte
 	peerCreator func(peerAddress string, peerStore PeerStoreI) (PeerI, error)
 }
 
-func NewPeerManagerMock(s store.Store, messageCh chan *PMMessage) *PeerManagerMock {
+func NewPeerManagerMock(messageCh chan *PMMessage) *PeerManagerMock {
 	return &PeerManagerMock{
-		store:     s,
 		Peers:     make(map[string]PeerI),
 		messageCh: messageCh,
 	}

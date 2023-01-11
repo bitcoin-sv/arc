@@ -5,10 +5,10 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-const progname = "arc"
+const progname = "api"
 
 var logger = gocore.Log(progname)
 
 func main() {
-	cmd.StartArcAPIServer(logger)
+	cmd.StartAPIServer(logger)
 }

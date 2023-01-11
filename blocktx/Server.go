@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/blocktx/store"
-
+	"github.com/TAAL-GmbH/arc/tracing"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"google.golang.org/grpc"
@@ -46,7 +46,8 @@ func (s *Server) StartGRPCServer() error {
 	}
 
 	// LEVEL 0 - no security / no encryption
-	grpcServer := grpc.NewServer()
+	var opts []grpc.ServerOption
+	grpcServer := grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
 
 	gocore.SetAddress(address)
 
@@ -62,7 +63,7 @@ func (s *Server) StartGRPCServer() error {
 
 	s.logger.Infof("[BlockTx] GRPC server listening on %s", address)
 
-	if err := grpcServer.Serve(lis); err != nil {
+	if err = grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("GRPC server failed [%w]", err)
 	}
 

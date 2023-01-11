@@ -22,7 +22,7 @@ func TestNewProcessor(t *testing.T) {
 		require.NoError(t, err)
 
 		messageCh := make(chan *p2p.PMMessage)
-		pm := p2p.NewPeerManagerMock(s, messageCh)
+		pm := p2p.NewPeerManagerMock(messageCh)
 
 		processor := NewProcessor(1, s, pm, "test", nil)
 		if processor == nil {
@@ -61,7 +61,7 @@ func TestLoadUnseen(t *testing.T) {
 		require.NoError(t, err)
 
 		messageCh := make(chan *p2p.PMMessage)
-		pm := p2p.NewPeerManagerMock(s, messageCh)
+		pm := p2p.NewPeerManagerMock(messageCh)
 
 		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
@@ -75,7 +75,7 @@ func TestLoadUnseen(t *testing.T) {
 		setStoreTestData(t, s)
 
 		messageCh := make(chan *p2p.PMMessage)
-		pm := p2p.NewPeerManagerMock(s, messageCh)
+		pm := p2p.NewPeerManagerMock(messageCh)
 
 		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
@@ -96,7 +96,7 @@ func TestProcessTransaction(t *testing.T) {
 		require.NoError(t, err)
 
 		messageCh := make(chan *p2p.PMMessage)
-		pm := p2p.NewPeerManagerMock(s, messageCh)
+		pm := p2p.NewPeerManagerMock(messageCh)
 
 		registerCh := make(chan *blocktx_api.TransactionAndSource)
 
@@ -135,6 +135,7 @@ func TestProcessTransaction(t *testing.T) {
 		}()
 
 		processor.ProcessTransaction(NewProcessorRequest(
+			context.Background(),
 			&store.StoreData{
 				Hash: tx1Bytes,
 			},
@@ -163,7 +164,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		s, err := memorystore.New()
 		require.NoError(t, err)
 
-		pm := p2p.NewPeerManagerMock(s, nil)
+		pm := p2p.NewPeerManagerMock(nil)
 
 		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
@@ -180,7 +181,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
-		pm := p2p.NewPeerManagerMock(s, nil)
+		pm := p2p.NewPeerManagerMock(nil)
 
 		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
@@ -201,7 +202,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		s, err := memorystore.New()
 		require.NoError(t, err)
 
-		pm := p2p.NewPeerManagerMock(s, nil)
+		pm := p2p.NewPeerManagerMock(nil)
 
 		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
@@ -216,7 +217,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
-		pm := p2p.NewPeerManagerMock(s, nil)
+		pm := p2p.NewPeerManagerMock(nil)
 
 		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
@@ -236,7 +237,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
-		pm := p2p.NewPeerManagerMock(s, nil)
+		pm := p2p.NewPeerManagerMock(nil)
 
 		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
@@ -255,7 +256,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		s, err := memorystore.New()
 		require.NoError(t, err)
 
-		pm := p2p.NewPeerManagerMock(s, nil)
+		pm := p2p.NewPeerManagerMock(nil)
 
 		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
@@ -277,6 +278,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		}()
 
 		processor.ProcessTransaction(NewProcessorRequest(
+			context.Background(),
 			&store.StoreData{
 				Hash: tx1Bytes,
 			},
@@ -302,7 +304,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		s, err := memorystore.New()
 		require.NoError(t, err)
 
-		pm := p2p.NewPeerManagerMock(s, nil)
+		pm := p2p.NewPeerManagerMock(nil)
 
 		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
@@ -317,7 +319,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
-		pm := p2p.NewPeerManagerMock(s, nil)
+		pm := p2p.NewPeerManagerMock(nil)
 
 		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
@@ -336,7 +338,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		s, err := memorystore.New()
 		require.NoError(t, err)
 
-		pm := p2p.NewPeerManagerMock(s, nil)
+		pm := p2p.NewPeerManagerMock(nil)
 
 		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
@@ -358,6 +360,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		}()
 
 		processor.ProcessTransaction(NewProcessorRequest(
+			context.Background(),
 			&store.StoreData{
 				Hash: tx1Bytes,
 			},
@@ -376,4 +379,26 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
 	})
+}
+
+func BenchmarkProcessTransaction(b *testing.B) {
+	s, err := memorystore.New()
+	require.NoError(b, err)
+
+	pm := p2p.NewPeerManagerMock(nil)
+	processor := NewProcessor(1, s, pm, "test", nil)
+	assert.Equal(b, 0, processor.tx2ChMap.Len())
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		processor.ProcessTransaction(NewProcessorRequest(
+			context.Background(),
+			&store.StoreData{
+				Hash:   tx1Bytes,
+				Status: metamorph_api.Status_UNKNOWN,
+				RawTx:  tx1RawBytes,
+			},
+			nil,
+		))
+	}
 }

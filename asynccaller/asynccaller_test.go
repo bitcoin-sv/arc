@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,11 +21,29 @@ type TestData struct {
 }
 
 type TestCaller[T TestData] struct {
+	mu          sync.Mutex
 	called      []*TestData
 	callerError error
 }
 
+func (t *TestCaller[T]) GetCalled() []*TestData {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	return t.called
+}
+
+func (t *TestCaller[T]) SetCallerError(err error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.callerError = err
+}
+
 func (t *TestCaller[T]) Caller(data *TestData) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	if t.callerError != nil {
 		return t.callerError
 	}
@@ -88,8 +107,8 @@ func TestCall(t *testing.T) {
 		}
 
 		ac.Call(testData)
-		assert.Equal(t, 1, len(testCaller.called))
-		assert.Equal(t, testData, testCaller.called[0])
+		assert.Equal(t, 1, len(testCaller.GetCalled()))
+		assert.Equal(t, testData, testCaller.GetCalled()[0])
 
 		files, err := os.ReadDir(dirName)
 		require.NoError(t, err)
@@ -123,9 +142,9 @@ func TestCall(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, len(files))
 
-		testCaller.callerError = nil
+		testCaller.SetCallerError(nil)
 		ac.processFiles()
-		assert.Equal(t, 1, len(testCaller.called))
-		assert.Equal(t, testData, testCaller.called[0])
+		assert.Equal(t, 1, len(testCaller.GetCalled()))
+		assert.Equal(t, testData, testCaller.GetCalled()[0])
 	})
 }

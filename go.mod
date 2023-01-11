@@ -14,12 +14,11 @@ require (
 	github.com/lib/pq v1.10.7
 	github.com/libsv/go-bk v0.1.6
 	github.com/libsv/go-bt/v2 v2.1.0-beta.4.0.20221116173735-4208458b22d6
-	github.com/mrz1836/go-logger v0.3.1
 	github.com/opentracing-contrib/echo v0.0.0-20190807091611-5fe2e1308f06
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/ordishs/go-bitcoin v1.0.75
 	github.com/ordishs/go-utils v1.0.19
-	github.com/ordishs/gocore v1.0.21
+	github.com/ordishs/gocore v1.0.22
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.1
 	github.com/timshannon/badgerhold/v3 v3.0.0

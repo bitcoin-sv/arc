@@ -207,8 +207,6 @@ github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJ
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3RllmbCylyMrvgv0=
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
-github.com/mrz1836/go-logger v0.3.1 h1:I0MleBuec5gy76dD0M8k8w9F1271NXR8CfwytWeBiVc=
-github.com/mrz1836/go-logger v0.3.1/go.mod h1:wvnL9EjhtiMOgABtr0Q8EwO4YNVTBTDMLlvKAXjSEy0=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/opentracing-contrib/echo v0.0.0-20190807091611-5fe2e1308f06 h1:ya/1LJc6WCDIwpxC4M45ZZFcGTudg3oNDnI+Azflr6o=
 github.com/opentracing-contrib/echo v0.0.0-20190807091611-5fe2e1308f06/go.mod h1:H/4DFXmu9Mu9gJvYfa/IUWFTSmZ0PzFem+AZosNJpDQ=
@@ -219,8 +217,8 @@ github.com/ordishs/go-bitcoin v1.0.75 h1:0mEG6DRZUPWl39b73Pu8q0XJN5OiSJJPeAG0Emg
 github.com/ordishs/go-bitcoin v1.0.75/go.mod h1:7gXD2G745ETJK4OU4xXl0UBIOAc80615hBJRjPqKhWY=
 github.com/ordishs/go-utils v1.0.19 h1:26BbgAD0e7jNZK2Susr6xRwsIiW8cdRJSRlFczCo6K0=
 github.com/ordishs/go-utils v1.0.19/go.mod h1:k9G7Bbv2GwoOn9fwZx70yM5jwwIymkv+90FUKLudtyc=
-github.com/ordishs/gocore v1.0.21 h1:a5XaH/w7aodv9r9vm7C9fHW4aBinOd15RJONqZzdKdA=
-github.com/ordishs/gocore v1.0.21/go.mod h1:08x7HvxS4Irz4KArFjjOymfzxHVdrsoLEnY0k2lV5U4=
+github.com/ordishs/gocore v1.0.22 h1:2MxT1xFOXW2hzeEiZyJJxIKnqFXQOoThJMnq07e0L7o=
+github.com/ordishs/gocore v1.0.22/go.mod h1:08x7HvxS4Irz4KArFjjOymfzxHVdrsoLEnY0k2lV5U4=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
 github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=

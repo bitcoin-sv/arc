@@ -90,11 +90,13 @@ func (p *ProcessorMock) GetStats() *ProcessorStats {
 func setStoreTestData(t *testing.T, s store.Store) {
 	ctx := context.Background()
 	err := s.Set(ctx, tx1Bytes, &store.StoreData{
-		StoredAt:    testTime,
-		AnnouncedAt: testTime.Add(1 * time.Second),
-		MinedAt:     testTime.Add(2 * time.Second),
-		Hash:        tx1Bytes,
-		Status:      metamorph_api.Status_SENT_TO_NETWORK,
+		StoredAt:      testTime,
+		AnnouncedAt:   testTime.Add(1 * time.Second),
+		MinedAt:       testTime.Add(2 * time.Second),
+		Hash:          tx1Bytes,
+		Status:        metamorph_api.Status_SENT_TO_NETWORK,
+		CallbackUrl:   "https://test.com",
+		CallbackToken: "token",
 	})
 	require.NoError(t, err)
 	err = s.Set(ctx, tx2Bytes, &store.StoreData{

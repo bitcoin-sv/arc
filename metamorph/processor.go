@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/p2p"
@@ -35,10 +36,10 @@ type ProcessorStats struct {
 }
 
 type Processor struct {
-	ch chan *ProcessorRequest
-	//evictionChan chan []*ProcessorResponse
+	ch               chan *ProcessorRequest
 	store            store.Store
 	registerCh       chan *blocktx_api.TransactionAndSource
+	cbChannel        chan *callbacker_api.Callback
 	tx2ChMap         *ProcessorResponseMap
 	pm               p2p.PeerManagerI
 	logger           utils.Logger
@@ -52,7 +53,8 @@ type Processor struct {
 	processedMillis atomic.Int32
 }
 
-func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI, metamorphAddress string, registerCh chan *blocktx_api.TransactionAndSource) *Processor {
+func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI, metamorphAddress string,
+	registerCh chan *blocktx_api.TransactionAndSource, cbChannel chan *callbacker_api.Callback) *Processor {
 	if s == nil {
 		panic("store cannot be nil")
 	}
@@ -75,6 +77,7 @@ func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI, metamorph
 		ch:               make(chan *ProcessorRequest),
 		store:            s,
 		registerCh:       registerCh,
+		cbChannel:        cbChannel,
 		tx2ChMap:         NewProcessorResponseMap(mapExpiry),
 		workerCount:      workerCount,
 		pm:               pm,
@@ -152,6 +155,20 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 		p.processedCount.Add(1)
 		p.processedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
 		p.tx2ChMap.Delete(hashStr)
+	}
+
+	if p.cbChannel != nil {
+		data, _ := p.store.Get(context.Background(), hash)
+		if data != nil && data.CallbackUrl != "" {
+			p.cbChannel <- &callbacker_api.Callback{
+				Hash:        data.Hash,
+				Url:         data.CallbackUrl,
+				Token:       data.CallbackToken,
+				Status:      int32(data.Status),
+				BlockHash:   data.BlockHash,
+				BlockHeight: uint64(data.BlockHeight),
+			}
+		}
 	}
 
 	return true, nil
@@ -248,6 +265,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 		processorResponse.SetStatus(metamorph_api.Status_STORED)
 
 		if p.registerCh != nil {
+			p.logger.Infof("Sending tx %s to register", txIDStr)
 			utils.SafeSend(p.registerCh, &blocktx_api.TransactionAndSource{
 				Hash:   req.Hash,
 				Source: p.metamorphAddress,

@@ -3,9 +3,13 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/TAAL-GmbH/arc/asynccaller"
 	"github.com/TAAL-GmbH/arc/blocktx"
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/TAAL-GmbH/arc/callbacker"
+	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
 	"github.com/TAAL-GmbH/arc/metamorph"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store/badgerhold"
@@ -14,8 +18,6 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/gocore"
 )
-
-const ISO8601 = "2006-01-02T15:04:05.999Z"
 
 func StartMetamorph(logger *gocore.Logger) {
 	s, err := badgerhold.New("")
@@ -35,10 +37,40 @@ func StartMetamorph(logger *gocore.Logger) {
 
 	pm, peerMessageCh := initPeerManager(logger, s)
 
-	// create a batcher to store all the transaction registrations that cannot be sent to blocktx right away
-	registerCh := initRegisterTransactionChannel(logger, btc)
+	// create an async caller to store all the transaction registrations that cannot be sent to blocktx right away
+	var asyncCaller *asynccaller.AsyncCaller[blocktx_api.TransactionAndSource]
+	asyncCaller, err = asynccaller.New[blocktx_api.TransactionAndSource](
+		logger,
+		"./tx-register",
+		10*time.Second,
+		metamorph.NewRegisterTransactionCallerClient(btc),
+	)
+	if err != nil {
+		logger.Fatalf("error creating async caller: %v", err)
+	}
 
-	metamorphProcessor := metamorph.NewProcessor(workerCount, s, pm, metamorphAddress, registerCh)
+	cb := callbacker.NewClient(logger, metamorphAddress)
+
+	// create an async caller to callbacker
+	var cbAsyncCaller *asynccaller.AsyncCaller[callbacker_api.Callback]
+	cbAsyncCaller, err = asynccaller.New[callbacker_api.Callback](
+		logger,
+		"./callback-register",
+		10*time.Second,
+		metamorph.NewRegisterCallbackClient(cb),
+	)
+	if err != nil {
+		logger.Fatalf("error creating async caller: %v", err)
+	}
+
+	metamorphProcessor := metamorph.NewProcessor(
+		workerCount,
+		s,
+		pm,
+		metamorphAddress,
+		asyncCaller.GetChannel(),
+		cbAsyncCaller.GetChannel(),
+	)
 
 	go func() {
 		for message := range peerMessageCh {

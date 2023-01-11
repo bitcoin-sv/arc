@@ -107,6 +107,10 @@ func TestCall(t *testing.T) {
 		}
 
 		ac.Call(testData)
+
+		// wait for worker to finish
+		time.Sleep(10 * time.Millisecond)
+
 		assert.Equal(t, 1, len(testCaller.GetCalled()))
 		assert.Equal(t, testData, testCaller.GetCalled()[0])
 
@@ -124,7 +128,7 @@ func TestCall(t *testing.T) {
 			callerError: testError,
 		}
 
-		ac, err := New[TestData](&p2p.TestLogger{}, dirName, 100*time.Millisecond, testCaller)
+		ac, err := New[TestData](&p2p.TestLogger{}, dirName, 10*time.Millisecond, testCaller)
 		require.NoError(t, err)
 		require.NotNil(t, ac)
 
@@ -136,7 +140,7 @@ func TestCall(t *testing.T) {
 		ac.Call(testData)
 		assert.Equal(t, 0, len(testCaller.called))
 
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(20 * time.Millisecond)
 
 		files, err := os.ReadDir(dirName)
 		require.NoError(t, err)

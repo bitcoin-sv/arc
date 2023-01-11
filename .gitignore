@@ -5,3 +5,4 @@ data/
 data_callbacker/
 block-tx.db*
 tx-register/
+callback-register/

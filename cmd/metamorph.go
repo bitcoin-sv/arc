@@ -3,53 +3,21 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/asynccaller"
 	"github.com/TAAL-GmbH/arc/blocktx"
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/TAAL-GmbH/arc/callbacker"
+	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
 	"github.com/TAAL-GmbH/arc/metamorph"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store/badgerhold"
 	"github.com/TAAL-GmbH/arc/p2p"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/libsv/go-bt/v2"
-	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
-
-type RegisterTransactionCallerClient struct {
-	btc blocktx.ClientI
-}
-
-func (r *RegisterTransactionCallerClient) Caller(data *blocktx_api.TransactionAndSource) error {
-	if err := r.btc.RegisterTransaction(context.Background(), data); err != nil {
-		return fmt.Errorf("error registering transaction %x: %v", bt.ReverseBytes(data.Hash), err)
-	}
-	return nil
-}
-
-func (r *RegisterTransactionCallerClient) MarshalString(data *blocktx_api.TransactionAndSource) (string, error) {
-	return fmt.Sprintf("%x,%s", bt.ReverseBytes(data.Hash), data.Source), nil
-}
-
-func (r *RegisterTransactionCallerClient) UnmarshalString(data string) (*blocktx_api.TransactionAndSource, error) {
-	parts := strings.Split(data, ",")
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("could not unmarshal data: %s", data)
-	}
-
-	hash, err := utils.DecodeAndReverseHexString(parts[0])
-	if err != nil {
-		return nil, fmt.Errorf("could not decode hash: %v", err)
-	}
-
-	return &blocktx_api.TransactionAndSource{
-		Hash:   hash,
-		Source: parts[1],
-	}, nil
-}
 
 func StartMetamorph(logger *gocore.Logger) {
 	s, err := badgerhold.New("")
@@ -75,15 +43,34 @@ func StartMetamorph(logger *gocore.Logger) {
 		logger,
 		"./tx-register",
 		10*time.Second,
-		&RegisterTransactionCallerClient{
-			btc: btc,
-		},
+		metamorph.NewRegisterTransactionCallerClient(btc),
 	)
 	if err != nil {
 		logger.Fatalf("error creating async caller: %v", err)
 	}
 
-	metamorphProcessor := metamorph.NewProcessor(workerCount, s, pm, metamorphAddress, asyncCaller.GetChannel())
+	cb := callbacker.NewClient(logger, metamorphAddress)
+
+	// create an async caller to callbacker
+	var cbAsyncCaller *asynccaller.AsyncCaller[callbacker_api.Callback]
+	cbAsyncCaller, err = asynccaller.New[callbacker_api.Callback](
+		logger,
+		"./callback-register",
+		10*time.Second,
+		metamorph.NewRegisterCallbackClient(cb),
+	)
+	if err != nil {
+		logger.Fatalf("error creating async caller: %v", err)
+	}
+
+	metamorphProcessor := metamorph.NewProcessor(
+		workerCount,
+		s,
+		pm,
+		metamorphAddress,
+		asyncCaller.GetChannel(),
+		cbAsyncCaller.GetChannel(),
+	)
 
 	go func() {
 		for message := range peerMessageCh {

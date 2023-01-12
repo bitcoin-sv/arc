@@ -7,6 +7,7 @@ import (
 	"os/signal"
 
 	"github.com/TAAL-GmbH/arc/cmd"
+	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 
 	_ "github.com/lib/pq"
@@ -19,13 +20,13 @@ const progname = "block-tx"
 var version string
 var commit string
 
-var logger = gocore.Log(progname)
-
 func init() {
 	gocore.SetInfo(progname, version, commit)
 }
 
 func main() {
+	logger := gocore.Log(progname)
+
 	stats := gocore.Config().Stats()
 	logger.Infof("STATS\n%s\nVERSION\n-------\n%s (%s)\n\n", stats, version, commit)
 
@@ -45,13 +46,13 @@ func main() {
 	go func() {
 		<-signalChan
 
-		appCleanup()
+		appCleanup(logger)
 		os.Exit(1)
 	}()
 
 	cmd.StartBlockTx(logger)
 }
 
-func appCleanup() {
+func appCleanup(logger utils.Logger) {
 	logger.Infof("Shutting down...")
 }

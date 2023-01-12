@@ -51,7 +51,6 @@ func (a *AsyncCaller[T]) init(delay time.Duration) {
 
 	go func() {
 		for data := range a.ch {
-			a.logger.Infof("calling caller client: %v", data)
 			if err := a.callerClient.Caller(data); err != nil {
 				a.logger.Errorf("error calling caller: %v", err)
 				batch.Put(data)

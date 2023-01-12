@@ -7,8 +7,7 @@ import (
 
 const progname = "api"
 
-var logger = gocore.Log(progname)
-
 func main() {
+	logger := gocore.Log(progname)
 	cmd.StartAPIServer(logger)
 }

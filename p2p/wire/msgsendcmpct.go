@@ -47,11 +47,14 @@ func (msg *MsgSendcmpct) Command() string {
 // MaxPayloadLength returns the maximum length the payload can be for the
 // receiver.  This is part of the Message interface implementation.
 func (msg *MsgSendcmpct) MaxPayloadLength(pver uint32) uint64 {
-	return ebs
+	return 1 + 8
 }
 
 // NewMsgSendcmpct returns a new compact blocks negotiation message that conforms to
 // the Message interface.  See MsgSendcmpct for details.
-func NewMsgSendcmpct() *MsgSendcmpct {
-	return &MsgSendcmpct{}
+func NewMsgSendcmpct(sendcmpct bool) *MsgSendcmpct {
+	return &MsgSendcmpct{
+		SendCmpct: sendcmpct,
+		Version:   1,
+	}
 }

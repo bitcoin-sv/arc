@@ -69,7 +69,9 @@ const (
 	CmdCFCheckpt    = "cfcheckpt"
 	CmdProtoconf    = "protoconf"
 	CmdExtMsg       = "extmsg"
-	CmdSendCmpct    = "sendcmpct"
+	CmdSendcmpct    = "sendcmpct"
+	CmdAuthch       = "authch"
+	CmdAuthresp     = "authresp"
 )
 
 // MessageEncoding represents the wire message encoding format to be used.
@@ -190,6 +192,15 @@ func makeEmptyMessage(command string) (Message, error) {
 
 	case CmdExtMsg:
 		msg = &MsgExtMsg{}
+
+	case CmdAuthch:
+		msg = &MsgAuthch{}
+
+	case CmdAuthresp:
+		msg = &MsgAuthresp{}
+
+	case CmdSendcmpct:
+		msg = &MsgSendcmpct{}
 
 	default:
 		return nil, fmt.Errorf("unhandled command [%s]: %#v", command, msg)

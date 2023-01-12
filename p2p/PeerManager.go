@@ -27,6 +27,9 @@ type PeerManager struct {
 // this is used to pass INV messages from the bitcoin network peers to the parent process
 // at the moment this is only used for Inv tx message for "seen", "sent" and "rejected" transactions
 func NewPeerManager(logger utils.Logger, network wire.BitcoinNet, batchDuration ...time.Duration) PeerManagerI {
+	// set max block size to 4GB - TODO - make this configurable
+	wire.SetLimits(4000000000)
+
 	pm := &PeerManager{
 		peers:   make(map[string]PeerI),
 		network: network,
@@ -123,12 +126,14 @@ func (pm *PeerManager) sendInvBatch(batch []*[]byte) {
 		sendToPeers = append(sendToPeers, peer)
 	}
 
+	var peerAddresses []string
 	for _, peer := range sendToPeers {
+		peerAddresses = append(peerAddresses, peer.String())
 		peer.WriteMsg(invMsg)
 	}
 
 	// if len(batch) <= 10 {
-	pm.logger.Infof("Sent INV (%d items) to %d peers", len(batch), len(sendToPeers))
+	pm.logger.Infof("Sent INV (%d items) to %d peers: %s", len(batch), len(sendToPeers), peerAddresses)
 	for _, txid := range batch {
 		pm.logger.Infof("        %x", bt.ReverseBytes(*txid))
 	}

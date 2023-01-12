@@ -62,7 +62,7 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 				continue
 			}
 
-			peer.WriteMsg(msg)
+			_ = peer.WriteMsg(msg)
 			logger.Infof("ProcessBlock: %s", hash.String())
 		}
 	}()

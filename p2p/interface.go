@@ -22,7 +22,8 @@ type PeerManagerI interface {
 }
 
 type PeerI interface {
-	WriteMsg(msg wire.Message)
+	Connected() bool
+	WriteMsg(msg wire.Message) error
 	String() string
 }
 

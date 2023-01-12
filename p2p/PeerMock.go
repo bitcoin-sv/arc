@@ -32,6 +32,10 @@ func NewPeerMock(address string, peerStore PeerHandlerI) (*PeerMock, error) {
 	return p, nil
 }
 
+func (p *PeerMock) Connected() bool {
+	return true
+}
+
 func (p *PeerMock) Len() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -53,8 +57,9 @@ func (p *PeerMock) getMessages() []wire.Message {
 	return p.messages
 }
 
-func (p *PeerMock) WriteMsg(msg wire.Message) {
+func (p *PeerMock) WriteMsg(msg wire.Message) error {
 	p.writeChan <- msg
+	return nil
 }
 
 func (p *PeerMock) String() string {

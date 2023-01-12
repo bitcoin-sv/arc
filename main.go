@@ -10,6 +10,7 @@ import (
 	"github.com/TAAL-GmbH/arc/cmd"
 	"github.com/TAAL-GmbH/arc/tracing"
 	"github.com/opentracing/opentracing-go"
+	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
 
@@ -20,13 +21,13 @@ const progname = "arc"
 var version string
 var commit string
 
-var logger = gocore.Log(progname)
-
 func init() {
 	gocore.SetInfo(progname, version, commit)
 }
 
 func main() {
+	logger := gocore.Log(progname)
+
 	stats := gocore.Config().Stats()
 	logger.Infof("STATS\n%s\nVERSION\n-------\n%s (%s)\n\n", stats, version, commit)
 
@@ -95,11 +96,11 @@ func main() {
 	signal.Notify(signalChan, os.Interrupt)
 
 	<-signalChan
-	appCleanup()
+	appCleanup(logger)
 	os.Exit(1)
 }
 
-func appCleanup() {
+func appCleanup(logger utils.Logger) {
 	logger.Infof("Shutting down...")
 }
 

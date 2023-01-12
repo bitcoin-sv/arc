@@ -140,7 +140,7 @@ func TestCall(t *testing.T) {
 		ac.Call(testData)
 		assert.Equal(t, 0, len(testCaller.called))
 
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 
 		files, err := os.ReadDir(dirName)
 		require.NoError(t, err)

@@ -1,8 +1,6 @@
 package p2p
 
 import (
-	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -13,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/p2p/blockchain"
 	"github.com/TAAL-GmbH/arc/p2p/bsvutil"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 
@@ -32,19 +29,18 @@ type Block struct {
 }
 
 type Peer struct {
-	address       string
-	network       wire.BitcoinNet
-	conn          net.Conn
-	peerStore     PeerStoreI
-	parentChannel chan *PMMessage
-	writeChan     chan wire.Message
-	quit          chan struct{}
-	logger        utils.Logger
-	initialized   sync.WaitGroup
+	address     string
+	network     wire.BitcoinNet
+	conn        net.Conn
+	peerHandler PeerHandlerI
+	writeChan   chan wire.Message
+	quit        chan struct{}
+	logger      utils.Logger
+	initialized sync.WaitGroup
 }
 
 // NewPeer returns a new bitcoin peer for the provided address and configuration.
-func NewPeer(logger utils.Logger, address string, peerStore PeerStoreI, network wire.BitcoinNet) (*Peer, error) {
+func NewPeer(logger utils.Logger, address string, peerHandler PeerHandlerI, network wire.BitcoinNet) (*Peer, error) {
 	writeChan := make(chan wire.Message, 100)
 
 	conn, err := net.Dial("tcp", address)
@@ -57,7 +53,7 @@ func NewPeer(logger utils.Logger, address string, peerStore PeerStoreI, network 
 		network:     network,
 		address:     address,
 		writeChan:   writeChan,
-		peerStore:   peerStore,
+		peerHandler: peerHandler,
 		logger:      logger,
 		initialized: sync.WaitGroup{},
 	}
@@ -79,12 +75,6 @@ func NewPeer(logger utils.Logger, address string, peerStore PeerStoreI, network 
 	p.LogInfo("Sent %s", strings.ToUpper(msg.Command()))
 
 	return p, nil
-}
-
-func (p *Peer) AddParentMessageChannel(parentChannel chan *PMMessage) PeerI {
-	p.parentChannel = parentChannel
-
-	return p
 }
 
 func (p *Peer) WriteMsg(msg wire.Message) {
@@ -140,12 +130,11 @@ func (p *Peer) readHandler() {
 				for _, invVect := range invList {
 					switch invVect.Type {
 					case wire.InvTypeTx:
-						utils.SafeSend(p.parentChannel, &PMMessage{
-							Txid:   invVect.Hash.String(),
-							Status: StatusSeen,
-						})
+						if err = p.peerHandler.HandleTransactionAnnouncement(invVect, p); err != nil {
+							p.LogError("Unable to process tx %s: %v", invVect.Hash.String(), err)
+						}
 					case wire.InvTypeBlock:
-						if err = p.peerStore.HandleBlockAnnouncement(invVect.Hash.CloneBytes(), p); err != nil {
+						if err = p.peerHandler.HandleBlockAnnouncement(invVect, p); err != nil {
 							p.LogError("Unable to process block %s: %v", invVect.Hash.String(), err)
 						}
 					}
@@ -164,74 +153,20 @@ func (p *Peer) readHandler() {
 			blockMsg := msg.(*wire.MsgBlock)
 			p.LogInfo("Recv %s: %s", strings.ToUpper(msg.Command()), blockMsg.BlockHash().String())
 
-			blockHash := blockMsg.BlockHash()
-			blockHashBytes := blockHash.CloneBytes()
-
-			txs := make([][]byte, blockMsg.TxCount)
-
-			coinbaseTx := wire.NewMsgTx(1)
-			if err := coinbaseTx.Bsvdecode(blockMsg.TransactionReader, blockMsg.ProtocolVersion, blockMsg.MessageEncoding); err != nil {
-				p.LogError("Unable to read transaction from block %s: %v", blockHash.String(), err)
-				continue
-			}
-			txHash := coinbaseTx.TxHash()
-			// coinbase tx is always the first tx in the block
-			txs[0] = txHash.CloneBytes()
-
-			height := extractHeightFromCoinbaseTx(coinbaseTx)
-
-			previousBlockHash := blockMsg.Header.PrevBlock
-			previousBlockHashBytes := previousBlockHash.CloneBytes()
-
-			merkleRoot := blockMsg.Header.MerkleRoot
-			merkleRootBytes := merkleRoot.CloneBytes()
-
-			blockId, err := p.peerStore.InsertBlock(blockHashBytes, merkleRootBytes, previousBlockHashBytes, height, p)
+			err = p.peerHandler.HandleBlock(blockMsg, p)
 			if err != nil {
-				p.LogError("Unable to insert block %s: %v", blockHash.String(), err)
-				continue
+				p.LogError("Unable to process block %s: %v", blockMsg.BlockHash().String(), err)
 			}
 
-			for i := uint64(1); i < blockMsg.TxCount; i++ {
-				tx := wire.NewMsgTx(1)
-				if err := tx.Bsvdecode(blockMsg.TransactionReader, blockMsg.ProtocolVersion, blockMsg.MessageEncoding); err != nil {
-					p.LogError("Unable to read transaction from block %s: %v", blockHash.String(), err)
-					continue
-				}
-				txHash = tx.TxHash()
-				txs[i] = txHash.CloneBytes()
-			}
-
-			if err := p.peerStore.MarkTransactionsAsMined(blockId, txs); err != nil {
-				p.LogError("Unable to mark block as mined %s: %v", blockHash.String(), err)
-				continue
-			}
-
-			calculatedMerkleRoot := blockchain.BuildMerkleTreeStore(txs)
-			if !bytes.Equal(calculatedMerkleRoot[len(calculatedMerkleRoot)-1], merkleRootBytes) {
-				p.LogError("Merkle root mismatch for block %s", blockHash.String())
-				continue
-			}
-
-			block := &Block{
-				Hash:         blockHashBytes,
-				MerkleRoot:   merkleRootBytes,
-				PreviousHash: previousBlockHashBytes,
-				Height:       height,
-			}
-
-			if err := p.peerStore.MarkBlockAsProcessed(block); err != nil {
-				p.LogError("Unable to mark block as processed %s: %v", blockHash.String(), err)
-				continue
-			}
+			// read the remainder of the block, if not consumed by the handler
+			// TODO is this necessary or can we just ignore whether the reader has been consumed?
+			_, _ = io.ReadAll(blockMsg.TransactionReader)
 
 		case wire.CmdReject:
 			rejMsg := msg.(*wire.MsgReject)
-			utils.SafeSend(p.parentChannel, &PMMessage{
-				Txid:   rejMsg.Hash.String(),
-				Err:    fmt.Errorf("P2P rejection: %s", rejMsg.Reason),
-				Status: StatusRejected,
-			})
+			if err = p.peerHandler.HandleTransactionRejection(rejMsg, p); err != nil {
+				p.LogError("Unable to process block %s: %v", rejMsg.Hash.String(), err)
+			}
 
 		case wire.CmdVerAck:
 			p.LogInfo("Recv %s", strings.ToUpper(msg.Command()))
@@ -249,7 +184,7 @@ func (p *Peer) handleGetDataMsg(dataMsg *wire.MsgGetData) {
 		case wire.InvTypeTx:
 			p.LogInfo("Request for TX: %s\n", invVect.Hash.String())
 
-			txBytes, err := p.peerStore.GetTransactionBytes(invVect.Hash.CloneBytes())
+			txBytes, err := p.peerHandler.GetTransactionBytes(invVect)
 			if err != nil {
 				p.LogError("Unable to fetch tx %s from store: %v", invVect.Hash.String(), err)
 				continue
@@ -289,10 +224,10 @@ func (p *Peer) writeChannelHandler() {
 		}
 
 		if msg.Command() == wire.CmdTx {
-			utils.SafeSend(p.parentChannel, &PMMessage{
-				Txid:   msg.(*wire.MsgTx).TxHash().String(),
-				Status: StatusSent,
-			})
+			hash := msg.(*wire.MsgTx).TxHash()
+			if err := p.peerHandler.HandleTransactionSent(msg.(*wire.MsgTx), p); err != nil {
+				p.LogError("Unable to process tx %s: %v", hash.String(), err)
+			}
 		}
 
 		switch m := msg.(type) {
@@ -358,23 +293,4 @@ out:
 			break out
 		}
 	}
-}
-
-func extractHeightFromCoinbaseTx(tx *wire.MsgTx) uint64 {
-	// Coinbase tx has a special format, the height is encoded in the first 4 bytes of the scriptSig
-	// https://en.bitcoin.it/wiki/Protocol_documentation#tx
-	// Get the length
-	length := int(tx.TxIn[0].SignatureScript[0])
-
-	if len(tx.TxIn[0].SignatureScript) < length+1 {
-		return 0
-	}
-
-	b := make([]byte, 8)
-
-	for i := 0; i < length; i++ {
-		b[i] = tx.TxIn[0].SignatureScript[i+1]
-	}
-
-	return binary.LittleEndian.Uint64(b)
 }

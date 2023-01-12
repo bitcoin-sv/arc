@@ -14,23 +14,23 @@ var (
 
 type PeerManagerI interface {
 	AnnounceNewTransaction(txID []byte)
-	AddPeer(peerURL string, peerStore PeerStoreI) error
+	AddPeer(peerURL string, peerStore PeerHandlerI) error
 	RemovePeer(peerURL string) error
 	GetPeers() []PeerI
-	PeerCreator(peerCreator func(peerAddress string, peerStore PeerStoreI) (PeerI, error))
+	PeerCreator(peerCreator func(peerAddress string, peerStore PeerHandlerI) (PeerI, error))
 	addPeer(peer PeerI) error
 }
 
 type PeerI interface {
-	AddParentMessageChannel(parentMessageCh chan *PMMessage) PeerI
 	WriteMsg(msg wire.Message)
 	String() string
 }
 
-type PeerStoreI interface {
-	GetTransactionBytes(hash []byte) ([]byte, error)
-	HandleBlockAnnouncement(hash []byte, peer PeerI) error
-	InsertBlock(blockHash []byte, merkleRootHash []byte, previousBlockHash []byte, height uint64, peer PeerI) (uint64, error)
-	MarkTransactionsAsMined(blockId uint64, txHashes [][]byte) error
-	MarkBlockAsProcessed(block *Block) error
+type PeerHandlerI interface {
+	GetTransactionBytes(msg *wire.InvVect) ([]byte, error)
+	HandleTransactionSent(msg *wire.MsgTx, peer PeerI) error
+	HandleTransactionAnnouncement(msg *wire.InvVect, peer PeerI) error
+	HandleTransactionRejection(rejMsg *wire.MsgReject, peer PeerI) error
+	HandleBlockAnnouncement(msg *wire.InvVect, peer PeerI) error
+	HandleBlock(msg *wire.MsgBlock, peer PeerI) error
 }

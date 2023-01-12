@@ -49,7 +49,11 @@ func StartMetamorph(logger *gocore.Logger) {
 		logger.Fatalf("error creating async caller: %v", err)
 	}
 
-	cb := callbacker.NewClient(logger, metamorphAddress)
+	callbackerAddress, ok := gocore.Config().Get("callbacker_grpcAddress", "localhost:8002")
+	if !ok {
+		logger.Fatalf("no callbacker_grpcAddress setting found")
+	}
+	cb := callbacker.NewClient(logger, callbackerAddress)
 
 	// create an async caller to callbacker
 	var cbAsyncCaller *asynccaller.AsyncCaller[callbacker_api.Callback]

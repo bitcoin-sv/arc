@@ -22,7 +22,7 @@ func NewSQLStore(engine string) (store.Interface, error) {
 
 	var memory bool
 
-	logger := gocore.Log("sqlite")
+	logger := gocore.Log("sql")
 
 	switch engine {
 	case "postgres":

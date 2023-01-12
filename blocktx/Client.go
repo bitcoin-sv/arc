@@ -40,7 +40,6 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 			time.Sleep(10 * time.Second)
 			continue
 		}
-		defer conn.Close()
 
 		client := blocktx_api.NewBlockTxAPIClient(conn)
 
@@ -50,8 +49,9 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 		} else {
 			btc.logger.Infof("Connected to block-tx server at %s", btc.address)
 
+			var block *blocktx_api.Block
 			for {
-				block, err := stream.Recv()
+				block, err = stream.Recv()
 				if err != nil {
 					break
 				}
@@ -62,7 +62,7 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 		}
 
 		btc.logger.Warnf("could not get message from block-tx stream: %v", err)
-		conn.Close()
+		_ = conn.Close()
 		btc.logger.Warnf("Retrying in 10 seconds")
 		time.Sleep(10 * time.Second)
 	}

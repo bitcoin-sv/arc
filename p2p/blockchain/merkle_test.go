@@ -21,7 +21,7 @@ func TestMerkle(t *testing.T) {
 		"C3F8BDBC6524F14FD752B7C6C4710F0B6DB86371EA534F5F456E346E72C38D1F",
 	}
 
-	transactions := [][]byte{}
+	var transactions [][]byte
 	for _, hexString := range hexStrings {
 		transaction, err := hex.DecodeString(hexString)
 		if err != nil {

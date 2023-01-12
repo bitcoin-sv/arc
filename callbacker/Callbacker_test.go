@@ -38,10 +38,10 @@ func TestNewCallbacker(t *testing.T) {
 	})
 
 	t.Run("new callbacker", func(t *testing.T) {
-		store, err := mock.New()
+		mockStore, err := mock.New()
 		require.NoError(t, err)
 
-		_, err = NewCallbacker(store)
+		_, err = NewCallbacker(mockStore)
 		assert.NoError(t, err)
 	})
 }

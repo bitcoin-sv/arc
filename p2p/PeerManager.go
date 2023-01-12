@@ -9,6 +9,7 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/batcher"
+	"github.com/ordishs/gocore"
 )
 
 type PeerManager struct {
@@ -27,8 +28,8 @@ type PeerManager struct {
 // this is used to pass INV messages from the bitcoin network peers to the parent process
 // at the moment this is only used for Inv tx message for "seen", "sent" and "rejected" transactions
 func NewPeerManager(logger utils.Logger, network wire.BitcoinNet, batchDuration ...time.Duration) PeerManagerI {
-	// set max block size to 4GB - TODO - make this configurable
-	wire.SetLimits(4000000000)
+	ebs, _ := gocore.Config().GetInt("excessive_block_size", 4000000000)
+	wire.SetLimits(uint64(ebs))
 
 	pm := &PeerManager{
 		peers:   make(map[string]PeerI),

@@ -14,7 +14,7 @@ import (
 	"github.com/ordishs/go-utils/expiringmap"
 )
 
-type BlockTxPeerStore struct {
+type PeerStore struct {
 	workerCh       chan utils.Pair[[]byte, p2p.PeerI]
 	blockCh        chan *blocktx_api.Block
 	store          store.Interface
@@ -22,8 +22,8 @@ type BlockTxPeerStore struct {
 	announcedCache *expiringmap.ExpiringMap[string, []p2p.PeerI]
 }
 
-func NewBlockTxPeerStore(storeI store.Interface, logger utils.Logger, blockCh chan *blocktx_api.Block) p2p.PeerStoreI {
-	s := &BlockTxPeerStore{
+func NewPeerStore(storeI store.Interface, logger utils.Logger, blockCh chan *blocktx_api.Block) p2p.PeerStoreI {
+	s := &PeerStore{
 		store:          storeI,
 		blockCh:        blockCh,
 		logger:         logger,
@@ -66,18 +66,18 @@ func NewBlockTxPeerStore(storeI store.Interface, logger utils.Logger, blockCh ch
 	return s
 }
 
-func (bs *BlockTxPeerStore) GetTransactionBytes(txID []byte) ([]byte, error) {
+func (bs *PeerStore) GetTransactionBytes(txID []byte) ([]byte, error) {
 	return nil, nil
 }
 
-func (bs *BlockTxPeerStore) HandleBlockAnnouncement(hash []byte, peer p2p.PeerI) error {
+func (bs *PeerStore) HandleBlockAnnouncement(hash []byte, peer p2p.PeerI) error {
 	pair := utils.NewPair(hash, peer)
 	utils.SafeSend(bs.workerCh, pair)
 
 	return nil
 }
 
-func (bs *BlockTxPeerStore) InsertBlock(blockHash []byte, merkleRoot []byte, previousBlockHash []byte, height uint64, peer p2p.PeerI) (uint64, error) {
+func (bs *PeerStore) InsertBlock(blockHash []byte, merkleRoot []byte, previousBlockHash []byte, height uint64, peer p2p.PeerI) (uint64, error) {
 	if height >= 1111 { // TODO get the first height we ever processed
 		if _, found := bs.announcedCache.Get(utils.HexEncodeAndReverseBytes(previousBlockHash)); !found {
 			if _, err := bs.store.GetBlock(context.Background(), previousBlockHash); err != nil {
@@ -99,7 +99,7 @@ func (bs *BlockTxPeerStore) InsertBlock(blockHash []byte, merkleRoot []byte, pre
 	return bs.store.InsertBlock(context.Background(), block)
 }
 
-func (bs *BlockTxPeerStore) MarkTransactionsAsMined(blockId uint64, transactions [][]byte) error {
+func (bs *PeerStore) MarkTransactionsAsMined(blockId uint64, transactions [][]byte) error {
 	txs := make([]*blocktx_api.TransactionAndSource, 0, len(transactions))
 
 	for _, tx := range transactions {
@@ -115,7 +115,7 @@ func (bs *BlockTxPeerStore) MarkTransactionsAsMined(blockId uint64, transactions
 	return nil
 }
 
-func (bs *BlockTxPeerStore) MarkBlockAsProcessed(block *p2p.Block) error {
+func (bs *PeerStore) MarkBlockAsProcessed(block *p2p.Block) error {
 	err := bs.store.MarkBlockAsDone(context.Background(), block.Hash)
 	if err != nil {
 		return err

@@ -62,7 +62,7 @@ func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI, metamorph
 		panic("peer manager cannot be nil")
 	}
 
-	logger := gocore.Log("processor")
+	logger := gocore.Log("proc")
 
 	mapExpiryStr, _ := gocore.Config().Get("processorCacheExpiryTime", "24h")
 	mapExpiry, err := time.ParseDuration(mapExpiryStr)

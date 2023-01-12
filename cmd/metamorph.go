@@ -131,7 +131,7 @@ func initPeerManager(logger *gocore.Logger, s *badgerhold.BadgerHold) (p2p.PeerM
 	messageCh := make(chan *p2p.PMMessage)
 	pm := p2p.NewPeerManager(logger, messageCh, network)
 
-	peerStore := metamorph.NewMetamorphPeerStore(s)
+	peerStore := metamorph.NewPeerStore(s)
 
 	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
 	if peerCount == 0 {

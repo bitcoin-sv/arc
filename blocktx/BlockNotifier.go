@@ -45,7 +45,7 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 
 	pm := p2p.NewPeerManager(l, nil, network)
 
-	peerStore := NewBlockTxPeerStore(storeI, l, bn.blockCh)
+	peerStore := NewPeerStore(storeI, l, bn.blockCh)
 
 	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
 	if peerCount == 0 {

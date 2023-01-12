@@ -41,7 +41,7 @@ func (l loggerWrapper) Warningf(format string, args ...interface{}) {
 	l.Warnf(format, args...)
 }
 
-var logger = loggerWrapper{gocore.Log("callbacker_badger")}
+var logger = loggerWrapper{gocore.Log("cbdgr")}
 
 func New(dir string, interval time.Duration) (*BadgerHold, error) {
 	options := badgerhold.DefaultOptions

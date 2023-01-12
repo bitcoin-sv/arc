@@ -3,7 +3,6 @@ package handler
 import (
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/api/dictionary"
@@ -57,7 +56,6 @@ func CheckSwagger(e *echo.Echo) *openapi3.T {
 	swagger, err := api.GetSwagger()
 	if err != nil {
 		log.Fatalf(dictionary.GetInternalMessage(dictionary.ErrorLoadingSwaggerSpec), err.Error())
-		os.Exit(1)
 	}
 
 	// Clear out the servers array in the swagger spec, that skips validating

@@ -100,7 +100,7 @@ func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx) error { //nolint:funle
 }
 
 func checkTxSize(txSize int, policy *api.FeesResponse) error {
-	maxTxSizePolicy := 0
+	maxTxSizePolicy := 0 // TODO: get this from the policy, which had been removed previously
 	if maxTxSizePolicy == 0 {
 		// no policy found for tx size, use max block size
 		maxTxSizePolicy = MaxBlockSize

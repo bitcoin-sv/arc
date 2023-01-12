@@ -28,7 +28,7 @@ func (l loggerWrapper) Warningf(format string, args ...interface{}) {
 	l.Warnf(format, args...)
 }
 
-var logger = loggerWrapper{gocore.Log("badger")}
+var logger = loggerWrapper{gocore.Log("bdgr")}
 
 func New(dir string) (*Badger, error) {
 	opts := badger.DefaultOptions(dir).

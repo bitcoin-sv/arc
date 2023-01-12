@@ -9,15 +9,13 @@ func (l TestLogger) Fatalf(format string, args ...interface{}) {}
 
 type PeerManagerMock struct {
 	Peers       map[string]PeerI
-	messageCh   chan *PMMessage
 	Announced   [][]byte
-	peerCreator func(peerAddress string, peerStore PeerStoreI) (PeerI, error)
+	peerCreator func(peerAddress string, peerHandler PeerHandlerI) (PeerI, error)
 }
 
-func NewPeerManagerMock(messageCh chan *PMMessage) *PeerManagerMock {
+func NewPeerManagerMock() *PeerManagerMock {
 	return &PeerManagerMock{
-		Peers:     make(map[string]PeerI),
-		messageCh: messageCh,
+		Peers: make(map[string]PeerI),
 	}
 }
 
@@ -25,15 +23,15 @@ func (p *PeerManagerMock) AnnounceNewTransaction(txID []byte) {
 	p.Announced = append(p.Announced, txID)
 }
 
-func (p *PeerManagerMock) PeerCreator(peerCreator func(peerAddress string, peerStore PeerStoreI) (PeerI, error)) {
+func (p *PeerManagerMock) PeerCreator(peerCreator func(peerAddress string, peerHandler PeerHandlerI) (PeerI, error)) {
 	p.peerCreator = peerCreator
 }
-func (p *PeerManagerMock) AddPeer(peerURL string, peerStore PeerStoreI) error {
-	peer, err := NewPeerMock(peerURL, peerStore)
+
+func (p *PeerManagerMock) AddPeer(peerURL string, peerHandler PeerHandlerI) error {
+	peer, err := NewPeerMock(peerURL, peerHandler)
 	if err != nil {
 		return err
 	}
-	peer.AddParentMessageChannel(p.messageCh)
 
 	return p.addPeer(peer)
 }

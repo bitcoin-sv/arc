@@ -16,32 +16,23 @@ type PeerManager struct {
 	peers      map[string]PeerI
 	network    wire.BitcoinNet
 	invBatcher *batcher.Batcher[[]byte]
-	messageCh  chan *PMMessage
 	logger     utils.Logger
 
 	// this is needed to be able to mock the peer creation in the peer manager
-	peerCreator func(peerAddress string, peerStore PeerStoreI) (PeerI, error)
-}
-
-type PMMessage struct {
-	Start  time.Time
-	Txid   string
-	Status Status
-	Err    error
+	peerCreator func(peerAddress string, peerHandler PeerHandlerI) (PeerI, error)
 }
 
 // NewPeerManager creates a new PeerManager
 // messageCh is a channel that will be used to send messages from peers to the parent process
 // this is used to pass INV messages from the bitcoin network peers to the parent process
 // at the moment this is only used for Inv tx message for "seen", "sent" and "rejected" transactions
-func NewPeerManager(logger utils.Logger, messageCh chan *PMMessage, network wire.BitcoinNet, batchDuration ...time.Duration) PeerManagerI {
+func NewPeerManager(logger utils.Logger, network wire.BitcoinNet, batchDuration ...time.Duration) PeerManagerI {
 	pm := &PeerManager{
-		peers:     make(map[string]PeerI),
-		network:   network,
-		messageCh: messageCh,
-		logger:    logger,
-		peerCreator: func(peerAddress string, peerStore PeerStoreI) (PeerI, error) {
-			return NewPeer(logger, peerAddress, peerStore, network)
+		peers:   make(map[string]PeerI),
+		network: network,
+		logger:  logger,
+		peerCreator: func(peerAddress string, peerHandler PeerHandlerI) (PeerI, error) {
+			return NewPeer(logger, peerAddress, peerHandler, network)
 		},
 	}
 
@@ -54,23 +45,19 @@ func NewPeerManager(logger utils.Logger, messageCh chan *PMMessage, network wire
 	return pm
 }
 
-func (pm *PeerManager) PeerCreator(peerCreator func(peerAddress string, peerStore PeerStoreI) (PeerI, error)) {
+func (pm *PeerManager) PeerCreator(peerCreator func(peerAddress string, peerHandler PeerHandlerI) (PeerI, error)) {
 	pm.peerCreator = peerCreator
 }
 
-func (pm *PeerManager) AddPeer(peerAddress string, peerStore PeerStoreI) error {
+func (pm *PeerManager) AddPeer(peerAddress string, peerHandler PeerHandlerI) error {
 	// check peer is not already in the list
 	if _, ok := pm.peers[peerAddress]; ok {
 		return nil
 	}
 
-	peer, err := pm.peerCreator(peerAddress, peerStore)
+	peer, err := pm.peerCreator(peerAddress, peerHandler)
 	if err != nil {
 		return err
-	}
-
-	if pm.messageCh != nil {
-		peer.AddParentMessageChannel(pm.messageCh)
 	}
 
 	return pm.addPeer(peer)

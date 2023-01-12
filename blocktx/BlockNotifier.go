@@ -43,9 +43,9 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 		network = wire.MainNet
 	}
 
-	pm := p2p.NewPeerManager(l, nil, network)
+	pm := p2p.NewPeerManager(l, network)
 
-	peerStore := NewPeerStore(storeI, l, bn.blockCh)
+	peerHandler := NewPeerHandler(l, storeI, bn.blockCh)
 
 	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
 	if peerCount == 0 {
@@ -61,7 +61,7 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 			l.Fatalf("error reading peer_%d_p2p: %v", i, err)
 		}
 
-		if err := pm.AddPeer(p2pURL.Host, peerStore); err != nil {
+		if err := pm.AddPeer(p2pURL.Host, peerHandler); err != nil {
 			l.Fatalf("error adding peer %s: %v", p2pURL.Host, err)
 		}
 	}

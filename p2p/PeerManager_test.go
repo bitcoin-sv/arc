@@ -19,18 +19,18 @@ var (
 
 func TestNewPeerManager(t *testing.T) {
 	t.Run("nil peers no error", func(t *testing.T) {
-		pm := NewPeerManager(logger, nil, wire.TestNet)
+		pm := NewPeerManager(logger, wire.TestNet)
 		require.NotNil(t, pm)
 	})
 
 	t.Run("1 peer", func(t *testing.T) {
-		pm := NewPeerManager(logger, nil, wire.TestNet)
+		pm := NewPeerManager(logger, wire.TestNet)
 		require.NotNil(t, pm)
-		pm.PeerCreator(func(peerAddress string, peerStore PeerStoreI) (PeerI, error) {
+		pm.PeerCreator(func(peerAddress string, peerStore PeerHandlerI) (PeerI, error) {
 			return NewPeerMock(peerAddress, peerStore)
 		})
 
-		peerStore := NewMockPeerStore()
+		peerStore := NewMockPeerHandler()
 
 		err := pm.AddPeer("localhost:18333", peerStore)
 		require.NoError(t, err)
@@ -45,13 +45,13 @@ func TestNewPeerManager(t *testing.T) {
 			"localhost:18333",
 		}
 
-		pm := NewPeerManager(logger, nil, wire.TestNet)
+		pm := NewPeerManager(logger, wire.TestNet)
 		require.NotNil(t, pm)
-		pm.PeerCreator(func(peerAddress string, peerStore PeerStoreI) (PeerI, error) {
+		pm.PeerCreator(func(peerAddress string, peerStore PeerHandlerI) (PeerI, error) {
 			return NewPeerMock(peerAddress, peerStore)
 		})
 
-		peerStore := NewMockPeerStore()
+		peerStore := NewMockPeerHandler()
 
 		for _, peer := range peers {
 			_ = pm.AddPeer(peer, peerStore)
@@ -64,15 +64,12 @@ func TestNewPeerManager(t *testing.T) {
 func TestAnnounceNewTransaction(t *testing.T) {
 	t.Run("announce tx", func(t *testing.T) {
 
-		var messageCh chan *PMMessage
-
-		pm := NewPeerManager(logger, messageCh, wire.TestNet, 1*time.Millisecond)
+		pm := NewPeerManager(logger, wire.TestNet, 1*time.Millisecond)
 		require.NotNil(t, pm)
 
-		peerStore := NewMockPeerStore()
+		peerStore := NewMockPeerHandler()
 
 		peer, _ := NewPeerMock("localhost:18333", peerStore)
-		peer.AddParentMessageChannel(messageCh)
 		err := pm.addPeer(peer)
 		require.NoError(t, err)
 
@@ -91,17 +88,15 @@ func TestAnnounceNewTransaction(t *testing.T) {
 	})
 
 	t.Run("announce tx - multiple peers", func(t *testing.T) {
-		var messageCh chan *PMMessage
-		pm := NewPeerManager(logger, messageCh, wire.TestNet, 1*time.Millisecond)
+		pm := NewPeerManager(logger, wire.TestNet, 1*time.Millisecond)
 		require.NotNil(t, pm)
 
-		peerStore := NewMockPeerStore()
+		peerStore := NewMockPeerHandler()
 
 		numberOfPeers := 5
 		peers := make([]*PeerMock, numberOfPeers)
 		for i := 0; i < numberOfPeers; i++ {
 			peers[i], _ = NewPeerMock(fmt.Sprintf("localhost:1833%d", i), peerStore)
-			peers[i].AddParentMessageChannel(messageCh)
 			err := pm.addPeer(peers[i])
 			require.NoError(t, err)
 		}

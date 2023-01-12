@@ -122,16 +122,16 @@ func StartMetamorph(logger *gocore.Logger) {
 	}
 }
 
-func initPeerManager(logger *gocore.Logger, s *badgerhold.BadgerHold) (p2p.PeerManagerI, chan *p2p.PMMessage) {
+func initPeerManager(logger *gocore.Logger, s *badgerhold.BadgerHold) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {
 	network := wire.TestNet
 	if gocore.Config().GetBool("mainnet", false) {
 		network = wire.MainNet
 	}
 
-	messageCh := make(chan *p2p.PMMessage)
-	pm := p2p.NewPeerManager(logger, messageCh, network)
+	messageCh := make(chan *metamorph.PeerTxMessage)
+	pm := p2p.NewPeerManager(logger, network)
 
-	peerStore := metamorph.NewPeerStore(s)
+	peerHandler := metamorph.NewPeerHandler(s, messageCh)
 
 	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
 	if peerCount == 0 {
@@ -147,7 +147,7 @@ func initPeerManager(logger *gocore.Logger, s *badgerhold.BadgerHold) (p2p.PeerM
 			logger.Fatalf("error reading peer_%d_p2p: %v", i, err)
 		}
 
-		if err = pm.AddPeer(p2pURL.Host, peerStore); err != nil {
+		if err = pm.AddPeer(p2pURL.Host, peerHandler); err != nil {
 			logger.Fatalf("error adding peer %s: %v", p2pURL.Host, err)
 		}
 	}

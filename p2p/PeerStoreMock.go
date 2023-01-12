@@ -1,28 +1,34 @@
 package p2p
 
-type MockPeerStore struct {
+import "github.com/TAAL-GmbH/arc/p2p/wire"
+
+type MockPeerHandler struct {
 }
 
-func NewMockPeerStore() *MockPeerStore {
-	return &MockPeerStore{}
+func NewMockPeerHandler() PeerHandlerI {
+	return &MockPeerHandler{}
 }
 
-func (m *MockPeerStore) GetTransactionBytes(txID []byte) ([]byte, error) {
+func (m *MockPeerHandler) GetTransactionBytes(_ *wire.InvVect) ([]byte, error) {
 	return nil, nil
 }
 
-func (m *MockPeerStore) HandleBlockAnnouncement(hash []byte, peer PeerI) error {
+func (m *MockPeerHandler) HandleTransactionSent(_ *wire.MsgTx, peer PeerI) error {
 	return nil
 }
 
-func (m *MockPeerStore) InsertBlock(blockHash []byte, merkleRoot []byte, prevhash []byte, height uint64, peer PeerI) (uint64, error) {
-	return 0, nil
-}
-
-func (m *MockPeerStore) MarkTransactionsAsMined(blockId uint64, txHashes [][]byte) error {
+func (m *MockPeerHandler) HandleTransactionAnnouncement(msg *wire.InvVect, peer PeerI) error {
 	return nil
 }
 
-func (m *MockPeerStore) MarkBlockAsProcessed(block *Block) error {
+func (m *MockPeerHandler) HandleTransactionRejection(rejMsg *wire.MsgReject, peer PeerI) error {
+	return nil
+}
+
+func (m *MockPeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer PeerI) error {
+	return nil
+}
+
+func (m *MockPeerHandler) HandleBlock(msg *wire.MsgBlock, peer PeerI) error {
 	return nil
 }

@@ -7,15 +7,14 @@ import (
 )
 
 type PeerMock struct {
-	mu            sync.Mutex
-	address       string
-	peerStore     PeerStoreI
-	parentChannel chan *PMMessage
-	writeChan     chan wire.Message
-	messages      []wire.Message
+	mu        sync.Mutex
+	address   string
+	peerStore PeerHandlerI
+	writeChan chan wire.Message
+	messages  []wire.Message
 }
 
-func NewPeerMock(address string, peerStore PeerStoreI) (*PeerMock, error) {
+func NewPeerMock(address string, peerStore PeerHandlerI) (*PeerMock, error) {
 	writeChan := make(chan wire.Message)
 
 	p := &PeerMock{
@@ -31,11 +30,6 @@ func NewPeerMock(address string, peerStore PeerStoreI) (*PeerMock, error) {
 	}()
 
 	return p, nil
-}
-
-func (p *PeerMock) AddParentMessageChannel(parentMessageCh chan *PMMessage) PeerI {
-	p.parentChannel = parentMessageCh
-	return p
 }
 
 func (p *PeerMock) Len() int {
@@ -65,8 +59,4 @@ func (p *PeerMock) WriteMsg(msg wire.Message) {
 
 func (p *PeerMock) String() string {
 	return p.address
-}
-
-func (p *PeerMock) ReceiveMessage(message *PMMessage) {
-	p.parentChannel <- message
 }

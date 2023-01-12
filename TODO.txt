@@ -2,8 +2,6 @@ Bugs
 - processTransaction:250 - out of 20 transactions, only 3 are put on channel??
 
 TODOs
-- Store Callback etc. from API
-- Use callbacker
 - Last block in blockTx (1111)
 - Last block hash when connecting to p2p (Locator...)
 - Merkle proofs

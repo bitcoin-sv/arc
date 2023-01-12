@@ -35,7 +35,7 @@ func (msg *MsgAuthresp) Bsvdecode(r io.Reader, pver uint32, enc MessageEncoding)
 	msg.PublicKeyLength = uint32(len(msg.PublicKey))
 
 	// Read stop hash
-	err = readElement(r, &msg.PublicKeyLength)
+	err = readElement(r, &msg.ClientNonce)
 	if err != nil {
 		return err
 	}

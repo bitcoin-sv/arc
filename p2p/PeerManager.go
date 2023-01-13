@@ -23,14 +23,18 @@ type PeerManager struct {
 	peerCreator func(peerAddress string, peerHandler PeerHandlerI) (PeerI, error)
 }
 
+func init() {
+	ebs, _ := gocore.Config().GetInt("excessive_block_size", 4000000000)
+	logger := gocore.Log("mtm")
+	logger.Infof("Setting excessive block size to %d", ebs)
+	wire.SetLimits(uint64(ebs))
+}
+
 // NewPeerManager creates a new PeerManager
 // messageCh is a channel that will be used to send messages from peers to the parent process
 // this is used to pass INV messages from the bitcoin network peers to the parent process
 // at the moment this is only used for Inv tx message for "seen", "sent" and "rejected" transactions
 func NewPeerManager(logger utils.Logger, network wire.BitcoinNet, batchDuration ...time.Duration) PeerManagerI {
-	ebs, _ := gocore.Config().GetInt("excessive_block_size", 4000000000)
-	wire.SetLimits(uint64(ebs))
-
 	pm := &PeerManager{
 		peers:   make(map[string]PeerI),
 		network: network,

@@ -8,6 +8,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/p2p/bsvutil"
@@ -30,14 +32,15 @@ type Block struct {
 type Peer struct {
 	address        string
 	network        wire.BitcoinNet
+	mu             sync.RWMutex
 	readConn       net.Conn
 	writeConn      net.Conn
 	peerHandler    PeerHandlerI
 	writeChan      chan wire.Message
 	quit           chan struct{}
 	logger         utils.Logger
-	sentVerAck     bool
-	receivedVerAck bool
+	sentVerAck     atomic.Bool
+	receivedVerAck atomic.Bool
 }
 
 // NewPeer returns a new bitcoin peer for the provided address and configuration.
@@ -72,20 +75,25 @@ func NewPeer(logger utils.Logger, address string, peerHandler PeerHandlerI, netw
 }
 
 func (p *Peer) disconnect() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if p.readConn != nil {
 		_ = p.readConn.Close()
 	}
 
 	p.readConn = nil
 	p.writeConn = nil
-	p.sentVerAck = false
-	p.receivedVerAck = false
+	p.sentVerAck.Store(false)
+	p.receivedVerAck.Store(false)
 }
 
 func (p *Peer) connect() error {
+	p.mu.Lock()
 	p.readConn = nil
-	p.sentVerAck = false
-	p.receivedVerAck = false
+	p.sentVerAck.Store(false)
+	p.receivedVerAck.Store(false)
+	p.mu.Unlock()
 
 	p.LogInfo("Connecting to peer on %s", p.network)
 	conn, err := net.Dial("tcp", p.address)
@@ -94,7 +102,10 @@ func (p *Peer) connect() error {
 	}
 
 	// open the read connection, so we can receive messages
+	p.mu.Lock()
 	p.readConn = conn
+	p.mu.Unlock()
+
 	go p.readHandler()
 
 	// write version message to our peer directly and not through the write channel,
@@ -107,24 +118,33 @@ func (p *Peer) connect() error {
 	p.LogInfo("Sent %s", strings.ToUpper(msg.Command()))
 
 	for {
-		if p.receivedVerAck && p.sentVerAck {
+		if p.receivedVerAck.Load() && p.sentVerAck.Load() {
 			break
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
 
 	// set the connection which allows us to send messages
+	p.mu.Lock()
 	p.writeConn = conn
+	p.mu.Unlock()
 
 	return nil
 }
 
 func (p *Peer) Connected() bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
 	return p.readConn != nil && p.writeConn != nil
 }
 
 func (p *Peer) WriteMsg(msg wire.Message) error {
-	if p.writeConn == nil {
+	p.mu.RLock()
+	writeConn := p.writeConn
+	p.mu.RUnlock()
+
+	if writeConn == nil {
 		return errors.New("peer is not connected")
 	}
 
@@ -149,9 +169,13 @@ func (p *Peer) LogWarn(format string, args ...interface{}) {
 }
 
 func (p *Peer) readHandler() {
-	if p.readConn != nil {
+	p.mu.RLock()
+	readConn := p.readConn
+	p.mu.RUnlock()
+
+	if readConn != nil {
 		for {
-			msg, b, err := wire.ReadMessage(p.readConn, wire.ProtocolVersion, p.network)
+			msg, b, err := wire.ReadMessage(readConn, wire.ProtocolVersion, p.network)
 			if err != nil {
 				if errors.Is(err, io.EOF) {
 					p.LogError(fmt.Sprintf("READ EOF whilst reading from %s [%d bytes]\n%s", p.address, len(b), string(b)))
@@ -166,11 +190,11 @@ func (p *Peer) readHandler() {
 			case wire.CmdVersion:
 				p.LogInfo("Recv %s", strings.ToUpper(msg.Command()))
 				verackMsg := wire.NewMsgVerAck()
-				if err = wire.WriteMessage(p.readConn, verackMsg, wire.ProtocolVersion, p.network); err != nil {
+				if err = wire.WriteMessage(readConn, verackMsg, wire.ProtocolVersion, p.network); err != nil {
 					p.LogError("failed to write message: %v", err)
 				}
 				p.LogInfo("Sent %s", strings.ToUpper(verackMsg.Command()))
-				p.sentVerAck = true
+				p.sentVerAck.Store(true)
 
 			case wire.CmdPing:
 				pingMsg := msg.(*wire.MsgPing)
@@ -227,7 +251,7 @@ func (p *Peer) readHandler() {
 
 			case wire.CmdVerAck:
 				p.LogInfo("Recv %s", strings.ToUpper(msg.Command()))
-				p.receivedVerAck = true
+				p.receivedVerAck.Store(true)
 
 			default:
 				p.LogWarn("Ignored %s", strings.ToUpper(msg.Command()))
@@ -274,7 +298,11 @@ func (p *Peer) writeChannelHandler() {
 	for msg := range p.writeChan {
 		// wait for the write connection to be ready
 		for {
-			if p.writeConn != nil {
+			p.mu.RLock()
+			writeConn := p.writeConn
+			p.mu.RUnlock()
+
+			if writeConn != nil {
 				break
 			}
 			time.Sleep(100 * time.Millisecond)

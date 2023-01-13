@@ -86,9 +86,11 @@ func StartMetamorph(logger *gocore.Logger) {
 		}
 	}()
 
-	// The double invocation is the get PrintStatsOnKeypress to start and return a function
-	// that can be deferred to reset the TTY when the program exits.
-	defer metamorphProcessor.PrintStatsOnKeypress()()
+	if gocore.Config().GetBool("stats_keypress", false) {
+		// The double invocation is the get PrintStatsOnKeypress to start and return a function
+		// that can be deferred to reset the TTY when the program exits.
+		defer metamorphProcessor.PrintStatsOnKeypress()()
+	}
 
 	go func() {
 		// load all transactions into memory from disk that have not been seen on the network

@@ -25,7 +25,7 @@ type PeerManager struct {
 
 func init() {
 	ebs, _ := gocore.Config().GetInt("excessive_block_size", 4000000000)
-	logger := gocore.Log("mtm")
+	logger := gocore.Log("ebs")
 	logger.Infof("Setting excessive block size to %d", ebs)
 	wire.SetLimits(uint64(ebs))
 }
@@ -125,7 +125,8 @@ func (pm *PeerManager) sendInvBatch(batch []*[]byte) {
 	// send to a subset of peers to be able to listen on the rest
 	sendToPeers := make([]PeerI, 0, len(pm.peers))
 	for _, peer := range pm.peers {
-		if peer.Connected() && len(pm.peers) > 1 && len(sendToPeers) >= len(pm.peers)/2 {
+
+		if peer.Connected() && len(pm.peers) > 1 && len(sendToPeers) >= (len(pm.peers)+1)/2 {
 			break
 		}
 		sendToPeers = append(sendToPeers, peer)
@@ -137,12 +138,8 @@ func (pm *PeerManager) sendInvBatch(batch []*[]byte) {
 		_ = peer.WriteMsg(invMsg)
 	}
 
-	// if len(batch) <= 10 {
 	pm.logger.Infof("Sent INV (%d items) to %d peers: %s", len(batch), len(sendToPeers), peerAddresses)
 	for _, txid := range batch {
-		pm.logger.Infof("        %x", bt.ReverseBytes(*txid))
+		pm.logger.Debugf("        %x", bt.ReverseBytes(*txid))
 	}
-	// } else {
-	// 	pm.logger.Infof("Sent INV (%d items) to %d peers", len(batch), len(pm.peers))
-	// }
 }

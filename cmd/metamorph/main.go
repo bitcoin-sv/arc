@@ -23,7 +23,8 @@ func init() {
 }
 
 func main() {
-	logger := gocore.Log(progname)
+	logLevel, _ := gocore.Config().Get("logLevel")
+	logger := gocore.Log(progname, gocore.NewLogLevelFromString(logLevel))
 
 	stats := gocore.Config().Stats()
 	logger.Infof("STATS\n%s\nVERSION\n-------\n%s (%s)\n\n", stats, version, commit)

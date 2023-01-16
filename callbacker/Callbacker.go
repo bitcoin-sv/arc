@@ -22,7 +22,8 @@ type Callbacker struct {
 	ticker *time.Ticker
 }
 
-var logger = gocore.Log("callbacker")
+var logLevel, _ = gocore.Config().Get("logLevel")
+var logger = gocore.Log("callbacker", gocore.NewLogLevelFromString(logLevel))
 
 // NewCallbacker creates a new callback worker
 func NewCallbacker(s store.Store) (*Callbacker, error) {

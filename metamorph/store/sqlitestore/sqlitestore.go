@@ -3,43 +3,111 @@ package sqlitestore
 import (
 	"context"
 	"database/sql"
-	"sync"
+	"fmt"
+	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	store2 "github.com/TAAL-GmbH/arc/metamorph/store"
-	"github.com/pkg/errors"
+	_ "github.com/lib/pq"
+	"github.com/ordishs/gocore"
 	_ "modernc.org/sqlite"
 )
 
 const ISO8601 = "2006-01-02T15:04:05.999Z"
 
-type SqliteStore struct {
-	mu sync.RWMutex
+type SQL struct {
 	db *sql.DB
 }
 
 // New returns a new initialized SqlLiteStore database implementing the Store
 // interface. If the database cannot be initialized, an error will be returned.
-func New(dbLocation string) (store2.Store, error) {
-	if dbLocation == "" {
-		dbLocation = "./sqlite_data.db"
-	}
-	sqliteDb, err := sql.Open("sqlite", dbLocation)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to open sqlite DB")
+func New(engine string) (store2.Store, error) {
+	var db *sql.DB
+	var err error
+
+	var memory bool
+
+	logLevel, _ := gocore.Config().Get("logLevel")
+	logger := gocore.Log("mmsql", gocore.NewLogLevelFromString(logLevel))
+
+	switch engine {
+	case "postgres":
+		dbHost, _ := gocore.Config().Get("dbHost", "localhost")
+		dbPort, _ := gocore.Config().GetInt("dbPort", 5432)
+		dbName, _ := gocore.Config().Get("dbName", "arc")
+		dbUser, _ := gocore.Config().Get("dbUser", "arc")
+		dbPassword, _ := gocore.Config().Get("dbPassword", "arc")
+
+		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", dbUser, dbPassword, dbName, dbHost, dbPort)
+
+		db, err = sql.Open(engine, dbInfo)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open postgres DB: %+v", err)
+		}
+
+		if err := createPostgresSchema(db); err != nil {
+			return nil, fmt.Errorf("failed to create postgres schema: %+v", err)
+		}
+
+	case "sqlite_memory":
+		memory = true
+		fallthrough
+	case "sqlite":
+		folder, _ := gocore.Config().Get("sqliteFolder", "")
+
+		filename, err := filepath.Abs(path.Join(folder, "metamorph.db"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to get absolute path for sqlite DB: %+v", err)
+		}
+
+		if memory {
+			filename = ":memory:"
+		} else {
+			// filename = fmt.Sprintf("file:%s?cache=shared&mode=rwc", filename)
+			filename = fmt.Sprintf("%s?_pragma=busy_timeout=10000&_pragma=journal_mode=WAL", filename)
+		}
+
+		logger.Infof("Using sqlite DB: %s", filename)
+
+		db, err = sql.Open("sqlite", filename)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open sqlite DB: %+v", err)
+		}
+
+		if _, err := db.Exec(`PRAGMA foreign_keys = ON;`); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("could not enable foreign keys support: %+v", err)
+		}
+
+		if _, err := db.Exec(`PRAGMA locking_mode = SHARED;`); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("could not enable shared locking mode: %+v", err)
+		}
+
+		if err := createSqliteSchema(db); err != nil {
+			return nil, fmt.Errorf("failed to create sqlite schema: %+v", err)
+		}
+
+	default:
+		return nil, fmt.Errorf("unknown database engine: %s", engine)
 	}
 
-	s := &SqliteStore{
-		db: sqliteDb,
-	}
+	return &SQL{
+		db: db,
+	}, nil
+}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func createPostgresSchema(db *sql.DB) error {
+	return nil
+}
 
+func createSqliteSchema(db *sql.DB) error {
 	// Create schema, if necessary...
-	q := `CREATE TABLE IF NOT EXISTS transactions (
-		hash BLOCK PRIMARY KEY,
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS transactions (
+		hash BLOB PRIMARY KEY,
 		stored_at TEXT,
 		announced_at TEXT,
 		mined_at TEXT,
@@ -55,18 +123,18 @@ func New(dbLocation string) (store2.Store, error) {
 		merkle_proof TEXT,
 		reject_reason TEXT,
 		raw_tx BLOB
-	);`
-
-	if _, err := sqliteDb.Exec(q); err != nil {
-		return nil, errors.Wrap(err, "failed to create transactions table")
+		);
+	`); err != nil {
+		db.Close()
+		return fmt.Errorf("could not create block_transactions_map table - [%+v]", err)
 	}
 
-	return s, err
+	return nil
 }
 
 // Get implements the Store interface. It attempts to get a value for a given key.
 // If the key does not exist an error is returned, otherwise the retrieved value.
-func (s *SqliteStore) Get(ctx context.Context, hash []byte) (*store2.StoreData, error) {
+func (s *SQL) Get(ctx context.Context, hash []byte) (*store2.StoreData, error) {
 	q := `SELECT
 	   stored_at
 		,announced_at
@@ -91,9 +159,6 @@ func (s *SqliteStore) Get(ctx context.Context, hash []byte) (*store2.StoreData, 
 	var storedAt string
 	var announcedAt string
 	var minedAt string
-
-	s.mu.RLock()
-	defer s.mu.RUnlock()
 
 	err := s.db.QueryRowContext(ctx, q, hash).Scan(
 		&storedAt,
@@ -145,7 +210,7 @@ func (s *SqliteStore) Get(ctx context.Context, hash []byte) (*store2.StoreData, 
 
 // Set implements the Store interface. It attempts to store a value for a given key
 // and namespace. If the key/value pair cannot be saved, an error is returned.
-func (s *SqliteStore) Set(ctx context.Context, hash []byte, value *store2.StoreData) error {
+func (s *SQL) Set(ctx context.Context, hash []byte, value *store2.StoreData) error {
 	// storedAt := time.Now().UTC().Format(ISO8601)
 
 	q := `INSERT INTO transactions (
@@ -200,9 +265,6 @@ func (s *SqliteStore) Set(ctx context.Context, hash []byte, value *store2.StoreD
 		minedAt = value.MinedAt.UTC().Format(ISO8601)
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	_, err := s.db.ExecContext(ctx, q,
 		storedAt,
 		announcedAt,
@@ -226,7 +288,7 @@ func (s *SqliteStore) Set(ctx context.Context, hash []byte, value *store2.StoreD
 
 }
 
-func (s *SqliteStore) GetUnseen(ctx context.Context, callback func(s *store2.StoreData)) error {
+func (s *SQL) GetUnseen(ctx context.Context, callback func(s *store2.StoreData)) error {
 	q := `SELECT
 	   stored_at
 		,announced_at
@@ -244,9 +306,6 @@ func (s *SqliteStore) GetUnseen(ctx context.Context, callback func(s *store2.Sto
 		,merkle_proof
 		,raw_tx
 	 	FROM transactions WHERE status < $1;`
-
-	s.mu.RLock()
-	defer s.mu.RUnlock()
 
 	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK)
 	if err != nil {
@@ -306,7 +365,7 @@ func (s *SqliteStore) GetUnseen(ctx context.Context, callback func(s *store2.Sto
 	return nil
 }
 
-func (s *SqliteStore) UpdateStatus(ctx context.Context, hash []byte, status metamorph_api.Status, rejectReason string) error {
+func (s *SQL) UpdateStatus(ctx context.Context, hash []byte, status metamorph_api.Status, rejectReason string) error {
 	q := `
 		UPDATE transactions
 		SET status = $1
@@ -314,15 +373,12 @@ func (s *SqliteStore) UpdateStatus(ctx context.Context, hash []byte, status meta
 		WHERE hash = $3
 	;`
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	_, err := s.db.ExecContext(ctx, q, status, rejectReason, hash)
 
 	return err
 }
 
-func (s *SqliteStore) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight int32) error {
+func (s *SQL) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight int32) error {
 	q := `
 		UPDATE transactions
 		SET status = $1
@@ -331,21 +387,15 @@ func (s *SqliteStore) UpdateMined(ctx context.Context, hash []byte, blockHash []
 		WHERE hash = $4
 	;`
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	_, err := s.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHash, blockHeight, hash)
 
 	return err
 }
 
-func (s *SqliteStore) Del(ctx context.Context, key []byte) error {
+func (s *SQL) Del(ctx context.Context, key []byte) error {
 	hash := store2.HashString(key)
 
 	q := `DELETE FROM transactions WHERE hash = $1;`
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	_, err := s.db.ExecContext(ctx, q, hash)
 
@@ -355,7 +405,7 @@ func (s *SqliteStore) Del(ctx context.Context, key []byte) error {
 
 // Close implements the Store interface. It closes the connection to the underlying
 // MemoryStore database as well as invoking the context's cancel function.
-func (s *SqliteStore) Close(ctx context.Context) error {
+func (s *SQL) Close(ctx context.Context) error {
 	ctx.Done()
 	return s.db.Close()
 }

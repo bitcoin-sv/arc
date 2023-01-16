@@ -1,14 +1,18 @@
 package metamorph
 
 import (
+	"log"
 	"os"
 	"time"
 
 	"github.com/ordishs/go-utils"
+	"github.com/ordishs/gocore"
 )
 
 func (p *Processor) GetStats() *ProcessorStats {
-	p.tx2ChMap.PrintItems()
+	if p.logger.LogLevel() == int(gocore.DEBUG) {
+		p.tx2ChMap.PrintItems()
+	}
 
 	return &ProcessorStats{
 		StartTime:       p.startTime,
@@ -40,7 +44,7 @@ func (p *Processor) PrintStatsOnKeypress() func() {
 				avg = float64(stats.ProcessedMillis) / float64(stats.ProcessedCount)
 			}
 
-			p.logger.Infof(`Peer stats (started: %s):
+			log.Printf(`Peer stats (started: %s):
 ------------------------
 Workers:   %5d
 Uptime:    %5.2f s

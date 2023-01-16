@@ -2,11 +2,6 @@ module github.com/TAAL-GmbH/arc
 
 go 1.19
 
-replace (
-	github.com/ordishs/go-utils => ../../masagi/go-utils
-	github.com/ordishs/gocore => ../../masagi/gocore
-)
-
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deepmap/oapi-codegen v1.11.0
@@ -23,8 +18,8 @@ require (
 	github.com/opentracing-contrib/echo v0.0.0-20190807091611-5fe2e1308f06
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/ordishs/go-bitcoin v1.0.75
-	github.com/ordishs/go-utils v1.0.21
-	github.com/ordishs/gocore v1.0.23
+	github.com/ordishs/go-utils v1.0.22
+	github.com/ordishs/gocore v1.0.24
 	github.com/stretchr/testify v1.8.1
 	github.com/timshannon/badgerhold/v3 v3.0.0
 	github.com/uber/jaeger-client-go v2.30.0+incompatible

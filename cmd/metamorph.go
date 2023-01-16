@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/asynccaller"
@@ -39,11 +41,18 @@ func StartMetamorph(logger *gocore.Logger) {
 
 	pm, peerMessageCh := initPeerManager(logger, s)
 
+	folder, _ := gocore.Config().Get("dataFolder", "data")
+
+	txRegisterPath, err := filepath.Abs(path.Join(folder, "tx-register"))
+	if err != nil {
+		logger.Fatalf("Could not get absolute path: %v", err)
+	}
+
 	// create an async caller to store all the transaction registrations that cannot be sent to blocktx right away
 	var asyncCaller *asynccaller.AsyncCaller[blocktx_api.TransactionAndSource]
 	asyncCaller, err = asynccaller.New[blocktx_api.TransactionAndSource](
 		logger,
-		"./data/tx-register",
+		txRegisterPath,
 		10*time.Second,
 		metamorph.NewRegisterTransactionCallerClient(btc),
 	)
@@ -57,11 +66,16 @@ func StartMetamorph(logger *gocore.Logger) {
 	}
 	cb := callbacker.NewClient(logger, callbackerAddress)
 
+	callbackRegisterPath, err := filepath.Abs(path.Join(folder, "callback-register"))
+	if err != nil {
+		logger.Fatalf("Could not get absolute path: %v", err)
+	}
+
 	// create an async caller to callbacker
 	var cbAsyncCaller *asynccaller.AsyncCaller[callbacker_api.Callback]
 	cbAsyncCaller, err = asynccaller.New[callbacker_api.Callback](
 		logger,
-		".data/callback-register",
+		callbackRegisterPath,
 		10*time.Second,
 		metamorph.NewRegisterCallbackClient(cb),
 	)

@@ -77,4 +77,4 @@ docs:
 
 .PHONY: api
 api:
-	sh generate_api.sh
+	oapi-codegen -config api/config.yaml api/arc.yml > api/arc.go

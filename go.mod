@@ -18,7 +18,7 @@ require (
 	github.com/opentracing-contrib/echo v0.0.0-20190807091611-5fe2e1308f06
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/ordishs/go-bitcoin v1.0.75
-	github.com/ordishs/go-utils v1.0.19
+	github.com/ordishs/go-utils v1.0.21
 	github.com/ordishs/gocore v1.0.23
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.1

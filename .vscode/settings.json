@@ -5,6 +5,7 @@
   ],
   "cSpell.words": [
     "anymore",
+    "asynccaller",
     "badgerdb",
     "badgerhold",
     "BIGSERIAL",
@@ -31,6 +32,7 @@
     "expiringmap",
     "GETDATA",
     "getkin",
+    "gommon",
     "hashblock",
     "labstack",
     "ldflags",
@@ -44,6 +46,7 @@
     "Nops",
     "oapi",
     "openapi",
+    "opentracing",
     "orphanedyn",
     "prefund",
     "Prevhash",

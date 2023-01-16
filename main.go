@@ -26,7 +26,8 @@ func init() {
 }
 
 func main() {
-	logger := gocore.Log(progname)
+	logLevel, _ := gocore.Config().Get("logLevel")
+	logger := gocore.Log(progname, gocore.NewLogLevelFromString(logLevel))
 
 	stats := gocore.Config().Stats()
 	logger.Infof("STATS\n%s\nVERSION\n-------\n%s (%s)\n\n", stats, version, commit)
@@ -69,25 +70,25 @@ func main() {
 
 	if startBlockTx != nil && *startBlockTx {
 		logger.Infof("Starting BlockTx")
-		var blockTxLogger = gocore.Log("btx")
+		var blockTxLogger = gocore.Log("btx", gocore.NewLogLevelFromString(logLevel))
 		go cmd.StartBlockTx(blockTxLogger)
 	}
 
 	if startCallbacker != nil && *startCallbacker {
 		logger.Infof("Starting Callbacker")
-		var callbackerLogger = gocore.Log("cbk")
+		var callbackerLogger = gocore.Log("cbk", gocore.NewLogLevelFromString(logLevel))
 		go cmd.StartCallbacker(callbackerLogger)
 	}
 
 	if startMetamorph != nil && *startMetamorph {
 		logger.Infof("Starting Metamorph")
-		var metamorphLogger = gocore.Log("mtm")
+		var metamorphLogger = gocore.Log("mtm", gocore.NewLogLevelFromString(logLevel))
 		go cmd.StartMetamorph(metamorphLogger)
 	}
 
 	if startApi != nil && *startApi {
 		logger.Infof("Starting ARC api server")
-		var apiLogger = gocore.Log("api")
+		var apiLogger = gocore.Log("api", gocore.NewLogLevelFromString(logLevel))
 		go cmd.StartAPIServer(apiLogger)
 	}
 

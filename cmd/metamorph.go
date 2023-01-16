@@ -12,7 +12,8 @@ import (
 	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
 	"github.com/TAAL-GmbH/arc/metamorph"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
-	"github.com/TAAL-GmbH/arc/metamorph/store/badgerhold"
+	"github.com/TAAL-GmbH/arc/metamorph/store"
+	"github.com/TAAL-GmbH/arc/metamorph/store/sqlitestore"
 	"github.com/TAAL-GmbH/arc/p2p"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/libsv/go-bt/v2"
@@ -20,7 +21,8 @@ import (
 )
 
 func StartMetamorph(logger *gocore.Logger) {
-	s, err := badgerhold.New("")
+	// s, err := badgerhold.New("")
+	s, err := sqlitestore.New("sqlite")
 	if err != nil {
 		logger.Fatalf("Error creating metamorph store: %v", err)
 	}
@@ -78,11 +80,14 @@ func StartMetamorph(logger *gocore.Logger) {
 
 	go func() {
 		for message := range peerMessageCh {
-			logger.Infof("Status change reported: %s: %s", message.Txid, metamorph_api.Status(message.Status))
-			_, err = metamorphProcessor.SendStatusForTransaction(message.Txid, metamorph_api.Status(message.Status), message.Err)
+			processed, err := metamorphProcessor.SendStatusForTransaction(message.Txid, metamorph_api.Status(message.Status), message.Err)
+			if processed {
+				logger.Debugf("Status change reported: %s: %s", message.Txid, metamorph_api.Status(message.Status))
+			}
 			if err != nil {
 				logger.Errorf("Could not send status for transaction %s: %v", message.Txid, err)
 			}
+
 		}
 	}()
 
@@ -124,7 +129,7 @@ func StartMetamorph(logger *gocore.Logger) {
 	}
 }
 
-func initPeerManager(logger *gocore.Logger, s *badgerhold.BadgerHold) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {
+func initPeerManager(logger *gocore.Logger, s store.Store) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {
 	network := wire.TestNet
 	if gocore.Config().GetBool("mainnet", false) {
 		network = wire.MainNet
@@ -167,7 +172,7 @@ func processBlock(logger *gocore.Logger, btc blocktx.ClientI, p metamorph.Proces
 	logger.Infof("Incoming BLOCK %x", bt.ReverseBytes(mt.Block.Hash))
 
 	for _, tx := range mt.Transactions {
-		logger.Infof("Received MINED message from BlockTX for transaction %x", bt.ReverseBytes(tx.Hash))
+		logger.Debugf("Received MINED message from BlockTX for transaction %x", bt.ReverseBytes(tx.Hash))
 
 		_, err = p.SendStatusMinedForTransaction(tx.Hash, mt.Block.Hash, int32(mt.Block.Height))
 		if err != nil {

@@ -16,21 +16,22 @@ type SQL struct {
 	db *sql.DB
 }
 
-func NewSQLStore(engine string) (store.Interface, error) {
+func New(engine string) (store.Interface, error) {
 	var db *sql.DB
 	var err error
 
 	var memory bool
 
-	logger := gocore.Log("sql")
+	logLevel, _ := gocore.Config().Get("logLevel")
+	logger := gocore.Log("btsql", gocore.NewLogLevelFromString(logLevel))
 
 	switch engine {
 	case "postgres":
 		dbHost, _ := gocore.Config().Get("dbHost", "localhost")
 		dbPort, _ := gocore.Config().GetInt("dbPort", 5432)
-		dbName, _ := gocore.Config().Get("dbName", "blocktx")
-		dbUser, _ := gocore.Config().Get("dbUser", "blocktx")
-		dbPassword, _ := gocore.Config().Get("dbPassword", "blocktx")
+		dbName, _ := gocore.Config().Get("dbName", "arc")
+		dbUser, _ := gocore.Config().Get("dbUser", "arc")
+		dbPassword, _ := gocore.Config().Get("dbPassword", "arc")
 
 		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", dbUser, dbPassword, dbName, dbHost, dbPort)
 

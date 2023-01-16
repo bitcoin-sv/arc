@@ -8,6 +8,7 @@ import (
 const progname = "api"
 
 func main() {
-	logger := gocore.Log(progname)
+	logLevel, _ := gocore.Config().Get("logLevel")
+	logger := gocore.Log(progname, gocore.NewLogLevelFromString(logLevel))
 	cmd.StartAPIServer(logger)
 }

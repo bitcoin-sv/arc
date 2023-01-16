@@ -62,7 +62,8 @@ func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI, metamorph
 		panic("peer manager cannot be nil")
 	}
 
-	logger := gocore.Log("proc")
+	logLevel, _ := gocore.Config().Get("logLevel")
+	logger := gocore.Log("proc", gocore.NewLogLevelFromString(logLevel))
 
 	mapExpiryStr, _ := gocore.Config().Get("processorCacheExpiryTime", "24h")
 	mapExpiry, err := time.ParseDuration(mapExpiryStr)
@@ -96,9 +97,14 @@ func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI, metamorph
 		// TODO: make this configurable
 		// The Items() method will return a copy of the map, so we can iterate over it without locking
 		for range time.NewTicker(60 * time.Second).C {
-			for _, hash := range p.tx2ChMap.Hashes(filterFunc) {
-				logger.Infof("Resending expired tx: %x", bt.ReverseBytes(hash))
-				p.pm.AnnounceNewTransaction(hash)
+			expiredTransactions := p.tx2ChMap.Hashes(filterFunc)
+
+			if len(expiredTransactions) > 0 {
+				logger.Infof("Resending %d expired transactions", len(expiredTransactions))
+				for _, hash := range expiredTransactions {
+					logger.Debugf("Resending expired tx: %x", bt.ReverseBytes(hash))
+					p.pm.AnnounceNewTransaction(hash)
+				}
 			}
 		}
 	}()
@@ -121,6 +127,7 @@ func (p *Processor) LoadUnseen() {
 		p.tx2ChMap.Set(txIDStr, NewProcessorResponseWithStatus(record.Hash, record.Status))
 
 		p.queuedCount.Add(1)
+
 		p.pm.AnnounceNewTransaction(record.Hash)
 	})
 	if err != nil {
@@ -205,9 +212,9 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 	} else if status > metamorph_api.Status_SEEN_ON_NETWORK {
 		if statusErr != nil {
 			// Print the error along with the status message
-			p.logger.Infof("Received status %s for tx %s: %s", status.String(), hashStr, statusErr.Error())
+			p.logger.Debugf("Received status %s for tx %s: %s", status.String(), hashStr, statusErr.Error())
 		} else {
-			p.logger.Infof("Received status %s for tx %s", status.String(), hashStr)
+			p.logger.Debugf("Received status %s for tx %s", status.String(), hashStr)
 		}
 		// This is coming from zmq, after the transaction has been deleted from our tx2ChMap
 		// It could be a "seen", "confirmed", "mined" or "rejected" status, but should finalize the tx
@@ -247,7 +254,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 
 	p.queueLength.Add(-1)
 
-	p.logger.Infof("Adding channel for %x", bt.ReverseBytes(req.Hash))
+	p.logger.Debugf("Adding channel for %x", bt.ReverseBytes(req.Hash))
 
 	processorResponse := NewProcessorResponseWithChannel(req.Hash, req.ResponseChannel)
 	processorResponse.SetStatus(metamorph_api.Status_RECEIVED)
@@ -259,12 +266,12 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 		p.logger.Errorf("Error storing transaction %s: %v", txIDStr, err)
 		processorResponse.SetErr(err)
 	} else {
-		p.logger.Infof("Stored tx %s", txIDStr)
+		p.logger.Debugf("Stored tx %s", txIDStr)
 
 		processorResponse.SetStatus(metamorph_api.Status_STORED)
 
 		if p.registerCh != nil {
-			p.logger.Infof("Sending tx %s to register", txIDStr)
+			p.logger.Debugf("Sending tx %s to register", txIDStr)
 			utils.SafeSend(p.registerCh, &blocktx_api.TransactionAndSource{
 				Hash:   req.Hash,
 				Source: p.metamorphAddress,

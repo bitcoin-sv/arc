@@ -2,6 +2,11 @@ module github.com/TAAL-GmbH/arc
 
 go 1.19
 
+replace (
+	github.com/ordishs/go-utils => ../../masagi/go-utils
+	github.com/ordishs/gocore => ../../masagi/gocore
+)
+
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deepmap/oapi-codegen v1.11.0
@@ -20,7 +25,6 @@ require (
 	github.com/ordishs/go-bitcoin v1.0.75
 	github.com/ordishs/go-utils v1.0.21
 	github.com/ordishs/gocore v1.0.23
-	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.1
 	github.com/timshannon/badgerhold/v3 v3.0.0
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
@@ -60,6 +64,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.16 // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect

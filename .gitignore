@@ -4,5 +4,6 @@ build/
 data/
 data_callbacker/
 block-tx.db*
+metamorph.db*
 tx-register/
 callback-register/

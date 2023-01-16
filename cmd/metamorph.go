@@ -43,7 +43,7 @@ func StartMetamorph(logger *gocore.Logger) {
 	var asyncCaller *asynccaller.AsyncCaller[blocktx_api.TransactionAndSource]
 	asyncCaller, err = asynccaller.New[blocktx_api.TransactionAndSource](
 		logger,
-		"./tx-register",
+		"./data/tx-register",
 		10*time.Second,
 		metamorph.NewRegisterTransactionCallerClient(btc),
 	)
@@ -61,7 +61,7 @@ func StartMetamorph(logger *gocore.Logger) {
 	var cbAsyncCaller *asynccaller.AsyncCaller[callbacker_api.Callback]
 	cbAsyncCaller, err = asynccaller.New[callbacker_api.Callback](
 		logger,
-		"./callback-register",
+		".data/callback-register",
 		10*time.Second,
 		metamorph.NewRegisterCallbackClient(cb),
 	)

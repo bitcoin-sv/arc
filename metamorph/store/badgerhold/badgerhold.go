@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -36,8 +38,15 @@ func New(dir string) (*BadgerHold, error) {
 	options.Dir = dir
 	options.ValueDir = dir
 	if options.Dir == "" {
-		options.Dir = "data"
-		options.ValueDir = "data"
+		folder, _ := gocore.Config().Get("dataFolder", "data")
+
+		f, err := filepath.Abs(path.Join(folder, "metamorph"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to get absolute path: %w", err)
+		}
+
+		options.Dir = f
+		options.ValueDir = f
 	}
 	options.Logger = logger
 

@@ -48,9 +48,9 @@ func New(engine string) (store.Interface, error) {
 		memory = true
 		fallthrough
 	case "sqlite":
-		folder, _ := gocore.Config().Get("sqliteFolder", "")
+		folder, _ := gocore.Config().Get("dataFolder", "data")
 
-		filename, err := filepath.Abs(path.Join(folder, "block-tx.db"))
+		filename, err := filepath.Abs(path.Join(folder, "blocktx.db"))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get absolute path for sqlite DB: %+v", err)
 		}

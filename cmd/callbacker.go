@@ -1,15 +1,25 @@
 package cmd
 
 import (
+	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/callbacker"
 	callbackerBadgerhold "github.com/TAAL-GmbH/arc/callbacker/store/badgerhold"
 	"github.com/ordishs/go-utils"
+	"github.com/ordishs/gocore"
 )
 
 func StartCallbacker(logger utils.Logger) {
-	callbackStore, err := callbackerBadgerhold.New("data_callbacker", 2*time.Minute)
+	folder, _ := gocore.Config().Get("dataFolder", "data")
+
+	f, err := filepath.Abs(path.Join(folder, "callbacker"))
+	if err != nil {
+		logger.Fatalf("Could not get absolute path: %v", err)
+	}
+
+	callbackStore, err := callbackerBadgerhold.New(f, 2*time.Minute)
 	if err != nil {
 		logger.Fatalf("Could not open callbacker store: %v", err)
 	}

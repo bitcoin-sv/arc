@@ -121,7 +121,6 @@ func (p *Processor) LoadUnseen() {
 		p.tx2ChMap.Set(txIDStr, NewProcessorResponseWithStatus(record.Hash, record.Status))
 
 		p.queuedCount.Add(1)
-		p.queueLength.Add(1)
 		p.pm.AnnounceNewTransaction(record.Hash)
 	})
 	if err != nil {
@@ -196,7 +195,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 
 		// Don't cache the channel if the transactionHandler is not listening anymore
 		// which will have been triggered by a status of SEEN or higher
-		if status >= metamorph_api.Status_SEEN_ON_NETWORK {
+		if status >= metamorph_api.Status_SENT_TO_NETWORK {
 			p.processedCount.Add(1)
 			p.processedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
 			p.tx2ChMap.Delete(hashStr)

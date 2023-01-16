@@ -56,11 +56,12 @@ func (a *AsyncCaller[T]) init(delay time.Duration) {
 				batch.Put(data)
 			}
 		}
+		a.logger.Errorf("******************************* AsyncCaller: channel closed")
 	}()
 }
 
 func (a *AsyncCaller[T]) Call(data *T) {
-	a.ch <- data
+	utils.SafeSend(a.ch, data)
 }
 
 func (a *AsyncCaller[T]) GetChannel() chan *T {
@@ -68,7 +69,7 @@ func (a *AsyncCaller[T]) GetChannel() chan *T {
 }
 
 func (a *AsyncCaller[T]) getBatcher(delay time.Duration) *batcher.Batcher[T] {
-	return batcher.New[T](10000, delay, func(batch []*T) {
+	return batcher.New(10000, delay, func(batch []*T) {
 		// write the batch to file
 		a.logger.Infof("writing batch of %d transactions to file", len(batch))
 

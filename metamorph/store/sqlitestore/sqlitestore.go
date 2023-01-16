@@ -55,7 +55,7 @@ func New(engine string) (store2.Store, error) {
 		memory = true
 		fallthrough
 	case "sqlite":
-		folder, _ := gocore.Config().Get("sqliteFolder", "")
+		folder, _ := gocore.Config().Get("dataFolder", "data")
 
 		filename, err := filepath.Abs(path.Join(folder, "metamorph.db"))
 		if err != nil {

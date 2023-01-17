@@ -23,8 +23,9 @@ import (
 )
 
 func StartMetamorph(logger *gocore.Logger) {
-	// s, err := badgerhold.New("")
-	s, err := sqlitestore.New("sqlite")
+	dbMode, _ := gocore.Config().Get("dbMode", "sqlite")
+
+	s, err := sqlitestore.New(dbMode)
 	if err != nil {
 		logger.Fatalf("Error creating metamorph store: %v", err)
 	}

@@ -7,7 +7,9 @@ import (
 )
 
 func StartBlockTx(logger *gocore.Logger) {
-	blockStore, err := sql.New("sqlite")
+	dbMode, _ := gocore.Config().Get("blocktx_dbMode", "sqlite")
+
+	blockStore, err := sql.New(dbMode)
 	if err != nil {
 		panic("Could not connect to fn: " + err.Error())
 	}

@@ -34,11 +34,11 @@ func New(engine string) (store2.Store, error) {
 
 	switch engine {
 	case "postgres":
-		dbHost, _ := gocore.Config().Get("dbHost", "localhost")
-		dbPort, _ := gocore.Config().GetInt("dbPort", 5432)
-		dbName, _ := gocore.Config().Get("dbName", "arc")
-		dbUser, _ := gocore.Config().Get("dbUser", "arc")
-		dbPassword, _ := gocore.Config().Get("dbPassword", "arc")
+		dbHost, _ := gocore.Config().Get("metamorph_dbHost", "localhost")
+		dbPort, _ := gocore.Config().GetInt("metamorph_dbPort", 5432)
+		dbName, _ := gocore.Config().Get("metamorph_dbName", "metamorph")
+		dbUser, _ := gocore.Config().Get("metamorph_dbUser", "arc")
+		dbPassword, _ := gocore.Config().Get("metamorph_dbPassword", "arc")
 
 		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", dbUser, dbPassword, dbName, dbHost, dbPort)
 

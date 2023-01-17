@@ -1,7 +1,7 @@
 Bugs
-- processTransaction:250 - out of 20 transactions, only 3 are put on channel??
 
 TODOs
 - Last block in blockTx (1111)
 - Last block hash when connecting to p2p (Locator...)
 - Merkle proofs
+- Resending expired txs just retries and retries if all nodes have already seen it

@@ -9,6 +9,7 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/metamorph/store/sqlitestore"
+	"github.com/TAAL-GmbH/arc/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -57,13 +58,13 @@ func TestPutTransaction(t *testing.T) {
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
-			RawTx: tx1RawBytes,
+			RawTx: test.TX1RawBytes,
 		}
 		go func() {
 			time.Sleep(10 * time.Millisecond)
 
 			processor.GetProcessRequest(0).ResponseChannel <- StatusAndError{
-				Hash:   tx1Bytes,
+				Hash:   test.TX1Bytes,
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			}
 		}()
@@ -82,12 +83,12 @@ func TestPutTransaction(t *testing.T) {
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
-			RawTx: tx1RawBytes,
+			RawTx: test.TX1RawBytes,
 		}
 		go func() {
 			time.Sleep(10 * time.Millisecond)
 			processor.GetProcessRequest(0).ResponseChannel <- StatusAndError{
-				Hash:   tx1Bytes,
+				Hash:   test.TX1Bytes,
 				Status: metamorph_api.Status_SENT_TO_NETWORK,
 			}
 		}()
@@ -106,12 +107,12 @@ func TestPutTransaction(t *testing.T) {
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
-			RawTx: tx1RawBytes,
+			RawTx: test.TX1RawBytes,
 		}
 		go func() {
 			time.Sleep(10 * time.Millisecond)
 			processor.GetProcessRequest(0).ResponseChannel <- StatusAndError{
-				Hash:   tx1Bytes,
+				Hash:   test.TX1Bytes,
 				Status: metamorph_api.Status_REJECTED,
 				Err:    fmt.Errorf("some error"),
 			}
@@ -127,10 +128,10 @@ func TestPutTransaction(t *testing.T) {
 		ctx := context.Background()
 		s, err := sqlitestore.New("sqlite_memory")
 		require.NoError(t, err)
-		err = s.Set(ctx, tx1Bytes, &store.StoreData{
-			Hash:   tx1Bytes,
+		err = s.Set(ctx, test.TX1Bytes, &store.StoreData{
+			Hash:   test.TX1Bytes,
 			Status: metamorph_api.Status_SEEN_ON_NETWORK,
-			RawTx:  tx1RawBytes,
+			RawTx:  test.TX1RawBytes,
 		})
 		require.NoError(t, err)
 
@@ -138,7 +139,7 @@ func TestPutTransaction(t *testing.T) {
 		server := NewServer(nil, s, processor)
 
 		txRequest := &metamorph_api.TransactionRequest{
-			RawTx: tx1RawBytes,
+			RawTx: test.TX1RawBytes,
 		}
 
 		var txStatus *metamorph_api.TransactionStatus
@@ -172,15 +173,15 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "GetTransactionStatus - tx1",
+			name: "GetTransactionStatus - test.TX1",
 			req: &metamorph_api.TransactionStatusRequest{
-				Txid: tx1,
+				Txid: test.TX1,
 			},
 			want: &metamorph_api.TransactionStatus{
-				StoredAt:    timestamppb.New(testTime),
-				AnnouncedAt: timestamppb.New(testTime.Add(1 * time.Second)),
-				MinedAt:     timestamppb.New(testTime.Add(2 * time.Second)),
-				Txid:        tx1,
+				StoredAt:    timestamppb.New(test.Time),
+				AnnouncedAt: timestamppb.New(test.Time.Add(1 * time.Second)),
+				MinedAt:     timestamppb.New(test.Time.Add(2 * time.Second)),
+				Txid:        test.TX1,
 				Status:      metamorph_api.Status_SENT_TO_NETWORK,
 			},
 			wantErr: assert.NoError,

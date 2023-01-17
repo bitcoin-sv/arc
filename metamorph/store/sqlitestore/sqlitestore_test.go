@@ -57,8 +57,8 @@ func TestPutGetDelete(t *testing.T) {
 }
 
 func TestPutGetMulti(t *testing.T) {
-	sqliteDB, err := New("sqlite_memory")
-	require.NoError(t, err)
+	sqliteDB, sqlErr := New("sqlite_memory")
+	require.NoError(t, sqlErr)
 
 	defer sqliteDB.Close(context.Background())
 
@@ -67,6 +67,7 @@ func TestPutGetMulti(t *testing.T) {
 	for workerId := 0; workerId < 10; workerId++ {
 		wg.Add(1)
 
+		ctx := context.Background()
 		go func(workerId int) {
 			defer wg.Done()
 
@@ -75,17 +76,18 @@ func TestPutGetMulti(t *testing.T) {
 
 				hash := utils.Sha256d(data)
 
-				err = sqliteDB.Set(context.Background(), hash, &store.StoreData{
+				err := sqliteDB.Set(ctx, hash, &store.StoreData{
 					Hash: hash,
 				})
 				require.NoError(t, err)
 
-				// data2, err := bh.Get(context.Background(), hash)
-				// require.NoError(t, err)
-				// assert.Equal(t, data, data2)
+				var data2 *store.StoreData
+				data2, err = sqliteDB.Get(context.Background(), hash)
+				require.NoError(t, err)
+				assert.Equal(t, hash, data2.Hash)
 
-				// err = bh.Del(context.Background(), hash)
-				// require.NoError(t, err)
+				err = sqliteDB.Del(context.Background(), hash)
+				require.NoError(t, err)
 			}
 		}(workerId)
 	}

@@ -14,6 +14,7 @@ func (l TestLogger) Fatalf(format string, args ...interface{}) {}
 type PeerManagerMock struct {
 	Peers       map[string]PeerI
 	Announced   [][]byte
+	GetData     [][]byte
 	peerCreator func(peerAddress string, peerHandler PeerHandlerI) (PeerI, error)
 }
 
@@ -21,6 +22,10 @@ func NewPeerManagerMock() *PeerManagerMock {
 	return &PeerManagerMock{
 		Peers: make(map[string]PeerI),
 	}
+}
+
+func (p *PeerManagerMock) GetTransaction(txID []byte) {
+	p.GetData = append(p.GetData, txID)
 }
 
 func (p *PeerManagerMock) AnnounceNewTransaction(txID []byte) {

@@ -16,6 +16,7 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/store/badger"
 	"github.com/TAAL-GmbH/arc/metamorph/store/sqlitestore"
 	"github.com/TAAL-GmbH/arc/p2p"
+	"github.com/TAAL-GmbH/arc/test"
 	"github.com/labstack/gommon/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -84,11 +85,8 @@ func TestLoadUnseen(t *testing.T) {
 		processor.LoadUnseen()
 		assert.Equal(t, 2, processor.tx2ChMap.Len())
 		items := processor.tx2ChMap.Items()
-		fmt.Printf("items: %v\n", items)
-		fmt.Printf("items tx1: %v\n", items[tx1])
-		fmt.Printf("items tx2: %v\n", items[tx2])
-		assert.Equal(t, tx1Bytes, items[tx1].Hash)
-		assert.Equal(t, tx2Bytes, items[tx2].Hash)
+		assert.Equal(t, test.TX1Bytes, items[test.TX1].Hash)
+		assert.Equal(t, test.TX2Bytes, items[test.TX2].Hash)
 	})
 }
 
@@ -105,7 +103,7 @@ func TestProcessTransaction(t *testing.T) {
 		wgRegister.Add(1)
 		go func() {
 			for tx := range registerCh {
-				assert.Equal(t, tx1Bytes, tx.Hash)
+				assert.Equal(t, test.TX1Bytes, tx.Hash)
 				assert.Equal(t, "test", tx.Source)
 				wgRegister.Done()
 			}
@@ -128,7 +126,7 @@ func TestProcessTransaction(t *testing.T) {
 			n := 0
 			for response := range responseChannel {
 				status := response.Status
-				assert.Equal(t, tx1Bytes, response.Hash)
+				assert.Equal(t, test.TX1Bytes, response.Hash)
 				assert.Equalf(t, expectedResponses[n], status, "Iteration %d: Expected %s, got %s", n, expectedResponses[n].String(), status.String())
 				wg.Done()
 				n++
@@ -138,7 +136,7 @@ func TestProcessTransaction(t *testing.T) {
 		processor.ProcessTransaction(NewProcessorRequest(
 			context.Background(),
 			&store.StoreData{
-				Hash: tx1Bytes,
+				Hash: test.TX1Bytes,
 			},
 			responseChannel,
 		))
@@ -147,15 +145,15 @@ func TestProcessTransaction(t *testing.T) {
 
 		assert.Equal(t, 1, processor.tx2ChMap.Len())
 		items := processor.tx2ChMap.Items()
-		assert.Equal(t, tx1Bytes, items[tx1].Hash)
-		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[tx1].status)
+		assert.Equal(t, test.TX1Bytes, items[test.TX1].Hash)
+		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[test.TX1].status)
 
 		assert.Len(t, pm.Announced, 1)
-		assert.Equal(t, tx1Bytes, pm.Announced[0])
+		assert.Equal(t, test.TX1Bytes, pm.Announced[0])
 
-		txStored, err := s.Get(context.Background(), tx1Bytes)
+		txStored, err := s.Get(context.Background(), test.TX1Bytes)
 		require.NoError(t, err)
-		assert.Equal(t, tx1Bytes, txStored.Hash)
+		assert.Equal(t, test.TX1Bytes, txStored.Hash)
 	})
 }
 
@@ -169,7 +167,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm, "test", nil, nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		ok, sendErr := processor.SendStatusForTransaction(tx1, metamorph_api.Status_SEEN_ON_NETWORK, nil)
+		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_SEEN_ON_NETWORK, nil)
 		assert.False(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
@@ -186,12 +184,12 @@ func TestSendStatusForTransaction(t *testing.T) {
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
 		throwErr := fmt.Errorf("some error")
-		ok, sendErr := processor.SendStatusForTransaction(tx1, metamorph_api.Status_REJECTED, throwErr)
+		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_REJECTED, throwErr)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		txStored, err := s.Get(context.Background(), tx1Bytes)
+		txStored, err := s.Get(context.Background(), test.TX1Bytes)
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_REJECTED, txStored.Status)
 		assert.Equal(t, throwErr.Error(), txStored.RejectReason)
@@ -221,12 +219,12 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm, "test", nil, nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		ok, sendErr := processor.SendStatusForTransaction(tx1, metamorph_api.Status_MINED, nil)
+		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_MINED, nil)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		txStored, err := s.Get(context.Background(), tx1Bytes)
+		txStored, err := s.Get(context.Background(), test.TX1Bytes)
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
 	})
@@ -241,12 +239,12 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm, "test", nil, nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		ok, sendErr := processor.SendStatusForTransaction(tx1, metamorph_api.Status_ANNOUNCED_TO_NETWORK, nil)
+		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_ANNOUNCED_TO_NETWORK, nil)
 		assert.False(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		txStored, err := s.Get(context.Background(), tx1Bytes)
+		txStored, err := s.Get(context.Background(), test.TX1Bytes)
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, txStored.Status)
 	})
@@ -279,7 +277,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor.ProcessTransaction(NewProcessorRequest(
 			context.Background(),
 			&store.StoreData{
-				Hash: tx1Bytes,
+				Hash: test.TX1Bytes,
 			},
 			responseChannel,
 		))
@@ -287,12 +285,12 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		assert.Equal(t, 1, processor.tx2ChMap.Len())
 
-		ok, sendErr := processor.SendStatusForTransaction(tx1, metamorph_api.Status_SEEN_ON_NETWORK, nil)
+		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_SEEN_ON_NETWORK, nil)
 		assert.False(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.tx2ChMap.Len(), "should have been removed from the map")
 
-		txStored, err := s.Get(context.Background(), tx1Bytes)
+		txStored, err := s.Get(context.Background(), test.TX1Bytes)
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, txStored.Status)
 	})
@@ -308,7 +306,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm, "test", nil, nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		ok, sendErr := processor.SendStatusMinedForTransaction(tx1Bytes, []byte("hash1"), 1233)
+		ok, sendErr := processor.SendStatusMinedForTransaction(test.TX1Bytes, []byte("hash1"), 1233)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
 	})
@@ -323,12 +321,12 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm, "test", nil, nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		ok, sendErr := processor.SendStatusMinedForTransaction(tx1Bytes, []byte("hash1"), 1233)
+		ok, sendErr := processor.SendStatusMinedForTransaction(test.TX1Bytes, []byte("hash1"), 1233)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		txStored, err := s.Get(context.Background(), tx1Bytes)
+		txStored, err := s.Get(context.Background(), test.TX1Bytes)
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
 	})
@@ -346,7 +344,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		go func() {
 			for cb := range callbackCh {
 				assert.Equal(t, metamorph_api.Status_MINED, metamorph_api.Status(cb.Status))
-				assert.Equal(t, tx1Bytes, cb.Hash)
+				assert.Equal(t, test.TX1Bytes, cb.Hash)
 				assert.Equal(t, []byte("hash1"), cb.BlockHash)
 				assert.Equal(t, uint64(1233), cb.BlockHeight)
 				assert.Equal(t, "https://test.com", cb.Url)
@@ -357,7 +355,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 
 		processor := NewProcessor(1, s, pm, "test", nil, callbackCh)
 
-		ok, sendErr := processor.SendStatusMinedForTransaction(tx1Bytes, []byte("hash1"), 1233)
+		ok, sendErr := processor.SendStatusMinedForTransaction(test.TX1Bytes, []byte("hash1"), 1233)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
 
@@ -392,7 +390,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		processor.ProcessTransaction(NewProcessorRequest(
 			context.Background(),
 			&store.StoreData{
-				Hash: tx1Bytes,
+				Hash: test.TX1Bytes,
 			},
 			responseChannel,
 		))
@@ -400,12 +398,12 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 
 		assert.Equal(t, 1, processor.tx2ChMap.Len())
 
-		ok, sendErr := processor.SendStatusMinedForTransaction(tx1Bytes, []byte("hash1"), 1233)
+		ok, sendErr := processor.SendStatusMinedForTransaction(test.TX1Bytes, []byte("hash1"), 1233)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.tx2ChMap.Len(), "should have been removed from the map")
 
-		txStored, err := s.Get(context.Background(), tx1Bytes)
+		txStored, err := s.Get(context.Background(), test.TX1Bytes)
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
 	})
@@ -437,7 +435,7 @@ func BenchmarkProcessTransaction(b *testing.B) {
 			&store.StoreData{
 				Hash:   txHash,
 				Status: metamorph_api.Status_UNKNOWN,
-				RawTx:  tx1RawBytes,
+				RawTx:  test.TX1RawBytes,
 			},
 			nil,
 		))

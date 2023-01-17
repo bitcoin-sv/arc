@@ -23,6 +23,7 @@ func NewPeerHandler(s store.Store, messageCh chan *PeerTxMessage) p2p.PeerHandle
 	}
 }
 
+// HandleTransactionSent is called when a transaction is sent to a peer.
 func (m *PeerHandler) HandleTransactionSent(msg *wire.MsgTx, peer p2p.PeerI) error {
 	hash := msg.TxHash()
 	m.messageCh <- &PeerTxMessage{
@@ -34,6 +35,7 @@ func (m *PeerHandler) HandleTransactionSent(msg *wire.MsgTx, peer p2p.PeerI) err
 	return nil
 }
 
+// HandleTransactionAnnouncement is a message sent to the PeerHandler when a transaction INV message is received from a peer.
 func (m *PeerHandler) HandleTransactionAnnouncement(msg *wire.InvVect, peer p2p.PeerI) error {
 	m.messageCh <- &PeerTxMessage{
 		Txid:   utils.HexEncodeAndReverseBytes(msg.Hash.CloneBytes()),
@@ -44,6 +46,7 @@ func (m *PeerHandler) HandleTransactionAnnouncement(msg *wire.InvVect, peer p2p.
 	return nil
 }
 
+// HandleTransactionRejection is called when a transaction is rejected by a peer.
 func (m *PeerHandler) HandleTransactionRejection(rejMsg *wire.MsgReject, peer p2p.PeerI) error {
 	m.messageCh <- &PeerTxMessage{
 		Txid:   utils.HexEncodeAndReverseBytes(rejMsg.Hash.CloneBytes()),
@@ -54,7 +57,8 @@ func (m *PeerHandler) HandleTransactionRejection(rejMsg *wire.MsgReject, peer p2
 	return nil
 }
 
-func (m *PeerHandler) GetTransactionBytes(msg *wire.InvVect) ([]byte, error) {
+// HandleTransactionGet is called when a peer requests a transaction.
+func (m *PeerHandler) HandleTransactionGet(msg *wire.InvVect, _ p2p.PeerI) ([]byte, error) {
 	sd, err := m.store.Get(context.Background(), msg.Hash.CloneBytes())
 	if err != nil {
 		return nil, err
@@ -62,10 +66,23 @@ func (m *PeerHandler) GetTransactionBytes(msg *wire.InvVect) ([]byte, error) {
 	return sd.RawTx, nil
 }
 
+// HandleTransaction is called when a transaction is received from a peer.
+func (m *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error {
+	m.messageCh <- &PeerTxMessage{
+		Txid:   msg.TxHash().String(),
+		Status: p2p.Status(metamorph_api.Status_SEEN_ON_NETWORK),
+		Peer:   peer.String(),
+	}
+
+	return nil
+}
+
+// HandleBlockAnnouncement is called when a block INV message is received from a peer.
 func (m *PeerHandler) HandleBlockAnnouncement(_ *wire.InvVect, peer p2p.PeerI) error {
 	return nil
 }
 
+// HandleBlock is called when a block is received from a peer.
 func (m *PeerHandler) HandleBlock(msg *wire.MsgBlock, peer p2p.PeerI) error {
 	return nil
 }

@@ -78,12 +78,13 @@ func TestPutGetMulti(t *testing.T) {
 				})
 				require.NoError(t, err)
 
-				// data2, err := bh.Get(context.Background(), hash)
-				// require.NoError(t, err)
-				// assert.Equal(t, data, data2)
+				var data2 *store.StoreData
+				data2, err = bh.Get(context.Background(), hash)
+				require.NoError(t, err)
+				assert.Equal(t, hash, data2.Hash)
 
-				// err = bh.Del(context.Background(), hash)
-				// require.NoError(t, err)
+				err = bh.Del(context.Background(), hash)
+				require.NoError(t, err)
 			}
 		}(workerId)
 	}

@@ -24,14 +24,14 @@ import (
 // Server type carries the zmqLogger within it
 type Server struct {
 	metamorph_api.UnimplementedMetaMorphAPIServer
-	logger    *gocore.Logger
+	logger    utils.Logger
 	processor ProcessorI
 	store     store.Store
 	timeout   time.Duration
 }
 
 // NewServer will return a server instance with the zmqLogger stored within it
-func NewServer(logger *gocore.Logger, s store.Store, p ProcessorI) *Server {
+func NewServer(logger utils.Logger, s store.Store, p ProcessorI) *Server {
 	return &Server{
 		logger:    logger,
 		processor: p,

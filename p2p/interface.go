@@ -14,6 +14,7 @@ var (
 
 type PeerManagerI interface {
 	AnnounceNewTransaction(txID []byte)
+	GetTransaction(txID []byte)
 	AddPeer(peerURL string, peerStore PeerHandlerI) error
 	RemovePeer(peerURL string) error
 	GetPeers() []PeerI
@@ -28,10 +29,11 @@ type PeerI interface {
 }
 
 type PeerHandlerI interface {
-	GetTransactionBytes(msg *wire.InvVect) ([]byte, error)
+	HandleTransactionGet(msg *wire.InvVect, peer PeerI) ([]byte, error)
 	HandleTransactionSent(msg *wire.MsgTx, peer PeerI) error
 	HandleTransactionAnnouncement(msg *wire.InvVect, peer PeerI) error
 	HandleTransactionRejection(rejMsg *wire.MsgReject, peer PeerI) error
+	HandleTransaction(msg *wire.MsgTx, peer PeerI) error
 	HandleBlockAnnouncement(msg *wire.InvVect, peer PeerI) error
 	HandleBlock(msg *wire.MsgBlock, peer PeerI) error
 }

@@ -123,6 +123,7 @@ func (btc *Client) GetMinedTransactionsForBlock(ctx context.Context, blockAndSou
 func (btc *Client) dialGRPC() (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
 	}
 
 	return grpc.Dial(btc.address, tracing.AddGRPCDialOptions(opts)...)

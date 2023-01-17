@@ -19,10 +19,11 @@ import (
 	"github.com/TAAL-GmbH/arc/p2p"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/libsv/go-bt/v2"
+	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
 
-func StartMetamorph(logger *gocore.Logger) {
+func StartMetamorph(logger utils.Logger) {
 	dbMode, _ := gocore.Config().Get("dbMode", "sqlite")
 
 	s, err := sqlitestore.New(dbMode)
@@ -144,7 +145,7 @@ func StartMetamorph(logger *gocore.Logger) {
 	}
 }
 
-func initPeerManager(logger *gocore.Logger, s store.Store) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {
+func initPeerManager(logger utils.Logger, s store.Store) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {
 	network := wire.TestNet
 	if gocore.Config().GetBool("mainnet", false) {
 		network = wire.MainNet
@@ -177,7 +178,7 @@ func initPeerManager(logger *gocore.Logger, s store.Store) (p2p.PeerManagerI, ch
 	return pm, messageCh
 }
 
-func processBlock(logger *gocore.Logger, btc blocktx.ClientI, p metamorph.ProcessorI, blockAndSource *blocktx_api.BlockAndSource) {
+func processBlock(logger utils.Logger, btc blocktx.ClientI, p metamorph.ProcessorI, blockAndSource *blocktx_api.BlockAndSource) {
 	mt, err := btc.GetMinedTransactionsForBlock(context.Background(), blockAndSource)
 	if err != nil {
 		logger.Errorf("Could not get mined transactions for block %x: %v", bt.ReverseBytes(blockAndSource.Hash), err)

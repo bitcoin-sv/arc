@@ -36,7 +36,7 @@ func StartMetamorph(logger utils.Logger) {
 
 	workerCount, _ := gocore.Config().GetInt("processorWorkerCount", 16)
 
-	metamorphAddress, ok := gocore.Config().Get("metamorph_grpcAddress", "localhost:8000")
+	metamorphAddress, ok := gocore.Config().Get("metamorph_grpcAddress") //, "localhost:8000")
 	if !ok {
 		logger.Fatalf("no metamorph_grpcAddress setting found")
 	}

@@ -57,16 +57,16 @@ func New(engine string) (store2.Store, error) {
 	case "sqlite":
 		folder, _ := gocore.Config().Get("dataFolder", "data")
 
-		filename, err := filepath.Abs(path.Join(folder, "metamorph.db"))
+		var filename string
+		filename, err = filepath.Abs(path.Join(folder, "metamorph.db"))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get absolute path for sqlite DB: %+v", err)
 		}
 
 		if memory {
-			filename = ":memory:"
+			filename = "file::memory:?cache=shared"
 		} else {
-			// filename = fmt.Sprintf("file:%s?cache=shared&mode=rwc", filename)
-			filename = fmt.Sprintf("%s?_pragma=busy_timeout=10000&_pragma=journal_mode=WAL", filename)
+			filename = fmt.Sprintf("%s?cache=shared&_pragma=busy_timeout=10000&_pragma=journal_mode=WAL", filename)
 		}
 
 		logger.Infof("Using sqlite DB: %s", filename)
@@ -76,17 +76,17 @@ func New(engine string) (store2.Store, error) {
 			return nil, fmt.Errorf("failed to open sqlite DB: %+v", err)
 		}
 
-		if _, err := db.Exec(`PRAGMA foreign_keys = ON;`); err != nil {
-			db.Close()
+		if _, err = db.Exec(`PRAGMA foreign_keys = ON;`); err != nil {
+			_ = db.Close()
 			return nil, fmt.Errorf("could not enable foreign keys support: %+v", err)
 		}
 
-		if _, err := db.Exec(`PRAGMA locking_mode = SHARED;`); err != nil {
-			db.Close()
+		if _, err = db.Exec(`PRAGMA locking_mode = SHARED;`); err != nil {
+			_ = db.Close()
 			return nil, fmt.Errorf("could not enable shared locking mode: %+v", err)
 		}
 
-		if err := createSqliteSchema(db); err != nil {
+		if err = createSqliteSchema(db); err != nil {
 			return nil, fmt.Errorf("failed to create sqlite schema: %+v", err)
 		}
 

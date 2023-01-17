@@ -13,11 +13,12 @@ import (
 )
 
 type PeerManager struct {
-	mu         sync.RWMutex
-	peers      map[string]PeerI
-	network    wire.BitcoinNet
-	invBatcher *batcher.Batcher[[]byte]
-	logger     utils.Logger
+	mu          sync.RWMutex
+	peers       map[string]PeerI
+	network     wire.BitcoinNet
+	invBatcher  *batcher.Batcher[[]byte]
+	dataBatcher *batcher.Batcher[[]byte]
+	logger      utils.Logger
 
 	// this is needed to be able to mock the peer creation in the peer manager
 	peerCreator func(peerAddress string, peerHandler PeerHandlerI) (PeerI, error)
@@ -49,6 +50,7 @@ func NewPeerManager(logger utils.Logger, network wire.BitcoinNet, batchDuration 
 		batchDelay = batchDuration[0]
 	}
 	pm.invBatcher = batcher.New(500, batchDelay, pm.sendInvBatch, true)
+	pm.dataBatcher = batcher.New(500, batchDelay, pm.sendDataBatch, true)
 
 	return pm
 }
@@ -101,8 +103,47 @@ func (pm *PeerManager) addPeer(peer PeerI) error {
 	return nil
 }
 
+func (pm *PeerManager) GetTransaction(txID []byte) {
+	pm.dataBatcher.Put(&txID)
+}
+
 func (pm *PeerManager) AnnounceNewTransaction(txID []byte) {
 	pm.invBatcher.Put(&txID)
+}
+
+func (pm *PeerManager) sendDataBatch(batch []*[]byte) {
+	dataMsg := wire.NewMsgGetData()
+
+	for _, txid := range batch {
+		hash, err := chainhash.NewHash(*txid)
+		if err != nil {
+			pm.logger.Infof("ERROR getting tx [%x]: %v", txid, err)
+			continue
+		}
+
+		iv := wire.NewInvVect(wire.InvTypeTx, hash)
+		_ = dataMsg.AddInvVect(iv)
+	}
+
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	// send to the first found peer that is connected
+	sendToPeers := make([]PeerI, 0, len(pm.peers))
+	for _, peer := range pm.peers {
+		if peer.Connected() && len(sendToPeers) >= 1 {
+			break
+		}
+		sendToPeers = append(sendToPeers, peer)
+	}
+
+	for _, peer := range sendToPeers {
+		if err := peer.WriteMsg(dataMsg); err != nil {
+			pm.logger.Infof("ERROR sending data message to peer [%s]: %v", peer, err)
+		} else {
+			pm.logger.Infof("Sent GETDATA (%d items) to peer: %s", len(batch), sendToPeers[0].String())
+		}
+	}
 }
 
 func (pm *PeerManager) sendInvBatch(batch []*[]byte) {

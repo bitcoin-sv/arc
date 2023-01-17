@@ -70,7 +70,7 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 	return s
 }
 
-func (bs *PeerHandler) GetTransactionBytes(_ *wire.InvVect) ([]byte, error) {
+func (bs *PeerHandler) HandleTransactionGet(_ *wire.InvVect, _ p2p.PeerI) ([]byte, error) {
 	return nil, nil
 }
 
@@ -83,6 +83,10 @@ func (bs *PeerHandler) HandleTransactionAnnouncement(_ *wire.InvVect, _ p2p.Peer
 }
 
 func (bs *PeerHandler) HandleTransactionRejection(_ *wire.MsgReject, _ p2p.PeerI) error {
+	return nil
+}
+
+func (bs *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error {
 	return nil
 }
 

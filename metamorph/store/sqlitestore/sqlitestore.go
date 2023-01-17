@@ -10,6 +10,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	store2 "github.com/TAAL-GmbH/arc/metamorph/store"
+	"github.com/labstack/gommon/random"
 	_ "github.com/lib/pq"
 	"github.com/ordishs/gocore"
 	_ "modernc.org/sqlite"
@@ -64,7 +65,7 @@ func New(engine string) (store2.Store, error) {
 		}
 
 		if memory {
-			filename = "file::memory:?cache=shared"
+			filename = fmt.Sprintf("file:%s?mode=memory&cache=shared", random.String(16))
 		} else {
 			filename = fmt.Sprintf("%s?cache=shared&_pragma=busy_timeout=10000&_pragma=journal_mode=WAL", filename)
 		}
@@ -210,9 +211,7 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store2.StoreData, error) {
 
 // Set implements the Store interface. It attempts to store a value for a given key
 // and namespace. If the key/value pair cannot be saved, an error is returned.
-func (s *SQL) Set(ctx context.Context, hash []byte, value *store2.StoreData) error {
-	// storedAt := time.Now().UTC().Format(ISO8601)
-
+func (s *SQL) Set(ctx context.Context, _ []byte, value *store2.StoreData) error {
 	q := `INSERT INTO transactions (
 		 stored_at
 		,announced_at
@@ -285,7 +284,6 @@ func (s *SQL) Set(ctx context.Context, hash []byte, value *store2.StoreData) err
 	)
 
 	return err
-
 }
 
 func (s *SQL) GetUnseen(ctx context.Context, callback func(s *store2.StoreData)) error {

@@ -36,6 +36,7 @@ type Peer struct {
 	mu             sync.RWMutex
 	readConn       net.Conn
 	writeConn      net.Conn
+	dial           func(network, address string) (net.Conn, error)
 	peerHandler    PeerHandlerI
 	writeChan      chan wire.Message
 	quit           chan struct{}
@@ -44,8 +45,16 @@ type Peer struct {
 	receivedVerAck atomic.Bool
 }
 
+type PeerOptions func(p *Peer)
+
+func WithDialer(dial func(network, address string) (net.Conn, error)) PeerOptions {
+	return func(p *Peer) {
+		p.dial = dial
+	}
+}
+
 // NewPeer returns a new bitcoin peer for the provided address and configuration.
-func NewPeer(logger utils.Logger, address string, peerHandler PeerHandlerI, network wire.BitcoinNet) (*Peer, error) {
+func NewPeer(logger utils.Logger, address string, peerHandler PeerHandlerI, network wire.BitcoinNet, options ...PeerOptions) (*Peer, error) {
 	writeChan := make(chan wire.Message, 100)
 
 	p := &Peer{
@@ -54,6 +63,11 @@ func NewPeer(logger utils.Logger, address string, peerHandler PeerHandlerI, netw
 		writeChan:   writeChan,
 		peerHandler: peerHandler,
 		logger:      logger,
+		dial:        net.Dial,
+	}
+
+	for _, option := range options {
+		option(p)
 	}
 
 	go p.pingHandler()
@@ -91,13 +105,19 @@ func (p *Peer) disconnect() {
 
 func (p *Peer) connect() error {
 	p.mu.Lock()
+
+	if p.readConn != nil || p.writeConn != nil {
+		p.disconnect()
+	}
+
 	p.readConn = nil
 	p.sentVerAck.Store(false)
 	p.receivedVerAck.Store(false)
+
 	p.mu.Unlock()
 
 	p.logger.Infof("[%s] Connecting to peer on %s", p.address, p.network)
-	conn, err := net.Dial("tcp", p.address)
+	conn, err := p.dial("tcp", p.address)
 	if err != nil {
 		return fmt.Errorf("could not dial node [%s]: %v", p.address, err)
 	}
@@ -178,6 +198,11 @@ func (p *Peer) readHandler() {
 			switch msg.Command() {
 			case wire.CmdVersion:
 				p.logger.Debugf("[%s] Recv %s", p.address, strings.ToUpper(msg.Command()))
+				if p.sentVerAck.Load() {
+					p.logger.Warnf("[%s] Received version message after sending verack", p.address)
+					continue
+				}
+
 				verackMsg := wire.NewMsgVerAck()
 				if err = wire.WriteMessage(readConn, verackMsg, wire.ProtocolVersion, p.network); err != nil {
 					p.logger.Errorf("[%s] failed to write message: %v", p.address, err)
@@ -223,6 +248,13 @@ func (p *Peer) readHandler() {
 				}
 				p.handleGetDataMsg(dataMsg)
 
+			case wire.CmdTx:
+				txMsg := msg.(*wire.MsgTx)
+				p.logger.Infof("Recv TX %s (%d bytes)", txMsg.TxHash().String(), txMsg.SerializeSize())
+				if err = p.peerHandler.HandleTransaction(txMsg, p); err != nil {
+					p.logger.Errorf("Unable to process tx %s: %v", txMsg.TxHash().String(), err)
+				}
+
 			case wire.CmdBlock:
 				blockMsg := msg.(*wire.MsgBlock)
 				p.logger.Infof("[%s] Recv %s: %s", p.address, strings.ToUpper(msg.Command()), blockMsg.BlockHash().String())
@@ -259,7 +291,7 @@ func (p *Peer) handleGetDataMsg(dataMsg *wire.MsgGetData) {
 		case wire.InvTypeTx:
 			p.logger.Debugf("[%s] Request for TX: %s\n", p.address, invVect.Hash.String())
 
-			txBytes, err := p.peerHandler.GetTransactionBytes(invVect)
+			txBytes, err := p.peerHandler.HandleTransactionGet(invVect, p)
 			if err != nil {
 				p.logger.Errorf("[%s] Unable to fetch tx %s from store: %v", p.address, invVect.Hash.String(), err)
 				continue

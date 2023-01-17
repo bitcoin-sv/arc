@@ -3,6 +3,7 @@ module github.com/TAAL-GmbH/arc
 go 1.19
 
 require (
+	github.com/cbeuw/connutil v0.0.0-20200411215123-966bfaa51ee3
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deepmap/oapi-codegen v1.11.0
 	github.com/dgraph-io/badger/v3 v3.2103.1

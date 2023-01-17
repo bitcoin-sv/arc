@@ -3,10 +3,11 @@ package cmd
 import (
 	"github.com/TAAL-GmbH/arc/blocktx"
 	"github.com/TAAL-GmbH/arc/blocktx/store/sql"
+	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
 
-func StartBlockTx(logger *gocore.Logger) {
+func StartBlockTx(logger utils.Logger) {
 	dbMode, _ := gocore.Config().Get("blocktx_dbMode", "sqlite")
 
 	blockStore, err := sql.New(dbMode)
@@ -19,6 +20,6 @@ func StartBlockTx(logger *gocore.Logger) {
 	blockTxServer := blocktx.NewServer(blockStore, blockNotifier, logger)
 
 	if err = blockTxServer.StartGRPCServer(); err != nil {
-		logger.Fatal(err)
+		logger.Fatalf("%v", err)
 	}
 }

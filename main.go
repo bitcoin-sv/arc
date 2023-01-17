@@ -41,9 +41,9 @@ func main() {
 	}()
 
 	startApi := flag.Bool("api", false, "start ARC api server")
+	startMetamorph := flag.Bool("metamorph", false, "start metamorph")
 	startBlockTx := flag.Bool("blocktx", false, "start blocktx")
 	startCallbacker := flag.Bool("callbacker", false, "start callbacker")
-	startMetamorph := flag.Bool("metamorph", false, "start metamorph")
 	useTracer := flag.Bool("tracer", false, "start tracer")
 
 	flag.Parse()
@@ -63,9 +63,23 @@ func main() {
 	if !isFlagPassed("api") && !isFlagPassed("blocktx") && !isFlagPassed("callbacker") && !isFlagPassed("metamorph") {
 		logger.Infof("No service selected, starting all")
 		*startApi = true
+		*startMetamorph = true
 		*startBlockTx = true
 		*startCallbacker = true
-		*startMetamorph = true
+	}
+
+	// Check the settings to see it the service has a listen address
+	if v, _ := gocore.Config().Get("arc_httpAddress"); v == "" {
+		*startApi = false
+	}
+	if v, _ := gocore.Config().Get("metamorph_grpcAddress"); v == "" {
+		*startMetamorph = false
+	}
+	if v, _ := gocore.Config().Get("blocktx_grpcAddress"); v == "" {
+		*startBlockTx = false
+	}
+	if v, _ := gocore.Config().Get("callbacker_grpcAddress"); v == "" {
+		*startCallbacker = false
 	}
 
 	if startBlockTx != nil && *startBlockTx {

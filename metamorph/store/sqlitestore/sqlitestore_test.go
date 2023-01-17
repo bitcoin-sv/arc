@@ -75,7 +75,7 @@ func TestPutGetMulti(t *testing.T) {
 
 				hash := utils.Sha256d(data)
 
-				err := sqliteDB.Set(context.Background(), hash, &store.StoreData{
+				err = sqliteDB.Set(context.Background(), hash, &store.StoreData{
 					Hash: hash,
 				})
 				require.NoError(t, err)
@@ -98,8 +98,6 @@ func TestGetUnseen(t *testing.T) {
 	t.Run("no unseen", func(t *testing.T) {
 		sqliteDB, err := New("sqlite_memory")
 		require.NoError(t, err)
-
-		defer sqliteDB.Close(context.Background())
 
 		defer sqliteDB.Close(context.Background())
 

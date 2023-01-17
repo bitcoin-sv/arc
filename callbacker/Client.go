@@ -48,6 +48,7 @@ func (cb *Client) RegisterCallback(ctx context.Context, callback *callbacker_api
 func (cb *Client) dialGRPC() (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
 	}
 
 	return grpc.Dial(cb.address, tracing.AddGRPCDialOptions(opts)...)

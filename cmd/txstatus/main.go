@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/TAAL-GmbH/arc/tracing"
 	"github.com/ordishs/gocore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -27,10 +28,16 @@ func main() {
 		panic("Missing metamorphAddresses")
 	}
 
-	cc, err := grpc.DialContext(ctx, addresses, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
+	}
+
+	cc, err := grpc.DialContext(ctx, addresses, tracing.AddGRPCDialOptions(opts)...)
 	if err != nil {
 		panic(err)
 	}
+
 	client := metamorph_api.NewMetaMorphAPIClient(cc)
 
 	var res *metamorph_api.TransactionStatus

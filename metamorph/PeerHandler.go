@@ -83,6 +83,6 @@ func (m *PeerHandler) HandleBlockAnnouncement(_ *wire.InvVect, peer p2p.PeerI) e
 }
 
 // HandleBlock is called when a block is received from a peer.
-func (m *PeerHandler) HandleBlock(msg *wire.MsgBlock, peer p2p.PeerI) error {
+func (m *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error {
 	return nil
 }

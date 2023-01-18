@@ -150,9 +150,11 @@ func (p *Processor) LoadUnseen() {
 		} else if record.Status >= metamorph_api.Status_ANNOUNCED_TO_NETWORK {
 			// we only announced the transaction, but we did not receive a SENT_TO_NETWORK response
 
-			// could it already be mined, and we need to get it from BlockTx?
+			// TODO could it already be mined, and we need to get it from BlockTx?
 
 			// let's send a GETDATA message to the network to check whether the transaction is actually there
+			// TODO - get a more efficient way to do this from the node
+			// we only need the tx ids, not the whole transaction
 			p.pm.GetTransaction(record.Hash)
 		}
 	})

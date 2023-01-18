@@ -205,16 +205,13 @@ func Test_readHandler(t *testing.T) {
 		blocks := peerHandler.GetBlock()
 		require.Equal(t, 1, len(blocks))
 		block := blocks[0]
-		assert.Equal(t, uint64(2), block.TxCount)
+		assert.Equal(t, 2, len(block.TransactionIDs))
 
 		// read the transactions
-		expectedTxBytes := [][]byte{test.TX1RawBytes, test.TX2RawBytes}
+		expectedTxBytes := [][]byte{test.TX1Bytes, test.TX2Bytes}
 		blockTransactions := peerHandler.GetBlockTransactions(0)
 		for i, txMsg := range blockTransactions {
-			buf := bytes.NewBuffer(make([]byte, 0, txMsg.SerializeSize()))
-			err = txMsg.Serialize(buf)
-			require.NoError(t, err)
-			assert.Equal(t, expectedTxBytes[i], buf.Bytes())
+			assert.Equal(t, expectedTxBytes[i], txMsg)
 		}
 	})
 

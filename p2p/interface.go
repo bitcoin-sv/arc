@@ -35,5 +35,5 @@ type PeerHandlerI interface {
 	HandleTransactionRejection(rejMsg *wire.MsgReject, peer PeerI) error
 	HandleTransaction(msg *wire.MsgTx, peer PeerI) error
 	HandleBlockAnnouncement(msg *wire.InvVect, peer PeerI) error
-	HandleBlock(msg *wire.MsgBlock, peer PeerI) error
+	HandleBlock(msg *BlockMessage, peer PeerI) error
 }

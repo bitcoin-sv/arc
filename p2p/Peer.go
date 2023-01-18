@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -14,10 +15,16 @@ import (
 
 	"github.com/TAAL-GmbH/arc/p2p/bsvutil"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
+	"github.com/libsv/go-bt/v2"
 
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
+
+func init() {
+	// override the default wire block handler with our own that streams and stores only the transaction ids
+	setPeerBlockHandler()
+}
 
 var (
 	pingInterval = 2 * time.Minute
@@ -161,16 +168,12 @@ func (p *Peer) Connected() bool {
 }
 
 func (p *Peer) WriteMsg(msg wire.Message) error {
-	p.mu.RLock()
-	writeConn := p.writeConn
-	p.mu.RUnlock()
-
-	if writeConn == nil {
-		return errors.New("peer is not connected")
+	select {
+	case p.writeChan <- msg:
+		return nil
+	default:
+		return errors.New("write channel is closed")
 	}
-
-	p.writeChan <- msg
-	return nil
 }
 
 func (p *Peer) String() string {
@@ -195,6 +198,8 @@ func (p *Peer) readHandler() {
 				continue
 			}
 
+			// we could check this based on type (switch msg.(type)) but that would not allow
+			// us to override the default behaviour for a specific message type
 			switch msg.Command() {
 			case wire.CmdVersion:
 				p.logger.Debugf("[%s] Recv %s", p.address, strings.ToUpper(msg.Command()))
@@ -256,17 +261,13 @@ func (p *Peer) readHandler() {
 				}
 
 			case wire.CmdBlock:
-				blockMsg := msg.(*wire.MsgBlock)
-				p.logger.Infof("[%s] Recv %s: %s", p.address, strings.ToUpper(msg.Command()), blockMsg.BlockHash().String())
+				blockMsg := msg.(*BlockMessage)
+				p.logger.Infof("[%s] Recv %s: %s", p.address, strings.ToUpper(msg.Command()), blockMsg.Header.BlockHash().String())
 
-				err = p.peerHandler.HandleBlock(blockMsg, p)
+				err := p.peerHandler.HandleBlock(blockMsg, p)
 				if err != nil {
-					p.logger.Errorf("[%s] Unable to process block %s: %v", p.address, blockMsg.BlockHash().String(), err)
+					p.logger.Errorf("[%s] Unable to process block %s: %v", p.address, blockMsg.Header.BlockHash().String(), err)
 				}
-
-				// read the remainder of the block, if not consumed by the handler
-				// TODO is this necessary or can we just ignore whether the reader has been consumed?
-				_, _ = io.ReadAll(blockMsg.TransactionReader)
 
 			case wire.CmdReject:
 				rejMsg := msg.(*wire.MsgReject)
@@ -410,4 +411,24 @@ out:
 			break out
 		}
 	}
+}
+
+func extractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
+	// Coinbase tx has a special format, the height is encoded in the first 4 bytes of the scriptSig
+	// https://en.bitcoin.it/wiki/Protocol_documentation#tx
+	// Get the length
+	script := *(tx.Inputs[0].UnlockingScript)
+	length := int(script[0])
+
+	if len(script) < length+1 {
+		return 0
+	}
+
+	b := make([]byte, 8)
+
+	for i := 0; i < length; i++ {
+		b[i] = script[i+1]
+	}
+
+	return binary.LittleEndian.Uint64(b)
 }

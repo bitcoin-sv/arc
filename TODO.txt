@@ -1,7 +1,8 @@
 Bugs
 
 TODOs
-- Last block in blockTx (1111)
+- Cleanup the db start everywhere (similar to metamorph)
+  - including sqlite memory startup
 - Last block hash when connecting to p2p (Locator...)
+- init/catchup in metamorph for processed blocks
 - Merkle proofs
-- Resending expired txs just retries and retries if all nodes have already seen it

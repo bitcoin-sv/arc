@@ -52,19 +52,19 @@ func TestBlock(t *testing.T) {
 	}
 
 	// Ensure transactions are added properly.
-	tx := blockOne.transactions[0].Copy()
+	tx := blockOne.Transactions[0].Copy()
 	msg.AddTransaction(tx)
-	if !reflect.DeepEqual(msg.transactions, blockOne.transactions) {
+	if !reflect.DeepEqual(msg.Transactions, blockOne.Transactions) {
 		t.Errorf("AddTransaction: wrong transactions - got %v, want %v",
-			spew.Sdump(msg.transactions),
-			spew.Sdump(blockOne.transactions))
+			spew.Sdump(msg.Transactions),
+			spew.Sdump(blockOne.Transactions))
 	}
 
 	// Ensure transactions are properly cleared.
 	msg.ClearTransactions()
-	if len(msg.transactions) != 0 {
+	if len(msg.Transactions) != 0 {
 		t.Errorf("ClearTransactions: wrong transactions - got %v, want %v",
-			len(msg.transactions), 0)
+			len(msg.Transactions), 0)
 	}
 }
 
@@ -504,7 +504,7 @@ var blockOne = MsgBlock{
 		Bits:      0x1d00ffff,               // 486604799
 		Nonce:     0x9962e301,               // 2573394689
 	},
-	transactions: []*MsgTx{
+	Transactions: []*MsgTx{
 		{
 			Version: 1,
 			TxIn: []*TxIn{

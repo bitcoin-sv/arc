@@ -73,7 +73,7 @@ func (p *ProcessorMock) GetStats() *ProcessorStats {
 	return p.Stats
 }
 
-func setStoreTestData(t *testing.T, s store.Store) {
+func setStoreTestData(t *testing.T, s store.MetamorphStore) {
 	ctx := context.Background()
 	err := s.Set(ctx, test.TX1Bytes, &store.StoreData{
 		StoredAt:      test.Time,

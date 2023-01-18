@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func NoUnseen(t *testing.T, s store.Store) {
+func NoUnseen(t *testing.T, s store.MetamorphStore) {
 	var err error
 
 	hashes := [][]byte{
@@ -41,7 +41,7 @@ func NoUnseen(t *testing.T, s store.Store) {
 	}
 }
 
-func MultipleUnseen(t *testing.T, s store.Store) {
+func MultipleUnseen(t *testing.T, s store.MetamorphStore) {
 	var err error
 
 	hashes := [][]byte{

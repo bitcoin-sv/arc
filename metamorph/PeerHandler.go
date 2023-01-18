@@ -12,11 +12,11 @@ import (
 )
 
 type PeerHandler struct {
-	store     store.Store
+	store     store.MetamorphStore
 	messageCh chan *PeerTxMessage
 }
 
-func NewPeerHandler(s store.Store, messageCh chan *PeerTxMessage) p2p.PeerHandlerI {
+func NewPeerHandler(s store.MetamorphStore, messageCh chan *PeerTxMessage) p2p.PeerHandlerI {
 	return &PeerHandler{
 		store:     s,
 		messageCh: messageCh,

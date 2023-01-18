@@ -37,7 +37,7 @@ type ProcessorStats struct {
 
 type Processor struct {
 	ch               chan *ProcessorRequest
-	store            store.Store
+	store            store.MetamorphStore
 	registerCh       chan *blocktx_api.TransactionAndSource
 	cbChannel        chan *callbacker_api.Callback
 	tx2ChMap         *ProcessorResponseMap
@@ -53,7 +53,7 @@ type Processor struct {
 	processedMillis atomic.Int32
 }
 
-func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI, metamorphAddress string,
+func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress string,
 	registerCh chan *blocktx_api.TransactionAndSource, cbChannel chan *callbacker_api.Callback) *Processor {
 	if s == nil {
 		panic("store cannot be nil")
@@ -102,8 +102,10 @@ func NewProcessor(workerCount int, s store.Store, pm p2p.PeerManagerI, metamorph
 			if len(expiredTransactions) > 0 {
 				logger.Infof("Resending %d expired transactions", len(expiredTransactions))
 				for _, hash := range expiredTransactions {
-					logger.Debugf("Resending expired tx: %x", bt.ReverseBytes(hash))
+					txID := utils.HexEncodeAndReverseBytes(hash)
+					logger.Debugf("Resending expired tx: %s", txID)
 					p.pm.AnnounceNewTransaction(hash)
+					p.tx2ChMap.IncrementRetry(txID)
 				}
 			}
 		}
@@ -128,7 +130,31 @@ func (p *Processor) LoadUnseen() {
 
 		p.queuedCount.Add(1)
 
-		p.pm.AnnounceNewTransaction(record.Hash)
+		if record.Status == metamorph_api.Status_STORED {
+			// we only stored the transaction, but maybe did not register it with block tx
+			if p.registerCh != nil {
+				p.logger.Infof("Sending tx %s to register", txIDStr)
+				utils.SafeSend(p.registerCh, &blocktx_api.TransactionAndSource{
+					Hash:   record.Hash,
+					Source: p.metamorphAddress,
+				})
+			}
+
+			// announce the transaction to the network
+			p.pm.AnnounceNewTransaction(record.Hash)
+
+			err := p.store.UpdateStatus(context.Background(), record.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
+			if err != nil {
+				p.logger.Errorf("Error updating status for %x: %v", bt.ReverseBytes(record.Hash), err)
+			}
+		} else if record.Status >= metamorph_api.Status_ANNOUNCED_TO_NETWORK {
+			// we only announced the transaction, but we did not receive a SENT_TO_NETWORK response
+
+			// could it already be mined, and we need to get it from BlockTx?
+
+			// let's send a GETDATA message to the network to check whether the transaction is actually there
+			p.pm.GetTransaction(record.Hash)
+		}
 	})
 	if err != nil {
 		p.logger.Errorf("Error iterating through stored transactions: %v", err)

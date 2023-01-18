@@ -45,9 +45,6 @@ func (s *SQL) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *
 		&block.Orphaned,
 		&block.Processed,
 	); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
 		return nil, err
 	}
 

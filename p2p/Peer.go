@@ -216,7 +216,7 @@ func (p *Peer) readHandler() {
 
 			case wire.CmdInv:
 				invMsg := msg.(*wire.MsgInv)
-				p.logger.Infof("[%s] Recv INV (%d items)", p.address, len(invMsg.InvList))
+				p.logger.Debugf("[%s] Recv INV (%d items)", p.address, len(invMsg.InvList))
 				if p.logger.LogLevel() == int(gocore.DEBUG) {
 					for _, inv := range invMsg.InvList {
 						p.logger.Debugf("        [%s] %s", p.address, inv.Hash.String())

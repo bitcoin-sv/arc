@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
@@ -16,6 +17,7 @@ import (
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/expiringmap"
+	"github.com/ordishs/gocore"
 )
 
 type PeerHandler struct {
@@ -28,18 +30,42 @@ type PeerHandler struct {
 
 func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *blocktx_api.Block) p2p.PeerHandlerI {
 	s := &PeerHandler{
-		store:          storeI,
-		blockCh:        blockCh,
-		logger:         logger,
-		workerCh:       make(chan utils.Pair[[]byte, p2p.PeerI], 100),
-		announcedCache: expiringmap.New[string, []p2p.PeerI](5 * time.Minute),
+		store:    storeI,
+		blockCh:  blockCh,
+		logger:   logger,
+		workerCh: make(chan utils.Pair[[]byte, p2p.PeerI], 100),
+		announcedCache: expiringmap.New[string, []p2p.PeerI](5 * time.Minute).WithEvictionFunction(func(hashStr string, peers []p2p.PeerI) bool {
+			msg := wire.NewMsgGetData()
+			hash, err := chainhash.NewHashFromStr(hashStr)
+			if err != nil {
+				logger.Errorf("EvictionFunc: invalid hash: %v", err)
+				return false
+			}
+
+			if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
+				logger.Errorf("EvictionFunc: could not create InvVect: %v", err)
+				return false
+			}
+
+			// Select a random peer to send the request to
+			peer := peers[rand.Intn(len(peers))]
+
+			if err := peer.WriteMsg(msg); err != nil {
+				logger.Errorf("EvictionFunc: failed to write message to peer: %v", err)
+				return false
+			}
+
+			logger.Infof("EvictionFunc: sent block request %s to peer %s", hash.String(), peer.String())
+
+			return false
+		}),
 	}
 
 	go func() {
 		for pair := range s.workerCh {
 			hash, err := chainhash.NewHash(pair.First)
 			if err != nil {
-				logger.Errorf("ProcessBlock: %s", err)
+				logger.Errorf("ProcessBlock: invalid hash %s: %v", hash, err)
 				continue
 			}
 
@@ -58,11 +84,15 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 
 			msg := wire.NewMsgGetData()
 			if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
-				logger.Errorf("ProcessBlock: %s", err)
+				logger.Errorf("ProcessBlock: could not create InvVect: %v", err)
 				continue
 			}
 
-			_ = peer.WriteMsg(msg)
+			if err := peer.WriteMsg(msg); err != nil {
+				logger.Errorf("ProcessBlock: failed to write message to peer: %v", err)
+				continue
+			}
+
 			logger.Infof("ProcessBlock: %s", hash.String())
 		}
 	}()
@@ -136,7 +166,8 @@ func (bs *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error 
 }
 
 func (bs *PeerHandler) insertBlock(blockHash []byte, merkleRoot []byte, previousBlockHash []byte, height uint64, peer p2p.PeerI) (uint64, error) {
-	if height >= 1111 { // TODO get the first height we ever processed
+	startingHeight, _ := gocore.Config().GetInt("starting_block_height", 700000)
+	if height >= uint64(startingHeight) {
 		if _, found := bs.announcedCache.Get(utils.HexEncodeAndReverseBytes(previousBlockHash)); !found {
 			if _, err := bs.store.GetBlock(context.Background(), previousBlockHash); err != nil {
 				if err == sql.ErrNoRows {
@@ -178,6 +209,8 @@ func (bs *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {
 	if err != nil {
 		return err
 	}
+
+	bs.announcedCache.Delete(string(block.Hash))
 
 	utils.SafeSend(bs.blockCh, &blocktx_api.Block{
 		Hash:         block.Hash,

@@ -105,7 +105,7 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 					txID := utils.HexEncodeAndReverseBytes(hash)
 					logger.Debugf("Resending expired tx: %s", txID)
 					p.pm.AnnounceNewTransaction(hash)
-					p.tx2ChMap.IncrementRetry(txID)
+					// p.tx2ChMap.IncrementRetry(txID)
 				}
 			}
 		}

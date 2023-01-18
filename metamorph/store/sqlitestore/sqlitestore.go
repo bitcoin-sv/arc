@@ -22,9 +22,9 @@ type SQL struct {
 	db *sql.DB
 }
 
-// New returns a new initialized SqlLiteStore database implementing the Store
+// New returns a new initialized SqlLiteStore database implementing the MetamorphStore
 // interface. If the database cannot be initialized, an error will be returned.
-func New(engine string) (store2.Store, error) {
+func New(engine string) (store2.MetamorphStore, error) {
 	var db *sql.DB
 	var err error
 
@@ -56,17 +56,15 @@ func New(engine string) (store2.Store, error) {
 		memory = true
 		fallthrough
 	case "sqlite":
-		folder, _ := gocore.Config().Get("dataFolder", "data")
-
 		var filename string
-		filename, err = filepath.Abs(path.Join(folder, "metamorph.db"))
-		if err != nil {
-			return nil, fmt.Errorf("failed to get absolute path for sqlite DB: %+v", err)
-		}
-
 		if memory {
 			filename = fmt.Sprintf("file:%s?mode=memory&cache=shared", random.String(16))
 		} else {
+			folder, _ := gocore.Config().Get("dataFolder", "data")
+			filename, err = filepath.Abs(path.Join(folder, "metamorph.db"))
+			if err != nil {
+				return nil, fmt.Errorf("failed to get absolute path for sqlite DB: %+v", err)
+			}
 			filename = fmt.Sprintf("%s?cache=shared&_pragma=busy_timeout=10000&_pragma=journal_mode=WAL", filename)
 		}
 
@@ -133,7 +131,7 @@ func createSqliteSchema(db *sql.DB) error {
 	return nil
 }
 
-// Get implements the Store interface. It attempts to get a value for a given key.
+// Get implements the MetamorphStore interface. It attempts to get a value for a given key.
 // If the key does not exist an error is returned, otherwise the retrieved value.
 func (s *SQL) Get(ctx context.Context, hash []byte) (*store2.StoreData, error) {
 	q := `SELECT
@@ -209,7 +207,7 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store2.StoreData, error) {
 	return data, nil
 }
 
-// Set implements the Store interface. It attempts to store a value for a given key
+// Set implements the MetamorphStore interface. It attempts to store a value for a given key
 // and namespace. If the key/value pair cannot be saved, an error is returned.
 func (s *SQL) Set(ctx context.Context, _ []byte, value *store2.StoreData) error {
 	q := `INSERT INTO transactions (
@@ -401,7 +399,7 @@ func (s *SQL) Del(ctx context.Context, key []byte) error {
 
 }
 
-// Close implements the Store interface. It closes the connection to the underlying
+// Close implements the MetamorphStore interface. It closes the connection to the underlying
 // MemoryStore database as well as invoking the context's cancel function.
 func (s *SQL) Close(ctx context.Context) error {
 	ctx.Done()

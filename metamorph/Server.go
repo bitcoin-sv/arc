@@ -26,12 +26,12 @@ type Server struct {
 	metamorph_api.UnimplementedMetaMorphAPIServer
 	logger    utils.Logger
 	processor ProcessorI
-	store     store.Store
+	store     store.MetamorphStore
 	timeout   time.Duration
 }
 
 // NewServer will return a server instance with the zmqLogger stored within it
-func NewServer(logger utils.Logger, s store.Store, p ProcessorI) *Server {
+func NewServer(logger utils.Logger, s store.MetamorphStore, p ProcessorI) *Server {
 	return &Server{
 		logger:    logger,
 		processor: p,

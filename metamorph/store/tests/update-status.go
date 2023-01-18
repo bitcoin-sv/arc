@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func UpdateStatus(t *testing.T, s store.Store) {
+func UpdateStatus(t *testing.T, s store.MetamorphStore) {
 	err := s.Set(context.Background(), tx1Bytes, &store.StoreData{
 		Hash:   tx1Bytes,
 		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
@@ -37,7 +37,7 @@ func UpdateStatus(t *testing.T, s store.Store) {
 	assert.Equal(t, int32(0), data.BlockHeight)
 }
 
-func UpdateStatusWithError(t *testing.T, s store.Store) {
+func UpdateStatusWithError(t *testing.T, s store.MetamorphStore) {
 	err := s.Set(context.Background(), tx1Bytes, &store.StoreData{
 		Hash:   tx1Bytes,
 		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,

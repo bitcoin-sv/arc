@@ -29,7 +29,7 @@ type StoreData struct {
 
 var ErrNotFound = errors.New("key could not be found")
 
-type Store interface {
+type MetamorphStore interface {
 	Get(ctx context.Context, key []byte) (*StoreData, error)
 	GetUnseen(_ context.Context, callback func(s *StoreData)) error
 	Set(ctx context.Context, key []byte, value *StoreData) error

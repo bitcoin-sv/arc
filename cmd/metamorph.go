@@ -15,7 +15,6 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
-	"github.com/TAAL-GmbH/arc/metamorph/store/sqlitestore"
 	"github.com/TAAL-GmbH/arc/p2p"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/libsv/go-bt/v2"
@@ -24,9 +23,10 @@ import (
 )
 
 func StartMetamorph(logger utils.Logger) {
-	dbMode, _ := gocore.Config().Get("dbMode", "sqlite")
+	folder, _ := gocore.Config().Get("dataFolder", "data")
+	dbMode, _ := gocore.Config().Get("metamorph_dbMode", "sqlite")
 
-	s, err := sqlitestore.New(dbMode)
+	s, err := metamorph.NewStore(dbMode, folder)
 	if err != nil {
 		logger.Fatalf("Error creating metamorph store: %v", err)
 	}
@@ -42,8 +42,6 @@ func StartMetamorph(logger utils.Logger) {
 	}
 
 	pm, peerMessageCh := initPeerManager(logger, s)
-
-	folder, _ := gocore.Config().Get("dataFolder", "data")
 
 	txRegisterPath, err := filepath.Abs(path.Join(folder, "tx-register"))
 	if err != nil {
@@ -145,7 +143,7 @@ func StartMetamorph(logger utils.Logger) {
 	}
 }
 
-func initPeerManager(logger utils.Logger, s store.Store) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {
+func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {
 	network := wire.TestNet
 	if gocore.Config().GetBool("mainnet", false) {
 		network = wire.MainNet

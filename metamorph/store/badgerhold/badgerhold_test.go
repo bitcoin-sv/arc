@@ -150,13 +150,13 @@ func TestUpdateStatus(t *testing.T) {
 	})
 }
 
-func setupSuite(t *testing.T) (store.Store, func(t *testing.T)) {
+func setupSuite(t *testing.T) (store.MetamorphStore, func(t *testing.T)) {
 	dataDir := "./data-" + random.String(10)
 
 	err := os.RemoveAll(dataDir)
 	require.NoErrorf(t, err, "Could not delete old test data")
 
-	var bh store.Store
+	var bh store.MetamorphStore
 	bh, err = New(dataDir)
 	require.NoErrorf(t, err, "could not init badgerhold store")
 

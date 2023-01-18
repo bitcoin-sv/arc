@@ -95,9 +95,11 @@ func Test_readHandler(t *testing.T) {
 
 		time.Sleep(10 * time.Millisecond)
 
-		require.Equal(t, 1, len(peerHandler.transactionAnnouncements))
-		require.Equal(t, 0, len(peerHandler.blockAnnouncements))
-		assert.Equal(t, chainhash.Hash{}, peerHandler.transactionAnnouncements[0].Hash)
+		txAnnouncements := peerHandler.GetTransactionAnnouncement()
+		blockAnnouncements := peerHandler.GetBlockAnnouncement()
+		require.Equal(t, 1, len(txAnnouncements))
+		require.Equal(t, 0, len(blockAnnouncements))
+		assert.Equal(t, chainhash.Hash{}, txAnnouncements[0].Hash)
 	})
 
 	t.Run("read message - inv block", func(t *testing.T) {
@@ -112,9 +114,11 @@ func Test_readHandler(t *testing.T) {
 
 		time.Sleep(10 * time.Millisecond)
 
-		require.Equal(t, 0, len(peerHandler.transactionAnnouncements))
-		require.Equal(t, 1, len(peerHandler.blockAnnouncements))
-		assert.Equal(t, chainhash.Hash{}, peerHandler.blockAnnouncements[0].Hash)
+		txAnnouncements := peerHandler.GetTransactionAnnouncement()
+		blockAnnouncements := peerHandler.GetBlockAnnouncement()
+		require.Equal(t, 0, len(txAnnouncements))
+		require.Equal(t, 1, len(blockAnnouncements))
+		assert.Equal(t, chainhash.Hash{}, blockAnnouncements[0].Hash)
 	})
 
 	t.Run("read message - get data tx", func(t *testing.T) {

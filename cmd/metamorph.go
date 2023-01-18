@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"time"
@@ -24,6 +25,10 @@ import (
 
 func StartMetamorph(logger utils.Logger) {
 	folder, _ := gocore.Config().Get("dataFolder", "data")
+	if err := os.MkdirAll(folder, 0755); err != nil {
+		logger.Fatalf("failed to create data folder %s: %+v", folder, err)
+	}
+
 	dbMode, _ := gocore.Config().Get("metamorph_dbMode", "sqlite")
 
 	s, err := metamorph.NewStore(dbMode, folder)

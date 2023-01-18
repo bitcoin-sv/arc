@@ -3,6 +3,7 @@ package sql
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 
@@ -49,6 +50,9 @@ func New(engine string) (store.Interface, error) {
 		fallthrough
 	case "sqlite":
 		folder, _ := gocore.Config().Get("dataFolder", "data")
+		if err := os.MkdirAll(folder, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create data folder %s: %+v", folder, err)
+		}
 
 		filename, err := filepath.Abs(path.Join(folder, "blocktx.db"))
 		if err != nil {

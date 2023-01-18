@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"time"
@@ -61,6 +62,10 @@ func New(engine string) (store2.MetamorphStore, error) {
 			filename = fmt.Sprintf("file:%s?mode=memory&cache=shared", random.String(16))
 		} else {
 			folder, _ := gocore.Config().Get("dataFolder", "data")
+			if err := os.MkdirAll(folder, 0755); err != nil {
+				return nil, fmt.Errorf("failed to create data folder %s: %+v", folder, err)
+			}
+
 			filename, err = filepath.Abs(path.Join(folder, "metamorph.db"))
 			if err != nil {
 				return nil, fmt.Errorf("failed to get absolute path for sqlite DB: %+v", err)

@@ -261,7 +261,13 @@ func (p *Peer) readHandler() {
 				}
 
 			case wire.CmdBlock:
-				blockMsg := msg.(*BlockMessage)
+				// Please note that this is the BlockMessage, not the wire.MsgBlock. See init() above.
+				blockMsg, ok := msg.(*BlockMessage)
+				if !ok {
+					p.logger.Errorf("Unable to cast block message")
+					continue
+				}
+
 				p.logger.Infof("[%s] Recv %s: %s", p.address, strings.ToUpper(msg.Command()), blockMsg.Header.BlockHash().String())
 
 				err := p.peerHandler.HandleBlock(blockMsg, p)

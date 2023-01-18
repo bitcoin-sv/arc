@@ -167,7 +167,7 @@ func (bs *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error 
 
 func (bs *PeerHandler) insertBlock(blockHash []byte, merkleRoot []byte, previousBlockHash []byte, height uint64, peer p2p.PeerI) (uint64, error) {
 	startingHeight, _ := gocore.Config().GetInt("starting_block_height", 700000)
-	if height >= uint64(startingHeight) {
+	if height > uint64(startingHeight) {
 		if _, found := bs.announcedCache.Get(utils.HexEncodeAndReverseBytes(previousBlockHash)); !found {
 			if _, err := bs.store.GetBlock(context.Background(), previousBlockHash); err != nil {
 				if err == sql.ErrNoRows {

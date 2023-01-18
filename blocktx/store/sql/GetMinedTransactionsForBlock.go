@@ -59,7 +59,7 @@ func (s *SQL) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *
 	defer rows.Close()
 
 	var hash []byte
-	var transactions []*blocktx_api.Transaction
+	transactions := make([]*blocktx_api.Transaction, 0)
 
 	for rows.Next() {
 		err = rows.Scan(&hash)

@@ -210,7 +210,7 @@ func (bs *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {
 		return err
 	}
 
-	bs.announcedCache.Delete(string(block.Hash))
+	bs.announcedCache.Delete(utils.HexEncodeAndReverseBytes(block.Hash))
 
 	utils.SafeSend(bs.blockCh, &blocktx_api.Block{
 		Hash:         block.Hash,

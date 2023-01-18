@@ -32,11 +32,6 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 		ON CONFLICT DO NOTHING
 	`
 
-	// txn, err := s.db.BeginTx(ctx, nil)
-	// if err != nil {
-	// 	return err
-	// }
-
 	for pos, tx := range transactions {
 		var txid uint64
 
@@ -55,10 +50,6 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 			return err
 		}
 	}
-
-	// if err := txn.Commit(); err != nil {
-	// 	return err
-	// }
 
 	return nil
 }

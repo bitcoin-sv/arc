@@ -37,6 +37,7 @@ func NewMetamorph(targets string, blockTxClient blocktx.ClientI) (*Metamorph, er
 
 	return &Metamorph{
 		Client:        metamorph_api.NewMetaMorphAPIClient(conn),
+		ClientCache:   make(map[string]metamorph_api.MetaMorphAPIClient),
 		blockTxClient: blockTxClient,
 	}, nil
 }

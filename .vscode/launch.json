@@ -10,6 +10,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/main.go",
+      "args": ["-blocktx=1"]
       // "console": "externalTerminal"
     },
     {

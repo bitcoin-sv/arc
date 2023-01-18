@@ -97,22 +97,9 @@ func (bs *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 	return nil
 }
 
-func (bs *PeerHandler) HandleBlock(msg *wire.MsgBlock, peer p2p.PeerI) error {
-	blockHash := msg.BlockHash()
+func (bs *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error {
+	blockHash := msg.Header.BlockHash()
 	blockHashBytes := blockHash.CloneBytes()
-
-	txs := make([][]byte, msg.TxCount)
-
-	coinbaseTx := wire.NewMsgTx(1)
-	if err := coinbaseTx.Bsvdecode(msg.TransactionReader, msg.ProtocolVersion, msg.MessageEncoding); err != nil {
-		return fmt.Errorf("unable to read transaction from block %s: %v", blockHash.String(), err)
-	}
-
-	txHash := coinbaseTx.TxHash()
-	// coinbase tx is always the first tx in the block
-	txs[0] = txHash.CloneBytes()
-
-	height := extractHeightFromCoinbaseTx(coinbaseTx)
 
 	previousBlockHash := msg.Header.PrevBlock
 	previousBlockHashBytes := previousBlockHash.CloneBytes()
@@ -120,25 +107,16 @@ func (bs *PeerHandler) HandleBlock(msg *wire.MsgBlock, peer p2p.PeerI) error {
 	merkleRoot := msg.Header.MerkleRoot
 	merkleRootBytes := merkleRoot.CloneBytes()
 
-	blockId, err := bs.insertBlock(blockHashBytes, merkleRootBytes, previousBlockHashBytes, height, peer)
+	blockId, err := bs.insertBlock(blockHashBytes, merkleRootBytes, previousBlockHashBytes, msg.Height, peer)
 	if err != nil {
 		return fmt.Errorf("unable to insert block %s: %v", blockHash.String(), err)
 	}
 
-	for i := uint64(1); i < msg.TxCount; i++ {
-		tx := wire.NewMsgTx(1)
-		if err = tx.Bsvdecode(msg.TransactionReader, msg.ProtocolVersion, msg.MessageEncoding); err != nil {
-			return fmt.Errorf("unable to read transaction from block %s: %v", blockHash.String(), err)
-		}
-		txHash = tx.TxHash()
-		txs[i] = txHash.CloneBytes()
-	}
-
-	if err = bs.markTransactionsAsMined(blockId, txs); err != nil {
+	if err = bs.markTransactionsAsMined(blockId, msg.TransactionIDs); err != nil {
 		return fmt.Errorf("unable to mark block as mined %s: %v", blockHash.String(), err)
 	}
 
-	calculatedMerkleRoot := blockchain.BuildMerkleTreeStore(txs)
+	calculatedMerkleRoot := blockchain.BuildMerkleTreeStore(msg.TransactionIDs)
 	if !bytes.Equal(calculatedMerkleRoot[len(calculatedMerkleRoot)-1], merkleRootBytes) {
 		return fmt.Errorf("merkle root mismatch for block %s", blockHash.String())
 	}
@@ -147,7 +125,7 @@ func (bs *PeerHandler) HandleBlock(msg *wire.MsgBlock, peer p2p.PeerI) error {
 		Hash:         blockHashBytes,
 		MerkleRoot:   merkleRootBytes,
 		PreviousHash: previousBlockHashBytes,
-		Height:       height,
+		Height:       msg.Height,
 	}
 
 	if err = bs.markBlockAsProcessed(block); err != nil {

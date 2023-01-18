@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"bytes"
 	"fmt"
 	"sync"
 
@@ -17,13 +16,13 @@ type MockPeerHandler struct {
 	transactionRejection     []wire.MsgReject
 	transaction              []wire.MsgTx
 	blockAnnouncements       []wire.InvVect
-	block                    []wire.MsgBlock
-	blockTransactions        [][]wire.MsgTx
+	block                    []BlockMessage
+	blockTransactionIDs      [][][]byte
 }
 
 func NewMockPeerHandler() *MockPeerHandler {
 	return &MockPeerHandler{
-		blockTransactions: make([][]wire.MsgTx, 0),
+		blockTransactionIDs: make([][][]byte, 0),
 	}
 }
 
@@ -122,41 +121,28 @@ func (m *MockPeerHandler) GetBlockAnnouncement() []wire.InvVect {
 	return m.blockAnnouncements
 }
 
-func (m *MockPeerHandler) HandleBlock(msg *wire.MsgBlock, _ PeerI) error {
+func (m *MockPeerHandler) HandleBlock(msg *BlockMessage, _ PeerI) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	blockIdx := len(m.block)
 	m.block = append(m.block, *msg)
-	m.blockTransactions = append(m.blockTransactions, make([]wire.MsgTx, 0))
-
-	for i := uint64(0); i < msg.TxCount; i++ {
-		txMsg := wire.NewMsgTx(1)
-		if err := txMsg.Deserialize(msg.TransactionReader); err != nil {
-			return err
-		}
-
-		buf := bytes.NewBuffer(make([]byte, 0, txMsg.SerializeSize()))
-		if err := txMsg.Serialize(buf); err != nil {
-			return err
-		}
-
-		m.blockTransactions[blockIdx] = append(m.blockTransactions[blockIdx], *txMsg)
-	}
+	m.blockTransactionIDs = append(m.blockTransactionIDs, make([][]byte, 0))
+	m.blockTransactionIDs[blockIdx] = msg.TransactionIDs
 
 	return nil
 }
 
-func (m *MockPeerHandler) GetBlock() []wire.MsgBlock {
+func (m *MockPeerHandler) GetBlock() []BlockMessage {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	return m.block
 }
 
-func (m *MockPeerHandler) GetBlockTransactions(index int) []wire.MsgTx {
+func (m *MockPeerHandler) GetBlockTransactions(index int) [][]byte {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	return m.blockTransactions[index]
+	return m.blockTransactionIDs[index]
 }

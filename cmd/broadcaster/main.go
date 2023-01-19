@@ -365,6 +365,8 @@ func newFundingTransaction(key *utils.Key, outputs int64) *bt.Tx {
 
 	estimateFee := utils.EstimateFee(uint64(stdFee.MiningFee.Satoshis), 1, 1)
 	for i := int64(0); i < outputs; i++ {
+		// we send triple the fee to the output address
+		// this will allow us to send the change back to the original address
 		_ = tx.PayToAddress(addr, estimateFee*3)
 	}
 	_ = tx.ChangeToAddress(addr, fq)

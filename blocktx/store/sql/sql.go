@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/TAAL-GmbH/arc/blocktx/store"
+	"github.com/labstack/gommon/random"
 	_ "github.com/lib/pq"
 	"github.com/ordishs/gocore"
 	_ "modernc.org/sqlite"
@@ -49,21 +50,22 @@ func New(engine string) (store.Interface, error) {
 		memory = true
 		fallthrough
 	case "sqlite":
-		folder, _ := gocore.Config().Get("dataFolder", "data")
-		if err := os.MkdirAll(folder, 0755); err != nil {
-			return nil, fmt.Errorf("failed to create data folder %s: %+v", folder, err)
-		}
-
-		filename, err := filepath.Abs(path.Join(folder, "blocktx.db"))
-		if err != nil {
-			return nil, fmt.Errorf("failed to get absolute path for sqlite DB: %+v", err)
-		}
-
+		var filename string
 		if memory {
-			filename = ":memory:"
+			filename = fmt.Sprintf("file:%s?mode=memory&cache=shared", random.String(16))
 		} else {
+			folder, _ := gocore.Config().Get("dataFolder", "data")
+			if err = os.MkdirAll(folder, 0755); err != nil {
+				return nil, fmt.Errorf("failed to create data folder %s: %+v", folder, err)
+			}
+
+			filename, err = filepath.Abs(path.Join(folder, "blocktx.db"))
+			if err != nil {
+				return nil, fmt.Errorf("failed to get absolute path for sqlite DB: %+v", err)
+			}
+
 			// filename = fmt.Sprintf("file:%s?cache=shared&mode=rwc", filename)
-			filename = fmt.Sprintf("%s?_pragma=busy_timeout=10000&_pragma=journal_mode=WAL", filename)
+			filename = fmt.Sprintf("%s?cache=shared&_pragma=busy_timeout=10000&_pragma=journal_mode=WAL", filename)
 		}
 
 		logger.Infof("Using sqlite DB: %s", filename)

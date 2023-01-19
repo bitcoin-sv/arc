@@ -37,6 +37,7 @@
     "getkin",
     "gommon",
     "hashblock",
+    "keyset",
     "labstack",
     "ldflags",
     "libsv",

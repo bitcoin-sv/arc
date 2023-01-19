@@ -1,8 +1,6 @@
 Bugs
 
 TODOs
-- Cleanup the db start everywhere (similar to metamorph)
-  - including sqlite memory startup
 - init/catchup in metamorph for processed blocks
 - Merkle proofs
 - Bitcoin node settings read into api (fees etc.)

@@ -1,17 +1,24 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/TAAL-GmbH/arc/broadcaster/utils"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/tracing"
+	"github.com/labstack/gommon/random"
+	"github.com/libsv/go-bk/base58"
 	"github.com/libsv/go-bk/bec"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
@@ -21,13 +28,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
-
-type utxo struct {
-	txid         string
-	vout         uint32
-	scriptPubKey string
-	satoshis     uint64
-}
 
 var stdFee = &bt.Fee{
 	FeeType: bt.FeeTypeStandard,
@@ -53,15 +53,46 @@ var dataFee = &bt.Fee{
 	},
 }
 
+var (
+	isDryRun  = false
+	isRegtest = true
+)
+
+var fq = bt.NewFeeQuote()
+
 func main() {
 	sendOnChannel := flag.Int("buffer", 0, "whether to send transactions over a buffered channel and how big the buffer should be")
 	useFundingTx := flag.Bool("prefund", false, "whether to use 1 funding transaction for all inputs")
+	dryRun := flag.Bool("dryrun", false, "whether to not send transactions to metamorph")
+	consolidate := flag.Bool("consolidate", false, "whether to consolidate all output transactions back into the original")
+	useKey := flag.Bool("key", false, "private key to use for funding transactions")
+	keyFile := flag.String("keyfile", "", "private key from file (arc.key) to use for funding transactions")
 	flag.Parse()
 
 	args := flag.Args()
+	fmt.Println(args)
 	if len(args) != 1 {
-		fmt.Println("usage: broadcaster [-buffer=<number of buffered channels>] [-prefund] <number of transactions to send>")
+		fmt.Println("usage: broadcaster [-buffer=<number of buffered channels>] [-prefund] [-dryrun] [-key] [-keyfile=<key file>] <number of transactions to send>")
 		return
+	}
+
+	fq.AddQuote(bt.FeeTypeStandard, stdFee)
+	fq.AddQuote(bt.FeeTypeData, dataFee)
+
+	if dryRun != nil && *dryRun {
+		isDryRun = true
+	}
+
+	var err error
+	var xpriv string
+	if useKey != nil && *useKey {
+		fmt.Print("Enter xpriv: ")
+		reader := bufio.NewReader(os.Stdin)
+		inputKey, err := reader.ReadString('\n')
+		if err != nil {
+			panic("An error occurred while reading input. Please try again:" + err.Error())
+		}
+		xpriv = strings.TrimSpace(inputKey)
 	}
 
 	sendNrOfTransactions, err := strconv.ParseInt(args[0], 10, 64)
@@ -74,26 +105,73 @@ func main() {
 
 	ctx := context.Background()
 
-	addresses, _ := gocore.Config().Get("metamorphAddresses") //, "localhost:8000")
+	//
+	// Create the metamorph client
+	//
+	var client metamorph_api.MetaMorphAPIClient
+	if isDryRun {
+		client = utils.NewDryRunClient()
+	} else {
+		addresses, _ := gocore.Config().Get("metamorphAddresses") //, "localhost:8000")
 
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
+		opts := []grpc.DialOption{
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
+		}
+
+		var cc *grpc.ClientConn
+		cc, err = grpc.DialContext(ctx, addresses, tracing.AddGRPCDialOptions(opts)...)
+		if err != nil {
+			panic(fmt.Errorf("DIALCONTEXT: %v", err))
+		}
+
+		client = metamorph_api.NewMetaMorphAPIClient(cc)
 	}
-	cc, err := grpc.DialContext(ctx, addresses, tracing.AddGRPCDialOptions(opts)...)
-	if err != nil {
-		panic(fmt.Errorf("DIALCONTEXT: %v", err))
-	}
 
-	client := metamorph_api.NewMetaMorphAPIClient(cc)
+	//
+	// Set the private key to use for funding transactions
+	//
+	var privKey *utils.Key
+	var sendToPrivKey *utils.Key
+	if xpriv != "" || *keyFile != "" {
+		if xpriv == "" {
+			var extendedBytes []byte
+			extendedBytes, err = os.ReadFile(*keyFile)
+			if err != nil {
+				if os.IsNotExist(err) {
+					panic("arc.key not found. Please create this file with the xpriv you want to use")
+				}
+				panic(err.Error())
+			}
+			xpriv = string(extendedBytes)
+		}
 
-	privKey, err := bec.NewPrivateKey(bec.S256())
-	if err != nil {
-		panic(err)
+		privKey, err = utils.GetPrivateKey(xpriv, "0/0")
+		if err != nil {
+			panic(err)
+		}
+
+		sendToPrivKey, err = utils.GetPrivateKey(xpriv, "0/1")
+		if err != nil {
+			panic(err)
+		}
+
+		isRegtest = false
+	} else {
+		// create random private key
+		var key *bec.PrivateKey
+		key, err = bec.NewPrivateKey(bec.S256())
+		if err != nil {
+			panic(err)
+		}
+		privKey, err = utils.NewPrivateKey(key)
+		if err != nil {
+			panic(err)
+		}
+		sendToPrivKey = privKey
 	}
 
 	txs := make([]*bt.Tx, sendNrOfTransactions)
-
 	if useFundingTx != nil && *useFundingTx {
 		fundingTx := newFundingTransaction(privKey, sendNrOfTransactions)
 		log.Printf("funding tx: %s\n", fundingTx.TxID())
@@ -105,19 +183,19 @@ func main() {
 		}
 
 		for i := int64(0); i < sendNrOfTransactions; i++ {
-			u := &utxo{
-				txid:         fundingTx.TxID(),
-				vout:         uint32(i),
-				scriptPubKey: fundingTx.Outputs[i].LockingScript.String(),
-				satoshis:     fundingTx.Outputs[i].Satoshis,
+			u := &bt.UTXO{
+				TxID:          fundingTx.TxIDBytes(),
+				Vout:          uint32(i),
+				LockingScript: fundingTx.Outputs[i].LockingScript,
+				Satoshis:      fundingTx.Outputs[i].Satoshis,
 			}
-			txs[i], _ = newTransaction(privKey, u)
+			txs[i], _ = newTransaction(privKey, sendToPrivKey, u)
 			log.Printf("generated tx: %s\n", txs[i].TxID())
 		}
 	} else {
-		var u *utxo
+		var u *bt.UTXO
 		for i := int64(0); i < sendNrOfTransactions; i++ {
-			txs[i], u = newTransaction(privKey, u)
+			txs[i], u = newTransaction(privKey, sendToPrivKey, u)
 			log.Printf("generated tx: %s\n", txs[i].TxID())
 		}
 	}
@@ -126,8 +204,14 @@ func main() {
 	time.Sleep(1 * time.Second)
 
 	var wg sync.WaitGroup
-
-	if sendOnChannel != nil && *sendOnChannel > 0 {
+	if isDryRun {
+		for i, tx := range txs {
+			log.Printf("Processing tx %d / %d\n", i+1, len(txs))
+			if err = processTransaction(ctx, client, tx); err != nil {
+				panic(err)
+			}
+		}
+	} else if sendOnChannel != nil && *sendOnChannel > 0 {
 		limit := make(chan bool, *sendOnChannel)
 		for i, tx := range txs {
 			wg.Add(1)
@@ -160,6 +244,55 @@ func main() {
 		}
 		wg.Wait()
 	}
+
+	if consolidate != nil && *consolidate {
+		if err = consolidateOutputsToOriginal(ctx, client, privKey, sendToPrivKey, txs); err != nil {
+			panic(err)
+		}
+	}
+}
+
+func consolidateOutputsToOriginal(ctx context.Context, client metamorph_api.MetaMorphAPIClient, privKey *utils.Key, sendToPrivKey *utils.Key, txs []*bt.Tx) error {
+	// consolidate all transactions back into the original address
+	log.Println("Consolidating all transactions back into original address")
+	consolidationAddress := privKey.Address(!isRegtest)
+	consolidationTx := bt.NewTx()
+	utxos := make([]*bt.UTXO, len(txs))
+	totalSatoshis := uint64(0)
+	for i, tx := range txs {
+		utxos[i] = &bt.UTXO{
+			TxID:          tx.TxIDBytes(),
+			Vout:          0,
+			LockingScript: tx.Outputs[0].LockingScript,
+			Satoshis:      tx.Outputs[0].Satoshis,
+		}
+		totalSatoshis += tx.Outputs[0].Satoshis
+	}
+	err := consolidationTx.FromUTXOs(utxos...)
+	if err != nil {
+		return err
+	}
+	// put half of the satoshis back into the original address
+	// the rest will be returned via the change output
+	err = consolidationTx.PayToAddress(consolidationAddress, totalSatoshis/2)
+	if err != nil {
+		return err
+	}
+	err = consolidationTx.ChangeToAddress(consolidationAddress, fq)
+	if err != nil {
+		return err
+	}
+
+	unlockerGetter := unlocker.Getter{PrivateKey: sendToPrivKey.PrivateKey}
+	if err = consolidationTx.FillAllInputs(context.Background(), &unlockerGetter); err != nil {
+		return err
+	}
+
+	if err = processTransaction(ctx, client, consolidationTx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func processTransaction(ctx context.Context, client metamorph_api.MetaMorphAPIClient, tx *bt.Tx) error {
@@ -183,44 +316,60 @@ func processTransaction(ctx context.Context, client metamorph_api.MetaMorphAPICl
 	return nil
 }
 
-var addr *bscript.Address
-
-func newFundingTransaction(privKey *bec.PrivateKey, outputs int64) *bt.Tx {
+func newFundingTransaction(key *utils.Key, outputs int64) *bt.Tx {
 	var fq = bt.NewFeeQuote()
 	fq.AddQuote(bt.FeeTypeStandard, stdFee)
 	fq.AddQuote(bt.FeeTypeData, dataFee)
 
 	var err error
-	if addr == nil {
-		addr, err = bscript.NewAddressFromPublicKey(privKey.PubKey(), false)
+	addr := key.Address(!isRegtest)
+
+	tx := bt.NewTx()
+
+	if isRegtest {
+		var txid string
+		var vout uint32
+		var scriptPubKey string
+		for {
+			// create the first funding transaction
+			txid, vout, scriptPubKey, err = sendToAddress(addr, 100_000_000)
+			if err == nil {
+				log.Printf("init tx: %s:%d\n", txid, vout)
+				break
+			}
+
+			log.Printf(".")
+			time.Sleep(100 * time.Millisecond)
+		}
+		err = tx.From(txid, vout, scriptPubKey, 100_000_000)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		// live mode, we need to get the utxos from woc
+		var utxos []*bt.UTXO
+		utxos, err = key.GetUTXOs(!isRegtest)
+		if err != nil {
+			panic(err)
+		}
+		if len(utxos) == 0 {
+			panic("no utxos for address: " + addr)
+		}
+
+		// this consumes all the utxos from the key
+		err = tx.FromUTXOs(utxos...)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	var txid string
-	var vout uint32
-	var scriptPubKey string
-	for {
-		// create the first funding transaction
-		txid, vout, scriptPubKey, err = sendToAddress(addr.AddressString, 100_000_000)
-		if err == nil {
-			log.Printf("init tx: %s:%d\n", txid, vout)
-			break
-		}
-
-		log.Printf(".")
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	tx := bt.NewTx()
-	_ = tx.From(txid, vout, scriptPubKey, 100_000_000)
+	estimateFee := utils.EstimateFee(uint64(stdFee.MiningFee.Satoshis), 1, 1)
 	for i := int64(0); i < outputs; i++ {
-		_ = tx.PayToAddress(addr.AddressString, 1000)
+		_ = tx.PayToAddress(addr, estimateFee*3)
 	}
-	_ = tx.ChangeToAddress(addr.AddressString, fq)
+	_ = tx.ChangeToAddress(addr, fq)
 
-	unlockerGetter := unlocker.Getter{PrivateKey: privKey}
+	unlockerGetter := unlocker.Getter{PrivateKey: key.PrivateKey}
 	if err = tx.FillAllInputs(context.Background(), &unlockerGetter); err != nil {
 		panic(err)
 	}
@@ -228,18 +377,10 @@ func newFundingTransaction(privKey *bec.PrivateKey, outputs int64) *bt.Tx {
 	return tx
 }
 
-func newTransaction(privKey *bec.PrivateKey, useUtxo *utxo) (*bt.Tx, *utxo) {
-	var fq = bt.NewFeeQuote()
-	fq.AddQuote(bt.FeeTypeStandard, stdFee)
-	fq.AddQuote(bt.FeeTypeData, dataFee)
-
+func newTransaction(key *utils.Key, sendToKey *utils.Key, useUtxo *bt.UTXO) (*bt.Tx, *bt.UTXO) {
 	var err error
-	if addr == nil {
-		addr, err = bscript.NewAddressFromPublicKey(privKey.PubKey(), false)
-		if err != nil {
-			panic(err)
-		}
-	}
+	addr := key.Address(!isRegtest)
+	sendToAddr := sendToKey.Address(!isRegtest)
 
 	if useUtxo == nil {
 		var txid string
@@ -247,13 +388,21 @@ func newTransaction(privKey *bec.PrivateKey, useUtxo *utxo) (*bt.Tx, *utxo) {
 		var scriptPubKey string
 		for {
 			// create the first funding transaction
-			txid, vout, scriptPubKey, err = sendToAddress(addr.AddressString, 100_000_000)
+			txid, vout, scriptPubKey, err = sendToAddress(addr, 100_000_000)
 			if err == nil {
-				useUtxo = &utxo{
-					txid:         txid,
-					vout:         vout,
-					scriptPubKey: scriptPubKey,
-					satoshis:     100_000_000,
+				txIDBytes, err := hex.DecodeString(txid)
+				if err != nil {
+					panic(err)
+				}
+				lockingScript, err := bscript.NewFromHexString(scriptPubKey)
+				if err != nil {
+					panic(err)
+				}
+				useUtxo = &bt.UTXO{
+					TxID:          txIDBytes,
+					Vout:          vout,
+					LockingScript: lockingScript,
+					Satoshis:      100_000_000,
 				}
 				log.Printf("init useUtxo: %#v\n", useUtxo)
 				break
@@ -265,35 +414,46 @@ func newTransaction(privKey *bec.PrivateKey, useUtxo *utxo) (*bt.Tx, *utxo) {
 	}
 
 	tx := bt.NewTx()
-	_ = tx.From(useUtxo.txid, useUtxo.vout, useUtxo.scriptPubKey, useUtxo.satoshis)
-	_ = tx.PayToAddress(addr.AddressString, 900) // let,s just pay 900, allows is to create up to 100_000 transactions
-	_ = tx.ChangeToAddress(addr.AddressString, fq)
+	_ = tx.FromUTXOs(useUtxo)
+	// the output value of the utxo should be exactly 3x the fee
+	// in this way we can consolidate the output back into the original address
+	// even for the smallest transactions with only 1 output
+	_ = tx.PayToAddress(sendToAddr, 2*useUtxo.Satoshis/3)
+	_ = tx.ChangeToAddress(addr, fq)
 
-	unlockerGetter := unlocker.Getter{PrivateKey: privKey}
+	unlockerGetter := unlocker.Getter{PrivateKey: key.PrivateKey}
 	if err = tx.FillAllInputs(context.Background(), &unlockerGetter); err != nil {
 		panic(err)
 	}
 
 	// set the utxo to use for the next transaction
 	changeVout := len(tx.Outputs) - 1
-	useUtxo = &utxo{
-		txid:         tx.TxID(),
-		vout:         uint32(changeVout),
-		scriptPubKey: tx.Outputs[changeVout].LockingScriptHexString(),
-		satoshis:     tx.Outputs[changeVout].Satoshis,
+	useUtxo = &bt.UTXO{
+		TxID:          tx.TxIDBytes(),
+		Vout:          uint32(changeVout),
+		LockingScript: tx.Outputs[changeVout].LockingScript,
+		Satoshis:      tx.Outputs[changeVout].Satoshis,
 	}
 
 	return tx, useUtxo
 }
 
+// Let the bitcoin node in regtest mode send some bitcoin to our address
 func sendToAddress(address string, satoshis uint64) (string, uint32, string, error) {
-	// // Create a new transactionHandler instance
 	rpcURL, err, found := gocore.Config().GetURL("peer_rpc")
 	if !found {
 		log.Fatalf("Could not find peer_rpc in config: %v", err)
 	}
 	if err != nil {
 		log.Fatalf("Could not parse peer_rpc: %v", err)
+	}
+
+	// we are only in dry run mode and will not actually send anything
+	if isDryRun {
+		txid := random.String(64, random.Hex)
+		pubKeyHash := base58.Decode(address)
+		scriptPubKey := "76a914" + hex.EncodeToString(pubKeyHash[1:21]) + "88ac"
+		return txid, 0, scriptPubKey, nil
 	}
 
 	client, err := bitcoin.NewFromURL(rpcURL, false)

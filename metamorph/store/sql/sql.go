@@ -104,6 +104,31 @@ func New(engine string) (store2.MetamorphStore, error) {
 }
 
 func createPostgresSchema(db *sql.DB) error {
+	// Create schema, if necessary...
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS transactions (
+		hash BYTEA PRIMARY KEY,
+		stored_at TEXT,
+		announced_at TEXT,
+		mined_at TEXT,
+		status INTEGER,
+		block_height BIGINT,
+		block_hash BYTEA,
+		api_key_id BIGINT,
+		standard_fee_id BIGINT,
+		data_fee_id BIGINT,
+		source_ip TEXT,
+		callback_url TEXT,
+		callback_token TEXT,
+		merkle_proof TEXT,
+		reject_reason TEXT,
+		raw_tx BYTEA
+		);
+	`); err != nil {
+		db.Close()
+		return fmt.Errorf("could not create block_transactions_map table - [%+v]", err)
+	}
+
 	return nil
 }
 

@@ -1,6 +1,7 @@
-package main
+package utils
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,7 +9,16 @@ import (
 )
 
 func TestReadExtendedPrivateKey(t *testing.T) {
-	key, err := GetPrivateKey("0/0")
+	extendedBytes, err := os.ReadFile("../arc.key")
+	if err != nil {
+		if os.IsNotExist(err) {
+			panic("arc.key not found. Please create this file with the xpriv you want to use")
+		}
+		panic(err.Error())
+	}
+	xpriv := string(extendedBytes)
+
+	key, err := GetPrivateKey(xpriv, "0/0")
 	require.NoError(t, err)
 
 	assert.Equal(t, "76a914117af07edf84bcd40950f46a8254f7f78d85243088ac", key.ScriptPubKey)
@@ -19,6 +29,6 @@ func TestReadExtendedPrivateKey(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, utxo := range unspent {
-		t.Logf("%s", utxo)
+		t.Logf("%v", utxo)
 	}
 }

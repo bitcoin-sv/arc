@@ -1,15 +1,15 @@
-package main
+package utils
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/libsv/go-bk/bec"
 	"github.com/libsv/go-bk/bip32"
-	"github.com/libsv/go-bk/chaincfg"
+	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 )
 
@@ -21,17 +21,6 @@ type Key struct {
 	ScriptPubKey  string
 }
 
-type UTXO struct {
-	Txid         string
-	Vout         uint32
-	ScriptPubKey string
-	Satoshis     uint64
-}
-
-func (u *UTXO) String() string {
-	return fmt.Sprintf("%s:%d (%d sats)", u.Txid, u.Vout, u.Satoshis)
-}
-
 type wocUtxo struct {
 	Txid     string `json:"tx_hash"`
 	Vout     uint32 `json:"tx_pos"`
@@ -40,20 +29,25 @@ type wocUtxo struct {
 }
 
 func (k *Key) Address(mainnet bool) string {
-	chain := &chaincfg.MainNet
-	if !mainnet {
-		chain = &chaincfg.TestNet
+	addr, err := bscript.NewAddressFromPublicKey(k.PrivateKey.PubKey(), mainnet)
+	if err != nil {
+		panic(err)
 	}
 
-	return k.extendedKey.Address(chain)
+	return addr.AddressString
 }
 
-func (k *Key) GetUTXOs(mainnet bool) ([]*UTXO, error) {
+func (k *Key) GetUTXOs(mainnet bool) ([]*bt.UTXO, error) {
 	// Get UTXOs from WhatsOnChain
-	resp, err := http.Get("https://api.whatsonchain.com/v1/bsv/main/address/" + k.Address(mainnet) + "/unspent")
+	net := "test"
+	if mainnet {
+		net = "main"
+	}
+	resp, err := http.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/unspent", net, k.Address(mainnet)))
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		return nil, errors.New("failed to get utxos")
@@ -65,29 +59,45 @@ func (k *Key) GetUTXOs(mainnet bool) ([]*UTXO, error) {
 		return nil, err
 	}
 
-	unspent := make([]*UTXO, len(wocUnspent))
-	for i, wocUtxo := range wocUnspent {
-		unspent[i] = &UTXO{
-			Txid:         wocUtxo.Txid,
-			Vout:         wocUtxo.Vout,
-			ScriptPubKey: k.ScriptPubKey,
-			Satoshis:     wocUtxo.Satoshis,
+	unspent := make([]*bt.UTXO, len(wocUnspent))
+	for i, utxo := range wocUnspent {
+		txIDBytes, err := hex.DecodeString(utxo.Txid)
+		if err != nil {
+			return nil, err
+		}
+		lockingScript, err := bscript.NewFromHexString(k.ScriptPubKey)
+		if err != nil {
+			return nil, err
+		}
+		unspent[i] = &bt.UTXO{
+			TxID:          txIDBytes,
+			Vout:          utxo.Vout,
+			LockingScript: lockingScript,
+			Satoshis:      utxo.Satoshis,
 		}
 	}
 
 	return unspent, nil
 }
 
-func GetPrivateKey(derivationPath string) (*Key, error) {
-	extendedBytes, err := os.ReadFile("arc.key")
+func NewPrivateKey(privateKey *bec.PrivateKey) (*Key, error) {
+	publicKey := privateKey.PubKey()
+
+	script, err := bscript.NewP2PKHFromPubKeyEC(publicKey)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("arc.key not found. Please create this file with the xpriv you want to use")
-		}
 		return nil, err
 	}
 
-	extendedKey, err := bip32.NewKeyFromString(string(extendedBytes))
+	return &Key{
+		PrivateKey:    privateKey,
+		PublicKey:     publicKey,
+		PublicKeyHash: publicKey.SerialiseCompressed(),
+		ScriptPubKey:  script.String(),
+	}, nil
+}
+
+func GetPrivateKey(xpriv string, derivationPath string) (*Key, error) {
+	extendedKey, err := bip32.NewKeyFromString(xpriv)
 	if err != nil {
 		return nil, err
 	}
@@ -116,5 +126,4 @@ func GetPrivateKey(derivationPath string) (*Key, error) {
 		PublicKeyHash: publicKey.SerialiseCompressed(),
 		ScriptPubKey:  script.String(),
 	}, nil
-
 }

@@ -1,4 +1,4 @@
-package utils
+package fees
 
 import (
 	"math"

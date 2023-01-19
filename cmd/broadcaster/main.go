@@ -14,14 +14,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/broadcaster/utils"
+	"github.com/TAAL-GmbH/arc/lib"
+	"github.com/TAAL-GmbH/arc/lib/fees"
+	"github.com/TAAL-GmbH/arc/lib/keyset"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/tracing"
 	"github.com/labstack/gommon/random"
 	"github.com/libsv/go-bk/base58"
-	"github.com/libsv/go-bk/bec"
 	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/libsv/go-bt/v2/unlocker"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
@@ -62,7 +62,6 @@ var fq = bt.NewFeeQuote()
 
 func main() {
 	sendOnChannel := flag.Int("buffer", 0, "whether to send transactions over a buffered channel and how big the buffer should be")
-	useFundingTx := flag.Bool("prefund", false, "whether to use 1 funding transaction for all inputs")
 	dryRun := flag.Bool("dryrun", false, "whether to not send transactions to metamorph")
 	consolidate := flag.Bool("consolidate", false, "whether to consolidate all output transactions back into the original")
 	useKey := flag.Bool("key", false, "private key to use for funding transactions")
@@ -110,7 +109,7 @@ func main() {
 	//
 	var client metamorph_api.MetaMorphAPIClient
 	if isDryRun {
-		client = utils.NewDryRunClient()
+		client = lib.NewDryRunClient()
 	} else {
 		addresses, _ := gocore.Config().Get("metamorphAddresses") //, "localhost:8000")
 
@@ -131,8 +130,9 @@ func main() {
 	//
 	// Set the private key to use for funding transactions
 	//
-	var privKey *utils.Key
-	var sendToPrivKey *utils.Key
+	var fundingKeySet *keyset.KeySet
+	var receivingKeySet *keyset.KeySet
+
 	if xpriv != "" || *keyFile != "" {
 		if xpriv == "" {
 			var extendedBytes []byte
@@ -146,58 +146,47 @@ func main() {
 			xpriv = string(extendedBytes)
 		}
 
-		privKey, err = utils.GetPrivateKey(xpriv, "0/0")
+		fundingKeySet, err = keyset.NewFromExtendedKeyStr(xpriv, "0/0")
 		if err != nil {
 			panic(err)
 		}
 
-		sendToPrivKey, err = utils.GetPrivateKey(xpriv, "0/1")
+		receivingKeySet, err = keyset.NewFromExtendedKeyStr(xpriv, "0/1")
 		if err != nil {
 			panic(err)
 		}
 
 		isRegtest = false
 	} else {
-		// create random private key
-		var key *bec.PrivateKey
-		key, err = bec.NewPrivateKey(bec.S256())
+		// create random key set
+		fundingKeySet, err = keyset.New()
 		if err != nil {
 			panic(err)
 		}
-		privKey, err = utils.NewPrivateKey(key)
-		if err != nil {
-			panic(err)
-		}
-		sendToPrivKey = privKey
+		receivingKeySet = fundingKeySet
 	}
 
 	txs := make([]*bt.Tx, sendNrOfTransactions)
-	if useFundingTx != nil && *useFundingTx {
-		fundingTx := newFundingTransaction(privKey, sendNrOfTransactions)
-		log.Printf("funding tx: %s\n", fundingTx.TxID())
-		_, err = client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
-			RawTx: fundingTx.Bytes(),
-		})
-		if err != nil {
-			panic(err)
-		}
 
-		for i := int64(0); i < sendNrOfTransactions; i++ {
-			u := &bt.UTXO{
-				TxID:          fundingTx.TxIDBytes(),
-				Vout:          uint32(i),
-				LockingScript: fundingTx.Outputs[i].LockingScript,
-				Satoshis:      fundingTx.Outputs[i].Satoshis,
-			}
-			txs[i], _ = newTransaction(privKey, sendToPrivKey, u)
-			log.Printf("generated tx: %s\n", txs[i].TxID())
+	fundingTx := newFundingTransaction(fundingKeySet, receivingKeySet, sendNrOfTransactions)
+	log.Printf("funding tx: %s\n", fundingTx.TxID())
+
+	_, err = client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
+		RawTx: fundingTx.Bytes(),
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	for i := int64(0); i < sendNrOfTransactions; i++ {
+		u := &bt.UTXO{
+			TxID:          fundingTx.TxIDBytes(),
+			Vout:          uint32(i),
+			LockingScript: fundingTx.Outputs[i].LockingScript,
+			Satoshis:      fundingTx.Outputs[i].Satoshis,
 		}
-	} else {
-		var u *bt.UTXO
-		for i := int64(0); i < sendNrOfTransactions; i++ {
-			txs[i], u = newTransaction(privKey, sendToPrivKey, u)
-			log.Printf("generated tx: %s\n", txs[i].TxID())
-		}
+		txs[i], _ = newTransaction(receivingKeySet, u)
+		log.Printf("generated tx: %s\n", txs[i].TxID())
 	}
 
 	// let the node recover
@@ -246,13 +235,13 @@ func main() {
 	}
 
 	if consolidate != nil && *consolidate {
-		if err = consolidateOutputsToOriginal(ctx, client, privKey, sendToPrivKey, txs); err != nil {
+		if err = consolidateOutputsToOriginal(ctx, client, fundingKeySet, receivingKeySet, txs); err != nil {
 			panic(err)
 		}
 	}
 }
 
-func consolidateOutputsToOriginal(ctx context.Context, client metamorph_api.MetaMorphAPIClient, privKey *utils.Key, sendToPrivKey *utils.Key, txs []*bt.Tx) error {
+func consolidateOutputsToOriginal(ctx context.Context, client metamorph_api.MetaMorphAPIClient, privKey *keyset.KeySet, sendToPrivKey *keyset.KeySet, txs []*bt.Tx) error {
 	// consolidate all transactions back into the original address
 	log.Println("Consolidating all transactions back into original address")
 	consolidationAddress := privKey.Address(!isRegtest)
@@ -316,13 +305,13 @@ func processTransaction(ctx context.Context, client metamorph_api.MetaMorphAPICl
 	return nil
 }
 
-func newFundingTransaction(key *utils.Key, outputs int64) *bt.Tx {
+func newFundingTransaction(fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, outputs int64) *bt.Tx {
 	var fq = bt.NewFeeQuote()
 	fq.AddQuote(bt.FeeTypeStandard, stdFee)
 	fq.AddQuote(bt.FeeTypeData, dataFee)
 
 	var err error
-	addr := key.Address(!isRegtest)
+	addr := fromKeySet.Address(!isRegtest)
 
 	tx := bt.NewTx()
 
@@ -348,7 +337,7 @@ func newFundingTransaction(key *utils.Key, outputs int64) *bt.Tx {
 	} else {
 		// live mode, we need to get the utxos from woc
 		var utxos []*bt.UTXO
-		utxos, err = key.GetUTXOs(!isRegtest)
+		utxos, err = fromKeySet.GetUTXOs(!isRegtest)
 		if err != nil {
 			panic(err)
 		}
@@ -363,15 +352,16 @@ func newFundingTransaction(key *utils.Key, outputs int64) *bt.Tx {
 		}
 	}
 
-	estimateFee := utils.EstimateFee(uint64(stdFee.MiningFee.Satoshis), 1, 1)
+	estimateFee := fees.EstimateFee(uint64(stdFee.MiningFee.Satoshis), 1, 1)
 	for i := int64(0); i < outputs; i++ {
 		// we send triple the fee to the output address
 		// this will allow us to send the change back to the original address
-		_ = tx.PayToAddress(addr, estimateFee*3)
+		_ = tx.PayTo(toKeySet.Script, estimateFee*3)
 	}
-	_ = tx.ChangeToAddress(addr, fq)
 
-	unlockerGetter := unlocker.Getter{PrivateKey: key.PrivateKey}
+	_ = tx.Change(fromKeySet.Script, fq)
+
+	unlockerGetter := unlocker.Getter{PrivateKey: fromKeySet.PrivateKey}
 	if err = tx.FillAllInputs(context.Background(), &unlockerGetter); err != nil {
 		panic(err)
 	}
@@ -379,49 +369,16 @@ func newFundingTransaction(key *utils.Key, outputs int64) *bt.Tx {
 	return tx
 }
 
-func newTransaction(key *utils.Key, sendToKey *utils.Key, useUtxo *bt.UTXO) (*bt.Tx, *bt.UTXO) {
+func newTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) (*bt.Tx, *bt.UTXO) {
 	var err error
-	addr := key.Address(!isRegtest)
-	sendToAddr := sendToKey.Address(!isRegtest)
-
-	if useUtxo == nil {
-		var txid string
-		var vout uint32
-		var scriptPubKey string
-		for {
-			// create the first funding transaction
-			txid, vout, scriptPubKey, err = sendToAddress(addr, 100_000_000)
-			if err == nil {
-				txIDBytes, err := hex.DecodeString(txid)
-				if err != nil {
-					panic(err)
-				}
-				lockingScript, err := bscript.NewFromHexString(scriptPubKey)
-				if err != nil {
-					panic(err)
-				}
-				useUtxo = &bt.UTXO{
-					TxID:          txIDBytes,
-					Vout:          vout,
-					LockingScript: lockingScript,
-					Satoshis:      100_000_000,
-				}
-				log.Printf("init useUtxo: %#v\n", useUtxo)
-				break
-			}
-
-			log.Printf(".")
-			time.Sleep(100 * time.Millisecond)
-		}
-	}
 
 	tx := bt.NewTx()
 	_ = tx.FromUTXOs(useUtxo)
 	// the output value of the utxo should be exactly 3x the fee
 	// in this way we can consolidate the output back into the original address
 	// even for the smallest transactions with only 1 output
-	_ = tx.PayToAddress(sendToAddr, 2*useUtxo.Satoshis/3)
-	_ = tx.ChangeToAddress(addr, fq)
+	_ = tx.PayTo(key.Script, 2*useUtxo.Satoshis/3)
+	_ = tx.Change(key.Script, fq)
 
 	unlockerGetter := unlocker.Getter{PrivateKey: key.PrivateKey}
 	if err = tx.FillAllInputs(context.Background(), &unlockerGetter); err != nil {

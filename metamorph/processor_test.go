@@ -14,7 +14,7 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/metamorph/store/badger"
-	"github.com/TAAL-GmbH/arc/metamorph/store/sqlitestore"
+	"github.com/TAAL-GmbH/arc/metamorph/store/sql"
 	"github.com/TAAL-GmbH/arc/p2p"
 	"github.com/TAAL-GmbH/arc/test"
 	"github.com/labstack/gommon/random"
@@ -24,7 +24,7 @@ import (
 
 func TestNewProcessor(t *testing.T) {
 	t.Run("NewProcessor", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		pm := p2p.NewPeerManagerMock()
@@ -50,7 +50,7 @@ func TestNewProcessor(t *testing.T) {
 			assert.Equal(t, "peer manager cannot be nil", r.(string))
 		}()
 
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		processor := NewProcessor(1, s, nil, "test", nil, nil)
@@ -62,7 +62,7 @@ func TestNewProcessor(t *testing.T) {
 
 func TestLoadUnseen(t *testing.T) {
 	t.Run("LoadUnseen empty", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		pm := p2p.NewPeerManagerMock()
@@ -74,7 +74,7 @@ func TestLoadUnseen(t *testing.T) {
 	})
 
 	t.Run("LoadUnseen", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
@@ -92,7 +92,7 @@ func TestLoadUnseen(t *testing.T) {
 
 func TestProcessTransaction(t *testing.T) {
 	t.Run("ProcessTransaction", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		pm := p2p.NewPeerManagerMock()
@@ -159,7 +159,7 @@ func TestProcessTransaction(t *testing.T) {
 
 func TestSendStatusForTransaction(t *testing.T) {
 	t.Run("SendStatusForTransaction unknown tx", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		pm := p2p.NewPeerManagerMock()
@@ -174,7 +174,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusForTransaction err", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
@@ -196,7 +196,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusForTransaction invalid tx id", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		pm := p2p.NewPeerManagerMock()
@@ -210,7 +210,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusForTransaction known tx", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
@@ -230,7 +230,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusForTransaction known tx - no update", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
@@ -250,7 +250,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusForTransaction known tx - processed", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		pm := p2p.NewPeerManagerMock()
@@ -298,7 +298,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 func TestSendStatusMinedForTransaction(t *testing.T) {
 	t.Run("SendStatusMinedForTransaction unknown tx", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		pm := p2p.NewPeerManagerMock()
@@ -312,7 +312,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusMinedForTransaction known tx", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
@@ -332,7 +332,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusMinedForTransaction callback", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
@@ -363,7 +363,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusForTransaction known tx - processed", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		pm := p2p.NewPeerManagerMock()

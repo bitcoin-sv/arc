@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"github.com/TAAL-GmbH/arc/blocktx"
-	"github.com/TAAL-GmbH/arc/blocktx/store/sql"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
@@ -10,9 +9,10 @@ import (
 func StartBlockTx(logger utils.Logger) {
 	dbMode, _ := gocore.Config().Get("blocktx_dbMode", "sqlite")
 
-	blockStore, err := sql.New(dbMode)
+	// dbMode can be sqlite, sqlite_memory or postgres
+	blockStore, err := blocktx.NewStore(dbMode)
 	if err != nil {
-		panic("Could not connect to fn: " + err.Error())
+		logger.Fatalf("Error creating blocktx store: %v", err)
 	}
 
 	blockNotifier := blocktx.NewBlockNotifier(blockStore, logger)

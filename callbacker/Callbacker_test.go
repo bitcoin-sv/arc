@@ -33,7 +33,7 @@ var (
 
 func TestNewCallbacker(t *testing.T) {
 	t.Run("new callbacker - no store", func(t *testing.T) {
-		_, err := NewCallbacker(nil)
+		_, err := New(nil)
 		assert.Error(t, err)
 	})
 
@@ -41,7 +41,7 @@ func TestNewCallbacker(t *testing.T) {
 		mockStore, err := mock.New()
 		require.NoError(t, err)
 
-		_, err = NewCallbacker(mockStore)
+		_, err = New(mockStore)
 		assert.NoError(t, err)
 	})
 }
@@ -62,7 +62,7 @@ func TestCallbacker_AddCallback(t *testing.T) {
 		mockStore, err := mock.New()
 		require.NoError(t, err)
 
-		cb, err := NewCallbacker(mockStore)
+		cb, err := New(mockStore)
 		require.NoError(t, err)
 
 		var key string
@@ -93,7 +93,7 @@ func TestCallbacker_AddCallback(t *testing.T) {
 		mockStore, err := mock.New()
 		require.NoError(t, err)
 
-		cb, err := NewCallbacker(mockStore)
+		cb, err := New(mockStore)
 		require.NoError(t, err)
 
 		var key string
@@ -139,7 +139,7 @@ func TestCallbacker_sendCallbacks(t *testing.T) {
 		key, err := mockStore.Set(context.Background(), testCallback)
 		require.NoError(t, err)
 
-		cb, err := NewCallbacker(mockStore)
+		cb, err := New(mockStore)
 		require.NoError(t, err)
 
 		err = cb.sendCallbacks()
@@ -179,7 +179,7 @@ func TestCallbacker_sendCallbacks(t *testing.T) {
 		key, err := mockStore.Set(context.Background(), testCallback)
 		require.NoError(t, err)
 
-		cb, err := NewCallbacker(mockStore)
+		cb, err := New(mockStore)
 		require.NoError(t, err)
 
 		time.Sleep(11 * time.Millisecond)
@@ -212,7 +212,7 @@ func TestCallbacker_sendCallback(t *testing.T) {
 		key, err := mockStore.Set(context.Background(), testCallback)
 		require.NoError(t, err)
 
-		cb, err := NewCallbacker(mockStore)
+		cb, err := New(mockStore)
 		require.NoError(t, err)
 
 		err = cb.sendCallback(key, testCallback)
@@ -241,7 +241,7 @@ func TestCallbacker_sendCallback(t *testing.T) {
 		key, err := mockStore.Set(context.Background(), testCallback)
 		require.NoError(t, err)
 
-		cb, err := NewCallbacker(mockStore)
+		cb, err := New(mockStore)
 		require.NoError(t, err)
 
 		err = cb.sendCallback(key, testCallback)

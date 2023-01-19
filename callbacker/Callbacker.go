@@ -25,8 +25,8 @@ type Callbacker struct {
 var logLevel, _ = gocore.Config().Get("logLevel")
 var logger = gocore.Log("callbacker", gocore.NewLogLevelFromString(logLevel))
 
-// NewCallbacker creates a new callback worker
-func NewCallbacker(s store.Store) (*Callbacker, error) {
+// New creates a new callback worker
+func New(s store.Store) (*Callbacker, error) {
 	if s == nil {
 		return nil, fmt.Errorf("store is nil")
 	}

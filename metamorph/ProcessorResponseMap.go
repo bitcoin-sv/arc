@@ -65,6 +65,20 @@ func (m *ProcessorResponseMap) Len() int {
 	return len(m.items)
 }
 
+func (m *ProcessorResponseMap) Retries(key string) uint32 {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.items[key].Retries()
+}
+
+func (m *ProcessorResponseMap) IncrementRetry(key string) uint32 {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.items[key].IncrementRetry()
+}
+
 // Hashes will return a slice of the hashes in the map.
 // If a filter function is provided, only hashes that pass the filter will be returned.
 // If no filter function is provided, all hashes will be returned.

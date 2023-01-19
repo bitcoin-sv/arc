@@ -3,6 +3,6 @@ Bugs
 TODOs
 - Cleanup the db start everywhere (similar to metamorph)
   - including sqlite memory startup
-- Last block hash when connecting to p2p (Locator...)
 - init/catchup in metamorph for processed blocks
 - Merkle proofs
+- Bitcoin node settings read into api (fees etc.)

@@ -103,9 +103,21 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 				logger.Infof("Resending %d expired transactions", len(expiredTransactions))
 				for _, hash := range expiredTransactions {
 					txID := utils.HexEncodeAndReverseBytes(hash)
-					logger.Debugf("Resending expired tx: %s", txID)
-					p.pm.AnnounceNewTransaction(hash)
-					// p.tx2ChMap.IncrementRetry(txID)
+					retries := p.tx2ChMap.Retries(txID)
+					logger.Debugf("Resending expired tx: %s (%d retries)", txID, retries)
+					if retries > 5 {
+						// TODO what should we do here?
+						logger.Debugf("Transaction %s has been retried 5 times, not resending", txID)
+						continue
+					} else if retries > 3 {
+						// retried announcing 3 times, now sending GETDATA to peers to see if they have it
+						logger.Debugf("Re-getting expired tx: %s", txID)
+						p.pm.GetTransaction(hash)
+					} else {
+						logger.Debugf("Re-announcing expired tx: %s", txID)
+						p.pm.AnnounceNewTransaction(hash)
+					}
+					p.tx2ChMap.IncrementRetry(txID)
 				}
 			}
 		}

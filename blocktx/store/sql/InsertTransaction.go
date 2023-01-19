@@ -25,7 +25,7 @@ func (s *SQL) InsertTransaction(ctx context.Context, transaction *blocktx_api.Tr
 	} else {
 		q = `
 			INSERT INTO transactions (hash, source) VALUES ($1, $2)
-			ON CONFLICT DO UPDATE SET source = $2 WHERE source IS NULL
+			ON CONFLICT(hash) DO UPDATE SET source = $2
 			;
 		`
 		args = append(args, transaction.Hash, transaction.Source)

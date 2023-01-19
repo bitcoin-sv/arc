@@ -3,6 +3,7 @@ package metamorph
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
@@ -11,12 +12,13 @@ import (
 )
 
 type ProcessorResponse struct {
-	mu     sync.RWMutex
-	ch     chan StatusAndError
-	Hash   []byte
-	Start  time.Time
-	err    error
-	status metamorph_api.Status
+	mu      sync.RWMutex
+	ch      chan StatusAndError
+	Hash    []byte
+	Start   time.Time
+	retries atomic.Uint32
+	err     error
+	status  metamorph_api.Status
 }
 
 func NewProcessorResponse(hash []byte) *ProcessorResponse {
@@ -134,4 +136,13 @@ func (r *ProcessorResponse) GetErr() error {
 	defer r.mu.RUnlock()
 
 	return r.err
+}
+
+func (r *ProcessorResponse) Retries() uint32 {
+	return r.retries.Load()
+}
+
+func (r *ProcessorResponse) IncrementRetry() uint32 {
+	r.retries.Add(1)
+	return r.retries.Load()
 }

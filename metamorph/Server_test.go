@@ -8,7 +8,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
-	"github.com/TAAL-GmbH/arc/metamorph/store/sqlitestore"
+	"github.com/TAAL-GmbH/arc/metamorph/store/sql"
 	"github.com/TAAL-GmbH/arc/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,7 +49,7 @@ func TestHealth(t *testing.T) {
 
 func TestPutTransaction(t *testing.T) {
 	t.Run("PutTransaction - ANNOUNCED", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		processor := NewProcessorMock()
@@ -75,7 +75,7 @@ func TestPutTransaction(t *testing.T) {
 	})
 
 	t.Run("PutTransaction - SENT to network", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		processor := NewProcessorMock()
@@ -99,7 +99,7 @@ func TestPutTransaction(t *testing.T) {
 	})
 
 	t.Run("PutTransaction - Err", func(t *testing.T) {
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		processor := NewProcessorMock()
@@ -126,7 +126,7 @@ func TestPutTransaction(t *testing.T) {
 
 	t.Run("PutTransaction - Known tx", func(t *testing.T) {
 		ctx := context.Background()
-		s, err := sqlitestore.New("sqlite_memory")
+		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 		err = s.Set(ctx, test.TX1Bytes, &store.StoreData{
 			Hash:   test.TX1Bytes,
@@ -152,7 +152,7 @@ func TestPutTransaction(t *testing.T) {
 }
 
 func TestServer_GetTransactionStatus(t *testing.T) {
-	s, err := sqlitestore.New("sqlite_memory")
+	s, err := sql.New("sqlite_memory")
 	require.NoError(t, err)
 	setStoreTestData(t, s)
 

@@ -1,4 +1,4 @@
-package sqlitestore
+package sql
 
 import (
 	"context"

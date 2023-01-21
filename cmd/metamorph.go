@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -41,10 +42,35 @@ func StartMetamorph(logger utils.Logger) {
 
 	workerCount, _ := gocore.Config().GetInt("processorWorkerCount", 16)
 
-	metamorphAddress, ok := gocore.Config().Get("metamorph_grpcAddress") //, "localhost:8000")
+	metamorphGRPCListenAddress, ok := gocore.Config().Get("metamorph_grpcAddress") //, "localhost:8000")
 	if !ok {
 		logger.Fatalf("no metamorph_grpcAddress setting found")
 	}
+
+	ip, port, err := net.SplitHostPort(metamorphGRPCListenAddress)
+	if err != nil {
+		logger.Fatalf("cannot parse ip address: %v", err)
+	}
+
+	var metamorphAddress string
+
+	if ip != "" {
+		metamorphAddress = metamorphGRPCListenAddress
+	} else {
+		hint, _ := gocore.Config().Get("ip_address_hint", "")
+		ips, err := utils.GetIPAddressesWithHint(hint)
+		if err != nil {
+			logger.Fatalf("cannot get local ip address")
+		}
+
+		if len(ips) != 1 {
+			logger.Fatalf("cannot determine local ip address [%v]", ips)
+		}
+
+		metamorphAddress = fmt.Sprintf("%s:%s", ips[0], port)
+	}
+
+	logger.Infof("Instance will register transactions with location %q", metamorphAddress)
 
 	pm, peerMessageCh := initPeerManager(logger, s)
 
@@ -143,7 +169,7 @@ func StartMetamorph(logger utils.Logger) {
 	go btc.Start(blockChan)
 
 	serv := metamorph.NewServer(logger, s, metamorphProcessor)
-	if err = serv.StartGRPCServer(metamorphAddress); err != nil {
+	if err = serv.StartGRPCServer(metamorphGRPCListenAddress); err != nil {
 		logger.Errorf("GRPCServer failed: %v", err)
 	}
 }

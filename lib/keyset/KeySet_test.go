@@ -1,7 +1,6 @@
 package keyset
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,31 +14,23 @@ func TestNew(t *testing.T) {
 	assert.NotNil(t, keySet)
 	assert.Empty(t, keySet.Path)
 
-	t.Logf("master: %#v", keySet)
+	t.Logf("master: %s", keySet.master.String())
 }
 
 func TestReadExtendedPrivateKey(t *testing.T) {
-	extendedBytes, err := os.ReadFile("arc.key")
-	if err != nil {
-		if os.IsNotExist(err) {
-			panic("arc.key not found. Please create this file with the xpriv you want to use")
-		}
-		panic(err.Error())
-	}
-
-	key, err := NewFromExtendedKeyStr(string(extendedBytes), "0/0")
+	key, err := NewFromExtendedKeyStr("xprv9s21ZrQH143K3uWZ5zfEG9v1JimHetdddkbnFAVKx2ELSws3T51wHoQuhfxsXTF4XGREBt7fVVbJiVpXJzrzb3dUVGsMsve5HaMGma4r6SG", "0/0")
 	require.NoError(t, err)
 
-	assert.Equal(t, "76a914117af07edf84bcd40950f46a8254f7f78d85243088ac", key.Script.String())
-	assert.Equal(t, "12bRmF638dgkocbTpvBCn3bFKr2LjT4EwC", key.Address(true))
-	assert.Equal(t, "mh7P4JB1wf81aj55YV9abxoaBqd3gJkt4Z", key.Address(false))
+	assert.Equal(t, "76a914fb4efeac628d6feda608898f543fee6520e8d33888ac", key.Script.String())
+	assert.Equal(t, "1PuoEoj48mjgWdLetdvP9y4fx1uKefQoP1", key.Address(true))
+	assert.Equal(t, "n4RkXrp2woAwHjpGcCtkytGzp1W2b1haPP", key.Address(false))
 
 	key2, err := key.DeriveChildFromPath("0/1")
 	require.NoError(t, err)
 
-	assert.Equal(t, "76a914c9c8e92c73da1eb2374d834a0082e93e86dd6e8288ac", key2.Script.String())
-	assert.Equal(t, "1KPwW656jGvQrJ25vg3kXrhU9UDS1RWHuZ", key2.Address(true))
-	assert.Equal(t, "myuto9A5YJMfdQVheF28Mmuo1Tp8tCSEMa", key2.Address(false))
+	assert.Equal(t, "76a9148a2558fc3f4e2c50f41c7380d9a1b1cfc0beb5f288ac", key2.Script.String())
+	assert.Equal(t, "1DbSzRu4PTQFXNLTqD2hE8Fn5cGtQWxJsb", key2.Address(true))
+	assert.Equal(t, "mt7QHUz3CUqWJUp5Yn1543U6wbsbNEi6YU", key2.Address(false))
 
 	unspent, err := key.GetUTXOs(true)
 	require.NoError(t, err)

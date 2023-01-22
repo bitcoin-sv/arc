@@ -29,6 +29,7 @@
     "Debugf",
     "deepmap",
     "defaultvalidator",
+    "dryrun",
     "echomiddleware",
     "emptypb",
     "Equalf",
@@ -37,6 +38,7 @@
     "getkin",
     "gommon",
     "hashblock",
+    "keyfile",
     "keyset",
     "labstack",
     "ldflags",
@@ -59,6 +61,7 @@
     "processedyn",
     "progname",
     "protobuf",
+    "Regtest",
     "resp",
     "securityprovider",
     "sqlitestore",
@@ -69,8 +72,10 @@
     "txns",
     "txscript",
     "unlocker",
+    "utxos",
     "Vect",
     "VERACK",
-    "Warnf"
+    "Warnf",
+    "xpriv"
   ]
 }

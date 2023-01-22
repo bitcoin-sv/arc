@@ -144,7 +144,7 @@ func main() {
 				}
 				panic(err.Error())
 			}
-			xpriv = strings.TrimSpace((string)(extendedBytes))
+			xpriv = strings.TrimRight(strings.TrimSpace((string)(extendedBytes)), "\n")
 		}
 
 		fundingKeySet, err = keyset.NewFromExtendedKeyStr(xpriv, "0/0")

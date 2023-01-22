@@ -112,6 +112,7 @@ func main() {
 		client = lib.NewDryRunClient()
 	} else {
 		addresses, _ := gocore.Config().Get("metamorphAddresses") //, "localhost:8000")
+		fmt.Printf("Metamorph addresses: %s\n", addresses)
 
 		opts := []grpc.DialOption{
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -143,7 +144,7 @@ func main() {
 				}
 				panic(err.Error())
 			}
-			xpriv = string(extendedBytes)
+			xpriv = strings.TrimSpace((string)(extendedBytes))
 		}
 
 		fundingKeySet, err = keyset.NewFromExtendedKeyStr(xpriv, "0/0")

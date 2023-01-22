@@ -69,9 +69,14 @@ func main() {
 	flag.Parse()
 
 	args := flag.Args()
-	fmt.Println(args)
+
 	if len(args) != 1 {
-		fmt.Println("usage: broadcaster [-buffer=<number of buffered channels>] [-prefund] [-dryrun] [-key] [-keyfile=<key file>] <number of transactions to send>")
+		fmt.Println("usage: broadcaster [options] <number of transactions to send>")
+		fmt.Println("where options are:")
+		fmt.Println("    -buffer=<number of buffered channels>")
+		fmt.Println("    -dryrun")
+		fmt.Println("    -key=<extended private key")
+		fmt.Println("    -keyfile=<key file>")
 		return
 	}
 

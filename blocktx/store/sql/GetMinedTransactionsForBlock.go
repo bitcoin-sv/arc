@@ -20,11 +20,12 @@ func (s *SQL) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *
 		,b.merkleroot
 		,b.prevhash
 		,b.orphanedyn
-		,b.processedyn
+		,b.processed_at
 		FROM blocks b
 		WHERE b.hash = $1
 	`
 
+	// TODO check if index required
 	qTransactions := `
 		SELECT
 		 t.hash
@@ -37,16 +38,20 @@ func (s *SQL) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *
 
 	var block blocktx_api.Block
 
+	var processed_at sql.NullString
+
 	if err := s.db.QueryRowContext(ctx, qBlock, blockAndSource.Hash).Scan(
 		&block.Hash,
 		&block.Height,
 		&block.MerkleRoot,
 		&block.PreviousHash,
 		&block.Orphaned,
-		&block.Processed,
+		&processed_at,
 	); err != nil {
 		return nil, err
 	}
+
+	block.Processed = processed_at.Valid
 
 	rows, err := s.db.QueryContext(ctx, qTransactions, blockAndSource.Hash, blockAndSource.Source)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {

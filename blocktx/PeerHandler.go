@@ -156,6 +156,8 @@ func (bs *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error 
 		MerkleRoot:   merkleRootBytes,
 		PreviousHash: previousBlockHashBytes,
 		Height:       msg.Height,
+		Size:         msg.Size,
+		TxCount:      uint64(len(msg.TransactionIDs)),
 	}
 
 	if err = bs.markBlockAsProcessed(block); err != nil {
@@ -205,7 +207,7 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactions [][]
 }
 
 func (bs *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {
-	err := bs.store.MarkBlockAsDone(context.Background(), block.Hash)
+	err := bs.store.MarkBlockAsDone(context.Background(), block.Hash, block.Size, block.TxCount)
 	if err != nil {
 		return err
 	}

@@ -42,6 +42,8 @@ func setPeerBlockHandler() {
 			}
 		}
 
+		blockMessage.Size = uint64(bytesRead)
+
 		return bytesRead, blockMessage, nil, nil
 	})
 }

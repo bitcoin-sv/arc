@@ -27,7 +27,7 @@ type StoreData struct {
 	RejectReason  string
 }
 
-var ErrNotFound = errors.New("key could not be found")
+var ErrNotFound = errors.New("txid could not be found")
 
 type MetamorphStore interface {
 	Get(ctx context.Context, key []byte) (*StoreData, error)

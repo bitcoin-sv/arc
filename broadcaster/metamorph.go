@@ -39,9 +39,10 @@ func NewMetamorphBroadcaster(address string) *MetamorphBroadcaster {
 	}
 }
 
-func (m *MetamorphBroadcaster) PutTransaction(ctx context.Context, tx *bt.Tx) (*metamorph_api.TransactionStatus, error) {
+func (m *MetamorphBroadcaster) PutTransaction(ctx context.Context, tx *bt.Tx, waitFor metamorph_api.Status) (*metamorph_api.TransactionStatus, error) {
 	return m.client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
-		RawTx: tx.Bytes(),
+		RawTx:         tx.Bytes(),
+		WaitForStatus: waitFor,
 	})
 }
 

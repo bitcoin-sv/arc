@@ -25,7 +25,7 @@ paths:
                 $ref: '#/components/schemas/FeesResponse'
         401:
           $ref: '#/components/responses/NotAuthorized'
-  
+
   # Get transaction status
   /arc/v1/tx/{id}:
     get:
@@ -52,7 +52,7 @@ paths:
           $ref: '#/components/responses/NotAuthorized'
         404:
           description: Not found
-  
+
   # Post transaction
   /arc/v1/tx:
     post:
@@ -65,6 +65,7 @@ paths:
         - $ref: '#/components/parameters/callbackUrl'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/merkleProof'
+        - $ref: '#/components/parameters/waitForStatus'
       requestBody:
         description: ''
         content:
@@ -148,6 +149,7 @@ paths:
         - $ref: '#/components/parameters/callbackUrl'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/merkleProof'
+        - $ref: '#/components/parameters/waitForStatus'
       requestBody:
         description: ''
         content:
@@ -237,7 +239,7 @@ paths:
 components:
 
   schemas:
-    
+
     # Common response object
     CommonResponse:
       type: object
@@ -337,7 +339,7 @@ components:
               type: string
               nullable: false
           additionalProperties: false
-    
+
     TransactionStatus:
       allOf:
         - $ref: '#/components/schemas/CommonResponse'
@@ -354,14 +356,14 @@ components:
               type: string
               nullable: false
           additionalProperties: false
-    
+
     TransactionResponse:
       allOf:
         - $ref: '#/components/schemas/CommonResponse'
         - $ref: '#/components/schemas/ChainInfo'
         - $ref: '#/components/schemas/TransactionDetails'
       additionalProperties: false
-    
+
     TransactionResponses:
       allOf:
         - $ref: '#/components/schemas/CommonResponse'
@@ -375,7 +377,7 @@ components:
                   - $ref: '#/components/schemas/TransactionDetails'
                   - $ref: '#/components/schemas/Error'
           additionalProperties: false
-    
+
     TransactionSubmitStatus:
       type: object
       required:
@@ -409,19 +411,19 @@ components:
               type: string
               enum: [
                 "UNKNOWN",
-                "RECEIVED", 
-                "STORED", 
-                "ANNOUNCED_TO_NETWORK", 
-                "SENT_TO_NETWORK", 
-                "SEEN_ON_NETWORK", 
-                "MINED", 
-                "CONFIRMED", 
-                "REJECTED" 
+                "RECEIVED",
+                "STORED",
+                "ANNOUNCED_TO_NETWORK",
+                "SENT_TO_NETWORK",
+                "SEEN_ON_NETWORK",
+                "MINED",
+                "CONFIRMED",
+                "REJECTED"
               ]
               description: Transaction status
               example: "ACCEPTED"
               nullable: false
-    
+
     Error:
       description: An HTTP Problem Details object, as defined in IETF RFC 7807 (https://tools.ietf.org/html/rfc7807).
       oneOf: [
@@ -638,6 +640,12 @@ components:
       description: Whether to include merkle proofs in the callbacks (true | false).
       schema:
         type: string
+    waitForStatus:
+      name: X-WaitForStatus
+      in: header
+      description: Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = SENT_TO_NETWORK, 6 = SEEN_ON_NETWORK)
+      schema:
+        type: integer
 
 security:
   - BearerAuth: []

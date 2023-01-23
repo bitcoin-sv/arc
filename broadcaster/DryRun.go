@@ -35,7 +35,7 @@ func (d DryRunClient) Health(ctx context.Context, in *emptypb.Empty, opts ...grp
 	}, nil
 }
 
-func (d DryRunClient) PutTransaction(ctx context.Context, tx *bt.Tx) (*metamorph_api.TransactionStatus, error) {
+func (d DryRunClient) PutTransaction(ctx context.Context, tx *bt.Tx, waitFor metamorph_api.Status) (*metamorph_api.TransactionStatus, error) {
 	fmt.Printf("%s\n\n", hex.EncodeToString(tx.Bytes()))
 	return &metamorph_api.TransactionStatus{}, nil
 }

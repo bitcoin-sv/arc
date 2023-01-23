@@ -1,6 +1,9 @@
 package api
 
-import "github.com/golang-jwt/jwt"
+import (
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/golang-jwt/jwt"
+)
 
 // HandlerInterface is an interface for implementations of the ARC backends
 // this is an extension of the generated interface, to allow additional methods
@@ -10,10 +13,11 @@ type HandlerInterface interface {
 
 // TransactionOptions options passed from header when creating transactions
 type TransactionOptions struct {
-	ClientID      string `json:"client_id"`
-	CallbackURL   string `json:"callback_url,omitempty"`
-	CallbackToken string `json:"callback_token,omitempty"`
-	MerkleProof   bool   `json:"merkle_proof,omitempty"`
+	ClientID      string               `json:"client_id"`
+	CallbackURL   string               `json:"callback_url,omitempty"`
+	CallbackToken string               `json:"callback_token,omitempty"`
+	MerkleProof   bool                 `json:"merkle_proof,omitempty"`
+	WaitForStatus metamorph_api.Status `json:"wait_for_status,omitempty"`
 }
 
 type JWTCustomClaims struct {

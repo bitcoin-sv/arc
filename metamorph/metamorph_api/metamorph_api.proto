@@ -50,6 +50,7 @@ message TransactionRequest {
   string callback_token = 6;
   bool merkle_proof = 7;
   bytes raw_tx = 8;
+  Status wait_for_status = 9;
 }
 
 // swagger:model TransactionStatus

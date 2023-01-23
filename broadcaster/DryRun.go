@@ -1,4 +1,4 @@
-package lib
+package broadcaster
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/libsv/go-bt/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -15,7 +16,7 @@ import (
 type DryRunClient struct {
 }
 
-func NewDryRunClient() metamorph_api.MetaMorphAPIClient {
+func NewDryRunClient() ClientI {
 	return &DryRunClient{}
 }
 
@@ -34,12 +35,12 @@ func (d DryRunClient) Health(ctx context.Context, in *emptypb.Empty, opts ...grp
 	}, nil
 }
 
-func (d DryRunClient) PutTransaction(ctx context.Context, in *metamorph_api.TransactionRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
-	fmt.Printf("%s\n\n", hex.EncodeToString(in.RawTx))
+func (d DryRunClient) PutTransaction(ctx context.Context, tx *bt.Tx) (*metamorph_api.TransactionStatus, error) {
+	fmt.Printf("%s\n\n", hex.EncodeToString(tx.Bytes()))
 	return &metamorph_api.TransactionStatus{}, nil
 }
 
-func (d DryRunClient) GetTransactionStatus(ctx context.Context, in *metamorph_api.TransactionStatusRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
+func (d DryRunClient) GetTransactionStatus(ctx context.Context, txID string) (*metamorph_api.TransactionStatus, error) {
 	//TODO implement me
 	panic("implement me")
 }

@@ -70,12 +70,14 @@ func (m ArcDefaultHandler) PostArcV1Tx(ctx echo.Context, params api.PostArcV1TxP
 		}
 	case "application/json":
 		var txHex string
-		if err = json.Unmarshal(body, &txHex); err != nil {
+		var txBody api.PostArcV1TxJSONBody
+		if err = json.Unmarshal(body, &txBody); err != nil {
 			errStr := err.Error()
 			e := api.ErrMalformed
 			e.ExtraInfo = &errStr
 			return ctx.JSON(int(api.ErrStatusMalformed), e)
 		}
+		txHex = txBody.RawTx
 
 		if transaction, err = bt.NewTxFromString(txHex); err != nil {
 			errStr := err.Error()

@@ -163,11 +163,19 @@ func (pm *PeerManager) sendInvBatch(batch []*[]byte) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
-	// send to a subset of peers to be able to listen on the rest
-	sendToPeers := make([]PeerI, 0, len(pm.peers))
+	// Get a list of peers that are connected
+	connectedPeers := make([]PeerI, 0, len(pm.peers))
 	for _, peer := range pm.peers {
+		if peer.Connected() {
+			connectedPeers = append(connectedPeers, peer)
+		}
+	}
 
-		if peer.Connected() && len(pm.peers) > 1 && len(sendToPeers) >= (len(pm.peers)+1)/2 {
+	// send to a subset of peers to be able to listen on the rest
+	sendToPeers := make([]PeerI, 0, len(connectedPeers))
+	for _, peer := range connectedPeers {
+
+		if len(connectedPeers) > 1 && len(sendToPeers) >= (len(connectedPeers)+1)/2 {
 			break
 		}
 		sendToPeers = append(sendToPeers, peer)

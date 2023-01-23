@@ -267,12 +267,7 @@ func (m ArcDefaultHandler) getTransactionResponse(ctx echo.Context, tx string, t
 }
 
 func getTransactionOptions(params api.PostArcV1TxParams) *api.TransactionOptions {
-	return getTransactionsOptions(api.PostArcV1TxsParams{
-		XCallbackUrl:   params.XCallbackUrl,
-		XCallbackToken: params.XCallbackToken,
-		XMerkleProof:   params.XMerkleProof,
-		XWaitForStatus: params.XWaitForStatus,
-	})
+	return getTransactionsOptions(api.PostArcV1TxsParams(params))
 }
 
 func getTransactionsOptions(params api.PostArcV1TxsParams) *api.TransactionOptions {

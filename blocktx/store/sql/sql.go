@@ -102,7 +102,7 @@ func createPostgresSchema(db *sql.DB) error {
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS blocks (
 		 inserted_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-		 id           BIGSERIAL PRIMARY KEY
+		,id           BIGSERIAL PRIMARY KEY
 	  ,hash         BYTEA NOT NULL
 	  ,prevhash     BYTEA NOT NULL
 	  ,merkleroot   BYTEA NOT NULL

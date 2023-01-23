@@ -22,17 +22,19 @@ func NewHTTPBroadcaster(arcServer string) *APIBroadcaster {
 	}
 }
 
-func (a *APIBroadcaster) PutTransaction(ctx context.Context, tx *bt.Tx) (*metamorph_api.TransactionStatus, error) {
+func (a *APIBroadcaster) PutTransaction(ctx context.Context, tx *bt.Tx, waitFor metamorph_api.Status) (*metamorph_api.TransactionStatus, error) {
 
 	arcClient, err := api.NewClientWithResponses(a.arcServer)
 	if err != nil {
 		return nil, err
 	}
 
+	waitForStatus := api.WaitForStatus(waitFor)
 	params := &api.PostArcV1TxParams{
 		XCallbackUrl:   nil,
 		XCallbackToken: nil,
 		XMerkleProof:   nil,
+		XWaitForStatus: &waitForStatus,
 	}
 
 	arcBody := api.PostArcV1TxJSONRequestBody{

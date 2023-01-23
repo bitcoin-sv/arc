@@ -77,6 +77,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions 
 		CallbackUrl:   txOptions.CallbackURL,
 		CallbackToken: txOptions.CallbackToken,
 		MerkleProof:   txOptions.MerkleProof,
+		WaitForStatus: txOptions.WaitForStatus,
 	})
 	if err != nil {
 		return nil, err

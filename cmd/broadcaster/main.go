@@ -27,6 +27,7 @@ func main() {
 	consolidate := flag.Bool("consolidate", false, "whether to consolidate all output transactions back into the original")
 	useKey := flag.Bool("key", false, "private key to use for funding transactions")
 	keyFile := flag.String("keyfile", "", "private key from file (arc.key) to use for funding transactions")
+	waitForStatus := flag.Int("wait", 0, "wait for transaction to be in a certain status before continuing")
 	flag.Parse()
 
 	args := flag.Args()
@@ -89,6 +90,7 @@ func main() {
 	bCaster := broadcaster.New(client, fundingKeySet, receivingKeySet, sendNrOfTransactions)
 	bCaster.IsRegtest = isRegtest
 	bCaster.IsDryRun = isDryRun
+	bCaster.WaitForStatus = *waitForStatus
 
 	err = bCaster.Run(ctx, sendOnChannel)
 	if err != nil {

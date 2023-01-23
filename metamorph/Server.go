@@ -141,6 +141,11 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	s.processor.ProcessTransaction(NewProcessorRequest(ctx, sReq, responseChannel))
 
+	waitForStatus := req.WaitForStatus
+	if waitForStatus < metamorph_api.Status_RECEIVED || waitForStatus > metamorph_api.Status_SEEN_ON_NETWORK {
+		waitForStatus = metamorph_api.Status_SENT_TO_NETWORK
+	}
+
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeout := time.NewTimer(s.timeout)
 	for {
@@ -164,7 +169,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 				}, nil
 			}
 
-			if status >= metamorph_api.Status_SENT_TO_NETWORK {
+			if status >= waitForStatus {
 				return &metamorph_api.TransactionStatus{
 					Status: status,
 				}, nil

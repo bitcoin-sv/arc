@@ -5,9 +5,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"log"
+	"math"
+	"runtime"
 	"sync"
 	"time"
 
+	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/lib/fees"
 	"github.com/TAAL-GmbH/arc/lib/keyset"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
@@ -44,19 +47,20 @@ var dataFee = &bt.Fee{
 }
 
 type ClientI interface {
-	PutTransaction(ctx context.Context, tx *bt.Tx) (*metamorph_api.TransactionStatus, error)
+	PutTransaction(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status) (*metamorph_api.TransactionStatus, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*metamorph_api.TransactionStatus, error)
 }
 
 type Broadcaster struct {
-	Client     ClientI
-	FromKeySet *keyset.KeySet
-	ToKeySet   *keyset.KeySet
-	Outputs    int64
-	IsDryRun   bool
-	IsRegtest  bool
-	FeeQuote   *bt.FeeQuote
-	txs        []*bt.Tx
+	Client        ClientI
+	FromKeySet    *keyset.KeySet
+	ToKeySet      *keyset.KeySet
+	Outputs       int64
+	IsDryRun      bool
+	IsRegtest     bool
+	WaitForStatus api.WaitForStatus
+	FeeQuote      *bt.FeeQuote
+	txs           []*bt.Tx
 }
 
 func New(client ClientI, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, outputs int64) *Broadcaster {
@@ -65,13 +69,14 @@ func New(client ClientI, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, out
 	fq.AddQuote(bt.FeeTypeData, dataFee)
 
 	return &Broadcaster{
-		Client:     client,
-		FromKeySet: fromKeySet,
-		ToKeySet:   toKeySet,
-		Outputs:    outputs,
-		IsRegtest:  true,
-		FeeQuote:   fq,
-		txs:        make([]*bt.Tx, outputs),
+		Client:        client,
+		FromKeySet:    fromKeySet,
+		ToKeySet:      toKeySet,
+		Outputs:       outputs,
+		IsRegtest:     true,
+		WaitForStatus: 0,
+		FeeQuote:      fq,
+		txs:           make([]*bt.Tx, outputs),
 	}
 }
 
@@ -123,29 +128,37 @@ func (b *Broadcaster) Run(ctx context.Context, sendOnChannel *int) error {
 	fundingTx := b.NewFundingTransaction()
 	log.Printf("funding tx: %s\n", fundingTx.TxID())
 
-	_, err := b.Client.PutTransaction(ctx, fundingTx)
+	_, err := b.Client.PutTransaction(ctx, fundingTx, metamorph_api.Status(b.WaitForStatus))
 	if err != nil {
 		return err
 	}
 
+	log.Printf("generating %d txs\n", b.Outputs)
+	timeStart := time.Now()
+	buf := make(chan bool, runtime.NumCPU()*2)
 	for i := int64(0); i < b.Outputs; i++ {
-		u := &bt.UTXO{
-			TxID:          fundingTx.TxIDBytes(),
-			Vout:          uint32(i),
-			LockingScript: fundingTx.Outputs[i].LockingScript,
-			Satoshis:      fundingTx.Outputs[i].Satoshis,
-		}
-		b.txs[i], _ = b.NewTransaction(b.ToKeySet, u)
-		log.Printf("generated tx: %s\n", b.txs[i].TxID())
+		go func(i int64, tx *bt.Tx) {
+			buf <- true
+			defer func() { <-buf }()
+
+			u := &bt.UTXO{
+				TxID:          fundingTx.TxIDBytes(),
+				Vout:          uint32(i),
+				LockingScript: fundingTx.Outputs[i].LockingScript,
+				Satoshis:      fundingTx.Outputs[i].Satoshis,
+			}
+			b.txs[i], _ = b.NewTransaction(b.ToKeySet, u)
+		}(i, fundingTx)
 	}
+	log.Printf("generated %d txs in %d seconds\n", len(b.txs), int(math.Round(time.Since(timeStart).Seconds())))
 
 	// let the node recover
 	time.Sleep(1 * time.Second)
 
 	var wg sync.WaitGroup
 	if b.IsDryRun {
-		for i, tx := range b.txs {
-			log.Printf("Processing tx %d / %d\n", i+1, len(b.txs))
+		for _, tx := range b.txs {
+			//log.Printf("Processing tx %d / %d\n", i+1, len(b.txs))
 			if err = b.ProcessTransaction(ctx, tx); err != nil {
 				return err
 			}
@@ -161,7 +174,7 @@ func (b *Broadcaster) Run(ctx context.Context, sendOnChannel *int) error {
 					<-limit
 				}()
 
-				log.Printf("Processing tx %d / %d\n", i+1, len(b.txs))
+				//log.Printf("Processing tx %d / %d\n", i+1, len(b.txs))
 
 				if err = b.ProcessTransaction(ctx, tx); err != nil {
 					panic(err)
@@ -175,7 +188,7 @@ func (b *Broadcaster) Run(ctx context.Context, sendOnChannel *int) error {
 			go func(i int, tx *bt.Tx) {
 				defer wg.Done()
 
-				log.Printf("Processing tx %d / %d\n", i+1, len(b.txs))
+				//log.Printf("Processing tx %d / %d\n", i+1, len(b.txs))
 				if err = b.ProcessTransaction(ctx, tx); err != nil {
 					panic(err)
 				}
@@ -191,7 +204,7 @@ func (b *Broadcaster) ProcessTransaction(ctx context.Context, tx *bt.Tx) error {
 	ctxClient, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
 
-	res, err := b.Client.PutTransaction(ctxClient, tx)
+	res, err := b.Client.PutTransaction(ctxClient, tx, metamorph_api.Status(b.WaitForStatus))
 	if err != nil {
 		return err
 	}

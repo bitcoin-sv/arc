@@ -12,6 +12,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/api/transactionHandler"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/validator"
 	defaultValidator "github.com/TAAL-GmbH/arc/validator/default"
 	"github.com/labstack/echo/v4"
@@ -95,19 +96,8 @@ func (m ArcDefaultHandler) PostArcV1Tx(ctx echo.Context, params api.PostArcV1TxP
 	default:
 		return ctx.JSON(api.ErrBadRequest.Status, api.ErrBadRequest)
 	}
-	transactionOptions := &api.TransactionOptions{}
-	if params.XCallbackUrl != nil {
-		transactionOptions.CallbackURL = *params.XCallbackUrl
-		if params.XCallbackToken != nil {
-			transactionOptions.CallbackToken = *params.XCallbackToken
-		}
-	}
 
-	if params.XMerkleProof != nil {
-		if *params.XMerkleProof == "true" || *params.XMerkleProof == "1" {
-			transactionOptions.MerkleProof = true
-		}
-	}
+	transactionOptions := getTransactionOptions(params)
 
 	status, response, responseErr := m.processTransaction(ctx, transaction, transactionOptions)
 	if responseErr != nil {
@@ -146,7 +136,7 @@ func (m ArcDefaultHandler) GetArcV1TxId(ctx echo.Context, id string) error {
 func (m ArcDefaultHandler) PostArcV1Txs(ctx echo.Context, params api.PostArcV1TxsParams) error {
 
 	// set the globals for all transactions in this request
-	transactionOptions := getTransactionOptions(params)
+	transactionOptions := getTransactionsOptions(params)
 
 	var wg sync.WaitGroup
 	var transactions []interface{}
@@ -276,7 +266,16 @@ func (m ArcDefaultHandler) getTransactionResponse(ctx echo.Context, tx string, t
 	return response
 }
 
-func getTransactionOptions(params api.PostArcV1TxsParams) *api.TransactionOptions {
+func getTransactionOptions(params api.PostArcV1TxParams) *api.TransactionOptions {
+	return getTransactionsOptions(api.PostArcV1TxsParams{
+		XCallbackUrl:   params.XCallbackUrl,
+		XCallbackToken: params.XCallbackToken,
+		XMerkleProof:   params.XMerkleProof,
+		XWaitForStatus: params.XWaitForStatus,
+	})
+}
+
+func getTransactionsOptions(params api.PostArcV1TxsParams) *api.TransactionOptions {
 	transactionOptions := &api.TransactionOptions{}
 	if params.XCallbackUrl != nil {
 		transactionOptions.CallbackURL = *params.XCallbackUrl
@@ -289,6 +288,12 @@ func getTransactionOptions(params api.PostArcV1TxsParams) *api.TransactionOption
 			transactionOptions.MerkleProof = true
 		}
 	}
+	if params.XWaitForStatus != nil {
+		if *params.XWaitForStatus >= 2 && *params.XWaitForStatus <= 6 {
+			transactionOptions.WaitForStatus = metamorph_api.Status(*params.XWaitForStatus)
+		}
+	}
+
 	return transactionOptions
 }
 

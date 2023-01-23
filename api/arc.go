@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
@@ -953,7 +952,7 @@ func (c *ClientWithResponses) PostArcV1TxsWithResponse(ctx context.Context, para
 
 // ParseGetArcV1FeesResponse parses an HTTP response from a GetArcV1FeesWithResponse call
 func ParseGetArcV1FeesResponse(rsp *http.Response) (*GetArcV1FeesResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
@@ -979,7 +978,7 @@ func ParseGetArcV1FeesResponse(rsp *http.Response) (*GetArcV1FeesResponse, error
 
 // ParsePostArcV1TxResponse parses an HTTP response from a PostArcV1TxWithResponse call
 func ParsePostArcV1TxResponse(rsp *http.Response) (*PostArcV1TxResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
@@ -1040,7 +1039,7 @@ func ParsePostArcV1TxResponse(rsp *http.Response) (*PostArcV1TxResponse, error) 
 
 // ParseGetArcV1TxIdResponse parses an HTTP response from a GetArcV1TxIdWithResponse call
 func ParseGetArcV1TxIdResponse(rsp *http.Response) (*GetArcV1TxIdResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
@@ -1066,7 +1065,7 @@ func ParseGetArcV1TxIdResponse(rsp *http.Response) (*GetArcV1TxIdResponse, error
 
 // ParsePostArcV1TxsResponse parses an HTTP response from a PostArcV1TxsWithResponse call
 func ParsePostArcV1TxsResponse(rsp *http.Response) (*PostArcV1TxsResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err

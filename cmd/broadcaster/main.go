@@ -106,11 +106,16 @@ func createClient() (client broadcaster.ClientI, err error) {
 	if isDryRun {
 		client = broadcaster.NewDryRunClient()
 	} else if isAPIClient {
-		arcAddresses, _ := gocore.Config().Get("arcAddresses", "http://localhost:9090")
-		useAddress := strings.Split(arcAddresses, ",")[0]
+		arcServer, err, ok := gocore.Config().GetURL("arcServer") //, "http://localhost:9090")
+		if err != nil {
+			panic(err)
+		}
+		if !ok {
+			panic("arcUrl not found in config")
+		}
 
 		// create a http connection to the arc node
-		client = broadcaster.NewHTTPBroadcaster(useAddress)
+		client = broadcaster.NewHTTPBroadcaster(arcServer.String())
 	} else {
 		addresses, _ := gocore.Config().Get("metamorphAddresses") //, "localhost:8000")
 		fmt.Printf("Metamorph addresses: %s\n", addresses)

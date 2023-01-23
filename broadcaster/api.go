@@ -13,18 +13,18 @@ import (
 )
 
 type APIBroadcaster struct {
-	address string
+	arcServer string
 }
 
-func NewHTTPBroadcaster(address string) *APIBroadcaster {
+func NewHTTPBroadcaster(arcServer string) *APIBroadcaster {
 	return &APIBroadcaster{
-		address: address,
+		arcServer: arcServer,
 	}
 }
 
 func (a *APIBroadcaster) PutTransaction(ctx context.Context, tx *bt.Tx) (*metamorph_api.TransactionStatus, error) {
 
-	arcClient, err := api.NewClientWithResponses(a.address)
+	arcClient, err := api.NewClientWithResponses(a.arcServer)
 	if err != nil {
 		return nil, err
 	}

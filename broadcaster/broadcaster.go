@@ -76,8 +76,8 @@ func New(client ClientI, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, out
 }
 
 func (b *Broadcaster) ConsolidateOutputsToOriginal(ctx context.Context) error {
-	// consolidate all transactions back into the original address
-	log.Println("Consolidating all transactions back into original address")
+	// consolidate all transactions back into the original arcUrl
+	log.Println("Consolidating all transactions back into original arcUrl")
 	consolidationAddress := b.FromKeySet.Address(!b.IsRegtest)
 	consolidationTx := bt.NewTx()
 	utxos := make([]*bt.UTXO, len(b.txs))
@@ -95,7 +95,7 @@ func (b *Broadcaster) ConsolidateOutputsToOriginal(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// put half of the satoshis back into the original address
+	// put half of the satoshis back into the original arcUrl
 	// the rest will be returned via the change output
 	err = consolidationTx.PayToAddress(consolidationAddress, totalSatoshis/2)
 	if err != nil {
@@ -243,7 +243,7 @@ func (b *Broadcaster) NewFundingTransaction() *bt.Tx {
 			panic(err)
 		}
 		if len(utxos) == 0 {
-			panic("no utxos for address: " + addr)
+			panic("no utxos for arcUrl: " + addr)
 		}
 
 		// this consumes all the utxos from the key
@@ -255,8 +255,8 @@ func (b *Broadcaster) NewFundingTransaction() *bt.Tx {
 
 	estimateFee := fees.EstimateFee(uint64(stdFee.MiningFee.Satoshis), 1, 1)
 	for i := int64(0); i < b.Outputs; i++ {
-		// we send triple the fee to the output address
-		// this will allow us to send the change back to the original address
+		// we send triple the fee to the output arcUrl
+		// this will allow us to send the change back to the original arcUrl
 		_ = tx.PayTo(b.ToKeySet.Script, estimateFee*3)
 	}
 
@@ -276,7 +276,7 @@ func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) (*bt.
 	tx := bt.NewTx()
 	_ = tx.FromUTXOs(useUtxo)
 	// the output value of the utxo should be exactly 3x the fee
-	// in this way we can consolidate the output back into the original address
+	// in this way we can consolidate the output back into the original arcUrl
 	// even for the smallest transactions with only 1 output
 	_ = tx.PayTo(key.Script, 2*useUtxo.Satoshis/3)
 	_ = tx.Change(key.Script, b.FeeQuote)
@@ -298,7 +298,7 @@ func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) (*bt.
 	return tx, useUtxo
 }
 
-// SendToAddress Let the bitcoin node in regtest mode send some bitcoin to our address
+// SendToAddress Let the bitcoin node in regtest mode send some bitcoin to our arcUrl
 func (b *Broadcaster) SendToAddress(address string, satoshis uint64) (string, uint32, string, error) {
 	rpcURL, err, found := gocore.Config().GetURL("peer_rpc")
 	if !found {
@@ -339,5 +339,5 @@ func (b *Broadcaster) SendToAddress(address string, satoshis uint64) (string, ui
 		}
 	}
 
-	return "", 0, "", errors.New("address not found in tx")
+	return "", 0, "", errors.New("arcUrl not found in tx")
 }

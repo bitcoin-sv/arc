@@ -69,12 +69,20 @@ func (m *ProcessorResponseMap) Retries(key string) uint32 {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	if _, ok := m.items[key]; !ok {
+		return 0
+	}
+
 	return m.items[key].Retries()
 }
 
 func (m *ProcessorResponseMap) IncrementRetry(key string) uint32 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	if _, ok := m.items[key]; !ok {
+		return 0
+	}
 
 	return m.items[key].IncrementRetry()
 }

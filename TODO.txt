@@ -4,3 +4,5 @@ TODOs
 - init/catchup in metamorph for processed blocks
 - Merkle proofs
 - Bitcoin node settings read into api (fees etc.)
+- Stored_at etc. not being set in metamorph sql store
+- What happens to tx's in metamorph when a transaction source is registered after the block is processed in blocktx?

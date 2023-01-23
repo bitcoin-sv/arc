@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
-	"github.com/TAAL-GmbH/arc/tracing"
+	"github.com/TAAL-GmbH/arc/api/transactionHandler"
+	"github.com/TAAL-GmbH/arc/blocktx"
 	"github.com/ordishs/gocore"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
+
+var logger = gocore.Log("txstatus")
 
 func main() {
 	argsWithoutProg := os.Args[1:]
@@ -28,22 +28,16 @@ func main() {
 		panic("Missing metamorphAddresses")
 	}
 
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
-	}
+	btxAddress, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
+	bTx := blocktx.NewClient(logger, btxAddress)
 
-	cc, err := grpc.DialContext(ctx, addresses, tracing.AddGRPCDialOptions(opts)...)
+	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx)
 	if err != nil {
 		panic(err)
 	}
 
-	client := metamorph_api.NewMetaMorphAPIClient(cc)
-
-	var res *metamorph_api.TransactionStatus
-	res, err = client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
-		Txid: txid,
-	})
+	var res *transactionHandler.TransactionStatus
+	res, err = txHandler.GetTransactionStatus(ctx, txid)
 	if err != nil {
 		panic(err)
 	}

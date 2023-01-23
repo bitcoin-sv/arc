@@ -11,6 +11,7 @@ type BlockMessage struct {
 	Header         *wire.BlockHeader
 	Height         uint64
 	TransactionIDs [][]byte
+	Size           uint64
 }
 
 func (bm *BlockMessage) Bsvdecode(io.Reader, uint32, wire.MessageEncoding) error {

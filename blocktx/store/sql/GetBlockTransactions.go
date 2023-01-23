@@ -11,8 +11,9 @@ func (s *SQL) GetBlockTransactions(ctx context.Context, block *blocktx_api.Block
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	// TODO - create index on block_transactions_map
 	q := `
-		SELECT 
+		SELECT
 		 t.hash
 		FROM transactions t
 		INNER JOIN block_transactions_map m ON m.txid = t.id

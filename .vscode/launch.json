@@ -10,7 +10,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/main.go",
-      "args": ["-blocktx=1"]
+      // "args": ["-blocktx=1"]
       // "console": "externalTerminal"
     },
     {
@@ -20,6 +20,14 @@
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/broadcaster/main.go",
       "args": ["-prefund", "10"]
+    },
+    {
+      "name": "TXStatus",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/txstatus/main.go",
+      "args": ["2a84409a83adad6533d60e0731b9a6ef69efe51ff289897847bde1f6332e18d5"]
     }
   ]
 }

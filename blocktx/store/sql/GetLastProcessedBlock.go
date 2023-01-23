@@ -18,7 +18,7 @@ func (s *SQL) GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, er
 		,b.height
 		,b.orphanedyn
 		FROM blocks b
-		WHERE b.processedyn = true
+		WHERE b.processed_at IS NOT NULL
 		ORDER BY b.height DESC
 		LIMIT 1
 	`

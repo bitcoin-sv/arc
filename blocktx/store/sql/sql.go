@@ -101,12 +101,15 @@ func New(engine string) (store.Interface, error) {
 func createPostgresSchema(db *sql.DB) error {
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS blocks (
+		 inserted_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 		 id           BIGSERIAL PRIMARY KEY
 	  ,hash         BYTEA NOT NULL
 	  ,prevhash     BYTEA NOT NULL
 	  ,merkleroot   BYTEA NOT NULL
 	  ,height       BIGINT NOT NULL
-	  ,processedyn  BOOLEAN NOT NULL DEFAULT FALSE
+	  ,processed_at TIMESTAMPTZ
+		,size					BIGINT
+		,tx_count			BIGINT
 	  ,orphanedyn   BOOLEAN NOT NULL DEFAULT FALSE
 		);
 	`); err != nil {
@@ -186,13 +189,16 @@ func createPostgresSchema(db *sql.DB) error {
 func createSqliteSchema(db *sql.DB) error {
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS blocks (
-		 id           INTEGER PRIMARY KEY AUTOINCREMENT,
-		 hash         BLOB NOT NULL
+		 inserted_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+		,id           INTEGER PRIMARY KEY AUTOINCREMENT
+		,hash         BLOB NOT NULL
 	  ,prevhash     BLOB NOT NULL
 		,merkleroot   BLOB NOT NULL
 	  ,height       BIGINT NOT NULL
-	  ,processedyn  BOOLEAN NOT NULL DEFAULT FALSE
-	  ,orphanedyn   BOOLEAN NOT NULL DEFAULT FALSE
+	  ,processed_at TEXT
+		,size					BIGINT
+		,tx_count			BIGINT
+		,orphanedyn   BOOLEAN NOT NULL DEFAULT FALSE
 	 	);
 	`); err != nil {
 		db.Close()

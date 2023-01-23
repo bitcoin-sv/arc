@@ -35,6 +35,8 @@ type Block struct {
 	PreviousHash []byte `json:"previous_hash,omitempty"` // Little endian
 	MerkleRoot   []byte `json:"merkle_root,omitempty"`   // Little endian
 	Height       uint64 `json:"height,omitempty"`
+	Size         uint64 `json:"size,omitempty"`
+	TxCount      uint64 `json:"tx_count,omitempty"`
 }
 
 type Peer struct {

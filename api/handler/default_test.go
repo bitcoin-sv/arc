@@ -133,7 +133,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 		validTxBytes, _ := hex.DecodeString(validTx)
 		inputTxs := map[string]io.Reader{
 			echo.MIMETextPlain:       strings.NewReader(validTx),
-			echo.MIMEApplicationJSON: strings.NewReader("\"" + validTx + "\""),
+			echo.MIMEApplicationJSON: strings.NewReader("{\"rawTx\":\"" + validTx + "\"}"),
 			echo.MIMEOctetStream:     bytes.NewReader(validTxBytes),
 		}
 
@@ -169,7 +169,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)
 		inputTxs := map[string]io.Reader{
 			echo.MIMETextPlain:       strings.NewReader(validExtendedTx),
-			echo.MIMEApplicationJSON: strings.NewReader("\"" + validExtendedTx + "\""),
+			echo.MIMEApplicationJSON: strings.NewReader("{\"rawTx\":\"" + validExtendedTx + "\"}"),
 			echo.MIMEOctetStream:     bytes.NewReader(validExtendedTxBytes),
 		}
 

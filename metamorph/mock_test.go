@@ -37,6 +37,8 @@ func NewProcessorMock() *ProcessorMock {
 
 func (p *ProcessorMock) LoadUnseen() {}
 
+func (p *ProcessorMock) GetPeers() ([]string, []string) { return nil, nil }
+
 func (p *ProcessorMock) ProcessTransaction(req *ProcessorRequest) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

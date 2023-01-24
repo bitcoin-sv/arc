@@ -28,6 +28,9 @@ func main() {
 	useKey := flag.Bool("key", false, "private key to use for funding transactions")
 	keyFile := flag.String("keyfile", "", "private key from file (arc.key) to use for funding transactions")
 	waitForStatus := flag.Int("wait", 0, "wait for transaction to be in a certain status before continuing")
+	apiKey := flag.String("apikey", "", "api key to use for the http api client")
+	bearer := flag.String("bearer", "", "Bearer auth to use for the http api client")
+	authorization := flag.String("authorization", "", "Authorization header to use for the http api client")
 	flag.Parse()
 
 	args := flag.Args()
@@ -75,7 +78,11 @@ func main() {
 	ctx := context.Background()
 
 	var client broadcaster.ClientI
-	client, err = createClient()
+	client, err = createClient(&broadcaster.Auth{
+		ApiKey:        *apiKey,
+		Bearer:        *bearer,
+		Authorization: *authorization,
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -104,7 +111,7 @@ func main() {
 	}
 }
 
-func createClient() (client broadcaster.ClientI, err error) {
+func createClient(auth *broadcaster.Auth) (client broadcaster.ClientI, err error) {
 	if isDryRun {
 		client = broadcaster.NewDryRunClient()
 	} else if isAPIClient {
@@ -117,7 +124,7 @@ func createClient() (client broadcaster.ClientI, err error) {
 		}
 
 		// create a http connection to the arc node
-		client = broadcaster.NewHTTPBroadcaster(arcServer.String())
+		client = broadcaster.NewHTTPBroadcaster(arcServer.String(), auth)
 	} else {
 		addresses, _ := gocore.Config().Get("metamorphAddresses") //, "localhost:8000")
 		fmt.Printf("Metamorph addresses: %s\n", addresses)

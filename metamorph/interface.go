@@ -13,6 +13,7 @@ type ProcessorI interface {
 	SendStatusForTransaction(hashStr string, status metamorph_api.Status, err error) (bool, error)
 	SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight int32) (bool, error)
 	GetStats() *ProcessorStats
+	GetPeers() ([]string, []string)
 }
 
 type PeerTxMessage struct {

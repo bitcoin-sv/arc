@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
@@ -79,18 +80,22 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 		avg = float32(stats.ProcessedMillis) / float32(stats.ProcessedCount)
 	}
 
+	peersConnected, peersDisconnected := s.processor.GetPeers()
+
 	details := fmt.Sprintf(`Peer stats (started: %s)`, stats.StartTime.UTC().Format(time.RFC3339))
 	return &metamorph_api.HealthResponse{
-		Ok:        true,
-		Details:   details,
-		Timestamp: timestamppb.New(time.Now()),
-		Workers:   int32(stats.WorkerCount),
-		Uptime:    float32(stats.UptimeMillis) / 1000.0,
-		Queued:    stats.QueuedCount,
-		Processed: stats.ProcessedCount,
-		Waiting:   stats.QueueLength,
-		Average:   avg,
-		MapSize:   stats.ChannelMapSize,
+		Ok:                true,
+		Details:           details,
+		Timestamp:         timestamppb.New(time.Now()),
+		Workers:           int32(stats.WorkerCount),
+		Uptime:            float32(stats.UptimeMillis) / 1000.0,
+		Queued:            stats.QueuedCount,
+		Processed:         stats.ProcessedCount,
+		Waiting:           stats.QueueLength,
+		Average:           avg,
+		MapSize:           stats.ChannelMapSize,
+		PeersConnected:    strings.Join(peersConnected, ","),
+		PeersDisconnected: strings.Join(peersDisconnected, ","),
 	}, nil
 }
 

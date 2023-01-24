@@ -134,6 +134,22 @@ func (p *Processor) SetLogger(logger utils.Logger) {
 	p.logger = logger
 }
 
+// GetPeers returns a list of connected and a list of disconnected peers
+func (p *Processor) GetPeers() ([]string, []string) {
+	peers := p.pm.GetPeers()
+	peersConnected := make([]string, 0, len(peers))
+	peersDisconnected := make([]string, 0, len(peers))
+	for _, peer := range peers {
+		if peer.Connected() {
+			peersConnected = append(peersConnected, peer.String())
+		} else {
+			peersDisconnected = append(peersDisconnected, peer.String())
+		}
+	}
+
+	return peersConnected, peersDisconnected
+}
+
 func (p *Processor) LoadUnseen() {
 	err := p.store.GetUnseen(context.Background(), func(record *store.StoreData) {
 		// add the records we have in the database, but that have not been processed, to the mempool watcher

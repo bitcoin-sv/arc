@@ -38,6 +38,8 @@ message HealthResponse {
   int32 waiting = 8;
   float average = 9;
   int32 mapSize = 10;
+  string PeersConnected = 11;
+  string PeersDisconnected = 12;
 }
 
 // swagger:model TransactionRequest

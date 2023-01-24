@@ -5,6 +5,5 @@ TODOs
 - Merkle proofs
 - Bitcoin node settings read into api (fees etc.)
 - What happens to txs in metamorph when a transaction source is registered after the block is processed in blocktx?
-- "Processed %d transactions in %d seconds" in block tx processing log message
 - BlockTx processing seems to be slow on Prod, with Postgres
 - Log failing txs in full? (in api and/or metamorph)

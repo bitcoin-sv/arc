@@ -128,6 +128,8 @@ func (bs *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 }
 
 func (bs *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error {
+	timeStart := time.Now()
+
 	blockHash := msg.Header.BlockHash()
 	blockHashBytes := blockHash.CloneBytes()
 
@@ -163,6 +165,8 @@ func (bs *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error 
 	if err = bs.markBlockAsProcessed(block); err != nil {
 		return fmt.Errorf("unable to mark block as processed %s: %v", blockHash.String(), err)
 	}
+
+	bs.logger.Infof("Processed block %s, %d transactions in %0.2f seconds", blockHash.String(), len(msg.TransactionIDs), time.Since(timeStart).Seconds())
 
 	return nil
 }

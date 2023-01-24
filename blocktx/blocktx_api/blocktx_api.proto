@@ -26,6 +26,9 @@ service BlockTxAPI {
   // GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash.
   rpc GetTransactionBlock (Transaction) returns (Block) {}
 
+  // GetBlock returns the non-orphaned block for a given block hash.
+  rpc GetBlock (Hash) returns (Block) {}
+
   // GetBlockForHeight returns the non-orphaned block for a given block height.
   rpc GetBlockForHeight (Height) returns (Block) {}
 
@@ -79,6 +82,10 @@ message Transaction {
 // swagger:model Height
 message Height {
   uint64 height = 1;
+}
+
+message Hash {
+  bytes hash = 1;
 }
 
 // swagger:model Source

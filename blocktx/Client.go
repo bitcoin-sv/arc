@@ -17,6 +17,7 @@ type ClientI interface {
 	Start(minedBlockChan chan *blocktx_api.Block)
 	LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error
+	GetBlock(ctx context.Context, blockHash []byte) (*blocktx_api.Block, error)
 	GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
 }
 
@@ -100,6 +101,25 @@ func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx
 	}
 
 	return nil
+}
+
+func (btc *Client) GetBlock(ctx context.Context, blockHash []byte) (*blocktx_api.Block, error) {
+	conn, err := btc.dialGRPC()
+	if err != nil {
+		return nil, err
+	}
+
+	defer conn.Close()
+
+	client := blocktx_api.NewBlockTxAPIClient(conn)
+
+	var block *blocktx_api.Block
+	block, err = client.GetBlock(ctx, &blocktx_api.Hash{Hash: blockHash})
+	if err != nil {
+		return nil, err
+	}
+
+	return block, nil
 }
 
 func (btc *Client) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {

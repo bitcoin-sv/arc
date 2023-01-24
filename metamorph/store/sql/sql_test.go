@@ -16,11 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	tx1         = "b042f298deabcebbf15355aa3a13c7d7cfe96c44ac4f492735f936f8e50d06f6"
-	tx1Bytes, _ = utils.DecodeAndReverseHexString(tx1)
-)
-
 func TestGet(t *testing.T) {
 	t.Run("get - error", func(t *testing.T) {
 		sqliteDB, err := New("sqlite_memory")
@@ -123,7 +118,7 @@ func TestUpdateMined(t *testing.T) {
 
 		defer sqliteDB.Close(context.Background())
 
-		err = sqliteDB.UpdateMined(context.Background(), tx1Bytes, []byte("block hash"), 123)
+		err = sqliteDB.UpdateMined(context.Background(), tests.Tx1Bytes, []byte("block hash"), 123)
 		require.NoError(t, err) // an error is not thrown if not found
 	})
 
@@ -144,7 +139,7 @@ func TestUpdateStatus(t *testing.T) {
 
 		defer sqliteDB.Close(context.Background())
 
-		err = sqliteDB.UpdateStatus(context.Background(), tx1Bytes, metamorph_api.Status_SENT_TO_NETWORK, "")
+		err = sqliteDB.UpdateStatus(context.Background(), tests.Tx1Bytes, metamorph_api.Status_SENT_TO_NETWORK, "")
 		require.NoError(t, err) // an error is not thrown if not found
 	})
 
@@ -163,4 +158,86 @@ func TestUpdateStatus(t *testing.T) {
 		defer sqliteDB.Close(context.Background())
 		tests.UpdateStatusWithError(t, sqliteDB)
 	})
+}
+
+func TestBadger_GetBlockProcessed(t *testing.T) {
+	sqliteDB, err := New("sqlite_memory")
+	require.NoError(t, err)
+
+	defer sqliteDB.Close(context.Background())
+
+	ctx := context.Background()
+
+	timeNow := time.Now()
+	err = sqliteDB.SetBlockProcessed(ctx, tests.Block1Bytes)
+	require.NoError(t, err)
+
+	testStruct := []struct {
+		name      string
+		store     *SQL
+		blockHash []byte
+		want      *time.Time
+		wantErr   assert.ErrorAssertionFunc
+	}{
+		{
+			name:      "success",
+			store:     sqliteDB.(*SQL),
+			blockHash: tests.Block1Bytes,
+			want:      &timeNow,
+			wantErr:   assert.NoError,
+		},
+		{
+			name:      "missing",
+			store:     sqliteDB.(*SQL),
+			blockHash: []byte("block hash"),
+			want:      nil,
+			wantErr:   assert.NoError,
+		},
+	}
+	for _, tt := range testStruct {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &SQL{
+				db: tt.store.db,
+			}
+			got, err := s.GetBlockProcessed(ctx, tt.blockHash)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetBlockProcessed(%v)", tt.blockHash)) {
+				return
+			}
+			if tt.want == nil {
+				assert.Nil(t, got, "GetBlockProcessed(%v)", tt.blockHash)
+				return
+			}
+			assert.WithinDurationf(t, *tt.want, *got, 1000000, "GetBlockProcessed(%v)", tt.blockHash)
+		})
+	}
+}
+
+func TestBadger_SetBlockProcessed(t *testing.T) {
+	sqliteDB, err := New("sqlite_memory")
+	require.NoError(t, err)
+
+	defer sqliteDB.Close(context.Background())
+
+	ctx := context.Background()
+	testStructs := []struct {
+		name      string
+		store     *SQL
+		blockHash []byte
+		wantErr   assert.ErrorAssertionFunc
+	}{
+		{
+			name:      "success",
+			store:     sqliteDB.(*SQL),
+			blockHash: tests.Block1Bytes,
+			wantErr:   assert.NoError,
+		},
+	}
+	for _, tt := range testStructs {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &SQL{
+				db: tt.store.db,
+			}
+			tt.wantErr(t, s.SetBlockProcessed(ctx, tt.blockHash), fmt.Sprintf("SetBlockProcessed(%v)", tt.blockHash))
+		})
+	}
 }

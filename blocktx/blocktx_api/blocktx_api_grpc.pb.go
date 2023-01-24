@@ -35,6 +35,8 @@ type BlockTxAPIClient interface {
 	GetTransactionBlocks(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*Blocks, error)
 	// GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash.
 	GetTransactionBlock(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*Block, error)
+	// GetBlock returns the non-orphaned block for a given block hash.
+	GetBlock(ctx context.Context, in *Hash, opts ...grpc.CallOption) (*Block, error)
 	// GetBlockForHeight returns the non-orphaned block for a given block height.
 	GetBlockForHeight(ctx context.Context, in *Height, opts ...grpc.CallOption) (*Block, error)
 	// GetMyTransactionsForBlock returns a list of transaction hashes for a given block that were registered by this API.
@@ -100,6 +102,15 @@ func (c *blockTxAPIClient) GetTransactionBlocks(ctx context.Context, in *Transac
 func (c *blockTxAPIClient) GetTransactionBlock(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*Block, error) {
 	out := new(Block)
 	err := c.cc.Invoke(ctx, "/blocktx_api.BlockTxAPI/GetTransactionBlock", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *blockTxAPIClient) GetBlock(ctx context.Context, in *Hash, opts ...grpc.CallOption) (*Block, error) {
+	out := new(Block)
+	err := c.cc.Invoke(ctx, "/blocktx_api.BlockTxAPI/GetBlock", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -172,6 +183,8 @@ type BlockTxAPIServer interface {
 	GetTransactionBlocks(context.Context, *Transaction) (*Blocks, error)
 	// GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash.
 	GetTransactionBlock(context.Context, *Transaction) (*Block, error)
+	// GetBlock returns the non-orphaned block for a given block hash.
+	GetBlock(context.Context, *Hash) (*Block, error)
 	// GetBlockForHeight returns the non-orphaned block for a given block height.
 	GetBlockForHeight(context.Context, *Height) (*Block, error)
 	// GetMyTransactionsForBlock returns a list of transaction hashes for a given block that were registered by this API.
@@ -203,6 +216,9 @@ func (UnimplementedBlockTxAPIServer) GetTransactionBlocks(context.Context, *Tran
 }
 func (UnimplementedBlockTxAPIServer) GetTransactionBlock(context.Context, *Transaction) (*Block, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionBlock not implemented")
+}
+func (UnimplementedBlockTxAPIServer) GetBlock(context.Context, *Hash) (*Block, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBlock not implemented")
 }
 func (UnimplementedBlockTxAPIServer) GetBlockForHeight(context.Context, *Height) (*Block, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBlockForHeight not implemented")
@@ -334,6 +350,24 @@ func _BlockTxAPI_GetTransactionBlock_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlockTxAPI_GetBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Hash)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlockTxAPIServer).GetBlock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/blocktx_api.BlockTxAPI/GetBlock",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlockTxAPIServer).GetBlock(ctx, req.(*Hash))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BlockTxAPI_GetBlockForHeight_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Height)
 	if err := dec(in); err != nil {
@@ -421,6 +455,10 @@ var BlockTxAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTransactionBlock",
 			Handler:    _BlockTxAPI_GetTransactionBlock_Handler,
+		},
+		{
+			MethodName: "GetBlock",
+			Handler:    _BlockTxAPI_GetBlock_Handler,
 		},
 		{
 			MethodName: "GetBlockForHeight",

@@ -37,4 +37,6 @@ type MetamorphStore interface {
 	UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight int32) error
 	Del(ctx context.Context, key []byte) error
 	Close(ctx context.Context) error
+	GetBlockProcessed(ctx context.Context, blockHash []byte) (*time.Time, error)
+	SetBlockProcessed(ctx context.Context, blockHash []byte) error
 }

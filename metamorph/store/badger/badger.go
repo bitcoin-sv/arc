@@ -184,3 +184,50 @@ func (s *Badger) Del(_ context.Context, hash []byte) error {
 		return tx.Delete(hash)
 	})
 }
+
+func (s *Badger) GetBlockProcessed(_ context.Context, blockHash []byte) (*time.Time, error) {
+	var result *time.Time
+
+	key := append([]byte("block_processed_"), blockHash...)
+
+	err := s.store.View(func(tx *badger.Txn) error {
+		item, err := tx.Get(key)
+		if err != nil {
+			if err == badger.ErrKeyNotFound {
+				return nil
+			}
+			return err
+		}
+
+		if err = item.Value(func(val []byte) error {
+			dec := gob.NewDecoder(bytes.NewReader(val))
+			return dec.Decode(&result)
+		}); err != nil {
+			return fmt.Errorf("failed to decode data: %w", err)
+		}
+
+		return nil
+	})
+
+	return result, err
+}
+
+func (s *Badger) SetBlockProcessed(_ context.Context, blockHash []byte) error {
+	value := time.Now()
+	key := append([]byte("block_processed_"), blockHash...)
+
+	var data bytes.Buffer
+	enc := gob.NewEncoder(&data)
+	err := enc.Encode(value)
+	if err != nil {
+		return fmt.Errorf("failed to encode data: %w", err)
+	}
+
+	if err = s.store.Update(func(tx *badger.Txn) error {
+		return tx.Set(key, data.Bytes())
+	}); err != nil {
+		return fmt.Errorf("failed to set data: %w", err)
+	}
+
+	return nil
+}

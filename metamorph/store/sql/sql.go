@@ -126,7 +126,18 @@ func createPostgresSchema(db *sql.DB) error {
 		);
 	`); err != nil {
 		db.Close()
-		return fmt.Errorf("could not create block_transactions_map table - [%+v]", err)
+		return fmt.Errorf("could not create transactions table - [%+v]", err)
+	}
+
+	// Create schema, if necessary...
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS blocks (
+		hash BYTEA PRIMARY KEY,
+		processed_at TEXT
+		);
+	`); err != nil {
+		db.Close()
+		return fmt.Errorf("could not create blocks table - [%+v]", err)
 	}
 
 	return nil
@@ -155,7 +166,18 @@ func createSqliteSchema(db *sql.DB) error {
 		);
 	`); err != nil {
 		db.Close()
-		return fmt.Errorf("could not create block_transactions_map table - [%+v]", err)
+		return fmt.Errorf("could not create transactions table - [%+v]", err)
+	}
+
+	// Create schema for processed blocks, if necessary...
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS blocks (
+		hash BLOB PRIMARY KEY,
+		processed_at TEXT
+		);
+	`); err != nil {
+		db.Close()
+		return fmt.Errorf("could not create blocks table - [%+v]", err)
 	}
 
 	return nil
@@ -414,6 +436,53 @@ func (s *SQL) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, bl
 	;`
 
 	_, err := s.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHash, blockHeight, hash)
+
+	return err
+}
+
+func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash []byte) (*time.Time, error) {
+	q := `SELECT
+		processed_at
+	 	FROM blocks WHERE hash = $1 LIMIT 1;`
+
+	var processedAt string
+
+	err := s.db.QueryRowContext(ctx, q, blockHash).Scan(
+		&processedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var processedAtTime time.Time
+	if processedAt != "" {
+		processedAtTime, err = time.Parse(ISO8601, processedAt)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &processedAtTime, nil
+}
+
+func (s *SQL) SetBlockProcessed(ctx context.Context, blockHash []byte) error {
+	q := `INSERT INTO blocks (
+		hash
+		,processed_at
+	) VALUES (
+		 $1
+		,$2
+	);`
+
+	processedAt := time.Now().UTC().Format(ISO8601)
+
+	_, err := s.db.ExecContext(ctx, q,
+		blockHash,
+		processedAt,
+	)
 
 	return err
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
@@ -165,5 +166,83 @@ func setupSuite(t *testing.T) (store.MetamorphStore, func(t *testing.T)) {
 		bh.Close(context.Background())
 		err = os.RemoveAll(dataDir)
 		require.NoErrorf(t, err, "Could not delete old test data")
+	}
+}
+
+func TestBadger_GetBlockProcessed(t *testing.T) {
+	bh, tearDown := setupSuite(t)
+	defer tearDown(t)
+
+	ctx := context.Background()
+
+	timeNow := time.Now()
+	err := bh.SetBlockProcessed(ctx, tests.Block1Bytes)
+	require.NoError(t, err)
+
+	testStruct := []struct {
+		name      string
+		store     *BadgerHold
+		blockHash []byte
+		want      *time.Time
+		wantErr   assert.ErrorAssertionFunc
+	}{
+		{
+			name:      "success",
+			store:     bh.(*BadgerHold),
+			blockHash: tests.Block1Bytes,
+			want:      &timeNow,
+			wantErr:   assert.NoError,
+		},
+		{
+			name:      "missing",
+			store:     bh.(*BadgerHold),
+			blockHash: []byte("block hash"),
+			want:      nil,
+			wantErr:   assert.NoError,
+		},
+	}
+	for _, tt := range testStruct {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &BadgerHold{
+				store: tt.store.store,
+			}
+			got, err := s.GetBlockProcessed(ctx, tt.blockHash)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetBlockProcessed(%v)", tt.blockHash)) {
+				return
+			}
+			if tt.want == nil {
+				assert.Nil(t, got, "GetBlockProcessed(%v)", tt.blockHash)
+				return
+			}
+			assert.WithinDurationf(t, *tt.want, *got, 1000000, "GetBlockProcessed(%v)", tt.blockHash)
+		})
+	}
+}
+
+func TestBadger_SetBlockProcessed(t *testing.T) {
+	bh, tearDown := setupSuite(t)
+	defer tearDown(t)
+
+	ctx := context.Background()
+	testStructs := []struct {
+		name      string
+		store     *BadgerHold
+		blockHash []byte
+		wantErr   assert.ErrorAssertionFunc
+	}{
+		{
+			name:      "success",
+			store:     bh.(*BadgerHold),
+			blockHash: tests.Block1Bytes,
+			wantErr:   assert.NoError,
+		},
+	}
+	for _, tt := range testStructs {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &BadgerHold{
+				store: tt.store.store,
+			}
+			tt.wantErr(t, s.SetBlockProcessed(ctx, tt.blockHash), fmt.Sprintf("SetBlockProcessed(%v)", tt.blockHash))
+		})
 	}
 }

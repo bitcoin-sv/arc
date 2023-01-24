@@ -13,3 +13,8 @@ CREATE DATABASE blocktx
   WITH OWNER = arc
   ENCODING = 'UTF8'
   CONNECTION LIMIT = -1;
+
+curl -O -L https://github.com/rapidloop/pgmetrics/releases/download/v1.14.0/pgmetrics_1.14.0_linux_amd64.tar.gz
+curl -O -L https://github.com/rapidloop/pgdash/releases/download/v1.10.0/pgdash_1.10.0_linux_amd64.tar.gz
+
+PGPASSWORD=xxx ./pgmetrics_1.14.0_linux_amd64/pgmetrics --aws-rds-dbid=arc -h arc.cuo7aktbo9sw.eu-central-1.rds.amazonaws.com -p 5432 -f json -U arc blocktx | ./pgdash_1.10.0_linux_amd64/pgdash -a xxxxxxxxxxxxx report arc.cuo7aktbo9sw.eu-central-1.rds.amazonaws.com

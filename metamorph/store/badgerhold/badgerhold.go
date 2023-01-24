@@ -165,3 +165,33 @@ func (s *BadgerHold) Del(_ context.Context, hash []byte) error {
 
 	return s.store.Delete(hash, result)
 }
+
+func (s *BadgerHold) GetBlockProcessed(_ context.Context, blockHash []byte) (*time.Time, error) {
+	key := append([]byte("block-processed-"), blockHash...)
+
+	var result store.StoreData
+	if err := s.store.Get(key, &result); err != nil {
+		if errors.Is(err, badgerhold.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get data: %w", err)
+	}
+
+	return &result.StoredAt, nil
+}
+
+func (s *BadgerHold) SetBlockProcessed(_ context.Context, blockHash []byte) error {
+	key := append([]byte("block-processed-"), blockHash...)
+	value := &store.StoreData{
+		StoredAt: time.Now(),
+		Hash:     key,
+	}
+
+	if err := s.store.Insert(key, value); err != nil {
+		if errors.Is(err, badgerhold.ErrKeyExists) {
+			return nil
+		}
+		return fmt.Errorf("failed to insert data: %w", err)
+	}
+	return nil
+}

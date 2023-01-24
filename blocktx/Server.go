@@ -105,6 +105,10 @@ func (s *Server) GetTransactionBlock(ctx context.Context, transaction *blocktx_a
 	return s.store.GetTransactionBlock(ctx, transaction)
 }
 
+func (s *Server) GetBlock(ctx context.Context, hash *blocktx_api.Hash) (*blocktx_api.Block, error) {
+	return s.store.GetBlock(ctx, hash.Hash)
+}
+
 func (s *Server) GetBlockForHeight(ctx context.Context, height *blocktx_api.Height) (*blocktx_api.Block, error) {
 	return s.store.GetBlockForHeight(ctx, height.Height)
 }

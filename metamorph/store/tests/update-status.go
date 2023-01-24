@@ -11,14 +11,14 @@ import (
 )
 
 func UpdateStatus(t *testing.T, s store.MetamorphStore) {
-	err := s.Set(context.Background(), tx1Bytes, &store.StoreData{
-		Hash:   tx1Bytes,
+	err := s.Set(context.Background(), Tx1Bytes, &store.StoreData{
+		Hash:   Tx1Bytes,
 		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 	})
 	require.NoError(t, err)
 
 	var data *store.StoreData
-	data, err = s.Get(context.Background(), tx1Bytes)
+	data, err = s.Get(context.Background(), Tx1Bytes)
 	require.NoError(t, err)
 
 	assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, data.Status)
@@ -26,10 +26,10 @@ func UpdateStatus(t *testing.T, s store.MetamorphStore) {
 	assert.Equal(t, []byte(nil), data.BlockHash)
 	assert.Equal(t, int32(0), data.BlockHeight)
 
-	err = s.UpdateStatus(context.Background(), tx1Bytes, metamorph_api.Status_SENT_TO_NETWORK, "")
+	err = s.UpdateStatus(context.Background(), Tx1Bytes, metamorph_api.Status_SENT_TO_NETWORK, "")
 	require.NoError(t, err)
 
-	data, err = s.Get(context.Background(), tx1Bytes)
+	data, err = s.Get(context.Background(), Tx1Bytes)
 	require.NoError(t, err)
 	assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, data.Status)
 	assert.Equal(t, "", data.RejectReason)
@@ -38,23 +38,23 @@ func UpdateStatus(t *testing.T, s store.MetamorphStore) {
 }
 
 func UpdateStatusWithError(t *testing.T, s store.MetamorphStore) {
-	err := s.Set(context.Background(), tx1Bytes, &store.StoreData{
-		Hash:   tx1Bytes,
+	err := s.Set(context.Background(), Tx1Bytes, &store.StoreData{
+		Hash:   Tx1Bytes,
 		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 	})
 	require.NoError(t, err)
 
 	var data *store.StoreData
-	data, err = s.Get(context.Background(), tx1Bytes)
+	data, err = s.Get(context.Background(), Tx1Bytes)
 	require.NoError(t, err)
 
 	assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, data.Status)
 	assert.Equal(t, "", data.RejectReason)
 
-	err = s.UpdateStatus(context.Background(), tx1Bytes, metamorph_api.Status_REJECTED, "error encountered")
+	err = s.UpdateStatus(context.Background(), Tx1Bytes, metamorph_api.Status_REJECTED, "error encountered")
 	require.NoError(t, err)
 
-	data, err = s.Get(context.Background(), tx1Bytes)
+	data, err = s.Get(context.Background(), Tx1Bytes)
 	require.NoError(t, err)
 	assert.Equal(t, metamorph_api.Status_REJECTED, data.Status)
 	assert.Equal(t, "error encountered", data.RejectReason)

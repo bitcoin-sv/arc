@@ -151,18 +151,43 @@ func StartMetamorph(logger utils.Logger) {
 	// create a channel to receive mined block messages from the block tx service
 	var blockChan = make(chan *blocktx_api.Block)
 	go func() {
+		var processedAt *time.Time
 		for block := range blockChan {
-			processBlock(logger, btc, metamorphProcessor, &blocktx_api.BlockAndSource{
-				Hash:   block.Hash,
-				Source: metamorphAddress,
-			})
+			processedAt, err = s.GetBlockProcessed(context.Background(), block.Hash)
+			if err != nil {
+				logger.Errorf("Could not get block processed status: %v", err)
+				continue
+			}
 
-			// For catchup, process the previous block hash too...
-			// TODO - don't do this is we have already seen the previous block
-			processBlock(logger, btc, metamorphProcessor, &blocktx_api.BlockAndSource{
-				Hash:   block.PreviousHash,
-				Source: metamorphAddress,
-			})
+			// check whether we have already processed this block
+			if processedAt == nil || processedAt.IsZero() {
+				// process the block
+				processBlock(logger, btc, metamorphProcessor, s, &blocktx_api.BlockAndSource{
+					Hash:   block.Hash,
+					Source: metamorphAddress,
+				})
+			}
+
+			// check whether we have already processed the previous block
+			processedAt, err = s.GetBlockProcessed(context.Background(), block.PreviousHash)
+			if err != nil {
+				logger.Errorf("Could not get previous block processed status: %v", err)
+				continue
+			}
+			if processedAt == nil || processedAt.IsZero() {
+				// get the full previous block from block tx
+				var previousBlock *blocktx_api.Block
+				previousBlock, err = btc.GetBlock(context.Background(), block.PreviousHash)
+				if err != nil {
+					logger.Errorf("Could not get previous block from block tx: %v", err)
+					continue
+				}
+
+				// send the previous block to the process channel
+				go func() {
+					blockChan <- previousBlock
+				}()
+			}
 		}
 	}()
 
@@ -207,7 +232,7 @@ func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManag
 	return pm, messageCh
 }
 
-func processBlock(logger utils.Logger, btc blocktx.ClientI, p metamorph.ProcessorI, blockAndSource *blocktx_api.BlockAndSource) {
+func processBlock(logger utils.Logger, btc blocktx.ClientI, p metamorph.ProcessorI, s store.MetamorphStore, blockAndSource *blocktx_api.BlockAndSource) {
 	mt, err := btc.GetMinedTransactionsForBlock(context.Background(), blockAndSource)
 	if err != nil {
 		logger.Errorf("Could not get mined transactions for block %x: %v", bt.ReverseBytes(blockAndSource.Hash), err)
@@ -222,6 +247,12 @@ func processBlock(logger utils.Logger, btc blocktx.ClientI, p metamorph.Processo
 		_, err = p.SendStatusMinedForTransaction(tx.Hash, mt.Block.Hash, int32(mt.Block.Height))
 		if err != nil {
 			logger.Errorf("Could not send mined status for transaction %x: %v", bt.ReverseBytes(tx.Hash), err)
+			return
 		}
+	}
+
+	err = s.SetBlockProcessed(context.Background(), blockAndSource.Hash)
+	if err != nil {
+		logger.Errorf("Could not set block processed status: %v", err)
 	}
 }

@@ -306,6 +306,11 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store2.StoreData) error 
 		storedAt = value.StoredAt.UTC().Format(ISO8601)
 	}
 
+	// If the storedAt time is zero, set it to now on insert
+	if value.StoredAt.IsZero() {
+		value.StoredAt = time.Now()
+	}
+
 	if value.AnnouncedAt.UnixMilli() != 0 {
 		announcedAt = value.AnnouncedAt.UTC().Format(ISO8601)
 	}

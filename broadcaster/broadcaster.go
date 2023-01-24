@@ -47,7 +47,7 @@ var dataFee = &bt.Fee{
 }
 
 type ClientI interface {
-	PutTransaction(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status) (*metamorph_api.TransactionStatus, error)
+	BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status) (*metamorph_api.TransactionStatus, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*metamorph_api.TransactionStatus, error)
 }
 
@@ -128,7 +128,7 @@ func (b *Broadcaster) Run(ctx context.Context, sendOnChannel *int) error {
 	fundingTx := b.NewFundingTransaction()
 	log.Printf("funding tx: %s\n", fundingTx.TxID())
 
-	_, err := b.Client.PutTransaction(ctx, fundingTx, metamorph_api.Status(b.WaitForStatus))
+	_, err := b.Client.BroadcastTransaction(ctx, fundingTx, metamorph_api.Status(b.WaitForStatus))
 	if err != nil {
 		return err
 	}
@@ -204,7 +204,7 @@ func (b *Broadcaster) ProcessTransaction(ctx context.Context, tx *bt.Tx) error {
 	ctxClient, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
 
-	res, err := b.Client.PutTransaction(ctxClient, tx, metamorph_api.Status(b.WaitForStatus))
+	res, err := b.Client.BroadcastTransaction(ctxClient, tx, metamorph_api.Status(b.WaitForStatus))
 	if err != nil {
 		return err
 	}

@@ -12,25 +12,11 @@ import (
 
 func TestNewProcessorResponseMap(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
-		tests := []struct {
-			name   string
-			expiry time.Duration
-			want   *ProcessorResponseMap
-		}{
-			{
-				name:   "TestNewProcessorResponseMap",
-				expiry: 10 * time.Second,
-				want: &ProcessorResponseMap{
-					expiry: 10 * time.Second,
-					items:  make(map[string]*ProcessorResponse),
-				},
-			},
-		}
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				assert.Equalf(t, tt.want, NewProcessorResponseMap(tt.expiry), "NewProcessorResponseMap(%v)", tt.expiry)
-			})
-		}
+		prm := NewProcessorResponseMap(10 * time.Second)
+		assert.NotNil(t, prm)
+		assert.Equal(t, 10*time.Second, prm.expiry)
+		assert.NotNil(t, prm.items)
+		assert.Equal(t, 0, prm.Len())
 	})
 
 	t.Run("go routine", func(t *testing.T) {
@@ -164,6 +150,8 @@ func TestProcessorResponseMap_Len(t *testing.T) {
 		proc := NewProcessorResponseMap(2 * time.Second)
 		proc.Set(test.TX1, NewProcessorResponseWithStatus(test.TX1Bytes, metamorph_api.Status_SENT_TO_NETWORK))
 		proc.Set(test.TX2, NewProcessorResponseWithStatus(test.TX2Bytes, metamorph_api.Status_ANNOUNCED_TO_NETWORK))
+
+		time.Sleep(1 * time.Millisecond)
 
 		assert.Equal(t, 2, proc.Len())
 	})

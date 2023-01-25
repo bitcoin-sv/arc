@@ -86,7 +86,7 @@ func New(client ClientI, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, out
 
 func (b *Broadcaster) ConsolidateOutputsToOriginal(ctx context.Context) error {
 	// consolidate all transactions back into the original arcUrl
-	log.Println("Consolidating all transactions back into original arcUrl")
+	log.Println("Consolidating all transactions back into original address")
 	consolidationAddress := b.FromKeySet.Address(!b.IsRegtest)
 	consolidationTx := bt.NewTx()
 	utxos := make([]*bt.UTXO, len(b.txs))

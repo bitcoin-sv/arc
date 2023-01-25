@@ -1,7 +1,6 @@
 Bugs
 
 TODOs
-- init/catchup in metamorph for processed blocks
 - Merkle proofs
 - Bitcoin node settings read into api (fees etc.)
 - What happens to txs in metamorph when a transaction source is registered after the block is processed in blocktx?

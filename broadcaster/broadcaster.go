@@ -58,9 +58,12 @@ type Broadcaster struct {
 	Outputs       int64
 	IsDryRun      bool
 	IsRegtest     bool
+	PrintTxIDs    bool
 	WaitForStatus api.WaitForStatus
 	FeeQuote      *bt.FeeQuote
 	txs           []*bt.Tx
+	summary       map[string]uint64
+	summaryMu     sync.Mutex
 }
 
 func New(client ClientI, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, outputs int64) *Broadcaster {
@@ -77,6 +80,7 @@ func New(client ClientI, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, out
 		WaitForStatus: 0,
 		FeeQuote:      fq,
 		txs:           make([]*bt.Tx, outputs),
+		summary:       make(map[string]uint64),
 	}
 }
 
@@ -197,24 +201,42 @@ func (b *Broadcaster) Run(ctx context.Context, sendOnChannel *int) error {
 		wg.Wait()
 	}
 
+	// print summary
+	log.Printf("Summary:\n")
+	for summaryString, count := range b.summary {
+		log.Printf("%s: %d\n", summaryString, count)
+	}
+
 	return nil
 }
 
 func (b *Broadcaster) ProcessTransaction(ctx context.Context, tx *bt.Tx) error {
-	ctxClient, cancel := context.WithTimeout(ctx, 6*time.Second)
-	defer cancel()
-
-	res, err := b.Client.BroadcastTransaction(ctxClient, tx, metamorph_api.Status(b.WaitForStatus))
+	res, err := b.Client.BroadcastTransaction(ctx, tx, metamorph_api.Status(b.WaitForStatus))
 	if err != nil {
 		return err
 	}
-	if res.TimedOut {
-		log.Printf("res %s: %#v (TIMEOUT)\n", tx.TxID(), res.Status.String())
-	} else if res.RejectReason != "" {
-		log.Printf("res %s: %#v (REJECT: %s)\n", tx.TxID(), res.Status.String(), res.RejectReason)
-	} else {
-		log.Printf("res %s: %#v\n", tx.TxID(), res.Status.String())
+
+	if b.PrintTxIDs {
+		if res.TimedOut {
+			log.Printf("res %s: %#v (TIMEOUT)\n", tx.TxID(), res.Status.String())
+		} else if res.RejectReason != "" {
+			log.Printf("res %s: %#v (REJECT: %s)\n", tx.TxID(), res.Status.String(), res.RejectReason)
+		} else {
+			log.Printf("res %s: %#v\n", tx.TxID(), res.Status.String())
+		}
 	}
+
+	summaryString := "  " + res.Status.String()
+	if res.TimedOut {
+		summaryString += " (TIMEOUT)"
+	}
+	if res.RejectReason != "" {
+		summaryString += " (REJECT: " + res.RejectReason + ")"
+	}
+
+	b.summaryMu.Lock()
+	b.summary[summaryString]++
+	b.summaryMu.Unlock()
 
 	return nil
 }

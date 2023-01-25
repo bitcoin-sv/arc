@@ -31,6 +31,7 @@ func main() {
 	apiKey := flag.String("apikey", "", "api key to use for the http api client")
 	bearer := flag.String("bearer", "", "Bearer auth to use for the http api client")
 	authorization := flag.String("authorization", "", "Authorization header to use for the http api client")
+	printTxIDs := flag.Bool("print", false, "Whether to print out all the tx ids of the transactions")
 	flag.Parse()
 
 	args := flag.Args()
@@ -98,6 +99,7 @@ func main() {
 	bCaster.IsRegtest = isRegtest
 	bCaster.IsDryRun = isDryRun
 	bCaster.WaitForStatus = *waitForStatus
+	bCaster.PrintTxIDs = *printTxIDs
 
 	err = bCaster.Run(ctx, sendOnChannel)
 	if err != nil {

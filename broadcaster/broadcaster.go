@@ -5,8 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"log"
-	"math"
-	"runtime"
 	"sync"
 	"time"
 
@@ -59,6 +57,7 @@ type Broadcaster struct {
 	IsDryRun      bool
 	IsRegtest     bool
 	PrintTxIDs    bool
+	Concurrency   int
 	WaitForStatus api.WaitForStatus
 	FeeQuote      *bt.FeeQuote
 	txs           []*bt.Tx
@@ -127,7 +126,7 @@ func (b *Broadcaster) ConsolidateOutputsToOriginal(ctx context.Context) error {
 	return nil
 }
 
-func (b *Broadcaster) Run(ctx context.Context, sendOnChannel *int) error {
+func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 
 	fundingTx := b.NewFundingTransaction()
 	log.Printf("funding tx: %s\n", fundingTx.TxID())
@@ -137,29 +136,8 @@ func (b *Broadcaster) Run(ctx context.Context, sendOnChannel *int) error {
 		return err
 	}
 
-	log.Printf("generating %d txs\n", b.Outputs)
 	timeStart := time.Now()
-	buf := make(chan bool, runtime.NumCPU()*2)
-	for i := int64(0); i < b.Outputs; i++ {
-		go func(i int64, tx *bt.Tx) {
-			buf <- true
-			defer func() { <-buf }()
 
-			u := &bt.UTXO{
-				TxID:          fundingTx.TxIDBytes(),
-				Vout:          uint32(i),
-				LockingScript: fundingTx.Outputs[i].LockingScript,
-				Satoshis:      fundingTx.Outputs[i].Satoshis,
-			}
-			b.txs[i], _ = b.NewTransaction(b.ToKeySet, u)
-		}(i, fundingTx)
-	}
-	log.Printf("generated %d txs in %d seconds\n", len(b.txs), int(math.Round(time.Since(timeStart).Seconds())))
-
-	// let the node recover
-	time.Sleep(1 * time.Second)
-
-	var wg sync.WaitGroup
 	if b.IsDryRun {
 		for _, tx := range b.txs {
 			//log.Printf("Processing tx %d / %d\n", i+1, len(b.txs))
@@ -167,36 +145,38 @@ func (b *Broadcaster) Run(ctx context.Context, sendOnChannel *int) error {
 				return err
 			}
 		}
-	} else if sendOnChannel != nil && *sendOnChannel > 0 {
-		limit := make(chan bool, *sendOnChannel)
-		for i, tx := range b.txs {
+	} else {
+		if concurrency == 0 {
+			// use the number of outputs as the default concurrency
+			// which will not limit the amount of concurrent goroutines
+			concurrency = int(b.Outputs)
+		}
+		log.Printf("Using concurrency of %d\n", concurrency)
+
+		var wg sync.WaitGroup
+		// limit the amount of concurrent goroutines
+		limit := make(chan bool, concurrency)
+		for i := int64(0); i < b.Outputs; i++ {
 			wg.Add(1)
 			limit <- true
-			go func(i int, tx *bt.Tx) {
+			go func(i int64, fundingTx *bt.Tx) {
 				defer func() {
 					wg.Done()
 					<-limit
 				}()
 
-				//log.Printf("Processing tx %d / %d\n", i+1, len(b.txs))
+				u := &bt.UTXO{
+					TxID:          fundingTx.TxIDBytes(),
+					Vout:          uint32(i),
+					LockingScript: fundingTx.Outputs[i].LockingScript,
+					Satoshis:      fundingTx.Outputs[i].Satoshis,
+				}
+				b.txs[i], _ = b.NewTransaction(b.ToKeySet, u)
 
-				if err = b.ProcessTransaction(ctx, tx); err != nil {
+				if err = b.ProcessTransaction(ctx, b.txs[i]); err != nil {
 					panic(err)
 				}
-			}(i, tx)
-		}
-		wg.Wait()
-	} else {
-		for i, tx := range b.txs {
-			wg.Add(1)
-			go func(i int, tx *bt.Tx) {
-				defer wg.Done()
-
-				//log.Printf("Processing tx %d / %d\n", i+1, len(b.txs))
-				if err = b.ProcessTransaction(ctx, tx); err != nil {
-					panic(err)
-				}
-			}(i, tx)
+			}(i, fundingTx)
 		}
 		wg.Wait()
 	}
@@ -206,6 +186,8 @@ func (b *Broadcaster) Run(ctx context.Context, sendOnChannel *int) error {
 	for summaryString, count := range b.summary {
 		log.Printf("%s: %d\n", summaryString, count)
 	}
+
+	log.Printf("sent %d txs in %0.2f seconds\n", len(b.txs), time.Since(timeStart).Seconds())
 
 	return nil
 }

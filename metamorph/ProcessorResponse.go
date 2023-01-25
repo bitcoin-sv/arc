@@ -2,7 +2,6 @@ package metamorph
 
 import (
 	"fmt"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -12,130 +11,119 @@ import (
 )
 
 type ProcessorResponse struct {
-	mu      sync.RWMutex
-	ch      chan StatusAndError
-	Hash    []byte
-	Start   time.Time
-	retries atomic.Uint32
-	err     error
-	status  metamorph_api.Status
+	externalCh      chan StatusAndError
+	setStatusCh     chan metamorph_api.Status
+	setErrCh        chan error
+	requestStatusCh chan chan StatusAndError
+	Hash            []byte
+	Start           time.Time
+	retries         atomic.Uint32
+	err             error
+	status          metamorph_api.Status
 }
 
 func NewProcessorResponse(hash []byte) *ProcessorResponse {
-	return &ProcessorResponse{
+	r := &ProcessorResponse{
 		Start:  time.Now(),
 		Hash:   hash,
 		status: metamorph_api.Status_UNKNOWN,
 	}
+
+	go func() {
+		for {
+			select {
+			case status := <-r.setStatusCh:
+				r.status = status
+
+				if r.externalCh != nil {
+					utils.SafeSend(r.externalCh, StatusAndError{
+						Hash:   r.Hash,
+						Status: r.status,
+						Err:    r.err,
+					})
+				}
+
+			case err := <-r.setErrCh:
+				r.err = err
+
+				if r.externalCh != nil {
+					utils.SafeSend(r.externalCh, StatusAndError{
+						Hash:   r.Hash,
+						Status: r.status,
+						Err:    r.err,
+					})
+				}
+
+			case requestingCh := <-r.requestStatusCh:
+				requestingCh <- StatusAndError{
+					Hash:   r.Hash,
+					Status: r.status,
+					Err:    r.err,
+				}
+
+			}
+		}
+	}()
+
+	return r
 }
 
 // NewProcessorResponseWithStatus creates a new ProcessorResponse with the given status.
 // It is used when restoring the ProcessorResponseMap from the database.
 func NewProcessorResponseWithStatus(hash []byte, status metamorph_api.Status) *ProcessorResponse {
-	return &ProcessorResponse{
-		Start:  time.Now(),
-		Hash:   hash,
-		status: status,
-	}
+	r := NewProcessorResponse(hash)
+	r.status = status
+
+	return r
 }
 
 func NewProcessorResponseWithChannel(hash []byte, ch chan StatusAndError) *ProcessorResponse {
-	return &ProcessorResponse{
-		Start:  time.Now(),
-		Hash:   hash,
-		status: metamorph_api.Status_UNKNOWN,
-		ch:     ch,
-	}
-}
+	r := NewProcessorResponse(hash)
+	r.externalCh = ch
 
-func (r *ProcessorResponse) String() string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	if r.err != nil {
-		return fmt.Sprintf("%x: %s [%s] %s", bt.ReverseBytes(r.Hash), r.Start.Format(time.RFC3339), r.status.String(), r.err.Error())
-	}
-	return fmt.Sprintf("%x: %s [%s]", bt.ReverseBytes(r.Hash), r.Start.Format(time.RFC3339), r.status.String())
+	return r
 }
 
 func (r *ProcessorResponse) SetStatus(status metamorph_api.Status) bool {
-	r.mu.Lock()
-
-	r.status = status
-
-	sae := StatusAndError{
-		Hash:   r.Hash,
-		Status: r.status,
-	}
-
-	ch := r.ch
-
-	r.mu.Unlock()
-
-	if ch != nil {
-		return utils.SafeSend(ch, sae)
-	}
+	r.setStatusCh <- status
 
 	return true
 }
 
-func (r *ProcessorResponse) GetStatus() metamorph_api.Status {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	return r.status
-}
-
 func (r *ProcessorResponse) SetErr(err error) bool {
-	r.mu.Lock()
-
-	r.err = err
-
-	sae := StatusAndError{
-		Hash:   r.Hash,
-		Status: r.status,
-		Err:    err,
-	}
-
-	ch := r.ch
-
-	r.mu.Unlock()
-
-	if ch != nil {
-		return utils.SafeSend(ch, sae)
-	}
+	r.setErrCh <- err
 
 	return true
 }
 
 func (r *ProcessorResponse) SetStatusAndError(status metamorph_api.Status, err error) bool {
-	r.mu.Lock()
-
-	r.status = status
-	r.err = err
-
-	sae := StatusAndError{
-		Hash:   r.Hash,
-		Status: r.status,
-		Err:    err,
-	}
-
-	ch := r.ch
-
-	r.mu.Unlock()
-
-	if ch != nil {
-		return utils.SafeSend(ch, sae)
-	}
+	r.setStatusCh <- status
+	r.setErrCh <- err
 
 	return true
 }
 
-func (r *ProcessorResponse) GetErr() error {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *ProcessorResponse) GetStatus() metamorph_api.Status {
+	ch := make(chan StatusAndError)
+	r.requestStatusCh <- ch
 
-	return r.err
+	sae := <-ch
+	return sae.Status
+}
+
+func (r *ProcessorResponse) GetStatusAndError() StatusAndError {
+	ch := make(chan StatusAndError)
+	r.requestStatusCh <- ch
+
+	return <-ch
+}
+
+func (r *ProcessorResponse) GetErr() error {
+	ch := make(chan StatusAndError)
+	r.requestStatusCh <- ch
+
+	sae := <-ch
+	return sae.Err
 }
 
 func (r *ProcessorResponse) Retries() uint32 {
@@ -145,4 +133,13 @@ func (r *ProcessorResponse) Retries() uint32 {
 func (r *ProcessorResponse) IncrementRetry() uint32 {
 	r.retries.Add(1)
 	return r.retries.Load()
+}
+
+func (r *ProcessorResponse) String() string {
+	sae := r.GetStatusAndError()
+
+	if r.err != nil {
+		return fmt.Sprintf("%x: %s [%s] %s", bt.ReverseBytes(sae.Hash), r.Start.Format(time.RFC3339), sae.Status.String(), sae.Err.Error())
+	}
+	return fmt.Sprintf("%x: %s [%s]", bt.ReverseBytes(sae.Hash), r.Start.Format(time.RFC3339), sae.Status.String())
 }

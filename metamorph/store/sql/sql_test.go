@@ -37,7 +37,8 @@ func TestPutGetDelete(t *testing.T) {
 	hash := utils.Sha256d([]byte("hello world"))
 
 	data := &store.StoreData{
-		Hash: hash,
+		Hash:     hash,
+		StoredAt: time.Now(),
 	}
 
 	err = sqliteDB.Set(context.Background(), hash, data)
@@ -45,6 +46,11 @@ func TestPutGetDelete(t *testing.T) {
 
 	data2, err := sqliteDB.Get(context.Background(), hash)
 	require.NoError(t, err)
+
+	assert.WithinDurationf(t, data.StoredAt, data2.StoredAt, time.Second, "StoredAt should be within a second of each other")
+
+	// these will be slightly off due to setting the time when inserting
+	data.StoredAt = data2.StoredAt
 	assert.Equal(t, data, data2)
 
 	err = sqliteDB.Del(context.Background(), hash)

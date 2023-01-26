@@ -1,11 +1,11 @@
 package sql
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
-
-	"context"
+	"github.com/pkg/errors"
 )
 
 func (s *SQL) GetBlock(ctx context.Context, hash []byte) (*blocktx_api.Block, error) {
@@ -36,6 +36,9 @@ func (s *SQL) GetBlock(ctx context.Context, hash []byte) (*blocktx_api.Block, er
 		&processed_at,
 		&block.Orphaned,
 	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, err
 	}
 

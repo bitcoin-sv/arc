@@ -1,3 +1,4 @@
+//go:generate zebrapack
 package store
 
 import (
@@ -10,22 +11,22 @@ import (
 )
 
 type StoreData struct {
-	StoredAt      time.Time
-	AnnouncedAt   time.Time
-	MinedAt       time.Time
-	Hash          *chainhash.Hash `badgerhold:"key"`
-	Status        metamorph_api.Status
-	BlockHeight   uint64
-	BlockHash     *chainhash.Hash
-	ApiKeyId      int64
-	StandardFeeId int64
-	DataFeeId     int64
-	SourceIp      string
-	CallbackUrl   string
-	CallbackToken string
-	MerkleProof   bool
-	RawTx         []byte
-	RejectReason  string
+	StoredAt      time.Time            `zid:"0"`
+	AnnouncedAt   time.Time            `zid:"1"`
+	MinedAt       time.Time            `zid:"2"`
+	Hash          *chainhash.Hash      `badgerhold:"key" zid:"3"`
+	Status        metamorph_api.Status `zid:"4"`
+	BlockHeight   uint64               `zid:"5"`
+	BlockHash     *chainhash.Hash      `zid:"6"`
+	ApiKeyId      int64                `zid:"7"`
+	StandardFeeId int64                `zid:"8"`
+	DataFeeId     int64                `zid:"9"`
+	SourceIp      string               `zid:"10"`
+	CallbackUrl   string               `zid:"11"`
+	CallbackToken string               `zid:"12"`
+	MerkleProof   bool                 `zid:"13"`
+	RawTx         []byte               `zid:"14"`
+	RejectReason  string               `zid:"15"`
 }
 
 var ErrNotFound = errors.New("txid could not be found")

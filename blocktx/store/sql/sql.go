@@ -15,7 +15,8 @@ import (
 )
 
 type SQL struct {
-	db *sql.DB
+	db     *sql.DB
+	engine string
 }
 
 func New(engine string) (store.Interface, error) {
@@ -94,7 +95,8 @@ func New(engine string) (store.Interface, error) {
 	}
 
 	return &SQL{
-		db: db,
+		db:     db,
+		engine: engine,
 	}, nil
 }
 

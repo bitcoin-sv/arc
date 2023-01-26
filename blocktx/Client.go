@@ -2,7 +2,6 @@ package blocktx
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
@@ -35,29 +34,14 @@ func NewClient(l utils.Logger, address string) ClientI {
 		logger:  l,
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		// reconnect grpc if connection lost
-		for {
-			if btc.conn == nil {
-				conn, err := btc.dialGRPC()
-				if err != nil {
-					btc.logger.Errorf("failed to dial: %v", err)
-					time.Sleep(10 * time.Second)
-					continue
-				}
-				btc.logger.Infof("Connected to block-tx server at %s", btc.address)
+	conn, err := btc.dialGRPC()
+	if err != nil {
+		btc.logger.Fatalf("Failed to connect to block-tx server at %s: %v", btc.address, err)
+	}
+	btc.logger.Infof("Connected to block-tx server at %s", btc.address)
 
-				btc.conn = conn
-				btc.client = blocktx_api.NewBlockTxAPIClient(conn)
-				wg.Done()
-			}
-			time.Sleep(10 * time.Second)
-		}
-	}()
-
-	wg.Wait()
+	btc.conn = conn
+	btc.client = blocktx_api.NewBlockTxAPIClient(conn)
 
 	return btc
 }

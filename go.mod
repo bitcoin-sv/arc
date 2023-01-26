@@ -8,7 +8,6 @@ require (
 	github.com/deepmap/oapi-codegen v1.11.0
 	github.com/dgraph-io/badger/v3 v3.2103.1
 	github.com/getkin/kin-openapi v0.103.0
-	github.com/glycerine/zebrapack v4.1.0+incompatible
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
 	github.com/jarcoal/httpmock v1.2.0
@@ -22,6 +21,7 @@ require (
 	github.com/ordishs/go-bitcoin v1.0.75
 	github.com/ordishs/go-utils v1.0.24
 	github.com/ordishs/gocore v1.0.25
+	github.com/pkg/errors v0.9.1
 	github.com/sasha-s/go-deadlock v0.3.1
 	github.com/stretchr/testify v1.8.1
 	github.com/timshannon/badgerhold/v3 v3.0.0
@@ -63,8 +63,6 @@ require (
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/petermattis/goid v0.0.0-20180202154549-b0b1615b78e5 // indirect
-	github.com/philhofer/fwd v1.1.2 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect

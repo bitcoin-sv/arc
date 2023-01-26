@@ -380,8 +380,9 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 				status := response.Status
 				fmt.Printf("response: %s\n", status)
 				if status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
-					wg.Done()
 					close(responseChannel)
+					time.Sleep(1 * time.Millisecond)
+					wg.Done()
 					return
 				}
 			}

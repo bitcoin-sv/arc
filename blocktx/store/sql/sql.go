@@ -100,6 +100,10 @@ func New(engine string) (store.Interface, error) {
 	}, nil
 }
 
+func (s *SQL) Close() error {
+	return s.db.Close()
+}
+
 func createPostgresSchema(db *sql.DB) error {
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS blocks (

@@ -6,6 +6,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"sync"
 
 	"github.com/TAAL-GmbH/arc/cmd"
 	"github.com/TAAL-GmbH/arc/tracing"
@@ -87,20 +88,31 @@ func main() {
 	if startBlockTx != nil && *startBlockTx {
 		logger.Infof("Starting BlockTx")
 		var blockTxLogger = gocore.Log("btx", gocore.NewLogLevelFromString(logLevel))
-		go cmd.StartBlockTx(blockTxLogger)
+		if blockTxShutdown, err := cmd.StartBlockTx(blockTxLogger); err != nil {
+			logger.Fatalf("Error starting blocktx: %v", err)
+		} else {
+			shutdownFns = append(shutdownFns, func() {
+				blockTxShutdown()
+			})
+		}
 	}
 
 	if startCallbacker != nil && *startCallbacker {
 		logger.Infof("Starting Callbacker")
 		var callbackerLogger = gocore.Log("cbk", gocore.NewLogLevelFromString(logLevel))
-		go cmd.StartCallbacker(callbackerLogger)
+		if callbackerShutdown, err := cmd.StartCallbacker(callbackerLogger); err != nil {
+			logger.Fatalf("Error starting callbacker: %v", err)
+		} else {
+			shutdownFns = append(shutdownFns, func() {
+				callbackerShutdown()
+			})
+		}
 	}
 
 	if startMetamorph != nil && *startMetamorph {
 		logger.Infof("Starting Metamorph")
 		var metamorphLogger = gocore.Log("mtm", gocore.NewLogLevelFromString(logLevel))
-		metamorphShutdown, err := cmd.StartMetamorph(metamorphLogger)
-		if err != nil {
+		if metamorphShutdown, err := cmd.StartMetamorph(metamorphLogger); err != nil {
 			logger.Fatalf("Error starting metamorph: %v", err)
 		} else {
 			shutdownFns = append(shutdownFns, func() {
@@ -112,7 +124,13 @@ func main() {
 	if startApi != nil && *startApi {
 		logger.Infof("Starting ARC api server")
 		var apiLogger = gocore.Log("api", gocore.NewLogLevelFromString(logLevel))
-		go cmd.StartAPIServer(apiLogger)
+		if apiShutdown, err := cmd.StartAPIServer(apiLogger); err != nil {
+			logger.Fatalf("Error starting api server: %v", err)
+		} else {
+			shutdownFns = append(shutdownFns, func() {
+				apiShutdown()
+			})
+		}
 	}
 
 	// setup signal catching
@@ -124,13 +142,20 @@ func main() {
 	os.Exit(1)
 }
 
-// TODO the gocore logger calls an os.Exit(0) which does not allow us to do a proper shutdown
 func appCleanup(logger utils.Logger, shutdownFns []func()) {
 	logger.Infof("Shutting down...")
 
+	var wg sync.WaitGroup
 	for _, fn := range shutdownFns {
-		fn()
+		// fire the shutdown functions off in the background
+		// they might be relying on each other, and this allows them to gracefully stop
+		wg.Add(1)
+		go func(fn func()) {
+			defer wg.Done()
+			fn()
+		}(fn)
 	}
+	wg.Wait()
 }
 
 func isFlagPassed(name string) bool {

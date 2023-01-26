@@ -6,7 +6,7 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-func StartBlockTx(logger utils.Logger) {
+func StartBlockTx(logger utils.Logger) (func(), error) {
 	dbMode, _ := gocore.Config().Get("blocktx_dbMode", "sqlite")
 
 	// dbMode can be sqlite, sqlite_memory or postgres
@@ -19,7 +19,22 @@ func StartBlockTx(logger utils.Logger) {
 
 	blockTxServer := blocktx.NewServer(blockStore, blockNotifier, logger)
 
-	if err = blockTxServer.StartGRPCServer(); err != nil {
-		logger.Fatalf("%v", err)
-	}
+	go func() {
+		if err = blockTxServer.StartGRPCServer(); err != nil {
+			logger.Fatalf("%v", err)
+		}
+	}()
+
+	return func() {
+		logger.Infof("Shutting down blocktx service")
+		err = blockTxServer.StopGRPCServer()
+		if err != nil {
+			logger.Errorf("Error stopping blocktx service: %v", err)
+		}
+		logger.Infof("Shutting down blocktx store")
+		err = blockStore.Close()
+		if err != nil {
+			logger.Errorf("Error closing blocktx store: %v", err)
+		}
+	}, nil
 }

@@ -82,6 +82,8 @@ func main() {
 		*startCallbacker = false
 	}
 
+	shutdownFns := make([]func(), 0)
+
 	if startBlockTx != nil && *startBlockTx {
 		logger.Infof("Starting BlockTx")
 		var blockTxLogger = gocore.Log("btx", gocore.NewLogLevelFromString(logLevel))
@@ -97,7 +99,14 @@ func main() {
 	if startMetamorph != nil && *startMetamorph {
 		logger.Infof("Starting Metamorph")
 		var metamorphLogger = gocore.Log("mtm", gocore.NewLogLevelFromString(logLevel))
-		go cmd.StartMetamorph(metamorphLogger)
+		metamorphShutdown, err := cmd.StartMetamorph(metamorphLogger)
+		if err != nil {
+			logger.Fatalf("Error starting metamorph: %v", err)
+		} else {
+			shutdownFns = append(shutdownFns, func() {
+				metamorphShutdown()
+			})
+		}
 	}
 
 	if startApi != nil && *startApi {
@@ -111,12 +120,17 @@ func main() {
 	signal.Notify(signalChan, os.Interrupt)
 
 	<-signalChan
-	appCleanup(logger)
+	appCleanup(logger, shutdownFns)
 	os.Exit(1)
 }
 
-func appCleanup(logger utils.Logger) {
+// TODO the gocore logger calls an os.Exit(0) which does not allow us to do a proper shutdown
+func appCleanup(logger utils.Logger, shutdownFns []func()) {
 	logger.Infof("Shutting down...")
+
+	for _, fn := range shutdownFns {
+		fn()
+	}
 }
 
 func isFlagPassed(name string) bool {

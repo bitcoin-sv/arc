@@ -94,30 +94,28 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 		}
 
 		// Resend transactions that have not been seen on the network every 60 seconds
-		// TODO: make this configurable
 		// The Items() method will return a copy of the map, so we can iterate over it without locking
 		for range time.NewTicker(60 * time.Second).C {
-			expiredTransactions := p.tx2ChMap.Hashes(filterFunc)
-
-			if len(expiredTransactions) > 0 {
-				logger.Infof("Resending %d expired transactions", len(expiredTransactions))
-				for _, hash := range expiredTransactions {
-					txID := utils.HexEncodeAndReverseBytes(hash)
-					retries := p.tx2ChMap.Retries(txID)
+			expiredTransactionItems := p.tx2ChMap.Items(filterFunc)
+			if len(expiredTransactionItems) > 0 {
+				logger.Infof("Resending %d expired transactions", len(expiredTransactionItems))
+				for txID, item := range expiredTransactionItems {
+					retries := item.Retries()
 					logger.Debugf("Resending expired tx: %s (%d retries)", txID, retries)
-					if retries > 5 {
+					if retries >= 4 {
 						// TODO what should we do here?
-						logger.Debugf("Transaction %s has been retried 5 times, not resending", txID)
+						logger.Debugf("Transaction %s has been retried 4 times, not resending", txID)
 						continue
-					} else if retries > 3 {
-						// retried announcing 3 times, now sending GETDATA to peers to see if they have it
+					} else if retries >= 2 {
+						// retried announcing 2 times, now sending GETDATA to peers to see if they have it
 						logger.Debugf("Re-getting expired tx: %s", txID)
-						p.pm.GetTransaction(hash)
+						p.pm.GetTransaction(item.Hash)
 					} else {
 						logger.Debugf("Re-announcing expired tx: %s", txID)
-						p.pm.AnnounceNewTransaction(hash)
+						p.pm.AnnounceNewTransaction(item.Hash)
 					}
-					p.tx2ChMap.IncrementRetry(txID)
+
+					item.IncrementRetry()
 				}
 			}
 		}

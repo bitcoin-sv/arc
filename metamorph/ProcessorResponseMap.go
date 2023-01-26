@@ -3,12 +3,13 @@ package metamorph
 import (
 	"fmt"
 	"log"
-	"sync"
 	"time"
+
+	"github.com/sasha-s/go-deadlock"
 )
 
 type ProcessorResponseMap struct {
-	mu     sync.RWMutex
+	mu     deadlock.RWMutex
 	expiry time.Duration
 	items  map[string]*ProcessorResponse
 }

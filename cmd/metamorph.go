@@ -24,7 +24,7 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-func StartMetamorph(logger utils.Logger) {
+func StartMetamorph(logger utils.Logger) (func(), error) {
 	folder, _ := gocore.Config().Get("dataFolder", "data")
 	if err := os.MkdirAll(folder, 0755); err != nil {
 		logger.Fatalf("failed to create data folder %s: %+v", folder, err)
@@ -184,9 +184,11 @@ func StartMetamorph(logger utils.Logger) {
 				}
 
 				// send the previous block to the process channel
-				go func() {
-					blockChan <- previousBlock
-				}()
+				if previousBlock == nil {
+					go func() {
+						blockChan <- previousBlock
+					}()
+				}
 			}
 		}
 	}()
@@ -194,9 +196,25 @@ func StartMetamorph(logger utils.Logger) {
 	go btc.Start(blockChan)
 
 	serv := metamorph.NewServer(logger, s, metamorphProcessor)
-	if err = serv.StartGRPCServer(metamorphGRPCListenAddress); err != nil {
-		logger.Errorf("GRPCServer failed: %v", err)
-	}
+
+	go func() {
+		if err = serv.StartGRPCServer(metamorphGRPCListenAddress); err != nil {
+			logger.Errorf("GRPCServer failed: %v", err)
+		}
+	}()
+
+	return func() {
+		logger.Infof("Shutting down metamorph service")
+		err = serv.StopGRPCServer()
+		if err != nil {
+			logger.Errorf("Could not stop GRPC server: %v", err)
+		}
+		logger.Infof("Shutting down metamorph store")
+		err = s.Close(context.Background())
+		if err != nil {
+			logger.Errorf("Could not close store: %v", err)
+		}
+	}, nil
 }
 
 func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {

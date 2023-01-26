@@ -39,21 +39,22 @@ func main() {
 		}
 	}()
 
+	shutdown, err := cmd.StartCallbacker(logger)
+	if err != nil {
+		logger.Fatalf("Error starting callbacker: %v", err)
+	}
+
 	// setup signal catching
 	signalChan := make(chan os.Signal, 1)
-
 	signal.Notify(signalChan, os.Interrupt)
 
-	cmd.StartCallbacker(logger)
+	<-signalChan
 
-	go func() {
-		<-signalChan
-
-		appCleanup(logger)
-		os.Exit(1)
-	}()
+	appCleanup(logger, shutdown)
+	os.Exit(1)
 }
 
-func appCleanup(logger utils.Logger) {
+func appCleanup(logger utils.Logger, shutdown func()) {
 	logger.Infof("Shutting down...")
+	shutdown()
 }

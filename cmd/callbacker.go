@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/TAAL-GmbH/arc/callbacker"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
 
-func StartCallbacker(logger utils.Logger) {
+func StartCallbacker(logger utils.Logger) (func(), error) {
 	folder, _ := gocore.Config().Get("dataFolder", "data")
 
 	callbackStore, err := callbacker.NewStore(folder)
@@ -22,7 +24,23 @@ func StartCallbacker(logger utils.Logger) {
 	callbackWorker.Start()
 
 	srv := callbacker.NewServer(logger, callbackWorker)
-	if err = srv.StartGRPCServer(); err != nil {
-		logger.Fatalf("Could not start callbacker server: %v", err)
-	}
+
+	go func() {
+		if err = srv.StartGRPCServer(); err != nil {
+			logger.Fatalf("Could not start callbacker server: %v", err)
+		}
+	}()
+
+	return func() {
+		logger.Infof("Shutting down callbacker service")
+		err = srv.StopGRPCServer()
+		if err != nil {
+			logger.Errorf("Error stopping callbacker service: %v", err)
+		}
+		logger.Infof("Shutting down callbacker store")
+		err = callbackStore.Close(context.Background())
+		if err != nil {
+			logger.Errorf("Error closing callbacker store: %v", err)
+		}
+	}, nil
 }

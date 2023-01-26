@@ -21,4 +21,5 @@ type Interface interface {
 	OrphanHeight(ctx context.Context, height uint64) error
 	SetOrphanHeight(ctx context.Context, height uint64, orphaned bool) error
 	GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
+	Close() error
 }

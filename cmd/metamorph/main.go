@@ -37,23 +37,22 @@ func main() {
 		}
 	}()
 
-	// setup signal catching
-	signalChan := make(chan os.Signal, 1)
-
-	signal.Notify(signalChan, os.Interrupt)
-
-	metamorphShutdown, err := cmd.StartMetamorph(logger)
+	shutdown, err := cmd.StartMetamorph(logger)
 	if err != nil {
 		logger.Fatalf("Error starting metamorph: %v", err)
 	}
 
+	// setup signal catching
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+
 	<-signalChan
 
-	appCleanup(logger, metamorphShutdown)
+	appCleanup(logger, shutdown)
 	os.Exit(1)
 }
 
-func appCleanup(logger utils.Logger, fn func()) {
+func appCleanup(logger utils.Logger, shutdown func()) {
 	logger.Infof("Shutting down...")
-	fn()
+	shutdown()
 }

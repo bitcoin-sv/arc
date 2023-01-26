@@ -25,6 +25,7 @@ type Server struct {
 	store         store.Interface
 	logger        utils.Logger
 	blockNotifier *BlockNotifier
+	grpcServer    *grpc.Server
 }
 
 // NewServer will return a server instance with the logger stored within it
@@ -47,7 +48,7 @@ func (s *Server) StartGRPCServer() error {
 
 	// LEVEL 0 - no security / no encryption
 	var opts []grpc.ServerOption
-	grpcServer := grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
+	s.grpcServer = grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
 
 	gocore.SetAddress(address)
 
@@ -56,17 +57,23 @@ func (s *Server) StartGRPCServer() error {
 		return fmt.Errorf("GRPC server failed to listen [%w]", err)
 	}
 
-	blocktx_api.RegisterBlockTxAPIServer(grpcServer, s)
+	blocktx_api.RegisterBlockTxAPIServer(s.grpcServer, s)
 
 	// Register reflection service on gRPC server.
-	reflection.Register(grpcServer)
+	reflection.Register(s.grpcServer)
 
 	s.logger.Infof("[BlockTx] GRPC server listening on %s", address)
 
-	if err = grpcServer.Serve(lis); err != nil {
+	if err = s.grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("GRPC server failed [%w]", err)
 	}
 
+	return nil
+}
+
+// StopGRPCServer function
+func (s *Server) StopGRPCServer() error {
+	s.grpcServer.Stop()
 	return nil
 }
 

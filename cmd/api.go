@@ -15,7 +15,7 @@ import (
 
 const progname = "arc"
 
-func StartAPIServer(logger utils.Logger) {
+func StartAPIServer(logger utils.Logger) (func(), error) {
 	// Set up a basic Echo router
 	e := echo.New()
 	e.HideBanner = true
@@ -48,5 +48,23 @@ func StartAPIServer(logger utils.Logger) {
 		panic("arc_httpAddress not found in config")
 	}
 	// Serve HTTP until the world ends.
-	e.Logger.Fatal(e.Start(apiAddress))
+	go func() {
+		err := e.Start(apiAddress)
+		if err != nil {
+			if err == http.ErrServerClosed {
+				logger.Infof("API http server closed")
+				return
+			} else {
+				logger.Fatalf("Error starting API server: %v", err)
+			}
+		}
+	}()
+
+	return func() {
+		logger.Infof("Shutting down api service")
+		err := e.Close()
+		if err != nil {
+			logger.Errorf("Error closing API echo server: %v", err)
+		}
+	}, nil
 }

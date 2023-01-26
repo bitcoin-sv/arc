@@ -66,7 +66,7 @@ func (s *Server) StartGRPCServer(address string) error {
 
 	s.logger.Infof("[Metamorph] GRPC server listening on %s", address)
 
-	if err := s.grpcServer.Serve(lis); err != nil {
+	if err = s.grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("metamorph GRPC server failed [%w]", err)
 	}
 
@@ -74,6 +74,7 @@ func (s *Server) StartGRPCServer(address string) error {
 }
 
 func (s *Server) StopGRPCServer() error {
+	// there is a race condition here, but it's not a big deal
 	s.grpcServer.GracefulStop()
 	return nil
 }

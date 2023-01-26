@@ -3,12 +3,11 @@ package metamorph
 import (
 	"fmt"
 	"log"
-	"sync"
 	"time"
 )
 
 type ProcessorResponseMap struct {
-	mu     sync.RWMutex
+	mu     deadloc.RWMutex
 	expiry time.Duration
 	items  map[string]*ProcessorResponse
 }

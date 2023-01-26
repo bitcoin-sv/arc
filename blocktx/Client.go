@@ -2,6 +2,7 @@ package blocktx
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
@@ -24,27 +25,46 @@ type ClientI interface {
 type Client struct {
 	address string
 	logger  utils.Logger
+	conn    *grpc.ClientConn
+	client  blocktx_api.BlockTxAPIClient
 }
 
 func NewClient(l utils.Logger, address string) ClientI {
-	return &Client{
+	btc := &Client{
 		address: address,
 		logger:  l,
 	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		// reconnect grpc if connection lost
+		for {
+			if btc.conn == nil {
+				conn, err := btc.dialGRPC()
+				if err != nil {
+					btc.logger.Errorf("failed to dial: %v", err)
+					time.Sleep(10 * time.Second)
+					continue
+				}
+				btc.logger.Infof("Connected to block-tx server at %s", btc.address)
+
+				btc.conn = conn
+				btc.client = blocktx_api.NewBlockTxAPIClient(conn)
+				wg.Done()
+			}
+			time.Sleep(10 * time.Second)
+		}
+	}()
+
+	wg.Wait()
+
+	return btc
 }
 
 func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 	for {
-		conn, err := btc.dialGRPC()
-		if err != nil {
-			btc.logger.Errorf("failed to dial: %v", err)
-			time.Sleep(10 * time.Second)
-			continue
-		}
-
-		client := blocktx_api.NewBlockTxAPIClient(conn)
-
-		stream, err := client.GetBlockNotificationStream(context.Background(), &blocktx_api.Height{})
+		stream, err := btc.client.GetBlockNotificationStream(context.Background(), &blocktx_api.Height{})
 		if err != nil {
 			btc.logger.Errorf("Error getting block notification stream: %v", err)
 		} else {
@@ -62,23 +82,12 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 			}
 		}
 
-		btc.logger.Warnf("could not get message from block-tx stream: %v", err)
-		_ = conn.Close()
-		btc.logger.Warnf("Retrying in 10 seconds")
 		time.Sleep(10 * time.Second)
 	}
 }
 
 func (btc *Client) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
-	conn, err := btc.dialGRPC()
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close()
-
-	client := blocktx_api.NewBlockTxAPIClient(conn)
-
-	location, err := client.LocateTransaction(ctx, transaction)
+	location, err := btc.client.LocateTransaction(ctx, transaction)
 	if err != nil {
 		return "", err
 	}
@@ -87,16 +96,7 @@ func (btc *Client) LocateTransaction(ctx context.Context, transaction *blocktx_a
 }
 
 func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
-	conn, err := btc.dialGRPC()
-	if err != nil {
-		return err
-	}
-
-	defer conn.Close()
-
-	client := blocktx_api.NewBlockTxAPIClient(conn)
-
-	if _, err := client.RegisterTransaction(ctx, transaction); err != nil {
+	if _, err := btc.client.RegisterTransaction(ctx, transaction); err != nil {
 		return err
 	}
 
@@ -104,17 +104,7 @@ func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx
 }
 
 func (btc *Client) GetBlock(ctx context.Context, blockHash []byte) (*blocktx_api.Block, error) {
-	conn, err := btc.dialGRPC()
-	if err != nil {
-		return nil, err
-	}
-
-	defer conn.Close()
-
-	client := blocktx_api.NewBlockTxAPIClient(conn)
-
-	var block *blocktx_api.Block
-	block, err = client.GetBlock(ctx, &blocktx_api.Hash{Hash: blockHash})
+	block, err := btc.client.GetBlock(ctx, &blocktx_api.Hash{Hash: blockHash})
 	if err != nil {
 		return nil, err
 	}
@@ -123,16 +113,7 @@ func (btc *Client) GetBlock(ctx context.Context, blockHash []byte) (*blocktx_api
 }
 
 func (btc *Client) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
-	conn, err := btc.dialGRPC()
-	if err != nil {
-		return nil, err
-	}
-
-	defer conn.Close()
-
-	client := blocktx_api.NewBlockTxAPIClient(conn)
-
-	mt, err := client.GetMinedTransactionsForBlock(ctx, blockAndSource)
+	mt, err := btc.client.GetMinedTransactionsForBlock(ctx, blockAndSource)
 	if err != nil {
 		return nil, err
 	}

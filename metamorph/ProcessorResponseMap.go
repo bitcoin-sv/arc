@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/sasha-s/go-deadlock"
 )
 
 type ProcessorResponseMap struct {
-	mu     deadloc.RWMutex
+	mu     deadlock.RWMutex
 	expiry time.Duration
 	items  map[string]*ProcessorResponse
 }

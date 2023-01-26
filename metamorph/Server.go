@@ -25,10 +25,11 @@ import (
 // Server type carries the zmqLogger within it
 type Server struct {
 	metamorph_api.UnimplementedMetaMorphAPIServer
-	logger    utils.Logger
-	processor ProcessorI
-	store     store.MetamorphStore
-	timeout   time.Duration
+	logger     utils.Logger
+	processor  ProcessorI
+	store      store.MetamorphStore
+	timeout    time.Duration
+	grpcServer *grpc.Server
 }
 
 // NewServer will return a server instance with the zmqLogger stored within it
@@ -49,7 +50,7 @@ func (s *Server) SetTimeout(timeout time.Duration) {
 func (s *Server) StartGRPCServer(address string) error {
 	// LEVEL 0 - no security / no encryption
 	var opts []grpc.ServerOption
-	grpcServer := grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
+	s.grpcServer = grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
 
 	gocore.SetAddress(address)
 
@@ -58,17 +59,22 @@ func (s *Server) StartGRPCServer(address string) error {
 		return fmt.Errorf("GRPC server failed to listen [%w]", err)
 	}
 
-	metamorph_api.RegisterMetaMorphAPIServer(grpcServer, s)
+	metamorph_api.RegisterMetaMorphAPIServer(s.grpcServer, s)
 
 	// Register reflection service on gRPC server.
-	reflection.Register(grpcServer)
+	reflection.Register(s.grpcServer)
 
 	s.logger.Infof("[Metamorph] GRPC server listening on %s", address)
 
-	if err := grpcServer.Serve(lis); err != nil {
+	if err := s.grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("metamorph GRPC server failed [%w]", err)
 	}
 
+	return nil
+}
+
+func (s *Server) StopGRPCServer() error {
+	s.grpcServer.GracefulStop()
 	return nil
 }
 

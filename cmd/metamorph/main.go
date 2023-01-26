@@ -42,16 +42,18 @@ func main() {
 
 	signal.Notify(signalChan, os.Interrupt)
 
-	go func() {
-		<-signalChan
+	err, metamorphShutdown := cmd.StartMetamorph(logger)
+	if err != nil {
+		logger.Fatalf("Error starting metamorph: %v", err)
+	}
 
-		appCleanup(logger)
-		os.Exit(1)
-	}()
+	<-signalChan
 
-	cmd.StartMetamorph(logger)
+	appCleanup(logger, metamorphShutdown)
+	os.Exit(1)
 }
 
-func appCleanup(logger utils.Logger) {
+func appCleanup(logger utils.Logger, fn func()) {
 	logger.Infof("Shutting down...")
+	fn()
 }

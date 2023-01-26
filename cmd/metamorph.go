@@ -24,7 +24,7 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-func StartMetamorph(logger utils.Logger) (error, func()) {
+func StartMetamorph(logger utils.Logger) (func(), error) {
 	folder, _ := gocore.Config().Get("dataFolder", "data")
 	if err := os.MkdirAll(folder, 0755); err != nil {
 		logger.Fatalf("failed to create data folder %s: %+v", folder, err)
@@ -203,7 +203,7 @@ func StartMetamorph(logger utils.Logger) (error, func()) {
 		}
 	}()
 
-	return nil, func() {
+	return func() {
 		logger.Infof("Shutting down metamorph service")
 		err = serv.StopGRPCServer()
 		if err != nil {
@@ -214,7 +214,7 @@ func StartMetamorph(logger utils.Logger) (error, func()) {
 		if err != nil {
 			logger.Errorf("Could not close store: %v", err)
 		}
-	}
+	}, nil
 }
 
 func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {

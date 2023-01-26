@@ -42,7 +42,7 @@ func main() {
 
 	signal.Notify(signalChan, os.Interrupt)
 
-	err, metamorphShutdown := cmd.StartMetamorph(logger)
+	metamorphShutdown, err := cmd.StartMetamorph(logger)
 	if err != nil {
 		logger.Fatalf("Error starting metamorph: %v", err)
 	}

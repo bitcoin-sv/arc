@@ -2,17 +2,17 @@ package metamorph
 
 import (
 	"fmt"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/go-utils"
+	"github.com/sasha-s/go-deadlock"
 )
 
 type ProcessorResponse struct {
-	mu      sync.RWMutex
+	mu      deadlock.RWMutex
 	ch      chan StatusAndError
 	Hash    []byte
 	Start   time.Time

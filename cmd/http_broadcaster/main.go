@@ -85,7 +85,7 @@ func SendTransactionToArc(tx *bt.Tx) error {
 	message := string(body)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("Request failed: %s (%d)\n", message, resp.StatusCode)
+		return fmt.Errorf("request failed: %s (%d)", message, resp.StatusCode)
 	}
 
 	fmt.Printf("Status: %d, %s\n", resp.StatusCode, message)

@@ -302,7 +302,7 @@ func (p *Peer) handleGetDataMsg(dataMsg *wire.MsgGetData) {
 
 			txBytes, err := p.peerHandler.HandleTransactionGet(invVect, p)
 			if err != nil {
-				p.logger.Errorf("[%s] Unable to fetch tx %s from store: %v", p.address, invVect.Hash.String(), err)
+				p.logger.Warnf("[%s] Unable to fetch tx %s from store: %v", p.address, invVect.Hash.String(), err)
 				continue
 			}
 

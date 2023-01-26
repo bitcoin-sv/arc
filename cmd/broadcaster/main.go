@@ -21,7 +21,6 @@ var (
 )
 
 func main() {
-	sendOnChannel := flag.Int("buffer", 0, "whether to send transactions over a buffered channel and how big the buffer should be")
 	dryRun := flag.Bool("dryrun", false, "whether to not send transactions or just output to console")
 	apiClient := flag.Bool("api", true, "whether to not send transactions to api or metamorph")
 	consolidate := flag.Bool("consolidate", false, "whether to consolidate all output transactions back into the original")
@@ -31,6 +30,8 @@ func main() {
 	apiKey := flag.String("apikey", "", "api key to use for the http api client")
 	bearer := flag.String("bearer", "", "Bearer auth to use for the http api client")
 	authorization := flag.String("authorization", "", "Authorization header to use for the http api client")
+	printTxIDs := flag.Bool("print", false, "Whether to print out all the tx ids of the transactions")
+	concurrency := flag.Int("concurrency", 0, "How many transactions to send concurrently")
 	flag.Parse()
 
 	args := flag.Args()
@@ -98,8 +99,9 @@ func main() {
 	bCaster.IsRegtest = isRegtest
 	bCaster.IsDryRun = isDryRun
 	bCaster.WaitForStatus = *waitForStatus
+	bCaster.PrintTxIDs = *printTxIDs
 
-	err = bCaster.Run(ctx, sendOnChannel)
+	err = bCaster.Run(ctx, *concurrency)
 	if err != nil {
 		panic(err)
 	}

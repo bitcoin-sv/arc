@@ -9,8 +9,13 @@ TODOs
 - Monitoring API / metamorph / blocktx / callbacker
 - Documentation (Siggi)
 - API yaml cleanup
-- Gracefully disconnect Peers in metamorph and blocktx on shutdown
+- Extended format - add option to send bare transactions
+- More deterministic when sending tx to nodes
+- Cleanup metamorph store after 100 block confirmations
+- Cleanup blocktx store after ...?
+- Re-look at tests in processor_test.go after logic changes
+- Store which peer we sent a transaction to, to only re-send to that peer
 
 Need to figure out
 - Connect to more than 1 node -> can we force our nodes to accept our connections?
--
+- Different strategy for batcher, wait for x millis or wait for no activity for x millis ?

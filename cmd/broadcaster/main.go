@@ -72,6 +72,7 @@ func main() {
 		fmt.Println("")
 		fmt.Println("    -authorization=<raw authorization header>")
 		fmt.Println("          authorization header to use for the http api client (header \"Authorization: ....\")")
+		fmt.Println("")
 		return
 	}
 

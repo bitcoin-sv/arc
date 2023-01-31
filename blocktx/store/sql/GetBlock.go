@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/TAAL-GmbH/arc/blocktx/store"
 	"github.com/pkg/errors"
 )
 
@@ -37,7 +38,7 @@ func (s *SQL) GetBlock(ctx context.Context, hash []byte) (*blocktx_api.Block, er
 		&block.Orphaned,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, store.ErrBlockNotFound
 		}
 		return nil, err
 	}

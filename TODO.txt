@@ -13,7 +13,6 @@ TODOs
 - More deterministic when sending tx to nodes
 - Cleanup metamorph store after 100 block confirmations
 - Cleanup blocktx store after ...?
-- Re-look at tests in processor_test.go after logic changes
 - Store which peer we sent a transaction to, to only re-send to that peer
 
 Need to figure out

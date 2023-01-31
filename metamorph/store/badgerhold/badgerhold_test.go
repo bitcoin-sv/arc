@@ -133,7 +133,7 @@ func TestUpdateStatus(t *testing.T) {
 		defer tearDown(t)
 
 		err := bh.UpdateStatus(context.Background(), tx1Bytes, metamorph_api.Status_SENT_TO_NETWORK, "")
-		require.NoError(t, err) // an error is not thrown if not found
+		require.ErrorIs(t, err, store.ErrNotFound) // an error is thrown if not found
 	})
 
 	t.Run("update status", func(t *testing.T) {

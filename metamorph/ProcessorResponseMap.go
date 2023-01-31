@@ -30,10 +30,9 @@ func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
 	logFile, _ := gocore.Config().Get("metamorph_logFile") //, "./data/metamorph.log")
 
 	m := &ProcessorResponseMap{
-		expiry:    expiry,
-		items:     make(map[string]*ProcessorResponse),
-		logFile:   logFile,
-		logWorker: make(chan processorResponseStats, 10000),
+		expiry:  expiry,
+		items:   make(map[string]*ProcessorResponse),
+		logFile: logFile,
 	}
 
 	go func() {
@@ -44,39 +43,39 @@ func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
 
 	// start log write worker
 	if m.logFile != "" {
-		go func() {
-			f, err := os.OpenFile(m.logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if err != nil {
-				log.Printf("error opening log file: %s", err.Error())
-			}
-			defer f.Close()
-
-			// the status cols will not always be in order if we use the proto map definition
-			statusCols := []int32{0, 1, 2, 3, 4, 5, 6, 7, 108, 109}
-
-			for prs := range m.logWorker {
-				var statsTimes []string
-				for _, status := range statusCols {
-					if s, ok := prs.stats[status]; ok {
-						statsTimes = append(statsTimes, strconv.Itoa(int(s)))
-					} else {
-						// add missing value (empty string)
-						statsTimes = append(statsTimes, "")
-					}
-				}
-
-				_, err = f.WriteString(fmt.Sprintf("%s\t%s\n", prs.key, strings.Join(statsTimes, "\t")))
-				if err != nil {
-					log.Printf("error writing to log file: %s", err.Error())
-				}
-			}
-		}()
-	} else {
-		// close the channel if we're not using it, this will prevent the Delete to block
-		close(m.logWorker)
+		m.logWorker = make(chan processorResponseStats, 10000)
+		go m.logWriter()
 	}
 
 	return m
+}
+
+func (m *ProcessorResponseMap) logWriter() {
+	f, err := os.OpenFile(m.logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Printf("error opening log file: %s", err.Error())
+	}
+	defer f.Close()
+
+	// the status cols will not always be in order if we use the proto map definition
+	statusCols := []int32{0, 1, 2, 3, 4, 5, 6, 7, 108, 109}
+
+	for prs := range m.logWorker {
+		var statsTimes []string
+		for _, status := range statusCols {
+			if s, ok := prs.stats[status]; ok {
+				statsTimes = append(statsTimes, strconv.Itoa(int(s)))
+			} else {
+				// add missing value (empty string)
+				statsTimes = append(statsTimes, "")
+			}
+		}
+
+		_, err = f.WriteString(fmt.Sprintf("%s,%s\n", prs.key, strings.Join(statsTimes, ",")))
+		if err != nil {
+			log.Printf("error writing to log file: %s", err.Error())
+		}
+	}
 }
 
 func (m *ProcessorResponseMap) Set(key string, value *ProcessorResponse) {
@@ -107,7 +106,7 @@ func (m *ProcessorResponseMap) Delete(key string) {
 	defer m.mu.Unlock()
 
 	// append stats to log file
-	if m.logFile != "" {
+	if m.logFile != "" && m.logWorker != nil {
 		utils.SafeSend(m.logWorker, processorResponseStats{
 			key:   key,
 			stats: m.items[key].GetStats(),

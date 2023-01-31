@@ -204,6 +204,14 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		}
 	}()
 
+	zmqURL, err, found := gocore.Config().GetURL("metamorph_zmqAddress") // no default
+	if err != nil {
+		logger.Warnf("Could not parse metamorph_zmqAddress in config: %v", err)
+	} else if found {
+		z := metamorph.NewZMQ(zmqURL, metamorphProcessor)
+		go z.Start()
+	}
+
 	return func() {
 		logger.Infof("Shutting down metamorph store")
 		err = s.Close(context.Background())

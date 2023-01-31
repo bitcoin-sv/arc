@@ -12,6 +12,7 @@ import (
 	"github.com/TAAL-GmbH/arc/asynccaller"
 	"github.com/TAAL-GmbH/arc/blocktx"
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	blockTxStore "github.com/TAAL-GmbH/arc/blocktx/store"
 	"github.com/TAAL-GmbH/arc/callbacker"
 	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
 	"github.com/TAAL-GmbH/arc/metamorph"
@@ -22,6 +23,7 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
+	"github.com/pkg/errors"
 )
 
 func StartMetamorph(logger utils.Logger) (func(), error) {
@@ -179,7 +181,9 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 				var previousBlock *blocktx_api.Block
 				previousBlock, err = btc.GetBlock(context.Background(), block.PreviousHash)
 				if err != nil {
-					logger.Errorf("Could not get previous block from block tx: %v", err)
+					if !errors.Is(err, blockTxStore.ErrBlockNotFound) {
+						logger.Errorf("Could not get previous block from block tx: %v", err)
+					}
 					continue
 				}
 

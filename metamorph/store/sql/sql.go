@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
-	store2 "github.com/TAAL-GmbH/arc/metamorph/store"
+	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/labstack/gommon/random"
 	_ "github.com/lib/pq"
 	"github.com/ordishs/gocore"
@@ -25,7 +25,7 @@ type SQL struct {
 
 // New returns a new initialized SqlLiteStore database implementing the MetamorphStore
 // interface. If the database cannot be initialized, an error will be returned.
-func New(engine string) (store2.MetamorphStore, error) {
+func New(engine string) (store.MetamorphStore, error) {
 	var db *sql.DB
 	var err error
 
@@ -195,7 +195,7 @@ func createSqliteSchema(db *sql.DB) error {
 
 // Get implements the MetamorphStore interface. It attempts to get a value for a given key.
 // If the key does not exist an error is returned, otherwise the retrieved value.
-func (s *SQL) Get(ctx context.Context, hash []byte) (*store2.StoreData, error) {
+func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("Get").AddTime(startNanos)
@@ -220,7 +220,7 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store2.StoreData, error) {
 		,raw_tx
 	 	FROM transactions WHERE hash = $1 LIMIT 1;`
 
-	data := &store2.StoreData{}
+	data := &store.StoreData{}
 
 	var storedAt string
 	var announcedAt string
@@ -246,7 +246,7 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store2.StoreData, error) {
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, store2.ErrNotFound
+			return nil, store.ErrNotFound
 		}
 		return nil, err
 	}
@@ -276,7 +276,7 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store2.StoreData, error) {
 
 // Set implements the MetamorphStore interface. It attempts to store a value for a given key
 // and namespace. If the key/value pair cannot be saved, an error is returned.
-func (s *SQL) Set(ctx context.Context, _ []byte, value *store2.StoreData) error {
+func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("Set").AddTime(startNanos)
@@ -361,7 +361,7 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store2.StoreData) error 
 	return err
 }
 
-func (s *SQL) GetUnseen(ctx context.Context, callback func(s *store2.StoreData)) error {
+func (s *SQL) GetUnseen(ctx context.Context, callback func(s *store.StoreData)) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("getunseen").AddTime(startNanos)
@@ -392,7 +392,7 @@ func (s *SQL) GetUnseen(ctx context.Context, callback func(s *store2.StoreData))
 	defer rows.Close()
 
 	for rows.Next() {
-		data := &store2.StoreData{}
+		data := &store.StoreData{}
 
 		var storedAt string
 		var announcedAt string
@@ -456,9 +456,21 @@ func (s *SQL) UpdateStatus(ctx context.Context, hash []byte, status metamorph_ap
 		WHERE hash = $3
 	;`
 
-	_, err := s.db.ExecContext(ctx, q, status, rejectReason, hash)
+	result, err := s.db.ExecContext(ctx, q, status, rejectReason, hash)
+	if err != nil {
+		return err
+	}
 
-	return err
+	var n int64
+	n, err = result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return store.ErrNotFound
+	}
+
+	return nil
 }
 
 func (s *SQL) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight int32) error {
@@ -543,7 +555,7 @@ func (s *SQL) Del(ctx context.Context, key []byte) error {
 		gocore.NewStat("mtm_store_sql").NewStat("Del").AddTime(startNanos)
 	}()
 
-	hash := store2.HashString(key)
+	hash := store.HashString(key)
 
 	q := `DELETE FROM transactions WHERE hash = $1;`
 

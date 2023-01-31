@@ -367,6 +367,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		} else {
 			p.logger.Debugf("Received status %s for tx %s", status.String(), hashStr)
 		}
+
 		// This is coming from zmq, after the transaction has been deleted from our tx2ChMap
 		// It could be a "seen", "confirmed", "mined" or "rejected" status, but should finalize the tx
 		hash, err := utils.DecodeAndReverseHexString(hashStr)
@@ -381,10 +382,11 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		}
 		err = p.store.UpdateStatus(context.Background(), hash, status, rejectReason)
 		if err != nil {
-			if err != store.ErrNotFound {
-				p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
-				return false, err
+			if err == store.ErrNotFound {
+				return false, nil
 			}
+			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
+			return false, err
 		}
 
 		return true, nil
@@ -458,7 +460,9 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	// we have to store in the background, since we do not want to stop the saving, even if the request ctx has stopped
 	err := p.store.UpdateStatus(context.Background(), req.Hash, processorResponse.GetStatus(), "")
 	if err != nil {
-		p.logger.Errorf("Error updating status for %x: %v", bt.ReverseBytes(req.Hash), err)
+		if err != store.ErrNotFound {
+			p.logger.Errorf("Error updating status for %x: %v", bt.ReverseBytes(req.Hash), err)
+		}
 	}
 
 	gocore.NewStat("processor").NewStat("4: ANNOUNCED stored").AddTime(next)

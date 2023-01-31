@@ -3,9 +3,16 @@ package sql
 import (
 	"context"
 	"database/sql"
+
+	"github.com/ordishs/gocore"
 )
 
 func (s *SQL) MarkBlockAsDone(ctx context.Context, hash []byte, size uint64, txCount uint64) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("MarkBlockAsDone").AddTime(start)
+	}()
+
 	return markBlockAsDone(ctx, s.db, hash, size, txCount, true)
 }
 

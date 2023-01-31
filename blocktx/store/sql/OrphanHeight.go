@@ -3,9 +3,16 @@ package sql
 import (
 	"context"
 	"database/sql"
+
+	"github.com/ordishs/gocore"
 )
 
 func (s *SQL) OrphanHeight(ctx context.Context, height uint64) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("OrphanHeight").AddTime(start)
+	}()
+
 	return setOrphanedForHeight(ctx, s.db, height, true)
 }
 

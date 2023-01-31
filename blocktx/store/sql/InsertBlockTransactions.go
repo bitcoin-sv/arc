@@ -8,10 +8,16 @@ import (
 	"strings"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/ordishs/gocore"
 )
 
 // InsertBlockTransactions inserts the transaction hashes for a given block hash
 func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("InsertBlockTransactions").AddTime(start)
+	}()
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -36,8 +42,8 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 		if err := s.db.QueryRowContext(ctx, qTx, tx.Hash).Scan(&txid); err != nil {
 			if err == sql.ErrNoRows {
 				if err = s.db.QueryRowContext(ctx, `
-					SELECT id 
-					FROM transactions 
+					SELECT id
+					FROM transactions
 					WHERE hash = $1
 				`, tx.Hash).Scan(&txid); err != nil {
 					return err

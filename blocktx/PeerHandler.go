@@ -28,6 +28,10 @@ type PeerHandler struct {
 	announcedCache *expiringmap.ExpiringMap[string, []p2p.PeerI]
 }
 
+func init() {
+	gocore.NewStat("blocktx", true).NewStat("HandleBlock", true)
+}
+
 func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *blocktx_api.Block) p2p.PeerHandlerI {
 	s := &PeerHandler{
 		store:    storeI,
@@ -121,6 +125,11 @@ func (bs *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error 
 }
 
 func (bs *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("HandleBlockAnnouncement").AddTime(start)
+	}()
+
 	pair := utils.NewPair(msg.Hash.CloneBytes(), peer)
 	utils.SafeSend(bs.workerCh, pair)
 
@@ -128,6 +137,11 @@ func (bs *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 }
 
 func (bs *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("HandleBlock").AddTime(start)
+	}()
+
 	timeStart := time.Now()
 
 	blockHash := msg.Header.BlockHash()
@@ -172,6 +186,11 @@ func (bs *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error 
 }
 
 func (bs *PeerHandler) insertBlock(blockHash []byte, merkleRoot []byte, previousBlockHash []byte, height uint64, peer p2p.PeerI) (uint64, error) {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("insertBlock").AddTime(start)
+	}()
+
 	startingHeight, _ := gocore.Config().GetInt("starting_block_height", 700000)
 	if height > uint64(startingHeight) {
 		if _, found := bs.announcedCache.Get(utils.HexEncodeAndReverseBytes(previousBlockHash)); !found {
@@ -195,6 +214,11 @@ func (bs *PeerHandler) insertBlock(blockHash []byte, merkleRoot []byte, previous
 }
 
 func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactions [][]byte) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("markTransactionsAsMined").AddTime(start)
+	}()
+
 	txs := make([]*blocktx_api.TransactionAndSource, 0, len(transactions))
 
 	for _, tx := range transactions {
@@ -211,6 +235,11 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactions [][]
 }
 
 func (bs *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("markBlockAsProcessed").AddTime(start)
+	}()
+
 	err := bs.store.MarkBlockAsDone(context.Background(), block.Hash, block.Size, block.TxCount)
 	if err != nil {
 		return err

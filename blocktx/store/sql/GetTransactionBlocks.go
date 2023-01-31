@@ -2,16 +2,22 @@ package sql
 
 import (
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/ordishs/gocore"
 
 	"context"
 )
 
 func (s *SQL) GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Blocks, error) {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("GetTransactionBlocks").AddTime(start)
+	}()
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	q := `
-		SELECT 
+		SELECT
 		 b.hash
 		FROM blocks b
 		INNER JOIN block_transactions_map m ON m.blockid = b.id

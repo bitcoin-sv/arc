@@ -2,12 +2,18 @@ package sql
 
 import (
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/ordishs/gocore"
 
 	"context"
 )
 
 // GetBlockForHeight returns the un-orphaned block for a given height, if it exists
 func (s *SQL) GetBlockForHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("GetBlockForHeight").AddTime(start)
+	}()
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

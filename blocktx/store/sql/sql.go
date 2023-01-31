@@ -19,6 +19,10 @@ type SQL struct {
 	engine string
 }
 
+func init() {
+	gocore.NewStat("blocktx")
+}
+
 func New(engine string) (store.Interface, error) {
 	var db *sql.DB
 	var err error

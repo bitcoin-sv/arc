@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"log"
+	"os"
 	"sync/atomic"
 	"time"
 
@@ -60,6 +62,8 @@ type Processor struct {
 	pm               p2p.PeerManagerI
 	logger           utils.Logger
 	metamorphAddress string
+	errorLogFile     string
+	errorLogWorker   chan *ProcessorResponse
 
 	startTime                time.Time
 	workerCount              int
@@ -113,45 +117,78 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 	}
 
 	// Start a goroutine to resend transactions that have not been seen on the network
-	go func() {
-		// filterFunc returns true if the transaction has not been seen on the network
-		filterFunc := func(p *ProcessorResponse) bool {
-			return p.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK
-		}
+	go p.processExpiredTransactions()
 
-		// Resend transactions that have not been seen on the network every 60 seconds
-		// The Items() method will return a copy of the map, so we can iterate over it without locking
-		for range time.NewTicker(60 * time.Second).C {
-			expiredTransactionItems := p.tx2ChMap.Items(filterFunc)
-			if len(expiredTransactionItems) > 0 {
-				logger.Infof("Resending %d expired transactions", len(expiredTransactionItems))
-				for txID, item := range expiredTransactionItems {
-					retries := item.Retries()
-					logger.Debugf("Resending expired tx: %s (%d retries)", txID, retries)
-					if retries >= 4 {
-						// TODO what should we do here?
-						logger.Debugf("Transaction %s has been retried 4 times, not resending", txID)
-						continue
-					} else if retries >= 2 {
-						// retried announcing 2 times, now sending GETDATA to peers to see if they have it
-						logger.Debugf("Re-getting expired tx: %s", txID)
-						p.pm.GetTransaction(item.Hash)
-					} else {
-						logger.Debugf("Re-announcing expired tx: %s", txID)
-						p.pm.AnnounceNewTransaction(item.Hash)
-					}
-
-					item.IncrementRetry()
-				}
-			}
-		}
-	}()
+	p.errorLogFile, _ = gocore.Config().Get("metamorph_logErrorFile") //, "./data/metamorph.log")
+	if p.errorLogFile != "" {
+		p.errorLogWorker = make(chan *ProcessorResponse)
+		go p.errorLogWriter()
+	}
 
 	for i := 0; i < workerCount; i++ {
 		go p.process(i)
 	}
 
 	return p
+}
+
+func (p *Processor) errorLogWriter() {
+	f, err := os.OpenFile(p.errorLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		p.logger.Errorf("error opening log file: %s", err.Error())
+	}
+	defer f.Close()
+
+	var storeData *store.StoreData
+	for pr := range p.errorLogWorker {
+		storeData, err = p.store.Get(context.Background(), pr.Hash)
+		if err != nil {
+			p.logger.Errorf("error getting tx from store: %s", err.Error())
+			continue
+		}
+		_, err = f.WriteString(fmt.Sprintf("%s,%s,%s\n",
+			utils.HexEncodeAndReverseBytes(pr.Hash),
+			pr.err.Error(),
+			hex.EncodeToString(storeData.RawTx),
+		))
+		if err != nil {
+			log.Printf("error writing to log file: %s", err.Error())
+		}
+	}
+}
+
+func (p *Processor) processExpiredTransactions() {
+	// filterFunc returns true if the transaction has not been seen on the network
+	filterFunc := func(p *ProcessorResponse) bool {
+		return p.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK
+	}
+
+	// Resend transactions that have not been seen on the network every 60 seconds
+	// The Items() method will return a copy of the map, so we can iterate over it without locking
+	for range time.NewTicker(60 * time.Second).C {
+		expiredTransactionItems := p.tx2ChMap.Items(filterFunc)
+		if len(expiredTransactionItems) > 0 {
+			p.logger.Infof("Resending %d expired transactions", len(expiredTransactionItems))
+			for txID, item := range expiredTransactionItems {
+				retries := item.Retries()
+				p.logger.Debugf("Resending expired tx: %s (%d retries)", txID, retries)
+				if retries >= 4 {
+					// TODO what should we do here?
+					p.logger.Debugf("Transaction %s has been retried 4 times, not resending", txID)
+					continue
+				} else if retries >= 2 {
+					// retried announcing 2 times, now sending GETDATA to peers to see if they have it
+					p.logger.Debugf("Re-getting expired tx: %s", txID)
+					p.pm.GetTransaction(item.Hash)
+				} else {
+					p.logger.Debugf("Re-announcing expired tx: %s", txID)
+					p.pm.AnnounceNewTransaction(item.Hash)
+				}
+
+				item.IncrementRetry()
+			}
+		}
+	}
 }
 
 func (p *Processor) SetLogger(logger utils.Logger) {
@@ -304,6 +341,14 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 				p.tx2ChMap.Delete(hashStr)
 
 			case metamorph_api.Status_REJECTED:
+				// log transaction to the error log
+				if p.errorLogFile != "" && p.errorLogWorker != nil {
+					item, found := p.tx2ChMap.Get(hashStr)
+					if found && item != nil {
+						utils.SafeSend(p.errorLogWorker, item)
+					}
+				}
+
 				p.rejectedCount.Add(1)
 				p.rejectedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
 				p.tx2ChMap.Delete(hashStr)
@@ -322,6 +367,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		} else {
 			p.logger.Debugf("Received status %s for tx %s", status.String(), hashStr)
 		}
+
 		// This is coming from zmq, after the transaction has been deleted from our tx2ChMap
 		// It could be a "seen", "confirmed", "mined" or "rejected" status, but should finalize the tx
 		hash, err := utils.DecodeAndReverseHexString(hashStr)
@@ -336,10 +382,11 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		}
 		err = p.store.UpdateStatus(context.Background(), hash, status, rejectReason)
 		if err != nil {
-			if err != store.ErrNotFound {
-				p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
-				return false, err
+			if err == store.ErrNotFound {
+				return false, nil
 			}
+			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
+			return false, err
 		}
 
 		return true, nil
@@ -410,9 +457,12 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	p.announcedToNetworkMillis.Add(int32(time.Since(processorResponse.Start).Milliseconds()))
 
 	// update to the latest status of the transaction
+	// we have to store in the background, since we do not want to stop the saving, even if the request ctx has stopped
 	err := p.store.UpdateStatus(context.Background(), req.Hash, processorResponse.GetStatus(), "")
 	if err != nil {
-		p.logger.Errorf("Error updating status for %x: %v", bt.ReverseBytes(req.Hash), err)
+		if err != store.ErrNotFound {
+			p.logger.Errorf("Error updating status for %x: %v", bt.ReverseBytes(req.Hash), err)
+		}
 	}
 
 	gocore.NewStat("processor").NewStat("4: ANNOUNCED stored").AddTime(next)

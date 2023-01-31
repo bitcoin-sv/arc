@@ -160,6 +160,8 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	s.processor.ProcessTransaction(NewProcessorRequest(ctx, sReq, responseChannel))
 
 	next = gocore.NewStat("PutTransaction").NewStat("2: ProcessTransaction").AddTime(next)
+	span2, _ := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:Wait")
+	defer span2.Finish()
 
 	waitForStatus := req.WaitForStatus
 	if waitForStatus < metamorph_api.Status_RECEIVED || waitForStatus > metamorph_api.Status_SEEN_ON_NETWORK {

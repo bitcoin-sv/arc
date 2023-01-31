@@ -167,10 +167,10 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm, "test", nil, nil)
 		assert.Equal(t, 0, processor.tx2ChMap.Len())
 
-		// ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_MINED, nil)
-		// assert.False(t, ok)
-		// assert.NoError(t, sendErr)
-		// assert.Equal(t, 0, processor.tx2ChMap.Len())
+		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_MINED, nil)
+		assert.False(t, ok)
+		assert.NoError(t, sendErr)
+		assert.Equal(t, 0, processor.tx2ChMap.Len())
 	})
 
 	t.Run("SendStatusForTransaction err", func(t *testing.T) {

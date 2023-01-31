@@ -4,6 +4,12 @@ import (
 	"context"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/pkg/errors"
+)
+
+var (
+	// ErrBlockNotFound is returned when a block is not found
+	ErrBlockNotFound = errors.New("block not found")
 )
 
 type Interface interface {

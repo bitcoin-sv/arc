@@ -45,7 +45,8 @@ The metamorph store has been implemented for the following databases:
 * Badger (`badger`)
 * BadgerHold (`badgerhold`)
 
-You can select the store to use by setting the `metamorph_dbMode` setting or setting the `METAMORPH_DBMODE` environment variable.
+You can select the store to use by setting the `metamorph_dbMode` in the settings file or adding `metamorph_dbMode` as 
+an environment variable.
 
 ### BlockTx
 

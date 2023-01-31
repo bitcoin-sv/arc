@@ -123,11 +123,6 @@ func (s *Badger) UpdateStatus(ctx context.Context, hash []byte, status metamorph
 
 	tx, err := s.Get(ctx, hash)
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			// no need to update status if we don't have the transaction
-			// we also shouldn't need to return an error here
-			return nil
-		}
 		return err
 	}
 

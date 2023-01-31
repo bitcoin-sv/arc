@@ -350,6 +350,14 @@ func (b *Broadcaster) SendToAddress(address string, satoshis uint64) (string, ui
 		return "", 0, "", err
 	}
 
+	btTx, err := bt.NewTxFromString(tx.Hex)
+	if err != nil {
+		return "", 0, "", err
+	}
+	if err := b.ProcessTransaction(context.Background(), btTx); err != nil {
+		return "", 0, "", err
+	}
+
 	for i, vout := range tx.Vout {
 		if vout.ScriptPubKey.Addresses[0] == address {
 			return txid, uint32(i), vout.ScriptPubKey.Hex, nil

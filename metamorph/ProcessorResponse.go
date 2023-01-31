@@ -12,13 +12,15 @@ import (
 )
 
 type ProcessorResponse struct {
-	mu      deadlock.RWMutex
-	ch      chan StatusAndError
-	Hash    []byte
-	Start   time.Time
-	retries atomic.Uint32
-	err     error
-	status  metamorph_api.Status
+	mu                    deadlock.RWMutex
+	ch                    chan StatusAndError
+	Hash                  []byte
+	Start                 time.Time
+	retries               atomic.Uint32
+	err                   error
+	status                metamorph_api.Status
+	noStats               bool
+	lastStatusUpdateNanos atomic.Int64
 }
 
 func NewProcessorResponse(hash []byte) *ProcessorResponse {

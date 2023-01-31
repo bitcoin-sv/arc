@@ -22,6 +22,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func init() {
+	gocore.NewStat("PutTransaction", true)
+}
+
 // Server type carries the zmqLogger within it
 type Server struct {
 	metamorph_api.UnimplementedMetaMorphAPIServer
@@ -73,18 +77,12 @@ func (s *Server) StartGRPCServer(address string) error {
 	return nil
 }
 
-func (s *Server) StopGRPCServer() error {
-	// there is a race condition here, but it's not a big deal
-	s.grpcServer.GracefulStop()
-	return nil
-}
-
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.HealthResponse, error) {
 	stats := s.processor.GetStats()
 
 	avg := float32(0.0)
-	if stats.ProcessedCount > 0 {
-		avg = float32(stats.ProcessedMillis) / float32(stats.ProcessedCount)
+	if stats.SentToNetworkCount > 0 {
+		avg = float32(stats.SentToNetworkMillis) / float32(stats.SentToNetworkCount)
 	}
 
 	peersConnected, peersDisconnected := s.processor.GetPeers()
@@ -97,7 +95,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 		Workers:           int32(stats.WorkerCount),
 		Uptime:            float32(stats.UptimeMillis) / 1000.0,
 		Queued:            stats.QueuedCount,
-		Processed:         stats.ProcessedCount,
+		Processed:         stats.SentToNetworkCount,
 		Waiting:           stats.QueueLength,
 		Average:           avg,
 		MapSize:           stats.ChannelMapSize,
@@ -107,11 +105,17 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 }
 
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("PutTransaction").AddTime(start)
+	}()
+
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction")
 	defer span.Finish()
 
 	responseChannel := make(chan StatusAndError)
 	defer func() {
+
 		close(responseChannel)
 	}()
 
@@ -138,6 +142,8 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		}, nil
 	}
 
+	next := gocore.NewStat("PutTransaction").NewStat("1: Check store").AddTime(start)
+
 	sReq := &store.StoreData{
 		Hash:          hash,
 		Status:        status,
@@ -153,10 +159,16 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	s.processor.ProcessTransaction(NewProcessorRequest(ctx, sReq, responseChannel))
 
+	next = gocore.NewStat("PutTransaction").NewStat("2: ProcessTransaction").AddTime(next)
+
 	waitForStatus := req.WaitForStatus
 	if waitForStatus < metamorph_api.Status_RECEIVED || waitForStatus > metamorph_api.Status_SEEN_ON_NETWORK {
 		waitForStatus = metamorph_api.Status_SENT_TO_NETWORK
 	}
+
+	defer func() {
+		gocore.NewStat("PutTransaction").NewStat("3: Wait for status").AddTime(next)
+	}()
 
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeout := time.NewTimer(s.timeout)

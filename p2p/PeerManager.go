@@ -45,7 +45,9 @@ func NewPeerManager(logger utils.Logger, network wire.BitcoinNet, batchDuration 
 		},
 	}
 
-	batchDelay := 500 * time.Millisecond
+	batchDelayMillis, _ := gocore.Config().GetInt("peerManager_batchDelay_millis", 10)
+
+	batchDelay := time.Duration(batchDelayMillis) * time.Millisecond
 	if len(batchDuration) > 0 {
 		batchDelay = batchDuration[0]
 	}

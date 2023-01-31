@@ -71,12 +71,6 @@ func (s *Server) StartGRPCServer() error {
 	return nil
 }
 
-// StopGRPCServer function
-func (s *Server) StopGRPCServer() error {
-	s.grpcServer.Stop()
-	return nil
-}
-
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.HealthResponse, error) {
 	return &blocktx_api.HealthResponse{
 		Ok:        true,

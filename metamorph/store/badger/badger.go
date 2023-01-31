@@ -46,10 +46,20 @@ func New(dir string) (*Badger, error) {
 }
 
 func (s *Badger) Close(_ context.Context) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("mtm_store_badger").NewStat("Close").AddTime(start)
+	}()
+
 	return s.store.Close()
 }
 
 func (s *Badger) Set(_ context.Context, key []byte, value *store.StoreData) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("mtm_store_badger").NewStat("Set").AddTime(start)
+	}()
+
 	if value.StoredAt.IsZero() {
 		value.StoredAt = time.Now()
 	}
@@ -71,6 +81,11 @@ func (s *Badger) Set(_ context.Context, key []byte, value *store.StoreData) erro
 }
 
 func (s *Badger) Get(_ context.Context, hash []byte) (*store.StoreData, error) {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("mtm_store_badger").NewStat("Get").AddTime(start)
+	}()
+
 	var result *store.StoreData
 
 	err := s.store.View(func(tx *badger.Txn) error {
@@ -97,6 +112,11 @@ func (s *Badger) Get(_ context.Context, hash []byte) (*store.StoreData, error) {
 
 // UpdateStatus attempts to update the status of a transaction
 func (s *Badger) UpdateStatus(ctx context.Context, hash []byte, status metamorph_api.Status, rejectReason string) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("mtm_store_badger").NewStat("UpdateStatus").AddTime(start)
+	}()
+
 	// we need a lock here since we are doing 2 operations that need to be atomic
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -126,6 +146,11 @@ func (s *Badger) UpdateStatus(ctx context.Context, hash []byte, status metamorph
 
 // UpdateMined updates the transaction to mined
 func (s *Badger) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight int32) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("mtm_store_badger").NewStat("UpdateMined").AddTime(start)
+	}()
+
 	// we need a lock here since we are doing 2 operations that need to be atomic
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -152,6 +177,11 @@ func (s *Badger) UpdateMined(ctx context.Context, hash []byte, blockHash []byte,
 
 // GetUnseen returns all transactions that have not been seen on the network
 func (s *Badger) GetUnseen(_ context.Context, callback func(s *store.StoreData)) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("mtm_store_badger").NewStat("GetUnseen").AddTime(start)
+	}()
+
 	return s.store.View(func(tx *badger.Txn) error {
 		iter := tx.NewIterator(badger.DefaultIteratorOptions)
 		defer iter.Close()
@@ -180,12 +210,22 @@ func (s *Badger) GetUnseen(_ context.Context, callback func(s *store.StoreData))
 }
 
 func (s *Badger) Del(_ context.Context, hash []byte) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("mtm_store_badger").NewStat("Del").AddTime(start)
+	}()
+
 	return s.store.Update(func(tx *badger.Txn) error {
 		return tx.Delete(hash)
 	})
 }
 
 func (s *Badger) GetBlockProcessed(_ context.Context, blockHash []byte) (*time.Time, error) {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("mtm_store_badger").NewStat("GetBlockProcessed").AddTime(start)
+	}()
+
 	var result *time.Time
 
 	key := append([]byte("block_processed_"), blockHash...)
@@ -213,6 +253,11 @@ func (s *Badger) GetBlockProcessed(_ context.Context, blockHash []byte) (*time.T
 }
 
 func (s *Badger) SetBlockProcessed(_ context.Context, blockHash []byte) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("mtm_store_badger").NewStat("SetBlockProcessed").AddTime(start)
+	}()
+
 	value := time.Now()
 	key := append([]byte("block_processed_"), blockHash...)
 

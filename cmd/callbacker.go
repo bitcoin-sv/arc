@@ -32,11 +32,6 @@ func StartCallbacker(logger utils.Logger) (func(), error) {
 	}()
 
 	return func() {
-		logger.Infof("Shutting down callbacker service")
-		err = srv.StopGRPCServer()
-		if err != nil {
-			logger.Errorf("Error stopping callbacker service: %v", err)
-		}
 		logger.Infof("Shutting down callbacker store")
 		err = callbackStore.Close(context.Background())
 		if err != nil {

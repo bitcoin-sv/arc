@@ -104,6 +104,11 @@ func New(engine string) (store2.MetamorphStore, error) {
 }
 
 func createPostgresSchema(db *sql.DB) error {
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("createPostgresSchema").NewStat("duration").AddTime(startNanos)
+	}()
+
 	// Create schema, if necessary...
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS transactions (
@@ -144,6 +149,11 @@ func createPostgresSchema(db *sql.DB) error {
 }
 
 func createSqliteSchema(db *sql.DB) error {
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("createSqliteSchema").AddTime(startNanos)
+	}()
+
 	// Create schema, if necessary...
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS transactions (
@@ -186,6 +196,11 @@ func createSqliteSchema(db *sql.DB) error {
 // Get implements the MetamorphStore interface. It attempts to get a value for a given key.
 // If the key does not exist an error is returned, otherwise the retrieved value.
 func (s *SQL) Get(ctx context.Context, hash []byte) (*store2.StoreData, error) {
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("Get").AddTime(startNanos)
+	}()
+
 	q := `SELECT
 	   stored_at
 		,announced_at
@@ -262,6 +277,11 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store2.StoreData, error) {
 // Set implements the MetamorphStore interface. It attempts to store a value for a given key
 // and namespace. If the key/value pair cannot be saved, an error is returned.
 func (s *SQL) Set(ctx context.Context, _ []byte, value *store2.StoreData) error {
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("Set").AddTime(startNanos)
+	}()
+
 	q := `INSERT INTO transactions (
 		 stored_at
 		,announced_at
@@ -342,6 +362,11 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store2.StoreData) error 
 }
 
 func (s *SQL) GetUnseen(ctx context.Context, callback func(s *store2.StoreData)) error {
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("getunseen").AddTime(startNanos)
+	}()
+
 	q := `SELECT
 	   stored_at
 		,announced_at
@@ -419,6 +444,11 @@ func (s *SQL) GetUnseen(ctx context.Context, callback func(s *store2.StoreData))
 }
 
 func (s *SQL) UpdateStatus(ctx context.Context, hash []byte, status metamorph_api.Status, rejectReason string) error {
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("UpdateStatus").AddTime(startNanos)
+	}()
+
 	q := `
 		UPDATE transactions
 		SET status = $1
@@ -432,6 +462,11 @@ func (s *SQL) UpdateStatus(ctx context.Context, hash []byte, status metamorph_ap
 }
 
 func (s *SQL) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight int32) error {
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("UpdateMined").AddTime(startNanos)
+	}()
+
 	q := `
 		UPDATE transactions
 		SET status = $1
@@ -446,6 +481,11 @@ func (s *SQL) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, bl
 }
 
 func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash []byte) (*time.Time, error) {
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("GetBlockProcessed").AddTime(startNanos)
+	}()
+
 	q := `SELECT
 		processed_at
 	 	FROM blocks WHERE hash = $1 LIMIT 1;`
@@ -474,6 +514,11 @@ func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash []byte) (*time.Ti
 }
 
 func (s *SQL) SetBlockProcessed(ctx context.Context, blockHash []byte) error {
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("SetBlockProcessed").AddTime(startNanos)
+	}()
+
 	q := `INSERT INTO blocks (
 		hash
 		,processed_at
@@ -493,6 +538,11 @@ func (s *SQL) SetBlockProcessed(ctx context.Context, blockHash []byte) error {
 }
 
 func (s *SQL) Del(ctx context.Context, key []byte) error {
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("Del").AddTime(startNanos)
+	}()
+
 	hash := store2.HashString(key)
 
 	q := `DELETE FROM transactions WHERE hash = $1;`
@@ -506,6 +556,11 @@ func (s *SQL) Del(ctx context.Context, key []byte) error {
 // Close implements the MetamorphStore interface. It closes the connection to the underlying
 // MemoryStore database as well as invoking the context's cancel function.
 func (s *SQL) Close(ctx context.Context) error {
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("Close").AddTime(startNanos)
+	}()
+
 	ctx.Done()
 	return s.db.Close()
 }

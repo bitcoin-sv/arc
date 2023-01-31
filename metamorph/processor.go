@@ -410,6 +410,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	p.announcedToNetworkMillis.Add(int32(time.Since(processorResponse.Start).Milliseconds()))
 
 	// update to the latest status of the transaction
+	// we have to store in the background, since we do not want to stop the saving, even if the request ctx has stopped
 	err := p.store.UpdateStatus(context.Background(), req.Hash, processorResponse.GetStatus(), "")
 	if err != nil {
 		p.logger.Errorf("Error updating status for %x: %v", bt.ReverseBytes(req.Hash), err)

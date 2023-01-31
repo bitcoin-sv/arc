@@ -204,11 +204,6 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	}()
 
 	return func() {
-		logger.Infof("Shutting down metamorph service")
-		err = serv.StopGRPCServer()
-		if err != nil {
-			logger.Errorf("Could not stop GRPC server: %v", err)
-		}
 		logger.Infof("Shutting down metamorph store")
 		err = s.Close(context.Background())
 		if err != nil {

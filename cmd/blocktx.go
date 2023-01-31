@@ -26,11 +26,6 @@ func StartBlockTx(logger utils.Logger) (func(), error) {
 	}()
 
 	return func() {
-		logger.Infof("Shutting down blocktx service")
-		err = blockTxServer.StopGRPCServer()
-		if err != nil {
-			logger.Errorf("Error stopping blocktx service: %v", err)
-		}
 		logger.Infof("Shutting down blocktx store")
 		err = blockStore.Close()
 		if err != nil {

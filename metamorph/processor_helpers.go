@@ -15,14 +15,24 @@ func (p *Processor) GetStats() *ProcessorStats {
 	}
 
 	return &ProcessorStats{
-		StartTime:       p.startTime,
-		UptimeMillis:    time.Since(p.startTime).Milliseconds(),
-		WorkerCount:     p.workerCount,
-		QueueLength:     p.queueLength.Load(),
-		QueuedCount:     p.queuedCount.Load(),
-		ProcessedCount:  p.processedCount.Load(),
-		ProcessedMillis: p.processedMillis.Load(),
-		ChannelMapSize:  int32(p.tx2ChMap.Len()),
+		StartTime:                p.startTime,
+		UptimeMillis:             time.Since(p.startTime).Milliseconds(),
+		WorkerCount:              p.workerCount,
+		QueueLength:              p.queueLength.Load(),
+		QueuedCount:              p.queuedCount.Load(),
+		StoredCount:              p.storedCount.Load(),
+		StoredMillis:             p.storedMillis.Load(),
+		AnnouncedToNetworkCount:  p.announcedToNetworkCount.Load(),
+		AnnouncedToNetworkMillis: p.announcedToNetworkMillis.Load(),
+		SentToNetworkCount:       p.sentToNetworkCount.Load(),
+		SentToNetworkMillis:      p.sentToNetworkMillis.Load(),
+		SeenOnNetworkCount:       p.seenOnNetworkCount.Load(),
+		SeenOnNetworkMillis:      p.seenOnNetworkMillis.Load(),
+		MinedCount:               p.minedCount.Load(),
+		MinedMillis:              p.minedMillis.Load(),
+		RejectedCount:            p.rejectedCount.Load(),
+		RejectedMillis:           p.rejectedMillis.Load(),
+		ChannelMapSize:           int32(p.tx2ChMap.Len()),
 	}
 }
 
@@ -39,29 +49,76 @@ func (p *Processor) PrintStatsOnKeypress() func() {
 
 			stats := p.GetStats()
 
-			avg := 0.0
-			if stats.ProcessedCount > 0 {
-				avg = float64(stats.ProcessedMillis) / float64(stats.ProcessedCount)
+			storedAvg := 0.0
+			if stats.StoredCount > 0 {
+				storedAvg = float64(stats.StoredMillis) / float64(stats.StoredCount)
+			}
+
+			announcedAvg := 0.0
+			if stats.AnnouncedToNetworkCount > 0 {
+				announcedAvg = float64(stats.AnnouncedToNetworkMillis)/float64(stats.AnnouncedToNetworkCount) - storedAvg
+			}
+
+			sentToNetworkAvg := 0.0
+			if stats.SentToNetworkCount > 0 {
+				sentToNetworkAvg = float64(stats.SentToNetworkMillis)/float64(stats.SentToNetworkCount) - (storedAvg + announcedAvg)
+			}
+
+			seenOnNetworkAvg := 0.0
+			if stats.SeenOnNetworkCount > 0 {
+				seenOnNetworkAvg = float64(stats.SeenOnNetworkMillis)/float64(stats.SeenOnNetworkCount) - (storedAvg + announcedAvg + sentToNetworkAvg)
+			}
+
+			minedAvg := "0"
+			if stats.MinedCount > 0 {
+				avg := int64(float64(stats.MinedMillis)/float64(stats.MinedCount) - (storedAvg + announcedAvg + sentToNetworkAvg))
+				minedAvg = (time.Duration(avg) * time.Millisecond).String()
+			}
+
+			rejectedAvg := 0.0
+			if stats.RejectedCount > 0 {
+				rejectedAvg = float64(stats.RejectedMillis)/float64(stats.RejectedCount) - (storedAvg + announcedAvg)
 			}
 
 			log.Printf(`Peer stats (started: %s):
 ------------------------
-Workers:   %5d
-Uptime:    %5.2f s
-Queued:    %5d
-Processed: %5d
-Waiting:   %5d
-Average:   %5.2f ms
-MapSize:   %5d
+Workers:          %5d
+Uptime:           %5.2f s
+Queued:           %5d
+Stored:           %5d
+StoredAvg:        %5.2f ms
+Announced:        %5d
+AnnouncedAvg:     %5.2f ms
+SentToNetwork:    %5d
+SentToNetworkAvg: %5.2f ms
+SeenOnNetwork:    %5d
+SeenOnNetworkAvg: %5.2f ms
+Mined:            %5d
+MinedAvg:         %5s
+Rejected:         %5d
+RejectedAvg:      %5.2f ms
+Waiting:          %5d
+MapSize:          %5d
 ------------------------
 `,
+
 				stats.StartTime.UTC().Format(time.RFC3339),
 				stats.WorkerCount,
 				float64(stats.UptimeMillis)/1000.0,
 				stats.QueuedCount,
-				stats.ProcessedCount,
+				stats.StoredCount,
+				storedAvg,
+				stats.AnnouncedToNetworkCount,
+				announcedAvg,
+				stats.SentToNetworkCount,
+				sentToNetworkAvg,
+				stats.SeenOnNetworkCount,
+				seenOnNetworkAvg,
+				stats.MinedCount,
+				minedAvg,
+				stats.RejectedCount,
+				rejectedAvg,
 				stats.QueueLength,
-				avg,
 				stats.ChannelMapSize,
 			)
 		}

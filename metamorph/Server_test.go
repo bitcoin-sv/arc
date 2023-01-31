@@ -27,21 +27,21 @@ func TestHealth(t *testing.T) {
 	t.Run("Health", func(t *testing.T) {
 		processor := NewProcessorMock()
 		processor.Stats = &ProcessorStats{
-			StartTime:       time.Now(),
-			UptimeMillis:    2000,
-			WorkerCount:     123,
-			QueueLength:     136,
-			QueuedCount:     356,
-			ProcessedCount:  555,
-			ProcessedMillis: 45645,
-			ChannelMapSize:  22,
+			StartTime:           time.Now(),
+			UptimeMillis:        2000,
+			WorkerCount:         123,
+			QueueLength:         136,
+			QueuedCount:         356,
+			SentToNetworkCount:  555,
+			SentToNetworkMillis: 45645,
+			ChannelMapSize:      22,
 		}
 		server := NewServer(nil, nil, processor)
 		stats, err := server.Health(context.Background(), &emptypb.Empty{})
 		assert.NoError(t, err)
 		assert.Equal(t, processor.Stats.ChannelMapSize, stats.MapSize)
 		assert.Equal(t, processor.Stats.QueuedCount, stats.Queued)
-		assert.Equal(t, processor.Stats.ProcessedCount, stats.Processed)
+		assert.Equal(t, processor.Stats.SentToNetworkCount, stats.Processed)
 		assert.Equal(t, processor.Stats.QueueLength, stats.Waiting)
 		assert.Equal(t, float32(82.24324), stats.Average)
 	})

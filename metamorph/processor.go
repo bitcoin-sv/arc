@@ -3,6 +3,7 @@ package metamorph
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -18,6 +19,11 @@ import (
 	"github.com/ordishs/gocore"
 )
 
+func init() {
+	// Create a stat for processor that ignores children before any other stat is created
+	gocore.NewStat("processor", true)
+}
+
 type StatusAndError struct {
 	Hash   []byte
 	Status metamorph_api.Status
@@ -25,14 +31,24 @@ type StatusAndError struct {
 }
 
 type ProcessorStats struct {
-	StartTime       time.Time
-	UptimeMillis    int64
-	WorkerCount     int
-	QueueLength     int32
-	QueuedCount     int32
-	ProcessedCount  int32
-	ProcessedMillis int32
-	ChannelMapSize  int32
+	StartTime                time.Time
+	UptimeMillis             int64
+	WorkerCount              int
+	QueueLength              int32
+	QueuedCount              int32
+	StoredCount              int32
+	StoredMillis             int32
+	AnnouncedToNetworkCount  int32
+	AnnouncedToNetworkMillis int32
+	SentToNetworkCount       int32
+	SentToNetworkMillis      int32
+	SeenOnNetworkCount       int32
+	SeenOnNetworkMillis      int32
+	MinedCount               int32
+	MinedMillis              int32
+	RejectedCount            int32
+	RejectedMillis           int32
+	ChannelMapSize           int32
 }
 
 type Processor struct {
@@ -45,12 +61,22 @@ type Processor struct {
 	logger           utils.Logger
 	metamorphAddress string
 
-	startTime       time.Time
-	workerCount     int
-	queueLength     atomic.Int32
-	queuedCount     atomic.Int32
-	processedCount  atomic.Int32
-	processedMillis atomic.Int32
+	startTime                time.Time
+	workerCount              int
+	queueLength              atomic.Int32
+	queuedCount              atomic.Int32
+	storedCount              atomic.Int32
+	storedMillis             atomic.Int32
+	announcedToNetworkCount  atomic.Int32
+	announcedToNetworkMillis atomic.Int32
+	sentToNetworkCount       atomic.Int32
+	sentToNetworkMillis      atomic.Int32
+	seenOnNetworkCount       atomic.Int32
+	seenOnNetworkMillis      atomic.Int32
+	minedCount               atomic.Int32
+	minedMillis              atomic.Int32
+	rejectedCount            atomic.Int32
+	rejectedMillis           atomic.Int32
 }
 
 func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress string,
@@ -152,9 +178,10 @@ func (p *Processor) LoadUnseen() {
 	err := p.store.GetUnseen(context.Background(), func(record *store.StoreData) {
 		// add the records we have in the database, but that have not been processed, to the mempool watcher
 		txIDStr := hex.EncodeToString(bt.ReverseBytes(record.Hash))
-		p.tx2ChMap.Set(txIDStr, NewProcessorResponseWithStatus(record.Hash, record.Status))
+		pr := NewProcessorResponseWithStatus(record.Hash, record.Status)
+		pr.noStats = true
 
-		p.queuedCount.Add(1)
+		p.tx2ChMap.Set(txIDStr, pr)
 
 		if record.Status == metamorph_api.Status_STORED {
 			// we only stored the transaction, but maybe did not register it with block tx
@@ -211,9 +238,11 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 	resp, ok := p.tx2ChMap.Get(hashStr)
 	if ok {
 		resp.SetStatus(metamorph_api.Status_MINED)
+		if !resp.noStats {
+			p.minedCount.Add(1)
+			p.minedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
+		}
 
-		p.processedCount.Add(1)
-		p.processedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
 		p.tx2ChMap.Delete(hashStr)
 	}
 
@@ -237,6 +266,10 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_api.Status, statusErr error) (bool, error) {
 	resp, ok := p.tx2ChMap.Get(hashStr)
 	if ok {
+		if resp.GetStatus() == status && statusErr == nil {
+			return false, nil
+		}
+
 		// we have cached this transaction, so process accordingly
 		rejectReason := ""
 		if statusErr != nil {
@@ -254,16 +287,35 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 			ok = resp.SetStatus(status)
 		}
 
-		// Don't cache the channel if the transactionHandler is not listening anymore
-		// which will have been triggered by a status of SEEN or higher
-		if status >= metamorph_api.Status_SENT_TO_NETWORK {
-			p.processedCount.Add(1)
-			p.processedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
-			p.tx2ChMap.Delete(hashStr)
+		if !resp.noStats {
+			switch status {
+
+			case metamorph_api.Status_SENT_TO_NETWORK:
+				p.sentToNetworkCount.Add(1)
+				p.sentToNetworkMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
+
+			case metamorph_api.Status_SEEN_ON_NETWORK:
+				p.seenOnNetworkCount.Add(1)
+				p.seenOnNetworkMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
+
+			case metamorph_api.Status_MINED:
+				p.minedCount.Add(1)
+				p.minedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
+				p.tx2ChMap.Delete(hashStr)
+
+			case metamorph_api.Status_REJECTED:
+				p.rejectedCount.Add(1)
+				p.rejectedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
+				p.tx2ChMap.Delete(hashStr)
+
+			}
 		}
 
+		statKey := fmt.Sprintf("%d: %s", status, status.String())
+		resp.lastStatusUpdateNanos.Store(gocore.NewStat("processor - async").NewStat(statKey).AddTime(resp.lastStatusUpdateNanos.Load()))
+
 		return ok, nil
-	} else if status > metamorph_api.Status_SEEN_ON_NETWORK {
+	} else if status > metamorph_api.Status_SENT_TO_NETWORK {
 		if statusErr != nil {
 			// Print the error along with the status message
 			p.logger.Debugf("Received status %s for tx %s: %s", status.String(), hashStr, statusErr.Error())
@@ -303,6 +355,11 @@ func (p *Processor) process(_ int) {
 }
 
 func (p *Processor) processTransaction(req *ProcessorRequest) {
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("processor").AddTime(startNanos)
+	}()
+
 	span, _ := opentracing.StartSpanFromContext(req.ctx, "Processor:processTransaction")
 	defer span.Finish()
 
@@ -313,33 +370,52 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	processorResponse := NewProcessorResponseWithChannel(req.Hash, req.ResponseChannel)
 	processorResponse.SetStatus(metamorph_api.Status_RECEIVED)
 
+	nextNanos := gocore.NewStat("processor").NewStat("2: RECEIVED").AddTime(startNanos)
+
 	txIDStr := hex.EncodeToString(bt.ReverseBytes(req.Hash))
-	p.tx2ChMap.Set(txIDStr, processorResponse)
 
 	if err := p.store.Set(context.Background(), req.Hash, req.StoreData); err != nil {
 		p.logger.Errorf("Error storing transaction %s: %v", txIDStr, err)
 		processorResponse.SetErr(err)
-	} else {
-		p.logger.Debugf("Stored tx %s", txIDStr)
-
-		processorResponse.SetStatus(metamorph_api.Status_STORED)
-
-		if p.registerCh != nil {
-			p.logger.Debugf("Sending tx %s to register", txIDStr)
-			utils.SafeSend(p.registerCh, &blocktx_api.TransactionAndSource{
-				Hash:   req.Hash,
-				Source: p.metamorphAddress,
-			})
-		}
-
-		p.pm.AnnounceNewTransaction(req.Hash)
-
-		processorResponse.SetStatus(metamorph_api.Status_ANNOUNCED_TO_NETWORK)
+		return
 	}
+
+	p.tx2ChMap.Set(txIDStr, processorResponse)
+
+	p.logger.Debugf("Stored tx %s", txIDStr)
+
+	processorResponse.SetStatus(metamorph_api.Status_STORED)
+
+	nextNanos = gocore.NewStat("processor").NewStat("3: STORED").AddTime(nextNanos)
+
+	p.storedCount.Add(1)
+	p.storedMillis.Add(int32(time.Since(processorResponse.Start).Milliseconds()))
+
+	if p.registerCh != nil {
+		p.logger.Debugf("Sending tx %s to register", txIDStr)
+		utils.SafeSend(p.registerCh, &blocktx_api.TransactionAndSource{
+			Hash:   req.Hash,
+			Source: p.metamorphAddress,
+		})
+	}
+
+	p.pm.AnnounceNewTransaction(req.Hash)
+
+	processorResponse.SetStatus(metamorph_api.Status_ANNOUNCED_TO_NETWORK)
+
+	next := gocore.NewStat("processor").NewStat("4: ANNOUNCED").AddTime(nextNanos)
+	processorResponse.lastStatusUpdateNanos.Store(next)
+
+	p.announcedToNetworkCount.Add(1)
+	p.announcedToNetworkMillis.Add(int32(time.Since(processorResponse.Start).Milliseconds()))
 
 	// update to the latest status of the transaction
 	err := p.store.UpdateStatus(context.Background(), req.Hash, processorResponse.GetStatus(), "")
 	if err != nil {
 		p.logger.Errorf("Error updating status for %x: %v", bt.ReverseBytes(req.Hash), err)
 	}
+
+	gocore.NewStat("processor").NewStat("4: ANNOUNCED stored").AddTime(next)
+	// Don't set the lastStatusUpdateNanos here, because we don't want to count the time it takes to store the status
+
 }

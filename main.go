@@ -97,6 +97,13 @@ func main() {
 		}
 	}
 
+	statisticsServerAddr, found := gocore.Config().Get("statisticsServerAddress")
+	if found {
+		go func() {
+			gocore.StartStatsServer(statisticsServerAddr)
+		}()
+	}
+
 	if startCallbacker != nil && *startCallbacker {
 		logger.Infof("Starting Callbacker")
 		var callbackerLogger = gocore.Log("cbk", gocore.NewLogLevelFromString(logLevel))

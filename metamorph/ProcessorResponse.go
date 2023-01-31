@@ -19,6 +19,7 @@ type ProcessorResponse struct {
 	retries               atomic.Uint32
 	err                   error
 	status                metamorph_api.Status
+	statusStats           map[int32]int64
 	noStats               bool
 	lastStatusUpdateNanos atomic.Int64
 }
@@ -28,6 +29,9 @@ func NewProcessorResponse(hash []byte) *ProcessorResponse {
 		Start:  time.Now(),
 		Hash:   hash,
 		status: metamorph_api.Status_UNKNOWN,
+		statusStats: map[int32]int64{
+			int32(metamorph_api.Status_UNKNOWN): time.Now().UnixNano(),
+		},
 	}
 }
 
@@ -38,6 +42,9 @@ func NewProcessorResponseWithStatus(hash []byte, status metamorph_api.Status) *P
 		Start:  time.Now(),
 		Hash:   hash,
 		status: status,
+		statusStats: map[int32]int64{
+			int32(status): time.Now().UnixNano(),
+		},
 	}
 }
 
@@ -46,8 +53,18 @@ func NewProcessorResponseWithChannel(hash []byte, ch chan StatusAndError) *Proce
 		Start:  time.Now(),
 		Hash:   hash,
 		status: metamorph_api.Status_UNKNOWN,
-		ch:     ch,
+		statusStats: map[int32]int64{
+			int32(metamorph_api.Status_UNKNOWN): time.Now().UnixNano(),
+		},
+		ch: ch,
 	}
+}
+
+func (r *ProcessorResponse) GetStats() map[int32]int64 {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.statusStats
 }
 
 func (r *ProcessorResponse) String() string {
@@ -71,6 +88,10 @@ func (r *ProcessorResponse) SetStatus(status metamorph_api.Status) bool {
 	}
 
 	ch := r.ch
+
+	if _, ok := r.statusStats[int32(status)]; !ok {
+		r.statusStats[int32(status)] = time.Now().UnixNano()
+	}
 
 	r.mu.Unlock()
 
@@ -123,6 +144,10 @@ func (r *ProcessorResponse) SetStatusAndError(status metamorph_api.Status, err e
 	}
 
 	ch := r.ch
+
+	if _, ok := r.statusStats[int32(status)]; !ok {
+		r.statusStats[int32(status)] = time.Now().UnixNano()
+	}
 
 	r.mu.Unlock()
 

@@ -12,25 +12,10 @@ import (
 
 func TestNewProcessorResponseMap(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
-		tests := []struct {
-			name   string
-			expiry time.Duration
-			want   *ProcessorResponseMap
-		}{
-			{
-				name:   "TestNewProcessorResponseMap",
-				expiry: 10 * time.Second,
-				want: &ProcessorResponseMap{
-					expiry: 10 * time.Second,
-					items:  make(map[string]*ProcessorResponse),
-				},
-			},
-		}
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				assert.Equalf(t, tt.want, NewProcessorResponseMap(tt.expiry), "NewProcessorResponseMap(%v)", tt.expiry)
-			})
-		}
+		expiry := 10 * time.Second
+		prm := NewProcessorResponseMap(expiry)
+		assert.Equalf(t, expiry, prm.expiry, "NewProcessorResponseMap(%v)", expiry)
+		assert.Len(t, prm.items, 0)
 	})
 
 	t.Run("go routine", func(t *testing.T) {

@@ -2,11 +2,17 @@ package sql
 
 import (
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/ordishs/gocore"
 
 	"context"
 )
 
 func (s *SQL) GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, error) {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("GetLastProcessedBlock").AddTime(start)
+	}()
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

@@ -4,12 +4,18 @@ import (
 	"fmt"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/ordishs/gocore"
 
 	"context"
 	"database/sql"
 )
 
 func (s *SQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("InsertBlock").AddTime(start)
+	}()
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

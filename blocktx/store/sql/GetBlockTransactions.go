@@ -4,10 +4,16 @@ import (
 	"context"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/ordishs/gocore"
 )
 
 // GetBlockTransactions returns the transaction hashes for a given block hash
 func (s *SQL) GetBlockTransactions(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error) {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("GetBlockTransaction").AddTime(start)
+	}()
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

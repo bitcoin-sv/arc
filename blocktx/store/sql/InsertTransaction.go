@@ -4,10 +4,16 @@ import (
 	"context"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/ordishs/gocore"
 )
 
 // InsertTransaction registers a transaction in the database
 func (s *SQL) InsertTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("InsertTransaction").AddTime(start)
+	}()
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

@@ -6,10 +6,16 @@ import (
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/blocktx/store"
+	"github.com/ordishs/gocore"
 	"github.com/pkg/errors"
 )
 
 func (s *SQL) GetBlock(ctx context.Context, hash []byte) (*blocktx_api.Block, error) {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("GetBlock").AddTime(start)
+	}()
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

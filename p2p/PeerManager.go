@@ -139,9 +139,9 @@ func (pm *PeerManager) sendDataBatch(batch []*[]byte) {
 
 	for _, peer := range sendToPeers {
 		if err := peer.WriteMsg(dataMsg); err != nil {
-			pm.logger.Infof("ERROR sending data message to peer [%s]: %v", peer, err)
+			pm.logger.Infof("ERROR sending data message to peer [%s]: %v", peer.String(), err)
 		} else {
-			pm.logger.Infof("Sent GETDATA (%d items) to peer: %s", len(batch), sendToPeers[0].String())
+			pm.logger.Infof("Sent GETDATA (%d items) to peer: %s", len(batch), peer.String())
 		}
 	}
 }

@@ -11,6 +11,7 @@ paths:
   # Get Fees
   /arc/v1/fees:
     get:
+      operationId: GET fees
       tags:
         - Arc
       summary: Get the transaction fees required
@@ -29,6 +30,7 @@ paths:
   # Get transaction status
   /arc/v1/tx/{id}:
     get:
+      operationId: GET transaction status
       tags:
         - Arc
       summary: Get transaction status.
@@ -56,6 +58,7 @@ paths:
   # Post transaction
   /arc/v1/tx:
     post:
+      operationId: POST transaction
       tags:
         - Arc
       summary: Submit a transaction.
@@ -140,6 +143,7 @@ paths:
                 $ref: '#/components/schemas/Error'
   /arc/v1/txs:
     post:
+      operationId: POST transactions
       tags:
         - Arc
       summary: Submit multiple transactions.

@@ -29,10 +29,10 @@ func (l loggerWrapper) Warningf(format string, args ...interface{}) {
 	l.Warnf(format, args...)
 }
 
-var logLevel, _ = gocore.Config().Get("logLevel")
-var logger = loggerWrapper{gocore.Log("bdgrh", gocore.NewLogLevelFromString(logLevel))}
-
 func New(dir string) (*BadgerHold, error) {
+	logLevel, _ := gocore.Config().Get("logLevel")
+	logger := loggerWrapper{gocore.Log("bdgrh", gocore.NewLogLevelFromString(logLevel))}
+
 	options := badgerhold.DefaultOptions
 
 	options.Dir = dir

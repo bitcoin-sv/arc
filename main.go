@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -27,6 +28,37 @@ func init() {
 }
 
 func main() {
+	startApi := flag.Bool("api", false, "start ARC api server")
+	startMetamorph := flag.Bool("metamorph", false, "start metamorph")
+	startBlockTx := flag.Bool("blocktx", false, "start blocktx")
+	startCallbacker := flag.Bool("callbacker", false, "start callbacker")
+	useTracer := flag.Bool("tracer", false, "start tracer")
+	help := flag.Bool("help", false, "Show help")
+
+	flag.Parse()
+
+	if help != nil && *help {
+		fmt.Println("usage: main [options]")
+		fmt.Println("where options are:")
+		fmt.Println("")
+		fmt.Println("    -api=<true|false>")
+		fmt.Println("          whether to start ARC api server (default=true)")
+		fmt.Println("")
+		fmt.Println("    -metamorph=<true|false>")
+		fmt.Println("          whether to start metamorph (default=true)")
+		fmt.Println("")
+		fmt.Println("    -blocktx=<true|false>")
+		fmt.Println("          whether to start block tx (default=true)")
+		fmt.Println("")
+		fmt.Println("    -callbacker=<true|false>")
+		fmt.Println("          whether to start callbacker (default=true)")
+		fmt.Println("")
+		fmt.Println("    -tracer=<true|false>")
+		fmt.Println("          whether to start the Jaeger tracer (default=false)")
+		fmt.Println("")
+		return
+	}
+
 	logLevel, _ := gocore.Config().Get("logLevel")
 	logger := gocore.Log(progname, gocore.NewLogLevelFromString(logLevel))
 
@@ -40,14 +72,6 @@ func main() {
 			logger.Fatalf("%v", http.ListenAndServe(profilerAddr, nil))
 		}
 	}()
-
-	startApi := flag.Bool("api", false, "start ARC api server")
-	startMetamorph := flag.Bool("metamorph", false, "start metamorph")
-	startBlockTx := flag.Bool("blocktx", false, "start blocktx")
-	startCallbacker := flag.Bool("callbacker", false, "start callbacker")
-	useTracer := flag.Bool("tracer", false, "start tracer")
-
-	flag.Parse()
 
 	if useTracer != nil && *useTracer {
 		logger.Infof("Starting tracer")

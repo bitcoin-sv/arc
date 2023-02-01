@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +20,8 @@ import (
 	defaultValidator "github.com/TAAL-GmbH/arc/validator/default"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
+	"github.com/ordishs/go-bitcoin"
+	"github.com/ordishs/gocore"
 )
 
 type ArcDefaultHandler struct {
@@ -422,31 +425,62 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 		return txBytes, nil
 	}
 
+	// get from our node, if configured
+	peerURL, _, peerURLFound := gocore.Config().GetURL("peer_rpc")
+	if peerURLFound {
+		// get the transaction from the bitcoin node rpc
+		port, _ := strconv.Atoi(peerURL.Port())
+		var node *bitcoin.Bitcoind
+		password, _ := peerURL.User.Password()
+		node, err = bitcoin.New(peerURL.Hostname(), port, peerURL.User.Username(), password, false)
+		if err == nil {
+			var tx *bitcoin.RawTransaction
+			tx, err = node.GetRawTransaction(inputTxID)
+			if err == nil {
+				txBytes, err = hex.DecodeString(tx.Hex)
+				if err == nil {
+					return txBytes, nil
+				}
+			}
+		}
+	}
+
 	// get from woc
-	var resp *http.Response
-	resp, err = http.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/tx/%s/hex\n", "main", inputTxID))
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+	wocApiKey, _ := gocore.Config().Get("wocApiKey")
+	if wocApiKey != "" {
+		wocURL := fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/tx/%s/hex", "main", inputTxID)
+		var req *http.Request
+		req, err = http.NewRequestWithContext(ctx, http.MethodGet, wocURL, nil)
 
-	if resp.StatusCode != 200 {
-		return nil, transactionHandler.ErrTransactionNotFound
+		req.Header.Set("Authorization", wocApiKey)
+
+		var resp *http.Response
+		resp, err = http.DefaultClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != 200 {
+			return nil, transactionHandler.ErrParentTransactionNotFound
+		}
+
+		var txHexBytes []byte
+		txHexBytes, err = io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		txHex := string(txHexBytes)
+		txBytes, err = hex.DecodeString(txHex)
+		if err != nil {
+			return nil, err
+		}
+
+		return txBytes, nil
 	}
 
-	var txHexBytes []byte
-	txHexBytes, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	txHex := string(txHexBytes)
-	txBytes, err = hex.DecodeString(txHex)
-	if err != nil {
-		return nil, err
-	}
-
-	return txBytes, nil
+	return nil, transactionHandler.ErrParentTransactionNotFound
 }
 
 func getFees(_ echo.Context) (*api.FeesResponse, error) {

@@ -43,7 +43,7 @@ License: <a href="https://bitcoinassociation.net/open-bsv-license/">Open BSV Lic
 > Code samples
 
 ```http
-GET /arc/v1/fees HTTP/1.1
+GET /v1/fees HTTP/1.1
 
 Accept: application/json
 
@@ -56,7 +56,7 @@ const headers = {
   'Authorization':'Bearer {access-token}'
 };
 
-fetch('/arc/v1/fees',
+fetch('/v1/fees',
 {
   method: 'GET',
 
@@ -71,7 +71,7 @@ fetch('/arc/v1/fees',
 ```
 
 ```java
-URL obj = new URL("/arc/v1/fees");
+URL obj = new URL("/v1/fees");
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod("GET");
 int responseCode = con.getResponseCode();
@@ -103,7 +103,7 @@ func main() {
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
-    req, err := http.NewRequest("GET", "/arc/v1/fees", data)
+    req, err := http.NewRequest("GET", "/v1/fees", data)
     req.Header = headers
 
     client := &http.Client{}
@@ -122,7 +122,7 @@ headers = {
   'Authorization' => 'Bearer {access-token}'
 }
 
-result = RestClient.get '/arc/v1/fees',
+result = RestClient.get '/v1/fees',
   params: {
   }, headers: headers
 
@@ -137,7 +137,7 @@ headers = {
   'Authorization': 'Bearer {access-token}'
 }
 
-r = requests.get('/arc/v1/fees', headers = headers)
+r = requests.get('/v1/fees', headers = headers)
 
 print(r.json())
 
@@ -145,13 +145,13 @@ print(r.json())
 
 ```shell
 # You can also use wget
-curl -X GET /arc/v1/fees \
+curl -X GET /v1/fees \
   -H 'Accept: application/json' \
   -H 'Authorization: Bearer {access-token}'
 
 ```
 
-`GET /arc/v1/fees`
+`GET /v1/fees`
 
 This endpoint returns the fees required for the api key used.
 
@@ -195,7 +195,7 @@ BearerAuth
 > Code samples
 
 ```http
-GET /arc/v1/tx/{id} HTTP/1.1
+GET /v1/tx/{id} HTTP/1.1
 
 Accept: application/json
 
@@ -208,7 +208,7 @@ const headers = {
   'Authorization':'Bearer {access-token}'
 };
 
-fetch('/arc/v1/tx/{id}',
+fetch('/v1/tx/{id}',
 {
   method: 'GET',
 
@@ -223,7 +223,7 @@ fetch('/arc/v1/tx/{id}',
 ```
 
 ```java
-URL obj = new URL("/arc/v1/tx/{id}");
+URL obj = new URL("/v1/tx/{id}");
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod("GET");
 int responseCode = con.getResponseCode();
@@ -255,7 +255,7 @@ func main() {
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
-    req, err := http.NewRequest("GET", "/arc/v1/tx/{id}", data)
+    req, err := http.NewRequest("GET", "/v1/tx/{id}", data)
     req.Header = headers
 
     client := &http.Client{}
@@ -274,7 +274,7 @@ headers = {
   'Authorization' => 'Bearer {access-token}'
 }
 
-result = RestClient.get '/arc/v1/tx/{id}',
+result = RestClient.get '/v1/tx/{id}',
   params: {
   }, headers: headers
 
@@ -289,7 +289,7 @@ headers = {
   'Authorization': 'Bearer {access-token}'
 }
 
-r = requests.get('/arc/v1/tx/{id}', headers = headers)
+r = requests.get('/v1/tx/{id}', headers = headers)
 
 print(r.json())
 
@@ -297,13 +297,13 @@ print(r.json())
 
 ```shell
 # You can also use wget
-curl -X GET /arc/v1/tx/{id} \
+curl -X GET /v1/tx/{id} \
   -H 'Accept: application/json' \
   -H 'Authorization: Bearer {access-token}'
 
 ```
 
-`GET /arc/v1/tx/{id}`
+`GET /v1/tx/{id}`
 
 This endpoint is used to get the current status of a previously submitted transaction.
 
@@ -345,7 +345,7 @@ BearerAuth
 > Code samples
 
 ```http
-POST /arc/v1/tx HTTP/1.1
+POST /v1/tx HTTP/1.1
 
 Content-Type: text/plain
 Accept: application/json
@@ -366,7 +366,7 @@ const headers = {
   'Authorization':'Bearer {access-token}'
 };
 
-fetch('/arc/v1/tx',
+fetch('/v1/tx',
 {
   method: 'POST',
   body: inputBody,
@@ -381,7 +381,7 @@ fetch('/arc/v1/tx',
 ```
 
 ```java
-URL obj = new URL("/arc/v1/tx");
+URL obj = new URL("/v1/tx");
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod("POST");
 int responseCode = con.getResponseCode();
@@ -417,7 +417,7 @@ func main() {
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
-    req, err := http.NewRequest("POST", "/arc/v1/tx", data)
+    req, err := http.NewRequest("POST", "/v1/tx", data)
     req.Header = headers
 
     client := &http.Client{}
@@ -440,7 +440,7 @@ headers = {
   'Authorization' => 'Bearer {access-token}'
 }
 
-result = RestClient.post '/arc/v1/tx',
+result = RestClient.post '/v1/tx',
   params: {
   }, headers: headers
 
@@ -459,7 +459,7 @@ headers = {
   'Authorization': 'Bearer {access-token}'
 }
 
-r = requests.post('/arc/v1/tx', headers = headers)
+r = requests.post('/v1/tx', headers = headers)
 
 print(r.json())
 
@@ -467,7 +467,7 @@ print(r.json())
 
 ```shell
 # You can also use wget
-curl -X POST /arc/v1/tx \
+curl -X POST /v1/tx \
   -H 'Content-Type: text/plain' \
   -H 'Accept: application/json' \
   -H 'X-CallbackUrl: string' \
@@ -477,7 +477,7 @@ curl -X POST /arc/v1/tx \
 
 ```
 
-`POST /arc/v1/tx`
+`POST /v1/tx`
 
 This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.  The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
 
@@ -571,7 +571,7 @@ BearerAuth
 > Code samples
 
 ```http
-POST /arc/v1/txs HTTP/1.1
+POST /v1/txs HTTP/1.1
 
 Content-Type: text/plain
 Accept: application/json
@@ -593,7 +593,7 @@ const headers = {
   'Authorization':'Bearer {access-token}'
 };
 
-fetch('/arc/v1/txs',
+fetch('/v1/txs',
 {
   method: 'POST',
   body: inputBody,
@@ -608,7 +608,7 @@ fetch('/arc/v1/txs',
 ```
 
 ```java
-URL obj = new URL("/arc/v1/txs");
+URL obj = new URL("/v1/txs");
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod("POST");
 int responseCode = con.getResponseCode();
@@ -644,7 +644,7 @@ func main() {
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
-    req, err := http.NewRequest("POST", "/arc/v1/txs", data)
+    req, err := http.NewRequest("POST", "/v1/txs", data)
     req.Header = headers
 
     client := &http.Client{}
@@ -667,7 +667,7 @@ headers = {
   'Authorization' => 'Bearer {access-token}'
 }
 
-result = RestClient.post '/arc/v1/txs',
+result = RestClient.post '/v1/txs',
   params: {
   }, headers: headers
 
@@ -686,7 +686,7 @@ headers = {
   'Authorization': 'Bearer {access-token}'
 }
 
-r = requests.post('/arc/v1/txs', headers = headers)
+r = requests.post('/v1/txs', headers = headers)
 
 print(r.json())
 
@@ -694,7 +694,7 @@ print(r.json())
 
 ```shell
 # You can also use wget
-curl -X POST /arc/v1/txs \
+curl -X POST /v1/txs \
   -H 'Content-Type: text/plain' \
   -H 'Accept: application/json' \
   -H 'X-CallbackUrl: string' \
@@ -704,7 +704,7 @@ curl -X POST /arc/v1/txs \
 
 ```
 
-`POST /arc/v1/txs`
+`POST /v1/txs`
 
 This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates. The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
 

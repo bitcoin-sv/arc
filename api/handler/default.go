@@ -2,8 +2,10 @@ package handler
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -24,15 +26,15 @@ type ArcDefaultHandler struct {
 }
 
 func NewDefault(transactionHandler transactionHandler.TransactionHandler) (api.HandlerInterface, error) {
-	bitcoinHandler := &ArcDefaultHandler{
+	handler := &ArcDefaultHandler{
 		TransactionHandler: transactionHandler,
 	}
 
-	return bitcoinHandler, nil
+	return handler, nil
 }
 
-// GetArcV1Fees ...
-func (m ArcDefaultHandler) GetArcV1Fees(ctx echo.Context) error {
+// GETFees ...
+func (m ArcDefaultHandler) GETFees(ctx echo.Context) error {
 	fees, err := getFees(ctx)
 	if err != nil {
 		status, response, responseErr := m.handleError(ctx, nil, err)
@@ -50,8 +52,8 @@ func (m ArcDefaultHandler) GetArcV1Fees(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, fees)
 }
 
-// PostArcV1Tx ...
-func (m ArcDefaultHandler) PostArcV1Tx(ctx echo.Context, params api.PostArcV1TxParams) error {
+// POSTTransaction ...
+func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) error {
 	body, err := io.ReadAll(ctx.Request().Body)
 	if err != nil {
 		errStr := err.Error()
@@ -71,7 +73,7 @@ func (m ArcDefaultHandler) PostArcV1Tx(ctx echo.Context, params api.PostArcV1TxP
 		}
 	case "application/json":
 		var txHex string
-		var txBody api.PostArcV1TxJSONBody
+		var txBody api.POSTTransactionJSONBody
 		if err = json.Unmarshal(body, &txBody); err != nil {
 			errStr := err.Error()
 			e := api.ErrMalformed
@@ -108,11 +110,17 @@ func (m ArcDefaultHandler) PostArcV1Tx(ctx echo.Context, params api.PostArcV1TxP
 	return ctx.JSON(int(status), response)
 }
 
-// GetArcV1TxId Similar to GetArcV2TxStatusId, but also returns the whole transaction
-func (m ArcDefaultHandler) GetArcV1TxId(ctx echo.Context, id string) error {
+// GETTransactionStatus ...
+func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) error {
 
 	tx, err := m.getTransactionStatus(ctx.Request().Context(), id)
 	if err != nil {
+		if errors.Is(err, transactionHandler.ErrTransactionNotFound) {
+			e := api.ErrNotFound
+			e.Detail = err.Error()
+			return echo.NewHTTPError(http.StatusNotFound, e)
+		}
+
 		errStr := err.Error()
 		e := api.ErrGeneric
 		e.ExtraInfo = &errStr
@@ -132,8 +140,8 @@ func (m ArcDefaultHandler) GetArcV1TxId(ctx echo.Context, id string) error {
 	})
 }
 
-// PostArcV1Txs ...
-func (m ArcDefaultHandler) PostArcV1Txs(ctx echo.Context, params api.PostArcV1TxsParams) error {
+// POSTTransactions ...
+func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) error {
 
 	// set the globals for all transactions in this request
 	transactionOptions := getTransactionsOptions(params)
@@ -266,11 +274,11 @@ func (m ArcDefaultHandler) getTransactionResponse(ctx echo.Context, tx string, t
 	return response
 }
 
-func getTransactionOptions(params api.PostArcV1TxParams) *api.TransactionOptions {
-	return getTransactionsOptions(api.PostArcV1TxsParams(params))
+func getTransactionOptions(params api.POSTTransactionParams) *api.TransactionOptions {
+	return getTransactionsOptions(api.POSTTransactionsParams(params))
 }
 
-func getTransactionsOptions(params api.PostArcV1TxsParams) *api.TransactionOptions {
+func getTransactionsOptions(params api.POSTTransactionsParams) *api.TransactionOptions {
 	transactionOptions := &api.TransactionOptions{}
 	if params.XCallbackUrl != nil {
 		transactionOptions.CallbackURL = *params.XCallbackUrl
@@ -299,6 +307,16 @@ func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.
 	}
 
 	txValidator := defaultValidator.New(fees)
+
+	// the validator expects an extended transaction
+	// we must enrich the transaction with the missing data
+	if !txValidator.IsExtended(transaction) {
+		err = m.extendTransaction(ctx, transaction)
+		if err != nil {
+			return m.handleError(ctx, transaction, err)
+		}
+	}
+
 	if err = txValidator.ValidateTransaction(transaction); err != nil {
 		return m.handleError(ctx, transaction, err)
 	}
@@ -307,6 +325,11 @@ func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.
 	tx, err = m.TransactionHandler.SubmitTransaction(ctx.Request().Context(), transaction.Bytes(), transactionOptions)
 	if err != nil {
 		return m.handleError(ctx, transaction, err)
+	}
+
+	txID := tx.TxID
+	if txID == "" {
+		txID = transaction.TxID()
 	}
 
 	// TODO differentiate between 200 and 201
@@ -319,6 +342,39 @@ func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.
 		Timestamp:   time.Now(),
 		Txid:        &tx.TxID,
 	}, nil
+}
+
+func (m ArcDefaultHandler) extendTransaction(ctx echo.Context, transaction *bt.Tx) (err error) {
+	parentTxBytes := make(map[string][]byte)
+	var btParentTx *bt.Tx
+
+	// get the missing input data for the transaction
+	for _, input := range transaction.Inputs {
+		parentTxIDStr := input.PreviousTxIDStr()
+		b, ok := parentTxBytes[parentTxIDStr]
+		if !ok {
+			b, err = m.getTransaction(ctx.Request().Context(), parentTxIDStr)
+			if err != nil {
+				return err
+			}
+			parentTxBytes[parentTxIDStr] = b
+		}
+
+		btParentTx, err = bt.NewTxFromBytes(b)
+		if err != nil {
+			return err
+		}
+
+		if len(btParentTx.Outputs) < int(input.PreviousTxOutIndex) {
+			return fmt.Errorf("output %d not found in transaction %s", input.PreviousTxOutIndex, parentTxIDStr)
+		}
+		output := btParentTx.Outputs[input.PreviousTxOutIndex]
+
+		input.PreviousTxScript = output.LockingScript
+		input.PreviousTxSatoshis = output.Satoshis
+	}
+
+	return nil
 }
 
 func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) (*transactionHandler.TransactionStatus, error) {
@@ -353,6 +409,44 @@ func (m ArcDefaultHandler) handleError(_ echo.Context, transaction *bt.Tx, submi
 	}
 
 	return status, arcError, nil
+}
+
+// getTransaction returns the transaction with the given id from a store
+func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string) ([]byte, error) {
+	// get from our transaction handler
+	txBytes, err := m.TransactionHandler.GetTransaction(ctx, inputTxID)
+	if err != nil && !errors.Is(err, transactionHandler.ErrTransactionNotFound) {
+		return nil, err
+	}
+	if txBytes != nil {
+		return txBytes, nil
+	}
+
+	// get from woc
+	var resp *http.Response
+	resp, err = http.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/tx/%s/hex\n", "main", inputTxID))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, transactionHandler.ErrTransactionNotFound
+	}
+
+	var txHexBytes []byte
+	txHexBytes, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	txHex := string(txHexBytes)
+	txBytes, err = hex.DecodeString(txHex)
+	if err != nil {
+		return nil, err
+	}
+
+	return txBytes, nil
 }
 
 func getFees(_ echo.Context) (*api.FeesResponse, error) {

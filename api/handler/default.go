@@ -20,6 +20,7 @@ import (
 	defaultValidator "github.com/TAAL-GmbH/arc/validator/default"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
+	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
 )
@@ -396,6 +397,10 @@ func (m ArcDefaultHandler) handleError(_ echo.Context, transaction *bt.Tx, submi
 		status = isArcError.ArcErrorStatus
 	}
 
+	if errors.Is(submitErr, transactionHandler.ErrParentTransactionNotFound) {
+		status = api.ErrStatusTxFormat
+	}
+
 	// enrich the response with the error details
 	arcError := api.ErrByStatus[status]
 	if arcError == nil {
@@ -416,6 +421,9 @@ func (m ArcDefaultHandler) handleError(_ echo.Context, transaction *bt.Tx, submi
 
 // getTransaction returns the transaction with the given id from a store
 func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string) ([]byte, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ArcDefaultHandler:getTransaction")
+	defer span.Finish()
+
 	// get from our transaction handler
 	txBytes, err := m.TransactionHandler.GetTransaction(ctx, inputTxID)
 	if err != nil && !errors.Is(err, transactionHandler.ErrTransactionNotFound) {
@@ -451,33 +459,28 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 		wocURL := fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/tx/%s/hex", "main", inputTxID)
 		var req *http.Request
 		req, err = http.NewRequestWithContext(ctx, http.MethodGet, wocURL, nil)
+		if err == nil {
+			req.Header.Set("Authorization", wocApiKey)
 
-		req.Header.Set("Authorization", wocApiKey)
+			var resp *http.Response
+			resp, err = http.DefaultClient.Do(req)
+			if err == nil {
+				defer resp.Body.Close()
+				if resp.StatusCode != 200 {
+					return nil, transactionHandler.ErrParentTransactionNotFound
+				}
 
-		var resp *http.Response
-		resp, err = http.DefaultClient.Do(req)
-		if err != nil {
-			return nil, err
+				var txHexBytes []byte
+				txHexBytes, err = io.ReadAll(resp.Body)
+				if err == nil {
+					txHex := string(txHexBytes)
+					txBytes, err = hex.DecodeString(txHex)
+					if err == nil {
+						return txBytes, nil
+					}
+				}
+			}
 		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != 200 {
-			return nil, transactionHandler.ErrParentTransactionNotFound
-		}
-
-		var txHexBytes []byte
-		txHexBytes, err = io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
-
-		txHex := string(txHexBytes)
-		txBytes, err = hex.DecodeString(txHex)
-		if err != nil {
-			return nil, err
-		}
-
-		return txBytes, nil
 	}
 
 	return nil, transactionHandler.ErrParentTransactionNotFound

@@ -26,6 +26,22 @@ func NewBitcoinNode(host string, port int, user, passwd string, useSSL bool) (*B
 	}, nil
 }
 
+// GetTransaction gets a raw transaction from the bitcoin node
+func (b *BitcoinNode) GetTransaction(_ context.Context, txID string) (txBytes []byte, err error) {
+	var rawTx *bitcoin.RawTransaction
+	rawTx, err = b.Node.GetRawTransaction(txID)
+	if err != nil {
+		return nil, err
+	}
+
+	txBytes, err = hex.DecodeString(rawTx.Hex)
+	if err != nil {
+		return nil, err
+	}
+
+	return txBytes, nil
+}
+
 // GetTransactionStatus gets a raw transaction from the bitcoin node
 func (b *BitcoinNode) GetTransactionStatus(_ context.Context, txID string) (status *TransactionStatus, err error) {
 	var rawTx *bitcoin.RawTransaction

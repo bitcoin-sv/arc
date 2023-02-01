@@ -32,6 +32,7 @@ func main() {
 	authorization := flag.String("authorization", "", "Authorization header to use for the http api client")
 	printTxIDs := flag.Bool("print", false, "Whether to print out all the tx ids of the transactions")
 	concurrency := flag.Int("concurrency", 0, "How many transactions to send concurrently")
+	batch := flag.Int("batch", 0, "send transactions in batches of this size")
 	flag.Parse()
 
 	args := flag.Args()
@@ -72,6 +73,9 @@ func main() {
 		fmt.Println("")
 		fmt.Println("    -authorization=<raw authorization header>")
 		fmt.Println("          authorization header to use for the http api client (header \"Authorization: ....\")")
+		fmt.Println("")
+		fmt.Println("    -batch=<batch size>")
+		fmt.Println("          send transactions in batches of this size (default=0, no batching), only in api mode")
 		fmt.Println("")
 		return
 	}
@@ -130,6 +134,7 @@ func main() {
 	bCaster.IsDryRun = isDryRun
 	bCaster.WaitForStatus = *waitForStatus
 	bCaster.PrintTxIDs = *printTxIDs
+	bCaster.BatchSend = *batch
 
 	err = bCaster.Run(ctx, *concurrency)
 	if err != nil {

@@ -160,18 +160,26 @@ func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 				b.txs[i], _ = b.NewTransaction(b.ToKeySet, u)
 			}
 
+			var wg sync.WaitGroup
 			for i := 0; i < len(b.txs); i += b.BatchSend {
 				j := i + b.BatchSend
 				if j > len(b.txs) {
 					j = len(b.txs)
 				}
 
-				var txStatus []*metamorph_api.TransactionStatus
-				txStatus, err = b.Client.BroadcastTransactions(ctx, b.txs[i:j], metamorph_api.Status(b.WaitForStatus))
-				for _, res := range txStatus {
-					b.processResult(res)
-				}
+				wg.Add(1)
+				log.Printf("   Sending batch of %d - %d\n", i, j)
+				go func(txs []*bt.Tx) {
+					defer wg.Done()
+
+					var txStatus []*metamorph_api.TransactionStatus
+					txStatus, err = b.Client.BroadcastTransactions(ctx, txs, metamorph_api.Status(b.WaitForStatus))
+					for _, res := range txStatus {
+						b.processResult(res)
+					}
+				}(b.txs[i:j])
 			}
+			wg.Wait()
 		} else {
 			if concurrency == 0 {
 				// use the number of outputs as the default concurrency

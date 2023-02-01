@@ -17,4 +17,5 @@ type OutpointData struct {
 type Validator interface {
 	// ValidateTransaction Please note that bt.Tx should have all the fields of each input populated.
 	ValidateTransaction(tx *bt.Tx) error
+	IsExtended(tx *bt.Tx) bool
 }

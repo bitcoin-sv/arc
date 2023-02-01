@@ -180,6 +180,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 			return &metamorph_api.TransactionStatus{
 				TimedOut: true,
 				Status:   status,
+				Txid:     utils.HexEncodeAndReverseBytes(hash),
 			}, nil
 		case res := <-responseChannel:
 			resStatus := res.Status
@@ -191,6 +192,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 			if resErr != nil {
 				return &metamorph_api.TransactionStatus{
 					Status:       status,
+					Txid:         utils.HexEncodeAndReverseBytes(hash),
 					RejectReason: resErr.Error(),
 				}, nil
 			}
@@ -198,16 +200,54 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 			if status >= waitForStatus {
 				return &metamorph_api.TransactionStatus{
 					Status: status,
+					Txid:   utils.HexEncodeAndReverseBytes(hash),
 				}, nil
 			}
 		}
 	}
 }
 
-func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.TransactionStatus, error) {
-	txBytes, err := hex.DecodeString(req.Txid)
+func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.Transaction, error) {
+	data, announcedAt, minedAt, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
 		return nil, err
+	}
+
+	return &metamorph_api.Transaction{
+		Txid:         fmt.Sprintf("%x", bt.ReverseBytes(data.Hash)),
+		AnnouncedAt:  announcedAt,
+		StoredAt:     storedAt,
+		MinedAt:      minedAt,
+		Status:       data.Status,
+		BlockHeight:  data.BlockHeight,
+		BlockHash:    fmt.Sprintf("%x", bt.ReverseBytes(data.BlockHash)),
+		RejectReason: data.RejectReason,
+		RawTx:        data.RawTx,
+	}, nil
+}
+
+func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.TransactionStatus, error) {
+	data, announcedAt, minedAt, storedAt, err := s.getTransactionData(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &metamorph_api.TransactionStatus{
+		Txid:         fmt.Sprintf("%x", bt.ReverseBytes(data.Hash)),
+		AnnouncedAt:  announcedAt,
+		StoredAt:     storedAt,
+		MinedAt:      minedAt,
+		Status:       data.Status,
+		BlockHeight:  data.BlockHeight,
+		BlockHash:    fmt.Sprintf("%x", bt.ReverseBytes(data.BlockHash)),
+		RejectReason: data.RejectReason,
+	}, nil
+}
+
+func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*store.StoreData, *timestamppb.Timestamp, *timestamppb.Timestamp, *timestamppb.Timestamp, error) {
+	txBytes, err := hex.DecodeString(req.Txid)
+	if err != nil {
+		return nil, nil, nil, nil, err
 	}
 
 	hash := bt.ReverseBytes(txBytes)
@@ -215,7 +255,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 	var data *store.StoreData
 	data, err = s.store.Get(ctx, hash)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	var announcedAt *timestamppb.Timestamp
@@ -230,14 +270,6 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 	if !data.StoredAt.IsZero() {
 		storedAt = timestamppb.New(data.StoredAt)
 	}
-	return &metamorph_api.TransactionStatus{
-		Txid:         fmt.Sprintf("%x", bt.ReverseBytes(data.Hash)),
-		AnnouncedAt:  announcedAt,
-		StoredAt:     storedAt,
-		MinedAt:      minedAt,
-		Status:       data.Status,
-		BlockHeight:  data.BlockHeight,
-		BlockHash:    fmt.Sprintf("%x", bt.ReverseBytes(data.BlockHash)),
-		RejectReason: data.RejectReason,
-	}, nil
+
+	return data, announcedAt, minedAt, storedAt, nil
 }

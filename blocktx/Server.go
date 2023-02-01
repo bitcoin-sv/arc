@@ -81,6 +81,9 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.Healt
 func (s *Server) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Source, error) {
 	source, err := s.store.GetTransactionSource(ctx, transaction.Hash)
 	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, ErrTransactionNotFound
+		}
 		return nil, err
 	}
 

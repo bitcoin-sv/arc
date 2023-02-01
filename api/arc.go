@@ -313,11 +313,11 @@ type MerkleProof = string
 // WaitForStatus defines model for waitForStatus.
 type WaitForStatus = int
 
-// PostArcV1TxJSONBody defines parameters for PostArcV1Tx.
-type PostArcV1TxJSONBody = TransactionRequest
+// POSTTransactionJSONBody defines parameters for POSTTransaction.
+type POSTTransactionJSONBody = TransactionRequest
 
-// PostArcV1TxParams defines parameters for PostArcV1Tx.
-type PostArcV1TxParams struct {
+// POSTTransactionParams defines parameters for POSTTransaction.
+type POSTTransactionParams struct {
 	// Default double spend and merkle proof notification callback endpoint.
 	XCallbackUrl *CallbackUrl `json:"X-CallbackUrl,omitempty"`
 
@@ -331,11 +331,11 @@ type PostArcV1TxParams struct {
 	XWaitForStatus *WaitForStatus `json:"X-WaitForStatus,omitempty"`
 }
 
-// PostArcV1TxsJSONBody defines parameters for PostArcV1Txs.
-type PostArcV1TxsJSONBody = []string
+// POSTTransactionsJSONBody defines parameters for POSTTransactions.
+type POSTTransactionsJSONBody = []string
 
-// PostArcV1TxsParams defines parameters for PostArcV1Txs.
-type PostArcV1TxsParams struct {
+// POSTTransactionsParams defines parameters for POSTTransactions.
+type POSTTransactionsParams struct {
 	// Default double spend and merkle proof notification callback endpoint.
 	XCallbackUrl *CallbackUrl `json:"X-CallbackUrl,omitempty"`
 
@@ -349,11 +349,11 @@ type PostArcV1TxsParams struct {
 	XWaitForStatus *WaitForStatus `json:"X-WaitForStatus,omitempty"`
 }
 
-// PostArcV1TxJSONRequestBody defines body for PostArcV1Tx for application/json ContentType.
-type PostArcV1TxJSONRequestBody = PostArcV1TxJSONBody
+// POSTTransactionJSONRequestBody defines body for POSTTransaction for application/json ContentType.
+type POSTTransactionJSONRequestBody = POSTTransactionJSONBody
 
-// PostArcV1TxsJSONRequestBody defines body for PostArcV1Txs for application/json ContentType.
-type PostArcV1TxsJSONRequestBody = PostArcV1TxsJSONBody
+// POSTTransactionsJSONRequestBody defines body for POSTTransactions for application/json ContentType.
+type POSTTransactionsJSONRequestBody = POSTTransactionsJSONBody
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -428,25 +428,25 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// GetArcV1Fees request
-	GetArcV1Fees(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GETFees request
+	GETFees(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PostArcV1Tx request with any body
-	PostArcV1TxWithBody(ctx context.Context, params *PostArcV1TxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// POSTTransaction request with any body
+	POSTTransactionWithBody(ctx context.Context, params *POSTTransactionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PostArcV1Tx(ctx context.Context, params *PostArcV1TxParams, body PostArcV1TxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	POSTTransaction(ctx context.Context, params *POSTTransactionParams, body POSTTransactionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetArcV1TxId request
-	GetArcV1TxId(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GETTransactionStatus request
+	GETTransactionStatus(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PostArcV1Txs request with any body
-	PostArcV1TxsWithBody(ctx context.Context, params *PostArcV1TxsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// POSTTransactions request with any body
+	POSTTransactionsWithBody(ctx context.Context, params *POSTTransactionsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PostArcV1Txs(ctx context.Context, params *PostArcV1TxsParams, body PostArcV1TxsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	POSTTransactions(ctx context.Context, params *POSTTransactionsParams, body POSTTransactionsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) GetArcV1Fees(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetArcV1FeesRequest(c.Server)
+func (c *Client) GETFees(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGETFeesRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -457,8 +457,8 @@ func (c *Client) GetArcV1Fees(ctx context.Context, reqEditors ...RequestEditorFn
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostArcV1TxWithBody(ctx context.Context, params *PostArcV1TxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostArcV1TxRequestWithBody(c.Server, params, contentType, body)
+func (c *Client) POSTTransactionWithBody(ctx context.Context, params *POSTTransactionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPOSTTransactionRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -469,8 +469,8 @@ func (c *Client) PostArcV1TxWithBody(ctx context.Context, params *PostArcV1TxPar
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostArcV1Tx(ctx context.Context, params *PostArcV1TxParams, body PostArcV1TxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostArcV1TxRequest(c.Server, params, body)
+func (c *Client) POSTTransaction(ctx context.Context, params *POSTTransactionParams, body POSTTransactionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPOSTTransactionRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -481,8 +481,8 @@ func (c *Client) PostArcV1Tx(ctx context.Context, params *PostArcV1TxParams, bod
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetArcV1TxId(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetArcV1TxIdRequest(c.Server, id)
+func (c *Client) GETTransactionStatus(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGETTransactionStatusRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -493,8 +493,8 @@ func (c *Client) GetArcV1TxId(ctx context.Context, id string, reqEditors ...Requ
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostArcV1TxsWithBody(ctx context.Context, params *PostArcV1TxsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostArcV1TxsRequestWithBody(c.Server, params, contentType, body)
+func (c *Client) POSTTransactionsWithBody(ctx context.Context, params *POSTTransactionsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPOSTTransactionsRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -505,8 +505,8 @@ func (c *Client) PostArcV1TxsWithBody(ctx context.Context, params *PostArcV1TxsP
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostArcV1Txs(ctx context.Context, params *PostArcV1TxsParams, body PostArcV1TxsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostArcV1TxsRequest(c.Server, params, body)
+func (c *Client) POSTTransactions(ctx context.Context, params *POSTTransactionsParams, body POSTTransactionsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPOSTTransactionsRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -517,8 +517,8 @@ func (c *Client) PostArcV1Txs(ctx context.Context, params *PostArcV1TxsParams, b
 	return c.Client.Do(req)
 }
 
-// NewGetArcV1FeesRequest generates requests for GetArcV1Fees
-func NewGetArcV1FeesRequest(server string) (*http.Request, error) {
+// NewGETFeesRequest generates requests for GETFees
+func NewGETFeesRequest(server string) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -526,7 +526,7 @@ func NewGetArcV1FeesRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/arc/v1/fees")
+	operationPath := fmt.Sprintf("/v1/fees")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -544,19 +544,19 @@ func NewGetArcV1FeesRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewPostArcV1TxRequest calls the generic PostArcV1Tx builder with application/json body
-func NewPostArcV1TxRequest(server string, params *PostArcV1TxParams, body PostArcV1TxJSONRequestBody) (*http.Request, error) {
+// NewPOSTTransactionRequest calls the generic POSTTransaction builder with application/json body
+func NewPOSTTransactionRequest(server string, params *POSTTransactionParams, body POSTTransactionJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewPostArcV1TxRequestWithBody(server, params, "application/json", bodyReader)
+	return NewPOSTTransactionRequestWithBody(server, params, "application/json", bodyReader)
 }
 
-// NewPostArcV1TxRequestWithBody generates requests for PostArcV1Tx with any type of body
-func NewPostArcV1TxRequestWithBody(server string, params *PostArcV1TxParams, contentType string, body io.Reader) (*http.Request, error) {
+// NewPOSTTransactionRequestWithBody generates requests for POSTTransaction with any type of body
+func NewPOSTTransactionRequestWithBody(server string, params *POSTTransactionParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -564,7 +564,7 @@ func NewPostArcV1TxRequestWithBody(server string, params *PostArcV1TxParams, con
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/arc/v1/tx")
+	operationPath := fmt.Sprintf("/v1/tx")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -628,8 +628,8 @@ func NewPostArcV1TxRequestWithBody(server string, params *PostArcV1TxParams, con
 	return req, nil
 }
 
-// NewGetArcV1TxIdRequest generates requests for GetArcV1TxId
-func NewGetArcV1TxIdRequest(server string, id string) (*http.Request, error) {
+// NewGETTransactionStatusRequest generates requests for GETTransactionStatus
+func NewGETTransactionStatusRequest(server string, id string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -644,7 +644,7 @@ func NewGetArcV1TxIdRequest(server string, id string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/arc/v1/tx/%s", pathParam0)
+	operationPath := fmt.Sprintf("/v1/tx/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -662,19 +662,19 @@ func NewGetArcV1TxIdRequest(server string, id string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewPostArcV1TxsRequest calls the generic PostArcV1Txs builder with application/json body
-func NewPostArcV1TxsRequest(server string, params *PostArcV1TxsParams, body PostArcV1TxsJSONRequestBody) (*http.Request, error) {
+// NewPOSTTransactionsRequest calls the generic POSTTransactions builder with application/json body
+func NewPOSTTransactionsRequest(server string, params *POSTTransactionsParams, body POSTTransactionsJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewPostArcV1TxsRequestWithBody(server, params, "application/json", bodyReader)
+	return NewPOSTTransactionsRequestWithBody(server, params, "application/json", bodyReader)
 }
 
-// NewPostArcV1TxsRequestWithBody generates requests for PostArcV1Txs with any type of body
-func NewPostArcV1TxsRequestWithBody(server string, params *PostArcV1TxsParams, contentType string, body io.Reader) (*http.Request, error) {
+// NewPOSTTransactionsRequestWithBody generates requests for POSTTransactions with any type of body
+func NewPOSTTransactionsRequestWithBody(server string, params *POSTTransactionsParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -682,7 +682,7 @@ func NewPostArcV1TxsRequestWithBody(server string, params *PostArcV1TxsParams, c
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/arc/v1/txs")
+	operationPath := fmt.Sprintf("/v1/txs")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -789,31 +789,31 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// GetArcV1Fees request
-	GetArcV1FeesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetArcV1FeesResponse, error)
+	// GETFees request
+	GETFeesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GETFeesResponse, error)
 
-	// PostArcV1Tx request with any body
-	PostArcV1TxWithBodyWithResponse(ctx context.Context, params *PostArcV1TxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostArcV1TxResponse, error)
+	// POSTTransaction request with any body
+	POSTTransactionWithBodyWithResponse(ctx context.Context, params *POSTTransactionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*POSTTransactionResponse, error)
 
-	PostArcV1TxWithResponse(ctx context.Context, params *PostArcV1TxParams, body PostArcV1TxJSONRequestBody, reqEditors ...RequestEditorFn) (*PostArcV1TxResponse, error)
+	POSTTransactionWithResponse(ctx context.Context, params *POSTTransactionParams, body POSTTransactionJSONRequestBody, reqEditors ...RequestEditorFn) (*POSTTransactionResponse, error)
 
-	// GetArcV1TxId request
-	GetArcV1TxIdWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetArcV1TxIdResponse, error)
+	// GETTransactionStatus request
+	GETTransactionStatusWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GETTransactionStatusResponse, error)
 
-	// PostArcV1Txs request with any body
-	PostArcV1TxsWithBodyWithResponse(ctx context.Context, params *PostArcV1TxsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostArcV1TxsResponse, error)
+	// POSTTransactions request with any body
+	POSTTransactionsWithBodyWithResponse(ctx context.Context, params *POSTTransactionsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*POSTTransactionsResponse, error)
 
-	PostArcV1TxsWithResponse(ctx context.Context, params *PostArcV1TxsParams, body PostArcV1TxsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostArcV1TxsResponse, error)
+	POSTTransactionsWithResponse(ctx context.Context, params *POSTTransactionsParams, body POSTTransactionsJSONRequestBody, reqEditors ...RequestEditorFn) (*POSTTransactionsResponse, error)
 }
 
-type GetArcV1FeesResponse struct {
+type GETFeesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *FeesResponse
 }
 
 // Status returns HTTPResponse.Status
-func (r GetArcV1FeesResponse) Status() string {
+func (r GETFeesResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -821,14 +821,14 @@ func (r GetArcV1FeesResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetArcV1FeesResponse) StatusCode() int {
+func (r GETFeesResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type PostArcV1TxResponse struct {
+type POSTTransactionResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *TransactionResponse
@@ -840,7 +840,7 @@ type PostArcV1TxResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r PostArcV1TxResponse) Status() string {
+func (r POSTTransactionResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -848,21 +848,21 @@ func (r PostArcV1TxResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r PostArcV1TxResponse) StatusCode() int {
+func (r POSTTransactionResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type GetArcV1TxIdResponse struct {
+type GETTransactionStatusResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *TransactionStatus
 }
 
 // Status returns HTTPResponse.Status
-func (r GetArcV1TxIdResponse) Status() string {
+func (r GETTransactionStatusResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -870,14 +870,14 @@ func (r GetArcV1TxIdResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetArcV1TxIdResponse) StatusCode() int {
+func (r GETTransactionStatusResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type PostArcV1TxsResponse struct {
+type POSTTransactionsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *TransactionResponses
@@ -885,7 +885,7 @@ type PostArcV1TxsResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r PostArcV1TxsResponse) Status() string {
+func (r POSTTransactionsResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -893,74 +893,74 @@ func (r PostArcV1TxsResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r PostArcV1TxsResponse) StatusCode() int {
+func (r POSTTransactionsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-// GetArcV1FeesWithResponse request returning *GetArcV1FeesResponse
-func (c *ClientWithResponses) GetArcV1FeesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetArcV1FeesResponse, error) {
-	rsp, err := c.GetArcV1Fees(ctx, reqEditors...)
+// GETFeesWithResponse request returning *GETFeesResponse
+func (c *ClientWithResponses) GETFeesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GETFeesResponse, error) {
+	rsp, err := c.GETFees(ctx, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetArcV1FeesResponse(rsp)
+	return ParseGETFeesResponse(rsp)
 }
 
-// PostArcV1TxWithBodyWithResponse request with arbitrary body returning *PostArcV1TxResponse
-func (c *ClientWithResponses) PostArcV1TxWithBodyWithResponse(ctx context.Context, params *PostArcV1TxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostArcV1TxResponse, error) {
-	rsp, err := c.PostArcV1TxWithBody(ctx, params, contentType, body, reqEditors...)
+// POSTTransactionWithBodyWithResponse request with arbitrary body returning *POSTTransactionResponse
+func (c *ClientWithResponses) POSTTransactionWithBodyWithResponse(ctx context.Context, params *POSTTransactionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*POSTTransactionResponse, error) {
+	rsp, err := c.POSTTransactionWithBody(ctx, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostArcV1TxResponse(rsp)
+	return ParsePOSTTransactionResponse(rsp)
 }
 
-func (c *ClientWithResponses) PostArcV1TxWithResponse(ctx context.Context, params *PostArcV1TxParams, body PostArcV1TxJSONRequestBody, reqEditors ...RequestEditorFn) (*PostArcV1TxResponse, error) {
-	rsp, err := c.PostArcV1Tx(ctx, params, body, reqEditors...)
+func (c *ClientWithResponses) POSTTransactionWithResponse(ctx context.Context, params *POSTTransactionParams, body POSTTransactionJSONRequestBody, reqEditors ...RequestEditorFn) (*POSTTransactionResponse, error) {
+	rsp, err := c.POSTTransaction(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostArcV1TxResponse(rsp)
+	return ParsePOSTTransactionResponse(rsp)
 }
 
-// GetArcV1TxIdWithResponse request returning *GetArcV1TxIdResponse
-func (c *ClientWithResponses) GetArcV1TxIdWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetArcV1TxIdResponse, error) {
-	rsp, err := c.GetArcV1TxId(ctx, id, reqEditors...)
+// GETTransactionStatusWithResponse request returning *GETTransactionStatusResponse
+func (c *ClientWithResponses) GETTransactionStatusWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GETTransactionStatusResponse, error) {
+	rsp, err := c.GETTransactionStatus(ctx, id, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetArcV1TxIdResponse(rsp)
+	return ParseGETTransactionStatusResponse(rsp)
 }
 
-// PostArcV1TxsWithBodyWithResponse request with arbitrary body returning *PostArcV1TxsResponse
-func (c *ClientWithResponses) PostArcV1TxsWithBodyWithResponse(ctx context.Context, params *PostArcV1TxsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostArcV1TxsResponse, error) {
-	rsp, err := c.PostArcV1TxsWithBody(ctx, params, contentType, body, reqEditors...)
+// POSTTransactionsWithBodyWithResponse request with arbitrary body returning *POSTTransactionsResponse
+func (c *ClientWithResponses) POSTTransactionsWithBodyWithResponse(ctx context.Context, params *POSTTransactionsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*POSTTransactionsResponse, error) {
+	rsp, err := c.POSTTransactionsWithBody(ctx, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostArcV1TxsResponse(rsp)
+	return ParsePOSTTransactionsResponse(rsp)
 }
 
-func (c *ClientWithResponses) PostArcV1TxsWithResponse(ctx context.Context, params *PostArcV1TxsParams, body PostArcV1TxsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostArcV1TxsResponse, error) {
-	rsp, err := c.PostArcV1Txs(ctx, params, body, reqEditors...)
+func (c *ClientWithResponses) POSTTransactionsWithResponse(ctx context.Context, params *POSTTransactionsParams, body POSTTransactionsJSONRequestBody, reqEditors ...RequestEditorFn) (*POSTTransactionsResponse, error) {
+	rsp, err := c.POSTTransactions(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostArcV1TxsResponse(rsp)
+	return ParsePOSTTransactionsResponse(rsp)
 }
 
-// ParseGetArcV1FeesResponse parses an HTTP response from a GetArcV1FeesWithResponse call
-func ParseGetArcV1FeesResponse(rsp *http.Response) (*GetArcV1FeesResponse, error) {
+// ParseGETFeesResponse parses an HTTP response from a GETFeesWithResponse call
+func ParseGETFeesResponse(rsp *http.Response) (*GETFeesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetArcV1FeesResponse{
+	response := &GETFeesResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -978,15 +978,15 @@ func ParseGetArcV1FeesResponse(rsp *http.Response) (*GetArcV1FeesResponse, error
 	return response, nil
 }
 
-// ParsePostArcV1TxResponse parses an HTTP response from a PostArcV1TxWithResponse call
-func ParsePostArcV1TxResponse(rsp *http.Response) (*PostArcV1TxResponse, error) {
+// ParsePOSTTransactionResponse parses an HTTP response from a POSTTransactionWithResponse call
+func ParsePOSTTransactionResponse(rsp *http.Response) (*POSTTransactionResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &PostArcV1TxResponse{
+	response := &POSTTransactionResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -1039,15 +1039,15 @@ func ParsePostArcV1TxResponse(rsp *http.Response) (*PostArcV1TxResponse, error) 
 	return response, nil
 }
 
-// ParseGetArcV1TxIdResponse parses an HTTP response from a GetArcV1TxIdWithResponse call
-func ParseGetArcV1TxIdResponse(rsp *http.Response) (*GetArcV1TxIdResponse, error) {
+// ParseGETTransactionStatusResponse parses an HTTP response from a GETTransactionStatusWithResponse call
+func ParseGETTransactionStatusResponse(rsp *http.Response) (*GETTransactionStatusResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetArcV1TxIdResponse{
+	response := &GETTransactionStatusResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -1065,15 +1065,15 @@ func ParseGetArcV1TxIdResponse(rsp *http.Response) (*GetArcV1TxIdResponse, error
 	return response, nil
 }
 
-// ParsePostArcV1TxsResponse parses an HTTP response from a PostArcV1TxsWithResponse call
-func ParsePostArcV1TxsResponse(rsp *http.Response) (*PostArcV1TxsResponse, error) {
+// ParsePOSTTransactionsResponse parses an HTTP response from a POSTTransactionsWithResponse call
+func ParsePOSTTransactionsResponse(rsp *http.Response) (*POSTTransactionsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &PostArcV1TxsResponse{
+	response := &POSTTransactionsResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -1101,17 +1101,17 @@ func ParsePostArcV1TxsResponse(rsp *http.Response) (*PostArcV1TxsResponse, error
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Get the transaction fees required
-	// (GET /arc/v1/fees)
-	GetArcV1Fees(ctx echo.Context) error
+	// (GET /v1/fees)
+	GETFees(ctx echo.Context) error
 	// Submit a transaction.
-	// (POST /arc/v1/tx)
-	PostArcV1Tx(ctx echo.Context, params PostArcV1TxParams) error
+	// (POST /v1/tx)
+	POSTTransaction(ctx echo.Context, params POSTTransactionParams) error
 	// Get transaction status.
-	// (GET /arc/v1/tx/{id})
-	GetArcV1TxId(ctx echo.Context, id string) error
+	// (GET /v1/tx/{id})
+	GETTransactionStatus(ctx echo.Context, id string) error
 	// Submit multiple transactions.
-	// (POST /arc/v1/txs)
-	PostArcV1Txs(ctx echo.Context, params PostArcV1TxsParams) error
+	// (POST /v1/txs)
+	POSTTransactions(ctx echo.Context, params POSTTransactionsParams) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -1119,8 +1119,8 @@ type ServerInterfaceWrapper struct {
 	Handler ServerInterface
 }
 
-// GetArcV1Fees converts echo context to params.
-func (w *ServerInterfaceWrapper) GetArcV1Fees(ctx echo.Context) error {
+// GETFees converts echo context to params.
+func (w *ServerInterfaceWrapper) GETFees(ctx echo.Context) error {
 	var err error
 
 	ctx.Set(BearerAuthScopes, []string{""})
@@ -1130,12 +1130,12 @@ func (w *ServerInterfaceWrapper) GetArcV1Fees(ctx echo.Context) error {
 	ctx.Set(AuthorizationScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.GetArcV1Fees(ctx)
+	err = w.Handler.GETFees(ctx)
 	return err
 }
 
-// PostArcV1Tx converts echo context to params.
-func (w *ServerInterfaceWrapper) PostArcV1Tx(ctx echo.Context) error {
+// POSTTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) POSTTransaction(ctx echo.Context) error {
 	var err error
 
 	ctx.Set(BearerAuthScopes, []string{""})
@@ -1145,7 +1145,7 @@ func (w *ServerInterfaceWrapper) PostArcV1Tx(ctx echo.Context) error {
 	ctx.Set(AuthorizationScopes, []string{""})
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params PostArcV1TxParams
+	var params POSTTransactionParams
 
 	headers := ctx.Request().Header
 	// ------------- Optional header parameter "X-CallbackUrl" -------------
@@ -1210,12 +1210,12 @@ func (w *ServerInterfaceWrapper) PostArcV1Tx(ctx echo.Context) error {
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.PostArcV1Tx(ctx, params)
+	err = w.Handler.POSTTransaction(ctx, params)
 	return err
 }
 
-// GetArcV1TxId converts echo context to params.
-func (w *ServerInterfaceWrapper) GetArcV1TxId(ctx echo.Context) error {
+// GETTransactionStatus converts echo context to params.
+func (w *ServerInterfaceWrapper) GETTransactionStatus(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "id" -------------
 	var id string
@@ -1232,12 +1232,12 @@ func (w *ServerInterfaceWrapper) GetArcV1TxId(ctx echo.Context) error {
 	ctx.Set(AuthorizationScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.GetArcV1TxId(ctx, id)
+	err = w.Handler.GETTransactionStatus(ctx, id)
 	return err
 }
 
-// PostArcV1Txs converts echo context to params.
-func (w *ServerInterfaceWrapper) PostArcV1Txs(ctx echo.Context) error {
+// POSTTransactions converts echo context to params.
+func (w *ServerInterfaceWrapper) POSTTransactions(ctx echo.Context) error {
 	var err error
 
 	ctx.Set(BearerAuthScopes, []string{""})
@@ -1247,7 +1247,7 @@ func (w *ServerInterfaceWrapper) PostArcV1Txs(ctx echo.Context) error {
 	ctx.Set(AuthorizationScopes, []string{""})
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params PostArcV1TxsParams
+	var params POSTTransactionsParams
 
 	headers := ctx.Request().Header
 	// ------------- Optional header parameter "X-CallbackUrl" -------------
@@ -1312,7 +1312,7 @@ func (w *ServerInterfaceWrapper) PostArcV1Txs(ctx echo.Context) error {
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.PostArcV1Txs(ctx, params)
+	err = w.Handler.POSTTransactions(ctx, params)
 	return err
 }
 
@@ -1344,67 +1344,66 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.GET(baseURL+"/arc/v1/fees", wrapper.GetArcV1Fees)
-	router.POST(baseURL+"/arc/v1/tx", wrapper.PostArcV1Tx)
-	router.GET(baseURL+"/arc/v1/tx/:id", wrapper.GetArcV1TxId)
-	router.POST(baseURL+"/arc/v1/txs", wrapper.PostArcV1Txs)
+	router.GET(baseURL+"/v1/fees", wrapper.GETFees)
+	router.POST(baseURL+"/v1/tx", wrapper.POSTTransaction)
+	router.GET(baseURL+"/v1/tx/:id", wrapper.GETTransactionStatus)
+	router.POST(baseURL+"/v1/txs", wrapper.POSTTransactions)
 
 }
 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"yJZoOAAA",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

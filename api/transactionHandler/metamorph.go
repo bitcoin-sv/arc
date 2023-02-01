@@ -2,7 +2,6 @@ package transactionHandler
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/tracing"
 	"github.com/ordishs/go-utils"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -42,6 +42,28 @@ func NewMetamorph(targets string, blockTxClient blocktx.ClientI) (*Metamorph, er
 	}, nil
 }
 
+// GetTransaction gets the transaction bytes from metamorph
+func (m *Metamorph) GetTransaction(ctx context.Context, txID string) ([]byte, error) {
+	client, err := m.getMetamorphClientForTx(ctx, txID)
+	if err != nil {
+		return nil, err
+	}
+
+	var tx *metamorph_api.Transaction
+	tx, err = client.GetTransaction(ctx, &metamorph_api.TransactionStatusRequest{
+		Txid: txID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if tx == nil {
+		return nil, ErrTransactionNotFound
+	}
+
+	return tx.RawTx, nil
+}
+
 // GetTransactionStatus gets the status of a transaction
 func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (status *TransactionStatus, err error) {
 	var client metamorph_api.MetaMorphAPIClient
@@ -58,7 +80,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 	}
 
 	if tx == nil {
-		return nil, fmt.Errorf("transaction not found")
+		return nil, ErrTransactionNotFound
 	}
 
 	return &TransactionStatus{
@@ -102,12 +124,15 @@ func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (m
 	if target, err = m.blockTxClient.LocateTransaction(ctx, &blocktx_api.Transaction{
 		Hash: hash,
 	}); err != nil {
+		if errors.Is(err, blocktx.ErrTransactionNotFound) {
+			return nil, ErrTransactionNotFound
+		}
 		return nil, err
 	}
 
 	if target == "" {
 		// TODO what do we do in this case? Reach out to all metamorph servers or reach out to a node?
-		return nil, fmt.Errorf("could not find transaction server")
+		return nil, ErrTransactionNotFound
 	}
 
 	m.mu.RLock()

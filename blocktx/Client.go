@@ -73,7 +73,7 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 func (btc *Client) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
 	location, err := btc.client.LocateTransaction(ctx, transaction)
 	if err != nil {
-		return "", err
+		return "", ErrTransactionNotFound
 	}
 
 	return location.Source, nil

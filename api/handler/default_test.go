@@ -44,7 +44,7 @@ func TestGetArcV1Fees(t *testing.T) { //nolint:funlen
 		defaultHandler, err := NewDefault(nil)
 		require.NoError(t, err)
 		e := echo.New()
-		req := httptest.NewRequest(http.MethodPost, "/arc/v1/fees", strings.NewReader(""))
+		req := httptest.NewRequest(http.MethodPost, "/v1/fees", strings.NewReader(""))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
@@ -74,7 +74,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 
 		for _, contentType := range contentTypes {
 			e := echo.New()
-			req := httptest.NewRequest(http.MethodPost, "/arc/v1/tx", strings.NewReader(""))
+			req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
 			req.Header.Set(echo.HeaderContentType, contentType)
 			rec := httptest.NewRecorder()
 			ctx := e.NewContext(req, rec)
@@ -90,7 +90,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 		require.NoError(t, err)
 
 		e := echo.New()
-		req := httptest.NewRequest(http.MethodPost, "/arc/v1/tx", strings.NewReader(""))
+		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationXML)
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
@@ -111,7 +111,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, expectedError := range expectedErrors {
-			rec, ctx := createEchoRequest(strings.NewReader("test"), contentType, "/arc/v1/tx")
+			rec, ctx := createEchoRequest(strings.NewReader("test"), contentType, "/v1/tx")
 			err = defaultHandler.PostArcV1Tx(ctx, api.PostArcV1TxParams{})
 			require.NoError(t, err)
 			assert.Equal(t, api.ErrMalformed.Status, rec.Code)
@@ -138,7 +138,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
-			rec, ctx := createEchoRequest(inputTx, contentType, "/arc/v1/tx")
+			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/tx")
 			err = defaultHandler.PostArcV1Tx(ctx, api.PostArcV1TxParams{})
 			require.NoError(t, err)
 			assert.Equal(t, api.ErrStatusTxFormat, api.StatusCode(rec.Code))
@@ -174,7 +174,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
-			rec, ctx := createEchoRequest(inputTx, contentType, "/arc/v1/tx")
+			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/tx")
 			err = defaultHandler.PostArcV1Tx(ctx, api.PostArcV1TxParams{})
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusCreated, rec.Code)

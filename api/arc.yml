@@ -9,7 +9,7 @@ info:
 paths:
 
   # Get Fees
-  /arc/v1/fees:
+  /v1/fees:
     get:
       operationId: GET fees
       tags:
@@ -28,7 +28,7 @@ paths:
           $ref: '#/components/responses/NotAuthorized'
 
   # Get transaction status
-  /arc/v1/tx/{id}:
+  /v1/tx/{id}:
     get:
       operationId: GET transaction status
       tags:
@@ -56,7 +56,7 @@ paths:
           description: Not found
 
   # Post transaction
-  /arc/v1/tx:
+  /v1/tx:
     post:
       operationId: POST transaction
       tags:
@@ -141,7 +141,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /arc/v1/txs:
+  /v1/txs:
     post:
       operationId: POST transactions
       tags:

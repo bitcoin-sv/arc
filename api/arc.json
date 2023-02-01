@@ -9,7 +9,7 @@
     }
   },
   "paths": {
-    "/arc/v1/fees": {
+    "/v1/fees": {
       "get": {
         "tags": [
           "Arc"
@@ -33,7 +33,7 @@
         }
       }
     },
-    "/arc/v1/tx/{id}": {
+    "/v1/tx/{id}": {
       "get": {
         "tags": [
           "Arc"
@@ -71,7 +71,7 @@
         }
       }
     },
-    "/arc/v1/tx": {
+    "/v1/tx": {
       "post": {
         "tags": [
           "Arc"
@@ -205,7 +205,7 @@
         }
       }
     },
-    "/arc/v1/txs": {
+    "/v1/txs": {
       "post": {
         "tags": [
           "Arc"

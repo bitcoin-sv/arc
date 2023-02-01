@@ -38,10 +38,8 @@ func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx) error { //nolint:funle
 
 	// 0) Check whether we have a complete transaction in extended format, with all input information
 	//    we cannot check the satoshi input, OP_RETURN is allowed 0 satoshis
-	for _, input := range tx.Inputs {
-		if input.PreviousTxScript == nil || (input.PreviousTxSatoshis == 0 && !input.PreviousTxScript.IsData()) {
-			return validator.NewError(fmt.Errorf("transaction is not in extended format"), api.ErrStatusTxFormat)
-		}
+	if !v.IsExtended(tx) {
+		return validator.NewError(fmt.Errorf("transaction is not in extended format"), api.ErrStatusTxFormat)
 	}
 
 	// 1) Neither lists of inputs or outputs are empty
@@ -97,6 +95,20 @@ func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx) error { //nolint:funle
 
 	// everything checks out
 	return nil
+}
+
+func (v *DefaultValidator) IsExtended(tx *bt.Tx) bool {
+	if tx == nil || tx.Inputs == nil {
+		return false
+	}
+
+	for _, input := range tx.Inputs {
+		if input.PreviousTxScript == nil || (input.PreviousTxSatoshis == 0 && !input.PreviousTxScript.IsData()) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func checkTxSize(txSize int, policy *api.FeesResponse) error {

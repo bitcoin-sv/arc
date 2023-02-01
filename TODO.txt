@@ -9,7 +9,6 @@ TODOs
 - Monitoring API / metamorph / blocktx / callbacker
 - Documentation (Siggi)
 - API yaml cleanup
-- Extended format - add option to send bare transactions
 - More deterministic when sending tx to nodes
 - Cleanup metamorph store after 100 block confirmations
 - Cleanup blocktx store after ...?

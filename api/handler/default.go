@@ -2,13 +2,11 @@ package handler
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,8 +19,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/opentracing/opentracing-go"
-	"github.com/ordishs/go-bitcoin"
-	"github.com/ordishs/gocore"
 )
 
 type ArcDefaultHandler struct {
@@ -425,62 +421,24 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 	defer span.Finish()
 
 	// get from our transaction handler
-	txBytes, err := m.TransactionHandler.GetTransaction(ctx, inputTxID)
-	if err != nil && !errors.Is(err, transactionHandler.ErrTransactionNotFound) {
-		return nil, err
-	}
+	txBytes, _ := m.TransactionHandler.GetTransaction(ctx, inputTxID)
+	// ignore error, we try other options if we don't find it
 	if txBytes != nil {
 		return txBytes, nil
 	}
 
-	// get from our node, if configured
-	peerURL, _, peerURLFound := gocore.Config().GetURL("peer_rpc")
-	if peerURLFound {
-		// get the transaction from the bitcoin node rpc
-		port, _ := strconv.Atoi(peerURL.Port())
-		var node *bitcoin.Bitcoind
-		password, _ := peerURL.User.Password()
-		node, err = bitcoin.New(peerURL.Hostname(), port, peerURL.User.Username(), password, false)
-		if err == nil {
-			var tx *bitcoin.RawTransaction
-			tx, err = node.GetRawTransaction(inputTxID)
-			if err == nil {
-				txBytes, err = hex.DecodeString(tx.Hex)
-				if err == nil {
-					return txBytes, nil
-				}
-			}
-		}
+	// get from node
+	txBytes, _ = getTransactionFromNode(ctx, inputTxID)
+	// we can ignore any error here, we just check whether we have the transaction
+	if txBytes != nil {
+		return txBytes, nil
 	}
 
 	// get from woc
-	wocApiKey, _ := gocore.Config().Get("wocApiKey")
-	if wocApiKey != "" {
-		wocURL := fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/tx/%s/hex", "main", inputTxID)
-		var req *http.Request
-		req, err = http.NewRequestWithContext(ctx, http.MethodGet, wocURL, nil)
-		if err == nil {
-			req.Header.Set("Authorization", wocApiKey)
-
-			var resp *http.Response
-			resp, err = http.DefaultClient.Do(req)
-			if err == nil {
-				defer resp.Body.Close()
-				if resp.StatusCode != 200 {
-					return nil, transactionHandler.ErrParentTransactionNotFound
-				}
-
-				var txHexBytes []byte
-				txHexBytes, err = io.ReadAll(resp.Body)
-				if err == nil {
-					txHex := string(txHexBytes)
-					txBytes, err = hex.DecodeString(txHex)
-					if err == nil {
-						return txBytes, nil
-					}
-				}
-			}
-		}
+	txBytes, _ = getTransactionFromWhatsOnChain(ctx, inputTxID)
+	// we can ignore any error here, we just check whether we have the transaction
+	if txBytes != nil {
+		return txBytes, nil
 	}
 
 	return nil, transactionHandler.ErrParentTransactionNotFound

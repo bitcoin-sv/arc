@@ -344,7 +344,7 @@ func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.
 		BlockHeight: &tx.BlockHeight,
 		TxStatus:    (*api.TransactionResponseTxStatus)(&tx.Status),
 		Timestamp:   time.Now(),
-		Txid:        &tx.TxID,
+		Txid:        &txID,
 	}, nil
 }
 

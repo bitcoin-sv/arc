@@ -64,19 +64,19 @@ func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, wa
 	}
 
 	waitForStatus := api.WaitForStatus(waitFor)
-	params := &api.PostArcV1TxParams{
+	params := &api.POSTTransactionParams{
 		XCallbackUrl:   nil,
 		XCallbackToken: nil,
 		XMerkleProof:   nil,
 		XWaitForStatus: &waitForStatus,
 	}
 
-	arcBody := api.PostArcV1TxJSONRequestBody{
+	arcBody := api.POSTTransactionJSONBody{
 		RawTx: hex.EncodeToString(tx.ExtendedBytes()),
 	}
 
-	var response *api.PostArcV1TxResponse
-	response, err = arcClient.PostArcV1TxWithResponse(ctx, params, arcBody)
+	var response *api.POSTTransactionResponse
+	response, err = arcClient.POSTTransactionWithResponse(ctx, params, arcBody)
 	if err != nil {
 		return nil, err
 	}

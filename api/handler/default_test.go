@@ -49,7 +49,7 @@ func TestGetArcV1Fees(t *testing.T) { //nolint:funlen
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
 
-		err = defaultHandler.GetArcV1Fees(ctx)
+		err = defaultHandler.GETFees(ctx)
 		require.Nil(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 
@@ -79,7 +79,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 			rec := httptest.NewRecorder()
 			ctx := e.NewContext(req, rec)
 
-			err = defaultHandler.PostArcV1Tx(ctx, api.PostArcV1TxParams{})
+			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 			require.NoError(t, err)
 			assert.Equal(t, rec.Code, api.ErrMalformed.Status)
 		}
@@ -95,7 +95,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
 
-		err = defaultHandler.PostArcV1Tx(ctx, api.PostArcV1TxParams{})
+		err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 		require.NoError(t, err)
 		assert.Equal(t, rec.Code, api.ErrBadRequest.Status)
 	})
@@ -112,7 +112,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 
 		for contentType, expectedError := range expectedErrors {
 			rec, ctx := createEchoRequest(strings.NewReader("test"), contentType, "/v1/tx")
-			err = defaultHandler.PostArcV1Tx(ctx, api.PostArcV1TxParams{})
+			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 			require.NoError(t, err)
 			assert.Equal(t, api.ErrMalformed.Status, rec.Code)
 
@@ -139,7 +139,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 
 		for contentType, inputTx := range inputTxs {
 			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/tx")
-			err = defaultHandler.PostArcV1Tx(ctx, api.PostArcV1TxParams{})
+			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 			require.NoError(t, err)
 			assert.Equal(t, api.ErrStatusTxFormat, api.StatusCode(rec.Code))
 
@@ -147,7 +147,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 			var bErr api.ErrorFee
 			_ = json.Unmarshal(b, &bErr)
 
-			assert.Equal(t, "arc error 460: transaction is not in extended format", *bErr.ExtraInfo)
+			assert.Equal(t, "parent transaction not found", *bErr.ExtraInfo)
 		}
 	})
 
@@ -175,7 +175,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 
 		for contentType, inputTx := range inputTxs {
 			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/tx")
-			err = defaultHandler.PostArcV1Tx(ctx, api.PostArcV1TxParams{})
+			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusCreated, rec.Code)
 

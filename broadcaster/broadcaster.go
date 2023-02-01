@@ -46,6 +46,7 @@ var dataFee = &bt.Fee{
 
 type ClientI interface {
 	BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status) (*metamorph_api.TransactionStatus, error)
+	BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status) ([]*metamorph_api.TransactionStatus, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*metamorph_api.TransactionStatus, error)
 }
 
@@ -59,6 +60,7 @@ type Broadcaster struct {
 	PrintTxIDs    bool
 	Concurrency   int
 	WaitForStatus api.WaitForStatus
+	BatchSend     int
 	FeeQuote      *bt.FeeQuote
 	txs           []*bt.Tx
 	summary       map[string]uint64
@@ -146,25 +148,9 @@ func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 			}
 		}
 	} else {
-		if concurrency == 0 {
-			// use the number of outputs as the default concurrency
-			// which will not limit the amount of concurrent goroutines
-			concurrency = int(b.Outputs)
-		}
-		log.Printf("Using concurrency of %d\n", concurrency)
-
-		var wg sync.WaitGroup
-		// limit the amount of concurrent goroutines
-		limit := make(chan bool, concurrency)
-		for i := int64(0); i < b.Outputs; i++ {
-			wg.Add(1)
-			limit <- true
-			go func(i int64, fundingTx *bt.Tx) {
-				defer func() {
-					wg.Done()
-					<-limit
-				}()
-
+		if b.BatchSend > 0 {
+			log.Printf("Using batch size of %d\n", b.BatchSend)
+			for i := int64(0); i < b.Outputs; i++ {
 				u := &bt.UTXO{
 					TxID:          fundingTx.TxIDBytes(),
 					Vout:          uint32(i),
@@ -172,13 +158,55 @@ func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 					Satoshis:      fundingTx.Outputs[i].Satoshis,
 				}
 				b.txs[i], _ = b.NewTransaction(b.ToKeySet, u)
+			}
 
-				if err = b.ProcessTransaction(ctx, b.txs[i]); err != nil {
-					panic(err)
+			for i := 0; i < len(b.txs); i += b.BatchSend {
+				j := i + b.BatchSend
+				if j > len(b.txs) {
+					j = len(b.txs)
 				}
-			}(i, fundingTx)
+
+				var txStatus []*metamorph_api.TransactionStatus
+				txStatus, err = b.Client.BroadcastTransactions(ctx, b.txs[i:j], metamorph_api.Status(b.WaitForStatus))
+				for _, res := range txStatus {
+					b.processResult(res)
+				}
+			}
+		} else {
+			if concurrency == 0 {
+				// use the number of outputs as the default concurrency
+				// which will not limit the amount of concurrent goroutines
+				concurrency = int(b.Outputs)
+			}
+			log.Printf("Using concurrency of %d\n", concurrency)
+
+			var wg sync.WaitGroup
+			// limit the amount of concurrent goroutines
+			limit := make(chan bool, concurrency)
+			for i := int64(0); i < b.Outputs; i++ {
+				wg.Add(1)
+				limit <- true
+				go func(i int64, fundingTx *bt.Tx) {
+					defer func() {
+						wg.Done()
+						<-limit
+					}()
+
+					u := &bt.UTXO{
+						TxID:          fundingTx.TxIDBytes(),
+						Vout:          uint32(i),
+						LockingScript: fundingTx.Outputs[i].LockingScript,
+						Satoshis:      fundingTx.Outputs[i].Satoshis,
+					}
+					b.txs[i], _ = b.NewTransaction(b.ToKeySet, u)
+
+					if err = b.ProcessTransaction(ctx, b.txs[i]); err != nil {
+						log.Printf("Error: %s", err.Error())
+					}
+				}(i, fundingTx)
+			}
+			wg.Wait()
 		}
-		wg.Wait()
 	}
 
 	// print summary
@@ -198,13 +226,19 @@ func (b *Broadcaster) ProcessTransaction(ctx context.Context, tx *bt.Tx) error {
 		return err
 	}
 
+	b.processResult(res)
+
+	return nil
+}
+
+func (b *Broadcaster) processResult(res *metamorph_api.TransactionStatus) {
 	if b.PrintTxIDs {
 		if res.TimedOut {
-			log.Printf("res %s: %#v (TIMEOUT)\n", tx.TxID(), res.Status.String())
+			log.Printf("res %s: %#v (TIMEOUT)\n", res.Txid, res.Status.String())
 		} else if res.RejectReason != "" {
-			log.Printf("res %s: %#v (REJECT: %s)\n", tx.TxID(), res.Status.String(), res.RejectReason)
+			log.Printf("res %s: %#v (REJECT: %s)\n", res.Txid, res.Status.String(), res.RejectReason)
 		} else {
-			log.Printf("res %s: %#v\n", tx.TxID(), res.Status.String())
+			log.Printf("res %s: %#v\n", res.Txid, res.Status.String())
 		}
 	}
 
@@ -219,8 +253,6 @@ func (b *Broadcaster) ProcessTransaction(ctx context.Context, tx *bt.Tx) error {
 	b.summaryMu.Lock()
 	b.summary[summaryString]++
 	b.summaryMu.Unlock()
-
-	return nil
 }
 
 func (b *Broadcaster) NewFundingTransaction() *bt.Tx {

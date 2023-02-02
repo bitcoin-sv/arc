@@ -239,7 +239,7 @@ func (p *Peer) readHandler() {
 
 			case wire.CmdInv:
 				invMsg := msg.(*wire.MsgInv)
-				p.logger.Debugf("[%s] Recv INV (%d items)", p.address, len(invMsg.InvList))
+				p.logger.Infof("[%s] Recv INV (%d items)", p.address, len(invMsg.InvList))
 				if p.logger.LogLevel() == int(gocore.DEBUG) {
 					for _, inv := range invMsg.InvList {
 						p.logger.Debugf("        [%s] %s", p.address, inv.Hash.String())
@@ -364,7 +364,7 @@ func (p *Peer) sendInvBatch(batch []*[]byte) {
 
 	p.writeChan <- invMsg
 
-	p.logger.Infof("Sent INV (%d items) by peer: %s", len(batch), p.String())
+	p.logger.Infof("[%s] Sent INV (%d items)", p.String(), len(batch))
 	for _, txid := range batch {
 		p.logger.Debugf("        %x", bt.ReverseBytes(*txid))
 	}

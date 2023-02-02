@@ -268,6 +268,8 @@ func processBlock(logger utils.Logger, btc blocktx.ClientI, p metamorph.Processo
 		}
 	}
 
+	logger.Infof("Marked %d transactions as MINED", len(mt.Transactions))
+
 	err = s.SetBlockProcessed(context.Background(), blockAndSource.Hash)
 	if err != nil {
 		logger.Errorf("Could not set block processed status: %v", err)

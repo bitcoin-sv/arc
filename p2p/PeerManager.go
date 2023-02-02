@@ -1,12 +1,12 @@
 package p2p
 
 import (
+	"sort"
 	"sync"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/p2p/chaincfg/chainhash"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
-	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/batcher"
 	"github.com/ordishs/gocore"
@@ -16,7 +16,6 @@ type PeerManager struct {
 	mu          sync.RWMutex
 	peers       map[string]PeerI
 	network     wire.BitcoinNet
-	invBatcher  *batcher.Batcher[[]byte]
 	dataBatcher *batcher.Batcher[[]byte]
 	logger      utils.Logger
 
@@ -53,7 +52,6 @@ func NewPeerManager(logger utils.Logger, network wire.BitcoinNet, batchDuration 
 	if len(batchDuration) > 0 {
 		batchDelay = batchDuration[0]
 	}
-	pm.invBatcher = batcher.New(500, batchDelay, pm.sendInvBatch, true)
 	pm.dataBatcher = batcher.New(500, batchDelay, pm.sendDataBatch, true)
 
 	return pm
@@ -111,8 +109,48 @@ func (pm *PeerManager) GetTransaction(txID []byte) {
 	pm.dataBatcher.Put(&txID)
 }
 
-func (pm *PeerManager) AnnounceNewTransaction(txID []byte) {
-	pm.invBatcher.Put(&txID)
+// AnnounceTransaction will send an INV message to the provided peers or to selected peers if peers is nil
+// it will return the peers that the transaction was actually announced to
+func (pm *PeerManager) AnnounceTransaction(txID []byte, peers []PeerI) []PeerI {
+	if len(peers) == 0 {
+		peers = pm.GetAnnouncedPeers()
+	}
+
+	for _, peer := range peers {
+		peer.AnnounceTransaction(txID)
+	}
+
+	return peers
+}
+
+func (pm *PeerManager) GetAnnouncedPeers() []PeerI {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	// Get a list of peers that are connected
+	connectedPeers := make([]PeerI, 0, len(pm.peers))
+	for _, peer := range pm.peers {
+		if peer.Connected() {
+			connectedPeers = append(connectedPeers, peer)
+		}
+	}
+
+	// sort peers by address
+	sort.SliceStable(connectedPeers, func(i, j int) bool {
+		return connectedPeers[i].String() < connectedPeers[j].String()
+	})
+
+	// send to a subset of peers to be able to listen on the rest
+	sendToPeers := make([]PeerI, 0, len(connectedPeers))
+	for _, peer := range connectedPeers {
+
+		if len(connectedPeers) > 1 && len(sendToPeers) >= (len(connectedPeers)+1)/2 {
+			break
+		}
+		sendToPeers = append(sendToPeers, peer)
+	}
+
+	return sendToPeers
 }
 
 func (pm *PeerManager) sendDataBatch(batch []*[]byte) {
@@ -147,52 +185,5 @@ func (pm *PeerManager) sendDataBatch(batch []*[]byte) {
 		} else {
 			pm.logger.Infof("Sent GETDATA (%d items) to peer: %s", len(batch), peer.String())
 		}
-	}
-}
-
-func (pm *PeerManager) sendInvBatch(batch []*[]byte) {
-	invMsg := wire.NewMsgInvSizeHint(uint(len(batch)))
-
-	for _, txid := range batch {
-		hash, err := chainhash.NewHash(*txid)
-		if err != nil {
-			pm.logger.Infof("ERROR announcing new tx [%x]: %v", txid, err)
-			continue
-		}
-
-		iv := wire.NewInvVect(wire.InvTypeTx, hash)
-		_ = invMsg.AddInvVect(iv)
-	}
-
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-
-	// Get a list of peers that are connected
-	connectedPeers := make([]PeerI, 0, len(pm.peers))
-	for _, peer := range pm.peers {
-		if peer.Connected() {
-			connectedPeers = append(connectedPeers, peer)
-		}
-	}
-
-	// send to a subset of peers to be able to listen on the rest
-	sendToPeers := make([]PeerI, 0, len(connectedPeers))
-	for _, peer := range connectedPeers {
-
-		if len(connectedPeers) > 1 && len(sendToPeers) >= (len(connectedPeers)+1)/2 {
-			break
-		}
-		sendToPeers = append(sendToPeers, peer)
-	}
-
-	var peerAddresses []string
-	for _, peer := range sendToPeers {
-		peerAddresses = append(peerAddresses, peer.String())
-		_ = peer.WriteMsg(invMsg)
-	}
-
-	pm.logger.Infof("Sent INV (%d items) to %d peers: %s", len(batch), len(sendToPeers), peerAddresses)
-	for _, txid := range batch {
-		pm.logger.Debugf("        %x", bt.ReverseBytes(*txid))
 	}
 }

@@ -73,18 +73,14 @@ func TestAnnounceNewTransaction(t *testing.T) {
 		err := pm.addPeer(peer)
 		require.NoError(t, err)
 
-		pm.AnnounceNewTransaction(tx1Bytes)
+		pm.AnnounceTransaction(tx1Bytes, nil)
 
 		// we need to wait for the batcher to send the inv
 		time.Sleep(5 * time.Millisecond)
 
-		messages := peer.getMessages()
-		require.Len(t, messages, 1)
-		assert.Equal(t, "inv", messages[0].Command())
-		message, ok := messages[0].(*wire.MsgInv)
-		require.True(t, ok)
-		assert.Len(t, message.InvList, 1)
-		assert.Equal(t, tx1, message.InvList[0].Hash.String())
+		announcements := peer.getAnnouncements()
+		require.Len(t, announcements, 1)
+		assert.Equal(t, tx1Bytes, announcements[0])
 	})
 
 	t.Run("announce tx - multiple peers", func(t *testing.T) {
@@ -101,23 +97,20 @@ func TestAnnounceNewTransaction(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		pm.AnnounceNewTransaction(tx1Bytes)
+		pm.AnnounceTransaction(tx1Bytes, nil)
 
 		// we need to wait for the batcher to send the inv
 		time.Sleep(5 * time.Millisecond)
 
 		peersMessaged := 0
 		for _, peer := range peers {
-			if peer.Len() == 0 {
+			announcements := peer.getAnnouncements()
+			if len(announcements) == 0 {
 				continue
 			}
-			messages := peer.getMessages()
-			require.Len(t, messages, 1)
-			assert.Equal(t, "inv", messages[0].Command())
-			message, ok := messages[0].(*wire.MsgInv)
-			require.True(t, ok)
-			assert.Len(t, message.InvList, 1)
-			assert.Equal(t, tx1, message.InvList[0].Hash.String())
+
+			require.Len(t, announcements, 1)
+			assert.Equal(t, tx1Bytes, announcements[0])
 			peersMessaged++
 		}
 		assert.GreaterOrEqual(t, peersMessaged, len(peers)/2)

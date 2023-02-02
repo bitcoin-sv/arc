@@ -7,11 +7,12 @@ import (
 )
 
 type PeerMock struct {
-	mu        sync.Mutex
-	address   string
-	peerStore PeerHandlerI
-	writeChan chan wire.Message
-	messages  []wire.Message
+	mu            sync.Mutex
+	address       string
+	peerStore     PeerHandlerI
+	writeChan     chan wire.Message
+	messages      []wire.Message
+	announcements [][]byte
 }
 
 func NewPeerMock(address string, peerStore PeerHandlerI) (*PeerMock, error) {
@@ -41,6 +42,20 @@ func (p *PeerMock) Len() int {
 	defer p.mu.Unlock()
 
 	return len(p.messages)
+}
+
+func (p *PeerMock) AnnounceTransaction(txID []byte) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.announcements = append(p.announcements, txID)
+}
+
+func (p *PeerMock) getAnnouncements() [][]byte {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.announcements
 }
 
 func (p *PeerMock) message(msg wire.Message) {

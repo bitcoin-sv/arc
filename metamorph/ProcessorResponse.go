@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/TAAL-GmbH/arc/p2p"
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/go-utils"
 	"github.com/sasha-s/go-deadlock"
@@ -18,6 +19,7 @@ type ProcessorResponse struct {
 	Start                 time.Time
 	retries               atomic.Uint32
 	err                   error
+	announcedPeers        []p2p.PeerI
 	status                metamorph_api.Status
 	statusStats           map[int32]int64
 	noStats               bool
@@ -58,6 +60,20 @@ func NewProcessorResponseWithChannel(hash []byte, ch chan StatusAndError) *Proce
 		},
 		ch: ch,
 	}
+}
+
+func (r *ProcessorResponse) SetPeers(peers []p2p.PeerI) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	r.announcedPeers = peers
+}
+
+func (r *ProcessorResponse) GetPeers() []p2p.PeerI {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.announcedPeers
 }
 
 func (r *ProcessorResponse) GetStats() map[int32]int64 {

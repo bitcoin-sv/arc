@@ -24,6 +24,7 @@ import (
 func init() {
 	// Create a stat for processor that ignores children before any other stat is created
 	gocore.NewStat("processor", true)
+	gocore.NewStat("processor - async")
 }
 
 type StatusAndError struct {

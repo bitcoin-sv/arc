@@ -197,17 +197,17 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		wg.Wait()
 	case "application/octet-stream":
 		reader := ctx.Request().Body
-		btTx := new(bt.Tx)
 
 		transactions = make([]interface{}, 0)
 		var bytesRead int64
 		var err error
-		limit := make(chan bool, 64) // TODO make configurable how many concurrent process routines we can start
+		limit := make(chan bool, 1024) // TODO make configurable how many concurrent process routines we can start
 		for {
 			limit <- true
 
+			btTx := new(bt.Tx)
 			if bytesRead, err = btTx.ReadFrom(reader); err != nil {
-				if !errors.Is(err, io.ErrShortBuffer) {
+				if !errors.Is(err, io.EOF) {
 					e := api.ErrBadRequest
 					errStr := err.Error()
 					e.ExtraInfo = &errStr

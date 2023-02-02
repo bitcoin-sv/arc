@@ -1,19 +1,17 @@
 Bugs
 
 TODOs
-- Merkle proofs
-- Bitcoin node settings read into api (fees etc.)
-- What happens to txs in metamorph when a transaction source is registered after the block is processed in blocktx?
-- BlockTx processing seems to be slow on Prod, with Postgres
-- Log failing txs in full? (in api and/or metamorph)
-- Monitoring API / metamorph / blocktx / callbacker
-- Documentation (Siggi)
 - API yaml cleanup
-- More deterministic when sending tx to nodes
+- Bitcoin node settings read into api (fees etc.)
+- Monitoring API / metamorph / blocktx / callbacker - Grafana / Logstash?
+- Documentation (Siggi)
 - Cleanup metamorph store after 100 block confirmations
 - Cleanup blocktx store after ...?
-- Store which peer we sent a transaction to, to only re-send to that peer
 
 Need to figure out
 - Connect to more than 1 node -> can we force our nodes to accept our connections?
 - Different strategy for batcher, wait for x millis or wait for no activity for x millis ?
+- What happens to txs in metamorph when a transaction source is registered after the block is processed in blocktx?
+
+Icebox
+- Merkle proofs

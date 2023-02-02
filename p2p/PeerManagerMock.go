@@ -28,8 +28,9 @@ func (p *PeerManagerMock) GetTransaction(txID []byte) {
 	p.GetData = append(p.GetData, txID)
 }
 
-func (p *PeerManagerMock) AnnounceNewTransaction(txID []byte) {
+func (p *PeerManagerMock) AnnounceTransaction(txID []byte, peers []PeerI) []PeerI {
 	p.Announced = append(p.Announced, txID)
+	return nil
 }
 
 func (p *PeerManagerMock) PeerCreator(peerCreator func(peerAddress string, peerHandler PeerHandlerI) (PeerI, error)) {

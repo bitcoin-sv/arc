@@ -14,8 +14,10 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/p2p/bsvutil"
+	"github.com/TAAL-GmbH/arc/p2p/chaincfg/chainhash"
 	"github.com/TAAL-GmbH/arc/p2p/wire"
 	"github.com/libsv/go-bt/v2"
+	"github.com/ordishs/go-utils/batcher"
 
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
@@ -52,6 +54,8 @@ type Peer struct {
 	logger         utils.Logger
 	sentVerAck     atomic.Bool
 	receivedVerAck atomic.Bool
+	batchDelay     time.Duration
+	invBatcher     *batcher.Batcher[[]byte]
 }
 
 type PeerOptions func(p *Peer)
@@ -59,6 +63,12 @@ type PeerOptions func(p *Peer)
 func WithDialer(dial func(network, address string) (net.Conn, error)) PeerOptions {
 	return func(p *Peer) {
 		p.dial = dial
+	}
+}
+
+func WithBatchDelay(batchDelay time.Duration) PeerOptions {
+	return func(p *Peer) {
+		p.batchDelay = batchDelay
 	}
 }
 
@@ -94,6 +104,12 @@ func NewPeer(logger utils.Logger, address string, peerHandler PeerHandlerI, netw
 			time.Sleep(10 * time.Second)
 		}
 	}()
+
+	if p.batchDelay == 0 {
+		batchDelayMillis, _ := gocore.Config().GetInt("peerManager_batchDelay_millis", 10)
+		p.batchDelay = time.Duration(batchDelayMillis) * time.Millisecond
+	}
+	p.invBatcher = batcher.New(500, p.batchDelay, p.sendInvBatch, true)
 
 	return p, nil
 }
@@ -325,6 +341,32 @@ func (p *Peer) handleGetDataMsg(dataMsg *wire.MsgGetData) {
 		default:
 			p.logger.Warnf("[%s] Unknown type: %d\n", p.address, invVect.Type)
 		}
+	}
+}
+
+func (p *Peer) AnnounceTransaction(txid []byte) {
+	p.invBatcher.Put(&txid)
+}
+
+func (p *Peer) sendInvBatch(batch []*[]byte) {
+	invMsg := wire.NewMsgInvSizeHint(uint(len(batch)))
+
+	for _, txid := range batch {
+		hash, err := chainhash.NewHash(*txid)
+		if err != nil {
+			p.logger.Infof("ERROR announcing new tx [%s]: %v", hash.String(), err)
+			continue
+		}
+
+		iv := wire.NewInvVect(wire.InvTypeTx, hash)
+		_ = invMsg.AddInvVect(iv)
+	}
+
+	p.writeChan <- invMsg
+
+	p.logger.Infof("Sent INV (%d items) by peer: %s", len(batch), p.String())
+	for _, txid := range batch {
+		p.logger.Debugf("        %x", bt.ReverseBytes(*txid))
 	}
 }
 

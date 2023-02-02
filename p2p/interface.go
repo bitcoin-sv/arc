@@ -13,7 +13,7 @@ var (
 )
 
 type PeerManagerI interface {
-	AnnounceNewTransaction(txID []byte)
+	AnnounceTransaction(txID []byte, peers []PeerI) []PeerI
 	GetTransaction(txID []byte)
 	AddPeer(peerURL string, peerStore PeerHandlerI) error
 	RemovePeer(peerURL string) error
@@ -26,6 +26,7 @@ type PeerI interface {
 	Connected() bool
 	WriteMsg(msg wire.Message) error
 	String() string
+	AnnounceTransaction(txID []byte)
 }
 
 type PeerHandlerI interface {

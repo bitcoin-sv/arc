@@ -183,7 +183,7 @@ func (p *Processor) processExpiredTransactions() {
 					p.pm.GetTransaction(item.Hash)
 				} else {
 					p.logger.Debugf("Re-announcing expired tx: %s", txID)
-					p.pm.AnnounceNewTransaction(item.Hash)
+					p.pm.AnnounceTransaction(item.Hash, item.announcedPeers)
 				}
 
 				item.IncrementRetry()
@@ -232,7 +232,7 @@ func (p *Processor) LoadUnseen() {
 			}
 
 			// announce the transaction to the network
-			p.pm.AnnounceNewTransaction(record.Hash)
+			pr.SetPeers(p.pm.AnnounceTransaction(record.Hash, nil))
 
 			err := p.store.UpdateStatus(context.Background(), record.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
 			if err != nil {
@@ -447,7 +447,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 		})
 	}
 
-	p.pm.AnnounceNewTransaction(req.Hash)
+	processorResponse.SetPeers(p.pm.AnnounceTransaction(req.Hash, nil))
 
 	processorResponse.SetStatus(metamorph_api.Status_ANNOUNCED_TO_NETWORK)
 
@@ -468,5 +468,4 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 
 	gocore.NewStat("processor").NewStat("4: ANNOUNCED stored").AddTime(next)
 	// Don't set the lastStatusUpdateNanos here, because we don't want to count the time it takes to store the status
-
 }

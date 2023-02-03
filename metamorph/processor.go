@@ -130,6 +130,10 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 		go p.process(i)
 	}
 
+	gocore.AddAppPayloadFn("mtm", func() interface{} {
+		return p.GetStats()
+	})
+
 	return p
 }
 

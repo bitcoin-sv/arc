@@ -65,12 +65,12 @@ func (p *PeerMock) message(msg wire.Message) {
 	p.messages = append(p.messages, msg)
 }
 
-func (p *PeerMock) getMessages() []wire.Message {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+// func (p *PeerMock) getMessages() []wire.Message {
+// 	p.mu.Lock()
+// 	defer p.mu.Unlock()
 
-	return p.messages
-}
+// 	return p.messages
+// }
 
 func (p *PeerMock) WriteMsg(msg wire.Message) error {
 	p.writeChan <- msg

@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/TAAL-GmbH/arc/p2p/bsvutil"
+	"github.com/libsv/go-p2p/bsvutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

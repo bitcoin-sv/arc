@@ -13,8 +13,8 @@ import (
 	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
-	"github.com/TAAL-GmbH/arc/p2p"
 	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-p2p"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-utils"
 

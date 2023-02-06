@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
-	"github.com/TAAL-GmbH/arc/p2p"
 	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-utils"
 	"github.com/sasha-s/go-deadlock"
 )

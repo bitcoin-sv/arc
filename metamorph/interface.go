@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
-	"github.com/TAAL-GmbH/arc/p2p"
+	"github.com/libsv/go-p2p"
 )
 
 type ProcessorI interface {

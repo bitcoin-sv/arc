@@ -61,7 +61,13 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 			l.Fatalf("error reading peer_%d_p2p: %v", i, err)
 		}
 
-		if err := pm.AddPeer(p2pURL.Host, peerHandler); err != nil {
+		var peer *p2p.Peer
+		peer, err = p2p.NewPeer(l, p2pURL.Host, peerHandler, network)
+		if err != nil {
+			l.Fatalf("error creating peer %s: %v", p2pURL.Host, err)
+		}
+
+		if err = pm.AddPeer(peer); err != nil {
 			l.Fatalf("error adding peer %s: %v", p2pURL.Host, err)
 		}
 	}

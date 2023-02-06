@@ -6,8 +6,8 @@ import (
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
-	"github.com/TAAL-GmbH/arc/p2p"
-	"github.com/TAAL-GmbH/arc/p2p/wire"
+	"github.com/libsv/go-p2p"
+	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils"
 )
 

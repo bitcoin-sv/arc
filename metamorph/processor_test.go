@@ -15,9 +15,9 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/metamorph/store/badger"
 	"github.com/TAAL-GmbH/arc/metamorph/store/sql"
-	"github.com/TAAL-GmbH/arc/p2p"
 	"github.com/TAAL-GmbH/arc/test"
 	"github.com/labstack/gommon/random"
+	"github.com/libsv/go-p2p"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

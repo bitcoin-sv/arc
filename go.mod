@@ -3,8 +3,6 @@ module github.com/TAAL-GmbH/arc
 go 1.19
 
 require (
-	github.com/cbeuw/connutil v0.0.0-20200411215123-966bfaa51ee3
-	github.com/davecgh/go-spew v1.1.1
 	github.com/deepmap/oapi-codegen v1.11.0
 	github.com/dgraph-io/badger/v3 v3.2103.1
 	github.com/getkin/kin-openapi v0.103.0
@@ -16,6 +14,7 @@ require (
 	github.com/lib/pq v1.10.7
 	github.com/libsv/go-bk v0.1.6
 	github.com/libsv/go-bt/v2 v2.1.1
+	github.com/libsv/go-p2p v0.0.1
 	github.com/opentracing-contrib/echo v0.0.0-20190807091611-5fe2e1308f06
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/ordishs/go-bitcoin v1.0.75
@@ -38,6 +37,7 @@ require (
 	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect

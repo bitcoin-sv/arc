@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/p2p"
 	"github.com/labstack/gommon/random"
+	"github.com/libsv/go-p2p"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

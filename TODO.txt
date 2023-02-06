@@ -1,6 +1,7 @@
 Bugs
 
 TODOs
+- nanoNode for testing metamorph in isolation
 - API yaml cleanup
 - Bitcoin node settings read into api (fees etc.)
 - Monitoring API / metamorph / blocktx / callbacker - Grafana / Logstash?

@@ -6,18 +6,21 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/dgraph-io/badger/v3"
+	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
 
 type Badger struct {
-	store *badger.DB
-	mu    sync.RWMutex
+	store  *badger.DB
+	logger utils.Logger
+	mu     sync.RWMutex
 }
 
 type loggerWrapper struct {
@@ -41,7 +44,8 @@ func New(dir string) (*Badger, error) {
 	}
 
 	return &Badger{
-		store: s,
+		store:  s,
+		logger: logger,
 	}, nil
 }
 
@@ -183,6 +187,9 @@ func (s *Badger) GetUnseen(_ context.Context, callback func(s *store.StoreData))
 
 		for iter.Rewind(); iter.Valid(); iter.Next() {
 			item := iter.Item()
+			if strings.HasPrefix(string(item.Key()), "block_processed_") {
+				continue
+			}
 			if item.IsDeletedOrExpired() {
 				continue
 			}
@@ -192,7 +199,8 @@ func (s *Badger) GetUnseen(_ context.Context, callback func(s *store.StoreData))
 				dec := gob.NewDecoder(bytes.NewReader(val))
 				return dec.Decode(&result)
 			}); err != nil {
-				return fmt.Errorf("failed to decode data: %w", err)
+				s.logger.Errorf("failed to decode data for %s: %w", item.Key(), err)
+				continue
 			}
 
 			if result.Status < metamorph_api.Status_SEEN_ON_NETWORK {

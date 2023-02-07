@@ -321,6 +321,8 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		err := p.store.UpdateStatus(context.Background(), resp.Hash, status, rejectReason)
 		if err != nil {
 			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
+		} else {
+			p.logger.Debugf("Status change reported: %s: %s", utils.HexEncodeAndReverseBytes(resp.Hash), status)
 		}
 
 		if statusErr != nil {

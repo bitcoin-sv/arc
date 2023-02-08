@@ -208,7 +208,7 @@ func (m *ProcessorResponseMap) PrintItems() {
 	defer m.mu.RUnlock()
 
 	for _, value := range m.items {
-		fmt.Printf("tx2ChMap: %s\n", value.String())
+		fmt.Printf("processorResponseMap: %s\n", value.String())
 	}
 
 }

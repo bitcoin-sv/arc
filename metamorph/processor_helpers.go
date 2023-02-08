@@ -11,7 +11,7 @@ import (
 
 func (p *Processor) GetStats() *ProcessorStats {
 	if p.logger.LogLevel() == int(gocore.DEBUG) {
-		p.tx2ChMap.PrintItems()
+		p.processorResponseMap.PrintItems()
 	}
 
 	return &ProcessorStats{
@@ -32,7 +32,7 @@ func (p *Processor) GetStats() *ProcessorStats {
 		MinedMillis:              p.minedMillis.Load(),
 		RejectedCount:            p.rejectedCount.Load(),
 		RejectedMillis:           p.rejectedMillis.Load(),
-		ChannelMapSize:           int32(p.tx2ChMap.Len()),
+		ChannelMapSize:           int32(p.processorResponseMap.Len()),
 	}
 }
 

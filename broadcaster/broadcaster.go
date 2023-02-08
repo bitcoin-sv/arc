@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
+	"runtime"
 	"sync"
 	"time"
 
@@ -58,11 +60,12 @@ type Broadcaster struct {
 	IsDryRun      bool
 	IsRegtest     bool
 	PrintTxIDs    bool
+	Consolidate   bool
 	Concurrency   int
+	BatchSize     int64
 	WaitForStatus api.WaitForStatus
 	BatchSend     int
 	FeeQuote      *bt.FeeQuote
-	txs           []*bt.Tx
 	summary       map[string]uint64
 	summaryMu     sync.Mutex
 }
@@ -78,21 +81,21 @@ func New(client ClientI, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, out
 		ToKeySet:      toKeySet,
 		Outputs:       outputs,
 		IsRegtest:     true,
+		BatchSize:     500,
 		WaitForStatus: 0,
 		FeeQuote:      fq,
-		txs:           make([]*bt.Tx, outputs),
 		summary:       make(map[string]uint64),
 	}
 }
 
-func (b *Broadcaster) ConsolidateOutputsToOriginal(ctx context.Context) error {
+func (b *Broadcaster) ConsolidateOutputsToOriginal(ctx context.Context, txs []*bt.Tx, iteration int64) error {
 	// consolidate all transactions back into the original arcUrl
-	log.Println("Consolidating all transactions back into original address")
+	log.Printf("[%d] consolidating all transactions back into original address\n", iteration)
 	consolidationAddress := b.FromKeySet.Address(!b.IsRegtest)
 	consolidationTx := bt.NewTx()
-	utxos := make([]*bt.UTXO, len(b.txs))
+	utxos := make([]*bt.UTXO, len(txs))
 	totalSatoshis := uint64(0)
-	for i, tx := range b.txs {
+	for i, tx := range txs {
 		utxos[i] = &bt.UTXO{
 			TxID:          tx.TxIDBytes(),
 			Vout:          0,
@@ -125,76 +128,129 @@ func (b *Broadcaster) ConsolidateOutputsToOriginal(ctx context.Context) error {
 		return err
 	}
 
+	log.Printf("[%d] consolidation tx: %s", iteration, consolidationTx.TxID())
+
 	return nil
 }
 
 func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 
-	fundingTx := b.NewFundingTransaction()
-	log.Printf("funding tx: %s\n", fundingTx.TxID())
-
-	_, err := b.Client.BroadcastTransaction(ctx, fundingTx, metamorph_api.Status(b.WaitForStatus))
-	if err != nil {
-		return err
-	}
-
 	timeStart := time.Now()
 
+	if concurrency == 0 {
+		// use the number of outputs as the default concurrency
+		// which will not limit the amount of concurrent goroutines
+		concurrency = int(b.BatchSize)
+	}
+	log.Printf("Using concurrency of %d\n", concurrency)
+
+	// loop through the number of outputs in batches of b.BatchSize (default 500)
+	log.Printf("creating funding txs\n")
+	var wg sync.WaitGroup
+	limit := make(chan struct{}, runtime.NumCPU())
+	for i := int64(0); i < b.Outputs; i += b.BatchSize {
+		wg.Add(1)
+		limit <- struct{}{}
+
+		batchSize := b.BatchSize
+		if i+batchSize > b.Outputs {
+			batchSize = b.Outputs - i
+		}
+
+		go func(i int64) {
+			defer func() {
+				wg.Done()
+				<-limit
+			}()
+
+			iteration := (i / b.BatchSize) + 1
+
+			fundingTx := b.NewFundingTransaction(batchSize, iteration)
+			log.Printf("[%d] outputs tx: %s\n", iteration, fundingTx.TxID())
+
+			_, err := b.Client.BroadcastTransaction(ctx, fundingTx, metamorph_api.Status(b.WaitForStatus))
+			if err != nil {
+				log.Printf("[%d] error broadcasting funding tx: %s\n", iteration, err.Error())
+				return
+			}
+
+			log.Printf("[%d] running batch: %d - %d\n", iteration, i, i+batchSize)
+			err = b.runBatch(ctx, concurrency, fundingTx, iteration)
+			if err != nil {
+				log.Printf("[%d] error running batch: %s\n", iteration, err.Error())
+				return
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	log.Printf("sent %d txs in %0.2f seconds\n", b.Outputs, time.Since(timeStart).Seconds())
+
+	// print summary
+	log.Printf("Summary:\n")
+	totalCount := uint64(0)
+	for summaryString, count := range b.summary {
+		log.Printf("%s: %d\n", summaryString, count)
+		totalCount += count
+	}
+	log.Printf("Total: %d\n", totalCount)
+
+	return nil
+}
+
+func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *bt.Tx, iteration int64) error {
+	txs := make([]*bt.Tx, len(fundingTx.Outputs))
+	for i := 0; i < len(fundingTx.Outputs); i++ {
+		u := &bt.UTXO{
+			TxID:          fundingTx.TxIDBytes(),
+			Vout:          uint32(i),
+			LockingScript: fundingTx.Outputs[i].LockingScript,
+			Satoshis:      fundingTx.Outputs[i].Satoshis,
+		}
+		txs[i], _ = b.NewTransaction(b.ToKeySet, u)
+	}
+
 	if b.IsDryRun {
-		for _, tx := range b.txs {
+		for _, tx := range txs {
 			//log.Printf("Processing tx %d / %d\n", i+1, len(b.txs))
-			if err = b.ProcessTransaction(ctx, tx); err != nil {
+			if err := b.ProcessTransaction(ctx, tx); err != nil {
 				return err
 			}
 		}
 	} else {
 		if b.BatchSend > 0 {
-			log.Printf("Using batch size of %d\n", b.BatchSend)
-			for i := int64(0); i < b.Outputs; i++ {
-				u := &bt.UTXO{
-					TxID:          fundingTx.TxIDBytes(),
-					Vout:          uint32(i),
-					LockingScript: fundingTx.Outputs[i].LockingScript,
-					Satoshis:      fundingTx.Outputs[i].Satoshis,
-				}
-				b.txs[i], _ = b.NewTransaction(b.ToKeySet, u)
-			}
+			log.Printf("[%d] Using batch size of %d in iteration\n", iteration, b.BatchSend)
 
 			var wg sync.WaitGroup
-			for i := 0; i < len(b.txs); i += b.BatchSend {
+			for i := 0; i < len(txs); i += b.BatchSend {
+				wg.Add(1)
 				j := i + b.BatchSend
-				if j > len(b.txs) {
-					j = len(b.txs)
+				if j > len(txs) {
+					j = len(txs)
 				}
 
-				wg.Add(1)
-				log.Printf("   Sending batch of %d - %d\n", i, j)
+				log.Printf("[%d]   Sending batch of %d - %d\n", iteration, i, j)
 				go func(txs []*bt.Tx) {
 					defer wg.Done()
 
-					var txStatus []*metamorph_api.TransactionStatus
-					txStatus, err = b.Client.BroadcastTransactions(ctx, txs, metamorph_api.Status(b.WaitForStatus))
+					txStatus, err := b.Client.BroadcastTransactions(ctx, txs, metamorph_api.Status(b.WaitForStatus))
+					if err != nil {
+						log.Printf("Error broadcasting transactions: %s\n", err.Error())
+					}
 					for _, res := range txStatus {
 						b.processResult(res)
 					}
-				}(b.txs[i:j])
+				}(txs[i:j])
 			}
 			wg.Wait()
 		} else {
-			if concurrency == 0 {
-				// use the number of outputs as the default concurrency
-				// which will not limit the amount of concurrent goroutines
-				concurrency = int(b.Outputs)
-			}
-			log.Printf("Using concurrency of %d\n", concurrency)
-
 			var wg sync.WaitGroup
 			// limit the amount of concurrent goroutines
 			limit := make(chan bool, concurrency)
-			for i := int64(0); i < b.Outputs; i++ {
+			for i := 0; i < len(fundingTx.Outputs); i++ {
 				wg.Add(1)
 				limit <- true
-				go func(i int64, fundingTx *bt.Tx) {
+				go func(i int) {
 					defer func() {
 						wg.Done()
 						<-limit
@@ -206,24 +262,23 @@ func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 						LockingScript: fundingTx.Outputs[i].LockingScript,
 						Satoshis:      fundingTx.Outputs[i].Satoshis,
 					}
-					b.txs[i], _ = b.NewTransaction(b.ToKeySet, u)
+					txs[i], _ = b.NewTransaction(b.ToKeySet, u)
 
-					if err = b.ProcessTransaction(ctx, b.txs[i]); err != nil {
-						log.Printf("Error: %s", err.Error())
+					if err := b.ProcessTransaction(ctx, txs[i]); err != nil {
+						log.Printf("[%d] Error in %s: %s", iteration, txs[i].TxID(), err.Error())
+						log.Println(txs[i].String())
 					}
-				}(i, fundingTx)
+				}(i)
 			}
 			wg.Wait()
 		}
 	}
 
-	// print summary
-	log.Printf("Summary:\n")
-	for summaryString, count := range b.summary {
-		log.Printf("%s: %d\n", summaryString, count)
+	if b.Consolidate {
+		if err := b.ConsolidateOutputsToOriginal(ctx, txs, iteration); err != nil {
+			panic(err)
+		}
 	}
-
-	log.Printf("sent %d txs in %0.2f seconds\n", len(b.txs), time.Since(timeStart).Seconds())
 
 	return nil
 }
@@ -231,7 +286,7 @@ func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 func (b *Broadcaster) ProcessTransaction(ctx context.Context, tx *bt.Tx) error {
 	res, err := b.Client.BroadcastTransaction(ctx, tx, metamorph_api.Status(b.WaitForStatus))
 	if err != nil {
-		return err
+		return fmt.Errorf("error broadcasting transaction %s: %s", tx.TxID(), err.Error())
 	}
 
 	b.processResult(res)
@@ -263,7 +318,7 @@ func (b *Broadcaster) processResult(res *metamorph_api.TransactionStatus) {
 	b.summaryMu.Unlock()
 }
 
-func (b *Broadcaster) NewFundingTransaction() *bt.Tx {
+func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
 	var fq = bt.NewFeeQuote()
 	fq.AddQuote(bt.FeeTypeStandard, stdFee)
 	fq.AddQuote(bt.FeeTypeData, dataFee)
@@ -281,7 +336,7 @@ func (b *Broadcaster) NewFundingTransaction() *bt.Tx {
 			// create the first funding transaction
 			txid, vout, scriptPubKey, err = b.SendToAddress(addr, 100_000_000)
 			if err == nil {
-				log.Printf("init tx: %s:%d\n", txid, vout)
+				log.Printf("[%d] funding tx: %s:%d\n", iteration, txid, vout)
 				break
 			}
 
@@ -308,10 +363,12 @@ func (b *Broadcaster) NewFundingTransaction() *bt.Tx {
 		if err != nil {
 			panic(err)
 		}
+
+		log.Printf("[%d] funding tx: %s\n", iteration, tx.TxID())
 	}
 
 	estimateFee := fees.EstimateFee(uint64(stdFee.MiningFee.Satoshis), 1, 1)
-	for i := int64(0); i < b.Outputs; i++ {
+	for i := int64(0); i < outputs; i++ {
 		// we send triple the fee to the output arcUrl
 		// this will allow us to send the change back to the original arcUrl
 		_ = tx.PayTo(b.ToKeySet.Script, estimateFee*3)

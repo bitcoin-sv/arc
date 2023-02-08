@@ -135,16 +135,11 @@ func main() {
 	bCaster.WaitForStatus = *waitForStatus
 	bCaster.PrintTxIDs = *printTxIDs
 	bCaster.BatchSend = *batch
+	bCaster.Consolidate = *consolidate
 
 	err = bCaster.Run(ctx, *concurrency)
 	if err != nil {
 		panic(err)
-	}
-
-	if consolidate != nil && *consolidate {
-		if err = bCaster.ConsolidateOutputsToOriginal(ctx); err != nil {
-			panic(err)
-		}
 	}
 }
 

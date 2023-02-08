@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/TAAL-GmbH/arc/api/handler"
 	"github.com/labstack/echo/v4"
@@ -62,8 +64,9 @@ func StartAPIServer(logger utils.Logger) (func(), error) {
 
 	return func() {
 		logger.Infof("Shutting down api service")
-		err := e.Close()
-		if err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := e.Shutdown(ctx); err != nil {
 			logger.Errorf("Error closing API echo server: %v", err)
 		}
 	}, nil

@@ -94,7 +94,7 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 				for sub := range bn.subscribers {
 					go func(s subscriber) {
 						if err := s.stream.Send(block); err != nil {
-							bn.logger.Errorf("Error sending config")
+							bn.logger.Errorf("Error sending block to subscriber: %v", err)
 							bn.deadSubscriptions <- s
 						}
 					}(sub)

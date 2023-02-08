@@ -55,16 +55,16 @@ type ProcessorStats struct {
 }
 
 type Processor struct {
-	ch               chan *ProcessorRequest
-	store            store.MetamorphStore
-	registerCh       chan *blocktx_api.TransactionAndSource
-	cbChannel        chan *callbacker_api.Callback
-	tx2ChMap         *ProcessorResponseMap
-	pm               p2p.PeerManagerI
-	logger           utils.Logger
-	metamorphAddress string
-	errorLogFile     string
-	errorLogWorker   chan *ProcessorResponse
+	ch                   chan *ProcessorRequest
+	store                store.MetamorphStore
+	registerCh           chan *blocktx_api.TransactionAndSource
+	cbChannel            chan *callbacker_api.Callback
+	processorResponseMap *ProcessorResponseMap
+	pm                   p2p.PeerManagerI
+	logger               utils.Logger
+	metamorphAddress     string
+	errorLogFile         string
+	errorLogWorker       chan *ProcessorResponse
 
 	startTime                time.Time
 	workerCount              int
@@ -105,16 +105,16 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 	logger.Infof("Starting processor with %d workers and cache expiry of %s", workerCount, mapExpiryStr)
 
 	p := &Processor{
-		startTime:        time.Now().UTC(),
-		ch:               make(chan *ProcessorRequest),
-		store:            s,
-		registerCh:       registerCh,
-		cbChannel:        cbChannel,
-		tx2ChMap:         NewProcessorResponseMap(mapExpiry),
-		workerCount:      workerCount,
-		pm:               pm,
-		logger:           logger,
-		metamorphAddress: metamorphAddress,
+		startTime:            time.Now().UTC(),
+		ch:                   make(chan *ProcessorRequest),
+		store:                s,
+		registerCh:           registerCh,
+		cbChannel:            cbChannel,
+		processorResponseMap: NewProcessorResponseMap(mapExpiry),
+		workerCount:          workerCount,
+		pm:                   pm,
+		logger:               logger,
+		metamorphAddress:     metamorphAddress,
 	}
 
 	// Start a goroutine to resend transactions that have not been seen on the network
@@ -171,7 +171,7 @@ func (p *Processor) processExpiredTransactions() {
 	// Resend transactions that have not been seen on the network every 60 seconds
 	// The Items() method will return a copy of the map, so we can iterate over it without locking
 	for range time.NewTicker(60 * time.Second).C {
-		expiredTransactionItems := p.tx2ChMap.Items(filterFunc)
+		expiredTransactionItems := p.processorResponseMap.Items(filterFunc)
 		if len(expiredTransactionItems) > 0 {
 			p.logger.Infof("Resending %d expired transactions", len(expiredTransactionItems))
 			for txID, item := range expiredTransactionItems {
@@ -223,7 +223,7 @@ func (p *Processor) LoadUnseen() {
 		pr := NewProcessorResponseWithStatus(record.Hash, record.Status)
 		pr.noStats = true
 
-		p.tx2ChMap.Set(txIDStr, pr)
+		p.processorResponseMap.Set(txIDStr, pr)
 
 		if record.Status == metamorph_api.Status_STORED {
 			// we only stored the transaction, but maybe did not register it with block tx
@@ -277,7 +277,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 	}
 
 	// remove the transaction from the tx map, regardless of status
-	resp, ok := p.tx2ChMap.Get(hashStr)
+	resp, ok := p.processorResponseMap.Get(hashStr)
 	if ok {
 		resp.SetStatus(metamorph_api.Status_MINED)
 		if !resp.noStats {
@@ -285,7 +285,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 			p.minedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
 		}
 
-		p.tx2ChMap.Delete(hashStr)
+		p.processorResponseMap.Delete(hashStr)
 	}
 
 	if p.cbChannel != nil {
@@ -306,9 +306,11 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 }
 
 func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_api.Status, statusErr error) (bool, error) {
-	resp, ok := p.tx2ChMap.Get(hashStr)
+	processorResponse, ok := p.processorResponseMap.Get(hashStr)
 	if ok {
-		if resp.GetStatus() == status && statusErr == nil {
+		// TODO: There is a concurrency issue here when we get a response from multiple nodes on the network
+		// 		 and this messes up the stats of status changes
+		if processorResponse.GetStatus() > status && statusErr == nil {
 			return false, nil
 		}
 
@@ -318,53 +320,53 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 			rejectReason = statusErr.Error()
 		}
 
-		err := p.store.UpdateStatus(context.Background(), resp.Hash, status, rejectReason)
+		err := p.store.UpdateStatus(context.Background(), processorResponse.Hash, status, rejectReason)
 		if err != nil {
 			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
 		} else {
-			p.logger.Debugf("Status change reported: %s: %s", utils.HexEncodeAndReverseBytes(resp.Hash), status)
+			p.logger.Debugf("Status change reported: %s: %s", utils.HexEncodeAndReverseBytes(processorResponse.Hash), status)
 		}
 
 		if statusErr != nil {
-			ok = resp.SetStatusAndError(status, statusErr)
+			ok = processorResponse.SetStatusAndError(status, statusErr)
 		} else {
-			ok = resp.SetStatus(status)
+			ok = processorResponse.SetStatus(status)
 		}
 
-		if !resp.noStats {
+		if !processorResponse.noStats {
 			switch status {
 
 			case metamorph_api.Status_SENT_TO_NETWORK:
 				p.sentToNetworkCount.Add(1)
-				p.sentToNetworkMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
+				p.sentToNetworkMillis.Add(int32(time.Since(processorResponse.Start).Milliseconds()))
 
 			case metamorph_api.Status_SEEN_ON_NETWORK:
 				p.seenOnNetworkCount.Add(1)
-				p.seenOnNetworkMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
+				p.seenOnNetworkMillis.Add(int32(time.Since(processorResponse.Start).Milliseconds()))
 
 			case metamorph_api.Status_MINED:
 				p.minedCount.Add(1)
-				p.minedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
-				p.tx2ChMap.Delete(hashStr)
+				p.minedMillis.Add(int32(time.Since(processorResponse.Start).Milliseconds()))
+				p.processorResponseMap.Delete(hashStr)
 
 			case metamorph_api.Status_REJECTED:
 				// log transaction to the error log
 				if p.errorLogFile != "" && p.errorLogWorker != nil {
-					item, found := p.tx2ChMap.Get(hashStr)
+					item, found := p.processorResponseMap.Get(hashStr)
 					if found && item != nil {
 						utils.SafeSend(p.errorLogWorker, item)
 					}
 				}
 
 				p.rejectedCount.Add(1)
-				p.rejectedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
-				p.tx2ChMap.Delete(hashStr)
+				p.rejectedMillis.Add(int32(time.Since(processorResponse.Start).Milliseconds()))
+				p.processorResponseMap.Delete(hashStr)
 
 			}
 		}
 
 		statKey := fmt.Sprintf("%d: %s", status, status.String())
-		resp.lastStatusUpdateNanos.Store(gocore.NewStat("processor - async").NewStat(statKey).AddTime(resp.lastStatusUpdateNanos.Load()))
+		processorResponse.lastStatusUpdateNanos.Store(gocore.NewStat("processor - async").NewStat(statKey).AddTime(processorResponse.lastStatusUpdateNanos.Load()))
 
 		return ok, nil
 	} else if status > metamorph_api.Status_SENT_TO_NETWORK {
@@ -375,7 +377,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 			p.logger.Debugf("Received status %s for tx %s", status.String(), hashStr)
 		}
 
-		// This is coming from zmq, after the transaction has been deleted from our tx2ChMap
+		// This is coming from zmq, after the transaction has been deleted from our processorResponseMap
 		// It could be a "seen", "confirmed", "mined" or "rejected" status, but should finalize the tx
 		hash, err := utils.DecodeAndReverseHexString(hashStr)
 		if err != nil {
@@ -434,7 +436,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 		return
 	}
 
-	p.tx2ChMap.Set(txIDStr, processorResponse)
+	p.processorResponseMap.Set(txIDStr, processorResponse)
 
 	p.logger.Debugf("Stored tx %s", txIDStr)
 

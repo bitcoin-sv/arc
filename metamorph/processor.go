@@ -177,11 +177,11 @@ func (p *Processor) processExpiredTransactions() {
 			for txID, item := range expiredTransactionItems {
 				retries := item.Retries()
 				p.logger.Debugf("Resending expired tx: %s (%d retries)", txID, retries)
-				if retries >= 4 {
+				if retries >= 2 {
 					// TODO what should we do here?
 					p.logger.Debugf("Transaction %s has been retried 4 times, not resending", txID)
 					continue
-				} else if retries >= 2 {
+				} else if retries >= 1 {
 					// retried announcing 2 times, now sending GETDATA to peers to see if they have it
 					p.logger.Debugf("Re-getting expired tx: %s", txID)
 					p.pm.GetTransaction(item.Hash)

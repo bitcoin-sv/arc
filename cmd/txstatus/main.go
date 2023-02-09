@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/TAAL-GmbH/arc/api/transactionHandler"
 	"github.com/TAAL-GmbH/arc/blocktx"
@@ -42,8 +44,25 @@ func main() {
 		panic(err)
 	}
 
+	type response struct {
+		*transactionHandler.TransactionStatus
+		TransactionBytes string    `json:"transactionBytes"`
+		Timestamp        time.Time `json:"timestamp"`
+	}
+
+	transactionBytes, err := txHandler.GetTransaction(ctx, txid)
+	if err != nil {
+		panic(err)
+	}
+
+	r := &response{
+		TransactionStatus: res,
+		TransactionBytes:  hex.EncodeToString(transactionBytes),
+		Timestamp:         time.Unix(res.Timestamp, 0).UTC(),
+	}
+
 	var b []byte
-	b, err = json.Marshal(res)
+	b, err = json.MarshalIndent(r, "", "  ")
 	if err != nil {
 		panic(err)
 	}

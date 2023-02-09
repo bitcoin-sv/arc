@@ -92,7 +92,13 @@ func New(logger utils.Logger, client ClientI, fromKeySet *keyset.KeySet, toKeySe
 
 func (b *Broadcaster) ConsolidateOutputsToOriginal(ctx context.Context, txs []*bt.Tx, iteration int64) error {
 	// consolidate all transactions back into the original arcUrl
-	b.logger.Infof("[%d] consolidating all transactions back into original address", iteration)
+	b.logger.Infof("[%d] consolidating %d transactions back into original address", iteration, len(txs))
+	if b.logger.LogLevel() == int(gocore.DEBUG) && b.PrintTxIDs {
+		for _, tx := range txs {
+			b.logger.Debugf("[%d]    consolidating tx: %s", iteration, tx.TxID())
+		}
+	}
+
 	consolidationAddress := b.FromKeySet.Address(!b.IsRegtest)
 	consolidationTx := bt.NewTx()
 	utxos := make([]*bt.UTXO, len(txs))
@@ -201,8 +207,8 @@ func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 }
 
 func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *bt.Tx, iteration int64) error {
-	txs := make([]*bt.Tx, len(fundingTx.Outputs))
-	for i := 0; i < len(fundingTx.Outputs); i++ {
+	txs := make([]*bt.Tx, len(fundingTx.Outputs)-1)
+	for i := 0; i < len(fundingTx.Outputs)-1; i++ {
 		u := &bt.UTXO{
 			TxID:          fundingTx.TxIDBytes(),
 			Vout:          uint32(i),
@@ -249,29 +255,21 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 			var wg sync.WaitGroup
 			// limit the amount of concurrent goroutines
 			limit := make(chan bool, concurrency)
-			// len - 1 skips the change output
-			for i := 0; i < len(fundingTx.Outputs)-1; i++ {
+			for i, tx := range txs {
 				wg.Add(1)
 				limit <- true
-				go func(i int) {
+
+				go func(i int, tx *bt.Tx) {
 					defer func() {
 						wg.Done()
 						<-limit
 					}()
 
-					u := &bt.UTXO{
-						TxID:          fundingTx.TxIDBytes(),
-						Vout:          uint32(i),
-						LockingScript: fundingTx.Outputs[i].LockingScript,
-						Satoshis:      fundingTx.Outputs[i].Satoshis,
-					}
-					txs[i], _ = b.NewTransaction(b.ToKeySet, u)
-
-					if err := b.ProcessTransaction(ctx, txs[i], iteration); err != nil {
+					if err := b.ProcessTransaction(ctx, tx, iteration); err != nil {
 						b.logger.Infof("[%d] Error in %s: %s", iteration, txs[i].TxID(), err.Error())
 						b.logger.Infof(txs[i].String())
 					}
-				}(i)
+				}(i, tx)
 			}
 			wg.Wait()
 		}

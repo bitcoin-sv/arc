@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/TAAL-GmbH/arc/api"
-	handler2 "github.com/TAAL-GmbH/arc/api/handler"
+	apiHandler "github.com/TAAL-GmbH/arc/api/handler"
 	"github.com/TAAL-GmbH/arc/api/transactionHandler"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3filter"
@@ -32,7 +32,7 @@ func main() {
 	//
 
 	// check the swagger definition against our requests
-	swagger := handler2.CheckSwagger(e)
+	swagger := apiHandler.CheckSwagger(e)
 
 	// Set a custom authentication handler
 	e.Use(middleware.OapiRequestValidatorWithOptions(swagger,
@@ -57,20 +57,20 @@ func main() {
 	)
 
 	// add a single bitcoin node
-	transactionHandler, err := transactionHandler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
+	txHandler, err := transactionHandler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
 	if err != nil {
 		panic(err)
 	}
 
-	// initialise the arc default blocktx_api handler, with our transactionHandler and any handler options
-	var apiHandler api.HandlerInterface
-	if apiHandler, err = handler2.NewDefault(transactionHandler); err != nil {
+	// initialise the arc default blocktx_api handler, with our txHandler and any handler options
+	var handler api.HandlerInterface
+	if handler, err = apiHandler.NewDefault(txHandler); err != nil {
 		panic(err)
 	}
 
 	// Register the ARC API
 	// the arc handler registers routes under /v1/...
-	api.RegisterHandlers(e, apiHandler)
+	api.RegisterHandlers(e, handler)
 	// or with a base url => /mySubDir/v1/...
 	// arc.RegisterHandlersWithBaseURL(e. blocktx_api, "/mySubDir")
 

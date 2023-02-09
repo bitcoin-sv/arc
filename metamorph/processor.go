@@ -274,6 +274,8 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
 			return false, err
 		}
+	} else {
+		p.logger.Infof("Status mined reported for tx %s", hashStr)
 	}
 
 	// remove the transaction from the tx map, regardless of status
@@ -324,7 +326,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		if err != nil {
 			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
 		} else {
-			p.logger.Debugf("Status change reported: %s: %s", utils.HexEncodeAndReverseBytes(processorResponse.Hash), status)
+			p.logger.Infof("Status change reported: %s: %s", utils.HexEncodeAndReverseBytes(processorResponse.Hash), status)
 		}
 
 		if statusErr != nil {
@@ -374,7 +376,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 			// Print the error along with the status message
 			p.logger.Debugf("Received status %s for tx %s: %s", status.String(), hashStr, statusErr.Error())
 		} else {
-			p.logger.Debugf("Received status %s for tx %s", status.String(), hashStr)
+			p.logger.Infof("Received status %s for tx %s", status.String(), hashStr)
 		}
 
 		// This is coming from zmq, after the transaction has been deleted from our processorResponseMap

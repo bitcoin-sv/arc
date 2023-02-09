@@ -32,10 +32,12 @@ func TestReadExtendedPrivateKey(t *testing.T) {
 	assert.Equal(t, "1DbSzRu4PTQFXNLTqD2hE8Fn5cGtQWxJsb", key2.Address(true))
 	assert.Equal(t, "mt7QHUz3CUqWJUp5Yn1543U6wbsbNEi6YU", key2.Address(false))
 
+	/* Don't get data from the network in tests
 	unspent, err := key.GetUTXOs(true)
 	require.NoError(t, err)
 
 	for _, utxo := range unspent {
 		t.Logf("%s:%d (%d sats)", utxo.TxIDStr(), utxo.Vout, utxo.Satoshis)
 	}
+	*/
 }

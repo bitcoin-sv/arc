@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
 	"runtime"
 	"sync"
 	"time"
@@ -19,6 +18,7 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/unlocker"
 	"github.com/ordishs/go-bitcoin"
+	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
 
@@ -53,6 +53,7 @@ type ClientI interface {
 }
 
 type Broadcaster struct {
+	logger        utils.Logger
 	Client        ClientI
 	FromKeySet    *keyset.KeySet
 	ToKeySet      *keyset.KeySet
@@ -70,12 +71,13 @@ type Broadcaster struct {
 	summaryMu     sync.Mutex
 }
 
-func New(client ClientI, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, outputs int64) *Broadcaster {
+func New(logger utils.Logger, client ClientI, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, outputs int64) *Broadcaster {
 	var fq = bt.NewFeeQuote()
 	fq.AddQuote(bt.FeeTypeStandard, stdFee)
 	fq.AddQuote(bt.FeeTypeData, dataFee)
 
 	return &Broadcaster{
+		logger:        logger,
 		Client:        client,
 		FromKeySet:    fromKeySet,
 		ToKeySet:      toKeySet,
@@ -90,7 +92,7 @@ func New(client ClientI, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, out
 
 func (b *Broadcaster) ConsolidateOutputsToOriginal(ctx context.Context, txs []*bt.Tx, iteration int64) error {
 	// consolidate all transactions back into the original arcUrl
-	log.Printf("[%d] consolidating all transactions back into original address\n", iteration)
+	b.logger.Infof("[%d] consolidating all transactions back into original address", iteration)
 	consolidationAddress := b.FromKeySet.Address(!b.IsRegtest)
 	consolidationTx := bt.NewTx()
 	utxos := make([]*bt.UTXO, len(txs))
@@ -128,7 +130,7 @@ func (b *Broadcaster) ConsolidateOutputsToOriginal(ctx context.Context, txs []*b
 		return err
 	}
 
-	log.Printf("[%d] consolidation tx: %s", iteration, consolidationTx.TxID())
+	b.logger.Infof("[%d] consolidation tx: %s", iteration, consolidationTx.TxID())
 
 	return nil
 }
@@ -142,10 +144,10 @@ func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 		// which will not limit the amount of concurrent goroutines
 		concurrency = int(b.BatchSize)
 	}
-	log.Printf("Using concurrency of %d\n", concurrency)
+	b.logger.Infof("Using concurrency of %d", concurrency)
 
 	// loop through the number of outputs in batches of b.BatchSize (default 500)
-	log.Printf("creating funding txs\n")
+	b.logger.Infof("creating funding txs")
 	var wg sync.WaitGroup
 	limit := make(chan struct{}, runtime.NumCPU())
 	for i := int64(0); i < b.Outputs; i += b.BatchSize {
@@ -166,34 +168,34 @@ func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 			iteration := (i / b.BatchSize) + 1
 
 			fundingTx := b.NewFundingTransaction(batchSize, iteration)
-			log.Printf("[%d] outputs tx: %s\n", iteration, fundingTx.TxID())
+			b.logger.Infof("[%d] outputs tx: %s", iteration, fundingTx.TxID())
 
 			_, err := b.Client.BroadcastTransaction(ctx, fundingTx, metamorph_api.Status(b.WaitForStatus))
 			if err != nil {
-				log.Printf("[%d] error broadcasting funding tx: %s\n", iteration, err.Error())
+				b.logger.Infof("[%d] error broadcasting funding tx: %s", iteration, err.Error())
 				return
 			}
 
-			log.Printf("[%d] running batch: %d - %d\n", iteration, i, i+batchSize)
+			b.logger.Infof("[%d] running batch: %d - %d", iteration, i, i+batchSize)
 			err = b.runBatch(ctx, concurrency, fundingTx, iteration)
 			if err != nil {
-				log.Printf("[%d] error running batch: %s\n", iteration, err.Error())
+				b.logger.Infof("[%d] error running batch: %s", iteration, err.Error())
 				return
 			}
 		}(i)
 	}
 	wg.Wait()
 
-	log.Printf("sent %d txs in %0.2f seconds\n", b.Outputs, time.Since(timeStart).Seconds())
+	b.logger.Infof("sent %d txs in %0.2f seconds", b.Outputs, time.Since(timeStart).Seconds())
 
 	// print summary
-	log.Printf("Summary:\n")
+	b.logger.Infof("Summary:")
 	totalCount := uint64(0)
 	for summaryString, count := range b.summary {
-		log.Printf("%s: %d\n", summaryString, count)
+		b.logger.Infof("%s: %d", summaryString, count)
 		totalCount += count
 	}
-	log.Printf("Total: %d\n", totalCount)
+	b.logger.Infof("Total: %d", totalCount)
 
 	return nil
 }
@@ -212,14 +214,14 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 
 	if b.IsDryRun {
 		for _, tx := range txs {
-			//log.Printf("Processing tx %d / %d\n", i+1, len(b.txs))
+			// b.logger.Infof("Processing tx %d / %d", i+1, len(b.txs))
 			if err := b.ProcessTransaction(ctx, tx); err != nil {
 				return err
 			}
 		}
 	} else {
 		if b.BatchSend > 0 {
-			log.Printf("[%d] Using batch size of %d in iteration\n", iteration, b.BatchSend)
+			b.logger.Infof("[%d] Using batch size of %d in iteration", iteration, b.BatchSend)
 
 			var wg sync.WaitGroup
 			for i := 0; i < len(txs); i += b.BatchSend {
@@ -229,13 +231,13 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 					j = len(txs)
 				}
 
-				log.Printf("[%d]   Sending batch of %d - %d\n", iteration, i, j)
+				b.logger.Infof("[%d]   Sending batch of %d - %d", iteration, i, j)
 				go func(txs []*bt.Tx) {
 					defer wg.Done()
 
 					txStatus, err := b.Client.BroadcastTransactions(ctx, txs, metamorph_api.Status(b.WaitForStatus))
 					if err != nil {
-						log.Printf("Error broadcasting transactions: %s\n", err.Error())
+						b.logger.Infof("Error broadcasting transactions: %s", err.Error())
 					}
 					for _, res := range txStatus {
 						b.processResult(res)
@@ -247,7 +249,8 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 			var wg sync.WaitGroup
 			// limit the amount of concurrent goroutines
 			limit := make(chan bool, concurrency)
-			for i := 0; i < len(fundingTx.Outputs); i++ {
+			// len - 1 skips the change output
+			for i := 0; i < len(fundingTx.Outputs)-1; i++ {
 				wg.Add(1)
 				limit <- true
 				go func(i int) {
@@ -265,8 +268,8 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 					txs[i], _ = b.NewTransaction(b.ToKeySet, u)
 
 					if err := b.ProcessTransaction(ctx, txs[i]); err != nil {
-						log.Printf("[%d] Error in %s: %s", iteration, txs[i].TxID(), err.Error())
-						log.Println(txs[i].String())
+						b.logger.Infof("[%d] Error in %s: %s", iteration, txs[i].TxID(), err.Error())
+						b.logger.Infof(txs[i].String())
 					}
 				}(i)
 			}
@@ -297,11 +300,11 @@ func (b *Broadcaster) ProcessTransaction(ctx context.Context, tx *bt.Tx) error {
 func (b *Broadcaster) processResult(res *metamorph_api.TransactionStatus) {
 	if b.PrintTxIDs {
 		if res.TimedOut {
-			log.Printf("res %s: %#v (TIMEOUT)\n", res.Txid, res.Status.String())
+			b.logger.Infof("res %s: %#v (TIMEOUT)", res.Txid, res.Status.String())
 		} else if res.RejectReason != "" {
-			log.Printf("res %s: %#v (REJECT: %s)\n", res.Txid, res.Status.String(), res.RejectReason)
+			b.logger.Infof("res %s: %#v (REJECT: %s)", res.Txid, res.Status.String(), res.RejectReason)
 		} else {
-			log.Printf("res %s: %#v\n", res.Txid, res.Status.String())
+			b.logger.Infof("res %s: %#v", res.Txid, res.Status.String())
 		}
 	}
 
@@ -336,11 +339,11 @@ func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
 			// create the first funding transaction
 			txid, vout, scriptPubKey, err = b.SendToAddress(addr, 100_000_000)
 			if err == nil {
-				log.Printf("[%d] funding tx: %s:%d\n", iteration, txid, vout)
+				b.logger.Infof("[%d] funding tx: %s:%d", iteration, txid, vout)
 				break
 			}
 
-			log.Printf(".")
+			b.logger.Infof(".")
 			time.Sleep(100 * time.Millisecond)
 		}
 		err = tx.From(txid, vout, scriptPubKey, 100_000_000)
@@ -364,7 +367,7 @@ func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
 			panic(err)
 		}
 
-		log.Printf("[%d] funding tx: %s\n", iteration, tx.TxID())
+		b.logger.Infof("[%d] funding tx: %s", iteration, tx.TxID())
 	}
 
 	estimateFee := fees.EstimateFee(uint64(stdFee.MiningFee.Satoshis), 1, 1)
@@ -416,10 +419,10 @@ func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) (*bt.
 func (b *Broadcaster) SendToAddress(address string, satoshis uint64) (string, uint32, string, error) {
 	rpcURL, err, found := gocore.Config().GetURL("peer_rpc")
 	if !found {
-		log.Fatalf("Could not find peer_rpc in config: %v", err)
+		b.logger.Fatalf("Could not find peer_rpc in config: %v", err)
 	}
 	if err != nil {
-		log.Fatalf("Could not parse peer_rpc: %v", err)
+		b.logger.Fatalf("Could not parse peer_rpc: %v", err)
 	}
 
 	// we are only in dry run mode and will not actually send anything
@@ -432,7 +435,7 @@ func (b *Broadcaster) SendToAddress(address string, satoshis uint64) (string, ui
 
 	client, err := bitcoin.NewFromURL(rpcURL, false)
 	if err != nil {
-		log.Fatalf("Could not create bitcoin client: %v", err)
+		b.logger.Fatalf("Could not create bitcoin client: %v", err)
 	}
 
 	amount := float64(satoshis) / float64(1e8)

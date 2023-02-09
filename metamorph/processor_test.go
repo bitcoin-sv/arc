@@ -148,8 +148,8 @@ func TestProcessTransaction(t *testing.T) {
 		assert.Equal(t, test.TX1Bytes, items[test.TX1].Hash)
 		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[test.TX1].status)
 
-		assert.Len(t, pm.Announced, 1)
-		assert.Equal(t, test.TX1Bytes, pm.Announced[0])
+		assert.Len(t, pm.AnnouncedTransactions, 1)
+		assert.Equal(t, test.TX1Bytes, pm.AnnouncedTransactions[0])
 
 		txStored, err := s.Get(context.Background(), test.TX1Bytes)
 		require.NoError(t, err)

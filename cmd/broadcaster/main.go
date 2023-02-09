@@ -21,6 +21,9 @@ var (
 )
 
 func main() {
+	logLevel := gocore.NewLogLevelFromString("debug")
+	logger := gocore.Log("brdcst", logLevel)
+
 	dryRun := flag.Bool("dryrun", false, "whether to not send transactions or just output to console")
 	apiClient := flag.Bool("api", true, "whether to not send transactions to api or metamorph")
 	consolidate := flag.Bool("consolidate", false, "whether to consolidate all output transactions back into the original")
@@ -129,7 +132,7 @@ func main() {
 		panic(err)
 	}
 
-	bCaster := broadcaster.New(client, fundingKeySet, receivingKeySet, sendNrOfTransactions)
+	bCaster := broadcaster.New(logger, client, fundingKeySet, receivingKeySet, sendNrOfTransactions)
 	bCaster.IsRegtest = isRegtest
 	bCaster.IsDryRun = isDryRun
 	bCaster.WaitForStatus = *waitForStatus

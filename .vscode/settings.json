@@ -71,6 +71,7 @@
     "timestamppb",
     "txns",
     "txscript",
+    "txstatus",
     "unlocker",
     "utxos",
     "Vect",

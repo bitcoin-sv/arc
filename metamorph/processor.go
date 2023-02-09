@@ -184,7 +184,7 @@ func (p *Processor) processExpiredTransactions() {
 				} else if retries >= 1 {
 					// retried announcing 2 times, now sending GETDATA to peers to see if they have it
 					p.logger.Debugf("Re-getting expired tx: %s", txID)
-					p.pm.GetTransaction(item.Hash)
+					p.pm.RequestTransaction(item.Hash)
 				} else {
 					p.logger.Debugf("Re-announcing expired tx: %s", txID)
 					p.pm.AnnounceTransaction(item.Hash, item.announcedPeers)
@@ -250,7 +250,7 @@ func (p *Processor) LoadUnseen() {
 			// let's send a GETDATA message to the network to check whether the transaction is actually there
 			// TODO - get a more efficient way to do this from the node
 			// we only need the tx ids, not the whole transaction
-			p.pm.GetTransaction(record.Hash)
+			p.pm.RequestTransaction(record.Hash)
 		}
 	})
 	if err != nil {

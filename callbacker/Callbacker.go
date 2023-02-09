@@ -71,17 +71,20 @@ func (c *Callbacker) AddCallback(ctx context.Context, callback *callbacker_api.C
 }
 
 func (c *Callbacker) sendCallbacks() error {
-	c.logger.Debugf("sending callbacks")
-
 	callbacks, err := c.store.GetExpired(context.Background())
 	if err != nil {
 		return err
 	}
 
-	for key, callback := range callbacks {
-		err = c.sendCallback(key, callback)
-		if err != nil {
-			c.logger.Errorf("failed to send callback: %v", err)
+	if len(callbacks) > 0 {
+		c.logger.Infof("sending %d callbacks", len(callbacks))
+
+		for key, callback := range callbacks {
+			c.logger.Debugf("sending callback: %s => %s", key, callback.Url)
+			err = c.sendCallback(key, callback)
+			if err != nil {
+				c.logger.Errorf("failed to send callback: %v", err)
+			}
 		}
 	}
 

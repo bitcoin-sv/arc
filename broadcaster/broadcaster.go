@@ -126,7 +126,7 @@ func (b *Broadcaster) ConsolidateOutputsToOriginal(ctx context.Context, txs []*b
 		return err
 	}
 
-	if err = b.ProcessTransaction(ctx, consolidationTx); err != nil {
+	if err = b.ProcessTransaction(ctx, consolidationTx, iteration); err != nil {
 		return err
 	}
 
@@ -215,7 +215,7 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 	if b.IsDryRun {
 		for _, tx := range txs {
 			// b.logger.Infof("Processing tx %d / %d", i+1, len(b.txs))
-			if err := b.ProcessTransaction(ctx, tx); err != nil {
+			if err := b.ProcessTransaction(ctx, tx, iteration); err != nil {
 				return err
 			}
 		}
@@ -240,7 +240,7 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 						b.logger.Infof("Error broadcasting transactions: %s", err.Error())
 					}
 					for _, res := range txStatus {
-						b.processResult(res)
+						b.processResult(res, iteration)
 					}
 				}(txs[i:j])
 			}
@@ -267,7 +267,7 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 					}
 					txs[i], _ = b.NewTransaction(b.ToKeySet, u)
 
-					if err := b.ProcessTransaction(ctx, txs[i]); err != nil {
+					if err := b.ProcessTransaction(ctx, txs[i], iteration); err != nil {
 						b.logger.Infof("[%d] Error in %s: %s", iteration, txs[i].TxID(), err.Error())
 						b.logger.Infof(txs[i].String())
 					}
@@ -286,25 +286,25 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 	return nil
 }
 
-func (b *Broadcaster) ProcessTransaction(ctx context.Context, tx *bt.Tx) error {
+func (b *Broadcaster) ProcessTransaction(ctx context.Context, tx *bt.Tx, iteration int64) error {
 	res, err := b.Client.BroadcastTransaction(ctx, tx, metamorph_api.Status(b.WaitForStatus))
 	if err != nil {
 		return fmt.Errorf("error broadcasting transaction %s: %s", tx.TxID(), err.Error())
 	}
 
-	b.processResult(res)
+	b.processResult(res, iteration)
 
 	return nil
 }
 
-func (b *Broadcaster) processResult(res *metamorph_api.TransactionStatus) {
+func (b *Broadcaster) processResult(res *metamorph_api.TransactionStatus, iteration int64) {
 	if b.PrintTxIDs {
 		if res.TimedOut {
-			b.logger.Infof("res %s: %#v (TIMEOUT)", res.Txid, res.Status.String())
+			b.logger.Infof("[%d] res %s: %#v (TIMEOUT)", iteration, res.Txid, res.Status.String())
 		} else if res.RejectReason != "" {
-			b.logger.Infof("res %s: %#v (REJECT: %s)", res.Txid, res.Status.String(), res.RejectReason)
+			b.logger.Infof("[%d] res %s: %#v (REJECT: %s)", iteration, res.Txid, res.Status.String(), res.RejectReason)
 		} else {
-			b.logger.Infof("res %s: %#v", res.Txid, res.Status.String())
+			b.logger.Infof("[%d] res %s: %#v", iteration, res.Txid, res.Status.String())
 		}
 	}
 
@@ -454,7 +454,7 @@ func (b *Broadcaster) SendToAddress(address string, satoshis uint64) (string, ui
 	if err != nil {
 		return "", 0, "", err
 	}
-	if err := b.ProcessTransaction(context.Background(), btTx); err != nil {
+	if err := b.ProcessTransaction(context.Background(), btTx, 0); err != nil {
 		return "", 0, "", err
 	}
 

@@ -143,6 +143,7 @@ func main() {
 	if startMetamorph != nil && *startMetamorph {
 		logger.Infof("Starting Metamorph")
 		var metamorphLogger = gocore.Log("mtm", gocore.NewLogLevelFromString(logLevel))
+
 		if metamorphShutdown, err := cmd.StartMetamorph(metamorphLogger); err != nil {
 			logger.Fatalf("Error starting metamorph: %v", err)
 		} else {

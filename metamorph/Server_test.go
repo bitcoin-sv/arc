@@ -10,6 +10,7 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/metamorph/store/sql"
 	"github.com/TAAL-GmbH/arc/test"
+	"github.com/ordishs/go-utils/stat"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -26,24 +27,29 @@ func TestNewServer(t *testing.T) {
 func TestHealth(t *testing.T) {
 	t.Run("Health", func(t *testing.T) {
 		processor := NewProcessorMock()
+
+		sentToNetworkStat := stat.NewAtomicStats()
+		for i := 0; i < 10; i++ {
+			sentToNetworkStat.AddDuration("test", 10*time.Millisecond)
+		}
+
 		processor.Stats = &ProcessorStats{
-			StartTime:           time.Now(),
-			UptimeMillis:        2000,
-			WorkerCount:         123,
-			QueueLength:         136,
-			QueuedCount:         356,
-			SentToNetworkCount:  555,
-			SentToNetworkMillis: 45645,
-			ChannelMapSize:      22,
+			StartTime:      time.Now(),
+			UptimeMillis:   "2000ms",
+			WorkerCount:    123,
+			QueueLength:    136,
+			QueuedCount:    356,
+			SentToNetwork:  sentToNetworkStat,
+			ChannelMapSize: 22,
 		}
 		server := NewServer(nil, nil, processor)
 		stats, err := server.Health(context.Background(), &emptypb.Empty{})
 		assert.NoError(t, err)
 		assert.Equal(t, processor.Stats.ChannelMapSize, stats.MapSize)
 		assert.Equal(t, processor.Stats.QueuedCount, stats.Queued)
-		assert.Equal(t, processor.Stats.SentToNetworkCount, stats.Processed)
+		assert.Equal(t, processor.Stats.SentToNetwork.GetMap()["test"].GetCount(), stats.Processed)
 		assert.Equal(t, processor.Stats.QueueLength, stats.Waiting)
-		assert.Equal(t, float32(82.24324), stats.Average)
+		assert.Equal(t, float32(10), stats.Average)
 	})
 }
 

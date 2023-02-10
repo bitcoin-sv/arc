@@ -17,6 +17,7 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-utils"
+	"github.com/ordishs/go-utils/stat"
 
 	"github.com/ordishs/gocore"
 )
@@ -34,24 +35,18 @@ type StatusAndError struct {
 }
 
 type ProcessorStats struct {
-	StartTime                time.Time
-	UptimeMillis             int64
-	WorkerCount              int
-	QueueLength              int32
-	QueuedCount              int32
-	StoredCount              int32
-	StoredMillis             int32
-	AnnouncedToNetworkCount  int32
-	AnnouncedToNetworkMillis int32
-	SentToNetworkCount       int32
-	SentToNetworkMillis      int32
-	SeenOnNetworkCount       int32
-	SeenOnNetworkMillis      int32
-	MinedCount               int32
-	MinedMillis              int32
-	RejectedCount            int32
-	RejectedMillis           int32
-	ChannelMapSize           int32
+	StartTime          time.Time
+	UptimeMillis       string
+	WorkerCount        int
+	QueueLength        int32
+	QueuedCount        int32
+	Stored             *stat.AtomicStat
+	AnnouncedToNetwork *stat.AtomicStats
+	SentToNetwork      *stat.AtomicStats
+	SeenOnNetwork      *stat.AtomicStats
+	Rejected           *stat.AtomicStats
+	Mined              *stat.AtomicStat
+	ChannelMapSize     int32
 }
 
 type Processor struct {
@@ -66,22 +61,16 @@ type Processor struct {
 	errorLogFile         string
 	errorLogWorker       chan *ProcessorResponse
 
-	startTime                time.Time
-	workerCount              int
-	queueLength              atomic.Int32
-	queuedCount              atomic.Int32
-	storedCount              atomic.Int32
-	storedMillis             atomic.Int32
-	announcedToNetworkCount  atomic.Int32
-	announcedToNetworkMillis atomic.Int32
-	sentToNetworkCount       atomic.Int32
-	sentToNetworkMillis      atomic.Int32
-	seenOnNetworkCount       atomic.Int32
-	seenOnNetworkMillis      atomic.Int32
-	minedCount               atomic.Int32
-	minedMillis              atomic.Int32
-	rejectedCount            atomic.Int32
-	rejectedMillis           atomic.Int32
+	startTime          time.Time
+	workerCount        int
+	queueLength        atomic.Int32
+	queuedCount        atomic.Int32
+	stored             *stat.AtomicStat
+	announcedToNetwork *stat.AtomicStats
+	sentToNetwork      *stat.AtomicStats
+	seenOnNetwork      *stat.AtomicStats
+	rejected           *stat.AtomicStats
+	mined              *stat.AtomicStat
 }
 
 func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress string,
@@ -115,6 +104,13 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 		pm:                   pm,
 		logger:               logger,
 		metamorphAddress:     metamorphAddress,
+
+		stored:             stat.NewAtomicStat(),
+		announcedToNetwork: stat.NewAtomicStats(),
+		sentToNetwork:      stat.NewAtomicStats(),
+		seenOnNetwork:      stat.NewAtomicStats(),
+		rejected:           stat.NewAtomicStats(),
+		mined:              stat.NewAtomicStat(),
 	}
 
 	// Start a goroutine to resend transactions that have not been seen on the network
@@ -283,8 +279,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 	if ok {
 		resp.SetStatus(metamorph_api.Status_MINED)
 		if !resp.noStats {
-			p.minedCount.Add(1)
-			p.minedMillis.Add(int32(time.Since(resp.Start).Milliseconds()))
+			p.mined.AddDuration(time.Since(resp.Start))
 		}
 
 		p.processorResponseMap.Delete(hashStr)
@@ -307,7 +302,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 	return true, nil
 }
 
-func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_api.Status, statusErr error) (bool, error) {
+func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_api.Status, id string, statusErr error) (bool, error) {
 	processorResponse, ok := p.processorResponseMap.Get(hashStr)
 	if ok {
 		// TODO: There is a concurrency issue here when we get a response from multiple nodes on the network
@@ -339,16 +334,13 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 			switch status {
 
 			case metamorph_api.Status_SENT_TO_NETWORK:
-				p.sentToNetworkCount.Add(1)
-				p.sentToNetworkMillis.Add(int32(time.Since(processorResponse.Start).Milliseconds()))
+				p.sentToNetwork.AddDuration(id, time.Since(processorResponse.Start))
 
 			case metamorph_api.Status_SEEN_ON_NETWORK:
-				p.seenOnNetworkCount.Add(1)
-				p.seenOnNetworkMillis.Add(int32(time.Since(processorResponse.Start).Milliseconds()))
+				p.seenOnNetwork.AddDuration(id, time.Since(processorResponse.Start))
 
 			case metamorph_api.Status_MINED:
-				p.minedCount.Add(1)
-				p.minedMillis.Add(int32(time.Since(processorResponse.Start).Milliseconds()))
+				p.mined.AddDuration(time.Since(processorResponse.Start))
 				p.processorResponseMap.Delete(hashStr)
 
 			case metamorph_api.Status_REJECTED:
@@ -360,8 +352,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 					}
 				}
 
-				p.rejectedCount.Add(1)
-				p.rejectedMillis.Add(int32(time.Since(processorResponse.Start).Milliseconds()))
+				p.rejected.AddDuration(id, time.Since(processorResponse.Start))
 				p.processorResponseMap.Delete(hashStr)
 
 			}
@@ -446,8 +437,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 
 	nextNanos = gocore.NewStat("processor").NewStat("3: STORED").AddTime(nextNanos)
 
-	p.storedCount.Add(1)
-	p.storedMillis.Add(int32(time.Since(processorResponse.Start).Milliseconds()))
+	p.stored.AddDuration(time.Since(processorResponse.Start))
 
 	if p.registerCh != nil {
 		p.logger.Debugf("Sending tx %s to register", txIDStr)
@@ -464,8 +454,10 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	next := gocore.NewStat("processor").NewStat("4: ANNOUNCED").AddTime(nextNanos)
 	processorResponse.lastStatusUpdateNanos.Store(next)
 
-	p.announcedToNetworkCount.Add(1)
-	p.announcedToNetworkMillis.Add(int32(time.Since(processorResponse.Start).Milliseconds()))
+	duration := time.Since(processorResponse.Start)
+	for _, peer := range processorResponse.GetPeers() {
+		p.announcedToNetwork.AddDuration(peer.String(), duration)
+	}
 
 	// update to the latest status of the transaction
 	// we have to store in the background, since we do not want to stop the saving, even if the request ctx has stopped

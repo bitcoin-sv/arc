@@ -80,11 +80,6 @@ func (s *Server) StartGRPCServer(address string) error {
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.HealthResponse, error) {
 	stats := s.processor.GetStats()
 
-	avg := float32(0.0)
-	if stats.SentToNetworkCount > 0 {
-		avg = float32(stats.SentToNetworkMillis) / float32(stats.SentToNetworkCount)
-	}
-
 	peersConnected, peersDisconnected := s.processor.GetPeers()
 
 	details := fmt.Sprintf(`Peer stats (started: %s)`, stats.StartTime.UTC().Format(time.RFC3339))
@@ -93,11 +88,11 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 		Details:           details,
 		Timestamp:         timestamppb.New(time.Now()),
 		Workers:           int32(stats.WorkerCount),
-		Uptime:            float32(stats.UptimeMillis) / 1000.0,
+		Uptime:            float32(time.Since(stats.StartTime).Milliseconds()) / 1000.0,
 		Queued:            stats.QueuedCount,
-		Processed:         stats.SentToNetworkCount,
+		Processed:         stats.SentToNetwork.GetCount(),
 		Waiting:           stats.QueueLength,
-		Average:           avg,
+		Average:           float32(stats.SentToNetwork.GetAverageDuration().Milliseconds()),
 		MapSize:           stats.ChannelMapSize,
 		PeersConnected:    strings.Join(peersConnected, ","),
 		PeersDisconnected: strings.Join(peersDisconnected, ","),

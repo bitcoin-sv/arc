@@ -53,7 +53,7 @@ func (p *ProcessorMock) GetProcessRequest(index int) *ProcessorRequest {
 	return p.processTransactionCalls[index]
 }
 
-func (p *ProcessorMock) SendStatusForTransaction(hashStr string, status metamorph_api.Status, err error) (bool, error) {
+func (p *ProcessorMock) SendStatusForTransaction(hashStr string, status metamorph_api.Status, id string, err error) (bool, error) {
 	p.SendStatusForTransactionCalls = append(p.SendStatusForTransactionCalls, &SendStatusForTransactionCall{
 		HashStr: hashStr,
 		Status:  status,

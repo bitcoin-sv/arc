@@ -127,7 +127,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	go func() {
 		for message := range peerMessageCh {
-			_, err = metamorphProcessor.SendStatusForTransaction(message.Txid, metamorph_api.Status(message.Status), message.Err)
+			_, err = metamorphProcessor.SendStatusForTransaction(message.Txid, metamorph_api.Status(message.Status), message.Peer, message.Err)
 			if err != nil {
 				logger.Errorf("Could not send status for transaction %s: %v", message.Txid, err)
 			}

@@ -167,7 +167,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm, "test", nil, nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
-		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_MINED, nil)
+		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_MINED, "test", nil)
 		assert.False(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
@@ -184,7 +184,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
 		throwErr := fmt.Errorf("some error")
-		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_REJECTED, throwErr)
+		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_REJECTED, "test", throwErr)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
@@ -204,7 +204,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm, "test", nil, nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
-		ok, sendErr := processor.SendStatusForTransaction("test", metamorph_api.Status_REJECTED, nil)
+		ok, sendErr := processor.SendStatusForTransaction("test", metamorph_api.Status_REJECTED, "test", nil)
 		assert.False(t, ok)
 		assert.ErrorIs(t, sendErr, hex.InvalidByteError('t'))
 	})
@@ -219,7 +219,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm, "test", nil, nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
-		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_MINED, nil)
+		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_MINED, "test", nil)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
@@ -239,7 +239,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm, "test", nil, nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
-		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_ANNOUNCED_TO_NETWORK, nil)
+		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "test", nil)
 		assert.False(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
@@ -285,7 +285,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		assert.Equal(t, 1, processor.processorResponseMap.Len())
 
-		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_MINED, nil)
+		ok, sendErr := processor.SendStatusForTransaction(test.TX1, metamorph_api.Status_MINED, "test", nil)
 		assert.False(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.processorResponseMap.Len(), "should have been removed from the map")

@@ -1,7 +1,10 @@
 package metamorph
 
 import (
+	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -80,4 +83,33 @@ MapSize:       %d
 	return func() {
 		utils.RestoreTTY(ttyState)
 	}
+}
+
+func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
+	stats := p.GetStats()
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+
+	indent := ""
+
+	_, _ = io.WriteString(w, "<html>")
+	_, _ = io.WriteString(w, "<body>")
+	_, _ = io.WriteString(w, "<table>")
+
+	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%d</td></tr>", "Workers", stats.WorkerCount))
+	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", "Uptime", stats.UptimeMillis))
+	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%d</td></tr>", "Queued", stats.QueuedCount))
+	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", "Stored", stats.Stored.String()))
+	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", "Announced", stats.AnnouncedToNetwork.String(indent)))
+	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", "SentToNetwork", stats.SentToNetwork.String(indent)))
+	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", "SeenOnNetwork", stats.SeenOnNetwork.String(indent)))
+	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", "Mined", stats.Mined.String()))
+	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", "Rejected", stats.Rejected.String(indent)))
+	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%d</td></tr>", "Waiting", stats.QueueLength))
+	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%d</td></tr>", "MapSize", stats.ChannelMapSize))
+
+	_, _ = io.WriteString(w, "</table>")
+	_, _ = io.WriteString(w, "</body>")
+	_, _ = io.WriteString(w, "</html>")
 }

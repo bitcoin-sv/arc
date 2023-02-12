@@ -93,23 +93,42 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 
 	indent := ""
 
-	_, _ = io.WriteString(w, "<html>")
-	_, _ = io.WriteString(w, "<body>")
-	_, _ = io.WriteString(w, "<table>")
 
-	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%d</td></tr>", "Workers", stats.WorkerCount))
-	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", "Uptime", stats.UptimeMillis))
-	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%d</td></tr>", "Queued", stats.QueuedCount))
-	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", "Stored", stats.Stored.String()))
-	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", "Announced", stats.AnnouncedToNetwork.String(indent)))
-	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", "SentToNetwork", stats.SentToNetwork.String(indent)))
-	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", "SeenOnNetwork", stats.SeenOnNetwork.String(indent)))
-	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", "Mined", stats.Mined.String()))
-	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", "Rejected", stats.Rejected.String(indent)))
-	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%d</td></tr>", "Waiting", stats.QueueLength))
-	_, _ = io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%d</td></tr>", "MapSize", stats.ChannelMapSize))
+	_, _ = io.WriteString(w, fmt.Sprintf(`<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Metamorph Stats</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  </head>
+  <body>
+  <section class="section">
+    <div class="container">
+      <h1 class="title">
+        Metamorph Stats (%s)
+      </h1>
+      <table class="table is-bordered">
+`, stats.UptimeMillis))
 
-	_, _ = io.WriteString(w, "</table>")
-	_, _ = io.WriteString(w, "</body>")
-	_, _ = io.WriteString(w, "</html>")
+        writeStat(w, "Workers", stats.WorkerCount)
+	writeStat(w, "Queued", stats.QueuedCount)
+	writeStat(w, "Stored", stats.Stored.String())
+	writeStat(w, "Announced", stats.AnnouncedToNetwork.String(indent))
+	writeStat(w, "SentToNetwork", stats.SentToNetwork.String(indent))
+	writeStat(w, "SeenOnNetwork", stats.SeenOnNetwork.String(indent))
+	writeStat(w, "Mined", stats.Mined.String())
+	writeStat(w, "Rejected", stats.Rejected.String(indent))
+	writeStat(w, "Waiting", stats.QueueLength)
+	writeStat(w, "MapSize", stats.ChannelMapSize)
+
+	_, _ = io.WriteString(w, `</table>
+      </div>
+    </section>
+  </body>
+</html>`)
+}
+
+func writeStat(w io.Writer, label string, value interface{}) {
+  _, _ = io.WriteString(w, fmt.Sprintf(`<tr><td>%s</td><td><pre class="has-background-white" style="padding: 2px">%v</pre></td></tr>`, label, value))
 }

@@ -2,6 +2,8 @@ module github.com/TAAL-GmbH/arc
 
 go 1.19
 
+replace github.com/ordishs/gocore => ../../../masagi/gocore
+
 require (
 	github.com/deepmap/oapi-codegen v1.11.0
 	github.com/dgraph-io/badger/v3 v3.2103.1

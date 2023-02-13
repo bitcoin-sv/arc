@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -280,7 +281,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 	// remove the transaction from the tx map, regardless of status
 	resp, ok := p.processorResponseMap.Get(hashStr)
 	if ok {
-		resp.SetStatus(metamorph_api.Status_MINED)
+		resp.setStatus(metamorph_api.Status_MINED, "blocktx")
 		if !resp.noStats {
 			p.mined.AddDuration(time.Since(resp.Start))
 		}
@@ -305,12 +306,17 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 	return true, nil
 }
 
-func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_api.Status, id string, statusErr error) (bool, error) {
+func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_api.Status, source string, statusErr error) (bool, error) {
 	processorResponse, ok := p.processorResponseMap.Get(hashStr)
 	if ok {
+		processorResponse.mu.Lock()
+		defer processorResponse.mu.Unlock()
+
 		// TODO: There is a concurrency issue here when we get a response from multiple nodes on the network
 		// 		 and this messes up the stats of status changes
-		if processorResponse.GetStatus() > status && statusErr == nil {
+		if processorResponse.status >= status && statusErr == nil {
+			processorResponse.AddLog(status, source, "duplicate")
+
 			return false, nil
 		}
 
@@ -328,19 +334,19 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		}
 
 		if statusErr != nil {
-			ok = processorResponse.SetStatusAndError(status, statusErr)
+			ok = processorResponse.setStatusAndErrorInternal(status, statusErr, source)
 		} else {
-			ok = processorResponse.SetStatus(status)
+			ok = processorResponse.setStatusInternal(status, source)
 		}
 
 		if !processorResponse.noStats {
 			switch status {
 
 			case metamorph_api.Status_SENT_TO_NETWORK:
-				p.sentToNetwork.AddDuration(id, time.Since(processorResponse.Start))
+				p.sentToNetwork.AddDuration(source, time.Since(processorResponse.Start))
 
 			case metamorph_api.Status_SEEN_ON_NETWORK:
-				p.seenOnNetwork.AddDuration(id, time.Since(processorResponse.Start))
+				p.seenOnNetwork.AddDuration(source, time.Since(processorResponse.Start))
 
 			case metamorph_api.Status_MINED:
 				p.mined.AddDuration(time.Since(processorResponse.Start))
@@ -349,13 +355,10 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 			case metamorph_api.Status_REJECTED:
 				// log transaction to the error log
 				if p.errorLogFile != "" && p.errorLogWorker != nil {
-					item, found := p.processorResponseMap.Get(hashStr)
-					if found && item != nil {
-						utils.SafeSend(p.errorLogWorker, item)
-					}
+					utils.SafeSend(p.errorLogWorker, processorResponse)
 				}
 
-				p.rejected.AddDuration(id, time.Since(processorResponse.Start))
+				p.rejected.AddDuration(source, time.Since(processorResponse.Start))
 				p.processorResponseMap.Delete(hashStr)
 
 			}
@@ -420,7 +423,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	p.logger.Debugf("Adding channel for %x", bt.ReverseBytes(req.Hash))
 
 	processorResponse := NewProcessorResponseWithChannel(req.Hash, req.ResponseChannel)
-	processorResponse.SetStatus(metamorph_api.Status_RECEIVED)
+	processorResponse.setStatus(metamorph_api.Status_RECEIVED, "processor")
 
 	nextNanos := gocore.NewStat("processor").NewStat("2: RECEIVED").AddTime(startNanos)
 
@@ -428,7 +431,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 
 	if err := p.store.Set(context.Background(), req.Hash, req.StoreData); err != nil {
 		p.logger.Errorf("Error storing transaction %s: %v", txIDStr, err)
-		processorResponse.SetErr(err)
+		processorResponse.setErr(err, "processor")
 		return
 	}
 
@@ -436,7 +439,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 
 	p.logger.Debugf("Stored tx %s", txIDStr)
 
-	processorResponse.SetStatus(metamorph_api.Status_STORED)
+	processorResponse.setStatus(metamorph_api.Status_STORED, "processor")
 
 	nextNanos = gocore.NewStat("processor").NewStat("3: STORED").AddTime(nextNanos)
 
@@ -450,16 +453,24 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 		})
 	}
 
-	processorResponse.SetPeers(p.pm.AnnounceTransaction(req.Hash, nil))
+	peers := p.pm.AnnounceTransaction(req.Hash, nil)
+	processorResponse.SetPeers(peers)
 
-	processorResponse.SetStatus(metamorph_api.Status_ANNOUNCED_TO_NETWORK)
+	peersStr := make([]string, 0, len(peers))
+	if len(peers) > 0 {
+		for _, peer := range peers {
+			peersStr = append(peersStr, peer.String())
+		}
+	}
+
+	processorResponse.setStatus(metamorph_api.Status_ANNOUNCED_TO_NETWORK, strings.Join(peersStr, ", "))
 
 	next := gocore.NewStat("processor").NewStat("4: ANNOUNCED").AddTime(nextNanos)
 	processorResponse.lastStatusUpdateNanos.Store(next)
 
 	duration := time.Since(processorResponse.Start)
-	for _, peer := range processorResponse.GetPeers() {
-		p.announcedToNetwork.AddDuration(peer.String(), duration)
+	for _, peerStr := range peersStr {
+		p.announcedToNetwork.AddDuration(peerStr, duration)
 	}
 
 	// update to the latest status of the transaction

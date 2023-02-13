@@ -163,7 +163,7 @@ func (m *ProcessorResponseMap) Hashes(filterFunc ...func(*ProcessorResponse) boo
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	hashes := make([][]byte, 0, m.Len())
+	hashes := make([][]byte, 0, len(m.items))
 
 	for _, item := range m.items {
 		if fn(item) {
@@ -189,10 +189,10 @@ func (m *ProcessorResponseMap) Items(filterFunc ...func(*ProcessorResponse) bool
 		fn = filterFunc[0]
 	}
 
-	items := make(map[string]*ProcessorResponse, m.Len())
-
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+
+	items := make(map[string]*ProcessorResponse, len(m.items))
 
 	for key, item := range m.items {
 		if fn(item) {

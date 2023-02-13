@@ -5,15 +5,15 @@
 
 ARC is a transaction processor for Bitcoin. It consists of four microservices: [API](#API), [Metamorph](#Metamorph), [BlockTx](#BlockTx) and [Callbacker](#Callbacker), which are all described below.
 
-All the microservices are written in Go, and use grpc and protobufs for internal communications.
+All the microservices are written in Go, and use gRPC and Protobuf for internal communications.
 
 All the microservices are designed to be horizontally scalable, and can be deployed on a single machine or on multiple machines. Each one has been programmed with a store interface and various databases can be used to store data. The default store is sqlite3, but any database that implements the store interface can be used.
 
 ## Extended format
 
 For optimal performance, ARC uses a custom format for transactions. This format is called the extended format, and is a
-superset of the raw transaction format. The extended format includes the satoshis and scriptPubKey for each input, 
-which makes it possible to validate the transaction without having to download the parent transactions. In most cases
+superset of the raw transaction format. The extended format includes the satoshis and scriptPubKey for each input,
+which makes it possible for ARC to validate the transaction without having to download the parent transactions. In most cases
 the sender already has all the information from the parent transaction, as this is needed to sign the transaction.
 
 The extended format has been described in detail in [BIP-239](BIP-239).
@@ -127,13 +127,13 @@ where options are:
 ```
 
 NOTE: If you start the `main.go` with a microservice set to true, it will not start the other services. For example, if
-you run `go run main.go -api=true`, it will only start the API server, and not the other services.
+you run `go run main.go -api=true`, it will only start the API server, and not the other services, although you can start multiple services by specifying them on the command line.
 
 ### API
 
 API is the REST API microservice for interacting with ARC. See the [API documentation](api) for more information.
 
-The API takes care of authentication, validation, and sending transactions to Metamorphs.
+The API takes care of authentication, validation, and sending transactions to Metamorph.  The API talks to one or more Metamorph instances using client-based, round robin load balancing.
 
 You can run the API like this:
 
@@ -147,12 +147,12 @@ or using the generic `main.go`:
 go run main.go -api=true
 ```
 
-The only difference between the two is that the generic `main.go` starts the Go profiler, while the specific `cmd/api/main.go` 
+The only difference between the two is that the generic `main.go` starts the Go profiler, while the specific `cmd/api/main.go`
 command does not.
 
 #### Integration into an echo server
 
-If you want to integrate the ARC API into an existing echo server, check out the 
+If you want to integrate the ARC API into an existing echo server, check out the
 [`examples`](https://github.com/TAAL-GmbH/arc/tree/master/examples) folder in the GitHub repo.
 
 A very simple example:
@@ -197,7 +197,7 @@ func main() {
 }
 ```
 
-This will initialise the ARC API with a single Bitcoin node (not metamorph), similar to how MAPI is run at the moment.
+This will initialise the ARC API with a single Bitcoin node (not Metamorph), similar to how MAPI is run at the moment.
 
 ### Metamorph
 
@@ -205,7 +205,7 @@ Metamorph is a microservice that is responsible for processing transactions sent
 takes care of re-sending transactions if they are not acknowledged by the network within a certain time period (60
 seconds by default).
 
-Metamorphs are designed to be horizontally scalable, with each instance operating independently and having its own
+Metamorph is designed to be horizontally scalable, with each instance operating independently and having its own
 transaction store. As a result, they do not communicate with each other and remain unaware of each other's existence.
 
 You can run metamorph like this:
@@ -220,7 +220,7 @@ or using the generic `main.go`:
 go run main.go -metamorph=true
 ```
 
-The only difference between the two is that the generic `main.go` starts the Go profiler, while the specific 
+The only difference between the two is that the generic `main.go` starts the Go profiler, while the specific
 `cmd/metamorph/main.go` command does not.
 
 #### Metamorph stores
@@ -241,14 +241,10 @@ an environment variable.
 ### BlockTx
 
 BlockTx is a microservice that is responsible for processing blocks mined on the Bitcoin network, and for propagating
-the status of transactions to all Metamorphs connected to the server.
+the status of transactions to each Metamorph that has subscribed to this service.
 
-The main purpose of BlockTx is to de-duplicate processing of (large) blocks. A block will be processed by BlockTx
-and only sent once to all the connected metamorphs. The metamorphs have also registered which transactions they are
-interested in with BlockTx, and BlockTx will only send the transactions that the metamorphs have registered.
-
-BlockTx does not store the transaction data, but instead stores only the transaction IDs and the block height in which 
-they were mined. The metamorphs are responsible for storing the transaction data.
+The main purpose of BlockTx is to de-duplicate processing of (large) blocks. As an incoming block is processed by BlockTx, each Metamorph is notified of transactions that they have registered an interest in.  BlockTx does not store the transaction data, but instead stores only the transaction IDs and the block height in which
+they were mined. Metamorph is responsible for storing the transaction data.
 
 You can run BlockTx like this:
 
@@ -278,6 +274,8 @@ The following databases have been implemented:
 You can select the store to use by setting the `blocktx_dbMode` in the settings file or adding `blocktx_dbMode` as
 an environment variable.
 
+Please note that if you are running multiple instances of BlockTX for resilience, each BlockTx can be configured to use a shared database and in this case, Postgres is probably a sensible choice.
+
 ### Callbacker
 
 Callbacker is a very simple microservice that is responsible for sending callbacks to clients when a transaction has
@@ -289,11 +287,9 @@ the body. See the [API documentation](#API) for more information.
 
 The settings available for running ARC are managed by [gocore](https://github.com/ordishs/gocore). The settings are
 defined in 2 files `settings_local.conf`, in the root directory, and `settings.conf`, which lives a directory level
-deeper. The settings in `settings.conf` override the settings in `settings_local.conf`.
-
-`gocore` also accepts environment variables, which can be used to override the settings in the settings files. The
+deeper. The settings in `settings_local.conf` override the settings in `settings.conf` and any settings that are specified as environment variables, will superceed them. The
 environment variable name is the same as the setting name. For example, the setting `metamorph_dbMode` can be
-overridden by setting the environment variable `metamorph_dbMode=...`.
+overridden by setting the environment variable `metamorph_dbMode=... go run main.go`.
 
 ## ARC stats
 

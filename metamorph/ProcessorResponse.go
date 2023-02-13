@@ -1,7 +1,6 @@
 package metamorph
 
 import (
-	"encoding/json"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -10,27 +9,8 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-utils"
-	gcutils "github.com/ordishs/gocore/utils"
 	"github.com/sasha-s/go-deadlock"
 )
-
-type ProcessorResponseLog struct {
-	T      int64  `json:"t"`
-	Status string `json:"status"`
-	Source string `json:"source,omitempty"`
-	Info   string `json:"info,omitempty"`
-}
-
-func (p *ProcessorResponseLog) MarshalJSON() ([]byte, error) {
-	type Alias ProcessorResponseLog
-	return json.Marshal(&struct {
-		T string `json:"t"`
-		*Alias
-	}{
-		T:     gcutils.HumanTimeUnit(time.Duration(p.T)),
-		Alias: (*Alias)(p),
-	})
-}
 
 type ProcessorResponse struct {
 	mu                    deadlock.RWMutex

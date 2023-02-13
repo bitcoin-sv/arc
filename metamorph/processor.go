@@ -177,7 +177,9 @@ func (p *Processor) processExpiredTransactions() {
 			for txID, item := range expiredTransactionItems {
 				retries := item.Retries()
 				p.logger.Debugf("Resending expired tx: %s (%d retries)", txID, retries)
-				if retries >= 2 {
+				if retries >= 3 {
+					continue
+				} else if retries >= 2 {
 					// TODO what should we do here?
 					p.logger.Debugf("Transaction %s has been retried 4 times, not resending", txID)
 					continue
@@ -185,9 +187,19 @@ func (p *Processor) processExpiredTransactions() {
 					// retried announcing 2 times, now sending GETDATA to peers to see if they have it
 					p.logger.Debugf("Re-getting expired tx: %s", txID)
 					p.pm.RequestTransaction(item.Hash)
+					item.AddLog(
+						item.status,
+						"expired",
+						"Sent GETDATA for transaction",
+					)
 				} else {
 					p.logger.Debugf("Re-announcing expired tx: %s", txID)
 					p.pm.AnnounceTransaction(item.Hash, item.announcedPeers)
+					item.AddLog(
+						metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+						"expired",
+						"Re-announced expired tx",
+					)
 				}
 
 				item.IncrementRetry()
@@ -312,8 +324,6 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		processorResponse.mu.Lock()
 		defer processorResponse.mu.Unlock()
 
-		// TODO: There is a concurrency issue here when we get a response from multiple nodes on the network
-		// 		 and this messes up the stats of status changes
 		if processorResponse.status >= status && statusErr == nil {
 			processorResponse.AddLog(status, source, "duplicate")
 
@@ -328,7 +338,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 
 		err := p.store.UpdateStatus(context.Background(), processorResponse.Hash, status, rejectReason)
 		if err != nil {
-			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
+			return false, fmt.Errorf("error storing status for %s: %v", hashStr, err)
 		} else {
 			p.logger.Infof("Status change reported: %s: %s", utils.HexEncodeAndReverseBytes(processorResponse.Hash), status)
 		}

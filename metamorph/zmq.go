@@ -44,7 +44,12 @@ func (z *ZMQ) Start() {
 			switch c[0] {
 			case "hashtx":
 				z.logger.Debugf("hashtx %s", c[1])
-				_, _ = z.processor.SendStatusForTransaction(c[1], metamorph_api.Status_SEEN_ON_NETWORK, nil)
+				_, _ = z.processor.SendStatusForTransaction(
+					c[1],
+					metamorph_api.Status_ACCEPTED_BY_NETWORK,
+					z.URL.String(),
+					nil,
+				)
 			case "invalidtx":
 				// c[1] is lots of info about the tx in json format encoded in hex
 				var txInfo map[string]interface{}
@@ -64,7 +69,7 @@ func (z *ZMQ) Start() {
 					errReason += " - double spend"
 				}
 				z.logger.Warnf("invalidtx %s: %s", txInfo["txid"].(string), errReason)
-				_, _ = z.processor.SendStatusForTransaction(txInfo["txid"].(string), metamorph_api.Status_REJECTED, fmt.Errorf(errReason))
+				_, _ = z.processor.SendStatusForTransaction(txInfo["txid"].(string), metamorph_api.Status_REJECTED, "zmq", fmt.Errorf(errReason))
 			case "discardedfrommempool":
 				var txInfo map[string]interface{}
 				txInfo, err = z.parseTxInfo(c)
@@ -78,26 +83,26 @@ func (z *ZMQ) Start() {
 				}
 				// reasons can be "collision-in-block-tx" and "unknown-reason"
 				z.logger.Warnf("discardedfrommempool %s: %s", txInfo["txid"].(string), reason)
-				_, _ = z.processor.SendStatusForTransaction(txInfo["txid"].(string), metamorph_api.Status_REJECTED, fmt.Errorf("discarded from mempool: %s", reason))
+				_, _ = z.processor.SendStatusForTransaction(txInfo["txid"].(string), metamorph_api.Status_REJECTED, "zmq", fmt.Errorf("discarded from mempool: %s", reason))
 			default:
 				z.logger.Info("Unhandled ZMQ message", c)
 			}
 		}
 	}()
 
-	if err := zmq.Subscribe("hashtx", ch); err != nil {
+	if err = zmq.Subscribe("hashtx", ch); err != nil {
 		z.logger.Fatal(err)
 	}
 
-	if err := zmq.Subscribe("hashblock", ch); err != nil {
+	if err = zmq.Subscribe("hashblock", ch); err != nil {
 		z.logger.Fatal(err)
 	}
 
-	if err := zmq.Subscribe("invalidtx", ch); err != nil {
+	if err = zmq.Subscribe("invalidtx", ch); err != nil {
 		z.logger.Fatal(err)
 	}
 
-	if err := zmq.Subscribe("discardedfrommempool", ch); err != nil {
+	if err = zmq.Subscribe("discardedfrommempool", ch); err != nil {
 		z.logger.Fatal(err)
 	}
 }

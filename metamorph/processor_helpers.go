@@ -1,13 +1,17 @@
 package metamorph
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
@@ -85,14 +89,75 @@ MapSize:       %d
 	}
 }
 
+type statResponse struct {
+	Txid                  string                 `json:"hash"`
+	Start                 time.Time              `json:"start"`
+	Retries               uint32                 `json:"retries"`
+	Err                   error                  `json:"error"`
+	AnnouncedPeers        []p2p.PeerI            `json:"announcedPeers"`
+	Status                metamorph_api.Status   `json:"status"`
+	StatusStats           map[int32]int64        `json:"statusStats"`
+	NoStats               bool                   `json:"noStats"`
+	LastStatusUpdateNanos int64                  `json:"lastStatusUpdateNanos"`
+	Log                   []ProcessorResponseLog `json:"log"`
+}
+
 func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
+	txid := r.URL.Query().Get("tx")
+	if txid != "" {
+		prm, found := p.processorResponseMap.Get(txid)
+		if !found {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+
+		res := &statResponse{
+			Txid:                  utils.HexEncodeAndReverseBytes(prm.Hash),
+			Start:                 prm.Start,
+			Retries:               prm.retries.Load(),
+			Err:                   prm.err,
+			AnnouncedPeers:        prm.announcedPeers,
+			Status:                prm.status,
+			StatusStats:           prm.statusStats,
+			NoStats:               prm.noStats,
+			LastStatusUpdateNanos: prm.lastStatusUpdateNanos.Load(),
+			Log:                   prm.Log,
+		}
+
+		payload, err := json.MarshalIndent(&res, "", "  ")
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		_, _ = w.Write(payload)
+
+		return
+	}
+
+	print := r.URL.Query().Get("print") == "true"
+	var txids strings.Builder
+	if print {
+		txids.WriteString("<div>")
+		hashes := p.processorResponseMap.Hashes()
+
+		for _, hash := range hashes {
+			txid := utils.HexEncodeAndReverseBytes(hash)
+			txids.WriteString(fmt.Sprintf(`<a href="/pstats?tx=%s">%s</a>`, txid, txid))
+			txids.WriteString("<br />")
+		}
+		txids.WriteString("</div>")
+	}
+
 	stats := p.GetStats()
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
 	indent := ""
-
 
 	_, _ = io.WriteString(w, fmt.Sprintf(`<!DOCTYPE html>
 <html>
@@ -108,10 +173,15 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
       <h1 class="title">
         Metamorph Stats (%s)
       </h1>
+
+			<div>
+				<a href="/pstats?print=true">Print Transactions</a>
+			</div>
+
       <table class="table is-bordered">
 `, stats.UptimeMillis))
 
-        writeStat(w, "Workers", stats.WorkerCount)
+	writeStat(w, "Workers", stats.WorkerCount)
 	writeStat(w, "Queued", stats.QueuedCount)
 	writeStat(w, "Stored", stats.Stored.String())
 	writeStat(w, "Announced", stats.AnnouncedToNetwork.String(indent))
@@ -122,13 +192,15 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 	writeStat(w, "Waiting", stats.QueueLength)
 	writeStat(w, "MapSize", stats.ChannelMapSize)
 
-	_, _ = io.WriteString(w, `</table>
+	_, _ = io.WriteString(w, fmt.Sprintf(`</table>
       </div>
-    </section>
+			%s
+</section>
+
   </body>
-</html>`)
+</html>`, txids.String()))
 }
 
 func writeStat(w io.Writer, label string, value interface{}) {
-  _, _ = io.WriteString(w, fmt.Sprintf(`<tr><td>%s</td><td><pre class="has-background-white" style="padding: 2px">%v</pre></td></tr>`, label, value))
+	_, _ = io.WriteString(w, fmt.Sprintf(`<tr><td>%s</td><td><pre class="has-background-white" style="padding: 2px">%v</pre></td></tr>`, label, value))
 }

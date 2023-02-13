@@ -38,7 +38,7 @@ func TestSetErr(t *testing.T) {
 		response := NewProcessorResponse(test.TX1Bytes)
 		assert.Nil(t, response.err)
 		err := fmt.Errorf("test error")
-		response.SetErr(err)
+		response.setErr(err, "test")
 		assert.Equal(t, err, response.err)
 		assert.Equal(t, err, response.GetErr())
 	})
@@ -61,7 +61,7 @@ func TestSetErr(t *testing.T) {
 			}
 		}()
 
-		response.SetErr(err)
+		response.setErr(err, "test")
 		wg.Wait()
 
 		assert.Equal(t, err, response.err)
@@ -75,7 +75,7 @@ func TestSetStatusAndError(t *testing.T) {
 		assert.Equal(t, metamorph_api.Status_UNKNOWN, response.status)
 
 		err := fmt.Errorf("test error")
-		response.SetStatusAndError(metamorph_api.Status_SENT_TO_NETWORK, err)
+		response.setStatusAndError(metamorph_api.Status_SENT_TO_NETWORK, err, "test")
 		assert.Equal(t, err, response.err)
 		assert.Equal(t, err, response.GetErr())
 		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, response.status)
@@ -100,7 +100,7 @@ func TestSetStatusAndError(t *testing.T) {
 			}
 		}()
 
-		response.SetStatusAndError(metamorph_api.Status_SENT_TO_NETWORK, err)
+		response.setStatusAndError(metamorph_api.Status_SENT_TO_NETWORK, err, "test")
 		wg.Wait()
 
 		assert.Equal(t, err, response.err)

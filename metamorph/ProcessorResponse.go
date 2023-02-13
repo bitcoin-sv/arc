@@ -1,6 +1,7 @@
 package metamorph
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -9,8 +10,27 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-utils"
+	gcutils "github.com/ordishs/gocore/utils"
 	"github.com/sasha-s/go-deadlock"
 )
+
+type ProcessorResponseLog struct {
+	T      int64  `json:"t"`
+	Status string `json:"status"`
+	Source string `json:"source,omitempty"`
+	Info   string `json:"info,omitempty"`
+}
+
+func (p *ProcessorResponseLog) MarshalJSON() ([]byte, error) {
+	type Alias ProcessorResponseLog
+	return json.Marshal(&struct {
+		T string `json:"t"`
+		*Alias
+	}{
+		T:     gcutils.HumanTimeUnit(time.Duration(p.T)),
+		Alias: (*Alias)(p),
+	})
+}
 
 type ProcessorResponse struct {
 	mu                    deadlock.RWMutex
@@ -24,6 +44,7 @@ type ProcessorResponse struct {
 	statusStats           map[int32]int64
 	noStats               bool
 	lastStatusUpdateNanos atomic.Int64
+	Log                   []ProcessorResponseLog
 }
 
 func NewProcessorResponse(hash []byte) *ProcessorResponse {
@@ -33,6 +54,12 @@ func NewProcessorResponse(hash []byte) *ProcessorResponse {
 		status: metamorph_api.Status_UNKNOWN,
 		statusStats: map[int32]int64{
 			int32(metamorph_api.Status_UNKNOWN): time.Now().UnixNano(),
+		},
+		Log: []ProcessorResponseLog{
+			{
+				T:      0,
+				Status: metamorph_api.Status_UNKNOWN.String(),
+			},
 		},
 	}
 }
@@ -47,6 +74,12 @@ func NewProcessorResponseWithStatus(hash []byte, status metamorph_api.Status) *P
 		statusStats: map[int32]int64{
 			int32(status): time.Now().UnixNano(),
 		},
+		Log: []ProcessorResponseLog{
+			{
+				T:      0,
+				Status: status.String(),
+			},
+		},
 	}
 }
 
@@ -59,6 +92,12 @@ func NewProcessorResponseWithChannel(hash []byte, ch chan StatusAndError) *Proce
 			int32(metamorph_api.Status_UNKNOWN): time.Now().UnixNano(),
 		},
 		ch: ch,
+		Log: []ProcessorResponseLog{
+			{
+				T:      0,
+				Status: metamorph_api.Status_UNKNOWN.String(),
+			},
+		},
 	}
 }
 
@@ -93,9 +132,14 @@ func (r *ProcessorResponse) String() string {
 	return fmt.Sprintf("%x: %s [%s]", bt.ReverseBytes(r.Hash), r.Start.Format(time.RFC3339), r.status.String())
 }
 
-func (r *ProcessorResponse) SetStatus(status metamorph_api.Status) bool {
+func (r *ProcessorResponse) setStatus(status metamorph_api.Status, source string) bool {
 	r.mu.Lock()
+	defer r.mu.Unlock()
 
+	return r.setStatusInternal(status, source)
+}
+
+func (r *ProcessorResponse) setStatusInternal(status metamorph_api.Status, source string) bool {
 	r.status = status
 
 	sae := StatusAndError{
@@ -109,7 +153,7 @@ func (r *ProcessorResponse) SetStatus(status metamorph_api.Status) bool {
 		r.statusStats[int32(status)] = time.Now().UnixNano()
 	}
 
-	r.mu.Unlock()
+	r.AddLog(status, source, "")
 
 	if ch != nil {
 		return utils.SafeSend(ch, sae)
@@ -125,7 +169,7 @@ func (r *ProcessorResponse) GetStatus() metamorph_api.Status {
 	return r.status
 }
 
-func (r *ProcessorResponse) SetErr(err error) bool {
+func (r *ProcessorResponse) setErr(err error, source string) bool {
 	r.mu.Lock()
 
 	r.err = err
@@ -138,6 +182,8 @@ func (r *ProcessorResponse) SetErr(err error) bool {
 
 	ch := r.ch
 
+	r.AddLog(r.status, source, err.Error())
+
 	r.mu.Unlock()
 
 	if ch != nil {
@@ -147,9 +193,14 @@ func (r *ProcessorResponse) SetErr(err error) bool {
 	return true
 }
 
-func (r *ProcessorResponse) SetStatusAndError(status metamorph_api.Status, err error) bool {
+func (r *ProcessorResponse) setStatusAndError(status metamorph_api.Status, err error, source string) bool {
 	r.mu.Lock()
+	defer r.mu.Unlock()
 
+	return r.setStatusAndErrorInternal(status, err, source)
+}
+
+func (r *ProcessorResponse) setStatusAndErrorInternal(status metamorph_api.Status, err error, source string) bool {
 	r.status = status
 	r.err = err
 
@@ -165,7 +216,7 @@ func (r *ProcessorResponse) SetStatusAndError(status metamorph_api.Status, err e
 		r.statusStats[int32(status)] = time.Now().UnixNano()
 	}
 
-	r.mu.Unlock()
+	r.AddLog(status, source, err.Error())
 
 	if ch != nil {
 		return utils.SafeSend(ch, sae)
@@ -188,4 +239,13 @@ func (r *ProcessorResponse) Retries() uint32 {
 func (r *ProcessorResponse) IncrementRetry() uint32 {
 	r.retries.Add(1)
 	return r.retries.Load()
+}
+
+func (r *ProcessorResponse) AddLog(status metamorph_api.Status, source string, info string) {
+	r.Log = append(r.Log, ProcessorResponseLog{
+		T:      time.Since(r.Start).Nanoseconds(),
+		Status: status.String(),
+		Source: source,
+		Info:   info,
+	})
 }

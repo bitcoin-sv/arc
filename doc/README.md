@@ -25,28 +25,31 @@ actor "client" as tx
 
 
 box ARC
-participant handler
-database "bitcoin\nnode" as bsv
+participant api
 participant validator
 participant metamorph
+database "bitcoin" as bsv
 end box
 
 title Submit transaction (standard format)
 
 tx -> tx: create tx
+tx -> tx: <font color=red><b>add utxos</b></font>
+tx -> tx: add outputs
 tx -> tx: sign tx
 
-tx -> handler ++: raw tx (standard)
+tx -> api ++: raw tx (standard)
 
   loop for each input
-    handler -> bsv ++: load inputs (RPC)
-    return previous tx
+    api -> bsv ++: <font color=red><b>get utxos (RPC)</b></font>
+    return previous tx <i>or Missing Inputs</i>
   end
 
-  handler -> validator ++: validate tx
+  api -> validator ++: validate tx
   return ok
 
-  handler -> metamorph ++: send tx
+  api -> metamorph ++: send tx
+    metamorph -> bsv
   return status
 
 return status
@@ -64,22 +67,25 @@ actor "client" as tx
 
 
 box ARC
-participant handler
-database "bitcoin\nnode" as bsv
+participant api
 participant validator
 participant metamorph
+database "bitcoin" as bsv
 end box
 
 title Submit transaction (extended format)
 
 tx -> tx: create tx
+tx -> tx: add utxos
+tx -> tx: add outputs
 tx -> tx: sign tx
 
-tx -> handler ++: raw tx (extended)
-  handler -> validator ++: validate tx
+tx -> api ++: raw tx (extended)
+  api -> validator ++: validate tx
   return ok
 
-  handler -> metamorph ++: send tx
+  api -> metamorph ++: send tx
+    metamorph -> bsv
   return status
 
 return status

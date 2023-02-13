@@ -15,6 +15,78 @@ For optimal performance, ARC uses a custom format for transactions. This format 
 
 The extended format has been described in detail in [BIP-239](BIP-239).
 
+```plantuml
+@startuml
+hide footbox
+skinparam ParticipantPadding 15
+skinparam BoxPadding 100
+
+actor "client" as tx
+
+
+box ARC
+participant handler
+database "bitcoin\nnode" as bsv
+participant validator
+participant metamorph
+end box
+
+title Submit transaction (standard format)
+
+tx -> tx: create tx
+tx -> tx: sign tx
+
+tx -> handler ++: raw tx (standard)
+
+  loop for each input
+    handler -> bsv ++: load inputs (RPC)
+    return previous tx
+  end
+
+  handler -> validator ++: validate tx
+  return ok
+
+  handler -> metamorph ++: send tx
+  return status
+
+return status
+
+@enduml
+```
+
+```plantuml
+@startuml
+hide footbox
+skinparam ParticipantPadding 15
+skinparam BoxPadding 100
+
+actor "client" as tx
+
+
+box ARC
+participant handler
+database "bitcoin\nnode" as bsv
+participant validator
+participant metamorph
+end box
+
+title Submit transaction (extended format)
+
+tx -> tx: create tx
+tx -> tx: sign tx
+
+tx -> handler ++: raw tx (extended)
+  handler -> validator ++: validate tx
+  return ok
+
+  handler -> metamorph ++: send tx
+  return status
+
+return status
+
+@enduml
+```
+
 ## Settings
 
 ## Microservices
@@ -29,11 +101,11 @@ The API takes care of authentication, validation, and sending transactions to Me
 
 ### Metamorph
 
-Metamorph is a microservice that is responsible for processing transactions sent by the API to the Bitcoin network. It 
-takes care of re-sending transactions if they are not acknowledged by the network within a certain time period (60 
+Metamorph is a microservice that is responsible for processing transactions sent by the API to the Bitcoin network. It
+takes care of re-sending transactions if they are not acknowledged by the network within a certain time period (60
 seconds by default).
 
-Metamorphs are designed to be horizontally scalable, with each instance operating independently and having its own 
+Metamorphs are designed to be horizontally scalable, with each instance operating independently and having its own
 transaction store. As a result, they do not communicate with each other and remain unaware of each other's existence.
 
 #### Metamorph stores
@@ -45,7 +117,7 @@ The metamorph store has been implemented for the following databases:
 * Badger (`badger`)
 * BadgerHold (`badgerhold`)
 
-You can select the store to use by setting the `metamorph_dbMode` in the settings file or adding `metamorph_dbMode` as 
+You can select the store to use by setting the `metamorph_dbMode` in the settings file or adding `metamorph_dbMode` as
 an environment variable.
 
 ### BlockTx
@@ -57,9 +129,9 @@ the status of transactions to all Metamorphs connected to the server.
 
 ### Callbacker
 
-Callbacker is a very simple microservice that is responsible for sending callbacks to clients when a transaction has 
-been accepted by the Bitcoin network. To register a callback, the client must add the `X-Callback-Url` header to the 
-request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in 
+Callbacker is a very simple microservice that is responsible for sending callbacks to clients when a transaction has
+been accepted by the Bitcoin network. To register a callback, the client must add the `X-Callback-Url` header to the
+request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
 the body. See the [API documentation](#API) for more information.
 
 #### Callbacker stores
@@ -105,38 +177,38 @@ tx -> handler ++: extended\nraw tx
 
     handler -> auth ++: apikey
     return
-    
+
     handler -> validator ++: tx
     return success
-    
+
     handler -> grpc ++: tx
         grpc -> worker ++: tx
             worker -> store++: register txid
             worker -> store: tx
         return STORED
         worker --> grpc: STORED
-    
+
         worker -> peer: txid
         peer -> bsv: INV txid
         worker -> store: ANNOUNCED
         worker --> grpc: ANNOUNCED
-    
+
         bsv -> peer++: GETDATA txid
             peer -> store ++ : get tx
                 store -> worker : SENT
             return raw tx
-            
-            worker -> store: SENT  
+
+            worker -> store: SENT
             worker --> grpc: SENT
         return tx
-    
+
         bsv -> peer: INV txid
         peer -> worker: SEEN
         worker -> store: SEEN
-    
+
     return status
 
-    grpc -> grpc: wait for SENT\nor TIMEOUT    
+    grpc -> grpc: wait for SENT\nor TIMEOUT
 
 return last status
 
@@ -177,7 +249,7 @@ peer -> blocktx--: block
 blocktx -> blockstore: block
 blocktx -> blockstore: txids
 blocktx -> worker++: blockhash
-    worker -> blocktx: get txs in block 
+    worker -> blocktx: get txs in block
     blockstore -> blocktx: txids
     blocktx -> worker--: txids
     worker -> store: mark txs mined

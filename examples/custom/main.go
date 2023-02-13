@@ -8,15 +8,20 @@ import (
 	"github.com/TAAL-GmbH/arc/api"
 	apiHandler "github.com/TAAL-GmbH/arc/api/handler"
 	"github.com/TAAL-GmbH/arc/api/transactionHandler"
+	"github.com/TAAL-GmbH/arc/blocktx"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
+	"github.com/ordishs/gocore"
 )
 
 // This example does not use the configuration files or env variables,
 // but demonstrates how to initialize the arc server in a completely custom way
 func main() {
+
+	// Set up a basic gocore logger
+	logger := gocore.Log("arc", gocore.DEBUG)
 
 	// Set up a basic Echo router
 	e := echo.New()
@@ -56,13 +61,16 @@ func main() {
 		}),
 	)
 
-	// add a single bitcoin node
-	txHandler, err := transactionHandler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
+	// init BlockTx client
+	blockTxClient := blocktx.NewClient(logger, "localhost:8021")
+
+	// add a single metamorph, with the BlockTx client we want to use
+	txHandler, err := transactionHandler.NewMetamorph("localhost:8011", blockTxClient)
 	if err != nil {
 		panic(err)
 	}
 
-	// initialise the arc default blocktx_api handler, with our txHandler and any handler options
+	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.HandlerInterface
 	if handler, err = apiHandler.NewDefault(txHandler); err != nil {
 		panic(err)

@@ -1,11 +1,10 @@
 package metamorph
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ordishs/go-utils"
@@ -13,17 +12,12 @@ import (
 	"github.com/sasha-s/go-deadlock"
 )
 
-type processorResponseStats struct {
-	key   string
-	stats map[int32]int64
-}
-
 type ProcessorResponseMap struct {
 	mu        deadlock.RWMutex
 	expiry    time.Duration
 	items     map[string]*ProcessorResponse
 	logFile   string
-	logWorker chan processorResponseStats
+	logWorker chan statResponse
 }
 
 func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
@@ -43,7 +37,7 @@ func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
 
 	// start log write worker
 	if m.logFile != "" {
-		m.logWorker = make(chan processorResponseStats, 10000)
+		m.logWorker = make(chan statResponse, 10000)
 		go m.logWriter()
 	}
 
@@ -57,21 +51,15 @@ func (m *ProcessorResponseMap) logWriter() {
 	}
 	defer f.Close()
 
-	// the status cols will not always be in order if we use the proto map definition
-	statusCols := []int32{0, 1, 2, 3, 4, 5, 6, 7, 108, 109}
+	for prl := range m.logWorker {
 
-	for prs := range m.logWorker {
-		var statsTimes []string
-		for _, status := range statusCols {
-			if s, ok := prs.stats[status]; ok {
-				statsTimes = append(statsTimes, strconv.Itoa(int(s)))
-			} else {
-				// add missing value (empty string)
-				statsTimes = append(statsTimes, "")
-			}
+		var b []byte
+		b, err = json.Marshal(prl)
+		if err != nil {
+			log.Printf("error marshaling log data: %s", err.Error())
 		}
 
-		_, err = f.WriteString(fmt.Sprintf("%s,%s\n", prs.key, strings.Join(statsTimes, ",")))
+		_, err = f.WriteString(string(b) + "\n")
 		if err != nil {
 			log.Printf("error writing to log file: %s", err.Error())
 		}
@@ -105,12 +93,28 @@ func (m *ProcessorResponseMap) Delete(key string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	item, ok := m.items[key]
+	if !ok {
+		return
+	}
+
 	// append stats to log file
 	if m.logFile != "" && m.logWorker != nil {
+		announcedPeers := make([]string, 0, len(item.announcedPeers))
+		for _, peer := range item.announcedPeers {
+			announcedPeers = append(announcedPeers, peer.String())
+		}
 
-		utils.SafeSend(m.logWorker, processorResponseStats{
-			key:   key,
-			stats: m.items[key].GetStats(),
+		utils.SafeSend(m.logWorker, statResponse{
+			Txid:                  utils.HexEncodeAndReverseBytes(item.Hash),
+			Start:                 item.Start,
+			Retries:               item.retries.Load(),
+			Err:                   item.err,
+			AnnouncedPeers:        announcedPeers,
+			Status:                item.status,
+			NoStats:               item.noStats,
+			LastStatusUpdateNanos: item.lastStatusUpdateNanos.Load(),
+			Log:                   item.Log,
 		})
 	}
 

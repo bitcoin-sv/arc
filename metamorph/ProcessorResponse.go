@@ -21,7 +21,6 @@ type ProcessorResponse struct {
 	err                   error
 	announcedPeers        []p2p.PeerI
 	status                metamorph_api.Status
-	statusStats           map[int32]int64
 	noStats               bool
 	lastStatusUpdateNanos atomic.Int64
 	Log                   []ProcessorResponseLog
@@ -32,12 +31,9 @@ func NewProcessorResponse(hash []byte) *ProcessorResponse {
 		Start:  time.Now(),
 		Hash:   hash,
 		status: metamorph_api.Status_UNKNOWN,
-		statusStats: map[int32]int64{
-			int32(metamorph_api.Status_UNKNOWN): time.Now().UnixNano(),
-		},
 		Log: []ProcessorResponseLog{
 			{
-				T:      0,
+				DeltaT: 0,
 				Status: metamorph_api.Status_UNKNOWN.String(),
 			},
 		},
@@ -51,12 +47,9 @@ func NewProcessorResponseWithStatus(hash []byte, status metamorph_api.Status) *P
 		Start:  time.Now(),
 		Hash:   hash,
 		status: status,
-		statusStats: map[int32]int64{
-			int32(status): time.Now().UnixNano(),
-		},
 		Log: []ProcessorResponseLog{
 			{
-				T:      0,
+				DeltaT: 0,
 				Status: status.String(),
 			},
 		},
@@ -68,13 +61,10 @@ func NewProcessorResponseWithChannel(hash []byte, ch chan StatusAndError) *Proce
 		Start:  time.Now(),
 		Hash:   hash,
 		status: metamorph_api.Status_UNKNOWN,
-		statusStats: map[int32]int64{
-			int32(metamorph_api.Status_UNKNOWN): time.Now().UnixNano(),
-		},
-		ch: ch,
+		ch:     ch,
 		Log: []ProcessorResponseLog{
 			{
-				T:      0,
+				DeltaT: 0,
 				Status: metamorph_api.Status_UNKNOWN.String(),
 			},
 		},
@@ -93,13 +83,6 @@ func (r *ProcessorResponse) GetPeers() []p2p.PeerI {
 	defer r.mu.RUnlock()
 
 	return r.announcedPeers
-}
-
-func (r *ProcessorResponse) GetStats() map[int32]int64 {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	return r.statusStats
 }
 
 func (r *ProcessorResponse) String() string {
@@ -128,10 +111,6 @@ func (r *ProcessorResponse) setStatusInternal(status metamorph_api.Status, sourc
 	}
 
 	ch := r.ch
-
-	if _, ok := r.statusStats[int32(status)]; !ok {
-		r.statusStats[int32(status)] = time.Now().UnixNano()
-	}
 
 	r.AddLog(status, source, "")
 
@@ -192,10 +171,6 @@ func (r *ProcessorResponse) setStatusAndErrorInternal(status metamorph_api.Statu
 
 	ch := r.ch
 
-	if _, ok := r.statusStats[int32(status)]; !ok {
-		r.statusStats[int32(status)] = time.Now().UnixNano()
-	}
-
 	r.AddLog(status, source, err.Error())
 
 	if ch != nil {
@@ -223,7 +198,7 @@ func (r *ProcessorResponse) IncrementRetry() uint32 {
 
 func (r *ProcessorResponse) AddLog(status metamorph_api.Status, source string, info string) {
 	r.Log = append(r.Log, ProcessorResponseLog{
-		T:      time.Since(r.Start).Nanoseconds(),
+		DeltaT: time.Since(r.Start).Nanoseconds(),
 		Status: status.String(),
 		Source: source,
 		Info:   info,

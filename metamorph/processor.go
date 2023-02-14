@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -131,8 +130,6 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 	gocore.AddAppPayloadFn("mtm", func() interface{} {
 		return p.GetStats()
 	})
-
-	http.HandleFunc("/pstats", p.HandleStats)
 
 	return p
 }

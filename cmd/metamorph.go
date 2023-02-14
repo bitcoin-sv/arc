@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -124,6 +125,8 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		asyncCaller.GetChannel(),
 		cbAsyncCaller.GetChannel(),
 	)
+
+	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
 
 	go func() {
 		for message := range peerMessageCh {

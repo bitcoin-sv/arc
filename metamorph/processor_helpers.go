@@ -1,6 +1,8 @@
 package metamorph
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -249,7 +251,7 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string) {
 						<tr><td>Mined At</td><td>%s</td></tr>
 						<tr><td>Status</td><td>%s</td></tr>
 						<tr><td>Block height</td><td>%d</td></tr>
-						<tr><td>Block hash</td><td>%s</td></tr>
+						<tr><td>Block hash</td><td><a href="https://whatsonchain.com/block/%s" target="_blank">%s</a></td></tr>
 						<tr><td>Callback URL</td><td>%s</td></tr>
 						<tr><td>Callback token</td><td>%s</td></tr>
 						<tr><td>Merkle proof</td><td>%v</td></tr>
@@ -263,7 +265,8 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string) {
 					storeData.MinedAt.UTC().Format(time.RFC3339Nano),
 					storeData.Status.String(),
 					storeData.BlockHeight,
-					storeData.BlockHash,
+					utils.HexEncodeAndReverseBytes(storeData.BlockHash),
+					utils.HexEncodeAndReverseBytes(storeData.BlockHash),
 					storeData.CallbackUrl,
 					storeData.CallbackToken,
 					storeData.MerkleProof,
@@ -271,6 +274,25 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string) {
 					hex.EncodeToString(storeData.RawTx),
 					string(b),
 				))
+
+				logFile, _ := gocore.Config().Get("metamorph_logFile") //, "./data/metamorph.log")
+				if logFile != "" {
+					processorResponseStats := grepFile(logFile, txid)
+					if processorResponseStats != "" {
+						var prStats *ProcessorResponse
+						_ = json.Unmarshal([]byte(processorResponseStats), &prStats)
+						if prStats != nil {
+							_, _ = io.WriteString(w, fmt.Sprintf(`
+								<hr/>
+								<h1 class="title">Transaction stats from log</h1>
+								<h2 class="subtitle">logfile: %s</h2>
+							`, logFile))
+							txJson := p.processorResponseStatsTable(w, prStats)
+							_, _ = io.WriteString(w, fmt.Sprintf(`<pre>%s</pre>`, txJson))
+						}
+					}
+				}
+
 			} else {
 				// transaction not found, return error and close html
 				_, _ = io.WriteString(w, `
@@ -289,6 +311,29 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string) {
 		return
 	}
 
+	_, _ = io.WriteString(w, fmt.Sprintf(`
+      <h1 class="title">
+        Transaction 
+      </h1>
+      <h2 class="subtitle">
+        <a href="https://whatsonchain.com/tx/%s" target="_blank">%s</a>
+      </h2>
+	  <a href="javascript:history.back()">Back to overview</a>
+	`, txid, txid))
+
+	txJson := p.processorResponseStatsTable(w, prm)
+
+	_, _ = io.WriteString(w, fmt.Sprintf(`
+      </div>
+	  <pre>%s</pre>
+  </section>
+
+  </body>
+  </html>`, txJson))
+}
+
+func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *ProcessorResponse) []byte {
+
 	announcedPeers := make([]string, 0, len(prm.announcedPeers))
 	for _, peer := range prm.announcedPeers {
 		announcedPeers = append(announcedPeers, peer.String())
@@ -306,37 +351,28 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string) {
 		Log:                   prm.Log,
 	}
 
-	txJson, err := json.MarshalIndent(&res, "", "  ")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
 	resLog := strings.Builder{}
-	resLog.WriteString("<table class=table>")
-	resLog.WriteString("<tr><th>Δ𝑡</th><th>Status</th><th>Source</th><th>Info</th></tr>")
-	for _, logEntry := range res.Log {
-		resLog.WriteString("<tr>")
 
-		resLog.WriteString(fmt.Sprintf("<td>%s</td>", gcutils.HumanTimeUnitHTML(time.Duration(logEntry.DeltaT))))
-		resLog.WriteString(fmt.Sprintf("<td>%s</td>", logEntry.Status))
-		resLog.WriteString(fmt.Sprintf("<td>%s</td>", logEntry.Source))
-		resLog.WriteString(fmt.Sprintf("<td>%s</td>", logEntry.Info))
+	txJson, err := json.MarshalIndent(&res, "", "  ")
+	if err == nil {
+		resLog.WriteString("<table class=table>")
+		resLog.WriteString("<tr><th>Δ𝑡</th><th>Status</th><th>Source</th><th>Info</th></tr>")
+		for _, logEntry := range res.Log {
+			resLog.WriteString("<tr>")
 
-		resLog.WriteString("</tr>")
+			resLog.WriteString(fmt.Sprintf("<td>%s</td>", gcutils.HumanTimeUnitHTML(time.Duration(logEntry.DeltaT))))
+			resLog.WriteString(fmt.Sprintf("<td>%s</td>", logEntry.Status))
+			resLog.WriteString(fmt.Sprintf("<td>%s</td>", logEntry.Source))
+			resLog.WriteString(fmt.Sprintf("<td>%s</td>", logEntry.Info))
+
+			resLog.WriteString("</tr>")
+		}
+		resLog.WriteString("</table>")
 	}
-	resLog.WriteString("</table>")
 
-	_, _ = io.WriteString(w, fmt.Sprintf(`
-      <h1 class="title">
-        Transaction 
-      </h1>
-      <h2 class="subtitle">
-        <a href="https://whatsonchain.com/tx/%s" target="_blank">%s</a>
-      </h2>
-	  <a href="javascript:history.back()">Back to overview</a>
+	_, _ = io.WriteString(w, `
       <table class="table is-bordered">
-`, txid, txid))
+	`)
 
 	writeStat(w, "Hash", res.Txid)
 	writeStat(w, "Start", res.Start.UTC())
@@ -348,13 +384,9 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string) {
 	writeStat(w, "LastStatusUpdateNanos", res.LastStatusUpdateNanos)
 	writeStat(w, "Log", resLog.String())
 
-	_, _ = io.WriteString(w, fmt.Sprintf(`</table>
-      </div>
-	  <pre>%s</pre>
-  </section>
+	_, _ = io.WriteString(w, `</table>`)
 
-  </body>
-  </html>`, txJson))
+	return txJson
 }
 
 func (p *Processor) _(w http.ResponseWriter, txid string) {
@@ -395,4 +427,23 @@ func (p *Processor) _(w http.ResponseWriter, txid string) {
 
 func writeStat(w io.Writer, label string, value interface{}) {
 	_, _ = io.WriteString(w, fmt.Sprintf(`<tr><td>%s</td><td><pre class="has-background-white" style="padding: 2px">%v</pre></td></tr>`, label, value))
+}
+
+func grepFile(file string, grepStr string) string {
+	f, err := os.Open(file)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+
+	b := []byte(grepStr)
+	for scanner.Scan() {
+		if bytes.Contains(scanner.Bytes(), b) {
+			return scanner.Text()
+		}
+	}
+
+	return ""
 }

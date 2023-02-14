@@ -291,6 +291,8 @@ deeper. The settings in `settings_local.conf` override the settings in `settings
 environment variable name is the same as the setting name. For example, the setting `metamorph_dbMode` can be
 overridden by setting the environment variable `metamorph_dbMode=... go run main.go`.
 
+For more detailed information about the settings, please see the [gocore documentation](https://github.com/ordishs/gocore).
+
 ## ARC stats
 
 * TODO: ARC exposes a Prometheus endpoint at `/metrics` that can be used to monitor the server.

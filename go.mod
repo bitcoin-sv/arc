@@ -2,8 +2,6 @@ module github.com/TAAL-GmbH/arc
 
 go 1.19
 
-replace github.com/ordishs/gocore => ../../../masagi/gocore
-
 require (
 	github.com/deepmap/oapi-codegen v1.11.0
 	github.com/dgraph-io/badger/v3 v3.2103.1
@@ -21,7 +19,7 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/ordishs/go-bitcoin v1.0.75
 	github.com/ordishs/go-utils v1.0.28
-	github.com/ordishs/gocore v1.0.33
+	github.com/ordishs/gocore v1.0.34
 	github.com/pkg/errors v0.9.1
 	github.com/sasha-s/go-deadlock v0.3.1
 	github.com/stretchr/testify v1.8.1

@@ -206,14 +206,38 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Processor) writeTransaction(w http.ResponseWriter, txid string) {
-	prm, found := p.processorResponseMap.Get(txid)
-	if !found {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
+
+	// write header for page
+	_, _ = io.WriteString(w, fmt.Sprintf(`<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Metamorph Transaction %s</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  </head>
+  <body>
+  <section class="section">
+    <div class="container">
+`, txid))
+
+	prm, found := p.processorResponseMap.Get(txid)
+	if !found {
+		// transaction not found, return error and close html
+		_, _ = io.WriteString(w, `
+			<h1 class="title">Could not find transaction</h1>
+			<a href="/pstats?printTxs=true"><< Back</a>
+		`)
+		_, _ = io.WriteString(w, `</table>
+      </div>
+  </section>
+
+  </body>
+  </html>`)
+		return
+	}
 
 	announcedPeers := make([]string, 0, len(prm.announcedPeers))
 	for _, peer := range prm.announcedPeers {
@@ -253,17 +277,7 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string) {
 	}
 	resLog.WriteString("</table>")
 
-	_, _ = io.WriteString(w, fmt.Sprintf(`<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Metamorph Transaction %s</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
-  </head>
-  <body>
-  <section class="section">
-    <div class="container">
+	_, _ = io.WriteString(w, fmt.Sprintf(`
       <h1 class="title">
         Transaction 
       </h1>
@@ -272,7 +286,7 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string) {
       </h2>
 	  <a href="javascript:history.back()">Back to overview</a>
       <table class="table is-bordered">
-`, txid, txid, txid))
+`, txid, txid))
 
 	writeStat(w, "Hash", res.Txid)
 	writeStat(w, "Start", res.Start.UTC())

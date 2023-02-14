@@ -204,12 +204,18 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		}
 	}()
 
-	zmqURL, err, found := gocore.Config().GetURL("metamorph_zmqAddress") // no default
-	if err != nil {
-		logger.Warnf("Could not parse metamorph_zmqAddress in config: %v", err)
-	} else if found {
-		z := metamorph.NewZMQ(zmqURL, metamorphProcessor)
-		go z.Start()
+	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
+	if peerCount == 0 {
+		logger.Fatalf("peerCount must be set")
+	}
+	for i := 1; i <= peerCount; i++ {
+		zmqURL, zErr, found := gocore.Config().GetURL(fmt.Sprintf("peer_%d_zmq", i))
+		if zErr != nil {
+			logger.Warnf("Could not parse peer_%d_zmq in config: %v", i, zErr)
+		} else if found {
+			z := metamorph.NewZMQ(zmqURL, metamorphProcessor)
+			go z.Start()
+		}
 	}
 
 	return func() {

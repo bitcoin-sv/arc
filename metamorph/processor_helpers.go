@@ -1,6 +1,8 @@
 package metamorph
 
 import (
+	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -225,11 +227,59 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string) {
 
 	prm, found := p.processorResponseMap.Get(txid)
 	if !found {
-		// transaction not found, return error and close html
-		_, _ = io.WriteString(w, `
-			<h1 class="title">Could not find transaction</h1>
-			<a href="/pstats?printTxs=true"><< Back</a>
-		`)
+		hash, err := utils.DecodeAndReverseHexString(txid)
+		if err != nil {
+			_, _ = io.WriteString(w, `
+				<h1 class="title">Invalid transaction ID</h1>
+				<a href="/pstats?printTxs=true"><< Back</a>
+			`)
+		} else {
+			storeData, _ := p.store.Get(context.Background(), hash)
+			if storeData != nil {
+				b, _ := json.MarshalIndent(storeData, "", "  ")
+				_, _ = io.WriteString(w, fmt.Sprintf(`
+					<h1 class="title">Transaction (from store)</h1>
+					<h2 class="subtitle">
+					    <a href="https://whatsonchain.com/tx/%s" target="_blank">%s</a>
+					</h2>
+					<a href="/pstats?printTxs=true"><< Back</a>
+					<table class=table>
+						<tr><td>Stored At</td><td>%s</td></tr>
+						<tr><td>Announced At</td><td>%s</td></tr>
+						<tr><td>Mined At</td><td>%s</td></tr>
+						<tr><td>Status</td><td>%s</td></tr>
+						<tr><td>Block height</td><td>%d</td></tr>
+						<tr><td>Block hash</td><td>%s</td></tr>
+						<tr><td>Callback URL</td><td>%s</td></tr>
+						<tr><td>Callback token</td><td>%s</td></tr>
+						<tr><td>Merkle proof</td><td>%v</td></tr>
+						<tr><td>Reject reason</td><td>%s</td></tr>
+						<tr><td>TX hex</td><td style="word-break: break-all; width: 75%%;">%s</td></tr>
+					</table>
+					<pre>%s</pre>
+				`, txid, txid,
+					storeData.StoredAt.UTC().Format(time.RFC3339Nano),
+					storeData.AnnouncedAt.UTC().Format(time.RFC3339Nano),
+					storeData.MinedAt.UTC().Format(time.RFC3339Nano),
+					storeData.Status.String(),
+					storeData.BlockHeight,
+					storeData.BlockHash,
+					storeData.CallbackUrl,
+					storeData.CallbackToken,
+					storeData.MerkleProof,
+					storeData.RejectReason,
+					hex.EncodeToString(storeData.RawTx),
+					string(b),
+				))
+			} else {
+				// transaction not found, return error and close html
+				_, _ = io.WriteString(w, `
+					<h1 class="title">Could not find transaction</h1>
+					<a href="/pstats?printTxs=true"><< Back</a>
+				`)
+			}
+		}
+
 		_, _ = io.WriteString(w, `</table>
       </div>
   </section>

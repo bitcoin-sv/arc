@@ -215,7 +215,7 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 			LockingScript: fundingTx.Outputs[i].LockingScript,
 			Satoshis:      fundingTx.Outputs[i].Satoshis,
 		}
-		txs[i], _ = b.NewTransaction(b.ToKeySet, u)
+		txs[i] = b.NewTransaction(b.ToKeySet, u)
 	}
 
 	if b.IsDryRun {
@@ -385,7 +385,7 @@ func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
 	return tx
 }
 
-func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) (*bt.Tx, *bt.UTXO) {
+func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) *bt.Tx {
 	var err error
 
 	tx := bt.NewTx()
@@ -401,16 +401,7 @@ func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) (*bt.
 		panic(err)
 	}
 
-	// set the utxo to use for the next transaction
-	changeVout := len(tx.Outputs) - 1
-	useUtxo = &bt.UTXO{
-		TxID:          tx.TxIDBytes(),
-		Vout:          uint32(changeVout),
-		LockingScript: tx.Outputs[changeVout].LockingScript,
-		Satoshis:      tx.Outputs[changeVout].Satoshis,
-	}
-
-	return tx, useUtxo
+	return tx
 }
 
 // SendToAddress Let the bitcoin node in regtest mode send some bitcoin to our arcUrl

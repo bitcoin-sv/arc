@@ -336,7 +336,9 @@ func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
 		for {
 			// create the first funding transaction
 			txid, vout, scriptPubKey, err = b.SendToAddress(addr, 100_000_000)
-			if err == nil {
+			if err != nil {
+				b.logger.Errorf("error sending to address: %s", err.Error())
+			} else {
 				b.logger.Infof("[%d] funding tx: %s:%d", iteration, txid, vout)
 				break
 			}
@@ -436,14 +438,6 @@ func (b *Broadcaster) SendToAddress(address string, satoshis uint64) (string, ui
 
 	tx, err := client.GetRawTransaction(txid)
 	if err != nil {
-		return "", 0, "", err
-	}
-
-	btTx, err := bt.NewTxFromString(tx.Hex)
-	if err != nil {
-		return "", 0, "", err
-	}
-	if err := b.ProcessTransaction(context.Background(), btTx, 0); err != nil {
 		return "", 0, "", err
 	}
 

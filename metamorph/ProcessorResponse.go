@@ -13,16 +13,17 @@ import (
 )
 
 type ProcessorResponse struct {
-	mu                    deadlock.RWMutex
-	ch                    chan StatusAndError
+	mu      deadlock.RWMutex
+	ch      chan StatusAndError
+	noStats bool
+
 	Hash                  []byte
 	Start                 time.Time
-	retries               atomic.Uint32
-	err                   error
-	announcedPeers        []p2p.PeerI
-	status                metamorph_api.Status
-	noStats               bool
-	lastStatusUpdateNanos atomic.Int64
+	Retries               atomic.Uint32
+	Err                   error
+	AnnouncedPeers        []p2p.PeerI
+	Status                metamorph_api.Status
+	LastStatusUpdateNanos atomic.Int64
 	Log                   []ProcessorResponseLog
 }
 
@@ -30,7 +31,7 @@ func NewProcessorResponse(hash []byte) *ProcessorResponse {
 	return &ProcessorResponse{
 		Start:  time.Now(),
 		Hash:   hash,
-		status: metamorph_api.Status_UNKNOWN,
+		Status: metamorph_api.Status_UNKNOWN,
 		Log: []ProcessorResponseLog{
 			{
 				DeltaT: 0,
@@ -46,7 +47,7 @@ func NewProcessorResponseWithStatus(hash []byte, status metamorph_api.Status) *P
 	return &ProcessorResponse{
 		Start:  time.Now(),
 		Hash:   hash,
-		status: status,
+		Status: status,
 		Log: []ProcessorResponseLog{
 			{
 				DeltaT: 0,
@@ -60,7 +61,7 @@ func NewProcessorResponseWithChannel(hash []byte, ch chan StatusAndError) *Proce
 	return &ProcessorResponse{
 		Start:  time.Now(),
 		Hash:   hash,
-		status: metamorph_api.Status_UNKNOWN,
+		Status: metamorph_api.Status_UNKNOWN,
 		ch:     ch,
 		Log: []ProcessorResponseLog{
 			{
@@ -75,24 +76,24 @@ func (r *ProcessorResponse) SetPeers(peers []p2p.PeerI) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	r.announcedPeers = peers
+	r.AnnouncedPeers = peers
 }
 
 func (r *ProcessorResponse) GetPeers() []p2p.PeerI {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	return r.announcedPeers
+	return r.AnnouncedPeers
 }
 
 func (r *ProcessorResponse) String() string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	if r.err != nil {
-		return fmt.Sprintf("%x: %s [%s] %s", bt.ReverseBytes(r.Hash), r.Start.Format(time.RFC3339), r.status.String(), r.err.Error())
+	if r.Err != nil {
+		return fmt.Sprintf("%x: %s [%s] %s", bt.ReverseBytes(r.Hash), r.Start.Format(time.RFC3339), r.Status.String(), r.Err.Error())
 	}
-	return fmt.Sprintf("%x: %s [%s]", bt.ReverseBytes(r.Hash), r.Start.Format(time.RFC3339), r.status.String())
+	return fmt.Sprintf("%x: %s [%s]", bt.ReverseBytes(r.Hash), r.Start.Format(time.RFC3339), r.Status.String())
 }
 
 func (r *ProcessorResponse) setStatus(status metamorph_api.Status, source string) bool {
@@ -103,11 +104,11 @@ func (r *ProcessorResponse) setStatus(status metamorph_api.Status, source string
 }
 
 func (r *ProcessorResponse) setStatusInternal(status metamorph_api.Status, source string) bool {
-	r.status = status
+	r.Status = status
 
 	sae := StatusAndError{
 		Hash:   r.Hash,
-		Status: r.status,
+		Status: r.Status,
 	}
 
 	ch := r.ch
@@ -125,23 +126,23 @@ func (r *ProcessorResponse) GetStatus() metamorph_api.Status {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	return r.status
+	return r.Status
 }
 
 func (r *ProcessorResponse) setErr(err error, source string) bool {
 	r.mu.Lock()
 
-	r.err = err
+	r.Err = err
 
 	sae := StatusAndError{
 		Hash:   r.Hash,
-		Status: r.status,
+		Status: r.Status,
 		Err:    err,
 	}
 
 	ch := r.ch
 
-	r.AddLog(r.status, source, err.Error())
+	r.AddLog(r.Status, source, err.Error())
 
 	r.mu.Unlock()
 
@@ -160,12 +161,12 @@ func (r *ProcessorResponse) setStatusAndError(status metamorph_api.Status, err e
 }
 
 func (r *ProcessorResponse) setStatusAndErrorInternal(status metamorph_api.Status, err error, source string) bool {
-	r.status = status
-	r.err = err
+	r.Status = status
+	r.Err = err
 
 	sae := StatusAndError{
 		Hash:   r.Hash,
-		Status: r.status,
+		Status: r.Status,
 		Err:    err,
 	}
 
@@ -184,16 +185,16 @@ func (r *ProcessorResponse) GetErr() error {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	return r.err
+	return r.Err
 }
 
-func (r *ProcessorResponse) Retries() uint32 {
-	return r.retries.Load()
+func (r *ProcessorResponse) GetRetries() uint32 {
+	return r.Retries.Load()
 }
 
 func (r *ProcessorResponse) IncrementRetry() uint32 {
-	r.retries.Add(1)
-	return r.retries.Load()
+	r.Retries.Add(1)
+	return r.Retries.Load()
 }
 
 func (r *ProcessorResponse) AddLog(status metamorph_api.Status, source string, info string) {

@@ -146,7 +146,7 @@ func TestProcessTransaction(t *testing.T) {
 		assert.Equal(t, 1, processor.processorResponseMap.Len())
 		items := processor.processorResponseMap.Items()
 		assert.Equal(t, test.TX1Bytes, items[test.TX1].Hash)
-		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[test.TX1].status)
+		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[test.TX1].Status)
 
 		assert.Len(t, pm.AnnouncedTransactions, 1)
 		assert.Equal(t, test.TX1Bytes, pm.AnnouncedTransactions[0])

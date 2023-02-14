@@ -100,20 +100,20 @@ func (m *ProcessorResponseMap) Delete(key string) {
 
 	// append stats to log file
 	if m.logFile != "" && m.logWorker != nil {
-		announcedPeers := make([]string, 0, len(item.announcedPeers))
-		for _, peer := range item.announcedPeers {
+		announcedPeers := make([]string, 0, len(item.AnnouncedPeers))
+		for _, peer := range item.AnnouncedPeers {
 			announcedPeers = append(announcedPeers, peer.String())
 		}
 
 		utils.SafeSend(m.logWorker, statResponse{
 			Txid:                  utils.HexEncodeAndReverseBytes(item.Hash),
 			Start:                 item.Start,
-			Retries:               item.retries.Load(),
-			Err:                   item.err,
+			Retries:               item.Retries.Load(),
+			Err:                   item.Err,
 			AnnouncedPeers:        announcedPeers,
-			Status:                item.status,
+			Status:                item.Status,
 			NoStats:               item.noStats,
-			LastStatusUpdateNanos: item.lastStatusUpdateNanos.Load(),
+			LastStatusUpdateNanos: item.LastStatusUpdateNanos.Load(),
 			Log:                   item.Log,
 		})
 	}
@@ -136,7 +136,7 @@ func (m *ProcessorResponseMap) Retries(key string) uint32 {
 		return 0
 	}
 
-	return m.items[key].Retries()
+	return m.items[key].GetRetries()
 }
 
 func (m *ProcessorResponseMap) IncrementRetry(key string) uint32 {

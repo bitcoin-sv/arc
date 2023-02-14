@@ -97,7 +97,6 @@ type statResponse struct {
 	Err                   error                  `json:"error"`
 	AnnouncedPeers        []string               `json:"announcedPeers"`
 	Status                metamorph_api.Status   `json:"status"`
-	StatusStats           map[int32]int64        `json:"statusStats"`
 	NoStats               bool                   `json:"noStats"`
 	LastStatusUpdateNanos int64                  `json:"lastStatusUpdateNanos"`
 	Log                   []ProcessorResponseLog `json:"log"`
@@ -228,7 +227,6 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string) {
 		Err:                   prm.err,
 		AnnouncedPeers:        announcedPeers,
 		Status:                prm.status,
-		StatusStats:           prm.statusStats,
 		NoStats:               prm.noStats,
 		LastStatusUpdateNanos: prm.lastStatusUpdateNanos.Load(),
 		Log:                   prm.Log,
@@ -240,43 +238,13 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string) {
 		return
 	}
 
-	statusStatsData := make([]struct {
-		status metamorph_api.Status
-		time   time.Time
-	}, 0, len(res.StatusStats))
-
-	for status, timeNano := range res.StatusStats {
-		statusStatsData = append(statusStatsData, struct {
-			status metamorph_api.Status
-			time   time.Time
-		}{
-			status: metamorph_api.Status(status),
-			time:   time.Unix(0, timeNano),
-		})
-	}
-
-	sort.Slice(statusStatsData, func(i, j int) bool {
-		return statusStatsData[i].time.Before(statusStatsData[j].time)
-	})
-
-	statusStats := strings.Builder{}
-	statusStats.WriteString("<table class=table>")
-	for _, statusStatsD := range statusStatsData {
-		statusStats.WriteString("<tr>")
-
-		statusStats.WriteString(fmt.Sprintf("<td>%s</td>", statusStatsD.status.String()))
-		statusStats.WriteString(fmt.Sprintf("<td>%s</td>", statusStatsD.time.UTC()))
-		statusStats.WriteString("</tr>")
-	}
-	statusStats.WriteString("</table>")
-
 	resLog := strings.Builder{}
 	resLog.WriteString("<table class=table>")
 	resLog.WriteString("<tr><th>Δ𝑡</th><th>Status</th><th>Source</th><th>Info</th></tr>")
 	for _, logEntry := range res.Log {
 		resLog.WriteString("<tr>")
 
-		resLog.WriteString(fmt.Sprintf("<td>%s</td>", gcutils.HumanTimeUnit(time.Duration(logEntry.T))))
+		resLog.WriteString(fmt.Sprintf("<td>%s</td>", gcutils.HumanTimeUnitHTML(time.Duration(logEntry.DeltaT))))
 		resLog.WriteString(fmt.Sprintf("<td>%s</td>", logEntry.Status))
 		resLog.WriteString(fmt.Sprintf("<td>%s</td>", logEntry.Source))
 		resLog.WriteString(fmt.Sprintf("<td>%s</td>", logEntry.Info))
@@ -312,7 +280,6 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string) {
 	writeStat(w, "Err", res.Err)
 	writeStat(w, "AnnouncedPeers", res.AnnouncedPeers)
 	writeStat(w, "Status", res.Status.String())
-	writeStat(w, "StatusStats", statusStats.String())
 	writeStat(w, "NoStats", res.NoStats)
 	writeStat(w, "LastStatusUpdateNanos", res.LastStatusUpdateNanos)
 	writeStat(w, "Log", resLog.String())
@@ -348,7 +315,6 @@ func (p *Processor) _(w http.ResponseWriter, txid string) {
 		Err:                   prm.err,
 		AnnouncedPeers:        announcedPeers,
 		Status:                prm.status,
-		StatusStats:           prm.statusStats,
 		NoStats:               prm.noStats,
 		LastStatusUpdateNanos: prm.lastStatusUpdateNanos.Load(),
 		Log:                   prm.Log,

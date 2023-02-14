@@ -107,6 +107,7 @@ func (m *ProcessorResponseMap) Delete(key string) {
 
 	// append stats to log file
 	if m.logFile != "" && m.logWorker != nil {
+
 		utils.SafeSend(m.logWorker, processorResponseStats{
 			key:   key,
 			stats: m.items[key].GetStats(),

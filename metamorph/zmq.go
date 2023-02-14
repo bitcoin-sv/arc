@@ -69,7 +69,12 @@ func (z *ZMQ) Start() {
 					errReason += " - double spend"
 				}
 				z.logger.Warnf("invalidtx %s: %s", txInfo["txid"].(string), errReason)
-				_, _ = z.processor.SendStatusForTransaction(txInfo["txid"].(string), metamorph_api.Status_REJECTED, "zmq", fmt.Errorf(errReason))
+				_, _ = z.processor.SendStatusForTransaction(
+					txInfo["txid"].(string),
+					metamorph_api.Status_REJECTED,
+					z.URL.String(),
+					fmt.Errorf(errReason),
+				)
 			case "discardedfrommempool":
 				var txInfo map[string]interface{}
 				txInfo, err = z.parseTxInfo(c)
@@ -83,7 +88,12 @@ func (z *ZMQ) Start() {
 				}
 				// reasons can be "collision-in-block-tx" and "unknown-reason"
 				z.logger.Warnf("discardedfrommempool %s: %s", txInfo["txid"].(string), reason)
-				_, _ = z.processor.SendStatusForTransaction(txInfo["txid"].(string), metamorph_api.Status_REJECTED, "zmq", fmt.Errorf("discarded from mempool: %s", reason))
+				_, _ = z.processor.SendStatusForTransaction(
+					txInfo["txid"].(string),
+					metamorph_api.Status_REJECTED,
+					z.URL.String(),
+					fmt.Errorf("discarded from mempool: %s", reason),
+				)
 			default:
 				z.logger.Info("Unhandled ZMQ message", c)
 			}

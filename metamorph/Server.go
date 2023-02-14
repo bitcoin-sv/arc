@@ -14,6 +14,7 @@ import (
 	"github.com/TAAL-GmbH/arc/tracing"
 	"github.com/libsv/go-bt/v2"
 	"github.com/opentracing/opentracing-go"
+	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"google.golang.org/grpc"
@@ -100,13 +101,16 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 }
 
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction")
+	defer span.Finish()
+
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("PutTransaction").AddTime(start)
 	}()
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction")
-	defer span.Finish()
+	// init next variable to allow conditional functions to wrong, all accepting next as an argument
+	next := start
 
 	responseChannel := make(chan StatusAndError)
 	defer func() {
@@ -118,26 +122,24 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	status := metamorph_api.Status_UNKNOWN
 	hash := utils.Sha256d(req.RawTx)
 
-	storeData, err := s.store.Get(ctx, hash)
-	if err != nil && !errors.Is(err, store.ErrNotFound) {
-		s.logger.Errorf("Error getting transaction from store: %v", err)
-	}
-	if storeData != nil {
-		// we found the transaction in the store, so we can just return it
-		return &metamorph_api.TransactionStatus{
-			TimedOut:     false,
-			StoredAt:     timestamppb.New(storeData.StoredAt),
-			AnnouncedAt:  timestamppb.New(storeData.AnnouncedAt),
-			MinedAt:      timestamppb.New(storeData.MinedAt),
-			Txid:         fmt.Sprintf("%x", bt.ReverseBytes(storeData.Hash)),
-			Status:       storeData.Status,
-			RejectReason: storeData.RejectReason,
-			BlockHeight:  storeData.BlockHeight,
-			BlockHash:    hex.EncodeToString(storeData.BlockHash),
-		}, nil
+	var transactionStatus *metamorph_api.TransactionStatus
+	next, transactionStatus = s.checkStore(ctx, hash, next)
+	if transactionStatus != nil {
+		return transactionStatus, nil
 	}
 
-	next := gocore.NewStat("PutTransaction").NewStat("1: Check store").AddTime(start)
+	checkUtxos := gocore.Config().GetBool("checkUtxos")
+	if checkUtxos {
+		var err error
+		next, err = s.utxoCheck(ctx, next, req.RawTx)
+		if err != nil {
+			return &metamorph_api.TransactionStatus{
+				Status:       metamorph_api.Status_REJECTED,
+				Txid:         utils.HexEncodeAndReverseBytes(hash),
+				RejectReason: err.Error(),
+			}, nil
+		}
+	}
 
 	sReq := &store.StoreData{
 		Hash:          hash,
@@ -200,6 +202,70 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 			}
 		}
 	}
+}
+
+func (s *Server) checkStore(ctx context.Context, hash []byte, next int64) (int64, *metamorph_api.TransactionStatus) {
+	storeData, err := s.store.Get(ctx, hash)
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		s.logger.Errorf("Error getting transaction from store: %v", err)
+	}
+	if storeData != nil {
+		// we found the transaction in the store, so we can just return it
+		return 0, &metamorph_api.TransactionStatus{
+			TimedOut:     false,
+			StoredAt:     timestamppb.New(storeData.StoredAt),
+			AnnouncedAt:  timestamppb.New(storeData.AnnouncedAt),
+			MinedAt:      timestamppb.New(storeData.MinedAt),
+			Txid:         fmt.Sprintf("%x", bt.ReverseBytes(storeData.Hash)),
+			Status:       storeData.Status,
+			RejectReason: storeData.RejectReason,
+			BlockHeight:  storeData.BlockHeight,
+			BlockHash:    hex.EncodeToString(storeData.BlockHash),
+		}
+	}
+
+	return gocore.NewStat("PutTransaction").NewStat("1: Check store").AddTime(next), nil
+}
+
+func (s *Server) utxoCheck(ctx context.Context, next int64, rawTx []byte) (int64, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:UtxoCheck")
+	defer span.Finish()
+
+	rpcURL, err, found := gocore.Config().GetURL("peer_1_rpc")
+	if err != nil {
+		s.logger.Errorf("Error getting peer_1_rpc: %v", err)
+	} else if !found {
+		s.logger.Errorf("peer_1_rpc not found")
+	} else {
+		var node *bitcoin.Bitcoind
+		node, err = bitcoin.NewFromURL(rpcURL, false)
+		if err != nil {
+			s.logger.Errorf("Error creating bitcoin node: %v", err)
+		} else {
+			var tx *bt.Tx
+			tx, err = bt.NewTxFromBytes(rawTx)
+			if err != nil {
+				s.logger.Errorf("Error creating bitcoin tx: %v", err)
+				return 0, err
+			}
+
+			for _, input := range tx.Inputs {
+				var utxos *bitcoin.TXOut
+				utxos, err = node.GetTxOut(input.PreviousTxIDStr(), int(input.PreviousTxOutIndex), true)
+				if err != nil {
+					s.logger.Errorf("Error getting utxo: %v", err)
+					return 0, err
+				} else {
+					if utxos == nil {
+						s.logger.Errorf("utxo %s:%d not found", input.PreviousTxIDStr(), input.PreviousTxOutIndex)
+						return 0, fmt.Errorf("utxo %s:%d not found", input.PreviousTxIDStr(), input.PreviousTxOutIndex)
+					}
+				}
+			}
+		}
+	}
+
+	return gocore.NewStat("PutTransaction").NewStat("0: Check utxos").AddTime(next), nil
 }
 
 func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.Transaction, error) {

@@ -150,7 +150,7 @@ func (p *Processor) errorLogWriter() {
 		}
 		_, err = f.WriteString(fmt.Sprintf("%s,%s,%s\n",
 			utils.HexEncodeAndReverseBytes(pr.Hash),
-			pr.err.Error(),
+			pr.Err.Error(),
 			hex.EncodeToString(storeData.RawTx),
 		))
 		if err != nil {
@@ -172,7 +172,7 @@ func (p *Processor) processExpiredTransactions() {
 		if len(expiredTransactionItems) > 0 {
 			p.logger.Infof("Resending %d expired transactions", len(expiredTransactionItems))
 			for txID, item := range expiredTransactionItems {
-				retries := item.Retries()
+				retries := item.GetRetries()
 				p.logger.Debugf("Resending expired tx: %s (%d retries)", txID, retries)
 				if retries >= 3 {
 					continue
@@ -185,13 +185,13 @@ func (p *Processor) processExpiredTransactions() {
 					p.logger.Debugf("Re-getting expired tx: %s", txID)
 					p.pm.RequestTransaction(item.Hash)
 					item.AddLog(
-						item.status,
+						item.Status,
 						"expired",
 						"Sent GETDATA for transaction",
 					)
 				} else {
 					p.logger.Debugf("Re-announcing expired tx: %s", txID)
-					p.pm.AnnounceTransaction(item.Hash, item.announcedPeers)
+					p.pm.AnnounceTransaction(item.Hash, item.AnnouncedPeers)
 					item.AddLog(
 						metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 						"expired",
@@ -321,7 +321,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		processorResponse.mu.Lock()
 		defer processorResponse.mu.Unlock()
 
-		if processorResponse.status >= status && statusErr == nil {
+		if processorResponse.Status >= status && statusErr == nil {
 			processorResponse.AddLog(status, source, "duplicate")
 
 			return false, nil
@@ -372,7 +372,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		}
 
 		statKey := fmt.Sprintf("%d: %s", status, status.String())
-		processorResponse.lastStatusUpdateNanos.Store(gocore.NewStat("processor - async").NewStat(statKey).AddTime(processorResponse.lastStatusUpdateNanos.Load()))
+		processorResponse.LastStatusUpdateNanos.Store(gocore.NewStat("processor - async").NewStat(statKey).AddTime(processorResponse.LastStatusUpdateNanos.Load()))
 
 		return ok, nil
 	} else if status > metamorph_api.Status_SENT_TO_NETWORK {
@@ -473,7 +473,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	processorResponse.setStatus(metamorph_api.Status_ANNOUNCED_TO_NETWORK, strings.Join(peersStr, ", "))
 
 	next := gocore.NewStat("processor").NewStat("4: ANNOUNCED").AddTime(nextNanos)
-	processorResponse.lastStatusUpdateNanos.Store(next)
+	processorResponse.LastStatusUpdateNanos.Store(next)
 
 	duration := time.Since(processorResponse.Start)
 	for _, peerStr := range peersStr {

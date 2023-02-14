@@ -14,6 +14,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Name used by build script for the binaries. (Please keep on single line)
@@ -72,6 +73,12 @@ func main() {
 			logger.Fatalf("%v", http.ListenAndServe(profilerAddr, nil))
 		}
 	}()
+
+	prometheusEndpoint, ok := gocore.Config().Get("prometheusEndpoint")
+	if ok && prometheusEndpoint != "" {
+		logger.Infof("Starting prometheus endpoint on %s", prometheusEndpoint)
+		http.Handle(prometheusEndpoint, promhttp.Handler())
+	}
 
 	if useTracer != nil && *useTracer {
 		logger.Infof("Starting tracer")

@@ -97,12 +97,12 @@ MapSize:       %d
 type statResponse struct {
 	Txid                  string                 `json:"hash"`
 	Start                 time.Time              `json:"start"`
-	Retries               uint32                 `json:"retries"`
+	Retries               uint32                 `json:"Retries"`
 	Err                   error                  `json:"error"`
-	AnnouncedPeers        []string               `json:"announcedPeers"`
-	Status                metamorph_api.Status   `json:"status"`
+	AnnouncedPeers        []string               `json:"AnnouncedPeers"`
+	Status                metamorph_api.Status   `json:"Status"`
 	NoStats               bool                   `json:"noStats"`
-	LastStatusUpdateNanos int64                  `json:"lastStatusUpdateNanos"`
+	LastStatusUpdateNanos int64                  `json:"LastStatusUpdateNanos"`
 	Log                   []ProcessorResponseLog `json:"log"`
 }
 
@@ -112,13 +112,33 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
 
+	format := r.URL.Query().Get("format")
+
 	txid := r.URL.Query().Get("tx")
 	if txid != "" {
-		p.writeTransaction(w, txid)
+		p.writeTransaction(w, txid, format)
 		return
 	}
 
 	printTxs := r.URL.Query().Get("printTxs") == "true"
+
+	if format == "json" {
+		w.Header().Set("Content-Type", "application/json")
+		stats := p.GetStats()
+		if printTxs {
+			_ = json.NewEncoder(w).Encode(struct {
+				*ProcessorStats
+				Txs map[string]*ProcessorResponse `json:"txs"`
+			}{
+				ProcessorStats: stats,
+				Txs:            p.processorResponseMap.Items(),
+			})
+		} else {
+			_ = json.NewEncoder(w).Encode(stats)
+		}
+		return
+	}
+
 	var txids strings.Builder
 	if printTxs {
 		items := p.processorResponseMap.Items()
@@ -136,15 +156,15 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 		if len(processorResponses) > 0 {
 			txids.WriteString("<div>")
 			txids.WriteString(`<table class="table is-bordered">`)
-			txids.WriteString(`<tr><th>Start</th><th>Retries</th><th>Status</th><th>Tx ID</th></tr>`)
+			txids.WriteString(`<tr><th>Start</th><th>GetRetries</th><th>Status</th><th>Tx ID</th></tr>`)
 			for _, processorResponse := range processorResponses {
 				txids.WriteString(`<tr>`)
 
 				txid := utils.HexEncodeAndReverseBytes(processorResponse.Hash)
 
 				txids.WriteString(fmt.Sprintf(`<td>%s</td>`, processorResponse.Start.UTC().Format(time.RFC3339Nano)))
-				txids.WriteString(fmt.Sprintf(`<td>%d</td>`, processorResponse.retries.Load()))
-				txids.WriteString(fmt.Sprintf(`<td>%s</td>`, processorResponse.status.String()))
+				txids.WriteString(fmt.Sprintf(`<td>%d</td>`, processorResponse.Retries.Load()))
+				txids.WriteString(fmt.Sprintf(`<td>%s</td>`, processorResponse.Status.String()))
 				txids.WriteString(fmt.Sprintf(`<td><a href="/pstats?tx=%s">%s</a></td>`, txid, txid))
 
 				txids.WriteString(`</tr>`)
@@ -209,7 +229,25 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 </html>`, txids.String()))
 }
 
-func (p *Processor) writeTransaction(w http.ResponseWriter, txid string) {
+func (p *Processor) writeTransaction(w http.ResponseWriter, txid string, format string) {
+	if format == "json" {
+		w.Header().Set("Content-Type", "application/json")
+		prm, found := p.processorResponseMap.Get(txid)
+		if !found {
+			hash, _ := utils.DecodeAndReverseHexString(txid)
+			storeData, _ := p.store.Get(context.Background(), hash)
+			if storeData != nil {
+				_ = json.NewEncoder(w).Encode(storeData)
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = io.WriteString(w, fmt.Sprintf(`{"error": "tx not found", "txid": "%s"}`, txid))
+			return
+		}
+		_ = json.NewEncoder(w).Encode(prm)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
@@ -334,20 +372,20 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string) {
 
 func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *ProcessorResponse) []byte {
 
-	announcedPeers := make([]string, 0, len(prm.announcedPeers))
-	for _, peer := range prm.announcedPeers {
+	announcedPeers := make([]string, 0, len(prm.AnnouncedPeers))
+	for _, peer := range prm.AnnouncedPeers {
 		announcedPeers = append(announcedPeers, peer.String())
 	}
 
 	res := &statResponse{
 		Txid:                  utils.HexEncodeAndReverseBytes(prm.Hash),
 		Start:                 prm.Start,
-		Retries:               prm.retries.Load(),
-		Err:                   prm.err,
+		Retries:               prm.Retries.Load(),
+		Err:                   prm.Err,
 		AnnouncedPeers:        announcedPeers,
-		Status:                prm.status,
+		Status:                prm.Status,
 		NoStats:               prm.noStats,
-		LastStatusUpdateNanos: prm.lastStatusUpdateNanos.Load(),
+		LastStatusUpdateNanos: prm.LastStatusUpdateNanos.Load(),
 		Log:                   prm.Log,
 	}
 
@@ -376,7 +414,7 @@ func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *Proc
 
 	writeStat(w, "Hash", res.Txid)
 	writeStat(w, "Start", res.Start.UTC())
-	writeStat(w, "Retries", res.Retries)
+	writeStat(w, "GetRetries", res.Retries)
 	writeStat(w, "Err", res.Err)
 	writeStat(w, "AnnouncedPeers", res.AnnouncedPeers)
 	writeStat(w, "Status", res.Status.String())
@@ -399,20 +437,20 @@ func (p *Processor) _(w http.ResponseWriter, txid string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	announcedPeers := make([]string, 0, len(prm.announcedPeers))
-	for _, peer := range prm.announcedPeers {
+	announcedPeers := make([]string, 0, len(prm.AnnouncedPeers))
+	for _, peer := range prm.AnnouncedPeers {
 		announcedPeers = append(announcedPeers, peer.String())
 	}
 
 	res := &statResponse{
 		Txid:                  utils.HexEncodeAndReverseBytes(prm.Hash),
 		Start:                 prm.Start,
-		Retries:               prm.retries.Load(),
-		Err:                   prm.err,
+		Retries:               prm.Retries.Load(),
+		Err:                   prm.Err,
 		AnnouncedPeers:        announcedPeers,
-		Status:                prm.status,
+		Status:                prm.Status,
 		NoStats:               prm.noStats,
-		LastStatusUpdateNanos: prm.lastStatusUpdateNanos.Load(),
+		LastStatusUpdateNanos: prm.LastStatusUpdateNanos.Load(),
 		Log:                   prm.Log,
 	}
 

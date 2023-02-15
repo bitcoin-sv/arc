@@ -75,6 +75,9 @@ install:
 docs:
 	sh generate_docs.sh
 
+gh-pages:
+	git push --force origin `git subtree split --prefix doc master`:gh-pages
+
 .PHONY: api
 api:
 	oapi-codegen -config api/config.yaml api/arc.yml > api/arc.go

@@ -18,7 +18,6 @@ const coinbaseTxID = "0000000000000000000000000000000000000000000000000000000000
 const MaxTxSigopsCountPolicyAfterGenesis = ^uint32(0) // UINT32_MAX
 
 type DefaultValidator struct {
-	// TODO should this be bt fee struct
 	fees *api.FeesResponse
 }
 
@@ -112,7 +111,7 @@ func (v *DefaultValidator) IsExtended(tx *bt.Tx) bool {
 }
 
 func checkTxSize(txSize int, policy *api.FeesResponse) error {
-	maxTxSizePolicy := 0 // TODO: get this from the policy, which had been removed previously
+	maxTxSizePolicy := policy.Policy.MaxTxSizePolicy
 	if maxTxSizePolicy == 0 {
 		// no policy found for tx size, use max block size
 		maxTxSizePolicy = MaxBlockSize
@@ -182,11 +181,11 @@ func checkFees(tx *bt.Tx, feeQuote *bt.FeeQuote) error {
 }
 
 func sigOpsCheck(tx *bt.Tx, policy *api.FeesResponse) error {
-	maxSigOps := 0 // TODO: get this from the policy, which had been removed previously
+	maxSigOps := policy.Policy.MaxTxSigopsCountsPolicy
 	if maxSigOps == 0 {
-		maxSigOps = int(MaxTxSigopsCountPolicyAfterGenesis)
+		maxSigOps = int64(MaxTxSigopsCountPolicyAfterGenesis)
 	}
-	numSigOps := 0
+	numSigOps := int64(0)
 	for _, input := range tx.Inputs {
 		parser := interpreter.DefaultOpcodeParser{}
 		parsedUnlockingScript, err := parser.Parse(input.PreviousTxScript)

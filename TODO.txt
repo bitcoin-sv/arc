@@ -1,9 +1,7 @@
 Bugs
 
 TODOs
-- Reconnecting to Bitcoin nodes after disconnect
 - API yaml cleanup
-- Bitcoin node settings read into api (fees etc.)
 - Monitoring API / metamorph / blocktx / callbacker - Grafana / Logstash?
 - Documentation (Siggi)
 - Cleanup metamorph store after 100 block confirmations

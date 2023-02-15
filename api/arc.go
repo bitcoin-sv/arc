@@ -236,8 +236,9 @@ type FeeAmount struct {
 
 // FeesResponse defines model for FeesResponse.
 type FeesResponse struct {
-	Fees      *[]Fee    `json:"fees"`
-	Timestamp time.Time `json:"timestamp"`
+	Fees      *[]Fee      `json:"fees"`
+	Policy    *NodePolicy `json:"policy"`
+	Timestamp time.Time   `json:"timestamp"`
 }
 
 // TransactionDetails defines model for TransactionDetails.

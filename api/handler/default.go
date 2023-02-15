@@ -35,7 +35,7 @@ func NewDefault(transactionHandler transactionHandler.TransactionHandler) (api.H
 
 // GETFees ...
 func (m ArcDefaultHandler) GETFees(ctx echo.Context) error {
-	fees, err := getFees(ctx)
+	fees, err := getFees()
 	if err != nil {
 		status, response, responseErr := m.handleError(ctx, nil, err)
 		if responseErr != nil {
@@ -301,7 +301,7 @@ func getTransactionsOptions(params api.POSTTransactionsParams) *api.TransactionO
 }
 
 func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.Tx, transactionOptions *api.TransactionOptions) (api.StatusCode, interface{}, error) {
-	fees, err := getFees(ctx)
+	fees, err := getFees()
 	if err != nil {
 		return m.handleError(ctx, transaction, err)
 	}
@@ -444,38 +444,11 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 	return nil, transactionHandler.ErrParentTransactionNotFound
 }
 
-func getFees(_ echo.Context) (*api.FeesResponse, error) {
-
-	// TODO get from node
-	defaultFees := []api.Fee{
-		{
-			FeeType: "data",
-			MiningFee: api.FeeAmount{
-				Satoshis: 5,
-				Bytes:    1000,
-			},
-			RelayFee: api.FeeAmount{
-				Satoshis: 5,
-				Bytes:    1000,
-			},
-		},
-		{
-			FeeType: "standard",
-			MiningFee: api.FeeAmount{
-				Satoshis: 5,
-				Bytes:    1000,
-			},
-			RelayFee: api.FeeAmount{
-				Satoshis: 5,
-				Bytes:    1000,
-			},
-		},
-	}
-
-	feesResponse := &api.FeesResponse{
+func getFees() (*api.FeesResponse, error) {
+	// NodePolicy and Fees are global variables
+	return &api.FeesResponse{
 		Timestamp: time.Now(),
-		Fees:      &defaultFees,
-	}
-
-	return feesResponse, nil
+		Policy:    NodePolicy,
+		Fees:      Fees,
+	}, nil
 }

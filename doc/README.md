@@ -16,6 +16,9 @@ superset of the raw transaction format. The extended format includes the satoshi
 which makes it possible for ARC to validate the transaction without having to download the parent transactions. In most cases
 the sender already has all the information from the parent transaction, as this is needed to sign the transaction.
 
+With the successful adoption of Bitcoin ARC, this format should establish itself as the new standard of interchange
+between wallets and non-mining nodes on the network.
+
 The extended format has been described in detail in [BIP-239](BIP-239).
 
 The following diagrams show the difference between validating a transaction in the standard and extended format:
@@ -245,6 +248,30 @@ The following databases have been implemented:
 
 You can select the store to use by setting the `metamorph_dbMode` in the settings file or adding `metamorph_dbMode` as
 an environment variable.
+
+#### Connections to Bitcoin nodes
+
+Metamorph can connect to multiple Bitcoin nodes, and will use a subset of the nodes to send transactions to. The other
+nodes will be used to listen for transaction INV message, which will trigger the SEEN_ON_NETWORK status of a transaction.
+
+The Bitcoin nodes can be configured in the settings file.
+
+#### Whitelisting
+
+Metamorph is talking to the Bitcoin nodes over the p2p network. If metamorph sends invalid transactions to the
+Bitcoin node, it will be **banned** by that node. Either make sure not to send invalid or double spend transactions through
+metamorph, or make sure that all metamorph servers are **whitelisted** on the Bitcoin nodes they are connecting to.
+
+#### ZMQ
+
+Although not required, zmq can be used to listen for transaction messages (`hashtx`, `invalidtx`, `discardedfrommempool`).
+This is especially useful if you are not connecting to multiple Bitcoin nodes, and therefore are not receiving INV
+messages for your transactions.
+
+If you want to use zmq, you can set the `peer_%d_zmq` settings to the full url
+(example `zmq://bitcoin:bitcoin@localhost:18332`) of the zmq endpoints in the settings file.
+
+ZMQ does seem to be a bit faster than the p2p network, so it is recommended to turn it on, if available.
 
 ### BlockTx
 

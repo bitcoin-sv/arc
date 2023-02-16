@@ -34,6 +34,7 @@ func (p *Processor) GetStats() *ProcessorStats {
 		QueuedCount:        p.queuedCount.Load(),
 		Stored:             p.stored,
 		AnnouncedToNetwork: p.announcedToNetwork,
+		RequestedByNetwork: p.requestedByNetwork,
 		SentToNetwork:      p.sentToNetwork,
 		AcceptedByNetwork:  p.acceptedByNetwork,
 		SeenOnNetwork:      p.seenOnNetwork,
@@ -65,6 +66,7 @@ Uptime:        %s
 Queued:        %d
 Stored:        %s
 Announced:     %s
+Requested:     %s
 SentToNetwork: %s
 SeenOnNetwork: %s
 Mined:         %s
@@ -80,6 +82,7 @@ MapSize:       %d
 				stats.QueuedCount,
 				stats.Stored.String(),
 				stats.AnnouncedToNetwork.String(indent),
+				stats.RequestedByNetwork.String(indent),
 				stats.SentToNetwork.String(indent),
 				stats.SeenOnNetwork.String(indent),
 				stats.Mined.String(),
@@ -214,6 +217,7 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 	writeStat(w, "Queued", stats.QueuedCount)
 	writeStat(w, "Stored", stats.Stored.String())
 	writeStat(w, "Announced", stats.AnnouncedToNetwork.String(indent))
+	writeStat(w, "Requested", stats.RequestedByNetwork.String(indent))
 	writeStat(w, "SentToNetwork", stats.SentToNetwork.String(indent))
 	writeStat(w, "Accepted", stats.AcceptedByNetwork.String(indent))
 	writeStat(w, "SeenOnNetwork", stats.SeenOnNetwork.String(indent))
@@ -353,7 +357,7 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string, format 
 
 	_, _ = io.WriteString(w, fmt.Sprintf(`
       <h1 class="title">
-        Transaction 
+        Transaction
       </h1>
       <h2 class="subtitle">
         <a href="https://whatsonchain.com/tx/%s" target="_blank">%s</a>

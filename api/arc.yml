@@ -418,6 +418,7 @@ components:
                 "RECEIVED",
                 "STORED",
                 "ANNOUNCED_TO_NETWORK",
+                "REQUESTED_BY_NETWORK",
                 "SENT_TO_NETWORK",
                 "SEEN_ON_NETWORK",
                 "MINED",

@@ -1,6 +1,8 @@
 package metamorph
 
 import (
+	"sync/atomic"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -26,9 +28,15 @@ type prometheusCollector struct {
 	channelMapSize            *prometheus.Desc
 }
 
+var collectorLoaded = atomic.Bool{}
+
 // You must create a constructor for you prometheusCollector that
 // initializes every descriptor and returns a pointer to the prometheusCollector
 func newPrometheusCollector(p ProcessorI) *prometheusCollector {
+	if !collectorLoaded.CompareAndSwap(false, true) {
+		return nil
+	}
+
 	c := &prometheusCollector{
 		processor: p,
 		worker: prometheus.NewDesc("arc_metamorph_processor_worker",

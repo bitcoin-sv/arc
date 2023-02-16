@@ -18,9 +18,10 @@ func AddGRPCDialOptions(opts []grpc.DialOption) []grpc.DialOption {
 
 func AddGRPCServerOptions(opts []grpc.ServerOption) []grpc.ServerOption {
 	tracer := opentracing.GlobalTracer()
+
 	if tracer != nil {
-		opts = append(opts, grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(tracer)))
-		opts = append(opts, grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(tracer)))
+		opts = append(opts, grpc.ChainUnaryInterceptor(otgrpc.OpenTracingServerInterceptor(tracer)))
+		opts = append(opts, grpc.ChainStreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(tracer)))
 	}
 
 	return opts

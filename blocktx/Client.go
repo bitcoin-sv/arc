@@ -6,6 +6,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/tracing"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/ordishs/go-utils"
 
 	"google.golang.org/grpc"
@@ -108,6 +109,8 @@ func (btc *Client) GetMinedTransactionsForBlock(ctx context.Context, blockAndSou
 func (btc *Client) dialGRPC() (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+		grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
 	}
 

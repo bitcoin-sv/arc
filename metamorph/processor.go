@@ -44,6 +44,7 @@ type ProcessorStats struct {
 	Stored             *stat.AtomicStat
 	AnnouncedToNetwork *stat.AtomicStats
 	SentToNetwork      *stat.AtomicStats
+	AcceptedByNetwork  *stat.AtomicStats
 	SeenOnNetwork      *stat.AtomicStats
 	Rejected           *stat.AtomicStats
 	Mined              *stat.AtomicStat
@@ -69,6 +70,7 @@ type Processor struct {
 	stored             *stat.AtomicStat
 	announcedToNetwork *stat.AtomicStats
 	sentToNetwork      *stat.AtomicStats
+	acceptedByNetwork  *stat.AtomicStats
 	seenOnNetwork      *stat.AtomicStats
 	rejected           *stat.AtomicStats
 	mined              *stat.AtomicStat
@@ -109,6 +111,7 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 		stored:             stat.NewAtomicStat(),
 		announcedToNetwork: stat.NewAtomicStats(),
 		sentToNetwork:      stat.NewAtomicStats(),
+		acceptedByNetwork:  stat.NewAtomicStats(),
 		seenOnNetwork:      stat.NewAtomicStats(),
 		rejected:           stat.NewAtomicStats(),
 		mined:              stat.NewAtomicStat(),
@@ -130,6 +133,8 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 	gocore.AddAppPayloadFn("mtm", func() interface{} {
 		return p.GetStats()
 	})
+
+	_ = newPrometheusCollector(p)
 
 	return p
 }
@@ -351,6 +356,9 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 
 			case metamorph_api.Status_SENT_TO_NETWORK:
 				p.sentToNetwork.AddDuration(source, time.Since(processorResponse.Start))
+
+			case metamorph_api.Status_ACCEPTED_BY_NETWORK:
+				p.acceptedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
 
 			case metamorph_api.Status_SEEN_ON_NETWORK:
 				p.seenOnNetwork.AddDuration(source, time.Since(processorResponse.Start))

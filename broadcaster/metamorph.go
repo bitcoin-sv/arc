@@ -6,6 +6,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/tracing"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/gocore"
 	"google.golang.org/grpc"
@@ -23,6 +24,8 @@ func NewMetamorphBroadcaster(address string) *MetamorphBroadcaster {
 
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+		grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
 	}
 

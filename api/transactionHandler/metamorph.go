@@ -10,6 +10,7 @@ import (
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/tracing"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/ordishs/go-utils"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -28,6 +29,8 @@ type Metamorph struct {
 func NewMetamorph(targets string, blockTxClient blocktx.ClientI) (*Metamorph, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+		grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
 	}
 	conn, err := grpc.Dial(targets, tracing.AddGRPCDialOptions(opts)...)
@@ -143,6 +146,8 @@ func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (m
 		var conn *grpc.ClientConn
 		opts := []grpc.DialOption{
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+			grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
 		}
 		if conn, err = grpc.Dial(target, tracing.AddGRPCDialOptions(opts)...); err != nil {
 			return nil, err

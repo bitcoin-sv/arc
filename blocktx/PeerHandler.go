@@ -11,6 +11,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/blocktx/store"
+	"github.com/TAAL-GmbH/arc/tracing"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/blockchain"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -26,6 +27,7 @@ type PeerHandler struct {
 	store          store.Interface
 	logger         utils.Logger
 	announcedCache *expiringmap.ExpiringMap[string, []p2p.PeerI]
+	stats          map[string]*tracing.PeerHandlerStats
 }
 
 func init() {
@@ -63,7 +65,10 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 
 			return false
 		}),
+		stats: make(map[string]*tracing.PeerHandlerStats),
 	}
+
+	_ = tracing.NewPeerHandlerCollector("blocktx", s.stats)
 
 	go func() {
 		for pair := range s.workerCh {
@@ -104,27 +109,58 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 	return s
 }
 
-func (bs *PeerHandler) HandleTransactionGet(_ *wire.InvVect, _ p2p.PeerI) ([]byte, error) {
+func (bs *PeerHandler) HandleTransactionGet(_ *wire.InvVect, peer p2p.PeerI) ([]byte, error) {
+	peerStr := peer.String()
+	if _, ok := bs.stats[peerStr]; !ok {
+		bs.stats[peerStr] = &tracing.PeerHandlerStats{}
+	}
+	bs.stats[peerStr].TransactionGet.Add(1)
 	return nil, nil
 }
 
-func (bs *PeerHandler) HandleTransactionSent(_ *wire.MsgTx, _ p2p.PeerI) error {
+func (bs *PeerHandler) HandleTransactionSent(_ *wire.MsgTx, peer p2p.PeerI) error {
+	peerStr := peer.String()
+	if _, ok := bs.stats[peerStr]; !ok {
+		bs.stats[peerStr] = &tracing.PeerHandlerStats{}
+	}
+	bs.stats[peerStr].TransactionSent.Add(1)
 	return nil
 }
 
-func (bs *PeerHandler) HandleTransactionAnnouncement(_ *wire.InvVect, _ p2p.PeerI) error {
+func (bs *PeerHandler) HandleTransactionAnnouncement(_ *wire.InvVect, peer p2p.PeerI) error {
+	peerStr := peer.String()
+	if _, ok := bs.stats[peerStr]; !ok {
+		bs.stats[peerStr] = &tracing.PeerHandlerStats{}
+	}
+	bs.stats[peerStr].TransactionAnnouncement.Add(1)
 	return nil
 }
 
-func (bs *PeerHandler) HandleTransactionRejection(_ *wire.MsgReject, _ p2p.PeerI) error {
+func (bs *PeerHandler) HandleTransactionRejection(_ *wire.MsgReject, peer p2p.PeerI) error {
+	peerStr := peer.String()
+	if _, ok := bs.stats[peerStr]; !ok {
+		bs.stats[peerStr] = &tracing.PeerHandlerStats{}
+	}
+	bs.stats[peerStr].TransactionRejection.Add(1)
 	return nil
 }
 
 func (bs *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error {
+	peerStr := peer.String()
+	if _, ok := bs.stats[peerStr]; !ok {
+		bs.stats[peerStr] = &tracing.PeerHandlerStats{}
+	}
+	bs.stats[peerStr].Transaction.Add(1)
 	return nil
 }
 
 func (bs *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI) error {
+	peerStr := peer.String()
+	if _, ok := bs.stats[peerStr]; !ok {
+		bs.stats[peerStr] = &tracing.PeerHandlerStats{}
+	}
+	bs.stats[peerStr].BlockAnnouncement.Add(1)
+
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlockAnnouncement").AddTime(start)
@@ -137,6 +173,12 @@ func (bs *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 }
 
 func (bs *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error {
+	peerStr := peer.String()
+	if _, ok := bs.stats[peerStr]; !ok {
+		bs.stats[peerStr] = &tracing.PeerHandlerStats{}
+	}
+	bs.stats[peerStr].Block.Add(1)
+
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").AddTime(start)

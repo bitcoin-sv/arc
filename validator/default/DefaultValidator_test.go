@@ -2,11 +2,13 @@ package defaultvalidator
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/api"
+	"github.com/TAAL-GmbH/arc/testdata"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/ordishs/go-bitcoin"
@@ -125,6 +127,9 @@ func TestValidator(t *testing.T) {
 }
 
 func getPolicy(satoshisPerKB uint64) *api.FeesResponse {
+	var policy *api.NodePolicy
+	_ = json.Unmarshal([]byte(testdata.DefaultPolicy), &policy)
+
 	fees := &api.FeesResponse{
 		Timestamp: time.Now(),
 		Fees: &[]api.Fee{{
@@ -148,6 +153,7 @@ func getPolicy(satoshisPerKB uint64) *api.FeesResponse {
 				Bytes:    1000,
 			},
 		}},
+		Policy: policy,
 	}
 
 	return fees
@@ -182,7 +188,11 @@ func Test_checkTxSize(t *testing.T) {
 			name: "valid tx size",
 			args: args{
 				txSize: 100,
-				fees:   &api.FeesResponse{},
+				fees: &api.FeesResponse{
+					Policy: &api.NodePolicy{
+						MaxTxSizePolicy: 10000000,
+					},
+				},
 			},
 			wantErr: false,
 		},
@@ -190,7 +200,11 @@ func Test_checkTxSize(t *testing.T) {
 			name: "invalid tx size",
 			args: args{
 				txSize: MaxBlockSize + 1,
-				fees:   &api.FeesResponse{},
+				fees: &api.FeesResponse{
+					Policy: &api.NodePolicy{
+						MaxTxSizePolicy: 10000000,
+					},
+				},
 			},
 			wantErr: true,
 		},
@@ -421,7 +435,11 @@ func Test_sigOpsCheck(t *testing.T) {
 				tx: &bt.Tx{
 					Inputs: []*bt.Input{{PreviousTxScript: validLockingScript}},
 				},
-				fees: &api.FeesResponse{},
+				fees: &api.FeesResponse{
+					Policy: &api.NodePolicy{
+						MaxTxSigopsCountsPolicy: 4294967295,
+					},
+				},
 			},
 			wantErr: false,
 		},
@@ -435,7 +453,11 @@ func Test_sigOpsCheck(t *testing.T) {
 						PreviousTxScript: validLockingScript,
 					}},
 				},
-				fees: &api.FeesResponse{},
+				fees: &api.FeesResponse{
+					Policy: &api.NodePolicy{
+						MaxTxSigopsCountsPolicy: 4294967295,
+					},
+				},
 			},
 			wantErr: false, // TODO should be true, but we don't have the policy yet
 		},
@@ -449,7 +471,11 @@ func Test_sigOpsCheck(t *testing.T) {
 						PreviousTxScript: validLockingScript,
 					}},
 				},
-				fees: &api.FeesResponse{},
+				fees: &api.FeesResponse{
+					Policy: &api.NodePolicy{
+						MaxTxSigopsCountsPolicy: 4294967295,
+					},
+				},
 			},
 			wantErr: false,
 		},

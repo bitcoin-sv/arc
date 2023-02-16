@@ -90,6 +90,12 @@ func (m *PeerHandler) HandleTransactionGet(msg *wire.InvVect, peer p2p.PeerI) ([
 	}
 	m.stats[peerStr].TransactionGet.Add(1)
 
+	m.messageCh <- &PeerTxMessage{
+		Txid:   utils.HexEncodeAndReverseBytes(msg.Hash.CloneBytes()),
+		Status: p2p.Status(metamorph_api.Status_REQUESTED_BY_NETWORK),
+		Peer:   peer.String(),
+	}
+
 	sd, err := m.store.Get(context.Background(), msg.Hash.CloneBytes())
 	if err != nil {
 		return nil, err

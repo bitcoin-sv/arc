@@ -43,6 +43,7 @@ type ProcessorStats struct {
 	QueuedCount        int32
 	Stored             *stat.AtomicStat
 	AnnouncedToNetwork *stat.AtomicStats
+	RequestedByNetwork *stat.AtomicStats
 	SentToNetwork      *stat.AtomicStats
 	AcceptedByNetwork  *stat.AtomicStats
 	SeenOnNetwork      *stat.AtomicStats
@@ -69,6 +70,7 @@ type Processor struct {
 	queuedCount        atomic.Int32
 	stored             *stat.AtomicStat
 	announcedToNetwork *stat.AtomicStats
+	requestedByNetwork *stat.AtomicStats
 	sentToNetwork      *stat.AtomicStats
 	acceptedByNetwork  *stat.AtomicStats
 	seenOnNetwork      *stat.AtomicStats
@@ -110,6 +112,7 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 
 		stored:             stat.NewAtomicStat(),
 		announcedToNetwork: stat.NewAtomicStats(),
+		requestedByNetwork: stat.NewAtomicStats(),
 		sentToNetwork:      stat.NewAtomicStats(),
 		acceptedByNetwork:  stat.NewAtomicStats(),
 		seenOnNetwork:      stat.NewAtomicStats(),
@@ -353,6 +356,9 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 
 		if !processorResponse.noStats {
 			switch status {
+
+			case metamorph_api.Status_REQUESTED_BY_NETWORK:
+				p.requestedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
 
 			case metamorph_api.Status_SENT_TO_NETWORK:
 				p.sentToNetwork.AddDuration(source, time.Since(processorResponse.Start))

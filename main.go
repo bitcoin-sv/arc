@@ -161,7 +161,6 @@ func main() {
 	}
 
 	if startApi != nil && *startApi {
-		logger.Infof("Starting ARC api server")
 		var apiLogger = gocore.Log("api", gocore.NewLogLevelFromString(logLevel))
 		if apiShutdown, err := cmd.StartAPIServer(apiLogger); err != nil {
 			logger.Fatalf("Error starting api server: %v", err)

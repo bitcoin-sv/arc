@@ -51,6 +51,7 @@ func StartAPIServer(logger utils.Logger) (func(), error) {
 	}
 	// Serve HTTP until the world ends.
 	go func() {
+		logger.Infof("Starting API server on %s", apiAddress)
 		err := e.Start(apiAddress)
 		if err != nil {
 			if err == http.ErrServerClosed {

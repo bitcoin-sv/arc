@@ -7,6 +7,7 @@ require (
 	github.com/dgraph-io/badger/v3 v3.2103.1
 	github.com/getkin/kin-openapi v0.103.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
 	github.com/jarcoal/httpmock v1.2.0
 	github.com/labstack/echo/v4 v4.9.0
@@ -18,7 +19,7 @@ require (
 	github.com/opentracing-contrib/echo v0.0.0-20190807091611-5fe2e1308f06
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/ordishs/go-bitcoin v1.0.75
-	github.com/ordishs/go-utils v1.0.28
+	github.com/ordishs/go-utils v1.0.29
 	github.com/ordishs/gocore v1.0.34
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.14.0

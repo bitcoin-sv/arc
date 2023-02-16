@@ -12,6 +12,7 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/tracing"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-bt/v2"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
@@ -55,6 +56,11 @@ func (s *Server) SetTimeout(timeout time.Duration) {
 func (s *Server) StartGRPCServer(address string) error {
 	// LEVEL 0 - no security / no encryption
 	var opts []grpc.ServerOption
+	opts = append(opts,
+		grpc.ChainStreamInterceptor(grpc_prometheus.StreamServerInterceptor),
+		grpc.ChainUnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+	)
+
 	s.grpcServer = grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
 
 	gocore.SetAddress(address)

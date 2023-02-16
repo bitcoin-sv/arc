@@ -35,6 +35,7 @@ func (p *Processor) GetStats() *ProcessorStats {
 		Stored:             p.stored,
 		AnnouncedToNetwork: p.announcedToNetwork,
 		SentToNetwork:      p.sentToNetwork,
+		AcceptedByNetwork:  p.acceptedByNetwork,
 		SeenOnNetwork:      p.seenOnNetwork,
 		Rejected:           p.rejected,
 		Mined:              p.mined,
@@ -214,6 +215,7 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 	writeStat(w, "Stored", stats.Stored.String())
 	writeStat(w, "Announced", stats.AnnouncedToNetwork.String(indent))
 	writeStat(w, "SentToNetwork", stats.SentToNetwork.String(indent))
+	writeStat(w, "Accepted", stats.AcceptedByNetwork.String(indent))
 	writeStat(w, "SeenOnNetwork", stats.SeenOnNetwork.String(indent))
 	writeStat(w, "Mined", stats.Mined.String())
 	writeStat(w, "Rejected", stats.Rejected.String(indent))

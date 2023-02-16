@@ -10,19 +10,20 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils"
+	"github.com/ordishs/go-utils/safemap"
 )
 
 type PeerHandler struct {
 	store     store.MetamorphStore
 	messageCh chan *PeerTxMessage
-	stats     map[string]*tracing.PeerHandlerStats
+	stats     *safemap.Safemap[string, *tracing.PeerHandlerStats]
 }
 
 func NewPeerHandler(s store.MetamorphStore, messageCh chan *PeerTxMessage) p2p.PeerHandlerI {
 	ph := &PeerHandler{
 		store:     s,
 		messageCh: messageCh,
-		stats:     make(map[string]*tracing.PeerHandlerStats),
+		stats:     safemap.New[string, *tracing.PeerHandlerStats](),
 	}
 
 	_ = tracing.NewPeerHandlerCollector("metamorph", ph.stats)
@@ -33,10 +34,14 @@ func NewPeerHandler(s store.MetamorphStore, messageCh chan *PeerTxMessage) p2p.P
 // HandleTransactionSent is called when a transaction is sent to a peer.
 func (m *PeerHandler) HandleTransactionSent(msg *wire.MsgTx, peer p2p.PeerI) error {
 	peerStr := peer.String()
-	if _, ok := m.stats[peerStr]; !ok {
-		m.stats[peerStr] = &tracing.PeerHandlerStats{}
+
+	stat, ok := m.stats.Get(peerStr)
+	if !ok {
+		stat = &tracing.PeerHandlerStats{}
+		m.stats.Set(peerStr, stat)
 	}
-	m.stats[peerStr].TransactionSent.Add(1)
+
+	stat.TransactionSent.Add(1)
 
 	hash := msg.TxHash()
 	m.messageCh <- &PeerTxMessage{
@@ -51,10 +56,14 @@ func (m *PeerHandler) HandleTransactionSent(msg *wire.MsgTx, peer p2p.PeerI) err
 // HandleTransactionAnnouncement is a message sent to the PeerHandler when a transaction INV message is received from a peer.
 func (m *PeerHandler) HandleTransactionAnnouncement(msg *wire.InvVect, peer p2p.PeerI) error {
 	peerStr := peer.String()
-	if _, ok := m.stats[peerStr]; !ok {
-		m.stats[peerStr] = &tracing.PeerHandlerStats{}
+
+	stat, ok := m.stats.Get(peerStr)
+	if !ok {
+		stat = &tracing.PeerHandlerStats{}
+		m.stats.Set(peerStr, stat)
 	}
-	m.stats[peerStr].TransactionAnnouncement.Add(1)
+
+	stat.TransactionAnnouncement.Add(1)
 
 	m.messageCh <- &PeerTxMessage{
 		Txid:   utils.HexEncodeAndReverseBytes(msg.Hash.CloneBytes()),
@@ -68,10 +77,14 @@ func (m *PeerHandler) HandleTransactionAnnouncement(msg *wire.InvVect, peer p2p.
 // HandleTransactionRejection is called when a transaction is rejected by a peer.
 func (m *PeerHandler) HandleTransactionRejection(rejMsg *wire.MsgReject, peer p2p.PeerI) error {
 	peerStr := peer.String()
-	if _, ok := m.stats[peerStr]; !ok {
-		m.stats[peerStr] = &tracing.PeerHandlerStats{}
+
+	stat, ok := m.stats.Get(peerStr)
+	if !ok {
+		stat = &tracing.PeerHandlerStats{}
+		m.stats.Set(peerStr, stat)
 	}
-	m.stats[peerStr].TransactionRejection.Add(1)
+
+	stat.TransactionRejection.Add(1)
 
 	m.messageCh <- &PeerTxMessage{
 		Txid:   utils.HexEncodeAndReverseBytes(rejMsg.Hash.CloneBytes()),
@@ -85,10 +98,14 @@ func (m *PeerHandler) HandleTransactionRejection(rejMsg *wire.MsgReject, peer p2
 // HandleTransactionGet is called when a peer requests a transaction.
 func (m *PeerHandler) HandleTransactionGet(msg *wire.InvVect, peer p2p.PeerI) ([]byte, error) {
 	peerStr := peer.String()
-	if _, ok := m.stats[peerStr]; !ok {
-		m.stats[peerStr] = &tracing.PeerHandlerStats{}
+
+	stat, ok := m.stats.Get(peerStr)
+	if !ok {
+		stat = &tracing.PeerHandlerStats{}
+		m.stats.Set(peerStr, stat)
 	}
-	m.stats[peerStr].TransactionGet.Add(1)
+
+	stat.TransactionGet.Add(1)
 
 	m.messageCh <- &PeerTxMessage{
 		Txid:   utils.HexEncodeAndReverseBytes(msg.Hash.CloneBytes()),
@@ -107,10 +124,14 @@ func (m *PeerHandler) HandleTransactionGet(msg *wire.InvVect, peer p2p.PeerI) ([
 // HandleTransaction is called when a transaction is received from a peer.
 func (m *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error {
 	peerStr := peer.String()
-	if _, ok := m.stats[peerStr]; !ok {
-		m.stats[peerStr] = &tracing.PeerHandlerStats{}
+
+	stat, ok := m.stats.Get(peerStr)
+	if !ok {
+		stat = &tracing.PeerHandlerStats{}
+		m.stats.Set(peerStr, stat)
 	}
-	m.stats[peerStr].Transaction.Add(1)
+
+	stat.Transaction.Add(1)
 
 	m.messageCh <- &PeerTxMessage{
 		Txid:   msg.TxHash().String(),
@@ -124,19 +145,29 @@ func (m *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error {
 // HandleBlockAnnouncement is called when a block INV message is received from a peer.
 func (m *PeerHandler) HandleBlockAnnouncement(_ *wire.InvVect, peer p2p.PeerI) error {
 	peerStr := peer.String()
-	if _, ok := m.stats[peerStr]; !ok {
-		m.stats[peerStr] = &tracing.PeerHandlerStats{}
+
+	stat, ok := m.stats.Get(peerStr)
+	if !ok {
+		stat = &tracing.PeerHandlerStats{}
+		m.stats.Set(peerStr, stat)
 	}
-	m.stats[peerStr].BlockAnnouncement.Add(1)
+
+	stat.BlockAnnouncement.Add(1)
+
 	return nil
 }
 
 // HandleBlock is called when a block is received from a peer.
 func (m *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error {
 	peerStr := peer.String()
-	if _, ok := m.stats[peerStr]; !ok {
-		m.stats[peerStr] = &tracing.PeerHandlerStats{}
+
+	stat, ok := m.stats.Get(peerStr)
+	if !ok {
+		stat = &tracing.PeerHandlerStats{}
+		m.stats.Set(peerStr, stat)
 	}
-	m.stats[peerStr].Block.Add(1)
+
+	stat.Block.Add(1)
+
 	return nil
 }

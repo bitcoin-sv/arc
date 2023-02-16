@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/ordishs/go-utils/safemap"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -31,7 +32,7 @@ func NewPeerHandlerStats() *PeerHandlerStats {
 
 type PeerHandlerCollector struct {
 	service                 string
-	stats                   map[string]*PeerHandlerStats
+	stats                   *safemap.Safemap[string, *PeerHandlerStats]
 	transactionSent         *prometheus.Desc
 	transactionAnnouncement *prometheus.Desc
 	transactionRejection    *prometheus.Desc
@@ -42,7 +43,7 @@ type PeerHandlerCollector struct {
 }
 
 // NewPeerHandlerCollector initializes every descriptor and returns a pointer to the prometheusCollector
-func NewPeerHandlerCollector(service string, stats map[string]*PeerHandlerStats) *PeerHandlerCollector {
+func NewPeerHandlerCollector(service string, stats *safemap.Safemap[string, *PeerHandlerStats]) *PeerHandlerCollector {
 	c := &PeerHandlerCollector{
 		service: service,
 		stats:   stats,
@@ -98,7 +99,7 @@ func (c *PeerHandlerCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *PeerHandlerCollector) Collect(ch chan<- prometheus.Metric) {
 	//Write the latest value for each metric in the prometheus metric channel.
 	//Note that you can pass CounterValue, GaugeValue, or UntypedValue types here.
-	for peer, peerStats := range c.stats {
+	c.stats.Each(func(peer string, peerStats *PeerHandlerStats) {
 		ch <- prometheus.MustNewConstMetric(c.transactionSent, prometheus.CounterValue,
 			float64(peerStats.TransactionSent.Load()), peer)
 		ch <- prometheus.MustNewConstMetric(c.transactionAnnouncement, prometheus.CounterValue,
@@ -113,5 +114,5 @@ func (c *PeerHandlerCollector) Collect(ch chan<- prometheus.Metric) {
 			float64(peerStats.BlockAnnouncement.Load()), peer)
 		ch <- prometheus.MustNewConstMetric(c.block, prometheus.CounterValue,
 			float64(peerStats.Block.Load()), peer)
-	}
+	})
 }

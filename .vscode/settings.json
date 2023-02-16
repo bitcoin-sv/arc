@@ -65,6 +65,7 @@
     "pstats",
     "Regtest",
     "resp",
+    "Safemap",
     "securityprovider",
     "sqlitestore",
     "sslmode",

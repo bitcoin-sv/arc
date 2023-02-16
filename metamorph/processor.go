@@ -394,7 +394,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 			// Print the error along with the status message
 			p.logger.Debugf("Received status %s for tx %s: %s", status.String(), hashStr, statusErr.Error())
 		} else {
-			p.logger.Infof("Received status %s for tx %s", status.String(), hashStr)
+			p.logger.Debugf("Received status %s for tx %s", status.String(), hashStr)
 		}
 
 		// This is coming from zmq, after the transaction has been deleted from our processorResponseMap

@@ -9,7 +9,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
-	"github.com/TAAL-GmbH/arc/test"
+	"github.com/TAAL-GmbH/arc/testdata"
 	"github.com/libsv/go-bt/v2"
 	"github.com/stretchr/testify/require"
 )
@@ -77,37 +77,37 @@ func (p *ProcessorMock) GetStats() *ProcessorStats {
 
 func setStoreTestData(t *testing.T, s store.MetamorphStore) {
 	ctx := context.Background()
-	err := s.Set(ctx, test.TX1Bytes, &store.StoreData{
-		StoredAt:      test.Time,
-		AnnouncedAt:   test.Time.Add(1 * time.Second),
-		MinedAt:       test.Time.Add(2 * time.Second),
-		Hash:          test.TX1Bytes,
+	err := s.Set(ctx, testdata.TX1Bytes, &store.StoreData{
+		StoredAt:      testdata.Time,
+		AnnouncedAt:   testdata.Time.Add(1 * time.Second),
+		MinedAt:       testdata.Time.Add(2 * time.Second),
+		Hash:          testdata.TX1Bytes,
 		Status:        metamorph_api.Status_SENT_TO_NETWORK,
 		CallbackUrl:   "https://test.com",
 		CallbackToken: "token",
 	})
 	require.NoError(t, err)
-	err = s.Set(ctx, test.TX2Bytes, &store.StoreData{
-		StoredAt:    test.Time,
-		AnnouncedAt: test.Time.Add(1 * time.Second),
-		MinedAt:     test.Time.Add(2 * time.Second),
-		Hash:        test.TX2Bytes,
+	err = s.Set(ctx, testdata.TX2Bytes, &store.StoreData{
+		StoredAt:    testdata.Time,
+		AnnouncedAt: testdata.Time.Add(1 * time.Second),
+		MinedAt:     testdata.Time.Add(2 * time.Second),
+		Hash:        testdata.TX2Bytes,
 		Status:      metamorph_api.Status_SENT_TO_NETWORK,
 	})
 	require.NoError(t, err)
-	err = s.Set(ctx, test.TX3Bytes, &store.StoreData{
-		StoredAt:    test.Time,
-		AnnouncedAt: test.Time.Add(1 * time.Second),
-		MinedAt:     test.Time.Add(2 * time.Second),
-		Hash:        test.TX3Bytes,
+	err = s.Set(ctx, testdata.TX3Bytes, &store.StoreData{
+		StoredAt:    testdata.Time,
+		AnnouncedAt: testdata.Time.Add(1 * time.Second),
+		MinedAt:     testdata.Time.Add(2 * time.Second),
+		Hash:        testdata.TX3Bytes,
 		Status:      metamorph_api.Status_SEEN_ON_NETWORK,
 	})
 	require.NoError(t, err)
-	err = s.Set(ctx, test.TX4Bytes, &store.StoreData{
-		StoredAt:    test.Time,
-		AnnouncedAt: test.Time.Add(1 * time.Second),
-		MinedAt:     test.Time.Add(2 * time.Second),
-		Hash:        test.TX4Bytes,
+	err = s.Set(ctx, testdata.TX4Bytes, &store.StoreData{
+		StoredAt:    testdata.Time,
+		AnnouncedAt: testdata.Time.Add(1 * time.Second),
+		MinedAt:     testdata.Time.Add(2 * time.Second),
+		Hash:        testdata.TX4Bytes,
 		Status:      metamorph_api.Status_REJECTED,
 	})
 	require.NoError(t, err)

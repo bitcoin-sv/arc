@@ -1,4 +1,4 @@
-package test
+package testdata
 
 import (
 	"encoding/hex"
@@ -21,4 +21,6 @@ var (
 	TX4            = "88eab41a8d0b7b4bc395f8f988ea3d6e63c8bc339526fd2f00cb7ce6fd7df0f7"
 	TX4Bytes, _    = utils.DecodeAndReverseHexString(TX4)
 	Time           = time.Date(2009, 1, 03, 18, 15, 05, 0, time.UTC)
+	DefaultFees    = `[{"feeType":"data","miningFee":{"bytes":1000,"satoshis":5},"relayFee":{"bytes":1000,"satoshis":5}},{"feeType":"standard","miningFee":{"bytes":1000,"satoshis":5},"relayFee":{"bytes":1000,"satoshis":5}}]`
+	DefaultPolicy  = `{"excessiveblocksize":2000000000,"blockmaxsize":512000000,"maxtxsizepolicy":10000000,"maxorphantxsize":1000000000,"datacarriersize":4294967295,"maxscriptsizepolicy":500000,"maxopsperscriptpolicy":4294967295,"maxscriptnumlengthpolicy":10000,"maxpubkeyspermultisigpolicy":4294967295,"maxtxsigopscountspolicy":4294967295,"maxstackmemoryusagepolicy":100000000,"maxstackmemoryusageconsensus":200000000,"limitancestorcount":10000,"limitcpfpgroupmemberscount":25,"maxmempool":2000000000,"maxmempoolsizedisk":0,"mempoolmaxpercentcpfp":10,"acceptnonstdoutputs":true,"datacarrier":true,"minminingtxfee":5e-7,"maxstdtxvalidationduration":3,"maxnonstdtxvalidationduration":1000,"maxtxchainvalidationbudget":50,"validationclockcpu":true,"minconsolidationfactor":20,"maxconsolidationinputscriptsize":150,"minconfconsolidationinput":6,"minconsolidationinputmaturity":6,"acceptnonstdconsolidationinput":false}`
 )

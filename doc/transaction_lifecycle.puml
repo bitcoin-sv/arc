@@ -1,0 +1,17 @@
+@startuml
+title Transaction lifecycle
+
+[*] --> VALIDATED
+note right: Transaction has passed all checks except\nfor verifying each UTXO is correct.  This\ncheck is done by the nodes themselves.
+
+VALIDATED --> ANNOUNCED
+VALIDATED --> ERROR: Bad transaction
+
+ANNOUNCED --> SENT_TO_NETWORK
+
+SENT_TO_NETWORK --> REJECTED
+SENT_TO_NETWORK --> SEEN_ON_NETWORK
+
+SEEN_ON_NETWORK --> MINED
+
+@enduml

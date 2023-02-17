@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/testdata"
@@ -126,37 +125,13 @@ func TestValidator(t *testing.T) {
 	})
 }
 
-func getPolicy(satoshisPerKB uint64) *api.FeesResponse {
+func getPolicy(satoshisPerKB uint64) *api.NodePolicy {
 	var policy *api.NodePolicy
+
 	_ = json.Unmarshal([]byte(testdata.DefaultPolicy), &policy)
 
-	fees := &api.FeesResponse{
-		Timestamp: time.Now(),
-		Fees: &[]api.Fee{{
-			FeeType: api.Standard,
-			MiningFee: api.FeeAmount{
-				Satoshis: satoshisPerKB,
-				Bytes:    1000,
-			},
-			RelayFee: api.FeeAmount{
-				Satoshis: satoshisPerKB,
-				Bytes:    1000,
-			},
-		}, {
-			FeeType: api.Data,
-			MiningFee: api.FeeAmount{
-				Satoshis: satoshisPerKB,
-				Bytes:    1000,
-			},
-			RelayFee: api.FeeAmount{
-				Satoshis: satoshisPerKB,
-				Bytes:    1000,
-			},
-		}},
-		Policy: policy,
-	}
-
-	return fees
+	policy.MinMiningTxFee = float64(satoshisPerKB) / 1e8
+	return policy
 }
 
 // getTx is a helper function to get a transaction from the bitcoin node
@@ -177,8 +152,9 @@ func _(txID string) (*bt.Tx, error) {
 func Test_checkTxSize(t *testing.T) {
 	type args struct {
 		txSize int
-		fees   *api.FeesResponse
+		policy *api.NodePolicy
 	}
+
 	tests := []struct {
 		name    string
 		args    args
@@ -188,10 +164,8 @@ func Test_checkTxSize(t *testing.T) {
 			name: "valid tx size",
 			args: args{
 				txSize: 100,
-				fees: &api.FeesResponse{
-					Policy: &api.NodePolicy{
-						MaxTxSizePolicy: 10000000,
-					},
+				policy: &api.NodePolicy{
+					MaxTxSizePolicy: 10000000,
 				},
 			},
 			wantErr: false,
@@ -200,18 +174,17 @@ func Test_checkTxSize(t *testing.T) {
 			name: "invalid tx size",
 			args: args{
 				txSize: MaxBlockSize + 1,
-				fees: &api.FeesResponse{
-					Policy: &api.NodePolicy{
-						MaxTxSizePolicy: 10000000,
-					},
+				policy: &api.NodePolicy{
+					MaxTxSizePolicy: 10000000,
 				},
 			},
 			wantErr: true,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := checkTxSize(tt.args.txSize, tt.args.fees); (err != nil) != tt.wantErr {
+			if err := checkTxSize(tt.args.txSize, tt.args.policy); (err != nil) != tt.wantErr {
 				t.Errorf("checkTxSize() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -421,8 +394,8 @@ func Test_checkFeesTxs(t *testing.T) {
 
 func Test_sigOpsCheck(t *testing.T) {
 	type args struct {
-		tx   *bt.Tx
-		fees *api.FeesResponse
+		tx     *bt.Tx
+		policy *api.NodePolicy
 	}
 	tests := []struct {
 		name    string
@@ -435,10 +408,8 @@ func Test_sigOpsCheck(t *testing.T) {
 				tx: &bt.Tx{
 					Inputs: []*bt.Input{{PreviousTxScript: validLockingScript}},
 				},
-				fees: &api.FeesResponse{
-					Policy: &api.NodePolicy{
-						MaxTxSigopsCountsPolicy: 4294967295,
-					},
+				policy: &api.NodePolicy{
+					MaxTxSigopsCountsPolicy: 4294967295,
 				},
 			},
 			wantErr: false,
@@ -453,10 +424,8 @@ func Test_sigOpsCheck(t *testing.T) {
 						PreviousTxScript: validLockingScript,
 					}},
 				},
-				fees: &api.FeesResponse{
-					Policy: &api.NodePolicy{
-						MaxTxSigopsCountsPolicy: 4294967295,
-					},
+				policy: &api.NodePolicy{
+					MaxTxSigopsCountsPolicy: 4294967295,
 				},
 			},
 			wantErr: false, // TODO should be true, but we don't have the policy yet
@@ -471,10 +440,8 @@ func Test_sigOpsCheck(t *testing.T) {
 						PreviousTxScript: validLockingScript,
 					}},
 				},
-				fees: &api.FeesResponse{
-					Policy: &api.NodePolicy{
-						MaxTxSigopsCountsPolicy: 4294967295,
-					},
+				policy: &api.NodePolicy{
+					MaxTxSigopsCountsPolicy: 4294967295,
 				},
 			},
 			wantErr: false,
@@ -482,7 +449,7 @@ func Test_sigOpsCheck(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := sigOpsCheck(tt.args.tx, tt.args.fees); (err != nil) != tt.wantErr {
+			if err := sigOpsCheck(tt.args.tx, tt.args.policy); (err != nil) != tt.wantErr {
 				t.Errorf("sigOpsCheck() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

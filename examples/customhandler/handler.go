@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/api/handler"
@@ -33,12 +32,10 @@ func NewCustomHandler() (api.HandlerInterface, error) {
 	return bitcoinHandler, nil
 }
 
-// GetArcV1Fees our custom policy request handler
-func (c *CustomHandler) GetArcV1Fees(ctx echo.Context) error {
+// GetArcV1Policy our custom policy request handler
+func (c *CustomHandler) GetArcV1Policy(ctx echo.Context) error {
 
-	arcPolicy := api.FeesResponse{
-		Timestamp: time.Now(),
-	}
+	arcPolicy := api.NodePolicy{}
 
 	//
 	// you can use c.Client.Datastore()... to access the database
@@ -47,8 +44,6 @@ func (c *CustomHandler) GetArcV1Fees(ctx echo.Context) error {
 	//
 	// db := c.Client.Datastore().Execute("SELECT ....")
 	//
-
-	arcPolicy.Fees = &[]api.Fee{} // set the fees ...
 
 	return ctx.JSON(http.StatusOK, arcPolicy)
 }

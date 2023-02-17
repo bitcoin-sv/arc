@@ -18,12 +18,12 @@ const coinbaseTxID = "0000000000000000000000000000000000000000000000000000000000
 const MaxTxSigopsCountPolicyAfterGenesis = ^uint32(0) // UINT32_MAX
 
 type DefaultValidator struct {
-	fees *api.FeesResponse
+	policy *api.NodePolicy
 }
 
-func New(fees *api.FeesResponse) validator.Validator {
+func New(policy *api.NodePolicy) validator.Validator {
 	return &DefaultValidator{
-		fees: fees,
+		policy: policy,
 	}
 }
 
@@ -47,7 +47,7 @@ func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx) error { //nolint:funle
 	}
 
 	// 2) The transaction size in bytes is less than maxtxsizepolicy.
-	if err := checkTxSize(txSize, v.fees); err != nil {
+	if err := checkTxSize(txSize, v.policy); err != nil {
 		return validator.NewError(err, api.ErrStatusTxFormat)
 	}
 
@@ -72,7 +72,7 @@ func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx) error { //nolint:funle
 	}
 
 	// 8) The number of signature operations (SIGOPS) contained in the transaction is less than the signature operation limit
-	if err := sigOpsCheck(tx, v.fees); err != nil {
+	if err := sigOpsCheck(tx, v.policy); err != nil {
 		return validator.NewError(err, api.ErrStatusMalformed)
 	}
 
@@ -83,7 +83,7 @@ func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx) error { //nolint:funle
 
 	// 10) Reject if the sum of input values is less than sum of output values
 	// 11) Reject if transaction fee would be too low (minRelayTxFee) to get into an empty block.
-	if err := checkFees(tx, api.FeesToBtFeeQuote(v.fees.Fees)); err != nil {
+	if err := checkFees(tx, api.FeesToBtFeeQuote(v.policy.MinMiningTxFee)); err != nil {
 		return validator.NewError(err, api.ErrStatusFees)
 	}
 
@@ -110,8 +110,8 @@ func (v *DefaultValidator) IsExtended(tx *bt.Tx) bool {
 	return true
 }
 
-func checkTxSize(txSize int, policy *api.FeesResponse) error {
-	maxTxSizePolicy := policy.Policy.MaxTxSizePolicy
+func checkTxSize(txSize int, policy *api.NodePolicy) error {
+	maxTxSizePolicy := policy.MaxTxSizePolicy
 	if maxTxSizePolicy == 0 {
 		// no policy found for tx size, use max block size
 		maxTxSizePolicy = MaxBlockSize
@@ -180,11 +180,13 @@ func checkFees(tx *bt.Tx, feeQuote *bt.FeeQuote) error {
 	return nil
 }
 
-func sigOpsCheck(tx *bt.Tx, policy *api.FeesResponse) error {
-	maxSigOps := policy.Policy.MaxTxSigopsCountsPolicy
+func sigOpsCheck(tx *bt.Tx, policy *api.NodePolicy) error {
+	maxSigOps := policy.MaxTxSigopsCountsPolicy
+
 	if maxSigOps == 0 {
 		maxSigOps = int64(MaxTxSigopsCountPolicyAfterGenesis)
 	}
+
 	numSigOps := int64(0)
 	for _, input := range tx.Inputs {
 		parser := interpreter.DefaultOpcodeParser{}

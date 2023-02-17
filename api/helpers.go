@@ -4,18 +4,21 @@ import (
 	"github.com/libsv/go-bt/v2"
 )
 
-func FeesToBtFeeQuote(fees *[]Fee) *bt.FeeQuote {
+func FeesToBtFeeQuote(minMiningFee float64) *bt.FeeQuote {
+
+	satoshisPerKB := int(minMiningFee * 1e8)
 
 	btFeeQuote := bt.NewFeeQuote()
-	for _, fee := range *fees {
-		btFeeQuote.AddQuote(bt.FeeType(fee.FeeType), &bt.Fee{
+
+	for _, feeType := range []bt.FeeType{bt.FeeTypeStandard, bt.FeeTypeData} {
+		btFeeQuote.AddQuote(feeType, &bt.Fee{
 			MiningFee: bt.FeeUnit{
-				Satoshis: int(fee.MiningFee.Satoshis),
-				Bytes:    int(fee.MiningFee.Bytes),
+				Satoshis: satoshisPerKB,
+				Bytes:    1000,
 			},
 			RelayFee: bt.FeeUnit{
-				Satoshis: int(fee.RelayFee.Satoshis),
-				Bytes:    int(fee.RelayFee.Bytes),
+				Satoshis: satoshisPerKB,
+				Bytes:    1000,
 			},
 		})
 	}

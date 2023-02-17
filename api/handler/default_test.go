@@ -14,7 +14,6 @@ import (
 	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/api/test"
 	"github.com/TAAL-GmbH/arc/api/transactionHandler"
-	"github.com/TAAL-GmbH/arc/testdata"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,11 +31,6 @@ const (
 	validTxID       = "a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"
 )
 
-func init() {
-	// load fees for tests
-	_ = json.Unmarshal([]byte(testdata.DefaultFees), &Fees)
-}
-
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {
 		defaultHandler, err := NewDefault(nil)
@@ -45,31 +39,55 @@ func TestNewDefault(t *testing.T) {
 	})
 }
 
-func TestGetArcV1Fees(t *testing.T) { //nolint:funlen
-	t.Run("default fees", func(t *testing.T) {
+func TestGetArcV1Policy(t *testing.T) { //nolint:funlen
+	t.Run("default policy", func(t *testing.T) {
 		defaultHandler, err := NewDefault(nil)
 		require.NoError(t, err)
 		e := echo.New()
-		req := httptest.NewRequest(http.MethodPost, "/v1/fees", strings.NewReader(""))
+		req := httptest.NewRequest(http.MethodPost, "/v1/policy", strings.NewReader(""))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
 
-		err = defaultHandler.GETFees(ctx)
+		err = defaultHandler.GETPolicy(ctx)
 		require.Nil(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 
 		bPolicy := rec.Body.Bytes()
-		var feesResponse api.FeesResponse
-		_ = json.Unmarshal(bPolicy, &feesResponse)
+		var policyResponse api.NodePolicy
+		_ = json.Unmarshal(bPolicy, &policyResponse)
 
-		require.NotNil(t, feesResponse.Fees)
-		fees := *feesResponse.Fees
-		assert.Equal(t, api.Data, fees[0].FeeType)
-		assert.Equal(t, uint64(5), fees[0].MiningFee.Satoshis)
-		assert.Equal(t, uint64(1000), fees[0].MiningFee.Bytes)
-		assert.Equal(t, uint64(5), fees[0].RelayFee.Satoshis)
-		assert.Equal(t, uint64(1000), fees[0].RelayFee.Bytes)
+		require.NotNil(t, policyResponse)
+		assert.Equal(t, 2000000000, policyResponse.ExcessiveBlockSize)
+		assert.Equal(t, 512000000, policyResponse.BlockMaxSize)
+		assert.Equal(t, 10000000, policyResponse.MaxTxSizePolicy)
+		assert.Equal(t, 1000000000, policyResponse.MaxOrphanTxSize)
+		assert.Equal(t, int64(4294967295), policyResponse.DataCarrierSize)
+		assert.Equal(t, 500000, policyResponse.MaxScriptSizePolicy)
+		assert.Equal(t, int64(4294967295), policyResponse.MaxOpsPerScriptPolicy)
+		assert.Equal(t, 10000, policyResponse.MaxScriptNumLengthPolicy)
+		assert.Equal(t, int64(4294967295), policyResponse.MaxPubKeysPerMultisigPolicy)
+		assert.Equal(t, int64(4294967295), policyResponse.MaxTxSigopsCountsPolicy)
+		assert.Equal(t, 100000000, policyResponse.MaxStackMemoryUsagePolicy)
+		assert.Equal(t, 200000000, policyResponse.MaxStackMemoryUsageConsensus)
+		assert.Equal(t, 10000, policyResponse.LimitAncestorCount)
+		assert.Equal(t, 25, policyResponse.LimitCPFPGroupMembersCount)
+		assert.Equal(t, 2000000000, policyResponse.MaxMempool)
+		assert.Equal(t, 0, policyResponse.MaxMempoolSizedisk)
+		assert.Equal(t, 10, policyResponse.MempoolMaxPercentCPFP)
+		assert.Equal(t, true, policyResponse.AcceptNonStdOutputs)
+		assert.Equal(t, true, policyResponse.DataCarrier)
+		assert.Equal(t, 0.00000050, policyResponse.MinMiningTxFee)
+		assert.Equal(t, 3, policyResponse.MaxStdTxValidationDuration)
+		assert.Equal(t, 1000, policyResponse.MaxNonStdTxValidationDuration)
+		assert.Equal(t, 50, policyResponse.MaxTxChainValidationBudget)
+		assert.Equal(t, true, policyResponse.ValidationClockCpu)
+		assert.Equal(t, 20, policyResponse.MinConsolidationFactor)
+		assert.Equal(t, 150, policyResponse.MaxConsolidationInputScriptSize)
+		assert.Equal(t, 6, policyResponse.MinConfConsolidationInput)
+		assert.Equal(t, 150, policyResponse.MaxConsolidationInputScriptSize)
+		assert.Equal(t, 6, policyResponse.MinConsolidationInputMaturity)
+		assert.Equal(t, false, policyResponse.AcceptNonStdConsolidationInput)
 	})
 }
 

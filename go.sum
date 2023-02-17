@@ -318,8 +318,8 @@ github.com/opentracing-contrib/echo v0.0.0-20190807091611-5fe2e1308f06/go.mod h1
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/opentracing/opentracing-go v1.2.0 h1:uEJPy/1a5RIPAJ0Ov+OIO8OxWu77jEv+1B0VhjKrZUs=
 github.com/opentracing/opentracing-go v1.2.0/go.mod h1:GxEUsuufX4nBwe+T+Wl9TAgYrxe9dPLANfrWvHYVTgc=
-github.com/ordishs/go-bitcoin v1.0.75 h1:0mEG6DRZUPWl39b73Pu8q0XJN5OiSJJPeAG0EmgJ9Wc=
-github.com/ordishs/go-bitcoin v1.0.75/go.mod h1:7gXD2G745ETJK4OU4xXl0UBIOAc80615hBJRjPqKhWY=
+github.com/ordishs/go-bitcoin v1.0.77 h1:QsSE6t5C47PjBcmPC194f+MzUKeSSUBSYBO//N0H41Q=
+github.com/ordishs/go-bitcoin v1.0.77/go.mod h1:7gXD2G745ETJK4OU4xXl0UBIOAc80615hBJRjPqKhWY=
 github.com/ordishs/go-utils v1.0.31 h1:92KAL2zFyvTMaOhxCjtfBudr1KigrQsJ3qXytLCaCyw=
 github.com/ordishs/go-utils v1.0.31/go.mod h1:k9G7Bbv2GwoOn9fwZx70yM5jwwIymkv+90FUKLudtyc=
 github.com/ordishs/gocore v1.0.34 h1:9LcWF3uLuxFjYpu6tNjzjYFh5V4WaPtYtMe3s8rtgbw=

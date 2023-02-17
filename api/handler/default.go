@@ -19,6 +19,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/opentracing/opentracing-go"
+	"github.com/ordishs/gocore"
 )
 
 type ArcDefaultHandler struct {
@@ -34,8 +35,8 @@ func NewDefault(transactionHandler transactionHandler.TransactionHandler) (api.H
 }
 
 // GETFees ...
-func (m ArcDefaultHandler) GETFees(ctx echo.Context) error {
-	fees, err := getFees()
+func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
+	fees, err := getPolicy()
 	if err != nil {
 		status, response, responseErr := m.handleError(ctx, nil, err)
 		if responseErr != nil {
@@ -301,12 +302,12 @@ func getTransactionsOptions(params api.POSTTransactionsParams) *api.TransactionO
 }
 
 func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.Tx, transactionOptions *api.TransactionOptions) (api.StatusCode, interface{}, error) {
-	fees, err := getFees()
+	policy, err := getPolicy()
 	if err != nil {
 		return m.handleError(ctx, transaction, err)
 	}
 
-	txValidator := defaultValidator.New(fees)
+	txValidator := defaultValidator.New(policy)
 
 	// the validator expects an extended transaction
 	// we must enrich the transaction with the missing data
@@ -444,11 +445,13 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 	return nil, transactionHandler.ErrParentTransactionNotFound
 }
 
-func getFees() (*api.FeesResponse, error) {
+func getPolicy() (*api.NodePolicy, error) {
 	// NodePolicy and Fees are global variables
-	return &api.FeesResponse{
-		Timestamp: time.Now(),
-		Policy:    NodePolicy,
-		Fees:      Fees,
-	}, nil
+	policyStr, _ := gocore.Config().Get("defaultPolicy")
+
+	var nodePolicy api.NodePolicy
+
+	_ = json.Unmarshal([]byte(policyStr), &nodePolicy)
+
+	return &nodePolicy, nil
 }

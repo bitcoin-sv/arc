@@ -8,22 +8,22 @@ info:
 
 paths:
 
-  # Get Fees
-  /v1/fees:
+  # Get Policy
+  /v1/policy:
     get:
-      operationId: GET fees
+      operationId: GET policy
       tags:
         - Arc
-      summary: Get the transaction fees required
+      summary: Get the policy settings
       description: >-
-        This endpoint returns the fees required for the api key used.
+        This endpoint returns the policy settings.
       responses:
         200:
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FeesResponse'
+                $ref: '#/components/schemas/PolicyResponse'
         401:
           $ref: '#/components/responses/NotAuthorized'
 
@@ -266,7 +266,7 @@ components:
           format: uint64
           nullable: false
 
-    FeesResponse:
+    PolicyResponse:
       allOf:
         - $ref: '#/components/schemas/CommonResponse'
         - type: object
@@ -276,27 +276,25 @@ components:
             fees:
               type: array
               items:
-                $ref: '#/components/schemas/Fee'
+                $ref: '#/components/schemas/Policy'
               nullable: true
           additionalProperties: false
 
-    Fee:
+    Policy:
       type: object
       required:
-        - feeType
+        - maxtxsizepolicy
+        - maxscriptsizepolicy
+        - minminingtxfee
         - miningFee
-        - relayFee
       properties:
-        feeType:
-          type: string
-          enum: [
-            "standard",
-            "data"
-          ]
+        maxtxsizepolicy:
+          type: number
+          nullable: false
+        maxscriptsizepolicy:
+          type: number
           nullable: false
         miningFee:
-          $ref: '#/components/schemas/FeeAmount'
-        relayFee:
           $ref: '#/components/schemas/FeeAmount'
       additionalProperties: false
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"time"
 
 	"github.com/ordishs/go-utils"
@@ -45,6 +46,9 @@ func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
 }
 
 func (m *ProcessorResponseMap) logWriter() {
+	dir := path.Dir(m.logFile)
+	_ = os.MkdirAll(dir, 0777)
+
 	f, err := os.OpenFile(m.logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Printf("error opening log file: %s", err.Error())

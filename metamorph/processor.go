@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -143,6 +144,9 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 }
 
 func (p *Processor) errorLogWriter() {
+	dir := path.Dir(p.errorLogFile)
+	_ = os.MkdirAll(dir, 0777)
+
 	f, err := os.OpenFile(p.errorLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		p.logger.Errorf("error opening log file: %s", err.Error())

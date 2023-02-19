@@ -1,6 +1,9 @@
 package metamorph
 
 import (
+	"fmt"
+	"net/url"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -13,18 +16,18 @@ type zmqCollector struct {
 
 // You must create a constructor for you prometheusCollector that
 // initializes every descriptor and returns a pointer to the prometheusCollector
-func newZMQCollector(zmqStats *ZMQStats) *zmqCollector {
+func newZMQCollector(url *url.URL, zmqStats *ZMQStats) *zmqCollector {
 	c := &zmqCollector{
 		zmqStats: zmqStats,
-		hashTx: prometheus.NewDesc("arc_metamorph_zmq_hashtx",
+		hashTx: prometheus.NewDesc(fmt.Sprintf("arc_metamorph_zmq_hashtx_%s", url.Host),
 			"Shows the number of hashTx messages received",
 			nil, nil,
 		),
-		invalidTx: prometheus.NewDesc("arc_metamorph_zmq_invalidtx",
+		invalidTx: prometheus.NewDesc(fmt.Sprintf("arc_metamorph_zmq_invalidtx_%s", url.Host),
 			"Shows the number of invalidTx messages received",
 			nil, nil,
 		),
-		discardedFromMempool: prometheus.NewDesc("arc_metamorph_zmq_discardedfrommempool",
+		discardedFromMempool: prometheus.NewDesc(fmt.Sprintf("arc_metamorph_zmq_discardedfrommempool_%s", url.Host),
 			"Shows the number of discardedFromMempool messages received",
 			nil, nil,
 		),

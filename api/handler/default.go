@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -19,38 +20,31 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/opentracing/opentracing-go"
+	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
 )
 
 type ArcDefaultHandler struct {
 	TransactionHandler transactionHandler.TransactionHandler
+	NodePolicy         *api.NodePolicy
 }
 
 func NewDefault(transactionHandler transactionHandler.TransactionHandler) (api.HandlerInterface, error) {
+	policy, err := getPolicy()
+	if err != nil {
+		log.Fatal("Could not load policy")
+	}
+
 	handler := &ArcDefaultHandler{
 		TransactionHandler: transactionHandler,
+		NodePolicy:         policy,
 	}
 
 	return handler, nil
 }
 
-// GETFees ...
 func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
-	fees, err := getPolicy()
-	if err != nil {
-		status, response, responseErr := m.handleError(ctx, nil, err)
-		if responseErr != nil {
-			// if an error is returned, the processing failed, and we should return a 500 error
-			return responseErr
-		}
-		return ctx.JSON(int(status), response)
-	}
-
-	if fees == nil {
-		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
-	}
-
-	return ctx.JSON(http.StatusOK, fees)
+	return ctx.JSON(http.StatusOK, m.NodePolicy)
 }
 
 // POSTTransaction ...
@@ -302,28 +296,22 @@ func getTransactionsOptions(params api.POSTTransactionsParams) *api.TransactionO
 }
 
 func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.Tx, transactionOptions *api.TransactionOptions) (api.StatusCode, interface{}, error) {
-	policy, err := getPolicy()
-	if err != nil {
-		return m.handleError(ctx, transaction, err)
-	}
-
-	txValidator := defaultValidator.New(policy)
+	txValidator := defaultValidator.New(m.NodePolicy)
 
 	// the validator expects an extended transaction
 	// we must enrich the transaction with the missing data
 	if !txValidator.IsExtended(transaction) {
-		err = m.extendTransaction(ctx, transaction)
+		err := m.extendTransaction(ctx, transaction)
 		if err != nil {
 			return m.handleError(ctx, transaction, err)
 		}
 	}
 
-	if err = txValidator.ValidateTransaction(transaction); err != nil {
+	if err := txValidator.ValidateTransaction(transaction); err != nil {
 		return m.handleError(ctx, transaction, err)
 	}
 
-	var tx *transactionHandler.TransactionStatus
-	tx, err = m.TransactionHandler.SubmitTransaction(ctx.Request().Context(), transaction.Bytes(), transactionOptions)
+	tx, err := m.TransactionHandler.SubmitTransaction(ctx.Request().Context(), transaction.Bytes(), transactionOptions)
 	if err != nil {
 		return m.handleError(ctx, transaction, err)
 	}
@@ -446,12 +434,63 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 }
 
 func getPolicy() (*api.NodePolicy, error) {
-	// NodePolicy and Fees are global variables
-	policyStr, _ := gocore.Config().Get("defaultPolicy")
+	bitcoinRpc, err, rpcFound := gocore.Config().GetURL("peer_rpc")
+	if err == nil && rpcFound {
+		// connect to bitcoin node and get the settings
+		b, err := bitcoin.NewFromURL(bitcoinRpc, false)
+		if err != nil {
+			return nil, fmt.Errorf("error connecting to peer: %v", err)
+		}
 
-	var nodePolicy api.NodePolicy
+		settings, err := b.GetSettings()
+		if err != nil {
+			return nil, fmt.Errorf("error getting settings from peer: %v", err)
+		}
 
-	_ = json.Unmarshal([]byte(policyStr), &nodePolicy)
+		return &api.NodePolicy{
+			ExcessiveBlockSize:              int(settings.ExcessiveBlockSize),
+			BlockMaxSize:                    int(settings.BlockMaxSize),
+			MaxTxSizePolicy:                 int(settings.MaxTxSizePolicy),
+			MaxOrphanTxSize:                 int(settings.MaxOrphanTxSize),
+			DataCarrierSize:                 int64(settings.DataCarrierSize),
+			MaxScriptSizePolicy:             int(settings.MaxScriptSizePolicy),
+			MaxOpsPerScriptPolicy:           int64(settings.MaxOpsPerScriptPolicy),
+			MaxScriptNumLengthPolicy:        settings.MaxScriptNumLengthPolicy,
+			MaxPubKeysPerMultisigPolicy:     int64(settings.MaxPubKeysPerMultisigPolicy),
+			MaxTxSigopsCountsPolicy:         int64(settings.MaxTxSigopsCountsPolicy),
+			MaxStackMemoryUsagePolicy:       settings.MaxStackMemoryUsagePolicy,
+			MaxStackMemoryUsageConsensus:    settings.MaxStackMemoryUsageConsensus,
+			LimitAncestorCount:              settings.LimitAncestorCount,
+			LimitCPFPGroupMembersCount:      settings.LimitCPFPGroupMembersCount,
+			MaxMempool:                      settings.MaxMempool,
+			MaxMempoolSizedisk:              settings.MaxMempoolSizedisk,
+			MempoolMaxPercentCPFP:           settings.MempoolMaxPercentCPFP,
+			AcceptNonStdOutputs:             settings.AcceptNonStdOutputs,
+			DataCarrier:                     settings.DataCarrier,
+			MinMiningTxFee:                  float64(settings.MinMiningTxFee),
+			MaxStdTxValidationDuration:      settings.MaxStdTxValidationDuration,
+			MaxNonStdTxValidationDuration:   settings.MaxNonStdTxValidationDuration,
+			MaxTxChainValidationBudget:      settings.MaxTxChainValidationBudget,
+			ValidationClockCpu:              bool(settings.ValidationClockCpu),
+			MinConsolidationFactor:          settings.MinConsolidationFactor,
+			MaxConsolidationInputScriptSize: settings.MaxConsolidationInputScriptSize,
+			MinConfConsolidationInput:       settings.MinConfConsolidationInput,
+			MinConsolidationInputMaturity:   settings.MinConsolidationInputMaturity,
+			AcceptNonStdConsolidationInput:  settings.AcceptNonStdConsolidationInput,
+		}, nil
+	}
 
-	return &nodePolicy, nil
+	defaultPolicy, found := gocore.Config().Get("defaultPolicy")
+	if found && defaultPolicy != "" {
+		var policy *api.NodePolicy
+
+		if err := json.Unmarshal([]byte(defaultPolicy), policy); err != nil {
+			// this is a fatal error, we cannot start the server without a valid default policy
+			return nil, fmt.Errorf("error unmarshalling defaultPolicy: %v", err)
+		}
+
+		return policy, nil
+	}
+
+	return nil, fmt.Errorf("no policy found")
 }

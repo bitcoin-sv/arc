@@ -39,7 +39,7 @@ func NewZMQ(zmqURL *url.URL, processor ProcessorI) *ZMQ {
 		},
 	}
 
-	_ = newZMQCollector(z.stats)
+	_ = newZMQCollector(z.URL, z.stats)
 
 	return z
 }

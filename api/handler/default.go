@@ -32,7 +32,7 @@ type ArcDefaultHandler struct {
 func NewDefault(transactionHandler transactionHandler.TransactionHandler) (api.HandlerInterface, error) {
 	policy, err := getPolicy()
 	if err != nil {
-		log.Fatal("Could not load policy")
+		log.Fatalf("Could not load policy: %v", err)
 	}
 
 	handler := &ArcDefaultHandler{

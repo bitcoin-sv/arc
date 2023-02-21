@@ -7,6 +7,7 @@ import (
 	apiHandler "github.com/TAAL-GmbH/arc/api/handler"
 	"github.com/TAAL-GmbH/arc/api/transactionHandler"
 	"github.com/labstack/echo/v4"
+	"github.com/ordishs/gocore"
 )
 
 func main() {
@@ -20,9 +21,11 @@ func main() {
 		panic(err)
 	}
 
+	logger := gocore.Log("simple")
+
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.HandlerInterface
-	if handler, err = apiHandler.NewDefault(txHandler); err != nil {
+	if handler, err = apiHandler.NewDefault(logger, txHandler); err != nil {
 		panic(err)
 	}
 

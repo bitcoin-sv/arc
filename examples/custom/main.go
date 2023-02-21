@@ -72,7 +72,7 @@ func main() {
 
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.HandlerInterface
-	if handler, err = apiHandler.NewDefault(txHandler); err != nil {
+	if handler, err = apiHandler.NewDefault(logger, txHandler); err != nil {
 		panic(err)
 	}
 

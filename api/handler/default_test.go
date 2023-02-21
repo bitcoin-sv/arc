@@ -15,6 +15,7 @@ import (
 	"github.com/TAAL-GmbH/arc/api/test"
 	"github.com/TAAL-GmbH/arc/api/transactionHandler"
 	"github.com/labstack/echo/v4"
+	"github.com/libsv/go-p2p"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,7 +34,7 @@ const (
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {
-		defaultHandler, err := NewDefault(nil)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, defaultHandler)
 	})
@@ -41,7 +42,7 @@ func TestNewDefault(t *testing.T) {
 
 func TestGetArcV1Policy(t *testing.T) { //nolint:funlen
 	t.Run("default policy", func(t *testing.T) {
-		defaultHandler, err := NewDefault(nil)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/policy", strings.NewReader(""))
@@ -93,7 +94,7 @@ func TestGetArcV1Policy(t *testing.T) { //nolint:funlen
 
 func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 	t.Run("empty tx", func(t *testing.T) {
-		defaultHandler, err := NewDefault(nil)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
 		require.NoError(t, err)
 
 		for _, contentType := range contentTypes {
@@ -110,7 +111,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("invalid mime type", func(t *testing.T) {
-		defaultHandler, err := NewDefault(nil)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
 		require.NoError(t, err)
 
 		e := echo.New()
@@ -125,7 +126,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("invalid tx", func(t *testing.T) {
-		defaultHandler, err := NewDefault(nil)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
 		require.NoError(t, err)
 
 		expectedErrors := map[string]string{
@@ -151,7 +152,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 
 	t.Run("valid tx - missing inputs", func(t *testing.T) {
 		testNode := &test.Node{}
-		defaultHandler, err := NewDefault(testNode)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, testNode)
 		require.NoError(t, err)
 
 		validTxBytes, _ := hex.DecodeString(validTx)
@@ -187,7 +188,7 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 		// set the node/metamorph responses for the 3 test requests
 		testNode.SubmitTransactionResult = append(testNode.SubmitTransactionResult, txResult, txResult, txResult)
 
-		defaultHandler, err := NewDefault(testNode)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, testNode)
 		require.NoError(t, err)
 
 		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)

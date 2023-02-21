@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -21,23 +20,26 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
+	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
 
 type ArcDefaultHandler struct {
 	TransactionHandler transactionHandler.TransactionHandler
 	NodePolicy         *api.NodePolicy
+	logger             utils.Logger
 }
 
-func NewDefault(transactionHandler transactionHandler.TransactionHandler) (api.HandlerInterface, error) {
-	policy, err := getPolicy()
+func NewDefault(logger utils.Logger, transactionHandler transactionHandler.TransactionHandler) (api.HandlerInterface, error) {
+	policy, err := getPolicy(logger)
 	if err != nil {
-		log.Fatalf("Could not load policy: %v", err)
+		logger.Errorf("could not load policy, using default: %v", err)
 	}
 
 	handler := &ArcDefaultHandler{
 		TransactionHandler: transactionHandler,
 		NodePolicy:         policy,
+		logger:             logger,
 	}
 
 	return handler, nil
@@ -433,7 +435,28 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 	return nil, transactionHandler.ErrParentTransactionNotFound
 }
 
-func getPolicy() (*api.NodePolicy, error) {
+func getPolicy(logger utils.Logger) (policy *api.NodePolicy, err error) {
+	policy, err = getPolicyFromNode()
+	if err == nil {
+		return policy, nil
+	}
+	// just print out the error, but do not stop, we will load the default policy instead
+	logger.Errorf("could not load policy from bitcoin node, using default: %v", err)
+
+	defaultPolicy, found := gocore.Config().Get("defaultPolicy")
+	if found && defaultPolicy != "" {
+		if err = json.Unmarshal([]byte(defaultPolicy), &policy); err != nil {
+			// this is a fatal error, we cannot start the server without a valid default policy
+			return nil, fmt.Errorf("error unmarshalling defaultPolicy: %v", err)
+		}
+
+		return policy, nil
+	}
+
+	return nil, fmt.Errorf("no policy found")
+}
+
+func getPolicyFromNode() (*api.NodePolicy, error) {
 	bitcoinRpc, err, rpcFound := gocore.Config().GetURL("peer_rpc")
 	if err == nil && rpcFound {
 		// connect to bitcoin node and get the settings
@@ -480,17 +503,5 @@ func getPolicy() (*api.NodePolicy, error) {
 		}, nil
 	}
 
-	defaultPolicy, found := gocore.Config().Get("defaultPolicy")
-	if found && defaultPolicy != "" {
-		var policy *api.NodePolicy
-
-		if err := json.Unmarshal([]byte(defaultPolicy), policy); err != nil {
-			// this is a fatal error, we cannot start the server without a valid default policy
-			return nil, fmt.Errorf("error unmarshalling defaultPolicy: %v", err)
-		}
-
-		return policy, nil
-	}
-
-	return nil, fmt.Errorf("no policy found")
+	return nil, nil
 }

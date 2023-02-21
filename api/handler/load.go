@@ -15,7 +15,7 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-func LoadArcHandler(e *echo.Echo, l utils.Logger) error {
+func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 
 	// check the swagger definition against our requests
 	CheckSwagger(e)
@@ -29,7 +29,7 @@ func LoadArcHandler(e *echo.Echo, l utils.Logger) error {
 	}
 
 	blocktxAddress, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
-	bTx := blocktx.NewClient(l, blocktxAddress)
+	bTx := blocktx.NewClient(logger, blocktxAddress)
 
 	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx)
 	if err != nil {
@@ -38,7 +38,7 @@ func LoadArcHandler(e *echo.Echo, l utils.Logger) error {
 
 	var apiHandler api.HandlerInterface
 	// TODO WithSecurityConfig(appConfig.Security)
-	if apiHandler, err = NewDefault(txHandler); err != nil {
+	if apiHandler, err = NewDefault(logger, txHandler); err != nil {
 		return err
 	}
 

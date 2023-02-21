@@ -16,6 +16,7 @@ type PeerHandlerStats struct {
 	Transaction             atomic.Uint64
 	BlockAnnouncement       atomic.Uint64
 	Block                   atomic.Uint64
+	BlockProcessingMs       atomic.Uint64
 }
 
 func NewPeerHandlerStats() *PeerHandlerStats {
@@ -27,6 +28,7 @@ func NewPeerHandlerStats() *PeerHandlerStats {
 		Transaction:             atomic.Uint64{},
 		BlockAnnouncement:       atomic.Uint64{},
 		Block:                   atomic.Uint64{},
+		BlockProcessingMs:       atomic.Uint64{},
 	}
 }
 
@@ -40,6 +42,7 @@ type PeerHandlerCollector struct {
 	transaction             *prometheus.Desc
 	blockAnnouncement       *prometheus.Desc
 	block                   *prometheus.Desc
+	blockProcessingMs       *prometheus.Desc
 }
 
 // NewPeerHandlerCollector initializes every descriptor and returns a pointer to the prometheusCollector
@@ -75,6 +78,10 @@ func NewPeerHandlerCollector(service string, stats *safemap.Safemap[string, *Pee
 			"Shows the number of blocks received by the peer handler",
 			[]string{"peer"}, nil,
 		),
+		blockProcessingMs: prometheus.NewDesc(fmt.Sprintf("arc_%s_peer_block_processing_ms", service),
+			"Shows the total time spent processing blocks by the peer handler",
+			[]string{"peer"}, nil,
+		),
 	}
 
 	prometheus.MustRegister(c)
@@ -93,6 +100,7 @@ func (c *PeerHandlerCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.transaction
 	ch <- c.blockAnnouncement
 	ch <- c.block
+	ch <- c.blockProcessingMs
 }
 
 // Collect implements required collect function for all prometheus collectors
@@ -114,5 +122,7 @@ func (c *PeerHandlerCollector) Collect(ch chan<- prometheus.Metric) {
 			float64(peerStats.BlockAnnouncement.Load()), peer)
 		ch <- prometheus.MustNewConstMetric(c.block, prometheus.CounterValue,
 			float64(peerStats.Block.Load()), peer)
+		ch <- prometheus.MustNewConstMetric(c.blockProcessingMs, prometheus.CounterValue,
+			float64(peerStats.BlockProcessingMs.Load()), peer)
 	})
 }

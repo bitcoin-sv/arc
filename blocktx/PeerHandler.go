@@ -256,6 +256,8 @@ func (bs *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error 
 		return fmt.Errorf("unable to mark block as processed %s: %v", blockHash.String(), err)
 	}
 
+	// add the total block processing time to the stats
+	stat.BlockProcessingMs.Add(uint64(time.Since(timeStart).Milliseconds()))
 	bs.logger.Infof("Processed block %s, %d transactions in %0.2f seconds", blockHash.String(), len(msg.TransactionIDs), time.Since(timeStart).Seconds())
 
 	return nil

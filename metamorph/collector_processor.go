@@ -25,6 +25,8 @@ type prometheusCollector struct {
 	rejectedDuration          *prometheus.Desc
 	mined                     *prometheus.Desc
 	minedDuration             *prometheus.Desc
+	retries                   *prometheus.Desc
+	retriesDuration           *prometheus.Desc
 	channelMapSize            *prometheus.Desc
 }
 
@@ -107,6 +109,14 @@ func newPrometheusCollector(p ProcessorI) *prometheusCollector {
 			"Shows the duration it took to mine all items by the processor",
 			nil, nil,
 		),
+		retries: prometheus.NewDesc("arc_metamorph_processor_retries",
+			"Shows the number of items retried by the processor",
+			nil, nil,
+		),
+		retriesDuration: prometheus.NewDesc("arc_metamorph_processor_retries_duration_ms",
+			"Shows the duration it took to retry all items by the processor",
+			nil, nil,
+		),
 		channelMapSize: prometheus.NewDesc("arc_metamorph_processor_map_size",
 			"Shows the number of items in the processor map",
 			nil, nil,
@@ -139,6 +149,8 @@ func (c *prometheusCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.rejectedDuration
 	ch <- c.mined
 	ch <- c.minedDuration
+	ch <- c.retries
+	ch <- c.retriesDuration
 	ch <- c.channelMapSize
 }
 
@@ -166,5 +178,7 @@ func (c *prometheusCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(c.rejectedDuration, prometheus.CounterValue, float64(stats.Rejected.GetTotalDuration().Milliseconds()))
 	ch <- prometheus.MustNewConstMetric(c.mined, prometheus.CounterValue, float64(stats.Mined.GetCount()))
 	ch <- prometheus.MustNewConstMetric(c.minedDuration, prometheus.CounterValue, stats.Mined.GetAverage())
+	ch <- prometheus.MustNewConstMetric(c.retries, prometheus.CounterValue, float64(stats.Retries.GetCount()))
+	ch <- prometheus.MustNewConstMetric(c.retriesDuration, prometheus.CounterValue, stats.Retries.GetAverage())
 	ch <- prometheus.MustNewConstMetric(c.channelMapSize, prometheus.CounterValue, float64(stats.ChannelMapSize))
 }

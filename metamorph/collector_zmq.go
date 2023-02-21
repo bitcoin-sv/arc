@@ -1,39 +1,32 @@
 package metamorph
 
 import (
-	"fmt"
-	"net/url"
-	"strings"
-
+	"github.com/ordishs/go-utils/safemap"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 type zmqCollector struct {
-	zmqStats             *ZMQStats
+	zmqStats             *safemap.Safemap[string, *ZMQStats]
 	hashTx               *prometheus.Desc
 	invalidTx            *prometheus.Desc
 	discardedFromMempool *prometheus.Desc
 }
 
-// You must create a constructor for you prometheusCollector that
-// initializes every descriptor and returns a pointer to the prometheusCollector
-func newZMQCollector(url *url.URL, zmqStats *ZMQStats) *zmqCollector {
-
-	uniqueName := strings.ReplaceAll(strings.ReplaceAll(url.Host, ".", "_"), ":", "_")
-
+// NewZMQCollector initializes every descriptor and returns a pointer to the prometheusCollector
+func NewZMQCollector(zmqStats *safemap.Safemap[string, *ZMQStats]) *zmqCollector {
 	c := &zmqCollector{
 		zmqStats: zmqStats,
-		hashTx: prometheus.NewDesc(fmt.Sprintf("arc_metamorph_zmq_hashtx_%s", uniqueName),
+		hashTx: prometheus.NewDesc("arc_metamorph_zmq_hashtx",
 			"Shows the number of hashTx messages received",
-			nil, nil,
+			[]string{"peer"}, nil,
 		),
-		invalidTx: prometheus.NewDesc(fmt.Sprintf("arc_metamorph_zmq_invalidtx_%s", uniqueName),
+		invalidTx: prometheus.NewDesc("arc_metamorph_zmq_invalidtx",
 			"Shows the number of invalidTx messages received",
-			nil, nil,
+			[]string{"peer"}, nil,
 		),
-		discardedFromMempool: prometheus.NewDesc(fmt.Sprintf("arc_metamorph_zmq_discardedfrommempool_%s", uniqueName),
+		discardedFromMempool: prometheus.NewDesc("arc_metamorph_zmq_discardedfrommempool",
 			"Shows the number of discardedFromMempool messages received",
-			nil, nil,
+			[]string{"peer"}, nil,
 		),
 	}
 
@@ -54,7 +47,9 @@ func (c *zmqCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *zmqCollector) Collect(ch chan<- prometheus.Metric) {
 	//Write the latest value for each metric in the prometheus metric channel.
 	//Note that you can pass CounterValue, GaugeValue, or UntypedValue types here.
-	ch <- prometheus.MustNewConstMetric(c.hashTx, prometheus.CounterValue, float64(c.zmqStats.hashTx.Load()))
-	ch <- prometheus.MustNewConstMetric(c.invalidTx, prometheus.CounterValue, float64(c.zmqStats.invalidTx.Load()))
-	ch <- prometheus.MustNewConstMetric(c.discardedFromMempool, prometheus.CounterValue, float64(c.zmqStats.discardedFromMempool.Load()))
+	c.zmqStats.Each(func(peer string, zmqStats *ZMQStats) {
+		ch <- prometheus.MustNewConstMetric(c.hashTx, prometheus.CounterValue, float64(zmqStats.hashTx.Load()), peer)
+		ch <- prometheus.MustNewConstMetric(c.invalidTx, prometheus.CounterValue, float64(zmqStats.invalidTx.Load()), peer)
+		ch <- prometheus.MustNewConstMetric(c.discardedFromMempool, prometheus.CounterValue, float64(zmqStats.discardedFromMempool.Load()), peer)
+	})
 }

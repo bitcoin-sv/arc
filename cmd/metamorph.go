@@ -23,6 +23,7 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils"
+	"github.com/ordishs/go-utils/safemap"
 	"github.com/ordishs/gocore"
 	"github.com/pkg/errors"
 )
@@ -211,15 +212,19 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	if peerCount == 0 {
 		logger.Fatalf("peerCount must be set")
 	}
+	zmqCollector := safemap.New[string, *metamorph.ZMQStats]()
 	for i := 1; i <= peerCount; i++ {
 		zmqURL, zErr, found := gocore.Config().GetURL(fmt.Sprintf("peer_%d_zmq", i))
 		if zErr != nil {
 			logger.Warnf("Could not parse peer_%d_zmq in config: %v", i, zErr)
 		} else if found {
 			z := metamorph.NewZMQ(zmqURL, metamorphProcessor)
+			zmqCollector.Set(zmqURL.Host, z.Stats)
 			go z.Start()
 		}
 	}
+	// pass all the started peers to the collector
+	_ = metamorph.NewZMQCollector(zmqCollector)
 
 	return func() {
 		logger.Infof("Shutting down metamorph store")

@@ -21,25 +21,23 @@ type ZMQStats struct {
 
 type ZMQ struct {
 	URL       *url.URL
+	Stats     *ZMQStats
 	processor ProcessorI
 	logger    *gocore.Logger
-	stats     *ZMQStats
 }
 
 func NewZMQ(zmqURL *url.URL, processor ProcessorI) *ZMQ {
 	var zmqLogger = gocore.Log("zmq")
 	z := &ZMQ{
-		URL:       zmqURL,
-		processor: processor,
-		logger:    zmqLogger,
-		stats: &ZMQStats{
+		URL: zmqURL,
+		Stats: &ZMQStats{
 			hashTx:               atomic.Uint64{},
 			invalidTx:            atomic.Uint64{},
 			discardedFromMempool: atomic.Uint64{},
 		},
+		processor: processor,
+		logger:    zmqLogger,
 	}
-
-	_ = newZMQCollector(z.URL, z.stats)
 
 	return z
 }
@@ -60,7 +58,7 @@ func (z *ZMQ) Start() {
 		for c := range ch {
 			switch c[0] {
 			case "hashtx":
-				z.stats.hashTx.Add(1)
+				z.Stats.hashTx.Add(1)
 				z.logger.Debugf("hashtx %s", c[1])
 				_, _ = z.processor.SendStatusForTransaction(
 					c[1],
@@ -69,7 +67,7 @@ func (z *ZMQ) Start() {
 					nil,
 				)
 			case "invalidtx":
-				z.stats.invalidTx.Add(1)
+				z.Stats.invalidTx.Add(1)
 				// c[1] is lots of info about the tx in json format encoded in hex
 				var txInfo map[string]interface{}
 				txInfo, err = z.parseTxInfo(c)
@@ -95,7 +93,7 @@ func (z *ZMQ) Start() {
 					fmt.Errorf(errReason),
 				)
 			case "discardedfrommempool":
-				z.stats.discardedFromMempool.Add(1)
+				z.Stats.discardedFromMempool.Add(1)
 				var txInfo map[string]interface{}
 				txInfo, err = z.parseTxInfo(c)
 				if err != nil {

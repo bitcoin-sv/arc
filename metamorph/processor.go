@@ -50,6 +50,7 @@ type ProcessorStats struct {
 	SeenOnNetwork      *stat.AtomicStats
 	Rejected           *stat.AtomicStats
 	Mined              *stat.AtomicStat
+	Retries            *stat.AtomicStat
 	ChannelMapSize     int32
 }
 
@@ -77,6 +78,7 @@ type Processor struct {
 	seenOnNetwork      *stat.AtomicStats
 	rejected           *stat.AtomicStats
 	mined              *stat.AtomicStat
+	retries            *stat.AtomicStat
 }
 
 func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress string,
@@ -119,6 +121,7 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 		seenOnNetwork:      stat.NewAtomicStats(),
 		rejected:           stat.NewAtomicStats(),
 		mined:              stat.NewAtomicStat(),
+		retries:            stat.NewAtomicStat(),
 	}
 
 	// Start a goroutine to resend transactions that have not been seen on the network
@@ -184,6 +187,7 @@ func (p *Processor) processExpiredTransactions() {
 		if len(expiredTransactionItems) > 0 {
 			p.logger.Infof("Resending %d expired transactions", len(expiredTransactionItems))
 			for txID, item := range expiredTransactionItems {
+				startTime := time.Now()
 				retries := item.GetRetries()
 				p.logger.Debugf("Resending expired tx: %s (%d retries)", txID, retries)
 				if retries >= 3 {
@@ -210,6 +214,8 @@ func (p *Processor) processExpiredTransactions() {
 						"Re-announced expired tx",
 					)
 				}
+
+				p.retries.AddDuration(time.Since(startTime))
 
 				item.IncrementRetry()
 			}

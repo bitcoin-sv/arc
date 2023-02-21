@@ -40,6 +40,7 @@ func (p *Processor) GetStats() *ProcessorStats {
 		SeenOnNetwork:      p.seenOnNetwork,
 		Rejected:           p.rejected,
 		Mined:              p.mined,
+		Retries:            p.retries,
 		ChannelMapSize:     int32(p.processorResponseMap.Len()),
 	}
 }

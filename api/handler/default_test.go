@@ -40,7 +40,7 @@ func TestNewDefault(t *testing.T) {
 	})
 }
 
-func TestGetArcV1Policy(t *testing.T) { //nolint:funlen
+func TestGETPolicy(t *testing.T) { //nolint:funlen
 	t.Run("default policy", func(t *testing.T) {
 		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
 		require.NoError(t, err)
@@ -55,44 +55,20 @@ func TestGetArcV1Policy(t *testing.T) { //nolint:funlen
 		assert.Equal(t, http.StatusOK, rec.Code)
 
 		bPolicy := rec.Body.Bytes()
-		var policyResponse api.NodePolicy
+		var policyResponse api.PolicyResponse
 		_ = json.Unmarshal(bPolicy, &policyResponse)
 
 		require.NotNil(t, policyResponse)
-		assert.Equal(t, 2000000000, policyResponse.ExcessiveBlockSize)
-		assert.Equal(t, 512000000, policyResponse.BlockMaxSize)
-		assert.Equal(t, 10000000, policyResponse.MaxTxSizePolicy)
-		assert.Equal(t, 1000000000, policyResponse.MaxOrphanTxSize)
-		assert.Equal(t, int64(4294967295), policyResponse.DataCarrierSize)
-		assert.Equal(t, 500000, policyResponse.MaxScriptSizePolicy)
-		assert.Equal(t, int64(4294967295), policyResponse.MaxOpsPerScriptPolicy)
-		assert.Equal(t, 10000, policyResponse.MaxScriptNumLengthPolicy)
-		assert.Equal(t, int64(4294967295), policyResponse.MaxPubKeysPerMultisigPolicy)
-		assert.Equal(t, int64(4294967295), policyResponse.MaxTxSigopsCountsPolicy)
-		assert.Equal(t, 100000000, policyResponse.MaxStackMemoryUsagePolicy)
-		assert.Equal(t, 200000000, policyResponse.MaxStackMemoryUsageConsensus)
-		assert.Equal(t, 10000, policyResponse.LimitAncestorCount)
-		assert.Equal(t, 25, policyResponse.LimitCPFPGroupMembersCount)
-		assert.Equal(t, 2000000000, policyResponse.MaxMempool)
-		assert.Equal(t, 0, policyResponse.MaxMempoolSizedisk)
-		assert.Equal(t, 10, policyResponse.MempoolMaxPercentCPFP)
-		assert.Equal(t, true, policyResponse.AcceptNonStdOutputs)
-		assert.Equal(t, true, policyResponse.DataCarrier)
-		assert.Equal(t, 0.00000050, policyResponse.MinMiningTxFee)
-		assert.Equal(t, 3, policyResponse.MaxStdTxValidationDuration)
-		assert.Equal(t, 1000, policyResponse.MaxNonStdTxValidationDuration)
-		assert.Equal(t, 50, policyResponse.MaxTxChainValidationBudget)
-		assert.Equal(t, true, policyResponse.ValidationClockCpu)
-		assert.Equal(t, 20, policyResponse.MinConsolidationFactor)
-		assert.Equal(t, 150, policyResponse.MaxConsolidationInputScriptSize)
-		assert.Equal(t, 6, policyResponse.MinConfConsolidationInput)
-		assert.Equal(t, 150, policyResponse.MaxConsolidationInputScriptSize)
-		assert.Equal(t, 6, policyResponse.MinConsolidationInputMaturity)
-		assert.Equal(t, false, policyResponse.AcceptNonStdConsolidationInput)
+		assert.Equal(t, uint64(50), policyResponse.Policy.MiningFee.Satoshis)
+		assert.Equal(t, uint64(1000), policyResponse.Policy.MiningFee.Bytes)
+		assert.Equal(t, uint64(500000), policyResponse.Policy.Maxscriptsizepolicy)
+		assert.Equal(t, uint64(4294967295), policyResponse.Policy.Maxtxsigopscountspolicy)
+		assert.Equal(t, uint64(10000000), policyResponse.Policy.Maxtxsizepolicy)
+		assert.False(t, policyResponse.Timestamp.IsZero())
 	})
 }
 
-func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
+func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	t.Run("empty tx", func(t *testing.T) {
 		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
 		require.NoError(t, err)
@@ -202,13 +178,149 @@ func TestPostArcV1Tx(t *testing.T) { //nolint:funlen
 			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/tx")
 			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 			require.NoError(t, err)
-			assert.Equal(t, http.StatusCreated, rec.Code)
+			assert.Equal(t, http.StatusOK, rec.Code)
 
 			b := rec.Body.Bytes()
 			var bResponse api.TransactionResponse
 			_ = json.Unmarshal(b, &bResponse)
 
 			require.Equal(t, validTxID, *bResponse.Txid)
+		}
+	})
+}
+
+func TestPOSTTransactions(t *testing.T) { //nolint:funlen
+	t.Run("empty tx", func(t *testing.T) {
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
+		require.NoError(t, err)
+
+		for _, contentType := range contentTypes {
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodPost, "/v1/txs", strings.NewReader(""))
+			req.Header.Set(echo.HeaderContentType, contentType)
+			rec := httptest.NewRecorder()
+			ctx := e.NewContext(req, rec)
+
+			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
+			require.NoError(t, err)
+			// multiple txs post always returns 200, the error code is given per tx
+			assert.Equal(t, api.ErrStatusMalformed, api.StatusCode(rec.Code))
+		}
+	})
+
+	t.Run("invalid mime type", func(t *testing.T) {
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
+		require.NoError(t, err)
+
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodPost, "/v1/txs", strings.NewReader(""))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationXML)
+		rec := httptest.NewRecorder()
+		ctx := e.NewContext(req, rec)
+
+		err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
+		require.NoError(t, err)
+		assert.Equal(t, rec.Code, api.ErrBadRequest.Status)
+	})
+
+	t.Run("invalid txs", func(t *testing.T) {
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
+		require.NoError(t, err)
+
+		expectedErrors := map[string]string{
+			echo.MIMETextPlain:       "encoding/hex: invalid byte: U+0074 't'",
+			echo.MIMEApplicationJSON: "invalid character 'e' in literal true (expecting 'r')",
+			echo.MIMEOctetStream:     "arc error 460: transaction is not in extended format",
+		}
+
+		for contentType, expectedError := range expectedErrors {
+			rec, ctx := createEchoRequest(strings.NewReader("test"), contentType, "/v1/txs")
+			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
+			require.NoError(t, err)
+			if contentType == echo.MIMEApplicationJSON {
+				assert.Equal(t, api.ErrMalformed.Status, rec.Code)
+			} else {
+				assert.Equal(t, api.StatusOK, api.StatusCode(rec.Code))
+
+				b := rec.Body.Bytes()
+				var bErr []api.ErrorMalformed
+				_ = json.Unmarshal(b, &bErr)
+
+				if contentType == echo.MIMETextPlain {
+					assert.Equal(t, float64(api.ErrMalformed.Status), bErr[0].Status)
+					assert.Equal(t, api.ErrMalformed.Title, bErr[0].Title)
+					require.NotNil(t, bErr[0].ExtraInfo)
+					assert.Equal(t, expectedError, *bErr[0].ExtraInfo)
+				} else {
+					assert.Equal(t, float64(api.ErrTxFormat.Status), bErr[0].Status)
+					assert.Equal(t, api.ErrTxFormat.Title, bErr[0].Title)
+					require.NotNil(t, bErr[0].ExtraInfo)
+					assert.Equal(t, expectedError, *bErr[0].ExtraInfo)
+				}
+			}
+		}
+	})
+
+	t.Run("valid tx - missing inputs", func(t *testing.T) {
+		testNode := &test.Node{}
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, testNode)
+		require.NoError(t, err)
+
+		validTxBytes, _ := hex.DecodeString(validTx)
+		inputTxs := map[string]io.Reader{
+			echo.MIMETextPlain:       strings.NewReader(validTx + "\n"),
+			echo.MIMEApplicationJSON: strings.NewReader("[\"" + validTx + "\"]"),
+			echo.MIMEOctetStream:     bytes.NewReader(validTxBytes),
+		}
+
+		for contentType, inputTx := range inputTxs {
+			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/tx")
+			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
+			require.NoError(t, err)
+			assert.Equal(t, api.StatusOK, api.StatusCode(rec.Code))
+
+			b := rec.Body.Bytes()
+			var bErr []api.ErrorFields
+			_ = json.Unmarshal(b, &bErr)
+
+			assert.Equal(t, api.ErrTxFormat.Status, bErr[0].Status)
+			assert.Equal(t, "parent transaction not found", *bErr[0].ExtraInfo)
+		}
+	})
+
+	t.Run("valid tx", func(t *testing.T) {
+		testNode := &test.Node{}
+		txResult := &transactionHandler.TransactionStatus{
+			TxID:        validTxID,
+			BlockHash:   "",
+			BlockHeight: 0,
+			Status:      "OK",
+			Timestamp:   time.Now().Unix(),
+		}
+		// set the node/metamorph responses for the 3 test requests
+		testNode.SubmitTransactionResult = append(testNode.SubmitTransactionResult, txResult, txResult, txResult)
+
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, testNode)
+		require.NoError(t, err)
+
+		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)
+		inputTxs := map[string]io.Reader{
+			echo.MIMETextPlain:       strings.NewReader(validExtendedTx + "\n"),
+			echo.MIMEApplicationJSON: strings.NewReader("[\"" + validExtendedTx + "\"]"),
+			echo.MIMEOctetStream:     bytes.NewReader(validExtendedTxBytes),
+		}
+
+		for contentType, inputTx := range inputTxs {
+			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/tx")
+			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusOK, rec.Code)
+
+			b := rec.Body.Bytes()
+			var bResponse []api.TransactionResponse
+			_ = json.Unmarshal(b, &bResponse)
+
+			require.Equal(t, validTxID, *bResponse[0].Txid)
 		}
 	})
 }

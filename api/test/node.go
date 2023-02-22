@@ -7,13 +7,24 @@ import (
 	"github.com/TAAL-GmbH/arc/api/transactionHandler"
 )
 
+type SubmitTransactionRequest struct {
+	Transaction []byte
+	Options     *arc.TransactionOptions
+}
+
 type Node struct {
 	GetTransactionResult       []interface{}
 	GetTransactionStatusResult []interface{}
+	SubmitTransactionRequests  []*SubmitTransactionRequest
 	SubmitTransactionResult    []interface{}
 }
 
-func (n *Node) SubmitTransaction(_ context.Context, _ []byte, _ *arc.TransactionOptions) (rawTx *transactionHandler.TransactionStatus, err error) {
+func (n *Node) SubmitTransaction(_ context.Context, txBytes []byte, options *arc.TransactionOptions) (rawTx *transactionHandler.TransactionStatus, err error) {
+	n.SubmitTransactionRequests = append(n.SubmitTransactionRequests, &SubmitTransactionRequest{
+		Transaction: txBytes,
+		Options:     options,
+	})
+
 	if n.SubmitTransactionResult != nil {
 		var result interface{}
 		// pop the first result of the stack and return it
@@ -38,7 +49,7 @@ func (n *Node) GetTransaction(_ context.Context, txID string) ([]byte, error) {
 	if n.GetTransactionResult != nil {
 		var result interface{}
 		// pop the first result of the stack and return it
-		if len(n.SubmitTransactionResult) > 1 {
+		if len(n.GetTransactionResult) > 1 {
 			result, n.GetTransactionResult = n.GetTransactionResult[0], n.GetTransactionResult[1:]
 		} else {
 			result, n.GetTransactionResult = n.GetTransactionResult[0], nil

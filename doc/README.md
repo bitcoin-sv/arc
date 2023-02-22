@@ -142,7 +142,7 @@ you run `go run main.go -api=true`, it will only start the API server, and not t
 
 ### API
 
-API is the REST API microservice for interacting with ARC. See the [API documentation](api) for more information.
+API is the REST API microservice for interacting with ARC. See the [API documentation](/api.html) for more information.
 
 The API takes care of authentication, validation, and sending transactions to Metamorph.  The API talks to one or more Metamorph instances using client-based, round robin load balancing.
 
@@ -233,6 +233,28 @@ go run main.go -metamorph=true
 
 The only difference between the two is that the generic `main.go` starts the Go profiler, while the specific
 `cmd/metamorph/main.go` command does not.
+
+#### Metamorph transaction statuses
+
+Metamorph keeps track of the lifecycle of a transaction, and assigns it a status. The following statuses are
+available:
+
+| Code | Status                 | Description                                                                                                                                                                                                    |
+|-----|------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 0   | `UNKNOWN`              | The transaction has been sent to metamorph, but no processing has taken place. This should never be the case, unless something goes wrong.                                                                     |
+| 1   | `QUEUED`               | The transaction has been queued for processing.                                                                                                                                                                |
+| 2   | `RECEIVED`             | The transaction has been properly received by the metamorph processor.                                                                                                                                         |
+| 3   | `STORED`               | The transaction has been stored in the metamorph store. This should ensure the transaction will be processed and retried if not picked up immediately by a mining node.                                        |
+| 4   | `ANNOUNCED_TO_NETWORK` | The transaction has been announced (INV message) to the Bitcoin network.                                                                                                                                       |
+| 5   | `REQUESTED_BY_NETWORK` | The transaction has been requested from metamorph by a Bitcoin node.                                                                                                                                           |
+| 6   | `SENT_TO_NETWORK`      | The transaction has been sent to at least 1 Bitcoin node.                                                                                                                                                      |
+| 7   | `ACCEPTED_BY_NETWORK`  | The transaction has been accepted by a connected Bitcoin node on the ZMQ interface. If metamorph is not connected to ZQM, this status will never by set.                                                       |
+| 8   | `SEEN_ON_NETWORK`      | The transaction has been seen on the Bitcoin network and propagated to other nodes. This status is set when metamorph receives an INV message for the transaction from another node than it was sent to.       |
+| 9   | `MINED`                | The transaction has been mined into a block by a mining node.                                                                                                                                                  |
+| 108 | `CONFIRMED`            | The transaction is marked as confirmed when it is in a block with 100 blocks built on top of that block.                                                                                                       |
+| 109 | `REJECTED`             | The transaction has been rejected by the Bitcoin network.                                                                                                                                                      |
+
+This status is returned in the `txStatus` field whenever the transaction is queried.
 
 #### Metamorph stores
 

@@ -518,7 +518,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |X-CallbackUrl|header|string|false|Default double spend and merkle proof notification callback endpoint.|
 |X-CallbackToken|header|string|false|Access token for notification callback endpoint.|
 |X-MerkleProof|header|string|false|Whether to include merkle proofs in the callbacks (true | false).|
-|X-WaitForStatus|header|integer|false|Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = SENT_TO_NETWORK, 6 = SEEN_ON_NETWORK)|
+|X-WaitForStatus|header|integer|false|Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
 |body|body|string|false|none|
 
 > Example responses
@@ -758,7 +758,7 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 |X-CallbackUrl|header|string|false|Default double spend and merkle proof notification callback endpoint.|
 |X-CallbackToken|header|string|false|Access token for notification callback endpoint.|
 |X-MerkleProof|header|string|false|Whether to include merkle proofs in the callbacks (true | false).|
-|X-WaitForStatus|header|integer|false|Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = SENT_TO_NETWORK, 6 = SEEN_ON_NETWORK)|
+|X-WaitForStatus|header|integer|false|Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
 |body|body|string|false|none|
 
 > Example responses

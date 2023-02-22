@@ -31,7 +31,7 @@ func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
 	}
 
 	go func() {
-		for range time.NewTicker(10 * time.Second).C {
+		for range time.NewTicker(1 * time.Hour).C {
 			m.clean()
 		}
 	}()
@@ -239,6 +239,5 @@ func (m *ProcessorResponseMap) clean() {
 			log.Printf("ProcessorResponseMap: Expired %s", key)
 			delete(m.items, key)
 		}
-
 	}
 }

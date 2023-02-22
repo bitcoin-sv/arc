@@ -271,13 +271,10 @@ components:
         - $ref: '#/components/schemas/CommonResponse'
         - type: object
           required:
-            - fees
+            - policy
           properties:
-            fees:
-              type: array
-              items:
-                $ref: '#/components/schemas/Policy'
-              nullable: true
+            policy:
+              $ref: '#/components/schemas/Policy'
           additionalProperties: false
 
     Policy:
@@ -285,14 +282,20 @@ components:
       required:
         - maxtxsizepolicy
         - maxscriptsizepolicy
-        - minminingtxfee
+        - maxtxsigopscountspolicy
         - miningFee
       properties:
         maxtxsizepolicy:
-          type: number
+          type: integer
+          format: uint64
           nullable: false
         maxscriptsizepolicy:
-          type: number
+          type: integer
+          format: uint64
+          nullable: false
+        maxtxsigopscountspolicy:
+          type: integer
+          format: uint64
           nullable: false
         miningFee:
           $ref: '#/components/schemas/FeeAmount'

@@ -222,3 +222,50 @@ func createEchoRequest(inputTx io.Reader, contentType, target string) (*httptest
 
 	return rec, ctx
 }
+
+func Test_calcFeesFromBSVPerKB(t *testing.T) {
+	tests := []struct {
+		name     string
+		feePerKB float64
+		satoshis uint64
+		bytes    uint64
+	}{
+		{
+			name:     "50 sats per KB",
+			feePerKB: 0.00000050,
+			satoshis: 50,
+			bytes:    1000,
+		},
+		{
+			name:     "5 sats per KB",
+			feePerKB: 0.00000005,
+			satoshis: 5,
+			bytes:    1000,
+		},
+		{
+			name:     "0.5 sats per KB",
+			feePerKB: 0.000000005,
+			satoshis: 5,
+			bytes:    10000,
+		},
+		{
+			name:     "0.01 sats per KB",
+			feePerKB: 0.0000000001,
+			satoshis: 1,
+			bytes:    100000,
+		},
+		{
+			name:     "0.001 sats per KB - for Craig",
+			feePerKB: 0.00000000001,
+			satoshis: 1,
+			bytes:    1000000,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1 := calcFeesFromBSVPerKB(tt.feePerKB)
+			assert.Equalf(t, tt.satoshis, got, "calcFeesFromBSVPerKB(%v)", tt.feePerKB)
+			assert.Equalf(t, tt.bytes, got1, "calcFeesFromBSVPerKB(%v)", tt.feePerKB)
+		})
+	}
+}

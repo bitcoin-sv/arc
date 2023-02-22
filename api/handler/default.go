@@ -46,7 +46,35 @@ func NewDefault(logger utils.Logger, transactionHandler transactionHandler.Trans
 }
 
 func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
-	return ctx.JSON(http.StatusOK, m.NodePolicy)
+	satoshis, bytes := calcFeesFromBSVPerKB(m.NodePolicy.MinMiningTxFee)
+
+	return ctx.JSON(http.StatusOK, api.PolicyResponse{
+		Policy: api.Policy{
+			Maxscriptsizepolicy:     uint64(m.NodePolicy.MaxScriptSizePolicy),
+			Maxtxsigopscountspolicy: uint64(m.NodePolicy.MaxTxSigopsCountsPolicy),
+			Maxtxsizepolicy:         uint64(m.NodePolicy.MaxTxSizePolicy),
+			MiningFee: api.FeeAmount{
+				Bytes:    bytes,
+				Satoshis: satoshis,
+			},
+		},
+		Timestamp: time.Now().UTC(),
+	})
+}
+
+func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
+	bytes := uint64(1000)
+	fSatoshis := feePerKB * 1e8
+	satoshis := uint64(fSatoshis)
+
+	// increment bytes and satoshis by a factor of 10 until satoshis is not a fraction
+	for fSatoshis != float64(satoshis) {
+		fSatoshis *= 10
+		satoshis = uint64(fSatoshis)
+		bytes *= 10
+	}
+
+	return satoshis, bytes
 }
 
 // POSTTransaction ...
@@ -323,10 +351,9 @@ func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.
 		txID = transaction.TxID()
 	}
 
-	// TODO differentiate between 200 and 201
-	return api.StatusAddedBlockTemplate, api.TransactionResponse{
-		Status:      int(api.StatusAddedBlockTemplate),
-		Title:       api.StatusText[api.StatusAddedBlockTemplate],
+	return api.StatusOK, api.TransactionResponse{
+		Status:      int(api.StatusOK),
+		Title:       "OK",
 		BlockHash:   &tx.BlockHash,
 		BlockHeight: &tx.BlockHeight,
 		TxStatus:    (*api.TransactionResponseTxStatus)(&tx.Status),

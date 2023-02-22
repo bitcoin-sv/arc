@@ -9,9 +9,7 @@ const ArcDocServerUrl = "https://arc.bitcoinsv.com"
 type StatusCode int
 
 const (
-	StatusAlreadyMined       StatusCode = 200
-	StatusAlreadyInMempool   StatusCode = 200
-	StatusAddedBlockTemplate StatusCode = 201
+	StatusOK StatusCode = 200
 )
 
 // custom (http) status code
@@ -28,13 +26,6 @@ const (
 	ErrStatusConflict         StatusCode = 466
 	ErrStatusFrozenPolicy     StatusCode = 481
 	ErrStatusFrozenConsensus  StatusCode = 482
-)
-
-var (
-	StatusText = map[StatusCode]string{
-		StatusAlreadyInMempool:   "Already in mempool",
-		StatusAddedBlockTemplate: "Added to block template",
-	}
 )
 
 var (

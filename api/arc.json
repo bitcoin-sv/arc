@@ -9,20 +9,21 @@
     }
   },
   "paths": {
-    "/v1/fees": {
+    "/v1/policy": {
       "get": {
+        "operationId": "GET policy",
         "tags": [
           "Arc"
         ],
-        "summary": "Get the transaction fees required",
-        "description": "This endpoint returns the fees required for the api key used.",
+        "summary": "Get the policy settings",
+        "description": "This endpoint returns the policy settings.",
         "responses": {
           "200": {
             "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FeesResponse"
+                  "$ref": "#/components/schemas/PolicyResponse"
                 }
               }
             }
@@ -35,6 +36,7 @@
     },
     "/v1/tx/{id}": {
       "get": {
+        "operationId": "GET transaction status",
         "tags": [
           "Arc"
         ],
@@ -73,6 +75,7 @@
     },
     "/v1/tx": {
       "post": {
+        "operationId": "POST transaction",
         "tags": [
           "Arc"
         ],
@@ -87,6 +90,9 @@
           },
           {
             "$ref": "#/components/parameters/merkleProof"
+          },
+          {
+            "$ref": "#/components/parameters/waitForStatus"
           }
         ],
         "requestBody": {
@@ -207,6 +213,7 @@
     },
     "/v1/txs": {
       "post": {
+        "operationId": "POST transactions",
         "tags": [
           "Arc"
         ],
@@ -221,6 +228,9 @@
           },
           {
             "$ref": "#/components/parameters/merkleProof"
+          },
+          {
+            "$ref": "#/components/parameters/waitForStatus"
           }
         ],
         "requestBody": {
@@ -365,7 +375,7 @@
           }
         }
       },
-      "FeesResponse": {
+      "PolicyResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/CommonResponse"
@@ -373,41 +383,42 @@
           {
             "type": "object",
             "required": [
-              "fees"
+              "policy"
             ],
             "properties": {
-              "fees": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/Fee"
-                },
-                "nullable": true
+              "policy": {
+                "$ref": "#/components/schemas/Policy"
               }
             },
             "additionalProperties": false
           }
         ]
       },
-      "Fee": {
+      "Policy": {
         "type": "object",
         "required": [
-          "feeType",
-          "miningFee",
-          "relayFee"
+          "maxtxsizepolicy",
+          "maxscriptsizepolicy",
+          "maxtxsigopscountspolicy",
+          "miningFee"
         ],
         "properties": {
-          "feeType": {
-            "type": "string",
-            "enum": [
-              "standard",
-              "data"
-            ],
+          "maxtxsizepolicy": {
+            "type": "integer",
+            "format": "uint64",
+            "nullable": false
+          },
+          "maxscriptsizepolicy": {
+            "type": "integer",
+            "format": "uint64",
+            "nullable": false
+          },
+          "maxtxsigopscountspolicy": {
+            "type": "integer",
+            "format": "uint64",
             "nullable": false
           },
           "miningFee": {
-            "$ref": "#/components/schemas/FeeAmount"
-          },
-          "relayFee": {
             "$ref": "#/components/schemas/FeeAmount"
           }
         },
@@ -591,6 +602,7 @@
                   "RECEIVED",
                   "STORED",
                   "ANNOUNCED_TO_NETWORK",
+                  "REQUESTED_BY_NETWORK",
                   "SENT_TO_NETWORK",
                   "SEEN_ON_NETWORK",
                   "MINED",
@@ -909,6 +921,18 @@
         "type": "http",
         "scheme": "bearer",
         "description": "Bearer authentication as defined in RFC 6750"
+      },
+      "Api-Key": {
+        "type": "apiKey",
+        "description": "Please enter API key needed to access endpoints into field. Api-Key: My_API_Key",
+        "name": "Api-Key",
+        "in": "header"
+      },
+      "Authorization": {
+        "type": "apiKey",
+        "description": "Please enter the custom authorization needed to access endpoints into field. Authorization: My_Authorization_Key",
+        "name": "Authorization",
+        "in": "header"
       }
     },
     "parameters": {
@@ -935,12 +959,26 @@
         "schema": {
           "type": "string"
         }
+      },
+      "waitForStatus": {
+        "name": "X-WaitForStatus",
+        "in": "header",
+        "description": "Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = SENT_TO_NETWORK, 6 = SEEN_ON_NETWORK)",
+        "schema": {
+          "type": "integer"
+        }
       }
     }
   },
   "security": [
     {
       "BearerAuth": []
+    },
+    {
+      "Api-Key": []
+    },
+    {
+      "Authorization": []
     }
   ]
 }

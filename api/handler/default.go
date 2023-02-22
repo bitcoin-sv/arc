@@ -183,7 +183,11 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			return ctx.JSON(http.StatusBadRequest, e)
 		}
 
-		txString := strings.ReplaceAll(string(body), "\r", "")
+		if len(body) == 0 {
+			return ctx.JSON(int(api.ErrStatusMalformed), api.ErrBadRequest)
+		}
+
+		txString := strings.TrimSpace(strings.ReplaceAll(string(body), "\r", ""))
 		txs := strings.Split(txString, "\n")
 		transactions = make([]interface{}, len(txs))
 
@@ -227,6 +231,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		var bytesRead int64
 		var err error
 		limit := make(chan bool, 1024) // TODO make configurable how many concurrent process routines we can start
+		totalBytesRead := int64(0)
 		for {
 			limit <- true
 
@@ -240,9 +245,15 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 				}
 			}
 			if bytesRead == 0 {
+				if totalBytesRead == 0 {
+					// no transactions found in the request body
+					return ctx.JSON(int(api.ErrStatusMalformed), api.ErrBadRequest)
+				}
 				// no more transaction data found, stop the loop
 				break
 			}
+
+			totalBytesRead += bytesRead
 
 			var mu sync.Mutex
 			wg.Add(1)

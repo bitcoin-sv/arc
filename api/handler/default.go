@@ -342,7 +342,7 @@ func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.
 	// the validator expects an extended transaction
 	// we must enrich the transaction with the missing data
 	if !txValidator.IsExtended(transaction) {
-		err := m.extendTransaction(ctx, transaction)
+		err := m.extendTransaction(ctx.Request().Context(), transaction)
 		if err != nil {
 			return m.handleError(ctx, transaction, err)
 		}
@@ -373,7 +373,7 @@ func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.
 	}, nil
 }
 
-func (m ArcDefaultHandler) extendTransaction(ctx echo.Context, transaction *bt.Tx) (err error) {
+func (m ArcDefaultHandler) extendTransaction(ctx context.Context, transaction *bt.Tx) (err error) {
 	parentTxBytes := make(map[string][]byte)
 	var btParentTx *bt.Tx
 
@@ -382,7 +382,7 @@ func (m ArcDefaultHandler) extendTransaction(ctx echo.Context, transaction *bt.T
 		parentTxIDStr := input.PreviousTxIDStr()
 		b, ok := parentTxBytes[parentTxIDStr]
 		if !ok {
-			b, err = m.getTransaction(ctx.Request().Context(), parentTxIDStr)
+			b, err = m.getTransaction(ctx, parentTxIDStr)
 			if err != nil {
 				return err
 			}

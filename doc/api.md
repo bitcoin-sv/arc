@@ -1,17 +1,24 @@
 ---
 title: BSV ARC v1.0.0
 language_tabs:
-  - shell: Shell
   - http: HTTP
   - javascript: JavaScript
-  - ruby: Ruby
-  - python: Python
-  - php: PHP
   - java: Java
   - go: Go
+  - ruby: Ruby
+  - python: Python
+  - shell: curl
+language_clients:
+  - http: ""
+  - javascript: ""
+  - java: ""
+  - go: ""
+  - ruby: ""
+  - python: ""
+  - shell: ""
 toc_footers: []
 includes: []
-search: true
+search: false
 highlight_theme: darkula
 headingLevel: 2
 
@@ -37,22 +44,14 @@ License: <a href="https://bitcoinassociation.net/open-bsv-license/">Open BSV Lic
 
 <h1 id="bsv-arc-arc">Arc</h1>
 
-## GET fees
+## Get the policy settings
 
-<a id="opIdGET fees"></a>
+<a id="opIdGET policy"></a>
 
 > Code samples
 
-```shell
-# You can also use wget
-curl -X GET /v1/fees \
-  -H 'Accept: application/json' \
-  -H 'Authorization: Bearer {access-token}'
-
-```
-
 ```http
-GET /v1/fees HTTP/1.1
+GET /v1/policy HTTP/1.1
 
 Accept: application/json
 
@@ -65,7 +64,7 @@ const headers = {
   'Authorization':'Bearer {access-token}'
 };
 
-fetch('/v1/fees',
+fetch('/v1/policy',
 {
   method: 'GET',
 
@@ -79,70 +78,8 @@ fetch('/v1/fees',
 
 ```
 
-```ruby
-require 'rest-client'
-require 'json'
-
-headers = {
-  'Accept' => 'application/json',
-  'Authorization' => 'Bearer {access-token}'
-}
-
-result = RestClient.get '/v1/fees',
-  params: {
-  }, headers: headers
-
-p JSON.parse(result)
-
-```
-
-```python
-import requests
-headers = {
-  'Accept': 'application/json',
-  'Authorization': 'Bearer {access-token}'
-}
-
-r = requests.get('/v1/fees', headers = headers)
-
-print(r.json())
-
-```
-
-```php
-<?php
-
-require 'vendor/autoload.php';
-
-$headers = array(
-    'Accept' => 'application/json',
-    'Authorization' => 'Bearer {access-token}',
-);
-
-$client = new \GuzzleHttp\Client();
-
-// Define array of request body.
-$request_body = array();
-
-try {
-    $response = $client->request('GET','/v1/fees', array(
-        'headers' => $headers,
-        'json' => $request_body,
-       )
-    );
-    print_r($response->getBody()->getContents());
- }
- catch (\GuzzleHttp\Exception\BadResponseException $e) {
-    // handle exception or api errors.
-    print_r($e->getMessage());
- }
-
- // ...
-
-```
-
 ```java
-URL obj = new URL("/v1/fees");
+URL obj = new URL("/v1/policy");
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod("GET");
 int responseCode = con.getResponseCode();
@@ -174,7 +111,7 @@ func main() {
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
-    req, err := http.NewRequest("GET", "/v1/fees", data)
+    req, err := http.NewRequest("GET", "/v1/policy", data)
     req.Header = headers
 
     client := &http.Client{}
@@ -184,11 +121,47 @@ func main() {
 
 ```
 
-`GET /v1/fees`
+```ruby
+require 'rest-client'
+require 'json'
 
-*Get the transaction fees required*
+headers = {
+  'Accept' => 'application/json',
+  'Authorization' => 'Bearer {access-token}'
+}
 
-This endpoint returns the fees required for the api key used.
+result = RestClient.get '/v1/policy',
+  params: {
+  }, headers: headers
+
+p JSON.parse(result)
+
+```
+
+```python
+import requests
+headers = {
+  'Accept': 'application/json',
+  'Authorization': 'Bearer {access-token}'
+}
+
+r = requests.get('/v1/policy', headers = headers)
+
+print(r.json())
+
+```
+
+```shell
+# You can also use wget
+curl -X GET /v1/policy \
+  -H 'Accept: application/json' \
+  -H 'Authorization: Bearer {access-token}'
+
+```
+
+`GET /v1/policy`
+
+This endpoint returns the policy settings.
 
 > Example responses
 
@@ -197,27 +170,23 @@ This endpoint returns the fees required for the api key used.
 ```json
 {
   "timestamp": "2019-08-24T14:15:22Z",
-  "fees": [
-    {
-      "feeType": "standard",
-      "miningFee": {
-        "satoshis": 0,
-        "bytes": 0
-      },
-      "relayFee": {
-        "satoshis": 0,
-        "bytes": 0
-      }
+  "policy": {
+    "maxtxsizepolicy": 0,
+    "maxscriptsizepolicy": 0,
+    "maxtxsigopscountspolicy": 0,
+    "miningFee": {
+      "satoshis": 0,
+      "bytes": 0
     }
-  ]
+  }
 }
 ```
 
-<h3 id="get-fees-responses">Responses</h3>
+<h3 id="get-the-policy-settings-responses">Responses</h3>
 
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Success|[FeesResponse](#schemafeesresponse)|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Success|[PolicyResponse](#schemapolicyresponse)|
 |401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Security requirements failed|None|
 
 <aside class="warning">
@@ -225,19 +194,11 @@ To perform this operation, you must be authenticated by means of one of the foll
 BearerAuth, Api-Key, Authorization
 </aside>
 
-## GET transaction status
+## Get transaction status.
 
 <a id="opIdGET transaction status"></a>
 
 > Code samples
-
-```shell
-# You can also use wget
-curl -X GET /v1/tx/{id} \
-  -H 'Accept: application/json' \
-  -H 'Authorization: Bearer {access-token}'
-
-```
 
 ```http
 GET /v1/tx/{id} HTTP/1.1
@@ -264,68 +225,6 @@ fetch('/v1/tx/{id}',
 }).then(function(body) {
     console.log(body);
 });
-
-```
-
-```ruby
-require 'rest-client'
-require 'json'
-
-headers = {
-  'Accept' => 'application/json',
-  'Authorization' => 'Bearer {access-token}'
-}
-
-result = RestClient.get '/v1/tx/{id}',
-  params: {
-  }, headers: headers
-
-p JSON.parse(result)
-
-```
-
-```python
-import requests
-headers = {
-  'Accept': 'application/json',
-  'Authorization': 'Bearer {access-token}'
-}
-
-r = requests.get('/v1/tx/{id}', headers = headers)
-
-print(r.json())
-
-```
-
-```php
-<?php
-
-require 'vendor/autoload.php';
-
-$headers = array(
-    'Accept' => 'application/json',
-    'Authorization' => 'Bearer {access-token}',
-);
-
-$client = new \GuzzleHttp\Client();
-
-// Define array of request body.
-$request_body = array();
-
-try {
-    $response = $client->request('GET','/v1/tx/{id}', array(
-        'headers' => $headers,
-        'json' => $request_body,
-       )
-    );
-    print_r($response->getBody()->getContents());
- }
- catch (\GuzzleHttp\Exception\BadResponseException $e) {
-    // handle exception or api errors.
-    print_r($e->getMessage());
- }
-
- // ...
 
 ```
 
@@ -372,13 +271,49 @@ func main() {
 
 ```
 
-`GET /v1/tx/{id}`
+```ruby
+require 'rest-client'
+require 'json'
 
-*Get transaction status.*
+headers = {
+  'Accept' => 'application/json',
+  'Authorization' => 'Bearer {access-token}'
+}
+
+result = RestClient.get '/v1/tx/{id}',
+  params: {
+  }, headers: headers
+
+p JSON.parse(result)
+
+```
+
+```python
+import requests
+headers = {
+  'Accept': 'application/json',
+  'Authorization': 'Bearer {access-token}'
+}
+
+r = requests.get('/v1/tx/{id}', headers = headers)
+
+print(r.json())
+
+```
+
+```shell
+# You can also use wget
+curl -X GET /v1/tx/{id} \
+  -H 'Accept: application/json' \
+  -H 'Authorization: Bearer {access-token}'
+
+```
+
+`GET /v1/tx/{id}`
 
 This endpoint is used to get the current status of a previously submitted transaction.
 
-<h3 id="get-transaction-status-parameters">Parameters</h3>
+<h3 id="get-transaction-status.-parameters">Parameters</h3>
 
 |Name|In|Type|Required|Description|
 |---|---|---|---|---|
@@ -398,7 +333,7 @@ This endpoint is used to get the current status of a previously submitted transa
 }
 ```
 
-<h3 id="get-transaction-status-responses">Responses</h3>
+<h3 id="get-transaction-status.-responses">Responses</h3>
 
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
@@ -411,24 +346,11 @@ To perform this operation, you must be authenticated by means of one of the foll
 BearerAuth, Api-Key, Authorization
 </aside>
 
-## POST transaction
+## Submit a transaction.
 
 <a id="opIdPOST transaction"></a>
 
 > Code samples
-
-```shell
-# You can also use wget
-curl -X POST /v1/tx \
-  -H 'Content-Type: text/plain' \
-  -H 'Accept: application/json' \
-  -H 'X-CallbackUrl: string' \
-  -H 'X-CallbackToken: string' \
-  -H 'X-MerkleProof: string' \
-  -H 'X-WaitForStatus: 0' \
-  -H 'Authorization: Bearer {access-token}'
-
-```
 
 ```http
 POST /v1/tx HTTP/1.1
@@ -465,83 +387,6 @@ fetch('/v1/tx',
 }).then(function(body) {
     console.log(body);
 });
-
-```
-
-```ruby
-require 'rest-client'
-require 'json'
-
-headers = {
-  'Content-Type' => 'text/plain',
-  'Accept' => 'application/json',
-  'X-CallbackUrl' => 'string',
-  'X-CallbackToken' => 'string',
-  'X-MerkleProof' => 'string',
-  'X-WaitForStatus' => '0',
-  'Authorization' => 'Bearer {access-token}'
-}
-
-result = RestClient.post '/v1/tx',
-  params: {
-  }, headers: headers
-
-p JSON.parse(result)
-
-```
-
-```python
-import requests
-headers = {
-  'Content-Type': 'text/plain',
-  'Accept': 'application/json',
-  'X-CallbackUrl': 'string',
-  'X-CallbackToken': 'string',
-  'X-MerkleProof': 'string',
-  'X-WaitForStatus': '0',
-  'Authorization': 'Bearer {access-token}'
-}
-
-r = requests.post('/v1/tx', headers = headers)
-
-print(r.json())
-
-```
-
-```php
-<?php
-
-require 'vendor/autoload.php';
-
-$headers = array(
-    'Content-Type' => 'text/plain',
-    'Accept' => 'application/json',
-    'X-CallbackUrl' => 'string',
-    'X-CallbackToken' => 'string',
-    'X-MerkleProof' => 'string',
-    'X-WaitForStatus' => '0',
-    'Authorization' => 'Bearer {access-token}',
-);
-
-$client = new \GuzzleHttp\Client();
-
-// Define array of request body.
-$request_body = array();
-
-try {
-    $response = $client->request('POST','/v1/tx', array(
-        'headers' => $headers,
-        'json' => $request_body,
-       )
-    );
-    print_r($response->getBody()->getContents());
- }
- catch (\GuzzleHttp\Exception\BadResponseException $e) {
-    // handle exception or api errors.
-    print_r($e->getMessage());
- }
-
- // ...
 
 ```
 
@@ -593,9 +438,60 @@ func main() {
 
 ```
 
-`POST /v1/tx`
+```ruby
+require 'rest-client'
+require 'json'
 
-*Submit a transaction.*
+headers = {
+  'Content-Type' => 'text/plain',
+  'Accept' => 'application/json',
+  'X-CallbackUrl' => 'string',
+  'X-CallbackToken' => 'string',
+  'X-MerkleProof' => 'string',
+  'X-WaitForStatus' => '0',
+  'Authorization' => 'Bearer {access-token}'
+}
+
+result = RestClient.post '/v1/tx',
+  params: {
+  }, headers: headers
+
+p JSON.parse(result)
+
+```
+
+```python
+import requests
+headers = {
+  'Content-Type': 'text/plain',
+  'Accept': 'application/json',
+  'X-CallbackUrl': 'string',
+  'X-CallbackToken': 'string',
+  'X-MerkleProof': 'string',
+  'X-WaitForStatus': '0',
+  'Authorization': 'Bearer {access-token}'
+}
+
+r = requests.post('/v1/tx', headers = headers)
+
+print(r.json())
+
+```
+
+```shell
+# You can also use wget
+curl -X POST /v1/tx \
+  -H 'Content-Type: text/plain' \
+  -H 'Accept: application/json' \
+  -H 'X-CallbackUrl: string' \
+  -H 'X-CallbackToken: string' \
+  -H 'X-MerkleProof: string' \
+  -H 'X-WaitForStatus: 0' \
+  -H 'Authorization: Bearer {access-token}'
+
+```
+
+`POST /v1/tx`
 
 This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.  The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
 
@@ -615,7 +511,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 
 ```
 
-<h3 id="post-transaction-parameters">Parameters</h3>
+<h3 id="submit-a-transaction.-parameters">Parameters</h3>
 
 |Name|In|Type|Required|Description|
 |---|---|---|---|---|
@@ -668,7 +564,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 }
 ```
 
-<h3 id="post-transaction-responses">Responses</h3>
+<h3 id="submit-a-transaction.-responses">Responses</h3>
 
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
@@ -685,24 +581,11 @@ To perform this operation, you must be authenticated by means of one of the foll
 BearerAuth, Api-Key, Authorization
 </aside>
 
-## POST transactions
+## Submit multiple transactions.
 
 <a id="opIdPOST transactions"></a>
 
 > Code samples
-
-```shell
-# You can also use wget
-curl -X POST /v1/txs \
-  -H 'Content-Type: text/plain' \
-  -H 'Accept: application/json' \
-  -H 'X-CallbackUrl: string' \
-  -H 'X-CallbackToken: string' \
-  -H 'X-MerkleProof: string' \
-  -H 'X-WaitForStatus: 0' \
-  -H 'Authorization: Bearer {access-token}'
-
-```
 
 ```http
 POST /v1/txs HTTP/1.1
@@ -740,83 +623,6 @@ fetch('/v1/txs',
 }).then(function(body) {
     console.log(body);
 });
-
-```
-
-```ruby
-require 'rest-client'
-require 'json'
-
-headers = {
-  'Content-Type' => 'text/plain',
-  'Accept' => 'application/json',
-  'X-CallbackUrl' => 'string',
-  'X-CallbackToken' => 'string',
-  'X-MerkleProof' => 'string',
-  'X-WaitForStatus' => '0',
-  'Authorization' => 'Bearer {access-token}'
-}
-
-result = RestClient.post '/v1/txs',
-  params: {
-  }, headers: headers
-
-p JSON.parse(result)
-
-```
-
-```python
-import requests
-headers = {
-  'Content-Type': 'text/plain',
-  'Accept': 'application/json',
-  'X-CallbackUrl': 'string',
-  'X-CallbackToken': 'string',
-  'X-MerkleProof': 'string',
-  'X-WaitForStatus': '0',
-  'Authorization': 'Bearer {access-token}'
-}
-
-r = requests.post('/v1/txs', headers = headers)
-
-print(r.json())
-
-```
-
-```php
-<?php
-
-require 'vendor/autoload.php';
-
-$headers = array(
-    'Content-Type' => 'text/plain',
-    'Accept' => 'application/json',
-    'X-CallbackUrl' => 'string',
-    'X-CallbackToken' => 'string',
-    'X-MerkleProof' => 'string',
-    'X-WaitForStatus' => '0',
-    'Authorization' => 'Bearer {access-token}',
-);
-
-$client = new \GuzzleHttp\Client();
-
-// Define array of request body.
-$request_body = array();
-
-try {
-    $response = $client->request('POST','/v1/txs', array(
-        'headers' => $headers,
-        'json' => $request_body,
-       )
-    );
-    print_r($response->getBody()->getContents());
- }
- catch (\GuzzleHttp\Exception\BadResponseException $e) {
-    // handle exception or api errors.
-    print_r($e->getMessage());
- }
-
- // ...
 
 ```
 
@@ -868,9 +674,60 @@ func main() {
 
 ```
 
-`POST /v1/txs`
+```ruby
+require 'rest-client'
+require 'json'
 
-*Submit multiple transactions.*
+headers = {
+  'Content-Type' => 'text/plain',
+  'Accept' => 'application/json',
+  'X-CallbackUrl' => 'string',
+  'X-CallbackToken' => 'string',
+  'X-MerkleProof' => 'string',
+  'X-WaitForStatus' => '0',
+  'Authorization' => 'Bearer {access-token}'
+}
+
+result = RestClient.post '/v1/txs',
+  params: {
+  }, headers: headers
+
+p JSON.parse(result)
+
+```
+
+```python
+import requests
+headers = {
+  'Content-Type': 'text/plain',
+  'Accept': 'application/json',
+  'X-CallbackUrl': 'string',
+  'X-CallbackToken': 'string',
+  'X-MerkleProof': 'string',
+  'X-WaitForStatus': '0',
+  'Authorization': 'Bearer {access-token}'
+}
+
+r = requests.post('/v1/txs', headers = headers)
+
+print(r.json())
+
+```
+
+```shell
+# You can also use wget
+curl -X POST /v1/txs \
+  -H 'Content-Type: text/plain' \
+  -H 'Accept: application/json' \
+  -H 'X-CallbackUrl: string' \
+  -H 'X-CallbackToken: string' \
+  -H 'X-MerkleProof: string' \
+  -H 'X-WaitForStatus: 0' \
+  -H 'Authorization: Bearer {access-token}'
+
+```
+
+`POST /v1/txs`
 
 This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates. The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
 
@@ -894,7 +751,7 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 
 ```
 
-<h3 id="post-transactions-parameters">Parameters</h3>
+<h3 id="submit-multiple-transactions.-parameters">Parameters</h3>
 
 |Name|In|Type|Required|Description|
 |---|---|---|---|---|
@@ -970,7 +827,7 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 }
 ```
 
-<h3 id="post-transactions-responses">Responses</h3>
+<h3 id="submit-multiple-transactions.-responses">Responses</h3>
 
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
@@ -1027,29 +884,25 @@ BearerAuth, Api-Key, Authorization
 |blockHash|string|false|none|none|
 |blockHeight|integer(uint64)|false|none|none|
 
-<h2 id="tocS_FeesResponse">FeesResponse</h2>
+<h2 id="tocS_PolicyResponse">PolicyResponse</h2>
 <!-- backwards compatibility -->
-<a id="schemafeesresponse"></a>
-<a id="schema_FeesResponse"></a>
-<a id="tocSfeesresponse"></a>
-<a id="tocsfeesresponse"></a>
+<a id="schemapolicyresponse"></a>
+<a id="schema_PolicyResponse"></a>
+<a id="tocSpolicyresponse"></a>
+<a id="tocspolicyresponse"></a>
 
 ```json
 {
   "timestamp": "2019-08-24T14:15:22Z",
-  "fees": [
-    {
-      "feeType": "standard",
-      "miningFee": {
-        "satoshis": 0,
-        "bytes": 0
-      },
-      "relayFee": {
-        "satoshis": 0,
-        "bytes": 0
-      }
+  "policy": {
+    "maxtxsizepolicy": 0,
+    "maxscriptsizepolicy": 0,
+    "maxtxsigopscountspolicy": 0,
+    "miningFee": {
+      "satoshis": 0,
+      "bytes": 0
     }
-  ]
+  }
 }
 
 ```
@@ -1067,23 +920,21 @@ and
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
 |*anonymous*|object|false|none|none|
-|» fees|[[Fee](#schemafee)]¦null|true|none|none|
+|» policy|[Policy](#schemapolicy)|true|none|none|
 
-<h2 id="tocS_Fee">Fee</h2>
+<h2 id="tocS_Policy">Policy</h2>
 <!-- backwards compatibility -->
-<a id="schemafee"></a>
-<a id="schema_Fee"></a>
-<a id="tocSfee"></a>
-<a id="tocsfee"></a>
+<a id="schemapolicy"></a>
+<a id="schema_Policy"></a>
+<a id="tocSpolicy"></a>
+<a id="tocspolicy"></a>
 
 ```json
 {
-  "feeType": "standard",
+  "maxtxsizepolicy": 0,
+  "maxscriptsizepolicy": 0,
+  "maxtxsigopscountspolicy": 0,
   "miningFee": {
-    "satoshis": 0,
-    "bytes": 0
-  },
-  "relayFee": {
     "satoshis": 0,
     "bytes": 0
   }
@@ -1095,16 +946,10 @@ and
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|feeType|string|true|none|none|
+|maxtxsizepolicy|integer(uint64)|true|none|none|
+|maxscriptsizepolicy|integer(uint64)|true|none|none|
+|maxtxsigopscountspolicy|integer(uint64)|true|none|none|
 |miningFee|[FeeAmount](#schemafeeamount)|true|none|none|
-|relayFee|[FeeAmount](#schemafeeamount)|true|none|none|
-
-#### Enumerated Values
-
-|Property|Value|
-|---|---|
-|feeType|standard|
-|feeType|data|
 
 <h2 id="tocS_FeeAmount">FeeAmount</h2>
 <!-- backwards compatibility -->
@@ -1390,6 +1235,7 @@ and
 |txStatus|RECEIVED|
 |txStatus|STORED|
 |txStatus|ANNOUNCED_TO_NETWORK|
+|txStatus|REQUESTED_BY_NETWORK|
 |txStatus|SENT_TO_NETWORK|
 |txStatus|SEEN_ON_NETWORK|
 |txStatus|MINED|

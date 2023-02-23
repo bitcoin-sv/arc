@@ -2,8 +2,10 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +16,9 @@ import (
 	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/api/test"
 	"github.com/TAAL-GmbH/arc/api/transactionHandler"
+	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/labstack/echo/v4"
+	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,8 +30,9 @@ var contentTypes = []string{
 	echo.MIMEOctetStream,
 }
 
-const (
+var (
 	validTx         = "0100000001358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffff02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
+	validTxBytes, _ = hex.DecodeString(validTx)
 	validExtendedTx = "010000000000000000ef01358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffffc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
 	validTxID       = "a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"
 )
@@ -152,7 +157,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		}
 	})
 
-	t.Run("valid tx", func(t *testing.T) {
+	t.Run("valid tx with params", func(t *testing.T) {
 		testNode := &test.Node{}
 		txResult := &transactionHandler.TransactionStatus{
 			TxID:        validTxID,
@@ -174,9 +179,20 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			echo.MIMEOctetStream:     bytes.NewReader(validExtendedTxBytes),
 		}
 
+		callbackUrl := "https://callback.example.com"
+		callbackToken := "test-token"
+		waitFor := 4
+		merkleProof := "true"
+		options := api.POSTTransactionParams{
+			XCallbackUrl:   &callbackUrl,
+			XCallbackToken: &callbackToken,
+			XWaitForStatus: &waitFor,
+			XMerkleProof:   &merkleProof,
+		}
+
 		for contentType, inputTx := range inputTxs {
 			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/tx")
-			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
+			err = defaultHandler.POSTTransaction(ctx, options)
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusOK, rec.Code)
 
@@ -185,6 +201,15 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			_ = json.Unmarshal(b, &bResponse)
 
 			require.Equal(t, validTxID, *bResponse.Txid)
+		}
+
+		// check the callback request
+		require.Equal(t, 3, len(testNode.SubmitTransactionRequests))
+		for _, req := range testNode.SubmitTransactionRequests {
+			assert.Equal(t, callbackUrl, req.Options.CallbackURL)
+			assert.Equal(t, callbackToken, req.Options.CallbackToken)
+			assert.Equal(t, metamorph_api.Status(waitFor), req.Options.WaitForStatus)
+			assert.True(t, req.Options.MerkleProof)
 		}
 	})
 }
@@ -378,6 +403,49 @@ func Test_calcFeesFromBSVPerKB(t *testing.T) {
 			got, got1 := calcFeesFromBSVPerKB(tt.feePerKB)
 			assert.Equalf(t, tt.satoshis, got, "calcFeesFromBSVPerKB(%v)", tt.feePerKB)
 			assert.Equalf(t, tt.bytes, got1, "calcFeesFromBSVPerKB(%v)", tt.feePerKB)
+		})
+	}
+}
+
+func TestArcDefaultHandler_extendTransaction(t *testing.T) {
+	node := test.Node{
+		GetTransactionResult: []interface{}{
+			nil,
+			validTxBytes,
+		},
+	}
+	tests := []struct {
+		name        string
+		transaction string
+		err         error
+	}{
+		{
+			name:        "valid normal transaction - missing parent",
+			transaction: validTx,
+			err:         transactionHandler.ErrParentTransactionNotFound,
+		},
+		{
+			name:        "valid normal transaction",
+			transaction: validTx,
+			err:         nil,
+		},
+	}
+
+	ctx := context.Background()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := &ArcDefaultHandler{
+				TransactionHandler: &node,
+				NodePolicy:         &api.NodePolicy{},
+				logger:             p2p.TestLogger{},
+			}
+			btTx, err := bt.NewTxFromString(tt.transaction)
+			require.NoError(t, err)
+			if tt.err != nil {
+				assert.ErrorIs(t, handler.extendTransaction(ctx, btTx), tt.err, fmt.Sprintf("extendTransaction(%v)", tt.transaction))
+			} else {
+				assert.NoError(t, handler.extendTransaction(ctx, btTx), fmt.Sprintf("extendTransaction(%v)", tt.transaction))
+			}
 		})
 	}
 }

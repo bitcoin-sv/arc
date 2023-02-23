@@ -85,7 +85,7 @@ func (z *ZMQ) Start() {
 				if txInfo["isDoubleSpend"] != nil && txInfo["isDoubleSpend"].(bool) {
 					errReason += " - double spend"
 				}
-				z.logger.Warnf("invalidtx %s: %s", txInfo["txid"].(string), errReason)
+				z.logger.Debugf("invalidtx %s: %s", txInfo["txid"].(string), errReason)
 				_, _ = z.processor.SendStatusForTransaction(
 					txInfo["txid"].(string),
 					metamorph_api.Status_REJECTED,
@@ -105,7 +105,7 @@ func (z *ZMQ) Start() {
 					reason = txInfo["reason"].(string)
 				}
 				// reasons can be "collision-in-block-tx" and "unknown-reason"
-				z.logger.Warnf("discardedfrommempool %s: %s", txInfo["txid"].(string), reason)
+				z.logger.Debugf("discardedfrommempool %s: %s", txInfo["txid"].(string), reason)
 				_, _ = z.processor.SendStatusForTransaction(
 					txInfo["txid"].(string),
 					metamorph_api.Status_REJECTED,

@@ -381,7 +381,9 @@ func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *Proc
 
 	announcedPeers := make([]string, 0, len(prm.AnnouncedPeers))
 	for _, peer := range prm.AnnouncedPeers {
-		announcedPeers = append(announcedPeers, peer.String())
+		if peer != nil {
+			announcedPeers = append(announcedPeers, peer.String())
+		}
 	}
 
 	res := &statResponse{

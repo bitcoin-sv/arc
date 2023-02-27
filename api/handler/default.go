@@ -79,6 +79,9 @@ func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
 
 // POSTTransaction ...
 func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) error {
+	span, tracingCtx := opentracing.StartSpanFromContext(ctx.Request().Context(), "ArcDefaultHandler:POSTTransactions")
+	defer span.Finish()
+
 	body, err := io.ReadAll(ctx.Request().Body)
 	if err != nil {
 		errStr := err.Error()
@@ -126,7 +129,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 	transactionOptions := getTransactionOptions(params)
 
-	status, response, responseErr := m.processTransaction(ctx, transaction, transactionOptions)
+	status, response, responseErr := m.processTransaction(tracingCtx, transaction, transactionOptions)
 	if responseErr != nil {
 		// if an error is returned, the processing failed, and we should return a 500 error
 		return responseErr
@@ -167,6 +170,8 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 
 // POSTTransactions ...
 func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) error {
+	span, tracingCtx := opentracing.StartSpanFromContext(ctx.Request().Context(), "ArcDefaultHandler:POSTTransactions")
+	defer span.Finish()
 
 	// set the globals for all transactions in this request
 	transactionOptions := getTransactionsOptions(params)
@@ -196,7 +201,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			wg.Add(1)
 			go func(index int, tx string) {
 				defer wg.Done()
-				transactions[index] = m.getTransactionResponse(ctx, tx, transactionOptions)
+				transactions[index] = m.getTransactionResponse(tracingCtx, tx, transactionOptions)
 			}(index, tx)
 		}
 		wg.Wait()
@@ -220,7 +225,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			wg.Add(1)
 			go func(index int, tx string) {
 				defer wg.Done()
-				transactions[index] = m.getTransactionResponse(ctx, tx, transactionOptions)
+				transactions[index] = m.getTransactionResponse(tracingCtx, tx, transactionOptions)
 			}(index, tx)
 		}
 		wg.Wait()
@@ -263,7 +268,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 					wg.Done()
 				}()
 
-				_, response, responseError := m.processTransaction(ctx, transaction, transactionOptions)
+				_, response, responseError := m.processTransaction(tracingCtx, transaction, transactionOptions)
 				if responseError != nil {
 					// what to do here, the transaction failed due to server failure?
 					e := api.ErrGeneric
@@ -289,7 +294,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	return ctx.JSON(http.StatusOK, transactions)
 }
 
-func (m ArcDefaultHandler) getTransactionResponse(ctx echo.Context, tx string, transactionOptions *api.TransactionOptions) interface{} {
+func (m ArcDefaultHandler) getTransactionResponse(ctx context.Context, tx string, transactionOptions *api.TransactionOptions) interface{} {
 	transaction, err := bt.NewTxFromString(tx)
 	if err != nil {
 		errStr := err.Error()
@@ -336,25 +341,31 @@ func getTransactionsOptions(params api.POSTTransactionsParams) *api.TransactionO
 	return transactionOptions
 }
 
-func (m ArcDefaultHandler) processTransaction(ctx echo.Context, transaction *bt.Tx, transactionOptions *api.TransactionOptions) (api.StatusCode, interface{}, error) {
+func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *bt.Tx, transactionOptions *api.TransactionOptions) (api.StatusCode, interface{}, error) {
+	span, tracingCtx := opentracing.StartSpanFromContext(ctx, "ArcDefaultHandler:processTransaction")
+	defer span.Finish()
+
 	txValidator := defaultValidator.New(m.NodePolicy)
 
 	// the validator expects an extended transaction
 	// we must enrich the transaction with the missing data
 	if !txValidator.IsExtended(transaction) {
-		err := m.extendTransaction(ctx.Request().Context(), transaction)
+		err := m.extendTransaction(tracingCtx, transaction)
 		if err != nil {
-			return m.handleError(ctx, transaction, err)
+			return m.handleError(tracingCtx, transaction, err)
 		}
 	}
 
+	validateSpan, validateCtx := opentracing.StartSpanFromContext(tracingCtx, "ArcDefaultHandler:ValidateTransaction")
 	if err := txValidator.ValidateTransaction(transaction); err != nil {
-		return m.handleError(ctx, transaction, err)
+		validateSpan.Finish()
+		return m.handleError(validateCtx, transaction, err)
 	}
+	validateSpan.Finish()
 
-	tx, err := m.TransactionHandler.SubmitTransaction(ctx.Request().Context(), transaction.Bytes(), transactionOptions)
+	tx, err := m.TransactionHandler.SubmitTransaction(tracingCtx, transaction.Bytes(), transactionOptions)
 	if err != nil {
-		return m.handleError(ctx, transaction, err)
+		return m.handleError(tracingCtx, transaction, err)
 	}
 
 	txID := tx.TxID
@@ -415,7 +426,7 @@ func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) 
 	return tx, nil
 }
 
-func (m ArcDefaultHandler) handleError(_ echo.Context, transaction *bt.Tx, submitErr error) (api.StatusCode, interface{}, error) {
+func (m ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, submitErr error) (api.StatusCode, interface{}, error) {
 	status := api.ErrStatusGeneric
 	isArcError, ok := submitErr.(*validator.Error)
 	if ok {

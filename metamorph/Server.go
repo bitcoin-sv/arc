@@ -115,12 +115,13 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		gocore.NewStat("PutTransaction").AddTime(start)
 	}()
 
+	initSpan, initCtx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:init")
+
 	// init next variable to allow conditional functions to wrong, all accepting next as an argument
 	next := start
 
 	responseChannel := make(chan StatusAndError)
 	defer func() {
-
 		close(responseChannel)
 	}()
 
@@ -128,17 +129,25 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	status := metamorph_api.Status_UNKNOWN
 	hash := utils.Sha256d(req.RawTx)
 
+	// TODO: write to blocktx store
+	// we either get OK, or an error because another metamorph has it
+	// if the other metamorph has it, we call PutTransaction on that metamorph
+	// + s.processor.SetRebroadcast(hash)
+
 	var transactionStatus *metamorph_api.TransactionStatus
-	next, transactionStatus = s.checkStore(ctx, hash, next)
+	next, transactionStatus = s.checkStore(initCtx, hash, next)
 	if transactionStatus != nil {
+		// just return the status if we found it in the store
+		initSpan.Finish()
 		return transactionStatus, nil
 	}
 
 	checkUtxos := gocore.Config().GetBool("checkUtxos")
 	if checkUtxos {
 		var err error
-		next, err = s.utxoCheck(ctx, next, req.RawTx)
+		next, err = s.utxoCheck(initCtx, next, req.RawTx)
 		if err != nil {
+			initSpan.Finish()
 			return &metamorph_api.TransactionStatus{
 				Status:       metamorph_api.Status_REJECTED,
 				Txid:         utils.HexEncodeAndReverseBytes(hash),
@@ -159,6 +168,8 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		MerkleProof:   req.MerkleProof,
 		RawTx:         req.RawTx,
 	}
+
+	initSpan.Finish()
 
 	s.processor.ProcessTransaction(NewProcessorRequest(ctx, sReq, responseChannel))
 

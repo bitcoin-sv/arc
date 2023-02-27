@@ -141,12 +141,12 @@ func (s *BadgerHold) UpdateMined(_ context.Context, hash []byte, blockHash []byt
 	return nil
 }
 
-// GetUnseen returns all transactions that have not been seen on the network
-func (s *BadgerHold) GetUnseen(_ context.Context, callback func(s *store.StoreData)) error {
+// GetUnmined returns all transactions that have not been mined
+func (s *BadgerHold) GetUnmined(_ context.Context, callback func(s *store.StoreData)) error {
 	return s.store.ForEach(badgerhold.Where("Status").MatchFunc(func(ra *badgerhold.RecordAccess) (bool, error) {
 		field, ok := ra.Field().(metamorph_api.Status)
 		if ok {
-			return field < metamorph_api.Status_SEEN_ON_NETWORK, nil
+			return field < metamorph_api.Status_MINED, nil
 		}
 		return false, nil
 	}), func(s *store.StoreData) error {

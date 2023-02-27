@@ -243,8 +243,8 @@ func (p *Processor) GetPeers() ([]string, []string) {
 	return peersConnected, peersDisconnected
 }
 
-func (p *Processor) LoadUnseen() {
-	err := p.store.GetUnseen(context.Background(), func(record *store.StoreData) {
+func (p *Processor) LoadUnmined() {
+	err := p.store.GetUnmined(context.Background(), func(record *store.StoreData) {
 		// add the records we have in the database, but that have not been processed, to the mempool watcher
 		txIDStr := hex.EncodeToString(bt.ReverseBytes(record.Hash))
 		pr := NewProcessorResponseWithStatus(record.Hash, record.Status)

@@ -148,7 +148,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	go func() {
 		// load all transactions into memory from disk that have not been seen on the network
 		// this will make sure they are re-broadcast until a response is received
-		metamorphProcessor.LoadUnseen()
+		metamorphProcessor.LoadUnmined()
 	}()
 
 	// create a channel to receive mined block messages from the block tx service

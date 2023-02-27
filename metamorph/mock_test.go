@@ -35,7 +35,7 @@ func NewProcessorMock() *ProcessorMock {
 	}
 }
 
-func (p *ProcessorMock) LoadUnseen() {}
+func (p *ProcessorMock) LoadUnmined() {}
 
 func (p *ProcessorMock) GetPeers() ([]string, []string) { return nil, nil }
 
@@ -92,7 +92,7 @@ func setStoreTestData(t *testing.T, s store.MetamorphStore) {
 		AnnouncedAt: testdata.Time.Add(1 * time.Second),
 		MinedAt:     testdata.Time.Add(2 * time.Second),
 		Hash:        testdata.TX2Bytes,
-		Status:      metamorph_api.Status_SENT_TO_NETWORK,
+		Status:      metamorph_api.Status_SEEN_ON_NETWORK,
 	})
 	require.NoError(t, err)
 	err = s.Set(ctx, testdata.TX3Bytes, &store.StoreData{
@@ -100,7 +100,7 @@ func setStoreTestData(t *testing.T, s store.MetamorphStore) {
 		AnnouncedAt: testdata.Time.Add(1 * time.Second),
 		MinedAt:     testdata.Time.Add(2 * time.Second),
 		Hash:        testdata.TX3Bytes,
-		Status:      metamorph_api.Status_SEEN_ON_NETWORK,
+		Status:      metamorph_api.Status_MINED,
 	})
 	require.NoError(t, err)
 	err = s.Set(ctx, testdata.TX4Bytes, &store.StoreData{

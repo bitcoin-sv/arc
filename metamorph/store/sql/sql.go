@@ -361,10 +361,10 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 	return err
 }
 
-func (s *SQL) GetUnseen(ctx context.Context, callback func(s *store.StoreData)) error {
+func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("getunseen").AddTime(startNanos)
+		gocore.NewStat("mtm_store_sql").NewStat("getunmined").AddTime(startNanos)
 	}()
 
 	q := `SELECT
@@ -385,7 +385,7 @@ func (s *SQL) GetUnseen(ctx context.Context, callback func(s *store.StoreData)) 
 		,raw_tx
 	 	FROM transactions WHERE status < $1;`
 
-	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK)
+	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_MINED)
 	if err != nil {
 		return err
 	}

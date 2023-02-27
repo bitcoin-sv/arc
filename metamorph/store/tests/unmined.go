@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func NoUnseen(t *testing.T, s store.MetamorphStore) {
+func NoUnmined(t *testing.T, s store.MetamorphStore) {
 	var err error
 
 	hashes := [][]byte{
@@ -23,13 +23,13 @@ func NoUnseen(t *testing.T, s store.MetamorphStore) {
 	for _, hash := range hashes {
 		err = s.Set(context.Background(), hash, &store.StoreData{
 			Hash:   hash,
-			Status: metamorph_api.Status_SEEN_ON_NETWORK,
+			Status: metamorph_api.Status_MINED,
 		})
 		require.NoError(t, err)
 	}
 
 	unseen := make([]*store.StoreData, 0)
-	err = s.GetUnseen(context.Background(), func(s *store.StoreData) {
+	err = s.GetUnmined(context.Background(), func(s *store.StoreData) {
 		unseen = append(unseen, s)
 	})
 	require.NoError(t, err)
@@ -41,7 +41,7 @@ func NoUnseen(t *testing.T, s store.MetamorphStore) {
 	}
 }
 
-func MultipleUnseen(t *testing.T, s store.MetamorphStore) {
+func MultipleUnmined(t *testing.T, s store.MetamorphStore) {
 	var err error
 
 	hashes := [][]byte{
@@ -59,7 +59,7 @@ func MultipleUnseen(t *testing.T, s store.MetamorphStore) {
 	}
 
 	unseen := make([]*store.StoreData, 0)
-	err = s.GetUnseen(context.Background(), func(s *store.StoreData) {
+	err = s.GetUnmined(context.Background(), func(s *store.StoreData) {
 		unseen = append(unseen, s)
 	})
 	require.NoError(t, err)

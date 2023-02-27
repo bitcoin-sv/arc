@@ -80,7 +80,7 @@ func TestPutTransaction(t *testing.T) {
 		assert.True(t, txStatus.TimedOut)
 	})
 
-	t.Run("PutTransaction - SENT to network", func(t *testing.T) {
+	t.Run("PutTransaction - SEEN to network", func(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
@@ -95,12 +95,12 @@ func TestPutTransaction(t *testing.T) {
 			time.Sleep(10 * time.Millisecond)
 			processor.GetProcessRequest(0).ResponseChannel <- StatusAndError{
 				Hash:   testdata.TX1Bytes,
-				Status: metamorph_api.Status_SENT_TO_NETWORK,
+				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			}
 		}()
 		txStatus, err = server.PutTransaction(context.Background(), txRequest)
 		assert.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, txStatus.Status)
+		assert.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, txStatus.Status)
 		assert.False(t, txStatus.TimedOut)
 	})
 

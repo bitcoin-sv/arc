@@ -8,7 +8,7 @@ import (
 )
 
 type ProcessorI interface {
-	LoadUnseen()
+	LoadUnmined()
 	ProcessTransaction(req *ProcessorRequest)
 	SendStatusForTransaction(hashStr string, status metamorph_api.Status, id string, err error) (bool, error)
 	SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight int32) (bool, error)

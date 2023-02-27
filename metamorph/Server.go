@@ -171,6 +171,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	initSpan.Finish()
 
+	// TODO check the context when API call ends
 	s.processor.ProcessTransaction(NewProcessorRequest(ctx, sReq, responseChannel))
 
 	next = gocore.NewStat("PutTransaction").NewStat("2: ProcessTransaction").AddTime(next)
@@ -179,7 +180,8 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	waitForStatus := req.WaitForStatus
 	if waitForStatus < metamorph_api.Status_RECEIVED || waitForStatus > metamorph_api.Status_SEEN_ON_NETWORK {
-		waitForStatus = metamorph_api.Status_SENT_TO_NETWORK
+		// wait for seen by default, this is the safest option
+		waitForStatus = metamorph_api.Status_SEEN_ON_NETWORK
 	}
 
 	defer func() {

@@ -1,13 +1,24 @@
-Bugs
-
 TODOs
-- API yaml cleanup
+- Write to blocktx store immediately
+  - Reject API post transaction for already registered txs
+- Manually test all APIs
+- Make sure fee quote has been removed
+- Client set timeout to wait
+- Retry in API server if metamorph grpc call fails - does this already happen in grpc lib ?
+- Retry strategy in metamorph
+- Add last height processed to GetBlockNotificationStream in metamorph
+- Reject txs through blocktx subscription
+- Benchmark validator
+- Context for tracing needed, breaks processing in background when timeout happens
+- Add OP_RETURN to broadcaster "github.com/TAAL-GmbH/arc"
+- + TODO in source code
 - Cleanup metamorph store after 100 block confirmations
 - Cleanup blocktx store after ...?
 
 Need to figure out
-- Connect to more than 1 node -> can we force our nodes to accept our connections?
 - What happens to txs in metamorph when a transaction source is registered after the block is processed in blocktx?
 
 Icebox
+- Send to multiple metamorphs, in listen only mode ?
 - Merkle proofs
+- Expose transaction log to /v1/txStatus?extended=true

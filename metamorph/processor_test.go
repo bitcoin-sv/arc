@@ -61,7 +61,7 @@ func TestNewProcessor(t *testing.T) {
 }
 
 func TestLoadUnseen(t *testing.T) {
-	t.Run("LoadUnseen empty", func(t *testing.T) {
+	t.Run("LoadUnmined empty", func(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
@@ -69,11 +69,11 @@ func TestLoadUnseen(t *testing.T) {
 
 		processor := NewProcessor(1, s, pm, "test", nil, nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
-		processor.LoadUnseen()
+		processor.LoadUnmined()
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 	})
 
-	t.Run("LoadUnseen", func(t *testing.T) {
+	t.Run("LoadUnmined", func(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 		setStoreTestData(t, s)
@@ -82,7 +82,7 @@ func TestLoadUnseen(t *testing.T) {
 
 		processor := NewProcessor(1, s, pm, "test", nil, nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
-		processor.LoadUnseen()
+		processor.LoadUnmined()
 		assert.Equal(t, 2, processor.processorResponseMap.Len())
 		items := processor.processorResponseMap.Items()
 		assert.Equal(t, testdata.TX1Bytes, items[testdata.TX1].Hash)

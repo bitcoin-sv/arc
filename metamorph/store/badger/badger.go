@@ -204,11 +204,11 @@ func (s *Badger) UpdateMined(ctx context.Context, hash []byte, blockHash []byte,
 	return nil
 }
 
-// GetUnseen returns all transactions that have not been seen on the network
-func (s *Badger) GetUnseen(_ context.Context, callback func(s *store.StoreData)) error {
+// GetUnmined returns all transactions that have not been mined
+func (s *Badger) GetUnmined(_ context.Context, callback func(s *store.StoreData)) error {
 	start := gocore.CurrentNanos()
 	defer func() {
-		gocore.NewStat("mtm_store_badger").NewStat("GetUnseen").AddTime(start)
+		gocore.NewStat("mtm_store_badger").NewStat("GetUnmined").AddTime(start)
 	}()
 
 	return s.store.View(func(tx *badger.Txn) error {
@@ -233,7 +233,7 @@ func (s *Badger) GetUnseen(_ context.Context, callback func(s *store.StoreData))
 				continue
 			}
 
-			if result.Status < metamorph_api.Status_SEEN_ON_NETWORK {
+			if result.Status < metamorph_api.Status_MINED {
 				callback(result)
 			}
 		}

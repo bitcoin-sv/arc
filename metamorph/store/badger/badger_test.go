@@ -95,15 +95,14 @@ func TestGetUnseen(t *testing.T) {
 		bh, tearDown := setupSuite(t)
 		defer tearDown(t)
 
-		tests.NoUnseen(t, bh)
-
+		tests.NoUnmined(t, bh)
 	})
 
 	t.Run("multiple unseen", func(t *testing.T) {
 		bh, tearDown := setupSuite(t)
 		defer tearDown(t)
 
-		tests.MultipleUnseen(t, bh)
+		tests.MultipleUnmined(t, bh)
 	})
 }
 func TestUpdateMined(t *testing.T) {

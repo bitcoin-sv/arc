@@ -104,7 +104,7 @@ func TestGetUnseen(t *testing.T) {
 
 		defer sqliteDB.Close(context.Background())
 
-		tests.NoUnseen(t, sqliteDB)
+		tests.NoUnmined(t, sqliteDB)
 	})
 
 	t.Run("multiple unseen", func(t *testing.T) {
@@ -113,7 +113,7 @@ func TestGetUnseen(t *testing.T) {
 
 		defer sqliteDB.Close(context.Background())
 
-		tests.MultipleUnseen(t, sqliteDB)
+		tests.MultipleUnmined(t, sqliteDB)
 	})
 }
 

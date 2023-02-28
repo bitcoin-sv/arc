@@ -156,6 +156,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		if len(f) > 0 && f[0] == "true" {
 			// This is a forwarded request, so we should not forward it again
 			initSpan.Finish()
+			s.logger.Warnf("Endless forwarding loop detected for %s (source in blocktx = %q, my address = %q)", utils.HexEncodeAndReverseBytes(hash), rtr.Source, s.address)
 			return nil, fmt.Errorf("Endless forwarding loop detected")
 		}
 

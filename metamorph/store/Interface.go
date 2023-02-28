@@ -14,7 +14,7 @@ type StoreData struct {
 	MinedAt       time.Time
 	Hash          []byte `badgerhold:"key"`
 	Status        metamorph_api.Status
-	BlockHeight   int32
+	BlockHeight   uint64
 	BlockHash     []byte
 	ApiKeyId      int64
 	StandardFeeId int64
@@ -34,7 +34,7 @@ type MetamorphStore interface {
 	GetUnmined(_ context.Context, callback func(s *StoreData)) error
 	Set(ctx context.Context, key []byte, value *StoreData) error
 	UpdateStatus(ctx context.Context, hash []byte, status metamorph_api.Status, rejectReason string) error
-	UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight int32) error
+	UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight uint64) error
 	Del(ctx context.Context, key []byte) error
 	Close(ctx context.Context) error
 	GetBlockProcessed(ctx context.Context, blockHash []byte) (*time.Time, error)

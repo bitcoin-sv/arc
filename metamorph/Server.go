@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TAAL-GmbH/arc/blocktx"
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/tracing"
@@ -19,10 +21,15 @@ import (
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+type ContextKey string
+
+const ContextForwarded ContextKey = "forwarded"
 
 func init() {
 	gocore.NewStat("PutTransaction", true)
@@ -36,15 +43,18 @@ type Server struct {
 	store      store.MetamorphStore
 	timeout    time.Duration
 	grpcServer *grpc.Server
+	btc        blocktx.ClientI
+	address    string
 }
 
 // NewServer will return a server instance with the zmqLogger stored within it
-func NewServer(logger utils.Logger, s store.MetamorphStore, p ProcessorI) *Server {
+func NewServer(logger utils.Logger, s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI) *Server {
 	return &Server{
 		logger:    logger,
 		processor: p,
 		store:     s,
 		timeout:   5 * time.Second,
+		btc:       btc,
 	}
 }
 
@@ -54,6 +64,8 @@ func (s *Server) SetTimeout(timeout time.Duration) {
 
 // StartGRPCServer function
 func (s *Server) StartGRPCServer(address string) error {
+	s.address = address
+
 	// LEVEL 0 - no security / no encryption
 	var opts []grpc.ServerOption
 	opts = append(opts,
@@ -107,6 +119,12 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 }
 
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
+	val := ctx.Value(ContextForwarded)
+	isForwarded, ok := val.(bool)
+	if !ok {
+		isForwarded = false
+	}
+
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction")
 	defer span.Finish()
 
@@ -120,20 +138,52 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	// init next variable to allow conditional functions to wrong, all accepting next as an argument
 	next := start
 
-	responseChannel := make(chan StatusAndError)
-	defer func() {
-		close(responseChannel)
-	}()
-
 	// Convert gRPC req to store.StoreData struct...
 	status := metamorph_api.Status_UNKNOWN
 	hash := utils.Sha256d(req.RawTx)
 
-	// TODO: write to blocktx store
-	// we either get OK, or an error because another metamorph has it
-	// if the other metamorph has it, we call PutTransaction on that metamorph
-	// + s.processor.SetRebroadcast(hash)
+	// Register the transaction in blocktx store
+	rtr, err := s.btc.RegisterTransaction(initCtx, &blocktx_api.TransactionAndSource{
+		Hash:   hash,
+		Source: s.address,
+	})
+	if err != nil {
+		initSpan.Finish()
+		return nil, err
+	}
 
+	if rtr.Source != s.address {
+		if isForwarded {
+			// This is a forwarded request, so we should not forward it again
+			initSpan.Finish()
+			return nil, fmt.Errorf("Endless forwarding loop detected")
+		}
+
+		// This transaction was already registered by another metamorph, and we
+		// should forward the request to that metamorph
+		ownerConn, err := dialMetamorph(initCtx, rtr.Source)
+		if err != nil {
+			initSpan.Finish()
+			return nil, err
+		}
+
+		defer ownerConn.Close()
+
+		ownerMM := metamorph_api.NewMetaMorphAPIClient(ownerConn)
+
+		forwardCtx := context.WithValue(initCtx, ContextForwarded, true)
+
+		status, err := ownerMM.PutTransaction(forwardCtx, req)
+		if err != nil {
+			initSpan.Finish()
+			return nil, err
+		}
+
+		initSpan.Finish()
+		return status, nil
+	}
+
+	// Check if the transaction is already in the store
 	var transactionStatus *metamorph_api.TransactionStatus
 	next, transactionStatus = s.checkStore(initCtx, hash, next)
 	if transactionStatus != nil {
@@ -156,6 +206,14 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		}
 	}
 
+	initSpan.Finish()
+
+	if rtr.BlockHash != nil {
+		// If the transaction was mined, we should mark it as such
+		status = metamorph_api.Status_MINED
+		s.store.UpdateMined(ctx, hash, rtr.BlockHash, rtr.BlockHeight)
+	}
+
 	sReq := &store.StoreData{
 		Hash:          hash,
 		Status:        status,
@@ -169,7 +227,10 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		RawTx:         req.RawTx,
 	}
 
-	initSpan.Finish()
+	responseChannel := make(chan StatusAndError)
+	defer func() {
+		close(responseChannel)
+	}()
 
 	// TODO check the context when API call ends
 	s.processor.ProcessTransaction(NewProcessorRequest(ctx, sReq, responseChannel))
@@ -352,4 +413,14 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 	}
 
 	return data, announcedAt, minedAt, storedAt, nil
+}
+
+func dialMetamorph(ctx context.Context, address string) (*grpc.ClientConn, error) {
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+		grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+	}
+
+	return grpc.DialContext(ctx, address, tracing.AddGRPCDialOptions(opts)...)
 }

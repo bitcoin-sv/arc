@@ -31,19 +31,19 @@ func TestInOut(t *testing.T) {
 	firstHash := []byte("test transaction hash 1")
 
 	transactions := []*blocktx_api.TransactionAndSource{
-		{Hash: firstHash},
-		{Hash: []byte("test transaction hash 2")},
-		{Hash: []byte("test transaction hash 3")},
-		{Hash: []byte("test transaction hash 4")},
-		{Hash: []byte("test transaction hash 5")},
+		{Hash: firstHash, Source: "TEST"},
+		{Hash: []byte("test transaction hash 2"), Source: "TEST"},
+		{Hash: []byte("test transaction hash 3"), Source: "TEST"},
+		{Hash: []byte("test transaction hash 4"), Source: "TEST"},
+		{Hash: []byte("test transaction hash 5"), Source: "TEST"},
 	}
 
 	for _, txn := range transactions {
-		err = s.InsertTransaction(ctx, txn)
+		_, _, _, err = s.RegisterTransaction(ctx, txn)
 		require.NoError(t, err)
 	}
 
-	err = s.InsertTransaction(ctx, &blocktx_api.TransactionAndSource{
+	_, _, _, err = s.RegisterTransaction(ctx, &blocktx_api.TransactionAndSource{
 		Hash:   firstHash,
 		Source: "TEST",
 	})

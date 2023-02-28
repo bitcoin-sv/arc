@@ -12,7 +12,7 @@ service BlockTxAPI {
   rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
 
   // RegisterTransaction registers a transaction with the API.
-  rpc RegisterTransaction (TransactionAndSource) returns (google.protobuf.Empty) {}
+  rpc RegisterTransaction (TransactionAndSource) returns (RegisterTransactionResponse) {}
 
   // LocateTransaction returns the source of a transaction.
   rpc LocateTransaction(Transaction) returns (Source) {}
@@ -96,6 +96,12 @@ message Source {
 message TransactionAndSource {
   bytes hash = 1;
   string source = 2;
+}
+
+message RegisterTransactionResponse {
+  string source = 1;
+  bytes block_hash = 2;
+  uint64 block_height = 3;
 }
 
 // swagger:model BlockAndSource

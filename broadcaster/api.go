@@ -63,27 +63,33 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx
 		return nil, errors.New("failed to broadcast transactions")
 	}
 
-	type Response []map[string]interface{}
-
 	var bodyBytes []byte
 	bodyBytes, err = io.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	bodyResponse := Response{}
+	type Response struct {
+		Txid        string `json:"txid"`
+		TxStatus    string `json:"txStatus"`
+		BlockHeight uint64 `json:"blockHeight"`
+		BlockHash   string `json:"blockHash"`
+	}
+
+	bodyResponse := []Response{}
 	err = json.Unmarshal(bodyBytes, &bodyResponse)
 	if err != nil {
 		return nil, err
 	}
 
 	txStatuses := make([]*metamorph_api.TransactionStatus, len(bodyResponse))
+
 	for idx, tx := range bodyResponse {
 		txStatuses[idx] = &metamorph_api.TransactionStatus{
-			Txid:        tx["txid"].(string),
-			Status:      metamorph_api.Status(metamorph_api.Status_value[tx["txStatus"].(string)]),
-			BlockHeight: int32(tx["blockHeight"].(float64)),
-			BlockHash:   tx["blockHash"].(string),
+			Txid:        tx.Txid,
+			Status:      metamorph_api.Status(metamorph_api.Status_value[tx.TxStatus]),
+			BlockHeight: tx.BlockHeight,
+			BlockHash:   tx.BlockHash,
 		}
 	}
 
@@ -137,7 +143,7 @@ func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, wa
 	return &metamorph_api.TransactionStatus{
 		Txid:        *bodyResponse.Txid,
 		Status:      metamorph_api.Status(metamorph_api.Status_value[txStatus]),
-		BlockHeight: int32(blockHeight),
+		BlockHeight: blockHeight,
 		BlockHash:   *bodyResponse.BlockHash,
 	}, nil
 }

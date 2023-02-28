@@ -62,7 +62,7 @@ func (p *ProcessorMock) SendStatusForTransaction(hashStr string, status metamorp
 	return true, nil
 }
 
-func (p *ProcessorMock) SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight int32) (bool, error) {
+func (p *ProcessorMock) SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight uint32) (bool, error) {
 	p.SendStatusForTransactionCalls = append(p.SendStatusForTransactionCalls, &SendStatusForTransactionCall{
 		HashStr: hex.EncodeToString(bt.ReverseBytes(hash)),
 		Status:  metamorph_api.Status_MINED,

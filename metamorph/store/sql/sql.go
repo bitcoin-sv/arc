@@ -473,7 +473,7 @@ func (s *SQL) UpdateStatus(ctx context.Context, hash []byte, status metamorph_ap
 	return nil
 }
 
-func (s *SQL) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight int32) error {
+func (s *SQL) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight uint64) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("UpdateMined").AddTime(startNanos)

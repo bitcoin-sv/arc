@@ -56,10 +56,10 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		logger.Fatalf("cannot parse ip address: %v", err)
 	}
 
-	var metamorphAddress string
+	var source string
 
 	if ip != "" {
-		metamorphAddress = metamorphGRPCListenAddress
+		source = metamorphGRPCListenAddress
 	} else {
 		hint, _ := gocore.Config().Get("ip_address_hint", "")
 		ips, err := utils.GetIPAddressesWithHint(hint)
@@ -71,10 +71,10 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 			logger.Fatalf("cannot determine local ip address [%v]", ips)
 		}
 
-		metamorphAddress = fmt.Sprintf("%s:%s", ips[0], port)
+		source = fmt.Sprintf("%s:%s", ips[0], port)
 	}
 
-	logger.Infof("Instance will register transactions with location %q", metamorphAddress)
+	logger.Infof("Instance will register transactions with location %q", source)
 
 	pm, peerMessageCh := initPeerManager(logger, s)
 
@@ -105,7 +105,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		workerCount,
 		s,
 		pm,
-		metamorphAddress,
+		source,
 		cbAsyncCaller.GetChannel(),
 	)
 
@@ -149,7 +149,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 				// process the block
 				processBlock(logger, btc, metamorphProcessor, s, &blocktx_api.BlockAndSource{
 					Hash:   block.Hash,
-					Source: metamorphAddress,
+					Source: source,
 				})
 			}
 
@@ -182,7 +182,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	go btc.Start(blockChan)
 
-	serv := metamorph.NewServer(logger, s, metamorphProcessor, btc)
+	serv := metamorph.NewServer(logger, s, metamorphProcessor, btc, source)
 
 	go func() {
 		if err = serv.StartGRPCServer(metamorphGRPCListenAddress); err != nil {

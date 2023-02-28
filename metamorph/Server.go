@@ -41,17 +41,18 @@ type Server struct {
 	timeout    time.Duration
 	grpcServer *grpc.Server
 	btc        blocktx.ClientI
-	address    string
+	source     string
 }
 
 // NewServer will return a server instance with the zmqLogger stored within it
-func NewServer(logger utils.Logger, s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI) *Server {
+func NewServer(logger utils.Logger, s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI, source string) *Server {
 	return &Server{
 		logger:    logger,
 		processor: p,
 		store:     s,
 		timeout:   5 * time.Second,
 		btc:       btc,
+		source:    source,
 	}
 }
 
@@ -59,14 +60,8 @@ func (s *Server) SetTimeout(timeout time.Duration) {
 	s.timeout = timeout
 }
 
-func (s *Server) SetAddress(address string) {
-	s.address = address
-}
-
 // StartGRPCServer function
 func (s *Server) StartGRPCServer(address string) error {
-	s.address = address
-
 	// LEVEL 0 - no security / no encryption
 	var opts []grpc.ServerOption
 	opts = append(opts,
@@ -140,14 +135,14 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	// Register the transaction in blocktx store
 	rtr, err := s.btc.RegisterTransaction(initCtx, &blocktx_api.TransactionAndSource{
 		Hash:   hash,
-		Source: s.address,
+		Source: s.source,
 	})
 	if err != nil {
 		initSpan.Finish()
 		return nil, err
 	}
 
-	if rtr.Source != s.address {
+	if rtr.Source != s.source {
 		md, ok := metadata.FromIncomingContext(ctx)
 		if ok {
 			s.logger.Debugf("Metadata: %v", md)
@@ -156,7 +151,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		if len(f) > 0 && f[0] == "true" {
 			// This is a forwarded request, so we should not forward it again
 			initSpan.Finish()
-			s.logger.Warnf("Endless forwarding loop detected for %s (source in blocktx = %q, my address = %q)", utils.HexEncodeAndReverseBytes(hash), rtr.Source, s.address)
+			s.logger.Warnf("Endless forwarding loop detected for %s (source in blocktx = %q, my address = %q)", utils.HexEncodeAndReverseBytes(hash), rtr.Source, s.source)
 			return nil, fmt.Errorf("Endless forwarding loop detected")
 		}
 
@@ -215,7 +210,9 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	if rtr.BlockHash != nil {
 		// If the transaction was mined, we should mark it as such
 		status = metamorph_api.Status_MINED
-		s.store.UpdateMined(ctx, hash, rtr.BlockHash, rtr.BlockHeight)
+		if err := s.store.UpdateMined(ctx, hash, rtr.BlockHash, rtr.BlockHeight); err != nil {
+			return nil, err
+		}
 	}
 
 	sReq := &store.StoreData{

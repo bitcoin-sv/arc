@@ -143,12 +143,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	}
 
 	if rtr.Source != s.source {
-		md, ok := metadata.FromIncomingContext(ctx)
-		if ok {
-			s.logger.Debugf("Metadata: %v", md)
-		}
-		f := md.Get("forwarded")
-		if len(f) > 0 && f[0] == "true" {
+		if isForwarded(ctx) {
 			// This is a forwarded request, so we should not forward it again
 			initSpan.Finish()
 			s.logger.Warnf("Endless forwarding loop detected for %s (source in blocktx = %q, my address = %q)", utils.HexEncodeAndReverseBytes(hash), rtr.Source, s.source)
@@ -167,12 +162,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 		ownerMM := metamorph_api.NewMetaMorphAPIClient(ownerConn)
 
-		forwardCtx := metadata.NewOutgoingContext(
-			initCtx,
-			metadata.Pairs("forwarded", "true"),
-		)
-
-		status, err := ownerMM.PutTransaction(forwardCtx, req)
+		status, err := ownerMM.PutTransaction(createForwardedContext(initCtx), req)
 		if err != nil {
 			initSpan.Finish()
 			return nil, err
@@ -180,6 +170,14 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 		initSpan.Finish()
 		return status, nil
+	}
+
+	if rtr.BlockHash != nil {
+		// If the transaction was mined, we should mark it as such
+		status = metamorph_api.Status_MINED
+		if err := s.store.UpdateMined(initCtx, hash, rtr.BlockHash, rtr.BlockHeight); err != nil {
+			return nil, err
+		}
 	}
 
 	// Check if the transaction is already in the store
@@ -206,14 +204,6 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	}
 
 	initSpan.Finish()
-
-	if rtr.BlockHash != nil {
-		// If the transaction was mined, we should mark it as such
-		status = metamorph_api.Status_MINED
-		if err := s.store.UpdateMined(ctx, hash, rtr.BlockHash, rtr.BlockHeight); err != nil {
-			return nil, err
-		}
-	}
 
 	sReq := &store.StoreData{
 		Hash:          hash,
@@ -424,4 +414,22 @@ func dialMetamorph(ctx context.Context, address string) (*grpc.ClientConn, error
 	}
 
 	return grpc.DialContext(ctx, address, tracing.AddGRPCDialOptions(opts)...)
+}
+
+func createForwardedContext(ctx context.Context) context.Context {
+	return metadata.NewOutgoingContext(
+		ctx,
+		metadata.Pairs("forwarded", "true"),
+	)
+}
+
+func isForwarded(ctx context.Context) bool {
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		f := md.Get("forwarded")
+		if len(f) > 0 && f[0] == "true" {
+			return true
+		}
+	}
+
+	return false
 }

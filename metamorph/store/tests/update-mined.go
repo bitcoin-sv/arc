@@ -23,7 +23,7 @@ func UpdateMined(t *testing.T, s store.MetamorphStore) {
 
 	assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, data.Status)
 	assert.Equal(t, []byte(nil), data.BlockHash)
-	assert.Equal(t, int32(0), data.BlockHeight)
+	assert.Equal(t, uint64(0), data.BlockHeight)
 
 	err = s.UpdateMined(context.Background(), Tx1Bytes, []byte("block hash"), 123)
 	require.NoError(t, err)
@@ -32,5 +32,5 @@ func UpdateMined(t *testing.T, s store.MetamorphStore) {
 	require.NoError(t, err)
 	assert.Equal(t, metamorph_api.Status_MINED, data.Status)
 	assert.Equal(t, []byte("block hash"), data.BlockHash)
-	assert.Equal(t, int32(123), data.BlockHeight)
+	assert.Equal(t, uint64(123), data.BlockHeight)
 }

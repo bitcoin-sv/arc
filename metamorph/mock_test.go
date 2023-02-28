@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/testdata"
@@ -50,6 +51,10 @@ func (p *ProcessorMock) GetProcessRequest(index int) *ProcessorRequest {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	if len(p.processTransactionCalls) <= index {
+		return nil
+	}
+
 	return p.processTransactionCalls[index]
 }
 
@@ -62,7 +67,7 @@ func (p *ProcessorMock) SendStatusForTransaction(hashStr string, status metamorp
 	return true, nil
 }
 
-func (p *ProcessorMock) SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight uint32) (bool, error) {
+func (p *ProcessorMock) SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight uint64) (bool, error) {
 	p.SendStatusForTransactionCalls = append(p.SendStatusForTransactionCalls, &SendStatusForTransactionCall{
 		HashStr: hex.EncodeToString(bt.ReverseBytes(hash)),
 		Status:  metamorph_api.Status_MINED,
@@ -73,6 +78,104 @@ func (p *ProcessorMock) SendStatusMinedForTransaction(hash []byte, blockHash []b
 
 func (p *ProcessorMock) GetStats() *ProcessorStats {
 	return p.Stats
+}
+
+type BlockTxMock struct {
+	mu                                    sync.Mutex
+	address                               string
+	RegisterTransactionCalls              []*blocktx_api.TransactionAndSource
+	RegisterTransactionResponses          []interface{}
+	GetBlockCalls                         []*blocktx_api.BlockAndSource
+	GetBlockResponses                     []interface{}
+	GetMinedTransactionsForBlockCalls     []*blocktx_api.BlockAndSource
+	GetMinedTransactionsForBlockResponses []interface{}
+}
+
+func NewBlockTxMock(address string) *BlockTxMock {
+	return &BlockTxMock{
+		mu:                                    sync.Mutex{},
+		address:                               address,
+		RegisterTransactionCalls:              make([]*blocktx_api.TransactionAndSource, 0),
+		RegisterTransactionResponses:          make([]interface{}, 0),
+		GetBlockCalls:                         make([]*blocktx_api.BlockAndSource, 0),
+		GetBlockResponses:                     make([]interface{}, 0),
+		GetMinedTransactionsForBlockCalls:     make([]*blocktx_api.BlockAndSource, 0),
+		GetMinedTransactionsForBlockResponses: make([]interface{}, 0),
+	}
+}
+
+func (b *BlockTxMock) Start(_ chan *blocktx_api.Block) {
+	// we are not starting anything here
+}
+
+func (b *BlockTxMock) LocateTransaction(_ context.Context, transaction *blocktx_api.Transaction) (string, error) {
+	return b.address, nil
+}
+
+func (b *BlockTxMock) RegisterTransaction(_ context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.RegisterTransactionCalls = append(b.RegisterTransactionCalls, transaction)
+
+	if len(b.RegisterTransactionResponses) > 0 {
+		resp := b.RegisterTransactionResponses[0]
+		switch resp.(type) {
+		case error:
+			return nil, resp.(error)
+		case *blocktx_api.RegisterTransactionResponse:
+			return resp.(*blocktx_api.RegisterTransactionResponse), nil
+		default:
+			panic("unknown response type")
+		}
+	}
+
+	return nil, nil
+}
+
+func (b *BlockTxMock) GetBlock(_ context.Context, blockHash []byte) (*blocktx_api.Block, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.GetBlockCalls = append(b.GetBlockCalls, &blocktx_api.BlockAndSource{
+		Hash:   blockHash,
+		Source: b.address,
+	})
+
+	if len(b.GetBlockResponses) > 0 {
+		resp := b.GetBlockResponses[0]
+		switch resp.(type) {
+		case error:
+			return nil, resp.(error)
+		case *blocktx_api.Block:
+			return resp.(*blocktx_api.Block), nil
+		default:
+			panic("unknown response type")
+		}
+	}
+
+	return nil, nil
+}
+
+func (b *BlockTxMock) GetMinedTransactionsForBlock(_ context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.GetMinedTransactionsForBlockCalls = append(b.GetMinedTransactionsForBlockCalls, blockAndSource)
+
+	if len(b.GetMinedTransactionsForBlockResponses) > 0 {
+		resp := b.GetMinedTransactionsForBlockResponses[0]
+		switch resp.(type) {
+		case error:
+			return nil, resp.(error)
+		case *blocktx_api.MinedTransactions:
+			return resp.(*blocktx_api.MinedTransactions), nil
+		default:
+			panic("unknown response type")
+		}
+	}
+
+	return nil, nil
 }
 
 func setStoreTestData(t *testing.T, s store.MetamorphStore) {

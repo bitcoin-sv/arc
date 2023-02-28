@@ -24,7 +24,7 @@ func UpdateStatus(t *testing.T, s store.MetamorphStore) {
 	assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, data.Status)
 	assert.Equal(t, "", data.RejectReason)
 	assert.Equal(t, []byte(nil), data.BlockHash)
-	assert.Equal(t, int32(0), data.BlockHeight)
+	assert.Equal(t, uint64(0), data.BlockHeight)
 
 	err = s.UpdateStatus(context.Background(), Tx1Bytes, metamorph_api.Status_SENT_TO_NETWORK, "")
 	require.NoError(t, err)
@@ -34,7 +34,7 @@ func UpdateStatus(t *testing.T, s store.MetamorphStore) {
 	assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, data.Status)
 	assert.Equal(t, "", data.RejectReason)
 	assert.Equal(t, []byte(nil), data.BlockHash)
-	assert.Equal(t, int32(0), data.BlockHeight)
+	assert.Equal(t, uint64(0), data.BlockHeight)
 }
 
 func UpdateStatusWithError(t *testing.T, s store.MetamorphStore) {

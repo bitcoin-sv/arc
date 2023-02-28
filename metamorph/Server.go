@@ -22,14 +22,11 @@ import (
 	"github.com/ordishs/gocore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-type ContextKey string
-
-const ContextForwarded ContextKey = "forwarded"
 
 func init() {
 	gocore.NewStat("PutTransaction", true)
@@ -119,12 +116,6 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 }
 
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
-	val := ctx.Value(ContextForwarded)
-	isForwarded, ok := val.(bool)
-	if !ok {
-		isForwarded = false
-	}
-
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction")
 	defer span.Finish()
 
@@ -153,7 +144,12 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	}
 
 	if rtr.Source != s.address {
-		if isForwarded {
+		md, ok := metadata.FromIncomingContext(ctx)
+		if ok {
+			s.logger.Debugf("Metadata: %v", md)
+		}
+		f := md.Get("forwarded")
+		if len(f) > 0 && f[0] == "true" {
 			// This is a forwarded request, so we should not forward it again
 			initSpan.Finish()
 			return nil, fmt.Errorf("Endless forwarding loop detected")
@@ -171,7 +167,10 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 		ownerMM := metamorph_api.NewMetaMorphAPIClient(ownerConn)
 
-		forwardCtx := context.WithValue(initCtx, ContextForwarded, true)
+		forwardCtx := metadata.NewOutgoingContext(
+			initCtx,
+			metadata.Pairs("forwarded", "true"),
+		)
 
 		status, err := ownerMM.PutTransaction(forwardCtx, req)
 		if err != nil {

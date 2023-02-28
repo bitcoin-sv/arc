@@ -143,6 +143,10 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 	return p
 }
 
+func (p *Processor) GetMetamorphAddress() string {
+	return p.metamorphAddress
+}
+
 func (p *Processor) errorLogWriter() {
 	dir := path.Dir(p.errorLogFile)
 	_ = os.MkdirAll(dir, 0777)

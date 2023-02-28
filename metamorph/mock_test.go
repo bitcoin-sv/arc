@@ -120,11 +120,11 @@ func (b *BlockTxMock) RegisterTransaction(_ context.Context, transaction *blockt
 
 	if len(b.RegisterTransactionResponses) > 0 {
 		resp := b.RegisterTransactionResponses[0]
-		switch resp.(type) {
+		switch r := resp.(type) {
 		case error:
-			return nil, resp.(error)
+			return nil, r
 		case *blocktx_api.RegisterTransactionResponse:
-			return resp.(*blocktx_api.RegisterTransactionResponse), nil
+			return r, nil
 		default:
 			panic("unknown response type")
 		}
@@ -144,11 +144,11 @@ func (b *BlockTxMock) GetBlock(_ context.Context, blockHash []byte) (*blocktx_ap
 
 	if len(b.GetBlockResponses) > 0 {
 		resp := b.GetBlockResponses[0]
-		switch resp.(type) {
+		switch r := resp.(type) {
 		case error:
-			return nil, resp.(error)
+			return nil, r
 		case *blocktx_api.Block:
-			return resp.(*blocktx_api.Block), nil
+			return r, nil
 		default:
 			panic("unknown response type")
 		}

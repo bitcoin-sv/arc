@@ -4,53 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
-	"github.com/TAAL-GmbH/arc/blocktx"
-	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/callbacker"
 	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
 	"github.com/libsv/go-bt/v2"
-	"github.com/ordishs/go-utils"
 )
-
-type RegisterTransactionCallerClient struct {
-	blockTxClient blocktx.ClientI
-}
-
-func NewRegisterTransactionCallerClient(blockTxClient blocktx.ClientI) *RegisterTransactionCallerClient {
-	return &RegisterTransactionCallerClient{
-		blockTxClient: blockTxClient,
-	}
-}
-
-func (r *RegisterTransactionCallerClient) Caller(data *blocktx_api.TransactionAndSource) error {
-	if err := r.blockTxClient.RegisterTransaction(context.Background(), data); err != nil {
-		return fmt.Errorf("error registering transaction %x: %v", bt.ReverseBytes(data.Hash), err)
-	}
-	return nil
-}
-
-func (r *RegisterTransactionCallerClient) MarshalString(data *blocktx_api.TransactionAndSource) (string, error) {
-	return fmt.Sprintf("%x,%s", bt.ReverseBytes(data.Hash), data.Source), nil
-}
-
-func (r *RegisterTransactionCallerClient) UnmarshalString(data string) (*blocktx_api.TransactionAndSource, error) {
-	parts := strings.Split(data, ",")
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("could not unmarshal data: %s", data)
-	}
-
-	hash, err := utils.DecodeAndReverseHexString(parts[0])
-	if err != nil {
-		return nil, fmt.Errorf("could not decode hash: %v", err)
-	}
-
-	return &blocktx_api.TransactionAndSource{
-		Hash:   hash,
-		Source: parts[1],
-	}, nil
-}
 
 type RegisterCallbackClient struct {
 	callbacker callbacker.ClientI

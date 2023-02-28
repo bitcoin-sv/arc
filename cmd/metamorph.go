@@ -78,23 +78,6 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	pm, peerMessageCh := initPeerManager(logger, s)
 
-	txRegisterPath, err := filepath.Abs(path.Join(folder, "tx-register"))
-	if err != nil {
-		logger.Fatalf("Could not get absolute path: %v", err)
-	}
-
-	// create an async caller to store all the transaction registrations that cannot be sent to blocktx right away
-	var asyncCaller *asynccaller.AsyncCaller[blocktx_api.TransactionAndSource]
-	asyncCaller, err = asynccaller.New[blocktx_api.TransactionAndSource](
-		logger,
-		txRegisterPath,
-		10*time.Second,
-		metamorph.NewRegisterTransactionCallerClient(btc),
-	)
-	if err != nil {
-		logger.Fatalf("error creating async caller: %v", err)
-	}
-
 	callbackerAddress, ok := gocore.Config().Get("callbacker_grpcAddress", "localhost:8002")
 	if !ok {
 		logger.Fatalf("no callbacker_grpcAddress setting found")
@@ -123,7 +106,6 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		s,
 		pm,
 		metamorphAddress,
-		asyncCaller.GetChannel(),
 		cbAsyncCaller.GetChannel(),
 	)
 
@@ -200,7 +182,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	go btc.Start(blockChan)
 
-	serv := metamorph.NewServer(logger, s, metamorphProcessor)
+	serv := metamorph.NewServer(logger, s, metamorphProcessor, btc)
 
 	go func() {
 		if err = serv.StartGRPCServer(metamorphGRPCListenAddress); err != nil {
@@ -286,7 +268,7 @@ func processBlock(logger utils.Logger, btc blocktx.ClientI, p metamorph.Processo
 	for _, tx := range mt.Transactions {
 		logger.Debugf("Received MINED message from BlockTX for transaction %x", bt.ReverseBytes(tx.Hash))
 
-		_, err = p.SendStatusMinedForTransaction(tx.Hash, mt.Block.Hash, int32(mt.Block.Height))
+		_, err = p.SendStatusMinedForTransaction(tx.Hash, mt.Block.Hash, mt.Block.Height)
 		if err != nil {
 			logger.Errorf("Could not send mined status for transaction %x: %v", bt.ReverseBytes(tx.Hash), err)
 			return

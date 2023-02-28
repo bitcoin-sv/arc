@@ -18,7 +18,7 @@ var (
 )
 
 type Interface interface {
-	InsertTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error
+	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (string, []byte, uint64, error)
 	GetTransactionSource(ctx context.Context, txid []byte) (string, error)
 	GetBlock(ctx context.Context, hash []byte) (*blocktx_api.Block, error)
 	GetBlockForHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error)

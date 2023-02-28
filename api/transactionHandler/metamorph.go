@@ -90,7 +90,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 		TxID:        txID,
 		Status:      tx.Status.String(),
 		BlockHash:   tx.BlockHash,
-		BlockHeight: uint64(tx.BlockHeight),
+		BlockHeight: tx.BlockHeight,
 		Timestamp:   time.Now().Unix(),
 	}, nil
 }
@@ -112,7 +112,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions 
 		TxID:        response.Txid,
 		Status:      response.GetStatus().String(),
 		BlockHash:   response.BlockHash,
-		BlockHeight: uint64(response.BlockHeight),
+		BlockHeight: response.BlockHeight,
 		Timestamp:   time.Now().Unix(),
 	}, nil
 }

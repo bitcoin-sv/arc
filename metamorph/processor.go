@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
@@ -57,7 +56,6 @@ type ProcessorStats struct {
 type Processor struct {
 	ch                   chan *ProcessorRequest
 	store                store.MetamorphStore
-	registerCh           chan *blocktx_api.TransactionAndSource
 	cbChannel            chan *callbacker_api.Callback
 	processorResponseMap *ProcessorResponseMap
 	pm                   p2p.PeerManagerI
@@ -82,7 +80,7 @@ type Processor struct {
 }
 
 func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress string,
-	registerCh chan *blocktx_api.TransactionAndSource, cbChannel chan *callbacker_api.Callback) *Processor {
+	cbChannel chan *callbacker_api.Callback) *Processor {
 	if s == nil {
 		panic("store cannot be nil")
 	}
@@ -105,7 +103,6 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 		startTime:            time.Now().UTC(),
 		ch:                   make(chan *ProcessorRequest),
 		store:                s,
-		registerCh:           registerCh,
 		cbChannel:            cbChannel,
 		processorResponseMap: NewProcessorResponseMap(mapExpiry),
 		workerCount:          workerCount,
@@ -253,15 +250,6 @@ func (p *Processor) LoadUnmined() {
 		p.processorResponseMap.Set(txIDStr, pr)
 
 		if record.Status == metamorph_api.Status_STORED {
-			// we only stored the transaction, but maybe did not register it with block tx
-			if p.registerCh != nil {
-				p.logger.Infof("Sending tx %s to register", txIDStr)
-				utils.SafeSend(p.registerCh, &blocktx_api.TransactionAndSource{
-					Hash:   record.Hash,
-					Source: p.metamorphAddress,
-				})
-			}
-
 			// announce the transaction to the network
 			pr.SetPeers(p.pm.AnnounceTransaction(record.Hash, nil))
 
@@ -292,7 +280,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	p.ch <- req
 }
 
-func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight int32) (bool, error) {
+func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight uint64) (bool, error) {
 	hashStr := utils.HexEncodeAndReverseBytes(hash)
 
 	err := p.store.UpdateMined(context.Background(), hash, blockHash, blockHeight)
@@ -318,6 +306,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 
 	if p.cbChannel != nil {
 		data, _ := p.store.Get(context.Background(), hash)
+
 		if data != nil && data.CallbackUrl != "" {
 			p.cbChannel <- &callbacker_api.Callback{
 				Hash:        data.Hash,
@@ -325,7 +314,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 				Token:       data.CallbackToken,
 				Status:      int32(data.Status),
 				BlockHash:   data.BlockHash,
-				BlockHeight: uint64(data.BlockHeight),
+				BlockHeight: data.BlockHeight,
 			}
 		}
 	}
@@ -475,14 +464,6 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	nextNanos = gocore.NewStat("processor").NewStat("3: STORED").AddTime(nextNanos)
 
 	p.stored.AddDuration(time.Since(processorResponse.Start))
-
-	if p.registerCh != nil {
-		p.logger.Debugf("Sending tx %s to register", txIDStr)
-		utils.SafeSend(p.registerCh, &blocktx_api.TransactionAndSource{
-			Hash:   req.Hash,
-			Source: p.metamorphAddress,
-		})
-	}
 
 	peers := p.pm.AnnounceTransaction(req.Hash, nil)
 	processorResponse.SetPeers(peers)

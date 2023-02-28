@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
@@ -29,7 +28,7 @@ func TestNewProcessor(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor := NewProcessor(1, s, pm, "test", nil, nil)
+		processor := NewProcessor(1, s, pm, "test", nil)
 		if processor == nil {
 			t.Error("Expected a non-nil Processor")
 		}
@@ -41,7 +40,7 @@ func TestNewProcessor(t *testing.T) {
 			assert.Equal(t, "store cannot be nil", r.(string))
 		}()
 
-		_ = NewProcessor(1, nil, nil, "test", nil, nil)
+		_ = NewProcessor(1, nil, nil, "test", nil)
 	})
 
 	t.Run("NewProcessor - err no peer manager", func(t *testing.T) {
@@ -53,7 +52,7 @@ func TestNewProcessor(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
-		processor := NewProcessor(1, s, nil, "test", nil, nil)
+		processor := NewProcessor(1, s, nil, "test", nil)
 		if processor == nil {
 			t.Error("Expected a non-nil Processor")
 		}
@@ -67,7 +66,7 @@ func TestLoadUnseen(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor := NewProcessor(1, s, pm, "test", nil, nil)
+		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 		processor.LoadUnmined()
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
@@ -80,7 +79,7 @@ func TestLoadUnseen(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor := NewProcessor(1, s, pm, "test", nil, nil)
+		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 		processor.LoadUnmined()
 		assert.Equal(t, 2, processor.processorResponseMap.Len())
@@ -97,19 +96,7 @@ func TestProcessTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		registerCh := make(chan *blocktx_api.TransactionAndSource)
-
-		var wgRegister sync.WaitGroup
-		wgRegister.Add(1)
-		go func() {
-			for tx := range registerCh {
-				assert.Equal(t, testdata.TX1Bytes, tx.Hash)
-				assert.Equal(t, "test", tx.Source)
-				wgRegister.Done()
-			}
-		}()
-
-		processor := NewProcessor(1, s, pm, "test", registerCh, nil)
+		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
 		expectedResponses := []metamorph_api.Status{
@@ -141,7 +128,6 @@ func TestProcessTransaction(t *testing.T) {
 			responseChannel,
 		))
 		wg.Wait()
-		wgRegister.Wait()
 
 		assert.Equal(t, 1, processor.processorResponseMap.Len())
 		items := processor.processorResponseMap.Items()
@@ -164,7 +150,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor := NewProcessor(1, s, pm, "test", nil, nil)
+		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
 		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1, metamorph_api.Status_MINED, "test", nil)
@@ -180,7 +166,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor := NewProcessor(1, s, pm, "test", nil, nil)
+		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
 		throwErr := fmt.Errorf("some error")
@@ -201,7 +187,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor := NewProcessor(1, s, pm, "test", nil, nil)
+		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
 		ok, sendErr := processor.SendStatusForTransaction("test", metamorph_api.Status_REJECTED, "test", nil)
@@ -216,7 +202,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor := NewProcessor(1, s, pm, "test", nil, nil)
+		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
 		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1, metamorph_api.Status_MINED, "test", nil)
@@ -236,7 +222,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor := NewProcessor(1, s, pm, "test", nil, nil)
+		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
 		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "test", nil)
@@ -255,7 +241,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor := NewProcessor(1, s, pm, "test", nil, nil)
+		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
 		responseChannel := make(chan StatusAndError)
@@ -303,7 +289,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor := NewProcessor(1, s, pm, "test", nil, nil)
+		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
 		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Bytes, []byte("hash1"), 1233)
@@ -318,7 +304,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor := NewProcessor(1, s, pm, "test", nil, nil)
+		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
 		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Bytes, []byte("hash1"), 1233)
@@ -353,7 +339,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 			}
 		}()
 
-		processor := NewProcessor(1, s, pm, "test", nil, callbackCh)
+		processor := NewProcessor(1, s, pm, "test", callbackCh)
 
 		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Bytes, []byte("hash1"), 1233)
 		assert.True(t, ok)
@@ -368,7 +354,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor := NewProcessor(1, s, pm, "test", nil, nil)
+		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
 		responseChannel := make(chan StatusAndError)
@@ -420,7 +406,7 @@ func BenchmarkProcessTransaction(b *testing.B) {
 	}()
 
 	pm := p2p.NewPeerManagerMock()
-	processor := NewProcessor(16, s, pm, "test", nil, nil)
+	processor := NewProcessor(16, s, pm, "test", nil)
 	processor.SetLogger(p2p.TestLogger{})
 	assert.Equal(b, 0, processor.processorResponseMap.Len())
 

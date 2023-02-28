@@ -174,7 +174,7 @@ func (s *Badger) UpdateStatus(ctx context.Context, hash []byte, status metamorph
 }
 
 // UpdateMined updates the transaction to mined
-func (s *Badger) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight int32) error {
+func (s *Badger) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight uint64) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("mtm_store_badger").NewStat("UpdateMined").AddTime(start)

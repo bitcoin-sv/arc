@@ -17,7 +17,7 @@ import (
 type ClientI interface {
 	Start(minedBlockChan chan *blocktx_api.Block)
 	LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
-	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error
+	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error)
 	GetBlock(ctx context.Context, blockHash []byte) (*blocktx_api.Block, error)
 	GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
 }
@@ -80,12 +80,8 @@ func (btc *Client) LocateTransaction(ctx context.Context, transaction *blocktx_a
 	return location.Source, nil
 }
 
-func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
-	if _, err := btc.client.RegisterTransaction(ctx, transaction); err != nil {
-		return err
-	}
-
-	return nil
+func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
+	return btc.client.RegisterTransaction(ctx, transaction)
 }
 
 func (btc *Client) GetBlock(ctx context.Context, blockHash []byte) (*blocktx_api.Block, error) {

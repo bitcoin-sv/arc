@@ -78,6 +78,7 @@
     "txscript",
     "txstatus",
     "unlocker",
+    "Unmined",
     "utxos",
     "Vect",
     "VERACK",

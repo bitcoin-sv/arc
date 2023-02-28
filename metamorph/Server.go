@@ -123,88 +123,16 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		gocore.NewStat("PutTransaction").AddTime(start)
 	}()
 
-	initSpan, initCtx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:init")
-
-	// init next variable to allow conditional functions to wrong, all accepting next as an argument
-	next := start
-
-	// Convert gRPC req to store.StoreData struct...
-	status := metamorph_api.Status_UNKNOWN
-	hash := utils.Sha256d(req.RawTx)
-
-	// Register the transaction in blocktx store
-	rtr, err := s.btc.RegisterTransaction(initCtx, &blocktx_api.TransactionAndSource{
-		Hash:   hash,
-		Source: s.source,
-	})
+	next, status, hash, transactionStatus, err := s.putTransactionInit(ctx, req, start)
 	if err != nil {
-		initSpan.Finish()
+		// if we have an error, we will return immediately
 		return nil, err
-	}
-
-	if rtr.Source != s.source {
-		if isForwarded(ctx) {
-			// This is a forwarded request, so we should not forward it again
-			initSpan.Finish()
-			s.logger.Warnf("Endless forwarding loop detected for %s (source in blocktx = %q, my address = %q)", utils.HexEncodeAndReverseBytes(hash), rtr.Source, s.source)
-			return nil, fmt.Errorf("Endless forwarding loop detected")
-		}
-
-		// This transaction was already registered by another metamorph, and we
-		// should forward the request to that metamorph
-		ownerConn, err := dialMetamorph(initCtx, rtr.Source)
-		if err != nil {
-			initSpan.Finish()
-			return nil, err
-		}
-
-		defer ownerConn.Close()
-
-		ownerMM := metamorph_api.NewMetaMorphAPIClient(ownerConn)
-
-		status, err := ownerMM.PutTransaction(createForwardedContext(initCtx), req)
-		if err != nil {
-			initSpan.Finish()
-			return nil, err
-		}
-
-		initSpan.Finish()
-		return status, nil
-	}
-
-	if rtr.BlockHash != nil {
-		// If the transaction was mined, we should mark it as such
-		status = metamorph_api.Status_MINED
-		if err := s.store.UpdateMined(initCtx, hash, rtr.BlockHash, rtr.BlockHeight); err != nil {
-			return nil, err
-		}
-	}
-
-	// Check if the transaction is already in the store
-	var transactionStatus *metamorph_api.TransactionStatus
-	next, transactionStatus = s.checkStore(initCtx, hash, next)
-	if transactionStatus != nil {
-		// just return the status if we found it in the store
-		initSpan.Finish()
+	} else if transactionStatus != nil {
+		// if we have a transactionStatus, we can also return immediately
 		return transactionStatus, nil
 	}
 
-	checkUtxos := gocore.Config().GetBool("checkUtxos")
-	if checkUtxos {
-		var err error
-		next, err = s.utxoCheck(initCtx, next, req.RawTx)
-		if err != nil {
-			initSpan.Finish()
-			return &metamorph_api.TransactionStatus{
-				Status:       metamorph_api.Status_REJECTED,
-				Txid:         utils.HexEncodeAndReverseBytes(hash),
-				RejectReason: err.Error(),
-			}, nil
-		}
-	}
-
-	initSpan.Finish()
-
+	// Convert gRPC req to store.StoreData struct...
 	sReq := &store.StoreData{
 		Hash:          hash,
 		Status:        status,
@@ -273,6 +201,82 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 			}
 		}
 	}
+}
+
+func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.TransactionRequest, start int64) (int64, metamorph_api.Status, []byte, *metamorph_api.TransactionStatus, error) {
+	initSpan, initCtx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:init")
+	defer initSpan.Finish()
+
+	// init next variable to allow conditional functions to run, all accepting next as an argument
+	next := start
+
+	status := metamorph_api.Status_UNKNOWN
+	hash := utils.Sha256d(req.RawTx)
+
+	// Register the transaction in blocktx store
+	rtr, err := s.btc.RegisterTransaction(initCtx, &blocktx_api.TransactionAndSource{
+		Hash:   hash,
+		Source: s.source,
+	})
+	if err != nil {
+		return 0, 0, nil, nil, err
+	}
+
+	if rtr.Source != s.source {
+		if isForwarded(ctx) {
+			// This is a forwarded request, so we should not forward it again
+			s.logger.Warnf("Endless forwarding loop detected for %s (source in blocktx = %q, my address = %q)", utils.HexEncodeAndReverseBytes(hash), rtr.Source, s.source)
+			return 0, 0, nil, nil, fmt.Errorf("endless forwarding loop detected")
+		}
+
+		// This transaction was already registered by another metamorph, and we
+		// should forward the request to that metamorph
+		var ownerConn *grpc.ClientConn
+		if ownerConn, err = dialMetamorph(initCtx, rtr.Source); err != nil {
+			return 0, 0, nil, nil, err
+		}
+
+		defer ownerConn.Close()
+
+		ownerMM := metamorph_api.NewMetaMorphAPIClient(ownerConn)
+
+		var transactionStatus *metamorph_api.TransactionStatus
+		if transactionStatus, err = ownerMM.PutTransaction(createForwardedContext(initCtx), req); err != nil {
+			return 0, 0, nil, nil, err
+		}
+
+		return 0, 0, nil, transactionStatus, nil
+	}
+
+	if rtr.BlockHash != nil {
+		// If the transaction was mined, we should mark it as such
+		status = metamorph_api.Status_MINED
+		if err = s.store.UpdateMined(initCtx, hash, rtr.BlockHash, rtr.BlockHeight); err != nil {
+			return 0, 0, nil, nil, err
+		}
+	}
+
+	// Check if the transaction is already in the store
+	var transactionStatus *metamorph_api.TransactionStatus
+	next, transactionStatus = s.checkStore(initCtx, hash, next)
+	if transactionStatus != nil {
+		// just return the status if we found it in the store
+		return 0, 0, nil, transactionStatus, nil
+	}
+
+	checkUtxos := gocore.Config().GetBool("checkUtxos")
+	if checkUtxos {
+		next, err = s.utxoCheck(initCtx, next, req.RawTx)
+		if err != nil {
+			return 0, 0, nil, &metamorph_api.TransactionStatus{
+				Status:       metamorph_api.Status_REJECTED,
+				Txid:         utils.HexEncodeAndReverseBytes(hash),
+				RejectReason: err.Error(),
+			}, nil
+		}
+	}
+
+	return next, status, hash, nil, nil
 }
 
 func (s *Server) checkStore(ctx context.Context, hash []byte, next int64) (int64, *metamorph_api.TransactionStatus) {

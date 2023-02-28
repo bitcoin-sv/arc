@@ -62,6 +62,10 @@ func (s *Server) SetTimeout(timeout time.Duration) {
 	s.timeout = timeout
 }
 
+func (s *Server) SetAddress(address string) {
+	s.address = address
+}
+
 // StartGRPCServer function
 func (s *Server) StartGRPCServer(address string) error {
 	s.address = address

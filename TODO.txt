@@ -1,8 +1,5 @@
 TODOs
-- Write to blocktx store immediately
-  - Reject API post transaction for already registered txs
 - Manually test all APIs
-- Make sure fee quote has been removed
 - Client set timeout to wait
 - Retry in API server if metamorph grpc call fails - does this already happen in grpc lib ?
 - Retry strategy in metamorph
@@ -11,6 +8,7 @@ TODOs
 - Benchmark validator
 - Context for tracing needed, breaks processing in background when timeout happens
 - Add OP_RETURN to broadcaster "github.com/TAAL-GmbH/arc"
+- Admin console web application
 - + TODO in source code
 - Cleanup metamorph store after 100 block confirmations
 - Cleanup blocktx store after ...?

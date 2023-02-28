@@ -59,6 +59,9 @@ func (p *ProcessorMock) GetProcessRequest(index int) *ProcessorRequest {
 }
 
 func (p *ProcessorMock) SendStatusForTransaction(hashStr string, status metamorph_api.Status, id string, err error) (bool, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	p.SendStatusForTransactionCalls = append(p.SendStatusForTransactionCalls, &SendStatusForTransactionCall{
 		HashStr: hashStr,
 		Status:  status,
@@ -68,6 +71,9 @@ func (p *ProcessorMock) SendStatusForTransaction(hashStr string, status metamorp
 }
 
 func (p *ProcessorMock) SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight uint64) (bool, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	p.SendStatusForTransactionCalls = append(p.SendStatusForTransactionCalls, &SendStatusForTransactionCall{
 		HashStr: hex.EncodeToString(bt.ReverseBytes(hash)),
 		Status:  metamorph_api.Status_MINED,
@@ -120,11 +126,11 @@ func (b *BlockTxMock) RegisterTransaction(_ context.Context, transaction *blockt
 
 	if len(b.RegisterTransactionResponses) > 0 {
 		resp := b.RegisterTransactionResponses[0]
-		switch resp.(type) {
+		switch r := resp.(type) {
 		case error:
-			return nil, resp.(error)
+			return nil, r
 		case *blocktx_api.RegisterTransactionResponse:
-			return resp.(*blocktx_api.RegisterTransactionResponse), nil
+			return r, nil
 		default:
 			panic("unknown response type")
 		}
@@ -144,11 +150,11 @@ func (b *BlockTxMock) GetBlock(_ context.Context, blockHash []byte) (*blocktx_ap
 
 	if len(b.GetBlockResponses) > 0 {
 		resp := b.GetBlockResponses[0]
-		switch resp.(type) {
+		switch r := resp.(type) {
 		case error:
-			return nil, resp.(error)
+			return nil, r
 		case *blocktx_api.Block:
-			return resp.(*blocktx_api.Block), nil
+			return r, nil
 		default:
 			panic("unknown response type")
 		}
@@ -165,11 +171,11 @@ func (b *BlockTxMock) GetMinedTransactionsForBlock(_ context.Context, blockAndSo
 
 	if len(b.GetMinedTransactionsForBlockResponses) > 0 {
 		resp := b.GetMinedTransactionsForBlockResponses[0]
-		switch resp.(type) {
+		switch r := resp.(type) {
 		case error:
-			return nil, resp.(error)
+			return nil, r
 		case *blocktx_api.MinedTransactions:
-			return resp.(*blocktx_api.MinedTransactions), nil
+			return r, nil
 		default:
 			panic("unknown response type")
 		}

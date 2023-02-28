@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/metamorph/store/sql"
@@ -19,7 +20,7 @@ import (
 
 func TestNewServer(t *testing.T) {
 	t.Run("NewServer", func(t *testing.T) {
-		server := NewServer(nil, nil, nil)
+		server := NewServer(nil, nil, nil, nil)
 		assert.IsType(t, &Server{}, server)
 	})
 }
@@ -42,7 +43,7 @@ func TestHealth(t *testing.T) {
 			SentToNetwork:  sentToNetworkStat,
 			ChannelMapSize: 22,
 		}
-		server := NewServer(nil, nil, processor)
+		server := NewServer(nil, nil, processor, nil)
 		stats, err := server.Health(context.Background(), &emptypb.Empty{})
 		assert.NoError(t, err)
 		assert.Equal(t, processor.Stats.ChannelMapSize, stats.MapSize)
@@ -54,13 +55,20 @@ func TestHealth(t *testing.T) {
 }
 
 func TestPutTransaction(t *testing.T) {
+	var address = "localhost:8000"
 	t.Run("PutTransaction - ANNOUNCED", func(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		processor := NewProcessorMock()
-		server := NewServer(nil, s, processor)
+		btc := NewBlockTxMock(address)
+		btc.RegisterTransactionResponses = []interface{}{
+			&blocktx_api.RegisterTransactionResponse{Source: address},
+		}
+
+		server := NewServer(nil, s, processor, btc)
 		server.SetTimeout(100 * time.Millisecond)
+		server.SetAddress(address)
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
@@ -74,6 +82,7 @@ func TestPutTransaction(t *testing.T) {
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			}
 		}()
+
 		txStatus, err = server.PutTransaction(context.Background(), txRequest)
 		assert.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, txStatus.Status)
@@ -85,7 +94,13 @@ func TestPutTransaction(t *testing.T) {
 		require.NoError(t, err)
 
 		processor := NewProcessorMock()
-		server := NewServer(nil, s, processor)
+		btc := NewBlockTxMock(address)
+		btc.RegisterTransactionResponses = []interface{}{
+			&blocktx_api.RegisterTransactionResponse{Source: address},
+		}
+
+		server := NewServer(nil, s, processor, btc)
+		server.SetAddress(address)
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
@@ -109,7 +124,13 @@ func TestPutTransaction(t *testing.T) {
 		require.NoError(t, err)
 
 		processor := NewProcessorMock()
-		server := NewServer(nil, s, processor)
+		btc := NewBlockTxMock(address)
+		btc.RegisterTransactionResponses = []interface{}{
+			&blocktx_api.RegisterTransactionResponse{Source: address},
+		}
+
+		server := NewServer(nil, s, processor, btc)
+		server.SetAddress(address)
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
@@ -142,7 +163,13 @@ func TestPutTransaction(t *testing.T) {
 		require.NoError(t, err)
 
 		processor := NewProcessorMock()
-		server := NewServer(nil, s, processor)
+		btc := NewBlockTxMock(address)
+		btc.RegisterTransactionResponses = []interface{}{
+			&blocktx_api.RegisterTransactionResponse{Source: address},
+		}
+
+		server := NewServer(nil, s, processor, btc)
+		server.SetAddress(address)
 
 		txRequest := &metamorph_api.TransactionRequest{
 			RawTx: testdata.TX1RawBytes,
@@ -195,7 +222,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer(nil, s, nil)
+			server := NewServer(nil, s, nil, nil)
 			got, err := server.GetTransactionStatus(context.Background(), tt.req)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetTransactionStatus(%v)", tt.req)) {
 				return

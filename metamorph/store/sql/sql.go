@@ -14,6 +14,7 @@ import (
 	"github.com/labstack/gommon/random"
 	_ "github.com/lib/pq"
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/gocore"
 	_ "modernc.org/sqlite"
@@ -252,6 +253,7 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 		if err == sql.ErrNoRows {
 			return nil, store.ErrNotFound
 		}
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return nil, err
 	}
@@ -259,6 +261,7 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 	if storedAt != "" {
 		data.StoredAt, err = time.Parse(ISO8601, storedAt)
 		if err != nil {
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return nil, err
 		}
@@ -267,6 +270,7 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 	if announcedAt != "" {
 		data.AnnouncedAt, err = time.Parse(ISO8601, announcedAt)
 		if err != nil {
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return nil, err
 		}
@@ -274,6 +278,7 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 	if minedAt != "" {
 		data.MinedAt, err = time.Parse(ISO8601, minedAt)
 		if err != nil {
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return nil, err
 		}
@@ -369,6 +374,7 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 	)
 
 	if err != nil {
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 	}
 
@@ -403,6 +409,7 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 
 	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_MINED)
 	if err != nil {
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return err
 	}
@@ -437,6 +444,7 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 		if storedAt != "" {
 			data.StoredAt, err = time.Parse(ISO8601, storedAt)
 			if err != nil {
+				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
 				return err
 			}
@@ -445,6 +453,7 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 		if announcedAt != "" {
 			data.AnnouncedAt, err = time.Parse(ISO8601, announcedAt)
 			if err != nil {
+				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
 				return err
 			}
@@ -452,6 +461,7 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 		if minedAt != "" {
 			data.MinedAt, err = time.Parse(ISO8601, minedAt)
 			if err != nil {
+				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
 				return err
 			}
@@ -480,6 +490,7 @@ func (s *SQL) UpdateStatus(ctx context.Context, hash []byte, status metamorph_ap
 
 	result, err := s.db.ExecContext(ctx, q, status, rejectReason, hash)
 	if err != nil {
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return err
 	}
@@ -487,6 +498,7 @@ func (s *SQL) UpdateStatus(ctx context.Context, hash []byte, status metamorph_ap
 	var n int64
 	n, err = result.RowsAffected()
 	if err != nil {
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return err
 	}
@@ -516,6 +528,7 @@ func (s *SQL) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, bl
 	_, err := s.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHash, blockHeight, hash)
 
 	if err != nil {
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 	}
 
@@ -543,6 +556,7 @@ func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash []byte) (*time.Ti
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return nil, err
 	}
@@ -551,6 +565,7 @@ func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash []byte) (*time.Ti
 	if processedAt != "" {
 		processedAtTime, err = time.Parse(ISO8601, processedAt)
 		if err != nil {
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return nil, err
 		}
@@ -583,6 +598,7 @@ func (s *SQL) SetBlockProcessed(ctx context.Context, blockHash []byte) error {
 	)
 
 	if err != nil {
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 	}
 
@@ -604,6 +620,7 @@ func (s *SQL) Del(ctx context.Context, key []byte) error {
 	_, err := s.db.ExecContext(ctx, q, hash)
 
 	if err != nil {
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 	}
 

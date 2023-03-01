@@ -19,6 +19,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
@@ -26,7 +27,7 @@ import (
 
 type ArcDefaultHandler struct {
 	TransactionHandler transactionHandler.TransactionHandler
-	NodePolicy         *api.NodePolicy
+	NodePolicy         *bitcoin.Settings
 	logger             utils.Logger
 }
 
@@ -46,6 +47,9 @@ func NewDefault(logger utils.Logger, transactionHandler transactionHandler.Trans
 }
 
 func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
+	span, _ := opentracing.StartSpanFromContext(ctx.Request().Context(), "ArcDefaultHandler:GETPolicy")
+	defer span.Finish()
+
 	satoshis, bytes := calcFeesFromBSVPerKB(m.NodePolicy.MinMiningTxFee)
 
 	return ctx.JSON(http.StatusOK, api.PolicyResponse{
@@ -87,6 +91,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		errStr := err.Error()
 		e := api.ErrBadRequest
 		e.ExtraInfo = &errStr
+		span.LogFields(log.Error(err))
 		return ctx.JSON(http.StatusBadRequest, e)
 	}
 
@@ -97,6 +102,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 			errStr := err.Error()
 			e := api.ErrMalformed
 			e.ExtraInfo = &errStr
+			span.LogFields(log.Error(err))
 			return ctx.JSON(int(api.ErrStatusMalformed), e)
 		}
 	case "application/json":
@@ -106,6 +112,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 			errStr := err.Error()
 			e := api.ErrMalformed
 			e.ExtraInfo = &errStr
+			span.LogFields(log.Error(err))
 			return ctx.JSON(int(api.ErrStatusMalformed), e)
 		}
 		txHex = txBody.RawTx
@@ -114,6 +121,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 			errStr := err.Error()
 			e := api.ErrMalformed
 			e.ExtraInfo = &errStr
+			span.LogFields(log.Error(err))
 			return ctx.JSON(int(api.ErrStatusMalformed), e)
 		}
 	case "application/octet-stream":
@@ -121,17 +129,21 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 			errStr := err.Error()
 			e := api.ErrMalformed
 			e.ExtraInfo = &errStr
+			span.LogFields(log.Error(err))
 			return ctx.JSON(int(api.ErrStatusMalformed), e)
 		}
 	default:
 		return ctx.JSON(api.ErrBadRequest.Status, api.ErrBadRequest)
 	}
 
+	span.SetTag("txid", transaction.TxID())
+
 	transactionOptions := getTransactionOptions(params)
 
 	status, response, responseErr := m.processTransaction(tracingCtx, transaction, transactionOptions)
 	if responseErr != nil {
 		// if an error is returned, the processing failed, and we should return a 500 error
+		span.LogFields(log.Error(responseErr))
 		return responseErr
 	}
 
@@ -140,18 +152,24 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 // GETTransactionStatus ...
 func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) error {
+	span, tracingCtx := opentracing.StartSpanFromContext(ctx.Request().Context(), "ArcDefaultHandler:GETTransactionStatus")
+	defer span.Finish()
 
-	tx, err := m.getTransactionStatus(ctx.Request().Context(), id)
+	span.SetTag("txid", id)
+
+	tx, err := m.getTransactionStatus(tracingCtx, id)
 	if err != nil {
 		if errors.Is(err, transactionHandler.ErrTransactionNotFound) {
 			e := api.ErrNotFound
 			e.Detail = err.Error()
+			span.LogFields(log.Error(err))
 			return echo.NewHTTPError(http.StatusNotFound, e)
 		}
 
 		errStr := err.Error()
 		e := api.ErrGeneric
 		e.ExtraInfo = &errStr
+		span.LogFields(log.Error(err))
 		return ctx.JSON(int(api.ErrStatusGeneric), e)
 	}
 
@@ -185,6 +203,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			errStr := err.Error()
 			e := api.ErrBadRequest
 			e.ExtraInfo = &errStr
+			span.LogFields(log.Error(err))
 			return ctx.JSON(http.StatusBadRequest, e)
 		}
 
@@ -211,6 +230,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			errStr := err.Error()
 			e := api.ErrBadRequest
 			e.ExtraInfo = &errStr
+			span.LogFields(log.Error(err))
 			return ctx.JSON(http.StatusBadRequest, e)
 		}
 
@@ -246,6 +266,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 					e := api.ErrBadRequest
 					errStr := err.Error()
 					e.ExtraInfo = &errStr
+					span.LogFields(log.Error(err))
 					return ctx.JSON(api.ErrBadRequest.Status, e)
 				}
 			}
@@ -484,7 +505,7 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 	return nil, transactionHandler.ErrParentTransactionNotFound
 }
 
-func getPolicy(logger utils.Logger) (policy *api.NodePolicy, err error) {
+func getPolicy(logger utils.Logger) (policy *bitcoin.Settings, err error) {
 	policy, err = getPolicyFromNode()
 	if err == nil {
 		return policy, nil
@@ -505,7 +526,7 @@ func getPolicy(logger utils.Logger) (policy *api.NodePolicy, err error) {
 	return nil, fmt.Errorf("no policy found")
 }
 
-func getPolicyFromNode() (*api.NodePolicy, error) {
+func getPolicyFromNode() (*bitcoin.Settings, error) {
 	bitcoinRpc, err, rpcFound := gocore.Config().GetURL("peer_rpc")
 	if err == nil && rpcFound {
 		// connect to bitcoin node and get the settings
@@ -519,37 +540,7 @@ func getPolicyFromNode() (*api.NodePolicy, error) {
 			return nil, fmt.Errorf("error getting settings from peer: %v", err)
 		}
 
-		return &api.NodePolicy{
-			ExcessiveBlockSize:              int(settings.ExcessiveBlockSize),
-			BlockMaxSize:                    int(settings.BlockMaxSize),
-			MaxTxSizePolicy:                 int(settings.MaxTxSizePolicy),
-			MaxOrphanTxSize:                 int(settings.MaxOrphanTxSize),
-			DataCarrierSize:                 int64(settings.DataCarrierSize),
-			MaxScriptSizePolicy:             int(settings.MaxScriptSizePolicy),
-			MaxOpsPerScriptPolicy:           int64(settings.MaxOpsPerScriptPolicy),
-			MaxScriptNumLengthPolicy:        settings.MaxScriptNumLengthPolicy,
-			MaxPubKeysPerMultisigPolicy:     int64(settings.MaxPubKeysPerMultisigPolicy),
-			MaxTxSigopsCountsPolicy:         int64(settings.MaxTxSigopsCountsPolicy),
-			MaxStackMemoryUsagePolicy:       settings.MaxStackMemoryUsagePolicy,
-			MaxStackMemoryUsageConsensus:    settings.MaxStackMemoryUsageConsensus,
-			LimitAncestorCount:              settings.LimitAncestorCount,
-			LimitCPFPGroupMembersCount:      settings.LimitCPFPGroupMembersCount,
-			MaxMempool:                      settings.MaxMempool,
-			MaxMempoolSizedisk:              settings.MaxMempoolSizedisk,
-			MempoolMaxPercentCPFP:           settings.MempoolMaxPercentCPFP,
-			AcceptNonStdOutputs:             settings.AcceptNonStdOutputs,
-			DataCarrier:                     settings.DataCarrier,
-			MinMiningTxFee:                  float64(settings.MinMiningTxFee),
-			MaxStdTxValidationDuration:      settings.MaxStdTxValidationDuration,
-			MaxNonStdTxValidationDuration:   settings.MaxNonStdTxValidationDuration,
-			MaxTxChainValidationBudget:      settings.MaxTxChainValidationBudget,
-			ValidationClockCpu:              bool(settings.ValidationClockCpu),
-			MinConsolidationFactor:          settings.MinConsolidationFactor,
-			MaxConsolidationInputScriptSize: settings.MaxConsolidationInputScriptSize,
-			MinConfConsolidationInput:       settings.MinConfConsolidationInput,
-			MinConsolidationInputMaturity:   settings.MinConsolidationInputMaturity,
-			AcceptNonStdConsolidationInput:  settings.AcceptNonStdConsolidationInput,
-		}, nil
+		return &settings, nil
 	}
 
 	return nil, nil

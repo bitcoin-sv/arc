@@ -20,6 +20,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
+	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -436,7 +437,7 @@ func TestArcDefaultHandler_extendTransaction(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			handler := &ArcDefaultHandler{
 				TransactionHandler: &node,
-				NodePolicy:         &api.NodePolicy{},
+				NodePolicy:         &bitcoin.Settings{},
 				logger:             p2p.TestLogger{},
 			}
 			btTx, err := bt.NewTxFromString(tt.transaction)

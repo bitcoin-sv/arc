@@ -7,6 +7,7 @@ import (
 	"github.com/TAAL-GmbH/arc/api/handler"
 	"github.com/TAAL-GmbH/arc/api/transactionHandler"
 	"github.com/labstack/echo/v4"
+	"github.com/ordishs/go-bitcoin"
 )
 
 // CustomHandler is our custom arc handler
@@ -35,7 +36,7 @@ func NewCustomHandler() (api.HandlerInterface, error) {
 // GetArcV1Policy our custom policy request handler
 func (c *CustomHandler) GetArcV1Policy(ctx echo.Context) error {
 
-	arcPolicy := api.NodePolicy{}
+	arcPolicy := bitcoin.Settings{}
 
 	//
 	// you can use c.Client.Datastore()... to access the database

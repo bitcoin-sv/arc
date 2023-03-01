@@ -54,6 +54,14 @@ type ProcessorStats struct {
 	ChannelMapSize     int32
 }
 
+type processorResponseStatusUpdateResponse struct {
+	hashStr  string
+	status   metamorph_api.Status
+	source   string
+	err      error
+	duration time.Duration
+}
+
 type Processor struct {
 	ch                   chan *ProcessorRequest
 	store                store.MetamorphStore
@@ -144,6 +152,40 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 	return p
 }
 
+func (p *Processor) updateStats(pr *processorResponseStatusUpdateResponse) {
+	switch pr.status {
+
+	case metamorph_api.Status_REQUESTED_BY_NETWORK:
+		p.requestedByNetwork.AddDuration(pr.source, pr.duration)
+
+	case metamorph_api.Status_SENT_TO_NETWORK:
+		p.sentToNetwork.AddDuration(pr.source, pr.duration)
+
+	case metamorph_api.Status_ACCEPTED_BY_NETWORK:
+		p.acceptedByNetwork.AddDuration(pr.source, pr.duration)
+
+	case metamorph_api.Status_SEEN_ON_NETWORK:
+		p.seenOnNetwork.AddDuration(pr.source, pr.duration)
+
+	case metamorph_api.Status_MINED:
+		p.mined.AddDuration(pr.duration)
+		// TODO add worker to clean out the processorResponseMap of MINED transactions
+		p.processorResponseMap.Delete(pr.hashStr)
+
+	case metamorph_api.Status_REJECTED:
+		// log transaction to the error log
+		if p.errorLogFile != "" && p.errorLogWorker != nil {
+			processorResponse, ok := p.processorResponseMap.Get(pr.hashStr)
+			if ok {
+				utils.SafeSend(p.errorLogWorker, processorResponse)
+			}
+		}
+
+		p.rejected.AddDuration(pr.source, pr.duration)
+		// p.processorResponseMap.Delete(hashStr)
+	}
+}
+
 func (p *Processor) GetMetamorphAddress() string {
 	return p.metamorphAddress
 }
@@ -179,7 +221,7 @@ func (p *Processor) errorLogWriter() {
 func (p *Processor) processExpiredTransactions() {
 	// filterFunc returns true if the transaction has not been seen on the network
 	filterFunc := func(p *ProcessorResponse) bool {
-		return p.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK
+		return p.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK && time.Since(p.Start) < 60*time.Second
 	}
 
 	// Resend transactions that have not been seen on the network every 60 seconds
@@ -341,69 +383,64 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
 		defer span.Finish()
 
-		processorResponse.mu.Lock()
-		defer processorResponse.mu.Unlock()
-
-		if processorResponse.Status >= status && statusErr == nil {
-			processorResponse.AddLog(status, source, "duplicate")
-
-			return false, nil
-		}
-
-		// we have cached this transaction, so process accordingly
-		rejectReason := ""
-		if statusErr != nil {
-			rejectReason = statusErr.Error()
-		}
-
-		err := p.store.UpdateStatus(spanCtx, processorResponse.Hash, status, rejectReason)
-		if err != nil {
-			return false, fmt.Errorf("error storing status for %s: %v", hashStr, err)
-		} else {
-			p.logger.Infof("Status change reported: %s: %s", utils.HexEncodeAndReverseBytes(processorResponse.Hash), status)
-		}
-
-		if statusErr != nil {
-			ok = processorResponse.setStatusAndErrorInternal(status, statusErr, source)
-		} else {
-			ok = processorResponse.setStatusInternal(status, source)
-		}
-
-		if !processorResponse.noStats {
-			switch status {
-
-			case metamorph_api.Status_REQUESTED_BY_NETWORK:
-				p.requestedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-			case metamorph_api.Status_SENT_TO_NETWORK:
-				p.sentToNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-			case metamorph_api.Status_ACCEPTED_BY_NETWORK:
-				p.acceptedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-			case metamorph_api.Status_SEEN_ON_NETWORK:
-				p.seenOnNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-			case metamorph_api.Status_MINED:
-				p.mined.AddDuration(time.Since(processorResponse.Start))
-				p.processorResponseMap.Delete(hashStr)
-
-			case metamorph_api.Status_REJECTED:
-				// log transaction to the error log
-				if p.errorLogFile != "" && p.errorLogWorker != nil {
-					utils.SafeSend(p.errorLogWorker, processorResponse)
+		start := time.Now()
+		if err := processorResponse.UpdateStatus(&processorResponseStatusUpdate{
+			status:    status,
+			source:    source,
+			statusErr: statusErr,
+			updateStore: func() error {
+				// we have cached this transaction, so process accordingly
+				rejectReason := ""
+				if statusErr != nil {
+					rejectReason = statusErr.Error()
+				}
+				hash, err := utils.DecodeAndReverseHexString(hashStr)
+				if err != nil {
+					return err
 				}
 
-				p.rejected.AddDuration(source, time.Since(processorResponse.Start))
-				p.processorResponseMap.Delete(hashStr)
+				return p.store.UpdateStatus(spanCtx, hash, status, rejectReason)
+			},
+			callback: func(err error) {
+				if err != nil {
+					p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
+					return
+				} else {
+					p.logger.Infof("Status %s reported for tx %s", status, hashStr)
+				}
 
-			}
+				switch status {
+
+				case metamorph_api.Status_REQUESTED_BY_NETWORK:
+					p.requestedByNetwork.AddDuration(source, time.Since(start))
+
+				case metamorph_api.Status_SENT_TO_NETWORK:
+					p.sentToNetwork.AddDuration(source, time.Since(start))
+
+				case metamorph_api.Status_ACCEPTED_BY_NETWORK:
+					p.acceptedByNetwork.AddDuration(source, time.Since(start))
+
+				case metamorph_api.Status_SEEN_ON_NETWORK:
+					p.seenOnNetwork.AddDuration(source, time.Since(start))
+
+				case metamorph_api.Status_MINED:
+					p.mined.AddDuration(time.Since(start))
+					p.processorResponseMap.Delete(hashStr)
+
+				case metamorph_api.Status_REJECTED:
+					// log transaction to the error log
+					if p.errorLogFile != "" && p.errorLogWorker != nil {
+						utils.SafeSend(p.errorLogWorker, processorResponse)
+					}
+
+					p.rejected.AddDuration(source, time.Since(start))
+					// p.processorResponseMap.Delete(hashStr)
+				}
+			},
+		}); err != nil {
+			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
+			return false, err
 		}
-
-		statKey := fmt.Sprintf("%d: %s", status, status.String())
-		processorResponse.LastStatusUpdateNanos.Store(gocore.NewStat("processor - async").NewStat(statKey).AddTime(processorResponse.LastStatusUpdateNanos.Load()))
-
-		return ok, nil
 	} else if status > metamorph_api.Status_MINED {
 		span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction:Mined")
 		defer span.Finish()

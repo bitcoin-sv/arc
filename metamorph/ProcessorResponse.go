@@ -9,13 +9,23 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-utils"
+	"github.com/ordishs/gocore"
 	"github.com/sasha-s/go-deadlock"
 )
 
+type processorResponseStatusUpdate struct {
+	status      metamorph_api.Status
+	source      string
+	statusErr   error
+	updateStore func() error
+	callback    func(err error)
+}
+
 type ProcessorResponse struct {
-	mu      deadlock.RWMutex
-	ch      chan StatusAndError
-	noStats bool
+	mu             deadlock.RWMutex
+	callerCh       chan StatusAndError
+	noStats        bool
+	statusUpdateCh chan *processorResponseStatusUpdate
 
 	Hash                  []byte
 	Start                 time.Time
@@ -28,26 +38,26 @@ type ProcessorResponse struct {
 }
 
 func NewProcessorResponse(hash []byte) *ProcessorResponse {
-	return &ProcessorResponse{
-		Start:  time.Now(),
-		Hash:   hash,
-		Status: metamorph_api.Status_UNKNOWN,
-		Log: []ProcessorResponseLog{
-			{
-				DeltaT: 0,
-				Status: metamorph_api.Status_UNKNOWN.String(),
-			},
-		},
-	}
+	return newProcessorResponse(hash, metamorph_api.Status_UNKNOWN, nil)
 }
 
 // NewProcessorResponseWithStatus creates a new ProcessorResponse with the given status.
 // It is used when restoring the ProcessorResponseMap from the database.
 func NewProcessorResponseWithStatus(hash []byte, status metamorph_api.Status) *ProcessorResponse {
-	return &ProcessorResponse{
-		Start:  time.Now(),
-		Hash:   hash,
-		Status: status,
+	return newProcessorResponse(hash, status, nil)
+}
+
+func NewProcessorResponseWithChannel(hash []byte, ch chan StatusAndError) *ProcessorResponse {
+	return newProcessorResponse(hash, metamorph_api.Status_UNKNOWN, ch)
+}
+
+func newProcessorResponse(hash []byte, status metamorph_api.Status, ch chan StatusAndError) *ProcessorResponse {
+	pr := &ProcessorResponse{
+		Start:          time.Now(),
+		Hash:           hash,
+		Status:         status,
+		callerCh:       ch,
+		statusUpdateCh: make(chan *processorResponseStatusUpdate, 10),
 		Log: []ProcessorResponseLog{
 			{
 				DeltaT: 0,
@@ -55,20 +65,49 @@ func NewProcessorResponseWithStatus(hash []byte, status metamorph_api.Status) *P
 			},
 		},
 	}
+
+	go func() {
+		for statusUpdate := range pr.statusUpdateCh {
+			pr.updateStatus(statusUpdate)
+		}
+	}()
+
+	return pr
 }
 
-func NewProcessorResponseWithChannel(hash []byte, ch chan StatusAndError) *ProcessorResponse {
-	return &ProcessorResponse{
-		Start:  time.Now(),
-		Hash:   hash,
-		Status: metamorph_api.Status_UNKNOWN,
-		ch:     ch,
-		Log: []ProcessorResponseLog{
-			{
-				DeltaT: 0,
-				Status: metamorph_api.Status_UNKNOWN.String(),
-			},
-		},
+func (r *ProcessorResponse) UpdateStatus(statusUpdate *processorResponseStatusUpdate) error {
+	r.statusUpdateCh <- statusUpdate
+	return nil
+}
+
+func (r *ProcessorResponse) updateStatus(statusUpdate *processorResponseStatusUpdate) {
+	if r.Status >= statusUpdate.status && statusUpdate.statusErr == nil {
+		r.AddLog(statusUpdate.status, statusUpdate.source, "duplicate")
+		return
+	}
+
+	if err := statusUpdate.updateStore(); err != nil {
+		statusUpdate.callback(err)
+		return
+	}
+
+	var ok bool
+	if statusUpdate.statusErr != nil {
+		ok = r.setStatusAndErrorInternal(statusUpdate.status, statusUpdate.statusErr, statusUpdate.source)
+	} else {
+		ok = r.setStatusInternal(statusUpdate.status, statusUpdate.source)
+	}
+
+	statKey := fmt.Sprintf("%d: %s", statusUpdate.status, statusUpdate.status.String())
+	r.LastStatusUpdateNanos.Store(gocore.NewStat("processor - async").NewStat(statKey).AddTime(r.LastStatusUpdateNanos.Load()))
+
+	if !ok {
+		statusUpdate.callback(fmt.Errorf("failed to send status update to caller"))
+		return
+	}
+
+	if !r.noStats {
+		statusUpdate.callback(nil)
 	}
 }
 
@@ -111,7 +150,7 @@ func (r *ProcessorResponse) setStatusInternal(status metamorph_api.Status, sourc
 		Status: r.Status,
 	}
 
-	ch := r.ch
+	ch := r.callerCh
 
 	r.AddLog(status, source, "")
 
@@ -140,7 +179,7 @@ func (r *ProcessorResponse) setErr(err error, source string) bool {
 		Err:    err,
 	}
 
-	ch := r.ch
+	ch := r.callerCh
 
 	r.AddLog(r.Status, source, err.Error())
 
@@ -170,7 +209,7 @@ func (r *ProcessorResponse) setStatusAndErrorInternal(status metamorph_api.Statu
 		Err:    err,
 	}
 
-	ch := r.ch
+	ch := r.callerCh
 
 	r.AddLog(status, source, err.Error())
 

@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/ordishs/go-bitcoin"
@@ -20,13 +21,13 @@ type ZMQStats struct {
 }
 
 type ZMQ struct {
-	URL       *url.URL
-	Stats     *ZMQStats
-	processor ProcessorI
-	logger    *gocore.Logger
+	URL             *url.URL
+	Stats           *ZMQStats
+	statusMessageCh chan<- *PeerTxMessage
+	logger          *gocore.Logger
 }
 
-func NewZMQ(zmqURL *url.URL, processor ProcessorI) *ZMQ {
+func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage) *ZMQ {
 	var zmqLogger = gocore.Log("zmq")
 	z := &ZMQ{
 		URL: zmqURL,
@@ -35,8 +36,8 @@ func NewZMQ(zmqURL *url.URL, processor ProcessorI) *ZMQ {
 			invalidTx:            atomic.Uint64{},
 			discardedFromMempool: atomic.Uint64{},
 		},
-		processor: processor,
-		logger:    zmqLogger,
+		statusMessageCh: statusMessageCh,
+		logger:          zmqLogger,
 	}
 
 	return z
@@ -60,12 +61,12 @@ func (z *ZMQ) Start() {
 			case "hashtx":
 				z.Stats.hashTx.Add(1)
 				z.logger.Debugf("hashtx %s", c[1])
-				_, _ = z.processor.SendStatusForTransaction(
-					c[1],
-					metamorph_api.Status_ACCEPTED_BY_NETWORK,
-					z.URL.String(),
-					nil,
-				)
+				z.statusMessageCh <- &PeerTxMessage{
+					Start:  time.Now(),
+					Txid:   c[1],
+					Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+					Peer:   z.URL.String(),
+				}
 			case "invalidtx":
 				z.Stats.invalidTx.Add(1)
 				// c[1] is lots of info about the tx in json format encoded in hex
@@ -86,12 +87,13 @@ func (z *ZMQ) Start() {
 					errReason += " - double spend"
 				}
 				z.logger.Debugf("invalidtx %s: %s", txInfo["txid"].(string), errReason)
-				_, _ = z.processor.SendStatusForTransaction(
-					txInfo["txid"].(string),
-					metamorph_api.Status_REJECTED,
-					z.URL.String(),
-					fmt.Errorf(errReason),
-				)
+				z.statusMessageCh <- &PeerTxMessage{
+					Start:  time.Now(),
+					Txid:   c[1],
+					Status: metamorph_api.Status_REJECTED,
+					Peer:   z.URL.String(),
+					Err:    fmt.Errorf(errReason),
+				}
 			case "discardedfrommempool":
 				z.Stats.discardedFromMempool.Add(1)
 				var txInfo map[string]interface{}
@@ -106,12 +108,13 @@ func (z *ZMQ) Start() {
 				}
 				// reasons can be "collision-in-block-tx" and "unknown-reason"
 				z.logger.Debugf("discardedfrommempool %s: %s", txInfo["txid"].(string), reason)
-				_, _ = z.processor.SendStatusForTransaction(
-					txInfo["txid"].(string),
-					metamorph_api.Status_REJECTED,
-					z.URL.String(),
-					fmt.Errorf("discarded from mempool: %s", reason),
-				)
+				z.statusMessageCh <- &PeerTxMessage{
+					Start:  time.Now(),
+					Txid:   c[1],
+					Status: metamorph_api.Status_REJECTED,
+					Peer:   z.URL.String(),
+					Err:    fmt.Errorf("discarded from mempool: %s", reason),
+				}
 			default:
 				z.logger.Info("Unhandled ZMQ message", c)
 			}

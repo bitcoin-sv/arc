@@ -48,7 +48,7 @@ func TestSetErr(t *testing.T) {
 		response := NewProcessorResponse(testdata.TX1Bytes)
 		assert.Nil(t, response.Err)
 
-		response.ch = ch
+		response.callerCh = ch
 		err := fmt.Errorf("test error")
 
 		var wg sync.WaitGroup
@@ -87,7 +87,7 @@ func TestSetStatusAndError(t *testing.T) {
 		assert.Nil(t, response.Err)
 		assert.Equal(t, metamorph_api.Status_UNKNOWN, response.Status)
 
-		response.ch = ch
+		response.callerCh = ch
 		err := fmt.Errorf("test error")
 
 		var wg sync.WaitGroup

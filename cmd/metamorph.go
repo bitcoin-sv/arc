@@ -17,7 +17,6 @@ import (
 	"github.com/TAAL-GmbH/arc/callbacker"
 	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
 	"github.com/TAAL-GmbH/arc/metamorph"
-	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
@@ -76,7 +75,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	logger.Infof("Instance will register transactions with location %q", source)
 
-	pm, peerMessageCh := initPeerManager(logger, s)
+	pm, statusMessageCh := initPeerManager(logger, s)
 
 	callbackerAddress, ok := gocore.Config().Get("callbacker_grpcAddress", "localhost:8002")
 	if !ok {
@@ -112,12 +111,11 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
 
 	go func() {
-		for message := range peerMessageCh {
-			_, err = metamorphProcessor.SendStatusForTransaction(message.Txid, metamorph_api.Status(message.Status), message.Peer, message.Err)
+		for message := range statusMessageCh {
+			_, err = metamorphProcessor.SendStatusForTransaction(message.Txid, message.Status, message.Peer, message.Err)
 			if err != nil {
 				logger.Errorf("Could not send status for transaction %s: %v", message.Txid, err)
 			}
-
 		}
 	}()
 
@@ -200,7 +198,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		if zErr != nil {
 			logger.Warnf("Could not parse peer_%d_zmq in config: %v", i, zErr)
 		} else if found {
-			z := metamorph.NewZMQ(zmqURL, metamorphProcessor)
+			z := metamorph.NewZMQ(zmqURL, statusMessageCh)
 			zmqCollector.Set(zmqURL.Host, z.Stats)
 			go z.Start()
 		}

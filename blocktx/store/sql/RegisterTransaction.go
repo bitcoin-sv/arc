@@ -6,6 +6,8 @@ import (
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/lib/pq"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"modernc.org/sqlite"
@@ -17,8 +19,10 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("RegisterTransaction").AddTime(start)
 	}()
+	span, spanCtx := opentracing.StartSpanFromContext(ctx, "sql:RegisterTransaction")
+	defer span.Finish()
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(spanCtx)
 	defer cancel()
 
 	if transaction.Hash == nil {
@@ -32,9 +36,12 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 	q := `INSERT INTO transactions (hash, source) VALUES ($1, $2)`
 
 	if _, err := s.db.ExecContext(ctx, q, transaction.Hash, transaction.Source); err != nil {
+		spanErr, ctx := opentracing.StartSpanFromContext(ctx, "sql:RegisterTransaction:Err")
+		defer spanErr.Finish()
+
 		var uniqueConstraint bool
 
-		// Check if this ia a postgres unique constraint violation
+		// Check if this is a postgres unique constraint violation
 		pErr, ok := err.(*pq.Error)
 		if ok && pErr.Code == "23505" {
 			uniqueConstraint = true
@@ -47,18 +54,22 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 		}
 
 		if !uniqueConstraint {
+			spanErr.LogFields(log.Error(err))
 			return "", nil, 0, err
 		}
 
 		// If we reach here, we have a unique violation, which means that the transaction already exists
+		spanErr.SetTag("unique_constraint", true)
 		q = `UPDATE transactions SET source = $1 WHERE source IS NULL AND hash = $2`
 		result, err := s.db.ExecContext(ctx, q, transaction.Source, transaction.Hash)
 		if err != nil {
+			spanErr.LogFields(log.Error(err))
 			return "", nil, 0, err
 		}
 
 		rows, err := result.RowsAffected()
 		if err != nil {
+			spanErr.LogFields(log.Error(err))
 			return "", nil, 0, err
 		}
 
@@ -68,6 +79,7 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 			var blockHash []byte
 			var blockHeight uint64
 
+			spanErr.SetTag("already_mined", true)
 			if err := s.db.QueryRowContext(ctx, `
 
 				SELECT
@@ -79,6 +91,7 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 				WHERE t.hash = $1
 				AND b.orphanedyn = false
 			`, transaction.Hash).Scan(&blockHash, &blockHeight); err != nil {
+				spanErr.LogFields(log.Error(err))
 				return "", nil, 0, err
 			}
 
@@ -88,6 +101,7 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 
 		var source string
 		if err := s.db.QueryRowContext(ctx, "SELECT source FROM transactions WHERE hash = $1", transaction.Hash).Scan(&source); err != nil {
+			spanErr.LogFields(log.Error(err))
 			return "", nil, 0, err
 		}
 		return source, nil, 0, nil

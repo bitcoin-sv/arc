@@ -9,7 +9,6 @@ import (
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"modernc.org/sqlite"
-	_ "modernc.org/sqlite"
 )
 
 // RegisterTransaction registers a transaction in the database
@@ -23,11 +22,11 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 	defer cancel()
 
 	if transaction.Hash == nil {
-		return "", nil, 0, fmt.Errorf("Invalid request - no hash")
+		return "", nil, 0, fmt.Errorf("invalid request - no hash")
 	}
 
 	if transaction.Source == "" {
-		return "", nil, 0, fmt.Errorf("Source missing for transaction %s", utils.HexEncodeAndReverseBytes(transaction.Hash))
+		return "", nil, 0, fmt.Errorf("source missing for transaction %s", utils.HexEncodeAndReverseBytes(transaction.Hash))
 	}
 
 	q := `INSERT INTO transactions (hash, source) VALUES ($1, $2)`

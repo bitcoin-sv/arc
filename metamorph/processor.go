@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"strings"
@@ -17,6 +16,7 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/stat"
 
@@ -170,7 +170,7 @@ func (p *Processor) errorLogWriter() {
 			hex.EncodeToString(storeData.RawTx),
 		))
 		if err != nil {
-			log.Printf("error writing to log file: %s", err.Error())
+			p.logger.Errorf("error writing to log file: %s", err.Error())
 		}
 	}
 }
@@ -245,7 +245,10 @@ func (p *Processor) GetPeers() ([]string, []string) {
 }
 
 func (p *Processor) LoadUnmined() {
-	err := p.store.GetUnmined(context.Background(), func(record *store.StoreData) {
+	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:LoadUnmined")
+	defer span.Finish()
+
+	err := p.store.GetUnmined(spanCtx, func(record *store.StoreData) {
 		// add the records we have in the database, but that have not been processed, to the mempool watcher
 		txIDStr := hex.EncodeToString(bt.ReverseBytes(record.Hash))
 		pr := NewProcessorResponseWithStatus(record.Hash, record.Status)
@@ -257,11 +260,11 @@ func (p *Processor) LoadUnmined() {
 			// announce the transaction to the network
 			pr.SetPeers(p.pm.AnnounceTransaction(record.Hash, nil))
 
-			err := p.store.UpdateStatus(context.Background(), record.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
+			err := p.store.UpdateStatus(spanCtx, record.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
 			if err != nil {
 				p.logger.Errorf("Error updating status for %x: %v", bt.ReverseBytes(record.Hash), err)
 			}
-		} else if record.Status >= metamorph_api.Status_ANNOUNCED_TO_NETWORK {
+		} else if record.Status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
 			// we only announced the transaction, but we did not receive a SENT_TO_NETWORK response
 
 			// TODO could it already be mined, and we need to get it from BlockTx?
@@ -269,6 +272,8 @@ func (p *Processor) LoadUnmined() {
 			// let's send a GETDATA message to the network to check whether the transaction is actually there
 			// TODO - get a more efficient way to do this from the node
 			// we only need the tx ids, not the whole transaction
+			p.pm.RequestTransaction(record.Hash)
+		} else if record.Status <= metamorph_api.Status_SENT_TO_NETWORK {
 			p.pm.RequestTransaction(record.Hash)
 		}
 	})
@@ -285,9 +290,12 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 }
 
 func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight uint64) (bool, error) {
+	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusMinedForTransaction")
+	defer span.Finish()
+
 	hashStr := utils.HexEncodeAndReverseBytes(hash)
 
-	err := p.store.UpdateMined(context.Background(), hash, blockHash, blockHeight)
+	err := p.store.UpdateMined(spanCtx, hash, blockHash, blockHeight)
 	if err != nil {
 		if err != store.ErrNotFound {
 			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
@@ -309,7 +317,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 	}
 
 	if p.cbChannel != nil {
-		data, _ := p.store.Get(context.Background(), hash)
+		data, _ := p.store.Get(spanCtx, hash)
 
 		if data != nil && data.CallbackUrl != "" {
 			p.cbChannel <- &callbacker_api.Callback{
@@ -329,6 +337,9 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_api.Status, source string, statusErr error) (bool, error) {
 	processorResponse, ok := p.processorResponseMap.Get(hashStr)
 	if ok {
+		span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
+		defer span.Finish()
+
 		processorResponse.mu.Lock()
 		defer processorResponse.mu.Unlock()
 
@@ -344,7 +355,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 			rejectReason = statusErr.Error()
 		}
 
-		err := p.store.UpdateStatus(context.Background(), processorResponse.Hash, status, rejectReason)
+		err := p.store.UpdateStatus(spanCtx, processorResponse.Hash, status, rejectReason)
 		if err != nil {
 			return false, fmt.Errorf("error storing status for %s: %v", hashStr, err)
 		} else {
@@ -392,7 +403,12 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		processorResponse.LastStatusUpdateNanos.Store(gocore.NewStat("processor - async").NewStat(statKey).AddTime(processorResponse.LastStatusUpdateNanos.Load()))
 
 		return ok, nil
-	} else if status > metamorph_api.Status_SENT_TO_NETWORK {
+	} else if status > metamorph_api.Status_MINED {
+		span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction:Mined")
+		defer span.Finish()
+
+		// we only care about statuses that are larger than mined (ie Rejected), since mined is the last status
+		// and the transactions should be in the map until they are mined
 		if statusErr != nil {
 			// Print the error along with the status message
 			p.logger.Debugf("Received status %s for tx %s: %s", status.String(), hashStr, statusErr.Error())
@@ -412,7 +428,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		if statusErr != nil {
 			rejectReason = statusErr.Error()
 		}
-		err = p.store.UpdateStatus(context.Background(), hash, status, rejectReason)
+		err = p.store.UpdateStatus(spanCtx, hash, status, rejectReason)
 		if err != nil {
 			if err == store.ErrNotFound {
 				return false, nil
@@ -439,7 +455,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 		gocore.NewStat("processor").AddTime(startNanos)
 	}()
 
-	span, _ := opentracing.StartSpanFromContext(req.ctx, "Processor:processTransaction")
+	span, spanCtx := opentracing.StartSpanFromContext(req.ctx, "Processor:processTransaction")
 	defer span.Finish()
 
 	p.queueLength.Add(-1)
@@ -453,9 +469,10 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 
 	txIDStr := hex.EncodeToString(bt.ReverseBytes(req.Hash))
 
-	if err := p.store.Set(context.Background(), req.Hash, req.StoreData); err != nil {
+	if err := p.store.Set(spanCtx, req.Hash, req.StoreData); err != nil {
 		p.logger.Errorf("Error storing transaction %s: %v", txIDStr, err)
 		processorResponse.setErr(err, "processor")
+		span.LogFields(log.Error(err))
 		return
 	}
 
@@ -491,9 +508,10 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 
 	// update to the latest status of the transaction
 	// we have to store in the background, since we do not want to stop the saving, even if the request ctx has stopped
-	err := p.store.UpdateStatus(context.Background(), req.Hash, processorResponse.GetStatus(), "")
+	err := p.store.UpdateStatus(spanCtx, req.Hash, processorResponse.GetStatus(), "")
 	if err != nil {
 		if err != store.ErrNotFound {
+			span.LogFields(log.Error(err))
 			p.logger.Errorf("Error updating status for %x: %v", bt.ReverseBytes(req.Hash), err)
 		}
 	}

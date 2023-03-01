@@ -80,7 +80,8 @@ func main() {
 		http.Handle(prometheusEndpoint, promhttp.Handler())
 	}
 
-	if useTracer != nil && *useTracer {
+	tracingOn := gocore.Config().GetBool("tracing")
+	if (useTracer != nil && *useTracer) || tracingOn {
 		logger.Infof("Starting tracer")
 		// Start the tracer
 		tracer, closer := tracing.InitTracer(logger, progname)

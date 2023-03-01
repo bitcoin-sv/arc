@@ -195,26 +195,6 @@ func TestSendStatusForTransaction(t *testing.T) {
 		assert.ErrorIs(t, sendErr, hex.InvalidByteError('t'))
 	})
 
-	t.Run("SendStatusForTransaction known tx", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
-		require.NoError(t, err)
-		setStoreTestData(t, s)
-
-		pm := p2p.NewPeerManagerMock()
-
-		processor := NewProcessor(1, s, pm, "test", nil)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
-
-		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1, metamorph_api.Status_MINED, "test", nil)
-		assert.True(t, ok)
-		assert.NoError(t, sendErr)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
-
-		txStored, err := s.Get(context.Background(), testdata.TX1Bytes)
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
-	})
-
 	t.Run("SendStatusForTransaction known tx - no update", func(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)

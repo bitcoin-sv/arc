@@ -9,6 +9,7 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/libsv/go-bt/v2/bscript/interpreter"
+	"github.com/ordishs/go-bitcoin"
 )
 
 // MaxBlockSize is set dynamically in a node, and should be gotten from the policy
@@ -18,10 +19,10 @@ const coinbaseTxID = "0000000000000000000000000000000000000000000000000000000000
 const MaxTxSigopsCountPolicyAfterGenesis = ^uint32(0) // UINT32_MAX
 
 type DefaultValidator struct {
-	policy *api.NodePolicy
+	policy *bitcoin.Settings
 }
 
-func New(policy *api.NodePolicy) validator.Validator {
+func New(policy *bitcoin.Settings) validator.Validator {
 	return &DefaultValidator{
 		policy: policy,
 	}
@@ -110,7 +111,7 @@ func (v *DefaultValidator) IsExtended(tx *bt.Tx) bool {
 	return true
 }
 
-func checkTxSize(txSize int, policy *api.NodePolicy) error {
+func checkTxSize(txSize int, policy *bitcoin.Settings) error {
 	maxTxSizePolicy := policy.MaxTxSizePolicy
 	if maxTxSizePolicy == 0 {
 		// no policy found for tx size, use max block size
@@ -180,7 +181,7 @@ func checkFees(tx *bt.Tx, feeQuote *bt.FeeQuote) error {
 	return nil
 }
 
-func sigOpsCheck(tx *bt.Tx, policy *api.NodePolicy) error {
+func sigOpsCheck(tx *bt.Tx, policy *bitcoin.Settings) error {
 	maxSigOps := policy.MaxTxSigopsCountsPolicy
 
 	if maxSigOps == 0 {

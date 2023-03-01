@@ -6,7 +6,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/testdata"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
@@ -125,8 +124,8 @@ func TestValidator(t *testing.T) {
 	})
 }
 
-func getPolicy(satoshisPerKB uint64) *api.NodePolicy {
-	var policy *api.NodePolicy
+func getPolicy(satoshisPerKB uint64) *bitcoin.Settings {
+	var policy *bitcoin.Settings
 
 	_ = json.Unmarshal([]byte(testdata.DefaultPolicy), &policy)
 
@@ -152,7 +151,7 @@ func _(txID string) (*bt.Tx, error) {
 func Test_checkTxSize(t *testing.T) {
 	type args struct {
 		txSize int
-		policy *api.NodePolicy
+		policy *bitcoin.Settings
 	}
 
 	tests := []struct {
@@ -164,7 +163,7 @@ func Test_checkTxSize(t *testing.T) {
 			name: "valid tx size",
 			args: args{
 				txSize: 100,
-				policy: &api.NodePolicy{
+				policy: &bitcoin.Settings{
 					MaxTxSizePolicy: 10000000,
 				},
 			},
@@ -174,7 +173,7 @@ func Test_checkTxSize(t *testing.T) {
 			name: "invalid tx size",
 			args: args{
 				txSize: MaxBlockSize + 1,
-				policy: &api.NodePolicy{
+				policy: &bitcoin.Settings{
 					MaxTxSizePolicy: 10000000,
 				},
 			},
@@ -395,7 +394,7 @@ func Test_checkFeesTxs(t *testing.T) {
 func Test_sigOpsCheck(t *testing.T) {
 	type args struct {
 		tx     *bt.Tx
-		policy *api.NodePolicy
+		policy *bitcoin.Settings
 	}
 	tests := []struct {
 		name    string
@@ -408,7 +407,7 @@ func Test_sigOpsCheck(t *testing.T) {
 				tx: &bt.Tx{
 					Inputs: []*bt.Input{{PreviousTxScript: validLockingScript}},
 				},
-				policy: &api.NodePolicy{
+				policy: &bitcoin.Settings{
 					MaxTxSigopsCountsPolicy: 4294967295,
 				},
 			},
@@ -424,7 +423,7 @@ func Test_sigOpsCheck(t *testing.T) {
 						PreviousTxScript: validLockingScript,
 					}},
 				},
-				policy: &api.NodePolicy{
+				policy: &bitcoin.Settings{
 					MaxTxSigopsCountsPolicy: 4294967295,
 				},
 			},
@@ -440,7 +439,7 @@ func Test_sigOpsCheck(t *testing.T) {
 						PreviousTxScript: validLockingScript,
 					}},
 				},
-				policy: &api.NodePolicy{
+				policy: &bitcoin.Settings{
 					MaxTxSigopsCountsPolicy: 4294967295,
 				},
 			},

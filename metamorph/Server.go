@@ -213,6 +213,8 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 	status := metamorph_api.Status_UNKNOWN
 	hash := utils.Sha256d(req.RawTx)
 
+	initSpan.SetTag("txid", utils.HexEncodeAndReverseBytes(hash))
+
 	// Register the transaction in blocktx store
 	rtr, err := s.btc.RegisterTransaction(initCtx, &blocktx_api.TransactionAndSource{
 		Hash:   hash,

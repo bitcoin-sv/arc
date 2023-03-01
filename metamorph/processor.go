@@ -455,7 +455,11 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 		gocore.NewStat("processor").AddTime(startNanos)
 	}()
 
-	span, spanCtx := opentracing.StartSpanFromContext(req.ctx, "Processor:processTransaction")
+	// we need to decouple the context from the request, so that we don't get cancelled
+	// when the request is cancelled
+	callerSpan := opentracing.SpanFromContext(req.ctx)
+	ctx := opentracing.ContextWithSpan(context.Background(), callerSpan)
+	span, spanCtx := opentracing.StartSpanFromContext(ctx, "Processor:processTransaction")
 	defer span.Finish()
 
 	p.queueLength.Add(-1)

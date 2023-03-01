@@ -19,6 +19,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
@@ -91,6 +92,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		errStr := err.Error()
 		e := api.ErrBadRequest
 		e.ExtraInfo = &errStr
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return ctx.JSON(http.StatusBadRequest, e)
 	}
@@ -102,6 +104,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 			errStr := err.Error()
 			e := api.ErrMalformed
 			e.ExtraInfo = &errStr
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(int(api.ErrStatusMalformed), e)
 		}
@@ -112,6 +115,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 			errStr := err.Error()
 			e := api.ErrMalformed
 			e.ExtraInfo = &errStr
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(int(api.ErrStatusMalformed), e)
 		}
@@ -121,6 +125,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 			errStr := err.Error()
 			e := api.ErrMalformed
 			e.ExtraInfo = &errStr
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(int(api.ErrStatusMalformed), e)
 		}
@@ -129,6 +134,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 			errStr := err.Error()
 			e := api.ErrMalformed
 			e.ExtraInfo = &errStr
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(int(api.ErrStatusMalformed), e)
 		}
@@ -162,6 +168,7 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 		if errors.Is(err, transactionHandler.ErrTransactionNotFound) {
 			e := api.ErrNotFound
 			e.Detail = err.Error()
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return echo.NewHTTPError(http.StatusNotFound, e)
 		}
@@ -169,6 +176,7 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 		errStr := err.Error()
 		e := api.ErrGeneric
 		e.ExtraInfo = &errStr
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return ctx.JSON(int(api.ErrStatusGeneric), e)
 	}
@@ -203,6 +211,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			errStr := err.Error()
 			e := api.ErrBadRequest
 			e.ExtraInfo = &errStr
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(http.StatusBadRequest, e)
 		}
@@ -230,6 +239,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			errStr := err.Error()
 			e := api.ErrBadRequest
 			e.ExtraInfo = &errStr
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(http.StatusBadRequest, e)
 		}
@@ -266,6 +276,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 					e := api.ErrBadRequest
 					errStr := err.Error()
 					e.ExtraInfo = &errStr
+					span.SetTag(string(ext.Error), true)
 					span.LogFields(log.Error(err))
 					return ctx.JSON(api.ErrBadRequest.Status, e)
 				}

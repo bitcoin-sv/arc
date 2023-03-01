@@ -14,6 +14,7 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/dgraph-io/badger/v3"
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
@@ -108,6 +109,7 @@ func (s *Badger) Set(ctx context.Context, key []byte, value *store.StoreData) er
 	enc := gob.NewEncoder(&data)
 	err := enc.Encode(value)
 	if err != nil {
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return fmt.Errorf("failed to encode data: %w", err)
 	}
@@ -115,6 +117,7 @@ func (s *Badger) Set(ctx context.Context, key []byte, value *store.StoreData) er
 	if err = s.store.Update(func(tx *badger.Txn) error {
 		return tx.Set(key, data.Bytes())
 	}); err != nil {
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return fmt.Errorf("failed to set data: %w", err)
 	}
@@ -138,6 +141,7 @@ func (s *Badger) Get(ctx context.Context, hash []byte) (*store.StoreData, error)
 			if err == badger.ErrKeyNotFound {
 				return store.ErrNotFound
 			}
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return err
 		}
@@ -146,6 +150,7 @@ func (s *Badger) Get(ctx context.Context, hash []byte) (*store.StoreData, error)
 			dec := gob.NewDecoder(bytes.NewReader(val))
 			return dec.Decode(&result)
 		}); err != nil {
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return fmt.Errorf("failed to decode data: %w", err)
 		}
@@ -171,6 +176,7 @@ func (s *Badger) UpdateStatus(ctx context.Context, hash []byte, status metamorph
 
 	tx, err := s.Get(ctx, hash)
 	if err != nil {
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return err
 	}
@@ -181,6 +187,7 @@ func (s *Badger) UpdateStatus(ctx context.Context, hash []byte, status metamorph
 		tx.Status = status
 		tx.RejectReason = rejectReason
 		if err = s.Set(ctx, hash, tx); err != nil {
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return fmt.Errorf("failed to update data: %w", err)
 		}
@@ -209,6 +216,7 @@ func (s *Badger) UpdateMined(ctx context.Context, hash []byte, blockHash []byte,
 			// we also shouldn't need to return an error here
 			return nil
 		}
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return err
 	}
@@ -217,6 +225,7 @@ func (s *Badger) UpdateMined(ctx context.Context, hash []byte, blockHash []byte,
 	tx.BlockHash = blockHash
 	tx.BlockHeight = blockHeight
 	if err = s.Set(ctx, hash, tx); err != nil {
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return fmt.Errorf("failed to update data: %w", err)
 	}
@@ -251,6 +260,7 @@ func (s *Badger) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 				dec := gob.NewDecoder(bytes.NewReader(val))
 				return dec.Decode(&result)
 			}); err != nil {
+				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
 				s.logger.Errorf("failed to decode data for %s: %w", item.Key(), err)
 				continue
@@ -296,6 +306,7 @@ func (s *Badger) GetBlockProcessed(ctx context.Context, blockHash []byte) (*time
 			if err == badger.ErrKeyNotFound {
 				return nil
 			}
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return err
 		}
@@ -304,6 +315,7 @@ func (s *Badger) GetBlockProcessed(ctx context.Context, blockHash []byte) (*time
 			dec := gob.NewDecoder(bytes.NewReader(val))
 			return dec.Decode(&result)
 		}); err != nil {
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return fmt.Errorf("failed to decode data: %w", err)
 		}
@@ -329,6 +341,7 @@ func (s *Badger) SetBlockProcessed(ctx context.Context, blockHash []byte) error 
 	enc := gob.NewEncoder(&data)
 	err := enc.Encode(value)
 	if err != nil {
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return fmt.Errorf("failed to encode data: %w", err)
 	}
@@ -336,6 +349,7 @@ func (s *Badger) SetBlockProcessed(ctx context.Context, blockHash []byte) error 
 	if err = s.store.Update(func(tx *badger.Txn) error {
 		return tx.Set(key, data.Bytes())
 	}); err != nil {
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return fmt.Errorf("failed to set data: %w", err)
 	}

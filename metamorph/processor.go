@@ -16,6 +16,7 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/stat"
@@ -476,6 +477,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	if err := p.store.Set(spanCtx, req.Hash, req.StoreData); err != nil {
 		p.logger.Errorf("Error storing transaction %s: %v", txIDStr, err)
 		processorResponse.setErr(err, "processor")
+		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return
 	}
@@ -515,6 +517,7 @@ func (p *Processor) processTransaction(req *ProcessorRequest) {
 	err := p.store.UpdateStatus(spanCtx, req.Hash, processorResponse.GetStatus(), "")
 	if err != nil {
 		if err != store.ErrNotFound {
+			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			p.logger.Errorf("Error updating status for %x: %v", bt.ReverseBytes(req.Hash), err)
 		}

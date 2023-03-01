@@ -7,6 +7,7 @@ import (
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/lib/pq"
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
@@ -54,6 +55,7 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 		}
 
 		if !uniqueConstraint {
+			spanErr.SetTag(string(ext.Error), true)
 			spanErr.LogFields(log.Error(err))
 			return "", nil, 0, err
 		}
@@ -63,12 +65,14 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 		q = `UPDATE transactions SET source = $1 WHERE source IS NULL AND hash = $2`
 		result, err := s.db.ExecContext(ctx, q, transaction.Source, transaction.Hash)
 		if err != nil {
+			spanErr.SetTag(string(ext.Error), true)
 			spanErr.LogFields(log.Error(err))
 			return "", nil, 0, err
 		}
 
 		rows, err := result.RowsAffected()
 		if err != nil {
+			spanErr.SetTag(string(ext.Error), true)
 			spanErr.LogFields(log.Error(err))
 			return "", nil, 0, err
 		}
@@ -91,6 +95,7 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 				WHERE t.hash = $1
 				AND b.orphanedyn = false
 			`, transaction.Hash).Scan(&blockHash, &blockHeight); err != nil {
+				spanErr.SetTag(string(ext.Error), true)
 				spanErr.LogFields(log.Error(err))
 				return "", nil, 0, err
 			}
@@ -101,6 +106,7 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 
 		var source string
 		if err := s.db.QueryRowContext(ctx, "SELECT source FROM transactions WHERE hash = $1", transaction.Hash).Scan(&source); err != nil {
+			spanErr.SetTag(string(ext.Error), true)
 			spanErr.LogFields(log.Error(err))
 			return "", nil, 0, err
 		}

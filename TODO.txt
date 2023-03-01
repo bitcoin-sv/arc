@@ -1,12 +1,12 @@
 TODOs
+- Update error codes in api yaml
+- Txs posted after being mined ...
 - Manually test all APIs
 - Client set timeout to wait
 - Retry in API server if metamorph grpc call fails - does this already happen in grpc lib ?
 - Retry strategy in metamorph
 - Add last height processed to GetBlockNotificationStream in metamorph
-- Reject txs through blocktx subscription
 - Benchmark validator
-- Context for tracing needed, breaks processing in background when timeout happens
 - Add OP_RETURN to broadcaster "github.com/TAAL-GmbH/arc"
 - Admin console web application
 - + TODO in source code
@@ -20,3 +20,4 @@ Icebox
 - Send to multiple metamorphs, in listen only mode ?
 - Merkle proofs
 - Expose transaction log to /v1/txStatus?extended=true
+- Reject txs through blocktx subscription

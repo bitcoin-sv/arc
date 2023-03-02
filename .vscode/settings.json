@@ -39,6 +39,7 @@
     "getkin",
     "gommon",
     "hashblock",
+    "hashtx",
     "keyfile",
     "keyset",
     "labstack",

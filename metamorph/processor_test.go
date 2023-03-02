@@ -11,6 +11,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/TAAL-GmbH/arc/metamorph/processor_response"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/metamorph/store/badger"
 	"github.com/TAAL-GmbH/arc/metamorph/store/sql"
@@ -105,7 +106,7 @@ func TestProcessTransaction(t *testing.T) {
 			metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 		}
 
-		responseChannel := make(chan StatusAndError)
+		responseChannel := make(chan processor_response.StatusAndError)
 
 		var wg sync.WaitGroup
 		wg.Add(len(expectedResponses))
@@ -224,7 +225,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
-		responseChannel := make(chan StatusAndError)
+		responseChannel := make(chan processor_response.StatusAndError)
 
 		var wg sync.WaitGroup
 		wg.Add(1)
@@ -337,7 +338,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		processor := NewProcessor(1, s, pm, "test", nil)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
 
-		responseChannel := make(chan StatusAndError)
+		responseChannel := make(chan processor_response.StatusAndError)
 
 		var wg sync.WaitGroup
 		wg.Add(1)

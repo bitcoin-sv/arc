@@ -27,6 +27,29 @@ type ZMQ struct {
 	logger          *gocore.Logger
 }
 
+type ZMQTxInfo struct {
+	TxID                        string        `json:"txid"`
+	FromBlock                   bool          `json:"fromBlock"`
+	Source                      string        `json:"source"`
+	Address                     string        `json:"address"`
+	NodeId                      int           `json:"nodeId"`
+	Size                        int           `json:"size"`
+	Hex                         string        `json:"hex"`
+	IsInvalid                   bool          `json:"isInvalid"`
+	IsValidationError           bool          `json:"isValidationError"`
+	IsMissingInputs             bool          `json:"isMissingInputs"`
+	IsDoubleSpendDetected       bool          `json:"isDoubleSpendDetected"`
+	IsMempoolConflictDetected   bool          `json:"isMempoolConflictDetected"`
+	IsNonFinal                  bool          `json:"isNonFinal"`
+	IsValidationTimeoutExceeded bool          `json:"isValidationTimeoutExceeded"`
+	IsStandardTx                bool          `json:"isStandardTx"`
+	RejectionCode               bool          `json:"rejectionCode"`
+	Reason                      string        `json:"reason"`
+	RejectionReason             string        `json:"rejectionReason"`
+	CollidedWith                []interface{} `json:"collidedWith"`
+	RejectionTime               string        `json:"rejectionTime"`
+}
+
 func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage) *ZMQ {
 	var zmqLogger = gocore.Log("zmq")
 	z := &ZMQ{
@@ -70,47 +93,50 @@ func (z *ZMQ) Start() {
 			case "invalidtx":
 				z.Stats.invalidTx.Add(1)
 				// c[1] is lots of info about the tx in json format encoded in hex
-				var txInfo map[string]interface{}
+				var txInfo *ZMQTxInfo
 				txInfo, err = z.parseTxInfo(c)
 				if err != nil {
 					z.logger.Error("invalidtx: failed to hex decode tx info")
 					continue
 				}
 				errReason := "invalid transaction"
-				if txInfo["reject-reason"] != nil {
-					errReason += ": " + txInfo["reject-reason"].(string)
+				if txInfo.RejectionReason != "" {
+					errReason += ": " + txInfo.RejectionReason
 				}
-				if txInfo["isMissingInputs"] != nil && txInfo["isMissingInputs"].(bool) {
+				if txInfo.IsMissingInputs {
 					errReason += " - missing inputs"
 				}
-				if txInfo["isDoubleSpend"] != nil && txInfo["isDoubleSpend"].(bool) {
+				if txInfo.IsDoubleSpendDetected {
 					errReason += " - double spend"
 				}
-				z.logger.Debugf("invalidtx %s: %s", txInfo["txid"].(string), errReason)
+				z.logger.Debugf("invalidtx %s: %s", txInfo.TxID, errReason)
 				z.statusMessageCh <- &PeerTxMessage{
 					Start:  time.Now(),
-					Txid:   txInfo["txid"].(string),
+					Txid:   txInfo.TxID,
 					Status: metamorph_api.Status_REJECTED,
 					Peer:   z.URL.String(),
 					Err:    fmt.Errorf(errReason),
 				}
 			case "discardedfrommempool":
 				z.Stats.discardedFromMempool.Add(1)
-				var txInfo map[string]interface{}
+				var txInfo *ZMQTxInfo
 				txInfo, err = z.parseTxInfo(c)
 				if err != nil {
 					z.logger.Error("invalidtx: failed to hex decode tx info")
 					continue
 				}
 				reason := ""
-				if txInfo["reason"] != nil {
-					reason = txInfo["reason"].(string)
+				if txInfo.Reason != "" {
+					reason = txInfo.Reason
+				}
+				if txInfo.RejectionReason != "" {
+					reason += ": " + txInfo.RejectionReason
 				}
 				// reasons can be "collision-in-block-tx" and "unknown-reason"
-				z.logger.Debugf("discardedfrommempool %s: %s", txInfo["txid"].(string), reason)
+				z.logger.Debugf("discardedfrommempool %s: %s", txInfo.TxID, reason)
 				z.statusMessageCh <- &PeerTxMessage{
 					Start:  time.Now(),
-					Txid:   c[1],
+					Txid:   txInfo.TxID,
 					Status: metamorph_api.Status_REJECTED,
 					Peer:   z.URL.String(),
 					Err:    fmt.Errorf("discarded from mempool: %s", reason),
@@ -134,8 +160,8 @@ func (z *ZMQ) Start() {
 	}
 }
 
-func (z *ZMQ) parseTxInfo(c []string) (map[string]interface{}, error) {
-	var txInfo map[string]interface{}
+func (z *ZMQ) parseTxInfo(c []string) (*ZMQTxInfo, error) {
+	var txInfo *ZMQTxInfo
 	txInfoBytes, err := hex.DecodeString(c[1])
 	if err != nil {
 		return nil, err

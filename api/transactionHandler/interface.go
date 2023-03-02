@@ -27,5 +27,7 @@ type TransactionStatus struct {
 	BlockHash   string `json:"blockHash,omitempty"`
 	BlockHeight uint64 `json:"blockHeight,omitempty"`
 	Status      string `json:"status"`
+	TxStatus    string `json:"txStatus"`
+	ExtraInfo   string `json:"extraInfo,omitempty"`
 	Timestamp   int64  `json:"timestamp"`
 }

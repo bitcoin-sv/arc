@@ -253,6 +253,9 @@ func TestSendStatusForTransaction(t *testing.T) {
 		assert.Equal(t, 1, processor.processorResponseMap.Len())
 
 		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1, metamorph_api.Status_MINED, "test", nil)
+		// need to sleep, since everything is async
+		time.Sleep(100 * time.Millisecond)
+
 		assert.False(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.processorResponseMap.Len(), "should have been removed from the map")
@@ -264,20 +267,6 @@ func TestSendStatusForTransaction(t *testing.T) {
 }
 
 func TestSendStatusMinedForTransaction(t *testing.T) {
-	t.Run("SendStatusMinedForTransaction unknown tx", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
-		require.NoError(t, err)
-
-		pm := p2p.NewPeerManagerMock()
-
-		processor := NewProcessor(1, s, pm, "test", nil)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
-
-		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Bytes, []byte("hash1"), 1233)
-		assert.True(t, ok)
-		assert.NoError(t, sendErr)
-	})
-
 	t.Run("SendStatusMinedForTransaction known tx", func(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
@@ -286,9 +275,14 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		pm := p2p.NewPeerManagerMock()
 
 		processor := NewProcessor(1, s, pm, "test", nil)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		processor.processorResponseMap.Set(testdata.TX1, processor_response.NewProcessorResponseWithStatus(
+			testdata.TX1Bytes,
+			metamorph_api.Status_SEEN_ON_NETWORK,
+		))
+		assert.Equal(t, 1, processor.processorResponseMap.Len())
 
 		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Bytes, []byte("hash1"), 1233)
+		time.Sleep(100 * time.Millisecond)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.processorResponseMap.Len())
@@ -321,8 +315,14 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		}()
 
 		processor := NewProcessor(1, s, pm, "test", callbackCh)
+		// add the tx to the map
+		processor.processorResponseMap.Set(testdata.TX1, processor_response.NewProcessorResponseWithStatus(
+			testdata.TX1Bytes,
+			metamorph_api.Status_SEEN_ON_NETWORK,
+		))
 
 		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Bytes, []byte("hash1"), 1233)
+		time.Sleep(100 * time.Millisecond)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
 
@@ -367,6 +367,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		assert.Equal(t, 1, processor.processorResponseMap.Len())
 
 		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Bytes, []byte("hash1"), 1233)
+		time.Sleep(10 * time.Millisecond)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.processorResponseMap.Len(), "should have been removed from the map")

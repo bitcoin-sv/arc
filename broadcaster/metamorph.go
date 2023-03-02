@@ -50,7 +50,10 @@ func (m *MetamorphBroadcaster) BroadcastTransactions(ctx context.Context, txs []
 			WaitForStatus: waitFor,
 		})
 		if err != nil {
-			return nil, err
+			// return nil, err
+			// we should not return here, but continue with the next tx and mark this one as failed
+			// we do that by setting the version to 0, which should then be read by the consolidator
+			tx.Version = 0
 		}
 		txStatuses[idx] = txStatus
 	}

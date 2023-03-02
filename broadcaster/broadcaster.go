@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"runtime"
 	"sync"
 	"time"
@@ -92,7 +93,13 @@ func New(logger utils.Logger, client ClientI, fromKeySet *keyset.KeySet, toKeySe
 
 func (b *Broadcaster) ConsolidateOutputsToOriginal(ctx context.Context, txs []*bt.Tx, iteration int64) error {
 	// consolidate all transactions back into the original arcUrl
-	b.logger.Infof("[%d] consolidating %d transactions back into original address", iteration, len(txs))
+	lenValidTxs := 0
+	for _, tx := range txs {
+		if tx.Version > 0 {
+			lenValidTxs++
+		}
+	}
+	b.logger.Infof("[%d] consolidating %d / %d transactions back into original address", iteration, lenValidTxs, len(txs))
 	if b.logger.LogLevel() == int(gocore.DEBUG) && b.PrintTxIDs {
 		for _, tx := range txs {
 			b.logger.Debugf("[%d]    consolidating tx: %s", iteration, tx.TxID())
@@ -101,16 +108,19 @@ func (b *Broadcaster) ConsolidateOutputsToOriginal(ctx context.Context, txs []*b
 
 	consolidationAddress := b.FromKeySet.Address(!b.IsRegtest)
 	consolidationTx := bt.NewTx()
-	utxos := make([]*bt.UTXO, len(txs))
+	utxos := make([]*bt.UTXO, 0, len(txs))
 	totalSatoshis := uint64(0)
-	for i, tx := range txs {
-		utxos[i] = &bt.UTXO{
-			TxID:          tx.TxIDBytes(),
-			Vout:          0,
-			LockingScript: tx.Outputs[0].LockingScript,
-			Satoshis:      tx.Outputs[0].Satoshis,
+	for _, tx := range txs {
+		// only select transactions that succeeded, failed transactions will have a version of 0
+		if tx.Version > 0 {
+			utxos = append(utxos, &bt.UTXO{
+				TxID:          tx.TxIDBytes(),
+				Vout:          0,
+				LockingScript: tx.Outputs[0].LockingScript,
+				Satoshis:      tx.Outputs[0].Satoshis,
+			})
+			totalSatoshis += tx.Outputs[0].Satoshis
 		}
-		totalSatoshis += tx.Outputs[0].Satoshis
 	}
 	err := consolidationTx.FromUTXOs(utxos...)
 	if err != nil {
@@ -152,8 +162,39 @@ func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 	}
 	b.logger.Infof("Using concurrency of %d", concurrency)
 
+	// first we create all the funding transactions, serially and wait for them to propagate
+	batches := int64(math.Ceil(float64(b.Outputs) / float64(b.BatchSize)))
+	b.logger.Infof("Creating %d funding txs for batches", batches)
+
+	fundingTxs := make([]*bt.Tx, batches)
+	for i := int64(0); i < b.Outputs; i += b.BatchSize {
+		batchSize := b.BatchSize
+		if i+batchSize > b.Outputs {
+			batchSize = b.Outputs - i
+		}
+
+		iteration := (i / b.BatchSize) + 1
+
+		fundingTx := b.NewFundingTransaction(batchSize, iteration)
+		b.logger.Infof("[%d] outputs tx: %s", iteration, fundingTx.TxID())
+
+		_, err := b.Client.BroadcastTransaction(ctx, fundingTx, metamorph_api.Status(b.WaitForStatus))
+		if err != nil {
+			b.logger.Fatalf("[%d] error broadcasting funding tx: %s", iteration, err.Error())
+		}
+
+		fundingTxs[iteration-1] = fundingTx
+	}
+
+	b.logger.Infof("Created %d funding batches in %0.2f seconds", batches, time.Since(timeStart).Seconds())
+
+	// wait for things to settle down
+	time.Sleep(2 * time.Second)
+
+	// start the timer for the transaction sending
+	timeStart = time.Now()
+
 	// loop through the number of outputs in batches of b.BatchSize (default 500)
-	b.logger.Infof("creating funding txs")
 	var wg sync.WaitGroup
 	limit := make(chan struct{}, runtime.NumCPU())
 	for i := int64(0); i < b.Outputs; i += b.BatchSize {
@@ -173,17 +214,10 @@ func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 
 			iteration := (i / b.BatchSize) + 1
 
-			fundingTx := b.NewFundingTransaction(batchSize, iteration)
-			b.logger.Infof("[%d] outputs tx: %s", iteration, fundingTx.TxID())
-
-			_, err := b.Client.BroadcastTransaction(ctx, fundingTx, metamorph_api.Status(b.WaitForStatus))
-			if err != nil {
-				b.logger.Infof("[%d] error broadcasting funding tx: %s", iteration, err.Error())
-				return
-			}
+			fundingTx := fundingTxs[iteration-1]
 
 			b.logger.Infof("[%d] running batch: %d - %d", iteration, i, i+batchSize)
-			err = b.runBatch(ctx, concurrency, fundingTx, iteration)
+			err := b.runBatch(ctx, concurrency, fundingTx, iteration)
 			if err != nil {
 				b.logger.Infof("[%d] error running batch: %s", iteration, err.Error())
 				return
@@ -268,6 +302,8 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 					if err := b.ProcessTransaction(ctx, tx, iteration); err != nil {
 						b.logger.Infof("[%d] Error in %s: %s", iteration, txs[i].TxID(), err.Error())
 						b.logger.Infof(txs[i].String())
+						// mark the tx as invalid
+						tx.Version = 0
 					}
 				}(i, tx)
 			}

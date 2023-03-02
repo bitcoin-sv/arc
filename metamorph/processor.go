@@ -121,7 +121,7 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 	}
 
 	gocore.AddAppPayloadFn("mtm", func() interface{} {
-		return p.GetStats()
+		return p.GetStats(false)
 	})
 
 	_ = newPrometheusCollector(p)
@@ -181,6 +181,7 @@ func (p *Processor) processExpiredTransactions() {
 					continue
 				} else if retries >= 2 {
 					// TODO what should we do here?
+					// check for it in blocktx, it might have been mined
 					p.logger.Debugf("Transaction %s has been retried 4 times, not resending", txID)
 					continue
 				} else if retries >= 1 {

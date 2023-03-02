@@ -157,7 +157,7 @@ func (c *prometheusCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect implements required collect function for all prometheus collectors
 func (c *prometheusCollector) Collect(ch chan<- prometheus.Metric) {
 
-	stats := c.processor.GetStats()
+	stats := c.processor.GetStats(false)
 
 	//Write the latest value for each metric in the prometheus metric channel.
 	//Note that you can pass erValue, GaugeValue, or UntypedValue types here.

@@ -111,6 +111,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions 
 	return &TransactionStatus{
 		TxID:        response.Txid,
 		Status:      response.GetStatus().String(),
+		ExtraInfo:   response.RejectReason,
 		BlockHash:   response.BlockHash,
 		BlockHeight: response.BlockHeight,
 		Timestamp:   time.Now().Unix(),

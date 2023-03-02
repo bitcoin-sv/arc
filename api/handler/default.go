@@ -405,12 +405,18 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 		txID = transaction.TxID()
 	}
 
+	var extraInfo string
+	if tx.ExtraInfo != "" {
+		extraInfo = tx.ExtraInfo
+	}
+
 	return api.StatusOK, api.TransactionResponse{
 		Status:      int(api.StatusOK),
 		Title:       "OK",
 		BlockHash:   &tx.BlockHash,
 		BlockHeight: &tx.BlockHeight,
 		TxStatus:    (*api.TransactionResponseTxStatus)(&tx.Status),
+		ExtraInfo:   &extraInfo,
 		Timestamp:   time.Now(),
 		Txid:        &txID,
 	}, nil

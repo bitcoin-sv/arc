@@ -89,7 +89,7 @@ func (z *ZMQ) Start() {
 				z.logger.Debugf("invalidtx %s: %s", txInfo["txid"].(string), errReason)
 				z.statusMessageCh <- &PeerTxMessage{
 					Start:  time.Now(),
-					Txid:   c[1],
+					Txid:   txInfo["txid"].(string),
 					Status: metamorph_api.Status_REJECTED,
 					Peer:   z.URL.String(),
 					Err:    fmt.Errorf(errReason),

@@ -8,6 +8,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/TAAL-GmbH/arc/metamorph/processor_response"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"github.com/sasha-s/go-deadlock"
@@ -16,7 +17,7 @@ import (
 type ProcessorResponseMap struct {
 	mu        deadlock.RWMutex
 	expiry    time.Duration
-	items     map[string]*ProcessorResponse
+	items     map[string]*processor_response.ProcessorResponse
 	logFile   string
 	logWorker chan statResponse
 }
@@ -26,7 +27,7 @@ func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
 
 	m := &ProcessorResponseMap{
 		expiry:  expiry,
-		items:   make(map[string]*ProcessorResponse),
+		items:   make(map[string]*processor_response.ProcessorResponse),
 		logFile: logFile,
 	}
 
@@ -70,14 +71,14 @@ func (m *ProcessorResponseMap) logWriter() {
 	}
 }
 
-func (m *ProcessorResponseMap) Set(key string, value *ProcessorResponse) {
+func (m *ProcessorResponseMap) Set(key string, value *processor_response.ProcessorResponse) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.items[key] = value
 }
 
-func (m *ProcessorResponseMap) Get(key string) (*ProcessorResponse, bool) {
+func (m *ProcessorResponseMap) Get(key string) (*processor_response.ProcessorResponse, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -116,7 +117,7 @@ func (m *ProcessorResponseMap) Delete(key string) {
 			Err:                   item.Err,
 			AnnouncedPeers:        announcedPeers,
 			Status:                item.Status,
-			NoStats:               item.noStats,
+			NoStats:               item.NoStats,
 			LastStatusUpdateNanos: item.LastStatusUpdateNanos.Load(),
 			Log:                   item.Log,
 		})
@@ -158,9 +159,9 @@ func (m *ProcessorResponseMap) IncrementRetry(key string) uint32 {
 // If a filter function is provided, only hashes that pass the filter will be returned.
 // If no filter function is provided, all hashes will be returned.
 // The filter function will be called with the lock held, so it should not block.
-func (m *ProcessorResponseMap) Hashes(filterFunc ...func(*ProcessorResponse) bool) [][]byte {
+func (m *ProcessorResponseMap) Hashes(filterFunc ...func(*processor_response.ProcessorResponse) bool) [][]byte {
 	// Default filter function returns true for all items
-	fn := func(p *ProcessorResponse) bool {
+	fn := func(p *processor_response.ProcessorResponse) bool {
 		return true
 	}
 
@@ -187,9 +188,9 @@ func (m *ProcessorResponseMap) Hashes(filterFunc ...func(*ProcessorResponse) boo
 // If a filter function is provided, only items that pass the filter will be returned.
 // If no filter function is provided, all items will be returned.
 // The filter function will be called with the lock held, so it should not block.
-func (m *ProcessorResponseMap) Items(filterFunc ...func(*ProcessorResponse) bool) map[string]*ProcessorResponse {
+func (m *ProcessorResponseMap) Items(filterFunc ...func(*processor_response.ProcessorResponse) bool) map[string]*processor_response.ProcessorResponse {
 	// Default filter function returns true for all items
-	fn := func(p *ProcessorResponse) bool {
+	fn := func(p *processor_response.ProcessorResponse) bool {
 		return true
 	}
 
@@ -201,7 +202,7 @@ func (m *ProcessorResponseMap) Items(filterFunc ...func(*ProcessorResponse) bool
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	items := make(map[string]*ProcessorResponse, len(m.items))
+	items := make(map[string]*processor_response.ProcessorResponse, len(m.items))
 
 	for key, item := range m.items {
 		if fn(item) {
@@ -227,7 +228,7 @@ func (m *ProcessorResponseMap) Clear() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.items = make(map[string]*ProcessorResponse)
+	m.items = make(map[string]*processor_response.ProcessorResponse)
 }
 
 func (m *ProcessorResponseMap) clean() {

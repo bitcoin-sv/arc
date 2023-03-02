@@ -43,7 +43,7 @@ type ZMQTxInfo struct {
 	IsNonFinal                  bool          `json:"isNonFinal"`
 	IsValidationTimeoutExceeded bool          `json:"isValidationTimeoutExceeded"`
 	IsStandardTx                bool          `json:"isStandardTx"`
-	RejectionCode               bool          `json:"rejectionCode"`
+	RejectionCode               int           `json:"rejectionCode"`
 	Reason                      string        `json:"reason"`
 	RejectionReason             string        `json:"rejectionReason"`
 	CollidedWith                []interface{} `json:"collidedWith"`
@@ -161,7 +161,7 @@ func (z *ZMQ) Start() {
 }
 
 func (z *ZMQ) parseTxInfo(c []string) (*ZMQTxInfo, error) {
-	var txInfo *ZMQTxInfo
+	var txInfo ZMQTxInfo
 	txInfoBytes, err := hex.DecodeString(c[1])
 	if err != nil {
 		return nil, err
@@ -170,5 +170,5 @@ func (z *ZMQ) parseTxInfo(c []string) (*ZMQTxInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return txInfo, nil
+	return &txInfo, nil
 }

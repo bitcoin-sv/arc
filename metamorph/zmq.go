@@ -81,7 +81,7 @@ func (z *ZMQ) Start() {
 	go func() {
 		for c := range ch {
 			switch c[0] {
-			case "hashtx":
+			case "hashtx2":
 				z.Stats.hashTx.Add(1)
 				z.logger.Debugf("hashtx %s", c[1])
 				z.statusMessageCh <- &PeerTxMessage{
@@ -147,7 +147,7 @@ func (z *ZMQ) Start() {
 		}
 	}()
 
-	if err = zmq.Subscribe("hashtx", ch); err != nil {
+	if err = zmq.Subscribe("hashtx2", ch); err != nil {
 		z.logger.Fatal(err)
 	}
 

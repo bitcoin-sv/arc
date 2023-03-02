@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/TAAL-GmbH/arc/metamorph/processor_response"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	gcutils "github.com/ordishs/gocore/utils"
@@ -100,15 +101,15 @@ MapSize:       %d
 }
 
 type statResponse struct {
-	Txid                  string                 `json:"hash"`
-	Start                 time.Time              `json:"start"`
-	Retries               uint32                 `json:"Retries"`
-	Err                   error                  `json:"error"`
-	AnnouncedPeers        []string               `json:"AnnouncedPeers"`
-	Status                metamorph_api.Status   `json:"Status"`
-	NoStats               bool                   `json:"noStats"`
-	LastStatusUpdateNanos int64                  `json:"LastStatusUpdateNanos"`
-	Log                   []ProcessorResponseLog `json:"log"`
+	Txid                  string                                    `json:"hash"`
+	Start                 time.Time                                 `json:"start"`
+	Retries               uint32                                    `json:"Retries"`
+	Err                   error                                     `json:"error"`
+	AnnouncedPeers        []string                                  `json:"AnnouncedPeers"`
+	Status                metamorph_api.Status                      `json:"Status"`
+	NoStats               bool                                      `json:"noStats"`
+	LastStatusUpdateNanos int64                                     `json:"LastStatusUpdateNanos"`
+	Log                   []processor_response.ProcessorResponseLog `json:"log"`
 }
 
 func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
@@ -133,7 +134,7 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 		if printTxs {
 			_ = json.NewEncoder(w).Encode(struct {
 				*ProcessorStats
-				Txs map[string]*ProcessorResponse `json:"txs"`
+				Txs map[string]*processor_response.ProcessorResponse `json:"txs"`
 			}{
 				ProcessorStats: stats,
 				Txs:            p.processorResponseMap.Items(),
@@ -147,7 +148,7 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 	var txids strings.Builder
 	if printTxs {
 		items := p.processorResponseMap.Items()
-		processorResponses := make([]*ProcessorResponse, 0, len(items))
+		processorResponses := make([]*processor_response.ProcessorResponse, 0, len(items))
 		for _, item := range items {
 			processorResponses = append(processorResponses, item)
 		}
@@ -324,7 +325,7 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string, format 
 				if logFile != "" {
 					processorResponseStats := grepFile(logFile, txid)
 					if processorResponseStats != "" {
-						var prStats *ProcessorResponse
+						var prStats *processor_response.ProcessorResponse
 						_ = json.Unmarshal([]byte(processorResponseStats), &prStats)
 						if prStats != nil {
 							_, _ = io.WriteString(w, fmt.Sprintf(`
@@ -377,7 +378,7 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string, format 
   </html>`, txJson))
 }
 
-func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *ProcessorResponse) []byte {
+func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *processor_response.ProcessorResponse) []byte {
 
 	announcedPeers := make([]string, 0, len(prm.AnnouncedPeers))
 	for _, peer := range prm.AnnouncedPeers {
@@ -393,7 +394,7 @@ func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *Proc
 		Err:                   prm.Err,
 		AnnouncedPeers:        announcedPeers,
 		Status:                prm.Status,
-		NoStats:               prm.noStats,
+		NoStats:               prm.NoStats,
 		LastStatusUpdateNanos: prm.LastStatusUpdateNanos.Load(),
 		Log:                   prm.Log,
 	}
@@ -458,7 +459,7 @@ func (p *Processor) _(w http.ResponseWriter, txid string) {
 		Err:                   prm.Err,
 		AnnouncedPeers:        announcedPeers,
 		Status:                prm.Status,
-		NoStats:               prm.noStats,
+		NoStats:               prm.NoStats,
 		LastStatusUpdateNanos: prm.LastStatusUpdateNanos.Load(),
 		Log:                   prm.Log,
 	}

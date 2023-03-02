@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/TAAL-GmbH/arc/metamorph/processor_response"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/stretchr/testify/assert"
 )
@@ -11,7 +12,7 @@ import (
 func TestNewProcessorRequest(t *testing.T) {
 	t.Run("should return a new ProcessorRequest", func(t *testing.T) {
 		s := &store.StoreData{}
-		responseChannel := make(chan StatusAndError)
+		responseChannel := make(chan processor_response.StatusAndError)
 
 		processorRequest := NewProcessorRequest(context.Background(), s, responseChannel)
 

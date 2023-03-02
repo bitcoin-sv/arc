@@ -8,6 +8,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/TAAL-GmbH/arc/metamorph/processor_response"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/metamorph/store/sql"
 	"github.com/TAAL-GmbH/arc/testdata"
@@ -77,7 +78,7 @@ func TestPutTransaction(t *testing.T) {
 		go func() {
 			time.Sleep(10 * time.Millisecond)
 
-			processor.GetProcessRequest(0).ResponseChannel <- StatusAndError{
+			processor.GetProcessRequest(0).ResponseChannel <- processor_response.StatusAndError{
 				Hash:   testdata.TX1Bytes,
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			}
@@ -107,7 +108,7 @@ func TestPutTransaction(t *testing.T) {
 		}
 		go func() {
 			time.Sleep(10 * time.Millisecond)
-			processor.GetProcessRequest(0).ResponseChannel <- StatusAndError{
+			processor.GetProcessRequest(0).ResponseChannel <- processor_response.StatusAndError{
 				Hash:   testdata.TX1Bytes,
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			}
@@ -136,7 +137,7 @@ func TestPutTransaction(t *testing.T) {
 		}
 		go func() {
 			time.Sleep(10 * time.Millisecond)
-			processor.GetProcessRequest(0).ResponseChannel <- StatusAndError{
+			processor.GetProcessRequest(0).ResponseChannel <- processor_response.StatusAndError{
 				Hash:   testdata.TX1Bytes,
 				Status: metamorph_api.Status_REJECTED,
 				Err:    fmt.Errorf("some error"),

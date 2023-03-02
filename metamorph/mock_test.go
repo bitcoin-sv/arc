@@ -82,7 +82,7 @@ func (p *ProcessorMock) SendStatusMinedForTransaction(hash []byte, blockHash []b
 	return true, nil
 }
 
-func (p *ProcessorMock) GetStats() *ProcessorStats {
+func (p *ProcessorMock) GetStats(_ bool) *ProcessorStats {
 	return p.Stats
 }
 

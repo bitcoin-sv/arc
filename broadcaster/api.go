@@ -27,6 +27,15 @@ type Auth struct {
 	Authorization string
 }
 
+type Response struct {
+	Txid        string `json:"txid"`
+	Status      int    `json:"status"`
+	ExtraInfo   string `json:"extraInfo"`
+	TxStatus    string `json:"txStatus"`
+	BlockHeight uint64 `json:"blockHeight"`
+	BlockHash   string `json:"blockHash"`
+}
+
 func NewHTTPBroadcaster(arcServer string, auth *Auth) *APIBroadcaster {
 	return &APIBroadcaster{
 		arcServer: arcServer,
@@ -69,14 +78,7 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx
 		return nil, err
 	}
 
-	type Response struct {
-		Txid        string `json:"txid"`
-		TxStatus    string `json:"txStatus"`
-		BlockHeight uint64 `json:"blockHeight"`
-		BlockHash   string `json:"blockHash"`
-	}
-
-	bodyResponse := []Response{}
+	var bodyResponse []Response
 	err = json.Unmarshal(bodyBytes, &bodyResponse)
 	if err != nil {
 		return nil, err
@@ -86,10 +88,18 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx
 
 	for idx, tx := range bodyResponse {
 		txStatuses[idx] = &metamorph_api.TransactionStatus{
-			Txid:        tx.Txid,
-			Status:      metamorph_api.Status(metamorph_api.Status_value[tx.TxStatus]),
-			BlockHeight: tx.BlockHeight,
-			BlockHash:   tx.BlockHash,
+			Txid:         tx.Txid,
+			Status:       metamorph_api.Status(metamorph_api.Status_value[tx.TxStatus]),
+			RejectReason: tx.ExtraInfo,
+			BlockHeight:  tx.BlockHeight,
+			BlockHash:    tx.BlockHash,
+		}
+
+		// check whether we got an error and the transaction was actually not sent to the network
+		if tx.Status != 200 {
+			fmt.Printf("Error broadcasting tx: %#v\n", tx)
+			// set version to 0 to indicate that the transaction was not sent to the network
+			txs[idx].Version = 0
 		}
 	}
 
@@ -141,10 +151,11 @@ func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, wa
 	blockHeight := *bodyResponse.BlockHeight
 	txStatus := string(*bodyResponse.TxStatus)
 	return &metamorph_api.TransactionStatus{
-		Txid:        *bodyResponse.Txid,
-		Status:      metamorph_api.Status(metamorph_api.Status_value[txStatus]),
-		BlockHeight: blockHeight,
-		BlockHash:   *bodyResponse.BlockHash,
+		Txid:         *bodyResponse.Txid,
+		Status:       metamorph_api.Status(metamorph_api.Status_value[txStatus]),
+		RejectReason: *bodyResponse.ExtraInfo,
+		BlockHeight:  blockHeight,
+		BlockHash:    *bodyResponse.BlockHash,
 	}, nil
 }
 

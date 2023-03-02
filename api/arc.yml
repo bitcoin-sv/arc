@@ -343,6 +343,9 @@ components:
             txStatus:
               type: string
               nullable: false
+            extraInfo:
+              type: string
+              nullable: true
           additionalProperties: false
 
     TransactionStatus:
@@ -360,6 +363,9 @@ components:
             txStatus:
               type: string
               nullable: false
+            extraInfo:
+              type: string
+              nullable: true
           additionalProperties: false
 
     TransactionResponse:
@@ -429,6 +435,11 @@ components:
               description: Transaction status
               example: "ACCEPTED"
               nullable: false
+            extraInfo:
+              type: string
+              description: Extra information about the transaction
+              example: "Transaction is not valid"
+              nullable: true
 
     Error:
       description: An HTTP Problem Details object, as defined in IETF RFC 7807 (https://tools.ietf.org/html/rfc7807).

@@ -94,7 +94,7 @@ func (s *Server) StartGRPCServer(address string) error {
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.HealthResponse, error) {
-	stats := s.processor.GetStats()
+	stats := s.processor.GetStats(false)
 
 	peersConnected, peersDisconnected := s.processor.GetPeers()
 

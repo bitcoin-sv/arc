@@ -22,8 +22,8 @@ import (
 	gcutils "github.com/ordishs/gocore/utils"
 )
 
-func (p *Processor) GetStats() *ProcessorStats {
-	if p.logger.LogLevel() == int(gocore.DEBUG) {
+func (p *Processor) GetStats(debugItems bool) *ProcessorStats {
+	if debugItems && p.logger.LogLevel() == int(gocore.DEBUG) {
 		p.processorResponseMap.PrintItems()
 	}
 
@@ -57,7 +57,7 @@ func (p *Processor) PrintStatsOnKeypress() func() {
 		for {
 			_, _ = os.Stdin.Read(b)
 
-			stats := p.GetStats()
+			stats := p.GetStats(true)
 
 			indent := "               "
 
@@ -130,7 +130,7 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 
 	if format == "json" {
 		w.Header().Set("Content-Type", "application/json")
-		stats := p.GetStats()
+		stats := p.GetStats(false)
 		if printTxs {
 			_ = json.NewEncoder(w).Encode(struct {
 				*ProcessorStats
@@ -182,7 +182,7 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	stats := p.GetStats()
+	stats := p.GetStats(false)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)

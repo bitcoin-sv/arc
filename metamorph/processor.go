@@ -54,14 +54,6 @@ type ProcessorStats struct {
 	ChannelMapSize     int32
 }
 
-type processorResponseStatusUpdateResponse struct {
-	hashStr  string
-	status   metamorph_api.Status
-	source   string
-	err      error
-	duration time.Duration
-}
-
 type Processor struct {
 	ch                   chan *ProcessorRequest
 	store                store.MetamorphStore
@@ -150,40 +142,6 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 	_ = newPrometheusCollector(p)
 
 	return p
-}
-
-func (p *Processor) updateStats(pr *processorResponseStatusUpdateResponse) {
-	switch pr.status {
-
-	case metamorph_api.Status_REQUESTED_BY_NETWORK:
-		p.requestedByNetwork.AddDuration(pr.source, pr.duration)
-
-	case metamorph_api.Status_SENT_TO_NETWORK:
-		p.sentToNetwork.AddDuration(pr.source, pr.duration)
-
-	case metamorph_api.Status_ACCEPTED_BY_NETWORK:
-		p.acceptedByNetwork.AddDuration(pr.source, pr.duration)
-
-	case metamorph_api.Status_SEEN_ON_NETWORK:
-		p.seenOnNetwork.AddDuration(pr.source, pr.duration)
-
-	case metamorph_api.Status_MINED:
-		p.mined.AddDuration(pr.duration)
-		// TODO add worker to clean out the processorResponseMap of MINED transactions
-		p.processorResponseMap.Delete(pr.hashStr)
-
-	case metamorph_api.Status_REJECTED:
-		// log transaction to the error log
-		if p.errorLogFile != "" && p.errorLogWorker != nil {
-			processorResponse, ok := p.processorResponseMap.Get(pr.hashStr)
-			if ok {
-				utils.SafeSend(p.errorLogWorker, processorResponse)
-			}
-		}
-
-		p.rejected.AddDuration(pr.source, pr.duration)
-		// p.processorResponseMap.Delete(hashStr)
-	}
 }
 
 func (p *Processor) GetMetamorphAddress() string {

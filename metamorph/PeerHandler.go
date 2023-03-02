@@ -46,7 +46,7 @@ func (m *PeerHandler) HandleTransactionSent(msg *wire.MsgTx, peer p2p.PeerI) err
 	hash := msg.TxHash()
 	m.messageCh <- &PeerTxMessage{
 		Txid:   utils.HexEncodeAndReverseBytes(hash.CloneBytes()),
-		Status: p2p.Status(metamorph_api.Status_SENT_TO_NETWORK),
+		Status: metamorph_api.Status_SENT_TO_NETWORK,
 		Peer:   peer.String(),
 	}
 
@@ -67,7 +67,7 @@ func (m *PeerHandler) HandleTransactionAnnouncement(msg *wire.InvVect, peer p2p.
 
 	m.messageCh <- &PeerTxMessage{
 		Txid:   utils.HexEncodeAndReverseBytes(msg.Hash.CloneBytes()),
-		Status: p2p.Status(metamorph_api.Status_SEEN_ON_NETWORK),
+		Status: metamorph_api.Status_SEEN_ON_NETWORK,
 		Peer:   peer.String(),
 	}
 
@@ -88,7 +88,7 @@ func (m *PeerHandler) HandleTransactionRejection(rejMsg *wire.MsgReject, peer p2
 
 	m.messageCh <- &PeerTxMessage{
 		Txid:   utils.HexEncodeAndReverseBytes(rejMsg.Hash.CloneBytes()),
-		Status: p2p.Status(metamorph_api.Status_REJECTED),
+		Status: metamorph_api.Status_REJECTED,
 		Err:    fmt.Errorf("transaction rejected by peer %s: %s", peer.String(), rejMsg.Reason),
 	}
 
@@ -109,7 +109,7 @@ func (m *PeerHandler) HandleTransactionGet(msg *wire.InvVect, peer p2p.PeerI) ([
 
 	m.messageCh <- &PeerTxMessage{
 		Txid:   utils.HexEncodeAndReverseBytes(msg.Hash.CloneBytes()),
-		Status: p2p.Status(metamorph_api.Status_REQUESTED_BY_NETWORK),
+		Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
 		Peer:   peer.String(),
 	}
 
@@ -135,7 +135,7 @@ func (m *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error {
 
 	m.messageCh <- &PeerTxMessage{
 		Txid:   msg.TxHash().String(),
-		Status: p2p.Status(metamorph_api.Status_SEEN_ON_NETWORK),
+		Status: metamorph_api.Status_SEEN_ON_NETWORK,
 		Peer:   peer.String(),
 	}
 

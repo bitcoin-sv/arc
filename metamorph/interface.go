@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
-	"github.com/libsv/go-p2p"
 )
 
 type ProcessorI interface {
@@ -19,7 +18,7 @@ type ProcessorI interface {
 type PeerTxMessage struct {
 	Start  time.Time
 	Txid   string
-	Status p2p.Status
+	Status metamorph_api.Status
 	Peer   string
 	Err    error
 }

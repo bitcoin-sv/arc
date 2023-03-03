@@ -150,13 +150,19 @@ func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, wa
 
 	blockHeight := *bodyResponse.BlockHeight
 	txStatus := string(*bodyResponse.TxStatus)
-	return &metamorph_api.TransactionStatus{
-		Txid:         *bodyResponse.Txid,
-		Status:       metamorph_api.Status(metamorph_api.Status_value[txStatus]),
-		RejectReason: *bodyResponse.ExtraInfo,
-		BlockHeight:  blockHeight,
-		BlockHash:    *bodyResponse.BlockHash,
-	}, nil
+
+	res := &metamorph_api.TransactionStatus{
+		Txid:        *bodyResponse.Txid,
+		Status:      metamorph_api.Status(metamorph_api.Status_value[txStatus]),
+		BlockHeight: blockHeight,
+		BlockHash:   *bodyResponse.BlockHash,
+	}
+
+	if bodyResponse.ExtraInfo != nil {
+		res.RejectReason = *bodyResponse.ExtraInfo
+	}
+
+	return res, nil
 }
 
 func (a *APIBroadcaster) getArcClient() (*api.ClientWithResponses, error) {

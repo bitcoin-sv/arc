@@ -71,6 +71,7 @@ func newProcessorResponse(hash []byte, status metamorph_api.Status, ch chan Stat
 			},
 		},
 	}
+	pr.LastStatusUpdateNanos.Store(pr.Start.UnixNano())
 
 	go func() {
 		for statusUpdate := range pr.statusUpdateCh {

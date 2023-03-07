@@ -47,6 +47,11 @@ func New(engine string) (store.Interface, error) {
 			return nil, fmt.Errorf("failed to open postgres DB: %+v", err)
 		}
 
+		idleConns, _ := gocore.Config().GetInt("blocktx_postgresMaxIdleConns", 10)
+		db.SetMaxIdleConns(idleConns)
+		maxOpenConns, _ := gocore.Config().GetInt("blocktx_postgresMaxOpenConns", 80)
+		db.SetMaxOpenConns(maxOpenConns)
+
 		if err := createPostgresSchema(db); err != nil {
 			return nil, fmt.Errorf("failed to create postgres schema: %+v", err)
 		}

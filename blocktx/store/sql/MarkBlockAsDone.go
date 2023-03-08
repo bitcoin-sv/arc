@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/gocore"
 )
 
-func (s *SQL) MarkBlockAsDone(ctx context.Context, hash []byte, size uint64, txCount uint64) error {
+func (s *SQL) MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("MarkBlockAsDone").AddTime(start)
@@ -16,7 +17,7 @@ func (s *SQL) MarkBlockAsDone(ctx context.Context, hash []byte, size uint64, txC
 	return markBlockAsDone(ctx, s.db, hash, size, txCount, true)
 }
 
-func markBlockAsDone(_ctx context.Context, db *sql.DB, hash []byte, size uint64, txCount uint64, done bool) error {
+func markBlockAsDone(_ctx context.Context, db *sql.DB, hash *chainhash.Hash, size uint64, txCount uint64, done bool) error {
 	ctx, cancel := context.WithCancel(_ctx)
 	defer cancel()
 
@@ -31,7 +32,7 @@ func markBlockAsDone(_ctx context.Context, db *sql.DB, hash []byte, size uint64,
 			WHERE hash = $3
 		`
 
-		if _, err := db.ExecContext(ctx, q, size, txCount, hash); err != nil {
+		if _, err := db.ExecContext(ctx, q, size, txCount, hash[:]); err != nil {
 			return err
 		}
 	} else {

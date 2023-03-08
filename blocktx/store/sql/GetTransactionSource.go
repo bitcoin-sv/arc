@@ -5,12 +5,13 @@ import (
 	"database/sql"
 
 	"github.com/TAAL-GmbH/arc/blocktx/store"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/gocore"
 	"github.com/pkg/errors"
 )
 
 // GetTransactionSource returns the source of a transaction
-func (s *SQL) GetTransactionSource(ctx context.Context, txhash []byte) (string, error) {
+func (s *SQL) GetTransactionSource(ctx context.Context, txhash *chainhash.Hash) (string, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("GetTransactionSource").AddTime(start)
@@ -28,7 +29,7 @@ func (s *SQL) GetTransactionSource(ctx context.Context, txhash []byte) (string, 
 
 	var source sql.NullString
 
-	if err := s.db.QueryRowContext(ctx, q, txhash).Scan(&source); err != nil {
+	if err := s.db.QueryRowContext(ctx, q, txhash[:]).Scan(&source); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", store.ErrNotFound
 		}

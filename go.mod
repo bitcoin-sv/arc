@@ -15,11 +15,11 @@ require (
 	github.com/lib/pq v1.10.7
 	github.com/libsv/go-bk v0.1.6
 	github.com/libsv/go-bt/v2 v2.1.1
-	github.com/libsv/go-p2p v0.0.5
+	github.com/libsv/go-p2p v0.0.7
 	github.com/opentracing-contrib/echo v0.0.0-20190807091611-5fe2e1308f06
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/ordishs/go-bitcoin v1.0.79
-	github.com/ordishs/go-utils v1.0.31
+	github.com/ordishs/go-utils v1.0.33
 	github.com/ordishs/gocore v1.0.35
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.14.0

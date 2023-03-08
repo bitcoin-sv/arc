@@ -2,7 +2,6 @@ package metamorph
 
 import (
 	"context"
-	"encoding/hex"
 	"sync"
 	"testing"
 	"time"
@@ -11,14 +10,14 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/testdata"
-	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 )
 
 type SendStatusForTransactionCall struct {
-	HashStr string
-	Status  metamorph_api.Status
-	Err     error
+	Hash   *chainhash.Hash
+	Status metamorph_api.Status
+	Err    error
 }
 
 type ProcessorMock struct {
@@ -58,26 +57,26 @@ func (p *ProcessorMock) GetProcessRequest(index int) *ProcessorRequest {
 	return p.processTransactionCalls[index]
 }
 
-func (p *ProcessorMock) SendStatusForTransaction(hashStr string, status metamorph_api.Status, id string, err error) (bool, error) {
+func (p *ProcessorMock) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	p.SendStatusForTransactionCalls = append(p.SendStatusForTransactionCalls, &SendStatusForTransactionCall{
-		HashStr: hashStr,
-		Status:  status,
-		Err:     err,
+		Hash:   hash,
+		Status: status,
+		Err:    err,
 	})
 	return true, nil
 }
 
-func (p *ProcessorMock) SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight uint64) (bool, error) {
+func (p *ProcessorMock) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	p.SendStatusForTransactionCalls = append(p.SendStatusForTransactionCalls, &SendStatusForTransactionCall{
-		HashStr: hex.EncodeToString(bt.ReverseBytes(hash)),
-		Status:  metamorph_api.Status_MINED,
-		Err:     nil,
+		Hash:   hash,
+		Status: metamorph_api.Status_MINED,
+		Err:    nil,
 	})
 	return true, nil
 }
@@ -139,12 +138,12 @@ func (b *BlockTxMock) RegisterTransaction(_ context.Context, transaction *blockt
 	return nil, nil
 }
 
-func (b *BlockTxMock) GetBlock(_ context.Context, blockHash []byte) (*blocktx_api.Block, error) {
+func (b *BlockTxMock) GetBlock(_ context.Context, blockHash *chainhash.Hash) (*blocktx_api.Block, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	b.GetBlockCalls = append(b.GetBlockCalls, &blocktx_api.BlockAndSource{
-		Hash:   blockHash,
+		Hash:   blockHash[:],
 		Source: b.address,
 	})
 
@@ -186,37 +185,37 @@ func (b *BlockTxMock) GetMinedTransactionsForBlock(_ context.Context, blockAndSo
 
 func setStoreTestData(t *testing.T, s store.MetamorphStore) {
 	ctx := context.Background()
-	err := s.Set(ctx, testdata.TX1Bytes, &store.StoreData{
+	err := s.Set(ctx, testdata.TX1Hash[:], &store.StoreData{
 		StoredAt:      testdata.Time,
 		AnnouncedAt:   testdata.Time.Add(1 * time.Second),
 		MinedAt:       testdata.Time.Add(2 * time.Second),
-		Hash:          testdata.TX1Bytes,
+		Hash:          testdata.TX1Hash,
 		Status:        metamorph_api.Status_SENT_TO_NETWORK,
 		CallbackUrl:   "https://test.com",
 		CallbackToken: "token",
 	})
 	require.NoError(t, err)
-	err = s.Set(ctx, testdata.TX2Bytes, &store.StoreData{
+	err = s.Set(ctx, testdata.TX2Hash[:], &store.StoreData{
 		StoredAt:    testdata.Time,
 		AnnouncedAt: testdata.Time.Add(1 * time.Second),
 		MinedAt:     testdata.Time.Add(2 * time.Second),
-		Hash:        testdata.TX2Bytes,
+		Hash:        testdata.TX2Hash,
 		Status:      metamorph_api.Status_SEEN_ON_NETWORK,
 	})
 	require.NoError(t, err)
-	err = s.Set(ctx, testdata.TX3Bytes, &store.StoreData{
+	err = s.Set(ctx, testdata.TX3Hash[:], &store.StoreData{
 		StoredAt:    testdata.Time,
 		AnnouncedAt: testdata.Time.Add(1 * time.Second),
 		MinedAt:     testdata.Time.Add(2 * time.Second),
-		Hash:        testdata.TX3Bytes,
+		Hash:        testdata.TX3Hash,
 		Status:      metamorph_api.Status_MINED,
 	})
 	require.NoError(t, err)
-	err = s.Set(ctx, testdata.TX4Bytes, &store.StoreData{
+	err = s.Set(ctx, testdata.TX4Hash[:], &store.StoreData{
 		StoredAt:    testdata.Time,
 		AnnouncedAt: testdata.Time.Add(1 * time.Second),
 		MinedAt:     testdata.Time.Add(2 * time.Second),
-		Hash:        testdata.TX4Bytes,
+		Hash:        testdata.TX4Hash,
 		Status:      metamorph_api.Status_REJECTED,
 	})
 	require.NoError(t, err)

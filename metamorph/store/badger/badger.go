@@ -13,6 +13,7 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/dgraph-io/badger/v3"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
@@ -162,7 +163,7 @@ func (s *Badger) Get(ctx context.Context, hash []byte) (*store.StoreData, error)
 }
 
 // UpdateStatus attempts to update the status of a transaction
-func (s *Badger) UpdateStatus(ctx context.Context, hash []byte, status metamorph_api.Status, rejectReason string) error {
+func (s *Badger) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("mtm_store_badger").NewStat("UpdateStatus").AddTime(start)
@@ -174,7 +175,7 @@ func (s *Badger) UpdateStatus(ctx context.Context, hash []byte, status metamorph
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	tx, err := s.Get(ctx, hash)
+	tx, err := s.Get(ctx, hash[:])
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -186,7 +187,7 @@ func (s *Badger) UpdateStatus(ctx context.Context, hash []byte, status metamorph
 	if status > tx.Status || rejectReason != "" {
 		tx.Status = status
 		tx.RejectReason = rejectReason
-		if err = s.Set(ctx, hash, tx); err != nil {
+		if err = s.Set(ctx, hash[:], tx); err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return fmt.Errorf("failed to update data: %w", err)
@@ -197,7 +198,7 @@ func (s *Badger) UpdateStatus(ctx context.Context, hash []byte, status metamorph
 }
 
 // UpdateMined updates the transaction to mined
-func (s *Badger) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight uint64) error {
+func (s *Badger) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("mtm_store_badger").NewStat("UpdateMined").AddTime(start)
@@ -209,7 +210,7 @@ func (s *Badger) UpdateMined(ctx context.Context, hash []byte, blockHash []byte,
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	tx, err := s.Get(ctx, hash)
+	tx, err := s.Get(ctx, hash[:])
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			// no need to update status if we don't have the transaction
@@ -224,7 +225,7 @@ func (s *Badger) UpdateMined(ctx context.Context, hash []byte, blockHash []byte,
 	tx.Status = metamorph_api.Status_MINED
 	tx.BlockHash = blockHash
 	tx.BlockHeight = blockHeight
-	if err = s.Set(ctx, hash, tx); err != nil {
+	if err = s.Set(ctx, hash[:], tx); err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return fmt.Errorf("failed to update data: %w", err)
@@ -288,7 +289,7 @@ func (s *Badger) Del(ctx context.Context, hash []byte) error {
 	})
 }
 
-func (s *Badger) GetBlockProcessed(ctx context.Context, blockHash []byte) (*time.Time, error) {
+func (s *Badger) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("mtm_store_badger").NewStat("GetBlockProcessed").AddTime(start)
@@ -298,7 +299,7 @@ func (s *Badger) GetBlockProcessed(ctx context.Context, blockHash []byte) (*time
 
 	var result *time.Time
 
-	key := append([]byte("block_processed_"), blockHash...)
+	key := append([]byte("block_processed_"), blockHash[:]...)
 
 	err := s.store.View(func(tx *badger.Txn) error {
 		item, err := tx.Get(key)
@@ -326,7 +327,7 @@ func (s *Badger) GetBlockProcessed(ctx context.Context, blockHash []byte) (*time
 	return result, err
 }
 
-func (s *Badger) SetBlockProcessed(ctx context.Context, blockHash []byte) error {
+func (s *Badger) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("mtm_store_badger").NewStat("SetBlockProcessed").AddTime(start)
@@ -335,7 +336,7 @@ func (s *Badger) SetBlockProcessed(ctx context.Context, blockHash []byte) error 
 	defer span.Finish()
 
 	value := time.Now()
-	key := append([]byte("block_processed_"), blockHash...)
+	key := append([]byte("block_processed_"), blockHash[:]...)
 
 	var data bytes.Buffer
 	enc := gob.NewEncoder(&data)

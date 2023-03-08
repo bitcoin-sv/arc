@@ -13,6 +13,7 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/labstack/gommon/random"
 	_ "github.com/lib/pq"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
@@ -230,15 +231,17 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 	var storedAt string
 	var announcedAt string
 	var minedAt string
+	var txHash []byte
+	var blockHash []byte
 
 	err := s.db.QueryRowContext(ctx, q, hash).Scan(
 		&storedAt,
 		&announcedAt,
 		&minedAt,
-		&data.Hash,
+		&txHash,
 		&data.Status,
 		&data.BlockHeight,
-		&data.BlockHash,
+		&blockHash,
 		&data.ApiKeyId,
 		&data.StandardFeeId,
 		&data.DataFeeId,
@@ -256,6 +259,20 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return nil, err
+	}
+
+	if txHash != nil {
+		data.Hash, err = chainhash.NewHash(txHash)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if blockHash != nil {
+		data.BlockHash, err = chainhash.NewHash(blockHash)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if storedAt != "" {
@@ -336,6 +353,16 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 	var storedAt string
 	var announcedAt string
 	var minedAt string
+	var txHash []byte
+	var blockHash []byte
+
+	if value.Hash != nil {
+		txHash = value.Hash.CloneBytes()
+	}
+
+	if value.BlockHash != nil {
+		blockHash = value.BlockHash.CloneBytes()
+	}
 
 	if value.StoredAt.UnixMilli() != 0 {
 		storedAt = value.StoredAt.UTC().Format(ISO8601)
@@ -358,10 +385,10 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 		storedAt,
 		announcedAt,
 		minedAt,
-		value.Hash,
+		txHash,
 		value.Status,
 		value.BlockHeight,
-		value.BlockHash,
+		blockHash,
 		value.ApiKeyId,
 		value.StandardFeeId,
 		value.DataFeeId,
@@ -418,6 +445,8 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 	for rows.Next() {
 		data := &store.StoreData{}
 
+		var txHash []byte
+		var blockHash []byte
 		var storedAt string
 		var announcedAt string
 		var minedAt string
@@ -426,10 +455,10 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 			&storedAt,
 			&announcedAt,
 			&minedAt,
-			&data.Hash,
+			&txHash,
 			&data.Status,
 			&data.BlockHeight,
-			&data.BlockHash,
+			&blockHash,
 			&data.ApiKeyId,
 			&data.StandardFeeId,
 			&data.DataFeeId,
@@ -441,6 +470,15 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 		); err != nil {
 			return err
 		}
+
+		if txHash != nil {
+			data.Hash, _ = chainhash.NewHash(txHash)
+		}
+
+		if blockHash != nil {
+			data.BlockHash, _ = chainhash.NewHash(blockHash)
+		}
+
 		if storedAt != "" {
 			data.StoredAt, err = time.Parse(ISO8601, storedAt)
 			if err != nil {
@@ -473,7 +511,7 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 	return nil
 }
 
-func (s *SQL) UpdateStatus(ctx context.Context, hash []byte, status metamorph_api.Status, rejectReason string) error {
+func (s *SQL) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("UpdateStatus").AddTime(startNanos)
@@ -488,7 +526,7 @@ func (s *SQL) UpdateStatus(ctx context.Context, hash []byte, status metamorph_ap
 		WHERE hash = $3
 	;`
 
-	result, err := s.db.ExecContext(ctx, q, status, rejectReason, hash)
+	result, err := s.db.ExecContext(ctx, q, status, rejectReason, hash[:])
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -509,7 +547,7 @@ func (s *SQL) UpdateStatus(ctx context.Context, hash []byte, status metamorph_ap
 	return nil
 }
 
-func (s *SQL) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight uint64) error {
+func (s *SQL) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("UpdateMined").AddTime(startNanos)
@@ -525,7 +563,7 @@ func (s *SQL) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, bl
 		WHERE hash = $4
 	;`
 
-	_, err := s.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHash, blockHeight, hash)
+	_, err := s.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHash[:], blockHeight, hash[:])
 
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
@@ -535,7 +573,7 @@ func (s *SQL) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, bl
 	return err
 }
 
-func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash []byte) (*time.Time, error) {
+func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("GetBlockProcessed").AddTime(startNanos)
@@ -549,7 +587,7 @@ func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash []byte) (*time.Ti
 
 	var processedAt string
 
-	err := s.db.QueryRowContext(ctx, q, blockHash).Scan(
+	err := s.db.QueryRowContext(ctx, q, blockHash[:]).Scan(
 		&processedAt,
 	)
 	if err != nil {
@@ -574,7 +612,7 @@ func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash []byte) (*time.Ti
 	return &processedAtTime, nil
 }
 
-func (s *SQL) SetBlockProcessed(ctx context.Context, blockHash []byte) error {
+func (s *SQL) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("SetBlockProcessed").AddTime(startNanos)
@@ -593,7 +631,7 @@ func (s *SQL) SetBlockProcessed(ctx context.Context, blockHash []byte) error {
 	processedAt := time.Now().UTC().Format(ISO8601)
 
 	_, err := s.db.ExecContext(ctx, q,
-		blockHash,
+		blockHash[:],
 		processedAt,
 	)
 

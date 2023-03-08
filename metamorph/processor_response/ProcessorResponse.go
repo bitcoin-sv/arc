@@ -29,18 +29,18 @@ type ProcessorResponseStatusUpdate struct {
 
 type ProcessorResponse struct {
 	callerCh              chan StatusAndError
-	NoStats               bool
+	NoStats               bool `json:"noStats"`
 	statusUpdateCh        chan *ProcessorResponseStatusUpdate
-	Hash                  *chainhash.Hash
-	Start                 time.Time
-	Retries               atomic.Uint32
-	LastStatusUpdateNanos atomic.Int64
+	Hash                  *chainhash.Hash `json:"hash"`
+	Start                 time.Time       `json:"start"`
+	Retries               atomic.Uint32   `json:"retries"`
+	LastStatusUpdateNanos atomic.Int64    `json:"lastStatusUpdateNanos"`
 	// The following fields are protected by the mutex
 	mu             deadlock.RWMutex
-	Err            error
-	AnnouncedPeers []p2p.PeerI
-	Status         metamorph_api.Status
-	Log            []ProcessorResponseLog
+	Err            error                  `json:"err"`
+	AnnouncedPeers []p2p.PeerI            `json:"announcedPeers"`
+	Status         metamorph_api.Status   `json:"status"`
+	Log            []ProcessorResponseLog `json:"log"`
 }
 
 func NewProcessorResponse(hash *chainhash.Hash) *ProcessorResponse {

@@ -13,7 +13,7 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/store/tests"
 	"github.com/dgraph-io/badger/v3"
 	"github.com/labstack/gommon/random"
-	"github.com/ordishs/go-utils"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,20 +35,22 @@ func TestPutGetDelete(t *testing.T) {
 
 	data := []byte("Hello world")
 
-	hash := utils.Sha256d(data)
+	hash := chainhash.DoubleHashH(data)
 
-	err := bh.Set(context.Background(), hash, &store.StoreData{
-		Hash:  hash,
+	storeData := &store.StoreData{
+		Hash:  &hash,
 		RawTx: data,
-	})
+	}
+
+	err := bh.Set(context.Background(), hash[:], storeData)
 	require.NoError(t, err)
 
-	data2, err := bh.Get(context.Background(), hash)
+	data2, err := bh.Get(context.Background(), hash[:])
 	require.NoError(t, err)
-	assert.Equal(t, hash, data2.Hash)
+	assert.Equal(t, &hash, data2.Hash)
 	assert.Equal(t, data, data2.RawTx)
 
-	err = bh.Del(context.Background(), hash)
+	err = bh.Del(context.Background(), hash[:])
 	require.NoError(t, err)
 }
 
@@ -67,20 +69,20 @@ func TestPutGetMulti(t *testing.T) {
 			for i := 0; i < 100; i++ {
 				data := []byte(fmt.Sprintf("Hello world %d-%d", workerId, i))
 
-				hash := utils.Sha256d(data)
+				hash := chainhash.DoubleHashH(data)
 
-				err := bh.Set(context.Background(), hash, &store.StoreData{
-					Hash:  hash,
+				err := bh.Set(context.Background(), hash[:], &store.StoreData{
+					Hash:  &hash,
 					RawTx: data,
 				})
 				require.NoError(t, err)
 
 				var data2 *store.StoreData
-				data2, err = bh.Get(context.Background(), hash)
+				data2, err = bh.Get(context.Background(), hash[:])
 				require.NoError(t, err)
-				assert.Equal(t, hash, data2.Hash)
+				assert.Equal(t, &hash, data2.Hash)
 
-				err = bh.Del(context.Background(), hash)
+				err = bh.Del(context.Background(), hash[:])
 				require.NoError(t, err)
 			}
 		}(workerId)
@@ -110,7 +112,7 @@ func TestUpdateMined(t *testing.T) {
 		bh, tearDown := setupSuite(t)
 		defer tearDown(t)
 
-		err := bh.UpdateMined(context.Background(), tests.Tx1Bytes, []byte("block hash"), 123)
+		err := bh.UpdateMined(context.Background(), tests.Tx1Hash, tests.Block1Hash, 123)
 		require.NoError(t, err) // an error is not thrown if not found
 	})
 
@@ -127,7 +129,7 @@ func TestUpdateStatus(t *testing.T) {
 		bh, tearDown := setupSuite(t)
 		defer tearDown(t)
 
-		err := bh.UpdateStatus(context.Background(), tests.Tx1Bytes, metamorph_api.Status_SENT_TO_NETWORK, "")
+		err := bh.UpdateStatus(context.Background(), tests.Tx1Hash, metamorph_api.Status_SENT_TO_NETWORK, "")
 		require.ErrorIs(t, err, store.ErrNotFound) // an error is not thrown if not found
 	})
 
@@ -171,27 +173,27 @@ func TestBadger_GetBlockProcessed(t *testing.T) {
 	ctx := context.Background()
 
 	timeNow := time.Now()
-	err := bh.SetBlockProcessed(ctx, tests.Block1Bytes)
+	err := bh.SetBlockProcessed(ctx, tests.Block1Hash)
 	require.NoError(t, err)
 
 	testStruct := []struct {
 		name      string
 		store     *badger.DB
-		blockHash []byte
+		blockHash *chainhash.Hash
 		want      *time.Time
 		wantErr   assert.ErrorAssertionFunc
 	}{
 		{
 			name:      "success",
 			store:     bh.(*Badger).store,
-			blockHash: tests.Block1Bytes,
+			blockHash: tests.Block1Hash,
 			want:      &timeNow,
 			wantErr:   assert.NoError,
 		},
 		{
 			name:      "missing",
 			store:     bh.(*Badger).store,
-			blockHash: []byte("block hash"),
+			blockHash: tests.Block2Hash,
 			want:      nil,
 			wantErr:   assert.NoError,
 		},
@@ -222,13 +224,13 @@ func TestBadger_SetBlockProcessed(t *testing.T) {
 	testStructs := []struct {
 		name      string
 		store     *badger.DB
-		blockHash []byte
+		blockHash *chainhash.Hash
 		wantErr   assert.ErrorAssertionFunc
 	}{
 		{
 			name:      "success",
 			store:     bh.(*Badger).store,
-			blockHash: tests.Block1Bytes,
+			blockHash: tests.Block1Hash,
 			wantErr:   assert.NoError,
 		},
 	}

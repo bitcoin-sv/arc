@@ -1,10 +1,14 @@
 package tests
 
-import "github.com/ordishs/go-utils"
+import (
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+)
 
 var (
-	Tx1            = "b042f298deabcebbf15355aa3a13c7d7cfe96c44ac4f492735f936f8e50d06f6"
-	Tx1Bytes, _    = utils.DecodeAndReverseHexString(Tx1)
-	Block1         = "a042f298deabcebbf15355aa3a13c7d7cfe96c44ac4f492735f936f8e50d06f7"
-	Block1Bytes, _ = utils.DecodeAndReverseHexString(Block1)
+	Tx1           = "2222222222222222222222222222222233333333333333333333333333333333"
+	Tx1Hash, _    = chainhash.NewHashFromStr(Tx1)
+	Block1        = "0000000000000000000000000000000011111111111111111111111111111111"
+	Block1Hash, _ = chainhash.NewHashFromStr(Block1)
+	Block2        = "3333333333333333333333333333333344444444444444444444444444444444"
+	Block2Hash, _ = chainhash.NewHashFromStr(Block2)
 )

@@ -17,6 +17,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/processor_response"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	gcutils "github.com/ordishs/gocore/utils"
@@ -122,7 +123,12 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 
 	txid := r.URL.Query().Get("tx")
 	if txid != "" {
-		p.writeTransaction(w, txid, format)
+		hash, err := chainhash.NewHashFromStr(txid)
+		if err != nil {
+			return
+		}
+
+		p.writeTransaction(w, hash, format)
 		return
 	}
 
@@ -132,13 +138,24 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		stats := p.GetStats(false)
 		if printTxs {
-			_ = json.NewEncoder(w).Encode(struct {
+			m := p.processorResponseMap.Items()
+
+			txMap := make(map[string]*processor_response.ProcessorResponse)
+
+			for k, v := range m {
+				txMap[k.String()] = v
+			}
+
+			err := json.NewEncoder(w).Encode(struct {
 				*ProcessorStats
 				Txs map[string]*processor_response.ProcessorResponse `json:"txs"`
 			}{
 				ProcessorStats: stats,
-				Txs:            p.processorResponseMap.Items(),
+				Txs:            txMap,
 			})
+			if err != nil {
+				p.logger.Errorf("could not encode JSON: %v", err)
+			}
 		} else {
 			_ = json.NewEncoder(w).Encode(stats)
 		}
@@ -166,12 +183,10 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 			for _, processorResponse := range processorResponses {
 				txids.WriteString(`<tr>`)
 
-				txid := utils.HexEncodeAndReverseBytes(processorResponse.Hash)
-
 				txids.WriteString(fmt.Sprintf(`<td>%s</td>`, processorResponse.Start.UTC().Format(time.RFC3339Nano)))
 				txids.WriteString(fmt.Sprintf(`<td>%d</td>`, processorResponse.Retries.Load()))
 				txids.WriteString(fmt.Sprintf(`<td>%s</td>`, processorResponse.Status.String()))
-				txids.WriteString(fmt.Sprintf(`<td><a href="/pstats?tx=%s">%s</a></td>`, txid, txid))
+				txids.WriteString(fmt.Sprintf(`<td><a href="/pstats?tx=%v">%v</a></td>`, processorResponse.Hash, processorResponse.Hash))
 
 				txids.WriteString(`</tr>`)
 			}
@@ -237,19 +252,18 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 </html>`, txids.String()))
 }
 
-func (p *Processor) writeTransaction(w http.ResponseWriter, txid string, format string) {
+func (p *Processor) writeTransaction(w http.ResponseWriter, hash *chainhash.Hash, format string) {
 	if format == "json" {
 		w.Header().Set("Content-Type", "application/json")
-		prm, found := p.processorResponseMap.Get(txid)
+		prm, found := p.processorResponseMap.Get(hash)
 		if !found {
-			hash, _ := utils.DecodeAndReverseHexString(txid)
-			storeData, _ := p.store.Get(context.Background(), hash)
+			storeData, _ := p.store.Get(context.Background(), hash[:])
 			if storeData != nil {
 				_ = json.NewEncoder(w).Encode(storeData)
 				return
 			}
 			w.WriteHeader(http.StatusNotFound)
-			_, _ = io.WriteString(w, fmt.Sprintf(`{"error": "tx not found", "txid": "%s"}`, txid))
+			_, _ = io.WriteString(w, fmt.Sprintf(`{"error": "tx not found", "txid": "%v"}`, hash))
 			return
 		}
 		_ = json.NewEncoder(w).Encode(prm)
@@ -265,30 +279,23 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string, format 
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Metamorph Transaction %s</title>
+    <title>Metamorph Transaction %v</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
   </head>
   <body>
   <section class="section">
     <div class="container">
-`, txid))
+`, hash))
 
-	prm, found := p.processorResponseMap.Get(txid)
+	prm, found := p.processorResponseMap.Get(hash)
 	if !found {
-		hash, err := utils.DecodeAndReverseHexString(txid)
-		if err != nil {
-			_, _ = io.WriteString(w, `
-				<h1 class="title">Invalid transaction ID</h1>
-				<a href="/pstats?printTxs=true"><< Back</a>
-			`)
-		} else {
-			storeData, _ := p.store.Get(context.Background(), hash)
-			if storeData != nil {
-				b, _ := json.MarshalIndent(storeData, "", "  ")
-				_, _ = io.WriteString(w, fmt.Sprintf(`
+		storeData, _ := p.store.Get(context.Background(), hash[:])
+		if storeData != nil {
+			b, _ := json.MarshalIndent(storeData, "", "  ")
+			_, _ = io.WriteString(w, fmt.Sprintf(`
 					<h1 class="title">Transaction (from store)</h1>
 					<h2 class="subtitle">
-					    <a href="https://whatsonchain.com/tx/%s" target="_blank">%s</a>
+					    <a href="https://whatsonchain.com/tx/%v" target="_blank">%v</a>
 					</h2>
 					<a href="/pstats?printTxs=true"><< Back</a>
 					<table class=table>
@@ -297,7 +304,7 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string, format 
 						<tr><td>Mined At</td><td>%s</td></tr>
 						<tr><td>Status</td><td>%s</td></tr>
 						<tr><td>Block height</td><td>%d</td></tr>
-						<tr><td>Block hash</td><td><a href="https://whatsonchain.com/block/%s" target="_blank">%s</a></td></tr>
+						<tr><td>Block hash</td><td><a href="https://whatsonchain.com/block/%v" target="_blank">%v</a></td></tr>
 						<tr><td>Callback URL</td><td>%s</td></tr>
 						<tr><td>Callback token</td><td>%s</td></tr>
 						<tr><td>Merkle proof</td><td>%v</td></tr>
@@ -305,37 +312,36 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string, format 
 						<tr><td>TX hex</td><td style="word-break: break-all; width: 75%%;">%s</td></tr>
 					</table>
 					<pre>%s</pre>
-				`, txid, txid,
-					storeData.StoredAt.UTC().Format(time.RFC3339Nano),
-					storeData.AnnouncedAt.UTC().Format(time.RFC3339Nano),
-					storeData.MinedAt.UTC().Format(time.RFC3339Nano),
-					storeData.Status.String(),
-					storeData.BlockHeight,
-					utils.HexEncodeAndReverseBytes(storeData.BlockHash),
-					utils.HexEncodeAndReverseBytes(storeData.BlockHash),
-					storeData.CallbackUrl,
-					storeData.CallbackToken,
-					storeData.MerkleProof,
-					storeData.RejectReason,
-					hex.EncodeToString(storeData.RawTx),
-					string(b),
-				))
+				`, hash, hash,
+				storeData.StoredAt.UTC().Format(time.RFC3339Nano),
+				storeData.AnnouncedAt.UTC().Format(time.RFC3339Nano),
+				storeData.MinedAt.UTC().Format(time.RFC3339Nano),
+				storeData.Status.String(),
+				storeData.BlockHeight,
+				storeData.BlockHash,
+				storeData.BlockHash,
+				storeData.CallbackUrl,
+				storeData.CallbackToken,
+				storeData.MerkleProof,
+				storeData.RejectReason,
+				hex.EncodeToString(storeData.RawTx),
+				string(b),
+			))
 
-				logFile, _ := gocore.Config().Get("metamorph_logFile") //, "./data/metamorph.log")
-				if logFile != "" {
-					processorResponseStats := grepFile(logFile, txid)
-					if processorResponseStats != "" {
-						var prStats *processor_response.ProcessorResponse
-						_ = json.Unmarshal([]byte(processorResponseStats), &prStats)
-						if prStats != nil {
-							_, _ = io.WriteString(w, fmt.Sprintf(`
+			logFile, _ := gocore.Config().Get("metamorph_logFile") //, "./data/metamorph.log")
+			if logFile != "" {
+				processorResponseStats := grepFile(logFile, hash.String())
+				if processorResponseStats != "" {
+					var prStats *processor_response.ProcessorResponse
+					_ = json.Unmarshal([]byte(processorResponseStats), &prStats)
+					if prStats != nil {
+						_, _ = io.WriteString(w, fmt.Sprintf(`
 								<hr/>
 								<h1 class="title">Transaction stats from log</h1>
 								<h2 class="subtitle">logfile: %s</h2>
 							`, logFile))
-							txJson := p.processorResponseStatsTable(w, prStats)
-							_, _ = io.WriteString(w, fmt.Sprintf(`<pre>%s</pre>`, txJson))
-						}
+						txJson := p.processorResponseStatsTable(w, prStats)
+						_, _ = io.WriteString(w, fmt.Sprintf(`<pre>%s</pre>`, txJson))
 					}
 				}
 
@@ -362,10 +368,10 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, txid string, format 
         Transaction
       </h1>
       <h2 class="subtitle">
-        <a href="https://whatsonchain.com/tx/%s" target="_blank">%s</a>
+        <a href="https://whatsonchain.com/tx/%v" target="_blank">%v</a>
       </h2>
 	  <a href="javascript:history.back()">Back to overview</a>
-	`, txid, txid))
+	`, hash, hash))
 
 	txJson := p.processorResponseStatsTable(w, prm)
 
@@ -388,7 +394,7 @@ func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *proc
 	}
 
 	res := &statResponse{
-		Txid:                  utils.HexEncodeAndReverseBytes(prm.Hash),
+		Txid:                  prm.Hash.String(),
 		Start:                 prm.Start,
 		Retries:               prm.Retries.Load(),
 		Err:                   prm.Err,
@@ -435,42 +441,6 @@ func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *proc
 	_, _ = io.WriteString(w, `</table>`)
 
 	return txJson
-}
-
-func (p *Processor) _(w http.ResponseWriter, txid string) {
-	prm, found := p.processorResponseMap.Get(txid)
-	if !found {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	announcedPeers := make([]string, 0, len(prm.AnnouncedPeers))
-	for _, peer := range prm.AnnouncedPeers {
-		announcedPeers = append(announcedPeers, peer.String())
-	}
-
-	res := &statResponse{
-		Txid:                  utils.HexEncodeAndReverseBytes(prm.Hash),
-		Start:                 prm.Start,
-		Retries:               prm.Retries.Load(),
-		Err:                   prm.Err,
-		AnnouncedPeers:        announcedPeers,
-		Status:                prm.Status,
-		NoStats:               prm.NoStats,
-		LastStatusUpdateNanos: prm.LastStatusUpdateNanos.Load(),
-		Log:                   prm.Log,
-	}
-
-	payload, err := json.MarshalIndent(&res, "", "  ")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	_, _ = w.Write(payload)
 }
 
 func writeStat(w io.Writer, label string, value interface{}) {

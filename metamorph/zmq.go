@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
 )
@@ -84,9 +85,12 @@ func (z *ZMQ) Start() {
 			case "hashtx2":
 				z.Stats.hashTx.Add(1)
 				z.logger.Debugf("hashtx %s", c[1])
+
+				hash, _ := chainhash.NewHashFromStr(c[1])
+
 				z.statusMessageCh <- &PeerTxMessage{
 					Start:  time.Now(),
-					Txid:   c[1],
+					Hash:   hash,
 					Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
 					Peer:   z.URL.String(),
 				}
@@ -109,10 +113,14 @@ func (z *ZMQ) Start() {
 				if txInfo.IsDoubleSpendDetected {
 					errReason += " - double spend"
 				}
+
 				z.logger.Debugf("invalidtx %s: %s", txInfo.TxID, errReason)
+
+				hash, _ := chainhash.NewHashFromStr(txInfo.TxID)
+
 				z.statusMessageCh <- &PeerTxMessage{
 					Start:  time.Now(),
-					Txid:   txInfo.TxID,
+					Hash:   hash,
 					Status: metamorph_api.Status_REJECTED,
 					Peer:   z.URL.String(),
 					Err:    fmt.Errorf(errReason),
@@ -134,9 +142,12 @@ func (z *ZMQ) Start() {
 				}
 				// reasons can be "collision-in-block-tx" and "unknown-reason"
 				z.logger.Debugf("discardedfrommempool %s: %s", txInfo.TxID, reason)
+
+				hash, _ := chainhash.NewHashFromStr(txInfo.TxID)
+
 				z.statusMessageCh <- &PeerTxMessage{
 					Start:  time.Now(),
-					Txid:   txInfo.TxID,
+					Hash:   hash,
 					Status: metamorph_api.Status_REJECTED,
 					Peer:   z.URL.String(),
 					Err:    fmt.Errorf("discarded from mempool: %s", reason),

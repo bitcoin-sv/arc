@@ -10,7 +10,7 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/metamorph/store/tests"
-	"github.com/ordishs/go-utils"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,17 +34,17 @@ func TestPutGetDelete(t *testing.T) {
 
 	defer sqliteDB.Close(context.Background())
 
-	hash := utils.Sha256d([]byte("hello world"))
+	hash := chainhash.DoubleHashH([]byte("hello world"))
 
 	data := &store.StoreData{
-		Hash:     hash,
+		Hash:     &hash,
 		StoredAt: time.Now(),
 	}
 
-	err = sqliteDB.Set(context.Background(), hash, data)
+	err = sqliteDB.Set(context.Background(), hash[:], data)
 	require.NoError(t, err)
 
-	data2, err := sqliteDB.Get(context.Background(), hash)
+	data2, err := sqliteDB.Get(context.Background(), hash[:])
 	require.NoError(t, err)
 
 	assert.WithinDurationf(t, data.StoredAt, data2.StoredAt, time.Second, "StoredAt should be within a second of each other")
@@ -53,7 +53,7 @@ func TestPutGetDelete(t *testing.T) {
 	data.StoredAt = data2.StoredAt
 	assert.Equal(t, data, data2)
 
-	err = sqliteDB.Del(context.Background(), hash)
+	err = sqliteDB.Del(context.Background(), hash[:])
 	require.NoError(t, err)
 }
 
@@ -75,19 +75,19 @@ func TestPutGetMulti(t *testing.T) {
 			for i := 0; i < 100; i++ {
 				data := []byte(fmt.Sprintf("Hello world %d-%d-%d", workerId, i, time.Now().UnixMilli()))
 
-				hash := utils.Sha256d(data)
+				hash := chainhash.DoubleHashH(data)
 
-				err := sqliteDB.Set(ctx, hash, &store.StoreData{
-					Hash: hash,
+				err := sqliteDB.Set(ctx, hash[:], &store.StoreData{
+					Hash: &hash,
 				})
 				require.NoError(t, err)
 
 				var data2 *store.StoreData
-				data2, err = sqliteDB.Get(context.Background(), hash)
+				data2, err = sqliteDB.Get(context.Background(), hash[:])
 				require.NoError(t, err)
-				assert.Equal(t, hash, data2.Hash)
+				assert.Equal(t, &hash, data2.Hash)
 
-				err = sqliteDB.Del(context.Background(), hash)
+				err = sqliteDB.Del(context.Background(), hash[:])
 				require.NoError(t, err)
 			}
 		}(workerId)
@@ -124,7 +124,7 @@ func TestUpdateMined(t *testing.T) {
 
 		defer sqliteDB.Close(context.Background())
 
-		err = sqliteDB.UpdateMined(context.Background(), tests.Tx1Bytes, []byte("block hash"), 123)
+		err = sqliteDB.UpdateMined(context.Background(), tests.Tx1Hash, tests.Block1Hash, 123)
 		require.NoError(t, err) // an error is not thrown if not found
 	})
 
@@ -145,7 +145,7 @@ func TestUpdateStatus(t *testing.T) {
 
 		defer sqliteDB.Close(context.Background())
 
-		err = sqliteDB.UpdateStatus(context.Background(), tests.Tx1Bytes, metamorph_api.Status_SENT_TO_NETWORK, "")
+		err = sqliteDB.UpdateStatus(context.Background(), tests.Tx1Hash, metamorph_api.Status_SENT_TO_NETWORK, "")
 		require.ErrorIs(t, err, store.ErrNotFound) // an error is thrown if not found
 	})
 
@@ -166,7 +166,7 @@ func TestUpdateStatus(t *testing.T) {
 	})
 }
 
-func TestBadger_GetBlockProcessed(t *testing.T) {
+func TestSQLite_GetBlockProcessed(t *testing.T) {
 	sqliteDB, err := New("sqlite_memory")
 	require.NoError(t, err)
 
@@ -175,27 +175,27 @@ func TestBadger_GetBlockProcessed(t *testing.T) {
 	ctx := context.Background()
 
 	timeNow := time.Now()
-	err = sqliteDB.SetBlockProcessed(ctx, tests.Block1Bytes)
+	err = sqliteDB.SetBlockProcessed(ctx, tests.Block1Hash)
 	require.NoError(t, err)
 
 	testStruct := []struct {
 		name      string
 		store     *SQL
-		blockHash []byte
+		blockHash *chainhash.Hash
 		want      *time.Time
 		wantErr   assert.ErrorAssertionFunc
 	}{
 		{
 			name:      "success",
 			store:     sqliteDB.(*SQL),
-			blockHash: tests.Block1Bytes,
+			blockHash: tests.Block1Hash,
 			want:      &timeNow,
 			wantErr:   assert.NoError,
 		},
 		{
 			name:      "missing",
 			store:     sqliteDB.(*SQL),
-			blockHash: []byte("block hash"),
+			blockHash: tests.Block2Hash,
 			want:      nil,
 			wantErr:   assert.NoError,
 		},
@@ -228,13 +228,13 @@ func TestBadger_SetBlockProcessed(t *testing.T) {
 	testStructs := []struct {
 		name      string
 		store     *SQL
-		blockHash []byte
+		blockHash *chainhash.Hash
 		wantErr   assert.ErrorAssertionFunc
 	}{
 		{
 			name:      "success",
 			store:     sqliteDB.(*SQL),
-			blockHash: tests.Block1Bytes,
+			blockHash: tests.Block1Hash,
 			wantErr:   assert.NoError,
 		},
 	}

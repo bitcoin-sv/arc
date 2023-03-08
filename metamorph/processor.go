@@ -14,8 +14,8 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
 	"github.com/TAAL-GmbH/arc/metamorph/processor_response"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
-	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
@@ -145,13 +145,13 @@ func (p *Processor) errorLogWriter() {
 
 	var storeData *store.StoreData
 	for pr := range p.errorLogWorker {
-		storeData, err = p.store.Get(context.Background(), pr.Hash)
+		storeData, err = p.store.Get(context.Background(), pr.Hash[:])
 		if err != nil {
 			p.logger.Errorf("error getting tx from store: %s", err.Error())
 			continue
 		}
-		_, err = f.WriteString(fmt.Sprintf("%s,%s,%s\n",
-			utils.HexEncodeAndReverseBytes(pr.Hash),
+		_, err = f.WriteString(fmt.Sprintf("%v,%s,%s\n",
+			pr.Hash,
 			pr.Err.Error(),
 			hex.EncodeToString(storeData.RawTx),
 		))
@@ -237,11 +237,10 @@ func (p *Processor) LoadUnmined() {
 
 	err := p.store.GetUnmined(spanCtx, func(record *store.StoreData) {
 		// add the records we have in the database, but that have not been processed, to the mempool watcher
-		txIDStr := hex.EncodeToString(bt.ReverseBytes(record.Hash))
 		pr := processor_response.NewProcessorResponseWithStatus(record.Hash, record.Status)
 		pr.NoStats = true
 
-		p.processorResponseMap.Set(txIDStr, pr)
+		p.processorResponseMap.Set(record.Hash, pr)
 
 		if record.Status == metamorph_api.Status_STORED {
 			// announce the transaction to the network
@@ -249,7 +248,7 @@ func (p *Processor) LoadUnmined() {
 
 			err := p.store.UpdateStatus(spanCtx, record.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
 			if err != nil {
-				p.logger.Errorf("Error updating status for %x: %v", bt.ReverseBytes(record.Hash), err)
+				p.logger.Errorf("Error updating status for %v: %v", record.Hash, err)
 			}
 		} else if record.Status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
 			// we only announced the transaction, but we did not receive a SENT_TO_NETWORK response
@@ -269,13 +268,11 @@ func (p *Processor) LoadUnmined() {
 	}
 }
 
-func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte, blockHeight uint64) (bool, error) {
+func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error) {
 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusMinedForTransaction")
 	defer span.Finish()
 
-	hashStr := utils.HexEncodeAndReverseBytes(hash)
-
-	resp, ok := p.processorResponseMap.Get(hashStr)
+	resp, ok := p.processorResponseMap.Get(hash)
 	if ok {
 		resp.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
 			Status: metamorph_api.Status_MINED,
@@ -285,7 +282,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 			},
 			Callback: func(err error) {
 				if err != nil {
-					p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
+					p.logger.Errorf("Error updating status for %v: %v", hash, err)
 					return
 				}
 
@@ -293,18 +290,18 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 					p.mined.AddDuration(time.Since(resp.Start))
 				}
 
-				p.processorResponseMap.Delete(hashStr)
+				p.processorResponseMap.Delete(hash)
 
 				if p.cbChannel != nil {
-					data, _ := p.store.Get(spanCtx, hash)
+					data, _ := p.store.Get(spanCtx, hash[:])
 
 					if data != nil && data.CallbackUrl != "" {
 						p.cbChannel <- &callbacker_api.Callback{
-							Hash:        data.Hash,
+							Hash:        data.Hash[:],
 							Url:         data.CallbackUrl,
 							Token:       data.CallbackToken,
 							Status:      int32(data.Status),
-							BlockHash:   data.BlockHash,
+							BlockHash:   data.BlockHash[:],
 							BlockHeight: data.BlockHeight,
 						}
 					}
@@ -318,8 +315,8 @@ func (p *Processor) SendStatusMinedForTransaction(hash []byte, blockHash []byte,
 	return false, nil
 }
 
-func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_api.Status, source string, statusErr error) (bool, error) {
-	processorResponse, ok := p.processorResponseMap.Get(hashStr)
+func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) (bool, error) {
+	processorResponse, ok := p.processorResponseMap.Get(hash)
 	if ok {
 		span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
 		defer span.Finish()
@@ -334,19 +331,15 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 				if statusErr != nil {
 					rejectReason = statusErr.Error()
 				}
-				hash, err := utils.DecodeAndReverseHexString(hashStr)
-				if err != nil {
-					return err
-				}
 
 				return p.store.UpdateStatus(spanCtx, hash, status, rejectReason)
 			},
 			Callback: func(err error) {
 				if err != nil {
-					p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
+					p.logger.Errorf("Error updating status for %v: %v", hash, err)
 					return
 				} else {
-					p.logger.Debugf("Status %s reported for tx %s", status, hashStr)
+					p.logger.Debugf("Status %s reported for tx %v", status, hash)
 				}
 
 				switch status {
@@ -365,7 +358,7 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 
 				case metamorph_api.Status_MINED:
 					p.mined.AddDuration(time.Since(processorResponse.Start))
-					p.processorResponseMap.Delete(hashStr)
+					p.processorResponseMap.Delete(hash)
 
 				case metamorph_api.Status_REJECTED:
 					// log transaction to the error log
@@ -387,29 +380,24 @@ func (p *Processor) SendStatusForTransaction(hashStr string, status metamorph_ap
 		// and the transactions should be in the map until they are mined
 		if statusErr != nil {
 			// Print the error along with the status message
-			p.logger.Debugf("Received status %s for tx %s: %s", status.String(), hashStr, statusErr.Error())
+			p.logger.Debugf("Received status %s for tx %v: %s", status.String(), hash, statusErr.Error())
 		} else {
-			p.logger.Debugf("Received status %s for tx %s", status.String(), hashStr)
+			p.logger.Debugf("Received status %s for tx %v", status.String(), hash)
 		}
 
 		// This is coming from zmq, after the transaction has been deleted from our processorResponseMap
 		// It could be a "seen", "confirmed", "mined" or "rejected" status, but should finalize the tx
-		hash, err := utils.DecodeAndReverseHexString(hashStr)
-		if err != nil {
-			p.logger.Errorf("Error decoding txID %s: %v", hashStr, err)
-			return false, err
-		}
 
 		rejectReason := ""
 		if statusErr != nil {
 			rejectReason = statusErr.Error()
 		}
-		err = p.store.UpdateStatus(spanCtx, hash, status, rejectReason)
-		if err != nil {
+
+		if err := p.store.UpdateStatus(spanCtx, hash, status, rejectReason); err != nil {
 			if err == store.ErrNotFound {
 				return false, nil
 			}
-			p.logger.Errorf("Error updating status for %s: %v", hashStr, err)
+			p.logger.Errorf("Error updating status for %v: %v", hash, err)
 			return false, err
 		}
 
@@ -431,11 +419,9 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 
 	p.queuedCount.Add(1)
 
-	p.logger.Debugf("Adding channel for %x", bt.ReverseBytes(req.Hash))
+	p.logger.Debugf("Adding channel for %v", req.Hash)
 
 	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Hash, req.ResponseChannel)
-
-	txIDStr := hex.EncodeToString(bt.ReverseBytes(req.Hash))
 
 	// STEP 1: RECEIVED
 	processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
@@ -443,7 +429,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		Source: "processor",
 		Callback: func(err error) {
 			if err != nil {
-				p.logger.Errorf("Error received when setting status of %s to %s", txIDStr, metamorph_api.Status_RECEIVED.String())
+				p.logger.Errorf("Error received when setting status of %v to %s", req.Hash, metamorph_api.Status_RECEIVED.String())
 				return
 			}
 
@@ -452,18 +438,18 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 				Status: metamorph_api.Status_STORED,
 				Source: "processor",
 				UpdateStore: func() error {
-					return p.store.Set(spanCtx, req.Hash, req.StoreData)
+					return p.store.Set(spanCtx, req.Hash[:], req.StoreData)
 				},
 				Callback: func(err error) {
 					if err != nil {
-						p.logger.Errorf("Error storing transaction %s: %v", txIDStr, err)
+						p.logger.Errorf("Error storing transaction %v: %v", req.Hash, err)
 						span.SetTag(string(ext.Error), true)
 						span.LogFields(log.Error(err))
 						return
 					}
 
 					// Add this transaction to the map of transactions that we are processing
-					p.processorResponseMap.Set(txIDStr, processorResponse)
+					p.processorResponseMap.Set(req.Hash, processorResponse)
 
 					p.stored.AddDuration(time.Since(processorResponse.Start))
 

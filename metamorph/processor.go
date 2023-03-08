@@ -290,6 +290,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 					p.mined.AddDuration(time.Since(resp.Start))
 				}
 
+				resp.Close()
 				p.processorResponseMap.Delete(hash)
 
 				if p.cbChannel != nil {
@@ -359,6 +360,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 
 				case metamorph_api.Status_MINED:
 					p.mined.AddDuration(time.Since(processorResponse.Start))
+					processorResponse.Close()
 					p.processorResponseMap.Delete(hash)
 
 				case metamorph_api.Status_REJECTED:
@@ -368,6 +370,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 					}
 
 					p.rejected.AddDuration(source, time.Since(processorResponse.Start))
+					// processorResponse.Close()
 					// p.processorResponseMap.Delete(hashStr)
 				}
 			},

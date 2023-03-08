@@ -1,4 +1,4 @@
-//go:generate zebrapack
+//go:generate zebrapack -msgp
 package store
 
 import (
@@ -7,8 +7,39 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/glycerine/zebrapack/msgp"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
+
+func HashDecodeMsg(dc *msgp.Reader) (*chainhash.Hash, error) {
+	b, err := dc.ReadBytes(nil)
+	if err != nil {
+		return nil, err
+	}
+	return chainhash.NewHash(b)
+}
+
+func HashEncodeMsg(en *msgp.Writer, hash *chainhash.Hash) error {
+	return en.WriteBytes(hash[:])
+}
+
+func HashMarshalMsg(b []byte, hash *chainhash.Hash) ([]byte, error) {
+	return msgp.AppendBytes(b, hash[:]), nil
+}
+
+func HashUnmarshalMsg(bts []byte) (*chainhash.Hash, []byte, error) {
+	var nbs *msgp.NilBitsStack
+	b, bytesLeft, err := nbs.ReadBytesBytes(bts, nil)
+	if err != nil {
+		return nil, bts, err
+	}
+
+	h, err := chainhash.NewHash(b)
+	if err != nil {
+		return nil, bts, err
+	}
+	return h, bytesLeft, nil
+}
 
 type StoreData struct {
 	StoredAt      time.Time            `zid:"0"`

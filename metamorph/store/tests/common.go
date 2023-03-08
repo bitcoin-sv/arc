@@ -10,5 +10,5 @@ var (
 	Block1        = "0000000000000000000000000000000011111111111111111111111111111111"
 	Block1Hash, _ = chainhash.NewHashFromStr(Block1)
 	Block2        = "3333333333333333333333333333333344444444444444444444444444444444"
-	Block2Hash, _ = chainhash.NewHashFromStr(Block1)
+	Block2Hash, _ = chainhash.NewHashFromStr(Block2)
 )

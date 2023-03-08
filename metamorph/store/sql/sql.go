@@ -262,11 +262,17 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 	}
 
 	if txHash != nil {
-		data.Hash = chainhash.NewHashNoError(txHash)
+		data.Hash, err = chainhash.NewHash(txHash)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if blockHash != nil {
-		data.BlockHash = chainhash.NewHashNoError(blockHash)
+		data.BlockHash, err = chainhash.NewHash(blockHash)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if storedAt != "" {
@@ -466,11 +472,11 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 		}
 
 		if txHash != nil {
-			data.Hash = chainhash.NewHashNoError(txHash)
+			data.Hash, _ = chainhash.NewHash(txHash)
 		}
 
 		if blockHash != nil {
-			data.BlockHash = chainhash.NewHashNoError(blockHash)
+			data.BlockHash, _ = chainhash.NewHash(blockHash)
 		}
 
 		if storedAt != "" {

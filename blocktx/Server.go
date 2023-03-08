@@ -86,7 +86,12 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.Healt
 }
 
 func (s *Server) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Source, error) {
-	source, err := s.store.GetTransactionSource(ctx, chainhash.NewHashNoError(transaction.Hash))
+	hash, err := chainhash.NewHash(transaction.Hash)
+	if err != nil {
+		return nil, err
+	}
+
+	source, err := s.store.GetTransactionSource(ctx, hash)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, ErrTransactionNotFound
@@ -121,8 +126,13 @@ func (s *Server) GetTransactionBlock(ctx context.Context, transaction *blocktx_a
 	return s.store.GetTransactionBlock(ctx, transaction)
 }
 
-func (s *Server) GetBlock(ctx context.Context, hash *blocktx_api.Hash) (*blocktx_api.Block, error) {
-	return s.store.GetBlock(ctx, chainhash.NewHashNoError(hash.Hash))
+func (s *Server) GetBlock(ctx context.Context, req *blocktx_api.Hash) (*blocktx_api.Block, error) {
+	hash, err := chainhash.NewHash(req.Hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.store.GetBlock(ctx, hash)
 }
 
 func (s *Server) GetBlockForHeight(ctx context.Context, height *blocktx_api.Height) (*blocktx_api.Block, error) {

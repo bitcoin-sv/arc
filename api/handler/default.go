@@ -478,7 +478,7 @@ func (m ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, su
 	// enrich the response with the error details
 	arcError := api.ErrByStatus[status]
 	if arcError == nil {
-		return api.ErrStatusGeneric, api.ErrGeneric, nil
+		arcError = &api.ErrGeneric
 	}
 
 	if transaction != nil {

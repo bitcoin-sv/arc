@@ -115,15 +115,16 @@ var (
 )
 
 var ErrByStatus = map[StatusCode]*ErrorFields{
-	ErrStatusNotFound:         &ErrNotFound,
 	ErrStatusBadRequest:       &ErrBadRequest,
+	ErrStatusNotFound:         &ErrNotFound,
 	ErrStatusGeneric:          &ErrGeneric,
 	ErrStatusTxFormat:         &ErrTxFormat,
-	ErrStatusConflict:         &ErrConflict,
 	ErrStatusUnlockingScripts: &ErrUnlockingScripts,
 	ErrStatusInputs:           &ErrInputs,
+	ErrStatusOutputs:          &ErrOutputs,
 	ErrStatusMalformed:        &ErrMalformed,
 	ErrStatusFees:             &ErrFees,
+	ErrStatusConflict:         &ErrConflict,
 	ErrStatusFrozenPolicy:     &ErrFrozenPolicy,
 	ErrStatusFrozenConsensus:  &ErrFrozenConsensus,
 }

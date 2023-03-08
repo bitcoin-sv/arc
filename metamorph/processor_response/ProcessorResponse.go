@@ -20,11 +20,12 @@ type StatusAndError struct {
 }
 
 type ProcessorResponseStatusUpdate struct {
-	Status      metamorph_api.Status
-	Source      string
-	StatusErr   error
-	UpdateStore func() error
-	Callback    func(err error)
+	Status         metamorph_api.Status
+	Source         string
+	StatusErr      error
+	UpdateStore    func() error
+	IgnoreCallback bool
+	Callback       func(err error)
 }
 
 type ProcessorResponse struct {
@@ -73,6 +74,7 @@ func newProcessorResponse(hash *chainhash.Hash, status metamorph_api.Status, ch 
 	}
 	pr.LastStatusUpdateNanos.Store(pr.Start.UnixNano())
 
+	// TODO change this to a queue?
 	go func() {
 		for statusUpdate := range pr.statusUpdateCh {
 			pr.updateStatus(statusUpdate)
@@ -109,7 +111,7 @@ func (r *ProcessorResponse) updateStatus(statusUpdate *ProcessorResponseStatusUp
 	statKey := fmt.Sprintf("%d: %s", statusUpdate.Status, statusUpdate.Status.String())
 	r.LastStatusUpdateNanos.Store(gocore.NewStat("processorResponse").NewStat(statKey).AddTime(r.LastStatusUpdateNanos.Load()))
 
-	if !r.NoStats {
+	if !statusUpdate.IgnoreCallback {
 		statusUpdate.Callback(nil)
 	}
 }

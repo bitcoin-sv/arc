@@ -23,11 +23,11 @@ import (
 )
 
 type PeerHandler struct {
-	workerCh       chan utils.Pair[[]byte, p2p.PeerI]
+	workerCh       chan utils.Pair[*chainhash.Hash, p2p.PeerI]
 	blockCh        chan *blocktx_api.Block
 	store          store.Interface
 	logger         utils.Logger
-	announcedCache *expiringmap.ExpiringMap[string, []p2p.PeerI]
+	announcedCache *expiringmap.ExpiringMap[*chainhash.Hash, []p2p.PeerI]
 	stats          *safemap.Safemap[string, *tracing.PeerHandlerStats]
 }
 
@@ -40,14 +40,9 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 		store:    storeI,
 		blockCh:  blockCh,
 		logger:   logger,
-		workerCh: make(chan utils.Pair[[]byte, p2p.PeerI], 100),
-		announcedCache: expiringmap.New[string, []p2p.PeerI](5 * time.Minute).WithEvictionFunction(func(hashStr string, peers []p2p.PeerI) bool {
+		workerCh: make(chan utils.Pair[*chainhash.Hash, p2p.PeerI], 100),
+		announcedCache: expiringmap.New[*chainhash.Hash, []p2p.PeerI](5 * time.Minute).WithEvictionFunction(func(hash *chainhash.Hash, peers []p2p.PeerI) bool {
 			msg := wire.NewMsgGetData()
-			hash, err := chainhash.NewHashFromStr(hashStr)
-			if err != nil {
-				logger.Errorf("EvictionFunc: invalid hash: %v", err)
-				return false
-			}
 
 			if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
 				logger.Errorf("EvictionFunc: could not create InvVect: %v", err)
@@ -73,22 +68,16 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 
 	go func() {
 		for pair := range s.workerCh {
-			hash, err := chainhash.NewHash(pair.First)
-			if err != nil {
-				logger.Errorf("ProcessBlock: invalid hash %s: %v", hash, err)
-				continue
-			}
-
+			hash := pair.First
 			peer := pair.Second
 
-			id := hash.String()
-			item, found := s.announcedCache.Get(id)
+			item, found := s.announcedCache.Get(hash)
 			if !found {
-				s.announcedCache.Set(id, []p2p.PeerI{peer})
+				s.announcedCache.Set(hash, []p2p.PeerI{peer})
 
 			} else {
 				item = append(item, peer)
-				s.announcedCache.Set(id, item)
+				s.announcedCache.Set(hash, item)
 				continue
 			}
 
@@ -196,7 +185,7 @@ func (bs *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 		gocore.NewStat("blocktx").NewStat("HandleBlockAnnouncement").AddTime(start)
 	}()
 
-	pair := utils.NewPair(msg.Hash.CloneBytes(), peer)
+	pair := utils.NewPair(&msg.Hash, peer)
 	utils.SafeSend(bs.workerCh, pair)
 
 	return nil
@@ -221,35 +210,37 @@ func (bs *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error 
 	timeStart := time.Now()
 
 	blockHash := msg.Header.BlockHash()
-	blockHashBytes := blockHash.CloneBytes()
 
 	previousBlockHash := msg.Header.PrevBlock
-	previousBlockHashBytes := previousBlockHash.CloneBytes()
 
 	merkleRoot := msg.Header.MerkleRoot
-	merkleRootBytes := merkleRoot.CloneBytes()
 
-	blockId, err := bs.insertBlock(blockHashBytes, merkleRootBytes, previousBlockHashBytes, msg.Height, peer)
+	blockId, err := bs.insertBlock(&blockHash, &merkleRoot, &previousBlockHash, msg.Height, peer)
 	if err != nil {
 		return fmt.Errorf("unable to insert block %s: %v", blockHash.String(), err)
 	}
 
-	if err = bs.markTransactionsAsMined(blockId, msg.TransactionIDs); err != nil {
+	if err = bs.markTransactionsAsMined(blockId, msg.TransactionHashes); err != nil {
 		return fmt.Errorf("unable to mark block as mined %s: %v", blockHash.String(), err)
 	}
 
-	calculatedMerkleRoot := blockchain.BuildMerkleTreeStore(msg.TransactionIDs)
-	if !bytes.Equal(calculatedMerkleRoot[len(calculatedMerkleRoot)-1], merkleRootBytes) {
+	transactionHashes := make([][]byte, len(msg.TransactionHashes))
+	for i, hash := range msg.TransactionHashes {
+		transactionHashes[i] = hash[:]
+	}
+
+	calculatedMerkleRoot := blockchain.BuildMerkleTreeStore(transactionHashes)
+	if !bytes.Equal(calculatedMerkleRoot[len(calculatedMerkleRoot)-1], merkleRoot[:]) {
 		return fmt.Errorf("merkle root mismatch for block %s", blockHash.String())
 	}
 
 	block := &p2p.Block{
-		Hash:         blockHashBytes,
-		MerkleRoot:   merkleRootBytes,
-		PreviousHash: previousBlockHashBytes,
+		Hash:         &blockHash,
+		MerkleRoot:   &merkleRoot,
+		PreviousHash: &previousBlockHash,
 		Height:       msg.Height,
 		Size:         msg.Size,
-		TxCount:      uint64(len(msg.TransactionIDs)),
+		TxCount:      uint64(len(msg.TransactionHashes)),
 	}
 
 	if err = bs.markBlockAsProcessed(block); err != nil {
@@ -258,12 +249,12 @@ func (bs *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error 
 
 	// add the total block processing time to the stats
 	stat.BlockProcessingMs.Add(uint64(time.Since(timeStart).Milliseconds()))
-	bs.logger.Infof("Processed block %s, %d transactions in %0.2f seconds", blockHash.String(), len(msg.TransactionIDs), time.Since(timeStart).Seconds())
+	bs.logger.Infof("Processed block %s, %d transactions in %0.2f seconds", blockHash.String(), len(msg.TransactionHashes), time.Since(timeStart).Seconds())
 
 	return nil
 }
 
-func (bs *PeerHandler) insertBlock(blockHash []byte, merkleRoot []byte, previousBlockHash []byte, height uint64, peer p2p.PeerI) (uint64, error) {
+func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainhash.Hash, previousBlockHash *chainhash.Hash, height uint64, peer p2p.PeerI) (uint64, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("insertBlock").AddTime(start)
@@ -271,7 +262,7 @@ func (bs *PeerHandler) insertBlock(blockHash []byte, merkleRoot []byte, previous
 
 	startingHeight, _ := gocore.Config().GetInt("starting_block_height", 700000)
 	if height > uint64(startingHeight) {
-		if _, found := bs.announcedCache.Get(utils.HexEncodeAndReverseBytes(previousBlockHash)); !found {
+		if _, found := bs.announcedCache.Get(previousBlockHash); !found {
 			if _, err := bs.store.GetBlock(context.Background(), previousBlockHash); err != nil {
 				if err == sql.ErrNoRows {
 					pair := utils.NewPair(previousBlockHash, peer)
@@ -282,26 +273,26 @@ func (bs *PeerHandler) insertBlock(blockHash []byte, merkleRoot []byte, previous
 	}
 
 	block := &blocktx_api.Block{
-		Hash:         blockHash,
-		MerkleRoot:   merkleRoot,
-		PreviousHash: previousBlockHash,
+		Hash:         blockHash[:],
+		MerkleRoot:   merkleRoot[:],
+		PreviousHash: previousBlockHash[:],
 		Height:       height,
 	}
 
 	return bs.store.InsertBlock(context.Background(), block)
 }
 
-func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactions [][]byte) error {
+func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes []*chainhash.Hash) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("markTransactionsAsMined").AddTime(start)
 	}()
 
-	txs := make([]*blocktx_api.TransactionAndSource, 0, len(transactions))
+	txs := make([]*blocktx_api.TransactionAndSource, 0, len(transactionHashes))
 
-	for _, tx := range transactions {
+	for _, hash := range transactionHashes {
 		txs = append(txs, &blocktx_api.TransactionAndSource{
-			Hash: tx,
+			Hash: hash[:],
 		})
 	}
 
@@ -323,12 +314,12 @@ func (bs *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {
 		return err
 	}
 
-	bs.announcedCache.Delete(utils.HexEncodeAndReverseBytes(block.Hash))
+	bs.announcedCache.Delete(block.Hash)
 
 	utils.SafeSend(bs.blockCh, &blocktx_api.Block{
-		Hash:         block.Hash,
-		PreviousHash: block.PreviousHash,
-		MerkleRoot:   block.MerkleRoot,
+		Hash:         block.Hash[:],
+		PreviousHash: block.PreviousHash[:],
+		MerkleRoot:   block.MerkleRoot[:],
 		Height:       block.Height,
 	})
 

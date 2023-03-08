@@ -7,6 +7,7 @@ import (
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
 
 	"google.golang.org/grpc"
@@ -18,7 +19,7 @@ type ClientI interface {
 	Start(minedBlockChan chan *blocktx_api.Block)
 	LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error)
-	GetBlock(ctx context.Context, blockHash []byte) (*blocktx_api.Block, error)
+	GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*blocktx_api.Block, error)
 	GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
 }
 
@@ -62,7 +63,7 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 					break
 				}
 
-				btc.logger.Infof("Block %s\n", utils.HexEncodeAndReverseBytes(block.Hash))
+				btc.logger.Infof("Block %s\n", utils.ReverseAndHexEncodeSlice(block.Hash))
 				utils.SafeSend(minedBlockChan, block)
 			}
 		}
@@ -84,8 +85,10 @@ func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx
 	return btc.client.RegisterTransaction(ctx, transaction)
 }
 
-func (btc *Client) GetBlock(ctx context.Context, blockHash []byte) (*blocktx_api.Block, error) {
-	block, err := btc.client.GetBlock(ctx, &blocktx_api.Hash{Hash: blockHash})
+func (btc *Client) GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*blocktx_api.Block, error) {
+	block, err := btc.client.GetBlock(ctx, &blocktx_api.Hash{
+		Hash: blockHash[:],
+	})
 	if err != nil {
 		return nil, err
 	}

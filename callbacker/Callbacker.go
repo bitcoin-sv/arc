@@ -92,13 +92,13 @@ func (c *Callbacker) sendCallbacks() error {
 }
 
 func (c *Callbacker) sendCallback(key string, callback *callbacker_api.Callback) error {
-	txId := utils.HexEncodeAndReverseBytes(callback.Hash)
+	txId := utils.ReverseAndHexEncodeSlice(callback.Hash)
 	c.logger.Infof("sending callback: %s => %s", txId, callback.Url)
 
 	statusString := metamorph_api.Status(callback.Status).String()
 	blockHash := ""
 	if callback.BlockHash != nil {
-		blockHash = utils.HexEncodeAndReverseBytes(callback.BlockHash)
+		blockHash = utils.ReverseAndHexEncodeSlice(callback.BlockHash)
 	}
 	status := &api.TransactionStatus{
 		BlockHash:   &blockHash,

@@ -2,6 +2,8 @@ module github.com/TAAL-GmbH/arc
 
 go 1.19
 
+replace github.com/libsv/go-p2p => ../go-p2p
+
 require (
 	github.com/deepmap/oapi-codegen v1.11.0
 	github.com/dgraph-io/badger/v3 v3.2103.1
@@ -19,7 +21,7 @@ require (
 	github.com/opentracing-contrib/echo v0.0.0-20190807091611-5fe2e1308f06
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/ordishs/go-bitcoin v1.0.79
-	github.com/ordishs/go-utils v1.0.31
+	github.com/ordishs/go-utils v1.0.33
 	github.com/ordishs/gocore v1.0.35
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.14.0

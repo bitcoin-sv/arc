@@ -13,6 +13,7 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/labstack/gommon/random"
 	_ "github.com/lib/pq"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
@@ -473,7 +474,7 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 	return nil
 }
 
-func (s *SQL) UpdateStatus(ctx context.Context, hash []byte, status metamorph_api.Status, rejectReason string) error {
+func (s *SQL) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("UpdateStatus").AddTime(startNanos)
@@ -509,7 +510,7 @@ func (s *SQL) UpdateStatus(ctx context.Context, hash []byte, status metamorph_ap
 	return nil
 }
 
-func (s *SQL) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, blockHeight uint64) error {
+func (s *SQL) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("UpdateMined").AddTime(startNanos)
@@ -535,7 +536,7 @@ func (s *SQL) UpdateMined(ctx context.Context, hash []byte, blockHash []byte, bl
 	return err
 }
 
-func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash []byte) (*time.Time, error) {
+func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("GetBlockProcessed").AddTime(startNanos)
@@ -574,7 +575,7 @@ func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash []byte) (*time.Ti
 	return &processedAtTime, nil
 }
 
-func (s *SQL) SetBlockProcessed(ctx context.Context, blockHash []byte) error {
+func (s *SQL) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("SetBlockProcessed").AddTime(startNanos)

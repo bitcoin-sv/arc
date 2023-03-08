@@ -6,11 +6,12 @@ import (
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/blocktx/store"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/gocore"
 	"github.com/pkg/errors"
 )
 
-func (s *SQL) GetBlock(ctx context.Context, hash []byte) (*blocktx_api.Block, error) {
+func (s *SQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("GetBlock").AddTime(start)
@@ -35,7 +36,7 @@ func (s *SQL) GetBlock(ctx context.Context, hash []byte) (*blocktx_api.Block, er
 
 	var processed_at sql.NullString
 
-	if err := s.db.QueryRowContext(ctx, q, hash).Scan(
+	if err := s.db.QueryRowContext(ctx, q, hash[:]).Scan(
 		&block.Hash,
 		&block.PreviousHash,
 		&block.MerkleRoot,

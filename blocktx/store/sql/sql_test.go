@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
@@ -28,10 +29,11 @@ func TestInOut(t *testing.T) {
 	blockId, err := s.InsertBlock(ctx, block)
 	require.NoError(t, err)
 
-	firstHash := []byte("test transaction hash 1")
+	firstHash, err := chainhash.NewHashFromStr("b042f298deabcebbf15355aa3a13c7d7cfe96c44ac4f492735f936f8e50d06f6")
+	require.NoError(t, err)
 
 	transactions := []*blocktx_api.TransactionAndSource{
-		{Hash: firstHash, Source: "TEST"},
+		{Hash: firstHash[:], Source: "TEST"},
 		{Hash: []byte("test transaction hash 2"), Source: "TEST"},
 		{Hash: []byte("test transaction hash 3"), Source: "TEST"},
 		{Hash: []byte("test transaction hash 4"), Source: "TEST"},
@@ -44,7 +46,7 @@ func TestInOut(t *testing.T) {
 	}
 
 	_, _, _, err = s.RegisterTransaction(ctx, &blocktx_api.TransactionAndSource{
-		Hash:   firstHash,
+		Hash:   firstHash[:],
 		Source: "TEST",
 	})
 	require.NoError(t, err)

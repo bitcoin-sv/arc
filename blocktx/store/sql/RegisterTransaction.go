@@ -6,6 +6,7 @@ import (
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/lib/pq"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
@@ -31,12 +32,12 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 	}
 
 	if transaction.Source == "" {
-		return "", nil, 0, fmt.Errorf("source missing for transaction %s", utils.HexEncodeAndReverseBytes(transaction.Hash))
+		return "", nil, 0, fmt.Errorf("source missing for transaction %s", utils.ReverseAndHexEncodeSlice(transaction.Hash))
 	}
 
 	q := `INSERT INTO transactions (hash, source) VALUES ($1, $2)`
 
-	if _, err := s.db.ExecContext(ctx, q, transaction.Hash, transaction.Source); err != nil {
+	if _, err := s.db.ExecContext(ctx, q, transaction.Hash[:], transaction.Source); err != nil {
 		spanErr, ctx := opentracing.StartSpanFromContext(ctx, "sql:RegisterTransaction:Err")
 		defer spanErr.Finish()
 
@@ -63,7 +64,7 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 		// If we reach here, we have a unique violation, which means that the transaction already exists
 		spanErr.SetTag("unique_constraint", true)
 		q = `UPDATE transactions SET source = $1 WHERE source IS NULL AND hash = $2`
-		result, err := s.db.ExecContext(ctx, q, transaction.Source, transaction.Hash)
+		result, err := s.db.ExecContext(ctx, q, transaction.Source, transaction.Hash[:])
 		if err != nil {
 			spanErr.SetTag(string(ext.Error), true)
 			spanErr.LogFields(log.Error(err))
@@ -80,7 +81,7 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 		if rows == 1 {
 			// We successfully updated the source and which means it had already been mined
 			// so we return the block hash and height
-			var blockHash []byte
+			var blockHash chainhash.Hash
 			var blockHeight uint64
 
 			spanErr.SetTag("already_mined", true)
@@ -100,7 +101,7 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 				return "", nil, 0, err
 			}
 
-			return transaction.Source, blockHash, blockHeight, nil
+			return transaction.Source, blockHash[:], blockHeight, nil
 
 		}
 

@@ -268,10 +268,12 @@ func (s *Badger) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 				continue
 			}
 
-			var result *store.StoreData
+			result := &store.StoreData{}
 			if err := item.Value(func(val []byte) error {
-				dec := gob.NewDecoder(bytes.NewReader(val))
-				return dec.Decode(&result)
+				_, err := result.UnmarshalMsg(val)
+				return err
+				// dec := gob.NewDecoder(bytes.NewReader(val))
+				// return dec.Decode(&result)
 			}); err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))

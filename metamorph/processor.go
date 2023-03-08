@@ -334,6 +334,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 
 				return p.store.UpdateStatus(spanCtx, hash, status, rejectReason)
 			},
+			IgnoreCallback: processorResponse.NoStats, // do not do this callback if we are not keeping stats
 			Callback: func(err error) {
 				if err != nil {
 					p.logger.Errorf("Error updating status for %v: %v", hash, err)

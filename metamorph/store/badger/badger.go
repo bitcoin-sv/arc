@@ -113,16 +113,6 @@ func (s *Badger) Set(ctx context.Context, key []byte, value *store.StoreData) er
 		return fmt.Errorf("failed to encode data: %w", err)
 	}
 
-	//var data bytes.Buffer
-	//enc := gob.NewEncoder(&data)
-	//err := enc.Encode(value)
-	//if err != nil {
-	//  span.SetTag(string(ext.Error), true)
-	//  span.LogFields(log.Error(err))
-	//	return fmt.Errorf("failed to encode data: %w", err)
-	//}
-	//b := data.Bytes()
-
 	if err = s.store.Update(func(tx *badger.Txn) error {
 		return tx.Set(key, b)
 	}); err != nil {
@@ -160,8 +150,6 @@ func (s *Badger) Get(ctx context.Context, hash []byte) (*store.StoreData, error)
 		if err = data.Value(func(val []byte) error {
 			_, err = result.UnmarshalMsg(val)
 			return err
-			//dec := gob.NewDecoder(bytes.NewReader(val))
-			//return dec.Decode(&result)
 		}); err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
@@ -272,8 +260,6 @@ func (s *Badger) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 			if err := item.Value(func(val []byte) error {
 				_, err := result.UnmarshalMsg(val)
 				return err
-				// dec := gob.NewDecoder(bytes.NewReader(val))
-				// return dec.Decode(&result)
 			}); err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))

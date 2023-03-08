@@ -2,7 +2,6 @@ package metamorph
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"sync"
@@ -86,8 +85,8 @@ func TestLoadUnseen(t *testing.T) {
 		processor.LoadUnmined()
 		assert.Equal(t, 2, processor.processorResponseMap.Len())
 		items := processor.processorResponseMap.Items()
-		assert.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash])
-		assert.Equal(t, testdata.TX2Hash, items[*testdata.TX2Hash])
+		assert.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
+		assert.Equal(t, testdata.TX2Hash, items[*testdata.TX2Hash].Hash)
 	})
 }
 
@@ -133,7 +132,7 @@ func TestProcessTransaction(t *testing.T) {
 
 		assert.Equal(t, 1, processor.processorResponseMap.Len())
 		items := processor.processorResponseMap.Items()
-		assert.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash])
+		assert.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
 		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[*testdata.TX1Hash].Status)
 
 		assert.Len(t, pm.AnnouncedTransactions, 1)
@@ -181,20 +180,6 @@ func TestSendStatusForTransaction(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_REJECTED, txStored.Status)
 		assert.Equal(t, throwErr.Error(), txStored.RejectReason)
-	})
-
-	t.Run("SendStatusForTransaction invalid tx id", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
-		require.NoError(t, err)
-
-		pm := p2p.NewPeerManagerMock()
-
-		processor := NewProcessor(1, s, pm, "test", nil)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
-
-		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_REJECTED, "test", nil)
-		assert.False(t, ok)
-		assert.ErrorIs(t, sendErr, hex.InvalidByteError('t'))
 	})
 
 	t.Run("SendStatusForTransaction known tx - no update", func(t *testing.T) {
@@ -306,8 +291,8 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		go func() {
 			for cb := range callbackCh {
 				assert.Equal(t, metamorph_api.Status_MINED, metamorph_api.Status(cb.Status))
-				assert.Equal(t, testdata.TX1Hash, cb.Hash)
-				assert.Equal(t, []byte("hash1"), cb.BlockHash)
+				assert.Equal(t, testdata.TX1Hash.CloneBytes(), cb.Hash)
+				assert.Equal(t, testdata.Block1Hash[:], cb.BlockHash)
 				assert.Equal(t, uint64(1233), cb.BlockHeight)
 				assert.Equal(t, "https://test.com", cb.Url)
 				assert.Equal(t, "token", cb.Token)

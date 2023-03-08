@@ -231,15 +231,17 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 	var storedAt string
 	var announcedAt string
 	var minedAt string
+	var txHash []byte
+	var blockHash []byte
 
 	err := s.db.QueryRowContext(ctx, q, hash).Scan(
 		&storedAt,
 		&announcedAt,
 		&minedAt,
-		&data.Hash,
+		&txHash,
 		&data.Status,
 		&data.BlockHeight,
-		&data.BlockHash,
+		&blockHash,
 		&data.ApiKeyId,
 		&data.StandardFeeId,
 		&data.DataFeeId,
@@ -257,6 +259,14 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return nil, err
+	}
+
+	if txHash != nil {
+		data.Hash = chainhash.NewHashNoError(txHash)
+	}
+
+	if blockHash != nil {
+		data.BlockHash = chainhash.NewHashNoError(blockHash)
 	}
 
 	if storedAt != "" {
@@ -337,6 +347,16 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 	var storedAt string
 	var announcedAt string
 	var minedAt string
+	var txHash []byte
+	var blockHash []byte
+
+	if value.Hash != nil {
+		txHash = value.Hash.CloneBytes()
+	}
+
+	if value.BlockHash != nil {
+		blockHash = value.BlockHash.CloneBytes()
+	}
 
 	if value.StoredAt.UnixMilli() != 0 {
 		storedAt = value.StoredAt.UTC().Format(ISO8601)
@@ -359,10 +379,10 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 		storedAt,
 		announcedAt,
 		minedAt,
-		value.Hash,
+		txHash,
 		value.Status,
 		value.BlockHeight,
-		value.BlockHash,
+		blockHash,
 		value.ApiKeyId,
 		value.StandardFeeId,
 		value.DataFeeId,
@@ -419,6 +439,8 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 	for rows.Next() {
 		data := &store.StoreData{}
 
+		var txHash []byte
+		var blockHash []byte
 		var storedAt string
 		var announcedAt string
 		var minedAt string
@@ -427,10 +449,10 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 			&storedAt,
 			&announcedAt,
 			&minedAt,
-			&data.Hash,
+			&txHash,
 			&data.Status,
 			&data.BlockHeight,
-			&data.BlockHash,
+			&blockHash,
 			&data.ApiKeyId,
 			&data.StandardFeeId,
 			&data.DataFeeId,
@@ -442,6 +464,15 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 		); err != nil {
 			return err
 		}
+
+		if txHash != nil {
+			data.Hash = chainhash.NewHashNoError(txHash)
+		}
+
+		if blockHash != nil {
+			data.BlockHash = chainhash.NewHashNoError(blockHash)
+		}
+
 		if storedAt != "" {
 			data.StoredAt, err = time.Parse(ISO8601, storedAt)
 			if err != nil {
@@ -489,7 +520,7 @@ func (s *SQL) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status met
 		WHERE hash = $3
 	;`
 
-	result, err := s.db.ExecContext(ctx, q, status, rejectReason, hash)
+	result, err := s.db.ExecContext(ctx, q, status, rejectReason, hash[:])
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -526,7 +557,7 @@ func (s *SQL) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *
 		WHERE hash = $4
 	;`
 
-	_, err := s.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHash, blockHeight, hash)
+	_, err := s.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHash[:], blockHeight, hash[:])
 
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
@@ -550,7 +581,7 @@ func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) 
 
 	var processedAt string
 
-	err := s.db.QueryRowContext(ctx, q, blockHash).Scan(
+	err := s.db.QueryRowContext(ctx, q, blockHash[:]).Scan(
 		&processedAt,
 	)
 	if err != nil {
@@ -594,7 +625,7 @@ func (s *SQL) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) 
 	processedAt := time.Now().UTC().Format(ISO8601)
 
 	_, err := s.db.ExecContext(ctx, q,
-		blockHash,
+		blockHash[:],
 		processedAt,
 	)
 

@@ -85,7 +85,7 @@ func TestPutGetMulti(t *testing.T) {
 				var data2 *store.StoreData
 				data2, err = sqliteDB.Get(context.Background(), hash[:])
 				require.NoError(t, err)
-				assert.Equal(t, hash, data2.Hash)
+				assert.Equal(t, &hash, data2.Hash)
 
 				err = sqliteDB.Del(context.Background(), hash[:])
 				require.NoError(t, err)

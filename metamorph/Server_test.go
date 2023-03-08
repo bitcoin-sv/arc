@@ -79,7 +79,7 @@ func TestPutTransaction(t *testing.T) {
 			time.Sleep(10 * time.Millisecond)
 
 			processor.GetProcessRequest(0).ResponseChannel <- processor_response.StatusAndError{
-				Hash:   testdata.TX1Bytes,
+				Hash:   testdata.TX1Hash,
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			}
 		}()
@@ -109,7 +109,7 @@ func TestPutTransaction(t *testing.T) {
 		go func() {
 			time.Sleep(10 * time.Millisecond)
 			processor.GetProcessRequest(0).ResponseChannel <- processor_response.StatusAndError{
-				Hash:   testdata.TX1Bytes,
+				Hash:   testdata.TX1Hash,
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			}
 		}()
@@ -138,7 +138,7 @@ func TestPutTransaction(t *testing.T) {
 		go func() {
 			time.Sleep(10 * time.Millisecond)
 			processor.GetProcessRequest(0).ResponseChannel <- processor_response.StatusAndError{
-				Hash:   testdata.TX1Bytes,
+				Hash:   testdata.TX1Hash,
 				Status: metamorph_api.Status_REJECTED,
 				Err:    fmt.Errorf("some error"),
 			}
@@ -154,8 +154,8 @@ func TestPutTransaction(t *testing.T) {
 		ctx := context.Background()
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
-		err = s.Set(ctx, testdata.TX1Bytes, &store.StoreData{
-			Hash:   testdata.TX1Bytes,
+		err = s.Set(ctx, testdata.TX1Hash[:], &store.StoreData{
+			Hash:   testdata.TX1Hash,
 			Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			RawTx:  testdata.TX1RawBytes,
 		})

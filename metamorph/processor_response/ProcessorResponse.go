@@ -6,15 +6,15 @@ import (
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
-	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"github.com/sasha-s/go-deadlock"
 )
 
 type StatusAndError struct {
-	Hash   []byte
+	Hash   *chainhash.Hash
 	Status metamorph_api.Status
 	Err    error
 }
@@ -31,7 +31,7 @@ type ProcessorResponse struct {
 	callerCh              chan StatusAndError
 	NoStats               bool
 	statusUpdateCh        chan *ProcessorResponseStatusUpdate
-	Hash                  []byte
+	Hash                  *chainhash.Hash
 	Start                 time.Time
 	Retries               atomic.Uint32
 	LastStatusUpdateNanos atomic.Int64
@@ -43,21 +43,21 @@ type ProcessorResponse struct {
 	Log            []ProcessorResponseLog
 }
 
-func NewProcessorResponse(hash []byte) *ProcessorResponse {
+func NewProcessorResponse(hash *chainhash.Hash) *ProcessorResponse {
 	return newProcessorResponse(hash, metamorph_api.Status_UNKNOWN, nil)
 }
 
 // NewProcessorResponseWithStatus creates a new ProcessorResponse with the given status.
 // It is used when restoring the ProcessorResponseMap from the database.
-func NewProcessorResponseWithStatus(hash []byte, status metamorph_api.Status) *ProcessorResponse {
+func NewProcessorResponseWithStatus(hash *chainhash.Hash, status metamorph_api.Status) *ProcessorResponse {
 	return newProcessorResponse(hash, status, nil)
 }
 
-func NewProcessorResponseWithChannel(hash []byte, ch chan StatusAndError) *ProcessorResponse {
+func NewProcessorResponseWithChannel(hash *chainhash.Hash, ch chan StatusAndError) *ProcessorResponse {
 	return newProcessorResponse(hash, metamorph_api.Status_UNKNOWN, ch)
 }
 
-func newProcessorResponse(hash []byte, status metamorph_api.Status, ch chan StatusAndError) *ProcessorResponse {
+func newProcessorResponse(hash *chainhash.Hash, status metamorph_api.Status, ch chan StatusAndError) *ProcessorResponse {
 	pr := &ProcessorResponse{
 		Start:          time.Now(),
 		Hash:           hash,
@@ -133,9 +133,9 @@ func (r *ProcessorResponse) String() string {
 	defer r.mu.RUnlock()
 
 	if r.Err != nil {
-		return fmt.Sprintf("%x: %s [%s] %s", bt.ReverseBytes(r.Hash), r.Start.Format(time.RFC3339), r.Status.String(), r.Err.Error())
+		return fmt.Sprintf("%v: %s [%s] %s", r.Hash, r.Start.Format(time.RFC3339), r.Status.String(), r.Err.Error())
 	}
-	return fmt.Sprintf("%x: %s [%s]", bt.ReverseBytes(r.Hash), r.Start.Format(time.RFC3339), r.Status.String())
+	return fmt.Sprintf("%v: %s [%s]", r.Hash, r.Start.Format(time.RFC3339), r.Status.String())
 }
 
 func (r *ProcessorResponse) setStatus(status metamorph_api.Status, source string) bool {

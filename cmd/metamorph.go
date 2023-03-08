@@ -20,6 +20,7 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/safemap"
@@ -112,9 +113,9 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	go func() {
 		for message := range statusMessageCh {
-			_, err = metamorphProcessor.SendStatusForTransaction(message.Txid, message.Status, message.Peer, message.Err)
+			_, err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
 			if err != nil {
-				logger.Errorf("Could not send status for transaction %s: %v", message.Txid, err)
+				logger.Errorf("Could not send status for transaction %v: %v", message.Hash, err)
 			}
 		}
 	}()
@@ -136,7 +137,8 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	go func() {
 		var processedAt *time.Time
 		for block := range blockChan {
-			processedAt, err = s.GetBlockProcessed(context.Background(), block.Hash)
+			hash, _ := chainhash.NewHash(block.Hash[:])
+			processedAt, err = s.GetBlockProcessed(context.Background(), hash)
 			if err != nil {
 				logger.Errorf("Could not get block processed status: %v", err)
 				continue
@@ -152,7 +154,9 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 			}
 
 			// check whether we have already processed the previous block
-			processedAt, err = s.GetBlockProcessed(context.Background(), block.PreviousHash)
+			blockHash, _ := chainhash.NewHash(block.PreviousHash)
+
+			processedAt, err = s.GetBlockProcessed(context.Background(), blockHash)
 			if err != nil {
 				logger.Errorf("Could not get previous block processed status: %v", err)
 				continue
@@ -160,7 +164,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 			if processedAt == nil || processedAt.IsZero() {
 				// get the full previous block from block tx
 				var previousBlock *blocktx_api.Block
-				previousBlock, err = btc.GetBlock(context.Background(), block.PreviousHash)
+				previousBlock, err = btc.GetBlock(context.Background(), chainhash.NewHashNoError(block.PreviousHash))
 				if err != nil {
 					if !errors.Is(err, blockTxStore.ErrBlockNotFound) {
 						logger.Errorf("Could not get previous block from block tx: %v", err)
@@ -266,7 +270,10 @@ func processBlock(logger utils.Logger, btc blocktx.ClientI, p metamorph.Processo
 	for _, tx := range mt.Transactions {
 		logger.Debugf("Received MINED message from BlockTX for transaction %x", bt.ReverseBytes(tx.Hash))
 
-		_, err = p.SendStatusMinedForTransaction(tx.Hash, mt.Block.Hash, mt.Block.Height)
+		hash, _ := chainhash.NewHash(tx.Hash)
+		blockHash, _ := chainhash.NewHash(mt.Block.Hash)
+
+		_, err = p.SendStatusMinedForTransaction(hash, blockHash, mt.Block.Height)
 		if err != nil {
 			logger.Errorf("Could not send mined status for transaction %x: %v", bt.ReverseBytes(tx.Hash), err)
 			return
@@ -275,7 +282,9 @@ func processBlock(logger utils.Logger, btc blocktx.ClientI, p metamorph.Processo
 
 	logger.Infof("Marked %d transactions as MINED", len(mt.Transactions))
 
-	err = s.SetBlockProcessed(context.Background(), blockAndSource.Hash)
+	hash, _ := chainhash.NewHash(blockAndSource.Hash)
+
+	err = s.SetBlockProcessed(context.Background(), hash)
 	if err != nil {
 		logger.Errorf("Could not set block processed status: %v", err)
 	}

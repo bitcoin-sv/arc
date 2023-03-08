@@ -10,6 +10,7 @@ import (
 	"github.com/TAAL-GmbH/arc/blocktx/store"
 	"github.com/TAAL-GmbH/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"google.golang.org/grpc"
@@ -85,7 +86,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.Healt
 }
 
 func (s *Server) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Source, error) {
-	source, err := s.store.GetTransactionSource(ctx, transaction.Hash)
+	source, err := s.store.GetTransactionSource(ctx, chainhash.NewHashNoError(transaction.Hash))
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, ErrTransactionNotFound
@@ -121,7 +122,7 @@ func (s *Server) GetTransactionBlock(ctx context.Context, transaction *blocktx_a
 }
 
 func (s *Server) GetBlock(ctx context.Context, hash *blocktx_api.Hash) (*blocktx_api.Block, error) {
-	return s.store.GetBlock(ctx, hash.Hash)
+	return s.store.GetBlock(ctx, chainhash.NewHashNoError(hash.Hash))
 }
 
 func (s *Server) GetBlockForHeight(ctx context.Context, height *blocktx_api.Height) (*blocktx_api.Block, error) {

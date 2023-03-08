@@ -17,6 +17,7 @@ import (
 	"github.com/TAAL-GmbH/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
@@ -177,7 +178,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 			return &metamorph_api.TransactionStatus{
 				TimedOut: true,
 				Status:   status,
-				Txid:     utils.HexEncodeAndReverseBytes(hash),
+				Txid:     hash.String(),
 			}, nil
 		case res := <-responseChannel:
 			resStatus := res.Status
@@ -189,7 +190,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 			if resErr != nil {
 				return &metamorph_api.TransactionStatus{
 					Status:       status,
-					Txid:         utils.HexEncodeAndReverseBytes(hash),
+					Txid:         hash.String(),
 					RejectReason: resErr.Error(),
 				}, nil
 			}
@@ -197,14 +198,14 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 			if status >= waitForStatus {
 				return &metamorph_api.TransactionStatus{
 					Status: status,
-					Txid:   utils.HexEncodeAndReverseBytes(hash),
+					Txid:   hash.String(),
 				}, nil
 			}
 		}
 	}
 }
 
-func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.TransactionRequest, start int64) (int64, metamorph_api.Status, []byte, *metamorph_api.TransactionStatus, error) {
+func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.TransactionRequest, start int64) (int64, metamorph_api.Status, *chainhash.Hash, *metamorph_api.TransactionStatus, error) {
 	initSpan, initCtx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:init")
 	defer initSpan.Finish()
 
@@ -212,13 +213,13 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 	next := start
 
 	status := metamorph_api.Status_UNKNOWN
-	hash := utils.Sha256d(req.RawTx)
+	hash := chainhash.DoubleHashH(req.RawTx)
 
-	initSpan.SetTag("txid", utils.HexEncodeAndReverseBytes(hash))
+	initSpan.SetTag("txid", hash.String())
 
 	// Register the transaction in blocktx store
 	rtr, err := s.btc.RegisterTransaction(initCtx, &blocktx_api.TransactionAndSource{
-		Hash:   hash,
+		Hash:   hash[:],
 		Source: s.source,
 	})
 	if err != nil {
@@ -228,7 +229,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 	if rtr.Source != s.source {
 		if isForwarded(ctx) {
 			// This is a forwarded request, so we should not forward it again
-			s.logger.Warnf("Endless forwarding loop detected for %s (source in blocktx = %q, my address = %q)", utils.HexEncodeAndReverseBytes(hash), rtr.Source, s.source)
+			s.logger.Warnf("Endless forwarding loop detected for %v (source in blocktx = %q, my address = %q)", hash, rtr.Source, s.source)
 			return 0, 0, nil, nil, fmt.Errorf("endless forwarding loop detected")
 		}
 
@@ -254,14 +255,15 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 	if rtr.BlockHash != nil {
 		// If the transaction was mined, we should mark it as such
 		status = metamorph_api.Status_MINED
-		if err = s.store.UpdateMined(initCtx, hash, rtr.BlockHash, rtr.BlockHeight); err != nil {
+		blockHash, _ := chainhash.NewHash(rtr.BlockHash)
+		if err = s.store.UpdateMined(initCtx, &hash, blockHash, rtr.BlockHeight); err != nil {
 			return 0, 0, nil, nil, err
 		}
 	}
 
 	// Check if the transaction is already in the store
 	var transactionStatus *metamorph_api.TransactionStatus
-	next, transactionStatus = s.checkStore(initCtx, hash, next)
+	next, transactionStatus = s.checkStore(initCtx, &hash, next)
 	if transactionStatus != nil {
 		// just return the status if we found it in the store
 		return 0, 0, nil, transactionStatus, nil
@@ -273,17 +275,17 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		if err != nil {
 			return 0, 0, nil, &metamorph_api.TransactionStatus{
 				Status:       metamorph_api.Status_REJECTED,
-				Txid:         utils.HexEncodeAndReverseBytes(hash),
+				Txid:         hash.String(),
 				RejectReason: err.Error(),
 			}, nil
 		}
 	}
 
-	return next, status, hash, nil, nil
+	return next, status, &hash, nil, nil
 }
 
-func (s *Server) checkStore(ctx context.Context, hash []byte, next int64) (int64, *metamorph_api.TransactionStatus) {
-	storeData, err := s.store.Get(ctx, hash)
+func (s *Server) checkStore(ctx context.Context, hash *chainhash.Hash, next int64) (int64, *metamorph_api.TransactionStatus) {
+	storeData, err := s.store.Get(ctx, hash[:])
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		s.logger.Errorf("Error getting transaction from store: %v", err)
 	}
@@ -294,11 +296,11 @@ func (s *Server) checkStore(ctx context.Context, hash []byte, next int64) (int64
 			StoredAt:     timestamppb.New(storeData.StoredAt),
 			AnnouncedAt:  timestamppb.New(storeData.AnnouncedAt),
 			MinedAt:      timestamppb.New(storeData.MinedAt),
-			Txid:         fmt.Sprintf("%x", bt.ReverseBytes(storeData.Hash)),
+			Txid:         fmt.Sprintf("%v", storeData.Hash),
 			Status:       storeData.Status,
 			RejectReason: storeData.RejectReason,
 			BlockHeight:  storeData.BlockHeight,
-			BlockHash:    hex.EncodeToString(storeData.BlockHash),
+			BlockHash:    storeData.BlockHash.String(),
 		}
 	}
 
@@ -353,13 +355,13 @@ func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.Transact
 	}
 
 	return &metamorph_api.Transaction{
-		Txid:         fmt.Sprintf("%x", bt.ReverseBytes(data.Hash)),
+		Txid:         data.Hash.String(),
 		AnnouncedAt:  announcedAt,
 		StoredAt:     storedAt,
 		MinedAt:      minedAt,
 		Status:       data.Status,
 		BlockHeight:  data.BlockHeight,
-		BlockHash:    fmt.Sprintf("%x", bt.ReverseBytes(data.BlockHash)),
+		BlockHash:    data.BlockHash.String(),
 		RejectReason: data.RejectReason,
 		RawTx:        data.RawTx,
 	}, nil
@@ -372,13 +374,13 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 	}
 
 	return &metamorph_api.TransactionStatus{
-		Txid:         fmt.Sprintf("%x", bt.ReverseBytes(data.Hash)),
+		Txid:         data.Hash.String(),
 		AnnouncedAt:  announcedAt,
 		StoredAt:     storedAt,
 		MinedAt:      minedAt,
 		Status:       data.Status,
 		BlockHeight:  data.BlockHeight,
-		BlockHash:    fmt.Sprintf("%x", bt.ReverseBytes(data.BlockHash)),
+		BlockHash:    data.BlockHash.String(),
 		RejectReason: data.RejectReason,
 	}, nil
 }

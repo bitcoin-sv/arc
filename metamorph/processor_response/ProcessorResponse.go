@@ -84,6 +84,13 @@ func newProcessorResponse(hash *chainhash.Hash, status metamorph_api.Status, ch 
 	return pr
 }
 
+func (r *ProcessorResponse) Close() {
+	defer func() {
+		_ = recover()
+	}()
+	close(r.statusUpdateCh)
+}
+
 func (r *ProcessorResponse) UpdateStatus(statusUpdate *ProcessorResponseStatusUpdate) {
 	r.statusUpdateCh <- statusUpdate
 }

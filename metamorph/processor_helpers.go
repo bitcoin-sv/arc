@@ -252,7 +252,7 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, hash *chainhash.Hash
 				return
 			}
 			w.WriteHeader(http.StatusNotFound)
-			_, _ = io.WriteString(w, fmt.Sprintf(`{"error": "tx not found", "txid": "%s"}`, utils.ReverseAndHexEncodeSlice(hash[:])))
+			_, _ = io.WriteString(w, fmt.Sprintf(`{"error": "tx not found", "txid": "%v"}`, hash))
 			return
 		}
 		_ = json.NewEncoder(w).Encode(prm)

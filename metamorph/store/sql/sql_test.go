@@ -166,7 +166,7 @@ func TestUpdateStatus(t *testing.T) {
 	})
 }
 
-func TestBadger_GetBlockProcessed(t *testing.T) {
+func TestSQLite_GetBlockProcessed(t *testing.T) {
 	sqliteDB, err := New("sqlite_memory")
 	require.NoError(t, err)
 
@@ -195,7 +195,7 @@ func TestBadger_GetBlockProcessed(t *testing.T) {
 		{
 			name:      "missing",
 			store:     sqliteDB.(*SQL),
-			blockHash: tests.Block1Hash,
+			blockHash: tests.Block2Hash,
 			want:      nil,
 			wantErr:   assert.NoError,
 		},

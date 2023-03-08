@@ -138,13 +138,24 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		stats := p.GetStats(false)
 		if printTxs {
-			_ = json.NewEncoder(w).Encode(struct {
+			m := p.processorResponseMap.Items()
+
+			txMap := make(map[string]*processor_response.ProcessorResponse)
+
+			for k, v := range m {
+				txMap[k.String()] = v
+			}
+
+			err := json.NewEncoder(w).Encode(struct {
 				*ProcessorStats
-				Txs map[chainhash.Hash]*processor_response.ProcessorResponse `json:"txs"`
+				Txs map[string]*processor_response.ProcessorResponse `json:"txs"`
 			}{
 				ProcessorStats: stats,
-				Txs:            p.processorResponseMap.Items(),
+				Txs:            txMap,
 			})
+			if err != nil {
+				p.logger.Errorf("could not encode JSON: %v", err)
+			}
 		} else {
 			_ = json.NewEncoder(w).Encode(stats)
 		}

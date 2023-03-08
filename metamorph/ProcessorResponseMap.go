@@ -125,6 +125,10 @@ func (m *ProcessorResponseMap) Delete(hash *chainhash.Hash) {
 	}
 
 	delete(m.items, *hash)
+	// Check if the item was deleted
+	// if _, ok := m.items[*hash]; ok {
+	// 	log.Printf("Failed to delete item from map: %v", hash)
+	// }
 }
 
 func (m *ProcessorResponseMap) Len() int {

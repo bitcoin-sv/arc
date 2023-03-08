@@ -300,7 +300,7 @@ func (s *Server) checkStore(ctx context.Context, hash *chainhash.Hash, next int6
 			Status:       storeData.Status,
 			RejectReason: storeData.RejectReason,
 			BlockHeight:  storeData.BlockHeight,
-			BlockHash:    storeData.BlockHash.String(),
+			BlockHash:    fmt.Sprintf("%v", storeData.BlockHash),
 		}
 	}
 
@@ -373,6 +373,11 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		return nil, err
 	}
 
+	var blockHash string
+	if data.BlockHash != nil {
+		blockHash = data.BlockHash.String()
+	}
+
 	return &metamorph_api.TransactionStatus{
 		Txid:         data.Hash.String(),
 		AnnouncedAt:  announcedAt,
@@ -380,7 +385,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		MinedAt:      minedAt,
 		Status:       data.Status,
 		BlockHeight:  data.BlockHeight,
-		BlockHash:    data.BlockHash.String(),
+		BlockHash:    blockHash,
 		RejectReason: data.RejectReason,
 	}, nil
 }

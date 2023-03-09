@@ -1080,47 +1080,6 @@ and
 |» txStatus|string|false|none|none|
 |» extraInfo|string¦null|false|none|none|
 
-<h2 id="tocS_TransactionResponse000">TransactionResponse000</h2>
-<!-- backwards compatibility -->
-<a id="schematransactionresponse000"></a>
-<a id="schema_TransactionResponse000"></a>
-<a id="tocStransactionresponse000"></a>
-<a id="tocstransactionresponse000"></a>
-
-```json
-{
-  "timestamp": "2023-03-09T12:03:48.382910514Z",
-  "blockHash": "",
-  "blockHeight": 0,
-  "status": 200,
-  "title": "OK",
-  "extraInfo": "",
-  "txStatus": "SEEN_ON_NETWORK",
-  "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
-}
-
-```
-
-### Properties
-
-allOf
-
-|Name|Type|Required|Restrictions|Description|
-|---|---|---|---|---|
-|*anonymous*|[CommonResponse](#schemacommonresponse)|false|none|none|
-
-and
-
-|Name|Type|Required|Restrictions|Description|
-|---|---|---|---|---|
-|*anonymous*|[ChainInfo](#schemachaininfo)|false|none|none|
-
-and
-
-|Name|Type|Required|Restrictions|Description|
-|---|---|---|---|---|
-|*anonymous*|[TransactionDetails](#schematransactiondetails)|false|none|none|
-
 <h2 id="tocS_TransactionResponses">TransactionResponses</h2>
 <!-- backwards compatibility -->
 <a id="schematransactionresponses"></a>

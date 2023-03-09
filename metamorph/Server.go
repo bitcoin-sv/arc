@@ -66,10 +66,13 @@ func (s *Server) SetTimeout(timeout time.Duration) {
 func (s *Server) StartGRPCServer(address string) error {
 	// LEVEL 0 - no security / no encryption
 	var opts []grpc.ServerOption
-	opts = append(opts,
-		grpc.ChainStreamInterceptor(grpc_prometheus.StreamServerInterceptor),
-		grpc.ChainUnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
-	)
+	_, prometheusOn := gocore.Config().Get("prometheusEndpoint")
+	if prometheusOn {
+		opts = append(opts,
+			grpc.ChainStreamInterceptor(grpc_prometheus.StreamServerInterceptor),
+			grpc.ChainUnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+		)
+	}
 
 	s.grpcServer = grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
 

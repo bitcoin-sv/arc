@@ -34,7 +34,7 @@
         }
       }
     },
-    "/v1/tx/{id}": {
+    "/v1/tx/{txid}": {
       "get": {
         "operationId": "GET transaction status",
         "tags": [
@@ -44,7 +44,7 @@
         "description": "This endpoint is used to get the current status of a previously submitted transaction.",
         "parameters": [
           {
-            "name": "id",
+            "name": "txid",
             "in": "path",
             "description": "The transaction ID (32 byte hash) hex string",
             "required": true,
@@ -129,36 +129,27 @@
                   "mined": {
                     "summary": "Already mined",
                     "value": {
-                      "timestamp": "2022-10-18T13:30:22.653Z",
-                      "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0",
-                      "blockHash": "000000000000000001d8f4bb24dd93d4e91ce926cc7a971be018c2b8d46d45ff",
-                      "blockHeight": 761868
+                      "blockHash": "0000000000000000000c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+                      "blockHeight": 736228,
+                      "extraInfo": "",
+                      "status": 200,
+                      "timestamp": "2023-03-09T12:03:48.382910514Z",
+                      "title": "OK",
+                      "txStatus": "MINED",
+                      "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
                     }
                   },
                   "mempool": {
                     "summary": "Already in mempool",
                     "value": {
-                      "timestamp": "2022-10-18T13:30:22.653Z",
-                      "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Added to block template",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TransactionResponse"
-                },
-                "examples": {
-                  "success": {
-                    "summary": "Added to block template",
-                    "value": {
-                      "timestamp": "2022-10-18T13:30:22.653Z",
-                      "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
+                      "blockHash": "",
+                      "blockHeight": 0,
+                      "extraInfo": "",
+                      "status": 200,
+                      "timestamp": "2023-03-09T12:03:48.382910514Z",
+                      "title": "OK",
+                      "txStatus": "SEEN_ON_NETWORK",
+                      "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
                     }
                   }
                 }
@@ -178,7 +169,17 @@
           "401": {
             "$ref": "#/components/responses/NotAuthorized"
           },
-          "402": {
+          "422": {
+            "description": "Unprocessable entity - with IETF RFC 7807 Error object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "465": {
             "description": "Fee too low",
             "content": {
               "application/json": {
@@ -188,22 +189,12 @@
               }
             }
           },
-          "409": {
+          "466": {
             "description": "Conflicting transaction found",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorConflict"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable entity - with IETF RFC 7807 Error object",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -246,15 +237,14 @@
               "schema": {
                 "type": "array",
                 "items": {
-                  "type": "string",
-                  "example": "<transaction hex string>"
+                  "$ref": "#/components/schemas/TransactionRequest"
                 }
               }
             },
             "application/octet-stream": {
               "schema": {
                 "type": "string",
-                "example": "<transaction binary data>"
+                "format": "binary"
               }
             }
           }
@@ -270,53 +260,47 @@
                 "examples": {
                   "mined": {
                     "summary": "Already mined",
-                    "value": {
-                      "apiVersion": "v2.0.0",
-                      "timestamp": "2022-10-18T13:30:22.653Z",
-                      "minerId": "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270",
-                      "transactions": [
-                        {
-                          "status": 200,
-                          "title": "Already mined",
-                          "blockHash": "000000000000000001d8f4bb24dd93d4e91ce926cc7a971be018c2b8d46d45ff",
-                          "blockHeight": 761868,
-                          "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
-                        }
-                      ]
-                    }
+                    "value": [
+                      {
+                        "blockHash": "000000000000000001d8f4bb24dd93d4e91ce926cc7a971be018c2b8d46d45ff",
+                        "blockHeight": 761868,
+                        "extraInfo": "",
+                        "status": 200,
+                        "timestamp": "2023-03-09T12:03:48.382910514Z",
+                        "title": "OK",
+                        "txStatus": "MINED",
+                        "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+                      }
+                    ]
                   },
                   "added": {
-                    "summary": "Added to block template",
-                    "value": {
-                      "apiVersion": "v2.0.0",
-                      "timestamp": "2022-10-18T13:30:22.653Z",
-                      "minerId": "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270",
-                      "transactions": [
-                        {
-                          "status": 201,
-                          "title": "Added to block template",
-                          "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
-                        }
-                      ]
-                    }
+                    "summary": "Success",
+                    "value": [
+                      {
+                        "blockHash": "",
+                        "blockHeight": 0,
+                        "extraInfo": "",
+                        "status": 200,
+                        "timestamp": "2023-03-09T12:03:48.382910514Z",
+                        "title": "OK",
+                        "txStatus": "SEEN_ON_NETWORK",
+                        "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+                      }
+                    ]
                   },
                   "error": {
-                    "summary": "Fee too low",
-                    "value": {
-                      "apiVersion": "v2.0.0",
-                      "timestamp": "2022-10-18T13:30:22.653Z",
-                      "minerId": "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270",
-                      "transactions": [
-                        {
-                          "type": "https://arc.bitcoinsv.com/errors/402",
-                          "title": "Fee too low",
-                          "status": 402,
-                          "detail": "The fee in the transaction is too low to be included in a block",
-                          "instance": "https://arc.taal.com/errors/123452",
-                          "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
-                        }
-                      ]
-                    }
+                    "summary": "Invalid outputs",
+                    "value": [
+                      {
+                        "detail": "Transaction is invalid because the outputs are non-existent or invalid",
+                        "extraInfo": "arc error 463: arc error 463: transaction output 0 satoshis is invalid",
+                        "instance": null,
+                        "status": 463,
+                        "title": "Invalid outputs",
+                        "txid": "a0d69a2dfad710770ed282cce316c5792f6101a68046a263a17a1ae02676015e",
+                        "type": "https://arc.bitcoinsv.com/errors/463"
+                      }
+                    ]
                   }
                 }
               }
@@ -366,12 +350,14 @@
         "properties": {
           "blockHash": {
             "type": "string",
-            "nullable": false
+            "nullable": false,
+            "example": "00000000000000000854749b3c125d52c6943677544c8a6a885247935ba8d17d"
           },
           "blockHeight": {
             "type": "integer",
             "format": "uint64",
-            "nullable": false
+            "nullable": false,
+            "example": 782318
           }
         }
       },
@@ -397,17 +383,12 @@
       "Policy": {
         "type": "object",
         "required": [
-          "maxtxsizepolicy",
           "maxscriptsizepolicy",
           "maxtxsigopscountspolicy",
+          "maxtxsizepolicy",
           "miningFee"
         ],
         "properties": {
-          "maxtxsizepolicy": {
-            "type": "integer",
-            "format": "uint64",
-            "nullable": false
-          },
           "maxscriptsizepolicy": {
             "type": "integer",
             "format": "uint64",
@@ -418,11 +399,25 @@
             "format": "uint64",
             "nullable": false
           },
+          "maxtxsizepolicy": {
+            "type": "integer",
+            "format": "uint64",
+            "nullable": false
+          },
           "miningFee": {
             "$ref": "#/components/schemas/FeeAmount"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "example": {
+          "maxscriptsizepolicy": 500000,
+          "maxtxsigopscountspolicy": 4294967295,
+          "maxtxsizepolicy": 10000000,
+          "miningFee": {
+            "satoshis": 50,
+            "bytes": 1000
+          }
+        }
       },
       "FeeAmount": {
         "type": "object",
@@ -454,7 +449,7 @@
           }
         }
       },
-      "TransactionResponse000": {
+      "TransactionResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/CommonResponse"
@@ -463,23 +458,27 @@
             "$ref": "#/components/schemas/ChainInfo"
           },
           {
+            "$ref": "#/components/schemas/TransactionDetails"
+          },
+          {
             "type": "object",
             "required": [
               "txid",
-              "tx"
+              "txStatus",
+              "extraInfo"
             ],
             "properties": {
               "txid": {
                 "type": "string",
                 "nullable": false
               },
-              "tx": {
-                "type": "string",
-                "nullable": false
-              },
               "txStatus": {
                 "type": "string",
                 "nullable": false
+              },
+              "extraInfo": {
+                "type": "string",
+                "nullable": true
               }
             },
             "additionalProperties": false
@@ -503,18 +502,25 @@
             "properties": {
               "txid": {
                 "type": "string",
-                "nullable": false
+                "nullable": false,
+                "example": "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e"
               },
               "txStatus": {
                 "type": "string",
-                "nullable": false
+                "nullable": false,
+                "example": "MINED"
+              },
+              "extraInfo": {
+                "type": "string",
+                "nullable": true,
+                "example": null
               }
             },
             "additionalProperties": false
           }
         ]
       },
-      "TransactionResponse": {
+      "TransactionResponse000": {
         "allOf": [
           {
             "$ref": "#/components/schemas/CommonResponse"
@@ -612,7 +618,23 @@
                 "description": "Transaction status",
                 "example": "ACCEPTED",
                 "nullable": false
+              },
+              "extraInfo": {
+                "type": "string",
+                "description": "Extra information about the transaction",
+                "example": "Transaction is not valid",
+                "nullable": true
               }
+            },
+            "example": {
+              "blockHash": "",
+              "blockHeight": 0,
+              "extraInfo": "",
+              "status": 200,
+              "timestamp": "2023-03-09T12:03:48.382910514Z",
+              "title": "OK",
+              "txStatus": "SEEN_ON_NETWORK",
+              "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
             }
           }
         ]
@@ -681,10 +703,10 @@
                 "example": "Fee too low"
               },
               "status": {
-                "example": 402
+                "example": 465
               },
               "detail": {
-                "example": "The fee in the transaction is too low to be included in a block"
+                "example": "The fees are too low"
               },
               "instance": {
                 "example": "https://arc.taal.com/errors/123452"
@@ -709,10 +731,10 @@
                 "example": "Conflicting tx found"
               },
               "status": {
-                "example": 409
+                "example": 466
               },
               "detail": {
-                "example": "Tx is valid, but there is a conflicting tx in the block template"
+                "example": "Transaction is valid, but there is a conflicting tx in the block template"
               },
               "instance": {
                 "example": "https://arc.taal.com/errors/123453"
@@ -734,13 +756,13 @@
                 "example": "https://arc.bitcoinsv.com/errors/461"
               },
               "title": {
-                "example": "Invalid unlocking scripts"
+                "example": "Malformed transaction"
               },
               "status": {
                 "example": 461
               },
               "detail": {
-                "example": "Tx is invalid because the unlock scripts are invalid"
+                "example": "Transaction is malformed and cannot be processed"
               },
               "instance": {
                 "example": "https://arc.taal.com/errors/123452"
@@ -768,7 +790,7 @@
                 "example": 462
               },
               "detail": {
-                "example": "Tx is invalid because the inputs are non-existent or spent"
+                "example": "Transaction is invalid because the inputs are non-existent or spent"
               },
               "instance": {
                 "example": "https://arc.taal.com/errors/123452"
@@ -796,7 +818,7 @@
                 "example": 463
               },
               "detail": {
-                "example": "Tx is malformed"
+                "example": "Transaction is malformed and cannot be processed"
               },
               "instance": {
                 "example": "https://arc.taal.com/errors/123452"

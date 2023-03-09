@@ -171,12 +171,12 @@ This endpoint returns the policy settings.
 {
   "timestamp": "2019-08-24T14:15:22Z",
   "policy": {
-    "maxtxsizepolicy": 0,
-    "maxscriptsizepolicy": 0,
-    "maxtxsigopscountspolicy": 0,
+    "maxscriptsizepolicy": 500000,
+    "maxtxsigopscountspolicy": 4294967295,
+    "maxtxsizepolicy": 10000000,
     "miningFee": {
-      "satoshis": 0,
-      "bytes": 0
+      "satoshis": 50,
+      "bytes": 1000
     }
   }
 }
@@ -201,7 +201,7 @@ BearerAuth, Api-Key, Authorization
 > Code samples
 
 ```http
-GET /v1/tx/{id} HTTP/1.1
+GET /v1/tx/{txid} HTTP/1.1
 
 Accept: application/json
 
@@ -214,7 +214,7 @@ const headers = {
   'Authorization':'Bearer {access-token}'
 };
 
-fetch('/v1/tx/{id}',
+fetch('/v1/tx/{txid}',
 {
   method: 'GET',
 
@@ -229,7 +229,7 @@ fetch('/v1/tx/{id}',
 ```
 
 ```java
-URL obj = new URL("/v1/tx/{id}");
+URL obj = new URL("/v1/tx/{txid}");
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod("GET");
 int responseCode = con.getResponseCode();
@@ -261,7 +261,7 @@ func main() {
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
-    req, err := http.NewRequest("GET", "/v1/tx/{id}", data)
+    req, err := http.NewRequest("GET", "/v1/tx/{txid}", data)
     req.Header = headers
 
     client := &http.Client{}
@@ -280,7 +280,7 @@ headers = {
   'Authorization' => 'Bearer {access-token}'
 }
 
-result = RestClient.get '/v1/tx/{id}',
+result = RestClient.get '/v1/tx/{txid}',
   params: {
   }, headers: headers
 
@@ -295,7 +295,7 @@ headers = {
   'Authorization': 'Bearer {access-token}'
 }
 
-r = requests.get('/v1/tx/{id}', headers = headers)
+r = requests.get('/v1/tx/{txid}', headers = headers)
 
 print(r.json())
 
@@ -303,13 +303,13 @@ print(r.json())
 
 ```shell
 # You can also use wget
-curl -X GET /v1/tx/{id} \
+curl -X GET /v1/tx/{txid} \
   -H 'Accept: application/json' \
   -H 'Authorization: Bearer {access-token}'
 
 ```
 
-`GET /v1/tx/{id}`
+`GET /v1/tx/{txid}`
 
 This endpoint is used to get the current status of a previously submitted transaction.
 
@@ -317,7 +317,7 @@ This endpoint is used to get the current status of a previously submitted transa
 
 |Name|In|Type|Required|Description|
 |---|---|---|---|---|
-|id|path|string|true|The transaction ID (32 byte hash) hex string|
+|txid|path|string|true|The transaction ID (32 byte hash) hex string|
 
 > Example responses
 
@@ -326,10 +326,11 @@ This endpoint is used to get the current status of a previously submitted transa
 ```json
 {
   "timestamp": "2019-08-24T14:15:22Z",
-  "blockHash": "string",
-  "blockHeight": 0,
-  "txid": "string",
-  "txStatus": "string"
+  "blockHash": "00000000000000000854749b3c125d52c6943677544c8a6a885247935ba8d17d",
+  "blockHeight": 782318,
+  "txid": "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e",
+  "txStatus": "MINED",
+  "extraInfo": null
 }
 ```
 
@@ -527,26 +528,27 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 
 ```json
 {
-  "timestamp": "2022-10-18T13:30:22.653Z",
-  "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0",
-  "blockHash": "000000000000000001d8f4bb24dd93d4e91ce926cc7a971be018c2b8d46d45ff",
-  "blockHeight": 761868
+  "blockHash": "0000000000000000000c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+  "blockHeight": 736228,
+  "extraInfo": "",
+  "status": 200,
+  "timestamp": "2023-03-09T12:03:48.382910514Z",
+  "title": "OK",
+  "txStatus": "MINED",
+  "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
 }
 ```
 
 ```json
 {
-  "timestamp": "2022-10-18T13:30:22.653Z",
-  "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
-}
-```
-
-> Added to block template
-
-```json
-{
-  "timestamp": "2022-10-18T13:30:22.653Z",
-  "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
+  "blockHash": "",
+  "blockHeight": 0,
+  "extraInfo": "",
+  "status": 200,
+  "timestamp": "2023-03-09T12:03:48.382910514Z",
+  "title": "OK",
+  "txStatus": "SEEN_ON_NETWORK",
+  "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
 }
 ```
 
@@ -569,12 +571,11 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Success|[TransactionResponse](#schematransactionresponse)|
-|201|[Created](https://tools.ietf.org/html/rfc7231#section-6.3.2)|Added to block template|[TransactionResponse](#schematransactionresponse)|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Bad request|[ErrorBadRequest](#schemaerrorbadrequest)|
 |401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Security requirements failed|None|
-|402|[Payment Required](https://tools.ietf.org/html/rfc7231#section-6.5.2)|Fee too low|[ErrorFee](#schemaerrorfee)|
-|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|Conflicting transaction found|[ErrorConflict](#schemaerrorconflict)|
 |422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Unprocessable entity - with IETF RFC 7807 Error object|[Error](#schemaerror)|
+|465|Unknown|Fee too low|[ErrorFee](#schemaerrorfee)|
+|466|Unknown|Conflicting transaction found|[ErrorConflict](#schemaerrorconflict)|
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
@@ -766,53 +767,47 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 > Already in block template, or already mined
 
 ```json
-{
-  "apiVersion": "v2.0.0",
-  "timestamp": "2022-10-18T13:30:22.653Z",
-  "minerId": "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270",
-  "transactions": [
-    {
-      "status": 200,
-      "title": "Already mined",
-      "blockHash": "000000000000000001d8f4bb24dd93d4e91ce926cc7a971be018c2b8d46d45ff",
-      "blockHeight": 761868,
-      "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
-    }
-  ]
-}
+[
+  {
+    "blockHash": "000000000000000001d8f4bb24dd93d4e91ce926cc7a971be018c2b8d46d45ff",
+    "blockHeight": 761868,
+    "extraInfo": "",
+    "status": 200,
+    "timestamp": "2023-03-09T12:03:48.382910514Z",
+    "title": "OK",
+    "txStatus": "MINED",
+    "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+  }
+]
 ```
 
 ```json
-{
-  "apiVersion": "v2.0.0",
-  "timestamp": "2022-10-18T13:30:22.653Z",
-  "minerId": "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270",
-  "transactions": [
-    {
-      "status": 201,
-      "title": "Added to block template",
-      "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
-    }
-  ]
-}
+[
+  {
+    "blockHash": "",
+    "blockHeight": 0,
+    "extraInfo": "",
+    "status": 200,
+    "timestamp": "2023-03-09T12:03:48.382910514Z",
+    "title": "OK",
+    "txStatus": "SEEN_ON_NETWORK",
+    "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+  }
+]
 ```
 
 ```json
-{
-  "apiVersion": "v2.0.0",
-  "timestamp": "2022-10-18T13:30:22.653Z",
-  "minerId": "03e92d3e5c3f7bd945dfbf48e7a99393b1bfb3f11f380ae30d286e7ff2aec5a270",
-  "transactions": [
-    {
-      "type": "https://arc.bitcoinsv.com/errors/402",
-      "title": "Fee too low",
-      "status": 402,
-      "detail": "The fee in the transaction is too low to be included in a block",
-      "instance": "https://arc.taal.com/errors/123452",
-      "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
-    }
-  ]
-}
+[
+  {
+    "detail": "Transaction is invalid because the outputs are non-existent or invalid",
+    "extraInfo": "arc error 463: arc error 463: transaction output 0 satoshis is invalid",
+    "instance": null,
+    "status": 463,
+    "title": "Invalid outputs",
+    "txid": "a0d69a2dfad710770ed282cce316c5792f6101a68046a263a17a1ae02676015e",
+    "type": "https://arc.bitcoinsv.com/errors/463"
+  }
+]
 ```
 
 > 400 Response
@@ -871,8 +866,8 @@ BearerAuth, Api-Key, Authorization
 
 ```json
 {
-  "blockHash": "string",
-  "blockHeight": 0
+  "blockHash": "00000000000000000854749b3c125d52c6943677544c8a6a885247935ba8d17d",
+  "blockHeight": 782318
 }
 
 ```
@@ -895,12 +890,12 @@ BearerAuth, Api-Key, Authorization
 {
   "timestamp": "2019-08-24T14:15:22Z",
   "policy": {
-    "maxtxsizepolicy": 0,
-    "maxscriptsizepolicy": 0,
-    "maxtxsigopscountspolicy": 0,
+    "maxscriptsizepolicy": 500000,
+    "maxtxsigopscountspolicy": 4294967295,
+    "maxtxsizepolicy": 10000000,
     "miningFee": {
-      "satoshis": 0,
-      "bytes": 0
+      "satoshis": 50,
+      "bytes": 1000
     }
   }
 }
@@ -931,12 +926,12 @@ and
 
 ```json
 {
-  "maxtxsizepolicy": 0,
-  "maxscriptsizepolicy": 0,
-  "maxtxsigopscountspolicy": 0,
+  "maxscriptsizepolicy": 500000,
+  "maxtxsigopscountspolicy": 4294967295,
+  "maxtxsizepolicy": 10000000,
   "miningFee": {
-    "satoshis": 0,
-    "bytes": 0
+    "satoshis": 50,
+    "bytes": 1000
   }
 }
 
@@ -946,9 +941,9 @@ and
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|maxtxsizepolicy|integer(uint64)|true|none|none|
 |maxscriptsizepolicy|integer(uint64)|true|none|none|
 |maxtxsigopscountspolicy|integer(uint64)|true|none|none|
+|maxtxsizepolicy|integer(uint64)|true|none|none|
 |miningFee|[FeeAmount](#schemafeeamount)|true|none|none|
 
 <h2 id="tocS_FeeAmount">FeeAmount</h2>
@@ -993,21 +988,23 @@ and
 |---|---|---|---|---|
 |rawTx|string|true|none|none|
 
-<h2 id="tocS_TransactionResponse000">TransactionResponse000</h2>
+<h2 id="tocS_TransactionResponse">TransactionResponse</h2>
 <!-- backwards compatibility -->
-<a id="schematransactionresponse000"></a>
-<a id="schema_TransactionResponse000"></a>
-<a id="tocStransactionresponse000"></a>
-<a id="tocstransactionresponse000"></a>
+<a id="schematransactionresponse"></a>
+<a id="schema_TransactionResponse"></a>
+<a id="tocStransactionresponse"></a>
+<a id="tocstransactionresponse"></a>
 
 ```json
 {
-  "timestamp": "2019-08-24T14:15:22Z",
-  "blockHash": "string",
+  "timestamp": "2023-03-09T12:03:48.382910514Z",
+  "blockHash": "",
   "blockHeight": 0,
-  "txid": "string",
-  "tx": "string",
-  "txStatus": "string"
+  "status": 200,
+  "title": "OK",
+  "extraInfo": "string",
+  "txStatus": "string",
+  "txid": "string"
 }
 
 ```
@@ -1030,10 +1027,16 @@ and
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
+|*anonymous*|[TransactionDetails](#schematransactiondetails)|false|none|none|
+
+and
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
 |*anonymous*|object|false|none|none|
 |» txid|string|true|none|none|
-|» tx|string|true|none|none|
-|» txStatus|string|false|none|none|
+|» txStatus|string|true|none|none|
+|» extraInfo|string¦null|true|none|none|
 
 <h2 id="tocS_TransactionStatus">TransactionStatus</h2>
 <!-- backwards compatibility -->
@@ -1045,10 +1048,11 @@ and
 ```json
 {
   "timestamp": "2019-08-24T14:15:22Z",
-  "blockHash": "string",
-  "blockHeight": 0,
-  "txid": "string",
-  "txStatus": "string"
+  "blockHash": "00000000000000000854749b3c125d52c6943677544c8a6a885247935ba8d17d",
+  "blockHeight": 782318,
+  "txid": "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e",
+  "txStatus": "MINED",
+  "extraInfo": null
 }
 
 ```
@@ -1074,23 +1078,25 @@ and
 |*anonymous*|object|false|none|none|
 |» txid|string|true|none|none|
 |» txStatus|string|false|none|none|
+|» extraInfo|string¦null|false|none|none|
 
-<h2 id="tocS_TransactionResponse">TransactionResponse</h2>
+<h2 id="tocS_TransactionResponse000">TransactionResponse000</h2>
 <!-- backwards compatibility -->
-<a id="schematransactionresponse"></a>
-<a id="schema_TransactionResponse"></a>
-<a id="tocStransactionresponse"></a>
-<a id="tocstransactionresponse"></a>
+<a id="schematransactionresponse000"></a>
+<a id="schema_TransactionResponse000"></a>
+<a id="tocStransactionresponse000"></a>
+<a id="tocstransactionresponse000"></a>
 
 ```json
 {
-  "timestamp": "2019-08-24T14:15:22Z",
-  "blockHash": "string",
+  "timestamp": "2023-03-09T12:03:48.382910514Z",
+  "blockHash": "",
   "blockHeight": 0,
-  "status": 201,
-  "title": "Added to mempool",
-  "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0",
-  "txStatus": "ACCEPTED"
+  "status": 200,
+  "title": "OK",
+  "extraInfo": "",
+  "txStatus": "SEEN_ON_NETWORK",
+  "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
 }
 
 ```
@@ -1125,14 +1131,18 @@ and
 ```json
 {
   "timestamp": "2019-08-24T14:15:22Z",
-  "blockHash": "string",
-  "blockHeight": 0,
+  "blockHash": "00000000000000000854749b3c125d52c6943677544c8a6a885247935ba8d17d",
+  "blockHeight": 782318,
   "transactions": [
     {
-      "status": 201,
-      "title": "Added to mempool",
-      "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0",
-      "txStatus": "ACCEPTED"
+      "status": 200,
+      "title": "OK",
+      "blockHash": "",
+      "blockHeight": 0,
+      "extraInfo": "",
+      "timestamp": "2023-03-09T12:03:48.382910514Z",
+      "txStatus": "SEEN_ON_NETWORK",
+      "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
     }
   ]
 }
@@ -1203,10 +1213,14 @@ xor
 
 ```json
 {
-  "status": 201,
-  "title": "Added to mempool",
-  "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0",
-  "txStatus": "ACCEPTED"
+  "status": 200,
+  "title": "OK",
+  "blockHash": "",
+  "blockHeight": 0,
+  "extraInfo": "",
+  "timestamp": "2023-03-09T12:03:48.382910514Z",
+  "txStatus": "SEEN_ON_NETWORK",
+  "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
 }
 
 ```
@@ -1226,6 +1240,7 @@ and
 |*anonymous*|object|false|none|none|
 |» txid|string|false|none|Transaction ID in hex|
 |» txStatus|string|false|none|Transaction status|
+|» extraInfo|string¦null|false|none|Extra information about the transaction|
 
 #### Enumerated Values
 
@@ -1252,9 +1267,9 @@ and
 ```json
 {
   "type": "https://arc.bitcoinsv.com/errors/461",
-  "title": "Invalid unlocking scripts",
+  "title": "Malformed transaction",
   "status": 461,
-  "detail": "Tx is invalid because the unlock scripts are invalid",
+  "detail": "Transaction is malformed and cannot be processed",
   "instance": "https://arc.taal.com/errors/123452",
   "txid": "string",
   "extraInfo": "string"
@@ -1346,8 +1361,8 @@ and
 {
   "type": "https://arc.bitcoinsv.com/errors/402",
   "title": "Fee too low",
-  "status": 402,
-  "detail": "The fee in the transaction is too low to be included in a block",
+  "status": 465,
+  "detail": "The fees are too low",
   "instance": "https://arc.taal.com/errors/123452",
   "txid": "string",
   "extraInfo": "string"
@@ -1385,8 +1400,8 @@ and
 {
   "type": "https://arc.bitcoinsv.com/errors/409",
   "title": "Conflicting tx found",
-  "status": 409,
-  "detail": "Tx is valid, but there is a conflicting tx in the block template",
+  "status": 466,
+  "detail": "Transaction is valid, but there is a conflicting tx in the block template",
   "instance": "https://arc.taal.com/errors/123453",
   "txid": "string",
   "extraInfo": "string"
@@ -1423,9 +1438,9 @@ and
 ```json
 {
   "type": "https://arc.bitcoinsv.com/errors/461",
-  "title": "Invalid unlocking scripts",
+  "title": "Malformed transaction",
   "status": 461,
-  "detail": "Tx is invalid because the unlock scripts are invalid",
+  "detail": "Transaction is malformed and cannot be processed",
   "instance": "https://arc.taal.com/errors/123452",
   "txid": "string",
   "extraInfo": "string"
@@ -1464,7 +1479,7 @@ and
   "type": "https://arc.bitcoinsv.com/errors/462",
   "title": "Invalid inputs",
   "status": 462,
-  "detail": "Tx is invalid because the inputs are non-existent or spent",
+  "detail": "Transaction is invalid because the inputs are non-existent or spent",
   "instance": "https://arc.taal.com/errors/123452",
   "txid": "string",
   "extraInfo": "string"
@@ -1503,7 +1518,7 @@ and
   "type": "https://arc.bitcoinsv.com/errors/463",
   "title": "Malformed transaction",
   "status": 463,
-  "detail": "Tx is malformed",
+  "detail": "Transaction is malformed and cannot be processed",
   "instance": "https://arc.taal.com/errors/123452",
   "txid": "string",
   "extraInfo": "string"
@@ -1639,4 +1654,3 @@ and
 |instance|string¦null|false|none|(Optional) Link to actual error on server|
 |txid|string¦null|false|none|Transaction ID this error is referring to|
 |extraInfo|string¦null|false|none|Optional extra information about the error from the miner|
-

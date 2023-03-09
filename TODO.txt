@@ -1,15 +1,9 @@
 TODOs
-- Update error codes in api yaml
-- Txs posted after being mined ...
-- Manually test all APIs
 - Client set timeout to wait
-- Retry in API server if metamorph grpc call fails - does this already happen in grpc lib ?
 - Retry strategy in metamorph
-- Add last height processed to GetBlockNotificationStream in metamorph
-- Benchmark validator
+    - Growing window
+    - discardedfrommempool -> REJECTED ?
 - Add OP_RETURN to broadcaster "github.com/TAAL-GmbH/arc"
-- Admin console web application
-- + TODO in source code
 - Cleanup metamorph store after 100 block confirmations
 - Cleanup blocktx store after ...?
 

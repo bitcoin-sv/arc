@@ -146,7 +146,7 @@ func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, wa
 	bodyResponse := response.JSON200
 
 	blockHeight := *bodyResponse.BlockHeight
-	txStatus := string(bodyResponse.TxStatus)
+	txStatus := bodyResponse.TxStatus
 
 	res := &metamorph_api.TransactionStatus{
 		Txid:        bodyResponse.Txid,

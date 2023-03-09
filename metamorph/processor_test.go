@@ -16,6 +16,7 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/store/sql"
 	"github.com/TAAL-GmbH/arc/testdata"
 	"github.com/labstack/gommon/random"
+	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
@@ -142,6 +143,30 @@ func TestProcessTransaction(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, testdata.TX1Hash, txStored.Hash)
 	})
+}
+
+func Benchmark_ProcessTransaction(b *testing.B) {
+	s, err := sql.New("sqlite_memory") // prevents profiling database code
+	require.NoError(b, err)
+
+	pm := p2p.NewPeerManagerMock()
+
+	processor := NewProcessor(1, s, pm, "test", nil)
+	assert.Equal(b, 0, processor.processorResponseMap.Len())
+
+	btTx, _ := bt.NewTxFromBytes(testdata.TX1RawBytes)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		btTx.Inputs[0].SequenceNumber = uint32(i)
+		hash, _ := chainhash.NewHashFromStr(btTx.TxID())
+		processor.ProcessTransaction(NewProcessorRequest(
+			context.Background(),
+			&store.StoreData{
+				Hash: hash,
+			},
+			nil,
+		))
+	}
 }
 
 func TestSendStatusForTransaction(t *testing.T) {

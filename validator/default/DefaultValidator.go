@@ -150,7 +150,7 @@ func checkInputs(tx *bt.Tx) error {
 		if hex.EncodeToString(input.PreviousTxID()) == coinbaseTxID {
 			return validator.NewError(fmt.Errorf("transaction input %d is a coinbase input", index), api.ErrStatusInputs)
 		}
-		/* TODO lots of our valid test transactions have this sequence number, is this not allowed?
+		/* lots of our valid test transactions have this sequence number, is this not allowed?
 		if input.SequenceNumber == 0xffffffff {
 			fmt.Printf("input %d has sequence number 0xffffffff, txid = %s", index, tx.TxID())
 			return validator.NewError(fmt.Errorf("transaction input %d sequence number is invalid", index), arc.ErrStatusInputs)

@@ -144,15 +144,12 @@ func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, wa
 	}
 
 	bodyResponse := response.JSON200
-	if bodyResponse == nil {
-		bodyResponse = response.JSON201
-	}
 
 	blockHeight := *bodyResponse.BlockHeight
-	txStatus := string(*bodyResponse.TxStatus)
+	txStatus := string(bodyResponse.TxStatus)
 
 	res := &metamorph_api.TransactionStatus{
-		Txid:        *bodyResponse.Txid,
+		Txid:        bodyResponse.Txid,
 		Status:      metamorph_api.Status(metamorph_api.Status_value[txStatus]),
 		BlockHeight: blockHeight,
 		BlockHash:   *bodyResponse.BlockHash,

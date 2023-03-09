@@ -378,12 +378,6 @@ components:
               example: null
           additionalProperties: false
 
-    TransactionResponse000:
-      allOf:
-        - $ref: '#/components/schemas/CommonResponse'
-        - $ref: '#/components/schemas/ChainInfo'
-        - $ref: '#/components/schemas/TransactionDetails'
-      additionalProperties: false
 
     TransactionResponses:
       allOf:

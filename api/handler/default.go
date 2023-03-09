@@ -244,19 +244,19 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			return ctx.JSON(http.StatusBadRequest, e)
 		}
 
-		var txHex []string
-		if err = json.Unmarshal(body, &txHex); err != nil {
+		var txBody api.POSTTransactionsJSONBody
+		if err = json.Unmarshal(body, &txBody); err != nil {
 			return ctx.JSON(int(api.ErrStatusMalformed), api.ErrBadRequest)
 		}
 
-		transactions = make([]interface{}, len(txHex))
-		for index, tx := range txHex {
+		transactions = make([]interface{}, len(txBody))
+		for index, tx := range txBody {
 			// process all the transactions in parallel
 			wg.Add(1)
 			go func(index int, tx string) {
 				defer wg.Done()
 				transactions[index] = m.getTransactionResponse(tracingCtx, tx, transactionOptions)
-			}(index, tx)
+			}(index, tx.RawTx)
 		}
 		wg.Wait()
 	case "application/octet-stream":

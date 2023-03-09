@@ -332,7 +332,7 @@ type POSTTransactionParams struct {
 }
 
 // POSTTransactionsJSONBody defines parameters for POSTTransactions.
-type POSTTransactionsJSONBody = []string
+type POSTTransactionsJSONBody = []TransactionRequest
 
 // POSTTransactionsParams defines parameters for POSTTransactions.
 type POSTTransactionsParams struct {
@@ -1399,12 +1399,12 @@ var swaggerSpec = []string{
 	"x5bapjPqe+94F+7q/E8NJysTMYfcumqXe1yeL6FWbCtzC22nf1yy5bBODe3K4IoRXcsJlrZ7ZCHUcfGB",
 	"5oNTKs9TUJ7IBTrJWtbVObmsnW/mMqWHZUkZwuY5TjfjosZXEjztCDoNbDTN8Zefcg5UFsOmLEQYJRwe",
 	"CUtFtEBCMyOrDZpagLqejq9hklXWqhMhVxfoTctF3kICmmExe2tcjUWyovD2MlXRue4yaczS6s1jt/ev",
-	"CJ7XT398/Kx2tddVPGayMPN1hL1WMd1iSeJQiB2nkSRJBKtIWxwDan9nSFv8H2oX/lBWBF8Gb2uqfbsh",
-	"8m1kM5COAizxRlh9HLz+K/1WmB4rmLI3OsMJ+aUsbTy6eSFDO522d6cFfTdowZnfCrte0G+fBaEXtnvQ",
-	"xf1+q9/yml7otcJmM2z1HAwtJ3B7HeiGoYvBP8NuV/cWdoSAlRrzp2XJUdcZi5rM5kMdDULqKAjFOPxS",
-	"niak+V+RYTF/8OKRV3P8YJeZg+XIgR5LLNRXleGxVFYpFT4/DHu/b3r5Xav4z8h9l67oGK64Iq5jOuBL",
-	"srhauGWUN6qRw0aMI1w5ys6pXXk1rDjaYf+7Yj8XO+tUfMzQi5kn7uMZuqx9tGx1W4qj5Nt6Wck4T4xK",
-	"tLmK21ZgrdEg0k5j9i0+3SukVDaL8j+rDZpP90/3T/8NAAD//1BQYo2kOQAA",
+	"CJ7XT398/Kx2tddVPGayMPN1hL1WMd1iSeJQiB2nkSRJBKtIWxwDan9nSFv8H2oX/lBWBPfF3DX1vd0w",
+	"+DYcncFyFGCJNwLp4yD0X+m3QvFYAZO98RhOyC9lMePRzUsX2s20hTst6LtBC878Vtj1gn77LAi9sN2D",
+	"Lu73W/2W1/RCrxU2m2Gr52BoOYHb60A3DF0M/hl2u7qbsCPoq1SVPy2LjLqyWFRhNh/qaKBRxz0oBuCX",
+	"8jRBzP+KDIuJgxcPuZoDB7tMGSyHDPQgYqG+qgyPpbJKcfD58df7fRPK71rFf0a2u3RFx3DFFXEd0wFf",
+	"krfVAiyjoFGNHDZiHOHKUXZO5sqrYcXRDvv/FPu52Fmn4mOGXszMcB/P0IXso+Wn25IaJd/Wy4rEeSpU",
+	"4stVpLYCZI2WkHYas1Px6V5ho7I9lP9Zbcl8un+6f/pvAAAA//9dosLwljkAAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

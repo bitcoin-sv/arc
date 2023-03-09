@@ -102,41 +102,41 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	case "text/plain":
 		if transaction, err = bt.NewTxFromString(string(body)); err != nil {
 			errStr := err.Error()
-			e := api.ErrMalformed
+			e := api.ErrBadRequest
 			e.ExtraInfo = &errStr
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
-			return ctx.JSON(int(api.ErrStatusMalformed), e)
+			return ctx.JSON(int(api.ErrStatusBadRequest), e)
 		}
 	case "application/json":
 		var txHex string
 		var txBody api.POSTTransactionJSONBody
 		if err = json.Unmarshal(body, &txBody); err != nil {
 			errStr := err.Error()
-			e := api.ErrMalformed
+			e := api.ErrBadRequest
 			e.ExtraInfo = &errStr
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
-			return ctx.JSON(int(api.ErrStatusMalformed), e)
+			return ctx.JSON(int(api.ErrStatusBadRequest), e)
 		}
 		txHex = txBody.RawTx
 
 		if transaction, err = bt.NewTxFromString(txHex); err != nil {
 			errStr := err.Error()
-			e := api.ErrMalformed
+			e := api.ErrBadRequest
 			e.ExtraInfo = &errStr
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
-			return ctx.JSON(int(api.ErrStatusMalformed), e)
+			return ctx.JSON(int(api.ErrStatusBadRequest), e)
 		}
 	case "application/octet-stream":
 		if transaction, err = bt.NewTxFromBytes(body); err != nil {
 			errStr := err.Error()
-			e := api.ErrMalformed
+			e := api.ErrBadRequest
 			e.ExtraInfo = &errStr
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
-			return ctx.JSON(int(api.ErrStatusMalformed), e)
+			return ctx.JSON(int(api.ErrStatusBadRequest), e)
 		}
 	default:
 		return ctx.JSON(api.ErrBadRequest.Status, api.ErrBadRequest)
@@ -218,6 +218,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		if err != nil {
 			return nil, err
 		}
+
 		return bt.NewTxFromString(string(b))
 	}
 
@@ -240,7 +241,12 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 
 		var txBody api.POSTTransactionsJSONBody
 		if err = json.Unmarshal(body, &txBody); err != nil {
-			return ctx.JSON(int(api.ErrStatusMalformed), api.ErrBadRequest)
+			errStr := err.Error()
+			e := api.ErrBadRequest
+			e.ExtraInfo = &errStr
+			span.SetTag(string(ext.Error), true)
+			span.LogFields(log.Error(err))
+			return ctx.JSON(int(api.ErrStatusBadRequest), e)
 		}
 
 		transactions = make([]interface{}, len(txBody))
@@ -256,8 +262,10 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	case "application/octet-stream":
 		transactionReaderFn = func(r io.Reader) (*bt.Tx, error) {
 			btTx := new(bt.Tx)
-			_, err := btTx.ReadFrom(r)
-			return btTx, err
+			if _, err := btTx.ReadFrom(r); err != nil {
+				return nil, err
+			}
+			return btTx, nil
 		}
 		fallthrough
 	case "text/plain":
@@ -285,7 +293,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			if btTx == nil {
 				if txCounter == 0 {
 					// no transactions found in the request body
-					return ctx.JSON(int(api.ErrStatusMalformed), api.ErrBadRequest)
+					return ctx.JSON(int(api.ErrStatusBadRequest), api.ErrBadRequest)
 				}
 				// no more transaction data found, stop the loop
 				break
@@ -338,7 +346,7 @@ func (m ArcDefaultHandler) getTransactionResponse(ctx context.Context, tx string
 	transaction, err := bt.NewTxFromString(tx)
 	if err != nil {
 		errStr := err.Error()
-		e := api.ErrMalformed
+		e := api.ErrBadRequest
 		e.ExtraInfo = &errStr
 		return e
 	}

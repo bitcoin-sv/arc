@@ -295,12 +295,12 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		validTxBytes, _ := hex.DecodeString(validTx)
 		inputTxs := map[string]io.Reader{
 			echo.MIMETextPlain:       strings.NewReader(validTx + "\n"),
-			echo.MIMEApplicationJSON: strings.NewReader("[\"" + validTx + "\"]"),
+			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validTx + "\"}]"),
 			echo.MIMEOctetStream:     bytes.NewReader(validTxBytes),
 		}
 
 		for contentType, inputTx := range inputTxs {
-			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/tx")
+			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/txs")
 			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
 			require.NoError(t, err)
 			assert.Equal(t, api.StatusOK, api.StatusCode(rec.Code))
@@ -332,12 +332,12 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)
 		inputTxs := map[string]io.Reader{
 			echo.MIMETextPlain:       strings.NewReader(validExtendedTx + "\n"),
-			echo.MIMEApplicationJSON: strings.NewReader("[\"" + validExtendedTx + "\"]"),
+			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validExtendedTx + "\"}]"),
 			echo.MIMEOctetStream:     bytes.NewReader(validExtendedTxBytes),
 		}
 
 		for contentType, inputTx := range inputTxs {
-			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/tx")
+			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/txs")
 			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusOK, rec.Code)

@@ -6,21 +6,22 @@ import (
 	"log"
 	"os"
 	"path"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/metamorph/processor_response"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
-	"github.com/sasha-s/go-deadlock"
 )
 
 type ProcessorResponseMap struct {
-	mu        deadlock.RWMutex
-	expiry    time.Duration
-	items     map[chainhash.Hash]*processor_response.ProcessorResponse
-	logFile   string
-	logWorker chan statResponse
+	expiry      time.Duration
+	items       sync.Map
+	itemsLength atomic.Int64
+	logFile     string
+	logWorker   chan statResponse
 }
 
 func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
@@ -28,7 +29,6 @@ func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
 
 	m := &ProcessorResponseMap{
 		expiry:  expiry,
-		items:   make(map[chainhash.Hash]*processor_response.ProcessorResponse),
 		logFile: logFile,
 	}
 
@@ -73,17 +73,17 @@ func (m *ProcessorResponseMap) logWriter() {
 }
 
 func (m *ProcessorResponseMap) Set(hash *chainhash.Hash, value *processor_response.ProcessorResponse) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.items[*hash] = value
+	m.items.Store(*hash, value)
+	m.itemsLength.Add(1)
 }
 
 func (m *ProcessorResponseMap) Get(hash *chainhash.Hash) (*processor_response.ProcessorResponse, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	item, ok := m.items.Load(*hash)
+	if !ok {
+		return nil, false
+	}
 
-	processorResponse, ok := m.items[*hash]
+	processorResponse, ok := item.(*processor_response.ProcessorResponse)
 	if !ok {
 		return nil, false
 	}
@@ -96,35 +96,38 @@ func (m *ProcessorResponseMap) Get(hash *chainhash.Hash) (*processor_response.Pr
 }
 
 func (m *ProcessorResponseMap) Delete(hash *chainhash.Hash) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	item, ok := m.items[*hash]
+	item, ok := m.items.Load(*hash)
 	if !ok {
 		return
 	}
 
 	// append stats to log file
 	if m.logFile != "" && m.logWorker != nil {
-		announcedPeers := make([]string, 0, len(item.AnnouncedPeers))
-		for _, peer := range item.AnnouncedPeers {
+		processorResponse, ok := item.(*processor_response.ProcessorResponse)
+		if !ok {
+			return
+		}
+
+		announcedPeers := make([]string, 0, len(processorResponse.AnnouncedPeers))
+		for _, peer := range processorResponse.AnnouncedPeers {
 			announcedPeers = append(announcedPeers, peer.String())
 		}
 
 		utils.SafeSend(m.logWorker, statResponse{
-			Txid:                  item.Hash.String(),
-			Start:                 item.Start,
-			Retries:               item.Retries.Load(),
-			Err:                   item.Err,
+			Txid:                  processorResponse.Hash.String(),
+			Start:                 processorResponse.Start,
+			Retries:               processorResponse.Retries.Load(),
+			Err:                   processorResponse.Err,
 			AnnouncedPeers:        announcedPeers,
-			Status:                item.Status,
-			NoStats:               item.NoStats,
-			LastStatusUpdateNanos: item.LastStatusUpdateNanos.Load(),
-			Log:                   item.Log,
+			Status:                processorResponse.Status,
+			NoStats:               processorResponse.NoStats,
+			LastStatusUpdateNanos: processorResponse.LastStatusUpdateNanos.Load(),
+			Log:                   processorResponse.Log,
 		})
 	}
 
-	delete(m.items, *hash)
+	m.items.Delete(*hash)
+	m.itemsLength.Add(-1)
 	// Check if the item was deleted
 	// if _, ok := m.items[*hash]; ok {
 	// 	log.Printf("Failed to delete item from map: %v", hash)
@@ -132,39 +135,42 @@ func (m *ProcessorResponseMap) Delete(hash *chainhash.Hash) {
 }
 
 func (m *ProcessorResponseMap) Len() int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return len(m.items)
+	return int(m.itemsLength.Load())
 }
 
 func (m *ProcessorResponseMap) Retries(hash *chainhash.Hash) uint32 {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if _, ok := m.items[*hash]; !ok {
+	item, ok := m.items.Load(*hash)
+	if !ok {
 		return 0
 	}
 
-	return m.items[*hash].GetRetries()
+	processorResponse, ok := item.(*processor_response.ProcessorResponse)
+	if !ok {
+		return 0
+	}
+
+	return processorResponse.GetRetries()
 }
 
 func (m *ProcessorResponseMap) IncrementRetry(hash *chainhash.Hash) uint32 {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if _, ok := m.items[*hash]; !ok {
+	item, ok := m.items.Load(*hash)
+	if !ok {
 		return 0
 	}
 
-	return m.items[*hash].IncrementRetry()
+	processorResponse, ok := item.(*processor_response.ProcessorResponse)
+	if !ok {
+		return 0
+	}
+
+	return processorResponse.IncrementRetry()
 }
 
 // Hashes will return a slice of the hashes in the map.
 // If a filter function is provided, only hashes that pass the filter will be returned.
 // If no filter function is provided, all hashes will be returned.
 // The filter function will be called with the lock held, so it should not block.
-func (m *ProcessorResponseMap) Hashes(filterFunc ...func(*processor_response.ProcessorResponse) bool) [][32]byte {
+func (m *ProcessorResponseMap) Hashes(filterFunc ...func(*processor_response.ProcessorResponse) bool) []chainhash.Hash {
 	// Default filter function returns true for all items
 	fn := func(p *processor_response.ProcessorResponse) bool {
 		return true
@@ -175,19 +181,15 @@ func (m *ProcessorResponseMap) Hashes(filterFunc ...func(*processor_response.Pro
 		fn = filterFunc[0]
 	}
 
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	hashes := make([]chainhash.Hash, 0, m.itemsLength.Load())
 
-	hashes := make([][32]byte, 0, len(m.items))
-
-	for _, item := range m.items {
-		if fn(item) {
-			var h [32]byte
-			copy(h[:], item.Hash[:])
-
-			hashes = append(hashes, h)
+	m.items.Range(func(key, value interface{}) bool {
+		if fn(value.(*processor_response.ProcessorResponse)) {
+			hashes = append(hashes, key.(chainhash.Hash))
 		}
-	}
+
+		return true
+	})
 
 	return hashes
 }
@@ -207,46 +209,47 @@ func (m *ProcessorResponseMap) Items(filterFunc ...func(*processor_response.Proc
 		fn = filterFunc[0]
 	}
 
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	items := make(map[chainhash.Hash]*processor_response.ProcessorResponse, m.itemsLength.Load())
 
-	items := make(map[chainhash.Hash]*processor_response.ProcessorResponse, len(m.items))
-
-	for hash, item := range m.items {
-		if fn(item) {
-			items[hash] = item
+	m.items.Range(func(key, item interface{}) bool {
+		processorResponse, ok := item.(*processor_response.ProcessorResponse)
+		if !ok {
+			return false
 		}
-	}
+
+		if fn(processorResponse) {
+			items[key.(chainhash.Hash)] = processorResponse
+		}
+
+		return true
+	})
 
 	return items
 }
 
 func (m *ProcessorResponseMap) PrintItems() {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	for _, value := range m.items {
-		fmt.Printf("processorResponseMap: %s\n", value.String())
-	}
-
+	m.items.Range(func(key, item interface{}) bool {
+		fmt.Printf("processorResponseMap: %s\n", item)
+		return true
+	})
 }
 
 // Clear clears the map.
 func (m *ProcessorResponseMap) Clear() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.items = make(map[chainhash.Hash]*processor_response.ProcessorResponse)
+	m.items = sync.Map{}
 }
 
 func (m *ProcessorResponseMap) clean() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for key, item := range m.items {
-		if time.Since(item.Start) > m.expiry {
-			log.Printf("ProcessorResponseMap: Expired %s", key)
-			delete(m.items, key)
+	m.items.Range(func(key, item interface{}) bool {
+		processorResponse, ok := item.(*processor_response.ProcessorResponse)
+		if !ok {
+			return false
 		}
-	}
+		if time.Since(processorResponse.Start) > m.expiry {
+			log.Printf("ProcessorResponseMap: Expired %s", key)
+			m.items.Delete(key)
+		}
+
+		return true
+	})
 }

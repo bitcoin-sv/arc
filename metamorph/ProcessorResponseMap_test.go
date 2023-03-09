@@ -17,7 +17,7 @@ func TestNewProcessorResponseMap(t *testing.T) {
 		expiry := 10 * time.Second
 		prm := NewProcessorResponseMap(expiry)
 		assert.Equalf(t, expiry, prm.expiry, "NewProcessorResponseMap(%v)", expiry)
-		assert.Len(t, prm.items, 0)
+		assert.Equal(t, int64(0), prm.itemsLength.Load())
 	})
 
 	t.Run("go routine", func(t *testing.T) {
@@ -160,22 +160,26 @@ func TestProcessorResponseMap_Set(t *testing.T) {
 	t.Run("empty key", func(t *testing.T) {
 		proc := NewProcessorResponseMap(2 * time.Second)
 		proc.Set(&chainhash.Hash{}, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK))
-		assert.Len(t, proc.items, 1)
+		assert.Equal(t, int64(1), proc.itemsLength.Load())
 
-		item := proc.items[chainhash.Hash{}]
-		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.GetStatus())
+		item, _ := proc.items.Load(chainhash.Hash{})
+		processorResponse, ok := item.(*processor_response.ProcessorResponse)
+		require.True(t, ok)
+		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, processorResponse.GetStatus())
 	})
 
 	t.Run("default", func(t *testing.T) {
 		proc := NewProcessorResponseMap(2 * time.Second)
-		assert.Len(t, proc.items, 0)
+		assert.Equal(t, int64(0), proc.itemsLength.Load())
 
 		proc.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK))
 
-		assert.Len(t, proc.items, 1)
+		assert.Equal(t, int64(1), proc.itemsLength.Load())
 
-		item := proc.items[*testdata.TX1Hash]
-		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.GetStatus())
+		item, _ := proc.items.Load(*testdata.TX1Hash)
+		processorResponse, ok := item.(*processor_response.ProcessorResponse)
+		require.True(t, ok)
+		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, processorResponse.GetStatus())
 	})
 }
 

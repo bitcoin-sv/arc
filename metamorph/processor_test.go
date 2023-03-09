@@ -13,7 +13,6 @@ import (
 	"github.com/TAAL-GmbH/arc/metamorph/processor_response"
 	"github.com/TAAL-GmbH/arc/metamorph/store"
 	"github.com/TAAL-GmbH/arc/metamorph/store/badger"
-	"github.com/TAAL-GmbH/arc/metamorph/store/memorystore"
 	"github.com/TAAL-GmbH/arc/metamorph/store/sql"
 	"github.com/TAAL-GmbH/arc/testdata"
 	"github.com/labstack/gommon/random"
@@ -147,7 +146,7 @@ func TestProcessTransaction(t *testing.T) {
 }
 
 func Benchmark_ProcessTransaction(b *testing.B) {
-	s, err := memorystore.New() // prevents profiling database code
+	s, err := sql.New("sqlite_memory") // prevents profiling database code
 	require.NoError(b, err)
 
 	pm := p2p.NewPeerManagerMock()

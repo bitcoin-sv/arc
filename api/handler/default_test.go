@@ -201,7 +201,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			var bResponse api.TransactionResponse
 			_ = json.Unmarshal(b, &bResponse)
 
-			require.Equal(t, validTxID, *bResponse.Txid)
+			require.Equal(t, validTxID, bResponse.Txid)
 		}
 
 		// check the callback request
@@ -338,7 +338,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			var bResponse []api.TransactionResponse
 			_ = json.Unmarshal(b, &bResponse)
 
-			require.Equal(t, validTxID, *bResponse[0].Txid)
+			require.Equal(t, validTxID, bResponse[0].Txid)
 		}
 	})
 }

@@ -273,7 +273,10 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 
 		transactions = make([]interface{}, 0)
 		var txCounter int64
-		limit := make(chan bool, 1024) // TODO make configurable how many concurrent process routines we can start
+
+		// limit the number of concurrent process routines we can start
+		routinesLimit, _ := gocore.Config().GetInt("process_routines_limit", 1024)
+		limit := make(chan bool, routinesLimit)
 
 		for {
 			limit <- true

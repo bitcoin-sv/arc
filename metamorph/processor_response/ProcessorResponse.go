@@ -74,7 +74,6 @@ func newProcessorResponse(hash *chainhash.Hash, status metamorph_api.Status, ch 
 	}
 	pr.LastStatusUpdateNanos.Store(pr.Start.UnixNano())
 
-	// TODO change this to a queue?
 	go func() {
 		for statusUpdate := range pr.statusUpdateCh {
 			pr.updateStatus(statusUpdate)

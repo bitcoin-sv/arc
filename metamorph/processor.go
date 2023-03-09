@@ -180,7 +180,6 @@ func (p *Processor) processExpiredTransactions() {
 				if retries >= 3 {
 					continue
 				} else if retries >= 2 {
-					// TODO what should we do here?
 					// check for it in blocktx, it might have been mined
 					p.logger.Debugf("Transaction %s has been retried 4 times, not resending", txID)
 					continue
@@ -253,11 +252,9 @@ func (p *Processor) LoadUnmined() {
 		} else if record.Status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
 			// we only announced the transaction, but we did not receive a SENT_TO_NETWORK response
 
-			// TODO could it already be mined, and we need to get it from BlockTx?
+			// could it already be mined, and we need to get it from BlockTx?
 
 			// let's send a GETDATA message to the network to check whether the transaction is actually there
-			// TODO - get a more efficient way to do this from the node
-			// we only need the tx ids, not the whole transaction
 			p.pm.RequestTransaction(record.Hash)
 		} else if record.Status <= metamorph_api.Status_SENT_TO_NETWORK {
 			p.pm.RequestTransaction(record.Hash)

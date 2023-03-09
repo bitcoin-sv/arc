@@ -21,8 +21,14 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("RegisterTransaction").AddTime(start)
 	}()
-	span, spanCtx := opentracing.StartSpanFromContext(ctx, "sql:RegisterTransaction")
-	defer span.Finish()
+	var spanCtx context.Context
+	if opentracing.IsGlobalTracerRegistered() {
+		var span opentracing.Span
+		span, spanCtx = opentracing.StartSpanFromContext(ctx, "sql:RegisterTransaction")
+		defer span.Finish()
+	} else {
+		spanCtx = ctx
+	}
 
 	ctx, cancel := context.WithCancel(spanCtx)
 	defer cancel()
@@ -38,8 +44,11 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 	q := `INSERT INTO transactions (hash, source) VALUES ($1, $2)`
 
 	if _, err := s.db.ExecContext(ctx, q, transaction.Hash[:], transaction.Source); err != nil {
-		spanErr, ctx := opentracing.StartSpanFromContext(ctx, "sql:RegisterTransaction:Err")
-		defer spanErr.Finish()
+		var spanErr opentracing.Span
+		if opentracing.IsGlobalTracerRegistered() {
+			spanErr, ctx = opentracing.StartSpanFromContext(ctx, "sql:RegisterTransaction:Err")
+			defer spanErr.Finish()
+		}
 
 		var uniqueConstraint bool
 
@@ -56,25 +65,33 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 		}
 
 		if !uniqueConstraint {
-			spanErr.SetTag(string(ext.Error), true)
-			spanErr.LogFields(log.Error(err))
+			if spanErr != nil {
+				spanErr.SetTag(string(ext.Error), true)
+				spanErr.LogFields(log.Error(err))
+			}
 			return "", nil, 0, err
 		}
 
 		// If we reach here, we have a unique violation, which means that the transaction already exists
-		spanErr.SetTag("unique_constraint", true)
+		if spanErr != nil {
+			spanErr.SetTag("unique_constraint", true)
+		}
 		q = `UPDATE transactions SET source = $1 WHERE source IS NULL AND hash = $2`
 		result, err := s.db.ExecContext(ctx, q, transaction.Source, transaction.Hash[:])
 		if err != nil {
-			spanErr.SetTag(string(ext.Error), true)
-			spanErr.LogFields(log.Error(err))
+			if spanErr != nil {
+				spanErr.SetTag(string(ext.Error), true)
+				spanErr.LogFields(log.Error(err))
+			}
 			return "", nil, 0, err
 		}
 
 		rows, err := result.RowsAffected()
 		if err != nil {
-			spanErr.SetTag(string(ext.Error), true)
-			spanErr.LogFields(log.Error(err))
+			if spanErr != nil {
+				spanErr.SetTag(string(ext.Error), true)
+				spanErr.LogFields(log.Error(err))
+			}
 			return "", nil, 0, err
 		}
 
@@ -96,8 +113,10 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 				WHERE t.hash = $1
 				AND b.orphanedyn = false
 			`, transaction.Hash).Scan(&blockHash, &blockHeight); err != nil {
-				spanErr.SetTag(string(ext.Error), true)
-				spanErr.LogFields(log.Error(err))
+				if spanErr != nil {
+					spanErr.SetTag(string(ext.Error), true)
+					spanErr.LogFields(log.Error(err))
+				}
 				return "", nil, 0, err
 			}
 
@@ -107,8 +126,10 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 
 		var source string
 		if err := s.db.QueryRowContext(ctx, "SELECT source FROM transactions WHERE hash = $1", transaction.Hash).Scan(&source); err != nil {
-			spanErr.SetTag(string(ext.Error), true)
-			spanErr.LogFields(log.Error(err))
+			if spanErr != nil {
+				spanErr.SetTag(string(ext.Error), true)
+				spanErr.LogFields(log.Error(err))
+			}
 			return "", nil, 0, err
 		}
 		return source, nil, 0, nil

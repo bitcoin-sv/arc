@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
@@ -930,7 +931,7 @@ func (c *ClientWithResponses) POSTTransactionsWithResponse(ctx context.Context, 
 
 // ParseGETPolicyResponse parses an HTTP response from a GETPolicyWithResponse call
 func ParseGETPolicyResponse(rsp *http.Response) (*GETPolicyResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
@@ -956,7 +957,7 @@ func ParseGETPolicyResponse(rsp *http.Response) (*GETPolicyResponse, error) {
 
 // ParsePOSTTransactionResponse parses an HTTP response from a POSTTransactionWithResponse call
 func ParsePOSTTransactionResponse(rsp *http.Response) (*POSTTransactionResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
@@ -1010,7 +1011,7 @@ func ParsePOSTTransactionResponse(rsp *http.Response) (*POSTTransactionResponse,
 
 // ParseGETTransactionStatusResponse parses an HTTP response from a GETTransactionStatusWithResponse call
 func ParseGETTransactionStatusResponse(rsp *http.Response) (*GETTransactionStatusResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
@@ -1036,7 +1037,7 @@ func ParseGETTransactionStatusResponse(rsp *http.Response) (*GETTransactionStatu
 
 // ParsePOSTTransactionsResponse parses an HTTP response from a POSTTransactionsWithResponse call
 func ParsePOSTTransactionsResponse(rsp *http.Response) (*POSTTransactionsResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err

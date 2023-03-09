@@ -434,10 +434,10 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 		Title:       "OK",
 		BlockHash:   &tx.BlockHash,
 		BlockHeight: &tx.BlockHeight,
-		TxStatus:    (*api.TransactionResponseTxStatus)(&tx.Status),
+		TxStatus:    tx.Status,
 		ExtraInfo:   &extraInfo,
 		Timestamp:   time.Now(),
-		Txid:        &txID,
+		Txid:        txID,
 	}, nil
 }
 

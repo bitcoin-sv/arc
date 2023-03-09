@@ -30,30 +30,16 @@ const (
 
 // Defines values for TransactionDetailsTxStatus.
 const (
-	TransactionDetailsTxStatusANNOUNCEDTONETWORK TransactionDetailsTxStatus = "ANNOUNCED_TO_NETWORK"
-	TransactionDetailsTxStatusCONFIRMED          TransactionDetailsTxStatus = "CONFIRMED"
-	TransactionDetailsTxStatusMINED              TransactionDetailsTxStatus = "MINED"
-	TransactionDetailsTxStatusRECEIVED           TransactionDetailsTxStatus = "RECEIVED"
-	TransactionDetailsTxStatusREJECTED           TransactionDetailsTxStatus = "REJECTED"
-	TransactionDetailsTxStatusREQUESTEDBYNETWORK TransactionDetailsTxStatus = "REQUESTED_BY_NETWORK"
-	TransactionDetailsTxStatusSEENONNETWORK      TransactionDetailsTxStatus = "SEEN_ON_NETWORK"
-	TransactionDetailsTxStatusSENTTONETWORK      TransactionDetailsTxStatus = "SENT_TO_NETWORK"
-	TransactionDetailsTxStatusSTORED             TransactionDetailsTxStatus = "STORED"
-	TransactionDetailsTxStatusUNKNOWN            TransactionDetailsTxStatus = "UNKNOWN"
-)
-
-// Defines values for TransactionResponseTxStatus.
-const (
-	TransactionResponseTxStatusANNOUNCEDTONETWORK TransactionResponseTxStatus = "ANNOUNCED_TO_NETWORK"
-	TransactionResponseTxStatusCONFIRMED          TransactionResponseTxStatus = "CONFIRMED"
-	TransactionResponseTxStatusMINED              TransactionResponseTxStatus = "MINED"
-	TransactionResponseTxStatusRECEIVED           TransactionResponseTxStatus = "RECEIVED"
-	TransactionResponseTxStatusREJECTED           TransactionResponseTxStatus = "REJECTED"
-	TransactionResponseTxStatusREQUESTEDBYNETWORK TransactionResponseTxStatus = "REQUESTED_BY_NETWORK"
-	TransactionResponseTxStatusSEENONNETWORK      TransactionResponseTxStatus = "SEEN_ON_NETWORK"
-	TransactionResponseTxStatusSENTTONETWORK      TransactionResponseTxStatus = "SENT_TO_NETWORK"
-	TransactionResponseTxStatusSTORED             TransactionResponseTxStatus = "STORED"
-	TransactionResponseTxStatusUNKNOWN            TransactionResponseTxStatus = "UNKNOWN"
+	ANNOUNCEDTONETWORK TransactionDetailsTxStatus = "ANNOUNCED_TO_NETWORK"
+	CONFIRMED          TransactionDetailsTxStatus = "CONFIRMED"
+	MINED              TransactionDetailsTxStatus = "MINED"
+	RECEIVED           TransactionDetailsTxStatus = "RECEIVED"
+	REJECTED           TransactionDetailsTxStatus = "REJECTED"
+	REQUESTEDBYNETWORK TransactionDetailsTxStatus = "REQUESTED_BY_NETWORK"
+	SEENONNETWORK      TransactionDetailsTxStatus = "SEEN_ON_NETWORK"
+	SENTTONETWORK      TransactionDetailsTxStatus = "SENT_TO_NETWORK"
+	STORED             TransactionDetailsTxStatus = "STORED"
+	UNKNOWN            TransactionDetailsTxStatus = "UNKNOWN"
 )
 
 // ChainInfo defines model for ChainInfo.
@@ -258,24 +244,15 @@ type TransactionRequest struct {
 
 // TransactionResponse defines model for TransactionResponse.
 type TransactionResponse struct {
-	BlockHash   *string `json:"blockHash,omitempty"`
-	BlockHeight *uint64 `json:"blockHeight,omitempty"`
-
-	// Extra information about the transaction
-	ExtraInfo *string   `json:"extraInfo"`
-	Status    int       `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	Title     string    `json:"title"`
-
-	// Transaction status
-	TxStatus *TransactionResponseTxStatus `json:"txStatus,omitempty"`
-
-	// Transaction ID in hex
-	Txid *string `json:"txid,omitempty"`
+	BlockHash   *string   `json:"blockHash,omitempty"`
+	BlockHeight *uint64   `json:"blockHeight,omitempty"`
+	ExtraInfo   *string   `json:"extraInfo"`
+	Status      int       `json:"status"`
+	Timestamp   time.Time `json:"timestamp"`
+	Title       string    `json:"title"`
+	TxStatus    string    `json:"txStatus"`
+	Txid        string    `json:"txid"`
 }
-
-// Transaction status
-type TransactionResponseTxStatus string
 
 // TransactionResponses defines model for TransactionResponses.
 type TransactionResponses struct {
@@ -437,7 +414,7 @@ type ClientInterface interface {
 	POSTTransaction(ctx context.Context, params *POSTTransactionParams, body POSTTransactionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GETTransactionStatus request
-	GETTransactionStatus(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GETTransactionStatus(ctx context.Context, txid string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// POSTTransactions request with any body
 	POSTTransactionsWithBody(ctx context.Context, params *POSTTransactionsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -481,8 +458,8 @@ func (c *Client) POSTTransaction(ctx context.Context, params *POSTTransactionPar
 	return c.Client.Do(req)
 }
 
-func (c *Client) GETTransactionStatus(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGETTransactionStatusRequest(c.Server, id)
+func (c *Client) GETTransactionStatus(ctx context.Context, txid string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGETTransactionStatusRequest(c.Server, txid)
 	if err != nil {
 		return nil, err
 	}
@@ -629,12 +606,12 @@ func NewPOSTTransactionRequestWithBody(server string, params *POSTTransactionPar
 }
 
 // NewGETTransactionStatusRequest generates requests for GETTransactionStatus
-func NewGETTransactionStatusRequest(server string, id string) (*http.Request, error) {
+func NewGETTransactionStatusRequest(server string, txid string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "txid", runtime.ParamLocationPath, txid)
 	if err != nil {
 		return nil, err
 	}
@@ -798,7 +775,7 @@ type ClientWithResponsesInterface interface {
 	POSTTransactionWithResponse(ctx context.Context, params *POSTTransactionParams, body POSTTransactionJSONRequestBody, reqEditors ...RequestEditorFn) (*POSTTransactionResponse, error)
 
 	// GETTransactionStatus request
-	GETTransactionStatusWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GETTransactionStatusResponse, error)
+	GETTransactionStatusWithResponse(ctx context.Context, txid string, reqEditors ...RequestEditorFn) (*GETTransactionStatusResponse, error)
 
 	// POSTTransactions request with any body
 	POSTTransactionsWithBodyWithResponse(ctx context.Context, params *POSTTransactionsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*POSTTransactionsResponse, error)
@@ -832,11 +809,10 @@ type POSTTransactionResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *TransactionResponse
-	JSON201      *TransactionResponse
 	JSON400      *ErrorBadRequest
-	JSON402      *ErrorFee
-	JSON409      *ErrorConflict
 	JSON422      *Error
+	JSON465      *ErrorFee
+	JSON466      *ErrorConflict
 }
 
 // Status returns HTTPResponse.Status
@@ -927,8 +903,8 @@ func (c *ClientWithResponses) POSTTransactionWithResponse(ctx context.Context, p
 }
 
 // GETTransactionStatusWithResponse request returning *GETTransactionStatusResponse
-func (c *ClientWithResponses) GETTransactionStatusWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GETTransactionStatusResponse, error) {
-	rsp, err := c.GETTransactionStatus(ctx, id, reqEditors...)
+func (c *ClientWithResponses) GETTransactionStatusWithResponse(ctx context.Context, txid string, reqEditors ...RequestEditorFn) (*GETTransactionStatusResponse, error) {
+	rsp, err := c.GETTransactionStatus(ctx, txid, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -999,13 +975,6 @@ func ParsePOSTTransactionResponse(rsp *http.Response) (*POSTTransactionResponse,
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest TransactionResponse
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON201 = &dest
-
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest ErrorBadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -1013,26 +982,26 @@ func ParsePOSTTransactionResponse(rsp *http.Response) (*POSTTransactionResponse,
 		}
 		response.JSON400 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 402:
-		var dest ErrorFee
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON402 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
-		var dest ErrorConflict
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON409 = &dest
-
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 465:
+		var dest ErrorFee
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON465 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 466:
+		var dest ErrorConflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON466 = &dest
 
 	}
 
@@ -1107,8 +1076,8 @@ type ServerInterface interface {
 	// (POST /v1/tx)
 	POSTTransaction(ctx echo.Context, params POSTTransactionParams) error
 	// Get transaction status.
-	// (GET /v1/tx/{id})
-	GETTransactionStatus(ctx echo.Context, id string) error
+	// (GET /v1/tx/{txid})
+	GETTransactionStatus(ctx echo.Context, txid string) error
 	// Submit multiple transactions.
 	// (POST /v1/txs)
 	POSTTransactions(ctx echo.Context, params POSTTransactionsParams) error
@@ -1217,12 +1186,12 @@ func (w *ServerInterfaceWrapper) POSTTransaction(ctx echo.Context) error {
 // GETTransactionStatus converts echo context to params.
 func (w *ServerInterfaceWrapper) GETTransactionStatus(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "id" -------------
-	var id string
+	// ------------- Path parameter "txid" -------------
+	var txid string
 
-	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "txid", runtime.ParamLocationPath, ctx.Param("txid"), &txid)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter txid: %s", err))
 	}
 
 	ctx.Set(BearerAuthScopes, []string{""})
@@ -1232,7 +1201,7 @@ func (w *ServerInterfaceWrapper) GETTransactionStatus(ctx echo.Context) error {
 	ctx.Set(AuthorizationScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.GETTransactionStatus(ctx, id)
+	err = w.Handler.GETTransactionStatus(ctx, txid)
 	return err
 }
 
@@ -1346,7 +1315,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/v1/policy", wrapper.GETPolicy)
 	router.POST(baseURL+"/v1/tx", wrapper.POSTTransaction)
-	router.GET(baseURL+"/v1/tx/:id", wrapper.GETTransactionStatus)
+	router.GET(baseURL+"/v1/tx/:txid", wrapper.GETTransactionStatus)
 	router.POST(baseURL+"/v1/txs", wrapper.POSTTransactions)
 
 }
@@ -1354,57 +1323,61 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"PvxvAAAA///82akx4ToAAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

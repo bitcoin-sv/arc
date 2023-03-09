@@ -1,13 +1,13 @@
 package handler
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -153,6 +153,13 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		return responseErr
 	}
 
+	sizingInfo := make([][]uint64, 1)
+
+	normalBytes, dataBytes, feeAmount := getSizings(transaction)
+	sizingInfo[0] = []uint64{normalBytes, dataBytes, feeAmount}
+	sizingCtx := context.WithValue(ctx.Request().Context(), api.ContextSizings, sizingInfo)
+	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
+
 	return ctx.JSON(int(status), response)
 }
 
@@ -202,37 +209,24 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	// set the globals for all transactions in this request
 	transactionOptions := getTransactionsOptions(params)
 
+	// Set the transaction reader function to read a text/plain by default.
+	// If the mimetype is application/octet-stream, then we will replace this
+	// function with one that reads the raw bytes in the switch statement below.
+	transactionReaderFn := func(r io.Reader) (*bt.Tx, error) {
+		reader := bufio.NewReader(r)
+		b, _, err := reader.ReadLine()
+		if err != nil {
+			return nil, err
+		}
+		return bt.NewTxFromString(string(b))
+	}
+
 	var wg sync.WaitGroup
 	var transactions []interface{}
+
+	sizingInfo := make([][]uint64, 0)
+
 	switch ctx.Request().Header.Get("Content-Type") {
-	case "text/plain":
-		body, err := io.ReadAll(ctx.Request().Body)
-		if err != nil {
-			errStr := err.Error()
-			e := api.ErrBadRequest
-			e.ExtraInfo = &errStr
-			span.SetTag(string(ext.Error), true)
-			span.LogFields(log.Error(err))
-			return ctx.JSON(http.StatusBadRequest, e)
-		}
-
-		if len(body) == 0 {
-			return ctx.JSON(int(api.ErrStatusMalformed), api.ErrBadRequest)
-		}
-
-		txString := strings.TrimSpace(strings.ReplaceAll(string(body), "\r", ""))
-		txs := strings.Split(txString, "\n")
-		transactions = make([]interface{}, len(txs))
-
-		for index, tx := range txs {
-			// process all the transactions in parallel
-			wg.Add(1)
-			go func(index int, tx string) {
-				defer wg.Done()
-				transactions[index] = m.getTransactionResponse(tracingCtx, tx, transactionOptions)
-			}(index, tx)
-		}
-		wg.Wait()
 	case "application/json":
 		body, err := io.ReadAll(ctx.Request().Body)
 		if err != nil {
@@ -260,18 +254,24 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		}
 		wg.Wait()
 	case "application/octet-stream":
+		transactionReaderFn = func(r io.Reader) (*bt.Tx, error) {
+			btTx := new(bt.Tx)
+			_, err := btTx.ReadFrom(r)
+			return btTx, err
+		}
+		fallthrough
+	case "text/plain":
 		reader := ctx.Request().Body
 
 		transactions = make([]interface{}, 0)
-		var bytesRead int64
-		var err error
+		var txCounter int64
 		limit := make(chan bool, 1024) // TODO make configurable how many concurrent process routines we can start
-		totalBytesRead := int64(0)
+
 		for {
 			limit <- true
 
-			btTx := new(bt.Tx)
-			if bytesRead, err = btTx.ReadFrom(reader); err != nil {
+			btTx, err := transactionReaderFn(reader)
+			if err != nil {
 				if !errors.Is(err, io.EOF) {
 					e := api.ErrBadRequest
 					errStr := err.Error()
@@ -281,8 +281,9 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 					return ctx.JSON(api.ErrBadRequest.Status, e)
 				}
 			}
-			if bytesRead == 0 {
-				if totalBytesRead == 0 {
+
+			if btTx == nil {
+				if txCounter == 0 {
 					// no transactions found in the request body
 					return ctx.JSON(int(api.ErrStatusMalformed), api.ErrBadRequest)
 				}
@@ -290,7 +291,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 				break
 			}
 
-			totalBytesRead += bytesRead
+			txCounter++
 
 			var mu sync.Mutex
 			wg.Add(1)
@@ -312,6 +313,10 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 				} else {
 					mu.Lock()
 					transactions = append(transactions, response)
+
+					normalBytes, dataBytes, feeAmount := getSizings(btTx)
+					sizingInfo = append(sizingInfo, []uint64{normalBytes, dataBytes, feeAmount})
+
 					mu.Unlock()
 				}
 			}(btTx)
@@ -320,6 +325,9 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	default:
 		return ctx.JSON(api.ErrBadRequest.Status, api.ErrBadRequest)
 	}
+
+	sizingCtx := context.WithValue(ctx.Request().Context(), api.ContextSizings, sizingInfo)
+	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
 
 	// we cannot really return any other status here
 	// each transaction in the slice will have the result of the transaction submission
@@ -561,4 +569,30 @@ func getPolicyFromNode() (*bitcoin.Settings, error) {
 	}
 
 	return nil, nil
+}
+
+func getSizings(tx *bt.Tx) (uint64, uint64, uint64) {
+	var feeAmount uint64
+
+	for _, in := range tx.Inputs {
+		feeAmount += in.PreviousTxSatoshis
+	}
+
+	var dataBytes uint64
+	for _, out := range tx.Outputs {
+		if feeAmount >= out.Satoshis {
+			feeAmount -= out.Satoshis
+		} else {
+			feeAmount = 0
+		}
+
+		script := *out.LockingScript
+		if out.Satoshis == 0 && len(script) > 0 && (script[0] == 0x6a || (script[0] == 0x00 && script[1] == 0x6a)) {
+			dataBytes += uint64(len(script))
+		}
+	}
+
+	normalBytes := uint64(len(tx.Bytes())) - dataBytes
+
+	return normalBytes, dataBytes, feeAmount
 }

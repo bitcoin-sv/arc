@@ -5,6 +5,13 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
+// ContextKey type
+type ContextKey int
+
+const (
+	ContextSizings ContextKey = iota
+)
+
 // HandlerInterface is an interface for implementations of the ARC backends
 // this is an extension of the generated interface, to allow additional methods
 type HandlerInterface interface {

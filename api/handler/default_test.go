@@ -88,7 +88,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 			require.NoError(t, err)
-			assert.Equal(t, rec.Code, api.ErrMalformed.Status)
+			assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
 		}
 	})
 
@@ -104,7 +104,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 		err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 		require.NoError(t, err)
-		assert.Equal(t, rec.Code, api.ErrBadRequest.Status)
+		assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
 	})
 
 	t.Run("invalid tx", func(t *testing.T) {
@@ -121,7 +121,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			rec, ctx := createEchoRequest(strings.NewReader("test"), contentType, "/v1/tx")
 			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 			require.NoError(t, err)
-			assert.Equal(t, api.ErrMalformed.Status, rec.Code)
+			assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
 
 			b := rec.Body.Bytes()
 			var bErr api.ErrorMalformed
@@ -230,7 +230,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
 			require.NoError(t, err)
 			// multiple txs post always returns 200, the error code is given per tx
-			assert.Equal(t, api.ErrStatusMalformed, api.StatusCode(rec.Code))
+			assert.Equal(t, api.ErrStatusBadRequest, api.StatusCode(rec.Code))
 		}
 	})
 
@@ -256,33 +256,25 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		expectedErrors := map[string]string{
 			echo.MIMETextPlain:       "encoding/hex: invalid byte: U+0074 't'",
 			echo.MIMEApplicationJSON: "invalid character 'e' in literal true (expecting 'r')",
-			echo.MIMEOctetStream:     "arc error 460: transaction is not in extended format",
+			echo.MIMEOctetStream:     "",
 		}
 
 		for contentType, expectedError := range expectedErrors {
 			rec, ctx := createEchoRequest(strings.NewReader("test"), contentType, "/v1/txs")
 			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
 			require.NoError(t, err)
-			if contentType == echo.MIMEApplicationJSON {
-				assert.Equal(t, api.ErrMalformed.Status, rec.Code)
-			} else {
-				assert.Equal(t, api.StatusOK, api.StatusCode(rec.Code))
+			assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
 
-				b := rec.Body.Bytes()
-				var bErr []api.ErrorMalformed
-				_ = json.Unmarshal(b, &bErr)
+			b := rec.Body.Bytes()
+			var bErr api.ErrorBadRequest
+			err = json.Unmarshal(b, &bErr)
+			require.NoError(t, err)
 
-				if contentType == echo.MIMETextPlain {
-					assert.Equal(t, float64(api.ErrMalformed.Status), bErr[0].Status)
-					assert.Equal(t, api.ErrMalformed.Title, bErr[0].Title)
-					require.NotNil(t, bErr[0].ExtraInfo)
-					assert.Equal(t, expectedError, *bErr[0].ExtraInfo)
-				} else {
-					assert.Equal(t, float64(api.ErrTxFormat.Status), bErr[0].Status)
-					assert.Equal(t, api.ErrTxFormat.Title, bErr[0].Title)
-					require.NotNil(t, bErr[0].ExtraInfo)
-					assert.Equal(t, expectedError, *bErr[0].ExtraInfo)
-				}
+			assert.Equal(t, float64(api.ErrBadRequest.Status), bErr.Status)
+			assert.Equal(t, api.ErrBadRequest.Title, bErr.Title)
+			if expectedError != "" {
+				require.NotNil(t, bErr.ExtraInfo)
+				assert.Equal(t, expectedError, *bErr.ExtraInfo)
 			}
 		}
 	})

@@ -410,10 +410,16 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 
 	// we need to decouple the context from the request, so that we don't get cancelled
 	// when the request is cancelled
-	callerSpan := opentracing.SpanFromContext(req.ctx)
-	ctx := opentracing.ContextWithSpan(context.Background(), callerSpan)
-	span, spanCtx := opentracing.StartSpanFromContext(ctx, "Processor:processTransaction")
-	defer span.Finish()
+	var span opentracing.Span
+	var spanCtx context.Context
+	if opentracing.IsGlobalTracerRegistered() {
+		callerSpan := opentracing.SpanFromContext(req.ctx)
+		ctx := opentracing.ContextWithSpan(context.Background(), callerSpan)
+		span, spanCtx = opentracing.StartSpanFromContext(ctx, "Processor:processTransaction")
+		defer span.Finish()
+	} else {
+		spanCtx = req.ctx
+	}
 
 	p.queuedCount.Add(1)
 
@@ -441,8 +447,10 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 				Callback: func(err error) {
 					if err != nil {
 						p.logger.Errorf("Error storing transaction %v: %v", req.Hash, err)
-						span.SetTag(string(ext.Error), true)
-						span.LogFields(log.Error(err))
+						if span != nil {
+							span.SetTag(string(ext.Error), true)
+							span.LogFields(log.Error(err))
+						}
 						return
 					}
 

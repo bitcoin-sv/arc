@@ -13,26 +13,27 @@ import (
 type MemoryStore struct {
 	mu sync.RWMutex
 	// the memory store is mainly used for testing, so we don't need to worry about this being public
-	Store map[string]*store.StoreData
+	Store map[[32]byte]*store.StoreData
 }
 
 // New returns a new initialized MemoryStore database implementing the DB
 // interface. If the database cannot be initialized, an error will be returned.
 func New() (*MemoryStore, error) {
 	return &MemoryStore{
-		Store: make(map[string]*store.StoreData),
+		Store: make(map[[32]byte]*store.StoreData),
 	}, nil
 }
 
 // Get implements the Store interface. It attempts to get a value for a given key.
 // If the key does not exist an error is returned, otherwise the retrieved value.
 func (m *MemoryStore) Get(_ context.Context, key []byte) (*store.StoreData, error) {
-	hash := store.HashString(key)
+	hashKey := [32]byte{}
+	copy(hashKey[:], key)
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	value, ok := m.Store[hash]
+	value, ok := m.Store[hashKey]
 	if !ok {
 		return nil, store.ErrNotFound
 	}
@@ -58,7 +59,8 @@ func (m *MemoryStore) UpdateStatus(_ context.Context, hash *chainhash.Hash, stat
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	hashKey := store.HashString(hash[:])
+	hashKey := [32]byte{}
+	copy(hashKey[:], hash[:])
 
 	tx, ok := m.Store[hashKey]
 	if !ok {
@@ -79,7 +81,8 @@ func (m *MemoryStore) UpdateMined(_ context.Context, hash *chainhash.Hash, block
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	hashKey := store.HashString(hash[:])
+	hashKey := [32]byte{}
+	copy(hashKey[:], hash[:])
 
 	tx, ok := m.Store[hashKey]
 	if !ok {
@@ -97,22 +100,24 @@ func (m *MemoryStore) UpdateMined(_ context.Context, hash *chainhash.Hash, block
 // Set implements the Store interface. It attempts to Store a value for a given key
 // and namespace. If the key/value pair cannot be saved, an error is returned.
 func (m *MemoryStore) Set(_ context.Context, key []byte, value *store.StoreData) error {
-	hash := store.HashString(key)
-
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	hash := [32]byte{}
+	copy(hash[:], key)
 
 	m.Store[hash] = value
 	return nil
 }
 
 func (m *MemoryStore) Del(_ context.Context, key []byte) (err error) {
-	hash := store.HashString(key)
+	hashKey := [32]byte{}
+	copy(hashKey[:], key)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.Store[hash] = nil
+	m.Store[hashKey] = nil
 	return nil
 }
 
@@ -132,6 +137,6 @@ func (m *MemoryStore) Close(_ context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.Store = make(map[string]*store.StoreData)
+	m.Store = make(map[[32]byte]*store.StoreData)
 	return nil
 }

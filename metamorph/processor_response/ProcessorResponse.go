@@ -2,6 +2,7 @@ package processor_response
 
 import (
 	"fmt"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -65,13 +66,12 @@ func newProcessorResponse(hash *chainhash.Hash, status metamorph_api.Status, ch 
 		Status:         status,
 		callerCh:       ch,
 		statusUpdateCh: make(chan *ProcessorResponseStatusUpdate, 10),
-		Log: []ProcessorResponseLog{
-			{
-				DeltaT: 0,
-				Status: status.String(),
-			},
-		},
+		Log:            make([]ProcessorResponseLog, 0, 16),
 	}
+	pr.Log = append(pr.Log, ProcessorResponseLog{
+		DeltaT: 0,
+		Status: status,
+	})
 	pr.LastStatusUpdateNanos.Store(pr.Start.UnixNano())
 
 	go func() {
@@ -131,7 +131,7 @@ func (r *ProcessorResponse) updateStatus(statusUpdate *ProcessorResponseStatusUp
 		_ = r.setStatus(statusUpdate.Status, statusUpdate.Source)
 	}
 
-	statKey := fmt.Sprintf("%d: %s", statusUpdate.Status, statusUpdate.Status.String())
+	statKey := strconv.Itoa(int(statusUpdate.Status)) + ": " + statusUpdate.Status.String()
 	r.LastStatusUpdateNanos.Store(gocore.NewStat("processorResponse").NewStat(statKey).AddTime(r.LastStatusUpdateNanos.Load()))
 
 	if !statusUpdate.IgnoreCallback {
@@ -140,16 +140,10 @@ func (r *ProcessorResponse) updateStatus(statusUpdate *ProcessorResponseStatusUp
 }
 
 func (r *ProcessorResponse) SetPeers(peers []p2p.PeerI) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	r.AnnouncedPeers = peers
 }
 
 func (r *ProcessorResponse) GetPeers() []p2p.PeerI {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
 	return r.AnnouncedPeers
 }
 
@@ -260,7 +254,7 @@ func (r *ProcessorResponse) AddLog(status metamorph_api.Status, source string, i
 func (r *ProcessorResponse) addLog(status metamorph_api.Status, source string, info string) {
 	r.Log = append(r.Log, ProcessorResponseLog{
 		DeltaT: time.Since(r.Start).Nanoseconds(),
-		Status: status.String(),
+		Status: status,
 		Source: source,
 		Info:   info,
 	})

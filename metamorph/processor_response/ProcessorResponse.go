@@ -95,7 +95,24 @@ func (r *ProcessorResponse) UpdateStatus(statusUpdate *ProcessorResponseStatusUp
 }
 
 func (r *ProcessorResponse) updateStatus(statusUpdate *ProcessorResponseStatusUpdate) {
-	if statusUpdate.Status != metamorph_api.Status_MINED && r.Status >= statusUpdate.Status && statusUpdate.StatusErr == nil {
+	// If this transaction has already been mined, ignore any further updates
+	if r.Status == metamorph_api.Status_MINED {
+		return
+	}
+
+	process := false
+
+	if r.Status == metamorph_api.Status_REJECTED && statusUpdate.Status != metamorph_api.Status_REJECTED {
+		process = true
+	} else if statusUpdate.Status > r.Status {
+		process = true
+	}
+
+	if statusUpdate.StatusErr != nil {
+		process = true
+	}
+
+	if !process {
 		r.addLog(statusUpdate.Status, statusUpdate.Source, "duplicate")
 		return
 	}

@@ -107,7 +107,6 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 		Ok:                true,
 		Details:           details,
 		Timestamp:         timestamppb.New(time.Now()),
-		Workers:           int32(stats.WorkerCount),
 		Uptime:            float32(time.Since(stats.StartTime).Milliseconds()) / 1000.0,
 		Queued:            stats.QueuedCount,
 		Processed:         stats.SentToNetwork.GetCount(),

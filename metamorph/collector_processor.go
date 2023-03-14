@@ -161,7 +161,6 @@ func (c *prometheusCollector) Collect(ch chan<- prometheus.Metric) {
 
 	//Write the latest value for each metric in the prometheus metric channel.
 	//Note that you can pass erValue, GaugeValue, or UntypedValue types here.
-	ch <- prometheus.MustNewConstMetric(c.worker, prometheus.GaugeValue, float64(stats.WorkerCount))
 	ch <- prometheus.MustNewConstMetric(c.queueLength, prometheus.GaugeValue, float64(stats.QueueLength))
 	ch <- prometheus.MustNewConstMetric(c.queued, prometheus.CounterValue, float64(stats.QueuedCount))
 	ch <- prometheus.MustNewConstMetric(c.stored, prometheus.CounterValue, float64(stats.Stored.GetCount()))

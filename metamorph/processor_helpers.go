@@ -31,7 +31,6 @@ func (p *Processor) GetStats(debugItems bool) *ProcessorStats {
 	return &ProcessorStats{
 		StartTime:          p.startTime,
 		UptimeMillis:       time.Since(p.startTime).String(),
-		WorkerCount:        p.workerCount,
 		QueueLength:        p.queueLength.Load(),
 		QueuedCount:        p.queuedCount.Load(),
 		Stored:             p.stored,
@@ -64,7 +63,6 @@ func (p *Processor) PrintStatsOnKeypress() func() {
 
 			log.Printf(`Peer stats (started: %s):
 -----------------------------------------------------
-Workers:       %d
 Uptime:        %s
 Queued:        %d
 Stored:        %s
@@ -80,7 +78,6 @@ MapSize:       %d
 `,
 
 				stats.StartTime.UTC().Format(time.RFC3339),
-				stats.WorkerCount,
 				stats.UptimeMillis,
 				stats.QueuedCount,
 				stats.Stored.String(),
@@ -230,7 +227,6 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 `, printLink))
 
 	writeStat(w, "Uptime", stats.UptimeMillis)
-	writeStat(w, "Workers", stats.WorkerCount)
 	writeStat(w, "Queued", stats.QueuedCount)
 	writeStat(w, "Stored", stats.Stored.String())
 	writeStat(w, "Announced", stats.AnnouncedToNetwork.String(indent))

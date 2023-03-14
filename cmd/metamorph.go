@@ -44,8 +44,6 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	address, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
 	btc := blocktx.NewClient(logger, address)
 
-	workerCount, _ := gocore.Config().GetInt("processorWorkerCount", 16)
-
 	metamorphGRPCListenAddress, ok := gocore.Config().Get("metamorph_grpcAddress") //, "localhost:8000")
 	if !ok {
 		logger.Fatalf("no metamorph_grpcAddress setting found")
@@ -102,7 +100,6 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	}
 
 	metamorphProcessor := metamorph.NewProcessor(
-		workerCount,
 		s,
 		pm,
 		source,

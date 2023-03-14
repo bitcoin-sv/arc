@@ -28,7 +28,6 @@ import (
 type ProcessorStats struct {
 	StartTime          time.Time
 	UptimeMillis       string
-	WorkerCount        int
 	QueueLength        int32
 	QueuedCount        int32
 	Stored             *stat.AtomicStat
@@ -55,7 +54,6 @@ type Processor struct {
 	errorLogWorker       chan *processor_response.ProcessorResponse
 
 	startTime          time.Time
-	workerCount        int
 	queueLength        atomic.Int32
 	queuedCount        atomic.Int32
 	stored             *stat.AtomicStat
@@ -69,7 +67,7 @@ type Processor struct {
 	retries            *stat.AtomicStat
 }
 
-func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress string,
+func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress string,
 	cbChannel chan *callbacker_api.Callback) *Processor {
 	if s == nil {
 		panic("store cannot be nil")
@@ -87,7 +85,7 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 		logger.Fatalf("Invalid processorCacheExpiryTime: %s", mapExpiryStr)
 	}
 
-	logger.Infof("Starting processor with %d workers and cache expiry of %s", workerCount, mapExpiryStr)
+	logger.Infof("Starting processor with cache expiry of %s", mapExpiryStr)
 
 	p := &Processor{
 		startTime:            time.Now().UTC(),
@@ -95,7 +93,6 @@ func NewProcessor(workerCount int, s store.MetamorphStore, pm p2p.PeerManagerI, 
 		store:                s,
 		cbChannel:            cbChannel,
 		processorResponseMap: NewProcessorResponseMap(mapExpiry),
-		workerCount:          workerCount,
 		pm:                   pm,
 		logger:               logger,
 		metamorphAddress:     metamorphAddress,

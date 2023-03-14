@@ -40,7 +40,6 @@ func TestHealth(t *testing.T) {
 		processor.Stats = &ProcessorStats{
 			StartTime:      time.Now(),
 			UptimeMillis:   "2000ms",
-			WorkerCount:    123,
 			QueueLength:    136,
 			QueuedCount:    356,
 			SentToNetwork:  sentToNetworkStat,

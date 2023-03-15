@@ -223,10 +223,22 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 }
 
 func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {
-	network := wire.TestNet
-	if gocore.Config().GetBool("mainnet", false) {
+	networkStr, _ := gocore.Config().Get("bitcoin_network")
+
+	var network wire.BitcoinNet
+
+	switch networkStr {
+	case "mainnet":
 		network = wire.MainNet
+	case "testnet":
+		network = wire.TestNet3
+	case "regtest":
+		network = wire.TestNet
+	default:
+		logger.Fatalf("unknown bitcoin_network: %s", networkStr)
 	}
+
+	logger.Infof("Assuming bitcoin network is %s", network)
 
 	messageCh := make(chan *metamorph.PeerTxMessage)
 	pm := p2p.NewPeerManager(logger, network)

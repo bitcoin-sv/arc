@@ -51,6 +51,17 @@ type ZMQTxInfo struct {
 	RejectionTime               string        `json:"rejectionTime"`
 }
 
+type ZMQDiscardFromMempool struct {
+	TxID         string `json:"txid"`
+	Reason       string `json:"reason"`
+	CollidedWith struct {
+		TxID string `json:"txid"`
+		Size int    `json:"size"`
+		Hex  string `json:"hex"`
+	} `json:"collidedWith"`
+	BlockHash string `json:"blockhash"`
+}
+
 func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage) *ZMQ {
 	var zmqLogger = gocore.Log("zmq")
 	z := &ZMQ{
@@ -100,7 +111,7 @@ func (z *ZMQ) Start() {
 				var txInfo *ZMQTxInfo
 				txInfo, err = z.parseTxInfo(c)
 				if err != nil {
-					z.logger.Error("invalidtx: failed to hex decode tx info")
+					z.logger.Errorf("invalidtx: failed to parse: %v", err)
 					continue
 				}
 				errReason := "invalid transaction"
@@ -127,21 +138,14 @@ func (z *ZMQ) Start() {
 				}
 			case "discardedfrommempool":
 				z.Stats.discardedFromMempool.Add(1)
-				var txInfo *ZMQTxInfo
-				txInfo, err = z.parseTxInfo(c)
+				var txInfo *ZMQDiscardFromMempool
+				txInfo, err = z.parseDiscardedInfo(c)
 				if err != nil {
-					z.logger.Error("invalidtx: failed to hex decode tx info")
+					z.logger.Errorf("discardedfrommempool: failed to parse: %v", err)
 					continue
 				}
-				reason := ""
-				if txInfo.Reason != "" {
-					reason = txInfo.Reason
-				}
-				if txInfo.RejectionReason != "" {
-					reason += ": " + txInfo.RejectionReason
-				}
-				// reasons can be "collision-in-block-tx" and "unknown-reason"
-				z.logger.Debugf("discardedfrommempool %s: %s", txInfo.TxID, reason)
+
+				z.logger.Debugf("discardedfrommempool %s: %s - %#v", txInfo.TxID, txInfo.Reason, txInfo.CollidedWith)
 
 				hash, _ := chainhash.NewHashFromStr(txInfo.TxID)
 
@@ -150,7 +154,7 @@ func (z *ZMQ) Start() {
 					Hash:   hash,
 					Status: metamorph_api.Status_REJECTED,
 					Peer:   z.URL.String(),
-					Err:    fmt.Errorf("discarded from mempool: %s", reason),
+					Err:    fmt.Errorf("discarded from mempool: %s", txInfo.Reason),
 				}
 			default:
 				z.logger.Info("Unhandled ZMQ message", c)
@@ -173,6 +177,19 @@ func (z *ZMQ) Start() {
 
 func (z *ZMQ) parseTxInfo(c []string) (*ZMQTxInfo, error) {
 	var txInfo ZMQTxInfo
+	txInfoBytes, err := hex.DecodeString(c[1])
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(txInfoBytes, &txInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &txInfo, nil
+}
+
+func (z *ZMQ) parseDiscardedInfo(c []string) (*ZMQDiscardFromMempool, error) {
+	var txInfo ZMQDiscardFromMempool
 	txInfoBytes, err := hex.DecodeString(c[1])
 	if err != nil {
 		return nil, err

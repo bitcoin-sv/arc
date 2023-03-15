@@ -554,3 +554,66 @@ func BenchmarkValidator(b *testing.B) {
 		_ = validator.ValidateTransaction(tx)
 	}
 }
+
+func TestFeeCalculation(t *testing.T) {
+	tx, err := bt.NewTxFromString("010000000000000000ef03778462c25ddb306d312b422885446f26e3e0455e493a4d81daffe06961aae985c80000006a473044022001762f052785e65bc38512c77712e026088caee394122fe9dff95c577b16dfdf022016de0b27ea5068151ed19b9685f21164c794c23acdb9a407169bc65cb3bb857b412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffff7bd53001000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac7a629df9166996224ebbe6225388c8a0f6cbc21853e831cf52764270ac5f37ec000000006a473044022006a82dd662f9b21bfa2cd770a222bf359031ba02c72c6cbb2122c0cf31b7bd93022034d674785bd89bf5b4d9b59851f4342cc1058da4a05fd13b31984423c79c8a2f412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffffd0070000000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac7a629df9166996224ebbe6225388c8a0f6cbc21853e831cf52764270ac5f37ec010000006b483045022100f6340e82cd38b4e99d5603433a260fbc5e2b5a6978f75c60335401dc2e86f82002201d816a3b2219811991b767fa7902a3d3c54c03a7d2f6a6d23745c9c586ac7352412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffff05020000000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac0b1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288acfbdd3001000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac00000000")
+	require.NoError(t, err)
+
+	policy := getPolicy(50)
+	validator := New(policy)
+
+	err = validator.ValidateTransaction(tx)
+	t.Log(err)
+
+}
+
+// func extendTransaction(transaction *bt.Tx) (err error) {
+// 	parentTxBytes := make(map[string][]byte)
+// 	var btParentTx *bt.Tx
+
+// 	url, err := url.Parse("http://bitcoin:bitcoin@localhost:8332")
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	bb, err := bitcoin.NewFromURL(url, false)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	// get the missing input data for the transaction
+// 	for _, input := range transaction.Inputs {
+// 		parentTxIDStr := input.PreviousTxIDStr()
+// 		b, ok := parentTxBytes[parentTxIDStr]
+// 		if !ok {
+// 			p, err := bb.GetRawTransactionHex(parentTxIDStr)
+// 			if err != nil {
+// 				return err
+// 			}
+
+// 			ptx, err := bt.NewTxFromString(*p)
+// 			if err != nil {
+// 				return err
+// 			}
+
+// 			parentTxBytes[parentTxIDStr] = ptx.Bytes()
+
+// 			b = ptx.Bytes()
+// 		}
+
+// 		btParentTx, err = bt.NewTxFromBytes(b)
+// 		if err != nil {
+// 			return err
+// 		}
+
+// 		if len(btParentTx.Outputs) < int(input.PreviousTxOutIndex) {
+// 			return fmt.Errorf("output %d not found in transaction %s", input.PreviousTxOutIndex, parentTxIDStr)
+// 		}
+// 		output := btParentTx.Outputs[input.PreviousTxOutIndex]
+
+// 		input.PreviousTxScript = output.LockingScript
+// 		input.PreviousTxSatoshis = output.Satoshis
+// 	}
+
+// 	return nil
+// }

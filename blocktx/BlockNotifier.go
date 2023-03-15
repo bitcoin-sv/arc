@@ -38,9 +38,19 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 		blockCh:           make(chan *blocktx_api.Block),
 	}
 
-	network := wire.TestNet
-	if gocore.Config().GetBool("mainnet", false) {
+	networkStr, _ := gocore.Config().Get("bitcoin_network")
+
+	var network wire.BitcoinNet
+
+	switch networkStr {
+	case "mainnet":
 		network = wire.MainNet
+	case "testnet":
+		network = wire.TestNet3
+	case "regtest":
+		network = wire.TestNet
+	default:
+		l.Fatalf("unknown bitcoin_network: %s", networkStr)
 	}
 
 	pm := p2p.NewPeerManager(l, network)

@@ -3,7 +3,6 @@ package sql
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -58,7 +57,7 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 		}
 
 		// this is ugly, but a lot faster than sprintf
-		qMapRows = append(qMapRows, fmt.Sprintf(" ("+strconv.FormatUint(blockId, 10)+", "+strconv.FormatUint(txid, 10)+", "+strconv.Itoa(pos)+")"))
+		qMapRows = append(qMapRows, " ("+strconv.FormatUint(blockId, 10)+", "+strconv.FormatUint(txid, 10)+", "+strconv.Itoa(pos)+")")
 
 		// maximum of 1000 rows per query is allowed in postgres
 		if len(qMapRows) >= 1000 {

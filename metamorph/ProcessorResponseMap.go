@@ -205,7 +205,7 @@ func (m *ProcessorResponseMap) Items(filterFunc ...func(*processor_response.Proc
 	}
 
 	// If a filter function is provided, use it
-	if len(filterFunc) > 0 {
+	if len(filterFunc) > 0 && filterFunc[0] != nil {
 		fn = filterFunc[0]
 	}
 

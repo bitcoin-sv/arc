@@ -46,7 +46,7 @@ type Processor struct {
 	ch                   chan *ProcessorRequest
 	store                store.MetamorphStore
 	cbChannel            chan *callbacker_api.Callback
-	processorResponseMap *ProcessorResponseMap
+	processorResponseMap map[[1]byte]*ProcessorResponseMap
 	pm                   p2p.PeerManagerI
 	logger               utils.Logger
 	metamorphAddress     string
@@ -87,12 +87,18 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 
 	logger.Infof("Starting processor with cache expiry of %s", mapExpiryStr)
 
+	// split the response maps over 256 buckets to reduce locking contention
+	pMaps := make(map[[1]byte]*ProcessorResponseMap, 256)
+	for i := 0; i < 256; i++ {
+		pMaps[[1]byte{byte(i)}] = NewProcessorResponseMap(mapExpiry)
+	}
+
 	p := &Processor{
 		startTime:            time.Now().UTC(),
 		ch:                   make(chan *ProcessorRequest),
 		store:                s,
 		cbChannel:            cbChannel,
-		processorResponseMap: NewProcessorResponseMap(mapExpiry),
+		processorResponseMap: pMaps,
 		pm:                   pm,
 		logger:               logger,
 		metamorphAddress:     metamorphAddress,
@@ -158,6 +164,29 @@ func (p *Processor) errorLogWriter() {
 	}
 }
 
+func (p *Processor) items(filterFunc func(p *processor_response.ProcessorResponse) bool) map[chainhash.Hash]*processor_response.ProcessorResponse {
+	items := make(map[chainhash.Hash]*processor_response.ProcessorResponse)
+	for i := 0; i < 256; i++ {
+		pItems := p.processorResponseMap[[1]byte{byte(i)}].Items(filterFunc)
+		if len(pItems) > 0 {
+			for k, v := range pItems {
+				items[k] = v
+			}
+		}
+	}
+
+	return items
+}
+
+func (p *Processor) Len() int {
+	length := 0
+	for i := 0; i < 256; i++ {
+		length += p.processorResponseMap[[1]byte{byte(i)}].Len()
+	}
+
+	return length
+}
+
 func (p *Processor) processExpiredTransactions() {
 	// filterFunc returns true if the transaction has not been seen on the network
 	filterFunc := func(p *processor_response.ProcessorResponse) bool {
@@ -167,7 +196,8 @@ func (p *Processor) processExpiredTransactions() {
 	// Resend transactions that have not been seen on the network every 60 seconds
 	// The Items() method will return a copy of the map, so we can iterate over it without locking
 	for range time.NewTicker(60 * time.Second).C {
-		expiredTransactionItems := p.processorResponseMap.Items(filterFunc)
+		expiredTransactionItems := p.items(filterFunc)
+
 		if len(expiredTransactionItems) > 0 {
 			p.logger.Infof("Resending %d expired transactions", len(expiredTransactionItems))
 			for txID, item := range expiredTransactionItems {
@@ -236,7 +266,7 @@ func (p *Processor) LoadUnmined() {
 		pr := processor_response.NewProcessorResponseWithStatus(record.Hash, record.Status)
 		pr.NoStats = true
 
-		p.processorResponseMap.Set(record.Hash, pr)
+		p.processorResponseMap[[1]byte{record.Hash[0]}].Set(record.Hash, pr)
 
 		if record.Status == metamorph_api.Status_STORED {
 			// announce the transaction to the network
@@ -266,7 +296,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusMinedForTransaction")
 	defer span.Finish()
 
-	resp, ok := p.processorResponseMap.Get(hash)
+	resp, ok := p.processorResponseMap[[1]byte{hash[0]}].Get(hash)
 	if ok {
 		resp.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
 			Status: metamorph_api.Status_MINED,
@@ -285,7 +315,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 				}
 
 				resp.Close()
-				p.processorResponseMap.Delete(hash)
+				p.processorResponseMap[[1]byte{hash[0]}].Delete(hash)
 
 				if p.cbChannel != nil {
 					data, _ := p.store.Get(spanCtx, hash[:])
@@ -311,7 +341,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 }
 
 func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) (bool, error) {
-	processorResponse, ok := p.processorResponseMap.Get(hash)
+	processorResponse, ok := p.processorResponseMap[[1]byte{hash[0]}].Get(hash)
 	if ok {
 		span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
 		defer span.Finish()
@@ -355,7 +385,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 				case metamorph_api.Status_MINED:
 					p.mined.AddDuration(time.Since(processorResponse.Start))
 					processorResponse.Close()
-					p.processorResponseMap.Delete(hash)
+					p.processorResponseMap[[1]byte{hash[0]}].Delete(hash)
 
 				case metamorph_api.Status_REJECTED:
 					// log transaction to the error log
@@ -455,7 +485,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 					}
 
 					// Add this transaction to the map of transactions that we are processing
-					p.processorResponseMap.Set(req.Hash, processorResponse)
+					p.processorResponseMap[[1]byte{req.Hash[0]}].Set(req.Hash, processorResponse)
 
 					p.stored.AddDuration(time.Since(processorResponse.Start))
 

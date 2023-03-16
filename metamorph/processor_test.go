@@ -70,9 +70,9 @@ func TestLoadUnseen(t *testing.T) {
 		pm := p2p.NewPeerManagerMock()
 
 		processor := NewProcessor(s, pm, "test", nil)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.Len())
 		processor.LoadUnmined()
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.Len())
 	})
 
 	t.Run("LoadUnmined", func(t *testing.T) {
@@ -83,10 +83,10 @@ func TestLoadUnseen(t *testing.T) {
 		pm := p2p.NewPeerManagerMock()
 
 		processor := NewProcessor(s, pm, "test", nil)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.Len())
 		processor.LoadUnmined()
-		assert.Equal(t, 2, processor.processorResponseMap.Len())
-		items := processor.processorResponseMap.Items()
+		assert.Equal(t, 2, processor.Len())
+		items := processor.items(nil)
 		assert.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
 		assert.Equal(t, testdata.TX2Hash, items[*testdata.TX2Hash].Hash)
 	})
@@ -100,7 +100,7 @@ func TestProcessTransaction(t *testing.T) {
 		pm := p2p.NewPeerManagerMock()
 
 		processor := NewProcessor(s, pm, "test", nil)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.Len())
 
 		expectedResponses := []metamorph_api.Status{
 			metamorph_api.Status_RECEIVED,
@@ -132,8 +132,8 @@ func TestProcessTransaction(t *testing.T) {
 		))
 		wg.Wait()
 
-		assert.Equal(t, 1, processor.processorResponseMap.Len())
-		items := processor.processorResponseMap.Items()
+		assert.Equal(t, 1, processor.Len())
+		items := processor.items(nil)
 		assert.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
 		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[*testdata.TX1Hash].Status)
 
@@ -154,7 +154,7 @@ func Benchmark_ProcessTransaction(b *testing.B) {
 	pm := p2p.NewPeerManagerMock()
 
 	processor := NewProcessor(s, pm, "test", nil)
-	assert.Equal(b, 0, processor.processorResponseMap.Len())
+	assert.Equal(b, 0, processor.Len())
 
 	btTx, _ := bt.NewTxFromBytes(testdata.TX1RawBytes)
 	b.ResetTimer()
@@ -179,12 +179,12 @@ func TestSendStatusForTransaction(t *testing.T) {
 		pm := p2p.NewPeerManagerMock()
 
 		processor := NewProcessor(s, pm, "test", nil)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.Len())
 
 		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_MINED, "test", nil)
 		assert.False(t, ok)
 		assert.NoError(t, sendErr)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.Len())
 	})
 
 	t.Run("SendStatusForTransaction err", func(t *testing.T) {
@@ -195,13 +195,13 @@ func TestSendStatusForTransaction(t *testing.T) {
 		pm := p2p.NewPeerManagerMock()
 
 		processor := NewProcessor(s, pm, "test", nil)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.Len())
 
 		throwErr := fmt.Errorf("some error")
 		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_REJECTED, "test", throwErr)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.Len())
 
 		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
 		require.NoError(t, err)
@@ -217,12 +217,12 @@ func TestSendStatusForTransaction(t *testing.T) {
 		pm := p2p.NewPeerManagerMock()
 
 		processor := NewProcessor(s, pm, "test", nil)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.Len())
 
 		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "test", nil)
 		assert.False(t, ok)
 		assert.NoError(t, sendErr)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.Len())
 
 		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
 		require.NoError(t, err)
@@ -236,7 +236,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		pm := p2p.NewPeerManagerMock()
 
 		processor := NewProcessor(s, pm, "test", nil)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.Len())
 
 		responseChannel := make(chan processor_response.StatusAndError)
 
@@ -263,7 +263,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		))
 		wg.Wait()
 
-		assert.Equal(t, 1, processor.processorResponseMap.Len())
+		assert.Equal(t, 1, processor.Len())
 
 		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_MINED, "test", nil)
 		// need to sleep, since everything is async
@@ -271,7 +271,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		assert.False(t, ok)
 		assert.NoError(t, sendErr)
-		assert.Equal(t, 0, processor.processorResponseMap.Len(), "should have been removed from the map")
+		assert.Equal(t, 0, processor.Len(), "should have been removed from the map")
 
 		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
 		require.NoError(t, err)
@@ -288,17 +288,17 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		pm := p2p.NewPeerManagerMock()
 
 		processor := NewProcessor(s, pm, "test", nil)
-		processor.processorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(
+		processor.processorResponseMap[[1]byte{testdata.TX1Hash[0]}].Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(
 			testdata.TX1Hash,
 			metamorph_api.Status_SEEN_ON_NETWORK,
 		))
-		assert.Equal(t, 1, processor.processorResponseMap.Len())
+		assert.Equal(t, 1, processor.Len())
 
 		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
 		time.Sleep(100 * time.Millisecond)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.Len())
 
 		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
 		require.NoError(t, err)
@@ -329,7 +329,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 
 		processor := NewProcessor(s, pm, "test", callbackCh)
 		// add the tx to the map
-		processor.processorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(
+		processor.processorResponseMap[[1]byte{testdata.TX1Hash[0]}].Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(
 			testdata.TX1Hash,
 			metamorph_api.Status_SEEN_ON_NETWORK,
 		))
@@ -349,7 +349,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		pm := p2p.NewPeerManagerMock()
 
 		processor := NewProcessor(s, pm, "test", nil)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.Len())
 
 		responseChannel := make(chan processor_response.StatusAndError)
 
@@ -377,13 +377,13 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		))
 		wg.Wait()
 
-		assert.Equal(t, 1, processor.processorResponseMap.Len())
+		assert.Equal(t, 1, processor.Len())
 
 		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
 		time.Sleep(10 * time.Millisecond)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
-		assert.Equal(t, 0, processor.processorResponseMap.Len(), "should have been removed from the map")
+		assert.Equal(t, 0, processor.Len(), "should have been removed from the map")
 
 		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
 		require.NoError(t, err)
@@ -403,7 +403,7 @@ func BenchmarkProcessTransaction(b *testing.B) {
 	pm := p2p.NewPeerManagerMock()
 	processor := NewProcessor(s, pm, "test", nil)
 	processor.SetLogger(p2p.TestLogger{})
-	assert.Equal(b, 0, processor.processorResponseMap.Len())
+	assert.Equal(b, 0, processor.Len())
 
 	txs := make(map[string]*chainhash.Hash)
 

@@ -248,6 +248,7 @@ func (m *ProcessorResponseMap) clean() {
 		if time.Since(processorResponse.Start) > m.expiry {
 			log.Printf("ProcessorResponseMap: Expired %s", key)
 			m.items.Delete(key)
+			m.itemsLength.Add(-1)
 		}
 
 		return true

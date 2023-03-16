@@ -291,6 +291,8 @@ github.com/libsv/go-p2p v0.0.7 h1:VZNfr5Va/3hoQdpVsEfRUM7JTxFoe3g7Z5AMgWTnnAw=
 github.com/libsv/go-p2p v0.0.7/go.mod h1:xo6e+R7JKQBbqzo6P/qjXgfhV1Vv3AM6FHfxMnQOljQ=
 github.com/libsv/go-p2p v0.0.8 h1:45zsWzd/lzA6mZaEbTpFzKlJ1/OIepHkzTCry+rAqLI=
 github.com/libsv/go-p2p v0.0.8/go.mod h1:xo6e+R7JKQBbqzo6P/qjXgfhV1Vv3AM6FHfxMnQOljQ=
+github.com/libsv/go-p2p v0.0.10 h1:w8wL4LbRNu1tpJykQeJ3facDwymeOEFLt9/4V8DX7xA=
+github.com/libsv/go-p2p v0.0.10/go.mod h1:xo6e+R7JKQBbqzo6P/qjXgfhV1Vv3AM6FHfxMnQOljQ=
 github.com/magiconair/properties v1.8.0/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
 github.com/mailru/easyjson v0.0.0-20190614124828-94de47d64c63/go.mod h1:C1wdFJiN94OJF2b5HbByQZoLdCWB1Yqtg26g4irojpc=
 github.com/mailru/easyjson v0.0.0-20190626092158-b2ccc519800e/go.mod h1:C1wdFJiN94OJF2b5HbByQZoLdCWB1Yqtg26g4irojpc=
@@ -340,6 +342,8 @@ github.com/ordishs/go-utils v1.0.31 h1:92KAL2zFyvTMaOhxCjtfBudr1KigrQsJ3qXytLCaC
 github.com/ordishs/go-utils v1.0.31/go.mod h1:k9G7Bbv2GwoOn9fwZx70yM5jwwIymkv+90FUKLudtyc=
 github.com/ordishs/go-utils v1.0.33 h1:Wtp9W7Jtqye1CJnZwCd0nAoBD8Fll4thcdaygYQwtBw=
 github.com/ordishs/go-utils v1.0.33/go.mod h1:k9G7Bbv2GwoOn9fwZx70yM5jwwIymkv+90FUKLudtyc=
+github.com/ordishs/go-utils v1.0.34 h1:0jHT5KfRuPdysFg+aZqUcSXJXtgGAkK+YOjhcPe8reQ=
+github.com/ordishs/go-utils v1.0.34/go.mod h1:k9G7Bbv2GwoOn9fwZx70yM5jwwIymkv+90FUKLudtyc=
 github.com/ordishs/gocore v1.0.27 h1:4declz4O3MtudXoJFE/aTZ6AMq+Ih1JdU17t/m1SZVg=
 github.com/ordishs/gocore v1.0.27/go.mod h1:O88V7ZwvZkE6CUdW6/lb0KbkkLfbofxMTeGfRMip4ao=
 github.com/ordishs/gocore v1.0.35 h1:dasWlk2xEjibXCWRltlw74nkwqzJVxo2ZB3Fvl2u4IE=

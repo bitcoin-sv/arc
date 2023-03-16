@@ -408,9 +408,13 @@ func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
 
 	estimateFee := fees.EstimateFee(uint64(stdFee.MiningFee.Satoshis), 1, 1)
 	for i := int64(0); i < outputs; i++ {
-		// we send triple the fee to the output arcUrl
-		// this will allow us to send the change back to the original arcUrl
-		_ = tx.PayTo(b.ToKeySet.Script, estimateFee*3)
+		if b.Consolidate {
+			// we send triple the fee to the output arcUrl
+			// this will allow us to send the change back to the original arcUrl
+			_ = tx.PayTo(b.ToKeySet.Script, estimateFee*3)
+		} else {
+			_ = tx.PayTo(b.ToKeySet.Script, estimateFee+1) // add 1 satoshi to allow for our longer OP_RETURN
+		}
 	}
 
 	_ = tx.Change(b.FromKeySet.Script, fq)
@@ -428,11 +432,16 @@ func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) *bt.T
 
 	tx := bt.NewTx()
 	_ = tx.FromUTXOs(useUtxo)
-	// the output value of the utxo should be exactly 3x the fee
-	// in this way we can consolidate the output back into the original arcUrl
-	// even for the smallest transactions with only 1 output
-	_ = tx.PayTo(key.Script, 2*useUtxo.Satoshis/3)
-	_ = tx.Change(key.Script, b.FeeQuote)
+
+	if b.Consolidate {
+		// the output value of the utxo should be exactly 3x the fee
+		// in this way we can consolidate the output back into the original arcUrl
+		// even for the smallest transactions with only 1 output
+		_ = tx.PayTo(key.Script, 2*useUtxo.Satoshis/3)
+		_ = tx.Change(key.Script, b.FeeQuote)
+	} else {
+		_ = tx.AddOpReturnOutput([]byte("ARC is here ... https://taal-gmbh.github.io/arc/"))
+	}
 
 	unlockerGetter := unlocker.Getter{PrivateKey: key.PrivateKey}
 	if err = tx.FillAllInputs(context.Background(), &unlockerGetter); err != nil {

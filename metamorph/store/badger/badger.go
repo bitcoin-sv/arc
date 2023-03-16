@@ -106,9 +106,7 @@ func (s *Badger) Set(ctx context.Context, key []byte, value *store.StoreData) er
 		value.StoredAt = time.Now()
 	}
 
-	var data bytes.Buffer
-	enc := gob.NewEncoder(&data)
-	err := enc.Encode(value)
+	data, err := value.EncodeToBytes()
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -116,7 +114,7 @@ func (s *Badger) Set(ctx context.Context, key []byte, value *store.StoreData) er
 	}
 
 	if err = s.store.Update(func(tx *badger.Txn) error {
-		return tx.Set(key, data.Bytes())
+		return tx.Set(key, data)
 	}); err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -148,8 +146,10 @@ func (s *Badger) Get(ctx context.Context, hash []byte) (*store.StoreData, error)
 		}
 
 		if err = data.Value(func(val []byte) error {
-			dec := gob.NewDecoder(bytes.NewReader(val))
-			return dec.Decode(&result)
+			if result, err = store.DecodeFromBytes(val); err != nil {
+				return err
+			}
+			return nil
 		}); err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
@@ -258,8 +258,11 @@ func (s *Badger) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 
 			var result *store.StoreData
 			if err := item.Value(func(val []byte) error {
-				dec := gob.NewDecoder(bytes.NewReader(val))
-				return dec.Decode(&result)
+				var err2 error
+				if result, err2 = store.DecodeFromBytes(val); err2 != nil {
+					return err2
+				}
+				return nil
 			}); err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))

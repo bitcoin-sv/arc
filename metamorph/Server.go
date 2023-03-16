@@ -140,10 +140,6 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	sReq := &store.StoreData{
 		Hash:          hash,
 		Status:        status,
-		ApiKeyId:      req.ApiKeyId,
-		StandardFeeId: req.StandardFeeId,
-		DataFeeId:     req.DataFeeId,
-		SourceIp:      req.SourceIp,
 		CallbackUrl:   req.CallbackUrl,
 		CallbackToken: req.CallbackToken,
 		MerkleProof:   req.MerkleProof,

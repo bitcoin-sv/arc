@@ -123,10 +123,6 @@ func createPostgresSchema(db *sql.DB) error {
 		status INTEGER,
 		block_height BIGINT,
 		block_hash BYTEA,
-		api_key_id BIGINT,
-		standard_fee_id BIGINT,
-		data_fee_id BIGINT,
-		source_ip TEXT,
 		callback_url TEXT,
 		callback_token TEXT,
 		merkle_proof TEXT,
@@ -168,10 +164,6 @@ func createSqliteSchema(db *sql.DB) error {
 		status INTEGER,
 		block_height BIGINT,
 		block_hash BLOB,
-		api_key_id BIGINT,
-		standard_fee_id BIGINT,
-		data_fee_id BIGINT,
-		source_ip TEXT,
 		callback_url TEXT,
 		callback_token TEXT,
 		merkle_proof TEXT,
@@ -215,10 +207,6 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 		,status
 		,block_height
 		,block_hash
-		,api_key_id
-		,standard_fee_id
-		,data_fee_id
-		,source_ip
 		,callback_url
 		,callback_token
 		,merkle_proof
@@ -242,10 +230,6 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 		&data.Status,
 		&data.BlockHeight,
 		&blockHash,
-		&data.ApiKeyId,
-		&data.StandardFeeId,
-		&data.DataFeeId,
-		&data.SourceIp,
 		&data.CallbackUrl,
 		&data.CallbackToken,
 		&data.MerkleProof,
@@ -322,10 +306,6 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 		,status
 		,block_height
 		,block_hash
-		,api_key_id
-		,standard_fee_id
-		,data_fee_id
-		,source_ip
 		,callback_url
 		,callback_token
 		,merkle_proof
@@ -344,10 +324,6 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 		,$10
 		,$11
 		,$12
-		,$13
-		,$14
-		,$15
-		,$16
 	);`
 
 	var storedAt string
@@ -389,10 +365,6 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 		value.Status,
 		value.BlockHeight,
 		blockHash,
-		value.ApiKeyId,
-		value.StandardFeeId,
-		value.DataFeeId,
-		value.SourceIp,
 		value.CallbackUrl,
 		value.CallbackToken,
 		value.MerkleProof,
@@ -424,10 +396,6 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 		,status
 		,block_height
 		,block_hash
-		,api_key_id
-		,standard_fee_id
-		,data_fee_id
-		,source_ip
 		,callback_url
 		,callback_token
 		,merkle_proof
@@ -459,10 +427,6 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 			&data.Status,
 			&data.BlockHeight,
 			&blockHash,
-			&data.ApiKeyId,
-			&data.StandardFeeId,
-			&data.DataFeeId,
-			&data.SourceIp,
 			&data.CallbackUrl,
 			&data.CallbackToken,
 			&data.MerkleProof,

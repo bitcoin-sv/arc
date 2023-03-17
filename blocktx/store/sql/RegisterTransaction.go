@@ -101,7 +101,9 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 			var blockHash chainhash.Hash
 			var blockHeight uint64
 
-			spanErr.SetTag("already_mined", true)
+			if spanErr != nil {
+				spanErr.SetTag("already_mined", true)
+			}
 			if err := s.db.QueryRowContext(ctx, `
 
 				SELECT

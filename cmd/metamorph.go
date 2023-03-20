@@ -104,6 +104,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		pm,
 		source,
 		cbAsyncCaller.GetChannel(),
+		btc,
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)

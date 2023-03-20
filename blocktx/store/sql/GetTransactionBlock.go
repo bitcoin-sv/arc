@@ -18,7 +18,7 @@ func (s *SQL) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.
 
 	q := `
 		SELECT
-		 b.hash
+		 b.hash, b.height
 		FROM blocks b
 		INNER JOIN block_transactions_map m ON m.blockid = b.id
 		INNER JOIN transactions t ON m.txid = t.id
@@ -26,9 +26,8 @@ func (s *SQL) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.
 		AND b.orphanedyn = false
 	`
 
-	var block *blocktx_api.Block
-
-	if err := s.db.QueryRowContext(ctx, q, transaction.Hash).Scan(&block); err != nil {
+	block := &blocktx_api.Block{}
+	if err := s.db.QueryRowContext(ctx, q, transaction.Hash).Scan(&block.Hash, &block.Height); err != nil {
 		return nil, err
 
 	}

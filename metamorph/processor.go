@@ -178,17 +178,10 @@ func (p *Processor) processExpiredSeenTransactions() {
 		if len(expiredTransactionItems) > 0 {
 			p.logger.Infof("checking %d expired seen transactions in blocktx", len(expiredTransactionItems))
 			for _, item := range expiredTransactionItems {
-				transactionResponse, err := p.btc.GetTransactionBlock(context.Background(), &blocktx_api.Transaction{Hash: item.Hash[:]})
-				if err != nil {
-					if !errors.Is(err, sql.ErrNoRows) {
-						p.logger.Errorf("error checking tx in blocktx: %s", err.Error())
-					}
-					continue
-				}
-				if transactionResponse.BlockHeight > 0 {
+				transactionResponse, _ := p.btc.GetTransactionBlock(context.Background(), &blocktx_api.Transaction{Hash: item.Hash[:]})
+				if transactionResponse != nil && transactionResponse.BlockHeight > 0 {
 					// transaction has been mined into a block, update the status
-					var blockHash *chainhash.Hash
-					blockHash, err = chainhash.NewHash(transactionResponse.BlockHash)
+					blockHash, err := chainhash.NewHash(transactionResponse.BlockHash)
 					if err != nil {
 						p.logger.Errorf("error parsing block hash: %s", err.Error())
 						continue

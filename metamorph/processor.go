@@ -2,7 +2,6 @@ package metamorph
 
 import (
 	"context"
-	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -24,8 +23,6 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/stat"
-	"github.com/pkg/errors"
-
 	"github.com/ordishs/gocore"
 )
 

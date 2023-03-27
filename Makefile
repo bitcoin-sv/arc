@@ -70,6 +70,7 @@ install:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	# GO111MODULE=off go get -u github.com/mwitkow/go-proto-validators/protoc-gen-govalidators
+	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.11.0
 
 .PHONY: docs
 docs:

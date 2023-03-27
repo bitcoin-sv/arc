@@ -188,6 +188,10 @@ func (b *BlockTxMock) GetMinedTransactionsForBlock(_ context.Context, blockAndSo
 	return nil, nil
 }
 
+func (b *BlockTxMock) GetLastProcessedBlock(_ context.Context) (*blocktx_api.Block, error) {
+	return nil, nil
+}
+
 func setStoreTestData(t *testing.T, s store.MetamorphStore) {
 	ctx := context.Background()
 	err := s.Set(ctx, testdata.TX1Hash[:], &store.StoreData{

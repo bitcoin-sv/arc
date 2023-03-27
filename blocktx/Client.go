@@ -9,6 +9,7 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -21,6 +22,7 @@ type ClientI interface {
 	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error)
 	GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error)
 	GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*blocktx_api.Block, error)
+	GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, error)
 	GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
 }
 
@@ -102,6 +104,15 @@ func (btc *Client) GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*bl
 	block, err := btc.client.GetBlock(ctx, &blocktx_api.Hash{
 		Hash: blockHash[:],
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	return block, nil
+}
+
+func (btc *Client) GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, error) {
+	block, err := btc.client.GetLastProcessedBlock(ctx, &emptypb.Empty{})
 	if err != nil {
 		return nil, err
 	}

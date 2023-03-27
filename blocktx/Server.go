@@ -142,6 +142,10 @@ func (s *Server) GetBlockForHeight(ctx context.Context, height *blocktx_api.Heig
 	return s.store.GetBlockForHeight(ctx, height.Height)
 }
 
+func (s *Server) GetLastProcessedBlock(ctx context.Context, _ *emptypb.Empty) (*blocktx_api.Block, error) {
+	return s.store.GetLastProcessedBlock(ctx)
+}
+
 func (s *Server) GetBlockNotificationStream(height *blocktx_api.Height, srv blocktx_api.BlockTxAPI_GetBlockNotificationStreamServer) error {
 	s.blockNotifier.NewSubscription(height, srv)
 	return nil

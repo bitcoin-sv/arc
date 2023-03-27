@@ -32,6 +32,9 @@ service BlockTxAPI {
   // GetBlockForHeight returns the non-orphaned block for a given block height.
   rpc GetBlockForHeight (Height) returns (Block) {}
 
+  // GetLastProcessedBlock returns the last processed block.
+  rpc GetLastProcessedBlock (google.protobuf.Empty) returns (Block) {}
+
   // GetMyTransactionsForBlock returns a list of transaction hashes for a given block that were registered by this API.
   rpc GetMinedTransactionsForBlock(BlockAndSource) returns (MinedTransactions) {}
 

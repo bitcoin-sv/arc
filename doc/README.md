@@ -24,7 +24,7 @@ All the microservices are designed to be horizontally scalable, and can be deplo
 
 ### API
 
-API is the REST API microservice for interacting with ARC. See the [API documentation](/arc/api.html) for more information.
+API is the REST API microservice for interacting with ARC. See the [API documentation](api.html) for more information.
 
 The API takes care of authentication, validation, and sending transactions to Metamorph.  The API talks to one or more Metamorph instances using client-based, round robin load balancing.
 

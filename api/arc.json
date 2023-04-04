@@ -96,7 +96,8 @@
           }
         ],
         "requestBody": {
-          "description": "",
+          "required": true,
+          "description": "Transaction hex string",
           "content": {
             "text/plain": {
               "schema": {
@@ -337,6 +338,7 @@
         "required": [
           "timestamp"
         ],
+        "description": "Common response object",
         "properties": {
           "timestamp": {
             "type": "string",
@@ -347,17 +349,20 @@
       },
       "ChainInfo": {
         "type": "object",
+        "description": "Chain info",
         "properties": {
           "blockHash": {
             "type": "string",
             "nullable": false,
-            "example": "00000000000000000854749b3c125d52c6943677544c8a6a885247935ba8d17d"
+            "example": "00000000000000000854749b3c125d52c6943677544c8a6a885247935ba8d17d",
+            "description": "Block hash"
           },
           "blockHeight": {
             "type": "integer",
             "format": "uint64",
             "nullable": false,
-            "example": 782318
+            "example": 782318,
+            "description": "Block height"
           }
         }
       },
@@ -392,20 +397,24 @@
           "maxscriptsizepolicy": {
             "type": "integer",
             "format": "uint64",
-            "nullable": false
+            "nullable": false,
+            "description": "Maximum script size [bytes]"
           },
           "maxtxsigopscountspolicy": {
             "type": "integer",
             "format": "uint64",
-            "nullable": false
+            "nullable": false,
+            "description": "Maximum number of signature operations"
           },
           "maxtxsizepolicy": {
             "type": "integer",
             "format": "uint64",
-            "nullable": false
+            "nullable": false,
+            "description": "Maximum transaction size [bytes]"
           },
           "miningFee": {
-            "$ref": "#/components/schemas/FeeAmount"
+            "$ref": "#/components/schemas/FeeAmount",
+            "description": "Mining fee"
           }
         },
         "additionalProperties": false,
@@ -428,11 +437,13 @@
         "properties": {
           "satoshis": {
             "type": "integer",
-            "format": "uint64"
+            "format": "uint64",
+            "description": "Amount in Satoshis"
           },
           "bytes": {
             "type": "integer",
-            "format": "uint64"
+            "format": "uint64",
+            "description": "Number of bytes"
           }
         },
         "additionalProperties": false
@@ -445,8 +456,12 @@
         "properties": {
           "rawTx": {
             "type": "string",
-            "nullable": false
+            "nullable": false,
+            "description": "Raw hex string"
           }
+        },
+        "example": {
+          "rawTx": "<transaction hex string>"
         }
       },
       "TransactionResponse": {
@@ -470,15 +485,18 @@
             "properties": {
               "txid": {
                 "type": "string",
-                "nullable": false
+                "nullable": false,
+                "description": "Transaction ID in hex"
               },
               "txStatus": {
                 "type": "string",
-                "nullable": false
+                "nullable": false,
+                "description": "Transaction status"
               },
               "extraInfo": {
                 "type": "string",
-                "nullable": true
+                "nullable": true,
+                "description": "Extra info"
               }
             },
             "additionalProperties": false
@@ -503,16 +521,19 @@
               "txid": {
                 "type": "string",
                 "nullable": false,
-                "example": "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e"
+                "example": "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e",
+                "description": "Transaction ID in hex"
               },
               "txStatus": {
                 "type": "string",
                 "nullable": false,
+                "description": "Transaction status",
                 "example": "MINED"
               },
               "extraInfo": {
                 "type": "string",
                 "nullable": true,
+                "description": "Extra information about the transaction",
                 "example": null
               }
             },
@@ -555,15 +576,18 @@
           "status",
           "title"
         ],
+        "description": "Transaction submit status",
         "properties": {
           "status": {
             "type": "integer",
             "format": "int",
             "example": 201,
-            "nullable": false
+            "nullable": false,
+            "description": "Status"
           },
           "title": {
             "type": "string",
+            "description": "Title",
             "example": "Added to mempool",
             "nullable": false
           }
@@ -571,6 +595,7 @@
       },
       "TransactionDetails": {
         "type": "object",
+        "description": "Transaction details",
         "required": [
           "txid"
         ],

@@ -193,7 +193,7 @@ import { ArcClient } from 'js-arc-client';
 const arcClient = new ArcClient({
   host: 'localhost',
   port: 8080,
-  apiKey: '<api-key>'
+  authorization: '<api-key>'
 });
 
 const txid = 'd4b0e1b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0';

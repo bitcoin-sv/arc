@@ -2219,8 +2219,8 @@ curl -X POST /v1/tx \
 <td>body</td>
 <td>body</td>
 <td>string</td>
-<td>false</td>
-<td>none</td>
+<td>true</td>
+<td>Transaction hex string</td>
 </tr>
 </tbody>
 </table>
@@ -2616,6 +2616,7 @@ BearerAuth, None, None
 }
 
 </code></pre>
+<p>Common response object</p>
 <h3 id="properties">Properties</h3>
 <table>
 <thead>
@@ -2648,6 +2649,7 @@ BearerAuth, None, None
 }
 
 </code></pre>
+<p>Chain info</p>
 <h3 id="properties-2">Properties</h3>
 <table>
 <thead>
@@ -2665,14 +2667,14 @@ BearerAuth, None, None
 <td>string</td>
 <td>false</td>
 <td>none</td>
-<td>none</td>
+<td>Block hash</td>
 </tr>
 <tr>
 <td>blockHeight</td>
 <td>integer(uint64)</td>
 <td>false</td>
 <td>none</td>
-<td>none</td>
+<td>Block height</td>
 </tr>
 </tbody>
 </table>
@@ -2713,7 +2715,7 @@ BearerAuth, None, None
 <td><a href="#schemacommonresponse">CommonResponse</a></td>
 <td>false</td>
 <td>none</td>
-<td>none</td>
+<td>Common response object</td>
 </tr>
 </tbody>
 </table>
@@ -2778,28 +2780,28 @@ BearerAuth, None, None
 <td>integer(uint64)</td>
 <td>true</td>
 <td>none</td>
-<td>none</td>
+<td>Maximum script size [bytes]</td>
 </tr>
 <tr>
 <td>maxtxsigopscountspolicy</td>
 <td>integer(uint64)</td>
 <td>true</td>
 <td>none</td>
-<td>none</td>
+<td>Maximum number of signature operations</td>
 </tr>
 <tr>
 <td>maxtxsizepolicy</td>
 <td>integer(uint64)</td>
 <td>true</td>
 <td>none</td>
-<td>none</td>
+<td>Maximum transaction size [bytes]</td>
 </tr>
 <tr>
 <td>miningFee</td>
 <td><a href="#schemafeeamount">FeeAmount</a></td>
 <td>true</td>
 <td>none</td>
-<td>none</td>
+<td>Mining fee</td>
 </tr>
 </tbody>
 </table>
@@ -2831,14 +2833,14 @@ BearerAuth, None, None
 <td>integer(uint64)</td>
 <td>true</td>
 <td>none</td>
-<td>none</td>
+<td>Amount in Satoshis</td>
 </tr>
 <tr>
 <td>bytes</td>
 <td>integer(uint64)</td>
 <td>true</td>
 <td>none</td>
-<td>none</td>
+<td>Number of bytes</td>
 </tr>
 </tbody>
 </table>
@@ -2848,7 +2850,7 @@ BearerAuth, None, None
 <a id="tocStransactionrequest"></a>
 <a id="tocstransactionrequest"></a></p>
 <pre class="highlight tab tab-json"><code>{
-  <span class="hljs-attr">&quot;rawTx&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>
+  <span class="hljs-attr">&quot;rawTx&quot;</span>: <span class="hljs-string">&quot;&quot;</span>
 }
 
 </code></pre>
@@ -2869,7 +2871,7 @@ BearerAuth, None, None
 <td>string</td>
 <td>true</td>
 <td>none</td>
-<td>none</td>
+<td>Raw hex string</td>
 </tr>
 </tbody>
 </table>
@@ -2908,7 +2910,7 @@ BearerAuth, None, None
 <td><a href="#schemacommonresponse">CommonResponse</a></td>
 <td>false</td>
 <td>none</td>
-<td>none</td>
+<td>Common response object</td>
 </tr>
 </tbody>
 </table>
@@ -2929,7 +2931,7 @@ BearerAuth, None, None
 <td><a href="#schemachaininfo">ChainInfo</a></td>
 <td>false</td>
 <td>none</td>
-<td>none</td>
+<td>Chain info</td>
 </tr>
 </tbody>
 </table>
@@ -2950,7 +2952,7 @@ BearerAuth, None, None
 <td><a href="#schematransactiondetails">TransactionDetails</a></td>
 <td>false</td>
 <td>none</td>
-<td>none</td>
+<td>Transaction details</td>
 </tr>
 </tbody>
 </table>
@@ -2978,21 +2980,21 @@ BearerAuth, None, None
 <td>string</td>
 <td>true</td>
 <td>none</td>
-<td>none</td>
+<td>Transaction ID in hex</td>
 </tr>
 <tr>
 <td>» txStatus</td>
 <td>string</td>
 <td>true</td>
 <td>none</td>
-<td>none</td>
+<td>Transaction status</td>
 </tr>
 <tr>
 <td>» extraInfo</td>
 <td>string¦null</td>
 <td>true</td>
 <td>none</td>
-<td>none</td>
+<td>Extra info</td>
 </tr>
 </tbody>
 </table>
@@ -3029,7 +3031,7 @@ BearerAuth, None, None
 <td><a href="#schemacommonresponse">CommonResponse</a></td>
 <td>false</td>
 <td>none</td>
-<td>none</td>
+<td>Common response object</td>
 </tr>
 </tbody>
 </table>
@@ -3050,7 +3052,7 @@ BearerAuth, None, None
 <td><a href="#schemachaininfo">ChainInfo</a></td>
 <td>false</td>
 <td>none</td>
-<td>none</td>
+<td>Chain info</td>
 </tr>
 </tbody>
 </table>
@@ -3078,21 +3080,21 @@ BearerAuth, None, None
 <td>string</td>
 <td>true</td>
 <td>none</td>
-<td>none</td>
+<td>Transaction ID in hex</td>
 </tr>
 <tr>
 <td>» txStatus</td>
 <td>string</td>
 <td>false</td>
 <td>none</td>
-<td>none</td>
+<td>Transaction status</td>
 </tr>
 <tr>
 <td>» extraInfo</td>
 <td>string¦null</td>
 <td>false</td>
 <td>none</td>
-<td>none</td>
+<td>Extra information about the transaction</td>
 </tr>
 </tbody>
 </table>
@@ -3138,7 +3140,7 @@ BearerAuth, None, None
 <td><a href="#schemacommonresponse">CommonResponse</a></td>
 <td>false</td>
 <td>none</td>
-<td>none</td>
+<td>Common response object</td>
 </tr>
 </tbody>
 </table>
@@ -3159,7 +3161,7 @@ BearerAuth, None, None
 <td><a href="#schemachaininfo">ChainInfo</a></td>
 <td>false</td>
 <td>none</td>
-<td>none</td>
+<td>Chain info</td>
 </tr>
 </tbody>
 </table>
@@ -3208,7 +3210,7 @@ BearerAuth, None, None
 <td><a href="#schematransactiondetails">TransactionDetails</a></td>
 <td>false</td>
 <td>none</td>
-<td>none</td>
+<td>Transaction details</td>
 </tr>
 </tbody>
 </table>
@@ -3244,6 +3246,7 @@ BearerAuth, None, None
 }
 
 </code></pre>
+<p>Transaction submit status</p>
 <h3 id="properties-10">Properties</h3>
 <table>
 <thead>
@@ -3261,14 +3264,14 @@ BearerAuth, None, None
 <td>integer(int)</td>
 <td>true</td>
 <td>none</td>
-<td>none</td>
+<td>Status</td>
 </tr>
 <tr>
 <td>title</td>
 <td>string</td>
 <td>true</td>
 <td>none</td>
-<td>none</td>
+<td>Title</td>
 </tr>
 </tbody>
 </table>
@@ -3289,6 +3292,7 @@ BearerAuth, None, None
 }
 
 </code></pre>
+<p>Transaction details</p>
 <h3 id="properties-11">Properties</h3>
 <p>allOf</p>
 <table>
@@ -3307,7 +3311,7 @@ BearerAuth, None, None
 <td><a href="#schematransactionsubmitstatus">TransactionSubmitStatus</a></td>
 <td>false</td>
 <td>none</td>
-<td>none</td>
+<td>Transaction submit status</td>
 </tr>
 </tbody>
 </table>

@@ -1708,20 +1708,6 @@ Darkula color scheme from the JetBrains family of IDEs
 <ul>
 <li>HTTP Authentication, scheme: bearer Bearer authentication as defined in RFC 6750</li>
 </ul>
-<ul>
-<li>
-<p>API Key (Api-Key)</p>
-<ul>
-<li>Parameter Name: <strong>Api-Key</strong>, in: header. Please enter API key needed to access endpoints into field. Api-Key: My_API_Key</li>
-</ul>
-</li>
-<li>
-<p>API Key (Authorization)</p>
-<ul>
-<li>Parameter Name: <strong>Authorization</strong>, in: header. Please enter the custom authorization needed to access endpoints into field. Authorization: My_Authorization_Key</li>
-</ul>
-</li>
-</ul>
 <h1 id="bsv-arc-arc">Arc</h1>
 <h2 id="get-the-policy-settings">Get the policy settings</h2>
 <p><a id="opIdGET policy"></a></p>
@@ -1871,7 +1857,7 @@ curl -X GET /v1/policy \
 </table>
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-BearerAuth, Api-Key, Authorization
+BearerAuth, None, None
 </aside>
 <h2 id="get-transaction-status-">Get transaction status.</h2>
 <p><a id="opIdGET transaction status"></a></p>
@@ -2044,7 +2030,7 @@ curl -X GET /v1/tx/{txid} \
 </table>
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-BearerAuth, Api-Key, Authorization
+BearerAuth, None, None
 </aside>
 <h2 id="submit-a-transaction-">Submit a transaction.</h2>
 <p><a id="opIdPOST transaction"></a></p>
@@ -2330,7 +2316,7 @@ curl -X POST /v1/tx \
 </table>
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-BearerAuth, Api-Key, Authorization
+BearerAuth, None, None
 </aside>
 <h2 id="submit-multiple-transactions-">Submit multiple transactions.</h2>
 <p><a id="opIdPOST transactions"></a></p>
@@ -2617,7 +2603,7 @@ curl -X POST /v1/txs \
 </table>
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-BearerAuth, Api-Key, Authorization
+BearerAuth, None, None
 </aside>
 <h1 id="schemas">Schemas</h1>
 <h2 id="tocs_commonresponse">CommonResponse</h2>

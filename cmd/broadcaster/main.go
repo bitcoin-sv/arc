@@ -30,8 +30,6 @@ func main() {
 	useKey := flag.Bool("key", false, "private key to use for funding transactions")
 	keyFile := flag.String("keyfile", "", "private key from file (arc.key) to use for funding transactions")
 	waitForStatus := flag.Int("wait", 0, "wait for transaction to be in a certain status before continuing")
-	apiKey := flag.String("apikey", "", "api key to use for the http api client")
-	bearer := flag.String("bearer", "", "Bearer auth to use for the http api client")
 	authorization := flag.String("authorization", "", "Authorization header to use for the http api client")
 	printTxIDs := flag.Bool("print", false, "Whether to print out all the tx ids of the transactions")
 	concurrency := flag.Int("concurrency", 0, "How many transactions to send concurrently")
@@ -67,12 +65,6 @@ func main() {
 		fmt.Println("")
 		fmt.Println("    -concurrency=<number of concurrent requests>")
 		fmt.Println("          how many transactions to send concurrently to the server, in go routines")
-		fmt.Println("")
-		fmt.Println("    -apikey=<api key>")
-		fmt.Println("          api key to use for the http api client (header \"Api-Key: ....\")")
-		fmt.Println("")
-		fmt.Println("    -bearer=<bearer authorization>")
-		fmt.Println("          bearer auth to use for the http api client (header \"Authorization: Bearer ....\")")
 		fmt.Println("")
 		fmt.Println("    -authorization=<raw authorization header>")
 		fmt.Println("          authorization header to use for the http api client (header \"Authorization: ....\")")
@@ -117,8 +109,6 @@ func main() {
 
 	var client broadcaster.ClientI
 	client, err = createClient(&broadcaster.Auth{
-		ApiKey:        *apiKey,
-		Bearer:        *bearer,
 		Authorization: *authorization,
 	})
 	if err != nil {

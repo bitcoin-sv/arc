@@ -12,7 +12,6 @@ import (
 
 	"github.com/TAAL-GmbH/arc/api"
 	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
-	"github.com/deepmap/oapi-codegen/pkg/securityprovider"
 	"github.com/libsv/go-bt/v2"
 )
 
@@ -22,8 +21,6 @@ type APIBroadcaster struct {
 }
 
 type Auth struct {
-	ApiKey        string
-	Bearer        string
 	Authorization string
 }
 
@@ -166,21 +163,7 @@ func (a *APIBroadcaster) getArcClient() (*api.ClientWithResponses, error) {
 
 	opts := make([]api.ClientOption, 0)
 
-	if a.auth.ApiKey != "" {
-		// See: https://swagger.io/docs/specification/authentication/api-keys/
-		apiKeyProvider, apiKeyProviderErr := securityprovider.NewSecurityProviderApiKey("query", "Api-Key", a.auth.ApiKey)
-		if apiKeyProviderErr != nil {
-			panic(apiKeyProviderErr)
-		}
-		opts = append(opts, api.WithRequestEditorFn(apiKeyProvider.Intercept))
-	} else if a.auth.Bearer != "" {
-		// See: https://swagger.io/docs/specification/authentication/bearer-authentication/
-		bearerTokenProvider, bearerTokenProviderErr := securityprovider.NewSecurityProviderBearerToken(a.auth.Bearer)
-		if bearerTokenProviderErr != nil {
-			panic(bearerTokenProviderErr)
-		}
-		opts = append(opts, api.WithRequestEditorFn(bearerTokenProvider.Intercept))
-	} else if a.auth.Authorization != "" {
+	if a.auth.Authorization != "" {
 		// custom provider
 		opts = append(opts, api.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
 			req.Header.Add("Authorization", a.auth.Authorization)

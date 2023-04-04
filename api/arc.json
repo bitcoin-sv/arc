@@ -929,18 +929,6 @@
         "type": "http",
         "scheme": "bearer",
         "description": "Bearer authentication as defined in RFC 6750"
-      },
-      "Api-Key": {
-        "type": "apiKey",
-        "description": "Please enter API key needed to access endpoints into field. Api-Key: My_API_Key",
-        "name": "Api-Key",
-        "in": "header"
-      },
-      "Authorization": {
-        "type": "apiKey",
-        "description": "Please enter the custom authorization needed to access endpoints into field. Authorization: My_Authorization_Key",
-        "name": "Authorization",
-        "in": "header"
       }
     },
     "parameters": {

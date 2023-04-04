@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/TAAL-GmbH/arc/api"
 	apiHandler "github.com/TAAL-GmbH/arc/api/handler"
@@ -49,7 +50,11 @@ func main() {
 						return fmt.Errorf("security scheme %s != 'BearerAuth'", input.SecuritySchemeName)
 					}
 
-					apiKey := input.RequestValidationInput.Request.Header.Get("X-API-KEY")
+					authorizationHeader := input.RequestValidationInput.Request.Header.Get("Authorization")
+
+					// Remove the "Bearer" prefix
+					apiKey := strings.Replace(authorizationHeader, "Bearer ", "", 1)
+
 					// don't do this in production
 					if apiKey == "test-key" {
 						return nil

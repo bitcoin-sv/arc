@@ -36,12 +36,6 @@ License: <a href="https://bitcoinassociation.net/open-bsv-license/">Open BSV Lic
 
 - HTTP Authentication, scheme: bearer Bearer authentication as defined in RFC 6750
 
-* API Key (Api-Key)
-    - Parameter Name: **Api-Key**, in: header. Please enter API key needed to access endpoints into field. Api-Key: My_API_Key
-
-* API Key (Authorization)
-    - Parameter Name: **Authorization**, in: header. Please enter the custom authorization needed to access endpoints into field. Authorization: My_Authorization_Key
-
 <h1 id="bsv-arc-arc">Arc</h1>
 
 ## Get the policy settings
@@ -191,7 +185,7 @@ This endpoint returns the policy settings.
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-BearerAuth, Api-Key, Authorization
+BearerAuth, None, None
 </aside>
 
 ## Get transaction status.
@@ -344,7 +338,7 @@ This endpoint is used to get the current status of a previously submitted transa
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-BearerAuth, Api-Key, Authorization
+BearerAuth, None, None
 </aside>
 
 ## Submit a transaction.
@@ -579,7 +573,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-BearerAuth, Api-Key, Authorization
+BearerAuth, None, None
 </aside>
 
 ## Submit multiple transactions.
@@ -832,7 +826,7 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
-BearerAuth, Api-Key, Authorization
+BearerAuth, None, None
 </aside>
 
 # Schemas

@@ -1,9 +1,11 @@
 package blocktx
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
 
+	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/bsvutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,7 +16,13 @@ func TestExtractHeight(t *testing.T) {
 	tx, err := bsvutil.NewTxFromBytes(coinbase)
 	require.NoError(t, err)
 
-	height := extractHeightFromCoinbaseTx(tx.MsgTx())
+	buff := bytes.NewBuffer(nil)
+	err = tx.MsgTx().Serialize(buff)
+	require.NoError(t, err)
+	btTx, err := bt.NewTxFromBytes(buff.Bytes())
+	require.NoError(t, err)
+
+	height := extractHeightFromCoinbaseTx(btTx)
 
 	assert.Equalf(t, uint64(773200), height, "height should be 773200, got %d", height)
 }
@@ -24,7 +32,13 @@ func TestExtractHeightForRegtest(t *testing.T) {
 	tx, err := bsvutil.NewTxFromBytes(coinbase)
 	require.NoError(t, err)
 
-	height := extractHeightFromCoinbaseTx(tx.MsgTx())
+	buff := bytes.NewBuffer(nil)
+	err = tx.MsgTx().Serialize(buff)
+	require.NoError(t, err)
+	btTx, err := bt.NewTxFromBytes(buff.Bytes())
+	require.NoError(t, err)
+
+	height := extractHeightFromCoinbaseTx(btTx)
 
 	assert.Equalf(t, uint64(2012), height, "height should be 2012, got %d", height)
 }

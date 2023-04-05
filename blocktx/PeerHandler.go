@@ -6,12 +6,14 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"math/rand"
 	"time"
 
 	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
 	"github.com/TAAL-GmbH/arc/blocktx/store"
 	"github.com/TAAL-GmbH/arc/tracing"
+	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/blockchain"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -21,6 +23,58 @@ import (
 	"github.com/ordishs/go-utils/safemap"
 	"github.com/ordishs/gocore"
 )
+
+func init() {
+	// override the default wire block handler with our own that streams and stores only the transaction ids
+	wire.SetExternalHandler(wire.CmdBlock, func(reader io.Reader, length uint64, bytesRead int) (int, wire.Message, []byte, error) {
+		blockMessage := &p2p.BlockMessage{
+			Header: &wire.BlockHeader{},
+		}
+
+		err := blockMessage.Header.Deserialize(reader)
+		if err != nil {
+			return bytesRead, nil, nil, err
+		}
+		bytesRead += 80 // the bitcoin header is always 80 bytes
+
+		var read int64
+		var txCount bt.VarInt
+		read, err = txCount.ReadFrom(reader)
+		if err != nil {
+			return bytesRead, nil, nil, err
+		}
+		bytesRead += int(read)
+
+		blockMessage.TransactionHashes = make([]*chainhash.Hash, txCount)
+
+		var tx *bt.Tx
+		var hash *chainhash.Hash
+		var txBytes []byte
+		for i := 0; i < int(txCount); i++ {
+			tx = bt.NewTx()
+			read, err = tx.ReadFrom(reader)
+			if err != nil {
+				return bytesRead, nil, nil, err
+			}
+			bytesRead += int(read)
+			txBytes = tx.TxIDBytes() // this returns the bytes in BigEndian
+			hash, err = chainhash.NewHash(bt.ReverseBytes(txBytes))
+			if err != nil {
+				return 0, nil, nil, err
+			}
+
+			blockMessage.TransactionHashes[i] = hash
+
+			if i == 0 {
+				blockMessage.Height = extractHeightFromCoinbaseTx(tx)
+			}
+		}
+
+		blockMessage.Size = uint64(bytesRead)
+
+		return bytesRead, blockMessage, nil, nil
+	})
+}
 
 type PeerHandler struct {
 	workerCh       chan utils.Pair[*chainhash.Hash, p2p.PeerI]
@@ -191,7 +245,7 @@ func (bs *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 	return nil
 }
 
-func (bs *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error {
+func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	peerStr := peer.String()
 
 	stat, ok := bs.stats.Get(peerStr)
@@ -208,6 +262,11 @@ func (bs *PeerHandler) HandleBlock(msg *p2p.BlockMessage, peer p2p.PeerI) error 
 	}()
 
 	timeStart := time.Now()
+
+	msg, ok := wireMsg.(*p2p.BlockMessage)
+	if !ok {
+		return fmt.Errorf("unable to cast wire.Message to p2p.BlockMessage")
+	}
 
 	blockHash := msg.Header.BlockHash()
 
@@ -326,20 +385,21 @@ func (bs *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {
 	return nil
 }
 
-func extractHeightFromCoinbaseTx(tx *wire.MsgTx) uint64 {
+func extractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
 	// Coinbase tx has a special format, the height is encoded in the first 4 bytes of the scriptSig
 	// https://en.bitcoin.it/wiki/Protocol_documentation#tx
 	// Get the length
-	length := int(tx.TxIn[0].SignatureScript[0])
+	script := *(tx.Inputs[0].UnlockingScript)
+	length := int(script[0])
 
-	if len(tx.TxIn[0].SignatureScript) < length+1 {
+	if len(script) < length+1 {
 		return 0
 	}
 
 	b := make([]byte, 8)
 
 	for i := 0; i < length; i++ {
-		b[i] = tx.TxIn[0].SignatureScript[i+1]
+		b[i] = script[i+1]
 	}
 
 	return binary.LittleEndian.Uint64(b)

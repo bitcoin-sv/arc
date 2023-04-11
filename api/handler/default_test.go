@@ -67,9 +67,9 @@ func TestGETPolicy(t *testing.T) { //nolint:funlen
 		require.NotNil(t, policyResponse)
 		assert.Equal(t, uint64(50), policyResponse.Policy.MiningFee.Satoshis)
 		assert.Equal(t, uint64(1000), policyResponse.Policy.MiningFee.Bytes)
-		assert.Equal(t, uint64(500000), policyResponse.Policy.Maxscriptsizepolicy)
+		assert.Equal(t, uint64(100000000), policyResponse.Policy.Maxscriptsizepolicy)
 		assert.Equal(t, uint64(4294967295), policyResponse.Policy.Maxtxsigopscountspolicy)
-		assert.Equal(t, uint64(10000000), policyResponse.Policy.Maxtxsizepolicy)
+		assert.Equal(t, uint64(100000000), policyResponse.Policy.Maxtxsizepolicy)
 		assert.False(t, policyResponse.Timestamp.IsZero())
 	})
 }

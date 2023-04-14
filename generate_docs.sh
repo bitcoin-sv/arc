@@ -4,10 +4,6 @@ if ! [ -x "$(command -v widdershins)" ]; then
   npm install -g widdershins
 fi
 
-if ! [ -x "$(command -v shins)" ]; then
-  npm install -g shins
-fi
-
 if ! [ -x "$(command -v swagger-cli)" ]; then
   npm install -g swagger-cli
 fi

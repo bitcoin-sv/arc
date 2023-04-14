@@ -13,5 +13,5 @@ if ! [ -x "$(command -v swagger-cli)" ]; then
 fi
 
 swagger-cli bundle -o api/arc.json api/arc.yml
+cp api/arc.json doc/
 widdershins --search false --language_tabs 'http:HTTP' 'javascript:JavaScript' 'java:Java' 'go:Go' 'ruby:Ruby' 'python:Python' 'shell:curl' --summary api/arc.json -o doc/api.md
-shins --inline --logo logo.png -o doc/api.html doc/api.md

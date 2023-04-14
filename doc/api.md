@@ -1615,3 +1615,4 @@ and
 |instance|string¦null|false|none|(Optional) Link to actual error on server|
 |txid|string¦null|false|none|Transaction ID this error is referring to|
 |extraInfo|string¦null|false|none|Optional extra information about the error from the miner|
+

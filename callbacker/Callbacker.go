@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/api"
-	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
-	"github.com/TAAL-GmbH/arc/callbacker/store"
-	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/callbacker/store"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )

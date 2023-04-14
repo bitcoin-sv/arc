@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
-	"github.com/TAAL-GmbH/arc/blocktx/store"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/gocore"
 	"github.com/pkg/errors"

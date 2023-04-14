@@ -3,7 +3,7 @@ TODOs
 - Retry strategy in metamorph
     - Growing window
     - discardedfrommempool -> REJECTED ?
-- Add OP_RETURN to broadcaster "github.com/TAAL-GmbH/arc"
+- Add OP_RETURN to broadcaster "github.com/bitcoin-sv/arc"
 - Cleanup metamorph store after 100 block confirmations
 - Cleanup blocktx store after ...?
 

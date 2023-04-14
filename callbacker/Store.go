@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/callbacker/store"
-	callbackerBadgerhold "github.com/TAAL-GmbH/arc/callbacker/store/badgerhold"
+	"github.com/bitcoin-sv/arc/callbacker/store"
+	callbackerBadgerhold "github.com/bitcoin-sv/arc/callbacker/store/badgerhold"
 )
 
 func NewStore(folder string) (store.Store, error) {

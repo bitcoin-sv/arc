@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/TAAL-GmbH/arc/testdata"
+	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/ordishs/go-bitcoin"

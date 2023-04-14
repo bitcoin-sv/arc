@@ -3,7 +3,7 @@ package transactionHandler
 import (
 	"context"
 
-	arc "github.com/TAAL-GmbH/arc/api"
+	arc "github.com/bitcoin-sv/arc/api"
 	"github.com/pkg/errors"
 )
 

@@ -5,7 +5,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
 	_ "github.com/lib/pq"

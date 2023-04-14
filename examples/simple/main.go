@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/TAAL-GmbH/arc/api"
-	apiHandler "github.com/TAAL-GmbH/arc/api/handler"
-	"github.com/TAAL-GmbH/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/api"
+	apiHandler "github.com/bitcoin-sv/arc/api/handler"
+	"github.com/bitcoin-sv/arc/api/transactionHandler"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/gocore"
 )

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"

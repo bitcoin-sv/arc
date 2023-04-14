@@ -3,8 +3,8 @@ package test
 import (
 	"context"
 
-	arc "github.com/TAAL-GmbH/arc/api"
-	"github.com/TAAL-GmbH/arc/api/transactionHandler"
+	arc "github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/api/transactionHandler"
 )
 
 type SubmitTransactionRequest struct {

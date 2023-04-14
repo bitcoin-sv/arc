@@ -3,8 +3,8 @@ package metamorph
 import (
 	"context"
 
-	"github.com/TAAL-GmbH/arc/metamorph/processor_response"
-	"github.com/TAAL-GmbH/arc/metamorph/store"
+	"github.com/bitcoin-sv/arc/metamorph/processor_response"
+	"github.com/bitcoin-sv/arc/metamorph/store"
 )
 
 type ProcessorRequest struct {

@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/api/transactionHandler"
-	"github.com/TAAL-GmbH/arc/blocktx"
+	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/ordishs/gocore"
 )
 

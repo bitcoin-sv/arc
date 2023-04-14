@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -3,8 +3,8 @@ package blocktx
 import (
 	"fmt"
 
-	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
-	"github.com/TAAL-GmbH/arc/blocktx/store"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/wire"
 

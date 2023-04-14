@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/TAAL-GmbH/arc/callbacker"
-	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/callbacker"
+	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 	"github.com/libsv/go-bt/v2"
 )
 

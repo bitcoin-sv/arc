@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"

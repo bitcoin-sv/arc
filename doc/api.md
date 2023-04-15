@@ -514,7 +514,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |X-CallbackToken|header|string|false|Access token for notification callback endpoint.|
 |X-MerkleProof|header|string|false|Whether to include merkle proofs in the callbacks (true | false).|
 |X-WaitForStatus|header|integer|false|Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
-|body|body|string|false|none|
+|body|body|string|true|Transaction hex string|
 
 > Example responses
 
@@ -845,6 +845,8 @@ BearerAuth, None, None
 
 ```
 
+Common response object
+
 ### Properties
 
 |Name|Type|Required|Restrictions|Description|
@@ -866,12 +868,14 @@ BearerAuth, None, None
 
 ```
 
+Chain info
+
 ### Properties
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|blockHash|string|false|none|none|
-|blockHeight|integer(uint64)|false|none|none|
+|blockHash|string|false|none|Block hash|
+|blockHeight|integer(uint64)|false|none|Block height|
 
 <h2 id="tocS_PolicyResponse">PolicyResponse</h2>
 <!-- backwards compatibility -->
@@ -902,7 +906,7 @@ allOf
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|*anonymous*|[CommonResponse](#schemacommonresponse)|false|none|none|
+|*anonymous*|[CommonResponse](#schemacommonresponse)|false|none|Common response object|
 
 and
 
@@ -935,10 +939,10 @@ and
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|maxscriptsizepolicy|integer(uint64)|true|none|none|
-|maxtxsigopscountspolicy|integer(uint64)|true|none|none|
-|maxtxsizepolicy|integer(uint64)|true|none|none|
-|miningFee|[FeeAmount](#schemafeeamount)|true|none|none|
+|maxscriptsizepolicy|integer(uint64)|true|none|Maximum script size [bytes]|
+|maxtxsigopscountspolicy|integer(uint64)|true|none|Maximum number of signature operations|
+|maxtxsizepolicy|integer(uint64)|true|none|Maximum transaction size [bytes]|
+|miningFee|[FeeAmount](#schemafeeamount)|true|none|Mining fee|
 
 <h2 id="tocS_FeeAmount">FeeAmount</h2>
 <!-- backwards compatibility -->
@@ -959,8 +963,8 @@ and
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|satoshis|integer(uint64)|true|none|none|
-|bytes|integer(uint64)|true|none|none|
+|satoshis|integer(uint64)|true|none|Amount in Satoshis|
+|bytes|integer(uint64)|true|none|Number of bytes|
 
 <h2 id="tocS_TransactionRequest">TransactionRequest</h2>
 <!-- backwards compatibility -->
@@ -971,7 +975,7 @@ and
 
 ```json
 {
-  "rawTx": "string"
+  "rawTx": "<transaction hex string>"
 }
 
 ```
@@ -980,7 +984,7 @@ and
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|rawTx|string|true|none|none|
+|rawTx|string|true|none|Raw hex string|
 
 <h2 id="tocS_TransactionResponse">TransactionResponse</h2>
 <!-- backwards compatibility -->
@@ -1009,28 +1013,28 @@ allOf
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|*anonymous*|[CommonResponse](#schemacommonresponse)|false|none|none|
+|*anonymous*|[CommonResponse](#schemacommonresponse)|false|none|Common response object|
 
 and
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|*anonymous*|[ChainInfo](#schemachaininfo)|false|none|none|
+|*anonymous*|[ChainInfo](#schemachaininfo)|false|none|Chain info|
 
 and
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|*anonymous*|[TransactionDetails](#schematransactiondetails)|false|none|none|
+|*anonymous*|[TransactionDetails](#schematransactiondetails)|false|none|Transaction details|
 
 and
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
 |*anonymous*|object|false|none|none|
-|» txid|string|true|none|none|
-|» txStatus|string|true|none|none|
-|» extraInfo|string¦null|true|none|none|
+|» txid|string|true|none|Transaction ID in hex|
+|» txStatus|string|true|none|Transaction status|
+|» extraInfo|string¦null|true|none|Extra info|
 
 <h2 id="tocS_TransactionStatus">TransactionStatus</h2>
 <!-- backwards compatibility -->
@@ -1057,22 +1061,22 @@ allOf
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|*anonymous*|[CommonResponse](#schemacommonresponse)|false|none|none|
+|*anonymous*|[CommonResponse](#schemacommonresponse)|false|none|Common response object|
 
 and
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|*anonymous*|[ChainInfo](#schemachaininfo)|false|none|none|
+|*anonymous*|[ChainInfo](#schemachaininfo)|false|none|Chain info|
 
 and
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
 |*anonymous*|object|false|none|none|
-|» txid|string|true|none|none|
-|» txStatus|string|false|none|none|
-|» extraInfo|string¦null|false|none|none|
+|» txid|string|true|none|Transaction ID in hex|
+|» txStatus|string|false|none|Transaction status|
+|» extraInfo|string¦null|false|none|Extra information about the transaction|
 
 <h2 id="tocS_TransactionResponses">TransactionResponses</h2>
 <!-- backwards compatibility -->
@@ -1108,13 +1112,13 @@ allOf
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|*anonymous*|[CommonResponse](#schemacommonresponse)|false|none|none|
+|*anonymous*|[CommonResponse](#schemacommonresponse)|false|none|Common response object|
 
 and
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|*anonymous*|[ChainInfo](#schemachaininfo)|false|none|none|
+|*anonymous*|[ChainInfo](#schemachaininfo)|false|none|Chain info|
 
 and
 
@@ -1127,7 +1131,7 @@ oneOf
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|»» *anonymous*|[TransactionDetails](#schematransactiondetails)|false|none|none|
+|»» *anonymous*|[TransactionDetails](#schematransactiondetails)|false|none|Transaction details|
 
 xor
 
@@ -1150,12 +1154,14 @@ xor
 
 ```
 
+Transaction submit status
+
 ### Properties
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|status|integer(int)|true|none|none|
-|title|string|true|none|none|
+|status|integer(int)|true|none|Status|
+|title|string|true|none|Title|
 
 <h2 id="tocS_TransactionDetails">TransactionDetails</h2>
 <!-- backwards compatibility -->
@@ -1178,13 +1184,15 @@ xor
 
 ```
 
+Transaction details
+
 ### Properties
 
 allOf
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|*anonymous*|[TransactionSubmitStatus](#schematransactionsubmitstatus)|false|none|none|
+|*anonymous*|[TransactionSubmitStatus](#schematransactionsubmitstatus)|false|none|Transaction submit status|
 
 and
 
@@ -1607,3 +1615,4 @@ and
 |instance|string¦null|false|none|(Optional) Link to actual error on server|
 |txid|string¦null|false|none|Transaction ID this error is referring to|
 |extraInfo|string¦null|false|none|Optional extra information about the error from the miner|
+

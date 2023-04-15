@@ -39,7 +39,7 @@ you run `go run main.go -api=true`, it will only start the API server, and not t
 
 ### API
 
-API is the REST API microservice for interacting with ARC. See the [API documentation](/arc/api.html) for more information.
+API is the REST API microservice for interacting with ARC. See the [API documentation](/doc/api.html) for more information.
 
 The API takes care of authentication, validation, and sending transactions to Metamorph.  The API talks to one or more Metamorph instances using client-based, round robin load balancing.
 
@@ -248,4 +248,3 @@ or using the generic `main.go`:
 ```shell
 go run main.go -callbacker=true
 ```
-

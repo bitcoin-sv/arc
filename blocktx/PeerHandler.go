@@ -10,9 +10,9 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
-	"github.com/TAAL-GmbH/arc/blocktx/store"
-	"github.com/TAAL-GmbH/arc/tracing"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/blocktx/store"
+	"github.com/bitcoin-sv/arc/tracing"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/blockchain"

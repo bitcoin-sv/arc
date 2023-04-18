@@ -7,7 +7,7 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/TAAL-GmbH/arc/blocktx/store"
+	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/labstack/gommon/random"
 	_ "github.com/lib/pq"
 	"github.com/ordishs/gocore"

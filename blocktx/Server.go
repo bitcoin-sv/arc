@@ -7,8 +7,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/blocktx/store"
-	"github.com/TAAL-GmbH/arc/tracing"
+	"github.com/bitcoin-sv/arc/blocktx/store"
+	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
@@ -18,7 +18,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 )
 
 // Server type carries the logger within it

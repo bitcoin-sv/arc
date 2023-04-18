@@ -4,7 +4,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/TAAL-GmbH/arc/cmd"
+	"github.com/bitcoin-sv/arc/cmd"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )

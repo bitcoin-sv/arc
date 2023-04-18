@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 
-	"github.com/TAAL-GmbH/arc/callbacker"
+	"github.com/bitcoin-sv/arc/callbacker"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )

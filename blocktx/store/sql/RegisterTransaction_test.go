@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

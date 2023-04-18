@@ -1,7 +1,7 @@
 package sql
 
 import (
-	"github.com/TAAL-GmbH/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/ordishs/gocore"
 
 	"context"

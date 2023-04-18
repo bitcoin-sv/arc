@@ -3,8 +3,8 @@ package blocktx
 import (
 	"fmt"
 
-	"github.com/TAAL-GmbH/arc/blocktx/store"
-	"github.com/TAAL-GmbH/arc/blocktx/store/sql"
+	"github.com/bitcoin-sv/arc/blocktx/store"
+	"github.com/bitcoin-sv/arc/blocktx/store/sql"
 )
 
 func NewStore(dbMode string) (store.Interface, error) {

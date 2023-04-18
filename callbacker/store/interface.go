@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 )
 
 var (

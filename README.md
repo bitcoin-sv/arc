@@ -2,7 +2,7 @@
 
 ## Documentation
 
-- Find full documentation at [https://taal-gmbh.github.io/arc](https://taal-gmbh.github.io/arc)
+- Find full documentation at [https://bitcoin-sv.github.io/arc](https://bitcoin-sv.github.io/arc)
 
 ## Microservices
 
@@ -61,7 +61,7 @@ command does not.
 #### Integration into an echo server
 
 If you want to integrate the ARC API into an existing echo server, check out the
-[`examples`](https://github.com/TAAL-GmbH/arc/tree/master/examples) folder in the GitHub repo.
+[`examples`](https://github.com/bitcoin-sv/arc/tree/master/examples) folder in the GitHub repo.
 
 A very simple example:
 
@@ -71,9 +71,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/TAAL-GmbH/arc/api"
-	apiHandler "github.com/TAAL-GmbH/arc/api/handler"
-	"github.com/TAAL-GmbH/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/api"
+	apiHandler "github.com/bitcoin-sv/arc/api/handler"
+	"github.com/bitcoin-sv/arc/api/transactionHandler"
 	"github.com/labstack/echo/v4"
 )
 

@@ -8,6 +8,11 @@
       "url": "https://bitcoinassociation.net/open-bsv-license/"
     }
   },
+  "servers": [
+    {
+      "url": "https://tapi.taal.com/arc"
+    }
+  ],
   "paths": {
     "/v1/policy": {
       "get": {

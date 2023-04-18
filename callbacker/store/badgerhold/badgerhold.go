@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
-	"github.com/TAAL-GmbH/arc/callbacker/store"
+	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/callbacker/store"
 	"github.com/labstack/gommon/random"
 	"github.com/timshannon/badgerhold/v3"
 

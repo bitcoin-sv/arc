@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/api/handler"
+	"github.com/bitcoin-sv/arc/api/handler"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	apmecho "github.com/opentracing-contrib/echo"

@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/TAAL-GmbH/arc/broadcaster"
-	"github.com/TAAL-GmbH/arc/lib/keyset"
+	"github.com/bitcoin-sv/arc/broadcaster"
+	"github.com/bitcoin-sv/arc/lib/keyset"
 	"github.com/ordishs/gocore"
 )
 

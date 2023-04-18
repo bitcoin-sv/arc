@@ -9,8 +9,8 @@ import (
 	"os/signal"
 	"sync"
 
-	"github.com/TAAL-GmbH/arc/cmd"
-	"github.com/TAAL-GmbH/arc/tracing"
+	"github.com/bitcoin-sv/arc/cmd"
+	"github.com/bitcoin-sv/arc/tracing"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"

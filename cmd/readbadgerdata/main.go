@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/TAAL-GmbH/arc/metamorph/store"
+	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/dgraph-io/badger/v3"
 )
 

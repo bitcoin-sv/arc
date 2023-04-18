@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 
-	"github.com/TAAL-GmbH/arc/api"
-	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/ordishs/go-bitcoin"
 )
 

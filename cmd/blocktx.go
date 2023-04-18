@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/TAAL-GmbH/arc/blocktx"
+	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )

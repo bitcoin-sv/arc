@@ -1,4 +1,4 @@
-module github.com/TAAL-GmbH/arc
+module github.com/bitcoin-sv/arc
 
 go 1.19
 

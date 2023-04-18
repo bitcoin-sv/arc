@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/TAAL-GmbH/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/api/transactionHandler"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"

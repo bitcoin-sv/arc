@@ -3,7 +3,7 @@ package metamorph
 import (
 	"time"
 
-	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 

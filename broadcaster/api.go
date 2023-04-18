@@ -10,8 +10,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/TAAL-GmbH/arc/api"
-	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
 )
 

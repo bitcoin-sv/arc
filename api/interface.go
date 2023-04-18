@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/TAAL-GmbH/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/golang-jwt/jwt"
 )
 

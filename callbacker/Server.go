@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/TAAL-GmbH/arc/tracing"
+	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/TAAL-GmbH/arc/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 )
 
 // Server type carries the logger within it

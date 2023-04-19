@@ -74,7 +74,12 @@ func (s *Server) StartGRPCServer(address string) error {
 		)
 	}
 
-	s.grpcServer = grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
+	serverOptions := tracing.AddGRPCServerOptions(opts)
+
+	const maxMsgSize int = 1e8 // 100mb
+	serverOptions = append(serverOptions, grpc.MaxRecvMsgSize(maxMsgSize))
+
+	s.grpcServer = grpc.NewServer(serverOptions...)
 
 	gocore.SetAddress(address)
 

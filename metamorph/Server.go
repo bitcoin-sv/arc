@@ -63,7 +63,7 @@ func (s *Server) SetTimeout(timeout time.Duration) {
 }
 
 // StartGRPCServer function
-func (s *Server) StartGRPCServer(address string) error {
+func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 	// LEVEL 0 - no security / no encryption
 	var opts []grpc.ServerOption
 	_, prometheusOn := gocore.Config().Get("prometheusEndpoint")
@@ -74,7 +74,9 @@ func (s *Server) StartGRPCServer(address string) error {
 		)
 	}
 
-	s.grpcServer = grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
+	serverOptions := tracing.AddGRPCServerOptions(opts)
+	serverOptions = append(serverOptions, grpc.MaxRecvMsgSize(grpcMessageSize))
+	s.grpcServer = grpc.NewServer(serverOptions...)
 
 	gocore.SetAddress(address)
 

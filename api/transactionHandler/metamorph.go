@@ -26,14 +26,17 @@ type Metamorph struct {
 }
 
 // NewMetamorph creates a connection to a list of metamorph servers via gRPC
-func NewMetamorph(targets string, blockTxClient blocktx.ClientI) (*Metamorph, error) {
+func NewMetamorph(targets string, blockTxClient blocktx.ClientI, grpcMessageSize int) (*Metamorph, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
 		grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
 	}
-	conn, err := grpc.Dial(targets, tracing.AddGRPCDialOptions(opts)...)
+
+	dialOptions := tracing.AddGRPCDialOptions(opts)
+	dialOptions = append(dialOptions, grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)))
+	conn, err := grpc.Dial(targets, dialOptions...)
 	if err != nil {
 		return nil, err
 	}

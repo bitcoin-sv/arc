@@ -32,11 +32,10 @@ func NewMetamorph(targets string, blockTxClient blocktx.ClientI, grpcMessageSize
 		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
 		grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)),
 	}
 
-	dialOptions := tracing.AddGRPCDialOptions(opts)
-	dialOptions = append(dialOptions, grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)))
-	conn, err := grpc.Dial(targets, dialOptions...)
+	conn, err := grpc.Dial(targets, tracing.AddGRPCDialOptions(opts)...)
 	if err != nil {
 		return nil, err
 	}

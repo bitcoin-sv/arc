@@ -71,12 +71,11 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 		opts = append(opts,
 			grpc.ChainStreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 			grpc.ChainUnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+			grpc.MaxRecvMsgSize(grpcMessageSize),
 		)
 	}
 
-	serverOptions := tracing.AddGRPCServerOptions(opts)
-	serverOptions = append(serverOptions, grpc.MaxRecvMsgSize(grpcMessageSize))
-	s.grpcServer = grpc.NewServer(serverOptions...)
+	s.grpcServer = grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
 
 	gocore.SetAddress(address)
 

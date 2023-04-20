@@ -31,7 +31,9 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 	blocktxAddress, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
 	bTx := blocktx.NewClient(logger, blocktxAddress)
 
-	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx)
+	grpcMessageSize, _ := gocore.Config().GetInt("grpc_message_size", 1e8)
+
+	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize)
 	if err != nil {
 		return err
 	}

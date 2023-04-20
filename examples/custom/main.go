@@ -68,9 +68,9 @@ func main() {
 
 	// init BlockTx client
 	blockTxClient := blocktx.NewClient(logger, "localhost:8021")
-
+	grpcMessageSize, _ := gocore.Config().GetInt("grpc_message_size", 1e8)
 	// add a single metamorph, with the BlockTx client we want to use
-	txHandler, err := transactionHandler.NewMetamorph("localhost:8011", blockTxClient)
+	txHandler, err := transactionHandler.NewMetamorph("localhost:8011", blockTxClient, grpcMessageSize)
 	if err != nil {
 		panic(err)
 	}

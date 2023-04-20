@@ -32,8 +32,8 @@ func main() {
 
 	btxAddress, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
 	bTx := blocktx.NewClient(logger, btxAddress)
-
-	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx)
+	grpcMessageSize, _ := gocore.Config().GetInt("grpc_message_size", 1e8)
+	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize)
 	if err != nil {
 		panic(err)
 	}

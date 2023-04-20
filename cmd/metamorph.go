@@ -191,7 +191,8 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	serv := metamorph.NewServer(logger, s, metamorphProcessor, btc, source)
 
 	go func() {
-		if err = serv.StartGRPCServer(metamorphGRPCListenAddress); err != nil {
+		grpcMessageSize, _ := gocore.Config().GetInt("grpc_message_size", 1e8)
+		if err = serv.StartGRPCServer(metamorphGRPCListenAddress, grpcMessageSize); err != nil {
 			logger.Errorf("GRPCServer failed: %v", err)
 		}
 	}()

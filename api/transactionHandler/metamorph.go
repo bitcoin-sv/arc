@@ -26,7 +26,7 @@ type Metamorph struct {
 }
 
 // NewMetamorph creates a connection to a list of metamorph servers via gRPC
-func NewMetamorph(targets string, blockTxClient blocktx.ClientI) (*Metamorph, error) {
+func NewMetamorph(targets string, blockTxClient blocktx.ClientI, grpcMessageSize int) (*Metamorph, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
@@ -35,10 +35,7 @@ func NewMetamorph(targets string, blockTxClient blocktx.ClientI) (*Metamorph, er
 	}
 
 	dialOptions := tracing.AddGRPCDialOptions(opts)
-
-	const maxMsgSize int = 1e8 // 100mb
-	dialOptions = append(dialOptions, grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(maxMsgSize)))
-
+	dialOptions = append(dialOptions, grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)))
 	conn, err := grpc.Dial(targets, dialOptions...)
 	if err != nil {
 		return nil, err

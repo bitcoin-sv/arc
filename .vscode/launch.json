@@ -57,6 +57,14 @@
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/txstatus/main.go",
       "args": ["2a84409a83adad6533d60e0731b9a6ef69efe51ff289897847bde1f6332e18d5"]
+    },
+    {
+      "name": "Remote Debug",
+      "type": "go",
+      "request": "attach",
+      "mode": "remote",
+      "port": 4040,
+      "host": "127.0.0.1",
     }
   ]
 }

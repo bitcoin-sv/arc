@@ -183,12 +183,12 @@ setting in the settings file to activate prometheus. Normally you would want to 
 
 ### Javascript
 
-A typescript library is available in the [js-arc-client](https://github.com/TAAL-GmbH/js-arc-client) repository.
+A typescript library is available in the [arc-client](https://github.com/bitcoin-sv/arc-client-js) repository.
 
 Example usage:
 
 ```javascript
-import { ArcClient } from 'js-arc-client';
+import { ArcClient } from '@bitcoin-a/arc-client';
 
 const arcClient = new ArcClient({
   host: 'localhost',

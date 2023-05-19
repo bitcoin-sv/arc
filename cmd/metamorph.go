@@ -171,7 +171,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 				previousBlock, err = btc.GetBlock(context.Background(), pHash)
 				if err != nil {
 					if !errors.Is(err, blockTxStore.ErrBlockNotFound) {
-						logger.Errorf("Could not get previous block from block tx: %v", err)
+						logger.Errorf("Could not get previous block with hash %s from block tx: %v", pHash.String(), err)
 					}
 					continue
 				}

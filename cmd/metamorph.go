@@ -76,7 +76,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	pm, statusMessageCh := initPeerManager(logger, s)
 
-	callbackerAddress, ok := gocore.Config().Get("callbacker_grpcAddress", "localhost:8002")
+	callbackerAddress, ok := gocore.Config().Get("callbackerAddress", "localhost:8002")
 	if !ok {
 		logger.Fatalf("no callbacker_grpcAddress setting found")
 	}

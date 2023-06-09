@@ -12,6 +12,8 @@ import (
 	"github.com/ordishs/gocore"
 )
 
+const maximumBlockSize = 4000000000 // 4Gb
+
 type subscriber struct {
 	height uint64
 	stream blocktx_api.BlockTxAPI_GetBlockNotificationStreamServer
@@ -53,7 +55,7 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 		l.Fatalf("unknown bitcoin_network: %s", networkStr)
 	}
 
-	pm := p2p.NewPeerManager(l, network)
+	pm := p2p.NewPeerManager(l, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
 
 	peerHandler := NewPeerHandler(l, storeI, bn.blockCh)
 
@@ -72,7 +74,8 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 		}
 
 		var peer *p2p.Peer
-		peer, err = p2p.NewPeer(l, p2pURL.Host, peerHandler, network)
+
+		peer, err = p2p.NewPeer(l, p2pURL.Host, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize))
 		if err != nil {
 			l.Fatalf("error creating peer %s: %v", p2pURL.Host, err)
 		}

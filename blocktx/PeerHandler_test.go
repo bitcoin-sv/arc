@@ -4,9 +4,14 @@ import (
 	"bytes"
 	"encoding/hex"
 	"testing"
+	"time"
 
 	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/bsvutil"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/libsv/go-p2p/wire"
+	"github.com/ordishs/go-utils/expiringmap"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,4 +46,25 @@ func TestExtractHeightForRegtest(t *testing.T) {
 	height := extractHeightFromCoinbaseTx(btTx)
 
 	assert.Equalf(t, uint64(2012), height, "height should be 2012, got %d", height)
+}
+
+func TestGetAnnouncedCacheBlockHashes(t *testing.T) {
+	peerHandler := PeerHandler{
+		announcedCache: expiringmap.New[*chainhash.Hash, []p2p.PeerI](5 * time.Minute),
+	}
+
+	peer, err := p2p.NewPeerMock("", &peerHandler, wire.MainNet)
+	assert.NoError(t, err)
+
+	hash, err := chainhash.NewHashFromStr("00000000000000000e3c9aafb4c823562dd38f15b75849be348131a785154e33")
+	assert.NoError(t, err)
+	peerHandler.announcedCache.Set(hash, []p2p.PeerI{peer})
+
+	hash, err = chainhash.NewHashFromStr("00000000000000000cd097bf90c0f8480b930c88f3994503abccf45d579c601c")
+	assert.NoError(t, err)
+	peerHandler.announcedCache.Set(hash, []p2p.PeerI{peer})
+
+	hashes := peerHandler.getAnnouncedCacheBlockHashes()
+
+	assert.Equal(t, []string{"00000000000000000e3c9aafb4c823562dd38f15b75849be348131a785154e33", "00000000000000000cd097bf90c0f8480b930c88f3994503abccf45d579c601c"}, hashes)
 }

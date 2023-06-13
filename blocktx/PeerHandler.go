@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
@@ -128,10 +129,12 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 			item, found := s.announcedCache.Get(hash)
 			if !found {
 				s.announcedCache.Set(hash, []p2p.PeerI{peer})
+				logger.Debugf("added block hash %s with peer %s to announced cache", hash.String(), peer.String())
 
 			} else {
 				item = append(item, peer)
 				s.announcedCache.Set(hash, item)
+				logger.Debugf("added peer %s to announced cache of block hash %s", peer.String(), hash.String())
 				continue
 			}
 
@@ -362,6 +365,17 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 	return nil
 }
 
+func (bs *PeerHandler) getAnnouncedCacheBlockHashes() []string {
+	blockHashes := make([]string, bs.announcedCache.Len())
+	i := 0
+	for k := range bs.announcedCache.Items() {
+		blockHashes[i] = k.String()
+		i++
+	}
+
+	return blockHashes
+}
+
 func (bs *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {
 	start := gocore.CurrentNanos()
 	defer func() {
@@ -374,6 +388,7 @@ func (bs *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {
 	}
 
 	bs.announcedCache.Delete(block.Hash)
+	bs.logger.Debugf("removed block hash %s from announced cache - remaining block hashes: %s", block.Hash.String(), strings.Join(bs.getAnnouncedCacheBlockHashes(), ","))
 
 	utils.SafeSend(bs.blockCh, &blocktx_api.Block{
 		Hash:         block.Hash[:],

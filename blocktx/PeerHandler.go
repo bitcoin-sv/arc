@@ -82,7 +82,7 @@ type PeerHandler struct {
 	blockCh        chan *blocktx_api.Block
 	store          store.Interface
 	logger         utils.Logger
-	announcedCache *expiringmap.ExpiringMap[*chainhash.Hash, []p2p.PeerI]
+	announcedCache *expiringmap.ExpiringMap[chainhash.Hash, []p2p.PeerI]
 	stats          *safemap.Safemap[string, *tracing.PeerHandlerStats]
 }
 
@@ -96,10 +96,10 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 		blockCh:  blockCh,
 		logger:   logger,
 		workerCh: make(chan utils.Pair[*chainhash.Hash, p2p.PeerI], 100),
-		announcedCache: expiringmap.New[*chainhash.Hash, []p2p.PeerI](5 * time.Minute).WithEvictionFunction(func(hash *chainhash.Hash, peers []p2p.PeerI) bool {
+		announcedCache: expiringmap.New[chainhash.Hash, []p2p.PeerI](5 * time.Minute).WithEvictionFunction(func(hash chainhash.Hash, peers []p2p.PeerI) bool {
 			msg := wire.NewMsgGetData()
 
-			if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
+			if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, &hash)); err != nil {
 				logger.Errorf("EvictionFunc: could not create InvVect: %v", err)
 				return false
 			}
@@ -126,14 +126,21 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 			hash := pair.First
 			peer := pair.Second
 
-			item, found := s.announcedCache.Get(hash)
+			item, found := s.announcedCache.Get(*hash)
 			if !found {
-				s.announcedCache.Set(hash, []p2p.PeerI{peer})
+				s.announcedCache.Set(*hash, []p2p.PeerI{peer})
 				logger.Debugf("added block hash %s with peer %s to announced cache", hash.String(), peer.String())
 
 			} else {
+				// if already was announced to peer, continue
+				for _, announcedPeer := range item {
+					if announcedPeer.String() == peer.String() {
+						continue
+					}
+				}
+
 				item = append(item, peer)
-				s.announcedCache.Set(hash, item)
+				s.announcedCache.Set(*hash, item)
 				logger.Debugf("added peer %s to announced cache of block hash %s", peer.String(), hash.String())
 				continue
 			}
@@ -324,7 +331,7 @@ func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 
 	startingHeight, _ := gocore.Config().GetInt("starting_block_height", 700000)
 	if height > uint64(startingHeight) {
-		if _, found := bs.announcedCache.Get(previousBlockHash); !found {
+		if _, found := bs.announcedCache.Get(*previousBlockHash); !found {
 			if _, err := bs.store.GetBlock(context.Background(), previousBlockHash); err != nil {
 				if err == sql.ErrNoRows {
 					pair := utils.NewPair(previousBlockHash, peer)
@@ -387,7 +394,7 @@ func (bs *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {
 		return err
 	}
 
-	bs.announcedCache.Delete(block.Hash)
+	bs.announcedCache.Delete(*block.Hash)
 	bs.logger.Debugf("removed block hash %s from announced cache - remaining block hashes: %s", block.Hash.String(), strings.Join(bs.getAnnouncedCacheBlockHashes(), ","))
 
 	utils.SafeSend(bs.blockCh, &blocktx_api.Block{

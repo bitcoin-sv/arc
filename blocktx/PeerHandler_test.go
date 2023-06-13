@@ -50,7 +50,7 @@ func TestExtractHeightForRegtest(t *testing.T) {
 
 func TestGetAnnouncedCacheBlockHashes(t *testing.T) {
 	peerHandler := PeerHandler{
-		announcedCache: expiringmap.New[*chainhash.Hash, []p2p.PeerI](5 * time.Minute),
+		announcedCache: expiringmap.New[chainhash.Hash, []p2p.PeerI](5 * time.Minute),
 	}
 
 	peer, err := p2p.NewPeerMock("", &peerHandler, wire.MainNet)
@@ -58,11 +58,11 @@ func TestGetAnnouncedCacheBlockHashes(t *testing.T) {
 
 	hash, err := chainhash.NewHashFromStr("00000000000000000e3c9aafb4c823562dd38f15b75849be348131a785154e33")
 	assert.NoError(t, err)
-	peerHandler.announcedCache.Set(hash, []p2p.PeerI{peer})
+	peerHandler.announcedCache.Set(*hash, []p2p.PeerI{peer})
 
 	hash, err = chainhash.NewHashFromStr("00000000000000000cd097bf90c0f8480b930c88f3994503abccf45d579c601c")
 	assert.NoError(t, err)
-	peerHandler.announcedCache.Set(hash, []p2p.PeerI{peer})
+	peerHandler.announcedCache.Set(*hash, []p2p.PeerI{peer})
 
 	hashes := peerHandler.getAnnouncedCacheBlockHashes()
 

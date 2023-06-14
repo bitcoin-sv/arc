@@ -96,7 +96,7 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 		blockCh:  blockCh,
 		logger:   logger,
 		workerCh: make(chan utils.Pair[*chainhash.Hash, p2p.PeerI], 100),
-		announcedCache: expiringmap.New[chainhash.Hash, []p2p.PeerI](5 * time.Minute).WithEvictionFunction(func(hash chainhash.Hash, peers []p2p.PeerI) bool {
+		announcedCache: expiringmap.New[chainhash.Hash, []p2p.PeerI](10 * time.Minute).WithEvictionFunction(func(hash chainhash.Hash, peers []p2p.PeerI) bool {
 			msg := wire.NewMsgGetData()
 
 			if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, &hash)); err != nil {

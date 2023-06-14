@@ -16,7 +16,7 @@ func NewStore(folder string) (store.Store, error) {
 		return nil, fmt.Errorf("could not get absolute path: %v", err)
 	}
 
-	callbackStore, err := callbackerBadgerhold.New(f, 2*time.Minute)
+	callbackStore, err := callbackerBadgerhold.New(f, 3*time.Minute)
 	if err != nil {
 		return nil, fmt.Errorf("could not open callbacker store: %v", err)
 	}

@@ -144,16 +144,16 @@ func Test_incrementInterval(t *testing.T) {
 		duration := time.Second * 1
 
 		interval := bh.incrementInterval(duration, 0)
-		assert.Equal(t, time.Second, interval)
+		assert.Equal(t, 0*time.Second, interval)
 
 		interval = bh.incrementInterval(duration, 1)
-		assert.Equal(t, time.Second*2, interval)
+		assert.Equal(t, time.Second*1, interval)
 
 		interval = bh.incrementInterval(duration, 2)
-		assert.Equal(t, time.Second*4, interval)
+		assert.Equal(t, time.Second*2, interval)
 
 		interval = bh.incrementInterval(duration, 3)
-		assert.Equal(t, time.Second*8, interval)
+		assert.Equal(t, time.Second*3, interval)
 	})
 }
 

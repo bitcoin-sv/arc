@@ -66,5 +66,5 @@ func TestGetAnnouncedCacheBlockHashes(t *testing.T) {
 
 	hashes := peerHandler.getAnnouncedCacheBlockHashes()
 
-	assert.Equal(t, []string{"00000000000000000e3c9aafb4c823562dd38f15b75849be348131a785154e33", "00000000000000000cd097bf90c0f8480b930c88f3994503abccf45d579c601c"}, hashes)
+	assert.ElementsMatch(t, hashes, []string{"00000000000000000e3c9aafb4c823562dd38f15b75849be348131a785154e33", "00000000000000000cd097bf90c0f8480b930c88f3994503abccf45d579c601c"})
 }

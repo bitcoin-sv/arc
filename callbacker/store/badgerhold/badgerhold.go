@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"path"
 	"path/filepath"
 	"sync"
@@ -176,5 +175,5 @@ func (bh *BadgerHold) Close(_ context.Context) error {
 }
 
 func (bh *BadgerHold) incrementInterval(duration time.Duration, count int) time.Duration {
-	return duration * time.Duration(math.Pow(2, float64(count)))
+	return duration * time.Duration(count)
 }

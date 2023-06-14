@@ -14,6 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
+	"github.com/pkg/errors"
 )
 
 type Callbacker struct {
@@ -130,6 +131,11 @@ func (c *Callbacker) sendCallback(key string, callback *callbacker_api.Callback)
 	var response *http.Response
 	response, err = httpClient.Do(request)
 	if err != nil {
+		errUpdateExpiry := c.store.UpdateExpiry(context.Background(), key)
+		if errUpdateExpiry != nil {
+			return errors.Wrapf(errUpdateExpiry, "failed to update expiry of key %s after http request failed: %v", key, err)
+		}
+
 		return err
 	}
 	defer response.Body.Close()

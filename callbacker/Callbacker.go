@@ -14,6 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
+	"github.com/pkg/errors"
 )
 
 type Callbacker struct {
@@ -105,6 +106,7 @@ func (c *Callbacker) sendCallback(key string, callback *callbacker_api.Callback)
 		BlockHeight: &callback.BlockHeight,
 		TxStatus:    &statusString,
 		Txid:        txId,
+		Timestamp:   time.Now(),
 	}
 	statusBytes, err := json.Marshal(status)
 	if err != nil {
@@ -115,7 +117,7 @@ func (c *Callbacker) sendCallback(key string, callback *callbacker_api.Callback)
 	var request *http.Request
 	request, err = http.NewRequest("POST", callback.Url, statusBuffer)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to post callback for transaction id %s", txId)
 	}
 	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
 	if callback.Token != "" {
@@ -129,6 +131,11 @@ func (c *Callbacker) sendCallback(key string, callback *callbacker_api.Callback)
 	var response *http.Response
 	response, err = httpClient.Do(request)
 	if err != nil {
+		errUpdateExpiry := c.store.UpdateExpiry(context.Background(), key)
+		if errUpdateExpiry != nil {
+			return errors.Wrapf(errUpdateExpiry, "failed to update expiry of key %s after http request failed: %v", key, err)
+		}
+
 		return err
 	}
 	defer response.Body.Close()

@@ -326,6 +326,91 @@ func Test_checkInputs(t *testing.T) {
 	}
 }
 
+func Test_calculateFeesRequired(t *testing.T) {
+	defaultFees := bt.NewFeeQuote()
+	for _, feeType := range []bt.FeeType{bt.FeeTypeStandard, bt.FeeTypeData} {
+		defaultFees.AddQuote(feeType, &bt.Fee{
+			MiningFee: bt.FeeUnit{
+				Satoshis: 1,
+				Bytes:    1000,
+			},
+		})
+	}
+
+	tt := []struct {
+		name string
+		fees *bt.FeeQuote
+		size *bt.TxSize
+
+		expectedRequiredMiningFee uint64
+	}{
+		{
+			name: "1.311 kb size",
+			fees: defaultFees,
+			size: &bt.TxSize{TotalStdBytes: 200, TotalDataBytes: 1111},
+
+			expectedRequiredMiningFee: 1,
+		},
+		{
+			name: "1.861 kb size",
+			fees: defaultFees,
+			size: &bt.TxSize{TotalStdBytes: 50, TotalDataBytes: 1811},
+
+			expectedRequiredMiningFee: 2,
+		},
+		{
+			name: "13.31 kb size",
+			fees: defaultFees,
+			size: &bt.TxSize{TotalStdBytes: 200, TotalDataBytes: 13110},
+
+			expectedRequiredMiningFee: 13,
+		},
+		{
+			name: "18.71 kb size",
+			fees: defaultFees,
+			size: &bt.TxSize{TotalStdBytes: 200, TotalDataBytes: 18510},
+
+			expectedRequiredMiningFee: 19,
+		},
+		{
+			name: "1.5 kb size",
+			fees: defaultFees,
+			size: &bt.TxSize{TotalStdBytes: 200, TotalDataBytes: 1300},
+
+			expectedRequiredMiningFee: 2,
+		},
+		{
+			name: "0.8 kb size",
+			fees: defaultFees,
+			size: &bt.TxSize{TotalStdBytes: 200, TotalDataBytes: 600},
+
+			expectedRequiredMiningFee: 1,
+		},
+		{
+			name: "0.5 kb size",
+			fees: defaultFees,
+			size: &bt.TxSize{TotalStdBytes: 200, TotalDataBytes: 300},
+
+			expectedRequiredMiningFee: 1,
+		},
+		{
+			name: "0.2 kb size",
+			fees: defaultFees,
+			size: &bt.TxSize{TotalStdBytes: 100, TotalDataBytes: 100},
+
+			expectedRequiredMiningFee: 1,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			requiredMiningFee, err := calculateMiningFeesRequired(tc.size, tc.fees)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedRequiredMiningFee, requiredMiningFee)
+		})
+	}
+}
+
 // no need to extensively test this function, it's just calling bt.IsFeePaidEnough
 func Test_checkFees(t *testing.T) {
 	type args struct {

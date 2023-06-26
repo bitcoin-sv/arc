@@ -3,6 +3,7 @@ package defaultvalidator
 import (
 	"encoding/hex"
 	"fmt"
+	"math"
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/validator"
@@ -169,7 +170,7 @@ func checkInputs(tx *bt.Tx) error {
 }
 
 func checkFees(tx *bt.Tx, feeQuote *bt.FeeQuote) error {
-	feesOK, err := tx.IsFeePaidEnough(feeQuote)
+	feesOK, err := isFeePaidEnough(feeQuote, tx)
 	if err != nil {
 		return err
 	}
@@ -179,6 +180,49 @@ func checkFees(tx *bt.Tx, feeQuote *bt.FeeQuote) error {
 	}
 
 	return nil
+}
+
+func isFeePaidEnough(fees *bt.FeeQuote, tx *bt.Tx) (bool, error) {
+	expFeesPaid, err := calculateMiningFeesRequired(tx.SizeWithTypes(), fees)
+	if err != nil {
+		return false, err
+	}
+
+	totalInputSatoshis := tx.TotalInputSatoshis()
+	totalOutputSatoshis := tx.TotalOutputSatoshis()
+
+	if totalInputSatoshis < totalOutputSatoshis {
+		return false, nil
+	}
+
+	actualFeePaid := totalInputSatoshis - totalOutputSatoshis
+	return actualFeePaid >= expFeesPaid, nil
+}
+
+func calculateMiningFeesRequired(size *bt.TxSize, fees *bt.FeeQuote) (uint64, error) {
+	var feesRequired float64
+
+	feeStandard, err := fees.Fee(bt.FeeTypeStandard)
+	if err != nil {
+		return 0, err
+	}
+
+	feesRequired += float64(size.TotalStdBytes) * float64(feeStandard.MiningFee.Satoshis) / float64(feeStandard.MiningFee.Bytes)
+
+	feeData, err := fees.Fee(bt.FeeTypeData)
+	if err != nil {
+		return 0, err
+	}
+
+	feesRequired += float64(size.TotalDataBytes) * float64(feeData.MiningFee.Satoshis) / float64(feeData.MiningFee.Bytes)
+
+	// the minimum fees required is 1 satoshi
+	feesRequiredRounded := uint64(math.Round(feesRequired))
+	if feesRequiredRounded < 1 {
+		feesRequiredRounded = 1
+	}
+
+	return feesRequiredRounded, nil
 }
 
 func sigOpsCheck(tx *bt.Tx, policy *bitcoin.Settings) error {

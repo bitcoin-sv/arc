@@ -170,33 +170,33 @@ func checkInputs(tx *bt.Tx) error {
 }
 
 func checkFees(tx *bt.Tx, feeQuote *bt.FeeQuote) error {
-	feesOK, err := isFeePaidEnough(feeQuote, tx)
+	feesOK, expFeesPaid, actualFeePaid, err := isFeePaidEnough(feeQuote, tx)
 	if err != nil {
 		return err
 	}
 
 	if !feesOK {
-		return fmt.Errorf("transaction fee is too low")
+		return fmt.Errorf("transaction fee of %d sat is too low - minimum expected fee is %d sat", actualFeePaid, expFeesPaid)
 	}
 
 	return nil
 }
 
-func isFeePaidEnough(fees *bt.FeeQuote, tx *bt.Tx) (bool, error) {
+func isFeePaidEnough(fees *bt.FeeQuote, tx *bt.Tx) (bool, uint64, uint64, error) {
 	expFeesPaid, err := calculateMiningFeesRequired(tx.SizeWithTypes(), fees)
 	if err != nil {
-		return false, err
+		return false, 0, 0, err
 	}
 
 	totalInputSatoshis := tx.TotalInputSatoshis()
 	totalOutputSatoshis := tx.TotalOutputSatoshis()
 
 	if totalInputSatoshis < totalOutputSatoshis {
-		return false, nil
+		return false, 0, 0, nil
 	}
 
 	actualFeePaid := totalInputSatoshis - totalOutputSatoshis
-	return actualFeePaid >= expFeesPaid, nil
+	return actualFeePaid >= expFeesPaid, expFeesPaid, actualFeePaid, nil
 }
 
 func calculateMiningFeesRequired(size *bt.TxSize, fees *bt.FeeQuote) (uint64, error) {

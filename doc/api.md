@@ -173,7 +173,7 @@ This endpoint returns the policy settings.
     "maxtxsigopscountspolicy": 4294967295,
     "maxtxsizepolicy": 10000000,
     "miningFee": {
-      "satoshis": 50,
+      "satoshis": 1,
       "bytes": 1000
     }
   }
@@ -896,7 +896,7 @@ Chain info
     "maxtxsigopscountspolicy": 4294967295,
     "maxtxsizepolicy": 10000000,
     "miningFee": {
-      "satoshis": 50,
+      "satoshis": 1,
       "bytes": 1000
     }
   }
@@ -932,7 +932,7 @@ and
   "maxtxsigopscountspolicy": 4294967295,
   "maxtxsizepolicy": 10000000,
   "miningFee": {
-    "satoshis": 50,
+    "satoshis": 1,
     "bytes": 1000
   }
 }

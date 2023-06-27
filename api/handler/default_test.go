@@ -65,7 +65,7 @@ func TestGETPolicy(t *testing.T) { //nolint:funlen
 		_ = json.Unmarshal(bPolicy, &policyResponse)
 
 		require.NotNil(t, policyResponse)
-		assert.Equal(t, uint64(50), policyResponse.Policy.MiningFee.Satoshis)
+		assert.Equal(t, uint64(1), policyResponse.Policy.MiningFee.Satoshis)
 		assert.Equal(t, uint64(1000), policyResponse.Policy.MiningFee.Bytes)
 		assert.Equal(t, uint64(100000000), policyResponse.Policy.Maxscriptsizepolicy)
 		assert.Equal(t, uint64(4294967295), policyResponse.Policy.Maxtxsigopscountspolicy)

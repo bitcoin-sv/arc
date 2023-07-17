@@ -14,9 +14,9 @@ services:
       - ./arc-data:/data
     networks:
       - arcnetwork
-    # depends_on: include this if there are any services on which 'arc' depends
+
   tests:
-      build: ./tests
+    build: ./tests
     depends_on:
       - arc
 

@@ -29,5 +29,5 @@ jobs:
       working-directory: ./regtest
 
     - name: Run Docker Compose in arc
-      run: docker-compose up -d
+      run: docker-compose up
       working-directory: ./arc

@@ -16,7 +16,7 @@ services:
       - arcnetwork
 
   tests:
-    build: ./tests
+    build: ./test
     depends_on:
       - arc
 

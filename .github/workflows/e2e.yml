@@ -1,0 +1,31 @@
+name: Docker Compose Run
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out arc repo
+      uses: actions/checkout@v2
+      with:
+        repository: farzan1990/arc
+        path: arc
+
+    - name: Check out regtest repo
+      uses: actions/checkout@v2
+      with:
+        repository: icellan/regtest
+        path: regtest
+
+    - name: Run Docker Compose in regtest
+      run: docker-compose up -d
+      working-directory: ./regtest
+
+    - name: Run Docker Compose in arc
+      run: docker-compose up -d
+      working-directory: ./arc

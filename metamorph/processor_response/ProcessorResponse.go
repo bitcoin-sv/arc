@@ -164,6 +164,8 @@ func (r *ProcessorResponse) String() string {
 }
 
 func (r *ProcessorResponse) setStatus(status metamorph_api.Status, source string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	r.Status = status
 
 	sae := StatusAndError{

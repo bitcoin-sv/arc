@@ -413,8 +413,8 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 					}
 
 					p.rejected.AddDuration(source, time.Since(processorResponse.Start))
-					// processorResponse.Close()
-					// p.processorResponseMap.Delete(hashStr)
+					processorResponse.Close()
+					p.processorResponseMap.Delete(hash)
 				}
 			},
 		})

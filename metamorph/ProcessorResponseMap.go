@@ -15,6 +15,10 @@ import (
 	"github.com/sasha-s/go-deadlock"
 )
 
+const (
+	cleanUpInterval = 30 * time.Minute
+)
+
 type ProcessorResponseMap struct {
 	mu        deadlock.RWMutex
 	expiry    time.Duration
@@ -33,7 +37,7 @@ func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
 	}
 
 	go func() {
-		for range time.NewTicker(1 * time.Hour).C {
+		for range time.NewTicker(cleanUpInterval).C {
 			m.clean()
 		}
 	}()

@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	cleanUpInterval = 30 * time.Minute
+	cleanUpInterval = 15 * time.Minute
 )
 
 type ProcessorResponseMap struct {

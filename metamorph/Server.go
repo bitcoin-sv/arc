@@ -34,6 +34,10 @@ func init() {
 	gocore.NewStat("PutTransaction", true)
 }
 
+const (
+	responseTimeout = 5 * time.Second
+)
+
 // Server type carries the zmqLogger within it
 type Server struct {
 	metamorph_api.UnimplementedMetaMorphAPIServer
@@ -52,7 +56,7 @@ func NewServer(logger utils.Logger, s store.MetamorphStore, p ProcessorI, btc bl
 		logger:    logger,
 		processor: p,
 		store:     s,
-		timeout:   5 * time.Second,
+		timeout:   responseTimeout,
 		btc:       btc,
 		source:    source,
 	}

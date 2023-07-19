@@ -81,7 +81,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 	logLevel, _ := gocore.Config().Get("logLevel")
 	logger := gocore.Log("proc", gocore.NewLogLevelFromString(logLevel))
 
-	mapExpiryStr, _ := gocore.Config().Get("processorCacheExpiryTime", "24h")
+	mapExpiryStr, _ := gocore.Config().Get("processorCacheExpiryTime", "1h")
 	mapExpiry, err := time.ParseDuration(mapExpiryStr)
 	if err != nil {
 		logger.Fatalf("Invalid processorCacheExpiryTime: %s", mapExpiryStr)
@@ -413,8 +413,8 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 					}
 
 					p.rejected.AddDuration(source, time.Since(processorResponse.Start))
-					// processorResponse.Close()
-					// p.processorResponseMap.Delete(hashStr)
+					processorResponse.Close()
+					p.processorResponseMap.Delete(hash)
 				}
 			},
 		})
@@ -526,7 +526,6 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 							gocore.NewStat("processor").AddTime(startNanos)
 						},
 					})
-
 				},
 			})
 		},

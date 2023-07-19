@@ -15,6 +15,10 @@ import (
 	"github.com/sasha-s/go-deadlock"
 )
 
+const (
+	cleanUpInterval = 15 * time.Minute
+)
+
 type ProcessorResponseMap struct {
 	mu        deadlock.RWMutex
 	expiry    time.Duration
@@ -33,7 +37,7 @@ func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
 	}
 
 	go func() {
-		for range time.NewTicker(1 * time.Hour).C {
+		for range time.NewTicker(cleanUpInterval).C {
 			m.clean()
 		}
 	}()
@@ -246,6 +250,7 @@ func (m *ProcessorResponseMap) clean() {
 	for key, item := range m.items {
 		if time.Since(item.Start) > m.expiry {
 			log.Printf("ProcessorResponseMap: Expired %s", key)
+			item.Close()
 			delete(m.items, key)
 		}
 	}

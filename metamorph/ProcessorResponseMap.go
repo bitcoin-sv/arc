@@ -250,6 +250,7 @@ func (m *ProcessorResponseMap) clean() {
 	for key, item := range m.items {
 		if time.Since(item.Start) > m.expiry {
 			log.Printf("ProcessorResponseMap: Expired %s", key)
+			item.Close()
 			delete(m.items, key)
 		}
 	}

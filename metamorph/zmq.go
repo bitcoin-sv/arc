@@ -119,7 +119,8 @@ func (z *ZMQ) Start() {
 					errReason += ": " + txInfo.RejectionReason
 				}
 				if txInfo.IsMissingInputs {
-					errReason += " - missing inputs"
+					z.logger.Debugf("invalidtx %s due to missing inputs ignored", txInfo.TxID)
+					continue
 				}
 				if txInfo.IsDoubleSpendDetected {
 					errReason += " - double spend"

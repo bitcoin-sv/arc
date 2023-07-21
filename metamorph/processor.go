@@ -204,25 +204,21 @@ func (p *Processor) processExpiredSeenTransactions() {
 func (p *Processor) processExpiredTransactions() {
 	// filterFunc returns true if the transaction has not been seen on the network
 	filterFunc := func(p *processor_response.ProcessorResponse) bool {
-		return p.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK && time.Since(p.Start) > 60*time.Second
+		return p.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK && time.Since(p.Start) > UnseenTransactionRebroadcastingInterval*time.Second
 	}
 
 	// Resend transactions that have not been seen on the network every 60 seconds
 	// The Items() method will return a copy of the map, so we can iterate over it without locking
-	for range time.NewTicker(60 * time.Second).C {
+	for range time.NewTicker(UnseenTransactionRebroadcastingInterval * time.Second).C {
 		expiredTransactionItems := p.processorResponseMap.Items(filterFunc)
 		if len(expiredTransactionItems) > 0 {
 			p.logger.Infof("Resending %d expired transactions", len(expiredTransactionItems))
 			for txID, item := range expiredTransactionItems {
 				startTime := time.Now()
 				retries := item.GetRetries()
-				p.logger.Debugf("Resending expired tx: %s (%d retries)", txID, retries)
-				if retries >= 3 {
-					continue
-				} else if retries >= 2 {
-					p.logger.Debugf("Transaction %s has been retried 4 times, not resending", txID)
-					continue
-				} else if retries >= 1 {
+				item.IncrementRetry()
+
+				if retries >= MaxRetries {
 					// retried announcing 2 times, now sending GETDATA to peers to see if they have it
 					p.logger.Debugf("Re-getting expired tx: %s", txID)
 					p.pm.RequestTransaction(item.Hash)
@@ -242,8 +238,6 @@ func (p *Processor) processExpiredTransactions() {
 				}
 
 				p.retries.AddDuration(time.Since(startTime))
-
-				item.IncrementRetry()
 			}
 		}
 	}

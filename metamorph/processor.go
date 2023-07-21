@@ -69,6 +69,14 @@ type Processor struct {
 	retries            *stat.AtomicStat
 }
 
+const (
+	// number of times we will retry broacasting transaction if we haven't seen it on the network
+	MaxRetries = 15
+	// length of interval for checking transactions if they are seen on the network
+	// if not we resend them again for a few times
+	UnseenTransactionRebroadcastingInterval = 180
+)
+
 func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress string,
 	cbChannel chan *callbacker_api.Callback, btc blocktx.ClientI) *Processor {
 	if s == nil {

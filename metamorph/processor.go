@@ -204,7 +204,7 @@ func (p *Processor) processExpiredSeenTransactions() {
 func (p *Processor) processExpiredTransactions() {
 	// filterFunc returns true if the transaction has not been seen on the network
 	filterFunc := func(p *processor_response.ProcessorResponse) bool {
-		return p.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK && time.Since(p.Start) > UnseenTransactionRebroadcastingInterval*time.Second
+		return p.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK && time.Since(p.Start) > UnseenTransactionRebroadcastingInterval * time.Second
 	}
 
 	// Resend transactions that have not been seen on the network every 60 seconds
@@ -218,8 +218,8 @@ func (p *Processor) processExpiredTransactions() {
 				retries := item.GetRetries()
 				item.IncrementRetry()
 
-				if retries >= MaxRetries {
-					// retried announcing 2 times, now sending GETDATA to peers to see if they have it
+				if retries > MaxRetries {
+					// Ssending GETDATA to peers to see if they have it
 					p.logger.Debugf("Re-getting expired tx: %s", txID)
 					p.pm.RequestTransaction(item.Hash)
 					item.AddLog(

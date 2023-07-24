@@ -70,7 +70,7 @@ type Processor struct {
 }
 
 const (
-	// number of times we will retry broacasting transaction if we haven't seen it on the network
+	// number of times we will retry announcing transaction if we haven't seen it on the network
 	MaxRetries = 15
 	// length of interval for checking transactions if they are seen on the network
 	// if not we resend them again for a few times

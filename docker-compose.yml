@@ -4,12 +4,13 @@ services:
     build: .
     ports:
       - "8011:8011"
-      - "9999:9999" # additional port for debugging
+      - "9090:9090"
+      - "9999:9999"
     environment:
       - ARC_DATABASE_CONNECTION_STRING=/data/blocktx.db?cache=shared&_pragma=busy_timeout=10000&_pragma=journal_mode=WAL
       - ARC_GRPC_PORT=8011
       - ARC_PROMETHEUS_ENDPOINT=/metrics
-      - ARC_DEBUG_PPROF=http://arc:9999/debug/pprof # use service name instead of localhost
+      - ARC_DEBUG_PPROF=http://arc:9999/debug/pprof
     volumes:
       - ./arc-data:/data
     networks:
@@ -19,6 +20,8 @@ services:
     build: ./test
     depends_on:
       - arc
+    networks:
+      - arcnetwork
 
 networks:
   arcnetwork:
@@ -30,3 +33,4 @@ volumes:
     external: false
   node3-data:
     external: false
+

@@ -8,7 +8,7 @@ import (
 
 func TestHttpPost(t *testing.T) {
 	// The URL to send the POST request to.
-	url := "http://localhost:9090/arc/v1/txs"
+	url := "http://arc:9090/arc/v1/txs"
 
 	// The request body data.
 	data := []byte("{}")

@@ -74,7 +74,7 @@ const (
 	MaxRetries = 15
 	// length of interval for checking transactions if they are seen on the network
 	// if not we resend them again for a few times
-	UnseenTransactionRebroadcastingInterval = 180
+	UnseenTransactionRebroadcastingInterval = 60
 )
 
 func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress string,

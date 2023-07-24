@@ -219,7 +219,7 @@ func (p *Processor) processExpiredTransactions() {
 				item.IncrementRetry()
 
 				if retries > MaxRetries {
-					// Ssending GETDATA to peers to see if they have it
+					// Sending GETDATA to peers to see if they have it
 					p.logger.Debugf("Re-getting expired tx: %s", txID)
 					p.pm.RequestTransaction(item.Hash)
 					item.AddLog(

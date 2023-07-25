@@ -4,4 +4,7 @@ build/
 data/
 *.key
 *.run
+.idea
 .DS_Store
+settings.conf
+settings_local.conf

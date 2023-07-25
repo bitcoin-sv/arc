@@ -1,4 +1,5 @@
 # ARC
+ARC is a transaction processor for Bitcoin that keeps track of the life cycle of a transaction as it is processed by the Bitcoin network. Next to the mining status of a transaction, ARC also keeps track of the various states that a transaction can be in.
 
 ## Documentation
 
@@ -39,7 +40,7 @@ you run `go run main.go -api=true`, it will only start the API server, and not t
 
 ### API
 
-API is the REST API microservice for interacting with ARC. See the [API documentation](/doc/api.html) for more information.
+API is the REST API microservice for interacting with ARC. See the [API documentation](https://bitcoin-sv.github.io/arc/api.html) for more information.
 
 The API takes care of authentication, validation, and sending transactions to Metamorph.  The API talks to one or more Metamorph instances using client-based, round robin load balancing.
 
@@ -235,7 +236,7 @@ Please note that if you are running multiple instances of BlockTX for resilience
 Callbacker is a very simple microservice that is responsible for sending callbacks to clients when a transaction has
 been accepted by the Bitcoin network. To register a callback, the client must add the `X-CallbackUrl` header to the
 request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
-the body. See the [API documentation](#API) for more information.
+the body. See the [API documentation](https://bitcoin-sv.github.io/arc/api.html) for more information.
 
 You can run the Callbacker service like this:
 

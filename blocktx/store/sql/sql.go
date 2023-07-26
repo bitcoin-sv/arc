@@ -186,7 +186,7 @@ func createPostgresSchema(db *sql.DB) error {
 	$$ LANGUAGE SQL IMMUTABLE;
 `); err != nil {
 		db.Close()
-		return fmt.Errorf("could not create block_transactions_map table - [%+v]", err)
+		return fmt.Errorf("could not create function table reverse_bytes_iter() [%+v]", err)
 	}
 
 	if _, err := db.Exec(`
@@ -195,7 +195,7 @@ func createPostgresSchema(db *sql.DB) error {
 		LANGUAGE SQL IMMUTABLE;
 	`); err != nil {
 		db.Close()
-		return fmt.Errorf("could not create block_transactions_map table - [%+v]", err)
+		return fmt.Errorf("could not create function reverse_bytes() - [%+v]", err)
 	}
 
 	return nil

@@ -104,17 +104,7 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 			if spanErr != nil {
 				spanErr.SetTag("already_mined", true)
 			}
-			if err := s.db.QueryRowContext(ctx, `
-
-				SELECT
-				 b.hash
-				,b.height
-				FROM blocks b
-				INNER JOIN block_transactions_map m ON m.blockid = b.id
-				INNER JOIN transactions t ON m.txid = t.id
-				WHERE t.hash = $1
-				AND b.orphanedyn = false
-			`, transaction.Hash).Scan(&blockHash, &blockHeight); err != nil {
+			if err := s.db.QueryRowContext(ctx, queryGetBlockHashHeightForTransactionHash, transaction.Hash).Scan(&blockHash, &blockHeight); err != nil {
 				if spanErr != nil {
 					spanErr.SetTag(string(ext.Error), true)
 					spanErr.LogFields(log.Error(err))

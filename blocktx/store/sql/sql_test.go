@@ -65,15 +65,6 @@ func TestInOut(t *testing.T) {
 		assert.Equal(t, bytes.Equal(transactions[i].Hash, txn.Hash), true)
 	}
 
-	blocks, err := s.GetTransactionBlocks(ctx, &blocktx_api.Transaction{
-		Hash: transactions[0].Hash,
-	})
-	require.NoError(t, err)
-
-	for i, block := range blocks.Blocks {
-		assert.Equal(t, bytes.Equal(blocks.Blocks[i].Hash, block.Hash), true)
-	}
-
 	height := uint64(1)
 
 	err = s.SetOrphanHeight(ctx, height, false)

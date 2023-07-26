@@ -182,19 +182,30 @@ func (p *Processor) processExpiredSeenTransactions() {
 		expiredTransactionItems := p.processorResponseMap.Items(filterFunc)
 		if len(expiredTransactionItems) > 0 {
 			p.logger.Infof("checking %d expired seen transactions in blocktx", len(expiredTransactionItems))
+
+			transactions := &blocktx_api.Transactions{}
+			txs := make([]*blocktx_api.Transaction, len(expiredTransactionItems))
+			index := 0
 			for _, item := range expiredTransactionItems {
-				transactionResponse, _ := p.btc.GetTransactionBlock(context.Background(), &blocktx_api.Transaction{Hash: item.Hash[:]})
-				if transactionResponse != nil && transactionResponse.BlockHeight > 0 {
-					// transaction has been mined into a block, update the status
-					blockHash, err := chainhash.NewHash(transactionResponse.BlockHash)
-					if err != nil {
-						p.logger.Errorf("error parsing block hash: %s", err.Error())
-						continue
-					}
-					_, err = p.SendStatusMinedForTransaction(item.Hash, blockHash, transactionResponse.BlockHeight)
-					if err != nil {
-						p.logger.Errorf("error sending status mined for tx: %s", err.Error())
-					}
+				txs[index] = &blocktx_api.Transaction{Hash: item.Hash[:]}
+				index++
+			}
+
+			blockTransactions, err := p.btc.GetTransactionsBlock(context.Background(), transactions)
+			if err != nil {
+				p.logger.Errorf("error getting transactions from blocktx: %s", err.Error())
+				return
+			}
+
+			for _, blockTxs := range blockTransactions.BlockTransactions {
+				blockHash, err := chainhash.NewHash(blockTxs.BlockHash)
+				if err != nil {
+					p.logger.Errorf("error parsing block hash: %s", err.Error())
+					continue
+				}
+				_, err = p.SendStatusMinedForTransaction((*chainhash.Hash)(blockTxs.TransactionHash), blockHash, blockTxs.BlockHeight)
+				if err != nil {
+					p.logger.Errorf("error sending status mined for tx: %s", err.Error())
 				}
 			}
 		}
@@ -204,7 +215,7 @@ func (p *Processor) processExpiredSeenTransactions() {
 func (p *Processor) processExpiredTransactions() {
 	// filterFunc returns true if the transaction has not been seen on the network
 	filterFunc := func(p *processor_response.ProcessorResponse) bool {
-		return p.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK && time.Since(p.Start) > UnseenTransactionRebroadcastingInterval * time.Second
+		return p.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK && time.Since(p.Start) > UnseenTransactionRebroadcastingInterval*time.Second
 	}
 
 	// Resend transactions that have not been seen on the network every 60 seconds

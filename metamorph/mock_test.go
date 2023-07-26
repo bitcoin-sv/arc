@@ -114,6 +114,11 @@ func (b *BlockTxMock) GetTransactionBlock(ctx context.Context, transaction *bloc
 	return nil, nil
 }
 
+func (b *BlockTxMock) GetTransactionsBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error) {
+	// TODO: return mock response
+	return nil, nil
+}
+
 func (b *BlockTxMock) Start(_ chan *blocktx_api.Block) {
 	// we are not starting anything here
 }

@@ -31,7 +31,7 @@ func getFullQuery(transactions *blocktx_api.Transactions) string {
 	return fmt.Sprintf(queryGetBlockHashHeightForTransactionHashes, strings.Join(result, "','"))
 }
 
-func (s *SQL) GetTransactionsBlock(ctx context.Context, transactions *blocktx_api.Transactions) (*blocktx_api.BlockTransactions, error) {
+func (s *SQL) GetTransactionBlocks(ctx context.Context, transactions *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("GetTransactionsBlocks").AddTime(start)
@@ -40,7 +40,7 @@ func (s *SQL) GetTransactionsBlock(ctx context.Context, transactions *blocktx_ap
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	results := &blocktx_api.BlockTransactions{}
+	results := &blocktx_api.TransactionBlocks{}
 
 	rows, err := s.db.QueryContext(ctx, getFullQuery(transactions))
 	if err != nil {
@@ -56,13 +56,13 @@ func (s *SQL) GetTransactionsBlock(ctx context.Context, transactions *blocktx_ap
 			return nil, err
 		}
 
-		newBlockTransaction := &blocktx_api.BlockTransaction{
+		newBlockTransaction := &blocktx_api.TransactionBlock{
 			BlockHash:       BlockHash,
 			BlockHeight:     BlockHeight,
 			TransactionHash: TransactionHash,
 		}
 
-		results.BlockTransactions = append(results.BlockTransactions, newBlockTransaction)
+		results.TransactionBlocks = append(results.TransactionBlocks, newBlockTransaction)
 	}
 
 	return results, nil

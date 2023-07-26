@@ -23,7 +23,7 @@ service BlockTxAPI {
   // GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash.
   rpc GetTransactionBlock (Transaction) returns (Block) {}
 
-  rpc GetTransactionsBlock (Transactions) returns (BlockTransactions) {}
+  rpc GetTransactionBlocks (Transactions) returns (TransactionBlocks) {}
 
   // GetBlock returns the non-orphaned block for a given block hash.
   rpc GetBlock (Hash) returns (Block) {}
@@ -64,14 +64,14 @@ message Transactions {
   repeated Transaction transactions = 1;
 }
 
-message BlockTransaction {
+message TransactionBlock {
   bytes block_hash = 1; // Little endian
   uint64 block_height = 2;
   bytes transaction_hash = 3; // Little endian
 }
 
-message BlockTransactions {
-  repeated BlockTransaction block_transactions = 1;
+message TransactionBlocks {
+  repeated TransactionBlock transaction_blocks = 1;
 }
 
 // swagger:model MinedTransactions

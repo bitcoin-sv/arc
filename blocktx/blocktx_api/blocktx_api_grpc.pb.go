@@ -25,7 +25,7 @@ const (
 	BlockTxAPI_LocateTransaction_FullMethodName            = "/blocktx_api.BlockTxAPI/LocateTransaction"
 	BlockTxAPI_GetBlockTransactions_FullMethodName         = "/blocktx_api.BlockTxAPI/GetBlockTransactions"
 	BlockTxAPI_GetTransactionBlock_FullMethodName          = "/blocktx_api.BlockTxAPI/GetTransactionBlock"
-	BlockTxAPI_GetTransactionsBlock_FullMethodName         = "/blocktx_api.BlockTxAPI/GetTransactionsBlock"
+	BlockTxAPI_GetTransactionBlocks_FullMethodName         = "/blocktx_api.BlockTxAPI/GetTransactionBlocks"
 	BlockTxAPI_GetBlock_FullMethodName                     = "/blocktx_api.BlockTxAPI/GetBlock"
 	BlockTxAPI_GetBlockForHeight_FullMethodName            = "/blocktx_api.BlockTxAPI/GetBlockForHeight"
 	BlockTxAPI_GetLastProcessedBlock_FullMethodName        = "/blocktx_api.BlockTxAPI/GetLastProcessedBlock"
@@ -47,7 +47,7 @@ type BlockTxAPIClient interface {
 	GetBlockTransactions(ctx context.Context, in *Block, opts ...grpc.CallOption) (*Transactions, error)
 	// GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash.
 	GetTransactionBlock(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*Block, error)
-	GetTransactionsBlock(ctx context.Context, in *Transactions, opts ...grpc.CallOption) (*BlockTransactions, error)
+	GetTransactionBlocks(ctx context.Context, in *Transactions, opts ...grpc.CallOption) (*TransactionBlocks, error)
 	// GetBlock returns the non-orphaned block for a given block hash.
 	GetBlock(ctx context.Context, in *Hash, opts ...grpc.CallOption) (*Block, error)
 	// GetBlockForHeight returns the non-orphaned block for a given block height.
@@ -114,9 +114,9 @@ func (c *blockTxAPIClient) GetTransactionBlock(ctx context.Context, in *Transact
 	return out, nil
 }
 
-func (c *blockTxAPIClient) GetTransactionsBlock(ctx context.Context, in *Transactions, opts ...grpc.CallOption) (*BlockTransactions, error) {
-	out := new(BlockTransactions)
-	err := c.cc.Invoke(ctx, BlockTxAPI_GetTransactionsBlock_FullMethodName, in, out, opts...)
+func (c *blockTxAPIClient) GetTransactionBlocks(ctx context.Context, in *Transactions, opts ...grpc.CallOption) (*TransactionBlocks, error) {
+	out := new(TransactionBlocks)
+	err := c.cc.Invoke(ctx, BlockTxAPI_GetTransactionBlocks_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +205,7 @@ type BlockTxAPIServer interface {
 	GetBlockTransactions(context.Context, *Block) (*Transactions, error)
 	// GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash.
 	GetTransactionBlock(context.Context, *Transaction) (*Block, error)
-	GetTransactionsBlock(context.Context, *Transactions) (*BlockTransactions, error)
+	GetTransactionBlocks(context.Context, *Transactions) (*TransactionBlocks, error)
 	// GetBlock returns the non-orphaned block for a given block hash.
 	GetBlock(context.Context, *Hash) (*Block, error)
 	// GetBlockForHeight returns the non-orphaned block for a given block height.
@@ -239,8 +239,8 @@ func (UnimplementedBlockTxAPIServer) GetBlockTransactions(context.Context, *Bloc
 func (UnimplementedBlockTxAPIServer) GetTransactionBlock(context.Context, *Transaction) (*Block, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionBlock not implemented")
 }
-func (UnimplementedBlockTxAPIServer) GetTransactionsBlock(context.Context, *Transactions) (*BlockTransactions, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionsBlock not implemented")
+func (UnimplementedBlockTxAPIServer) GetTransactionBlocks(context.Context, *Transactions) (*TransactionBlocks, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionBlocks not implemented")
 }
 func (UnimplementedBlockTxAPIServer) GetBlock(context.Context, *Hash) (*Block, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBlock not implemented")
@@ -360,20 +360,20 @@ func _BlockTxAPI_GetTransactionBlock_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BlockTxAPI_GetTransactionsBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _BlockTxAPI_GetTransactionBlocks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Transactions)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BlockTxAPIServer).GetTransactionsBlock(ctx, in)
+		return srv.(BlockTxAPIServer).GetTransactionBlocks(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: BlockTxAPI_GetTransactionsBlock_FullMethodName,
+		FullMethod: BlockTxAPI_GetTransactionBlocks_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BlockTxAPIServer).GetTransactionsBlock(ctx, req.(*Transactions))
+		return srv.(BlockTxAPIServer).GetTransactionBlocks(ctx, req.(*Transactions))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -499,8 +499,8 @@ var BlockTxAPI_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BlockTxAPI_GetTransactionBlock_Handler,
 		},
 		{
-			MethodName: "GetTransactionsBlock",
-			Handler:    _BlockTxAPI_GetTransactionsBlock_Handler,
+			MethodName: "GetTransactionBlocks",
+			Handler:    _BlockTxAPI_GetTransactionBlocks_Handler,
 		},
 		{
 			MethodName: "GetBlock",

@@ -125,8 +125,8 @@ func (s *Server) GetTransactionBlock(ctx context.Context, transaction *blocktx_a
 	return s.store.GetTransactionBlock(ctx, transaction)
 }
 
-func (s *Server) GetTransactionsBlock(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.BlockTransactions, error) {
-	return s.store.GetTransactionsBlock(ctx, transaction)
+func (s *Server) GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
+	return s.store.GetTransactionBlocks(ctx, transaction)
 }
 
 func (s *Server) GetBlock(ctx context.Context, req *blocktx_api.Hash) (*blocktx_api.Block, error) {

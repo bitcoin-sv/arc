@@ -191,13 +191,13 @@ func (p *Processor) processExpiredSeenTransactions() {
 				index++
 			}
 
-			blockTransactions, err := p.btc.GetTransactionsBlock(context.Background(), transactions)
+			blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
 			if err != nil {
 				p.logger.Errorf("error getting transactions from blocktx: %s", err.Error())
 				return
 			}
 
-			for _, blockTxs := range blockTransactions.BlockTransactions {
+			for _, blockTxs := range blockTransactions.TransactionBlocks {
 				blockHash, err := chainhash.NewHash(blockTxs.BlockHash)
 				if err != nil {
 					p.logger.Errorf("error parsing block hash: %s", err.Error())

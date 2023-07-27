@@ -440,6 +440,7 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 
 		exptectedNrOfUpdates := 3
 		expectedNrOfBlockTxRequests := 1
+		expectedNumberOfTransactions := 3
 
 		storeMock := &storeMock.MetamorphStoreMock{
 			UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
@@ -455,6 +456,7 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 		}
 		btxMock := &blockTxMock.ClientIMock{
 			GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
+				require.Equal(t, expectedNumberOfTransactions, len(transaction.Transactions))
 				txsBlocks := &blocktx_api.TransactionBlocks{
 					TransactionBlocks: []*blocktx_api.TransactionBlock{
 						{

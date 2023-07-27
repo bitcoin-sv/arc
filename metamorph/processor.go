@@ -230,6 +230,7 @@ func (p *Processor) processExpiredSeenTransactions() {
 		for _, item := range expiredTransactionItems {
 			txs[index] = &blocktx_api.Transaction{Hash: item.Hash[:]}
 			index++
+			transactions.Transactions = txs
 		}
 
 		blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)

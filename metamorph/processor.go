@@ -80,7 +80,7 @@ const (
 	// length of interval for checking transactions if they are seen on the network
 	// if not we resend them again for a few times
 	unseenTransactionRebroadcastingInterval = 60
-	processExpiredSeenTxsIntervalDefault    = 10 * time.Minute
+	processExpiredSeenTxsIntervalDefault    = 5 * time.Minute
 )
 
 func WithProcessExpiredSeenTxsInterval(d time.Duration) func(*Processor) {
@@ -176,8 +176,6 @@ func (p *Processor) Shutdown() {
 	if p.errorLogWorker != nil {
 		close(p.errorLogWorker)
 	}
-
-	p.processorResponseMap.Shutdown()
 }
 
 func (p *Processor) GetMetamorphAddress() string {

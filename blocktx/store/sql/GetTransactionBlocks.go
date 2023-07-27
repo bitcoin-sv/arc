@@ -1,7 +1,6 @@
 package sql
 
 import (
-	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -19,13 +18,13 @@ FROM blocks b
 INNER JOIN block_transactions_map m ON m.blockid = b.id
 INNER JOIN transactions t ON m.txid = t.id
 WHERE t.hash in ('%s')
-AND b.orphanedyn = false`
+AND b.orphanedyn = FALSE`
 )
 
 func getFullQuery(transactions *blocktx_api.Transactions) string {
 	var result []string
 	for _, v := range transactions.Transactions {
-		result = append(result, fmt.Sprintf("\\x%s", hex.EncodeToString((v.Hash))))
+		result = append(result, fmt.Sprintf("\\x%x", (v.Hash)))
 	}
 
 	return fmt.Sprintf(queryGetBlockHashHeightForTransactionHashes, strings.Join(result, "','"))

@@ -180,33 +180,35 @@ func (p *Processor) processExpiredSeenTransactions() {
 	// The Items() method will return a copy of the map, so we can iterate over it without locking
 	for range time.NewTicker(10 * time.Minute).C {
 		expiredTransactionItems := p.processorResponseMap.Items(filterFunc)
-		if len(expiredTransactionItems) > 0 {
-			p.logger.Infof("checking %d expired seen transactions in blocktx", len(expiredTransactionItems))
+		if len(expiredTransactionItems) == 0 {
+			continue
+		}
 
-			transactions := &blocktx_api.Transactions{}
-			txs := make([]*blocktx_api.Transaction, len(expiredTransactionItems))
-			index := 0
-			for _, item := range expiredTransactionItems {
-				txs[index] = &blocktx_api.Transaction{Hash: item.Hash[:]}
-				index++
-			}
+		p.logger.Infof("checking %d expired seen transactions in blocktx", len(expiredTransactionItems))
 
-			blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
+		transactions := &blocktx_api.Transactions{}
+		txs := make([]*blocktx_api.Transaction, len(expiredTransactionItems))
+		index := 0
+		for _, item := range expiredTransactionItems {
+			txs[index] = &blocktx_api.Transaction{Hash: item.Hash[:]}
+			index++
+		}
+
+		blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
+		if err != nil {
+			p.logger.Errorf("error getting transactions from blocktx: %s", err.Error())
+			return
+		}
+
+		for _, blockTxs := range blockTransactions.TransactionBlocks {
+			blockHash, err := chainhash.NewHash(blockTxs.BlockHash)
 			if err != nil {
-				p.logger.Errorf("error getting transactions from blocktx: %s", err.Error())
-				return
+				p.logger.Errorf("error parsing block hash: %s", err.Error())
+				continue
 			}
-
-			for _, blockTxs := range blockTransactions.TransactionBlocks {
-				blockHash, err := chainhash.NewHash(blockTxs.BlockHash)
-				if err != nil {
-					p.logger.Errorf("error parsing block hash: %s", err.Error())
-					continue
-				}
-				_, err = p.SendStatusMinedForTransaction((*chainhash.Hash)(blockTxs.TransactionHash), blockHash, blockTxs.BlockHeight)
-				if err != nil {
-					p.logger.Errorf("error sending status mined for tx: %s", err.Error())
-				}
+			_, err = p.SendStatusMinedForTransaction((*chainhash.Hash)(blockTxs.TransactionHash), blockHash, blockTxs.BlockHeight)
+			if err != nil {
+				p.logger.Errorf("error sending status mined for tx: %s", err.Error())
 			}
 		}
 	}

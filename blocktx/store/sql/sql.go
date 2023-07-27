@@ -14,6 +14,12 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+const (
+	postgresEngine     = "postgres"
+	sqliteEngine       = "sqlite"
+	sqliteMemoryEngine = "sqlite_memory"
+)
+
 type SQL struct {
 	db     *sql.DB
 	engine string
@@ -33,7 +39,7 @@ func New(engine string) (store.Interface, error) {
 	logger := gocore.Log("btsql", gocore.NewLogLevelFromString(logLevel))
 
 	switch engine {
-	case "postgres":
+	case postgresEngine:
 		dbHost, _ := gocore.Config().Get("blocktx_dbHost", "localhost")
 		dbPort, _ := gocore.Config().GetInt("blocktx_dbPort", 5432)
 		dbName, _ := gocore.Config().Get("blocktx_dbName", "blocktx")
@@ -56,10 +62,10 @@ func New(engine string) (store.Interface, error) {
 			return nil, fmt.Errorf("failed to create postgres schema: %+v", err)
 		}
 
-	case "sqlite_memory":
+	case sqliteMemoryEngine:
 		memory = true
 		fallthrough
-	case "sqlite":
+	case sqliteEngine:
 		var filename string
 		if memory {
 			filename = fmt.Sprintf("file:%s?mode=memory&cache=shared", random.String(16))

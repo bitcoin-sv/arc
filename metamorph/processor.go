@@ -228,7 +228,7 @@ func (p *Processor) processExpiredSeenTransactions() {
 		txs := make([]*blocktx_api.Transaction, len(expiredTransactionItems))
 		index := 0
 		for _, item := range expiredTransactionItems {
-			txs[index] = &blocktx_api.Transaction{Hash: item.Hash[:]}
+			txs[index] = &blocktx_api.Transaction{Hash: item.Hash.CloneBytes()}
 			index++
 			transactions.Transactions = txs
 		}

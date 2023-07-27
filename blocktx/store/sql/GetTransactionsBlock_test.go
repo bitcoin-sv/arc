@@ -40,7 +40,7 @@ AND b.orphanedyn = FALSE`
 			},
 		}
 
-		q := getFullQuery(transactions)
+		q := getQueryPostgres(transactions)
 		require.Equal(t, expectedQuery, q)
 	})
 }

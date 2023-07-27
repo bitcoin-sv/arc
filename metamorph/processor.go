@@ -331,47 +331,48 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 	defer span.Finish()
 
 	resp, ok := p.processorResponseMap.Get(hash)
-	if ok {
-		resp.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-			Status: metamorph_api.Status_MINED,
-			Source: "blocktx",
-			UpdateStore: func() error {
-				return p.store.UpdateMined(spanCtx, hash, blockHash, blockHeight)
-			},
-			Callback: func(err error) {
-				if err != nil {
-					p.logger.Errorf("Error updating status for %v: %v", hash, err)
-					return
-				}
-
-				if !resp.NoStats {
-					p.mined.AddDuration(time.Since(resp.Start))
-				}
-
-				resp.Close()
-				p.processorResponseMap.Delete(hash)
-
-				if p.cbChannel != nil {
-					data, _ := p.store.Get(spanCtx, hash[:])
-
-					if data != nil && data.CallbackUrl != "" {
-						p.cbChannel <- &callbacker_api.Callback{
-							Hash:        data.Hash[:],
-							Url:         data.CallbackUrl,
-							Token:       data.CallbackToken,
-							Status:      int32(data.Status),
-							BlockHash:   data.BlockHash[:],
-							BlockHeight: data.BlockHeight,
-						}
-					}
-				}
-
-			},
-		})
-		return true, nil
+	if !ok {
+		return false, nil
 	}
 
-	return false, nil
+	resp.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
+		Status: metamorph_api.Status_MINED,
+		Source: "blocktx",
+		UpdateStore: func() error {
+			return p.store.UpdateMined(spanCtx, hash, blockHash, blockHeight)
+		},
+		Callback: func(err error) {
+			if err != nil {
+				p.logger.Errorf("Error updating status for %v: %v", hash, err)
+				return
+			}
+
+			if !resp.NoStats {
+				p.mined.AddDuration(time.Since(resp.Start))
+			}
+
+			resp.Close()
+			p.processorResponseMap.Delete(hash)
+
+			if p.cbChannel != nil {
+				data, _ := p.store.Get(spanCtx, hash[:])
+
+				if data != nil && data.CallbackUrl != "" {
+					p.cbChannel <- &callbacker_api.Callback{
+						Hash:        data.Hash[:],
+						Url:         data.CallbackUrl,
+						Token:       data.CallbackToken,
+						Status:      int32(data.Status),
+						BlockHash:   data.BlockHash[:],
+						BlockHeight: data.BlockHeight,
+					}
+				}
+			}
+
+		},
+	})
+	return true, nil
+
 }
 
 func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) (bool, error) {

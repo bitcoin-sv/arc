@@ -87,7 +87,10 @@ func (r *ProcessorResponse) Close() {
 	defer func() {
 		_ = recover()
 	}()
-	close(r.statusUpdateCh)
+
+	if (r.statusUpdateCh) != nil {
+		close(r.statusUpdateCh)
+	}
 }
 
 func (r *ProcessorResponse) UpdateStatus(statusUpdate *ProcessorResponseStatusUpdate) {

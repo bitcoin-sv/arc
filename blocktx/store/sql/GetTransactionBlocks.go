@@ -77,6 +77,8 @@ func (s *SQL) GetTransactionBlocks(ctx context.Context, transactions *blocktx_ap
 		return nil, err
 	}
 
+	defer rows.Close()
+
 	for rows.Next() {
 		var BlockHash []byte
 		var BlockHeight uint64

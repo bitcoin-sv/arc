@@ -411,10 +411,11 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 	}, nil
 }
 
-func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions []*bt.Tx, transactionOptions *api.TransactionOptions) ([]api.StatusCode, []interface{}, []error) {
+func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions []*bt.Tx, transactionOptions *api.TransactionOptions) ([]interface{}, error) {
 	span, tracingCtx := opentracing.StartSpanFromContext(ctx, "ArcDefaultHandler:processTransactions")
 	defer span.Finish()
-	var transactions []interface{}
+	var transactionOutput []interface{}
+	transactionsInput := make([][]byte, 0)
 
 	for _, transaction := range transactions {
 		txValidator := defaultValidator.New(m.NodePolicy)
@@ -424,37 +425,30 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		if !txValidator.IsExtended(transaction) {
 			err := m.extendTransaction(tracingCtx, transaction)
 			if err != nil {
-				status, in, err := m.handleError(tracingCtx, transaction, err)
-				statuses = append(statuses, status)
-				interfaces = append(interfaces, in)
-				errors = append(errors, err)
-				continue
+				_, _, err := m.handleError(tracingCtx, transaction, err)
+				return nil, err
 			}
 		}
 
 		validateSpan, validateCtx := opentracing.StartSpanFromContext(tracingCtx, "ArcDefaultHandler:ValidateTransactions")
 		if err := txValidator.ValidateTransaction(transaction); err != nil {
 			validateSpan.Finish()
-			status, in, err := m.handleError(validateCtx, transaction, err)
-			statuses = append(statuses, status)
-			interfaces = append(interfaces, in)
-			errors = append(errors, err)
-			continue;
+			_, _, err := m.handleError(validateCtx, transaction, err)
+			return nil, err
 		}
 		validateSpan.Finish()
+		transactionsInput = append(transactionsInput, transaction.Bytes())
+	}
 
-		tx, err := m.TransactionHandler.SubmitTransaction(tracingCtx, transaction.Bytes(), transactionOptions)
-		if err != nil {
-			status, in, err := m.handleError(tracingCtx, transaction, err)
-			statuses = append(statuses, status)
-			interfaces = append(interfaces, in)
-			errors = append(errors, err)
-			continue;
-		}
+	txStatuses, err := m.TransactionHandler.SubmitTransactions(tracingCtx, transactionsInput, transactionOptions)
+	if err != nil {
+		return nil, err
+	}
 
+	for ind, tx := range txStatuses {
 		txID := tx.TxID
 		if txID == "" {
-			txID = transaction.TxID()
+			txID = transactions[ind].TxID()
 		}
 
 		var extraInfo string
@@ -462,8 +456,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 			extraInfo = tx.ExtraInfo
 		}
 
-		statuses = append(statuses, api.StatusOK)
-		interfaces = append(interfaces, api.TransactionResponse{
+		transactionOutput = append(transactionOutput, api.TransactionResponse{
 			Status:      int(api.StatusOK),
 			Title:       "OK",
 			BlockHash:   &tx.BlockHash,
@@ -473,10 +466,9 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 			Timestamp:   time.Now(),
 			Txid:        txID,
 		})
-		errors = append(errors, nil)
 	}
 
-	return statuses, interfaces, errors		
+	return transactionOutput, nil
 }
 
 func (m ArcDefaultHandler) extendTransaction(ctx context.Context, transaction *bt.Tx) (err error) {

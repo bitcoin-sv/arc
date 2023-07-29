@@ -19,6 +19,7 @@ type TransactionHandler interface {
 	GetTransaction(ctx context.Context, txID string) ([]byte, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
 	SubmitTransaction(ctx context.Context, tx []byte, options *arc.TransactionOptions) (*TransactionStatus, error)
+	SubmitTransactions(ctx context.Context, tx [][]byte, options *arc.TransactionOptions) ([]*TransactionStatus, error)
 }
 
 // TransactionStatus defines model for TransactionStatus.

@@ -246,26 +246,31 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			return ctx.JSON(int(api.ErrStatusBadRequest), e)
 		}
 
-		transactions = make([]interface{}, len(txBody))
+		transactionInputs := make([]*bt.Tx, 0)
 		for index, tx := range txBody {
-			// process all the transactions in parallel
 			transaction, err := bt.NewTxFromString(tx.RawTx)
 			if err != nil {
 				errStr := err.Error()
 				e := api.ErrBadRequest
 				e.ExtraInfo = &errStr
 				transactions[index] = e
-				continue
+				return err
 			}
 
-			_, response, responseError := m.processTransaction(tracingCtx, transaction, transactionOptions)
+			transactionInputs = append(transactionInputs, transaction)
+		}
+		
+		
+	
+
+			_, response, responseError := m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
 			if responseError != nil {
 				// what to do here, the transaction failed due to server failure?
 				e := api.ErrGeneric
 				errStr := responseError.Error()
 				e.ExtraInfo = &errStr
 				transactions[index] = e
-				continue
+				return err
 			}
 
 			transactions[index] = response

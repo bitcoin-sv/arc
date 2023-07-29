@@ -260,21 +260,13 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			transactionInputs = append(transactionInputs, transaction)
 		}
 		
-		
-	
-
-			_, response, responseError := m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
-			if responseError != nil {
-				// what to do here, the transaction failed due to server failure?
-				e := api.ErrGeneric
-				errStr := responseError.Error()
-				e.ExtraInfo = &errStr
-				transactions[index] = e
-				return err
-			}
-
-			transactions[index] = response
+		// submit for processing
+		response, err := m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
+		if err != nil {
+			return err
 		}
+		// return 
+		transactions = response;
 	case "application/octet-stream":
 		transactionReaderFn = func(r io.Reader) (*bt.Tx, error) {
 			btTx := new(bt.Tx)

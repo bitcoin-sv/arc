@@ -414,10 +414,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions []*bt.Tx, transactionOptions *api.TransactionOptions) ([]api.StatusCode, []interface{}, []error) {
 	span, tracingCtx := opentracing.StartSpanFromContext(ctx, "ArcDefaultHandler:processTransactions")
 	defer span.Finish()
-
-	statuses := make([]api.StatusCode, 0)
-	interfaces := make([]interface{}, 0)
-	errors := make([]error, 0)
+	var transactions []interface{}
 
 	for _, transaction := range transactions {
 		txValidator := defaultValidator.New(m.NodePolicy)

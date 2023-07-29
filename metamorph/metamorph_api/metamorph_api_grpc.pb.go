@@ -32,6 +32,7 @@ const (
 type MetaMorphAPIClient interface {
 	Health(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HealthResponse, error)
 	PutTransaction(ctx context.Context, in *TransactionRequest, opts ...grpc.CallOption) (*TransactionStatus, error)
+	PutTransactions(ctx context.Context, in []*TransactionRequest, opts ...grpc.CallOption) ([]*TransactionStatus, error)
 	GetTransaction(ctx context.Context, in *TransactionStatusRequest, opts ...grpc.CallOption) (*Transaction, error)
 	GetTransactionStatus(ctx context.Context, in *TransactionStatusRequest, opts ...grpc.CallOption) (*TransactionStatus, error)
 }
@@ -62,6 +63,15 @@ func (c *metaMorphAPIClient) PutTransaction(ctx context.Context, in *Transaction
 	return out, nil
 }
 
+func (c *metaMorphAPIClient) PutTransactions(ctx context.Context, in []*TransactionRequest, opts ...grpc.CallOption) ([]*TransactionStatus, error) {
+	out := make([]*TransactionStatus, len(in))
+	err := c.cc.Invoke(ctx, "/metamorph_api.MetaMorphAPI/PutTransactions", in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *metaMorphAPIClient) GetTransaction(ctx context.Context, in *TransactionStatusRequest, opts ...grpc.CallOption) (*Transaction, error) {
 	out := new(Transaction)
 	err := c.cc.Invoke(ctx, MetaMorphAPI_GetTransaction_FullMethodName, in, out, opts...)
@@ -86,6 +96,7 @@ func (c *metaMorphAPIClient) GetTransactionStatus(ctx context.Context, in *Trans
 type MetaMorphAPIServer interface {
 	Health(context.Context, *emptypb.Empty) (*HealthResponse, error)
 	PutTransaction(context.Context, *TransactionRequest) (*TransactionStatus, error)
+	PutTransactions(context.Context, []*TransactionRequest) ([]*TransactionStatus, error)
 	GetTransaction(context.Context, *TransactionStatusRequest) (*Transaction, error)
 	GetTransactionStatus(context.Context, *TransactionStatusRequest) (*TransactionStatus, error)
 	mustEmbedUnimplementedMetaMorphAPIServer()
@@ -100,6 +111,9 @@ func (UnimplementedMetaMorphAPIServer) Health(context.Context, *emptypb.Empty) (
 }
 func (UnimplementedMetaMorphAPIServer) PutTransaction(context.Context, *TransactionRequest) (*TransactionStatus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PutTransaction not implemented")
+}
+func (UnimplementedMetaMorphAPIServer) PutTransactions(context.Context, []*TransactionRequest) ([]*TransactionStatus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PutTransactions not implemented")
 }
 func (UnimplementedMetaMorphAPIServer) GetTransaction(context.Context, *TransactionStatusRequest) (*Transaction, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransaction not implemented")
@@ -156,6 +170,24 @@ func _MetaMorphAPI_PutTransaction_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MetaMorphAPI_PutTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := make([]*TransactionRequest, 0)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MetaMorphAPIServer).PutTransactions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/metamorph_api.MetaMorphAPI/PutTransactions",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MetaMorphAPIServer).PutTransactions(ctx, req.([]*TransactionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _MetaMorphAPI_GetTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TransactionStatusRequest)
 	if err := dec(in); err != nil {
@@ -206,6 +238,10 @@ var MetaMorphAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PutTransaction",
 			Handler:    _MetaMorphAPI_PutTransaction_Handler,
+		},
+		{
+			MethodName: "PutTransactions",
+			Handler:    _MetaMorphAPI_PutTransactions_Handler,
 		},
 		{
 			MethodName: "GetTransaction",

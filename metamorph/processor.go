@@ -162,20 +162,13 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 	return p
 }
 
-// Close all channels and goroutines for graceful shutdown
-func (p *Processor) Shutdown() {
-	p.logger.Infof("Shutting down processor")
-	p.processExpiredSeenTxsTicker.Stop()
-	p.processExpiredTxsTicker.Stop()
-	if p.ch != nil {
-		close(p.ch)
-	}
-	if p.cbChannel != nil {
-		close(p.cbChannel)
-	}
-	if p.errorLogWorker != nil {
-		close(p.errorLogWorker)
-	}
+func (p *Processor) Set(req *ProcessorRequest) error {
+	// we need to decouple the context from the request, so that we don't get cancelled
+	// when the request is cancelled
+	callerSpan := opentracing.SpanFromContext(req.ctx)
+	ctx := opentracing.ContextWithSpan(context.Background(), callerSpan)
+	_, spanCtx := opentracing.StartSpanFromContext(ctx, "Processor:processTransaction")
+	return p.store.Set(spanCtx, req.Hash[:], req.StoreData)
 }
 
 func (p *Processor) GetMetamorphAddress() string {

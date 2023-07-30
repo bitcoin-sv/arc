@@ -215,7 +215,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	defer func() {
 		gocore.NewStat("PutTransactions").AddTime(start)
 	}()
-	fmt.Println("bbbb")
+
 	ret := new(metamorph_api.TransactionStatuses)
 	ret.Statuses = make([]*metamorph_api.TransactionStatus, len(req.Transactions))
 	for ind, req := range req.Transactions {

@@ -414,7 +414,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	defer span.Finish()
 	var transactionOutput []interface{}
 	transactionsInput := make([][]byte, 0)
-	fmt.Println("aaaaa")
+
 	for _, transaction := range transactions {
 		txValidator := defaultValidator.New(m.NodePolicy)
 

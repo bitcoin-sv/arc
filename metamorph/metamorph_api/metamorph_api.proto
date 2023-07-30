@@ -25,6 +25,7 @@ enum Status {
 service MetaMorphAPI {
   rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
   rpc PutTransaction (TransactionRequest) returns (TransactionStatus) {}
+  rpc PutTransactions (TransactionRequests) returns (TransactionStatuses) {}
   rpc GetTransaction (TransactionStatusRequest) returns (Transaction) {}
   rpc GetTransactionStatus (TransactionStatusRequest) returns (TransactionStatus) {}
 }
@@ -58,6 +59,11 @@ message TransactionRequest {
   Status wait_for_status = 9;
 }
 
+// swagger:model TransactionRequests
+message TransactionRequests {
+  repeated TransactionRequest Transactions = 1;
+}
+
 // swagger:model Transaction
 message Transaction {
   bool timed_out = 1;
@@ -83,6 +89,11 @@ message TransactionStatus {
   string reject_reason = 7;
   uint64 block_height = 8;
   string block_hash = 9;
+}
+
+// swagger:model TransactionStatuses
+message TransactionStatuses {
+  repeated TransactionStatus Statuses = 1;
 }
 
 // swagger:model TransactionRequest

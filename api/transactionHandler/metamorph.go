@@ -122,9 +122,10 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions 
 
 // SubmitTransactions submits transactions to the bitcoin network and returns the transaction in raw format
 func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOptions *arc.TransactionOptions) ([]*TransactionStatus, error) {
-	in := make([]*metamorph_api.TransactionRequest, 0)
+	in := new(metamorph_api.TransactionRequests)
+	in.Transactions = make([]*metamorph_api.TransactionRequest, 0)
 	for _, tx := range txs {
-		in = append(in, &metamorph_api.TransactionRequest{
+		in.Transactions = append(in.Transactions, &metamorph_api.TransactionRequest{
 			RawTx:         tx,
 			CallbackUrl:   txOptions.CallbackURL,
 			CallbackToken: txOptions.CallbackToken,
@@ -139,7 +140,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOpti
 	}
 
 	ret := make([]*TransactionStatus, 0)
-	for _, response := range responses {
+	for _, response := range responses.Statuses {
 		ret = append(ret, &TransactionStatus{
 			TxID:        response.Txid,
 			Status:      response.GetStatus().String(),

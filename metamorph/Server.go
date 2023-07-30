@@ -208,24 +208,25 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	}
 }
 
-func (s *Server) PutTransactions(ctx context.Context, reqs []*metamorph_api.TransactionRequest) ([]*metamorph_api.TransactionStatus, error) {
+func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransactions")
 	defer span.Finish()
-
+	fmt.Println("already in metamorph")
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("PutTransactions").AddTime(start)
 	}()
 
-	ret := make([]*metamorph_api.TransactionStatus, len(reqs))
-	for ind, req := range reqs {
+	ret := new(metamorph_api.TransactionStatuses)
+	ret.Statuses = make([]*metamorph_api.TransactionStatus, len(req.Transactions))
+	for ind, req := range req.Transactions {
 		_, status, hash, transactionStatus, err := s.putTransactionInit(ctx, req, start)
 		if err != nil {
 			// if we have an error, we will return immediately
 			return nil, err
 		} else if transactionStatus != nil {
 			// if we have a transactionStatus, we can also return immediately
-			ret[ind] = transactionStatus
+			ret.Statuses[ind] = transactionStatus
 			continue
 		}
 
@@ -247,7 +248,7 @@ func (s *Server) PutTransactions(ctx context.Context, reqs []*metamorph_api.Tran
 		}()
 
 		if err := s.processor.Set(NewProcessorRequest(ctx, sReq, responseChannel)); err != nil {
-			ret[ind] = &metamorph_api.TransactionStatus{
+			ret.Statuses[ind] = &metamorph_api.TransactionStatus{
 								Status: metamorph_api.Status_STORED,
 								Txid:         hash.String(),
 						}

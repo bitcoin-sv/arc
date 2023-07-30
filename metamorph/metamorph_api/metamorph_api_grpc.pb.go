@@ -32,7 +32,7 @@ const (
 type MetaMorphAPIClient interface {
 	Health(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HealthResponse, error)
 	PutTransaction(ctx context.Context, in *TransactionRequest, opts ...grpc.CallOption) (*TransactionStatus, error)
-	PutTransactions(ctx context.Context, in []*TransactionRequest, opts ...grpc.CallOption) ([]*TransactionStatus, error)
+	PutTransactions(ctx context.Context, in *TransactionRequests, opts ...grpc.CallOption) (*TransactionStatuses, error)
 	GetTransaction(ctx context.Context, in *TransactionStatusRequest, opts ...grpc.CallOption) (*Transaction, error)
 	GetTransactionStatus(ctx context.Context, in *TransactionStatusRequest, opts ...grpc.CallOption) (*TransactionStatus, error)
 }
@@ -63,9 +63,9 @@ func (c *metaMorphAPIClient) PutTransaction(ctx context.Context, in *Transaction
 	return out, nil
 }
 
-func (c *metaMorphAPIClient) PutTransactions(ctx context.Context, in []*TransactionRequest, opts ...grpc.CallOption) ([]*TransactionStatus, error) {
-	out := make([]*TransactionStatus, len(in))
-	err := c.cc.Invoke(ctx, "/metamorph_api.MetaMorphAPI/PutTransactions", in, &out, opts...)
+func (c *metaMorphAPIClient) PutTransactions(ctx context.Context, in *TransactionRequests, opts ...grpc.CallOption) (*TransactionStatuses, error) {
+	out := new(TransactionStatuses)
+	err := c.cc.Invoke(ctx, "/metamorph_api.MetaMorphAPI/PutTransactions", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func (c *metaMorphAPIClient) GetTransactionStatus(ctx context.Context, in *Trans
 type MetaMorphAPIServer interface {
 	Health(context.Context, *emptypb.Empty) (*HealthResponse, error)
 	PutTransaction(context.Context, *TransactionRequest) (*TransactionStatus, error)
-	PutTransactions(context.Context, []*TransactionRequest) ([]*TransactionStatus, error)
+	PutTransactions(context.Context, *TransactionRequests) (*TransactionStatuses, error)
 	GetTransaction(context.Context, *TransactionStatusRequest) (*Transaction, error)
 	GetTransactionStatus(context.Context, *TransactionStatusRequest) (*TransactionStatus, error)
 	mustEmbedUnimplementedMetaMorphAPIServer()
@@ -112,7 +112,7 @@ func (UnimplementedMetaMorphAPIServer) Health(context.Context, *emptypb.Empty) (
 func (UnimplementedMetaMorphAPIServer) PutTransaction(context.Context, *TransactionRequest) (*TransactionStatus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PutTransaction not implemented")
 }
-func (UnimplementedMetaMorphAPIServer) PutTransactions(context.Context, []*TransactionRequest) ([]*TransactionStatus, error) {
+func (UnimplementedMetaMorphAPIServer) PutTransactions(context.Context, *TransactionRequests) (*TransactionStatuses, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PutTransactions not implemented")
 }
 func (UnimplementedMetaMorphAPIServer) GetTransaction(context.Context, *TransactionStatusRequest) (*Transaction, error) {
@@ -171,7 +171,7 @@ func _MetaMorphAPI_PutTransaction_Handler(srv interface{}, ctx context.Context, 
 }
 
 func _MetaMorphAPI_PutTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := make([]*TransactionRequest, 0)
+	in := new(TransactionRequests)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -183,7 +183,7 @@ func _MetaMorphAPI_PutTransactions_Handler(srv interface{}, ctx context.Context,
 		FullMethod: "/metamorph_api.MetaMorphAPI/PutTransactions",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MetaMorphAPIServer).PutTransactions(ctx, req.([]*TransactionRequest))
+		return srv.(MetaMorphAPIServer).PutTransactions(ctx, req.(*TransactionRequests))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -253,5 +253,5 @@ var MetaMorphAPI_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "metamorph/metamorph_api/metamorph_api.proto",
+	Metadata: "metamorph_api.proto",
 }

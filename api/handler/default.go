@@ -259,7 +259,6 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 
 			transactionInputs = append(transactionInputs, transaction)
 		}
-		
 		// submit for processing
 		response, err := m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
 		if err != nil {
@@ -280,7 +279,6 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		reader := ctx.Request().Body
 		transactions = make([]interface{}, 0)
 		var txCounter int64
-
 		// parse every transaction from request
 		for {
 			btTx, err := transactionReaderFn(reader)
@@ -439,7 +437,6 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		validateSpan.Finish()
 		transactionsInput = append(transactionsInput, transaction.Bytes())
 	}
-
 	txStatuses, err := m.TransactionHandler.SubmitTransactions(tracingCtx, transactionsInput, transactionOptions)
 	if err != nil {
 		return nil, err

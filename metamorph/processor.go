@@ -409,6 +409,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 
 func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) (bool, error) {
 	processorResponse, ok := p.processorResponseMap.Get(hash)
+	fmt.Println("Received status about ", hash, status)
 	if ok {
 		span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
 		defer span.Finish()

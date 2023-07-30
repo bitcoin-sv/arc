@@ -212,12 +212,16 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransactions")
 	defer span.Finish()
 	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("PutTransactions").AddTime(start)
-	}()
+	defer gocore.NewStat("PutTransactions").AddTime(start)
 
-	ret := new(metamorph_api.TransactionStatuses)
+	// prepare response object before filling with tx statuses
+	ret := &metamorph_api.TransactionStatuses{}
 	ret.Statuses = make([]*metamorph_api.TransactionStatus, len(req.Transactions))
+
+
+	// for each transaction if we have status in the db already set that status in the response
+	// if not we store the transaction data and set the transaction status in response array to - STORED
+	requests := make([]*store.StoreData, 0)
 	for ind, req := range req.Transactions {
 		_, status, hash, transactionStatus, err := s.putTransactionInit(ctx, req, start)
 		if err != nil {
@@ -239,21 +243,27 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			RawTx:         req.RawTx,
 		}
 
-		if err := s.processor.Set(NewProcessorRequest(ctx, sReq, nil)); err == nil {
-			ret.Statuses[ind] = &metamorph_api.TransactionStatus{
-								Status: metamorph_api.Status_STORED,
-								Txid:         hash.String(),
-						}
-
-			fmt.Println(ret.Statuses[ind])
-		} else {
-			// here hoes error
+		if err := s.processor.Set(NewProcessorRequest(ctx, sReq, nil)); err != nil {
+			return nil, err
 		}
 
-		// TODO check the context when API call ends
-		go s.processor.ProcessTransaction(NewProcessorRequest(ctx, sReq, nil))
+		// set status stored
+		ret.Statuses[ind] = &metamorph_api.TransactionStatus{
+			Status: metamorph_api.Status_STORED,
+			Txid:         hash.String(),
+		}
+
+		// add new request to process
+		requests = append(requests, sReq)
 	}
-	fmt.Printf("%+v\n", ret)
+
+	// As long as we have all the transactions in the db at this point, it's safe to continue processing them asynchronously
+	// we are not going to wait for their completion, we will be returning statuses for transactions - STORED
+	for _, request := range requests {
+		// TODO check the context when API call ends
+		go s.processor.ProcessTransaction(NewProcessorRequest(ctx, request, nil))
+	}
+
 	return ret, nil
 }
 

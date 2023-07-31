@@ -7,16 +7,8 @@ import (
 	"context"
 )
 
-func (s *SQL) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Block, error) {
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("GetTransactionBlock").AddTime(start)
-	}()
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	q := `
+const (
+	queryGetBlockHashHeightForTransactionHash = `
 		SELECT
 		 b.hash, b.height
 		FROM blocks b
@@ -25,9 +17,18 @@ func (s *SQL) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.
 		WHERE t.hash = $1
 		AND b.orphanedyn = false
 	`
+)
+
+func (s *SQL) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Block, error) {
+	start := gocore.CurrentNanos()
+
+	defer gocore.NewStat("blocktx").NewStat("GetTransactionBlock").AddTime(start)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	block := &blocktx_api.Block{}
-	if err := s.db.QueryRowContext(ctx, q, transaction.Hash).Scan(&block.Hash, &block.Height); err != nil {
+	if err := s.db.QueryRowContext(ctx, queryGetBlockHashHeightForTransactionHash, transaction.Hash).Scan(&block.Hash, &block.Height); err != nil {
 		return nil, err
 
 	}

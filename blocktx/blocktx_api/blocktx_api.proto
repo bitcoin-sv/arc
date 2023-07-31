@@ -20,11 +20,10 @@ service BlockTxAPI {
   // GetBlockTransactions returns a list of transaction hashes for a given block.
   rpc GetBlockTransactions (Block) returns (Transactions) {}
 
-  // GetTransactionBlocks returns a list of block hashes (including orphaned) for a given transaction hash.
-  rpc GetTransactionBlocks (Transaction) returns (Blocks) {}
-
   // GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash.
   rpc GetTransactionBlock (Transaction) returns (Block) {}
+
+  rpc GetTransactionBlocks (Transactions) returns (TransactionBlocks) {}
 
   // GetBlock returns the non-orphaned block for a given block hash.
   rpc GetBlock (Hash) returns (Block) {}
@@ -50,11 +49,6 @@ message HealthResponse {
   google.protobuf.Timestamp timestamp = 3;
 }
 
-// swagger:model Blocks
-message Blocks {
-  repeated Block blocks = 1;
-}
-
 // swagger:model Block {
 message Block {
   bytes hash = 1; // Little endian
@@ -68,6 +62,16 @@ message Block {
 // swagger:model Transactions
 message Transactions {
   repeated Transaction transactions = 1;
+}
+
+message TransactionBlock {
+  bytes block_hash = 1; // Little endian
+  uint64 block_height = 2;
+  bytes transaction_hash = 3; // Little endian
+}
+
+message TransactionBlocks {
+  repeated TransactionBlock transaction_blocks = 1;
 }
 
 // swagger:model MinedTransactions

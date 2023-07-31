@@ -8,11 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
+	blockTxMock "github.com/bitcoin-sv/arc/metamorph/blocktx/mock"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/badger"
+	storeMock "github.com/bitcoin-sv/arc/metamorph/store/mock"
 	"github.com/bitcoin-sv/arc/metamorph/store/sql"
 	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/labstack/gommon/random"
@@ -428,4 +431,69 @@ func BenchmarkProcessTransaction(b *testing.B) {
 
 	// wait for the last items to be written to the store
 	time.Sleep(1 * time.Second)
+}
+
+//go:generate moq -pkg mock -out ./store/mock/mock.go ./store/ MetamorphStore
+//go:generate moq -pkg mock -out ./blocktx/mock/mock.go ../blocktx/ ClientI
+func TestProcessExpiredSeenTransactions(t *testing.T) {
+	t.Run("happy path", func(t *testing.T) {
+
+		exptectedNrOfUpdates := 3
+		expectedNrOfBlockTxRequests := 1
+		expectedNumberOfTransactions := 3
+
+		storeMock := &storeMock.MetamorphStoreMock{
+			UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
+				require.Condition(t, func() (success bool) {
+					oneOfHash := hash.IsEqual(testdata.TX1Hash) || hash.IsEqual(testdata.TX2Hash) || hash.IsEqual(testdata.TX3Hash)
+					isBlockHeight := blockHeight == 1234
+					isBlockHash := blockHash.IsEqual(testdata.Block1Hash)
+					return oneOfHash && isBlockHeight && isBlockHash
+				})
+
+				return nil
+			},
+		}
+		btxMock := &blockTxMock.ClientIMock{
+			GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
+				require.Equal(t, expectedNumberOfTransactions, len(transaction.Transactions))
+				txsBlocks := &blocktx_api.TransactionBlocks{
+					TransactionBlocks: []*blocktx_api.TransactionBlock{
+						{
+							BlockHash:       testdata.Block1Hash[:],
+							BlockHeight:     1234,
+							TransactionHash: testdata.TX1Hash[:],
+						},
+						{
+							BlockHash:       testdata.Block1Hash[:],
+							BlockHeight:     1234,
+							TransactionHash: testdata.TX2Hash[:],
+						},
+						{
+							BlockHash:       testdata.Block1Hash[:],
+							BlockHeight:     1234,
+							TransactionHash: testdata.TX3Hash[:],
+						},
+					},
+				}
+				return txsBlocks, nil
+			},
+		}
+
+		pm := p2p.NewPeerManagerMock()
+		processor := NewProcessor(storeMock, pm, "test", nil, btxMock, WithProcessExpiredSeenTxsInterval(20*time.Millisecond))
+		defer processor.Shutdown()
+
+		processor.SetLogger(p2p.TestLogger{})
+		require.Equal(t, 0, processor.processorResponseMap.Len())
+
+		processor.processorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+		processor.processorResponseMap.Set(testdata.TX2Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+		processor.processorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+
+		time.Sleep(50 * time.Millisecond)
+
+		require.Equal(t, exptectedNrOfUpdates, len(storeMock.UpdateMinedCalls()))
+		require.Equal(t, expectedNrOfBlockTxRequests, len(btxMock.GetTransactionBlocksCalls()))
+	})
 }

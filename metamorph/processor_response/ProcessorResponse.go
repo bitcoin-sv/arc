@@ -88,7 +88,7 @@ func (r *ProcessorResponse) Close() {
 		_ = recover()
 	}()
 
-	if (r.statusUpdateCh) != nil {
+	if r.statusUpdateCh != nil {
 		close(r.statusUpdateCh)
 	}
 }

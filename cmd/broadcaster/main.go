@@ -34,6 +34,7 @@ func main() {
 	printTxIDs := flag.Bool("print", false, "Whether to print out all the tx ids of the transactions")
 	concurrency := flag.Int("concurrency", 0, "How many transactions to send concurrently")
 	batch := flag.Int("batch", 0, "send transactions in batches of this size")
+	isTestnet := flag.Bool("testnet", false, "send transactions to testnet")
 	flag.Parse()
 
 	args := flag.Args()
@@ -129,6 +130,7 @@ func main() {
 	bCaster.PrintTxIDs = *printTxIDs
 	bCaster.BatchSend = *batch
 	bCaster.Consolidate = *consolidate
+	bCaster.IsTestnet = *isTestnet
 
 	err = bCaster.Run(ctx, *concurrency)
 	if err != nil {

@@ -21,9 +21,8 @@ const (
 
 func (s *SQL) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Block, error) {
 	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("GetTransactionBlock").AddTime(start)
-	}()
+
+	defer gocore.NewStat("blocktx").NewStat("GetTransactionBlock").AddTime(start)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

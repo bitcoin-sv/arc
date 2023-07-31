@@ -51,9 +51,8 @@ func getQuerySQLite(transactions *blocktx_api.Transactions) string {
 
 func (s *SQL) GetTransactionBlocks(ctx context.Context, transactions *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
 	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("GetTransactionsBlocks").AddTime(start)
-	}()
+
+	defer gocore.NewStat("blocktx").NewStat("GetTransactionsBlocks").AddTime(start)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

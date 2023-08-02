@@ -61,6 +61,7 @@ type Broadcaster struct {
 	Outputs       int64
 	IsDryRun      bool
 	IsRegtest     bool
+	IsTestnet     bool
 	PrintTxIDs    bool
 	Consolidate   bool
 	Concurrency   int
@@ -84,6 +85,7 @@ func New(logger utils.Logger, client ClientI, fromKeySet *keyset.KeySet, toKeySe
 		ToKeySet:      toKeySet,
 		Outputs:       outputs,
 		IsRegtest:     true,
+		IsTestnet:     true,
 		BatchSize:     500,
 		WaitForStatus: 0,
 		FeeQuote:      fq,
@@ -143,6 +145,7 @@ func (b *Broadcaster) ConsolidateOutputsToOriginal(ctx context.Context, txs []*b
 	}
 
 	if err = b.ProcessTransaction(ctx, consolidationTx, iteration); err != nil {
+		b.logger.Errorf("[%d] failed to process consolidation tx %s: %v", iteration, consolidationTx.TxID(), err)
 		return err
 	}
 
@@ -176,7 +179,10 @@ func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 		iteration := (i / b.BatchSize) + 1
 
 		fundingTx := b.NewFundingTransaction(batchSize, iteration)
-		b.logger.Infof("[%d] outputs tx: %s", iteration, fundingTx.TxID())
+		for i := range fundingTx.Inputs {
+			b.logger.Infof("[%d] funding previous tx id [%d]: %s, vout: %d", iteration, i, hex.EncodeToString(fundingTx.Inputs[i].PreviousTxID()), fundingTx.Inputs[i].PreviousTxOutIndex)
+		}
+		b.logger.Infof("[%d] funding tx: %s", iteration, fundingTx.TxID())
 
 		_, err := b.Client.BroadcastTransaction(ctx, fundingTx, metamorph_api.Status(b.WaitForStatus))
 		if err != nil {
@@ -272,17 +278,19 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 				}
 
 				b.logger.Infof("[%d]   Sending batch of %d - %d", iteration, i, j)
-				go func(txs []*bt.Tx) {
+				go func(txs []*bt.Tx, indexStart, indexEnd int) {
 					defer wg.Done()
 
 					txStatus, err := b.Client.BroadcastTransactions(ctx, txs, metamorph_api.Status(b.WaitForStatus))
 					if err != nil {
-						b.logger.Infof("Error broadcasting transactions: %s", err.Error())
+						b.logger.Errorf("[%d]   batch of %d - %d failed %s", iteration, indexStart, indexEnd, err.Error())
+					} else {
+						b.logger.Infof("[%d]   batch of %d - %d successful", iteration, indexStart, indexEnd)
 					}
 					for _, res := range txStatus {
 						b.processResult(res, iteration)
 					}
-				}(txs[i:j])
+				}(txs[i:j], i, j)
 			}
 			wg.Wait()
 		} else {
@@ -389,7 +397,7 @@ func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
 	} else {
 		// live mode, we need to get the utxos from woc
 		var utxos []*bt.UTXO
-		utxos, err = b.FromKeySet.GetUTXOs(!b.IsRegtest)
+		utxos, err = b.FromKeySet.GetUTXOs(!b.IsTestnet)
 		if err != nil {
 			panic(err)
 		}
@@ -403,7 +411,6 @@ func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
 			panic(err)
 		}
 
-		b.logger.Infof("[%d] funding tx: %s", iteration, tx.TxID())
 	}
 
 	estimateFee := fees.EstimateFee(uint64(stdFee.MiningFee.Satoshis), 1, 1)
@@ -440,7 +447,7 @@ func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) *bt.T
 		_ = tx.PayTo(key.Script, 2*useUtxo.Satoshis/3)
 		_ = tx.Change(key.Script, b.FeeQuote)
 	} else {
-		_ = tx.AddOpReturnOutput([]byte("ARC is here ... https://taal-gmbh.github.io/arc/"))
+		_ = tx.AddOpReturnOutput([]byte("ARC is here ... https://bitcoin-sv.github.io/arc/"))
 	}
 
 	unlockerGetter := unlocker.Getter{PrivateKey: key.PrivateKey}

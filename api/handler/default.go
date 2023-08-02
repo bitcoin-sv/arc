@@ -403,20 +403,26 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 	if !txValidator.IsExtended(transaction) {
 		err := m.extendTransaction(tracingCtx, transaction)
 		if err != nil {
-			return m.handleError(tracingCtx, transaction, err)
+			statusCode, arcError, errHandled := m.handleError(tracingCtx, transaction, err)
+			m.logger.Errorf("failed to extend transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, errHandled)
+			return statusCode, arcError, errHandled
 		}
 	}
 
 	validateSpan, validateCtx := opentracing.StartSpanFromContext(tracingCtx, "ArcDefaultHandler:ValidateTransaction")
 	if err := txValidator.ValidateTransaction(transaction); err != nil {
 		validateSpan.Finish()
-		return m.handleError(validateCtx, transaction, err)
+		statusCode, arcError, errHandled := m.handleError(validateCtx, transaction, err)
+		m.logger.Errorf("failed to validate transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, errHandled)
+		return statusCode, arcError, errHandled
 	}
 	validateSpan.Finish()
 
 	tx, err := m.TransactionHandler.SubmitTransaction(tracingCtx, transaction.Bytes(), transactionOptions)
 	if err != nil {
-		return m.handleError(tracingCtx, transaction, err)
+		statusCode, arcError, errHandled := m.handleError(tracingCtx, transaction, err)
+		m.logger.Errorf("failed to submit transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, errHandled)
+		return statusCode, arcError, errHandled
 	}
 
 	txID := tx.TxID

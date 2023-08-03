@@ -37,6 +37,10 @@ func NewProcessorMock() *ProcessorMock {
 
 func (p *ProcessorMock) LoadUnmined() {}
 
+func (p *ProcessorMock) Set(req *ProcessorRequest) error {
+	return nil
+}
+
 func (p *ProcessorMock) GetPeers() ([]string, []string) { return nil, nil }
 
 func (p *ProcessorMock) ProcessTransaction(req *ProcessorRequest) {

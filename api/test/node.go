@@ -45,6 +45,11 @@ func (n *Node) SubmitTransaction(_ context.Context, txBytes []byte, options *arc
 	return nil, nil
 }
 
+func (n *Node) SubmitTransactions(_ context.Context, txBytes [][]byte, options *arc.TransactionOptions) ([]*transactionHandler.TransactionStatus, error) {
+	panic("SubmitTransactions not called on test node")
+	return nil, nil
+}
+
 func (n *Node) GetTransaction(_ context.Context, txID string) ([]byte, error) {
 	if n.GetTransactionResult != nil {
 		var result interface{}

@@ -218,10 +218,9 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	ret := &metamorph_api.TransactionStatuses{}
 	ret.Statuses = make([]*metamorph_api.TransactionStatus, len(req.Transactions))
 
-
 	// for each transaction if we have status in the db already set that status in the response
 	// if not we store the transaction data and set the transaction status in response array to - STORED
-	requests := make([]*store.StoreData, 0)
+	requests := make([]*store.StoreData, 0, len(req.Transactions))
 	for ind, req := range req.Transactions {
 		_, status, hash, transactionStatus, err := s.putTransactionInit(ctx, req, start)
 		if err != nil {
@@ -250,13 +249,12 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		// set status stored
 		ret.Statuses[ind] = &metamorph_api.TransactionStatus{
 			Status: metamorph_api.Status_STORED,
-			Txid:         hash.String(),
+			Txid:   hash.String(),
 		}
 
 		// add new request to process
 		requests = append(requests, sReq)
 	}
-
 	// As long as we have all the transactions in the db at this point, it's safe to continue processing them asynchronously
 	// we are not going to wait for their completion, we will be returning statuses for transactions - STORED
 	for _, request := range requests {

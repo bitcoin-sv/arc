@@ -246,7 +246,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			return ctx.JSON(int(api.ErrStatusBadRequest), e)
 		}
 
-		transactionInputs := make([]*bt.Tx, 0)
+		transactionInputs := make([]*bt.Tx, 0, len(txBody))
 		for index, tx := range txBody {
 			transaction, err := bt.NewTxFromString(tx.RawTx)
 			if err != nil {
@@ -306,7 +306,6 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			isFirstTransaction = false
 			transactionInputs = append(transactionInputs, btTx)
 		}
-
 		// process all transactions before submitting to metamorph
 		transactions, err = m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
 		if err != nil {
@@ -318,7 +317,6 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 
 	sizingCtx := context.WithValue(ctx.Request().Context(), api.ContextSizings, sizingInfo)
 	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
-
 	// we cannot really return any other status here
 	// each transaction in the slice will have the result of the transaction submission
 	return ctx.JSON(http.StatusOK, transactions)
@@ -411,7 +409,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	defer span.Finish()
 
 	// validate before submitting array of transactions to metamorph
-	transactionsInput := make([][]byte, 0)
+	transactionsInput := make([][]byte, 0, len(transactions))
 	for _, transaction := range transactions {
 		txValidator := defaultValidator.New(m.NodePolicy)
 

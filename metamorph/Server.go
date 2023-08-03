@@ -208,6 +208,63 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	}
 }
 
+func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransactions")
+	defer span.Finish()
+	start := gocore.CurrentNanos()
+	defer gocore.NewStat("PutTransactions").AddTime(start)
+
+	// prepare response object before filling with tx statuses
+	ret := &metamorph_api.TransactionStatuses{}
+	ret.Statuses = make([]*metamorph_api.TransactionStatus, len(req.Transactions))
+
+	// for each transaction if we have status in the db already set that status in the response
+	// if not we store the transaction data and set the transaction status in response array to - STORED
+	requests := make([]*store.StoreData, 0, len(req.Transactions))
+	for ind, req := range req.Transactions {
+		_, status, hash, transactionStatus, err := s.putTransactionInit(ctx, req, start)
+		if err != nil {
+			// if we have an error, we will return immediately
+			return nil, err
+		} else if transactionStatus != nil {
+			// if we have a transactionStatus, we can also return immediately
+			ret.Statuses[ind] = transactionStatus
+			continue
+		}
+
+		// Convert gRPC req to store.StoreData struct...
+		sReq := &store.StoreData{
+			Hash:          hash,
+			Status:        status,
+			CallbackUrl:   req.CallbackUrl,
+			CallbackToken: req.CallbackToken,
+			MerkleProof:   req.MerkleProof,
+			RawTx:         req.RawTx,
+		}
+
+		if err := s.processor.Set(NewProcessorRequest(ctx, sReq, nil)); err != nil {
+			return nil, err
+		}
+
+		// set status stored
+		ret.Statuses[ind] = &metamorph_api.TransactionStatus{
+			Status: metamorph_api.Status_STORED,
+			Txid:   hash.String(),
+		}
+
+		// add new request to process
+		requests = append(requests, sReq)
+	}
+	// As long as we have all the transactions in the db at this point, it's safe to continue processing them asynchronously
+	// we are not going to wait for their completion, we will be returning statuses for transactions - STORED
+	for _, request := range requests {
+		// TODO check the context when API call ends
+		go s.processor.ProcessTransaction(NewProcessorRequest(ctx, request, nil))
+	}
+
+	return ret, nil
+}
+
 func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.TransactionRequest, start int64) (int64, metamorph_api.Status, *chainhash.Hash, *metamorph_api.TransactionStatus, error) {
 	initSpan, initCtx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:init")
 	defer initSpan.Finish()

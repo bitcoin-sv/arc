@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/api"
@@ -222,9 +221,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		return bt.NewTxFromString(string(b))
 	}
 
-	var wg sync.WaitGroup
 	var transactions []interface{}
-
 	sizingInfo := make([][]uint64, 0)
 
 	switch ctx.Request().Header.Get("Content-Type") {
@@ -249,16 +246,23 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			return ctx.JSON(int(api.ErrStatusBadRequest), e)
 		}
 
-		transactions = make([]interface{}, len(txBody))
+		transactionInputs := make([]*bt.Tx, 0, len(txBody))
 		for index, tx := range txBody {
-			// process all the transactions in parallel
-			wg.Add(1)
-			go func(index int, tx string) {
-				defer wg.Done()
-				transactions[index] = m.getTransactionResponse(tracingCtx, tx, transactionOptions)
-			}(index, tx.RawTx)
+			transaction, err := bt.NewTxFromString(tx.RawTx)
+			if err != nil {
+				errStr := err.Error()
+				e := api.ErrBadRequest
+				e.ExtraInfo = &errStr
+				transactions[index] = e
+				return err
+			}
+			transactionInputs = append(transactionInputs, transaction)
 		}
-		wg.Wait()
+		// submit for processing
+		transactions, err = m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
+		if err != nil {
+			return err
+		}
 	case "application/octet-stream":
 		transactionReaderFn = func(r io.Reader) (*bt.Tx, error) {
 			btTx := new(bt.Tx)
@@ -270,17 +274,13 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		fallthrough
 	case "text/plain":
 		reader := ctx.Request().Body
+		transactionInputs := make([]*bt.Tx, 0)
+		isFirstTransaction := true
+		var err error
 
-		transactions = make([]interface{}, 0)
-		var txCounter int64
-
-		// limit the number of concurrent process routines we can start
-		routinesLimit, _ := gocore.Config().GetInt("process_routines_limit", 1024)
-		limit := make(chan bool, routinesLimit)
-
+		// parse each transaction from request body and prepare
+		// slice of transactions to process before submitting to metamorph
 		for {
-			limit <- true
-
 			btTx, err := transactionReaderFn(reader)
 			if err != nil {
 				if !errors.Is(err, io.EOF) {
@@ -293,8 +293,9 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 				}
 			}
 
+			// we reached the end of request body
 			if btTx == nil {
-				if txCounter == 0 {
+				if isFirstTransaction {
 					// no transactions found in the request body
 					return ctx.JSON(int(api.ErrStatusBadRequest), api.ErrBadRequest)
 				}
@@ -302,68 +303,23 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 				break
 			}
 
-			txCounter++
-
-			var mu sync.Mutex
-			wg.Add(1)
-			go func(transaction *bt.Tx) {
-				defer func() {
-					<-limit
-					wg.Done()
-				}()
-
-				_, response, responseError := m.processTransaction(tracingCtx, transaction, transactionOptions)
-				if responseError != nil {
-					// what to do here, the transaction failed due to server failure?
-					e := api.ErrGeneric
-					errStr := responseError.Error()
-					e.ExtraInfo = &errStr
-					mu.Lock()
-					transactions = append(transactions, e)
-					mu.Unlock()
-				} else {
-					mu.Lock()
-					transactions = append(transactions, response)
-
-					normalBytes, dataBytes, feeAmount := getSizings(btTx)
-					sizingInfo = append(sizingInfo, []uint64{normalBytes, dataBytes, feeAmount})
-
-					mu.Unlock()
-				}
-			}(btTx)
+			isFirstTransaction = false
+			transactionInputs = append(transactionInputs, btTx)
 		}
-		wg.Wait()
+		// process all transactions before submitting to metamorph
+		transactions, err = m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
+		if err != nil {
+			return err
+		}
 	default:
 		return ctx.JSON(api.ErrBadRequest.Status, api.ErrBadRequest)
 	}
 
 	sizingCtx := context.WithValue(ctx.Request().Context(), api.ContextSizings, sizingInfo)
 	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
-
 	// we cannot really return any other status here
 	// each transaction in the slice will have the result of the transaction submission
 	return ctx.JSON(http.StatusOK, transactions)
-}
-
-func (m ArcDefaultHandler) getTransactionResponse(ctx context.Context, tx string, transactionOptions *api.TransactionOptions) interface{} {
-	transaction, err := bt.NewTxFromString(tx)
-	if err != nil {
-		errStr := err.Error()
-		e := api.ErrBadRequest
-		e.ExtraInfo = &errStr
-		return e
-	}
-
-	_, response, responseError := m.processTransaction(ctx, transaction, transactionOptions)
-	if responseError != nil {
-		// what to do here, the transaction failed due to server failure?
-		e := api.ErrGeneric
-		errStr := responseError.Error()
-		e.ExtraInfo = &errStr
-		return e
-	}
-
-	return response
 }
 
 func getTransactionOptions(params api.POSTTransactionParams) *api.TransactionOptions {
@@ -445,6 +401,61 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 		Timestamp:   time.Now(),
 		Txid:        txID,
 	}, nil
+}
+
+// processTransactions validates all the transactions in the array and submits to metamorph for processing
+func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions []*bt.Tx, transactionOptions *api.TransactionOptions) ([]interface{}, error) {
+	span, tracingCtx := opentracing.StartSpanFromContext(ctx, "ArcDefaultHandler:processTransactions")
+	defer span.Finish()
+
+	// validate before submitting array of transactions to metamorph
+	transactionsInput := make([][]byte, 0, len(transactions))
+	for _, transaction := range transactions {
+		txValidator := defaultValidator.New(m.NodePolicy)
+
+		// the validator expects an extended transaction
+		// we must enrich the transaction with the missing data
+		if !txValidator.IsExtended(transaction) {
+			err := m.extendTransaction(tracingCtx, transaction)
+			if err != nil {
+				_, _, err := m.handleError(tracingCtx, transaction, err)
+				return nil, err
+			}
+		}
+
+		// validate transaction
+		validateSpan, validateCtx := opentracing.StartSpanFromContext(tracingCtx, "ArcDefaultHandler:ValidateTransactions")
+		if err := txValidator.ValidateTransaction(transaction); err != nil {
+			validateSpan.Finish()
+			_, _, err := m.handleError(validateCtx, transaction, err)
+			return nil, err
+		}
+		validateSpan.Finish()
+		transactionsInput = append(transactionsInput, transaction.Bytes())
+	}
+
+	// submit all the validated array of transactiosn to metamorph endpoint
+	txStatuses, err := m.TransactionHandler.SubmitTransactions(tracingCtx, transactionsInput, transactionOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	// process returned transaction statuses and return to user
+	var transactionOutput []interface{}
+	for ind, tx := range txStatuses {
+		transactionOutput = append(transactionOutput, api.TransactionResponse{
+			Status:      int(api.StatusOK),
+			Title:       "OK",
+			BlockHash:   &tx.BlockHash,
+			BlockHeight: &tx.BlockHeight,
+			TxStatus:    tx.Status,
+			ExtraInfo:   &tx.ExtraInfo,
+			Timestamp:   time.Now(),
+			Txid:        transactions[ind].TxID(),
+		})
+	}
+
+	return transactionOutput, nil
 }
 
 func (m ArcDefaultHandler) extendTransaction(ctx context.Context, transaction *bt.Tx) (err error) {

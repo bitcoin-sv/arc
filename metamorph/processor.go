@@ -103,7 +103,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 	logLevel, _ := gocore.Config().Get("logLevel")
 	logger := gocore.Log("proc", gocore.NewLogLevelFromString(logLevel))
 
-	mapExpiryStr, _ := gocore.Config().Get("processorCacheExpiryTime", "1h")
+	mapExpiryStr, _ := gocore.Config().Get("processorCacheExpiryTime", "24h")
 	mapExpiry, err := time.ParseDuration(mapExpiryStr)
 	if err != nil {
 		logger.Fatalf("Invalid processorCacheExpiryTime: %s", mapExpiryStr)

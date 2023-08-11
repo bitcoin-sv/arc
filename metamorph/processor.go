@@ -171,6 +171,22 @@ func (p *Processor) Set(req *ProcessorRequest) error {
 	return p.store.Set(spanCtx, req.Hash[:], req.StoreData)
 }
 
+// Close all channels and goroutines for graceful shutdown
+func (p *Processor) Shutdown() {
+	p.logger.Infof("Shutting down processor")
+	p.processExpiredSeenTxsTicker.Stop()
+	p.processExpiredTxsTicker.Stop()
+	if p.ch != nil {
+		close(p.ch)
+	}
+	if p.cbChannel != nil {
+		close(p.cbChannel)
+	}
+	if p.errorLogWorker != nil {
+		close(p.errorLogWorker)
+	}
+}
+
 func (p *Processor) GetMetamorphAddress() string {
 	return p.metamorphAddress
 }

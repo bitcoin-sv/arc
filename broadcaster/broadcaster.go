@@ -185,19 +185,31 @@ func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 			b.logger.Infof("[%d] funding previous tx id [%d]: %s, vout: %d", iteration, i, hex.EncodeToString(fundingTx.Inputs[i].PreviousTxID()), fundingTx.Inputs[i].PreviousTxOutIndex)
 		}
 		b.logger.Infof("[%d] funding tx: %s", iteration, fundingTx.TxID())
+		b.logger.Infof("[%d] funding raw tx: %s", iteration, fundingTx.String())
 
-		_, err := b.Client.BroadcastTransaction(ctx, fundingTx, metamorph_api.Status(b.WaitForStatus))
-		if err != nil {
-			b.logger.Fatalf("[%d] error broadcasting funding tx: %s", iteration, err.Error())
+		// retry 3 times to get the funding transaction broadcast with seen on network status
+		for i := 1; i <= 3; i++ {
+			b.logger.Infof("retrying broadcasting funding tx: %d", i)
+			status, err := b.Client.BroadcastTransaction(ctx, fundingTx, metamorph_api.Status(b.WaitForStatus))
+			if err != nil {
+				b.logger.Fatalf("[%d] error broadcasting funding tx: %s", iteration, err.Error())
+			}
+
+			if status.Status == metamorph_api.Status_SEEN_ON_NETWORK {
+				break
+			} else if i == 3 {
+				b.logger.Fatalf("[%d] funding tx not seen on network: %s", iteration, status.Status.String())
+			} else {
+				// wait for things to settle down
+				time.Sleep(5 * time.Second)
+			}
 		}
 
 		fundingTxs[iteration-1] = fundingTx
 	}
 
 	b.logger.Infof("Created %d funding batches in %0.2f seconds", batches, time.Since(timeStart).Seconds())
-
-	// wait for things to settle down
-	time.Sleep(2 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	// start the timer for the transaction sending
 	timeStart = time.Now()

@@ -6,6 +6,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/lib/pq"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
@@ -85,13 +86,28 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 			return "", nil, 0, err
 		}
 
-		_, err = result.RowsAffected()
+		rows, err := result.RowsAffected()
 		if err != nil {
 			if spanErr != nil {
 				spanErr.SetTag(string(ext.Error), true)
 				spanErr.LogFields(log.Error(err))
 			}
 			return "", nil, 0, err
+		}
+
+		if rows == 1 {
+			// We successfully updated the source and which means it had already been mined
+			// so we return the block hash and height
+			var blockHash chainhash.Hash
+			var blockHeight uint64
+
+			if spanErr != nil {
+				spanErr.SetTag("already_mined", true)
+			}
+
+			if err := s.db.QueryRowContext(ctx, queryGetBlockHashHeightForTransactionHash, transaction.Hash).Scan(&blockHash, &blockHeight); err == nil {
+				return transaction.Source, blockHash[:], blockHeight, nil
+			}
 		}
 
 		var source string

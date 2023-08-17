@@ -44,7 +44,6 @@ type ProcessorStats struct {
 }
 
 type Processor struct {
-	ch                   chan *ProcessorRequest
 	store                store.MetamorphStore
 	cbChannel            chan *callbacker_api.Callback
 	processorResponseMap *ProcessorResponseMap
@@ -113,7 +112,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 
 	p := &Processor{
 		startTime:            time.Now().UTC(),
-		ch:                   make(chan *ProcessorRequest),
 		store:                s,
 		cbChannel:            cbChannel,
 		processorResponseMap: NewProcessorResponseMap(mapExpiry),
@@ -176,9 +174,6 @@ func (p *Processor) Shutdown() {
 	p.logger.Infof("Shutting down processor")
 	p.processExpiredSeenTxsTicker.Stop()
 	p.processExpiredTxsTicker.Stop()
-	if p.ch != nil {
-		close(p.ch)
-	}
 	if p.cbChannel != nil {
 		close(p.cbChannel)
 	}

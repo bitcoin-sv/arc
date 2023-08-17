@@ -1,14 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/api/handler"
 	apiHandler "github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
 	"github.com/labstack/echo/v4"
-	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
 )
 
@@ -25,18 +24,16 @@ func main() {
 
 	logger := gocore.Log("simple")
 
-	defaultPolicySetting := `
-	{"excessiveblocksize":2000000000,"blockmaxsize":512000000,"maxtxsizepolicy":100000000,"maxorphantxsize":1000000000,"datacarriersize":4294967295,"maxscriptsizepolicy":100000000,"maxopsperscriptpolicy":4294967295,"maxscriptnumlengthpolicy":10000,"maxpubkeyspermultisigpolicy":4294967295,"maxtxsigopscountspolicy":4294967295,"maxstackmemoryusagepolicy":100000000,"maxstackmemoryusageconsensus":200000000,"limitancestorcount":10000,"limitcpfpgroupmemberscount":25,"maxmempool":2000000000,"maxmempoolsizedisk":0,"mempoolmaxpercentcpfp":10,"acceptnonstdoutputs":true,"datacarrier":true,"minminingtxfee":1e-8,"maxstdtxvalidationduration":3,"maxnonstdtxvalidationduration":1000,"maxtxchainvalidationbudget":50,"validationclockcpu":true,"minconsolidationfactor":20,"maxconsolidationinputscriptsize":150,"minconfconsolidationinput":6,"minconsolidationinputmaturity":6,"acceptnonstdconsolidationinput":false}`
-	var policy *bitcoin.Settings
-
-	err = json.Unmarshal([]byte(defaultPolicySetting), &policy)
+	defaultPolicy, err := handler.GetDefaultPolicy()
 	if err != nil {
+		logger.Error(err)
+		// this is a fatal error, we cannot start the server without a valid default policy
 		panic(err)
 	}
 
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.HandlerInterface
-	if handler, err = apiHandler.NewDefault(logger, txHandler, policy); err != nil {
+	if handler, err = apiHandler.NewDefault(logger, txHandler, defaultPolicy); err != nil {
 		panic(err)
 	}
 

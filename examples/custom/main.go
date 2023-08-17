@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/api/handler"
 	apiHandler "github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
 	"github.com/bitcoin-sv/arc/blocktx"
@@ -15,7 +15,6 @@ import (
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
-	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
 )
 
@@ -77,13 +76,11 @@ func main() {
 		panic(err)
 	}
 
-	defaultPolicySetting, found := gocore.Config().Get("defaultPolicy")
-	var defaultPolicy *bitcoin.Settings
-	if found && defaultPolicySetting != "" {
-		if err = json.Unmarshal([]byte(defaultPolicySetting), &defaultPolicy); err != nil {
-			// this is a fatal error, we cannot start the server without a valid default policy
-			panic(err)
-		}
+	defaultPolicy, err := handler.GetDefaultPolicy()
+	if err != nil {
+		logger.Error(err)
+		// this is a fatal error, we cannot start the server without a valid default policy
+		panic(err)
 	}
 
 	// initialise the arc default api handler, with our txHandler and any handler options

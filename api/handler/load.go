@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
+	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
@@ -39,8 +41,12 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 	}
 
 	var apiHandler api.HandlerInterface
+	defaultPolicy, err := GetDefaultPolicy()
+	if err != nil {
+		return err
+	}
 	// TODO WithSecurityConfig(appConfig.Security)
-	if apiHandler, err = NewDefault(logger, txHandler); err != nil {
+	if apiHandler, err = NewDefault(logger, txHandler, defaultPolicy); err != nil {
 		return err
 	}
 
@@ -48,6 +54,19 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 	api.RegisterHandlers(e, apiHandler)
 
 	return nil
+}
+
+func GetDefaultPolicy() (*bitcoin.Settings, error) {
+	defaultPolicySetting, found := gocore.Config().Get("defaultPolicy")
+	defaultPolicy := &bitcoin.Settings{}
+	if found && defaultPolicySetting != "" {
+		err := json.Unmarshal([]byte(defaultPolicySetting), defaultPolicy)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return defaultPolicy, nil
 }
 
 // CheckSwagger validates the request against the swagger definition

@@ -36,11 +36,26 @@ var (
 	validTxBytes, _ = hex.DecodeString(validTx)
 	validExtendedTx = "010000000000000000ef01358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffffc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
 	validTxID       = "a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"
+
+	defaultPolicy *bitcoin.Settings
 )
+
+func TestMain(m *testing.M) {
+	defaultPolicySetting := `
+	{"excessiveblocksize":2000000000,"blockmaxsize":512000000,"maxtxsizepolicy":100000000,"maxorphantxsize":1000000000,"datacarriersize":4294967295,"maxscriptsizepolicy":100000000,"maxopsperscriptpolicy":4294967295,"maxscriptnumlengthpolicy":10000,"maxpubkeyspermultisigpolicy":4294967295,"maxtxsigopscountspolicy":4294967295,"maxstackmemoryusagepolicy":100000000,"maxstackmemoryusageconsensus":200000000,"limitancestorcount":10000,"limitcpfpgroupmemberscount":25,"maxmempool":2000000000,"maxmempoolsizedisk":0,"mempoolmaxpercentcpfp":10,"acceptnonstdoutputs":true,"datacarrier":true,"minminingtxfee":1e-8,"maxstdtxvalidationduration":3,"maxnonstdtxvalidationduration":1000,"maxtxchainvalidationbudget":50,"validationclockcpu":true,"minconsolidationfactor":20,"maxconsolidationinputscriptsize":150,"minconfconsolidationinput":6,"minconsolidationinputmaturity":6,"acceptnonstdconsolidationinput":false}`
+	var policy *bitcoin.Settings
+
+	err := json.Unmarshal([]byte(defaultPolicySetting), &policy)
+	if err != nil {
+		panic(err)
+	}
+
+	defaultPolicy = policy
+}
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, defaultHandler)
 	})
@@ -48,7 +63,7 @@ func TestNewDefault(t *testing.T) {
 
 func TestGETPolicy(t *testing.T) { //nolint:funlen
 	t.Run("default policy", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/policy", strings.NewReader(""))
@@ -76,7 +91,7 @@ func TestGETPolicy(t *testing.T) { //nolint:funlen
 
 func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	t.Run("empty tx", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		for _, contentType := range contentTypes {
@@ -93,7 +108,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("invalid mime type", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		e := echo.New()
@@ -108,7 +123,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("invalid tx", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		expectedErrors := map[string]string{
@@ -134,7 +149,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 	t.Run("valid tx - missing inputs", func(t *testing.T) {
 		testNode := &test.Node{}
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, testNode)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, testNode, defaultPolicy)
 		require.NoError(t, err)
 
 		validTxBytes, _ := hex.DecodeString(validTx)
@@ -170,7 +185,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		// set the node/metamorph responses for the 3 test requests
 		testNode.SubmitTransactionResult = append(testNode.SubmitTransactionResult, txResult, txResult, txResult)
 
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, testNode)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, testNode, defaultPolicy)
 		require.NoError(t, err)
 
 		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)
@@ -217,7 +232,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	t.Run("empty tx", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		for _, contentType := range contentTypes {
@@ -235,7 +250,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("invalid mime type", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		e := echo.New()
@@ -250,7 +265,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("invalid txs", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		expectedErrors := map[string]string{
@@ -281,7 +296,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("valid tx - missing inputs", func(t *testing.T) {
 		testNode := &test.Node{}
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, testNode)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, testNode, defaultPolicy)
 		require.NoError(t, err)
 
 		validTxBytes, _ := hex.DecodeString(validTx)
@@ -318,7 +333,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		// set the node/metamorph responses for the 3 test requests
 		testNode.SubmitTransactionResult = append(testNode.SubmitTransactionResult, txResult, txResult, txResult)
 
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, testNode)
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, testNode, defaultPolicy)
 		require.NoError(t, err)
 
 		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)

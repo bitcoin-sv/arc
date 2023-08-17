@@ -31,16 +31,19 @@ type ArcDefaultHandler struct {
 	logger             utils.Logger
 }
 
-func NewDefault(logger utils.Logger, transactionHandler transactionHandler.TransactionHandler) (api.HandlerInterface, error) {
-	policy, err := getPolicy(logger)
-	if err != nil {
-		logger.Errorf("could not load policy, using default: %v", err)
-	}
+func NewDefault(logger utils.Logger, transactionHandler transactionHandler.TransactionHandler, defaultPolicy *bitcoin.Settings) (api.HandlerInterface, error) {
 
 	handler := &ArcDefaultHandler{
 		TransactionHandler: transactionHandler,
-		NodePolicy:         policy,
+		NodePolicy:         defaultPolicy,
 		logger:             logger,
+	}
+
+	policy, err := getPolicyFromNode()
+	if err != nil {
+		logger.Errorf("could not load policy from bitcoin node, using default: %v", err)
+	} else {
+		handler.NodePolicy = policy
 	}
 
 	return handler, nil
@@ -558,45 +561,24 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 	return nil, transactionHandler.ErrParentTransactionNotFound
 }
 
-func getPolicy(logger utils.Logger) (policy *bitcoin.Settings, err error) {
-	policy, err = getPolicyFromNode()
-	if err == nil {
-		return policy, nil
-	}
-	// just print out the error, but do not stop, we will load the default policy instead
-	logger.Errorf("could not load policy from bitcoin node, using default: %v", err)
-
-	defaultPolicy, found := gocore.Config().Get("defaultPolicy")
-	if found && defaultPolicy != "" {
-		if err = json.Unmarshal([]byte(defaultPolicy), &policy); err != nil {
-			// this is a fatal error, we cannot start the server without a valid default policy
-			return nil, fmt.Errorf("error unmarshalling defaultPolicy: %v", err)
-		}
-
-		return policy, nil
-	}
-
-	return nil, fmt.Errorf("no policy found")
-}
-
 func getPolicyFromNode() (*bitcoin.Settings, error) {
 	bitcoinRpc, err, rpcFound := gocore.Config().GetURL("peer_rpc")
-	if err == nil && rpcFound {
-		// connect to bitcoin node and get the settings
-		b, err := bitcoin.NewFromURL(bitcoinRpc, false)
-		if err != nil {
-			return nil, fmt.Errorf("error connecting to peer: %v", err)
-		}
-
-		settings, err := b.GetSettings()
-		if err != nil {
-			return nil, fmt.Errorf("error getting settings from peer: %v", err)
-		}
-
-		return &settings, nil
+	if err != nil || !rpcFound {
+		return nil, fmt.Errorf("error getting peer_rpc from config: %v", err)
 	}
 
-	return nil, nil
+	// connect to bitcoin node and get the settings
+	b, err := bitcoin.NewFromURL(bitcoinRpc, false)
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to peer: %v", err)
+	}
+
+	settings, err := b.GetSettings()
+	if err != nil {
+		return nil, fmt.Errorf("error getting settings from peer: %v", err)
+	}
+
+	return &settings, nil
 }
 
 func getSizings(tx *bt.Tx) (uint64, uint64, uint64) {

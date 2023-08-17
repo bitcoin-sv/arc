@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/api/handler"
 	apiHandler "github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
 	"github.com/bitcoin-sv/arc/blocktx"
@@ -75,9 +76,16 @@ func main() {
 		panic(err)
 	}
 
+	defaultPolicy, err := handler.GetDefaultPolicy()
+	if err != nil {
+		logger.Error(err)
+		// this is a fatal error, we cannot start the server without a valid default policy
+		panic(err)
+	}
+
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.HandlerInterface
-	if handler, err = apiHandler.NewDefault(logger, txHandler); err != nil {
+	if handler, err = apiHandler.NewDefault(logger, txHandler, defaultPolicy); err != nil {
 		panic(err)
 	}
 

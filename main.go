@@ -15,6 +15,7 @@ import (
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/spf13/viper"
 )
 
 // Name used by build script for the binaries. (Please keep on single line)
@@ -57,6 +58,15 @@ func main() {
 		fmt.Println("    -tracer=<true|false>")
 		fmt.Println("          whether to start the Jaeger tracer (default=false)")
 		fmt.Println("")
+		return
+	}
+
+	viper.SetConfigName("config") // name of config file (without extension)
+	viper.SetConfigType("yaml")   // REQUIRED if the config file does not have the extension in the name
+	viper.AddConfigPath(".")      // optionally look for config in the working directory
+	err := viper.ReadInConfig()   // Find and read the config file
+	if err != nil {               // Handle errors reading the config file
+		fmt.Printf("failed to read config file config.yaml: %v \n", err)
 		return
 	}
 

@@ -213,22 +213,26 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		}
 	}()
 
-	peerCount := viper.GetInt("peerCount")
-	if peerCount == 0 {
+	peerSettings, err := blocktx.GetPeerSettings()
+	if err != nil {
+		logger.Fatalf("error getting peer settings: %v", err)
+	}
+
+	if len(peerSettings) == 0 {
 		logger.Fatalf("peerCount must be set")
 	}
 	zmqCollector := safemap.New[string, *metamorph.ZMQStats]()
-	for i := 1; i <= peerCount; i++ {
 
-		zmqHost := viper.GetString(fmt.Sprintf("peer_%d_zmq.host", i))
-		zmqPort := viper.GetString(fmt.Sprintf("peer_%d_zmq.port", i))
+	for i, peerSetting := range peerSettings {
+		zmqHost := peerSetting.Host
+		zmqPort := peerSetting.PortZMQ
 
-		if zmqHost == "" || zmqPort == "" {
+		if zmqHost == "" || zmqPort == 0 {
 			logger.Warnf("zmq setting not found for peer %d", i)
 			continue
 		}
 
-		zmqUrl, err := url.Parse(fmt.Sprintf("zmq://%s:%s", zmqHost, zmqPort))
+		zmqUrl, err := url.Parse(fmt.Sprintf("zmq://%s:%d", zmqHost, zmqPort))
 
 		if err != nil {
 			logger.Warnf("zmq url could not be parsed for peer %d", i)
@@ -239,6 +243,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		zmqCollector.Set(zmqUrl.Host, z.Stats)
 		go z.Start()
 	}
+
 	// pass all the started peers to the collector
 	_ = metamorph.NewZMQCollector(zmqCollector)
 
@@ -274,23 +279,27 @@ func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManag
 
 	peerHandler := metamorph.NewPeerHandler(s, messageCh)
 
-	peerCount := viper.GetInt("peerCount")
-	if peerCount == 0 {
+	peerSettings, err := blocktx.GetPeerSettings()
+	if err != nil {
+		logger.Fatalf("error getting peer settings: %v", err)
+	}
+
+	if len(peerSettings) == 0 {
 		logger.Fatalf("peerCount must be set")
 	}
 
-	for i := 1; i <= peerCount; i++ {
-		host := viper.GetString(fmt.Sprintf("peer_%d_p2p.host", i))
+	for i, peerSetting := range peerSettings {
+		host := peerSetting.Host
 		if host == "" {
 			logger.Fatalf("setting for host nr %d not found", i)
 		}
 
-		port := viper.GetString(fmt.Sprintf("peer_%d_p2p.port", i))
+		port := peerSetting.PortP2P
 		if host == "" {
 			logger.Fatalf("setting for port nr %d not found", i)
 		}
 
-		url := fmt.Sprintf("p2p://%s:%s", host, port)
+		url := fmt.Sprintf("p2p://%s:%d", host, port)
 
 		var peer *p2p.Peer
 		peer, err := p2p.NewPeer(logger, url, peerHandler, network)

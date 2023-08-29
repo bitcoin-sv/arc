@@ -1,28 +1,34 @@
 ---
 logLevel: INFO
 profilerAddr: localhost:9999
+statisticsServerAddress: localhost:9005
 prometheusEndpoint: /metrics
 tracing: true
+
+arcServer: http://localhost:9090
 arc_httpAddress: localhost:9090
-statisticsServerAddress: localhost:9005
 callbacker_grpcAddress: localhost:8021
 callbackerAddress: localhost:8021
-arcServer: http://localhost:9090
 metamorph_grpcAddress: localhost:8001
 metamorphAddresses: localhost:8001
 blocktxAddress: localhost:8011
 blocktx_grpcAddress: localhost:8011
+
 grpc_message_size: 100000000
+
 ip_address_hint: ^172.28.*
+
 metamorph_logFile: ./data/metamorph.log
 metamorph_logErrorFile: ./data/metamorph_error.log
+
 stats_keypress: false
+
 peerRpcPassword: bitcoin
 peerRpcUser: bitcoin
 peerRpcHost: localhost
 peerRpcPort: 18332
-processorCacheExpiryTime: 24h
 
+processorCacheExpiryTime: 24h
 checkUtxos: false
 
 bitcoinNetwork: regtest
@@ -34,10 +40,8 @@ peers:
     port_zmq: 28333
   - host: localhost
     port_p2p: 18334
-    port_zmq: 28334
   - host: localhost
     port_p2p: 18335
-    port_zmq: 28335
 
 dataFolder: data
 starting_block_height: 100

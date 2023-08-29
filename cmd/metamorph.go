@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -224,23 +223,19 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	zmqCollector := safemap.New[string, *metamorph.ZMQStats]()
 
 	for i, peerSetting := range peerSettings {
-		zmqHost := peerSetting.Host
-		zmqPort := peerSetting.PortZMQ
-
-		if zmqHost == "" || zmqPort == 0 {
-			logger.Warnf("zmq setting not found for peer %d", i)
+		zmqURL, err := peerSetting.GetZMQUrl()
+		if err != nil {
+			logger.Warnf("failed to get zmq URL for peer %d", i)
 			continue
 		}
-
-		zmqUrl, err := url.Parse(fmt.Sprintf("zmq://%s:%d", zmqHost, zmqPort))
 
 		if err != nil {
 			logger.Warnf("zmq url could not be parsed for peer %d", i)
 			continue
 		}
 
-		z := metamorph.NewZMQ(zmqUrl, statusMessageCh)
-		zmqCollector.Set(zmqUrl.Host, z.Stats)
+		z := metamorph.NewZMQ(zmqURL, statusMessageCh)
+		zmqCollector.Set(zmqURL.Host, z.Stats)
 		go z.Start()
 	}
 
@@ -288,27 +283,20 @@ func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManag
 		logger.Fatalf("peerCount must be set")
 	}
 
-	for i, peerSetting := range peerSettings {
-		host := peerSetting.Host
-		if host == "" {
-			logger.Fatalf("setting for host nr %d not found", i)
+	for _, peerSetting := range peerSettings {
+		peerUrl, err := peerSetting.GetP2PUrl()
+		if err != nil {
+			logger.Fatalf("error getting peer url: %v", err)
 		}
-
-		port := peerSetting.PortP2P
-		if host == "" {
-			logger.Fatalf("setting for port nr %d not found", i)
-		}
-
-		url := fmt.Sprintf("p2p://%s:%d", host, port)
 
 		var peer *p2p.Peer
-		peer, err := p2p.NewPeer(logger, url, peerHandler, network)
+		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network)
 		if err != nil {
-			logger.Fatalf("error creating peer %s: %v", url, err)
+			logger.Fatalf("error creating peer %s: %v", peerUrl, err)
 		}
 
 		if err = pm.AddPeer(peer); err != nil {
-			logger.Fatalf("error adding peer %s: %v", url, err)
+			logger.Fatalf("error adding peer %s: %v", peerUrl, err)
 		}
 	}
 

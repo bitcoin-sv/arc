@@ -2,6 +2,7 @@ package blocktx
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
@@ -34,6 +35,32 @@ type Peer struct {
 	Host    string
 	PortP2P int `mapstructure:"port_p2p"`
 	PortZMQ int `mapstructure:"port_zmq"`
+}
+
+func (p Peer) GetZMQUrl() (*url.URL, error) {
+	if p.PortZMQ == 0 {
+		return nil, fmt.Errorf("port_zmq not set for peer %s", p.Host)
+	}
+
+	if p.Host == "" {
+		return nil, fmt.Errorf("host not set for peer %s", p.Host)
+	}
+
+	zmqURLString := fmt.Sprintf("zmq://%s:%d", p.Host, p.PortZMQ)
+
+	return url.Parse(zmqURLString)
+}
+
+func (p Peer) GetP2PUrl() (string, error) {
+	if p.PortP2P == 0 {
+		return "", fmt.Errorf("port_p2p not set for peer %s", p.Host)
+	}
+
+	if p.Host == "" {
+		return "", fmt.Errorf("host not set for peer %s", p.Host)
+	}
+
+	return fmt.Sprintf("%s:%d", p.Host, p.PortP2P), nil
 }
 
 func GetPeerSettings() ([]Peer, error) {
@@ -88,17 +115,19 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 	}
 
 	for _, peerSetting := range peerSettings {
-		url := fmt.Sprintf("p2p://%s:%d", peerSetting.Host, peerSetting.PortP2P)
-
 		var peer *p2p.Peer
-
-		peer, err := p2p.NewPeer(l, url, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize))
+		peerUrl, err := peerSetting.GetP2PUrl()
 		if err != nil {
-			l.Fatalf("error creating peer %s: %v", url, err)
+			l.Fatalf("error getting peer url: %v", err)
+		}
+
+		peer, err = p2p.NewPeer(l, peerUrl, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize))
+		if err != nil {
+			l.Fatalf("error creating peer %s: %v", peerUrl, err)
 		}
 
 		if err = pm.AddPeer(peer); err != nil {
-			l.Fatalf("error adding peer %s: %v", url, err)
+			l.Fatalf("error adding peer %s: %v", peerUrl, err)
 		}
 	}
 

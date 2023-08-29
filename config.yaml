@@ -37,7 +37,7 @@ wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"
 peers:
   - host: localhost
     port_p2p: 18333
-    port_zmq: 28333
+    port_zmq: 28332
   - host: localhost
     port_p2p: 18334
   - host: localhost

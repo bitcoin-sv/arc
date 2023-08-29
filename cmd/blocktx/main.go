@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -26,6 +27,15 @@ func init() {
 }
 
 func main() {
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("../../")
+	err := viper.ReadInConfig()
+	if err != nil {
+		fmt.Printf("failed to read config file config.yaml: %v \n", err)
+		return
+	}
+
 	logLevel := viper.GetString("logLevel")
 	logger := gocore.Log(progname, gocore.NewLogLevelFromString(logLevel))
 

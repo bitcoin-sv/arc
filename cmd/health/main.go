@@ -24,6 +24,15 @@ func main() {
 
 	ctx := context.Background()
 
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("../../")
+	err := viper.ReadInConfig()
+	if err != nil {
+		fmt.Printf("failed to read config file config.yaml: %v \n", err)
+		return
+	}
+
 	addresses := viper.GetString("metamorphAddresses")
 	if addresses == "" {
 		panic("Missing metamorphAddresses")

@@ -86,7 +86,15 @@ func main() {
 		isAPIClient = true
 	}
 
-	var err error
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("../../")
+	err := viper.ReadInConfig()
+	if err != nil {
+		fmt.Printf("failed to read config file config.yaml: %v \n", err)
+		return
+	}
+
 	var xpriv string
 	if useKey != nil && *useKey {
 		fmt.Print("Enter xpriv: ")

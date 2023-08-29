@@ -44,7 +44,7 @@ func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger util
 // StartGRPCServer function
 func (s *Server) StartGRPCServer() error {
 
-	address := viper.GetString("blocktx_grpcAddress") //, "localhost:8001")
+	address := viper.GetString("blocktx_grpcAddress")
 	if address == "" {
 		return errors.New("no blocktx_grpcAddress setting found")
 	}

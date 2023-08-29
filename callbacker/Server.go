@@ -39,7 +39,7 @@ func NewServer(logger utils.Logger, c *Callbacker) *Server {
 
 // StartGRPCServer function
 func (s *Server) StartGRPCServer() error {
-	address := viper.GetString("callbacker_grpcAddress") //, "localhost:8002")
+	address := viper.GetString("callbacker_grpcAddress")
 	if address == "" {
 		return errors.New("no callbacker_grpcAddress setting found")
 	}

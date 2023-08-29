@@ -56,7 +56,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	btc := blocktx.NewClient(logger, address)
 
-	metamorphGRPCListenAddress := viper.GetString("metamorph_grpcAddress") //, "localhost:8000")
+	metamorphGRPCListenAddress := viper.GetString("metamorph_grpcAddress")
 	if metamorphGRPCListenAddress == "" {
 		logger.Fatalf("no metamorph_grpcAddress setting found")
 	}

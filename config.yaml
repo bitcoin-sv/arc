@@ -4,13 +4,14 @@ profilerAddr: localhost:9999
 prometheusEndpoint: /metrics
 tracing: true
 arc_httpAddress: localhost:9090
-metamorph_grpcAddress: localhost:8001
 statisticsServerAddress: localhost:9005
 callbacker_grpcAddress: localhost:8021
 callbackerAddress: localhost:8021
 arcServer: http://localhost:9090
+metamorph_grpcAddress: localhost:8001
 metamorphAddresses: localhost:8001
 blocktxAddress: localhost:8011
+blocktx_grpcAddress: localhost:8011
 grpc_message_size: 100000000
 ip_address_hint: ^172.28.*
 metamorph_logFile: ./data/metamorph.log
@@ -26,7 +27,6 @@ checkUtxos: false
 
 bitcoinNetwork: regtest
 wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"
-blocktx_grpcAddress: localhost:8011
 # proposal: peers as pure array
 peerCount: 3
 peer_1_p2p: 

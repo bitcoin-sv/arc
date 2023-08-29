@@ -19,7 +19,7 @@ type MetamorphBroadcaster struct {
 }
 
 func NewMetamorphBroadcaster(address string) *MetamorphBroadcaster {
-	addresses := viper.GetString("metamorphAddresses") //, "localhost:8000")
+	addresses := viper.GetString("metamorphAddresses")
 	fmt.Printf("Metamorph addresses: %s\n", addresses)
 
 	opts := []grpc.DialOption{

@@ -24,12 +24,12 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 	// Check the security requirements
 	//CheckSecurity(e, appConfig)
 
-	addresses := viper.GetString("metamorphAddresses") //, "localhost:8001")
+	addresses := viper.GetString("metamorphAddresses")
 	if addresses == "" {
 		return fmt.Errorf("metamorphAddresses not found in config")
 	}
 
-	blocktxAddress := viper.GetString("blocktxAddress") //, "localhost:8001")
+	blocktxAddress := viper.GetString("blocktxAddress")
 	if blocktxAddress == "" {
 		return fmt.Errorf("blocktxAddress not found in config")
 	}

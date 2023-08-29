@@ -249,3 +249,20 @@ or using the generic `main.go`:
 ```shell
 go run main.go -callbacker=true
 ```
+
+
+## Broadcaster
+
+Broadcaster is a tool to broadcast example transactions to ARC. It can be used to test the ARC API and Metamorph.
+
+Examples
+```bash
+# Send to a single node via gRPC...
+metamorphAddresses=172.28.48.167:8001 go run cmd/broadcaster/main.go -consolidate -api=false 1000
+
+# Send to round-robin via gRPC...
+ metamorphAddresses=dns:///metamorph.int.eu-a1.taal.com:8001 go run cmd/broadcaster/main.go -consolidate -api=false 1000
+
+# Send via API...
+arcServer=https://api.taal.com/arc go run cmd/broadcaster/main.go -consolidate -keyfile=./cmd/broadcaster/arc.key -authorization=mainnet_d0a9875baa90aebe8602f00847d49e8e 1000
+```

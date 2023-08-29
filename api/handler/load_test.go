@@ -12,7 +12,7 @@ func TestGetDefaultPolicy(t *testing.T) {
 
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
-		viper.AddConfigPath("../../")
+		viper.AddConfigPath("./testdata")
 		err := viper.ReadInConfig()
 		require.NoError(t, err)
 

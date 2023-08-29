@@ -27,20 +27,18 @@ checkUtxos: false
 
 bitcoinNetwork: regtest
 wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"
-# proposal: peers as pure array
-peerCount: 3
-peer_1_p2p: 
-  host: localhost
-  port: 18333
-peer_1_zmq: 
-  host: localhost
-  port: 28333
-peer_2_p2p: 
-  host: localhost
-  port: 18334
-peer_3_p2p: 
-  host: localhost
-  port: 18335
+
+peers:
+  - host: localhost
+    port_p2p: 18333
+    port_zmq: 28333
+  - host: localhost
+    port_p2p: 18334
+    port_zmq: 28334
+  - host: localhost
+    port_p2p: 18335
+    port_zmq: 28335
+
 dataFolder: data
 starting_block_height: 100
 

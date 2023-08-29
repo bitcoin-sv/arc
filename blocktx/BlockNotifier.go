@@ -30,6 +30,22 @@ type BlockNotifier struct {
 	quitCh            chan bool
 }
 
+type Peer struct {
+	Host    string
+	PortP2P int `mapstructure:"port_p2p"`
+	PortZMQ int `mapstructure:"port_zmq"`
+}
+
+func GetPeerSettings() ([]Peer, error) {
+	var peers []Peer
+	err := viper.UnmarshalKey("peers", &peers)
+	if err != nil {
+		return []Peer{}, err
+	}
+
+	return peers, nil
+}
+
 func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 	bn := &BlockNotifier{
 		storeI:            storeI,
@@ -62,23 +78,17 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 
 	peerHandler := NewPeerHandler(l, storeI, bn.blockCh)
 
-	peerCount := viper.GetInt("peerCount")
-	if peerCount == 0 {
-		l.Fatalf("peerCount must be set")
+	peerSettings, err := GetPeerSettings()
+	if err != nil {
+		l.Fatalf("error getting peer settings: %v", err)
 	}
 
-	for i := 1; i <= peerCount; i++ {
-		host := viper.GetString(fmt.Sprintf("peer_%d_p2p.host", i))
-		if host == "" {
-			l.Fatalf("setting for host nr %d not found", i)
-		}
+	if len(peerSettings) == 0 {
+		l.Fatalf("no peers configured")
+	}
 
-		port := viper.GetString(fmt.Sprintf("peer_%d_p2p.port", i))
-		if host == "" {
-			l.Fatalf("setting for port nr %d not found", i)
-		}
-
-		url := fmt.Sprintf("p2p://%s:%s", host, port)
+	for _, peerSetting := range peerSettings {
+		url := fmt.Sprintf("p2p://%s:%d", peerSetting.Host, peerSetting.PortP2P)
 
 		var peer *p2p.Peer
 

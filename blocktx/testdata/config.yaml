@@ -1,0 +1,11 @@
+---
+peers:
+  - host: localhost
+    port_p2p: 18333
+    port_zmq: 28333
+  - host: localhost
+    port_p2p: 18334
+    port_zmq: 28334
+  - host: localhost
+    port_p2p: 18335
+    port_zmq: 28335

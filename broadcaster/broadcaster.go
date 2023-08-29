@@ -3,7 +3,6 @@ package broadcaster
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"math"
 	"runtime"
@@ -21,6 +20,8 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 var stdFee = &bt.Fee{
@@ -460,12 +461,24 @@ func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) *bt.T
 
 // SendToAddress Let the bitcoin node in regtest mode send some bitcoin to our arcUrl
 func (b *Broadcaster) SendToAddress(address string, satoshis uint64) (string, uint32, string, error) {
-	rpcURL, err, found := gocore.Config().GetURL("peer_rpc")
-	if !found {
-		b.logger.Fatalf("Could not find peer_rpc in config: %v", err)
+
+	peerRpcPassword := viper.GetString("peerRpcPassword")
+	if peerRpcPassword == "" {
+		return "", 0, "", errors.Errorf("setting peerRpcPassword not found")
 	}
-	if err != nil {
-		b.logger.Fatalf("Could not parse peer_rpc: %v", err)
+
+	peerRpcUser := viper.GetString("peerRpcUser")
+	if peerRpcUser == "" {
+		return "", 0, "", errors.Errorf("setting peerRpcUser not found")
+	}
+
+	peerRpcHost := viper.GetString("peerRpcHost")
+	if peerRpcHost == "" {
+		return "", 0, "", errors.Errorf("setting peerRpcHost not found")
+	}
+	peerRpcPort := viper.GetInt("peerRpcPort")
+	if peerRpcPort == 0 {
+		return "", 0, "", errors.Errorf("setting peerRpcPort not found")
 	}
 
 	// we are only in dry run mode and will not actually send anything
@@ -476,7 +489,7 @@ func (b *Broadcaster) SendToAddress(address string, satoshis uint64) (string, ui
 		return txid, 0, scriptPubKey, nil
 	}
 
-	client, err := bitcoin.NewFromURL(rpcURL, false)
+	client, err := bitcoin.New(peerRpcHost, peerRpcPort, peerRpcUser, peerRpcPassword, false)
 	if err != nil {
 		b.logger.Fatalf("Could not create bitcoin client: %v", err)
 	}

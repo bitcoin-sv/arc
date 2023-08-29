@@ -7,9 +7,9 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/wire"
+	"github.com/spf13/viper"
 
 	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
 )
 
 const maximumBlockSize = 4000000000 // 4Gb
@@ -40,7 +40,10 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 		blockCh:           make(chan *blocktx_api.Block),
 	}
 
-	networkStr, _ := gocore.Config().Get("bitcoin_network")
+	networkStr := viper.GetString("bitcoinNetwork")
+	if networkStr == "" {
+		l.Fatalf("bitcoin_network must be set")
+	}
 
 	var network wire.BitcoinNet
 
@@ -59,29 +62,33 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 
 	peerHandler := NewPeerHandler(l, storeI, bn.blockCh)
 
-	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
+	peerCount := viper.GetInt("peerCount")
 	if peerCount == 0 {
 		l.Fatalf("peerCount must be set")
 	}
 
 	for i := 1; i <= peerCount; i++ {
-		p2pURL, err, found := gocore.Config().GetURL(fmt.Sprintf("peer_%d_p2p", i))
-		if !found {
-			l.Fatalf("peer_%d_p2p must be set", i)
+		host := viper.GetString(fmt.Sprintf("peer_%d_p2p.host", i))
+		if host == "" {
+			l.Fatalf("setting for host nr %d not found", i)
 		}
-		if err != nil {
-			l.Fatalf("error reading peer_%d_p2p: %v", i, err)
+
+		port := viper.GetString(fmt.Sprintf("peer_%d_p2p.port", i))
+		if host == "" {
+			l.Fatalf("setting for port nr %d not found", i)
 		}
+
+		url := fmt.Sprintf("p2p://%s:%s", host, port)
 
 		var peer *p2p.Peer
 
-		peer, err = p2p.NewPeer(l, p2pURL.Host, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize))
+		peer, err := p2p.NewPeer(l, url, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize))
 		if err != nil {
-			l.Fatalf("error creating peer %s: %v", p2pURL.Host, err)
+			l.Fatalf("error creating peer %s: %v", url, err)
 		}
 
 		if err = pm.AddPeer(peer); err != nil {
-			l.Fatalf("error adding peer %s: %v", p2pURL.Host, err)
+			l.Fatalf("error adding peer %s: %v", url, err)
 		}
 	}
 

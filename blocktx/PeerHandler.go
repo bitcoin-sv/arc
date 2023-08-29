@@ -23,6 +23,7 @@ import (
 	"github.com/ordishs/go-utils/expiringmap"
 	"github.com/ordishs/go-utils/safemap"
 	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 )
 
 func init() {
@@ -329,7 +330,7 @@ func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("insertBlock").AddTime(start)
 	}()
 
-	startingHeight, _ := gocore.Config().GetInt("starting_block_height", 700000)
+	startingHeight := viper.GetInt("starting_block_height")
 	if height > uint64(startingHeight) {
 		if _, found := bs.announcedCache.Get(*previousBlockHash); !found {
 			if _, err := bs.store.GetBlock(context.Background(), previousBlockHash); err != nil {

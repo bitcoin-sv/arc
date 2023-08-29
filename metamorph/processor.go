@@ -24,6 +24,7 @@ import (
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/stat"
 	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 )
 
 type ProcessorStats struct {
@@ -99,10 +100,13 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 		panic("peer manager cannot be nil")
 	}
 
-	logLevel, _ := gocore.Config().Get("logLevel")
+	logLevel := viper.GetString("logLevel")
 	logger := gocore.Log("proc", gocore.NewLogLevelFromString(logLevel))
 
-	mapExpiryStr, _ := gocore.Config().Get("processorCacheExpiryTime", "24h")
+	mapExpiryStr := viper.GetString("processorCacheExpiryTime")
+	if mapExpiryStr == "" {
+		mapExpiryStr = "24h"
+	}
 	mapExpiry, err := time.ParseDuration(mapExpiryStr)
 	if err != nil {
 		logger.Fatalf("Invalid processorCacheExpiryTime: %s", mapExpiryStr)
@@ -145,7 +149,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 	go p.processExpiredTransactions()
 	go p.processExpiredSeenTransactions()
 
-	p.errorLogFile, _ = gocore.Config().Get("metamorph_logErrorFile") //, "./data/metamorph.log")
+	p.errorLogFile = viper.GetString("metamorph_logErrorFile")
 	if p.errorLogFile != "" {
 		p.errorLogWorker = make(chan *processor_response.ProcessorResponse)
 		go p.errorLogWriter()

@@ -13,6 +13,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -43,15 +44,15 @@ func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger util
 // StartGRPCServer function
 func (s *Server) StartGRPCServer() error {
 
-	address, ok := gocore.Config().Get("blocktx_grpcAddress") //, "localhost:8001")
-	if !ok {
+	address := viper.GetString("blocktx_grpcAddress") //, "localhost:8001")
+	if address == "" {
 		return errors.New("no blocktx_grpcAddress setting found")
 	}
 
 	// LEVEL 0 - no security / no encryption
 	var opts []grpc.ServerOption
-	_, prometheusOn := gocore.Config().Get("prometheusEndpoint")
-	if prometheusOn {
+	prometheusEndpoint := viper.Get("prometheusEndpoint")
+	if prometheusEndpoint != "" {
 		opts = append(opts,
 			grpc.ChainStreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 			grpc.ChainUnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),

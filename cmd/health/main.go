@@ -9,7 +9,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/tracing"
-	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -24,8 +24,8 @@ func main() {
 
 	ctx := context.Background()
 
-	addresses, found := gocore.Config().Get("metamorphAddresses")
-	if !found {
+	addresses := viper.GetString("metamorphAddresses")
+	if addresses == "" {
 		panic("Missing metamorphAddresses")
 	}
 

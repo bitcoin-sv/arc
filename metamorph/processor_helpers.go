@@ -21,6 +21,7 @@ import (
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	gcutils "github.com/ordishs/gocore/utils"
+	"github.com/spf13/viper"
 )
 
 func (p *Processor) GetStats(debugItems bool) *ProcessorStats {
@@ -324,7 +325,7 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, hash *chainhash.Hash
 				string(b),
 			))
 
-			logFile, _ := gocore.Config().Get("metamorph_logFile") //, "./data/metamorph.log")
+			logFile := viper.GetString("metamorph_logFile")
 			if logFile != "" {
 				processorResponseStats := grepFile(logFile, hash.String())
 				if processorResponseStats != "" {

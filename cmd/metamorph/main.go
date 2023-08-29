@@ -9,6 +9,7 @@ import (
 	"github.com/bitcoin-sv/arc/cmd"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 )
 
 // Name used by build script for the binaries. (Please keep on single line)
@@ -23,15 +24,14 @@ func init() {
 }
 
 func main() {
-	logLevel, _ := gocore.Config().Get("logLevel")
+	logLevel := viper.GetString("logLevel")
 	logger := gocore.Log(progname, gocore.NewLogLevelFromString(logLevel))
 
-	stats := gocore.Config().Stats()
-	logger.Infof("STATS\n%s\nVERSION\n-------\n%s (%s)\n\n", stats, version, commit)
+	logger.Infof("VERSION\n-------\n%s (%s)\n\n", version, commit)
 
 	go func() {
-		profilerAddr, ok := gocore.Config().Get("metamorph_profilerAddr")
-		if ok {
+		profilerAddr := viper.GetString("metamorph_profilerAddr")
+		if profilerAddr != "" {
 			logger.Infof("Starting profile on http://%s/debug/pprof", profilerAddr)
 			logger.Fatalf("%v", http.ListenAndServe(profilerAddr, nil))
 		}

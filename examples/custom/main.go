@@ -16,6 +16,7 @@ import (
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 )
 
 // This example does not use the configuration files or env variables,
@@ -69,7 +70,7 @@ func main() {
 
 	// init BlockTx client
 	blockTxClient := blocktx.NewClient(logger, "localhost:8021")
-	grpcMessageSize, _ := gocore.Config().GetInt("grpc_message_size", 1e8)
+	grpcMessageSize := viper.GetInt("grpc_message_size")
 	// add a single metamorph, with the BlockTx client we want to use
 	txHandler, err := transactionHandler.NewMetamorph("localhost:8011", blockTxClient, grpcMessageSize)
 	if err != nil {

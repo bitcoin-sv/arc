@@ -11,6 +11,7 @@ import (
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 )
 
 var logger = gocore.Log("txstatus")
@@ -25,14 +26,20 @@ func main() {
 
 	ctx := context.Background()
 
-	addresses, found := gocore.Config().Get("metamorphAddresses")
-	if !found {
+	addresses := viper.GetString("metamorphAddresses")
+	if addresses == "" {
 		panic("Missing metamorphAddresses")
 	}
 
-	btxAddress, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
+	btxAddress := viper.GetString("blocktxAddress")
+	if btxAddress == "" {
+		panic("Missing blocktxAddress")
+	}
 	bTx := blocktx.NewClient(logger, btxAddress)
-	grpcMessageSize, _ := gocore.Config().GetInt("grpc_message_size", 1e8)
+	grpcMessageSize := viper.GetInt("grpc_message_size")
+	if grpcMessageSize == 0 {
+		panic("Missing grpc_message_size")
+	}
 	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize)
 	if err != nil {
 		panic(err)

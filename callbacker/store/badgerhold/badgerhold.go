@@ -12,6 +12,7 @@ import (
 	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/callbacker/store"
 	"github.com/labstack/gommon/random"
+	"github.com/spf13/viper"
 	"github.com/timshannon/badgerhold/v3"
 
 	"github.com/ordishs/gocore"
@@ -43,7 +44,7 @@ func (l loggerWrapper) Warningf(format string, args ...interface{}) {
 }
 
 func New(dir string, interval time.Duration) (*BadgerHold, error) {
-	logLevel, _ := gocore.Config().Get("logLevel")
+	logLevel := viper.GetString("logLevel")
 	logger := loggerWrapper{gocore.Log("cbdgr", gocore.NewLogLevelFromString(logLevel))}
 
 	options := badgerhold.DefaultOptions
@@ -51,7 +52,7 @@ func New(dir string, interval time.Duration) (*BadgerHold, error) {
 	options.Dir = dir
 	options.ValueDir = dir
 	if options.Dir == "" {
-		folder, _ := gocore.Config().Get("dataFolder", "data")
+		folder := viper.GetString("dataFolder")
 
 		f, err := filepath.Abs(path.Join(folder, "callbacker"))
 		if err != nil {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -24,28 +25,39 @@ import (
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/safemap"
-	"github.com/ordishs/gocore"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 func StartMetamorph(logger utils.Logger) (func(), error) {
-	folder, _ := gocore.Config().Get("dataFolder", "data")
+	folder := viper.GetString("dataFolder")
+	if folder == "" {
+		return nil, errors.New("dataFolder not found in config")
+	}
+
 	if err := os.MkdirAll(folder, 0755); err != nil {
 		logger.Fatalf("failed to create data folder %s: %+v", folder, err)
 	}
 
-	dbMode, _ := gocore.Config().Get("metamorph_dbMode", "sqlite")
+	dbMode := viper.GetString("metamorph_dbMode")
+	if dbMode == "" {
+		return nil, errors.New("metamorph_dbMode not found in config")
+	}
 
 	s, err := metamorph.NewStore(dbMode, folder)
 	if err != nil {
 		logger.Fatalf("Error creating metamorph store: %v", err)
 	}
 
-	address, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
+	address := viper.GetString("blocktxAddress")
+	if address == "" {
+		return nil, errors.New("blocktxAddress not found in config")
+	}
+
 	btc := blocktx.NewClient(logger, address)
 
-	metamorphGRPCListenAddress, ok := gocore.Config().Get("metamorph_grpcAddress") //, "localhost:8000")
-	if !ok {
+	metamorphGRPCListenAddress := viper.GetString("metamorph_grpcAddress") //, "localhost:8000")
+	if metamorphGRPCListenAddress == "" {
 		logger.Fatalf("no metamorph_grpcAddress setting found")
 	}
 
@@ -59,7 +71,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	if ip != "" {
 		source = metamorphGRPCListenAddress
 	} else {
-		hint, _ := gocore.Config().Get("ip_address_hint", "")
+		hint := viper.GetString("ip_address_hint")
 		ips, err := utils.GetIPAddressesWithHint(hint)
 		if err != nil {
 			logger.Fatalf("cannot get local ip address")
@@ -76,9 +88,9 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	pm, statusMessageCh := initPeerManager(logger, s)
 
-	callbackerAddress, ok := gocore.Config().Get("callbackerAddress", "localhost:8002")
-	if !ok {
-		logger.Fatalf("no callbacker_grpcAddress setting found")
+	callbackerAddress := viper.GetString("callbackerAddress")
+	if callbackerAddress == "" {
+		logger.Fatalf("no callbackerAddress setting found")
 	}
 	cb := callbacker.NewClient(logger, callbackerAddress)
 
@@ -118,7 +130,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		}
 	}()
 
-	if gocore.Config().GetBool("stats_keypress", false) {
+	if viper.GetBool("stats_keypress") {
 		// The double invocation is the get PrintStatsOnKeypress to start and return a function
 		// that can be deferred to reset the TTY when the program exits.
 		defer metamorphProcessor.PrintStatsOnKeypress()()
@@ -191,26 +203,41 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	serv := metamorph.NewServer(logger, s, metamorphProcessor, btc, source)
 
 	go func() {
-		grpcMessageSize, _ := gocore.Config().GetInt("grpc_message_size", 1e8)
+		grpcMessageSize := viper.GetInt("grpc_message_size")
+		if grpcMessageSize == 0 {
+			logger.Errorf("grpc_message_size must be set")
+			return
+		}
 		if err = serv.StartGRPCServer(metamorphGRPCListenAddress, grpcMessageSize); err != nil {
 			logger.Errorf("GRPCServer failed: %v", err)
 		}
 	}()
 
-	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
+	peerCount := viper.GetInt("peerCount")
 	if peerCount == 0 {
 		logger.Fatalf("peerCount must be set")
 	}
 	zmqCollector := safemap.New[string, *metamorph.ZMQStats]()
 	for i := 1; i <= peerCount; i++ {
-		zmqURL, zErr, found := gocore.Config().GetURL(fmt.Sprintf("peer_%d_zmq", i))
-		if zErr != nil {
-			logger.Warnf("Could not parse peer_%d_zmq in config: %v", i, zErr)
-		} else if found {
-			z := metamorph.NewZMQ(zmqURL, statusMessageCh)
-			zmqCollector.Set(zmqURL.Host, z.Stats)
-			go z.Start()
+
+		zmqHost := viper.GetString(fmt.Sprintf("peer_%d_zmq.host", i))
+		zmqPort := viper.GetString(fmt.Sprintf("peer_%d_zmq.port", i))
+
+		if zmqHost == "" || zmqPort == "" {
+			logger.Warnf("zmq setting not found for peer %d", i)
+			continue
 		}
+
+		zmqUrl, err := url.Parse(fmt.Sprintf("zmq://%s:%s", zmqHost, zmqPort))
+
+		if err != nil {
+			logger.Warnf("zmq url could not be parsed for peer %d", i)
+			continue
+		}
+
+		z := metamorph.NewZMQ(zmqUrl, statusMessageCh)
+		zmqCollector.Set(zmqUrl.Host, z.Stats)
+		go z.Start()
 	}
 	// pass all the started peers to the collector
 	_ = metamorph.NewZMQCollector(zmqCollector)
@@ -225,7 +252,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 }
 
 func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {
-	networkStr, _ := gocore.Config().Get("bitcoin_network")
+	networkStr := viper.GetString("bitcoinNetwork")
 
 	var network wire.BitcoinNet
 
@@ -247,28 +274,32 @@ func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManag
 
 	peerHandler := metamorph.NewPeerHandler(s, messageCh)
 
-	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
+	peerCount := viper.GetInt("peerCount")
 	if peerCount == 0 {
 		logger.Fatalf("peerCount must be set")
 	}
 
 	for i := 1; i <= peerCount; i++ {
-		p2pURL, err, found := gocore.Config().GetURL(fmt.Sprintf("peer_%d_p2p", i))
-		if !found {
-			logger.Fatalf("peer_%d_p2p must be set", i)
-		}
-		if err != nil {
-			logger.Fatalf("error reading peer_%d_p2p: %v", i, err)
+		host := viper.GetString(fmt.Sprintf("peer_%d_p2p.host", i))
+		if host == "" {
+			logger.Fatalf("setting for host nr %d not found", i)
 		}
 
+		port := viper.GetString(fmt.Sprintf("peer_%d_p2p.port", i))
+		if host == "" {
+			logger.Fatalf("setting for port nr %d not found", i)
+		}
+
+		url := fmt.Sprintf("p2p://%s:%s", host, port)
+
 		var peer *p2p.Peer
-		peer, err = p2p.NewPeer(logger, p2pURL.Host, peerHandler, network)
+		peer, err := p2p.NewPeer(logger, url, peerHandler, network)
 		if err != nil {
-			logger.Fatalf("error creating peer %s: %v", p2pURL.Host, err)
+			logger.Fatalf("error creating peer %s: %v", url, err)
 		}
 
 		if err = pm.AddPeer(peer); err != nil {
-			logger.Fatalf("error adding peer %s: %v", p2pURL.Host, err)
+			logger.Fatalf("error adding peer %s: %v", url, err)
 		}
 	}
 

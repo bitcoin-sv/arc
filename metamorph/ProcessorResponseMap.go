@@ -11,8 +11,8 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
 	"github.com/sasha-s/go-deadlock"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -28,7 +28,7 @@ type ProcessorResponseMap struct {
 }
 
 func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
-	logFile, _ := gocore.Config().Get("metamorph_logFile") //, "./data/metamorph.log")
+	logFile := viper.GetString("metamorph_logFile")
 
 	m := &ProcessorResponseMap{
 		expiry:  expiry,

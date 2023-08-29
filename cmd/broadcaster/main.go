@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/bitcoin-sv/arc/broadcaster"
 	"github.com/bitcoin-sv/arc/lib/keyset"
 	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -138,22 +140,23 @@ func main() {
 	}
 }
 
-func createClient(auth *broadcaster.Auth) (client broadcaster.ClientI, err error) {
+func createClient(auth *broadcaster.Auth) (broadcaster.ClientI, error) {
+	var client broadcaster.ClientI
 	if isDryRun {
 		client = broadcaster.NewDryRunClient()
 	} else if isAPIClient {
-		arcServer, err, ok := gocore.Config().GetURL("arcServer") //, "http://localhost:9090")
-		if err != nil {
-			panic(err)
-		}
-		if !ok {
-			panic("arcUrl not found in config")
+		arcServer := viper.GetString("arcServer")
+		if arcServer == "" {
+			return nil, errors.New("arcUrl not found in config")
 		}
 
 		// create a http connection to the arc node
-		client = broadcaster.NewHTTPBroadcaster(arcServer.String(), auth)
+		client = broadcaster.NewHTTPBroadcaster(arcServer, auth)
 	} else {
-		addresses, _ := gocore.Config().Get("metamorphAddresses") //, "localhost:8000")
+		addresses := viper.GetString("metamorphAddresses")
+		if addresses == "" {
+			return nil, errors.New("metamorphAddresses not found in config")
+		}
 		fmt.Printf("Metamorph addresses: %s\n", addresses)
 		client = broadcaster.NewMetamorphBroadcaster(addresses)
 	}

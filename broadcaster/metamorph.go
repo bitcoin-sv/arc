@@ -8,7 +8,7 @@ import (
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-bt/v2"
-	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -19,7 +19,7 @@ type MetamorphBroadcaster struct {
 }
 
 func NewMetamorphBroadcaster(address string) *MetamorphBroadcaster {
-	addresses, _ := gocore.Config().Get("metamorphAddresses") //, "localhost:8000")
+	addresses := viper.GetString("metamorphAddresses") //, "localhost:8000")
 	fmt.Printf("Metamorph addresses: %s\n", addresses)
 
 	opts := []grpc.DialOption{

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,7 +21,8 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 type ArcDefaultHandler struct {
@@ -562,13 +562,28 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 }
 
 func getPolicyFromNode() (*bitcoin.Settings, error) {
-	bitcoinRpc, err, rpcFound := gocore.Config().GetURL("peer_rpc")
-	if err != nil || !rpcFound {
-		return nil, fmt.Errorf("error getting peer_rpc from config: %v", err)
+	peerRpcPassword := viper.GetString("peerRpcPassword")
+	if peerRpcPassword == "" {
+		return nil, errors.Errorf("setting peerRpcPassword not found")
+	}
+
+	peerRpcUser := viper.GetString("peerRpcUser")
+	if peerRpcUser == "" {
+		return nil, errors.Errorf("setting peerRpcUser not found")
+	}
+
+	peerRpcHost := viper.GetString("peerRpcHost")
+	if peerRpcHost == "" {
+		return nil, errors.Errorf("setting peerRpcHost not found")
+	}
+
+	peerRpcPort := viper.GetInt("peerRpcPort")
+	if peerRpcPort == 0 {
+		return nil, errors.Errorf("setting peerRpcPort not found")
 	}
 
 	// connect to bitcoin node and get the settings
-	b, err := bitcoin.NewFromURL(bitcoinRpc, false)
+	b, err := bitcoin.New(peerRpcHost, peerRpcPort, peerRpcUser, peerRpcPassword, false)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to peer: %v", err)
 	}

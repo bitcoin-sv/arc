@@ -21,6 +21,7 @@ import (
 	"github.com/ordishs/gocore"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/spf13/viper"
 )
 
 func init() {
@@ -57,7 +58,7 @@ func (l loggerWrapper) Warningf(format string, args ...interface{}) {
 }
 
 func New(dir string) (*Badger, error) {
-	logLevel, _ := gocore.Config().Get("logLevel")
+	logLevel := viper.GetString("logLevel")
 	logger := loggerWrapper{gocore.Log("bdgr", gocore.NewLogLevelFromString(logLevel))}
 
 	opts := badger.DefaultOptions(dir).

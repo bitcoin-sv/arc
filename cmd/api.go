@@ -11,8 +11,7 @@ import (
 	apmecho "github.com/opentracing-contrib/echo"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-utils"
-
-	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 )
 
 const progname = "arc"
@@ -45,8 +44,8 @@ func StartAPIServer(logger utils.Logger) (func(), error) {
 		panic(err)
 	}
 
-	apiAddress, ok := gocore.Config().Get("arc_httpAddress") //, "localhost:8080")
-	if !ok {
+	apiAddress := viper.GetString("arc_httpAddress")
+	if apiAddress == "" {
 		panic("arc_httpAddress not found in config")
 	}
 	// Serve HTTP until the world ends.

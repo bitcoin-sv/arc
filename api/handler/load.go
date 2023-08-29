@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 
@@ -14,7 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 )
 
 func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
@@ -25,15 +24,22 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 	// Check the security requirements
 	//CheckSecurity(e, appConfig)
 
-	addresses, found := gocore.Config().Get("metamorphAddresses") //, "localhost:8001")
-	if !found {
+	addresses := viper.GetString("metamorphAddresses") //, "localhost:8001")
+	if addresses == "" {
 		return fmt.Errorf("metamorphAddresses not found in config")
 	}
 
-	blocktxAddress, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
+	blocktxAddress := viper.GetString("blocktxAddress") //, "localhost:8001")
+	if blocktxAddress == "" {
+		return fmt.Errorf("blocktxAddress not found in config")
+	}
+
 	bTx := blocktx.NewClient(logger, blocktxAddress)
 
-	grpcMessageSize, _ := gocore.Config().GetInt("grpc_message_size", 1e8)
+	grpcMessageSize := viper.GetInt("grpc_message_size")
+	if grpcMessageSize == 0 {
+		return fmt.Errorf("grpc_message_size not found in config")
+	}
 
 	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize)
 	if err != nil {
@@ -57,13 +63,11 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 }
 
 func GetDefaultPolicy() (*bitcoin.Settings, error) {
-	defaultPolicySetting, found := gocore.Config().Get("defaultPolicy")
 	defaultPolicy := &bitcoin.Settings{}
-	if found && defaultPolicySetting != "" {
-		err := json.Unmarshal([]byte(defaultPolicySetting), defaultPolicy)
-		if err != nil {
-			return nil, err
-		}
+
+	err := viper.UnmarshalKey("defaultPolicy", defaultPolicy)
+	if err != nil {
+		return nil, err
 	}
 
 	return defaultPolicy, nil

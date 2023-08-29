@@ -1,2 +1,93 @@
 ---
-setting_1: value_1
+logLevel: INFO
+profilerAddr: localhost:9999
+prometheusEndpoint: /metrics
+tracing: true
+arc_httpAddress: localhost:9090
+metamorph_grpcAddress: localhost:8001
+statisticsServerAddress: localhost:9005
+callbacker_grpcAddress: localhost:8021
+callbackerAddress: localhost:8021
+arcServer: http://localhost:9090
+metamorphAddresses: localhost:8001
+blocktxAddress: localhost:8011
+grpc_message_size: 100000000
+ip_address_hint: ^172.28.*
+metamorph_logFile: ./data/metamorph.log
+metamorph_logErrorFile: ./data/metamorph_error.log
+stats_keypress: false
+peerRpcPassword: bitcoin
+peerRpcUser: bitcoin
+peerRpcHost: localhost
+peerRpcPort: 18332
+processorCacheExpiryTime: 24h
+
+checkUtxos: false
+
+bitcoinNetwork: regtest
+wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"
+blocktx_grpcAddress: localhost:8011
+# proposal: peers as pure array
+peerCount: 3
+peer_1_p2p: 
+  host: localhost
+  port: 18333
+peer_1_zmq: 
+  host: localhost
+  port: 28333
+peer_2_p2p: 
+  host: localhost
+  port: 18334
+peer_3_p2p: 
+  host: localhost
+  port: 18335
+dataFolder: data
+starting_block_height: 100
+
+blocktx_dbMode: sqlite
+blocktx_dbHost: localhost
+blocktx_dbPort: 5432
+blocktx_dbName: blocktx
+blocktx_dbUser: arc
+blocktx_dbPassword: arc
+blocktx_postgresMaxIdleConns: 10
+blocktx_postgresMaxOpenConns: 80
+blocktx_profilerAddr: localhost:9993
+
+metamorph_dbMode: badger
+metamorph_dbHost: localhost
+metamorph_dbPort: 5432
+metamorph_dbName: metamorph
+metamorph_dbUser: arc
+metamorph_dbPassword: arc
+
+defaultPolicy:
+  excessiveblocksize: 2000000000
+  blockmaxsize: 512000000
+  maxtxsizepolicy: 100000000
+  maxorphantxsize: 1000000000
+  datacarriersize: 4294967295
+  maxscriptsizepolicy: 100000000
+  maxopsperscriptpolicy: 4294967295
+  maxscriptnumlengthpolicy: 10000
+  maxpubkeyspermultisigpolicy: 4294967295
+  maxtxsigopscountspolicy: 4294967295
+  maxstackmemoryusagepolicy: 100000000
+  maxstackmemoryusageconsensus: 200000000
+  limitancestorcount: 10000
+  limitcpfpgroupmemberscount: 25
+  maxmempool: 2000000000
+  maxmempoolsizedisk: 0
+  mempoolmaxpercentcpfp: 10
+  acceptnonstdoutputs: true
+  datacarrier: true
+  minminingtxfee: 1e-8
+  maxstdtxvalidationduration: 3
+  maxnonstdtxvalidationduration: 1000
+  maxtxchainvalidationbudget: 50
+  validationclockcpu: true
+  minconsolidationfactor: 20
+  maxconsolidationinputscriptsize: 150
+  minconfconsolidationinput: 6
+  minconsolidationinputmaturity: 6
+  acceptnonstdconsolidationinput: false

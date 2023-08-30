@@ -33,9 +33,9 @@ func main() {
 		return
 	}
 
-	addresses := viper.GetString("metamorphAddresses")
+	addresses := viper.GetString("metamorph.dialAddr")
 	if addresses == "" {
-		panic("Missing metamorphAddresses")
+		panic("Missing metamorph.dialAddr")
 	}
 
 	opts := []grpc.DialOption{

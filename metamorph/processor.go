@@ -149,7 +149,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 	go p.processExpiredTransactions()
 	go p.processExpiredSeenTransactions()
 
-	p.errorLogFile = viper.GetString("metamorph_logErrorFile")
+	p.errorLogFile = viper.GetString("metamorph.log.errorFile")
 	if p.errorLogFile != "" {
 		p.errorLogWorker = make(chan *processor_response.ProcessorResponse)
 		go p.errorLogWriter()

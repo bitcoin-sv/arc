@@ -32,13 +32,17 @@ type BlockNotifier struct {
 }
 
 type Peer struct {
-	Host    string
-	PortP2P int `mapstructure:"port_p2p"`
-	PortZMQ int `mapstructure:"port_zmq"`
+	Host string
+	Port PeerPort `mapstructure:"port"`
+}
+
+type PeerPort struct {
+	P2P int `mapstructure:"p2p"`
+	ZMQ int `mapstructure:"zmq"`
 }
 
 func (p Peer) GetZMQUrl() (*url.URL, error) {
-	if p.PortZMQ == 0 {
+	if p.Port.ZMQ == 0 {
 		return nil, fmt.Errorf("port_zmq not set for peer %s", p.Host)
 	}
 
@@ -46,13 +50,13 @@ func (p Peer) GetZMQUrl() (*url.URL, error) {
 		return nil, fmt.Errorf("host not set for peer %s", p.Host)
 	}
 
-	zmqURLString := fmt.Sprintf("zmq://%s:%d", p.Host, p.PortZMQ)
+	zmqURLString := fmt.Sprintf("zmq://%s:%d", p.Host, p.Port.ZMQ)
 
 	return url.Parse(zmqURLString)
 }
 
 func (p Peer) GetP2PUrl() (string, error) {
-	if p.PortP2P == 0 {
+	if p.Port.P2P == 0 {
 		return "", fmt.Errorf("port_p2p not set for peer %s", p.Host)
 	}
 
@@ -60,7 +64,7 @@ func (p Peer) GetP2PUrl() (string, error) {
 		return "", fmt.Errorf("host not set for peer %s", p.Host)
 	}
 
-	return fmt.Sprintf("%s:%d", p.Host, p.PortP2P), nil
+	return fmt.Sprintf("%s:%d", p.Host, p.Port.P2P), nil
 }
 
 func GetPeerSettings() ([]Peer, error) {

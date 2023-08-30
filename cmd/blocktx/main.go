@@ -42,7 +42,7 @@ func main() {
 	logger.Infof("VERSION\n-------\n%s (%s)\n\n", version, commit)
 
 	go func() {
-		profilerAddr := viper.GetString("blocktx_profilerAddr")
+		profilerAddr := viper.GetString("blocktx.profilerAddr")
 		if profilerAddr == "" {
 			logger.Infof("Starting profile on http://%s/debug/pprof", profilerAddr)
 			logger.Fatalf("%v", http.ListenAndServe(profilerAddr, nil))

@@ -78,13 +78,13 @@ func New(engine string) (store.Interface, error) {
 			return nil, fmt.Errorf("failed to open postgres DB: %+v", err)
 		}
 
-		idleConns := viper.GetInt("blocktx_postgresMaxIdleConns")
+		idleConns := viper.GetInt("blocktx.postgresMaxIdleConns")
 		if idleConns == 0 {
 			return nil, errors.Errorf("setting blocktx_postgresMaxIdleConns not found")
 		}
 
 		db.SetMaxIdleConns(idleConns)
-		maxOpenConns := viper.GetInt("blocktx_postgresMaxOpenConns")
+		maxOpenConns := viper.GetInt("blocktx.postgresMaxOpenConns")
 		if maxOpenConns == 0 {
 			return nil, errors.Errorf("setting blocktx_postgresMaxOpenConns not found")
 		}

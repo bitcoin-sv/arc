@@ -35,14 +35,14 @@ func main() {
 		return
 	}
 
-	addresses := viper.GetString("metamorphAddresses")
+	addresses := viper.GetString("metamorph.dialAddr")
 	if addresses == "" {
-		panic("Missing metamorphAddresses")
+		panic("Missing metamorph.dialAddr")
 	}
 
-	btxAddress := viper.GetString("blocktxAddress")
+	btxAddress := viper.GetString("blocktx.dialAddr")
 	if btxAddress == "" {
-		panic("Missing blocktxAddress")
+		panic("Missing blocktx.dialAddr")
 	}
 	bTx := blocktx.NewClient(logger, btxAddress)
 	grpcMessageSize := viper.GetInt("grpcMessageSize")

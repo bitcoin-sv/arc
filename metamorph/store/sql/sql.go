@@ -41,14 +41,14 @@ func New(engine string) (store.MetamorphStore, error) {
 
 	switch engine {
 	case "postgres":
-		dbHost := viper.GetString("metamorph_dbHost")
+		dbHost := viper.GetString("metamorph.db.host")
 		if dbHost == "" {
-			return nil, fmt.Errorf("metamorph_dbHost not found in config")
+			return nil, fmt.Errorf("metamorph.db.host not found in config")
 		}
-		dbPort := viper.GetInt("metamorph_dbPort")
-		dbName := viper.GetString("metamorph_dbName")
-		dbUser := viper.GetString("metamorph_dbUser")
-		dbPassword := viper.GetString("metamorph_dbPassword")
+		dbPort := viper.GetInt("metamorph.db.port")
+		dbName := viper.GetString("metamorph.db.name")
+		dbUser := viper.GetString("metamorph.db.user")
+		dbPassword := viper.GetString("metamorph.db.password")
 
 		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", dbUser, dbPassword, dbName, dbHost, dbPort)
 

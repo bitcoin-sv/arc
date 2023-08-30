@@ -40,7 +40,7 @@ func main() {
 	logger.Infof("VERSION\n-------\n%s (%s)\n\n", version, commit)
 
 	go func() {
-		profilerAddr := viper.GetString("metamorph_profilerAddr")
+		profilerAddr := viper.GetString("metamorph.profilerAddr")
 		if profilerAddr != "" {
 			logger.Infof("Starting profile on http://%s/debug/pprof", profilerAddr)
 			logger.Fatalf("%v", http.ListenAndServe(profilerAddr, nil))

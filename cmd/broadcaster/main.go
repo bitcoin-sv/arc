@@ -161,9 +161,9 @@ func createClient(auth *broadcaster.Auth) (broadcaster.ClientI, error) {
 		// create a http connection to the arc node
 		client = broadcaster.NewHTTPBroadcaster(arcServer, auth)
 	} else {
-		addresses := viper.GetString("metamorphAddresses")
+		addresses := viper.GetString("metamorph.dialAddr")
 		if addresses == "" {
-			return nil, errors.New("metamorphAddresses not found in config")
+			return nil, errors.New("metamorph.dialAddr not found in config")
 		}
 		fmt.Printf("Metamorph addresses: %s\n", addresses)
 		client = broadcaster.NewMetamorphBroadcaster(addresses)

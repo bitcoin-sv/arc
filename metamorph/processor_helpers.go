@@ -325,7 +325,7 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, hash *chainhash.Hash
 				string(b),
 			))
 
-			logFile := viper.GetString("metamorph_logFile")
+			logFile := viper.GetString("metamorph.log.file")
 			if logFile != "" {
 				processorResponseStats := grepFile(logFile, hash.String())
 				if processorResponseStats != "" {

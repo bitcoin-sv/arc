@@ -52,6 +52,7 @@ metamorph:
   processorCacheExpiryTime: 24h
   checkUtxos: false
   statsKeypress: false
+  profilerAddr: localhost:9992
 
 blocktx:
   listenAddr: localhost:8011

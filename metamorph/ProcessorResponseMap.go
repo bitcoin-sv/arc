@@ -28,7 +28,7 @@ type ProcessorResponseMap struct {
 }
 
 func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
-	logFile := viper.GetString("metamorph_logFile")
+	logFile := viper.GetString("metamorph.log.file")
 
 	m := &ProcessorResponseMap{
 		expiry:  expiry,

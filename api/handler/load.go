@@ -24,14 +24,14 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 	// Check the security requirements
 	//CheckSecurity(e, appConfig)
 
-	addresses := viper.GetString("metamorphAddresses")
+	addresses := viper.GetString("metamorph.dialAddr")
 	if addresses == "" {
-		return fmt.Errorf("metamorphAddresses not found in config")
+		return fmt.Errorf("metamorph.dialAddr not found in config")
 	}
 
-	blocktxAddress := viper.GetString("blocktxAddress")
+	blocktxAddress := viper.GetString("blocktx.dialAddr")
 	if blocktxAddress == "" {
-		return fmt.Errorf("blocktxAddress not found in config")
+		return fmt.Errorf("blocktx.dialAddr not found in config")
 	}
 
 	bTx := blocktx.NewClient(logger, blocktxAddress)

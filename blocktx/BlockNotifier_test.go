@@ -9,22 +9,18 @@ import (
 
 func TestGetPeerSettings(t *testing.T) {
 	t.Run("get peer settings from config", func(t *testing.T) {
-
-		peers := []Peer{
+		expectedPeerSettings := []Peer{
 			{
-				Host:    "localhost",
-				PortP2P: 18333,
-				PortZMQ: 28333,
+				Host: "localhost",
+				Port: PeerPort{P2P: 18333, ZMQ: 28333},
 			},
 			{
-				Host:    "localhost",
-				PortP2P: 18334,
-				PortZMQ: 28334,
+				Host: "localhost",
+				Port: PeerPort{P2P: 18334, ZMQ: 28334},
 			},
 			{
-				Host:    "localhost",
-				PortP2P: 18335,
-				PortZMQ: 28335,
+				Host: "localhost",
+				Port: PeerPort{P2P: 18335, ZMQ: 28335},
 			},
 		}
 
@@ -37,7 +33,6 @@ func TestGetPeerSettings(t *testing.T) {
 		peerSettings, err := GetPeerSettings()
 		require.NoError(t, err)
 
-		require.Equal(t, peers, peerSettings)
-
+		require.Equal(t, expectedPeerSettings, peerSettings)
 	})
 }

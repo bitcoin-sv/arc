@@ -188,8 +188,7 @@ Although not required, zmq can be used to listen for transaction messages (`hash
 This is especially useful if you are not connecting to multiple Bitcoin nodes, and therefore are not receiving INV
 messages for your transactions.
 
-If you want to use zmq, you can set the `peer_%d_zmq` settings to the full url
-(example `zmq://bitcoin:bitcoin@localhost:18332`) of the zmq endpoints in the settings file.
+If you want to use zmq, you can set the `port_zmq` setting for the respective `peers` setting in the config file `config.yaml`.
 
 ZMQ does seem to be a bit faster than the p2p network, so it is recommended to turn it on, if available.
 

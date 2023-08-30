@@ -249,3 +249,7 @@ or using the generic `main.go`:
 ```shell
 go run main.go -callbacker=true
 ```
+
+
+## Configuration
+Configuration of ARC is done using a yaml file. The default configuration file is `config.yaml` in the root directory of the project.

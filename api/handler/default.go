@@ -249,6 +249,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			return ctx.JSON(int(api.ErrStatusBadRequest), e)
 		}
 
+		txMap := make(map[string]*bt.Tx)
 		transactionInputs := make([]*bt.Tx, 0, len(txBody))
 		for index, tx := range txBody {
 			transaction, err := bt.NewTxFromString(tx.RawTx)
@@ -260,11 +261,19 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 				return err
 			}
 			transactionInputs = append(transactionInputs, transaction)
+			txMap[transaction.TxID()] = transaction
 		}
 		// submit for processing
 		transactions, err = m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
 		if err != nil {
 			return err
+		}
+
+		for _, btTx := range transactions {
+			if tx, ok := btTx.(api.TransactionResponse); ok {
+				normalBytes, dataBytes, feeAmount := getSizings(txMap[tx.Txid])
+				sizingInfo = append(sizingInfo, []uint64{normalBytes, dataBytes, feeAmount})
+			}
 		}
 	case "application/octet-stream":
 		transactionReaderFn = func(r io.Reader) (*bt.Tx, error) {
@@ -278,6 +287,8 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	case "text/plain":
 		reader := ctx.Request().Body
 		transactionInputs := make([]*bt.Tx, 0)
+		txMap := make(map[string]*bt.Tx)
+
 		isFirstTransaction := true
 		var err error
 
@@ -308,12 +319,21 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 
 			isFirstTransaction = false
 			transactionInputs = append(transactionInputs, btTx)
+			txMap[btTx.TxID()] = btTx
 		}
 		// process all transactions before submitting to metamorph
 		transactions, err = m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
 		if err != nil {
 			return err
 		}
+
+		for _, btTx := range transactions {
+			if tx, ok := btTx.(api.TransactionResponse); ok {
+				normalBytes, dataBytes, feeAmount := getSizings(txMap[tx.Txid])
+				sizingInfo = append(sizingInfo, []uint64{normalBytes, dataBytes, feeAmount})
+			}
+		}
+
 	default:
 		return ctx.JSON(api.ErrBadRequest.Status, api.ErrBadRequest)
 	}
@@ -413,6 +433,8 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 
 	// validate before submitting array of transactions to metamorph
 	transactionsInput := make([][]byte, 0, len(transactions))
+	txErrors := make([]interface{}, 0, len(transactions))
+
 	for _, transaction := range transactions {
 		txValidator := defaultValidator.New(m.NodePolicy)
 
@@ -421,8 +443,9 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		if !txValidator.IsExtended(transaction) {
 			err := m.extendTransaction(tracingCtx, transaction)
 			if err != nil {
-				_, _, err := m.handleError(tracingCtx, transaction, err)
-				return nil, err
+				_, arcError, _ := m.handleError(tracingCtx, transaction, err)
+				txErrors = append(txErrors, arcError)
+				continue
 			}
 		}
 
@@ -430,8 +453,9 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		validateSpan, validateCtx := opentracing.StartSpanFromContext(tracingCtx, "ArcDefaultHandler:ValidateTransactions")
 		if err := txValidator.ValidateTransaction(transaction); err != nil {
 			validateSpan.Finish()
-			_, _, err := m.handleError(validateCtx, transaction, err)
-			return nil, err
+			_, arcError, _ := m.handleError(validateCtx, transaction, err)
+			txErrors = append(txErrors, arcError)
+			continue
 		}
 		validateSpan.Finish()
 		transactionsInput = append(transactionsInput, transaction.Bytes())
@@ -444,7 +468,8 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	}
 
 	// process returned transaction statuses and return to user
-	var transactionOutput []interface{}
+	var transactionOutput []interface{} = make([]interface{}, 0, len(transactions))
+
 	for ind, tx := range txStatuses {
 		transactionOutput = append(transactionOutput, api.TransactionResponse{
 			Status:      int(api.StatusOK),
@@ -457,6 +482,8 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 			Txid:        transactions[ind].TxID(),
 		})
 	}
+
+	transactionOutput = append(transactionOutput, txErrors...)
 
 	return transactionOutput, nil
 }

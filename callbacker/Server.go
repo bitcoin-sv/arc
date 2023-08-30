@@ -39,9 +39,9 @@ func NewServer(logger utils.Logger, c *Callbacker) *Server {
 
 // StartGRPCServer function
 func (s *Server) StartGRPCServer() error {
-	address := viper.GetString("callbacker_grpcAddress")
+	address := viper.GetString("callbacker.listenAddr")
 	if address == "" {
-		return errors.New("no callbacker_grpcAddress setting found")
+		return errors.New("no callbacker.listenAddr setting found")
 	}
 
 	// LEVEL 0 - no security / no encryption

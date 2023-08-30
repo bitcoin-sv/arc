@@ -9,9 +9,9 @@ import (
 )
 
 func StartBlockTx(logger utils.Logger) (func(), error) {
-	dbMode := viper.GetString("blocktx_dbMode")
+	dbMode := viper.GetString("blocktx.db.mode")
 	if dbMode == "" {
-		return nil, errors.New("blocktx_dbMode not found in config")
+		return nil, errors.New("blocktx.db.mode not found in config")
 	}
 
 	// dbMode can be sqlite, sqlite_memory or postgres

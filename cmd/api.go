@@ -44,7 +44,7 @@ func StartAPIServer(logger utils.Logger) (func(), error) {
 		panic(err)
 	}
 
-	apiAddress := viper.GetString("arc_httpAddress")
+	apiAddress := viper.GetString("arc.httpAddress")
 	if apiAddress == "" {
 		panic("arc_httpAddress not found in config")
 	}

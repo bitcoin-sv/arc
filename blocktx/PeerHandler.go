@@ -330,7 +330,7 @@ func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("insertBlock").AddTime(start)
 	}()
 
-	startingHeight := viper.GetInt("starting_block_height")
+	startingHeight := viper.GetInt("blocktx.startingBlockHeight")
 	if height > uint64(startingHeight) {
 		if _, found := bs.announcedCache.Get(*previousBlockHash); !found {
 			if _, err := bs.store.GetBlock(context.Background(), previousBlockHash); err != nil {

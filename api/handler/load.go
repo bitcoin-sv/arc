@@ -36,9 +36,9 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 
 	bTx := blocktx.NewClient(logger, blocktxAddress)
 
-	grpcMessageSize := viper.GetInt("grpc_message_size")
+	grpcMessageSize := viper.GetInt("grpcMessageSize")
 	if grpcMessageSize == 0 {
-		return fmt.Errorf("grpc_message_size not found in config")
+		return fmt.Errorf("grpcMessageSize not found in config")
 	}
 
 	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize)
@@ -65,7 +65,7 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 func GetDefaultPolicy() (*bitcoin.Settings, error) {
 	defaultPolicy := &bitcoin.Settings{}
 
-	err := viper.UnmarshalKey("defaultPolicy", defaultPolicy)
+	err := viper.UnmarshalKey("api.defaultPolicy", defaultPolicy)
 	if err != nil {
 		return nil, err
 	}

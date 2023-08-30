@@ -83,7 +83,7 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 		blockCh:           make(chan *blocktx_api.Block),
 	}
 
-	networkStr := viper.GetString("bitcoinNetwork")
+	networkStr := viper.GetString("network")
 	if networkStr == "" {
 		l.Fatalf("bitcoin_network must be set")
 	}

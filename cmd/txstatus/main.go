@@ -45,9 +45,9 @@ func main() {
 		panic("Missing blocktxAddress")
 	}
 	bTx := blocktx.NewClient(logger, btxAddress)
-	grpcMessageSize := viper.GetInt("grpc_message_size")
+	grpcMessageSize := viper.GetInt("grpcMessageSize")
 	if grpcMessageSize == 0 {
-		panic("Missing grpc_message_size")
+		panic("Missing grpcMessageSize")
 	}
 	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize)
 	if err != nil {

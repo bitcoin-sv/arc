@@ -330,7 +330,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		return 0, 0, nil, transactionStatus, nil
 	}
 
-	checkUtxos := viper.GetBool("checkUtxos")
+	checkUtxos := viper.GetBool("metamorph.checkUtxos")
 	if checkUtxos {
 		next, err = s.utxoCheck(initCtx, next, req.RawTx)
 		if err != nil {
@@ -372,28 +372,22 @@ func (s *Server) utxoCheck(ctx context.Context, next int64, rawTx []byte) (int64
 	span, _ := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:UtxoCheck")
 	defer span.Finish()
 
-	peer1Rpc := viper.GetString("peer_1_rpc")
-	if peer1Rpc == "" {
-		s.logger.Errorf("peer_1_rpc not found")
-		return gocore.NewStat("PutTransaction").NewStat("0: Check utxos").AddTime(next), nil
-	}
-
-	peerRpcPassword := viper.GetString("peerRpcPassword")
+	peerRpcPassword := viper.GetString("peerRpc.password")
 	if peerRpcPassword == "" {
 		return 0, errors.Errorf("setting peerRpcPassword not found")
 	}
 
-	peerRpcUser := viper.GetString("peerRpcUser")
+	peerRpcUser := viper.GetString("peerRpc.user")
 	if peerRpcUser == "" {
 		return 0, errors.Errorf("setting peerRpcUser not found")
 	}
 
-	peerRpcHost := viper.GetString("peerRpcHost")
+	peerRpcHost := viper.GetString("peerRpc.host")
 	if peerRpcHost == "" {
 		return 0, errors.Errorf("setting peerRpcHost not found")
 	}
 
-	peerRpcPort := viper.GetInt("peerRpcPort")
+	peerRpcPort := viper.GetInt("peerRpc.port")
 	if peerRpcPort == 0 {
 		return 0, errors.Errorf("setting peerRpcPort not found")
 	}

@@ -462,21 +462,21 @@ func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) *bt.T
 // SendToAddress Let the bitcoin node in regtest mode send some bitcoin to our arcUrl
 func (b *Broadcaster) SendToAddress(address string, satoshis uint64) (string, uint32, string, error) {
 
-	peerRpcPassword := viper.GetString("peerRpcPassword")
+	peerRpcPassword := viper.GetString("peerRpc.password")
 	if peerRpcPassword == "" {
 		return "", 0, "", errors.Errorf("setting peerRpcPassword not found")
 	}
 
-	peerRpcUser := viper.GetString("peerRpcUser")
+	peerRpcUser := viper.GetString("peerRpc.user")
 	if peerRpcUser == "" {
 		return "", 0, "", errors.Errorf("setting peerRpcUser not found")
 	}
 
-	peerRpcHost := viper.GetString("peerRpcHost")
+	peerRpcHost := viper.GetString("peerRpc.host")
 	if peerRpcHost == "" {
 		return "", 0, "", errors.Errorf("setting peerRpcHost not found")
 	}
-	peerRpcPort := viper.GetInt("peerRpcPort")
+	peerRpcPort := viper.GetInt("peerRpc.port")
 	if peerRpcPort == 0 {
 		return "", 0, "", errors.Errorf("setting peerRpcPort not found")
 	}

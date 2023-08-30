@@ -44,9 +44,9 @@ func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger util
 // StartGRPCServer function
 func (s *Server) StartGRPCServer() error {
 
-	address := viper.GetString("blocktx_grpcAddress")
+	address := viper.GetString("blocktx.listenAddr")
 	if address == "" {
-		return errors.New("no blocktx_grpcAddress setting found")
+		return errors.New("no blocktx.listenAddr setting found")
 	}
 
 	// LEVEL 0 - no security / no encryption

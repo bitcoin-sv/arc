@@ -112,16 +112,16 @@ func main() {
 
 	// Check the settings to see it the service has a listen address
 
-	if v := viper.GetString("arc_httpAddress"); v == "" {
+	if v := viper.GetString("arc.httpAddress"); v == "" {
 		*startApi = false
 	}
-	if v := viper.GetString("metamorph_grpcAddress"); v == "" {
+	if v := viper.GetString("metamorph.listenAddr"); v == "" {
 		*startMetamorph = false
 	}
-	if v := viper.GetString("blocktx_grpcAddress"); v == "" {
+	if v := viper.GetString("blocktx.listenAddr"); v == "" {
 		*startBlockTx = false
 	}
-	if v := viper.GetString("callbacker_grpcAddress"); v == "" {
+	if v := viper.GetString("callbacker.listenAddr"); v == "" {
 		*startCallbacker = false
 	}
 

@@ -153,7 +153,7 @@ func createClient(auth *broadcaster.Auth) (broadcaster.ClientI, error) {
 	if isDryRun {
 		client = broadcaster.NewDryRunClient()
 	} else if isAPIClient {
-		arcServer := viper.GetString("arcServer")
+		arcServer := viper.GetString("arc.server")
 		if arcServer == "" {
 			return nil, errors.New("arcUrl not found in config")
 		}

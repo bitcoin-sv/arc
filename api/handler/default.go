@@ -41,22 +41,22 @@ func NewDefault(logger utils.Logger, transactionHandler transactionHandler.Trans
 		logger:             logger,
 	}
 
-	peerRpcPassword := viper.GetString("peerRpcPassword")
+	peerRpcPassword := viper.GetString("peerRpc.password")
 	if peerRpcPassword == "" {
 		return nil, errors.Errorf("setting peerRpcPassword not found")
 	}
 
-	peerRpcUser := viper.GetString("peerRpcUser")
+	peerRpcUser := viper.GetString("peerRpc.user")
 	if peerRpcUser == "" {
 		return nil, errors.Errorf("setting peerRpcUser not found")
 	}
 
-	peerRpcHost := viper.GetString("peerRpcHost")
+	peerRpcHost := viper.GetString("peerRpc.host")
 	if peerRpcHost == "" {
 		return nil, errors.Errorf("setting peerRpcHost not found")
 	}
 
-	peerRpcPort := viper.GetInt("peerRpcPort")
+	peerRpcPort := viper.GetInt("peerRpc.port")
 	if peerRpcPort == 0 {
 		return nil, errors.Errorf("setting peerRpcPort not found")
 	}

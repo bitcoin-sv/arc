@@ -46,29 +46,29 @@ func New(engine string) (store.Interface, error) {
 	switch engine {
 	case postgresEngine:
 
-		dbName := viper.GetString("blocktx_dbName")
+		dbName := viper.GetString("blocktx.db.name")
 		if dbName == "" {
-			return nil, errors.Errorf("setting blocktx_dbName not found")
+			return nil, errors.Errorf("setting blocktx.db.name not found")
 		}
 
-		dbPassword := viper.GetString("blocktx_dbPassword")
+		dbPassword := viper.GetString("blocktx.db.password")
 		if dbPassword == "" {
-			return nil, errors.Errorf("setting blocktx_dbPassword not found")
+			return nil, errors.Errorf("setting blocktx.db.password not found")
 		}
 
-		dbUser := viper.GetString("blocktx_dbUser")
+		dbUser := viper.GetString("blocktx.db.user")
 		if dbUser == "" {
-			return nil, errors.Errorf("setting blocktx_dbUser not found")
+			return nil, errors.Errorf("setting blocktx.db.user not found")
 		}
 
-		dbHost := viper.GetString("blocktx_dbHost")
+		dbHost := viper.GetString("blocktx.db.host")
 		if dbHost == "" {
-			return nil, errors.Errorf("setting blocktx_dbHost not found")
+			return nil, errors.Errorf("setting blocktx.db.host not found")
 		}
 
-		dbPort := viper.GetInt("blocktx_dbPort")
+		dbPort := viper.GetInt("blocktx.db.port")
 		if dbPort == 0 {
-			return nil, errors.Errorf("setting blocktx_dbPort not found")
+			return nil, errors.Errorf("setting blocktx.db.port not found")
 		}
 
 		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", dbUser, dbPassword, dbName, dbHost, dbPort)

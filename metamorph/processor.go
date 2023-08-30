@@ -103,13 +103,13 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 	logLevel := viper.GetString("logLevel")
 	logger := gocore.Log("proc", gocore.NewLogLevelFromString(logLevel))
 
-	mapExpiryStr := viper.GetString("processorCacheExpiryTime")
+	mapExpiryStr := viper.GetString("metamorph.processorCacheExpiryTime")
 	if mapExpiryStr == "" {
 		mapExpiryStr = "24h"
 	}
 	mapExpiry, err := time.ParseDuration(mapExpiryStr)
 	if err != nil {
-		logger.Fatalf("Invalid processorCacheExpiryTime: %s", mapExpiryStr)
+		logger.Fatalf("Invalid metamorph.processorCacheExpiryTime: %s", mapExpiryStr)
 	}
 
 	logger.Infof("Starting processor with cache expiry of %s", mapExpiryStr)

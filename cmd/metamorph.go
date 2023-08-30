@@ -38,9 +38,9 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		logger.Fatalf("failed to create data folder %s: %+v", folder, err)
 	}
 
-	dbMode := viper.GetString("metamorph_dbMode")
+	dbMode := viper.GetString("metamorph.db.mode")
 	if dbMode == "" {
-		return nil, errors.New("metamorph_dbMode not found in config")
+		return nil, errors.New("metamorph.db.mode not found in config")
 	}
 
 	s, err := metamorph.NewStore(dbMode, folder)
@@ -48,16 +48,16 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		logger.Fatalf("Error creating metamorph store: %v", err)
 	}
 
-	address := viper.GetString("blocktxAddress")
+	address := viper.GetString("blocktx.dialAddr")
 	if address == "" {
-		return nil, errors.New("blocktxAddress not found in config")
+		return nil, errors.New("blocktx.dialAddr not found in config")
 	}
 
 	btc := blocktx.NewClient(logger, address)
 
-	metamorphGRPCListenAddress := viper.GetString("metamorph_grpcAddress")
+	metamorphGRPCListenAddress := viper.GetString("metamorph.listenAddr")
 	if metamorphGRPCListenAddress == "" {
-		logger.Fatalf("no metamorph_grpcAddress setting found")
+		logger.Fatalf("no metamorph.listenAddr setting found")
 	}
 
 	ip, port, err := net.SplitHostPort(metamorphGRPCListenAddress)
@@ -70,7 +70,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	if ip != "" {
 		source = metamorphGRPCListenAddress
 	} else {
-		hint := viper.GetString("ip_address_hint")
+		hint := viper.GetString("ipAddressHint")
 		ips, err := utils.GetIPAddressesWithHint(hint)
 		if err != nil {
 			logger.Fatalf("cannot get local ip address")
@@ -87,7 +87,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	pm, statusMessageCh := initPeerManager(logger, s)
 
-	callbackerAddress := viper.GetString("callbackerAddress")
+	callbackerAddress := viper.GetString("callbacker.dialAddr")
 	if callbackerAddress == "" {
 		logger.Fatalf("no callbackerAddress setting found")
 	}
@@ -129,7 +129,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		}
 	}()
 
-	if viper.GetBool("stats_keypress") {
+	if viper.GetBool("metamorph.statsKeypress") {
 		// The double invocation is the get PrintStatsOnKeypress to start and return a function
 		// that can be deferred to reset the TTY when the program exits.
 		defer metamorphProcessor.PrintStatsOnKeypress()()
@@ -202,9 +202,9 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	serv := metamorph.NewServer(logger, s, metamorphProcessor, btc, source)
 
 	go func() {
-		grpcMessageSize := viper.GetInt("grpc_message_size")
+		grpcMessageSize := viper.GetInt("grpcMessageSize")
 		if grpcMessageSize == 0 {
-			logger.Errorf("grpc_message_size must be set")
+			logger.Errorf("grpcMessageSize must be set")
 			return
 		}
 		if err = serv.StartGRPCServer(metamorphGRPCListenAddress, grpcMessageSize); err != nil {
@@ -252,7 +252,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 }
 
 func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {
-	networkStr := viper.GetString("bitcoinNetwork")
+	networkStr := viper.GetString("network")
 
 	var network wire.BitcoinNet
 

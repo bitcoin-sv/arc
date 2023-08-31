@@ -27,10 +27,6 @@ peers:
     port:
       p2p: 18335
 
-arc:
-  server: http://localhost:9090
-  httpAddress: localhost:9090
-
 callbacker:
   listenAddr: localhost:8021
   dialAddr: localhost:8021
@@ -69,7 +65,11 @@ blocktx:
   profilerAddr: localhost:9993
   startingBlockHeight: 700000
 
+broadcaster:
+  apiURL: http://localhost:9090
+
 api:
+  address: localhost:9090
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"
   defaultPolicy:
     excessiveblocksize: 2000000000

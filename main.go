@@ -112,7 +112,7 @@ func main() {
 
 	// Check the settings to see it the service has a listen address
 
-	if v := viper.GetString("arc.httpAddress"); v == "" {
+	if v := viper.GetString("api.address"); v == "" {
 		*startApi = false
 	}
 	if v := viper.GetString("metamorph.listenAddr"); v == "" {

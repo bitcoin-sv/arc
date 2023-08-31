@@ -44,9 +44,9 @@ func StartAPIServer(logger utils.Logger) (func(), error) {
 		panic(err)
 	}
 
-	apiAddress := viper.GetString("arc.httpAddress")
+	apiAddress := viper.GetString("api.address")
 	if apiAddress == "" {
-		panic("arc_httpAddress not found in config")
+		panic("api.address not found in config")
 	}
 	// Serve HTTP until the world ends.
 	go func() {

@@ -56,13 +56,14 @@ blocktx:
   dialAddr: localhost:8011
   db:
     mode: sqlite
-    host: localhost
-    port: 5432
-    name: blocktx
-    user: arc
-    password: arc
-  postgresMaxIdleConns: 10
-  postgresMaxOpenConns: 80
+    postgres:
+      host: localhost
+      port: 5432
+      name: blocktx
+      user: arc
+      password: arc
+      maxIdleConns: 10
+      maxOpenConns: 80
   profilerAddr: localhost:9993
   startingBlockHeight: 700000
 

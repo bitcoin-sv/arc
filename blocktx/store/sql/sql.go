@@ -46,29 +46,29 @@ func New(engine string) (store.Interface, error) {
 	switch engine {
 	case postgresEngine:
 
-		dbName := viper.GetString("blocktx.db.name")
+		dbName := viper.GetString("blocktx.db.postgres.name")
 		if dbName == "" {
-			return nil, errors.Errorf("setting blocktx.db.name not found")
+			return nil, errors.Errorf("setting blocktx.db.postgres.name not found")
 		}
 
-		dbPassword := viper.GetString("blocktx.db.password")
+		dbPassword := viper.GetString("blocktx.db.postgres.password")
 		if dbPassword == "" {
-			return nil, errors.Errorf("setting blocktx.db.password not found")
+			return nil, errors.Errorf("setting blocktx.db.postgres.password not found")
 		}
 
-		dbUser := viper.GetString("blocktx.db.user")
+		dbUser := viper.GetString("blocktx.db.postgres.user")
 		if dbUser == "" {
-			return nil, errors.Errorf("setting blocktx.db.user not found")
+			return nil, errors.Errorf("setting blocktx.db.postgres.user not found")
 		}
 
-		dbHost := viper.GetString("blocktx.db.host")
+		dbHost := viper.GetString("blocktx.db.postgres.host")
 		if dbHost == "" {
-			return nil, errors.Errorf("setting blocktx.db.host not found")
+			return nil, errors.Errorf("setting blocktx.db.postgres.host not found")
 		}
 
-		dbPort := viper.GetInt("blocktx.db.port")
+		dbPort := viper.GetInt("blocktx.db.postgres.port")
 		if dbPort == 0 {
-			return nil, errors.Errorf("setting blocktx.db.port not found")
+			return nil, errors.Errorf("setting blocktx.db.postgres.port not found")
 		}
 
 		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", dbUser, dbPassword, dbName, dbHost, dbPort)
@@ -78,15 +78,15 @@ func New(engine string) (store.Interface, error) {
 			return nil, fmt.Errorf("failed to open postgres DB: %+v", err)
 		}
 
-		idleConns := viper.GetInt("blocktx.postgresMaxIdleConns")
+		idleConns := viper.GetInt("blocktx.db.postgres.maxIdleConns")
 		if idleConns == 0 {
-			return nil, errors.Errorf("setting blocktx_postgresMaxIdleConns not found")
+			return nil, errors.Errorf("setting blocktx.db.postgres.maxIdleConns not found")
 		}
 
 		db.SetMaxIdleConns(idleConns)
-		maxOpenConns := viper.GetInt("blocktx.postgresMaxOpenConns")
+		maxOpenConns := viper.GetInt("blocktx.db.postgres.maxOpenConns")
 		if maxOpenConns == 0 {
-			return nil, errors.Errorf("setting blocktx_postgresMaxOpenConns not found")
+			return nil, errors.Errorf("setting blocktx.db.postgres.maxOpenConns not found")
 		}
 
 		db.SetMaxOpenConns(maxOpenConns)

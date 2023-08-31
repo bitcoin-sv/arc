@@ -40,11 +40,12 @@ metamorph:
     errorFile: ./data/metamorph_error.log
   db:  
     mode: badger
-    host: localhost
-    port: 5432
-    name: metamorph
-    user: arc
-    password: arc
+    postgres:
+      host: localhost
+      port: 5432
+      name: metamorph
+      user: arc
+      password: arc
   processorCacheExpiryTime: 24h
   checkUtxos: false
   statsKeypress: false

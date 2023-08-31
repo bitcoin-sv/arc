@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -158,8 +159,13 @@ func createClient(auth *broadcaster.Auth) (broadcaster.ClientI, error) {
 			return nil, errors.New("arcUrl not found in config")
 		}
 
+		arcServerUrl, err := url.Parse(arcServer)
+		if err != nil {
+			return nil, errors.New("arcUrl is not a valid url")
+		}
+
 		// create a http connection to the arc node
-		client = broadcaster.NewHTTPBroadcaster(arcServer, auth)
+		client = broadcaster.NewHTTPBroadcaster(arcServerUrl.String(), auth)
 	} else {
 		addresses := viper.GetString("metamorph.dialAddr")
 		if addresses == "" {

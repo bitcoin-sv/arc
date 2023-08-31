@@ -1,21 +1,21 @@
 ---
-logLevel: DEBUG
-profilerAddr: localhost:9999
-statisticsServerAddress: localhost:9005
-prometheusEndpoint: /metrics
-tracing: true
-dataFolder: data
-grpcMessageSize: 100000000
-network: regtest
+logLevel: DEBUG # mode of logging. Value can be one of DEBUG | INFO | WARN | ERROR
+profilerAddr: localhost:9999 # address to start profiler server on
+statisticsServerAddress: localhost:9005 # address to start statistics server on
+prometheusEndpoint: /metrics # endpoint for prometheus metrics
+tracing: true # enable trancing
+dataFolder: data # name of data folder
+grpcMessageSize: 4000000000 # maximum grpc message size
+network: mainnet # bitcoin network to connect to
 ipAddressHint: ^172.28.*
 
-peerRpc:
+peerRpc: # rpc configuration for bitcoin node
   password: bitcoin
   user: bitcoin
   host: localhost
   port: 18332
 
-peers:
+peers: # list of bitcoin node peers to connect to
   - host: localhost
     port:
       p2p: 18333
@@ -28,52 +28,52 @@ peers:
       p2p: 18335
 
 callbacker:
-  listenAddr: localhost:8021
-  dialAddr: localhost:8021
+  listenAddr: localhost:8021 # address space for callbacker to listen on. Can be for example localhost:8021 or :8021 for listening on all addresses
+  dialAddr: localhost:8021 # address for other services to dial callbacker service
   profilerAddr: localhost:9994
 
 metamorph:
-  listenAddr: localhost:8001
-  dialAddr: localhost:8001
+  listenAddr: localhost:8001 # address space for metamorph to listen on. Can be for example localhost:8001 or :8001 for listening on all addresses
+  dialAddr: localhost:8001 # address for other services to dial metamorph service
   log:
-    file: ./data/metamorph.log
-    errorFile: ./data/metamorph_error.log
+    file: ./data/metamorph.log # location of log file
+    errorFile: ./data/metamorph_error.log # location of error log file
   db:  
-    mode: badger
-    postgres:
+    mode: badger # db mode inidicates which db to use. Value can be one of badger | postgres
+    postgres: # postgres db configuration in case that mode: postgres
       host: localhost
       port: 5432
       name: metamorph
       user: arc
       password: arc
-  processorCacheExpiryTime: 24h
-  checkUtxos: false
-  statsKeypress: false
-  profilerAddr: localhost:9992
+  processorCacheExpiryTime: 24h # time after which processor cache is cleaned
+  checkUtxos: false # force check each utxo for validity. If enabled ARC connects to bitcoin node using rpc for each utxo
+  statsKeypress: false # enable stats keypress. If enabled pressing any key will print stats to stdout
+  profilerAddr: localhost:9992 # address to start profiler server on
 
 blocktx:
-  listenAddr: localhost:8011
-  dialAddr: localhost:8011
+  listenAddr: localhost:8011 # address space for blocktx to listen on. Can be for example localhost:8011 or :8011 for listening on all addresses
+  dialAddr: localhost:8011 # address for other services to dial blocktx service
   db:
-    mode: sqlite
-    postgres:
+    mode: sqlite # db mode inidicates which db to use. Value can be one of sqlite | sqlite_memory | postgres
+    postgres: # postgres db configuration in case that mode: postgres
       host: localhost
       port: 5432
       name: blocktx
       user: arc
       password: arc
-      maxIdleConns: 10
-      maxOpenConns: 80
-  profilerAddr: localhost:9993
-  startingBlockHeight: 100
+      maxIdleConns: 10 # maximum idle connections
+      maxOpenConns: 80 # maximum open connections
+  profilerAddr: localhost:9993 # address to start profiler server on
+  startingBlockHeight: 700000 # starting block height for blocktx to start from. blocktx will not request blocks lower than this height
 
 broadcaster:
-  apiURL: http://localhost:9090
+  apiURL: http://localhost:9090 # api url for broadcaster to connect to
 
 api:
-  address: localhost:9090
-  wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"
-  defaultPolicy:
+  address: localhost:9090 # address to start api server on
+  wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX" # api key for www.whatsonchain.com
+  defaultPolicy: # default policy of bitcoin node
     excessiveblocksize: 2000000000
     blockmaxsize: 512000000
     maxtxsizepolicy: 100000000

@@ -5,6 +5,9 @@ ARC is a transaction processor for Bitcoin that keeps track of the life cycle of
 
 - Find full documentation at [https://bitcoin-sv.github.io/arc](https://bitcoin-sv.github.io/arc)
 
+## Configuration
+Settings for ARC are defined in a configuration file. The default configuration file is `config.yaml` in the root directory. Each setting is documented in the file itself.
+
 ## Microservices
 
 To run all the microservices in one process (during development), use the `main.go` file in the root directory.
@@ -166,7 +169,7 @@ The following databases have been implemented:
 * Badger (`badger`)
 * BadgerHold (`badgerhold`)
 
-You can select the store to use by setting the `metamorph_dbMode` in the settings file or adding `metamorph_dbMode` as
+You can select the store to use by setting the `metamorph.db.mode` in the settings file or adding `metamorph.db.mode` as
 an environment variable.
 
 #### Connections to Bitcoin nodes
@@ -188,7 +191,7 @@ Although not required, zmq can be used to listen for transaction messages (`hash
 This is especially useful if you are not connecting to multiple Bitcoin nodes, and therefore are not receiving INV
 messages for your transactions.
 
-If you want to use zmq, you can set the `port_zmq` setting for the respective `peers` setting in the config file `config.yaml`.
+If you want to use zmq, you can set the `host.port.zmq` setting for the respective `peers` setting in the configuration file.
 
 ZMQ does seem to be a bit faster than the p2p network, so it is recommended to turn it on, if available.
 
@@ -225,7 +228,7 @@ The following databases have been implemented:
 * Sqlite3 (`sqlite` or `sqlite_memory` for in-memory)
 * Postgres (`postgres`)
 
-You can select the store to use by setting the `blocktx_dbMode` in the settings file or adding `blocktx_dbMode` as
+You can select the store to use by setting the `blocktx.db.mode` in the settings file or adding `blocktx.db.mode` as
 an environment variable.
 
 Please note that if you are running multiple instances of BlockTX for resilience, each BlockTx can be configured to use a shared database and in this case, Postgres is probably a sensible choice.
@@ -264,6 +267,3 @@ go run cmd/broadcaster/main.go -api -consolidate -keyfile=./cmd/broadcaster/arc.
 ```
 
 Detailed information about flags can is displayed by running `go run cmd/broadcaster/main.go`.
-
-## Configuration
-Configuration of ARC is done using a yaml file. The default configuration file is `config.yaml` in the root directory of the project.

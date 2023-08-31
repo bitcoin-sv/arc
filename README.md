@@ -254,17 +254,16 @@ go run main.go -callbacker=true
 
 Broadcaster is a tool to broadcast example transactions to ARC. It can be used to test the ARC API and Metamorph.
 
-Examples
+Examples of broadcaster usage:
 ```bash
-# Send to a single node via gRPC...
-metamorphAddresses=172.28.48.167:8001 go run cmd/broadcaster/main.go -consolidate -api=false 1000
+# Send 20 txs with 5 txs/batch to a single metamorph via gRPC. Address for metamorph is configured in config.yaml - metamorph.dialAddr
+go run cmd/broadcaster/main.go -consolidate -keyfile=./cmd/broadcaster/arc.key -authorization=mainnet_XXX -batch=5 20
 
-# Send to round-robin via gRPC...
- metamorphAddresses=dns:///metamorph.int.eu-a1.taal.com:8001 go run cmd/broadcaster/main.go -consolidate -api=false 1000
-
-# Send via API...
-arcServer=https://api.taal.com/arc go run cmd/broadcaster/main.go -consolidate -keyfile=./cmd/broadcaster/arc.key -authorization=mainnet_d0a9875baa90aebe8602f00847d49e8e 1000
+# Send 1000 txs via API. Address for API is configured in config.yaml - broadcaster.apiURL
+go run cmd/broadcaster/main.go -api -consolidate -keyfile=./cmd/broadcaster/arc.key -authorization=mainnet_XXX 1000
 ```
+
+Detailed information about flags can is displayed by running `go run cmd/broadcaster/main.go`.
 
 ## Configuration
 Configuration of ARC is done using a yaml file. The default configuration file is `config.yaml` in the root directory of the project.

@@ -89,7 +89,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	callbackerAddress := viper.GetString("callbacker.dialAddr")
 	if callbackerAddress == "" {
-		logger.Fatalf("no callbackerAddress setting found")
+		logger.Fatalf("no callbacker.dialAddr setting found")
 	}
 	cb := callbacker.NewClient(logger, callbackerAddress)
 
@@ -226,11 +226,6 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		zmqURL, err := peerSetting.GetZMQUrl()
 		if err != nil {
 			logger.Warnf("failed to get zmq URL for peer %d", i)
-			continue
-		}
-
-		if err != nil {
-			logger.Warnf("zmq url could not be parsed for peer %d", i)
 			continue
 		}
 

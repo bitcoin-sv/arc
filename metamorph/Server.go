@@ -395,18 +395,13 @@ func (s *Server) utxoCheck(ctx context.Context, next int64, rawTx []byte) (int64
 
 	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
 	if err != nil {
-		return 0, errors.Errorf("failed to rpc URL: %v", err)
+		return 0, errors.Errorf("failed to parse rpc URL: %v", err)
 	}
 
 	// get the transaction from the bitcoin node rpc
 	node, err := bitcoin.NewFromURL(rpcURL, false)
 	if err != nil {
 		return 0, err
-	}
-
-	if err != nil {
-		s.logger.Errorf("Error creating bitcoin node: %v", err)
-		return gocore.NewStat("PutTransaction").NewStat("0: Check utxos").AddTime(next), nil
 	}
 
 	var tx *bt.Tx
@@ -420,13 +415,13 @@ func (s *Server) utxoCheck(ctx context.Context, next int64, rawTx []byte) (int64
 		var utxos *bitcoin.TXOut
 		utxos, err = node.GetTxOut(input.PreviousTxIDStr(), int(input.PreviousTxOutIndex), true)
 		if err != nil {
-			s.logger.Errorf("Error getting utxo: %v", err)
-			return 0, err
-		} else {
-			if utxos == nil {
-				s.logger.Errorf("utxo %s:%d not found", input.PreviousTxIDStr(), input.PreviousTxOutIndex)
-				return 0, fmt.Errorf("utxo %s:%d not found", input.PreviousTxIDStr(), input.PreviousTxOutIndex)
-			}
+			s.logger.Errorf("failed to get utxo: %v", err)
+			return 0, fmt.Errorf("failed to get utxo: %v", err)
+		}
+
+		if utxos == nil {
+			s.logger.Errorf("utxo %s:%d not found", input.PreviousTxIDStr(), input.PreviousTxOutIndex)
+			return 0, fmt.Errorf("utxo %s:%d not found", input.PreviousTxIDStr(), input.PreviousTxOutIndex)
 		}
 	}
 

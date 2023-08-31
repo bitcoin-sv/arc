@@ -41,7 +41,7 @@ func getTransactionFromNode(ctx context.Context, inputTxID string) ([]byte, erro
 
 	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
 	if err != nil {
-		return nil, errors.Errorf("failed to rpc URL: %v", err)
+		return nil, errors.Errorf("failed to parse rpc URL: %v", err)
 	}
 	// get the transaction from the bitcoin node rpc
 	node, err := bitcoin.NewFromURL(rpcURL, false)

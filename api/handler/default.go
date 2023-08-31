@@ -585,7 +585,7 @@ func (m ArcDefaultHandler) getPolicyFromNode() (*bitcoin.Settings, error) {
 
 	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
 	if err != nil {
-		return nil, errors.Errorf("failed to rpc URL: %v", err)
+		return nil, errors.Errorf("failed to parse rpc URL: %v", err)
 	}
 
 	// connect to bitcoin node and get the settings

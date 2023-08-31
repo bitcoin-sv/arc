@@ -484,7 +484,7 @@ func (b *Broadcaster) SendToAddress(address string, satoshis uint64) (string, ui
 
 	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
 	if err != nil {
-		return "", 0, "", errors.Errorf("failed to rpc URL: %v", err)
+		return "", 0, "", errors.Errorf("failed to parse rpc URL: %v", err)
 	}
 
 	// we are only in dry run mode and will not actually send anything

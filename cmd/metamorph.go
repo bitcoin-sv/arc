@@ -217,9 +217,6 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		logger.Fatalf("error getting peer settings: %v", err)
 	}
 
-	if len(peerSettings) == 0 {
-		logger.Fatalf("peerCount must be set")
-	}
 	zmqCollector := safemap.New[string, *metamorph.ZMQStats]()
 
 	for i, peerSetting := range peerSettings {
@@ -272,10 +269,6 @@ func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManag
 	peerSettings, err := blocktx.GetPeerSettings()
 	if err != nil {
 		logger.Fatalf("error getting peer settings: %v", err)
-	}
-
-	if len(peerSettings) == 0 {
-		logger.Fatalf("peerCount must be set")
 	}
 
 	for _, peerSetting := range peerSettings {

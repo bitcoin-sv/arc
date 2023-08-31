@@ -65,10 +65,6 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 		l.Fatalf("error getting peer settings: %v", err)
 	}
 
-	if len(peerSettings) == 0 {
-		l.Fatalf("no peers configured")
-	}
-
 	for _, peerSetting := range peerSettings {
 		var peer *p2p.Peer
 		peerUrl, err := peerSetting.GetP2PUrl()

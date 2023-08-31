@@ -6,7 +6,7 @@ prometheusEndpoint: /metrics
 tracing: true
 dataFolder: data
 grpcMessageSize: 100000000
-network: mainnet
+network: regtest
 ipAddressHint: ^172.28.*
 
 peerRpc:
@@ -65,7 +65,7 @@ blocktx:
       maxIdleConns: 10
       maxOpenConns: 80
   profilerAddr: localhost:9993
-  startingBlockHeight: 700000
+  startingBlockHeight: 100
 
 broadcaster:
   apiURL: http://localhost:9090

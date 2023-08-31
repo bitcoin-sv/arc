@@ -5,53 +5,28 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Server",
+      "name": "run all services",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/main.go",
-      // "args": ["-blocktx=1"]
-      // "console": "externalTerminal"
     },
     {
-      "name": "TESTNET",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/main.go",
-      "env": {
-        "SETTINGS_CONTEXT": "testnet",
-        "ip_address_hint": "192",
-      },
-      // "args": ["-blocktx=1"]
-      // "console": "externalTerminal"
-    },
-    {
-      "name": "Broadcaster (10)",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/cmd/broadcaster/main.go",
-      "args": ["-prefund", "10"]
-    },
-    {
-      "name": "Broadcaster (QA panic)",
+      "name": "broadcaster - 20txs, 5 txs/batch",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/broadcaster/main.go",
       "args": [
         "-consolidate",
-        "-keyfile=./arc.key",
-        "-authorization=mainnet_260b753d33f3060d0f8cc2f5614028d2",
-         "1"
-      ],
-      "env": {
-        "arcServer": "https://api.taal.com/arc"
-      }
+        "-keyfile=./cmd/broadcaster/arc.key",
+        "-authorization=mainnet_XXXXXXXXXXXXXXXXXXXXXX",
+        "-batch=5",
+        "20"
+      ]
     },
     {
-      "name": "TXStatus",
+      "name": "txstatus",
       "type": "go",
       "request": "launch",
       "mode": "auto",

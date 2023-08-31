@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/bitcoin-sv/arc/api"
@@ -23,7 +22,6 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 )
 
 type ArcDefaultHandler struct {
@@ -32,19 +30,12 @@ type ArcDefaultHandler struct {
 	logger             utils.Logger
 }
 
-func NewDefault(logger utils.Logger, transactionHandler transactionHandler.TransactionHandler, defaultPolicy *bitcoin.Settings) (api.HandlerInterface, error) {
+func NewDefault(logger utils.Logger, transactionHandler transactionHandler.TransactionHandler, policy *bitcoin.Settings) (api.HandlerInterface, error) {
 
 	handler := &ArcDefaultHandler{
 		TransactionHandler: transactionHandler,
-		NodePolicy:         defaultPolicy,
+		NodePolicy:         policy,
 		logger:             logger,
-	}
-
-	policy, err := handler.getPolicyFromNode()
-	if err != nil {
-		logger.Errorf("could not load policy from bitcoin node, using default: %v", err)
-	} else {
-		handler.NodePolicy = policy
 	}
 
 	return handler, nil
@@ -560,46 +551,6 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 	}
 
 	return nil, transactionHandler.ErrParentTransactionNotFound
-}
-
-func (m ArcDefaultHandler) getPolicyFromNode() (*bitcoin.Settings, error) {
-	peerRpcPassword := viper.GetString("peerRpc.password")
-	if peerRpcPassword == "" {
-		return nil, errors.Errorf("setting peerRpc.password not found")
-	}
-
-	peerRpcUser := viper.GetString("peerRpc.user")
-	if peerRpcUser == "" {
-		return nil, errors.Errorf("setting peerRpc.user not found")
-	}
-
-	peerRpcHost := viper.GetString("peerRpc.host")
-	if peerRpcHost == "" {
-		return nil, errors.Errorf("setting peerRpc.host not found")
-	}
-
-	peerRpcPort := viper.GetInt("peerRpc.port")
-	if peerRpcPort == 0 {
-		return nil, errors.Errorf("setting peerRpc.port not found")
-	}
-
-	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
-	if err != nil {
-		return nil, errors.Errorf("failed to parse rpc URL: %v", err)
-	}
-
-	// connect to bitcoin node and get the settings
-	b, err := bitcoin.NewFromURL(rpcURL, false)
-	if err != nil {
-		return nil, fmt.Errorf("error connecting to peer: %v", err)
-	}
-
-	settings, err := b.GetSettings()
-	if err != nil {
-		return nil, fmt.Errorf("error getting settings from peer: %v", err)
-	}
-
-	return &settings, nil
 }
 
 func getSizings(tx *bt.Tx) (uint64, uint64, uint64) {

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"net/url"
 	"strings"
 	"time"
 
@@ -374,26 +375,31 @@ func (s *Server) utxoCheck(ctx context.Context, next int64, rawTx []byte) (int64
 
 	peerRpcPassword := viper.GetString("peerRpc.password")
 	if peerRpcPassword == "" {
-		return 0, errors.Errorf("setting peerRpcPassword not found")
+		return 0, errors.Errorf("setting peerRpc.password not found")
 	}
 
 	peerRpcUser := viper.GetString("peerRpc.user")
 	if peerRpcUser == "" {
-		return 0, errors.Errorf("setting peerRpcUser not found")
+		return 0, errors.Errorf("setting peerRpc.user not found")
 	}
 
 	peerRpcHost := viper.GetString("peerRpc.host")
 	if peerRpcHost == "" {
-		return 0, errors.Errorf("setting peerRpcHost not found")
+		return 0, errors.Errorf("setting peerRpc.host not found")
 	}
 
 	peerRpcPort := viper.GetInt("peerRpc.port")
 	if peerRpcPort == 0 {
-		return 0, errors.Errorf("setting peerRpcPort not found")
+		return 0, errors.Errorf("setting peerRpc.port not found")
+	}
+
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
+	if err != nil {
+		return 0, errors.Errorf("failed to rpc URL: %v", err)
 	}
 
 	// get the transaction from the bitcoin node rpc
-	node, err := bitcoin.New(peerRpcHost, peerRpcPort, peerRpcUser, peerRpcPassword, false)
+	node, err := bitcoin.NewFromURL(rpcURL, false)
 	if err != nil {
 		return 0, err
 	}

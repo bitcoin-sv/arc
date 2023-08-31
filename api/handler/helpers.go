@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
 	"github.com/opentracing/opentracing-go"
@@ -38,8 +39,12 @@ func getTransactionFromNode(ctx context.Context, inputTxID string) ([]byte, erro
 		return nil, errors.Errorf("setting peerRpc.port not found")
 	}
 
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
+	if err != nil {
+		return nil, errors.Errorf("failed to rpc URL: %v", err)
+	}
 	// get the transaction from the bitcoin node rpc
-	node, err := bitcoin.New(peerRpcHost, peerRpcPort, peerRpcUser, peerRpcPassword, false)
+	node, err := bitcoin.NewFromURL(rpcURL, false)
 	if err != nil {
 		return nil, err
 	}

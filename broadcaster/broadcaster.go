@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"net/url"
 	"runtime"
 	"sync"
 	"time"
@@ -481,6 +482,11 @@ func (b *Broadcaster) SendToAddress(address string, satoshis uint64) (string, ui
 		return "", 0, "", errors.Errorf("setting peerRpc.port not found")
 	}
 
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
+	if err != nil {
+		return "", 0, "", errors.Errorf("failed to rpc URL: %v", err)
+	}
+
 	// we are only in dry run mode and will not actually send anything
 	if b.IsDryRun {
 		txid := random.String(64, random.Hex)
@@ -489,7 +495,7 @@ func (b *Broadcaster) SendToAddress(address string, satoshis uint64) (string, ui
 		return txid, 0, scriptPubKey, nil
 	}
 
-	client, err := bitcoin.New(peerRpcHost, peerRpcPort, peerRpcUser, peerRpcPassword, false)
+	client, err := bitcoin.NewFromURL(rpcURL, false)
 	if err != nil {
 		b.logger.Fatalf("Could not create bitcoin client: %v", err)
 	}

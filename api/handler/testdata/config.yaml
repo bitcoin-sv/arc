@@ -30,3 +30,4 @@ api:
     minconfconsolidationinput: 6
     minconsolidationinputmaturity: 6
     acceptnonstdconsolidationinput: false
+    

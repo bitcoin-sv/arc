@@ -20,22 +20,22 @@ func getTransactionFromNode(ctx context.Context, inputTxID string) ([]byte, erro
 
 	peerRpcPassword := viper.GetString("peerRpc.password")
 	if peerRpcPassword == "" {
-		return nil, errors.Errorf("setting peerRpcPassword not found")
+		return nil, errors.Errorf("setting peerRpc.password not found")
 	}
 
 	peerRpcUser := viper.GetString("peerRpc.user")
 	if peerRpcUser == "" {
-		return nil, errors.Errorf("setting peerRpcUser not found")
+		return nil, errors.Errorf("setting peerRpc.user not found")
 	}
 
 	peerRpcHost := viper.GetString("peerRpc.host")
 	if peerRpcHost == "" {
-		return nil, errors.Errorf("setting peerRpcHost not found")
+		return nil, errors.Errorf("setting peerRpc.host not found")
 	}
 
 	peerRpcPort := viper.GetInt("peerRpc.port")
 	if peerRpcPort == 0 {
-		return nil, errors.Errorf("setting peerRpcPort not found")
+		return nil, errors.Errorf("setting peerRpc.port not found")
 	}
 
 	// get the transaction from the bitcoin node rpc

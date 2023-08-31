@@ -464,21 +464,21 @@ func (b *Broadcaster) SendToAddress(address string, satoshis uint64) (string, ui
 
 	peerRpcPassword := viper.GetString("peerRpc.password")
 	if peerRpcPassword == "" {
-		return "", 0, "", errors.Errorf("setting peerRpcPassword not found")
+		return "", 0, "", errors.Errorf("setting peerRpc.password not found")
 	}
 
 	peerRpcUser := viper.GetString("peerRpc.user")
 	if peerRpcUser == "" {
-		return "", 0, "", errors.Errorf("setting peerRpcUser not found")
+		return "", 0, "", errors.Errorf("setting peerRpc.user not found")
 	}
 
 	peerRpcHost := viper.GetString("peerRpc.host")
 	if peerRpcHost == "" {
-		return "", 0, "", errors.Errorf("setting peerRpcHost not found")
+		return "", 0, "", errors.Errorf("setting peerRpc.host not found")
 	}
 	peerRpcPort := viper.GetInt("peerRpc.port")
 	if peerRpcPort == 0 {
-		return "", 0, "", errors.Errorf("setting peerRpcPort not found")
+		return "", 0, "", errors.Errorf("setting peerRpc.port not found")
 	}
 
 	// we are only in dry run mode and will not actually send anything

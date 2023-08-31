@@ -67,7 +67,7 @@ blocktx:
   postgresMaxIdleConns: 10
   postgresMaxOpenConns: 80
   profilerAddr: localhost:9993
-  startingBlockHeight: 100
+  startingBlockHeight: 700000
 
 api:
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"

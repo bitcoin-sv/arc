@@ -12,6 +12,19 @@
       "program": "${workspaceFolder}/main.go",
     },
     {
+      "name": "broadcaster - 1 tx",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/broadcaster/main.go",
+      "args": [
+        "-consolidate",
+        "-keyfile=./arc.key",
+        "-authorization=mainnet_XXXXXXXXXXXXXXXXXXXXXX",
+        "1"
+      ]
+    },
+    {
       "name": "broadcaster - 20txs, 5 txs/batch",
       "type": "go",
       "request": "launch",
@@ -19,7 +32,7 @@
       "program": "${workspaceFolder}/cmd/broadcaster/main.go",
       "args": [
         "-consolidate",
-        "-keyfile=./cmd/broadcaster/arc.key",
+        "-keyfile=./arc.key",
         "-authorization=mainnet_XXXXXXXXXXXXXXXXXXXXXX",
         "-batch=5",
         "20"
@@ -34,7 +47,7 @@
       "args": ["2a84409a83adad6533d60e0731b9a6ef69efe51ff289897847bde1f6332e18d5"]
     },
     {
-      "name": "Remote Debug",
+      "name": "remote debug",
       "type": "go",
       "request": "attach",
       "mode": "remote",

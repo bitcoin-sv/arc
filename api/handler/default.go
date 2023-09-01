@@ -249,7 +249,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			return ctx.JSON(int(api.ErrStatusBadRequest), e)
 		}
 
-		txMap := make(map[string]*bt.Tx)
+		sizingsMap := make(map[string][]uint64)
 		transactionInputs := make([]*bt.Tx, 0, len(txBody))
 		for index, tx := range txBody {
 			transaction, err := bt.NewTxFromString(tx.RawTx)
@@ -261,7 +261,8 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 				return err
 			}
 			transactionInputs = append(transactionInputs, transaction)
-			txMap[transaction.TxID()] = transaction
+			normalBytes, dataBytes, feeAmount := getSizings(transaction)
+			sizingsMap[transaction.TxID()] = []uint64{normalBytes, dataBytes, feeAmount}
 		}
 		// submit for processing
 		transactions, err = m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
@@ -271,8 +272,12 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 
 		for _, btTx := range transactions {
 			if tx, ok := btTx.(api.TransactionResponse); ok {
-				normalBytes, dataBytes, feeAmount := getSizings(txMap[tx.Txid])
-				sizingInfo = append(sizingInfo, []uint64{normalBytes, dataBytes, feeAmount})
+				sizings, found := sizingsMap[tx.Txid]
+				if !found {
+					m.logger.Warnf("tx id %s not found in sizings map", tx.Txid)
+				}
+
+				sizingInfo = append(sizingInfo, sizings)
 			}
 		}
 	case "application/octet-stream":
@@ -287,7 +292,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	case "text/plain":
 		reader := ctx.Request().Body
 		transactionInputs := make([]*bt.Tx, 0)
-		txMap := make(map[string]*bt.Tx)
+		sizingsMap := make(map[string][]uint64)
 
 		isFirstTransaction := true
 		var err error
@@ -319,7 +324,8 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 
 			isFirstTransaction = false
 			transactionInputs = append(transactionInputs, btTx)
-			txMap[btTx.TxID()] = btTx
+			normalBytes, dataBytes, feeAmount := getSizings(btTx)
+			sizingsMap[btTx.TxID()] = []uint64{normalBytes, dataBytes, feeAmount}
 		}
 		// process all transactions before submitting to metamorph
 		transactions, err = m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
@@ -329,8 +335,12 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 
 		for _, btTx := range transactions {
 			if tx, ok := btTx.(api.TransactionResponse); ok {
-				normalBytes, dataBytes, feeAmount := getSizings(txMap[tx.Txid])
-				sizingInfo = append(sizingInfo, []uint64{normalBytes, dataBytes, feeAmount})
+				sizings, found := sizingsMap[tx.Txid]
+				if !found {
+					m.logger.Warnf("tx id %s not found in sizings map", tx.Txid)
+				}
+
+				sizingInfo = append(sizingInfo, sizings)
 			}
 		}
 

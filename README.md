@@ -259,11 +259,11 @@ Broadcaster is a tool to broadcast example transactions to ARC. It can be used t
 
 Examples of broadcaster usage:
 ```bash
-# Send 20 txs with 5 txs/batch to a single metamorph via gRPC. Address for metamorph is configured in config.yaml - metamorph.dialAddr
-go run cmd/broadcaster/main.go -consolidate -keyfile=./cmd/broadcaster/arc.key -authorization=mainnet_XXX -batch=5 20
+# Send 10 txs via API and send back to the original address (consolidate). Address for API is configured in config.yaml - broadcaster.apiURL
+go run cmd/broadcaster/main.go -api=true -consolidate -keyfile=./cmd/broadcaster/arc.key -authorization=mainnet_XXX 10
 
-# Send 1000 txs via API. Address for API is configured in config.yaml - broadcaster.apiURL
-go run cmd/broadcaster/main.go -api -consolidate -keyfile=./cmd/broadcaster/arc.key -authorization=mainnet_XXX 1000
+# Send 20 txs with 5 txs/batch to a single metamorph via gRPC. Address for metamorph is configured in config.yaml - metamorph.dialAddr
+go run cmd/broadcaster/main.go -api=false -consolidate -keyfile=./cmd/broadcaster/arc.key -authorization=mainnet_XXX -batch=5 20
 ```
 
 Detailed information about flags can is displayed by running `go run cmd/broadcaster/main.go`.

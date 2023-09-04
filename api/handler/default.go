@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,7 +21,7 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
+	"github.com/pkg/errors"
 )
 
 type ArcDefaultHandler struct {
@@ -31,19 +30,12 @@ type ArcDefaultHandler struct {
 	logger             utils.Logger
 }
 
-func NewDefault(logger utils.Logger, transactionHandler transactionHandler.TransactionHandler, defaultPolicy *bitcoin.Settings) (api.HandlerInterface, error) {
+func NewDefault(logger utils.Logger, transactionHandler transactionHandler.TransactionHandler, policy *bitcoin.Settings) (api.HandlerInterface, error) {
 
 	handler := &ArcDefaultHandler{
 		TransactionHandler: transactionHandler,
-		NodePolicy:         defaultPolicy,
+		NodePolicy:         policy,
 		logger:             logger,
-	}
-
-	policy, err := getPolicyFromNode()
-	if err != nil {
-		logger.Errorf("could not load policy from bitcoin node, using default: %v", err)
-	} else {
-		handler.NodePolicy = policy
 	}
 
 	return handler, nil
@@ -596,26 +588,6 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 	}
 
 	return nil, transactionHandler.ErrParentTransactionNotFound
-}
-
-func getPolicyFromNode() (*bitcoin.Settings, error) {
-	bitcoinRpc, err, rpcFound := gocore.Config().GetURL("peer_rpc")
-	if err != nil || !rpcFound {
-		return nil, fmt.Errorf("error getting peer_rpc from config: %v", err)
-	}
-
-	// connect to bitcoin node and get the settings
-	b, err := bitcoin.NewFromURL(bitcoinRpc, false)
-	if err != nil {
-		return nil, fmt.Errorf("error connecting to peer: %v", err)
-	}
-
-	settings, err := b.GetSettings()
-	if err != nil {
-		return nil, fmt.Errorf("error getting settings from peer: %v", err)
-	}
-
-	return &settings, nil
 }
 
 func getSizings(tx *bt.Tx) (uint64, uint64, uint64) {

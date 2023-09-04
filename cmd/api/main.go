@@ -1,18 +1,30 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 
 	"github.com/bitcoin-sv/arc/cmd"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 )
 
 const progname = "api"
 
 func main() {
-	logLevel, _ := gocore.Config().Get("logLevel")
+
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("../../")
+	err := viper.ReadInConfig()
+	if err != nil {
+		fmt.Printf("failed to read config file config.yaml: %v \n", err)
+		return
+	}
+
+	logLevel := viper.GetString("logLevel")
 	logger := gocore.Log(progname, gocore.NewLogLevelFromString(logLevel))
 	shutdown, err := cmd.StartAPIServer(logger)
 	if err != nil {

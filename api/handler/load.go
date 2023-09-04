@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
+	"net/url"
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/dictionary"
@@ -14,7 +14,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
@@ -25,28 +26,40 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 	// Check the security requirements
 	//CheckSecurity(e, appConfig)
 
-	addresses, found := gocore.Config().Get("metamorphAddresses") //, "localhost:8001")
-	if !found {
-		return fmt.Errorf("metamorphAddresses not found in config")
+	addresses := viper.GetString("metamorph.dialAddr")
+	if addresses == "" {
+		return fmt.Errorf("metamorph.dialAddr not found in config")
 	}
 
-	blocktxAddress, _ := gocore.Config().Get("blocktxAddress") //, "localhost:8001")
+	blocktxAddress := viper.GetString("blocktx.dialAddr")
+	if blocktxAddress == "" {
+		return fmt.Errorf("blocktx.dialAddr not found in config")
+	}
+
 	bTx := blocktx.NewClient(logger, blocktxAddress)
 
-	grpcMessageSize, _ := gocore.Config().GetInt("grpc_message_size", 1e8)
+	grpcMessageSize := viper.GetInt("grpcMessageSize")
+	if grpcMessageSize == 0 {
+		return fmt.Errorf("grpcMessageSize not found in config")
+	}
 
 	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize)
 	if err != nil {
 		return err
 	}
 
-	var apiHandler api.HandlerInterface
-	defaultPolicy, err := GetDefaultPolicy()
+	var policy *bitcoin.Settings
+	policy, err = getPolicyFromNode()
 	if err != nil {
-		return err
+		policy, err = GetDefaultPolicy()
+		if err != nil {
+			return err
+		}
 	}
+
 	// TODO WithSecurityConfig(appConfig.Security)
-	if apiHandler, err = NewDefault(logger, txHandler, defaultPolicy); err != nil {
+	apiHandler, err := NewDefault(logger, txHandler, policy)
+	if err != nil {
 		return err
 	}
 
@@ -56,14 +69,52 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 	return nil
 }
 
+func getPolicyFromNode() (*bitcoin.Settings, error) {
+	peerRpcPassword := viper.GetString("peerRpc.password")
+	if peerRpcPassword == "" {
+		return nil, errors.Errorf("setting peerRpc.password not found")
+	}
+
+	peerRpcUser := viper.GetString("peerRpc.user")
+	if peerRpcUser == "" {
+		return nil, errors.Errorf("setting peerRpc.user not found")
+	}
+
+	peerRpcHost := viper.GetString("peerRpc.host")
+	if peerRpcHost == "" {
+		return nil, errors.Errorf("setting peerRpc.host not found")
+	}
+
+	peerRpcPort := viper.GetInt("peerRpc.port")
+	if peerRpcPort == 0 {
+		return nil, errors.Errorf("setting peerRpc.port not found")
+	}
+
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
+	if err != nil {
+		return nil, errors.Errorf("failed to parse rpc URL: %v", err)
+	}
+
+	// connect to bitcoin node and get the settings
+	b, err := bitcoin.NewFromURL(rpcURL, false)
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to peer: %v", err)
+	}
+
+	settings, err := b.GetSettings()
+	if err != nil {
+		return nil, fmt.Errorf("error getting settings from peer: %v", err)
+	}
+
+	return &settings, nil
+}
+
 func GetDefaultPolicy() (*bitcoin.Settings, error) {
-	defaultPolicySetting, found := gocore.Config().Get("defaultPolicy")
 	defaultPolicy := &bitcoin.Settings{}
-	if found && defaultPolicySetting != "" {
-		err := json.Unmarshal([]byte(defaultPolicySetting), defaultPolicy)
-		if err != nil {
-			return nil, err
-		}
+
+	err := viper.UnmarshalKey("api.defaultPolicy", defaultPolicy)
+	if err != nil {
+		return nil, err
 	}
 
 	return defaultPolicy, nil

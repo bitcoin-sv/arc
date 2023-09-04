@@ -11,6 +11,8 @@ import (
 	"github.com/labstack/gommon/random"
 	_ "github.com/lib/pq"
 	"github.com/ordishs/gocore"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	_ "modernc.org/sqlite"
 )
 
@@ -35,16 +37,39 @@ func New(engine string) (store.Interface, error) {
 
 	var memory bool
 
-	logLevel, _ := gocore.Config().Get("logLevel")
+	logLevel := viper.GetString("logLevel")
+	if logLevel == "" {
+		logLevel = "INFO"
+	}
 	logger := gocore.Log("btsql", gocore.NewLogLevelFromString(logLevel))
 
 	switch engine {
 	case postgresEngine:
-		dbHost, _ := gocore.Config().Get("blocktx_dbHost", "localhost")
-		dbPort, _ := gocore.Config().GetInt("blocktx_dbPort", 5432)
-		dbName, _ := gocore.Config().Get("blocktx_dbName", "blocktx")
-		dbUser, _ := gocore.Config().Get("blocktx_dbUser", "arc")
-		dbPassword, _ := gocore.Config().Get("blocktx_dbPassword", "arc")
+
+		dbName := viper.GetString("blocktx.db.postgres.name")
+		if dbName == "" {
+			return nil, errors.Errorf("setting blocktx.db.postgres.name not found")
+		}
+
+		dbPassword := viper.GetString("blocktx.db.postgres.password")
+		if dbPassword == "" {
+			return nil, errors.Errorf("setting blocktx.db.postgres.password not found")
+		}
+
+		dbUser := viper.GetString("blocktx.db.postgres.user")
+		if dbUser == "" {
+			return nil, errors.Errorf("setting blocktx.db.postgres.user not found")
+		}
+
+		dbHost := viper.GetString("blocktx.db.postgres.host")
+		if dbHost == "" {
+			return nil, errors.Errorf("setting blocktx.db.postgres.host not found")
+		}
+
+		dbPort := viper.GetInt("blocktx.db.postgres.port")
+		if dbPort == 0 {
+			return nil, errors.Errorf("setting blocktx.db.postgres.port not found")
+		}
 
 		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", dbUser, dbPassword, dbName, dbHost, dbPort)
 
@@ -53,9 +78,17 @@ func New(engine string) (store.Interface, error) {
 			return nil, fmt.Errorf("failed to open postgres DB: %+v", err)
 		}
 
-		idleConns, _ := gocore.Config().GetInt("blocktx_postgresMaxIdleConns", 10)
+		idleConns := viper.GetInt("blocktx.db.postgres.maxIdleConns")
+		if idleConns == 0 {
+			return nil, errors.Errorf("setting blocktx.db.postgres.maxIdleConns not found")
+		}
+
 		db.SetMaxIdleConns(idleConns)
-		maxOpenConns, _ := gocore.Config().GetInt("blocktx_postgresMaxOpenConns", 80)
+		maxOpenConns := viper.GetInt("blocktx.db.postgres.maxOpenConns")
+		if maxOpenConns == 0 {
+			return nil, errors.Errorf("setting blocktx.db.postgres.maxOpenConns not found")
+		}
+
 		db.SetMaxOpenConns(maxOpenConns)
 
 		if err := createPostgresSchema(db); err != nil {
@@ -70,7 +103,10 @@ func New(engine string) (store.Interface, error) {
 		if memory {
 			filename = fmt.Sprintf("file:%s?mode=memory&cache=shared", random.String(16))
 		} else {
-			folder, _ := gocore.Config().Get("dataFolder", "data")
+			folder := viper.GetString("dataFolder")
+			if folder == "" {
+				return nil, errors.Errorf("setting dataFolder not found")
+			}
 			if err = os.MkdirAll(folder, 0755); err != nil {
 				return nil, fmt.Errorf("failed to create data folder %s: %+v", folder, err)
 			}

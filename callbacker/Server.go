@@ -12,6 +12,7 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -38,9 +39,9 @@ func NewServer(logger utils.Logger, c *Callbacker) *Server {
 
 // StartGRPCServer function
 func (s *Server) StartGRPCServer() error {
-	address, ok := gocore.Config().Get("callbacker_grpcAddress") //, "localhost:8002")
-	if !ok {
-		return errors.New("no callbacker_grpcAddress setting found")
+	address := viper.GetString("callbacker.listenAddr")
+	if address == "" {
+		return errors.New("no callbacker.listenAddr setting found")
 	}
 
 	// LEVEL 0 - no security / no encryption

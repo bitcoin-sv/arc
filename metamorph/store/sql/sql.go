@@ -18,6 +18,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 	_ "modernc.org/sqlite"
 )
 
@@ -35,16 +36,16 @@ func New(engine string) (store.MetamorphStore, error) {
 
 	var memory bool
 
-	logLevel, _ := gocore.Config().Get("logLevel")
+	logLevel := viper.GetString("logLevel")
 	logger := gocore.Log("mmsql", gocore.NewLogLevelFromString(logLevel))
 
 	switch engine {
 	case "postgres":
-		dbHost, _ := gocore.Config().Get("metamorph_dbHost", "localhost")
-		dbPort, _ := gocore.Config().GetInt("metamorph_dbPort", 5432)
-		dbName, _ := gocore.Config().Get("metamorph_dbName", "metamorph")
-		dbUser, _ := gocore.Config().Get("metamorph_dbUser", "arc")
-		dbPassword, _ := gocore.Config().Get("metamorph_dbPassword", "arc")
+		dbHost := viper.GetString("metamorph.db.postgres.host")
+		dbPort := viper.GetInt("metamorph.db.postgres.port")
+		dbName := viper.GetString("metamorph.db.postgres.name")
+		dbUser := viper.GetString("metamorph.db.postgres.user")
+		dbPassword := viper.GetString("metamorph.db.postgres.password")
 
 		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", dbUser, dbPassword, dbName, dbHost, dbPort)
 
@@ -65,7 +66,10 @@ func New(engine string) (store.MetamorphStore, error) {
 		if memory {
 			filename = fmt.Sprintf("file:%s?mode=memory&cache=shared", random.String(16))
 		} else {
-			folder, _ := gocore.Config().Get("dataFolder", "data")
+			folder := viper.GetString("dataFolder")
+			if folder == "" {
+				return nil, fmt.Errorf("dataFolder not found in config")
+			}
 			if err := os.MkdirAll(folder, 0755); err != nil {
 				return nil, fmt.Errorf("failed to create data folder %s: %+v", folder, err)
 			}

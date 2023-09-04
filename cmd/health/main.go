@@ -9,7 +9,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/tracing"
-	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -24,9 +24,18 @@ func main() {
 
 	ctx := context.Background()
 
-	addresses, found := gocore.Config().Get("metamorphAddresses")
-	if !found {
-		panic("Missing metamorphAddresses")
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("../../")
+	err := viper.ReadInConfig()
+	if err != nil {
+		fmt.Printf("failed to read config file config.yaml: %v \n", err)
+		return
+	}
+
+	addresses := viper.GetString("metamorph.dialAddr")
+	if addresses == "" {
+		panic("Missing metamorph.dialAddr")
 	}
 
 	opts := []grpc.DialOption{

@@ -2,14 +2,18 @@ package cmd
 
 import (
 	"context"
+	"errors"
 
 	"github.com/bitcoin-sv/arc/callbacker"
 	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 )
 
 func StartCallbacker(logger utils.Logger) (func(), error) {
-	folder, _ := gocore.Config().Get("dataFolder", "data")
+	folder := viper.GetString("dataFolder")
+	if folder == "" {
+		return nil, errors.New("dataFolder not found in config")
+	}
 
 	callbackStore, err := callbacker.NewStore(folder)
 	if err != nil {

@@ -1,0 +1,105 @@
+---
+logLevel: DEBUG
+profilerAddr: localhost:9999
+statisticsServerAddress: localhost:9005
+prometheusEndpoint: /metrics
+tracing: true
+dataFolder: data
+grpcMessageSize: 100000000
+network: regtest
+ipAddressHint: ^172.28.*
+
+peerRpc:
+  password: bitcoin
+  user: bitcoin
+  host: localhost
+  port: 18332
+
+peers:
+  - host: localhost
+    port:
+      p2p: 18333
+      zmq: 28332
+  - host: localhost
+    port:
+      p2p: 18334
+  - host: localhost
+    port:
+      p2p: 18335
+
+callbacker:
+  listenAddr: localhost:8021
+  dialAddr: localhost:8021
+  profilerAddr: localhost:9994
+
+metamorph:
+  listenAddr: localhost:8001
+  dialAddr: localhost:8001
+  log:
+    file: ./data/metamorph.log
+    errorFile: ./data/metamorph_error.log
+  db:  
+    mode: badger
+    postgres:
+      host: localhost
+      port: 5432
+      name: metamorph
+      user: arc
+      password: arc
+  processorCacheExpiryTime: 24h
+  checkUtxos: false
+  statsKeypress: false
+  profilerAddr: localhost:9992
+
+blocktx:
+  listenAddr: localhost:8011
+  dialAddr: localhost:8011
+  db:
+    mode: sqlite
+    postgres:
+      host: localhost
+      port: 5432
+      name: blocktx
+      user: arc
+      password: arc
+      maxIdleConns: 10
+      maxOpenConns: 80
+  profilerAddr: localhost:9993
+  startingBlockHeight: 100
+
+broadcaster:
+  apiURL: http://localhost:9090
+
+api:
+  address: localhost:9090
+  wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"
+  defaultPolicy:
+    excessiveblocksize: 2000000000
+    blockmaxsize: 512000000
+    maxtxsizepolicy: 100000000
+    maxorphantxsize: 1000000000
+    datacarriersize: 4294967295
+    maxscriptsizepolicy: 100000000
+    maxopsperscriptpolicy: 4294967295
+    maxscriptnumlengthpolicy: 10000
+    maxpubkeyspermultisigpolicy: 4294967295
+    maxtxsigopscountspolicy: 4294967295
+    maxstackmemoryusagepolicy: 100000000
+    maxstackmemoryusageconsensus: 200000000
+    limitancestorcount: 10000
+    limitcpfpgroupmemberscount: 25
+    maxmempool: 2000000000
+    maxmempoolsizedisk: 0
+    mempoolmaxpercentcpfp: 10
+    acceptnonstdoutputs: true
+    datacarrier: true
+    minminingtxfee: 1e-8
+    maxstdtxvalidationduration: 3
+    maxnonstdtxvalidationduration: 1000
+    maxtxchainvalidationbudget: 50
+    validationclockcpu: true
+    minconsolidationfactor: 20
+    maxconsolidationinputscriptsize: 150
+    minconfconsolidationinput: 6
+    minconsolidationinputmaturity: 6
+    acceptnonstdconsolidationinput: false

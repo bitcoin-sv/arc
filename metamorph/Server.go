@@ -3,9 +3,9 @@ package metamorph
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"strings"
 	"time"
 
@@ -22,6 +22,8 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
@@ -70,8 +72,8 @@ func (s *Server) SetTimeout(timeout time.Duration) {
 func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 	// LEVEL 0 - no security / no encryption
 	var opts []grpc.ServerOption
-	_, prometheusOn := gocore.Config().Get("prometheusEndpoint")
-	if prometheusOn {
+	prometheusEndpoint := viper.GetString("prometheusEndpoint")
+	if prometheusEndpoint != "" {
 		opts = append(opts,
 			grpc.ChainStreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 			grpc.ChainUnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
@@ -329,7 +331,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		return 0, 0, nil, transactionStatus, nil
 	}
 
-	checkUtxos := gocore.Config().GetBool("checkUtxos")
+	checkUtxos := viper.GetBool("metamorph.checkUtxos")
 	if checkUtxos {
 		next, err = s.utxoCheck(initCtx, next, req.RawTx)
 		if err != nil {
@@ -371,37 +373,55 @@ func (s *Server) utxoCheck(ctx context.Context, next int64, rawTx []byte) (int64
 	span, _ := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:UtxoCheck")
 	defer span.Finish()
 
-	rpcURL, err, found := gocore.Config().GetURL("peer_1_rpc")
-	if err != nil {
-		s.logger.Errorf("Error getting peer_1_rpc: %v", err)
-	} else if !found {
-		s.logger.Errorf("peer_1_rpc not found")
-	} else {
-		var node *bitcoin.Bitcoind
-		node, err = bitcoin.NewFromURL(rpcURL, false)
-		if err != nil {
-			s.logger.Errorf("Error creating bitcoin node: %v", err)
-		} else {
-			var tx *bt.Tx
-			tx, err = bt.NewTxFromBytes(rawTx)
-			if err != nil {
-				s.logger.Errorf("Error creating bitcoin tx: %v", err)
-				return 0, err
-			}
+	peerRpcPassword := viper.GetString("peerRpc.password")
+	if peerRpcPassword == "" {
+		return 0, errors.Errorf("setting peerRpc.password not found")
+	}
 
-			for _, input := range tx.Inputs {
-				var utxos *bitcoin.TXOut
-				utxos, err = node.GetTxOut(input.PreviousTxIDStr(), int(input.PreviousTxOutIndex), true)
-				if err != nil {
-					s.logger.Errorf("Error getting utxo: %v", err)
-					return 0, err
-				} else {
-					if utxos == nil {
-						s.logger.Errorf("utxo %s:%d not found", input.PreviousTxIDStr(), input.PreviousTxOutIndex)
-						return 0, fmt.Errorf("utxo %s:%d not found", input.PreviousTxIDStr(), input.PreviousTxOutIndex)
-					}
-				}
-			}
+	peerRpcUser := viper.GetString("peerRpc.user")
+	if peerRpcUser == "" {
+		return 0, errors.Errorf("setting peerRpc.user not found")
+	}
+
+	peerRpcHost := viper.GetString("peerRpc.host")
+	if peerRpcHost == "" {
+		return 0, errors.Errorf("setting peerRpc.host not found")
+	}
+
+	peerRpcPort := viper.GetInt("peerRpc.port")
+	if peerRpcPort == 0 {
+		return 0, errors.Errorf("setting peerRpc.port not found")
+	}
+
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
+	if err != nil {
+		return 0, errors.Errorf("failed to parse rpc URL: %v", err)
+	}
+
+	// get the transaction from the bitcoin node rpc
+	node, err := bitcoin.NewFromURL(rpcURL, false)
+	if err != nil {
+		return 0, err
+	}
+
+	var tx *bt.Tx
+	tx, err = bt.NewTxFromBytes(rawTx)
+	if err != nil {
+		s.logger.Errorf("Error creating bitcoin tx: %v", err)
+		return 0, err
+	}
+
+	for _, input := range tx.Inputs {
+		var utxos *bitcoin.TXOut
+		utxos, err = node.GetTxOut(input.PreviousTxIDStr(), int(input.PreviousTxOutIndex), true)
+		if err != nil {
+			s.logger.Errorf("failed to get utxo: %v", err)
+			return 0, fmt.Errorf("failed to get utxo: %v", err)
+		}
+
+		if utxos == nil {
+			s.logger.Errorf("utxo %s:%d not found", input.PreviousTxIDStr(), input.PreviousTxOutIndex)
+			return 0, fmt.Errorf("utxo %s:%d not found", input.PreviousTxIDStr(), input.PreviousTxOutIndex)
 		}
 	}
 

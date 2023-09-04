@@ -1,15 +1,13 @@
 package blocktx
 
 import (
-	"fmt"
-
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/wire"
+	"github.com/spf13/viper"
 
 	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
 )
 
 const maximumBlockSize = 4000000000 // 4Gb
@@ -40,7 +38,10 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 		blockCh:           make(chan *blocktx_api.Block),
 	}
 
-	networkStr, _ := gocore.Config().Get("bitcoin_network")
+	networkStr := viper.GetString("network")
+	if networkStr == "" {
+		l.Fatalf("bitcoin_network must be set")
+	}
 
 	var network wire.BitcoinNet
 
@@ -59,29 +60,25 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 
 	peerHandler := NewPeerHandler(l, storeI, bn.blockCh)
 
-	peerCount, _ := gocore.Config().GetInt("peerCount", 0)
-	if peerCount == 0 {
-		l.Fatalf("peerCount must be set")
+	peerSettings, err := GetPeerSettings()
+	if err != nil {
+		l.Fatalf("error getting peer settings: %v", err)
 	}
 
-	for i := 1; i <= peerCount; i++ {
-		p2pURL, err, found := gocore.Config().GetURL(fmt.Sprintf("peer_%d_p2p", i))
-		if !found {
-			l.Fatalf("peer_%d_p2p must be set", i)
-		}
-		if err != nil {
-			l.Fatalf("error reading peer_%d_p2p: %v", i, err)
-		}
-
+	for _, peerSetting := range peerSettings {
 		var peer *p2p.Peer
-
-		peer, err = p2p.NewPeer(l, p2pURL.Host, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize))
+		peerUrl, err := peerSetting.GetP2PUrl()
 		if err != nil {
-			l.Fatalf("error creating peer %s: %v", p2pURL.Host, err)
+			l.Fatalf("error getting peer url: %v", err)
+		}
+
+		peer, err = p2p.NewPeer(l, peerUrl, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize))
+		if err != nil {
+			l.Fatalf("error creating peer %s: %v", peerUrl, err)
 		}
 
 		if err = pm.AddPeer(peer); err != nil {
-			l.Fatalf("error adding peer %s: %v", p2pURL.Host, err)
+			l.Fatalf("error adding peer %s: %v", peerUrl, err)
 		}
 	}
 

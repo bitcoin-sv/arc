@@ -15,6 +15,7 @@ import (
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/spf13/viper"
 )
 
 // Name used by build script for the binaries. (Please keep on single line)
@@ -60,27 +61,35 @@ func main() {
 		return
 	}
 
-	logLevel, _ := gocore.Config().Get("logLevel")
+	viper.SetConfigName("config") // name of config file (without extension)
+	viper.SetConfigType("yaml")   // REQUIRED if the config file does not have the extension in the name
+	viper.AddConfigPath(".")      // optionally look for config in the working directory
+	err := viper.ReadInConfig()   // Find and read the config file
+	if err != nil {               // Handle errors reading the config file
+		fmt.Printf("failed to read config file config.yaml: %v \n", err)
+		return
+	}
+
+	logLevel := viper.GetString("logLevel")
 	logger := gocore.Log(progname, gocore.NewLogLevelFromString(logLevel))
 
-	stats := gocore.Config().Stats()
-	logger.Infof("STATS\n%s\nVERSION\n-------\n%s (%s)\n\n", stats, version, commit)
+	logger.Infof("VERSION\n-------\n%s (%s)\n\n", version, commit)
 
 	go func() {
-		profilerAddr, ok := gocore.Config().Get("profilerAddr")
-		if ok {
+		profilerAddr := viper.GetString("profilerAddr")
+		if profilerAddr != "" {
 			logger.Infof("Starting profile on http://%s/debug/pprof", profilerAddr)
 			logger.Fatalf("%v", http.ListenAndServe(profilerAddr, nil))
 		}
 	}()
 
-	prometheusEndpoint, ok := gocore.Config().Get("prometheusEndpoint")
-	if ok && prometheusEndpoint != "" {
+	prometheusEndpoint := viper.GetString("prometheusEndpoint")
+	if prometheusEndpoint != "" {
 		logger.Infof("Starting prometheus endpoint on %s", prometheusEndpoint)
 		http.Handle(prometheusEndpoint, promhttp.Handler())
 	}
 
-	tracingOn := gocore.Config().GetBool("tracing")
+	tracingOn := viper.GetBool("tracing")
 	if (useTracer != nil && *useTracer) || tracingOn {
 		logger.Infof("Starting tracer")
 		// Start the tracer
@@ -102,16 +111,17 @@ func main() {
 	}
 
 	// Check the settings to see it the service has a listen address
-	if v, _ := gocore.Config().Get("arc_httpAddress"); v == "" {
+
+	if v := viper.GetString("api.address"); v == "" {
 		*startApi = false
 	}
-	if v, _ := gocore.Config().Get("metamorph_grpcAddress"); v == "" {
+	if v := viper.GetString("metamorph.listenAddr"); v == "" {
 		*startMetamorph = false
 	}
-	if v, _ := gocore.Config().Get("blocktx_grpcAddress"); v == "" {
+	if v := viper.GetString("blocktx.listenAddr"); v == "" {
 		*startBlockTx = false
 	}
-	if v, _ := gocore.Config().Get("callbacker_grpcAddress"); v == "" {
+	if v := viper.GetString("callbacker.listenAddr"); v == "" {
 		*startCallbacker = false
 	}
 
@@ -129,8 +139,8 @@ func main() {
 		}
 	}
 
-	statisticsServerAddr, found := gocore.Config().Get("statisticsServerAddress")
-	if found {
+	statisticsServerAddr := viper.GetString("statisticsServerAddress")
+	if statisticsServerAddr != "" {
 		go func() {
 			gocore.StartStatsServer(statisticsServerAddr)
 		}()

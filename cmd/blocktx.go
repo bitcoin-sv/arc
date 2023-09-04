@@ -1,13 +1,18 @@
 package cmd
 
 import (
+	"errors"
+
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 )
 
 func StartBlockTx(logger utils.Logger) (func(), error) {
-	dbMode, _ := gocore.Config().Get("blocktx_dbMode", "sqlite")
+	dbMode := viper.GetString("blocktx.db.mode")
+	if dbMode == "" {
+		return nil, errors.New("blocktx.db.mode not found in config")
+	}
 
 	// dbMode can be sqlite, sqlite_memory or postgres
 	blockStore, err := blocktx.NewStore(dbMode)

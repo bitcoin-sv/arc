@@ -15,6 +15,7 @@ import (
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 type Callbacker struct {
@@ -23,7 +24,7 @@ type Callbacker struct {
 	ticker *time.Ticker
 }
 
-var logLevel, _ = gocore.Config().Get("logLevel")
+var logLevel = viper.GetString("logLevel")
 var logger = gocore.Log("callbacker", gocore.NewLogLevelFromString(logLevel))
 
 // New creates a new callback worker

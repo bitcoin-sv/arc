@@ -5,6 +5,9 @@ ARC is a transaction processor for Bitcoin that keeps track of the life cycle of
 
 - Find full documentation at [https://bitcoin-sv.github.io/arc](https://bitcoin-sv.github.io/arc)
 
+## Configuration
+Settings for ARC are defined in a configuration file. The default configuration file is `config.yaml` in the root directory. Each setting is documented in the file itself.
+
 ## Microservices
 
 To run all the microservices in one process (during development), use the `main.go` file in the root directory.
@@ -166,7 +169,7 @@ The following databases have been implemented:
 * Badger (`badger`)
 * BadgerHold (`badgerhold`)
 
-You can select the store to use by setting the `metamorph_dbMode` in the settings file or adding `metamorph_dbMode` as
+You can select the store to use by setting the `metamorph.db.mode` in the settings file or adding `metamorph.db.mode` as
 an environment variable.
 
 #### Connections to Bitcoin nodes
@@ -188,8 +191,7 @@ Although not required, zmq can be used to listen for transaction messages (`hash
 This is especially useful if you are not connecting to multiple Bitcoin nodes, and therefore are not receiving INV
 messages for your transactions.
 
-If you want to use zmq, you can set the `peer_%d_zmq` settings to the full url
-(example `zmq://bitcoin:bitcoin@localhost:18332`) of the zmq endpoints in the settings file.
+If you want to use zmq, you can set the `host.port.zmq` setting for the respective `peers` setting in the configuration file.
 
 ZMQ does seem to be a bit faster than the p2p network, so it is recommended to turn it on, if available.
 
@@ -226,7 +228,7 @@ The following databases have been implemented:
 * Sqlite3 (`sqlite` or `sqlite_memory` for in-memory)
 * Postgres (`postgres`)
 
-You can select the store to use by setting the `blocktx_dbMode` in the settings file or adding `blocktx_dbMode` as
+You can select the store to use by setting the `blocktx.db.mode` in the settings file or adding `blocktx.db.mode` as
 an environment variable.
 
 Please note that if you are running multiple instances of BlockTX for resilience, each BlockTx can be configured to use a shared database and in this case, Postgres is probably a sensible choice.
@@ -249,3 +251,19 @@ or using the generic `main.go`:
 ```shell
 go run main.go -callbacker=true
 ```
+
+
+## Broadcaster
+
+Broadcaster is a tool to broadcast example transactions to ARC. It can be used to test the ARC API and Metamorph.
+
+Examples of broadcaster usage:
+```bash
+# Send 10 txs via API and send back to the original address (consolidate). Address for API is configured in config.yaml - broadcaster.apiURL
+go run cmd/broadcaster/main.go -api=true -consolidate -keyfile=./cmd/broadcaster/arc.key -authorization=mainnet_XXX 10
+
+# Send 20 txs with 5 txs/batch to a single metamorph via gRPC. Address for metamorph is configured in config.yaml - metamorph.dialAddr
+go run cmd/broadcaster/main.go -api=false -consolidate -keyfile=./cmd/broadcaster/arc.key -authorization=mainnet_XXX -batch=5 20
+```
+
+Detailed information about flags can is displayed by running `go run cmd/broadcaster/main.go`.

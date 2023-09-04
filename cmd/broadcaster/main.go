@@ -76,6 +76,9 @@ func main() {
 		fmt.Println("    -batch=<batch size>")
 		fmt.Println("          send transactions in batches of this size (default=0, no batching), only in api mode")
 		fmt.Println("")
+		fmt.Println("    -testnet=<true|false>")
+		fmt.Println("          whether to send testnet or mainnet transactions, default=false")
+		fmt.Println("")
 		return
 	}
 

@@ -10,7 +10,7 @@ To run all the microservices in one process (during development), use the `main.
 
 ```shell
 go run main.go
-```
+```dd
 
 The `main.go` file accepts the following flags (`main.go --help`):
 

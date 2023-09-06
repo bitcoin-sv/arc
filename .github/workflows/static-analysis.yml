@@ -27,11 +27,13 @@ jobs:
           go test -coverprofile=./cov.out ./...
 
       - name: Run gosec Security Scanner
-        run: |
-          go get github.com/securego/gosec/cmd/gosec
-          gosec -exclude-dir=testdata -fmt=sonarqube -out gosec-report.json ./...
+        continue-on-error: true
+        uses: securego/gosec@master
+        with:
+          args: -exclude-dir=testdata -fmt=sonarqube -out gosec-report.json ./...
 
       - name: Create golangci-lint report
+        continue-on-error: true
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest

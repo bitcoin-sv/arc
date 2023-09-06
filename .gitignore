@@ -11,3 +11,4 @@ settings_local.conf
 cov.out
 golangci-report.xml
 gosec-report.json
+.scannerwork

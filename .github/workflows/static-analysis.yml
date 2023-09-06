@@ -1,0 +1,41 @@
+name: Static Analysis and Report
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+  workflow_dispatch: { }
+
+jobs:
+  analyze:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v2.1.3
+        with:
+          go-version: 1.19
+
+      - name: Run unit Tests
+        run: |
+          go test -coverprofile=./cov.out ./...
+
+      - name: Run gosec Security Scanner
+        run: |
+          go get github.com/securego/gosec/cmd/gosec
+          gosec -exclude-dir=testdata -fmt=sonarqube -out gosec-report.json ./...
+
+      - name: Create golangci-lint report
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

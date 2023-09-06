@@ -1,0 +1,8 @@
+run:
+  tests: false
+  skip-dirs:
+    - examples
+    - testdata
+  go: '1.19'
+output:
+  format: checkstyle:golangci-report.xml

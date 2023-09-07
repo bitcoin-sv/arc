@@ -157,13 +157,7 @@ the node from having to lookup and send the input utxos to the ARC API, which co
 
 ## Settings
 
-The settings available for running ARC are managed by [gocore](https://github.com/ordishs/gocore). The settings are
-defined in 2 files `settings_local.conf`, in the root directory, and `settings.conf`, which lives a directory level
-deeper. The settings in `settings_local.conf` override the settings in `settings.conf` and any settings that are specified as environment variables, will superceed them. The
-environment variable name is the same as the setting name. For example, the setting `metamorph_dbMode` can be
-overridden by setting the environment variable `metamorph_dbMode=...`.
-
-For more detailed information about the settings, please see the [gocore documentation](https://github.com/ordishs/gocore).
+The settings available for running ARC are managed by [viper](github.com/spf13/viper). The settings are by default defined in `config.yaml`.
 
 ## ARC stats
 

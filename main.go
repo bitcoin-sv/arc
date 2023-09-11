@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -36,6 +37,8 @@ func main() {
 	startCallbacker := flag.Bool("callbacker", false, "start callbacker")
 	useTracer := flag.Bool("tracer", false, "start tracer")
 	help := flag.Bool("help", false, "Show help")
+	var regtest bool
+	flag.BoolVar(&regtest, "regtest", false, "Use regtest-config.yml instead of the default config.yaml")
 
 	flag.Parse()
 
@@ -61,15 +64,21 @@ func main() {
 		return
 	}
 
-	viper.SetConfigName("config") // name of config file (without extension)
-	viper.SetConfigType("yaml")   // REQUIRED if the config file does not have the extension in the name
-	viper.AddConfigPath(".")      // optionally look for config in the working directory
-	err := viper.ReadInConfig()   // Find and read the config file
-	if err != nil {               // Handle errors reading the config file
-		fmt.Printf("failed to read config file config.yaml: %v \n", err)
-		return
+	if regtest {
+		viper.SetConfigName("regtest-config") // name of retest config file (without extension)
+		fmt.Println("using regtest")
+	} else {
+		viper.SetConfigName("config") // name of default config file (without extension)
 	}
 
+	viper.SetConfigType("yaml") // REQUIRED if the config file does not have the extension in the name
+	viper.AddConfigPath(".")    // optionally look for config in the working directory
+
+	err := viper.ReadInConfig() // Find and read the config file
+	if err != nil {             // Handle errors reading the config file
+		log.Fatalf("failed to read config file: %v \n", err)
+		return
+	}
 	logLevel := viper.GetString("logLevel")
 	logger := gocore.Log(progname, gocore.NewLogLevelFromString(logLevel))
 

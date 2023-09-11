@@ -15,7 +15,7 @@ jobs:
     - name: Check out arc repo
       uses: actions/checkout@v2
       with:
-        repository: farzan1990/arc
+        repository: bitcoin-sv/arc
         path: arc
 
     - name: Check out regtest repo

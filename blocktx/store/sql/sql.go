@@ -187,8 +187,9 @@ func createPostgresSchema(db *sql.DB) error {
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS transactions (
 		 id           BIGSERIAL PRIMARY KEY
-	  ,hash         BYTEA NOT NULL
-	  ,source       TEXT
+		,hash         BYTEA NOT NULL
+		,source       TEXT
+		,merkle_path  TEXT
 		);
 	`); err != nil {
 		db.Close()

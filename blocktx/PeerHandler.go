@@ -368,14 +368,22 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 	}()
 
 	txs := make([]*blocktx_api.TransactionAndSource, 0, len(transactionHashes))
+	merklePaths := make([]string, 0, len(transactionHashes))
 
-	for _, hash := range transactionHashes {
+	for txIndex, hash := range transactionHashes {
 		txs = append(txs, &blocktx_api.TransactionAndSource{
 			Hash: hash[:],
 		})
+
+		merklePath, err := bc.BuildMerklePathBinary(bc.GetTxMerklePath(txIndex, merkleTree))
+		if err != nil {
+			return err
+		}
+
+		merklePaths = append(merklePaths, string(merklePath))
 	}
 
-	if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs); err != nil {
+	if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
 		return err
 	}
 

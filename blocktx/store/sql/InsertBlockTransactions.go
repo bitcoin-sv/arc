@@ -11,7 +11,7 @@ import (
 )
 
 // InsertBlockTransactions inserts the transaction hashes for a given block hash
-func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource) error {
+func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("InsertBlockTransactions").AddTime(start)
@@ -21,8 +21,8 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 	defer cancel()
 
 	qTx, err := s.db.Prepare(`
-			INSERT INTO transactions (hash) VALUES ($1)
-			ON CONFLICT DO NOTHING
+			INSERT INTO transactions (hash, merkle_path) VALUES ($1, $2)
+			ON CONFLICT DO UPDATE SET merkle_path=$2
 			RETURNING id
 			;
 		`)
@@ -42,7 +42,7 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 	for pos, tx := range transactions {
 		var txid uint64
 
-		if err = qTx.QueryRowContext(ctx, tx.Hash).Scan(&txid); err != nil {
+		if err = qTx.QueryRowContext(ctx, tx.Hash, merklePaths[pos]).Scan(&txid); err != nil {
 			if err == sql.ErrNoRows {
 				if err = s.db.QueryRowContext(ctx, `
 					SELECT id

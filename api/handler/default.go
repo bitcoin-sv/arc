@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/bitcoin-sv/arc/api"
@@ -138,7 +139,15 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 	span.SetTag("txid", transaction.TxID())
 
-	transactionOptions := getTransactionOptions(params)
+	transactionOptions, err := getTransactionOptions(params)
+	if err != nil {
+		errStr := err.Error()
+		e := api.ErrBadRequest
+		e.ExtraInfo = &errStr
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return ctx.JSON(int(api.ErrStatusBadRequest), e)
+	}
 
 	status, response, responseErr := m.processTransaction(tracingCtx, transaction, transactionOptions)
 	if responseErr != nil {
@@ -201,7 +210,15 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	defer span.Finish()
 
 	// set the globals for all transactions in this request
-	transactionOptions := getTransactionsOptions(params)
+	transactionOptions, err := getTransactionsOptions(params)
+	if err != nil {
+		errStr := err.Error()
+		e := api.ErrBadRequest
+		e.ExtraInfo = &errStr
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return ctx.JSON(int(api.ErrStatusBadRequest), e)
+	}
 
 	// Set the transaction reader function to read a text/plain by default.
 	// If the mimetype is application/octet-stream, then we will replace this
@@ -347,13 +364,19 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	return ctx.JSON(http.StatusOK, transactions)
 }
 
-func getTransactionOptions(params api.POSTTransactionParams) *api.TransactionOptions {
+func getTransactionOptions(params api.POSTTransactionParams) (*api.TransactionOptions, error) {
 	return getTransactionsOptions(api.POSTTransactionsParams(params))
 }
 
-func getTransactionsOptions(params api.POSTTransactionsParams) *api.TransactionOptions {
+func getTransactionsOptions(params api.POSTTransactionsParams) (*api.TransactionOptions, error) {
 	transactionOptions := &api.TransactionOptions{}
 	if params.XCallbackUrl != nil {
+		_, err := url.ParseRequestURI(*params.XCallbackUrl)
+
+		if err != nil {
+			return nil, fmt.Errorf("invalid callback URL [%w]", err)
+		}
+
 		transactionOptions.CallbackURL = *params.XCallbackUrl
 		if params.XCallbackToken != nil {
 			transactionOptions.CallbackToken = *params.XCallbackToken
@@ -370,7 +393,7 @@ func getTransactionsOptions(params api.POSTTransactionsParams) *api.TransactionO
 		}
 	}
 
-	return transactionOptions
+	return transactionOptions, nil
 }
 
 func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *bt.Tx, transactionOptions *api.TransactionOptions) (api.StatusCode, interface{}, error) {

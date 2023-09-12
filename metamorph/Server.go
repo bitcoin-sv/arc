@@ -134,6 +134,10 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		gocore.NewStat("PutTransaction").AddTime(start)
 	}()
 
+	if _, err := url.ParseRequestURI(req.CallbackUrl); req.CallbackUrl != "" && err != nil {
+		return nil, fmt.Errorf("invalid URL [%w]", err)
+	}
+
 	next, status, hash, transactionStatus, err := s.putTransactionInit(ctx, req, start)
 	if err != nil {
 		// if we have an error, we will return immediately
@@ -224,6 +228,10 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	// if not we store the transaction data and set the transaction status in response array to - STORED
 	requests := make([]*store.StoreData, 0, len(req.Transactions))
 	for ind, req := range req.Transactions {
+		if _, err := url.ParseRequestURI(req.CallbackUrl); req.CallbackUrl != "" && err != nil {
+			return nil, fmt.Errorf("invalid URL [%w]", err)
+		}
+
 		_, status, hash, transactionStatus, err := s.putTransactionInit(ctx, req, start)
 		if err != nil {
 			// if we have an error, we will return immediately

@@ -12,7 +12,7 @@ ipAddressHint: ^172.28.*
 peerRpc: # rpc configuration for bitcoin node
   password: bitcoin
   user: bitcoin
-  host: localhost
+  host: host.docker.internal
   port: 18332
 
 peers: # list of bitcoin node peers to connect to

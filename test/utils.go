@@ -27,6 +27,44 @@ type NodeUnspentUtxo struct {
 	Safe          bool    `json:"safe"`
 }
 
+var (
+	lastNodeBlockHeight uint64
+	initialBlockHeight  uint64
+	bitcoind            *bitcoin.Bitcoind
+)
+
+func init() {
+
+	var err error
+	bitcoind, err = bitcoin.New("node2", 18332, "bitcoin", "bitcoin", false)
+	if err != nil {
+		log.Fatalln("Failed to create bitcoind instance:", err)
+	}
+
+	info, err := bitcoind.GetInfo()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if info.Blocks < 100 {
+		_, err = bitcoind.Generate(100)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		lastNodeBlockHeight = uint64(info.Blocks + 100)
+		initialBlockHeight = lastNodeBlockHeight
+		time.Sleep(5 * time.Second)
+	}
+
+	info, err = bitcoind.GetInfo()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	initialBlockHeight = uint64(info.Blocks)
+	lastNodeBlockHeight = uint64(info.Blocks)
+
+}
 
 func getNewWalletAddress(t *testing.T) (address, privateKey string) {
 

@@ -25,7 +25,8 @@ services:
 
 networks:
   shared:
-    driver: bridge
+    external: true
+
 volumes:
   node1-data:
     external: false

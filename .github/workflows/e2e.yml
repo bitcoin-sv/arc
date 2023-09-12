@@ -33,6 +33,13 @@ jobs:
       run: docker-compose up -d
       working-directory: ./regtest
 
+    - name: Attach node containers to shared network
+      run: |
+        docker network connect shared node1
+        docker network connect shared node2
+        docker network connect shared node3
+  
+
     - name: Run Docker Compose in arc
       run: docker-compose up -d arc
       working-directory: ./arc

@@ -1,5 +1,6 @@
 # Start from a Debian base image with ARM hard-float libraries support
-FROM debian:bullseye-slim
+#FROM debian:bullseye-slim
+FROM golang:1.19
 
 # Set the Current Working Directory inside the container
 WORKDIR /app

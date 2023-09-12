@@ -43,7 +43,7 @@ type NodeUnspentUtxo struct {
 //      t.Fatal(err)
 //  }
 
-//  b, err := btgo.New("host.docker.internal", 18332, "bitcoin", "bitcoin", false)
+//  b, err := btgo.New("node2", 18332, "bitcoin", "bitcoin", false)
 //  if err != nil {
 //      t.Fatal(err)
 //  }
@@ -160,7 +160,7 @@ var (
 func init() {
 
 	var err error
-	bitcoind, err = bitcoin.New("host.docker.internal", 18332, "bitcoin", "bitcoin", false)
+	bitcoind, err = bitcoin.New("node2", 18332, "bitcoin", "bitcoin", false)
 	if err != nil {
 		log.Fatalln("Failed to create bitcoind instance:", err)
 	}
@@ -194,7 +194,7 @@ func getNewWalletAddress(t *testing.T) (address, privateKey string) {
 
 	fmt.Println("this is getting called")
 	t.Helper()
-	cmd := exec.Command("bash", "-c", "bitcoin-cli -rpcconnect=host.docker.internal -rpcport=18332 -rpcuser=bitcoin -rpcpassword=bitcoin getnewaddress")
+	cmd := exec.Command("bash", "-c", "bitcoin-cli -rpcconnect=node2 -rpcport=18332 -rpcuser=bitcoin -rpcpassword=bitcoin getnewaddress")
 	fmt.Println("Executing:", cmd.String())
 	var out bytes.Buffer
 	var stderr bytes.Buffer
@@ -217,7 +217,7 @@ func getNewWalletAddress(t *testing.T) (address, privateKey string) {
 	require.NoError(t, err)
 
 	// Dump the private key of the wallet
-	dumpCmd := exec.Command("bash", "-c", fmt.Sprintf("bitcoin-cli -rpcconnect=host.docker.internal -rpcport=18332 -rpcuser=bitcoin -rpcpassword=bitcoin dumpprivkey %s", address))
+	dumpCmd := exec.Command("bash", "-c", fmt.Sprintf("bitcoin-cli -rpcconnect=node2 -rpcport=18332 -rpcuser=bitcoin -rpcpassword=bitcoin dumpprivkey %s", address))
 	var dumpOut bytes.Buffer
 	dumpCmd.Stdout = &dumpOut
 	err = dumpCmd.Run()
@@ -226,7 +226,7 @@ func getNewWalletAddress(t *testing.T) (address, privateKey string) {
 	privateKey = strings.TrimSpace(dumpOut.String())
 
 	// Create an account alias for the wallet address
-	aliasCmd := exec.Command("bash", "-c", fmt.Sprintf("bitcoin-cli -rpcconnect=host.docker.internal -rpcport=18332 -rpcuser=bitcoin -rpcpassword=bitcoin setaccount %s %s", address, address))
+	aliasCmd := exec.Command("bash", "-c", fmt.Sprintf("bitcoin-cli -rpcconnect=node2 -rpcport=18332 -rpcuser=bitcoin -rpcpassword=bitcoin setaccount %s %s", address, address))
 	var aliasOut bytes.Buffer
 	aliasCmd.Stdout = &aliasOut
 	err = aliasCmd.Run()
@@ -240,7 +240,7 @@ func getNewWalletAddress(t *testing.T) (address, privateKey string) {
 func sendToAddress(t *testing.T, address string, bsv float64) (txID string) {
 	t.Helper()
 
-	cmdStr := fmt.Sprintf("bitcoin-cli -rpcconnect=host.docker.internal -rpcport=18332 -rpcuser=bitcoin -rpcpassword=bitcoin sendtoaddress %s %f", address, bsv)
+	cmdStr := fmt.Sprintf("bitcoin-cli -rpcconnect=node2 -rpcport=18332 -rpcuser=bitcoin -rpcpassword=bitcoin sendtoaddress %s %f", address, bsv)
 	fmt.Println("Executing command:", cmdStr) // Log the exact command being executed
 
 	cmd := exec.Command("bash", "-c", cmdStr)
@@ -288,7 +288,7 @@ func execCommandGenerate(t *testing.T, amount uint64, address string) string {
 
 	cmd := exec.Command(
 		"bitcoin-cli",
-		"-rpcconnect=host.docker.internal",
+		"-rpcconnect=node2",
 		"-rpcport=18332",
 		"-rpcuser=bitcoin",
 		"-rpcpassword=bitcoin",
@@ -321,7 +321,7 @@ func getUnspentUtxos(t *testing.T, address string) []NodeUnspentUtxo {
 	t.Helper()
 
 	// Run the command
-	cmd := exec.Command("bash", "-c", fmt.Sprintf(`bitcoin-cli -rpcconnect=host.docker.internal -rpcport=18332 -rpcuser=bitcoin -rpcpassword=bitcoin listunspent 1 9999999 '["%s"]'`, address))
+	cmd := exec.Command("bash", "-c", fmt.Sprintf(`bitcoin-cli -rpcconnect=node2 -rpcport=18332 -rpcuser=bitcoin -rpcpassword=bitcoin listunspent 1 9999999 '["%s"]'`, address))
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()

@@ -8,7 +8,6 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -23,6 +22,12 @@ jobs:
       with:
         repository: icellan/regtest
         path: regtest
+
+    - name: Create shared network
+      run: |
+        if ! docker network ls | grep -q 'shared'; then
+          docker network create shared
+        fi
 
     - name: Run Docker Compose in regtest
       run: docker-compose up -d

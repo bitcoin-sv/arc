@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"k8s.io/utils/ptr"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -122,6 +123,34 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			require.NoError(t, err)
 			assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
 		}
+	})
+
+	t.Run("invalid parameters", func(t *testing.T) {
+		inputTx := strings.NewReader(validExtendedTx)
+		rec, ctx := createEchoRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
+
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
+		req.Header.Set(echo.HeaderContentType, echo.MIMETextPlain)
+
+		options := api.POSTTransactionParams{
+			XCallbackUrl:   ptr.To("callback.example.com"),
+			XCallbackToken: ptr.To("test-token"),
+			XWaitForStatus: ptr.To(4),
+			XMerkleProof:   ptr.To("true"),
+		}
+
+		err = defaultHandler.POSTTransaction(ctx, options)
+		require.NoError(t, err)
+		assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+
+		b := rec.Body.Bytes()
+		var bErr api.ErrorMalformed
+		_ = json.Unmarshal(b, &bErr)
+
+		assert.Equal(t, "invalid callback URL [parse \"callback.example.com\": invalid URI for request]", *bErr.ExtraInfo)
 	})
 
 	t.Run("invalid mime type", func(t *testing.T) {
@@ -264,6 +293,33 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			// multiple txs post always returns 200, the error code is given per tx
 			assert.Equal(t, api.ErrStatusBadRequest, api.StatusCode(rec.Code))
 		}
+	})
+
+	t.Run("invalid parameters", func(t *testing.T) {
+		inputTx := strings.NewReader(validExtendedTx)
+		rec, ctx := createEchoRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
+		req.Header.Set(echo.HeaderContentType, echo.MIMETextPlain)
+
+		options := api.POSTTransactionsParams{
+			XCallbackUrl:   ptr.To("callback.example.com"),
+			XCallbackToken: ptr.To("test-token"),
+			XWaitForStatus: ptr.To(4),
+			XMerkleProof:   ptr.To("true"),
+		}
+
+		err = defaultHandler.POSTTransactions(ctx, options)
+		require.NoError(t, err)
+		assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+
+		b := rec.Body.Bytes()
+		var bErr api.ErrorMalformed
+		_ = json.Unmarshal(b, &bErr)
+
+		assert.Equal(t, "invalid callback URL [parse \"callback.example.com\": invalid URI for request]", *bErr.ExtraInfo)
 	})
 
 	t.Run("invalid mime type", func(t *testing.T) {
@@ -484,6 +540,115 @@ func TestArcDefaultHandler_extendTransaction(t *testing.T) {
 			} else {
 				assert.NoError(t, handler.extendTransaction(ctx, btTx), fmt.Sprintf("extendTransaction(%v)", tt.transaction))
 			}
+		})
+	}
+}
+
+func TestGetTransactionOptions(t *testing.T) {
+	tt := []struct {
+		name   string
+		params api.POSTTransactionParams
+
+		expectedErrorStr string
+		expectedOptions  *api.TransactionOptions
+	}{
+		{
+			name:   "no options",
+			params: api.POSTTransactionParams{},
+
+			expectedOptions: &api.TransactionOptions{},
+		},
+		{
+			name: "valid callback url",
+			params: api.POSTTransactionParams{
+				XCallbackUrl:   ptr.To("http://api.callme.com"),
+				XCallbackToken: ptr.To("1234"),
+			},
+
+			expectedOptions: &api.TransactionOptions{
+				CallbackURL:   "http://api.callme.com",
+				CallbackToken: "1234",
+			},
+		},
+		{
+			name: "invalid callback url",
+			params: api.POSTTransactionParams{
+				XCallbackUrl: ptr.To("api.callme.com"),
+			},
+
+			expectedErrorStr: "invalid callback URL",
+		},
+		{
+			name: "merkle proof - true",
+			params: api.POSTTransactionParams{
+				XMerkleProof: ptr.To("true"),
+			},
+
+			expectedOptions: &api.TransactionOptions{
+				MerkleProof: true,
+			},
+		},
+		{
+			name: "merkle proof - 1",
+			params: api.POSTTransactionParams{
+				XMerkleProof: ptr.To("1"),
+			},
+
+			expectedOptions: &api.TransactionOptions{
+				MerkleProof: true,
+			},
+		},
+		{
+			name: "wait for status - 1",
+			params: api.POSTTransactionParams{
+				XWaitForStatus: ptr.To(1),
+			},
+
+			expectedOptions: &api.TransactionOptions{},
+		},
+		{
+			name: "wait for status - 2",
+			params: api.POSTTransactionParams{
+				XWaitForStatus: ptr.To(2),
+			},
+
+			expectedOptions: &api.TransactionOptions{
+				WaitForStatus: metamorph_api.Status_RECEIVED,
+			},
+		},
+		{
+			name: "wait for status - 6",
+			params: api.POSTTransactionParams{
+				XWaitForStatus: ptr.To(6),
+			},
+
+			expectedOptions: &api.TransactionOptions{
+				WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
+			},
+		},
+		{
+			name: "wait for status - 7",
+			params: api.POSTTransactionParams{
+				XWaitForStatus: ptr.To(7),
+			},
+
+			expectedOptions: &api.TransactionOptions{},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			options, err := getTransactionOptions(tc.params)
+
+			if tc.expectedErrorStr != "" || err != nil {
+				require.ErrorContains(t, err, tc.expectedErrorStr)
+				return
+			} else {
+				require.NoError(t, err)
+			}
+
+			require.Equal(t, tc.expectedOptions, options)
+
 		})
 	}
 }

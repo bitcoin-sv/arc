@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"k8s.io/utils/ptr"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -135,10 +136,10 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		req.Header.Set(echo.HeaderContentType, echo.MIMETextPlain)
 
 		options := api.POSTTransactionParams{
-			XCallbackUrl:   api.StringToPointer("callback.example.com"),
-			XCallbackToken: api.StringToPointer("test-token"),
-			XWaitForStatus: api.IntToPointer(4),
-			XMerkleProof:   api.StringToPointer("true"),
+			XCallbackUrl:   ptr.To("callback.example.com"),
+			XCallbackToken: ptr.To("test-token"),
+			XWaitForStatus: ptr.To(4),
+			XMerkleProof:   ptr.To("true"),
 		}
 
 		err = defaultHandler.POSTTransaction(ctx, options)
@@ -304,10 +305,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		req.Header.Set(echo.HeaderContentType, echo.MIMETextPlain)
 
 		options := api.POSTTransactionsParams{
-			XCallbackUrl:   api.StringToPointer("callback.example.com"),
-			XCallbackToken: api.StringToPointer("test-token"),
-			XWaitForStatus: api.IntToPointer(4),
-			XMerkleProof:   api.StringToPointer("true"),
+			XCallbackUrl:   ptr.To("callback.example.com"),
+			XCallbackToken: ptr.To("test-token"),
+			XWaitForStatus: ptr.To(4),
+			XMerkleProof:   ptr.To("true"),
 		}
 
 		err = defaultHandler.POSTTransactions(ctx, options)
@@ -560,8 +561,8 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "valid callback url",
 			params: api.POSTTransactionParams{
-				XCallbackUrl:   api.StringToPointer("http://api.callme.com"),
-				XCallbackToken: api.StringToPointer("1234"),
+				XCallbackUrl:   ptr.To("http://api.callme.com"),
+				XCallbackToken: ptr.To("1234"),
 			},
 
 			expectedOptions: &api.TransactionOptions{
@@ -572,7 +573,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "invalid callback url",
 			params: api.POSTTransactionParams{
-				XCallbackUrl: api.StringToPointer("api.callme.com"),
+				XCallbackUrl: ptr.To("api.callme.com"),
 			},
 
 			expectedErrorStr: "invalid callback URL",
@@ -580,7 +581,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "merkle proof - true",
 			params: api.POSTTransactionParams{
-				XMerkleProof: api.StringToPointer("true"),
+				XMerkleProof: ptr.To("true"),
 			},
 
 			expectedOptions: &api.TransactionOptions{
@@ -590,7 +591,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "merkle proof - 1",
 			params: api.POSTTransactionParams{
-				XMerkleProof: api.StringToPointer("1"),
+				XMerkleProof: ptr.To("1"),
 			},
 
 			expectedOptions: &api.TransactionOptions{
@@ -600,7 +601,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "wait for status - 1",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: api.IntToPointer(1),
+				XWaitForStatus: ptr.To(1),
 			},
 
 			expectedOptions: &api.TransactionOptions{},
@@ -608,7 +609,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "wait for status - 2",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: api.IntToPointer(2),
+				XWaitForStatus: ptr.To(2),
 			},
 
 			expectedOptions: &api.TransactionOptions{
@@ -618,7 +619,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "wait for status - 6",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: api.IntToPointer(6),
+				XWaitForStatus: ptr.To(6),
 			},
 
 			expectedOptions: &api.TransactionOptions{
@@ -628,7 +629,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "wait for status - 7",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: api.IntToPointer(7),
+				XWaitForStatus: ptr.To(7),
 			},
 
 			expectedOptions: &api.TransactionOptions{},

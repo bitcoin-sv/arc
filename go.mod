@@ -31,6 +31,7 @@ require (
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
 	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.30.0
+	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 	modernc.org/sqlite v1.20.0
 )
 

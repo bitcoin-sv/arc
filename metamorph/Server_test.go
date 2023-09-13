@@ -89,6 +89,17 @@ func TestPutTransaction(t *testing.T) {
 		assert.True(t, txStatus.TimedOut)
 	})
 
+	t.Run("invalid request", func(t *testing.T) {
+		server := NewServer(nil, nil, nil, nil, source)
+
+		txRequest := &metamorph_api.TransactionRequest{
+			CallbackUrl: "api.callback.com",
+		}
+
+		_, err := server.PutTransaction(context.Background(), txRequest)
+		assert.ErrorContains(t, err, "invalid URL [parse \"api.callback.com\": invalid URI for request]")
+	})
+
 	t.Run("PutTransaction - SEEN to network", func(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)

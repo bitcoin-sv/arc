@@ -142,6 +142,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		}
 
 		err = defaultHandler.POSTTransaction(ctx, options)
+		require.NoError(t, err)
 		assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
 
 		b := rec.Body.Bytes()
@@ -310,6 +311,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		err = defaultHandler.POSTTransactions(ctx, options)
+		require.NoError(t, err)
 		assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
 
 		b := rec.Body.Bytes()

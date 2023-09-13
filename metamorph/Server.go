@@ -125,6 +125,19 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 	}, nil
 }
 
+func validateCallbackURL(callbackURL string) error {
+	if callbackURL == "" {
+		return nil
+	}
+
+	_, err := url.ParseRequestURI(callbackURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL [%w]", err)
+	}
+
+	return nil
+}
+
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction")
 	defer span.Finish()
@@ -134,8 +147,9 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		gocore.NewStat("PutTransaction").AddTime(start)
 	}()
 
-	if _, err := url.ParseRequestURI(req.CallbackUrl); req.CallbackUrl != "" && err != nil {
-		return nil, fmt.Errorf("invalid URL [%w]", err)
+	err := validateCallbackURL(req.CallbackUrl)
+	if err != nil {
+		return nil, err
 	}
 
 	next, status, hash, transactionStatus, err := s.putTransactionInit(ctx, req, start)
@@ -228,10 +242,10 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	// if not we store the transaction data and set the transaction status in response array to - STORED
 	requests := make([]*store.StoreData, 0, len(req.Transactions))
 	for ind, req := range req.Transactions {
-		if _, err := url.ParseRequestURI(req.CallbackUrl); req.CallbackUrl != "" && err != nil {
-			return nil, fmt.Errorf("invalid URL [%w]", err)
+		err := validateCallbackURL(req.CallbackUrl)
+		if err != nil {
+			return nil, err
 		}
-
 		_, status, hash, transactionStatus, err := s.putTransactionInit(ctx, req, start)
 		if err != nil {
 			// if we have an error, we will return immediately

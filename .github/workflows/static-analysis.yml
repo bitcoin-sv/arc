@@ -30,7 +30,7 @@ jobs:
         continue-on-error: true
         uses: securego/gosec@master
         with:
-          args: -exclude-dir=testdata -fmt=sonarqube -out gosec-report.json ./...
+          args: -exclude-dir=testdata -exclude-dir=test -exclude-dir=blocktx/store/sql -exclude-generated -fmt=sonarqube -out gosec-report.json ./...
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master

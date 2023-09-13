@@ -487,3 +487,112 @@ func TestArcDefaultHandler_extendTransaction(t *testing.T) {
 		})
 	}
 }
+
+func TestGetTransactionOptions(t *testing.T) {
+	tt := []struct {
+		name   string
+		params api.POSTTransactionParams
+
+		expectedErrorStr string
+		expectedOptions  *api.TransactionOptions
+	}{
+		{
+			name:   "no options",
+			params: api.POSTTransactionParams{},
+
+			expectedOptions: &api.TransactionOptions{},
+		},
+		{
+			name: "valid callback url",
+			params: api.POSTTransactionParams{
+				XCallbackUrl:   api.StringToPointer("http://api.callme.com"),
+				XCallbackToken: api.StringToPointer("1234"),
+			},
+
+			expectedOptions: &api.TransactionOptions{
+				CallbackURL:   "http://api.callme.com",
+				CallbackToken: "1234",
+			},
+		},
+		{
+			name: "invalid callback url",
+			params: api.POSTTransactionParams{
+				XCallbackUrl: api.StringToPointer("api.callme.com"),
+			},
+
+			expectedErrorStr: "invalid callback URL",
+		},
+		{
+			name: "merkle proof - true",
+			params: api.POSTTransactionParams{
+				XMerkleProof: api.StringToPointer("true"),
+			},
+
+			expectedOptions: &api.TransactionOptions{
+				MerkleProof: true,
+			},
+		},
+		{
+			name: "merkle proof - 1",
+			params: api.POSTTransactionParams{
+				XMerkleProof: api.StringToPointer("1"),
+			},
+
+			expectedOptions: &api.TransactionOptions{
+				MerkleProof: true,
+			},
+		},
+		{
+			name: "wait for status - 1",
+			params: api.POSTTransactionParams{
+				XWaitForStatus: api.IntToPointer(1),
+			},
+
+			expectedOptions: &api.TransactionOptions{},
+		},
+		{
+			name: "wait for status - 2",
+			params: api.POSTTransactionParams{
+				XWaitForStatus: api.IntToPointer(2),
+			},
+
+			expectedOptions: &api.TransactionOptions{
+				WaitForStatus: metamorph_api.Status_RECEIVED,
+			},
+		},
+		{
+			name: "wait for status - 6",
+			params: api.POSTTransactionParams{
+				XWaitForStatus: api.IntToPointer(6),
+			},
+
+			expectedOptions: &api.TransactionOptions{
+				WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
+			},
+		},
+		{
+			name: "wait for status - 7",
+			params: api.POSTTransactionParams{
+				XWaitForStatus: api.IntToPointer(7),
+			},
+
+			expectedOptions: &api.TransactionOptions{},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			options, err := getTransactionOptions(tc.params)
+
+			if tc.expectedErrorStr != "" || err != nil {
+				require.ErrorContains(t, err, tc.expectedErrorStr)
+				return
+			} else {
+				require.NoError(t, err)
+			}
+
+			require.Equal(t, tc.expectedOptions, options)
+
+		})
+	}
+}

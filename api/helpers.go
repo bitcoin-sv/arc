@@ -25,3 +25,11 @@ func FeesToBtFeeQuote(minMiningFee float64) *bt.FeeQuote {
 
 	return btFeeQuote
 }
+
+func StringToPointer(input string) *string {
+	return &input
+}
+
+func IntToPointer(input int) *int {
+	return &input
+}

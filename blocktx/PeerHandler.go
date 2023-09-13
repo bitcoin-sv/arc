@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"math/rand"
@@ -375,12 +376,12 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 			Hash: hash[:],
 		})
 
-		merklePath, err := bc.BuildMerklePathBinary(bc.GetTxMerklePath(txIndex, merkleTree))
+		merklePath, err := bc.GetTxMerklePath(txIndex, merkleTree).Bytes()
 		if err != nil {
 			return err
 		}
 
-		merklePaths = append(merklePaths, string(merklePath))
+		merklePaths = append(merklePaths, hex.EncodeToString((merklePath)))
 	}
 
 	if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {

@@ -82,6 +82,16 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	span, tracingCtx := opentracing.StartSpanFromContext(ctx.Request().Context(), "ArcDefaultHandler:POSTTransactions")
 	defer span.Finish()
 
+	transactionOptions, err := getTransactionOptions(params)
+	if err != nil {
+		errStr := err.Error()
+		e := api.ErrBadRequest
+		e.ExtraInfo = &errStr
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return ctx.JSON(int(api.ErrStatusBadRequest), e)
+	}
+
 	body, err := io.ReadAll(ctx.Request().Body)
 	if err != nil {
 		errStr := err.Error()
@@ -138,16 +148,6 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	}
 
 	span.SetTag("txid", transaction.TxID())
-
-	transactionOptions, err := getTransactionOptions(params)
-	if err != nil {
-		errStr := err.Error()
-		e := api.ErrBadRequest
-		e.ExtraInfo = &errStr
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return ctx.JSON(int(api.ErrStatusBadRequest), e)
-	}
 
 	status, response, responseErr := m.processTransaction(tracingCtx, transaction, transactionOptions)
 	if responseErr != nil {

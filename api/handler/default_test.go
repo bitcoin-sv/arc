@@ -124,6 +124,33 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		}
 	})
 
+	t.Run("invalid parameters", func(t *testing.T) {
+		inputTx := strings.NewReader(validExtendedTx)
+		rec, ctx := createEchoRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
+
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
+		req.Header.Set(echo.HeaderContentType, echo.MIMETextPlain)
+
+		options := api.POSTTransactionParams{
+			XCallbackUrl:   api.StringToPointer("callback.example.com"),
+			XCallbackToken: api.StringToPointer("test-token"),
+			XWaitForStatus: api.IntToPointer(4),
+			XMerkleProof:   api.StringToPointer("true"),
+		}
+
+		err = defaultHandler.POSTTransaction(ctx, options)
+		assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+
+		b := rec.Body.Bytes()
+		var bErr api.ErrorMalformed
+		_ = json.Unmarshal(b, &bErr)
+
+		assert.Equal(t, "invalid callback URL [parse \"callback.example.com\": invalid URI for request]", *bErr.ExtraInfo)
+	})
+
 	t.Run("invalid mime type", func(t *testing.T) {
 		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
 		require.NoError(t, err)
@@ -264,6 +291,32 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			// multiple txs post always returns 200, the error code is given per tx
 			assert.Equal(t, api.ErrStatusBadRequest, api.StatusCode(rec.Code))
 		}
+	})
+
+	t.Run("invalid parameters", func(t *testing.T) {
+		inputTx := strings.NewReader(validExtendedTx)
+		rec, ctx := createEchoRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
+		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
+		req.Header.Set(echo.HeaderContentType, echo.MIMETextPlain)
+
+		options := api.POSTTransactionsParams{
+			XCallbackUrl:   api.StringToPointer("callback.example.com"),
+			XCallbackToken: api.StringToPointer("test-token"),
+			XWaitForStatus: api.IntToPointer(4),
+			XMerkleProof:   api.StringToPointer("true"),
+		}
+
+		err = defaultHandler.POSTTransactions(ctx, options)
+		assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+
+		b := rec.Body.Bytes()
+		var bErr api.ErrorMalformed
+		_ = json.Unmarshal(b, &bErr)
+
+		assert.Equal(t, "invalid callback URL [parse \"callback.example.com\": invalid URI for request]", *bErr.ExtraInfo)
 	})
 
 	t.Run("invalid mime type", func(t *testing.T) {

@@ -277,6 +277,7 @@ func createSqliteSchema(db *sql.DB) error {
 		 id           INTEGER PRIMARY KEY AUTOINCREMENT,
 		 hash         BLOB NOT NULL
 	  ,source				TEXT
+	  ,merkle_path			TEXT
 	 	);
 	`); err != nil {
 		db.Close()

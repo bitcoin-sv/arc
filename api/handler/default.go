@@ -236,6 +236,8 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	var transactions []interface{}
 	sizingInfo := make([][]uint64, 0)
 
+	var status api.StatusCode
+
 	switch ctx.Request().Header.Get("Content-Type") {
 	case "application/json":
 		body, err := io.ReadAll(ctx.Request().Body)
@@ -274,9 +276,9 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			sizingsMap[transaction.TxID()] = []uint64{normalBytes, dataBytes, feeAmount}
 		}
 		// submit for processing
-		transactions, err = m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
+		status, transactions, err = m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
 		if err != nil {
-			return err
+			return ctx.JSON(api.ErrGeneric.Status, err)
 		}
 
 		for _, btTx := range transactions {
@@ -337,9 +339,9 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			sizingsMap[btTx.TxID()] = []uint64{normalBytes, dataBytes, feeAmount}
 		}
 		// process all transactions before submitting to metamorph
-		transactions, err = m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
+		status, transactions, err = m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
 		if err != nil {
-			return err
+			return ctx.JSON(api.ErrGeneric.Status, err)
 		}
 
 		for _, btTx := range transactions {
@@ -361,7 +363,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
 	// we cannot really return any other status here
 	// each transaction in the slice will have the result of the transaction submission
-	return ctx.JSON(http.StatusOK, transactions)
+	return ctx.JSON(int(status), transactions)
 }
 
 func getTransactionOptions(params api.POSTTransactionParams) (*api.TransactionOptions, error) {
@@ -452,7 +454,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 }
 
 // processTransactions validates all the transactions in the array and submits to metamorph for processing
-func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions []*bt.Tx, transactionOptions *api.TransactionOptions) ([]interface{}, error) {
+func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions []*bt.Tx, transactionOptions *api.TransactionOptions) (api.StatusCode, []interface{}, error) {
 	span, tracingCtx := opentracing.StartSpanFromContext(ctx, "ArcDefaultHandler:processTransactions")
 	defer span.Finish()
 
@@ -489,7 +491,9 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	// submit all the validated array of transactiosn to metamorph endpoint
 	txStatuses, err := m.TransactionHandler.SubmitTransactions(tracingCtx, transactionsInput, transactionOptions)
 	if err != nil {
-		return nil, err
+		statusCode, arcError, errHandled := m.handleError(tracingCtx, nil, err)
+		m.logger.Errorf("failed to submit %d transactions, status Code: %d: %v", len(transactions), statusCode, errHandled)
+		return statusCode, []interface{}{arcError}, errHandled
 	}
 
 	// process returned transaction statuses and return to user
@@ -510,7 +514,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 
 	transactionOutput = append(transactionOutput, txErrors...)
 
-	return transactionOutput, nil
+	return api.StatusOK, transactionOutput, nil
 }
 
 func (m ArcDefaultHandler) extendTransaction(ctx context.Context, transaction *bt.Tx) (err error) {

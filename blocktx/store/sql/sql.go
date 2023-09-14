@@ -34,7 +34,6 @@ func init() {
 func New(engine string) (store.Interface, error) {
 	var db *sql.DB
 	var err error
-
 	var memory bool
 
 	logLevel := viper.GetString("logLevel")

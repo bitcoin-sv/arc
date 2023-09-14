@@ -22,7 +22,7 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 
 	qTx, err := s.db.Prepare(`
 			INSERT INTO transactions (hash, merkle_path) VALUES ($1, $2)
-			ON CONFLICT DO UPDATE SET merkle_path=$2
+			ON CONFLICT(hash) DO UPDATE SET merkle_path=$2
 			RETURNING id
 			;
 		`)

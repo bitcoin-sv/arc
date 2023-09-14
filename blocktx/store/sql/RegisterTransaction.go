@@ -16,7 +16,7 @@ import (
 )
 
 // RegisterTransaction registers a transaction in the database
-func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (string, []byte, uint64, error) {
+func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (string, string, []byte, uint64, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("RegisterTransaction").AddTime(start)
@@ -34,11 +34,11 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 	defer cancel()
 
 	if transaction.Hash == nil {
-		return "", nil, 0, fmt.Errorf("invalid request - no hash")
+		return "", "", nil, 0, fmt.Errorf("invalid request - no hash")
 	}
 
 	if transaction.Source == "" {
-		return "", nil, 0, fmt.Errorf("source missing for transaction %s", utils.ReverseAndHexEncodeSlice(transaction.Hash))
+		return "", "", nil, 0, fmt.Errorf("source missing for transaction %s", utils.ReverseAndHexEncodeSlice(transaction.Hash))
 	}
 
 	q := `INSERT INTO transactions (hash, source) VALUES ($1, $2)`
@@ -69,30 +69,30 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 				spanErr.SetTag(string(ext.Error), true)
 				spanErr.LogFields(log.Error(err))
 			}
-			return "", nil, 0, err
+			return "", "", nil, 0, err
 		}
 
 		// If we reach here, we have a unique violation, which means that the transaction already exists
 		if spanErr != nil {
 			spanErr.SetTag("unique_constraint", true)
 		}
-		q = `UPDATE transactions SET source = $1 WHERE source IS NULL AND hash = $2`
-		result, err := s.db.ExecContext(ctx, q, transaction.Source, transaction.Hash[:])
+		q = `UPDATE transactions SET source = $1 WHERE source IS NULL AND hash = $2 RETURNING merkle_path`
+		result, err := s.db.QueryContext(ctx, q, transaction.Source, transaction.Hash[:])
 		if err != nil {
 			if spanErr != nil {
 				spanErr.SetTag(string(ext.Error), true)
 				spanErr.LogFields(log.Error(err))
 			}
-			return "", nil, 0, err
+			return "", "", nil, 0, err
 		}
 
-		rows, err := result.RowsAffected()
-		if err != nil {
-			if spanErr != nil {
-				spanErr.SetTag(string(ext.Error), true)
-				spanErr.LogFields(log.Error(err))
+		var rows int
+		var merkle_path string
+		for result.Next() {
+			if err := result.Scan(&merkle_path); err != nil {
+				return "", "", nil, 0, err
 			}
-			return "", nil, 0, err
+			rows++
 		}
 
 		if rows == 1 {
@@ -106,21 +106,21 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 			}
 
 			if err := s.db.QueryRowContext(ctx, queryGetBlockHashHeightForTransactionHash, transaction.Hash).Scan(&blockHash, &blockHeight); err == nil {
-				return transaction.Source, blockHash[:], blockHeight, nil
+				return transaction.Source, merkle_path, blockHash[:], blockHeight, nil
 			}
 		}
 
 		var source string
-		if err := s.db.QueryRowContext(ctx, "SELECT source FROM transactions WHERE hash = $1", transaction.Hash).Scan(&source); err != nil {
+		if err := s.db.QueryRowContext(ctx, "SELECT source, merkle_path FROM transactions WHERE hash = $1", transaction.Hash).Scan(&source, &merkle_path); err != nil {
 			if spanErr != nil {
 				spanErr.SetTag(string(ext.Error), true)
 				spanErr.LogFields(log.Error(err))
 			}
-			return "", nil, 0, err
+			return "", "", nil, 0, err
 		}
-		return source, nil, 0, nil
+		return source, merkle_path, nil, 0, nil
 
 	}
 
-	return transaction.Source, nil, 0, nil
+	return transaction.Source, "", nil, 0, nil
 }

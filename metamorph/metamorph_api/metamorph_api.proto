@@ -85,10 +85,11 @@ message TransactionStatus {
   google.protobuf.Timestamp announced_at = 3;
   google.protobuf.Timestamp mined_at = 4;
   string txid = 5;
-  Status status = 6;
-  string reject_reason = 7;
-  uint64 block_height = 8;
-  string block_hash = 9;
+  string merkle_path = 6; 
+  Status status = 7;
+  string reject_reason = 8;
+  uint64 block_height = 9;
+  string block_hash = 10;
 }
 
 // swagger:model TransactionStatuses

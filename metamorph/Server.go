@@ -329,6 +329,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		ownerMM := metamorph_api.NewMetaMorphAPIClient(ownerConn)
 
 		var transactionStatus *metamorph_api.TransactionStatus
+		transactionStatus.MerklePath = rtr.MerklePath
 		if transactionStatus, err = ownerMM.PutTransaction(createForwardedContext(initCtx), req); err != nil {
 			return 0, 0, nil, nil, err
 		}
@@ -360,6 +361,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 			return 0, 0, nil, &metamorph_api.TransactionStatus{
 				Status:       metamorph_api.Status_REJECTED,
 				Txid:         hash.String(),
+				MerklePath:   rtr.MerklePath,
 				RejectReason: err.Error(),
 			}, nil
 		}
@@ -381,6 +383,7 @@ func (s *Server) checkStore(ctx context.Context, hash *chainhash.Hash, next int6
 			AnnouncedAt:  timestamppb.New(storeData.AnnouncedAt),
 			MinedAt:      timestamppb.New(storeData.MinedAt),
 			Txid:         fmt.Sprintf("%v", storeData.Hash),
+			MerklePath:   storeData.MerklePath,
 			Status:       storeData.Status,
 			RejectReason: storeData.RejectReason,
 			BlockHeight:  storeData.BlockHeight,

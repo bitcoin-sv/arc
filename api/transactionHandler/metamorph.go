@@ -116,6 +116,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions 
 		ExtraInfo:   response.RejectReason,
 		BlockHash:   response.BlockHash,
 		BlockHeight: response.BlockHeight,
+		MerklePath:  response.MerklePath,
 		Timestamp:   time.Now().Unix(),
 	}, nil
 }

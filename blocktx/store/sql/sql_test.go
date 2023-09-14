@@ -55,7 +55,7 @@ func TestInOut(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "TEST", source)
 
-	err = s.InsertBlockTransactions(ctx, blockId, transactions)
+	err = s.InsertBlockTransactions(ctx, blockId, transactions, make([]string, len(transactions), len(transactions)))
 	require.NoError(t, err)
 
 	txns, err := s.GetBlockTransactions(ctx, block)

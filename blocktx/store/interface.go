@@ -28,7 +28,7 @@ type Interface interface {
 	GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Block, error)
 	GetTransactionBlocks(ctx context.Context, transactions *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error)
 	InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error)
-	InsertBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource) error
+	InsertBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error
 	MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 	OrphanHeight(ctx context.Context, height uint64) error
 	SetOrphanHeight(ctx context.Context, height uint64, orphaned bool) error

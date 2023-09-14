@@ -34,7 +34,6 @@ func init() {
 func New(engine string) (store.Interface, error) {
 	var db *sql.DB
 	var err error
-
 	var memory bool
 
 	logLevel := viper.GetString("logLevel")
@@ -187,8 +186,9 @@ func createPostgresSchema(db *sql.DB) error {
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS transactions (
 		 id           BIGSERIAL PRIMARY KEY
-	  ,hash         BYTEA NOT NULL
-	  ,source       TEXT
+		,hash         BYTEA NOT NULL
+		,source       TEXT
+		,merkle_path  TEXT
 		);
 	`); err != nil {
 		db.Close()
@@ -277,6 +277,7 @@ func createSqliteSchema(db *sql.DB) error {
 		 id           INTEGER PRIMARY KEY AUTOINCREMENT,
 		 hash         BLOB NOT NULL
 	  ,source				TEXT
+	  ,merkle_path			TEXT
 	 	);
 	`); err != nil {
 		db.Close()

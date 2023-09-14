@@ -14,6 +14,7 @@ require (
 	github.com/labstack/echo/v4 v4.9.0
 	github.com/labstack/gommon v0.3.1
 	github.com/lib/pq v1.10.7
+	github.com/libsv/go-bc v0.1.17
 	github.com/libsv/go-bk v0.1.6
 	github.com/libsv/go-bt/v2 v2.2.5
 	github.com/libsv/go-p2p v0.1.2
@@ -26,7 +27,7 @@ require (
 	github.com/prometheus/client_golang v1.14.0
 	github.com/sasha-s/go-deadlock v0.3.1
 	github.com/spf13/viper v1.16.0
-	github.com/stretchr/testify v1.8.3
+	github.com/stretchr/testify v1.8.4
 	github.com/timshannon/badgerhold/v3 v3.0.0
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
 	google.golang.org/grpc v1.55.0

@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"math/rand"
@@ -14,9 +15,9 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/tracing"
+	bc "github.com/libsv/go-bc"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
-	"github.com/libsv/go-p2p/blockchain"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils"
@@ -290,18 +291,27 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 		return fmt.Errorf("unable to insert block %s: %v", blockHash.String(), err)
 	}
 
-	if err = bs.markTransactionsAsMined(blockId, msg.TransactionHashes); err != nil {
-		return fmt.Errorf("unable to mark block as mined %s: %v", blockHash.String(), err)
-	}
-
-	transactionHashes := make([][]byte, len(msg.TransactionHashes))
+	transactionHashes := make([]string, len(msg.TransactionHashes))
 	for i, hash := range msg.TransactionHashes {
-		transactionHashes[i] = hash[:]
+		transactionHashes[i] = hash.String()
 	}
 
-	calculatedMerkleRoot := blockchain.BuildMerkleTreeStore(transactionHashes)
-	if !bytes.Equal(calculatedMerkleRoot[len(calculatedMerkleRoot)-1], merkleRoot[:]) {
+	calculatedMerkleRoot, err := bc.BuildMerkleTreeStore(transactionHashes)
+	if err != nil {
+		return err
+	}
+
+	hash, err := chainhash.NewHashFromStr(calculatedMerkleRoot[len(calculatedMerkleRoot)-1])
+	if err != nil {
+		return err
+	}
+
+	if !bytes.Equal(hash.CloneBytes(), merkleRoot[:]) {
 		return fmt.Errorf("merkle root mismatch for block %s", blockHash.String())
+	}
+
+	if err = bs.markTransactionsAsMined(blockId, msg.TransactionHashes, calculatedMerkleRoot); err != nil {
+		return fmt.Errorf("unable to mark block as mined %s: %v", blockHash.String(), err)
 	}
 
 	block := &p2p.Block{
@@ -352,21 +362,34 @@ func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 	return bs.store.InsertBlock(context.Background(), block)
 }
 
-func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes []*chainhash.Hash) error {
+func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes []*chainhash.Hash, merkleTree []string) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("markTransactionsAsMined").AddTime(start)
 	}()
 
 	txs := make([]*blocktx_api.TransactionAndSource, 0, len(transactionHashes))
+	merklePaths := make([]string, 0, len(transactionHashes))
 
-	for _, hash := range transactionHashes {
+	for txIndex, hash := range transactionHashes {
 		txs = append(txs, &blocktx_api.TransactionAndSource{
 			Hash: hash[:],
 		})
+
+		var merklePath string
+		if len(transactionHashes) != 1 {
+			merklePathBytes, err := bc.GetTxMerklePath(txIndex, merkleTree).Bytes()
+			if err != nil {
+				return err
+			}
+
+			merklePath = hex.EncodeToString(merklePathBytes)
+		}
+
+		merklePaths = append(merklePaths, merklePath)
 	}
 
-	if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs); err != nil {
+	if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
 		return err
 	}
 

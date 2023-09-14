@@ -14,7 +14,7 @@ func TestRegister(t *testing.T) {
 
 	require.NoError(t, err)
 
-	source, _, blockHeight, err := s.RegisterTransaction(context.Background(), &blocktx_api.TransactionAndSource{
+	source, _, _, blockHeight, err := s.RegisterTransaction(context.Background(), &blocktx_api.TransactionAndSource{
 		Hash:   []byte("test transaction hash 1"),
 		Source: "TEST",
 	})
@@ -23,7 +23,7 @@ func TestRegister(t *testing.T) {
 	assert.Equal(t, "TEST", source)
 	assert.Zero(t, blockHeight)
 
-	source, _, blockHeight, err = s.RegisterTransaction(context.Background(), &blocktx_api.TransactionAndSource{
+	source, _, _, blockHeight, err = s.RegisterTransaction(context.Background(), &blocktx_api.TransactionAndSource{
 		Hash:   []byte("test transaction hash 1"),
 		Source: "TEST2",
 	})

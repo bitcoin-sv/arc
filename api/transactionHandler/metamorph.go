@@ -146,6 +146,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOpti
 	for _, response := range responses.Statuses {
 		ret = append(ret, &TransactionStatus{
 			TxID:        response.Txid,
+			MerklePath:  response.MerklePath,
 			Status:      response.GetStatus().String(),
 			ExtraInfo:   response.RejectReason,
 			BlockHash:   response.BlockHash,

@@ -448,6 +448,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 		ExtraInfo:   &extraInfo,
 		Timestamp:   time.Now(),
 		Txid:        txID,
+		MerklePath:  tx.MerklePath,
 	}, nil
 }
 
@@ -505,6 +506,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 			ExtraInfo:   &tx.ExtraInfo,
 			Timestamp:   time.Now(),
 			Txid:        transactions[ind].TxID(),
+			MerklePath:  tx.MerklePath,
 		})
 	}
 

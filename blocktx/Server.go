@@ -110,7 +110,6 @@ func (s *Server) LocateTransaction(ctx context.Context, transaction *blocktx_api
 
 func (s *Server) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
 	source, merkle_path, hash, height, err := s.store.RegisterTransaction(ctx, transaction)
-
 	return &blocktx_api.RegisterTransactionResponse{
 		Source:      source,
 		MerklePath:  merkle_path,

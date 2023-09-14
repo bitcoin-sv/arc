@@ -160,7 +160,6 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		// if we have a transactionStatus, we can also return immediately
 		return transactionStatus, nil
 	}
-
 	// Convert gRPC req to store.StoreData struct...
 	sReq := &store.StoreData{
 		Hash:          hash,
@@ -285,7 +284,6 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		// TODO check the context when API call ends
 		go s.processor.ProcessTransaction(NewProcessorRequest(ctx, request, nil))
 	}
-
 	return ret, nil
 }
 
@@ -306,6 +304,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		Hash:   hash[:],
 		Source: s.source,
 	})
+
 	if err != nil {
 		return 0, 0, nil, nil, err
 	}
@@ -351,6 +350,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 	next, transactionStatus = s.checkStore(initCtx, &hash, next)
 	if transactionStatus != nil {
 		// just return the status if we found it in the store
+		transactionStatus.MerklePath = rtr.MerklePath
 		return 0, 0, nil, transactionStatus, nil
 	}
 

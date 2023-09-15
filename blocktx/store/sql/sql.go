@@ -188,7 +188,7 @@ func createPostgresSchema(db *sql.DB) error {
 		 id           BIGSERIAL PRIMARY KEY
 		,hash         BYTEA NOT NULL
 		,source       TEXT
-		,merkle_path  TEXT
+		,merkle_path  TEXT DEFAULT('')
 		);
 	`); err != nil {
 		db.Close()
@@ -277,7 +277,7 @@ func createSqliteSchema(db *sql.DB) error {
 		 id           INTEGER PRIMARY KEY AUTOINCREMENT,
 		 hash         BLOB NOT NULL
 	  ,source				TEXT
-	  ,merkle_path			TEXT
+	  ,merkle_path			TEXT DEFAULT('')
 	 	);
 	`); err != nil {
 		db.Close()

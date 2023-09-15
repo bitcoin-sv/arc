@@ -17,6 +17,9 @@ service BlockTxAPI {
   // LocateTransaction returns the source of a transaction.
   rpc LocateTransaction(Transaction) returns (Source) {}
 
+  // GetTransactionMerklePath returns the source of a transaction.
+  rpc GetTransactionMerklePath(Transaction) returns (MerklePath) {}
+
   // GetBlockTransactions returns a list of transaction hashes for a given block.
   rpc GetBlockTransactions (Block) returns (Transactions) {}
 
@@ -98,6 +101,11 @@ message Hash {
 // swagger:model Source
 message Source {
   string source = 1;
+}
+
+// swagger:model Source
+message MerklePath {
+  string merklePath = 1;
 }
 
 message TransactionAndSource {

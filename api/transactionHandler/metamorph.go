@@ -11,6 +11,7 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -88,8 +89,24 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 		return nil, ErrTransactionNotFound
 	}
 
+	hash, err := chainhash.NewHashFromStr(txID)
+	if err != nil {
+		return nil, err
+	}
+
+	var merkle_path string
+	if merkle_path, err = m.blockTxClient.GetTransactionMerklePath(ctx, &blocktx_api.Transaction{
+		Hash: hash[:],
+	}); err != nil {
+		if errors.Is(err, blocktx.ErrTransactionNotFound) {
+			return nil, ErrTransactionNotFound
+		}
+		return nil, err
+	}
+
 	return &TransactionStatus{
 		TxID:        txID,
+		MerklePath:  merkle_path,
 		Status:      tx.Status.String(),
 		BlockHash:   tx.BlockHash,
 		BlockHeight: tx.BlockHeight,

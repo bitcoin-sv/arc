@@ -5,7 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/binary"
-	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -370,6 +370,10 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 
 	txs := make([]*blocktx_api.TransactionAndSource, 0, len(transactionHashes))
 	merklePaths := make([]string, 0, len(transactionHashes))
+	for i, asd := range merkleTree {
+		fmt.Println(i, " ", asd)
+	}
+	fmt.Println("treeee- -------")
 
 	for txIndex, hash := range transactionHashes {
 		txs = append(txs, &blocktx_api.TransactionAndSource{
@@ -377,13 +381,24 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 		})
 
 		var merklePath string
+		var err error
 		if len(transactionHashes) != 1 {
-			merklePathBytes, err := bc.GetTxMerklePath(txIndex, merkleTree).Bytes()
+			merklePath, err = bc.GetTxMerklePath(txIndex, merkleTree).String()
 			if err != nil {
 				return err
 			}
 
-			merklePath = hex.EncodeToString(merklePathBytes)
+			root, err := bc.GetTxMerklePath(txIndex, merkleTree).CalculateRoot(hash.String())
+			if err != nil {
+				return err
+			}
+			fmt.Println("transaction hash ", hash.String())
+			fmt.Println(merklePath)
+			fmt.Println("produced ", root)
+			fmt.Println("needed ", merkleTree[len(merkleTree)-1])
+			if root != merkleTree[len(merkleTree)-1] {
+				return errors.New("merkle path calculated produced different root")
+			}
 		}
 
 		merklePaths = append(merklePaths, merklePath)

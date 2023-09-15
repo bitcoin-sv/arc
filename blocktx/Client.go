@@ -19,6 +19,7 @@ import (
 type ClientI interface {
 	Start(minedBlockChan chan *blocktx_api.Block)
 	LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
+	GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error)
 	GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error)
 	GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error)
@@ -83,6 +84,15 @@ func (btc *Client) LocateTransaction(ctx context.Context, transaction *blocktx_a
 	}
 
 	return location.Source, nil
+}
+
+func (btc *Client) GetTransactionMerklePath(ctx context.Context, hash *blocktx_api.Transaction) (string, error) {
+	merklePath, err := btc.client.GetTransactionMerklePath(ctx, hash)
+	if err != nil {
+		return "", ErrTransactionNotFound
+	}
+
+	return merklePath.MerklePath, nil
 }
 
 func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {

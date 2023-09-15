@@ -21,6 +21,7 @@ var (
 type Interface interface {
 	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (string, string, []byte, uint64, error)
 	GetTransactionSource(ctx context.Context, hash *chainhash.Hash) (string, error)
+	GetTransactionMerklePath(ctx context.Context, hash *chainhash.Hash) (string, error)
 	GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
 	GetBlockForHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error)
 	GetBlockTransactions(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error)

@@ -383,7 +383,6 @@ func (s *Server) checkStore(ctx context.Context, hash *chainhash.Hash, next int6
 			AnnouncedAt:  timestamppb.New(storeData.AnnouncedAt),
 			MinedAt:      timestamppb.New(storeData.MinedAt),
 			Txid:         fmt.Sprintf("%v", storeData.Hash),
-			MerklePath:   storeData.MerklePath,
 			Status:       storeData.Status,
 			RejectReason: storeData.RejectReason,
 			BlockHeight:  storeData.BlockHeight,

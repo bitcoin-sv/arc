@@ -22,7 +22,6 @@ type StoreData struct {
 	BlockHeight   uint64
 	BlockHash     *chainhash.Hash
 	MerkleProof   bool
-	MerklePath    string
 	CallbackUrl   string
 	CallbackToken string
 	RejectReason  string
@@ -92,11 +91,6 @@ func (sd *StoreData) EncodeToBytes() ([]byte, error) {
 
 	// CallbackUrl
 	if err := encodeString(&buf, sd.CallbackUrl); err != nil {
-		return nil, err
-	}
-
-	// MerklePath
-	if err := encodeString(&buf, sd.MerklePath); err != nil {
 		return nil, err
 	}
 
@@ -189,11 +183,6 @@ func DecodeFromBytes(b []byte) (*StoreData, error) {
 
 	// CallbackUrl
 	if sd.CallbackUrl, err = decodeString(buf); err != nil {
-		return nil, err
-	}
-
-	// MerklePath
-	if sd.MerklePath, err = decodeString(buf); err != nil {
 		return nil, err
 	}
 

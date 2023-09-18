@@ -296,12 +296,12 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 		transactionHashes[i] = hash.String()
 	}
 
-	calculatedMerkleRoot, err := bc.BuildMerkleTreeStore(transactionHashes)
+	calculatedMerkleTree, err := bc.BuildMerkleTreeStore(transactionHashes)
 	if err != nil {
 		return err
 	}
 
-	hash, err := chainhash.NewHashFromStr(calculatedMerkleRoot[len(calculatedMerkleRoot)-1])
+	hash, err := chainhash.NewHashFromStr(calculatedMerkleTree[len(calculatedMerkleTree)-1])
 	if err != nil {
 		return err
 	}
@@ -310,7 +310,7 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 		return fmt.Errorf("merkle root mismatch for block %s", blockHash.String())
 	}
 
-	if err = bs.markTransactionsAsMined(blockId, msg.TransactionHashes, calculatedMerkleRoot); err != nil {
+	if err = bs.markTransactionsAsMined(blockId, msg.TransactionHashes, calculatedMerkleTree); err != nil {
 		return fmt.Errorf("unable to mark block as mined %s: %v", blockHash.String(), err)
 	}
 

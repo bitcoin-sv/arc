@@ -369,10 +369,6 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 
 	txs := make([]*blocktx_api.TransactionAndSource, 0, len(transactionHashes))
 	merklePaths := make([]string, 0, len(transactionHashes))
-	for i, asd := range merkleTree {
-		fmt.Println(i, " ", asd)
-	}
-	fmt.Println("treeee- -------")
 
 	for txIndex, hash := range transactionHashes {
 		txs = append(txs, &blocktx_api.TransactionAndSource{
@@ -391,10 +387,7 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 			if err != nil {
 				return err
 			}
-			fmt.Println("transaction hash ", hash.String())
-			fmt.Println(merklePath)
-			fmt.Println("produced ", root)
-			fmt.Println("needed ", merkleTree[len(merkleTree)-1])
+			fmt.Println(root)
 			// if root != merkleTree[len(merkleTree)-1] {
 			// 	return errors.New("merkle path calculated produced different root")
 			// }

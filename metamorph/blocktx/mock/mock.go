@@ -58,6 +58,9 @@ type ClientIMock struct {
 	// GetLastProcessedBlockFunc mocks the GetLastProcessedBlock method.
 	GetLastProcessedBlockFunc func(ctx context.Context) (*blocktx_api.Block, error)
 
+	// GetTransactionMerklePath returns merkle path of the transaction
+	GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
+
 	// GetMinedTransactionsForBlockFunc mocks the GetMinedTransactionsForBlock method.
 	GetMinedTransactionsForBlockFunc func(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
 

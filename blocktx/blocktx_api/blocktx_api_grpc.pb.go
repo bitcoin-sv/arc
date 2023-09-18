@@ -44,7 +44,7 @@ type BlockTxAPIClient interface {
 	RegisterTransaction(ctx context.Context, in *TransactionAndSource, opts ...grpc.CallOption) (*RegisterTransactionResponse, error)
 	// LocateTransaction returns the source of a transaction.
 	LocateTransaction(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*Source, error)
-	// GetTransactionMerklePath returns the source of a transaction.
+	// GetTransactionMerklePath returns the merkle path of a transaction.
 	GetTransactionMerklePath(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*MerklePath, error)
 	// GetBlockTransactions returns a list of transaction hashes for a given block.
 	GetBlockTransactions(ctx context.Context, in *Block, opts ...grpc.CallOption) (*Transactions, error)
@@ -213,7 +213,7 @@ type BlockTxAPIServer interface {
 	RegisterTransaction(context.Context, *TransactionAndSource) (*RegisterTransactionResponse, error)
 	// LocateTransaction returns the source of a transaction.
 	LocateTransaction(context.Context, *Transaction) (*Source, error)
-	// GetTransactionMerklePath returns the source of a transaction.
+	// GetTransactionMerklePath returns the merkle path of a transaction.
 	GetTransactionMerklePath(context.Context, *Transaction) (*MerklePath, error)
 	// GetBlockTransactions returns a list of transaction hashes for a given block.
 	GetBlockTransactions(context.Context, *Block) (*Transactions, error)

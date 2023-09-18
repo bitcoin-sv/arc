@@ -17,7 +17,7 @@ service BlockTxAPI {
   // LocateTransaction returns the source of a transaction.
   rpc LocateTransaction(Transaction) returns (Source) {}
 
-  // GetTransactionMerklePath returns the source of a transaction.
+  // GetTransactionMerklePath returns the merkle path of a transaction.
   rpc GetTransactionMerklePath(Transaction) returns (MerklePath) {}
 
   // GetBlockTransactions returns a list of transaction hashes for a given block.

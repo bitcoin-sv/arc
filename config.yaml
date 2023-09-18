@@ -6,7 +6,7 @@ prometheusEndpoint: /metrics # endpoint for prometheus metrics
 tracing: true # enable trancing
 dataFolder: data # name of data folder
 grpcMessageSize: 100000000 # maximum grpc message size
-network: testnet # bitcoin network to connect to
+network: regtest # bitcoin network to connect to
 ipAddressHint: ^172.28.*
 
 peerRpc: # rpc configuration for bitcoin node
@@ -20,6 +20,12 @@ peers: # list of bitcoin node peers to connect to
     port:
       p2p: 18333
       zmq: 28332
+  - host: localhost
+    port:
+      p2p: 18334
+  - host: localhost
+    port:
+      p2p: 18335
 
 callbacker:
   listenAddr: localhost:8021 # address space for callbacker to listen on. Can be for example localhost:8021 or :8021 for listening on all addresses
@@ -49,7 +55,7 @@ blocktx:
   listenAddr: localhost:8011 # address space for blocktx to listen on. Can be for example localhost:8011 or :8011 for listening on all addresses
   dialAddr: localhost:8011 # address for other services to dial blocktx service
   db:
-    mode: postgres # db mode inidicates which db to use. Value can be one of sqlite | sqlite_memory | postgres
+    mode: sqlite # db mode inidicates which db to use. Value can be one of sqlite | sqlite_memory | postgres
     postgres: # postgres db configuration in case that mode: postgres
       host: localhost
       port: 5432

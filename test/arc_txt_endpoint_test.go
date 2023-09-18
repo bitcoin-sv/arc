@@ -33,6 +33,8 @@ func TestMain(m *testing.M) {
 func TestHttpPost(t *testing.T) {
 	address, privateKey := getNewWalletAddress(t)
 
+	generate(t, 100, address)
+
 	fmt.Println(address)
 
 	sendToAddress(t, address, 0.001)

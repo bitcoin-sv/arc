@@ -14,18 +14,19 @@ services:
     volumes:
       - ./arc-data:/data
     networks:
-      - arcnetwork
+      - shared
 
   tests:
     build: ./test
     depends_on:
       - arc
     networks:
-      - arcnetwork
+      - shared
 
 networks:
-  arcnetwork:
-    driver: bridge
+  shared:
+    external: true
+
 volumes:
   node1-data:
     external: false

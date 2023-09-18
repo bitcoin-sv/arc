@@ -58,9 +58,6 @@ type ClientIMock struct {
 	// GetLastProcessedBlockFunc mocks the GetLastProcessedBlock method.
 	GetLastProcessedBlockFunc func(ctx context.Context) (*blocktx_api.Block, error)
 
-	// GetTransactionMerklePath returns merkle path of the transaction
-	GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
-
 	// GetMinedTransactionsForBlockFunc mocks the GetMinedTransactionsForBlock method.
 	GetMinedTransactionsForBlockFunc func(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
 
@@ -72,6 +69,9 @@ type ClientIMock struct {
 
 	// LocateTransactionFunc mocks the LocateTransaction method.
 	LocateTransactionFunc func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
+
+	// GetTransactionMerklePath returns merkle path of the transaction
+	GetTransactionMerklePathFunc func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error)
@@ -331,6 +331,14 @@ func (mock *ClientIMock) LocateTransaction(ctx context.Context, transaction *blo
 	mock.calls.LocateTransaction = append(mock.calls.LocateTransaction, callInfo)
 	mock.lockLocateTransaction.Unlock()
 	return mock.LocateTransactionFunc(ctx, transaction)
+}
+
+// GetTransactionMerklePath calls GetTransactionMerklePathFunc.
+func (mock *ClientIMock) GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
+	if mock.GetTransactionMerklePathFunc == nil {
+		panic("ClientIMock.GetTransactionMerklePathFunc: method is nil but ClientI.GetTransactionMerklePath was just called")
+	}
+	return mock.GetTransactionMerklePathFunc(ctx, transaction)
 }
 
 // LocateTransactionCalls gets all the calls that were made to LocateTransaction.

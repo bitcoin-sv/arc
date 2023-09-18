@@ -131,6 +131,10 @@ func (b *BlockTxMock) LocateTransaction(_ context.Context, transaction *blocktx_
 	return b.address, nil
 }
 
+func (b *BlockTxMock) GetTransactionMerklePath(_ context.Context, transaction *blocktx_api.Transaction) (string, error) {
+	return b.address, nil
+}
+
 func (b *BlockTxMock) RegisterTransaction(_ context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

@@ -298,8 +298,8 @@ github.com/lestrrat-go/jwx v1.2.24/go.mod h1:zoNuZymNl5lgdcu6P7K6ie2QRll5HVfF4xw
 github.com/lestrrat-go/option v1.0.0/go.mod h1:5ZHFbivi4xwXxhxY9XHDe2FHo6/Z7WWmtT7T5nBBp3I=
 github.com/lib/pq v1.10.7 h1:p7ZhMD+KsSRozJr34udlUrhboJwWAgCg34+/ZZNvZZw=
 github.com/lib/pq v1.10.7/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
-github.com/libsv/go-bc v0.1.17 h1:RHlb7BhkjGatKoGGsxZXiE2xoh5aDQDhgELAD2I4n90=
-github.com/libsv/go-bc v0.1.17/go.mod h1:TydCZiPUpYPTLiYFDrz2Ug+wSzADUHJux4t3DPVPg08=
+github.com/libsv/go-bc v0.1.18 h1:n0M5c0jtd8Ds4DLyX1g+AkfFZB7o780aO9YHQlRxzGM=
+github.com/libsv/go-bc v0.1.18/go.mod h1:TydCZiPUpYPTLiYFDrz2Ug+wSzADUHJux4t3DPVPg08=
 github.com/libsv/go-bk v0.1.6 h1:c9CiT5+64HRDbzxPl1v/oiFmbvWZTuUYqywCf+MBs/c=
 github.com/libsv/go-bk v0.1.6/go.mod h1:khJboDoH18FPUaZlzRFKzlVN84d4YfdmlDtdX4LAjQA=
 github.com/libsv/go-bt v1.0.8 h1:nWLLcnUm0dxNO3exqrL5jvAcTGkl0dsnBuQqB6+M6vQ=

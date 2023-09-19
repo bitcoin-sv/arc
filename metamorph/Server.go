@@ -139,7 +139,7 @@ func validateCallbackURL(callbackURL string) error {
 	return nil
 }
 
-func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, sReq *store.StoreData, status metamorph_api.Status, hash *chainhash.Hash) *metamorph_api.TransactionStatus {
+func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, latestStatus metamorph_api.Status, hash *chainhash.Hash) *metamorph_api.TransactionStatus {
 
 	responseChannel := make(chan processor_response.StatusAndError)
 	defer func() {
@@ -147,7 +147,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	}()
 
 	// TODO check the context when API call ends
-	s.processor.ProcessTransaction(NewProcessorRequest(ctx, sReq, responseChannel))
+	s.processor.ProcessTransaction(NewProcessorRequest(ctx, data, responseChannel))
 
 	if waitForStatus < metamorph_api.Status_RECEIVED || waitForStatus > metamorph_api.Status_SEEN_ON_NETWORK {
 		// wait for seen by default, this is the safest option
@@ -161,27 +161,27 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 		case <-timeout.C:
 			return &metamorph_api.TransactionStatus{
 				TimedOut: true,
-				Status:   status,
+				Status:   latestStatus,
 				Txid:     hash.String(),
 			}
 		case res := <-responseChannel:
 			resStatus := res.Status
 			if resStatus != metamorph_api.Status_UNKNOWN {
-				status = resStatus
+				latestStatus = resStatus
 			}
 
 			resErr := res.Err
 			if resErr != nil {
 				return &metamorph_api.TransactionStatus{
-					Status:       status,
+					Status:       latestStatus,
 					Txid:         hash.String(),
 					RejectReason: resErr.Error(),
 				}
 			}
 
-			if status >= waitForStatus {
+			if latestStatus >= waitForStatus {
 				return &metamorph_api.TransactionStatus{
-					Status: status,
+					Status: latestStatus,
 					Txid:   hash.String(),
 				}
 			}
@@ -244,9 +244,9 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	requests := make([]*store.StoreData, 0, len(req.Transactions))
 
 	type processTxs struct {
-		data    *store.StoreData
-		status  metamorph_api.Status
-		request *metamorph_api.TransactionRequest
+		data          *store.StoreData
+		latestStatus  metamorph_api.Status
+		waitForStatus metamorph_api.Status
 	}
 
 	processTxsMap := make(map[chainhash.Hash]processTxs)
@@ -285,9 +285,9 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		}
 
 		processTxsMap[*hash] = processTxs{
-			data:    sReq,
-			status:  processStatus,
-			request: txReq,
+			data:          sReq,
+			latestStatus:  processStatus,
+			waitForStatus: txReq.WaitForStatus,
 		}
 
 		// add new request to process
@@ -305,7 +305,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		go func(ctx context.Context, p *processTxs, hash *chainhash.Hash, wg *sync.WaitGroup, ret *metamorph_api.TransactionStatuses) {
 			wg.Add(1)
 
-			statusNew := s.processTransaction(ctx, p.request.WaitForStatus, p.data, p.status, hash)
+			statusNew := s.processTransaction(ctx, p.waitForStatus, p.data, p.latestStatus, hash)
 
 			ret.Statuses = append(ret.Statuses, statusNew)
 			wg.Done()

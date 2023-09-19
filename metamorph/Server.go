@@ -139,50 +139,6 @@ func validateCallbackURL(callbackURL string) error {
 	return nil
 }
 
-func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction")
-	defer span.Finish()
-
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("PutTransaction").AddTime(start)
-	}()
-
-	err := validateCallbackURL(req.CallbackUrl)
-	if err != nil {
-		return nil, err
-	}
-
-	next, status, hash, transactionStatus, err := s.putTransactionInit(ctx, req, start)
-	if err != nil {
-		// if we have an error, we will return immediately
-		return nil, err
-	} else if transactionStatus != nil {
-		// if we have a transactionStatus, we can also return immediately
-		return transactionStatus, nil
-	}
-
-	// Convert gRPC req to store.StoreData struct...
-	sReq := &store.StoreData{
-		Hash:          hash,
-		Status:        status,
-		CallbackUrl:   req.CallbackUrl,
-		CallbackToken: req.CallbackToken,
-		MerkleProof:   req.MerkleProof,
-		RawTx:         req.RawTx,
-	}
-
-	next = gocore.NewStat("PutTransaction").NewStat("2: ProcessTransaction").AddTime(next)
-	span2, _ := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:Wait")
-	defer span2.Finish()
-
-	defer func() {
-		gocore.NewStat("PutTransaction").NewStat("3: Wait for status").AddTime(next)
-	}()
-
-	return s.processTransaction(ctx, req.WaitForStatus, sReq, status, hash), nil
-}
-
 func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, sReq *store.StoreData, status metamorph_api.Status, hash *chainhash.Hash) *metamorph_api.TransactionStatus {
 
 	responseChannel := make(chan processor_response.StatusAndError)
@@ -231,6 +187,50 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 			}
 		}
 	}
+}
+
+func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction")
+	defer span.Finish()
+
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("PutTransaction").AddTime(start)
+	}()
+
+	err := validateCallbackURL(req.CallbackUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	next, status, hash, transactionStatus, err := s.putTransactionInit(ctx, req, start)
+	if err != nil {
+		// if we have an error, we will return immediately
+		return nil, err
+	} else if transactionStatus != nil {
+		// if we have a transactionStatus, we can also return immediately
+		return transactionStatus, nil
+	}
+
+	// Convert gRPC req to store.StoreData struct...
+	sReq := &store.StoreData{
+		Hash:          hash,
+		Status:        status,
+		CallbackUrl:   req.CallbackUrl,
+		CallbackToken: req.CallbackToken,
+		MerkleProof:   req.MerkleProof,
+		RawTx:         req.RawTx,
+	}
+
+	next = gocore.NewStat("PutTransaction").NewStat("2: ProcessTransaction").AddTime(next)
+	span2, _ := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:Wait")
+	defer span2.Finish()
+
+	defer func() {
+		gocore.NewStat("PutTransaction").NewStat("3: Wait for status").AddTime(next)
+	}()
+
+	return s.processTransaction(ctx, req.WaitForStatus, sReq, status, hash), nil
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {

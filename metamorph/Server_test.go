@@ -6,17 +6,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/metamorph/processor_response"
-	"github.com/bitcoin-sv/arc/metamorph/store"
-	"github.com/bitcoin-sv/arc/metamorph/store/sql"
-	"github.com/bitcoin-sv/arc/testdata"
-	"github.com/ordishs/go-utils/stat"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	blockTxMock "github.com/bitcoin-sv/arc/metamorph/blocktx/mock"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/metamorph/processor_response"
+	"github.com/bitcoin-sv/arc/metamorph/store"
+	storeMock "github.com/bitcoin-sv/arc/metamorph/store/mock"
+	"github.com/bitcoin-sv/arc/metamorph/store/sql"
+	"github.com/bitcoin-sv/arc/testdata"
+	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/ordishs/go-utils/stat"
 )
 
 const source = "localhost:8000"
@@ -273,6 +278,89 @@ func TestValidateCallbackURL(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+		})
+	}
+}
+
+// //go:generate moq -pkg metamorph -out ./processor_mock.go . ProcessorI ==> Todo: moq has a bug for creating a mock file in the same package. Currently fixed manually --> Create issue on moq github repo
+
+func TestPutTransactions(t *testing.T) {
+
+	hash, err := chainhash.NewHashFromStr("9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a") // <-- issue
+	require.NoError(t, err)
+
+	tt := []struct {
+		name              string
+		processorResponse processor_response.StatusAndError
+
+		expectedErrorStr string
+		expectedStatuses *metamorph_api.TransactionStatuses
+	}{
+		{
+			name: "single transaction response seen on network",
+			expectedStatuses: &metamorph_api.TransactionStatuses{
+				Statuses: []*metamorph_api.TransactionStatus{
+					{
+						Txid:   "9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a",
+						Status: metamorph_api.Status_SEEN_ON_NETWORK,
+					},
+				},
+			},
+
+			processorResponse: processor_response.StatusAndError{
+				Hash:   hash,
+				Status: metamorph_api.Status_SEEN_ON_NETWORK,
+				Err:    nil,
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		metamorphStore := &storeMock.MetamorphStoreMock{
+			GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+				return nil, nil
+			},
+		}
+
+		btc := &blockTxMock.ClientIMock{
+			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
+				resp := &blocktx_api.RegisterTransactionResponse{
+					Source: "localhost:8000",
+				}
+				return resp, nil
+			},
+		}
+
+		processor := &ProcessorIMock{
+			SetFunc: func(req *ProcessorRequest) error {
+				return nil
+			},
+			ProcessTransactionFunc: func(req *ProcessorRequest) {
+				req.ResponseChannel <- tc.processorResponse
+			},
+		}
+
+		t.Run(tc.name, func(t *testing.T) {
+			tx, err := bt.NewTxFromString("010000000000000000ef016b51c656fb06639ea6c1c3642a5ede9ecf9f749b95cb47d4e57eda7a3953b1c64c0000006a47304402201ade53acd924e90c0aeabbf9085d075acb23c4712e7f728a23979a466ab55e19022047a85963ce2eddc21573b4a6c0e7ccfec44153e74f9d03d31f955ff486449240412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffe8030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01e7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
+
+			server := NewServer(nil, metamorphStore, processor, btc, source)
+			req := &metamorph_api.TransactionRequests{
+				Transactions: []*metamorph_api.TransactionRequest{
+					{
+						RawTx:         tx.Bytes(),
+						WaitForStatus: metamorph_api.Status_SEEN_ON_NETWORK,
+					},
+				},
+			}
+			statuses, err := server.PutTransactions(context.Background(), req)
+			if tc.expectedErrorStr != "" || err != nil {
+				require.ErrorContains(t, err, tc.expectedErrorStr)
+				return
+			} else {
+				require.NoError(t, err)
+			}
+
+			require.Equal(t, tc.expectedStatuses, statuses)
 		})
 	}
 }

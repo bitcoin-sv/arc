@@ -10,15 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/blocktx"
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/metamorph/processor_response"
-	"github.com/bitcoin-sv/arc/metamorph/store"
-	"github.com/bitcoin-sv/arc/tracing"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
@@ -31,6 +22,16 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/bitcoin-sv/arc/blocktx"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/metamorph/processor_response"
+	"github.com/bitcoin-sv/arc/metamorph/store"
+	"github.com/bitcoin-sv/arc/tracing"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 func init() {
@@ -141,7 +142,7 @@ func validateCallbackURL(callbackURL string) error {
 
 func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, latestStatus metamorph_api.Status, hash *chainhash.Hash) *metamorph_api.TransactionStatus {
 
-	responseChannel := make(chan processor_response.StatusAndError)
+	responseChannel := make(chan processor_response.StatusAndError, 1)
 	defer func() {
 		close(responseChannel)
 	}()
@@ -296,14 +297,15 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 
 	// prepare response object before filling with tx statuses
 	ret := &metamorph_api.TransactionStatuses{}
-	ret.Statuses = make([]*metamorph_api.TransactionStatus, len(req.Transactions))
+	ret.Statuses = make([]*metamorph_api.TransactionStatus, 0, len(req.Transactions))
 
 	// As long as we have all the transactions in the db at this point, it's safe to continue processing them asynchronously
 	// we are not going to wait for their completion, we will be returning statuses for transactions - STORED
 	wg := &sync.WaitGroup{}
 	for k, v := range processTxsMap {
+		wg.Add(1)
+		// TODO check the context when API call ends
 		go func(ctx context.Context, p *processTxs, hash *chainhash.Hash, wg *sync.WaitGroup, ret *metamorph_api.TransactionStatuses) {
-			wg.Add(1)
 
 			statusNew := s.processTransaction(ctx, p.waitForStatus, p.data, p.latestStatus, hash)
 
@@ -311,8 +313,6 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			wg.Done()
 
 		}(ctx, &v, &k, wg, ret)
-
-		// TODO check the context when API call ends
 	}
 
 	wg.Wait()

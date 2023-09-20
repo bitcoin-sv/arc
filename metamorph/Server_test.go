@@ -3,6 +3,7 @@ package metamorph
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"testing"
 	"time"
 
@@ -298,6 +299,12 @@ func TestPutTransactions(t *testing.T) {
 	}{
 		{
 			name: "single transaction response seen on network",
+			processorResponse: processor_response.StatusAndError{
+				Hash:   hash,
+				Status: metamorph_api.Status_SEEN_ON_NETWORK,
+				Err:    nil,
+			},
+
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
@@ -306,11 +313,23 @@ func TestPutTransactions(t *testing.T) {
 					},
 				},
 			},
-
+		},
+		{
+			name: "single transaction response with error",
 			processorResponse: processor_response.StatusAndError{
 				Hash:   hash,
-				Status: metamorph_api.Status_SEEN_ON_NETWORK,
-				Err:    nil,
+				Status: metamorph_api.Status_STORED,
+				Err:    errors.New("unable to process transaction"),
+			},
+
+			expectedStatuses: &metamorph_api.TransactionStatuses{
+				Statuses: []*metamorph_api.TransactionStatus{
+					{
+						Txid:         "9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a",
+						Status:       metamorph_api.Status_STORED,
+						RejectReason: "unable to process transaction",
+					},
+				},
 			},
 		},
 	}

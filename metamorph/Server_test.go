@@ -286,24 +286,27 @@ func TestValidateCallbackURL(t *testing.T) {
 // //go:generate moq -pkg metamorph -out ./processor_mock.go . ProcessorI ==> Todo: moq has a bug for creating a mock file in the same package. Currently fixed manually --> Create issue on moq github repo
 
 func TestPutTransactions(t *testing.T) {
-
 	hash, err := chainhash.NewHashFromStr("9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a") // <-- issue
 	require.NoError(t, err)
 
+	tx, err := bt.NewTxFromString("010000000000000000ef016b51c656fb06639ea6c1c3642a5ede9ecf9f749b95cb47d4e57eda7a3953b1c64c0000006a47304402201ade53acd924e90c0aeabbf9085d075acb23c4712e7f728a23979a466ab55e19022047a85963ce2eddc21573b4a6c0e7ccfec44153e74f9d03d31f955ff486449240412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffe8030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01e7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
+
 	tt := []struct {
 		name              string
-		processorResponse processor_response.StatusAndError
+		processorResponse *processor_response.StatusAndError
+		waitForStatus     metamorph_api.Status
 
 		expectedErrorStr string
 		expectedStatuses *metamorph_api.TransactionStatuses
 	}{
 		{
 			name: "single transaction response seen on network",
-			processorResponse: processor_response.StatusAndError{
+			processorResponse: &processor_response.StatusAndError{
 				Hash:   hash,
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 				Err:    nil,
 			},
+			waitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
 
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
@@ -316,7 +319,7 @@ func TestPutTransactions(t *testing.T) {
 		},
 		{
 			name: "single transaction response with error",
-			processorResponse: processor_response.StatusAndError{
+			processorResponse: &processor_response.StatusAndError{
 				Hash:   hash,
 				Status: metamorph_api.Status_STORED,
 				Err:    errors.New("unable to process transaction"),
@@ -328,6 +331,19 @@ func TestPutTransactions(t *testing.T) {
 						Txid:         "9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a",
 						Status:       metamorph_api.Status_STORED,
 						RejectReason: "unable to process transaction",
+					},
+				},
+			},
+		},
+		{
+			name: "single transaction no response",
+
+			expectedStatuses: &metamorph_api.TransactionStatuses{
+				Statuses: []*metamorph_api.TransactionStatus{
+					{
+						Txid:     "9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a",
+						Status:   metamorph_api.Status_STORED,
+						TimedOut: true,
 					},
 				},
 			},
@@ -355,22 +371,25 @@ func TestPutTransactions(t *testing.T) {
 				return nil
 			},
 			ProcessTransactionFunc: func(req *ProcessorRequest) {
-				req.ResponseChannel <- tc.processorResponse
+				if tc.processorResponse != nil {
+					req.ResponseChannel <- *tc.processorResponse
+				}
 			},
 		}
 
 		t.Run(tc.name, func(t *testing.T) {
-			tx, err := bt.NewTxFromString("010000000000000000ef016b51c656fb06639ea6c1c3642a5ede9ecf9f749b95cb47d4e57eda7a3953b1c64c0000006a47304402201ade53acd924e90c0aeabbf9085d075acb23c4712e7f728a23979a466ab55e19022047a85963ce2eddc21573b4a6c0e7ccfec44153e74f9d03d31f955ff486449240412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffe8030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01e7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
 
 			server := NewServer(nil, metamorphStore, processor, btc, source)
 			req := &metamorph_api.TransactionRequests{
 				Transactions: []*metamorph_api.TransactionRequest{
 					{
 						RawTx:         tx.Bytes(),
-						WaitForStatus: metamorph_api.Status_SEEN_ON_NETWORK,
+						WaitForStatus: tc.waitForStatus,
 					},
 				},
 			}
+
+			server.SetTimeout(100 * time.Millisecond)
 			statuses, err := server.PutTransactions(context.Background(), req)
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)

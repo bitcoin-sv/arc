@@ -299,8 +299,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	ret := &metamorph_api.TransactionStatuses{}
 	ret.Statuses = make([]*metamorph_api.TransactionStatus, 0, len(req.Transactions))
 
-	// As long as we have all the transactions in the db at this point, it's safe to continue processing them asynchronously
-	// we are not going to wait for their completion, we will be returning statuses for transactions - STORED
+	// Concurrently process each transaction and wait for the transaction status to return
 	wg := &sync.WaitGroup{}
 	for k, v := range processTxsMap {
 		wg.Add(1)

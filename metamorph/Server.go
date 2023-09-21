@@ -183,7 +183,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		gocore.NewStat("PutTransaction").NewStat("3: Wait for status").AddTime(next)
 	}()
 
-	return s.processTransaction(ctx, req.WaitForStatus, sReq, hash), nil
+	return s.processTransaction(ctx, req.WaitForStatus, sReq, hash, metamorph_api.Status_RECEIVED), nil
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
@@ -253,7 +253,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		go func(ctx context.Context, processTxInput processTxInput, hash *chainhash.Hash, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
 			defer wg.Done()
 
-			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, hash)
+			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, hash, metamorph_api.Status_STORED)
 
 			resp.Statuses[processTxInput.responseIndex] = statusNew
 		}(ctx, processTx, &hash, wg, resp)
@@ -264,7 +264,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	return resp, nil
 }
 
-func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, hash *chainhash.Hash) *metamorph_api.TransactionStatus {
+func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, hash *chainhash.Hash, latestStatus metamorph_api.Status) *metamorph_api.TransactionStatus {
 
 	responseChannel := make(chan processor_response.StatusAndError, 1)
 	defer func() {
@@ -282,18 +282,20 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeout := time.NewTimer(s.timeout)
 
-	var latestStatus metamorph_api.Status
-
 	for {
 		select {
 		case <-timeout.C:
 			return &metamorph_api.TransactionStatus{
 				TimedOut: true,
-				Status:   metamorph_api.Status_UNKNOWN,
+				Status:   latestStatus,
 				Txid:     hash.String(),
 			}
 		case res := <-responseChannel:
 			latestStatus = res.Status
+
+			if res.Status < latestStatus {
+				continue
+			}
 
 			if resErr := res.Err; resErr != nil {
 				return &metamorph_api.TransactionStatus{

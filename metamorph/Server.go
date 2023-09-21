@@ -158,8 +158,10 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	if err != nil {
 		// if we have an error, we will return immediately
 		return nil, err
-	} else if transactionStatus != nil {
-		// if we have a transactionStatus, we can also return immediately
+	}
+
+	if transactionStatus != nil {
+		// if we have a transactionStatus, no need to process it
 		return transactionStatus, nil
 	}
 
@@ -181,7 +183,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		gocore.NewStat("PutTransaction").NewStat("3: Wait for status").AddTime(next)
 	}()
 
-	return s.processTransaction(ctx, req.WaitForStatus, sReq, status, hash), nil
+	return s.processTransaction(ctx, req.WaitForStatus, sReq, hash), nil
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
@@ -194,7 +196,6 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	// if not we store the transaction data and set the transaction status in response array to - STORED
 	type processTxInput struct {
 		data          *store.StoreData
-		latestStatus  metamorph_api.Status
 		waitForStatus metamorph_api.Status
 		responseIndex int
 	}
@@ -237,17 +238,8 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			return nil, err
 		}
 
-		var processStatus metamorph_api.Status
-
-		if transactionStatus != nil {
-			processStatus = transactionStatus.Status
-		} else {
-			processStatus = metamorph_api.Status_STORED
-		}
-
 		processTxsMap[*hash] = processTxInput{
 			data:          sReq,
-			latestStatus:  processStatus,
 			waitForStatus: txReq.WaitForStatus,
 			responseIndex: ind,
 		}
@@ -261,7 +253,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		go func(ctx context.Context, processTxInput processTxInput, hash *chainhash.Hash, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
 			defer wg.Done()
 
-			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, processTxInput.latestStatus, hash)
+			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, hash)
 
 			resp.Statuses[processTxInput.responseIndex] = statusNew
 		}(ctx, processTx, &hash, wg, resp)
@@ -272,7 +264,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	return resp, nil
 }
 
-func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, latestStatus metamorph_api.Status, hash *chainhash.Hash) *metamorph_api.TransactionStatus {
+func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, hash *chainhash.Hash) *metamorph_api.TransactionStatus {
 
 	responseChannel := make(chan processor_response.StatusAndError, 1)
 	defer func() {
@@ -289,22 +281,21 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeout := time.NewTimer(s.timeout)
+
+	var latestStatus metamorph_api.Status
+
 	for {
 		select {
 		case <-timeout.C:
 			return &metamorph_api.TransactionStatus{
 				TimedOut: true,
-				Status:   latestStatus,
+				Status:   metamorph_api.Status_UNKNOWN,
 				Txid:     hash.String(),
 			}
 		case res := <-responseChannel:
-			resStatus := res.Status
-			if resStatus != metamorph_api.Status_UNKNOWN {
-				latestStatus = resStatus
-			}
+			latestStatus = res.Status
 
-			resErr := res.Err
-			if resErr != nil {
+			if resErr := res.Err; resErr != nil {
 				return &metamorph_api.TransactionStatus{
 					Status:       latestStatus,
 					Txid:         hash.String(),

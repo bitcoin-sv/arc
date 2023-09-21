@@ -140,56 +140,6 @@ func validateCallbackURL(callbackURL string) error {
 	return nil
 }
 
-func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, latestStatus metamorph_api.Status, hash *chainhash.Hash) *metamorph_api.TransactionStatus {
-
-	responseChannel := make(chan processor_response.StatusAndError, 1)
-	defer func() {
-		close(responseChannel)
-	}()
-
-	// TODO check the context when API call ends
-	s.processor.ProcessTransaction(NewProcessorRequest(ctx, data, responseChannel))
-
-	if waitForStatus < metamorph_api.Status_RECEIVED || waitForStatus > metamorph_api.Status_SEEN_ON_NETWORK {
-		// wait for seen by default, this is the safest option
-		waitForStatus = metamorph_api.Status_SEEN_ON_NETWORK
-	}
-
-	// normally a node would respond very quickly, unless it's under heavy load
-	timeout := time.NewTimer(s.timeout)
-	for {
-		select {
-		case <-timeout.C:
-			return &metamorph_api.TransactionStatus{
-				TimedOut: true,
-				Status:   latestStatus,
-				Txid:     hash.String(),
-			}
-		case res := <-responseChannel:
-			resStatus := res.Status
-			if resStatus != metamorph_api.Status_UNKNOWN {
-				latestStatus = resStatus
-			}
-
-			resErr := res.Err
-			if resErr != nil {
-				return &metamorph_api.TransactionStatus{
-					Status:       latestStatus,
-					Txid:         hash.String(),
-					RejectReason: resErr.Error(),
-				}
-			}
-
-			if latestStatus >= waitForStatus {
-				return &metamorph_api.TransactionStatus{
-					Status: latestStatus,
-					Txid:   hash.String(),
-				}
-			}
-		}
-	}
-}
-
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction")
 	defer span.Finish()
@@ -320,6 +270,56 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	wg.Wait()
 
 	return resp, nil
+}
+
+func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, latestStatus metamorph_api.Status, hash *chainhash.Hash) *metamorph_api.TransactionStatus {
+
+	responseChannel := make(chan processor_response.StatusAndError, 1)
+	defer func() {
+		close(responseChannel)
+	}()
+
+	// TODO check the context when API call ends
+	s.processor.ProcessTransaction(NewProcessorRequest(ctx, data, responseChannel))
+
+	if waitForStatus < metamorph_api.Status_RECEIVED || waitForStatus > metamorph_api.Status_SEEN_ON_NETWORK {
+		// wait for seen by default, this is the safest option
+		waitForStatus = metamorph_api.Status_SEEN_ON_NETWORK
+	}
+
+	// normally a node would respond very quickly, unless it's under heavy load
+	timeout := time.NewTimer(s.timeout)
+	for {
+		select {
+		case <-timeout.C:
+			return &metamorph_api.TransactionStatus{
+				TimedOut: true,
+				Status:   latestStatus,
+				Txid:     hash.String(),
+			}
+		case res := <-responseChannel:
+			resStatus := res.Status
+			if resStatus != metamorph_api.Status_UNKNOWN {
+				latestStatus = resStatus
+			}
+
+			resErr := res.Err
+			if resErr != nil {
+				return &metamorph_api.TransactionStatus{
+					Status:       latestStatus,
+					Txid:         hash.String(),
+					RejectReason: resErr.Error(),
+				}
+			}
+
+			if latestStatus >= waitForStatus {
+				return &metamorph_api.TransactionStatus{
+					Status: latestStatus,
+					Txid:   hash.String(),
+				}
+			}
+		}
+	}
 }
 
 func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.TransactionRequest, start int64) (int64, metamorph_api.Status, *chainhash.Hash, *metamorph_api.TransactionStatus, error) {

@@ -296,11 +296,13 @@ func TestPutTransactions(t *testing.T) {
 		processorResponse *processor_response.StatusAndError
 		waitForStatus     metamorph_api.Status
 
-		expectedErrorStr string
-		expectedStatuses *metamorph_api.TransactionStatuses
+		expectedErrorStr                        string
+		expectedStatuses                        *metamorph_api.TransactionStatuses
+		expecteProcessorSetCalls                int
+		expecteProcessorProcessTransactionCalls int
 	}{
 		{
-			name: "single transaction response seen on network",
+			name: "single new transaction response seen on network",
 			processorResponse: &processor_response.StatusAndError{
 				Hash:   hash,
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
@@ -308,6 +310,8 @@ func TestPutTransactions(t *testing.T) {
 			},
 			waitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
 
+			expecteProcessorSetCalls:                1,
+			expecteProcessorProcessTransactionCalls: 1,
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
@@ -318,13 +322,15 @@ func TestPutTransactions(t *testing.T) {
 			},
 		},
 		{
-			name: "single transaction response with error",
+			name: "single new transaction response with error",
 			processorResponse: &processor_response.StatusAndError{
 				Hash:   hash,
 				Status: metamorph_api.Status_STORED,
 				Err:    errors.New("unable to process transaction"),
 			},
 
+			expecteProcessorSetCalls:                1,
+			expecteProcessorProcessTransactionCalls: 1,
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
@@ -336,13 +342,15 @@ func TestPutTransactions(t *testing.T) {
 			},
 		},
 		{
-			name: "single transaction no response",
+			name: "single new transaction no response",
 
+			expecteProcessorSetCalls:                1,
+			expecteProcessorProcessTransactionCalls: 1,
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
 						Txid:     "9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a",
-						Status:   metamorph_api.Status_UNKNOWN,
+						Status:   metamorph_api.Status_STORED,
 						TimedOut: true,
 					},
 				},

@@ -242,17 +242,20 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 
 	// for each transaction if we have status in the db already set that status in the response
 	// if not we store the transaction data and set the transaction status in response array to - STORED
-	requests := make([]*store.StoreData, 0, len(req.Transactions))
-
-	type processTxs struct {
+	type processTxInput struct {
 		data          *store.StoreData
 		latestStatus  metamorph_api.Status
 		waitForStatus metamorph_api.Status
+		responseIndex int
 	}
 
-	processTxsMap := make(map[chainhash.Hash]processTxs)
+	// prepare response object before filling with tx statuses
+	resp := &metamorph_api.TransactionStatuses{}
+	resp.Statuses = make([]*metamorph_api.TransactionStatus, len(req.Transactions))
 
-	for _, txReq := range req.Transactions {
+	processTxsMap := make(map[chainhash.Hash]processTxInput)
+
+	for ind, txReq := range req.Transactions {
 		err := validateCallbackURL(txReq.CallbackUrl)
 		if err != nil {
 			return nil, err
@@ -263,6 +266,13 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			// if we have an error, we will return immediately
 			return nil, err
 		}
+
+		if transactionStatus != nil {
+			// if we have a transactionStatus, no need to process it another time
+			resp.Statuses[ind] = transactionStatus
+			continue
+		}
+
 		// Convert gRPC req to store.StoreData struct...
 		sReq := &store.StoreData{
 			Hash:          hash,
@@ -285,38 +295,31 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			processStatus = metamorph_api.Status_STORED
 		}
 
-		processTxsMap[*hash] = processTxs{
+		processTxsMap[*hash] = processTxInput{
 			data:          sReq,
 			latestStatus:  processStatus,
 			waitForStatus: txReq.WaitForStatus,
+			responseIndex: ind,
 		}
-
-		// add new request to process
-		requests = append(requests, sReq)
 	}
-
-	// prepare response object before filling with tx statuses
-	ret := &metamorph_api.TransactionStatuses{}
-	ret.Statuses = make([]*metamorph_api.TransactionStatus, 0, len(req.Transactions))
 
 	// Concurrently process each transaction and wait for the transaction status to return
 	wg := &sync.WaitGroup{}
-	for k, v := range processTxsMap {
+	for hash, processTx := range processTxsMap {
 		wg.Add(1)
 		// TODO check the context when API call ends
-		go func(ctx context.Context, p *processTxs, hash *chainhash.Hash, wg *sync.WaitGroup, ret *metamorph_api.TransactionStatuses) {
+		go func(ctx context.Context, processTxInput processTxInput, hash *chainhash.Hash, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
+			defer wg.Done()
 
-			statusNew := s.processTransaction(ctx, p.waitForStatus, p.data, p.latestStatus, hash)
+			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, processTxInput.latestStatus, hash)
 
-			ret.Statuses = append(ret.Statuses, statusNew)
-			wg.Done()
-
-		}(ctx, &v, &k, wg, ret)
+			resp.Statuses[processTxInput.responseIndex] = statusNew
+		}(ctx, processTx, &hash, wg, resp)
 	}
 
 	wg.Wait()
 
-	return ret, nil
+	return resp, nil
 }
 
 func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.TransactionRequest, start int64) (int64, metamorph_api.Status, *chainhash.Hash, *metamorph_api.TransactionStatus, error) {

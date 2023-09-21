@@ -351,34 +351,32 @@ func TestPutTransactions(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		metamorphStore := &storeMock.MetamorphStoreMock{
-			GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-				return nil, nil
-			},
-		}
-
-		btc := &blockTxMock.ClientIMock{
-			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
-				resp := &blocktx_api.RegisterTransactionResponse{
-					Source: "localhost:8000",
-				}
-				return resp, nil
-			},
-		}
-
-		processor := &ProcessorIMock{
-			SetFunc: func(req *ProcessorRequest) error {
-				return nil
-			},
-			ProcessTransactionFunc: func(req *ProcessorRequest) {
-				if tc.processorResponse != nil {
-					req.ResponseChannel <- *tc.processorResponse
-				}
-			},
-		}
-
 		t.Run(tc.name, func(t *testing.T) {
+			metamorphStore := &storeMock.MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return nil, nil
+				},
+			}
 
+			btc := &blockTxMock.ClientIMock{
+				RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
+					resp := &blocktx_api.RegisterTransactionResponse{
+						Source: "localhost:8000",
+					}
+					return resp, nil
+				},
+			}
+
+			processor := &ProcessorIMock{
+				SetFunc: func(req *ProcessorRequest) error {
+					return nil
+				},
+				ProcessTransactionFunc: func(req *ProcessorRequest) {
+					if tc.processorResponse != nil {
+						req.ResponseChannel <- *tc.processorResponse
+					}
+				},
+			}
 			server := NewServer(nil, metamorphStore, processor, btc, source)
 			req := &metamorph_api.TransactionRequests{
 				Transactions: []*metamorph_api.TransactionRequest{

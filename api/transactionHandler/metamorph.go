@@ -94,8 +94,8 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 		return nil, err
 	}
 
-	var merkle_path string
-	if merkle_path, err = m.blockTxClient.GetTransactionMerklePath(ctx, &blocktx_api.Transaction{
+	var merklePath string
+	if merklePath, err = m.blockTxClient.GetTransactionMerklePath(ctx, &blocktx_api.Transaction{
 		Hash: hash[:],
 	}); err != nil {
 		if errors.Is(err, blocktx.ErrTransactionNotFound) {
@@ -106,7 +106,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 
 	return &TransactionStatus{
 		TxID:        txID,
-		MerklePath:  merkle_path,
+		MerklePath:  merklePath,
 		Status:      tx.Status.String(),
 		BlockHash:   tx.BlockHash,
 		BlockHeight: tx.BlockHeight,

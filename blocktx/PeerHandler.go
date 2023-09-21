@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -295,21 +296,21 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 		transactionHashes[i] = hash.String()
 	}
 
-	calculatedMerkleRoot, err := bc.BuildMerkleTreeStore(transactionHashes)
+	calculatedMerkleTree, err := bc.BuildMerkleTreeStore(transactionHashes)
 	if err != nil {
 		return err
 	}
 
-	hash, err := chainhash.NewHashFromStr(calculatedMerkleRoot[len(calculatedMerkleRoot)-1])
+	rootHash, err := chainhash.NewHashFromStr(calculatedMerkleTree[len(calculatedMerkleTree)-1])
 	if err != nil {
 		return err
 	}
 
-	if !bytes.Equal(hash.CloneBytes(), merkleRoot[:]) {
+	if !bytes.Equal(rootHash.CloneBytes(), merkleRoot[:]) {
 		return fmt.Errorf("merkle root mismatch for block %s", blockHash.String())
 	}
 
-	if err = bs.markTransactionsAsMined(blockId, msg.TransactionHashes, calculatedMerkleRoot); err != nil {
+	if err = bs.markTransactionsAsMined(blockId, msg.TransactionHashes, calculatedMerkleTree); err != nil {
 		return fmt.Errorf("unable to mark block as mined %s: %v", blockHash.String(), err)
 	}
 
@@ -375,25 +376,24 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 			Hash: hash[:],
 		})
 
-		var merklePath string
-		var err error
-		if len(transactionHashes) != 1 {
-			merklePath, err = bc.GetTxMerklePath(txIndex, merkleTree).String()
-			if err != nil {
-				return err
-			}
+		merklePath := bc.GetTxMerklePath(txIndex, merkleTree)
 
-			root, err := bc.GetTxMerklePath(txIndex, merkleTree).CalculateRoot(hash.String())
-			if err != nil {
-				return err
-			}
-			fmt.Println(root)
-			// if root != merkleTree[len(merkleTree)-1] {
-			// 	return errors.New("merkle path calculated produced different root")
-			// }
+		merklePathBinary, err := merklePath.String()
+		if err != nil {
+			return err
 		}
 
-		merklePaths = append(merklePaths, merklePath)
+		// verify merkle path correctness
+		root, err := merklePath.CalculateRoot(hash.String())
+		if err != nil {
+			return err
+		}
+
+		if root != merkleTree[len(merkleTree)-1] {
+			return errors.New("merkle path calculated produced different root")
+		}
+
+		merklePaths = append(merklePaths, merklePathBinary)
 	}
 
 	if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {

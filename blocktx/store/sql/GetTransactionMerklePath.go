@@ -27,14 +27,14 @@ func (s *SQL) GetTransactionMerklePath(ctx context.Context, txhash *chainhash.Ha
 		WHERE t.hash = $1
 	`
 
-	var merkle_path sql.NullString
+	var merklePath sql.NullString
 
-	if err := s.db.QueryRowContext(ctx, q, txhash[:]).Scan(&merkle_path); err != nil {
+	if err := s.db.QueryRowContext(ctx, q, txhash[:]).Scan(&merklePath); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", store.ErrNotFound
 		}
 		return "", err
 	}
 
-	return merkle_path.String, nil
+	return merklePath.String, nil
 }

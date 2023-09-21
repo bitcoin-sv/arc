@@ -87,9 +87,9 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 		}
 
 		var rows int
-		var merkle_path string
+		var merklePath string
 		for result.Next() {
-			if err := result.Scan(&merkle_path); err != nil {
+			if err := result.Scan(&merklePath); err != nil {
 				return "", "", nil, 0, err
 			}
 			rows++
@@ -106,19 +106,19 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 			}
 
 			if err := s.db.QueryRowContext(ctx, queryGetBlockHashHeightForTransactionHash, transaction.Hash).Scan(&blockHash, &blockHeight); err == nil {
-				return transaction.Source, merkle_path, blockHash[:], blockHeight, nil
+				return transaction.Source, merklePath, blockHash[:], blockHeight, nil
 			}
 		}
 
 		var source string
-		if err := s.db.QueryRowContext(ctx, "SELECT source, merkle_path FROM transactions WHERE hash = $1", transaction.Hash).Scan(&source, &merkle_path); err != nil {
+		if err := s.db.QueryRowContext(ctx, "SELECT source, merkle_path FROM transactions WHERE hash = $1", transaction.Hash).Scan(&source, &merklePath); err != nil {
 			if spanErr != nil {
 				spanErr.SetTag(string(ext.Error), true)
 				spanErr.LogFields(log.Error(err))
 			}
 			return "", "", nil, 0, err
 		}
-		return source, merkle_path, nil, 0, nil
+		return source, merklePath, nil, 0, nil
 
 	}
 

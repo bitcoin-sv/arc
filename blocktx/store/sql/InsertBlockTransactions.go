@@ -42,16 +42,18 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 	for pos, tx := range transactions {
 		var txid uint64
 
-		if err = qTx.QueryRowContext(ctx, tx.Hash, merklePaths[pos]).Scan(&txid); err != nil {
-			if err == sql.ErrNoRows {
-				if err = s.db.QueryRowContext(ctx, `
+		err = qTx.QueryRowContext(ctx, tx.Hash, merklePaths[pos]).Scan(&txid)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return err
+			}
+
+			err = s.db.QueryRowContext(ctx, `
 					SELECT id
 					FROM transactions
 					WHERE hash = $1
-				`, tx.Hash).Scan(&txid); err != nil {
-					return err
-				}
-			} else {
+				`, tx.Hash).Scan(&txid)
+			if err != nil {
 				return err
 			}
 		}

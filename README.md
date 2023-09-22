@@ -1,3 +1,21 @@
+# TAAL
+This is a private copy of the public ARC repository for TAAL for deployment using Bitbucket pipelines.
+
+Setup
+```shell
+git clone git@bitbucket.org:Taal_Orchestrator/arc.git
+cd arc
+git checkout main
+git remote add public git@github.com:bitcoin-sv/arc.git
+```
+
+Keep your copy up to date.
+```shell
+git fetch public
+git pull public main
+git push origin main
+```
+
 # ARC
 ARC is a transaction processor for Bitcoin that keeps track of the life cycle of a transaction as it is processed by the Bitcoin network. Next to the mining status of a transaction, ARC also keeps track of the various states that a transaction can be in.
 

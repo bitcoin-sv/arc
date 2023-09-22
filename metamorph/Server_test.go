@@ -337,7 +337,7 @@ func TestPutTransactions(t *testing.T) {
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
-						Txid:   "9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a",
+						Txid:   hash0.String(),
 						Status: metamorph_api.Status_SEEN_ON_NETWORK,
 					},
 				},
@@ -359,7 +359,7 @@ func TestPutTransactions(t *testing.T) {
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
-						Txid:         "9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a",
+						Txid:         hash0.String(),
 						Status:       metamorph_api.Status_STORED,
 						RejectReason: "unable to process transaction",
 					},
@@ -377,7 +377,7 @@ func TestPutTransactions(t *testing.T) {
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
-						Txid:     "9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a",
+						Txid:     hash0.String(),
 						Status:   metamorph_api.Status_STORED,
 						TimedOut: true,
 					},
@@ -454,6 +454,9 @@ func TestPutTransactions(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+
+			require.Equal(t, tc.expectedProcessorSetCalls, len(processor.calls.Set))
+			require.Equal(t, tc.expectedProcessorProcessTransactionCalls, len(processor.calls.ProcessTransaction))
 
 			require.Equal(t, tc.expectedStatuses, statuses)
 		})

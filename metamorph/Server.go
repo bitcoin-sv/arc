@@ -247,7 +247,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 
 	// Concurrently process each transaction and wait for the transaction status to return
 	wg := &sync.WaitGroup{}
-	for hash, processTx := range processTxsInputMap {
+	for hash, input := range processTxsInputMap {
 		wg.Add(1)
 		// TODO check the context when API call ends
 		go func(ctx context.Context, processTxInput processTxInput, hash *chainhash.Hash, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
@@ -256,7 +256,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, hash, metamorph_api.Status_STORED)
 
 			resp.Statuses[processTxInput.responseIndex] = statusNew
-		}(ctx, processTx, &hash, wg, resp)
+		}(ctx, input, &hash, wg, resp)
 	}
 
 	wg.Wait()

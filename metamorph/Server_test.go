@@ -2,8 +2,8 @@ package metamorph
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/pkg/errors"
 	"testing"
 	"time"
 
@@ -286,40 +286,54 @@ func TestValidateCallbackURL(t *testing.T) {
 // //go:generate moq -pkg metamorph -out ./processor_mock.go . ProcessorI ==> Todo: moq has a bug for creating a mock file in the same package. Currently fixed manually --> Create issue on moq github repo
 
 func TestPutTransactions(t *testing.T) {
-	hash, err := chainhash.NewHashFromStr("9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a") // <-- issue
+	hash0, err := chainhash.NewHashFromStr("9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a")
 	require.NoError(t, err)
 
-	tx, err := bt.NewTxFromString("010000000000000000ef016b51c656fb06639ea6c1c3642a5ede9ecf9f749b95cb47d4e57eda7a3953b1c64c0000006a47304402201ade53acd924e90c0aeabbf9085d075acb23c4712e7f728a23979a466ab55e19022047a85963ce2eddc21573b4a6c0e7ccfec44153e74f9d03d31f955ff486449240412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffe8030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01e7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
-	require.NoError(t, err)
+	tx0, err := bt.NewTxFromString("010000000000000000ef016b51c656fb06639ea6c1c3642a5ede9ecf9f749b95cb47d4e57eda7a3953b1c64c0000006a47304402201ade53acd924e90c0aeabbf9085d075acb23c4712e7f728a23979a466ab55e19022047a85963ce2eddc21573b4a6c0e7ccfec44153e74f9d03d31f955ff486449240412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffe8030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01e7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
+	require.Equal(t, tx0.TxID(), hash0.String())
 
-	transactions := []*metamorph_api.TransactionRequest{
-		{
-			RawTx: tx.Bytes(),
-		},
-	}
+	require.NoError(t, err)
+	tx1, err := bt.NewTxFromString("010000000000000000ef016b51c656fb06639ea6c1c3642a5ede9ecf9f749b95cb47d4e57eda7a3953b1c6660000006b483045022100e6d888a31cabb7bd491da63c9378d550ab728e6f81aa1c9420e1e055123e4728022040fd7263f08ecb53a1c9dbbc074d4b36e34e8db2ce78fed012a517052befda2b412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffe8030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01e7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
+	require.NoError(t, err)
+	hash1, err := chainhash.NewHashFromStr("5d09daee7a648db6f99a7b678e9d64e6bf6867fb8a5f8818f4718b5a871fead1")
+	require.NoError(t, err)
+	require.Equal(t, tx1.TxID(), hash1.String())
+
+	tx2, err := bt.NewTxFromString("010000000000000000ef016b51c656fb06639ea6c1c3642a5ede9ecf9f749b95cb47d4e57eda7a3953b1c6690000006a4730440220519b37c338888500e8299dd9afe462930352c95af1b436a29411b5eaaca7ec9c02204f821540a109323dbb36bd1d89bc057a435a4efbb5df7c3cae0d8522265cdd5c412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffe8030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01e7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
+	require.NoError(t, err)
+	hash2, err := chainhash.NewHashFromStr("337bf4982dd12f399c1f20a7806c8005255355d8df84621062f572571f52f03b")
+	require.NoError(t, err)
+	require.Equal(t, tx2.TxID(), hash2.String())
 
 	tt := []struct {
 		name              string
-		processorResponse *processor_response.StatusAndError
-		waitForStatus     metamorph_api.Status
-		transactionFound  map[int]store.StoreData
+		processorResponse map[int]*processor_response.StatusAndError
+		transactionFound  map[int]*store.StoreData
+		requests          *metamorph_api.TransactionRequests
 
-		expectedErrorStr                        string
-		expectedStatuses                        *metamorph_api.TransactionStatuses
-		expecteProcessorSetCalls                int
-		expecteProcessorProcessTransactionCalls int
+		expectedErrorStr                         string
+		expectedStatuses                         *metamorph_api.TransactionStatuses
+		expectedProcessorSetCalls                int
+		expectedProcessorProcessTransactionCalls int
 	}{
 		{
-			name: "single new transaction response seen on network",
-			processorResponse: &processor_response.StatusAndError{
-				Hash:   hash,
+			name: "single new transaction response seen on network - wait for sent to network status",
+			requests: &metamorph_api.TransactionRequests{
+				Transactions: []*metamorph_api.TransactionRequest{
+					{
+						RawTx:         tx0.Bytes(),
+						WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
+					},
+				},
+			},
+			processorResponse: map[int]*processor_response.StatusAndError{0: {
+				Hash:   hash0,
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 				Err:    nil,
-			},
-			waitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
+			}},
 
-			expecteProcessorSetCalls:                1,
-			expecteProcessorProcessTransactionCalls: 1,
+			expectedProcessorSetCalls:                1,
+			expectedProcessorProcessTransactionCalls: 1,
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
@@ -331,14 +345,17 @@ func TestPutTransactions(t *testing.T) {
 		},
 		{
 			name: "single new transaction response with error",
-			processorResponse: &processor_response.StatusAndError{
-				Hash:   hash,
+			requests: &metamorph_api.TransactionRequests{
+				Transactions: []*metamorph_api.TransactionRequest{{RawTx: tx0.Bytes()}},
+			},
+			processorResponse: map[int]*processor_response.StatusAndError{0: {
+				Hash:   hash0,
 				Status: metamorph_api.Status_STORED,
 				Err:    errors.New("unable to process transaction"),
-			},
+			}},
 
-			expecteProcessorSetCalls:                1,
-			expecteProcessorProcessTransactionCalls: 1,
+			expectedProcessorSetCalls:                1,
+			expectedProcessorProcessTransactionCalls: 1,
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
@@ -351,9 +368,12 @@ func TestPutTransactions(t *testing.T) {
 		},
 		{
 			name: "single new transaction no response",
+			requests: &metamorph_api.TransactionRequests{
+				Transactions: []*metamorph_api.TransactionRequest{{RawTx: tx0.Bytes()}},
+			},
 
-			expecteProcessorSetCalls:                1,
-			expecteProcessorProcessTransactionCalls: 1,
+			expectedProcessorSetCalls:                1,
+			expectedProcessorProcessTransactionCalls: 1,
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
@@ -394,7 +414,7 @@ func TestPutTransactions(t *testing.T) {
 
 					storeData, found := tc.transactionFound[getCounter]
 					if found {
-						return &storeData, nil
+						return storeData, nil
 					}
 
 					return nil, nil
@@ -410,28 +430,24 @@ func TestPutTransactions(t *testing.T) {
 				},
 			}
 
+			processCounter := 0
 			processor := &ProcessorIMock{
 				SetFunc: func(req *ProcessorRequest) error {
 					return nil
 				},
 				ProcessTransactionFunc: func(req *ProcessorRequest) {
-					if tc.processorResponse != nil {
-						req.ResponseChannel <- *tc.processorResponse
+					defer func() { processCounter++ }()
+
+					resp, found := tc.processorResponse[processCounter]
+					if found {
+						req.ResponseChannel <- *resp
 					}
 				},
 			}
 			server := NewServer(nil, metamorphStore, processor, btc, source)
 
-			for _, tx := range transactions {
-				tx.WaitForStatus = tc.waitForStatus
-			}
-
-			req := &metamorph_api.TransactionRequests{
-				Transactions: transactions,
-			}
-
 			server.SetTimeout(100 * time.Millisecond)
-			statuses, err := server.PutTransactions(context.Background(), req)
+			statuses, err := server.PutTransactions(context.Background(), tc.requests)
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return

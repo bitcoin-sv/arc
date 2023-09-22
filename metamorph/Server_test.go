@@ -384,24 +384,46 @@ func TestPutTransactions(t *testing.T) {
 				},
 			},
 		},
-		//{
-		//	name: "batch of transactions - one already stored",
-		//	processorResponse: &processor_response.StatusAndError{
-		//		Hash:   hash,
-		//		Status: metamorph_api.Status_SEEN_ON_NETWORK,
-		//		Err:    nil,
-		//	},
-		//	waitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
-		//
-		//	expectedStatuses: &metamorph_api.TransactionStatuses{
-		//		Statuses: []*metamorph_api.TransactionStatus{
-		//			{
-		//				Txid:   "9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a",
-		//				Status: metamorph_api.Status_SEEN_ON_NETWORK,
-		//			},
-		//		},
-		//	},
-		//},
+		{
+			name: "batch of 3 transactions - 2nd already stored",
+			requests: &metamorph_api.TransactionRequests{
+				Transactions: []*metamorph_api.TransactionRequest{{RawTx: tx0.Bytes()}, {RawTx: tx1.Bytes()}, {RawTx: tx2.Bytes()}},
+			},
+			transactionFound: map[int]*store.StoreData{1: {
+				Status: metamorph_api.Status_SENT_TO_NETWORK,
+			}},
+			processorResponse: map[int]*processor_response.StatusAndError{
+				0: {
+					Hash:   hash0,
+					Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+					Err:    nil,
+				},
+				1: {
+					Hash:   hash2,
+					Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+					Err:    nil,
+				},
+			},
+
+			expectedProcessorSetCalls:                2,
+			expectedProcessorProcessTransactionCalls: 2,
+			expectedStatuses: &metamorph_api.TransactionStatuses{
+				Statuses: []*metamorph_api.TransactionStatus{
+					{
+						Txid:   hash0.String(),
+						Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+					},
+					{
+						Txid:   hash1.String(),
+						Status: metamorph_api.Status_SENT_TO_NETWORK,
+					},
+					{
+						Txid:   hash2.String(),
+						Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tt {

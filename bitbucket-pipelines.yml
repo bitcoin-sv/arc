@@ -2,6 +2,18 @@ image: golang:1.19
 
 pipelines:
   custom:
+    sync-from-github:
+      - step:
+          runs-on:
+            - self.hosted
+            - linux
+          name: Sync from GitHub ARC Repo
+          script:
+            - git remote add public git@github.com:bitcoin-sv/arc.git || true # The "|| true" ensures the command doesn't fail if the remote already exists.
+            - git fetch public
+            - git merge public/main
+            - git push origin main
+
     testnet:
       - step:
           runs-on:

@@ -1,0 +1,19 @@
+image: golang:1.19
+
+pipelines:
+  custom:
+    testnet:
+      - step:
+          runs-on:
+            - self.hosted
+            - linux
+          name: Build and Deploy to Testnet
+          deployment: testnet
+          script:
+            - go get
+            - FILENAME="arc_${BITBUCKET_COMMIT}_${BITBUCKET_BUILD_NUMBER}"
+            - env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build --trimpath -o build/linux/$FILENAME -ldflags="-s -w -X main.commit=${BITBUCKET_COMMIT} -X main.version=MANUAL"
+            - echo "$ARC_SERVER_HOST_KEY" >> ~/.ssh/known_hosts
+            - scp build/linux/$FILENAME taal@$ARC_SERVER:/home/taal/arc/
+            # link-latest will also restart the service
+            - ssh taal@$ARC_SERVER 'cd /home/taal/arc && ./link_latest.sh yes'

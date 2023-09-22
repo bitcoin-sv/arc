@@ -292,10 +292,17 @@ func TestPutTransactions(t *testing.T) {
 	tx, err := bt.NewTxFromString("010000000000000000ef016b51c656fb06639ea6c1c3642a5ede9ecf9f749b95cb47d4e57eda7a3953b1c64c0000006a47304402201ade53acd924e90c0aeabbf9085d075acb23c4712e7f728a23979a466ab55e19022047a85963ce2eddc21573b4a6c0e7ccfec44153e74f9d03d31f955ff486449240412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffe8030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01e7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
 	require.NoError(t, err)
 
+	transactions := []*metamorph_api.TransactionRequest{
+		{
+			RawTx: tx.Bytes(),
+		},
+	}
+
 	tt := []struct {
 		name              string
 		processorResponse *processor_response.StatusAndError
 		waitForStatus     metamorph_api.Status
+		transactionFound  map[int]store.StoreData
 
 		expectedErrorStr                        string
 		expectedStatuses                        *metamorph_api.TransactionStatuses
@@ -357,12 +364,39 @@ func TestPutTransactions(t *testing.T) {
 				},
 			},
 		},
+		//{
+		//	name: "batch of transactions - one already stored",
+		//	processorResponse: &processor_response.StatusAndError{
+		//		Hash:   hash,
+		//		Status: metamorph_api.Status_SEEN_ON_NETWORK,
+		//		Err:    nil,
+		//	},
+		//	waitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
+		//
+		//	expectedStatuses: &metamorph_api.TransactionStatuses{
+		//		Statuses: []*metamorph_api.TransactionStatus{
+		//			{
+		//				Txid:   "9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a",
+		//				Status: metamorph_api.Status_SEEN_ON_NETWORK,
+		//			},
+		//		},
+		//	},
+		//},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+
+			getCounter := 0
 			metamorphStore := &storeMock.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					defer func() { getCounter++ }()
+
+					storeData, found := tc.transactionFound[getCounter]
+					if found {
+						return &storeData, nil
+					}
+
 					return nil, nil
 				},
 			}
@@ -387,13 +421,13 @@ func TestPutTransactions(t *testing.T) {
 				},
 			}
 			server := NewServer(nil, metamorphStore, processor, btc, source)
+
+			for _, tx := range transactions {
+				tx.WaitForStatus = tc.waitForStatus
+			}
+
 			req := &metamorph_api.TransactionRequests{
-				Transactions: []*metamorph_api.TransactionRequest{
-					{
-						RawTx:         tx.Bytes(),
-						WaitForStatus: tc.waitForStatus,
-					},
-				},
+				Transactions: transactions,
 			}
 
 			server.SetTimeout(100 * time.Millisecond)

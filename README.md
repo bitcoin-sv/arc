@@ -1,15 +1,17 @@
 # TAAL
 This is a private copy of the public ARC repository for TAAL for deployment using Bitbucket pipelines.
 
-Setup
+It is automatically kept up to date with a scheduled Bitbucket pipeline that runs every morning. In case of merge conflicts, you will need to resolve them manually.
+
+Initial setup
 ```shell
-git clone git@bitbucket.org:Taal_Orchestrator/arc.git
-cd arc
+git clone git@bitbucket.org:Taal_Orchestrator/arc.git arc-taal
+cd arc-taal
 git checkout main
 git remote add public git@github.com:bitcoin-sv/arc.git
 ```
 
-Keep your copy up to date.
+Update the TAAL copy
 ```shell
 git fetch public
 git pull public main

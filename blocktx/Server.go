@@ -108,11 +108,28 @@ func (s *Server) LocateTransaction(ctx context.Context, transaction *blocktx_api
 	}, nil
 }
 
-func (s *Server) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
-	source, hash, height, err := s.store.RegisterTransaction(ctx, transaction)
+func (s *Server) GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.MerklePath, error) {
+	hash, err := chainhash.NewHash(transaction.Hash)
+	if err != nil {
+		return nil, err
+	}
 
+	merklePath, err := s.store.GetTransactionMerklePath(ctx, hash)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, ErrTransactionNotFound
+		}
+		return nil, err
+	}
+
+	return &blocktx_api.MerklePath{MerklePath: merklePath}, nil
+}
+
+func (s *Server) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
+	source, merklePath, hash, height, err := s.store.RegisterTransaction(ctx, transaction)
 	return &blocktx_api.RegisterTransactionResponse{
 		Source:      source,
+		MerklePath:  merklePath,
 		BlockHash:   hash,
 		BlockHeight: height,
 	}, err

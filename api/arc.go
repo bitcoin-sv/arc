@@ -252,6 +252,7 @@ type TransactionResponse struct {
 	Title       string    `json:"title"`
 	TxStatus    string    `json:"txStatus"`
 	Txid        string    `json:"txid"`
+	MerklePath  string    `json:"merkle_path,omitempty"`
 }
 
 // TransactionResponses defines model for TransactionResponses.
@@ -270,6 +271,7 @@ type TransactionStatus struct {
 	Timestamp   time.Time `json:"timestamp"`
 	TxStatus    *string   `json:"txStatus,omitempty"`
 	Txid        string    `json:"txid"`
+	MerklePath  string    `json:"merkle_path,omitempty"`
 }
 
 // TransactionSubmitStatus defines model for TransactionSubmitStatus.

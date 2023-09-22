@@ -204,7 +204,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	resp := &metamorph_api.TransactionStatuses{}
 	resp.Statuses = make([]*metamorph_api.TransactionStatus, len(req.Transactions))
 
-	processTxsMap := make(map[chainhash.Hash]processTxInput)
+	processTxsInputMap := make(map[chainhash.Hash]processTxInput)
 
 	for ind, txReq := range req.Transactions {
 		err := validateCallbackURL(txReq.CallbackUrl)
@@ -238,7 +238,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			return nil, err
 		}
 
-		processTxsMap[*hash] = processTxInput{
+		processTxsInputMap[*hash] = processTxInput{
 			data:          sReq,
 			waitForStatus: txReq.WaitForStatus,
 			responseIndex: ind,
@@ -247,7 +247,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 
 	// Concurrently process each transaction and wait for the transaction status to return
 	wg := &sync.WaitGroup{}
-	for hash, processTx := range processTxsMap {
+	for hash, processTx := range processTxsInputMap {
 		wg.Add(1)
 		// TODO check the context when API call ends
 		go func(ctx context.Context, processTxInput processTxInput, hash *chainhash.Hash, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {

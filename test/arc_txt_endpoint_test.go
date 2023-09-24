@@ -175,6 +175,8 @@ func TestHttpPost(t *testing.T) {
 		t.Fatalf("Failed to decode the response body: %v", err)
 	}
 
+	time.Sleep(20 * time.Second)
+
 	statusUrl := fmt.Sprintf("http://arc:9090/v1/tx/%s", response.Txid)
 	statusResp, err := http.Get(statusUrl)
 	if err != nil {
@@ -205,6 +207,8 @@ func TestHttpPost(t *testing.T) {
 	fmt.Println("Transaction status:", statusResponse.TxStatus)
 
 	generate(t, 10, recipientAddress)
+
+	time.Sleep(20 * time.Second)
 
 	if err = json.Unmarshal(bodyBytes, &response); err != nil { // <-- Use "=" instead of ":="
 		t.Fatalf("Failed to decode the response body: %v", err)

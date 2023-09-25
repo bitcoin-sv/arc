@@ -115,7 +115,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		}
 	case "application/json":
 		var txHex string
-		var txBody api.POSTTransactionJSONBody
+		var txBody api.POSTTransactionJSONRequestBody
 		if err = json.Unmarshal(body, &txBody); err != nil {
 			errStr := err.Error()
 			e := api.ErrBadRequest
@@ -201,7 +201,7 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 		TxStatus:    &tx.Status,
 		Timestamp:   time.Now(),
 		Txid:        tx.TxID,
-		MerklePath:  tx.MerklePath,
+		MerklePath:  &tx.MerklePath,
 	})
 }
 
@@ -451,7 +451,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 		ExtraInfo:   &extraInfo,
 		Timestamp:   time.Now(),
 		Txid:        txID,
-		MerklePath:  tx.MerklePath,
+		MerklePath:  &tx.MerklePath,
 	}, nil
 }
 
@@ -511,7 +511,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 			ExtraInfo:   &tx.ExtraInfo,
 			Timestamp:   time.Now(),
 			Txid:        transactions[ind].TxID(),
-			MerklePath:  tx.MerklePath,
+			MerklePath:  &tx.MerklePath,
 		})
 	}
 

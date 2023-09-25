@@ -136,5 +136,6 @@ func TestHandleBlock(t *testing.T) {
 	peer := &MockedPeer{}
 
 	// call tested function
-	peerHandler.HandleBlock(blockMessage, peer)
+	err := peerHandler.HandleBlock(blockMessage, peer)
+	require.NoError(t, err)
 }

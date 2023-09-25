@@ -104,6 +104,7 @@ paths:
                     title: "OK"
                     txStatus: "MINED"
                     txid: "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+                    merklePath: "0000"
                 mempool:
                   summary: Already in mempool
                   value:
@@ -115,6 +116,7 @@ paths:
                     title: "OK"
                     txStatus: "SEEN_ON_NETWORK"
                     txid: "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+                    merklePath: "0000"
 
         400:
           description: Bad request
@@ -191,7 +193,8 @@ paths:
                         "timestamp": "2023-03-09T12:03:48.382910514Z",
                         "title": "OK",
                         "txStatus": "MINED",
-                        "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+                        "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+                        "merklePath": "0000"
                       }
                     ]
                 added:
@@ -206,7 +209,8 @@ paths:
                         "timestamp": "2023-03-09T12:03:48.382910514Z",
                         "title": "OK",
                         "txStatus": "SEEN_ON_NETWORK",
-                        "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+                        "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+                        "merklePath": "0000"
                       }
                     ]
 
@@ -366,6 +370,10 @@ components:
               type: string
               nullable: false
               description: Transaction status
+            merklePath:
+              type: string
+              nullable: true
+              description: Transaction merkle path in hex
             extraInfo:
               type: string
               nullable: true
@@ -386,6 +394,10 @@ components:
               nullable: false
               example: "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e"
               description: Transaction ID in hex
+            merklePath:
+              type: string
+              nullable: true
+              description: Transaction merkle path in hex
             txStatus:
               type: string
               nullable: false
@@ -446,6 +458,10 @@ components:
               description: Transaction ID in hex
               example: "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
               nullable: false
+            merklePath:
+              type: string
+              nullable: true
+              description: Transaction merkle path in hex
             txStatus:
               type: string
               enum: [
@@ -477,7 +493,8 @@ components:
               "timestamp": "2023-03-09T12:03:48.382910514Z",
               "title": "OK",
               "txStatus": "SEEN_ON_NETWORK",
-              "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+              "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+              "merklePath": "0000"
             }
 
     Error:

@@ -114,7 +114,7 @@ func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, wa
 		XWaitForStatus: &waitForStatus,
 	}
 
-	arcBody := api.POSTTransactionJSONBody{
+	arcBody := api.POSTTransactionJSONRequestBody{
 		RawTx: hex.EncodeToString(tx.ExtendedBytes()),
 	}
 

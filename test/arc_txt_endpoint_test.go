@@ -176,6 +176,8 @@ func TestHttpPost(t *testing.T) {
 		t.Fatalf("Failed to decode the response body: %v", err)
 	}
 
+	generate(t, 10, recipientAddress)
+
 	time.Sleep(450 * time.Second)
 
 	statusUrl := fmt.Sprintf("http://arc:9090/v1/tx/%s", response.Txid)
@@ -200,14 +202,12 @@ func TestHttpPost(t *testing.T) {
 	}
 
 	// Assert that txStatus is "SEEN_ON_NETWORK"
-	if statusResponse.TxStatus != "SEEN_ON_NETWORK" {
-		t.Fatalf("Expected txStatus to be 'SEEN_ON_NETWORK', but got '%s'", statusResponse.TxStatus)
+	if statusResponse.TxStatus != "MINED" {
+		t.Fatalf("Expected txStatus to be 'MINED', but got '%s'", statusResponse.TxStatus)
 	}
 
 	// Print the extracted txStatus (optional, since you're already asserting it)
 	fmt.Println("Transaction status:", statusResponse.TxStatus)
-
-	generate(t, 10, recipientAddress)
 
 	time.Sleep(20 * time.Second)
 

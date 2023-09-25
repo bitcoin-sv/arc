@@ -50,5 +50,5 @@ pipelines:
                     # SCP file to server
                     scp build/linux/$FILENAME taal@${!IP_VAR}:/home/taal/arc/
                     # Execute command on the server
-                    #ssh taal@${!IP_VAR} 'cd /home/taal/arc && ./link_latest.sh yes'
+                    ssh taal@${!IP_VAR} 'cd /home/taal/arc && ./link_latest.sh yes'
                 done

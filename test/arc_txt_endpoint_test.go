@@ -176,7 +176,7 @@ func TestHttpPost(t *testing.T) {
 		t.Fatalf("Failed to decode the response body: %v", err)
 	}
 
-	time.Sleep(1000 * time.Second)
+	time.Sleep(450 * time.Second)
 
 	statusUrl := fmt.Sprintf("http://arc:9090/v1/tx/%s", response.Txid)
 	statusResp, err := http.Get(statusUrl)

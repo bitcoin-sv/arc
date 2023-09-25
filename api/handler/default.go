@@ -511,7 +511,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 			ExtraInfo:   &tx.ExtraInfo,
 			Timestamp:   time.Now(),
 			Txid:        transactions[ind].TxID(),
-			MerklePath:  &tx.MerklePath,
+			MerklePath:  &txStatuses[ind].MerklePath,
 		})
 	}
 

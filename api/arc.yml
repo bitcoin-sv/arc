@@ -194,7 +194,7 @@ paths:
                         "title": "OK",
                         "txStatus": "MINED",
                         "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
-                        "merkle_path": "0000"
+                        "merklePath": "0000"
                       }
                     ]
                 added:
@@ -210,7 +210,7 @@ paths:
                         "title": "OK",
                         "txStatus": "SEEN_ON_NETWORK",
                         "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
-                        "merkle_path": "0000"
+                        "merklePath": "0000"
                       }
                     ]
 
@@ -494,7 +494,7 @@ components:
               "title": "OK",
               "txStatus": "SEEN_ON_NETWORK",
               "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
-              "merkle_path": "0000"
+              "merklePath": "0000"
             }
 
     Error:

@@ -307,7 +307,7 @@ func TestPutTransactions(t *testing.T) {
 
 	tt := []struct {
 		name              string
-		processorResponse map[int]*processor_response.StatusAndError
+		processorResponse map[string]*processor_response.StatusAndError
 		transactionFound  map[int]*store.StoreData
 		requests          *metamorph_api.TransactionRequests
 
@@ -326,7 +326,7 @@ func TestPutTransactions(t *testing.T) {
 					},
 				},
 			},
-			processorResponse: map[int]*processor_response.StatusAndError{0: {
+			processorResponse: map[string]*processor_response.StatusAndError{hash0.String(): {
 				Hash:   hash0,
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 				Err:    nil,
@@ -348,7 +348,7 @@ func TestPutTransactions(t *testing.T) {
 			requests: &metamorph_api.TransactionRequests{
 				Transactions: []*metamorph_api.TransactionRequest{{RawTx: tx0.Bytes()}},
 			},
-			processorResponse: map[int]*processor_response.StatusAndError{0: {
+			processorResponse: map[string]*processor_response.StatusAndError{hash0.String(): {
 				Hash:   hash0,
 				Status: metamorph_api.Status_STORED,
 				Err:    errors.New("unable to process transaction"),
@@ -387,18 +387,30 @@ func TestPutTransactions(t *testing.T) {
 		{
 			name: "batch of 3 transactions - 2nd already stored",
 			requests: &metamorph_api.TransactionRequests{
-				Transactions: []*metamorph_api.TransactionRequest{{RawTx: tx0.Bytes()}, {RawTx: tx1.Bytes()}, {RawTx: tx2.Bytes()}},
+				Transactions: []*metamorph_api.TransactionRequest{
+					{
+						RawTx:         tx0.Bytes(),
+						WaitForStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+					}, {
+						RawTx:         tx1.Bytes(),
+						WaitForStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+					}, {
+						RawTx:         tx2.Bytes(),
+						WaitForStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+					},
+				},
 			},
 			transactionFound: map[int]*store.StoreData{1: {
 				Status: metamorph_api.Status_SENT_TO_NETWORK,
+				Hash:   hash1,
 			}},
-			processorResponse: map[int]*processor_response.StatusAndError{
-				0: {
+			processorResponse: map[string]*processor_response.StatusAndError{
+				hash0.String(): {
 					Hash:   hash0,
 					Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 					Err:    nil,
 				},
-				1: {
+				hash2.String(): {
 					Hash:   hash2,
 					Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
 					Err:    nil,
@@ -452,15 +464,12 @@ func TestPutTransactions(t *testing.T) {
 				},
 			}
 
-			processCounter := 0
 			processor := &ProcessorIMock{
 				SetFunc: func(req *ProcessorRequest) error {
 					return nil
 				},
 				ProcessTransactionFunc: func(req *ProcessorRequest) {
-					defer func() { processCounter++ }()
-
-					resp, found := tc.processorResponse[processCounter]
+					resp, found := tc.processorResponse[req.Hash.String()]
 					if found {
 						req.ResponseChannel <- *resp
 					}
@@ -468,7 +477,7 @@ func TestPutTransactions(t *testing.T) {
 			}
 			server := NewServer(nil, metamorphStore, processor, btc, source)
 
-			server.SetTimeout(100 * time.Millisecond)
+			server.SetTimeout(5 * time.Second)
 			statuses, err := server.PutTransactions(context.Background(), tc.requests)
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)

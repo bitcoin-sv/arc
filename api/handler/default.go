@@ -505,10 +505,10 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		transactionOutput = append(transactionOutput, api.TransactionResponse{
 			Status:      int(api.StatusOK),
 			Title:       "OK",
-			BlockHash:   &tx.BlockHash,
-			BlockHeight: &tx.BlockHeight,
+			BlockHash:   &txStatuses[ind].BlockHash,
+			BlockHeight: &txStatuses[ind].BlockHeight,
 			TxStatus:    tx.Status,
-			ExtraInfo:   &tx.ExtraInfo,
+			ExtraInfo:   &txStatuses[ind].ExtraInfo,
 			Timestamp:   time.Now(),
 			Txid:        transactions[ind].TxID(),
 			MerklePath:  &txStatuses[ind].MerklePath,

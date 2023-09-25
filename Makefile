@@ -24,6 +24,10 @@ lint:
 run:
 	sh run.sh
 
+.PHONY: gen_go
+gen_go:
+	go generate ./...
+
 .PHONY: gen
 gen:
 	protoc \
@@ -69,11 +73,13 @@ install:
 	# arch -arm64 brew install golangci-lint
 	brew install pre-commit
 	pre-commit install
-	go install honnef.co/go/tools/cmd/staticcheck@latest
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-	# GO111MODULE=off go get -u github.com/mwitkow/go-proto-validators/protoc-gen-govalidators
-	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.11.0
+
+.PHONY: install_gen
+install_gen:
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.31.0
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
+	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.15.0
+	go install github.com/matryer/moq@v0.3.2
 
 .PHONY: docs
 docs:

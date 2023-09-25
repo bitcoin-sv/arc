@@ -438,11 +438,11 @@ func BenchmarkProcessTransaction(b *testing.B) {
 func TestProcessExpiredSeenTransactions(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
 
-		exptectedNrOfUpdates := 3
+		expectedNrOfUpdates := 3
 		expectedNrOfBlockTxRequests := 1
 		expectedNumberOfTransactions := 3
 
-		storeMock := &storeMock.MetamorphStoreMock{
+		metamorphStore := &storeMock.MetamorphStoreMock{
 			UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 				require.Condition(t, func() (success bool) {
 					oneOfHash := hash.IsEqual(testdata.TX1Hash) || hash.IsEqual(testdata.TX2Hash) || hash.IsEqual(testdata.TX3Hash)
@@ -481,7 +481,7 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 		}
 
 		pm := p2p.NewPeerManagerMock()
-		processor := NewProcessor(storeMock, pm, "test", nil, btxMock, WithProcessExpiredSeenTxsInterval(20*time.Millisecond))
+		processor := NewProcessor(metamorphStore, pm, "test", nil, btxMock, WithProcessExpiredSeenTxsInterval(20*time.Millisecond))
 		defer processor.Shutdown()
 
 		processor.SetLogger(p2p.TestLogger{})
@@ -493,7 +493,7 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		require.Equal(t, exptectedNrOfUpdates, len(storeMock.UpdateMinedCalls()))
+		require.Equal(t, expectedNrOfUpdates, len(metamorphStore.UpdateMinedCalls()))
 		require.Equal(t, expectedNrOfBlockTxRequests, len(btxMock.GetTransactionBlocksCalls()))
 	})
 }

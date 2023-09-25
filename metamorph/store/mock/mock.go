@@ -18,43 +18,43 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 
 // MetamorphStoreMock is a mock implementation of store.MetamorphStore.
 //
-// 	func TestSomethingThatUsesMetamorphStore(t *testing.T) {
+//	func TestSomethingThatUsesMetamorphStore(t *testing.T) {
 //
-// 		// make and configure a mocked store.MetamorphStore
-// 		mockedMetamorphStore := &MetamorphStoreMock{
-// 			CloseFunc: func(ctx context.Context) error {
-// 				panic("mock out the Close method")
-// 			},
-// 			DelFunc: func(ctx context.Context, key []byte) error {
-// 				panic("mock out the Del method")
-// 			},
-// 			GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-// 				panic("mock out the Get method")
-// 			},
-// 			GetBlockProcessedFunc: func(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
-// 				panic("mock out the GetBlockProcessed method")
-// 			},
-// 			GetUnminedFunc: func(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
-// 				panic("mock out the GetUnmined method")
-// 			},
-// 			SetFunc: func(ctx context.Context, key []byte, value *store.StoreData) error {
-// 				panic("mock out the Set method")
-// 			},
-// 			SetBlockProcessedFunc: func(ctx context.Context, blockHash *chainhash.Hash) error {
-// 				panic("mock out the SetBlockProcessed method")
-// 			},
-// 			UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
-// 				panic("mock out the UpdateMined method")
-// 			},
-// 			UpdateStatusFunc: func(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
-// 				panic("mock out the UpdateStatus method")
-// 			},
-// 		}
+//		// make and configure a mocked store.MetamorphStore
+//		mockedMetamorphStore := &MetamorphStoreMock{
+//			CloseFunc: func(ctx context.Context) error {
+//				panic("mock out the Close method")
+//			},
+//			DelFunc: func(ctx context.Context, key []byte) error {
+//				panic("mock out the Del method")
+//			},
+//			GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+//				panic("mock out the Get method")
+//			},
+//			GetBlockProcessedFunc: func(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
+//				panic("mock out the GetBlockProcessed method")
+//			},
+//			GetUnminedFunc: func(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
+//				panic("mock out the GetUnmined method")
+//			},
+//			SetFunc: func(ctx context.Context, key []byte, value *store.StoreData) error {
+//				panic("mock out the Set method")
+//			},
+//			SetBlockProcessedFunc: func(ctx context.Context, blockHash *chainhash.Hash) error {
+//				panic("mock out the SetBlockProcessed method")
+//			},
+//			UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
+//				panic("mock out the UpdateMined method")
+//			},
+//			UpdateStatusFunc: func(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
+//				panic("mock out the UpdateStatus method")
+//			},
+//		}
 //
-// 		// use mockedMetamorphStore in code that requires store.MetamorphStore
-// 		// and then make assertions.
+//		// use mockedMetamorphStore in code that requires store.MetamorphStore
+//		// and then make assertions.
 //
-// 	}
+//	}
 type MetamorphStoreMock struct {
 	// CloseFunc mocks the Close method.
 	CloseFunc func(ctx context.Context) error
@@ -186,7 +186,8 @@ func (mock *MetamorphStoreMock) Close(ctx context.Context) error {
 
 // CloseCalls gets all the calls that were made to Close.
 // Check the length with:
-//     len(mockedMetamorphStore.CloseCalls())
+//
+//	len(mockedMetamorphStore.CloseCalls())
 func (mock *MetamorphStoreMock) CloseCalls() []struct {
 	Ctx context.Context
 } {
@@ -219,7 +220,8 @@ func (mock *MetamorphStoreMock) Del(ctx context.Context, key []byte) error {
 
 // DelCalls gets all the calls that were made to Del.
 // Check the length with:
-//     len(mockedMetamorphStore.DelCalls())
+//
+//	len(mockedMetamorphStore.DelCalls())
 func (mock *MetamorphStoreMock) DelCalls() []struct {
 	Ctx context.Context
 	Key []byte
@@ -254,7 +256,8 @@ func (mock *MetamorphStoreMock) Get(ctx context.Context, key []byte) (*store.Sto
 
 // GetCalls gets all the calls that were made to Get.
 // Check the length with:
-//     len(mockedMetamorphStore.GetCalls())
+//
+//	len(mockedMetamorphStore.GetCalls())
 func (mock *MetamorphStoreMock) GetCalls() []struct {
 	Ctx context.Context
 	Key []byte
@@ -289,7 +292,8 @@ func (mock *MetamorphStoreMock) GetBlockProcessed(ctx context.Context, blockHash
 
 // GetBlockProcessedCalls gets all the calls that were made to GetBlockProcessed.
 // Check the length with:
-//     len(mockedMetamorphStore.GetBlockProcessedCalls())
+//
+//	len(mockedMetamorphStore.GetBlockProcessedCalls())
 func (mock *MetamorphStoreMock) GetBlockProcessedCalls() []struct {
 	Ctx       context.Context
 	BlockHash *chainhash.Hash
@@ -324,7 +328,8 @@ func (mock *MetamorphStoreMock) GetUnmined(contextMoqParam context.Context, call
 
 // GetUnminedCalls gets all the calls that were made to GetUnmined.
 // Check the length with:
-//     len(mockedMetamorphStore.GetUnminedCalls())
+//
+//	len(mockedMetamorphStore.GetUnminedCalls())
 func (mock *MetamorphStoreMock) GetUnminedCalls() []struct {
 	ContextMoqParam context.Context
 	Callback        func(s *store.StoreData)
@@ -361,7 +366,8 @@ func (mock *MetamorphStoreMock) Set(ctx context.Context, key []byte, value *stor
 
 // SetCalls gets all the calls that were made to Set.
 // Check the length with:
-//     len(mockedMetamorphStore.SetCalls())
+//
+//	len(mockedMetamorphStore.SetCalls())
 func (mock *MetamorphStoreMock) SetCalls() []struct {
 	Ctx   context.Context
 	Key   []byte
@@ -398,7 +404,8 @@ func (mock *MetamorphStoreMock) SetBlockProcessed(ctx context.Context, blockHash
 
 // SetBlockProcessedCalls gets all the calls that were made to SetBlockProcessed.
 // Check the length with:
-//     len(mockedMetamorphStore.SetBlockProcessedCalls())
+//
+//	len(mockedMetamorphStore.SetBlockProcessedCalls())
 func (mock *MetamorphStoreMock) SetBlockProcessedCalls() []struct {
 	Ctx       context.Context
 	BlockHash *chainhash.Hash
@@ -437,7 +444,8 @@ func (mock *MetamorphStoreMock) UpdateMined(ctx context.Context, hash *chainhash
 
 // UpdateMinedCalls gets all the calls that were made to UpdateMined.
 // Check the length with:
-//     len(mockedMetamorphStore.UpdateMinedCalls())
+//
+//	len(mockedMetamorphStore.UpdateMinedCalls())
 func (mock *MetamorphStoreMock) UpdateMinedCalls() []struct {
 	Ctx         context.Context
 	Hash        *chainhash.Hash
@@ -480,7 +488,8 @@ func (mock *MetamorphStoreMock) UpdateStatus(ctx context.Context, hash *chainhas
 
 // UpdateStatusCalls gets all the calls that were made to UpdateStatus.
 // Check the length with:
-//     len(mockedMetamorphStore.UpdateStatusCalls())
+//
+//	len(mockedMetamorphStore.UpdateStatusCalls())
 func (mock *MetamorphStoreMock) UpdateStatusCalls() []struct {
 	Ctx          context.Context
 	Hash         *chainhash.Hash

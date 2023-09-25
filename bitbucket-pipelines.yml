@@ -29,3 +29,26 @@ pipelines:
             - scp build/linux/$FILENAME taal@$ARC_SERVER:/home/taal/arc/
             # link-latest will also restart the service
             - ssh taal@$ARC_SERVER 'cd /home/taal/arc && ./link_latest.sh yes'
+
+    mainnet:
+      - step:
+          runs-on:
+            - self.hosted
+            - linux
+          name: Build and Deploy to Mainnet
+          deployment: mainnet
+          script:
+            - go get
+            - FILENAME="arc_${BITBUCKET_COMMIT}_${BITBUCKET_BUILD_NUMBER}"
+            - env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build --trimpath -o build/linux/$FILENAME -ldflags="-s -w -X main.commit=${BITBUCKET_COMMIT} -X main.version=MANUAL"
+            - |
+                for i in 1 2 3 4 5; do
+                    IP_VAR="ARC_SERVER_${i}_IP"
+                    HOST_KEY_VAR="ARC_SERVER_${i}_HOST_KEY"
+                    # Add to known hosts
+                    echo "${!HOST_KEY_VAR}" >> ~/.ssh/known_hosts
+                    # SCP file to server
+                    scp build/linux/$FILENAME taal@${!IP_VAR}:/home/taal/arc/
+                    # Execute command on the server
+                    ssh taal@${!IP_VAR} 'cd /home/taal/arc && ./link_latest.sh yes'
+                done

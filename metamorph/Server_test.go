@@ -401,8 +401,11 @@ func TestPutTransactions(t *testing.T) {
 				},
 			},
 			transactionFound: map[int]*store.StoreData{1: {
-				Status: metamorph_api.Status_SENT_TO_NETWORK,
-				Hash:   hash1,
+				Status:      metamorph_api.Status_SENT_TO_NETWORK,
+				Hash:        hash1,
+				StoredAt:    time.Time{},
+				AnnouncedAt: time.Time{},
+				MinedAt:     time.Time{},
 			}},
 			processorResponse: map[string]*processor_response.StatusAndError{
 				hash0.String(): {
@@ -426,8 +429,12 @@ func TestPutTransactions(t *testing.T) {
 						Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 					},
 					{
-						Txid:   hash1.String(),
-						Status: metamorph_api.Status_SENT_TO_NETWORK,
+						Txid:        hash1.String(),
+						Status:      metamorph_api.Status_SENT_TO_NETWORK,
+						BlockHash:   "<nil>",
+						StoredAt:    timestamppb.New(time.Time{}),
+						AnnouncedAt: timestamppb.New(time.Time{}),
+						MinedAt:     timestamppb.New(time.Time{}),
 					},
 					{
 						Txid:   hash2.String(),
@@ -489,7 +496,11 @@ func TestPutTransactions(t *testing.T) {
 			require.Equal(t, tc.expectedProcessorSetCalls, len(processor.calls.Set))
 			require.Equal(t, tc.expectedProcessorProcessTransactionCalls, len(processor.calls.ProcessTransaction))
 
-			require.Equal(t, tc.expectedStatuses, statuses)
+			for i := 0; i < len(tc.expectedStatuses.Statuses); i++ {
+				expected := tc.expectedStatuses.Statuses[i]
+				status := statuses.Statuses[i]
+				require.Equal(t, expected, status)
+			}
 		})
 	}
 }

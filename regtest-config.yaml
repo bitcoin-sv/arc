@@ -28,20 +28,20 @@ peers: # list of bitcoin node peers to connect to
       p2p: 18333
 
 callbacker:
-  listenAddr: localhost:8021 # address space for callbacker to listen on. Can be for example localhost:8021 or :8021 for listening on all addresses
-  dialAddr: localhost:8021 # address for other services to dial callbacker service
-  profilerAddr: localhost:9994
+  listenAddr: 0.0.0.0:8021 # address space for callbacker to listen on. Can be for example localhost:8021 or :8021 for listening on all addresses
+  dialAddr: 0.0.0.0:8021 # address for other services to dial callbacker service
+  profilerAddr: 0.0.0.0:9994
 
 metamorph:
-  listenAddr: host.docker.internal:8001 # address space for metamorph to listen on. Can be for example localhost:8001 or :8001 for listening on all addresses
-  dialAddr: host.docker.internal:8001 # address for other services to dial metamorph service
+  listenAddr: 0.0.0.0:8001 # address space for metamorph to listen on. Can be for example localhost:8001 or :8001 for listening on all addresses
+  dialAddr: 0.0.0.0:8001 # address for other services to dial metamorph service
   log:
     file: ./data/metamorph.log # location of log file
     errorFile: ./data/metamorph_error.log # location of error log file
   db:  
     mode: badger # db mode inidicates which db to use. Value can be one of badger | postgres
     postgres: # postgres db configuration in case that mode: postgres
-      host: host.docker.internal
+      host: 0.0.0.0
       port: 5432
       name: metamorph
       user: arc
@@ -49,7 +49,7 @@ metamorph:
   processorCacheExpiryTime: 24h # time after which processor cache is cleaned
   checkUtxos: false # force check each utxo for validity. If enabled ARC connects to bitcoin node using rpc for each utxo
   statsKeypress: false # enable stats keypress. If enabled pressing any key will print stats to stdout
-  profilerAddr: localhost:9992 # address to start profiler server on
+  profilerAddr: 0.0.0.0:9992 # address to start profiler server on
 
 blocktx:
   listenAddr: 0.0.0.0:8011 # address space for blocktx to listen on. Can be for example localhost:8011 or :8011 for listening on all addresses
@@ -64,7 +64,7 @@ blocktx:
       password: arc
       maxIdleConns: 10 # maximum idle connections
       maxOpenConns: 80 # maximum open connections
-  profilerAddr: 0.0.0.0:9993 # address to start profiler server on
+  profilerAddr: localhost:9993 # address to start profiler server on
   startingBlockHeight: 100 # starting block height for blocktx to start from. blocktx will not request blocks lower than this height
 
 broadcaster:

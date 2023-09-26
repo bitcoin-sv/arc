@@ -328,10 +328,11 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		ownerMM := metamorph_api.NewMetaMorphAPIClient(ownerConn)
 
 		var transactionStatus *metamorph_api.TransactionStatus
-		transactionStatus.MerklePath = rtr.MerklePath
 		if transactionStatus, err = ownerMM.PutTransaction(createForwardedContext(initCtx), req); err != nil {
 			return 0, 0, nil, nil, err
 		}
+
+		transactionStatus.MerklePath = rtr.MerklePath
 
 		return 0, 0, nil, transactionStatus, nil
 	}

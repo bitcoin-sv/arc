@@ -411,7 +411,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 		err := m.extendTransaction(tracingCtx, transaction)
 		if err != nil {
 			statusCode, arcError, errHandled := m.handleError(tracingCtx, transaction, err)
-			m.logger.Errorf("failed to extend transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, errHandled)
+			m.logger.Errorf("failed to extend transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, err)
 			return statusCode, arcError, errHandled
 		}
 	}

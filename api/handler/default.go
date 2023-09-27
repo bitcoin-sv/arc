@@ -604,14 +604,20 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 	}
 
 	// get from node
-	txBytes, _ = getTransactionFromNode(ctx, inputTxID)
+	txBytes, err := getTransactionFromNode(ctx, inputTxID)
+	if err != nil {
+		m.logger.Warnf("failed to get transaction %s from node: %v", inputTxID, err)
+	}
 	// we can ignore any error here, we just check whether we have the transaction
 	if txBytes != nil {
 		return txBytes, nil
 	}
 
 	// get from woc
-	txBytes, _ = getTransactionFromWhatsOnChain(ctx, inputTxID)
+	txBytes, err = getTransactionFromWhatsOnChain(ctx, inputTxID)
+	if err != nil {
+		m.logger.Warnf("failed to get transaction %s from WhatsOnChain: %v", inputTxID, err)
+	}
 	// we can ignore any error here, we just check whether we have the transaction
 	if txBytes != nil {
 		return txBytes, nil

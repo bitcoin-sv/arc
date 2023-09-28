@@ -86,9 +86,8 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 	transactionOptions, err := getTransactionOptions(params)
 	if err != nil {
-		errStr := err.Error()
 		e := api.ErrBadRequest
-		e.ExtraInfo = &errStr
+		e.ExtraInfo = ptr.To(err.Error())
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return ctx.JSON(int(api.ErrStatusBadRequest), e)
@@ -96,9 +95,8 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 	body, err := io.ReadAll(ctx.Request().Body)
 	if err != nil {
-		errStr := err.Error()
 		e := api.ErrBadRequest
-		e.ExtraInfo = &errStr
+		e.ExtraInfo = ptr.To(err.Error())
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return ctx.JSON(http.StatusBadRequest, e)
@@ -109,9 +107,8 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	switch contentType {
 	case "text/plain":
 		if transaction, err = bt.NewTxFromString(string(body)); err != nil {
-			errStr := err.Error()
 			e := api.ErrBadRequest
-			e.ExtraInfo = &errStr
+			e.ExtraInfo = ptr.To(err.Error())
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(int(api.ErrStatusBadRequest), e)
@@ -120,9 +117,8 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		var txHex string
 		var txBody api.POSTTransactionJSONRequestBody
 		if err = json.Unmarshal(body, &txBody); err != nil {
-			errStr := err.Error()
 			e := api.ErrBadRequest
-			e.ExtraInfo = &errStr
+			e.ExtraInfo = ptr.To(err.Error())
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(int(api.ErrStatusBadRequest), e)
@@ -130,18 +126,16 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		txHex = txBody.RawTx
 
 		if transaction, err = bt.NewTxFromString(txHex); err != nil {
-			errStr := err.Error()
 			e := api.ErrBadRequest
-			e.ExtraInfo = &errStr
+			e.ExtraInfo = ptr.To(err.Error())
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(int(api.ErrStatusBadRequest), e)
 		}
 	case "application/octet-stream":
 		if transaction, err = bt.NewTxFromBytes(body); err != nil {
-			errStr := err.Error()
 			e := api.ErrBadRequest
-			e.ExtraInfo = &errStr
+			e.ExtraInfo = ptr.To(err.Error())
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(e.Status, e)
@@ -190,9 +184,8 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 			return echo.NewHTTPError(http.StatusNotFound, e)
 		}
 
-		errStr := err.Error()
 		e := api.ErrGeneric
-		e.ExtraInfo = &errStr
+		e.ExtraInfo = ptr.To(err.Error())
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return ctx.JSON(int(api.ErrStatusGeneric), e)
@@ -220,9 +213,8 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	// set the globals for all transactions in this request
 	transactionOptions, err := getTransactionsOptions(params)
 	if err != nil {
-		errStr := err.Error()
 		e := api.ErrBadRequest
-		e.ExtraInfo = &errStr
+		e.ExtraInfo = ptr.To(err.Error())
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return ctx.JSON(e.Status, e)
@@ -251,9 +243,8 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	case "application/json":
 		body, err := io.ReadAll(ctx.Request().Body)
 		if err != nil {
-			errStr := err.Error()
 			e := api.ErrBadRequest
-			e.ExtraInfo = &errStr
+			e.ExtraInfo = ptr.To(err.Error())
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(e.Status, e)
@@ -261,9 +252,8 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 
 		var txBody api.POSTTransactionsJSONBody
 		if err = json.Unmarshal(body, &txBody); err != nil {
-			errStr := err.Error()
 			e := api.ErrBadRequest
-			e.ExtraInfo = &errStr
+			e.ExtraInfo = ptr.To(err.Error())
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(e.Status, e)
@@ -274,9 +264,8 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		for index, tx := range txBody {
 			transaction, err := bt.NewTxFromString(tx.RawTx)
 			if err != nil {
-				errStr := err.Error()
 				e := api.ErrBadRequest
-				e.ExtraInfo = &errStr
+				e.ExtraInfo = ptr.To(err.Error())
 				transactions[index] = e
 				return ctx.JSON(e.Status, e)
 			}
@@ -326,8 +315,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			if err != nil {
 				if !errors.Is(err, io.EOF) {
 					e := api.ErrBadRequest
-					errStr := err.Error()
-					e.ExtraInfo = &errStr
+					e.ExtraInfo = ptr.To(err.Error())
 					span.SetTag(string(ext.Error), true)
 					span.LogFields(log.Error(err))
 					return ctx.JSON(e.Status, e)

@@ -10,11 +10,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/api/transactionHandler"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/validator"
-	defaultValidator "github.com/bitcoin-sv/arc/validator/default"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/opentracing/opentracing-go"
@@ -23,6 +18,13 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"github.com/pkg/errors"
+	"k8s.io/utils/ptr"
+
+	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/validator"
+	defaultValidator "github.com/bitcoin-sv/arc/validator/default"
 )
 
 type ArcDefaultHandler struct {
@@ -103,7 +105,8 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	}
 
 	var transaction *bt.Tx
-	switch ctx.Request().Header.Get("Content-Type") {
+	contentType := ctx.Request().Header.Get("Content-Type")
+	switch contentType {
 	case "text/plain":
 		if transaction, err = bt.NewTxFromString(string(body)); err != nil {
 			errStr := err.Error()
@@ -141,10 +144,14 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 			e.ExtraInfo = &errStr
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
-			return ctx.JSON(int(api.ErrStatusBadRequest), e)
+			return ctx.JSON(e.Status, e)
 		}
 	default:
-		return ctx.JSON(api.ErrBadRequest.Status, api.ErrBadRequest)
+		e := api.ErrBadRequest
+		e.ExtraInfo = ptr.To(fmt.Sprintf("given content-type %s does not match any of the allowed content-types", contentType))
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return ctx.JSON(e.Status, e)
 	}
 
 	span.SetTag("txid", transaction.TxID())
@@ -218,7 +225,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		e.ExtraInfo = &errStr
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
-		return ctx.JSON(int(api.ErrStatusBadRequest), e)
+		return ctx.JSON(e.Status, e)
 	}
 
 	// Set the transaction reader function to read a text/plain by default.
@@ -239,7 +246,8 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 
 	var status api.StatusCode
 
-	switch ctx.Request().Header.Get("Content-Type") {
+	contentType := ctx.Request().Header.Get("Content-Type")
+	switch contentType {
 	case "application/json":
 		body, err := io.ReadAll(ctx.Request().Body)
 		if err != nil {
@@ -248,7 +256,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			e.ExtraInfo = &errStr
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
-			return ctx.JSON(http.StatusBadRequest, e)
+			return ctx.JSON(e.Status, e)
 		}
 
 		var txBody api.POSTTransactionsJSONBody
@@ -258,10 +266,10 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			e.ExtraInfo = &errStr
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
-			return ctx.JSON(int(api.ErrStatusBadRequest), e)
+			return ctx.JSON(e.Status, e)
 		}
 
-		sizingsMap := make(map[string][]uint64)
+		sizingMap := make(map[string][]uint64)
 		transactionInputs := make([]*bt.Tx, 0, len(txBody))
 		for index, tx := range txBody {
 			transaction, err := bt.NewTxFromString(tx.RawTx)
@@ -270,26 +278,28 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 				e := api.ErrBadRequest
 				e.ExtraInfo = &errStr
 				transactions[index] = e
-				return err
+				return ctx.JSON(e.Status, e)
 			}
 			transactionInputs = append(transactionInputs, transaction)
 			normalBytes, dataBytes, feeAmount := getSizings(transaction)
-			sizingsMap[transaction.TxID()] = []uint64{normalBytes, dataBytes, feeAmount}
+			sizingMap[transaction.TxID()] = []uint64{normalBytes, dataBytes, feeAmount}
 		}
 		// submit for processing
 		status, transactions, err = m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
 		if err != nil {
-			return ctx.JSON(api.ErrGeneric.Status, err)
+			e := api.ErrGeneric
+			e.ExtraInfo = ptr.To(fmt.Sprintf("failed to process transactions: %v", err))
+			return ctx.JSON(e.Status, e)
 		}
 
 		for _, btTx := range transactions {
 			if tx, ok := btTx.(api.TransactionResponse); ok {
-				sizings, found := sizingsMap[tx.Txid]
+				sizing, found := sizingMap[tx.Txid]
 				if !found {
-					m.logger.Warnf("tx id %s not found in sizings map", tx.Txid)
+					m.logger.Warnf("tx id %s not found in sizing map", tx.Txid)
 				}
 
-				sizingInfo = append(sizingInfo, sizings)
+				sizingInfo = append(sizingInfo, sizing)
 			}
 		}
 	case "application/octet-stream":
@@ -320,7 +330,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 					e.ExtraInfo = &errStr
 					span.SetTag(string(ext.Error), true)
 					span.LogFields(log.Error(err))
-					return ctx.JSON(api.ErrBadRequest.Status, e)
+					return ctx.JSON(e.Status, e)
 				}
 			}
 
@@ -328,7 +338,11 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			if btTx == nil {
 				if isFirstTransaction {
 					// no transactions found in the request body
-					return ctx.JSON(int(api.ErrStatusBadRequest), api.ErrBadRequest)
+					e := api.ErrBadRequest
+					e.ExtraInfo = ptr.To("no transactions found in the request body")
+					span.SetTag(string(ext.Error), true)
+					span.LogFields(log.Error(err))
+					return ctx.JSON(e.Status, e)
 				}
 				// no more transaction data found, stop the loop
 				break
@@ -342,22 +356,30 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		// process all transactions before submitting to metamorph
 		status, transactions, err = m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
 		if err != nil {
-			return ctx.JSON(api.ErrGeneric.Status, err)
+			e := api.ErrGeneric
+			e.ExtraInfo = ptr.To(fmt.Sprintf("failed to process transactions: %v", err))
+			span.SetTag(string(ext.Error), true)
+			span.LogFields(log.Error(err))
+			return ctx.JSON(e.Status, e)
 		}
 
 		for _, btTx := range transactions {
 			if tx, ok := btTx.(api.TransactionResponse); ok {
-				sizings, found := sizingsMap[tx.Txid]
+				sizing, found := sizingsMap[tx.Txid]
 				if !found {
-					m.logger.Warnf("tx id %s not found in sizings map", tx.Txid)
+					m.logger.Warnf("tx id %s not found in sizing map", tx.Txid)
 				}
 
-				sizingInfo = append(sizingInfo, sizings)
+				sizingInfo = append(sizingInfo, sizing)
 			}
 		}
 
 	default:
-		return ctx.JSON(api.ErrBadRequest.Status, api.ErrBadRequest)
+		e := api.ErrBadRequest
+		e.ExtraInfo = ptr.To(fmt.Sprintf("given content-type %s does not match any of the allowed content-types", contentType))
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return ctx.JSON(e.Status, e)
 	}
 
 	sizingCtx := context.WithValue(ctx.Request().Context(), api.ContextSizings, sizingInfo)

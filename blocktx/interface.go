@@ -8,4 +8,6 @@ var (
 
 	// ErrTransactionNotFound is returned when a transaction is not found.
 	ErrTransactionNotFound = errors.New("transaction not found")
+
+	ErrTransactionNotFoundForMerklePath = errors.New("transaction not found for given Merkle path")
 )

@@ -2,6 +2,7 @@ package transactionHandler
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -24,10 +24,11 @@ type Metamorph struct {
 	Client        metamorph_api.MetaMorphAPIClient
 	ClientCache   map[string]metamorph_api.MetaMorphAPIClient
 	blockTxClient blocktx.ClientI
+	logger        utils.Logger
 }
 
 // NewMetamorph creates a connection to a list of metamorph servers via gRPC
-func NewMetamorph(targets string, blockTxClient blocktx.ClientI, grpcMessageSize int) (*Metamorph, error) {
+func NewMetamorph(targets string, blockTxClient blocktx.ClientI, grpcMessageSize int, logger utils.Logger) (*Metamorph, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
@@ -45,6 +46,7 @@ func NewMetamorph(targets string, blockTxClient blocktx.ClientI, grpcMessageSize
 		Client:        metamorph_api.NewMetaMorphAPIClient(conn),
 		ClientCache:   make(map[string]metamorph_api.MetaMorphAPIClient),
 		blockTxClient: blockTxClient,
+		logger:        logger,
 	}, nil
 }
 
@@ -94,14 +96,13 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 		return nil, err
 	}
 
-	var merklePath string
-	if merklePath, err = m.blockTxClient.GetTransactionMerklePath(ctx, &blocktx_api.Transaction{
-		Hash: hash[:],
-	}); err != nil {
-		if errors.Is(err, blocktx.ErrTransactionNotFound) {
-			return nil, ErrTransactionNotFound
+	merklePath, err := m.blockTxClient.GetTransactionMerklePath(ctx, &blocktx_api.Transaction{Hash: hash[:]})
+	if err != nil {
+		if errors.Is(err, blocktx.ErrTransactionNotFound) && tx.Status >= metamorph_api.Status_MINED {
+			m.logger.Errorf("Merkle not found for mined transaction %s: %v", hash.String(), err)
+		} else {
+			m.logger.Errorf("failed to get Merkle path for transaction %s: %v", hash.String(), err)
 		}
-		return nil, err
 	}
 
 	return &TransactionStatus{

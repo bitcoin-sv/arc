@@ -43,7 +43,7 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 		return fmt.Errorf("grpcMessageSize not found in config")
 	}
 
-	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize)
+	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize, logger)
 	if err != nil {
 		return err
 	}

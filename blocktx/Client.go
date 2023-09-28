@@ -89,7 +89,7 @@ func (btc *Client) LocateTransaction(ctx context.Context, transaction *blocktx_a
 func (btc *Client) GetTransactionMerklePath(ctx context.Context, hash *blocktx_api.Transaction) (string, error) {
 	merklePath, err := btc.client.GetTransactionMerklePath(ctx, hash)
 	if err != nil {
-		return "", ErrTransactionNotFound
+		return "", err
 	}
 
 	return merklePath.MerklePath, nil

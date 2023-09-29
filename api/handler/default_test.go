@@ -673,6 +673,20 @@ func Test_handleError(t *testing.T) {
 			expectedArcErr: nil,
 		},
 		{
+			name:        "generic error",
+			submitError: errors.New("some error"),
+
+			expectedStatus: api.ErrStatusGeneric,
+			expectedArcErr: &api.ErrorFields{
+				Detail:    "Transaction could not be processed",
+				ExtraInfo: ptr.To("some error"),
+				Title:     "Generic error",
+				Type:      "https://arc.bitcoinsv.com/errors/409",
+				Txid:      ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
+				Status:    409,
+			},
+		},
+		{
 			name: "validator error",
 			submitError: &validator.Error{
 				ArcErrorStatus: api.ErrStatusBadRequest,
@@ -687,6 +701,20 @@ func Test_handleError(t *testing.T) {
 				Type:      "https://arc.bitcoinsv.com/errors/400",
 				Txid:      ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
 				Status:    400,
+			},
+		},
+		{
+			name:        "parent not found error",
+			submitError: transactionHandler.ErrParentTransactionNotFound,
+
+			expectedStatus: api.ErrStatusTxFormat,
+			expectedArcErr: &api.ErrorFields{
+				Detail:    "Transaction is not in extended format, missing input scripts",
+				ExtraInfo: ptr.To("parent transaction not found"),
+				Title:     "Not extended format",
+				Type:      "https://arc.bitcoinsv.com/errors/460",
+				Txid:      ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
+				Status:    460,
 			},
 		},
 	}

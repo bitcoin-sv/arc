@@ -554,9 +554,7 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, subm
 	ok := errors.As(submitErr, &validatorErr)
 	if ok {
 		status = validatorErr.ArcErrorStatus
-	}
-
-	if errors.Is(submitErr, transactionHandler.ErrParentTransactionNotFound) {
+	} else if errors.Is(submitErr, transactionHandler.ErrParentTransactionNotFound) {
 		status = api.ErrStatusTxFormat
 	}
 

@@ -7,17 +7,9 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/blocktx"
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/metamorph/processor_response"
-	"github.com/bitcoin-sv/arc/metamorph/store"
-	"github.com/bitcoin-sv/arc/tracing"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
@@ -30,6 +22,16 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/bitcoin-sv/arc/blocktx"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/metamorph/processor_response"
+	"github.com/bitcoin-sv/arc/metamorph/store"
+	"github.com/bitcoin-sv/arc/tracing"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 func init() {
@@ -156,10 +158,13 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	if err != nil {
 		// if we have an error, we will return immediately
 		return nil, err
-	} else if transactionStatus != nil {
-		// if we have a transactionStatus, we can also return immediately
+	}
+
+	if transactionStatus != nil {
+		// if we have a transactionStatus, no need to process it
 		return transactionStatus, nil
 	}
+
 	// Convert gRPC req to store.StoreData struct...
 	sReq := &store.StoreData{
 		Hash:          hash,
@@ -170,61 +175,15 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		RawTx:         req.RawTx,
 	}
 
-	responseChannel := make(chan processor_response.StatusAndError)
-	defer func() {
-		close(responseChannel)
-	}()
-
-	// TODO check the context when API call ends
-	s.processor.ProcessTransaction(NewProcessorRequest(ctx, sReq, responseChannel))
-
 	next = gocore.NewStat("PutTransaction").NewStat("2: ProcessTransaction").AddTime(next)
 	span2, _ := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:Wait")
 	defer span2.Finish()
-
-	waitForStatus := req.WaitForStatus
-	if waitForStatus < metamorph_api.Status_RECEIVED || waitForStatus > metamorph_api.Status_SEEN_ON_NETWORK {
-		// wait for seen by default, this is the safest option
-		waitForStatus = metamorph_api.Status_SEEN_ON_NETWORK
-	}
 
 	defer func() {
 		gocore.NewStat("PutTransaction").NewStat("3: Wait for status").AddTime(next)
 	}()
 
-	// normally a node would respond very quickly, unless it's under heavy load
-	timeout := time.NewTimer(s.timeout)
-	for {
-		select {
-		case <-timeout.C:
-			return &metamorph_api.TransactionStatus{
-				TimedOut: true,
-				Status:   status,
-				Txid:     hash.String(),
-			}, nil
-		case res := <-responseChannel:
-			resStatus := res.Status
-			if resStatus != metamorph_api.Status_UNKNOWN {
-				status = resStatus
-			}
-
-			resErr := res.Err
-			if resErr != nil {
-				return &metamorph_api.TransactionStatus{
-					Status:       status,
-					Txid:         hash.String(),
-					RejectReason: resErr.Error(),
-				}, nil
-			}
-
-			if status >= waitForStatus {
-				return &metamorph_api.TransactionStatus{
-					Status: status,
-					Txid:   hash.String(),
-				}, nil
-			}
-		}
-	}
+	return s.processTransaction(ctx, req.WaitForStatus, sReq, hash.String(), metamorph_api.Status_RECEIVED), nil
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
@@ -233,25 +192,35 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	start := gocore.CurrentNanos()
 	defer gocore.NewStat("PutTransactions").AddTime(start)
 
-	// prepare response object before filling with tx statuses
-	ret := &metamorph_api.TransactionStatuses{}
-	ret.Statuses = make([]*metamorph_api.TransactionStatus, len(req.Transactions))
-
 	// for each transaction if we have status in the db already set that status in the response
 	// if not we store the transaction data and set the transaction status in response array to - STORED
-	requests := make([]*store.StoreData, 0, len(req.Transactions))
-	for ind, req := range req.Transactions {
-		err := validateCallbackURL(req.CallbackUrl)
+	type processTxInput struct {
+		data          *store.StoreData
+		waitForStatus metamorph_api.Status
+		responseIndex int
+	}
+
+	// prepare response object before filling with tx statuses
+	resp := &metamorph_api.TransactionStatuses{}
+	resp.Statuses = make([]*metamorph_api.TransactionStatus, len(req.Transactions))
+
+	processTxsInputMap := make(map[chainhash.Hash]processTxInput)
+
+	for ind, txReq := range req.Transactions {
+		err := validateCallbackURL(txReq.CallbackUrl)
 		if err != nil {
 			return nil, err
 		}
-		_, status, hash, transactionStatus, err := s.putTransactionInit(ctx, req, start)
+
+		_, status, hash, transactionStatus, err := s.putTransactionInit(ctx, txReq, start)
 		if err != nil {
 			// if we have an error, we will return immediately
 			return nil, err
-		} else if transactionStatus != nil {
-			// if we have a transactionStatus, we can also return immediately
-			ret.Statuses[ind] = transactionStatus
+		}
+
+		if transactionStatus != nil {
+			// if we have a transactionStatus, no need to process it another time
+			resp.Statuses[ind] = transactionStatus
 			continue
 		}
 
@@ -259,32 +228,91 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		sReq := &store.StoreData{
 			Hash:          hash,
 			Status:        status,
-			CallbackUrl:   req.CallbackUrl,
-			CallbackToken: req.CallbackToken,
-			MerkleProof:   req.MerkleProof,
-			RawTx:         req.RawTx,
+			CallbackUrl:   txReq.CallbackUrl,
+			CallbackToken: txReq.CallbackToken,
+			MerkleProof:   txReq.MerkleProof,
+			RawTx:         txReq.RawTx,
 		}
 
-		if err := s.processor.Set(NewProcessorRequest(ctx, sReq, nil)); err != nil {
+		if err = s.processor.Set(NewProcessorRequest(ctx, sReq, nil)); err != nil {
 			return nil, err
 		}
 
-		// set status stored
-		ret.Statuses[ind] = &metamorph_api.TransactionStatus{
-			Status: metamorph_api.Status_STORED,
-			Txid:   hash.String(),
+		processTxsInputMap[*hash] = processTxInput{
+			data:          sReq,
+			waitForStatus: txReq.WaitForStatus,
+			responseIndex: ind,
 		}
+	}
 
-		// add new request to process
-		requests = append(requests, sReq)
-	}
-	// As long as we have all the transactions in the db at this point, it's safe to continue processing them asynchronously
-	// we are not going to wait for their completion, we will be returning statuses for transactions - STORED
-	for _, request := range requests {
+	// Concurrently process each transaction and wait for the transaction status to return
+	wg := &sync.WaitGroup{}
+	for hash, input := range processTxsInputMap {
+		wg.Add(1)
 		// TODO check the context when API call ends
-		go s.processor.ProcessTransaction(NewProcessorRequest(ctx, request, nil))
+		go func(ctx context.Context, processTxInput processTxInput, txID string, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
+			defer wg.Done()
+
+			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, txID, metamorph_api.Status_STORED)
+
+			resp.Statuses[processTxInput.responseIndex] = statusNew
+		}(ctx, input, hash.String(), wg, resp)
 	}
-	return ret, nil
+
+	wg.Wait()
+
+	return resp, nil
+}
+
+func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, TxID string, latestStatus metamorph_api.Status) *metamorph_api.TransactionStatus {
+
+	responseChannel := make(chan processor_response.StatusAndError, 1)
+	defer func() {
+		close(responseChannel)
+	}()
+
+	// TODO check the context when API call ends
+	s.processor.ProcessTransaction(NewProcessorRequest(ctx, data, responseChannel))
+
+	if waitForStatus < metamorph_api.Status_RECEIVED || waitForStatus > metamorph_api.Status_SEEN_ON_NETWORK {
+		// wait for seen by default, this is the safest option
+		waitForStatus = metamorph_api.Status_SEEN_ON_NETWORK
+	}
+
+	// normally a node would respond very quickly, unless it's under heavy load
+	timeout := time.NewTimer(s.timeout)
+
+	for {
+		select {
+		case <-timeout.C:
+			return &metamorph_api.TransactionStatus{
+				TimedOut: true,
+				Status:   latestStatus,
+				Txid:     TxID,
+			}
+		case res := <-responseChannel:
+			latestStatus = res.Status
+
+			if res.Status < latestStatus {
+				continue
+			}
+
+			if resErr := res.Err; resErr != nil {
+				return &metamorph_api.TransactionStatus{
+					Status:       latestStatus,
+					Txid:         TxID,
+					RejectReason: resErr.Error(),
+				}
+			}
+
+			if latestStatus >= waitForStatus {
+				return &metamorph_api.TransactionStatus{
+					Status: latestStatus,
+					Txid:   TxID,
+				}
+			}
+		}
+	}
 }
 
 func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.TransactionRequest, start int64) (int64, metamorph_api.Status, *chainhash.Hash, *metamorph_api.TransactionStatus, error) {

@@ -86,8 +86,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 	transactionOptions, err := getTransactionOptions(params)
 	if err != nil {
-		e := api.ErrBadRequest
-		e.ExtraInfo = ptr.To(err.Error())
+		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return ctx.JSON(e.Status, e)
@@ -95,8 +94,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 	body, err := io.ReadAll(ctx.Request().Body)
 	if err != nil {
-		e := api.ErrBadRequest
-		e.ExtraInfo = ptr.To(err.Error())
+		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return ctx.JSON(e.Status, e)
@@ -107,8 +105,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	switch contentType {
 	case "text/plain":
 		if transaction, err = bt.NewTxFromString(string(body)); err != nil {
-			e := api.ErrBadRequest
-			e.ExtraInfo = ptr.To(err.Error())
+			e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(e.Status, e)
@@ -117,8 +114,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		var txHex string
 		var txBody api.POSTTransactionJSONRequestBody
 		if err = json.Unmarshal(body, &txBody); err != nil {
-			e := api.ErrBadRequest
-			e.ExtraInfo = ptr.To(err.Error())
+			e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(e.Status, e)
@@ -126,23 +122,20 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		txHex = txBody.RawTx
 
 		if transaction, err = bt.NewTxFromString(txHex); err != nil {
-			e := api.ErrBadRequest
-			e.ExtraInfo = ptr.To(err.Error())
+			e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(e.Status, e)
 		}
 	case "application/octet-stream":
 		if transaction, err = bt.NewTxFromBytes(body); err != nil {
-			e := api.ErrBadRequest
-			e.ExtraInfo = ptr.To(err.Error())
+			e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(e.Status, e)
 		}
 	default:
-		e := api.ErrBadRequest
-		e.ExtraInfo = ptr.To(fmt.Sprintf("given content-type %s does not match any of the allowed content-types", contentType))
+		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("given content-type %s does not match any of the allowed content-types", contentType))
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return ctx.JSON(e.Status, e)
@@ -177,23 +170,20 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 	tx, err := m.getTransactionStatus(tracingCtx, id)
 	if err != nil {
 		if errors.Is(err, transactionHandler.ErrTransactionNotFound) {
-			e := api.ErrNotFound
-			e.Detail = err.Error()
+			e := api.NewErrorFields(api.ErrStatusNotFound, err.Error())
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(e.Status, e)
 		}
 
-		e := api.ErrGeneric
-		e.ExtraInfo = ptr.To(err.Error())
+		e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return ctx.JSON(e.Status, e)
 	}
 
 	if tx == nil {
-		e := api.ErrNotFound
-		e.ExtraInfo = ptr.To("failed to find transaction")
+		e := api.NewErrorFields(api.ErrStatusNotFound, "failed to find transaction")
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return ctx.JSON(e.Status, e)
@@ -217,8 +207,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	// set the globals for all transactions in this request
 	transactionOptions, err := getTransactionsOptions(params)
 	if err != nil {
-		e := api.ErrBadRequest
-		e.ExtraInfo = ptr.To(err.Error())
+		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return ctx.JSON(e.Status, e)
@@ -250,8 +239,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	case "application/json":
 		body, err := io.ReadAll(ctx.Request().Body)
 		if err != nil {
-			e := api.ErrBadRequest
-			e.ExtraInfo = ptr.To(err.Error())
+			e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(e.Status, e)
@@ -259,8 +247,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 
 		var txBody api.POSTTransactionsJSONBody
 		if err = json.Unmarshal(body, &txBody); err != nil {
-			e := api.ErrBadRequest
-			e.ExtraInfo = ptr.To(err.Error())
+			e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return ctx.JSON(e.Status, e)
@@ -271,8 +258,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		for index, tx := range txBody {
 			transaction, err := bt.NewTxFromString(tx.RawTx)
 			if err != nil {
-				e := api.ErrBadRequest
-				e.ExtraInfo = ptr.To(err.Error())
+				e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 				transactions[index] = e
 				return ctx.JSON(e.Status, e)
 			}
@@ -302,8 +288,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			btTx, err := transactionReaderFn(reader)
 			if err != nil {
 				if !errors.Is(err, io.EOF) {
-					e := api.ErrBadRequest
-					e.ExtraInfo = ptr.To(err.Error())
+					e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 					span.SetTag(string(ext.Error), true)
 					span.LogFields(log.Error(err))
 					return ctx.JSON(e.Status, e)
@@ -314,8 +299,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			if btTx == nil {
 				if isFirstTransaction {
 					// no transactions found in the request body
-					e := api.ErrBadRequest
-					e.ExtraInfo = ptr.To("no transactions found in the request body")
+					e := api.NewErrorFields(api.ErrStatusBadRequest, "no transactions found in the request body")
 					span.SetTag(string(ext.Error), true)
 					span.LogFields(log.Error(err))
 					return ctx.JSON(e.Status, e)
@@ -331,8 +315,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		}
 
 	default:
-		e := api.ErrBadRequest
-		e.ExtraInfo = ptr.To(fmt.Sprintf("given content-type %s does not match any of the allowed content-types", contentType))
+		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("given content-type %s does not match any of the allowed content-types", contentType))
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return ctx.JSON(e.Status, e)
@@ -341,8 +324,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	// process all transactions
 	status, transactions, err = m.processTransactions(tracingCtx, transactionInputs, transactionOptions)
 	if err != nil {
-		e := api.ErrGeneric
-		e.ExtraInfo = ptr.To(fmt.Sprintf("failed to process transactions: %v", err))
+		e := api.NewErrorFields(api.ErrStatusGeneric, fmt.Errorf("failed to process transactions: %v", err).Error())
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return ctx.JSON(e.Status, e)
@@ -562,12 +544,16 @@ func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) 
 }
 
 func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, submitErr error) (api.StatusCode, *api.ErrorFields) {
+	if submitErr == nil {
+		return api.StatusOK, nil
+	}
+
 	status := api.ErrStatusGeneric
 
-	var arcErr *validator.Error
-	ok := errors.As(submitErr, &arcErr)
+	var validatorErr *validator.Error
+	ok := errors.As(submitErr, &validatorErr)
 	if ok {
-		status = arcErr.ArcErrorStatus
+		status = validatorErr.ArcErrorStatus
 	}
 
 	if errors.Is(submitErr, transactionHandler.ErrParentTransactionNotFound) {
@@ -575,18 +561,10 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, subm
 	}
 
 	// enrich the response with the error details
-	arcError := api.ErrByStatus[status]
-	if arcError == nil {
-		arcError = &api.ErrGeneric
-	}
+	arcError := api.NewErrorFields(status, submitErr.Error())
 
 	if transaction != nil {
-		txID := transaction.TxID()
-		arcError.Txid = &txID
-	}
-	if submitErr != nil {
-		extraInfo := submitErr.Error()
-		arcError.ExtraInfo = &extraInfo
+		arcError.Txid = ptr.To(transaction.TxID())
 	}
 
 	return status, arcError

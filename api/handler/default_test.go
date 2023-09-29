@@ -124,7 +124,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 			require.NoError(t, err)
-			assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+			assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 		}
 	})
 
@@ -147,7 +147,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 		err = defaultHandler.POSTTransaction(ctx, options)
 		require.NoError(t, err)
-		assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 
 		b := rec.Body.Bytes()
 		var bErr api.ErrorMalformed
@@ -168,7 +168,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 		err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 		require.NoError(t, err)
-		assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 	})
 
 	t.Run("invalid tx", func(t *testing.T) {
@@ -185,7 +185,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			rec, ctx := createEchoRequest(strings.NewReader("test"), contentType, "/v1/tx")
 			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 			require.NoError(t, err)
-			assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+			assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 
 			b := rec.Body.Bytes()
 			var bErr api.ErrorMalformed
@@ -316,7 +316,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 		err = defaultHandler.POSTTransactions(ctx, options)
 		require.NoError(t, err)
-		assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 
 		b := rec.Body.Bytes()
 		var bErr api.ErrorMalformed
@@ -337,7 +337,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 		err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
 		require.NoError(t, err)
-		assert.Equal(t, rec.Code, api.ErrBadRequest.Status)
+		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 	})
 
 	t.Run("invalid txs", func(t *testing.T) {
@@ -354,15 +354,17 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			rec, ctx := createEchoRequest(strings.NewReader("test"), contentType, "/v1/txs")
 			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
 			require.NoError(t, err)
-			assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+			assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 
 			b := rec.Body.Bytes()
 			var bErr api.ErrorBadRequest
 			err = json.Unmarshal(b, &bErr)
 			require.NoError(t, err)
 
-			assert.Equal(t, float64(api.ErrBadRequest.Status), bErr.Status)
-			assert.Equal(t, api.ErrBadRequest.Title, bErr.Title)
+			errBadRequest := api.NewErrorFields(api.ErrStatusBadRequest, "")
+
+			assert.Equal(t, float64(errBadRequest.Status), bErr.Status)
+			assert.Equal(t, errBadRequest.Title, bErr.Title)
 			if expectedError != "" {
 				require.NotNil(t, bErr.ExtraInfo)
 				assert.Equal(t, expectedError, *bErr.ExtraInfo)
@@ -401,7 +403,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			var bErr []api.ErrorFields
 			_ = json.Unmarshal(b, &bErr)
 
-			assert.Equal(t, api.ErrTxFormat.Status, bErr[0].Status)
+			assert.Equal(t, int(api.ErrStatusTxFormat), bErr[0].Status)
 			assert.Equal(t, "parent transaction not found", *bErr[0].ExtraInfo)
 		}
 	})
@@ -667,8 +669,8 @@ func Test_handleError(t *testing.T) {
 		{
 			name: "no error",
 
-			expectedStatus: api.ErrStatusGeneric,
-			expectedArcErr: &api.ErrGeneric,
+			expectedStatus: api.StatusOK,
+			expectedArcErr: nil,
 		},
 		{
 			name: "validator error",
@@ -678,7 +680,14 @@ func Test_handleError(t *testing.T) {
 			},
 
 			expectedStatus: api.ErrStatusBadRequest,
-			expectedArcErr: &api.ErrBadRequest,
+			expectedArcErr: &api.ErrorFields{
+				Detail:    "The request seems to be malformed and cannot be processed",
+				ExtraInfo: ptr.To("arc error 400: validation failed"),
+				Title:     "Bad request",
+				Type:      "https://arc.bitcoinsv.com/errors/400",
+				Txid:      ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
+				Status:    400,
+			},
 		},
 	}
 

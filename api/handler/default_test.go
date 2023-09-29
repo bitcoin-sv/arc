@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"k8s.io/utils/ptr"
@@ -14,16 +15,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/api/test"
-	"github.com/bitcoin-sv/arc/api/transactionHandler"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/api/test"
+	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/validator"
 )
 
 var contentTypes = []string{
@@ -649,6 +652,48 @@ func TestGetTransactionOptions(t *testing.T) {
 
 			require.Equal(t, tc.expectedOptions, options)
 
+		})
+	}
+}
+
+func Test_handleError(t *testing.T) {
+	tt := []struct {
+		name        string
+		submitError error
+
+		expectedStatus api.StatusCode
+		expectedArcErr *api.ErrorFields
+	}{
+		{
+			name: "no error",
+
+			expectedStatus: api.ErrStatusGeneric,
+			expectedArcErr: &api.ErrGeneric,
+		},
+		{
+			name: "validator error",
+			submitError: &validator.Error{
+				ArcErrorStatus: api.ErrStatusBadRequest,
+				Err:            errors.New("validation failed"),
+			},
+
+			expectedStatus: api.ErrStatusBadRequest,
+			expectedArcErr: &api.ErrBadRequest,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := ArcDefaultHandler{}
+
+			btTx, err := bt.NewTxFromString(validTx)
+			require.NoError(t, err)
+
+			ctx := context.Background()
+			status, arcErr := handler.handleError(ctx, btTx, tc.submitError)
+
+			require.Equal(t, tc.expectedStatus, status)
+			require.Equal(t, tc.expectedArcErr, arcErr)
 		})
 	}
 }

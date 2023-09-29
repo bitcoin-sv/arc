@@ -30,7 +30,6 @@ type TransactionStatus struct {
 	BlockHash   string
 	BlockHeight uint64
 	Status      string
-	TxStatus    string
 	ExtraInfo   string
 	Timestamp   int64
 }

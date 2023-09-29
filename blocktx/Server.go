@@ -117,7 +117,7 @@ func (s *Server) GetTransactionMerklePath(ctx context.Context, transaction *bloc
 	merklePath, err := s.store.GetTransactionMerklePath(ctx, hash)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			return nil, ErrTransactionNotFound
+			return nil, ErrTransactionNotFoundForMerklePath
 		}
 		return nil, err
 	}

@@ -408,26 +408,26 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 	if !txValidator.IsExtended(transaction) {
 		err := m.extendTransaction(tracingCtx, transaction)
 		if err != nil {
-			statusCode, arcError, errHandled := m.handleError(tracingCtx, transaction, err)
+			statusCode, arcError := m.handleError(tracingCtx, transaction, err)
 			m.logger.Errorf("failed to extend transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, err)
-			return statusCode, arcError, errHandled
+			return statusCode, arcError, err
 		}
 	}
 
 	validateSpan, validateCtx := opentracing.StartSpanFromContext(tracingCtx, "ArcDefaultHandler:ValidateTransaction")
 	if err := txValidator.ValidateTransaction(transaction); err != nil {
 		validateSpan.Finish()
-		statusCode, arcError, errHandled := m.handleError(validateCtx, transaction, err)
-		m.logger.Errorf("failed to validate transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, errHandled)
-		return statusCode, arcError, errHandled
+		statusCode, arcError := m.handleError(validateCtx, transaction, err)
+		m.logger.Errorf("failed to validate transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, err)
+		return statusCode, arcError, err
 	}
 	validateSpan.Finish()
 
 	tx, err := m.TransactionHandler.SubmitTransaction(tracingCtx, transaction.Bytes(), transactionOptions)
 	if err != nil {
-		statusCode, arcError, errHandled := m.handleError(tracingCtx, transaction, err)
-		m.logger.Errorf("failed to submit transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, errHandled)
-		return statusCode, arcError, errHandled
+		statusCode, arcError := m.handleError(tracingCtx, transaction, err)
+		m.logger.Errorf("failed to submit transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, err)
+		return statusCode, arcError, err
 	}
 
 	txID := tx.TxID
@@ -470,7 +470,8 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		if !txValidator.IsExtended(transaction) {
 			err := m.extendTransaction(tracingCtx, transaction)
 			if err != nil {
-				_, arcError, _ := m.handleError(tracingCtx, transaction, err)
+				statusCode, arcError := m.handleError(tracingCtx, transaction, err)
+				m.logger.Errorf("failed to extend transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, err)
 				txErrors = append(txErrors, arcError)
 				continue
 			}
@@ -480,7 +481,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		validateSpan, validateCtx := opentracing.StartSpanFromContext(tracingCtx, "ArcDefaultHandler:ValidateTransactions")
 		if err := txValidator.ValidateTransaction(transaction); err != nil {
 			validateSpan.Finish()
-			_, arcError, _ := m.handleError(validateCtx, transaction, err)
+			_, arcError := m.handleError(validateCtx, transaction, err)
 			txErrors = append(txErrors, arcError)
 			continue
 		}
@@ -491,9 +492,9 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	// submit all the validated array of transactiosn to metamorph endpoint
 	txStatuses, err := m.TransactionHandler.SubmitTransactions(tracingCtx, transactionsInput, transactionOptions)
 	if err != nil {
-		statusCode, arcError, errHandled := m.handleError(tracingCtx, nil, err)
-		m.logger.Errorf("failed to submit %d transactions, status Code: %d: %v", len(transactions), statusCode, errHandled)
-		return statusCode, []interface{}{arcError}, errHandled
+		statusCode, arcError := m.handleError(tracingCtx, nil, err)
+		m.logger.Errorf("failed to submit %d transactions, status Code: %d: %v", len(transactions), statusCode, err)
+		return statusCode, []interface{}{arcError}, err
 	}
 
 	// process returned transaction statuses and return to user
@@ -560,11 +561,13 @@ func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) 
 	return tx, nil
 }
 
-func (m ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, submitErr error) (api.StatusCode, interface{}, error) {
+func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, submitErr error) (api.StatusCode, *api.ErrorFields) {
 	status := api.ErrStatusGeneric
-	isArcError, ok := submitErr.(*validator.Error)
+
+	var arcErr *validator.Error
+	ok := errors.As(submitErr, &arcErr)
 	if ok {
-		status = isArcError.ArcErrorStatus
+		status = arcErr.ArcErrorStatus
 	}
 
 	if errors.Is(submitErr, transactionHandler.ErrParentTransactionNotFound) {
@@ -586,7 +589,7 @@ func (m ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, su
 		arcError.ExtraInfo = &extraInfo
 	}
 
-	return status, arcError, nil
+	return status, arcError
 }
 
 // getTransaction returns the transaction with the given id from a store

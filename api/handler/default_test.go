@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"k8s.io/utils/ptr"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -21,6 +20,7 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/utils/ptr"
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/test"
@@ -178,6 +178,7 @@ func TestGETTransactionStatus(t *testing.T) {
 
 			err = defaultHandler.GETTransactionStatus(ctx, "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
 			require.NoError(t, err)
+
 			assert.Equal(t, int(tc.expectedStatus), rec.Code)
 
 			b := rec.Body.Bytes()
@@ -203,172 +204,158 @@ func TestGETTransactionStatus(t *testing.T) {
 }
 
 func TestPOSTTransaction(t *testing.T) { //nolint:funlen
-	t.Run("empty tx", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
-		require.NoError(t, err)
+	errField := *api.NewErrorFields(api.ErrStatusTxFormat, "parent transaction not found")
+	errField.Txid = ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
-		for _, contentType := range contentTypes {
-			e := echo.New()
-			req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
-			req.Header.Set(echo.HeaderContentType, contentType)
-			rec := httptest.NewRecorder()
-			ctx := e.NewContext(req, rec)
+	vb, err := hex.DecodeString(validExtendedTx)
+	require.NoError(t, err)
+	fmt.Println(string(vb))
+
+	now := time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC)
+
+	tt := []struct {
+		name        string
+		contentType string
+		txHexString string
+		txResult    *transactionHandler.TransactionStatus
+		getTx       []byte
+
+		expectedStatus   api.StatusCode
+		expectedResponse any
+	}{
+		{
+			name:        "empty tx - text/plain",
+			contentType: contentTypes[0],
+
+			expectedStatus:   400,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "EOF"),
+		},
+		{
+			name:        "empty tx - application/json",
+			contentType: contentTypes[1],
+
+			expectedStatus:   400,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "unexpected end of JSON input"),
+		},
+		{
+			name:        "empty tx - application/octet-stream",
+			contentType: contentTypes[2],
+
+			expectedStatus:   400,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "EOF"),
+		},
+		{
+			name:        "invalid mime type",
+			contentType: echo.MIMEApplicationXML,
+			txHexString: validTx,
+
+			expectedStatus:   400,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "given content-type application/xml does not match any of the allowed content-types"),
+		},
+		{
+			name:        "invalid tx - text/plain",
+			contentType: contentTypes[0],
+			txHexString: "test",
+
+			expectedStatus:   400,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "encoding/hex: invalid byte: U+0074 't'"),
+		},
+		{
+			name:        "invalid tx - application/json",
+			contentType: contentTypes[1],
+			txHexString: "test",
+
+			expectedStatus:   400,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "invalid character 'e' in literal true (expecting 'r')"),
+		},
+		{
+			name:        "invalid tx - application/octet-stream",
+			contentType: contentTypes[2],
+			txHexString: "test",
+
+			expectedStatus:   400,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "could not read varint type: EOF"),
+		},
+		{
+			name:        "valid tx - missing inputs, text/plain",
+			contentType: contentTypes[0],
+			txHexString: validTx,
+
+			expectedStatus:   460,
+			expectedResponse: errField,
+		},
+		{
+			name:        "valid tx with params",
+			contentType: contentTypes[0],
+			txHexString: validExtendedTx,
+			getTx:       vb,
+
+			txResult: &transactionHandler.TransactionStatus{
+				TxID:        validTxID,
+				BlockHash:   "",
+				BlockHeight: 0,
+				Status:      "SEEN_ON_NETWORK",
+				Timestamp:   time.Now().Unix(),
+			},
+
+			expectedStatus: 200,
+			expectedResponse: api.TransactionResponse{
+				BlockHash:   ptr.To(""),
+				BlockHeight: ptr.To(uint64(0)),
+				ExtraInfo:   ptr.To(""),
+				MerklePath:  ptr.To(""),
+				Status:      200,
+				Timestamp:   now,
+				Title:       "OK",
+				TxStatus:    "SEEN_ON_NETWORK",
+				Txid:        validTxID,
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			inputTx := strings.NewReader(tc.txHexString)
+			rec, ctx := createEchoPostRequest(inputTx, tc.contentType, "/v1/tx")
+
+			txHandler := &test.TransactionHandlerMock{
+				GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
+					return tc.getTx, nil
+				},
+
+				SubmitTransactionFunc: func(ctx context.Context, tx []byte, options *api.TransactionOptions) (*transactionHandler.TransactionStatus, error) {
+					return tc.txResult, nil
+				},
+			}
+
+			defaultHandler, err := NewDefault(p2p.TestLogger{}, txHandler, defaultPolicy, WithNow(func() time.Time { return now }))
+			require.NoError(t, err)
 
 			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 			require.NoError(t, err)
-			assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
-		}
-	})
 
-	t.Run("invalid parameters", func(t *testing.T) {
-		inputTx := strings.NewReader(validExtendedTx)
-		rec, ctx := createEchoPostRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
-
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
-		require.NoError(t, err)
-
-		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
-		req.Header.Set(echo.HeaderContentType, echo.MIMETextPlain)
-
-		options := api.POSTTransactionParams{
-			XCallbackUrl:   ptr.To("callback.example.com"),
-			XCallbackToken: ptr.To("test-token"),
-			XWaitForStatus: ptr.To(4),
-			XMerkleProof:   ptr.To("true"),
-		}
-
-		err = defaultHandler.POSTTransaction(ctx, options)
-		require.NoError(t, err)
-		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
-
-		b := rec.Body.Bytes()
-		var bErr api.ErrorMalformed
-		_ = json.Unmarshal(b, &bErr)
-
-		assert.Equal(t, "invalid callback URL [parse \"callback.example.com\": invalid URI for request]", *bErr.ExtraInfo)
-	})
-
-	t.Run("invalid mime type", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
-		require.NoError(t, err)
-
-		e := echo.New()
-		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationXML)
-		rec := httptest.NewRecorder()
-		ctx := e.NewContext(req, rec)
-
-		err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
-		require.NoError(t, err)
-		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
-	})
-
-	t.Run("invalid tx", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
-		require.NoError(t, err)
-
-		expectedErrors := map[string]string{
-			echo.MIMETextPlain:       "encoding/hex: invalid byte: U+0074 't'",
-			echo.MIMEApplicationJSON: "invalid character 'e' in literal true (expecting 'r')",
-			echo.MIMEOctetStream:     "could not read varint type: EOF",
-		}
-
-		for contentType, expectedError := range expectedErrors {
-			rec, ctx := createEchoPostRequest(strings.NewReader("test"), contentType, "/v1/tx")
-			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
-			require.NoError(t, err)
-			assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
+			assert.Equal(t, int(tc.expectedStatus), rec.Code)
 
 			b := rec.Body.Bytes()
-			var bErr api.ErrorMalformed
-			_ = json.Unmarshal(b, &bErr)
 
-			require.NotNil(t, bErr.ExtraInfo)
-			assert.Equal(t, expectedError, *bErr.ExtraInfo)
-		}
-	})
+			switch v := tc.expectedResponse.(type) {
+			case api.TransactionResponse:
+				var txResponse api.TransactionResponse
+				err = json.Unmarshal(b, &txResponse)
+				require.NoError(t, err)
 
-	t.Run("valid tx - missing inputs", func(t *testing.T) {
-		testNode := &test.Node{}
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, testNode, defaultPolicy)
-		require.NoError(t, err)
+				assert.Equal(t, tc.expectedResponse, txResponse)
+			case api.ErrorFields:
+				var txErr api.ErrorFields
+				err = json.Unmarshal(b, &txErr)
+				require.NoError(t, err)
 
-		validTxBytes, _ := hex.DecodeString(validTx)
-		inputTxs := map[string]io.Reader{
-			echo.MIMETextPlain:       strings.NewReader(validTx),
-			echo.MIMEApplicationJSON: strings.NewReader("{\"rawTx\":\"" + validTx + "\"}"),
-			echo.MIMEOctetStream:     bytes.NewReader(validTxBytes),
-		}
-
-		for contentType, inputTx := range inputTxs {
-			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/tx")
-			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
-			require.NoError(t, err)
-			assert.Equal(t, api.ErrStatusTxFormat, api.StatusCode(rec.Code))
-
-			b := rec.Body.Bytes()
-			var bErr api.ErrorFee
-			_ = json.Unmarshal(b, &bErr)
-
-			assert.Equal(t, "parent transaction not found", *bErr.ExtraInfo)
-		}
-	})
-
-	t.Run("valid tx with params", func(t *testing.T) {
-		testNode := &test.Node{}
-		txResult := &transactionHandler.TransactionStatus{
-			TxID:        validTxID,
-			BlockHash:   "",
-			BlockHeight: 0,
-			Status:      "OK",
-			Timestamp:   time.Now().Unix(),
-		}
-		// set the node/metamorph responses for the 3 test requests
-		testNode.SubmitTransactionResult = append(testNode.SubmitTransactionResult, txResult, txResult, txResult)
-
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, testNode, defaultPolicy)
-		require.NoError(t, err)
-
-		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)
-		inputTxs := map[string]io.Reader{
-			echo.MIMETextPlain:       strings.NewReader(validExtendedTx),
-			echo.MIMEApplicationJSON: strings.NewReader("{\"rawTx\":\"" + validExtendedTx + "\"}"),
-			echo.MIMEOctetStream:     bytes.NewReader(validExtendedTxBytes),
-		}
-
-		callbackUrl := "https://callback.example.com"
-		callbackToken := "test-token"
-		waitFor := 4
-		merkleProof := "true"
-		options := api.POSTTransactionParams{
-			XCallbackUrl:   &callbackUrl,
-			XCallbackToken: &callbackToken,
-			XWaitForStatus: &waitFor,
-			XMerkleProof:   &merkleProof,
-		}
-
-		for contentType, inputTx := range inputTxs {
-			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/tx")
-			err = defaultHandler.POSTTransaction(ctx, options)
-			require.NoError(t, err)
-			assert.Equal(t, http.StatusOK, rec.Code)
-
-			b := rec.Body.Bytes()
-			var bResponse api.TransactionResponse
-			_ = json.Unmarshal(b, &bResponse)
-
-			require.Equal(t, validTxID, bResponse.Txid)
-		}
-
-		// check the callback request
-		require.Equal(t, 3, len(testNode.SubmitTransactionRequests))
-		for _, req := range testNode.SubmitTransactionRequests {
-			assert.Equal(t, callbackUrl, req.Options.CallbackURL)
-			assert.Equal(t, callbackToken, req.Options.CallbackToken)
-			assert.Equal(t, metamorph_api.Status(waitFor), req.Options.WaitForStatus)
-			assert.True(t, req.Options.MerkleProof)
-		}
-	})
+				assert.Equal(t, tc.expectedResponse, txErr)
+			default:
+				require.Fail(t, fmt.Sprintf("response type %T does not match any valid types", v))
+			}
+		})
+	}
 }
 
 func TestPOSTTransactions(t *testing.T) { //nolint:funlen

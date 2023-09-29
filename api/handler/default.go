@@ -31,14 +31,29 @@ type ArcDefaultHandler struct {
 	TransactionHandler transactionHandler.TransactionHandler
 	NodePolicy         *bitcoin.Settings
 	logger             utils.Logger
+	now                func() time.Time
 }
 
-func NewDefault(logger utils.Logger, transactionHandler transactionHandler.TransactionHandler, policy *bitcoin.Settings) (api.HandlerInterface, error) {
+func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
+	return func(p *ArcDefaultHandler) {
+		p.now = nowFunc
+	}
+}
+
+type Option func(f *ArcDefaultHandler)
+
+func NewDefault(logger utils.Logger, transactionHandler transactionHandler.TransactionHandler, policy *bitcoin.Settings, opts ...Option) (api.HandlerInterface, error) {
 
 	handler := &ArcDefaultHandler{
 		TransactionHandler: transactionHandler,
 		NodePolicy:         policy,
 		logger:             logger,
+		now:                time.Now,
+	}
+
+	// apply options
+	for _, opt := range opts {
+		opt(handler)
 	}
 
 	return handler, nil
@@ -60,7 +75,7 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
 				Satoshis: satoshis,
 			},
 		},
-		Timestamp: time.Now().UTC(),
+		Timestamp: m.now().UTC(),
 	})
 }
 
@@ -193,7 +208,7 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 		BlockHash:   &tx.BlockHash,
 		BlockHeight: &tx.BlockHeight,
 		TxStatus:    &tx.Status,
-		Timestamp:   time.Now(),
+		Timestamp:   m.now(),
 		Txid:        tx.TxID,
 		MerklePath:  &tx.MerklePath,
 	})
@@ -429,7 +444,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 		BlockHeight: &tx.BlockHeight,
 		TxStatus:    tx.Status,
 		ExtraInfo:   &extraInfo,
-		Timestamp:   time.Now(),
+		Timestamp:   m.now(),
 		Txid:        txID,
 		MerklePath:  &tx.MerklePath,
 	}, nil
@@ -490,7 +505,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 			BlockHeight: &txStatuses[ind].BlockHeight,
 			TxStatus:    tx.Status,
 			ExtraInfo:   &txStatuses[ind].ExtraInfo,
-			Timestamp:   time.Now(),
+			Timestamp:   m.now(),
 			Txid:        transactions[ind].TxID(),
 			MerklePath:  &txStatuses[ind].MerklePath,
 		})

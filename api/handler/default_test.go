@@ -110,6 +110,98 @@ func TestGETPolicy(t *testing.T) { //nolint:funlen
 	})
 }
 
+func TestGETTransactionStatus(t *testing.T) {
+	tt := []struct {
+		name                 string
+		txHandlerStatusFound *transactionHandler.TransactionStatus
+		txHandlerErr         error
+
+		expectedStatus   api.StatusCode
+		expectedResponse any
+	}{
+		{
+			name: "success",
+			txHandlerStatusFound: &transactionHandler.TransactionStatus{
+				TxID:      "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46",
+				Status:    "SEEN_ON_NETWORK",
+				Timestamp: time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC).Unix(),
+			},
+
+			expectedStatus: api.StatusOK,
+			expectedResponse: api.TransactionStatus{
+				MerklePath:  ptr.To(""),
+				BlockHeight: ptr.To(uint64(0)),
+				BlockHash:   ptr.To(""),
+				Timestamp:   time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC),
+				TxStatus:    ptr.To("SEEN_ON_NETWORK"),
+				Txid:        "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46",
+			},
+		},
+		{
+			name:                 "error - tx not found",
+			txHandlerStatusFound: nil,
+			txHandlerErr:         transactionHandler.ErrTransactionNotFound,
+
+			expectedStatus:   api.ErrStatusNotFound,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusNotFound, "transaction not found"),
+		},
+		{
+			name:                 "error - generic",
+			txHandlerStatusFound: nil,
+			txHandlerErr:         errors.New("some error"),
+
+			expectedStatus:   api.ErrStatusGeneric,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusGeneric, "some error"),
+		},
+		{
+			name:                 "error - no tx",
+			txHandlerStatusFound: nil,
+			txHandlerErr:         nil,
+
+			expectedStatus:   api.ErrStatusNotFound,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusNotFound, "failed to find transaction"),
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			rec, ctx := createEchoGetRequest("/v1/tx/c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
+
+			txHandler := &test.TransactionHandlerMock{
+				GetTransactionStatusFunc: func(ctx context.Context, txID string) (*transactionHandler.TransactionStatus, error) {
+					return tc.txHandlerStatusFound, tc.txHandlerErr
+				},
+			}
+
+			defaultHandler, err := NewDefault(p2p.TestLogger{}, txHandler, nil, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
+			require.NoError(t, err)
+
+			err = defaultHandler.GETTransactionStatus(ctx, "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
+			require.NoError(t, err)
+			assert.Equal(t, int(tc.expectedStatus), rec.Code)
+
+			b := rec.Body.Bytes()
+
+			switch v := tc.expectedResponse.(type) {
+			case api.TransactionStatus:
+				var txStatus api.TransactionStatus
+				err = json.Unmarshal(b, &txStatus)
+				require.NoError(t, err)
+
+				assert.Equal(t, tc.expectedResponse, txStatus)
+			case api.ErrorFields:
+				var txErr api.ErrorFields
+				err = json.Unmarshal(b, &txErr)
+				require.NoError(t, err)
+
+				assert.Equal(t, tc.expectedResponse, txErr)
+			default:
+				require.Fail(t, fmt.Sprintf("response type %T does not match any valid types", v))
+			}
+		})
+	}
+}
+
 func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	t.Run("empty tx", func(t *testing.T) {
 		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
@@ -130,7 +222,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 	t.Run("invalid parameters", func(t *testing.T) {
 		inputTx := strings.NewReader(validExtendedTx)
-		rec, ctx := createEchoRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
+		rec, ctx := createEchoPostRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
 
 		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
 		require.NoError(t, err)
@@ -182,7 +274,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, expectedError := range expectedErrors {
-			rec, ctx := createEchoRequest(strings.NewReader("test"), contentType, "/v1/tx")
+			rec, ctx := createEchoPostRequest(strings.NewReader("test"), contentType, "/v1/tx")
 			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 			require.NoError(t, err)
 			assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
@@ -209,7 +301,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
-			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/tx")
+			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/tx")
 			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 			require.NoError(t, err)
 			assert.Equal(t, api.ErrStatusTxFormat, api.StatusCode(rec.Code))
@@ -256,7 +348,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
-			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/tx")
+			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/tx")
 			err = defaultHandler.POSTTransaction(ctx, options)
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusOK, rec.Code)
@@ -300,7 +392,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("invalid parameters", func(t *testing.T) {
 		inputTx := strings.NewReader(validExtendedTx)
-		rec, ctx := createEchoRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
+		rec, ctx := createEchoPostRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
 		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
 		require.NoError(t, err)
 
@@ -351,7 +443,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, expectedError := range expectedErrors {
-			rec, ctx := createEchoRequest(strings.NewReader("test"), contentType, "/v1/txs")
+			rec, ctx := createEchoPostRequest(strings.NewReader("test"), contentType, "/v1/txs")
 			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
 			require.NoError(t, err)
 			assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
@@ -394,7 +486,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
-			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/txs")
+			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
 			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
 			require.NoError(t, err)
 			assert.Equal(t, api.StatusOK, api.StatusCode(rec.Code))
@@ -435,7 +527,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
-			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/txs")
+			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
 			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusOK, rec.Code)
@@ -449,10 +541,19 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	})
 }
 
-func createEchoRequest(inputTx io.Reader, contentType, target string) (*httptest.ResponseRecorder, echo.Context) {
+func createEchoPostRequest(inputTx io.Reader, contentType, target string) (*httptest.ResponseRecorder, echo.Context) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, target, inputTx)
 	req.Header.Set(echo.HeaderContentType, contentType)
+	rec := httptest.NewRecorder()
+	ctx := e.NewContext(req, rec)
+
+	return rec, ctx
+}
+
+func createEchoGetRequest(target string) (*httptest.ResponseRecorder, echo.Context) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, target, nil)
 	rec := httptest.NewRecorder()
 	ctx := e.NewContext(req, rec)
 

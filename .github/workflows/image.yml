@@ -1,0 +1,30 @@
+name: Image
+
+on:
+  push:
+    tags:
+      - '*'
+
+env:
+  AWS_ECR_REGISTRY: public.ecr.aws/c8v4l0k3
+
+jobs:
+  image:
+    name: Build and push image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to AWS ECR
+        id: login-ecr
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${AWS_ECR_REGISTRY}
+
+      - name: Build, tag, and push all images
+        run: |
+          docker build -t ${AWS_ECR_REGISTRY}/tapi:${{github.ref_name}} -t ${AWS_ECR_REGISTRY}/tapi:latest .
+          docker push -a ${AWS_ECR_REGISTRY}/tapi

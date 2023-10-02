@@ -106,7 +106,7 @@ func (c *Callbacker) sendCallback(key string, callback *callbacker_api.Callback)
 		BlockHash:   &blockHash,
 		BlockHeight: &callback.BlockHeight,
 		TxStatus:    &statusString,
-		Txid:        txId,
+		TxID:        txId,
 		Timestamp:   time.Now(),
 	}
 	statusBytes, err := json.Marshal(status)

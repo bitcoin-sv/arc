@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -82,9 +81,8 @@ func getNewWalletAddress(t *testing.T) (address, privateKey string) {
 		return
 	}
 
-
 	//scripthash
-	
+
 	fmt.Println("Result: " + out.String())
 	require.NoError(t, err)
 	address = strings.TrimSpace(out.String())
@@ -209,7 +207,7 @@ func getUnspentUtxos(t *testing.T, address string) []NodeUnspentUtxo {
 	require.NoError(t, err)
 
 	for _, utxo := range data {
-		fmt.Printf("UTXO Txid: %s, Amount: %f, Address: %s\n", utxo.Txid, utxo.Amount, utxo.Address)
+		fmt.Printf("UTXO TxID: %s, Amount: %f, Address: %s\n", utxo.Txid, utxo.Amount, utxo.Address)
 	}
 
 	// Create a map for fast lookup

@@ -56,6 +56,9 @@ clean_gen:
 	rm -f ./blocktx/blocktx_api/*.pb.go
 	rm -f ./callbacker/callbacker_api/*.pb.go
 
+coverage:
+	go test -cover ./...
+
 .PHONY: clean
 clean:
 	rm -f ./arc_*.tar.gz

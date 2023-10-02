@@ -5,10 +5,9 @@ package test
 
 import (
 	"context"
-	"sync"
-
 	arc "github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"sync"
 )
 
 // Ensure, that TransactionHandlerMock does implement transactionHandler.TransactionHandler.
@@ -58,14 +57,14 @@ type TransactionHandlerMock struct {
 		GetTransaction []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// Txid is the txID argument value.
+			// TxID is the txID argument value.
 			TxID string
 		}
 		// GetTransactionStatus holds details about calls to the GetTransactionStatus method.
 		GetTransactionStatus []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// Txid is the txID argument value.
+			// TxID is the txID argument value.
 			TxID string
 		}
 		// SubmitTransaction holds details about calls to the SubmitTransaction method.

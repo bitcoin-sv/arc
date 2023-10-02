@@ -24,7 +24,7 @@ func TestGetTransactionStatus(t *testing.T) {
 		{
 			TransactionID: TestTxID,
 			ExpectedTransactionStatus: TransactionStatus{
-				TxID:      TestTxID,
+				Txid:      TestTxID,
 				Timestamp: testTime,
 			},
 		},
@@ -43,7 +43,7 @@ func TestGetTransactionStatus(t *testing.T) {
 
 		require.NoError(t, err)
 
-		assert.Equal(t, c.TransactionID, resp.JSON200.TxID)
+		assert.Equal(t, c.TransactionID, resp.JSON200.Txid)
 		//Warn: assert.Equal(t, testtime, resp.JSON200.Timestamp) returns false
 		assert.True(t, c.ExpectedTransactionStatus.Timestamp.Equal(resp.JSON200.Timestamp))
 	}

@@ -200,7 +200,7 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 		BlockHeight: &tx.BlockHeight,
 		TxStatus:    &tx.Status,
 		Timestamp:   time.Now(),
-		TxID:        tx.TxID,
+		Txid:        tx.TxID,
 		MerklePath:  &tx.MerklePath,
 	})
 }

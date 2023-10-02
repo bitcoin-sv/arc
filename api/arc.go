@@ -325,8 +325,8 @@ type TransactionStatus struct {
 	// TxStatus Transaction status
 	TxStatus *string `json:"txStatus,omitempty"`
 
-	// TxID Transaction ID in hex
-	TxID string `json:"txid"`
+	// Txid Transaction ID in hex
+	Txid string `json:"txid"`
 }
 
 // TransactionSubmitStatus Transaction submit status

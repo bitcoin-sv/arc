@@ -25,12 +25,11 @@ type TransactionHandler interface {
 
 // TransactionStatus defines model for TransactionStatus.
 type TransactionStatus struct {
-	TxID        string `json:"tx_id"`
-	MerklePath  string `json:"merkle_path"`
-	BlockHash   string `json:"blockHash,omitempty"`
-	BlockHeight uint64 `json:"blockHeight,omitempty"`
-	Status      string `json:"status"`
-	TxStatus    string `json:"txStatus"`
-	ExtraInfo   string `json:"extraInfo,omitempty"`
-	Timestamp   int64  `json:"timestamp"`
+	TxID        string
+	MerklePath  string
+	BlockHash   string
+	BlockHeight uint64
+	Status      string
+	ExtraInfo   string
+	Timestamp   int64
 }

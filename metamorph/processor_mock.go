@@ -22,13 +22,13 @@ var _ ProcessorI = &ProcessorIMock{}
 //			GetPeersFunc: func() ([]string, []string) {
 //				panic("mock out the GetPeers method")
 //			},
-//			GetStatsFunc: func(debugItems bool) *metamorph.ProcessorStats {
+//			GetStatsFunc: func(debugItems bool) *ProcessorStats {
 //				panic("mock out the GetStats method")
 //			},
 //			LoadUnminedFunc: func()  {
 //				panic("mock out the LoadUnmined method")
 //			},
-//			ProcessTransactionFunc: func(req *metamorph.ProcessorRequest)  {
+//			ProcessTransactionFunc: func(req *ProcessorRequest)  {
 //				panic("mock out the ProcessTransaction method")
 //			},
 //			SendStatusForTransactionFunc: func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error) {
@@ -37,7 +37,7 @@ var _ ProcessorI = &ProcessorIMock{}
 //			SendStatusMinedForTransactionFunc: func(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error) {
 //				panic("mock out the SendStatusMinedForTransaction method")
 //			},
-//			SetFunc: func(req *metamorph.ProcessorRequest) error {
+//			SetFunc: func(req *ProcessorRequest) error {
 //				panic("mock out the Set method")
 //			},
 //		}

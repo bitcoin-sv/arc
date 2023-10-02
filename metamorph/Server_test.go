@@ -283,7 +283,7 @@ func TestValidateCallbackURL(t *testing.T) {
 	}
 }
 
-// //go:generate moq -pkg metamorph -out ./processor_mock.go . ProcessorI ==> Todo: moq has a bug for creating a mock file in the same package. Currently fixed manually --> Create issue on moq github repo
+//go:generate moq -out ./processor_mock.go . ProcessorI
 
 func TestPutTransactions(t *testing.T) {
 	hash0, err := chainhash.NewHashFromStr("9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a")

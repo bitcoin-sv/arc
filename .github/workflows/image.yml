@@ -5,6 +5,7 @@ on:
     tags:
       - '*'
 
+
 env:
   AWS_ECR_REGISTRY: public.ecr.aws/c8v4l0k3
 

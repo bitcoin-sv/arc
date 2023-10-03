@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"k8s.io/utils/ptr"
@@ -14,16 +15,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/api/test"
-	"github.com/bitcoin-sv/arc/api/transactionHandler"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/api/test"
+	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/validator"
 )
 
 var contentTypes = []string{
@@ -107,6 +110,98 @@ func TestGETPolicy(t *testing.T) { //nolint:funlen
 	})
 }
 
+func TestGETTransactionStatus(t *testing.T) {
+	tt := []struct {
+		name                 string
+		txHandlerStatusFound *transactionHandler.TransactionStatus
+		txHandlerErr         error
+
+		expectedStatus   api.StatusCode
+		expectedResponse any
+	}{
+		{
+			name: "success",
+			txHandlerStatusFound: &transactionHandler.TransactionStatus{
+				TxID:      "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46",
+				Status:    "SEEN_ON_NETWORK",
+				Timestamp: time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC).Unix(),
+			},
+
+			expectedStatus: api.StatusOK,
+			expectedResponse: api.TransactionStatus{
+				MerklePath:  ptr.To(""),
+				BlockHeight: ptr.To(uint64(0)),
+				BlockHash:   ptr.To(""),
+				Timestamp:   time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC),
+				TxStatus:    ptr.To("SEEN_ON_NETWORK"),
+				Txid:        "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46",
+			},
+		},
+		{
+			name:                 "error - tx not found",
+			txHandlerStatusFound: nil,
+			txHandlerErr:         transactionHandler.ErrTransactionNotFound,
+
+			expectedStatus:   api.ErrStatusNotFound,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusNotFound, "transaction not found"),
+		},
+		{
+			name:                 "error - generic",
+			txHandlerStatusFound: nil,
+			txHandlerErr:         errors.New("some error"),
+
+			expectedStatus:   api.ErrStatusGeneric,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusGeneric, "some error"),
+		},
+		{
+			name:                 "error - no tx",
+			txHandlerStatusFound: nil,
+			txHandlerErr:         nil,
+
+			expectedStatus:   api.ErrStatusNotFound,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusNotFound, "failed to find transaction"),
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			rec, ctx := createEchoGetRequest("/v1/tx/c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
+
+			txHandler := &test.TransactionHandlerMock{
+				GetTransactionStatusFunc: func(ctx context.Context, txID string) (*transactionHandler.TransactionStatus, error) {
+					return tc.txHandlerStatusFound, tc.txHandlerErr
+				},
+			}
+
+			defaultHandler, err := NewDefault(p2p.TestLogger{}, txHandler, nil, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
+			require.NoError(t, err)
+
+			err = defaultHandler.GETTransactionStatus(ctx, "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
+			require.NoError(t, err)
+			assert.Equal(t, int(tc.expectedStatus), rec.Code)
+
+			b := rec.Body.Bytes()
+
+			switch v := tc.expectedResponse.(type) {
+			case api.TransactionStatus:
+				var txStatus api.TransactionStatus
+				err = json.Unmarshal(b, &txStatus)
+				require.NoError(t, err)
+
+				assert.Equal(t, tc.expectedResponse, txStatus)
+			case api.ErrorFields:
+				var txErr api.ErrorFields
+				err = json.Unmarshal(b, &txErr)
+				require.NoError(t, err)
+
+				assert.Equal(t, tc.expectedResponse, txErr)
+			default:
+				require.Fail(t, fmt.Sprintf("response type %T does not match any valid types", v))
+			}
+		})
+	}
+}
+
 func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	t.Run("empty tx", func(t *testing.T) {
 		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
@@ -121,13 +216,13 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 			require.NoError(t, err)
-			assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+			assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 		}
 	})
 
 	t.Run("invalid parameters", func(t *testing.T) {
 		inputTx := strings.NewReader(validExtendedTx)
-		rec, ctx := createEchoRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
+		rec, ctx := createEchoPostRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
 
 		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
 		require.NoError(t, err)
@@ -144,7 +239,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 		err = defaultHandler.POSTTransaction(ctx, options)
 		require.NoError(t, err)
-		assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 
 		b := rec.Body.Bytes()
 		var bErr api.ErrorMalformed
@@ -165,7 +260,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 		err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 		require.NoError(t, err)
-		assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 	})
 
 	t.Run("invalid tx", func(t *testing.T) {
@@ -179,10 +274,10 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, expectedError := range expectedErrors {
-			rec, ctx := createEchoRequest(strings.NewReader("test"), contentType, "/v1/tx")
+			rec, ctx := createEchoPostRequest(strings.NewReader("test"), contentType, "/v1/tx")
 			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 			require.NoError(t, err)
-			assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+			assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 
 			b := rec.Body.Bytes()
 			var bErr api.ErrorMalformed
@@ -206,7 +301,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
-			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/tx")
+			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/tx")
 			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
 			require.NoError(t, err)
 			assert.Equal(t, api.ErrStatusTxFormat, api.StatusCode(rec.Code))
@@ -253,7 +348,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
-			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/tx")
+			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/tx")
 			err = defaultHandler.POSTTransaction(ctx, options)
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusOK, rec.Code)
@@ -297,7 +392,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("invalid parameters", func(t *testing.T) {
 		inputTx := strings.NewReader(validExtendedTx)
-		rec, ctx := createEchoRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
+		rec, ctx := createEchoPostRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
 		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
 		require.NoError(t, err)
 
@@ -313,7 +408,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 		err = defaultHandler.POSTTransactions(ctx, options)
 		require.NoError(t, err)
-		assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 
 		b := rec.Body.Bytes()
 		var bErr api.ErrorMalformed
@@ -334,7 +429,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 		err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
 		require.NoError(t, err)
-		assert.Equal(t, rec.Code, api.ErrBadRequest.Status)
+		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 	})
 
 	t.Run("invalid txs", func(t *testing.T) {
@@ -348,18 +443,20 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, expectedError := range expectedErrors {
-			rec, ctx := createEchoRequest(strings.NewReader("test"), contentType, "/v1/txs")
+			rec, ctx := createEchoPostRequest(strings.NewReader("test"), contentType, "/v1/txs")
 			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
 			require.NoError(t, err)
-			assert.Equal(t, api.ErrBadRequest.Status, rec.Code)
+			assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 
 			b := rec.Body.Bytes()
 			var bErr api.ErrorBadRequest
 			err = json.Unmarshal(b, &bErr)
 			require.NoError(t, err)
 
-			assert.Equal(t, float64(api.ErrBadRequest.Status), bErr.Status)
-			assert.Equal(t, api.ErrBadRequest.Title, bErr.Title)
+			errBadRequest := api.NewErrorFields(api.ErrStatusBadRequest, "")
+
+			assert.Equal(t, float64(errBadRequest.Status), bErr.Status)
+			assert.Equal(t, errBadRequest.Title, bErr.Title)
 			if expectedError != "" {
 				require.NotNil(t, bErr.ExtraInfo)
 				assert.Equal(t, expectedError, *bErr.ExtraInfo)
@@ -389,7 +486,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
-			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/txs")
+			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
 			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
 			require.NoError(t, err)
 			assert.Equal(t, api.StatusOK, api.StatusCode(rec.Code))
@@ -398,7 +495,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			var bErr []api.ErrorFields
 			_ = json.Unmarshal(b, &bErr)
 
-			assert.Equal(t, api.ErrTxFormat.Status, bErr[0].Status)
+			assert.Equal(t, int(api.ErrStatusTxFormat), bErr[0].Status)
 			assert.Equal(t, "parent transaction not found", *bErr[0].ExtraInfo)
 		}
 	})
@@ -430,7 +527,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
-			rec, ctx := createEchoRequest(inputTx, contentType, "/v1/txs")
+			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
 			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusOK, rec.Code)
@@ -444,10 +541,19 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	})
 }
 
-func createEchoRequest(inputTx io.Reader, contentType, target string) (*httptest.ResponseRecorder, echo.Context) {
+func createEchoPostRequest(inputTx io.Reader, contentType, target string) (*httptest.ResponseRecorder, echo.Context) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, target, inputTx)
 	req.Header.Set(echo.HeaderContentType, contentType)
+	rec := httptest.NewRecorder()
+	ctx := e.NewContext(req, rec)
+
+	return rec, ctx
+}
+
+func createEchoGetRequest(target string) (*httptest.ResponseRecorder, echo.Context) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, target, nil)
 	rec := httptest.NewRecorder()
 	ctx := e.NewContext(req, rec)
 
@@ -649,6 +755,83 @@ func TestGetTransactionOptions(t *testing.T) {
 
 			require.Equal(t, tc.expectedOptions, options)
 
+		})
+	}
+}
+
+func Test_handleError(t *testing.T) {
+	tt := []struct {
+		name        string
+		submitError error
+
+		expectedStatus api.StatusCode
+		expectedArcErr *api.ErrorFields
+	}{
+		{
+			name: "no error",
+
+			expectedStatus: api.StatusOK,
+			expectedArcErr: nil,
+		},
+		{
+			name:        "generic error",
+			submitError: errors.New("some error"),
+
+			expectedStatus: api.ErrStatusGeneric,
+			expectedArcErr: &api.ErrorFields{
+				Detail:    "Transaction could not be processed",
+				ExtraInfo: ptr.To("some error"),
+				Title:     "Generic error",
+				Type:      "https://arc.bitcoinsv.com/errors/409",
+				Txid:      ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
+				Status:    409,
+			},
+		},
+		{
+			name: "validator error",
+			submitError: &validator.Error{
+				ArcErrorStatus: api.ErrStatusBadRequest,
+				Err:            errors.New("validation failed"),
+			},
+
+			expectedStatus: api.ErrStatusBadRequest,
+			expectedArcErr: &api.ErrorFields{
+				Detail:    "The request seems to be malformed and cannot be processed",
+				ExtraInfo: ptr.To("arc error 400: validation failed"),
+				Title:     "Bad request",
+				Type:      "https://arc.bitcoinsv.com/errors/400",
+				Txid:      ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
+				Status:    400,
+			},
+		},
+		{
+			name:        "parent not found error",
+			submitError: transactionHandler.ErrParentTransactionNotFound,
+
+			expectedStatus: api.ErrStatusTxFormat,
+			expectedArcErr: &api.ErrorFields{
+				Detail:    "Transaction is not in extended format, missing input scripts",
+				ExtraInfo: ptr.To("parent transaction not found"),
+				Title:     "Not extended format",
+				Type:      "https://arc.bitcoinsv.com/errors/460",
+				Txid:      ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
+				Status:    460,
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := ArcDefaultHandler{}
+
+			btTx, err := bt.NewTxFromString(validTx)
+			require.NoError(t, err)
+
+			ctx := context.Background()
+			status, arcErr := handler.handleError(ctx, btTx, tc.submitError)
+
+			require.Equal(t, tc.expectedStatus, status)
+			require.Equal(t, tc.expectedArcErr, arcErr)
 		})
 	}
 }

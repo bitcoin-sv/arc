@@ -1,4 +1,4 @@
-name: Image
+name: Build and push OCI image to Docker Hub
 
 on:
   push:

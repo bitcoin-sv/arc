@@ -55,25 +55,24 @@ func (m *ProcessorResponseMap) logWriter() {
 	dir := path.Dir(m.logFile)
 	err := os.MkdirAll(dir, 0750)
 	if err != nil {
-
+		log.Fatalf("failed to create folder for logging %s", err)
 	}
 	f, err := os.OpenFile(m.logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
-		log.Printf("error opening log file: %s", err.Error())
+		log.Fatalf("error opening log file: %s", err)
 	}
 	defer f.Close()
 
 	for prl := range m.logWorker {
-
 		var b []byte
 		b, err = json.Marshal(prl)
 		if err != nil {
-			log.Printf("error marshaling log data: %s", err.Error())
+			log.Fatalf("error marshaling log data: %s", err)
 		}
 
 		_, err = f.WriteString(string(b) + "\n")
 		if err != nil {
-			log.Printf("error writing to log file: %s", err.Error())
+			log.Fatalf("error writing to log file: %s", err)
 		}
 	}
 }

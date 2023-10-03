@@ -33,14 +33,15 @@ func TestGetTransactionStatus(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(c.ExpectedTransactionStatus)
+			err := json.NewEncoder(w).Encode(c.ExpectedTransactionStatus)
+			require.NoError(t, err)
 		}))
 		defer ts.Close()
 
 		client, err := NewClientWithResponses(ts.URL)
+		require.NoError(t, err)
 
 		resp, err := client.GETTransactionStatusWithResponse(context.Background(), c.TransactionID)
-
 		require.NoError(t, err)
 
 		assert.Equal(t, c.TransactionID, resp.JSON200.Txid)

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/require"
 )
 

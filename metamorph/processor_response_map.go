@@ -53,9 +53,11 @@ func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
 
 func (m *ProcessorResponseMap) logWriter() {
 	dir := path.Dir(m.logFile)
-	_ = os.MkdirAll(dir, 0777)
+	err := os.MkdirAll(dir, 0750)
+	if err != nil {
 
-	f, err := os.OpenFile(m.logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	}
+	f, err := os.OpenFile(m.logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Printf("error opening log file: %s", err.Error())
 	}

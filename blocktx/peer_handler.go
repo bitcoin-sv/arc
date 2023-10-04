@@ -93,32 +93,33 @@ func init() {
 }
 
 func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *blocktx_api.Block) p2p.PeerHandlerI {
-	s := &PeerHandler{
-		store:    storeI,
-		blockCh:  blockCh,
-		logger:   logger,
-		workerCh: make(chan utils.Pair[*chainhash.Hash, p2p.PeerI], 100),
-		announcedCache: expiringmap.New[chainhash.Hash, []p2p.PeerI](10 * time.Minute).WithEvictionFunction(func(hash chainhash.Hash, peers []p2p.PeerI) bool {
-			msg := wire.NewMsgGetData()
+	evictionFunc := func(hash chainhash.Hash, peers []p2p.PeerI) bool {
+		msg := wire.NewMsgGetData()
 
-			if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, &hash)); err != nil {
-				logger.Errorf("EvictionFunc: could not create InvVect: %v", err)
-				return false
-			}
-
-			// Select a random peer to send the request to
-			peer := peers[rand.Intn(len(peers))]
-
-			if err := peer.WriteMsg(msg); err != nil {
-				logger.Errorf("EvictionFunc: failed to write message to peer: %v", err)
-				return false
-			}
-
-			logger.Infof("EvictionFunc: sent block request %s to peer %s", hash.String(), peer.String())
-
+		if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, &hash)); err != nil {
+			logger.Errorf("EvictionFunc: could not create InvVect: %v", err)
 			return false
-		}),
-		stats: safemap.New[string, *tracing.PeerHandlerStats](),
+		}
+		// Select a random peer to send the request to
+		peer := peers[rand.Intn(len(peers))]
+
+		if err := peer.WriteMsg(msg); err != nil {
+			logger.Errorf("EvictionFunc: failed to write message to peer: %v", err)
+			return false
+		}
+
+		logger.Infof("EvictionFunc: sent block request %s to peer %s", hash.String(), peer.String())
+
+		return false
+	}
+
+	s := &PeerHandler{
+		store:          storeI,
+		blockCh:        blockCh,
+		logger:         logger,
+		workerCh:       make(chan utils.Pair[*chainhash.Hash, p2p.PeerI], 100),
+		announcedCache: expiringmap.New[chainhash.Hash, []p2p.PeerI](10 * time.Minute).WithEvictionFunction(evictionFunc),
+		stats:          safemap.New[string, *tracing.PeerHandlerStats](),
 	}
 
 	_ = tracing.NewPeerHandlerCollector("blocktx", s.stats)

@@ -20,7 +20,6 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/test"
@@ -132,11 +131,11 @@ func TestGETTransactionStatus(t *testing.T) {
 
 			expectedStatus: api.StatusOK,
 			expectedResponse: api.TransactionStatus{
-				MerklePath:  ptr.To(""),
-				BlockHeight: ptr.To(uint64(0)),
-				BlockHash:   ptr.To(""),
+				MerklePath:  PtrTo(""),
+				BlockHeight: PtrTo(uint64(0)),
+				BlockHash:   PtrTo(""),
 				Timestamp:   time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC),
-				TxStatus:    ptr.To("SEEN_ON_NETWORK"),
+				TxStatus:    PtrTo("SEEN_ON_NETWORK"),
 				Txid:        "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46",
 			},
 		},
@@ -208,13 +207,13 @@ func TestGETTransactionStatus(t *testing.T) {
 
 func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	errFieldMissingInputs := *api.NewErrorFields(api.ErrStatusTxFormat, "parent transaction not found")
-	errFieldMissingInputs.Txid = ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
+	errFieldMissingInputs.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
 	errFieldSubmitTx := *api.NewErrorFields(api.ErrStatusGeneric, "failed to submit tx")
-	errFieldSubmitTx.Txid = ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
+	errFieldSubmitTx.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
 	errFieldValidation := *api.NewErrorFields(api.ErrStatusFees, "arc error 465: transaction fee of 0 sat is too low - minimum expected fee is 0 sat")
-	errFieldValidation.Txid = ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
+	errFieldValidation.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
 	now := time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC)
 
@@ -334,10 +333,10 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 			expectedStatus: 200,
 			expectedResponse: api.TransactionResponse{
-				BlockHash:   ptr.To(""),
-				BlockHeight: ptr.To(uint64(0)),
-				ExtraInfo:   ptr.To(""),
-				MerklePath:  ptr.To(""),
+				BlockHash:   PtrTo(""),
+				BlockHeight: PtrTo(uint64(0)),
+				ExtraInfo:   PtrTo(""),
+				MerklePath:  PtrTo(""),
 				Status:      200,
 				Timestamp:   now,
 				Title:       "OK",
@@ -421,10 +420,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		req.Header.Set(echo.HeaderContentType, echo.MIMETextPlain)
 
 		options := api.POSTTransactionsParams{
-			XCallbackUrl:   ptr.To("callback.example.com"),
-			XCallbackToken: ptr.To("test-token"),
-			XWaitForStatus: ptr.To(4),
-			XMerkleProof:   ptr.To("true"),
+			XCallbackUrl:   PtrTo("callback.example.com"),
+			XCallbackToken: PtrTo("test-token"),
+			XWaitForStatus: PtrTo(4),
+			XMerkleProof:   PtrTo("true"),
 		}
 
 		err = defaultHandler.POSTTransactions(ctx, options)
@@ -688,8 +687,8 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "valid callback url",
 			params: api.POSTTransactionParams{
-				XCallbackUrl:   ptr.To("http://api.callme.com"),
-				XCallbackToken: ptr.To("1234"),
+				XCallbackUrl:   PtrTo("http://api.callme.com"),
+				XCallbackToken: PtrTo("1234"),
 			},
 
 			expectedOptions: &api.TransactionOptions{
@@ -700,7 +699,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "invalid callback url",
 			params: api.POSTTransactionParams{
-				XCallbackUrl: ptr.To("api.callme.com"),
+				XCallbackUrl: PtrTo("api.callme.com"),
 			},
 
 			expectedErrorStr: "invalid callback URL",
@@ -708,7 +707,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "merkle proof - true",
 			params: api.POSTTransactionParams{
-				XMerkleProof: ptr.To("true"),
+				XMerkleProof: PtrTo("true"),
 			},
 
 			expectedOptions: &api.TransactionOptions{
@@ -718,7 +717,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "merkle proof - 1",
 			params: api.POSTTransactionParams{
-				XMerkleProof: ptr.To("1"),
+				XMerkleProof: PtrTo("1"),
 			},
 
 			expectedOptions: &api.TransactionOptions{
@@ -728,7 +727,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "wait for status - 1",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: ptr.To(1),
+				XWaitForStatus: PtrTo(1),
 			},
 
 			expectedOptions: &api.TransactionOptions{},
@@ -736,7 +735,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "wait for status - 2",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: ptr.To(2),
+				XWaitForStatus: PtrTo(2),
 			},
 
 			expectedOptions: &api.TransactionOptions{
@@ -746,7 +745,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "wait for status - 6",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: ptr.To(6),
+				XWaitForStatus: PtrTo(6),
 			},
 
 			expectedOptions: &api.TransactionOptions{
@@ -756,7 +755,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "wait for status - 7",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: ptr.To(7),
+				XWaitForStatus: PtrTo(7),
 			},
 
 			expectedOptions: &api.TransactionOptions{},
@@ -801,10 +800,10 @@ func Test_handleError(t *testing.T) {
 			expectedStatus: api.ErrStatusGeneric,
 			expectedArcErr: &api.ErrorFields{
 				Detail:    "Transaction could not be processed",
-				ExtraInfo: ptr.To("some error"),
+				ExtraInfo: PtrTo("some error"),
 				Title:     "Generic error",
 				Type:      "https://arc.bitcoinsv.com/errors/409",
-				Txid:      ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
+				Txid:      PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
 				Status:    409,
 			},
 		},
@@ -818,10 +817,10 @@ func Test_handleError(t *testing.T) {
 			expectedStatus: api.ErrStatusBadRequest,
 			expectedArcErr: &api.ErrorFields{
 				Detail:    "The request seems to be malformed and cannot be processed",
-				ExtraInfo: ptr.To("arc error 400: validation failed"),
+				ExtraInfo: PtrTo("arc error 400: validation failed"),
 				Title:     "Bad request",
 				Type:      "https://arc.bitcoinsv.com/errors/400",
-				Txid:      ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
+				Txid:      PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
 				Status:    400,
 			},
 		},
@@ -832,10 +831,10 @@ func Test_handleError(t *testing.T) {
 			expectedStatus: api.ErrStatusTxFormat,
 			expectedArcErr: &api.ErrorFields{
 				Detail:    "Transaction is not in extended format, missing input scripts",
-				ExtraInfo: ptr.To("parent transaction not found"),
+				ExtraInfo: PtrTo("parent transaction not found"),
 				Title:     "Not extended format",
 				Type:      "https://arc.bitcoinsv.com/errors/460",
-				Txid:      ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
+				Txid:      PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
 				Status:    460,
 			},
 		},

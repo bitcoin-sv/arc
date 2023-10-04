@@ -204,21 +204,24 @@ func TestGETTransactionStatus(t *testing.T) {
 }
 
 func TestPOSTTransaction(t *testing.T) { //nolint:funlen
-	errField := *api.NewErrorFields(api.ErrStatusTxFormat, "parent transaction not found")
-	errField.Txid = ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
+	errFieldMissingInputs := *api.NewErrorFields(api.ErrStatusTxFormat, "parent transaction not found")
+	errFieldMissingInputs.Txid = ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
-	vb, err := hex.DecodeString(validExtendedTx)
+	errFieldSubmitTx := *api.NewErrorFields(api.ErrStatusGeneric, "failed to submit tx")
+	errFieldSubmitTx.Txid = ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
+
+	validExtendedTxBytes, err := hex.DecodeString(validExtendedTx)
 	require.NoError(t, err)
-	fmt.Println(string(vb))
 
 	now := time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC)
 
 	tt := []struct {
-		name        string
-		contentType string
-		txHexString string
-		txResult    *transactionHandler.TransactionStatus
-		getTx       []byte
+		name             string
+		contentType      string
+		txHexString      string
+		getTx            []byte
+		submitTxResponse *transactionHandler.TransactionStatus
+		submitTxErr      error
 
 		expectedStatus   api.StatusCode
 		expectedResponse any
@@ -290,15 +293,26 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: validTx,
 
 			expectedStatus:   460,
-			expectedResponse: errField,
+			expectedResponse: errFieldMissingInputs,
+		},
+		{
+			name:             "valid tx with params - submit error",
+			contentType:      contentTypes[0],
+			txHexString:      validExtendedTx,
+			getTx:            validExtendedTxBytes,
+			submitTxErr:      errors.New("failed to submit tx"),
+			submitTxResponse: nil,
+
+			expectedStatus:   409,
+			expectedResponse: errFieldSubmitTx,
 		},
 		{
 			name:        "valid tx with params",
 			contentType: contentTypes[0],
 			txHexString: validExtendedTx,
-			getTx:       vb,
+			getTx:       validExtendedTxBytes,
 
-			txResult: &transactionHandler.TransactionStatus{
+			submitTxResponse: &transactionHandler.TransactionStatus{
 				TxID:        validTxID,
 				BlockHash:   "",
 				BlockHeight: 0,
@@ -332,7 +346,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				},
 
 				SubmitTransactionFunc: func(ctx context.Context, tx []byte, options *api.TransactionOptions) (*transactionHandler.TransactionStatus, error) {
-					return tc.txResult, nil
+					return tc.submitTxResponse, tc.submitTxErr
 				},
 			}
 

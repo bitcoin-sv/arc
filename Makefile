@@ -17,7 +17,7 @@ test:
 
 .PHONY: lint
 lint:
-	golangci-lint run --skip-dirs p2p/wire
+	golangci-lint run -v ./...
 	staticcheck ./...
 
 .PHONY: run
@@ -57,8 +57,8 @@ clean_gen:
 	rm -f ./callbacker/callbacker_api/*.pb.go
 
 coverage:
-	go test -cover ./...
-
+	rm ./cov.out
+	go test -coverprofile=./cov.out ./...
 .PHONY: clean
 clean:
 	rm -f ./arc_*.tar.gz

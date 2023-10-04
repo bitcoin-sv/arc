@@ -7,10 +7,6 @@ all: deps lint build test
 deps:
 	go mod download
 
-.PHONY: build
-build:
-	sh build.sh
-
 .PHONY: test
 test:
 	go test -race -count=1 ./...

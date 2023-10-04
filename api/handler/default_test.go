@@ -41,6 +41,9 @@ var (
 	validExtendedTx = "010000000000000000ef01358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffffc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
 	validTxID       = "a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"
 
+	inputTx         = "0100000001fbbe01d83cb1f53a63ef91c0fce5750cbd8075efef5acd2ff229506a45ab832c010000006a473044022064be2f304950a87782b44e772390836aa613f40312a0df4993e9c5123d0c492d02202009b084b66a3da939fb7dc5d356043986539cac4071372d0a6481d5b5e418ca412103fc12a81e5213e30c7facc15581ac1acbf26a8612a3590ffb48045084b097d52cffffffff02bf010000000000001976a914c2ca67db517c0c972b9a6eb1181880ed3a528e3188acc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac00000000"
+	inputTxBytes, _ = hex.DecodeString(validTx)
+
 	defaultPolicy = &bitcoin.Settings{
 		ExcessiveBlockSize:              2000000000,
 		BlockMaxSize:                    512000000,
@@ -210,8 +213,8 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	errFieldSubmitTx := *api.NewErrorFields(api.ErrStatusGeneric, "failed to submit tx")
 	errFieldSubmitTx.Txid = ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
-	validExtendedTxBytes, err := hex.DecodeString(validExtendedTx)
-	require.NoError(t, err)
+	errFieldValidation := *api.NewErrorFields(api.ErrStatusFees, "arc error 465: transaction fee of 0 sat is too low - minimum expected fee is 0 sat")
+	errFieldValidation.Txid = ptr.To("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
 	now := time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC)
 
@@ -296,10 +299,19 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			expectedResponse: errFieldMissingInputs,
 		},
 		{
-			name:             "valid tx with params - submit error",
+			name:        "valid tx - fees too low",
+			contentType: contentTypes[0],
+			txHexString: validTx,
+			getTx:       inputTxBytes,
+
+			expectedStatus:   465,
+			expectedResponse: errFieldValidation,
+		},
+		{
+			name:             "valid tx - submit error",
 			contentType:      contentTypes[0],
 			txHexString:      validExtendedTx,
-			getTx:            validExtendedTxBytes,
+			getTx:            inputTxBytes,
 			submitTxErr:      errors.New("failed to submit tx"),
 			submitTxResponse: nil,
 
@@ -307,10 +319,10 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			expectedResponse: errFieldSubmitTx,
 		},
 		{
-			name:        "valid tx with params",
+			name:        "valid tx - success",
 			contentType: contentTypes[0],
 			txHexString: validExtendedTx,
-			getTx:       validExtendedTxBytes,
+			getTx:       inputTxBytes,
 
 			submitTxResponse: &transactionHandler.TransactionStatus{
 				TxID:        validTxID,

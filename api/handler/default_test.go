@@ -231,7 +231,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "EOF"),
 		},
 		{
-			name:        "empty tx - application/json",
+			name:        "invalid tx - application/json",
 			contentType: contentTypes[1],
 
 			expectedStatus:   400,
@@ -261,12 +261,20 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "encoding/hex: invalid byte: U+0074 't'"),
 		},
 		{
-			name:        "invalid tx - application/json",
+			name:        "invalid json - application/json",
 			contentType: contentTypes[1],
 			txHexString: "test",
 
 			expectedStatus:   400,
 			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "invalid character 'e' in literal true (expecting 'r')"),
+		},
+		{
+			name:        "invalid tx - application/json",
+			contentType: contentTypes[1],
+			txHexString: fmt.Sprintf("{\"txHex\": \"%s\"}", validTx),
+
+			expectedStatus:   400,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "EOF"),
 		},
 		{
 			name:        "invalid tx - application/octet-stream",

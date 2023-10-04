@@ -57,7 +57,7 @@ clean_gen:
 	rm -f ./callbacker/callbacker_api/*.pb.go
 
 coverage:
-	rm ./cov.out
+	rm -f ./cov.out
 	go test -coverprofile=./cov.out ./...
 .PHONY: clean
 clean:

@@ -3,13 +3,12 @@ package blocktx
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"database/sql"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
-	"math/big"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -102,12 +101,7 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 			return false
 		}
 		// Select a random peer to send the request to
-		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(peers))))
-		if err != nil {
-			logger.Errorf("EvictionFunc: failed to pick random node: %v", err)
-			return false
-		}
-		peer := peers[n.Int64()]
+		peer := peers[rand.Intn(len(peers))]
 
 		if err := peer.WriteMsg(msg); err != nil {
 			logger.Errorf("EvictionFunc: failed to write message to peer: %v", err)

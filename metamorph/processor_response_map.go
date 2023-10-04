@@ -67,12 +67,14 @@ func (m *ProcessorResponseMap) logWriter() {
 		var b []byte
 		b, err = json.Marshal(prl)
 		if err != nil {
-			log.Fatalf("error marshaling log data: %s", err)
+			log.Printf("error marshaling log data: %s", err)
+			continue
 		}
 
 		_, err = f.WriteString(string(b) + "\n")
 		if err != nil {
-			log.Fatalf("error writing to log file: %s", err)
+			log.Printf("error writing to log file: %s", err)
+			continue
 		}
 	}
 }

@@ -17,7 +17,7 @@ test:
 
 .PHONY: lint
 lint:
-	golangci-lint run --skip-dirs p2p/wire
+	golangci-lint run -v ./...
 	staticcheck ./...
 
 .PHONY: run

@@ -41,8 +41,8 @@ var (
 	validExtendedTx = "010000000000000000ef01358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffffc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
 	validTxID       = "a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"
 
-	inputTx         = "0100000001fbbe01d83cb1f53a63ef91c0fce5750cbd8075efef5acd2ff229506a45ab832c010000006a473044022064be2f304950a87782b44e772390836aa613f40312a0df4993e9c5123d0c492d02202009b084b66a3da939fb7dc5d356043986539cac4071372d0a6481d5b5e418ca412103fc12a81e5213e30c7facc15581ac1acbf26a8612a3590ffb48045084b097d52cffffffff02bf010000000000001976a914c2ca67db517c0c972b9a6eb1181880ed3a528e3188acc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac00000000"
-	inputTxBytes, _ = hex.DecodeString(validTx)
+	inputTxLowFees         = "0100000001fbbe01d83cb1f53a63ef91c0fce5750cbd8075efef5acd2ff229506a45ab832c010000006a473044022064be2f304950a87782b44e772390836aa613f40312a0df4993e9c5123d0c492d02202009b084b66a3da939fb7dc5d356043986539cac4071372d0a6481d5b5e418ca412103fc12a81e5213e30c7facc15581ac1acbf26a8612a3590ffb48045084b097d52cffffffff02bf010000000000001976a914c2ca67db517c0c972b9a6eb1181880ed3a528e3188acD0070000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac00000000"
+	inputTxLowFeesBytes, _ = hex.DecodeString(inputTxLowFees)
 
 	defaultPolicy = &bitcoin.Settings{
 		ExcessiveBlockSize:              2000000000,
@@ -302,7 +302,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			name:        "valid tx - fees too low",
 			contentType: contentTypes[0],
 			txHexString: validTx,
-			getTx:       inputTxBytes,
+			getTx:       inputTxLowFeesBytes,
 
 			expectedStatus:   465,
 			expectedResponse: errFieldValidation,
@@ -311,7 +311,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			name:             "valid tx - submit error",
 			contentType:      contentTypes[0],
 			txHexString:      validExtendedTx,
-			getTx:            inputTxBytes,
+			getTx:            inputTxLowFeesBytes,
 			submitTxErr:      errors.New("failed to submit tx"),
 			submitTxResponse: nil,
 
@@ -322,7 +322,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			name:        "valid tx - success",
 			contentType: contentTypes[0],
 			txHexString: validExtendedTx,
-			getTx:       inputTxBytes,
+			getTx:       inputTxLowFeesBytes,
 
 			submitTxResponse: &transactionHandler.TransactionStatus{
 				TxID:        validTxID,

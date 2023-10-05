@@ -16,10 +16,6 @@ lint:
 	golangci-lint run -v ./...
 	staticcheck ./...
 
-.PHONY: run
-run:
-	sh run.sh
-
 .PHONY: gen_go
 gen_go:
 	go generate ./...

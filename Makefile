@@ -80,7 +80,9 @@ clean_gen:
 
 coverage:
 	rm -f ./cov.out
-	go test -coverprofile=./cov.out ./...
+	go test -coverprofile=./cov.out -covermode=atomic ./... 2>&1 > gotest.out
+	cat gotest.out | go-junit-report -set-exit-code > report.xml
+	goverreport -coverprofile cov.out -packages -sort block
 
 .PHONY: clean
 clean:

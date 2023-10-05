@@ -7,10 +7,6 @@ all: deps lint build test
 deps:
 	go mod download
 
-.PHONY: build
-build:
-	sh build.sh
-
 .PHONY: test
 test:
 	go test -race -count=1 ./...
@@ -19,10 +15,6 @@ test:
 lint:
 	golangci-lint run -v ./...
 	staticcheck ./...
-
-.PHONY: run
-run:
-	sh run.sh
 
 .PHONY: gen_go
 gen_go:
@@ -61,7 +53,7 @@ clean_gen:
 	rm -f ./callbacker/callbacker_api/*.pb.go
 
 coverage:
-	rm ./cov.out
+	rm -f ./cov.out
 	go test -coverprofile=./cov.out ./...
 .PHONY: clean
 clean:

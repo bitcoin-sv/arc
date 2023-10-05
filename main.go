@@ -37,8 +37,7 @@ func main() {
 	startCallbacker := flag.Bool("callbacker", false, "start callbacker")
 	useTracer := flag.Bool("tracer", false, "start tracer")
 	help := flag.Bool("help", false, "Show help")
-	var regtest bool
-	flag.BoolVar(&regtest, "regtest", false, "Use regtest-config.yml instead of the default config.yaml")
+	config := flag.String("config", ".", "path to configuration yaml file")
 
 	flag.Parse()
 
@@ -64,15 +63,8 @@ func main() {
 		return
 	}
 
-	if regtest {
-		viper.SetConfigName("regtest-config") // name of retest config file (without extension)
-		fmt.Println("using regtest")
-	} else {
-		viper.SetConfigName("config") // name of default config file (without extension)
-	}
-
-	viper.SetConfigType("yaml") // REQUIRED if the config file does not have the extension in the name
-	viper.AddConfigPath(".")    // optionally look for config in the working directory
+	viper.SetConfigType("yaml")  // REQUIRED if the config file does not have the extension in the name
+	viper.AddConfigPath(*config) // optionally look for config in the working directory
 
 	err := viper.ReadInConfig() // Find and read the config file
 	if err != nil {             // Handle errors reading the config file

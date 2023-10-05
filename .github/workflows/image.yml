@@ -24,6 +24,9 @@ jobs:
         with:
           images: bsvb/arc
 
+      - name: Build release
+        run: make build_release
+
       - name: Build and push image
         uses: docker/build-push-action@v5
         with:

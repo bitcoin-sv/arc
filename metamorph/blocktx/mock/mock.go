@@ -17,40 +17,43 @@ var _ blocktx.ClientI = &ClientIMock{}
 
 // ClientIMock is a mock implementation of blocktx.ClientI.
 //
-// 	func TestSomethingThatUsesClientI(t *testing.T) {
+//	func TestSomethingThatUsesClientI(t *testing.T) {
 //
-// 		// make and configure a mocked blocktx.ClientI
-// 		mockedClientI := &ClientIMock{
-// 			GetBlockFunc: func(ctx context.Context, blockHash *chainhash.Hash) (*blocktx_api.Block, error) {
-// 				panic("mock out the GetBlock method")
-// 			},
-// 			GetLastProcessedBlockFunc: func(ctx context.Context) (*blocktx_api.Block, error) {
-// 				panic("mock out the GetLastProcessedBlock method")
-// 			},
-// 			GetMinedTransactionsForBlockFunc: func(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
-// 				panic("mock out the GetMinedTransactionsForBlock method")
-// 			},
-// 			GetTransactionBlockFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error) {
-// 				panic("mock out the GetTransactionBlock method")
-// 			},
-// 			GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
-// 				panic("mock out the GetTransactionBlocks method")
-// 			},
-// 			LocateTransactionFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
-// 				panic("mock out the LocateTransaction method")
-// 			},
-// 			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
-// 				panic("mock out the RegisterTransaction method")
-// 			},
-// 			StartFunc: func(minedBlockChan chan *blocktx_api.Block)  {
-// 				panic("mock out the Start method")
-// 			},
-// 		}
+//		// make and configure a mocked blocktx.ClientI
+//		mockedClientI := &ClientIMock{
+//			GetBlockFunc: func(ctx context.Context, blockHash *chainhash.Hash) (*blocktx_api.Block, error) {
+//				panic("mock out the GetBlock method")
+//			},
+//			GetLastProcessedBlockFunc: func(ctx context.Context) (*blocktx_api.Block, error) {
+//				panic("mock out the GetLastProcessedBlock method")
+//			},
+//			GetMinedTransactionsForBlockFunc: func(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
+//				panic("mock out the GetMinedTransactionsForBlock method")
+//			},
+//			GetTransactionBlockFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error) {
+//				panic("mock out the GetTransactionBlock method")
+//			},
+//			GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
+//				panic("mock out the GetTransactionBlocks method")
+//			},
+//			GetTransactionMerklePathFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
+//				panic("mock out the GetTransactionMerklePath method")
+//			},
+//			LocateTransactionFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
+//				panic("mock out the LocateTransaction method")
+//			},
+//			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
+//				panic("mock out the RegisterTransaction method")
+//			},
+//			StartFunc: func(minedBlockChan chan *blocktx_api.Block)  {
+//				panic("mock out the Start method")
+//			},
+//		}
 //
-// 		// use mockedClientI in code that requires blocktx.ClientI
-// 		// and then make assertions.
+//		// use mockedClientI in code that requires blocktx.ClientI
+//		// and then make assertions.
 //
-// 	}
+//	}
 type ClientIMock struct {
 	// GetBlockFunc mocks the GetBlock method.
 	GetBlockFunc func(ctx context.Context, blockHash *chainhash.Hash) (*blocktx_api.Block, error)
@@ -67,11 +70,11 @@ type ClientIMock struct {
 	// GetTransactionBlocksFunc mocks the GetTransactionBlocks method.
 	GetTransactionBlocksFunc func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error)
 
+	// GetTransactionMerklePathFunc mocks the GetTransactionMerklePath method.
+	GetTransactionMerklePathFunc func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
+
 	// LocateTransactionFunc mocks the LocateTransaction method.
 	LocateTransactionFunc func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
-
-	// GetTransactionMerklePath returns merkle path of the transaction
-	GetTransactionMerklePathFunc func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error)
@@ -114,6 +117,13 @@ type ClientIMock struct {
 			// Transaction is the transaction argument value.
 			Transaction *blocktx_api.Transactions
 		}
+		// GetTransactionMerklePath holds details about calls to the GetTransactionMerklePath method.
+		GetTransactionMerklePath []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Transaction is the transaction argument value.
+			Transaction *blocktx_api.Transaction
+		}
 		// LocateTransaction holds details about calls to the LocateTransaction method.
 		LocateTransaction []struct {
 			// Ctx is the ctx argument value.
@@ -139,6 +149,7 @@ type ClientIMock struct {
 	lockGetMinedTransactionsForBlock sync.RWMutex
 	lockGetTransactionBlock          sync.RWMutex
 	lockGetTransactionBlocks         sync.RWMutex
+	lockGetTransactionMerklePath     sync.RWMutex
 	lockLocateTransaction            sync.RWMutex
 	lockRegisterTransaction          sync.RWMutex
 	lockStart                        sync.RWMutex
@@ -164,7 +175,8 @@ func (mock *ClientIMock) GetBlock(ctx context.Context, blockHash *chainhash.Hash
 
 // GetBlockCalls gets all the calls that were made to GetBlock.
 // Check the length with:
-//     len(mockedClientI.GetBlockCalls())
+//
+//	len(mockedClientI.GetBlockCalls())
 func (mock *ClientIMock) GetBlockCalls() []struct {
 	Ctx       context.Context
 	BlockHash *chainhash.Hash
@@ -197,7 +209,8 @@ func (mock *ClientIMock) GetLastProcessedBlock(ctx context.Context) (*blocktx_ap
 
 // GetLastProcessedBlockCalls gets all the calls that were made to GetLastProcessedBlock.
 // Check the length with:
-//     len(mockedClientI.GetLastProcessedBlockCalls())
+//
+//	len(mockedClientI.GetLastProcessedBlockCalls())
 func (mock *ClientIMock) GetLastProcessedBlockCalls() []struct {
 	Ctx context.Context
 } {
@@ -230,7 +243,8 @@ func (mock *ClientIMock) GetMinedTransactionsForBlock(ctx context.Context, block
 
 // GetMinedTransactionsForBlockCalls gets all the calls that were made to GetMinedTransactionsForBlock.
 // Check the length with:
-//     len(mockedClientI.GetMinedTransactionsForBlockCalls())
+//
+//	len(mockedClientI.GetMinedTransactionsForBlockCalls())
 func (mock *ClientIMock) GetMinedTransactionsForBlockCalls() []struct {
 	Ctx            context.Context
 	BlockAndSource *blocktx_api.BlockAndSource
@@ -265,7 +279,8 @@ func (mock *ClientIMock) GetTransactionBlock(ctx context.Context, transaction *b
 
 // GetTransactionBlockCalls gets all the calls that were made to GetTransactionBlock.
 // Check the length with:
-//     len(mockedClientI.GetTransactionBlockCalls())
+//
+//	len(mockedClientI.GetTransactionBlockCalls())
 func (mock *ClientIMock) GetTransactionBlockCalls() []struct {
 	Ctx         context.Context
 	Transaction *blocktx_api.Transaction
@@ -300,7 +315,8 @@ func (mock *ClientIMock) GetTransactionBlocks(ctx context.Context, transaction *
 
 // GetTransactionBlocksCalls gets all the calls that were made to GetTransactionBlocks.
 // Check the length with:
-//     len(mockedClientI.GetTransactionBlocksCalls())
+//
+//	len(mockedClientI.GetTransactionBlocksCalls())
 func (mock *ClientIMock) GetTransactionBlocksCalls() []struct {
 	Ctx         context.Context
 	Transaction *blocktx_api.Transactions
@@ -312,6 +328,42 @@ func (mock *ClientIMock) GetTransactionBlocksCalls() []struct {
 	mock.lockGetTransactionBlocks.RLock()
 	calls = mock.calls.GetTransactionBlocks
 	mock.lockGetTransactionBlocks.RUnlock()
+	return calls
+}
+
+// GetTransactionMerklePath calls GetTransactionMerklePathFunc.
+func (mock *ClientIMock) GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
+	if mock.GetTransactionMerklePathFunc == nil {
+		panic("ClientIMock.GetTransactionMerklePathFunc: method is nil but ClientI.GetTransactionMerklePath was just called")
+	}
+	callInfo := struct {
+		Ctx         context.Context
+		Transaction *blocktx_api.Transaction
+	}{
+		Ctx:         ctx,
+		Transaction: transaction,
+	}
+	mock.lockGetTransactionMerklePath.Lock()
+	mock.calls.GetTransactionMerklePath = append(mock.calls.GetTransactionMerklePath, callInfo)
+	mock.lockGetTransactionMerklePath.Unlock()
+	return mock.GetTransactionMerklePathFunc(ctx, transaction)
+}
+
+// GetTransactionMerklePathCalls gets all the calls that were made to GetTransactionMerklePath.
+// Check the length with:
+//
+//	len(mockedClientI.GetTransactionMerklePathCalls())
+func (mock *ClientIMock) GetTransactionMerklePathCalls() []struct {
+	Ctx         context.Context
+	Transaction *blocktx_api.Transaction
+} {
+	var calls []struct {
+		Ctx         context.Context
+		Transaction *blocktx_api.Transaction
+	}
+	mock.lockGetTransactionMerklePath.RLock()
+	calls = mock.calls.GetTransactionMerklePath
+	mock.lockGetTransactionMerklePath.RUnlock()
 	return calls
 }
 
@@ -333,17 +385,10 @@ func (mock *ClientIMock) LocateTransaction(ctx context.Context, transaction *blo
 	return mock.LocateTransactionFunc(ctx, transaction)
 }
 
-// GetTransactionMerklePath calls GetTransactionMerklePathFunc.
-func (mock *ClientIMock) GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
-	if mock.GetTransactionMerklePathFunc == nil {
-		panic("ClientIMock.GetTransactionMerklePathFunc: method is nil but ClientI.GetTransactionMerklePath was just called")
-	}
-	return mock.GetTransactionMerklePathFunc(ctx, transaction)
-}
-
 // LocateTransactionCalls gets all the calls that were made to LocateTransaction.
 // Check the length with:
-//     len(mockedClientI.LocateTransactionCalls())
+//
+//	len(mockedClientI.LocateTransactionCalls())
 func (mock *ClientIMock) LocateTransactionCalls() []struct {
 	Ctx         context.Context
 	Transaction *blocktx_api.Transaction
@@ -378,7 +423,8 @@ func (mock *ClientIMock) RegisterTransaction(ctx context.Context, transaction *b
 
 // RegisterTransactionCalls gets all the calls that were made to RegisterTransaction.
 // Check the length with:
-//     len(mockedClientI.RegisterTransactionCalls())
+//
+//	len(mockedClientI.RegisterTransactionCalls())
 func (mock *ClientIMock) RegisterTransactionCalls() []struct {
 	Ctx         context.Context
 	Transaction *blocktx_api.TransactionAndSource
@@ -411,7 +457,8 @@ func (mock *ClientIMock) Start(minedBlockChan chan *blocktx_api.Block) {
 
 // StartCalls gets all the calls that were made to Start.
 // Check the length with:
-//     len(mockedClientI.StartCalls())
+//
+//	len(mockedClientI.StartCalls())
 func (mock *ClientIMock) StartCalls() []struct {
 	MinedBlockChan chan *blocktx_api.Block
 } {

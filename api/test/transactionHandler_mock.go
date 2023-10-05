@@ -16,28 +16,28 @@ var _ transactionHandler.TransactionHandler = &TransactionHandlerMock{}
 
 // TransactionHandlerMock is a mock implementation of transactionHandler.TransactionHandler.
 //
-// 	func TestSomethingThatUsesTransactionHandler(t *testing.T) {
+//	func TestSomethingThatUsesTransactionHandler(t *testing.T) {
 //
-// 		// make and configure a mocked transactionHandler.TransactionHandler
-// 		mockedTransactionHandler := &TransactionHandlerMock{
-// 			GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
-// 				panic("mock out the GetTransaction method")
-// 			},
-// 			GetTransactionStatusFunc: func(ctx context.Context, txID string) (*transactionHandler.TransactionStatus, error) {
-// 				panic("mock out the GetTransactionStatus method")
-// 			},
-// 			SubmitTransactionFunc: func(ctx context.Context, tx []byte, options *arc.TransactionOptions) (*transactionHandler.TransactionStatus, error) {
-// 				panic("mock out the SubmitTransaction method")
-// 			},
-// 			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *arc.TransactionOptions) ([]*transactionHandler.TransactionStatus, error) {
-// 				panic("mock out the SubmitTransactions method")
-// 			},
-// 		}
+//		// make and configure a mocked transactionHandler.TransactionHandler
+//		mockedTransactionHandler := &TransactionHandlerMock{
+//			GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
+//				panic("mock out the GetTransaction method")
+//			},
+//			GetTransactionStatusFunc: func(ctx context.Context, txID string) (*transactionHandler.TransactionStatus, error) {
+//				panic("mock out the GetTransactionStatus method")
+//			},
+//			SubmitTransactionFunc: func(ctx context.Context, tx []byte, options *arc.TransactionOptions) (*transactionHandler.TransactionStatus, error) {
+//				panic("mock out the SubmitTransaction method")
+//			},
+//			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *arc.TransactionOptions) ([]*transactionHandler.TransactionStatus, error) {
+//				panic("mock out the SubmitTransactions method")
+//			},
+//		}
 //
-// 		// use mockedTransactionHandler in code that requires transactionHandler.TransactionHandler
-// 		// and then make assertions.
+//		// use mockedTransactionHandler in code that requires transactionHandler.TransactionHandler
+//		// and then make assertions.
 //
-// 	}
+//	}
 type TransactionHandlerMock struct {
 	// GetTransactionFunc mocks the GetTransaction method.
 	GetTransactionFunc func(ctx context.Context, txID string) ([]byte, error)
@@ -112,7 +112,8 @@ func (mock *TransactionHandlerMock) GetTransaction(ctx context.Context, txID str
 
 // GetTransactionCalls gets all the calls that were made to GetTransaction.
 // Check the length with:
-//     len(mockedTransactionHandler.GetTransactionCalls())
+//
+//	len(mockedTransactionHandler.GetTransactionCalls())
 func (mock *TransactionHandlerMock) GetTransactionCalls() []struct {
 	Ctx  context.Context
 	TxID string
@@ -147,7 +148,8 @@ func (mock *TransactionHandlerMock) GetTransactionStatus(ctx context.Context, tx
 
 // GetTransactionStatusCalls gets all the calls that were made to GetTransactionStatus.
 // Check the length with:
-//     len(mockedTransactionHandler.GetTransactionStatusCalls())
+//
+//	len(mockedTransactionHandler.GetTransactionStatusCalls())
 func (mock *TransactionHandlerMock) GetTransactionStatusCalls() []struct {
 	Ctx  context.Context
 	TxID string
@@ -184,7 +186,8 @@ func (mock *TransactionHandlerMock) SubmitTransaction(ctx context.Context, tx []
 
 // SubmitTransactionCalls gets all the calls that were made to SubmitTransaction.
 // Check the length with:
-//     len(mockedTransactionHandler.SubmitTransactionCalls())
+//
+//	len(mockedTransactionHandler.SubmitTransactionCalls())
 func (mock *TransactionHandlerMock) SubmitTransactionCalls() []struct {
 	Ctx     context.Context
 	Tx      []byte
@@ -223,7 +226,8 @@ func (mock *TransactionHandlerMock) SubmitTransactions(ctx context.Context, tx [
 
 // SubmitTransactionsCalls gets all the calls that were made to SubmitTransactions.
 // Check the length with:
-//     len(mockedTransactionHandler.SubmitTransactionsCalls())
+//
+//	len(mockedTransactionHandler.SubmitTransactionsCalls())
 func (mock *TransactionHandlerMock) SubmitTransactionsCalls() []struct {
 	Ctx     context.Context
 	Tx      [][]byte

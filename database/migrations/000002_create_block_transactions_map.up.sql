@@ -1,5 +1,5 @@
-create table block_transactions_map (
-                                        blockid bigint NOT NULL,
-                                        txid bigint NOT NULL,
-                                        pos bigint NOT NULL
+CREATE TABLE block_transactions_map (
+                                        blockid BIGINT NOT NULL,
+                                        txid BIGINT NOT NULL,
+                                        pos BIGINT NOT NULL
 );

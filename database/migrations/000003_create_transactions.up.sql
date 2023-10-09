@@ -1,6 +1,6 @@
-create table transactions (
-                              id bigint NOT NULL,
-                              hash bytea NOT NULL,
-                              source text,
-                              merkle_path text DEFAULT ''::text
+CREATE TABLE transactions (
+                              id BIGINT NOT NULL,
+                              hash BYTEA NOT NULL,
+                              source TEXT,
+                              merkle_path TEXT DEFAULT ''::TEXT
 );

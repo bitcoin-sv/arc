@@ -24,7 +24,3 @@ services:
       - '5432:5432'
     volumes:
       - ./postgresdata:/var/lib/postgresql/data
-  tests:
-    build: ./test
-    depends_on:
-      - arc

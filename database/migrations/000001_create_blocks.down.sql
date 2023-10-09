@@ -1,1 +1,1 @@
-drop table blocks;
+DROP TABLE blocks;

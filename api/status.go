@@ -2,8 +2,6 @@ package api
 
 import (
 	"strconv"
-
-	"k8s.io/utils/ptr"
 )
 
 const ArcDocServerUrl = "https://arc.bitcoinsv.com"
@@ -33,7 +31,7 @@ func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {
 	}
 
 	if extraInfo != "" {
-		errFields.ExtraInfo = ptr.To(extraInfo)
+		errFields.ExtraInfo = &extraInfo
 	}
 
 	switch status {

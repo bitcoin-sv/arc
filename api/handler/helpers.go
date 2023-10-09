@@ -117,3 +117,8 @@ func getTransactionFromWhatsOnChain(ctx context.Context, inputTxID string) ([]by
 
 	return nil, transactionHandler.ErrParentTransactionNotFound
 }
+
+// To returns a pointer to the given value.
+func PtrTo[T any](v T) *T {
+	return &v
+}

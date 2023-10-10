@@ -35,17 +35,10 @@ func TestHttpPost(t *testing.T) {
 
 	generate(t, 100, address)
 
-	fmt.Println(address)
-
-	sendToAddress(t, address, 0.001)
-
-	txID := sendToAddress(t, address, 0.02)
 	hash := generate(t, 1, address)
+	t.Logf("generate 1 block: %s", hash)
 
-	fmt.Println(txID)
-	fmt.Println(hash)
-
-	utxos := getUnspentUtxos(t, address)
+	utxos := getUtxos(t, address)
 	if len(utxos) == 0 {
 		log.Fatal("No UTXOs available for the address")
 	}
@@ -79,7 +72,6 @@ func TestHttpPost(t *testing.T) {
 	}
 
 	// Sign the input
-
 	wif, err := btcutil.DecodeWIF(privateKey)
 	if err != nil {
 		log.Fatalf("Failed to decode WIF: %v", err)
@@ -98,8 +90,7 @@ func TestHttpPost(t *testing.T) {
 	extBytes := tx.ExtendedBytes()
 
 	// Print or work with the extended bytes as required
-	fmt.Printf("Extended Bytes: %x\n", extBytes)
-	fmt.Println(extBytes)
+	t.Logf("Extended Bytes: %x\n", extBytes)
 
 	// Convert the transaction bytes to a hex string
 	txHexString := hex.EncodeToString(extBytes)

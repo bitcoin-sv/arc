@@ -4,13 +4,6 @@ FROM golang:1.21.1
 # Set the Current Working Directory inside the container
 WORKDIR /app
 
-
-# Download and install Bitcoin CLI for amd64
-RUN wget https://bitcoincore.org/bin/bitcoin-core-0.21.1/bitcoin-0.21.1-x86_64-linux-gnu.tar.gz && \
-    tar -xzvf bitcoin-0.21.1-x86_64-linux-gnu.tar.gz && \
-    install -m 0755 -o root -g root -t /usr/local/bin bitcoin-0.21.1/bin/* && \
-    rm -rf bitcoin-0.21.1*
-
 # Copy the Go Modules manifests
 COPY go.mod go.sum ./
 

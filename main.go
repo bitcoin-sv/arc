@@ -63,7 +63,6 @@ func main() {
 		return
 	}
 
-	viper.SetConfigType("yaml")  // REQUIRED if the config file does not have the extension in the name
 	viper.AddConfigPath(*config) // optionally look for config in the working directory
 
 	err := viper.ReadInConfig() // Find and read the config file

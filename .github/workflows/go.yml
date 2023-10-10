@@ -5,7 +5,7 @@ name: Go
 
 on:
   push:
-    branches: ["dockerfile-binary"]
+    branches: ["main"]
   pull_request:
     branches: ["main"]
 

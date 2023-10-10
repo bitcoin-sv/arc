@@ -7,11 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	blockTxMock "github.com/bitcoin-sv/arc/metamorph/blocktx/mock"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
@@ -23,6 +18,10 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils/stat"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const source = "localhost:8000"
@@ -216,7 +215,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			},
 			want: nil,
 			wantErr: func(t assert.TestingT, err error, rest ...interface{}) bool {
-				return assert.ErrorIs(t, err, store.ErrNotFound, rest)
+				return assert.ErrorIs(t, err, store.ErrNotFound, rest...)
 			},
 		},
 		{

@@ -7,22 +7,18 @@ all: deps lint build test
 deps:
 	go mod download
 
-.PHONY: build
-build:
-	sh build.sh
-
 .PHONY: test
 test:
 	go test -race -count=1 ./...
 
 .PHONY: lint
 lint:
-	golangci-lint run --skip-dirs p2p/wire
+	golangci-lint run -v ./...
 	staticcheck ./...
 
-.PHONY: run
-run:
-	sh run.sh
+.PHONY: gen_go
+gen_go:
+	go generate ./...
 
 .PHONY: gen
 gen:
@@ -57,8 +53,8 @@ clean_gen:
 	rm -f ./callbacker/callbacker_api/*.pb.go
 
 coverage:
-	go test -cover ./...
-
+	rm -f ./cov.out
+	go test -coverprofile=./cov.out ./...
 .PHONY: clean
 clean:
 	rm -f ./arc_*.tar.gz
@@ -69,11 +65,13 @@ install:
 	# arch -arm64 brew install golangci-lint
 	brew install pre-commit
 	pre-commit install
-	go install honnef.co/go/tools/cmd/staticcheck@latest
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-	# GO111MODULE=off go get -u github.com/mwitkow/go-proto-validators/protoc-gen-govalidators
-	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.11.0
+
+.PHONY: install_gen
+install_gen:
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.31.0
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
+	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.15.0
+	go install github.com/matryer/moq@v0.3.2
 
 .PHONY: docs
 docs:

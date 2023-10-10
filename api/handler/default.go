@@ -18,7 +18,6 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"github.com/pkg/errors"
-	"k8s.io/utils/ptr"
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
@@ -577,7 +576,7 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, subm
 	arcError := api.NewErrorFields(status, submitErr.Error())
 
 	if transaction != nil {
-		arcError.Txid = ptr.To(transaction.TxID())
+		arcError.Txid = PtrTo(transaction.TxID())
 	}
 
 	return status, arcError

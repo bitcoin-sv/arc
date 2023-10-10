@@ -1,4 +1,4 @@
-FROM golang:1.21.1
+FROM ubuntu:latest
 
 COPY ./build/arc_linux_amd64 /service/arc
 

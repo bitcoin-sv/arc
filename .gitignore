@@ -1,13 +1,3 @@
-.history
-arc_*.tar.gz
-build/
-data/
-*.key
-*.run
+postgresdata/
 .idea
-.DS_Store
-settings.conf
-settings_local.conf
-cov.out
-gosec-report.json
-.scannerwork
+data/

@@ -3,6 +3,7 @@ package sql
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -42,14 +43,16 @@ type DBConnectionParams struct {
 
 // NewPostgresStore postgres storage that accepts connection parameters and returns connection or an error
 func NewStore(params DBConnectionParams) (store.Interface, error) {
-	//dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", params.Username, params.Password, params.DBName, params.Host, params.Port)
+	dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", params.Username, params.Password, params.DBName, params.Host, params.Port)
 
-	//db, err := sql.Open(params.Engine, dbInfo)
-	//if err != nil {
-	//	log.Fatal("unable to connect to db due to %s", err)
-	//}
+	db, err := sql.Open(params.Engine, dbInfo)
+	if err != nil {
+		log.Fatalf("unable to connect to db due to %s", err)
+	}
 
-	return &SQL{}, nil
+	return &SQL{
+		db: db,
+	}, nil
 }
 
 func New(engine string) (store.Interface, error) {

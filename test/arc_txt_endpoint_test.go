@@ -53,7 +53,72 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestHttpPost(t *testing.T) {
+//this tests does a full end to end checking the status at each point
+
+// func createTxHexString(t *testing.T) string {
+// 	address, privateKey := getNewWalletAddress(t)
+
+// 	generate(t, 100, address)
+
+// 	// These print statements can be removed or commented if not required
+// 	// fmt.Println(address)
+
+// 	sendToAddress(t, address, 0.001)
+// 	sendToAddress(t, address, 0.02)
+// 	generate(t, 1, address)
+
+// 	utxos := getUnspentUtxos(t, address)
+// 	if len(utxos) == 0 {
+// 		t.Fatalf("No UTXOs available for the address")
+// 	}
+
+// 	tx := bt.NewTx()
+
+// 	// Add an input using the first UTXO
+// 	utxo := utxos[0]
+// 	utxoTxID := utxo.Txid
+// 	utxoVout := uint32(utxo.Vout)
+// 	utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
+// 	utxoScript := utxo.ScriptPubKey
+
+// 	if err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis); err != nil {
+// 		t.Fatalf("Failed adding input: %v", err)
+// 	}
+
+// 	// Add an output to the address you've previously created
+// 	recipientAddress := address
+// 	amountToSend := uint64(1) // Example value - 0.009 BTC (taking fees into account)
+
+// 	recipientScript, err := bscript.NewP2PKHFromAddress(recipientAddress)
+// 	if err != nil {
+// 		t.Fatalf("Failed converting address to script: %v", err)
+// 	}
+
+// 	if err = tx.PayTo(recipientScript, amountToSend); err != nil {
+// 		t.Fatalf("Failed adding output: %v", err)
+// 	}
+
+// 	// Sign the input
+// 	wif, err := btcutil.DecodeWIF(privateKey)
+// 	if err != nil {
+// 		t.Fatalf("Failed to decode WIF: %v", err)
+// 	}
+
+// 	// Extract raw private key bytes directly from the WIF structure
+// 	privateKeyDecoded := wif.PrivKey.Serialize()
+// 	pk, _ := bec.PrivKeyFromBytes(bsvec.S256(), privateKeyDecoded)
+// 	unlockerGetter := unlocker.Getter{PrivateKey: pk}
+// 	if err = tx.FillAllInputs(context.Background(), &unlockerGetter); err != nil {
+// 		t.Fatalf("sign failed: %v", err)
+// 	}
+
+// 	extBytes := tx.ExtendedBytes()
+
+// 	// Convert the transaction bytes to a hex string
+// 	return hex.EncodeToString(extBytes)
+// }
+
+func TestE2E(t *testing.T) {
 	address, privateKey := getNewWalletAddress(t)
 
 	generate(t, 100, address)
@@ -242,4 +307,224 @@ func TestHttpPost(t *testing.T) {
 	// Print the extracted txStatus (optional, since you're already asserting it)
 	fmt.Println("Transaction status:", statusResponse.TxStatus)
 
+}
+
+func postTx(t *testing.T, jsonPayload string, headers map[string]string) (*http.Response, error) {
+	url := "http://arc:9090/v1/tx"
+	req, err := http.NewRequest("POST", url, strings.NewReader(jsonPayload))
+	if err != nil {
+		t.Fatalf("Error creating HTTP request: %s", err)
+	}
+
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
+	client := &http.Client{}
+	return client.Do(req)
+}
+
+func TestPostTx_Success_Extended(t *testing.T) {
+	txHexString := createTxHexString(t) // This is a placeholder for the method to create a valid transaction string.
+	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
+	resp, err := postTx(t, jsonPayload, nil) // no extra headers
+	if err != nil {
+		t.Fatalf("Error sending HTTP request: %s", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected 200 OK but got: %d", resp.StatusCode)
+	}
+}
+
+func TestPostTx_Success(t *testing.T) {
+	txHexString := createTxHexString(t) // This is a placeholder for the method to create a valid transaction string.
+	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
+	resp, err := postTx(t, jsonPayload, nil) // no extra headers
+	if err != nil {
+		t.Fatalf("Error sending HTTP request: %s", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected 200 OK but got: %d", resp.StatusCode)
+	}
+}
+
+func TestPostTx_BadRequest(t *testing.T) {
+	jsonPayload := `{"rawTx": "invalidHexData"}` // intentionally malformed
+	resp, err := postTx(t, jsonPayload, nil)
+	if err != nil {
+		t.Fatalf("Error sending HTTP request: %s", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected 400 Bad Request but got: %d", resp.StatusCode)
+	}
+}
+
+func TestPostTx_BadRequest(t *testing.T) {
+	jsonPayload := `{"rawTx": "invalidHexData"}` // intentionally malformed
+	resp, err := postTx(t, jsonPayload, nil)
+	if err != nil {
+		t.Fatalf("Error sending HTTP request: %s", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected 400 Bad Request but got: %d", resp.StatusCode)
+	}
+}
+
+func TestPostTx_MalformedTransaction(t *testing.T) {
+	txHexString := createMalformedTx(t) // Placeholder method for a malformed transaction string.
+	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
+	resp, err := postTx(t, jsonPayload, nil)
+	if err != nil {
+		t.Fatalf("Error sending HTTP request: %s", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 422 {
+		t.Errorf("Expected 422 Unprocessable Entity but got: %d", resp.StatusCode)
+	}
+}
+
+func TestPostTx_FeeTooLow(t *testing.T) {
+	txHexString := createLowFeeTx(t) // Placeholder for a low-fee transaction string.
+	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
+	resp, err := postTx(t, jsonPayload, nil)
+	if err != nil {
+		t.Fatalf("Error sending HTTP request: %s", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 465 {
+		t.Errorf("Expected 465 Fee too low but got: %d", resp.StatusCode)
+	}
+}
+
+func TestPostTx_FeeTooLow(t *testing.T) {
+	txHexString := createLowFeeTx(t) // Placeholder for a low-fee transaction string.
+	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
+	resp, err := postTx(t, jsonPayload, nil)
+	if err != nil {
+		t.Fatalf("Error sending HTTP request: %s", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 465 {
+		t.Errorf("Expected 465 Fee too low but got: %d", resp.StatusCode)
+	}
+}
+
+func TestPostTx_ConflictingTx(t *testing.T) {
+	txHexString := createConflictingTx(t) // Placeholder for a conflicting transaction string.
+	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
+	resp, err := postTx(t, jsonPayload, nil)
+	if err != nil {
+		t.Fatalf("Error sending HTTP request: %s", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 466 {
+		t.Errorf("Expected 466 Conflicting transaction found but got: %d", resp.StatusCode)
+	}
+}
+
+func TestPostTx_BadRequestBodyFormat(t *testing.T) {
+	// Instead of sending a valid hex string, send a JSON
+	improperPayload := `{"transaction": "fakeData"}`
+
+	resp, err := postTx(t, improperPayload, nil) // Using the helper function for the single tx endpoint
+	if err != nil {
+		t.Fatalf("Error sending HTTP request: %s", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected 400 Bad Request due to improper body format but got: %d", resp.StatusCode)
+	}
+}
+
+func TestPostTx_BadRequestMalformedTx(t *testing.T) {
+	// Using an intentionally malformed hex string
+	malformedHex := "invalidHexData"
+
+	resp, err := postTx(t, malformedHex, nil) // Using the helper function for the single tx endpoint
+	if err != nil {
+		t.Fatalf("Error sending HTTP request: %s", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected 400 Bad Request due to malformed transaction but got: %d", resp.StatusCode)
+	}
+}
+
+func createTxHexString(t *testing.T) string {
+	address, privateKey := getNewWalletAddress(t)
+
+	generate(t, 100, address)
+
+	// These print statements can be removed or commented if not required
+	// fmt.Println(address)
+
+	sendToAddress(t, address, 0.001)
+	sendToAddress(t, address, 0.02)
+	generate(t, 1, address)
+
+	utxos := getUnspentUtxos(t, address)
+	if len(utxos) == 0 {
+		t.Fatalf("No UTXOs available for the address")
+	}
+
+	tx := bt.NewTx()
+
+	// Add an input using the first UTXO
+	utxo := utxos[0]
+	utxoTxID := utxo.Txid
+	utxoVout := uint32(utxo.Vout)
+	utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
+	utxoScript := utxo.ScriptPubKey
+
+	if err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis); err != nil {
+		t.Fatalf("Failed adding input: %v", err)
+	}
+
+	// Add an output to the address you've previously created
+	recipientAddress := address
+	amountToSend := uint64(1) // Example value - 0.009 BTC (taking fees into account)
+
+	recipientScript, err := bscript.NewP2PKHFromAddress(recipientAddress)
+	if err != nil {
+		t.Fatalf("Failed converting address to script: %v", err)
+	}
+
+	if err = tx.PayTo(recipientScript, amountToSend); err != nil {
+		t.Fatalf("Failed adding output: %v", err)
+	}
+
+	// Sign the input
+	wif, err := btcutil.DecodeWIF(privateKey)
+	if err != nil {
+		t.Fatalf("Failed to decode WIF: %v", err)
+	}
+
+	// Extract raw private key bytes directly from the WIF structure
+	privateKeyDecoded := wif.PrivKey.Serialize()
+	pk, _ := bec.PrivKeyFromBytes(bsvec.S256(), privateKeyDecoded)
+	unlockerGetter := unlocker.Getter{PrivateKey: pk}
+	if err = tx.FillAllInputs(context.Background(), &unlockerGetter); err != nil {
+		t.Fatalf("sign failed: %v", err)
+	}
+
+	extBytes := tx.ExtendedBytes()
+
+	// Convert the transaction bytes to a hex string
+	return hex.EncodeToString(extBytes)
 }

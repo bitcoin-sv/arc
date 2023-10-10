@@ -82,9 +82,8 @@ func getNewWalletAddress(t *testing.T) (address, privateKey string) {
 		return
 	}
 
-
 	//scripthash
-	
+
 	fmt.Println("Result: " + out.String())
 	require.NoError(t, err)
 	address = strings.TrimSpace(out.String())

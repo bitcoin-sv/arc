@@ -12,18 +12,18 @@ ipAddressHint: ^172.28.*
 peerRpc: # rpc configuration for bitcoin node
   password: bitcoin
   user: bitcoin
-  host: host.docker.internal
+  host: node1
   port: 18332
 
 peers: # list of bitcoin node peers to connect to
-  - host: host.docker.internal
+  - host: node1
     port:
       p2p: 18333
       zmq: 28332
-  - host: host.docker.internal
+  - host: node2
     port:
       p2p: 18333
-  - host: host.docker.internal
+  - host: node3
     port:
       p2p: 18333
 
@@ -38,7 +38,7 @@ metamorph:
   log:
     file: ./data/metamorph.log # location of log file
     errorFile: ./data/metamorph_error.log # location of error log file
-  db:  
+  db:
     mode: badger # db mode inidicates which db to use. Value can be one of badger | postgres
     postgres: # postgres db configuration in case that mode: postgres
       host: localhost

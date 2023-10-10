@@ -7,6 +7,15 @@ all: deps lint build test
 deps:
 	go mod download
 
+.PHONY: build
+build:
+	go build ./...
+
+.PHONY: build_release
+build_release:
+	mkdir -p build
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -o build/arc_linux_amd64 ./main.go
+
 .PHONY: test
 test:
 	go test -race -count=1 ./...

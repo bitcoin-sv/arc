@@ -2,6 +2,8 @@ module github.com/bitcoin-sv/arc
 
 go 1.19
 
+replace github.com/ordishs/go-bitcoin v1.0.83 => github.com/boecklim/go-bitcoin v1.0.85
+
 require (
 	github.com/bitcoinsv/bsvd v0.0.0-20190609155523-4c29707f7173
 	github.com/btcsuite/btcd/btcutil v1.1.3
@@ -14,7 +16,7 @@ require (
 require (
 	bitbucket.org/simon_ordish/cryptolib v1.0.48 // indirect
 	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9 // indirect
-	github.com/btcsuite/btcd v0.23.1 // indirect
+	github.com/btcsuite/btcd v0.23.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.1.3 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

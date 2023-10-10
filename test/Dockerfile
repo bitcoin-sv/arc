@@ -1,26 +1,8 @@
 # Start from a Debian base image
-FROM debian:bullseye-slim
+FROM golang:1.21.1
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
-
-# Install required packages
-RUN apt-get update && apt-get install -y wget tar netcat-openbsd gcc g++ make
-
-# Download and install Go for amd64
-ENV GOLANG_VERSION 1.17
-RUN wget https://dl.google.com/go/go$GOLANG_VERSION.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go$GOLANG_VERSION.linux-amd64.tar.gz && \
-    rm go$GOLANG_VERSION.linux-amd64.tar.gz
-
-# Add Go binaries to PATH
-ENV PATH $PATH:/usr/local/go/bin
-
-# Download and install Bitcoin CLI for amd64
-RUN wget https://bitcoincore.org/bin/bitcoin-core-0.21.1/bitcoin-0.21.1-x86_64-linux-gnu.tar.gz && \
-    tar -xzvf bitcoin-0.21.1-x86_64-linux-gnu.tar.gz && \
-    install -m 0755 -o root -g root -t /usr/local/bin bitcoin-0.21.1/bin/* && \
-    rm -rf bitcoin-0.21.1*
 
 # Copy the Go Modules manifests
 COPY go.mod go.sum ./
@@ -28,12 +10,8 @@ COPY go.mod go.sum ./
 # Download all dependencies. Dependencies will be cached if the go.mod and the go.sum files are not changed
 RUN go mod download
 
-# Copy everything from the current directory to the Working Directory inside the container
-COPY . .
-
-# Copy the script into the container
-COPY wait-for-it.sh /wait-for-it.sh
-RUN chmod +x /wait-for-it.sh
+COPY ./arc_txt_endpoint_test.go ./arc_txt_endpoint_test.go
+COPY ./utils.go ./utils.go
 
 # This will compile and run the tests
-CMD [ "go", "test", "./..."]
+CMD [ "go", "test", "-v" ,"./..."]

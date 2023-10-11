@@ -20,6 +20,10 @@ build_release:
 test:
 	go test -race -count=1 ./...
 
+.PHONY: install_lint
+install_lint:
+	go install honnef.co/go/tools/cmd/staticcheck@latest
+
 .PHONY: lint
 lint:
 	golangci-lint run -v ./...

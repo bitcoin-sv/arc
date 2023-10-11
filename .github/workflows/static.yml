@@ -24,8 +24,9 @@ jobs:
   build:
     runs-on: [ubuntu-latest]
     steps:
-      - name: Perform Checkout
-        uses: actions/checkout@v3
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
       - name: Deploy Files
         run: |
           git push --force origin `git subtree split --prefix doc main`:gh-pages

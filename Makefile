@@ -68,6 +68,7 @@ clean_gen:
 coverage:
 	rm -f ./cov.out
 	go test -coverprofile=./cov.out ./...
+
 .PHONY: clean
 clean:
 	rm -f ./arc_*.tar.gz

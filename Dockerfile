@@ -1,22 +1,11 @@
-# Use an official Golang runtime as a parent image
-FROM golang:1.19
+FROM ubuntu:latest
 
-# Set the working directory in the container
-WORKDIR /app
+COPY ./build/arc_linux_amd64 /service/arc
 
-# Add the rest of the code necessary for the app
-ADD . /app
+WORKDIR /service
 
-# Download all the dependencies
-RUN go mod tidy
+RUN chmod +x arc
 
-# Build the Go app
-RUN go build -o main .
-
-
-# Set environment variables for your application
-# replace these with actual values
 EXPOSE 9090
 
-# Run the command on container startup
-CMD ["go", "run", "main.go", "-regtest"]
+CMD ["/service/arc"]

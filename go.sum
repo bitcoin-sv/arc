@@ -363,6 +363,8 @@ github.com/opentracing/opentracing-go v1.2.0 h1:uEJPy/1a5RIPAJ0Ov+OIO8OxWu77jEv+
 github.com/opentracing/opentracing-go v1.2.0/go.mod h1:GxEUsuufX4nBwe+T+Wl9TAgYrxe9dPLANfrWvHYVTgc=
 github.com/ordishs/go-bitcoin v1.0.79 h1:36U67J7+5nm5RX9j81tqRabYdQi6lYXBiTc8sVwnpsw=
 github.com/ordishs/go-bitcoin v1.0.79/go.mod h1:7gXD2G745ETJK4OU4xXl0UBIOAc80615hBJRjPqKhWY=
+github.com/ordishs/go-bitcoin v1.0.85 h1:VGLqcOP2ubFzDp8RxnjqUgMsf0Pv84mRYsjubcLdp4c=
+github.com/ordishs/go-bitcoin v1.0.85/go.mod h1:O3lqD8unDlwLXTmQTT4F5x/Gl3xgP4IgMQDFxTmi9V4=
 github.com/ordishs/go-utils v1.0.34 h1:0jHT5KfRuPdysFg+aZqUcSXJXtgGAkK+YOjhcPe8reQ=
 github.com/ordishs/go-utils v1.0.34/go.mod h1:k9G7Bbv2GwoOn9fwZx70yM5jwwIymkv+90FUKLudtyc=
 github.com/ordishs/gocore v1.0.35 h1:dasWlk2xEjibXCWRltlw74nkwqzJVxo2ZB3Fvl2u4IE=

@@ -11,14 +11,24 @@ deps:
 build:
 	go build ./...
 
+.PHONY: clean_e2e_tests
+clean_e2e_tests:
+	# Remove containers and images; avoid failure if the image doesn't exist
+	docker container prune -f
+	docker rmi test-tests || true
+
+
 .PHONY: build_release
 build_release:
 	mkdir -p build
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -o build/arc_linux_amd64 ./main.go
 
-.PHONY: test
-test:
-	go test -race -count=1 ./...
+.PHONY: run_e2e_tests
+run_e2e_tests:
+	cd ./test && docker-compose up -d node1 node2 node3 arc
+	cd ./test && docker-compose up --exit-code-from tests tests
+	cd ./test && docker-compose down
+
 
 .PHONY: install_lint
 install_lint:
@@ -97,3 +107,6 @@ gh-pages:
 .PHONY: api
 api:
 	oapi-codegen -config api/config.yaml api/arc.yml > api/arc.go
+
+.PHONY: clean_restart_e2e_test
+clean_test: clean_e2e_tests build_release run_e2e_tests

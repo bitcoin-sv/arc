@@ -13,12 +13,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out the repo
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version-file: './go.mod'
+          go-version-file: "./go.mod"
 
       - name: Verify dependencies
         run: go mod verify
@@ -41,18 +42,6 @@ jobs:
       - name: Check generate api
         run: make api && git diff --exit-code
 
-      - name: Install staticcheck
-        run: go install honnef.co/go/tools/cmd/staticcheck@latest
-
-      - name: Run staticcheck
-        run: staticcheck ./...
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
-        with:
-          version: v1.50.1
-          args: --skip-dirs p2p/wire
-
       - name: Run tests
         run: go test -race -vet=off ./...
 
@@ -65,6 +54,7 @@ jobs:
           name: arc-build
           path: ./build
           retention-days: 1
+
   e2e:
     name: e2e
     needs: build

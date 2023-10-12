@@ -1,10 +1,14 @@
-FROM ubuntu:latest
-
-COPY ./build/arc_linux_amd64 /service/arc
+FROM golang:1.21.1
 
 WORKDIR /service
 
-RUN chmod +x arc
+COPY go.mod go.sum ./
+
+RUN go mod download
+
+COPY . ./
+
+RUN go build -o ./arc main.go
 
 EXPOSE 9090
 

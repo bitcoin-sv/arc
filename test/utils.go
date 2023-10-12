@@ -2,11 +2,11 @@ package test
 
 import (
 	"fmt"
+	"github.com/ordishs/go-bitcoin"
 	"log"
 	"testing"
 	"time"
 
-	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/require"
 )
 

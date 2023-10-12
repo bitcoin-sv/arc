@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -182,7 +181,7 @@ func TestHttpPost(t *testing.T) {
 	}
 	defer statusResp.Body.Close()
 
-	statusBodyBytes, err := ioutil.ReadAll(statusResp.Body)
+	statusBodyBytes, err := io.ReadAll(statusResp.Body)
 	if err != nil {
 		t.Fatalf("Error reading status response body: %s", err)
 	}

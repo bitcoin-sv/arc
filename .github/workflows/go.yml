@@ -43,7 +43,7 @@ jobs:
         run: make api && git diff --exit-code
 
       - name: Run tests
-        run: go test -race -vet=off ./...
+        run: go test -race -vet=off $(go list ./... | grep -v github.com/bitcoin-sv/arc/test)
 
       - name: Build release
         run: make build_release

@@ -2,11 +2,11 @@ package test
 
 import (
 	"fmt"
-	"github.com/ordishs/go-bitcoin"
 	"log"
 	"testing"
 	"time"
 
+	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -76,17 +76,6 @@ func getNewWalletAddress(t *testing.T) (address, privateKey string) {
 	require.NoError(t, err)
 
 	t.Logf("account %s created", accountName)
-
-	return
-}
-
-func sendToAddress(t *testing.T, address string, bsv float64) (txID string) {
-	t.Helper()
-
-	txID, err := bitcoind.SendToAddress(address, bsv)
-	require.NoError(t, err)
-
-	t.Logf("sent %f to %s: %s", bsv, address, txID)
 
 	return
 }

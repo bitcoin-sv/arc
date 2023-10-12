@@ -80,11 +80,22 @@ func getNewWalletAddress(t *testing.T) (address, privateKey string) {
 	return
 }
 
-func generate(t *testing.T, amount uint64, address string) string {
+func sendToAddress(t *testing.T, address string, bsv float64) (txID string) {
+	t.Helper()
+
+	txID, err := bitcoind.SendToAddress(address, bsv)
+	require.NoError(t, err)
+
+	t.Logf("sent %f to %s: %s", bsv, address, txID)
+
+	return
+}
+
+func generate(t *testing.T, amount uint64) string {
 	t.Helper()
 
 	// run command instead
-	blockHash := execCommandGenerate(t, amount, address)
+	blockHash := execCommandGenerate(t, amount)
 
 	time.Sleep(5 * time.Second)
 
@@ -99,11 +110,11 @@ func generate(t *testing.T, amount uint64, address string) string {
 	return blockHash
 }
 
-func execCommandGenerate(t *testing.T, amount uint64, address string) string {
+func execCommandGenerate(t *testing.T, amount uint64) string {
 	t.Helper()
 	fmt.Println("Amount to generate:", amount)
 
-	hashes, err := bitcoind.GenerateToAddress(float64(amount), address)
+	hashes, err := bitcoind.Generate(float64(amount))
 	require.NoError(t, err)
 
 	return hashes[len(hashes)-1]

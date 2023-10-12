@@ -13,38 +13,8 @@ services:
       test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
     volumes:
       - ./test/config/bitcoin.conf:/data/bitcoin.conf
-    command: [   "/entrypoint.sh", "bitcoind", "-connect=node2:18333", "-connect=node3:18333",
+    command: [   "/entrypoint.sh", "bitcoind",
                "-maxstackmemoryusageconsensus=1000000000", "-excessiveblocksize=100000000", "-minminingtxfee=0.00000500"]
-
-  node2:
-    container_name: node2
-    image: bitcoinsv/bitcoin-sv:1.0.15
-    ports:
-      - "48332:18332"
-    expose:
-      - "18332"
-      - "18333"
-    healthcheck:
-      test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
-    volumes:
-      - ./test/config/bitcoin.conf:/data/bitcoin.conf
-    command: [ "/entrypoint.sh", "bitcoind", "-connect=node1:18333", "-connect=node3:18333",
-               "-maxstackmemoryusageconsensus=1000000000", "-excessiveblocksize=100000000", "-minminingtxfee=0.00000500" ]
-
-  node3:
-    container_name: node3
-    image: bitcoinsv/bitcoin-sv:1.0.15
-    ports:
-      - "58332:18332"
-    expose:
-      - "18332"
-      - "18333"
-    healthcheck:
-      test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
-    volumes:
-      - ./test/config/bitcoin.conf:/data/bitcoin.conf
-    command: [ "/entrypoint.sh", "bitcoind", "-connect=node1:18333", "-connect=node2:18333",
-               "-maxstackmemoryusageconsensus=1000000000", "-excessiveblocksize=100000000", "-minminingtxfee=0.00000500" ]
   arc:
     build: .
     ports:
@@ -55,8 +25,7 @@ services:
       - ./config.yaml:/service/config.yaml
     depends_on:
       - node1
-      - node2
-      - node3
+
   tests:
     build: .
     depends_on:

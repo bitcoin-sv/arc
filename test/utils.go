@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	host     = "node2"
+	host     = "node1"
 	port     = 18332
 	user     = "bitcoin"
 	password = "bitcoin"

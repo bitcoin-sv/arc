@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -127,7 +127,7 @@ func TestHttpPost(t *testing.T) {
 
 	// If status is not http.StatusOK, then read and print the response body
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			t.Fatalf("Error reading response body: %s", err)
 		}

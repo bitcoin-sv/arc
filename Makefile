@@ -11,8 +11,8 @@ deps:
 build:
 	go build ./...
 
-.PHONY: restart
-restart:
+.PHONY: clean_e2e_tests
+clean_e2e_tests:
 	# Remove containers and images; avoid failure if the image doesn't exist
 	docker container prune -f
 	docker rmi test-tests || true
@@ -103,5 +103,5 @@ gh-pages:
 api:
 	oapi-codegen -config api/config.yaml api/arc.yml > api/arc.go
 
-.PHONY: clean_test
-clean_test: restart build_release run_e2e_tests
+.PHONY: clean_restart_e2e_test
+clean_test: clean_e2e_tests build_release run_e2e_tests

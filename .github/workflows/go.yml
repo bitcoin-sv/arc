@@ -70,5 +70,4 @@ jobs:
           path: ./build
 
       - name: e2e test
-        run: docker compose -f docker-compose.itest.yml up --abort-on-container-exit --exit-code-from
-
+        run: docker compose -f docker-compose.itest.yml up

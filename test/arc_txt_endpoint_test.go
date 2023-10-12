@@ -216,7 +216,7 @@ func TestHttpPost(t *testing.T) {
 	}
 	defer statusResp.Body.Close()
 
-	statusBodyBytes, err = ioutil.ReadAll(statusResp.Body) // <-- Use "=" instead of ":="
+	statusBodyBytes, err = io.ReadAll(statusResp.Body) // <-- Use "=" instead of ":="
 	if err != nil {
 		t.Fatalf("Error reading status response body: %s", err)
 	}

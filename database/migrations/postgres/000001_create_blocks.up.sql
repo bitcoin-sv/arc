@@ -11,3 +11,5 @@ CREATE TABLE blocks (
                         orphanedyn BOOLEAN DEFAULT FALSE NOT NULL,
                         merkle_path TEXT DEFAULT ''::TEXT
 );
+
+CREATE INDEX ix_transactions ON public.blocks USING btree (hash);

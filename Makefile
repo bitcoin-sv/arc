@@ -110,3 +110,9 @@ api:
 
 .PHONY: clean_restart_e2e_test
 clean_test: clean_e2e_tests build_release run_e2e_tests
+
+migrate_postgres:
+	migrate -database "postgres://arcuser:arcpass@localhost:5432/arcdb?sslmode=disable"  -path database/migrations/postgres  up
+
+migrate_sqlite:
+	migrate -path database/migrations/sqlite -database "sqlite3://data/sqlite/arcdb.sqlite3"  up

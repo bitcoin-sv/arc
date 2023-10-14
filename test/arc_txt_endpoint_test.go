@@ -5,10 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +16,12 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/libsv/go-bt/v2/unlocker"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+const (
+	ARC_URL = "http://localhost:9090"
 )
 
 type Response struct {
@@ -41,71 +44,49 @@ type TxStatusResponse struct {
 	Txid        string      `json:"txid"`
 }
 
-func TestMain(m *testing.M) {
-	info, err := bitcoind.GetInfo()
-	if err != nil {
-		log.Fatalf("failed to get info: %v", err)
-	}
-
-	log.Printf("current block height: %d", info.Blocks)
-
-	os.Exit(m.Run())
-}
-
 func TestHttpPost(t *testing.T) {
 	address, privateKey := getNewWalletAddress(t)
 
 	generate(t, 100)
 
-	fmt.Println(address)
+	t.Log(address)
 
 	sendToAddress(t, address, 0.001)
 
 	txID := sendToAddress(t, address, 0.02)
 	hash := generate(t, 1)
 
-	fmt.Println(txID)
-	fmt.Println(hash)
+	t.Log(txID)
+	t.Log(hash)
 
 	utxos := getUtxos(t, address)
-	if len(utxos) == 0 {
-		log.Fatal("No UTXOs available for the address")
-	}
+	assert.NotEqualf(t, 0, len(utxos), "No UTXOs available for the address")
 
 	tx := bt.NewTx()
 
 	// Add an input using the first UTXO
 	utxo := utxos[0]
 	utxoTxID := utxo.Txid
-	utxoVout := uint32(utxo.Vout)
+	utxoVout := utxo.Vout
 	utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
 	utxoScript := utxo.ScriptPubKey
 
 	err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
-	if err != nil {
-		log.Fatalf("Failed adding input: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Add an output to the address you've previously created
 	recipientAddress := address
 	amountToSend := uint64(1) // Example value - 0.009 BTC (taking fees into account)
 
 	recipientScript, err := bscript.NewP2PKHFromAddress(recipientAddress)
-	if err != nil {
-		log.Fatalf("Failed converting address to script: %v", err)
-	}
+	require.NoError(t, err)
 
 	err = tx.PayTo(recipientScript, amountToSend)
-	if err != nil {
-		log.Fatalf("Failed adding output: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Sign the input
-
 	wif, err := btcutil.DecodeWIF(privateKey)
-	if err != nil {
-		log.Fatalf("Failed to decode WIF: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Extract raw private key bytes directly from the WIF structure
 	privateKeyDecoded := wif.PrivKey.Serialize()
@@ -113,15 +94,13 @@ func TestHttpPost(t *testing.T) {
 	pk, _ := bec.PrivKeyFromBytes(bsvec.S256(), privateKeyDecoded)
 	unlockerGetter := unlocker.Getter{PrivateKey: pk}
 	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
-	if err != nil {
-		log.Fatalf("sign failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	extBytes := tx.ExtendedBytes()
 
 	// Print or work with the extended bytes as required
-	fmt.Printf("Extended Bytes: %x\n", extBytes)
-	fmt.Println(extBytes)
+	t.Logf("Extended Bytes: %x\n", extBytes)
+	t.Log(extBytes)
 
 	// Convert the transaction bytes to a hex string
 	txHexString := hex.EncodeToString(extBytes)
@@ -129,111 +108,53 @@ func TestHttpPost(t *testing.T) {
 	// Create a JSON object with the rawTx key
 	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
 
-	url := "http://arc:9090/v1/tx"
+	url := ARC_URL + "/v1/tx"
 
 	// Create a new request using http.
 	req, err := http.NewRequest("POST", url, strings.NewReader(jsonPayload))
-
-	// If there is an error while creating the request, fail the test.
-	if err != nil {
-		t.Fatalf("Error creating HTTP request: %s", err)
-	}
+	require.NoError(t, err)
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
 
 	// Send the request using http.Client.
-	client := &http.Client{}
-	resp, err := client.Do(req)
-
-	// If there is an error while sending the request, fail the test.
-	if err != nil {
-		t.Fatalf("Error sending HTTP request: %s", err)
-	}
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
 
 	defer resp.Body.Close()
 
-	// If status is not http.StatusOK, then read and print the response body
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Error reading response body: %s", err)
-	}
-
-	// Print the response body for every request
-	fmt.Println("Response body:", string(bodyBytes))
-
-	// If status is not http.StatusOK, then provide an error for the test
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Received status: %s. Response body: %s", resp.Status, string(bodyBytes))
-	}
+	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	var response Response
-	if err := json.Unmarshal(bodyBytes, &response); err != nil {
-		t.Fatalf("Failed to decode the response body: %v", err)
-	}
+	err = json.NewDecoder(resp.Body).Decode(&response)
+
+	require.NoError(t, err)
 
 	generate(t, 10)
+	i := 0
+	for ; i < 5; i++ {
+		statusUrl := fmt.Sprintf("%s/v1/tx/%s", ARC_URL, response.Txid)
+		statusResp, err := http.Get(statusUrl)
 
-	statusUrl := fmt.Sprintf("http://arc:9090/v1/tx/%s", response.Txid)
-	statusResp, err := http.Get(statusUrl)
-	if err != nil {
-		t.Fatalf("Error sending GET request to /v1/tx/{txid}: %s", err)
-	}
-	defer statusResp.Body.Close()
+		require.NoError(t, err)
+		defer statusResp.Body.Close()
 
-	statusBodyBytes, err := io.ReadAll(statusResp.Body)
-	if err != nil {
-		t.Fatalf("Error reading status response body: %s", err)
-	}
+		var statusResponse TxStatusResponse
+		err = json.NewDecoder(statusResp.Body).Decode(&statusResponse)
+		require.NoError(t, err)
 
-	// Print the response body for the GET request
-	fmt.Println("Transaction status response body:", string(statusBodyBytes))
+		//assert.Equal(t, "MINED", statusResponse.TxStatus)
+		if statusResponse.TxStatus == "MINED" {
+			t.Logf("TX %s MINED", statusResponse.Txid)
+			break
+		}
 
-	// Unmarshal the status response
-	var statusResponse TxStatusResponse
-	if err := json.Unmarshal(statusBodyBytes, &statusResponse); err != nil {
-		t.Fatalf("Failed to decode the status response body: %v", err)
-	}
+		// Print the extracted txStatus (optional, since you're already asserting it)
+		t.Log("Transaction status:", statusResponse.TxStatus)
 
-	// Assert that txStatus is "SEEN_ON_NETWORK"
-	if statusResponse.TxStatus != "MINED" {
-		t.Fatalf("Expected txStatus to be 'MINED', but got '%s'", statusResponse.TxStatus)
+		time.Sleep(time.Duration(i) * time.Second)
 	}
 
-	// Print the extracted txStatus (optional, since you're already asserting it)
-	fmt.Println("Transaction status:", statusResponse.TxStatus)
-
-	time.Sleep(20 * time.Second)
-
-	if err = json.Unmarshal(bodyBytes, &response); err != nil { // <-- Use "=" instead of ":="
-		t.Fatalf("Failed to decode the response body: %v", err)
-	}
-
-	statusResp, err = http.Get(statusUrl) // <-- Use "=" instead of ":="
-	if err != nil {
-		t.Fatalf("Error sending GET request to /v1/tx/{txid}: %s", err)
-	}
-	defer statusResp.Body.Close()
-
-	statusBodyBytes, err = io.ReadAll(statusResp.Body) // <-- Use "=" instead of ":="
-	if err != nil {
-		t.Fatalf("Error reading status response body: %s", err)
-	}
-
-	// Print the response body for the GET request
-	fmt.Println("Transaction status response body:", string(statusBodyBytes))
-
-	// Unmarshal the status response
-	if err := json.Unmarshal(statusBodyBytes, &statusResponse); err != nil {
-		t.Fatalf("Failed to decode the status response body: %v", err)
-	}
-
-	// Assert that txStatus is "SEEN_ON_NETWORK"
-	if statusResponse.TxStatus != "MINED" {
-		t.Fatalf("Expected txStatus to be 'MINED', but got '%s'", statusResponse.TxStatus)
-	}
-
-	// Print the extracted txStatus (optional, since you're already asserting it)
-	fmt.Println("Transaction status:", statusResponse.TxStatus)
-
+	assert.Less(t, i, 5, "TX status is still not MINED after 5 attempts")
+	
 }

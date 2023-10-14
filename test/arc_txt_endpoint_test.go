@@ -156,5 +156,4 @@ func TestHttpPost(t *testing.T) {
 	}
 
 	assert.Less(t, i, 5, "TX status is still not MINED after 5 attempts")
-	
 }

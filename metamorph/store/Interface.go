@@ -13,18 +13,18 @@ import (
 )
 
 type StoreData struct {
-	RawTx         []byte
-	StoredAt      time.Time
-	AnnouncedAt   time.Time
-	MinedAt       time.Time
-	Hash          *chainhash.Hash `badgerhold:"key"`
-	Status        metamorph_api.Status
-	BlockHeight   uint64
-	BlockHash     *chainhash.Hash
-	MerkleProof   bool
-	CallbackUrl   string
-	CallbackToken string
-	RejectReason  string
+	RawTx         []byte               `dynamodbav:"raw_tx"`
+	StoredAt      time.Time            `dynamodbav:"stored_at"`
+	AnnouncedAt   time.Time            `dynamodbav:"announced_at"`
+	MinedAt       time.Time            `dynamodbav:"mined_at"`
+	Hash          *chainhash.Hash      `badgerhold:"key" dynamodbav:"hash"`
+	Status        metamorph_api.Status `dynamodbav:"status"`
+	BlockHeight   uint64               `dynamodbav:"block_height"`
+	BlockHash     *chainhash.Hash      `dynamodbav:"block_hash"`
+	MerkleProof   bool                 `dynamodbav:"merkle_proof"`
+	CallbackUrl   string               `dynamodbav:"callback_url"`
+	CallbackToken string               `dynamodbav:"callback_token"`
+	RejectReason  string               `dynamodbav:"reject_reason"`
 }
 
 func (sd *StoreData) EncodeToBytes() ([]byte, error) {

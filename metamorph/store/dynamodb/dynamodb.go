@@ -8,11 +8,16 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
+	"github.com/opentracing/opentracing-go/log"
+	"github.com/ordishs/gocore"
 )
 
 type DynamoDB struct {
@@ -42,7 +47,6 @@ func New() (store.MetamorphStore, error) {
 	}
 
 	// create table if not exists
-	fmt.Println("aaaaaa")
 	exists, err = dynamodbClient.TableExists("blocks")
 	if err != nil {
 		fmt.Println(err)
@@ -52,9 +56,15 @@ func New() (store.MetamorphStore, error) {
 		dynamodbClient.CreateBlocksTable()
 	}
 
+	data := []byte(fmt.Sprintf("Hello world %d-%d-%d", 23, 2, time.Now().UnixMilli()))
+	hash := chainhash.DoubleHashH(data)
+	err = dynamodbClient.Set(context.TODO(), nil, &store.StoreData{Hash: &hash})
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	// Using the Config value, create the DynamoDB client
 	return dynamodbClient, nil
-
 }
 
 // CREATE TABLE IF NOT EXISTS transactions (
@@ -142,197 +152,95 @@ func (ddb *DynamoDB) CreateBlocksTable() error {
 	return nil
 }
 
-func (dynamodb *DynamoDB) Get(ctx context.Context, key []byte) (*store.StoreData, error) {
-	return nil, nil
+func (ddb *DynamoDB) Get(ctx context.Context, key []byte) (*store.StoreData, error) {
+	// config log and tracing
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("Get").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:Get")
+	defer span.Finish()
+
+	// delete the item
+	val, err := attributevalue.MarshalMap(key)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := ddb.dynamoCli.GetItem(context.TODO(), &dynamodb.GetItemInput{
+		Key: val, TableName: aws.String("transactions"),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var transaction store.StoreData
+	err = attributevalue.UnmarshalMap(response.Item, &transaction)
+	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return nil, err
+	}
+
+	return &transaction, nil
 }
 
-func (dynamodb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData) error {
-	// 	startNanos := time.Now().UnixNano()
-	// 	defer func() {
-	// 		gocore.NewStat("mtm_store_sql").NewStat("Set").AddTime(startNanos)
-	// 	}()
-	// 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Set")
-	// 	defer span.Finish()
+func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData) error {
+	// setup log and tracing
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_dynamodb").NewStat("Set").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:Set")
+	defer span.Finish()
 
-	// 	q := `INSERT INTO transactions (
-	// 		 stored_at
-	// 		,announced_at
-	// 		,mined_at
-	// 		,hash
-	// 		,status
-	// 		,block_height
-	// 		,block_hash
-	// 		,callback_url
-	// 		,callback_token
-	// 		,merkle_proof
-	// 		,reject_reason
-	// 		,raw_tx
-	// 	) VALUES (
-	// 		 $1
-	// 		,$2
-	// 		,$3
-	// 		,$4
-	// 		,$5
-	// 		,$6
-	// 		,$7
-	// 		,$8
-	// 		,$9
-	// 		,$10
-	// 		,$11
-	// 		,$12
-	// 	);`
+	// marshal input value for new entry
+	item, err := attributevalue.MarshalMap(value)
+	if err != nil {
+		return err
+	}
 
-	// 	var storedAt string
-	// 	var announcedAt string
-	// 	var minedAt string
-	// 	var txHash []byte
-	// 	var blockHash []byte
+	// put item into table
+	_, err = ddb.dynamoCli.PutItem(context.TODO(), &dynamodb.PutItemInput{
+		TableName: aws.String("transactions"), Item: item,
+	})
 
-	// 	if value.Hash != nil {
-	// 		txHash = value.Hash.CloneBytes()
-	// 	}
-
-	// 	if value.BlockHash != nil {
-	// 		blockHash = value.BlockHash.CloneBytes()
-	// 	}
-
-	// 	if value.StoredAt.UnixMilli() != 0 {
-	// 		storedAt = value.StoredAt.UTC().Format(ISO8601)
-	// 	}
-
-	// 	// If the storedAt time is zero, set it to now on insert
-	// 	if value.StoredAt.IsZero() {
-	// 		value.StoredAt = time.Now()
-	// 	}
-
-	// 	if value.AnnouncedAt.UnixMilli() != 0 {
-	// 		announcedAt = value.AnnouncedAt.UTC().Format(ISO8601)
-	// 	}
-
-	// 	if value.MinedAt.UnixMilli() != 0 {
-	// 		minedAt = value.MinedAt.UTC().Format(ISO8601)
-	// 	}
-
-	// 	_, err := s.db.ExecContext(ctx, q,
-	// 		storedAt,
-	// 		announcedAt,
-	// 		minedAt,
-	// 		txHash,
-	// 		value.Status,
-	// 		value.BlockHeight,
-	// 		blockHash,
-	// 		value.CallbackUrl,
-	// 		value.CallbackToken,
-	// 		value.MerkleProof,
-	// 		value.RejectReason,
-	// 		value.RawTx,
-	// 	)
-
-	// 	if err != nil {
-	// 		span.SetTag(string(ext.Error), true)
-	// 		span.LogFields(log.Error(err))
-	// 	}
-
-	// 	return err
-	// }
-
-	// func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
-	// 	startNanos := time.Now().UnixNano()
-	// 	defer func() {
-	// 		gocore.NewStat("mtm_store_sql").NewStat("getunmined").AddTime(startNanos)
-	// 	}()
-	// 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:GetUnmined")
-	// 	defer span.Finish()
-
-	// 	q := `SELECT
-	// 	   stored_at
-	// 		,announced_at
-	// 		,mined_at
-	// 		,hash
-	// 		,status
-	// 		,block_height
-	// 		,block_hash
-	// 		,callback_url
-	// 		,callback_token
-	// 		,merkle_proof
-	// 		,raw_tx
-	// 	 	FROM transactions WHERE status < $1;`
-
-	// 	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_MINED)
-	// 	if err != nil {
-	// 		span.SetTag(string(ext.Error), true)
-	// 		span.LogFields(log.Error(err))
-	// 		return err
-	// 	}
-	// 	defer rows.Close()
-
-	// 	for rows.Next() {
-	// 		data := &store.StoreData{}
-
-	// 		var txHash []byte
-	// 		var blockHash []byte
-	// 		var storedAt string
-	// 		var announcedAt string
-	// 		var minedAt string
-
-	// 		if err = rows.Scan(
-	// 			&storedAt,
-	// 			&announcedAt,
-	// 			&minedAt,
-	// 			&txHash,
-	// 			&data.Status,
-	// 			&data.BlockHeight,
-	// 			&blockHash,
-	// 			&data.CallbackUrl,
-	// 			&data.CallbackToken,
-	// 			&data.MerkleProof,
-	// 			&data.RawTx,
-	// 		); err != nil {
-	// 			return err
-	// 		}
-
-	// 		if txHash != nil {
-	// 			data.Hash, _ = chainhash.NewHash(txHash)
-	// 		}
-
-	// 		if blockHash != nil {
-	// 			data.BlockHash, _ = chainhash.NewHash(blockHash)
-	// 		}
-
-	// 		if storedAt != "" {
-	// 			data.StoredAt, err = time.Parse(ISO8601, storedAt)
-	// 			if err != nil {
-	// 				span.SetTag(string(ext.Error), true)
-	// 				span.LogFields(log.Error(err))
-	// 				return err
-	// 			}
-	// 		}
-
-	// 		if announcedAt != "" {
-	// 			data.AnnouncedAt, err = time.Parse(ISO8601, announcedAt)
-	// 			if err != nil {
-	// 				span.SetTag(string(ext.Error), true)
-	// 				span.LogFields(log.Error(err))
-	// 				return err
-	// 			}
-	// 		}
-	// 		if minedAt != "" {
-	// 			data.MinedAt, err = time.Parse(ISO8601, minedAt)
-	// 			if err != nil {
-	// 				span.SetTag(string(ext.Error), true)
-	// 				span.LogFields(log.Error(err))
-	// 				return err
-	// 			}
-	// 		}
-
-	// 		callback(data)
-	// 	}
+	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return nil
+	}
 
 	return nil
 }
 
-func (dynamodb *DynamoDB) Del(ctx context.Context, key []byte) error {
+func (ddb *DynamoDB) Del(ctx context.Context, key []byte) error {
+	// setup log and tracing
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_dynamodb").NewStat("Del").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:Del")
+	defer span.Finish()
+
+	// delete the item
+	val, err := attributevalue.MarshalMap(key)
+	if err != nil {
+		return err
+	}
+
+	_, err = ddb.dynamoCli.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
+		TableName: aws.String("transactions"), Key: val,
+	})
+
+	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return err
+	}
+
 	return nil
+
 }
 
 func (dynamodb *DynamoDB) GetUnmined(_ context.Context, callback func(s *store.StoreData)) error {
@@ -347,14 +255,22 @@ func (dynamodb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash,
 	return nil
 }
 
-func (dynamodb *DynamoDB) Close(ctx context.Context) error {
-	return nil
-}
-
 func (dynamodb *DynamoDB) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
 	return nil, nil
 }
 
 func (dynamodb *DynamoDB) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) error {
+	return nil
+}
+
+func (ddb *DynamoDB) Close(ctx context.Context) error {
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("Close").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:Close")
+	defer span.Finish()
+
+	ctx.Done()
 	return nil
 }

@@ -143,7 +143,6 @@ func TestHttpPost(t *testing.T) {
 		err = json.NewDecoder(statusResp.Body).Decode(&statusResponse)
 		require.NoError(t, err)
 
-		//assert.Equal(t, "MINED", statusResponse.TxStatus)
 		if statusResponse.TxStatus == "MINED" {
 			t.Logf("TX %s MINED", statusResponse.Txid)
 			break

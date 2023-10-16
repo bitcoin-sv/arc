@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"log"
 	mrand "math/rand"
 	"path/filepath"
 	"runtime"
@@ -25,7 +26,10 @@ var conn_url = fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", "postgre
 
 func getRandomBytes() []byte {
 	hash := make([]byte, chainhash.HashSize)
-	rand.Read(hash)
+	_, err := rand.Read(hash)
+	if err != nil {
+		log.Fatal(err)
+	}
 	return hash
 }
 func GetTestBlock() *store.Block {
@@ -113,6 +117,6 @@ func TestRunDatabaseTestSuite(t *testing.T) {
 	s := new(DatabaseTestSuite)
 	suite.Run(t, s)
 	if err := recover(); err != nil {
-		s.Database.Stop()
+		require.NoError(t, s.Database.Stop())
 	}
 }

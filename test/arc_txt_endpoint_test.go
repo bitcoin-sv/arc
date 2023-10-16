@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -154,7 +154,7 @@ func TestHttpPost(t *testing.T) {
 	defer resp.Body.Close()
 
 	// If status is not http.StatusOK, then read and print the response body
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("Error reading response body: %s", err)
 	}
@@ -181,7 +181,7 @@ func TestHttpPost(t *testing.T) {
 	}
 	defer statusResp.Body.Close()
 
-	statusBodyBytes, err := ioutil.ReadAll(statusResp.Body)
+	statusBodyBytes, err := io.ReadAll(statusResp.Body)
 	if err != nil {
 		t.Fatalf("Error reading status response body: %s", err)
 	}
@@ -215,7 +215,7 @@ func TestHttpPost(t *testing.T) {
 	}
 	defer statusResp.Body.Close()
 
-	statusBodyBytes, err = ioutil.ReadAll(statusResp.Body) // <-- Use "=" instead of ":="
+	statusBodyBytes, err = io.ReadAll(statusResp.Body) // <-- Use "=" instead of ":="
 	if err != nil {
 		t.Fatalf("Error reading status response body: %s", err)
 	}

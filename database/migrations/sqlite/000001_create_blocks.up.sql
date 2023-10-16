@@ -13,3 +13,4 @@ CREATE TABLE blocks (
 );
 
 CREATE INDEX ix_blocks_hash ON blocks (hash);
+CREATE UNIQUE INDEX pux_blocks_height ON blocks(height) WHERE orphanedyn = FALSE;

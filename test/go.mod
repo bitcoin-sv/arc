@@ -7,14 +7,14 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.3
 	github.com/libsv/go-bk v0.1.6
 	github.com/libsv/go-bt/v2 v2.1.1
-	github.com/ordishs/go-bitcoin v1.0.83
+	github.com/ordishs/go-bitcoin v1.0.85
 	github.com/stretchr/testify v1.8.4
 )
 
 require (
 	bitbucket.org/simon_ordish/cryptolib v1.0.48 // indirect
 	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9 // indirect
-	github.com/btcsuite/btcd v0.23.1 // indirect
+	github.com/btcsuite/btcd v0.23.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.1.3 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

@@ -13,24 +13,14 @@ services:
       - ARC_DEBUG_PPROF=http://arc:9999/debug/pprof
     volumes:
       - ./arc-data:/data
-    networks:
-      - shared
 
-  tests:
-    build: ./test
-    depends_on:
-      - arc
-    networks:
-      - shared
-
-networks:
-  shared:
-    external: true
-
-volumes:
-  node1-data:
-    external: false
-  node2-data:
-    external: false
-  node3-data:
-    external: false
+  db:
+    image: postgres:14.1-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - ./postgresdata:/var/lib/postgresql/data

@@ -287,3 +287,13 @@ go run cmd/broadcaster/main.go -api=false -consolidate -keyfile=./cmd/broadcaste
 ```
 
 Detailed information about flags can is displayed by running `go run cmd/broadcaster/main.go`.
+
+## Tests
+
+The end-to-end tests are located in the folder `test`. They can be run locally together with arc and 3 nodes using the provided docker-compose file. In order to run them do the following
+
+```
+make build_release
+cd ./test
+docker compose up --abort-on-container-exit --exit-code-from tests
+```

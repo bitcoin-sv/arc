@@ -44,6 +44,6 @@ func TestGetBlockTransactions(t *testing.T) {
 	s := new(GetBlockTransactionsSuite)
 	suite.Run(t, s)
 	if err := recover(); err != nil {
-		s.Database.Stop()
+		require.NoError(t, s.Database.Stop())
 	}
 }

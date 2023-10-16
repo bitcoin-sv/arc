@@ -33,6 +33,6 @@ func TestGetBlockByHeightSuite(t *testing.T) {
 	suite.Run(t, s)
 
 	if err := recover(); err != nil {
-		s.Database.Stop()
+		require.NoError(t, s.Database.Stop())
 	}
 }

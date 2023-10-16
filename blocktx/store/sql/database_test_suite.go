@@ -3,6 +3,7 @@ package sql
 import (
 	"crypto/rand"
 	"fmt"
+	"log"
 	mrand "math/rand"
 	"path/filepath"
 	"runtime"
@@ -50,7 +51,10 @@ var conn_url = fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", "postgre
 
 func getRandomBytes() []byte {
 	hash := make([]byte, chainhash.HashSize)
-	rand.Read(hash)
+	_, err := rand.Read(hash)
+	if err != nil {
+		log.Fatal(err)
+	}
 	return hash
 }
 

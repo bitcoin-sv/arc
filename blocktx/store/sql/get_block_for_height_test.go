@@ -6,35 +6,33 @@ import (
 
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
-type GetBlockTestSuite struct {
+type GetBlockByHeightTestSuite struct {
 	DatabaseTestSuite
 }
 
-func (s *GetBlockByHeightTestSuite) TestGetBlock() {
+func (s *GetBlockByHeightTestSuite) TestGetBlockByHeight() {
 	block := GetTestBlock()
 
 	s.InsertBlock(block)
 	store, err := NewStore(GetStoreConnectionParams())
 	require.NoError(s.T(), err)
 
-	h, err := chainhash.NewHash(block.Hash)
-	require.NoError(s.T(), err)
-	b, err := store.GetBlock(context.Background(), h)
+	b, err := store.GetBlockForHeight(context.Background(), uint64(block.Height))
 
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), block.Hash, b.Hash)
 }
 
-func TestGetBlockTestSuite(t *testing.T) {
-	s := new(GetBlockTestSuite)
+func TestGetBlockByHeightSuite(t *testing.T) {
+	s := new(GetBlockByHeightTestSuite)
 	suite.Run(t, s)
+
 	if err := recover(); err != nil {
-		require.NoError(t, s.Database.Stop())
+		s.Database.Stop()
 	}
 }

@@ -1,6 +1,6 @@
 module github.com/bitcoin-sv/arc
 
-go 1.21.1
+go 1.19
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0

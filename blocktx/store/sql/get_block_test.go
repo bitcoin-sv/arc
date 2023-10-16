@@ -60,7 +60,7 @@ func (s *DatabaseTestSuite) SetupSuite() {
 	testDir := filepath.Dir(callerFilePath)
 
 	url := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", "postgres", "postgres", "localhost", 5432, "postgres")
-	path := "file://" + testDir + "/../../../database/migrations/"
+	path := "file://" + testDir + "/../../../database/migrations/postgres"
 	m, err := migrate.New(path, url)
 	require.NoError(s.T(), err)
 

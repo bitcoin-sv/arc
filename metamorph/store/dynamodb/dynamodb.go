@@ -81,7 +81,7 @@ func (ddb *DynamoDB) CreateTransactionsTable() error {
 	if _, err := ddb.dynamoCli.CreateTable(context.TODO(), &dynamodb.CreateTableInput{
 		AttributeDefinitions: []types.AttributeDefinition{
 			{
-				AttributeName: aws.String("hash"),
+				AttributeName: aws.String("tx_hash"),
 				AttributeType: types.ScalarAttributeTypeB,
 			},
 			{
@@ -95,7 +95,7 @@ func (ddb *DynamoDB) CreateTransactionsTable() error {
 		},
 		KeySchema: []types.KeySchemaElement{
 			{
-				AttributeName: aws.String("hash"),
+				AttributeName: aws.String("tx_hash"),
 				KeyType:       types.KeyTypeHash,
 			},
 		},
@@ -139,13 +139,13 @@ func (ddb *DynamoDB) CreateBlocksTable() error {
 	if _, err := ddb.dynamoCli.CreateTable(context.TODO(), &dynamodb.CreateTableInput{
 		AttributeDefinitions: []types.AttributeDefinition{
 			{
-				AttributeName: aws.String("hash"),
+				AttributeName: aws.String("block_hash"),
 				AttributeType: types.ScalarAttributeTypeB,
 			},
 		},
 		KeySchema: []types.KeySchemaElement{
 			{
-				AttributeName: aws.String("hash"),
+				AttributeName: aws.String("block_hash"),
 				KeyType:       types.KeyTypeHash,
 			}},
 		TableName: aws.String("blocks"),
@@ -169,12 +169,8 @@ func (ddb *DynamoDB) Get(ctx context.Context, key []byte) (*store.StoreData, err
 	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:Get")
 	defer span.Finish()
 
-	// delete the item
-	val, err := attributevalue.MarshalMap(key)
-	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return nil, err
+	val := map[string]types.AttributeValue{
+		"tx_hash": &types.AttributeValueMemberB{Value: key},
 	}
 
 	response, err := ddb.dynamoCli.GetItem(context.TODO(), &dynamodb.GetItemInput{
@@ -205,7 +201,7 @@ func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData
 	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:Set")
 	defer span.Finish()
-	fmt.Println("asdasd")
+
 	// marshal input value for new entry
 	item, err := attributevalue.MarshalMap(value)
 	if err != nil {
@@ -221,7 +217,6 @@ func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData
 	fmt.Println(m)
 
 	if err != nil {
-		fmt.Println("ddsdsdd")
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return nil
@@ -339,14 +334,15 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 	_, err := ddb.dynamoCli.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
 		TableName: aws.String("transactions"),
 		Key: map[string]types.AttributeValue{
-			"hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
+			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
-		UpdateExpression: aws.String("set tx_status = :tx_status and reject_reason = :reject_reason"),
+		UpdateExpression: aws.String("set tx_status = :tx_status, reject_reason = :reject_reason"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":tx_status":     &types.AttributeValueMemberN{Value: strconv.Itoa(int(status))},
 			":reject_reason": &types.AttributeValueMemberS{Value: rejectReason},
+			":tx_hash":       &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
-		ConditionExpression: aws.String("hash = :hash"),
+		ConditionExpression: aws.String("tx_hash = :tx_hash"),
 	})
 
 	if err != nil {
@@ -390,14 +386,15 @@ func (ddb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 	_, err := ddb.dynamoCli.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
 		TableName: aws.String("transactions"),
 		Key: map[string]types.AttributeValue{
-			"hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
+			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
 		UpdateExpression: aws.String("set block_height = :block_height and block_hash = :block_hash"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":block_hash":   &types.AttributeValueMemberB{Value: blockHash.CloneBytes()},
 			":block_height": &types.AttributeValueMemberN{Value: strconv.Itoa(int(blockHeight))},
+			"tx_hash":       &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
-		ConditionExpression: aws.String("hash = :hash"),
+		ConditionExpression: aws.String("tx_hash = :tx_hash"),
 	})
 
 	if err != nil {
@@ -418,7 +415,7 @@ func (ddb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 
 // marshal input value for new entry
 type BlockItem struct {
-	Hash        []byte `dynamodbav:"hash"`
+	Hash        []byte `dynamodbav:"block_hash"`
 	ProcessedAt string `dynamodbav:"processed_at"`
 }
 
@@ -431,16 +428,11 @@ func (ddb *DynamoDB) GetBlockProcessed(ctx context.Context, blockHash *chainhash
 	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:GetBlockProcessed")
 	defer span.Finish()
 
-	hash, err := attributevalue.Marshal(blockHash.CloneBytes())
-	if err != nil {
-		panic(err)
-	}
-
-	response, err := ddb.dynamoCli.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		Key: map[string]types.AttributeValue{
-			"hash": hash,
-		},
+	response, err := ddb.dynamoCli.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String("blocks"),
+		Key: map[string]types.AttributeValue{
+			"tx_hash": &types.AttributeValueMemberB{Value: blockHash.CloneBytes()},
+		},
 	})
 
 	if err != nil {

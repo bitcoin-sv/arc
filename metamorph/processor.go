@@ -53,7 +53,6 @@ type Processor struct {
 	pm                   p2p.PeerManagerI
 	btc                  blocktx.ClientI
 	logger               *slog.Logger
-	logLevel             slog.Level
 	metamorphAddress     string
 	errorLogFile         string
 	errorLogWorker       chan *processor_response.ProcessorResponse
@@ -101,9 +100,9 @@ func WithProcessorCacheExpiryTime(d time.Duration) func(*Processor) {
 	}
 }
 
-func WithProcessorLogLevel(l slog.Level) func(*Processor) {
+func WithProcessorLogger(l *slog.Logger) func(*Processor) {
 	return func(p *Processor) {
-		p.logLevel = l
+		p.logger = l.With(slog.String("service", "mtm"))
 	}
 }
 
@@ -124,7 +123,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 		cbChannel:        cbChannel,
 		pm:               pm,
 		btc:              btc,
-		logLevel:         logLevelDefault,
 		metamorphAddress: metamorphAddress,
 		mapExpiryTime:    mapExpiryTimeDefault,
 
@@ -141,6 +139,8 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 		retries:            stat.NewAtomicStat(),
 	}
 
+	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "mtm"))
+
 	// apply options to processor
 	for _, opt := range opts {
 		opt(p)
@@ -150,7 +150,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 	p.processExpiredSeenTxsTicker = time.NewTicker(p.processExpiredSeenTxsInterval)
 	p.processExpiredTxsTicker = time.NewTicker(unseenTransactionRebroadcastingInterval * time.Second)
 
-	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: p.logLevel})).With(slog.String("service", "mtm"))
 	p.logger.Info("Starting processor", slog.Duration("cacheExpiryTime", p.mapExpiryTime))
 
 	// Start a goroutine to resend transactions that have not been seen on the network

@@ -118,9 +118,9 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		return nil, err
 	}
 
-	logLevel, err := config.GetSlogLevel()
+	processorLogger, err := config.GetNewLogger()
 	if err != nil {
-		logger.Errorf("failed to get log level: %v", err)
+		logger.Errorf("failed to get logger: %v", err)
 		return nil, err
 	}
 
@@ -131,7 +131,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		cbAsyncCaller.GetChannel(),
 		btc,
 		metamorph.WithProcessorCacheExpiryTime(mapExpiry),
-		metamorph.WithProcessorLogLevel(logLevel),
+		metamorph.WithProcessorLogger(processorLogger),
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)

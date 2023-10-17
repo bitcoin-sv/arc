@@ -43,6 +43,10 @@ jobs:
     name: Static check
     runs-on: ubuntu-latest
     steps:
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: "./go.mod"
       - name: Check out the repo
         uses: actions/checkout@v4
 

@@ -1,6 +1,6 @@
 module github.com/bitcoin-sv/arc
 
-go 1.21
+go 1.21.1
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
@@ -9,7 +9,7 @@ require (
 	github.com/deepmap/oapi-codegen v1.15.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/fergusstrange/embedded-postgres v1.24.0
-	github.com/getkin/kin-openapi v0.120.0
+	github.com/getkin/kin-openapi v0.119.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-migrate/migrate/v4 v4.16.2
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
@@ -28,7 +28,7 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/ordishs/go-bitcoin v1.0.85
 	github.com/ordishs/go-utils v1.0.50
-	github.com/ordishs/gocore v1.0.44
+	github.com/ordishs/gocore v1.0.45
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.17.0
 	github.com/sasha-s/go-deadlock v0.3.1

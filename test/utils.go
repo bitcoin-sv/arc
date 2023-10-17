@@ -3,6 +3,7 @@ package test
 import (
 	"fmt"
 	"log"
+	"os"
 	"testing"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 )
 
 const (
-	host     = "localhost"
 	port     = 18332
 	user     = "bitcoin"
 	password = "bitcoin"
@@ -35,6 +35,10 @@ var (
 )
 
 func init() {
+	host := os.Getenv("NODE_IP")
+	if host == "" {
+		host = "localhost"
+	}
 
 	var err error
 	bitcoind, err = bitcoin.New(host, port, user, password, false)

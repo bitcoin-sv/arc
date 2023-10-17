@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -18,10 +19,6 @@ import (
 	"github.com/libsv/go-bt/v2/unlocker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-)
-
-const (
-	ARC_URL = "http://localhost:9090"
 )
 
 type Response struct {
@@ -45,6 +42,11 @@ type TxStatusResponse struct {
 }
 
 func TestHttpPost(t *testing.T) {
+	ARC_URL := os.Getenv("ARC_URL")
+	if ARC_URL == "" {
+		ARC_URL = "http://localhost:9090"
+	}
+
 	address, privateKey := getNewWalletAddress(t)
 
 	generate(t, 100)

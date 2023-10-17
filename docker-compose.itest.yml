@@ -28,6 +28,9 @@ services:
 
   tests:
     build: .
+    environment:
+      NODE_IP: "node1"
+      ARC_URL: "http://localhost:9090"
     depends_on:
       - arc
     healthcheck:

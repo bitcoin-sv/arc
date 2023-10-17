@@ -2,7 +2,6 @@ package metamorph
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -228,14 +227,15 @@ func (m *ProcessorResponseMap) Items(filterFunc ...func(*processor_response.Proc
 	return items
 }
 
-func (m *ProcessorResponseMap) PrintItems() {
+func (m *ProcessorResponseMap) getMapItems() []string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	processorResponse := make([]string, 0, len(m.items))
 	for _, value := range m.items {
-		fmt.Printf("processorResponseMap: %s\n", value.String())
+		processorResponse = append(processorResponse, value.String())
 	}
-
+	return processorResponse
 }
 
 // Clear clears the map.

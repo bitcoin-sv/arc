@@ -16,6 +16,7 @@ import (
 	blockTxStore "github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/callbacker"
 	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/libsv/go-bt/v2"
@@ -110,12 +111,27 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		logger.Fatalf("error creating async caller: %v", err)
 	}
 
-	metamorphProcessor := metamorph.NewProcessor(
+	mapExpiryStr := viper.GetString("metamorph.processorCacheExpiryTime")
+	mapExpiry, err := time.ParseDuration(mapExpiryStr)
+	if err != nil {
+		logger.Errorf("Invalid metamorph.processorCacheExpiryTime: %s", mapExpiryStr)
+		return nil, err
+	}
+
+	logLevel, err := config.GetSlogLevel()
+	if err != nil {
+		logger.Errorf("failed to get log level: %v", err)
+		return nil, err
+	}
+
+	metamorphProcessor, err := metamorph.NewProcessor(
 		s,
 		pm,
 		source,
 		cbAsyncCaller.GetChannel(),
 		btc,
+		metamorph.WithProcessorCacheExpiryTime(mapExpiry),
+		metamorph.WithProcessorLogLevel(logLevel),
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)

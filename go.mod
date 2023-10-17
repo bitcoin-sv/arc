@@ -1,6 +1,6 @@
 module github.com/bitcoin-sv/arc
 
-go 1.19
+go 1.21
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
@@ -33,7 +33,6 @@ require (
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
 	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.31.0
-	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 	modernc.org/sqlite v1.20.0
 )
 

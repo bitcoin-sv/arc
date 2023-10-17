@@ -3,7 +3,9 @@ package metamorph
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"strings"
@@ -20,7 +22,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/opentracing/opentracing-go/log"
+	tracingLog "github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/stat"
 	"github.com/ordishs/gocore"
@@ -50,10 +52,12 @@ type Processor struct {
 	processorResponseMap *ProcessorResponseMap
 	pm                   p2p.PeerManagerI
 	btc                  blocktx.ClientI
-	logger               utils.Logger
+	logger               *slog.Logger
+	logLevel             slog.Level
 	metamorphAddress     string
 	errorLogFile         string
 	errorLogWorker       chan *processor_response.ProcessorResponse
+	mapExpiryTime        time.Duration
 
 	processExpiredSeenTxsInterval time.Duration
 	processExpiredSeenTxsTicker   *time.Ticker
@@ -81,6 +85,8 @@ const (
 	// if not we resend them again for a few times
 	unseenTransactionRebroadcastingInterval = 60
 	processExpiredSeenTxsIntervalDefault    = 5 * time.Minute
+	mapExpiryTimeDefault                    = 24 * time.Hour
+	logLevelDefault                         = slog.LevelInfo
 )
 
 func WithProcessExpiredSeenTxsInterval(d time.Duration) func(*Processor) {
@@ -89,40 +95,38 @@ func WithProcessExpiredSeenTxsInterval(d time.Duration) func(*Processor) {
 	}
 }
 
+func WithProcessorCacheExpiryTime(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.mapExpiryTime = d
+	}
+}
+
+func WithProcessorLogLevel(l slog.Level) func(*Processor) {
+	return func(p *Processor) {
+		p.logLevel = l
+	}
+}
+
 type Option func(f *Processor)
 
 func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress string,
-	cbChannel chan *callbacker_api.Callback, btc blocktx.ClientI, opts ...Option) *Processor {
+	cbChannel chan *callbacker_api.Callback, btc blocktx.ClientI, opts ...Option) (*Processor, error) {
 	if s == nil {
-		panic("store cannot be nil")
+		return nil, errors.New("store cannot be nil")
 	}
 	if pm == nil {
-		panic("peer manager cannot be nil")
+		return nil, errors.New("peer manager cannot be nil")
 	}
-
-	logLevel := viper.GetString("logLevel")
-	logger := gocore.Log("proc", gocore.NewLogLevelFromString(logLevel))
-
-	mapExpiryStr := viper.GetString("metamorph.processorCacheExpiryTime")
-	if mapExpiryStr == "" {
-		mapExpiryStr = "24h"
-	}
-	mapExpiry, err := time.ParseDuration(mapExpiryStr)
-	if err != nil {
-		logger.Fatalf("Invalid metamorph.processorCacheExpiryTime: %s", mapExpiryStr)
-	}
-
-	logger.Infof("Starting processor with cache expiry of %s", mapExpiryStr)
 
 	p := &Processor{
-		startTime:            time.Now().UTC(),
-		store:                s,
-		cbChannel:            cbChannel,
-		processorResponseMap: NewProcessorResponseMap(mapExpiry),
-		pm:                   pm,
-		btc:                  btc,
-		logger:               logger,
-		metamorphAddress:     metamorphAddress,
+		startTime:        time.Now().UTC(),
+		store:            s,
+		cbChannel:        cbChannel,
+		pm:               pm,
+		btc:              btc,
+		logLevel:         logLevelDefault,
+		metamorphAddress: metamorphAddress,
+		mapExpiryTime:    mapExpiryTimeDefault,
 
 		processExpiredSeenTxsInterval: processExpiredSeenTxsIntervalDefault,
 
@@ -142,8 +146,12 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 		opt(p)
 	}
 
+	p.processorResponseMap = NewProcessorResponseMap(p.mapExpiryTime)
 	p.processExpiredSeenTxsTicker = time.NewTicker(p.processExpiredSeenTxsInterval)
 	p.processExpiredTxsTicker = time.NewTicker(unseenTransactionRebroadcastingInterval * time.Second)
+
+	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: p.logLevel})).With(slog.String("service", "mtm"))
+	p.logger.Info("Starting processor", slog.Duration("cacheExpiryTime", p.mapExpiryTime))
 
 	// Start a goroutine to resend transactions that have not been seen on the network
 	go p.processExpiredTransactions()
@@ -161,7 +169,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 
 	_ = newPrometheusCollector(p)
 
-	return p
+	return p, nil
 }
 
 func (p *Processor) Set(req *ProcessorRequest) error {
@@ -175,7 +183,7 @@ func (p *Processor) Set(req *ProcessorRequest) error {
 
 // Close all channels and goroutines for graceful shutdown
 func (p *Processor) Shutdown() {
-	p.logger.Infof("Shutting down processor")
+	p.logger.Info("Shutting down processor")
 	p.processExpiredSeenTxsTicker.Stop()
 	p.processExpiredTxsTicker.Stop()
 	if p.cbChannel != nil {
@@ -196,7 +204,7 @@ func (p *Processor) errorLogWriter() {
 
 	f, err := os.OpenFile(p.errorLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		p.logger.Errorf("error opening log file: %s", err.Error())
+		p.logger.Error("error opening log file", slog.String("err", err.Error()))
 	}
 	defer f.Close()
 
@@ -204,7 +212,7 @@ func (p *Processor) errorLogWriter() {
 	for pr := range p.errorLogWorker {
 		storeData, err = p.store.Get(context.Background(), pr.Hash[:])
 		if err != nil {
-			p.logger.Errorf("error getting tx from store: %s", err.Error())
+			p.logger.Error("error getting tx from store", slog.String("err", err.Error()))
 			continue
 		}
 		_, err = f.WriteString(fmt.Sprintf("%v,%s,%s\n",
@@ -213,7 +221,7 @@ func (p *Processor) errorLogWriter() {
 			hex.EncodeToString(storeData.RawTx),
 		))
 		if err != nil {
-			p.logger.Errorf("error writing to log file: %s", err.Error())
+			p.logger.Error("error writing to log file", slog.String("err", err.Error()))
 		}
 	}
 }
@@ -243,19 +251,19 @@ func (p *Processor) processExpiredSeenTransactions() {
 
 		blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
 		if err != nil {
-			p.logger.Errorf("error getting transactions from blocktx: %s", err.Error())
+			p.logger.Error("error getting transactions from blocktx", slog.String("err", err.Error()))
 			return
 		}
 
 		for _, blockTxs := range blockTransactions.TransactionBlocks {
 			blockHash, err := chainhash.NewHash(blockTxs.BlockHash)
 			if err != nil {
-				p.logger.Errorf("error parsing block hash: %s", err.Error())
+				p.logger.Error("error parsing block hash", slog.String("err", err.Error()))
 				continue
 			}
 			_, err = p.SendStatusMinedForTransaction((*chainhash.Hash)(blockTxs.TransactionHash), blockHash, blockTxs.BlockHeight)
 			if err != nil {
-				p.logger.Errorf("error sending status mined for tx: %s", err.Error())
+				p.logger.Error("error sending status mined for tx", slog.String("err", err.Error()))
 			}
 		}
 	}
@@ -272,7 +280,7 @@ func (p *Processor) processExpiredTransactions() {
 	for range p.processExpiredTxsTicker.C {
 		expiredTransactionItems := p.processorResponseMap.Items(filterFunc)
 		if len(expiredTransactionItems) > 0 {
-			p.logger.Infof("Resending %d expired transactions", len(expiredTransactionItems))
+			p.logger.Info("Resending expired transactions", slog.Int("number", len(expiredTransactionItems)))
 			for txID, item := range expiredTransactionItems {
 				startTime := time.Now()
 				retries := item.GetRetries()
@@ -280,7 +288,7 @@ func (p *Processor) processExpiredTransactions() {
 
 				if retries > MaxRetries {
 					// Sending GETDATA to peers to see if they have it
-					p.logger.Debugf("Re-getting expired tx: %s", txID)
+					p.logger.Debug("Re-getting expired tx", slog.String("hash", txID.String()))
 					p.pm.RequestTransaction(item.Hash)
 					item.AddLog(
 						item.Status,
@@ -288,7 +296,7 @@ func (p *Processor) processExpiredTransactions() {
 						"Sent GETDATA for transaction",
 					)
 				} else {
-					p.logger.Debugf("Re-announcing expired tx: %s", txID)
+					p.logger.Debug("Re-announcing expired tx", slog.String("hash", txID.String()))
 					p.pm.AnnounceTransaction(item.Hash, item.AnnouncedPeers)
 					item.AddLog(
 						metamorph_api.Status_ANNOUNCED_TO_NETWORK,
@@ -303,7 +311,7 @@ func (p *Processor) processExpiredTransactions() {
 	}
 }
 
-func (p *Processor) SetLogger(logger utils.Logger) {
+func (p *Processor) SetLogger(logger *slog.Logger) {
 	p.logger = logger
 }
 
@@ -341,7 +349,7 @@ func (p *Processor) LoadUnmined() {
 
 			err := p.store.UpdateStatus(spanCtx, record.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
 			if err != nil {
-				p.logger.Errorf("Error updating status for %v: %v", record.Hash, err)
+				p.logger.Error("Failed to update status", slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
 			}
 		} else if record.Status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
 			// we only announced the transaction, but we did not receive a SENT_TO_NETWORK response
@@ -357,11 +365,11 @@ func (p *Processor) LoadUnmined() {
 				var blockHash *chainhash.Hash
 				blockHash, err = chainhash.NewHash(transactionResponse.BlockHash)
 				if err != nil {
-					p.logger.Errorf("Error converting block hash: %v", err)
+					p.logger.Error("Failed to convert block hash", slog.String("err", err.Error()))
 				} else {
 					_, err = p.SendStatusMinedForTransaction(record.Hash, blockHash, transactionResponse.BlockHeight)
 					if err != nil {
-						p.logger.Errorf("Error updating status for mined transaction: %v", err)
+						p.logger.Error("Failed to update status for mined transaction", slog.String("err", err.Error()))
 					}
 				}
 				return
@@ -369,7 +377,7 @@ func (p *Processor) LoadUnmined() {
 		}
 	})
 	if err != nil {
-		p.logger.Errorf("Error iterating through stored transactions: %v", err)
+		p.logger.Error("Failed to iterate through stored transactions", slog.String("err", err.Error()))
 	}
 }
 
@@ -390,7 +398,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 		},
 		Callback: func(err error) {
 			if err != nil {
-				p.logger.Errorf("Error updating status for %v: %v", hash, err)
+				p.logger.Error("Failed to update status", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 				return
 			}
 
@@ -444,10 +452,10 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 			IgnoreCallback: processorResponse.NoStats, // do not do this callback if we are not keeping stats
 			Callback: func(err error) {
 				if err != nil {
-					p.logger.Errorf("Error updating status for %v: %v", hash, err)
+					p.logger.Error("Failed to update status", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 					return
 				} else {
-					p.logger.Debugf("Status %s reported for tx %v", status, hash)
+					p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
 				}
 
 				switch status {
@@ -490,9 +498,9 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 		// and the transactions should be in the map until they are mined
 		if statusErr != nil {
 			// Print the error along with the status message
-			p.logger.Debugf("Received status %s for tx %v: %s", status.String(), hash, statusErr.Error())
+			p.logger.Warn("Received status for tx", slog.String("status", status.String()), slog.String("hash", hash.String()), slog.String("err", statusErr.Error()))
 		} else {
-			p.logger.Debugf("Received status %s for tx %v", status.String(), hash)
+			p.logger.Debug("Received status for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
 		}
 
 		// This is coming from zmq, after the transaction has been deleted from our processorResponseMap
@@ -507,7 +515,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 			if err == store.ErrNotFound {
 				return false, nil
 			}
-			p.logger.Errorf("Error updating status for %v: %v", hash, err)
+			p.logger.Error("Failed to update status", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 			return false, err
 		}
 
@@ -529,7 +537,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 
 	p.queuedCount.Add(1)
 
-	p.logger.Debugf("Adding channel for %v", req.Hash)
+	p.logger.Debug("Adding channel", slog.String("hash", req.Hash.String()))
 
 	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Hash, req.ResponseChannel)
 
@@ -539,7 +547,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		Source: "processor",
 		Callback: func(err error) {
 			if err != nil {
-				p.logger.Errorf("Error received when setting status of %v to %s", req.Hash, metamorph_api.Status_RECEIVED.String())
+				p.logger.Error("Error received when setting status", slog.String("status", metamorph_api.Status_RECEIVED.String()), slog.String("hash", req.Hash.String()), slog.String("err", err.Error()))
 				return
 			}
 
@@ -552,9 +560,9 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 				},
 				Callback: func(err error) {
 					if err != nil {
-						p.logger.Errorf("Error storing transaction %v: %v", req.Hash, err)
 						span.SetTag(string(ext.Error), true)
-						span.LogFields(log.Error(err))
+						p.logger.Error("Failed to store transaction", slog.String("hash", req.Hash.String()), slog.String("err", err.Error()))
+						span.LogFields(tracingLog.Error(err))
 						return
 					}
 

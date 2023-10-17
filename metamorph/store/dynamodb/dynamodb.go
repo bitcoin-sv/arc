@@ -50,38 +50,14 @@ func New() (store.MetamorphStore, error) {
 	// create table if not exists
 	exists, err = dynamodbClient.TableExists("blocks")
 	if err != nil {
-		fmt.Println(err)
 		return dynamodbClient, err
 	} else if !exists {
-		fmt.Println("creating ....")
 		dynamodbClient.CreateBlocksTable()
-	}
-
-	data := []byte(fmt.Sprintf("Hello world %d-%d-%d", 23, 2, time.Now().UnixMilli()))
-	hash := chainhash.DoubleHashH(data)
-	err = dynamodbClient.Set(context.TODO(), nil, &store.StoreData{Hash: &hash})
-	if err != nil {
-		fmt.Println(err)
 	}
 
 	// Using the Config value, create the DynamoDB client
 	return dynamodbClient, nil
 }
-
-// CREATE TABLE IF NOT EXISTS transactions (
-// 	hash BLOB PRIMARY KEY,
-// 	stored_at TEXT,
-// 	announced_at TEXT,
-// 	mined_at TEXT,
-// 	status INTEGER,
-// 	block_height BIGINT,
-// 	block_hash BLOB,
-// 	callback_url TEXT,
-// 	callback_token TEXT,
-// 	merkle_proof TEXT,
-// 	reject_reason TEXT,
-// 	raw_tx BLOB
-// 	);
 
 func (ddb *DynamoDB) TableExists(tableName string) (bool, error) {
 	// Build the request with its input parameters
@@ -92,10 +68,10 @@ func (ddb *DynamoDB) TableExists(tableName string) (bool, error) {
 
 	for _, tn := range resp.TableNames {
 		if tn == tableName {
+
 			return true, nil
 		}
 	}
-
 	return false, nil
 }
 
@@ -108,12 +84,43 @@ func (ddb *DynamoDB) CreateTransactionsTable() error {
 				AttributeName: aws.String("hash"),
 				AttributeType: types.ScalarAttributeTypeB,
 			},
+			{
+				AttributeName: aws.String("tx_status_shard"),
+				AttributeType: types.ScalarAttributeTypeN,
+			},
+			{
+				AttributeName: aws.String("tx_status"),
+				AttributeType: types.ScalarAttributeTypeN,
+			},
 		},
 		KeySchema: []types.KeySchemaElement{
 			{
 				AttributeName: aws.String("hash"),
 				KeyType:       types.KeyTypeHash,
-			}},
+			},
+		},
+		GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{
+			{
+				IndexName: aws.String("statuses"),
+				KeySchema: []types.KeySchemaElement{
+					{
+						AttributeName: aws.String("tx_status_shard"),
+						KeyType:       types.KeyTypeHash,
+					},
+					{
+						AttributeName: aws.String("tx_status"),
+						KeyType:       types.KeyTypeRange,
+					},
+				},
+				Projection: &types.Projection{
+					ProjectionType: types.ProjectionTypeAll,
+				},
+				ProvisionedThroughput: &types.ProvisionedThroughput{
+					ReadCapacityUnits:  aws.Int64(10),
+					WriteCapacityUnits: aws.Int64(10),
+				},
+			},
+		},
 		TableName: aws.String("transactions"),
 		ProvisionedThroughput: &types.ProvisionedThroughput{
 			ReadCapacityUnits:  aws.Int64(10),
@@ -198,7 +205,7 @@ func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData
 	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:Set")
 	defer span.Finish()
-
+	fmt.Println("asdasd")
 	// marshal input value for new entry
 	item, err := attributevalue.MarshalMap(value)
 	if err != nil {
@@ -208,15 +215,18 @@ func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData
 	}
 
 	// put item into table
-	_, err = ddb.dynamoCli.PutItem(context.TODO(), &dynamodb.PutItemInput{
+	m, err := ddb.dynamoCli.PutItem(context.TODO(), &dynamodb.PutItemInput{
 		TableName: aws.String("transactions"), Item: item,
 	})
+	fmt.Println(m)
 
 	if err != nil {
+		fmt.Println("ddsdsdd")
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return nil
 	}
+	fmt.Println("kkkkkssss")
 
 	return nil
 }
@@ -264,9 +274,11 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 	// get unmined set
 	out, err := ddb.dynamoCli.Query(context.TODO(), &dynamodb.QueryInput{
 		TableName:              aws.String("transactions"),
-		KeyConditionExpression: aws.String("status < :status"),
+		IndexName:              aws.String("statuses"),
+		KeyConditionExpression: aws.String("tx_status_shard = :tx_status_shard and tx_status < :tx_status"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":hashKey": &types.AttributeValueMemberS{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
+			":tx_status":       &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
+			":tx_status_shard": &types.AttributeValueMemberN{Value: strconv.Itoa(int(1))},
 		},
 	})
 
@@ -323,16 +335,15 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 	// 	span.LogFields(log.Error(err))
 	// 	return err
 	// }
-
 	// run update
 	_, err := ddb.dynamoCli.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
 		TableName: aws.String("transactions"),
 		Key: map[string]types.AttributeValue{
 			"hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
-		UpdateExpression: aws.String("set status = :status and reject_reason = :reject_reason"),
+		UpdateExpression: aws.String("set tx_status = :tx_status and reject_reason = :reject_reason"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":status":        &types.AttributeValueMemberN{Value: strconv.Itoa(int(status))},
+			":tx_status":     &types.AttributeValueMemberN{Value: strconv.Itoa(int(status))},
 			":reject_reason": &types.AttributeValueMemberS{Value: rejectReason},
 		},
 		ConditionExpression: aws.String("hash = :hash"),
@@ -420,17 +431,18 @@ func (ddb *DynamoDB) GetBlockProcessed(ctx context.Context, blockHash *chainhash
 	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:GetBlockProcessed")
 	defer span.Finish()
 
-	// delete the item
-	val, err := attributevalue.MarshalMap(blockHash.CloneBytes())
+	hash, err := attributevalue.Marshal(blockHash.CloneBytes())
 	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return nil, err
+		panic(err)
 	}
 
 	response, err := ddb.dynamoCli.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		Key: val, TableName: aws.String("blocks"),
+		Key: map[string]types.AttributeValue{
+			"hash": hash,
+		},
+		TableName: aws.String("blocks"),
 	})
+
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))

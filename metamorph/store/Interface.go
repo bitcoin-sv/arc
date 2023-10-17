@@ -18,7 +18,7 @@ type StoreData struct {
 	AnnouncedAt   time.Time            `dynamodbav:"announced_at"`
 	MinedAt       time.Time            `dynamodbav:"mined_at"`
 	Hash          *chainhash.Hash      `badgerhold:"key" dynamodbav:"hash"`
-	Status        metamorph_api.Status `dynamodbav:"status"`
+	Status        metamorph_api.Status `dynamodbav:"tx_status"`
 	BlockHeight   uint64               `dynamodbav:"block_height"`
 	BlockHash     *chainhash.Hash      `dynamodbav:"block_hash"`
 	MerkleProof   bool                 `dynamodbav:"merkle_proof"`

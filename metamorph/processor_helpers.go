@@ -25,11 +25,8 @@ import (
 )
 
 func (p *Processor) GetStats(debugItems bool) *ProcessorStats {
-
 	if debugItems {
-		for _, item := range p.processorResponseMap.getMapItems() {
-			p.logger.Debug(item)
-		}
+		p.processorResponseMap.logMapItems(p.logger)
 	}
 
 	return &ProcessorStats{

@@ -43,6 +43,7 @@ type TxStatusResponse struct {
 
 func TestHttpPost(t *testing.T) {
 	ARC_URL := os.Getenv("ARC_URL")
+	t.Logf("testing agains arc url %s", ARC_URL)
 	if ARC_URL == "" {
 		ARC_URL = "http://localhost:9090"
 	}

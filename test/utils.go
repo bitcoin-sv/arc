@@ -39,7 +39,7 @@ func init() {
 	if host == "" {
 		host = "localhost"
 	}
-
+	log.Printf("connecting to bitcoin node %s", host)
 	var err error
 	bitcoind, err = bitcoin.New(host, port, user, password, false)
 	if err != nil {

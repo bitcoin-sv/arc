@@ -413,7 +413,6 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusMinedForTransaction")
 	defer span.Finish()
 
-	fmt.Println(hash.String())
 	resp, ok := p.processorResponseMap.Get(hash)
 	if !ok {
 		return false, nil

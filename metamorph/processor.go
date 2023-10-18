@@ -304,7 +304,8 @@ func (p *Processor) LoadUnmined() {
 
 		p.processorResponseMap.Set(record.Hash, pr)
 
-		if record.Status == metamorph_api.Status_STORED {
+		switch record.Status {
+		case metamorph_api.Status_STORED:
 			// announce the transaction to the network
 			pr.SetPeers(p.pm.AnnounceTransaction(record.Hash, nil))
 
@@ -312,28 +313,36 @@ func (p *Processor) LoadUnmined() {
 			if err != nil {
 				p.logger.Error("Failed to update status", slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
 			}
-		} else if record.Status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
+		case metamorph_api.Status_ANNOUNCED_TO_NETWORK:
 			// we only announced the transaction, but we did not receive a SENT_TO_NETWORK response
 			// let's send a GETDATA message to the network to check whether the transaction is actually there
 			p.pm.RequestTransaction(record.Hash)
-		} else if record.Status == metamorph_api.Status_SENT_TO_NETWORK {
+		case metamorph_api.Status_SENT_TO_NETWORK:
 			p.pm.RequestTransaction(record.Hash)
-		} else if record.Status == metamorph_api.Status_SEEN_ON_NETWORK {
+		case metamorph_api.Status_SEEN_ON_NETWORK:
 			// could it already be mined, and we need to get it from BlockTx?
 			transactionResponse, err := p.btc.GetTransactionBlock(context.Background(), &blocktx_api.Transaction{Hash: record.Hash[:]})
-			if err == nil && transactionResponse != nil && transactionResponse.BlockHeight > 0 {
-				// we have a mined transaction, let's update the status
-				var blockHash *chainhash.Hash
-				blockHash, err = chainhash.NewHash(transactionResponse.BlockHash)
-				if err != nil {
-					p.logger.Error("Failed to convert block hash", slog.String("err", err.Error()))
-				} else {
-					_, err = p.SendStatusMinedForTransaction(record.Hash, blockHash, transactionResponse.BlockHeight)
-					if err != nil {
-						p.logger.Error("Failed to update status for mined transaction", slog.String("err", err.Error()))
-					}
-				}
+
+			if err != nil {
+				p.logger.Error("failed to get transaction block", slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
 				return
+			}
+
+			if transactionResponse == nil || transactionResponse.BlockHeight <= 0 {
+				return
+			}
+
+			// we have a mined transaction, let's update the status
+			var blockHash *chainhash.Hash
+			blockHash, err = chainhash.NewHash(transactionResponse.BlockHash)
+			if err != nil {
+				p.logger.Error("Failed to convert block hash", slog.String("err", err.Error()))
+				return
+			}
+
+			_, err = p.SendStatusMinedForTransaction(record.Hash, blockHash, transactionResponse.BlockHeight)
+			if err != nil {
+				p.logger.Error("Failed to update status for mined transaction", slog.String("err", err.Error()))
 			}
 		}
 	})

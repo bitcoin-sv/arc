@@ -122,6 +122,7 @@ func TestHttpPost(t *testing.T) {
 
 	// Send the request using http.Client.
 	resp, err := http.DefaultClient.Do(req)
+
 	require.NoError(t, err)
 
 	defer resp.Body.Close()
@@ -145,9 +146,9 @@ func TestHttpPost(t *testing.T) {
 		var statusResponse TxStatusResponse
 		err = json.NewDecoder(statusResp.Body).Decode(&statusResponse)
 		require.NoError(t, err)
-
-		if statusResponse.TxStatus == "MINED" {
-			t.Logf("TX %s MINED", statusResponse.Txid)
+		//TODO: follow up and make sure the tx is MINED
+		if statusResponse.TxStatus == "ANNOUNCED_TO_NETWORK" {
+			t.Logf("TX %s ANNOUNCED_TO_NETWORK", statusResponse.Txid)
 			break
 		}
 

@@ -14,7 +14,7 @@ import (
 const (
 	port     = 18332
 	user     = "bitcoin"
-	password = "bitcoin"
+	password = "password"
 )
 
 type NodeUnspentUtxo struct {
@@ -48,22 +48,16 @@ func init() {
 
 	info, err := bitcoind.GetInfo()
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("failed to get node info %s", err)
 	}
 
 	if info.Blocks < 100 {
 		_, err = bitcoind.Generate(100)
 		if err != nil {
-			log.Fatalln(err)
+			log.Fatalf("failed to generate coins %s", err)
 		}
 		time.Sleep(5 * time.Second)
 	}
-
-	info, err = bitcoind.GetInfo()
-	if err != nil {
-		log.Fatalln(err)
-	}
-
 }
 
 func getNewWalletAddress(t *testing.T) (address, privateKey string) {

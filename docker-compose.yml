@@ -1,0 +1,37 @@
+version: '3'
+services:
+  node0:
+    container_name: node0
+    image: bitcoinsv/bitcoin-sv
+    ports:
+      - "8333:8333"
+      - "8332:8332"
+      - "18332:18332"
+    healthcheck:
+      test: ["bitcoin-cli", "-rpcuser=bitcoin", "-rpcpassword=password", "getinfo" ]
+    command: ["bitcoind",
+      "-maxstackmemoryusageconsensus=1000000000",
+      "-excessiveblocksize=100000000",
+      "-minminingtxfee=0.00000500",
+      "-bind=0.0.0.0",
+      "-regtest=1"]
+
+  arc:
+    build: .
+    ports:
+      - "8011:8011"
+      - "9090:9090"
+      - "9999:9999"
+    depends_on:
+      - node0
+
+  tests:
+    build: .
+    environment:
+      NODE_IP: "node0"
+      ARC_URL: "http://arc:9090"
+    depends_on:
+      - arc
+    healthcheck:
+      test: ["CMD","curl", "http://arc:9090/v1/tx"]
+    command: ["go","test", "-v", "./test/..."]

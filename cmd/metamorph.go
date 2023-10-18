@@ -118,7 +118,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		return nil, err
 	}
 
-	processorLogger, err := config.GetNewLogger()
+	processorLogger, err := config.NewLogger()
 	if err != nil {
 		logger.Errorf("failed to get logger: %v", err)
 		return nil, err

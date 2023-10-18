@@ -26,7 +26,7 @@ func GetSlogLevel() (slog.Level, error) {
 	return slog.LevelInfo, fmt.Errorf("invalid log level: %s", logLevelString)
 }
 
-func GetNewLogger() (*slog.Logger, error) {
+func NewLogger() (*slog.Logger, error) {
 
 	logLevel, err := GetSlogLevel()
 	if err != nil {

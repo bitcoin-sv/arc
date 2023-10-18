@@ -724,82 +724,49 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 
 func TestProcessExpiredTransactions(t *testing.T) {
 	tt := []struct {
-		name               string
-		expiredTxsInterval time.Duration
-
-		expectedNrOfUpdates          int
-		expectedNrOfBlockTxRequests  int
-		expectedNumberOfTransactions int
+		name    string
+		retries uint32
 	}{
 		{
-			name:               "expired txs",
-			expiredTxsInterval: 20 * time.Millisecond,
-
-			expectedNrOfUpdates:          3,
-			expectedNrOfBlockTxRequests:  1,
-			expectedNumberOfTransactions: 3,
+			name:    "expired txs - 0 retries",
+			retries: 0,
+		},
+		{
+			name:    "expired txs - 0 retries",
+			retries: 16,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
-			metamorphStore := &storeMock.MetamorphStoreMock{
-				UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
-					require.Condition(t, func() (success bool) {
-						oneOfHash := hash.IsEqual(testdata.TX1Hash) || hash.IsEqual(testdata.TX2Hash) || hash.IsEqual(testdata.TX3Hash)
-						isBlockHeight := blockHeight == 1234
-						isBlockHash := blockHash.IsEqual(testdata.Block1Hash)
-						return oneOfHash && isBlockHeight && isBlockHash
-					})
-
-					return nil
-				},
-			}
-			btxMock := &blockTxMock.ClientIMock{
-				GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
-					require.Equal(t, tc.expectedNumberOfTransactions, len(transaction.Transactions))
-					txsBlocks := &blocktx_api.TransactionBlocks{
-						TransactionBlocks: []*blocktx_api.TransactionBlock{
-							{
-								BlockHash:       testdata.Block1Hash[:],
-								BlockHeight:     1234,
-								TransactionHash: testdata.TX1Hash[:],
-							},
-							{
-								BlockHash:       testdata.Block1Hash[:],
-								BlockHeight:     1234,
-								TransactionHash: testdata.TX2Hash[:],
-							},
-							{
-								BlockHash:       testdata.Block1Hash[:],
-								BlockHeight:     1234,
-								TransactionHash: testdata.TX3Hash[:],
-							},
-						},
-					}
-					return txsBlocks, nil
-				},
-			}
-
+			metamorphStore := &storeMock.MetamorphStoreMock{}
 			pm := p2p.NewPeerManagerMock()
-			processor, err := NewProcessor(metamorphStore, pm, "test", nil, btxMock,
+			processor, err := NewProcessor(metamorphStore, pm, "test", nil, nil,
 				WithProcessExpiredSeenTxsInterval(time.Hour),
-				WithProcessExpiredTxsInterval(tc.expiredTxsInterval),
+				WithProcessExpiredTxsInterval(time.Millisecond*20),
+				WithNow(func() time.Time {
+					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
+				}),
 			)
 			require.NoError(t, err)
 			defer processor.Shutdown()
 
 			require.Equal(t, 0, processor.processorResponseMap.Len())
 
-			processor.processorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK))
-			processor.processorResponseMap.Set(testdata.TX2Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_SEEN_ON_NETWORK))
-			processor.processorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+			respSent := processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK)
+			respSent.Retries.Add(tc.retries)
+
+			respAnnounced := processor_response.NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK)
+			respAnnounced.Retries.Add(tc.retries)
+
+			respAccepted := processor_response.NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_ACCEPTED_BY_NETWORK)
+			respAccepted.Retries.Add(tc.retries)
+
+			processor.processorResponseMap.Set(testdata.TX1Hash, respSent)
+			processor.processorResponseMap.Set(testdata.TX2Hash, respAnnounced)
+			processor.processorResponseMap.Set(testdata.TX3Hash, respAccepted)
 
 			time.Sleep(50 * time.Millisecond)
-
-			require.Equal(t, tc.expectedNrOfUpdates, len(metamorphStore.UpdateMinedCalls()))
-			require.Equal(t, tc.expectedNrOfBlockTxRequests, len(btxMock.GetTransactionBlocksCalls()))
 		})
 	}
 }

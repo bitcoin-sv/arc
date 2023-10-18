@@ -28,32 +28,66 @@ import (
 )
 
 func TestNewProcessor(t *testing.T) {
-	t.Run("NewProcessor", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
-		require.NoError(t, err)
+	s, err := sql.New("sqlite_memory")
+	require.NoError(t, err)
 
-		pm := p2p.NewPeerManagerMock()
+	pm := p2p.NewPeerManagerMock()
 
-		processor, err := NewProcessor(s, pm, "test", nil, nil)
-		require.NoError(t, err)
+	tt := []struct {
+		name  string
+		store store.MetamorphStore
+		pm    p2p.PeerManagerI
 
-		if processor == nil {
-			t.Error("Expected a non-nil Processor")
-		}
-	})
+		expectedErrorStr        string
+		expectedNonNilProcessor bool
+	}{
+		{
+			name:                    "success",
+			store:                   s,
+			pm:                      pm,
+			expectedNonNilProcessor: true,
+		},
+		{
+			name:  "no store",
+			store: nil,
+			pm:    pm,
 
-	t.Run("NewProcessor - err no store", func(t *testing.T) {
-		_, err := NewProcessor(nil, nil, "test", nil, nil)
-		require.ErrorContains(t, err, "store cannot be nil")
-	})
+			expectedErrorStr: "store cannot be nil",
+		},
+		{
+			name:  "no pm",
+			store: s,
+			pm:    nil,
 
-	t.Run("NewProcessor - err no peer manager", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
-		require.NoError(t, err)
+			expectedErrorStr: "peer manager cannot be nil",
+		},
+	}
 
-		_, err = NewProcessor(s, nil, "test", nil, nil)
-		require.ErrorContains(t, err, "peer manager cannot be nil")
-	})
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+
+			errLogFilePath := "./test/data/metamorph_error.log"
+
+			processor, err := NewProcessor(tc.store, tc.pm, "test", nil, nil,
+				WithErrLogFilePath(errLogFilePath),
+				WithCacheExpiryTime(time.Second*5),
+				WithProcessExpiredSeenTxsInterval(time.Second*5),
+				WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault}))),
+			)
+			if tc.expectedErrorStr != "" || err != nil {
+				require.ErrorContains(t, err, tc.expectedErrorStr)
+				return
+			} else {
+				require.NoError(t, err)
+			}
+
+			defer processor.Shutdown()
+
+			if tc.expectedNonNilProcessor && processor == nil {
+				t.Error("Expected a non-nil Processor")
+			}
+		})
+	}
 }
 
 func TestLoadUnseen(t *testing.T) {

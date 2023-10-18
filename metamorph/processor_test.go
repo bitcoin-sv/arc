@@ -28,8 +28,7 @@ import (
 )
 
 func TestNewProcessor(t *testing.T) {
-	s, err := sql.New("sqlite_memory")
-	require.NoError(t, err)
+	mtmStore := &storeMock.MetamorphStoreMock{}
 
 	pm := p2p.NewPeerManagerMock()
 
@@ -43,7 +42,7 @@ func TestNewProcessor(t *testing.T) {
 	}{
 		{
 			name:                    "success",
-			store:                   s,
+			store:                   mtmStore,
 			pm:                      pm,
 			expectedNonNilProcessor: true,
 		},
@@ -56,7 +55,7 @@ func TestNewProcessor(t *testing.T) {
 		},
 		{
 			name:  "no pm",
-			store: s,
+			store: mtmStore,
 			pm:    nil,
 
 			expectedErrorStr: "peer manager cannot be nil",
@@ -90,37 +89,97 @@ func TestNewProcessor(t *testing.T) {
 	}
 }
 
-func TestLoadUnseen(t *testing.T) {
-	t.Run("LoadUnmined empty", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
-		require.NoError(t, err)
+func TestLoadUnmined(t *testing.T) {
+	tt := []struct {
+		name       string
+		storedData []*store.StoreData
 
-		pm := p2p.NewPeerManagerMock()
+		expectedItemsBeforeLoadUnmined int
+		expectedItemsAfterLoadUnmined  int
+		expectedItemTxHashes           []*chainhash.Hash
+	}{
+		{
+			name: "no unmined transactions",
 
-		processor, err := NewProcessor(s, pm, "test", nil, nil)
-		require.NoError(t, err)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
-		processor.LoadUnmined()
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
-	})
+			expectedItemsBeforeLoadUnmined: 0,
+			expectedItemsAfterLoadUnmined:  0,
+		},
+		{
+			name: "2 unmined transactions",
+			storedData: []*store.StoreData{
+				{
+					StoredAt:    testdata.Time,
+					AnnouncedAt: testdata.Time.Add(1 * time.Second),
+					MinedAt:     testdata.Time.Add(2 * time.Second),
+					Hash:        testdata.TX2Hash,
+					Status:      metamorph_api.Status_SEEN_ON_NETWORK,
+				},
+				{
+					StoredAt:      testdata.Time,
+					AnnouncedAt:   testdata.Time.Add(1 * time.Second),
+					MinedAt:       testdata.Time.Add(2 * time.Second),
+					Hash:          testdata.TX1Hash,
+					Status:        metamorph_api.Status_SENT_TO_NETWORK,
+					CallbackUrl:   "https://test.com",
+					CallbackToken: "token",
+				},
+			},
 
-	t.Run("LoadUnmined", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
-		require.NoError(t, err)
-		setStoreTestData(t, s)
+			expectedItemTxHashes:           []*chainhash.Hash{testdata.TX1Hash, testdata.TX2Hash},
+			expectedItemsBeforeLoadUnmined: 0,
+			expectedItemsAfterLoadUnmined:  2,
+		},
+	}
 
-		pm := p2p.NewPeerManagerMock()
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			pm := p2p.NewPeerManagerMock()
 
-		blockTxMock := NewBlockTxMock("test-address")
-		processor, err := NewProcessor(s, pm, "test", nil, blockTxMock)
-		require.NoError(t, err)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
-		processor.LoadUnmined()
-		assert.Equal(t, 2, processor.processorResponseMap.Len())
-		items := processor.processorResponseMap.Items()
-		assert.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
-		assert.Equal(t, testdata.TX2Hash, items[*testdata.TX2Hash].Hash)
-	})
+			btxMock := &blockTxMock.ClientIMock{
+				GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
+					blocks := &blocktx_api.TransactionBlocks{
+						TransactionBlocks: []*blocktx_api.TransactionBlock{
+							{
+								BlockHash:       testdata.Block1Hash[:],
+								BlockHeight:     123,
+								TransactionHash: testdata.TX1Hash.CloneBytes(),
+							},
+						},
+					}
+					return blocks, nil
+				},
+				GetTransactionBlockFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error) {
+					txResponse := &blocktx_api.RegisterTransactionResponse{
+						BlockHash:   testdata.Block2Hash[:],
+						BlockHeight: 2,
+					}
+					return txResponse, nil
+				},
+			}
+			mtmStore := &storeMock.MetamorphStoreMock{
+				GetUnminedFunc: func(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
+					for _, data := range tc.storedData {
+						callback(data)
+					}
+					return nil
+				},
+			}
+
+			processor, err := NewProcessor(mtmStore, pm, "test", nil, btxMock, WithProcessExpiredSeenTxsInterval(time.Millisecond*100))
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedItemsBeforeLoadUnmined, processor.processorResponseMap.Len())
+			processor.LoadUnmined()
+			assert.Equal(t, tc.expectedItemsAfterLoadUnmined, processor.processorResponseMap.Len())
+
+			time.Sleep(time.Millisecond * 200)
+
+			items := processor.processorResponseMap.Items()
+
+			for _, txHash := range tc.expectedItemTxHashes {
+				assert.Equal(t, txHash, items[*txHash].Hash)
+			}
+		})
+	}
 }
 
 func TestProcessTransaction(t *testing.T) {

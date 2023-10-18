@@ -8,8 +8,11 @@ import (
 )
 
 var (
-	Block1         = "0000000000000000072be13e375ffd673b1f37b0ec5ecde7b7e15b01f5685d07"
-	Block1Hash, _  = chainhash.NewHashFromStr(Block1)
+	Block1        = "0000000000000000072be13e375ffd673b1f37b0ec5ecde7b7e15b01f5685d07"
+	Block1Hash, _ = chainhash.NewHashFromStr(Block1)
+	Block2        = "000000000000020441ac25b0a9a1339ed75ff183a2500508eb8a5e035aeaca39"
+	Block2Hash, _ = chainhash.NewHashFromStr(Block2)
+
 	TX1            = "b042f298deabcebbf15355aa3a13c7d7cfe96c44ac4f492735f936f8e50d06f6"
 	TX1Hash, _     = chainhash.NewHashFromStr(TX1)
 	TX1Raw         = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff1a0386c40b2f7461616c2e636f6d2f00cf47ad9c7af83836000000ffffffff0117564425000000001976a914522cf9e7626d9bd8729e5a1398ece40dad1b6a2f88ac00000000"

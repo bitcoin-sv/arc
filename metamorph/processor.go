@@ -87,7 +87,7 @@ func WithProcessExpiredSeenTxsInterval(d time.Duration) func(*Processor) {
 	}
 }
 
-func WithProcessorCacheExpiryTime(d time.Duration) func(*Processor) {
+func WithCacheExpiryTime(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.mapExpiryTime = d
 	}
@@ -96,6 +96,12 @@ func WithProcessorCacheExpiryTime(d time.Duration) func(*Processor) {
 func WithProcessorLogger(l *slog.Logger) func(*Processor) {
 	return func(p *Processor) {
 		p.logger = l.With(slog.String("service", "mtm"))
+	}
+}
+
+func WithErrLogFilePath(errLogFilePath string) func(*Processor) {
+	return func(p *Processor) {
+		p.errorLogFile = errLogFilePath
 	}
 }
 

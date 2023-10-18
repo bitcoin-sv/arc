@@ -124,14 +124,17 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		return nil, err
 	}
 
+	errorLogFile := viper.GetString("metamorph.log.errorFile")
+
 	metamorphProcessor, err := metamorph.NewProcessor(
 		s,
 		pm,
 		source,
 		cbAsyncCaller.GetChannel(),
 		btc,
-		metamorph.WithProcessorCacheExpiryTime(mapExpiry),
+		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithProcessorLogger(processorLogger),
+		metamorph.WithErrLogFilePath(errorLogFile),
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)

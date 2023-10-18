@@ -26,7 +26,6 @@ import (
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/stat"
 	"github.com/ordishs/gocore"
-	"github.com/spf13/viper"
 )
 
 type ProcessorStats struct {
@@ -94,7 +93,7 @@ func WithProcessExpiredSeenTxsInterval(d time.Duration) func(*Processor) {
 	}
 }
 
-func WithProcessorCacheExpiryTime(d time.Duration) func(*Processor) {
+func WithCacheExpiryTime(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.mapExpiryTime = d
 	}
@@ -103,6 +102,12 @@ func WithProcessorCacheExpiryTime(d time.Duration) func(*Processor) {
 func WithProcessorLogger(l *slog.Logger) func(*Processor) {
 	return func(p *Processor) {
 		p.logger = l.With(slog.String("service", "mtm"))
+	}
+}
+
+func WithErrLogFilePath(errLogFilePath string) func(*Processor) {
+	return func(p *Processor) {
+		p.errorLogFile = errLogFilePath
 	}
 }
 
@@ -156,7 +161,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 	go p.processExpiredTransactions()
 	go p.processExpiredSeenTransactions()
 
-	p.errorLogFile = viper.GetString("metamorph.log.errorFile")
 	if p.errorLogFile != "" {
 		p.errorLogWorker = make(chan *processor_response.ProcessorResponse)
 		go p.errorLogWriter()

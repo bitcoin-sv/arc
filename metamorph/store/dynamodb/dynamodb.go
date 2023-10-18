@@ -2,7 +2,6 @@ package dynamodb
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -182,15 +181,19 @@ func (ddb *DynamoDB) Get(ctx context.Context, key []byte) (*store.StoreData, err
 		return nil, err
 	}
 
-	var transaction store.StoreData
-	err = attributevalue.UnmarshalMap(response.Item, &transaction)
-	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return nil, err
+	if len(response.Item) != 0 {
+		var transaction store.StoreData
+		err = attributevalue.UnmarshalMap(response.Item, &transaction)
+		if err != nil {
+			span.SetTag(string(ext.Error), true)
+			span.LogFields(log.Error(err))
+			return nil, err
+		}
+
+		return &transaction, nil
 	}
 
-	return &transaction, nil
+	return nil, store.ErrNotFound
 }
 
 func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData) error {
@@ -211,17 +214,15 @@ func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData
 	}
 
 	// put item into table
-	m, err := ddb.dynamoCli.PutItem(context.TODO(), &dynamodb.PutItemInput{
+	_, err = ddb.dynamoCli.PutItem(context.TODO(), &dynamodb.PutItemInput{
 		TableName: aws.String("transactions"), Item: item,
 	})
-	fmt.Println(m)
 
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return nil
 	}
-	fmt.Println("kkkkkssss")
 
 	return nil
 }
@@ -306,31 +307,7 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
 	defer span.Finish()
 
-	// // get txs
-	// out, err := ddb.dynamoCli.Query(context.TODO(), &dynamodb.QueryInput{
-	// 	TableName:              aws.String("transactions"),
-	// 	KeyConditionExpression: aws.String("hash == :hash"),
-	// 	ExpressionAttributeValues: map[string]types.AttributeValue{
-	// 		":hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
-	// 	},
-	// })
-
-	// if err != nil {
-	// 	span.SetTag(string(ext.Error), true)
-	// 	span.LogFields(log.Error(err))
-	// 	return err
-	// }
-
-	// update each item
-	// for _, item := range out.Items {
-	// var transaction store.StoreData
-	// err := attributevalue.UnmarshalMap(item, &transaction)
-	// if err != nil {
-	// 	span.SetTag(string(ext.Error), true)
-	// 	span.LogFields(log.Error(err))
-	// 	return err
-	// }
-	// run update
+	// update tx
 	_, err := ddb.dynamoCli.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
 		TableName: aws.String("transactions"),
 		Key: map[string]types.AttributeValue{
@@ -340,9 +317,7 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":tx_status":     &types.AttributeValueMemberN{Value: strconv.Itoa(int(status))},
 			":reject_reason": &types.AttributeValueMemberS{Value: rejectReason},
-			":tx_hash":       &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
-		ConditionExpression: aws.String("tx_hash = :tx_hash"),
 	})
 
 	if err != nil {
@@ -350,7 +325,6 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 		span.LogFields(log.Error(err))
 		return err
 	}
-	// }
 
 	return nil
 }
@@ -363,46 +337,19 @@ func (ddb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:UpdateMined")
 	defer span.Finish()
 
-	// // get txs
-	// out, err := ddb.dynamoCli.Query(context.TODO(), &dynamodb.QueryInput{
-	// 	TableName:              aws.String("transactions"),
-	// 	KeyConditionExpression: aws.String("hash == :hash"),
-	// 	ExpressionAttributeValues: map[string]types.AttributeValue{
-	// 		":hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
-	// 	},
-	// })
-
-	// // update each item
-	// for _, item := range out.Items {
-	// 	var transaction store.StoreData
-	// 	err := attributevalue.UnmarshalMap(item, &transaction)
-	// 	if err != nil {
-	// 		span.SetTag(string(ext.Error), true)
-	// 		span.LogFields(log.Error(err))
-	// 		return err
-	// 	}
-
-	// run update
+	// set block parameters and status - mined
 	_, err := ddb.dynamoCli.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
 		TableName: aws.String("transactions"),
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
-		UpdateExpression: aws.String("set block_height = :block_height and block_hash = :block_hash"),
+		UpdateExpression: aws.String("set block_height = :block_height, block_hash = :block_hash, tx_status = :tx_status"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":block_hash":   &types.AttributeValueMemberB{Value: blockHash.CloneBytes()},
 			":block_height": &types.AttributeValueMemberN{Value: strconv.Itoa(int(blockHeight))},
-			"tx_hash":       &types.AttributeValueMemberB{Value: hash.CloneBytes()},
+			":tx_status":    &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
 		},
-		ConditionExpression: aws.String("tx_hash = :tx_hash"),
 	})
-
-	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return err
-	}
-	// }
 
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
@@ -428,11 +375,12 @@ func (ddb *DynamoDB) GetBlockProcessed(ctx context.Context, blockHash *chainhash
 	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:GetBlockProcessed")
 	defer span.Finish()
 
-	response, err := ddb.dynamoCli.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName: aws.String("blocks"),
-		Key: map[string]types.AttributeValue{
-			"tx_hash": &types.AttributeValueMemberB{Value: blockHash.CloneBytes()},
-		},
+	val := map[string]types.AttributeValue{
+		"block_hash": &types.AttributeValueMemberB{Value: blockHash.CloneBytes()},
+	}
+
+	response, err := ddb.dynamoCli.GetItem(context.TODO(), &dynamodb.GetItemInput{
+		Key: val, TableName: aws.String("blocks"),
 	})
 
 	if err != nil {
@@ -487,6 +435,7 @@ func (ddb *DynamoDB) SetBlockProcessed(ctx context.Context, blockHash *chainhash
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
+		return err
 	}
 
 	return nil

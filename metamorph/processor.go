@@ -54,8 +54,10 @@ type Processor struct {
 	logger               *slog.Logger
 	metamorphAddress     string
 	errorLogFile         string
+	logFile              string
 	errorLogWorker       chan *processor_response.ProcessorResponse
 	mapExpiryTime        time.Duration
+	now                  func() time.Time
 
 	processExpiredSeenTxsInterval time.Duration
 	processExpiredSeenTxsTicker   *time.Ticker
@@ -112,6 +114,17 @@ func WithErrLogFilePath(errLogFilePath string) func(*Processor) {
 		p.errorLogFile = errLogFilePath
 	}
 }
+func WithLogFilePath(errLogFilePath string) func(*Processor) {
+	return func(p *Processor) {
+		p.errorLogFile = errLogFilePath
+	}
+}
+
+func WithNow(nowFunc func() time.Time) func(*Processor) {
+	return func(p *Processor) {
+		p.now = nowFunc
+	}
+}
 
 type Option func(f *Processor)
 
@@ -132,6 +145,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 		btc:              btc,
 		metamorphAddress: metamorphAddress,
 		mapExpiryTime:    mapExpiryTimeDefault,
+		now:              time.Now,
 
 		processExpiredSeenTxsInterval: processExpiredSeenTxsIntervalDefault,
 
@@ -153,7 +167,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 		opt(p)
 	}
 
-	p.processorResponseMap = NewProcessorResponseMap(p.mapExpiryTime)
+	p.processorResponseMap = NewProcessorResponseMap(p.mapExpiryTime, WithLogFile(p.logFile), WithNowResponseMap(p.now))
 	p.processExpiredSeenTxsTicker = time.NewTicker(p.processExpiredSeenTxsInterval)
 	p.processExpiredTxsTicker = time.NewTicker(unseenTransactionRebroadcastingInterval * time.Second)
 
@@ -399,6 +413,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusMinedForTransaction")
 	defer span.Finish()
 
+	fmt.Println(hash.String())
 	resp, ok := p.processorResponseMap.Get(hash)
 	if !ok {
 		return false, nil

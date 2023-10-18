@@ -120,6 +120,12 @@ func WithNow(nowFunc func() time.Time) func(*Processor) {
 	}
 }
 
+func WithProcessExpiredTxsInterval(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.processExpiredTxsTicker = time.NewTicker(d)
+	}
+}
+
 type Option func(f *Processor)
 
 func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress string,
@@ -132,14 +138,15 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 	}
 
 	p := &Processor{
-		startTime:        time.Now().UTC(),
-		store:            s,
-		cbChannel:        cbChannel,
-		pm:               pm,
-		btc:              btc,
-		metamorphAddress: metamorphAddress,
-		mapExpiryTime:    mapExpiryTimeDefault,
-		now:              time.Now,
+		startTime:               time.Now().UTC(),
+		store:                   s,
+		cbChannel:               cbChannel,
+		pm:                      pm,
+		btc:                     btc,
+		metamorphAddress:        metamorphAddress,
+		mapExpiryTime:           mapExpiryTimeDefault,
+		now:                     time.Now,
+		processExpiredTxsTicker: time.NewTicker(unseenTransactionRebroadcastingInterval * time.Second),
 
 		processExpiredSeenTxsInterval: processExpiredSeenTxsIntervalDefault,
 
@@ -163,7 +170,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 
 	p.processorResponseMap = NewProcessorResponseMap(p.mapExpiryTime, WithLogFile(p.logFile), WithNowResponseMap(p.now))
 	p.processExpiredSeenTxsTicker = time.NewTicker(p.processExpiredSeenTxsInterval)
-	p.processExpiredTxsTicker = time.NewTicker(unseenTransactionRebroadcastingInterval * time.Second)
 
 	p.logger.Info("Starting processor", slog.Duration("cacheExpiryTime", p.mapExpiryTime))
 
@@ -252,7 +258,7 @@ func (p *Processor) processExpiredTransactions() {
 		return p.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK && time.Since(p.Start) > unseenTransactionRebroadcastingInterval*time.Second
 	}
 
-	// Resend transactions that have not been seen on the network every 60 seconds
+	// Resend transactions that have not been seen on the network
 	// The Items() method will return a copy of the map, so we can iterate over it without locking
 	for range p.processExpiredTxsTicker.C {
 		expiredTransactionItems := p.processorResponseMap.Items(filterFunc)
@@ -286,10 +292,6 @@ func (p *Processor) processExpiredTransactions() {
 			}
 		}
 	}
-}
-
-func (p *Processor) SetLogger(logger *slog.Logger) {
-	p.logger = logger
 }
 
 // GetPeers returns a list of connected and a list of disconnected peers
@@ -373,7 +375,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 
 	resp, ok := p.processorResponseMap.Get(hash)
 	if !ok {
-		return false, nil
+		return false, fmt.Errorf("failed to get tx %s from response map", hash.String())
 	}
 
 	resp.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
@@ -412,8 +414,8 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 
 		},
 	})
-	return true, nil
 
+	return true, nil
 }
 
 func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) (bool, error) {

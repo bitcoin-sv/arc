@@ -8,7 +8,7 @@ services:
       - "8332:8332"
       - "18332:18332"
     healthcheck:
-      test: ["bitcoin-cli", "-rpcuser=bitcoin", "-rpcpassword=password", "getinfo" ]
+      test: ["CMD", "bitcoin-cli", "-rpcuser=bitcoin", "-rpcpassword=password", "getinfo" ]
     command: ["bitcoind",
       "-maxstackmemoryusageconsensus=1000000000",
       "-excessiveblocksize=100000000",

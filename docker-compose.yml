@@ -26,7 +26,9 @@ services:
       - node0
 
   tests:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.itest
     environment:
       NODE_IP: "node0"
       ARC_URL: "http://arc:9090"
@@ -34,4 +36,3 @@ services:
       - arc
     healthcheck:
       test: ["CMD","curl", "http://arc:9090/v1/tx"]
-    command: ["go","test", "-v", "./test/..."]

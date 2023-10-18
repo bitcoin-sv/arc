@@ -78,11 +78,17 @@ clean_gen:
 	rm -f ./blocktx/blocktx_api/*.pb.go
 	rm -f ./callbacker/callbacker_api/*.pb.go
 
+.PHONY: coverage
 coverage:
 	rm -f ./cov.out
 	go test -coverprofile=./cov.out -covermode=atomic ./... 2>&1 > gotest.out
 	cat gotest.out | go-junit-report -set-exit-code > report.xml
 	goverreport -coverprofile cov.out -packages -sort block
+
+.PHONY: install_coverage
+install_coverage:
+	go install github.com/mcubik/goverreport@latest
+	go install github.com/jstemmer/go-junit-report/v2@latest
 
 .PHONY: clean
 clean:

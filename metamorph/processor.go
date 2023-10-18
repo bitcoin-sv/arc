@@ -79,6 +79,8 @@ const (
 	processExpiredSeenTxsIntervalDefault    = 5 * time.Minute
 	mapExpiryTimeDefault                    = 24 * time.Hour
 	logLevelDefault                         = slog.LevelInfo
+
+	failedToUpdateStatus = "Failed to update status"
 )
 
 func WithProcessExpiredSeenTxsInterval(d time.Duration) func(*Processor) {
@@ -311,7 +313,7 @@ func (p *Processor) LoadUnmined() {
 
 			err := p.store.UpdateStatus(spanCtx, record.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
 			if err != nil {
-				p.logger.Error("Failed to update status", slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
+				p.logger.Error(failedToUpdateStatus, slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
 			}
 		case metamorph_api.Status_ANNOUNCED_TO_NETWORK:
 			// we only announced the transaction, but we did not receive a SENT_TO_NETWORK response
@@ -368,7 +370,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 		},
 		Callback: func(err error) {
 			if err != nil {
-				p.logger.Error("Failed to update status", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+				p.logger.Error(failedToUpdateStatus, slog.String("hash", hash.String()), slog.String("err", err.Error()))
 				return
 			}
 
@@ -422,7 +424,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 			IgnoreCallback: processorResponse.NoStats, // do not do this callback if we are not keeping stats
 			Callback: func(err error) {
 				if err != nil {
-					p.logger.Error("Failed to update status", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+					p.logger.Error(failedToUpdateStatus, slog.String("hash", hash.String()), slog.String("err", err.Error()))
 					return
 				} else {
 					p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
@@ -482,7 +484,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 			if err == store.ErrNotFound {
 				return false, nil
 			}
-			p.logger.Error("Failed to update status", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+			p.logger.Error(failedToUpdateStatus, slog.String("hash", hash.String()), slog.String("err", err.Error()))
 			return false, err
 		}
 

@@ -7,6 +7,7 @@ import (
 	mrand "math/rand"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
@@ -61,11 +62,12 @@ func getRandomBytes() []byte {
 func GetTestBlock() *store.Block {
 	return &store.Block{
 		ID:           mrand.Int63(),
-		Hash:         getRandomBytes(),
-		PreviousHash: getRandomBytes(),
-		MerkleRoot:   getRandomBytes(),
+		Hash:         []byte(fmt.Sprintf("test hash %d", mrand.Int31())),
+		PreviousHash: []byte(fmt.Sprintf("test hash %d", mrand.Int31())),
+		MerkleRoot:   []byte(fmt.Sprintf("test hash %d", mrand.Int31())),
 		Height:       mrand.Int63(),
 		Orphaned:     true,
+		ProcessedAt:  time.Now(),
 	}
 }
 
@@ -98,13 +100,15 @@ func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
 		"hash, "+
 		"prevhash, "+
 		"merkleroot, "+
-		"height) "+
+		"height,"+
+		"processed_at) "+
 		"VALUES("+
 		":id,"+
 		":hash, "+
 		":prevhash, "+
 		":merkleroot, "+
-		":height);", block)
+		":height,"+
+		":processed_at);", block)
 	require.NoError(s.T(), err)
 
 }

@@ -146,3 +146,13 @@ func (s *DatabaseTestSuite) InsertBlockTransactionMap(btx *store.BlockTransactio
 func (s *DatabaseTestSuite) TearDownSuite() {
 	require.NoError(s.T(), s.Database.Stop())
 }
+
+// TearDownTest clear all the tables
+func (s *DatabaseTestSuite) TearDownTest() {
+	db, err := sqlx.Open("postgres", conn_url)
+	require.NoError(s.T(), err)
+
+	db.MustExec("truncate  table blocks;")
+	db.MustExec("truncate  table transactions;")
+	db.MustExec("truncate  table block_transactions_map;")
+}

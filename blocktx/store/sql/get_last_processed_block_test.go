@@ -34,7 +34,7 @@ func (s *GetBlockByHeightTestSuite) TestGetLastProcessedBlock() {
 
 	blk, err := st.GetLastProcessedBlock(context.Background())
 	require.NoError(s.T(), err)
-	assert.Equal(s.T(), []byte(block.Hash), blk.Hash)
+	assert.Equal(s.T(), block.Hash, string(blk.Hash))
 }
 
 func TestGetLastProcessedBlock(t *testing.T) {

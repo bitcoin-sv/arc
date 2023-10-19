@@ -213,7 +213,7 @@ func (p *Processor) GetMetamorphAddress() string {
 func (p *Processor) processExpiredSeenTransactions() {
 	// filterFunc returns true if the transaction has not been seen on the network
 	filterFunc := func(processorResp *processor_response.ProcessorResponse) bool {
-		return processorResp.GetStatus() == metamorph_api.Status_SEEN_ON_NETWORK && time.Since(processorResp.Start) > p.processExpiredSeenTxsInterval
+		return processorResp.GetStatus() == metamorph_api.Status_SEEN_ON_NETWORK && p.now().Sub(processorResp.Start) > p.processExpiredSeenTxsInterval
 	}
 
 	// Check transactions that have been seen on the network, but haven't been marked as mined
@@ -235,19 +235,19 @@ func (p *Processor) processExpiredSeenTransactions() {
 
 		blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
 		if err != nil {
-			p.logger.Error("error getting transactions from blocktx", slog.String("err", err.Error()))
+			p.logger.Error("failed to get transactions from blocktx", slog.String("err", err.Error()))
 			return
 		}
 
 		for _, blockTxs := range blockTransactions.TransactionBlocks {
 			blockHash, err := chainhash.NewHash(blockTxs.BlockHash)
 			if err != nil {
-				p.logger.Error("error parsing block hash", slog.String("err", err.Error()))
+				p.logger.Error("failed to parse block hash", slog.String("err", err.Error()))
 				continue
 			}
 			_, err = p.SendStatusMinedForTransaction((*chainhash.Hash)(blockTxs.TransactionHash), blockHash, blockTxs.BlockHeight)
 			if err != nil {
-				p.logger.Error("error sending status mined for tx", slog.String("err", err.Error()))
+				p.logger.Error("failed to send status mined for tx", slog.String("err", err.Error()))
 			}
 		}
 	}

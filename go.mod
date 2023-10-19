@@ -36,6 +36,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/timshannon/badgerhold/v3 v3.0.0
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
+	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0
 	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.31.0
 	modernc.org/sqlite v1.20.0

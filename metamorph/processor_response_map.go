@@ -265,6 +265,14 @@ func (m *ProcessorResponseMap) Clear() {
 	m.items = make(map[chainhash.Hash]*processor_response.ProcessorResponse)
 }
 
+func (m *ProcessorResponseMap) Close() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, item := range m.items {
+		item.Close()
+	}
+}
+
 func (m *ProcessorResponseMap) clean() {
 	m.mu.Lock()
 	defer m.mu.Unlock()

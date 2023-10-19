@@ -195,11 +195,12 @@ func (p *Processor) Set(req *ProcessorRequest) error {
 	return p.store.Set(spanCtx, req.Hash[:], req.StoreData)
 }
 
-// Close all channels and goroutines for graceful shutdown
+// Shutdown closes all channels and goroutines gracefully
 func (p *Processor) Shutdown() {
 	p.logger.Info("Shutting down processor")
 	p.processExpiredSeenTxsTicker.Stop()
 	p.processExpiredTxsTicker.Stop()
+	p.processorResponseMap.Close()
 	if p.cbChannel != nil {
 		close(p.cbChannel)
 	}

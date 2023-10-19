@@ -707,6 +707,7 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 				WithProcessExpiredTxsInterval(time.Hour),
 			)
 			require.NoError(t, err)
+			defer processor.Shutdown()
 
 			require.Equal(t, 0, processor.processorResponseMap.Len())
 

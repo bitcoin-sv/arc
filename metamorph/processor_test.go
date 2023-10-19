@@ -707,7 +707,7 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 				WithProcessExpiredTxsInterval(time.Hour),
 			)
 			require.NoError(t, err)
-
+			defer processor.Shutdown()
 			require.Equal(t, 0, processor.processorResponseMap.Len())
 
 			processor.processorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK))

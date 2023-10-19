@@ -144,17 +144,19 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 	}
 
 	p := &Processor{
-		startTime:               time.Now().UTC(),
-		store:                   s,
-		cbChannel:               cbChannel,
-		pm:                      pm,
-		btc:                     btc,
-		metamorphAddress:        metamorphAddress,
-		mapExpiryTime:           mapExpiryTimeDefault,
+		startTime:        time.Now().UTC(),
+		store:            s,
+		cbChannel:        cbChannel,
+		pm:               pm,
+		btc:              btc,
+		metamorphAddress: metamorphAddress,
+		mapExpiryTime:    mapExpiryTimeDefault,
+
 		now:                     time.Now,
 		processExpiredTxsTicker: time.NewTicker(unseenTransactionRebroadcastingInterval * time.Second),
 
 		processExpiredSeenTxsInterval: processExpiredSeenTxsIntervalDefault,
+		processExpiredSeenTxsTicker:   time.NewTicker(processExpiredSeenTxsIntervalDefault),
 
 		stored:             stat.NewAtomicStat(),
 		announcedToNetwork: stat.NewAtomicStats(),
@@ -175,7 +177,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 	}
 
 	p.processorResponseMap = NewProcessorResponseMap(p.mapExpiryTime, WithLogFile(p.logFile), WithNowResponseMap(p.now))
-	p.processExpiredSeenTxsTicker = time.NewTicker(p.processExpiredSeenTxsInterval)
 
 	p.logger.Info("Starting processor", slog.Duration("cacheExpiryTime", p.mapExpiryTime))
 
@@ -206,11 +207,13 @@ func (p *Processor) Set(req *ProcessorRequest) error {
 	return p.store.Set(spanCtx, req.Hash[:], req.StoreData)
 }
 
-// Close all channels and goroutines for graceful shutdown
+// Shutdown closes all channels and goroutines gracefully
 func (p *Processor) Shutdown() {
 	p.logger.Info("Shutting down processor")
 	p.processExpiredSeenTxsTicker.Stop()
 	p.processExpiredTxsTicker.Stop()
+	p.processorResponseMap.Close()
+
 	if p.cbChannel != nil {
 		close(p.cbChannel)
 	}
@@ -254,7 +257,7 @@ func (p *Processor) errorLogWriter() {
 func (p *Processor) processExpiredSeenTransactions() {
 	// filterFunc returns true if the transaction has not been seen on the network
 	filterFunc := func(processorResp *processor_response.ProcessorResponse) bool {
-		return processorResp.GetStatus() == metamorph_api.Status_SEEN_ON_NETWORK && time.Since(processorResp.Start) > p.processExpiredSeenTxsInterval
+		return processorResp.GetStatus() == metamorph_api.Status_SEEN_ON_NETWORK && p.now().Sub(processorResp.Start) > p.processExpiredSeenTxsInterval
 	}
 
 	// Check transactions that have been seen on the network, but haven't been marked as mined
@@ -276,19 +279,19 @@ func (p *Processor) processExpiredSeenTransactions() {
 
 		blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
 		if err != nil {
-			p.logger.Error("error getting transactions from blocktx", slog.String("err", err.Error()))
+			p.logger.Error("failed to get transactions from blocktx", slog.String("err", err.Error()))
 			return
 		}
 
 		for _, blockTxs := range blockTransactions.TransactionBlocks {
 			blockHash, err := chainhash.NewHash(blockTxs.BlockHash)
 			if err != nil {
-				p.logger.Error("error parsing block hash", slog.String("err", err.Error()))
+				p.logger.Error("failed to parse block hash", slog.String("err", err.Error()))
 				continue
 			}
 			_, err = p.SendStatusMinedForTransaction((*chainhash.Hash)(blockTxs.TransactionHash), blockHash, blockTxs.BlockHeight)
 			if err != nil {
-				p.logger.Error("error sending status mined for tx", slog.String("err", err.Error()))
+				p.logger.Error("failed to send status mined for tx", slog.String("err", err.Error()))
 			}
 		}
 	}

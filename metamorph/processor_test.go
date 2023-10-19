@@ -193,7 +193,7 @@ func TestLoadUnmined(t *testing.T) {
 					var txResponse *blocktx_api.RegisterTransactionResponse
 
 					// TX2 was mined
-					if bytes.Compare(testdata.TX2Hash[:], transaction.Hash[:]) == 0 {
+					if bytes.Equal(testdata.TX2Hash[:], transaction.Hash[:]) {
 						txResponse = &blocktx_api.RegisterTransactionResponse{
 							BlockHash:   testdata.Block2Hash[:],
 							BlockHeight: 2,

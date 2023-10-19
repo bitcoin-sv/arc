@@ -43,7 +43,10 @@ func New() (store.MetamorphStore, error) {
 	if err != nil {
 		return dynamodbClient, err
 	} else if !exists {
-		dynamodbClient.CreateTransactionsTable()
+		err = dynamodbClient.CreateTransactionsTable()
+		if err != nil {
+			return dynamodbClient, err
+		}
 	}
 
 	// create table if not exists
@@ -51,7 +54,10 @@ func New() (store.MetamorphStore, error) {
 	if err != nil {
 		return dynamodbClient, err
 	} else if !exists {
-		dynamodbClient.CreateBlocksTable()
+		err = dynamodbClient.CreateBlocksTable()
+		if err != nil {
+			return dynamodbClient, err
+		}
 	}
 
 	// Using the Config value, create the DynamoDB client

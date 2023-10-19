@@ -2,8 +2,8 @@ package metamorph
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"path"
 	"time"
@@ -228,14 +228,13 @@ func (m *ProcessorResponseMap) Items(filterFunc ...func(*processor_response.Proc
 	return items
 }
 
-func (m *ProcessorResponseMap) PrintItems() {
+func (m *ProcessorResponseMap) logMapItems(logger *slog.Logger) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	for _, value := range m.items {
-		fmt.Printf("processorResponseMap: %s\n", value.String())
+	for hash, processorResponse := range m.items {
+		logger.Debug("Processor response map item", slog.String("hash", hash.String()), slog.String("status", processorResponse.Status.String()), slog.Int("retries", int(processorResponse.Retries.Load())), slog.String("err", processorResponse.Err.Error()), slog.Time("start", processorResponse.Start))
 	}
-
 }
 
 // Clear clears the map.

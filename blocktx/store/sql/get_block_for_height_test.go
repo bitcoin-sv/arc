@@ -25,7 +25,7 @@ func (s *GetBlockByHeightTestSuite) TestGetBlockByHeight() {
 	b, err := store.GetBlockForHeight(context.Background(), uint64(block.Height))
 
 	require.NoError(s.T(), err)
-	assert.Equal(s.T(), block.Hash, b.Hash)
+	assert.Equal(s.T(), block.Hash, string(b.Hash))
 }
 
 func TestGetBlockByHeightSuite(t *testing.T) {

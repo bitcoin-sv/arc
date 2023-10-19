@@ -4,9 +4,9 @@ import "time"
 
 type Block struct {
 	ID           int64     `db:"id"`
-	Hash         []byte    `db:"hash"`
-	PreviousHash []byte    `db:"prevhash"`
-	MerkleRoot   []byte    `db:"merkleroot"`
+	Hash         string    `db:"hash"`
+	PreviousHash string    `db:"prevhash"`
+	MerkleRoot   string    `db:"merkleroot"`
 	Height       int64     `db:"height"`
 	Orphaned     bool      `db:"orphaned"`
 	Processed    bool      `db:"processed"`
@@ -15,7 +15,7 @@ type Block struct {
 
 type Transaction struct {
 	ID         int64  `db:"id"`
-	Hash       []byte `db:"hash"`
+	Hash       string `db:"hash"`
 	Source     string `db:"source"`
 	MerklePath string `db:"merkle_path"`
 }

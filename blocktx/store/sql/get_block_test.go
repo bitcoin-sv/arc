@@ -23,12 +23,12 @@ func (s *GetBlockByHeightTestSuite) TestGetBlock() {
 	store, err := NewStore(GetStoreConnectionParams())
 	require.NoError(s.T(), err)
 
-	h, err := chainhash.NewHash(block.Hash)
+	h, err := chainhash.NewHash([]byte(block.Hash))
 	require.NoError(s.T(), err)
 	b, err := store.GetBlock(context.Background(), h)
 
 	require.NoError(s.T(), err)
-	assert.Equal(s.T(), block.Hash, b.Hash)
+	assert.Equal(s.T(), block.Hash, string(b.Hash))
 }
 
 func TestGetBlockTestSuite(t *testing.T) {

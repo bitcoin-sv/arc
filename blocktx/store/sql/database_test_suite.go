@@ -1,7 +1,6 @@
 package sql
 
 import (
-	"crypto/rand"
 	"fmt"
 	"log"
 	mrand "math/rand"
@@ -13,9 +12,9 @@ import (
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/jmoiron/sqlx"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/rand"
 )
 
 // DatabaseTestSuite test helper suite to
@@ -43,28 +42,26 @@ func (s *DatabaseTestSuite) SetupSuite() {
 	path := "file://" + testDir + "/../../../database/migrations/postgres"
 	m, err := migrate.New(path, url)
 	require.NoError(s.T(), err)
-
 	require.NoError(s.T(), m.Up())
-
 }
 
 var conn_url = fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", "postgres", "postgres", "localhost", 5432, "postgres")
 
-func getRandomBytes() []byte {
-	hash := make([]byte, chainhash.HashSize)
+func getRandomBytes() string {
+	hash := make([]byte, 32)
 	_, err := rand.Read(hash)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return hash
+	return string(hash)
 }
 
 func GetTestBlock() *store.Block {
 	return &store.Block{
 		ID:           mrand.Int63(),
-		Hash:         []byte(fmt.Sprintf("test hash %d", mrand.Int31())),
-		PreviousHash: []byte(fmt.Sprintf("test hash %d", mrand.Int31())),
-		MerkleRoot:   []byte(fmt.Sprintf("test hash %d", mrand.Int31())),
+		Hash:         getRandomBytes(),
+		PreviousHash: fmt.Sprintf("%d", rand.Int63()),
+		MerkleRoot:   fmt.Sprintf("%d", rand.Int63()),
 		Height:       mrand.Int63(),
 		Orphaned:     true,
 		ProcessedAt:  time.Now(),

@@ -34,10 +34,10 @@ func (s *GetBlockByHeightTestSuite) TestGetBlockTransactions() {
 
 	require.NoError(s.T(), err)
 
-	txs, err := st.GetBlockTransactions(context.Background(), &blocktx_api.Block{Hash: block.Hash})
+	txs, err := st.GetBlockTransactions(context.Background(), &blocktx_api.Block{Hash: []byte(block.Hash)})
 
 	require.NoError(s.T(), err)
-	assert.Equal(s.T(), tx.Hash, txs.Transactions[0].Hash)
+	assert.Equal(s.T(), tx.Hash, string(txs.Transactions[0].Hash))
 }
 
 func TestGetBlockTransactions(t *testing.T) {

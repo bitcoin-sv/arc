@@ -2,7 +2,6 @@ package sql
 
 import (
 	"context"
-	"encoding/hex"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
@@ -31,13 +30,11 @@ func (s *GetBlockByHeightTestSuite) TestGetLastProcessedBlock() {
 	})
 
 	st, err := NewStore(GetStoreConnectionParams())
-
 	require.NoError(s.T(), err)
 
 	blk, err := st.GetLastProcessedBlock(context.Background())
-
 	require.NoError(s.T(), err)
-	assert.Equal(s.T(), hex.EncodeToString(block.Hash), hex.EncodeToString(blk.Hash))
+	assert.Equal(s.T(), []byte(block.Hash), blk.Hash)
 }
 
 func TestGetLastProcessedBlock(t *testing.T) {

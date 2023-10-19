@@ -3,8 +3,8 @@ package cmd
 import (
 	"context"
 	"errors"
-
 	"github.com/bitcoin-sv/arc/callbacker"
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/ordishs/go-utils"
 	"github.com/spf13/viper"
 )
@@ -20,8 +20,13 @@ func StartCallbacker(logger utils.Logger) (func(), error) {
 		logger.Fatalf("Error creating callbacker store: %v", err)
 	}
 
+	callbackerLogger, err := config.NewLogger()
+	if err != nil {
+		logger.Fatalf("failed to create new callbacker logger: %v", err)
+	}
+
 	var callbackWorker *callbacker.Callbacker
-	callbackWorker, err = callbacker.New(callbackStore)
+	callbackWorker, err = callbacker.New(callbackStore, callbacker.WithLogger(callbackerLogger))
 	if err != nil {
 		logger.Fatalf("Could not create callbacker: %v", err)
 	}

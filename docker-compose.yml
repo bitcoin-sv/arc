@@ -17,7 +17,9 @@ services:
       "-regtest=1"]
 
   arc:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.arc.itest
     ports:
       - "8011:8011"
       - "9090:9090"

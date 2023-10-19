@@ -22,7 +22,6 @@ import (
 type Metamorph struct {
 	mu            sync.RWMutex
 	Client        metamorph_api.MetaMorphAPIClient
-	ClientCache   map[string]metamorph_api.MetaMorphAPIClient
 	blockTxClient blocktx.ClientI
 	logger        utils.Logger
 }
@@ -44,7 +43,6 @@ func NewMetamorph(targets string, blockTxClient blocktx.ClientI, grpcMessageSize
 
 	return &Metamorph{
 		Client:        metamorph_api.NewMetaMorphAPIClient(conn),
-		ClientCache:   make(map[string]metamorph_api.MetaMorphAPIClient),
 		blockTxClient: blockTxClient,
 		logger:        logger,
 	}, nil
@@ -52,13 +50,8 @@ func NewMetamorph(targets string, blockTxClient blocktx.ClientI, grpcMessageSize
 
 // GetTransaction gets the transaction bytes from metamorph
 func (m *Metamorph) GetTransaction(ctx context.Context, txID string) ([]byte, error) {
-	client, err := m.getMetamorphClientForTx(ctx, txID)
-	if err != nil {
-		return nil, err
-	}
-
 	var tx *metamorph_api.Transaction
-	tx, err = client.GetTransaction(ctx, &metamorph_api.TransactionStatusRequest{
+	tx, err := m.Client.GetTransaction(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
 	})
 	if err != nil {
@@ -74,13 +67,8 @@ func (m *Metamorph) GetTransaction(ctx context.Context, txID string) ([]byte, er
 
 // GetTransactionStatus gets the status of a transaction
 func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (status *TransactionStatus, err error) {
-	var client metamorph_api.MetaMorphAPIClient
-	if client, err = m.getMetamorphClientForTx(ctx, txID); err != nil {
-		return nil, err
-	}
-
 	var tx *metamorph_api.TransactionStatus
-	tx, err = client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
+	tx, err = m.Client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
 	})
 	if err != nil {
@@ -177,49 +165,4 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOpti
 	}
 
 	return ret, nil
-}
-
-func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (metamorph_api.MetaMorphAPIClient, error) {
-	hash, err := utils.DecodeAndReverseHexString(txID)
-	if err != nil {
-		return nil, err
-	}
-
-	var target string
-	if target, err = m.blockTxClient.LocateTransaction(ctx, &blocktx_api.Transaction{
-		Hash: hash,
-	}); err != nil {
-		if errors.Is(err, blocktx.ErrTransactionNotFound) {
-			return nil, ErrTransactionNotFound
-		}
-		return nil, err
-	}
-
-	if target == "" {
-		// TODO what do we do in this case? Reach out to all metamorph servers or reach out to a node?
-		return nil, ErrTransactionNotFound
-	}
-
-	m.mu.RLock()
-	client, found := m.ClientCache[target]
-	m.mu.RUnlock()
-
-	if !found {
-		var conn *grpc.ClientConn
-		opts := []grpc.DialOption{
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
-			grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
-		}
-		if conn, err = grpc.Dial(target, tracing.AddGRPCDialOptions(opts)...); err != nil {
-			return nil, err
-		}
-		client = metamorph_api.NewMetaMorphAPIClient(conn)
-
-		m.mu.Lock()
-		m.ClientCache[target] = client
-		m.mu.Unlock()
-	}
-
-	return client, nil
 }

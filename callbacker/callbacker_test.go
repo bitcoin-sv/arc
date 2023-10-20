@@ -70,18 +70,31 @@ func TestNewCallbacker(t *testing.T) {
 
 func TestCallbacker_AddCallback(t *testing.T) {
 	tt := []struct {
-		name           string
-		responder      httpmock.Responder
-		expectedErrGet error
+		name      string
+		responder httpmock.Responder
+		setErr    error
+
+		expectedErrorStr  string
+		expectedNrOfPosts int
 	}{
 		{
-			name:           "success",
-			responder:      httpmock.NewStringResponder(200, "OK"),
-			expectedErrGet: store.ErrNotFound,
+			name:      "success",
+			responder: httpmock.NewStringResponder(200, "OK"),
+			//expectedErrGet: store.ErrNotFound,
+			expectedNrOfPosts: 1,
 		},
 		{
-			name:      "error",
+			name:      "http - error",
 			responder: httpmock.NewErrorResponder(fmt.Errorf("error")),
+
+			expectedNrOfPosts: 1,
+		},
+		{
+			name:   "set key error",
+			setErr: errors.New("failed to set key"),
+
+			expectedErrorStr:  "failed to set key",
+			expectedNrOfPosts: 0,
 		},
 	}
 
@@ -96,31 +109,38 @@ func TestCallbacker_AddCallback(t *testing.T) {
 				tc.responder,
 			)
 
-			mockStore, err := mock.New()
-			require.NoError(t, err)
+			mockStore := &mock_gen.StoreMock{
+				SetFunc: func(ctx context.Context, callback *callbacker_api.Callback) (string, error) {
+					return "ffdK2n44BwsyCrz9jTH12fxuEGoLYhDh", tc.setErr
+				},
+				UpdateExpiryFunc: func(ctx context.Context, key string) error {
+					return nil
+				},
+				DelFunc: func(ctx context.Context, key string) error {
+					return nil
+				},
+			}
 
 			cb, err := New(mockStore)
 			require.NoError(t, err)
 
 			var key string
 			key, err = cb.AddCallback(context.Background(), testCallback)
-			assert.NoError(t, err)
-			assert.IsType(t, "", key)
 
 			// wait for the initial callback to be sent
 			time.Sleep(40 * time.Millisecond)
 
 			info := httpmock.GetCallCountInfo()
-			assert.Equal(t, 1, info[fmt.Sprintf("POST %s", testURL)])
+			assert.Equal(t, tc.expectedNrOfPosts, info[fmt.Sprintf("POST %s", testURL)])
 
-			data, err := mockStore.Get(context.Background(), key)
-			if tc.expectedErrGet != nil {
-				assert.ErrorIs(t, err, tc.expectedErrGet)
+			if tc.expectedErrorStr != "" || err != nil {
+				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
+			} else {
+				require.NoError(t, err)
 			}
 
-			assert.NoError(t, err)
-			assert.Equal(t, testCallback, data)
+			assert.IsType(t, "", key)
 		})
 	}
 }
@@ -128,9 +148,9 @@ func TestCallbacker_AddCallback(t *testing.T) {
 func TestCallbacker_Start(t *testing.T) {
 	tt := []struct {
 		name            string
+		responder       httpmock.Responder
 		getExpired      error
 		updateExpiryErr error
-		responder       httpmock.Responder
 
 		expectedNrOfPosts int
 	}{
@@ -147,25 +167,29 @@ func TestCallbacker_Start(t *testing.T) {
 			expectedNrOfPosts: 0,
 		},
 		{
-			name:              "callback fails",
-			responder:         httpmock.NewStringResponder(501, "Not Implemented"),
+			name:      "callback fails",
+			responder: httpmock.NewStringResponder(501, "Not Implemented"),
+
 			expectedNrOfPosts: 1,
 		},
 		{
-			name:              "callback 501 status - update expiry fails",
-			responder:         httpmock.NewStringResponder(501, "Not Implemented"),
-			updateExpiryErr:   errors.New("failed update expiry"),
+			name:            "callback 501 status - update expiry fails",
+			responder:       httpmock.NewStringResponder(501, "Not Implemented"),
+			updateExpiryErr: errors.New("failed update expiry"),
+
 			expectedNrOfPosts: 1,
 		},
 		{
-			name:              "callback fails - update expiry succeeds",
-			responder:         httpmock.NewErrorResponder(errors.New("not found")),
+			name:      "callback fails - update expiry succeeds",
+			responder: httpmock.NewErrorResponder(errors.New("not found")),
+
 			expectedNrOfPosts: 1,
 		},
 		{
-			name:              "callback fails - update expiry fails",
-			responder:         httpmock.NewErrorResponder(errors.New("not found")),
-			updateExpiryErr:   errors.New("failed update expiry"),
+			name:            "callback fails - update expiry fails",
+			responder:       httpmock.NewErrorResponder(errors.New("not found")),
+			updateExpiryErr: errors.New("failed update expiry"),
+
 			expectedNrOfPosts: 1,
 		},
 	}

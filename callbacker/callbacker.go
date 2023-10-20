@@ -28,6 +28,8 @@ type Callbacker struct {
 	store                 store.Store
 	ticker                *time.Ticker
 	sendCallbacksInterval time.Duration
+	shutdownCompleteStart chan struct{}
+	shutdown              chan struct{}
 }
 
 func WithLogger(logger *slog.Logger) func(*Callbacker) {
@@ -54,6 +56,8 @@ func New(s store.Store, opts ...Option) (*Callbacker, error) {
 		store:                 s,
 		logger:                slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "clb")),
 		sendCallbacksInterval: sendCallbacksIntervalDefault,
+		shutdown:              make(chan struct{}, 1),
+		shutdownCompleteStart: make(chan struct{}, 1),
 	}
 
 	for _, opt := range opts {
@@ -66,17 +70,31 @@ func New(s store.Store, opts ...Option) (*Callbacker, error) {
 func (c *Callbacker) Start() {
 	c.ticker = time.NewTicker(c.sendCallbacksInterval)
 	go func() {
-		for range c.ticker.C {
-			err := c.sendCallbacks()
-			if err != nil {
-				c.logger.Error("failed to send callbacks", slog.String("err", err.Error()))
+		defer func() {
+			c.shutdownCompleteStart <- struct{}{}
+		}()
+		for {
+			select {
+			case <-c.ticker.C:
+				err := c.sendCallbacks()
+				if err != nil {
+					c.logger.Error("failed to send callbacks", slog.String("err", err.Error()))
+				}
+			case <-c.shutdown:
+				return
 			}
 		}
+
 	}()
+
 }
 
 func (c *Callbacker) Stop() {
 	c.ticker.Stop()
+	c.shutdown <- struct{}{}
+
+	// wait until shutdown is complete
+	<-c.shutdownCompleteStart
 }
 
 func (c *Callbacker) AddCallback(ctx context.Context, callback *callbacker_api.Callback) (string, error) {

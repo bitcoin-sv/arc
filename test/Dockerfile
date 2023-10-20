@@ -5,7 +5,8 @@ FROM golang:1.21.1
 WORKDIR /app
 
 # Copy the Go Modules manifests
-COPY go.mod go.sum ./
+COPY go.mod  ./go.mod
+COPY go.sum  ./go.sum
 
 # Download all dependencies. Dependencies will be cached if the go.mod and the go.sum files are not changed
 RUN go mod download

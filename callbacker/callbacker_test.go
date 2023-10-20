@@ -13,7 +13,7 @@ import (
 	"github.com/bitcoin-sv/arc/callbacker/store"
 	"github.com/bitcoin-sv/arc/callbacker/store/badgerhold"
 	"github.com/bitcoin-sv/arc/callbacker/store/mock"
-	"github.com/bitcoin-sv/arc/callbacker/store/mock2"
+	"github.com/bitcoin-sv/arc/callbacker/store/mock_gen"
 	"github.com/jarcoal/httpmock"
 	"github.com/labstack/gommon/random"
 	"github.com/ordishs/go-utils"
@@ -35,7 +35,7 @@ var (
 	}
 )
 
-//go:generate moq -pkg mock2 -out ./store/mock2/mock.go ./store Store
+//go:generate moq -pkg mock_gen -out ./store/mock_gen/mock.go ./store Store
 
 func TestNewCallbacker(t *testing.T) {
 	tt := []struct {
@@ -52,7 +52,7 @@ func TestNewCallbacker(t *testing.T) {
 		},
 		{
 			name:  "store given",
-			store: &mock2.StoreMock{},
+			store: &mock_gen.StoreMock{},
 		},
 	}
 
@@ -180,7 +180,7 @@ func TestCallbacker_sendCallbacks(t *testing.T) {
 			)
 
 			fmt.Println(random.String(32))
-			store := &mock2.StoreMock{
+			store := &mock_gen.StoreMock{
 				GetExpiredFunc: func(contextMoqParam context.Context) (map[string]*callbacker_api.Callback, error) {
 					storedCallback := map[string]*callbacker_api.Callback{"ffdK2n44BwsyCrz9jTH12fxuEGoLYhDh": testCallback}
 

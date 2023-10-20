@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	host     = "node1"
+	host     = "node2"
 	port     = 18332
 	user     = "bitcoin"
 	password = "bitcoin"
@@ -91,11 +91,11 @@ func sendToAddress(t *testing.T, address string, bsv float64) (txID string) {
 	return
 }
 
-func generate(t *testing.T, amount uint64) string {
+func generate(t *testing.T, amount uint64, address string) string {
 	t.Helper()
 
 	// run command instead
-	blockHash := execCommandGenerate(t, amount)
+	blockHash := execCommandGenerate(t, amount, address)
 
 	time.Sleep(5 * time.Second)
 
@@ -110,11 +110,11 @@ func generate(t *testing.T, amount uint64) string {
 	return blockHash
 }
 
-func execCommandGenerate(t *testing.T, amount uint64) string {
+func execCommandGenerate(t *testing.T, amount uint64, address string) string {
 	t.Helper()
 	fmt.Println("Amount to generate:", amount)
 
-	hashes, err := bitcoind.Generate(float64(amount))
+	hashes, err := bitcoind.GenerateToAddress(float64(amount), address)
 	require.NoError(t, err)
 
 	return hashes[len(hashes)-1]

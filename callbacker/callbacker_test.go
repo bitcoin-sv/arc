@@ -15,7 +15,6 @@ import (
 	"github.com/bitcoin-sv/arc/callbacker/store/mock"
 	"github.com/bitcoin-sv/arc/callbacker/store/mock_gen"
 	"github.com/jarcoal/httpmock"
-	"github.com/labstack/gommon/random"
 	"github.com/ordishs/go-utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -70,101 +69,19 @@ func TestNewCallbacker(t *testing.T) {
 }
 
 func TestCallbacker_AddCallback(t *testing.T) {
-	t.Parallel()
-
-	t.Run("add callback", func(t *testing.T) {
-		httpmock.Activate()
-		defer httpmock.DeactivateAndReset()
-
-		httpmock.RegisterResponder(
-			"POST",
-			testURL,
-			httpmock.NewStringResponder(200, "OK"),
-		)
-
-		mockStore, err := mock.New()
-		require.NoError(t, err)
-
-		cb, err := New(mockStore)
-		require.NoError(t, err)
-
-		var key string
-		key, err = cb.AddCallback(context.Background(), testCallback)
-		assert.NoError(t, err)
-		assert.IsType(t, "", key)
-
-		// wait for the initial callback to be sent
-		time.Sleep(40 * time.Millisecond)
-
-		info := httpmock.GetCallCountInfo()
-		assert.Equal(t, 1, info[fmt.Sprintf("POST %s", testURL)])
-
-		_, err = mockStore.Get(context.Background(), key)
-		assert.ErrorIs(t, err, store.ErrNotFound)
-	})
-
-	t.Run("add callback - error and store", func(t *testing.T) {
-		httpmock.Activate()
-		defer httpmock.DeactivateAndReset()
-
-		httpmock.RegisterResponder(
-			"POST",
-			testURL,
-			httpmock.NewErrorResponder(fmt.Errorf("error")),
-		)
-
-		mockStore, err := mock.New()
-		require.NoError(t, err)
-
-		cb, err := New(mockStore)
-		require.NoError(t, err)
-
-		var key string
-		key, err = cb.AddCallback(context.Background(), testCallback)
-		assert.NoError(t, err)
-		assert.IsType(t, "", key)
-
-		// wait for the initial callback to be sent
-		time.Sleep(40 * time.Millisecond)
-
-		info := httpmock.GetCallCountInfo()
-		assert.Equal(t, 1, info[fmt.Sprintf("POST %s", testURL)])
-
-		// data should still be here, we got an error on the initial callback
-		var data *callbacker_api.Callback
-		data, err = mockStore.Get(context.Background(), key)
-		assert.NoError(t, err)
-		assert.Equal(t, testCallback, data)
-	})
-}
-
-func TestCallbacker_sendCallbacks(t *testing.T) {
 	tt := []struct {
-		name            string
-		getExpired      error
-		updateExpiryErr error
-		responder       httpmock.Responder
-
-		expectedErrorStr string
+		name           string
+		responder      httpmock.Responder
+		expectedErrGet error
 	}{
 		{
-			name:      "not sent, too new",
-			responder: httpmock.NewStringResponder(200, "OK"),
+			name:           "success",
+			responder:      httpmock.NewStringResponder(200, "OK"),
+			expectedErrGet: store.ErrNotFound,
 		},
 		{
-			name:       "get expired fails",
-			getExpired: errors.New("failed to get expired"),
-
-			expectedErrorStr: "failed to get expired",
-		},
-		{
-			name:      "callback fails",
-			responder: httpmock.NewStringResponder(501, "Not Implemented"),
-		},
-		{
-			name:            "callback fails - update expiry fails",
-			responder:       httpmock.NewStringResponder(501, "Not Implemented"),
-			updateExpiryErr: errors.New("failed update expiry"),
+			name:      "error",
+			responder: httpmock.NewErrorResponder(fmt.Errorf("error")),
 		},
 	}
 
@@ -179,7 +96,91 @@ func TestCallbacker_sendCallbacks(t *testing.T) {
 				tc.responder,
 			)
 
-			fmt.Println(random.String(32))
+			mockStore, err := mock.New()
+			require.NoError(t, err)
+
+			cb, err := New(mockStore)
+			require.NoError(t, err)
+
+			var key string
+			key, err = cb.AddCallback(context.Background(), testCallback)
+			assert.NoError(t, err)
+			assert.IsType(t, "", key)
+
+			// wait for the initial callback to be sent
+			time.Sleep(40 * time.Millisecond)
+
+			info := httpmock.GetCallCountInfo()
+			assert.Equal(t, 1, info[fmt.Sprintf("POST %s", testURL)])
+
+			data, err := mockStore.Get(context.Background(), key)
+			if tc.expectedErrGet != nil {
+				assert.ErrorIs(t, err, tc.expectedErrGet)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, testCallback, data)
+		})
+	}
+}
+
+func TestCallbacker_Start(t *testing.T) {
+	tt := []struct {
+		name            string
+		getExpired      error
+		updateExpiryErr error
+		responder       httpmock.Responder
+
+		expectedNrOfPosts int
+	}{
+		{
+			name:      "success",
+			responder: httpmock.NewStringResponder(200, "OK"),
+
+			expectedNrOfPosts: 1,
+		},
+		{
+			name:       "get expired fails",
+			getExpired: errors.New("failed to get expired"),
+
+			expectedNrOfPosts: 0,
+		},
+		{
+			name:              "callback fails",
+			responder:         httpmock.NewStringResponder(501, "Not Implemented"),
+			expectedNrOfPosts: 1,
+		},
+		{
+			name:              "callback 501 status - update expiry fails",
+			responder:         httpmock.NewStringResponder(501, "Not Implemented"),
+			updateExpiryErr:   errors.New("failed update expiry"),
+			expectedNrOfPosts: 1,
+		},
+		{
+			name:              "callback fails - update expiry succeeds",
+			responder:         httpmock.NewErrorResponder(errors.New("not found")),
+			expectedNrOfPosts: 1,
+		},
+		{
+			name:              "callback fails - update expiry fails",
+			responder:         httpmock.NewErrorResponder(errors.New("not found")),
+			updateExpiryErr:   errors.New("failed update expiry"),
+			expectedNrOfPosts: 1,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			httpmock.Activate()
+			defer httpmock.DeactivateAndReset()
+
+			httpmock.RegisterResponder(
+				"POST",
+				testURL,
+				tc.responder,
+			)
+
 			store := &mock_gen.StoreMock{
 				GetExpiredFunc: func(contextMoqParam context.Context) (map[string]*callbacker_api.Callback, error) {
 					storedCallback := map[string]*callbacker_api.Callback{"ffdK2n44BwsyCrz9jTH12fxuEGoLYhDh": testCallback}
@@ -196,20 +197,19 @@ func TestCallbacker_sendCallbacks(t *testing.T) {
 				},
 			}
 
-			cb, err := New(store, WithLogger(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))))
+			cb, err := New(store,
+				WithLogger(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))),
+				WithSendCallbacksInterval(time.Millisecond*20),
+			)
 			require.NoError(t, err)
 
-			err = cb.sendCallbacks()
-			if tc.expectedErrorStr != "" || err != nil {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
-				return
-			} else {
-				require.NoError(t, err)
-			}
+			cb.Start()
+			defer cb.Stop()
+
+			time.Sleep(time.Millisecond * 30)
 
 			info := httpmock.GetCallCountInfo()
-			assert.Equal(t, 1, info[fmt.Sprintf("POST %s", testURL)])
-
+			assert.Equal(t, tc.expectedNrOfPosts, info[fmt.Sprintf("POST %s", testURL)])
 		})
 	}
 }
@@ -331,7 +331,6 @@ func TestCallbacker_sendCallback(t *testing.T) {
 			info := httpmock.GetCallCountInfo()
 			assert.Equal(t, 1, info[fmt.Sprintf("POST %s", testURL)])
 
-			fmt.Println(key)
 			_, err = mockStore.Get(context.Background(), key)
 			if tc.expectedErrGet != nil {
 				assert.ErrorIs(t, err, tc.expectedErrGet)

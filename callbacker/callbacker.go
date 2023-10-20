@@ -19,18 +19,26 @@ import (
 )
 
 const (
-	logLevelDefault = slog.LevelInfo
+	logLevelDefault              = slog.LevelInfo
+	sendCallbacksIntervalDefault = 30 * time.Second
 )
 
 type Callbacker struct {
-	logger *slog.Logger
-	store  store.Store
-	ticker *time.Ticker
+	logger                *slog.Logger
+	store                 store.Store
+	ticker                *time.Ticker
+	sendCallbacksInterval time.Duration
 }
 
 func WithLogger(logger *slog.Logger) func(*Callbacker) {
 	return func(p *Callbacker) {
 		p.logger = logger.With(slog.String("service", "clb"))
+	}
+}
+
+func WithSendCallbacksInterval(d time.Duration) func(callbacker *Callbacker) {
+	return func(p *Callbacker) {
+		p.sendCallbacksInterval = d
 	}
 }
 
@@ -43,8 +51,9 @@ func New(s store.Store, opts ...Option) (*Callbacker, error) {
 	}
 
 	c := &Callbacker{
-		store:  s,
-		logger: slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "clb")),
+		store:                 s,
+		logger:                slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "clb")),
+		sendCallbacksInterval: sendCallbacksIntervalDefault,
 	}
 
 	for _, opt := range opts {
@@ -55,7 +64,7 @@ func New(s store.Store, opts ...Option) (*Callbacker, error) {
 }
 
 func (c *Callbacker) Start() {
-	c.ticker = time.NewTicker(30 * time.Second)
+	c.ticker = time.NewTicker(c.sendCallbacksInterval)
 	go func() {
 		for range c.ticker.C {
 			err := c.sendCallbacks()

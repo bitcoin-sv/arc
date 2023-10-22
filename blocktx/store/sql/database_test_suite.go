@@ -17,6 +17,14 @@ import (
 	"golang.org/x/exp/rand"
 )
 
+var defaultParams = DBConnectionParams{
+	Host:     "localhost",
+	Port:     5432,
+	Username: "postgres",
+	Password: "postgres",
+	DBName:   "postgres",
+}
+
 // DatabaseTestSuite test helper suite to
 // 1. create database
 // 2. run database/migrations
@@ -38,14 +46,12 @@ func (s *DatabaseTestSuite) SetupSuite() {
 	// Calculate the directory path of the test file
 	testDir := filepath.Dir(callerFilePath)
 
-	url := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", "postgres", "postgres", "localhost", 5432, "postgres")
+	//url := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", "postgres", "postgres", "localhost", 5432, "postgres")
 	path := "file://" + testDir + "/../../../database/migrations/postgres"
-	m, err := migrate.New(path, url)
+	m, err := migrate.New(path, defaultParams.String())
 	require.NoError(s.T(), err)
 	require.NoError(s.T(), m.Up())
 }
-
-var conn_url = fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", "postgres", "postgres", "localhost", 5432, "postgres")
 
 func getRandomBytes() string {
 	hash := make([]byte, 32)
@@ -77,19 +83,8 @@ func GetTestTransaction() *store.Transaction {
 	}
 }
 
-func GetStoreConnectionParams() DBConnectionParams {
-	return DBConnectionParams{
-		Host:     "localhost",
-		Port:     5432,
-		Username: "postgres",
-		Password: "postgres",
-		DBName:   "postgres",
-		Engine:   "postgres",
-	}
-}
-
 func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
-	db, err := sqlx.Open("postgres", conn_url)
+	db, err := sqlx.Open("postgres", defaultParams.String())
 	require.NoError(s.T(), err)
 
 	_, err = db.NamedExec("INSERT INTO blocks("+
@@ -111,7 +106,7 @@ func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
 }
 
 func (s *DatabaseTestSuite) InsertTransaction(tx *store.Transaction) {
-	db, err := sqlx.Open("postgres", conn_url)
+	db, err := sqlx.Open("postgres", defaultParams.String())
 	require.NoError(s.T(), err)
 
 	_, err = db.NamedExec("INSERT INTO transactions("+
@@ -129,7 +124,7 @@ func (s *DatabaseTestSuite) InsertTransaction(tx *store.Transaction) {
 }
 
 func (s *DatabaseTestSuite) InsertBlockTransactionMap(btx *store.BlockTransactionMap) {
-	db, err := sqlx.Open("postgres", conn_url)
+	db, err := sqlx.Open("postgres", defaultParams.String())
 	require.NoError(s.T(), err)
 
 	_, err = db.NamedExec("INSERT INTO block_transactions_map("+
@@ -149,7 +144,7 @@ func (s *DatabaseTestSuite) TearDownSuite() {
 
 // TearDownTest clear all the tables
 func (s *DatabaseTestSuite) TearDownTest() {
-	db, err := sqlx.Open("postgres", conn_url)
+	db, err := sqlx.Open("postgres", defaultParams.String())
 	require.NoError(s.T(), err)
 
 	db.MustExec("truncate  table blocks;")

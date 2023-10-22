@@ -38,14 +38,15 @@ type DBConnectionParams struct {
 	Username string
 	Password string
 	DBName   string
-	Engine   string
+}
+
+func (p DBConnectionParams) String() string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", p.Username, p.Password, p.Host, p.Port, p.DBName)
 }
 
 // NewPostgresStore postgres storage that accepts connection parameters and returns connection or an error
-func NewStore(params DBConnectionParams) (store.Interface, error) {
-	dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", params.Username, params.Password, params.DBName, params.Host, params.Port)
-
-	db, err := sql.Open(params.Engine, dbInfo)
+func NewPostgresStore(params DBConnectionParams) (store.Interface, error) {
+	db, err := sql.Open("postgres", params.String())
 	if err != nil {
 		log.Fatalf("unable to connect to db due to %s", err)
 	}

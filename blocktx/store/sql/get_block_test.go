@@ -20,7 +20,7 @@ func (s *GetBlockByHeightTestSuite) TestGetBlock() {
 	block := GetTestBlock()
 
 	s.InsertBlock(block)
-	store, err := NewStore(GetStoreConnectionParams())
+	store, err := NewPostgresStore(defaultParams)
 	require.NoError(s.T(), err)
 
 	h, err := chainhash.NewHash([]byte(block.Hash))

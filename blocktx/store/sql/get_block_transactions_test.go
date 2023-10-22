@@ -30,7 +30,7 @@ func (s *GetBlockByHeightTestSuite) TestGetBlockTransactions() {
 		Pos:           2,
 	})
 
-	st, err := NewStore(GetStoreConnectionParams())
+	st, err := NewPostgresStore(defaultParams)
 
 	require.NoError(s.T(), err)
 

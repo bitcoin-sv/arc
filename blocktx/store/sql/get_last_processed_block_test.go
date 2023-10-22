@@ -29,7 +29,7 @@ func (s *GetBlockByHeightTestSuite) TestGetLastProcessedBlock() {
 		Pos:           2,
 	})
 
-	st, err := NewStore(GetStoreConnectionParams())
+	st, err := NewPostgresStore(defaultParams)
 	require.NoError(s.T(), err)
 
 	blk, err := st.GetLastProcessedBlock(context.Background())

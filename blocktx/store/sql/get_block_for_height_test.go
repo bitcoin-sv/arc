@@ -19,7 +19,7 @@ func (s *GetBlockByHeightTestSuite) TestGetBlockByHeight() {
 	block := GetTestBlock()
 
 	s.InsertBlock(block)
-	store, err := NewStore(GetStoreConnectionParams())
+	store, err := NewPostgresStore(defaultParams)
 	require.NoError(s.T(), err)
 
 	b, err := store.GetBlockForHeight(context.Background(), uint64(block.Height))

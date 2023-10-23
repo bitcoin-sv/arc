@@ -3,7 +3,6 @@ package sql
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -48,7 +47,7 @@ func (p DBConnectionParams) String() string {
 func NewPostgresStore(params DBConnectionParams) (store.Interface, error) {
 	db, err := sql.Open("postgres", params.String())
 	if err != nil {
-		log.Fatalf("unable to connect to db due to %s", err)
+		return nil, fmt.Errorf("unable to connect to db due to %s", err)
 	}
 
 	return &SQL{

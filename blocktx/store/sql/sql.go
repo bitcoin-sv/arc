@@ -31,6 +31,30 @@ func init() {
 	gocore.NewStat("blocktx")
 }
 
+type DBConnectionParams struct {
+	Host     string
+	Port     int
+	Username string
+	Password string
+	DBName   string
+}
+
+func (p DBConnectionParams) String() string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", p.Username, p.Password, p.Host, p.Port, p.DBName)
+}
+
+// NewPostgresStore postgres storage that accepts connection parameters and returns connection or an error
+func NewPostgresStore(params DBConnectionParams) (store.Interface, error) {
+	db, err := sql.Open("postgres", params.String())
+	if err != nil {
+		return nil, fmt.Errorf("unable to connect to db due to %s", err)
+	}
+
+	return &SQL{
+		db: db,
+	}, nil
+}
+
 func New(engine string) (store.Interface, error) {
 	var db *sql.DB
 	var err error

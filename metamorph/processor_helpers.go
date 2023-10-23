@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"sort"
@@ -19,14 +20,13 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
 	gcutils "github.com/ordishs/gocore/utils"
 	"github.com/spf13/viper"
 )
 
 func (p *Processor) GetStats(debugItems bool) *ProcessorStats {
-	if debugItems && p.logger.LogLevel() == int(gocore.DEBUG) {
-		p.processorResponseMap.PrintItems()
+	if debugItems {
+		p.processorResponseMap.logMapItems(p.logger)
 	}
 
 	return &ProcessorStats{
@@ -50,7 +50,7 @@ func (p *Processor) GetStats(debugItems bool) *ProcessorStats {
 func (p *Processor) PrintStatsOnKeypress() func() {
 	// The following util sets the terminal to non-canonical mode so that we can read
 	// single characters from the terminal without having to press enter.
-	ttyState := utils.DisableCanonicalMode(p.logger)
+	ttyState := utils.DisableCanonicalMode()
 
 	// Print stats when the user presses a key...
 	go func() {
@@ -152,7 +152,7 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 				Txs:            txMap,
 			})
 			if err != nil {
-				p.logger.Errorf("could not encode JSON: %v", err)
+				p.logger.Error("could not encode JSON", slog.String("err", err.Error()))
 			}
 		} else {
 			_ = json.NewEncoder(w).Encode(stats)

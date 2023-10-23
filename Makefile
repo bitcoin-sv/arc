@@ -29,6 +29,9 @@ run_e2e_tests:
 	cd ./test && docker-compose up --exit-code-from tests tests
 	cd ./test && docker-compose down
 
+.PHONY: test
+test:
+	go test -race -count=1 ./...
 
 .PHONY: install_lint
 install_lint:
@@ -109,4 +112,10 @@ api:
 	oapi-codegen -config api/config.yaml api/arc.yml > api/arc.go
 
 .PHONY: clean_restart_e2e_test
-clean_test: clean_e2e_tests build_release run_e2e_tests
+clean_restart_e2e_test: clean_e2e_tests build_release run_e2e_tests
+
+migrate_postgres:
+	migrate -database "postgres://arcuser:arcpass@localhost:5432/arcdb?sslmode=disable"  -path database/migrations/postgres  up
+
+migrate_sqlite:
+	migrate -path database/migrations/sqlite -database "sqlite3://data/sqlite/arcdb.sqlite3"  up

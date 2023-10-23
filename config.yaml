@@ -38,7 +38,6 @@ metamorph:
   dialAddr: localhost:8001 # address for other services to dial metamorph service
   log:
     file: ./data/metamorph.log # location of log file
-    errorFile: ./data/metamorph_error.log # location of error log file
   db:
     mode: badger # db mode inidicates which db to use. Value can be one of badger | postgres
     postgres: # postgres db configuration in case that mode: postgres

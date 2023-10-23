@@ -309,6 +309,7 @@ func TestPutTransactions(t *testing.T) {
 		processorResponse map[string]*processor_response.StatusAndError
 		transactionFound  map[int]*store.StoreData
 		requests          *metamorph_api.TransactionRequests
+		getErr            error
 
 		expectedErrorStr                         string
 		expectedStatuses                         *metamorph_api.TransactionStatuses
@@ -442,6 +443,34 @@ func TestPutTransactions(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "failed to get tx",
+			requests: &metamorph_api.TransactionRequests{
+				Transactions: []*metamorph_api.TransactionRequest{
+					{
+						RawTx:         tx0.Bytes(),
+						WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
+					},
+				},
+			},
+			processorResponse: map[string]*processor_response.StatusAndError{hash0.String(): {
+				Hash:   hash0,
+				Status: metamorph_api.Status_SEEN_ON_NETWORK,
+				Err:    nil,
+			}},
+			getErr: errors.New("failed to get tx"),
+
+			expectedProcessorSetCalls:                1,
+			expectedProcessorProcessTransactionCalls: 1,
+			expectedStatuses: &metamorph_api.TransactionStatuses{
+				Statuses: []*metamorph_api.TransactionStatus{
+					{
+						Txid:   hash0.String(),
+						Status: metamorph_api.Status_SEEN_ON_NETWORK,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tt {
@@ -457,7 +486,7 @@ func TestPutTransactions(t *testing.T) {
 						return storeData, nil
 					}
 
-					return nil, nil
+					return nil, tc.getErr
 				},
 			}
 

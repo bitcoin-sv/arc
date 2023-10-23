@@ -18,6 +18,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/gocore"
+	"github.com/spf13/viper"
 )
 
 type DynamoDB struct {
@@ -27,6 +28,20 @@ type DynamoDB struct {
 const ISO8601 = "2006-01-02T15:04:05.999Z"
 
 func New() (store.MetamorphStore, error) {
+	// export necessary parameters for aws dynamodb connection
+	err := os.Setenv("AWS_ACCESS_KEY_ID", viper.GetString("metamorph.db.dynamodb.aws_access_key_id"))
+	if err != nil {
+		return &DynamoDB{}, err
+	}
+	err = os.Setenv("AWS_SECRET_ACCESS_KEY", viper.GetString("metamorph.db.dynamodb.aws_secret_access_key"))
+	if err != nil {
+		return &DynamoDB{}, err
+	}
+	err = os.Setenv("AWS_SESSION_TOKEN", viper.GetString("metamorph.db.dynamodb.aws_session_token"))
+	if err != nil {
+		return &DynamoDB{}, err
+	}
+
 	// Using the SDK's default configuration, loading additional config
 	// and credentials values from the environment variables, shared
 	// credentials, and shared configuration files

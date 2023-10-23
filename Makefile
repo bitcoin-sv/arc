@@ -29,6 +29,9 @@ run_e2e_tests:
 	cd ./test && docker-compose up --exit-code-from tests tests
 	cd ./test && docker-compose down
 
+.PHONY: test
+test:
+	go test -race -count=1 ./...
 
 .PHONY: install_lint
 install_lint:
@@ -75,9 +78,17 @@ clean_gen:
 	rm -f ./blocktx/blocktx_api/*.pb.go
 	rm -f ./callbacker/callbacker_api/*.pb.go
 
+.PHONY: coverage
 coverage:
 	rm -f ./cov.out
-	go test -coverprofile=./cov.out ./...
+	go test -coverprofile=./cov.out -covermode=atomic ./... 2>&1 > gotest.out
+	cat gotest.out | go-junit-report -set-exit-code > report.xml
+	goverreport -coverprofile cov.out -packages -sort block
+
+.PHONY: install_coverage
+install_coverage:
+	go install github.com/mcubik/goverreport@latest
+	go install github.com/jstemmer/go-junit-report/v2@latest
 
 .PHONY: clean
 clean:
@@ -109,4 +120,10 @@ api:
 	oapi-codegen -config api/config.yaml api/arc.yml > api/arc.go
 
 .PHONY: clean_restart_e2e_test
-clean_test: clean_e2e_tests build_release run_e2e_tests
+clean_restart_e2e_test: clean_e2e_tests build_release run_e2e_tests
+
+migrate_postgres:
+	migrate -database "postgres://arcuser:arcpass@localhost:5432/arcdb?sslmode=disable"  -path database/migrations/postgres  up
+
+migrate_sqlite:
+	migrate -path database/migrations/sqlite -database "sqlite3://data/sqlite/arcdb.sqlite3"  up

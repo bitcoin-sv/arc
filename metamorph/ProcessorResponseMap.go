@@ -2,8 +2,8 @@ package metamorph
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
-	"log/slog"
 	"os"
 	"path"
 	"time"
@@ -11,8 +11,8 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
+	"github.com/ordishs/gocore"
 	"github.com/sasha-s/go-deadlock"
-	"github.com/spf13/viper"
 )
 
 const (
@@ -28,7 +28,7 @@ type ProcessorResponseMap struct {
 }
 
 func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
-	logFile := viper.GetString("metamorph.log.file")
+	logFile, _ := gocore.Config().Get("metamorph_logFile") //, "./data/metamorph.log")
 
 	m := &ProcessorResponseMap{
 		expiry:  expiry,
@@ -53,28 +53,25 @@ func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
 
 func (m *ProcessorResponseMap) logWriter() {
 	dir := path.Dir(m.logFile)
-	err := os.MkdirAll(dir, 0750)
+	_ = os.MkdirAll(dir, 0777)
+
+	f, err := os.OpenFile(m.logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Fatalf("failed to create folder for logging %s", err)
-	}
-	f, err := os.OpenFile(m.logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		log.Fatalf("error opening log file: %s", err)
+		log.Printf("error opening log file: %s", err.Error())
 	}
 	defer f.Close()
 
 	for prl := range m.logWorker {
+
 		var b []byte
 		b, err = json.Marshal(prl)
 		if err != nil {
-			log.Printf("error marshaling log data: %s", err)
-			continue
+			log.Printf("error marshaling log data: %s", err.Error())
 		}
 
 		_, err = f.WriteString(string(b) + "\n")
 		if err != nil {
-			log.Printf("error writing to log file: %s", err)
-			continue
+			log.Printf("error writing to log file: %s", err.Error())
 		}
 	}
 }
@@ -228,13 +225,14 @@ func (m *ProcessorResponseMap) Items(filterFunc ...func(*processor_response.Proc
 	return items
 }
 
-func (m *ProcessorResponseMap) logMapItems(logger *slog.Logger) {
+func (m *ProcessorResponseMap) PrintItems() {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	for hash, processorResponse := range m.items {
-		logger.Debug("Processor response map item", slog.String("hash", hash.String()), slog.String("status", processorResponse.Status.String()), slog.Int("retries", int(processorResponse.Retries.Load())), slog.String("err", processorResponse.Err.Error()), slog.Time("start", processorResponse.Start))
+	for _, value := range m.items {
+		fmt.Printf("processorResponseMap: %s\n", value.String())
 	}
+
 }
 
 // Clear clears the map.

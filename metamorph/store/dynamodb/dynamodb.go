@@ -48,7 +48,9 @@ func New() (store.MetamorphStore, error) {
 	exists, err := dynamodbClient.TableExists("transactions")
 	if err != nil {
 		return dynamodbClient, err
-	} else if !exists {
+	}
+
+	if !exists {
 		err = dynamodbClient.CreateTransactionsTable()
 		if err != nil {
 			return dynamodbClient, err
@@ -59,7 +61,9 @@ func New() (store.MetamorphStore, error) {
 	exists, err = dynamodbClient.TableExists("blocks")
 	if err != nil {
 		return dynamodbClient, err
-	} else if !exists {
+	}
+
+	if !exists {
 		err = dynamodbClient.CreateBlocksTable()
 		if err != nil {
 			return dynamodbClient, err
@@ -89,7 +93,7 @@ func (ddb *DynamoDB) TableExists(tableName string) (bool, error) {
 // CreateTransactionsTable creates a DynamoDB table for storing metamorph user transactions
 func (ddb *DynamoDB) CreateTransactionsTable() error {
 	// construct primary key and create table
-	if _, err := ddb.dynamoCli.CreateTable(context.TODO(), &dynamodb.CreateTableInput{
+	_, err := ddb.dynamoCli.CreateTable(context.TODO(), &dynamodb.CreateTableInput{
 		AttributeDefinitions: []types.AttributeDefinition{
 			{
 				AttributeName: aws.String("tx_hash"),
@@ -137,7 +141,9 @@ func (ddb *DynamoDB) CreateTransactionsTable() error {
 			ReadCapacityUnits:  aws.Int64(10),
 			WriteCapacityUnits: aws.Int64(10),
 		},
-	}); err != nil {
+	})
+
+	if err != nil {
 		return err
 	}
 
@@ -184,7 +190,7 @@ func (ddb *DynamoDB) Get(ctx context.Context, key []byte) (*store.StoreData, err
 		"tx_hash": &types.AttributeValueMemberB{Value: key},
 	}
 
-	response, err := ddb.dynamoCli.GetItem(context.TODO(), &dynamodb.GetItemInput{
+	response, err := ddb.dynamoCli.GetItem(ctx, &dynamodb.GetItemInput{
 		Key: val, TableName: aws.String("transactions"),
 	})
 	if err != nil {
@@ -233,7 +239,7 @@ func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
-		return nil
+		return err
 	}
 
 	return nil
@@ -392,7 +398,7 @@ func (ddb *DynamoDB) GetBlockProcessed(ctx context.Context, blockHash *chainhash
 		"block_hash": &types.AttributeValueMemberB{Value: blockHash.CloneBytes()},
 	}
 
-	response, err := ddb.dynamoCli.GetItem(context.TODO(), &dynamodb.GetItemInput{
+	response, err := ddb.dynamoCli.GetItem(ctx, &dynamodb.GetItemInput{
 		Key: val, TableName: aws.String("blocks"),
 	})
 

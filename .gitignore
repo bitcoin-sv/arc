@@ -11,3 +11,5 @@ settings_local.conf
 cov.out
 gosec-report.json
 .scannerwork
+gotest.out
+report.xml

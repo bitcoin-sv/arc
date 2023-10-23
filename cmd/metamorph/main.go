@@ -2,13 +2,15 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
 
 	"github.com/bitcoin-sv/arc/cmd"
-	"github.com/ordishs/go-utils"
+	cfg "github.com/bitcoin-sv/arc/config"
 	"github.com/ordishs/gocore"
 	"github.com/spf13/viper"
 )
@@ -34,22 +36,27 @@ func main() {
 		return
 	}
 
-	logLevel := viper.GetString("logLevel")
-	logger := gocore.Log(progname, gocore.NewLogLevelFromString(logLevel))
+	logger, err := cfg.NewLogger()
+	if err != nil {
+		log.Fatalf("failed to create logger: %v", err)
+		return
+	}
 
-	logger.Infof("VERSION\n-------\n%s (%s)\n\n", version, commit)
+	logger.Info("starting arc", slog.String("version", version), slog.String("commit", commit))
 
 	go func() {
 		profilerAddr := viper.GetString("metamorph.profilerAddr")
 		if profilerAddr != "" {
-			logger.Infof("Starting profile on http://%s/debug/pprof", profilerAddr)
-			logger.Fatalf("%v", http.ListenAndServe(profilerAddr, nil))
+			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", profilerAddr))
+
+			err := http.ListenAndServe(profilerAddr, nil)
+			logger.Error("failed to start profiler server", slog.String("err", err.Error()))
 		}
 	}()
 
 	shutdown, err := cmd.StartMetamorph(logger)
 	if err != nil {
-		logger.Fatalf("Error starting metamorph: %v", err)
+		logger.Error("Error starting metamorph", slog.String("err", err.Error()))
 	}
 
 	// setup signal catching
@@ -62,7 +69,7 @@ func main() {
 	os.Exit(1)
 }
 
-func appCleanup(logger utils.Logger, shutdown func()) {
-	logger.Infof("Shutting down...")
+func appCleanup(logger *slog.Logger, shutdown func()) {
+	logger.Info("Shutting down")
 	shutdown()
 }

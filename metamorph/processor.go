@@ -244,6 +244,7 @@ func (p *Processor) processExpiredSeenTransactions() {
 		if len(expiredTransactionItems) == 0 {
 			continue
 		}
+		p.logger.Info("processing expired seen transactions", slog.Int("number", len(expiredTransactionItems)))
 
 		transactions := &blocktx_api.Transactions{}
 		txs := make([]*blocktx_api.Transaction, len(expiredTransactionItems))

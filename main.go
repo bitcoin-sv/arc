@@ -185,9 +185,8 @@ func main() {
 
 	if startMetamorph != nil && *startMetamorph {
 		logger.Info("Starting Metamorph")
-		var metamorphLogger = gocore.Log("mtm", gocore.NewLogLevelFromString(logLevel))
 
-		if metamorphShutdown, err := cmd.StartMetamorph(metamorphLogger); err != nil {
+		if metamorphShutdown, err := cmd.StartMetamorph(logger); err != nil {
 			logger.Error("Error starting metamorph", slog.String("err", err.Error()))
 		} else {
 			shutdownFns = append(shutdownFns, func() {

@@ -532,3 +532,35 @@ func TestPutTransactions(t *testing.T) {
 		})
 	}
 }
+
+func TestStartGRPCServer(t *testing.T) {
+	tt := []struct {
+		name string
+	}{
+		{
+			name: "start and shutdown",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			metamorphStore := &storeMock.MetamorphStoreMock{}
+
+			btc := &blockTxMock.ClientIMock{}
+
+			processor := &ProcessorIMock{
+				ShutdownFunc: func() {},
+			}
+			server := NewServer(metamorphStore, processor, btc, source)
+
+			go func() {
+				err := server.StartGRPCServer("localhost:7000", 10000)
+				require.NoError(t, err)
+			}()
+			time.Sleep(50 * time.Millisecond)
+
+			server.Shutdown()
+
+		})
+	}
+}

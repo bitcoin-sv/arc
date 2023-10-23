@@ -91,11 +91,11 @@ func sendToAddress(t *testing.T, address string, bsv float64) (txID string) {
 	return
 }
 
-func generate(t *testing.T, amount uint64, address string) string {
+func generate(t *testing.T, amount uint64) string {
 	t.Helper()
 
 	// run command instead
-	blockHash := execCommandGenerate(t, amount, address)
+	blockHash := execCommandGenerate(t, amount)
 
 	time.Sleep(5 * time.Second)
 
@@ -110,11 +110,11 @@ func generate(t *testing.T, amount uint64, address string) string {
 	return blockHash
 }
 
-func execCommandGenerate(t *testing.T, amount uint64, address string) string {
+func execCommandGenerate(t *testing.T, amount uint64) string {
 	t.Helper()
 	fmt.Println("Amount to generate:", amount)
 
-	hashes, err := bitcoind.GenerateToAddress(float64(amount), address)
+	hashes, err := bitcoind.Generate(float64(amount))
 	require.NoError(t, err)
 
 	return hashes[len(hashes)-1]

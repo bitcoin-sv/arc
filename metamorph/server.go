@@ -46,13 +46,15 @@ const (
 // Server type carries the zmqLogger within it
 type Server struct {
 	metamorph_api.UnimplementedMetaMorphAPIServer
-	logger     *slog.Logger
-	processor  ProcessorI
-	store      store.MetamorphStore
-	timeout    time.Duration
-	grpcServer *grpc.Server
-	btc        blocktx.ClientI
-	source     string
+	logger          *slog.Logger
+	processor       ProcessorI
+	store           store.MetamorphStore
+	timeout         time.Duration
+	grpcServer      *grpc.Server
+	btc             blocktx.ClientI
+	source          string
+	bitcoinURL      *url.URL
+	forceCheckUtxos bool
 }
 
 func WithLogger(logger *slog.Logger) func(*Server) {
@@ -61,17 +63,25 @@ func WithLogger(logger *slog.Logger) func(*Server) {
 	}
 }
 
+func WithForceCheckUtxos(bitcoinURL *url.URL) func(*Server) {
+	return func(p *Server) {
+		p.bitcoinURL = bitcoinURL
+		p.forceCheckUtxos = true
+	}
+}
+
 type ServerOption func(f *Server)
 
 // NewServer will return a server instance with the zmqLogger stored within it
 func NewServer(s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI, source string, opts ...ServerOption) *Server {
 	server := &Server{
-		logger:    slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "mtm")),
-		processor: p,
-		store:     s,
-		timeout:   responseTimeout,
-		btc:       btc,
-		source:    source,
+		logger:          slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "mtm")),
+		processor:       p,
+		store:           s,
+		timeout:         responseTimeout,
+		btc:             btc,
+		source:          source,
+		forceCheckUtxos: false,
 	}
 
 	for _, opt := range opts {
@@ -404,9 +414,8 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		return 0, 0, nil, transactionStatus, nil
 	}
 
-	checkUtxos := viper.GetBool("metamorph.checkUtxos")
-	if checkUtxos {
-		next, err = s.utxoCheck(initCtx, next, req.RawTx)
+	if s.forceCheckUtxos {
+		next, err = s.checkUtxos(initCtx, next, req.RawTx)
 		if err != nil {
 			return 0, 0, nil, &metamorph_api.TransactionStatus{
 				Status:       metamorph_api.Status_REJECTED,
@@ -443,37 +452,12 @@ func (s *Server) checkStore(ctx context.Context, hash *chainhash.Hash, next int6
 	return gocore.NewStat("PutTransaction").NewStat("1: Check store").AddTime(next), nil
 }
 
-func (s *Server) utxoCheck(ctx context.Context, next int64, rawTx []byte) (int64, error) {
+func (s *Server) checkUtxos(ctx context.Context, next int64, rawTx []byte) (int64, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:UtxoCheck")
 	defer span.Finish()
 
-	peerRpcPassword := viper.GetString("peerRpc.password")
-	if peerRpcPassword == "" {
-		return 0, errors.Errorf("setting peerRpc.password not found")
-	}
-
-	peerRpcUser := viper.GetString("peerRpc.user")
-	if peerRpcUser == "" {
-		return 0, errors.Errorf("setting peerRpc.user not found")
-	}
-
-	peerRpcHost := viper.GetString("peerRpc.host")
-	if peerRpcHost == "" {
-		return 0, errors.Errorf("setting peerRpc.host not found")
-	}
-
-	peerRpcPort := viper.GetInt("peerRpc.port")
-	if peerRpcPort == 0 {
-		return 0, errors.Errorf("setting peerRpc.port not found")
-	}
-
-	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
-	if err != nil {
-		return 0, errors.Errorf("failed to parse rpc URL: %v", err)
-	}
-
 	// get the transaction from the bitcoin node rpc
-	node, err := bitcoin.NewFromURL(rpcURL, false)
+	node, err := bitcoin.NewFromURL(s.bitcoinURL, false)
 	if err != nil {
 		return 0, err
 	}

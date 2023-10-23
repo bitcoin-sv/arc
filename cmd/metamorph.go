@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -220,7 +221,40 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		logger.Errorf("failed to get new logger: %v", err)
 		return nil, err
 	}
-	serv := metamorph.NewServer(s, metamorphProcessor, btc, source, metamorph.WithLogger(metamorphLogger))
+	opts := []metamorph.ServerOption{
+		metamorph.WithLogger(metamorphLogger),
+	}
+
+	if viper.GetBool("metamorph.checkUtxos") {
+		peerRpcPassword := viper.GetString("peerRpc.password")
+		if peerRpcPassword == "" {
+			return nil, errors.Errorf("setting peerRpc.password not found")
+		}
+
+		peerRpcUser := viper.GetString("peerRpc.user")
+		if peerRpcUser == "" {
+			return nil, errors.Errorf("setting peerRpc.user not found")
+		}
+
+		peerRpcHost := viper.GetString("peerRpc.host")
+		if peerRpcHost == "" {
+			return nil, errors.Errorf("setting peerRpc.host not found")
+		}
+
+		peerRpcPort := viper.GetInt("peerRpc.port")
+		if peerRpcPort == 0 {
+			return nil, errors.Errorf("setting peerRpc.port not found")
+		}
+
+		rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
+		if err != nil {
+			return nil, errors.Errorf("failed to parse rpc URL: %v", err)
+		}
+
+		opts = append(opts, metamorph.WithForceCheckUtxos(rpcURL))
+	}
+
+	serv := metamorph.NewServer(s, metamorphProcessor, btc, source, opts...)
 
 	go func() {
 		grpcMessageSize := viper.GetInt("grpcMessageSize")

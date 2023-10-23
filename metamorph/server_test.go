@@ -28,7 +28,7 @@ const source = "localhost:8000"
 
 func TestNewServer(t *testing.T) {
 	t.Run("NewServer", func(t *testing.T) {
-		server := NewServer(nil, nil, nil, nil, source)
+		server := NewServer(nil, nil, nil, source)
 		assert.IsType(t, &Server{}, server)
 	})
 }
@@ -50,7 +50,7 @@ func TestHealth(t *testing.T) {
 			SentToNetwork:  sentToNetworkStat,
 			ChannelMapSize: 22,
 		}
-		server := NewServer(nil, nil, processor, nil, source)
+		server := NewServer(nil, processor, nil, source)
 		stats, err := server.Health(context.Background(), &emptypb.Empty{})
 		assert.NoError(t, err)
 		assert.Equal(t, processor.Stats.ChannelMapSize, stats.MapSize)
@@ -72,7 +72,7 @@ func TestPutTransaction(t *testing.T) {
 			&blocktx_api.RegisterTransactionResponse{Source: source},
 		}
 
-		server := NewServer(nil, s, processor, btc, source)
+		server := NewServer(s, processor, btc, source)
 		server.SetTimeout(100 * time.Millisecond)
 
 		var txStatus *metamorph_api.TransactionStatus
@@ -95,7 +95,7 @@ func TestPutTransaction(t *testing.T) {
 	})
 
 	t.Run("invalid request", func(t *testing.T) {
-		server := NewServer(nil, nil, nil, nil, source)
+		server := NewServer(nil, nil, nil, source)
 
 		txRequest := &metamorph_api.TransactionRequest{
 			CallbackUrl: "api.callback.com",
@@ -115,7 +115,7 @@ func TestPutTransaction(t *testing.T) {
 			&blocktx_api.RegisterTransactionResponse{Source: source},
 		}
 
-		server := NewServer(nil, s, processor, btc, source)
+		server := NewServer(s, processor, btc, source)
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
@@ -144,7 +144,7 @@ func TestPutTransaction(t *testing.T) {
 			&blocktx_api.RegisterTransactionResponse{Source: source},
 		}
 
-		server := NewServer(nil, s, processor, btc, source)
+		server := NewServer(s, processor, btc, source)
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
@@ -182,7 +182,7 @@ func TestPutTransaction(t *testing.T) {
 			&blocktx_api.RegisterTransactionResponse{Source: source},
 		}
 
-		server := NewServer(nil, s, processor, btc, source)
+		server := NewServer(s, processor, btc, source)
 
 		txRequest := &metamorph_api.TransactionRequest{
 			RawTx: testdata.TX1RawBytes,
@@ -235,7 +235,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer(nil, s, nil, nil, source)
+			server := NewServer(s, nil, nil, source)
 			got, err := server.GetTransactionStatus(context.Background(), tt.req)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetTransactionStatus(%v)", tt.req)) {
 				return
@@ -481,7 +481,7 @@ func TestPutTransactions(t *testing.T) {
 					}
 				},
 			}
-			server := NewServer(nil, metamorphStore, processor, btc, source)
+			server := NewServer(metamorphStore, processor, btc, source)
 
 			server.SetTimeout(5 * time.Second)
 			statuses, err := server.PutTransactions(context.Background(), tc.requests)

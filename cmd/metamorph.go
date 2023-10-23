@@ -215,7 +215,12 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	go btc.Start(blockChan)
 
-	serv := metamorph.NewServer(logger, s, metamorphProcessor, btc, source)
+	metamorphLogger, err := config.NewLogger()
+	if err != nil {
+		logger.Errorf("failed to get new logger: %v", err)
+		return nil, err
+	}
+	serv := metamorph.NewServer(s, metamorphProcessor, btc, source, metamorph.WithLogger(metamorphLogger))
 
 	go func() {
 		grpcMessageSize := viper.GetInt("grpcMessageSize")

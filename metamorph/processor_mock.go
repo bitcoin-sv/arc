@@ -40,6 +40,9 @@ var _ ProcessorI = &ProcessorIMock{}
 //			SetFunc: func(req *ProcessorRequest) error {
 //				panic("mock out the Set method")
 //			},
+//			ShutdownFunc: func()  {
+//				panic("mock out the Shutdown method")
+//			},
 //		}
 //
 //		// use mockedProcessorI in code that requires ProcessorI
@@ -67,6 +70,9 @@ type ProcessorIMock struct {
 
 	// SetFunc mocks the Set method.
 	SetFunc func(req *ProcessorRequest) error
+
+	// ShutdownFunc mocks the Shutdown method.
+	ShutdownFunc func()
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -111,6 +117,9 @@ type ProcessorIMock struct {
 			// Req is the req argument value.
 			Req *ProcessorRequest
 		}
+		// Shutdown holds details about calls to the Shutdown method.
+		Shutdown []struct {
+		}
 	}
 	lockGetPeers                      sync.RWMutex
 	lockGetStats                      sync.RWMutex
@@ -119,6 +128,7 @@ type ProcessorIMock struct {
 	lockSendStatusForTransaction      sync.RWMutex
 	lockSendStatusMinedForTransaction sync.RWMutex
 	lockSet                           sync.RWMutex
+	lockShutdown                      sync.RWMutex
 }
 
 // GetPeers calls GetPeersFunc.
@@ -352,5 +362,32 @@ func (mock *ProcessorIMock) SetCalls() []struct {
 	mock.lockSet.RLock()
 	calls = mock.calls.Set
 	mock.lockSet.RUnlock()
+	return calls
+}
+
+// Shutdown calls ShutdownFunc.
+func (mock *ProcessorIMock) Shutdown() {
+	if mock.ShutdownFunc == nil {
+		panic("ProcessorIMock.ShutdownFunc: method is nil but ProcessorI.Shutdown was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockShutdown.Lock()
+	mock.calls.Shutdown = append(mock.calls.Shutdown, callInfo)
+	mock.lockShutdown.Unlock()
+	mock.ShutdownFunc()
+}
+
+// ShutdownCalls gets all the calls that were made to Shutdown.
+// Check the length with:
+//
+//	len(mockedProcessorI.ShutdownCalls())
+func (mock *ProcessorIMock) ShutdownCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockShutdown.RLock()
+	calls = mock.calls.Shutdown
+	mock.lockShutdown.RUnlock()
 	return calls
 }

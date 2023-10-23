@@ -121,6 +121,12 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 	return nil
 }
 
+func (s *Server) Shutdown() {
+	s.logger.Info("Shutting down")
+	s.grpcServer.Stop()
+	s.processor.Shutdown()
+}
+
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.HealthResponse, error) {
 	stats := s.processor.GetStats(false)
 

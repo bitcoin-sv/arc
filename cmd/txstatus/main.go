@@ -44,7 +44,7 @@ func main() {
 	if btxAddress == "" {
 		panic("Missing blocktx.dialAddr")
 	}
-	bTx := blocktx.NewClient(logger, btxAddress)
+	bTx := blocktx.NewClient(btxAddress)
 	grpcMessageSize := viper.GetInt("grpcMessageSize")
 	if grpcMessageSize == 0 {
 		panic("Missing grpcMessageSize")

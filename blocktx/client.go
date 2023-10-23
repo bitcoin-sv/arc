@@ -2,6 +2,8 @@ package blocktx
 
 import (
 	"context"
+	"log/slog"
+	"os"
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
@@ -9,10 +11,9 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
-	"google.golang.org/protobuf/types/known/emptypb"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // ClientI is the interface for the block-tx transactionHandler
@@ -28,24 +29,40 @@ type ClientI interface {
 	GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
 }
 
+const (
+	logLevelDefault = slog.LevelInfo
+)
+
 type Client struct {
 	address string
-	logger  utils.Logger
+	logger  *slog.Logger
 	conn    *grpc.ClientConn
 	client  blocktx_api.BlockTxAPIClient
 }
 
-func NewClient(l utils.Logger, address string) ClientI {
+func WithLogger(logger *slog.Logger) func(*Client) {
+	return func(p *Client) {
+		p.logger = logger.With(slog.String("service", "btx"))
+	}
+}
+
+type Option func(f *Client)
+
+func NewClient(address string, opts ...Option) ClientI {
 	btc := &Client{
 		address: address,
-		logger:  l,
+		logger:  slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "btx")),
+	}
+
+	for _, opt := range opts {
+		opt(btc)
 	}
 
 	conn, err := btc.dialGRPC()
 	if err != nil {
-		btc.logger.Fatalf("Failed to connect to block-tx server at %s: %v", btc.address, err)
+		btc.logger.Error("Failed to connect to block-tx server", slog.String("address", btc.address), slog.String("err", err.Error()))
 	}
-	btc.logger.Infof("Connected to block-tx server at %s", btc.address)
+	btc.logger.Info("Connected to block-tx server", slog.String("address", btc.address))
 
 	btc.conn = conn
 	btc.client = blocktx_api.NewBlockTxAPIClient(conn)
@@ -57,9 +74,9 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 	for {
 		stream, err := btc.client.GetBlockNotificationStream(context.Background(), &blocktx_api.Height{})
 		if err != nil {
-			btc.logger.Errorf("Error getting block notification stream: %v", err)
+			btc.logger.Error("Error getting block notification stream", slog.String("err", err.Error()))
 		} else {
-			btc.logger.Infof("Connected to block-tx server at %s", btc.address)
+			btc.logger.Info("Connected to block-tx server", slog.String("address", btc.address))
 
 			var block *blocktx_api.Block
 			for {
@@ -68,7 +85,7 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 					break
 				}
 
-				btc.logger.Infof("Block %s\n", utils.ReverseAndHexEncodeSlice(block.Hash))
+				btc.logger.Info("Block", slog.String("hash", utils.ReverseAndHexEncodeSlice(block.Hash)))
 				utils.SafeSend(minedBlockChan, block)
 			}
 		}

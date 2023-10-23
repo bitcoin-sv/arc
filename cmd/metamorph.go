@@ -56,7 +56,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		return nil, errors.New("blocktx.dialAddr not found in config")
 	}
 
-	btc := blocktx.NewClient(logger, address)
+	btc := blocktx.NewClient(address)
 
 	metamorphGRPCListenAddress := viper.GetString("metamorph.listenAddr")
 	if metamorphGRPCListenAddress == "" {

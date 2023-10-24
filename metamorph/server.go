@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
-	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -42,28 +43,56 @@ const (
 	responseTimeout = 5 * time.Second
 )
 
+type BitcoinNode interface {
+	GetTxOut(txHex string, vout int, includeMempool bool) (res *bitcoin.TXOut, err error)
+}
+
 // Server type carries the zmqLogger within it
 type Server struct {
 	metamorph_api.UnimplementedMetaMorphAPIServer
-	logger     utils.Logger
-	processor  ProcessorI
-	store      store.MetamorphStore
-	timeout    time.Duration
-	grpcServer *grpc.Server
-	btc        blocktx.ClientI
-	source     string
+	logger          *slog.Logger
+	processor       ProcessorI
+	store           store.MetamorphStore
+	timeout         time.Duration
+	grpcServer      *grpc.Server
+	btc             blocktx.ClientI
+	source          string
+	bitcoinNode     BitcoinNode
+	forceCheckUtxos bool
 }
 
-// NewServer will return a server instance with the zmqLogger stored within it
-func NewServer(logger utils.Logger, s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI, source string) *Server {
-	return &Server{
-		logger:    logger,
-		processor: p,
-		store:     s,
-		timeout:   responseTimeout,
-		btc:       btc,
-		source:    source,
+func WithLogger(logger *slog.Logger) func(*Server) {
+	return func(p *Server) {
+		p.logger = logger.With(slog.String("service", "mtm"))
 	}
+}
+
+func WithForceCheckUtxos(bitcoinNode BitcoinNode) func(*Server) {
+	return func(p *Server) {
+		p.bitcoinNode = bitcoinNode
+		p.forceCheckUtxos = true
+	}
+}
+
+type ServerOption func(f *Server)
+
+// NewServer will return a server instance with the zmqLogger stored within it
+func NewServer(s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI, source string, opts ...ServerOption) *Server {
+	server := &Server{
+		logger:          slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "mtm")),
+		processor:       p,
+		store:           s,
+		timeout:         responseTimeout,
+		btc:             btc,
+		source:          source,
+		forceCheckUtxos: false,
+	}
+
+	for _, opt := range opts {
+		opt(server)
+	}
+
+	return server
 }
 
 func (s *Server) SetTimeout(timeout time.Duration) {
@@ -97,13 +126,19 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 	// Register reflection service on gRPC server.
 	reflection.Register(s.grpcServer)
 
-	s.logger.Infof("[Metamorph] GRPC server listening on %s", address)
+	s.logger.Info("GRPC server listening on", slog.String("address", address))
 
 	if err = s.grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("metamorph GRPC server failed [%w]", err)
 	}
 
 	return nil
+}
+
+func (s *Server) Shutdown() {
+	s.logger.Info("Shutting down")
+	s.grpcServer.Stop()
+	s.processor.Shutdown()
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.HealthResponse, error) {
@@ -340,7 +375,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 	if rtr.Source != s.source {
 		if isForwarded(ctx) {
 			// This is a forwarded request, so we should not forward it again
-			s.logger.Warnf("Endless forwarding loop detected for %v (source in blocktx = %q, my address = %q)", hash, rtr.Source, s.source)
+			s.logger.Warn("Endless forwarding loop detected for", slog.String("hash", hash.String()), slog.String("address", s.source), slog.String("source", rtr.Source))
 			return 0, 0, nil, nil, fmt.Errorf("endless forwarding loop detected")
 		}
 
@@ -383,9 +418,9 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		return 0, 0, nil, transactionStatus, nil
 	}
 
-	checkUtxos := viper.GetBool("metamorph.checkUtxos")
-	if checkUtxos {
-		next, err = s.utxoCheck(initCtx, next, req.RawTx)
+	if s.forceCheckUtxos {
+		next, err = s.checkUtxos(initCtx, next, req.RawTx)
+		s.logger.Error("Error checking utxos", slog.String("err", err.Error()))
 		if err != nil {
 			return 0, 0, nil, &metamorph_api.TransactionStatus{
 				Status:       metamorph_api.Status_REJECTED,
@@ -402,7 +437,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 func (s *Server) checkStore(ctx context.Context, hash *chainhash.Hash, next int64) (int64, *metamorph_api.TransactionStatus) {
 	storeData, err := s.store.Get(ctx, hash[:])
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
-		s.logger.Errorf("Error getting transaction from store: %v", err)
+		s.logger.Error("Error getting transaction from store", slog.String("err", err.Error()))
 	}
 	if storeData != nil {
 		// we found the transaction in the store, so we can just return it
@@ -422,58 +457,24 @@ func (s *Server) checkStore(ctx context.Context, hash *chainhash.Hash, next int6
 	return gocore.NewStat("PutTransaction").NewStat("1: Check store").AddTime(next), nil
 }
 
-func (s *Server) utxoCheck(ctx context.Context, next int64, rawTx []byte) (int64, error) {
+func (s *Server) checkUtxos(ctx context.Context, next int64, rawTx []byte) (int64, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:UtxoCheck")
 	defer span.Finish()
 
-	peerRpcPassword := viper.GetString("peerRpc.password")
-	if peerRpcPassword == "" {
-		return 0, errors.Errorf("setting peerRpc.password not found")
-	}
-
-	peerRpcUser := viper.GetString("peerRpc.user")
-	if peerRpcUser == "" {
-		return 0, errors.Errorf("setting peerRpc.user not found")
-	}
-
-	peerRpcHost := viper.GetString("peerRpc.host")
-	if peerRpcHost == "" {
-		return 0, errors.Errorf("setting peerRpc.host not found")
-	}
-
-	peerRpcPort := viper.GetInt("peerRpc.port")
-	if peerRpcPort == 0 {
-		return 0, errors.Errorf("setting peerRpc.port not found")
-	}
-
-	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
-	if err != nil {
-		return 0, errors.Errorf("failed to parse rpc URL: %v", err)
-	}
-
-	// get the transaction from the bitcoin node rpc
-	node, err := bitcoin.NewFromURL(rpcURL, false)
-	if err != nil {
-		return 0, err
-	}
-
 	var tx *bt.Tx
-	tx, err = bt.NewTxFromBytes(rawTx)
+	tx, err := bt.NewTxFromBytes(rawTx)
 	if err != nil {
-		s.logger.Errorf("Error creating bitcoin tx: %v", err)
-		return 0, err
+		return 0, fmt.Errorf("failed to create bitcoin tx: %v", err)
 	}
 
 	for _, input := range tx.Inputs {
 		var utxos *bitcoin.TXOut
-		utxos, err = node.GetTxOut(input.PreviousTxIDStr(), int(input.PreviousTxOutIndex), true)
+		utxos, err = s.bitcoinNode.GetTxOut(input.PreviousTxIDStr(), int(input.PreviousTxOutIndex), true)
 		if err != nil {
-			s.logger.Errorf("failed to get utxo: %v", err)
 			return 0, fmt.Errorf("failed to get utxo: %v", err)
 		}
 
 		if utxos == nil {
-			s.logger.Errorf("utxo %s:%d not found", input.PreviousTxIDStr(), input.PreviousTxOutIndex)
 			return 0, fmt.Errorf("utxo %s:%d not found", input.PreviousTxIDStr(), input.PreviousTxOutIndex)
 		}
 	}

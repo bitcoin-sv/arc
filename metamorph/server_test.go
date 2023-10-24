@@ -2,8 +2,11 @@ package metamorph
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"testing"
 	"time"
 
@@ -17,6 +20,7 @@ import (
 	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils/stat"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,9 +30,12 @@ import (
 
 const source = "localhost:8000"
 
+//go:generate moq -out ./processor_mock.go . ProcessorI
+//go:generate moq -out ./bitcoin_mock.go . BitcoinNode
+
 func TestNewServer(t *testing.T) {
 	t.Run("NewServer", func(t *testing.T) {
-		server := NewServer(nil, nil, nil, nil, source)
+		server := NewServer(nil, nil, nil, source)
 		assert.IsType(t, &Server{}, server)
 	})
 }
@@ -50,7 +57,7 @@ func TestHealth(t *testing.T) {
 			SentToNetwork:  sentToNetworkStat,
 			ChannelMapSize: 22,
 		}
-		server := NewServer(nil, nil, processor, nil, source)
+		server := NewServer(nil, processor, nil, source)
 		stats, err := server.Health(context.Background(), &emptypb.Empty{})
 		assert.NoError(t, err)
 		assert.Equal(t, processor.Stats.ChannelMapSize, stats.MapSize)
@@ -72,7 +79,7 @@ func TestPutTransaction(t *testing.T) {
 			&blocktx_api.RegisterTransactionResponse{Source: source},
 		}
 
-		server := NewServer(nil, s, processor, btc, source)
+		server := NewServer(s, processor, btc, source)
 		server.SetTimeout(100 * time.Millisecond)
 
 		var txStatus *metamorph_api.TransactionStatus
@@ -95,7 +102,7 @@ func TestPutTransaction(t *testing.T) {
 	})
 
 	t.Run("invalid request", func(t *testing.T) {
-		server := NewServer(nil, nil, nil, nil, source)
+		server := NewServer(nil, nil, nil, source)
 
 		txRequest := &metamorph_api.TransactionRequest{
 			CallbackUrl: "api.callback.com",
@@ -115,7 +122,7 @@ func TestPutTransaction(t *testing.T) {
 			&blocktx_api.RegisterTransactionResponse{Source: source},
 		}
 
-		server := NewServer(nil, s, processor, btc, source)
+		server := NewServer(s, processor, btc, source)
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
@@ -144,7 +151,7 @@ func TestPutTransaction(t *testing.T) {
 			&blocktx_api.RegisterTransactionResponse{Source: source},
 		}
 
-		server := NewServer(nil, s, processor, btc, source)
+		server := NewServer(s, processor, btc, source)
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
@@ -182,7 +189,7 @@ func TestPutTransaction(t *testing.T) {
 			&blocktx_api.RegisterTransactionResponse{Source: source},
 		}
 
-		server := NewServer(nil, s, processor, btc, source)
+		server := NewServer(s, processor, btc, source)
 
 		txRequest := &metamorph_api.TransactionRequest{
 			RawTx: testdata.TX1RawBytes,
@@ -235,7 +242,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer(nil, s, nil, nil, source)
+			server := NewServer(s, nil, nil, source)
 			got, err := server.GetTransactionStatus(context.Background(), tt.req)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetTransactionStatus(%v)", tt.req)) {
 				return
@@ -282,8 +289,6 @@ func TestValidateCallbackURL(t *testing.T) {
 	}
 }
 
-//go:generate moq -out ./processor_mock.go . ProcessorI
-
 func TestPutTransactions(t *testing.T) {
 	hash0, err := chainhash.NewHashFromStr("9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a")
 	require.NoError(t, err)
@@ -309,6 +314,7 @@ func TestPutTransactions(t *testing.T) {
 		processorResponse map[string]*processor_response.StatusAndError
 		transactionFound  map[int]*store.StoreData
 		requests          *metamorph_api.TransactionRequests
+		getErr            error
 
 		expectedErrorStr                         string
 		expectedStatuses                         *metamorph_api.TransactionStatuses
@@ -442,6 +448,34 @@ func TestPutTransactions(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "failed to get tx",
+			requests: &metamorph_api.TransactionRequests{
+				Transactions: []*metamorph_api.TransactionRequest{
+					{
+						RawTx:         tx0.Bytes(),
+						WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
+					},
+				},
+			},
+			processorResponse: map[string]*processor_response.StatusAndError{hash0.String(): {
+				Hash:   hash0,
+				Status: metamorph_api.Status_SEEN_ON_NETWORK,
+				Err:    nil,
+			}},
+			getErr: errors.New("failed to get tx"),
+
+			expectedProcessorSetCalls:                1,
+			expectedProcessorProcessTransactionCalls: 1,
+			expectedStatuses: &metamorph_api.TransactionStatuses{
+				Statuses: []*metamorph_api.TransactionStatus{
+					{
+						Txid:   hash0.String(),
+						Status: metamorph_api.Status_SEEN_ON_NETWORK,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tt {
@@ -457,7 +491,7 @@ func TestPutTransactions(t *testing.T) {
 						return storeData, nil
 					}
 
-					return nil, nil
+					return nil, tc.getErr
 				},
 			}
 
@@ -481,7 +515,9 @@ func TestPutTransactions(t *testing.T) {
 					}
 				},
 			}
-			server := NewServer(nil, metamorphStore, processor, btc, source)
+
+			serverLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			server := NewServer(metamorphStore, processor, btc, source, WithLogger(serverLogger))
 
 			server.SetTimeout(5 * time.Second)
 			statuses, err := server.PutTransactions(context.Background(), tc.requests)
@@ -499,6 +535,108 @@ func TestPutTransactions(t *testing.T) {
 				expected := tc.expectedStatuses.Statuses[i]
 				status := statuses.Statuses[i]
 				require.Equal(t, expected, status)
+			}
+		})
+	}
+}
+
+func TestStartGRPCServer(t *testing.T) {
+	tt := []struct {
+		name string
+	}{
+		{
+			name: "start and shutdown",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			metamorphStore := &storeMock.MetamorphStoreMock{}
+
+			btc := &blockTxMock.ClientIMock{}
+
+			processor := &ProcessorIMock{
+				ShutdownFunc: func() {},
+			}
+			server := NewServer(metamorphStore, processor, btc, source)
+
+			go func() {
+				err := server.StartGRPCServer("localhost:7000", 10000)
+				require.NoError(t, err)
+			}()
+			time.Sleep(50 * time.Millisecond)
+
+			server.Shutdown()
+
+		})
+	}
+}
+
+func TestCheckUtxos(t *testing.T) {
+
+	validRawTx, err := hex.DecodeString("010000000000000000ef016b51c656fb06639ea6c1c3642a5ede9ecf9f749b95cb47d4e57eda7a3953b1c64c0000006a47304402201ade53acd924e90c0aeabbf9085d075acb23c4712e7f728a23979a466ab55e19022047a85963ce2eddc21573b4a6c0e7ccfec44153e74f9d03d31f955ff486449240412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffe8030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01e7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
+	require.NoError(t, err)
+
+	tt := []struct {
+		name        string
+		txOut       *bitcoin.TXOut
+		getTxOutErr error
+		rawTx       []byte
+
+		expectedErrorStr string
+	}{
+		{
+			name:  "success",
+			txOut: &bitcoin.TXOut{},
+			rawTx: validRawTx,
+		},
+		{
+			name:  "invalid tx",
+			txOut: &bitcoin.TXOut{},
+			rawTx: []byte("invalid tx"),
+
+			expectedErrorStr: "failed to create bitcoin tx",
+		},
+		{
+			name:        "failed to get utxos",
+			txOut:       nil,
+			getTxOutErr: errors.New("failed to get utxos"),
+			rawTx:       validRawTx,
+
+			expectedErrorStr: "failed to get utxos",
+		},
+		{
+			name:  "utxos not found",
+			txOut: nil,
+			rawTx: validRawTx,
+
+			expectedErrorStr: "utxo c6b153397ada7ee5d447cb959b749fcf9ede5e2a64c3c1a69e6306fb56c6516b:76 not found",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			metamorphStore := &storeMock.MetamorphStoreMock{}
+
+			btc := &blockTxMock.ClientIMock{}
+
+			processor := &ProcessorIMock{
+				ShutdownFunc: func() {},
+			}
+
+			bitcoin := &BitcoinNodeMock{
+				GetTxOutFunc: func(txHex string, vout int, includeMempool bool) (*bitcoin.TXOut, error) {
+					return tc.txOut, tc.getTxOutErr
+				},
+			}
+			server := NewServer(metamorphStore, processor, btc, source, WithForceCheckUtxos(bitcoin))
+
+			_, err := server.checkUtxos(context.Background(), 0, tc.rawTx)
+			if tc.expectedErrorStr != "" || err != nil {
+				require.ErrorContains(t, err, tc.expectedErrorStr)
+				return
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}

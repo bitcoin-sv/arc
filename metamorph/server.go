@@ -43,7 +43,7 @@ const (
 	responseTimeout = 5 * time.Second
 )
 
-type bitcoinNode interface {
+type BitcoinNode interface {
 	GetTxOut(txHex string, vout int, includeMempool bool) (res *bitcoin.TXOut, err error)
 }
 
@@ -57,7 +57,7 @@ type Server struct {
 	grpcServer      *grpc.Server
 	btc             blocktx.ClientI
 	source          string
-	bitcoinNode     bitcoinNode
+	bitcoinNode     BitcoinNode
 	forceCheckUtxos bool
 }
 
@@ -67,7 +67,7 @@ func WithLogger(logger *slog.Logger) func(*Server) {
 	}
 }
 
-func WithForceCheckUtxos(bitcoinNode bitcoinNode) func(*Server) {
+func WithForceCheckUtxos(bitcoinNode BitcoinNode) func(*Server) {
 	return func(p *Server) {
 		p.bitcoinNode = bitcoinNode
 		p.forceCheckUtxos = true
@@ -464,7 +464,7 @@ func (s *Server) checkUtxos(ctx context.Context, next int64, rawTx []byte) (int6
 	var tx *bt.Tx
 	tx, err := bt.NewTxFromBytes(rawTx)
 	if err != nil {
-		return 0, fmt.Errorf("error creating bitcoin tx: %v", err)
+		return 0, fmt.Errorf("failed to create bitcoin tx: %v", err)
 	}
 
 	for _, input := range tx.Inputs {

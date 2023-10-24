@@ -1,6 +1,6 @@
 CREATE TABLE blocks (
                                inserted_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                               id bigint NOT NULL,
+                               id SERIAL PRIMARY KEY,
                                hash bytea NOT NULL,
                                prevhash bytea NOT NULL,
                                merkleroot bytea NOT NULL,
@@ -19,7 +19,7 @@ create table block_transactions_map (
 );
 
 create table transactions (
-                              id bigint NOT NULL,
+                              id SERIAL PRIMARY KEY,
                               hash bytea NOT NULL,
                               source text,
                               merkle_path text DEFAULT ''::text

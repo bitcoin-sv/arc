@@ -69,6 +69,7 @@ func getRandomBytes() string {
 }
 
 func GetTestBlock() *store.Block {
+	now := time.Now()
 	return &store.Block{
 		ID:           mrand.Int63(),
 		Hash:         getRandomBytes(),
@@ -76,7 +77,7 @@ func GetTestBlock() *store.Block {
 		MerkleRoot:   fmt.Sprintf("%d", rand.Int63()),
 		Height:       mrand.Int63(),
 		Orphaned:     true,
-		ProcessedAt:  time.Now(),
+		ProcessedAt:  &now,
 	}
 }
 

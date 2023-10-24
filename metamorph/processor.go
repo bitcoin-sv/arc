@@ -3,6 +3,7 @@ package metamorph
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -103,14 +104,9 @@ func WithProcessorLogger(l *slog.Logger) func(*Processor) {
 	}
 }
 
-func WithErrLogFilePath(errLogFilePath string) func(*Processor) {
-	return func(p *Processor) {
-		p.errorLogFile = errLogFilePath
-	}
-}
 func WithLogFilePath(errLogFilePath string) func(*Processor) {
 	return func(p *Processor) {
-		p.errorLogFile = errLogFilePath
+		p.logFile = errLogFilePath
 	}
 }
 

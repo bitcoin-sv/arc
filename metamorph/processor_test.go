@@ -70,10 +70,7 @@ func TestNewProcessor(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 
-			errLogFilePath := "./test/data/metamorph_error.log"
-
 			processor, err := NewProcessor(tc.store, tc.pm, "test", nil, nil,
-				WithErrLogFilePath(errLogFilePath),
 				WithCacheExpiryTime(time.Second*5),
 				WithProcessExpiredSeenTxsInterval(time.Second*5),
 				WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault}))),

@@ -134,7 +134,6 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		btc,
 		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithProcessorLogger(processorLogger),
-		metamorph.WithErrLogFilePath(viper.GetString("metamorph.log.errorFile")),
 		metamorph.WithLogFilePath(viper.GetString("metamorph.log.file")),
 	)
 

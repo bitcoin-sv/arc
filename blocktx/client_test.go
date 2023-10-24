@@ -48,7 +48,11 @@ func TestStart(t *testing.T) {
 							return &blocktx_api.Block{
 								Hash: blockHash,
 							}, tc.recvErr
+
 						},
+						//CloseSendFunc: func() error {
+						//	return nil
+						//},
 					}, tc.getStreamErr
 				},
 			}
@@ -59,12 +63,11 @@ func TestStart(t *testing.T) {
 				WithLogger(logger),
 			)
 
-			go func() {
-				client.Start(make(chan *blocktx_api.Block))
-			}()
+			client.Start(make(chan *blocktx_api.Block))
 			time.Sleep(time.Millisecond * 15)
 
 			client.Shutdown()
+			require.NoError(t, err)
 		})
 	}
 }

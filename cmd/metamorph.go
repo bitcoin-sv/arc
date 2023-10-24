@@ -226,7 +226,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		}
 	}()
 
-	go btx.Start(blockChan)
+	btx.Start(blockChan)
 
 	metamorphLogger, err := config.NewLogger()
 	if err != nil {

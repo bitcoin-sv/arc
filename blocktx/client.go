@@ -36,10 +36,13 @@ const (
 )
 
 type Client struct {
-	logger        *slog.Logger
-	client        blocktx_api.BlockTxAPIClient
-	retryInterval time.Duration
-	retryTicker   *time.Ticker
+	logger                *slog.Logger
+	client                blocktx_api.BlockTxAPIClient
+	stream                blocktx_api.BlockTxAPI_GetBlockNotificationStreamClient
+	retryInterval         time.Duration
+	retryTicker           *time.Ticker
+	shutdownCompleteStart chan struct{}
+	shutdown              chan struct{}
 }
 
 func WithLogger(logger *slog.Logger) func(*Client) {
@@ -58,9 +61,11 @@ type Option func(f *Client)
 
 func NewClient(client blocktx_api.BlockTxAPIClient, opts ...Option) ClientI {
 	btc := &Client{
-		logger:        slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "btx")),
-		client:        client,
-		retryInterval: retryIntervalDefault,
+		logger:                slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "btx")),
+		client:                client,
+		retryInterval:         retryIntervalDefault,
+		shutdown:              make(chan struct{}, 1),
+		shutdownCompleteStart: make(chan struct{}, 1),
 	}
 
 	for _, opt := range opts {
@@ -73,30 +78,52 @@ func NewClient(client blocktx_api.BlockTxAPIClient, opts ...Option) ClientI {
 func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 	btc.retryTicker = time.NewTicker(btc.retryInterval)
 
-	for range btc.retryTicker.C {
-		stream, err := btc.client.GetBlockNotificationStream(context.Background(), &blocktx_api.Height{})
-		if err != nil {
-			btc.logger.Error("Error getting block notification stream", slog.String("err", err.Error()))
-			continue
-		}
+	go func() {
+		defer func() {
+			btc.shutdownCompleteStart <- struct{}{}
+		}()
 
-		btc.logger.Info("Connected to block-tx server")
-
-		var block *blocktx_api.Block
 		for {
-			block, err = stream.Recv()
-			if err != nil {
-				btc.logger.Error("failed to receive block", slog.String("err", err.Error()))
-				break
+			select {
+			case <-btc.retryTicker.C:
+				stream, err := btc.client.GetBlockNotificationStream(context.Background(), &blocktx_api.Height{})
+				if err != nil {
+					btc.logger.Error("Error getting block notification stream", slog.String("err", err.Error()))
+					continue
+				}
+
+				btc.stream = stream
+
+				btc.logger.Info("Connected to block-tx server")
+
+				var block *blocktx_api.Block
+				for {
+					select {
+					case <-btc.shutdown:
+						return
+					default:
+						block, err = stream.Recv()
+						if err != nil {
+							btc.logger.Error("failed to receive block", slog.String("err", err.Error()))
+							break
+						}
+						btc.logger.Info("Block", slog.String("hash", utils.ReverseAndHexEncodeSlice(block.Hash)))
+						utils.SafeSend(minedBlockChan, block)
+					}
+				}
+			case <-btc.shutdown:
+				return
 			}
-			btc.logger.Info("Block", slog.String("hash", utils.ReverseAndHexEncodeSlice(block.Hash)))
-			utils.SafeSend(minedBlockChan, block)
 		}
-	}
+	}()
 }
 
 func (btc *Client) Shutdown() {
 	btc.retryTicker.Stop()
+	btc.shutdown <- struct{}{}
+
+	<-btc.shutdownCompleteStart
+
 }
 
 func (btc *Client) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {

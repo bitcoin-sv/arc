@@ -24,6 +24,7 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
+	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/safemap"
 	"github.com/pkg/errors"
@@ -251,7 +252,12 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 			return nil, errors.Errorf("failed to parse rpc URL: %v", err)
 		}
 
-		opts = append(opts, metamorph.WithForceCheckUtxos(rpcURL))
+		node, err := bitcoin.NewFromURL(rpcURL, false)
+		if err != nil {
+			return nil, err
+		}
+
+		opts = append(opts, metamorph.WithForceCheckUtxos(node))
 	}
 
 	serv := metamorph.NewServer(s, metamorphProcessor, btc, source, opts...)

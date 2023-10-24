@@ -43,6 +43,10 @@ const (
 	responseTimeout = 5 * time.Second
 )
 
+type bitcoinNode interface {
+	GetTxOut(txHex string, vout int, includeMempool bool) (res *bitcoin.TXOut, err error)
+}
+
 // Server type carries the zmqLogger within it
 type Server struct {
 	metamorph_api.UnimplementedMetaMorphAPIServer
@@ -53,7 +57,7 @@ type Server struct {
 	grpcServer      *grpc.Server
 	btc             blocktx.ClientI
 	source          string
-	bitcoinURL      *url.URL
+	bitcoinNode     bitcoinNode
 	forceCheckUtxos bool
 }
 
@@ -63,9 +67,9 @@ func WithLogger(logger *slog.Logger) func(*Server) {
 	}
 }
 
-func WithForceCheckUtxos(bitcoinURL *url.URL) func(*Server) {
+func WithForceCheckUtxos(bitcoinNode bitcoinNode) func(*Server) {
 	return func(p *Server) {
-		p.bitcoinURL = bitcoinURL
+		p.bitcoinNode = bitcoinNode
 		p.forceCheckUtxos = true
 	}
 }
@@ -416,6 +420,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 
 	if s.forceCheckUtxos {
 		next, err = s.checkUtxos(initCtx, next, req.RawTx)
+		s.logger.Error("Error checking utxos", slog.String("err", err.Error()))
 		if err != nil {
 			return 0, 0, nil, &metamorph_api.TransactionStatus{
 				Status:       metamorph_api.Status_REJECTED,
@@ -456,29 +461,20 @@ func (s *Server) checkUtxos(ctx context.Context, next int64, rawTx []byte) (int6
 	span, _ := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:UtxoCheck")
 	defer span.Finish()
 
-	// get the transaction from the bitcoin node rpc
-	node, err := bitcoin.NewFromURL(s.bitcoinURL, false)
-	if err != nil {
-		return 0, err
-	}
-
 	var tx *bt.Tx
-	tx, err = bt.NewTxFromBytes(rawTx)
+	tx, err := bt.NewTxFromBytes(rawTx)
 	if err != nil {
-		s.logger.Error("Error creating bitcoin tx", slog.String("err", err.Error()))
-		return 0, err
+		return 0, fmt.Errorf("error creating bitcoin tx: %v", err)
 	}
 
 	for _, input := range tx.Inputs {
 		var utxos *bitcoin.TXOut
-		utxos, err = node.GetTxOut(input.PreviousTxIDStr(), int(input.PreviousTxOutIndex), true)
+		utxos, err = s.bitcoinNode.GetTxOut(input.PreviousTxIDStr(), int(input.PreviousTxOutIndex), true)
 		if err != nil {
-			s.logger.Error("failed to get utxo", slog.String("err", err.Error()))
 			return 0, fmt.Errorf("failed to get utxo: %v", err)
 		}
 
 		if utxos == nil {
-			s.logger.Error("utxo not found", slog.String("hash", input.PreviousTxIDStr()), slog.Uint64("index", uint64(input.PreviousTxOutIndex)))
 			return 0, fmt.Errorf("utxo %s:%d not found", input.PreviousTxIDStr(), input.PreviousTxOutIndex)
 		}
 	}

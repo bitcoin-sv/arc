@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"testing"
 	"time"
 
@@ -510,7 +512,9 @@ func TestPutTransactions(t *testing.T) {
 					}
 				},
 			}
-			server := NewServer(metamorphStore, processor, btc, source)
+
+			serverLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			server := NewServer(metamorphStore, processor, btc, source, WithLogger(serverLogger))
 
 			server.SetTimeout(5 * time.Second)
 			statuses, err := server.PutTransactions(context.Background(), tc.requests)

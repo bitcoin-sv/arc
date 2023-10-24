@@ -2,12 +2,9 @@ package metamorph
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
-	"path"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -23,10 +20,8 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	tracingLog "github.com/opentracing/opentracing-go/log"
-	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/stat"
 	"github.com/ordishs/gocore"
-	"github.com/spf13/viper"
 )
 
 type ProcessorStats struct {
@@ -54,8 +49,6 @@ type Processor struct {
 	btc                  blocktx.ClientI
 	logger               *slog.Logger
 	metamorphAddress     string
-	errorLogFile         string
-	errorLogWorker       chan *processor_response.ProcessorResponse
 	mapExpiryTime        time.Duration
 
 	processExpiredSeenTxsInterval time.Duration
@@ -156,12 +149,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 	go p.processExpiredTransactions()
 	go p.processExpiredSeenTransactions()
 
-	p.errorLogFile = viper.GetString("metamorph.log.errorFile")
-	if p.errorLogFile != "" {
-		p.errorLogWorker = make(chan *processor_response.ProcessorResponse)
-		go p.errorLogWriter()
-	}
-
 	gocore.AddAppPayloadFn("mtm", func() interface{} {
 		return p.GetStats(false)
 	})
@@ -188,41 +175,10 @@ func (p *Processor) Shutdown() {
 	if p.cbChannel != nil {
 		close(p.cbChannel)
 	}
-	if p.errorLogWorker != nil {
-		close(p.errorLogWorker)
-	}
 }
 
 func (p *Processor) GetMetamorphAddress() string {
 	return p.metamorphAddress
-}
-
-func (p *Processor) errorLogWriter() {
-	dir := path.Dir(p.errorLogFile)
-	_ = os.MkdirAll(dir, 0777)
-
-	f, err := os.OpenFile(p.errorLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		p.logger.Error("error opening log file", slog.String("err", err.Error()))
-	}
-	defer f.Close()
-
-	var storeData *store.StoreData
-	for pr := range p.errorLogWorker {
-		storeData, err = p.store.Get(context.Background(), pr.Hash[:])
-		if err != nil {
-			p.logger.Error("error getting tx from store", slog.String("err", err.Error()))
-			continue
-		}
-		_, err = f.WriteString(fmt.Sprintf("%v,%s,%s\n",
-			pr.Hash,
-			pr.Err.Error(),
-			hex.EncodeToString(storeData.RawTx),
-		))
-		if err != nil {
-			p.logger.Error("error writing to log file", slog.String("err", err.Error()))
-		}
-	}
 }
 
 func (p *Processor) processExpiredSeenTransactions() {
@@ -477,10 +433,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 					p.processorResponseMap.Delete(hash)
 
 				case metamorph_api.Status_REJECTED:
-					// log transaction to the error log
-					if p.errorLogFile != "" && p.errorLogWorker != nil {
-						utils.SafeSend(p.errorLogWorker, processorResponse)
-					}
+					p.logger.Warn("transaction rejected", slog.String("status", status.String()), slog.String("hash", hash.String()))
 
 					p.rejected.AddDuration(source, time.Since(processorResponse.Start))
 					processorResponse.Close()

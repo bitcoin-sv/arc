@@ -115,7 +115,7 @@ func NewBlockTxMock(address string) *BlockTxMock {
 	}
 }
 
-func (b *BlockTxMock) Shutdown()
+func (b *BlockTxMock) Shutdown() {}
 
 func (b *BlockTxMock) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error) {
 	// TODO: return mock response

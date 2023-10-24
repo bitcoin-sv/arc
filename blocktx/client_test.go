@@ -45,14 +45,12 @@ func TestStart(t *testing.T) {
 				GetBlockNotificationStreamFunc: func(ctx context.Context, in *blocktx_api.Height, opts ...grpc.CallOption) (blocktx_api.BlockTxAPI_GetBlockNotificationStreamClient, error) {
 					return &mock.BlockTxAPI_GetBlockNotificationStreamClientMock{
 						RecvFunc: func() (*blocktx_api.Block, error) {
+							time.Sleep(time.Millisecond * 2)
 							return &blocktx_api.Block{
 								Hash: blockHash,
 							}, tc.recvErr
 
 						},
-						//CloseSendFunc: func() error {
-						//	return nil
-						//},
 					}, tc.getStreamErr
 				},
 			}
@@ -63,10 +61,10 @@ func TestStart(t *testing.T) {
 				WithLogger(logger),
 			)
 
-			client.Start(make(chan *blocktx_api.Block))
+			client.Start(make(chan *blocktx_api.Block, 10))
 			time.Sleep(time.Millisecond * 15)
-
 			client.Shutdown()
+
 			require.NoError(t, err)
 		})
 	}

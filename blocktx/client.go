@@ -38,7 +38,6 @@ const (
 type Client struct {
 	logger                *slog.Logger
 	client                blocktx_api.BlockTxAPIClient
-	stream                blocktx_api.BlockTxAPI_GetBlockNotificationStreamClient
 	retryInterval         time.Duration
 	retryTicker           *time.Ticker
 	shutdownCompleteStart chan struct{}
@@ -88,11 +87,9 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 			case <-btc.retryTicker.C:
 				stream, err := btc.client.GetBlockNotificationStream(context.Background(), &blocktx_api.Height{})
 				if err != nil {
-					btc.logger.Error("Error getting block notification stream", slog.String("err", err.Error()))
+					btc.logger.Error("failed to get block notification stream", slog.String("err", err.Error()))
 					continue
 				}
-
-				btc.stream = stream
 
 				btc.logger.Info("Connected to block-tx server")
 
@@ -104,7 +101,7 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 					default:
 						block, err = stream.Recv()
 						if err != nil {
-							btc.logger.Error("failed to receive block", slog.String("err", err.Error()))
+							btc.logger.Error("Failed to receive block", slog.String("err", err.Error()))
 							break
 						}
 						btc.logger.Info("Block", slog.String("hash", utils.ReverseAndHexEncodeSlice(block.Hash)))

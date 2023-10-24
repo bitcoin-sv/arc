@@ -9,6 +9,8 @@ import (
 	"github.com/bitcoin-sv/arc/api/dictionary"
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
 	"github.com/bitcoin-sv/arc/blocktx"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
@@ -36,7 +38,17 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 		return fmt.Errorf("blocktx.dialAddr not found in config")
 	}
 
-	bTx := blocktx.NewClient(logger, blocktxAddress)
+	blockTxLogger, err := config.NewLogger()
+	if err != nil {
+		return fmt.Errorf("failed to create new logger: %v", err)
+	}
+
+	conn, err := blocktx.DialGRPC(blocktxAddress)
+	if err != nil {
+		return fmt.Errorf("failed to connect to block-tx server: %v", err)
+	}
+
+	bTx := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn), blocktx.WithLogger(blockTxLogger))
 
 	grpcMessageSize := viper.GetInt("grpcMessageSize")
 	if grpcMessageSize == 0 {

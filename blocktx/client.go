@@ -30,14 +30,14 @@ type ClientI interface {
 }
 
 const (
-	logLevelDefault = slog.LevelInfo
+	logLevelDefault      = slog.LevelInfo
+	retryIntervalDefault = 10 * time.Second
 )
 
 type Client struct {
-	address string
-	logger  *slog.Logger
-	conn    *grpc.ClientConn
-	client  blocktx_api.BlockTxAPIClient
+	logger        *slog.Logger
+	client        blocktx_api.BlockTxAPIClient
+	retryInterval time.Duration
 }
 
 func WithLogger(logger *slog.Logger) func(*Client) {
@@ -46,37 +46,37 @@ func WithLogger(logger *slog.Logger) func(*Client) {
 	}
 }
 
+func WithRetryInterval(d time.Duration) func(*Client) {
+	return func(p *Client) {
+		p.retryInterval = d
+	}
+}
+
 type Option func(f *Client)
 
-func NewClient(address string, opts ...Option) ClientI {
+func NewClient(client blocktx_api.BlockTxAPIClient, opts ...Option) ClientI {
 	btc := &Client{
-		address: address,
-		logger:  slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "btx")),
+		logger:        slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "btx")),
+		client:        client,
+		retryInterval: retryIntervalDefault,
 	}
 
 	for _, opt := range opts {
 		opt(btc)
 	}
 
-	conn, err := btc.dialGRPC()
-	if err != nil {
-		btc.logger.Error("Failed to connect to block-tx server", slog.String("address", btc.address), slog.String("err", err.Error()))
-	}
-	btc.logger.Info("Connected to block-tx server", slog.String("address", btc.address))
-
-	btc.conn = conn
-	btc.client = blocktx_api.NewBlockTxAPIClient(conn)
-
 	return btc
 }
 
 func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
-	for {
+	retryTicker := time.NewTicker(btc.retryInterval)
+
+	for range retryTicker.C {
 		stream, err := btc.client.GetBlockNotificationStream(context.Background(), &blocktx_api.Height{})
 		if err != nil {
 			btc.logger.Error("Error getting block notification stream", slog.String("err", err.Error()))
 		} else {
-			btc.logger.Info("Connected to block-tx server", slog.String("address", btc.address))
+			btc.logger.Info("Connected to block-tx server")
 
 			var block *blocktx_api.Block
 			for {
@@ -84,13 +84,10 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 				if err != nil {
 					break
 				}
-
 				btc.logger.Info("Block", slog.String("hash", utils.ReverseAndHexEncodeSlice(block.Hash)))
 				utils.SafeSend(minedBlockChan, block)
 			}
 		}
-
-		time.Sleep(10 * time.Second)
 	}
 }
 
@@ -166,7 +163,7 @@ func (btc *Client) GetMinedTransactionsForBlock(ctx context.Context, blockAndSou
 	return mt, nil
 }
 
-func (btc *Client) dialGRPC() (*grpc.ClientConn, error) {
+func DialGRPC(address string) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
@@ -174,5 +171,5 @@ func (btc *Client) dialGRPC() (*grpc.ClientConn, error) {
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
 	}
 
-	return grpc.Dial(btc.address, tracing.AddGRPCDialOptions(opts)...)
+	return grpc.Dial(address, tracing.AddGRPCDialOptions(opts)...)
 }

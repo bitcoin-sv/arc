@@ -51,12 +51,22 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		logger.Fatalf("Error creating metamorph store: %v", err)
 	}
 
-	address := viper.GetString("blocktx.dialAddr")
-	if address == "" {
+	blocktxAddress := viper.GetString("blocktx.dialAddr")
+	if blocktxAddress == "" {
 		return nil, errors.New("blocktx.dialAddr not found in config")
 	}
 
-	btc := blocktx.NewClient(address)
+	blockTxLogger, err := config.NewLogger()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new logger: %v", err)
+	}
+
+	conn, err := blocktx.DialGRPC(blocktxAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
+	}
+
+	bTx := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn), blocktx.WithLogger(blockTxLogger))
 
 	metamorphGRPCListenAddress := viper.GetString("metamorph.listenAddr")
 	if metamorphGRPCListenAddress == "" {
@@ -131,7 +141,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		pm,
 		source,
 		cbAsyncCaller.GetChannel(),
-		btc,
+		bTx,
 		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithProcessorLogger(processorLogger),
 		metamorph.WithLogFilePath(viper.GetString("metamorph.log.file")),
@@ -175,7 +185,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 			// check whether we have already processed this block
 			if processedAt == nil || processedAt.IsZero() {
 				// process the block
-				processBlock(logger, btc, metamorphProcessor, s, &blocktx_api.BlockAndSource{
+				processBlock(logger, bTx, metamorphProcessor, s, &blocktx_api.BlockAndSource{
 					Hash:   block.Hash,
 					Source: source,
 				})
@@ -198,7 +208,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 					continue
 				}
 
-				previousBlock, err = btc.GetBlock(context.Background(), pHash)
+				previousBlock, err = bTx.GetBlock(context.Background(), pHash)
 				if err != nil {
 					if !errors.Is(err, blockTxStore.ErrBlockNotFound) {
 						logger.Errorf("Could not get previous block with hash %s from block tx: %v", pHash.String(), err)
@@ -216,7 +226,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		}
 	}()
 
-	go btc.Start(blockChan)
+	go bTx.Start(blockChan)
 
 	metamorphLogger, err := config.NewLogger()
 	if err != nil {

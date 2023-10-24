@@ -69,6 +69,7 @@ jobs:
         with:
           go-version-file: "./go.mod"
           cache: false
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:

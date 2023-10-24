@@ -132,8 +132,9 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		source,
 		cbAsyncCaller.GetChannel(),
 		btc,
-		metamorph.WithProcessorCacheExpiryTime(mapExpiry),
+		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithProcessorLogger(processorLogger),
+		metamorph.WithLogFilePath(viper.GetString("metamorph.log.file")),
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)

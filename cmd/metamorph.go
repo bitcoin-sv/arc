@@ -66,7 +66,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
 	}
 
-	bTx := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn), blocktx.WithLogger(blockTxLogger))
+	btx := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn), blocktx.WithLogger(blockTxLogger))
 
 	metamorphGRPCListenAddress := viper.GetString("metamorph.listenAddr")
 	if metamorphGRPCListenAddress == "" {
@@ -141,7 +141,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		pm,
 		source,
 		cbAsyncCaller.GetChannel(),
-		bTx,
+		btx,
 		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithProcessorLogger(processorLogger),
 		metamorph.WithLogFilePath(viper.GetString("metamorph.log.file")),
@@ -185,7 +185,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 			// check whether we have already processed this block
 			if processedAt == nil || processedAt.IsZero() {
 				// process the block
-				processBlock(logger, bTx, metamorphProcessor, s, &blocktx_api.BlockAndSource{
+				processBlock(logger, btx, metamorphProcessor, s, &blocktx_api.BlockAndSource{
 					Hash:   block.Hash,
 					Source: source,
 				})
@@ -208,7 +208,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 					continue
 				}
 
-				previousBlock, err = bTx.GetBlock(context.Background(), pHash)
+				previousBlock, err = btx.GetBlock(context.Background(), pHash)
 				if err != nil {
 					if !errors.Is(err, blockTxStore.ErrBlockNotFound) {
 						logger.Errorf("Could not get previous block with hash %s from block tx: %v", pHash.String(), err)
@@ -226,7 +226,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		}
 	}()
 
-	go bTx.Start(blockChan)
+	go btx.Start(blockChan)
 
 	metamorphLogger, err := config.NewLogger()
 	if err != nil {
@@ -271,7 +271,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		opts = append(opts, metamorph.WithForceCheckUtxos(node))
 	}
 
-	serv := metamorph.NewServer(s, metamorphProcessor, btc, source, opts...)
+	serv := metamorph.NewServer(s, metamorphProcessor, btx, source, opts...)
 
 	go func() {
 		grpcMessageSize := viper.GetInt("grpcMessageSize")

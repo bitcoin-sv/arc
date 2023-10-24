@@ -27,6 +27,7 @@ type ClientI interface {
 	GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*blocktx_api.Block, error)
 	GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, error)
 	GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
+	Shutdown()
 }
 
 const (
@@ -38,6 +39,7 @@ type Client struct {
 	logger        *slog.Logger
 	client        blocktx_api.BlockTxAPIClient
 	retryInterval time.Duration
+	retryTicker   *time.Ticker
 }
 
 func WithLogger(logger *slog.Logger) func(*Client) {
@@ -69,26 +71,32 @@ func NewClient(client blocktx_api.BlockTxAPIClient, opts ...Option) ClientI {
 }
 
 func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
-	retryTicker := time.NewTicker(btc.retryInterval)
+	btc.retryTicker = time.NewTicker(btc.retryInterval)
 
-	for range retryTicker.C {
+	for range btc.retryTicker.C {
 		stream, err := btc.client.GetBlockNotificationStream(context.Background(), &blocktx_api.Height{})
 		if err != nil {
 			btc.logger.Error("Error getting block notification stream", slog.String("err", err.Error()))
-		} else {
-			btc.logger.Info("Connected to block-tx server")
+			continue
+		}
 
-			var block *blocktx_api.Block
-			for {
-				block, err = stream.Recv()
-				if err != nil {
-					break
-				}
-				btc.logger.Info("Block", slog.String("hash", utils.ReverseAndHexEncodeSlice(block.Hash)))
-				utils.SafeSend(minedBlockChan, block)
+		btc.logger.Info("Connected to block-tx server")
+
+		var block *blocktx_api.Block
+		for {
+			block, err = stream.Recv()
+			if err != nil {
+				btc.logger.Error("failed to receive block", slog.String("err", err.Error()))
+				break
 			}
+			btc.logger.Info("Block", slog.String("hash", utils.ReverseAndHexEncodeSlice(block.Hash)))
+			utils.SafeSend(minedBlockChan, block)
 		}
 	}
+}
+
+func (btc *Client) Shutdown() {
+	btc.retryTicker.Stop()
 }
 
 func (btc *Client) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {

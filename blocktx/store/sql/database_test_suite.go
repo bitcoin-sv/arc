@@ -2,7 +2,6 @@ package sql
 
 import (
 	"fmt"
-	"log"
 	mrand "math/rand"
 	"path/filepath"
 	"runtime"
@@ -18,6 +17,18 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/rand"
 )
+
+type DBConnectionParams struct {
+	Host     string
+	Port     int
+	Username string
+	Password string
+	DBName   string
+}
+
+func (p DBConnectionParams) String() string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", p.Username, p.Password, p.Host, p.Port, p.DBName)
+}
 
 var defaultParams = DBConnectionParams{
 	Host:     "localhost",
@@ -54,12 +65,7 @@ func (s *DatabaseTestSuite) SetupSuite() {
 }
 
 func getRandomBytes() string {
-	hash := make([]byte, 32)
-	_, err := rand.Read(hash)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return string(hash)
+	return fmt.Sprintf("%d %d", mrand.Int63(), mrand.Int63())[:32]
 }
 
 func GetTestBlock() *store.Block {

@@ -11,6 +11,7 @@ RUN go mod download
 
 COPY ./arc_txt_endpoint_test.go ./arc_txt_endpoint_test.go
 COPY ./utils.go ./utils.go
+COPY ./fixtures ./fixtures
 
 # This will compile and run the tests
 CMD [ "go", "test", "-v", "-failfast" ,"./..."]

@@ -20,12 +20,7 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	qTx, err := s.db.Prepare(`
-			INSERT INTO transactions (hash, merkle_path) VALUES ($1, $2)
-			ON CONFLICT(hash) DO UPDATE SET merkle_path=$2
-			RETURNING id
-			;
-		`)
+	qTx, err := s.db.Prepare(`INSERT INTO transactions (hash, merkle_path) VALUES ($1, $2);`)
 	if err != nil {
 		return err
 	}

@@ -15,7 +15,7 @@ type OrphanHeightSutie struct {
 	DatabaseTestSuite
 }
 
-func (s OrphanHeightSutie) Test() {
+func (s *OrphanHeightSutie) Test() {
 	block := GetTestBlock()
 
 	s.InsertBlock(block)

@@ -15,7 +15,7 @@ type MinedTransactionForBlockSuite struct {
 	DatabaseTestSuite
 }
 
-func (s MinedTransactionForBlockSuite) Run() {
+func (s *MinedTransactionForBlockSuite) Run() {
 	block := GetTestBlock()
 	tx := GetTestTransaction()
 	s.InsertBlock(block)

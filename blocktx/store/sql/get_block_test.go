@@ -16,7 +16,7 @@ type GetBlockTestSuite struct {
 	DatabaseTestSuite
 }
 
-func (s *GetBlockTestSuite) TestGetBlock() {
+func (s *GetBlockTestSuite) Test() {
 	block := GetTestBlock()
 
 	s.InsertBlock(block)

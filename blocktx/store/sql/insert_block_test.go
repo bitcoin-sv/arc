@@ -16,7 +16,7 @@ type InsertBlockSuite struct {
 	DatabaseTestSuite
 }
 
-func (s InsertBlockSuite) Test() {
+func (s InsertBlockSuite) Run() {
 	block := GetTestBlock()
 
 	pstore, err := NewPostgresStore(defaultParams)

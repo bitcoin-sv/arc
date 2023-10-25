@@ -22,7 +22,7 @@ type Tx struct {
 	MerklePath string `db:"merkle_path"`
 }
 
-func (s InsertBlockTransactionsSuite) Test() {
+func (s InsertBlockTransactionsSuite) Run() {
 
 	pstore, err := NewPostgresStore(defaultParams)
 	require.NoError(s.T(), err)

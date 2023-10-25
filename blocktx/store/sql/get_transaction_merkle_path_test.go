@@ -15,7 +15,7 @@ type GetTransactionMerklePathSuite struct {
 	DatabaseTestSuite
 }
 
-func (s GetTransactionMerklePathSuite) Test() {
+func (s GetTransactionMerklePathSuite) Run() {
 	block := GetTestBlock()
 	tx := GetTestTransaction()
 	s.InsertBlock(block)

@@ -37,7 +37,7 @@ func (s *GetBlockByHeightTestSuite) TestGetLastProcessedBlock() {
 	assert.Equal(s.T(), block.Hash, string(blk.Hash))
 }
 
-func TestGetLastProcessedBlock(t *testing.T) {
+func TestGetLastProcessedBlockSuite(t *testing.T) {
 	s := new(GetLastProcessedBlockSuite)
 	suite.Run(t, s)
 	if err := recover(); err != nil {

@@ -3,11 +3,11 @@ package store
 import "time"
 
 type Block struct {
-	ID           int64      `db:"id"`
+	ID           int        `db:"id"`
 	Hash         string     `db:"hash"`
 	PreviousHash string     `db:"prevhash"`
 	MerkleRoot   string     `db:"merkleroot"`
-	Height       int64      `db:"height"`
+	Height       int      `db:"height"`
 	Orphaned     bool       `db:"orphanedyn"`
 	Processed    bool       `db:"processed"`
 	ProcessedAt  *time.Time `db:"processed_at"`
@@ -18,14 +18,14 @@ type Block struct {
 }
 
 type Transaction struct {
-	ID         int64  `db:"id"`
+	ID         int    `db:"id"`
 	Hash       string `db:"hash"`
 	Source     string `db:"source"`
 	MerklePath string `db:"merkle_path"`
 }
 
 type BlockTransactionMap struct {
-	BlockID       int64 `db:"blockid"`
-	TransactionID int64 `db:"txid"`
+	BlockID       int   `db:"blockid"`
+	TransactionID int   `db:"txid"`
 	Pos           int64 `db:"pos"`
 }

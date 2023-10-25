@@ -15,7 +15,7 @@ type GetTransactionBlockSuite struct {
 	DatabaseTestSuite
 }
 
-func (s GetTransactionBlockSuite) Test() {
+func (s GetTransactionBlockSuite) Run() {
 	block := GetTestBlock()
 	tx := GetTestTransaction()
 	s.InsertBlock(block)

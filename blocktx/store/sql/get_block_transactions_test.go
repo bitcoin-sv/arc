@@ -17,7 +17,7 @@ type GetBlockTransactionsSuite struct {
 	DatabaseTestSuite
 }
 
-func (s *GetBlockByHeightTestSuite) TestGetBlockTransactions() {
+func (s *GetBlockTransactionsSuite) Run() {
 	block := GetTestBlock()
 	tx := GetTestTransaction()
 	s.InsertBlock(block)
@@ -40,7 +40,7 @@ func (s *GetBlockByHeightTestSuite) TestGetBlockTransactions() {
 	assert.Equal(s.T(), tx.Hash, string(txs.Transactions[0].Hash))
 }
 
-func TestGetBlockTransactions(t *testing.T) {
+func TestGetBlockTransactionsSuite(t *testing.T) {
 	s := new(GetBlockTransactionsSuite)
 	suite.Run(t, s)
 	if err := recover(); err != nil {

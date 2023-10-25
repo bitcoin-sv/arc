@@ -45,8 +45,11 @@ var defaultParams = DBConnectionParams{
 // 4. tear down when tests are finished
 type DatabaseTestSuite struct {
 	suite.Suite
-
 	Database *embeddedpostgres.EmbeddedPostgres
+}
+
+func (s *DatabaseTestSuite) TearDown() {
+	s.TearDownSuite()
 }
 
 func (s *DatabaseTestSuite) SetupSuite() {
@@ -71,19 +74,19 @@ func getRandomBytes() string {
 func GetTestBlock() *store.Block {
 	now := time.Now()
 	return &store.Block{
-		ID:           mrand.Int63(),
+		ID:           mrand.Intn(100),
 		Hash:         getRandomBytes(),
 		PreviousHash: fmt.Sprintf("%d", rand.Int63()),
 		MerkleRoot:   fmt.Sprintf("%d", rand.Int63()),
-		Height:       mrand.Int63(),
-		Orphaned:     true,
+		Height:       mrand.Intn(100),
+		Orphaned:     false,
 		ProcessedAt:  &now,
 	}
 }
 
 func GetTestTransaction() *store.Transaction {
 	return &store.Transaction{
-		ID:         mrand.Int63(),
+		ID:         mrand.Int(),
 		Hash:       getRandomBytes(),
 		Source:     fmt.Sprintf("testtx %d", mrand.Int63()),
 		MerklePath: fmt.Sprintf("testtx %d", mrand.Int63()),
@@ -99,6 +102,7 @@ func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
 		"hash, "+
 		"prevhash, "+
 		"merkleroot, "+
+		"orphanedyn, "+
 		"height,"+
 		"processed_at) "+
 		"VALUES("+
@@ -106,6 +110,7 @@ func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
 		":hash, "+
 		":prevhash, "+
 		":merkleroot, "+
+		":orphanedyn, "+
 		":height,"+
 		":processed_at);", block)
 	require.NoError(s.T(), err)
@@ -117,12 +122,10 @@ func (s *DatabaseTestSuite) InsertTransaction(tx *store.Transaction) {
 	require.NoError(s.T(), err)
 
 	_, err = db.NamedExec("INSERT INTO transactions("+
-		"id, "+
 		"hash, "+
 		"source, "+
 		"merkle_path) "+
 		"VALUES("+
-		":id,"+
 		":hash, "+
 		":source, "+
 		":merkle_path); ", tx)

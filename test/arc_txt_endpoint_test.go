@@ -542,7 +542,7 @@ func TestPostTx_ConflictingTx(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("Expected 200 OK but got: %d", resp.StatusCode)
 	}
-}
+
 
 	if resp.StatusCode != 466 {
 		t.Errorf("Expected 466 Conflicting transaction found but got: %d", resp.StatusCode)

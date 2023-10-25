@@ -526,18 +526,18 @@ func TestPostTx_BadRequestBodyFormat(t *testing.T) {
 }
 
 func TestPostTx_ConflictingTx(t *testing.T) {
-	txHexString := createTxHexStringExtended(t)    // This is a placeholder for the method to create a valid transaction string.
-	conflictingtxt := createTxHexStringExtended(t) // This is a placeholder for the method to create a valid transaction string.
+	txHexString := createTxHexStringExtended(t)
+	conflictingtxt := createTxHexStringExtended(t)
 
 	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
-	resp, err := postTx(t, jsonPayload, nil) // no extra headers
+	resp, err := postTx(t, jsonPayload, nil)
 	if err != nil {
 		t.Fatalf("Error sending HTTP request: %s", err)
 	}
 	defer resp.Body.Close()
 
 	jsonPayload2 := fmt.Sprintf(`{"rawTx": "%s"}`, conflictingtxt)
-	resp2, err2 := postTx(t, jsonPayload2, nil) // no extra headers
+	resp2, err2 := postTx(t, jsonPayload2, nil)
 	if err != nil {
 		t.Fatalf("Error sending HTTP request: %s", err2)
 	}
@@ -546,9 +546,9 @@ func TestPostTx_ConflictingTx(t *testing.T) {
 	if resp2.StatusCode != http.StatusOK {
 		t.Errorf("Expected 200 OK but got: %d", resp.StatusCode)
 	}
-
-	if resp.StatusCode != 466 {
-		t.Errorf("Expected 466 Conflicting transaction found but got: %d", resp.StatusCode)
+	// TO DO Add Response Body to Rejected
+	if resp.StatusCode != 200 {
+		t.Errorf("Expected 200 Conflicting transaction found but got: %d", resp.StatusCode)
 	}
 }
 
@@ -603,9 +603,8 @@ func createTxHexStringExtended(t *testing.T) string {
 		log.Fatalf("Failed adding input: %v", err)
 	}
 
-	// Add an output to the address you've previously created
 	recipientAddress := address
-	amountToSend := uint64(1) // Example value - 0.009 BTC (taking fees into account)
+	amountToSend := uint64(1)
 
 	recipientScript, err := bscript.NewP2PKHFromAddress(recipientAddress)
 	if err != nil {

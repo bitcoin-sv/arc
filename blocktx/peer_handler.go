@@ -397,17 +397,13 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 		}
 
 		merklePaths = append(merklePaths, merklePathBinary)
-		if txIndex%TransactionStoringInterval == 0 {
+		if txIndex%TransactionStoringInterval == 0 || txIndex == len(transactionHashes)-1 {
 			if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
 				return err
 			}
 			txs = make([]*blocktx_api.TransactionAndSource, 0, TransactionStoringInterval)
 			merklePaths = make([]string, 0, TransactionStoringInterval)
 		}
-	}
-
-	if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
-		return err
 	}
 
 	return nil

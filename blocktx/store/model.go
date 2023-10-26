@@ -7,7 +7,7 @@ type Block struct {
 	Hash         string     `db:"hash"`
 	PreviousHash string     `db:"prevhash"`
 	MerkleRoot   string     `db:"merkleroot"`
-	Height       int      `db:"height"`
+	Height       int        `db:"height"`
 	Orphaned     bool       `db:"orphanedyn"`
 	Processed    bool       `db:"processed"`
 	ProcessedAt  *time.Time `db:"processed_at"`

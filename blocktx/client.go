@@ -50,19 +50,12 @@ func WithLogger(logger *slog.Logger) func(*Client) {
 	}
 }
 
-func WithRetryInterval(d time.Duration) func(*Client) {
-	return func(p *Client) {
-		p.retryInterval = d
-	}
-}
-
 type Option func(f *Client)
 
 func NewClient(client blocktx_api.BlockTxAPIClient, opts ...Option) ClientI {
 	btc := &Client{
 		logger:                slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "btx")),
 		client:                client,
-		retryInterval:         retryIntervalDefault,
 		shutdown:              make(chan struct{}, 1),
 		shutdownCompleteStart: make(chan struct{}, 1),
 	}
@@ -75,7 +68,6 @@ func NewClient(client blocktx_api.BlockTxAPIClient, opts ...Option) ClientI {
 }
 
 func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
-	btc.retryTicker = time.NewTicker(btc.retryInterval)
 	defer func() {
 		btc.shutdownCompleteStart <- struct{}{}
 	}()
@@ -106,7 +98,6 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 }
 
 func (btc *Client) Shutdown() {
-	btc.retryTicker.Stop()
 	btc.shutdown <- struct{}{}
 
 	<-btc.shutdownCompleteStart

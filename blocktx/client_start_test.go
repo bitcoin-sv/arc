@@ -1,6 +1,7 @@
 package blocktx
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
@@ -11,35 +12,32 @@ import (
 )
 
 type Subscription struct {
-	B *blocktx_api.Block
+	B blocktx_api.Block
 	grpc.ClientStream
 	Error error
+	Curr  int
 }
 
 func (d Subscription) Recv() (*blocktx_api.Block, error) {
-	return d.B, d.Error
+	return &d.B, d.Error
 }
 
 func TestStart2(t *testing.T) {
 	for _, c := range []struct {
-		Blocks            []blocktx_api.Block
+		Block             blocktx_api.Block
 		SubscriptionError error
 		ClientError       error
 	}{
 		{
-			Blocks: []blocktx_api.Block{
-				{Hash: []byte("test1")},
-				{Hash: []byte("test2")},
-				{Hash: []byte("test3")},
-			},
+			Block:             blocktx_api.Block{Hash: []byte("test1")},
 			SubscriptionError: nil,
 			ClientError:       nil,
 		},
 	} {
-		blks := c.Blocks
 		sub := Subscription{
-			B:     &blks[0],
+			B:     c.Block,
 			Error: c.SubscriptionError,
+			Curr:  0,
 		}
 
 		clientMock := new(blocktxmock.BlockTxAPIClientMock)
@@ -49,16 +47,17 @@ func TestStart2(t *testing.T) {
 		ch := make(chan *blocktx_api.Block)
 		client.Start(ch)
 
+		var wg sync.WaitGroup
+		wg.Add(1)
 		go func() {
-			for i := 0; i < 3; i++ {
-				sub.B = &blks[i]
-				select {
-				case block := <-ch:
-					assert.Equal(t, blks[i], block)
-				}
+			select {
+			case block := <-ch:
+				t.Logf("received block %+v", block)
+				assert.Equal(t, string(c.Block.Hash), string(block.Hash))
 			}
+			wg.Done()
 		}()
-
+		wg.Wait()
 		client.Shutdown()
 	}
 }

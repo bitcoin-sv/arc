@@ -27,7 +27,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const TransactionStoringInterval = 10000
+const TransactionStoringInterval = 16384 // power of 2 for easier memory allocation
 
 func init() {
 	// override the default wire block handler with our own that streams and stores only the transaction ids

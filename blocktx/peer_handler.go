@@ -27,6 +27,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+const TransactionStoringInterval = 10000
+
 func init() {
 	// override the default wire block handler with our own that streams and stores only the transaction ids
 	wire.SetExternalHandler(wire.CmdBlock, func(reader io.Reader, length uint64, bytesRead int) (int, wire.Message, []byte, error) {
@@ -395,6 +397,13 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 		}
 
 		merklePaths = append(merklePaths, merklePathBinary)
+		if txIndex%TransactionStoringInterval == 0 {
+			if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
+				return err
+			}
+			txs = make([]*blocktx_api.TransactionAndSource, 0, len(transactionHashes))
+			merklePaths = make([]string, 0, len(transactionHashes))
+		}
 	}
 
 	if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {

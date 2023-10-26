@@ -401,8 +401,9 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 			if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
 				return err
 			}
-			txs = make([]*blocktx_api.TransactionAndSource, 0, TransactionStoringInterval)
-			merklePaths = make([]string, 0, TransactionStoringInterval)
+			// free up memory
+			txs = txs[:0]
+			merklePaths = merklePaths[:0]
 		}
 	}
 

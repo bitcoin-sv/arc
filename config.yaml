@@ -47,7 +47,7 @@ metamorph:
       user: arc
       password: arc
     dynamodb:
-      awsAccessKeyID:
+      awsAccessKeyIDd:
       awsSecretAccessKey:
       awsSessionToken:
   processorCacheExpiryTime: 24h # time after which processor cache is cleaned

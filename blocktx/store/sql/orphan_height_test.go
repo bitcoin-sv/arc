@@ -23,17 +23,17 @@ func (s *OrphanHeightSutie) Test() {
 	pstore, err := NewPostgresStore(defaultParams)
 	require.NoError(s.T(), err)
 
-	err = pstore.OrphanHeight(context.Background(), 10)
+	err = pstore.OrphanHeight(context.Background(), uint64(block.Height))
 	require.NoError(s.T(), err)
 
 	d, err := sqlx.Open("postgres", defaultParams.String())
 	require.NoError(s.T(), err)
 
 	var storedblock store.Block
-	err = d.Get(&storedblock, "SELECT id, hash, merkle_path,orphanedyn from blocks WHERE hash=$1", block.Hash)
+	err = d.Get(&storedblock, "SELECT id, hash, merkle_path,orphanedyn from blocks WHERE height=$1", block.Height)
 	require.NoError(s.T(), err)
 
-	assert.True(s.T(), block.Orphaned)
+	assert.True(s.T(), storedblock.Orphaned)
 }
 
 func TestOrphanHeightSutie(t *testing.T) {

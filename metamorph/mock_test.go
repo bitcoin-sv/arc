@@ -89,6 +89,8 @@ func (p *ProcessorMock) GetStats(_ bool) *ProcessorStats {
 	return p.Stats
 }
 
+func (p *ProcessorMock) Shutdown() {}
+
 type BlockTxMock struct {
 	mu                                    sync.Mutex
 	address                               string

@@ -38,15 +38,18 @@ metamorph:
   dialAddr: localhost:8001 # address for other services to dial metamorph service
   log:
     file: ./data/metamorph.log # location of log file
-    errorFile: ./data/metamorph_error.log # location of error log file
   db:
-    mode: badger # db mode inidicates which db to use. Value can be one of badger | postgres
+    mode: badger # db mode inidicates which db to use. Value can be one of badger | postgres | dynamodb
     postgres: # postgres db configuration in case that mode: postgres
       host: localhost
       port: 5432
       name: metamorph
       user: arc
       password: arc
+    dynamodb:
+      awsAccessKeyID:
+      awsSecretAccessKey:
+      awsSessionToken:
   processorCacheExpiryTime: 24h # time after which processor cache is cleaned
   checkUtxos: false # force check each utxo for validity. If enabled ARC connects to bitcoin node using rpc for each utxo
   statsKeypress: false # enable stats keypress. If enabled pressing any key will print stats to stdout

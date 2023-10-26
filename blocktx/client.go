@@ -76,40 +76,30 @@ func NewClient(client blocktx_api.BlockTxAPIClient, opts ...Option) ClientI {
 
 func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 	btc.retryTicker = time.NewTicker(btc.retryInterval)
+	defer func() {
+		btc.shutdownCompleteStart <- struct{}{}
+	}()
+	stream, err := btc.client.GetBlockNotificationStream(context.Background(), &blocktx_api.Height{})
+	if err != nil {
+		btc.logger.Error("failed to get block notification stream", slog.String("err", err.Error()))
+		return
+	}
+
+	btc.logger.Info("Connected to block-tx server")
 
 	go func() {
-		defer func() {
-			btc.shutdownCompleteStart <- struct{}{}
-		}()
-
 		for {
 			select {
-			case <-btc.retryTicker.C:
-				stream, err := btc.client.GetBlockNotificationStream(context.Background(), &blocktx_api.Height{})
-				if err != nil {
-					btc.logger.Error("failed to get block notification stream", slog.String("err", err.Error()))
-					continue
-				}
-
-				btc.logger.Info("Connected to block-tx server")
-
-				var block *blocktx_api.Block
-				for {
-					select {
-					case <-btc.shutdown:
-						return
-					default:
-						block, err = stream.Recv()
-						if err != nil {
-							btc.logger.Error("Failed to receive block", slog.String("err", err.Error()))
-							break
-						}
-						btc.logger.Info("Block", slog.String("hash", utils.ReverseAndHexEncodeSlice(block.Hash)))
-						utils.SafeSend(minedBlockChan, block)
-					}
-				}
 			case <-btc.shutdown:
 				return
+			default:
+				block, err := stream.Recv()
+				if err != nil {
+					btc.logger.Error("Failed to receive block", slog.String("err", err.Error()))
+					break
+				}
+				btc.logger.Info("Block", slog.String("hash", utils.ReverseAndHexEncodeSlice(block.Hash)))
+				minedBlockChan <- block
 			}
 		}
 	}()

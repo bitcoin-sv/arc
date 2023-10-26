@@ -46,6 +46,8 @@ lint:
 gen_go:
 	go generate ./...
 
+generate_mocks:
+	mockery --name BlockTxAPIClient  --dir ./blocktx/blocktx_api/ --output ./blocktx/mock --structname BlockTxAPIClientMock  --filename blocktx_api_client_mock.go
 .PHONY: gen
 gen:
 	protoc \

@@ -47,9 +47,9 @@ metamorph:
       user: arc
       password: arc
     dynamodb:
-      aws_access_key_id:
-      aws_secret_access_key:
-      aws_session_token:
+      awsAccessKeyID:
+      awsSecretAccessKey:
+      awsSessionToken:
   processorCacheExpiryTime: 24h # time after which processor cache is cleaned
   checkUtxos: false # force check each utxo for validity. If enabled ARC connects to bitcoin node using rpc for each utxo
   statsKeypress: false # enable stats keypress. If enabled pressing any key will print stats to stdout

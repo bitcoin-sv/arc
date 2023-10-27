@@ -1035,7 +1035,7 @@
       "callbackToken": {
         "name": "X-CallbackToken",
         "in": "header",
-        "description": "Access token for notification callback endpoint.",
+        "description": "Access token for notification callback endpoint. It will be used as a Authorization header for the http callback",
         "schema": {
           "type": "string"
         }

@@ -537,7 +537,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |X-SkipFeeValidation|header|boolean|false|Whether we should skip fee validation or not.|
 |X-SkipScriptValidation|header|boolean|false|Whether we should skip script validation or not.|
 |X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
-|X-CallbackToken|header|string|false|Access token for notification callback endpoint.|
+|X-CallbackToken|header|string|false|Access token for notification callback endpoint. It will be used as a Authorization header for the http callback|
 |X-MerkleProof|header|string|false|Whether to include merkle proofs in the callbacks (true | false).|
 |X-WaitForStatus|header|integer|false|Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
 |body|body|string|true|Transaction hex string|
@@ -800,7 +800,7 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 |X-SkipFeeValidation|header|boolean|false|Whether we should skip fee validation or not.|
 |X-SkipScriptValidation|header|boolean|false|Whether we should skip script validation or not.|
 |X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
-|X-CallbackToken|header|string|false|Access token for notification callback endpoint.|
+|X-CallbackToken|header|string|false|Access token for notification callback endpoint. It will be used as a Authorization header for the http callback|
 |X-MerkleProof|header|string|false|Whether to include merkle proofs in the callbacks (true | false).|
 |X-WaitForStatus|header|integer|false|Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
 |body|body|string|false|none|
@@ -1673,4 +1673,3 @@ and
 |instance|string¦null|false|none|(Optional) Link to actual error on server|
 |txid|string¦null|false|none|Transaction ID this error is referring to|
 |extraInfo|string¦null|false|none|Optional extra information about the error from the miner|
-

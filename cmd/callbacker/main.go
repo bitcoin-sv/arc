@@ -2,29 +2,22 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
 
 	"github.com/bitcoin-sv/arc/cmd"
-	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
-	"github.com/spf13/viper"
-
+	"github.com/bitcoin-sv/arc/config"
 	_ "github.com/lib/pq"
+	"github.com/spf13/viper"
 )
 
-// Name used by build script for the binaries. (Please keep on single line)
-const progname = "callbacker"
-
-// // Version & commit strings injected at build with -ldflags -X...
+// Version & commit strings injected at build with -ldflags -X...
 var version string
 var commit string
-
-func init() {
-	gocore.SetInfo(progname, version, commit)
-}
 
 func main() {
 	viper.SetConfigName("config")
@@ -32,26 +25,31 @@ func main() {
 	viper.AddConfigPath("../../")
 	err := viper.ReadInConfig()
 	if err != nil {
-		fmt.Printf("failed to read config file config.yaml: %v \n", err)
+		log.Fatalf("failed to read config file config.yaml: %v", err)
 		return
 	}
 
-	logLevel := viper.GetString("logLevel")
-	logger := gocore.Log(progname, gocore.NewLogLevelFromString(logLevel))
+	logger, err := config.NewLogger()
+	if err != nil {
+		log.Fatalf("failed to create logger: %v", err)
+		return
+	}
 
-	logger.Infof("VERSION\n-------\n%s (%s)\n\n", version, commit)
+	logger.Info("starting callbacker", slog.String("version", version), slog.String("commit", commit))
 
 	go func() {
 		profilerAddr := viper.GetString("callbacker.profilerAddr")
 		if profilerAddr != "" {
-			logger.Infof("Starting profile on http://%s/debug/pprof", profilerAddr)
-			logger.Fatalf("%v", http.ListenAndServe(profilerAddr, nil))
+			logger.Info(fmt.Sprintf("Starting profile on http://%s/debug/pprof", profilerAddr))
+			err := http.ListenAndServe(profilerAddr, nil)
+			logger.Error("failed to start profiler server", slog.String("err", err.Error()))
+			return
 		}
 	}()
 
 	shutdown, err := cmd.StartCallbacker(logger)
 	if err != nil {
-		logger.Fatalf("Error starting callbacker: %v", err)
+		logger.Error("Failed to start callbacker", slog.String("err", err.Error()))
 	}
 
 	// setup signal catching
@@ -64,7 +62,7 @@ func main() {
 	os.Exit(1)
 }
 
-func appCleanup(logger utils.Logger, shutdown func()) {
-	logger.Infof("Shutting down...")
+func appCleanup(logger *slog.Logger, shutdown func()) {
+	logger.Info("Shutting down")
 	shutdown()
 }

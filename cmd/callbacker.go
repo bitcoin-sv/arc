@@ -18,7 +18,7 @@ func StartCallbacker(logger *slog.Logger) (func(), error) {
 
 	callbackStore, err := callbacker.NewStore(folder)
 	if err != nil {
-		return nil, fmt.Errorf("Error creating callbacker store: %v", err)
+		return nil, fmt.Errorf("failed to create callbacker store: %v", err)
 	}
 
 	callbackerLogger, err := config.NewLogger()
@@ -29,7 +29,7 @@ func StartCallbacker(logger *slog.Logger) (func(), error) {
 	var callbackWorker *callbacker.Callbacker
 	callbackWorker, err = callbacker.New(callbackStore, callbacker.WithLogger(callbackerLogger))
 	if err != nil {
-		return nil, fmt.Errorf("Could not create callbacker: %v", err)
+		return nil, fmt.Errorf("failed to create callbacker: %v", err)
 	}
 	callbackWorker.Start()
 

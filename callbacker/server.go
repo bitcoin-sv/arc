@@ -2,7 +2,6 @@ package callbacker
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -12,8 +11,6 @@ import (
 	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/ordishs/gocore"
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -37,21 +34,13 @@ func NewServer(logger *slog.Logger, c *Callbacker) *Server {
 }
 
 // StartGRPCServer function
-func (s *Server) StartGRPCServer() error {
-	address := viper.GetString("callbacker.listenAddr")
-	if address == "" {
-		return errors.New("no callbacker.listenAddr setting found")
-	}
-
-	// LEVEL 0 - no security / no encryption
+func (s *Server) StartGRPCServer(address string) error {
 	var opts []grpc.ServerOption
 	opts = append(opts,
 		grpc.ChainStreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 		grpc.ChainUnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
 	)
 	s.grpcServer = grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
-
-	gocore.SetAddress(address)
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
@@ -70,6 +59,11 @@ func (s *Server) StartGRPCServer() error {
 	}
 
 	return nil
+}
+
+func (s *Server) Shutdown() {
+	s.logger.Info("Shutting down")
+	s.grpcServer.Stop()
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*callbacker_api.HealthResponse, error) {

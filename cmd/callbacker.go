@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+
 	"github.com/bitcoin-sv/arc/callbacker"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/spf13/viper"
-	"log/slog"
 )
 
 func StartCallbacker(logger *slog.Logger) (func(), error) {
@@ -35,8 +36,13 @@ func StartCallbacker(logger *slog.Logger) (func(), error) {
 
 	srv := callbacker.NewServer(logger, callbackWorker)
 
+	address := viper.GetString("callbacker.listenAddr")
+	if address == "" {
+		return nil, errors.New("no callbacker.listenAddr setting found")
+	}
+
 	go func() {
-		if err = srv.StartGRPCServer(); err != nil {
+		if err = srv.StartGRPCServer(address); err != nil {
 			logger.Error("Could not start callbacker server", slog.String("err", err.Error()))
 		}
 	}()

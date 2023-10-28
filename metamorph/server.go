@@ -488,17 +488,21 @@ func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.Transact
 		return nil, err
 	}
 
-	return &metamorph_api.Transaction{
+	txn := &metamorph_api.Transaction{
 		Txid:         data.Hash.String(),
 		AnnouncedAt:  announcedAt,
 		StoredAt:     storedAt,
 		MinedAt:      minedAt,
 		Status:       data.Status,
 		BlockHeight:  data.BlockHeight,
-		BlockHash:    data.BlockHash.String(),
 		RejectReason: data.RejectReason,
 		RawTx:        data.RawTx,
-	}, nil
+	}
+	if data.BlockHash != nil {
+		txn.BlockHash = data.BlockHash.String()
+	}
+
+	return txn, nil
 }
 
 func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.TransactionStatus, error) {

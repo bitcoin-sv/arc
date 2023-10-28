@@ -40,7 +40,7 @@ func main() {
 	go func() {
 		profilerAddr := viper.GetString("callbacker.profilerAddr")
 		if profilerAddr != "" {
-			logger.Info(fmt.Sprintf("Starting profile on http://%s/debug/pprof", profilerAddr))
+			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", profilerAddr))
 			err := http.ListenAndServe(profilerAddr, nil)
 			logger.Error("failed to start profiler server", slog.String("err", err.Error()))
 			return

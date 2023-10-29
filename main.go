@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/bitcoin-sv/arc/cmd"
+	cfg "github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/tracing"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-utils"
@@ -129,8 +130,12 @@ func main() {
 
 	if startBlockTx != nil && *startBlockTx {
 		logger.Infof("Starting BlockTx")
-		var blockTxLogger = gocore.Log("btx", gocore.NewLogLevelFromString(logLevel))
-		if blockTxShutdown, err := cmd.StartBlockTx(blockTxLogger); err != nil {
+		// var blockTxLogger = gocore.Log("btx", gocore.NewLogLevelFromString(logLevel))
+		blockTxLogger, err := cfg.NewLogger()
+		if err != nil {
+			logger.Fatalf("Failed to get blocktx logger")
+		}
+		if blockTxShutdown, err := cmd.StartBlockTx(blockTxLogger.With("service", "btx")); err != nil {
 			logger.Fatalf("Error starting blocktx: %v", err)
 		} else {
 			shutdownFns = append(shutdownFns, func() {

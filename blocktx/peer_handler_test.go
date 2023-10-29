@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"log/slog"
+	"os"
 	"testing"
 	"time"
 
@@ -15,7 +17,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils/expiringmap"
-	"github.com/ordishs/gocore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -87,7 +88,7 @@ func TestGetAnnouncedCacheBlockHashes(t *testing.T) {
 
 func TestHandleBlock(t *testing.T) {
 	// create mocked peer handler
-	var blockTxLogger = gocore.Log("btx", gocore.NewLogLevelFromString("INFO"))
+	var blockTxLogger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	var storeMock = &store.InterfaceMock{}
 
 	// mock specific functions of storage that we are about to call

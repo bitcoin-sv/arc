@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"time"
 
@@ -11,9 +12,6 @@ import (
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -26,13 +24,13 @@ import (
 type Server struct {
 	blocktx_api.UnsafeBlockTxAPIServer
 	store         store.Interface
-	logger        utils.Logger
+	logger        *slog.Logger
 	blockNotifier *BlockNotifier
 	grpcServer    *grpc.Server
 }
 
 // NewServer will return a server instance with the logger stored within it
-func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger utils.Logger) *Server {
+func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger *slog.Logger) *Server {
 
 	return &Server{
 		store:         storeI,
@@ -42,16 +40,10 @@ func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger util
 }
 
 // StartGRPCServer function
-func (s *Server) StartGRPCServer() error {
-
-	address := viper.GetString("blocktx.listenAddr")
-	if address == "" {
-		return errors.New("no blocktx.listenAddr setting found")
-	}
+func (s *Server) StartGRPCServer(address string, prometheusEndpoint string) error {
 
 	// LEVEL 0 - no security / no encryption
 	var opts []grpc.ServerOption
-	prometheusEndpoint := viper.Get("prometheusEndpoint")
 	if prometheusEndpoint != "" {
 		opts = append(opts,
 			grpc.ChainStreamInterceptor(grpc_prometheus.StreamServerInterceptor),
@@ -60,8 +52,6 @@ func (s *Server) StartGRPCServer() error {
 	}
 
 	s.grpcServer = grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
-
-	gocore.SetAddress(address)
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
@@ -73,13 +63,17 @@ func (s *Server) StartGRPCServer() error {
 	// Register reflection service on gRPC server.
 	reflection.Register(s.grpcServer)
 
-	s.logger.Infof("GRPC server listening on %s", address)
+	s.logger.Info("GRPC server listening", slog.String("address", address))
 
 	if err = s.grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("GRPC server failed [%w]", err)
 	}
 
 	return nil
+}
+
+func (s *Server) Shutdown() {
+	s.grpcServer.Stop()
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.HealthResponse, error) {

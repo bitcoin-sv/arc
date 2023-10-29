@@ -2,29 +2,24 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
 
 	"github.com/bitcoin-sv/arc/cmd"
-	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
+	cfg "github.com/bitcoin-sv/arc/config"
+
 	"github.com/spf13/viper"
 
 	_ "github.com/lib/pq"
 )
 
-// Name used by build script for the binaries. (Please keep on single line)
-const progname = "block-tx"
-
 // // Version & commit strings injected at build with -ldflags -X...
 var version string
 var commit string
-
-func init() {
-	gocore.SetInfo(progname, version, commit)
-}
 
 func main() {
 	viper.SetConfigName("config")
@@ -36,22 +31,28 @@ func main() {
 		return
 	}
 
-	logLevel := viper.GetString("logLevel")
-	logger := gocore.Log(progname, gocore.NewLogLevelFromString(logLevel))
+	logger, err := cfg.NewLogger()
+	if err != nil {
+		log.Fatalf("failed to create logger: %v", err)
+		return
+	}
 
-	logger.Infof("VERSION\n-------\n%s (%s)\n\n", version, commit)
+	logger.Info("starting arc", slog.String("version", version), slog.String("commit", commit))
 
 	go func() {
 		profilerAddr := viper.GetString("blocktx.profilerAddr")
-		if profilerAddr == "" {
-			logger.Infof("Starting profile on http://%s/debug/pprof", profilerAddr)
-			logger.Fatalf("%v", http.ListenAndServe(profilerAddr, nil))
+		if profilerAddr != "" {
+			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", profilerAddr))
+
+			err := http.ListenAndServe(profilerAddr, nil)
+			logger.Error("failed to start profiler server", slog.String("err", err.Error()))
 		}
 	}()
 
 	shutdown, err := cmd.StartBlockTx(logger)
 	if err != nil {
-		logger.Fatalf("Error starting blocktx: %v", err)
+		logger.Error("Failed to start blocktx", slog.String("err", err.Error()))
+		return
 	}
 
 	// setup signal catching
@@ -64,7 +65,7 @@ func main() {
 	os.Exit(1)
 }
 
-func appCleanup(logger utils.Logger, shutdown func()) {
-	logger.Infof("Shutting down...")
+func appCleanup(logger *slog.Logger, shutdown func()) {
+	logger.Info("Shutting down blocktx")
 	shutdown()
 }

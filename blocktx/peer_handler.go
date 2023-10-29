@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/rand"
-	"strings"
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
@@ -85,7 +85,7 @@ type PeerHandler struct {
 	workerCh       chan utils.Pair[*chainhash.Hash, p2p.PeerI]
 	blockCh        chan *blocktx_api.Block
 	store          store.Interface
-	logger         utils.Logger
+	logger         *slog.Logger
 	announcedCache *expiringmap.ExpiringMap[chainhash.Hash, []p2p.PeerI]
 	stats          *safemap.Safemap[string, *tracing.PeerHandlerStats]
 }
@@ -94,23 +94,23 @@ func init() {
 	gocore.NewStat("blocktx", true).NewStat("HandleBlock", true)
 }
 
-func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *blocktx_api.Block) p2p.PeerHandlerI {
+func NewPeerHandler(logger *slog.Logger, storeI store.Interface, blockCh chan *blocktx_api.Block) p2p.PeerHandlerI {
 	evictionFunc := func(hash chainhash.Hash, peers []p2p.PeerI) bool {
 		msg := wire.NewMsgGetData()
 
 		if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, &hash)); err != nil {
-			logger.Errorf("EvictionFunc: could not create InvVect: %v", err)
+			logger.Error("EvictionFunc: could not create InvVect", slog.String("err", err.Error()))
 			return false
 		}
 		// Select a random peer to send the request to
 		peer := peers[rand.Intn(len(peers))]
 
 		if err := peer.WriteMsg(msg); err != nil {
-			logger.Errorf("EvictionFunc: failed to write message to peer: %v", err)
+			logger.Error("EvictionFunc: failed to write message to peer", slog.String("err", err.Error()))
 			return false
 		}
 
-		logger.Infof("EvictionFunc: sent block request %s to peer %s", hash.String(), peer.String())
+		logger.Info("EvictionFunc: sent block request", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 
 		return false
 	}
@@ -134,7 +134,7 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 			item, found := s.announcedCache.Get(*hash)
 			if !found {
 				s.announcedCache.Set(*hash, []p2p.PeerI{peer})
-				logger.Debugf("added block hash %s with peer %s to announced cache", hash.String(), peer.String())
+				logger.Debug("added block hash to announced cache", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 
 			} else {
 				// if already was announced to peer, continue
@@ -146,22 +146,22 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 
 				item = append(item, peer)
 				s.announcedCache.Set(*hash, item)
-				logger.Debugf("added peer %s to announced cache of block hash %s", peer.String(), hash.String())
+				logger.Debug("added peer to announced cache of block hash", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 				continue
 			}
 
 			msg := wire.NewMsgGetData()
 			if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
-				logger.Errorf("ProcessBlock: could not create InvVect: %v", err)
+				logger.Error("ProcessBlock: could not create InvVect", slog.String("err", err.Error()))
 				continue
 			}
 
 			if err := peer.WriteMsg(msg); err != nil {
-				logger.Errorf("ProcessBlock: failed to write message to peer: %v", err)
+				logger.Error("ProcessBlock: failed to write message to peer", slog.String("err", err.Error()))
 				continue
 			}
 
-			logger.Infof("ProcessBlock: %s", hash.String())
+			logger.Info("ProcessBlock", slog.String("hash", hash.String()))
 		}
 	}()
 
@@ -332,7 +332,7 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 
 	// add the total block processing time to the stats
 	stat.BlockProcessingMs.Add(uint64(time.Since(timeStart).Milliseconds()))
-	bs.logger.Infof("Processed block %s, %d transactions in %0.2f seconds", blockHash.String(), len(msg.TransactionHashes), time.Since(timeStart).Seconds())
+	bs.logger.Info("Processed block ", slog.String("hash", blockHash.String()), slog.String("peer", peer.String()), slog.Int("transactions", len(msg.TransactionHashes)), slog.Float64("seconds", time.Since(timeStart).Seconds()))
 
 	return nil
 }
@@ -433,7 +433,11 @@ func (bs *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {
 	}
 
 	bs.announcedCache.Delete(*block.Hash)
-	bs.logger.Debugf("removed block hash %s from announced cache - remaining block hashes: %s", block.Hash.String(), strings.Join(bs.getAnnouncedCacheBlockHashes(), ","))
+
+	bs.logger.Debug("removed block hash from announced cache", slog.String("hash", block.Hash.String()))
+	for _, hashString := range bs.getAnnouncedCacheBlockHashes() {
+		bs.logger.Debug("remaining block", slog.String("hash", hashString))
+	}
 
 	utils.SafeSend(bs.blockCh, &blocktx_api.Block{
 		Hash:         block.Hash[:],

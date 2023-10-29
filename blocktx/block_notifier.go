@@ -1,16 +1,21 @@
 package blocktx
 
 import (
+	"fmt"
+	"log/slog"
+	"os"
+
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/wire"
-	"github.com/spf13/viper"
-
-	"github.com/ordishs/go-utils"
+	"github.com/ordishs/gocore"
 )
 
-const maximumBlockSize = 4000000000 // 4Gb
+const (
+	maximumBlockSize = 4000000000 // 4Gb
+	logLevelDefault  = slog.LevelInfo
+)
 
 type subscriber struct {
 	height uint64
@@ -18,7 +23,7 @@ type subscriber struct {
 }
 
 type BlockNotifier struct {
-	logger      utils.Logger
+	logger      *slog.Logger
 	storeI      store.Interface
 	subscribers map[subscriber]bool
 
@@ -28,57 +33,48 @@ type BlockNotifier struct {
 	quitCh            chan bool
 }
 
-func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
+func WithLogger(logger *slog.Logger) func(*BlockNotifier) {
+	return func(p *BlockNotifier) {
+		p.logger = logger.With(slog.String("service", "blocknotifier"))
+	}
+}
+
+type Option func(f *BlockNotifier)
+
+func NewBlockNotifier(storeI store.Interface, network wire.BitcoinNet, peerSettings []Peer, opts ...Option) (*BlockNotifier, error) {
+
 	bn := &BlockNotifier{
 		storeI:            storeI,
-		logger:            l,
+		logger:            slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "blocknotifier")),
 		subscribers:       make(map[subscriber]bool),
 		newSubscriptions:  make(chan subscriber, 128),
 		deadSubscriptions: make(chan subscriber, 128),
 		blockCh:           make(chan *blocktx_api.Block),
 	}
 
-	networkStr := viper.GetString("network")
-	if networkStr == "" {
-		l.Fatalf("bitcoin_network must be set")
+	for _, opt := range opts {
+		opt(bn)
 	}
 
-	var network wire.BitcoinNet
+	p2pLogger := gocore.Log("blocknotifier", gocore.NewLogLevelFromString("INFO"))
+	pm := p2p.NewPeerManager(p2pLogger, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
 
-	switch networkStr {
-	case "mainnet":
-		network = wire.MainNet
-	case "testnet":
-		network = wire.TestNet3
-	case "regtest":
-		network = wire.TestNet
-	default:
-		l.Fatalf("unknown bitcoin_network: %s", networkStr)
-	}
-
-	pm := p2p.NewPeerManager(l, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
-
-	peerHandler := NewPeerHandler(l, storeI, bn.blockCh)
-
-	peerSettings, err := GetPeerSettings()
-	if err != nil {
-		l.Fatalf("error getting peer settings: %v", err)
-	}
+	peerHandler := NewPeerHandler(bn.logger, storeI, bn.blockCh)
 
 	for _, peerSetting := range peerSettings {
 		var peer *p2p.Peer
 		peerUrl, err := peerSetting.GetP2PUrl()
 		if err != nil {
-			l.Fatalf("error getting peer url: %v", err)
+			return nil, fmt.Errorf("error getting peer url: %v", err)
 		}
 
-		peer, err = p2p.NewPeer(l, peerUrl, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize))
+		peer, err = p2p.NewPeer(p2pLogger, peerUrl, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize))
 		if err != nil {
-			l.Fatalf("error creating peer %s: %v", peerUrl, err)
+			return nil, fmt.Errorf("error creating peer %s: %v", peerUrl, err)
 		}
 
 		if err = pm.AddPeer(peer); err != nil {
-			l.Fatalf("error adding peer %s: %v", peerUrl, err)
+			return nil, fmt.Errorf("error adding peer %s: %v", peerUrl, err)
 		}
 	}
 
@@ -91,20 +87,20 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 
 			case s := <-bn.newSubscriptions:
 				bn.subscribers[s] = true
-				bn.logger.Infof("NewHandler MinedTransactions subscription received (Total=%d).", len(bn.subscribers))
+				bn.logger.Info("NewHandler MinedTransactions subscription received", slog.Int("subscribers", len(bn.subscribers)))
 				// go func() {
 				// 	TODO - send all the transactions that were mined since the last time the client was connected
 				// }()
 
 			case s := <-bn.deadSubscriptions:
 				delete(bn.subscribers, s)
-				bn.logger.Infof("BlockNotification subscription removed (Total=%d).", len(bn.subscribers))
+				bn.logger.Info("BlockNotification subscription removed", slog.Int("subscribers", len(bn.subscribers)))
 
 			case block := <-bn.blockCh:
 				for sub := range bn.subscribers {
 					go func(s subscriber) {
 						if err := s.stream.Send(block); err != nil {
-							bn.logger.Errorf("Error sending block to subscriber: %v", err)
+							bn.logger.Error("Error sending block to subscriber", slog.String("err", err.Error()))
 							bn.deadSubscriptions <- s
 						}
 					}(sub)
@@ -113,7 +109,7 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 		}
 	}()
 
-	return bn
+	return bn, nil
 }
 
 // Shutdown stops the handler

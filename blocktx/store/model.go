@@ -7,10 +7,14 @@ type Block struct {
 	Hash         string    `db:"hash"`
 	PreviousHash string    `db:"prevhash"`
 	MerkleRoot   string    `db:"merkleroot"`
+	MerklePath   string    `db:"merkle_path"`
 	Height       int64     `db:"height"`
-	Orphaned     bool      `db:"orphaned"`
+	Orphaned     bool      `db:"orphanedyn"`
+	Size         *int64    `db:"size"`
+	TxCount      *int64    `db:"tx_count"`
 	Processed    bool      `db:"processed"`
 	ProcessedAt  time.Time `db:"processed_at"`
+	InsertedAt   time.Time `db:"inserted_at"`
 }
 
 type Transaction struct {

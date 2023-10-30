@@ -12,6 +12,7 @@ require (
 	github.com/dgraph-io/badger/v3 v3.2103.1
 	github.com/fergusstrange/embedded-postgres v1.24.0
 	github.com/getkin/kin-openapi v0.103.0
+	github.com/go-co-op/gocron v1.35.2
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-migrate/migrate/v4 v4.16.2
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
@@ -33,6 +34,7 @@ require (
 	github.com/ordishs/gocore v1.0.35
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.14.0
+	github.com/rs/zerolog v1.31.0
 	github.com/sasha-s/go-deadlock v0.3.1
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
@@ -106,6 +108,7 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
+	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect

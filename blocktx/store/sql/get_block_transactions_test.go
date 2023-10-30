@@ -6,6 +6,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
+	. "github.com/bitcoin-sv/arc/database_testing"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/stretchr/testify/assert"
@@ -30,7 +31,7 @@ func (s *GetBlockByHeightTestSuite) TestGetBlockTransactions() {
 		Pos:           2,
 	})
 
-	st, err := NewPostgresStore(defaultParams)
+	st, err := NewPostgresStore(DefaultParams)
 
 	require.NoError(s.T(), err)
 

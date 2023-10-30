@@ -313,7 +313,7 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 		return fmt.Errorf("merkle root mismatch for block %s", blockHash.String())
 	}
 
-	if err = bs.markTransactionsAsMined(blockId, msg.TransactionHashes, calculatedMerkleTree); err != nil {
+	if err = bs.markTransactionsAsMined(blockId, msg.TransactionHashes, calculatedMerkleTree, msg.Height); err != nil {
 		return fmt.Errorf("unable to mark block as mined %s: %v", blockHash.String(), err)
 	}
 
@@ -365,7 +365,7 @@ func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 	return bs.store.InsertBlock(context.Background(), block)
 }
 
-func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes []*chainhash.Hash, merkleTree []string) error {
+func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes []*chainhash.Hash, merkleTree []string, blockHeight uint64) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("markTransactionsAsMined").AddTime(start)
@@ -379,15 +379,18 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 			Hash: hash[:],
 		})
 
-		merklePath := bc.GetTxMerklePath(txIndex, merkleTree)
+		bump, err := bc.NewBUMPFromMerkleTree(blockHeight, merkleTree)
+		if err != nil {
+			return err
+		}
 
-		merklePathBinary, err := merklePath.String()
+		bumpHex, err := bump.String()
 		if err != nil {
 			return err
 		}
 
 		// verify merkle path correctness
-		root, err := merklePath.CalculateRoot(hash.String())
+		root, err := bump.CalculateRootGivenTxid(hash.String())
 		if err != nil {
 			return err
 		}
@@ -396,7 +399,7 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 			return errors.New("merkle path calculated produced different root")
 		}
 
-		merklePaths = append(merklePaths, merklePathBinary)
+		merklePaths = append(merklePaths, bumpHex)
 		if txIndex%TransactionStoringInterval == 0 || txIndex == len(transactionHashes)-1 {
 			if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
 				return err

@@ -21,10 +21,10 @@ require (
 	github.com/labstack/echo/v4 v4.11.1
 	github.com/labstack/gommon v0.4.0
 	github.com/lib/pq v1.10.7
-	github.com/libsv/go-bc v0.1.18
+	github.com/libsv/go-bc v0.1.20
 	github.com/libsv/go-bk v0.1.6
 	github.com/libsv/go-bt/v2 v2.2.5
-	github.com/libsv/go-p2p v0.1.2
+	github.com/libsv/go-p2p v0.1.3
 	github.com/oapi-codegen/runtime v1.0.0
 	github.com/opentracing-contrib/echo v0.0.0-20190807091611-5fe2e1308f06
 	github.com/opentracing/opentracing-go v1.2.0

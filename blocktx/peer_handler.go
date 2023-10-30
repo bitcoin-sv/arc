@@ -1,11 +1,9 @@
 package blocktx
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -294,26 +292,16 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 		return fmt.Errorf("unable to insert block %s: %v", blockHash.String(), err)
 	}
 
-	transactionHashes := make([]string, len(msg.TransactionHashes))
-	for i, hash := range msg.TransactionHashes {
-		transactionHashes[i] = hash.String()
-	}
-
-	calculatedMerkleTree, err := bc.BuildMerkleTreeStore(transactionHashes)
+	calculatedMerkleTree, err := bc.BuildMerkleTreeStoreChainHash(msg.TransactionHashes)
 	if err != nil {
 		return err
 	}
 
-	rootHash, err := chainhash.NewHashFromStr(calculatedMerkleTree[len(calculatedMerkleTree)-1])
-	if err != nil {
-		return err
-	}
-
-	if !bytes.Equal(rootHash.CloneBytes(), merkleRoot[:]) {
+	if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
 		return fmt.Errorf("merkle root mismatch for block %s", blockHash.String())
 	}
 
-	if err = bs.markTransactionsAsMined(blockId, msg.TransactionHashes, calculatedMerkleTree); err != nil {
+	if err = bs.markTransactionsAsMined(blockId, calculatedMerkleTree, msg.Height); err != nil {
 		return fmt.Errorf("unable to mark block as mined %s: %v", blockHash.String(), err)
 	}
 
@@ -365,7 +353,7 @@ func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 	return bs.store.InsertBlock(context.Background(), block)
 }
 
-func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes []*chainhash.Hash, merkleTree []string) error {
+func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("markTransactionsAsMined").AddTime(start)
@@ -373,31 +361,31 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 
 	txs := make([]*blocktx_api.TransactionAndSource, 0, TransactionStoringInterval)
 	merklePaths := make([]string, 0, TransactionStoringInterval)
+	leaves := merkleTree[:(len(merkleTree)+1)/2]
 
-	for txIndex, hash := range transactionHashes {
+	for txIndex, hash := range leaves {
+		// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.
+		if hash == nil {
+			break
+		}
+
+		// Otherwise they're txids, which should have merkle paths calculated.
 		txs = append(txs, &blocktx_api.TransactionAndSource{
 			Hash: hash[:],
 		})
 
-		merklePath := bc.GetTxMerklePath(txIndex, merkleTree)
-
-		merklePathBinary, err := merklePath.String()
+		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(blockHeight, merkleTree, uint64(txIndex))
 		if err != nil {
 			return err
 		}
 
-		// verify merkle path correctness
-		root, err := merklePath.CalculateRoot(hash.String())
+		bumpHex, err := bump.String()
 		if err != nil {
 			return err
 		}
 
-		if root != merkleTree[len(merkleTree)-1] {
-			return errors.New("merkle path calculated produced different root")
-		}
-
-		merklePaths = append(merklePaths, merklePathBinary)
-		if txIndex%TransactionStoringInterval == 0 || txIndex == len(transactionHashes)-1 {
+		merklePaths = append(merklePaths, bumpHex)
+		if txIndex%TransactionStoringInterval == 0 || txIndex == len(leaves)-1 {
 			if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
 				return err
 			}

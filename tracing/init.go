@@ -24,7 +24,6 @@ func InitTracer(serviceName string) (opentracing.Tracer, io.Closer, error) {
 	var closer io.Closer
 	tracer, closer, err = cfg.NewTracer()
 	if err != nil {
-
 		return nil, nil, fmt.Errorf("cannot initialize jaeger tracer: %v", err.Error())
 	}
 

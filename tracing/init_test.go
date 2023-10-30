@@ -1,6 +1,7 @@
 package tracing
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,6 +11,7 @@ func TestInit(t *testing.T) {
 	tt := []struct {
 		name        string
 		serviceName string
+		setEnv      bool
 
 		expectedErrorStr string
 	}{
@@ -23,17 +25,27 @@ func TestInit(t *testing.T) {
 
 			expectedErrorStr: "cannot initialize jaeger tracer",
 		},
+		{
+			name:   "config error",
+			setEnv: true,
+
+			expectedErrorStr: "cannot parse jaeger env vars",
+		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			tracer, closer, err := InitTracer("")
+			if tc.setEnv {
+				os.Setenv("JAEGER_RPC_METRICS", "not a boolean")
+			}
 
-			if tc.expectedErrorStr != "" || err != nil {
+			tracer, closer, err := InitTracer(tc.serviceName)
+
+			if tc.expectedErrorStr == "" {
+				require.NoError(t, err)
+			} else {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
-			} else {
-				require.NoError(t, err)
 			}
 
 			require.NotNil(t, tracer)

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/bitcoin-sv/arc/cmd"
+	cfg "github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/tracing"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-utils"
@@ -148,8 +150,12 @@ func main() {
 
 	if startCallbacker != nil && *startCallbacker {
 		logger.Infof("Starting Callbacker")
-		var callbackerLogger = gocore.Log("cbk", gocore.NewLogLevelFromString(logLevel))
-		if callbackerShutdown, err := cmd.StartCallbacker(callbackerLogger); err != nil {
+		callbackerLogger, err := cfg.NewLogger()
+		if err != nil {
+			logger.Fatalf("Failed to get logger for callbacker: %v", err)
+		}
+
+		if callbackerShutdown, err := cmd.StartCallbacker(callbackerLogger.With(slog.String("service", "clb"))); err != nil {
 			logger.Fatalf("Error starting callbacker: %v", err)
 		} else {
 			shutdownFns = append(shutdownFns, func() {

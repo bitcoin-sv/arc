@@ -94,7 +94,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	if callbackerAddress == "" {
 		logger.Fatalf("no callbacker.dialAddr setting found")
 	}
-	cb := callbacker.NewClient(logger, callbackerAddress)
+	cb := callbacker.NewClient(callbackerAddress)
 
 	callbackRegisterPath, err := filepath.Abs(path.Join(folder, "callback-register"))
 	if err != nil {

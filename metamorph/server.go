@@ -28,7 +28,6 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
-	"github.com/bitcoin-sv/arc/metamorph/store/dynamodb"
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-bt/v2"
@@ -338,7 +337,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		return 0, 0, nil, nil, err
 	}
 
-	if _, ok := s.store.(*dynamodb.DynamoDB); !ok && rtr.Source != s.source {
+	if !s.store.IsCentralised() && rtr.Source != s.source {
 		if isForwarded(ctx) {
 			// This is a forwarded request, so we should not forward it again
 			s.logger.Warnf("Endless forwarding loop detected for %v (source in blocktx = %q, my address = %q)", hash, rtr.Source, s.source)

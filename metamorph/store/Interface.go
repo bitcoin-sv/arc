@@ -206,6 +206,7 @@ type MetamorphStore interface {
 	Set(ctx context.Context, key []byte, value *StoreData) error
 	Del(ctx context.Context, key []byte) error
 
+	IsCentralised() bool
 	GetUnmined(_ context.Context, callback func(s *StoreData)) error
 	UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error
 	UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error

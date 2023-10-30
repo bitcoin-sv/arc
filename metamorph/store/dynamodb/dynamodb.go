@@ -83,6 +83,10 @@ func New() (store.MetamorphStore, error) {
 	return dynamodbClient, nil
 }
 
+func (ddb *DynamoDB) IsCentralised() bool {
+	return true
+}
+
 func (ddb *DynamoDB) TableExists(tableName string) (bool, error) {
 	// Build the request with its input parameters
 	resp, err := ddb.dynamoCli.ListTables(context.TODO(), &dynamodb.ListTablesInput{})

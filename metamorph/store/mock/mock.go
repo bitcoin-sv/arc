@@ -168,6 +168,10 @@ type MetamorphStoreMock struct {
 	lockUpdateStatus      sync.RWMutex
 }
 
+func (mock *MetamorphStoreMock) IsCentralised() bool {
+	return false
+}
+
 // Close calls CloseFunc.
 func (mock *MetamorphStoreMock) Close(ctx context.Context) error {
 	if mock.CloseFunc == nil {

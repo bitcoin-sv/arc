@@ -71,6 +71,7 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 	defer func() {
 		btc.shutdownCompleteStart <- struct{}{}
 	}()
+
 	stream, err := btc.client.GetBlockNotificationStream(context.Background(), &blocktx_api.Height{})
 	if err != nil {
 		btc.logger.Error("failed to get block notification stream", slog.String("err", err.Error()))

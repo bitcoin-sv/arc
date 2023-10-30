@@ -50,11 +50,9 @@ func TestStart2(t *testing.T) {
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
-			select {
-			case block := <-ch:
-				t.Logf("received block %+v", block)
-				assert.Equal(t, string(c.Block.Hash), string(block.Hash))
-			}
+			block := <-ch
+			t.Logf("received block %+v", block)
+			assert.Equal(t, string(c.Block.Hash), string(block.Hash))
 			wg.Done()
 		}()
 		wg.Wait()

@@ -45,6 +45,9 @@ var _ blocktx.ClientI = &ClientIMock{}
 //			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
 //				panic("mock out the RegisterTransaction method")
 //			},
+//			ShutdownFunc: func()  {
+//				panic("mock out the Shutdown method")
+//			},
 //			StartFunc: func(minedBlockChan chan *blocktx_api.Block)  {
 //				panic("mock out the Start method")
 //			},
@@ -78,6 +81,9 @@ type ClientIMock struct {
 
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error)
+
+	// ShutdownFunc mocks the Shutdown method.
+	ShutdownFunc func()
 
 	// StartFunc mocks the Start method.
 	StartFunc func(minedBlockChan chan *blocktx_api.Block)
@@ -138,6 +144,9 @@ type ClientIMock struct {
 			// Transaction is the transaction argument value.
 			Transaction *blocktx_api.TransactionAndSource
 		}
+		// Shutdown holds details about calls to the Shutdown method.
+		Shutdown []struct {
+		}
 		// Start holds details about calls to the Start method.
 		Start []struct {
 			// MinedBlockChan is the minedBlockChan argument value.
@@ -152,6 +161,7 @@ type ClientIMock struct {
 	lockGetTransactionMerklePath     sync.RWMutex
 	lockLocateTransaction            sync.RWMutex
 	lockRegisterTransaction          sync.RWMutex
+	lockShutdown                     sync.RWMutex
 	lockStart                        sync.RWMutex
 }
 
@@ -436,6 +446,33 @@ func (mock *ClientIMock) RegisterTransactionCalls() []struct {
 	mock.lockRegisterTransaction.RLock()
 	calls = mock.calls.RegisterTransaction
 	mock.lockRegisterTransaction.RUnlock()
+	return calls
+}
+
+// Shutdown calls ShutdownFunc.
+func (mock *ClientIMock) Shutdown() {
+	if mock.ShutdownFunc == nil {
+		panic("ClientIMock.ShutdownFunc: method is nil but ClientI.Shutdown was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockShutdown.Lock()
+	mock.calls.Shutdown = append(mock.calls.Shutdown, callInfo)
+	mock.lockShutdown.Unlock()
+	mock.ShutdownFunc()
+}
+
+// ShutdownCalls gets all the calls that were made to Shutdown.
+// Check the length with:
+//
+//	len(mockedClientI.ShutdownCalls())
+func (mock *ClientIMock) ShutdownCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockShutdown.RLock()
+	calls = mock.calls.Shutdown
+	mock.lockShutdown.RUnlock()
 	return calls
 }
 

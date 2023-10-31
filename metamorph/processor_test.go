@@ -19,7 +19,7 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/badger"
 	storeMock "github.com/bitcoin-sv/arc/metamorph/store/mock"
-	"github.com/bitcoin-sv/arc/metamorph/store/sql"
+	metamorphSql "github.com/bitcoin-sv/arc/metamorph/store/sql"
 	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/labstack/gommon/random"
 	"github.com/libsv/go-bt/v2"
@@ -99,6 +99,7 @@ func TestLoadUnmined(t *testing.T) {
 		storedData             []*store.StoreData
 		updateStatusErr        error
 		getTransactionBlockErr error
+		delErr                 error
 
 		expectedItemTxHashesFinal []*chainhash.Hash
 	}{
@@ -178,6 +179,33 @@ func TestLoadUnmined(t *testing.T) {
 
 			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX2Hash},
 		},
+		{
+			name: "block not found",
+			storedData: []*store.StoreData{
+				{
+					StoredAt:    storedAt.Add(-400 * time.Hour),
+					AnnouncedAt: storedAt.Add(1 * time.Second),
+					Hash:        testdata.TX2Hash,
+					Status:      metamorph_api.Status_SEEN_ON_NETWORK,
+				},
+			},
+
+			expectedItemTxHashesFinal: []*chainhash.Hash{},
+		},
+		{
+			name: "block not found - deletion fails",
+			storedData: []*store.StoreData{
+				{
+					StoredAt:    storedAt.Add(-400 * time.Hour),
+					AnnouncedAt: storedAt.Add(1 * time.Second),
+					Hash:        testdata.TX2Hash,
+					Status:      metamorph_api.Status_SEEN_ON_NETWORK,
+				},
+			},
+			delErr: errors.New("failed to delete hash"),
+
+			expectedItemTxHashesFinal: []*chainhash.Hash{},
+		},
 	}
 
 	for _, tc := range tt {
@@ -226,6 +254,9 @@ func TestLoadUnmined(t *testing.T) {
 						BlockHeight: 2,
 					}, nil
 				},
+				DelFunc: func(ctx context.Context, key []byte) error {
+					return tc.delErr
+				},
 			}
 
 			processor, err := NewProcessor(mtmStore, pm, nil, btxMock,
@@ -256,7 +287,7 @@ func TestLoadUnmined(t *testing.T) {
 
 func TestProcessTransaction(t *testing.T) {
 	t.Run("ProcessTransaction", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
+		s, err := metamorphSql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		pm := p2p.NewPeerManagerMock()
@@ -310,7 +341,7 @@ func TestProcessTransaction(t *testing.T) {
 }
 
 func Benchmark_ProcessTransaction(b *testing.B) {
-	s, err := sql.New("sqlite_memory") // prevents profiling database code
+	s, err := metamorphSql.New("sqlite_memory") // prevents profiling database code
 	require.NoError(b, err)
 
 	pm := p2p.NewPeerManagerMock()
@@ -336,7 +367,7 @@ func Benchmark_ProcessTransaction(b *testing.B) {
 
 func TestSendStatusForTransaction(t *testing.T) {
 	t.Run("SendStatusForTransaction unknown tx", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
+		s, err := metamorphSql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		pm := p2p.NewPeerManagerMock()
@@ -352,7 +383,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusForTransaction err", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
+		s, err := metamorphSql.New("sqlite_memory")
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
@@ -375,7 +406,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusForTransaction known tx - no update", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
+		s, err := metamorphSql.New("sqlite_memory")
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
@@ -396,7 +427,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusForTransaction known tx - processed", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
+		s, err := metamorphSql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		pm := p2p.NewPeerManagerMock()
@@ -448,7 +479,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 func TestSendStatusMinedForTransaction(t *testing.T) {
 	t.Run("SendStatusMinedForTransaction known tx", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
+		s, err := metamorphSql.New("sqlite_memory")
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
@@ -474,7 +505,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusMinedForTransaction callback", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
+		s, err := metamorphSql.New("sqlite_memory")
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
@@ -512,7 +543,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusForTransaction known tx - processed", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
+		s, err := metamorphSql.New("sqlite_memory")
 		require.NoError(t, err)
 
 		pm := p2p.NewPeerManagerMock()

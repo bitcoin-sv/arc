@@ -83,6 +83,7 @@ const (
 	logLevelDefault                         = slog.LevelInfo
 
 	failedToUpdateStatus = "Failed to update status"
+	txDeletionPeriod     = 336 * time.Hour // 14 days
 )
 
 func WithProcessExpiredSeenTxsInterval(d time.Duration) func(*Processor) {
@@ -306,6 +307,17 @@ func (p *Processor) LoadUnmined() {
 	defer span.Finish()
 
 	err := p.store.GetUnmined(spanCtx, func(record *store.StoreData) {
+
+		if p.now().Sub(record.StoredAt) > txDeletionPeriod {
+			p.logger.Info("deleting transaction from storage", slog.String("hash", record.Hash.String()), slog.String("status", metamorph_api.Status_name[int32(record.Status)]))
+
+			err := p.store.Del(context.Background(), record.RawTx)
+			if err != nil {
+				p.logger.Error("failed to delete transaction", slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
+			}
+			return
+		}
+
 		// add the records we have in the database, but that have not been processed, to the mempool watcher
 		pr := processor_response.NewProcessorResponseWithStatus(record.Hash, record.Status)
 		pr.NoStats = true

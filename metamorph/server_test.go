@@ -483,6 +483,9 @@ func TestPutTransactions(t *testing.T) {
 
 			getCounter := 0
 			metamorphStore := &storeMock.MetamorphStoreMock{
+				IsCentralisedFunc: func() bool {
+					return false
+				},
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					defer func() { getCounter++ }()
 

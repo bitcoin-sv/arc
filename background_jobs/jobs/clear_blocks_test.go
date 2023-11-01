@@ -19,9 +19,9 @@ type ClearJobSuite struct {
 }
 
 func (s *ClearJobSuite) Test() {
-	params := Params{
+	params := ClearBlockParams{
 		DBConnectionParams: DefaultParams,
-		OlderThan:          10,
+		BlockRetentionDays: 10,
 	}
 
 	// Add "fresh" blocks

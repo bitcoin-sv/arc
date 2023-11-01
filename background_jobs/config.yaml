@@ -1,0 +1,7 @@
+BlocksRetentionDays: 14
+Host:  "localhost"
+Port:  5432
+Username: "postgres"
+Password: "postgres"
+DBName:  "postgres"
+Scheme:  "postgres"

@@ -1,8 +1,11 @@
 package jobs
 
 import (
+	"fmt"
+
 	"github.com/bitcoin-sv/arc/dbconn"
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -14,25 +17,27 @@ func init() {
 	logger = log.With().Str("job", "ClearBlocks").Logger()
 }
 
-type Params struct {
+type ClearBlockParams struct {
 	dbconn.DBConnectionParams
-	OlderThan int //delete blocks that are OlderThan days old
+	BlockRetentionDays int //delete blocks that are BlockRetentionDays days old
 }
 
-func ClearBlocks(params Params) error {
+func ClearBlocks(params ClearBlockParams) error {
 	logger.Info().Msg("Connecting to database ...")
 	conn, err := sqlx.Open(params.Scheme, params.String())
 	if err != nil {
 		logger.Err(err).Msg("unable to create connection")
 		return err
 	}
-	stmt, err := conn.Prepare("DELETE FROM blocks WHERE inserted_at <= (CURRENT_DATE - INTERVAL '$1 days')")
+	interval := fmt.Sprintf("%d days", params.BlockRetentionDays)
+
+	stmt, err := conn.Preparex("DELETE FROM blocks WHERE inserted_at <= (CURRENT_DATE - $1::interval)")
 	if err != nil {
 		logger.Err(err).Msg("unable to prepare statement")
 		return err
 	}
 
-	res, err := stmt.Exec(params.OlderThan)
+	res, err := stmt.Exec(interval)
 	if err != nil {
 		logger.Err(err).Msg("unable to delete rows")
 		return err

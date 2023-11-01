@@ -1,7 +1,9 @@
-BlocksRetentionDays: 14
-Host:  "localhost"
-Port:  5432
-Username: "postgres"
-Password: "postgres"
-DBName:  "postgres"
-Scheme:  "postgres"
+CleanBlocks:
+  ExecutionIntervalInHours: 24 # how often to run the job
+  BlocksRetentionDays: 14 # delete records older thhan
+  Host:  "localhost" # db connection host
+  Port:  5432  # db connection port
+  Username: "postgres" # db connection username
+  Password: "postgres" # db connection password
+  DBName:  "postgres"  # db connection database
+  Scheme:  "postgres" # db connection schema, postgres, mysql, etc...

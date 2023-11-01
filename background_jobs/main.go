@@ -33,20 +33,21 @@ func main() {
 
 	params := jobs.ClearBlockParams{
 		DBConnectionParams: dbconn.DBConnectionParams{
-			Host:     viper.GetString("Host"),
-			Port:     viper.GetInt("Port"),
-			Username: viper.GetString("Username"),
-			Password: viper.GetString("Password"),
-			DBName:   viper.GetString("DBName"),
-			Scheme:   viper.GetString("Scheme"),
+			Host:     viper.GetString("CleanBlocks.Host"),
+			Port:     viper.GetInt("CleanBlocks.Port"),
+			Username: viper.GetString("CleanBlocks.Username"),
+			Password: viper.GetString("CleanBlocks.Password"),
+			DBName:   viper.GetString("CleanBlocks.DBName"),
+			Scheme:   viper.GetString("CleanBlocks.Scheme"),
 		},
-		BlockRetentionDays: viper.GetInt("BlocksRetentionDays"),
+		BlockRetentionDays: viper.GetInt("CleanBlocks.BlocksRetentionDays"),
 	}
 
 	logger.Info().Interface("params", params).Msg("")
 	s := gocron.NewScheduler(time.UTC)
 
-	_, err := s.Every(1).Minute().Do(func() {
+	intervalInHours := viper.GetInt("CleanBlocks.ExecutionIntervalInHours")
+	_, err := s.Every(intervalInHours).Hours().Do(func() {
 		logger.Info().Msg("Clearing expired blocks...")
 		err := jobs.ClearBlocks(params)
 		if err != nil {
@@ -60,5 +61,5 @@ func main() {
 	}
 
 	s.StartBlocking()
-	
+
 }

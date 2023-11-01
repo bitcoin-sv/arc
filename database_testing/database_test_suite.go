@@ -52,7 +52,12 @@ func (s *DatabaseTestSuite) SetupSuite() {
 	m, err := migrate.New(path, DefaultParams.String())
 
 	require.NoError(s.T(), err)
-	require.NoError(s.T(), m.Up())
+
+	if err := m.Up(); err != nil {
+		if err != migrate.ErrNoChange {
+			require.NoError(s.T(), err)
+		}
+	}
 }
 
 func getRandomBytes() string {

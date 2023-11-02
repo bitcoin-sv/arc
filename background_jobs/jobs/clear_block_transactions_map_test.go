@@ -14,11 +14,11 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type ClearJobSuite struct {
+type ClearBlockTransactionsMapSuite struct {
 	DatabaseTestSuite
 }
 
-func (s *ClearJobSuite) Test() {
+func (s *ClearBlockTransactionsMapSuite) Test() {
 	params := ClearRecrodsParams{
 		DBConnectionParams:  DefaultParams,
 		RecordRetentionDays: 10,
@@ -26,32 +26,40 @@ func (s *ClearJobSuite) Test() {
 
 	// Add "fresh" blocks
 	for i := 0; i < 5; i++ {
-		block := GetTestBlock()
-		block.InsertedAt = time.Now()
-		s.InsertBlock(block)
+		m := store.BlockTransactionMap{
+			BlockID:       int64(i),
+			TransactionID: int64(i),
+			Pos:           int64(i),
+		}
+		m.InsertedAt = time.Now()
+		s.InsertBlockTransactionMap(&m)
 	}
 
 	// Add "expired" blocks
 	for i := 0; i < 5; i++ {
-		block := GetTestBlock()
-		block.InsertedAt = time.Now().Add(-20 * 24 * time.Hour)
-		s.InsertBlock(block)
+		m := store.BlockTransactionMap{
+			BlockID:       10 + int64(i),
+			TransactionID: 10 + int64(i),
+			Pos:           10 + int64(i),
+		}
+		m.InsertedAt = time.Now().Add(-20 * 24 * time.Hour)
+		s.InsertBlockTransactionMap(&m)
 	}
 
 	db, err := sqlx.Open("postgres", params.String())
 	require.NoError(s.T(), err)
 
-	err = ClearBlocks(params)
+	err = ClearBlockTransactionsMap(params)
 	require.NoError(s.T(), err)
 
-	var blocks []store.Block
-	require.NoError(s.T(), db.Select(&blocks, "SELECT * FROM blocks"))
+	var mps []store.BlockTransactionMap
+	require.NoError(s.T(), db.Select(&mps, "SELECT * FROM block_transactions_map"))
 
-	assert.Len(s.T(), blocks, 5)
+	assert.Len(s.T(), mps, 5)
 }
 
-func TestRunClear(t *testing.T) {
-	s := new(ClearJobSuite)
+func TestRunCClearBlockTransactionsMapSuite(t *testing.T) {
+	s := new(ClearBlockTransactionsMapSuite)
 	suite.Run(t, s)
 
 	if err := recover(); err != nil {

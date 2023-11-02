@@ -1,6 +1,6 @@
 CleanBlocks:
   ExecutionIntervalInHours: 24 # how often to run the job
-  BlocksRetentionDays: 14 # delete records older thhan
+  RecordRetentionDays: 14 # delete records older thhan
   Host:  "localhost" # db connection host
   Port:  5432  # db connection port
   Username: "postgres" # db connection username

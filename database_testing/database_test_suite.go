@@ -124,15 +124,17 @@ func (s *DatabaseTestSuite) InsertTransaction(tx *store.Transaction) {
 	require.NoError(s.T(), err)
 
 	_, err = db.NamedExec("INSERT INTO transactions("+
-		"id, "+
-		"hash, "+
-		"source, "+
-		"merkle_path) "+
+		"id,"+
+		"hash,"+
+		"source,"+
+		"merkle_path,"+
+		"inserted_at) "+
 		"VALUES("+
 		":id,"+
 		":hash, "+
 		":source, "+
-		":merkle_path); ", tx)
+		":merkle_path,"+
+		":inserted_at); ", tx)
 
 	require.NoError(s.T(), err, fmt.Sprintf("tx %+v", tx))
 }
@@ -144,11 +146,13 @@ func (s *DatabaseTestSuite) InsertBlockTransactionMap(btx *store.BlockTransactio
 	_, err = db.NamedExec("INSERT INTO block_transactions_map("+
 		"blockid, "+
 		"txid, "+
-		"pos) "+
+		"pos,"+
+		"inserted_at) "+
 		"VALUES("+
 		":blockid,"+
 		":txid, "+
-		":pos);", btx)
+		":pos,"+
+		":inserted_at);", btx)
 	require.NoError(s.T(), err)
 }
 

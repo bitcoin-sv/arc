@@ -14,11 +14,11 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type ClearJobSuite struct {
+type ClearTransactionsSuite struct {
 	DatabaseTestSuite
 }
 
-func (s *ClearJobSuite) Test() {
+func (s *ClearTransactionsSuite) Test() {
 	params := ClearRecrodsParams{
 		DBConnectionParams:  DefaultParams,
 		RecordRetentionDays: 10,
@@ -26,32 +26,32 @@ func (s *ClearJobSuite) Test() {
 
 	// Add "fresh" blocks
 	for i := 0; i < 5; i++ {
-		block := GetTestBlock()
-		block.InsertedAt = time.Now()
-		s.InsertBlock(block)
+		tx := GetTestTransaction()
+		tx.InsertedAt = time.Now()
+		s.InsertTransaction(tx)
 	}
 
 	// Add "expired" blocks
 	for i := 0; i < 5; i++ {
-		block := GetTestBlock()
-		block.InsertedAt = time.Now().Add(-20 * 24 * time.Hour)
-		s.InsertBlock(block)
+		tx := GetTestTransaction()
+		tx.InsertedAt = time.Now().Add(-20 * 24 * time.Hour)
+		s.InsertTransaction(tx)
 	}
 
 	db, err := sqlx.Open("postgres", params.String())
 	require.NoError(s.T(), err)
 
-	err = ClearBlocks(params)
+	err = ClearTransactions(params)
 	require.NoError(s.T(), err)
 
-	var blocks []store.Block
-	require.NoError(s.T(), db.Select(&blocks, "SELECT * FROM blocks"))
+	var txs []store.Transaction
+	require.NoError(s.T(), db.Select(&txs, "SELECT * FROM transactions"))
 
-	assert.Len(s.T(), blocks, 5)
+	assert.Len(s.T(), txs, 5)
 }
 
-func TestRunClear(t *testing.T) {
-	s := new(ClearJobSuite)
+func TestRunClearTransactionsSuite(t *testing.T) {
+	s := new(ClearTransactionsSuite)
 	suite.Run(t, s)
 
 	if err := recover(); err != nil {

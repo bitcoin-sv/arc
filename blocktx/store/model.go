@@ -18,14 +18,16 @@ type Block struct {
 }
 
 type Transaction struct {
-	ID         int64  `db:"id"`
-	Hash       string `db:"hash"`
-	Source     string `db:"source"`
-	MerklePath string `db:"merkle_path"`
+	ID         int64     `db:"id"`
+	Hash       string    `db:"hash"`
+	Source     string    `db:"source"`
+	MerklePath string    `db:"merkle_path"`
+	InsertedAt time.Time `db:"inserted_at"`
 }
 
 type BlockTransactionMap struct {
-	BlockID       int64 `db:"blockid"`
-	TransactionID int64 `db:"txid"`
-	Pos           int64 `db:"pos"`
+	BlockID       int64     `db:"blockid"`
+	TransactionID int64     `db:"txid"`
+	Pos           int64     `db:"pos"`
+	InsertedAt    time.Time `db:"inserted_at"`
 }

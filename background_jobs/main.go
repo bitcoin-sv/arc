@@ -32,7 +32,7 @@ func main() {
 		}
 	}
 
-	params := jobs.ClearBlockParams{
+	params := jobs.ClearRecrodsParams{
 		DBConnectionParams: dbconn.DBConnectionParams{
 			Host:     viper.GetString("CleanBlocks.Host"),
 			Port:     viper.GetInt("CleanBlocks.Port"),
@@ -41,7 +41,7 @@ func main() {
 			DBName:   viper.GetString("CleanBlocks.DBName"),
 			Scheme:   viper.GetString("CleanBlocks.Scheme"),
 		},
-		BlockRetentionDays: viper.GetInt("CleanBlocks.BlocksRetentionDays"),
+		RecordRetentionDays: viper.GetInt("CleanBlocks.RecordRetentionDays"),
 	}
 
 	logger.Info().Interface("params", params).Msg("")
@@ -55,6 +55,30 @@ func main() {
 			logger.Error().Err(err).Msg("unable to clear expired blocks")
 		}
 		logger.Info().Msg("Blocks cleanup complete")
+	})
+
+	if err != nil {
+		logger.Fatal().Err(err).Msg("unable to run job")
+	}
+
+	_, err = s.Every(intervalInHours).Hours().Do(func() {
+		logger.Info().Msg("Clearing expired transactions...")
+		if err := jobs.ClearTransactions(params); err != nil {
+			logger.Error().Err(err).Msg("unable to clear expired transactions")
+		}
+		logger.Info().Msg("transactions cleanup complete")
+	})
+
+	if err != nil {
+		logger.Fatal().Err(err).Msg("unable to run job")
+	}
+
+	_, err = s.Every(intervalInHours).Hours().Do(func() {
+		logger.Info().Msg("Clearing expired mappings...")
+		if err := jobs.ClearBlockTransactionsMap(params); err != nil {
+			logger.Error().Err(err).Msg("unable to clear expired mappings")
+		}
+		logger.Info().Msg("mappings cleanup complete")
 	})
 
 	if err != nil {

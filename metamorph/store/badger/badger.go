@@ -78,6 +78,10 @@ func New(dir string) (*Badger, error) {
 	return badgerStore, nil
 }
 
+func (ddb *Badger) IsCentralised() bool {
+	return false
+}
+
 func (s *Badger) Close(ctx context.Context) error {
 	start := gocore.CurrentNanos()
 	defer func() {

@@ -1,20 +1,19 @@
 package tracing
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/ordishs/go-utils"
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/config"
 )
 
 // InitTracer creates a new instance of Jaeger tracer.
-func InitTracer(logger utils.Logger, serviceName string) (opentracing.Tracer, io.Closer) {
+func InitTracer(serviceName string) (opentracing.Tracer, io.Closer, error) {
 	cfg, err := config.FromEnv()
 	if err != nil {
-		logger.Errorf("cannot parse jaeger env vars: %v\n", err.Error())
-		return nil, nil
+		return nil, nil, fmt.Errorf("cannot parse jaeger env vars: %v", err.Error())
 	}
 
 	cfg.ServiceName = serviceName
@@ -25,9 +24,8 @@ func InitTracer(logger utils.Logger, serviceName string) (opentracing.Tracer, io
 	var closer io.Closer
 	tracer, closer, err = cfg.NewTracer()
 	if err != nil {
-		logger.Errorf("cannot initialize jaeger tracer: %v\n", err.Error())
-		return nil, nil
+		return nil, nil, fmt.Errorf("cannot initialize jaeger tracer: %v", err.Error())
 	}
 
-	return tracer, closer
+	return tracer, closer, nil
 }

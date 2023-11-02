@@ -372,7 +372,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		return 0, 0, nil, nil, err
 	}
 
-	if rtr.Source != s.source {
+	if !s.store.IsCentralised() && rtr.Source != s.source {
 		if isForwarded(ctx) {
 			// This is a forwarded request, so we should not forward it again
 			s.logger.Warn("Endless forwarding loop detected for", slog.String("hash", hash.String()), slog.String("address", s.source), slog.String("source", rtr.Source))

@@ -3,7 +3,7 @@
 ## Overview
 
 The goal of this submodule is to provide simple and convenient way to schedule repetetive tasks to be performed on ARC.
-The current implementation contains only ARC blocks clean up with frequency given in configuration file.
+The current implementation contains only ARC tables clean up with frequency specified in configuration file.
 
 ## Key features
 - easy configuration using config.yaml file

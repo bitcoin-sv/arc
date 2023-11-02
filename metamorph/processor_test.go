@@ -101,6 +101,7 @@ func TestLoadUnmined(t *testing.T) {
 		getTransactionBlockErr error
 		delErr                 error
 
+		expectedDeletions         int
 		expectedItemTxHashesFinal []*chainhash.Hash
 	}{
 		{
@@ -190,6 +191,7 @@ func TestLoadUnmined(t *testing.T) {
 				},
 			},
 
+			expectedDeletions:         1,
 			expectedItemTxHashesFinal: []*chainhash.Hash{},
 		},
 		{
@@ -204,7 +206,8 @@ func TestLoadUnmined(t *testing.T) {
 			},
 			delErr: errors.New("failed to delete hash"),
 
-			expectedItemTxHashesFinal: []*chainhash.Hash{},
+			expectedDeletions:         1,
+			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX2Hash},
 		},
 	}
 
@@ -265,6 +268,7 @@ func TestLoadUnmined(t *testing.T) {
 				WithNow(func() time.Time {
 					return storedAt.Add(1 * time.Hour)
 				}),
+				WithDataRetentionPeriod(time.Hour*24),
 			)
 			require.NoError(t, err)
 			defer processor.Shutdown()
@@ -280,6 +284,7 @@ func TestLoadUnmined(t *testing.T) {
 				allItemHashes = append(allItemHashes, item.Hash)
 			}
 
+			require.Equal(t, tc.expectedDeletions, len(mtmStore.DelCalls()))
 			require.ElementsMatch(t, tc.expectedItemTxHashesFinal, allItemHashes)
 		})
 	}

@@ -51,6 +51,7 @@ type Processor struct {
 	logger               *slog.Logger
 	logFile              string
 	mapExpiryTime        time.Duration
+	dataRetentionPeriod  time.Duration
 	now                  func() time.Time
 
 	processExpiredSeenTxsInterval time.Duration
@@ -82,8 +83,8 @@ const (
 	mapExpiryTimeDefault                    = 24 * time.Hour
 	logLevelDefault                         = slog.LevelInfo
 
-	failedToUpdateStatus = "Failed to update status"
-	txDeletionPeriod     = 336 * time.Hour // 14 days
+	failedToUpdateStatus       = "Failed to update status"
+	dataRetentionPeriodDefault = 14 * 24 * time.Hour // 14 days
 )
 
 func WithProcessExpiredSeenTxsInterval(d time.Duration) func(*Processor) {
@@ -122,6 +123,12 @@ func WithProcessExpiredTxsInterval(d time.Duration) func(*Processor) {
 	}
 }
 
+func WithDataRetentionPeriod(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.dataRetentionPeriod = d
+	}
+}
+
 type Option func(f *Processor)
 
 func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI,
@@ -139,6 +146,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI,
 		cbChannel:               cbChannel,
 		pm:                      pm,
 		btc:                     btc,
+		dataRetentionPeriod:     dataRetentionPeriodDefault,
 		mapExpiryTime:           mapExpiryTimeDefault,
 		now:                     time.Now,
 		processExpiredTxsTicker: time.NewTicker(unseenTransactionRebroadcastingInterval * time.Second),
@@ -302,19 +310,29 @@ func (p *Processor) GetPeers() ([]string, []string) {
 	return peersConnected, peersDisconnected
 }
 
+func (p *Processor) deleteExpired(record *store.StoreData) (recordDeleted bool) {
+	if p.now().Sub(record.StoredAt) <= p.dataRetentionPeriod {
+		return recordDeleted
+	}
+
+	p.logger.Info("deleting transaction from storage", slog.String("hash", record.Hash.String()), slog.String("status", metamorph_api.Status_name[int32(record.Status)]))
+
+	err := p.store.Del(context.Background(), record.RawTx)
+	if err != nil {
+		p.logger.Error("failed to delete transaction", slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
+		return recordDeleted
+	}
+	recordDeleted = true
+
+	return recordDeleted
+}
+
 func (p *Processor) LoadUnmined() {
 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:LoadUnmined")
 	defer span.Finish()
 
 	err := p.store.GetUnmined(spanCtx, func(record *store.StoreData) {
-
-		if p.now().Sub(record.StoredAt) > txDeletionPeriod {
-			p.logger.Info("deleting transaction from storage", slog.String("hash", record.Hash.String()), slog.String("status", metamorph_api.Status_name[int32(record.Status)]))
-
-			err := p.store.Del(context.Background(), record.RawTx)
-			if err != nil {
-				p.logger.Error("failed to delete transaction", slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
-			}
+		if p.deleteExpired(record) {
 			return
 		}
 

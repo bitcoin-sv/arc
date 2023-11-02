@@ -12,7 +12,7 @@ The current implementation contains only ARC blocks clean up with frequency give
 - extendable layout for other scenarios
 
 ## System requirements
-- `go version go1.21.1`
+- go version `go1.21.1+`
 
 ## Usage
 

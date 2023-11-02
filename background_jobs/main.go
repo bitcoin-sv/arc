@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"time"
 
 	"github.com/bitcoin-sv/arc/background_jobs/jobs"
@@ -24,7 +25,7 @@ func main() {
 	viper.AddConfigPath(".")
 
 	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+		if errors.Is(err, viper.ConfigFileNotFoundError{}) {
 			logger.Fatal().Err(err).Msg("config file not found")
 		} else {
 			logger.Fatal().Err(err).Msg("failed to read config file")

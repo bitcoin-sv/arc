@@ -15,7 +15,6 @@ import (
 	cfg "github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/tracing"
 	"github.com/opentracing/opentracing-go"
-	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
@@ -72,30 +71,41 @@ func main() {
 		log.Fatalf("failed to read config file: %v \n", err)
 		return
 	}
-	logLevel := viper.GetString("logLevel")
-	logger := gocore.Log(progname, gocore.NewLogLevelFromString(logLevel))
 
-	logger.Infof("VERSION\n-------\n%s (%s)\n\n", version, commit)
+	logLevel := viper.GetString("logLevel")
+	logger, err := cfg.NewLogger()
+	if err != nil {
+		log.Fatalf("failed to create logger: %v", err)
+		return
+	}
+
+	logger.Info("starting arc", slog.String("version", version), slog.String("commit", commit))
 
 	go func() {
 		profilerAddr := viper.GetString("profilerAddr")
 		if profilerAddr != "" {
-			logger.Infof("Starting profile on http://%s/debug/pprof", profilerAddr)
-			logger.Fatalf("%v", http.ListenAndServe(profilerAddr, nil))
+			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", profilerAddr))
+
+			err := http.ListenAndServe(profilerAddr, nil)
+			logger.Error("failed to start profiler server", slog.String("err", err.Error()))
 		}
 	}()
 
 	prometheusEndpoint := viper.GetString("prometheusEndpoint")
 	if prometheusEndpoint != "" {
-		logger.Infof("Starting prometheus endpoint on %s", prometheusEndpoint)
+		logger.Info("Starting prometheus", slog.String("endpoint", prometheusEndpoint))
 		http.Handle(prometheusEndpoint, promhttp.Handler())
 	}
 
 	tracingOn := viper.GetBool("tracing")
 	if (useTracer != nil && *useTracer) || tracingOn {
-		logger.Infof("Starting tracer")
+		logger.Info("Starting tracer")
 		// Start the tracer
-		tracer, closer := tracing.InitTracer(logger, progname)
+		tracer, closer, err := tracing.InitTracer(progname)
+		if err != nil {
+			logger.Error("failed to initialise tracer", slog.String("err", err.Error()))
+		}
+
 		defer closer.Close()
 
 		if tracer != nil {
@@ -105,7 +115,7 @@ func main() {
 	}
 
 	if !isFlagPassed("api") && !isFlagPassed("blocktx") && !isFlagPassed("callbacker") && !isFlagPassed("metamorph") {
-		logger.Infof("No service selected, starting all")
+		logger.Info("No service selected, starting all")
 		*startApi = true
 		*startMetamorph = true
 		*startBlockTx = true
@@ -130,10 +140,11 @@ func main() {
 	shutdownFns := make([]func(), 0)
 
 	if startBlockTx != nil && *startBlockTx {
-		logger.Infof("Starting BlockTx")
+		logger.Info("Starting BlockTx")
+
 		var blockTxLogger = gocore.Log("btx", gocore.NewLogLevelFromString(logLevel))
 		if blockTxShutdown, err := cmd.StartBlockTx(blockTxLogger); err != nil {
-			logger.Fatalf("Error starting blocktx: %v", err)
+			logger.Error("Failed to start blocktx", slog.String("err", err.Error()))
 		} else {
 			shutdownFns = append(shutdownFns, func() {
 				blockTxShutdown()
@@ -149,14 +160,14 @@ func main() {
 	}
 
 	if startCallbacker != nil && *startCallbacker {
-		logger.Infof("Starting Callbacker")
+		logger.Info("Starting Callbacker")
 		callbackerLogger, err := cfg.NewLogger()
 		if err != nil {
-			logger.Fatalf("Failed to get logger for callbacker: %v", err)
+			logger.Error("Failed to get logger for callbacker", slog.String("err", err.Error()))
 		}
 
 		if callbackerShutdown, err := cmd.StartCallbacker(callbackerLogger.With(slog.String("service", "clb"))); err != nil {
-			logger.Fatalf("Error starting callbacker: %v", err)
+			logger.Error("Failed to start callbacker", slog.String("err", err.Error()))
 		} else {
 			shutdownFns = append(shutdownFns, func() {
 				callbackerShutdown()
@@ -165,11 +176,11 @@ func main() {
 	}
 
 	if startMetamorph != nil && *startMetamorph {
-		logger.Infof("Starting Metamorph")
+		logger.Info("Starting Metamorph")
 		var metamorphLogger = gocore.Log("mtm", gocore.NewLogLevelFromString(logLevel))
 
 		if metamorphShutdown, err := cmd.StartMetamorph(metamorphLogger); err != nil {
-			logger.Fatalf("Error starting metamorph: %v", err)
+			logger.Error("Error starting metamorph", slog.String("err", err.Error()))
 		} else {
 			shutdownFns = append(shutdownFns, func() {
 				metamorphShutdown()
@@ -180,7 +191,7 @@ func main() {
 	if startApi != nil && *startApi {
 		var apiLogger = gocore.Log("api", gocore.NewLogLevelFromString(logLevel))
 		if apiShutdown, err := cmd.StartAPIServer(apiLogger); err != nil {
-			logger.Fatalf("Error starting api server: %v", err)
+			logger.Error("Error starting api server", slog.String("err", err.Error()))
 		} else {
 			shutdownFns = append(shutdownFns, func() {
 				apiShutdown()
@@ -197,8 +208,8 @@ func main() {
 	os.Exit(1)
 }
 
-func appCleanup(logger utils.Logger, shutdownFns []func()) {
-	logger.Infof("Shutting down...")
+func appCleanup(logger *slog.Logger, shutdownFns []func()) {
+	logger.Info("Shutting down")
 
 	var wg sync.WaitGroup
 	for _, fn := range shutdownFns {

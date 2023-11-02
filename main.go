@@ -61,6 +61,9 @@ func main() {
 		fmt.Println("    -tracer=<true|false>")
 		fmt.Println("          whether to start the Jaeger tracer (default=false)")
 		fmt.Println("")
+		fmt.Println("    -config=/location")
+		fmt.Println("          directory to look for config.yaml (default='')")
+		fmt.Println("")
 		return
 	}
 

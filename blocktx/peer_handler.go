@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -369,7 +368,7 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 			Hash: hash[:],
 		})
 
-		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(blockHeight, merkleTree, txIndex)
+		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(blockHeight, merkleTree, uint64(txIndex))
 		if err != nil {
 			return err
 		}

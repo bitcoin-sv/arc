@@ -41,7 +41,4 @@ func (s *GetBlockByHeightTestSuite) TestGetLastProcessedBlock() {
 func TestGetLastProcessedBlock(t *testing.T) {
 	s := new(GetLastProcessedBlockSuite)
 	suite.Run(t, s)
-	if err := recover(); err != nil {
-		require.NoError(t, s.Database.Stop())
-	}
 }

@@ -10,7 +10,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/dbconn"
-	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -21,9 +20,9 @@ import (
 var DefaultParams = dbconn.DBConnectionParams{
 	Host:     "localhost",
 	Port:     5432,
-	Username: "postgres",
-	Password: "postgres",
-	DBName:   "postgres",
+	Username: "arcuser",
+	Password: "arcpass",
+	DBName:   "arcdb_test",
 	Scheme:   "postgres",
 }
 
@@ -35,15 +34,10 @@ var DefaultParams = dbconn.DBConnectionParams{
 type DatabaseTestSuite struct {
 	suite.Suite
 
-	Database   *embeddedpostgres.EmbeddedPostgres
 	Connection *sqlx.Conn
 }
 
 func (s *DatabaseTestSuite) SetupSuite() {
-	s.Database = embeddedpostgres.NewDatabase()
-
-	require.NoError(s.T(), s.Database.Start())
-
 	_, callerFilePath, _, _ := runtime.Caller(0)
 
 	testDir := filepath.Dir(callerFilePath)
@@ -157,7 +151,7 @@ func (s *DatabaseTestSuite) InsertBlockTransactionMap(btx *store.BlockTransactio
 }
 
 func (s *DatabaseTestSuite) TearDownSuite() {
-	require.NoError(s.T(), s.Database.Stop())
+	//require.NoError(s.T(), s.Database.Stop())
 }
 
 // TearDownTest clear all the tables

@@ -53,8 +53,4 @@ func (s *ClearJobSuite) Test() {
 func TestRunClear(t *testing.T) {
 	s := new(ClearJobSuite)
 	suite.Run(t, s)
-
-	if err := recover(); err != nil {
-		require.NoError(t, s.Database.Stop())
-	}
 }

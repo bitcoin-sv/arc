@@ -61,8 +61,4 @@ func (s *ClearBlockTransactionsMapSuite) Test() {
 func TestRunCClearBlockTransactionsMapSuite(t *testing.T) {
 	s := new(ClearBlockTransactionsMapSuite)
 	suite.Run(t, s)
-
-	if err := recover(); err != nil {
-		require.NoError(t, s.Database.Stop())
-	}
 }

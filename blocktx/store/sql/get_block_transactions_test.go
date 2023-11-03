@@ -44,7 +44,4 @@ func (s *GetBlockByHeightTestSuite) TestGetBlockTransactions() {
 func TestGetBlockTransactions(t *testing.T) {
 	s := new(GetBlockTransactionsSuite)
 	suite.Run(t, s)
-	if err := recover(); err != nil {
-		require.NoError(t, s.Database.Stop())
-	}
 }

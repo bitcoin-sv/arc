@@ -7,7 +7,7 @@ type Block struct {
 	Hash         string    `db:"hash"`
 	PreviousHash string    `db:"prevhash"`
 	MerkleRoot   string    `db:"merkleroot"`
-	MerklePath   string    `db:"merkle_path"`
+	MerklePath   *string   `db:"merkle_path"`
 	Height       int64     `db:"height"`
 	Orphaned     bool      `db:"orphanedyn"`
 	Size         *int64    `db:"size"`

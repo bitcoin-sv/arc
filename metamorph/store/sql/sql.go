@@ -46,8 +46,9 @@ func New(engine string) (store.MetamorphStore, error) {
 		dbName := viper.GetString("metamorph.db.postgres.name")
 		dbUser := viper.GetString("metamorph.db.postgres.user")
 		dbPassword := viper.GetString("metamorph.db.postgres.password")
+		sslMode := viper.GetString("blocktx.db.postgres.sslMode")
 
-		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", dbUser, dbPassword, dbName, dbHost, dbPort)
+		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbPassword, dbName, dbHost, dbPort, sslMode)
 
 		db, err = sql.Open(engine, dbInfo)
 		if err != nil {

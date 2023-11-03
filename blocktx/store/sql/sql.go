@@ -94,7 +94,12 @@ func New(engine string) (store.Interface, error) {
 			return nil, errors.Errorf("setting blocktx.db.postgres.port not found")
 		}
 
-		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", dbUser, dbPassword, dbName, dbHost, dbPort)
+		sslMode := viper.GetString("blocktx.db.postgres.sslMode")
+		if sslMode == "" {
+			return nil, errors.Errorf("setting blocktx.db.postgres.sslMode not found")
+		}
+
+		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbPassword, dbName, dbHost, dbPort, sslMode)
 
 		db, err = sql.Open(engine, dbInfo)
 		if err != nil {

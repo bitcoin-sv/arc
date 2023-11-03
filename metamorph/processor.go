@@ -49,7 +49,6 @@ type Processor struct {
 	pm                   p2p.PeerManagerI
 	btc                  blocktx.ClientI
 	logger               *slog.Logger
-	metamorphAddress     string
 	logFile              string
 	mapExpiryTime        time.Duration
 	now                  func() time.Time
@@ -124,7 +123,7 @@ func WithProcessExpiredTxsInterval(d time.Duration) func(*Processor) {
 
 type Option func(f *Processor)
 
-func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress string,
+func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI,
 	cbChannel chan *callbacker_api.Callback, btc blocktx.ClientI, opts ...Option) (*Processor, error) {
 	if s == nil {
 		return nil, errors.New("store cannot be nil")
@@ -139,7 +138,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, metamorphAddress 
 		cbChannel:               cbChannel,
 		pm:                      pm,
 		btc:                     btc,
-		metamorphAddress:        metamorphAddress,
 		mapExpiryTime:           mapExpiryTimeDefault,
 		now:                     time.Now,
 		processExpiredTxsTicker: time.NewTicker(unseenTransactionRebroadcastingInterval * time.Second),
@@ -200,10 +198,6 @@ func (p *Processor) Shutdown() {
 	if p.cbChannel != nil {
 		close(p.cbChannel)
 	}
-}
-
-func (p *Processor) GetMetamorphAddress() string {
-	return p.metamorphAddress
 }
 
 func (p *Processor) processExpiredSeenTransactions() {

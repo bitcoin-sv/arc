@@ -46,6 +46,7 @@ metamorph:
       name: metamorph
       user: arc
       password: arc
+      sslMode: disable
     dynamodb:
       awsAccessKeyID:
       awsSecretAccessKey:
@@ -68,6 +69,7 @@ blocktx:
       password: arc
       maxIdleConns: 10 # maximum idle connections
       maxOpenConns: 80 # maximum open connections
+      sslMode: disable
   profilerAddr: localhost:9993 # address to start profiler server on
   startingBlockHeight: 100 # starting block height for blocktx to start from. blocktx will not request blocks lower than this height
 

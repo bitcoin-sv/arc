@@ -9,6 +9,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 
 	"github.com/bitcoin-sv/arc/cmd"
@@ -68,6 +69,10 @@ func main() {
 	}
 
 	viper.AddConfigPath(*config) // optionally look for config in the working directory
+	viper.AutomaticEnv()         // read in environment variables that match
+	viper.SetEnvPrefix("ARC")
+	replacer := strings.NewReplacer(".", "_")
+	viper.SetEnvKeyReplacer(replacer)
 
 	err := viper.ReadInConfig() // Find and read the config file
 	if err != nil {             // Handle errors reading the config file

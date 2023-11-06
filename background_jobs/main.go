@@ -5,11 +5,38 @@ import (
 	"fmt"
 	"time"
 
-	. "github.com/bitcoin-sv/arc/background_jobs/jobs"
+	"github.com/bitcoin-sv/arc/background_jobs/jobs"
 	"github.com/bitcoin-sv/arc/dbconn"
 	"github.com/go-co-op/gocron"
 	"github.com/spf13/viper"
 )
+
+type ARCScheduler struct {
+	s               *gocron.Scheduler
+	IntervalInHours int
+	Params          jobs.ClearRecrodsParams
+}
+
+func (sched *ARCScheduler) RunJob(table string, job func(params jobs.ClearRecrodsParams) error) {
+	_, err := sched.s.Every(sched.IntervalInHours).Hours().Do(func() {
+		jobs.Log(jobs.INFO, fmt.Sprintf("Clearing expired %s...", table))
+		err := job(sched.Params)
+		if err != nil {
+			jobs.Log(jobs.ERROR, fmt.Sprintf("unable to clear expired %s %s", table, err))
+			return
+		}
+		jobs.Log(jobs.INFO, fmt.Sprintf("%s cleanup complete", table))
+	})
+
+	if err != nil {
+		jobs.Log(jobs.ERROR, fmt.Sprintf("unable to run %s job", table))
+		return
+	}
+}
+
+func (sched *ARCScheduler) Start() {
+	sched.s.StartBlocking()
+}
 
 func main() {
 	viper.SetConfigFile("config.yaml")
@@ -18,15 +45,15 @@ func main() {
 
 	if err := viper.ReadInConfig(); err != nil {
 		if errors.Is(err, viper.ConfigFileNotFoundError{}) {
-			Log(ERROR, "config file not found")
+			jobs.Log(jobs.ERROR, "config file not found")
 			return
 		} else {
-			Log(ERROR, "failed to read config file")
+			jobs.Log(jobs.ERROR, "failed to read config file")
 			return
 		}
 	}
 
-	params := ClearRecrodsParams{
+	params := jobs.ClearRecrodsParams{
 		DBConnectionParams: dbconn.DBConnectionParams{
 			Host:     viper.GetString("CleanBlocks.Host"),
 			Port:     viper.GetInt("CleanBlocks.Port"),
@@ -38,55 +65,19 @@ func main() {
 		RecordRetentionDays: viper.GetInt("CleanBlocks.RecordRetentionDays"),
 	}
 
-	Log(INFO, fmt.Sprintf("starting with %#v", params))
-	s := gocron.NewScheduler(time.UTC)
+	jobs.Log(jobs.INFO, fmt.Sprintf("starting with %#v", params))
 
 	intervalInHours := viper.GetInt("CleanBlocks.ExecutionIntervalInHours")
 
-	_, err := s.Every(intervalInHours).Hours().Do(func() {
-		Log(INFO, "Clearing expired blocks...")
-		err := ClearBlocks(params)
-		if err != nil {
-			Log(ERROR, fmt.Sprintf("unable to clear expired blocks %s", err))
-			return
-		}
-		Log(INFO, "Blocks cleanup complete")
-	})
-
-	if err != nil {
-		Log(ERROR, "unable to run ClearBlocks job")
-		return
+	sched := ARCScheduler{
+		s:               gocron.NewScheduler(time.UTC),
+		IntervalInHours: intervalInHours,
+		Params:          params,
 	}
 
-	_, err = s.Every(intervalInHours).Hours().Do(func() {
-		Log(INFO, "Clearing expired transactions...")
-		err := ClearTransactions(params)
-		if err != nil {
-			Log(ERROR, fmt.Sprintf("unable to clear expired transactions %s", err))
-			return
-		}
-		Log(INFO, "transactions cleanup complete")
-	})
+	sched.RunJob("blocks", jobs.ClearBlocks)
+	sched.RunJob("transactions", jobs.ClearTransactions)
+	sched.RunJob("block transactoins map", jobs.ClearBlockTransactionsMap)
 
-	if err != nil {
-		Log(ERROR, "unable to run ClearTransactions job")
-		return
-	}
-
-	_, err = s.Every(intervalInHours).Hours().Do(func() {
-		Log(INFO, "Clearing expired block transaction maps...")
-		err := ClearBlockTransactionsMap(params)
-		if err != nil {
-			Log(ERROR, fmt.Sprintf("unable to clear expired block transaction maps %s", err))
-			return
-		}
-		Log(INFO, "block transaction maps cleanup complete")
-	})
-
-	if err != nil {
-		Log(ERROR, "unable to run ClearBlockTransactionsMap job")
-		return
-	}
-
-	s.StartBlocking()
+	sched.Start()
 }

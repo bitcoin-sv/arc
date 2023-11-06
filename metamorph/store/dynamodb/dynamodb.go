@@ -37,7 +37,7 @@ func New() (store.MetamorphStore, error) {
 		return &DynamoDB{}, err
 	}
 
-	fmt.Println("region", cfg.Region)
+	fmt.Println("region =>", cfg.Region)
 
 	// create dynamodb client
 	dynamodbClient := &DynamoDB{

@@ -407,18 +407,16 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		// (updating tx status to MINED) will fail as there is no transaction to update.
 		// In that case we take the transaction from blocktx (where we parsed it from network)
 		// and store it first in metamorph database. BPAAS-1150
-
-		// In case this is "normal" transaction - meaning that we already
-		// have it in the database because it was submitted to network through arc
-		// this store call will fail insertion and the old functionality will still work as expected.
-		s.store.Set(ctx, hash[:], &store.StoreData{
+		if err := s.store.Set(ctx, hash[:], &store.StoreData{
 			Hash:          &hash,
 			Status:        status,
 			CallbackUrl:   req.CallbackUrl,
 			CallbackToken: req.CallbackToken,
 			MerkleProof:   req.MerkleProof,
 			RawTx:         req.RawTx,
-		})
+		}); err != nil {
+			s.logger.Warn("Transaction already exists in db", slog.String("warn", err.Error()))
+		}
 
 		// If the transaction was mined, we should mark it as such
 		status = metamorph_api.Status_MINED

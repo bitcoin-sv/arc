@@ -15,6 +15,7 @@ type ProcessorI interface {
 	SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error)
 	GetStats(debugItems bool) *ProcessorStats
 	GetPeers() ([]string, []string)
+	Shutdown()
 }
 
 type PeerTxMessage struct {

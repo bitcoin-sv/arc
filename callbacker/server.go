@@ -2,35 +2,31 @@ package callbacker
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/url"
 	"time"
 
+	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 )
 
 // Server type carries the logger within it
 type Server struct {
 	callbacker_api.UnsafeCallbackerAPIServer
-	logger     utils.Logger
+	logger     *slog.Logger
 	callbacker *Callbacker
 	grpcServer *grpc.Server
 }
 
 // NewServer will return a server instance with the logger stored within it
-func NewServer(logger utils.Logger, c *Callbacker) *Server {
+func NewServer(logger *slog.Logger, c *Callbacker) *Server {
 	return &Server{
 		logger:     logger,
 		callbacker: c,
@@ -38,21 +34,13 @@ func NewServer(logger utils.Logger, c *Callbacker) *Server {
 }
 
 // StartGRPCServer function
-func (s *Server) StartGRPCServer() error {
-	address := viper.GetString("callbacker.listenAddr")
-	if address == "" {
-		return errors.New("no callbacker.listenAddr setting found")
-	}
-
-	// LEVEL 0 - no security / no encryption
+func (s *Server) StartGRPCServer(address string) error {
 	var opts []grpc.ServerOption
 	opts = append(opts,
 		grpc.ChainStreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 		grpc.ChainUnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
 	)
 	s.grpcServer = grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
-
-	gocore.SetAddress(address)
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
@@ -64,13 +52,18 @@ func (s *Server) StartGRPCServer() error {
 	// Register reflection service on gRPC server.
 	reflection.Register(s.grpcServer)
 
-	s.logger.Infof("GRPC server listening on %s", address)
+	s.logger.Info("GRPC server listening", slog.String("address", address))
 
 	if err = s.grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("GRPC server failed [%w]", err)
 	}
 
 	return nil
+}
+
+func (s *Server) Shutdown() {
+	s.logger.Info("Shutting down")
+	s.grpcServer.Stop()
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*callbacker_api.HealthResponse, error) {

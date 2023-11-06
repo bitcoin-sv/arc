@@ -29,15 +29,15 @@ const ISO8601 = "2006-01-02T15:04:05.999Z"
 
 func New() (store.MetamorphStore, error) {
 	// export necessary parameters for aws dynamodb connection
-	err := os.Setenv("AWS_ACCESS_KEY_ID", viper.GetString("metamorph.db.dynamodb.aws_access_key_id"))
+	err := os.Setenv("AWS_ACCESS_KEY_ID", viper.GetString("metamorph.db.dynamodb.awsAccessKeyID"))
 	if err != nil {
 		return &DynamoDB{}, err
 	}
-	err = os.Setenv("AWS_SECRET_ACCESS_KEY", viper.GetString("metamorph.db.dynamodb.aws_secret_access_key"))
+	err = os.Setenv("AWS_SECRET_ACCESS_KEY", viper.GetString("metamorph.db.dynamodb.awsSecretAccessKey"))
 	if err != nil {
 		return &DynamoDB{}, err
 	}
-	err = os.Setenv("AWS_SESSION_TOKEN", viper.GetString("metamorph.db.dynamodb.aws_session_token"))
+	err = os.Setenv("AWS_SESSION_TOKEN", viper.GetString("metamorph.db.dynamodb.awsSessionToken"))
 	if err != nil {
 		return &DynamoDB{}, err
 	}
@@ -81,6 +81,10 @@ func New() (store.MetamorphStore, error) {
 
 	// Using the Config value, create the DynamoDB client
 	return dynamodbClient, nil
+}
+
+func (ddb *DynamoDB) IsCentralised() bool {
+	return true
 }
 
 func (ddb *DynamoDB) TableExists(tableName string) (bool, error) {

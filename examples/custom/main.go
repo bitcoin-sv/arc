@@ -10,6 +10,7 @@ import (
 	apiHandler "github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
 	"github.com/bitcoin-sv/arc/blocktx"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/labstack/echo/v4"
@@ -68,7 +69,12 @@ func main() {
 	)
 
 	// init BlockTx client
-	blockTxClient := blocktx.NewClient(logger, "localhost:8021")
+	conn, err := blocktx.DialGRPC("localhost:8021")
+	if err != nil {
+		panic("failed to connect to block-tx server")
+	}
+
+	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn))
 	grpcMessageSize := viper.GetInt("grpcMessageSize")
 	// add a single metamorph, with the BlockTx client we want to use
 	txHandler, err := transactionHandler.NewMetamorph("localhost:8011", blockTxClient, grpcMessageSize, logger)

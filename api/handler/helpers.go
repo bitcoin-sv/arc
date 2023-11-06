@@ -5,10 +5,16 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 
+	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/api/dictionary"
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/deepmap/oapi-codegen/pkg/middleware"
+	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/labstack/echo/v4"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/pkg/errors"
@@ -121,4 +127,35 @@ func getTransactionFromWhatsOnChain(ctx context.Context, inputTxID string) ([]by
 // To returns a pointer to the given value.
 func PtrTo[T any](v T) *T {
 	return &v
+}
+
+func GetDefaultPolicy() (*bitcoin.Settings, error) {
+	defaultPolicy := &bitcoin.Settings{}
+
+	err := viper.UnmarshalKey("api.defaultPolicy", defaultPolicy)
+	if err != nil {
+		return nil, err
+	}
+
+	return defaultPolicy, nil
+}
+
+// CheckSwagger validates the request against the swagger definition
+func CheckSwagger(e *echo.Echo) *openapi3.T {
+
+	swagger, err := api.GetSwagger()
+	if err != nil {
+		log.Fatalf(dictionary.GetInternalMessage(dictionary.ErrorLoadingSwaggerSpec), err.Error())
+	}
+
+	// Clear out the servers array in the swagger spec, that skips validating
+	// that server names match. We don't know how this thing will be run.
+	swagger.Servers = nil
+	// Clear out the security requirements, we check this ourselves
+	swagger.Security = nil
+
+	// Use our validation middleware to check all requests against the OpenAPI schema.
+	e.Use(middleware.OapiRequestValidator(swagger))
+
+	return swagger
 }

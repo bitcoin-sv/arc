@@ -46,8 +46,9 @@ func New(engine string) (store.MetamorphStore, error) {
 		dbName := viper.GetString("metamorph.db.postgres.name")
 		dbUser := viper.GetString("metamorph.db.postgres.user")
 		dbPassword := viper.GetString("metamorph.db.postgres.password")
+		sslMode := viper.GetString("metamorph.db.postgres.sslMode")
 
-		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%d", dbUser, dbPassword, dbName, dbHost, dbPort)
+		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbPassword, dbName, dbHost, dbPort, sslMode)
 
 		db, err = sql.Open(engine, dbInfo)
 		if err != nil {
@@ -191,6 +192,10 @@ func createSqliteSchema(db *sql.DB) error {
 	}
 
 	return nil
+}
+
+func (ddb *SQL) IsCentralised() bool {
+	return false
 }
 
 // Get implements the MetamorphStore interface. It attempts to get a value for a given key.

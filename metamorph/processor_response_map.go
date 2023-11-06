@@ -12,11 +12,11 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
 	"github.com/sasha-s/go-deadlock"
-	"github.com/spf13/viper"
 )
 
 const (
-	cleanUpInterval = 15 * time.Minute
+	cleanUpInterval    = 15 * time.Minute
+	logFilePathDefault = "./data/metamorph.log"
 )
 
 type ProcessorResponseMap struct {
@@ -25,15 +25,35 @@ type ProcessorResponseMap struct {
 	items     map[chainhash.Hash]*processor_response.ProcessorResponse
 	logFile   string
 	logWorker chan statResponse
+	now       func() time.Time
 }
 
-func NewProcessorResponseMap(expiry time.Duration) *ProcessorResponseMap {
-	logFile := viper.GetString("metamorph.log.file")
+func WithNowResponseMap(nowFunc func() time.Time) func(*ProcessorResponseMap) {
+	return func(p *ProcessorResponseMap) {
+		p.now = nowFunc
+	}
+}
+
+func WithLogFile(logFile string) func(*ProcessorResponseMap) {
+	return func(p *ProcessorResponseMap) {
+		p.logFile = logFile
+	}
+}
+
+type OptionProcRespMap func(p *ProcessorResponseMap)
+
+func NewProcessorResponseMap(expiry time.Duration, opts ...OptionProcRespMap) *ProcessorResponseMap {
 
 	m := &ProcessorResponseMap{
 		expiry:  expiry,
 		items:   make(map[chainhash.Hash]*processor_response.ProcessorResponse),
-		logFile: logFile,
+		logFile: logFilePathDefault,
+		now:     time.Now,
+	}
+
+	// apply options
+	for _, opt := range opts {
+		opt(m)
 	}
 
 	go func() {
@@ -95,7 +115,7 @@ func (m *ProcessorResponseMap) Get(hash *chainhash.Hash) (*processor_response.Pr
 		return nil, false
 	}
 
-	if time.Since(processorResponse.Start) > m.expiry {
+	if m.now().Sub(processorResponse.Start) > m.expiry {
 		return nil, false
 	}
 
@@ -243,6 +263,14 @@ func (m *ProcessorResponseMap) Clear() {
 	defer m.mu.Unlock()
 
 	m.items = make(map[chainhash.Hash]*processor_response.ProcessorResponse)
+}
+
+func (m *ProcessorResponseMap) Close() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, item := range m.items {
+		item.Close()
+	}
 }
 
 func (m *ProcessorResponseMap) clean() {

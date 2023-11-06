@@ -401,6 +401,25 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 	}
 
 	if rtr.BlockHash != nil {
+		// In case a transaction is submited to network outside of ARC and mined and now
+		// submitting the same transaction through arc endpoint we have problem.
+		// The transaction doesn't exist in metamorph so the call after this line
+		// (updating tx status to MINED) will fail as there is no transaction to update.
+		// In that case we take the transaction from blocktx (where we parsed it from network)
+		// and store it first in metamorph database. BPAAS-1150
+
+		// In case this is "normal" transaction - meaning that we already
+		// have it in the database because it was submitted to network through arc
+		// this store call will fail insertion and the old functionality will still work as expected.
+		s.store.Set(ctx, hash[:], &store.StoreData{
+			Hash:          &hash,
+			Status:        status,
+			CallbackUrl:   req.CallbackUrl,
+			CallbackToken: req.CallbackToken,
+			MerkleProof:   req.MerkleProof,
+			RawTx:         req.RawTx,
+		})
+
 		// If the transaction was mined, we should mark it as such
 		status = metamorph_api.Status_MINED
 		blockHash, _ := chainhash.NewHash(rtr.BlockHash)

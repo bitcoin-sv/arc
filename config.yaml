@@ -47,10 +47,6 @@ metamorph:
       user: arc
       password: arc
       sslMode: disable
-    dynamodb:
-      awsAccessKeyID:
-      awsSecretAccessKey:
-      awsSessionToken:
   processorCacheExpiryTime: 24h # time after which processor cache is cleaned
   dataRetentionPeriodDays: 14 # number of days for which data is kept in the storage before it can be deleted
   checkUtxos: false # force check each utxo for validity. If enabled ARC connects to bitcoin node using rpc for each utxo

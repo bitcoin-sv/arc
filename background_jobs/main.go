@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bitcoin-sv/arc/background_jobs/jobs"
 	. "github.com/bitcoin-sv/arc/background_jobs/jobs"
 	"github.com/bitcoin-sv/arc/dbconn"
 	"github.com/go-co-op/gocron"
@@ -46,7 +45,7 @@ func main() {
 
 	_, err := s.Every(intervalInHours).Hours().Do(func() {
 		Log(INFO, "Clearing expired blocks...")
-		err := jobs.ClearBlocks(params)
+		err := ClearBlocks(params)
 		if err != nil {
 			Log(ERROR, fmt.Sprintf("unable to clear expired blocks %s", err))
 			return

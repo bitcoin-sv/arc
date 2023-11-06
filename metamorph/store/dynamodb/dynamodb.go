@@ -72,19 +72,15 @@ func (ddb *DynamoDB) IsCentralised() bool {
 }
 
 func (ddb *DynamoDB) TableExists(tableName string) (bool, error) {
-	// Build the request with its input parameters
-	resp, err := ddb.dynamoCli.ListTables(context.TODO(), &dynamodb.ListTablesInput{})
+	_, err := ddb.dynamoCli.DescribeTable(context.TODO(), &dynamodb.DescribeTableInput{
+		TableName: aws.String(tableName),
+	},
+	)
 	if err != nil {
 		return false, err
 	}
 
-	for _, tn := range resp.TableNames {
-		if tn == tableName {
-
-			return true, nil
-		}
-	}
-	return false, nil
+	return true, nil
 }
 
 // CreateTransactionsTable creates a DynamoDB table for storing metamorph user transactions

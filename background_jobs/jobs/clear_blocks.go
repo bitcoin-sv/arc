@@ -2,31 +2,15 @@ package jobs
 
 import (
 	"fmt"
-	logger "log/slog"
 
 	"github.com/bitcoin-sv/arc/dbconn"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
-const (
-	INFO  = "INFO"
-	DEBUG = "DEBUG"
-	ERROR = "ERROR"
-)
-
-func Log(level, message string) {
-	var logfun = map[string]func(string, ...any){
-		INFO:  logger.Info,
-		DEBUG: logger.Debug,
-		ERROR: logger.Error,
-	}
-	logfun[level](message)
-}
-
 type ClearRecrodsParams struct {
 	dbconn.DBConnectionParams
-	RecordRetentionDays int //delete blocks that are RecordRetentionDays days old
+	RecordRetentionDays int
 }
 
 func ClearBlocks(params ClearRecrodsParams) error {

@@ -6,6 +6,7 @@ data/
 *.key
 *.run
 .idea
+tmp
 .DS_Store
 settings.conf
 settings_local.conf

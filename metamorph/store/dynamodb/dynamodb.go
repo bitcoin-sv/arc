@@ -2,6 +2,7 @@ package dynamodb
 
 import (
 	"context"
+	"fmt"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"strconv"
 	"time"
@@ -21,6 +22,7 @@ import (
 
 type DynamoDB struct {
 	dynamoCli *dynamodb.Client
+	ctx       context.Context
 }
 
 const ISO8601 = "2006-01-02T15:04:05.999Z"
@@ -29,13 +31,19 @@ func New() (store.MetamorphStore, error) {
 	// Using the SDK's default configuration, loading additional config
 	// and credentials values from the environment variables, shared
 	// credentials, and shared configuration files
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithEC2IMDSRegion())
+	ctx := context.Background()
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithEC2IMDSRegion())
 	if err != nil {
 		return &DynamoDB{}, err
 	}
 
+	fmt.Println("region", cfg.Region)
+
 	// create dynamodb client
-	dynamodbClient := &DynamoDB{dynamoCli: dynamodb.NewFromConfig(cfg)}
+	dynamodbClient := &DynamoDB{
+		dynamoCli: dynamodb.NewFromConfig(cfg),
+		ctx:       ctx,
+	}
 
 	// create table if not exists
 	exists, err := dynamodbClient.TableExists("transactions")
@@ -72,7 +80,7 @@ func (ddb *DynamoDB) IsCentralised() bool {
 }
 
 func (ddb *DynamoDB) TableExists(tableName string) (bool, error) {
-	_, err := ddb.dynamoCli.DescribeTable(context.TODO(), &dynamodb.DescribeTableInput{
+	_, err := ddb.dynamoCli.DescribeTable(ddb.ctx, &dynamodb.DescribeTableInput{
 		TableName: aws.String(tableName),
 	},
 	)
@@ -86,7 +94,7 @@ func (ddb *DynamoDB) TableExists(tableName string) (bool, error) {
 // CreateTransactionsTable creates a DynamoDB table for storing metamorph user transactions
 func (ddb *DynamoDB) CreateTransactionsTable() error {
 	// construct primary key and create table
-	_, err := ddb.dynamoCli.CreateTable(context.TODO(), &dynamodb.CreateTableInput{
+	_, err := ddb.dynamoCli.CreateTable(ddb.ctx, &dynamodb.CreateTableInput{
 		AttributeDefinitions: []types.AttributeDefinition{
 			{
 				AttributeName: aws.String("tx_hash"),
@@ -146,7 +154,7 @@ func (ddb *DynamoDB) CreateTransactionsTable() error {
 // CreateBlocksTable creates a DynamoDB table for storing blocks
 func (ddb *DynamoDB) CreateBlocksTable() error {
 	// construct primary key and create table
-	if _, err := ddb.dynamoCli.CreateTable(context.TODO(), &dynamodb.CreateTableInput{
+	if _, err := ddb.dynamoCli.CreateTable(ddb.ctx, &dynamodb.CreateTableInput{
 		AttributeDefinitions: []types.AttributeDefinition{
 			{
 				AttributeName: aws.String("block_hash"),
@@ -225,7 +233,7 @@ func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData
 	}
 
 	// put item into table
-	_, err = ddb.dynamoCli.PutItem(context.TODO(), &dynamodb.PutItemInput{
+	_, err = ddb.dynamoCli.PutItem(ddb.ctx, &dynamodb.PutItemInput{
 		TableName: aws.String("transactions"), Item: item,
 	})
 
@@ -255,7 +263,7 @@ func (ddb *DynamoDB) Del(ctx context.Context, key []byte) error {
 		return err
 	}
 
-	_, err = ddb.dynamoCli.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
+	_, err = ddb.dynamoCli.DeleteItem(ddb.ctx, &dynamodb.DeleteItemInput{
 		TableName: aws.String("transactions"), Key: val,
 	})
 
@@ -279,7 +287,7 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 	defer span.Finish()
 
 	// get unmined set
-	out, err := ddb.dynamoCli.Query(context.TODO(), &dynamodb.QueryInput{
+	out, err := ddb.dynamoCli.Query(ddb.ctx, &dynamodb.QueryInput{
 		TableName:              aws.String("transactions"),
 		IndexName:              aws.String("statuses"),
 		KeyConditionExpression: aws.String("tx_status_shard = :tx_status_shard and tx_status < :tx_status"),
@@ -319,7 +327,7 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 	defer span.Finish()
 
 	// update tx
-	_, err := ddb.dynamoCli.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+	_, err := ddb.dynamoCli.UpdateItem(ddb.ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String("transactions"),
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
@@ -350,7 +358,7 @@ func (ddb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 	defer span.Finish()
 
 	// set block parameters and status - mined
-	_, err := ddb.dynamoCli.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+	_, err := ddb.dynamoCli.UpdateItem(ddb.ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String("transactions"),
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
@@ -440,7 +448,7 @@ func (ddb *DynamoDB) SetBlockProcessed(ctx context.Context, blockHash *chainhash
 	}
 
 	// put item into table
-	_, err = ddb.dynamoCli.PutItem(context.TODO(), &dynamodb.PutItemInput{
+	_, err = ddb.dynamoCli.PutItem(ddb.ctx, &dynamodb.PutItemInput{
 		TableName: aws.String("blocks"), Item: item,
 	})
 

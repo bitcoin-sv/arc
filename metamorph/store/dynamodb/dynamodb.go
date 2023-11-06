@@ -469,3 +469,4 @@ func (ddb *DynamoDB) Close(ctx context.Context) error {
 	ctx.Done()
 	return nil
 }
+

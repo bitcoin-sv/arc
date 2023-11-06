@@ -2,11 +2,12 @@ package dynamodb
 
 import (
 	"context"
+	"fmt"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -26,13 +27,37 @@ type DynamoDB struct {
 const ISO8601 = "2006-01-02T15:04:05.999Z"
 
 func New() (store.MetamorphStore, error) {
+	// export necessary parameters for aws dynamodb connection
+	//err := os.Setenv("AWS_ACCESS_KEY_ID", viper.GetString("metamorph.db.dynamodb.awsAccessKeyID"))
+	//if err != nil {
+	//	return &DynamoDB{}, err
+	//}
+	//err = os.Setenv("AWS_SECRET_ACCESS_KEY", viper.GetString("metamorph.db.dynamodb.awsSecretAccessKey"))
+	//if err != nil {
+	//	return &DynamoDB{}, err
+	//}
+	//err = os.Setenv("AWS_SESSION_TOKEN", viper.GetString("metamorph.db.dynamodb.awsSessionToken"))
+	//if err != nil {
+	//	return &DynamoDB{}, err
+	//}
+
 	// Using the SDK's default configuration, loading additional config
 	// and credentials values from the environment variables, shared
 	// credentials, and shared configuration files
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	//cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(os.Getenv("AWS_REGION")))
+	ctx := context.TODO()
+	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return &DynamoDB{}, err
 	}
+
+	creds, err := cfg.Credentials.Retrieve(ctx)
+	if err != nil {
+		return &DynamoDB{}, err
+	}
+
+	fmt.Println("creds", creds)
+	fmt.Println("region", cfg.Region)
 
 	// create dynamodb client
 	dynamodbClient := &DynamoDB{dynamoCli: dynamodb.NewFromConfig(cfg)}

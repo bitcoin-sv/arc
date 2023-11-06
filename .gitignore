@@ -15,4 +15,4 @@ gosec-report.json
 gotest.out
 report.xml
 init_env.sh 
-background_jobs/config.yaml 
+background_jobs/config.yaml

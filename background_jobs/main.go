@@ -2,22 +2,15 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/bitcoin-sv/arc/background_jobs/jobs"
+	. "github.com/bitcoin-sv/arc/background_jobs/jobs"
 	"github.com/bitcoin-sv/arc/dbconn"
 	"github.com/go-co-op/gocron"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
-
-var logger zerolog.Logger
-
-func init() {
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	logger = log.With().Str("scheduler", "arc-scheduler").Logger()
-}
 
 func main() {
 	viper.SetConfigFile("config.yaml")
@@ -26,13 +19,15 @@ func main() {
 
 	if err := viper.ReadInConfig(); err != nil {
 		if errors.Is(err, viper.ConfigFileNotFoundError{}) {
-			logger.Fatal().Err(err).Msg("config file not found")
+			Log(ERROR, "config file not found")
+			return
 		} else {
-			logger.Fatal().Err(err).Msg("failed to read config file")
+			Log(ERROR, "failed to read config file")
+			return
 		}
 	}
 
-	params := jobs.ClearRecrodsParams{
+	params := ClearRecrodsParams{
 		DBConnectionParams: dbconn.DBConnectionParams{
 			Host:     viper.GetString("CleanBlocks.Host"),
 			Port:     viper.GetInt("CleanBlocks.Port"),
@@ -44,45 +39,54 @@ func main() {
 		RecordRetentionDays: viper.GetInt("CleanBlocks.RecordRetentionDays"),
 	}
 
-	logger.Info().Interface("params", params).Msg("")
+	Log(INFO, fmt.Sprintf("starting with %#v", params))
 	s := gocron.NewScheduler(time.UTC)
 
 	intervalInHours := viper.GetInt("CleanBlocks.ExecutionIntervalInHours")
+
 	_, err := s.Every(intervalInHours).Hours().Do(func() {
-		logger.Info().Msg("Clearing expired blocks...")
+		Log(INFO, "Clearing expired blocks...")
 		err := jobs.ClearBlocks(params)
 		if err != nil {
-			logger.Error().Err(err).Msg("unable to clear expired blocks")
+			Log(ERROR, fmt.Sprintf("unable to clear expired blocks %s", err))
+			return
 		}
-		logger.Info().Msg("Blocks cleanup complete")
+		Log(INFO, "Blocks cleanup complete")
 	})
 
 	if err != nil {
-		logger.Fatal().Err(err).Msg("unable to run job")
+		Log(ERROR, "unable to run ClearBlocks job")
+		return
 	}
 
 	_, err = s.Every(intervalInHours).Hours().Do(func() {
-		logger.Info().Msg("Clearing expired transactions...")
-		if err := jobs.ClearTransactions(params); err != nil {
-			logger.Error().Err(err).Msg("unable to clear expired transactions")
+		Log(INFO, "Clearing expired transactions...")
+		err := ClearTransactions(params)
+		if err != nil {
+			Log(ERROR, fmt.Sprintf("unable to clear expired transactions %s", err))
+			return
 		}
-		logger.Info().Msg("transactions cleanup complete")
+		Log(INFO, "transactions cleanup complete")
 	})
 
 	if err != nil {
-		logger.Fatal().Err(err).Msg("unable to run job")
+		Log(ERROR, "unable to run ClearTransactions job")
+		return
 	}
 
 	_, err = s.Every(intervalInHours).Hours().Do(func() {
-		logger.Info().Msg("Clearing expired mappings...")
-		if err := jobs.ClearBlockTransactionsMap(params); err != nil {
-			logger.Error().Err(err).Msg("unable to clear expired mappings")
+		Log(INFO, "Clearing expired block transaction maps...")
+		err := ClearBlockTransactionsMap(params)
+		if err != nil {
+			Log(ERROR, fmt.Sprintf("unable to clear expired block transaction maps %s", err))
+			return
 		}
-		logger.Info().Msg("mappings cleanup complete")
+		Log(INFO, "block transaction maps cleanup complete")
 	})
 
 	if err != nil {
-		logger.Fatal().Err(err).Msg("unable to run job")
+		Log(ERROR, "unable to run ClearBlockTransactionsMap job")
+		return
 	}
 
 	s.StartBlocking()

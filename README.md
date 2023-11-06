@@ -27,6 +27,7 @@ ARC is a transaction processor for Bitcoin that keeps track of the life cycle of
 
 ## Configuration
 Settings for ARC are defined in a configuration file. The default configuration file is `config.yaml` in the root directory. Each setting is documented in the file itself.
+If you want to load `config.yaml` from a different location, you can specify it on the command line using the `-config=<path>` flag.
 
 ## Microservices
 
@@ -56,6 +57,9 @@ where options are:
 
     -tracer=<true|false>
           whether to start the Jaeger tracer (default=false)
+  
+    -config=<path>
+          path to config file (default='')
 ```
 
 NOTE: If you start the `main.go` with a microservice set to true, it will not start the other services. For example, if

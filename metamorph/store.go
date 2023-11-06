@@ -9,11 +9,16 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/store/sql"
 )
 
+const (
+	DbModeBadger   = "badger"
+	DbModeDynamoDB = "dynamodb"
+)
+
 func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) {
 	switch dbMode {
-	case "badger":
+	case DbModeBadger:
 		s, err = badger.New(path.Join(folder, "metamorph"))
-	case "dynamodb":
+	case DbModeDynamoDB:
 		s, err = dynamodb.New()
 	default:
 		s, err = sql.New(dbMode)

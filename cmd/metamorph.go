@@ -73,30 +73,31 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		logger.Fatalf("no metamorph.listenAddr setting found")
 	}
 
-	ip, port, err := net.SplitHostPort(metamorphGRPCListenAddress)
-	if err != nil {
-		logger.Fatalf("cannot parse ip address: %v", err)
-	}
-
-	var source string
-
-	if ip != "" {
-		source = metamorphGRPCListenAddress
-	} else {
-		hint := viper.GetString("ipAddressHint")
-		ips, err := utils.GetIPAddressesWithHint(hint)
+	source := "-"
+	if dbMode != metamorph.DbModeDynamoDB {
+		ip, port, err := net.SplitHostPort(metamorphGRPCListenAddress)
 		if err != nil {
-			logger.Fatalf("cannot get local ip address")
+			logger.Fatalf("cannot parse ip address: %v", err)
 		}
 
-		if len(ips) != 1 {
-			logger.Fatalf("cannot determine local ip address [%v]", ips)
+		if ip != "" {
+			source = metamorphGRPCListenAddress
+		} else {
+			hint := viper.GetString("ipAddressHint")
+			ips, err := utils.GetIPAddressesWithHint(hint)
+			if err != nil {
+				logger.Fatalf("cannot get local ip address")
+			}
+
+			if len(ips) != 1 {
+				logger.Fatalf("cannot determine local ip address [%v]", ips)
+			}
+
+			source = fmt.Sprintf("%s:%s", ips[0], port)
 		}
 
-		source = fmt.Sprintf("%s:%s", ips[0], port)
+		logger.Infof("Instance will register transactions with location %q", source)
 	}
-
-	logger.Infof("Instance will register transactions with location %q", source)
 
 	pm, statusMessageCh := initPeerManager(logger, s)
 
@@ -139,7 +140,6 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	metamorphProcessor, err := metamorph.NewProcessor(
 		s,
 		pm,
-		source,
 		cbAsyncCaller.GetChannel(),
 		btx,
 		metamorph.WithCacheExpiryTime(mapExpiry),

@@ -405,8 +405,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		// submitting the same transaction through arc endpoint we have problem.
 		// The transaction doesn't exist in metamorph so the call after this line
 		// (updating tx status to MINED) will fail as there is no transaction to update.
-		// In that case we take the transaction from blocktx (where we parsed it from network)
-		// and store it first in metamorph database. BPAAS-1150
+		// In that case we take the transaction and store it first in metamorph database.
 		if err := s.store.Set(ctx, hash[:], &store.StoreData{
 			Hash:          &hash,
 			Status:        status,

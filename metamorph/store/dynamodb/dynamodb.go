@@ -2,7 +2,6 @@ package dynamodb
 
 import (
 	"context"
-	"os"
 	"strconv"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/gocore"
-	"github.com/spf13/viper"
 )
 
 type DynamoDB struct {
@@ -28,24 +26,11 @@ type DynamoDB struct {
 const ISO8601 = "2006-01-02T15:04:05.999Z"
 
 func New() (store.MetamorphStore, error) {
-	// export necessary parameters for aws dynamodb connection
-	err := os.Setenv("AWS_ACCESS_KEY_ID", viper.GetString("metamorph.db.dynamodb.aws_access_key_id"))
-	if err != nil {
-		return &DynamoDB{}, err
-	}
-	err = os.Setenv("AWS_SECRET_ACCESS_KEY", viper.GetString("metamorph.db.dynamodb.aws_secret_access_key"))
-	if err != nil {
-		return &DynamoDB{}, err
-	}
-	err = os.Setenv("AWS_SESSION_TOKEN", viper.GetString("metamorph.db.dynamodb.aws_session_token"))
-	if err != nil {
-		return &DynamoDB{}, err
-	}
-
 	// Using the SDK's default configuration, loading additional config
 	// and credentials values from the environment variables, shared
 	// credentials, and shared configuration files
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(os.Getenv("AWS_REGION")))
+	ctx := context.Background()
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithEC2IMDSRegion())
 	if err != nil {
 		return &DynamoDB{}, err
 	}
@@ -54,26 +39,26 @@ func New() (store.MetamorphStore, error) {
 	dynamodbClient := &DynamoDB{dynamoCli: dynamodb.NewFromConfig(cfg)}
 
 	// create table if not exists
-	exists, err := dynamodbClient.TableExists("transactions")
+	exists, err := dynamodbClient.TableExists(ctx, "transactions")
 	if err != nil {
 		return dynamodbClient, err
 	}
 
 	if !exists {
-		err = dynamodbClient.CreateTransactionsTable()
+		err = dynamodbClient.CreateTransactionsTable(ctx)
 		if err != nil {
 			return dynamodbClient, err
 		}
 	}
 
 	// create table if not exists
-	exists, err = dynamodbClient.TableExists("blocks")
+	exists, err = dynamodbClient.TableExists(ctx, "blocks")
 	if err != nil {
 		return dynamodbClient, err
 	}
 
 	if !exists {
-		err = dynamodbClient.CreateBlocksTable()
+		err = dynamodbClient.CreateBlocksTable(ctx)
 		if err != nil {
 			return dynamodbClient, err
 		}
@@ -83,9 +68,13 @@ func New() (store.MetamorphStore, error) {
 	return dynamodbClient, nil
 }
 
-func (ddb *DynamoDB) TableExists(tableName string) (bool, error) {
+func (ddb *DynamoDB) IsCentralised() bool {
+	return true
+}
+
+func (ddb *DynamoDB) TableExists(ctx context.Context, tableName string) (bool, error) {
 	// Build the request with its input parameters
-	resp, err := ddb.dynamoCli.ListTables(context.TODO(), &dynamodb.ListTablesInput{})
+	resp, err := ddb.dynamoCli.ListTables(ctx, &dynamodb.ListTablesInput{})
 	if err != nil {
 		return false, err
 	}
@@ -100,9 +89,9 @@ func (ddb *DynamoDB) TableExists(tableName string) (bool, error) {
 }
 
 // CreateTransactionsTable creates a DynamoDB table for storing metamorph user transactions
-func (ddb *DynamoDB) CreateTransactionsTable() error {
+func (ddb *DynamoDB) CreateTransactionsTable(ctx context.Context) error {
 	// construct primary key and create table
-	_, err := ddb.dynamoCli.CreateTable(context.TODO(), &dynamodb.CreateTableInput{
+	_, err := ddb.dynamoCli.CreateTable(ctx, &dynamodb.CreateTableInput{
 		AttributeDefinitions: []types.AttributeDefinition{
 			{
 				AttributeName: aws.String("tx_hash"),
@@ -160,9 +149,9 @@ func (ddb *DynamoDB) CreateTransactionsTable() error {
 }
 
 // CreateBlocksTable creates a DynamoDB table for storing blocks
-func (ddb *DynamoDB) CreateBlocksTable() error {
+func (ddb *DynamoDB) CreateBlocksTable(ctx context.Context) error {
 	// construct primary key and create table
-	if _, err := ddb.dynamoCli.CreateTable(context.TODO(), &dynamodb.CreateTableInput{
+	if _, err := ddb.dynamoCli.CreateTable(ctx, &dynamodb.CreateTableInput{
 		AttributeDefinitions: []types.AttributeDefinition{
 			{
 				AttributeName: aws.String("block_hash"),
@@ -241,7 +230,7 @@ func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData
 	}
 
 	// put item into table
-	_, err = ddb.dynamoCli.PutItem(context.TODO(), &dynamodb.PutItemInput{
+	_, err = ddb.dynamoCli.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String("transactions"), Item: item,
 	})
 
@@ -271,7 +260,7 @@ func (ddb *DynamoDB) Del(ctx context.Context, key []byte) error {
 		return err
 	}
 
-	_, err = ddb.dynamoCli.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
+	_, err = ddb.dynamoCli.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 		TableName: aws.String("transactions"), Key: val,
 	})
 
@@ -295,7 +284,7 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 	defer span.Finish()
 
 	// get unmined set
-	out, err := ddb.dynamoCli.Query(context.TODO(), &dynamodb.QueryInput{
+	out, err := ddb.dynamoCli.Query(ctx, &dynamodb.QueryInput{
 		TableName:              aws.String("transactions"),
 		IndexName:              aws.String("statuses"),
 		KeyConditionExpression: aws.String("tx_status_shard = :tx_status_shard and tx_status < :tx_status"),
@@ -335,7 +324,7 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 	defer span.Finish()
 
 	// update tx
-	_, err := ddb.dynamoCli.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+	_, err := ddb.dynamoCli.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String("transactions"),
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
@@ -366,7 +355,7 @@ func (ddb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 	defer span.Finish()
 
 	// set block parameters and status - mined
-	_, err := ddb.dynamoCli.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+	_, err := ddb.dynamoCli.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String("transactions"),
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
@@ -388,7 +377,7 @@ func (ddb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 	return nil
 }
 
-// marshal input value for new entry
+// BlockItem marshal input value for new entry
 type BlockItem struct {
 	Hash        []byte `dynamodbav:"block_hash"`
 	ProcessedAt string `dynamodbav:"processed_at"`
@@ -456,7 +445,7 @@ func (ddb *DynamoDB) SetBlockProcessed(ctx context.Context, blockHash *chainhash
 	}
 
 	// put item into table
-	_, err = ddb.dynamoCli.PutItem(context.TODO(), &dynamodb.PutItemInput{
+	_, err = ddb.dynamoCli.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String("blocks"), Item: item,
 	})
 
@@ -480,3 +469,4 @@ func (ddb *DynamoDB) Close(ctx context.Context) error {
 	ctx.Done()
 	return nil
 }
+

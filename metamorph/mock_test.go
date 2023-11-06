@@ -89,6 +89,8 @@ func (p *ProcessorMock) GetStats(_ bool) *ProcessorStats {
 	return p.Stats
 }
 
+func (p *ProcessorMock) Shutdown() {}
+
 type BlockTxMock struct {
 	mu                                    sync.Mutex
 	address                               string
@@ -112,6 +114,8 @@ func NewBlockTxMock(address string) *BlockTxMock {
 		GetMinedTransactionsForBlockResponses: make([]interface{}, 0),
 	}
 }
+
+func (b *BlockTxMock) Shutdown() {}
 
 func (b *BlockTxMock) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error) {
 	// TODO: return mock response

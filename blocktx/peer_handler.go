@@ -27,6 +27,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+const TransactionStoringInterval = 16384 // power of 2 for easier memory allocation
+
 func init() {
 	// override the default wire block handler with our own that streams and stores only the transaction ids
 	wire.SetExternalHandler(wire.CmdBlock, func(reader io.Reader, length uint64, bytesRead int) (int, wire.Message, []byte, error) {
@@ -369,8 +371,8 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("markTransactionsAsMined").AddTime(start)
 	}()
 
-	txs := make([]*blocktx_api.TransactionAndSource, 0, len(transactionHashes))
-	merklePaths := make([]string, 0, len(transactionHashes))
+	txs := make([]*blocktx_api.TransactionAndSource, 0, TransactionStoringInterval)
+	merklePaths := make([]string, 0, TransactionStoringInterval)
 
 	for txIndex, hash := range transactionHashes {
 		txs = append(txs, &blocktx_api.TransactionAndSource{
@@ -395,10 +397,14 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, transactionHashes
 		}
 
 		merklePaths = append(merklePaths, merklePathBinary)
-	}
-
-	if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
-		return err
+		if txIndex%TransactionStoringInterval == 0 || txIndex == len(transactionHashes)-1 {
+			if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
+				return err
+			}
+			// free up memory
+			txs = txs[:0]
+			merklePaths = merklePaths[:0]
+		}
 	}
 
 	return nil

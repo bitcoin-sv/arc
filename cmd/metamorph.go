@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -23,6 +24,7 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
+	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/safemap"
 	"github.com/pkg/errors"
@@ -49,42 +51,53 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		logger.Fatalf("Error creating metamorph store: %v", err)
 	}
 
-	address := viper.GetString("blocktx.dialAddr")
-	if address == "" {
+	blocktxAddress := viper.GetString("blocktx.dialAddr")
+	if blocktxAddress == "" {
 		return nil, errors.New("blocktx.dialAddr not found in config")
 	}
 
-	btc := blocktx.NewClient(logger, address)
+	blockTxLogger, err := config.NewLogger()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new logger: %v", err)
+	}
+
+	conn, err := blocktx.DialGRPC(blocktxAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
+	}
+
+	btx := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn), blocktx.WithLogger(blockTxLogger))
 
 	metamorphGRPCListenAddress := viper.GetString("metamorph.listenAddr")
 	if metamorphGRPCListenAddress == "" {
 		logger.Fatalf("no metamorph.listenAddr setting found")
 	}
 
-	ip, port, err := net.SplitHostPort(metamorphGRPCListenAddress)
-	if err != nil {
-		logger.Fatalf("cannot parse ip address: %v", err)
-	}
-
-	var source string
-
-	if ip != "" {
-		source = metamorphGRPCListenAddress
-	} else {
-		hint := viper.GetString("ipAddressHint")
-		ips, err := utils.GetIPAddressesWithHint(hint)
+	source := "-"
+	if dbMode != metamorph.DbModeDynamoDB {
+		ip, port, err := net.SplitHostPort(metamorphGRPCListenAddress)
 		if err != nil {
-			logger.Fatalf("cannot get local ip address")
+			logger.Fatalf("cannot parse ip address: %v", err)
 		}
 
-		if len(ips) != 1 {
-			logger.Fatalf("cannot determine local ip address [%v]", ips)
+		if ip != "" {
+			source = metamorphGRPCListenAddress
+		} else {
+			hint := viper.GetString("ipAddressHint")
+			ips, err := utils.GetIPAddressesWithHint(hint)
+			if err != nil {
+				logger.Fatalf("cannot get local ip address")
+			}
+
+			if len(ips) != 1 {
+				logger.Fatalf("cannot determine local ip address [%v]", ips)
+			}
+
+			source = fmt.Sprintf("%s:%s", ips[0], port)
 		}
 
-		source = fmt.Sprintf("%s:%s", ips[0], port)
+		logger.Infof("Instance will register transactions with location %q", source)
 	}
-
-	logger.Infof("Instance will register transactions with location %q", source)
 
 	pm, statusMessageCh := initPeerManager(logger, s)
 
@@ -92,7 +105,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	if callbackerAddress == "" {
 		logger.Fatalf("no callbacker.dialAddr setting found")
 	}
-	cb := callbacker.NewClient(logger, callbackerAddress)
+	cb := callbacker.NewClient(callbackerAddress)
 
 	callbackRegisterPath, err := filepath.Abs(path.Join(folder, "callback-register"))
 	if err != nil {
@@ -127,11 +140,12 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	metamorphProcessor, err := metamorph.NewProcessor(
 		s,
 		pm,
-		source,
 		cbAsyncCaller.GetChannel(),
-		btc,
-		metamorph.WithProcessorCacheExpiryTime(mapExpiry),
+		btx,
+		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithProcessorLogger(processorLogger),
+		metamorph.WithLogFilePath(viper.GetString("metamorph.log.file")),
+		metamorph.WithDataRetentionPeriod(time.Duration(viper.GetInt("metamorph.dataRetentionPeriodDays"))*24*time.Hour),
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
@@ -172,7 +186,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 			// check whether we have already processed this block
 			if processedAt == nil || processedAt.IsZero() {
 				// process the block
-				processBlock(logger, btc, metamorphProcessor, s, &blocktx_api.BlockAndSource{
+				processBlock(logger, btx, metamorphProcessor, s, &blocktx_api.BlockAndSource{
 					Hash:   block.Hash,
 					Source: source,
 				})
@@ -195,7 +209,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 					continue
 				}
 
-				previousBlock, err = btc.GetBlock(context.Background(), pHash)
+				previousBlock, err = btx.GetBlock(context.Background(), pHash)
 				if err != nil {
 					if !errors.Is(err, blockTxStore.ErrBlockNotFound) {
 						logger.Errorf("Could not get previous block with hash %s from block tx: %v", pHash.String(), err)
@@ -213,9 +227,52 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		}
 	}()
 
-	go btc.Start(blockChan)
+	btx.Start(blockChan)
 
-	serv := metamorph.NewServer(logger, s, metamorphProcessor, btc, source)
+	metamorphLogger, err := config.NewLogger()
+	if err != nil {
+		logger.Errorf("failed to get new logger: %v", err)
+		return nil, err
+	}
+	opts := []metamorph.ServerOption{
+		metamorph.WithLogger(metamorphLogger),
+	}
+
+	if viper.GetBool("metamorph.checkUtxos") {
+		peerRpcPassword := viper.GetString("peerRpc.password")
+		if peerRpcPassword == "" {
+			return nil, errors.Errorf("setting peerRpc.password not found")
+		}
+
+		peerRpcUser := viper.GetString("peerRpc.user")
+		if peerRpcUser == "" {
+			return nil, errors.Errorf("setting peerRpc.user not found")
+		}
+
+		peerRpcHost := viper.GetString("peerRpc.host")
+		if peerRpcHost == "" {
+			return nil, errors.Errorf("setting peerRpc.host not found")
+		}
+
+		peerRpcPort := viper.GetInt("peerRpc.port")
+		if peerRpcPort == 0 {
+			return nil, errors.Errorf("setting peerRpc.port not found")
+		}
+
+		rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
+		if err != nil {
+			return nil, errors.Errorf("failed to parse rpc URL: %v", err)
+		}
+
+		node, err := bitcoin.NewFromURL(rpcURL, false)
+		if err != nil {
+			return nil, err
+		}
+
+		opts = append(opts, metamorph.WithForceCheckUtxos(node))
+	}
+
+	serv := metamorph.NewServer(s, metamorphProcessor, btx, source, opts...)
 
 	go func() {
 		grpcMessageSize := viper.GetInt("grpcMessageSize")

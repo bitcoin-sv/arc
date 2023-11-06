@@ -6,8 +6,6 @@ import (
 	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/ordishs/go-utils"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -19,13 +17,11 @@ type ClientI interface {
 
 type Client struct {
 	address string
-	logger  utils.Logger
 }
 
-func NewClient(l utils.Logger, address string) *Client {
+func NewClient(address string) *Client {
 	return &Client{
 		address: address,
-		logger:  l,
 	}
 }
 

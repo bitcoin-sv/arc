@@ -142,10 +142,13 @@ func TestPostCallbackToken(t *testing.T) {
 
 			ctx := context.Background()
 
+			hostname, err := os.Hostname()
+			require.NoError(t, err)
+
 			waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
 			params := &api.POSTTransactionParams{
 				XWaitForStatus: &waitForStatus,
-				XCallbackUrl:   handler.PtrTo("http://localhost:9000/callback"),
+				XCallbackUrl:   handler.PtrTo(fmt.Sprintf("http://%s:9000/callback", hostname)),
 				XCallbackToken: handler.PtrTo("1234"),
 			}
 
@@ -161,15 +164,15 @@ func TestPostCallbackToken(t *testing.T) {
 			require.NotNil(t, response.JSON200)
 			require.Equal(t, "SEEN_ON_NETWORK", response.JSON200.TxStatus)
 
-			callbackReceivedChan := make(chan *api.TransactionStatus, 1)
-			errChan := make(chan error, 1)
+			callbackReceivedChan := make(chan *api.TransactionStatus, 2)
+			errChan := make(chan error, 2)
 
 			expectedAuthHeader := "Bearer 1234"
 			srv := &http.Server{Addr: ":9000"}
 			defer func() {
-				t.Log("shutting down callback server")
+				t.Log("shutting down callback listener")
 				if err = srv.Shutdown(context.TODO()); err != nil {
-					panic(err) // failure/timeout shutting down the server gracefully
+					panic(err)
 				}
 			}()
 
@@ -200,12 +203,12 @@ func TestPostCallbackToken(t *testing.T) {
 
 				// Let ARC send the callback 2 times. First one fails.
 				if iterations == 0 {
+					t.Log("callback received, responding bad request")
+
 					err = respondToCallback(w, false)
 					if err != nil {
 						t.Fatalf("Failed to respond to callback: %v", err)
 					}
-
-					t.Log("callback received, responding bad request")
 
 					callbackReceivedChan <- &status
 
@@ -213,13 +216,13 @@ func TestPostCallbackToken(t *testing.T) {
 					return
 				}
 
+				t.Log("callback received, responding success")
+
 				err = respondToCallback(w, true)
 				if err != nil {
 					t.Fatalf("Failed to respond to callback: %v", err)
 				}
 				callbackReceivedChan <- &status
-
-				t.Log("callback received, responding success")
 			})
 
 			go func(server *http.Server) {

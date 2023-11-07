@@ -621,15 +621,14 @@ func BenchmarkProcessTransaction(b *testing.B) {
 
 		txs[txID] = &txHash
 
-		processor.ProcessTransaction(NewProcessorRequest(
-			context.Background(),
-			&store.StoreData{
+		processor.ProcessTransaction(&ProcessorRequest{
+			context: context.Background(),
+			StoreData: &store.StoreData{
 				Hash:   &txHash,
 				Status: metamorph_api.Status_UNKNOWN,
 				RawTx:  testdata.TX1RawBytes,
 			},
-			nil,
-		))
+		})
 	}
 	b.StopTimer()
 

@@ -136,6 +136,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI,
 	if s == nil {
 		return nil, errors.New("store cannot be nil")
 	}
+
 	if pm == nil {
 		return nil, errors.New("peer manager cannot be nil")
 	}
@@ -192,7 +193,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI,
 func (p *Processor) Set(req *ProcessorRequest) error {
 	// we need to decouple the context from the request, so that we don't get cancelled
 	// when the request is cancelled
-	callerSpan := opentracing.SpanFromContext(req.ctx)
+	callerSpan := opentracing.SpanFromContext(req.context)
 	ctx := opentracing.ContextWithSpan(context.Background(), callerSpan)
 	_, spanCtx := opentracing.StartSpanFromContext(ctx, "Processor:processTransaction")
 	return p.store.Set(spanCtx, req.Hash[:], req.StoreData)
@@ -536,7 +537,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 
 	// we need to decouple the context from the request, so that we don't get cancelled
 	// when the request is cancelled
-	callerSpan := opentracing.SpanFromContext(req.ctx)
+	callerSpan := opentracing.SpanFromContext(req.context)
 	ctx := opentracing.ContextWithSpan(context.Background(), callerSpan)
 	span, spanCtx := opentracing.StartSpanFromContext(ctx, "Processor:processTransaction")
 	defer span.Finish()

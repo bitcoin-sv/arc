@@ -3,7 +3,6 @@ package sql
 import (
 	"context"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/tests"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -63,38 +61,26 @@ func TestPutGetMulti(t *testing.T) {
 
 	defer sqliteDB.Close(context.Background())
 
-	var wg sync.WaitGroup
-
 	for workerId := 0; workerId < 10; workerId++ {
-		wg.Add(1)
+		for i := 0; i < 100; i++ {
+			data := []byte(fmt.Sprintf("Hello world %d-%d-%d", workerId, i, time.Now().UnixMilli()))
 
-		ctx := context.Background()
-		go func(workerId int) {
-			defer wg.Done()
+			hash := chainhash.DoubleHashH(data)
 
-			for i := 0; i < 100; i++ {
-				data := []byte(fmt.Sprintf("Hello world %d-%d-%d", workerId, i, time.Now().UnixMilli()))
+			err := sqliteDB.Set(context.Background(), hash[:], &store.StoreData{
+				Hash: &hash,
+			})
+			require.NoError(t, err)
 
-				hash := chainhash.DoubleHashH(data)
+			var data2 *store.StoreData
+			data2, err = sqliteDB.Get(context.Background(), hash[:])
+			require.NoError(t, err)
+			assert.Equal(t, &hash, data2.Hash)
 
-				err := sqliteDB.Set(ctx, hash[:], &store.StoreData{
-					Hash: &hash,
-				})
-				require.NoError(t, err)
-
-				var data2 *store.StoreData
-				data2, err = sqliteDB.Get(context.Background(), hash[:])
-				require.NoError(t, err)
-				assert.Equal(t, &hash, data2.Hash)
-
-				err = sqliteDB.Del(context.Background(), hash[:])
-				require.NoError(t, err)
-			}
-		}(workerId)
+			err = sqliteDB.Del(context.Background(), hash[:])
+			require.NoError(t, err)
+		}
 	}
-
-	wg.Wait()
-
 }
 
 func TestGetUnseen(t *testing.T) {

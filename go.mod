@@ -9,7 +9,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.10.42
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.22.2
 	github.com/deepmap/oapi-codegen v1.11.0
-	github.com/dgraph-io/badger/v3 v3.2103.1
 	github.com/fergusstrange/embedded-postgres v1.24.0
 	github.com/getkin/kin-openapi v0.103.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
@@ -23,6 +22,7 @@ require (
 	github.com/lib/pq v1.10.7
 	github.com/libsv/go-bc v0.1.18
 	github.com/libsv/go-bk v0.1.6
+	github.com/libsv/go-bt v1.0.8
 	github.com/libsv/go-bt/v2 v2.2.5
 	github.com/libsv/go-p2p v0.1.2
 	github.com/oapi-codegen/runtime v1.0.0
@@ -67,6 +67,7 @@ require (
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/dgraph-io/badger/v3 v3.2103.1 // indirect
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
@@ -90,7 +91,6 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/klauspost/compress v1.16.7 // indirect
-	github.com/libsv/go-bt v1.0.8 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect

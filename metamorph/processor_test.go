@@ -17,11 +17,9 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
-	"github.com/bitcoin-sv/arc/metamorph/store/badger"
 	storeMock "github.com/bitcoin-sv/arc/metamorph/store/mock"
 	metamorphSql "github.com/bitcoin-sv/arc/metamorph/store/sql"
 	"github.com/bitcoin-sv/arc/testdata"
-	"github.com/labstack/gommon/random"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -595,46 +593,6 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
 	})
-}
-
-func BenchmarkProcessTransaction(b *testing.B) {
-	direName := fmt.Sprintf("./test-benchmark-%s", random.String(6))
-	s, err := badger.New(direName)
-	require.NoError(b, err)
-	defer func() {
-		_ = s.Close(context.Background())
-		_ = os.RemoveAll(direName)
-	}()
-
-	pm := p2p.NewPeerManagerMock()
-	processor, err := NewProcessor(s, pm, nil, nil)
-	require.NoError(b, err)
-	assert.Equal(b, 0, processor.processorResponseMap.Len())
-
-	txs := make(map[string]*chainhash.Hash)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		txID := fmt.Sprintf("%x", i)
-
-		txHash := chainhash.HashH([]byte(txID))
-
-		txs[txID] = &txHash
-
-		processor.ProcessTransaction(NewProcessorRequest(
-			context.Background(),
-			&store.StoreData{
-				Hash:   &txHash,
-				Status: metamorph_api.Status_UNKNOWN,
-				RawTx:  testdata.TX1RawBytes,
-			},
-			nil,
-		))
-	}
-	b.StopTimer()
-
-	// wait for the last items to be written to the store
-	time.Sleep(1 * time.Second)
 }
 
 func TestProcessExpiredSeenTransactions(t *testing.T) {

@@ -39,7 +39,6 @@ metamorph:
   log:
     file: ./data/metamorph.log # location of log file
   db:
-    mode: badger # db mode inidicates which db to use. Value can be one of badger | postgres | dynamodb
     postgres: # postgres db configuration in case that mode: postgres
       host: localhost
       port: 5432

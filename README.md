@@ -164,14 +164,12 @@ This status is returned in the `txStatus` field whenever the transaction is quer
 #### Metamorph stores
 
 The metamorph store has been implemented for multiple databases, depending on your needs. In high-volume environments,
-you may want to use a database that is optimized for high throughput, such as [Badger](https://dgraph.io/docs/badger).
+you may want to use a database that is optimized for high throughput.
 
 The following databases have been implemented:
 
 * Sqlite3 (`sqlite` or `sqlite_memory` for in-memory)
 * Postgres (`postgres`)
-* Badger (`badger`)
-* BadgerHold (`badgerhold`)
 
 You can select the store to use by setting the `metamorph.db.mode` in the settings file or adding `metamorph.db.mode` as
 an environment variable.

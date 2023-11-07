@@ -46,7 +46,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		return nil, errors.New("metamorph.db.mode not found in config")
 	}
 
-	s, err := metamorph.NewStore(dbMode, folder)
+	s, err := metamorph.NewStore(dbMode)
 	if err != nil {
 		logger.Fatalf("Error creating metamorph store: %v", err)
 	}

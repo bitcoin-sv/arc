@@ -70,5 +70,8 @@ jobs:
           path: ./build
 
       - name: e2e test
-        run: docker compose up --abort-on-container-exit --exit-code-from tests
+        run: |
+          docker-compose up -d node1 node2 node3
+          docker-compose up --exit-code-from tests tests arc
+          docker-compose down
         working-directory: ./test

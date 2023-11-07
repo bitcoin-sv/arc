@@ -55,19 +55,19 @@ func main() {
 
 	params := jobs.ClearRecrodsParams{
 		DBConnectionParams: dbconn.DBConnectionParams{
-			Host:     viper.GetString("CleanBlocks.Host"),
-			Port:     viper.GetInt("CleanBlocks.Port"),
-			Username: viper.GetString("CleanBlocks.Username"),
-			Password: viper.GetString("CleanBlocks.Password"),
-			DBName:   viper.GetString("CleanBlocks.DBName"),
-			Scheme:   viper.GetString("CleanBlocks.Scheme"),
+			Host:     viper.GetString("cleanBlocks.host"),
+			Port:     viper.GetInt("cleanBlocks.port"),
+			Username: viper.GetString("cleanBlocks.username"),
+			Password: viper.GetString("cleanBlocks.password"),
+			DBName:   viper.GetString("cleanBlocks.dbName"),
+			Scheme:   viper.GetString("cleanBlocks.scheme"),
 		},
-		RecordRetentionDays: viper.GetInt("CleanBlocks.RecordRetentionDays"),
+		RecordRetentionDays: viper.GetInt("cleanBlocks.recordRetentionDays"),
 	}
 
 	jobs.Log(jobs.INFO, fmt.Sprintf("starting with %#v", params))
 
-	intervalInHours := viper.GetInt("CleanBlocks.ExecutionIntervalInHours")
+	intervalInHours := viper.GetInt("cleanBlocks.executionIntervalInHours")
 
 	sched := ARCScheduler{
 		s:               gocron.NewScheduler(time.UTC),

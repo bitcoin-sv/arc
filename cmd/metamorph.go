@@ -145,6 +145,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithProcessorLogger(processorLogger),
 		metamorph.WithLogFilePath(viper.GetString("metamorph.log.file")),
+		metamorph.WithDataRetentionPeriod(time.Duration(viper.GetInt("metamorph.dataRetentionPeriodDays"))*24*time.Hour),
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)

@@ -17,7 +17,9 @@ func StartCallbacker(logger *slog.Logger) (func(), error) {
 		return nil, errors.New("dataFolder not found in config")
 	}
 
-	callbackStore, err := callbacker.NewStore(folder)
+	callbackerExpiryInterval := viper.GetDuration("callbacker.expiryInterval")
+
+	callbackStore, err := callbacker.NewStore(folder, callbackerExpiryInterval)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callbacker store: %v", err)
 	}
@@ -27,8 +29,10 @@ func StartCallbacker(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to create new callbacker logger: %v", err)
 	}
 
+	callbackerInterval := viper.GetDuration("callbacker.interval")
+
 	var callbackWorker *callbacker.Callbacker
-	callbackWorker, err = callbacker.New(callbackStore, callbacker.WithLogger(callbackerLogger))
+	callbackWorker, err = callbacker.New(callbackStore, callbacker.WithLogger(callbackerLogger), callbacker.WithSendCallbacksInterval(callbackerInterval))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callbacker: %v", err)
 	}

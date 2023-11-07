@@ -3,6 +3,7 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path"
@@ -13,10 +14,12 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/labstack/gommon/random"
 	_ "github.com/lib/pq"
+	"github.com/libsv/go-bt"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
+	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"github.com/spf13/viper"
 	_ "modernc.org/sqlite"
@@ -616,6 +619,10 @@ func (s *SQL) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) 
 	return err
 }
 
+func HashString(b []byte) string {
+	return hex.EncodeToString(bt.ReverseBytes(utils.Sha256d(b)))
+}
+
 func (s *SQL) Del(ctx context.Context, key []byte) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {
@@ -624,7 +631,7 @@ func (s *SQL) Del(ctx context.Context, key []byte) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Del")
 	defer span.Finish()
 
-	hash := store.HashString(key)
+	hash := HashString(key)
 
 	q := `DELETE FROM transactions WHERE hash = $1;`
 

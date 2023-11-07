@@ -150,10 +150,6 @@ func (s *DatabaseTestSuite) InsertBlockTransactionMap(btx *store.BlockTransactio
 	require.NoError(s.T(), err)
 }
 
-func (s *DatabaseTestSuite) TearDownSuite() {
-	//require.NoError(s.T(), s.Database.Stop())
-}
-
 // TearDownTest clear all the tables
 func (s *DatabaseTestSuite) TearDownTest() {
 	db, err := sqlx.Open("postgres", DefaultParams.String())

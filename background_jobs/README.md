@@ -7,7 +7,7 @@ The current implementation contains only ARC tables clean up with frequency spec
 ## Key features
 - easy configuration using config.yaml file
 - no dependencies
-- structured logs output using zerolog
+- structured logs output using log/slog
 - extendable layout for other scenarios
 
 ## System requirements

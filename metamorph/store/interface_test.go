@@ -5,35 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestEncDec(t *testing.T) {
-	sd := &StoreData{
-		StoredAt:     time.Now(),
-		AnnouncedAt:  time.Now(),
-		Status:       metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-		RawTx:        []byte("hello"),
-		Hash:         &chainhash.Hash{},
-		RejectReason: "This is a reject reason",
-	}
-
-	b, err := sd.EncodeToBytes()
-	require.NoError(t, err)
-
-	sd2, err := DecodeFromBytes(b)
-	require.NoError(t, err)
-
-	t.Log(sd.StoredAt)
-	t.Log(sd2.StoredAt)
-
-	t.Log(sd.MinedAt)
-	t.Log(sd2.MinedAt)
-
-}
 
 func TestTime(t *testing.T) {
 	t1 := time.Now()

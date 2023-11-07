@@ -13,4 +13,4 @@ COPY ./arc_txt_endpoint_test.go ./arc_txt_endpoint_test.go
 COPY ./utils.go ./utils.go
 
 # This will compile and run the tests
-CMD [ "go", "test", "-v" ,"./..."]
+CMD [ "go", "test", "-v", "-failfast" ,"./..."]

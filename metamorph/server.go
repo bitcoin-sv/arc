@@ -414,7 +414,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 			MerkleProof:   req.MerkleProof,
 			RawTx:         req.RawTx,
 		}); err != nil {
-			s.logger.Warn("Transaction already exists in db", slog.String("warn", err.Error()))
+			s.logger.Error("Failed to store transaction", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 		}
 
 		// If the transaction was mined, we should mark it as such

@@ -285,4 +285,4 @@ docker compose up --abort-on-container-exit --exit-code-from tests
 
 ## Background jobs 
 
-See [here](https://github.com/bitcoin-sv/arc/tree/arc-background-jobs/background_jobs/ReadMe.md)
+See [here](https://github.com/bitcoin-sv/arc/tree/arc-background-jobs/background_jobs/README.md)

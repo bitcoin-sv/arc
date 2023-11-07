@@ -135,7 +135,7 @@ func TestPostCallbackToken(t *testing.T) {
 			tx, err := createTx(privateKey, address, utxos[0])
 			require.NoError(t, err)
 
-			url := "http://localhost:9090/"
+			url := "http://arc:9090/"
 
 			arcClient, err := api.NewClientWithResponses(url)
 			require.NoError(t, err)

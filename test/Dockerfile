@@ -1,5 +1,4 @@
-# Start from a Debian base image
-FROM golang:1.21.1
+FROM golang:1.21.3
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
@@ -14,4 +13,4 @@ COPY ./arc_txt_endpoint_test.go ./arc_txt_endpoint_test.go
 COPY ./utils.go ./utils.go
 
 # This will compile and run the tests
-CMD [ "go", "test", "-v" ,"./..."]
+CMD [ "go", "test", "-v", "-failfast" ,"./..."]

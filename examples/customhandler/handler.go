@@ -17,7 +17,7 @@ type CustomHandler struct {
 	MyCustomVar string `json:"my_custom_var"`
 }
 
-func NewCustomHandler() (api.HandlerInterface, error) {
+func NewCustomHandler() (api.ServerInterface, error) {
 	// add a single bitcoin node
 	node, err := transactionHandler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
 	if err != nil {

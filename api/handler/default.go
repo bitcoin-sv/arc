@@ -10,6 +10,11 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/validator"
+	defaultValidator "github.com/bitcoin-sv/arc/validator/default"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/opentracing/opentracing-go"
@@ -18,12 +23,6 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"github.com/pkg/errors"
-
-	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/api/transactionHandler"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/validator"
-	defaultValidator "github.com/bitcoin-sv/arc/validator/default"
 )
 
 type ArcDefaultHandler struct {
@@ -41,7 +40,7 @@ func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 
 type Option func(f *ArcDefaultHandler)
 
-func NewDefault(logger utils.Logger, transactionHandler transactionHandler.TransactionHandler, policy *bitcoin.Settings, opts ...Option) (api.HandlerInterface, error) {
+func NewDefault(logger utils.Logger, transactionHandler transactionHandler.TransactionHandler, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
 
 	handler := &ArcDefaultHandler{
 		TransactionHandler: transactionHandler,

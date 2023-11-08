@@ -67,6 +67,7 @@ paths:
         This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.  The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
       parameters:
         - $ref: '#/components/parameters/callbackUrl'
+        - $ref: '#/components/parameters/skipFeeValidation'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/merkleProof'
         - $ref: '#/components/parameters/waitForStatus'
@@ -154,6 +155,7 @@ paths:
         This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates. The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
       parameters:
         - $ref: '#/components/parameters/callbackUrl'
+        - $ref: '#/components/parameters/skipFeeValidation'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/merkleProof'
         - $ref: '#/components/parameters/waitForStatus'
@@ -707,7 +709,7 @@ components:
       description: >-
         Wheather we should skip fee validation or not.
       schema:
-        type: bool
+        type: boolean
     callbackToken:
       name: X-CallbackToken
       in: header

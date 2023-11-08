@@ -26,6 +26,8 @@ type BadgerData struct {
 	Url           string
 	Token         string
 	Status        int32
+	BlockHash     []byte
+	BlockHeight   uint64
 }
 
 type BadgerHold struct {
@@ -87,10 +89,12 @@ func (bh *BadgerHold) Get(_ context.Context, key string) (*callbacker_api.Callba
 	}
 
 	return &callbacker_api.Callback{
-		Hash:   result.Hash,
-		Url:    result.Url,
-		Token:  result.Token,
-		Status: result.Status,
+		Hash:        result.Hash,
+		Url:         result.Url,
+		Token:       result.Token,
+		Status:      result.Status,
+		BlockHash:   result.BlockHash,
+		BlockHeight: result.BlockHeight,
 	}, nil
 }
 
@@ -104,10 +108,12 @@ func (bh *BadgerHold) GetExpired(_ context.Context) (map[string]*callbacker_api.
 	callbacks := make(map[string]*callbacker_api.Callback)
 	for _, callback := range result {
 		callbacks[callback.Key] = &callbacker_api.Callback{
-			Hash:   callback.Hash,
-			Url:    callback.Url,
-			Token:  callback.Token,
-			Status: callback.Status,
+			Hash:        callback.Hash,
+			Url:         callback.Url,
+			Token:       callback.Token,
+			Status:      callback.Status,
+			BlockHash:   callback.BlockHash,
+			BlockHeight: callback.BlockHeight,
 		}
 	}
 
@@ -129,6 +135,8 @@ func (bh *BadgerHold) Set(_ context.Context, callback *callbacker_api.Callback) 
 		Url:           callback.Url,
 		Token:         callback.Token,
 		Status:        callback.Status,
+		BlockHash:     callback.BlockHash,
+		BlockHeight:   callback.BlockHeight,
 	}
 	if err := bh.store.Upsert(key, value); err != nil {
 		return "", fmt.Errorf("failed to insert data: %w", err)

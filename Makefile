@@ -25,8 +25,8 @@ build_release:
 
 .PHONY: run_e2e_tests
 run_e2e_tests:
-	cd ./test && docker-compose up -d node1 node2 node3 arc
-	cd ./test && docker-compose up --exit-code-from tests tests
+	cd ./test && docker-compose up -d node1 node2 node3
+	cd ./test && docker-compose up --exit-code-from tests tests arc
 	cd ./test && docker-compose down
 
 .PHONY: test

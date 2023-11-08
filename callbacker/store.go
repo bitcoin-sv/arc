@@ -10,13 +10,13 @@ import (
 	callbackerBadgerhold "github.com/bitcoin-sv/arc/callbacker/store/badgerhold"
 )
 
-func NewStore(folder string) (store.Store, error) {
+func NewStore(folder string, interval time.Duration) (store.Store, error) {
 	f, err := filepath.Abs(path.Join(folder, "callbacker"))
 	if err != nil {
 		return nil, fmt.Errorf("could not get absolute path: %v", err)
 	}
 
-	callbackStore, err := callbackerBadgerhold.New(f, 3*time.Minute)
+	callbackStore, err := callbackerBadgerhold.New(f, interval)
 	if err != nil {
 		return nil, fmt.Errorf("could not open callbacker store: %v", err)
 	}

@@ -898,36 +898,36 @@ func NewPOSTTransactionRequestWithBody(server string, params *POSTTransactionPar
 		}
 
 		if params.XSkipFeeValidation != nil {
-			var headerParam1 string
+			var headerParam2 string
 
-			headerParam1, err = runtime.StyleParamWithLocation("simple", false, "X-SkipFeeValidation", runtime.ParamLocationHeader, *params.XSkipFeeValidation)
+			headerParam2, err = runtime.StyleParamWithLocation("simple", false, "X-SkipFeeValidation", runtime.ParamLocationHeader, *params.XSkipFeeValidation)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-SkipFeeValidation", headerParam1)
+			req.Header.Set("X-SkipFeeValidation", headerParam2)
 		}
 
 		if params.XMerkleProof != nil {
-			var headerParam2 string
+			var headerParam3 string
 
-			headerParam2, err = runtime.StyleParamWithLocation("simple", false, "X-MerkleProof", runtime.ParamLocationHeader, *params.XMerkleProof)
+			headerParam3, err = runtime.StyleParamWithLocation("simple", false, "X-MerkleProof", runtime.ParamLocationHeader, *params.XMerkleProof)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-MerkleProof", headerParam2)
+			req.Header.Set("X-MerkleProof", headerParam3)
 		}
 
 		if params.XWaitForStatus != nil {
-			var headerParam3 string
+			var headerParam4 string
 
-			headerParam3, err = runtime.StyleParamWithLocation("simple", false, "X-WaitForStatus", runtime.ParamLocationHeader, *params.XWaitForStatus)
+			headerParam4, err = runtime.StyleParamWithLocation("simple", false, "X-WaitForStatus", runtime.ParamLocationHeader, *params.XWaitForStatus)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-WaitForStatus", headerParam3)
+			req.Header.Set("X-WaitForStatus", headerParam4)
 		}
 
 	}

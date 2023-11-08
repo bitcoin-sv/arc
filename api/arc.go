@@ -1549,21 +1549,6 @@ func (w *ServerInterfaceWrapper) POSTTransaction(ctx echo.Context) error {
 
 		params.XMerkleProof = &XMerkleProof
 	}
-	// ------------- Optional header parameter "X-SkipFeeValidation" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-SkipFeeValidation")]; found {
-		var XSkipFeeValidation SkipFeeValidation
-		n := len(valueList)
-		if n != 1 {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-SkipFeeValidation, got %d", n))
-		}
-
-		err = runtime.BindStyledParameterWithLocation("simple", false, "X-SkipFeeValidation", runtime.ParamLocationHeader, valueList[0], &XSkipFeeValidation)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-SkipFeeValidation: %s", err))
-		}
-
-		params.XSkipFeeValidation = &XSkipFeeValidation
-	}
 	// ------------- Optional header parameter "X-WaitForStatus" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-WaitForStatus")]; found {
 		var XWaitForStatus WaitForStatus

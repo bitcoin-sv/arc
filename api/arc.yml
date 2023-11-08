@@ -701,6 +701,13 @@ components:
         Default double spend and merkle proof notification callback endpoint.
       schema:
         type: string
+    callbackUrl:
+      name: X-SkipFeeValidation
+      in: header
+      description: >-
+        Weather we should skip fee validation or not.
+      schema:
+        type: bool
     callbackToken:
       name: X-CallbackToken
       in: header

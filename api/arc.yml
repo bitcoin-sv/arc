@@ -701,7 +701,7 @@ components:
         Default double spend and merkle proof notification callback endpoint.
       schema:
         type: string
-    callbackUrl:
+    skipFeeValidation:
       name: X-SkipFeeValidation
       in: header
       description: >-

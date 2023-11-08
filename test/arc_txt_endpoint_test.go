@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -13,12 +13,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/api/handler"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoinsv/bsvd/bsvec"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/libsv/go-bk/bec"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/libsv/go-bt/v2/unlocker"
+	"github.com/stretchr/testify/require"
 )
 
 type Response struct {
@@ -50,6 +54,227 @@ func TestMain(m *testing.M) {
 	log.Printf("current block height: %d", info.Blocks)
 
 	os.Exit(m.Run())
+}
+
+func createTx(privateKey string, address string, utxo NodeUnspentUtxo) (*bt.Tx, error) {
+	tx := bt.NewTx()
+
+	// Add an input using the first UTXO
+	utxoTxID := utxo.Txid
+	utxoVout := uint32(utxo.Vout)
+	utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
+	utxoScript := utxo.ScriptPubKey
+
+	err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
+	if err != nil {
+		return nil, fmt.Errorf("failed adding input: %v", err)
+	}
+
+	// Add an output to the address you've previously created
+	recipientAddress := address
+	amountToSend := uint64(1) // Example value - 0.009 BTC (taking fees into account)
+
+	recipientScript, err := bscript.NewP2PKHFromAddress(recipientAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed converting address to script: %v", err)
+	}
+
+	err = tx.PayTo(recipientScript, amountToSend)
+	if err != nil {
+		return nil, fmt.Errorf("failed adding output: %v", err)
+	}
+
+	// Sign the input
+
+	wif, err := btcutil.DecodeWIF(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode WIF: %v", err)
+	}
+
+	// Extract raw private key bytes directly from the WIF structure
+	privateKeyDecoded := wif.PrivKey.Serialize()
+
+	pk, _ := bec.PrivKeyFromBytes(bsvec.S256(), privateKeyDecoded)
+	unlockerGetter := unlocker.Getter{PrivateKey: pk}
+	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
+	if err != nil {
+		return nil, fmt.Errorf("sign failed: %v", err)
+	}
+
+	return tx, nil
+}
+
+func TestPostCallbackToken(t *testing.T) {
+	tt := []struct {
+		name string
+	}{
+		{
+			name: "post transaction with callback url and token",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			address, privateKey := getNewWalletAddress(t)
+
+			generate(t, 100)
+
+			t.Logf("generated address: %s", address)
+
+			sendToAddress(t, address, 0.001)
+
+			txID := sendToAddress(t, address, 0.02)
+			t.Logf("sent 0.02 BSV to: %s", txID)
+
+			hash := generate(t, 1)
+			t.Logf("generated 1 block: %s", hash)
+
+			utxos := getUtxos(t, address)
+			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+
+			tx, err := createTx(privateKey, address, utxos[0])
+			require.NoError(t, err)
+
+			url := "http://arc:9090/"
+
+			arcClient, err := api.NewClientWithResponses(url)
+			require.NoError(t, err)
+
+			ctx := context.Background()
+
+			hostname, err := os.Hostname()
+			require.NoError(t, err)
+
+			waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
+			params := &api.POSTTransactionParams{
+				XWaitForStatus: &waitForStatus,
+				XCallbackUrl:   handler.PtrTo(fmt.Sprintf("http://%s:9000/callback", hostname)),
+				XCallbackToken: handler.PtrTo("1234"),
+			}
+
+			arcBody := api.POSTTransactionJSONRequestBody{
+				RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+			}
+
+			var response *api.POSTTransactionResponse
+			response, err = arcClient.POSTTransactionWithResponse(ctx, params, arcBody)
+			require.NoError(t, err)
+
+			require.Equal(t, http.StatusOK, response.StatusCode())
+			require.NotNil(t, response.JSON200)
+			require.Equal(t, "SEEN_ON_NETWORK", response.JSON200.TxStatus)
+
+			callbackReceivedChan := make(chan *api.TransactionStatus, 2)
+			errChan := make(chan error, 2)
+
+			expectedAuthHeader := "Bearer 1234"
+			srv := &http.Server{Addr: ":9000"}
+			defer func() {
+				t.Log("shutting down callback listener")
+				if err = srv.Shutdown(context.TODO()); err != nil {
+					panic(err)
+				}
+			}()
+
+			iterations := 0
+			http.HandleFunc("/callback", func(w http.ResponseWriter, req *http.Request) {
+
+				defer func() {
+					err := req.Body.Close()
+					if err != nil {
+						t.Log("failed to close body")
+					}
+				}()
+
+				bodyBytes, err := io.ReadAll(req.Body)
+				if err != nil {
+					errChan <- err
+				}
+
+				var status api.TransactionStatus
+				err = json.Unmarshal(bodyBytes, &status)
+				if err != nil {
+					errChan <- err
+				}
+
+				if expectedAuthHeader != req.Header.Get("Authorization") {
+					errChan <- fmt.Errorf("auth header %s not as expected %s", expectedAuthHeader, req.Header.Get("Authorization"))
+				}
+
+				// Let ARC send the callback 2 times. First one fails.
+				if iterations == 0 {
+					t.Log("callback received, responding bad request")
+
+					err = respondToCallback(w, false)
+					if err != nil {
+						t.Fatalf("Failed to respond to callback: %v", err)
+					}
+
+					callbackReceivedChan <- &status
+
+					iterations++
+					return
+				}
+
+				t.Log("callback received, responding success")
+
+				err = respondToCallback(w, true)
+				if err != nil {
+					t.Fatalf("Failed to respond to callback: %v", err)
+				}
+				callbackReceivedChan <- &status
+			})
+
+			go func(server *http.Server) {
+				t.Log("starting callback server")
+				err = server.ListenAndServe()
+				if err != nil {
+					return
+				}
+			}(srv)
+
+			generate(t, 10)
+
+			var statusResopnse *api.GETTransactionStatusResponse
+			statusResopnse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
+
+			for i := 0; i <= 1; i++ {
+				t.Logf("callback iteration %d", i)
+				select {
+				case callback := <-callbackReceivedChan:
+					require.Equal(t, statusResopnse.JSON200.Txid, callback.Txid)
+					require.Equal(t, statusResopnse.JSON200.BlockHeight, callback.BlockHeight)
+					require.Equal(t, statusResopnse.JSON200.BlockHash, callback.BlockHash)
+				case err := <-errChan:
+					t.Fatalf("callback received - failed to parse callback %v", err)
+				case <-time.NewTicker(time.Second * 15).C:
+					t.Fatal("callback not received")
+				}
+			}
+		})
+	}
+}
+
+func respondToCallback(w http.ResponseWriter, success bool) error {
+	resp := make(map[string]string)
+	if success {
+		resp["message"] = "Success"
+		w.WriteHeader(http.StatusOK)
+	} else {
+		resp["message"] = "Bad Request"
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
+	jsonResp, err := json.Marshal(resp)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(jsonResp)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func TestHttpPost(t *testing.T) {
@@ -154,7 +379,7 @@ func TestHttpPost(t *testing.T) {
 	defer resp.Body.Close()
 
 	// If status is not http.StatusOK, then read and print the response body
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("Error reading response body: %s", err)
 	}
@@ -181,7 +406,7 @@ func TestHttpPost(t *testing.T) {
 	}
 	defer statusResp.Body.Close()
 
-	statusBodyBytes, err := ioutil.ReadAll(statusResp.Body)
+	statusBodyBytes, err := io.ReadAll(statusResp.Body)
 	if err != nil {
 		t.Fatalf("Error reading status response body: %s", err)
 	}
@@ -215,7 +440,7 @@ func TestHttpPost(t *testing.T) {
 	}
 	defer statusResp.Body.Close()
 
-	statusBodyBytes, err = ioutil.ReadAll(statusResp.Body) // <-- Use "=" instead of ":="
+	statusBodyBytes, err = io.ReadAll(statusResp.Body) // <-- Use "=" instead of ":="
 	if err != nil {
 		t.Fatalf("Error reading status response body: %s", err)
 	}

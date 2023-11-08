@@ -85,7 +85,6 @@ func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx, skipTransactionValidat
 
 	// 10) Reject if the sum of input values is less than sum of output values
 	// 11) Reject if transaction fee would be too low (minRelayTxFee) to get into an empty block.
-	fmt.Println("skip? - ", skipTransactionValidation)
 	if !skipTransactionValidation {
 		if err := checkFees(tx, api.FeesToBtFeeQuote(v.policy.MinMiningTxFee)); err != nil {
 			return validator.NewError(err, api.ErrStatusFees)

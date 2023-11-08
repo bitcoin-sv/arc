@@ -4,9 +4,12 @@
 package metamorph
 
 import (
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"context"
 	"sync"
+
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 )
 
 // Ensure, that ProcessorIMock does implement ProcessorI.
@@ -28,7 +31,7 @@ var _ ProcessorI = &ProcessorIMock{}
 //			LoadUnminedFunc: func()  {
 //				panic("mock out the LoadUnmined method")
 //			},
-//			ProcessTransactionFunc: func(req *ProcessorRequest)  {
+//			ProcessTransactionFunc: func(ctx context.Context, req *ProcessorRequest)  {
 //				panic("mock out the ProcessTransaction method")
 //			},
 //			SendStatusForTransactionFunc: func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error) {
@@ -37,7 +40,7 @@ var _ ProcessorI = &ProcessorIMock{}
 //			SendStatusMinedForTransactionFunc: func(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error) {
 //				panic("mock out the SendStatusMinedForTransaction method")
 //			},
-//			SetFunc: func(req *ProcessorRequest) error {
+//			SetFunc: func(ctx context.Context, req *ProcessorRequest) error {
 //				panic("mock out the Set method")
 //			},
 //			ShutdownFunc: func()  {
@@ -60,7 +63,7 @@ type ProcessorIMock struct {
 	LoadUnminedFunc func()
 
 	// ProcessTransactionFunc mocks the ProcessTransaction method.
-	ProcessTransactionFunc func(req *ProcessorRequest)
+	ProcessTransactionFunc func(ctx context.Context, req *ProcessorRequest)
 
 	// SendStatusForTransactionFunc mocks the SendStatusForTransaction method.
 	SendStatusForTransactionFunc func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
@@ -69,7 +72,7 @@ type ProcessorIMock struct {
 	SendStatusMinedForTransactionFunc func(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error)
 
 	// SetFunc mocks the Set method.
-	SetFunc func(req *ProcessorRequest) error
+	SetFunc func(ctx context.Context, req *ProcessorRequest) error
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func()
@@ -89,6 +92,8 @@ type ProcessorIMock struct {
 		}
 		// ProcessTransaction holds details about calls to the ProcessTransaction method.
 		ProcessTransaction []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 			// Req is the req argument value.
 			Req *ProcessorRequest
 		}
@@ -114,6 +119,8 @@ type ProcessorIMock struct {
 		}
 		// Set holds details about calls to the Set method.
 		Set []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 			// Req is the req argument value.
 			Req *ProcessorRequest
 		}
@@ -218,19 +225,21 @@ func (mock *ProcessorIMock) LoadUnminedCalls() []struct {
 }
 
 // ProcessTransaction calls ProcessTransactionFunc.
-func (mock *ProcessorIMock) ProcessTransaction(req *ProcessorRequest) {
+func (mock *ProcessorIMock) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
 	if mock.ProcessTransactionFunc == nil {
 		panic("ProcessorIMock.ProcessTransactionFunc: method is nil but ProcessorI.ProcessTransaction was just called")
 	}
 	callInfo := struct {
+		Ctx context.Context
 		Req *ProcessorRequest
 	}{
+		Ctx: ctx,
 		Req: req,
 	}
 	mock.lockProcessTransaction.Lock()
 	mock.calls.ProcessTransaction = append(mock.calls.ProcessTransaction, callInfo)
 	mock.lockProcessTransaction.Unlock()
-	mock.ProcessTransactionFunc(req)
+	mock.ProcessTransactionFunc(ctx, req)
 }
 
 // ProcessTransactionCalls gets all the calls that were made to ProcessTransaction.
@@ -238,9 +247,11 @@ func (mock *ProcessorIMock) ProcessTransaction(req *ProcessorRequest) {
 //
 //	len(mockedProcessorI.ProcessTransactionCalls())
 func (mock *ProcessorIMock) ProcessTransactionCalls() []struct {
+	Ctx context.Context
 	Req *ProcessorRequest
 } {
 	var calls []struct {
+		Ctx context.Context
 		Req *ProcessorRequest
 	}
 	mock.lockProcessTransaction.RLock()
@@ -334,19 +345,21 @@ func (mock *ProcessorIMock) SendStatusMinedForTransactionCalls() []struct {
 }
 
 // Set calls SetFunc.
-func (mock *ProcessorIMock) Set(req *ProcessorRequest) error {
+func (mock *ProcessorIMock) Set(ctx context.Context, req *ProcessorRequest) error {
 	if mock.SetFunc == nil {
 		panic("ProcessorIMock.SetFunc: method is nil but ProcessorI.Set was just called")
 	}
 	callInfo := struct {
+		Ctx context.Context
 		Req *ProcessorRequest
 	}{
+		Ctx: ctx,
 		Req: req,
 	}
 	mock.lockSet.Lock()
 	mock.calls.Set = append(mock.calls.Set, callInfo)
 	mock.lockSet.Unlock()
-	return mock.SetFunc(req)
+	return mock.SetFunc(ctx, req)
 }
 
 // SetCalls gets all the calls that were made to Set.
@@ -354,9 +367,11 @@ func (mock *ProcessorIMock) Set(req *ProcessorRequest) error {
 //
 //	len(mockedProcessorI.SetCalls())
 func (mock *ProcessorIMock) SetCalls() []struct {
+	Ctx context.Context
 	Req *ProcessorRequest
 } {
 	var calls []struct {
+		Ctx context.Context
 		Req *ProcessorRequest
 	}
 	mock.lockSet.RLock()

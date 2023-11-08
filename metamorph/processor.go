@@ -190,13 +190,13 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI,
 	return p, nil
 }
 
-func (p *Processor) Set(req *ProcessorRequest) error {
-	// we need to decouple the context from the request, so that we don't get cancelled
+func (p *Processor) Set(ctx context.Context, req *ProcessorRequest) error {
+	// we need to decouple the Context from the request, so that we don't get cancelled
 	// when the request is cancelled
-	callerSpan := opentracing.SpanFromContext(req.context)
-	ctx := opentracing.ContextWithSpan(context.Background(), callerSpan)
-	_, spanCtx := opentracing.StartSpanFromContext(ctx, "Processor:processTransaction")
-	return p.store.Set(spanCtx, req.Hash[:], req.StoreData)
+	callerSpan := opentracing.SpanFromContext(ctx)
+	newctx := opentracing.ContextWithSpan(context.Background(), callerSpan)
+	_, spanCtx := opentracing.StartSpanFromContext(newctx, "Processor:processTransaction")
+	return p.store.Set(spanCtx, req.Data.Hash[:], req.Data)
 }
 
 // Shutdown closes all channels and goroutines gracefully
@@ -532,21 +532,21 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 	return false, nil
 }
 
-func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
+func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
 	startNanos := time.Now().UnixNano()
 
-	// we need to decouple the context from the request, so that we don't get cancelled
+	// we need to decouple the Context from the request, so that we don't get cancelled
 	// when the request is cancelled
-	callerSpan := opentracing.SpanFromContext(req.context)
-	ctx := opentracing.ContextWithSpan(context.Background(), callerSpan)
-	span, spanCtx := opentracing.StartSpanFromContext(ctx, "Processor:processTransaction")
+	callerSpan := opentracing.SpanFromContext(ctx)
+	newctx := opentracing.ContextWithSpan(context.Background(), callerSpan)
+	span, spanCtx := opentracing.StartSpanFromContext(newctx, "Processor:processTransaction")
 	defer span.Finish()
 
 	p.queuedCount.Add(1)
 
-	p.logger.Debug("Adding channel", slog.String("hash", req.Hash.String()))
+	p.logger.Debug("Adding channel", slog.String("hash", req.Data.Hash.String()))
 
-	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Hash, req.ResponseChannel)
+	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel)
 
 	// STEP 1: RECEIVED
 	processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
@@ -554,7 +554,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		Source: "processor",
 		Callback: func(err error) {
 			if err != nil {
-				p.logger.Error("Error received when setting status", slog.String("status", metamorph_api.Status_RECEIVED.String()), slog.String("hash", req.Hash.String()), slog.String("err", err.Error()))
+				p.logger.Error("Error received when setting status", slog.String("status", metamorph_api.Status_RECEIVED.String()), slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 				return
 			}
 
@@ -563,23 +563,23 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 				Status: metamorph_api.Status_STORED,
 				Source: "processor",
 				UpdateStore: func() error {
-					return p.store.Set(spanCtx, req.Hash[:], req.StoreData)
+					return p.store.Set(spanCtx, req.Data.Hash[:], req.Data)
 				},
 				Callback: func(err error) {
 					if err != nil {
 						span.SetTag(string(ext.Error), true)
-						p.logger.Error("Failed to store transaction", slog.String("hash", req.Hash.String()), slog.String("err", err.Error()))
+						p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 						span.LogFields(tracingLog.Error(err))
 						return
 					}
 
 					// Add this transaction to the map of transactions that we are processing
-					p.processorResponseMap.Set(req.Hash, processorResponse)
+					p.processorResponseMap.Set(req.Data.Hash, processorResponse)
 
 					p.stored.AddDuration(time.Since(processorResponse.Start))
 
 					// STEP 3: ANNOUNCED_TO_NETWORK
-					peers := p.pm.AnnounceTransaction(req.Hash, nil)
+					peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
 					processorResponse.SetPeers(peers)
 
 					peersStr := make([]string, 0, len(peers))
@@ -593,7 +593,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 						Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 						Source: strings.Join(peersStr, ", "),
 						UpdateStore: func() error {
-							return p.store.UpdateStatus(spanCtx, req.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
+							return p.store.UpdateStatus(spanCtx, req.Data.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
 						},
 						Callback: func(err error) {
 							duration := time.Since(processorResponse.Start)

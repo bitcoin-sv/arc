@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/testdata"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/stretchr/testify/require"
 )
 
 type SendStatusForTransactionCall struct {
@@ -37,16 +38,13 @@ func NewProcessorMock() *ProcessorMock {
 
 func (p *ProcessorMock) LoadUnmined() {}
 
-func (p *ProcessorMock) Set(req *ProcessorRequest) error {
+func (p *ProcessorMock) Set(_ context.Context, req *ProcessorRequest) error {
 	return nil
 }
 
 func (p *ProcessorMock) GetPeers() ([]string, []string) { return nil, nil }
 
-func (p *ProcessorMock) ProcessTransaction(req *ProcessorRequest) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
+func (p *ProcessorMock) ProcessTransaction(_ context.Context, req *ProcessorRequest) {
 	p.processTransactionCalls = append(p.processTransactionCalls, req)
 }
 

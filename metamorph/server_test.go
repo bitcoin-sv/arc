@@ -10,14 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	blockTxMock "github.com/bitcoin-sv/arc/metamorph/blocktx/mock"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/metamorph/processor_response"
-	"github.com/bitcoin-sv/arc/metamorph/store"
-	storeMock "github.com/bitcoin-sv/arc/metamorph/store/mock"
-	"github.com/bitcoin-sv/arc/metamorph/store/sql"
-	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
@@ -26,6 +18,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	blockTxMock "github.com/bitcoin-sv/arc/metamorph/blocktx/mock"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/metamorph/processor_response"
+	"github.com/bitcoin-sv/arc/metamorph/store"
+	storeMock "github.com/bitcoin-sv/arc/metamorph/store/mock"
+	"github.com/bitcoin-sv/arc/metamorph/store/sql"
+	"github.com/bitcoin-sv/arc/testdata"
 )
 
 const source = "localhost:8000"
@@ -508,11 +509,11 @@ func TestPutTransactions(t *testing.T) {
 			}
 
 			processor := &ProcessorIMock{
-				SetFunc: func(req *ProcessorRequest) error {
+				SetFunc: func(_ context.Context, req *ProcessorRequest) error {
 					return nil
 				},
-				ProcessTransactionFunc: func(req *ProcessorRequest) {
-					resp, found := tc.processorResponse[req.Hash.String()]
+				ProcessTransactionFunc: func(_ context.Context, req *ProcessorRequest) {
+					resp, found := tc.processorResponse[req.Data.Hash.String()]
 					if found {
 						req.ResponseChannel <- *resp
 					}

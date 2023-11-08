@@ -705,7 +705,7 @@ components:
       name: X-SkipFeeValidation
       in: header
       description: >-
-        Weather we should skip fee validation or not.
+        Wheather we should skip fee validation or not.
       schema:
         type: bool
     callbackToken:

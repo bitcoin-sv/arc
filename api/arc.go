@@ -364,7 +364,7 @@ type POSTTransactionParams struct {
 	// XCallbackToken Access token for notification callback endpoint.
 	XCallbackToken *CallbackToken `json:"X-CallbackToken,omitempty"`
 
-	// XSkipFeeValidation weather we skip or not transaction fee validation.
+	// XSkipFeeValidation wheather we skip or not transaction fee validation.
 	XSkipFeeValidation *SkipFeeValidation `json:"X-SkipFeeValidation,omitempty"`
 
 	// XMerkleProof Whether to include merkle proofs in the callbacks (true | false).
@@ -388,7 +388,7 @@ type POSTTransactionsParams struct {
 	// XCallbackToken Access token for notification callback endpoint.
 	XCallbackToken *CallbackToken `json:"X-CallbackToken,omitempty"`
 
-	// XSkipFeeValidation weather we skip or not transaction fee validation.
+	// XSkipFeeValidation wheather we skip or not transaction fee validation.
 	XSkipFeeValidation *SkipFeeValidation `json:"X-SkipFeeValidation,omitempty"`
 
 	// XMerkleProof Whether to include merkle proofs in the callbacks (true | false).

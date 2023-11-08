@@ -388,6 +388,9 @@ func getTransactionsOptions(params api.POSTTransactionsParams) (*api.Transaction
 			transactionOptions.WaitForStatus = metamorph_api.Status(*params.XWaitForStatus)
 		}
 	}
+	if params.XSkipFeeValidation != nil {
+		transactionOptions.SkipFeeValidation = *params.XSkipFeeValidation
+	}
 
 	return transactionOptions, nil
 }
@@ -410,7 +413,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 	}
 
 	validateSpan, validateCtx := opentracing.StartSpanFromContext(tracingCtx, "ArcDefaultHandler:ValidateTransaction")
-	if err := txValidator.ValidateTransaction(transaction); err != nil {
+	if err := txValidator.ValidateTransaction(transaction, transactionOptions.SkipFeeValidation); err != nil {
 		validateSpan.Finish()
 		statusCode, arcError := m.handleError(validateCtx, transaction, err)
 		m.logger.Errorf("failed to validate transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, err)
@@ -474,7 +477,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 
 		// validate transaction
 		validateSpan, validateCtx := opentracing.StartSpanFromContext(tracingCtx, "ArcDefaultHandler:ValidateTransactions")
-		if err := txValidator.ValidateTransaction(transaction); err != nil {
+		if err := txValidator.ValidateTransaction(transaction, transactionOptions.SkipFeeValidation); err != nil {
 			validateSpan.Finish()
 			_, arcError := m.handleError(validateCtx, transaction, err)
 			txErrors = append(txErrors, arcError)

@@ -29,7 +29,7 @@ func New(policy *bitcoin.Settings) validator.Validator {
 	}
 }
 
-func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx) error { //nolint:funlen - mostly comments
+func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx, skipTransactionValidation bool) error { //nolint:funlen - mostly comments
 	//
 	// Each node will verify every transaction against a long checklist of criteria:
 	//
@@ -85,8 +85,11 @@ func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx) error { //nolint:funle
 
 	// 10) Reject if the sum of input values is less than sum of output values
 	// 11) Reject if transaction fee would be too low (minRelayTxFee) to get into an empty block.
-	if err := checkFees(tx, api.FeesToBtFeeQuote(v.policy.MinMiningTxFee)); err != nil {
-		return validator.NewError(err, api.ErrStatusFees)
+	fmt.Println("skip? - ", skipTransactionValidation)
+	if !skipTransactionValidation {
+		if err := checkFees(tx, api.FeesToBtFeeQuote(v.policy.MinMiningTxFee)); err != nil {
+			return validator.NewError(err, api.ErrStatusFees)
+		}
 	}
 
 	// 12) The unlocking scripts for each input must validate against the corresponding output locking scripts

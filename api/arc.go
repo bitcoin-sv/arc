@@ -341,6 +341,9 @@ type TransactionSubmitStatus struct {
 // CallbackToken defines model for callbackToken.
 type CallbackToken = string
 
+// SkipFeeValidation defines model for skipFeeValidation.
+type SkipFeeValidation = bool
+
 // CallbackUrl defines model for callbackUrl.
 type CallbackUrl = string
 
@@ -360,6 +363,9 @@ type POSTTransactionParams struct {
 
 	// XCallbackToken Access token for notification callback endpoint.
 	XCallbackToken *CallbackToken `json:"X-CallbackToken,omitempty"`
+
+	// XSkipFeeValidation weather we skip or not transaction fee validation.
+	XSkipFeeValidation *SkipFeeValidation `json:"X-SkipFeeValidation,omitempty"`
 
 	// XMerkleProof Whether to include merkle proofs in the callbacks (true | false).
 	XMerkleProof *MerkleProof `json:"X-MerkleProof,omitempty"`
@@ -381,6 +387,9 @@ type POSTTransactionsParams struct {
 
 	// XCallbackToken Access token for notification callback endpoint.
 	XCallbackToken *CallbackToken `json:"X-CallbackToken,omitempty"`
+
+	// XSkipFeeValidation weather we skip or not transaction fee validation.
+	XSkipFeeValidation *SkipFeeValidation `json:"X-SkipFeeValidation,omitempty"`
 
 	// XMerkleProof Whether to include merkle proofs in the callbacks (true | false).
 	XMerkleProof *MerkleProof `json:"X-MerkleProof,omitempty"`
@@ -888,6 +897,17 @@ func NewPOSTTransactionRequestWithBody(server string, params *POSTTransactionPar
 			req.Header.Set("X-CallbackToken", headerParam1)
 		}
 
+		if params.XSkipFeeValidation != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithLocation("simple", false, "X-SkipFeeValidation", runtime.ParamLocationHeader, *params.XSkipFeeValidation)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-SkipFeeValidation", headerParam1)
+		}
+
 		if params.XMerkleProof != nil {
 			var headerParam2 string
 
@@ -1017,26 +1037,37 @@ func NewPOSTTransactionsRequestWithBody(server string, params *POSTTransactionsP
 			req.Header.Set("X-CallbackToken", headerParam1)
 		}
 
-		if params.XMerkleProof != nil {
+		if params.XSkipFeeValidation != nil {
 			var headerParam2 string
 
-			headerParam2, err = runtime.StyleParamWithLocation("simple", false, "X-MerkleProof", runtime.ParamLocationHeader, *params.XMerkleProof)
+			headerParam2, err = runtime.StyleParamWithLocation("simple", false, "X-SkipFeeValidation", runtime.ParamLocationHeader, *params.XSkipFeeValidation)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-MerkleProof", headerParam2)
+			req.Header.Set("X-SkipFeeValidation", headerParam2)
+		}
+
+		if params.XMerkleProof != nil {
+			var headerParam3 string
+
+			headerParam3, err = runtime.StyleParamWithLocation("simple", false, "X-MerkleProof", runtime.ParamLocationHeader, *params.XMerkleProof)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-MerkleProof", headerParam3)
 		}
 
 		if params.XWaitForStatus != nil {
-			var headerParam3 string
+			var headerParam4 string
 
-			headerParam3, err = runtime.StyleParamWithLocation("simple", false, "X-WaitForStatus", runtime.ParamLocationHeader, *params.XWaitForStatus)
+			headerParam4, err = runtime.StyleParamWithLocation("simple", false, "X-WaitForStatus", runtime.ParamLocationHeader, *params.XWaitForStatus)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-WaitForStatus", headerParam3)
+			req.Header.Set("X-WaitForStatus", headerParam4)
 		}
 
 	}
@@ -1488,6 +1519,21 @@ func (w *ServerInterfaceWrapper) POSTTransaction(ctx echo.Context) error {
 
 		params.XCallbackToken = &XCallbackToken
 	}
+	// ------------- Optional header parameter "X-SkipFeeValidation" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-SkipFeeValidation")]; found {
+		var XSkipFeeValidation SkipFeeValidation
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-SkipFeeValidation, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-SkipFeeValidation", runtime.ParamLocationHeader, valueList[0], &XSkipFeeValidation)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-SkipFeeValidation: %s", err))
+		}
+
+		params.XSkipFeeValidation = &XSkipFeeValidation
+	}
 	// ------------- Optional header parameter "X-MerkleProof" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-MerkleProof")]; found {
 		var XMerkleProof MerkleProof
@@ -1502,6 +1548,21 @@ func (w *ServerInterfaceWrapper) POSTTransaction(ctx echo.Context) error {
 		}
 
 		params.XMerkleProof = &XMerkleProof
+	}
+	// ------------- Optional header parameter "X-SkipFeeValidation" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-SkipFeeValidation")]; found {
+		var XSkipFeeValidation SkipFeeValidation
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-SkipFeeValidation, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-SkipFeeValidation", runtime.ParamLocationHeader, valueList[0], &XSkipFeeValidation)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-SkipFeeValidation: %s", err))
+		}
+
+		params.XSkipFeeValidation = &XSkipFeeValidation
 	}
 	// ------------- Optional header parameter "X-WaitForStatus" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-WaitForStatus")]; found {
@@ -1589,6 +1650,21 @@ func (w *ServerInterfaceWrapper) POSTTransactions(ctx echo.Context) error {
 		}
 
 		params.XCallbackToken = &XCallbackToken
+	}
+	// ------------- Optional header parameter "X-SkipFeeValidation" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-SkipFeeValidation")]; found {
+		var XSkipFeeValidation SkipFeeValidation
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-SkipFeeValidation, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-SkipFeeValidation", runtime.ParamLocationHeader, valueList[0], &XSkipFeeValidation)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-SkipFeeValidation: %s", err))
+		}
+
+		params.XSkipFeeValidation = &XSkipFeeValidation
 	}
 	// ------------- Optional header parameter "X-MerkleProof" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-MerkleProof")]; found {

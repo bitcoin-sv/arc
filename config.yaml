@@ -7,7 +7,7 @@ prometheusEndpoint: /metrics # endpoint for prometheus metrics
 tracing: true # enable trancing
 dataFolder: data # name of data folder
 grpcMessageSize: 100000000 # maximum grpc message size
-network: regtest # bitcoin network to connect to
+network: testnet # bitcoin network to connect to
 ipAddressHint: ^172.28.*
 
 peerRpc: # rpc configuration for bitcoin node
@@ -21,12 +21,6 @@ peers: # list of bitcoin node peers to connect to
     port:
       p2p: 18333
       zmq: 28332
-  - host: localhost
-    port:
-      p2p: 18334
-  - host: localhost
-    port:
-      p2p: 18335
 
 callbacker:
   listenAddr: localhost:8021 # address space for callbacker to listen on. Can be for example localhost:8021 or :8021 for listening on all addresses

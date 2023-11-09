@@ -33,7 +33,7 @@ func TestValidator(t *testing.T) {
 		policy := getPolicy(500)
 		validator := New(policy)
 
-		err := validator.ValidateTransaction(tx, false)
+		err := validator.ValidateTransaction(tx, false, false)
 		require.NoError(t, err)
 	})
 
@@ -44,7 +44,7 @@ func TestValidator(t *testing.T) {
 		policy := getPolicy(500)
 		validator := New(policy)
 
-		err := validator.ValidateTransaction(tx, false)
+		err := validator.ValidateTransaction(tx, false, false)
 		require.Error(t, err, "Validation should have returned an error")
 
 		if err != nil {
@@ -61,7 +61,7 @@ func TestValidator(t *testing.T) {
 
 		policy := getPolicy(500)
 		validator := New(policy)
-		err := validator.ValidateTransaction(tx, false)
+		err := validator.ValidateTransaction(tx, false, false)
 		require.Error(t, err)
 	})
 
@@ -71,7 +71,7 @@ func TestValidator(t *testing.T) {
 
 		policy := getPolicy(5)
 		validator := New(policy)
-		err := validator.ValidateTransaction(tx, false)
+		err := validator.ValidateTransaction(tx, false, false)
 		require.NoError(t, err)
 	})
 
@@ -89,7 +89,7 @@ func TestValidator(t *testing.T) {
 
 			policy := getPolicy(5)
 			validator := New(policy)
-			err = validator.ValidateTransaction(tx, false)
+			err = validator.ValidateTransaction(tx, false, false)
 			require.NoError(t, err, "Failed to validate tx %d", txIndex)
 		}
 	})
@@ -119,7 +119,7 @@ func TestValidator(t *testing.T) {
 
 		policy := getPolicy(5)
 		validator := New(policy)
-		err = validator.ValidateTransaction(tx, false)
+		err = validator.ValidateTransaction(tx, false, false)
 		require.NoError(t, err, "Failed to validate tx")
 	})
 }
@@ -636,7 +636,7 @@ func BenchmarkValidator(b *testing.B) {
 	validator := New(policy)
 
 	for i := 0; i < b.N; i++ {
-		_ = validator.ValidateTransaction(tx, false)
+		_ = validator.ValidateTransaction(tx, false, false)
 	}
 }
 
@@ -647,7 +647,7 @@ func TestFeeCalculation(t *testing.T) {
 	policy := getPolicy(50)
 	validator := New(policy)
 
-	err = validator.ValidateTransaction(tx, false)
+	err = validator.ValidateTransaction(tx, false, false)
 	t.Log(err)
 
 }

@@ -67,6 +67,9 @@ paths:
         This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.  The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
       parameters:
         - $ref: '#/components/parameters/callbackUrl'
+        - $ref: '#/components/parameters/skipFeeValidation'
+        - $ref: '#/components/parameters/skipScriptValidation'
+        - $ref: '#/components/parameters/skipTxValidation'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/merkleProof'
         - $ref: '#/components/parameters/waitForStatus'
@@ -154,6 +157,9 @@ paths:
         This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates. The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
       parameters:
         - $ref: '#/components/parameters/callbackUrl'
+        - $ref: '#/components/parameters/skipFeeValidation'
+        - $ref: '#/components/parameters/skipScriptValidation'
+        - $ref: '#/components/parameters/skipTxValidation'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/merkleProof'
         - $ref: '#/components/parameters/waitForStatus'
@@ -701,6 +707,27 @@ components:
         Default double spend and merkle proof notification callback endpoint.
       schema:
         type: string
+    skipFeeValidation:
+      name: X-SkipFeeValidation
+      in: header
+      description: >-
+        Wheather we should skip fee validation or not.
+      schema:
+        type: boolean
+    skipScriptValidation:
+      name: X-SkipScriptValidation
+      in: header
+      description: >-
+        Wheather we should skip script validation or not.
+      schema:
+        type: boolean
+    skipTxValidation:
+      name: X-SkipTxValidation
+      in: header
+      description: >-
+        Wheather we should skip overall tx validation or not.
+      schema:
+        type: boolean
     callbackToken:
       name: X-CallbackToken
       in: header

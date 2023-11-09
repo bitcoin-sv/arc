@@ -29,7 +29,7 @@ func New(policy *bitcoin.Settings) validator.Validator {
 	}
 }
 
-func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx, skipTransactionValidation bool) error { //nolint:funlen - mostly comments
+func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx, skipTransactionValidation bool, skipScriptValidation bool) error { //nolint:funlen - mostly comments
 	//
 	// Each node will verify every transaction against a long checklist of criteria:
 	//
@@ -92,8 +92,10 @@ func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx, skipTransactionValidat
 	}
 
 	// 12) The unlocking scripts for each input must validate against the corresponding output locking scripts
-	if err := checkScripts(tx); err != nil {
-		return validator.NewError(err, api.ErrStatusUnlockingScripts)
+	if !skipScriptValidation {
+		if err := checkScripts(tx); err != nil {
+			return validator.NewError(err, api.ErrStatusUnlockingScripts)
+		}
 	}
 
 	// everything checks out

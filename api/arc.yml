@@ -68,6 +68,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/callbackUrl'
         - $ref: '#/components/parameters/skipFeeValidation'
+        - $ref: '#/components/parameters/skipScriptValidation'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/merkleProof'
         - $ref: '#/components/parameters/waitForStatus'
@@ -156,6 +157,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/callbackUrl'
         - $ref: '#/components/parameters/skipFeeValidation'
+        - $ref: '#/components/parameters/skipScriptValidation'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/merkleProof'
         - $ref: '#/components/parameters/waitForStatus'
@@ -708,6 +710,13 @@ components:
       in: header
       description: >-
         Wheather we should skip fee validation or not.
+      schema:
+        type: boolean
+    skipScriptValidation:
+      name: X-SkipScriptValidation
+      in: header
+      description: >-
+        Wheather we should skip script validation or not.
       schema:
         type: boolean
     callbackToken:

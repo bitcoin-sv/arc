@@ -10,8 +10,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.22.2
 	github.com/deepmap/oapi-codegen v1.11.0
 	github.com/dgraph-io/badger/v3 v3.2103.1
-	github.com/fergusstrange/embedded-postgres v1.24.0
 	github.com/getkin/kin-openapi v0.103.0
+	github.com/go-co-op/gocron v1.35.2
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-migrate/migrate/v4 v4.16.2
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
@@ -20,8 +20,8 @@ require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/labstack/echo/v4 v4.11.1
 	github.com/labstack/gommon v0.4.0
-	github.com/lib/pq v1.10.7
 	github.com/libsv/go-bc v0.1.22
+	github.com/lib/pq v1.10.9
 	github.com/libsv/go-bk v0.1.6
 	github.com/libsv/go-bt v1.0.8
 	github.com/libsv/go-bt/v2 v2.2.5
@@ -107,6 +107,7 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
+	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
@@ -115,9 +116,8 @@ require (
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
-	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.uber.org/atomic v1.10.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/crypto v0.13.0 // indirect
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/net v0.14.0 // indirect

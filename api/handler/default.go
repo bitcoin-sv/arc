@@ -388,6 +388,15 @@ func getTransactionsOptions(params api.POSTTransactionsParams) (*api.Transaction
 			transactionOptions.WaitForStatus = metamorph_api.Status(*params.XWaitForStatus)
 		}
 	}
+	if params.XSkipFeeValidation != nil {
+		transactionOptions.SkipFeeValidation = *params.XSkipFeeValidation
+	}
+	if params.XSkipScriptValidation != nil {
+		transactionOptions.SkipScriptValidation = *params.XSkipScriptValidation
+	}
+	if params.XSkipTxValidation != nil {
+		transactionOptions.SkipTxValidation = *params.XSkipTxValidation
+	}
 
 	return transactionOptions, nil
 }
@@ -409,14 +418,16 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 		}
 	}
 
-	validateSpan, validateCtx := opentracing.StartSpanFromContext(tracingCtx, "ArcDefaultHandler:ValidateTransaction")
-	if err := txValidator.ValidateTransaction(transaction); err != nil {
+	if !transactionOptions.SkipTxValidation {
+		validateSpan, validateCtx := opentracing.StartSpanFromContext(tracingCtx, "ArcDefaultHandler:ValidateTransaction")
+		if err := txValidator.ValidateTransaction(transaction, transactionOptions.SkipFeeValidation, transactionOptions.SkipScriptValidation); err != nil {
+			validateSpan.Finish()
+			statusCode, arcError := m.handleError(validateCtx, transaction, err)
+			m.logger.Errorf("failed to validate transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, err)
+			return statusCode, arcError, err
+		}
 		validateSpan.Finish()
-		statusCode, arcError := m.handleError(validateCtx, transaction, err)
-		m.logger.Errorf("failed to validate transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, err)
-		return statusCode, arcError, err
 	}
-	validateSpan.Finish()
 
 	tx, err := m.TransactionHandler.SubmitTransaction(tracingCtx, transaction.Bytes(), transactionOptions)
 	if err != nil {
@@ -472,15 +483,17 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 			}
 		}
 
-		// validate transaction
-		validateSpan, validateCtx := opentracing.StartSpanFromContext(tracingCtx, "ArcDefaultHandler:ValidateTransactions")
-		if err := txValidator.ValidateTransaction(transaction); err != nil {
+		if !transactionOptions.SkipTxValidation {
+			// validate transaction
+			validateSpan, validateCtx := opentracing.StartSpanFromContext(tracingCtx, "ArcDefaultHandler:ValidateTransactions")
+			if err := txValidator.ValidateTransaction(transaction, transactionOptions.SkipFeeValidation, transactionOptions.SkipScriptValidation); err != nil {
+				validateSpan.Finish()
+				_, arcError := m.handleError(validateCtx, transaction, err)
+				txErrors = append(txErrors, arcError)
+				continue
+			}
 			validateSpan.Finish()
-			_, arcError := m.handleError(validateCtx, transaction, err)
-			txErrors = append(txErrors, arcError)
-			continue
 		}
-		validateSpan.Finish()
 		transactionsInput = append(transactionsInput, transaction.Bytes())
 	}
 

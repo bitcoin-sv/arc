@@ -7,14 +7,25 @@ import (
 	"strings"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/ordishs/gocore"
 )
 
 // InsertBlockTransactions inserts the transaction hashes for a given block hash
 func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("InsertBlockTransactions").AddTime(start)
+	}()
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	qTx, err := s.db.Prepare(`INSERT INTO transactions (hash, merkle_path) VALUES ($1, $2);`)
+	qTx, err := s.db.Prepare(`
+			INSERT INTO transactions (hash, merkle_path) VALUES ($1, $2)
+			ON CONFLICT(hash) DO UPDATE SET merkle_path=$2
+			RETURNING id
+			;
+		`)
 	if err != nil {
 		return err
 	}
@@ -27,7 +38,7 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 		) VALUES
 	`
 
-	var qMapRows []string
+	qMapRows := make([]string, 0, len(transactions))
 	for pos, tx := range transactions {
 		var txid uint64
 

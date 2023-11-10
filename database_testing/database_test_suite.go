@@ -1,4 +1,4 @@
-package sql
+package database_testing
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
-	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
+	"github.com/bitcoin-sv/arc/dbconn"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -17,12 +17,13 @@ import (
 	"golang.org/x/exp/rand"
 )
 
-var defaultParams = DBConnectionParams{
+var DefaultParams = dbconn.DBConnectionParams{
 	Host:     "localhost",
 	Port:     5432,
-	Username: "postgres",
-	Password: "postgres",
-	DBName:   "postgres",
+	Username: "arcuser",
+	Password: "arcpass",
+	DBName:   "arcdb_test",
+	Scheme:   "postgres",
 }
 
 // DatabaseTestSuite test helper suite to
@@ -33,24 +34,24 @@ var defaultParams = DBConnectionParams{
 type DatabaseTestSuite struct {
 	suite.Suite
 
-	Database *embeddedpostgres.EmbeddedPostgres
+	Connection *sqlx.Conn
 }
 
 func (s *DatabaseTestSuite) SetupSuite() {
-	s.Database = embeddedpostgres.NewDatabase()
-
-	require.NoError(s.T(), s.Database.Start())
-
 	_, callerFilePath, _, _ := runtime.Caller(0)
 
-	// Calculate the directory path of the test file
 	testDir := filepath.Dir(callerFilePath)
 
-	//url := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", "postgres", "postgres", "localhost", 5432, "postgres")
-	path := "file://" + testDir + "/../../../database/migrations/postgres"
-	m, err := migrate.New(path, defaultParams.String())
+	path := "file://" + testDir + "/../database/migrations/postgres"
+	m, err := migrate.New(path, DefaultParams.String())
+
 	require.NoError(s.T(), err)
-	require.NoError(s.T(), m.Up())
+
+	if err := m.Up(); err != nil {
+		if err != migrate.ErrNoChange {
+			require.NoError(s.T(), err)
+		}
+	}
 }
 
 func getRandomBytes() string {
@@ -83,8 +84,12 @@ func GetTestTransaction() *store.Transaction {
 	}
 }
 
+func (s *DatabaseTestSuite) Conn() *sqlx.Conn {
+	return s.Connection
+}
+
 func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
-	db, err := sqlx.Open("postgres", defaultParams.String())
+	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
 	_, err = db.NamedExec("INSERT INTO blocks("+
@@ -93,58 +98,61 @@ func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
 		"prevhash, "+
 		"merkleroot, "+
 		"height,"+
-		"processed_at) "+
+		"processed_at,"+
+		"inserted_at) "+
 		"VALUES("+
 		":id,"+
 		":hash, "+
 		":prevhash, "+
 		":merkleroot, "+
 		":height,"+
-		":processed_at);", block)
+		":processed_at,"+
+		":inserted_at);",
+		block)
 	require.NoError(s.T(), err)
 
 }
 
 func (s *DatabaseTestSuite) InsertTransaction(tx *store.Transaction) {
-	db, err := sqlx.Open("postgres", defaultParams.String())
+	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
 	_, err = db.NamedExec("INSERT INTO transactions("+
-		"id, "+
-		"hash, "+
-		"source, "+
-		"merkle_path) "+
+		"id,"+
+		"hash,"+
+		"source,"+
+		"merkle_path,"+
+		"inserted_at) "+
 		"VALUES("+
 		":id,"+
 		":hash, "+
 		":source, "+
-		":merkle_path); ", tx)
+		":merkle_path,"+
+		":inserted_at); ", tx)
 
 	require.NoError(s.T(), err, fmt.Sprintf("tx %+v", tx))
 }
 
 func (s *DatabaseTestSuite) InsertBlockTransactionMap(btx *store.BlockTransactionMap) {
-	db, err := sqlx.Open("postgres", defaultParams.String())
+	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
 	_, err = db.NamedExec("INSERT INTO block_transactions_map("+
 		"blockid, "+
 		"txid, "+
-		"pos) "+
+		"pos,"+
+		"inserted_at) "+
 		"VALUES("+
 		":blockid,"+
 		":txid, "+
-		":pos);", btx)
+		":pos,"+
+		":inserted_at);", btx)
 	require.NoError(s.T(), err)
-}
-
-func (s *DatabaseTestSuite) TearDownSuite() {
-	require.NoError(s.T(), s.Database.Stop())
 }
 
 // TearDownTest clear all the tables
 func (s *DatabaseTestSuite) TearDownTest() {
-	db, err := sqlx.Open("postgres", defaultParams.String())
+	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
 	db.MustExec("truncate  table blocks;")

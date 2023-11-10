@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	. "github.com/bitcoin-sv/arc/database_testing"
 	_ "github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
@@ -26,21 +27,21 @@ func (s *SQLTest) Test() {
 		Height:       1,
 	}
 
-	store, err := NewPostgresStore(defaultParams)
+	store, err := NewPostgresStore(DefaultParams)
 	require.NoError(s.T(), err)
 
 	blockId, err := store.InsertBlock(ctx, block)
 	require.NoError(s.T(), err)
 
-	firstHash, err := chainhash.NewHash([]byte(getRandomBytes()))
+	firstHash, err := chainhash.NewHash([]byte(GetRandomBytes()))
 	require.NoError(s.T(), err)
 
 	transactions := []*blocktx_api.TransactionAndSource{
 		{Hash: firstHash[:], Source: "TEST"},
-		{Hash: []byte(getRandomBytes()), Source: "TEST"},
-		{Hash: []byte(getRandomBytes()), Source: "TEST"},
-		{Hash: []byte(getRandomBytes()), Source: "TEST"},
-		{Hash: []byte(getRandomBytes()), Source: "TEST"},
+		{Hash: []byte(GetRandomBytes()), Source: "TEST"},
+		{Hash: []byte(GetRandomBytes()), Source: "TEST"},
+		{Hash: []byte(GetRandomBytes()), Source: "TEST"},
+		{Hash: []byte(GetRandomBytes()), Source: "TEST"},
 	}
 
 	for _, txn := range transactions {
@@ -89,7 +90,4 @@ func (s *SQLTest) Test() {
 func TestSQLTest(t *testing.T) {
 	s := new(SQLTest)
 	suite.Run(t, s)
-	if err := recover(); err != nil {
-		require.NoError(t, s.Database.Stop())
-	}
 }

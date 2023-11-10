@@ -6,6 +6,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
+	. "github.com/bitcoin-sv/arc/database_testing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -28,7 +29,7 @@ func (s *GetTransactionBlockSuite) Run() {
 		Pos:           2,
 	})
 
-	store, err := NewPostgresStore(defaultParams)
+	store, err := NewPostgresStore(DefaultParams)
 	require.NoError(s.T(), err)
 
 	b, err := store.GetTransactionBlock(context.Background(), &blocktx_api.Transaction{
@@ -42,7 +43,4 @@ func (s *GetTransactionBlockSuite) Run() {
 func TestGetTransactionBlock(t *testing.T) {
 	s := new(GetTransactionBlockSuite)
 	suite.Run(t, s)
-	if err := recover(); err != nil {
-		require.NoError(t, s.Database.Stop())
-	}
 }

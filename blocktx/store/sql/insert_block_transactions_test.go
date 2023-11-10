@@ -6,6 +6,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
+	. "github.com/bitcoin-sv/arc/database_testing"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,19 +25,19 @@ type Tx struct {
 
 func (s *InsertBlockTransactionsSuite) Run() {
 
-	pstore, err := NewPostgresStore(defaultParams)
+	pstore, err := NewPostgresStore(DefaultParams)
 	require.NoError(s.T(), err)
 
 	tx := blocktx_api.TransactionAndSource{
-		Hash:   []byte(getRandomBytes()),
-		Source: getRandomBytes(),
+		Hash:   []byte(GetRandomBytes()),
+		Source: GetRandomBytes(),
 	}
 	testMerkle := "testpath"
 	testBlockID := uint64(10)
 	err = pstore.InsertBlockTransactions(context.Background(), testBlockID, []*blocktx_api.TransactionAndSource{&tx}, []string{testMerkle})
 	require.NoError(s.T(), err)
 
-	d, err := sqlx.Open("postgres", defaultParams.String())
+	d, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
 	var storedtx Tx
@@ -58,7 +59,4 @@ func (s *InsertBlockTransactionsSuite) Run() {
 func TestInsertBlockTransactionsSuite(t *testing.T) {
 	s := new(InsertBlockTransactionsSuite)
 	suite.Run(t, s)
-	if err := recover(); err != nil {
-		require.NoError(t, s.Database.Stop())
-	}
 }

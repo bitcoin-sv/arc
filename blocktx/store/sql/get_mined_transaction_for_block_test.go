@@ -6,6 +6,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
+	. "github.com/bitcoin-sv/arc/database_testing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -24,11 +25,11 @@ func (s *MinedTransactionForBlockSuite) Run() {
 
 	s.InsertBlockTransactionMap(&store.BlockTransactionMap{
 		BlockID:       block.ID,
-		TransactionID: tx.ID,
+		TransactionID: int64(tx.ID),
 		Pos:           2,
 	})
 
-	store, err := NewPostgresStore(defaultParams)
+	store, err := NewPostgresStore(DefaultParams)
 	require.NoError(s.T(), err)
 	bs := &blocktx_api.BlockAndSource{
 		Hash:   []byte(block.Hash),
@@ -46,7 +47,4 @@ func (s *MinedTransactionForBlockSuite) Run() {
 func TestMinedTransactionForBlock(t *testing.T) {
 	s := new(MinedTransactionForBlockSuite)
 	suite.Run(t, s)
-	if err := recover(); err != nil {
-		require.NoError(t, s.Database.Stop())
-	}
 }

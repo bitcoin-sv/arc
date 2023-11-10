@@ -26,7 +26,7 @@ func (s *GetBlockByHeightTestSuite) TestGetLastProcessedBlock() {
 
 	s.InsertBlockTransactionMap(&store.BlockTransactionMap{
 		BlockID:       block.ID,
-		TransactionID: tx.ID,
+		TransactionID: int64(tx.ID),
 		Pos:           2,
 	})
 

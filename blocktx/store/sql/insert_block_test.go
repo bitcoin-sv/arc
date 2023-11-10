@@ -6,6 +6,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
+	. "github.com/bitcoin-sv/arc/database_testing"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,7 @@ type InsertBlockSuite struct {
 func (s *InsertBlockSuite) Run() {
 	block := GetTestBlock()
 
-	pstore, err := NewPostgresStore(defaultParams)
+	pstore, err := NewPostgresStore(DefaultParams)
 	require.NoError(s.T(), err)
 
 	b := blocktx_api.Block{
@@ -33,7 +34,7 @@ func (s *InsertBlockSuite) Run() {
 	bid, err := pstore.InsertBlock(context.Background(), &b)
 	require.NoError(s.T(), err)
 
-	d, err := sqlx.Open("postgres", defaultParams.String())
+	d, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
 	var blk store.Block
@@ -50,7 +51,4 @@ func (s *InsertBlockSuite) Run() {
 func TestInsertBlockSuite(t *testing.T) {
 	s := new(InsertBlockSuite)
 	suite.Run(t, s)
-	if err := recover(); err != nil {
-		require.NoError(t, s.Database.Stop())
-	}
 }

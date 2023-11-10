@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
+	. "github.com/bitcoin-sv/arc/database_testing"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,13 +21,13 @@ func (s *OrphanHeightSutie) Test() {
 
 	s.InsertBlock(block)
 
-	pstore, err := NewPostgresStore(defaultParams)
+	pstore, err := NewPostgresStore(DefaultParams)
 	require.NoError(s.T(), err)
 
 	err = pstore.OrphanHeight(context.Background(), uint64(block.Height))
 	require.NoError(s.T(), err)
 
-	d, err := sqlx.Open("postgres", defaultParams.String())
+	d, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
 	var storedblock store.Block
@@ -39,7 +40,4 @@ func (s *OrphanHeightSutie) Test() {
 func TestOrphanHeightSutie(t *testing.T) {
 	s := new(OrphanHeightSutie)
 	suite.Run(t, s)
-	if err := recover(); err != nil {
-		require.NoError(t, s.Database.Stop())
-	}
 }

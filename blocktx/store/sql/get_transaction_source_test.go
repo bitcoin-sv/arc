@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
+	. "github.com/bitcoin-sv/arc/database_testing"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,7 +29,7 @@ func (s *GetTransactionSourceSuite) Test() {
 		Pos:           2,
 	})
 
-	store, err := NewPostgresStore(defaultParams)
+	store, err := NewPostgresStore(DefaultParams)
 	require.NoError(s.T(), err)
 
 	h, err := chainhash.NewHash([]byte(tx.Hash))
@@ -43,7 +44,4 @@ func (s *GetTransactionSourceSuite) Test() {
 func TestGetGetTransactionSourceSuite(t *testing.T) {
 	s := new(GetTransactionSourceSuite)
 	suite.Run(t, s)
-	if err := recover(); err != nil {
-		require.NoError(t, s.Database.Stop())
-	}
 }

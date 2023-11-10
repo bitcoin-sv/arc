@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
+	"github.com/bitcoin-sv/arc/dbconn"
 	"github.com/labstack/gommon/random"
 	_ "github.com/lib/pq"
 	"github.com/ordishs/gocore"
@@ -32,7 +33,7 @@ func init() {
 }
 
 // NewPostgresStore postgres storage that accepts connection parameters and returns connection or an error
-func NewPostgresStore(params DBConnectionParams) (store.Interface, error) {
+func NewPostgresStore(params dbconn.DBConnectionParams) (store.Interface, error) {
 	db, err := sql.Open("postgres", params.String())
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to db due to %s", err)

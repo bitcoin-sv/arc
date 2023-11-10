@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
+	. "github.com/bitcoin-sv/arc/database_testing"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +30,7 @@ func (s *GetBlockByHeightTestSuite) TestGetLastProcessedBlock() {
 		Pos:           2,
 	})
 
-	st, err := NewPostgresStore(defaultParams)
+	st, err := NewPostgresStore(DefaultParams)
 	require.NoError(s.T(), err)
 
 	blk, err := st.GetLastProcessedBlock(context.Background())
@@ -40,7 +41,4 @@ func (s *GetBlockByHeightTestSuite) TestGetLastProcessedBlock() {
 func TestGetLastProcessedBlockSuite(t *testing.T) {
 	s := new(GetLastProcessedBlockSuite)
 	suite.Run(t, s)
-	if err := recover(); err != nil {
-		require.NoError(t, s.Database.Stop())
-	}
 }

@@ -1,4 +1,4 @@
-package sql
+package database_testing
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
-	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
+	"github.com/bitcoin-sv/arc/dbconn"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -30,12 +30,13 @@ func (p DBConnectionParams) String() string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", p.Username, p.Password, p.Host, p.Port, p.DBName)
 }
 
-var defaultParams = DBConnectionParams{
+var DefaultParams = dbconn.DBConnectionParams{
 	Host:     "localhost",
 	Port:     5432,
-	Username: "postgres",
-	Password: "postgres",
-	DBName:   "postgres",
+	Username: "arcuser",
+	Password: "arcpass",
+	DBName:   "arcdb_test",
+	Scheme:   "postgres",
 }
 
 // DatabaseTestSuite test helper suite to
@@ -45,26 +46,24 @@ var defaultParams = DBConnectionParams{
 // 4. tear down when tests are finished
 type DatabaseTestSuite struct {
 	suite.Suite
-	Database *embeddedpostgres.EmbeddedPostgres
-}
-
-func (s *DatabaseTestSuite) TearDown() {
-	s.TearDownSuite()
+	Connection *sqlx.Conn
 }
 
 func (s *DatabaseTestSuite) SetupSuite() {
-	s.Database = embeddedpostgres.NewDatabase()
-
-	require.NoError(s.T(), s.Database.Start())
-
 	_, callerFilePath, _, _ := runtime.Caller(0)
 
 	testDir := filepath.Dir(callerFilePath)
 
-	path := "file://" + testDir + "/../../../database/migrations/postgres"
-	m, err := migrate.New(path, defaultParams.String())
+	path := "file://" + testDir + "/../database/migrations/postgres"
+	m, err := migrate.New(path, DefaultParams.String())
+
 	require.NoError(s.T(), err)
-	require.NoError(s.T(), m.Up())
+
+	if err := m.Up(); err != nil {
+		if err != migrate.ErrNoChange {
+			require.NoError(s.T(), err)
+		}
+	}
 }
 
 func getRandomBytes() string {
@@ -74,27 +73,31 @@ func getRandomBytes() string {
 func GetTestBlock() *store.Block {
 	now := time.Now()
 	return &store.Block{
-		ID:           mrand.Intn(100),
+		ID:           int64(mrand.Intn(100)),
 		Hash:         getRandomBytes(),
 		PreviousHash: fmt.Sprintf("%d", rand.Int63()),
 		MerkleRoot:   fmt.Sprintf("%d", rand.Int63()),
-		Height:       mrand.Intn(100),
+		Height:       int64(mrand.Intn(100)),
 		Orphaned:     false,
-		ProcessedAt:  &now,
+		ProcessedAt:  now,
 	}
 }
 
 func GetTestTransaction() *store.Transaction {
 	return &store.Transaction{
-		ID:         mrand.Int(),
+		ID:         int64(mrand.Int()),
 		Hash:       getRandomBytes(),
 		Source:     fmt.Sprintf("testtx %d", mrand.Int63()),
 		MerklePath: fmt.Sprintf("testtx %d", mrand.Int63()),
 	}
 }
 
+func (s *DatabaseTestSuite) Conn() *sqlx.Conn {
+	return s.Connection
+}
+
 func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
-	db, err := sqlx.Open("postgres", defaultParams.String())
+	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
 	_, err = db.NamedExec("INSERT INTO blocks("+
@@ -104,7 +107,8 @@ func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
 		"merkleroot, "+
 		"orphanedyn, "+
 		"height,"+
-		"processed_at) "+
+		"processed_at,"+
+		"inserted_at) "+
 		"VALUES("+
 		":id,"+
 		":hash, "+
@@ -112,49 +116,52 @@ func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
 		":merkleroot, "+
 		":orphanedyn, "+
 		":height,"+
-		":processed_at);", block)
+		":processed_at,"+
+		":inserted_at);",
+		block)
 	require.NoError(s.T(), err)
 
 }
 
 func (s *DatabaseTestSuite) InsertTransaction(tx *store.Transaction) {
-	db, err := sqlx.Open("postgres", defaultParams.String())
+	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
 	_, err = db.NamedExec("INSERT INTO transactions("+
-		"hash, "+
-		"source, "+
-		"merkle_path) "+
+		"id,"+
+		"hash,"+
+		"source,"+
+		"merkle_path,"+
+		"inserted_at) "+
 		"VALUES("+
 		":hash, "+
 		":source, "+
-		":merkle_path); ", tx)
+		":merkle_path,"+
+		":inserted_at); ", tx)
 
 	require.NoError(s.T(), err, fmt.Sprintf("tx %+v", tx))
 }
 
 func (s *DatabaseTestSuite) InsertBlockTransactionMap(btx *store.BlockTransactionMap) {
-	db, err := sqlx.Open("postgres", defaultParams.String())
+	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
 	_, err = db.NamedExec("INSERT INTO block_transactions_map("+
 		"blockid, "+
 		"txid, "+
-		"pos) "+
+		"pos,"+
+		"inserted_at) "+
 		"VALUES("+
 		":blockid,"+
 		":txid, "+
-		":pos);", btx)
+		":pos,"+
+		":inserted_at);", btx)
 	require.NoError(s.T(), err)
-}
-
-func (s *DatabaseTestSuite) TearDownSuite() {
-	require.NoError(s.T(), s.Database.Stop())
 }
 
 // TearDownTest clear all the tables
 func (s *DatabaseTestSuite) TearDownTest() {
-	db, err := sqlx.Open("postgres", defaultParams.String())
+	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
 	db.MustExec("truncate  table blocks;")

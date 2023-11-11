@@ -33,7 +33,9 @@ import (
 //go:generate moq -pkg mock -out ./blocktx/mock/mock.go ../blocktx/ ClientI
 
 func TestNewProcessor(t *testing.T) {
-	mtmStore := &storeMock.MetamorphStoreMock{}
+	mtmStore := &storeMock.MetamorphStoreMock{
+		SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+	}
 
 	pm := p2p.NewPeerManagerMock()
 
@@ -260,6 +262,7 @@ func TestLoadUnmined(t *testing.T) {
 				DelFunc: func(ctx context.Context, key []byte) error {
 					return tc.delErr
 				},
+				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
 			}
 
 			processor, err := NewProcessor(mtmStore, pm, nil, btxMock,
@@ -725,6 +728,7 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 
 					return tc.updateMinedErr
 				},
+				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
 			}
 			btxMock := &blockTxMock.ClientIMock{
 				GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
@@ -773,7 +777,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &storeMock.MetamorphStoreMock{}
+			metamorphStore := &storeMock.MetamorphStoreMock{SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil }}
 			pm := p2p.NewPeerManagerMock()
 			processor, err := NewProcessor(metamorphStore, pm, nil, nil,
 				WithProcessExpiredSeenTxsInterval(time.Hour),

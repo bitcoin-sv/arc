@@ -309,6 +309,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	return func() {
 		logger.Infof("Shutting down metamorph store")
+		metamorphProcessor.Shutdown()
 		err = s.Close(context.Background())
 		if err != nil {
 			logger.Errorf("Could not close store: %v", err)

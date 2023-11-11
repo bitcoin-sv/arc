@@ -201,6 +201,10 @@ func (ddb *SQL) IsCentralised() bool {
 	return false
 }
 
+func (ddb *SQL) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
+	return nil
+}
+
 // Get implements the MetamorphStore interface. It attempts to get a value for a given key.
 // If the key does not exist an error is returned, otherwise the retrieved value.
 func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {

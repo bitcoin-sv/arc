@@ -16,7 +16,7 @@ clean_e2e_tests:
 	# Remove containers and images; avoid failure if the image doesn't exist
 	docker container prune -f
 	docker rmi test-tests || true
-
+	docker rmi test-arc || true
 
 .PHONY: build_release
 build_release:

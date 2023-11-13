@@ -87,7 +87,6 @@ func (z *ZMQ) Start(zmqi ZMQI) {
 
 	go func() {
 		for c := range ch {
-			fmt.Println(c)
 			switch c[0] {
 			case "hashtx2":
 				z.Stats.hashTx.Add(1)

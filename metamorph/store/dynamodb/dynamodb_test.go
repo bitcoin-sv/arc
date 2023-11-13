@@ -140,6 +140,7 @@ func TestDynamoDBIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		returnedData, err := repo.Get(ctx, TX1Hash[:])
+		require.NoError(t, err)
 		require.Equal(t, lockedByNone, returnedData.LockedBy)
 
 		dataStatusSent.LockedBy = lockedByNone

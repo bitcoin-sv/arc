@@ -18,7 +18,10 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-const ISO8601 = "2006-01-02T15:04:05.999Z"
+const (
+	ISO8601      = "2006-01-02T15:04:05.999Z"
+	lockedByNone = "NONE"
+)
 
 type DynamoDB struct {
 	client   *dynamodb.Client
@@ -284,7 +287,7 @@ func (ddb *DynamoDB) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) 
 			},
 			UpdateExpression: aws.String("SET locked_by = :locked_by"),
 			ExpressionAttributeValues: map[string]types.AttributeValue{
-				":locked_by": &types.AttributeValueMemberS{Value: "NONE"},
+				":locked_by": &types.AttributeValueMemberS{Value: lockedByNone},
 			},
 		})
 		if err != nil {
@@ -332,7 +335,7 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 		KeyConditionExpression: aws.String("locked_by = :locked_by"),
 		FilterExpression:       aws.String("tx_status < :tx_status"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":locked_by": &types.AttributeValueMemberS{Value: "NONE"},
+			":locked_by": &types.AttributeValueMemberS{Value: lockedByNone},
 			":tx_status": &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
 		},
 	})

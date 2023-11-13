@@ -140,9 +140,9 @@ func TestDynamoDBIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		returnedData, err := repo.Get(ctx, TX1Hash[:])
-		require.Equal(t, "NONE", returnedData.LockedBy)
+		require.Equal(t, lockedByNone, returnedData.LockedBy)
 
-		dataStatusSent.LockedBy = "NONE"
+		dataStatusSent.LockedBy = lockedByNone
 	})
 
 	t.Run("get unmined", func(t *testing.T) {
@@ -150,7 +150,7 @@ func TestDynamoDBIntegration(t *testing.T) {
 			Hash:     TX2Hash,
 			Status:   metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			RawTx:    TX2RawBytes,
-			LockedBy: "NONE",
+			LockedBy: lockedByNone,
 		}
 		putItem(t, ctx, client, dataStatusAnnounced)
 

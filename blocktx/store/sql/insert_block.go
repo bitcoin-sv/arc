@@ -1,13 +1,12 @@
 package sql
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/ordishs/gocore"
-
-	"context"
-	"database/sql"
 )
 
 func (s *SQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {

@@ -1,6 +1,6 @@
 CREATE TABLE blocks (
                         inserted_at TIMESTAMP WITH TIME ZONE  DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                        id BIGINT NOT NULL,
+                        id BIGSERIAL PRIMARY KEY,
                         hash BYTEA NOT NULL,
                         prevhash BYTEA NOT NULL,
                         merkleroot BYTEA NOT NULL,

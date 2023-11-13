@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -109,6 +110,15 @@ func TestDynamoDBIntegration(t *testing.T) {
 		RawTx:         TX1RawBytes,
 		LockedBy:      hostname,
 	}
+
+	err = os.Setenv("AWS_ACCESS_KEY_ID", "some-key-id")
+	require.NoError(t, err)
+
+	err = os.Setenv("AWS_SECRET_ACCESS_KEY", "some-access-key")
+	require.NoError(t, err)
+
+	err = os.Setenv("AWS_SESSION_TOKEN", "some-session-token")
+	require.NoError(t, err)
 
 	repo, client := NewDynamoDBIntegrationTestRepo(t)
 	ctx := context.Background()

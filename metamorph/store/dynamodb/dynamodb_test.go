@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/libsv/go-bt/v2"
@@ -61,7 +61,16 @@ func NewDynamoDBIntegrationTestRepo(t *testing.T) (*DynamoDB, *dynamodb.Client) 
 			SigningRegion: "us-east-1",
 		}, nil
 	})
-	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithEndpointResolverWithOptions(resolver))
+	cfg, err := config.LoadDefaultConfig(
+		context.Background(),
+		config.WithEndpointResolverWithOptions(resolver),
+		config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
+			Value: aws.Credentials{
+				AccessKeyID: "dummy", SecretAccessKey: "dummy", SessionToken: "dummy",
+				Source: "Hard-coded credentials; values are irrelevant for local DynamoDB",
+			},
+		}),
+	)
 	require.NoError(t, err)
 
 	client := dynamodb.NewFromConfig(cfg)
@@ -110,15 +119,6 @@ func TestDynamoDBIntegration(t *testing.T) {
 		RawTx:         TX1RawBytes,
 		LockedBy:      hostname,
 	}
-
-	err = os.Setenv("AWS_ACCESS_KEY_ID", "some-key-id")
-	require.NoError(t, err)
-
-	err = os.Setenv("AWS_SECRET_ACCESS_KEY", "some-access-key")
-	require.NoError(t, err)
-
-	err = os.Setenv("AWS_SESSION_TOKEN", "some-session-token")
-	require.NoError(t, err)
 
 	repo, client := NewDynamoDBIntegrationTestRepo(t)
 	ctx := context.Background()

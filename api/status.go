@@ -4,7 +4,7 @@ import (
 	"strconv"
 )
 
-const ArcDocServerUrl = "https://arc.bitcoinsv.com"
+const ArcDocServerUrl = "https://bitcoin-sv.github.io/arc/#"
 
 type StatusCode int
 
@@ -38,56 +38,56 @@ func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {
 	case ErrStatusBadRequest:
 		errFields.Detail = "The request seems to be malformed and cannot be processed"
 		errFields.Title = "Bad request"
-		errFields.Type = ArcDocServerUrl + "/errors/" + strconv.Itoa(int(ErrStatusBadRequest))
+		errFields.Type = ArcDocServerUrl + "/errors?id=_" + strconv.Itoa(int(ErrStatusBadRequest))
 	case ErrStatusNotFound:
 		errFields.Detail = "The requested resource could not be found"
 		errFields.Title = "Not found"
-		errFields.Type = ArcDocServerUrl + "/errors/" + strconv.Itoa(int(ErrStatusNotFound))
+		errFields.Type = ArcDocServerUrl + "/errors?id=_" + strconv.Itoa(int(ErrStatusNotFound))
 	case ErrStatusGeneric:
 		errFields.Detail = "Transaction could not be processed"
 		errFields.Title = "Generic error"
-		errFields.Type = ArcDocServerUrl + "/errors/" + strconv.Itoa(int(ErrStatusGeneric))
+		errFields.Type = ArcDocServerUrl + "/errors?id=_" + strconv.Itoa(int(ErrStatusGeneric))
 	case ErrStatusTxFormat:
 		errFields.Detail = "Transaction is not in extended format, missing input scripts"
 		errFields.Title = "Not extended format"
-		errFields.Type = ArcDocServerUrl + "/errors/" + strconv.Itoa(int(ErrStatusTxFormat))
+		errFields.Type = ArcDocServerUrl + "/errors?id=_" + strconv.Itoa(int(ErrStatusTxFormat))
 	case ErrStatusConflict:
 		errFields.Detail = "Transaction is valid, but there is a conflicting tx in the block template"
 		errFields.Title = "Conflicting tx found"
-		errFields.Type = ArcDocServerUrl + "/errors/" + strconv.Itoa(int(ErrStatusConflict))
+		errFields.Type = ArcDocServerUrl + "/errors?id=_" + strconv.Itoa(int(ErrStatusConflict))
 	case ErrStatusUnlockingScripts:
 		errFields.Detail = "Transaction is malformed and cannot be processed"
 		errFields.Title = "Malformed transaction"
-		errFields.Type = ArcDocServerUrl + "/errors/" + strconv.Itoa(int(ErrStatusUnlockingScripts))
+		errFields.Type = ArcDocServerUrl + "/errors?id=_" + strconv.Itoa(int(ErrStatusUnlockingScripts))
 	case ErrStatusInputs:
 		errFields.Detail = "Transaction is invalid because the inputs are non-existent or spent"
 		errFields.Title = "Invalid inputs"
-		errFields.Type = ArcDocServerUrl + "/errors/" + strconv.Itoa(int(ErrStatusInputs))
+		errFields.Type = ArcDocServerUrl + "/errors?id=_" + strconv.Itoa(int(ErrStatusInputs))
 	case ErrStatusOutputs:
 		errFields.Detail = "Transaction is invalid because the outputs are non-existent or invalid"
 		errFields.Title = "Invalid outputs"
-		errFields.Type = ArcDocServerUrl + "/errors/" + strconv.Itoa(int(ErrStatusOutputs))
+		errFields.Type = ArcDocServerUrl + "/errors?id=_" + strconv.Itoa(int(ErrStatusOutputs))
 	case ErrStatusMalformed:
 		errFields.Detail = "Transaction is malformed and cannot be processed"
 		errFields.Title = "Malformed transaction"
-		errFields.Type = ArcDocServerUrl + "/errors/" + strconv.Itoa(int(ErrStatusMalformed))
+		errFields.Type = ArcDocServerUrl + "/errors?id=_" + strconv.Itoa(int(ErrStatusMalformed))
 	case ErrStatusFees:
 		errFields.Detail = "Fees are too low"
 		errFields.Title = "Fee too low"
-		errFields.Type = ArcDocServerUrl + "/errors/" + strconv.Itoa(int(ErrStatusFees))
+		errFields.Type = ArcDocServerUrl + "/errors?id=_" + strconv.Itoa(int(ErrStatusFees))
 	case ErrStatusFrozenPolicy:
 		errFields.Detail = "Input Frozen (blacklist manager policy blacklisted)"
 		errFields.Title = "Input Frozen"
-		errFields.Type = ArcDocServerUrl + "/errors/" + strconv.Itoa(int(ErrStatusFrozenPolicy))
+		errFields.Type = ArcDocServerUrl + "/errors?id=_" + strconv.Itoa(int(ErrStatusFrozenPolicy))
 	case ErrStatusFrozenConsensus:
 		errFields.Detail = "Input Frozen (blacklist manager consensus blacklisted)"
 		errFields.Title = "Input Frozen"
-		errFields.Type = ArcDocServerUrl + "/errors/" + strconv.Itoa(int(ErrStatusFrozenConsensus))
+		errFields.Type = ArcDocServerUrl + "/errors?id=_" + strconv.Itoa(int(ErrStatusFrozenConsensus))
 	default:
 		errFields.Status = int(ErrStatusGeneric)
 		errFields.Detail = "Transaction could not be processed"
 		errFields.Title = "Generic error"
-		errFields.Type = ArcDocServerUrl + "/errors/" + strconv.Itoa(int(ErrStatusGeneric))
+		errFields.Type = ArcDocServerUrl + "/errors?id=_" + strconv.Itoa(int(ErrStatusGeneric))
 	}
 
 	return &errFields

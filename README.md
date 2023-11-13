@@ -37,7 +37,7 @@ where options are:
 
     -tracer=<true|false>
           whether to start the Jaeger tracer (default=false)
-  
+
     -config=<path>
           path to config file (default='')
 ```
@@ -144,20 +144,20 @@ The only difference between the two is that the generic `main.go` starts the Go 
 Metamorph keeps track of the lifecycle of a transaction, and assigns it a status. The following statuses are
 available:
 
-| Code | Status                 | Description                                                                                                                                                                                                    |
-|-----|------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 0   | `UNKNOWN`              | The transaction has been sent to metamorph, but no processing has taken place. This should never be the case, unless something goes wrong.                                                                     |
-| 1   | `QUEUED`               | The transaction has been queued for processing.                                                                                                                                                                |
-| 2   | `RECEIVED`             | The transaction has been properly received by the metamorph processor.                                                                                                                                         |
-| 3   | `STORED`               | The transaction has been stored in the metamorph store. This should ensure the transaction will be processed and retried if not picked up immediately by a mining node.                                        |
-| 4   | `ANNOUNCED_TO_NETWORK` | The transaction has been announced (INV message) to the Bitcoin network.                                                                                                                                       |
-| 5   | `REQUESTED_BY_NETWORK` | The transaction has been requested from metamorph by a Bitcoin node.                                                                                                                                           |
-| 6   | `SENT_TO_NETWORK`      | The transaction has been sent to at least 1 Bitcoin node.                                                                                                                                                      |
-| 7   | `ACCEPTED_BY_NETWORK`  | The transaction has been accepted by a connected Bitcoin node on the ZMQ interface. If metamorph is not connected to ZQM, this status will never by set.                                                       |
-| 8   | `SEEN_ON_NETWORK`      | The transaction has been seen on the Bitcoin network and propagated to other nodes. This status is set when metamorph receives an INV message for the transaction from another node than it was sent to.       |
-| 9   | `MINED`                | The transaction has been mined into a block by a mining node.                                                                                                                                                  |
-| 108 | `CONFIRMED`            | The transaction is marked as confirmed when it is in a block with 100 blocks built on top of that block.                                                                                                       |
-| 109 | `REJECTED`             | The transaction has been rejected by the Bitcoin network.                                                                                                                                                      |
+| Code | Status                 | Description                                                                                                                                                                                              |
+|-----|------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 0   | `UNKNOWN`              | The transaction has been sent to metamorph, but no processing has taken place. This should never be the case, unless something goes wrong.                                                               |
+| 1   | `QUEUED`               | The transaction has been queued for processing.                                                                                                                                                          |
+| 2   | `RECEIVED`             | The transaction has been properly received by the metamorph processor.                                                                                                                                   |
+| 3   | `STORED`               | The transaction has been stored in the metamorph store. This should ensure the transaction will be processed and retried if not picked up immediately by a mining node.                                  |
+| 4   | `ANNOUNCED_TO_NETWORK` | The transaction has been announced (INV message) to the Bitcoin network.                                                                                                                                 |
+| 5   | `REQUESTED_BY_NETWORK` | The transaction has been requested from metamorph by a Bitcoin node.                                                                                                                                     |
+| 6   | `SENT_TO_NETWORK`      | The transaction has been sent to at least 1 Bitcoin node.                                                                                                                                                |
+| 7   | `ACCEPTED_BY_NETWORK`  | The transaction has been accepted by a connected Bitcoin node on the ZMQ interface. If metamorph is not connected to ZMQ, this status will never by set.                                                 |
+| 8   | `SEEN_ON_NETWORK`      | The transaction has been seen on the Bitcoin network and propagated to other nodes. This status is set when metamorph receives an INV message for the transaction from another node than it was sent to. |
+| 9   | `MINED`                | The transaction has been mined into a block by a mining node.                                                                                                                                            |
+| 108 | `CONFIRMED`            | The transaction is marked as confirmed when it is in a block with 100 blocks built on top of that block.                                                                                                 |
+| 109 | `REJECTED`             | The transaction has been rejected by the Bitcoin network.                                                                                                                                                |
 
 This status is returned in the `txStatus` field whenever the transaction is queried.
 
@@ -273,13 +273,24 @@ go run cmd/broadcaster/main.go -api=false -consolidate -keyfile=./cmd/broadcaste
 Detailed information about flags can is displayed by running `go run cmd/broadcaster/main.go`.
 
 ## Tests
-
-The end-to-end tests are located in the folder `test`. They can be run locally together with arc and 3 nodes using the provided docker-compose file. In order to run them do the following
-
+### Unit tests
+In order to run the unit tests do the following
 ```
-make build_release
-cd ./test
-docker compose up --abort-on-container-exit --exit-code-from tests
+make test
+```
+
+### Integration tests
+Integration tests of DynamoDB need docker installed to run them. If colima implementation of Docker is being used on Mac OS, the `DOCKER_HOST` environment variable may need to be given as follows
+```bash
+DOCKER_HOST=unix:///Users/<username>/.colima/default/docker.sock make test
+```
+These integration tests can be excluded from execution with `go test ./...` by adding the `-short` flag like this `go test -short ./...`.
+
+### end-to-end tests
+The end-to-end tests are located in the folder `test`. Docker needs to be installed in order to run them. End-to-end tests can be run locally together with arc and 3 nodes using the provided docker-compose file.
+The tests can be executed like this:
+```
+make clean_restart_e2e_test
 ```
 
 

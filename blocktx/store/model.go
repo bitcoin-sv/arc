@@ -31,8 +31,3 @@ type BlockTransactionMap struct {
 	Pos           int64     `db:"pos"`
 	InsertedAt    time.Time `db:"inserted_at"`
 }
-
-type BlockTransactions struct {
-	BlockID      int
-	Transactions []Transaction
-}

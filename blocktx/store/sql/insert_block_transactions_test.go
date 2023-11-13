@@ -23,7 +23,7 @@ type Tx struct {
 	MerklePath string `db:"merkle_path"`
 }
 
-func (s *InsertBlockTransactionsSuite) Run() {
+func (s *InsertBlockTransactionsSuite) Test() {
 	s.T().Skip("Fails due to postgres constraint error")
 	pstore, err := NewPostgresStore(DefaultParams)
 	require.NoError(s.T(), err)

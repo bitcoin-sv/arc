@@ -17,7 +17,7 @@ type GetLastProcessedBlockSuite struct {
 	DatabaseTestSuite
 }
 
-func (s *GetBlockByHeightTestSuite) TestGetLastProcessedBlock() {
+func (s *GetLastProcessedBlockSuite) Test() {
 	block := GetTestBlock()
 	tx := GetTestTransaction()
 	s.InsertBlock(block)

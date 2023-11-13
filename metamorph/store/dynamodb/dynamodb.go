@@ -2,6 +2,7 @@ package dynamodb
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -21,6 +22,12 @@ import (
 const (
 	ISO8601      = "2006-01-02T15:04:05.999Z"
 	lockedByNone = "NONE"
+
+	lockedByAttributeKey     = ":locked_by"
+	txStatusAttributeKey     = ":tx_status"
+	blockHeightAttributeKey  = ":block_height"
+	blockHashAttributeKey    = ":block_hash"
+	rejectReasonAttributeKey = ":reject_reason"
 )
 
 type DynamoDB struct {
@@ -285,9 +292,9 @@ func (ddb *DynamoDB) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) 
 			Key: map[string]types.AttributeValue{
 				"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 			},
-			UpdateExpression: aws.String("SET locked_by = :locked_by"),
+			UpdateExpression: aws.String(fmt.Sprintf("SET locked_by = %s", lockedByAttributeKey)),
 			ExpressionAttributeValues: map[string]types.AttributeValue{
-				":locked_by": &types.AttributeValueMemberS{Value: lockedByNone},
+				lockedByAttributeKey: &types.AttributeValueMemberS{Value: lockedByNone},
 			},
 		})
 		if err != nil {
@@ -306,9 +313,9 @@ func (ddb *DynamoDB) setLocked(ctx context.Context, hash *chainhash.Hash) error 
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
-		UpdateExpression: aws.String("SET locked_by = :locked_by"),
+		UpdateExpression: aws.String(fmt.Sprintf("SET locked_by = %s", lockedByAttributeKey)),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":locked_by": &types.AttributeValueMemberS{Value: ddb.hostname},
+			lockedByAttributeKey: &types.AttributeValueMemberS{Value: ddb.hostname},
 		},
 	})
 
@@ -332,11 +339,11 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 	out, err := ddb.client.Query(ctx, &dynamodb.QueryInput{
 		TableName:              aws.String("transactions"),
 		IndexName:              aws.String("locked_by_index"),
-		KeyConditionExpression: aws.String("locked_by = :locked_by"),
-		FilterExpression:       aws.String("tx_status < :tx_status"),
+		KeyConditionExpression: aws.String(fmt.Sprintf("locked_by = %s", lockedByAttributeKey)),
+		FilterExpression:       aws.String(fmt.Sprintf("tx_status < %s", txStatusAttributeKey)),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":locked_by": &types.AttributeValueMemberS{Value: lockedByNone},
-			":tx_status": &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
+			lockedByAttributeKey: &types.AttributeValueMemberS{Value: lockedByNone},
+			txStatusAttributeKey: &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
 		},
 	})
 
@@ -380,10 +387,10 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
-		UpdateExpression: aws.String("SET tx_status = :tx_status, reject_reason = :reject_reason"),
+		UpdateExpression: aws.String(fmt.Sprintf("SET tx_status = %s, reject_reason = %s", txStatusAttributeKey, rejectReasonAttributeKey)),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":tx_status":     &types.AttributeValueMemberN{Value: strconv.Itoa(int(status))},
-			":reject_reason": &types.AttributeValueMemberS{Value: rejectReason},
+			txStatusAttributeKey:     &types.AttributeValueMemberN{Value: strconv.Itoa(int(status))},
+			rejectReasonAttributeKey: &types.AttributeValueMemberS{Value: rejectReason},
 		},
 	})
 
@@ -411,11 +418,11 @@ func (ddb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
-		UpdateExpression: aws.String("SET block_height = :block_height, block_hash = :block_hash, tx_status = :tx_status"),
+		UpdateExpression: aws.String(fmt.Sprintf("SET block_height = %s, block_hash = %s, tx_status = %s", blockHeightAttributeKey, blockHashAttributeKey, txStatusAttributeKey)),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":block_hash":   &types.AttributeValueMemberB{Value: blockHash.CloneBytes()},
-			":block_height": &types.AttributeValueMemberN{Value: strconv.Itoa(int(blockHeight))},
-			":tx_status":    &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
+			blockHashAttributeKey:   &types.AttributeValueMemberB{Value: blockHash.CloneBytes()},
+			blockHeightAttributeKey: &types.AttributeValueMemberN{Value: strconv.Itoa(int(blockHeight))},
+			txStatusAttributeKey:    &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
 		},
 	})
 

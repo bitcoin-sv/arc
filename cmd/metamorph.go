@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/bitcoin-sv/arc/asynccaller"
@@ -301,7 +302,14 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 		z := metamorph.NewZMQ(zmqURL, statusMessageCh)
 		zmqCollector.Set(zmqURL.Host, z.Stats)
-		go z.Start()
+		port, err := strconv.Atoi(z.URL.Port())
+		if err != nil {
+			z.Logger.Fatalf("Could not parse port from metamorph_zmqAddress: %v", err)
+		}
+
+		z.Logger.Infof("Listening to ZMQ on %s:%d", z.URL.Hostname(), port)
+
+		go z.Start(bitcoin.NewZMQ(z.URL.Hostname(), port, z.Logger))
 	}
 
 	// pass all the started peers to the collector

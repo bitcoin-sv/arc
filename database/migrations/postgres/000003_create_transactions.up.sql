@@ -1,5 +1,5 @@
 CREATE TABLE transactions (
-                              id SERIAL PRIMARY KEY,
+                              id BIGSERIAL PRIMARY KEY,
                               hash BYTEA NOT NULL,
                               source TEXT,
                               merkle_path TEXT DEFAULT ''::TEXT

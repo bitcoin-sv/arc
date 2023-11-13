@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"time"
 
+	awscfg "github.com/aws/aws-sdk-go-v2/config"
+	awsdynamodb "github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/bitcoin-sv/arc/asynccaller"
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
@@ -20,6 +22,9 @@ import (
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/store"
+	"github.com/bitcoin-sv/arc/metamorph/store/badger"
+	"github.com/bitcoin-sv/arc/metamorph/store/dynamodb"
+	"github.com/bitcoin-sv/arc/metamorph/store/sql"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -29,6 +34,11 @@ import (
 	"github.com/ordishs/go-utils/safemap"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+)
+
+const (
+	DbModeBadger   = "badger"
+	DbModeDynamoDB = "dynamodb"
 )
 
 func StartMetamorph(logger utils.Logger) (func(), error) {
@@ -46,7 +56,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		return nil, errors.New("metamorph.db.mode not found in config")
 	}
 
-	s, err := metamorph.NewStore(dbMode, folder)
+	s, err := NewStore(dbMode, folder)
 	if err != nil {
 		logger.Fatalf("Error creating metamorph store: %v", err)
 	}
@@ -74,7 +84,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	}
 
 	source := "-"
-	if dbMode != metamorph.DbModeDynamoDB {
+	if dbMode != DbModeDynamoDB {
 		ip, port, err := net.SplitHostPort(metamorphGRPCListenAddress)
 		if err != nil {
 			logger.Fatalf("cannot parse ip address: %v", err)
@@ -315,6 +325,39 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 			logger.Errorf("Could not close store: %v", err)
 		}
 	}, nil
+}
+
+func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) {
+	switch dbMode {
+	case DbModeBadger:
+		s, err = badger.New(path.Join(folder, "metamorph"))
+		if err != nil {
+			return nil, err
+		}
+	case DbModeDynamoDB:
+		hostname, err := os.Hostname()
+		if err != nil {
+			return nil, err
+		}
+
+		ctx := context.Background()
+		cfg, err := awscfg.LoadDefaultConfig(ctx, awscfg.WithEC2IMDSRegion())
+		if err != nil {
+			return nil, err
+		}
+
+		s, err = dynamodb.New(
+			awsdynamodb.NewFromConfig(cfg),
+			hostname,
+		)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		s, err = sql.New(dbMode)
+	}
+
+	return s, err
 }
 
 func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {

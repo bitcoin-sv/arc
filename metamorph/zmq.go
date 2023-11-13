@@ -109,6 +109,7 @@ func (z *ZMQ) Start() {
 				z.Stats.invalidTx.Add(1)
 				// c[1] is lots of info about the tx in json format encoded in hex
 				var txInfo *ZMQTxInfo
+				status := metamorph_api.Status_REJECTED
 				txInfo, err = z.parseTxInfo(c)
 				if err != nil {
 					z.logger.Errorf("invalidtx: failed to parse: %v", err)
@@ -120,7 +121,8 @@ func (z *ZMQ) Start() {
 				}
 				if txInfo.IsMissingInputs {
 					z.logger.Debugf("invalidtx %s due to missing inputs ignored", txInfo.TxID)
-					continue
+					errReason = "Transaction " + txInfo.TxID + " is currently orphaned"
+					status = metamorph_api.Status_SENT_TO_NETWORK
 				}
 				if txInfo.IsDoubleSpendDetected {
 					errReason += " - double spend"
@@ -129,11 +131,10 @@ func (z *ZMQ) Start() {
 				z.logger.Debugf("invalidtx %s: %s", txInfo.TxID, errReason)
 
 				hash, _ := chainhash.NewHashFromStr(txInfo.TxID)
-
 				z.statusMessageCh <- &PeerTxMessage{
 					Start:  time.Now(),
 					Hash:   hash,
-					Status: metamorph_api.Status_REJECTED,
+					Status: status,
 					Peer:   z.URL.String(),
 					Err:    fmt.Errorf(errReason),
 				}

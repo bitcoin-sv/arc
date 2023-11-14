@@ -22,7 +22,10 @@ import (
 )
 
 const (
-	hostname = "test-host"
+	hostname      = "test-host"
+	host          = "http://localhost:"
+	regionUsEast1 = "us-east-1"
+	port          = "8000/tcp"
 )
 
 var (
@@ -57,8 +60,8 @@ func NewDynamoDBIntegrationTestRepo(t *testing.T) (*DynamoDB, *dynamodb.Client) 
 	resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
 			PartitionID:   "aws",
-			URL:           "http://localhost:" + resource.GetPort("8000/tcp"),
-			SigningRegion: "us-east-1",
+			URL:           host + resource.GetPort(port),
+			SigningRegion: regionUsEast1,
 		}, nil
 	})
 	cfg, err := config.LoadDefaultConfig(

@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	ISO8601      = "2006-01-02T15:04:05.999Z"
 	lockedByNone = "NONE"
 
 	lockedByAttributeKey     = ":locked_by"
@@ -474,7 +473,7 @@ func (ddb *DynamoDB) GetBlockProcessed(ctx context.Context, blockHash *chainhash
 
 	var processedAtTime time.Time
 	if blockItem.ProcessedAt != "" {
-		processedAtTime, err = time.Parse(ISO8601, blockItem.ProcessedAt)
+		processedAtTime, err = time.Parse(time.RFC3339, blockItem.ProcessedAt)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
@@ -494,7 +493,7 @@ func (ddb *DynamoDB) SetBlockProcessed(ctx context.Context, blockHash *chainhash
 	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:SetBlockProcessed")
 	defer span.Finish()
 
-	blockItem := BlockItem{Hash: blockHash.CloneBytes(), ProcessedAt: time.Now().UTC().Format(ISO8601)}
+	blockItem := BlockItem{Hash: blockHash.CloneBytes(), ProcessedAt: time.Now().UTC().Format(time.RFC3339)}
 	item, err := attributevalue.MarshalMap(blockItem)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)

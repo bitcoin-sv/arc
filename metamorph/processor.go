@@ -219,7 +219,12 @@ func (p *Processor) unlockItems() error {
 	hashes := make([]*chainhash.Hash, len(items))
 	index := 0
 	for key := range items {
-		hashes[index] = &key
+		hash, err := chainhash.NewHash(key.CloneBytes())
+		if err != nil {
+			return err
+		}
+		hashes[index] = hash
+		index++
 	}
 
 	return p.store.SetUnlocked(context.Background(), hashes)

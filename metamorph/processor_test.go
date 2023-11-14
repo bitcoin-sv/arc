@@ -136,7 +136,7 @@ func TestLoadUnmined(t *testing.T) {
 			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX1Hash, testdata.TX3Hash},
 		},
 		{
-			name: "load 3 unmined transactions, none mined",
+			name: "load 2 unmined transactions, none mined",
 			storedData: []*store.StoreData{
 				{
 					StoredAt:    storedAt,
@@ -262,7 +262,11 @@ func TestLoadUnmined(t *testing.T) {
 				DelFunc: func(ctx context.Context, key []byte) error {
 					return tc.delErr
 				},
-				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
+					require.ElementsMatch(t, tc.expectedItemTxHashesFinal, hashes)
+					require.Equal(t, len(tc.expectedItemTxHashesFinal), len(hashes))
+					return nil
+				},
 			}
 
 			processor, err := NewProcessor(mtmStore, pm, nil, btxMock,

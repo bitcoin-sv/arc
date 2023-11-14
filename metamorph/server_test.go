@@ -554,7 +554,7 @@ func TestStartGRPCServer(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &storeMock.MetamorphStoreMock{}
+			metamorphStore := &storeMock.MetamorphStoreMock{SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil }}
 
 			btc := &blockTxMock.ClientIMock{}
 

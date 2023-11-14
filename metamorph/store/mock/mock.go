@@ -46,6 +46,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			SetBlockProcessedFunc: func(ctx context.Context, blockHash *chainhash.Hash) error {
 //				panic("mock out the SetBlockProcessed method")
 //			},
+//			SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
+//				panic("mock out the SetUnlocked method")
+//			},
 //			UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 //				panic("mock out the UpdateMined method")
 //			},
@@ -82,6 +85,9 @@ type MetamorphStoreMock struct {
 
 	// SetBlockProcessedFunc mocks the SetBlockProcessed method.
 	SetBlockProcessedFunc func(ctx context.Context, blockHash *chainhash.Hash) error
+
+	// SetUnlockedFunc mocks the SetUnlocked method.
+	SetUnlockedFunc func(ctx context.Context, hashes []*chainhash.Hash) error
 
 	// UpdateMinedFunc mocks the UpdateMined method.
 	UpdateMinedFunc func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error
@@ -143,6 +149,13 @@ type MetamorphStoreMock struct {
 			// BlockHash is the blockHash argument value.
 			BlockHash *chainhash.Hash
 		}
+		// SetUnlocked holds details about calls to the SetUnlocked method.
+		SetUnlocked []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hashes is the hashes argument value.
+			Hashes []*chainhash.Hash
+		}
 		// UpdateMined holds details about calls to the UpdateMined method.
 		UpdateMined []struct {
 			// Ctx is the ctx argument value.
@@ -174,6 +187,7 @@ type MetamorphStoreMock struct {
 	lockIsCentralised     sync.RWMutex
 	lockSet               sync.RWMutex
 	lockSetBlockProcessed sync.RWMutex
+	lockSetUnlocked       sync.RWMutex
 	lockUpdateMined       sync.RWMutex
 	lockUpdateStatus      sync.RWMutex
 }
@@ -454,6 +468,42 @@ func (mock *MetamorphStoreMock) SetBlockProcessedCalls() []struct {
 	mock.lockSetBlockProcessed.RLock()
 	calls = mock.calls.SetBlockProcessed
 	mock.lockSetBlockProcessed.RUnlock()
+	return calls
+}
+
+// SetUnlocked calls SetUnlockedFunc.
+func (mock *MetamorphStoreMock) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
+	if mock.SetUnlockedFunc == nil {
+		panic("MetamorphStoreMock.SetUnlockedFunc: method is nil but MetamorphStore.SetUnlocked was just called")
+	}
+	callInfo := struct {
+		Ctx    context.Context
+		Hashes []*chainhash.Hash
+	}{
+		Ctx:    ctx,
+		Hashes: hashes,
+	}
+	mock.lockSetUnlocked.Lock()
+	mock.calls.SetUnlocked = append(mock.calls.SetUnlocked, callInfo)
+	mock.lockSetUnlocked.Unlock()
+	return mock.SetUnlockedFunc(ctx, hashes)
+}
+
+// SetUnlockedCalls gets all the calls that were made to SetUnlocked.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.SetUnlockedCalls())
+func (mock *MetamorphStoreMock) SetUnlockedCalls() []struct {
+	Ctx    context.Context
+	Hashes []*chainhash.Hash
+} {
+	var calls []struct {
+		Ctx    context.Context
+		Hashes []*chainhash.Hash
+	}
+	mock.lockSetUnlocked.RLock()
+	calls = mock.calls.SetUnlocked
+	mock.lockSetUnlocked.RUnlock()
 	return calls
 }
 

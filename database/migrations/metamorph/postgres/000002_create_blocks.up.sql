@@ -1,4 +1,4 @@
 CREATE TABLE IF NOT EXISTS blocks (
-                                      hash BLOB PRIMARY KEY,
+                                      hash BYTEA PRIMARY KEY,
                                       processed_at TEXT
 );

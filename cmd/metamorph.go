@@ -328,33 +328,37 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 }
 
 func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) {
-	switch dbMode {
-	case DbModeBadger:
-		s, err = badger.New(path.Join(folder, "metamorph"))
-		if err != nil {
-			return nil, err
-		}
-	case DbModeDynamoDB:
-		hostname, err := os.Hostname()
-		if err != nil {
-			return nil, err
-		}
-
-		ctx := context.Background()
-		cfg, err := awscfg.LoadDefaultConfig(ctx, awscfg.WithEC2IMDSRegion())
-		if err != nil {
-			return nil, err
-		}
-
-		s, err = dynamodb.New(
-			awsdynamodb.NewFromConfig(cfg),
-			hostname,
-		)
-		if err != nil {
-			return nil, err
-		}
-	default:
+	if dbMode == sql.DbModePostgres || dbMode == sql.DbModeSQLite || dbMode == sql.DbModeSQLiteM {
 		s, err = sql.New(dbMode)
+	} else {
+		switch dbMode {
+		case DbModeBadger:
+			s, err = badger.New(path.Join(folder, "metamorph"))
+			if err != nil {
+				return nil, err
+			}
+		case DbModeDynamoDB:
+			hostname, err := os.Hostname()
+			if err != nil {
+				return nil, err
+			}
+
+			ctx := context.Background()
+			cfg, err := awscfg.LoadDefaultConfig(ctx, awscfg.WithEC2IMDSRegion())
+			if err != nil {
+				return nil, err
+			}
+
+			s, err = dynamodb.New(
+				awsdynamodb.NewFromConfig(cfg),
+				hostname,
+			)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("db mode %s is invalid", dbMode)
+		}
 	}
 
 	return s, err

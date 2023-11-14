@@ -25,7 +25,12 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const ISO8601 = "2006-01-02T15:04:05.999Z"
+const (
+	ISO8601        = "2006-01-02T15:04:05.999Z"
+	DbModePostgres = "postgres"
+	DbModeSQLiteM  = "sqlite_memory"
+	DbModeSQLite   = "sqlite"
+)
 
 type SQL struct {
 	db *sql.DB
@@ -43,7 +48,7 @@ func New(engine string) (store.MetamorphStore, error) {
 	logger := gocore.Log("mmsql", gocore.NewLogLevelFromString(logLevel))
 
 	switch engine {
-	case "postgres":
+	case DbModePostgres:
 		dbHost := viper.GetString("metamorph.db.postgres.host")
 		dbPort := viper.GetInt("metamorph.db.postgres.port")
 		dbName := viper.GetString("metamorph.db.postgres.name")
@@ -58,14 +63,14 @@ func New(engine string) (store.MetamorphStore, error) {
 			return nil, fmt.Errorf("failed to open postgres DB: %+v", err)
 		}
 
-		if err := createPostgresSchema(db); err != nil {
+		if err := CreatePostgresSchema(db); err != nil {
 			return nil, fmt.Errorf("failed to create postgres schema: %+v", err)
 		}
 
-	case "sqlite_memory":
+	case DbModeSQLiteM:
 		memory = true
 		fallthrough
-	case "sqlite":
+	case DbModeSQLite:
 		var filename string
 		if memory {
 			filename = fmt.Sprintf("file:%s?mode=memory&cache=shared", random.String(16))
@@ -102,7 +107,7 @@ func New(engine string) (store.MetamorphStore, error) {
 			return nil, fmt.Errorf("could not enable shared locking mode: %+v", err)
 		}
 
-		if err = createSqliteSchema(db); err != nil {
+		if err = CreateSqliteSchema(db); err != nil {
 			return nil, fmt.Errorf("failed to create sqlite schema: %+v", err)
 		}
 
@@ -115,10 +120,10 @@ func New(engine string) (store.MetamorphStore, error) {
 	}, nil
 }
 
-func createPostgresSchema(db *sql.DB) error {
+func CreatePostgresSchema(db *sql.DB) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("createPostgresSchema").NewStat("duration").AddTime(startNanos)
+		gocore.NewStat("mtm_store_sql").NewStat("CreatePostgresSchema").NewStat("duration").AddTime(startNanos)
 	}()
 
 	// Create schema, if necessary...
@@ -156,10 +161,10 @@ func createPostgresSchema(db *sql.DB) error {
 	return nil
 }
 
-func createSqliteSchema(db *sql.DB) error {
+func CreateSqliteSchema(db *sql.DB) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("createSqliteSchema").AddTime(startNanos)
+		gocore.NewStat("mtm_store_sql").NewStat("CreateSqliteSchema").AddTime(startNanos)
 	}()
 
 	// Create schema, if necessary...

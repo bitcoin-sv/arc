@@ -22,7 +22,7 @@ var DefaultParams = dbconn.DBConnectionParams{
 	Port:     5432,
 	Username: "arcuser",
 	Password: "arcpass",
-	DBName:   "arcdb_test",
+	DBName:   "blocktx_test",
 	Scheme:   "postgres",
 }
 
@@ -42,7 +42,7 @@ func (s *DatabaseTestSuite) SetupSuite() {
 
 	testDir := filepath.Dir(callerFilePath)
 
-	path := "file://" + testDir + "/../database/migrations/postgres"
+	path := "file://" + testDir + "/../database/migrations/blocktx/postgres"
 	m, err := migrate.New(path, DefaultParams.String())
 
 	require.NoError(s.T(), err)

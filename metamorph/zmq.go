@@ -83,9 +83,9 @@ type ZMQI interface {
 func (z *ZMQ) Start(zmqi ZMQI) {
 
 	ch := make(chan []string)
-	var err error
 
 	go func() {
+		var err error
 		for c := range ch {
 			switch c[0] {
 			case "hashtx2":
@@ -159,15 +159,15 @@ func (z *ZMQ) Start(zmqi ZMQI) {
 		}
 	}()
 
-	if err = zmqi.Subscribe("hashtx2", ch); err != nil {
+	if err := zmqi.Subscribe("hashtx2", ch); err != nil {
 		z.Logger.Fatal(err)
 	}
 
-	if err = zmqi.Subscribe("invalidtx", ch); err != nil {
+	if err := zmqi.Subscribe("invalidtx", ch); err != nil {
 		z.Logger.Fatal(err)
 	}
 
-	if err = zmqi.Subscribe("discardedfrommempool", ch); err != nil {
+	if err := zmqi.Subscribe("discardedfrommempool", ch); err != nil {
 		z.Logger.Fatal(err)
 	}
 }

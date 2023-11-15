@@ -511,8 +511,6 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 					p.logger.Warn("transaction rejected", slog.String("status", status.String()), slog.String("hash", hash.String()))
 
 					p.rejected.AddDuration(source, time.Since(processorResponse.Start))
-					processorResponse.Close()
-					p.processorResponseMap.Delete(hash)
 				}
 			},
 		})

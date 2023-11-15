@@ -5,16 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/api/handler"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoinsv/bsvd/bsvec"
-	"github.com/bitcoinsv/bsvutil"
-	"github.com/libsv/go-bk/bec"
-	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-bt/v2/bscript"
-	"github.com/libsv/go-bt/v2/unlocker"
-	"github.com/stretchr/testify/require"
 	"io"
 	"log"
 	"net/http"
@@ -22,6 +12,18 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/api/handler"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoinsv/bsvd/bsvec"
+	"github.com/bitcoinsv/bsvutil"
+	"github.com/libsv/go-bc"
+	"github.com/libsv/go-bk/bec"
+	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-bt/v2/bscript"
+	"github.com/libsv/go-bt/v2/unlocker"
+	"github.com/stretchr/testify/require"
 )
 
 type Response struct {
@@ -234,16 +236,18 @@ func TestPostCallbackToken(t *testing.T) {
 
 			generate(t, 10)
 
-			var statusResopnse *api.GETTransactionStatusResponse
-			statusResopnse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
+			var statusResponse *api.GETTransactionStatusResponse
+			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
 
 			for i := 0; i <= 1; i++ {
 				t.Logf("callback iteration %d", i)
 				select {
 				case callback := <-callbackReceivedChan:
-					require.Equal(t, statusResopnse.JSON200.Txid, callback.Txid)
-					require.Equal(t, statusResopnse.JSON200.BlockHeight, callback.BlockHeight)
-					require.Equal(t, statusResopnse.JSON200.BlockHash, callback.BlockHash)
+					require.Equal(t, statusResponse.JSON200.Txid, callback.Txid)
+					require.Equal(t, statusResponse.JSON200.BlockHeight, callback.BlockHeight)
+					require.Equal(t, statusResponse.JSON200.BlockHash, callback.BlockHash)
+					require.Equal(t, statusResponse.JSON200.TxStatus, callback.TxStatus)
+					require.Equal(t, handler.PtrTo("MINED"), callback.TxStatus)
 				case err := <-errChan:
 					t.Fatalf("callback received - failed to parse callback %v", err)
 				case <-time.NewTicker(time.Second * 15).C:
@@ -415,3 +419,77 @@ func createTxHexStringExtended(t *testing.T) string {
 // 		t.Errorf("Expected 200 OK but got: %d", resp.StatusCode)
 // 	}
 // }
+
+func TestMerklePath(t *testing.T) {
+	tt := []struct {
+		name string
+	}{
+		{
+			name: "post transaction - check returned Merkle path",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			address, privateKey := getNewWalletAddress(t)
+
+			generate(t, 100)
+
+			t.Logf("generated address: %s", address)
+
+			sendToAddress(t, address, 0.001)
+
+			txID := sendToAddress(t, address, 0.02)
+			t.Logf("sent 0.02 BSV to: %s", txID)
+
+			hash := generate(t, 1)
+			t.Logf("generated 1 block: %s", hash)
+
+			utxos := getUtxos(t, address)
+			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+
+			tx, err := createTx(privateKey, address, utxos[0])
+			require.NoError(t, err)
+
+			url := "http://arc:9090/"
+
+			arcClient, err := api.NewClientWithResponses(url)
+			require.NoError(t, err)
+
+			ctx := context.Background()
+			waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
+			params := &api.POSTTransactionParams{
+				XWaitForStatus: &waitForStatus,
+			}
+
+			arcBody := api.POSTTransactionJSONRequestBody{
+				RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+			}
+
+			var response *api.POSTTransactionResponse
+			response, err = arcClient.POSTTransactionWithResponse(ctx, params, arcBody)
+			require.NoError(t, err)
+
+			require.Equal(t, http.StatusOK, response.StatusCode())
+			require.NotNil(t, response.JSON200)
+			require.Equal(t, "SEEN_ON_NETWORK", response.JSON200.TxStatus)
+
+			generate(t, 10)
+
+			var statusResponse *api.GETTransactionStatusResponse
+			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
+
+			require.Equal(t, handler.PtrTo("MINED"), statusResponse.JSON200.TxStatus)
+			require.NotNil(t, statusResponse.JSON200.MerklePath)
+
+			bump, err := bc.NewBUMPFromStr(*statusResponse.JSON200.MerklePath)
+			require.NoError(t, err)
+
+			root, err := bump.CalculateRootGivenTxid(tx.TxID())
+			require.NoError(t, err)
+
+			blockRoot := getBlockRootByHeight(t, int(*statusResponse.JSON200.BlockHeight))
+			require.Equal(t, blockRoot, root)
+		})
+	}
+}

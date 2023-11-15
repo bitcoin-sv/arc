@@ -243,6 +243,11 @@ an environment variable.
 
 Please note that if you are running multiple instances of BlockTX for resilience, each BlockTx can be configured to use a shared database and in this case, Postgres is probably a sensible choice.
 
+If BlockTx is configured to run with `postgres` db, then migrations have to be executed prior to starting ARC. For this you'll need the [go-migrate](https://github.com/golang-migrate/migrate) tool. Once `go-migrate` has been installed, the migrations can be executed as follows:
+```bash
+migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslmode=<ssl-mode>"  -path database/migrations/postgres  up
+```
+
 ### Callbacker
 
 Callbacker is a very simple microservice that is responsible for sending callbacks to clients when a transaction has
@@ -300,6 +305,6 @@ make clean_restart_e2e_test
 ```
 
 
-## Background jobs 
+## Background jobs
 
-See [here](https://github.com/bitcoin-sv/arc/tree/arc-background-jobs/background_jobs/README.md)
+See [here](./background_jobs/README.md)

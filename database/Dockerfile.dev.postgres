@@ -1,0 +1,4 @@
+FROM postgres:latest
+
+RUN echo "CREATE DATABASE metamorph_dev;" >> /docker-entrypoint-initdb.d/init.sql
+RUN echo "CREATE DATABASE blocktx_dev;" >> /docker-entrypoint-initdb.d/init.sql

@@ -108,10 +108,6 @@ func New(engine string) (store.Interface, error) {
 
 		db.SetMaxOpenConns(maxOpenConns)
 
-		if err := createPostgresSchema(db); err != nil {
-			return nil, fmt.Errorf("failed to create postgres schema: %+v", err)
-		}
-
 	case sqliteMemoryEngine:
 		memory = true
 		fallthrough

@@ -27,13 +27,15 @@ func (s *ClearJobSuite) Test() {
 	// Add "fresh" blocks
 	for i := 0; i < 5; i++ {
 		block := GetTestBlock()
+		block.Height = int64(i)
 		block.InsertedAt = time.Now()
 		s.InsertBlock(block)
 	}
 
 	// Add "expired" blocks
-	for i := 0; i < 5; i++ {
+	for i := 5; i < 10; i++ {
 		block := GetTestBlock()
+		block.Height = int64(i)
 		block.InsertedAt = time.Now().Add(-20 * 24 * time.Hour)
 		s.InsertBlock(block)
 	}

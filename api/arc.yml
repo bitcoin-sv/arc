@@ -6,7 +6,7 @@ info:
     name: Open BSV Licence
     url: https://bitcoinassociation.net/open-bsv-license/
 servers:
-- url: https://tapi.taal.com/arc
+  - url: https://tapi.taal.com/arc
 paths:
 
   # Get Policy
@@ -206,7 +206,7 @@ paths:
                 added:
                   summary: Success
                   value:
-                   [
+                    [
                       {
                         "blockHash": "",
                         "blockHeight": 0,
@@ -223,7 +223,7 @@ paths:
                 error:
                   summary: "Invalid outputs"
                   value:
-                   [
+                    [
                       {
                         "detail": "Transaction is invalid because the outputs are non-existent or invalid",
                         "extraInfo": "arc error 463: arc error 463: transaction output 0 satoshis is invalid",
@@ -731,7 +731,7 @@ components:
     callbackToken:
       name: X-CallbackToken
       in: header
-      description: Access token for notification callback endpoint.
+      description: Access token for notification callback endpoint. It will be used as a Authorization header for the http callback
       schema:
         type: string
     merkleProof:
@@ -748,6 +748,6 @@ components:
         type: integer
 
 security:
-  - BearerAuth: []
-  - Api-Key: []
-  - Authorization: []
+  - BearerAuth: [ ]
+  - Api-Key: [ ]
+  - Authorization: [ ]

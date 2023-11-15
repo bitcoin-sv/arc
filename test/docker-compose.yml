@@ -15,8 +15,6 @@ services:
       - ./config/bitcoin.conf:/data/bitcoin.conf
       - node1-data:/data
     command: [ "/entrypoint.sh", "bitcoind", "-connect=node2:18333", "-connect=node3:18333" ]
-    networks:
-      - shared
 
   node2:
     container_name: node2
@@ -32,8 +30,6 @@ services:
       - ./config/bitcoin.conf:/data/bitcoin.conf
       - node2-data:/data
     command: [ "/entrypoint.sh", "bitcoind", "-connect=node1:18333", "-connect=node3:18333" ]
-    networks:
-      - shared
 
   node3:
     container_name: node3
@@ -49,8 +45,42 @@ services:
       - ./config/bitcoin.conf:/data/bitcoin.conf
       - node3-data:/data
     command: [ "/entrypoint.sh", "bitcoind", "-connect=node1:18333", "-connect=node2:18333" ]
-    networks:
-      - shared
+
+  db:
+    image: postgres:14
+    restart: always
+    environment:
+      - POSTGRES_USER=arcuser
+      - POSTGRES_PASSWORD=arcpass
+      - POSTGRES_DB=blocktx
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U arcuser" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - '5432:5432'
+    expose:
+      - "5432"
+
+  migrate:
+    container_name: migrate
+    image: migrate/migrate:v4.16.2
+    entrypoint:
+      [
+        "migrate",
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://arcuser:arcpass@db:5432/blocktx?sslmode=disable",
+      ]
+    command: [ "up" ]
+    volumes:
+      - ../database/migrations/postgres:/migrations
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
 
   arc:
     build: ..
@@ -65,15 +95,12 @@ services:
       - node1
       - node2
       - node3
-    networks:
-      - shared
+      - migrate
 
   tests:
     build: .
     depends_on:
       - arc
-    networks:
-      - shared
 
 volumes:
   node1-data:
@@ -82,7 +109,3 @@ volumes:
     external: false
   node3-data:
     external: false
-
-networks:
-  shared:
-    driver: bridge

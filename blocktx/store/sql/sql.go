@@ -108,10 +108,6 @@ func New(engine string) (store.Interface, error) {
 
 		db.SetMaxOpenConns(maxOpenConns)
 
-		if err := createPostgresSchema(db); err != nil {
-			return nil, fmt.Errorf("failed to create postgres schema: %+v", err)
-		}
-
 	case sqliteMemoryEngine:
 		memory = true
 		fallthrough
@@ -170,95 +166,6 @@ func New(engine string) (store.Interface, error) {
 
 func (s *SQL) Close() error {
 	return s.db.Close()
-}
-
-func createPostgresSchema(db *sql.DB) error {
-	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS blocks (
-		 inserted_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-		,id           BIGSERIAL PRIMARY KEY
-	  ,hash         BYTEA NOT NULL
-	  ,prevhash     BYTEA NOT NULL
-	  ,merkleroot   BYTEA NOT NULL
-	  ,height       BIGINT NOT NULL
-	  ,processed_at TIMESTAMPTZ
-		,size					BIGINT
-		,tx_count			BIGINT
-	  ,orphanedyn   BOOLEAN NOT NULL DEFAULT FALSE
-		);
-	`); err != nil {
-		db.Close()
-		return fmt.Errorf("could not create blocks table - [%+v]", err)
-	}
-
-	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_blocks_hash ON blocks (hash);`); err != nil {
-		db.Close()
-		return fmt.Errorf("could not create ux_blocks_hash index - [%+v]", err)
-	}
-
-	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS pux_blocks_height ON blocks(height) WHERE orphanedyn = FALSE;`); err != nil {
-		db.Close()
-		return fmt.Errorf("could not create pux_blocks_height index - [%+v]", err)
-	}
-
-	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS transactions (
-		 id           BIGSERIAL PRIMARY KEY
-		,hash         BYTEA NOT NULL
-		,source       TEXT
-		,merkle_path  TEXT DEFAULT('')
-		);
-	`); err != nil {
-		db.Close()
-		return fmt.Errorf("could not create transactions table - [%+v]", err)
-	}
-
-	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_hash ON transactions (hash);`); err != nil {
-		db.Close()
-		return fmt.Errorf("could not create transactions hash index - [%+v]", err)
-	}
-
-	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS block_transactions_map (
-		 blockid      BIGINT NOT NULL REFERENCES blocks(id)
-	  ,txid       	BIGINT NOT NULL REFERENCES transactions(id)
-		,pos					BIGINT NOT NULL
-	  ,PRIMARY KEY (blockid, txid)
-		);
-	`); err != nil {
-		db.Close()
-		return fmt.Errorf("could not create block_transactions_map table - [%+v]", err)
-	}
-
-	if _, err := db.Exec(`
-	CREATE OR REPLACE FUNCTION reverse_bytes_iter(bytes bytea, length int, midpoint int, index int)
-	RETURNS bytea AS
-	$$
-  SELECT CASE WHEN index >= midpoint THEN bytes ELSE
-    reverse_bytes_iter(
-      set_byte(
-        set_byte(bytes, index, get_byte(bytes, length-index)),
-        length-index, get_byte(bytes, index)
-      ),
-      length, midpoint, index + 1
-    )
-  END;
-	$$ LANGUAGE SQL IMMUTABLE;
-`); err != nil {
-		db.Close()
-		return fmt.Errorf("could not create function table reverse_bytes_iter() [%+v]", err)
-	}
-
-	if _, err := db.Exec(`
-		CREATE OR REPLACE FUNCTION reverse_bytes(bytes bytea) RETURNS bytea AS
-		'SELECT reverse_bytes_iter(bytes, octet_length(bytes)-1, octet_length(bytes)/2, 0)'
-		LANGUAGE SQL IMMUTABLE;
-	`); err != nil {
-		db.Close()
-		return fmt.Errorf("could not create function reverse_bytes() - [%+v]", err)
-	}
-
-	return nil
 }
 
 func createSqliteSchema(db *sql.DB) error {

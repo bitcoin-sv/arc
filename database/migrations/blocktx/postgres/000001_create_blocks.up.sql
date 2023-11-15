@@ -1,15 +1,19 @@
-CREATE TABLE blocks (
-                        inserted_at TIMESTAMP WITH TIME ZONE  DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                        id BIGSERIAL PRIMARY KEY,
-                        hash BYTEA NOT NULL,
-                        prevhash BYTEA NOT NULL,
-                        merkleroot BYTEA NOT NULL,
-                        height BIGINT NOT NULL,
-                        processed_at TIMESTAMP WITH TIME ZONE,
-                        size BIGINT,
-                        tx_count BIGINT,
-                        orphanedyn BOOLEAN DEFAULT FALSE NOT NULL,
-                        merkle_path TEXT DEFAULT ''::TEXT
+CREATE TABLE IF NOT EXISTS blocks (
+    inserted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id BIGSERIAL PRIMARY KEY,
+    hash BYTEA NOT NULL,
+    prevhash BYTEA NOT NULL,
+    merkleroot BYTEA NOT NULL,
+    height BIGINT NOT NULL,
+    processed_at TIMESTAMPTZ,
+    size BIGINT,
+    tx_count BIGINT,
+    orphanedyn BOOLEAN NOT NULL DEFAULT FALSE,
+    merkle_path TEXT DEFAULT '' :: TEXT
 );
 
-CREATE INDEX ix_transactions ON public.blocks USING btree (hash);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_blocks_hash ON blocks (hash);
+
+CREATE UNIQUE INDEX IF NOT EXISTS pux_blocks_height ON blocks(height)
+WHERE
+    orphanedyn = FALSE;

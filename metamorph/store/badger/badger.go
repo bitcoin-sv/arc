@@ -86,6 +86,8 @@ func (s *Badger) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) erro
 	return nil
 }
 
+func (s *Badger) SetUnlockedByName(ctx context.Context, lockedBy string) (int, error) { return 0, nil }
+
 func (s *Badger) Close(ctx context.Context) error {
 	start := gocore.CurrentNanos()
 	defer func() {

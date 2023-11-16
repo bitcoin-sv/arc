@@ -177,6 +177,30 @@ func TestDynamoDBIntegration(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, returnedData, dataStatusAnnounced)
 		require.Contains(t, returnedData, dataStatusSent)
+
+		tx1, err := repo.Get(ctx, TX1Hash[:])
+		require.NoError(t, err)
+		require.Contains(t, hostname, tx1.LockedBy)
+		tx2, err := repo.Get(ctx, TX2Hash[:])
+		require.NoError(t, err)
+		require.Contains(t, hostname, tx2.LockedBy)
+	})
+
+	t.Run("set unlocked by name", func(t *testing.T) {
+		results, err := repo.SetUnlockedByName(ctx, "this-does-not-exist")
+		require.Equal(t, 0, results)
+		require.NoError(t, err)
+
+		results, err = repo.SetUnlockedByName(ctx, hostname)
+		require.Equal(t, 2, results)
+		require.NoError(t, err)
+
+		returnedData, err := repo.Get(ctx, TX1Hash[:])
+		require.NoError(t, err)
+		require.Equal(t, lockedByNone, returnedData.LockedBy)
+		tx2, err := repo.Get(ctx, TX2Hash[:])
+		require.NoError(t, err)
+		require.Contains(t, lockedByNone, tx2.LockedBy)
 	})
 
 	t.Run("update status", func(t *testing.T) {

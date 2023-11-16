@@ -307,3 +307,26 @@ The tests can be executed like this:
 ```
 make clean_restart_e2e_test
 ```
+
+
+## Building ARC
+
+The following tools need to be pre-installed in order to build ARC
+* [go](https://go.dev/)
+
+`make deps`
+`make clean`
+`make build_release`
+
+### Generate grpc APIs
+Install tools using `make install_gen`. Install [protoc](https://grpc.io/docs/protoc-installation/)
+Run `make gen`
+### Generate rest API
+Install tools using `make install_gen`
+`make api`
+
+### Generate the docs
+`brew install swagger-cli`
+`brew install widdershins`
+
+`make docs`

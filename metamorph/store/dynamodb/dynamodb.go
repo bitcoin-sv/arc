@@ -333,6 +333,9 @@ func (ddb *DynamoDB) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 	for _, item := range out.Items {
 		var transaction store.StoreData
 		err = attributevalue.UnmarshalMap(item, &transaction)
+		if err != nil {
+			return 0, err
+		}
 
 		if transaction.LockedBy == lockedByNone {
 			continue

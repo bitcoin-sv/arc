@@ -543,6 +543,54 @@ func TestPutTransactions(t *testing.T) {
 	}
 }
 
+func TestSetUnlockedbyName(t *testing.T) {
+	tt := []struct {
+		name            string
+		recordsAffected int
+		errSetUnlocked  error
+
+		expectedRecordsAffected int
+		expectedErrorStr        string
+	}{
+		{
+			name:            "success",
+			recordsAffected: 5,
+
+			expectedRecordsAffected: 5,
+		},
+		{
+			name: "error",
+
+			errSetUnlocked:   errors.New("failed to set unlocked"),
+			expectedErrorStr: "failed to set unlocked",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			metamorphStore := &storeMock.MetamorphStoreMock{
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int, error) {
+					return tc.recordsAffected, tc.errSetUnlocked
+				},
+			}
+
+			server := NewServer(metamorphStore, nil, nil, source)
+			response, err := server.SetUnlockedByName(context.Background(), &metamorph_api.SetUnlockedByNameRequest{
+				Name: "test",
+			})
+
+			if tc.expectedErrorStr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tc.expectedErrorStr)
+				return
+			}
+
+			require.Equal(t, tc.expectedRecordsAffected, int(response.RecordsAffected))
+		})
+	}
+}
+
 func TestStartGRPCServer(t *testing.T) {
 	tt := []struct {
 		name string

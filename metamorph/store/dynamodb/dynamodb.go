@@ -286,16 +286,7 @@ func (ddb *DynamoDB) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) 
 	// update tx
 	for _, hash := range hashes {
 
-		_, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
-			TableName: aws.String("transactions"),
-			Key: map[string]types.AttributeValue{
-				"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
-			},
-			UpdateExpression: aws.String(fmt.Sprintf("SET locked_by = %s", lockedByAttributeKey)),
-			ExpressionAttributeValues: map[string]types.AttributeValue{
-				lockedByAttributeKey: &types.AttributeValueMemberS{Value: lockedByNone},
-			},
-		})
+		err := ddb.setLockedBy(ctx, hash, lockedByNone)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
@@ -325,6 +316,8 @@ func (ddb *DynamoDB) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 		},
 	})
 	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
 		return 0, err
 	}
 
@@ -334,6 +327,8 @@ func (ddb *DynamoDB) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 		var transaction store.StoreData
 		err = attributevalue.UnmarshalMap(item, &transaction)
 		if err != nil {
+			span.SetTag(string(ext.Error), true)
+			span.LogFields(log.Error(err))
 			return 0, err
 		}
 
@@ -341,16 +336,7 @@ func (ddb *DynamoDB) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 			continue
 		}
 
-		_, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
-			TableName: aws.String("transactions"),
-			Key: map[string]types.AttributeValue{
-				"tx_hash": &types.AttributeValueMemberB{Value: transaction.Hash.CloneBytes()},
-			},
-			UpdateExpression: aws.String(fmt.Sprintf("SET locked_by = %s", lockedByAttributeKey)),
-			ExpressionAttributeValues: map[string]types.AttributeValue{
-				lockedByAttributeKey: &types.AttributeValueMemberS{Value: lockedByNone},
-			},
-		})
+		err = ddb.setLockedBy(ctx, transaction.Hash, lockedByNone)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
@@ -363,7 +349,7 @@ func (ddb *DynamoDB) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 	return numberOfUpdated, nil
 }
 
-func (ddb *DynamoDB) setLocked(ctx context.Context, hash *chainhash.Hash) error {
+func (ddb *DynamoDB) setLockedBy(ctx context.Context, hash *chainhash.Hash, lockedByValue string) error {
 	_, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String("transactions"),
 		Key: map[string]types.AttributeValue{
@@ -371,7 +357,7 @@ func (ddb *DynamoDB) setLocked(ctx context.Context, hash *chainhash.Hash) error 
 		},
 		UpdateExpression: aws.String(fmt.Sprintf("SET locked_by = %s", lockedByAttributeKey)),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			lockedByAttributeKey: &types.AttributeValueMemberS{Value: ddb.hostname},
+			lockedByAttributeKey: &types.AttributeValueMemberS{Value: lockedByValue},
 		},
 	})
 
@@ -420,8 +406,10 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 
 		callback(&transaction)
 
-		err = ddb.setLocked(ctx, transaction.Hash)
+		err = ddb.setLockedBy(ctx, transaction.Hash, ddb.hostname)
 		if err != nil {
+			span.SetTag(string(ext.Error), true)
+			span.LogFields(log.Error(err))
 			return err
 		}
 	}

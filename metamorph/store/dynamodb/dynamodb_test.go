@@ -96,7 +96,7 @@ func NewDynamoDBIntegrationTestRepo(t *testing.T) (*DynamoDB, *dynamodb.Client) 
 	return repo, client
 }
 
-func putItem(t *testing.T, ctx context.Context, client *dynamodb.Client, storeData *store.StoreData) {
+func putItem(t *testing.T, ctx context.Context, client *dynamodb.Client, storeData any) {
 
 	item, err := attributevalue.MarshalMap(storeData)
 	require.NoError(t, err)
@@ -137,6 +137,21 @@ func TestDynamoDBIntegration(t *testing.T) {
 		require.NotNil(t, processedAt)
 	})
 
+	t.Run("get - error", func(t *testing.T) {
+		type invalid struct {
+			Hash      *chainhash.Hash `dynamodbav:"tx_hash"`
+			WrongType bool            `dynamodbav:"block_height"`
+		}
+		putItem(t, ctx, client, invalid{
+			Hash:      TX1Hash,
+			WrongType: false,
+		})
+
+		_, err := repo.Get(ctx, TX1Hash[:])
+
+		_, isAttrErr := err.(*attributevalue.UnmarshalTypeError)
+		require.True(t, isAttrErr)
+	})
 	t.Run("set", func(t *testing.T) {
 		err := repo.Set(ctx, nil, dataStatusSent)
 		require.NoError(t, err)

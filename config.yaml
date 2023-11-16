@@ -1,6 +1,6 @@
 ---
 logLevel: DEBUG # mode of logging. Value can be one of DEBUG | INFO | WARN | ERROR
-logFormat: text # format of logging. Value can be one of text | json
+logFormat: text # format of logging. Value can be one of text | json | tint
 profilerAddr: localhost:9999 # address to start profiler server on
 statisticsServerAddress: localhost:9005 # address to start statistics server on
 prometheusEndpoint: /metrics # endpoint for prometheus metrics
@@ -32,6 +32,8 @@ callbacker:
   listenAddr: localhost:8021 # address space for callbacker to listen on. Can be for example localhost:8021 or :8021 for listening on all addresses
   dialAddr: localhost:8021 # address for other services to dial callbacker service
   profilerAddr: localhost:9994
+  interval: 30s
+  expiryInterval: 3m
 
 metamorph:
   listenAddr: localhost:8001 # address space for metamorph to listen on. Can be for example localhost:8001 or :8001 for listening on all addresses

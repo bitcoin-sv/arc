@@ -14,3 +14,5 @@ gosec-report.json
 .scannerwork
 gotest.out
 report.xml
+init_env.sh 
+background_jobs/config.yaml

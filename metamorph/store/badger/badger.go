@@ -82,6 +82,10 @@ func (ddb *Badger) IsCentralised() bool {
 	return false
 }
 
+func (s *Badger) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
+	return nil
+}
+
 func (s *Badger) Close(ctx context.Context) error {
 	start := gocore.CurrentNanos()
 	defer func() {

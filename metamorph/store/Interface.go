@@ -17,7 +17,7 @@ type StoreData struct {
 	StoredAt      time.Time            `dynamodbav:"stored_at"`
 	AnnouncedAt   time.Time            `dynamodbav:"announced_at"`
 	MinedAt       time.Time            `dynamodbav:"mined_at"`
-	Hash          *chainhash.Hash      `badgerhold:"key" dynamodbav:"tx_hash"`
+	Hash          *chainhash.Hash      `dynamodbav:"tx_hash" badgerhold:"key"`
 	Status        metamorph_api.Status `dynamodbav:"tx_status"`
 	BlockHeight   uint64               `dynamodbav:"block_height"`
 	BlockHash     *chainhash.Hash      `dynamodbav:"block_hash"`
@@ -25,6 +25,7 @@ type StoreData struct {
 	CallbackUrl   string               `dynamodbav:"callback_url"`
 	CallbackToken string               `dynamodbav:"callback_token"`
 	RejectReason  string               `dynamodbav:"reject_reason"`
+	LockedBy      string               `dynamodbav:"locked_by"`
 }
 
 func (sd *StoreData) EncodeToBytes() ([]byte, error) {
@@ -207,6 +208,7 @@ type MetamorphStore interface {
 	Del(ctx context.Context, key []byte) error
 
 	IsCentralised() bool
+	SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error
 	GetUnmined(_ context.Context, callback func(s *StoreData)) error
 	UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error
 	UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error

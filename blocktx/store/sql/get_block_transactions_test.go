@@ -6,6 +6,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
+	. "github.com/bitcoin-sv/arc/database_testing"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/stretchr/testify/assert"
@@ -17,7 +18,7 @@ type GetBlockTransactionsSuite struct {
 	DatabaseTestSuite
 }
 
-func (s *GetBlockByHeightTestSuite) TestGetBlockTransactions() {
+func (s *GetBlockTransactionsSuite) Test() {
 	block := GetTestBlock()
 	tx := GetTestTransaction()
 	s.InsertBlock(block)
@@ -26,11 +27,11 @@ func (s *GetBlockByHeightTestSuite) TestGetBlockTransactions() {
 
 	s.InsertBlockTransactionMap(&store.BlockTransactionMap{
 		BlockID:       block.ID,
-		TransactionID: tx.ID,
+		TransactionID: int64(tx.ID),
 		Pos:           2,
 	})
 
-	st, err := NewPostgresStore(defaultParams)
+	st, err := NewPostgresStore(DefaultParams)
 
 	require.NoError(s.T(), err)
 
@@ -40,10 +41,7 @@ func (s *GetBlockByHeightTestSuite) TestGetBlockTransactions() {
 	assert.Equal(s.T(), tx.Hash, string(txs.Transactions[0].Hash))
 }
 
-func TestGetBlockTransactions(t *testing.T) {
+func TestGetBlockTransactionsSuite(t *testing.T) {
 	s := new(GetBlockTransactionsSuite)
 	suite.Run(t, s)
-	if err := recover(); err != nil {
-		require.NoError(t, s.Database.Stop())
-	}
 }

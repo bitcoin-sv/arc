@@ -91,6 +91,15 @@
             "$ref": "#/components/parameters/callbackUrl"
           },
           {
+            "$ref": "#/components/parameters/skipFeeValidation"
+          },
+          {
+            "$ref": "#/components/parameters/skipScriptValidation"
+          },
+          {
+            "$ref": "#/components/parameters/skipTxValidation"
+          },
+          {
             "$ref": "#/components/parameters/callbackToken"
           },
           {
@@ -142,7 +151,8 @@
                       "timestamp": "2023-03-09T12:03:48.382910514Z",
                       "title": "OK",
                       "txStatus": "MINED",
-                      "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+                      "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+                      "merklePath": "0000"
                     }
                   },
                   "mempool": {
@@ -155,7 +165,8 @@
                       "timestamp": "2023-03-09T12:03:48.382910514Z",
                       "title": "OK",
                       "txStatus": "SEEN_ON_NETWORK",
-                      "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+                      "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+                      "merklePath": "0000"
                     }
                   }
                 }
@@ -221,6 +232,15 @@
             "$ref": "#/components/parameters/callbackUrl"
           },
           {
+            "$ref": "#/components/parameters/skipFeeValidation"
+          },
+          {
+            "$ref": "#/components/parameters/skipScriptValidation"
+          },
+          {
+            "$ref": "#/components/parameters/skipTxValidation"
+          },
+          {
             "$ref": "#/components/parameters/callbackToken"
           },
           {
@@ -275,7 +295,8 @@
                         "timestamp": "2023-03-09T12:03:48.382910514Z",
                         "title": "OK",
                         "txStatus": "MINED",
-                        "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+                        "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+                        "merklePath": "0000"
                       }
                     ]
                   },
@@ -290,7 +311,8 @@
                         "timestamp": "2023-03-09T12:03:48.382910514Z",
                         "title": "OK",
                         "txStatus": "SEEN_ON_NETWORK",
-                        "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+                        "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+                        "merklePath": "0000"
                       }
                     ]
                   },
@@ -498,6 +520,11 @@
                 "nullable": false,
                 "description": "Transaction status"
               },
+              "merklePath": {
+                "type": "string",
+                "nullable": true,
+                "description": "Transaction merkle path in hex"
+              },
               "extraInfo": {
                 "type": "string",
                 "nullable": true,
@@ -528,6 +555,11 @@
                 "nullable": false,
                 "example": "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e",
                 "description": "Transaction ID in hex"
+              },
+              "merklePath": {
+                "type": "string",
+                "nullable": true,
+                "description": "Transaction merkle path in hex"
               },
               "txStatus": {
                 "type": "string",
@@ -617,6 +649,11 @@
                 "example": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0",
                 "nullable": false
               },
+              "merklePath": {
+                "type": "string",
+                "nullable": true,
+                "description": "Transaction merkle path in hex"
+              },
               "txStatus": {
                 "type": "string",
                 "enum": [
@@ -650,7 +687,8 @@
               "timestamp": "2023-03-09T12:03:48.382910514Z",
               "title": "OK",
               "txStatus": "SEEN_ON_NETWORK",
-              "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+              "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+              "merklePath": "0000"
             }
           }
         ]
@@ -970,10 +1008,34 @@
           "type": "string"
         }
       },
+      "skipFeeValidation": {
+        "name": "X-SkipFeeValidation",
+        "in": "header",
+        "description": "Whether we should skip fee validation or not.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "skipScriptValidation": {
+        "name": "X-SkipScriptValidation",
+        "in": "header",
+        "description": "Whether we should skip script validation or not.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "skipTxValidation": {
+        "name": "X-SkipTxValidation",
+        "in": "header",
+        "description": "Whether we should skip overall tx validation or not.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
       "callbackToken": {
         "name": "X-CallbackToken",
         "in": "header",
-        "description": "Access token for notification callback endpoint.",
+        "description": "Access token for notification callback endpoint. It will be used as a Authorization header for the http callback",
         "schema": {
           "type": "string"
         }

@@ -9,8 +9,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"time"
 
+	awscfg "github.com/aws/aws-sdk-go-v2/config"
+	awsdynamodb "github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/bitcoin-sv/arc/asynccaller"
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
@@ -20,6 +23,9 @@ import (
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/store"
+	"github.com/bitcoin-sv/arc/metamorph/store/badger"
+	"github.com/bitcoin-sv/arc/metamorph/store/dynamodb"
+	"github.com/bitcoin-sv/arc/metamorph/store/sql"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -29,6 +35,11 @@ import (
 	"github.com/ordishs/go-utils/safemap"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+)
+
+const (
+	DbModeBadger   = "badger"
+	DbModeDynamoDB = "dynamodb"
 )
 
 func StartMetamorph(logger utils.Logger) (func(), error) {
@@ -46,7 +57,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		return nil, errors.New("metamorph.db.mode not found in config")
 	}
 
-	s, err := metamorph.NewStore(dbMode, folder)
+	s, err := NewStore(dbMode, folder)
 	if err != nil {
 		logger.Fatalf("Error creating metamorph store: %v", err)
 	}
@@ -74,7 +85,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	}
 
 	source := "-"
-	if dbMode != metamorph.DbModeDynamoDB {
+	if dbMode != DbModeDynamoDB {
 		ip, port, err := net.SplitHostPort(metamorphGRPCListenAddress)
 		if err != nil {
 			logger.Fatalf("cannot parse ip address: %v", err)
@@ -301,7 +312,14 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 		z := metamorph.NewZMQ(zmqURL, statusMessageCh)
 		zmqCollector.Set(zmqURL.Host, z.Stats)
-		go z.Start()
+		port, err := strconv.Atoi(z.URL.Port())
+		if err != nil {
+			z.Logger.Fatalf("Could not parse port from metamorph_zmqAddress: %v", err)
+		}
+
+		z.Logger.Infof("Listening to ZMQ on %s:%d", z.URL.Hostname(), port)
+
+		go z.Start(bitcoin.NewZMQ(z.URL.Hostname(), port, z.Logger))
 	}
 
 	// pass all the started peers to the collector
@@ -309,11 +327,49 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	return func() {
 		logger.Infof("Shutting down metamorph store")
+		metamorphProcessor.Shutdown()
 		err = s.Close(context.Background())
 		if err != nil {
 			logger.Errorf("Could not close store: %v", err)
 		}
 	}, nil
+}
+
+func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) {
+	if dbMode == sql.DbModePostgres || dbMode == sql.DbModeSQLite || dbMode == sql.DbModeSQLiteM {
+		s, err = sql.New(dbMode)
+	} else {
+		switch dbMode {
+		case DbModeBadger:
+			s, err = badger.New(path.Join(folder, "metamorph"))
+			if err != nil {
+				return nil, err
+			}
+		case DbModeDynamoDB:
+			hostname, err := os.Hostname()
+			if err != nil {
+				return nil, err
+			}
+
+			ctx := context.Background()
+			cfg, err := awscfg.LoadDefaultConfig(ctx, awscfg.WithEC2IMDSRegion())
+			if err != nil {
+				return nil, err
+			}
+
+			s, err = dynamodb.New(
+				awsdynamodb.NewFromConfig(cfg),
+				hostname,
+			)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("db mode %s is invalid", dbMode)
+		}
+	}
+
+	return s, err
 }
 
 func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {

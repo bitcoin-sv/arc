@@ -16,7 +16,7 @@ clean_e2e_tests:
 	# Remove containers and images; avoid failure if the image doesn't exist
 	docker container prune -f
 	docker rmi test-tests || true
-
+	docker rmi test-arc || true
 
 .PHONY: build_release
 build_release:
@@ -25,8 +25,8 @@ build_release:
 
 .PHONY: run_e2e_tests
 run_e2e_tests:
-	cd ./test && docker-compose up -d node1 node2 node3 arc
-	cd ./test && docker-compose up --exit-code-from tests tests
+	cd ./test && docker-compose up -d node1 node2 node3
+	cd ./test && docker-compose up --exit-code-from tests tests arc
 	cd ./test && docker-compose down
 
 .PHONY: test
@@ -122,8 +122,11 @@ api:
 .PHONY: clean_restart_e2e_test
 clean_restart_e2e_test: clean_e2e_tests build_release run_e2e_tests
 
-migrate_postgres:
-	migrate -database "postgres://arcuser:arcpass@localhost:5432/arcdb?sslmode=disable"  -path database/migrations/postgres  up
+migrate_postgres_blocktx:
+	migrate -database "postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/blocktx_dev?sslmode=disable"  -path database/migrations/blocktx/postgres  up
+
+migrate_postgres_metamorph:
+	migrate -database "postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/metamorph_dev?sslmode=disable"  -path database/migrations/metamorph/postgres  up
 
 migrate_sqlite:
 	migrate -path database/migrations/sqlite -database "sqlite3://data/sqlite/arcdb.sqlite3"  up

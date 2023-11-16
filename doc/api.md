@@ -327,6 +327,7 @@ This endpoint is used to get the current status of a previously submitted transa
   "blockHash": "00000000000000000854749b3c125d52c6943677544c8a6a885247935ba8d17d",
   "blockHeight": 782318,
   "txid": "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e",
+  "merklePath": "string",
   "txStatus": "MINED",
   "extraInfo": null
 }
@@ -357,6 +358,9 @@ Host: tapi.taal.com
 Content-Type: text/plain
 Accept: application/json
 X-CallbackUrl: string
+X-SkipFeeValidation: true
+X-SkipScriptValidation: true
+X-SkipTxValidation: true
 X-CallbackToken: string
 X-MerkleProof: string
 X-WaitForStatus: 0
@@ -369,6 +373,9 @@ const headers = {
   'Content-Type':'text/plain',
   'Accept':'application/json',
   'X-CallbackUrl':'string',
+  'X-SkipFeeValidation':'true',
+  'X-SkipScriptValidation':'true',
+  'X-SkipTxValidation':'true',
   'X-CallbackToken':'string',
   'X-MerkleProof':'string',
   'X-WaitForStatus':'0',
@@ -420,6 +427,9 @@ func main() {
         "Content-Type": []string{"text/plain"},
         "Accept": []string{"application/json"},
         "X-CallbackUrl": []string{"string"},
+        "X-SkipFeeValidation": []string{"true"},
+        "X-SkipScriptValidation": []string{"true"},
+        "X-SkipTxValidation": []string{"true"},
         "X-CallbackToken": []string{"string"},
         "X-MerkleProof": []string{"string"},
         "X-WaitForStatus": []string{"0"},
@@ -445,6 +455,9 @@ headers = {
   'Content-Type' => 'text/plain',
   'Accept' => 'application/json',
   'X-CallbackUrl' => 'string',
+  'X-SkipFeeValidation' => 'true',
+  'X-SkipScriptValidation' => 'true',
+  'X-SkipTxValidation' => 'true',
   'X-CallbackToken' => 'string',
   'X-MerkleProof' => 'string',
   'X-WaitForStatus' => '0',
@@ -465,6 +478,9 @@ headers = {
   'Content-Type': 'text/plain',
   'Accept': 'application/json',
   'X-CallbackUrl': 'string',
+  'X-SkipFeeValidation': 'true',
+  'X-SkipScriptValidation': 'true',
+  'X-SkipTxValidation': 'true',
   'X-CallbackToken': 'string',
   'X-MerkleProof': 'string',
   'X-WaitForStatus': '0',
@@ -483,6 +499,9 @@ curl -X POST https://tapi.taal.com/arc/v1/tx \
   -H 'Content-Type: text/plain' \
   -H 'Accept: application/json' \
   -H 'X-CallbackUrl: string' \
+  -H 'X-SkipFeeValidation: true' \
+  -H 'X-SkipScriptValidation: true' \
+  -H 'X-SkipTxValidation: true' \
   -H 'X-CallbackToken: string' \
   -H 'X-MerkleProof: string' \
   -H 'X-WaitForStatus: 0' \
@@ -515,7 +534,10 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |Name|In|Type|Required|Description|
 |---|---|---|---|---|
 |X-CallbackUrl|header|string|false|Default double spend and merkle proof notification callback endpoint.|
-|X-CallbackToken|header|string|false|Access token for notification callback endpoint.|
+|X-SkipFeeValidation|header|boolean|false|Whether we should skip fee validation or not.|
+|X-SkipScriptValidation|header|boolean|false|Whether we should skip script validation or not.|
+|X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
+|X-CallbackToken|header|string|false|Access token for notification callback endpoint. It will be used as a Authorization header for the http callback|
 |X-MerkleProof|header|string|false|Whether to include merkle proofs in the callbacks (true | false).|
 |X-WaitForStatus|header|integer|false|Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
 |body|body|string|true|Transaction hex string|
@@ -533,7 +555,8 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
   "timestamp": "2023-03-09T12:03:48.382910514Z",
   "title": "OK",
   "txStatus": "MINED",
-  "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+  "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+  "merklePath": "0000"
 }
 ```
 
@@ -546,7 +569,8 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
   "timestamp": "2023-03-09T12:03:48.382910514Z",
   "title": "OK",
   "txStatus": "SEEN_ON_NETWORK",
-  "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+  "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+  "merklePath": "0000"
 }
 ```
 
@@ -592,6 +616,9 @@ Host: tapi.taal.com
 Content-Type: text/plain
 Accept: application/json
 X-CallbackUrl: string
+X-SkipFeeValidation: true
+X-SkipScriptValidation: true
+X-SkipTxValidation: true
 X-CallbackToken: string
 X-MerkleProof: string
 X-WaitForStatus: 0
@@ -605,6 +632,9 @@ const headers = {
   'Content-Type':'text/plain',
   'Accept':'application/json',
   'X-CallbackUrl':'string',
+  'X-SkipFeeValidation':'true',
+  'X-SkipScriptValidation':'true',
+  'X-SkipTxValidation':'true',
   'X-CallbackToken':'string',
   'X-MerkleProof':'string',
   'X-WaitForStatus':'0',
@@ -656,6 +686,9 @@ func main() {
         "Content-Type": []string{"text/plain"},
         "Accept": []string{"application/json"},
         "X-CallbackUrl": []string{"string"},
+        "X-SkipFeeValidation": []string{"true"},
+        "X-SkipScriptValidation": []string{"true"},
+        "X-SkipTxValidation": []string{"true"},
         "X-CallbackToken": []string{"string"},
         "X-MerkleProof": []string{"string"},
         "X-WaitForStatus": []string{"0"},
@@ -681,6 +714,9 @@ headers = {
   'Content-Type' => 'text/plain',
   'Accept' => 'application/json',
   'X-CallbackUrl' => 'string',
+  'X-SkipFeeValidation' => 'true',
+  'X-SkipScriptValidation' => 'true',
+  'X-SkipTxValidation' => 'true',
   'X-CallbackToken' => 'string',
   'X-MerkleProof' => 'string',
   'X-WaitForStatus' => '0',
@@ -701,6 +737,9 @@ headers = {
   'Content-Type': 'text/plain',
   'Accept': 'application/json',
   'X-CallbackUrl': 'string',
+  'X-SkipFeeValidation': 'true',
+  'X-SkipScriptValidation': 'true',
+  'X-SkipTxValidation': 'true',
   'X-CallbackToken': 'string',
   'X-MerkleProof': 'string',
   'X-WaitForStatus': '0',
@@ -719,6 +758,9 @@ curl -X POST https://tapi.taal.com/arc/v1/txs \
   -H 'Content-Type: text/plain' \
   -H 'Accept: application/json' \
   -H 'X-CallbackUrl: string' \
+  -H 'X-SkipFeeValidation: true' \
+  -H 'X-SkipScriptValidation: true' \
+  -H 'X-SkipTxValidation: true' \
   -H 'X-CallbackToken: string' \
   -H 'X-MerkleProof: string' \
   -H 'X-WaitForStatus: 0' \
@@ -755,7 +797,10 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 |Name|In|Type|Required|Description|
 |---|---|---|---|---|
 |X-CallbackUrl|header|string|false|Default double spend and merkle proof notification callback endpoint.|
-|X-CallbackToken|header|string|false|Access token for notification callback endpoint.|
+|X-SkipFeeValidation|header|boolean|false|Whether we should skip fee validation or not.|
+|X-SkipScriptValidation|header|boolean|false|Whether we should skip script validation or not.|
+|X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
+|X-CallbackToken|header|string|false|Access token for notification callback endpoint. It will be used as a Authorization header for the http callback|
 |X-MerkleProof|header|string|false|Whether to include merkle proofs in the callbacks (true | false).|
 |X-WaitForStatus|header|integer|false|Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
 |body|body|string|false|none|
@@ -774,7 +819,8 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
     "timestamp": "2023-03-09T12:03:48.382910514Z",
     "title": "OK",
     "txStatus": "MINED",
-    "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+    "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+    "merklePath": "0000"
   }
 ]
 ```
@@ -789,7 +835,8 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
     "timestamp": "2023-03-09T12:03:48.382910514Z",
     "title": "OK",
     "txStatus": "SEEN_ON_NETWORK",
-    "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+    "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+    "merklePath": "0000"
   }
 ]
 ```
@@ -1006,7 +1053,8 @@ and
   "title": "OK",
   "extraInfo": "string",
   "txStatus": "string",
-  "txid": "string"
+  "txid": "string",
+  "merklePath": "string"
 }
 
 ```
@@ -1038,6 +1086,7 @@ and
 |*anonymous*|object|false|none|none|
 |» txid|string|true|none|Transaction ID in hex|
 |» txStatus|string|true|none|Transaction status|
+|» merklePath|string¦null|false|none|Transaction merkle path in hex|
 |» extraInfo|string¦null|true|none|Extra info|
 
 <h2 id="tocS_TransactionStatus">TransactionStatus</h2>
@@ -1053,6 +1102,7 @@ and
   "blockHash": "00000000000000000854749b3c125d52c6943677544c8a6a885247935ba8d17d",
   "blockHeight": 782318,
   "txid": "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e",
+  "merklePath": "string",
   "txStatus": "MINED",
   "extraInfo": null
 }
@@ -1079,6 +1129,7 @@ and
 |---|---|---|---|---|
 |*anonymous*|object|false|none|none|
 |» txid|string|true|none|Transaction ID in hex|
+|» merklePath|string¦null|false|none|Transaction merkle path in hex|
 |» txStatus|string|false|none|Transaction status|
 |» extraInfo|string¦null|false|none|Extra information about the transaction|
 
@@ -1103,7 +1154,8 @@ and
       "extraInfo": "",
       "timestamp": "2023-03-09T12:03:48.382910514Z",
       "txStatus": "SEEN_ON_NETWORK",
-      "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+      "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+      "merklePath": "0000"
     }
   ]
 }
@@ -1183,7 +1235,8 @@ Transaction submit status
   "extraInfo": "",
   "timestamp": "2023-03-09T12:03:48.382910514Z",
   "txStatus": "SEEN_ON_NETWORK",
-  "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+  "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+  "merklePath": "0000"
 }
 
 ```
@@ -1204,6 +1257,7 @@ and
 |---|---|---|---|---|
 |*anonymous*|object|false|none|none|
 |» txid|string|false|none|Transaction ID in hex|
+|» merklePath|string¦null|false|none|Transaction merkle path in hex|
 |» txStatus|string|false|none|Transaction status|
 |» extraInfo|string¦null|false|none|Extra information about the transaction|
 
@@ -1619,4 +1673,3 @@ and
 |instance|string¦null|false|none|(Optional) Link to actual error on server|
 |txid|string¦null|false|none|Transaction ID this error is referring to|
 |extraInfo|string¦null|false|none|Optional extra information about the error from the miner|
-

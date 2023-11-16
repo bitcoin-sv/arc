@@ -1,0 +1,12 @@
+version: '3'
+services:
+  db:
+    build:
+      context: ./database
+      dockerfile: ./Dockerfile.test.postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=arcuser
+      - POSTGRES_PASSWORD=arcpass
+    ports:
+      - 5432:5432

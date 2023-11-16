@@ -120,15 +120,17 @@ func (c *Callbacker) sendCallbacks() error {
 		return err
 	}
 
-	if len(callbacks) > 0 {
-		c.logger.Info("sending callbacks", slog.Int("number", len(callbacks)))
+	if len(callbacks) == 0 {
+		return nil
+	}
 
-		for key, callback := range callbacks {
-			c.logger.Debug("sending callback", slog.String("callbackID", key), slog.String("url", callback.Url))
-			err = c.sendCallback(key, callback)
-			if err != nil {
-				c.logger.Error("failed to send callback", slog.String("err", err.Error()))
-			}
+	c.logger.Info("sending callbacks", slog.Int("number", len(callbacks)))
+
+	for key, callback := range callbacks {
+		c.logger.Debug("sending callback", slog.String("callbackID", key), slog.String("url", callback.Url))
+		err = c.sendCallback(key, callback)
+		if err != nil {
+			c.logger.Error("failed to send callback", slog.String("err", err.Error()))
 		}
 	}
 
@@ -137,13 +139,15 @@ func (c *Callbacker) sendCallbacks() error {
 
 func (c *Callbacker) sendCallback(key string, callback *callbacker_api.Callback) error {
 	txId := utils.ReverseAndHexEncodeSlice(callback.Hash)
-	c.logger.Info("sending callback for transaction", slog.String("hash", txId), slog.String("url", callback.Url))
 
 	statusString := metamorph_api.Status(callback.Status).String()
 	blockHash := ""
 	if callback.BlockHash != nil {
 		blockHash = utils.ReverseAndHexEncodeSlice(callback.BlockHash)
 	}
+
+	c.logger.Info("sending callback for transaction", slog.String("token", callback.Token), slog.String("hash", txId), slog.String("url", callback.Url), slog.Uint64("block height", callback.BlockHeight), slog.String("block hash", blockHash))
+
 	status := &api.TransactionStatus{
 		BlockHash:   &blockHash,
 		BlockHeight: &callback.BlockHeight,

@@ -2,6 +2,7 @@ package k8s_client
 
 import (
 	"context"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -31,6 +32,7 @@ func (k *K8sClient) GetPodNames(ctx context.Context, namespace string) ([]string
 	if err != nil {
 		return nil, err
 	}
+
 	podNames := make([]string, len(activePodsK8s.Items))
 	for i, item := range activePodsK8s.Items {
 		podNames[i] = item.Name

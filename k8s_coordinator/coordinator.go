@@ -10,24 +10,38 @@ import (
 )
 
 type K8sClient interface {
-	GetPodNames(namespace string) ([]string, error)
+	GetPodNames(ctx context.Context, namespace string) ([]string, error)
 }
 
 type Coordinator struct {
 	Client           metamorph_api.MetaMorphAPIClient
 	K8sClient        K8sClient
-	logger           slog.Logger
+	logger           *slog.Logger
 	namespace        string
 	shutdown         chan struct{}
 	shutdownComplete chan struct{}
 }
 
-func New(client metamorph_api.MetaMorphAPIClient, k8sClient K8sClient, namespace string) *Coordinator {
-	return &Coordinator{
+func WithLogger(logger *slog.Logger) func(*Coordinator) {
+	return func(p *Coordinator) {
+		p.logger = logger.With(slog.String("service", "k8s-coordinator"))
+	}
+}
+
+type ServerOption func(f *Coordinator)
+
+func New(client metamorph_api.MetaMorphAPIClient, k8sClient K8sClient, namespace string, opts ...ServerOption) *Coordinator {
+
+	coordinator := &Coordinator{
 		Client:    client,
 		K8sClient: k8sClient,
 		namespace: namespace,
 	}
+	for _, opt := range opts {
+		opt(coordinator)
+	}
+
+	return coordinator
 }
 
 func (c *Coordinator) Start() error {
@@ -43,7 +57,7 @@ func (c *Coordinator) Start() error {
 			select {
 			case <-time.NewTicker(15 * time.Second).C:
 				ctx := context.Background()
-				activePodsK8s, err := c.K8sClient.GetPodNames(c.namespace)
+				activePodsK8s, err := c.K8sClient.GetPodNames(ctx, c.namespace)
 				if err != nil {
 					c.logger.Error("failed to get pods", slog.String("err", err.Error()))
 					continue

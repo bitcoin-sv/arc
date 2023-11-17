@@ -574,6 +574,21 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 	return data, announcedAt, minedAt, storedAt, nil
 }
 
+func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (*metamorph_api.SetUnlockedByNameResponse, error) {
+
+	recordsAffected, err := s.store.SetUnlockedByName(ctx, req.Name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := &metamorph_api.SetUnlockedByNameResponse{
+		RecordsAffected: int32(recordsAffected),
+	}
+
+	return result, err
+}
+
 func dialMetamorph(ctx context.Context, address string) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

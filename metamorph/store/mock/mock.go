@@ -49,6 +49,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
 //				panic("mock out the SetUnlocked method")
 //			},
+//			SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int, error) {
+//				panic("mock out the SetUnlockedByName method")
+//			},
 //			UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 //				panic("mock out the UpdateMined method")
 //			},
@@ -88,6 +91,9 @@ type MetamorphStoreMock struct {
 
 	// SetUnlockedFunc mocks the SetUnlocked method.
 	SetUnlockedFunc func(ctx context.Context, hashes []*chainhash.Hash) error
+
+	// SetUnlockedByNameFunc mocks the SetUnlockedByName method.
+	SetUnlockedByNameFunc func(ctx context.Context, lockedBy string) (int, error)
 
 	// UpdateMinedFunc mocks the UpdateMined method.
 	UpdateMinedFunc func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error
@@ -156,6 +162,13 @@ type MetamorphStoreMock struct {
 			// Hashes is the hashes argument value.
 			Hashes []*chainhash.Hash
 		}
+		// SetUnlockedByName holds details about calls to the SetUnlockedByName method.
+		SetUnlockedByName []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// LockedBy is the lockedBy argument value.
+			LockedBy string
+		}
 		// UpdateMined holds details about calls to the UpdateMined method.
 		UpdateMined []struct {
 			// Ctx is the ctx argument value.
@@ -188,6 +201,7 @@ type MetamorphStoreMock struct {
 	lockSet               sync.RWMutex
 	lockSetBlockProcessed sync.RWMutex
 	lockSetUnlocked       sync.RWMutex
+	lockSetUnlockedByName sync.RWMutex
 	lockUpdateMined       sync.RWMutex
 	lockUpdateStatus      sync.RWMutex
 }
@@ -504,6 +518,42 @@ func (mock *MetamorphStoreMock) SetUnlockedCalls() []struct {
 	mock.lockSetUnlocked.RLock()
 	calls = mock.calls.SetUnlocked
 	mock.lockSetUnlocked.RUnlock()
+	return calls
+}
+
+// SetUnlockedByName calls SetUnlockedByNameFunc.
+func (mock *MetamorphStoreMock) SetUnlockedByName(ctx context.Context, lockedBy string) (int, error) {
+	if mock.SetUnlockedByNameFunc == nil {
+		panic("MetamorphStoreMock.SetUnlockedByNameFunc: method is nil but MetamorphStore.SetUnlockedByName was just called")
+	}
+	callInfo := struct {
+		Ctx      context.Context
+		LockedBy string
+	}{
+		Ctx:      ctx,
+		LockedBy: lockedBy,
+	}
+	mock.lockSetUnlockedByName.Lock()
+	mock.calls.SetUnlockedByName = append(mock.calls.SetUnlockedByName, callInfo)
+	mock.lockSetUnlockedByName.Unlock()
+	return mock.SetUnlockedByNameFunc(ctx, lockedBy)
+}
+
+// SetUnlockedByNameCalls gets all the calls that were made to SetUnlockedByName.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.SetUnlockedByNameCalls())
+func (mock *MetamorphStoreMock) SetUnlockedByNameCalls() []struct {
+	Ctx      context.Context
+	LockedBy string
+} {
+	var calls []struct {
+		Ctx      context.Context
+		LockedBy string
+	}
+	mock.lockSetUnlockedByName.RLock()
+	calls = mock.calls.SetUnlockedByName
+	mock.lockSetUnlockedByName.RUnlock()
 	return calls
 }
 

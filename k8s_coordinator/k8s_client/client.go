@@ -26,16 +26,16 @@ func New() (*K8sClient, error) {
 	return &K8sClient{client: clientSet}, nil
 }
 
-func (k *K8sClient) GetPodNames(ctx context.Context, namespace string) ([]string, error) {
+func (k *K8sClient) GetPodNames(ctx context.Context, namespace string) (map[string]struct{}, error) {
 	activePodsK8s, err := k.client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 
 	if err != nil {
 		return nil, err
 	}
 
-	podNames := make([]string, len(activePodsK8s.Items))
-	for i, item := range activePodsK8s.Items {
-		podNames[i] = item.Name
+	podNames := map[string]struct{}{}
+	for _, item := range activePodsK8s.Items {
+		podNames[item.Name] = struct{}{}
 	}
 
 	return podNames, nil

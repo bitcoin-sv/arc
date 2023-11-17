@@ -4,19 +4,43 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 )
 
+const (
+	logLevelDefault = slog.LevelInfo
+	intervalDefault = 15 * time.Second
+)
+
 type K8sClient interface {
-	GetPodNames(ctx context.Context, namespace string) ([]string, error)
+	GetPodNames(ctx context.Context, namespace string) (map[string]struct{}, error)
+}
+
+type Ticker interface {
+	Stop()
+	Tick() <-chan time.Time
+}
+
+type DefaultTicker struct {
+	*time.Ticker
+}
+
+func NewDefaultTicker(d time.Duration) DefaultTicker {
+	return DefaultTicker{time.NewTicker(d)}
+}
+
+func (d DefaultTicker) Tick() <-chan time.Time {
+	return d.C
 }
 
 type Coordinator struct {
-	Client           metamorph_api.MetaMorphAPIClient
-	K8sClient        K8sClient
+	metamorphClient  metamorph_api.MetaMorphAPIClient
+	k8sClient        K8sClient
 	logger           *slog.Logger
+	ticker           Ticker
 	namespace        string
 	shutdown         chan struct{}
 	shutdownComplete chan struct{}
@@ -27,15 +51,24 @@ func WithLogger(logger *slog.Logger) func(*Coordinator) {
 		p.logger = logger.With(slog.String("service", "k8s-coordinator"))
 	}
 }
+func WithTicker(t Ticker) func(*Coordinator) {
+	return func(p *Coordinator) {
+		p.ticker = t
+	}
+}
 
 type ServerOption func(f *Coordinator)
 
 func New(client metamorph_api.MetaMorphAPIClient, k8sClient K8sClient, namespace string, opts ...ServerOption) *Coordinator {
-
 	coordinator := &Coordinator{
-		Client:    client,
-		K8sClient: k8sClient,
-		namespace: namespace,
+		metamorphClient: client,
+		k8sClient:       k8sClient,
+
+		namespace:        namespace,
+		logger:           slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "k8s-coordinator")),
+		shutdown:         make(chan struct{}),
+		shutdownComplete: make(chan struct{}),
+		ticker:           NewDefaultTicker(intervalDefault),
 	}
 	for _, opt := range opts {
 		opt(coordinator)
@@ -45,34 +78,28 @@ func New(client metamorph_api.MetaMorphAPIClient, k8sClient K8sClient, namespace
 }
 
 func (c *Coordinator) Start() error {
-
-	var activePodsStorage []string
-
 	go func() {
 		defer func() {
 			c.shutdownComplete <- struct{}{}
 		}()
 
+		var activePods []string
+
 		for {
 			select {
-			case <-time.NewTicker(15 * time.Second).C:
+			case <-c.ticker.Tick():
 				ctx := context.Background()
-				activePodsK8s, err := c.K8sClient.GetPodNames(ctx, c.namespace)
+				activePodsK8s, err := c.k8sClient.GetPodNames(ctx, c.namespace)
 				if err != nil {
 					c.logger.Error("failed to get pods", slog.String("err", err.Error()))
 					continue
 				}
 
-				activePodsMap := map[string]struct{}{}
-
-				for _, podName := range activePodsK8s {
-					activePodsMap[podName] = struct{}{}
-				}
-
-				for _, podName := range activePodsStorage {
-					_, found := activePodsMap[podName]
+				for _, podName := range activePods {
+					_, found := activePodsK8s[podName]
 					if !found {
-						resp, err := c.Client.SetUnlockedByName(ctx, &metamorph_api.SetUnlockedByNameRequest{Name: podName})
+						// one of the previously running pods is not available anymore => set records locked by this pod unlocked
+						resp, err := c.metamorphClient.SetUnlockedByName(ctx, &metamorph_api.SetUnlockedByNameRequest{Name: podName})
 						if err != nil {
 							c.logger.Error("failed to unlock metamorph records", slog.String("pod-name", podName))
 							continue
@@ -82,7 +109,14 @@ func (c *Coordinator) Start() error {
 					}
 				}
 
-				activePodsStorage = activePodsK8s
+				newActivePods := make([]string, len(activePodsK8s))
+				index := 0
+				for podName := range activePodsK8s {
+					newActivePods[index] = podName
+					index++
+				}
+
+				activePods = newActivePods
 
 			case <-c.shutdown:
 				return
@@ -94,6 +128,7 @@ func (c *Coordinator) Start() error {
 }
 
 func (c *Coordinator) Shutdown() {
+	c.ticker.Stop()
 	c.shutdown <- struct{}{}
 	<-c.shutdownComplete
 }

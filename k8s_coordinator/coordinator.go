@@ -2,7 +2,6 @@ package k8s_coordinator
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -105,7 +104,7 @@ func (c *Coordinator) Start() error {
 							continue
 						}
 
-						c.logger.Info(fmt.Sprintf("unlocked %d records", resp.RecordsAffected))
+						c.logger.Info("records unlocked", slog.Int("rows-affected", int(resp.RecordsAffected)), slog.String("pod-name", podName))
 					}
 				}
 

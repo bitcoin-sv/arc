@@ -33,6 +33,44 @@ const source = "localhost:8000"
 //go:generate moq -out ./processor_mock.go . ProcessorI
 //go:generate moq -out ./bitcoin_mock.go . BitcoinNode
 
+func setStoreTestData(t *testing.T, s store.MetamorphStore) {
+	ctx := context.Background()
+	err := s.Set(ctx, testdata.TX1Hash[:], &store.StoreData{
+		StoredAt:      testdata.Time,
+		AnnouncedAt:   testdata.Time.Add(1 * time.Second),
+		MinedAt:       testdata.Time.Add(2 * time.Second),
+		Hash:          testdata.TX1Hash,
+		Status:        metamorph_api.Status_SENT_TO_NETWORK,
+		CallbackUrl:   "https://test.com",
+		CallbackToken: "token",
+	})
+	require.NoError(t, err)
+	err = s.Set(ctx, testdata.TX2Hash[:], &store.StoreData{
+		StoredAt:    testdata.Time,
+		AnnouncedAt: testdata.Time.Add(1 * time.Second),
+		MinedAt:     testdata.Time.Add(2 * time.Second),
+		Hash:        testdata.TX2Hash,
+		Status:      metamorph_api.Status_SEEN_ON_NETWORK,
+	})
+	require.NoError(t, err)
+	err = s.Set(ctx, testdata.TX3Hash[:], &store.StoreData{
+		StoredAt:    testdata.Time,
+		AnnouncedAt: testdata.Time.Add(1 * time.Second),
+		MinedAt:     testdata.Time.Add(2 * time.Second),
+		Hash:        testdata.TX3Hash,
+		Status:      metamorph_api.Status_MINED,
+	})
+	require.NoError(t, err)
+	err = s.Set(ctx, testdata.TX4Hash[:], &store.StoreData{
+		StoredAt:    testdata.Time,
+		AnnouncedAt: testdata.Time.Add(1 * time.Second),
+		MinedAt:     testdata.Time.Add(2 * time.Second),
+		Hash:        testdata.TX4Hash,
+		Status:      metamorph_api.Status_REJECTED,
+	})
+	require.NoError(t, err)
+}
+
 func TestNewServer(t *testing.T) {
 	t.Run("NewServer", func(t *testing.T) {
 		server := NewServer(nil, nil, nil, source)
@@ -42,14 +80,12 @@ func TestNewServer(t *testing.T) {
 
 func TestHealth(t *testing.T) {
 	t.Run("Health", func(t *testing.T) {
-		processor := NewProcessorMock()
-
+		processor := &ProcessorIMock{}
 		sentToNetworkStat := stat.NewAtomicStats()
 		for i := 0; i < 10; i++ {
 			sentToNetworkStat.AddDuration("test", 10*time.Millisecond)
 		}
-
-		processor.Stats = &ProcessorStats{
+		expectedStats := &ProcessorStats{
 			StartTime:      time.Now(),
 			UptimeMillis:   "2000ms",
 			QueueLength:    136,
@@ -57,13 +93,20 @@ func TestHealth(t *testing.T) {
 			SentToNetwork:  sentToNetworkStat,
 			ChannelMapSize: 22,
 		}
+		processor.GetStatsFunc = func(debugItems bool) *ProcessorStats {
+			return expectedStats
+		}
+		processor.GetPeersFunc = func() ([]string, []string) {
+			return []string{"peer1"}, []string{}
+		}
+
 		server := NewServer(nil, processor, nil, source)
 		stats, err := server.Health(context.Background(), &emptypb.Empty{})
 		assert.NoError(t, err)
-		assert.Equal(t, processor.Stats.ChannelMapSize, stats.MapSize)
-		assert.Equal(t, processor.Stats.QueuedCount, stats.Queued)
-		assert.Equal(t, processor.Stats.SentToNetwork.GetMap()["test"].GetCount(), stats.Processed)
-		assert.Equal(t, processor.Stats.QueueLength, stats.Waiting)
+		assert.Equal(t, expectedStats.ChannelMapSize, stats.MapSize)
+		assert.Equal(t, expectedStats.QueuedCount, stats.Queued)
+		assert.Equal(t, expectedStats.SentToNetwork.GetMap()["test"].GetCount(), stats.Processed)
+		assert.Equal(t, expectedStats.QueueLength, stats.Waiting)
 		assert.Equal(t, float32(10), stats.Average)
 	})
 }
@@ -73,27 +116,31 @@ func TestPutTransaction(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
-		processor := NewProcessorMock()
-		btc := NewBlockTxMock(source)
-		btc.RegisterTransactionResponses = []interface{}{
-			&blocktx_api.RegisterTransactionResponse{Source: source},
+		processor := &ProcessorIMock{}
+
+		client := &blockTxMock.ClientIMock{}
+		client.RegisterTransactionFunc = func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
+			return &blocktx_api.RegisterTransactionResponse{
+				Source: source,
+			}, nil
 		}
 
-		server := NewServer(s, processor, btc, source)
+		server := NewServer(s, processor, client, source)
 		server.SetTimeout(100 * time.Millisecond)
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
 			RawTx: testdata.TX1RawBytes,
 		}
-		go func() {
+
+		processor.ProcessTransactionFunc = func(ctx context.Context, req *ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
 
-			processor.GetProcessRequest(0).ResponseChannel <- processor_response.StatusAndError{
+			req.ResponseChannel <- processor_response.StatusAndError{
 				Hash:   testdata.TX1Hash,
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			}
-		}()
+		}
 
 		txStatus, err = server.PutTransaction(context.Background(), txRequest)
 		assert.NoError(t, err)
@@ -116,10 +163,12 @@ func TestPutTransaction(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
-		processor := NewProcessorMock()
-		btc := NewBlockTxMock(source)
-		btc.RegisterTransactionResponses = []interface{}{
-			&blocktx_api.RegisterTransactionResponse{Source: source},
+		processor := &ProcessorIMock{}
+		btc := &blockTxMock.ClientIMock{}
+		btc.RegisterTransactionFunc = func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
+			return &blocktx_api.RegisterTransactionResponse{
+				Source: source,
+			}, nil
 		}
 
 		server := NewServer(s, processor, btc, source)
@@ -128,13 +177,14 @@ func TestPutTransaction(t *testing.T) {
 		txRequest := &metamorph_api.TransactionRequest{
 			RawTx: testdata.TX1RawBytes,
 		}
-		go func() {
+
+		processor.ProcessTransactionFunc = func(ctx context.Context, req *ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
-			processor.GetProcessRequest(0).ResponseChannel <- processor_response.StatusAndError{
+			req.ResponseChannel <- processor_response.StatusAndError{
 				Hash:   testdata.TX1Hash,
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			}
-		}()
+		}
 		txStatus, err = server.PutTransaction(context.Background(), txRequest)
 		assert.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, txStatus.Status)
@@ -145,10 +195,12 @@ func TestPutTransaction(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
-		processor := NewProcessorMock()
-		btc := NewBlockTxMock(source)
-		btc.RegisterTransactionResponses = []interface{}{
-			&blocktx_api.RegisterTransactionResponse{Source: source},
+		processor := &ProcessorIMock{}
+		btc := &blockTxMock.ClientIMock{}
+		btc.RegisterTransactionFunc = func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
+			return &blocktx_api.RegisterTransactionResponse{
+				Source: source,
+			}, nil
 		}
 
 		server := NewServer(s, processor, btc, source)
@@ -157,14 +209,15 @@ func TestPutTransaction(t *testing.T) {
 		txRequest := &metamorph_api.TransactionRequest{
 			RawTx: testdata.TX1RawBytes,
 		}
-		go func() {
+		processor.ProcessTransactionFunc = func(ctx context.Context, req *ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
-			processor.GetProcessRequest(0).ResponseChannel <- processor_response.StatusAndError{
+			req.ResponseChannel <- processor_response.StatusAndError{
 				Hash:   testdata.TX1Hash,
 				Status: metamorph_api.Status_REJECTED,
 				Err:    fmt.Errorf("some error"),
 			}
-		}()
+		}
+
 		txStatus, err = server.PutTransaction(context.Background(), txRequest)
 		assert.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_REJECTED, txStatus.Status)
@@ -183,10 +236,12 @@ func TestPutTransaction(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		processor := NewProcessorMock()
-		btc := NewBlockTxMock(source)
-		btc.RegisterTransactionResponses = []interface{}{
-			&blocktx_api.RegisterTransactionResponse{Source: source},
+		processor := &ProcessorIMock{}
+		btc := &blockTxMock.ClientIMock{}
+		btc.RegisterTransactionFunc = func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
+			return &blocktx_api.RegisterTransactionResponse{
+				Source: source,
+			}, nil
 		}
 
 		server := NewServer(s, processor, btc, source)
@@ -508,11 +563,11 @@ func TestPutTransactions(t *testing.T) {
 			}
 
 			processor := &ProcessorIMock{
-				SetFunc: func(req *ProcessorRequest) error {
+				SetFunc: func(_ context.Context, req *ProcessorRequest) error {
 					return nil
 				},
-				ProcessTransactionFunc: func(req *ProcessorRequest) {
-					resp, found := tc.processorResponse[req.Hash.String()]
+				ProcessTransactionFunc: func(_ context.Context, req *ProcessorRequest) {
+					resp, found := tc.processorResponse[req.Data.Hash.String()]
 					if found {
 						req.ResponseChannel <- *resp
 					}

@@ -329,13 +329,12 @@ func TestProcessTransaction(t *testing.T) {
 			}
 		}()
 
-		processor.ProcessTransaction(NewProcessorRequest(
-			context.Background(),
-			&store.StoreData{
+		processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
+			Data: &store.StoreData{
 				Hash: testdata.TX1Hash,
 			},
-			responseChannel,
-		))
+			ResponseChannel: responseChannel,
+		})
 		wg.Wait()
 
 		assert.Equal(t, 1, processor.processorResponseMap.Len())
@@ -367,13 +366,11 @@ func Benchmark_ProcessTransaction(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		btTx.Inputs[0].SequenceNumber = uint32(i)
 		hash, _ := chainhash.NewHashFromStr(btTx.TxID())
-		processor.ProcessTransaction(NewProcessorRequest(
-			context.Background(),
-			&store.StoreData{
+		processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
+			Data: &store.StoreData{
 				Hash: hash,
 			},
-			nil,
-		))
+		})
 	}
 }
 
@@ -464,13 +461,12 @@ func TestSendStatusForTransaction(t *testing.T) {
 			}
 		}()
 
-		processor.ProcessTransaction(NewProcessorRequest(
-			context.Background(),
-			&store.StoreData{
+		processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
+			Data: &store.StoreData{
 				Hash: testdata.TX1Hash,
 			},
-			responseChannel,
-		))
+			ResponseChannel: responseChannel,
+		})
 		wg.Wait()
 
 		assert.Equal(t, 1, processor.processorResponseMap.Len())
@@ -581,13 +577,12 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 			}
 		}()
 
-		processor.ProcessTransaction(NewProcessorRequest(
-			context.Background(),
-			&store.StoreData{
+		processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
+			Data: &store.StoreData{
 				Hash: testdata.TX1Hash,
 			},
-			responseChannel,
-		))
+			ResponseChannel: responseChannel,
+		})
 		wg.Wait()
 
 		assert.Equal(t, 1, processor.processorResponseMap.Len())
@@ -628,15 +623,13 @@ func BenchmarkProcessTransaction(b *testing.B) {
 
 		txs[txID] = &txHash
 
-		processor.ProcessTransaction(NewProcessorRequest(
-			context.Background(),
-			&store.StoreData{
+		processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
+			Data: &store.StoreData{
 				Hash:   &txHash,
 				Status: metamorph_api.Status_UNKNOWN,
 				RawTx:  testdata.TX1RawBytes,
 			},
-			nil,
-		))
+		})
 	}
 	b.StopTimer()
 

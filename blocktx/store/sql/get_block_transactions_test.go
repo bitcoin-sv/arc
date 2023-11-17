@@ -18,7 +18,7 @@ type GetBlockTransactionsSuite struct {
 	DatabaseTestSuite
 }
 
-func (s *GetBlockByHeightTestSuite) TestGetBlockTransactions() {
+func (s *GetBlockTransactionsSuite) Test() {
 	block := GetTestBlock()
 	tx := GetTestTransaction()
 	s.InsertBlock(block)
@@ -27,7 +27,7 @@ func (s *GetBlockByHeightTestSuite) TestGetBlockTransactions() {
 
 	s.InsertBlockTransactionMap(&store.BlockTransactionMap{
 		BlockID:       block.ID,
-		TransactionID: tx.ID,
+		TransactionID: int64(tx.ID),
 		Pos:           2,
 	})
 
@@ -41,7 +41,7 @@ func (s *GetBlockByHeightTestSuite) TestGetBlockTransactions() {
 	assert.Equal(s.T(), tx.Hash, string(txs.Transactions[0].Hash))
 }
 
-func TestGetBlockTransactions(t *testing.T) {
+func TestGetBlockTransactionsSuite(t *testing.T) {
 	s := new(GetBlockTransactionsSuite)
 	suite.Run(t, s)
 }

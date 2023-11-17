@@ -6,18 +6,17 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	. "github.com/bitcoin-sv/arc/database_testing"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
-type GetLastProcessedBlockSuite struct {
+type GetTransactionSourceSuite struct {
 	DatabaseTestSuite
 }
 
-func (s *GetLastProcessedBlockSuite) Test() {
+func (s *GetTransactionSourceSuite) Test() {
 	block := GetTestBlock()
 	tx := GetTestTransaction()
 	s.InsertBlock(block)
@@ -26,19 +25,23 @@ func (s *GetLastProcessedBlockSuite) Test() {
 
 	s.InsertBlockTransactionMap(&store.BlockTransactionMap{
 		BlockID:       block.ID,
-		TransactionID: int64(tx.ID),
+		TransactionID: tx.ID,
 		Pos:           2,
 	})
 
-	st, err := NewPostgresStore(DefaultParams)
+	store, err := NewPostgresStore(DefaultParams)
 	require.NoError(s.T(), err)
 
-	blk, err := st.GetLastProcessedBlock(context.Background())
+	h, err := chainhash.NewHash([]byte(tx.Hash))
 	require.NoError(s.T(), err)
-	assert.Equal(s.T(), block.Hash, string(blk.Hash))
+
+	source, err := store.GetTransactionSource(context.Background(), h)
+	require.NoError(s.T(), err)
+
+	assert.Equal(s.T(), tx.Source, source)
 }
 
-func TestGetLastProcessedBlockSuite(t *testing.T) {
-	s := new(GetLastProcessedBlockSuite)
+func TestGetGetTransactionSourceSuite(t *testing.T) {
+	s := new(GetTransactionSourceSuite)
 	suite.Run(t, s)
 }

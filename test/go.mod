@@ -5,7 +5,7 @@ go 1.21.3
 require (
 	github.com/bitcoin-sv/arc v1.0.53
 	github.com/bitcoinsv/bsvd v0.0.0-20190609155523-4c29707f7173
-	github.com/btcsuite/btcd/btcutil v1.1.3
+	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9
 	github.com/libsv/go-bk v0.1.6
 	github.com/libsv/go-bt/v2 v2.2.5
 	github.com/ordishs/go-bitcoin v1.0.85
@@ -16,13 +16,8 @@ require (
 	bitbucket.org/simon_ordish/cryptolib v1.0.48 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9 // indirect
-	github.com/btcsuite/btcd v0.23.0 // indirect
-	github.com/btcsuite/btcd/btcec/v2 v2.1.3 // indirect
-	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/deepmap/oapi-codegen v1.11.0 // indirect
 	github.com/fergusstrange/embedded-postgres v1.24.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect

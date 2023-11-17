@@ -5,13 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"strconv"
 	"sync/atomic"
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
 )
 
@@ -25,7 +23,7 @@ type ZMQ struct {
 	URL             *url.URL
 	Stats           *ZMQStats
 	statusMessageCh chan<- *PeerTxMessage
-	logger          *gocore.Logger
+	Logger          *gocore.Logger
 }
 
 type ZMQTxInfo struct {
@@ -72,30 +70,27 @@ func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage) *ZMQ {
 			discardedFromMempool: atomic.Uint64{},
 		},
 		statusMessageCh: statusMessageCh,
-		logger:          zmqLogger,
+		Logger:          zmqLogger,
 	}
 
 	return z
 }
 
-func (z *ZMQ) Start() {
-	port, err := strconv.Atoi(z.URL.Port())
-	if err != nil {
-		z.logger.Fatalf("Could not parse port from metamorph_zmqAddress: %v", err)
-	}
+type ZMQI interface {
+	Subscribe(string, chan []string) error
+}
 
-	z.logger.Infof("Listening to ZMQ on %s:%d", z.URL.Hostname(), port)
-
-	zmq := bitcoin.NewZMQ(z.URL.Hostname(), port, z.logger)
+func (z *ZMQ) Start(zmqi ZMQI) {
 
 	ch := make(chan []string)
 
 	go func() {
+		var err error
 		for c := range ch {
 			switch c[0] {
 			case "hashtx2":
 				z.Stats.hashTx.Add(1)
-				z.logger.Debugf("hashtx %s", c[1])
+				z.Logger.Debugf("hashtx %s", c[1])
 
 				hash, _ := chainhash.NewHashFromStr(c[1])
 
@@ -109,9 +104,10 @@ func (z *ZMQ) Start() {
 				z.Stats.invalidTx.Add(1)
 				// c[1] is lots of info about the tx in json format encoded in hex
 				var txInfo *ZMQTxInfo
+				status := metamorph_api.Status_REJECTED
 				txInfo, err = z.parseTxInfo(c)
 				if err != nil {
-					z.logger.Errorf("invalidtx: failed to parse: %v", err)
+					z.Logger.Errorf("invalidtx: failed to parse: %v", err)
 					continue
 				}
 				errReason := "invalid transaction"
@@ -119,21 +115,21 @@ func (z *ZMQ) Start() {
 					errReason += ": " + txInfo.RejectionReason
 				}
 				if txInfo.IsMissingInputs {
-					z.logger.Debugf("invalidtx %s due to missing inputs ignored", txInfo.TxID)
-					continue
+					z.Logger.Debugf("invalidtx %s due to missing inputs ignored", txInfo.TxID)
+					errReason = "Transaction " + txInfo.TxID + " is currently orphaned"
+					status = metamorph_api.Status_SENT_TO_NETWORK
 				}
 				if txInfo.IsDoubleSpendDetected {
 					errReason += " - double spend"
 				}
 
-				z.logger.Debugf("invalidtx %s: %s", txInfo.TxID, errReason)
+				z.Logger.Debugf("invalidtx %s: %s", txInfo.TxID, errReason)
 
 				hash, _ := chainhash.NewHashFromStr(txInfo.TxID)
-
 				z.statusMessageCh <- &PeerTxMessage{
 					Start:  time.Now(),
 					Hash:   hash,
-					Status: metamorph_api.Status_REJECTED,
+					Status: status,
 					Peer:   z.URL.String(),
 					Err:    fmt.Errorf(errReason),
 				}
@@ -142,11 +138,11 @@ func (z *ZMQ) Start() {
 				var txInfo *ZMQDiscardFromMempool
 				txInfo, err = z.parseDiscardedInfo(c)
 				if err != nil {
-					z.logger.Errorf("discardedfrommempool: failed to parse: %v", err)
+					z.Logger.Errorf("discardedfrommempool: failed to parse: %v", err)
 					continue
 				}
 
-				z.logger.Debugf("discardedfrommempool %s: %s - %#v", txInfo.TxID, txInfo.Reason, txInfo.CollidedWith)
+				z.Logger.Debugf("discardedfrommempool %s: %s - %#v", txInfo.TxID, txInfo.Reason, txInfo.CollidedWith)
 
 				hash, _ := chainhash.NewHashFromStr(txInfo.TxID)
 
@@ -158,21 +154,21 @@ func (z *ZMQ) Start() {
 					Err:    fmt.Errorf("discarded from mempool: %s", txInfo.Reason),
 				}
 			default:
-				z.logger.Info("Unhandled ZMQ message", c)
+				z.Logger.Info("Unhandled ZMQ message", c)
 			}
 		}
 	}()
 
-	if err = zmq.Subscribe("hashtx2", ch); err != nil {
-		z.logger.Fatal(err)
+	if err := zmqi.Subscribe("hashtx2", ch); err != nil {
+		z.Logger.Fatal(err)
 	}
 
-	if err = zmq.Subscribe("invalidtx", ch); err != nil {
-		z.logger.Fatal(err)
+	if err := zmqi.Subscribe("invalidtx", ch); err != nil {
+		z.Logger.Fatal(err)
 	}
 
-	if err = zmq.Subscribe("discardedfrommempool", ch); err != nil {
-		z.logger.Fatal(err)
+	if err := zmqi.Subscribe("discardedfrommempool", ch); err != nil {
+		z.Logger.Fatal(err)
 	}
 }
 

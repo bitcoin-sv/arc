@@ -200,6 +200,11 @@ func (p *Processor) Set(req *ProcessorRequest) error {
 
 // Shutdown closes all channels and goroutines gracefully
 func (p *Processor) Shutdown() {
+	err := p.unlockItems()
+	if err != nil {
+		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
+	}
+
 	p.logger.Info("Shutting down processor")
 	p.processExpiredSeenTxsTicker.Stop()
 	p.processExpiredTxsTicker.Stop()
@@ -207,6 +212,22 @@ func (p *Processor) Shutdown() {
 	if p.cbChannel != nil {
 		close(p.cbChannel)
 	}
+}
+
+func (p *Processor) unlockItems() error {
+	items := p.processorResponseMap.Items()
+	hashes := make([]*chainhash.Hash, len(items))
+	index := 0
+	for key := range items {
+		hash, err := chainhash.NewHash(key.CloneBytes())
+		if err != nil {
+			return err
+		}
+		hashes[index] = hash
+		index++
+	}
+
+	return p.store.SetUnlocked(context.Background(), hashes)
 }
 
 func (p *Processor) processExpiredSeenTransactions() {
@@ -315,7 +336,7 @@ func (p *Processor) deleteExpired(record *store.StoreData) (recordDeleted bool) 
 		return recordDeleted
 	}
 
-	p.logger.Info("deleting transaction from storage", slog.String("hash", record.Hash.String()), slog.String("status", metamorph_api.Status_name[int32(record.Status)]))
+	p.logger.Info("deleting transaction from storage", slog.String("hash", record.Hash.String()), slog.String("status", metamorph_api.Status_name[int32(record.Status)]), slog.Time("storage date", record.StoredAt))
 
 	err := p.store.Del(context.Background(), record.RawTx)
 	if err != nil {
@@ -490,8 +511,6 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 					p.logger.Warn("transaction rejected", slog.String("status", status.String()), slog.String("hash", hash.String()))
 
 					p.rejected.AddDuration(source, time.Since(processorResponse.Start))
-					processorResponse.Close()
-					p.processorResponseMap.Delete(hash)
 				}
 			},
 		})

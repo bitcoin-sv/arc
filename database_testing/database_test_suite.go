@@ -2,7 +2,6 @@ package database_testing
 
 import (
 	"fmt"
-	"log"
 	mrand "math/rand"
 	"path/filepath"
 	"runtime"
@@ -11,18 +10,57 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/dbconn"
 	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/rand"
 )
 
+func GetRandomBytes() string {
+	return fmt.Sprintf("%d %d", mrand.Int63(), mrand.Int63())[:32]
+}
+func GetTestBlock() *store.Block {
+	now := time.Now()
+	return &store.Block{
+		ID:           int64(mrand.Intn(10000)),
+		Hash:         GetRandomBytes(),
+		PreviousHash: fmt.Sprintf("%d", rand.Int63()),
+		MerkleRoot:   fmt.Sprintf("%d", rand.Int63()),
+		Height:       int64(mrand.Intn(100)),
+		Orphaned:     false,
+		ProcessedAt:  now,
+	}
+}
+
+func GetTestTransaction() *store.Transaction {
+	return &store.Transaction{
+		ID:         int64(mrand.Intn(10000)),
+		Hash:       GetRandomBytes(),
+		Source:     fmt.Sprintf("testtx %d", mrand.Int63()),
+		MerklePath: fmt.Sprintf("testtx %d", mrand.Int63()),
+	}
+}
+
+type DBConnectionParams struct {
+	Host     string
+	Port     int
+	Username string
+	Password string
+	DBName   string
+}
+
+func (p DBConnectionParams) String() string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", p.Username, p.Password, p.Host, p.Port, p.DBName)
+}
+
 var DefaultParams = dbconn.DBConnectionParams{
 	Host:     "localhost",
 	Port:     5432,
 	Username: "arcuser",
 	Password: "arcpass",
-	DBName:   "arcdb_test",
+	DBName:   "blocktx_test",
 	Scheme:   "postgres",
 }
 
@@ -33,7 +71,6 @@ var DefaultParams = dbconn.DBConnectionParams{
 // 4. tear down when tests are finished
 type DatabaseTestSuite struct {
 	suite.Suite
-
 	Connection *sqlx.Conn
 }
 
@@ -42,7 +79,7 @@ func (s *DatabaseTestSuite) SetupSuite() {
 
 	testDir := filepath.Dir(callerFilePath)
 
-	path := "file://" + testDir + "/../database/migrations/postgres"
+	path := "file://" + testDir + "/../database/migrations/blocktx/postgres"
 	m, err := migrate.New(path, DefaultParams.String())
 
 	require.NoError(s.T(), err)
@@ -54,34 +91,17 @@ func (s *DatabaseTestSuite) SetupSuite() {
 	}
 }
 
-func getRandomBytes() string {
-	hash := make([]byte, 32)
-	_, err := rand.Read(hash)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return string(hash)
+func (s *DatabaseTestSuite) SetupTest() {
+	s.truncateTables()
 }
 
-func GetTestBlock() *store.Block {
-	return &store.Block{
-		ID:           mrand.Int63(),
-		Hash:         getRandomBytes(),
-		PreviousHash: fmt.Sprintf("%d", rand.Int63()),
-		MerkleRoot:   fmt.Sprintf("%d", rand.Int63()),
-		Height:       mrand.Int63(),
-		Orphaned:     true,
-		ProcessedAt:  time.Now(),
-	}
-}
+func (s *DatabaseTestSuite) truncateTables() {
+	db, err := sqlx.Open("postgres", DefaultParams.String())
+	require.NoError(s.T(), err)
 
-func GetTestTransaction() *store.Transaction {
-	return &store.Transaction{
-		ID:         mrand.Int63(),
-		Hash:       getRandomBytes(),
-		Source:     fmt.Sprintf("testtx %d", mrand.Int63()),
-		MerklePath: fmt.Sprintf("testtx %d", mrand.Int63()),
-	}
+	db.MustExec("truncate  table blocks;")
+	db.MustExec("truncate  table transactions;")
+	db.MustExec("truncate  table block_transactions_map;")
 }
 
 func (s *DatabaseTestSuite) Conn() *sqlx.Conn {
@@ -97,6 +117,7 @@ func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
 		"hash, "+
 		"prevhash, "+
 		"merkleroot, "+
+		"orphanedyn, "+
 		"height,"+
 		"processed_at,"+
 		"inserted_at) "+
@@ -105,6 +126,7 @@ func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
 		":hash, "+
 		":prevhash, "+
 		":merkleroot, "+
+		":orphanedyn, "+
 		":height,"+
 		":processed_at,"+
 		":inserted_at);",
@@ -124,7 +146,7 @@ func (s *DatabaseTestSuite) InsertTransaction(tx *store.Transaction) {
 		"merkle_path,"+
 		"inserted_at) "+
 		"VALUES("+
-		":id,"+
+		":id, "+
 		":hash, "+
 		":source, "+
 		":merkle_path,"+
@@ -152,10 +174,5 @@ func (s *DatabaseTestSuite) InsertBlockTransactionMap(btx *store.BlockTransactio
 
 // TearDownTest clear all the tables
 func (s *DatabaseTestSuite) TearDownTest() {
-	db, err := sqlx.Open("postgres", DefaultParams.String())
-	require.NoError(s.T(), err)
-
-	db.MustExec("truncate  table blocks;")
-	db.MustExec("truncate  table transactions;")
-	db.MustExec("truncate  table block_transactions_map;")
+	s.truncateTables()
 }

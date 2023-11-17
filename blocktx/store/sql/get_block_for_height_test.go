@@ -16,7 +16,7 @@ type GetBlockByHeightTestSuite struct {
 	DatabaseTestSuite
 }
 
-func (s *GetBlockByHeightTestSuite) TestGetBlockByHeight() {
+func (s *GetBlockByHeightTestSuite) Test() {
 	block := GetTestBlock()
 
 	s.InsertBlock(block)
@@ -24,13 +24,12 @@ func (s *GetBlockByHeightTestSuite) TestGetBlockByHeight() {
 	require.NoError(s.T(), err)
 
 	b, err := store.GetBlockForHeight(context.Background(), uint64(block.Height))
-
 	require.NoError(s.T(), err)
+
 	assert.Equal(s.T(), block.Hash, string(b.Hash))
 }
 
-func TestGetBlockByHeightSuite(t *testing.T) {
+func TestGetBlockByHeightTestSuite(t *testing.T) {
 	s := new(GetBlockByHeightTestSuite)
 	suite.Run(t, s)
-
 }

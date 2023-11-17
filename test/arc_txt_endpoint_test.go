@@ -17,7 +17,7 @@ import (
 	"github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoinsv/bsvd/bsvec"
-	"github.com/btcsuite/btcd/btcutil"
+	"github.com/bitcoinsv/bsvutil"
 	"github.com/libsv/go-bk/bec"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
@@ -86,7 +86,7 @@ func createTx(privateKey string, address string, utxo NodeUnspentUtxo) (*bt.Tx, 
 
 	// Sign the input
 
-	wif, err := btcutil.DecodeWIF(privateKey)
+	wif, err := bsvutil.DecodeWIF(privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode WIF: %v", err)
 	}
@@ -327,7 +327,7 @@ func TestHttpPost(t *testing.T) {
 
 	// Sign the input
 
-	wif, err := btcutil.DecodeWIF(privateKey)
+	wif, err := bsvutil.DecodeWIF(privateKey)
 	if err != nil {
 		log.Fatalf("Failed to decode WIF: %v", err)
 	}

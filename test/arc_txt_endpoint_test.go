@@ -5,14 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
-	"net/http"
-	"os"
-	"strings"
-	"testing"
-	"time"
-
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
@@ -23,6 +15,13 @@ import (
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/libsv/go-bt/v2/unlocker"
 	"github.com/stretchr/testify/require"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"testing"
+	"time"
 )
 
 type Response struct {
@@ -277,188 +276,142 @@ func respondToCallback(w http.ResponseWriter, success bool) error {
 	return nil
 }
 
-func TestHttpPost(t *testing.T) {
-	address, privateKey := getNewWalletAddress(t)
+func Test_E2E_Success(t *testing.T) {
 
-	generate(t, 100)
-
-	fmt.Println(address)
-
-	sendToAddress(t, address, 0.001)
-
-	txID := sendToAddress(t, address, 0.02)
-	hash := generate(t, 1)
-
-	fmt.Println(txID)
-	fmt.Println(hash)
-
-	utxos := getUtxos(t, address)
-	if len(utxos) == 0 {
-		log.Fatal("No UTXOs available for the address")
-	}
-
-	tx := bt.NewTx()
-
-	// Add an input using the first UTXO
-	utxo := utxos[0]
-	utxoTxID := utxo.Txid
-	utxoVout := uint32(utxo.Vout)
-	utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
-	utxoScript := utxo.ScriptPubKey
-
-	err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
-	if err != nil {
-		log.Fatalf("Failed adding input: %v", err)
-	}
-
-	// Add an output to the address you've previously created
-	recipientAddress := address
-	amountToSend := uint64(1) // Example value - 0.009 BTC (taking fees into account)
-
-	recipientScript, err := bscript.NewP2PKHFromAddress(recipientAddress)
-	if err != nil {
-		log.Fatalf("Failed converting address to script: %v", err)
-	}
-
-	err = tx.PayTo(recipientScript, amountToSend)
-	if err != nil {
-		log.Fatalf("Failed adding output: %v", err)
-	}
-
-	// Sign the input
-
-	wif, err := bsvutil.DecodeWIF(privateKey)
-	if err != nil {
-		log.Fatalf("Failed to decode WIF: %v", err)
-	}
-
-	// Extract raw private key bytes directly from the WIF structure
-	privateKeyDecoded := wif.PrivKey.Serialize()
-
-	pk, _ := bec.PrivKeyFromBytes(bsvec.S256(), privateKeyDecoded)
-	unlockerGetter := unlocker.Getter{PrivateKey: pk}
-	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
-	if err != nil {
-		log.Fatalf("sign failed: %v", err)
-	}
-
-	extBytes := tx.ExtendedBytes()
-
-	// Print or work with the extended bytes as required
-	fmt.Printf("Extended Bytes: %x\n", extBytes)
-	fmt.Println(extBytes)
-
-	// Convert the transaction bytes to a hex string
-	txHexString := hex.EncodeToString(extBytes)
-
-	// Create a JSON object with the rawTx key
+	txHexString := createTxHexStringExtended(t)
 	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
-
 	url := "http://arc:9090/v1/tx"
 
-	// Create a new request using http.
+	// Send POST request
 	req, err := http.NewRequest("POST", url, strings.NewReader(jsonPayload))
+	require.NoError(t, err)
 
-	// If there is an error while creating the request, fail the test.
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var response Response
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&response))
+
+	// Check transaction status
+	statusUrl := fmt.Sprintf("http://arc:9090/v1/tx/%s", response.Txid)
+	statusResp, err := http.Get(statusUrl)
+	require.NoError(t, err)
+	defer statusResp.Body.Close()
+
+	var statusResponse TxStatusResponse
+	require.NoError(t, json.NewDecoder(statusResp.Body).Decode(&statusResponse))
+	require.Equal(t, "SEEN_ON_NETWORK", statusResponse.TxStatus, "Expected txStatus to be 'SEEN_ON_NETWORK'")
+
+	fmt.Println("Transaction status:", statusResponse.TxStatus)
+
+	generate(t, 10)
+
+	time.Sleep(20 * time.Second)
+
+	statusResp, err = http.Get(statusUrl)
+	require.NoError(t, err)
+	defer statusResp.Body.Close()
+
+	require.NoError(t, json.NewDecoder(statusResp.Body).Decode(&statusResponse))
+
+	require.Equal(t, "MINED", statusResponse.TxStatus, "Expected txStatus to be 'MINED'")
+	fmt.Println("Transaction status:", statusResponse.TxStatus)
+
+}
+
+func TestPostTx_Success(t *testing.T) {
+	txHexString := createTxHexStringExtended(t) // This is a placeholder for the method to create a valid transaction string.
+	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
+	resp, err := postTx(t, jsonPayload, nil) // no extra headers
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestPostTx_BadRequest(t *testing.T) {
+	jsonPayload := `{"rawTx": "invalidHexData"}` // intentionally malformed
+	resp, err := postTx(t, jsonPayload, nil)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected 400 Bad Request but got: %d", resp.StatusCode)
+}
+
+func TestPostTx_MalformedTransaction(t *testing.T) {
+	data, err := os.ReadFile("./fixtures/malformedTxHexString.txt")
+	require.NoError(t, err)
+
+	txHexString := string(data)
+	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
+	resp, err := postTx(t, jsonPayload, nil)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected 400 Bad Request but got: %d", resp.StatusCode)
+}
+
+func TestPostTx_BadRequestBodyFormat(t *testing.T) {
+	improperPayload := `{"transaction": "fakeData"}`
+
+	resp, err := postTx(t, improperPayload, nil) // Using the helper function for the single tx endpoint
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected 400 Bad Request but got: %d", resp.StatusCode)
+}
+
+func postTx(t *testing.T, jsonPayload string, headers map[string]string) (*http.Response, error) {
+	url := "http://arc:9090/v1/tx"
+	req, err := http.NewRequest("POST", url, strings.NewReader(jsonPayload))
 	if err != nil {
 		t.Fatalf("Error creating HTTP request: %s", err)
 	}
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
 
-	// Send the request using http.Client.
 	client := &http.Client{}
-	resp, err := client.Do(req)
+	return client.Do(req)
+}
 
-	// If there is an error while sending the request, fail the test.
-	if err != nil {
-		t.Fatalf("Error sending HTTP request: %s", err)
-	}
+func createTxHexStringExtended(t *testing.T) string {
+	address, privateKey := getNewWalletAddress(t)
 
-	defer resp.Body.Close()
+	generate(t, 100)
+	t.Logf("generated address: %s", address)
 
-	// If status is not http.StatusOK, then read and print the response body
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Error reading response body: %s", err)
-	}
+	sendToAddress(t, address, 0.001)
 
-	// Print the response body for every request
-	fmt.Println("Response body:", string(bodyBytes))
+	txID := sendToAddress(t, address, 0.02)
+	t.Logf("sent 0.02 BSV to: %s", txID)
 
-	// If status is not http.StatusOK, then provide an error for the test
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Received status: %s. Response body: %s", resp.Status, string(bodyBytes))
-	}
+	hash := generate(t, 1)
+	t.Logf("generated 1 block: %s", hash)
 
-	var response Response
-	if err := json.Unmarshal(bodyBytes, &response); err != nil {
-		t.Fatalf("Failed to decode the response body: %v", err)
-	}
+	utxos := getUtxos(t, address)
+	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-	generate(t, 10)
+	tx, err := createTx(privateKey, address, utxos[0])
+	require.NoError(t, err)
 
-	statusUrl := fmt.Sprintf("http://arc:9090/v1/tx/%s", response.Txid)
-	statusResp, err := http.Get(statusUrl)
-	if err != nil {
-		t.Fatalf("Error sending GET request to /v1/tx/{txid}: %s", err)
-	}
-	defer statusResp.Body.Close()
-
-	statusBodyBytes, err := io.ReadAll(statusResp.Body)
-	if err != nil {
-		t.Fatalf("Error reading status response body: %s", err)
-	}
-
-	// Print the response body for the GET request
-	fmt.Println("Transaction status response body:", string(statusBodyBytes))
-
-	// Unmarshal the status response
-	var statusResponse TxStatusResponse
-	if err := json.Unmarshal(statusBodyBytes, &statusResponse); err != nil {
-		t.Fatalf("Failed to decode the status response body: %v", err)
-	}
-
-	// Assert that txStatus is "SEEN_ON_NETWORK"
-	if statusResponse.TxStatus != "MINED" {
-		t.Fatalf("Expected txStatus to be 'MINED', but got '%s'", statusResponse.TxStatus)
-	}
-
-	// Print the extracted txStatus (optional, since you're already asserting it)
-	fmt.Println("Transaction status:", statusResponse.TxStatus)
-
-	time.Sleep(20 * time.Second)
-
-	if err = json.Unmarshal(bodyBytes, &response); err != nil { // <-- Use "=" instead of ":="
-		t.Fatalf("Failed to decode the response body: %v", err)
-	}
-
-	statusResp, err = http.Get(statusUrl) // <-- Use "=" instead of ":="
-	if err != nil {
-		t.Fatalf("Error sending GET request to /v1/tx/{txid}: %s", err)
-	}
-	defer statusResp.Body.Close()
-
-	statusBodyBytes, err = io.ReadAll(statusResp.Body) // <-- Use "=" instead of ":="
-	if err != nil {
-		t.Fatalf("Error reading status response body: %s", err)
-	}
-
-	// Print the response body for the GET request
-	fmt.Println("Transaction status response body:", string(statusBodyBytes))
-
-	// Unmarshal the status response
-	if err := json.Unmarshal(statusBodyBytes, &statusResponse); err != nil {
-		t.Fatalf("Failed to decode the status response body: %v", err)
-	}
-
-	// Assert that txStatus is "SEEN_ON_NETWORK"
-	if statusResponse.TxStatus != "MINED" {
-		t.Fatalf("Expected txStatus to be 'MINED', but got '%s'", statusResponse.TxStatus)
-	}
-
-	// Print the extracted txStatus (optional, since you're already asserting it)
-	fmt.Println("Transaction status:", statusResponse.TxStatus)
+	return hex.EncodeToString(tx.ExtendedBytes())
 
 }
+
+// func TestPostTx_Success(t *testing.T) {
+// 	txHexString := createTxHexStringExtended(t) // This is a placeholder for the method to create a valid transaction string.
+// 	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
+// 	resp, err := postTx(t, jsonPayload, nil) // no extra headers
+// 	if err != nil {
+// 		t.Fatalf("Error sending HTTP request: %s", err)
+// 	}
+// 	defer resp.Body.Close()
+
+// 	if resp.StatusCode != http.StatusOK {
+// 		t.Errorf("Expected 200 OK but got: %d", resp.StatusCode)
+// 	}
+// }

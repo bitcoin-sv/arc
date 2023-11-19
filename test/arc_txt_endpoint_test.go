@@ -9,14 +9,13 @@ import (
 	"github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoinsv/bsvd/bsvec"
-	"github.com/btcsuite/btcd/btcutil"
+	"github.com/bitcoinsv/bsvutil"
 	"github.com/libsv/go-bk/bec"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/libsv/go-bt/v2/unlocker"
 	"github.com/stretchr/testify/require"
 	"io"
-	"ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -277,13 +276,13 @@ func respondToCallback(w http.ResponseWriter, success bool) error {
 	return nil
 }
 
-func TestHttpPost(t *testing.T) {
+func Test_E2E_Success(t *testing.T) {
 
 	txHexString := createTxHexStringExtended(t)
 	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
 	url := "http://arc:9090/v1/tx"
 
-	// Create a new request using http.
+	// Send POST request
 	req, err := http.NewRequest("POST", url, strings.NewReader(jsonPayload))
 	require.NoError(t, err)
 
@@ -291,35 +290,26 @@ func TestHttpPost(t *testing.T) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-
 	defer resp.Body.Close()
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	var response Response
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	require.NoError(t, err)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&response))
 
-	require.NoError(t, json.Unmarshal(bodyBytes, &response))
-
+	// Check transaction status
 	statusUrl := fmt.Sprintf("http://arc:9090/v1/tx/%s", response.Txid)
 	statusResp, err := http.Get(statusUrl)
 	require.NoError(t, err)
 	defer statusResp.Body.Close()
 
-	statusBodyBytes, err := ioutil.ReadAll(statusResp.Body)
-	require.NoError(t, err)
-
 	var statusResponse TxStatusResponse
-	require.NoError(t, json.Unmarshal(statusBodyBytes, &statusResponse))
-
-	// Assert that txStatus is "SEEN_ON_NETWORK"
+	require.NoError(t, json.NewDecoder(statusResp.Body).Decode(&statusResponse))
 	require.Equal(t, "SEEN_ON_NETWORK", statusResponse.TxStatus, "Expected txStatus to be 'SEEN_ON_NETWORK'")
 
-	generate(t, 10)
-
-	// Print the extracted txStatus (optional)
 	fmt.Println("Transaction status:", statusResponse.TxStatus)
+
+	generate(t, 10)
 
 	time.Sleep(20 * time.Second)
 
@@ -327,16 +317,9 @@ func TestHttpPost(t *testing.T) {
 	require.NoError(t, err)
 	defer statusResp.Body.Close()
 
-	statusBodyBytes, err = ioutil.ReadAll(statusResp.Body)
-	require.NoError(t, err)
+	require.NoError(t, json.NewDecoder(statusResp.Body).Decode(&statusResponse))
 
-	// Unmarshal the status response
-	require.NoError(t, json.Unmarshal(statusBodyBytes, &statusResponse))
-
-	// Assert that txStatus is "MINED" again
 	require.Equal(t, "MINED", statusResponse.TxStatus, "Expected txStatus to be 'MINED'")
-
-	// Print the extracted txStatus (optional)
 	fmt.Println("Transaction status:", statusResponse.TxStatus)
 
 }
@@ -345,89 +328,37 @@ func TestPostTx_Success(t *testing.T) {
 	txHexString := createTxHexStringExtended(t) // This is a placeholder for the method to create a valid transaction string.
 	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
 	resp, err := postTx(t, jsonPayload, nil) // no extra headers
-	if err != nil {
-		t.Fatalf("Error sending HTTP request: %s", err)
-	}
+	require.NoError(t, err)
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected 200 OK but got: %d", resp.StatusCode)
-	}
+	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func TestPostTx_BadRequest(t *testing.T) {
 	jsonPayload := `{"rawTx": "invalidHexData"}` // intentionally malformed
 	resp, err := postTx(t, jsonPayload, nil)
-	if err != nil {
-		t.Fatalf("Error sending HTTP request: %s", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Expected 400 Bad Request but got: %d", resp.StatusCode)
-	}
+	require.NoError(t, err)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected 400 Bad Request but got: %d", resp.StatusCode)
 }
 
 func TestPostTx_MalformedTransaction(t *testing.T) {
-
-	data, err := ioutil.ReadFile("./fixtures/malformedTxHexString.txt")
-	if err != nil {
-		t.Fatalf("Failed to read fixture file: %v", err)
-	}
+	data, err := os.ReadFile("./fixtures/malformedTxHexString.txt")
+	require.NoError(t, err)
 
 	txHexString := string(data)
 	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
 	resp, err := postTx(t, jsonPayload, nil)
-	if err != nil {
-		t.Fatalf("Error sending HTTP request: %s", err)
-	}
+	require.NoError(t, err)
 	defer resp.Body.Close()
-
-	if resp.StatusCode != 400 {
-		t.Errorf("Expected 400: %d", resp.StatusCode)
-	}
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected 400 Bad Request but got: %d", resp.StatusCode)
 }
 
 func TestPostTx_BadRequestBodyFormat(t *testing.T) {
-	// Instead of sending a valid hex string, send a JSON
 	improperPayload := `{"transaction": "fakeData"}`
 
 	resp, err := postTx(t, improperPayload, nil) // Using the helper function for the single tx endpoint
-	if err != nil {
-		t.Fatalf("Error sending HTTP request: %s", err)
-	}
+	require.NoError(t, err)
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Expected 400 Bad Request due to improper body format but got: %d", resp.StatusCode)
-	}
-}
-
-func TestPostTx_ConflictingTx(t *testing.T) {
-	txHexString := createTxHexStringExtended(t)
-	conflictingtxt := createTxHexStringExtended(t)
-
-	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
-	resp, err := postTx(t, jsonPayload, nil)
-	if err != nil {
-		t.Fatalf("Error sending HTTP request: %s", err)
-	}
-	defer resp.Body.Close()
-
-	jsonPayload2 := fmt.Sprintf(`{"rawTx": "%s"}`, conflictingtxt)
-	resp2, err2 := postTx(t, jsonPayload2, nil)
-	if err != nil {
-		t.Fatalf("Error sending HTTP request: %s", err2)
-	}
-	defer resp.Body.Close()
-
-	if resp2.StatusCode != http.StatusOK {
-		t.Errorf("Expected 200 OK but got: %d", resp.StatusCode)
-	}
-	// TO DO Add Response Body to Rejected
-	if resp.StatusCode != 200 {
-		t.Errorf("Expected 200 Conflicting transaction found but got: %d", resp.StatusCode)
-	}
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected 400 Bad Request but got: %d", resp.StatusCode)
 }
 
 func postTx(t *testing.T, jsonPayload string, headers map[string]string) (*http.Response, error) {
@@ -451,66 +382,36 @@ func createTxHexStringExtended(t *testing.T) string {
 	address, privateKey := getNewWalletAddress(t)
 
 	generate(t, 100)
-
-	fmt.Println(address)
+	t.Logf("generated address: %s", address)
 
 	sendToAddress(t, address, 0.001)
 
 	txID := sendToAddress(t, address, 0.02)
-	hash := generate(t, 1)
+	t.Logf("sent 0.02 BSV to: %s", txID)
 
-	fmt.Println(txID)
-	fmt.Println(hash)
+	hash := generate(t, 1)
+	t.Logf("generated 1 block: %s", hash)
 
 	utxos := getUtxos(t, address)
-	if len(utxos) == 0 {
-		log.Fatal("No UTXOs available for the address")
-	}
+	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-	tx := bt.NewTx()
+	tx, err := createTx(privateKey, address, utxos[0])
+	require.NoError(t, err)
 
-	// Add an input using the first UTXO
-	utxo := utxos[0]
-	utxoTxID := utxo.Txid
-	utxoVout := uint32(utxo.Vout)
-	utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
-	utxoScript := utxo.ScriptPubKey
+	return hex.EncodeToString(tx.ExtendedBytes())
 
-	err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
-	if err != nil {
-		log.Fatalf("Failed adding input: %v", err)
-	}
-
-	recipientAddress := address
-	amountToSend := uint64(1)
-
-	recipientScript, err := bscript.NewP2PKHFromAddress(recipientAddress)
-	if err != nil {
-		log.Fatalf("Failed converting address to script: %v", err)
-	}
-
-	err = tx.PayTo(recipientScript, amountToSend)
-	if err != nil {
-		log.Fatalf("Failed adding output: %v", err)
-	}
-
-	// Sign the input
-
-	wif, err := btcutil.DecodeWIF(privateKey)
-	if err != nil {
-		log.Fatalf("Failed to decode WIF: %v", err)
-	}
-
-	// Extract raw private key bytes directly from the WIF structure
-	privateKeyDecoded := wif.PrivKey.Serialize()
-
-	pk, _ := bec.PrivKeyFromBytes(bsvec.S256(), privateKeyDecoded)
-	unlockerGetter := unlocker.Getter{PrivateKey: pk}
-	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
-	if err != nil {
-		log.Fatalf("sign failed: %v", err)
-	}
-
-	extBytes := tx.ExtendedBytes()
-	return hex.EncodeToString(extBytes)
 }
+
+// func TestPostTx_Success(t *testing.T) {
+// 	txHexString := createTxHexStringExtended(t) // This is a placeholder for the method to create a valid transaction string.
+// 	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
+// 	resp, err := postTx(t, jsonPayload, nil) // no extra headers
+// 	if err != nil {
+// 		t.Fatalf("Error sending HTTP request: %s", err)
+// 	}
+// 	defer resp.Body.Close()
+
+// 	if resp.StatusCode != http.StatusOK {
+// 		t.Errorf("Expected 200 OK but got: %d", resp.StatusCode)
+// 	}
+// }

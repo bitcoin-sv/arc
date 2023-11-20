@@ -139,7 +139,18 @@ func (ddb *DynamoDB) CreateTransactionsTable(ctx context.Context) error {
 			WriteCapacityUnits: aws.Int64(10),
 		},
 	})
+	if err != nil {
+		return err
+	}
 
+	ttltx := dynamodb.UpdateTimeToLiveInput{
+		TableName: aws.String("transactions"),
+		TimeToLiveSpecification: &types.TimeToLiveSpecification{
+			Enabled:       aws.Bool(true),
+			AttributeName: aws.String("ttl"),
+		},
+	}
+	_, err = ddb.client.UpdateTimeToLive(ctx, &ttltx)
 	if err != nil {
 		return err
 	}
@@ -156,12 +167,21 @@ func (ddb *DynamoDB) CreateBlocksTable(ctx context.Context) error {
 				AttributeName: aws.String("block_hash"),
 				AttributeType: types.ScalarAttributeTypeB,
 			},
+			{
+				AttributeName: aws.String("ttl"),
+				AttributeType: types.ScalarAttributeTypeS,
+			},
 		},
 		KeySchema: []types.KeySchemaElement{
 			{
 				AttributeName: aws.String("block_hash"),
 				KeyType:       types.KeyTypeHash,
-			}},
+			},
+			{
+				AttributeName: aws.String("ttl"),
+				KeyType:       types.KeyTypeRange,
+			},
+		},
 		TableName: aws.String("blocks"),
 		ProvisionedThroughput: &types.ProvisionedThroughput{
 			ReadCapacityUnits:  aws.Int64(10),

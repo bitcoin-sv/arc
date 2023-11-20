@@ -1,7 +1,6 @@
 package test
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"testing"
@@ -148,9 +147,6 @@ func getBlockRootByHeight(t *testing.T, blockHeight int) string {
 	t.Helper()
 	block, err := bitcoind.GetBlockByHeight(blockHeight)
 	require.NoError(t, err)
-
-	jBlock, err := json.Marshal(block)
-	t.Logf("block: %s", string(jBlock))
 
 	return block.MerkleRoot
 }

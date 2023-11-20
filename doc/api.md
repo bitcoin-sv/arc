@@ -1285,7 +1285,7 @@ and
 |---|---|---|---|---|
 |*anonymous*|object|false|none|none|
 |» txid|string|false|none|Transaction ID in hex|
-|» merklePath|string¦null|false|none|Transaction merkle path in hex|
+|» merklePath|string¦null|false|none|Transaction merkle path as a hex string in [BUMP format](https://bsv.brc.dev/transactions/0074)|
 |» txStatus|string|false|none|Transaction status|
 |» extraInfo|string¦null|false|none|Extra information about the transaction|
 

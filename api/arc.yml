@@ -554,7 +554,7 @@ components:
             merklePath:
               type: string
               nullable: true
-              description: Transaction merkle path in hex
+              description: Transaction merkle path as a hex string in [BUMP format](https://bsv.brc.dev/transactions/0074)
             txStatus:
               type: string
               enum: [

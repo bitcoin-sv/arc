@@ -303,6 +303,10 @@ go run cmd/broadcaster/main.go -api=false -consolidate -keyfile=./cmd/broadcaste
 
 Detailed information about flags can is displayed by running `go run cmd/broadcaster/main.go`.
 
+## Background jobs
+
+See [here](./background_jobs/README.md)
+
 ## Tests
 ### Unit tests
 In order to run the unit tests do the following
@@ -323,8 +327,3 @@ The tests can be executed like this:
 ```
 make clean_restart_e2e_test
 ```
-
-
-## Background jobs
-
-See [here](./background_jobs/README.md)

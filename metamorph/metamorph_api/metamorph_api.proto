@@ -28,6 +28,7 @@ service MetaMorphAPI {
   rpc PutTransactions (TransactionRequests) returns (TransactionStatuses) {}
   rpc GetTransaction (TransactionStatusRequest) returns (Transaction) {}
   rpc GetTransactionStatus (TransactionStatusRequest) returns (TransactionStatus) {}
+  rpc SetUnlockedByName (SetUnlockedByNameRequest) returns (SetUnlockedByNameResponse) {}
 }
 
 // swagger:model HealthResponse
@@ -89,7 +90,7 @@ message TransactionStatus {
   string reject_reason = 7;
   uint64 block_height = 8;
   string block_hash = 9;
-  string merkle_path = 10; 
+  string merkle_path = 10;
 }
 
 // swagger:model TransactionStatuses
@@ -100,4 +101,14 @@ message TransactionStatuses {
 // swagger:model TransactionRequest
 message TransactionStatusRequest {
   string txid = 1;
+}
+
+// swagger:model SetUnlockedByNameRequest
+message SetUnlockedByNameRequest {
+  string name = 1;
+}
+
+// swagger:model SetUnlockedRequest
+message SetUnlockedByNameResponse {
+  int32 records_affected = 1;
 }

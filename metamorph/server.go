@@ -12,6 +12,9 @@ import (
 	"sync"
 	"time"
 
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
@@ -30,9 +33,6 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/tracing"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 func init() {
@@ -269,7 +269,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			RawTx:         txReq.RawTx,
 		}
 
-		if err = s.processor.Set(NewProcessorRequest(ctx, sReq, nil)); err != nil {
+		if err = s.processor.Set(ctx, &ProcessorRequest{Data: sReq}); err != nil {
 			return nil, err
 		}
 
@@ -284,7 +284,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	wg := &sync.WaitGroup{}
 	for hash, input := range processTxsInputMap {
 		wg.Add(1)
-		// TODO check the context when API call ends
+		// TODO check the Context when API call ends
 		go func(ctx context.Context, processTxInput processTxInput, txID string, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
 			defer wg.Done()
 
@@ -307,7 +307,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	}()
 
 	// TODO check the context when API call ends
-	s.processor.ProcessTransaction(NewProcessorRequest(ctx, data, responseChannel))
+	s.processor.ProcessTransaction(ctx, &ProcessorRequest{Data: data, ResponseChannel: responseChannel})
 
 	if waitForStatus < metamorph_api.Status_RECEIVED || waitForStatus > metamorph_api.Status_SEEN_ON_NETWORK {
 		// wait for seen by default, this is the safest option
@@ -572,6 +572,21 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 	}
 
 	return data, announcedAt, minedAt, storedAt, nil
+}
+
+func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (*metamorph_api.SetUnlockedByNameResponse, error) {
+
+	recordsAffected, err := s.store.SetUnlockedByName(ctx, req.Name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := &metamorph_api.SetUnlockedByNameResponse{
+		RecordsAffected: int32(recordsAffected),
+	}
+
+	return result, err
 }
 
 func dialMetamorph(ctx context.Context, address string) (*grpc.ClientConn, error) {

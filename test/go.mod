@@ -6,6 +6,7 @@ require (
 	github.com/bitcoin-sv/arc v1.0.53
 	github.com/bitcoinsv/bsvd v0.0.0-20190609155523-4c29707f7173
 	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9
+	github.com/libsv/go-bc v0.1.24
 	github.com/libsv/go-bk v0.1.6
 	github.com/libsv/go-bt/v2 v2.2.5
 	github.com/ordishs/go-bitcoin v1.0.85
@@ -43,7 +44,6 @@ require (
 	github.com/labstack/echo/v4 v4.11.1 // indirect
 	github.com/labstack/gommon v0.4.0 // indirect
 	github.com/lib/pq v1.10.7 // indirect
-	github.com/libsv/go-bc v0.1.20 // indirect
 	github.com/libsv/go-p2p v0.1.3 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect

@@ -55,7 +55,16 @@ paths:
           $ref: '#/components/responses/NotAuthorized'
         404:
           description: Not found
-
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorNotFound'
+        409:
+          description: Generic error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorGeneric'
   # Post transaction
   /v1/tx:
     post:

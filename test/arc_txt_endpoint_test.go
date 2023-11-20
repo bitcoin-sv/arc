@@ -478,12 +478,19 @@ func TestMerklePath(t *testing.T) {
 
 			var statusResponse *api.GETTransactionStatusResponse
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
+			require.NoError(t, err)
 
 			require.Equal(t, handler.PtrTo("MINED"), statusResponse.JSON200.TxStatus)
 			require.NotNil(t, statusResponse.JSON200.MerklePath)
 
+			t.Logf("BUMP: %s", *statusResponse.JSON200.MerklePath)
+
 			bump, err := bc.NewBUMPFromStr(*statusResponse.JSON200.MerklePath)
 			require.NoError(t, err)
+
+			jsonB, err := json.Marshal(bump)
+			require.NoError(t, err)
+			t.Logf("BUMPjson: %s", string(jsonB))
 
 			root, err := bump.CalculateRootGivenTxid(tx.TxID())
 			require.NoError(t, err)

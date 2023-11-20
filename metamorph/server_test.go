@@ -13,6 +13,7 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	blockTxMock "github.com/bitcoin-sv/arc/metamorph/blocktx/mock"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	mocks "github.com/bitcoin-sv/arc/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	storeMock "github.com/bitcoin-sv/arc/metamorph/store/mock"
@@ -30,8 +31,8 @@ import (
 
 const source = "localhost:8000"
 
-//go:generate moq -out ./processor_mock.go . ProcessorI
-//go:generate moq -out ./bitcoin_mock.go . BitcoinNode
+//go:generate moq -pkg mocks -out ./mocks/processor_mock.go . ProcessorI
+//go:generate moq -pkg mocks -out ./mocks/bitcon_mock.go . BitcoinNode
 
 func setStoreTestData(t *testing.T, s store.MetamorphStore) {
 	ctx := context.Background()
@@ -80,7 +81,7 @@ func TestNewServer(t *testing.T) {
 
 func TestHealth(t *testing.T) {
 	t.Run("Health", func(t *testing.T) {
-		processor := &ProcessorIMock{}
+		processor := &mocks.ProcessorIMock{}
 		sentToNetworkStat := stat.NewAtomicStats()
 		for i := 0; i < 10; i++ {
 			sentToNetworkStat.AddDuration("test", 10*time.Millisecond)
@@ -116,7 +117,7 @@ func TestPutTransaction(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
-		processor := &ProcessorIMock{}
+		processor := &mocks.ProcessorIMock{}
 
 		client := &blockTxMock.ClientIMock{}
 		client.RegisterTransactionFunc = func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
@@ -163,7 +164,7 @@ func TestPutTransaction(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
-		processor := &ProcessorIMock{}
+		processor := &mocks.ProcessorIMock{}
 		btc := &blockTxMock.ClientIMock{}
 		btc.RegisterTransactionFunc = func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
 			return &blocktx_api.RegisterTransactionResponse{
@@ -195,7 +196,7 @@ func TestPutTransaction(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
-		processor := &ProcessorIMock{}
+		processor := &mocks.ProcessorIMock{}
 		btc := &blockTxMock.ClientIMock{}
 		btc.RegisterTransactionFunc = func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
 			return &blocktx_api.RegisterTransactionResponse{
@@ -236,7 +237,7 @@ func TestPutTransaction(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		processor := &ProcessorIMock{}
+		processor := &mocks.ProcessorIMock{}
 		btc := &blockTxMock.ClientIMock{}
 		btc.RegisterTransactionFunc = func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
 			return &blocktx_api.RegisterTransactionResponse{
@@ -562,7 +563,7 @@ func TestPutTransactions(t *testing.T) {
 				},
 			}
 
-			processor := &ProcessorIMock{
+			processor := &mocks.ProcessorIMock{
 				SetFunc: func(_ context.Context, req *ProcessorRequest) error {
 					return nil
 				},
@@ -586,8 +587,8 @@ func TestPutTransactions(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			require.Equal(t, tc.expectedProcessorSetCalls, len(processor.calls.Set))
-			require.Equal(t, tc.expectedProcessorProcessTransactionCalls, len(processor.calls.ProcessTransaction))
+			require.Equal(t, tc.expectedProcessorSetCalls, len(processor.SetCalls()))
+			require.Equal(t, tc.expectedProcessorProcessTransactionCalls, len(processor.ProcessTransactionCalls()))
 
 			for i := 0; i < len(tc.expectedStatuses.Statuses); i++ {
 				expected := tc.expectedStatuses.Statuses[i]
@@ -661,7 +662,7 @@ func TestStartGRPCServer(t *testing.T) {
 
 			btc := &blockTxMock.ClientIMock{}
 
-			processor := &ProcessorIMock{
+			processor := &mocks.ProcessorIMock{
 				ShutdownFunc: func() {},
 			}
 			server := NewServer(metamorphStore, processor, btc, source)
@@ -726,11 +727,11 @@ func TestCheckUtxos(t *testing.T) {
 
 			btc := &blockTxMock.ClientIMock{}
 
-			processor := &ProcessorIMock{
+			processor := &mocks.ProcessorIMock{
 				ShutdownFunc: func() {},
 			}
 
-			bitcoin := &BitcoinNodeMock{
+			bitcoin := &mocks.BitcoinNodeMock{
 				GetTxOutFunc: func(txHex string, vout int, includeMempool bool) (*bitcoin.TXOut, error) {
 					return tc.txOut, tc.getTxOutErr
 				},

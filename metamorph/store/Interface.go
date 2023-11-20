@@ -26,6 +26,7 @@ type StoreData struct {
 	CallbackToken string               `dynamodbav:"callback_token"`
 	RejectReason  string               `dynamodbav:"reject_reason"`
 	LockedBy      string               `dynamodbav:"locked_by"`
+	Ttl           int64                `dynamodbav:"ttl"`
 }
 
 func (sd *StoreData) EncodeToBytes() ([]byte, error) {
@@ -200,7 +201,7 @@ func DecodeFromBytes(b []byte) (*StoreData, error) {
 	return sd, nil
 }
 
-var ErrNotFound = errors.New("txid could not be found")
+var ErrNotFound = errors.New("key could not be found")
 
 type MetamorphStore interface {
 	Get(ctx context.Context, key []byte) (*StoreData, error)

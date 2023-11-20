@@ -145,14 +145,14 @@ func (ddb *DynamoDB) CreateTransactionsTable(ctx context.Context) error {
 		return err
 	}
 
-	ttltx := dynamodb.UpdateTimeToLiveInput{
+	ttlInput := dynamodb.UpdateTimeToLiveInput{
 		TableName: aws.String("transactions"),
 		TimeToLiveSpecification: &types.TimeToLiveSpecification{
 			Enabled:       aws.Bool(true),
 			AttributeName: aws.String("ttl"),
 		},
 	}
-	_, err = ddb.client.UpdateTimeToLive(ctx, &ttltx)
+	_, err = ddb.client.UpdateTimeToLive(ctx, &ttlInput)
 	if err != nil {
 		return err
 	}
@@ -182,6 +182,18 @@ func (ddb *DynamoDB) CreateBlocksTable(ctx context.Context) error {
 			WriteCapacityUnits: aws.Int64(10),
 		},
 	}); err != nil {
+		return err
+	}
+
+	ttlInput := &dynamodb.UpdateTimeToLiveInput{
+		TableName: aws.String("blocks"),
+		TimeToLiveSpecification: &types.TimeToLiveSpecification{
+			Enabled:       aws.Bool(true),
+			AttributeName: aws.String("ttl"),
+		},
+	}
+	_, err := ddb.client.UpdateTimeToLive(ctx, ttlInput)
+	if err != nil {
 		return err
 	}
 
@@ -238,6 +250,8 @@ func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData
 	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:Set")
 	defer span.Finish()
 
+	ttl := time.Now().Add(ddb.ttl)
+	value.Ttl = ttl.Unix()
 	value.LockedBy = ddb.hostname
 
 	// marshal input value for new entry
@@ -516,32 +530,35 @@ func (ddb *DynamoDB) GetBlockProcessed(ctx context.Context, blockHash *chainhash
 	response, err := ddb.client.GetItem(ctx, &dynamodb.GetItemInput{
 		Key: val, TableName: aws.String("blocks"),
 	})
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return nil, err
 	}
 
-	var blockItem BlockItem
-	err = attributevalue.UnmarshalMap(response.Item, &blockItem)
-	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return nil, err
-	}
-
-	var processedAtTime time.Time
-	if blockItem.ProcessedAt != "" {
-		processedAtTime, err = time.Parse(time.RFC3339, blockItem.ProcessedAt)
+	if len(response.Item) != 0 {
+		var blockItem BlockItem
+		err = attributevalue.UnmarshalMap(response.Item, &blockItem)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return nil, err
 		}
+
+		var processedAtTime time.Time
+		if blockItem.ProcessedAt != "" {
+			processedAtTime, err = time.Parse(time.RFC3339, blockItem.ProcessedAt)
+			if err != nil {
+				span.SetTag(string(ext.Error), true)
+				span.LogFields(log.Error(err))
+				return nil, err
+			}
+		}
+
+		return &processedAtTime, nil
 	}
 
-	return &processedAtTime, nil
+	return nil, store.ErrNotFound
 }
 
 func (ddb *DynamoDB) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) error {
@@ -553,10 +570,12 @@ func (ddb *DynamoDB) SetBlockProcessed(ctx context.Context, blockHash *chainhash
 	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:SetBlockProcessed")
 	defer span.Finish()
 
+	ttl := time.Now().Add(ddb.ttl)
+
 	blockItem := BlockItem{
 		Hash:        blockHash.CloneBytes(),
 		ProcessedAt: time.Now().UTC().Format(time.RFC3339),
-		Ttl:         time.Now().Add(ddb.ttl).Unix(),
+		Ttl:         ttl.Unix(),
 	}
 	item, err := attributevalue.MarshalMap(blockItem)
 	if err != nil {

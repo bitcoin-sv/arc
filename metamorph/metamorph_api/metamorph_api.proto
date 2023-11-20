@@ -17,7 +17,8 @@ enum Status {
   SENT_TO_NETWORK = 6;
   ACCEPTED_BY_NETWORK = 7;
   SEEN_ON_NETWORK = 8;
-  MINED = 9;
+  ORPHANED = 9;
+  MINED = 10;
   CONFIRMED = 108; // 100 confirmation blocks
   REJECTED = 109;
 }

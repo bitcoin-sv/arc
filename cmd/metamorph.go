@@ -38,8 +38,9 @@ import (
 )
 
 const (
-	DbModeBadger   = "badger"
-	DbModeDynamoDB = "dynamodb"
+	DbModeBadger                   = "badger"
+	DbModeDynamoDB                 = "dynamodb"
+	dataRetentionPeriodDaysDefault = 14
 )
 
 func StartMetamorph(logger utils.Logger) (func(), error) {
@@ -357,9 +358,15 @@ func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) 
 				return nil, err
 			}
 
+			ttlDays := viper.GetInt("metamorph.dataRetentionPeriodDays")
+			if ttlDays == 0 {
+				ttlDays = dataRetentionPeriodDaysDefault
+			}
+
 			s, err = dynamodb.New(
 				awsdynamodb.NewFromConfig(cfg),
 				hostname,
+				time.Duration(ttlDays)*24*time.Hour,
 			)
 			if err != nil {
 				return nil, err

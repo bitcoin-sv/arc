@@ -32,12 +32,14 @@ const (
 type DynamoDB struct {
 	client   *dynamodb.Client
 	hostname string
+	ttl      time.Duration
 }
 
-func New(client *dynamodb.Client, hostname string) (*DynamoDB, error) {
+func New(client *dynamodb.Client, hostname string, timeToLive time.Duration) (*DynamoDB, error) {
 	repo := &DynamoDB{
 		client:   client,
 		hostname: hostname,
+		ttl:      timeToLive,
 	}
 
 	err := initialize(context.Background(), repo)
@@ -167,19 +169,11 @@ func (ddb *DynamoDB) CreateBlocksTable(ctx context.Context) error {
 				AttributeName: aws.String("block_hash"),
 				AttributeType: types.ScalarAttributeTypeB,
 			},
-			{
-				AttributeName: aws.String("ttl"),
-				AttributeType: types.ScalarAttributeTypeS,
-			},
 		},
 		KeySchema: []types.KeySchemaElement{
 			{
 				AttributeName: aws.String("block_hash"),
 				KeyType:       types.KeyTypeHash,
-			},
-			{
-				AttributeName: aws.String("ttl"),
-				KeyType:       types.KeyTypeRange,
 			},
 		},
 		TableName: aws.String("blocks"),
@@ -503,6 +497,7 @@ func (ddb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 type BlockItem struct {
 	Hash        []byte `dynamodbav:"block_hash"`
 	ProcessedAt string `dynamodbav:"processed_at"`
+	Ttl         int64  `dynamodbav:"ttl"`
 }
 
 func (ddb *DynamoDB) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
@@ -558,7 +553,11 @@ func (ddb *DynamoDB) SetBlockProcessed(ctx context.Context, blockHash *chainhash
 	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:SetBlockProcessed")
 	defer span.Finish()
 
-	blockItem := BlockItem{Hash: blockHash.CloneBytes(), ProcessedAt: time.Now().UTC().Format(time.RFC3339)}
+	blockItem := BlockItem{
+		Hash:        blockHash.CloneBytes(),
+		ProcessedAt: time.Now().UTC().Format(time.RFC3339),
+		Ttl:         time.Now().Add(ddb.ttl).Unix(),
+	}
 	item, err := attributevalue.MarshalMap(blockItem)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)

@@ -138,6 +138,42 @@ paths:
                 $ref: '#/components/schemas/ErrorBadRequest'
         401:
           $ref: '#/components/responses/NotAuthorized'
+        409:
+          description: Generic error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorGeneric'
+        460:
+          description: Not extended format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorTxFormat'
+        461:
+          description: Malformed transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorUnlockingScripts'
+        462:
+          description: Invalid inputs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorInputs'
+        463:
+          description: Malformed transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMalformed'
+        464:
+          description: Invalid outputs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorOutputs'
         465:
           description: Fee too low
           content:

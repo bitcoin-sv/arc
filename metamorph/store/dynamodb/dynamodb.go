@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"command-line-arguments/Users/ssilagadze/Desktop/work.nosync/arc/metamorph/metamorph_api/metamorph_api.pb.go"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"

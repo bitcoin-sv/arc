@@ -6,14 +6,14 @@ import (
 
 	. "github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/metamorph/mocks"
+	. "github.com/bitcoin-sv/arc/metamorph/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
 //go:generate moq -pkg mocks -out ./mocks/zmq_mock.go . ZMQI
 func TestMissingInputsZMQI(t *testing.T) {
 	// make and configure a mocked ZMQI
-	mockedZMQI := &mocks.ZMQIMock{
+	mockedZMQI := &ZMQIMock{
 		SubscribeFunc: func(s string, stringsCh chan []string) error {
 			if s != "invalidtx" {
 				return nil
@@ -39,7 +39,7 @@ func TestMissingInputsZMQI(t *testing.T) {
 
 func TestInvalidTxZMQI(t *testing.T) {
 	// make and configure a mocked ZMQI
-	mockedZMQI := &mocks.ZMQIMock{
+	mockedZMQI := &ZMQIMock{
 		SubscribeFunc: func(s string, stringsCh chan []string) error {
 			if s != "hashtx2" {
 				return nil

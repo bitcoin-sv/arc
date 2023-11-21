@@ -14,12 +14,11 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 	. "github.com/bitcoin-sv/arc/metamorph"
-	blockTxMock "github.com/bitcoin-sv/arc/metamorph/blocktx/mock"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	. "github.com/bitcoin-sv/arc/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/badger"
-	storeMock "github.com/bitcoin-sv/arc/metamorph/store/mock"
 	metamorphSql "github.com/bitcoin-sv/arc/metamorph/store/sql"
 	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/labstack/gommon/random"
@@ -30,11 +29,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:generate moq -pkg mock -out ./store/mock/mock.go ./store/ MetamorphStore
-//go:generate moq -pkg mock -out ./blocktx/mock/mock.go ../blocktx/ ClientI
+//go:generate moq -pkg mocks -out ./mocks/store_mock.go ./store/ MetamorphStore
+//go:generate moq -pkg mocks -out ./mocks/blocktx_mock.go ../blocktx/ ClientI
 
 func TestNewProcessor(t *testing.T) {
-	mtmStore := &storeMock.MetamorphStoreMock{
+	mtmStore := &MetamorphStoreMock{
 		SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
 	}
 
@@ -218,7 +217,7 @@ func TestLoadUnmined(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			pm := p2p.NewPeerManagerMock()
 
-			btxMock := &blockTxMock.ClientIMock{
+			btxMock := &ClientIMock{
 				GetTransactionBlockFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error) {
 
 					var txResponse *blocktx_api.RegisterTransactionResponse
@@ -234,7 +233,7 @@ func TestLoadUnmined(t *testing.T) {
 					return txResponse, tc.getTransactionBlockErr
 				},
 			}
-			mtmStore := &storeMock.MetamorphStoreMock{
+			mtmStore := &MetamorphStoreMock{
 				GetUnminedFunc: func(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
 					for _, data := range tc.storedData {
 						callback(data)
@@ -715,7 +714,7 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 
-			metamorphStore := &storeMock.MetamorphStoreMock{
+			metamorphStore := &MetamorphStoreMock{
 				UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 					require.Condition(t, func() (success bool) {
 						oneOfHash := hash.IsEqual(testdata.TX1Hash) || hash.IsEqual(testdata.TX2Hash) || hash.IsEqual(testdata.TX3Hash)
@@ -728,7 +727,7 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
 			}
-			btxMock := &blockTxMock.ClientIMock{
+			btxMock := &ClientIMock{
 				GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
 					require.Equal(t, 3, len(transaction.Transactions))
 
@@ -775,7 +774,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &storeMock.MetamorphStoreMock{SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil }}
+			metamorphStore := &MetamorphStoreMock{SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil }}
 			pm := p2p.NewPeerManagerMock()
 			processor, err := NewProcessor(metamorphStore, pm, nil, nil,
 				WithProcessExpiredSeenTxsInterval(time.Hour),
@@ -805,27 +804,4 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 		})
 	}
-}
-
-type TestLogger struct {
-}
-
-func (h *TestLogger) Enabled(_ context.Context, _ slog.Level) bool {
-	return false
-}
-
-func (h *TestLogger) Handle(_ context.Context, _ slog.Record) error {
-	return nil
-}
-
-func (h *TestLogger) WithAttrs(_ []slog.Attr) slog.Handler {
-	return &TestLogger{}
-}
-
-func (h *TestLogger) WithGroup(_ string) slog.Handler {
-	return &TestLogger{}
-}
-
-func (h *TestLogger) Handler() slog.Handler {
-	return &TestLogger{}
 }

@@ -12,12 +12,10 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	. "github.com/bitcoin-sv/arc/metamorph"
-	blockTxMock "github.com/bitcoin-sv/arc/metamorph/blocktx/mock"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	mocks "github.com/bitcoin-sv/arc/metamorph/mocks"
+	. "github.com/bitcoin-sv/arc/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
-	storeMock "github.com/bitcoin-sv/arc/metamorph/store/mock"
 	"github.com/bitcoin-sv/arc/metamorph/store/sql"
 	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/libsv/go-bt/v2"
@@ -82,7 +80,7 @@ func TestNewServer(t *testing.T) {
 
 func TestHealth(t *testing.T) {
 	t.Run("Health", func(t *testing.T) {
-		processor := &mocks.ProcessorIMock{}
+		processor := &ProcessorIMock{}
 		sentToNetworkStat := stat.NewAtomicStats()
 		for i := 0; i < 10; i++ {
 			sentToNetworkStat.AddDuration("test", 10*time.Millisecond)
@@ -118,9 +116,9 @@ func TestPutTransaction(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
-		processor := &mocks.ProcessorIMock{}
+		processor := &ProcessorIMock{}
 
-		client := &blockTxMock.ClientIMock{}
+		client := &ClientIMock{}
 		client.RegisterTransactionFunc = func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
 			return &blocktx_api.RegisterTransactionResponse{
 				Source: source,
@@ -165,8 +163,8 @@ func TestPutTransaction(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
-		processor := &mocks.ProcessorIMock{}
-		btc := &blockTxMock.ClientIMock{}
+		processor := &ProcessorIMock{}
+		btc := &ClientIMock{}
 		btc.RegisterTransactionFunc = func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
 			return &blocktx_api.RegisterTransactionResponse{
 				Source: source,
@@ -197,8 +195,8 @@ func TestPutTransaction(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
-		processor := &mocks.ProcessorIMock{}
-		btc := &blockTxMock.ClientIMock{}
+		processor := &ProcessorIMock{}
+		btc := &ClientIMock{}
 		btc.RegisterTransactionFunc = func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
 			return &blocktx_api.RegisterTransactionResponse{
 				Source: source,
@@ -238,8 +236,8 @@ func TestPutTransaction(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		processor := &mocks.ProcessorIMock{}
-		btc := &blockTxMock.ClientIMock{}
+		processor := &ProcessorIMock{}
+		btc := &ClientIMock{}
 		btc.RegisterTransactionFunc = func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
 			return &blocktx_api.RegisterTransactionResponse{
 				Source: source,
@@ -539,7 +537,7 @@ func TestPutTransactions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			getCounter := 0
-			metamorphStore := &storeMock.MetamorphStoreMock{
+			metamorphStore := &MetamorphStoreMock{
 				IsCentralisedFunc: func() bool {
 					return false
 				},
@@ -555,7 +553,7 @@ func TestPutTransactions(t *testing.T) {
 				},
 			}
 
-			btc := &blockTxMock.ClientIMock{
+			btc := &ClientIMock{
 				RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
 					resp := &blocktx_api.RegisterTransactionResponse{
 						Source: "localhost:8000",
@@ -564,7 +562,7 @@ func TestPutTransactions(t *testing.T) {
 				},
 			}
 
-			processor := &mocks.ProcessorIMock{
+			processor := &ProcessorIMock{
 				SetFunc: func(_ context.Context, req *ProcessorRequest) error {
 					return nil
 				},
@@ -625,7 +623,7 @@ func TestSetUnlockedbyName(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &storeMock.MetamorphStoreMock{
+			metamorphStore := &MetamorphStoreMock{
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int, error) {
 					return tc.recordsAffected, tc.errSetUnlocked
 				},
@@ -659,11 +657,11 @@ func TestStartGRPCServer(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &storeMock.MetamorphStoreMock{SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil }}
+			metamorphStore := &MetamorphStoreMock{SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil }}
 
-			btc := &blockTxMock.ClientIMock{}
+			btc := &ClientIMock{}
 
-			processor := &mocks.ProcessorIMock{
+			processor := &ProcessorIMock{
 				ShutdownFunc: func() {},
 			}
 			server := NewServer(metamorphStore, processor, btc, source)
@@ -724,15 +722,15 @@ func TestCheckUtxos(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &storeMock.MetamorphStoreMock{}
+			metamorphStore := &MetamorphStoreMock{}
 
-			btc := &blockTxMock.ClientIMock{}
+			btc := &ClientIMock{}
 
-			processor := &mocks.ProcessorIMock{
+			processor := &ProcessorIMock{
 				ShutdownFunc: func() {},
 			}
 
-			bitcoin := &mocks.BitcoinNodeMock{
+			bitcoin := &BitcoinNodeMock{
 				GetTxOutFunc: func(txHex string, vout int, includeMempool bool) (*bitcoin.TXOut, error) {
 					return tc.txOut, tc.getTxOutErr
 				},

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -260,7 +261,7 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 		&data.RawTx,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, store.ErrNotFound
 		}
 		span.SetTag(string(ext.Error), true)
@@ -578,7 +579,7 @@ func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) 
 		&processedAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		span.SetTag(string(ext.Error), true)

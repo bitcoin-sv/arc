@@ -3,6 +3,7 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
@@ -37,7 +38,7 @@ func (s *SQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64
 	var blockId uint64
 
 	if err := s.db.QueryRowContext(ctx, q, block.Hash, block.PreviousHash, block.MerkleRoot, block.Height).Scan(&blockId); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			// The insert failed because the block already exists.
 			// We will mark the block as un-orphaned whilst retrieving the id.
 			q = `

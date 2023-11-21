@@ -46,6 +46,17 @@ type BitcoinNode interface {
 	GetTxOut(txHex string, vout int, includeMempool bool) (res *bitcoin.TXOut, err error)
 }
 
+type ProcessorI interface {
+	LoadUnmined()
+	Set(ctx context.Context, req *ProcessorRequest) error
+	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
+	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
+	SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error)
+	GetStats(debugItems bool) *ProcessorStats
+	GetPeers() ([]string, []string)
+	Shutdown()
+}
+
 // Server type carries the zmqLogger within it
 type Server struct {
 	metamorph_api.UnimplementedMetaMorphAPIServer

@@ -25,22 +25,19 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-type ProcessorStats struct {
-	StartTime          time.Time
-	UptimeMillis       string
-	QueueLength        int32
-	QueuedCount        int32
-	Stored             *stat.AtomicStat
-	AnnouncedToNetwork *stat.AtomicStats
-	RequestedByNetwork *stat.AtomicStats
-	SentToNetwork      *stat.AtomicStats
-	AcceptedByNetwork  *stat.AtomicStats
-	SeenOnNetwork      *stat.AtomicStats
-	Rejected           *stat.AtomicStats
-	Mined              *stat.AtomicStat
-	Retries            *stat.AtomicStat
-	ChannelMapSize     int32
-}
+const (
+	// number of times we will retry announcing transaction if we haven't seen it on the network
+	MaxRetries = 15
+	// length of interval for checking transactions if they are seen on the network
+	// if not we resend them again for a few times
+	unseenTransactionRebroadcastingInterval = 60
+	processExpiredSeenTxsIntervalDefault    = 5 * time.Minute
+	mapExpiryTimeDefault                    = 24 * time.Hour
+	LogLevelDefault                         = slog.LevelInfo
+
+	failedToUpdateStatus       = "Failed to update status"
+	dataRetentionPeriodDefault = 14 * 24 * time.Hour // 14 days
+)
 
 type Processor struct {
 	store                store.MetamorphStore
@@ -71,62 +68,6 @@ type Processor struct {
 	rejected           *stat.AtomicStats
 	mined              *stat.AtomicStat
 	retries            *stat.AtomicStat
-}
-
-const (
-	// number of times we will retry announcing transaction if we haven't seen it on the network
-	MaxRetries = 15
-	// length of interval for checking transactions if they are seen on the network
-	// if not we resend them again for a few times
-	unseenTransactionRebroadcastingInterval = 60
-	processExpiredSeenTxsIntervalDefault    = 5 * time.Minute
-	mapExpiryTimeDefault                    = 24 * time.Hour
-	LogLevelDefault                         = slog.LevelInfo
-
-	failedToUpdateStatus       = "Failed to update status"
-	dataRetentionPeriodDefault = 14 * 24 * time.Hour // 14 days
-)
-
-func WithProcessExpiredSeenTxsInterval(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.processExpiredSeenTxsInterval = d
-	}
-}
-
-func WithCacheExpiryTime(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.mapExpiryTime = d
-	}
-}
-
-func WithProcessorLogger(l *slog.Logger) func(*Processor) {
-	return func(p *Processor) {
-		p.logger = l.With(slog.String("service", "mtm"))
-	}
-}
-
-func WithLogFilePath(errLogFilePath string) func(*Processor) {
-	return func(p *Processor) {
-		p.logFile = errLogFilePath
-	}
-}
-
-func WithNow(nowFunc func() time.Time) func(*Processor) {
-	return func(p *Processor) {
-		p.now = nowFunc
-	}
-}
-
-func WithProcessExpiredTxsInterval(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.processExpiredTxsTicker = time.NewTicker(d)
-	}
-}
-
-func WithDataRetentionPeriod(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.dataRetentionPeriod = d
-	}
 }
 
 type Option func(f *Processor)

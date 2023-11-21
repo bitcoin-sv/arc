@@ -634,7 +634,7 @@ func BenchmarkProcessTransaction(b *testing.B) {
 	}
 	b.StopTimer()
 
-	// wait for the last items to be written to the store
+	// wait for the last ResponseItems to be written to the store
 	time.Sleep(1 * time.Second)
 }
 

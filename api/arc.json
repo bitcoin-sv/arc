@@ -675,7 +675,7 @@
               "merklePath": {
                 "type": "string",
                 "nullable": true,
-                "description": "Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)"
+                "description": "Transaction Merkle path as a hex string in  BUMP format [BRC-74](https://brc.dev/74)"
               },
               "extraInfo": {
                 "type": "string",
@@ -711,7 +711,7 @@
               "merklePath": {
                 "type": "string",
                 "nullable": true,
-                "description": "Transaction Merkle path as a hex string in [BUMP format](https://bsv.brc.dev/transactions/0074)"
+                "description": "Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)"
               },
               "txStatus": {
                 "type": "string",

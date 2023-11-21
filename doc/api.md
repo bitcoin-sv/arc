@@ -1114,7 +1114,7 @@ and
 |*anonymous*|object|false|none|none|
 |» txid|string|true|none|Transaction ID in hex|
 |» txStatus|string|true|none|Transaction status|
-|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)|
+|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in  BUMP format [BRC-74](https://brc.dev/74)|
 |» extraInfo|string¦null|true|none|Extra info|
 
 <h2 id="tocS_TransactionStatus">TransactionStatus</h2>

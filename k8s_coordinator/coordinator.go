@@ -4,14 +4,16 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 )
 
 const (
-	logLevelDefault = slog.LevelInfo
-	intervalDefault = 15 * time.Second
+	logLevelDefault  = slog.LevelInfo
+	intervalDefault  = 15 * time.Second
+	metamorphService = "metamorph"
 )
 
 type K8sClient interface {
@@ -58,6 +60,7 @@ func WithTicker(t Ticker) func(*Coordinator) {
 
 type ServerOption func(f *Coordinator)
 
+// New The K8s coordinator periodically checks which metamorph pods are running. If it detects a metamorph pod which was terminated, then it sets records locked by this pod to unlocked. This is a safety measure for the case that metamorph is terminated ungracefully where it misses to unlock its records itself.
 func New(client metamorph_api.MetaMorphAPIClient, k8sClient K8sClient, namespace string, opts ...ServerOption) *Coordinator {
 	coordinator := &Coordinator{
 		metamorphClient: client,
@@ -82,7 +85,7 @@ func (c *Coordinator) Start() error {
 			c.shutdownComplete <- struct{}{}
 		}()
 
-		var activePods []string
+		var activePods map[string]struct{}
 
 		for {
 			select {
@@ -94,10 +97,15 @@ func (c *Coordinator) Start() error {
 					continue
 				}
 
-				for _, podName := range activePods {
+				for podName := range activePods {
+					// ignore all other serivces than metamorph
+					if !strings.Contains(podName, metamorphService) {
+						continue
+					}
+
 					_, found := activePodsK8s[podName]
 					if !found {
-						// one of the previously running pods is not available anymore => set records locked by this pod unlocked
+						// one of the previously running pods has been terminated => set records locked by this pod unlocked
 						resp, err := c.metamorphClient.SetUnlockedByName(ctx, &metamorph_api.SetUnlockedByNameRequest{Name: podName})
 						if err != nil {
 							c.logger.Error("failed to unlock metamorph records", slog.String("pod-name", podName))
@@ -108,14 +116,7 @@ func (c *Coordinator) Start() error {
 					}
 				}
 
-				newActivePods := make([]string, len(activePodsK8s))
-				index := 0
-				for podName := range activePodsK8s {
-					newActivePods[index] = podName
-					index++
-				}
-
-				activePods = newActivePods
+				activePods = activePodsK8s
 
 			case <-c.shutdown:
 				return

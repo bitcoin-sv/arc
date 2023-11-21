@@ -148,7 +148,7 @@ func (s *Badger) Get(ctx context.Context, hash []byte) (*store.StoreData, error)
 	err := s.store.View(func(tx *badger.Txn) error {
 		data, err := tx.Get(hash)
 		if err != nil {
-			if err == badger.ErrKeyNotFound {
+			if errors.Is(err, badger.ErrKeyNotFound) {
 				return store.ErrNotFound
 			}
 			span.SetTag(string(ext.Error), true)
@@ -327,7 +327,7 @@ func (s *Badger) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Has
 	err := s.store.View(func(tx *badger.Txn) error {
 		item, err := tx.Get(key)
 		if err != nil {
-			if err == badger.ErrKeyNotFound {
+			if errors.Is(err, badger.ErrKeyNotFound) {
 				return nil
 			}
 			span.SetTag(string(ext.Error), true)

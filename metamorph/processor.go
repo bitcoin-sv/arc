@@ -538,7 +538,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 		}
 
 		if err := p.store.UpdateStatus(spanCtx, hash, status, rejectReason); err != nil {
-			if err == store.ErrNotFound {
+			if errors.Is(err, store.ErrNotFound) {
 				return false, nil
 			}
 			p.logger.Error(failedToUpdateStatus, slog.String("hash", hash.String()), slog.String("err", err.Error()))

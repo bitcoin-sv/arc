@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	"command-line-arguments/Users/ssilagadze/Desktop/work.nosync/arc/metamorph/metamorph_api/metamorph_api.pb.go"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -22,11 +24,12 @@ import (
 const (
 	lockedByNone = "NONE"
 
-	lockedByAttributeKey     = ":locked_by"
-	txStatusAttributeKey     = ":tx_status"
-	blockHeightAttributeKey  = ":block_height"
-	blockHashAttributeKey    = ":block_hash"
-	rejectReasonAttributeKey = ":reject_reason"
+	lockedByAttributeKey         = ":locked_by"
+	txStatusAttributeKey         = ":tx_status"
+	txStatusAttributeKeyOrphaned = ":tx_orphaned"
+	blockHeightAttributeKey      = ":block_height"
+	blockHashAttributeKey        = ":block_hash"
+	rejectReasonAttributeKey     = ":reject_reason"
 )
 
 type DynamoDB struct {
@@ -382,10 +385,11 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 		TableName:              aws.String("transactions"),
 		IndexName:              aws.String("locked_by_index"),
 		KeyConditionExpression: aws.String(fmt.Sprintf("locked_by = %s", lockedByAttributeKey)),
-		FilterExpression:       aws.String(fmt.Sprintf("tx_status < %s", txStatusAttributeKey)),
+		FilterExpression:       aws.String(fmt.Sprintf("tx_status < %s or tx_status = %s", txStatusAttributeKey)),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			lockedByAttributeKey: &types.AttributeValueMemberS{Value: lockedByNone},
-			txStatusAttributeKey: &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
+			lockedByAttributeKey:         &types.AttributeValueMemberS{Value: lockedByNone},
+			txStatusAttributeKey:         &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
+			txStatusAttributeKeyOrphaned: &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_ORPHANED))},
 		},
 	})
 

@@ -290,7 +290,7 @@ func (s *Badger) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 				continue
 			}
 
-			if result.Status < metamorph_api.Status_MINED {
+			if result.Status < metamorph_api.Status_MINED || result.Status == metamorph_api.Status_ORPHANED {
 				callback(result)
 			}
 		}

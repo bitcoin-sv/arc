@@ -267,6 +267,14 @@ or using the generic `main.go`:
 go run main.go -callbacker=true
 ```
 
+### K8s-coordinator
+The K8s-coordinator is a service which is needed for a special use case. If ARC runs on a Kubernetes cluster and is configured to run with AWS DynamoDB as a `metamorph` centralised storage, then the K8s-Coordinator can be run as a safety measure. Due to the centralisation of `metamorph` storage, each `metamorph` pod has to ensure the exclusive processing of records by locking the records. If `metamorph` shuts down gracefully it will unlock all the records it holds in memory. The graceful shutdown is not guaranteed though. For this eventuality the K8s-Coordinator can be run in a separate pod. K8s-Coordinator detects when `metamorph` pods are terminated and will additionally call on the `metamorph` service to unlock the records of that terminated `metamorph` pod. This ensures that no records will stay in a locked state.
+
+The K8s-Coordinator can be started as follows
+
+```shell
+go run main.go -k8s-coordinator=true
+```
 
 ## Broadcaster
 
@@ -307,26 +315,3 @@ The tests can be executed like this:
 ```
 make clean_restart_e2e_test
 ```
-
-
-## Building ARC
-
-The following tools need to be pre-installed in order to build ARC
-* [go](https://go.dev/)
-
-`make deps`
-`make clean`
-`make build_release`
-
-### Generate grpc APIs
-Install tools using `make install_gen`. Install [protoc](https://grpc.io/docs/protoc-installation/)
-Run `make gen`
-### Generate rest API
-Install tools using `make install_gen`
-`make api`
-
-### Generate the docs
-`brew install swagger-cli`
-`brew install widdershins`
-
-`make docs`

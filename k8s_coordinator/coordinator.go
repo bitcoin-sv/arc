@@ -90,6 +90,7 @@ func (c *Coordinator) Start() error {
 		for {
 			select {
 			case <-c.ticker.Tick():
+				// Update the list of running pods. Detect those which have been terminated and unlock records for these pods
 				ctx := context.Background()
 				activePodsK8s, err := c.k8sClient.GetPodNames(ctx, c.namespace)
 				if err != nil {
@@ -98,14 +99,14 @@ func (c *Coordinator) Start() error {
 				}
 
 				for podName := range activePods {
-					// ignore all other serivces than metamorph
+					// Ignore all other serivces than metamorph
 					if !strings.Contains(podName, metamorphService) {
 						continue
 					}
 
 					_, found := activePodsK8s[podName]
 					if !found {
-						// one of the previously running pods has been terminated => set records locked by this pod unlocked
+						// A previously running pod has been terminated => set records locked by this pod unlocked
 						resp, err := c.metamorphClient.SetUnlockedByName(ctx, &metamorph_api.SetUnlockedByNameRequest{Name: podName})
 						if err != nil {
 							c.logger.Error("failed to unlock metamorph records", slog.String("pod-name", podName))

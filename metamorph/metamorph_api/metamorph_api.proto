@@ -15,12 +15,12 @@ enum Status {
   ANNOUNCED_TO_NETWORK = 4;
   REQUESTED_BY_NETWORK = 5;
   SENT_TO_NETWORK = 6;
-  ORPHANED = 7;
-  ACCEPTED_BY_NETWORK = 8;
-  SEEN_ON_NETWORK = 9;
-  MINED = 50;
+  ACCEPTED_BY_NETWORK = 7;
+  SEEN_ON_NETWORK = 8;
+  MINED = 9;
   CONFIRMED = 108; // 100 confirmation blocks
   REJECTED = 109;
+  ORPHANED = 10;
 }
 
 service MetaMorphAPI {

@@ -283,7 +283,7 @@ type TransactionDetails struct {
 	// ExtraInfo Extra information about the transaction
 	ExtraInfo *string `json:"extraInfo"`
 
-	// MerklePath Transaction Merkle path as a hex string in [BUMP format](https://bsv.brc.dev/transactions/0074)
+	// MerklePath Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)
 	MerklePath *string `json:"merklePath"`
 
 	// Status Status
@@ -319,7 +319,7 @@ type TransactionResponse struct {
 	// ExtraInfo Extra info
 	ExtraInfo *string `json:"extraInfo"`
 
-	// MerklePath Transaction Merkle path as a hex string in [BUMP format](https://bsv.brc.dev/transactions/0074)
+	// MerklePath Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)
 	MerklePath *string `json:"merklePath"`
 
 	// Status Status
@@ -363,7 +363,7 @@ type TransactionStatus struct {
 	// ExtraInfo Extra information about the transaction
 	ExtraInfo *string `json:"extraInfo"`
 
-	// MerklePath Transaction Merkle path as a hex string in [BUMP format](https://bsv.brc.dev/transactions/0074)
+	// MerklePath Transaction Merkle path as a hex string in BUMP format. [BRC-74](https://brc.dev/74)
 	MerklePath *string   `json:"merklePath"`
 	Timestamp  time.Time `json:"timestamp"`
 

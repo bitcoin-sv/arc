@@ -1114,7 +1114,7 @@ and
 |*anonymous*|object|false|none|none|
 |» txid|string|true|none|Transaction ID in hex|
 |» txStatus|string|true|none|Transaction status|
-|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in [BUMP format](https://bsv.brc.dev/transactions/0074)|
+|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)|
 |» extraInfo|string¦null|true|none|Extra info|
 
 <h2 id="tocS_TransactionStatus">TransactionStatus</h2>
@@ -1157,7 +1157,7 @@ and
 |---|---|---|---|---|
 |*anonymous*|object|false|none|none|
 |» txid|string|true|none|Transaction ID in hex|
-|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in [BUMP format](https://bsv.brc.dev/transactions/0074)|
+|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)|
 |» txStatus|string|false|none|Transaction status|
 |» extraInfo|string¦null|false|none|Extra information about the transaction|
 
@@ -1285,7 +1285,7 @@ and
 |---|---|---|---|---|
 |*anonymous*|object|false|none|none|
 |» txid|string|false|none|Transaction ID in hex|
-|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in [BUMP format](https://bsv.brc.dev/transactions/0074)|
+|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)|
 |» txStatus|string|false|none|Transaction status|
 |» extraInfo|string¦null|false|none|Extra information about the transaction|
 

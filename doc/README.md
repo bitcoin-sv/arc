@@ -5,7 +5,7 @@
 
 ARC is a transaction processor for Bitcoin that keeps track of the life cycle of a transaction as it is processed by
 the Bitcoin network. Next to the mining status of a transaction, ARC also keeps track of the various states that a
-transaction can be in, such as `ANNOUNCED_TO_NETWORK`, `SENT_TO_NETWORK`, `SEEN_ON_NETWORK`, `MINED`, `REJECTED`, etc.
+transaction can be in, such as `ANNOUNCED_TO_NETWORK`, `ORPHANED`, `SENT_TO_NETWORK`, `SEEN_ON_NETWORK`, `MINED`, `REJECTED`, etc.
 
 If a transaction is not `SEEN_ON_NETWORK` within a certain time period (60 seconds by default), ARC will re-send the
 transaction to the Bitcoin network. ARC also monitors the Bitcoin network for transaction and block messages, and

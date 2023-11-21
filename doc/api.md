@@ -549,15 +549,15 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 
 ```json
 {
-  "blockHash": "0000000000000000000c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+  "blockHash": "0000000000000aac89fbed163ed60061ba33bc0ab9de8e7fd8b34ad94c2414cd",
   "blockHeight": 736228,
   "extraInfo": "",
   "status": 200,
   "timestamp": "2023-03-09T12:03:48.382910514Z",
   "title": "OK",
   "txStatus": "MINED",
-  "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
-  "merklePath": "0000"
+  "txid": "b68b064b336b9a4abdb173f3e32f27b38a222cb2102f51b8c92563e816b12b4a",
+  "merklePath": "fe54251800020400028d97f9ebeddd9f9aa8e0e953b3a76f316298ab05e9834aa811716e9d397564e501025f64aa8e012e26a5c5803c9f94d1c2c8ea68ecef1415011e1c2e26b9c966b6ad02021f5fa39607ca3b48d53c902bd5bb4bbf6a7ac99cf9fda45cc21b71e6e2f7889603024a2bb116e86325c9b8512f10b22c228ab3272fe3f373b1bd4a9a6b334b068bb602000061793b278303101a1390ceae5a713de0eabd9cda63702fe84c928970acf7c45e0100a567e3d066e38638b27897559302eabc85eb69b202c2e86d4338bab73008f460"
 }
 ```
 
@@ -830,15 +830,15 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 ```json
 [
   {
-    "blockHash": "000000000000000001d8f4bb24dd93d4e91ce926cc7a971be018c2b8d46d45ff",
+    "blockHash": "0000000000000aac89fbed163ed60061ba33bc0ab9de8e7fd8b34ad94c2414cd",
     "blockHeight": 761868,
     "extraInfo": "",
     "status": 200,
     "timestamp": "2023-03-09T12:03:48.382910514Z",
     "title": "OK",
     "txStatus": "MINED",
-    "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
-    "merklePath": "0000"
+    "txid": "b68b064b336b9a4abdb173f3e32f27b38a222cb2102f51b8c92563e816b12b4a",
+    "merklePath": "fe54251800020400028d97f9ebeddd9f9aa8e0e953b3a76f316298ab05e9834aa811716e9d397564e501025f64aa8e012e26a5c5803c9f94d1c2c8ea68ecef1415011e1c2e26b9c966b6ad02021f5fa39607ca3b48d53c902bd5bb4bbf6a7ac99cf9fda45cc21b71e6e2f7889603024a2bb116e86325c9b8512f10b22c228ab3272fe3f373b1bd4a9a6b334b068bb602000061793b278303101a1390ceae5a713de0eabd9cda63702fe84c928970acf7c45e0100a567e3d066e38638b27897559302eabc85eb69b202c2e86d4338bab73008f460"
   }
 ]
 ```
@@ -1114,7 +1114,7 @@ and
 |*anonymous*|object|false|none|none|
 |» txid|string|true|none|Transaction ID in hex|
 |» txStatus|string|true|none|Transaction status|
-|» merklePath|string¦null|false|none|Transaction merkle path in hex|
+|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in [BUMP format](https://bsv.brc.dev/transactions/0074)|
 |» extraInfo|string¦null|true|none|Extra info|
 
 <h2 id="tocS_TransactionStatus">TransactionStatus</h2>
@@ -1157,7 +1157,7 @@ and
 |---|---|---|---|---|
 |*anonymous*|object|false|none|none|
 |» txid|string|true|none|Transaction ID in hex|
-|» merklePath|string¦null|false|none|Transaction merkle path in hex|
+|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in [BUMP format](https://bsv.brc.dev/transactions/0074)|
 |» txStatus|string|false|none|Transaction status|
 |» extraInfo|string¦null|false|none|Extra information about the transaction|
 
@@ -1285,7 +1285,7 @@ and
 |---|---|---|---|---|
 |*anonymous*|object|false|none|none|
 |» txid|string|false|none|Transaction ID in hex|
-|» merklePath|string¦null|false|none|Transaction merkle path as a hex string in [BUMP format](https://bsv.brc.dev/transactions/0074)|
+|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in [BUMP format](https://bsv.brc.dev/transactions/0074)|
 |» txStatus|string|false|none|Transaction status|
 |» extraInfo|string¦null|false|none|Extra information about the transaction|
 

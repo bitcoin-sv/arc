@@ -1,9 +1,10 @@
-package metamorph
+package metamorph_test
 
 import (
 	"net/url"
 	"testing"
 
+	. "github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/mocks"
 	"github.com/stretchr/testify/assert"

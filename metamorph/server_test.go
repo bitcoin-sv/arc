@@ -1,4 +1,4 @@
-package metamorph
+package metamorph_test
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	. "github.com/bitcoin-sv/arc/metamorph"
 	blockTxMock "github.com/bitcoin-sv/arc/metamorph/blocktx/mock"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	mocks "github.com/bitcoin-sv/arc/metamorph/mocks"
@@ -333,7 +334,7 @@ func TestValidateCallbackURL(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateCallbackURL(tc.callbackURL)
+			err := ValidateCallbackURL(tc.callbackURL)
 
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
@@ -738,7 +739,7 @@ func TestCheckUtxos(t *testing.T) {
 			}
 			server := NewServer(metamorphStore, processor, btc, source, WithForceCheckUtxos(bitcoin))
 
-			_, err := server.checkUtxos(context.Background(), 0, tc.rawTx)
+			_, err := server.CheckUtxos(context.Background(), 0, tc.rawTx)
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return

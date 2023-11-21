@@ -12,6 +12,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bitcoin-sv/arc/blocktx"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/metamorph/processor_response"
+	"github.com/bitcoin-sv/arc/metamorph/store"
+	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -26,13 +32,6 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	"github.com/bitcoin-sv/arc/blocktx"
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/metamorph/processor_response"
-	"github.com/bitcoin-sv/arc/metamorph/store"
-	"github.com/bitcoin-sv/arc/tracing"
 )
 
 func init() {
@@ -79,7 +78,7 @@ type ServerOption func(f *Server)
 // NewServer will return a server instance with the zmqLogger stored within it
 func NewServer(s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI, source string, opts ...ServerOption) *Server {
 	server := &Server{
-		logger:          slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "mtm")),
+		logger:          slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm")),
 		processor:       p,
 		store:           s,
 		timeout:         responseTimeout,
@@ -162,7 +161,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 	}, nil
 }
 
-func validateCallbackURL(callbackURL string) error {
+func ValidateCallbackURL(callbackURL string) error {
 	if callbackURL == "" {
 		return nil
 	}
@@ -184,7 +183,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		gocore.NewStat("PutTransaction").AddTime(start)
 	}()
 
-	err := validateCallbackURL(req.CallbackUrl)
+	err := ValidateCallbackURL(req.CallbackUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +241,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	processTxsInputMap := make(map[chainhash.Hash]processTxInput)
 
 	for ind, txReq := range req.Transactions {
-		err := validateCallbackURL(txReq.CallbackUrl)
+		err := ValidateCallbackURL(txReq.CallbackUrl)
 		if err != nil {
 			return nil, err
 		}
@@ -435,7 +434,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 	}
 
 	if s.forceCheckUtxos {
-		next, err = s.checkUtxos(initCtx, next, req.RawTx)
+		next, err = s.CheckUtxos(initCtx, next, req.RawTx)
 		s.logger.Error("Error checking utxos", slog.String("err", err.Error()))
 		if err != nil {
 			return 0, 0, nil, &metamorph_api.TransactionStatus{
@@ -473,7 +472,7 @@ func (s *Server) checkStore(ctx context.Context, hash *chainhash.Hash, next int6
 	return gocore.NewStat("PutTransaction").NewStat("1: Check store").AddTime(next), nil
 }
 
-func (s *Server) checkUtxos(ctx context.Context, next int64, rawTx []byte) (int64, error) {
+func (s *Server) CheckUtxos(ctx context.Context, next int64, rawTx []byte) (int64, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:UtxoCheck")
 	defer span.Finish()
 

@@ -1,4 +1,4 @@
-package metamorph
+package metamorph_test
 
 import (
 	"bytes"
@@ -13,6 +13,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
+	. "github.com/bitcoin-sv/arc/metamorph"
 	blockTxMock "github.com/bitcoin-sv/arc/metamorph/blocktx/mock"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
@@ -75,7 +76,7 @@ func TestNewProcessor(t *testing.T) {
 			processor, err := NewProcessor(tc.store, tc.pm, nil, nil,
 				WithCacheExpiryTime(time.Second*5),
 				WithProcessExpiredSeenTxsInterval(time.Second*5),
-				WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault}))),
+				WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault}))),
 			)
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
@@ -279,14 +280,14 @@ func TestLoadUnmined(t *testing.T) {
 			)
 			require.NoError(t, err)
 			defer processor.Shutdown()
-			require.Equal(t, 0, processor.processorResponseMap.Len())
+			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
 			processor.LoadUnmined()
 
 			time.Sleep(time.Millisecond * 200)
 
-			allItemHashes := make([]*chainhash.Hash, 0, len(processor.processorResponseMap.Items()))
+			allItemHashes := make([]*chainhash.Hash, 0, len(processor.ProcessorResponseMap.Items()))
 
-			for i, item := range processor.processorResponseMap.Items() {
+			for i, item := range processor.ProcessorResponseMap.Items() {
 				require.Equal(t, i, *item.Hash)
 				allItemHashes = append(allItemHashes, item.Hash)
 			}
@@ -306,7 +307,7 @@ func TestProcessTransaction(t *testing.T) {
 
 		processor, err := NewProcessor(s, pm, nil, nil)
 		require.NoError(t, err)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
 		expectedResponses := []metamorph_api.Status{
 			metamorph_api.Status_RECEIVED,
@@ -337,8 +338,8 @@ func TestProcessTransaction(t *testing.T) {
 		})
 		wg.Wait()
 
-		assert.Equal(t, 1, processor.processorResponseMap.Len())
-		items := processor.processorResponseMap.Items()
+		assert.Equal(t, 1, processor.ProcessorResponseMap.Len())
+		items := processor.ProcessorResponseMap.Items()
 		assert.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
 		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[*testdata.TX1Hash].Status)
 
@@ -359,7 +360,7 @@ func Benchmark_ProcessTransaction(b *testing.B) {
 
 	processor, err := NewProcessor(s, pm, nil, nil)
 	require.NoError(b, err)
-	assert.Equal(b, 0, processor.processorResponseMap.Len())
+	assert.Equal(b, 0, processor.ProcessorResponseMap.Len())
 
 	btTx, _ := bt.NewTxFromBytes(testdata.TX1RawBytes)
 	b.ResetTimer()
@@ -383,12 +384,12 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		processor, err := NewProcessor(s, pm, nil, nil)
 		require.NoError(t, err)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
 		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_MINED, "test", nil)
 		assert.False(t, ok)
 		assert.NoError(t, sendErr)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 	})
 
 	t.Run("SendStatusForTransaction err", func(t *testing.T) {
@@ -400,13 +401,13 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		processor, err := NewProcessor(s, pm, nil, nil)
 		require.NoError(t, err)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
 		throwErr := fmt.Errorf("some error")
 		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_REJECTED, "test", throwErr)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
 		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
 		require.NoError(t, err)
@@ -423,12 +424,12 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		processor, err := NewProcessor(s, pm, nil, nil)
 		require.NoError(t, err)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
 		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "test", nil)
 		assert.False(t, ok)
 		assert.NoError(t, sendErr)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
 		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
 		require.NoError(t, err)
@@ -443,7 +444,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		processor, err := NewProcessor(s, pm, nil, nil)
 		require.NoError(t, err)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
 		responseChannel := make(chan processor_response.StatusAndError)
 
@@ -469,7 +470,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		})
 		wg.Wait()
 
-		assert.Equal(t, 1, processor.processorResponseMap.Len())
+		assert.Equal(t, 1, processor.ProcessorResponseMap.Len())
 
 		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_MINED, "test", nil)
 		// need to sleep, since everything is async
@@ -477,7 +478,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		assert.False(t, ok)
 		assert.NoError(t, sendErr)
-		assert.Equal(t, 0, processor.processorResponseMap.Len(), "should have been removed from the map")
+		assert.Equal(t, 0, processor.ProcessorResponseMap.Len(), "should have been removed from the map")
 
 		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
 		require.NoError(t, err)
@@ -495,17 +496,17 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 
 		processor, err := NewProcessor(s, pm, nil, nil)
 		require.NoError(t, err)
-		processor.processorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(
+		processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(
 			testdata.TX1Hash,
 			metamorph_api.Status_SEEN_ON_NETWORK,
 		))
-		assert.Equal(t, 1, processor.processorResponseMap.Len())
+		assert.Equal(t, 1, processor.ProcessorResponseMap.Len())
 
 		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
 		time.Sleep(100 * time.Millisecond)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
 		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
 		require.NoError(t, err)
@@ -537,7 +538,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		processor, err := NewProcessor(s, pm, callbackCh, nil)
 		require.NoError(t, err)
 		// add the tx to the map
-		processor.processorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(
+		processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(
 			testdata.TX1Hash,
 			metamorph_api.Status_SEEN_ON_NETWORK,
 		))
@@ -558,7 +559,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 
 		processor, err := NewProcessor(s, pm, nil, nil)
 		require.NoError(t, err)
-		assert.Equal(t, 0, processor.processorResponseMap.Len())
+		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
 		responseChannel := make(chan processor_response.StatusAndError)
 
@@ -585,13 +586,13 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		})
 		wg.Wait()
 
-		assert.Equal(t, 1, processor.processorResponseMap.Len())
+		assert.Equal(t, 1, processor.ProcessorResponseMap.Len())
 
 		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
 		time.Sleep(10 * time.Millisecond)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
-		assert.Equal(t, 0, processor.processorResponseMap.Len(), "should have been removed from the map")
+		assert.Equal(t, 0, processor.ProcessorResponseMap.Len(), "should have been removed from the map")
 
 		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
 		require.NoError(t, err)
@@ -611,7 +612,7 @@ func BenchmarkProcessTransaction(b *testing.B) {
 	pm := p2p.NewPeerManagerMock()
 	processor, err := NewProcessor(s, pm, nil, nil)
 	require.NoError(b, err)
-	assert.Equal(b, 0, processor.processorResponseMap.Len())
+	assert.Equal(b, 0, processor.ProcessorResponseMap.Len())
 
 	txs := make(map[string]*chainhash.Hash)
 
@@ -743,11 +744,11 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 			require.NoError(t, err)
 			defer processor.Shutdown()
 
-			require.Equal(t, 0, processor.processorResponseMap.Len())
+			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
-			processor.processorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK))
-			processor.processorResponseMap.Set(testdata.TX2Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_SEEN_ON_NETWORK))
-			processor.processorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+			processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+			processor.ProcessorResponseMap.Set(testdata.TX2Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+			processor.ProcessorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_SEEN_ON_NETWORK))
 
 			time.Sleep(25 * time.Millisecond)
 
@@ -786,7 +787,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			require.NoError(t, err)
 			defer processor.Shutdown()
 
-			require.Equal(t, 0, processor.processorResponseMap.Len())
+			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
 			respSent := processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK)
 			respSent.Retries.Add(tc.retries)
@@ -797,9 +798,9 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			respAccepted := processor_response.NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_ACCEPTED_BY_NETWORK)
 			respAccepted.Retries.Add(tc.retries)
 
-			processor.processorResponseMap.Set(testdata.TX1Hash, respSent)
-			processor.processorResponseMap.Set(testdata.TX2Hash, respAnnounced)
-			processor.processorResponseMap.Set(testdata.TX3Hash, respAccepted)
+			processor.ProcessorResponseMap.Set(testdata.TX1Hash, respSent)
+			processor.ProcessorResponseMap.Set(testdata.TX2Hash, respAnnounced)
+			processor.ProcessorResponseMap.Set(testdata.TX3Hash, respAccepted)
 
 			time.Sleep(50 * time.Millisecond)
 		})

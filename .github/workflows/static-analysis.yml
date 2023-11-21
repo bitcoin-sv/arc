@@ -28,7 +28,7 @@ jobs:
       - name: Run unit Tests
         continue-on-error: true
         run: |
-          go test -coverprofile=./cov.out ./...
+          go test -race -coverprofile=./cov.out ./...
 
       - name: Run gosec Security Scanner
         continue-on-error: true

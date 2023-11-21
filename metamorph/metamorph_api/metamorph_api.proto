@@ -7,6 +7,7 @@ package metamorph_api;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
+// Note: Do not change values of the existing statuses.
 enum Status {
   UNKNOWN = 0;
   QUEUED = 1;

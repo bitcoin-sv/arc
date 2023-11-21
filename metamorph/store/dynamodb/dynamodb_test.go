@@ -85,7 +85,7 @@ func NewDynamoDBIntegrationTestRepo(t *testing.T) (*DynamoDB, *dynamodb.Client) 
 	})
 	require.NoError(t, err)
 
-	repo, err := New(client, hostname, time.Hour*1)
+	repo, err := New(client, hostname, 1*time.Hour)
 	require.NoError(t, err)
 
 	tables, err := client.ListTables(context.Background(), &dynamodb.ListTablesInput{})

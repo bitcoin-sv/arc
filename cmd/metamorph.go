@@ -195,7 +195,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		for block := range blockChan {
 			hash, _ := chainhash.NewHash(block.Hash[:])
 			processedAt, err = s.GetBlockProcessed(context.Background(), hash)
-			if err != nil {
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
 				logger.Error("Could not get block processed status", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 				continue
 			}

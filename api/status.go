@@ -16,12 +16,12 @@ const (
 	ErrStatusTxFormat         StatusCode = 460
 	ErrStatusUnlockingScripts StatusCode = 461
 	ErrStatusInputs           StatusCode = 462
-	ErrStatusOutputs          StatusCode = 463
-	ErrStatusMalformed        StatusCode = 464
+	ErrStatusMalformed        StatusCode = 463
+	ErrStatusOutputs          StatusCode = 464
 	ErrStatusFees             StatusCode = 465
 	ErrStatusConflict         StatusCode = 466
-	ErrStatusFrozenPolicy     StatusCode = 481
-	ErrStatusFrozenConsensus  StatusCode = 482
+	ErrStatusFrozenPolicy     StatusCode = 471
+	ErrStatusFrozenConsensus  StatusCode = 472
 )
 
 func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {

@@ -55,7 +55,16 @@ paths:
           $ref: '#/components/responses/NotAuthorized'
         404:
           description: Not found
-
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorNotFound'
+        409:
+          description: Generic error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorGeneric'
   # Post transaction
   /v1/tx:
     post:
@@ -97,7 +106,7 @@ paths:
                 $ref: '#/components/schemas/TransactionResponse'
               examples:
                 mined:
-                  summary: Already mined
+                  summary: Transaction mined
                   value:
                     blockHash: "0000000000000000000c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
                     blockHeight: 736228
@@ -109,7 +118,7 @@ paths:
                     txid: "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
                     merklePath: "0000"
                 mempool:
-                  summary: Already in mempool
+                  summary: Transaction in mempool
                   value:
                     blockHash: ""
                     blockHeight: 0
@@ -119,8 +128,17 @@ paths:
                     title: "OK"
                     txStatus: "SEEN_ON_NETWORK"
                     txid: "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
-                    merklePath: "0000"
-
+                    merklePath: ""
+                error:
+                  summary: Invalid outputs
+                  value:
+                    detail: Transaction is invalid because the outputs are non-existent or invalid
+                    extraInfo: "arc error 463: arc error 463: transaction output 0 satoshis is invalid"
+                    instance: null
+                    status: 463
+                    title: Invalid outputs
+                    txid: "a0d69a2dfad710770ed282cce316c5792f6101a68046a263a17a1ae02676015e"
+                    type: https://bitcoin-sv.github.io/arc/#/errors?id=_463"
         400:
           description: Bad request
           content:
@@ -129,18 +147,48 @@ paths:
                 $ref: '#/components/schemas/ErrorBadRequest'
         401:
           $ref: '#/components/responses/NotAuthorized'
+        409:
+          description: Generic error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorGeneric'
+        460:
+          description: Not extended format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorTxFormat'
+        461:
+          description: Malformed transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorUnlockingScripts'
+        462:
+          description: Invalid inputs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorInputs'
+        463:
+          description: Malformed transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMalformed'
+        464:
+          description: Invalid outputs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorOutputs'
         465:
           description: Fee too low
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorFee'
-        466:
-          description: Conflicting transaction found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorConflict'
         422:
           description: Unprocessable entity - with IETF RFC 7807 Error object
           content:
@@ -181,14 +229,14 @@ paths:
               format: binary
       responses:
         200:
-          description: Already in block template, or already mined
+          description: Transaction status
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/TransactionResponses'
               examples:
                 mined:
-                  summary: Already mined
+                  summary: Transaction mined
                   value:
                     [
                       {
@@ -204,7 +252,7 @@ paths:
                       }
                     ]
                 added:
-                  summary: Success
+                  summary: Transaction in mempool
                   value:
                     [
                       {
@@ -216,10 +264,9 @@ paths:
                         "title": "OK",
                         "txStatus": "SEEN_ON_NETWORK",
                         "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
-                        "merklePath": "0000"
+                        "merklePath": ""
                       }
                     ]
-
                 error:
                   summary: "Invalid outputs"
                   value:
@@ -231,26 +278,66 @@ paths:
                         "status": 463,
                         "title": "Invalid outputs",
                         "txid": "a0d69a2dfad710770ed282cce316c5792f6101a68046a263a17a1ae02676015e",
-                        "type": "https://arc.bitcoinsv.com/errors/463"
+                        "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_463"
                       }
                     ]
         400:
-          description: IETF RFC 7807 Error object
+          description: Bad request
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorBadRequest'
-              example:
-                {
-                  "type": "https://arc.bitcoinsv.com/errors/400",
-                  "title": "Bad request",
-                  "status": 400,
-                  "detail": "The request seems to be malformed and cannot be processed",
-                  "instance": "https://arc.taal.com/errors/1234556"
-                }
-        403:
-          $ref: '#/components/responses/NotAuthorized'
 
+        401:
+          $ref: '#/components/responses/NotAuthorized'
+        409:
+          description: Generic error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorGeneric'
+        460:
+          description: Not extended format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorTxFormat'
+        461:
+          description: Malformed transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorUnlockingScripts'
+        462:
+          description: Invalid inputs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorInputs'
+        463:
+          description: Malformed transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMalformed'
+        464:
+          description: Invalid outputs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorOutputs'
+        465:
+          description: Fee too low
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorFee'
+        422:
+          description: Unprocessable entity - with IETF RFC 7807 Error object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
 
   schemas:
@@ -529,7 +616,7 @@ components:
         - type: object
           properties:
             type:
-              example: "https://arc.bitcoinsv.com/errors/400"
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_400"
             title:
               example: "Bad request"
             status:
@@ -538,39 +625,54 @@ components:
               example: "The request seems to be malformed and cannot be processed"
             instance:
               example: "https://arc.taal.com/errors/1234556"
-    ErrorFee:
+    ErrorNotFound:
       type: object
       allOf:
         - "$ref": "#/components/schemas/ErrorFields"
         - type: object
           properties:
             type:
-              example: "https://arc.bitcoinsv.com/errors/402"
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_404"
             title:
-              example: "Fee too low"
+              example: "Not found"
             status:
-              example: 465
+              example: 404
             detail:
-              example: "The fees are too low"
+              example: "The requested resource could not be found"
             instance:
-              example: "https://arc.taal.com/errors/123452"
-    ErrorConflict:
+              example: "https://arc.taal.com/errors/1234556"
+    ErrorGeneric:
       type: object
       allOf:
         - "$ref": "#/components/schemas/ErrorFields"
         - type: object
           properties:
             type:
-              example: "https://arc.bitcoinsv.com/errors/409"
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_409"
             title:
-              example: "Conflicting tx found"
+              example: "Generic error"
             status:
-              example: 466
+              example: 409
             detail:
-              example: "Transaction is valid, but there is a conflicting tx in the block template"
+              example: "Transaction could not be processed"
             instance:
-              example: "https://arc.taal.com/errors/123453"
-
+              example: "https://arc.taal.com/errors/1234556"
+    ErrorTxFormat :
+      type: object
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_460"
+            title:
+              example: "Not extended format"
+            status:
+              example: 460
+            detail:
+              example: "Transaction is not in extended format, missing input scripts"
+            instance:
+              example: "https://arc.taal.com/errors/1234556"
     ErrorUnlockingScripts:
       type: object
       allOf:
@@ -578,7 +680,7 @@ components:
         - type: object
           properties:
             type:
-              example: "https://arc.bitcoinsv.com/errors/461"
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_461"
             title:
               example: "Malformed transaction"
             status:
@@ -594,7 +696,7 @@ components:
         - type: object
           properties:
             type:
-              example: "https://arc.bitcoinsv.com/errors/462"
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_462"
             title:
               example: "Invalid inputs"
             status:
@@ -610,7 +712,7 @@ components:
         - type: object
           properties:
             type:
-              example: "https://arc.bitcoinsv.com/errors/463"
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_463"
             title:
               example: "Malformed transaction"
             status:
@@ -619,6 +721,54 @@ components:
               example: "Transaction is malformed and cannot be processed"
             instance:
               example: "https://arc.taal.com/errors/123452"
+    ErrorOutputs:
+      type: object
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_464"
+            title:
+              example: "Invalid outputs"
+            status:
+              example: 464
+            detail:
+              example: "Transaction is invalid because the outputs are non-existent or invalid"
+            instance:
+              example: "https://arc.taal.com/errors/123452"
+    ErrorFee:
+      type: object
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_465"
+            title:
+              example: "Fee too low"
+            status:
+              example: 465
+            detail:
+              example: "The fees are too low"
+            instance:
+              example: "https://arc.taal.com/errors/123452"
+    ErrorConflict:
+      type: object
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_466"
+            title:
+              example: "Conflicting tx found"
+            status:
+              example: 466
+            detail:
+              example: "Transaction is valid, but there is a conflicting tx in the block template"
+            instance:
+              example: "https://arc.taal.com/errors/123453"
     ErrorFrozenPolicy:
       type: object
       allOf:
@@ -626,7 +776,7 @@ components:
         - type: object
           properties:
             type:
-              example: "https://arc.bitcoinsv.com/errors/471"
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_471"
             title:
               example: "Input Frozen"
             status:
@@ -642,7 +792,7 @@ components:
         - type: object
           properties:
             type:
-              example: "https://arc.bitcoinsv.com/errors/472"
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_472"
             title:
               example: "Input Frozen"
             status:

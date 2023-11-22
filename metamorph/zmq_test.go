@@ -30,7 +30,7 @@ func TestMissingInputsZMQI(t *testing.T) {
 	zmq.Start(mockedZMQI)
 	status := <-statuses
 
-	assert.Equal(t, status.Status, metamorph_api.Status_ORPHANED)
+	assert.Equal(t, status.Status, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
 }
 
 func TestInvalidTxZMQI(t *testing.T) {

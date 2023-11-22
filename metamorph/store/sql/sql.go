@@ -425,7 +425,7 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 		,raw_tx
 		FROM transactions WHERE status < $1 OR status = $2 ;`
 
-	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_ORPHANED)
+	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))

@@ -75,7 +75,7 @@ func TestDoubleSpend(t *testing.T) {
 
 			// send double spending transaction when first tx was mined
 			arcBodyMined := getArcBody(t, privateKey, utxos[0], tc.extFormat)
-			postTx2(t, arcClient, arcBodyMined, "ORPHANED")
+			postTx2(t, arcClient, arcBodyMined, "SEEN_IN_ORPHAN_MEMPOOL")
 		})
 	}
 }

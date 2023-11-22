@@ -21,7 +21,7 @@ enum Status {
   MINED = 9;
   CONFIRMED = 108; // 100 confirmation blocks
   REJECTED = 109;
-  ORPHANED = 10;
+  SEEN_IN_ORPHAN_MEMPOOL = 10;
 }
 
 service MetaMorphAPI {

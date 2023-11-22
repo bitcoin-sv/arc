@@ -558,7 +558,7 @@ func (ddb *DynamoDB) GetBlockProcessed(ctx context.Context, blockHash *chainhash
 		return &processedAtTime, nil
 	}
 
-	return nil, store.ErrNotFound
+	return nil, nil
 }
 
 func (ddb *DynamoDB) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) error {

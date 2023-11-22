@@ -247,8 +247,9 @@ func TestDynamoDBIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		time.Sleep(2 * time.Second) // give DynamoDB time to delete
-		_, err = repo.GetBlockProcessed(ctx, Block1Hash)
-		require.ErrorIs(t, err, store.ErrNotFound)
+		processedAt, err := repo.GetBlockProcessed(ctx, Block1Hash)
+		require.NoError(t, err)
+		require.Nil(t, processedAt)
 	})
 
 	t.Run("transactions - time to live = -1 hour", func(t *testing.T) {

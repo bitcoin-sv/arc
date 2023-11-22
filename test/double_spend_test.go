@@ -3,12 +3,13 @@ package test
 import (
 	"context"
 	"encoding/hex"
+	"net/http"
+	"testing"
+
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"testing"
 )
 
 func TestDoubleSpend(t *testing.T) {
@@ -58,11 +59,11 @@ func TestDoubleSpend(t *testing.T) {
 			}
 
 			//submit first transaction
-			postTx(t, arcClient, arcBody, "SEEN_ON_NETWORK")
+			postTx2(t, arcClient, arcBody, "SEEN_ON_NETWORK")
 
 			// send double spending transaction when first tx is in mempool
 			arcBodyMempool := getArcBody(t, privateKey, utxos[0], tc.extFormat)
-			postTx(t, arcClient, arcBodyMempool, "REJECTED")
+			postTx2(t, arcClient, arcBodyMempool, "REJECTED")
 
 			generate(t, 10)
 
@@ -74,12 +75,12 @@ func TestDoubleSpend(t *testing.T) {
 
 			// send double spending transaction when first tx was mined
 			arcBodyMined := getArcBody(t, privateKey, utxos[0], tc.extFormat)
-			postTx(t, arcClient, arcBodyMined, "ORPHANED")
+			postTx2(t, arcClient, arcBodyMined, "ORPHANED")
 		})
 	}
 }
 
-func postTx(t *testing.T, client *api.ClientWithResponses, body api.POSTTransactionJSONRequestBody, expectedStatus string) {
+func postTx2(t *testing.T, client *api.ClientWithResponses, body api.POSTTransactionJSONRequestBody, expectedStatus string) {
 	ctx := context.Background()
 	waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
 	params := &api.POSTTransactionParams{

@@ -25,27 +25,24 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-type ProcessorStats struct {
-	StartTime          time.Time
-	UptimeMillis       string
-	QueueLength        int32
-	QueuedCount        int32
-	Stored             *stat.AtomicStat
-	AnnouncedToNetwork *stat.AtomicStats
-	RequestedByNetwork *stat.AtomicStats
-	SentToNetwork      *stat.AtomicStats
-	AcceptedByNetwork  *stat.AtomicStats
-	SeenOnNetwork      *stat.AtomicStats
-	Rejected           *stat.AtomicStats
-	Mined              *stat.AtomicStat
-	Retries            *stat.AtomicStat
-	ChannelMapSize     int32
-}
+const (
+	// number of times we will retry announcing transaction if we haven't seen it on the network
+	MaxRetries = 15
+	// length of interval for checking transactions if they are seen on the network
+	// if not we resend them again for a few times
+	unseenTransactionRebroadcastingInterval = 60
+	processExpiredSeenTxsIntervalDefault    = 5 * time.Minute
+	mapExpiryTimeDefault                    = 24 * time.Hour
+	LogLevelDefault                         = slog.LevelInfo
+
+	failedToUpdateStatus       = "Failed to update status"
+	dataRetentionPeriodDefault = 14 * 24 * time.Hour // 14 days
+)
 
 type Processor struct {
 	store                store.MetamorphStore
 	cbChannel            chan *callbacker_api.Callback
-	processorResponseMap *ProcessorResponseMap
+	ProcessorResponseMap *ProcessorResponseMap
 	pm                   p2p.PeerManagerI
 	btc                  blocktx.ClientI
 	logger               *slog.Logger
@@ -71,62 +68,6 @@ type Processor struct {
 	rejected           *stat.AtomicStats
 	mined              *stat.AtomicStat
 	retries            *stat.AtomicStat
-}
-
-const (
-	// number of times we will retry announcing transaction if we haven't seen it on the network
-	MaxRetries = 15
-	// length of interval for checking transactions if they are seen on the network
-	// if not we resend them again for a few times
-	unseenTransactionRebroadcastingInterval = 60
-	processExpiredSeenTxsIntervalDefault    = 5 * time.Minute
-	mapExpiryTimeDefault                    = 24 * time.Hour
-	logLevelDefault                         = slog.LevelInfo
-
-	failedToUpdateStatus       = "Failed to update status"
-	dataRetentionPeriodDefault = 14 * 24 * time.Hour // 14 days
-)
-
-func WithProcessExpiredSeenTxsInterval(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.processExpiredSeenTxsInterval = d
-	}
-}
-
-func WithCacheExpiryTime(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.mapExpiryTime = d
-	}
-}
-
-func WithProcessorLogger(l *slog.Logger) func(*Processor) {
-	return func(p *Processor) {
-		p.logger = l.With(slog.String("service", "mtm"))
-	}
-}
-
-func WithLogFilePath(errLogFilePath string) func(*Processor) {
-	return func(p *Processor) {
-		p.logFile = errLogFilePath
-	}
-}
-
-func WithNow(nowFunc func() time.Time) func(*Processor) {
-	return func(p *Processor) {
-		p.now = nowFunc
-	}
-}
-
-func WithProcessExpiredTxsInterval(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.processExpiredTxsTicker = time.NewTicker(d)
-	}
-}
-
-func WithDataRetentionPeriod(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.dataRetentionPeriod = d
-	}
 }
 
 type Option func(f *Processor)
@@ -165,14 +106,14 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI,
 		retries:            stat.NewAtomicStat(),
 	}
 
-	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "mtm"))
+	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm"))
 
 	// apply options to processor
 	for _, opt := range opts {
 		opt(p)
 	}
 
-	p.processorResponseMap = NewProcessorResponseMap(p.mapExpiryTime, WithLogFile(p.logFile), WithNowResponseMap(p.now))
+	p.ProcessorResponseMap = NewProcessorResponseMap(p.mapExpiryTime, WithLogFile(p.logFile), WithNowResponseMap(p.now))
 	p.processExpiredSeenTxsTicker = time.NewTicker(p.processExpiredSeenTxsInterval)
 
 	p.logger.Info("Starting processor", slog.Duration("cacheExpiryTime", p.mapExpiryTime))
@@ -209,14 +150,14 @@ func (p *Processor) Shutdown() {
 	p.logger.Info("Shutting down processor")
 	p.processExpiredSeenTxsTicker.Stop()
 	p.processExpiredTxsTicker.Stop()
-	p.processorResponseMap.Close()
+	p.ProcessorResponseMap.Close()
 	if p.cbChannel != nil {
 		close(p.cbChannel)
 	}
 }
 
 func (p *Processor) unlockItems() error {
-	items := p.processorResponseMap.Items()
+	items := p.ProcessorResponseMap.Items()
 	hashes := make([]*chainhash.Hash, len(items))
 	index := 0
 	for key := range items {
@@ -240,7 +181,7 @@ func (p *Processor) processExpiredSeenTransactions() {
 	// Check transactions that have been seen on the network, but haven't been marked as mined
 	// The Items() method will return a copy of the map, so we can iterate over it without locking
 	for range p.processExpiredSeenTxsTicker.C {
-		expiredTransactionItems := p.processorResponseMap.Items(filterFunc)
+		expiredTransactionItems := p.ProcessorResponseMap.Items(filterFunc)
 		if len(expiredTransactionItems) == 0 {
 			continue
 		}
@@ -283,7 +224,7 @@ func (p *Processor) processExpiredTransactions() {
 	// Resend transactions that have not been seen on the network
 	// The Items() method will return a copy of the map, so we can iterate over it without locking
 	for range p.processExpiredTxsTicker.C {
-		expiredTransactionItems := p.processorResponseMap.Items(filterFunc)
+		expiredTransactionItems := p.ProcessorResponseMap.Items(filterFunc)
 		if len(expiredTransactionItems) > 0 {
 			p.logger.Info("Resending expired transactions", slog.Int("number", len(expiredTransactionItems)))
 			for txID, item := range expiredTransactionItems {
@@ -363,7 +304,7 @@ func (p *Processor) LoadUnmined() {
 		pr.NoStats = true
 		pr.Start = record.StoredAt
 
-		p.processorResponseMap.Set(record.Hash, pr)
+		p.ProcessorResponseMap.Set(record.Hash, pr)
 
 		switch record.Status {
 		case metamorph_api.Status_STORED:
@@ -416,7 +357,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusMinedForTransaction")
 	defer span.Finish()
 
-	resp, ok := p.processorResponseMap.Get(hash)
+	resp, ok := p.ProcessorResponseMap.Get(hash)
 	if !ok {
 		return false, fmt.Errorf("failed to get tx %s from response map", hash.String())
 	}
@@ -438,7 +379,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 			}
 
 			resp.Close()
-			p.processorResponseMap.Delete(hash)
+			p.ProcessorResponseMap.Delete(hash)
 
 			if p.cbChannel != nil {
 				data, _ := p.store.Get(spanCtx, hash[:])
@@ -462,7 +403,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 }
 
 func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) (bool, error) {
-	processorResponse, ok := p.processorResponseMap.Get(hash)
+	processorResponse, ok := p.ProcessorResponseMap.Get(hash)
 	if ok {
 		span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
 		defer span.Finish()
@@ -506,7 +447,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 				case metamorph_api.Status_MINED:
 					p.mined.AddDuration(time.Since(processorResponse.Start))
 					processorResponse.Close()
-					p.processorResponseMap.Delete(hash)
+					p.ProcessorResponseMap.Delete(hash)
 
 				case metamorph_api.Status_REJECTED:
 					p.logger.Warn("transaction rejected", slog.String("status", status.String()), slog.String("hash", hash.String()))
@@ -529,7 +470,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 			p.logger.Debug("Received status for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
 		}
 
-		// This is coming from zmq, after the transaction has been deleted from our processorResponseMap
+		// This is coming from zmq, after the transaction has been deleted from our ProcessorResponseMap
 		// It could be a "seen", "confirmed", "mined" or "rejected" status, but should finalize the tx
 
 		rejectReason := ""
@@ -593,7 +534,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 					}
 
 					// Add this transaction to the map of transactions that we are processing
-					p.processorResponseMap.Set(req.Data.Hash, processorResponse)
+					p.ProcessorResponseMap.Set(req.Data.Hash, processorResponse)
 
 					p.stored.AddDuration(time.Since(processorResponse.Start))
 

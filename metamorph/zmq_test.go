@@ -1,13 +1,16 @@
-package metamorph
+package metamorph_test
 
 import (
 	"net/url"
 	"testing"
 
+	. "github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	. "github.com/bitcoin-sv/arc/metamorph/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
+//go:generate moq -pkg mocks -out ./mocks/zmq_mock.go . ZMQI
 func TestMissingInputsZMQI(t *testing.T) {
 	// make and configure a mocked ZMQI
 	mockedZMQI := &ZMQIMock{

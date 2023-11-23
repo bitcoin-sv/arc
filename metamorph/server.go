@@ -319,42 +319,32 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	// TODO check the context when API call ends
 	s.processor.ProcessTransaction(ctx, &ProcessorRequest{Data: data, ResponseChannel: responseChannel})
 
-	if waitForStatus < metamorph_api.Status_RECEIVED || waitForStatus > metamorph_api.Status_SEEN_ON_NETWORK {
+	if waitForStatus == 0 {
 		// wait for seen by default, this is the safest option
 		waitForStatus = metamorph_api.Status_SEEN_ON_NETWORK
 	}
 
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeout := time.NewTimer(s.timeout)
+	finalStatus := &metamorph_api.TransactionStatus{Txid: TxID}
 
 	for {
 		select {
 		case <-timeout.C:
-			return &metamorph_api.TransactionStatus{
-				TimedOut: true,
-				Status:   latestStatus,
-				Txid:     TxID,
-			}
+			finalStatus.TimedOut = true
+			return finalStatus
 		case res := <-responseChannel:
 			latestStatus = res.Status
+			finalStatus.Status = latestStatus
 
-			if res.Status < latestStatus {
-				continue
+			if res.Err != nil {
+				finalStatus.RejectReason = res.Err.Error()
+			} else {
+				finalStatus.RejectReason = ""
 			}
 
-			if resErr := res.Err; resErr != nil {
-				return &metamorph_api.TransactionStatus{
-					Status:       latestStatus,
-					Txid:         TxID,
-					RejectReason: resErr.Error(),
-				}
-			}
-
-			if latestStatus >= waitForStatus {
-				return &metamorph_api.TransactionStatus{
-					Status: latestStatus,
-					Txid:   TxID,
-				}
+			if latestStatus == waitForStatus {
+				return finalStatus
 			}
 		}
 	}

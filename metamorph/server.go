@@ -309,7 +309,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	return resp, nil
 }
 
-func returnStatus(status metamorph_api.Status, waitForStatus metamorph_api.Status) bool {
+func hasWaitForStatusReached(status metamorph_api.Status, waitForStatus metamorph_api.Status) bool {
 	statusValueMap := map[metamorph_api.Status]int{
 		metamorph_api.Status_UNKNOWN:                0,
 		metamorph_api.Status_QUEUED:                 1,
@@ -362,7 +362,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 				returnedStatus.RejectReason = ""
 			}
 
-			if returnStatus(returnedStatus.Status, waitForStatus) {
+			if hasWaitForStatusReached(returnedStatus.Status, waitForStatus) {
 				return returnedStatus
 			}
 		}

@@ -404,92 +404,63 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 
 func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) (bool, error) {
 	processorResponse, ok := p.ProcessorResponseMap.Get(hash)
-	if ok {
-		span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
-		defer span.Finish()
-
-		processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-			Status:    status,
-			Source:    source,
-			StatusErr: statusErr,
-			UpdateStore: func() error {
-				// we have cached this transaction, so process accordingly
-				rejectReason := ""
-				if statusErr != nil {
-					rejectReason = statusErr.Error()
-				}
-
-				return p.store.UpdateStatus(spanCtx, hash, status, rejectReason)
-			},
-			IgnoreCallback: processorResponse.NoStats, // do not do this callback if we are not keeping stats
-			Callback: func(err error) {
-				if err != nil {
-					p.logger.Error(failedToUpdateStatus, slog.String("hash", hash.String()), slog.String("err", err.Error()))
-					return
-				} else {
-					p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
-				}
-
-				switch status {
-
-				case metamorph_api.Status_REQUESTED_BY_NETWORK:
-					p.requestedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-				case metamorph_api.Status_SENT_TO_NETWORK:
-					p.sentToNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-				case metamorph_api.Status_ACCEPTED_BY_NETWORK:
-					p.acceptedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-				case metamorph_api.Status_SEEN_ON_NETWORK:
-					p.seenOnNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-				case metamorph_api.Status_MINED:
-					p.mined.AddDuration(time.Since(processorResponse.Start))
-					processorResponse.Close()
-					p.ProcessorResponseMap.Delete(hash)
-
-				case metamorph_api.Status_REJECTED:
-					p.logger.Warn("transaction rejected", slog.String("status", status.String()), slog.String("hash", hash.String()))
-
-					p.rejected.AddDuration(source, time.Since(processorResponse.Start))
-				}
-			},
-		})
-
-	} else if status > metamorph_api.Status_MINED {
-		span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction:Mined")
-		defer span.Finish()
-
-		// we only care about statuses that are larger than mined (ie Rejected), since mined is the last status
-		// and the transactions should be in the map until they are mined
-		if statusErr != nil {
-			// Print the error along with the status message
-			p.logger.Warn("Received status for tx", slog.String("status", status.String()), slog.String("hash", hash.String()), slog.String("err", statusErr.Error()))
-		} else {
-			p.logger.Debug("Received status for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
-		}
-
-		// This is coming from zmq, after the transaction has been deleted from our ProcessorResponseMap
-		// It could be a "seen", "confirmed", "mined" or "rejected" status, but should finalize the tx
-
-		rejectReason := ""
-		if statusErr != nil {
-			rejectReason = statusErr.Error()
-		}
-
-		if err := p.store.UpdateStatus(spanCtx, hash, status, rejectReason); err != nil {
-			if errors.Is(err, store.ErrNotFound) {
-				return false, nil
-			}
-			p.logger.Error(failedToUpdateStatus, slog.String("hash", hash.String()), slog.String("err", err.Error()))
-			return false, err
-		}
-
-		return true, nil
+	if !ok {
+		return false, nil
 	}
 
-	return false, nil
+	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
+	defer span.Finish()
+
+	processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
+		Status:    status,
+		Source:    source,
+		StatusErr: statusErr,
+		UpdateStore: func() error {
+			// we have cached this transaction, so process accordingly
+			rejectReason := ""
+			if statusErr != nil {
+				rejectReason = statusErr.Error()
+			}
+
+			return p.store.UpdateStatus(spanCtx, hash, status, rejectReason)
+		},
+		IgnoreCallback: processorResponse.NoStats, // do not do this callback if we are not keeping stats
+		Callback: func(err error) {
+			if err != nil {
+				p.logger.Error(failedToUpdateStatus, slog.String("hash", hash.String()), slog.String("err", err.Error()))
+				return
+			} else {
+				p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
+			}
+
+			switch status {
+
+			case metamorph_api.Status_REQUESTED_BY_NETWORK:
+				p.requestedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
+
+			case metamorph_api.Status_SENT_TO_NETWORK:
+				p.sentToNetwork.AddDuration(source, time.Since(processorResponse.Start))
+
+			case metamorph_api.Status_ACCEPTED_BY_NETWORK:
+				p.acceptedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
+
+			case metamorph_api.Status_SEEN_ON_NETWORK:
+				p.seenOnNetwork.AddDuration(source, time.Since(processorResponse.Start))
+
+			case metamorph_api.Status_MINED:
+				p.mined.AddDuration(time.Since(processorResponse.Start))
+				processorResponse.Close()
+				p.ProcessorResponseMap.Delete(hash)
+
+			case metamorph_api.Status_REJECTED:
+				p.logger.Warn("transaction rejected", slog.String("status", status.String()), slog.String("hash", hash.String()))
+
+				p.rejected.AddDuration(source, time.Since(processorResponse.Start))
+			}
+		},
+	})
+
+	return true, nil
 }
 
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {

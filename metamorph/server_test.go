@@ -207,7 +207,8 @@ func TestPutTransaction(t *testing.T) {
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
-			RawTx: testdata.TX1RawBytes,
+			RawTx:         testdata.TX1RawBytes,
+			WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
 		}
 		processor.ProcessTransactionFunc = func(ctx context.Context, req *ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
@@ -406,7 +407,12 @@ func TestPutTransactions(t *testing.T) {
 		{
 			name: "single new transaction response with error",
 			requests: &metamorph_api.TransactionRequests{
-				Transactions: []*metamorph_api.TransactionRequest{{RawTx: tx0.Bytes()}},
+				Transactions: []*metamorph_api.TransactionRequest{
+					{
+						RawTx:         tx0.Bytes(),
+						WaitForStatus: metamorph_api.Status_STORED,
+					},
+				},
 			},
 			processorResponse: map[string]*processor_response.StatusAndError{hash0.String(): {
 				Hash:   hash0,
@@ -438,7 +444,7 @@ func TestPutTransactions(t *testing.T) {
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
 						Txid:     hash0.String(),
-						Status:   metamorph_api.Status_STORED,
+						Status:   metamorph_api.Status_UNKNOWN,
 						TimedOut: true,
 					},
 				},

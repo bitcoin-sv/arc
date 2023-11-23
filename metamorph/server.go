@@ -228,7 +228,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		gocore.NewStat("PutTransaction").NewStat("3: Wait for status").AddTime(next)
 	}()
 
-	return s.processTransaction(ctx, req.WaitForStatus, sReq, hash.String(), metamorph_api.Status_RECEIVED), nil
+	return s.processTransaction(ctx, req.WaitForStatus, sReq, hash.String()), nil
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
@@ -298,7 +298,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		go func(ctx context.Context, processTxInput processTxInput, txID string, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
 			defer wg.Done()
 
-			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, txID, metamorph_api.Status_STORED)
+			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, txID)
 
 			resp.Statuses[processTxInput.responseIndex] = statusNew
 		}(ctx, input, hash.String(), wg, resp)
@@ -309,7 +309,27 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	return resp, nil
 }
 
-func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, TxID string, latestStatus metamorph_api.Status) *metamorph_api.TransactionStatus {
+func hasWaitForStatusReached(status metamorph_api.Status, waitForStatus metamorph_api.Status) bool {
+	statusValueMap := map[metamorph_api.Status]int{
+		metamorph_api.Status_UNKNOWN:                0,
+		metamorph_api.Status_QUEUED:                 1,
+		metamorph_api.Status_RECEIVED:               2,
+		metamorph_api.Status_STORED:                 3,
+		metamorph_api.Status_ANNOUNCED_TO_NETWORK:   4,
+		metamorph_api.Status_REQUESTED_BY_NETWORK:   5,
+		metamorph_api.Status_SENT_TO_NETWORK:        6,
+		metamorph_api.Status_REJECTED:               7,
+		metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL: 8,
+		metamorph_api.Status_ACCEPTED_BY_NETWORK:    9,
+		metamorph_api.Status_SEEN_ON_NETWORK:        10,
+		metamorph_api.Status_MINED:                  11,
+		metamorph_api.Status_CONFIRMED:              12,
+	}
+
+	return statusValueMap[status] >= statusValueMap[waitForStatus]
+}
+
+func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, TxID string) *metamorph_api.TransactionStatus {
 
 	responseChannel := make(chan processor_response.StatusAndError, 1)
 	defer func() {
@@ -319,42 +339,31 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	// TODO check the context when API call ends
 	s.processor.ProcessTransaction(ctx, &ProcessorRequest{Data: data, ResponseChannel: responseChannel})
 
-	if waitForStatus < metamorph_api.Status_RECEIVED || waitForStatus > metamorph_api.Status_SEEN_ON_NETWORK {
+	if waitForStatus == 0 {
 		// wait for seen by default, this is the safest option
 		waitForStatus = metamorph_api.Status_SEEN_ON_NETWORK
 	}
 
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeout := time.NewTimer(s.timeout)
+	returnedStatus := &metamorph_api.TransactionStatus{Txid: TxID}
 
 	for {
 		select {
 		case <-timeout.C:
-			return &metamorph_api.TransactionStatus{
-				TimedOut: true,
-				Status:   latestStatus,
-				Txid:     TxID,
-			}
+			returnedStatus.TimedOut = true
+			return returnedStatus
 		case res := <-responseChannel:
-			latestStatus = res.Status
+			returnedStatus.Status = res.Status
 
-			if res.Status < latestStatus {
-				continue
+			if res.Err != nil {
+				returnedStatus.RejectReason = res.Err.Error()
+			} else {
+				returnedStatus.RejectReason = ""
 			}
 
-			if resErr := res.Err; resErr != nil {
-				return &metamorph_api.TransactionStatus{
-					Status:       latestStatus,
-					Txid:         TxID,
-					RejectReason: resErr.Error(),
-				}
-			}
-
-			if latestStatus >= waitForStatus {
-				return &metamorph_api.TransactionStatus{
-					Status: latestStatus,
-					Txid:   TxID,
-				}
+			if hasWaitForStatusReached(returnedStatus.Status, waitForStatus) {
+				return returnedStatus
 			}
 		}
 	}

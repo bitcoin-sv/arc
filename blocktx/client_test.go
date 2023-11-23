@@ -49,7 +49,6 @@ func TestStart(t *testing.T) {
 							return &blocktx_api.Block{
 								Hash: blockHash,
 							}, tc.recvErr
-
 						},
 					}, tc.getStreamErr
 				},

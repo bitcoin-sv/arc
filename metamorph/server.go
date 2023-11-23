@@ -228,7 +228,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		gocore.NewStat("PutTransaction").NewStat("3: Wait for status").AddTime(next)
 	}()
 
-	return s.processTransaction(ctx, req.WaitForStatus, sReq, hash.String(), metamorph_api.Status_RECEIVED), nil
+	return s.processTransaction(ctx, req.WaitForStatus, sReq, hash.String()), nil
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
@@ -298,7 +298,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		go func(ctx context.Context, processTxInput processTxInput, txID string, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
 			defer wg.Done()
 
-			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, txID, metamorph_api.Status_STORED)
+			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, txID)
 
 			resp.Statuses[processTxInput.responseIndex] = statusNew
 		}(ctx, input, hash.String(), wg, resp)
@@ -309,7 +309,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	return resp, nil
 }
 
-func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, TxID string, latestStatus metamorph_api.Status) *metamorph_api.TransactionStatus {
+func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, TxID string) *metamorph_api.TransactionStatus {
 
 	responseChannel := make(chan processor_response.StatusAndError, 1)
 	defer func() {
@@ -326,25 +326,24 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeout := time.NewTimer(s.timeout)
-	finalStatus := &metamorph_api.TransactionStatus{Txid: TxID}
+	returnedStatus := &metamorph_api.TransactionStatus{Txid: TxID}
 
 	for {
 		select {
 		case <-timeout.C:
-			finalStatus.TimedOut = true
-			return finalStatus
+			returnedStatus.TimedOut = true
+			return returnedStatus
 		case res := <-responseChannel:
-			latestStatus = res.Status
-			finalStatus.Status = latestStatus
+			returnedStatus.Status = res.Status
 
 			if res.Err != nil {
-				finalStatus.RejectReason = res.Err.Error()
+				returnedStatus.RejectReason = res.Err.Error()
 			} else {
-				finalStatus.RejectReason = ""
+				returnedStatus.RejectReason = ""
 			}
 
-			if latestStatus == waitForStatus {
-				return finalStatus
+			if returnedStatus.Status == waitForStatus {
+				return returnedStatus
 			}
 		}
 	}

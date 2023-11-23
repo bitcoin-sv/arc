@@ -14,7 +14,10 @@ build:
 .PHONY: clean_e2e_tests
 clean_e2e_tests:
 	# Remove containers and images; avoid failure if the image doesn't exist
-	docker container prune -f
+	docker container stop test-tests-1 || true
+	docker container stop test-arc-1 || true
+	docker container rm test-tests-1 || true
+	docker container rm test-arc-1 || true
 	docker rmi test-tests || true
 	docker rmi test-arc || true
 

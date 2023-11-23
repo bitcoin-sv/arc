@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -260,7 +261,7 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 		&data.RawTx,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, store.ErrNotFound
 		}
 		span.SetTag(string(ext.Error), true)
@@ -423,9 +424,9 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 		,callback_token
 		,merkle_proof
 		,raw_tx
-	 	FROM transactions WHERE status < $1;`
+		FROM transactions WHERE status < $1 OR status = $2 ;`
 
-	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_MINED)
+	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -578,7 +579,7 @@ func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) 
 		&processedAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		span.SetTag(string(ext.Error), true)

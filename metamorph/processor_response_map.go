@@ -20,12 +20,12 @@ const (
 )
 
 type ProcessorResponseMap struct {
-	mu        deadlock.RWMutex
-	expiry    time.Duration
-	items     map[chainhash.Hash]*processor_response.ProcessorResponse
-	logFile   string
-	logWorker chan statResponse
-	now       func() time.Time
+	mu            deadlock.RWMutex
+	Expiry        time.Duration
+	ResponseItems map[chainhash.Hash]*processor_response.ProcessorResponse
+	logFile       string
+	logWorker     chan statResponse
+	now           func() time.Time
 }
 
 func WithNowResponseMap(nowFunc func() time.Time) func(*ProcessorResponseMap) {
@@ -45,10 +45,10 @@ type OptionProcRespMap func(p *ProcessorResponseMap)
 func NewProcessorResponseMap(expiry time.Duration, opts ...OptionProcRespMap) *ProcessorResponseMap {
 
 	m := &ProcessorResponseMap{
-		expiry:  expiry,
-		items:   make(map[chainhash.Hash]*processor_response.ProcessorResponse),
-		logFile: logFilePathDefault,
-		now:     time.Now,
+		Expiry:        expiry,
+		ResponseItems: make(map[chainhash.Hash]*processor_response.ProcessorResponse),
+		logFile:       logFilePathDefault,
+		now:           time.Now,
 	}
 
 	// apply options
@@ -58,7 +58,7 @@ func NewProcessorResponseMap(expiry time.Duration, opts ...OptionProcRespMap) *P
 
 	go func() {
 		for range time.NewTicker(cleanUpInterval).C {
-			m.clean()
+			m.Clean()
 		}
 	}()
 
@@ -103,19 +103,19 @@ func (m *ProcessorResponseMap) Set(hash *chainhash.Hash, value *processor_respon
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.items[*hash] = value
+	m.ResponseItems[*hash] = value
 }
 
 func (m *ProcessorResponseMap) Get(hash *chainhash.Hash) (*processor_response.ProcessorResponse, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	processorResponse, ok := m.items[*hash]
+	processorResponse, ok := m.ResponseItems[*hash]
 	if !ok {
 		return nil, false
 	}
 
-	if m.now().Sub(processorResponse.Start) > m.expiry {
+	if m.now().Sub(processorResponse.Start) > m.Expiry {
 		return nil, false
 	}
 
@@ -126,7 +126,7 @@ func (m *ProcessorResponseMap) Delete(hash *chainhash.Hash) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	item, ok := m.items[*hash]
+	item, ok := m.ResponseItems[*hash]
 	if !ok {
 		return
 	}
@@ -151,9 +151,9 @@ func (m *ProcessorResponseMap) Delete(hash *chainhash.Hash) {
 		})
 	}
 
-	delete(m.items, *hash)
+	delete(m.ResponseItems, *hash)
 	// Check if the item was deleted
-	// if _, ok := m.items[*hash]; ok {
+	// if _, ok := m.ResponseItems[*hash]; ok {
 	// 	log.Printf("Failed to delete item from map: %v", hash)
 	// }
 }
@@ -162,29 +162,29 @@ func (m *ProcessorResponseMap) Len() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	return len(m.items)
+	return len(m.ResponseItems)
 }
 
 func (m *ProcessorResponseMap) Retries(hash *chainhash.Hash) uint32 {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	if _, ok := m.items[*hash]; !ok {
+	if _, ok := m.ResponseItems[*hash]; !ok {
 		return 0
 	}
 
-	return m.items[*hash].GetRetries()
+	return m.ResponseItems[*hash].GetRetries()
 }
 
 func (m *ProcessorResponseMap) IncrementRetry(hash *chainhash.Hash) uint32 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if _, ok := m.items[*hash]; !ok {
+	if _, ok := m.ResponseItems[*hash]; !ok {
 		return 0
 	}
 
-	return m.items[*hash].IncrementRetry()
+	return m.ResponseItems[*hash].IncrementRetry()
 }
 
 // Hashes will return a slice of the hashes in the map.
@@ -192,7 +192,7 @@ func (m *ProcessorResponseMap) IncrementRetry(hash *chainhash.Hash) uint32 {
 // If no filter function is provided, all hashes will be returned.
 // The filter function will be called with the lock held, so it should not block.
 func (m *ProcessorResponseMap) Hashes(filterFunc ...func(*processor_response.ProcessorResponse) bool) [][32]byte {
-	// Default filter function returns true for all items
+	// Default filter function returns true for all ResponseItems
 	fn := func(p *processor_response.ProcessorResponse) bool {
 		return true
 	}
@@ -205,9 +205,9 @@ func (m *ProcessorResponseMap) Hashes(filterFunc ...func(*processor_response.Pro
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	hashes := make([][32]byte, 0, len(m.items))
+	hashes := make([][32]byte, 0, len(m.ResponseItems))
 
-	for _, item := range m.items {
+	for _, item := range m.ResponseItems {
 		if fn(item) {
 			var h [32]byte
 			copy(h[:], item.Hash[:])
@@ -220,11 +220,11 @@ func (m *ProcessorResponseMap) Hashes(filterFunc ...func(*processor_response.Pro
 }
 
 // Items will return a copy of the map.
-// If a filter function is provided, only items that pass the filter will be returned.
-// If no filter function is provided, all items will be returned.
+// If a filter function is provided, only ResponseItems that pass the filter will be returned.
+// If no filter function is provided, all ResponseItems will be returned.
 // The filter function will be called with the lock held, so it should not block.
 func (m *ProcessorResponseMap) Items(filterFunc ...func(*processor_response.ProcessorResponse) bool) map[chainhash.Hash]*processor_response.ProcessorResponse {
-	// Default filter function returns true for all items
+	// Default filter function returns true for all ResponseItems
 	fn := func(p *processor_response.ProcessorResponse) bool {
 		return true
 	}
@@ -237,9 +237,9 @@ func (m *ProcessorResponseMap) Items(filterFunc ...func(*processor_response.Proc
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	items := make(map[chainhash.Hash]*processor_response.ProcessorResponse, len(m.items))
+	items := make(map[chainhash.Hash]*processor_response.ProcessorResponse, len(m.ResponseItems))
 
-	for hash, item := range m.items {
+	for hash, item := range m.ResponseItems {
 		if fn(item) {
 			items[hash] = item
 		}
@@ -252,7 +252,7 @@ func (m *ProcessorResponseMap) logMapItems(logger *slog.Logger) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	for hash, processorResponse := range m.items {
+	for hash, processorResponse := range m.ResponseItems {
 		logger.Debug("Processor response map item", slog.String("hash", hash.String()), slog.String("status", processorResponse.Status.String()), slog.Int("retries", int(processorResponse.Retries.Load())), slog.String("err", processorResponse.Err.Error()), slog.Time("start", processorResponse.Start))
 	}
 }
@@ -262,26 +262,26 @@ func (m *ProcessorResponseMap) Clear() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.items = make(map[chainhash.Hash]*processor_response.ProcessorResponse)
+	m.ResponseItems = make(map[chainhash.Hash]*processor_response.ProcessorResponse)
 }
 
 func (m *ProcessorResponseMap) Close() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	for _, item := range m.items {
+	for _, item := range m.ResponseItems {
 		item.Close()
 	}
 }
 
-func (m *ProcessorResponseMap) clean() {
+func (m *ProcessorResponseMap) Clean() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for key, item := range m.items {
-		if time.Since(item.Start) > m.expiry {
+	for key, item := range m.ResponseItems {
+		if time.Since(item.Start) > m.Expiry {
 			log.Printf("ProcessorResponseMap: Expired %s", key)
 			item.Close()
-			delete(m.items, key)
+			delete(m.ResponseItems, key)
 		}
 	}
 }

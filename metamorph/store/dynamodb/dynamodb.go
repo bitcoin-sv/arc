@@ -22,22 +22,25 @@ import (
 const (
 	lockedByNone = "NONE"
 
-	lockedByAttributeKey     = ":locked_by"
-	txStatusAttributeKey     = ":tx_status"
-	blockHeightAttributeKey  = ":block_height"
-	blockHashAttributeKey    = ":block_hash"
-	rejectReasonAttributeKey = ":reject_reason"
+	lockedByAttributeKey         = ":locked_by"
+	txStatusAttributeKey         = ":tx_status"
+	txStatusAttributeKeyOrphaned = ":tx_orphaned"
+	blockHeightAttributeKey      = ":block_height"
+	blockHashAttributeKey        = ":block_hash"
+	rejectReasonAttributeKey     = ":reject_reason"
 )
 
 type DynamoDB struct {
 	client   *dynamodb.Client
 	hostname string
+	ttl      time.Duration
 }
 
-func New(client *dynamodb.Client, hostname string) (*DynamoDB, error) {
+func New(client *dynamodb.Client, hostname string, timeToLive time.Duration) (*DynamoDB, error) {
 	repo := &DynamoDB{
 		client:   client,
 		hostname: hostname,
+		ttl:      timeToLive,
 	}
 
 	err := initialize(context.Background(), repo)
@@ -139,7 +142,18 @@ func (ddb *DynamoDB) CreateTransactionsTable(ctx context.Context) error {
 			WriteCapacityUnits: aws.Int64(10),
 		},
 	})
+	if err != nil {
+		return err
+	}
 
+	ttlInput := dynamodb.UpdateTimeToLiveInput{
+		TableName: aws.String("transactions"),
+		TimeToLiveSpecification: &types.TimeToLiveSpecification{
+			Enabled:       aws.Bool(true),
+			AttributeName: aws.String("ttl"),
+		},
+	}
+	_, err = ddb.client.UpdateTimeToLive(ctx, &ttlInput)
 	if err != nil {
 		return err
 	}
@@ -161,13 +175,26 @@ func (ddb *DynamoDB) CreateBlocksTable(ctx context.Context) error {
 			{
 				AttributeName: aws.String("block_hash"),
 				KeyType:       types.KeyTypeHash,
-			}},
+			},
+		},
 		TableName: aws.String("blocks"),
 		ProvisionedThroughput: &types.ProvisionedThroughput{
 			ReadCapacityUnits:  aws.Int64(10),
 			WriteCapacityUnits: aws.Int64(10),
 		},
 	}); err != nil {
+		return err
+	}
+
+	ttlInput := &dynamodb.UpdateTimeToLiveInput{
+		TableName: aws.String("blocks"),
+		TimeToLiveSpecification: &types.TimeToLiveSpecification{
+			Enabled:       aws.Bool(true),
+			AttributeName: aws.String("ttl"),
+		},
+	}
+	_, err := ddb.client.UpdateTimeToLive(ctx, ttlInput)
+	if err != nil {
 		return err
 	}
 
@@ -224,6 +251,8 @@ func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData
 	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:Set")
 	defer span.Finish()
 
+	ttl := time.Now().Add(ddb.ttl)
+	value.Ttl = ttl.Unix()
 	value.LockedBy = ddb.hostname
 
 	// marshal input value for new entry
@@ -382,10 +411,11 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 		TableName:              aws.String("transactions"),
 		IndexName:              aws.String("locked_by_index"),
 		KeyConditionExpression: aws.String(fmt.Sprintf("locked_by = %s", lockedByAttributeKey)),
-		FilterExpression:       aws.String(fmt.Sprintf("tx_status < %s", txStatusAttributeKey)),
+		FilterExpression:       aws.String(fmt.Sprintf("tx_status < %s or tx_status = %s", txStatusAttributeKey, txStatusAttributeKeyOrphaned)),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			lockedByAttributeKey: &types.AttributeValueMemberS{Value: lockedByNone},
-			txStatusAttributeKey: &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
+			lockedByAttributeKey:         &types.AttributeValueMemberS{Value: lockedByNone},
+			txStatusAttributeKey:         &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
+			txStatusAttributeKeyOrphaned: &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL))},
 		},
 	})
 
@@ -483,6 +513,7 @@ func (ddb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 type BlockItem struct {
 	Hash        []byte `dynamodbav:"block_hash"`
 	ProcessedAt string `dynamodbav:"processed_at"`
+	Ttl         int64  `dynamodbav:"ttl"`
 }
 
 func (ddb *DynamoDB) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
@@ -501,32 +532,35 @@ func (ddb *DynamoDB) GetBlockProcessed(ctx context.Context, blockHash *chainhash
 	response, err := ddb.client.GetItem(ctx, &dynamodb.GetItemInput{
 		Key: val, TableName: aws.String("blocks"),
 	})
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 		return nil, err
 	}
 
-	var blockItem BlockItem
-	err = attributevalue.UnmarshalMap(response.Item, &blockItem)
-	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return nil, err
-	}
-
-	var processedAtTime time.Time
-	if blockItem.ProcessedAt != "" {
-		processedAtTime, err = time.Parse(time.RFC3339, blockItem.ProcessedAt)
+	if len(response.Item) != 0 {
+		var blockItem BlockItem
+		err = attributevalue.UnmarshalMap(response.Item, &blockItem)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return nil, err
 		}
+
+		var processedAtTime time.Time
+		if blockItem.ProcessedAt != "" {
+			processedAtTime, err = time.Parse(time.RFC3339, blockItem.ProcessedAt)
+			if err != nil {
+				span.SetTag(string(ext.Error), true)
+				span.LogFields(log.Error(err))
+				return nil, err
+			}
+		}
+
+		return &processedAtTime, nil
 	}
 
-	return &processedAtTime, nil
+	return nil, nil
 }
 
 func (ddb *DynamoDB) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) error {
@@ -538,7 +572,13 @@ func (ddb *DynamoDB) SetBlockProcessed(ctx context.Context, blockHash *chainhash
 	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:SetBlockProcessed")
 	defer span.Finish()
 
-	blockItem := BlockItem{Hash: blockHash.CloneBytes(), ProcessedAt: time.Now().UTC().Format(time.RFC3339)}
+	ttl := time.Now().Add(ddb.ttl)
+
+	blockItem := BlockItem{
+		Hash:        blockHash.CloneBytes(),
+		ProcessedAt: time.Now().UTC().Format(time.RFC3339),
+		Ttl:         ttl.Unix(),
+	}
 	item, err := attributevalue.MarshalMap(blockItem)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)

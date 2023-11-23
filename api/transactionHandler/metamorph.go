@@ -100,7 +100,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 	merklePath, err := m.blockTxClient.GetTransactionMerklePath(ctx, &blocktx_api.Transaction{Hash: hash[:]})
 	if err != nil {
 		if errors.Is(err, blocktx.ErrTransactionNotFoundForMerklePath) {
-			if tx.Status >= metamorph_api.Status_MINED {
+			if tx.Status == metamorph_api.Status_MINED {
 				m.logger.Errorf("Merkle path not found for mined transaction %s: %v", hash.String(), err)
 			}
 		} else {

@@ -339,7 +339,8 @@ This endpoint is used to get the current status of a previously submitted transa
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Success|[TransactionStatus](#schematransactionstatus)|
 |401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Security requirements failed|None|
-|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Not found|None|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Not found|[ErrorNotFound](#schemaerrornotfound)|
+|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|Generic error|[ErrorGeneric](#schemaerrorgeneric)|
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
@@ -548,15 +549,15 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 
 ```json
 {
-  "blockHash": "0000000000000000000c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+  "blockHash": "0000000000000aac89fbed163ed60061ba33bc0ab9de8e7fd8b34ad94c2414cd",
   "blockHeight": 736228,
   "extraInfo": "",
   "status": 200,
   "timestamp": "2023-03-09T12:03:48.382910514Z",
   "title": "OK",
   "txStatus": "MINED",
-  "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
-  "merklePath": "0000"
+  "txid": "b68b064b336b9a4abdb173f3e32f27b38a222cb2102f51b8c92563e816b12b4a",
+  "merklePath": "fe54251800020400028d97f9ebeddd9f9aa8e0e953b3a76f316298ab05e9834aa811716e9d397564e501025f64aa8e012e26a5c5803c9f94d1c2c8ea68ecef1415011e1c2e26b9c966b6ad02021f5fa39607ca3b48d53c902bd5bb4bbf6a7ac99cf9fda45cc21b71e6e2f7889603024a2bb116e86325c9b8512f10b22c228ab3272fe3f373b1bd4a9a6b334b068bb602000061793b278303101a1390ceae5a713de0eabd9cda63702fe84c928970acf7c45e0100a567e3d066e38638b27897559302eabc85eb69b202c2e86d4338bab73008f460"
 }
 ```
 
@@ -570,7 +571,19 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
   "title": "OK",
   "txStatus": "SEEN_ON_NETWORK",
   "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
-  "merklePath": "0000"
+  "merklePath": ""
+}
+```
+
+```json
+{
+  "detail": "Transaction is invalid because the outputs are non-existent or invalid",
+  "extraInfo": "arc error 463: arc error 463: transaction output 0 satoshis is invalid",
+  "instance": null,
+  "status": 463,
+  "title": "Invalid outputs",
+  "txid": "a0d69a2dfad710770ed282cce316c5792f6101a68046a263a17a1ae02676015e",
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_463\""
 }
 ```
 
@@ -578,7 +591,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 
 ```json
 {
-  "type": "https://arc.bitcoinsv.com/errors/400",
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_400",
   "title": "Bad request",
   "status": 400,
   "detail": "The request seems to be malformed and cannot be processed",
@@ -595,9 +608,14 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Success|[TransactionResponse](#schematransactionresponse)|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Bad request|[ErrorBadRequest](#schemaerrorbadrequest)|
 |401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Security requirements failed|None|
+|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|Generic error|[ErrorGeneric](#schemaerrorgeneric)|
 |422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Unprocessable entity - with IETF RFC 7807 Error object|[Error](#schemaerror)|
+|460|Unknown|Not extended format|[ErrorTxFormat](#schemaerrortxformat)|
+|461|Unknown|Malformed transaction|[ErrorUnlockingScripts](#schemaerrorunlockingscripts)|
+|462|Unknown|Invalid inputs|[ErrorInputs](#schemaerrorinputs)|
+|463|Unknown|Malformed transaction|[ErrorMalformed](#schemaerrormalformed)|
+|464|Unknown|Invalid outputs|[ErrorOutputs](#schemaerroroutputs)|
 |465|Unknown|Fee too low|[ErrorFee](#schemaerrorfee)|
-|466|Unknown|Conflicting transaction found|[ErrorConflict](#schemaerrorconflict)|
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
@@ -807,20 +825,20 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 
 > Example responses
 
-> Already in block template, or already mined
+> Transaction status
 
 ```json
 [
   {
-    "blockHash": "000000000000000001d8f4bb24dd93d4e91ce926cc7a971be018c2b8d46d45ff",
+    "blockHash": "0000000000000aac89fbed163ed60061ba33bc0ab9de8e7fd8b34ad94c2414cd",
     "blockHeight": 761868,
     "extraInfo": "",
     "status": 200,
     "timestamp": "2023-03-09T12:03:48.382910514Z",
     "title": "OK",
     "txStatus": "MINED",
-    "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
-    "merklePath": "0000"
+    "txid": "b68b064b336b9a4abdb173f3e32f27b38a222cb2102f51b8c92563e816b12b4a",
+    "merklePath": "fe54251800020400028d97f9ebeddd9f9aa8e0e953b3a76f316298ab05e9834aa811716e9d397564e501025f64aa8e012e26a5c5803c9f94d1c2c8ea68ecef1415011e1c2e26b9c966b6ad02021f5fa39607ca3b48d53c902bd5bb4bbf6a7ac99cf9fda45cc21b71e6e2f7889603024a2bb116e86325c9b8512f10b22c228ab3272fe3f373b1bd4a9a6b334b068bb602000061793b278303101a1390ceae5a713de0eabd9cda63702fe84c928970acf7c45e0100a567e3d066e38638b27897559302eabc85eb69b202c2e86d4338bab73008f460"
   }
 ]
 ```
@@ -836,7 +854,7 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
     "title": "OK",
     "txStatus": "SEEN_ON_NETWORK",
     "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
-    "merklePath": "0000"
+    "merklePath": ""
   }
 ]
 ```
@@ -850,7 +868,7 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
     "status": 463,
     "title": "Invalid outputs",
     "txid": "a0d69a2dfad710770ed282cce316c5792f6101a68046a263a17a1ae02676015e",
-    "type": "https://arc.bitcoinsv.com/errors/463"
+    "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_463"
   }
 ]
 ```
@@ -859,11 +877,13 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 
 ```json
 {
-  "type": "https://arc.bitcoinsv.com/errors/400",
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_400",
   "title": "Bad request",
   "status": 400,
   "detail": "The request seems to be malformed and cannot be processed",
-  "instance": "https://arc.taal.com/errors/1234556"
+  "instance": "https://arc.taal.com/errors/1234556",
+  "txid": "string",
+  "extraInfo": "string"
 }
 ```
 
@@ -871,9 +891,17 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Already in block template, or already mined|[TransactionResponses](#schematransactionresponses)|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|IETF RFC 7807 Error object|[ErrorBadRequest](#schemaerrorbadrequest)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|Security requirements failed|None|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Transaction status|[TransactionResponses](#schematransactionresponses)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Bad request|[ErrorBadRequest](#schemaerrorbadrequest)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Security requirements failed|None|
+|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|Generic error|[ErrorGeneric](#schemaerrorgeneric)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Unprocessable entity - with IETF RFC 7807 Error object|[Error](#schemaerror)|
+|460|Unknown|Not extended format|[ErrorTxFormat](#schemaerrortxformat)|
+|461|Unknown|Malformed transaction|[ErrorUnlockingScripts](#schemaerrorunlockingscripts)|
+|462|Unknown|Invalid inputs|[ErrorInputs](#schemaerrorinputs)|
+|463|Unknown|Malformed transaction|[ErrorMalformed](#schemaerrormalformed)|
+|464|Unknown|Invalid outputs|[ErrorOutputs](#schemaerroroutputs)|
+|465|Unknown|Fee too low|[ErrorFee](#schemaerrorfee)|
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
@@ -1086,7 +1114,7 @@ and
 |*anonymous*|object|false|none|none|
 |» txid|string|true|none|Transaction ID in hex|
 |» txStatus|string|true|none|Transaction status|
-|» merklePath|string¦null|false|none|Transaction merkle path in hex|
+|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in  BUMP format [BRC-74](https://brc.dev/74)|
 |» extraInfo|string¦null|true|none|Extra info|
 
 <h2 id="tocS_TransactionStatus">TransactionStatus</h2>
@@ -1129,7 +1157,7 @@ and
 |---|---|---|---|---|
 |*anonymous*|object|false|none|none|
 |» txid|string|true|none|Transaction ID in hex|
-|» merklePath|string¦null|false|none|Transaction merkle path in hex|
+|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)|
 |» txStatus|string|false|none|Transaction status|
 |» extraInfo|string¦null|false|none|Extra information about the transaction|
 
@@ -1257,7 +1285,7 @@ and
 |---|---|---|---|---|
 |*anonymous*|object|false|none|none|
 |» txid|string|false|none|Transaction ID in hex|
-|» merklePath|string¦null|false|none|Transaction merkle path in hex|
+|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)|
 |» txStatus|string|false|none|Transaction status|
 |» extraInfo|string¦null|false|none|Extra information about the transaction|
 
@@ -1285,7 +1313,7 @@ and
 
 ```json
 {
-  "type": "https://arc.bitcoinsv.com/errors/461",
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_461",
   "title": "Malformed transaction",
   "status": 461,
   "detail": "Transaction is malformed and cannot be processed",
@@ -1339,7 +1367,7 @@ xor
 
 ```json
 {
-  "type": "https://arc.bitcoinsv.com/errors/400",
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_400",
   "title": "Bad request",
   "status": 400,
   "detail": "The request seems to be malformed and cannot be processed",
@@ -1369,20 +1397,20 @@ and
 |» detail|any|false|none|none|
 |» instance|any|false|none|none|
 
-<h2 id="tocS_ErrorFee">ErrorFee</h2>
+<h2 id="tocS_ErrorNotFound">ErrorNotFound</h2>
 <!-- backwards compatibility -->
-<a id="schemaerrorfee"></a>
-<a id="schema_ErrorFee"></a>
-<a id="tocSerrorfee"></a>
-<a id="tocserrorfee"></a>
+<a id="schemaerrornotfound"></a>
+<a id="schema_ErrorNotFound"></a>
+<a id="tocSerrornotfound"></a>
+<a id="tocserrornotfound"></a>
 
 ```json
 {
-  "type": "https://arc.bitcoinsv.com/errors/402",
-  "title": "Fee too low",
-  "status": 465,
-  "detail": "The fees are too low",
-  "instance": "https://arc.taal.com/errors/123452",
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_404",
+  "title": "Not found",
+  "status": 404,
+  "detail": "The requested resource could not be found",
+  "instance": "https://arc.taal.com/errors/1234556",
   "txid": "string",
   "extraInfo": "string"
 }
@@ -1408,20 +1436,59 @@ and
 |» detail|any|false|none|none|
 |» instance|any|false|none|none|
 
-<h2 id="tocS_ErrorConflict">ErrorConflict</h2>
+<h2 id="tocS_ErrorGeneric">ErrorGeneric</h2>
 <!-- backwards compatibility -->
-<a id="schemaerrorconflict"></a>
-<a id="schema_ErrorConflict"></a>
-<a id="tocSerrorconflict"></a>
-<a id="tocserrorconflict"></a>
+<a id="schemaerrorgeneric"></a>
+<a id="schema_ErrorGeneric"></a>
+<a id="tocSerrorgeneric"></a>
+<a id="tocserrorgeneric"></a>
 
 ```json
 {
-  "type": "https://arc.bitcoinsv.com/errors/409",
-  "title": "Conflicting tx found",
-  "status": 466,
-  "detail": "Transaction is valid, but there is a conflicting tx in the block template",
-  "instance": "https://arc.taal.com/errors/123453",
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_409",
+  "title": "Generic error",
+  "status": 409,
+  "detail": "Transaction could not be processed",
+  "instance": "https://arc.taal.com/errors/1234556",
+  "txid": "string",
+  "extraInfo": "string"
+}
+
+```
+
+### Properties
+
+allOf
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|[ErrorFields](#schemaerrorfields)|false|none|none|
+
+and
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|object|false|none|none|
+|» type|any|false|none|none|
+|» title|any|false|none|none|
+|» status|any|false|none|none|
+|» detail|any|false|none|none|
+|» instance|any|false|none|none|
+
+<h2 id="tocS_ErrorTxFormat">ErrorTxFormat</h2>
+<!-- backwards compatibility -->
+<a id="schemaerrortxformat"></a>
+<a id="schema_ErrorTxFormat"></a>
+<a id="tocSerrortxformat"></a>
+<a id="tocserrortxformat"></a>
+
+```json
+{
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_460",
+  "title": "Not extended format",
+  "status": 460,
+  "detail": "Transaction is not in extended format, missing input scripts",
+  "instance": "https://arc.taal.com/errors/1234556",
   "txid": "string",
   "extraInfo": "string"
 }
@@ -1456,7 +1523,7 @@ and
 
 ```json
 {
-  "type": "https://arc.bitcoinsv.com/errors/461",
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_461",
   "title": "Malformed transaction",
   "status": 461,
   "detail": "Transaction is malformed and cannot be processed",
@@ -1495,7 +1562,7 @@ and
 
 ```json
 {
-  "type": "https://arc.bitcoinsv.com/errors/462",
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_462",
   "title": "Invalid inputs",
   "status": 462,
   "detail": "Transaction is invalid because the inputs are non-existent or spent",
@@ -1534,11 +1601,128 @@ and
 
 ```json
 {
-  "type": "https://arc.bitcoinsv.com/errors/463",
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_463",
   "title": "Malformed transaction",
   "status": 463,
   "detail": "Transaction is malformed and cannot be processed",
   "instance": "https://arc.taal.com/errors/123452",
+  "txid": "string",
+  "extraInfo": "string"
+}
+
+```
+
+### Properties
+
+allOf
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|[ErrorFields](#schemaerrorfields)|false|none|none|
+
+and
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|object|false|none|none|
+|» type|any|false|none|none|
+|» title|any|false|none|none|
+|» status|any|false|none|none|
+|» detail|any|false|none|none|
+|» instance|any|false|none|none|
+
+<h2 id="tocS_ErrorOutputs">ErrorOutputs</h2>
+<!-- backwards compatibility -->
+<a id="schemaerroroutputs"></a>
+<a id="schema_ErrorOutputs"></a>
+<a id="tocSerroroutputs"></a>
+<a id="tocserroroutputs"></a>
+
+```json
+{
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_464",
+  "title": "Invalid outputs",
+  "status": 464,
+  "detail": "Transaction is invalid because the outputs are non-existent or invalid",
+  "instance": "https://arc.taal.com/errors/123452",
+  "txid": "string",
+  "extraInfo": "string"
+}
+
+```
+
+### Properties
+
+allOf
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|[ErrorFields](#schemaerrorfields)|false|none|none|
+
+and
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|object|false|none|none|
+|» type|any|false|none|none|
+|» title|any|false|none|none|
+|» status|any|false|none|none|
+|» detail|any|false|none|none|
+|» instance|any|false|none|none|
+
+<h2 id="tocS_ErrorFee">ErrorFee</h2>
+<!-- backwards compatibility -->
+<a id="schemaerrorfee"></a>
+<a id="schema_ErrorFee"></a>
+<a id="tocSerrorfee"></a>
+<a id="tocserrorfee"></a>
+
+```json
+{
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_465",
+  "title": "Fee too low",
+  "status": 465,
+  "detail": "The fees are too low",
+  "instance": "https://arc.taal.com/errors/123452",
+  "txid": "string",
+  "extraInfo": "string"
+}
+
+```
+
+### Properties
+
+allOf
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|[ErrorFields](#schemaerrorfields)|false|none|none|
+
+and
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|object|false|none|none|
+|» type|any|false|none|none|
+|» title|any|false|none|none|
+|» status|any|false|none|none|
+|» detail|any|false|none|none|
+|» instance|any|false|none|none|
+
+<h2 id="tocS_ErrorConflict">ErrorConflict</h2>
+<!-- backwards compatibility -->
+<a id="schemaerrorconflict"></a>
+<a id="schema_ErrorConflict"></a>
+<a id="tocSerrorconflict"></a>
+<a id="tocserrorconflict"></a>
+
+```json
+{
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_466",
+  "title": "Conflicting tx found",
+  "status": 466,
+  "detail": "Transaction is valid, but there is a conflicting tx in the block template",
+  "instance": "https://arc.taal.com/errors/123453",
   "txid": "string",
   "extraInfo": "string"
 }
@@ -1573,7 +1757,7 @@ and
 
 ```json
 {
-  "type": "https://arc.bitcoinsv.com/errors/471",
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_471",
   "title": "Input Frozen",
   "status": 471,
   "detail": "Input Frozen (blacklist manager policy blacklisted)",
@@ -1612,7 +1796,7 @@ and
 
 ```json
 {
-  "type": "https://arc.bitcoinsv.com/errors/472",
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_472",
   "title": "Input Frozen",
   "status": 472,
   "detail": "Input Frozen (blacklist manager consensus blacklisted)",

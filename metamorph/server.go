@@ -12,6 +12,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bitcoin-sv/arc/blocktx"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/metamorph/processor_response"
+	"github.com/bitcoin-sv/arc/metamorph/store"
+	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -26,13 +32,6 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	"github.com/bitcoin-sv/arc/blocktx"
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/metamorph/processor_response"
-	"github.com/bitcoin-sv/arc/metamorph/store"
-	"github.com/bitcoin-sv/arc/tracing"
 )
 
 func init() {
@@ -45,6 +44,17 @@ const (
 
 type BitcoinNode interface {
 	GetTxOut(txHex string, vout int, includeMempool bool) (res *bitcoin.TXOut, err error)
+}
+
+type ProcessorI interface {
+	LoadUnmined()
+	Set(ctx context.Context, req *ProcessorRequest) error
+	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
+	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
+	SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error)
+	GetStats(debugItems bool) *ProcessorStats
+	GetPeers() ([]string, []string)
+	Shutdown()
 }
 
 // Server type carries the zmqLogger within it
@@ -79,7 +89,7 @@ type ServerOption func(f *Server)
 // NewServer will return a server instance with the zmqLogger stored within it
 func NewServer(s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI, source string, opts ...ServerOption) *Server {
 	server := &Server{
-		logger:          slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "mtm")),
+		logger:          slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm")),
 		processor:       p,
 		store:           s,
 		timeout:         responseTimeout,
@@ -162,7 +172,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 	}, nil
 }
 
-func validateCallbackURL(callbackURL string) error {
+func ValidateCallbackURL(callbackURL string) error {
 	if callbackURL == "" {
 		return nil
 	}
@@ -184,7 +194,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		gocore.NewStat("PutTransaction").AddTime(start)
 	}()
 
-	err := validateCallbackURL(req.CallbackUrl)
+	err := ValidateCallbackURL(req.CallbackUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +228,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		gocore.NewStat("PutTransaction").NewStat("3: Wait for status").AddTime(next)
 	}()
 
-	return s.processTransaction(ctx, req.WaitForStatus, sReq, hash.String(), metamorph_api.Status_RECEIVED), nil
+	return s.processTransaction(ctx, req.WaitForStatus, sReq, hash.String()), nil
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
@@ -242,7 +252,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	processTxsInputMap := make(map[chainhash.Hash]processTxInput)
 
 	for ind, txReq := range req.Transactions {
-		err := validateCallbackURL(txReq.CallbackUrl)
+		err := ValidateCallbackURL(txReq.CallbackUrl)
 		if err != nil {
 			return nil, err
 		}
@@ -288,7 +298,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		go func(ctx context.Context, processTxInput processTxInput, txID string, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
 			defer wg.Done()
 
-			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, txID, metamorph_api.Status_STORED)
+			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, txID)
 
 			resp.Statuses[processTxInput.responseIndex] = statusNew
 		}(ctx, input, hash.String(), wg, resp)
@@ -299,7 +309,27 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	return resp, nil
 }
 
-func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, TxID string, latestStatus metamorph_api.Status) *metamorph_api.TransactionStatus {
+func hasWaitForStatusReached(status metamorph_api.Status, waitForStatus metamorph_api.Status) bool {
+	statusValueMap := map[metamorph_api.Status]int{
+		metamorph_api.Status_UNKNOWN:                0,
+		metamorph_api.Status_QUEUED:                 1,
+		metamorph_api.Status_RECEIVED:               2,
+		metamorph_api.Status_STORED:                 3,
+		metamorph_api.Status_ANNOUNCED_TO_NETWORK:   4,
+		metamorph_api.Status_REQUESTED_BY_NETWORK:   5,
+		metamorph_api.Status_SENT_TO_NETWORK:        6,
+		metamorph_api.Status_REJECTED:               7,
+		metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL: 8,
+		metamorph_api.Status_ACCEPTED_BY_NETWORK:    9,
+		metamorph_api.Status_SEEN_ON_NETWORK:        10,
+		metamorph_api.Status_MINED:                  11,
+		metamorph_api.Status_CONFIRMED:              12,
+	}
+
+	return statusValueMap[status] >= statusValueMap[waitForStatus]
+}
+
+func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, TxID string) *metamorph_api.TransactionStatus {
 
 	responseChannel := make(chan processor_response.StatusAndError, 1)
 	defer func() {
@@ -309,42 +339,31 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	// TODO check the context when API call ends
 	s.processor.ProcessTransaction(ctx, &ProcessorRequest{Data: data, ResponseChannel: responseChannel})
 
-	if waitForStatus < metamorph_api.Status_RECEIVED || waitForStatus > metamorph_api.Status_SEEN_ON_NETWORK {
+	if waitForStatus == 0 {
 		// wait for seen by default, this is the safest option
 		waitForStatus = metamorph_api.Status_SEEN_ON_NETWORK
 	}
 
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeout := time.NewTimer(s.timeout)
+	returnedStatus := &metamorph_api.TransactionStatus{Txid: TxID}
 
 	for {
 		select {
 		case <-timeout.C:
-			return &metamorph_api.TransactionStatus{
-				TimedOut: true,
-				Status:   latestStatus,
-				Txid:     TxID,
-			}
+			returnedStatus.TimedOut = true
+			return returnedStatus
 		case res := <-responseChannel:
-			latestStatus = res.Status
+			returnedStatus.Status = res.Status
 
-			if res.Status < latestStatus {
-				continue
+			if res.Err != nil {
+				returnedStatus.RejectReason = res.Err.Error()
+			} else {
+				returnedStatus.RejectReason = ""
 			}
 
-			if resErr := res.Err; resErr != nil {
-				return &metamorph_api.TransactionStatus{
-					Status:       latestStatus,
-					Txid:         TxID,
-					RejectReason: resErr.Error(),
-				}
-			}
-
-			if latestStatus >= waitForStatus {
-				return &metamorph_api.TransactionStatus{
-					Status: latestStatus,
-					Txid:   TxID,
-				}
+			if hasWaitForStatusReached(returnedStatus.Status, waitForStatus) {
+				return returnedStatus
 			}
 		}
 	}
@@ -435,7 +454,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 	}
 
 	if s.forceCheckUtxos {
-		next, err = s.checkUtxos(initCtx, next, req.RawTx)
+		next, err = s.CheckUtxos(initCtx, next, req.RawTx)
 		s.logger.Error("Error checking utxos", slog.String("err", err.Error()))
 		if err != nil {
 			return 0, 0, nil, &metamorph_api.TransactionStatus{
@@ -473,7 +492,7 @@ func (s *Server) checkStore(ctx context.Context, hash *chainhash.Hash, next int6
 	return gocore.NewStat("PutTransaction").NewStat("1: Check store").AddTime(next), nil
 }
 
-func (s *Server) checkUtxos(ctx context.Context, next int64, rawTx []byte) (int64, error) {
+func (s *Server) CheckUtxos(ctx context.Context, next int64, rawTx []byte) (int64, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:UtxoCheck")
 	defer span.Finish()
 

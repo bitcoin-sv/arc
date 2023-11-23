@@ -62,7 +62,7 @@ func StartAPIServer(logger utils.Logger) (func(), error) {
 		logger.Infof("Starting API server on %s", apiAddress)
 		err := e.Start(apiAddress)
 		if err != nil {
-			if err == http.ErrServerClosed {
+			if errors.Is(err, http.ErrServerClosed) {
 				logger.Infof("API http server closed")
 				return
 			} else {

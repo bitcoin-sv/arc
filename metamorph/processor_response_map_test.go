@@ -1,9 +1,10 @@
-package metamorph
+package metamorph_test
 
 import (
 	"testing"
 	"time"
 
+	. "github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/testdata"
@@ -16,8 +17,8 @@ func TestNewProcessorResponseMap(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		expiry := 10 * time.Second
 		prm := NewProcessorResponseMap(expiry)
-		assert.Equalf(t, expiry, prm.expiry, "NewProcessorResponseMap(%v)", expiry)
-		assert.Len(t, prm.items, 0)
+		assert.Equalf(t, expiry, prm.Expiry, "NewProcessorResponseMap(%v)", expiry)
+		assert.Len(t, prm.ResponseItems, 0)
 	})
 
 	t.Run("go routine", func(t *testing.T) {
@@ -160,21 +161,21 @@ func TestProcessorResponseMap_Set(t *testing.T) {
 	t.Run("empty key", func(t *testing.T) {
 		proc := NewProcessorResponseMap(2 * time.Second)
 		proc.Set(&chainhash.Hash{}, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK))
-		assert.Len(t, proc.items, 1)
+		assert.Len(t, proc.ResponseItems, 1)
 
-		item := proc.items[chainhash.Hash{}]
+		item := proc.ResponseItems[chainhash.Hash{}]
 		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.GetStatus())
 	})
 
 	t.Run("default", func(t *testing.T) {
 		proc := NewProcessorResponseMap(2 * time.Second)
-		assert.Len(t, proc.items, 0)
+		assert.Len(t, proc.ResponseItems, 0)
 
 		proc.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK))
 
-		assert.Len(t, proc.items, 1)
+		assert.Len(t, proc.ResponseItems, 1)
 
-		item := proc.items[*testdata.TX1Hash]
+		item := proc.ResponseItems[*testdata.TX1Hash]
 		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.GetStatus())
 	})
 }
@@ -185,19 +186,19 @@ func TestProcessorResponseMap_clean(t *testing.T) {
 		proc.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK))
 		proc.Set(testdata.TX2Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK))
 
-		proc.clean()
+		proc.Clean()
 
 		assert.Equal(t, 2, proc.Len())
 	})
 
-	t.Run("expiry", func(t *testing.T) {
+	t.Run("Expiry", func(t *testing.T) {
 		proc := NewProcessorResponseMap(50 * time.Millisecond)
 		proc.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK))
 		proc.Set(testdata.TX2Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK))
 
 		time.Sleep(100 * time.Millisecond)
 
-		proc.clean()
+		proc.Clean()
 
 		assert.Equal(t, 0, proc.Len())
 	})

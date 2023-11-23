@@ -3,7 +3,6 @@ package dynamodb
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"testing"
 	"time"
 
@@ -86,7 +85,7 @@ func NewDynamoDBIntegrationTestRepo(t *testing.T) (*DynamoDB, *dynamodb.Client) 
 	})
 	require.NoError(t, err)
 
-	repo, err := New(client, hostname)
+	repo, err := New(client, hostname, 1*time.Hour)
 	require.NoError(t, err)
 
 	tables, err := client.ListTables(context.Background(), &dynamodb.ListTablesInput{})
@@ -152,12 +151,10 @@ func TestDynamoDBIntegration(t *testing.T) {
 		_, isAttrErr := err.(*attributevalue.UnmarshalTypeError)
 		require.True(t, isAttrErr)
 	})
-	t.Run("set", func(t *testing.T) {
+	t.Run("set/get", func(t *testing.T) {
 		err := repo.Set(ctx, nil, dataStatusSent)
 		require.NoError(t, err)
-	})
 
-	t.Run("get", func(t *testing.T) {
 		returnedData, err := repo.Get(ctx, TX1Hash[:])
 		require.NoError(t, err)
 		require.Equal(t, dataStatusSent, returnedData)
@@ -241,6 +238,27 @@ func TestDynamoDBIntegration(t *testing.T) {
 		err := repo.Del(ctx, TX1Hash[:])
 		require.NoError(t, err)
 		_, err = repo.Get(ctx, TX1Hash[:])
-		require.True(t, errors.Is(store.ErrNotFound, err))
+		require.ErrorIs(t, err, store.ErrNotFound)
+	})
+
+	t.Run("blocks - time to live = -1 hour", func(t *testing.T) {
+		repo.ttl = time.Minute * -10
+		err := repo.SetBlockProcessed(ctx, Block1Hash)
+		require.NoError(t, err)
+
+		time.Sleep(2 * time.Second) // give DynamoDB time to delete
+		processedAt, err := repo.GetBlockProcessed(ctx, Block1Hash)
+		require.NoError(t, err)
+		require.Nil(t, processedAt)
+	})
+
+	t.Run("transactions - time to live = -1 hour", func(t *testing.T) {
+		repo.ttl = time.Minute * -10
+		err := repo.Set(ctx, nil, dataStatusSent)
+		require.NoError(t, err)
+
+		time.Sleep(10 * time.Second) // give DynamoDB time to delete
+		_, err = repo.Get(ctx, TX1Hash[:])
+		require.ErrorIs(t, err, store.ErrNotFound)
 	})
 }

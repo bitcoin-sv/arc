@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -13,7 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/tracing"
-	bc "github.com/libsv/go-bc"
+	"github.com/libsv/go-bc"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -335,7 +336,7 @@ func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 	if height > uint64(startingHeight) {
 		if _, found := bs.announcedCache.Get(*previousBlockHash); !found {
 			if _, err := bs.store.GetBlock(context.Background(), previousBlockHash); err != nil {
-				if err == sql.ErrNoRows {
+				if errors.Is(err, sql.ErrNoRows) {
 					pair := utils.NewPair(previousBlockHash, peer)
 					utils.SafeSend(bs.workerCh, pair)
 				}

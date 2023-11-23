@@ -10,6 +10,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY ./arc_txt_endpoint_test.go ./arc_txt_endpoint_test.go
+COPY ./double_spend_test.go ./double_spend_test.go
 COPY ./utils.go ./utils.go
 COPY ./fixtures ./fixtures
 

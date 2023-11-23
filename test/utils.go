@@ -142,3 +142,11 @@ func getUtxos(t *testing.T, address string) []NodeUnspentUtxo {
 
 	return result
 }
+
+func getBlockRootByHeight(t *testing.T, blockHeight int) string {
+	t.Helper()
+	block, err := bitcoind.GetBlockByHeight(blockHeight)
+	require.NoError(t, err)
+
+	return block.MerkleRoot
+}

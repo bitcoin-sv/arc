@@ -1,13 +1,16 @@
-package metamorph
+package metamorph_test
 
 import (
 	"net/url"
 	"testing"
 
+	. "github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	. "github.com/bitcoin-sv/arc/metamorph/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
+//go:generate moq -pkg mocks -out ./mocks/zmq_mock.go . ZMQI
 func TestMissingInputsZMQI(t *testing.T) {
 	// make and configure a mocked ZMQI
 	mockedZMQI := &ZMQIMock{
@@ -30,8 +33,7 @@ func TestMissingInputsZMQI(t *testing.T) {
 	zmq.Start(mockedZMQI)
 	status := <-statuses
 
-	assert.Equal(t, status.Status, metamorph_api.Status_SENT_TO_NETWORK)
-	assert.Equal(t, status.Err.Error(), "Transaction 4ae1d209a1aae2a4aa703e2addaf9135f4a1b1cd0d87020037ea5619d495f717 is currently orphaned")
+	assert.Equal(t, status.Status, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
 }
 
 func TestInvalidTxZMQI(t *testing.T) {

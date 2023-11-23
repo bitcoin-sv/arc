@@ -103,23 +103,6 @@ func (r *ProcessorResponse) updateStatus(statusUpdate *ProcessorResponseStatusUp
 		return
 	}
 
-	process := false
-
-	if r.Status == metamorph_api.Status_REJECTED && statusUpdate.Status != metamorph_api.Status_REJECTED {
-		process = true
-	} else if statusUpdate.Status > r.Status {
-		process = true
-	}
-
-	if statusUpdate.StatusErr != nil {
-		process = true
-	}
-
-	if !process {
-		r.addLog(statusUpdate.Status, statusUpdate.Source, "duplicate")
-		return
-	}
-
 	if statusUpdate.UpdateStore != nil {
 		if err := statusUpdate.UpdateStore(); err != nil {
 			r.setErr(err, "processorResponse")

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"time"
 
 	"github.com/lmittmann/tint"
 	"github.com/spf13/viper"
@@ -42,7 +41,7 @@ func NewLogger() (*slog.Logger, error) {
 	case "text":
 		return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})), nil
 	case "tint":
-		return slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: logLevel, TimeFormat: time.Kitchen})), nil
+		return slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: logLevel})), nil
 	}
 
 	return nil, fmt.Errorf("invalid log format: %s", logFormat)

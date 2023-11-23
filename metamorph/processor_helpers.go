@@ -26,7 +26,7 @@ import (
 
 func (p *Processor) GetStats(debugItems bool) *ProcessorStats {
 	if debugItems {
-		p.processorResponseMap.logMapItems(p.logger)
+		p.ProcessorResponseMap.logMapItems(p.logger)
 	}
 
 	return &ProcessorStats{
@@ -43,7 +43,7 @@ func (p *Processor) GetStats(debugItems bool) *ProcessorStats {
 		Rejected:           p.rejected,
 		Mined:              p.mined,
 		Retries:            p.retries,
-		ChannelMapSize:     int32(p.processorResponseMap.Len()),
+		ChannelMapSize:     int32(p.ProcessorResponseMap.Len()),
 	}
 }
 
@@ -136,7 +136,7 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		stats := p.GetStats(false)
 		if printTxs {
-			m := p.processorResponseMap.Items()
+			m := p.ProcessorResponseMap.Items()
 
 			txMap := make(map[string]*processor_response.ProcessorResponse)
 
@@ -162,7 +162,7 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 
 	var txids strings.Builder
 	if printTxs {
-		items := p.processorResponseMap.Items()
+		items := p.ProcessorResponseMap.Items()
 		processorResponses := make([]*processor_response.ProcessorResponse, 0, len(items))
 		for _, item := range items {
 			processorResponses = append(processorResponses, item)
@@ -252,7 +252,7 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 func (p *Processor) writeTransaction(w http.ResponseWriter, hash *chainhash.Hash, format string) {
 	if format == "json" {
 		w.Header().Set("Content-Type", "application/json")
-		prm, found := p.processorResponseMap.Get(hash)
+		prm, found := p.ProcessorResponseMap.Get(hash)
 		if !found {
 			storeData, _ := p.store.Get(context.Background(), hash[:])
 			if storeData != nil {
@@ -284,7 +284,7 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, hash *chainhash.Hash
     <div class="container">
 `, hash))
 
-	prm, found := p.processorResponseMap.Get(hash)
+	prm, found := p.ProcessorResponseMap.Get(hash)
 	if !found {
 		storeData, _ := p.store.Get(context.Background(), hash[:])
 		if storeData != nil {

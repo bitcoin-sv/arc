@@ -74,7 +74,7 @@ jobs:
 
       - name: e2e test
         run: |
-          docker-compose up -d node1 node2 node3
+          docker-compose up -d node1 node2 node3 db migrate
           docker-compose up --exit-code-from tests tests arc
           docker-compose down
         working-directory: ./test

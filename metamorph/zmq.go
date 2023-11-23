@@ -116,8 +116,8 @@ func (z *ZMQ) Start(zmqi ZMQI) {
 				}
 				if txInfo.IsMissingInputs {
 					z.Logger.Debugf("invalidtx %s due to missing inputs ignored", txInfo.TxID)
-					errReason = "Transaction " + txInfo.TxID + " is currently orphaned"
-					status = metamorph_api.Status_SENT_TO_NETWORK
+					errReason = ""
+					status = metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL
 				}
 				if txInfo.IsDoubleSpendDetected {
 					errReason += " - double spend"

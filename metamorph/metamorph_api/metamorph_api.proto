@@ -7,6 +7,7 @@ package metamorph_api;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
+// Note: Do not change values of the existing statuses.
 enum Status {
   UNKNOWN = 0;
   QUEUED = 1;
@@ -20,6 +21,7 @@ enum Status {
   MINED = 9;
   CONFIRMED = 108; // 100 confirmation blocks
   REJECTED = 109;
+  SEEN_IN_ORPHAN_MEMPOOL = 10;
 }
 
 service MetaMorphAPI {

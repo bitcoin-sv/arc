@@ -37,6 +37,7 @@ var (
 	TX2RawBytes, _ = hex.DecodeString(TX2raw)
 	TX2, _         = bt.NewTxFromBytes(TX2RawBytes)
 	TX2Hash, _     = chainhash.NewHashFromStr(TX2.TxID())
+	dateNow        = time.Date(2023, 11, 12, 13, 0, 0, 0, time.UTC)
 )
 
 func NewDynamoDBIntegrationTestRepo(t *testing.T) (*DynamoDB, *dynamodb.Client) {
@@ -85,12 +86,12 @@ func NewDynamoDBIntegrationTestRepo(t *testing.T) (*DynamoDB, *dynamodb.Client) 
 	})
 	require.NoError(t, err)
 
-	repo, err := New(client, hostname, 1*time.Hour)
+	repo, err := New(client, hostname, 1*time.Hour, "test-env", WithNow(func() time.Time { return dateNow }))
 	require.NoError(t, err)
 
 	tables, err := client.ListTables(context.Background(), &dynamodb.ListTablesInput{})
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"blocks", "transactions"}, tables.TableNames)
+	require.ElementsMatch(t, []string{"blocks-test-env", "transactions-test-env"}, tables.TableNames)
 
 	return repo, client
 }
@@ -101,7 +102,7 @@ func putItem(t *testing.T, ctx context.Context, client *dynamodb.Client, storeDa
 	require.NoError(t, err)
 	// put item into table
 	_, err = client.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: aws.String("transactions"), Item: item,
+		TableName: aws.String("transactions-test-env"), Item: item,
 	})
 
 	require.NoError(t, err)
@@ -218,11 +219,27 @@ func TestDynamoDBIntegration(t *testing.T) {
 	t.Run("update status", func(t *testing.T) {
 		err = repo.UpdateStatus(ctx, TX1Hash, metamorph_api.Status_REJECTED, "missing inputs")
 		require.NoError(t, err)
-		returnedData, err := repo.Get(ctx, TX1Hash[:])
+		returnedDataRejected, err := repo.Get(ctx, TX1Hash[:])
 		require.NoError(t, err)
-		require.Equal(t, metamorph_api.Status_REJECTED, returnedData.Status)
-		require.Equal(t, "missing inputs", returnedData.RejectReason)
-		require.Equal(t, TX1RawBytes, returnedData.RawTx)
+		require.Equal(t, metamorph_api.Status_REJECTED, returnedDataRejected.Status)
+		require.Equal(t, "missing inputs", returnedDataRejected.RejectReason)
+		require.Equal(t, TX1RawBytes, returnedDataRejected.RawTx)
+
+		err = repo.UpdateStatus(ctx, TX1Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
+		require.NoError(t, err)
+		returnedDataAnnounced, err := repo.Get(ctx, TX1Hash[:])
+		require.NoError(t, err)
+		require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, returnedDataAnnounced.Status)
+		require.Equal(t, dateNow, returnedDataAnnounced.AnnouncedAt)
+		require.Equal(t, TX1RawBytes, returnedDataAnnounced.RawTx)
+
+		err = repo.UpdateStatus(ctx, TX1Hash, metamorph_api.Status_MINED, "")
+		require.NoError(t, err)
+		returnedDataMined, err := repo.Get(ctx, TX1Hash[:])
+		require.NoError(t, err)
+		require.Equal(t, metamorph_api.Status_MINED, returnedDataMined.Status)
+		require.Equal(t, dateNow, returnedDataMined.MinedAt)
+		require.Equal(t, TX1RawBytes, returnedDataMined.RawTx)
 	})
 
 	t.Run("update mined", func(t *testing.T) {

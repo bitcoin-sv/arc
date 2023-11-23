@@ -730,7 +730,9 @@ func TestGetTransactionOptions(t *testing.T) {
 				XWaitForStatus: PtrTo(1),
 			},
 
-			expectedOptions: &api.TransactionOptions{},
+			expectedOptions: &api.TransactionOptions{
+				WaitForStatus: metamorph_api.Status_QUEUED,
+			},
 		},
 		{
 			name: "wait for status - 2",
@@ -758,7 +760,9 @@ func TestGetTransactionOptions(t *testing.T) {
 				XWaitForStatus: PtrTo(7),
 			},
 
-			expectedOptions: &api.TransactionOptions{},
+			expectedOptions: &api.TransactionOptions{
+				WaitForStatus: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+			},
 		},
 	}
 

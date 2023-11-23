@@ -384,9 +384,7 @@ func getTransactionsOptions(params api.POSTTransactionsParams) (*api.Transaction
 		}
 	}
 	if params.XWaitForStatus != nil {
-		if *params.XWaitForStatus >= 2 && *params.XWaitForStatus <= 6 {
-			transactionOptions.WaitForStatus = metamorph_api.Status(*params.XWaitForStatus)
-		}
+		transactionOptions.WaitForStatus = metamorph_api.Status(*params.XWaitForStatus)
 	}
 	if params.XSkipFeeValidation != nil {
 		transactionOptions.SkipFeeValidation = *params.XSkipFeeValidation

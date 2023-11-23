@@ -86,12 +86,12 @@ func NewDynamoDBIntegrationTestRepo(t *testing.T) (*DynamoDB, *dynamodb.Client) 
 	})
 	require.NoError(t, err)
 
-	repo, err := New(client, hostname, 1*time.Hour, WithNow(func() time.Time { return dateNow }))
+	repo, err := New(client, hostname, 1*time.Hour, "test-env", WithNow(func() time.Time { return dateNow }))
 	require.NoError(t, err)
 
 	tables, err := client.ListTables(context.Background(), &dynamodb.ListTablesInput{})
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"blocks", "transactions"}, tables.TableNames)
+	require.ElementsMatch(t, []string{"blocks-test-env", "transactions-test-env"}, tables.TableNames)
 
 	return repo, client
 }
@@ -102,7 +102,7 @@ func putItem(t *testing.T, ctx context.Context, client *dynamodb.Client, storeDa
 	require.NoError(t, err)
 	// put item into table
 	_, err = client.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: aws.String("transactions"), Item: item,
+		TableName: aws.String("transactions-test-env"), Item: item,
 	})
 
 	require.NoError(t, err)

@@ -363,10 +363,13 @@ func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) 
 				ttlDays = dataRetentionPeriodDaysDefault
 			}
 
+			tableNameSuffix := viper.GetString("metamorph.db.dynamoDB.tableNameSuffix")
+
 			s, err = dynamodb.New(
 				awsdynamodb.NewFromConfig(cfg),
 				hostname,
 				time.Duration(ttlDays)*24*time.Hour,
+				tableNameSuffix,
 			)
 			if err != nil {
 				return nil, err

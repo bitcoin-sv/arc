@@ -33,10 +33,12 @@ const (
 )
 
 type DynamoDB struct {
-	client   *dynamodb.Client
-	hostname string
-	ttl      time.Duration
-	now      func() time.Time
+	client                *dynamodb.Client
+	hostname              string
+	ttl                   time.Duration
+	now                   func() time.Time
+	transactionsTableName string
+	blocksTableName       string
 }
 
 func WithNow(nowFunc func() time.Time) func(*DynamoDB) {
@@ -47,12 +49,14 @@ func WithNow(nowFunc func() time.Time) func(*DynamoDB) {
 
 type Option func(f *DynamoDB)
 
-func New(client *dynamodb.Client, hostname string, timeToLive time.Duration, opts ...Option) (*DynamoDB, error) {
+func New(client *dynamodb.Client, hostname string, timeToLive time.Duration, tableNameSuffix string, opts ...Option) (*DynamoDB, error) {
 	repo := &DynamoDB{
-		client:   client,
-		hostname: hostname,
-		ttl:      timeToLive,
-		now:      time.Now,
+		client:                client,
+		hostname:              hostname,
+		ttl:                   timeToLive,
+		now:                   time.Now,
+		transactionsTableName: fmt.Sprintf("transactions-%s", tableNameSuffix),
+		blocksTableName:       fmt.Sprintf("blocks-%s", tableNameSuffix),
 	}
 
 	// apply options
@@ -60,7 +64,7 @@ func New(client *dynamodb.Client, hostname string, timeToLive time.Duration, opt
 		opt(repo)
 	}
 
-	err := initialize(context.Background(), repo)
+	err := repo.initialize(context.Background(), repo)
 
 	if err != nil {
 		return nil, err
@@ -68,10 +72,10 @@ func New(client *dynamodb.Client, hostname string, timeToLive time.Duration, opt
 	return repo, nil
 }
 
-func initialize(ctx context.Context, dynamodbClient *DynamoDB) error {
+func (ddb *DynamoDB) initialize(ctx context.Context, dynamodbClient *DynamoDB) error {
 
 	// create table if not exists
-	exists, err := dynamodbClient.TableExists(ctx, "transactions")
+	exists, err := dynamodbClient.TableExists(ctx, ddb.transactionsTableName)
 	if err != nil {
 		return err
 	}
@@ -84,7 +88,7 @@ func initialize(ctx context.Context, dynamodbClient *DynamoDB) error {
 	}
 
 	// create table if not exists
-	exists, err = dynamodbClient.TableExists(ctx, "blocks")
+	exists, err = dynamodbClient.TableExists(ctx, ddb.blocksTableName)
 	if err != nil {
 		return err
 	}
@@ -153,7 +157,7 @@ func (ddb *DynamoDB) CreateTransactionsTable(ctx context.Context) error {
 				},
 			},
 		},
-		TableName: aws.String("transactions"),
+		TableName: aws.String(ddb.transactionsTableName),
 		ProvisionedThroughput: &types.ProvisionedThroughput{
 			ReadCapacityUnits:  aws.Int64(10),
 			WriteCapacityUnits: aws.Int64(10),
@@ -164,7 +168,7 @@ func (ddb *DynamoDB) CreateTransactionsTable(ctx context.Context) error {
 	}
 
 	ttlInput := dynamodb.UpdateTimeToLiveInput{
-		TableName: aws.String("transactions"),
+		TableName: aws.String(ddb.transactionsTableName),
 		TimeToLiveSpecification: &types.TimeToLiveSpecification{
 			Enabled:       aws.Bool(true),
 			AttributeName: aws.String("ttl"),
@@ -194,7 +198,7 @@ func (ddb *DynamoDB) CreateBlocksTable(ctx context.Context) error {
 				KeyType:       types.KeyTypeHash,
 			},
 		},
-		TableName: aws.String("blocks"),
+		TableName: aws.String(ddb.blocksTableName),
 		ProvisionedThroughput: &types.ProvisionedThroughput{
 			ReadCapacityUnits:  aws.Int64(10),
 			WriteCapacityUnits: aws.Int64(10),
@@ -204,7 +208,7 @@ func (ddb *DynamoDB) CreateBlocksTable(ctx context.Context) error {
 	}
 
 	ttlInput := &dynamodb.UpdateTimeToLiveInput{
-		TableName: aws.String("blocks"),
+		TableName: aws.String(ddb.blocksTableName),
 		TimeToLiveSpecification: &types.TimeToLiveSpecification{
 			Enabled:       aws.Bool(true),
 			AttributeName: aws.String("ttl"),
@@ -236,7 +240,7 @@ func (ddb *DynamoDB) Get(ctx context.Context, key []byte) (*store.StoreData, err
 	}
 
 	response, err := ddb.client.GetItem(ctx, &dynamodb.GetItemInput{
-		Key: val, TableName: aws.String("transactions"),
+		Key: val, TableName: aws.String(ddb.transactionsTableName),
 	})
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
@@ -282,7 +286,7 @@ func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData
 
 	// put item into table
 	_, err = ddb.client.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: aws.String("transactions"), Item: item,
+		TableName: aws.String(ddb.transactionsTableName), Item: item,
 	})
 
 	if err != nil {
@@ -308,7 +312,7 @@ func (ddb *DynamoDB) Del(ctx context.Context, key []byte) error {
 	}
 
 	_, err := ddb.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
-		TableName: aws.String("transactions"), Key: val,
+		TableName: aws.String(ddb.transactionsTableName), Key: val,
 	})
 
 	if err != nil {
@@ -354,7 +358,7 @@ func (ddb *DynamoDB) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 	defer span.Finish()
 
 	out, err := ddb.client.Query(ctx, &dynamodb.QueryInput{
-		TableName:              aws.String("transactions"),
+		TableName:              aws.String(ddb.transactionsTableName),
 		IndexName:              aws.String("locked_by_index"),
 		KeyConditionExpression: aws.String(fmt.Sprintf("locked_by = %s", lockedByAttributeKey)),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
@@ -397,7 +401,7 @@ func (ddb *DynamoDB) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 
 func (ddb *DynamoDB) setLockedBy(ctx context.Context, hash *chainhash.Hash, lockedByValue string) error {
 	_, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
-		TableName: aws.String("transactions"),
+		TableName: aws.String(ddb.transactionsTableName),
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
@@ -425,7 +429,7 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 
 	// get unmined set
 	out, err := ddb.client.Query(ctx, &dynamodb.QueryInput{
-		TableName:              aws.String("transactions"),
+		TableName:              aws.String(ddb.transactionsTableName),
 		IndexName:              aws.String("locked_by_index"),
 		KeyConditionExpression: aws.String(fmt.Sprintf("locked_by = %s", lockedByAttributeKey)),
 		FilterExpression:       aws.String(fmt.Sprintf("tx_status < %s or tx_status = %s", txStatusAttributeKey, txStatusAttributeKeyOrphaned)),
@@ -489,7 +493,7 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 
 	// update tx
 	_, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
-		TableName: aws.String("transactions"),
+		TableName: aws.String(ddb.transactionsTableName),
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
@@ -517,7 +521,7 @@ func (ddb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 
 	// set block parameters and status - mined
 	_, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
-		TableName: aws.String("transactions"),
+		TableName: aws.String(ddb.transactionsTableName),
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
@@ -559,7 +563,7 @@ func (ddb *DynamoDB) GetBlockProcessed(ctx context.Context, blockHash *chainhash
 	}
 
 	response, err := ddb.client.GetItem(ctx, &dynamodb.GetItemInput{
-		Key: val, TableName: aws.String("blocks"),
+		Key: val, TableName: aws.String(ddb.blocksTableName),
 	})
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
@@ -617,7 +621,7 @@ func (ddb *DynamoDB) SetBlockProcessed(ctx context.Context, blockHash *chainhash
 
 	// put item into table
 	_, err = ddb.client.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: aws.String("blocks"), Item: item,
+		TableName: aws.String(ddb.blocksTableName), Item: item,
 	})
 
 	if err != nil {

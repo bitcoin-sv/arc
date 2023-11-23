@@ -309,6 +309,26 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	return resp, nil
 }
 
+func returnStatus(status metamorph_api.Status, waitForStatus metamorph_api.Status) bool {
+	statusValueMap := map[metamorph_api.Status]int{
+		metamorph_api.Status_UNKNOWN:                0,
+		metamorph_api.Status_QUEUED:                 1,
+		metamorph_api.Status_RECEIVED:               2,
+		metamorph_api.Status_STORED:                 3,
+		metamorph_api.Status_ANNOUNCED_TO_NETWORK:   4,
+		metamorph_api.Status_REQUESTED_BY_NETWORK:   5,
+		metamorph_api.Status_SENT_TO_NETWORK:        6,
+		metamorph_api.Status_REJECTED:               7,
+		metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL: 8,
+		metamorph_api.Status_ACCEPTED_BY_NETWORK:    9,
+		metamorph_api.Status_SEEN_ON_NETWORK:        10,
+		metamorph_api.Status_MINED:                  11,
+		metamorph_api.Status_CONFIRMED:              12,
+	}
+
+	return statusValueMap[status] >= statusValueMap[waitForStatus]
+}
+
 func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, TxID string) *metamorph_api.TransactionStatus {
 
 	responseChannel := make(chan processor_response.StatusAndError, 1)
@@ -342,7 +362,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 				returnedStatus.RejectReason = ""
 			}
 
-			if returnedStatus.Status == waitForStatus {
+			if returnStatus(returnedStatus.Status, waitForStatus) {
 				return returnedStatus
 			}
 		}

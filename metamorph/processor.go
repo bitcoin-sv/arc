@@ -218,7 +218,7 @@ func (p *Processor) processExpiredSeenTransactions() {
 func (p *Processor) processExpiredTransactions() {
 	// filterFunc returns true if the transaction has not been seen on the network
 	filterFunc := func(procResp *processor_response.ProcessorResponse) bool {
-		return procResp.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK && p.now().Sub(procResp.Start) > unseenTransactionRebroadcastingInterval*time.Second
+		return (procResp.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK || procResp.GetStatus() == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL) && p.now().Sub(procResp.Start) > unseenTransactionRebroadcastingInterval*time.Second
 	}
 
 	// Resend transactions that have not been seen on the network

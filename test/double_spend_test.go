@@ -59,11 +59,11 @@ func TestDoubleSpend(t *testing.T) {
 			}
 
 			//submit first transaction
-			postTx2(t, arcClient, arcBody, "SEEN_ON_NETWORK")
+			postTxChecksStatus(t, arcClient, arcBody, "SEEN_ON_NETWORK")
 
 			// send double spending transaction when first tx is in mempool
 			arcBodyMempool := getArcBody(t, privateKey, utxos[0], tc.extFormat)
-			postTx2(t, arcClient, arcBodyMempool, "REJECTED")
+			postTxChecksStatus(t, arcClient, arcBodyMempool, "REJECTED")
 
 			generate(t, 10)
 
@@ -75,12 +75,12 @@ func TestDoubleSpend(t *testing.T) {
 
 			// send double spending transaction when first tx was mined
 			arcBodyMined := getArcBody(t, privateKey, utxos[0], tc.extFormat)
-			postTx2(t, arcClient, arcBodyMined, "SEEN_IN_ORPHAN_MEMPOOL")
+			postTxChecksStatus(t, arcClient, arcBodyMined, "SEEN_IN_ORPHAN_MEMPOOL")
 		})
 	}
 }
 
-func postTx2(t *testing.T, client *api.ClientWithResponses, body api.POSTTransactionJSONRequestBody, expectedStatus string) {
+func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, body api.POSTTransactionJSONRequestBody, expectedStatus string) {
 	ctx := context.Background()
 	waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
 	params := &api.POSTTransactionParams{

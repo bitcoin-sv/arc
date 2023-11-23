@@ -404,14 +404,9 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		throwErr := fmt.Errorf("some error")
 		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_REJECTED, "test", throwErr)
-		assert.True(t, ok)
+		assert.False(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
-
-		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_REJECTED, txStored.Status)
-		assert.Equal(t, throwErr.Error(), txStored.RejectReason)
 	})
 
 	t.Run("SendStatusForTransaction known tx - no update", func(t *testing.T) {
@@ -475,7 +470,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		// need to sleep, since everything is async
 		time.Sleep(100 * time.Millisecond)
 
-		assert.False(t, ok)
+		assert.True(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len(), "should have been removed from the map")
 

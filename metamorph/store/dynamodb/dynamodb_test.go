@@ -249,6 +249,7 @@ func TestDynamoDBIntegration(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, metamorph_api.Status_MINED, returnedData.Status)
 		require.Equal(t, TX2RawBytes, returnedData.RawTx)
+		require.Equal(t, dateNow, returnedData.MinedAt)
 	})
 
 	t.Run("del", func(t *testing.T) {

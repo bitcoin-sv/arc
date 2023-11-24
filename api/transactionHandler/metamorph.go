@@ -29,16 +29,8 @@ type Metamorph struct {
 }
 
 // NewMetamorph creates a connection to a list of metamorph servers via gRPC
-func NewMetamorph(targets string, blockTxClient blocktx.ClientI, grpcMessageSize int, logger utils.Logger) (*Metamorph, error) {
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
-		grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
-		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)),
-	}
-
-	conn, err := grpc.Dial(targets, tracing.AddGRPCDialOptions(opts)...)
+func NewMetamorph(address string, blockTxClient blocktx.ClientI, grpcMessageSize int, logger utils.Logger) (*Metamorph, error) {
+	conn, err := GetConnection(address, grpcMessageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -49,6 +41,23 @@ func NewMetamorph(targets string, blockTxClient blocktx.ClientI, grpcMessageSize
 		blockTxClient: blockTxClient,
 		logger:        logger,
 	}, nil
+}
+
+func GetConnection(address string, grpcMessageSize int) (*grpc.ClientConn, error) {
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+		grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)),
+	}
+
+	conn, err := grpc.Dial(address, tracing.AddGRPCDialOptions(opts)...)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
 }
 
 // GetTransaction gets the transaction bytes from metamorph

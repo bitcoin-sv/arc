@@ -38,6 +38,7 @@ func main() {
 	startMetamorph := flag.Bool("metamorph", false, "start metamorph")
 	startBlockTx := flag.Bool("blocktx", false, "start blocktx")
 	startCallbacker := flag.Bool("callbacker", false, "start callbacker")
+	startK8sWatcher := flag.Bool("k8s-watcher", false, "start k8s-watcher")
 	useTracer := flag.Bool("tracer", false, "start tracer")
 	help := flag.Bool("help", false, "Show help")
 	config := flag.String("config", ".", "path to configuration yaml file")
@@ -59,6 +60,9 @@ func main() {
 		fmt.Println("")
 		fmt.Println("    -callbacker=<true|false>")
 		fmt.Println("          whether to start callbacker (default=true)")
+		fmt.Println("")
+		fmt.Println("    -k8s-watcher=<true|false>")
+		fmt.Println("          whether to start k8s-watcher (default=true)")
 		fmt.Println("")
 		fmt.Println("    -tracer=<true|false>")
 		fmt.Println("          whether to start the Jaeger tracer (default=false)")
@@ -201,6 +205,16 @@ func main() {
 		var apiLogger = gocore.Log("api", gocore.NewLogLevelFromString(logLevel))
 		if apiShutdown, err := cmd.StartAPIServer(apiLogger); err != nil {
 			logger.Error("Error starting api server", slog.String("err", err.Error()))
+		} else {
+			shutdownFns = append(shutdownFns, func() {
+				apiShutdown()
+			})
+		}
+	}
+
+	if startK8sWatcher != nil && *startK8sWatcher {
+		if apiShutdown, err := cmd.StartK8sWatcher(logger); err != nil {
+			logger.Error("Error starting k8s-watcher server", slog.String("err", err.Error()))
 		} else {
 			shutdownFns = append(shutdownFns, func() {
 				apiShutdown()

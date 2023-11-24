@@ -327,7 +327,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	_ = metamorph.NewZMQCollector(zmqCollector)
 
 	return func() {
-		logger.Infof("Shutting down metamorph store")
+		logger.Infof("Shutting down metamorph")
 		metamorphProcessor.Shutdown()
 		err = s.Close(context.Background())
 		if err != nil {

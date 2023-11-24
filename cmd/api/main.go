@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/bitcoin-sv/arc/cmd"
 	"github.com/ordishs/go-utils"
@@ -33,12 +34,11 @@ func main() {
 
 	// setup signal catching
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
+	signal.Notify(signalChan, syscall.SIGTERM)
 
 	<-signalChan
-
 	appCleanup(logger, shutdown)
-	os.Exit(1)
+	os.Exit(0)
 }
 
 func appCleanup(logger utils.Logger, shutdown func()) {

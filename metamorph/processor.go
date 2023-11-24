@@ -142,12 +142,12 @@ func (p *Processor) Set(ctx context.Context, req *ProcessorRequest) error {
 
 // Shutdown closes all channels and goroutines gracefully
 func (p *Processor) Shutdown() {
+	p.logger.Info("Shutting down processor")
+
 	err := p.unlockItems()
 	if err != nil {
 		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
 	}
-
-	p.logger.Info("Shutting down processor")
 	p.processExpiredSeenTxsTicker.Stop()
 	p.processExpiredTxsTicker.Stop()
 	p.ProcessorResponseMap.Close()
@@ -169,6 +169,7 @@ func (p *Processor) unlockItems() error {
 		index++
 	}
 
+	p.logger.Info("unlocking items", slog.Int("number", len(hashes)))
 	return p.store.SetUnlocked(context.Background(), hashes)
 }
 

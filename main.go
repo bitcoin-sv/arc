@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/bitcoin-sv/arc/cmd"
 	cfg "github.com/bitcoin-sv/arc/config"
@@ -209,11 +210,11 @@ func main() {
 
 	// setup signal catching
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
+	signal.Notify(signalChan, syscall.SIGTERM)
 
 	<-signalChan
 	appCleanup(logger, shutdownFns)
-	os.Exit(1)
+	os.Exit(0)
 }
 
 func appCleanup(logger *slog.Logger, shutdownFns []func()) {

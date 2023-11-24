@@ -526,11 +526,12 @@ func (ddb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
-		UpdateExpression: aws.String(fmt.Sprintf("SET block_height = %s, block_hash = %s, tx_status = %s", blockHeightAttributeKey, blockHashAttributeKey, txStatusAttributeKey)),
+		UpdateExpression: aws.String(fmt.Sprintf("SET block_height = %s, block_hash = %s, tx_status = %s, mined_at = %s", blockHeightAttributeKey, blockHashAttributeKey, txStatusAttributeKey, minedAtAttributeKey)),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			blockHashAttributeKey:   &types.AttributeValueMemberB{Value: blockHash.CloneBytes()},
 			blockHeightAttributeKey: &types.AttributeValueMemberN{Value: strconv.Itoa(int(blockHeight))},
 			txStatusAttributeKey:    &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
+			minedAtAttributeKey:     &types.AttributeValueMemberS{Value: ddb.now().Format(time.RFC3339)},
 		},
 	})
 

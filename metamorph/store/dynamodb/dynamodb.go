@@ -275,6 +275,7 @@ func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData
 	ttl := ddb.now().Add(ddb.ttl)
 	value.Ttl = ttl.Unix()
 	value.LockedBy = ddb.hostname
+	value.StoredAt = ddb.now()
 
 	// marshal input value for new entry
 	item, err := attributevalue.MarshalMap(value)

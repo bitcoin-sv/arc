@@ -182,10 +182,14 @@ func (p *Processor) processExpiredSeenTransactions() {
 	// Check transactions that have been seen on the network, but haven't been marked as mined
 	// The Items() method will return a copy of the map, so we can iterate over it without locking
 	for range p.processExpiredSeenTxsTicker.C {
+		p.logger.Debug("processing expired seen transactions")
+
 		expiredTransactionItems := p.ProcessorResponseMap.Items(filterFunc)
 		if len(expiredTransactionItems) == 0 {
 			continue
 		}
+
+		p.logger.Debug(fmt.Sprintf("getting transaction blocks from blocktx for %d transactions", len(expiredTransactionItems)))
 
 		transactions := &blocktx_api.Transactions{}
 		txs := make([]*blocktx_api.Transaction, len(expiredTransactionItems))
@@ -198,7 +202,7 @@ func (p *Processor) processExpiredSeenTransactions() {
 
 		blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
 		if err != nil {
-			p.logger.Error("failed to get transactions from blocktx", slog.String("err", err.Error()))
+			p.logger.Error("failed to get transaction blocks from blocktx", slog.String("err", err.Error()))
 			return
 		}
 

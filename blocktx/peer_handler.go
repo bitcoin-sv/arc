@@ -386,7 +386,7 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 		}
 
 		merklePaths = append(merklePaths, bumpHex)
-		if txIndex%TransactionStoringInterval == 0 || txIndex == len(leaves)-1 {
+		if txIndex%TransactionStoringInterval == 0 {
 			if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
 				return err
 			}
@@ -394,6 +394,11 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 			txs = txs[:0]
 			merklePaths = merklePaths[:0]
 		}
+	}
+
+	// insert all remaining transactions into the table
+	if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
+		return err
 	}
 
 	return nil

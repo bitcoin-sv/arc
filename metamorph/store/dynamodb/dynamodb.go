@@ -28,22 +28,43 @@ const (
 	blockHeightAttributeKey      = ":block_height"
 	blockHashAttributeKey        = ":block_hash"
 	rejectReasonAttributeKey     = ":reject_reason"
+	announcedAtAttributeKey      = ":announced_at"
+	minedAtAttributeKey          = ":mined_at"
 )
 
 type DynamoDB struct {
-	client   *dynamodb.Client
-	hostname string
-	ttl      time.Duration
+	client                *dynamodb.Client
+	hostname              string
+	ttl                   time.Duration
+	now                   func() time.Time
+	transactionsTableName string
+	blocksTableName       string
 }
 
-func New(client *dynamodb.Client, hostname string, timeToLive time.Duration) (*DynamoDB, error) {
+func WithNow(nowFunc func() time.Time) func(*DynamoDB) {
+	return func(p *DynamoDB) {
+		p.now = nowFunc
+	}
+}
+
+type Option func(f *DynamoDB)
+
+func New(client *dynamodb.Client, hostname string, timeToLive time.Duration, tableNameSuffix string, opts ...Option) (*DynamoDB, error) {
 	repo := &DynamoDB{
-		client:   client,
-		hostname: hostname,
-		ttl:      timeToLive,
+		client:                client,
+		hostname:              hostname,
+		ttl:                   timeToLive,
+		now:                   time.Now,
+		transactionsTableName: fmt.Sprintf("transactions-%s", tableNameSuffix),
+		blocksTableName:       fmt.Sprintf("blocks-%s", tableNameSuffix),
 	}
 
-	err := initialize(context.Background(), repo)
+	// apply options
+	for _, opt := range opts {
+		opt(repo)
+	}
+
+	err := repo.initialize(context.Background(), repo)
 
 	if err != nil {
 		return nil, err
@@ -51,10 +72,10 @@ func New(client *dynamodb.Client, hostname string, timeToLive time.Duration) (*D
 	return repo, nil
 }
 
-func initialize(ctx context.Context, dynamodbClient *DynamoDB) error {
+func (ddb *DynamoDB) initialize(ctx context.Context, dynamodbClient *DynamoDB) error {
 
 	// create table if not exists
-	exists, err := dynamodbClient.TableExists(ctx, "transactions")
+	exists, err := dynamodbClient.TableExists(ctx, ddb.transactionsTableName)
 	if err != nil {
 		return err
 	}
@@ -67,7 +88,7 @@ func initialize(ctx context.Context, dynamodbClient *DynamoDB) error {
 	}
 
 	// create table if not exists
-	exists, err = dynamodbClient.TableExists(ctx, "blocks")
+	exists, err = dynamodbClient.TableExists(ctx, ddb.blocksTableName)
 	if err != nil {
 		return err
 	}
@@ -136,7 +157,7 @@ func (ddb *DynamoDB) CreateTransactionsTable(ctx context.Context) error {
 				},
 			},
 		},
-		TableName: aws.String("transactions"),
+		TableName: aws.String(ddb.transactionsTableName),
 		ProvisionedThroughput: &types.ProvisionedThroughput{
 			ReadCapacityUnits:  aws.Int64(10),
 			WriteCapacityUnits: aws.Int64(10),
@@ -147,7 +168,7 @@ func (ddb *DynamoDB) CreateTransactionsTable(ctx context.Context) error {
 	}
 
 	ttlInput := dynamodb.UpdateTimeToLiveInput{
-		TableName: aws.String("transactions"),
+		TableName: aws.String(ddb.transactionsTableName),
 		TimeToLiveSpecification: &types.TimeToLiveSpecification{
 			Enabled:       aws.Bool(true),
 			AttributeName: aws.String("ttl"),
@@ -177,7 +198,7 @@ func (ddb *DynamoDB) CreateBlocksTable(ctx context.Context) error {
 				KeyType:       types.KeyTypeHash,
 			},
 		},
-		TableName: aws.String("blocks"),
+		TableName: aws.String(ddb.blocksTableName),
 		ProvisionedThroughput: &types.ProvisionedThroughput{
 			ReadCapacityUnits:  aws.Int64(10),
 			WriteCapacityUnits: aws.Int64(10),
@@ -187,7 +208,7 @@ func (ddb *DynamoDB) CreateBlocksTable(ctx context.Context) error {
 	}
 
 	ttlInput := &dynamodb.UpdateTimeToLiveInput{
-		TableName: aws.String("blocks"),
+		TableName: aws.String(ddb.blocksTableName),
 		TimeToLiveSpecification: &types.TimeToLiveSpecification{
 			Enabled:       aws.Bool(true),
 			AttributeName: aws.String("ttl"),
@@ -207,7 +228,7 @@ func (ddb *DynamoDB) IsCentralised() bool {
 
 func (ddb *DynamoDB) Get(ctx context.Context, key []byte) (*store.StoreData, error) {
 	// config log and tracing
-	startNanos := time.Now().UnixNano()
+	startNanos := ddb.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_dynamodb").NewStat("Get").AddTime(startNanos)
 	}()
@@ -219,7 +240,7 @@ func (ddb *DynamoDB) Get(ctx context.Context, key []byte) (*store.StoreData, err
 	}
 
 	response, err := ddb.client.GetItem(ctx, &dynamodb.GetItemInput{
-		Key: val, TableName: aws.String("transactions"),
+		Key: val, TableName: aws.String(ddb.transactionsTableName),
 	})
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
@@ -244,16 +265,17 @@ func (ddb *DynamoDB) Get(ctx context.Context, key []byte) (*store.StoreData, err
 
 func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData) error {
 	// setup log and tracing
-	startNanos := time.Now().UnixNano()
+	startNanos := ddb.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_dynamodb").NewStat("Set").AddTime(startNanos)
 	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:Set")
 	defer span.Finish()
 
-	ttl := time.Now().Add(ddb.ttl)
+	ttl := ddb.now().Add(ddb.ttl)
 	value.Ttl = ttl.Unix()
 	value.LockedBy = ddb.hostname
+	value.StoredAt = ddb.now()
 
 	// marshal input value for new entry
 	item, err := attributevalue.MarshalMap(value)
@@ -265,7 +287,7 @@ func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData
 
 	// put item into table
 	_, err = ddb.client.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: aws.String("transactions"), Item: item,
+		TableName: aws.String(ddb.transactionsTableName), Item: item,
 	})
 
 	if err != nil {
@@ -279,7 +301,7 @@ func (ddb *DynamoDB) Set(ctx context.Context, key []byte, value *store.StoreData
 
 func (ddb *DynamoDB) Del(ctx context.Context, key []byte) error {
 	// setup log and tracing
-	startNanos := time.Now().UnixNano()
+	startNanos := ddb.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_dynamodb").NewStat("Del").AddTime(startNanos)
 	}()
@@ -291,7 +313,7 @@ func (ddb *DynamoDB) Del(ctx context.Context, key []byte) error {
 	}
 
 	_, err := ddb.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
-		TableName: aws.String("transactions"), Key: val,
+		TableName: aws.String(ddb.transactionsTableName), Key: val,
 	})
 
 	if err != nil {
@@ -305,7 +327,7 @@ func (ddb *DynamoDB) Del(ctx context.Context, key []byte) error {
 
 func (ddb *DynamoDB) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
 	// setup log and tracing
-	startNanos := time.Now().UnixNano()
+	startNanos := ddb.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("UpdateStatus").AddTime(startNanos)
 	}()
@@ -329,7 +351,7 @@ func (ddb *DynamoDB) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) 
 // SetUnlockedByName sets all items to unlocked which were locked by a name
 func (ddb *DynamoDB) SetUnlockedByName(ctx context.Context, lockedBy string) (int, error) {
 	// setup log and tracing
-	startNanos := time.Now().UnixNano()
+	startNanos := ddb.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("UpdateStatus").AddTime(startNanos)
 	}()
@@ -337,7 +359,7 @@ func (ddb *DynamoDB) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 	defer span.Finish()
 
 	out, err := ddb.client.Query(ctx, &dynamodb.QueryInput{
-		TableName:              aws.String("transactions"),
+		TableName:              aws.String(ddb.transactionsTableName),
 		IndexName:              aws.String("locked_by_index"),
 		KeyConditionExpression: aws.String(fmt.Sprintf("locked_by = %s", lockedByAttributeKey)),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
@@ -380,7 +402,7 @@ func (ddb *DynamoDB) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 
 func (ddb *DynamoDB) setLockedBy(ctx context.Context, hash *chainhash.Hash, lockedByValue string) error {
 	_, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
-		TableName: aws.String("transactions"),
+		TableName: aws.String(ddb.transactionsTableName),
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
@@ -399,7 +421,7 @@ func (ddb *DynamoDB) setLockedBy(ctx context.Context, hash *chainhash.Hash, lock
 
 func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
 	// setup log and tracing
-	startNanos := time.Now().UnixNano()
+	startNanos := ddb.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_dynamodb").NewStat("getunmined").AddTime(startNanos)
 	}()
@@ -408,7 +430,7 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 
 	// get unmined set
 	out, err := ddb.client.Query(ctx, &dynamodb.QueryInput{
-		TableName:              aws.String("transactions"),
+		TableName:              aws.String(ddb.transactionsTableName),
 		IndexName:              aws.String("locked_by_index"),
 		KeyConditionExpression: aws.String(fmt.Sprintf("locked_by = %s", lockedByAttributeKey)),
 		FilterExpression:       aws.String(fmt.Sprintf("tx_status < %s or tx_status = %s", txStatusAttributeKey, txStatusAttributeKeyOrphaned)),
@@ -448,24 +470,36 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 
 func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
 	// setup log and tracing
-	startNanos := time.Now().UnixNano()
+	startNanos := ddb.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("UpdateStatus").AddTime(startNanos)
 	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
 	defer span.Finish()
 
+	updateExpression := fmt.Sprintf("SET tx_status = %s, reject_reason = %s", txStatusAttributeKey, rejectReasonAttributeKey)
+	expressionAttributevalues := map[string]types.AttributeValue{
+		txStatusAttributeKey:     &types.AttributeValueMemberN{Value: strconv.Itoa(int(status))},
+		rejectReasonAttributeKey: &types.AttributeValueMemberS{Value: rejectReason},
+	}
+
+	switch status {
+	case metamorph_api.Status_ANNOUNCED_TO_NETWORK:
+		updateExpression = updateExpression + fmt.Sprintf(", announced_at = %s", announcedAtAttributeKey)
+		expressionAttributevalues[announcedAtAttributeKey] = &types.AttributeValueMemberS{Value: ddb.now().Format(time.RFC3339)}
+	case metamorph_api.Status_MINED:
+		updateExpression = updateExpression + fmt.Sprintf(", mined_at = %s", minedAtAttributeKey)
+		expressionAttributevalues[minedAtAttributeKey] = &types.AttributeValueMemberS{Value: ddb.now().Format(time.RFC3339)}
+	}
+
 	// update tx
 	_, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
-		TableName: aws.String("transactions"),
+		TableName: aws.String(ddb.transactionsTableName),
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
-		UpdateExpression: aws.String(fmt.Sprintf("SET tx_status = %s, reject_reason = %s", txStatusAttributeKey, rejectReasonAttributeKey)),
-		ExpressionAttributeValues: map[string]types.AttributeValue{
-			txStatusAttributeKey:     &types.AttributeValueMemberN{Value: strconv.Itoa(int(status))},
-			rejectReasonAttributeKey: &types.AttributeValueMemberS{Value: rejectReason},
-		},
+		UpdateExpression:          aws.String(updateExpression),
+		ExpressionAttributeValues: expressionAttributevalues,
 	})
 
 	if err != nil {
@@ -479,7 +513,7 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 
 func (ddb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 	// setup log and tracing
-	startNanos := time.Now().UnixNano()
+	startNanos := ddb.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_dynamodb").NewStat("UpdateMined").AddTime(startNanos)
 	}()
@@ -488,15 +522,16 @@ func (ddb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 
 	// set block parameters and status - mined
 	_, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
-		TableName: aws.String("transactions"),
+		TableName: aws.String(ddb.transactionsTableName),
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
-		UpdateExpression: aws.String(fmt.Sprintf("SET block_height = %s, block_hash = %s, tx_status = %s", blockHeightAttributeKey, blockHashAttributeKey, txStatusAttributeKey)),
+		UpdateExpression: aws.String(fmt.Sprintf("SET block_height = %s, block_hash = %s, tx_status = %s, mined_at = %s", blockHeightAttributeKey, blockHashAttributeKey, txStatusAttributeKey, minedAtAttributeKey)),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			blockHashAttributeKey:   &types.AttributeValueMemberB{Value: blockHash.CloneBytes()},
 			blockHeightAttributeKey: &types.AttributeValueMemberN{Value: strconv.Itoa(int(blockHeight))},
 			txStatusAttributeKey:    &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
+			minedAtAttributeKey:     &types.AttributeValueMemberS{Value: ddb.now().Format(time.RFC3339)},
 		},
 	})
 
@@ -518,7 +553,7 @@ type BlockItem struct {
 
 func (ddb *DynamoDB) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
 	// setup log and tracing
-	startNanos := time.Now().UnixNano()
+	startNanos := ddb.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_dynamodb").NewStat("GetBlockProcessed").AddTime(startNanos)
 	}()
@@ -530,7 +565,7 @@ func (ddb *DynamoDB) GetBlockProcessed(ctx context.Context, blockHash *chainhash
 	}
 
 	response, err := ddb.client.GetItem(ctx, &dynamodb.GetItemInput{
-		Key: val, TableName: aws.String("blocks"),
+		Key: val, TableName: aws.String(ddb.blocksTableName),
 	})
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
@@ -565,18 +600,18 @@ func (ddb *DynamoDB) GetBlockProcessed(ctx context.Context, blockHash *chainhash
 
 func (ddb *DynamoDB) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) error {
 	// set log and tracing
-	startNanos := time.Now().UnixNano()
+	startNanos := ddb.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_dynamodb").NewStat("SetBlockProcessed").AddTime(startNanos)
 	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:SetBlockProcessed")
 	defer span.Finish()
 
-	ttl := time.Now().Add(ddb.ttl)
+	ttl := ddb.now().Add(ddb.ttl)
 
 	blockItem := BlockItem{
 		Hash:        blockHash.CloneBytes(),
-		ProcessedAt: time.Now().UTC().Format(time.RFC3339),
+		ProcessedAt: ddb.now().UTC().Format(time.RFC3339),
 		Ttl:         ttl.Unix(),
 	}
 	item, err := attributevalue.MarshalMap(blockItem)
@@ -588,7 +623,7 @@ func (ddb *DynamoDB) SetBlockProcessed(ctx context.Context, blockHash *chainhash
 
 	// put item into table
 	_, err = ddb.client.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: aws.String("blocks"), Item: item,
+		TableName: aws.String(ddb.blocksTableName), Item: item,
 	})
 
 	if err != nil {
@@ -601,7 +636,7 @@ func (ddb *DynamoDB) SetBlockProcessed(ctx context.Context, blockHash *chainhash
 }
 
 func (ddb *DynamoDB) Close(ctx context.Context) error {
-	startNanos := time.Now().UnixNano()
+	startNanos := ddb.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_dynamodb").NewStat("Close").AddTime(startNanos)
 	}()

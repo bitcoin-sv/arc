@@ -327,7 +327,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	_ = metamorph.NewZMQCollector(zmqCollector)
 
 	return func() {
-		logger.Infof("Shutting down metamorph store")
+		logger.Infof("Shutting down metamorph")
 		metamorphProcessor.Shutdown()
 		err = s.Close(context.Background())
 		if err != nil {
@@ -363,10 +363,13 @@ func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) 
 				ttlDays = dataRetentionPeriodDaysDefault
 			}
 
+			tableNameSuffix := viper.GetString("metamorph.db.dynamoDB.tableNameSuffix")
+
 			s, err = dynamodb.New(
 				awsdynamodb.NewFromConfig(cfg),
 				hostname,
 				time.Duration(ttlDays)*24*time.Hour,
+				tableNameSuffix,
 			)
 			if err != nil {
 				return nil, err

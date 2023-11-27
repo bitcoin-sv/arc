@@ -142,12 +142,12 @@ func (p *Processor) Set(ctx context.Context, req *ProcessorRequest) error {
 
 // Shutdown closes all channels and goroutines gracefully
 func (p *Processor) Shutdown() {
+	p.logger.Info("Shutting down processor")
+
 	err := p.unlockItems()
 	if err != nil {
 		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
 	}
-
-	p.logger.Info("Shutting down processor")
 	p.processExpiredSeenTxsTicker.Stop()
 	p.processExpiredTxsTicker.Stop()
 	p.ProcessorResponseMap.Close()
@@ -169,6 +169,7 @@ func (p *Processor) unlockItems() error {
 		index++
 	}
 
+	p.logger.Info("unlocking items", slog.Int("number", len(hashes)))
 	return p.store.SetUnlocked(context.Background(), hashes)
 }
 
@@ -181,10 +182,14 @@ func (p *Processor) processExpiredSeenTransactions() {
 	// Check transactions that have been seen on the network, but haven't been marked as mined
 	// The Items() method will return a copy of the map, so we can iterate over it without locking
 	for range p.processExpiredSeenTxsTicker.C {
+		p.logger.Debug("processing expired seen transactions")
+
 		expiredTransactionItems := p.ProcessorResponseMap.Items(filterFunc)
 		if len(expiredTransactionItems) == 0 {
 			continue
 		}
+
+		p.logger.Debug(fmt.Sprintf("getting transaction blocks from blocktx for %d transactions", len(expiredTransactionItems)))
 
 		transactions := &blocktx_api.Transactions{}
 		txs := make([]*blocktx_api.Transaction, len(expiredTransactionItems))
@@ -197,7 +202,7 @@ func (p *Processor) processExpiredSeenTransactions() {
 
 		blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
 		if err != nil {
-			p.logger.Error("failed to get transactions from blocktx", slog.String("err", err.Error()))
+			p.logger.Error("failed to get transaction blocks from blocktx", slog.String("err", err.Error()))
 			return
 		}
 
@@ -218,7 +223,7 @@ func (p *Processor) processExpiredSeenTransactions() {
 func (p *Processor) processExpiredTransactions() {
 	// filterFunc returns true if the transaction has not been seen on the network
 	filterFunc := func(procResp *processor_response.ProcessorResponse) bool {
-		return procResp.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK && p.now().Sub(procResp.Start) > unseenTransactionRebroadcastingInterval*time.Second
+		return (procResp.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK || procResp.GetStatus() == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL) && p.now().Sub(procResp.Start) > unseenTransactionRebroadcastingInterval*time.Second
 	}
 
 	// Resend transactions that have not been seen on the network

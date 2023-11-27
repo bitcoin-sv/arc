@@ -400,9 +400,10 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 }
 
 func (bs *PeerHandler) getAnnouncedCacheBlockHashes() []string {
-	blockHashes := make([]string, bs.announcedCache.Len())
+	items := bs.announcedCache.Items()
+	blockHashes := make([]string, len(items))
 	i := 0
-	for k := range bs.announcedCache.Items() {
+	for k := range items {
 		blockHashes[i] = k.String()
 		i++
 	}

@@ -193,25 +193,21 @@ func (s *Badger) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status 
 		return err
 	}
 
-	// only update the status to later in the life-cycle
-	// it is possible to get a SEEN_ON_NETWORK status again, when a block is mined
-	if status > tx.Status || rejectReason != "" {
-		tx.Status = status
-		tx.RejectReason = rejectReason
+	tx.Status = status
+	tx.RejectReason = rejectReason
 
-		// set the time the transaction was announced to the network
-		switch status {
-		case metamorph_api.Status_ANNOUNCED_TO_NETWORK:
-			tx.AnnouncedAt = time.Now()
-		case metamorph_api.Status_MINED:
-			tx.MinedAt = time.Now()
-		}
+	// set the time the transaction was announced to the network
+	switch status {
+	case metamorph_api.Status_ANNOUNCED_TO_NETWORK:
+		tx.AnnouncedAt = time.Now()
+	case metamorph_api.Status_MINED:
+		tx.MinedAt = time.Now()
+	}
 
-		if err = s.Set(ctx, hash[:], tx); err != nil {
-			span.SetTag(string(ext.Error), true)
-			span.LogFields(log.Error(err))
-			return fmt.Errorf("failed to update data: %w", err)
-		}
+	if err = s.Set(ctx, hash[:], tx); err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return fmt.Errorf("failed to update data: %w", err)
 	}
 
 	return nil

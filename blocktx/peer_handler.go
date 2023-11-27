@@ -26,7 +26,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const TransactionStoringInterval = 16384 // power of 2 for easier memory allocation
+const transactionStoringBatchsizeDefault = 16384 // power of 2 for easier memory allocation
 
 func init() {
 	// override the default wire block handler with our own that streams and stores only the transaction ids
@@ -81,19 +81,26 @@ func init() {
 }
 
 type PeerHandler struct {
-	workerCh       chan utils.Pair[*chainhash.Hash, p2p.PeerI]
-	blockCh        chan *blocktx_api.Block
-	store          store.Interface
-	logger         utils.Logger
-	announcedCache *expiringmap.ExpiringMap[chainhash.Hash, []p2p.PeerI]
-	stats          *safemap.Safemap[string, *tracing.PeerHandlerStats]
+	workerCh                    chan utils.Pair[*chainhash.Hash, p2p.PeerI]
+	blockCh                     chan *blocktx_api.Block
+	store                       store.Interface
+	logger                      utils.Logger
+	announcedCache              *expiringmap.ExpiringMap[chainhash.Hash, []p2p.PeerI]
+	stats                       *safemap.Safemap[string, *tracing.PeerHandlerStats]
+	transactionStorageBatchSize int
 }
 
 func init() {
 	gocore.NewStat("blocktx", true).NewStat("HandleBlock", true)
 }
 
-func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *blocktx_api.Block) p2p.PeerHandlerI {
+func WithTransactionBatchSize(size int) func(handler *PeerHandler) {
+	return func(p *PeerHandler) {
+		p.transactionStorageBatchSize = size
+	}
+}
+
+func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *blocktx_api.Block, opts ...func(*PeerHandler)) *PeerHandler {
 	evictionFunc := func(hash chainhash.Hash, peers []p2p.PeerI) bool {
 		msg := wire.NewMsgGetData()
 
@@ -115,12 +122,17 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 	}
 
 	s := &PeerHandler{
-		store:          storeI,
-		blockCh:        blockCh,
-		logger:         logger,
-		workerCh:       make(chan utils.Pair[*chainhash.Hash, p2p.PeerI], 100),
-		announcedCache: expiringmap.New[chainhash.Hash, []p2p.PeerI](10 * time.Minute).WithEvictionFunction(evictionFunc),
-		stats:          safemap.New[string, *tracing.PeerHandlerStats](),
+		store:                       storeI,
+		blockCh:                     blockCh,
+		logger:                      logger,
+		workerCh:                    make(chan utils.Pair[*chainhash.Hash, p2p.PeerI], 100),
+		announcedCache:              expiringmap.New[chainhash.Hash, []p2p.PeerI](10 * time.Minute).WithEvictionFunction(evictionFunc),
+		stats:                       safemap.New[string, *tracing.PeerHandlerStats](),
+		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
+	}
+
+	for _, opt := range opts {
+		opt(s)
 	}
 
 	_ = tracing.NewPeerHandlerCollector("blocktx", s.stats)
@@ -360,8 +372,8 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("markTransactionsAsMined").AddTime(start)
 	}()
 
-	txs := make([]*blocktx_api.TransactionAndSource, 0, TransactionStoringInterval)
-	merklePaths := make([]string, 0, TransactionStoringInterval)
+	txs := make([]*blocktx_api.TransactionAndSource, 0, bs.transactionStorageBatchSize)
+	merklePaths := make([]string, 0, bs.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
 
 	for txIndex, hash := range leaves {
@@ -386,14 +398,19 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 		}
 
 		merklePaths = append(merklePaths, bumpHex)
-		if txIndex%TransactionStoringInterval == 0 || txIndex == len(leaves)-1 {
+		if (txIndex+1)%bs.transactionStorageBatchSize == 0 {
 			if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
 				return err
 			}
 			// free up memory
-			txs = txs[:0]
-			merklePaths = merklePaths[:0]
+			txs = make([]*blocktx_api.TransactionAndSource, 0, bs.transactionStorageBatchSize)
+			merklePaths = make([]string, 0, bs.transactionStorageBatchSize)
 		}
+	}
+
+	// insert all remaining transactions into the table
+	if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
+		return err
 	}
 
 	return nil

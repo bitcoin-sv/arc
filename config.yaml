@@ -10,12 +10,6 @@ grpcMessageSize: 100000000 # maximum grpc message size
 network: regtest # bitcoin network to connect to
 ipAddressHint: ^172.28.*
 
-peerRpc: # rpc configuration for bitcoin node
-  password: bitcoin
-  user: bitcoin
-  host: localhost
-  port: 18332
-
 peers: # list of bitcoin node peers to connect to
   - host: localhost
     port:

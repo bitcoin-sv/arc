@@ -23,7 +23,7 @@ func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("grpcMessageSize not found in config")
 	}
 
-	metamorphConn, err := transactionHandler.GetConnection(metamorphAddress, grpcMessageSize)
+	metamorphConn, err := transactionHandler.DialGRPC(metamorphAddress, grpcMessageSize)
 	if err != nil {
 		return nil, err
 	}

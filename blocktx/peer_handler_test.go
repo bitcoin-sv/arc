@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"os"
 	"testing"
 	"time"
 
@@ -101,6 +102,17 @@ func TestHandleBlock(t *testing.T) {
 
 	storeMock.InsertBlockFunc = func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
 		return 0, nil
+	}
+
+	// SetGetBlockFunc
+	storeMock.PrimaryBlocktxFunc = func(ctx context.Context) (string, error) {
+		hostName, err := os.Hostname()
+		return hostName, err
+	}
+
+	// SetTryToBecomePrimaryFunc
+	storeMock.TryToBecomePrimaryFunc = func(ctx context.Context, myHostName string) error {
+		return nil
 	}
 
 	// main assert for the test to make sure block with a single transaction doesn't have any merkle paths other than empty ones "0000"

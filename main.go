@@ -34,10 +34,20 @@ func init() {
 }
 
 func main() {
+	err := run()
+	if err != nil {
+		log.Fatalf("failed to run ARC: %v", err)
+	}
+
+	os.Exit(0)
+}
+
+func run() error {
 	startApi := flag.Bool("api", false, "start ARC api server")
 	startMetamorph := flag.Bool("metamorph", false, "start metamorph")
 	startBlockTx := flag.Bool("blocktx", false, "start blocktx")
 	startCallbacker := flag.Bool("callbacker", false, "start callbacker")
+	startK8sWatcher := flag.Bool("k8s-watcher", false, "start k8s-watcher")
 	useTracer := flag.Bool("tracer", false, "start tracer")
 	help := flag.Bool("help", false, "Show help")
 	config := flag.String("config", ".", "path to configuration yaml file")
@@ -60,13 +70,16 @@ func main() {
 		fmt.Println("    -callbacker=<true|false>")
 		fmt.Println("          whether to start callbacker (default=true)")
 		fmt.Println("")
+		fmt.Println("    -k8s-watcher=<true|false>")
+		fmt.Println("          whether to start k8s-watcher (default=true)")
+		fmt.Println("")
 		fmt.Println("    -tracer=<true|false>")
 		fmt.Println("          whether to start the Jaeger tracer (default=false)")
 		fmt.Println("")
 		fmt.Println("    -config=/location")
 		fmt.Println("          directory to look for config.yaml (default='')")
 		fmt.Println("")
-		return
+		return nil
 	}
 
 	viper.AddConfigPath(*config) // optionally look for config in the working directory
@@ -77,15 +90,13 @@ func main() {
 
 	err := viper.ReadInConfig() // Find and read the config file
 	if err != nil {             // Handle errors reading the config file
-		log.Fatalf("failed to read config file: %v \n", err)
-		return
+		return fmt.Errorf("failed to read config file: %v", err)
 	}
 
 	logLevel := viper.GetString("logLevel")
 	logger, err := cfg.NewLogger()
 	if err != nil {
-		log.Fatalf("failed to create logger: %v", err)
-		return
+		return fmt.Errorf("failed to create logger: %v", err)
 	}
 
 	logger.Info("starting arc", slog.String("version", version), slog.String("commit", commit))
@@ -148,19 +159,6 @@ func main() {
 
 	shutdownFns := make([]func(), 0)
 
-	if startBlockTx != nil && *startBlockTx {
-		logger.Info("Starting BlockTx")
-
-		var blockTxLogger = gocore.Log("btx", gocore.NewLogLevelFromString(logLevel))
-		if blockTxShutdown, err := cmd.StartBlockTx(blockTxLogger); err != nil {
-			logger.Error("Failed to start blocktx", slog.String("err", err.Error()))
-		} else {
-			shutdownFns = append(shutdownFns, func() {
-				blockTxShutdown()
-			})
-		}
-	}
-
 	statisticsServerAddr := viper.GetString("statisticsServerAddress")
 	if statisticsServerAddr != "" {
 		go func() {
@@ -168,44 +166,53 @@ func main() {
 		}()
 	}
 
+	if startBlockTx != nil && *startBlockTx {
+		logger.Info("Starting BlockTx")
+		blockTxLogger := gocore.Log("btx", gocore.NewLogLevelFromString(logLevel))
+		shutdown, err := cmd.StartBlockTx(blockTxLogger)
+		if err != nil {
+			return fmt.Errorf("failed to start blocktx: %v", err)
+		}
+		shutdownFns = append(shutdownFns, func() { shutdown() })
+	}
+
 	if startCallbacker != nil && *startCallbacker {
 		logger.Info("Starting Callbacker")
-		callbackerLogger, err := cfg.NewLogger()
+		shutdown, err := cmd.StartCallbacker(logger)
 		if err != nil {
-			logger.Error("Failed to get logger for callbacker", slog.String("err", err.Error()))
+			return fmt.Errorf("failed to start callbacker: %v", err)
 		}
-
-		if callbackerShutdown, err := cmd.StartCallbacker(callbackerLogger.With(slog.String("service", "clb"))); err != nil {
-			logger.Error("Failed to start callbacker", slog.String("err", err.Error()))
-		} else {
-			shutdownFns = append(shutdownFns, func() {
-				callbackerShutdown()
-			})
-		}
+		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}
 
 	if startMetamorph != nil && *startMetamorph {
 		logger.Info("Starting Metamorph")
-		var metamorphLogger = gocore.Log("mtm", gocore.NewLogLevelFromString(logLevel))
-
-		if metamorphShutdown, err := cmd.StartMetamorph(metamorphLogger); err != nil {
-			logger.Error("Error starting metamorph", slog.String("err", err.Error()))
-		} else {
-			shutdownFns = append(shutdownFns, func() {
-				metamorphShutdown()
-			})
+		metamorphLogger := gocore.Log("mtm", gocore.NewLogLevelFromString(logLevel))
+		shutdown, err := cmd.StartMetamorph(metamorphLogger)
+		if err != nil {
+			return fmt.Errorf("failed to start metamorph: %v", err)
 		}
+		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}
 
 	if startApi != nil && *startApi {
+		logger.Info("Starting API")
 		var apiLogger = gocore.Log("api", gocore.NewLogLevelFromString(logLevel))
-		if apiShutdown, err := cmd.StartAPIServer(apiLogger); err != nil {
-			logger.Error("Error starting api server", slog.String("err", err.Error()))
-		} else {
-			shutdownFns = append(shutdownFns, func() {
-				apiShutdown()
-			})
+		shutdown, err := cmd.StartAPIServer(apiLogger)
+		if err != nil {
+			return fmt.Errorf("failed to start api: %v", err)
 		}
+
+		shutdownFns = append(shutdownFns, func() { shutdown() })
+	}
+
+	if startK8sWatcher != nil && *startK8sWatcher {
+		logger.Info("Starting K8s-Watcher")
+		shutdown, err := cmd.StartK8sWatcher(logger)
+		if err != nil {
+			return fmt.Errorf("failed to start k8s-watcher: %v", err)
+		}
+		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}
 
 	// setup signal catching
@@ -214,7 +221,8 @@ func main() {
 
 	<-signalChan
 	appCleanup(logger, shutdownFns)
-	os.Exit(0)
+
+	return nil
 }
 
 func appCleanup(logger *slog.Logger, shutdownFns []func()) {

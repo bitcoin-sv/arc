@@ -78,6 +78,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
 	}
 
+	fmt.Println("GGGG")
 	btx := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn), blocktx.WithLogger(blockTxLogger))
 
 	metamorphGRPCListenAddress := viper.GetString("metamorph.listenAddr")

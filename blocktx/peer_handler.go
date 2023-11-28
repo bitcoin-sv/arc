@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"os"
 	"strings"
 	"time"
 
@@ -274,6 +275,20 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").AddTime(start)
 	}()
+
+	primaryBlocktx, err := bs.store.PrimaryBlocktx(context.Background())
+	if err != nil {
+		return err
+	}
+
+	hostName, err := os.Hostname()
+	if err != nil {
+		return err
+	}
+
+	if primaryBlocktx != hostName {
+		return nil
+	}
 
 	timeStart := time.Now()
 

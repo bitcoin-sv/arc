@@ -76,6 +76,7 @@ func NewClient(client blocktx_api.BlockTxAPIClient, opts ...Option) ClientI {
 
 func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 	btc.getBlocksTicker = time.NewTicker(btc.retryInterval)
+
 	go func() {
 		defer func() {
 			btc.shutdownComplete <- struct{}{}

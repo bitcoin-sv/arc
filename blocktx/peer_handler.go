@@ -287,6 +287,7 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	}
 
 	if primaryBlocktx != hostName {
+		bs.logger.Infof("Not primary, skipping block processing")
 		return nil
 	}
 

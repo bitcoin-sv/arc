@@ -82,6 +82,7 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 			btc.shutdownComplete <- struct{}{}
 		}()
 
+	getBlocksLoop:
 		for {
 			select {
 			case <-btc.getBlocksTicker.C:
@@ -94,6 +95,7 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 				btc.logger.Info("Connected to block-tx server")
 
 				var block *blocktx_api.Block
+
 				for {
 					select {
 					case <-btc.shutdown:
@@ -102,7 +104,7 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 						block, err = stream.Recv()
 						if err != nil {
 							btc.logger.Error("Failed to receive block", slog.String("err", err.Error()))
-							break
+							continue getBlocksLoop
 						}
 						btc.logger.Info("Block", slog.String("hash", utils.ReverseAndHexEncodeSlice(block.Hash)))
 						utils.SafeSend(minedBlockChan, block)

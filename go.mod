@@ -37,7 +37,6 @@ require (
 	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.14.0
-	github.com/sagikazarmark/slog-shim v0.1.0
 	github.com/sasha-s/go-deadlock v0.3.1
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4

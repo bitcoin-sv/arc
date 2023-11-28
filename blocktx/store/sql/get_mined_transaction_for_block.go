@@ -44,7 +44,7 @@ func (s *SQL) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *
 
 	var block blocktx_api.Block
 
-	var processed_at sql.NullString
+	var processedAt sql.NullString
 
 	if err := s.db.QueryRowContext(ctx, qBlock, blockAndSource.Hash).Scan(
 		&block.Hash,
@@ -52,12 +52,12 @@ func (s *SQL) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *
 		&block.MerkleRoot,
 		&block.PreviousHash,
 		&block.Orphaned,
-		&processed_at,
+		&processedAt,
 	); err != nil {
 		return nil, err
 	}
 
-	block.Processed = processed_at.Valid
+	block.Processed = processedAt.Valid
 
 	rows, err := s.db.QueryContext(ctx, qTransactions, blockAndSource.Hash, blockAndSource.Source)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {

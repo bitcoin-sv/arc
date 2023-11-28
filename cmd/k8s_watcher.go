@@ -12,7 +12,7 @@ import (
 )
 
 func StartK8sWatcher(logger *slog.Logger) (func(), error) {
-
+	logger.With(slog.String("service", "k8s-watcher"))
 	metamorphAddress := viper.GetString("metamorph.dialAddr")
 	if metamorphAddress == "" {
 		return nil, fmt.Errorf("metamorph.dialAddr not found in config")

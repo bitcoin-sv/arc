@@ -22,6 +22,8 @@ import (
 )
 
 // mocking wire.peerI as it's third party library and need to mock in here
+//
+//go:generate moq -out ./store/mock.go ./store Interface
 type MockedPeer struct{}
 
 func (peer *MockedPeer) Connected() bool                            { return true }

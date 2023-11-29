@@ -268,6 +268,14 @@ or using the generic `main.go`:
 go run main.go -callbacker=true
 ```
 
+### K8s-Watcher
+The K8s-Watcher is a service which is needed for a special use case. If ARC runs on a Kubernetes cluster and is configured to run with AWS DynamoDB as a `metamorph` centralised storage, then the K8s-Watcher can be run as a safety measure. Due to the centralisation of `metamorph` storage, each `metamorph` pod has to ensure the exclusive processing of records by locking the records. If `metamorph` shuts down gracefully it will unlock all the records it holds in memory. The graceful shutdown is not guaranteed though. For this eventuality the K8s-Watcher can be run in a separate pod. K8s-Watcher detects when `metamorph` pods are terminated and will additionally call on the `metamorph` service to unlock the records of that terminated `metamorph` pod. This ensures that no records will stay in a locked state.
+
+The K8s-Watcher can be started as follows
+
+```shell
+go run main.go -k8s-watcher=true
+```
 
 ## Broadcaster
 

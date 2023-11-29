@@ -7,11 +7,11 @@ import (
 	"log/slog"
 
 	"github.com/bitcoin-sv/arc/callbacker"
-	"github.com/bitcoin-sv/arc/config"
 	"github.com/spf13/viper"
 )
 
 func StartCallbacker(logger *slog.Logger) (func(), error) {
+	logger.With(slog.String("service", "clb"))
 	folder := viper.GetString("dataFolder")
 	if folder == "" {
 		return nil, errors.New("dataFolder not found in config")
@@ -24,15 +24,10 @@ func StartCallbacker(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to create callbacker store: %v", err)
 	}
 
-	callbackerLogger, err := config.NewLogger()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new callbacker logger: %v", err)
-	}
-
 	callbackerInterval := viper.GetDuration("callbacker.interval")
 
 	var callbackWorker *callbacker.Callbacker
-	callbackWorker, err = callbacker.New(callbackStore, callbacker.WithLogger(callbackerLogger), callbacker.WithSendCallbacksInterval(callbackerInterval))
+	callbackWorker, err = callbacker.New(callbackStore, callbacker.WithLogger(logger), callbacker.WithSendCallbacksInterval(callbackerInterval))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callbacker: %v", err)
 	}

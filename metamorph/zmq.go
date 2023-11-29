@@ -115,7 +115,6 @@ func (z *ZMQ) Start(zmqi ZMQI) {
 					errReason += ": " + txInfo.RejectionReason
 				}
 				if txInfo.IsMissingInputs {
-					z.Logger.Debugf("invalidtx %s due to missing inputs ignored", txInfo.TxID)
 					errReason = ""
 					status = metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL
 				}

@@ -134,7 +134,7 @@ func run() error {
 		}
 	}
 
-	if !isFlagPassed("api") && !isFlagPassed("blocktx") && !isFlagPassed("callbacker") && !isFlagPassed("metamorph") {
+	if !isFlagPassed("api") && !isFlagPassed("blocktx") && !isFlagPassed("callbacker") && !isFlagPassed("metamorph") && !isFlagPassed("k8s-watcher") {
 		logger.Info("No service selected, starting all")
 		*startApi = true
 		*startMetamorph = true

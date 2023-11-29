@@ -25,6 +25,7 @@ func (s *SQL) PrimaryBlocktx(ctx context.Context) (string, error) {
 
 	defer rows.Close()
 
+	var ind int
 	var hostName string
 
 	for rows.Next() {
@@ -32,9 +33,10 @@ func (s *SQL) PrimaryBlocktx(ctx context.Context) (string, error) {
 		if err != nil {
 			return "", err
 		}
-
-		return hostName, nil
+		if ind == 0 {
+			break
+		}
 	}
 
-	return "", nil
+	return hostName, nil
 }

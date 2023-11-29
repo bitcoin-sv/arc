@@ -2,12 +2,14 @@ package k8s_watcher
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
+	"os"
+
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/davecgh/go-spew/spew"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"log/slog"
-	"os"
 )
 
 const (
@@ -58,8 +60,7 @@ func (c *Watcher) Start() error {
 	ctx := context.Background()
 	watcher, err := c.k8sClient.GetPodWatcher(ctx, c.namespace, metamorphService)
 	if err != nil {
-		c.logger.Error("failed to get pod watcher", slog.String("err", err.Error()))
-		return err
+		return fmt.Errorf("failed to get pod watcher: %v", err)
 	}
 
 	go func() {

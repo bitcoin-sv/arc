@@ -25,14 +25,14 @@ func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 
 	metamorphConn, err := transactionHandler.DialGRPC(metamorphAddress, grpcMessageSize)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get connection to metamorph with address %s: %v", metamorphAddress, err)
 	}
 
 	metamorphClient := metamorph_api.NewMetaMorphAPIClient(metamorphConn)
 
 	k8sClient, err := k8s_client.New()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get k8s-client: %v", err)
 	}
 
 	namespace := viper.GetString("k8sWatcher.namespace")
@@ -41,13 +41,9 @@ func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 	}
 
 	k8sWatcher := k8s_watcher.New(metamorphClient, k8sClient, namespace, k8s_watcher.WithLogger(logger))
-	if err != nil {
-		return nil, err
-	}
-
 	err = k8sWatcher.Start()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("faile to start k8s-watcher: %v", err)
 	}
 
 	return func() {

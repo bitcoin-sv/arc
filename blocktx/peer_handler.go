@@ -239,6 +239,21 @@ func (bs *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error 
 }
 
 func (bs *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI) error {
+	primaryBlocktx, err := bs.store.PrimaryBlocktx(context.TODO())
+	if err != nil {
+		return err
+	}
+
+	hostName, err := os.Hostname()
+	if err != nil {
+		return err
+	}
+
+	if primaryBlocktx != hostName {
+		bs.logger.Infof("Not primary, skipping block processing")
+		return nil
+	}
+
 	peerStr := peer.String()
 
 	stat, ok := bs.stats.Get(peerStr)
@@ -276,7 +291,7 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").AddTime(start)
 	}()
 
-	primaryBlocktx, err := bs.store.PrimaryBlocktx(context.Background())
+	primaryBlocktx, err := bs.store.PrimaryBlocktx(context.TODO())
 	if err != nil {
 		return err
 	}

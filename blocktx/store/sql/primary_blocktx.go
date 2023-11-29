@@ -18,24 +18,10 @@ func (s *SQL) PrimaryBlocktx(ctx context.Context) (string, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	rows, err := s.db.QueryContext(ctx, `SELECT host_name FROM primary_blocktx LIMIT 1`)
+	var hostName string
+	err := s.db.QueryRowContext(ctx, `SELECT host_name FROM primary_blocktx LIMIT 1`).Scan(&hostName)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return "", err
-	}
-
-	defer rows.Close()
-
-	var ind int
-	var hostName string
-
-	for rows.Next() {
-		err = rows.Scan(&hostName)
-		if err != nil {
-			return "", err
-		}
-		if ind == 0 {
-			break
-		}
 	}
 
 	return hostName, nil

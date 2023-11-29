@@ -301,11 +301,8 @@ func (p *Processor) LoadUnmined() {
 
 	err := p.store.GetUnmined(spanCtx, func(record *store.StoreData) {
 
-		if !p.store.IsCentralised() {
-			recordDeleted := p.deleteExpired(record)
-			if recordDeleted {
-				return
-			}
+		if !p.store.IsCentralised() && p.deleteExpired(record) {
+			return
 		}
 
 		// add the records we have in the database, but that have not been processed, to the mempool watcher

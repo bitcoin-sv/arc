@@ -244,8 +244,6 @@ func TestHandleBlock(t *testing.T) {
 	storeMock.MarkBlockAsDoneFunc = func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 		return nil
 	}
-	// create mocked peer handler
-	var blockTxLogger = gocore.Log("btx", gocore.NewLogLevelFromString("INFO"))
 
 	bockChannel := make(chan *blocktx_api.Block, 1)
 

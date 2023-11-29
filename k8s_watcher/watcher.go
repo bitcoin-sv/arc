@@ -3,6 +3,7 @@ package k8s_watcher
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/davecgh/go-spew/spew"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"log/slog"
@@ -69,23 +70,27 @@ func (c *Watcher) Start() error {
 		for {
 			select {
 			case event := <-watcher.ResultChan():
-				if event.Type == watch.Deleted {
-					pod, ok := event.Object.(*v1.Pod)
-					if !ok {
-						continue
-					}
+				c.logger.Debug("event received", slog.String("type", string(event.Type)))
 
-					c.logger.Info("pod has been terminated", slog.String("name", pod.Name))
-
-					resp, err := c.metamorphClient.SetUnlockedByName(ctx, &metamorph_api.SetUnlockedByNameRequest{Name: pod.Name})
-					if err != nil {
-						c.logger.Error("failed to unlock metamorph records", slog.String("pod-name", pod.Name))
-						continue
-					}
-
-					c.logger.Info("records unlocked", slog.Int("rows-affected", int(resp.RecordsAffected)), slog.String("pod-name", pod.Name))
-
+				if event.Type != watch.Deleted {
+					continue
 				}
+
+				pod, ok := event.Object.(*v1.Pod)
+				if !ok {
+					c.logger.Debug("event received is not a pod", slog.String("type", string(event.Type)), slog.String("object", spew.Sdump(event.Object)))
+					continue
+				}
+
+				c.logger.Info("pod has been terminated", slog.String("name", pod.Name))
+
+				resp, err := c.metamorphClient.SetUnlockedByName(ctx, &metamorph_api.SetUnlockedByNameRequest{Name: pod.Name})
+				if err != nil {
+					c.logger.Error("failed to unlock metamorph records", slog.String("pod-name", pod.Name))
+					continue
+				}
+
+				c.logger.Info("records unlocked", slog.Int("rows-affected", int(resp.RecordsAffected)), slog.String("pod-name", pod.Name))
 
 			case <-c.shutdown:
 				watcher.Stop()

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"os"
 	"strings"
 	"time"
 
@@ -249,7 +250,35 @@ func (bs *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error 
 	return nil
 }
 
+func (bs *PeerHandler) CheckPrimary() (bool, error) {
+	primaryBlocktx, err := bs.store.PrimaryBlocktx(context.TODO())
+	if err != nil {
+		return false, err
+	}
+
+	hostName, err := os.Hostname()
+	if err != nil {
+		return false, err
+	}
+
+	if primaryBlocktx != hostName {
+		bs.logger.Infof("Not primary, skipping block processing")
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func (bs *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI) error {
+	primary, err := bs.CheckPrimary()
+	if err != nil {
+		return err
+	}
+
+	if !primary {
+		return nil
+	}
+
 	peerStr := peer.String()
 
 	stat, ok := bs.stats.Get(peerStr)
@@ -286,6 +315,15 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").AddTime(start)
 	}()
+
+	primary, err := bs.CheckPrimary()
+	if err != nil {
+		return err
+	}
+
+	if !primary {
+		return nil
+	}
 
 	timeStart := time.Now()
 

@@ -20,6 +20,8 @@ var (
 
 type Interface interface {
 	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (string, string, []byte, uint64, error)
+	TryToBecomePrimary(ctx context.Context, myHostName string) error
+	PrimaryBlocktx(ctx context.Context) (string, error)
 	GetTransactionSource(ctx context.Context, hash *chainhash.Hash) (string, error)
 	GetTransactionMerklePath(ctx context.Context, hash *chainhash.Hash) (string, error)
 	GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)

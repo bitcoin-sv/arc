@@ -15,7 +15,6 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -331,7 +330,7 @@ func hasWaitForStatusReached(status metamorph_api.Status, waitForStatus metamorp
 
 func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, TxID string) *metamorph_api.TransactionStatus {
 
-	responseChannel := make(chan processor_response.StatusAndError, 1)
+	responseChannel := make(chan StatusAndError, 1)
 	defer func() {
 		close(responseChannel)
 	}()

@@ -1,4 +1,4 @@
-package processor_response
+package metamorph
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
@@ -39,7 +38,7 @@ type ProcessorResponse struct {
 	// The following fields are protected by the mutex
 	mu             deadlock.RWMutex
 	Err            error                  `json:"err"`
-	AnnouncedPeers []p2p.PeerI            `json:"announcedPeers"`
+	AnnouncedPeers []PeerI                `json:"announcedPeers"`
 	Status         metamorph_api.Status   `json:"status"`
 	Log            []ProcessorResponseLog `json:"log"`
 }
@@ -125,14 +124,14 @@ func (r *ProcessorResponse) updateStatus(statusUpdate *ProcessorResponseStatusUp
 	}
 }
 
-func (r *ProcessorResponse) SetPeers(peers []p2p.PeerI) {
+func (r *ProcessorResponse) SetPeers(peers []PeerI) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	r.AnnouncedPeers = peers
 }
 
-func (r *ProcessorResponse) GetPeers() []p2p.PeerI {
+func (r *ProcessorResponse) GetPeers() []PeerI {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

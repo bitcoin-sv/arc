@@ -74,12 +74,6 @@ func newProcessorResponse(hash *chainhash.Hash, status metamorph_api.Status, ch 
 	}
 	pr.LastStatusUpdateNanos.Store(pr.Start.UnixNano())
 
-	go func() {
-		for statusUpdate := range pr.statusUpdateCh {
-			pr.updateStatus(statusUpdate)
-		}
-	}()
-
 	return pr
 }
 
@@ -94,10 +88,6 @@ func (r *ProcessorResponse) Close() {
 }
 
 func (r *ProcessorResponse) UpdateStatus(statusUpdate *ProcessorResponseStatusUpdate) {
-	r.statusUpdateCh <- statusUpdate
-}
-
-func (r *ProcessorResponse) updateStatus(statusUpdate *ProcessorResponseStatusUpdate) {
 	// If this transaction has already been mined, ignore any further updates
 	if r.Status == metamorph_api.Status_MINED {
 		return

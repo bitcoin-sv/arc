@@ -1,7 +1,7 @@
 # ARC background processing framework
 
 ## Overview
-The goal of this submodule is to provide simple and convenient way to schedule repetetive tasks to be performed on ARC.
+The goal of this submodule is to provide simple and convenient way to schedule repetitive tasks to be performed on ARC.
 The current implementation contains only ARC tables clean up with frequency specified in configuration file.
 
 ## Key features

@@ -294,7 +294,7 @@ Detailed information about flags can is displayed by running `go run cmd/broadca
 
 ## Background jobs
 
-See [here](./background_jobs/README.md)
+See [here](cmd/background_worker/README.md)
 
 ## Tests
 ### Unit tests

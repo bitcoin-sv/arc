@@ -238,19 +238,9 @@ func (p *Processor) processExpiredTransactions() {
 					// Sending GETDATA to peers to see if they have it
 					p.logger.Debug("Re-getting expired tx", slog.String("hash", txID.String()))
 					p.pm.RequestTransaction(item.Hash)
-					item.AddLog(
-						item.Status,
-						"expired",
-						"Sent GETDATA for transaction",
-					)
 				} else {
 					p.logger.Debug("Re-announcing expired tx", slog.String("hash", txID.String()))
 					p.pm.AnnounceTransaction(item.Hash, item.AnnouncedPeers)
-					item.AddLog(
-						metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-						"expired",
-						"Re-announced expired tx",
-					)
 				}
 
 				p.retries.AddDuration(time.Since(startTime))

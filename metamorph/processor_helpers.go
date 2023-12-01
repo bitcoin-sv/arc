@@ -398,7 +398,6 @@ func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *Proc
 		Status:                prm.Status,
 		NoStats:               prm.NoStats,
 		LastStatusUpdateNanos: prm.LastStatusUpdateNanos.Load(),
-		Log:                   prm.Log,
 	}
 
 	resLog := strings.Builder{}

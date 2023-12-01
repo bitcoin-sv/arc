@@ -52,10 +52,6 @@ func NewProcessorResponseWithStatus(hash *chainhash.Hash, status metamorph_api.S
 	return newProcessorResponse(hash, status, nil)
 }
 
-func NewProcessorResponseWithChannel(hash *chainhash.Hash, ch chan StatusAndError) *ProcessorResponse {
-	return newProcessorResponse(hash, metamorph_api.Status_UNKNOWN, ch)
-}
-
 func newProcessorResponse(hash *chainhash.Hash, status metamorph_api.Status, ch chan StatusAndError) *ProcessorResponse {
 	pr := &ProcessorResponse{
 		Start:          time.Now(),

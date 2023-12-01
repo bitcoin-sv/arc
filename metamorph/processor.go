@@ -485,7 +485,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	p.logger.Debug("Adding channel", slog.String("hash", req.Data.Hash.String()))
 
-	processorResponse := NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel)
+	processorResponse := NewProcessorResponse(req.Data.Hash)
 
 	// STEP 1: RECEIVED
 	err := processorResponse.UpdateStatus(&ProcessorResponseStatusUpdate{

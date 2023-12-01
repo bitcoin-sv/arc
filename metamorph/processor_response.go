@@ -20,12 +20,10 @@ type StatusAndError struct {
 }
 
 type ProcessorResponseStatusUpdate struct {
-	Status         metamorph_api.Status
-	Source         string
-	StatusErr      error
-	UpdateStore    func() error
-	IgnoreCallback bool
-	//Callback       func(err error)
+	Status      metamorph_api.Status
+	Source      string
+	StatusErr   error
+	UpdateStore func() error
 }
 
 type ProcessorResponse struct {

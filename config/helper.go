@@ -46,3 +46,21 @@ func NewLogger() (*slog.Logger, error) {
 
 	return nil, fmt.Errorf("invalid log format: %s", logFormat)
 }
+
+func GetString(settingName string) (string, error) {
+	setting := viper.GetString(settingName)
+	if setting == "" {
+		return "", fmt.Errorf("setting %s not found", settingName)
+	}
+
+	return setting, nil
+}
+
+func GetInt(settingName string) (int, error) {
+	setting := viper.GetInt(settingName)
+	if setting == 0 {
+		return 0, fmt.Errorf("setting %s not found", settingName)
+	}
+
+	return setting, nil
+}

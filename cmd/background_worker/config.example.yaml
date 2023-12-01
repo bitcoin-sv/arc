@@ -1,5 +1,5 @@
 cleanBlocks:
-  executionIntervalInHours: 24 # how often to run the job
+  executionIntervalHours: 24 # how often to run the job
   recordRetentionDays: 14 # delete records older thhan
   host:  "localhost" # db connection host
   port:  5432  # db connection port

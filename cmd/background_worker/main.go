@@ -41,7 +41,7 @@ func main() {
 
 	jobs.Log(jobs.INFO, fmt.Sprintf("starting with %#v", params))
 
-	intervalInHours := viper.GetInt("cleanBlocks.executionIntervalInHours")
+	intervalInHours := viper.GetInt("cleanBlocks.executionIntervalHours")
 
 	sched := background_worker.ARCScheduler{
 		Scheduler:       gocron.NewScheduler(time.UTC),

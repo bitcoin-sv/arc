@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -26,7 +28,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const transactionStoringBatchsizeDefault = 16384 // power of 2 for easier memory allocation
+const transactionStoringBatchsizeDefault = 65536 // power of 2 for easier memory allocation
 
 func init() {
 	// override the default wire block handler with our own that streams and stores only the transaction ids
@@ -249,7 +251,35 @@ func (bs *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error 
 	return nil
 }
 
+func (bs *PeerHandler) CheckPrimary() (bool, error) {
+	primaryBlocktx, err := bs.store.PrimaryBlocktx(context.TODO())
+	if err != nil {
+		return false, err
+	}
+
+	hostName, err := os.Hostname()
+	if err != nil {
+		return false, err
+	}
+
+	if primaryBlocktx != hostName {
+		bs.logger.Infof("Not primary, skipping block processing")
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func (bs *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI) error {
+	primary, err := bs.CheckPrimary()
+	if err != nil {
+		return err
+	}
+
+	if !primary {
+		return nil
+	}
+
 	peerStr := peer.String()
 
 	stat, ok := bs.stats.Get(peerStr)
@@ -286,6 +316,15 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").AddTime(start)
 	}()
+
+	primary, err := bs.CheckPrimary()
+	if err != nil {
+		return err
+	}
+
+	if !primary {
+		return nil
+	}
 
 	timeStart := time.Now()
 
@@ -366,6 +405,16 @@ func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 	return bs.store.InsertBlock(context.Background(), block)
 }
 
+func printMemStats() {
+	bToMb := func(b uint64) uint64 {
+		return b / 1024 / 1024
+	}
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+	fmt.Printf("Alloc = %v MiB, TotalAlloc = %v MiB, Sys = %v MiB, NumGC = %v\n",
+		bToMb(mem.Alloc), bToMb(mem.TotalAlloc), bToMb(mem.Sys), mem.NumGC)
+}
+
 func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64) error {
 	start := gocore.CurrentNanos()
 	defer func() {
@@ -403,8 +452,13 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 				return err
 			}
 			// free up memory
-			txs = make([]*blocktx_api.TransactionAndSource, 0, bs.transactionStorageBatchSize)
-			merklePaths = make([]string, 0, bs.transactionStorageBatchSize)
+			txs = txs[:0]
+			merklePaths = merklePaths[:0]
+
+			// print stats, call gc and chec the result
+			printMemStats()
+			runtime.GC()
+			printMemStats()
 		}
 	}
 

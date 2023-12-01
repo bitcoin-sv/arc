@@ -99,6 +99,7 @@ func TestLoadUnmined(t *testing.T) {
 	tt := []struct {
 		name                   string
 		storedData             []*store.StoreData
+		isCentralised          bool
 		updateStatusErr        error
 		getTransactionBlockErr error
 		delErr                 error
@@ -183,7 +184,7 @@ func TestLoadUnmined(t *testing.T) {
 			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX2Hash},
 		},
 		{
-			name: "block not found",
+			name: "delete expired",
 			storedData: []*store.StoreData{
 				{
 					StoredAt:    storedAt.Add(-400 * time.Hour),
@@ -197,7 +198,7 @@ func TestLoadUnmined(t *testing.T) {
 			expectedItemTxHashesFinal: []*chainhash.Hash{},
 		},
 		{
-			name: "block not found - deletion fails",
+			name: "delete expired - deletion fails",
 			storedData: []*store.StoreData{
 				{
 					StoredAt:    storedAt.Add(-400 * time.Hour),
@@ -209,6 +210,21 @@ func TestLoadUnmined(t *testing.T) {
 			delErr: errors.New("failed to delete hash"),
 
 			expectedDeletions:         1,
+			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX2Hash},
+		},
+		{
+			name:          "delete expired - centralised storage",
+			isCentralised: true,
+			storedData: []*store.StoreData{
+				{
+					StoredAt:    storedAt.Add(-400 * time.Hour),
+					AnnouncedAt: storedAt.Add(1 * time.Second),
+					Hash:        testdata.TX2Hash,
+					Status:      metamorph_api.Status_SEEN_ON_NETWORK,
+				},
+			},
+
+			expectedDeletions:         0,
 			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX2Hash},
 		},
 	}
@@ -266,6 +282,9 @@ func TestLoadUnmined(t *testing.T) {
 					require.ElementsMatch(t, tc.expectedItemTxHashesFinal, hashes)
 					require.Equal(t, len(tc.expectedItemTxHashesFinal), len(hashes))
 					return nil
+				},
+				IsCentralisedFunc: func() bool {
+					return tc.isCentralised
 				},
 			}
 

@@ -1,12 +1,17 @@
 package cmd
 
 import (
+	"context"
 	"errors"
+	"os"
+	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/ordishs/go-utils"
 	"github.com/spf13/viper"
 )
+
+const BecomePrimaryintervalSecs = 30
 
 func StartBlockTx(logger utils.Logger) (func(), error) {
 	dbMode := viper.GetString("blocktx.db.mode")
@@ -27,6 +32,20 @@ func StartBlockTx(logger utils.Logger) (func(), error) {
 	go func() {
 		if err = blockTxServer.StartGRPCServer(); err != nil {
 			logger.Fatalf("%v", err)
+		}
+	}()
+
+	go func() {
+		for {
+			hostName, err := os.Hostname()
+			if err != nil {
+				logger.Fatalf("%v", err)
+			} else {
+				if err := blockStore.TryToBecomePrimary(context.Background(), hostName); err != nil {
+					logger.Fatalf("%v", err)
+				}
+			}
+			time.Sleep(time.Second * BecomePrimaryintervalSecs)
 		}
 	}()
 

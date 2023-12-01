@@ -283,7 +283,7 @@ func (p *Processor) deleteExpired(record *store.StoreData) (recordDeleted bool) 
 		return recordDeleted
 	}
 
-	p.logger.Info("deleting transaction from storage", slog.String("hash", record.Hash.String()), slog.String("status", metamorph_api.Status_name[int32(record.Status)]), slog.Time("storage date", record.StoredAt))
+	p.logger.Debug("deleting transaction from storage", slog.String("hash", record.Hash.String()), slog.String("status", metamorph_api.Status_name[int32(record.Status)]), slog.Time("storage date", record.StoredAt))
 
 	err := p.store.Del(context.Background(), record.RawTx)
 	if err != nil {
@@ -300,7 +300,8 @@ func (p *Processor) LoadUnmined() {
 	defer span.Finish()
 
 	err := p.store.GetUnmined(spanCtx, func(record *store.StoreData) {
-		if p.deleteExpired(record) {
+
+		if !p.store.IsCentralised() && p.deleteExpired(record) {
 			return
 		}
 

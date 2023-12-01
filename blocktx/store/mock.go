@@ -10,15 +10,15 @@ import (
 	"sync"
 )
 
-// Ensure, that InterfaceMock does implement store.Interface.
+// Ensure, that InterfaceMock does implement Interface.
 // If this is not the case, regenerate this file with moq.
 var _ Interface = &InterfaceMock{}
 
-// InterfaceMock is a mock implementation of store.Interface.
+// InterfaceMock is a mock implementation of Interface.
 //
 //	func TestSomethingThatUsesInterface(t *testing.T) {
 //
-//		// make and configure a mocked store.Interface
+//		// make and configure a mocked Interface
 //		mockedInterface := &InterfaceMock{
 //			CloseFunc: func() error {
 //				panic("mock out the Close method")
@@ -62,15 +62,21 @@ var _ Interface = &InterfaceMock{}
 //			OrphanHeightFunc: func(ctx context.Context, height uint64) error {
 //				panic("mock out the OrphanHeight method")
 //			},
+//			PrimaryBlocktxFunc: func(ctx context.Context) (string, error) {
+//				panic("mock out the PrimaryBlocktx method")
+//			},
 //			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (string, string, []byte, uint64, error) {
 //				panic("mock out the RegisterTransaction method")
 //			},
 //			SetOrphanHeightFunc: func(ctx context.Context, height uint64, orphaned bool) error {
 //				panic("mock out the SetOrphanHeight method")
 //			},
+//			TryToBecomePrimaryFunc: func(ctx context.Context, myHostName string) error {
+//				panic("mock out the TryToBecomePrimary method")
+//			},
 //		}
 //
-//		// use mockedInterface in code that requires store.Interface
+//		// use mockedInterface in code that requires Interface
 //		// and then make assertions.
 //
 //	}
@@ -117,11 +123,17 @@ type InterfaceMock struct {
 	// OrphanHeightFunc mocks the OrphanHeight method.
 	OrphanHeightFunc func(ctx context.Context, height uint64) error
 
+	// PrimaryBlocktxFunc mocks the PrimaryBlocktx method.
+	PrimaryBlocktxFunc func(ctx context.Context) (string, error)
+
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (string, string, []byte, uint64, error)
 
 	// SetOrphanHeightFunc mocks the SetOrphanHeight method.
 	SetOrphanHeightFunc func(ctx context.Context, height uint64, orphaned bool) error
+
+	// TryToBecomePrimaryFunc mocks the TryToBecomePrimary method.
+	TryToBecomePrimaryFunc func(ctx context.Context, myHostName string) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -225,6 +237,11 @@ type InterfaceMock struct {
 			// Height is the height argument value.
 			Height uint64
 		}
+		// PrimaryBlocktx holds details about calls to the PrimaryBlocktx method.
+		PrimaryBlocktx []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
 		// RegisterTransaction holds details about calls to the RegisterTransaction method.
 		RegisterTransaction []struct {
 			// Ctx is the ctx argument value.
@@ -241,6 +258,13 @@ type InterfaceMock struct {
 			// Orphaned is the orphaned argument value.
 			Orphaned bool
 		}
+		// TryToBecomePrimary holds details about calls to the TryToBecomePrimary method.
+		TryToBecomePrimary []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// MyHostName is the myHostName argument value.
+			MyHostName string
+		}
 	}
 	lockClose                        sync.RWMutex
 	lockGetBlock                     sync.RWMutex
@@ -256,8 +280,10 @@ type InterfaceMock struct {
 	lockInsertBlockTransactions      sync.RWMutex
 	lockMarkBlockAsDone              sync.RWMutex
 	lockOrphanHeight                 sync.RWMutex
+	lockPrimaryBlocktx               sync.RWMutex
 	lockRegisterTransaction          sync.RWMutex
 	lockSetOrphanHeight              sync.RWMutex
+	lockTryToBecomePrimary           sync.RWMutex
 }
 
 // Close calls CloseFunc.
@@ -767,6 +793,38 @@ func (mock *InterfaceMock) OrphanHeightCalls() []struct {
 	return calls
 }
 
+// PrimaryBlocktx calls PrimaryBlocktxFunc.
+func (mock *InterfaceMock) PrimaryBlocktx(ctx context.Context) (string, error) {
+	if mock.PrimaryBlocktxFunc == nil {
+		panic("InterfaceMock.PrimaryBlocktxFunc: method is nil but Interface.PrimaryBlocktx was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockPrimaryBlocktx.Lock()
+	mock.calls.PrimaryBlocktx = append(mock.calls.PrimaryBlocktx, callInfo)
+	mock.lockPrimaryBlocktx.Unlock()
+	return mock.PrimaryBlocktxFunc(ctx)
+}
+
+// PrimaryBlocktxCalls gets all the calls that were made to PrimaryBlocktx.
+// Check the length with:
+//
+//	len(mockedInterface.PrimaryBlocktxCalls())
+func (mock *InterfaceMock) PrimaryBlocktxCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockPrimaryBlocktx.RLock()
+	calls = mock.calls.PrimaryBlocktx
+	mock.lockPrimaryBlocktx.RUnlock()
+	return calls
+}
+
 // RegisterTransaction calls RegisterTransactionFunc.
 func (mock *InterfaceMock) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (string, string, []byte, uint64, error) {
 	if mock.RegisterTransactionFunc == nil {
@@ -840,5 +898,41 @@ func (mock *InterfaceMock) SetOrphanHeightCalls() []struct {
 	mock.lockSetOrphanHeight.RLock()
 	calls = mock.calls.SetOrphanHeight
 	mock.lockSetOrphanHeight.RUnlock()
+	return calls
+}
+
+// TryToBecomePrimary calls TryToBecomePrimaryFunc.
+func (mock *InterfaceMock) TryToBecomePrimary(ctx context.Context, myHostName string) error {
+	if mock.TryToBecomePrimaryFunc == nil {
+		panic("InterfaceMock.TryToBecomePrimaryFunc: method is nil but Interface.TryToBecomePrimary was just called")
+	}
+	callInfo := struct {
+		Ctx        context.Context
+		MyHostName string
+	}{
+		Ctx:        ctx,
+		MyHostName: myHostName,
+	}
+	mock.lockTryToBecomePrimary.Lock()
+	mock.calls.TryToBecomePrimary = append(mock.calls.TryToBecomePrimary, callInfo)
+	mock.lockTryToBecomePrimary.Unlock()
+	return mock.TryToBecomePrimaryFunc(ctx, myHostName)
+}
+
+// TryToBecomePrimaryCalls gets all the calls that were made to TryToBecomePrimary.
+// Check the length with:
+//
+//	len(mockedInterface.TryToBecomePrimaryCalls())
+func (mock *InterfaceMock) TryToBecomePrimaryCalls() []struct {
+	Ctx        context.Context
+	MyHostName string
+} {
+	var calls []struct {
+		Ctx        context.Context
+		MyHostName string
+	}
+	mock.lockTryToBecomePrimary.RLock()
+	calls = mock.calls.TryToBecomePrimary
+	mock.lockTryToBecomePrimary.RUnlock()
 	return calls
 }

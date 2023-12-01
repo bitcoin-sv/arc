@@ -2,6 +2,8 @@ package jobs
 
 import (
 	"fmt"
+	"log/slog"
+	"time"
 
 	"github.com/bitcoin-sv/arc/dbconn"
 	"github.com/jmoiron/sqlx"
@@ -29,6 +31,7 @@ func ClearBlocks(params ClearRecrodsParams) error {
 		return err
 	}
 
+	start := time.Now()
 	res, err := stmt.Exec(interval)
 	if err != nil {
 		Log(ERROR, "unable to delete rows")
@@ -36,5 +39,9 @@ func ClearBlocks(params ClearRecrodsParams) error {
 	}
 	rows, _ := res.RowsAffected()
 	Log(INFO, fmt.Sprintf("Successfully deleted %d rows from blocks table", rows))
+
+	timePassed := time.Since(start)
+
+	logger.Info("Successfully cleared blocks table", slog.Int64("rows", rows), slog.Duration("duration", timePassed))
 	return nil
 }

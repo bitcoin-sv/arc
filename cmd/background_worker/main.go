@@ -5,38 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bitcoin-sv/arc/background_jobs/jobs"
+	"github.com/bitcoin-sv/arc/background_worker"
+	"github.com/bitcoin-sv/arc/background_worker/jobs"
 	"github.com/bitcoin-sv/arc/dbconn"
 	"github.com/go-co-op/gocron"
 	"github.com/spf13/viper"
 )
-
-type ARCScheduler struct {
-	s               *gocron.Scheduler
-	IntervalInHours int
-	Params          jobs.ClearRecrodsParams
-}
-
-func (sched *ARCScheduler) RunJob(table string, job func(params jobs.ClearRecrodsParams) error) {
-	_, err := sched.s.Every(sched.IntervalInHours).Hours().Do(func() {
-		jobs.Log(jobs.INFO, fmt.Sprintf("Clearing expired %s...", table))
-		err := job(sched.Params)
-		if err != nil {
-			jobs.Log(jobs.ERROR, fmt.Sprintf("unable to clear expired %s %s", table, err))
-			return
-		}
-		jobs.Log(jobs.INFO, fmt.Sprintf("%s cleanup complete", table))
-	})
-
-	if err != nil {
-		jobs.Log(jobs.ERROR, fmt.Sprintf("unable to run %s job", table))
-		return
-	}
-}
-
-func (sched *ARCScheduler) Start() {
-	sched.s.StartBlocking()
-}
 
 func main() {
 	viper.SetConfigFile("config.yaml")
@@ -67,17 +41,17 @@ func main() {
 
 	jobs.Log(jobs.INFO, fmt.Sprintf("starting with %#v", params))
 
-	intervalInHours := viper.GetInt("cleanBlocks.executionIntervalInHours")
+	intervalInHours := viper.GetInt("cleanBlocks.executionIntervalHours")
 
-	sched := ARCScheduler{
-		s:               gocron.NewScheduler(time.UTC),
+	sched := background_worker.ARCScheduler{
+		Scheduler:       gocron.NewScheduler(time.UTC),
 		IntervalInHours: intervalInHours,
 		Params:          params,
 	}
 
 	sched.RunJob("blocks", jobs.ClearBlocks)
 	sched.RunJob("transactions", jobs.ClearTransactions)
-	sched.RunJob("block transactoins map", jobs.ClearBlockTransactionsMap)
+	sched.RunJob("block transactions map", jobs.ClearBlockTransactionsMap)
 
 	sched.Start()
 }

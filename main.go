@@ -48,6 +48,7 @@ func run() error {
 	startBlockTx := flag.Bool("blocktx", false, "start blocktx")
 	startCallbacker := flag.Bool("callbacker", false, "start callbacker")
 	startK8sWatcher := flag.Bool("k8s-watcher", false, "start k8s-watcher")
+	startBackgroundWorker := flag.Bool("background-worker", false, "start background-worker")
 	useTracer := flag.Bool("tracer", false, "start tracer")
 	help := flag.Bool("help", false, "Show help")
 	config := flag.String("config", ".", "path to configuration yaml file")
@@ -72,6 +73,9 @@ func run() error {
 		fmt.Println("")
 		fmt.Println("    -k8s-watcher=<true|false>")
 		fmt.Println("          whether to start k8s-watcher (default=true)")
+		fmt.Println("")
+		fmt.Println("    -background-worker=<true|false>")
+		fmt.Println("          whether to background-worker (default=true)")
 		fmt.Println("")
 		fmt.Println("    -tracer=<true|false>")
 		fmt.Println("          whether to start the Jaeger tracer (default=false)")
@@ -134,7 +138,12 @@ func run() error {
 		}
 	}
 
-	if !isFlagPassed("api") && !isFlagPassed("blocktx") && !isFlagPassed("callbacker") && !isFlagPassed("metamorph") && !isFlagPassed("k8s-watcher") {
+	if !isFlagPassed("api") &&
+		!isFlagPassed("blocktx") &&
+		!isFlagPassed("callbacker") &&
+		!isFlagPassed("metamorph") &&
+		!isFlagPassed("k8s-watcher") &&
+		!isFlagPassed("background-worker") {
 		logger.Info("No service selected, starting all")
 		*startApi = true
 		*startMetamorph = true
@@ -211,6 +220,15 @@ func run() error {
 		shutdown, err := cmd.StartK8sWatcher(logger)
 		if err != nil {
 			return fmt.Errorf("failed to start k8s-watcher: %v", err)
+		}
+		shutdownFns = append(shutdownFns, func() { shutdown() })
+	}
+
+	if startBackgroundWorker != nil && *startBackgroundWorker {
+		logger.Info("Starting Background-Worker")
+		shutdown, err := cmd.StartBackGroundWorker(logger)
+		if err != nil {
+			return fmt.Errorf("failed to start background-worker: %v", err)
 		}
 		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}

@@ -285,7 +285,7 @@ func (p *Processor) deleteExpired(record *store.StoreData) (recordDeleted bool) 
 
 	p.logger.Debug("deleting transaction from storage", slog.String("hash", record.Hash.String()), slog.String("status", metamorph_api.Status_name[int32(record.Status)]), slog.Time("storage date", record.StoredAt))
 
-	err := p.store.Del(context.Background(), record.RawTx)
+	err := p.store.Del(context.Background(), record.Hash[:])
 	if err != nil {
 		p.logger.Error("failed to delete transaction", slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
 		return recordDeleted

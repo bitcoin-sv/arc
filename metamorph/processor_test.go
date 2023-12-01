@@ -276,6 +276,7 @@ func TestLoadUnmined(t *testing.T) {
 					}, nil
 				},
 				DelFunc: func(ctx context.Context, key []byte) error {
+					require.Equal(t, testdata.TX2Hash[:], key)
 					return tc.delErr
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {

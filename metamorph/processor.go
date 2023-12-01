@@ -18,8 +18,6 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
-	tracingLog "github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/go-utils/stat"
 	"github.com/ordishs/gocore"
 )
@@ -367,42 +365,45 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 		return false, fmt.Errorf("failed to get tx %s from response map", hash.String())
 	}
 
-	resp.UpdateStatus(&ProcessorResponseStatusUpdate{
+	err := resp.UpdateStatus(&ProcessorResponseStatusUpdate{
 		Status: metamorph_api.Status_MINED,
 		Source: "blocktx",
 		UpdateStore: func() error {
 			return p.store.UpdateMined(spanCtx, hash, blockHash, blockHeight)
 		},
-		Callback: func(err error) {
-			if err != nil {
-				p.logger.Error(failedToUpdateStatus, slog.String("hash", hash.String()), slog.String("err", err.Error()))
-				return
-			}
-
-			if !resp.NoStats {
-				p.mined.AddDuration(time.Since(resp.Start))
-			}
-
-			resp.Close()
-			p.ProcessorResponseMap.Delete(hash)
-
-			if p.cbChannel != nil {
-				data, _ := p.store.Get(spanCtx, hash[:])
-
-				if data != nil && data.CallbackUrl != "" {
-					p.cbChannel <- &callbacker_api.Callback{
-						Hash:        data.Hash[:],
-						Url:         data.CallbackUrl,
-						Token:       data.CallbackToken,
-						Status:      int32(data.Status),
-						BlockHash:   data.BlockHash[:],
-						BlockHeight: data.BlockHeight,
-					}
-				}
-			}
-
-		},
 	})
+	if err != nil {
+		return false, err
+	}
+
+	if err != nil {
+		p.logger.Error(failedToUpdateStatus, slog.String("hash", hash.String()), slog.String("err", err.Error()))
+		return false, err
+	}
+
+	if !resp.NoStats {
+		p.mined.AddDuration(time.Since(resp.Start))
+	}
+
+	resp.Close()
+	p.ProcessorResponseMap.Delete(hash)
+
+	if p.cbChannel != nil {
+		data, err := p.store.Get(spanCtx, hash[:])
+		if err != nil {
+			return false, err
+		}
+		if data != nil && data.CallbackUrl != "" {
+			p.cbChannel <- &callbacker_api.Callback{
+				Hash:        data.Hash[:],
+				Url:         data.CallbackUrl,
+				Token:       data.CallbackToken,
+				Status:      int32(data.Status),
+				BlockHash:   data.BlockHash[:],
+				BlockHeight: data.BlockHeight,
+			}
+		}
+	}
 
 	return true, nil
 }
@@ -416,7 +417,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
 	defer span.Finish()
 
-	processorResponse.UpdateStatus(&ProcessorResponseStatusUpdate{
+	err := processorResponse.UpdateStatus(&ProcessorResponseStatusUpdate{
 		Status:    status,
 		Source:    source,
 		StatusErr: statusErr,
@@ -430,40 +431,43 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 			return p.store.UpdateStatus(spanCtx, hash, status, rejectReason)
 		},
 		IgnoreCallback: processorResponse.NoStats, // do not do this callback if we are not keeping stats
-		Callback: func(err error) {
-			if err != nil {
-				p.logger.Error(failedToUpdateStatus, slog.String("hash", hash.String()), slog.String("err", err.Error()))
-				return
-			} else {
-				p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
-			}
-
-			switch status {
-
-			case metamorph_api.Status_REQUESTED_BY_NETWORK:
-				p.requestedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-			case metamorph_api.Status_SENT_TO_NETWORK:
-				p.sentToNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-			case metamorph_api.Status_ACCEPTED_BY_NETWORK:
-				p.acceptedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-			case metamorph_api.Status_SEEN_ON_NETWORK:
-				p.seenOnNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-			case metamorph_api.Status_MINED:
-				p.mined.AddDuration(time.Since(processorResponse.Start))
-				processorResponse.Close()
-				p.ProcessorResponseMap.Delete(hash)
-
-			case metamorph_api.Status_REJECTED:
-				p.logger.Warn("transaction rejected", slog.String("status", status.String()), slog.String("hash", hash.String()))
-
-				p.rejected.AddDuration(source, time.Since(processorResponse.Start))
-			}
-		},
 	})
+
+	if err != nil {
+		return false, err
+	}
+
+	if err != nil {
+		p.logger.Error(failedToUpdateStatus, slog.String("hash", hash.String()), slog.String("err", err.Error()))
+		return false, err
+	}
+
+	p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
+
+	switch status {
+
+	case metamorph_api.Status_REQUESTED_BY_NETWORK:
+		p.requestedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
+
+	case metamorph_api.Status_SENT_TO_NETWORK:
+		p.sentToNetwork.AddDuration(source, time.Since(processorResponse.Start))
+
+	case metamorph_api.Status_ACCEPTED_BY_NETWORK:
+		p.acceptedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
+
+	case metamorph_api.Status_SEEN_ON_NETWORK:
+		p.seenOnNetwork.AddDuration(source, time.Since(processorResponse.Start))
+
+	case metamorph_api.Status_MINED:
+		p.mined.AddDuration(time.Since(processorResponse.Start))
+		processorResponse.Close()
+		p.ProcessorResponseMap.Delete(hash)
+
+	case metamorph_api.Status_REJECTED:
+		p.logger.Warn("transaction rejected", slog.String("status", status.String()), slog.String("hash", hash.String()))
+
+		p.rejected.AddDuration(source, time.Since(processorResponse.Start))
+	}
 
 	return true, nil
 }
@@ -485,63 +489,64 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	processorResponse := NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel)
 
 	// STEP 1: RECEIVED
-	processorResponse.UpdateStatus(&ProcessorResponseStatusUpdate{
+	err := processorResponse.UpdateStatus(&ProcessorResponseStatusUpdate{
 		Status: metamorph_api.Status_RECEIVED,
 		Source: "processor",
-		Callback: func(err error) {
-			if err != nil {
-				p.logger.Error("Error received when setting status", slog.String("status", metamorph_api.Status_RECEIVED.String()), slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
-				return
-			}
+	})
 
-			// STEP 2: STORED
-			processorResponse.UpdateStatus(&ProcessorResponseStatusUpdate{
-				Status: metamorph_api.Status_STORED,
-				Source: "processor",
-				UpdateStore: func() error {
-					return p.store.Set(spanCtx, req.Data.Hash[:], req.Data)
-				},
-				Callback: func(err error) {
-					if err != nil {
-						span.SetTag(string(ext.Error), true)
-						p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
-						span.LogFields(tracingLog.Error(err))
-						return
-					}
+	if err != nil {
+		p.logger.Error("Error received when setting status", slog.String("status", metamorph_api.Status_RECEIVED.String()), slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+		return
+	}
 
-					// Add this transaction to the map of transactions that we are processing
-					p.ProcessorResponseMap.Set(req.Data.Hash, processorResponse)
-
-					p.stored.AddDuration(time.Since(processorResponse.Start))
-
-					// STEP 3: ANNOUNCED_TO_NETWORK
-					peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
-					processorResponse.SetPeers(peers)
-
-					peersStr := make([]string, 0, len(peers))
-					if len(peers) > 0 {
-						for _, peer := range peers {
-							peersStr = append(peersStr, peer.String())
-						}
-					}
-
-					processorResponse.UpdateStatus(&ProcessorResponseStatusUpdate{
-						Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-						Source: strings.Join(peersStr, ", "),
-						UpdateStore: func() error {
-							return p.store.UpdateStatus(spanCtx, req.Data.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
-						},
-						Callback: func(err error) {
-							duration := time.Since(processorResponse.Start)
-							for _, peerStr := range peersStr {
-								p.announcedToNetwork.AddDuration(peerStr, duration)
-							}
-
-							gocore.NewStat("processor").AddTime(startNanos)
-						},
-					})
-				},
-			})
+	// STEP 2: STORED
+	err = processorResponse.UpdateStatus(&ProcessorResponseStatusUpdate{
+		Status: metamorph_api.Status_STORED,
+		Source: "processor",
+		UpdateStore: func() error {
+			return p.store.Set(spanCtx, req.Data.Hash[:], req.Data)
 		},
 	})
+
+	if err != nil {
+		p.logger.Error("Error received when setting status", slog.String("status", metamorph_api.Status_STORED.String()), slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+		return
+	}
+
+	// Add this transaction to the map of transactions that we are processing
+	p.ProcessorResponseMap.Set(req.Data.Hash, processorResponse)
+
+	p.stored.AddDuration(time.Since(processorResponse.Start))
+
+	// STEP 3: ANNOUNCED_TO_NETWORK
+	peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
+	processorResponse.SetPeers(peers)
+
+	peersStr := make([]string, 0, len(peers))
+	if len(peers) > 0 {
+		for _, peer := range peers {
+			peersStr = append(peersStr, peer.String())
+		}
+	}
+
+	err = processorResponse.UpdateStatus(&ProcessorResponseStatusUpdate{
+		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		Source: strings.Join(peersStr, ", "),
+		UpdateStore: func() error {
+			return p.store.UpdateStatus(spanCtx, req.Data.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
+		},
+	})
+
+	if err != nil {
+		p.logger.Error("Error received when setting status", slog.String("status", metamorph_api.Status_ANNOUNCED_TO_NETWORK.String()), slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+		return
+	}
+
+	duration := time.Since(processorResponse.Start)
+	for _, peerStr := range peersStr {
+		p.announcedToNetwork.AddDuration(peerStr, duration)
+	}
+
+	gocore.NewStat("processor").AddTime(startNanos)
+
 }

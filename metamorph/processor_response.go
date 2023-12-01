@@ -25,7 +25,7 @@ type ProcessorResponseStatusUpdate struct {
 	StatusErr      error
 	UpdateStore    func() error
 	IgnoreCallback bool
-	Callback       func(err error)
+	//Callback       func(err error)
 }
 
 type ProcessorResponse struct {
@@ -87,17 +87,16 @@ func (r *ProcessorResponse) Close() {
 	}
 }
 
-func (r *ProcessorResponse) UpdateStatus(statusUpdate *ProcessorResponseStatusUpdate) {
+func (r *ProcessorResponse) UpdateStatus(statusUpdate *ProcessorResponseStatusUpdate) error {
 	// If this transaction has already been mined, ignore any further updates
 	if r.Status == metamorph_api.Status_MINED {
-		return
+		return nil
 	}
 
 	if statusUpdate.UpdateStore != nil {
 		if err := statusUpdate.UpdateStore(); err != nil {
 			r.setErr(err, "processorResponse")
-			statusUpdate.Callback(err)
-			return
+			return err
 		}
 	}
 
@@ -110,9 +109,7 @@ func (r *ProcessorResponse) UpdateStatus(statusUpdate *ProcessorResponseStatusUp
 	statKey := fmt.Sprintf("%d: %s", statusUpdate.Status, statusUpdate.Status.String())
 	r.LastStatusUpdateNanos.Store(gocore.NewStat("processorResponse").NewStat(statKey).AddTime(r.LastStatusUpdateNanos.Load()))
 
-	if !statusUpdate.IgnoreCallback {
-		statusUpdate.Callback(nil)
-	}
+	return nil
 }
 
 func (r *ProcessorResponse) SetPeers(peers []p2p.PeerI) {

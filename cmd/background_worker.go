@@ -17,37 +17,37 @@ const (
 )
 
 func StartBackGroundWorker(logger *slog.Logger) (func(), error) {
-	dbHost, err := config.GetString("blocktx.db.host")
+	dbHost, err := config.GetString("blocktx.db.postgres.host")
 	if err != nil {
 		return nil, err
 	}
 
-	dbPort, err := config.GetInt("blocktx.db.port")
+	dbPort, err := config.GetInt("blocktx.db.postgres.port")
 	if err != nil {
 		return nil, err
 	}
 
-	dbUsername, err := config.GetString("blocktx.db.user")
+	dbUsername, err := config.GetString("blocktx.db.postgres.user")
 	if err != nil {
 		return nil, err
 	}
 
-	dbPassword, err := config.GetString("blocktx.db.password")
+	dbPassword, err := config.GetString("blocktx.db.postgres.password")
 	if err != nil {
 		return nil, err
 	}
 
-	dbName, err := config.GetString("blocktx.db.name")
+	dbName, err := config.GetString("blocktx.db.postgres.name")
 	if err != nil {
 		return nil, err
 	}
 
-	cleanBlocksRecordRetentionDays, err := config.GetInt("blocktx.cleanData.recordRetentionDays")
+	cleanBlocksRecordRetentionDays, err := config.GetInt("blocktx.db.cleanData.recordRetentionDays")
 	if err != nil {
 		return nil, err
 	}
 
-	intervalInHours, err := config.GetInt("blocktx.cleanData.executionIntervalHours")
+	intervalInHours, err := config.GetInt("blocktx.db.cleanData.executionIntervalHours")
 	if err != nil {
 		return nil, err
 	}

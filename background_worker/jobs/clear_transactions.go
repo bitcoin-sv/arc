@@ -29,6 +29,6 @@ func ClearTransactions(params ClearRecrodsParams) error {
 		return err
 	}
 	rows, _ := res.RowsAffected()
-	Log(INFO, fmt.Sprintf("Successfully deleted %d rows", rows))
+	Log(INFO, fmt.Sprintf("Successfully deleted %d rows from transactions table", rows))
 	return nil
 }

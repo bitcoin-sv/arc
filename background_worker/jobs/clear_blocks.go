@@ -35,6 +35,6 @@ func ClearBlocks(params ClearRecrodsParams) error {
 		return err
 	}
 	rows, _ := res.RowsAffected()
-	Log(INFO, fmt.Sprintf("Successfully deleted %d rows", rows))
+	Log(INFO, fmt.Sprintf("Successfully deleted %d rows from blocks table", rows))
 	return nil
 }

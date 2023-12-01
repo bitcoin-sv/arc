@@ -16,7 +16,6 @@ import (
 	. "github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	. "github.com/bitcoin-sv/arc/metamorph/mocks"
-	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/badger"
 	metamorphSql "github.com/bitcoin-sv/arc/metamorph/store/sql"
@@ -333,7 +332,7 @@ func TestProcessTransaction(t *testing.T) {
 			metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 		}
 
-		responseChannel := make(chan processor_response.StatusAndError)
+		responseChannel := make(chan StatusAndError)
 
 		var wg sync.WaitGroup
 		wg.Add(len(expectedResponses))
@@ -459,7 +458,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
-		responseChannel := make(chan processor_response.StatusAndError)
+		responseChannel := make(chan StatusAndError)
 
 		var wg sync.WaitGroup
 		wg.Add(1)
@@ -509,7 +508,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 
 		processor, err := NewProcessor(s, pm, nil, nil)
 		require.NoError(t, err)
-		processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(
+		processor.ProcessorResponseMap.Set(testdata.TX1Hash, NewProcessorResponseWithStatus(
 			testdata.TX1Hash,
 			metamorph_api.Status_SEEN_ON_NETWORK,
 		))
@@ -551,7 +550,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		processor, err := NewProcessor(s, pm, callbackCh, nil)
 		require.NoError(t, err)
 		// add the tx to the map
-		processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(
+		processor.ProcessorResponseMap.Set(testdata.TX1Hash, NewProcessorResponseWithStatus(
 			testdata.TX1Hash,
 			metamorph_api.Status_SEEN_ON_NETWORK,
 		))
@@ -574,7 +573,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
-		responseChannel := make(chan processor_response.StatusAndError)
+		responseChannel := make(chan StatusAndError)
 
 		var wg sync.WaitGroup
 		wg.Add(1)
@@ -759,9 +758,9 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 
 			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
-			processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK))
-			processor.ProcessorResponseMap.Set(testdata.TX2Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_SEEN_ON_NETWORK))
-			processor.ProcessorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+			processor.ProcessorResponseMap.Set(testdata.TX1Hash, NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+			processor.ProcessorResponseMap.Set(testdata.TX2Hash, NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+			processor.ProcessorResponseMap.Set(testdata.TX3Hash, NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_SEEN_ON_NETWORK))
 
 			time.Sleep(25 * time.Millisecond)
 
@@ -802,13 +801,13 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
-			respSent := processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK)
+			respSent := NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK)
 			respSent.Retries.Add(tc.retries)
 
-			respAnnounced := processor_response.NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK)
+			respAnnounced := NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK)
 			respAnnounced.Retries.Add(tc.retries)
 
-			respAccepted := processor_response.NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_ACCEPTED_BY_NETWORK)
+			respAccepted := NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_ACCEPTED_BY_NETWORK)
 			respAccepted.Retries.Add(tc.retries)
 
 			processor.ProcessorResponseMap.Set(testdata.TX1Hash, respSent)

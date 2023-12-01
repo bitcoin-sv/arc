@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils/stat"
@@ -29,7 +28,7 @@ type ProcessorStats struct {
 
 type ProcessorRequest struct {
 	Data            *store.StoreData
-	ResponseChannel chan processor_response.StatusAndError
+	ResponseChannel chan StatusAndError
 }
 
 type PeerTxMessage struct {

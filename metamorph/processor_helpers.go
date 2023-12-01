@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
 	gcutils "github.com/ordishs/gocore/utils"
@@ -100,15 +99,15 @@ MapSize:       %d
 }
 
 type statResponse struct {
-	Txid                  string                                    `json:"hash"`
-	Start                 time.Time                                 `json:"start"`
-	Retries               uint32                                    `json:"Retries"`
-	Err                   error                                     `json:"error"`
-	AnnouncedPeers        []string                                  `json:"AnnouncedPeers"`
-	Status                metamorph_api.Status                      `json:"Status"`
-	NoStats               bool                                      `json:"noStats"`
-	LastStatusUpdateNanos int64                                     `json:"LastStatusUpdateNanos"`
-	Log                   []processor_response.ProcessorResponseLog `json:"log"`
+	Txid                  string                 `json:"hash"`
+	Start                 time.Time              `json:"start"`
+	Retries               uint32                 `json:"Retries"`
+	Err                   error                  `json:"error"`
+	AnnouncedPeers        []string               `json:"AnnouncedPeers"`
+	Status                metamorph_api.Status   `json:"Status"`
+	NoStats               bool                   `json:"noStats"`
+	LastStatusUpdateNanos int64                  `json:"LastStatusUpdateNanos"`
+	Log                   []ProcessorResponseLog `json:"log"`
 }
 
 func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
@@ -138,7 +137,7 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 		if printTxs {
 			m := p.ProcessorResponseMap.Items()
 
-			txMap := make(map[string]*processor_response.ProcessorResponse)
+			txMap := make(map[string]*ProcessorResponse)
 
 			for k, v := range m {
 				txMap[k.String()] = v
@@ -146,7 +145,7 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 
 			err := json.NewEncoder(w).Encode(struct {
 				*ProcessorStats
-				Txs map[string]*processor_response.ProcessorResponse `json:"txs"`
+				Txs map[string]*ProcessorResponse `json:"txs"`
 			}{
 				ProcessorStats: stats,
 				Txs:            txMap,
@@ -163,7 +162,7 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 	var txids strings.Builder
 	if printTxs {
 		items := p.ProcessorResponseMap.Items()
-		processorResponses := make([]*processor_response.ProcessorResponse, 0, len(items))
+		processorResponses := make([]*ProcessorResponse, 0, len(items))
 		for _, item := range items {
 			processorResponses = append(processorResponses, item)
 		}
@@ -329,7 +328,7 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, hash *chainhash.Hash
 			if logFile != "" {
 				processorResponseStats := grepFile(logFile, hash.String())
 				if processorResponseStats != "" {
-					var prStats *processor_response.ProcessorResponse
+					var prStats *ProcessorResponse
 					_ = json.Unmarshal([]byte(processorResponseStats), &prStats)
 					if prStats != nil {
 						_, _ = io.WriteString(w, fmt.Sprintf(`
@@ -381,7 +380,7 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, hash *chainhash.Hash
   </html>`, txJson))
 }
 
-func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *processor_response.ProcessorResponse) []byte {
+func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *ProcessorResponse) []byte {
 
 	announcedPeers := make([]string, 0, len(prm.AnnouncedPeers))
 	for _, peer := range prm.AnnouncedPeers {

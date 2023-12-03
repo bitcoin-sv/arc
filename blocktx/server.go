@@ -113,3 +113,15 @@ func (s *Server) Shutdown() {
 	s.logger.Info("Shutting down")
 	s.grpcServer.Stop()
 }
+
+func (s *Server) ClearTransactions(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
+	return s.store.ClearBlocktxTable(ctx, clearData.RetentionDays, "transactions")
+}
+
+func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
+	return s.store.ClearBlocktxTable(ctx, clearData.RetentionDays, "blocks")
+}
+
+func (s *Server) ClearBlockTransactionsMap(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
+	return s.store.ClearBlocktxTable(ctx, clearData.RetentionDays, "block_transactions_map")
+}

@@ -28,14 +28,15 @@ func main() {
 	}
 
 	params := jobs.ClearRecrodsParams{
-		DBConnectionParams: dbconn.DBConnectionParams{
-			Host:     viper.GetString("cleanBlocks.host"),
-			Port:     viper.GetInt("cleanBlocks.port"),
-			Username: viper.GetString("cleanBlocks.username"),
-			Password: viper.GetString("cleanBlocks.password"),
-			DBName:   viper.GetString("cleanBlocks.dbName"),
-			Scheme:   viper.GetString("cleanBlocks.scheme"),
-		},
+		DBConnectionParams: dbconn.New(
+			viper.GetString("cleanBlocks.host"),
+			viper.GetInt("cleanBlocks.port"),
+			viper.GetString("cleanBlocks.username"),
+			viper.GetString("cleanBlocks.password"),
+			viper.GetString("cleanBlocks.dbName"),
+			viper.GetString("cleanBlocks.scheme"),
+			viper.GetString("cleanBlocks.sslMode"),
+		),
 		RecordRetentionDays: viper.GetInt("cleanBlocks.recordRetentionDays"),
 	}
 

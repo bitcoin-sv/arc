@@ -55,14 +55,15 @@ func (p DBConnectionParams) String() string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", p.Username, p.Password, p.Host, p.Port, p.DBName)
 }
 
-var DefaultParams = dbconn.DBConnectionParams{
-	Host:     "localhost",
-	Port:     5432,
-	Username: "arcuser",
-	Password: "arcpass",
-	DBName:   "blocktx_test",
-	Scheme:   "postgres",
-}
+var DefaultParams = dbconn.New(
+	"localhost",
+	5432,
+	"arcuser",
+	"arcpass",
+	"blocktx_test",
+	"postgres",
+	"disable",
+)
 
 // DatabaseTestSuite test helper suite to
 // 1. create database

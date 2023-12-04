@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/davecgh/go-spew/spew"
@@ -19,6 +20,7 @@ const (
 
 type K8sClient interface {
 	GetPodWatcher(ctx context.Context, namespace string, podName string) (watch.Interface, error)
+	GetPods(ctx context.Context, namespace string) (*v1.PodList, error)
 }
 
 type Watcher struct {
@@ -63,6 +65,8 @@ func (c *Watcher) Start() error {
 		return fmt.Errorf("failed to get pod watcher: %v", err)
 	}
 
+	getPodsTicker := time.NewTicker(10 * time.Second)
+
 	go func() {
 		defer func() {
 			c.shutdownComplete <- struct{}{}
@@ -70,6 +74,17 @@ func (c *Watcher) Start() error {
 
 		for {
 			select {
+			case <-getPodsTicker.C:
+				ctx := context.Background()
+				pods, err := c.k8sClient.GetPods(ctx, c.namespace)
+				if err != nil {
+					c.logger.Error("failed to get pods", slog.String("err", err.Error()))
+				}
+
+				for _, pod := range pods.Items {
+					c.logger.Info("running pod", slog.String("name", pod.Name))
+				}
+
 			case event := <-watcher.ResultChan():
 				c.logger.Debug("event received", slog.String("type", string(event.Type)))
 

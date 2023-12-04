@@ -6,6 +6,7 @@ package mock
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/k8s_watcher"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"sync"
 )
@@ -23,6 +24,9 @@ var _ k8s_watcher.K8sClient = &K8sClientMock{}
 //			GetPodWatcherFunc: func(ctx context.Context, namespace string, podName string) (watch.Interface, error) {
 //				panic("mock out the GetPodWatcher method")
 //			},
+//			GetPodsFunc: func(ctx context.Context, namespace string) (*v1.PodList, error) {
+//				panic("mock out the GetPods method")
+//			},
 //		}
 //
 //		// use mockedK8sClient in code that requires k8s_watcher.K8sClient
@@ -32,6 +36,9 @@ var _ k8s_watcher.K8sClient = &K8sClientMock{}
 type K8sClientMock struct {
 	// GetPodWatcherFunc mocks the GetPodWatcher method.
 	GetPodWatcherFunc func(ctx context.Context, namespace string, podName string) (watch.Interface, error)
+
+	// GetPodsFunc mocks the GetPods method.
+	GetPodsFunc func(ctx context.Context, namespace string) (*v1.PodList, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -44,8 +51,16 @@ type K8sClientMock struct {
 			// PodName is the podName argument value.
 			PodName string
 		}
+		// GetPods holds details about calls to the GetPods method.
+		GetPods []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Namespace is the namespace argument value.
+			Namespace string
+		}
 	}
 	lockGetPodWatcher sync.RWMutex
+	lockGetPods       sync.RWMutex
 }
 
 // GetPodWatcher calls GetPodWatcherFunc.
@@ -85,5 +100,41 @@ func (mock *K8sClientMock) GetPodWatcherCalls() []struct {
 	mock.lockGetPodWatcher.RLock()
 	calls = mock.calls.GetPodWatcher
 	mock.lockGetPodWatcher.RUnlock()
+	return calls
+}
+
+// GetPods calls GetPodsFunc.
+func (mock *K8sClientMock) GetPods(ctx context.Context, namespace string) (*v1.PodList, error) {
+	if mock.GetPodsFunc == nil {
+		panic("K8sClientMock.GetPodsFunc: method is nil but K8sClient.GetPods was just called")
+	}
+	callInfo := struct {
+		Ctx       context.Context
+		Namespace string
+	}{
+		Ctx:       ctx,
+		Namespace: namespace,
+	}
+	mock.lockGetPods.Lock()
+	mock.calls.GetPods = append(mock.calls.GetPods, callInfo)
+	mock.lockGetPods.Unlock()
+	return mock.GetPodsFunc(ctx, namespace)
+}
+
+// GetPodsCalls gets all the calls that were made to GetPods.
+// Check the length with:
+//
+//	len(mockedK8sClient.GetPodsCalls())
+func (mock *K8sClientMock) GetPodsCalls() []struct {
+	Ctx       context.Context
+	Namespace string
+} {
+	var calls []struct {
+		Ctx       context.Context
+		Namespace string
+	}
+	mock.lockGetPods.RLock()
+	calls = mock.calls.GetPods
+	mock.lockGetPods.RUnlock()
 	return calls
 }

@@ -12,7 +12,7 @@ import (
 func ClearTransactions(params ClearRecrodsParams) error {
 	Log(INFO, "Connecting to database ...")
 
-	conn, err := sqlx.Open(params.Scheme, params.String())
+	conn, err := sqlx.Open(params.Scheme(), params.String())
 	if err != nil {
 		Log(ERROR, "unable to create connection")
 		return err

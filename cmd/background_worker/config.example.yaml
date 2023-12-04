@@ -7,3 +7,4 @@ cleanBlocks:
   password: "postgres" # db connection password
   dbname:  "postgres"  # db connection database
   scheme:  "postgres" # db connection schema, postgres, mysql, etc...
+  sslMode:  "disable" # ssl mode, disable, require, verify-ca, verify-full

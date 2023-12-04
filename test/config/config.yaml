@@ -48,6 +48,9 @@ metamorph:
       name: metamorph
       user: arc
       password: arc
+      sslMode: disable
+    cleanData:
+      recordRetentionDays: 14 # number of days for which data is kept in the storage before it can be deleted
   processorCacheExpiryTime: 24h # time after which processor cache is cleaned
   checkUtxos: false # force check each utxo for validity. If enabled ARC connects to bitcoin node using rpc for each utxo
   statsKeypress: false # enable stats keypress. If enabled pressing any key will print stats to stdout
@@ -67,6 +70,9 @@ blocktx:
       maxIdleConns: 10 # maximum idle connections
       maxOpenConns: 80 # maximum open connections
       sslMode: disable
+    cleanData:
+      recordRetentionDays: 14 # number of days for which data is kept in the storage before it can be deleted
+      executionIntervalHours: 24
   profilerAddr: localhost:9993 # address to start profiler server on
   startingBlockHeight: 100 # starting block height for blocktx to start from. blocktx will not request blocks lower than this height
 

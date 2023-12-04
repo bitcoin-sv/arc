@@ -28,7 +28,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const transactionStoringBatchsizeDefault = 8 // power of 2 for easier memory allocation
+const transactionStoringBatchsizeDefault = 65536 // power of 2 for easier memory allocation
 
 func init() {
 	// override the default wire block handler with our own that streams and stores only the transaction ids

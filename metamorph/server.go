@@ -558,7 +558,18 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		return nil, err
 	}
 
-	status := &metamorph_api.TransactionStatus{
+	merklePath, err := s.btc.GetTransactionMerklePath(ctx, &blocktx_api.Transaction{Hash: hash[:]})
+	if err != nil {
+		if errors.Is(err, blocktx.ErrTransactionNotFoundForMerklePath) {
+			if data.Status == metamorph_api.Status_MINED {
+				s.logger.Error("Merkle path not found for mined transaction", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+			}
+		} else {
+			s.logger.Error("failed to get Merkle path for transaction", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+		}
+	}
+
+	return &metamorph_api.TransactionStatus{
 		Txid:         data.Hash.String(),
 		AnnouncedAt:  announcedAt,
 		StoredAt:     storedAt,
@@ -567,22 +578,8 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		BlockHeight:  data.BlockHeight,
 		BlockHash:    blockHash,
 		RejectReason: data.RejectReason,
-	}
-
-	merklePath, err := s.btc.GetTransactionMerklePath(ctx, &blocktx_api.Transaction{Hash: hash[:]})
-	if err != nil {
-		if errors.Is(err, blocktx.ErrTransactionNotFoundForMerklePath) {
-			if status.Status == metamorph_api.Status_MINED {
-				s.logger.Error("Merkle path not found for mined transaction", slog.String("hash", hash.String()), slog.String("err", err.Error()))
-			}
-		} else {
-			s.logger.Error("failed to get Merkle path for transaction", slog.String("hash", hash.String()), slog.String("err", err.Error()))
-		}
-	}
-
-	status.MerklePath = merklePath
-
-	return status, nil
+		MerklePath:   merklePath,
+	}, nil
 }
 
 func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*store.StoreData, *timestamppb.Timestamp, *timestamppb.Timestamp, *timestamppb.Timestamp, error) {

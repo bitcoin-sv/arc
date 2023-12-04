@@ -65,7 +65,7 @@ func (c *Watcher) Start() error {
 		return fmt.Errorf("failed to get pod watcher: %v", err)
 	}
 
-	getPodsTicker := time.NewTicker(time.Second * 10)
+	getPodsTicker := time.NewTicker(10 * time.Second)
 
 	go func() {
 		defer func() {

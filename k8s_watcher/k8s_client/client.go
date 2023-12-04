@@ -3,9 +3,10 @@ package k8s_client
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/watch"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -39,4 +40,8 @@ func (k *K8sClient) GetPodWatcher(ctx context.Context, namespace string, podName
 	}
 
 	return watcher, nil
+}
+
+func (k *K8sClient) GetPods(ctx context.Context, namespace string) (*v1.PodList, error) {
+	return k.client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 }

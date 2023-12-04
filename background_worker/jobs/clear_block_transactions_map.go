@@ -2,6 +2,8 @@ package jobs
 
 import (
 	"fmt"
+	"log/slog"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -22,12 +24,16 @@ func ClearBlockTransactionsMap(params ClearRecrodsParams) error {
 		return err
 	}
 
+	start := time.Now()
 	res, err := stmt.Exec(interval)
 	if err != nil {
 		Log(ERROR, "unable to delete rows")
 		return err
 	}
 	rows, _ := res.RowsAffected()
-	Log(INFO, fmt.Sprintf("Successfully deleted %d rows", rows))
+
+	timePassed := time.Since(start)
+
+	logger.Info("Successfully cleared block_transactions_map table", slog.Int64("rows", rows), slog.Duration("duration", timePassed))
 	return nil
 }

@@ -3,7 +3,6 @@ package k8s_watcher_test
 import (
 	"context"
 	"errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"log/slog"
 	"os"
 	"testing"
@@ -15,50 +14,48 @@ import (
 	"github.com/lmittmann/tint"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
 )
 
 //go:generate moq -pkg mock -out ./mock/metamorph_api_client_mock.go ../metamorph/metamorph_api MetaMorphAPIClient
 //go:generate moq -pkg mock -out ./mock/k8s_client_client_mock.go . K8sClient
+//go:generate moq -pkg mock -out ./mock/ticker_mock.go . Ticker
 
 func TestStart(t *testing.T) {
 	tt := []struct {
 		name           string
-		event          runtime.Object
+		podNames       []map[string]struct{}
+		getPodNamesErr error
 		setUnlockedErr error
-		getPodWatcher  error
 
-		expectedErrorStr                        string
 		expectedMetamorphSetUnlockedByNameCalls int
 	}{
 		{
-			name:  "unlock records for metamorph pod",
-			event: &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "metamorph-685fb9d6b4-tlt86"}},
+			name: "unlock records for metamorph-pod-2",
+			podNames: []map[string]struct{}{
+				{"metamorph-pod-1": {}, "metamorph-pod-2": {}, "api-pod-1": {}, "blocktx-pod-1": {}},
+				{"metamorph-pod-1": {}, "blocktx-pod-1": {}},
+				{"metamorph-pod-1": {}, "metamorph-pod-3": {}, "api-pod-2": {}, "blocktx-pod-1": {}},
+			},
 
 			expectedMetamorphSetUnlockedByNameCalls: 1,
 		},
 		{
-			name:           "set unlocked - error",
-			event:          &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "metamorph-685fb9d6b4-tlt86"}},
+			name:           "error - get pod names",
+			podNames:       []map[string]struct{}{{"": {}}},
+			getPodNamesErr: errors.New("failed to get pod names"),
+
+			expectedMetamorphSetUnlockedByNameCalls: 0,
+		},
+		{
+			name: "error - set unlocked",
+			podNames: []map[string]struct{}{
+				{"metamorph-pod-1": {}, "metamorph-pod-2": {}},
+				{"metamorph-pod-1": {}},
+				{"metamorph-pod-1": {}, "metamorph-pod-3": {}},
+			},
 			setUnlockedErr: errors.New("failed to set unlocked"),
 
 			expectedMetamorphSetUnlockedByNameCalls: 1,
-		},
-		{
-			name:  "event is not a pod",
-			event: &v1.Node{},
-
-			expectedMetamorphSetUnlockedByNameCalls: 0,
-		},
-		{
-			name:          "get pod watcher - error",
-			event:         &v1.Node{},
-			getPodWatcher: errors.New("failed to get pod watcher"),
-
-			expectedErrorStr:                        "failed to get pod watcher",
-			expectedMetamorphSetUnlockedByNameCalls: 0,
 		},
 	}
 
@@ -66,7 +63,7 @@ func TestStart(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphMock := &mock.MetaMorphAPIClientMock{
 				SetUnlockedByNameFunc: func(ctx context.Context, in *metamorph_api.SetUnlockedByNameRequest, opts ...grpc.CallOption) (*metamorph_api.SetUnlockedByNameResponse, error) {
-					require.Equal(t, "metamorph-685fb9d6b4-tlt86", in.Name)
+					require.Equal(t, "metamorph-pod-2", in.Name)
 
 					if tc.setUnlockedErr != nil {
 						return nil, tc.setUnlockedErr
@@ -76,25 +73,40 @@ func TestStart(t *testing.T) {
 				},
 			}
 
-			watcherMock := watch.NewFake()
+			iteration := 0
 			k8sClientMock := &mock.K8sClientMock{
-				GetPodWatcherFunc: func(ctx context.Context, namespace string, podName string) (watch.Interface, error) {
-					return watcherMock, tc.getPodWatcher
+				GetRunningPodNamesFunc: func(ctx context.Context, namespace string, service string) (map[string]struct{}, error) {
+					if tc.getPodNamesErr != nil {
+						return nil, tc.getPodNamesErr
+					}
+
+					podNames := tc.podNames[iteration]
+
+					iteration++
+
+					return podNames, nil
 				},
 			}
 
-			watcher := k8s_watcher.New(metamorphMock, k8sClientMock, "test-namespace",
+			tickerChannel := make(chan time.Time, 1)
+
+			ticker := &mock.TickerMock{
+				TickFunc: func() <-chan time.Time {
+					return tickerChannel
+				},
+				StopFunc: func() {},
+			}
+
+			watcher := k8s_watcher.New(metamorphMock, k8sClientMock, "test-namespace", k8s_watcher.WithTicker(ticker),
 				k8s_watcher.WithLogger(slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo, TimeFormat: time.Kitchen}))),
 			)
 			err := watcher.Start()
-			if tc.expectedErrorStr != "" || err != nil {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
-				return
-			} else {
-				require.NoError(t, err)
+			require.NoError(t, err)
+
+			for range tc.podNames {
+				tickerChannel <- time.Now()
 			}
 
-			watcherMock.Delete(tc.event)
 			watcher.Shutdown()
 
 			require.Equal(t, tc.expectedMetamorphSetUnlockedByNameCalls, len(metamorphMock.SetUnlockedByNameCalls()))

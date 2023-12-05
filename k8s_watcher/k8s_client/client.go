@@ -3,10 +3,9 @@ package k8s_client
 import (
 	"context"
 	"fmt"
-
 	v1 "k8s.io/api/core/v1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -29,9 +28,8 @@ func New() (*K8sClient, error) {
 	return &K8sClient{client: clientSet}, nil
 }
 
-func (k *K8sClient) GetPodWatcher(ctx context.Context, namespace string, podName string) (watch.Interface, error) {
-	watcher, err := k.client.CoreV1().Events(namespace).Watch(ctx, metav1.ListOptions{
-		TypeMeta:      metav1.TypeMeta{},
+func (k *K8sClient) GetRunningPodNames(ctx context.Context, namespace string, podName string) (map[string]struct{}, error) {
+	pods, err := k.client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app.kubernetes.io/instance=%s", podName),
 	})
 
@@ -39,9 +37,12 @@ func (k *K8sClient) GetPodWatcher(ctx context.Context, namespace string, podName
 		return nil, err
 	}
 
-	return watcher, nil
-}
+	podNames := map[string]struct{}{}
+	for _, item := range pods.Items {
+		if item.Status.Phase == v1.PodRunning {
+			podNames[item.Name] = struct{}{}
+		}
+	}
 
-func (k *K8sClient) GetPods(ctx context.Context, namespace string) (*v1.PodList, error) {
-	return k.client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	return podNames, nil
 }

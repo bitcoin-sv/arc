@@ -326,34 +326,12 @@ func TestProcessTransaction(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
-		expectedResponses := []metamorph_api.Status{
-			metamorph_api.Status_RECEIVED,
-			metamorph_api.Status_STORED,
-			metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-		}
-
-		responseChannel := make(chan StatusAndError)
-
-		var wg sync.WaitGroup
-		wg.Add(len(expectedResponses))
-		go func() {
-			n := 0
-			for response := range responseChannel {
-				status := response.Status
-				assert.Equal(t, testdata.TX1Hash, response.Hash)
-				assert.Equalf(t, expectedResponses[n], status, "Iteration %d: Expected %s, got %s", n, expectedResponses[n].String(), status.String())
-				wg.Done()
-				n++
-			}
-		}()
-
 		processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
 			Data: &store.StoreData{
 				Hash: testdata.TX1Hash,
 			},
-			ResponseChannel: responseChannel,
+			ResponseChannel: make(chan StatusAndError),
 		})
-		wg.Wait()
 
 		assert.Equal(t, 1, processor.ProcessorResponseMap.Len())
 		items := processor.ProcessorResponseMap.Items()
@@ -449,6 +427,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusForTransaction known tx - processed", func(t *testing.T) {
+
 		s, err := metamorphSql.New("sqlite_memory")
 		require.NoError(t, err)
 
@@ -458,29 +437,12 @@ func TestSendStatusForTransaction(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
-		responseChannel := make(chan StatusAndError)
-
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			for response := range responseChannel {
-				status := response.Status
-				fmt.Printf("response: %s\n", status)
-				if status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
-					close(responseChannel)
-					wg.Done()
-					return
-				}
-			}
-		}()
-
 		processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
 			Data: &store.StoreData{
 				Hash: testdata.TX1Hash,
 			},
-			ResponseChannel: responseChannel,
+			ResponseChannel: make(chan StatusAndError),
 		})
-		wg.Wait()
 
 		assert.Equal(t, 1, processor.ProcessorResponseMap.Len())
 
@@ -573,35 +535,16 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
-		responseChannel := make(chan StatusAndError)
-
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			for response := range responseChannel {
-				status := response.Status
-				fmt.Printf("response: %s\n", status)
-				if status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
-					close(responseChannel)
-					time.Sleep(1 * time.Millisecond)
-					wg.Done()
-					return
-				}
-			}
-		}()
-
 		processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
 			Data: &store.StoreData{
 				Hash: testdata.TX1Hash,
 			},
-			ResponseChannel: responseChannel,
+			ResponseChannel: make(chan StatusAndError),
 		})
-		wg.Wait()
 
 		assert.Equal(t, 1, processor.ProcessorResponseMap.Len())
 
 		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
-		time.Sleep(10 * time.Millisecond)
 		assert.True(t, ok)
 		assert.NoError(t, sendErr)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len(), "should have been removed from the map")

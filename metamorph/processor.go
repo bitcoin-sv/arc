@@ -432,10 +432,17 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 		return false, nil
 	}
 
+	// Do not overwrite a higher value status with a lower or equal value status
+	if statusValueMap[status] <= statusValueMap[processorResponse.Status] {
+		p.logger.Info("Status not updated for tx", slog.String("status", status.String()), slog.String("previous status", processorResponse.Status.String()), slog.String("hash", hash.String()))
+
+		return false, nil
+	}
+
 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
 	defer span.Finish()
 
-	processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
+	statusUpdate := &processor_response.ProcessorResponseStatusUpdate{
 		Status:    status,
 		Source:    source,
 		StatusErr: statusErr,
@@ -453,12 +460,11 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 			if err != nil {
 				p.logger.Error(failedToUpdateStatus, slog.String("hash", hash.String()), slog.String("err", err.Error()))
 				return
-			} else {
-				p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
 			}
 
-			switch status {
+			p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
 
+			switch status {
 			case metamorph_api.Status_REQUESTED_BY_NETWORK:
 				p.requestedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
 
@@ -482,7 +488,9 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 				p.rejected.AddDuration(source, time.Since(processorResponse.Start))
 			}
 		},
-	})
+	}
+
+	processorResponse.UpdateStatus(statusUpdate)
 
 	return true, nil
 }

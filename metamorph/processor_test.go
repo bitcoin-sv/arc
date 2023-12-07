@@ -255,9 +255,6 @@ func TestLoadUnmined(t *testing.T) {
 				},
 			}
 			mtmStore := &MetamorphStoreMock{
-				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-					return &store.StoreData{}, nil
-				},
 				GetUnminedFunc: func(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
 					for _, data := range tc.storedData {
 						callback(data)

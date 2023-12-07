@@ -3,6 +3,7 @@ package metamorph
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -22,7 +23,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
-	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -47,7 +47,6 @@ type BitcoinNode interface {
 type ProcessorI interface {
 	LoadUnmined()
 	Set(ctx context.Context, req *ProcessorRequest) error
-
 	ProcessTransactionBlocking(ctx context.Context, req *ProcessorRequest) (*store.StoreData, error)
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
 	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
@@ -188,59 +187,53 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	}
 
 	transactionStatus, err := s.putTransactionInit(ctx, req)
-	if err != nil {
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		// if we have an error, we will return immediately
 		return nil, err
 	}
 
 	if transactionStatus != nil {
 		// if we have a transactionStatus, no need to process it
+		if s.forceCheckUtxos {
+			if err = s.CheckUtxos(ctx, req.RawTx); err != nil {
+				s.logger.Error("Error checking utxos", slog.String("err", err.Error()))
+				transactionStatus.Status = metamorph_api.Status_REJECTED
+				transactionStatus.RejectReason = err.Error()
+
+				return transactionStatus, nil
+			}
+		}
 		return transactionStatus, nil
 	}
+
 	hash := chainhash.DoubleHashH(req.RawTx)
 
-	// Convert gRPC req to store.StoreData struct...
 	sReq := &store.StoreData{
 		Hash:          &hash,
-		Status:        transactionStatus.Status,
+		Status:        metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 		CallbackUrl:   req.CallbackUrl,
 		CallbackToken: req.CallbackToken,
 		MerkleProof:   req.MerkleProof,
 		RawTx:         req.RawTx,
 	}
 
-	txStored, err := s.processor.ProcessTransactionBlocking(ctx, &ProcessorRequest{Data: sReq})
+	txdata, err := s.processor.ProcessTransactionBlocking(ctx, &ProcessorRequest{
+		Data: sReq,
+	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to process transaction %s due to %s", sReq.Hash, err)
+		return nil, err
 	}
 
 	return &metamorph_api.TransactionStatus{
-		Txid:         hash.String(),
-		Status:       txStored.Status,
-		RejectReason: txStored.RejectReason,
-	}, nil
+		Txid:   hash.String(),
+		Status: txdata.Status}, nil
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransactions")
-	defer span.Finish()
-	start := gocore.CurrentNanos()
-	defer gocore.NewStat("PutTransactions").AddTime(start)
-
-	// for each transaction if we have status in the db already set that status in the response
-	// if not we store the transaction data and set the transaction status in response array to - STORED
-	type processTxInput struct {
-		data          *store.StoreData
-		waitForStatus metamorph_api.Status
-		responseIndex int
-	}
-
 	// prepare response object before filling with tx statuses
 	resp := &metamorph_api.TransactionStatuses{
 		Statuses: make([]*metamorph_api.TransactionStatus, len(req.Transactions)),
 	}
-
-	processTxsInputMap := make(map[chainhash.Hash]processTxInput)
 
 	for ind, txReq := range req.Transactions {
 		err := ValidateCallbackURL(txReq.CallbackUrl)
@@ -254,16 +247,24 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			return nil, err
 		}
 
+		if s.forceCheckUtxos {
+			if err = s.CheckUtxos(ctx, txReq.RawTx); err != nil {
+				s.logger.Error("Error checking utxos", slog.String("err", err.Error()))
+				return nil, err
+			}
+		}
+
 		if transactionStatus != nil {
 			// if we have a transactionStatus, no need to process it another time
 			resp.Statuses[ind] = transactionStatus
 			continue
 		}
 
-		hash, _ := chainhash.NewHashFromStr(transactionStatus.BlockHash)
+		hash := chainhash.DoubleHashH(txReq.RawTx)
+
 		// Convert gRPC req to store.StoreData struct...
 		sReq := &store.StoreData{
-			Hash:          hash,
+			Hash:          &hash,
 			Status:        transactionStatus.Status,
 			CallbackUrl:   txReq.CallbackUrl,
 			CallbackToken: txReq.CallbackToken,
@@ -275,61 +276,19 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			return nil, err
 		}
 
-		processTxsInputMap[*hash] = processTxInput{
-			data:          sReq,
-			waitForStatus: txReq.WaitForStatus,
-			responseIndex: ind,
-		}
-	}
-
-	for hash, input := range processTxsInputMap {
-		sReq := &store.StoreData{
-			Hash:          &hash,
-			Status:        transactionStatus.Status,
-			CallbackUrl:   req.CallbackUrl,
-			CallbackToken: req.CallbackToken,
-			MerkleProof:   req.MerkleProof,
-			RawTx:         req.RawTx,
-		}
-
-		txStored, err := s.processor.ProcessTransactionBlocking(ctx, &ProcessorRequest{Data: sReq})
+		txdata, err := s.processor.ProcessTransactionBlocking(ctx, &ProcessorRequest{
+			Data: sReq,
+		})
 		if err != nil {
-			return nil, errors.Wrapf(err, "unable to process transaction %s due to %s", sReq.Hash, err)
+			return nil, err
 		}
 
-		//statusNew, err := s.processTransaction(ctx, input.waitForStatus, input.data, hash.String())
-		if err != nil {
-			resp.Statuses[input.responseIndex] = &metamorph_api.TransactionStatus{
-				RejectReason: err.Error(),
-				Status:       metamorph_api.Status_REJECTED,
-				Txid:         hash.String(),
-			}
-			continue
-		}
-		resp.Statuses[input.responseIndex] = statusNew
+		resp.Statuses = append(resp.Statuses, &metamorph_api.TransactionStatus{
+			Txid:   hash.String(),
+			Status: txdata.Status})
+
 	}
-
 	return resp, nil
-}
-
-func hasWaitForStatusReached(status metamorph_api.Status, waitForStatus metamorph_api.Status) bool {
-	statusValueMap := map[metamorph_api.Status]int{
-		metamorph_api.Status_UNKNOWN:                0,
-		metamorph_api.Status_QUEUED:                 1,
-		metamorph_api.Status_RECEIVED:               2,
-		metamorph_api.Status_STORED:                 3,
-		metamorph_api.Status_ANNOUNCED_TO_NETWORK:   4,
-		metamorph_api.Status_REQUESTED_BY_NETWORK:   5,
-		metamorph_api.Status_SENT_TO_NETWORK:        6,
-		metamorph_api.Status_REJECTED:               7,
-		metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL: 8,
-		metamorph_api.Status_ACCEPTED_BY_NETWORK:    9,
-		metamorph_api.Status_SEEN_ON_NETWORK:        10,
-		metamorph_api.Status_MINED:                  11,
-		metamorph_api.Status_CONFIRMED:              12,
-	}
-
-	return statusValueMap[status] >= statusValueMap[waitForStatus]
 }
 
 func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
@@ -337,7 +296,11 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 	defer initSpan.Finish()
 
 	hash := chainhash.DoubleHashH(req.RawTx)
-	registeredTx, err := s.btc.RegisterTransaction(initCtx, &blocktx_api.TransactionAndSource{
+
+	initSpan.SetTag("txid", hash.String())
+
+	// Register the transaction in blocktx store
+	rtr, err := s.btc.RegisterTransaction(initCtx, &blocktx_api.TransactionAndSource{
 		Hash:   hash[:],
 		Source: s.source,
 	})
@@ -346,17 +309,17 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		return nil, err
 	}
 
-	if !s.store.IsCentralised() && registeredTx.Source != s.source {
+	if !s.store.IsCentralised() && rtr.Source != s.source {
 		if isForwarded(ctx) {
 			// This is a forwarded request, so we should not forward it again
-			s.logger.Warn("Endless forwarding loop detected for", slog.String("hash", hash.String()), slog.String("address", s.source), slog.String("source", registeredTx.Source))
+			s.logger.Warn("Endless forwarding loop detected for", slog.String("hash", hash.String()), slog.String("address", s.source), slog.String("source", rtr.Source))
 			return nil, fmt.Errorf("endless forwarding loop detected")
 		}
 
 		// This transaction was already registered by another metamorph, and we
 		// should forward the request to that metamorph
 		var ownerConn *grpc.ClientConn
-		if ownerConn, err = dialMetamorph(initCtx, registeredTx.Source); err != nil {
+		if ownerConn, err = dialMetamorph(initCtx, rtr.Source); err != nil {
 			return nil, err
 		}
 
@@ -364,23 +327,21 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 
 		ownerMM := metamorph_api.NewMetaMorphAPIClient(ownerConn)
 
-		var transactionStatus *metamorph_api.TransactionStatus
-		if transactionStatus, err = ownerMM.PutTransaction(createForwardedContext(initCtx), req); err != nil {
+		transactionStatus, err := ownerMM.PutTransaction(createForwardedContext(initCtx), req)
+		if err != nil {
 			return nil, err
 		}
 
-		transactionStatus.MerklePath = registeredTx.MerklePath
+		transactionStatus.MerklePath = rtr.MerklePath
 
 		return transactionStatus, nil
 	}
 
-	if registeredTx.BlockHash != nil {
-		// In case a transaction is submitted to network outside of ARC and mined and now
-		// submitting the same transaction through arc endpoint we have problem.
-		// The transaction doesn't exist in metamorph so the call after this line
-		// (updating tx status to MINED) will fail as there is no transaction to update.
-		// In that case we take the transaction and store it first in metamorph database.
-		blockHash, _ := chainhash.NewHash(registeredTx.BlockHash)
+	if rtr.BlockHash != nil {
+		blockHash, _ := chainhash.NewHash(rtr.BlockHash)
+		if err != nil {
+			return nil, err
+		}
 
 		if err := s.store.Set(ctx, hash[:], &store.StoreData{
 			Hash:          &hash,
@@ -389,45 +350,31 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 			CallbackToken: req.CallbackToken,
 			MerkleProof:   req.MerkleProof,
 			RawTx:         req.RawTx,
-			BlockHeight:   registeredTx.BlockHeight,
 			BlockHash:     blockHash,
 		}); err != nil {
 			s.logger.Error("Failed to store transaction", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+			return nil, err
 		}
 
 		s.logger.Debug("Found block for transaction", slog.String("hash", hash.String()))
-
-		// If the transaction was mined, we should mark it as such
-		blockHash, _ = chainhash.NewHash(registeredTx.BlockHash)
-		if err = s.store.UpdateMined(initCtx, &hash, blockHash, registeredTx.BlockHeight); err != nil {
-			return nil, err
-		}
 	}
 
-	tx, err := s.store.Get(initCtx, hash[:])
+	transactionStatus, err := s.checkStore(initCtx, &hash)
 	if err != nil {
 		return nil, err
 	}
-
-	transactionStatus := newStatusFromTx(tx)
-	transactionStatus.MerklePath = registeredTx.MerklePath
-
-	if s.forceCheckUtxos {
-		if err = s.CheckUtxos(initCtx, req.RawTx); err != nil {
-			s.logger.Error("Error checking utxos", slog.String("err", err.Error()))
-			return &metamorph_api.TransactionStatus{
-				Status:       metamorph_api.Status_REJECTED,
-				Txid:         hash.String(),
-				MerklePath:   registeredTx.MerklePath,
-				RejectReason: err.Error(),
-			}, nil
-		}
-	}
-
+	transactionStatus.MerklePath = rtr.MerklePath
 	return transactionStatus, nil
+
 }
 
-func newStatusFromTx(storeData *store.StoreData) *metamorph_api.TransactionStatus {
+func (s *Server) checkStore(ctx context.Context, hash *chainhash.Hash) (*metamorph_api.TransactionStatus, error) {
+	storeData, err := s.store.Get(ctx, hash[:])
+	if err != nil {
+		s.logger.Error("Error getting transaction from store", slog.String("err", err.Error()))
+		return nil, err
+	}
+
 	return &metamorph_api.TransactionStatus{
 		TimedOut:     false,
 		StoredAt:     timestamppb.New(storeData.StoredAt),
@@ -438,37 +385,13 @@ func newStatusFromTx(storeData *store.StoreData) *metamorph_api.TransactionStatu
 		RejectReason: storeData.RejectReason,
 		BlockHeight:  storeData.BlockHeight,
 		BlockHash:    fmt.Sprintf("%v", storeData.BlockHash),
-	}
-}
-
-func (s *Server) checkStore(ctx context.Context, hash *chainhash.Hash, next int64) (int64, *metamorph_api.TransactionStatus) {
-	storeData, err := s.store.Get(ctx, hash[:])
-	if err != nil && !errors.Is(err, store.ErrNotFound) {
-		s.logger.Error("Error getting transaction from store", slog.String("err", err.Error()))
-	}
-	if storeData != nil {
-		// we found the transaction in the store, so we can just return it
-		return 0, &metamorph_api.TransactionStatus{
-			TimedOut:     false,
-			StoredAt:     timestamppb.New(storeData.StoredAt),
-			AnnouncedAt:  timestamppb.New(storeData.AnnouncedAt),
-			MinedAt:      timestamppb.New(storeData.MinedAt),
-			Txid:         fmt.Sprintf("%v", storeData.Hash),
-			Status:       storeData.Status,
-			RejectReason: storeData.RejectReason,
-			BlockHeight:  storeData.BlockHeight,
-			BlockHash:    fmt.Sprintf("%v", storeData.BlockHash),
-		}
-	}
-
-	return gocore.NewStat("PutTransaction").NewStat("1: Check store").AddTime(next), nil
+	}, nil
 }
 
 func (s *Server) CheckUtxos(ctx context.Context, rawTx []byte) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:UtxoCheck")
 	defer span.Finish()
 
-	var tx *bt.Tx
 	tx, err := bt.NewTxFromBytes(rawTx)
 	if err != nil {
 		return fmt.Errorf("failed to create bitcoin tx: %v", err)

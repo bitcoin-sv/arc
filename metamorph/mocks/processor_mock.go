@@ -7,6 +7,7 @@ import (
 	"context"
 	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"sync"
 )
@@ -33,7 +34,7 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //			ProcessTransactionFunc: func(ctx context.Context, req *metamorph.ProcessorRequest)  {
 //				panic("mock out the ProcessTransaction method")
 //			},
-//			ProcessTransactionBlockingFunc: func(ctx context.Context, req *metamorph.ProcessorRequest) error {
+//			ProcessTransactionBlockingFunc: func(ctx context.Context, req *metamorph.ProcessorRequest) (*store.StoreData, error) {
 //				panic("mock out the ProcessTransactionBlocking method")
 //			},
 //			SendStatusForTransactionFunc: func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error) {
@@ -68,7 +69,7 @@ type ProcessorIMock struct {
 	ProcessTransactionFunc func(ctx context.Context, req *metamorph.ProcessorRequest)
 
 	// ProcessTransactionBlockingFunc mocks the ProcessTransactionBlocking method.
-	ProcessTransactionBlockingFunc func(ctx context.Context, req *metamorph.ProcessorRequest) error
+	ProcessTransactionBlockingFunc func(ctx context.Context, req *metamorph.ProcessorRequest) (*store.StoreData, error)
 
 	// SendStatusForTransactionFunc mocks the SendStatusForTransaction method.
 	SendStatusForTransactionFunc func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
@@ -274,7 +275,7 @@ func (mock *ProcessorIMock) ProcessTransactionCalls() []struct {
 }
 
 // ProcessTransactionBlocking calls ProcessTransactionBlockingFunc.
-func (mock *ProcessorIMock) ProcessTransactionBlocking(ctx context.Context, req *metamorph.ProcessorRequest) error {
+func (mock *ProcessorIMock) ProcessTransactionBlocking(ctx context.Context, req *metamorph.ProcessorRequest) (*store.StoreData, error) {
 	if mock.ProcessTransactionBlockingFunc == nil {
 		panic("ProcessorIMock.ProcessTransactionBlockingFunc: method is nil but ProcessorI.ProcessTransactionBlocking was just called")
 	}

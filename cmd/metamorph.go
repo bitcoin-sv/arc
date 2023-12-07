@@ -162,15 +162,6 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
 
-	go func() {
-		for message := range statusMessageCh {
-			_, err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
-			if err != nil {
-				logger.Errorf("Could not send status for transaction %v: %v", message.Hash, err)
-			}
-		}
-	}()
-
 	if viper.GetBool("metamorph.statsKeypress") {
 		// The double invocation is the get PrintStatsOnKeypress to start and return a function
 		// that can be deferred to reset the TTY when the program exits.

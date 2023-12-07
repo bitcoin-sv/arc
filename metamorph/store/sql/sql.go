@@ -499,6 +499,37 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 	return nil
 }
 
+func (s *SQL) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error {
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("RemoveCallbacker").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:RemoveCallbacker")
+	defer span.Finish()
+
+	q := `UPDATE transactions SET callback_url = '' WHERE hash = $3;`
+
+	result, err := s.db.ExecContext(ctx, q, hash[:])
+	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return err
+	}
+
+	var n int64
+	n, err = result.RowsAffected()
+	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return err
+	}
+	if n == 0 {
+		return store.ErrNotFound
+	}
+
+	return nil
+}
+
 func (s *SQL) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {

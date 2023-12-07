@@ -387,21 +387,22 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 			resp.Close()
 			p.ProcessorResponseMap.Delete(hash)
 
-			if p.cbChannel != nil {
-				data, _ := p.store.Get(spanCtx, hash[:])
+			// if p.cbChannel != nil {
+			// 	data, _ := p.store.Get(spanCtx, hash[:])
 
-				if data != nil && data.CallbackUrl != "" {
-					p.cbChannel <- &callbacker_api.Callback{
-						Hash:        data.Hash[:],
-						Url:         data.CallbackUrl,
-						Token:       data.CallbackToken,
-						Status:      int32(data.Status),
-						BlockHash:   data.BlockHash[:],
-						BlockHeight: data.BlockHeight,
-					}
-				}
-			}
-
+			// 	if data != nil && data.CallbackUrl != "" {
+			// 		p.cbChannel <- &callbacker_api.Callback{
+			// 			Hash:        data.Hash[:],
+			// 			Url:         data.CallbackUrl,
+			// 			Token:       data.CallbackToken,
+			// 			Status:      int32(data.Status),
+			// 			BlockHash:   data.BlockHash[:],
+			// 			BlockHeight: data.BlockHeight,
+			// 		}
+			// 	}
+			// }
+			data, _ := p.store.Get(spanCtx, hash[:])
+			SendCallback(p.logger, p.store, data)
 		},
 	})
 

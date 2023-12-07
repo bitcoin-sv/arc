@@ -393,8 +393,11 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 			p.ProcessorResponseMap.Delete(hash)
 
 			if p.cbChannel != nil {
-				data, _ := p.store.Get(spanCtx, hash[:])
-
+				data, err := p.store.Get(spanCtx, hash[:])
+				if err != nil {
+					p.logger.Error("unable to get tx", slog.String("error", err.Error()))
+					return
+				}
 				if data != nil && data.CallbackUrl != "" {
 					p.cbChannel <- &callbacker_api.Callback{
 						Hash:        data.Hash[:],

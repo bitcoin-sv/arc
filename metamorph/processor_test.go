@@ -298,7 +298,7 @@ func TestLoadUnmined(t *testing.T) {
 			defer processor.Shutdown()
 			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
 			processor.LoadUnmined()
-
+			time.Sleep(1 * time.Second)
 			allItemHashes := make([]*chainhash.Hash, 0, len(processor.ProcessorResponseMap.Items()))
 
 			for i, item := range processor.ProcessorResponseMap.Items() {

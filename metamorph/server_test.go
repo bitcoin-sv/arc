@@ -807,7 +807,11 @@ func TestCheckUtxos(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &MetamorphStoreMock{}
+			metamorphStore := &MetamorphStoreMock{
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
+				},
+			}
 
 			btc := &ClientIMock{}
 

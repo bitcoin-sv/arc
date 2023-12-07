@@ -564,9 +564,6 @@ func TestPutTransactions(t *testing.T) {
 			}
 
 			processor := &ProcessorIMock{
-				SetFunc: func(_ context.Context, req *ProcessorRequest) error {
-					return nil
-				},
 				ProcessTransactionBlockingFunc: func(ctx context.Context, req *ProcessorRequest) (*store.StoreData, error) {
 					require.NoError(t, metamorphStore.Set(ctx, req.Data.Hash[:], req.Data))
 					return metamorphStore.Get(ctx, req.Data.Hash[:])
@@ -584,7 +581,6 @@ func TestPutTransactions(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			require.Equal(t, tc.expectedProcessorSetCalls, len(processor.SetCalls()))
 			require.Equal(t, tc.expectedProcessorProcessTransactionCalls, len(processor.ProcessTransactionBlockingCalls()))
 
 			for i := 0; i < len(tc.expectedStatuses.Statuses); i++ {

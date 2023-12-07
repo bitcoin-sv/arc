@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/bitcoin-sv/arc/api"
@@ -78,7 +79,7 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 			}
 			return
 		} else {
-			logger.Error("callback response status code not ok - ", response.StatusCode)
+			logger.Error("callback response status code not ok - ", slog.String("status", strconv.Itoa(response.StatusCode)))
 		}
 
 		// sleep before trying again
@@ -92,5 +93,5 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 		logger.Error("Couldn't update/remove callback url  - ", err)
 		return
 	}
-	logger.Error("Couldn't send transaction info through callback url after ", CallbackTries, " tries")
+	logger.Error("Couldn't send transaction info through callback url after ", slog.String("status", strconv.Itoa(CallbackTries)), " tries")
 }

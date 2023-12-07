@@ -371,11 +371,12 @@ func Benchmark_ProcessTransaction(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		btTx.Inputs[0].SequenceNumber = uint32(i)
 		hash, _ := chainhash.NewHashFromStr(btTx.TxID())
-		processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
+		processor.ProcessTransactionBlocking(context.TODO(), &ProcessorRequest{
 			Data: &store.StoreData{
 				Hash: hash,
 			},
 		})
+
 	}
 }
 
@@ -518,41 +519,19 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		pm := p2p.NewPeerManagerMock()
 
 		//var wg sync.WaitGroup
-		callbackCh := make(chan *callbacker_api.Callback)
-		//wg.Add(1)
-		//go func() {
-		//	for cb := range callbackCh {
-		//		assert.Equal(t, metamorph_api.Status_MINED, metamorph_api.Status(cb.Status))
-		//		assert.Equal(t, testdata.TX1Hash.CloneBytes(), cb.Hash)
-		//		assert.Equal(t, testdata.Block1Hash[:], cb.BlockHash)
-		//		assert.Equal(t, uint64(1233), cb.BlockHeight)
-		//		assert.Equal(t, "https://test.com", cb.Url)
-		//		assert.Equal(t, "token", cb.Token)
-		//		wg.Done()
-		//	}
-		//}()
-
-		processor, err := NewProcessor(s, pm, callbackCh, nil)
+		processor, err := NewProcessor(s, pm, make(chan *callbacker_api.Callback), nil)
 		require.NoError(t, err)
-		// add the tx to the map
-		//processor.ProcessorResponseMap.Set(testdata.TX1Hash, NewProcessorResponseWithStatus(
-		//	testdata.TX1Hash,
-		//	metamorph_api.Status_SEEN_ON_NETWORK,
-		//))
 
 		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
-		//time.Sleep(100 * time.Millisecond)
 		require.True(t, ok)
 		require.NoError(t, sendErr)
 
 		tx, err := s.Get(context.TODO(), testdata.TX1Hash[:])
-
+		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_MINED, metamorph_api.Status(tx.Status))
 		assert.Equal(t, testdata.TX1Hash, tx.Hash)
 		assert.Equal(t, testdata.Block1Hash, tx.BlockHash)
 		assert.Equal(t, uint64(1233), tx.BlockHeight)
-		//assert.Equal(t, "https://test.com", tx.Url)
-		//assert.Equal(t, "token", tx.Token)
 	})
 
 	t.Run("SendStatusForTransaction known tx - processed", func(t *testing.T) {

@@ -1,0 +1,3 @@
+DROP INDEX ux_blocks_inserted_at;
+DROP INDEX ux_transactions_inserted_at;
+DROP INDEX ux_block_transactions_map_inserted_at;

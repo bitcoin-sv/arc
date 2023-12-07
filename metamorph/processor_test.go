@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 	. "github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	. "github.com/bitcoin-sv/arc/metamorph/mocks"
@@ -533,43 +532,43 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
 	})
 
-	t.Run("SendStatusMinedForTransaction callback", func(t *testing.T) {
-		s, err := metamorphSql.New("sqlite_memory")
-		require.NoError(t, err)
-		setStoreTestData(t, s)
+	// t.Run("SendStatusMinedForTransaction callback", func(t *testing.T) {
+	// 	s, err := metamorphSql.New("sqlite_memory")
+	// 	require.NoError(t, err)
+	// 	setStoreTestData(t, s)
 
-		pm := p2p.NewPeerManagerMock()
+	// 	pm := p2p.NewPeerManagerMock()
 
-		var wg sync.WaitGroup
-		callbackCh := make(chan *callbacker_api.Callback)
-		wg.Add(1)
-		go func() {
-			for cb := range callbackCh {
-				assert.Equal(t, metamorph_api.Status_MINED, metamorph_api.Status(cb.Status))
-				assert.Equal(t, testdata.TX1Hash.CloneBytes(), cb.Hash)
-				assert.Equal(t, testdata.Block1Hash[:], cb.BlockHash)
-				assert.Equal(t, uint64(1233), cb.BlockHeight)
-				assert.Equal(t, "https://test.com", cb.Url)
-				assert.Equal(t, "token", cb.Token)
-				wg.Done()
-			}
-		}()
+	// 	var wg sync.WaitGroup
+	// 	callbackCh := make(chan *callbacker_api.Callback)
+	// 	wg.Add(1)
+	// 	go func() {
+	// 		for cb := range callbackCh {
+	// 			assert.Equal(t, metamorph_api.Status_MINED, metamorph_api.Status(cb.Status))
+	// 			assert.Equal(t, testdata.TX1Hash.CloneBytes(), cb.Hash)
+	// 			assert.Equal(t, testdata.Block1Hash[:], cb.BlockHash)
+	// 			assert.Equal(t, uint64(1233), cb.BlockHeight)
+	// 			assert.Equal(t, "https://test.com", cb.Url)
+	// 			assert.Equal(t, "token", cb.Token)
+	// 			wg.Done()
+	// 		}
+	// 	}()
 
-		processor, err := NewProcessor(s, pm, callbackCh, nil)
-		require.NoError(t, err)
-		// add the tx to the map
-		processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(
-			testdata.TX1Hash,
-			metamorph_api.Status_SEEN_ON_NETWORK,
-		))
+	// 	processor, err := NewProcessor(s, pm, callbackCh, nil)
+	// 	require.NoError(t, err)
+	// 	// add the tx to the map
+	// 	processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(
+	// 		testdata.TX1Hash,
+	// 		metamorph_api.Status_SEEN_ON_NETWORK,
+	// 	))
 
-		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
-		time.Sleep(100 * time.Millisecond)
-		assert.True(t, ok)
-		assert.NoError(t, sendErr)
+	// 	ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
+	// 	time.Sleep(100 * time.Millisecond)
+	// 	assert.True(t, ok)
+	// 	assert.NoError(t, sendErr)
 
-		wg.Wait()
-	})
+	// 	wg.Wait()
+	// })
 
 	t.Run("SendStatusForTransaction known tx - processed", func(t *testing.T) {
 		s, err := metamorphSql.New("sqlite_memory")

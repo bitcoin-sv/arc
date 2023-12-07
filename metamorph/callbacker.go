@@ -24,7 +24,7 @@ const (
 
 func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreData) {
 	sleepDuration := CallbackInterval
-	for i := 1; i < CallbackTries; i++ {
+	for i := 0; i < CallbackTries; i++ {
 		statusString := metamorph_api.Status(tx.Status).String()
 		blockHash := ""
 		if tx.BlockHash != nil {

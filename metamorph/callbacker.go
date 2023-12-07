@@ -44,10 +44,9 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 			logger.Error("Couldn't marshal status  - ", err)
 			return
 		}
-		statusBuffer := bytes.NewBuffer(statusBytes)
 
 		var request *http.Request
-		request, err = http.NewRequest("POST", tx.CallbackUrl, statusBuffer)
+		request, err = http.NewRequest("POST", tx.CallbackUrl, bytes.NewBuffer(statusBytes))
 		if err != nil {
 			logger.Error("Couldn't marshal status  - ", errors.Join(err, fmt.Errorf("failed to post callback for transaction id %s", tx.Hash)))
 			return
@@ -58,8 +57,9 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 		}
 
 		// default http client
-		httpClient := http.Client{}
-		httpClient.Timeout = 5 * time.Second
+		httpClient := http.Client{
+			Timeout: 5 * time.Second,
+		}
 
 		var response *http.Response
 		response, err = httpClient.Do(request)

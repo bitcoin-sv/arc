@@ -33,6 +33,9 @@ import (
 
 func TestNewProcessor(t *testing.T) {
 	mtmStore := &MetamorphStoreMock{
+		GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+			return &store.StoreData{}, nil
+		},
 		SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
 		RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 			return nil
@@ -252,6 +255,9 @@ func TestLoadUnmined(t *testing.T) {
 				},
 			}
 			mtmStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{}, nil
+				},
 				GetUnminedFunc: func(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
 					for _, data := range tc.storedData {
 						callback(data)
@@ -735,6 +741,9 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{}, nil
+				},
 				UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 					require.Condition(t, func() (success bool) {
 						oneOfHash := hash.IsEqual(testdata.TX1Hash) || hash.IsEqual(testdata.TX2Hash) || hash.IsEqual(testdata.TX3Hash)
@@ -798,6 +807,9 @@ func TestProcessExpiredTransactions(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{}, nil
+				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
 				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 					return nil

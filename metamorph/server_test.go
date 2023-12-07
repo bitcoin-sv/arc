@@ -701,6 +701,9 @@ func TestSetUnlockedbyName(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{}, nil
+				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int, error) {
 					return tc.recordsAffected, tc.errSetUnlocked
 				},
@@ -738,6 +741,9 @@ func TestStartGRPCServer(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{}, nil
+				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
 				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 					return nil
@@ -808,6 +814,9 @@ func TestCheckUtxos(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{}, nil
+				},
 				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 					return nil
 				},

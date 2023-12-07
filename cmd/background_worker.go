@@ -42,6 +42,11 @@ func StartBackGroundWorker(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
+	sslMode, err := config.GetString("blocktx.db.postgres.sslMode")
+	if err != nil {
+		return nil, err
+	}
+
 	cleanBlocksRecordRetentionDays, err := config.GetInt("blocktx.db.cleanData.recordRetentionDays")
 	if err != nil {
 		return nil, err
@@ -53,14 +58,15 @@ func StartBackGroundWorker(logger *slog.Logger) (func(), error) {
 	}
 
 	params := jobs.ClearRecrodsParams{
-		DBConnectionParams: dbconn.DBConnectionParams{
-			Host:     dbHost,
-			Port:     dbPort,
-			Username: dbUsername,
-			Password: dbPassword,
-			DBName:   dbName,
-			Scheme:   dbSchema,
-		},
+		DBConnectionParams: dbconn.New(
+			dbHost,
+			dbPort,
+			dbUsername,
+			dbPassword,
+			dbName,
+			dbSchema,
+			sslMode,
+		),
 		RecordRetentionDays: cleanBlocksRecordRetentionDays,
 	}
 

@@ -553,6 +553,22 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		blockHash = data.BlockHash.String()
 	}
 
+	hash, err := chainhash.NewHashFromStr(req.Txid)
+	if err != nil {
+		return nil, err
+	}
+
+	merklePath, err := s.btc.GetTransactionMerklePath(ctx, &blocktx_api.Transaction{Hash: hash[:]})
+	if err != nil {
+		if errors.Is(err, blocktx.ErrTransactionNotFoundForMerklePath) {
+			if data.Status == metamorph_api.Status_MINED {
+				s.logger.Error("Merkle path not found for mined transaction", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+			}
+		} else {
+			s.logger.Error("failed to get Merkle path for transaction", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+		}
+	}
+
 	return &metamorph_api.TransactionStatus{
 		Txid:         data.Hash.String(),
 		AnnouncedAt:  announcedAt,
@@ -562,6 +578,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		BlockHeight:  data.BlockHeight,
 		BlockHash:    blockHash,
 		RejectReason: data.RejectReason,
+		MerklePath:   merklePath,
 	}, nil
 }
 

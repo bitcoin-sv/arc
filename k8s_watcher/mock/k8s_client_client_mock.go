@@ -6,7 +6,6 @@ package mock
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/k8s_watcher"
-	"k8s.io/apimachinery/pkg/watch"
 	"sync"
 )
 
@@ -20,8 +19,8 @@ var _ k8s_watcher.K8sClient = &K8sClientMock{}
 //
 //		// make and configure a mocked k8s_watcher.K8sClient
 //		mockedK8sClient := &K8sClientMock{
-//			GetPodWatcherFunc: func(ctx context.Context, namespace string, podName string) (watch.Interface, error) {
-//				panic("mock out the GetPodWatcher method")
+//			GetRunningPodNamesFunc: func(ctx context.Context, namespace string, service string) (map[string]struct{}, error) {
+//				panic("mock out the GetRunningPodNames method")
 //			},
 //		}
 //
@@ -30,60 +29,60 @@ var _ k8s_watcher.K8sClient = &K8sClientMock{}
 //
 //	}
 type K8sClientMock struct {
-	// GetPodWatcherFunc mocks the GetPodWatcher method.
-	GetPodWatcherFunc func(ctx context.Context, namespace string, podName string) (watch.Interface, error)
+	// GetRunningPodNamesFunc mocks the GetRunningPodNames method.
+	GetRunningPodNamesFunc func(ctx context.Context, namespace string, service string) (map[string]struct{}, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// GetPodWatcher holds details about calls to the GetPodWatcher method.
-		GetPodWatcher []struct {
+		// GetRunningPodNames holds details about calls to the GetRunningPodNames method.
+		GetRunningPodNames []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Namespace is the namespace argument value.
 			Namespace string
-			// PodName is the podName argument value.
-			PodName string
+			// Service is the service argument value.
+			Service string
 		}
 	}
-	lockGetPodWatcher sync.RWMutex
+	lockGetRunningPodNames sync.RWMutex
 }
 
-// GetPodWatcher calls GetPodWatcherFunc.
-func (mock *K8sClientMock) GetPodWatcher(ctx context.Context, namespace string, podName string) (watch.Interface, error) {
-	if mock.GetPodWatcherFunc == nil {
-		panic("K8sClientMock.GetPodWatcherFunc: method is nil but K8sClient.GetPodWatcher was just called")
+// GetRunningPodNames calls GetRunningPodNamesFunc.
+func (mock *K8sClientMock) GetRunningPodNames(ctx context.Context, namespace string, service string) (map[string]struct{}, error) {
+	if mock.GetRunningPodNamesFunc == nil {
+		panic("K8sClientMock.GetRunningPodNamesFunc: method is nil but K8sClient.GetRunningPodNames was just called")
 	}
 	callInfo := struct {
 		Ctx       context.Context
 		Namespace string
-		PodName   string
+		Service   string
 	}{
 		Ctx:       ctx,
 		Namespace: namespace,
-		PodName:   podName,
+		Service:   service,
 	}
-	mock.lockGetPodWatcher.Lock()
-	mock.calls.GetPodWatcher = append(mock.calls.GetPodWatcher, callInfo)
-	mock.lockGetPodWatcher.Unlock()
-	return mock.GetPodWatcherFunc(ctx, namespace, podName)
+	mock.lockGetRunningPodNames.Lock()
+	mock.calls.GetRunningPodNames = append(mock.calls.GetRunningPodNames, callInfo)
+	mock.lockGetRunningPodNames.Unlock()
+	return mock.GetRunningPodNamesFunc(ctx, namespace, service)
 }
 
-// GetPodWatcherCalls gets all the calls that were made to GetPodWatcher.
+// GetRunningPodNamesCalls gets all the calls that were made to GetRunningPodNames.
 // Check the length with:
 //
-//	len(mockedK8sClient.GetPodWatcherCalls())
-func (mock *K8sClientMock) GetPodWatcherCalls() []struct {
+//	len(mockedK8sClient.GetRunningPodNamesCalls())
+func (mock *K8sClientMock) GetRunningPodNamesCalls() []struct {
 	Ctx       context.Context
 	Namespace string
-	PodName   string
+	Service   string
 } {
 	var calls []struct {
 		Ctx       context.Context
 		Namespace string
-		PodName   string
+		Service   string
 	}
-	mock.lockGetPodWatcher.RLock()
-	calls = mock.calls.GetPodWatcher
-	mock.lockGetPodWatcher.RUnlock()
+	mock.lockGetRunningPodNames.RLock()
+	calls = mock.calls.GetRunningPodNames
+	mock.lockGetRunningPodNames.RUnlock()
 	return calls
 }

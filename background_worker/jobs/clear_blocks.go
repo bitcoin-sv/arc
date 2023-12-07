@@ -18,7 +18,7 @@ type ClearRecrodsParams struct {
 func ClearBlocks(params ClearRecrodsParams) error {
 	Log(INFO, "Connecting to database ...")
 
-	conn, err := sqlx.Open(params.Scheme, params.String())
+	conn, err := sqlx.Open(params.Scheme(), params.String())
 	if err != nil {
 		Log(ERROR, "unable to create connection")
 		return err
@@ -42,6 +42,6 @@ func ClearBlocks(params ClearRecrodsParams) error {
 
 	timePassed := time.Since(start)
 
-	logger.Info("Successfully cleared blocks table", slog.Int64("rows", rows), slog.Duration("duration", timePassed))
+	logger.Info("Successfully cleared blocks table", slog.Int64("rows", rows), slog.String("duration", timePassed.String()))
 	return nil
 }

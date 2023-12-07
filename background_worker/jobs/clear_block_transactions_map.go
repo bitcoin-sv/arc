@@ -11,7 +11,7 @@ import (
 
 func ClearBlockTransactionsMap(params ClearRecrodsParams) error {
 	Log(INFO, "Connecting to database ...")
-	conn, err := sqlx.Open(params.Scheme, params.String())
+	conn, err := sqlx.Open(params.Scheme(), params.String())
 	if err != nil {
 		Log(ERROR, fmt.Sprintf("unable to create connection %s", err))
 		return err
@@ -34,6 +34,6 @@ func ClearBlockTransactionsMap(params ClearRecrodsParams) error {
 
 	timePassed := time.Since(start)
 
-	logger.Info("Successfully cleared block_transactions_map table", slog.Int64("rows", rows), slog.Duration("duration", timePassed))
+	logger.Info("Successfully cleared block_transactions_map table", slog.Int64("rows", rows), slog.String("duration", timePassed.String()))
 	return nil
 }

@@ -12,7 +12,7 @@ import (
 func ClearTransactions(params ClearRecrodsParams) error {
 	Log(INFO, "Connecting to database ...")
 
-	conn, err := sqlx.Open(params.Scheme, params.String())
+	conn, err := sqlx.Open(params.Scheme(), params.String())
 	if err != nil {
 		Log(ERROR, "unable to create connection")
 		return err
@@ -34,6 +34,6 @@ func ClearTransactions(params ClearRecrodsParams) error {
 	rows, _ := res.RowsAffected()
 	timePassed := time.Since(start)
 
-	logger.Info("Successfully cleared transactions table", slog.Int64("rows", rows), slog.Duration("duration", timePassed))
+	logger.Info("Successfully cleared transactions table", slog.Int64("rows", rows), slog.String("duration", timePassed.String()))
 	return nil
 }

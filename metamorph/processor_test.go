@@ -35,6 +35,9 @@ import (
 func TestNewProcessor(t *testing.T) {
 	mtmStore := &MetamorphStoreMock{
 		SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+		RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+			return nil
+		},
 	}
 
 	pm := p2p.NewPeerManagerMock()
@@ -286,6 +289,9 @@ func TestLoadUnmined(t *testing.T) {
 				},
 				IsCentralisedFunc: func() bool {
 					return tc.isCentralised
+				},
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
 				},
 			}
 
@@ -741,6 +747,9 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 					return tc.updateMinedErr
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
+				},
 			}
 			btxMock := &ClientIMock{
 				GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
@@ -789,7 +798,12 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &MetamorphStoreMock{SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil }}
+			metamorphStore := &MetamorphStoreMock{
+				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
+				},
+			}
 			pm := p2p.NewPeerManagerMock()
 			processor, err := NewProcessor(metamorphStore, pm, nil, nil,
 				WithProcessExpiredSeenTxsInterval(time.Hour),

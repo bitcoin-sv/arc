@@ -46,7 +46,6 @@ type BitcoinNode interface {
 
 type ProcessorI interface {
 	LoadUnmined()
-	Set(ctx context.Context, req *ProcessorRequest) error
 	ProcessTransactionBlocking(ctx context.Context, req *ProcessorRequest) (*store.StoreData, error)
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
 	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
@@ -272,7 +271,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			RawTx:         txReq.RawTx,
 		}
 
-		if err = s.processor.Set(ctx, &ProcessorRequest{Data: sReq}); err != nil {
+		if err = s.store.Set(ctx, sReq.Hash[:], sReq); err != nil {
 			return nil, err
 		}
 

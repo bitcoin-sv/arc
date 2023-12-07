@@ -4,22 +4,18 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 	. "github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	. "github.com/bitcoin-sv/arc/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/metamorph/store"
-	"github.com/bitcoin-sv/arc/metamorph/store/badger"
 	metamorphSql "github.com/bitcoin-sv/arc/metamorph/store/sql"
 	"github.com/bitcoin-sv/arc/testdata"
-	"github.com/labstack/gommon/random"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -303,12 +299,6 @@ func TestLoadUnmined(t *testing.T) {
 			time.Sleep(time.Millisecond * 200)
 
 			allItemHashes := make([]*chainhash.Hash, 0, len(processor.ProcessorResponseMap.Items()))
-
-			//for i, item := range processor.ProcessorResponseMap.Items() {
-			//	require.Equal(t, i, *item.Hash)
-			//	allItemHashes = append(allItemHashes, item.Hash)
-			//}
-
 			require.Equal(t, tc.expectedDeletions, len(mtmStore.DelCalls()))
 			require.ElementsMatch(t, tc.expectedItemTxHashesFinal, allItemHashes)
 		})
@@ -325,26 +315,6 @@ func TestProcessTransaction(t *testing.T) {
 		processor, err := NewProcessor(s, pm, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
-
-		//expectedResponses := []metamorph_api.Status{
-		//	metamorph_api.Status_RECEIVED,
-		//	metamorph_api.Status_STORED,
-		//	metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-		//}
-		//
-		//responseChannel := make(chan StatusAndError)
-		//var wg sync.WaitGroup
-		//wg.Add(len(expectedResponses))
-		//go func() {
-		//	n := 0
-		//	for response := range responseChannel {
-		//		status := response.Status
-		//		assert.Equal(t, testdata.TX1Hash, response.Hash)
-		//		assert.Equalf(t, expectedResponses[n], status, "Iteration %d: Expected %s, got %s", n, expectedResponses[n].String(), status.String())
-		//		wg.Done()
-		//		n++
-		//	}
-		//}()
 
 		txStored, err := processor.ProcessTransactionBlocking(context.TODO(), &ProcessorRequest{
 			Data: &store.StoreData{
@@ -371,409 +341,410 @@ func Benchmark_ProcessTransaction(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		btTx.Inputs[0].SequenceNumber = uint32(i)
 		hash, _ := chainhash.NewHashFromStr(btTx.TxID())
-		processor.ProcessTransactionBlocking(context.TODO(), &ProcessorRequest{
+		_, err := processor.ProcessTransactionBlocking(context.TODO(), &ProcessorRequest{
 			Data: &store.StoreData{
 				Hash: hash,
 			},
 		})
+		require.NoError(b, err)
 
 	}
 }
 
-func TestSendStatusForTransaction(t *testing.T) {
-	t.Skip()
-	t.Run("SendStatusForTransaction unknown tx", func(t *testing.T) {
-		s, err := metamorphSql.New("sqlite_memory")
-		require.NoError(t, err)
-
-		ctx := context.Background()
-		err = s.Set(ctx, testdata.TX1Hash[:], &store.StoreData{
-			StoredAt:      testdata.Time,
-			AnnouncedAt:   testdata.Time.Add(1 * time.Second),
-			MinedAt:       testdata.Time.Add(2 * time.Second),
-			Hash:          testdata.TX1Hash,
-			Status:        metamorph_api.Status_SENT_TO_NETWORK,
-			CallbackUrl:   "https://test.com",
-			CallbackToken: "token",
-		})
-		require.NoError(t, err)
-		pm := p2p.NewPeerManagerMock()
-
-		processor, err := NewProcessor(s, pm, nil, nil)
-		require.NoError(t, err)
-
-		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_MINED, "test", nil)
-		assert.NoError(t, sendErr)
-		assert.True(t, ok)
-	})
-
-	t.Run("SendStatusForTransaction err", func(t *testing.T) {
-		s, err := metamorphSql.New("sqlite_memory")
-		require.NoError(t, err)
-		setStoreTestData(t, s)
-
-		pm := p2p.NewPeerManagerMock()
-
-		processor, err := NewProcessor(s, pm, nil, nil)
-		require.NoError(t, err)
-
-		throwErr := fmt.Errorf("some error")
-		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_REJECTED, "test", throwErr)
-		assert.True(t, ok)
-		assert.NoError(t, sendErr)
-	})
-
-	t.Run("SendStatusForTransaction known tx - no update", func(t *testing.T) {
-		s, err := metamorphSql.New("sqlite_memory")
-		require.NoError(t, err)
-		setStoreTestData(t, s)
-
-		pm := p2p.NewPeerManagerMock()
-
-		processor, err := NewProcessor(s, pm, nil, nil)
-		require.NoError(t, err)
-		//assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
-
-		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "test", nil)
-		require.True(t, ok)
-		require.NoError(t, sendErr)
-
-		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, txStored.Status)
-	})
-
-	t.Run("SendStatusForTransaction known tx - processed", func(t *testing.T) {
-		s, err := metamorphSql.New("sqlite_memory")
-		require.NoError(t, err)
-
-		pm := p2p.NewPeerManagerMock()
-
-		processor, err := NewProcessor(s, pm, nil, nil)
-		require.NoError(t, err)
-		//assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
-
-		//responseChannel := make(chan StatusAndError)
-
-		//var wg sync.WaitGroup
-		//wg.Add(1)
-		//go func() {
-		//	for response := range responseChannel {
-		//		status := response.Status
-		//		fmt.Printf("response: %s\n", status)
-		//		if status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
-		//			close(responseChannel)
-		//			wg.Done()
-		//			return
-		//		}
-		//	}
-		//}()
-
-		txStored, err := processor.ProcessTransactionBlocking(context.TODO(), &ProcessorRequest{
-			Data: &store.StoreData{
-				Hash: testdata.TX1Hash,
-			},
-		})
-		require.NoError(t, err)
-
-		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_MINED, "test", nil)
-		assert.True(t, ok)
-		assert.NoError(t, sendErr)
-		assert.Equal(t, 0, processor.ProcessorResponseMap.Len(), "should have been removed from the map")
-
-		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
-	})
-}
-
-func TestSendStatusMinedForTransaction(t *testing.T) {
-	t.Run("SendStatusMinedForTransaction known tx", func(t *testing.T) {
-		s, err := metamorphSql.New("sqlite_memory")
-		require.NoError(t, err)
-		setStoreTestData(t, s)
-
-		pm := p2p.NewPeerManagerMock()
-
-		processor, err := NewProcessor(s, pm, nil, nil)
-		require.NoError(t, err)
-		//processor.ProcessorResponseMap.Set(testdata.TX1Hash, NewProcessorResponseWithStatus(
-		//	testdata.TX1Hash,
-		//	metamorph_api.Status_SEEN_ON_NETWORK,
-		//))
-		//assert.Equal(t, 1, processor.ProcessorResponseMap.Len())
-
-		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
-		assert.True(t, ok)
-		assert.NoError(t, sendErr)
-		//assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
-
-		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
-	})
-
-	t.Run("SendStatusMinedForTransaction callback", func(t *testing.T) {
-		s, err := metamorphSql.New("sqlite_memory")
-		require.NoError(t, err)
-		setStoreTestData(t, s)
-
-		pm := p2p.NewPeerManagerMock()
-
-		//var wg sync.WaitGroup
-		processor, err := NewProcessor(s, pm, make(chan *callbacker_api.Callback), nil)
-		require.NoError(t, err)
-
-		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
-		require.True(t, ok)
-		require.NoError(t, sendErr)
-
-		tx, err := s.Get(context.TODO(), testdata.TX1Hash[:])
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_MINED, metamorph_api.Status(tx.Status))
-		assert.Equal(t, testdata.TX1Hash, tx.Hash)
-		assert.Equal(t, testdata.Block1Hash, tx.BlockHash)
-		assert.Equal(t, uint64(1233), tx.BlockHeight)
-	})
-
-	t.Run("SendStatusForTransaction known tx - processed", func(t *testing.T) {
-		t.Skip()
-		s, err := metamorphSql.New("sqlite_memory")
-		require.NoError(t, err)
-
-		pm := p2p.NewPeerManagerMock()
-
-		processor, err := NewProcessor(s, pm, nil, nil)
-		require.NoError(t, err)
-		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
-
-		//responseChannel := make(chan StatusAndError)
-		//var wg sync.WaitGroup
-		//wg.Add(1)
-		//go func() {
-		//	for response := range responseChannel {
-		//		status := response.Status
-		//		fmt.Printf("response: %s\n", status)
-		//		if status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
-		//			close(responseChannel)
-		//			time.Sleep(1 * time.Millisecond)
-		//			wg.Done()
-		//			return
-		//		}
-		//	}
-		//}()
-
-		txStored, err := processor.ProcessTransactionBlocking(context.TODO(), &ProcessorRequest{
-			Data: &store.StoreData{
-				Hash: testdata.TX1Hash,
-			},
-		})
-
-		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
-		require.True(t, ok)
-		require.NoError(t, sendErr)
-
-		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
-	})
-}
-
-func BenchmarkProcessTransaction(b *testing.B) {
-	direName := fmt.Sprintf("./test-benchmark-%s", random.String(6))
-	s, err := badger.New(direName)
-	require.NoError(b, err)
-	defer func() {
-		_ = s.Close(context.Background())
-		_ = os.RemoveAll(direName)
-	}()
-
-	pm := p2p.NewPeerManagerMock()
-	processor, err := NewProcessor(s, pm, nil, nil)
-	require.NoError(b, err)
-	assert.Equal(b, 0, processor.ProcessorResponseMap.Len())
-
-	txs := make(map[string]*chainhash.Hash)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		txID := fmt.Sprintf("%x", i)
-
-		txHash := chainhash.HashH([]byte(txID))
-
-		txs[txID] = &txHash
-
-		processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
-			Data: &store.StoreData{
-				Hash:   &txHash,
-				Status: metamorph_api.Status_UNKNOWN,
-				RawTx:  testdata.TX1RawBytes,
-			},
-		})
-	}
-	b.StopTimer()
-}
-
-func TestProcessExpiredSeenTransactions(t *testing.T) {
-	t.Skip()
-	txsBlocks := []*blocktx_api.TransactionBlock{
-		{
-			BlockHash:       testdata.Block1Hash[:],
-			BlockHeight:     1234,
-			TransactionHash: testdata.TX1Hash[:],
-		},
-		{
-			BlockHash:       testdata.Block1Hash[:],
-			BlockHeight:     1234,
-			TransactionHash: testdata.TX2Hash[:],
-		},
-		{
-			BlockHash:       testdata.Block1Hash[:],
-			BlockHeight:     1234,
-			TransactionHash: testdata.TX3Hash[:],
-		},
-	}
-
-	tt := []struct {
-		name                    string
-		blocks                  []*blocktx_api.TransactionBlock
-		getTransactionBlocksErr error
-		updateMinedErr          error
-
-		expectedNrOfUpdates         int
-		expectedNrOfBlockTxRequests int
-	}{
-		{
-			name:   "expired seen txs",
-			blocks: txsBlocks,
-
-			expectedNrOfUpdates:         3,
-			expectedNrOfBlockTxRequests: 1,
-		},
-		{
-			name:                    "failed to get transaction blocks",
-			getTransactionBlocksErr: errors.New("failed to get transaction blocks"),
-
-			expectedNrOfUpdates:         0,
-			expectedNrOfBlockTxRequests: 1,
-		},
-		{
-			name: "failed to parse block hash",
-			blocks: []*blocktx_api.TransactionBlock{{
-				BlockHash: []byte("not a valid block hash"),
-			}},
-
-			expectedNrOfUpdates:         0,
-			expectedNrOfBlockTxRequests: 1,
-		},
-		{
-			name:           "failed to update mined",
-			blocks:         txsBlocks,
-			updateMinedErr: errors.New("failed to update mined"),
-
-			expectedNrOfUpdates:         3,
-			expectedNrOfBlockTxRequests: 1,
-		},
-		{
-			name: "failed to get tx from response map",
-			blocks: []*blocktx_api.TransactionBlock{
-				{
-					BlockHash:       testdata.Block1Hash[:],
-					BlockHeight:     1234,
-					TransactionHash: testdata.TX4Hash[:],
-				},
-			},
-
-			expectedNrOfUpdates:         0,
-			expectedNrOfBlockTxRequests: 1,
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-
-			metamorphStore := &MetamorphStoreMock{
-				UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
-					require.Condition(t, func() (success bool) {
-						oneOfHash := hash.IsEqual(testdata.TX1Hash) || hash.IsEqual(testdata.TX2Hash) || hash.IsEqual(testdata.TX3Hash)
-						isBlockHeight := blockHeight == 1234
-						isBlockHash := blockHash.IsEqual(testdata.Block1Hash)
-						return oneOfHash && isBlockHeight && isBlockHash
-					})
-
-					return tc.updateMinedErr
-				},
-				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
-			}
-			btxMock := &ClientIMock{
-				GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
-					require.Equal(t, 3, len(transaction.Transactions))
-
-					return &blocktx_api.TransactionBlocks{TransactionBlocks: tc.blocks}, tc.getTransactionBlocksErr
-				},
-			}
-
-			pm := p2p.NewPeerManagerMock()
-			processor, err := NewProcessor(metamorphStore, pm, nil, btxMock,
-				WithProcessExpiredSeenTxsInterval(20*time.Millisecond),
-				WithProcessExpiredTxsInterval(time.Hour),
-			)
-			require.NoError(t, err)
-			defer processor.Shutdown()
-
-			//require.Equal(t, 0, processor.ProcessorResponseMap.Len())
-			//processor.ProcessorResponseMap.Set(testdata.TX1Hash, NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK))
-			//processor.ProcessorResponseMap.Set(testdata.TX2Hash, NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_SEEN_ON_NETWORK))
-			//processor.ProcessorResponseMap.Set(testdata.TX3Hash, NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_SEEN_ON_NETWORK))
-			//time.Sleep(25 * time.Millisecond)
-
-			//require.Equal(t, tc.expectedNrOfUpdates, len(metamorphStore.UpdateMinedCalls()))
-			//require.Equal(t, tc.expectedNrOfBlockTxRequests, len(btxMock.GetTransactionBlocksCalls()))
-		})
-	}
-}
-
-func TestProcessExpiredTransactions(t *testing.T) {
-	tt := []struct {
-		name    string
-		retries uint32
-	}{
-		{
-			name:    "expired txs - 0 retries",
-			retries: 0,
-		},
-		{
-			name:    "expired txs - 0 retries",
-			retries: 16,
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &MetamorphStoreMock{SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil }}
-			pm := p2p.NewPeerManagerMock()
-			processor, err := NewProcessor(metamorphStore, pm, nil, nil,
-				WithProcessExpiredSeenTxsInterval(time.Hour),
-				WithProcessExpiredTxsInterval(time.Millisecond*20),
-				WithNow(func() time.Time {
-					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
-				}),
-			)
-			require.NoError(t, err)
-			defer processor.Shutdown()
-
-			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
-
-			respSent := NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK)
-			respSent.Retries.Add(tc.retries)
-
-			respAnnounced := NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK)
-			respAnnounced.Retries.Add(tc.retries)
-
-			respAccepted := NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_ACCEPTED_BY_NETWORK)
-			respAccepted.Retries.Add(tc.retries)
-
-			processor.ProcessorResponseMap.Set(testdata.TX1Hash, respSent)
-			processor.ProcessorResponseMap.Set(testdata.TX2Hash, respAnnounced)
-			processor.ProcessorResponseMap.Set(testdata.TX3Hash, respAccepted)
-
-			time.Sleep(50 * time.Millisecond)
-		})
-	}
-}
+//func TestSendStatusForTransaction(t *testing.T) {
+//	t.Skip()
+//	t.Run("SendStatusForTransaction unknown tx", func(t *testing.T) {
+//		s, err := metamorphSql.New("sqlite_memory")
+//		require.NoError(t, err)
+//
+//		ctx := context.Background()
+//		err = s.Set(ctx, testdata.TX1Hash[:], &store.StoreData{
+//			StoredAt:      testdata.Time,
+//			AnnouncedAt:   testdata.Time.Add(1 * time.Second),
+//			MinedAt:       testdata.Time.Add(2 * time.Second),
+//			Hash:          testdata.TX1Hash,
+//			Status:        metamorph_api.Status_SENT_TO_NETWORK,
+//			CallbackUrl:   "https://test.com",
+//			CallbackToken: "token",
+//		})
+//		require.NoError(t, err)
+//		pm := p2p.NewPeerManagerMock()
+//
+//		processor, err := NewProcessor(s, pm, nil, nil)
+//		require.NoError(t, err)
+//
+//		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_MINED, "test", nil)
+//		assert.NoError(t, sendErr)
+//		assert.True(t, ok)
+//	})
+//
+//	t.Run("SendStatusForTransaction err", func(t *testing.T) {
+//		s, err := metamorphSql.New("sqlite_memory")
+//		require.NoError(t, err)
+//		setStoreTestData(t, s)
+//
+//		pm := p2p.NewPeerManagerMock()
+//
+//		processor, err := NewProcessor(s, pm, nil, nil)
+//		require.NoError(t, err)
+//
+//		throwErr := fmt.Errorf("some error")
+//		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_REJECTED, "test", throwErr)
+//		assert.True(t, ok)
+//		assert.NoError(t, sendErr)
+//	})
+//
+//	t.Run("SendStatusForTransaction known tx - no update", func(t *testing.T) {
+//		s, err := metamorphSql.New("sqlite_memory")
+//		require.NoError(t, err)
+//		setStoreTestData(t, s)
+//
+//		pm := p2p.NewPeerManagerMock()
+//
+//		processor, err := NewProcessor(s, pm, nil, nil)
+//		require.NoError(t, err)
+//		//assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
+//
+//		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "test", nil)
+//		require.True(t, ok)
+//		require.NoError(t, sendErr)
+//
+//		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
+//		require.NoError(t, err)
+//		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, txStored.Status)
+//	})
+//
+//	t.Run("SendStatusForTransaction known tx - processed", func(t *testing.T) {
+//		s, err := metamorphSql.New("sqlite_memory")
+//		require.NoError(t, err)
+//
+//		pm := p2p.NewPeerManagerMock()
+//
+//		processor, err := NewProcessor(s, pm, nil, nil)
+//		require.NoError(t, err)
+//		//assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
+//
+//		//responseChannel := make(chan StatusAndError)
+//
+//		//var wg sync.WaitGroup
+//		//wg.Add(1)
+//		//go func() {
+//		//	for response := range responseChannel {
+//		//		status := response.Status
+//		//		fmt.Printf("response: %s\n", status)
+//		//		if status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
+//		//			close(responseChannel)
+//		//			wg.Done()
+//		//			return
+//		//		}
+//		//	}
+//		//}()
+//
+//		txStored, err := processor.ProcessTransactionBlocking(context.TODO(), &ProcessorRequest{
+//			Data: &store.StoreData{
+//				Hash: testdata.TX1Hash,
+//			},
+//		})
+//		require.NoError(t, err)
+//
+//		ok, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, metamorph_api.Status_MINED, "test", nil)
+//		assert.True(t, ok)
+//		assert.NoError(t, sendErr)
+//		assert.Equal(t, 0, processor.ProcessorResponseMap.Len(), "should have been removed from the map")
+//
+//		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
+//	})
+//}
+
+//func TestSendStatusMinedForTransaction(t *testing.T) {
+//	t.Run("SendStatusMinedForTransaction known tx", func(t *testing.T) {
+//		s, err := metamorphSql.New("sqlite_memory")
+//		require.NoError(t, err)
+//		setStoreTestData(t, s)
+//
+//		pm := p2p.NewPeerManagerMock()
+//
+//		processor, err := NewProcessor(s, pm, nil, nil)
+//		require.NoError(t, err)
+//		//processor.ProcessorResponseMap.Set(testdata.TX1Hash, NewProcessorResponseWithStatus(
+//		//	testdata.TX1Hash,
+//		//	metamorph_api.Status_SEEN_ON_NETWORK,
+//		//))
+//		//assert.Equal(t, 1, processor.ProcessorResponseMap.Len())
+//
+//		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
+//		assert.True(t, ok)
+//		assert.NoError(t, sendErr)
+//		//assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
+//
+//		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
+//		require.NoError(t, err)
+//		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
+//	})
+//
+//	t.Run("SendStatusMinedForTransaction callback", func(t *testing.T) {
+//		s, err := metamorphSql.New("sqlite_memory")
+//		require.NoError(t, err)
+//		setStoreTestData(t, s)
+//
+//		pm := p2p.NewPeerManagerMock()
+//
+//		//var wg sync.WaitGroup
+//		processor, err := NewProcessor(s, pm, make(chan *callbacker_api.Callback), nil)
+//		require.NoError(t, err)
+//
+//		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
+//		require.True(t, ok)
+//		require.NoError(t, sendErr)
+//
+//		tx, err := s.Get(context.TODO(), testdata.TX1Hash[:])
+//		require.NoError(t, err)
+//		assert.Equal(t, metamorph_api.Status_MINED, metamorph_api.Status(tx.Status))
+//		assert.Equal(t, testdata.TX1Hash, tx.Hash)
+//		assert.Equal(t, testdata.Block1Hash, tx.BlockHash)
+//		assert.Equal(t, uint64(1233), tx.BlockHeight)
+//	})
+//
+//	t.Run("SendStatusForTransaction known tx - processed", func(t *testing.T) {
+//		t.Skip()
+//		s, err := metamorphSql.New("sqlite_memory")
+//		require.NoError(t, err)
+//
+//		pm := p2p.NewPeerManagerMock()
+//
+//		processor, err := NewProcessor(s, pm, nil, nil)
+//		require.NoError(t, err)
+//		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
+//
+//		//responseChannel := make(chan StatusAndError)
+//		//var wg sync.WaitGroup
+//		//wg.Add(1)
+//		//go func() {
+//		//	for response := range responseChannel {
+//		//		status := response.Status
+//		//		fmt.Printf("response: %s\n", status)
+//		//		if status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
+//		//			close(responseChannel)
+//		//			time.Sleep(1 * time.Millisecond)
+//		//			wg.Done()
+//		//			return
+//		//		}
+//		//	}
+//		//}()
+//
+//		txStored, err := processor.ProcessTransactionBlocking(context.TODO(), &ProcessorRequest{
+//			Data: &store.StoreData{
+//				Hash: testdata.TX1Hash,
+//			},
+//		})
+//
+//		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
+//		require.True(t, ok)
+//		require.NoError(t, sendErr)
+//
+//		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
+//	})
+//}
+
+//func BenchmarkProcessTransaction(b *testing.B) {
+//	direName := fmt.Sprintf("./test-benchmark-%s", random.String(6))
+//	s, err := badger.New(direName)
+//	require.NoError(b, err)
+//	defer func() {
+//		_ = s.Close(context.Background())
+//		_ = os.RemoveAll(direName)
+//	}()
+//
+//	pm := p2p.NewPeerManagerMock()
+//	processor, err := NewProcessor(s, pm, nil, nil)
+//	require.NoError(b, err)
+//	assert.Equal(b, 0, processor.ProcessorResponseMap.Len())
+//
+//	txs := make(map[string]*chainhash.Hash)
+//
+//	b.ResetTimer()
+//	for i := 0; i < b.N; i++ {
+//		txID := fmt.Sprintf("%x", i)
+//
+//		txHash := chainhash.HashH([]byte(txID))
+//
+//		txs[txID] = &txHash
+//
+//		processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
+//			Data: &store.StoreData{
+//				Hash:   &txHash,
+//				Status: metamorph_api.Status_UNKNOWN,
+//				RawTx:  testdata.TX1RawBytes,
+//			},
+//		})
+//	}
+//	b.StopTimer()
+//}
+
+//func TestProcessExpiredSeenTransactions(t *testing.T) {
+//	t.Skip()
+//	txsBlocks := []*blocktx_api.TransactionBlock{
+//		{
+//			BlockHash:       testdata.Block1Hash[:],
+//			BlockHeight:     1234,
+//			TransactionHash: testdata.TX1Hash[:],
+//		},
+//		{
+//			BlockHash:       testdata.Block1Hash[:],
+//			BlockHeight:     1234,
+//			TransactionHash: testdata.TX2Hash[:],
+//		},
+//		{
+//			BlockHash:       testdata.Block1Hash[:],
+//			BlockHeight:     1234,
+//			TransactionHash: testdata.TX3Hash[:],
+//		},
+//	}
+//
+//	tt := []struct {
+//		name                    string
+//		blocks                  []*blocktx_api.TransactionBlock
+//		getTransactionBlocksErr error
+//		updateMinedErr          error
+//
+//		expectedNrOfUpdates         int
+//		expectedNrOfBlockTxRequests int
+//	}{
+//		{
+//			name:   "expired seen txs",
+//			blocks: txsBlocks,
+//
+//			expectedNrOfUpdates:         3,
+//			expectedNrOfBlockTxRequests: 1,
+//		},
+//		{
+//			name:                    "failed to get transaction blocks",
+//			getTransactionBlocksErr: errors.New("failed to get transaction blocks"),
+//
+//			expectedNrOfUpdates:         0,
+//			expectedNrOfBlockTxRequests: 1,
+//		},
+//		{
+//			name: "failed to parse block hash",
+//			blocks: []*blocktx_api.TransactionBlock{{
+//				BlockHash: []byte("not a valid block hash"),
+//			}},
+//
+//			expectedNrOfUpdates:         0,
+//			expectedNrOfBlockTxRequests: 1,
+//		},
+//		{
+//			name:           "failed to update mined",
+//			blocks:         txsBlocks,
+//			updateMinedErr: errors.New("failed to update mined"),
+//
+//			expectedNrOfUpdates:         3,
+//			expectedNrOfBlockTxRequests: 1,
+//		},
+//		{
+//			name: "failed to get tx from response map",
+//			blocks: []*blocktx_api.TransactionBlock{
+//				{
+//					BlockHash:       testdata.Block1Hash[:],
+//					BlockHeight:     1234,
+//					TransactionHash: testdata.TX4Hash[:],
+//				},
+//			},
+//
+//			expectedNrOfUpdates:         0,
+//			expectedNrOfBlockTxRequests: 1,
+//		},
+//	}
+//
+//	for _, tc := range tt {
+//		t.Run(tc.name, func(t *testing.T) {
+//
+//			metamorphStore := &MetamorphStoreMock{
+//				UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
+//					require.Condition(t, func() (success bool) {
+//						oneOfHash := hash.IsEqual(testdata.TX1Hash) || hash.IsEqual(testdata.TX2Hash) || hash.IsEqual(testdata.TX3Hash)
+//						isBlockHeight := blockHeight == 1234
+//						isBlockHash := blockHash.IsEqual(testdata.Block1Hash)
+//						return oneOfHash && isBlockHeight && isBlockHash
+//					})
+//
+//					return tc.updateMinedErr
+//				},
+//				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+//			}
+//			btxMock := &ClientIMock{
+//				GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
+//					require.Equal(t, 3, len(transaction.Transactions))
+//
+//					return &blocktx_api.TransactionBlocks{TransactionBlocks: tc.blocks}, tc.getTransactionBlocksErr
+//				},
+//			}
+//
+//			pm := p2p.NewPeerManagerMock()
+//			processor, err := NewProcessor(metamorphStore, pm, nil, btxMock,
+//				WithProcessExpiredSeenTxsInterval(20*time.Millisecond),
+//				WithProcessExpiredTxsInterval(time.Hour),
+//			)
+//			require.NoError(t, err)
+//			defer processor.Shutdown()
+//
+//			//require.Equal(t, 0, processor.ProcessorResponseMap.Len())
+//			//processor.ProcessorResponseMap.Set(testdata.TX1Hash, NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+//			//processor.ProcessorResponseMap.Set(testdata.TX2Hash, NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+//			//processor.ProcessorResponseMap.Set(testdata.TX3Hash, NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+//			//time.Sleep(25 * time.Millisecond)
+//
+//			//require.Equal(t, tc.expectedNrOfUpdates, len(metamorphStore.UpdateMinedCalls()))
+//			//require.Equal(t, tc.expectedNrOfBlockTxRequests, len(btxMock.GetTransactionBlocksCalls()))
+//		})
+//	}
+//}
+
+//func TestProcessExpiredTransactions(t *testing.T) {
+//	tt := []struct {
+//		name    string
+//		retries uint32
+//	}{
+//		{
+//			name:    "expired txs - 0 retries",
+//			retries: 0,
+//		},
+//		{
+//			name:    "expired txs - 0 retries",
+//			retries: 16,
+//		},
+//	}
+//
+//	for _, tc := range tt {
+//		t.Run(tc.name, func(t *testing.T) {
+//			metamorphStore := &MetamorphStoreMock{SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil }}
+//			pm := p2p.NewPeerManagerMock()
+//			processor, err := NewProcessor(metamorphStore, pm, nil, nil,
+//				WithProcessExpiredSeenTxsInterval(time.Hour),
+//				WithProcessExpiredTxsInterval(time.Millisecond*20),
+//				WithNow(func() time.Time {
+//					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
+//				}),
+//			)
+//			require.NoError(t, err)
+//			defer processor.Shutdown()
+//
+//			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
+//
+//			respSent := NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK)
+//			respSent.Retries.Add(tc.retries)
+//
+//			respAnnounced := NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK)
+//			respAnnounced.Retries.Add(tc.retries)
+//
+//			respAccepted := NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_ACCEPTED_BY_NETWORK)
+//			respAccepted.Retries.Add(tc.retries)
+//
+//			processor.ProcessorResponseMap.Set(testdata.TX1Hash, respSent)
+//			processor.ProcessorResponseMap.Set(testdata.TX2Hash, respAnnounced)
+//			processor.ProcessorResponseMap.Set(testdata.TX3Hash, respAccepted)
+//
+//			time.Sleep(50 * time.Millisecond)
+//		})
+//	}
+//}

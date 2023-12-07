@@ -134,7 +134,8 @@ func TestPutTransaction(t *testing.T) {
 		server := NewServer(s, processor, client, source)
 
 		txStatus, err := server.PutTransaction(context.Background(), &metamorph_api.TransactionRequest{
-			RawTx: testdata.TX1RawBytes,
+			RawTx:       testdata.TX1RawBytes,
+			CallbackUrl: "http://test.com/testcburl",
 		})
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, txStatus.Status)
@@ -173,7 +174,8 @@ func TestPutTransaction(t *testing.T) {
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
-			RawTx: testdata.TX1RawBytes,
+			RawTx:       testdata.TX1RawBytes,
+			CallbackUrl: "http://test.com/testcburl",
 		}
 
 		txStatus, err = server.PutTransaction(context.Background(), txRequest)
@@ -207,6 +209,7 @@ func TestPutTransaction(t *testing.T) {
 		txRequest := &metamorph_api.TransactionRequest{
 			RawTx:         testdata.TX1RawBytes,
 			WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
+			CallbackUrl:   "http://test.com/cb",
 		}
 
 		txStatus, err := server.PutTransaction(context.Background(), txRequest)
@@ -238,7 +241,8 @@ func TestPutTransaction(t *testing.T) {
 		server := NewServer(s, processor, btc, source)
 
 		txRequest := &metamorph_api.TransactionRequest{
-			RawTx: testdata.TX1RawBytes,
+			RawTx:       testdata.TX1RawBytes,
+			CallbackUrl: "http://test.com/cb",
 		}
 
 		var txStatus *metamorph_api.TransactionStatus

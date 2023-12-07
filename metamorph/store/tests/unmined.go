@@ -28,10 +28,7 @@ func NoUnmined(t *testing.T, s store.MetamorphStore) {
 		require.NoError(t, err)
 	}
 
-	unseen := make([]*store.StoreData, 0)
-	err = s.GetUnmined(context.Background(), func(s *store.StoreData) {
-		unseen = append(unseen, s)
-	})
+	unseen, err := s.GetUnminedTransactions(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(unseen))
 
@@ -58,10 +55,7 @@ func MultipleUnmined(t *testing.T, s store.MetamorphStore) {
 		require.NoError(t, err)
 	}
 
-	unseen := make([]*store.StoreData, 0)
-	err = s.GetUnmined(context.Background(), func(s *store.StoreData) {
-		unseen = append(unseen, s)
-	})
+	unseen, err := s.GetUnminedTransactions(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 3, len(unseen))
 

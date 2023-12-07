@@ -34,8 +34,8 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetBlockProcessedFunc: func(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
 //				panic("mock out the GetBlockProcessed method")
 //			},
-//			GetUnminedFunc: func(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
-//				panic("mock out the GetUnmined method")
+//			GetUnminedTransactionsFunc: func(contextMoqParam context.Context) ([]store.StoreData, error) {
+//				panic("mock out the GetUnminedTransactions method")
 //			},
 //			IsCentralisedFunc: func() bool {
 //				panic("mock out the IsCentralised method")
@@ -77,8 +77,8 @@ type MetamorphStoreMock struct {
 	// GetBlockProcessedFunc mocks the GetBlockProcessed method.
 	GetBlockProcessedFunc func(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error)
 
-	// GetUnminedFunc mocks the GetUnmined method.
-	GetUnminedFunc func(contextMoqParam context.Context, callback func(s *store.StoreData)) error
+	// GetUnminedTransactionsFunc mocks the GetUnminedTransactions method.
+	GetUnminedTransactionsFunc func(contextMoqParam context.Context) ([]store.StoreData, error)
 
 	// IsCentralisedFunc mocks the IsCentralised method.
 	IsCentralisedFunc func() bool
@@ -129,12 +129,10 @@ type MetamorphStoreMock struct {
 			// BlockHash is the blockHash argument value.
 			BlockHash *chainhash.Hash
 		}
-		// GetUnmined holds details about calls to the GetUnmined method.
-		GetUnmined []struct {
+		// GetUnminedTransactions holds details about calls to the GetUnminedTransactions method.
+		GetUnminedTransactions []struct {
 			// ContextMoqParam is the contextMoqParam argument value.
 			ContextMoqParam context.Context
-			// Callback is the callback argument value.
-			Callback func(s *store.StoreData)
 		}
 		// IsCentralised holds details about calls to the IsCentralised method.
 		IsCentralised []struct {
@@ -192,18 +190,18 @@ type MetamorphStoreMock struct {
 			RejectReason string
 		}
 	}
-	lockClose             sync.RWMutex
-	lockDel               sync.RWMutex
-	lockGet               sync.RWMutex
-	lockGetBlockProcessed sync.RWMutex
-	lockGetUnmined        sync.RWMutex
-	lockIsCentralised     sync.RWMutex
-	lockSet               sync.RWMutex
-	lockSetBlockProcessed sync.RWMutex
-	lockSetUnlocked       sync.RWMutex
-	lockSetUnlockedByName sync.RWMutex
-	lockUpdateMined       sync.RWMutex
-	lockUpdateStatus      sync.RWMutex
+	lockClose                  sync.RWMutex
+	lockDel                    sync.RWMutex
+	lockGet                    sync.RWMutex
+	lockGetBlockProcessed      sync.RWMutex
+	lockGetUnminedTransactions sync.RWMutex
+	lockIsCentralised          sync.RWMutex
+	lockSet                    sync.RWMutex
+	lockSetBlockProcessed      sync.RWMutex
+	lockSetUnlocked            sync.RWMutex
+	lockSetUnlockedByName      sync.RWMutex
+	lockUpdateMined            sync.RWMutex
+	lockUpdateStatus           sync.RWMutex
 }
 
 // Close calls CloseFunc.
@@ -346,39 +344,35 @@ func (mock *MetamorphStoreMock) GetBlockProcessedCalls() []struct {
 	return calls
 }
 
-// GetUnmined calls GetUnminedFunc.
-func (mock *MetamorphStoreMock) GetUnmined(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
-	if mock.GetUnminedFunc == nil {
-		panic("MetamorphStoreMock.GetUnminedFunc: method is nil but MetamorphStore.GetUnmined was just called")
+// GetUnminedTransactions calls GetUnminedTransactionsFunc.
+func (mock *MetamorphStoreMock) GetUnminedTransactions(contextMoqParam context.Context) ([]store.StoreData, error) {
+	if mock.GetUnminedTransactionsFunc == nil {
+		panic("MetamorphStoreMock.GetUnminedTransactionsFunc: method is nil but MetamorphStore.GetUnminedTransactions was just called")
 	}
 	callInfo := struct {
 		ContextMoqParam context.Context
-		Callback        func(s *store.StoreData)
 	}{
 		ContextMoqParam: contextMoqParam,
-		Callback:        callback,
 	}
-	mock.lockGetUnmined.Lock()
-	mock.calls.GetUnmined = append(mock.calls.GetUnmined, callInfo)
-	mock.lockGetUnmined.Unlock()
-	return mock.GetUnminedFunc(contextMoqParam, callback)
+	mock.lockGetUnminedTransactions.Lock()
+	mock.calls.GetUnminedTransactions = append(mock.calls.GetUnminedTransactions, callInfo)
+	mock.lockGetUnminedTransactions.Unlock()
+	return mock.GetUnminedTransactionsFunc(contextMoqParam)
 }
 
-// GetUnminedCalls gets all the calls that were made to GetUnmined.
+// GetUnminedTransactionsCalls gets all the calls that were made to GetUnminedTransactions.
 // Check the length with:
 //
-//	len(mockedMetamorphStore.GetUnminedCalls())
-func (mock *MetamorphStoreMock) GetUnminedCalls() []struct {
+//	len(mockedMetamorphStore.GetUnminedTransactionsCalls())
+func (mock *MetamorphStoreMock) GetUnminedTransactionsCalls() []struct {
 	ContextMoqParam context.Context
-	Callback        func(s *store.StoreData)
 } {
 	var calls []struct {
 		ContextMoqParam context.Context
-		Callback        func(s *store.StoreData)
 	}
-	mock.lockGetUnmined.RLock()
-	calls = mock.calls.GetUnmined
-	mock.lockGetUnmined.RUnlock()
+	mock.lockGetUnminedTransactions.RLock()
+	calls = mock.calls.GetUnminedTransactions
+	mock.lockGetUnminedTransactions.RUnlock()
 	return calls
 }
 

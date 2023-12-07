@@ -49,6 +49,44 @@ type Badger struct {
 	mu     sync.RWMutex
 }
 
+func (s *Badger) GetUnminedTransactions(ctx context.Context) ([]store.StoreData, error) {
+	var txs []store.StoreData
+	if err := s.store.View(func(tx *badger.Txn) error {
+		iter := tx.NewIterator(badger.DefaultIteratorOptions)
+		defer iter.Close()
+
+		for iter.Rewind(); iter.Valid(); iter.Next() {
+			item := iter.Item()
+			if strings.HasPrefix(string(item.Key()), "block_processed_") {
+				continue
+			}
+			if item.IsDeletedOrExpired() {
+				continue
+			}
+
+			var result *store.StoreData
+			if err := item.Value(func(val []byte) error {
+				var err2 error
+				if result, err2 = store.DecodeFromBytes(val); err2 != nil {
+					return err2
+				}
+				return nil
+			}); err != nil {
+				s.logger.Errorf("failed to decode data for %s: %w", item.Key(), err)
+				continue
+			}
+
+			if result.Status < metamorph_api.Status_MINED || result.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
+				txs = append(txs, *result)
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return txs, nil
+}
+
 type loggerWrapper struct {
 	*gocore.Logger
 }

@@ -41,6 +41,39 @@ type DynamoDB struct {
 	blocksTableName       string
 }
 
+func (ddb *DynamoDB) GetUnminedTransactions(ctx context.Context) ([]store.StoreData, error) {
+	out, err := ddb.client.Query(ctx, &dynamodb.QueryInput{
+		TableName:              aws.String(ddb.transactionsTableName),
+		IndexName:              aws.String("locked_by_index"),
+		KeyConditionExpression: aws.String(fmt.Sprintf("locked_by = %s", lockedByAttributeKey)),
+		FilterExpression:       aws.String(fmt.Sprintf("tx_status < %s or tx_status = %s", txStatusAttributeKey, txStatusAttributeKeyOrphaned)),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			lockedByAttributeKey:         &types.AttributeValueMemberS{Value: lockedByNone},
+			txStatusAttributeKey:         &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
+			txStatusAttributeKeyOrphaned: &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL))},
+		},
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	txs := make([]store.StoreData, len(out.Items))
+	for i, item := range out.Items {
+		var transaction store.StoreData
+		err = attributevalue.UnmarshalMap(item, &transaction)
+		if err != nil {
+			return nil, err
+		}
+		txs[i] = transaction
+
+		err = ddb.setLockedBy(ctx, transaction.Hash, ddb.hostname)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return txs, nil
+}
+
 func WithNow(nowFunc func() time.Time) func(*DynamoDB) {
 	return func(p *DynamoDB) {
 		p.now = nowFunc

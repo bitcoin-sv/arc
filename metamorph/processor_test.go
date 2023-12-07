@@ -98,7 +98,7 @@ func TestLoadUnmined(t *testing.T) {
 
 	tt := []struct {
 		name                   string
-		storedData             []*store.StoreData
+		storedData             []store.StoreData
 		isCentralised          bool
 		updateStatusErr        error
 		getTransactionBlockErr error
@@ -112,7 +112,7 @@ func TestLoadUnmined(t *testing.T) {
 		},
 		{
 			name: "load 3 unmined transactions, TX2 was mined",
-			storedData: []*store.StoreData{
+			storedData: []store.StoreData{
 				{
 					StoredAt:    storedAt,
 					AnnouncedAt: storedAt.Add(1 * time.Second),
@@ -138,7 +138,7 @@ func TestLoadUnmined(t *testing.T) {
 		},
 		{
 			name: "load 2 unmined transactions, none mined",
-			storedData: []*store.StoreData{
+			storedData: []store.StoreData{
 				{
 					StoredAt:    storedAt,
 					AnnouncedAt: storedAt.Add(1 * time.Second),
@@ -157,7 +157,7 @@ func TestLoadUnmined(t *testing.T) {
 		},
 		{
 			name: "update status fails",
-			storedData: []*store.StoreData{
+			storedData: []store.StoreData{
 				{
 					StoredAt:    storedAt,
 					AnnouncedAt: storedAt.Add(1 * time.Second),
@@ -171,7 +171,7 @@ func TestLoadUnmined(t *testing.T) {
 		},
 		{
 			name: "get transaction block fails",
-			storedData: []*store.StoreData{
+			storedData: []store.StoreData{
 				{
 					StoredAt:    storedAt,
 					AnnouncedAt: storedAt.Add(1 * time.Second),
@@ -185,7 +185,7 @@ func TestLoadUnmined(t *testing.T) {
 		},
 		{
 			name: "delete expired",
-			storedData: []*store.StoreData{
+			storedData: []store.StoreData{
 				{
 					StoredAt:    storedAt.Add(-400 * time.Hour),
 					AnnouncedAt: storedAt.Add(1 * time.Second),
@@ -199,7 +199,7 @@ func TestLoadUnmined(t *testing.T) {
 		},
 		{
 			name: "delete expired - deletion fails",
-			storedData: []*store.StoreData{
+			storedData: []store.StoreData{
 				{
 					StoredAt:    storedAt.Add(-400 * time.Hour),
 					AnnouncedAt: storedAt.Add(1 * time.Second),
@@ -215,7 +215,7 @@ func TestLoadUnmined(t *testing.T) {
 		{
 			name:          "delete expired - centralised storage",
 			isCentralised: true,
-			storedData: []*store.StoreData{
+			storedData: []store.StoreData{
 				{
 					StoredAt:    storedAt.Add(-400 * time.Hour),
 					AnnouncedAt: storedAt.Add(1 * time.Second),
@@ -250,11 +250,8 @@ func TestLoadUnmined(t *testing.T) {
 				},
 			}
 			mtmStore := &MetamorphStoreMock{
-				GetUnminedFunc: func(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
-					for _, data := range tc.storedData {
-						callback(data)
-					}
-					return nil
+				GetUnminedTransactionsFunc: func(contextMoqParam context.Context) ([]store.StoreData, error) {
+					return tc.storedData, nil
 				},
 				UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 					require.Equal(t, testdata.TX2Hash, hash)
@@ -301,8 +298,6 @@ func TestLoadUnmined(t *testing.T) {
 			defer processor.Shutdown()
 			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
 			processor.LoadUnmined()
-
-			time.Sleep(time.Millisecond * 200)
 
 			allItemHashes := make([]*chainhash.Hash, 0, len(processor.ProcessorResponseMap.Items()))
 

@@ -404,6 +404,86 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 	return err
 }
 
+func (s *SQL) GetUnminedTransactions(ctx context.Context) ([]store.StoreData, error) {
+	q := `SELECT
+	   stored_at
+		,announced_at
+		,mined_at
+		,hash
+		,status
+		,block_height
+		,block_hash
+		,callback_url
+		,callback_token
+		,merkle_proof
+		,raw_tx
+		FROM transactions WHERE status < $1 OR status = $2 ;`
+
+	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var txs []store.StoreData
+	for rows.Next() {
+		data := store.StoreData{}
+
+		var txHash []byte
+		var blockHash []byte
+		var storedAt string
+		var announcedAt string
+		var minedAt string
+
+		if err = rows.Scan(
+			&storedAt,
+			&announcedAt,
+			&minedAt,
+			&txHash,
+			&data.Status,
+			&data.BlockHeight,
+			&blockHash,
+			&data.CallbackUrl,
+			&data.CallbackToken,
+			&data.MerkleProof,
+			&data.RawTx,
+		); err != nil {
+			return nil, err
+		}
+
+		if txHash != nil {
+			data.Hash, _ = chainhash.NewHash(txHash)
+		}
+
+		if blockHash != nil {
+			data.BlockHash, _ = chainhash.NewHash(blockHash)
+		}
+
+		if storedAt != "" {
+			data.StoredAt, err = time.Parse(ISO8601, storedAt)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if announcedAt != "" {
+			data.AnnouncedAt, err = time.Parse(ISO8601, announcedAt)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if minedAt != "" {
+			data.MinedAt, err = time.Parse(ISO8601, minedAt)
+			if err != nil {
+				return nil, err
+			}
+		}
+		txs = append(txs, data)
+	}
+
+	return txs, nil
+}
+
 func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {

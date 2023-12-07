@@ -299,8 +299,13 @@ func (p *Processor) LoadUnmined() {
 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:LoadUnmined")
 	defer span.Finish()
 
-	err := p.store.GetUnmined(spanCtx, func(record *store.StoreData) {
-
+	txs, err := p.store.GetUnminedTransactions(spanCtx)
+	if err != nil {
+		p.logger.Error("unable to load unmined txs", slog.String("error", err.Error()))
+		return
+	}
+	for i := 0; i < len(txs); i++ {
+		record := &txs[i]
 		if !p.store.IsCentralised() && p.deleteExpired(record) {
 			return
 		}
@@ -353,7 +358,7 @@ func (p *Processor) LoadUnmined() {
 				p.logger.Error("Failed to update status for mined transaction", slog.String("err", err.Error()))
 			}
 		}
-	})
+	}
 	if err != nil {
 		p.logger.Error("Failed to iterate through stored transactions", slog.String("err", err.Error()))
 	}

@@ -433,7 +433,7 @@ func TestPutTransactions(t *testing.T) {
 	tt := []struct {
 		name              string
 		processorResponse map[string]*processor_response.StatusAndError
-		transactionFound  map[int]*store.StoreData
+		transactionFound  map[int]store.StoreData
 		requests          *metamorph_api.TransactionRequests
 		getErr            error
 
@@ -531,7 +531,7 @@ func TestPutTransactions(t *testing.T) {
 					},
 				},
 			},
-			transactionFound: map[int]*store.StoreData{1: {
+			transactionFound: map[int]store.StoreData{1: {
 				Status:      metamorph_api.Status_SENT_TO_NETWORK,
 				Hash:        hash1,
 				StoredAt:    time.Time{},
@@ -617,7 +617,7 @@ func TestPutTransactions(t *testing.T) {
 
 					storeData, found := tc.transactionFound[getCounter]
 					if found {
-						return storeData, nil
+						return &storeData, nil
 					}
 
 					return nil, tc.getErr

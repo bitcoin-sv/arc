@@ -40,6 +40,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			IsCentralisedFunc: func() bool {
 //				panic("mock out the IsCentralised method")
 //			},
+//			RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+//				panic("mock out the RemoveCallbacker method")
+//			},
 //			SetFunc: func(ctx context.Context, key []byte, value *store.StoreData) error {
 //				panic("mock out the Set method")
 //			},
@@ -82,6 +85,9 @@ type MetamorphStoreMock struct {
 
 	// IsCentralisedFunc mocks the IsCentralised method.
 	IsCentralisedFunc func() bool
+
+	// RemoveCallbackerFunc mocks the RemoveCallbacker method.
+	RemoveCallbackerFunc func(ctx context.Context, hash *chainhash.Hash) error
 
 	// SetFunc mocks the Set method.
 	SetFunc func(ctx context.Context, key []byte, value *store.StoreData) error
@@ -138,6 +144,13 @@ type MetamorphStoreMock struct {
 		}
 		// IsCentralised holds details about calls to the IsCentralised method.
 		IsCentralised []struct {
+		}
+		// RemoveCallbacker holds details about calls to the RemoveCallbacker method.
+		RemoveCallbacker []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hash is the hash argument value.
+			Hash *chainhash.Hash
 		}
 		// Set holds details about calls to the Set method.
 		Set []struct {
@@ -198,6 +211,7 @@ type MetamorphStoreMock struct {
 	lockGetBlockProcessed sync.RWMutex
 	lockGetUnmined        sync.RWMutex
 	lockIsCentralised     sync.RWMutex
+	lockRemoveCallbacker  sync.RWMutex
 	lockSet               sync.RWMutex
 	lockSetBlockProcessed sync.RWMutex
 	lockSetUnlocked       sync.RWMutex
@@ -406,6 +420,42 @@ func (mock *MetamorphStoreMock) IsCentralisedCalls() []struct {
 	mock.lockIsCentralised.RLock()
 	calls = mock.calls.IsCentralised
 	mock.lockIsCentralised.RUnlock()
+	return calls
+}
+
+// RemoveCallbacker calls RemoveCallbackerFunc.
+func (mock *MetamorphStoreMock) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error {
+	if mock.RemoveCallbackerFunc == nil {
+		panic("MetamorphStoreMock.RemoveCallbackerFunc: method is nil but MetamorphStore.RemoveCallbacker was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Hash *chainhash.Hash
+	}{
+		Ctx:  ctx,
+		Hash: hash,
+	}
+	mock.lockRemoveCallbacker.Lock()
+	mock.calls.RemoveCallbacker = append(mock.calls.RemoveCallbacker, callInfo)
+	mock.lockRemoveCallbacker.Unlock()
+	return mock.RemoveCallbackerFunc(ctx, hash)
+}
+
+// RemoveCallbackerCalls gets all the calls that were made to RemoveCallbacker.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.RemoveCallbackerCalls())
+func (mock *MetamorphStoreMock) RemoveCallbackerCalls() []struct {
+	Ctx  context.Context
+	Hash *chainhash.Hash
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Hash *chainhash.Hash
+	}
+	mock.lockRemoveCallbacker.RLock()
+	calls = mock.calls.RemoveCallbacker
+	mock.lockRemoveCallbacker.RUnlock()
 	return calls
 }
 

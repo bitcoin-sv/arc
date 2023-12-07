@@ -33,6 +33,9 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //			ProcessTransactionFunc: func(ctx context.Context, req *metamorph.ProcessorRequest)  {
 //				panic("mock out the ProcessTransaction method")
 //			},
+//			ProcessTransactionBlockingFunc: func(ctx context.Context, req *metamorph.ProcessorRequest) error {
+//				panic("mock out the ProcessTransactionBlocking method")
+//			},
 //			SendStatusForTransactionFunc: func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error) {
 //				panic("mock out the SendStatusForTransaction method")
 //			},
@@ -64,6 +67,9 @@ type ProcessorIMock struct {
 	// ProcessTransactionFunc mocks the ProcessTransaction method.
 	ProcessTransactionFunc func(ctx context.Context, req *metamorph.ProcessorRequest)
 
+	// ProcessTransactionBlockingFunc mocks the ProcessTransactionBlocking method.
+	ProcessTransactionBlockingFunc func(ctx context.Context, req *metamorph.ProcessorRequest) error
+
 	// SendStatusForTransactionFunc mocks the SendStatusForTransaction method.
 	SendStatusForTransactionFunc func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
 
@@ -91,6 +97,13 @@ type ProcessorIMock struct {
 		}
 		// ProcessTransaction holds details about calls to the ProcessTransaction method.
 		ProcessTransaction []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Req is the req argument value.
+			Req *metamorph.ProcessorRequest
+		}
+		// ProcessTransactionBlocking holds details about calls to the ProcessTransactionBlocking method.
+		ProcessTransactionBlocking []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Req is the req argument value.
@@ -131,6 +144,7 @@ type ProcessorIMock struct {
 	lockGetStats                      sync.RWMutex
 	lockLoadUnmined                   sync.RWMutex
 	lockProcessTransaction            sync.RWMutex
+	lockProcessTransactionBlocking    sync.RWMutex
 	lockSendStatusForTransaction      sync.RWMutex
 	lockSendStatusMinedForTransaction sync.RWMutex
 	lockSet                           sync.RWMutex
@@ -256,6 +270,42 @@ func (mock *ProcessorIMock) ProcessTransactionCalls() []struct {
 	mock.lockProcessTransaction.RLock()
 	calls = mock.calls.ProcessTransaction
 	mock.lockProcessTransaction.RUnlock()
+	return calls
+}
+
+// ProcessTransactionBlocking calls ProcessTransactionBlockingFunc.
+func (mock *ProcessorIMock) ProcessTransactionBlocking(ctx context.Context, req *metamorph.ProcessorRequest) error {
+	if mock.ProcessTransactionBlockingFunc == nil {
+		panic("ProcessorIMock.ProcessTransactionBlockingFunc: method is nil but ProcessorI.ProcessTransactionBlocking was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Req *metamorph.ProcessorRequest
+	}{
+		Ctx: ctx,
+		Req: req,
+	}
+	mock.lockProcessTransactionBlocking.Lock()
+	mock.calls.ProcessTransactionBlocking = append(mock.calls.ProcessTransactionBlocking, callInfo)
+	mock.lockProcessTransactionBlocking.Unlock()
+	return mock.ProcessTransactionBlockingFunc(ctx, req)
+}
+
+// ProcessTransactionBlockingCalls gets all the calls that were made to ProcessTransactionBlocking.
+// Check the length with:
+//
+//	len(mockedProcessorI.ProcessTransactionBlockingCalls())
+func (mock *ProcessorIMock) ProcessTransactionBlockingCalls() []struct {
+	Ctx context.Context
+	Req *metamorph.ProcessorRequest
+} {
+	var calls []struct {
+		Ctx context.Context
+		Req *metamorph.ProcessorRequest
+	}
+	mock.lockProcessTransactionBlocking.RLock()
+	calls = mock.calls.ProcessTransactionBlocking
+	mock.lockProcessTransactionBlocking.RUnlock()
 	return calls
 }
 

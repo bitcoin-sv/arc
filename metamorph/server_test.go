@@ -115,7 +115,13 @@ func TestPutTransaction(t *testing.T) {
 		s, err := sql.New("sqlite_memory")
 		require.NoError(t, err)
 
-		processor := &ProcessorIMock{}
+		processor := &ProcessorIMock{
+			ProcessTransactionBlockingFunc: func(ctx context.Context, req *ProcessorRequest) error {
+				h := chainhash.DoubleHashH(req.Data.RawTx)
+				s.Set(ctx, h[:], req.Data)
+				return nil
+			},
+		}
 
 		client := &ClientIMock{}
 		client.RegisterTransactionFunc = func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
@@ -125,26 +131,12 @@ func TestPutTransaction(t *testing.T) {
 		}
 
 		server := NewServer(s, processor, client, source)
-		server.SetTimeout(100 * time.Millisecond)
 
-		var txStatus *metamorph_api.TransactionStatus
-		txRequest := &metamorph_api.TransactionRequest{
+		txStatus, err := server.PutTransaction(context.Background(), &metamorph_api.TransactionRequest{
 			RawTx: testdata.TX1RawBytes,
-		}
-
-		processor.ProcessTransactionFunc = func(ctx context.Context, req *ProcessorRequest) {
-			time.Sleep(10 * time.Millisecond)
-
-			req.ResponseChannel <- StatusAndError{
-				Hash:   testdata.TX1Hash,
-				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-			}
-		}
-
-		txStatus, err = server.PutTransaction(context.Background(), txRequest)
-		assert.NoError(t, err)
+		})
+		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, txStatus.Status)
-		assert.True(t, txStatus.TimedOut)
 	})
 
 	t.Run("invalid request", func(t *testing.T) {
@@ -177,12 +169,10 @@ func TestPutTransaction(t *testing.T) {
 			RawTx: testdata.TX1RawBytes,
 		}
 
-		processor.ProcessTransactionFunc = func(ctx context.Context, req *ProcessorRequest) {
-			time.Sleep(10 * time.Millisecond)
-			req.ResponseChannel <- StatusAndError{
-				Hash:   testdata.TX1Hash,
-				Status: metamorph_api.Status_SEEN_ON_NETWORK,
-			}
+		processor.ProcessTransactionBlockingFunc = func(ctx context.Context, req *ProcessorRequest) error {
+			req.Data.Status = metamorph_api.Status_SEEN_ON_NETWORK
+			require.NoError(t, s.Set(ctx, req.Data.Hash[:], req.Data))
+			return nil
 		}
 		txStatus, err = server.PutTransaction(context.Background(), txRequest)
 		assert.NoError(t, err)
@@ -204,21 +194,19 @@ func TestPutTransaction(t *testing.T) {
 
 		server := NewServer(s, processor, btc, source)
 
-		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
 			RawTx:         testdata.TX1RawBytes,
 			WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
 		}
-		processor.ProcessTransactionFunc = func(ctx context.Context, req *ProcessorRequest) {
-			time.Sleep(10 * time.Millisecond)
-			req.ResponseChannel <- StatusAndError{
-				Hash:   testdata.TX1Hash,
-				Status: metamorph_api.Status_REJECTED,
-				Err:    fmt.Errorf("some error"),
-			}
+
+		processor.ProcessTransactionBlockingFunc = func(ctx context.Context, req *ProcessorRequest) error {
+			req.Data.Status = metamorph_api.Status_REJECTED
+			req.Data.RejectReason = "some error"
+			require.NoError(t, s.Set(ctx, req.Data.Hash[:], req.Data))
+			return nil
 		}
 
-		txStatus, err = server.PutTransaction(context.Background(), txRequest)
+		txStatus, err := server.PutTransaction(context.Background(), txRequest)
 		assert.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_REJECTED, txStatus.Status)
 		assert.Equal(t, "some error", txStatus.RejectReason)
@@ -541,22 +529,26 @@ func TestPutTransactions(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 
-			getCounter := 0
-			metamorphStore := &MetamorphStoreMock{
-				IsCentralisedFunc: func() bool {
-					return false
-				},
-				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-					defer func() { getCounter++ }()
+			//getCounter := 0
 
-					storeData, found := tc.transactionFound[getCounter]
-					if found {
-						return storeData, nil
-					}
+			metamorphStore, err := sql.New("sqlite_memory")
+			require.NoError(t, err)
 
-					return nil, tc.getErr
-				},
-			}
+			//metamorphStore := &MetamorphStoreMock{
+			//	IsCentralisedFunc: func() bool {
+			//		return false
+			//	},
+			//	GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+			//		defer func() { getCounter++ }()
+			//
+			//		storeData, found := tc.transactionFound[getCounter]
+			//		if found {
+			//			return storeData, nil
+			//		}
+			//
+			//		return nil, tc.getErr
+			//	},
+			//}
 
 			btc := &ClientIMock{
 				RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
@@ -571,18 +563,15 @@ func TestPutTransactions(t *testing.T) {
 				SetFunc: func(_ context.Context, req *ProcessorRequest) error {
 					return nil
 				},
-				ProcessTransactionFunc: func(_ context.Context, req *ProcessorRequest) {
-					resp, found := tc.processorResponse[req.Data.Hash.String()]
-					if found {
-						req.ResponseChannel <- *resp
-					}
+				ProcessTransactionBlockingFunc: func(ctx context.Context, req *ProcessorRequest) error {
+					require.NoError(t, metamorphStore.Set(ctx, req.Data.Hash[:], req.Data))
+					return nil
 				},
 			}
 
 			serverLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			server := NewServer(metamorphStore, processor, btc, source, WithLogger(serverLogger))
 
-			server.SetTimeout(5 * time.Second)
 			statuses, err := server.PutTransactions(context.Background(), tc.requests)
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
@@ -592,12 +581,10 @@ func TestPutTransactions(t *testing.T) {
 			}
 
 			require.Equal(t, tc.expectedProcessorSetCalls, len(processor.SetCalls()))
-			require.Equal(t, tc.expectedProcessorProcessTransactionCalls, len(processor.ProcessTransactionCalls()))
+			require.Equal(t, tc.expectedProcessorProcessTransactionCalls, len(processor.ProcessTransactionBlockingCalls()))
 
 			for i := 0; i < len(tc.expectedStatuses.Statuses); i++ {
-				expected := tc.expectedStatuses.Statuses[i]
-				status := statuses.Statuses[i]
-				require.Equal(t, expected, status)
+				require.Equal(t, tc.expectedStatuses.Statuses[i], statuses.Statuses[i])
 			}
 		})
 	}
@@ -742,7 +729,7 @@ func TestCheckUtxos(t *testing.T) {
 			}
 			server := NewServer(metamorphStore, processor, btc, source, WithForceCheckUtxos(bitcoin))
 
-			_, err := server.CheckUtxos(context.Background(), 0, tc.rawTx)
+			err := server.CheckUtxos(context.Background(), tc.rawTx)
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return

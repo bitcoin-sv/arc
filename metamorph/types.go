@@ -27,8 +27,7 @@ type ProcessorStats struct {
 }
 
 type ProcessorRequest struct {
-	Data            *store.StoreData
-	ResponseChannel chan StatusAndError
+	Data *store.StoreData
 }
 
 type PeerTxMessage struct {

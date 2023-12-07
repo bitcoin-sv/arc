@@ -93,5 +93,5 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 		logger.Error("Couldn't update/remove callback url  - ", err)
 		return
 	}
-	logger.Error("Couldn't send transaction info through callback url after ", slog.String("status", strconv.Itoa(CallbackTries)), " tries")
+	logger.Error("Couldn't send transaction info through callback url after tries: ", slog.String("status", strconv.Itoa(CallbackTries)))
 }

@@ -65,7 +65,7 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 		response, err = httpClient.Do(request)
 		if err != nil {
 			logger.Error("Couldn't send transaction info through callback url - ", err)
-			return
+			continue
 		}
 		defer response.Body.Close()
 
@@ -73,16 +73,18 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 		if response.StatusCode == http.StatusOK {
 			err = s.RemoveCallbacker(context.Background(), tx.Hash)
 			if err != nil {
-				logger.Info("Couldn't update/remove callback url - ", err)
+				logger.Error("Couldn't update/remove callback url - ", err)
 				continue
 			}
 			return
+		} else {
+			logger.Error("callback response status code not ok - ", response.StatusCode)
 		}
 
 		// sleep before trying again
 		time.Sleep(time.Duration(sleepDuration) * time.Second)
 		// increase intervals on each failure
-		sleepDuration *= sleepDuration
+		sleepDuration *= 2
 	}
 
 	err := s.RemoveCallbacker(context.Background(), tx.Hash)

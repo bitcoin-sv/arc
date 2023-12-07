@@ -402,7 +402,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 			// 	}
 			// }
 			data, _ := p.store.Get(spanCtx, hash[:])
-			SendCallback(p.logger, p.store, data)
+			go SendCallback(p.logger, p.store, data)
 		},
 	})
 

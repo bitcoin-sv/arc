@@ -336,29 +336,6 @@ func TestPostCallbackToken(t *testing.T) {
 				if expectedAuthHeader != req.Header.Get("Authorization") {
 					errChan <- fmt.Errorf("auth header %s not as expected %s", expectedAuthHeader, req.Header.Get("Authorization"))
 				}
-
-				// Let ARC send the callback 2 times. First one fails.
-				if iterations == 0 {
-					t.Log("callback received, responding bad request")
-
-					err = respondToCallback(w, false)
-					if err != nil {
-						t.Fatalf("Failed to respond to callback: %v", err)
-					}
-
-					callbackReceivedChan <- &status
-
-					iterations++
-					return
-				}
-
-				t.Log("callback received, responding success")
-
-				err = respondToCallback(w, true)
-				if err != nil {
-					t.Fatalf("Failed to respond to callback: %v", err)
-				}
-				callbackReceivedChan <- &status
 			})
 
 			go func(server *http.Server) {

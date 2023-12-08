@@ -295,7 +295,7 @@ func (bs *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 		gocore.NewStat("blocktx").NewStat("HandleBlockAnnouncement").AddTime(start)
 	}()
 
-	bs.workerCh <- p2p.Pair{&msg.Hash, peer}
+	bs.workerCh <- p2p.Pair{Hash: &msg.Hash, Peer: peer}
 
 	return nil
 }
@@ -386,7 +386,7 @@ func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 		if _, found := bs.announcedCache.Get(*previousBlockHash); !found {
 			if _, err := bs.store.GetBlock(context.Background(), previousBlockHash); err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
-					bs.workerCh <- p2p.Pair{previousBlockHash, peer}
+					bs.workerCh <- p2p.Pair{Hash: previousBlockHash, Peer: peer}
 				}
 			}
 		}

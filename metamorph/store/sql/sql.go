@@ -516,8 +516,7 @@ func (s *SQL) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error 
 		return err
 	}
 
-	var n int64
-	n, err = result.RowsAffected()
+	_, err = result.RowsAffected()
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))

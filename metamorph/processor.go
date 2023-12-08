@@ -14,9 +14,8 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
-	"github.com/libsv/go-p2p"
+	"github.com/bitcoin-sv/arc/p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -175,7 +174,7 @@ func (p *Processor) unlockItems() error {
 
 func (p *Processor) processExpiredSeenTransactions() {
 	// filterFunc returns true if the transaction has not been seen on the network
-	filterFunc := func(processorResp *processor_response.ProcessorResponse) bool {
+	filterFunc := func(processorResp *ProcessorResponse) bool {
 		return processorResp.GetStatus() == metamorph_api.Status_SEEN_ON_NETWORK && p.now().Sub(processorResp.Start) > p.processExpiredSeenTxsInterval
 	}
 
@@ -222,7 +221,7 @@ func (p *Processor) processExpiredSeenTransactions() {
 
 func (p *Processor) processExpiredTransactions() {
 	// filterFunc returns true if the transaction has not been seen on the network
-	filterFunc := func(procResp *processor_response.ProcessorResponse) bool {
+	filterFunc := func(procResp *ProcessorResponse) bool {
 		return (procResp.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK || procResp.GetStatus() == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL) && p.now().Sub(procResp.Start) > unseenTransactionRebroadcastingInterval*time.Second
 	}
 
@@ -306,7 +305,7 @@ func (p *Processor) LoadUnmined() {
 		}
 
 		// add the records we have in the database, but that have not been processed, to the mempool watcher
-		pr := processor_response.NewProcessorResponseWithStatus(record.Hash, record.Status)
+		pr := NewProcessorResponseWithStatus(record.Hash, record.Status)
 		pr.NoStats = true
 		pr.Start = record.StoredAt
 
@@ -368,7 +367,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 		return false, fmt.Errorf("failed to get tx %s from response map", hash.String())
 	}
 
-	resp.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
+	resp.UpdateStatus(&ProcessorResponseStatusUpdate{
 		Status: metamorph_api.Status_MINED,
 		Source: "blocktx",
 		UpdateStore: func() error {
@@ -417,7 +416,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
 	defer span.Finish()
 
-	processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
+	processorResponse.UpdateStatus(&ProcessorResponseStatusUpdate{
 		Status:    status,
 		Source:    source,
 		StatusErr: statusErr,
@@ -483,10 +482,10 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	p.logger.Debug("Adding channel", slog.String("hash", req.Data.Hash.String()))
 
-	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel)
+	processorResponse := NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel)
 
 	// STEP 1: RECEIVED
-	processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
+	processorResponse.UpdateStatus(&ProcessorResponseStatusUpdate{
 		Status: metamorph_api.Status_RECEIVED,
 		Source: "processor",
 		Callback: func(err error) {
@@ -496,7 +495,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 			}
 
 			// STEP 2: STORED
-			processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
+			processorResponse.UpdateStatus(&ProcessorResponseStatusUpdate{
 				Status: metamorph_api.Status_STORED,
 				Source: "processor",
 				UpdateStore: func() error {
@@ -526,7 +525,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 						}
 					}
 
-					processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
+					processorResponse.UpdateStatus(&ProcessorResponseStatusUpdate{
 						Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 						Source: strings.Join(peersStr, ", "),
 						UpdateStore: func() error {

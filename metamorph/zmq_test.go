@@ -7,6 +7,7 @@ import (
 	. "github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	. "github.com/bitcoin-sv/arc/metamorph/mocks"
+	"github.com/bitcoin-sv/arc/p2p"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,13 +28,13 @@ func TestMissingInputsZMQI(t *testing.T) {
 		},
 	}
 
-	statuses := make(chan *PeerTxMessage, 1)
+	statuses := make(chan *p2p.PeerTxMessage, 1)
 	url, _ := url.Parse("https://some-url.com")
 	zmq := NewZMQ(url, statuses)
 	zmq.Start(mockedZMQI)
 	status := <-statuses
 
-	assert.Equal(t, status.Status, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
+	assert.Equal(t, status.Status, int32(metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL))
 }
 
 func TestInvalidTxZMQI(t *testing.T) {
@@ -52,11 +53,11 @@ func TestInvalidTxZMQI(t *testing.T) {
 		},
 	}
 
-	statuses := make(chan *PeerTxMessage, 1)
+	statuses := make(chan *p2p.PeerTxMessage, 1)
 	url, _ := url.Parse("https://some-url.com")
 	zmq := NewZMQ(url, statuses)
 	zmq.Start(mockedZMQI)
 	status := <-statuses
 
-	assert.Equal(t, status.Status, metamorph_api.Status_ACCEPTED_BY_NETWORK)
+	assert.Equal(t, status.Status, int32(metamorph_api.Status_ACCEPTED_BY_NETWORK))
 }

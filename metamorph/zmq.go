@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/gocore"
 )
@@ -22,7 +23,7 @@ type ZMQStats struct {
 type ZMQ struct {
 	URL             *url.URL
 	Stats           *ZMQStats
-	statusMessageCh chan<- *PeerTxMessage
+	statusMessageCh chan<- *p2p.PeerTxMessage
 	Logger          *gocore.Logger
 }
 
@@ -60,7 +61,7 @@ type ZMQDiscardFromMempool struct {
 	BlockHash string `json:"blockhash"`
 }
 
-func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage) *ZMQ {
+func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *p2p.PeerTxMessage) *ZMQ {
 	var zmqLogger = gocore.Log("zmq")
 	z := &ZMQ{
 		URL: zmqURL,
@@ -94,10 +95,10 @@ func (z *ZMQ) Start(zmqi ZMQI) {
 
 				hash, _ := chainhash.NewHashFromStr(c[1])
 
-				z.statusMessageCh <- &PeerTxMessage{
+				z.statusMessageCh <- &p2p.PeerTxMessage{
 					Start:  time.Now(),
 					Hash:   hash,
-					Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+					Status: int32(metamorph_api.Status_ACCEPTED_BY_NETWORK),
 					Peer:   z.URL.String(),
 				}
 			case "invalidtx":
@@ -125,10 +126,10 @@ func (z *ZMQ) Start(zmqi ZMQI) {
 				z.Logger.Debugf("invalidtx %s: %s", txInfo.TxID, errReason)
 
 				hash, _ := chainhash.NewHashFromStr(txInfo.TxID)
-				z.statusMessageCh <- &PeerTxMessage{
+				z.statusMessageCh <- &p2p.PeerTxMessage{
 					Start:  time.Now(),
 					Hash:   hash,
-					Status: status,
+					Status: int32(status),
 					Peer:   z.URL.String(),
 					Err:    fmt.Errorf(errReason),
 				}
@@ -145,10 +146,10 @@ func (z *ZMQ) Start(zmqi ZMQI) {
 
 				hash, _ := chainhash.NewHashFromStr(txInfo.TxID)
 
-				z.statusMessageCh <- &PeerTxMessage{
+				z.statusMessageCh <- &p2p.PeerTxMessage{
 					Start:  time.Now(),
 					Hash:   hash,
-					Status: metamorph_api.Status_REJECTED,
+					Status: int32(metamorph_api.Status_REJECTED),
 					Peer:   z.URL.String(),
 					Err:    fmt.Errorf("discarded from mempool: %s", txInfo.Reason),
 				}

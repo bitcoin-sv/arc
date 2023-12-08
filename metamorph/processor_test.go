@@ -34,7 +34,7 @@ import (
 func TestNewProcessor(t *testing.T) {
 	mtmStore := &MetamorphStoreMock{
 		GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-			return &store.StoreData{}, nil
+			return &store.StoreData{Hash: testdata.TX2Hash}, nil
 		},
 		SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
 		RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
@@ -739,7 +739,7 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 
 			metamorphStore := &MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-					return &store.StoreData{}, nil
+					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
 				UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 					require.Condition(t, func() (success bool) {
@@ -805,7 +805,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphStore := &MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-					return &store.StoreData{}, nil
+					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
 				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {

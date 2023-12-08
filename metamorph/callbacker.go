@@ -31,8 +31,6 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 			blockHash = utils.ReverseAndHexEncodeSlice(tx.BlockHash.CloneBytes())
 		}
 
-		logger.Info("sending callback for transaction", slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.String("url", tx.CallbackUrl), slog.Uint64("block height", tx.BlockHeight), slog.String("block hash", blockHash))
-
 		status := &api.TransactionStatus{
 			BlockHash:   &blockHash,
 			BlockHeight: &tx.BlockHeight,

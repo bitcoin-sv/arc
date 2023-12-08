@@ -16,3 +16,4 @@ gotest.out
 report.xml
 init_env.sh
 background_worker/config.yaml
+metamorph/store/badger/data-*

@@ -38,6 +38,24 @@ const (
 	dataRetentionPeriodDefault = 14 * 24 * time.Hour // 14 days
 )
 
+var (
+	statusValueMap = map[metamorph_api.Status]int{
+		metamorph_api.Status_UNKNOWN:                0,
+		metamorph_api.Status_QUEUED:                 1,
+		metamorph_api.Status_RECEIVED:               2,
+		metamorph_api.Status_STORED:                 3,
+		metamorph_api.Status_ANNOUNCED_TO_NETWORK:   4,
+		metamorph_api.Status_REQUESTED_BY_NETWORK:   5,
+		metamorph_api.Status_SENT_TO_NETWORK:        6,
+		metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL: 7,
+		metamorph_api.Status_ACCEPTED_BY_NETWORK:    8,
+		metamorph_api.Status_SEEN_ON_NETWORK:        9,
+		metamorph_api.Status_REJECTED:               10,
+		metamorph_api.Status_MINED:                  11,
+		metamorph_api.Status_CONFIRMED:              12,
+	}
+)
+
 type Processor struct {
 	store                store.MetamorphStore
 	cbChannel            chan *callbacker_api.Callback
@@ -413,10 +431,17 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 		return false, nil
 	}
 
+	// Do not overwrite a higher value status with a lower or equal value status
+	if statusValueMap[status] <= statusValueMap[processorResponse.Status] {
+		p.logger.Info("Status not updated for tx", slog.String("status", status.String()), slog.String("previous status", processorResponse.Status.String()), slog.String("hash", hash.String()))
+
+		return false, nil
+	}
+
 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
 	defer span.Finish()
 
-	processorResponse.UpdateStatus(&ProcessorResponseStatusUpdate{
+	statusUpdate := &ProcessorResponseStatusUpdate{
 		Status:    status,
 		Source:    source,
 		StatusErr: statusErr,
@@ -434,12 +459,11 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 			if err != nil {
 				p.logger.Error(failedToUpdateStatus, slog.String("hash", hash.String()), slog.String("err", err.Error()))
 				return
-			} else {
-				p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
 			}
 
-			switch status {
+			p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
 
+			switch status {
 			case metamorph_api.Status_REQUESTED_BY_NETWORK:
 				p.requestedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
 
@@ -463,7 +487,9 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 				p.rejected.AddDuration(source, time.Since(processorResponse.Start))
 			}
 		},
-	})
+	}
+
+	processorResponse.UpdateStatus(statusUpdate)
 
 	return true, nil
 }

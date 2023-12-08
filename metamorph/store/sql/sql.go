@@ -523,9 +523,6 @@ func (s *SQL) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error 
 		span.LogFields(log.Error(err))
 		return err
 	}
-	if n == 0 {
-		return store.ErrNotFound
-	}
 
 	return nil
 }

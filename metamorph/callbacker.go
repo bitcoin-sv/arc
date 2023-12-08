@@ -78,9 +78,9 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 				continue
 			}
 			return
-		} else {
-			logger.Error("callback response status code not ok - ", slog.String("status", strconv.Itoa(response.StatusCode)))
 		}
+
+		logger.Error("callback response status code not ok - ", slog.String("status", strconv.Itoa(response.StatusCode)))
 
 		// sleep before trying again
 		time.Sleep(time.Duration(sleepDuration) * time.Second)

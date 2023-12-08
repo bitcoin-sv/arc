@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -22,12 +23,13 @@ import (
 	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/badger"
 	"github.com/bitcoin-sv/arc/metamorph/store/dynamodb"
 	"github.com/bitcoin-sv/arc/metamorph/store/sql"
+	"github.com/bitcoin-sv/arc/p2p"
 	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-bitcoin"
@@ -110,8 +112,6 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		logger.Infof("Instance will register transactions with location %q", source)
 	}
 
-	pm, statusMessageCh := initPeerManager(logger, s)
-
 	callbackerAddress := viper.GetString("callbacker.dialAddr")
 	if callbackerAddress == "" {
 		logger.Fatalf("no callbacker.dialAddr setting found")
@@ -153,6 +153,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		return nil, err
 	}
 
+	pm, statusMessageCh := initPeerManager(logger, s)
 	metamorphProcessor, err := metamorph.NewProcessor(
 		s,
 		pm,
@@ -168,7 +169,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	go func() {
 		for message := range statusMessageCh {
-			_, err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
+			_, err = metamorphProcessor.SendStatusForTransaction(message.Hash, metamorph_api.Status(message.Status), message.Peer, message.Err)
 			if err != nil {
 				logger.Errorf("Could not send status for transaction %v: %v", message.Hash, err)
 			}
@@ -386,7 +387,7 @@ func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) 
 	return s, err
 }
 
-func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {
+func initPeerManager(logger utils.Logger, s store.MetamorphStore) (*p2p.PeerManager, chan *p2p.PeerTxMessage) {
 	networkStr := viper.GetString("network")
 
 	var network wire.BitcoinNet
@@ -404,15 +405,16 @@ func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManag
 
 	logger.Infof("Assuming bitcoin network is %s", network)
 
-	messageCh := make(chan *metamorph.PeerTxMessage)
+	messageCh := make(chan *p2p.PeerTxMessage)
 	pm := p2p.NewPeerManager(logger, network)
 
-	peerHandler := metamorph.NewPeerHandler(s, messageCh)
+	peerHandler := p2p.NewPeerHandler(s, messageCh)
 
 	peerSettings, err := blocktx.GetPeerSettings()
 	if err != nil {
 		logger.Fatalf("error getting peer settings: %v", err)
 	}
+	slogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	for _, peerSetting := range peerSettings {
 		peerUrl, err := peerSetting.GetP2PUrl()
@@ -420,8 +422,7 @@ func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManag
 			logger.Fatalf("error getting peer url: %v", err)
 		}
 
-		var peer *p2p.Peer
-		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network)
+		peer, err := p2p.NewPeer(slogger, peerUrl, peerHandler, network)
 		if err != nil {
 			logger.Fatalf("error creating peer %s: %v", peerUrl, err)
 		}
@@ -430,8 +431,7 @@ func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManag
 			logger.Fatalf("error adding peer %s: %v", peerUrl, err)
 		}
 	}
-
-	return pm, messageCh
+	return pm.(*p2p.PeerManager), messageCh
 }
 
 func processBlock(logger utils.Logger, btc blocktx.ClientI, p metamorph.ProcessorI, s store.MetamorphStore, blockAndSource *blocktx_api.BlockAndSource) {

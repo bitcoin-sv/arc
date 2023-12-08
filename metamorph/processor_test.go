@@ -77,7 +77,7 @@ func TestNewProcessor(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 
-			processor, err := NewProcessor(tc.store, tc.pm, nil, nil,
+			processor, err := NewProcessor(tc.store, tc.pm, nil,
 				WithCacheExpiryTime(time.Second*5),
 				WithProcessExpiredSeenTxsInterval(time.Second*5),
 				WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault}))),
@@ -297,7 +297,7 @@ func TestLoadUnmined(t *testing.T) {
 				},
 			}
 
-			processor, err := NewProcessor(mtmStore, pm, nil, btxMock,
+			processor, err := NewProcessor(mtmStore, pm, btxMock,
 				WithProcessExpiredSeenTxsInterval(time.Hour*24),
 				WithCacheExpiryTime(time.Hour*24),
 				WithNow(func() time.Time {
@@ -332,7 +332,7 @@ func TestProcessTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor, err := NewProcessor(s, pm, nil, nil)
+		processor, err := NewProcessor(s, pm, nil)
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
@@ -385,7 +385,7 @@ func Benchmark_ProcessTransaction(b *testing.B) {
 
 	pm := p2p.NewPeerManagerMock()
 
-	processor, err := NewProcessor(s, pm, nil, nil)
+	processor, err := NewProcessor(s, pm, nil)
 	require.NoError(b, err)
 	assert.Equal(b, 0, processor.ProcessorResponseMap.Len())
 
@@ -409,7 +409,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor, err := NewProcessor(s, pm, nil, nil)
+		processor, err := NewProcessor(s, pm, nil)
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
@@ -426,7 +426,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor, err := NewProcessor(s, pm, nil, nil)
+		processor, err := NewProcessor(s, pm, nil)
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
@@ -444,7 +444,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor, err := NewProcessor(s, pm, nil, nil)
+		processor, err := NewProcessor(s, pm, nil)
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
@@ -464,7 +464,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor, err := NewProcessor(s, pm, nil, nil)
+		processor, err := NewProcessor(s, pm, nil)
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
@@ -516,7 +516,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor, err := NewProcessor(s, pm, nil, nil)
+		processor, err := NewProcessor(s, pm, nil)
 		require.NoError(t, err)
 		processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(
 			testdata.TX1Hash,
@@ -579,7 +579,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor, err := NewProcessor(s, pm, nil, nil)
+		processor, err := NewProcessor(s, pm, nil)
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
@@ -632,7 +632,7 @@ func BenchmarkProcessTransaction(b *testing.B) {
 	}()
 
 	pm := p2p.NewPeerManagerMock()
-	processor, err := NewProcessor(s, pm, nil, nil)
+	processor, err := NewProcessor(s, pm, nil)
 	require.NoError(b, err)
 	assert.Equal(b, 0, processor.ProcessorResponseMap.Len())
 
@@ -765,7 +765,7 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 			}
 
 			pm := p2p.NewPeerManagerMock()
-			processor, err := NewProcessor(metamorphStore, pm, nil, btxMock,
+			processor, err := NewProcessor(metamorphStore, pm, btxMock,
 				WithProcessExpiredSeenTxsInterval(20*time.Millisecond),
 				WithProcessExpiredTxsInterval(time.Hour),
 			)
@@ -813,7 +813,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				},
 			}
 			pm := p2p.NewPeerManagerMock()
-			processor, err := NewProcessor(metamorphStore, pm, nil, nil,
+			processor, err := NewProcessor(metamorphStore, pm, nil,
 				WithProcessExpiredSeenTxsInterval(time.Hour),
 				WithProcessExpiredTxsInterval(time.Millisecond*20),
 				WithNow(func() time.Time {

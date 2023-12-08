@@ -477,6 +477,14 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
 	defer span.Finish()
 
+	// do not store other statuses than the following
+	if status != metamorph_api.Status_REJECTED &&
+		status != metamorph_api.Status_SEEN_ON_NETWORK &&
+		status != metamorph_api.Status_MINED &&
+		status != metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
+		return nil
+	}
+
 	updateExpression := fmt.Sprintf("SET tx_status = %s, reject_reason = %s", txStatusAttributeKey, rejectReasonAttributeKey)
 	expressionAttributevalues := map[string]types.AttributeValue{
 		txStatusAttributeKey:     &types.AttributeValueMemberN{Value: strconv.Itoa(int(status))},

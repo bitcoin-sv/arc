@@ -151,17 +151,10 @@ func (ddb *DynamoDB) CreateTransactionsTable(ctx context.Context) error {
 				Projection: &types.Projection{
 					ProjectionType: types.ProjectionTypeAll,
 				},
-				ProvisionedThroughput: &types.ProvisionedThroughput{
-					ReadCapacityUnits:  aws.Int64(10),
-					WriteCapacityUnits: aws.Int64(10),
-				},
 			},
 		},
-		TableName: aws.String(ddb.transactionsTableName),
-		ProvisionedThroughput: &types.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(10),
-			WriteCapacityUnits: aws.Int64(10),
-		},
+		TableName:   aws.String(ddb.transactionsTableName),
+		BillingMode: types.BillingModePayPerRequest,
 	})
 	if err != nil {
 		return err
@@ -198,11 +191,8 @@ func (ddb *DynamoDB) CreateBlocksTable(ctx context.Context) error {
 				KeyType:       types.KeyTypeHash,
 			},
 		},
-		TableName: aws.String(ddb.blocksTableName),
-		ProvisionedThroughput: &types.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(10),
-			WriteCapacityUnits: aws.Int64(10),
-		},
+		TableName:   aws.String(ddb.blocksTableName),
+		BillingMode: types.BillingModePayPerRequest,
 	}); err != nil {
 		return err
 	}

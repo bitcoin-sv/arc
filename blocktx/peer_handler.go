@@ -15,10 +15,10 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
+	"github.com/bitcoin-sv/arc/p2p"
 	"github.com/bitcoin-sv/arc/tracing"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils"
@@ -83,7 +83,7 @@ func init() {
 }
 
 type PeerHandler struct {
-	workerCh                    chan utils.Pair[*chainhash.Hash, p2p.PeerI]
+	workerCh                    chan p2p.Pair
 	blockCh                     chan *blocktx_api.Block
 	store                       store.Interface
 	logger                      utils.Logger
@@ -127,7 +127,7 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 		store:                       storeI,
 		blockCh:                     blockCh,
 		logger:                      logger,
-		workerCh:                    make(chan utils.Pair[*chainhash.Hash, p2p.PeerI], 100),
+		workerCh:                    make(chan p2p.Pair, 100),
 		announcedCache:              expiringmap.New[chainhash.Hash, []p2p.PeerI](10 * time.Minute).WithEvictionFunction(evictionFunc),
 		stats:                       safemap.New[string, *tracing.PeerHandlerStats](),
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
@@ -141,8 +141,8 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 
 	go func() {
 		for pair := range s.workerCh {
-			hash := pair.First
-			peer := pair.Second
+			hash := pair.Hash
+			peer := pair.Peer
 
 			item, found := s.announcedCache.Get(*hash)
 			if !found {
@@ -295,8 +295,7 @@ func (bs *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 		gocore.NewStat("blocktx").NewStat("HandleBlockAnnouncement").AddTime(start)
 	}()
 
-	pair := utils.NewPair(&msg.Hash, peer)
-	utils.SafeSend(bs.workerCh, pair)
+	bs.workerCh <- p2p.Pair{&msg.Hash, peer}
 
 	return nil
 }
@@ -382,14 +381,12 @@ func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("insertBlock").AddTime(start)
 	}()
-
 	startingHeight := viper.GetInt("blocktx.startingBlockHeight")
 	if height > uint64(startingHeight) {
 		if _, found := bs.announcedCache.Get(*previousBlockHash); !found {
 			if _, err := bs.store.GetBlock(context.Background(), previousBlockHash); err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
-					pair := utils.NewPair(previousBlockHash, peer)
-					utils.SafeSend(bs.workerCh, pair)
+					bs.workerCh <- p2p.Pair{previousBlockHash, peer}
 				}
 			}
 		}

@@ -1,13 +1,15 @@
 package blocktx
 
 import (
+	"log/slog"
+	"os"
+
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
-	"github.com/libsv/go-p2p"
+	"github.com/bitcoin-sv/arc/p2p"
 	"github.com/libsv/go-p2p/wire"
-	"github.com/spf13/viper"
-
 	"github.com/ordishs/go-utils"
+	"github.com/spf13/viper"
 )
 
 const maximumBlockSize = 4000000000 // 4Gb
@@ -65,6 +67,8 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 		l.Fatalf("error getting peer settings: %v", err)
 	}
 
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
 	for _, peerSetting := range peerSettings {
 		var peer *p2p.Peer
 		peerUrl, err := peerSetting.GetP2PUrl()
@@ -72,7 +76,7 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 			l.Fatalf("error getting peer url: %v", err)
 		}
 
-		peer, err = p2p.NewPeer(l, peerUrl, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize))
+		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize))
 		if err != nil {
 			l.Fatalf("error creating peer %s: %v", peerUrl, err)
 		}

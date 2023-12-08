@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/blocktx/store"
+	"github.com/bitcoin-sv/arc/p2p"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/bsvutil"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
@@ -24,18 +25,8 @@ import (
 
 // mocking wire.peerI as it's third party library and need to mock in here
 //
-//go:generate moq -out ./store/mock.go ./store Interface
-type MockedPeer struct{}
-
-func (peer *MockedPeer) Connected() bool                            { return true }
-func (peer *MockedPeer) WriteMsg(msg wire.Message) error            { return nil }
-func (peer *MockedPeer) String() string                             { return "" }
-func (peer *MockedPeer) AnnounceTransaction(txHash *chainhash.Hash) {}
-func (peer *MockedPeer) RequestTransaction(txHash *chainhash.Hash)  {}
-func (peer *MockedPeer) AnnounceBlock(blockHash *chainhash.Hash)    {}
-func (peer *MockedPeer) RequestBlock(blockHash *chainhash.Hash)     {}
-func (peer *MockedPeer) Network() wire.BitcoinNet                   { return 0 }
-
+//go:generate moq -out ./mocks/store_mock.go -pkg mocks ./store Interface
+//go:generate moq -out ./mocks/peer_mock.go -pkg mocks ../p2p PeerI
 func TestExtractHeight(t *testing.T) {
 	coinbase, _ := hex.DecodeString("01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff570350cc0b041547b5630cfabe6d6d0000000000000000000000000000000000000000000000000000000000000000010000000000000047ed20542096bd0000000000143362663865373833636662643732306431383436000000000140be4025000000001976a914c9b0abe09b7dd8e9d1e8c1e3502d32ab0d7119e488ac00000000")
 	tx, err := bsvutil.NewTxFromBytes(coinbase)
@@ -73,9 +64,7 @@ func TestGetAnnouncedCacheBlockHashes(t *testing.T) {
 		announcedCache: expiringmap.New[chainhash.Hash, []p2p.PeerI](5 * time.Minute),
 	}
 
-	peer, err := p2p.NewPeerMock("", &peerHandler, wire.MainNet)
-	assert.NoError(t, err)
-
+	peer := &mocks.PeerIMock{}
 	hash, err := chainhash.NewHashFromStr("00000000000000000e3c9aafb4c823562dd38f15b75849be348131a785154e33")
 	assert.NoError(t, err)
 	peerHandler.announcedCache.Set(*hash, []p2p.PeerI{peer})
@@ -90,8 +79,6 @@ func TestGetAnnouncedCacheBlockHashes(t *testing.T) {
 }
 
 func TestHandleBlock(t *testing.T) {
-	// define HandleBlock function parameters (BlockMessage and p2p.PeerI)
-	//txHashes :=
 
 	prevBlockHash1573650, _ := chainhash.NewHashFromStr("00000000000007b1f872a8abe664223d65acd22a500b1b8eb5db3fe09a9837ff")
 	merkleRootHash1573650, _ := chainhash.NewHashFromStr("3d64b2bb6bd4e85aacb6d1965a2407fa21846c08dd9a8616866ad2f5c80fda7f")
@@ -285,7 +272,9 @@ func TestHandleBlock(t *testing.T) {
 				return nil
 			}
 
-			peer := &MockedPeer{}
+			peer := &mocks.PeerIMock{StringFunc: func() string {
+				return "test"
+			}}
 
 			blockMessage := &p2p.BlockMessage{
 				Header: &wire.BlockHeader{

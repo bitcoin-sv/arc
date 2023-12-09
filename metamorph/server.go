@@ -50,9 +50,8 @@ type ProcessorI interface {
 	LoadUnmined()
 	Set(ctx context.Context, req *ProcessorRequest) error
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
-	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
-	SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error)
-	GetStats(debugItems bool) *ProcessorStats
+	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) error
+	SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error
 	GetPeers() ([]string, []string)
 	Shutdown()
 }
@@ -152,21 +151,21 @@ func (s *Server) Shutdown() {
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.HealthResponse, error) {
-	stats := s.processor.GetStats(false)
+	//stats := s.processor.GetStats(false)
 
 	peersConnected, peersDisconnected := s.processor.GetPeers()
 
-	details := fmt.Sprintf(`Peer stats (started: %s)`, stats.StartTime.UTC().Format(time.RFC3339))
+	//details := fmt.Sprintf(`Peer stats (started: %s)`, stats.StartTime.UTC().Format(time.RFC3339))
 	return &metamorph_api.HealthResponse{
-		Ok:                true,
-		Details:           details,
-		Timestamp:         timestamppb.New(time.Now()),
-		Uptime:            float32(time.Since(stats.StartTime).Milliseconds()) / 1000.0,
-		Queued:            stats.QueuedCount,
-		Processed:         stats.SentToNetwork.GetCount(),
-		Waiting:           stats.QueueLength,
-		Average:           float32(stats.SentToNetwork.GetAverageDuration().Milliseconds()),
-		MapSize:           stats.ChannelMapSize,
+		Ok: true,
+		//Details:   details,
+		Timestamp: timestamppb.New(time.Now()),
+		//Uptime:    float32(time.Since(stats.StartTime).Milliseconds()) / 1000.0,
+		//Queued:            stats.QueuedCount,
+		//Processed:         stats.SentToNetwork.GetCount(),
+		//Waiting:           stats.QueueLength,
+		//Average:           float32(stats.SentToNetwork.GetAverageDuration().Milliseconds()),
+		//MapSize:           stats.ChannelMapSize,
 		PeersConnected:    strings.Join(peersConnected, ","),
 		PeersDisconnected: strings.Join(peersDisconnected, ","),
 	}, nil

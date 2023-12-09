@@ -24,7 +24,6 @@ type ProcessorStats struct {
 	Rejected           *stat.AtomicStats
 	Mined              *stat.AtomicStat
 	Retries            *stat.AtomicStat
-	ChannelMapSize     int32
 }
 
 type ProcessorRequest struct {

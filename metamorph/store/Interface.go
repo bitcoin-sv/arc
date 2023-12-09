@@ -209,7 +209,7 @@ type MetamorphStore interface {
 	Del(ctx context.Context, key []byte) error
 
 	IsCentralised() bool
-	SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error
+	//SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error
 	SetUnlockedByName(ctx context.Context, lockedBy string) (int, error)
 	GetUnmined(_ context.Context, callback func(s *StoreData)) error
 	UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -164,22 +163,16 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		metamorph.WithDataRetentionPeriod(time.Duration(dataRetentionDays)*24*time.Hour),
 	)
 
-	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
+	//http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
 
 	go func() {
 		for message := range statusMessageCh {
-			_, err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
+			err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
 			if err != nil {
 				logger.Errorf("Could not send status for transaction %v: %v", message.Hash, err)
 			}
 		}
 	}()
-
-	if viper.GetBool("metamorph.statsKeypress") {
-		// The double invocation is the get PrintStatsOnKeypress to start and return a function
-		// that can be deferred to reset the TTY when the program exits.
-		defer metamorphProcessor.PrintStatsOnKeypress()()
-	}
 
 	go func() {
 		// load all transactions into memory from disk that have not been seen on the network
@@ -449,8 +442,7 @@ func processBlock(logger utils.Logger, btc blocktx.ClientI, p metamorph.Processo
 		hash, _ := chainhash.NewHash(tx.Hash)
 		blockHash, _ := chainhash.NewHash(mt.Block.Hash)
 
-		_, err = p.SendStatusMinedForTransaction(hash, blockHash, mt.Block.Height)
-		if err != nil {
+		if err = p.SendStatusMinedForTransaction(hash, blockHash, mt.Block.Height); err != nil {
 			logger.Errorf("Could not send mined status for transaction %x: %v", bt.ReverseBytes(tx.Hash), err)
 			return
 		}
@@ -458,10 +450,14 @@ func processBlock(logger utils.Logger, btc blocktx.ClientI, p metamorph.Processo
 
 	logger.Infof("Marked %d transactions as MINED", len(mt.Transactions))
 
-	hash, _ := chainhash.NewHash(blockAndSource.Hash)
-
+	hash, err := chainhash.NewHash(blockAndSource.Hash)
+	if err != nil {
+		logger.Errorf("Could not get hash for: %v due to %v", blockAndSource.Hash, err)
+		return
+	}
 	err = s.SetBlockProcessed(context.Background(), hash)
 	if err != nil {
 		logger.Errorf("Could not set block processed status: %v", err)
+		return
 	}
 }

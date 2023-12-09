@@ -87,15 +87,11 @@ func TestHealth(t *testing.T) {
 			sentToNetworkStat.AddDuration("test", 10*time.Millisecond)
 		}
 		expectedStats := &ProcessorStats{
-			StartTime:      time.Now(),
-			UptimeMillis:   "2000ms",
-			QueueLength:    136,
-			QueuedCount:    356,
-			SentToNetwork:  sentToNetworkStat,
-			ChannelMapSize: 22,
-		}
-		processor.GetStatsFunc = func(debugItems bool) *ProcessorStats {
-			return expectedStats
+			StartTime:     time.Now(),
+			UptimeMillis:  "2000ms",
+			QueueLength:   136,
+			QueuedCount:   356,
+			SentToNetwork: sentToNetworkStat,
 		}
 		processor.GetPeersFunc = func() ([]string, []string) {
 			return []string{"peer1"}, []string{}
@@ -104,7 +100,6 @@ func TestHealth(t *testing.T) {
 		server := NewServer(nil, processor, nil, source)
 		stats, err := server.Health(context.Background(), &emptypb.Empty{})
 		assert.NoError(t, err)
-		assert.Equal(t, expectedStats.ChannelMapSize, stats.MapSize)
 		assert.Equal(t, expectedStats.QueuedCount, stats.Queued)
 		assert.Equal(t, expectedStats.SentToNetwork.GetMap()["test"].GetCount(), stats.Processed)
 		assert.Equal(t, expectedStats.QueueLength, stats.Waiting)
@@ -728,7 +723,7 @@ func TestStartGRPCServer(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &MetamorphStoreMock{SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil }}
+			metamorphStore := &MetamorphStoreMock{}
 
 			btc := &ClientIMock{}
 

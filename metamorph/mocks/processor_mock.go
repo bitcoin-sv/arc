@@ -24,19 +24,16 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //			GetPeersFunc: func() ([]string, []string) {
 //				panic("mock out the GetPeers method")
 //			},
-//			GetStatsFunc: func(debugItems bool) *metamorph.ProcessorStats {
-//				panic("mock out the GetStats method")
-//			},
 //			LoadUnminedFunc: func()  {
 //				panic("mock out the LoadUnmined method")
 //			},
 //			ProcessTransactionFunc: func(ctx context.Context, req *metamorph.ProcessorRequest)  {
 //				panic("mock out the ProcessTransaction method")
 //			},
-//			SendStatusForTransactionFunc: func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error) {
+//			SendStatusForTransactionFunc: func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) error {
 //				panic("mock out the SendStatusForTransaction method")
 //			},
-//			SendStatusMinedForTransactionFunc: func(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error) {
+//			SendStatusMinedForTransactionFunc: func(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 //				panic("mock out the SendStatusMinedForTransaction method")
 //			},
 //			SetFunc: func(ctx context.Context, req *metamorph.ProcessorRequest) error {
@@ -55,9 +52,6 @@ type ProcessorIMock struct {
 	// GetPeersFunc mocks the GetPeers method.
 	GetPeersFunc func() ([]string, []string)
 
-	// GetStatsFunc mocks the GetStats method.
-	GetStatsFunc func(debugItems bool) *metamorph.ProcessorStats
-
 	// LoadUnminedFunc mocks the LoadUnmined method.
 	LoadUnminedFunc func()
 
@@ -65,10 +59,10 @@ type ProcessorIMock struct {
 	ProcessTransactionFunc func(ctx context.Context, req *metamorph.ProcessorRequest)
 
 	// SendStatusForTransactionFunc mocks the SendStatusForTransaction method.
-	SendStatusForTransactionFunc func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
+	SendStatusForTransactionFunc func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) error
 
 	// SendStatusMinedForTransactionFunc mocks the SendStatusMinedForTransaction method.
-	SendStatusMinedForTransactionFunc func(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error)
+	SendStatusMinedForTransactionFunc func(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error
 
 	// SetFunc mocks the Set method.
 	SetFunc func(ctx context.Context, req *metamorph.ProcessorRequest) error
@@ -80,11 +74,6 @@ type ProcessorIMock struct {
 	calls struct {
 		// GetPeers holds details about calls to the GetPeers method.
 		GetPeers []struct {
-		}
-		// GetStats holds details about calls to the GetStats method.
-		GetStats []struct {
-			// DebugItems is the debugItems argument value.
-			DebugItems bool
 		}
 		// LoadUnmined holds details about calls to the LoadUnmined method.
 		LoadUnmined []struct {
@@ -128,7 +117,6 @@ type ProcessorIMock struct {
 		}
 	}
 	lockGetPeers                      sync.RWMutex
-	lockGetStats                      sync.RWMutex
 	lockLoadUnmined                   sync.RWMutex
 	lockProcessTransaction            sync.RWMutex
 	lockSendStatusForTransaction      sync.RWMutex
@@ -161,38 +149,6 @@ func (mock *ProcessorIMock) GetPeersCalls() []struct {
 	mock.lockGetPeers.RLock()
 	calls = mock.calls.GetPeers
 	mock.lockGetPeers.RUnlock()
-	return calls
-}
-
-// GetStats calls GetStatsFunc.
-func (mock *ProcessorIMock) GetStats(debugItems bool) *metamorph.ProcessorStats {
-	if mock.GetStatsFunc == nil {
-		panic("ProcessorIMock.GetStatsFunc: method is nil but ProcessorI.GetStats was just called")
-	}
-	callInfo := struct {
-		DebugItems bool
-	}{
-		DebugItems: debugItems,
-	}
-	mock.lockGetStats.Lock()
-	mock.calls.GetStats = append(mock.calls.GetStats, callInfo)
-	mock.lockGetStats.Unlock()
-	return mock.GetStatsFunc(debugItems)
-}
-
-// GetStatsCalls gets all the calls that were made to GetStats.
-// Check the length with:
-//
-//	len(mockedProcessorI.GetStatsCalls())
-func (mock *ProcessorIMock) GetStatsCalls() []struct {
-	DebugItems bool
-} {
-	var calls []struct {
-		DebugItems bool
-	}
-	mock.lockGetStats.RLock()
-	calls = mock.calls.GetStats
-	mock.lockGetStats.RUnlock()
 	return calls
 }
 
@@ -260,7 +216,7 @@ func (mock *ProcessorIMock) ProcessTransactionCalls() []struct {
 }
 
 // SendStatusForTransaction calls SendStatusForTransactionFunc.
-func (mock *ProcessorIMock) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error) {
+func (mock *ProcessorIMock) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) error {
 	if mock.SendStatusForTransactionFunc == nil {
 		panic("ProcessorIMock.SendStatusForTransactionFunc: method is nil but ProcessorI.SendStatusForTransaction was just called")
 	}
@@ -304,7 +260,7 @@ func (mock *ProcessorIMock) SendStatusForTransactionCalls() []struct {
 }
 
 // SendStatusMinedForTransaction calls SendStatusMinedForTransactionFunc.
-func (mock *ProcessorIMock) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error) {
+func (mock *ProcessorIMock) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 	if mock.SendStatusMinedForTransactionFunc == nil {
 		panic("ProcessorIMock.SendStatusMinedForTransactionFunc: method is nil but ProcessorI.SendStatusMinedForTransaction was just called")
 	}

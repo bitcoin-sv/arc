@@ -5,12 +5,6 @@ import (
 	"time"
 )
 
-func WithProcessExpiredSeenTxsInterval(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.processExpiredSeenTxsInterval = d
-	}
-}
-
 func WithCacheExpiryTime(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.mapExpiryTime = d
@@ -32,12 +26,6 @@ func WithLogFilePath(errLogFilePath string) func(*Processor) {
 func WithNow(nowFunc func() time.Time) func(*Processor) {
 	return func(p *Processor) {
 		p.now = nowFunc
-	}
-}
-
-func WithProcessExpiredTxsInterval(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.processExpiredTxsTicker = time.NewTicker(d)
 	}
 }
 

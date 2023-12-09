@@ -68,7 +68,6 @@ type Processor struct {
 	now                 func() time.Time
 
 	startTime          time.Time
-	queueLength        atomic.Int32
 	queuedCount        atomic.Int32
 	stored             *stat.AtomicStat
 	announcedToNetwork *stat.AtomicStats

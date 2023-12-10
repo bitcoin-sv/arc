@@ -12,7 +12,8 @@ CREATE TABLE metamorph.transactions (
     merkle_proof TEXT,
     reject_reason TEXT,
     raw_tx BYTEA,
-    locked_by TEXT
+    locked_by TEXT,
+    inserted_at_num INTEGER DEFAULT TO_NUMBER(TO_CHAR((NOW()) AT TIME ZONE 'UTC', 'yyyymmddhh24'), '9999999999') NOT NULL
 );
 
-CREATE INDEX ix_metamorph_transactions_stored_at ON metamorph.transactions (stored_at);
+CREATE INDEX ix_metamorph_transactions_inserted_at_num ON metamorph.transactions (inserted_at_num);

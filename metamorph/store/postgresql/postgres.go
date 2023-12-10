@@ -59,6 +59,13 @@ func (p *PostgreSQL) IsCentralised() bool {
 }
 
 func (p *PostgreSQL) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
+	startNanos := p.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("setunlocked").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:SetUnlocked")
+	defer span.Finish()
+
 	var hashSlice [][]byte
 	for _, hash := range hashes {
 		hashSlice = append(hashSlice, hash[:])
@@ -75,6 +82,13 @@ func (p *PostgreSQL) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) 
 }
 
 func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (int, error) {
+	startNanos := p.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("setunlockedbyname").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:GetUnmined")
+	defer span.Finish()
+
 	q := "UPDATE metamorph.transactions SET locked_by = 'NONE' WHERE locked_by = $1;"
 
 	rows, err := p.db.ExecContext(ctx, q, lockedBy)
@@ -118,26 +132,33 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 
 	data := &store.StoreData{}
 
-	var storedAt string
-	var announcedAt string
-	var minedAt string
+	var storedAt sql.NullTime
+	var announcedAt sql.NullTime
+	var minedAt sql.NullTime
+	var blockHeight sql.NullInt64
 	var txHash []byte
 	var blockHash []byte
+	var callbackUrl sql.NullString
+	var callbackToken sql.NullString
+	var merkleProof sql.NullBool
+	var rejectReason sql.NullString
+	var lockedBy sql.NullString
+	var status sql.NullInt32
 
 	err := p.db.QueryRowContext(ctx, q, hash).Scan(
 		&storedAt,
 		&announcedAt,
 		&minedAt,
 		&txHash,
-		&data.Status,
-		&data.BlockHeight,
+		&status,
+		&blockHeight,
 		&blockHash,
-		&data.CallbackUrl,
-		&data.CallbackToken,
-		&data.MerkleProof,
-		&data.RejectReason,
+		&callbackUrl,
+		&callbackToken,
+		&merkleProof,
+		&rejectReason,
 		&data.RawTx,
-		&data.LockedBy,
+		&lockedBy,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -151,6 +172,8 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	if len(txHash) > 0 {
 		data.Hash, err = chainhash.NewHash(txHash)
 		if err != nil {
+			span.SetTag(string(ext.Error), true)
+			span.LogFields(log.Error(err))
 			return nil, err
 		}
 	}
@@ -158,34 +181,50 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	if len(blockHash) > 0 {
 		data.BlockHash, err = chainhash.NewHash(blockHash)
 		if err != nil {
-			return nil, err
-		}
-	}
-
-	if storedAt != "" {
-		data.StoredAt, err = time.Parse(time.RFC3339, storedAt)
-		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return nil, err
 		}
 	}
 
-	if announcedAt != "" {
-		data.AnnouncedAt, err = time.Parse(time.RFC3339, announcedAt)
-		if err != nil {
-			span.SetTag(string(ext.Error), true)
-			span.LogFields(log.Error(err))
-			return nil, err
-		}
+	if storedAt.Valid {
+		data.StoredAt = storedAt.Time.UTC()
 	}
-	if minedAt != "" {
-		data.MinedAt, err = time.Parse(time.RFC3339, minedAt)
-		if err != nil {
-			span.SetTag(string(ext.Error), true)
-			span.LogFields(log.Error(err))
-			return nil, err
-		}
+
+	if announcedAt.Valid {
+		data.AnnouncedAt = announcedAt.Time.UTC()
+	}
+
+	if minedAt.Valid {
+		data.MinedAt = minedAt.Time.UTC()
+	}
+
+	if status.Valid {
+		data.Status = metamorph_api.Status(status.Int32)
+	}
+
+	if blockHeight.Valid {
+		data.BlockHeight = uint64(blockHeight.Int64)
+	}
+
+	if callbackUrl.Valid {
+		data.CallbackUrl = callbackUrl.String
+	}
+
+	if callbackToken.Valid {
+		data.CallbackToken = callbackToken.String
+	}
+
+	if merkleProof.Valid {
+		data.MerkleProof = merkleProof.Bool
+	}
+
+	if rejectReason.Valid {
+		data.RejectReason = rejectReason.String
+	}
+
+	if lockedBy.Valid {
+		data.LockedBy = lockedBy.String
 	}
 
 	return data, nil
@@ -231,9 +270,6 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		,$13
 	);`
 
-	var storedAt string
-	var announcedAt string
-	var minedAt string
 	var txHash []byte
 	var blockHash []byte
 
@@ -245,27 +281,15 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		blockHash = value.BlockHash.CloneBytes()
 	}
 
-	if value.StoredAt.UnixMilli() != 0 {
-		storedAt = value.StoredAt.UTC().Format(time.RFC3339)
-	}
-
 	// If the storedAt time is zero, set it to now on insert
 	if value.StoredAt.IsZero() {
 		value.StoredAt = p.now()
 	}
 
-	if value.AnnouncedAt.UnixMilli() != 0 {
-		announcedAt = value.AnnouncedAt.UTC().Format(time.RFC3339)
-	}
-
-	if value.MinedAt.UnixMilli() != 0 {
-		minedAt = value.MinedAt.UTC().Format(time.RFC3339)
-	}
-
 	_, err := p.db.ExecContext(ctx, q,
-		storedAt,
-		announcedAt,
-		minedAt,
+		value.StoredAt,
+		value.AnnouncedAt,
+		value.MinedAt,
 		txHash,
 		value.Status,
 		value.BlockHeight,
@@ -310,7 +334,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 	defer span.Finish()
 
 	q := `SELECT
-	   stored_at
+	     stored_at
 		,announced_at
 		,mined_at
 		,hash
@@ -322,7 +346,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 		,merkle_proof
 		,raw_tx
 		,locked_by
-		FROM metamorph.transactions WHERE status < $1 OR status = $2 ;`
+		FROM metamorph.transactions WHERE (status < $1 OR status = $2 ) AND locked_by = 'NONE';`
 
 	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
 	if err != nil {
@@ -335,39 +359,39 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 	for rows.Next() {
 		data := &store.StoreData{}
 
+		var storedAt sql.NullTime
+		var announcedAt sql.NullTime
+		var minedAt sql.NullTime
+		var blockHeight sql.NullInt64
 		var txHash []byte
 		var blockHash []byte
-		var storedAt string
-		var announcedAt string
-		var minedAt string
+		var callbackUrl sql.NullString
+		var callbackToken sql.NullString
+		var merkleProof sql.NullBool
+		var lockedBy sql.NullString
+		var status sql.NullInt32
 
 		if err = rows.Scan(
 			&storedAt,
 			&announcedAt,
 			&minedAt,
 			&txHash,
-			&data.Status,
-			&data.BlockHeight,
+			&status,
+			&blockHeight,
 			&blockHash,
-			&data.CallbackUrl,
-			&data.CallbackToken,
-			&data.MerkleProof,
+			&callbackUrl,
+			&callbackToken,
+			&merkleProof,
 			&data.RawTx,
-			&data.LockedBy,
+			&lockedBy,
 		); err != nil {
+			span.SetTag(string(ext.Error), true)
+			span.LogFields(log.Error(err))
 			return err
 		}
 
-		if txHash != nil {
-			data.Hash, _ = chainhash.NewHash(txHash)
-		}
-
-		if blockHash != nil {
-			data.BlockHash, _ = chainhash.NewHash(blockHash)
-		}
-
-		if storedAt != "" {
-			data.StoredAt, err = time.Parse(time.RFC3339, storedAt)
+		if len(txHash) > 0 {
+			data.Hash, err = chainhash.NewHash(txHash)
 			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
@@ -375,21 +399,49 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 			}
 		}
 
-		if announcedAt != "" {
-			data.AnnouncedAt, err = time.Parse(time.RFC3339, announcedAt)
+		if len(blockHash) > 0 {
+			data.BlockHash, err = chainhash.NewHash(blockHash)
 			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
 				return err
 			}
 		}
-		if minedAt != "" {
-			data.MinedAt, err = time.Parse(time.RFC3339, minedAt)
-			if err != nil {
-				span.SetTag(string(ext.Error), true)
-				span.LogFields(log.Error(err))
-				return err
-			}
+
+		if storedAt.Valid {
+			data.StoredAt = storedAt.Time.UTC()
+		}
+
+		if announcedAt.Valid {
+			data.AnnouncedAt = announcedAt.Time.UTC()
+		}
+
+		if minedAt.Valid {
+			data.MinedAt = minedAt.Time.UTC()
+		}
+
+		if status.Valid {
+			data.Status = metamorph_api.Status(status.Int32)
+		}
+
+		if blockHeight.Valid {
+			data.BlockHeight = uint64(blockHeight.Int64)
+		}
+
+		if callbackUrl.Valid {
+			data.CallbackUrl = callbackUrl.String
+		}
+
+		if callbackToken.Valid {
+			data.CallbackToken = callbackToken.String
+		}
+
+		if merkleProof.Valid {
+			data.MerkleProof = merkleProof.Bool
+		}
+
+		if lockedBy.Valid {
+			data.LockedBy = lockedBy.String
 		}
 
 		callback(data)
@@ -410,16 +462,30 @@ func (p *PostgreSQL) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
 	defer span.Finish()
+	var args []any
+	var q string
 
-	q := `
+	if status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
+		q = `
 		UPDATE metamorph.transactions
-		SET status = $1
+		SET  status = $1
+			,reject_reason = $2
+			,announced_at = $3
+		WHERE hash = $4
+	;`
+		args = []any{status, rejectReason, p.now(), hash[:]}
+	} else {
+		q = `
+		UPDATE metamorph.transactions
+		SET  status = $1
 			,reject_reason = $2
 		WHERE hash = $3
 	;`
 
-	// mined_at & announced_at
-	result, err := p.db.ExecContext(ctx, q, status, rejectReason, hash[:])
+		args = []any{status, rejectReason, hash[:]}
+	}
+	result, err := p.db.ExecContext(ctx, q, args...)
+
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))

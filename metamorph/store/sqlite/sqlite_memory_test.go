@@ -1,4 +1,4 @@
-package sql
+package sqlite
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 
 func TestGet(t *testing.T) {
 	t.Run("get - error", func(t *testing.T) {
-		sqliteDB, err := New("sqlite_memory")
+		sqliteDB, err := New(true, "")
 		require.NoError(t, err)
 
 		defer sqliteDB.Close(context.Background())
@@ -29,7 +29,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestPutGetDelete(t *testing.T) {
-	sqliteDB, err := New("sqlite_memory")
+	sqliteDB, err := New(true, "")
 	require.NoError(t, err)
 
 	defer sqliteDB.Close(context.Background())
@@ -58,7 +58,7 @@ func TestPutGetDelete(t *testing.T) {
 }
 
 func TestPutGetMulti(t *testing.T) {
-	sqliteDB, sqlErr := New("sqlite_memory")
+	sqliteDB, sqlErr := New(true, "")
 	require.NoError(t, sqlErr)
 
 	defer sqliteDB.Close(context.Background())
@@ -94,12 +94,11 @@ func TestPutGetMulti(t *testing.T) {
 	}
 
 	wg.Wait()
-
 }
 
 func TestGetUnseen(t *testing.T) {
 	t.Run("no unseen", func(t *testing.T) {
-		sqliteDB, err := New("sqlite_memory")
+		sqliteDB, err := New(true, "")
 		require.NoError(t, err)
 
 		defer sqliteDB.Close(context.Background())
@@ -108,7 +107,7 @@ func TestGetUnseen(t *testing.T) {
 	})
 
 	t.Run("multiple unseen", func(t *testing.T) {
-		sqliteDB, err := New("sqlite_memory")
+		sqliteDB, err := New(true, "")
 		require.NoError(t, err)
 
 		defer sqliteDB.Close(context.Background())
@@ -119,7 +118,7 @@ func TestGetUnseen(t *testing.T) {
 
 func TestUpdateMined(t *testing.T) {
 	t.Run("update mined - not found", func(t *testing.T) {
-		sqliteDB, err := New("sqlite_memory")
+		sqliteDB, err := New(true, "")
 		require.NoError(t, err)
 
 		defer sqliteDB.Close(context.Background())
@@ -129,7 +128,7 @@ func TestUpdateMined(t *testing.T) {
 	})
 
 	t.Run("update announced to mined", func(t *testing.T) {
-		sqliteDB, err := New("sqlite_memory")
+		sqliteDB, err := New(true, "")
 		require.NoError(t, err)
 
 		defer sqliteDB.Close(context.Background())
@@ -140,7 +139,7 @@ func TestUpdateMined(t *testing.T) {
 
 func TestUpdateStatus(t *testing.T) {
 	t.Run("update status - not found", func(t *testing.T) {
-		sqliteDB, err := New("sqlite_memory")
+		sqliteDB, err := New(true, "")
 		require.NoError(t, err)
 
 		defer sqliteDB.Close(context.Background())
@@ -150,7 +149,7 @@ func TestUpdateStatus(t *testing.T) {
 	})
 
 	t.Run("update status", func(t *testing.T) {
-		sqliteDB, err := New("sqlite_memory")
+		sqliteDB, err := New(true, "")
 		require.NoError(t, err)
 
 		defer sqliteDB.Close(context.Background())
@@ -158,7 +157,7 @@ func TestUpdateStatus(t *testing.T) {
 	})
 
 	t.Run("update status with error", func(t *testing.T) {
-		sqliteDB, err := New("sqlite_memory")
+		sqliteDB, err := New(true, "")
 		require.NoError(t, err)
 
 		defer sqliteDB.Close(context.Background())
@@ -167,34 +166,33 @@ func TestUpdateStatus(t *testing.T) {
 }
 
 func TestSQLite_GetBlockProcessed(t *testing.T) {
-	sqliteDB, err := New("sqlite_memory")
+	now := time.Date(2023, 10, 1, 12, 0, 0, 0, time.UTC)
+	sqliteDB, err := New(true, "", WithNow(func() time.Time {
+		return now
+	}))
 	require.NoError(t, err)
 
 	defer sqliteDB.Close(context.Background())
 
 	ctx := context.Background()
 
-	timeNow := time.Now()
 	err = sqliteDB.SetBlockProcessed(ctx, tests.Block1Hash)
 	require.NoError(t, err)
 
 	testStruct := []struct {
 		name      string
-		store     *SQL
 		blockHash *chainhash.Hash
 		want      *time.Time
 		wantErr   assert.ErrorAssertionFunc
 	}{
 		{
 			name:      "success",
-			store:     sqliteDB.(*SQL),
 			blockHash: tests.Block1Hash,
-			want:      &timeNow,
+			want:      &now,
 			wantErr:   assert.NoError,
 		},
 		{
 			name:      "missing",
-			store:     sqliteDB.(*SQL),
 			blockHash: tests.Block2Hash,
 			want:      nil,
 			wantErr:   assert.NoError,
@@ -202,24 +200,23 @@ func TestSQLite_GetBlockProcessed(t *testing.T) {
 	}
 	for _, tt := range testStruct {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &SQL{
-				db: tt.store.db,
-			}
-			got, err := s.GetBlockProcessed(ctx, tt.blockHash)
+			got, err := sqliteDB.GetBlockProcessed(ctx, tt.blockHash)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetBlockProcessed(%v)", tt.blockHash)) {
 				return
 			}
+
 			if tt.want == nil {
 				assert.Nil(t, got, "GetBlockProcessed(%v)", tt.blockHash)
 				return
 			}
-			assert.WithinDurationf(t, *tt.want, *got, 1000000, "GetBlockProcessed(%v)", tt.blockHash)
+
+			require.Equal(t, tt.want, got)
 		})
 	}
 }
 
-func TestBadger_SetBlockProcessed(t *testing.T) {
-	sqliteDB, err := New("sqlite_memory")
+func TestSQLite_SetBlockProcessed(t *testing.T) {
+	sqliteDB, err := New(true, "")
 	require.NoError(t, err)
 
 	defer sqliteDB.Close(context.Background())
@@ -227,23 +224,19 @@ func TestBadger_SetBlockProcessed(t *testing.T) {
 	ctx := context.Background()
 	testStructs := []struct {
 		name      string
-		store     *SQL
 		blockHash *chainhash.Hash
 		wantErr   assert.ErrorAssertionFunc
 	}{
 		{
 			name:      "success",
-			store:     sqliteDB.(*SQL),
 			blockHash: tests.Block1Hash,
 			wantErr:   assert.NoError,
 		},
 	}
 	for _, tt := range testStructs {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &SQL{
-				db: tt.store.db,
-			}
-			tt.wantErr(t, s.SetBlockProcessed(ctx, tt.blockHash), fmt.Sprintf("SetBlockProcessed(%v)", tt.blockHash))
+
+			tt.wantErr(t, sqliteDB.SetBlockProcessed(ctx, tt.blockHash), fmt.Sprintf("SetBlockProcessed(%v)", tt.blockHash))
 		})
 	}
 }

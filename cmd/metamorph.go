@@ -25,7 +25,8 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/badger"
 	"github.com/bitcoin-sv/arc/metamorph/store/dynamodb"
-	"github.com/bitcoin-sv/arc/metamorph/store/sql"
+	"github.com/bitcoin-sv/arc/metamorph/store/postgresql"
+	"github.com/bitcoin-sv/arc/metamorph/store/sqlite"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -40,21 +41,23 @@ import (
 const (
 	DbModeBadger   = "badger"
 	DbModeDynamoDB = "dynamodb"
+	DbModePostgres = "postgres"
+	DbModeSQLiteM  = "sqlite_memory"
+	DbModeSQLite   = "sqlite"
 )
 
 func StartMetamorph(logger utils.Logger) (func(), error) {
+	dbMode := viper.GetString("metamorph.db.mode")
+	if dbMode == "" {
+		return nil, errors.New("metamorph.db.mode not found in config")
+	}
 	folder := viper.GetString("dataFolder")
 	if folder == "" {
 		return nil, errors.New("dataFolder not found in config")
 	}
 
-	if err := os.MkdirAll(folder, 0755); err != nil {
-		logger.Fatalf("failed to create data folder %s: %+v", folder, err)
-	}
-
-	dbMode := viper.GetString("metamorph.db.mode")
-	if dbMode == "" {
-		return nil, errors.New("metamorph.db.mode not found in config")
+	if err := os.MkdirAll(folder, 0750); err != nil {
+		return nil, fmt.Errorf("failed to create data folder %s: %+v", folder, err)
 	}
 
 	s, err := NewStore(dbMode, folder)
@@ -341,46 +344,97 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 }
 
 func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) {
-	if dbMode == sql.DbModePostgres || dbMode == sql.DbModeSQLite || dbMode == sql.DbModeSQLiteM {
-		s, err = sql.New(dbMode)
-	} else {
-		switch dbMode {
-		case DbModeBadger:
-			s, err = badger.New(path.Join(folder, "metamorph"))
-			if err != nil {
-				return nil, err
-			}
-		case DbModeDynamoDB:
-			hostname, err := os.Hostname()
-			if err != nil {
-				return nil, err
-			}
 
-			ctx := context.Background()
-			cfg, err := awscfg.LoadDefaultConfig(ctx, awscfg.WithEC2IMDSRegion())
-			if err != nil {
-				return nil, err
-			}
-
-			dataRetentionDays, err := config.GetInt("metamorph.db.cleanData.recordRetentionDays")
-			if err != nil {
-				return nil, err
-			}
-
-			tableNameSuffix := viper.GetString("metamorph.db.dynamoDB.tableNameSuffix")
-
-			s, err = dynamodb.New(
-				awsdynamodb.NewFromConfig(cfg),
-				hostname,
-				time.Duration(dataRetentionDays)*24*time.Hour,
-				tableNameSuffix,
-			)
-			if err != nil {
-				return nil, err
-			}
-		default:
-			return nil, fmt.Errorf("db mode %s is invalid", dbMode)
+	switch dbMode {
+	case DbModePostgres:
+		var hostname string
+		hostname, err = os.Hostname()
+		if err != nil {
+			return nil, err
 		}
+		dbHost, err := config.GetString("metamorph.db.postgres.host")
+		if err != nil {
+			return nil, err
+		}
+		dbPort, err := config.GetInt("metamorph.db.postgres.port")
+		if err != nil {
+			return nil, err
+		}
+		dbName, err := config.GetString("metamorph.db.postgres.name")
+		if err != nil {
+			return nil, err
+		}
+		dbUser, err := config.GetString("metamorph.db.postgres.user")
+		if err != nil {
+			return nil, err
+		}
+		dbPassword, err := config.GetString("metamorph.db.postgres.password")
+		if err != nil {
+			return nil, err
+		}
+		sslMode, err := config.GetString("metamorph.db.postgres.sslMode")
+		if err != nil {
+			return nil, err
+		}
+		idleConns, err := config.GetInt("metamorph.db.postgres.maxIdleConns")
+		if err != nil {
+			return nil, err
+		}
+		maxOpenConns, err := config.GetInt("metamorph.db.postgres.maxOpenConns")
+		if err != nil {
+			return nil, err
+		}
+
+		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbPassword, dbName, dbHost, dbPort, sslMode)
+		s, err = postgresql.New(dbInfo, hostname, idleConns, maxOpenConns)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
+		}
+	case DbModeSQLite:
+		s, err = sqlite.New(false, folder)
+		if err != nil {
+			return nil, err
+		}
+	case DbModeSQLiteM:
+		s, err = sqlite.New(true, "")
+		if err != nil {
+			return nil, err
+		}
+	case DbModeBadger:
+		s, err = badger.New(path.Join(folder, "metamorph"))
+		if err != nil {
+			return nil, err
+		}
+	case DbModeDynamoDB:
+		hostname, err := os.Hostname()
+		if err != nil {
+			return nil, err
+		}
+
+		ctx := context.Background()
+		cfg, err := awscfg.LoadDefaultConfig(ctx, awscfg.WithEC2IMDSRegion())
+		if err != nil {
+			return nil, err
+		}
+
+		dataRetentionDays, err := config.GetInt("metamorph.db.cleanData.recordRetentionDays")
+		if err != nil {
+			return nil, err
+		}
+
+		tableNameSuffix := viper.GetString("metamorph.db.dynamoDB.tableNameSuffix")
+
+		s, err = dynamodb.New(
+			awsdynamodb.NewFromConfig(cfg),
+			hostname,
+			time.Duration(dataRetentionDays)*24*time.Hour,
+			tableNameSuffix,
+		)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("db mode %s is invalid", dbMode)
 	}
 
 	return s, err

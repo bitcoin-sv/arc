@@ -19,7 +19,7 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/badger"
-	metamorphSql "github.com/bitcoin-sv/arc/metamorph/store/sql"
+	"github.com/bitcoin-sv/arc/metamorph/store/sqlite"
 	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/labstack/gommon/random"
 	"github.com/libsv/go-bt/v2"
@@ -319,7 +319,7 @@ func TestLoadUnmined(t *testing.T) {
 
 func TestProcessTransaction(t *testing.T) {
 	t.Run("ProcessTransaction", func(t *testing.T) {
-		s, err := metamorphSql.New("sqlite_memory")
+		s, err := sqlite.New(true, "")
 		require.NoError(t, err)
 
 		pm := p2p.NewPeerManagerMock()
@@ -372,7 +372,7 @@ func TestProcessTransaction(t *testing.T) {
 }
 
 func Benchmark_ProcessTransaction(b *testing.B) {
-	s, err := metamorphSql.New("sqlite_memory") // prevents profiling database code
+	s, err := sqlite.New(true, "") // prevents profiling database code
 	require.NoError(b, err)
 
 	pm := p2p.NewPeerManagerMock()
@@ -555,7 +555,7 @@ func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
 
 func TestSendStatusMinedForTransaction(t *testing.T) {
 	t.Run("SendStatusMinedForTransaction known tx", func(t *testing.T) {
-		s, err := metamorphSql.New("sqlite_memory")
+		s, err := sqlite.New(true, "")
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
@@ -581,7 +581,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusMinedForTransaction callback", func(t *testing.T) {
-		s, err := metamorphSql.New("sqlite_memory")
+		s, err := sqlite.New(true, "")
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
@@ -619,7 +619,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusForTransaction known tx - processed", func(t *testing.T) {
-		s, err := metamorphSql.New("sqlite_memory")
+		s, err := sqlite.New(true, "")
 		require.NoError(t, err)
 
 		pm := p2p.NewPeerManagerMock()

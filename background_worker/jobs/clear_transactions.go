@@ -1,7 +1,6 @@
 package jobs
 
 import (
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -9,7 +8,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func ClearTransactions(params ClearRecrodsParams) error {
+func (c ClearJob) ClearTransactions(params ClearRecrodsParams) error {
 	Log(INFO, "Connecting to database ...")
 
 	conn, err := sqlx.Open(params.Scheme(), params.String())
@@ -17,16 +16,17 @@ func ClearTransactions(params ClearRecrodsParams) error {
 		Log(ERROR, "unable to create connection")
 		return err
 	}
-	interval := fmt.Sprintf("%d days", params.RecordRetentionDays)
 
-	stmt, err := conn.Preparex("DELETE FROM transactions WHERE inserted_at <= (CURRENT_DATE - $1::interval)")
+	start := c.now()
+	datenumRetentiondDays := start.Add(-24 * time.Hour * time.Duration(params.RecordRetentionDays))
+
+	stmt, err := conn.Preparex("DELETE FROM transactions WHERE inserted_at_num <= $1::int")
 	if err != nil {
 		Log(ERROR, "unable to prepare statement")
 		return err
 	}
 
-	start := time.Now()
-	res, err := stmt.Exec(interval)
+	res, err := stmt.Exec(datenumRetentiondDays.Format(datenumHourlyParsing))
 	if err != nil {
 		Log(ERROR, "unable to delete rows")
 		return err

@@ -59,23 +59,18 @@ func (p *PostgreSQL) IsCentralised() bool {
 }
 
 func (p *PostgreSQL) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
-	var hashSlice []string
+	var hashSlice [][]byte
 	for _, hash := range hashes {
-		hashSlice = append(hashSlice, fmt.Sprintf("decode('%x', 'hex')", hash[:]))
+		hashSlice = append(hashSlice, hash[:])
 	}
 
 	q := `UPDATE metamorph.transactions SET locked_by = 'NONE' WHERE hash = ANY($1);`
 
-	rows, err := p.db.ExecContext(ctx, q, pq.Array(hashSlice))
+	_, err := p.db.ExecContext(ctx, q, pq.Array(hashSlice))
 	if err != nil {
 		return err
 	}
 
-	rowsAffected, err := rows.RowsAffected()
-	if err != nil {
-		return err
-	}
-	fmt.Println(rowsAffected)
 	return nil
 }
 

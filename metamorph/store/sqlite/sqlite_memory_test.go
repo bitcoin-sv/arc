@@ -11,7 +11,6 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/tests"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

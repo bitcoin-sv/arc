@@ -18,12 +18,12 @@ import (
 )
 
 const (
-	CallbackTries    = 5
-	CallbackInterval = 5
+	CallbackTries           = 5
+	CallbackIntervalSeconds = 5
 )
 
 func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreData) {
-	sleepDuration := CallbackInterval
+	sleepDuration := CallbackIntervalSeconds
 	for i := 0; i < CallbackTries; i++ {
 		statusString := metamorph_api.Status(tx.Status).String()
 		blockHash := ""

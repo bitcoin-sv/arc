@@ -18,7 +18,7 @@ import (
 	. "github.com/bitcoin-sv/arc/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/badger"
-	metamorphSql "github.com/bitcoin-sv/arc/metamorph/store/sql"
+	"github.com/bitcoin-sv/arc/metamorph/store/sqlite"
 	"github.com/bitcoin-sv/arc/p2p"
 	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/labstack/gommon/random"

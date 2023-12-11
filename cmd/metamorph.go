@@ -29,6 +29,7 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/store/dynamodb"
 	"github.com/bitcoin-sv/arc/metamorph/store/postgresql"
 	"github.com/bitcoin-sv/arc/metamorph/store/sqlite"
+	"github.com/bitcoin-sv/arc/p2p"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"

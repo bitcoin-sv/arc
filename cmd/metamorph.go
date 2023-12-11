@@ -42,6 +42,10 @@ const (
 	DbModeDynamoDB = "dynamodb"
 )
 
+var (
+	unminedTxsPeriod = 2 * time.Minute
+)
+
 func StartMetamorph(logger utils.Logger) (func(), error) {
 	folder := viper.GetString("dataFolder")
 	if folder == "" {
@@ -180,11 +184,18 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		// that can be deferred to reset the TTY when the program exits.
 		defer metamorphProcessor.PrintStatsOnKeypress()()
 	}
+	ticker := time.NewTimer(unminedTxsPeriod)
+	stopUnminedProcessor := make(chan bool)
 
 	go func() {
-		// load all transactions into memory from disk that have not been seen on the network
-		// this will make sure they are re-broadcast until a response is received
-		metamorphProcessor.LoadUnmined()
+		for {
+			select {
+			case <-stopUnminedProcessor:
+				break
+			case <-ticker.C:
+				metamorphProcessor.LoadUnmined()
+			}
+		}
 	}()
 
 	// create a channel to receive mined block messages from the block tx service
@@ -332,6 +343,8 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	return func() {
 		logger.Infof("Shutting down metamorph")
+
+		stopUnminedProcessor <- true
 		metamorphProcessor.Shutdown()
 		err = s.Close(context.Background())
 		if err != nil {

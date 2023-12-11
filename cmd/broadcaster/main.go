@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"strconv"
@@ -24,6 +25,15 @@ var (
 )
 
 func main() {
+	err := run()
+	if err != nil {
+		log.Fatalf("failed to run broadcaster: %v", err)
+	}
+
+	os.Exit(0)
+}
+
+func run() error {
 	logLevel := gocore.NewLogLevelFromString("debug")
 	logger := gocore.Log("brdcst", logLevel)
 
@@ -79,7 +89,7 @@ func main() {
 		fmt.Println("    -testnet=<true|false>")
 		fmt.Println("          whether to send testnet or mainnet transactions, default=false")
 		fmt.Println("")
-		return
+		return nil
 	}
 
 	if dryRun != nil && *dryRun {
@@ -96,8 +106,7 @@ func main() {
 	viper.AddConfigPath("../../")
 	err := viper.ReadInConfig()
 	if err != nil {
-		fmt.Printf("failed to read config file config.yaml: %v \n", err)
-		return
+		return fmt.Errorf("failed to read config file config.yaml: %v", err)
 	}
 
 	var xpriv string
@@ -108,14 +117,14 @@ func main() {
 		var inputKey string
 		inputKey, err = reader.ReadString('\n')
 		if err != nil {
-			panic("An error occurred while reading input. Please try again:" + err.Error())
+			return fmt.Errorf("failed to read input: %v", err)
 		}
 		xpriv = strings.TrimSpace(inputKey)
 	}
 
 	sendNrOfTransactions, err := strconv.ParseInt(args[0], 10, 64)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to parse number of transactions: %v", err)
 	}
 	if sendNrOfTransactions == 0 {
 		sendNrOfTransactions = 1
@@ -128,14 +137,14 @@ func main() {
 		Authorization: *authorization,
 	})
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to create client: %v", err)
 	}
 
 	var fundingKeySet *keyset.KeySet
 	var receivingKeySet *keyset.KeySet
 	fundingKeySet, receivingKeySet, err = getKeySets(xpriv, keyFile)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to get key sets: %v", err)
 	}
 
 	bCaster := broadcaster.New(logger, client, fundingKeySet, receivingKeySet, sendNrOfTransactions)
@@ -149,8 +158,10 @@ func main() {
 
 	err = bCaster.Run(ctx, *concurrency)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to run broadcaster: %v", err)
 	}
+
+	return nil
 }
 
 func createClient(auth *broadcaster.Auth) (broadcaster.ClientI, error) {

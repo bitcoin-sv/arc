@@ -151,17 +151,10 @@ func (ddb *DynamoDB) CreateTransactionsTable(ctx context.Context) error {
 				Projection: &types.Projection{
 					ProjectionType: types.ProjectionTypeAll,
 				},
-				ProvisionedThroughput: &types.ProvisionedThroughput{
-					ReadCapacityUnits:  aws.Int64(10),
-					WriteCapacityUnits: aws.Int64(10),
-				},
 			},
 		},
-		TableName: aws.String(ddb.transactionsTableName),
-		ProvisionedThroughput: &types.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(10),
-			WriteCapacityUnits: aws.Int64(10),
-		},
+		TableName:   aws.String(ddb.transactionsTableName),
+		BillingMode: types.BillingModePayPerRequest,
 	})
 	if err != nil {
 		return err
@@ -198,11 +191,8 @@ func (ddb *DynamoDB) CreateBlocksTable(ctx context.Context) error {
 				KeyType:       types.KeyTypeHash,
 			},
 		},
-		TableName: aws.String(ddb.blocksTableName),
-		ProvisionedThroughput: &types.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(10),
-			WriteCapacityUnits: aws.Int64(10),
-		},
+		TableName:   aws.String(ddb.blocksTableName),
+		BillingMode: types.BillingModePayPerRequest,
 	}); err != nil {
 		return err
 	}
@@ -476,6 +466,14 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
 	defer span.Finish()
+
+	// do not store other statuses than the following
+	if status != metamorph_api.Status_REJECTED &&
+		status != metamorph_api.Status_SEEN_ON_NETWORK &&
+		status != metamorph_api.Status_MINED &&
+		status != metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
+		return nil
+	}
 
 	updateExpression := fmt.Sprintf("SET tx_status = %s, reject_reason = %s", txStatusAttributeKey, rejectReasonAttributeKey)
 	expressionAttributevalues := map[string]types.AttributeValue{

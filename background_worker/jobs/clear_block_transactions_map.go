@@ -34,6 +34,6 @@ func ClearBlockTransactionsMap(params ClearRecrodsParams) error {
 
 	timePassed := time.Since(start)
 
-	logger.Info("Successfully cleared block_transactions_map table", slog.Int64("rows", rows), slog.Duration("duration", timePassed))
+	logger.Info("Successfully cleared block_transactions_map table", slog.Int64("rows", rows), slog.String("duration", timePassed.String()))
 	return nil
 }

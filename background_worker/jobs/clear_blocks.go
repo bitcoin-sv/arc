@@ -42,6 +42,6 @@ func ClearBlocks(params ClearRecrodsParams) error {
 
 	timePassed := time.Since(start)
 
-	logger.Info("Successfully cleared blocks table", slog.Int64("rows", rows), slog.Duration("duration", timePassed))
+	logger.Info("Successfully cleared blocks table", slog.Int64("rows", rows), slog.String("duration", timePassed.String()))
 	return nil
 }

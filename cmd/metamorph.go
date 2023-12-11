@@ -38,9 +38,8 @@ import (
 )
 
 const (
-	DbModeBadger               = "badger"
-	DbModeDynamoDB             = "dynamodb"
-	recordRetentionDaysDefault = 14
+	DbModeBadger   = "badger"
+	DbModeDynamoDB = "dynamodb"
 )
 
 func StartMetamorph(logger utils.Logger) (func(), error) {
@@ -149,6 +148,11 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		return nil, err
 	}
 
+	dataRetentionDays, err := config.GetInt("metamorph.db.cleanData.recordRetentionDays")
+	if err != nil {
+		return nil, err
+	}
+
 	metamorphProcessor, err := metamorph.NewProcessor(
 		s,
 		pm,
@@ -157,7 +161,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithProcessorLogger(processorLogger),
 		metamorph.WithLogFilePath(viper.GetString("metamorph.log.file")),
-		metamorph.WithDataRetentionPeriod(time.Duration(viper.GetInt("metamorph.recordRetentionDays"))*24*time.Hour),
+		metamorph.WithDataRetentionPeriod(time.Duration(dataRetentionDays)*24*time.Hour),
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
@@ -358,9 +362,9 @@ func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) 
 				return nil, err
 			}
 
-			ttlDays := viper.GetInt("metamorph.recordRetentionDays")
-			if ttlDays == 0 {
-				ttlDays = recordRetentionDaysDefault
+			dataRetentionDays, err := config.GetInt("metamorph.db.cleanData.recordRetentionDays")
+			if err != nil {
+				return nil, err
 			}
 
 			tableNameSuffix := viper.GetString("metamorph.db.dynamoDB.tableNameSuffix")
@@ -368,7 +372,7 @@ func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) 
 			s, err = dynamodb.New(
 				awsdynamodb.NewFromConfig(cfg),
 				hostname,
-				time.Duration(ttlDays)*24*time.Hour,
+				time.Duration(dataRetentionDays)*24*time.Hour,
 				tableNameSuffix,
 			)
 			if err != nil {

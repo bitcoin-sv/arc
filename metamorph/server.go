@@ -309,26 +309,6 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	return resp, nil
 }
 
-func hasWaitForStatusReached(status metamorph_api.Status, waitForStatus metamorph_api.Status) bool {
-	statusValueMap := map[metamorph_api.Status]int{
-		metamorph_api.Status_UNKNOWN:                0,
-		metamorph_api.Status_QUEUED:                 1,
-		metamorph_api.Status_RECEIVED:               2,
-		metamorph_api.Status_STORED:                 3,
-		metamorph_api.Status_ANNOUNCED_TO_NETWORK:   4,
-		metamorph_api.Status_REQUESTED_BY_NETWORK:   5,
-		metamorph_api.Status_SENT_TO_NETWORK:        6,
-		metamorph_api.Status_REJECTED:               7,
-		metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL: 8,
-		metamorph_api.Status_ACCEPTED_BY_NETWORK:    9,
-		metamorph_api.Status_SEEN_ON_NETWORK:        10,
-		metamorph_api.Status_MINED:                  11,
-		metamorph_api.Status_CONFIRMED:              12,
-	}
-
-	return statusValueMap[status] >= statusValueMap[waitForStatus]
-}
-
 func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, TxID string) *metamorph_api.TransactionStatus {
 
 	responseChannel := make(chan processor_response.StatusAndError, 1)
@@ -362,7 +342,8 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 				returnedStatus.RejectReason = ""
 			}
 
-			if hasWaitForStatusReached(returnedStatus.Status, waitForStatus) {
+			// Return the status if it has greater or equal value
+			if statusValueMap[returnedStatus.Status] >= statusValueMap[waitForStatus] {
 				return returnedStatus
 			}
 		}
@@ -553,6 +534,22 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		blockHash = data.BlockHash.String()
 	}
 
+	hash, err := chainhash.NewHashFromStr(req.Txid)
+	if err != nil {
+		return nil, err
+	}
+
+	merklePath, err := s.btc.GetTransactionMerklePath(ctx, &blocktx_api.Transaction{Hash: hash[:]})
+	if err != nil {
+		if errors.Is(err, blocktx.ErrTransactionNotFoundForMerklePath) {
+			if data.Status == metamorph_api.Status_MINED {
+				s.logger.Error("Merkle path not found for mined transaction", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+			}
+		} else {
+			s.logger.Error("failed to get Merkle path for transaction", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+		}
+	}
+
 	return &metamorph_api.TransactionStatus{
 		Txid:         data.Hash.String(),
 		AnnouncedAt:  announcedAt,
@@ -562,6 +559,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		BlockHeight:  data.BlockHeight,
 		BlockHash:    blockHash,
 		RejectReason: data.RejectReason,
+		MerklePath:   merklePath,
 	}, nil
 }
 

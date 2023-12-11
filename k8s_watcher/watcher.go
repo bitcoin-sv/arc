@@ -2,29 +2,29 @@ package k8s_watcher
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/davecgh/go-spew/spew"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/watch"
 )
 
 const (
 	logLevelDefault  = slog.LevelInfo
 	metamorphService = "metamorph"
+	intervalDefault  = 15 * time.Second
 )
 
 type K8sClient interface {
-	GetPodWatcher(ctx context.Context, namespace string, podName string) (watch.Interface, error)
+	GetRunningPodNames(ctx context.Context, namespace string, service string) (map[string]struct{}, error)
 }
 
 type Watcher struct {
 	metamorphClient  metamorph_api.MetaMorphAPIClient
 	k8sClient        K8sClient
 	logger           *slog.Logger
+	ticker           Ticker
 	namespace        string
 	shutdown         chan struct{}
 	shutdownComplete chan struct{}
@@ -48,6 +48,7 @@ func New(client metamorph_api.MetaMorphAPIClient, k8sClient K8sClient, namespace
 		logger:           slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "k8s-watcher")),
 		shutdown:         make(chan struct{}),
 		shutdownComplete: make(chan struct{}),
+		ticker:           NewDefaultTicker(intervalDefault),
 	}
 	for _, opt := range opts {
 		opt(watcher)
@@ -56,45 +57,70 @@ func New(client metamorph_api.MetaMorphAPIClient, k8sClient K8sClient, namespace
 	return watcher
 }
 
-func (c *Watcher) Start() error {
-	ctx := context.Background()
-	watcher, err := c.k8sClient.GetPodWatcher(ctx, c.namespace, metamorphService)
-	if err != nil {
-		return fmt.Errorf("failed to get pod watcher: %v", err)
-	}
+type Ticker interface {
+	Stop()
+	Tick() <-chan time.Time
+}
 
+type DefaultTicker struct {
+	*time.Ticker
+}
+
+func NewDefaultTicker(d time.Duration) DefaultTicker {
+	return DefaultTicker{time.NewTicker(d)}
+}
+
+func (d DefaultTicker) Tick() <-chan time.Time {
+	return d.C
+}
+
+func WithTicker(t Ticker) func(*Watcher) {
+	return func(p *Watcher) {
+		p.ticker = t
+	}
+}
+
+func (c *Watcher) Start() error {
 	go func() {
 		defer func() {
 			c.shutdownComplete <- struct{}{}
 		}()
 
+		var runningPods map[string]struct{}
+
 		for {
 			select {
-			case event := <-watcher.ResultChan():
-				c.logger.Debug("event received", slog.String("type", string(event.Type)))
-
-				if event.Type != watch.Deleted {
-					continue
-				}
-
-				pod, ok := event.Object.(*v1.Pod)
-				if !ok {
-					c.logger.Debug("event received is not a pod", slog.String("type", string(event.Type)), slog.String("object", spew.Sdump(event.Object)))
-					continue
-				}
-
-				c.logger.Info("pod has been terminated", slog.String("name", pod.Name))
-
-				resp, err := c.metamorphClient.SetUnlockedByName(ctx, &metamorph_api.SetUnlockedByNameRequest{Name: pod.Name})
+			case <-c.ticker.Tick():
+				// Update the list of running pods. Detect those which have been terminated and unlock records for these pods
+				ctx := context.Background()
+				runningPodsK8s, err := c.k8sClient.GetRunningPodNames(ctx, c.namespace, metamorphService)
 				if err != nil {
-					c.logger.Error("failed to unlock metamorph records", slog.String("pod-name", pod.Name))
+					c.logger.Error("failed to get pods", slog.String("err", err.Error()))
 					continue
 				}
 
-				c.logger.Info("records unlocked", slog.Int("rows-affected", int(resp.RecordsAffected)), slog.String("pod-name", pod.Name))
+				for podName := range runningPods {
+					// Ignore all other serivces than metamorph
+					if !strings.Contains(podName, metamorphService) {
+						continue
+					}
+
+					_, found := runningPodsK8s[podName]
+					if !found {
+						// A previously running pod has been terminated => set records locked by this pod unlocked
+						resp, err := c.metamorphClient.SetUnlockedByName(ctx, &metamorph_api.SetUnlockedByNameRequest{Name: podName})
+						if err != nil {
+							c.logger.Error("failed to unlock metamorph records", slog.String("pod-name", podName))
+							continue
+						}
+
+						c.logger.Info("records unlocked", slog.Int("rows-affected", int(resp.RecordsAffected)), slog.String("pod-name", podName))
+					}
+				}
+
+				runningPods = runningPodsK8s
 
 			case <-c.shutdown:
-				watcher.Stop()
 				return
 			}
 		}
@@ -104,6 +130,7 @@ func (c *Watcher) Start() error {
 }
 
 func (c *Watcher) Shutdown() {
+	c.ticker.Stop()
 	c.shutdown <- struct{}{}
 	<-c.shutdownComplete
 }

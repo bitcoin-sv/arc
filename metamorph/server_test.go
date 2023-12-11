@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	. "github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
@@ -261,13 +262,14 @@ func TestPutTransaction(t *testing.T) {
 }
 
 func TestServer_GetTransactionStatus(t *testing.T) {
-	s, err := sql.New("sqlite_memory")
-	require.NoError(t, err)
-	setStoreTestData(t, s)
 
 	tests := []struct {
-		name    string
-		req     *metamorph_api.TransactionStatusRequest
+		name               string
+		req                *metamorph_api.TransactionStatusRequest
+		getTxMerklePathErr error
+		getErr             error
+		status             metamorph_api.Status
+
 		want    *metamorph_api.TransactionStatus
 		wantErr assert.ErrorAssertionFunc
 	}{
@@ -276,6 +278,8 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			req: &metamorph_api.TransactionStatusRequest{
 				Txid: "a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118",
 			},
+			getErr: store.ErrNotFound,
+
 			want: nil,
 			wantErr: func(t assert.TestingT, err error, rest ...interface{}) bool {
 				return assert.ErrorIs(t, err, store.ErrNotFound, rest...)
@@ -286,19 +290,80 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			req: &metamorph_api.TransactionStatusRequest{
 				Txid: testdata.TX1,
 			},
+			status: metamorph_api.Status_SENT_TO_NETWORK,
+
 			want: &metamorph_api.TransactionStatus{
 				StoredAt:    timestamppb.New(testdata.Time),
 				AnnouncedAt: timestamppb.New(testdata.Time.Add(1 * time.Second)),
 				MinedAt:     timestamppb.New(testdata.Time.Add(2 * time.Second)),
 				Txid:        testdata.TX1,
 				Status:      metamorph_api.Status_SENT_TO_NETWORK,
+				MerklePath:  "00000",
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "GetTransactionStatus - test.TX1 - error",
+			req: &metamorph_api.TransactionStatusRequest{
+				Txid: testdata.TX1,
+			},
+			status:             metamorph_api.Status_SENT_TO_NETWORK,
+			getTxMerklePathErr: errors.New("failed to get tx merkle path"),
+
+			want: &metamorph_api.TransactionStatus{
+				StoredAt:    timestamppb.New(testdata.Time),
+				AnnouncedAt: timestamppb.New(testdata.Time.Add(1 * time.Second)),
+				MinedAt:     timestamppb.New(testdata.Time.Add(2 * time.Second)),
+				Txid:        testdata.TX1,
+				Status:      metamorph_api.Status_SENT_TO_NETWORK,
+				MerklePath:  "00000",
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "GetTransactionStatus - test.TX1 - tx not found for Merkle path",
+			req: &metamorph_api.TransactionStatusRequest{
+				Txid: testdata.TX1,
+			},
+			status:             metamorph_api.Status_MINED,
+			getTxMerklePathErr: blocktx.ErrTransactionNotFoundForMerklePath,
+
+			want: &metamorph_api.TransactionStatus{
+				StoredAt:    timestamppb.New(testdata.Time),
+				AnnouncedAt: timestamppb.New(testdata.Time.Add(1 * time.Second)),
+				MinedAt:     timestamppb.New(testdata.Time.Add(2 * time.Second)),
+				Txid:        testdata.TX1,
+				Status:      metamorph_api.Status_MINED,
+				MerklePath:  "00000",
 			},
 			wantErr: assert.NoError,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer(s, nil, nil, source)
+			client := &ClientIMock{
+				GetTransactionMerklePathFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
+					return "00000", tt.getTxMerklePathErr
+				},
+			}
+
+			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+
+					data := &store.StoreData{
+						StoredAt:      testdata.Time,
+						AnnouncedAt:   testdata.Time.Add(1 * time.Second),
+						MinedAt:       testdata.Time.Add(2 * time.Second),
+						Hash:          testdata.TX1Hash,
+						Status:        tt.status,
+						CallbackUrl:   "https://test.com",
+						CallbackToken: "token",
+					}
+					return data, tt.getErr
+				},
+			}
+
+			server := NewServer(metamorphStore, nil, client, source)
 			got, err := server.GetTransactionStatus(context.Background(), tt.req)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetTransactionStatus(%v)", tt.req)) {
 				return

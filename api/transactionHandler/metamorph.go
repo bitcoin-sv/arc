@@ -14,32 +14,33 @@ import (
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/ordishs/go-utils"
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Metamorph is the connector to a metamorph server
 type Metamorph struct {
-	mu            sync.RWMutex
-	Client        metamorph_api.MetaMorphAPIClient
-	ClientCache   map[string]metamorph_api.MetaMorphAPIClient
-	blockTxClient blocktx.ClientI
-	logger        utils.Logger
+	mu                     sync.RWMutex
+	Client                 metamorph_api.MetaMorphAPIClient
+	ClientCache            map[string]metamorph_api.MetaMorphAPIClient
+	blockTxClient          blocktx.ClientI
+	logger                 utils.Logger
+	isCentralisedMetamorph bool
 }
 
 // NewMetamorph creates a connection to a list of metamorph servers via gRPC
-func NewMetamorph(address string, blockTxClient blocktx.ClientI, grpcMessageSize int, logger utils.Logger) (*Metamorph, error) {
+func NewMetamorph(address string, blockTxClient blocktx.ClientI, grpcMessageSize int, logger utils.Logger, isCentralisedMetamorph bool) (*Metamorph, error) {
 	conn, err := DialGRPC(address, grpcMessageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connection to address %s: %v", address, err)
 	}
 
 	return &Metamorph{
-		Client:        metamorph_api.NewMetaMorphAPIClient(conn),
-		ClientCache:   make(map[string]metamorph_api.MetaMorphAPIClient),
-		blockTxClient: blockTxClient,
-		logger:        logger,
+		Client:                 metamorph_api.NewMetaMorphAPIClient(conn),
+		ClientCache:            make(map[string]metamorph_api.MetaMorphAPIClient),
+		blockTxClient:          blockTxClient,
+		logger:                 logger,
+		isCentralisedMetamorph: isCentralisedMetamorph,
 	}, nil
 }
 
@@ -174,7 +175,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOpti
 }
 
 func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (metamorph_api.MetaMorphAPIClient, error) {
-	if viper.GetString("metamorph.db.mode") == "dynamodb" {
+	if m.isCentralisedMetamorph {
 		return m.Client, nil
 	}
 

@@ -326,7 +326,7 @@ func TestLoadUnmined(t *testing.T) {
 func TestProcessTransaction(t *testing.T) {
 	t.Run("ProcessTransaction", func(t *testing.T) {
 		t.Skip("undeterministic test")
-		s, err := metamorphSql.New("sqlite_memory")
+		s, err := sqlite.New(true, "")
 		require.NoError(t, err)
 
 		processor, err := NewProcessor(s, pm, nil, nil)
@@ -377,7 +377,7 @@ func TestProcessTransaction(t *testing.T) {
 }
 
 func Benchmark_ProcessTransaction(b *testing.B) {
-	s, err := metamorphSql.New("sqlite_memory") // prevents profiling database code
+	s, err := sqlite.New(true, "") // prevents profiling database code
 	require.NoError(b, err)
 
 	processor, err := NewProcessor(s, pm, nil, nil)
@@ -557,7 +557,7 @@ func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
 
 func TestSendStatusMinedForTransaction(t *testing.T) {
 	t.Run("SendStatusMinedForTransaction known tx", func(t *testing.T) {
-		s, err := metamorphSql.New("sqlite_memory")
+		s, err := sqlite.New(true, "")
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
@@ -581,7 +581,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusMinedForTransaction callback", func(t *testing.T) {
-		s, err := metamorphSql.New("sqlite_memory")
+		s, err := sqlite.New(true, "")
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
@@ -617,7 +617,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 	})
 
 	t.Run("SendStatusForTransaction known tx - processed", func(t *testing.T) {
-		s, err := metamorphSql.New("sqlite_memory")
+		s, err := sqlite.New(true, "")
 		require.NoError(t, err)
 
 		processor, err := NewProcessor(s, pm, nil, nil)

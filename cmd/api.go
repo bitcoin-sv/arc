@@ -116,7 +116,12 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 		return fmt.Errorf("grpcMessageSize not found in config")
 	}
 
-	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize, logger)
+	isCentralisedMetamorph := false
+	if viper.GetString("metamorph.db.mode") == "dynamodb" || viper.GetString("metamorph.db.mode") == "postgres" {
+		isCentralisedMetamorph = true
+	}
+
+	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize, logger, isCentralisedMetamorph)
 	if err != nil {
 		return err
 	}

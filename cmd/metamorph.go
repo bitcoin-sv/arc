@@ -87,8 +87,8 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		logger.Fatalf("no metamorph.listenAddr setting found")
 	}
 
-	source := "-"
-	if dbMode != DbModeDynamoDB {
+	source := metamorphGRPCListenAddress
+	if viper.GetBool("metamorph.network.fixedIp") {
 		ip, port, err := net.SplitHostPort(metamorphGRPCListenAddress)
 		if err != nil {
 			logger.Fatalf("cannot parse ip address: %v", err)
@@ -97,7 +97,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		if ip != "" {
 			source = metamorphGRPCListenAddress
 		} else {
-			hint := viper.GetString("ipAddressHint")
+			hint := viper.GetString("metamorph.network.ipAddressHint")
 			ips, err := utils.GetIPAddressesWithHint(hint)
 			if err != nil {
 				logger.Fatalf("cannot get local ip address")

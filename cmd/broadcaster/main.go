@@ -13,7 +13,9 @@ import (
 	"strings"
 
 	"github.com/bitcoin-sv/arc/broadcaster"
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/lib/keyset"
+	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/gocore"
 	"github.com/spf13/viper"
 )
@@ -147,7 +149,13 @@ func run() error {
 		return fmt.Errorf("failed to get key sets: %v", err)
 	}
 
-	bCaster := broadcaster.New(logger, client, fundingKeySet, receivingKeySet, sendNrOfTransactions)
+	var feeOpts []func(fee *bt.Fee)
+	miningFeeSat, err := config.GetInt("broadcaster.miningFeeSatPerKb")
+	if err == nil {
+		feeOpts = append(feeOpts, broadcaster.WithMiningFee(miningFeeSat))
+	}
+
+	bCaster := broadcaster.New(logger, client, fundingKeySet, receivingKeySet, sendNrOfTransactions, feeOpts...)
 	bCaster.IsRegtest = isRegtest
 	bCaster.IsDryRun = isDryRun
 	bCaster.WaitForStatus = *waitForStatus
@@ -200,7 +208,7 @@ func getKeySets(xpriv string, keyFile *string) (fundingKeySet *keyset.KeySet, re
 			extendedBytes, err = os.ReadFile(*keyFile)
 			if err != nil {
 				if os.IsNotExist(err) {
-					panic("arc.key not found. Please create this file with the xpriv you want to use")
+					return nil, nil, errors.New("arc.key not found. Please create this file with the xpriv you want to use")
 				}
 				return nil, nil, err
 			}

@@ -25,7 +25,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var stdFee = &bt.Fee{
+var stdFeeDefault = &bt.Fee{
 	FeeType: bt.FeeTypeStandard,
 	MiningFee: bt.FeeUnit{
 		Satoshis: 3,
@@ -37,7 +37,7 @@ var stdFee = &bt.Fee{
 	},
 }
 
-var dataFee = &bt.Fee{
+var dataFeeDefault = &bt.Fee{
 	FeeType: bt.FeeTypeData,
 	MiningFee: bt.FeeUnit{
 		Satoshis: 3,
@@ -75,10 +75,26 @@ type Broadcaster struct {
 	summaryMu     sync.Mutex
 }
 
-func New(logger utils.Logger, client ClientI, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, outputs int64) *Broadcaster {
+func WithMiningFee(miningFeeSatPerKb int) func(fee *bt.Fee) {
+	return func(fee *bt.Fee) {
+		fee.RelayFee.Satoshis = miningFeeSatPerKb
+		fee.MiningFee.Satoshis = miningFeeSatPerKb
+	}
+}
+
+func New(logger utils.Logger, client ClientI, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, outputs int64, feeOpts ...func(fee *bt.Fee)) *Broadcaster {
 	var fq = bt.NewFeeQuote()
-	fq.AddQuote(bt.FeeTypeStandard, stdFee)
-	fq.AddQuote(bt.FeeTypeData, dataFee)
+
+	stdFee := *stdFeeDefault
+	dataFee := *dataFeeDefault
+
+	for _, opt := range feeOpts {
+		opt(&stdFee)
+		opt(&dataFee)
+	}
+
+	fq.AddQuote(bt.FeeTypeData, &stdFee)
+	fq.AddQuote(bt.FeeTypeStandard, &dataFee)
 
 	return &Broadcaster{
 		logger:        logger,
@@ -378,10 +394,6 @@ func (b *Broadcaster) processResult(res *metamorph_api.TransactionStatus, iterat
 }
 
 func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
-	var fq = bt.NewFeeQuote()
-	fq.AddQuote(bt.FeeTypeStandard, stdFee)
-	fq.AddQuote(bt.FeeTypeData, dataFee)
-
 	var err error
 	addr := b.FromKeySet.Address(!b.IsRegtest)
 
@@ -427,7 +439,7 @@ func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
 
 	}
 
-	estimateFee := fees.EstimateFee(uint64(stdFee.MiningFee.Satoshis), 1, 1)
+	estimateFee := fees.EstimateFee(uint64(stdFeeDefault.MiningFee.Satoshis), 1, 1)
 	for i := int64(0); i < outputs; i++ {
 		if b.Consolidate {
 			// we send triple the fee to the output arcUrl
@@ -438,7 +450,7 @@ func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
 		}
 	}
 
-	_ = tx.Change(b.FromKeySet.Script, fq)
+	_ = tx.Change(b.FromKeySet.Script, b.FeeQuote)
 
 	unlockerGetter := unlocker.Getter{PrivateKey: b.FromKeySet.PrivateKey}
 	if err = tx.FillAllInputs(context.Background(), &unlockerGetter); err != nil {

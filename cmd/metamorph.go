@@ -191,7 +191,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		for {
 			select {
 			case <-stopUnminedProcessor:
-				break
+				return
 			case <-ticker.C:
 				metamorphProcessor.LoadUnmined()
 			}

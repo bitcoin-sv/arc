@@ -18,7 +18,7 @@ func (c ClearJob) ClearBlockTransactionsMap(params ClearRecrodsParams) error {
 	}
 
 	start := c.now()
-	datenumRetentiondDays := start.Add(-24 * time.Hour * time.Duration(params.RecordRetentionDays))
+	deleteBeforeDate := start.Add(-24 * time.Hour * time.Duration(params.RecordRetentionDays))
 
 	stmt, err := conn.Preparex("DELETE FROM block_transactions_map WHERE inserted_at_num <= $1::int")
 	if err != nil {
@@ -26,7 +26,7 @@ func (c ClearJob) ClearBlockTransactionsMap(params ClearRecrodsParams) error {
 		return err
 	}
 
-	res, err := stmt.Exec(datenumRetentiondDays.Format(datenumHourlyParsing))
+	res, err := stmt.Exec(deleteBeforeDate.Format(numericalDateHourLayout))
 	if err != nil {
 		Log(ERROR, "unable to delete rows")
 		return err

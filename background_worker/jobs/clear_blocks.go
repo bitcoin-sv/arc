@@ -10,12 +10,38 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const (
+	numericalDateHourLayout = "2006010215"
+)
+
 type ClearRecrodsParams struct {
 	dbconn.DBConnectionParams
 	RecordRetentionDays int
 }
 
-func ClearBlocks(params ClearRecrodsParams) error {
+type ClearJob struct {
+	now func() time.Time
+}
+
+func WithNow(nowFunc func() time.Time) func(*ClearJob) {
+	return func(p *ClearJob) {
+		p.now = nowFunc
+	}
+}
+
+func NewClearJob(opts ...func(job *ClearJob)) *ClearJob {
+	c := &ClearJob{
+		now: time.Now,
+	}
+
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	return c
+}
+
+func (c ClearJob) ClearBlocks(params ClearRecrodsParams) error {
 	Log(INFO, "Connecting to database ...")
 
 	conn, err := sqlx.Open(params.Scheme(), params.String())
@@ -23,16 +49,17 @@ func ClearBlocks(params ClearRecrodsParams) error {
 		Log(ERROR, "unable to create connection")
 		return err
 	}
-	interval := fmt.Sprintf("%d days", params.RecordRetentionDays)
 
-	stmt, err := conn.Preparex("DELETE FROM blocks WHERE inserted_at <= (CURRENT_DATE - $1::interval)")
+	start := c.now()
+	deleteBeforeDate := start.Add(-24 * time.Hour * time.Duration(params.RecordRetentionDays))
+
+	stmt, err := conn.Preparex("DELETE FROM blocks WHERE inserted_at_num <= $1::int")
 	if err != nil {
 		Log(ERROR, "unable to prepare statement")
 		return err
 	}
 
-	start := time.Now()
-	res, err := stmt.Exec(interval)
+	res, err := stmt.Exec(deleteBeforeDate.Format(numericalDateHourLayout))
 	if err != nil {
 		Log(ERROR, "unable to delete rows")
 		return err

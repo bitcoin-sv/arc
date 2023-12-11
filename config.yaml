@@ -85,7 +85,7 @@ broadcaster:
   apiURL: http://arc.taal.com # api url for broadcaster to connect to
   miningFeeSatPerKb: 3
   utxoSet:
-    outpus: 1000 # number of outputs
+    outputs: 1000 # number of outputs
     outputSat: 1000 # satoshis per output
 
 api:

@@ -346,7 +346,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 		,merkle_proof
 		,raw_tx
 		,locked_by
-		FROM metamorph.transactions WHERE (status < $1 OR status = $2 ) AND locked_by = 'NONE';`
+		FROM metamorph.transactions WHERE locked_by = 'NONE' AND (status < $1 OR status = $2 );`
 
 	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
 	if err != nil {

@@ -16,4 +16,5 @@ CREATE TABLE metamorph.transactions (
     inserted_at_num INTEGER DEFAULT TO_NUMBER(TO_CHAR((NOW()) AT TIME ZONE 'UTC', 'yyyymmddhh24'), '9999999999') NOT NULL
 );
 
+CREATE INDEX ix_metamorph_transactions_locked_by ON metamorph.transactions (locked_by);
 CREATE INDEX ix_metamorph_transactions_inserted_at_num ON metamorph.transactions (inserted_at_num);

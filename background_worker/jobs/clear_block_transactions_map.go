@@ -9,23 +9,24 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func ClearBlockTransactionsMap(params ClearRecrodsParams) error {
+func (c ClearJob) ClearBlockTransactionsMap(params ClearRecrodsParams) error {
 	Log(INFO, "Connecting to database ...")
 	conn, err := sqlx.Open(params.Scheme(), params.String())
 	if err != nil {
 		Log(ERROR, fmt.Sprintf("unable to create connection %s", err))
 		return err
 	}
-	interval := fmt.Sprintf("%d days", params.RecordRetentionDays)
 
-	stmt, err := conn.Preparex("DELETE FROM block_transactions_map WHERE inserted_at <= (CURRENT_DATE - $1::interval)")
+	start := c.now()
+	deleteBeforeDate := start.Add(-24 * time.Hour * time.Duration(params.RecordRetentionDays))
+
+	stmt, err := conn.Preparex("DELETE FROM block_transactions_map WHERE inserted_at_num <= $1::int")
 	if err != nil {
 		Log(ERROR, fmt.Sprintf("unable to prepare statement %s", err))
 		return err
 	}
 
-	start := time.Now()
-	res, err := stmt.Exec(interval)
+	res, err := stmt.Exec(deleteBeforeDate.Format(numericalDateHourLayout))
 	if err != nil {
 		Log(ERROR, "unable to delete rows")
 		return err

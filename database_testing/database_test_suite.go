@@ -1,6 +1,7 @@
 package database_testing
 
 import (
+	"errors"
 	"fmt"
 	mrand "math/rand"
 	"path/filepath"
@@ -86,7 +87,7 @@ func (s *DatabaseTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 
 	if err := m.Up(); err != nil {
-		if err != migrate.ErrNoChange {
+		if !errors.Is(err, migrate.ErrNoChange) {
 			require.NoError(s.T(), err)
 		}
 	}
@@ -113,24 +114,27 @@ func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
 	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
-	_, err = db.NamedExec("INSERT INTO blocks("+
-		"id, "+
-		"hash, "+
-		"prevhash, "+
-		"merkleroot, "+
-		"orphanedyn, "+
-		"height,"+
-		"processed_at,"+
-		"inserted_at) "+
-		"VALUES("+
-		":id,"+
-		":hash, "+
-		":prevhash, "+
-		":merkleroot, "+
-		":orphanedyn, "+
-		":height,"+
-		":processed_at,"+
-		":inserted_at);",
+	q := `INSERT INTO blocks(
+		id,
+		hash,
+		prevhash,
+		merkleroot,
+		orphanedyn,
+		height,
+		processed_at,
+		inserted_at)
+		VALUES(
+		:id,
+		:hash,
+		:prevhash,
+		:merkleroot,
+		:orphanedyn,
+		:height,
+		:processed_at,
+		:inserted_at
+		);`
+
+	_, err = db.NamedExec(q,
 		block)
 	require.NoError(s.T(), err)
 
@@ -139,19 +143,18 @@ func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
 func (s *DatabaseTestSuite) InsertTransaction(tx *store.Transaction) {
 	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
+	q := `INSERT INTO transactions(
+		id,
+		hash,
+		source,
+		merkle_path)
+		VALUES(
+		:id,
+		:hash,
+		:source,
+		:merkle_path);`
 
-	_, err = db.NamedExec("INSERT INTO transactions("+
-		"id,"+
-		"hash,"+
-		"source,"+
-		"merkle_path,"+
-		"inserted_at) "+
-		"VALUES("+
-		":id, "+
-		":hash, "+
-		":source, "+
-		":merkle_path,"+
-		":inserted_at); ", tx)
+	_, err = db.NamedExec(q, tx)
 
 	require.NoError(s.T(), err, fmt.Sprintf("tx %+v", tx))
 }
@@ -160,16 +163,16 @@ func (s *DatabaseTestSuite) InsertBlockTransactionMap(btx *store.BlockTransactio
 	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
-	_, err = db.NamedExec("INSERT INTO block_transactions_map("+
-		"blockid, "+
-		"txid, "+
-		"pos,"+
-		"inserted_at) "+
-		"VALUES("+
-		":blockid,"+
-		":txid, "+
-		":pos,"+
-		":inserted_at);", btx)
+	q := `INSERT INTO block_transactions_map(
+	blockid,
+	txid,
+	pos)
+	VALUES(
+	:blockid,
+	:txid,
+	:pos);`
+
+	_, err = db.NamedExec(q, btx)
 	require.NoError(s.T(), err)
 }
 

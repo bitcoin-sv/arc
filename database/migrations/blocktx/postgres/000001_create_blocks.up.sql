@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS blocks (
+CREATE TABLE blocks (
     inserted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     id BIGSERIAL PRIMARY KEY,
     hash BYTEA NOT NULL,
@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS blocks (
     merkle_path TEXT DEFAULT '' :: TEXT
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_blocks_hash ON blocks (hash);
+CREATE UNIQUE INDEX ux_blocks_hash ON blocks (hash);
 
-CREATE UNIQUE INDEX IF NOT EXISTS pux_blocks_height ON blocks(height)
+CREATE UNIQUE INDEX pux_blocks_height ON blocks(height)
 WHERE
     orphanedyn = FALSE;

@@ -77,7 +77,7 @@ func main() {
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn))
 	grpcMessageSize := viper.GetInt("grpcMessageSize")
 	// add a single metamorph, with the BlockTx client we want to use
-	txHandler, err := transactionHandler.NewMetamorph("localhost:8011", blockTxClient, grpcMessageSize, logger)
+	txHandler, err := transactionHandler.NewMetamorph("localhost:8011", blockTxClient, grpcMessageSize, logger, false)
 	if err != nil {
 		panic(err)
 	}

@@ -38,11 +38,8 @@ import (
 )
 
 const (
-	DbModeBadger   = "badger"
-	DbModeDynamoDB = "dynamodb"
-)
-
-var (
+	DbModeBadger     = "badger"
+	DbModeDynamoDB   = "dynamodb"
 	unminedTxsPeriod = 2 * time.Minute
 )
 

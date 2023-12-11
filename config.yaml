@@ -48,6 +48,8 @@ metamorph:
       name: metamorph
       user: arc
       password: arc
+      maxIdleConns: 10 # maximum idle connections
+      maxOpenConns: 80 # maximum open connections
       sslMode: disable
     dynamoDB:
       tableNameSuffix: regtest

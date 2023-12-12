@@ -305,7 +305,8 @@ func doHandshake(t *testing.T, p *Peer, myConn net.Conn) {
 	msg, n, err := wire.ReadMessage(myConn, wire.ProtocolVersion, wire.MainNet)
 	assert.NotEqual(t, 0, n)
 	assert.NoError(t, err)
-	vMsg := msg.(*wire.MsgVersion)
+	vMsg, ok := msg.(*wire.MsgVersion)
+	require.True(t, ok)
 	assert.Equal(t, wire.CmdVersion, vMsg.Command())
 	assert.Equal(t, int32(wire.ProtocolVersion), vMsg.ProtocolVersion)
 

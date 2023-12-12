@@ -1,11 +1,7 @@
 package metamorph
 
 import (
-	"encoding/json"
-	"log"
 	"log/slog"
-	"os"
-	"path"
 	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -53,41 +49,7 @@ func NewProcessorResponseMap(expiry time.Duration, opts ...OptionProcRespMap) *P
 		opt(m)
 	}
 
-	// start log write worker
-	if m.logFile != "" {
-		m.logWorker = make(chan statResponse, 10000)
-		go m.logWriter()
-	}
-
 	return m
-}
-
-func (m *ProcessorResponseMap) logWriter() {
-	dir := path.Dir(m.logFile)
-	err := os.MkdirAll(dir, 0750)
-	if err != nil {
-		log.Fatalf("failed to create folder for logging %s", err)
-	}
-	f, err := os.OpenFile(m.logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		log.Fatalf("error opening log file: %s", err)
-	}
-	defer f.Close()
-
-	for prl := range m.logWorker {
-		var b []byte
-		b, err = json.Marshal(prl)
-		if err != nil {
-			log.Printf("error marshaling log data: %s", err)
-			continue
-		}
-
-		_, err = f.WriteString(string(b) + "\n")
-		if err != nil {
-			log.Printf("error writing to log file: %s", err)
-			continue
-		}
-	}
 }
 
 func (m *ProcessorResponseMap) Set(hash *chainhash.Hash, value *ProcessorResponse) {

@@ -69,6 +69,7 @@ type Server struct {
 	source          string
 	bitcoinNode     BitcoinNode
 	forceCheckUtxos bool
+	hostName        string
 }
 
 func WithLogger(logger *slog.Logger) func(*Server) {
@@ -101,6 +102,13 @@ func NewServer(s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI, source
 	for _, opt := range opts {
 		opt(server)
 	}
+
+	hostName, err := os.Hostname()
+	if err != nil {
+		server.logger.Error("failed to get hostname")
+	}
+
+	server.hostName = hostName
 
 	return server
 }
@@ -169,6 +177,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 		MapSize:           stats.ChannelMapSize,
 		PeersConnected:    strings.Join(peersConnected, ","),
 		PeersDisconnected: strings.Join(peersDisconnected, ","),
+		//Hostname:          s.hostName,
 	}, nil
 }
 

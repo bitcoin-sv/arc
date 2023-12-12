@@ -26,6 +26,8 @@ import (
 )
 
 const (
+	//// MaxRetries number of times we will retry getting the transaction if we haven't seen it on the network
+	//MaxRetries = 5
 	// number of times we will retry announcing transaction if we haven't seen it on the network
 	MaxRetries = 15
 	// length of interval for checking transactions if they are seen on the network
@@ -236,6 +238,21 @@ func (p *Processor) processExpiredTransactions() {
 				startTime := time.Now()
 				retries := item.GetRetries()
 				item.IncrementRetry()
+				//
+				//switch item.Status {
+				//case metamorph_api.Status_ANNOUNCED_TO_NETWORK:
+				//
+				//case metamorph_api.Status_REQUESTED_BY_NETWORK:
+				//case metamorph_api.Status_SENT_TO_NETWORK:
+				//case metamorph_api.Status_ACCEPTED_BY_NETWORK:
+				//	p.logger.Debug("Re-getting expired tx", slog.String("hash", txID.String()))
+				//	p.pm.RequestTransaction(item.Hash)
+				//	item.AddLog(
+				//		item.Status,
+				//		"expired",
+				//		"Sent GETDATA for transaction",
+				//	)
+				//}
 
 				if retries > MaxRetries {
 					// Sending GETDATA to peers to see if they have it

@@ -44,9 +44,10 @@ message HealthResponse {
   int32 processed = 7;
   int32 waiting = 8;
   float average = 9;
-  int32 mapSize = 10;
-  string PeersConnected = 11;
-  string PeersDisconnected = 12;
+  int32 map_size = 10;
+  string peers_connected = 11;
+  string peers_disconnected = 12;
+  string hostname = 13;
 }
 
 // swagger:model TransactionRequest

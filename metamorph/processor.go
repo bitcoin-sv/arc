@@ -12,7 +12,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/p2p"
@@ -58,7 +57,6 @@ var (
 
 type Processor struct {
 	store                store.MetamorphStore
-	cbChannel            chan *callbacker_api.Callback
 	ProcessorResponseMap *ProcessorResponseMap
 	pm                   p2p.PeerManagerI
 	btc                  blocktx.ClientI
@@ -89,8 +87,7 @@ type Processor struct {
 
 type Option func(f *Processor)
 
-func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI,
-	cbChannel chan *callbacker_api.Callback, btc blocktx.ClientI, opts ...Option) (*Processor, error) {
+func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, btc blocktx.ClientI, opts ...Option) (*Processor, error) {
 	if s == nil {
 		return nil, errors.New("store cannot be nil")
 	}
@@ -102,7 +99,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI,
 	p := &Processor{
 		startTime:               time.Now().UTC(),
 		store:                   s,
-		cbChannel:               cbChannel,
 		pm:                      pm,
 		btc:                     btc,
 		dataRetentionPeriod:     dataRetentionPeriodDefault,
@@ -168,9 +164,6 @@ func (p *Processor) Shutdown() {
 	p.processExpiredSeenTxsTicker.Stop()
 	p.processExpiredTxsTicker.Stop()
 	p.ProcessorResponseMap.Close()
-	if p.cbChannel != nil {
-		close(p.cbChannel)
-	}
 }
 
 func (p *Processor) unlockItems() error {
@@ -404,21 +397,8 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 			resp.Close()
 			p.ProcessorResponseMap.Delete(hash)
 
-			if p.cbChannel != nil {
-				data, _ := p.store.Get(spanCtx, hash[:])
-
-				if data != nil && data.CallbackUrl != "" {
-					p.cbChannel <- &callbacker_api.Callback{
-						Hash:        data.Hash[:],
-						Url:         data.CallbackUrl,
-						Token:       data.CallbackToken,
-						Status:      int32(data.Status),
-						BlockHash:   data.BlockHash[:],
-						BlockHeight: data.BlockHeight,
-					}
-				}
-			}
-
+			data, _ := p.store.Get(spanCtx, hash[:])
+			go SendCallback(p.logger, p.store, data)
 		},
 	})
 

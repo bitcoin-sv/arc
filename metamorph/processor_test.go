@@ -43,7 +43,13 @@ var pm = &PeerManagerIMock{
 
 func TestNewProcessor(t *testing.T) {
 	mtmStore := &MetamorphStoreMock{
+		GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+			return &store.StoreData{Hash: testdata.TX2Hash}, nil
+		},
 		SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+		RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+			return nil
+		},
 	}
 
 	tt := []struct {
@@ -79,7 +85,7 @@ func TestNewProcessor(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 
-			processor, err := NewProcessor(tc.store, tc.pm, nil, nil,
+			processor, err := NewProcessor(tc.store, tc.pm, nil,
 				WithCacheExpiryTime(time.Second*5),
 				WithProcessExpiredSeenTxsInterval(time.Second*5),
 				WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault}))),
@@ -293,9 +299,12 @@ func TestLoadUnmined(t *testing.T) {
 				IsCentralisedFunc: func() bool {
 					return tc.isCentralised
 				},
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
+				},
 			}
 
-			processor, err := NewProcessor(mtmStore, pm, nil, btxMock,
+			processor, err := NewProcessor(mtmStore, pm, btxMock,
 				WithProcessExpiredSeenTxsInterval(time.Hour*24),
 				WithCacheExpiryTime(time.Hour*24),
 				WithNow(func() time.Time {
@@ -600,7 +609,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 			}
 		}()
 
-		processor, err := NewProcessor(s, pm, callbackCh, nil)
+		processor, err := NewProcessor(s, pm, nil, nil)
 		require.NoError(t, err)
 		// add the tx to the map
 		processor.ProcessorResponseMap.Set(testdata.TX1Hash, NewProcessorResponseWithStatus(
@@ -778,6 +787,9 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{Hash: testdata.TX2Hash}, nil
+				},
 				UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 					require.Condition(t, func() (success bool) {
 						oneOfHash := hash.IsEqual(testdata.TX1Hash) || hash.IsEqual(testdata.TX2Hash) || hash.IsEqual(testdata.TX3Hash)
@@ -789,6 +801,9 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 					return tc.updateMinedErr
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
+				},
 			}
 			btxMock := &ClientIMock{
 				GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {

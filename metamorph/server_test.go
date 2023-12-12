@@ -360,6 +360,9 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 					}
 					return data, tt.getErr
 				},
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
+				},
 			}
 
 			server := NewServer(metamorphStore, nil, client, source)
@@ -615,6 +618,9 @@ func TestPutTransactions(t *testing.T) {
 
 					return nil, tc.getErr
 				},
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
+				},
 			}
 
 			btc := &ClientIMock{
@@ -684,8 +690,14 @@ func TestSetUnlockedbyName(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{}, nil
+				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int, error) {
 					return tc.recordsAffected, tc.errSetUnlocked
+				},
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
 				},
 			}
 
@@ -717,7 +729,15 @@ func TestStartGRPCServer(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &MetamorphStoreMock{SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil }}
+			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{}, nil
+				},
+				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
+				},
+			}
 
 			btc := &ClientIMock{}
 
@@ -782,7 +802,14 @@ func TestCheckUtxos(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &MetamorphStoreMock{}
+			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{}, nil
+				},
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
+				},
+			}
 
 			btc := &ClientIMock{}
 

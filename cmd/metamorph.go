@@ -414,26 +414,24 @@ func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) 
 	return s, err
 }
 
+var networks = map[string]wire.BitcoinNet{
+	"mainnet": wire.MainNet,
+	"testnet": wire.TestNet3,
+	"regtest": wire.TestNet,
+}
+
 func initPeerManager(logger utils.Logger, s store.MetamorphStore) (*p2p.PeerManager, chan *p2p.PeerTxMessage) {
 	networkStr := viper.GetString("network")
 
-	var network wire.BitcoinNet
-
-	switch networkStr {
-	case "mainnet":
-		network = wire.MainNet
-	case "testnet":
-		network = wire.TestNet3
-	case "regtest":
-		network = wire.TestNet
-	default:
+	network, ok := networks[networkStr]
+	if !ok {
 		logger.Fatalf("unknown bitcoin_network: %s", networkStr)
 	}
 
 	logger.Infof("Assuming bitcoin network is %s", network)
 
 	messageCh := make(chan *p2p.PeerTxMessage)
-	pm := p2p.NewPeerManager(logger, network)
+	pm := p2p.NewPeerManager(network)
 
 	peerHandler := p2p.NewPeerHandler(s, messageCh)
 

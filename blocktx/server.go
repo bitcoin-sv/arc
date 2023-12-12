@@ -29,6 +29,10 @@ type Server struct {
 	grpcServer *grpc.Server
 }
 
+func (s *Server) GetBlockNotificationStream(height *blocktx_api.Height, server blocktx_api.BlockTxAPI_GetBlockNotificationStreamServer) error {
+	return nil
+}
+
 // NewServer will return a server instance with the logger stored within it
 func NewServer(storeI store.Interface, logger utils.Logger) *Server {
 	return &Server{

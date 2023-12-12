@@ -25,9 +25,7 @@ func StartBlockTx(logger utils.Logger) (func(), error) {
 		logger.Fatalf("Error creating blocktx store: %v", err)
 	}
 
-	blockNotifier := blocktx.NewBlockNotifier(blockStore, logger)
-
-	blockTxServer := blocktx.NewServer(blockStore, blockNotifier, logger)
+	blockTxServer := blocktx.NewServer(blockStore, logger)
 
 	go func() {
 		if err = blockTxServer.StartGRPCServer(); err != nil {

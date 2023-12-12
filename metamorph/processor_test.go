@@ -705,7 +705,7 @@ func BenchmarkProcessTransaction(b *testing.B) {
 	time.Sleep(1 * time.Second)
 }
 
-func TestProcessExpiredSeenTransactions(t *testing.T) {
+func TestProcessCheckIfMined(t *testing.T) {
 	txsBlocks := []*blocktx_api.TransactionBlock{
 		{
 			BlockHash:       testdata.Block1Hash[:],
@@ -813,7 +813,7 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 
 			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
-			processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+			processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK))
 			processor.ProcessorResponseMap.Set(testdata.TX2Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_SEEN_ON_NETWORK))
 			processor.ProcessorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_ACCEPTED_BY_NETWORK))
 

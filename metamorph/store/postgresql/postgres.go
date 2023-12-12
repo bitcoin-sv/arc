@@ -533,6 +533,26 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 	return err
 }
 
+func (p *PostgreSQL) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error {
+	startNanos := p.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("RemoveCallbacker").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:RemoveCallbacker")
+	defer span.Finish()
+
+	q := `UPDATE metamorph.transactions SET callback_url = '' WHERE hash = $5;`
+
+	_, err := p.db.ExecContext(ctx, q, metamorph_api.Status_MINED, p.now().Format(time.RFC3339), hash[:])
+
+	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+	}
+
+	return err
+}
+
 func (p *PostgreSQL) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
 	startNanos := p.now().UnixNano()
 	defer func() {

@@ -125,6 +125,37 @@ func (s *SqLite) IsCentralised() bool {
 	return false
 }
 
+func (s *SqLite) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error {
+	startNanos := s.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("RemoveCallbacker").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:RemoveCallbacker")
+	defer span.Finish()
+
+	q := `UPDATE transactions SET status = callback_url = '' WHERE hash = $3;`
+
+	result, err := s.db.ExecContext(ctx, q, hash[:])
+	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return err
+	}
+
+	var n int64
+	n, err = result.RowsAffected()
+	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return err
+	}
+	if n == 0 {
+		return store.ErrNotFound
+	}
+
+	return nil
+}
+
 func (s *SqLite) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
 	return nil
 }

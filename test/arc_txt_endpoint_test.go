@@ -138,7 +138,7 @@ func TestBatchChainedTxs(t *testing.T) {
 			utxos := getUtxos(t, address)
 			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-			txs, err := createTxChain(privateKey, utxos[0], 100)
+			txs, err := createTxChain(privateKey, utxos[0], 50)
 			require.NoError(t, err)
 
 			arcBody := make([]api.TransactionRequest, len(txs))

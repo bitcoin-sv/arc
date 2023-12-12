@@ -58,7 +58,7 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 		l.Fatalf("unknown bitcoin_network: %s", networkStr)
 	}
 
-	pm := p2p.NewPeerManager(l, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
+	pm := p2p.NewPeerManager(network, p2p.WithExcessiveBlockSize(maximumBlockSize))
 
 	peerHandler := NewPeerHandler(l, storeI, bn.blockCh)
 

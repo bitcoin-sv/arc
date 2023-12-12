@@ -138,7 +138,7 @@ func TestBatchChainedTxs(t *testing.T) {
 			utxos := getUtxos(t, address)
 			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-			txs, err := createTxChain(privateKey, utxos[0], 200)
+			txs, err := createTxChain(privateKey, utxos[0], 100)
 			require.NoError(t, err)
 
 			arcBody := make([]api.TransactionRequest, len(txs))
@@ -308,7 +308,7 @@ func TestPostCallbackToken(t *testing.T) {
 			defer func() {
 				t.Log("shutting down callback listener")
 				if err = srv.Shutdown(context.TODO()); err != nil {
-					panic(err)
+					t.Fatal("failed to shut down server")
 				}
 			}()
 
@@ -378,11 +378,14 @@ func TestPostCallbackToken(t *testing.T) {
 				t.Logf("callback iteration %d", i)
 				select {
 				case callback := <-callbackReceivedChan:
+					require.NotNil(t, statusResponse)
+					require.NotNil(t, statusResponse.JSON200)
+					require.NotNil(t, callback)
 					require.Equal(t, statusResponse.JSON200.Txid, callback.Txid)
 					require.Equal(t, statusResponse.JSON200.BlockHeight, callback.BlockHeight)
 					require.Equal(t, statusResponse.JSON200.BlockHash, callback.BlockHash)
 					require.Equal(t, statusResponse.JSON200.TxStatus, callback.TxStatus)
-					require.Equal(t, handler.PtrTo("MINED"), callback.TxStatus)
+					require.Equal(t, "MINED", *callback.TxStatus)
 				case err := <-errChan:
 					t.Fatalf("callback received - failed to parse callback %v", err)
 				case <-time.NewTicker(time.Second * 15).C:

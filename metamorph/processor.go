@@ -414,7 +414,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 
 	// Do not overwrite a higher value status with a lower or equal value status
 	if statusValueMap[status] <= statusValueMap[processorResponse.Status] {
-		p.logger.Info("Status not updated for tx", slog.String("status", status.String()), slog.String("previous status", processorResponse.Status.String()), slog.String("hash", hash.String()))
+		p.logger.Debug("Status not updated for tx", slog.String("status", status.String()), slog.String("previous status", processorResponse.Status.String()), slog.String("hash", hash.String()))
 
 		return false, nil
 	}

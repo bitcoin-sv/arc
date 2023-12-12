@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	cleanUpInterval    = 15 * time.Minute
 	logFilePathDefault = "./data/metamorph.log"
 )
 
@@ -53,12 +52,6 @@ func NewProcessorResponseMap(expiry time.Duration, opts ...OptionProcRespMap) *P
 	for _, opt := range opts {
 		opt(m)
 	}
-
-	go func() {
-		for range time.NewTicker(cleanUpInterval).C {
-			m.Clean()
-		}
-	}()
 
 	// start log write worker
 	if m.logFile != "" {
@@ -267,18 +260,5 @@ func (m *ProcessorResponseMap) Close() {
 	defer m.mu.Unlock()
 	for _, item := range m.ResponseItems {
 		item.Close()
-	}
-}
-
-func (m *ProcessorResponseMap) Clean() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for key, item := range m.ResponseItems {
-		if time.Since(item.Start) > m.Expiry {
-			log.Printf("ProcessorResponseMap: Expired %s", key)
-			item.Close()
-			delete(m.ResponseItems, key)
-		}
 	}
 }

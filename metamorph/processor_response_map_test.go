@@ -178,27 +178,3 @@ func TestProcessorResponseMap_Set(t *testing.T) {
 		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.GetStatus())
 	})
 }
-
-func TestProcessorResponseMap_clean(t *testing.T) {
-	t.Run("default", func(t *testing.T) {
-		proc := NewProcessorResponseMap(2 * time.Second)
-		proc.Set(testdata.TX1Hash, NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK))
-		proc.Set(testdata.TX2Hash, NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK))
-
-		proc.Clean()
-
-		assert.Equal(t, 2, proc.Len())
-	})
-
-	t.Run("Expiry", func(t *testing.T) {
-		proc := NewProcessorResponseMap(50 * time.Millisecond)
-		proc.Set(testdata.TX1Hash, NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK))
-		proc.Set(testdata.TX2Hash, NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK))
-
-		time.Sleep(100 * time.Millisecond)
-
-		proc.Clean()
-
-		assert.Equal(t, 0, proc.Len())
-	})
-}

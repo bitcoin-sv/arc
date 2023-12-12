@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"log/slog"
 	"sort"
 	"sync"
 	"time"
@@ -31,7 +30,6 @@ type PeerManager struct {
 	peers      []PeerI
 	network    wire.BitcoinNet
 	batchDelay time.Duration
-	logger     slog.Logger
 	ebs        int64
 }
 

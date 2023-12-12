@@ -570,7 +570,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		require.NoError(t, err)
 		setStoreTestData(t, s)
 
-		processor, err := NewProcessor(s, pm, nil, nil)
+		processor, err := NewProcessor(s, pm, nil)
 		require.NoError(t, err)
 		processor.ProcessorResponseMap.Set(testdata.TX1Hash, NewProcessorResponseWithStatus(
 			testdata.TX1Hash,
@@ -609,7 +609,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 			}
 		}()
 
-		processor, err := NewProcessor(s, pm, nil, nil)
+		processor, err := NewProcessor(s, pm, nil)
 		require.NoError(t, err)
 		// add the tx to the map
 		processor.ProcessorResponseMap.Set(testdata.TX1Hash, NewProcessorResponseWithStatus(
@@ -629,7 +629,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		s, err := sqlite.New(true, "")
 		require.NoError(t, err)
 
-		processor, err := NewProcessor(s, pm, nil, nil)
+		processor, err := NewProcessor(s, pm, nil)
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
@@ -681,7 +681,7 @@ func BenchmarkProcessTransaction(b *testing.B) {
 		_ = os.RemoveAll(direName)
 	}()
 
-	processor, err := NewProcessor(s, pm, nil, nil)
+	processor, err := NewProcessor(s, pm, nil)
 	require.NoError(b, err)
 	assert.Equal(b, 0, processor.ProcessorResponseMap.Len())
 
@@ -853,7 +853,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphStore := &MetamorphStoreMock{SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil }}
 
-			processor, err := NewProcessor(metamorphStore, pm, nil, nil,
+			processor, err := NewProcessor(metamorphStore, pm, nil,
 				WithProcessExpiredSeenTxsInterval(time.Hour),
 				WithProcessExpiredTxsInterval(time.Millisecond*20),
 				WithNow(func() time.Time {

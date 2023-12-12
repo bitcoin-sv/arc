@@ -813,7 +813,7 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 				},
 			}
 
-			processor, err := NewProcessor(metamorphStore, pm, nil, btxMock,
+			processor, err := NewProcessor(metamorphStore, pm, btxMock,
 				WithProcessExpiredSeenTxsInterval(20*time.Millisecond),
 				WithProcessExpiredTxsInterval(time.Hour),
 			)

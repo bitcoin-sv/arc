@@ -523,7 +523,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 				},
 			}
 
-			processor, err := NewProcessor(metamorphStore, pm, nil, nil, WithNow(func() time.Time {
+			processor, err := NewProcessor(metamorphStore, pm, nil, WithNow(func() time.Time {
 				return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC)
 			}))
 

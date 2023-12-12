@@ -176,7 +176,7 @@ func (p *Processor) unlockItems() error {
 func (p *Processor) processExpiredSeenTransactions() {
 	// filterFunc returns true if the transaction has not been seen on the network
 	filterFunc := func(processorResp *processor_response.ProcessorResponse) bool {
-		return processorResp.GetStatus() == metamorph_api.Status_SEEN_ON_NETWORK && p.now().Sub(processorResp.Start) > p.processExpiredSeenTxsInterval
+		return (processorResp.GetStatus() == metamorph_api.Status_SEEN_ON_NETWORK || processorResp.GetStatus() == metamorph_api.Status_ACCEPTED_BY_NETWORK) && p.now().Sub(processorResp.Start) > p.processExpiredSeenTxsInterval
 	}
 
 	// Check transactions that have been seen on the network, but haven't been marked as mined

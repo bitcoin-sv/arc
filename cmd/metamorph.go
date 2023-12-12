@@ -8,18 +8,14 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"time"
 
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
 	awsdynamodb "github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/bitcoin-sv/arc/asynccaller"
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	blockTxStore "github.com/bitcoin-sv/arc/blocktx/store"
-	"github.com/bitcoin-sv/arc/callbacker"
-	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/store"
@@ -116,29 +112,6 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 
 	pm, statusMessageCh := initPeerManager(logger, s)
 
-	callbackerAddress := viper.GetString("callbacker.dialAddr")
-	if callbackerAddress == "" {
-		logger.Fatalf("no callbacker.dialAddr setting found")
-	}
-	cb := callbacker.NewClient(callbackerAddress)
-
-	callbackRegisterPath, err := filepath.Abs(path.Join(folder, "callback-register"))
-	if err != nil {
-		logger.Fatalf("Could not get absolute path: %v", err)
-	}
-
-	// create an async caller to callbacker
-	var cbAsyncCaller *asynccaller.AsyncCaller[callbacker_api.Callback]
-	cbAsyncCaller, err = asynccaller.New[callbacker_api.Callback](
-		logger,
-		callbackRegisterPath,
-		10*time.Second,
-		metamorph.NewRegisterCallbackClient(cb),
-	)
-	if err != nil {
-		logger.Fatalf("error creating async caller: %v", err)
-	}
-
 	mapExpiryStr := viper.GetString("metamorph.processorCacheExpiryTime")
 	mapExpiry, err := time.ParseDuration(mapExpiryStr)
 	if err != nil {
@@ -160,7 +133,6 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	metamorphProcessor, err := metamorph.NewProcessor(
 		s,
 		pm,
-		cbAsyncCaller.GetChannel(),
 		btx,
 		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithProcessorLogger(processorLogger),

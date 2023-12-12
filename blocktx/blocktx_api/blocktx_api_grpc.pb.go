@@ -8,6 +8,7 @@ package blocktx_api
 
 import (
 	context "context"
+
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -230,7 +231,6 @@ type BlockTxAPIServer interface {
 	GetMinedTransactionsForBlock(context.Context, *BlockAndSource) (*MinedTransactions, error)
 	// GetBlockNotificationStream returns a stream of mined blocks starting at a specific block height.
 	// If Height is 0, the stream starts from the current best block.
-	GetBlockNotificationStream(*Height, BlockTxAPI_GetBlockNotificationStreamServer) error
 	mustEmbedUnimplementedBlockTxAPIServer()
 }
 

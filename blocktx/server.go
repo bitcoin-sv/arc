@@ -7,6 +7,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -18,26 +19,21 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 )
 
 // Server type carries the logger within it
 type Server struct {
 	blocktx_api.UnsafeBlockTxAPIServer
-	store         store.Interface
-	logger        utils.Logger
-	blockNotifier *BlockNotifier
-	grpcServer    *grpc.Server
+	store      store.Interface
+	logger     utils.Logger
+	grpcServer *grpc.Server
 }
 
 // NewServer will return a server instance with the logger stored within it
-func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger utils.Logger) *Server {
-
+func NewServer(storeI store.Interface, logger utils.Logger) *Server {
 	return &Server{
-		store:         storeI,
-		logger:        logger,
-		blockNotifier: blockNotifier,
+		store:  storeI,
+		logger: logger,
 	}
 }
 
@@ -162,11 +158,6 @@ func (s *Server) GetBlockForHeight(ctx context.Context, height *blocktx_api.Heig
 
 func (s *Server) GetLastProcessedBlock(ctx context.Context, _ *emptypb.Empty) (*blocktx_api.Block, error) {
 	return s.store.GetLastProcessedBlock(ctx)
-}
-
-func (s *Server) GetBlockNotificationStream(height *blocktx_api.Height, srv blocktx_api.BlockTxAPI_GetBlockNotificationStreamServer) error {
-	s.blockNotifier.NewSubscription(height, srv)
-	return nil
 }
 
 func (s *Server) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {

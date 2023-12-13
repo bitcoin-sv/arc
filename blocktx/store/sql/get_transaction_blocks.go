@@ -21,7 +21,7 @@ const (
 			FROM blocks b
 			INNER JOIN block_transactions_map m ON m.blockid = b.id
 			INNER JOIN transactions t ON m.txid = t.id
-			WHERE t.hash = in (%s)
+			WHERE t.hash = ANY($1)
 			AND b.orphanedyn = FALSE`
 
 	queryGetBlockHashHeightForTxHashesSQLite = `
@@ -71,7 +71,6 @@ func (s *SQL) GetTransactionBlocks(ctx context.Context, transactions *blocktx_ap
 
 		rows, err = s.db.QueryContext(ctx, queryGetBlockHashHeightForTxHashesPostgres, pq.Array(hashSlice))
 		if err != nil {
-			fmt.Println("postgresEngine", err)
 			return nil, err
 		}
 

@@ -75,7 +75,7 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 			err = s.RemoveCallbacker(context.Background(), tx.Hash)
 			if err != nil {
 				logger.Error("Couldn't update/remove callback url - ", err)
-				continue
+				return
 			}
 			return
 		}

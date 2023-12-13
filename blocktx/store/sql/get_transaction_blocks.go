@@ -21,7 +21,7 @@ const (
 			FROM blocks b
 			INNER JOIN block_transactions_map m ON m.blockid = b.id
 			INNER JOIN transactions t ON m.txid = t.id
-			WHERE t.hash = ANY($1)
+			WHERE t.hash = in (%s)
 			AND b.orphanedyn = FALSE`
 
 	queryGetBlockHashHeightForTxHashesSQLite = `

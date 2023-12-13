@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"google.golang.org/grpc/balancer/roundrobin"
 	"sync"
 	"time"
 
@@ -52,7 +51,6 @@ func DialGRPC(address string, grpcMessageSize int) (*grpc.ClientConn, error) {
 		grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
 		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)),
-		grpc.WithBalancerName(roundrobin.Name),
 	}
 
 	conn, err := grpc.Dial(address, tracing.AddGRPCDialOptions(opts)...)

@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"github.com/lib/pq"
 	"strings"
+
+	"github.com/lib/pq"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/ordishs/gocore"
@@ -58,6 +59,7 @@ func (s *SQL) GetTransactionBlocks(ctx context.Context, transactions *blocktx_ap
 	case sqliteEngine:
 		fallthrough
 	case sqliteMemoryEngine:
+		fmt.Println("sqliteMemoryEngine")
 		rows, err = s.db.QueryContext(ctx, getQuerySQLite(transactions))
 		if err != nil {
 			return nil, err
@@ -70,6 +72,7 @@ func (s *SQL) GetTransactionBlocks(ctx context.Context, transactions *blocktx_ap
 
 		rows, err = s.db.QueryContext(ctx, queryGetBlockHashHeightForTxHashesPostgres, pq.Array(hashSlice))
 		if err != nil {
+			fmt.Println("postgresEngine")
 			return nil, err
 		}
 
@@ -83,6 +86,7 @@ func (s *SQL) GetTransactionBlocks(ctx context.Context, transactions *blocktx_ap
 		var BlockHash []byte
 		var BlockHeight uint64
 		var TransactionHash []byte
+		fmt.Println("rows.Scan")
 		err := rows.Scan(&BlockHash, &BlockHeight, &TransactionHash)
 		if err != nil {
 			return nil, err

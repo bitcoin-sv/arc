@@ -3,7 +3,6 @@ package sql
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -118,8 +117,6 @@ func TestGetTransactionBlocks(t *testing.T) {
 				},
 			})
 			if tc.expectedErrorStr != "" || err != nil {
-				fmt.Println(tc.expectedErrorStr)
-				fmt.Println(err)
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			} else {

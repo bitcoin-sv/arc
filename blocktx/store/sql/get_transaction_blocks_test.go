@@ -58,7 +58,7 @@ func TestGetTransactionBlocks(t *testing.T) {
 				FROM blocks b
 				INNER JOIN block_transactions_map m ON m.blockid = b.id
 				INNER JOIN transactions t ON m.txid = t.id
-				WHERE t.hash in (decode('5c6424a8df96a8b22fa70d2983453a86e7a1d5bfa594d5ab2a74a1e50bcd1f18', 'hex'),decode('5bb3b0f23f974b302a57de48a8335ae9beb7f1001fca84e4802e2e7f8f315c2e', 'hex'),decode('7e1a516e1336bc1a7fe81ec075c1040bd4e166f72b9ef9f6f6d0cb5d6ca6b082', 'hex'))
+				WHERE t.hash = ANY($1)
 				AND b.orphanedyn = FALSE`
 
 				mock.ExpectQuery(query).WillReturnError(errors.New("db connection error"))
@@ -74,7 +74,7 @@ func TestGetTransactionBlocks(t *testing.T) {
 				FROM blocks b
 				INNER JOIN block_transactions_map m ON m.blockid = b.id
 				INNER JOIN transactions t ON m.txid = t.id
-				WHERE t.hash in (decode('5c6424a8df96a8b22fa70d2983453a86e7a1d5bfa594d5ab2a74a1e50bcd1f18', 'hex'),decode('5bb3b0f23f974b302a57de48a8335ae9beb7f1001fca84e4802e2e7f8f315c2e', 'hex'),decode('7e1a516e1336bc1a7fe81ec075c1040bd4e166f72b9ef9f6f6d0cb5d6ca6b082', 'hex'))
+				WHERE t.hash = ANY($1)
 				AND b.orphanedyn = FALSE`
 
 				mock.ExpectQuery(query).WillReturnRows(

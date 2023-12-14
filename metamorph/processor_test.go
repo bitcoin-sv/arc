@@ -705,7 +705,7 @@ func BenchmarkProcessTransaction(b *testing.B) {
 	time.Sleep(1 * time.Second)
 }
 
-func TestProcessExpiredSeenTransactions(t *testing.T) {
+func TestProcessCheckIfMined(t *testing.T) {
 	txsBlocks := []*blocktx_api.TransactionBlock{
 		{
 			BlockHash:       testdata.Block1Hash[:],
@@ -730,22 +730,19 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 		getTransactionBlocksErr error
 		updateMinedErr          error
 
-		expectedNrOfUpdates         int
-		expectedNrOfBlockTxRequests int
+		expectedNrOfUpdates int
 	}{
 		{
-			name:   "expired seen txs",
+			name:   "expired txs",
 			blocks: txsBlocks,
 
-			expectedNrOfUpdates:         3,
-			expectedNrOfBlockTxRequests: 1,
+			expectedNrOfUpdates: 3,
 		},
 		{
 			name:                    "failed to get transaction blocks",
 			getTransactionBlocksErr: errors.New("failed to get transaction blocks"),
 
-			expectedNrOfUpdates:         0,
-			expectedNrOfBlockTxRequests: 1,
+			expectedNrOfUpdates: 0,
 		},
 		{
 			name: "failed to parse block hash",
@@ -753,16 +750,14 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 				BlockHash: []byte("not a valid block hash"),
 			}},
 
-			expectedNrOfUpdates:         0,
-			expectedNrOfBlockTxRequests: 1,
+			expectedNrOfUpdates: 0,
 		},
 		{
 			name:           "failed to update mined",
 			blocks:         txsBlocks,
 			updateMinedErr: errors.New("failed to update mined"),
 
-			expectedNrOfUpdates:         3,
-			expectedNrOfBlockTxRequests: 1,
+			expectedNrOfUpdates: 3,
 		},
 		{
 			name: "failed to get tx from response map",
@@ -770,12 +765,11 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 				{
 					BlockHash:       testdata.Block1Hash[:],
 					BlockHeight:     1234,
-					TransactionHash: testdata.TX4Hash[:],
+					TransactionHash: testdata.TX5Hash[:],
 				},
 			},
 
-			expectedNrOfUpdates:         0,
-			expectedNrOfBlockTxRequests: 1,
+			expectedNrOfUpdates: 0,
 		},
 	}
 
@@ -813,14 +807,15 @@ func TestProcessExpiredSeenTransactions(t *testing.T) {
 
 			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
-			processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+			processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_STORED))
 			processor.ProcessorResponseMap.Set(testdata.TX2Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_SEEN_ON_NETWORK))
-			processor.ProcessorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_SEEN_ON_NETWORK))
+			processor.ProcessorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_REJECTED))
+			processor.ProcessorResponseMap.Set(testdata.TX4Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX4Hash, metamorph_api.Status_MINED))
 
 			time.Sleep(25 * time.Millisecond)
 
 			require.Equal(t, tc.expectedNrOfUpdates, len(metamorphStore.UpdateMinedCalls()))
-			require.Equal(t, tc.expectedNrOfBlockTxRequests, len(btxMock.GetTransactionBlocksCalls()))
+			require.Equal(t, 1, len(btxMock.GetTransactionBlocksCalls()))
 		})
 	}
 }

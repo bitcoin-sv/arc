@@ -30,6 +30,7 @@ const (
 	rejectReasonAttributeKey     = ":reject_reason"
 	announcedAtAttributeKey      = ":announced_at"
 	minedAtAttributeKey          = ":mined_at"
+	callbackUrl                  = ":callback_url"
 )
 
 type DynamoDB struct {
@@ -518,15 +519,15 @@ func (ddb *DynamoDB) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash)
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:RemoveCallbacker")
 	defer span.Finish()
 
-	updateExpression := "SET callback_url = ''"
-
-	// update tx
 	_, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String(ddb.transactionsTableName),
 		Key: map[string]types.AttributeValue{
 			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
 		},
-		UpdateExpression: aws.String(updateExpression),
+		UpdateExpression: aws.String("SET callback_url = :callback_url"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			callbackUrl: &types.AttributeValueMemberS{Value: ""},
+		},
 	})
 
 	if err != nil {

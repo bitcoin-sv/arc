@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	// number of times we will retry announcing transaction if we haven't seen it on the network
+	// MaxRetries number of times we will retry announcing transaction if we haven't seen it on the network
 	MaxRetries = 15
 	// length of interval for checking transactions if they are seen on the network
 	// if not we resend them again for a few times
@@ -36,6 +36,7 @@ const (
 
 	failedToUpdateStatus       = "Failed to update status"
 	dataRetentionPeriodDefault = 14 * 24 * time.Hour // 14 days
+	checkIfMinedTimeRange      = time.Minute * 20
 )
 
 type Processor struct {
@@ -116,7 +117,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, btc blocktx.Clien
 
 	// Start a goroutine to resend transactions that have not been seen on the network
 	go p.processExpiredTransactions()
-	go p.processExpiredSeenTransactions()
+	go p.processCheckIfMined()
 
 	gocore.AddAppPayloadFn("mtm", func() interface{} {
 		return p.GetStats(false)
@@ -166,10 +167,10 @@ func (p *Processor) unlockItems() error {
 	return p.store.SetUnlocked(context.Background(), hashes)
 }
 
-func (p *Processor) processExpiredSeenTransactions() {
-	// filterFunc returns true if the transaction has not been seen on the network
+func (p *Processor) processCheckIfMined() {
+	// filter for transactions which have been at least announced but not mined and which haven't started to be processed longer than a specified amount of time ago
 	filterFunc := func(processorResp *processor_response.ProcessorResponse) bool {
-		return processorResp.GetStatus() == metamorph_api.Status_SEEN_ON_NETWORK && p.now().Sub(processorResp.Start) > p.processExpiredSeenTxsInterval
+		return (processorResp.GetStatus() != metamorph_api.Status_MINED && processorResp.GetStatus() != metamorph_api.Status_CONFIRMED) && p.now().Sub(processorResp.Start) < checkIfMinedTimeRange
 	}
 
 	// Check transactions that have been seen on the network, but haven't been marked as mined

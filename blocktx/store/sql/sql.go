@@ -40,7 +40,8 @@ func NewPostgresStore(params dbconn.DBConnectionParams) (store.Interface, error)
 	}
 
 	return &SQL{
-		db: db,
+		db:     db,
+		engine: postgresEngine,
 	}, nil
 }
 

@@ -7,9 +7,53 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/blocktx/store"
+	. "github.com/bitcoin-sv/arc/database_testing"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
+
+type GetTransactionBlocksSuite struct {
+	DatabaseTestSuite
+}
+
+func (s *GetTransactionBlocksSuite) Test() {
+	block := GetTestBlock()
+	tx := GetTestTransaction()
+	s.InsertBlock(block)
+
+	s.InsertTransaction(tx)
+
+	s.InsertBlockTransactionMap(&store.BlockTransactionMap{
+		BlockID:       block.ID,
+		TransactionID: tx.ID,
+		Pos:           2,
+	})
+
+	store, err := NewPostgresStore(DefaultParams)
+	require.NoError(s.T(), err)
+
+	b, err := store.GetTransactionBlocks(context.Background(), &blocktx_api.Transactions{
+		Transactions: []*blocktx_api.Transaction{
+			{
+				Hash: []byte(tx.Hash),
+			},
+		},
+	})
+	require.NoError(s.T(), err)
+
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), block.Hash, string(b.TransactionBlocks[0].BlockHash))
+
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), tx.Hash, string(b.TransactionBlocks[0].TransactionHash))
+}
+
+func TestGetTransactionBlocksIntegration(t *testing.T) {
+	s := new(GetTransactionBlocksSuite)
+	suite.Run(t, s)
+}
 
 func TestGetTransactionBlocks(t *testing.T) {
 	txHash1, err := chainhash.NewHashFromStr("181fcd0be5a1742aabd594a5bfd5a1e7863a4583290da72fb2a896dfa824645c")

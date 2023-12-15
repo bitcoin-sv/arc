@@ -229,5 +229,14 @@ func createSqliteSchema(db *sql.DB) error {
 		return fmt.Errorf("could not create block_transactions_map table - [%+v]", err)
 	}
 
+	if _, err := db.Exec(`
+	CREATE TABLE IF NOT EXISTS primary_blocktx (
+		host_name TEXT PRIMARY KEY,
+		primary_until TIMESTAMP
+	);
+	`); err != nil {
+		db.Close()
+		return fmt.Errorf("could not create primary_blocktx table - [%+v]", err)
+	}
 	return nil
 }

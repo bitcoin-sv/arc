@@ -30,13 +30,15 @@ const (
 	// length of interval for checking transactions if they are seen on the network
 	// if not we resend them again for a few times
 	unseenTransactionRebroadcastingInterval = 60
-	processExpiredSeenTxsIntervalDefault    = 5 * time.Minute
-	mapExpiryTimeDefault                    = 24 * time.Hour
-	LogLevelDefault                         = slog.LevelInfo
+
+	processCheckIfMinedIntervalDefault = 1 * time.Minute
+	checkIfMinedTimeRange              = time.Minute * 60
+
+	mapExpiryTimeDefault = 24 * time.Hour
+	LogLevelDefault      = slog.LevelInfo
 
 	failedToUpdateStatus       = "Failed to update status"
 	dataRetentionPeriodDefault = 14 * 24 * time.Hour // 14 days
-	checkIfMinedTimeRange      = time.Minute * 20
 )
 
 type Processor struct {
@@ -50,8 +52,8 @@ type Processor struct {
 	dataRetentionPeriod  time.Duration
 	now                  func() time.Time
 
-	processExpiredSeenTxsInterval time.Duration
-	processExpiredSeenTxsTicker   *time.Ticker
+	processCheckIfMinedInterval time.Duration
+	processCheckIfMinedTicker   *time.Ticker
 
 	processExpiredTxsTicker *time.Ticker
 
@@ -90,7 +92,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, btc blocktx.Clien
 		now:                     time.Now,
 		processExpiredTxsTicker: time.NewTicker(unseenTransactionRebroadcastingInterval * time.Second),
 
-		processExpiredSeenTxsInterval: processExpiredSeenTxsIntervalDefault,
+		processCheckIfMinedInterval: processCheckIfMinedIntervalDefault,
 
 		stored:             stat.NewAtomicStat(),
 		announcedToNetwork: stat.NewAtomicStats(),
@@ -111,7 +113,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, btc blocktx.Clien
 	}
 
 	p.ProcessorResponseMap = NewProcessorResponseMap(p.mapExpiryTime, WithLogFile(p.logFile), WithNowResponseMap(p.now))
-	p.processExpiredSeenTxsTicker = time.NewTicker(p.processExpiredSeenTxsInterval)
+	p.processCheckIfMinedTicker = time.NewTicker(p.processCheckIfMinedInterval)
 
 	p.logger.Info("Starting processor", slog.Duration("cacheExpiryTime", p.mapExpiryTime))
 
@@ -145,7 +147,7 @@ func (p *Processor) Shutdown() {
 	if err != nil {
 		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
 	}
-	p.processExpiredSeenTxsTicker.Stop()
+	p.processCheckIfMinedTicker.Stop()
 	p.processExpiredTxsTicker.Stop()
 	p.ProcessorResponseMap.Close()
 }
@@ -177,7 +179,7 @@ func (p *Processor) processCheckIfMined() {
 
 	// Check transactions that have been seen on the network, but haven't been marked as mined
 	// The Items() method will return a copy of the map, so we can iterate over it without locking
-	for range p.processExpiredSeenTxsTicker.C {
+	for range p.processCheckIfMinedTicker.C {
 		expiredTransactionItems := p.ProcessorResponseMap.Items(filterFunc)
 		if len(expiredTransactionItems) == 0 {
 			continue

@@ -79,7 +79,7 @@ func TestNewProcessor(t *testing.T) {
 
 			processor, err := NewProcessor(tc.store, tc.pm, nil,
 				WithCacheExpiryTime(time.Second*5),
-				WithProcessExpiredSeenTxsInterval(time.Second*5),
+				WithProcessCheckIfMinedInterval(time.Second*5),
 				WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault}))),
 			)
 			if tc.expectedErrorStr != "" || err != nil {
@@ -298,7 +298,7 @@ func TestLoadUnmined(t *testing.T) {
 			}
 
 			processor, err := NewProcessor(mtmStore, pm, btxMock,
-				WithProcessExpiredSeenTxsInterval(time.Hour*24),
+				WithProcessCheckIfMinedInterval(time.Hour*24),
 				WithCacheExpiryTime(time.Hour*24),
 				WithNow(func() time.Time {
 					return storedAt.Add(1 * time.Hour)
@@ -813,7 +813,7 @@ func TestProcessCheckIfMined(t *testing.T) {
 
 			pm := p2p.NewPeerManagerMock()
 			processor, err := NewProcessor(metamorphStore, pm, btxMock,
-				WithProcessExpiredSeenTxsInterval(20*time.Millisecond),
+				WithProcessCheckIfMinedInterval(20*time.Millisecond),
 				WithProcessExpiredTxsInterval(time.Hour),
 			)
 			require.NoError(t, err)
@@ -862,7 +862,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			}
 			pm := p2p.NewPeerManagerMock()
 			processor, err := NewProcessor(metamorphStore, pm, nil,
-				WithProcessExpiredSeenTxsInterval(time.Hour),
+				WithProcessCheckIfMinedInterval(time.Hour),
 				WithProcessExpiredTxsInterval(time.Millisecond*20),
 				WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)

@@ -170,7 +170,9 @@ func (p *Processor) unlockItems() error {
 func (p *Processor) processCheckIfMined() {
 	// filter for transactions which have been at least announced but not mined and which haven't started to be processed longer than a specified amount of time ago
 	filterFunc := func(processorResp *processor_response.ProcessorResponse) bool {
-		return (processorResp.GetStatus() != metamorph_api.Status_MINED && processorResp.GetStatus() != metamorph_api.Status_CONFIRMED) && p.now().Sub(processorResp.Start) < checkIfMinedTimeRange
+		return processorResp.GetStatus() != metamorph_api.Status_MINED &&
+			processorResp.GetStatus() != metamorph_api.Status_CONFIRMED &&
+			p.now().Sub(processorResp.Start) < checkIfMinedTimeRange
 	}
 
 	// Check transactions that have been seen on the network, but haven't been marked as mined
@@ -206,7 +208,14 @@ func (p *Processor) processCheckIfMined() {
 				p.logger.Error("failed to parse block hash", slog.String("err", err.Error()))
 				continue
 			}
-			_, err = p.SendStatusMinedForTransaction((*chainhash.Hash)(blockTxs.TransactionHash), blockHash, blockTxs.BlockHeight)
+
+			txHash, err := chainhash.NewHash(blockTxs.TransactionHash)
+			if err != nil {
+				p.logger.Error("failed to parse tx hash", slog.String("err", err.Error()))
+				continue
+			}
+
+			_, err = p.SendStatusMinedForTransaction(txHash, blockHash, blockTxs.BlockHeight)
 			if err != nil {
 				p.logger.Error("failed to send status mined for tx", slog.String("err", err.Error()))
 			}
@@ -382,7 +391,9 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 			p.ProcessorResponseMap.Delete(hash)
 
 			data, _ := p.store.Get(spanCtx, hash[:])
-			go SendCallback(p.logger, p.store, data)
+			if data.CallbackUrl != "" {
+				go SendCallback(p.logger, p.store, data)
+			}
 		},
 	})
 

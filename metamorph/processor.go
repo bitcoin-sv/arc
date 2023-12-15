@@ -178,19 +178,16 @@ func (p *Processor) processCheckIfMined() {
 	// Check transactions that have been seen on the network, but haven't been marked as mined
 	// The Items() method will return a copy of the map, so we can iterate over it without locking
 	for range p.processExpiredSeenTxsTicker.C {
-		p.logger.Debug("processing expired seen transactions")
-
 		expiredTransactionItems := p.ProcessorResponseMap.Items(filterFunc)
 		if len(expiredTransactionItems) == 0 {
 			continue
 		}
 
-		p.logger.Debug(fmt.Sprintf("getting transaction blocks from blocktx for %d transactions", len(expiredTransactionItems)))
-
 		transactions := &blocktx_api.Transactions{}
 		txs := make([]*blocktx_api.Transaction, len(expiredTransactionItems))
 		index := 0
 		for _, item := range expiredTransactionItems {
+			p.logger.Debug("checking if mined for transaction", slog.String("hash", item.Hash.String()))
 			txs[index] = &blocktx_api.Transaction{Hash: item.Hash.CloneBytes()}
 			index++
 			transactions.Transactions = txs
@@ -201,6 +198,8 @@ func (p *Processor) processCheckIfMined() {
 			p.logger.Error("failed to get transaction blocks from blocktx", slog.String("err", err.Error()))
 			return
 		}
+
+		p.logger.Debug("found blocks for transactions", slog.Int("number", len(blockTransactions.TransactionBlocks)))
 
 		for _, blockTxs := range blockTransactions.TransactionBlocks {
 			blockHash, err := chainhash.NewHash(blockTxs.BlockHash)
@@ -214,6 +213,7 @@ func (p *Processor) processCheckIfMined() {
 				p.logger.Error("failed to parse tx hash", slog.String("err", err.Error()))
 				continue
 			}
+			p.logger.Debug("found block for transaction", slog.String("txhash", txHash.String()), slog.String("blockhash", blockHash.String()))
 
 			_, err = p.SendStatusMinedForTransaction(txHash, blockHash, blockTxs.BlockHeight)
 			if err != nil {

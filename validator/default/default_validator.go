@@ -14,10 +14,13 @@ import (
 )
 
 // MaxBlockSize is set dynamically in a node, and should be gotten from the policy
-const MaxBlockSize = 4 * 1024 * 1024 * 1024
-const MaxSatoshis = 21_000_000_00_000_000
-const coinbaseTxID = "0000000000000000000000000000000000000000000000000000000000000000"
-const MaxTxSigopsCountPolicyAfterGenesis = ^uint32(0) // UINT32_MAX
+const (
+	MaxBlockSize                       = 4 * 1024 * 1024 * 1024
+	MaxSatoshis                        = 21_000_000_00_000_000
+	coinbaseTxID                       = "0000000000000000000000000000000000000000000000000000000000000000"
+	MaxTxSigopsCountPolicyAfterGenesis = ^uint32(0) // UINT32_MAX
+	minTxSizeBytes                     = 61
+)
 
 type DefaultValidator struct {
 	policy *bitcoin.Settings
@@ -69,8 +72,8 @@ func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx, skipFeeValidation bool
 	//    => checked by the node, we do not want to have to know the current block height
 
 	// 7) The transaction size in bytes is greater than or equal to 100
-	if txSize < 100 {
-		return validator.NewError(fmt.Errorf("transaction size in bytes is less than 100 bytes"), api.ErrStatusMalformed)
+	if txSize < minTxSizeBytes {
+		return validator.NewError(fmt.Errorf("transaction size in bytes is less than %d bytes", minTxSizeBytes), api.ErrStatusMalformed)
 	}
 
 	// 8) The number of signature operations (SIGOPS) contained in the transaction is less than the signature operation limit

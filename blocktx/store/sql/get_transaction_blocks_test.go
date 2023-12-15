@@ -42,11 +42,7 @@ func (s *GetTransactionBlocksSuite) Test() {
 		},
 	})
 	require.NoError(s.T(), err)
-
-	require.NoError(s.T(), err)
 	require.Equal(s.T(), block.Hash, string(b.TransactionBlocks[0].BlockHash))
-
-	require.NoError(s.T(), err)
 	require.Equal(s.T(), tx.Hash, string(b.TransactionBlocks[0].TransactionHash))
 }
 

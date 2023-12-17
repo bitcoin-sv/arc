@@ -14,7 +14,7 @@ import (
 )
 
 type GetLastProcessedBlockSuite struct {
-	DatabaseTestSuite
+	BlockTXDBTestSuite
 }
 
 func (s *GetLastProcessedBlockSuite) Test() {

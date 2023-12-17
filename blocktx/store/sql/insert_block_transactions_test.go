@@ -14,7 +14,7 @@ import (
 )
 
 type InsertBlockTransactionsSuite struct {
-	DatabaseTestSuite
+	BlockTXDBTestSuite
 }
 
 type Tx struct {

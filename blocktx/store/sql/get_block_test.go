@@ -14,7 +14,7 @@ import (
 )
 
 type GetBlockTestSuite struct {
-	DatabaseTestSuite
+	BlockTXDBTestSuite
 }
 
 func (s *GetBlockTestSuite) Test() {

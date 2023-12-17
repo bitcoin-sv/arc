@@ -16,11 +16,11 @@ import (
 )
 
 type ClearBlockTransactionsMapSuite struct {
-	DatabaseTestSuite
+	BlockTXDBTestSuite
 }
 
 func (s *ClearBlockTransactionsMapSuite) Test() {
-	params := ClearRecrodsParams{
+	params := ClearRecordsParams{
 		DBConnectionParams:  DefaultParams,
 		RecordRetentionDays: 10,
 	}

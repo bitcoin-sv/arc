@@ -9,9 +9,10 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func (c ClearJob) ClearBlockTransactionsMap(params ClearRecrodsParams) error {
+func (c ClearJob) ClearBlockTransactionsMap(params ClearRecordsParams) error {
 	Log(INFO, "Connecting to database ...")
 	conn, err := sqlx.Open(params.Scheme(), params.String())
+
 	if err != nil {
 		Log(ERROR, fmt.Sprintf("unable to create connection %s", err))
 		return err

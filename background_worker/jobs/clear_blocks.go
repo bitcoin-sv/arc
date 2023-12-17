@@ -14,7 +14,7 @@ const (
 	numericalDateHourLayout = "2006010215"
 )
 
-type ClearRecrodsParams struct {
+type ClearRecordsParams struct {
 	dbconn.DBConnectionParams
 	RecordRetentionDays int
 }
@@ -41,7 +41,7 @@ func NewClearJob(opts ...func(job *ClearJob)) *ClearJob {
 	return c
 }
 
-func (c ClearJob) ClearBlocks(params ClearRecrodsParams) error {
+func (c ClearJob) ClearBlocks(params ClearRecordsParams) error {
 	Log(INFO, "Connecting to database ...")
 
 	conn, err := sqlx.Open(params.Scheme(), params.String())

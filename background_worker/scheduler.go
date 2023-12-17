@@ -9,10 +9,10 @@ import (
 type ARCScheduler struct {
 	Scheduler       *gocron.Scheduler
 	IntervalInHours int
-	Params          jobs.ClearRecrodsParams
+	Params          jobs.ClearRecordsParams
 }
 
-func (sched *ARCScheduler) RunJob(table string, job func(params jobs.ClearRecrodsParams) error) {
+func (sched *ARCScheduler) RunJob(table string, job func(params jobs.ClearRecordsParams) error) {
 	_, err := sched.Scheduler.Every(sched.IntervalInHours).Hours().Do(func() {
 		jobs.Log(jobs.INFO, fmt.Sprintf("Clearing expired %s...", table))
 		err := job(sched.Params)

@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// Server type carries the logger within it
+// Server type carries the logger within it.
 type Server struct {
 	callbacker_api.UnsafeCallbackerAPIServer
 	logger     *slog.Logger
@@ -25,7 +25,7 @@ type Server struct {
 	grpcServer *grpc.Server
 }
 
-// NewServer will return a server instance with the logger stored within it
+// NewServer will return a server instance with the logger stored within it.
 func NewServer(logger *slog.Logger, c *Callbacker) *Server {
 	return &Server{
 		logger:     logger,
@@ -33,7 +33,7 @@ func NewServer(logger *slog.Logger, c *Callbacker) *Server {
 	}
 }
 
-// StartGRPCServer function
+// StartGRPCServer function.
 func (s *Server) StartGRPCServer(address string) error {
 	var opts []grpc.ServerOption
 	opts = append(opts,
@@ -74,7 +74,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*callbacker_api.He
 }
 
 func (s *Server) RegisterCallback(ctx context.Context, callback *callbacker_api.Callback) (*callbacker_api.RegisterCallbackResponse, error) {
-	if _, err := url.ParseRequestURI(callback.Url); err != nil {
+	if _, err := url.ParseRequestURI(callback.GetUrl()); err != nil {
 		return nil, fmt.Errorf("invalid URL [%w]", err)
 	}
 

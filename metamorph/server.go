@@ -279,10 +279,6 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			RawTx:         txReq.RawTx,
 		}
 
-		if err = s.processor.Set(ctx, &ProcessorRequest{Data: sReq}); err != nil {
-			return nil, err
-		}
-
 		processTxsInputMap[*hash] = processTxInput{
 			data:          sReq,
 			waitForStatus: txReq.WaitForStatus,

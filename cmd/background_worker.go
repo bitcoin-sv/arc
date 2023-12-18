@@ -78,9 +78,11 @@ func StartBackGroundWorker(logger *slog.Logger) (func(), error) {
 		Params:          params,
 	}
 
-	sched.RunJob("blocks", jobs.ClearBlocks)
-	sched.RunJob("transactions", jobs.ClearTransactions)
-	sched.RunJob("block transactions map", jobs.ClearBlockTransactionsMap)
+	clearJob := jobs.NewClearJob()
+
+	sched.RunJob("blocks", clearJob.ClearBlocks)
+	sched.RunJob("transactions", clearJob.ClearTransactions)
+	sched.RunJob("block transactions map", clearJob.ClearBlockTransactionsMap)
 
 	sched.Start()
 

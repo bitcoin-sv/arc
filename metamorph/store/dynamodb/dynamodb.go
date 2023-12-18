@@ -30,6 +30,7 @@ const (
 	rejectReasonAttributeKey     = ":reject_reason"
 	announcedAtAttributeKey      = ":announced_at"
 	minedAtAttributeKey          = ":mined_at"
+	callbackUrl                  = ":callback_url"
 )
 
 type DynamoDB struct {
@@ -498,6 +499,35 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 		},
 		UpdateExpression:          aws.String(updateExpression),
 		ExpressionAttributeValues: expressionAttributevalues,
+	})
+
+	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+func (ddb *DynamoDB) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error {
+	// setup log and tracing
+	startNanos := ddb.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("RemoveCallbacker").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:RemoveCallbacker")
+	defer span.Finish()
+
+	_, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName: aws.String(ddb.transactionsTableName),
+		Key: map[string]types.AttributeValue{
+			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
+		},
+		UpdateExpression: aws.String("SET callback_url = :callback_url"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			callbackUrl: &types.AttributeValueMemberS{Value: ""},
+		},
 	})
 
 	if err != nil {

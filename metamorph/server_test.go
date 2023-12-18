@@ -17,7 +17,7 @@ import (
 	. "github.com/bitcoin-sv/arc/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
-	"github.com/bitcoin-sv/arc/metamorph/store/sql"
+	"github.com/bitcoin-sv/arc/metamorph/store/sqlite"
 	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -114,7 +114,7 @@ func TestHealth(t *testing.T) {
 
 func TestPutTransaction(t *testing.T) {
 	t.Run("PutTransaction - ANNOUNCED", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
+		s, err := sqlite.New(true, "")
 		require.NoError(t, err)
 
 		processor := &ProcessorIMock{}
@@ -161,7 +161,7 @@ func TestPutTransaction(t *testing.T) {
 	})
 
 	t.Run("PutTransaction - SEEN to network", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
+		s, err := sqlite.New(true, "")
 		require.NoError(t, err)
 
 		processor := &ProcessorIMock{}
@@ -193,7 +193,7 @@ func TestPutTransaction(t *testing.T) {
 	})
 
 	t.Run("PutTransaction - Err", func(t *testing.T) {
-		s, err := sql.New("sqlite_memory")
+		s, err := sqlite.New(true, "")
 		require.NoError(t, err)
 
 		processor := &ProcessorIMock{}
@@ -229,7 +229,7 @@ func TestPutTransaction(t *testing.T) {
 
 	t.Run("PutTransaction - Known tx", func(t *testing.T) {
 		ctx := context.Background()
-		s, err := sql.New("sqlite_memory")
+		s, err := sqlite.New(true, "")
 		require.NoError(t, err)
 		err = s.Set(ctx, testdata.TX1Hash[:], &store.StoreData{
 			Hash:   testdata.TX1Hash,
@@ -361,6 +361,9 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 					}
 					return data, tt.getErr
 				},
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
+				},
 			}
 
 			server := NewServer(metamorphStore, nil, client, source)
@@ -439,7 +442,6 @@ func TestPutTransactions(t *testing.T) {
 
 		expectedErrorStr                         string
 		expectedStatuses                         *metamorph_api.TransactionStatuses
-		expectedProcessorSetCalls                int
 		expectedProcessorProcessTransactionCalls int
 	}{
 		{
@@ -458,7 +460,6 @@ func TestPutTransactions(t *testing.T) {
 				Err:    nil,
 			}},
 
-			expectedProcessorSetCalls:                1,
 			expectedProcessorProcessTransactionCalls: 1,
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
@@ -485,7 +486,6 @@ func TestPutTransactions(t *testing.T) {
 				Err:    errors.New("unable to process transaction"),
 			}},
 
-			expectedProcessorSetCalls:                1,
 			expectedProcessorProcessTransactionCalls: 1,
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
@@ -503,7 +503,6 @@ func TestPutTransactions(t *testing.T) {
 				Transactions: []*metamorph_api.TransactionRequest{{RawTx: tx0.Bytes()}},
 			},
 
-			expectedProcessorSetCalls:                1,
 			expectedProcessorProcessTransactionCalls: 1,
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
@@ -551,7 +550,6 @@ func TestPutTransactions(t *testing.T) {
 				},
 			},
 
-			expectedProcessorSetCalls:                2,
 			expectedProcessorProcessTransactionCalls: 2,
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
@@ -591,7 +589,6 @@ func TestPutTransactions(t *testing.T) {
 			}},
 			getErr: errors.New("failed to get tx"),
 
-			expectedProcessorSetCalls:                1,
 			expectedProcessorProcessTransactionCalls: 1,
 			expectedStatuses: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
@@ -622,6 +619,9 @@ func TestPutTransactions(t *testing.T) {
 
 					return nil, tc.getErr
 				},
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
+				},
 			}
 
 			btc := &ClientIMock{
@@ -634,9 +634,6 @@ func TestPutTransactions(t *testing.T) {
 			}
 
 			processor := &ProcessorIMock{
-				SetFunc: func(_ context.Context, req *ProcessorRequest) error {
-					return nil
-				},
 				ProcessTransactionFunc: func(_ context.Context, req *ProcessorRequest) {
 					resp, found := tc.processorResponse[req.Data.Hash.String()]
 					if found {
@@ -657,7 +654,6 @@ func TestPutTransactions(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			require.Equal(t, tc.expectedProcessorSetCalls, len(processor.SetCalls()))
 			require.Equal(t, tc.expectedProcessorProcessTransactionCalls, len(processor.ProcessTransactionCalls()))
 
 			for i := 0; i < len(tc.expectedStatuses.Statuses); i++ {
@@ -695,8 +691,14 @@ func TestSetUnlockedbyName(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{}, nil
+				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int, error) {
 					return tc.recordsAffected, tc.errSetUnlocked
+				},
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
 				},
 			}
 
@@ -728,7 +730,15 @@ func TestStartGRPCServer(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &MetamorphStoreMock{SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil }}
+			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{}, nil
+				},
+				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
+				},
+			}
 
 			btc := &ClientIMock{}
 
@@ -793,7 +803,14 @@ func TestCheckUtxos(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &MetamorphStoreMock{}
+			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{}, nil
+				},
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
+				},
+			}
 
 			btc := &ClientIMock{}
 

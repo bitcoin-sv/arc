@@ -6,6 +6,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	. "github.com/bitcoin-sv/arc/database_testing"
+	"github.com/go-testfixtures/testfixtures/v3"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
@@ -24,32 +25,33 @@ func (s *ClearJobSuite) Test() {
 		RecordRetentionDays: 10,
 	}
 
-	// Add "fresh" blocks
-	for i := 0; i < 5; i++ {
-		block := GetTestBlock()
-		block.Height = int64(i)
-		block.InsertedAt = time.Now()
-		s.InsertBlock(block)
-	}
-
-	// Add "expired" blocks
-	for i := 5; i < 10; i++ {
-		block := GetTestBlock()
-		block.Height = int64(i)
-		block.InsertedAt = time.Now().Add(-20 * 24 * time.Hour)
-		s.InsertBlock(block)
-	}
-
 	db, err := sqlx.Open("postgres", params.String())
 	require.NoError(s.T(), err)
 
-	err = ClearBlocks(params)
+	fixtures, err := testfixtures.New(
+		testfixtures.Database(db.DB),
+		testfixtures.Dialect("postgresql"),
+		testfixtures.Directory("fixtures"), // The directory containing the YAML files
+	)
+	require.NoError(s.T(), err)
+
+	err = fixtures.Load()
+	require.NoError(s.T(), err)
+
+	now := time.Date(2023, 12, 22, 12, 0, 0, 0, time.UTC)
+
+	clearJob := NewClearJob(WithNow(func() time.Time {
+		return now
+	}))
+
+	err = clearJob.ClearBlocks(params)
 	require.NoError(s.T(), err)
 
 	var blocks []store.Block
-	require.NoError(s.T(), db.Select(&blocks, "SELECT * FROM blocks"))
 
-	assert.Len(s.T(), blocks, 5)
+	require.NoError(s.T(), db.Select(&blocks, "SELECT id FROM blocks"))
+
+	assert.Len(s.T(), blocks, 1)
 }
 
 func TestRunClear(t *testing.T) {

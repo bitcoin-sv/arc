@@ -56,7 +56,7 @@ func main() {
 	if grpcMessageSize == 0 {
 		panic("Missing grpcMessageSize")
 	}
-	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize, logger)
+	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize, logger, false)
 	if err != nil {
 		panic(err)
 	}

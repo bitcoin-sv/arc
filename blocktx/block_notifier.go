@@ -96,13 +96,10 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *bloc
 	}()
 
 	go func() {
-		for {
-			select {
-			case <-bn.fillGapsTicker.C:
-				err := peerHandler.FillGaps(peers[rand.Intn(len(peers))])
-				if err != nil {
-					l.Errorf("failed to fill gaps: %v", err)
-				}
+		for range bn.fillGapsTicker.C {
+			err := peerHandler.FillGaps(peers[rand.Intn(len(peers))])
+			if err != nil {
+				l.Errorf("failed to fill gaps: %v", err)
 			}
 		}
 	}()

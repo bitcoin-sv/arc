@@ -83,7 +83,7 @@ func TestNewDefault(t *testing.T) {
 	})
 }
 
-func TestGETPolicy(t *testing.T) { 
+func TestGETPolicy(t *testing.T) {
 	t.Run("default policy", func(t *testing.T) {
 		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
 		require.NoError(t, err)

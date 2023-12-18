@@ -9,19 +9,20 @@ import (
 	"syscall"
 
 	"github.com/bitcoin-sv/arc/cmd"
+	_ "github.com/lib/pq"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"github.com/spf13/viper"
-
-	_ "github.com/lib/pq"
 )
 
-// Name used by build script for the binaries. (Please keep on single line)
+// Name used by build script for the binaries. (Please keep on single line).
 const progname = "block-tx"
 
 // // Version & commit strings injected at build with -ldflags -X...
-var version string
-var commit string
+var (
+	version string
+	commit  string
+)
 
 func init() {
 	gocore.SetInfo(progname, version, commit)

@@ -82,12 +82,11 @@ func StartAPIServer(logger utils.Logger) (func(), error) {
 }
 
 func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
-
 	// check the swagger definition against our requests
 	handler.CheckSwagger(e)
 
 	// Check the security requirements
-	//CheckSecurity(e, appConfig)
+
 
 	addresses := viper.GetString("metamorph.dialAddr")
 	if addresses == "" {

@@ -15,7 +15,6 @@ import (
 const progname = "api"
 
 func main() {
-
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("../../")

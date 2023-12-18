@@ -45,7 +45,7 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *bloc
 	}
 	pm := p2p.NewPeerManager(l, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
 
-	peers := make([]*p2p.Peer, 0, len(peerSettings))
+	peers := make([]*p2p.Peer, len(peerSettings))
 	for i, peerSetting := range peerSettings {
 		var peer *p2p.Peer
 		peerUrl, err := peerSetting.GetP2PUrl()

@@ -1,4 +1,4 @@
-package blocktx
+package config
 
 import (
 	"testing"

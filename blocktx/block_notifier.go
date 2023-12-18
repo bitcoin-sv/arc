@@ -17,9 +17,10 @@ type subscriber struct {
 }
 
 type BlockNotifier struct {
-	logger      utils.Logger
-	storeI      store.Interface
-	subscribers map[subscriber]bool
+	logger         utils.Logger
+	storeI         store.Interface
+	subscribers    map[subscriber]bool
+	fillGapsTicker *time.Ticker
 
 	newSubscriptions  chan subscriber
 	deadSubscriptions chan subscriber
@@ -27,58 +28,35 @@ type BlockNotifier struct {
 	quitCh            chan bool
 }
 
-func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
+func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *blocktx_api.Block, peerHandler *PeerHandler, peerSettings []config.Peer, network wire.BitcoinNet) (*BlockNotifier, error) {
 	bn := &BlockNotifier{
 		storeI:            storeI,
 		logger:            l,
 		subscribers:       make(map[subscriber]bool),
 		newSubscriptions:  make(chan subscriber, 128),
 		deadSubscriptions: make(chan subscriber, 128),
-		blockCh:           make(chan *blocktx_api.Block),
+		blockCh:           blockCh,
+		fillGapsTicker:    time.NewTicker(5 * time.Minute),
 	}
-
-	networkStr := viper.GetString("network")
-	if networkStr == "" {
-		l.Fatalf("bitcoin_network must be set")
-	}
-
-	var network wire.BitcoinNet
-
-	switch networkStr {
-	case "mainnet":
-		network = wire.MainNet
-	case "testnet":
-		network = wire.TestNet3
-	case "regtest":
-		network = wire.TestNet
-	default:
-		l.Fatalf("unknown bitcoin_network: %s", networkStr)
-	}
-
 	pm := p2p.NewPeerManager(l, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
 
-	peerHandler := NewPeerHandler(l, storeI, bn.blockCh)
-
-	peerSettings, err := GetPeerSettings()
-	if err != nil {
-		l.Fatalf("error getting peer settings: %v", err)
-	}
-
-	for _, peerSetting := range peerSettings {
+	peers := make([]*p2p.Peer, 0, len(peerSettings))
+	for i, peerSetting := range peerSettings {
 		var peer *p2p.Peer
 		peerUrl, err := peerSetting.GetP2PUrl()
 		if err != nil {
-			l.Fatalf("error getting peer url: %v", err)
+			return nil, fmt.Errorf("error getting peer url: %v", err)
 		}
-
 		peer, err = p2p.NewPeer(l, peerUrl, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize))
 		if err != nil {
-			l.Fatalf("error creating peer %s: %v", peerUrl, err)
+			return nil, fmt.Errorf("error creating peer %s: %v", peerUrl, err)
 		}
 
 		if err = pm.AddPeer(peer); err != nil {
-			l.Fatalf("error adding peer %s: %v", peerUrl, err)
+			return nil, fmt.Errorf("error adding peer %s: %v", peerUrl, err)
 		}
+
+		peers[i] = peer
 	}
 
 	go func() {
@@ -118,6 +96,7 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 // Shutdown stops the handler.
 func (bn *BlockNotifier) Shutdown() {
 	bn.quitCh <- true
+	bn.fillGapsTicker.Stop()
 }
 
 // NewSubscription adds a new subscription to the handler.

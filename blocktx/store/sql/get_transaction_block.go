@@ -1,10 +1,10 @@
 package sql
 
 import (
+	"context"
+
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/ordishs/gocore"
-
-	"context"
 )
 
 const (
@@ -28,9 +28,8 @@ func (s *SQL) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.
 	defer cancel()
 
 	block := &blocktx_api.Block{}
-	if err := s.db.QueryRowContext(ctx, queryGetBlockHashHeightForTransactionHash, transaction.Hash).Scan(&block.Hash, &block.Height); err != nil {
+	if err := s.db.QueryRowContext(ctx, queryGetBlockHashHeightForTransactionHash, transaction.GetHash()).Scan(&block.Hash, &block.Height); err != nil {
 		return nil, err
-
 	}
 
 	return block, nil

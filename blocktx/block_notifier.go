@@ -5,9 +5,8 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/wire"
-	"github.com/spf13/viper"
-
 	"github.com/ordishs/go-utils"
+	"github.com/spf13/viper"
 )
 
 const maximumBlockSize = 4000000000 // 4Gb
@@ -116,15 +115,15 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger) *BlockNotifier {
 	return bn
 }
 
-// Shutdown stops the handler
+// Shutdown stops the handler.
 func (bn *BlockNotifier) Shutdown() {
 	bn.quitCh <- true
 }
 
-// NewSubscription adds a new subscription to the handler
+// NewSubscription adds a new subscription to the handler.
 func (bn *BlockNotifier) NewSubscription(heightAndSource *blocktx_api.Height, s blocktx_api.BlockTxAPI_GetBlockNotificationStreamServer) {
 	bn.newSubscriptions <- subscriber{
-		height: heightAndSource.Height,
+		height: heightAndSource.GetHeight(),
 		stream: s,
 	}
 

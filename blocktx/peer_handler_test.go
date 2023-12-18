@@ -91,7 +91,7 @@ func TestGetAnnouncedCacheBlockHashes(t *testing.T) {
 
 func TestHandleBlock(t *testing.T) {
 	// define HandleBlock function parameters (BlockMessage and p2p.PeerI)
-	//txHashes :=
+
 
 	prevBlockHash1573650, _ := chainhash.NewHashFromStr("00000000000007b1f872a8abe664223d65acd22a500b1b8eb5db3fe09a9837ff")
 	merkleRootHash1573650, _ := chainhash.NewHashFromStr("3d64b2bb6bd4e85aacb6d1965a2407fa21846c08dd9a8616866ad2f5c80fda7f")
@@ -196,7 +196,7 @@ func TestHandleBlock(t *testing.T) {
 	}
 
 	batchSize := 4
-	var storeMock = &store.InterfaceMock{
+	storeMock := &store.InterfaceMock{
 		GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 			return &blocktx_api.Block{}, nil
 		},
@@ -208,7 +208,7 @@ func TestHandleBlock(t *testing.T) {
 		},
 	}
 	// create mocked peer handler
-	var blockTxLogger = gocore.Log("btx", gocore.NewLogLevelFromString("INFO"))
+	blockTxLogger := gocore.Log("btx", gocore.NewLogLevelFromString("INFO"))
 
 	// mock specific functions of storage that we are about to call
 	storeMock.GetBlockFunc = func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
@@ -252,7 +252,6 @@ func TestHandleBlock(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			expectedInsertedTransactions := []*blocktx_api.TransactionAndSource{}
 			transactionHashes := make([]*chainhash.Hash, len(tc.txHashes))
 			for i, hash := range tc.txHashes {
@@ -266,14 +265,13 @@ func TestHandleBlock(t *testing.T) {
 			var insertedBlockTransactions []*blocktx_api.TransactionAndSource
 
 			storeMock.InsertBlockTransactionsFunc = func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
-
 				require.True(t, len(merklePaths) <= batchSize)
 				require.True(t, len(transactions) <= batchSize)
 
 				for i, path := range merklePaths {
 					bump, err := bc.NewBUMPFromStr(path)
 					require.NoError(t, err)
-					tx, err := chainhash.NewHash(transactions[i].Hash)
+					tx, err := chainhash.NewHash(transactions[i].GetHash())
 					require.NoError(t, err)
 					root, err := bump.CalculateRootGivenTxid(tx.String())
 					require.NoError(t, err)

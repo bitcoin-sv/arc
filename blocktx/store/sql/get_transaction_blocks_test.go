@@ -42,8 +42,8 @@ func (s *GetTransactionBlocksSuite) Test() {
 		},
 	})
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), block.Hash, string(b.TransactionBlocks[0].BlockHash))
-	require.Equal(s.T(), tx.Hash, string(b.TransactionBlocks[0].TransactionHash))
+	require.Equal(s.T(), block.Hash, string(b.GetTransactionBlocks()[0].GetBlockHash()))
+	require.Equal(s.T(), tx.Hash, string(b.GetTransactionBlocks()[0].GetTransactionHash()))
 }
 
 func TestGetTransactionBlocksIntegration(t *testing.T) {
@@ -166,9 +166,9 @@ func TestGetTransactionBlocks(t *testing.T) {
 			err = mock.ExpectationsWereMet()
 			require.NoError(t, err)
 
-			require.Equal(t, blockHash1.CloneBytes(), transactionBlocks.TransactionBlocks[0].BlockHash)
-			require.Equal(t, uint64(1), transactionBlocks.TransactionBlocks[0].BlockHeight)
-			require.Equal(t, txHash1.CloneBytes(), transactionBlocks.TransactionBlocks[0].TransactionHash)
+			require.Equal(t, blockHash1.CloneBytes(), transactionBlocks.GetTransactionBlocks()[0].GetBlockHash())
+			require.Equal(t, uint64(1), transactionBlocks.GetTransactionBlocks()[0].GetBlockHeight())
+			require.Equal(t, txHash1.CloneBytes(), transactionBlocks.GetTransactionBlocks()[0].GetTransactionHash())
 		})
 	}
 }

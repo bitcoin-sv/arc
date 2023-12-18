@@ -14,7 +14,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-// RegisterTransaction registers a transaction in the database
+// RegisterTransaction registers a transaction in the database.
 func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (string, string, []byte, uint64, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
@@ -36,8 +36,8 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 		return "", "", nil, 0, fmt.Errorf("invalid request - no hash")
 	}
 
-	if transaction.Source == "" {
-		return "", "", nil, 0, fmt.Errorf("source missing for transaction %s", utils.ReverseAndHexEncodeSlice(transaction.Hash))
+	if transaction.GetSource() == "" {
+		return "", "", nil, 0, fmt.Errorf("source missing for transaction %s", utils.ReverseAndHexEncodeSlice(transaction.GetHash()))
 	}
 
 	q := `INSERT INTO transactions (hash, source) VALUES ($1, $2)`
@@ -104,15 +104,15 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 				spanErr.SetTag("already_mined", true)
 			}
 
-			if err := s.db.QueryRowContext(ctx, queryGetBlockHashHeightForTransactionHash, transaction.Hash).Scan(&blockHashBytes, &blockHeight); err != nil {
+			if err := s.db.QueryRowContext(ctx, queryGetBlockHashHeightForTransactionHash, transaction.GetHash()).Scan(&blockHashBytes, &blockHeight); err != nil {
 				return "", "", nil, 0, err
 			}
 
-			return transaction.Source, merklePath, blockHashBytes, blockHeight, nil
+			return transaction.GetSource(), merklePath, blockHashBytes, blockHeight, nil
 		}
 
 		var source string
-		if err := s.db.QueryRowContext(ctx, "SELECT source, merkle_path FROM transactions WHERE hash = $1", transaction.Hash).Scan(&source, &merklePath); err != nil {
+		if err := s.db.QueryRowContext(ctx, "SELECT source, merkle_path FROM transactions WHERE hash = $1", transaction.GetHash()).Scan(&source, &merklePath); err != nil {
 			if spanErr != nil {
 				spanErr.SetTag(string(ext.Error), true)
 				spanErr.LogFields(log.Error(err))
@@ -120,8 +120,7 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 			return "", "", nil, 0, err
 		}
 		return source, merklePath, nil, 0, nil
-
 	}
 
-	return transaction.Source, "", nil, 0, nil
+	return transaction.GetSource(), "", nil, 0, nil
 }

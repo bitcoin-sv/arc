@@ -18,7 +18,6 @@ import (
 //go:generate moq -pkg mock -out ./blocktx_api/mock/blocktx_api_client_mock.go ./blocktx_api BlockTxAPIClient
 //go:generate moq -pkg mock -out ./blocktx_api/mock/blocktx_notification_client_mock.go ./blocktx_api BlockTxAPI_GetBlockNotificationStreamClient
 func TestStart(t *testing.T) {
-
 	blockHash, err := hex.DecodeString("0000000000000497b672795cad5e839f63fc43d00ce675836e55338faecc3871")
 	require.NoError(t, err)
 

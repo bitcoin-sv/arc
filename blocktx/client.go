@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-// ClientI is the interface for the block-tx transactionHandler
+// ClientI is the interface for the block-tx transactionHandler.
 type ClientI interface {
 	Start(minedBlockChan chan *blocktx_api.Block)
 	LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
@@ -106,7 +106,7 @@ func (btc *Client) Start(minedBlockChan chan *blocktx_api.Block) {
 							btc.logger.Error("Failed to receive block", slog.String("err", err.Error()))
 							continue getBlocksLoop
 						}
-						btc.logger.Info("Block", slog.String("hash", utils.ReverseAndHexEncodeSlice(block.Hash)))
+						btc.logger.Info("Block", slog.String("hash", utils.ReverseAndHexEncodeSlice(block.GetHash())))
 						utils.SafeSend(minedBlockChan, block)
 					}
 				}
@@ -130,7 +130,7 @@ func (btc *Client) LocateTransaction(ctx context.Context, transaction *blocktx_a
 		return "", ErrTransactionNotFound
 	}
 
-	return location.Source, nil
+	return location.GetSource(), nil
 }
 
 func (btc *Client) GetTransactionMerklePath(ctx context.Context, hash *blocktx_api.Transaction) (string, error) {
@@ -139,7 +139,7 @@ func (btc *Client) GetTransactionMerklePath(ctx context.Context, hash *blocktx_a
 		return "", err
 	}
 
-	return merklePath.MerklePath, nil
+	return merklePath.GetMerklePath(), nil
 }
 
 func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
@@ -153,8 +153,8 @@ func (btc *Client) GetTransactionBlock(ctx context.Context, transaction *blocktx
 	}
 
 	return &blocktx_api.RegisterTransactionResponse{
-		BlockHash:   block.Hash,
-		BlockHeight: block.Height,
+		BlockHash:   block.GetHash(),
+		BlockHeight: block.GetHeight(),
 	}, nil
 }
 

@@ -7,7 +7,7 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-// GetBlockForHeight returns the un-orphaned block for a given height, if it exists
+// GetBlockForHeight returns the un-orphaned block for a given height, if it exists.
 func (s *SQL) GetBlockForHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
 	start := gocore.CurrentNanos()
 	defer func() {

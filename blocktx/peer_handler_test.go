@@ -305,4 +305,6 @@ func TestHandleBlock(t *testing.T) {
 			<-bockChannel
 		})
 	}
+
+	peerHandler.Shutdown()
 }

@@ -90,6 +90,7 @@ type PeerHandler struct {
 	announcedCache              *expiringmap.ExpiringMap[chainhash.Hash, []p2p.PeerI]
 	stats                       *safemap.Safemap[string, *tracing.PeerHandlerStats]
 	transactionStorageBatchSize int
+	peerHandlerCollector        *tracing.PeerHandlerCollector
 }
 
 func init() {
@@ -137,7 +138,8 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 		opt(s)
 	}
 
-	_ = tracing.NewPeerHandlerCollector("blocktx", s.stats)
+	s.peerHandlerCollector = tracing.NewPeerHandlerCollector("blocktx", s.stats)
+	tracing.Register(s.peerHandlerCollector)
 
 	go func() {
 		for pair := range s.workerCh {
@@ -523,4 +525,8 @@ func extractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
 	}
 
 	return binary.LittleEndian.Uint64(b)
+}
+
+func (ph *PeerHandler) Shutdown() {
+	tracing.Unregister(ph.peerHandlerCollector)
 }

@@ -92,7 +92,6 @@ func TestGetAnnouncedCacheBlockHashes(t *testing.T) {
 func TestHandleBlock(t *testing.T) {
 	// define HandleBlock function parameters (BlockMessage and p2p.PeerI)
 
-
 	prevBlockHash1573650, _ := chainhash.NewHashFromStr("00000000000007b1f872a8abe664223d65acd22a500b1b8eb5db3fe09a9837ff")
 	merkleRootHash1573650, _ := chainhash.NewHashFromStr("3d64b2bb6bd4e85aacb6d1965a2407fa21846c08dd9a8616866ad2f5c80fda7f")
 

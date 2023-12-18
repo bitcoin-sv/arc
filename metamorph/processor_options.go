@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-func WithProcessExpiredSeenTxsInterval(d time.Duration) func(*Processor) {
+func WithProcessCheckIfMinedInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.processExpiredSeenTxsInterval = d
+		p.processCheckIfMinedInterval = d
 	}
 }
 

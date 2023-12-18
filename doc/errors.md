@@ -20,7 +20,7 @@ ErrStatusInputs: Either the input satoshis sum is too high, or there are no inpu
 ErrStatusOutputs: Transaction is invalid because the outputs are non-existent or attempting to create a non-zero false return output, or satoshi values greater than max value.
 
 # 464
-ErrStatusMalformed: Either the transaction is too small (100 bytes min), there are too many sig ops, or there is a non-data push in the unlocking script.
+ErrStatusMalformed: Either the transaction is too small (61 bytes min), there are too many sig ops, or there is a non-data push in the unlocking script.
 
 # 465
 ErrStatusFees: The fees are too low, sum satoshis out is not less than sum satoshis in.

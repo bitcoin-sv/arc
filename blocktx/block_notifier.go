@@ -2,7 +2,6 @@ package blocktx
 
 import (
 	"fmt"
-	"math/rand"
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
@@ -33,17 +32,28 @@ type BlockNotifier struct {
 	quitCh            chan bool
 }
 
-func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *blocktx_api.Block, peerHandler *PeerHandler, peerSettings []config.Peer, network wire.BitcoinNet) (*BlockNotifier, error) {
+func WithFillGapsInterval(interval time.Duration) func(notifier *BlockNotifier) {
+	return func(notifier *BlockNotifier) {
+		notifier.fillGapsTicker = time.NewTicker(interval)
+	}
+}
+
+func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *blocktx_api.Block, peerHandler *PeerHandler, peerSettings []config.Peer, network wire.BitcoinNet, opts ...func(notifier *BlockNotifier)) (*BlockNotifier, error) {
 	bn := &BlockNotifier{
 		storeI:            storeI,
 		logger:            l,
 		subscribers:       make(map[subscriber]bool),
+		quitCh:            make(chan bool),
 		newSubscriptions:  make(chan subscriber, 128),
 		deadSubscriptions: make(chan subscriber, 128),
 		blockCh:           blockCh,
 		fillGapsTicker:    time.NewTicker(5 * time.Minute),
 	}
 	pm := p2p.NewPeerManager(l, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
+
+	for _, opt := range opts {
+		opt(bn)
+	}
 
 	peers := make([]*p2p.Peer, len(peerSettings))
 	for i, peerSetting := range peerSettings {
@@ -97,7 +107,7 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *bloc
 
 	go func() {
 		for range bn.fillGapsTicker.C {
-			err := peerHandler.FillGaps(peers[rand.Intn(len(peers))])
+			err := peerHandler.FillGaps(peers[0])
 			if err != nil {
 				l.Errorf("failed to fill gaps: %v", err)
 			}

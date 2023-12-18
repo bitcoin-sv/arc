@@ -560,7 +560,7 @@ func TestPutTransactions(t *testing.T) {
 					{
 						Txid:        hash1.String(),
 						Status:      metamorph_api.Status_SENT_TO_NETWORK,
-						BlockHash:   "<nil>",
+						BlockHash:   "",
 						StoredAt:    timestamppb.New(time.Time{}),
 						AnnouncedAt: timestamppb.New(time.Time{}),
 						MinedAt:     timestamppb.New(time.Time{}),

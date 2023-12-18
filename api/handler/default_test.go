@@ -14,18 +14,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/api/test"
+	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/validator"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/api/test"
-	"github.com/bitcoin-sv/arc/api/transactionHandler"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/validator"
 )
 
 var contentTypes = []string{
@@ -84,7 +83,7 @@ func TestNewDefault(t *testing.T) {
 	})
 }
 
-func TestGETPolicy(t *testing.T) { //nolint:funlen
+func TestGETPolicy(t *testing.T) { 
 	t.Run("default policy", func(t *testing.T) {
 		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
 		require.NoError(t, err)
@@ -778,7 +777,6 @@ func TestGetTransactionOptions(t *testing.T) {
 			}
 
 			require.Equal(t, tc.expectedOptions, options)
-
 		})
 	}
 }

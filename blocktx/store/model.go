@@ -1,6 +1,10 @@
 package store
 
-import "time"
+import (
+	"time"
+
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+)
 
 type Block struct {
 	ID           int64     `db:"id"`
@@ -28,4 +32,9 @@ type BlockTransactionMap struct {
 	BlockID       int64 `db:"blockid"`
 	TransactionID int64 `db:"txid"`
 	Pos           int64 `db:"pos"`
+}
+
+type BlockGap struct {
+	Height uint64
+	Hash   *chainhash.Hash
 }

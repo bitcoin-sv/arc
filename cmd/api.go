@@ -87,7 +87,6 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 
 	// Check the security requirements
 
-
 	addresses := viper.GetString("metamorph.dialAddr")
 	if addresses == "" {
 		return fmt.Errorf("metamorph.dialAddr not found in config")

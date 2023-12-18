@@ -2,9 +2,7 @@ package blocktx
 
 import (
 	"context"
-	"database/sql"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -25,7 +23,6 @@ import (
 	"github.com/ordishs/go-utils/expiringmap"
 	"github.com/ordishs/go-utils/safemap"
 	"github.com/ordishs/gocore"
-	"github.com/spf13/viper"
 )
 
 const transactionStoringBatchsizeDefault = 65536 // power of 2 for easier memory allocation
@@ -378,23 +375,34 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	return nil
 }
 
+func (bs *PeerHandler) FillGaps(peer p2p.PeerI) error {
+	blockHeightGaps, err := bs.store.GetBlockGaps(context.Background())
+	if err != nil {
+		return err
+	}
+
+	if len(blockHeightGaps) == 0 {
+		return nil
+	}
+
+	for _, gaps := range blockHeightGaps {
+		_, found := bs.announcedCache.Get(*gaps.Hash)
+		if found {
+			return nil
+		}
+
+		pair := utils.NewPair(gaps.Hash, peer)
+		utils.SafeSend(bs.workerCh, pair)
+	}
+
+	return nil
+}
+
 func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainhash.Hash, previousBlockHash *chainhash.Hash, height uint64, peer p2p.PeerI) (uint64, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("insertBlock").AddTime(start)
 	}()
-
-	startingHeight := viper.GetInt("blocktx.startingBlockHeight")
-	if height > uint64(startingHeight) {
-		if _, found := bs.announcedCache.Get(*previousBlockHash); !found {
-			if _, err := bs.store.GetBlock(context.Background(), previousBlockHash); err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
-					pair := utils.NewPair(previousBlockHash, peer)
-					utils.SafeSend(bs.workerCh, pair)
-				}
-			}
-		}
-	}
 
 	block := &blocktx_api.Block{
 		Hash:         blockHash[:],
@@ -527,6 +535,6 @@ func extractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
 	return binary.LittleEndian.Uint64(b)
 }
 
-func (ph *PeerHandler) Shutdown() {
-	tracing.Unregister(ph.peerHandlerCollector)
+func (bs *PeerHandler) Shutdown() {
+	tracing.Unregister(bs.peerHandlerCollector)
 }

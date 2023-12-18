@@ -1,8 +1,13 @@
 package blocktx
 
 import (
+	"fmt"
+	"math/rand"
+	"time"
+
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils"
@@ -90,7 +95,19 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *bloc
 		}
 	}()
 
-	return bn
+	go func() {
+		for {
+			select {
+			case <-bn.fillGapsTicker.C:
+				err := peerHandler.FillGaps(peers[rand.Intn(len(peers))])
+				if err != nil {
+					l.Errorf("failed to fill gaps: %v", err)
+				}
+			}
+		}
+	}()
+
+	return bn, nil
 }
 
 // Shutdown stops the handler.

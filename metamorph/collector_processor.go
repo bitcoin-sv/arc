@@ -157,7 +157,6 @@ func (c *prometheusCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *prometheusCollector) Collect(ch chan<- prometheus.Metric) {
 	stats := c.processor.GetStats(false)
 
-
 	//Note that you can pass erValue, GaugeValue, or UntypedValue types here.
 	ch <- prometheus.MustNewConstMetric(c.queueLength, prometheus.GaugeValue, float64(stats.QueueLength))
 	ch <- prometheus.MustNewConstMetric(c.queued, prometheus.CounterValue, float64(stats.QueuedCount))

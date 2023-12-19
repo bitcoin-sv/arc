@@ -10,7 +10,6 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils"
-	"github.com/spf13/viper"
 )
 
 const maximumBlockSize = 4000000000 // 4Gb
@@ -52,7 +51,7 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *bloc
 		newSubscriptions:  make(chan subscriber, 128),
 		deadSubscriptions: make(chan subscriber, 128),
 		blockCh:           blockCh,
-		fillGapsTicker:    time.NewTicker(5 * time.Minute),
+		fillGapsTicker:    time.NewTicker(15 * time.Minute),
 
 		quitBlockStream:         make(chan struct{}),
 		quitBlockStreamComplete: make(chan struct{}),

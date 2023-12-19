@@ -395,6 +395,8 @@ func (bs *PeerHandler) FillGaps(peer p2p.PeerI) error {
 			return nil
 		}
 
+		bs.logger.Infof("filling block gap for hash %s at height %d", gaps.Hash.String(), gaps.Height)
+
 		pair := utils.NewPair(gaps.Hash, peer)
 		utils.SafeSend(bs.workerCh, pair)
 	}
@@ -414,6 +416,8 @@ func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 				if errors.Is(err, sql.ErrNoRows) {
 					pair := utils.NewPair(previousBlockHash, peer)
 					utils.SafeSend(bs.workerCh, pair)
+				} else if err != nil {
+					bs.logger.Errorf("failed to get previous block hash %s: %v", previousBlockHash.String(), err)
 				}
 			}
 		}

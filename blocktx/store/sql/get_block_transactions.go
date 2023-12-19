@@ -7,7 +7,7 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-// GetBlockTransactions returns the transaction hashes for a given block hash
+// GetBlockTransactions returns the transaction hashes for a given block hash.
 func (s *SQL) GetBlockTransactions(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
@@ -27,10 +27,9 @@ func (s *SQL) GetBlockTransactions(ctx context.Context, block *blocktx_api.Block
 		WHERE b.hash = $1
 	`
 
-	rows, err := s.db.QueryContext(ctx, q, block.Hash)
+	rows, err := s.db.QueryContext(ctx, q, block.GetHash())
 	if err != nil {
 		return nil, err
-
 	}
 
 	defer rows.Close()

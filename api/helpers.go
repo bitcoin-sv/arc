@@ -5,7 +5,6 @@ import (
 )
 
 func FeesToBtFeeQuote(minMiningFee float64) *bt.FeeQuote {
-
 	satoshisPerKB := int(minMiningFee * 1e8)
 
 	btFeeQuote := bt.NewFeeQuote()

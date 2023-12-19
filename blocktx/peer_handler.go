@@ -148,7 +148,6 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 			if !found {
 				s.announcedCache.Set(*hash, []p2p.PeerI{peer})
 				logger.Debugf("added block hash %s with peer %s to announced cache", hash.String(), peer.String())
-
 			} else {
 				// if already was announced to peer, continue
 				for _, announcedPeer := range item {

@@ -38,7 +38,7 @@ func (s *GetBlockTransactionsSuite) Test() {
 	txs, err := st.GetBlockTransactions(context.Background(), &blocktx_api.Block{Hash: []byte(block.Hash)})
 
 	require.NoError(s.T(), err)
-	assert.Equal(s.T(), tx.Hash, string(txs.Transactions[0].Hash))
+	assert.Equal(s.T(), tx.Hash, string(txs.GetTransactions()[0].GetHash()))
 }
 
 func TestGetBlockTransactionsSuite(t *testing.T) {

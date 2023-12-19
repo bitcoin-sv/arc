@@ -35,7 +35,7 @@ func (s *GetLastProcessedBlockSuite) Test() {
 
 	blk, err := st.GetLastProcessedBlock(context.Background())
 	require.NoError(s.T(), err)
-	assert.Equal(s.T(), block.Hash, string(blk.Hash))
+	assert.Equal(s.T(), block.Hash, string(blk.GetHash()))
 }
 
 func TestGetLastProcessedBlockSuite(t *testing.T) {

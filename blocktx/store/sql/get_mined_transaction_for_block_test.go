@@ -40,8 +40,8 @@ func (s *MinedTransactionForBlockSuite) Test() {
 
 	require.NoError(s.T(), err)
 
-	assert.Equal(s.T(), block.Hash, string(b.Block.Hash))
-	assert.Equal(s.T(), tx.Hash, string(b.Transactions[0].Hash))
+	assert.Equal(s.T(), block.Hash, string(b.GetBlock().GetHash()))
+	assert.Equal(s.T(), tx.Hash, string(b.GetTransactions()[0].GetHash()))
 }
 
 func TestMinedTransactionForBlock(t *testing.T) {

@@ -42,14 +42,14 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 		}
 		statusBytes, err := json.Marshal(status)
 		if err != nil {
-			logger.Error("Couldn't marshal status  - ", err)
+			logger.Error("Couldn't marshal status", slog.String("err", err.Error()))
 			return
 		}
 
 		var request *http.Request
 		request, err = http.NewRequest("POST", tx.CallbackUrl, bytes.NewBuffer(statusBytes))
 		if err != nil {
-			logger.Error("Couldn't marshal status  - ", errors.Join(err, fmt.Errorf("failed to post callback for transaction id %s", tx.Hash)))
+			logger.Error("Couldn't marshal status", slog.String("err", errors.Join(err, fmt.Errorf("failed to post callback for transaction id %s", tx.Hash)).Error()))
 			return
 		}
 		request.Header.Set("Content-Type", "application/json; charset=UTF-8")
@@ -65,7 +65,7 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 		var response *http.Response
 		response, err = httpClient.Do(request)
 		if err != nil {
-			logger.Error("Couldn't send transaction info through callback url - ", err)
+			logger.Error("Couldn't send transaction info through callback url", slog.String("err", err.Error()))
 			continue
 		}
 		defer response.Body.Close()
@@ -74,8 +74,8 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 		if response.StatusCode == http.StatusOK {
 			err = s.RemoveCallbacker(context.Background(), tx.Hash)
 			if err != nil {
-				logger.Error("Couldn't update/remove callback url - ", err)
-				continue
+				logger.Error("Couldn't update/remove callback url", slog.String("err", err.Error()))
+				return
 			}
 			return
 		}
@@ -90,7 +90,7 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 
 	err := s.RemoveCallbacker(context.Background(), tx.Hash)
 	if err != nil {
-		logger.Error("Couldn't update/remove callback url  - ", err)
+		logger.Error("Couldn't update/remove callback url", slog.String("err", err.Error()))
 		return
 	}
 	logger.Error("Couldn't send transaction info through callback url after tries: ", slog.String("status", strconv.Itoa(CallbackTries)))

@@ -455,16 +455,24 @@ func (s *Server) checkStore(ctx context.Context, hash *chainhash.Hash, next int6
 	}
 	if storeData != nil {
 		// we found the transaction in the store, so we can just return it
+		var txid string
+		if storeData.Hash != nil {
+			txid = storeData.Hash.String()
+		}
+		var blockHash string
+		if storeData.BlockHash != nil {
+			blockHash = storeData.BlockHash.String()
+		}
 		return 0, &metamorph_api.TransactionStatus{
 			TimedOut:     false,
 			StoredAt:     timestamppb.New(storeData.StoredAt),
 			AnnouncedAt:  timestamppb.New(storeData.AnnouncedAt),
 			MinedAt:      timestamppb.New(storeData.MinedAt),
-			Txid:         fmt.Sprintf("%v", storeData.Hash),
+			Txid:         txid,
 			Status:       storeData.Status,
 			RejectReason: storeData.RejectReason,
 			BlockHeight:  storeData.BlockHeight,
-			BlockHash:    fmt.Sprintf("%v", storeData.BlockHash),
+			BlockHash:    blockHash,
 		}
 	}
 

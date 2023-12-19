@@ -32,7 +32,7 @@ func init() {
 	gocore.NewStat("blocktx")
 }
 
-// NewPostgresStore postgres storage that accepts connection parameters and returns connection or an error
+// NewPostgresStore postgres storage that accepts connection parameters and returns connection or an error.
 func NewPostgresStore(params dbconn.DBConnectionParams) (store.Interface, error) {
 	db, err := sql.Open("postgres", params.String())
 	if err != nil {
@@ -40,7 +40,8 @@ func NewPostgresStore(params dbconn.DBConnectionParams) (store.Interface, error)
 	}
 
 	return &SQL{
-		db: db,
+		db:     db,
+		engine: postgresEngine,
 	}, nil
 }
 
@@ -120,7 +121,7 @@ func New(engine string) (store.Interface, error) {
 			if folder == "" {
 				return nil, errors.Errorf("setting dataFolder not found")
 			}
-			if err = os.MkdirAll(folder, 0755); err != nil {
+			if err = os.MkdirAll(folder, 0o755); err != nil {
 				return nil, fmt.Errorf("failed to create data folder %s: %+v", folder, err)
 			}
 
@@ -228,5 +229,14 @@ func createSqliteSchema(db *sql.DB) error {
 		return fmt.Errorf("could not create block_transactions_map table - [%+v]", err)
 	}
 
+	if _, err := db.Exec(`
+	CREATE TABLE IF NOT EXISTS primary_blocktx (
+		host_name TEXT PRIMARY KEY,
+		primary_until TIMESTAMP
+	);
+	`); err != nil {
+		db.Close()
+		return fmt.Errorf("could not create primary_blocktx table - [%+v]", err)
+	}
 	return nil
 }

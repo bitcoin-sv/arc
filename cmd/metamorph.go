@@ -171,7 +171,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 	}()
 
 	// create a channel to receive mined block messages from the block tx service
-	var blockChan = make(chan *blocktx_api.Block)
+	blockChan := make(chan *blocktx_api.Block)
 	go func() {
 		var processedAt *time.Time
 		for block := range blockChan {
@@ -186,13 +186,13 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 			if processedAt == nil || processedAt.IsZero() {
 				// process the block
 				processBlock(logger, btx, metamorphProcessor, s, &blocktx_api.BlockAndSource{
-					Hash:   block.Hash,
+					Hash:   block.GetHash(),
 					Source: source,
 				})
 			}
 
 			// check whether we have already processed the previous block
-			blockHash, _ := chainhash.NewHash(block.PreviousHash)
+			blockHash, _ := chainhash.NewHash(block.GetPreviousHash())
 
 			processedAt, err = s.GetBlockProcessed(context.Background(), blockHash)
 			if err != nil {
@@ -202,7 +202,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 			if processedAt == nil || processedAt.IsZero() {
 				// get the full previous block from block tx
 				var previousBlock *blocktx_api.Block
-				pHash, err := chainhash.NewHash(block.PreviousHash)
+				pHash, err := chainhash.NewHash(block.GetPreviousHash())
 				if err != nil {
 					logger.Errorf("Could not get previous block hash: %v", err)
 					continue
@@ -326,7 +326,6 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 }
 
 func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) {
-
 	switch dbMode {
 	case DbModePostgres:
 		var hostname string
@@ -473,28 +472,28 @@ func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManag
 func processBlock(logger utils.Logger, btc blocktx.ClientI, p metamorph.ProcessorI, s store.MetamorphStore, blockAndSource *blocktx_api.BlockAndSource) {
 	mt, err := btc.GetMinedTransactionsForBlock(context.Background(), blockAndSource)
 	if err != nil {
-		logger.Errorf("Could not get mined transactions for block %x: %v", bt.ReverseBytes(blockAndSource.Hash), err)
+		logger.Errorf("Could not get mined transactions for block %x: %v", bt.ReverseBytes(blockAndSource.GetHash()), err)
 		return
 	}
 
-	logger.Infof("Incoming BLOCK %x", bt.ReverseBytes(mt.Block.Hash))
+	logger.Infof("Incoming BLOCK %x", bt.ReverseBytes(mt.GetBlock().GetHash()))
 
-	for _, tx := range mt.Transactions {
-		logger.Debugf("Received MINED message from BlockTX for transaction %x", bt.ReverseBytes(tx.Hash))
+	for _, tx := range mt.GetTransactions() {
+		logger.Debugf("Received MINED message from BlockTX for transaction %x", bt.ReverseBytes(tx.GetHash()))
 
-		hash, _ := chainhash.NewHash(tx.Hash)
-		blockHash, _ := chainhash.NewHash(mt.Block.Hash)
+		hash, _ := chainhash.NewHash(tx.GetHash())
+		blockHash, _ := chainhash.NewHash(mt.GetBlock().GetHash())
 
-		_, err = p.SendStatusMinedForTransaction(hash, blockHash, mt.Block.Height)
+		_, err = p.SendStatusMinedForTransaction(hash, blockHash, mt.GetBlock().GetHeight())
 		if err != nil {
-			logger.Errorf("Could not send mined status for transaction %x: %v", bt.ReverseBytes(tx.Hash), err)
+			logger.Errorf("Could not send mined status for transaction %x: %v", bt.ReverseBytes(tx.GetHash()), err)
 			return
 		}
 	}
 
-	logger.Infof("Marked %d transactions as MINED", len(mt.Transactions))
+	logger.Infof("Marked %d transactions as MINED", len(mt.GetTransactions()))
 
-	hash, _ := chainhash.NewHash(blockAndSource.Hash)
+	hash, _ := chainhash.NewHash(blockAndSource.GetHash())
 
 	err = s.SetBlockProcessed(context.Background(), hash)
 	if err != nil {

@@ -140,9 +140,8 @@ func GetDefaultPolicy() (*bitcoin.Settings, error) {
 	return defaultPolicy, nil
 }
 
-// CheckSwagger validates the request against the swagger definition
+// CheckSwagger validates the request against the swagger definition.
 func CheckSwagger(e *echo.Echo) *openapi3.T {
-
 	swagger, err := api.GetSwagger()
 	if err != nil {
 		log.Fatalf(dictionary.GetInternalMessage(dictionary.ErrorLoadingSwaggerSpec), err.Error())

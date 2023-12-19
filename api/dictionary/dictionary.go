@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-// ErrorMessage is used for standardizing the messages/codes for errors
+// ErrorMessage is used for standardizing the messages/codes for errors.
 type ErrorMessage struct {
 	Code            ErrorCode `json:"code"`
 	InternalMessage string    `json:"internal_message"`
@@ -14,11 +14,11 @@ type ErrorMessage struct {
 	StatusCode      int       `json:"status_code"`
 }
 
-// errorMessages is the public
+// errorMessages is the public.
 var errorMessages map[ErrorCode]ErrorMessage
 
 // GetError will return the error based on the given error code
-// Set replacements for Sprintf() on the internal message if needed
+// Set replacements for Sprintf() on the internal message if needed.
 func GetError(code ErrorCode, internalMessageReplacements ...interface{}) ErrorMessage {
 	if val, ok := errorMessages[code]; ok {
 		if len(internalMessageReplacements) > 0 { // strings.Contains(val.InternalMessage,"%")
@@ -29,7 +29,7 @@ func GetError(code ErrorCode, internalMessageReplacements ...interface{}) ErrorM
 	return errorMessages[ErrorBadErrorCode]
 }
 
-// GetInternalMessage will return the internal message based on the given error code
+// GetInternalMessage will return the internal message based on the given error code.
 func GetInternalMessage(code ErrorCode) string {
 	if val, ok := errorMessages[code]; ok {
 		return val.InternalMessage
@@ -37,7 +37,7 @@ func GetInternalMessage(code ErrorCode) string {
 	return errorMessages[ErrorBadErrorCode].InternalMessage
 }
 
-// GetPublicMessage will return the public message based on the given error code
+// GetPublicMessage will return the public message based on the given error code.
 func GetPublicMessage(code ErrorCode) string {
 	if val, ok := errorMessages[code]; ok {
 		return val.PublicMessage
@@ -45,7 +45,7 @@ func GetPublicMessage(code ErrorCode) string {
 	return errorMessages[ErrorBadErrorCode].PublicMessage
 }
 
-// GetStatusCode will return the http status code on the given error code
+// GetStatusCode will return the http status code on the given error code.
 func GetStatusCode(code ErrorCode) int {
 	if val, ok := errorMessages[code]; ok {
 		return val.StatusCode
@@ -53,11 +53,11 @@ func GetStatusCode(code ErrorCode) int {
 	return errorMessages[ErrorBadErrorCode].StatusCode
 }
 
-// ErrorCode is a unique code for a specific error message
+// ErrorCode is a unique code for a specific error message.
 type ErrorCode uint16
 
 // ErrorCode constants for the different error responses
-// Leave the start and last constants in place
+// Leave the start and last constants in place.
 const (
 	_                           ErrorCode = iota
 	ErrorBadErrorCode                     = 1
@@ -86,14 +86,13 @@ const (
 	errorCodeLast = iota
 )
 
-// IsValid tests if the error code is valid or not
+// IsValid tests if the error code is valid or not.
 func (e ErrorCode) IsValid() bool {
 	return e > 0 && e < errorCodeLast
 }
 
-// Load all error messages on init
+// Load all error messages on init.
 func init() {
-
 	// Create all the standard error messages
 	errorMessages = make(map[ErrorCode]ErrorMessage, errorCodeLast)
 

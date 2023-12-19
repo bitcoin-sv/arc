@@ -41,7 +41,6 @@ func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 type Option func(f *ArcDefaultHandler)
 
 func NewDefault(logger utils.Logger, transactionHandler transactionHandler.TransactionHandler, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
-
 	handler := &ArcDefaultHandler{
 		TransactionHandler: transactionHandler,
 		NodePolicy:         policy,
@@ -368,7 +367,6 @@ func getTransactionsOptions(params api.POSTTransactionsParams) (*api.Transaction
 	transactionOptions := &api.TransactionOptions{}
 	if params.XCallbackUrl != nil {
 		_, err := url.ParseRequestURI(*params.XCallbackUrl)
-
 		if err != nil {
 			return nil, fmt.Errorf("invalid callback URL [%w]", err)
 		}
@@ -457,7 +455,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 	}, nil
 }
 
-// processTransactions validates all the transactions in the array and submits to metamorph for processing
+// processTransactions validates all the transactions in the array and submits to metamorph for processing.
 func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions []*bt.Tx, transactionOptions *api.TransactionOptions) (api.StatusCode, []interface{}, error) {
 	span, tracingCtx := opentracing.StartSpanFromContext(ctx, "ArcDefaultHandler:processTransactions")
 	defer span.Finish()
@@ -592,7 +590,7 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, subm
 	return status, arcError
 }
 
-// getTransaction returns the transaction with the given id from a store
+// getTransaction returns the transaction with the given id from a store.
 func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string) ([]byte, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "ArcDefaultHandler:getTransaction")
 	defer span.Finish()

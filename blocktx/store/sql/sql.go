@@ -32,7 +32,7 @@ func init() {
 	gocore.NewStat("blocktx")
 }
 
-// NewPostgresStore postgres storage that accepts connection parameters and returns connection or an error
+// NewPostgresStore postgres storage that accepts connection parameters and returns connection or an error.
 func NewPostgresStore(params dbconn.DBConnectionParams) (store.Interface, error) {
 	db, err := sql.Open("postgres", params.String())
 	if err != nil {
@@ -121,7 +121,7 @@ func New(engine string) (store.Interface, error) {
 			if folder == "" {
 				return nil, errors.Errorf("setting dataFolder not found")
 			}
-			if err = os.MkdirAll(folder, 0755); err != nil {
+			if err = os.MkdirAll(folder, 0o755); err != nil {
 				return nil, fmt.Errorf("failed to create data folder %s: %+v", folder, err)
 			}
 

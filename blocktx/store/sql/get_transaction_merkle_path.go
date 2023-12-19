@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// GetTransactionMerklePath returns the merkle path of a transaction
+// GetTransactionMerklePath returns the merkle path of a transaction.
 func (s *SQL) GetTransactionMerklePath(ctx context.Context, txhash *chainhash.Hash) (string, error) {
 	start := gocore.CurrentNanos()
 	defer func() {

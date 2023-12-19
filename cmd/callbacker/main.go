@@ -17,8 +17,10 @@ import (
 )
 
 // Version & commit strings injected at build with -ldflags -X...
-var version string
-var commit string
+var (
+	version string
+	commit  string
+)
 
 func main() {
 	viper.SetConfigName("config")

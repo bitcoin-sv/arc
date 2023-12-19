@@ -14,12 +14,14 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Name used by build script for the binaries. (Please keep on single line)
+// Name used by build script for the binaries. (Please keep on single line).
 const progname = "arc"
 
 // // Version & commit strings injected at build with -ldflags -X...
-var version string
-var commit string
+var (
+	version string
+	commit  string
+)
 
 func init() {
 	gocore.SetInfo(progname, version, commit)

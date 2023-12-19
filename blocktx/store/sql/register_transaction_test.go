@@ -31,5 +31,4 @@ func TestRegister(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "TEST", source)
 	assert.Zero(t, blockHeight)
-
 }

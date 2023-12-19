@@ -7,6 +7,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -18,11 +19,9 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 )
 
-// Server type carries the logger within it
+// Server type carries the logger within it.
 type Server struct {
 	blocktx_api.UnsafeBlockTxAPIServer
 	store         store.Interface
@@ -31,9 +30,8 @@ type Server struct {
 	grpcServer    *grpc.Server
 }
 
-// NewServer will return a server instance with the logger stored within it
+// NewServer will return a server instance with the logger stored within it.
 func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger utils.Logger) *Server {
-
 	return &Server{
 		store:         storeI,
 		logger:        logger,
@@ -41,9 +39,8 @@ func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger util
 	}
 }
 
-// StartGRPCServer function
+// StartGRPCServer function.
 func (s *Server) StartGRPCServer() error {
-
 	address := viper.GetString("blocktx.listenAddr")
 	if address == "" {
 		return errors.New("no blocktx.listenAddr setting found")
@@ -90,7 +87,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.Healt
 }
 
 func (s *Server) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Source, error) {
-	hash, err := chainhash.NewHash(transaction.Hash)
+	hash, err := chainhash.NewHash(transaction.GetHash())
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +106,7 @@ func (s *Server) LocateTransaction(ctx context.Context, transaction *blocktx_api
 }
 
 func (s *Server) GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.MerklePath, error) {
-	hash, err := chainhash.NewHash(transaction.Hash)
+	hash, err := chainhash.NewHash(transaction.GetHash())
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +145,7 @@ func (s *Server) GetTransactionBlocks(ctx context.Context, transaction *blocktx_
 }
 
 func (s *Server) GetBlock(ctx context.Context, req *blocktx_api.Hash) (*blocktx_api.Block, error) {
-	hash, err := chainhash.NewHash(req.Hash)
+	hash, err := chainhash.NewHash(req.GetHash())
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +154,7 @@ func (s *Server) GetBlock(ctx context.Context, req *blocktx_api.Hash) (*blocktx_
 }
 
 func (s *Server) GetBlockForHeight(ctx context.Context, height *blocktx_api.Height) (*blocktx_api.Block, error) {
-	return s.store.GetBlockForHeight(ctx, height.Height)
+	return s.store.GetBlockForHeight(ctx, height.GetHeight())
 }
 
 func (s *Server) GetLastProcessedBlock(ctx context.Context, _ *emptypb.Empty) (*blocktx_api.Block, error) {

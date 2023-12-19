@@ -1,17 +1,15 @@
 package sql
 
 import (
+	"context"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"strings"
 
-	"github.com/lib/pq"
-
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/lib/pq"
 	"github.com/ordishs/gocore"
-
-	"context"
 )
 
 const (
@@ -36,8 +34,8 @@ const (
 
 func getQuerySQLite(transactions *blocktx_api.Transactions) string {
 	var result []string
-	for _, v := range transactions.Transactions {
-		result = append(result, strings.ToUpper(hex.EncodeToString(v.Hash)))
+	for _, v := range transactions.GetTransactions() {
+		result = append(result, strings.ToUpper(hex.EncodeToString(v.GetHash())))
 	}
 
 	return fmt.Sprintf(queryGetBlockHashHeightForTxHashesSQLite, strings.Join(result, "','"))
@@ -65,8 +63,8 @@ func (s *SQL) GetTransactionBlocks(ctx context.Context, transactions *blocktx_ap
 		}
 	case postgresEngine:
 		var hashSlice [][]byte
-		for _, tx := range transactions.Transactions {
-			hashSlice = append(hashSlice, tx.Hash)
+		for _, tx := range transactions.GetTransactions() {
+			hashSlice = append(hashSlice, tx.GetHash())
 		}
 
 		rows, err = s.db.QueryContext(ctx, queryGetBlockHashHeightForTxHashesPostgres, pq.Array(hashSlice))
@@ -95,7 +93,7 @@ func (s *SQL) GetTransactionBlocks(ctx context.Context, transactions *blocktx_ap
 			TransactionHash: TransactionHash,
 		}
 
-		results.TransactionBlocks = append(results.TransactionBlocks, newBlockTransaction)
+		results.TransactionBlocks = append(results.GetTransactionBlocks(), newBlockTransaction)
 	}
 
 	return results, nil

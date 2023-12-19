@@ -46,7 +46,7 @@ func WithSendCallbacksInterval(d time.Duration) func(callbacker *Callbacker) {
 
 type Option func(f *Callbacker)
 
-// New creates a new callback worker
+// New creates a new callback worker.
 func New(s store.Store, opts ...Option) (*Callbacker, error) {
 	if s == nil {
 		return nil, fmt.Errorf("store is nil")
@@ -84,9 +84,7 @@ func (c *Callbacker) Start() {
 				return
 			}
 		}
-
 	}()
-
 }
 
 func (c *Callbacker) Stop() {
@@ -127,7 +125,7 @@ func (c *Callbacker) sendCallbacks() error {
 	c.logger.Info("sending callbacks", slog.Int("number", len(callbacks)))
 
 	for key, callback := range callbacks {
-		c.logger.Debug("sending callback", slog.String("callbackID", key), slog.String("url", callback.Url))
+		c.logger.Debug("sending callback", slog.String("callbackID", key), slog.String("url", callback.GetUrl()))
 		err = c.sendCallback(key, callback)
 		if err != nil {
 			c.logger.Error("failed to send callback", slog.String("err", err.Error()))
@@ -138,15 +136,15 @@ func (c *Callbacker) sendCallbacks() error {
 }
 
 func (c *Callbacker) sendCallback(key string, callback *callbacker_api.Callback) error {
-	txId := utils.ReverseAndHexEncodeSlice(callback.Hash)
+	txId := utils.ReverseAndHexEncodeSlice(callback.GetHash())
 
-	statusString := metamorph_api.Status(callback.Status).String()
+	statusString := metamorph_api.Status(callback.GetStatus()).String()
 	blockHash := ""
 	if callback.BlockHash != nil {
-		blockHash = utils.ReverseAndHexEncodeSlice(callback.BlockHash)
+		blockHash = utils.ReverseAndHexEncodeSlice(callback.GetBlockHash())
 	}
 
-	c.logger.Info("sending callback for transaction", slog.String("token", callback.Token), slog.String("hash", txId), slog.String("url", callback.Url), slog.Uint64("block height", callback.BlockHeight), slog.String("block hash", blockHash))
+	c.logger.Info("sending callback for transaction", slog.String("token", callback.GetToken()), slog.String("hash", txId), slog.String("url", callback.GetUrl()), slog.Uint64("block height", callback.GetBlockHeight()), slog.String("block hash", blockHash))
 
 	status := &api.TransactionStatus{
 		BlockHash:   &blockHash,
@@ -162,13 +160,13 @@ func (c *Callbacker) sendCallback(key string, callback *callbacker_api.Callback)
 	statusBuffer := bytes.NewBuffer(statusBytes)
 
 	var request *http.Request
-	request, err = http.NewRequest("POST", callback.Url, statusBuffer)
+	request, err = http.NewRequest("POST", callback.GetUrl(), statusBuffer)
 	if err != nil {
 		return errors.Join(err, fmt.Errorf("failed to post callback for transaction id %s", txId))
 	}
 	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
-	if callback.Token != "" {
-		request.Header.Set("Authorization", "Bearer "+callback.Token)
+	if callback.GetToken() != "" {
+		request.Header.Set("Authorization", "Bearer "+callback.GetToken())
 	}
 
 	// default http client

@@ -29,7 +29,7 @@ func (s *GetBlockTestSuite) Test() {
 	b, err := store.GetBlock(context.Background(), h)
 
 	require.NoError(s.T(), err)
-	assert.Equal(s.T(), block.Hash, string(b.Hash))
+	assert.Equal(s.T(), block.Hash, string(b.GetHash()))
 }
 
 func TestGetBlockTestSuite(t *testing.T) {

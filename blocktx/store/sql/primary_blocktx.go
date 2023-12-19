@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// GetBlockTransactions returns the transaction hashes for a given block hash
+// GetBlockTransactions returns the transaction hashes for a given block hash.
 func (s *SQL) PrimaryBlocktx(ctx context.Context) (string, error) {
 	start := gocore.CurrentNanos()
 	defer func() {

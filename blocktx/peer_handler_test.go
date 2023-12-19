@@ -248,7 +248,7 @@ func TestHandleBlock(t *testing.T) {
 	bockChannel := make(chan *blocktx_api.Block, 1)
 
 	// build peer manager
-	peerHandler := NewPeerHandler(blockTxLogger, storeMock, bockChannel, WithTransactionBatchSize(batchSize))
+	peerHandler := NewPeerHandler(blockTxLogger, storeMock, bockChannel, 100, WithTransactionBatchSize(batchSize))
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
@@ -358,7 +358,7 @@ func TestFillGaps(t *testing.T) {
 				},
 			}
 
-			peerHandler := NewPeerHandler(blockTxLogger, storeMock, bockChannel)
+			peerHandler := NewPeerHandler(blockTxLogger, storeMock, bockChannel, 100)
 			peer := &MockedPeer{}
 			err = peerHandler.FillGaps(peer)
 			if tc.expectedErrorStr == "" {

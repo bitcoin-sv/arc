@@ -57,7 +57,7 @@ func TestNewBlockNotifier(t *testing.T) {
 			}
 
 			logger := gocore.Log("test", gocore.NewLogLevelFromString("INFO"))
-			peerHandler := NewPeerHandler(logger, storeMock, blockCh)
+			peerHandler := NewPeerHandler(logger, storeMock, blockCh, 100)
 			notifier, err := NewBlockNotifier(storeMock, logger, blockCh, peerHandler, peerSettings, wire.TestNet3, WithFillGapsInterval(time.Millisecond*30))
 			require.NoError(t, err)
 

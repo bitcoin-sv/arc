@@ -30,7 +30,12 @@ func StartBlockTx(logger utils.Logger) (func(), error) {
 
 	blockCh := make(chan *blocktx_api.Block)
 
-	peerHandler := blocktx.NewPeerHandler(logger, blockStore, blockCh)
+	startingBlockHeight, err := config.GetInt("blocktx.startingBlockHeight")
+	if err != nil {
+		return nil, err
+	}
+
+	peerHandler := blocktx.NewPeerHandler(logger, blockStore, blockCh, startingBlockHeight)
 
 	network, err := config.GetNetwork()
 	if err != nil {

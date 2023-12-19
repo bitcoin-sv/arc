@@ -97,7 +97,6 @@ func (s *BlockTXDBTestSuite) SetupTest() {
 	s.truncateTables()
 }
 
-
 func (s *BlockTXDBTestSuite) Conn() *sqlx.Conn {
 	return s.Connection
 }
@@ -172,7 +171,6 @@ func (s *BlockTXDBTestSuite) InsertBlockTransactionMap(btx *store.BlockTransacti
 func (s *BlockTXDBTestSuite) TearDownTest() {
 	s.truncateTables()
 }
-
 
 func (s *BlockTXDBTestSuite) truncateTables() {
 	db, err := sqlx.Open("postgres", DefaultParams.String())

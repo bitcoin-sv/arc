@@ -14,7 +14,6 @@ import (
 	"github.com/dgraph-io/badger/v3"
 	"github.com/labstack/gommon/random"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -89,7 +88,6 @@ func TestPutGetMulti(t *testing.T) {
 	}
 
 	wg.Wait()
-
 }
 
 func TestGetUnseen(t *testing.T) {
@@ -107,6 +105,7 @@ func TestGetUnseen(t *testing.T) {
 		tests.MultipleUnmined(t, bh)
 	})
 }
+
 func TestUpdateMined(t *testing.T) {
 	t.Run("update mined - not found", func(t *testing.T) {
 		bh, tearDown := setupSuite(t)

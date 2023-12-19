@@ -130,8 +130,7 @@ func newPrometheusCollector(p ProcessorI) *prometheusCollector {
 
 // Describe writes all descriptors to the prometheus desc channel.
 func (c *prometheusCollector) Describe(ch chan<- *prometheus.Desc) {
-
-	//Update this section with each metric you create for a given prometheusCollector
+	// Update this section with each metric you create for a given prometheusCollector
 	ch <- c.worker
 	ch <- c.queueLength
 	ch <- c.queued
@@ -156,10 +155,9 @@ func (c *prometheusCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements required collect function for all prometheus collectors
 func (c *prometheusCollector) Collect(ch chan<- prometheus.Metric) {
-
 	stats := c.processor.GetStats(false)
 
-	//Write the latest value for each metric in the prometheus metric channel.
+
 	//Note that you can pass erValue, GaugeValue, or UntypedValue types here.
 	ch <- prometheus.MustNewConstMetric(c.queueLength, prometheus.GaugeValue, float64(stats.QueueLength))
 	ch <- prometheus.MustNewConstMetric(c.queued, prometheus.CounterValue, float64(stats.QueuedCount))

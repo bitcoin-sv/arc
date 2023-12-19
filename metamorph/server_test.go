@@ -104,11 +104,11 @@ func TestHealth(t *testing.T) {
 		server := NewServer(nil, processor, nil, source)
 		stats, err := server.Health(context.Background(), &emptypb.Empty{})
 		assert.NoError(t, err)
-		assert.Equal(t, expectedStats.ChannelMapSize, stats.MapSize)
-		assert.Equal(t, expectedStats.QueuedCount, stats.Queued)
-		assert.Equal(t, expectedStats.SentToNetwork.GetMap()["test"].GetCount(), stats.Processed)
-		assert.Equal(t, expectedStats.QueueLength, stats.Waiting)
-		assert.Equal(t, float32(10), stats.Average)
+		assert.Equal(t, expectedStats.ChannelMapSize, stats.GetMapSize())
+		assert.Equal(t, expectedStats.QueuedCount, stats.GetQueued())
+		assert.Equal(t, expectedStats.SentToNetwork.GetMap()["test"].GetCount(), stats.GetProcessed())
+		assert.Equal(t, expectedStats.QueueLength, stats.GetWaiting())
+		assert.Equal(t, float32(10), stats.GetAverage())
 	})
 }
 
@@ -145,8 +145,8 @@ func TestPutTransaction(t *testing.T) {
 
 		txStatus, err = server.PutTransaction(context.Background(), txRequest)
 		assert.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, txStatus.Status)
-		assert.True(t, txStatus.TimedOut)
+		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, txStatus.GetStatus())
+		assert.True(t, txStatus.GetTimedOut())
 	})
 
 	t.Run("invalid request", func(t *testing.T) {
@@ -188,8 +188,8 @@ func TestPutTransaction(t *testing.T) {
 		}
 		txStatus, err = server.PutTransaction(context.Background(), txRequest)
 		assert.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, txStatus.Status)
-		assert.False(t, txStatus.TimedOut)
+		assert.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, txStatus.GetStatus())
+		assert.False(t, txStatus.GetTimedOut())
 	})
 
 	t.Run("PutTransaction - Err", func(t *testing.T) {
@@ -222,9 +222,9 @@ func TestPutTransaction(t *testing.T) {
 
 		txStatus, err = server.PutTransaction(context.Background(), txRequest)
 		assert.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_REJECTED, txStatus.Status)
-		assert.Equal(t, "some error", txStatus.RejectReason)
-		assert.False(t, txStatus.TimedOut)
+		assert.Equal(t, metamorph_api.Status_REJECTED, txStatus.GetStatus())
+		assert.Equal(t, "some error", txStatus.GetRejectReason())
+		assert.False(t, txStatus.GetTimedOut())
 	})
 
 	t.Run("PutTransaction - Known tx", func(t *testing.T) {
@@ -256,13 +256,12 @@ func TestPutTransaction(t *testing.T) {
 		txStatus, err = server.PutTransaction(ctx, txRequest)
 
 		assert.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, txStatus.Status)
-		assert.False(t, txStatus.TimedOut)
+		assert.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, txStatus.GetStatus())
+		assert.False(t, txStatus.GetTimedOut())
 	})
 }
 
 func TestServer_GetTransactionStatus(t *testing.T) {
-
 	tests := []struct {
 		name               string
 		req                *metamorph_api.TransactionStatusRequest
@@ -349,7 +348,6 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 
 			metamorphStore := &MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-
 					data := &store.StoreData{
 						StoredAt:      testdata.Time,
 						AnnouncedAt:   testdata.Time.Add(1 * time.Second),
@@ -560,7 +558,7 @@ func TestPutTransactions(t *testing.T) {
 					{
 						Txid:        hash1.String(),
 						Status:      metamorph_api.Status_SENT_TO_NETWORK,
-						BlockHash:   "",
+						BlockHash:   "<nil>",
 						StoredAt:    timestamppb.New(time.Time{}),
 						AnnouncedAt: timestamppb.New(time.Time{}),
 						MinedAt:     timestamppb.New(time.Time{}),
@@ -603,7 +601,6 @@ func TestPutTransactions(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			getCounter := 0
 			metamorphStore := &MetamorphStoreMock{
 				IsCentralisedFunc: func() bool {
@@ -656,9 +653,9 @@ func TestPutTransactions(t *testing.T) {
 
 			require.Equal(t, tc.expectedProcessorProcessTransactionCalls, len(processor.ProcessTransactionCalls()))
 
-			for i := 0; i < len(tc.expectedStatuses.Statuses); i++ {
-				expected := tc.expectedStatuses.Statuses[i]
-				status := statuses.Statuses[i]
+			for i := 0; i < len(tc.expectedStatuses.GetStatuses()); i++ {
+				expected := tc.expectedStatuses.GetStatuses()[i]
+				status := statuses.GetStatuses()[i]
 				require.Equal(t, expected, status)
 			}
 		})
@@ -714,7 +711,7 @@ func TestSetUnlockedbyName(t *testing.T) {
 				return
 			}
 
-			require.Equal(t, tc.expectedRecordsAffected, int(response.RecordsAffected))
+			require.Equal(t, tc.expectedRecordsAffected, int(response.GetRecordsAffected()))
 		})
 	}
 }
@@ -754,13 +751,11 @@ func TestStartGRPCServer(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 
 			server.Shutdown()
-
 		})
 	}
 }
 
 func TestCheckUtxos(t *testing.T) {
-
 	validRawTx, err := hex.DecodeString("010000000000000000ef016b51c656fb06639ea6c1c3642a5ede9ecf9f749b95cb47d4e57eda7a3953b1c64c0000006a47304402201ade53acd924e90c0aeabbf9085d075acb23c4712e7f728a23979a466ab55e19022047a85963ce2eddc21573b4a6c0e7ccfec44153e74f9d03d31f955ff486449240412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffe8030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01e7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
 	require.NoError(t, err)
 

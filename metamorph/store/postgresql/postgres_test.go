@@ -31,9 +31,7 @@ const (
 	dbPassword     = "arcpass"
 )
 
-var (
-	dbInfo string
-)
+var dbInfo string
 
 func TestMain(m *testing.M) {
 	pool, err := dockertest.NewPool("")

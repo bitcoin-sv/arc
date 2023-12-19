@@ -29,7 +29,12 @@ type BlockNotifier struct {
 	newSubscriptions  chan subscriber
 	deadSubscriptions chan subscriber
 	blockCh           chan *blocktx_api.Block
-	quitCh            chan bool
+
+	quitBlockStream         chan struct{}
+	quitBlockStreamComplete chan struct{}
+
+	quitFillBlockGap         chan struct{}
+	quitFillBlockGapComplete chan struct{}
 }
 
 func WithFillGapsInterval(interval time.Duration) func(notifier *BlockNotifier) {
@@ -40,14 +45,20 @@ func WithFillGapsInterval(interval time.Duration) func(notifier *BlockNotifier) 
 
 func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *blocktx_api.Block, peerHandler *PeerHandler, peerSettings []config.Peer, network wire.BitcoinNet, opts ...func(notifier *BlockNotifier)) (*BlockNotifier, error) {
 	bn := &BlockNotifier{
-		storeI:            storeI,
-		logger:            l,
-		subscribers:       make(map[subscriber]bool),
-		quitCh:            make(chan bool),
+		storeI:      storeI,
+		logger:      l,
+		subscribers: make(map[subscriber]bool),
+
 		newSubscriptions:  make(chan subscriber, 128),
 		deadSubscriptions: make(chan subscriber, 128),
 		blockCh:           blockCh,
 		fillGapsTicker:    time.NewTicker(5 * time.Minute),
+
+		quitBlockStream:         make(chan struct{}),
+		quitBlockStreamComplete: make(chan struct{}),
+
+		quitFillBlockGap:         make(chan struct{}),
+		quitFillBlockGapComplete: make(chan struct{}),
 	}
 	pm := p2p.NewPeerManager(l, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
 
@@ -75,12 +86,14 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *bloc
 	}
 
 	go func() {
-	OUT:
+		defer func() {
+			bn.quitBlockStreamComplete <- struct{}{}
+		}()
+
 		for {
 			select {
-			case <-bn.quitCh:
-				break OUT
-
+			case <-bn.quitBlockStream:
+				return
 			case s := <-bn.newSubscriptions:
 				bn.subscribers[s] = true
 				bn.logger.Infof("NewHandler MinedTransactions subscription received (Total=%d).", len(bn.subscribers))
@@ -106,10 +119,19 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *bloc
 	}()
 
 	go func() {
-		for range bn.fillGapsTicker.C {
-			err := peerHandler.FillGaps(peers[0])
-			if err != nil {
-				l.Errorf("failed to fill gaps: %v", err)
+		defer func() {
+			bn.quitFillBlockGapComplete <- struct{}{}
+		}()
+
+		for {
+			select {
+			case <-bn.quitFillBlockGap:
+				return
+			case <-bn.fillGapsTicker.C:
+				err := peerHandler.FillGaps(peers[0])
+				if err != nil {
+					l.Errorf("failed to fill gaps: %v", err)
+				}
 			}
 		}
 	}()
@@ -119,7 +141,11 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *bloc
 
 // Shutdown stops the handler.
 func (bn *BlockNotifier) Shutdown() {
-	bn.quitCh <- true
+	bn.quitBlockStream <- struct{}{}
+	bn.quitFillBlockGap <- struct{}{}
+	<-bn.quitBlockStreamComplete
+	<-bn.quitFillBlockGapComplete
+
 	bn.fillGapsTicker.Stop()
 }
 

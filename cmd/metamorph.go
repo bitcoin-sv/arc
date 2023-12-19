@@ -26,7 +26,6 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/safemap"
@@ -284,7 +283,7 @@ func StartMetamorph(logger utils.Logger) (func(), error) {
 		}
 	}()
 
-	peerSettings, err := blocktx.GetPeerSettings()
+	peerSettings, err := config.GetPeerSettings()
 	if err != nil {
 		logger.Fatalf("error getting peer settings: %v", err)
 	}
@@ -422,19 +421,10 @@ func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) 
 }
 
 func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage) {
-	networkStr := viper.GetString("network")
 
-	var network wire.BitcoinNet
-
-	switch networkStr {
-	case "mainnet":
-		network = wire.MainNet
-	case "testnet":
-		network = wire.TestNet3
-	case "regtest":
-		network = wire.TestNet
-	default:
-		logger.Fatalf("unknown bitcoin_network: %s", networkStr)
+	network, err := config.GetNetwork()
+	if err != nil {
+		logger.Fatalf("failed to get network: %v", err)
 	}
 
 	logger.Infof("Assuming bitcoin network is %s", network)
@@ -444,7 +434,7 @@ func initPeerManager(logger utils.Logger, s store.MetamorphStore) (p2p.PeerManag
 
 	peerHandler := metamorph.NewPeerHandler(s, messageCh)
 
-	peerSettings, err := blocktx.GetPeerSettings()
+	peerSettings, err := config.GetPeerSettings()
 	if err != nil {
 		logger.Fatalf("error getting peer settings: %v", err)
 	}

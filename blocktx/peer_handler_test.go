@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -247,7 +248,7 @@ func TestHandleBlock(t *testing.T) {
 	bockChannel := make(chan *blocktx_api.Block, 1)
 
 	// build peer manager
-	peerHandler := NewPeerHandler(blockTxLogger, storeMock, bockChannel, WithTransactionBatchSize(batchSize))
+	peerHandler := NewPeerHandler(blockTxLogger, storeMock, bockChannel, 100, WithTransactionBatchSize(batchSize))
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
@@ -303,6 +304,71 @@ func TestHandleBlock(t *testing.T) {
 
 			require.ElementsMatch(t, expectedInsertedTransactions, insertedBlockTransactions)
 			<-bockChannel
+		})
+	}
+
+	peerHandler.Shutdown()
+}
+
+func TestFillGaps(t *testing.T) {
+	hash822014, err := chainhash.NewHashFromStr("0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
+	require.NoError(t, err)
+	hash822019, err := chainhash.NewHashFromStr("00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656")
+	require.NoError(t, err)
+	tt := []struct {
+		name            string
+		blockGaps       []*store.BlockGap
+		getBlockGapsErr error
+
+		expectedErrorStr string
+	}{
+		{
+			name:      "success - no gaps",
+			blockGaps: []*store.BlockGap{},
+		},
+		{
+			name: "success - 2 gaps",
+			blockGaps: []*store.BlockGap{
+				{
+					Height: 822014,
+					Hash:   hash822014,
+				},
+				{
+					Height: 8220119,
+					Hash:   hash822019,
+				},
+			},
+		},
+		{
+			name:            "error getting block gaps",
+			blockGaps:       []*store.BlockGap{},
+			getBlockGapsErr: errors.New("failed to get block gaps"),
+
+			expectedErrorStr: "failed to get block gaps",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			bockChannel := make(chan *blocktx_api.Block, 1)
+			var blockTxLogger = gocore.Log("btx", gocore.NewLogLevelFromString("INFO"))
+			var storeMock = &store.InterfaceMock{
+				GetBlockGapsFunc: func(ctx context.Context) ([]*store.BlockGap, error) {
+					return tc.blockGaps, tc.getBlockGapsErr
+				},
+			}
+
+			peerHandler := NewPeerHandler(blockTxLogger, storeMock, bockChannel, 100)
+			peer := &MockedPeer{}
+			err = peerHandler.FillGaps(peer)
+			if tc.expectedErrorStr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tc.expectedErrorStr)
+				return
+			}
+
+			peerHandler.Shutdown()
 		})
 	}
 }

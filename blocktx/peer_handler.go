@@ -25,7 +25,6 @@ import (
 	"github.com/ordishs/go-utils/expiringmap"
 	"github.com/ordishs/go-utils/safemap"
 	"github.com/ordishs/gocore"
-	"github.com/spf13/viper"
 )
 
 const transactionStoringBatchsizeDefault = 65536 // power of 2 for easier memory allocation
@@ -90,6 +89,8 @@ type PeerHandler struct {
 	announcedCache              *expiringmap.ExpiringMap[chainhash.Hash, []p2p.PeerI]
 	stats                       *safemap.Safemap[string, *tracing.PeerHandlerStats]
 	transactionStorageBatchSize int
+	peerHandlerCollector        *tracing.PeerHandlerCollector
+	startingHeight              int
 }
 
 func init() {
@@ -102,7 +103,7 @@ func WithTransactionBatchSize(size int) func(handler *PeerHandler) {
 	}
 }
 
-func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *blocktx_api.Block, opts ...func(*PeerHandler)) *PeerHandler {
+func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *blocktx_api.Block, startingHeight int, opts ...func(*PeerHandler)) *PeerHandler {
 	evictionFunc := func(hash chainhash.Hash, peers []p2p.PeerI) bool {
 		msg := wire.NewMsgGetData()
 
@@ -131,13 +132,15 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 		announcedCache:              expiringmap.New[chainhash.Hash, []p2p.PeerI](10 * time.Minute).WithEvictionFunction(evictionFunc),
 		stats:                       safemap.New[string, *tracing.PeerHandlerStats](),
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
+		startingHeight:              startingHeight,
 	}
 
 	for _, opt := range opts {
 		opt(s)
 	}
 
-	_ = tracing.NewPeerHandlerCollector("blocktx", s.stats)
+	s.peerHandlerCollector = tracing.NewPeerHandlerCollector("blocktx", s.stats)
+	tracing.Register(s.peerHandlerCollector)
 
 	go func() {
 		for pair := range s.workerCh {
@@ -376,19 +379,45 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	return nil
 }
 
+func (bs *PeerHandler) FillGaps(peer p2p.PeerI) error {
+	blockHeightGaps, err := bs.store.GetBlockGaps(context.Background())
+	if err != nil {
+		return err
+	}
+
+	if len(blockHeightGaps) == 0 {
+		return nil
+	}
+
+	for _, gaps := range blockHeightGaps {
+		_, found := bs.announcedCache.Get(*gaps.Hash)
+		if found {
+			return nil
+		}
+
+		bs.logger.Infof("filling block gap for hash %s at height %d", gaps.Hash.String(), gaps.Height)
+
+		pair := utils.NewPair(gaps.Hash, peer)
+		utils.SafeSend(bs.workerCh, pair)
+	}
+
+	return nil
+}
+
 func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainhash.Hash, previousBlockHash *chainhash.Hash, height uint64, peer p2p.PeerI) (uint64, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("insertBlock").AddTime(start)
 	}()
 
-	startingHeight := viper.GetInt("blocktx.startingBlockHeight")
-	if height > uint64(startingHeight) {
+	if height > uint64(bs.startingHeight) {
 		if _, found := bs.announcedCache.Get(*previousBlockHash); !found {
 			if _, err := bs.store.GetBlock(context.Background(), previousBlockHash); err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
 					pair := utils.NewPair(previousBlockHash, peer)
 					utils.SafeSend(bs.workerCh, pair)
+				} else if err != nil {
+					bs.logger.Errorf("failed to get previous block hash %s: %v", previousBlockHash.String(), err)
 				}
 			}
 		}
@@ -523,4 +552,8 @@ func extractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
 	}
 
 	return binary.LittleEndian.Uint64(b)
+}
+
+func (bs *PeerHandler) Shutdown() {
+	tracing.Unregister(bs.peerHandlerCollector)
 }

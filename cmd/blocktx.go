@@ -3,10 +3,13 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/ordishs/go-utils"
 	"github.com/spf13/viper"
 )
@@ -22,10 +25,31 @@ func StartBlockTx(logger utils.Logger) (func(), error) {
 	// dbMode can be sqlite, sqlite_memory or postgres
 	blockStore, err := blocktx.NewStore(dbMode)
 	if err != nil {
-		logger.Fatalf("Error creating blocktx store: %v", err)
+		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
 
-	blockNotifier := blocktx.NewBlockNotifier(blockStore, logger)
+	blockCh := make(chan *blocktx_api.Block)
+
+	startingBlockHeight, err := config.GetInt("blocktx.startingBlockHeight")
+	if err != nil {
+		return nil, err
+	}
+
+	peerHandler := blocktx.NewPeerHandler(logger, blockStore, blockCh, startingBlockHeight)
+
+	network, err := config.GetNetwork()
+	if err != nil {
+		return nil, err
+	}
+
+	peerSettings, err := config.GetPeerSettings()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get peer settings: %v", err)
+	}
+	blockNotifier, err := blocktx.NewBlockNotifier(blockStore, logger, blockCh, peerHandler, peerSettings, network)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create block notifier: %v", err)
+	}
 
 	blockTxServer := blocktx.NewServer(blockStore, blockNotifier, logger)
 
@@ -55,5 +79,6 @@ func StartBlockTx(logger utils.Logger) (func(), error) {
 		if err != nil {
 			logger.Errorf("Error closing blocktx store: %v", err)
 		}
+		blockNotifier.Shutdown()
 	}, nil
 }

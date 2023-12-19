@@ -29,6 +29,9 @@ var _ Interface = &InterfaceMock{}
 //			GetBlockForHeightFunc: func(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
 //				panic("mock out the GetBlockForHeight method")
 //			},
+//			GetBlockGapsFunc: func(ctx context.Context) ([]*BlockGap, error) {
+//				panic("mock out the GetBlockGaps method")
+//			},
 //			GetBlockTransactionsFunc: func(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error) {
 //				panic("mock out the GetBlockTransactions method")
 //			},
@@ -89,6 +92,9 @@ type InterfaceMock struct {
 
 	// GetBlockForHeightFunc mocks the GetBlockForHeight method.
 	GetBlockForHeightFunc func(ctx context.Context, height uint64) (*blocktx_api.Block, error)
+
+	// GetBlockGapsFunc mocks the GetBlockGaps method.
+	GetBlockGapsFunc func(ctx context.Context) ([]*BlockGap, error)
 
 	// GetBlockTransactionsFunc mocks the GetBlockTransactions method.
 	GetBlockTransactionsFunc func(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error)
@@ -153,6 +159,11 @@ type InterfaceMock struct {
 			Ctx context.Context
 			// Height is the height argument value.
 			Height uint64
+		}
+		// GetBlockGaps holds details about calls to the GetBlockGaps method.
+		GetBlockGaps []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 		}
 		// GetBlockTransactions holds details about calls to the GetBlockTransactions method.
 		GetBlockTransactions []struct {
@@ -269,6 +280,7 @@ type InterfaceMock struct {
 	lockClose                        sync.RWMutex
 	lockGetBlock                     sync.RWMutex
 	lockGetBlockForHeight            sync.RWMutex
+	lockGetBlockGaps                 sync.RWMutex
 	lockGetBlockTransactions         sync.RWMutex
 	lockGetLastProcessedBlock        sync.RWMutex
 	lockGetMinedTransactionsForBlock sync.RWMutex
@@ -382,6 +394,38 @@ func (mock *InterfaceMock) GetBlockForHeightCalls() []struct {
 	mock.lockGetBlockForHeight.RLock()
 	calls = mock.calls.GetBlockForHeight
 	mock.lockGetBlockForHeight.RUnlock()
+	return calls
+}
+
+// GetBlockGaps calls GetBlockGapsFunc.
+func (mock *InterfaceMock) GetBlockGaps(ctx context.Context) ([]*BlockGap, error) {
+	if mock.GetBlockGapsFunc == nil {
+		panic("InterfaceMock.GetBlockGapsFunc: method is nil but Interface.GetBlockGaps was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockGetBlockGaps.Lock()
+	mock.calls.GetBlockGaps = append(mock.calls.GetBlockGaps, callInfo)
+	mock.lockGetBlockGaps.Unlock()
+	return mock.GetBlockGapsFunc(ctx)
+}
+
+// GetBlockGapsCalls gets all the calls that were made to GetBlockGaps.
+// Check the length with:
+//
+//	len(mockedInterface.GetBlockGapsCalls())
+func (mock *InterfaceMock) GetBlockGapsCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockGetBlockGaps.RLock()
+	calls = mock.calls.GetBlockGaps
+	mock.lockGetBlockGaps.RUnlock()
 	return calls
 }
 

@@ -13,9 +13,10 @@ import (
 )
 
 type PeerHandler struct {
-	store     store.MetamorphStore
-	messageCh chan *PeerTxMessage
-	stats     *safemap.Safemap[string, *tracing.PeerHandlerStats]
+	store                store.MetamorphStore
+	messageCh            chan *PeerTxMessage
+	stats                *safemap.Safemap[string, *tracing.PeerHandlerStats]
+	peerHandlerCollector *tracing.PeerHandlerCollector
 }
 
 func NewPeerHandler(s store.MetamorphStore, messageCh chan *PeerTxMessage) p2p.PeerHandlerI {
@@ -25,7 +26,8 @@ func NewPeerHandler(s store.MetamorphStore, messageCh chan *PeerTxMessage) p2p.P
 		stats:     safemap.New[string, *tracing.PeerHandlerStats](),
 	}
 
-	_ = tracing.NewPeerHandlerCollector("metamorph", ph.stats)
+	ph.peerHandlerCollector = tracing.NewPeerHandlerCollector("metamorph", ph.stats)
+	tracing.Register(ph.peerHandlerCollector)
 
 	return ph
 }
@@ -171,4 +173,8 @@ func (m *PeerHandler) HandleBlock(_ wire.Message, peer p2p.PeerI) error {
 	stat.Block.Add(1)
 
 	return nil
+}
+
+func (m *PeerHandler) Shutdown() {
+	tracing.Unregister(m.peerHandlerCollector)
 }

@@ -194,7 +194,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		gocore.NewStat("PutTransaction").AddTime(start)
 	}()
 
-	err := ValidateCallbackURL(req.CallbackUrl)
+	err := ValidateCallbackURL(req.GetCallbackUrl())
 	if err != nil {
 		return nil, err
 	}
@@ -214,10 +214,10 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	sReq := &store.StoreData{
 		Hash:          hash,
 		Status:        status,
-		CallbackUrl:   req.CallbackUrl,
-		CallbackToken: req.CallbackToken,
-		MerkleProof:   req.MerkleProof,
-		RawTx:         req.RawTx,
+		CallbackUrl:   req.GetCallbackUrl(),
+		CallbackToken: req.GetCallbackToken(),
+		MerkleProof:   req.GetMerkleProof(),
+		RawTx:         req.GetRawTx(),
 	}
 
 	next = gocore.NewStat("PutTransaction").NewStat("2: ProcessTransaction").AddTime(next)
@@ -228,7 +228,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		gocore.NewStat("PutTransaction").NewStat("3: Wait for status").AddTime(next)
 	}()
 
-	return s.processTransaction(ctx, req.WaitForStatus, sReq, hash.String()), nil
+	return s.processTransaction(ctx, req.GetWaitForStatus(), sReq, hash.String()), nil
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
@@ -247,12 +247,12 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 
 	// prepare response object before filling with tx statuses
 	resp := &metamorph_api.TransactionStatuses{}
-	resp.Statuses = make([]*metamorph_api.TransactionStatus, len(req.Transactions))
+	resp.Statuses = make([]*metamorph_api.TransactionStatus, len(req.GetTransactions()))
 
 	processTxsInputMap := make(map[chainhash.Hash]processTxInput)
 
-	for ind, txReq := range req.Transactions {
-		err := ValidateCallbackURL(txReq.CallbackUrl)
+	for ind, txReq := range req.GetTransactions() {
+		err := ValidateCallbackURL(txReq.GetCallbackUrl())
 		if err != nil {
 			return nil, err
 		}
@@ -273,15 +273,15 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		sReq := &store.StoreData{
 			Hash:          hash,
 			Status:        status,
-			CallbackUrl:   txReq.CallbackUrl,
-			CallbackToken: txReq.CallbackToken,
-			MerkleProof:   txReq.MerkleProof,
-			RawTx:         txReq.RawTx,
+			CallbackUrl:   txReq.GetCallbackUrl(),
+			CallbackToken: txReq.GetCallbackToken(),
+			MerkleProof:   txReq.GetMerkleProof(),
+			RawTx:         txReq.GetRawTx(),
 		}
 
 		processTxsInputMap[*hash] = processTxInput{
 			data:          sReq,
-			waitForStatus: txReq.WaitForStatus,
+			waitForStatus: txReq.GetWaitForStatus(),
 			responseIndex: ind,
 		}
 	}
@@ -306,7 +306,6 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 }
 
 func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, TxID string) *metamorph_api.TransactionStatus {
-
 	responseChannel := make(chan processor_response.StatusAndError, 1)
 	defer func() {
 		close(responseChannel)
@@ -339,7 +338,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 			}
 
 			// Return the status if it has greater or equal value
-			if statusValueMap[returnedStatus.Status] >= statusValueMap[waitForStatus] {
+			if statusValueMap[returnedStatus.GetStatus()] >= statusValueMap[waitForStatus] {
 				return returnedStatus
 			}
 		}
@@ -354,7 +353,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 	next := start
 
 	status := metamorph_api.Status_UNKNOWN
-	hash := chainhash.DoubleHashH(req.RawTx)
+	hash := chainhash.DoubleHashH(req.GetRawTx())
 
 	initSpan.SetTag("txid", hash.String())
 
@@ -363,22 +362,21 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		Hash:   hash[:],
 		Source: s.source,
 	})
-
 	if err != nil {
 		return 0, 0, nil, nil, err
 	}
 
-	if !s.store.IsCentralised() && rtr.Source != s.source {
+	if !s.store.IsCentralised() && rtr.GetSource() != s.source {
 		if isForwarded(ctx) {
 			// This is a forwarded request, so we should not forward it again
-			s.logger.Warn("Endless forwarding loop detected for", slog.String("hash", hash.String()), slog.String("address", s.source), slog.String("source", rtr.Source))
+			s.logger.Warn("Endless forwarding loop detected for", slog.String("hash", hash.String()), slog.String("address", s.source), slog.String("source", rtr.GetSource()))
 			return 0, 0, nil, nil, fmt.Errorf("endless forwarding loop detected")
 		}
 
 		// This transaction was already registered by another metamorph, and we
 		// should forward the request to that metamorph
 		var ownerConn *grpc.ClientConn
-		if ownerConn, err = dialMetamorph(initCtx, rtr.Source); err != nil {
+		if ownerConn, err = dialMetamorph(initCtx, rtr.GetSource()); err != nil {
 			return 0, 0, nil, nil, err
 		}
 
@@ -391,7 +389,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 			return 0, 0, nil, nil, err
 		}
 
-		transactionStatus.MerklePath = rtr.MerklePath
+		transactionStatus.MerklePath = rtr.GetMerklePath()
 
 		return 0, 0, nil, transactionStatus, nil
 	}
@@ -405,10 +403,10 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		if err := s.store.Set(ctx, hash[:], &store.StoreData{
 			Hash:          &hash,
 			Status:        status,
-			CallbackUrl:   req.CallbackUrl,
-			CallbackToken: req.CallbackToken,
-			MerkleProof:   req.MerkleProof,
-			RawTx:         req.RawTx,
+			CallbackUrl:   req.GetCallbackUrl(),
+			CallbackToken: req.GetCallbackToken(),
+			MerkleProof:   req.GetMerkleProof(),
+			RawTx:         req.GetRawTx(),
 		}); err != nil {
 			s.logger.Error("Failed to store transaction", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 		}
@@ -417,8 +415,8 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 
 		// If the transaction was mined, we should mark it as such
 		status = metamorph_api.Status_MINED
-		blockHash, _ := chainhash.NewHash(rtr.BlockHash)
-		if err = s.store.UpdateMined(initCtx, &hash, blockHash, rtr.BlockHeight); err != nil {
+		blockHash, _ := chainhash.NewHash(rtr.GetBlockHash())
+		if err = s.store.UpdateMined(initCtx, &hash, blockHash, rtr.GetBlockHeight()); err != nil {
 			return 0, 0, nil, nil, err
 		}
 	}
@@ -428,18 +426,18 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 	next, transactionStatus = s.checkStore(initCtx, &hash, next)
 	if transactionStatus != nil {
 		// just return the status if we found it in the store
-		transactionStatus.MerklePath = rtr.MerklePath
+		transactionStatus.MerklePath = rtr.GetMerklePath()
 		return 0, 0, nil, transactionStatus, nil
 	}
 
 	if s.forceCheckUtxos {
-		next, err = s.CheckUtxos(initCtx, next, req.RawTx)
+		next, err = s.CheckUtxos(initCtx, next, req.GetRawTx())
 		s.logger.Error("Error checking utxos", slog.String("err", err.Error()))
 		if err != nil {
 			return 0, 0, nil, &metamorph_api.TransactionStatus{
 				Status:       metamorph_api.Status_REJECTED,
 				Txid:         hash.String(),
-				MerklePath:   rtr.MerklePath,
+				MerklePath:   rtr.GetMerklePath(),
 				RejectReason: err.Error(),
 			}, nil
 		}
@@ -455,24 +453,16 @@ func (s *Server) checkStore(ctx context.Context, hash *chainhash.Hash, next int6
 	}
 	if storeData != nil {
 		// we found the transaction in the store, so we can just return it
-		var txid string
-		if storeData.Hash != nil {
-			txid = storeData.Hash.String()
-		}
-		var blockHash string
-		if storeData.BlockHash != nil {
-			blockHash = storeData.BlockHash.String()
-		}
 		return 0, &metamorph_api.TransactionStatus{
 			TimedOut:     false,
 			StoredAt:     timestamppb.New(storeData.StoredAt),
 			AnnouncedAt:  timestamppb.New(storeData.AnnouncedAt),
 			MinedAt:      timestamppb.New(storeData.MinedAt),
-			Txid:         txid,
+			Txid:         fmt.Sprintf("%v", storeData.Hash),
 			Status:       storeData.Status,
 			RejectReason: storeData.RejectReason,
 			BlockHeight:  storeData.BlockHeight,
-			BlockHash:    blockHash,
+			BlockHash:    fmt.Sprintf("%v", storeData.BlockHash),
 		}
 	}
 
@@ -538,7 +528,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		blockHash = data.BlockHash.String()
 	}
 
-	hash, err := chainhash.NewHashFromStr(req.Txid)
+	hash, err := chainhash.NewHashFromStr(req.GetTxid())
 	if err != nil {
 		return nil, err
 	}
@@ -568,7 +558,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 }
 
 func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*store.StoreData, *timestamppb.Timestamp, *timestamppb.Timestamp, *timestamppb.Timestamp, error) {
-	txBytes, err := hex.DecodeString(req.Txid)
+	txBytes, err := hex.DecodeString(req.GetTxid())
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -598,9 +588,7 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 }
 
 func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (*metamorph_api.SetUnlockedByNameResponse, error) {
-
-	recordsAffected, err := s.store.SetUnlockedByName(ctx, req.Name)
-
+	recordsAffected, err := s.store.SetUnlockedByName(ctx, req.GetName())
 	if err != nil {
 		return nil, err
 	}

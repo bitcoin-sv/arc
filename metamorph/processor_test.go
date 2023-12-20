@@ -76,7 +76,6 @@ func TestNewProcessor(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			processor, err := NewProcessor(tc.store, tc.pm, nil,
 				WithCacheExpiryTime(time.Second*5),
 				WithProcessCheckIfMinedInterval(time.Second*5),
@@ -240,7 +239,6 @@ func TestLoadUnmined(t *testing.T) {
 
 			btxMock := &ClientIMock{
 				GetTransactionBlockFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error) {
-
 					var txResponse *blocktx_api.RegisterTransactionResponse
 
 					// TX2 was mined
@@ -783,7 +781,6 @@ func TestProcessCheckIfMined(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			metamorphStore := &MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
@@ -805,7 +802,7 @@ func TestProcessCheckIfMined(t *testing.T) {
 			}
 			btxMock := &ClientIMock{
 				GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
-					require.Equal(t, 3, len(transaction.Transactions))
+					require.Equal(t, 3, len(transaction.GetTransactions()))
 
 					return &blocktx_api.TransactionBlocks{TransactionBlocks: tc.blocks}, tc.getTransactionBlocksErr
 				},

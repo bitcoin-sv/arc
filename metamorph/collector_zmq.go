@@ -37,7 +37,7 @@ func NewZMQCollector(zmqStats *safemap.Safemap[string, *ZMQStats]) *zmqCollector
 
 // Describe writes all descriptors to the prometheus desc channel.
 func (c *zmqCollector) Describe(ch chan<- *prometheus.Desc) {
-	//Update this section with each metric you create for a given prometheusCollector
+
 	ch <- c.hashTx
 	ch <- c.invalidTx
 	ch <- c.discardedFromMempool
@@ -45,7 +45,7 @@ func (c *zmqCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements required collect function for all prometheus collectors
 func (c *zmqCollector) Collect(ch chan<- prometheus.Metric) {
-	//Write the latest value for each metric in the prometheus metric channel.
+
 	//Note that you can pass CounterValue, GaugeValue, or UntypedValue types here.
 	c.zmqStats.Each(func(peer string, zmqStats *ZMQStats) {
 		ch <- prometheus.MustNewConstMetric(c.hashTx, prometheus.CounterValue, float64(zmqStats.hashTx.Load()), peer)

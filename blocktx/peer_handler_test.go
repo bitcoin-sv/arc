@@ -101,6 +101,7 @@ func TestHandleBlock(t *testing.T) {
 
 	prevBlockHash1585018, _ := chainhash.NewHashFromStr("00000000000003fe2dc7e6ca0a37cb36a00742459e65a048d5bee0fc33d9ad32")
 	merkleRootHash1585018, _ := chainhash.NewHashFromStr("9c1fe95a7ac4502e281f4f2eaa2902e12b0f486cf610977c73afb3cd060bebde")
+
 	tt := []struct {
 		name          string
 		prevBlockHash chainhash.Hash
@@ -109,6 +110,7 @@ func TestHandleBlock(t *testing.T) {
 		txHashes      []string
 		size          uint64
 		nonce         uint32
+		getBlockErr   error
 	}{
 		{
 			name:          "block height 1573650",
@@ -193,64 +195,62 @@ func TestHandleBlock(t *testing.T) {
 			nonce:         1428255133,
 			size:          8191650,
 		},
-	}
-
-	batchSize := 4
-	storeMock := &store.InterfaceMock{
-		GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
-			return &blocktx_api.Block{}, nil
+		{
+			name:          "get block error",
+			txHashes:      []string{"3d64b2bb6bd4e85aacb6d1965a2407fa21846c08dd9a8616866ad2f5c80fda7f"},
+			prevBlockHash: *prevBlockHash1573650,
+			merkleRoot:    *merkleRootHash1573650,
+			height:        1573650,
+			nonce:         3694498168,
+			size:          216,
+			getBlockErr:   errors.New("failed to get block"),
 		},
-		InsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
-			return 0, nil
+		{
+			name:          "get block error - not found",
+			txHashes:      []string{"3d64b2bb6bd4e85aacb6d1965a2407fa21846c08dd9a8616866ad2f5c80fda7f"},
+			prevBlockHash: *prevBlockHash1573650,
+			merkleRoot:    *merkleRootHash1573650,
+			height:        1573650,
+			nonce:         3694498168,
+			size:          216,
+			getBlockErr:   store.ErrBlockNotFound,
 		},
-		MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
-			return nil
-		},
 	}
-	// create mocked peer handler
-	blockTxLogger := gocore.Log("btx", gocore.NewLogLevelFromString("INFO"))
-
-	// mock specific functions of storage that we are about to call
-	storeMock.GetBlockFunc = func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
-		return &blocktx_api.Block{}, nil
-	}
-
-	storeMock.GetBlockFunc = func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
-		return &blocktx_api.Block{}, nil
-	}
-
-	storeMock.InsertBlockFunc = func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
-		return 0, nil
-	}
-
-	// SetGetBlockFunc
-	storeMock.PrimaryBlocktxFunc = func(ctx context.Context) (string, error) {
-		hostName, err := os.Hostname()
-		return hostName, err
-	}
-
-	// SetTryToBecomePrimaryFunc
-	storeMock.TryToBecomePrimaryFunc = func(ctx context.Context, myHostName string) error {
-		return nil
-	}
-
-	// main assert for the test to make sure block with a single transaction doesn't have any merkle paths other than empty ones "0000"
-	storeMock.InsertBlockTransactionsFunc = func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
-		assert.Equal(t, uint64(1), uint64(len(merklePaths)))
-		assert.Equal(t, merklePaths[0], "fe12031800010100027fda0fc8f5d26a8616869add086c8421fa07245a96d1b6ac5ae8d46bbbb2643d")
-		return nil
-	}
-
-	storeMock.MarkBlockAsDoneFunc = func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
-		return nil
-	}
-
-	bockChannel := make(chan *blocktx_api.Block, 1)
-
-	// build peer manager
-	peerHandler := NewPeerHandler(blockTxLogger, storeMock, bockChannel, 100, WithTransactionBatchSize(batchSize))
 
 	for _, tc := range tt {
+		batchSize := 4
+		storeMock := &store.InterfaceMock{
+			GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+				return &blocktx_api.Block{}, tc.getBlockErr
+			},
+			InsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+				return 0, nil
+			},
+			MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
+				return nil
+			},
+			PrimaryBlocktxFunc: func(ctx context.Context) (string, error) {
+				hostName, err := os.Hostname()
+				return hostName, err
+			},
+			TryToBecomePrimaryFunc: func(ctx context.Context, myHostName string) error {
+				return nil
+			},
+
+			// main assert for the test to make sure block with a single transaction doesn't have any merkle paths other than empty ones "0000"
+			InsertBlockTransactionsFunc: func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
+				assert.Equal(t, uint64(1), uint64(len(merklePaths)))
+				assert.Equal(t, merklePaths[0], "fe12031800010100027fda0fc8f5d26a8616869add086c8421fa07245a96d1b6ac5ae8d46bbbb2643d")
+				return nil
+			},
+		}
+		// create mocked peer handler
+		blockTxLogger := gocore.Log("btx", gocore.NewLogLevelFromString("INFO"))
+
+		bockChannel := make(chan *blocktx_api.Block, 1)
+
+		// build peer manager
+		peerHandler := NewPeerHandler(blockTxLogger, storeMock, bockChannel, 100, WithTransactionBatchSize(batchSize))
 		t.Run(tc.name, func(t *testing.T) {
 			expectedInsertedTransactions := []*blocktx_api.TransactionAndSource{}
 			transactionHashes := make([]*chainhash.Hash, len(tc.txHashes))
@@ -304,10 +304,9 @@ func TestHandleBlock(t *testing.T) {
 
 			require.ElementsMatch(t, expectedInsertedTransactions, insertedBlockTransactions)
 			<-bockChannel
+			peerHandler.Shutdown()
 		})
 	}
-
-	peerHandler.Shutdown()
 }
 
 func TestFillGaps(t *testing.T) {

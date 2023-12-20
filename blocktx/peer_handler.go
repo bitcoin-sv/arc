@@ -2,7 +2,6 @@ package blocktx
 
 import (
 	"context"
-	"database/sql"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -413,15 +412,17 @@ func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 	if height > uint64(bs.startingHeight) {
 		if _, found := bs.announcedCache.Get(*previousBlockHash); !found {
 			if _, err := bs.store.GetBlock(context.Background(), previousBlockHash); err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
+				if errors.Is(err, store.ErrBlockNotFound) {
 					pair := utils.NewPair(previousBlockHash, peer)
 					utils.SafeSend(bs.workerCh, pair)
 				} else if err != nil {
-					bs.logger.Errorf("failed to get previous block hash %s: %v", previousBlockHash.String(), err)
+					bs.logger.Errorf("failed to get previous block hash %s with height %d: %v", previousBlockHash.String(), height-1, err)
 				}
 			}
 		}
 	}
+
+	bs.logger.Infof("inserting block hash %s with height %d", blockHash.String(), height)
 
 	block := &blocktx_api.Block{
 		Hash:         blockHash[:],

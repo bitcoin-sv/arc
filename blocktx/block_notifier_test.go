@@ -63,6 +63,20 @@ func TestNewBlockNotifier(t *testing.T) {
 						ZMQ: 28332,
 					},
 				},
+				{
+					Host: "127.0.0.2",
+					Port: config.PeerPort{
+						P2P: 18333,
+						ZMQ: 28332,
+					},
+				},
+				{
+					Host: "127.0.0.3",
+					Port: config.PeerPort{
+						P2P: 18333,
+						ZMQ: 28332,
+					},
+				},
 			}
 
 			logger := gocore.Log("test", gocore.NewLogLevelFromString("INFO"))
@@ -70,7 +84,7 @@ func TestNewBlockNotifier(t *testing.T) {
 			notifier, err := NewBlockNotifier(storeMock, logger, blockCh, peerHandler, peerSettings, wire.TestNet3, WithFillGapsInterval(time.Millisecond*30))
 			require.NoError(t, err)
 
-			time.Sleep(55 * time.Millisecond)
+			time.Sleep(120 * time.Millisecond)
 			peerHandler.Shutdown()
 			notifier.Shutdown()
 		})

@@ -122,15 +122,24 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *bloc
 			bn.quitFillBlockGapComplete <- struct{}{}
 		}()
 
+		peerIndex := 0
 		for {
 			select {
 			case <-bn.quitFillBlockGap:
 				return
 			case <-bn.fillGapsTicker.C:
-				err := peerHandler.FillGaps(peers[0])
+				if peerIndex >= len(peers) {
+					peerIndex = 0
+				}
+
+				l.Infof("requesting missing blocks from peer %d", peerIndex)
+
+				err := peerHandler.FillGaps(peers[peerIndex])
 				if err != nil {
 					l.Errorf("failed to fill gaps: %v", err)
 				}
+
+				peerIndex++
 			}
 		}
 	}()

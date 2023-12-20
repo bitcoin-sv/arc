@@ -403,7 +403,7 @@ func (bs *PeerHandler) FillGaps(peer p2p.PeerI) error {
 			return nil
 		}
 
-		bs.logger.Infof("filling block gap for hash %s at height %d", gaps.Hash.String(), gaps.Height)
+		bs.logger.Infof("requesting missing block hash %s at height %d", gaps.Hash.String(), gaps.Height)
 
 		pair := utils.NewPair(gaps.Hash, peer)
 		utils.SafeSend(bs.workerCh, pair)

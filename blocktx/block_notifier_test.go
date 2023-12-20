@@ -3,6 +3,7 @@ package blocktx
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -18,16 +19,21 @@ import (
 func TestNewBlockNotifier(t *testing.T) {
 	hash822014, err := chainhash.NewHashFromStr("0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
 	require.NoError(t, err)
+	hostname, err := os.Hostname()
+	require.NoError(t, err)
 
 	tt := []struct {
 		name            string
+		hostname        string
 		getBlockGapsErr error
 	}{
 		{
-			name: "success",
+			name:     "success",
+			hostname: hostname,
 		},
 		{
 			name:            "error getting block gaps",
+			hostname:        hostname,
 			getBlockGapsErr: errors.New("failed to get block gaps"),
 		},
 	}
@@ -42,6 +48,9 @@ func TestNewBlockNotifier(t *testing.T) {
 							Hash:   hash822014,
 						},
 					}, tc.getBlockGapsErr
+				},
+				PrimaryBlocktxFunc: func(ctx context.Context) (string, error) {
+					return tc.hostname, nil
 				},
 			}
 			blockCh := make(chan *blocktx_api.Block)

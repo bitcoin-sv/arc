@@ -310,20 +310,28 @@ func TestHandleBlock(t *testing.T) {
 }
 
 func TestFillGaps(t *testing.T) {
+	hostname, err := os.Hostname()
+	require.NoError(t, err)
 	hash822014, err := chainhash.NewHashFromStr("0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
 	require.NoError(t, err)
 	hash822019, err := chainhash.NewHashFromStr("00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656")
 	require.NoError(t, err)
 	tt := []struct {
-		name            string
-		blockGaps       []*store.BlockGap
-		getBlockGapsErr error
+		name              string
+		blockGaps         []*store.BlockGap
+		getBlockGapsErr   error
+		primaryBlocktxErr error
+		hostname          string
 
-		expectedErrorStr string
+		expectedGetBlockGapsCalls int
+		expectedErrorStr          string
 	}{
 		{
 			name:      "success - no gaps",
 			blockGaps: []*store.BlockGap{},
+			hostname:  hostname,
+
+			expectedGetBlockGapsCalls: 1,
 		},
 		{
 			name: "success - 2 gaps",
@@ -337,13 +345,34 @@ func TestFillGaps(t *testing.T) {
 					Hash:   hash822019,
 				},
 			},
+			hostname: hostname,
+
+			expectedGetBlockGapsCalls: 1,
 		},
 		{
 			name:            "error getting block gaps",
 			blockGaps:       []*store.BlockGap{},
 			getBlockGapsErr: errors.New("failed to get block gaps"),
+			hostname:        hostname,
 
-			expectedErrorStr: "failed to get block gaps",
+			expectedGetBlockGapsCalls: 1,
+			expectedErrorStr:          "failed to get block gaps",
+		},
+		{
+			name:      "not primary",
+			blockGaps: []*store.BlockGap{},
+			hostname:  "not primary",
+
+			expectedGetBlockGapsCalls: 0,
+		},
+		{
+			name:              "check primary - error",
+			blockGaps:         []*store.BlockGap{},
+			hostname:          "not primary",
+			primaryBlocktxErr: errors.New("failed to check primary"),
+
+			expectedGetBlockGapsCalls: 0,
+			expectedErrorStr:          "failed to check primary",
 		},
 	}
 
@@ -355,19 +384,23 @@ func TestFillGaps(t *testing.T) {
 				GetBlockGapsFunc: func(ctx context.Context) ([]*store.BlockGap, error) {
 					return tc.blockGaps, tc.getBlockGapsErr
 				},
+				PrimaryBlocktxFunc: func(ctx context.Context) (string, error) {
+					return tc.hostname, tc.primaryBlocktxErr
+				},
 			}
 
 			peerHandler := NewPeerHandler(blockTxLogger, storeMock, bockChannel, 100)
 			peer := &MockedPeer{}
 			err = peerHandler.FillGaps(peer)
+
+			require.Equal(t, tc.expectedGetBlockGapsCalls, len(storeMock.GetBlockGapsCalls()))
+			peerHandler.Shutdown()
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)
 			} else {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
-
-			peerHandler.Shutdown()
 		})
 	}
 }

@@ -32,7 +32,6 @@ const (
 	unseenTransactionRebroadcastingInterval = 60
 
 	processCheckIfMinedIntervalDefault = 1 * time.Minute
-	checkIfMinedTimeRange              = time.Minute * 60
 
 	mapExpiryTimeDefault = 24 * time.Hour
 	LogLevelDefault      = slog.LevelInfo
@@ -173,8 +172,7 @@ func (p *Processor) processCheckIfMined() {
 	// filter for transactions which have been at least announced but not mined and which haven't started to be processed longer than a specified amount of time ago
 	filterFunc := func(processorResp *processor_response.ProcessorResponse) bool {
 		return processorResp.GetStatus() != metamorph_api.Status_MINED &&
-			processorResp.GetStatus() != metamorph_api.Status_CONFIRMED &&
-			p.now().Sub(processorResp.Start) < checkIfMinedTimeRange
+			processorResp.GetStatus() != metamorph_api.Status_CONFIRMED
 	}
 
 	// Check transactions that have been seen on the network, but haven't been marked as mined

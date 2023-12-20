@@ -379,6 +379,15 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 }
 
 func (bs *PeerHandler) FillGaps(peer p2p.PeerI) error {
+	primary, err := bs.CheckPrimary()
+	if err != nil {
+		return err
+	}
+
+	if !primary {
+		return nil
+	}
+
 	blockHeightGaps, err := bs.store.GetBlockGaps(context.Background())
 	if err != nil {
 		return err

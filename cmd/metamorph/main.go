@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -9,50 +11,56 @@ import (
 	"syscall"
 
 	"github.com/bitcoin-sv/arc/cmd"
-	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
+	cfg "github.com/bitcoin-sv/arc/config"
 	"github.com/spf13/viper"
 )
 
-// Name used by build script for the binaries. (Please keep on single line).
-const progname = "arc"
-
-// // Version & commit strings injected at build with -ldflags -X...
+// Version & commit strings injected at build with -ldflags -X...
 var (
 	version string
 	commit  string
 )
 
-func init() {
-	gocore.SetInfo(progname, version, commit)
+func main() {
+	err := run()
+	if err != nil {
+		log.Fatalf("failed to run ARC: %v", err)
+	}
+
+	os.Exit(0)
 }
 
-func main() {
+func run() error {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("../../")
 	err := viper.ReadInConfig()
 	if err != nil {
-		fmt.Printf("failed to read config file config.yaml: %v \n", err)
-		return
+		return fmt.Errorf("failed to read config file config.yaml: %v \n", err)
 	}
 
-	logLevel := viper.GetString("logLevel")
-	logger := gocore.Log(progname, gocore.NewLogLevelFromString(logLevel))
+	logger, err := cfg.NewLogger()
+	if err != nil {
+		return fmt.Errorf("failed to create logger: %v", err)
+	}
 
-	logger.Infof("VERSION\n-------\n%s (%s)\n\n", version, commit)
+	logger.Info("starting metamorph", slog.String("version", version), slog.String("commit", commit))
 
 	go func() {
 		profilerAddr := viper.GetString("metamorph.profilerAddr")
 		if profilerAddr != "" {
-			logger.Infof("Starting profile on http://%s/debug/pprof", profilerAddr)
-			logger.Fatalf("%v", http.ListenAndServe(profilerAddr, nil))
+			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", profilerAddr))
+
+			err := http.ListenAndServe(profilerAddr, nil)
+			if err != nil {
+				logger.Error("failed to start profiler server", slog.String("err", err.Error()))
+			}
 		}
 	}()
 
 	shutdown, err := cmd.StartMetamorph(logger)
 	if err != nil {
-		logger.Fatalf("Error starting metamorph: %v", err)
+		return fmt.Errorf("failed to start metamorph: %v", err)
 	}
 
 	// setup signal catching
@@ -61,10 +69,11 @@ func main() {
 
 	<-signalChan
 	appCleanup(logger, shutdown)
-	os.Exit(0)
+
+	return nil
 }
 
-func appCleanup(logger utils.Logger, shutdown func()) {
-	logger.Infof("Shutting down...")
+func appCleanup(logger *slog.Logger, shutdown func()) {
+	logger.Info("Shutting down...")
 	shutdown()
 }

@@ -24,12 +24,11 @@ type Metamorph struct {
 	Client                 metamorph_api.MetaMorphAPIClient
 	ClientCache            map[string]metamorph_api.MetaMorphAPIClient
 	blockTxClient          blocktx.ClientI
-	logger                 utils.Logger
 	isCentralisedMetamorph bool
 }
 
 // NewMetamorph creates a connection to a list of metamorph servers via gRPC.
-func NewMetamorph(address string, blockTxClient blocktx.ClientI, grpcMessageSize int, logger utils.Logger, isCentralisedMetamorph bool) (*Metamorph, error) {
+func NewMetamorph(address string, blockTxClient blocktx.ClientI, grpcMessageSize int, isCentralisedMetamorph bool) (*Metamorph, error) {
 	conn, err := DialGRPC(address, grpcMessageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connection to address %s: %v", address, err)
@@ -39,7 +38,6 @@ func NewMetamorph(address string, blockTxClient blocktx.ClientI, grpcMessageSize
 		Client:                 metamorph_api.NewMetaMorphAPIClient(conn),
 		ClientCache:            make(map[string]metamorph_api.MetaMorphAPIClient),
 		blockTxClient:          blockTxClient,
-		logger:                 logger,
 		isCentralisedMetamorph: isCentralisedMetamorph,
 	}, nil
 }

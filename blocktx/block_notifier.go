@@ -2,6 +2,7 @@ package blocktx
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
@@ -9,7 +10,6 @@ import (
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/wire"
-	"github.com/ordishs/go-utils"
 )
 
 const maximumBlockSize = 4000000000 // 4Gb
@@ -20,7 +20,7 @@ type subscriber struct {
 }
 
 type BlockNotifier struct {
-	logger         utils.Logger
+	logger         *slog.Logger
 	storeI         store.Interface
 	subscribers    map[subscriber]bool
 	fillGapsTicker *time.Ticker
@@ -42,7 +42,7 @@ func WithFillGapsInterval(interval time.Duration) func(notifier *BlockNotifier) 
 	}
 }
 
-func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *blocktx_api.Block, peerHandler *PeerHandler, peerSettings []config.Peer, network wire.BitcoinNet, opts ...func(notifier *BlockNotifier)) (*BlockNotifier, error) {
+func NewBlockNotifier(storeI store.Interface, l *slog.Logger, blockCh chan *blocktx_api.Block, peerHandler *PeerHandler, peerSettings []config.Peer, network wire.BitcoinNet, opts ...func(notifier *BlockNotifier)) (*BlockNotifier, error) {
 	bn := &BlockNotifier{
 		storeI:      storeI,
 		logger:      l,
@@ -95,20 +95,20 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *bloc
 				return
 			case s := <-bn.newSubscriptions:
 				bn.subscribers[s] = true
-				bn.logger.Infof("NewHandler MinedTransactions subscription received (Total=%d).", len(bn.subscribers))
+				bn.logger.Info("NewHandler MinedTransactions subscription received", slog.Int("total", len(bn.subscribers)))
 				// go func() {
 				// 	TODO - send all the transactions that were mined since the last time the client was connected
 				// }()
 
 			case s := <-bn.deadSubscriptions:
 				delete(bn.subscribers, s)
-				bn.logger.Infof("BlockNotification subscription removed (Total=%d).", len(bn.subscribers))
+				bn.logger.Info("BlockNotification subscription removed", slog.Int("total", len(bn.subscribers)))
 
 			case block := <-bn.blockCh:
 				for sub := range bn.subscribers {
 					go func(s subscriber) {
 						if err := s.stream.Send(block); err != nil {
-							bn.logger.Errorf("Error sending block to subscriber: %v", err)
+							bn.logger.Error("Error sending block to subscriber", slog.String("error", err.Error()))
 							bn.deadSubscriptions <- s
 						}
 					}(sub)
@@ -132,11 +132,11 @@ func NewBlockNotifier(storeI store.Interface, l utils.Logger, blockCh chan *bloc
 					peerIndex = 0
 				}
 
-				l.Infof("requesting missing blocks from peer %d", peerIndex)
+				l.Info("requesting missing blocks from peer", slog.Int("index", peerIndex))
 
 				err := peerHandler.FillGaps(peers[peerIndex])
 				if err != nil {
-					l.Errorf("failed to fill gaps: %v", err)
+					l.Error("failed to fill gaps", slog.String("error", err.Error()))
 				}
 
 				peerIndex++

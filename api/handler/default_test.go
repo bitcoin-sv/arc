@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -21,19 +23,17 @@ import (
 	"github.com/bitcoin-sv/arc/validator"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var contentTypes = []string{
-	echo.MIMETextPlain,
-	echo.MIMEApplicationJSON,
-	echo.MIMEOctetStream,
-}
-
 var (
+	contentTypes = []string{
+		echo.MIMETextPlain,
+		echo.MIMEApplicationJSON,
+		echo.MIMEOctetStream,
+	}
 	validTx         = "0100000001358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffff02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
 	validTxBytes, _ = hex.DecodeString(validTx)
 	validExtendedTx = "010000000000000000ef01358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffffc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
@@ -73,11 +73,12 @@ var (
 		MinConsolidationInputMaturity:   6,
 		AcceptNonStdConsolidationInput:  false,
 	}
+	testLogger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 )
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, nil)
+		defaultHandler, err := NewDefault(testLogger, nil, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, defaultHandler)
 	})
@@ -85,7 +86,7 @@ func TestNewDefault(t *testing.T) {
 
 func TestGETPolicy(t *testing.T) {
 	t.Run("default policy", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, nil, defaultPolicy)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/policy", strings.NewReader(""))
@@ -174,7 +175,7 @@ func TestGETTransactionStatus(t *testing.T) {
 				},
 			}
 
-			defaultHandler, err := NewDefault(p2p.TestLogger{}, txHandler, nil, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
+			defaultHandler, err := NewDefault(testLogger, txHandler, nil, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
 			require.NoError(t, err)
 
 			err = defaultHandler.GETTransactionStatus(ctx, "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
@@ -360,7 +361,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				},
 			}
 
-			defaultHandler, err := NewDefault(p2p.TestLogger{}, txHandler, defaultPolicy, WithNow(func() time.Time { return now }))
+			defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy, WithNow(func() time.Time { return now }))
 			require.NoError(t, err)
 
 			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
@@ -392,7 +393,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	t.Run("empty tx", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		for _, contentType := range contentTypes {
@@ -412,7 +413,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	t.Run("invalid parameters", func(t *testing.T) {
 		inputTx := strings.NewReader(validExtendedTx)
 		rec, ctx := createEchoPostRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
@@ -437,7 +438,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("invalid mime type", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		e := echo.New()
@@ -452,7 +453,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("invalid txs", func(t *testing.T) {
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, nil, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		expectedErrors := map[string]string{
@@ -494,7 +495,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil, transactionHandler.ErrTransactionNotFound
 			},
 		}
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, txHandler, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
 		require.NoError(t, err)
 
 		validTxBytes, _ := hex.DecodeString(validTx)
@@ -535,7 +536,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		defaultHandler, err := NewDefault(p2p.TestLogger{}, txHandler, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
 		require.NoError(t, err)
 
 		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)
@@ -656,7 +657,7 @@ func TestArcDefaultHandler_extendTransaction(t *testing.T) {
 			handler := &ArcDefaultHandler{
 				TransactionHandler: &node,
 				NodePolicy:         &bitcoin.Settings{},
-				logger:             p2p.TestLogger{},
+				logger:             testLogger,
 			}
 			btTx, err := bt.NewTxFromString(tt.transaction)
 			require.NoError(t, err)

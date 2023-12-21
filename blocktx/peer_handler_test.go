@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"log/slog"
 	"os"
 	"testing"
 	"time"
@@ -18,7 +19,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils/expiringmap"
-	"github.com/ordishs/gocore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -245,12 +245,11 @@ func TestHandleBlock(t *testing.T) {
 			},
 		}
 		// create mocked peer handler
-		blockTxLogger := gocore.Log("btx", gocore.NewLogLevelFromString("INFO"))
-
 		bockChannel := make(chan *blocktx_api.Block, 1)
 
 		// build peer manager
-		peerHandler := NewPeerHandler(blockTxLogger, storeMock, bockChannel, 100, WithTransactionBatchSize(batchSize))
+		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+		peerHandler := NewPeerHandler(logger, storeMock, bockChannel, 100, WithTransactionBatchSize(batchSize))
 		t.Run(tc.name, func(t *testing.T) {
 			expectedInsertedTransactions := []*blocktx_api.TransactionAndSource{}
 			transactionHashes := make([]*chainhash.Hash, len(tc.txHashes))
@@ -379,7 +378,6 @@ func TestFillGaps(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			bockChannel := make(chan *blocktx_api.Block, 1)
-			var blockTxLogger = gocore.Log("btx", gocore.NewLogLevelFromString("INFO"))
 			var storeMock = &store.InterfaceMock{
 				GetBlockGapsFunc: func(ctx context.Context) ([]*store.BlockGap, error) {
 					return tc.blockGaps, tc.getBlockGapsErr
@@ -389,7 +387,8 @@ func TestFillGaps(t *testing.T) {
 				},
 			}
 
-			peerHandler := NewPeerHandler(blockTxLogger, storeMock, bockChannel, 100)
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			peerHandler := NewPeerHandler(logger, storeMock, bockChannel, 100)
 			peer := &MockedPeer{}
 			err = peerHandler.FillGaps(peer)
 

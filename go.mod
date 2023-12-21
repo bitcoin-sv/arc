@@ -1,6 +1,6 @@
 module github.com/bitcoin-sv/arc
 
-go 1.21
+go 1.21.3
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
@@ -23,10 +23,10 @@ require (
 	github.com/labstack/echo/v4 v4.11.1
 	github.com/labstack/gommon v0.4.0
 	github.com/lib/pq v1.10.9
-	github.com/libsv/go-bc v0.1.25
+	github.com/libsv/go-bc v0.1.26
 	github.com/libsv/go-bk v0.1.6
 	github.com/libsv/go-bt/v2 v2.2.5
-	github.com/libsv/go-p2p v0.1.3
+	github.com/libsv/go-p2p v0.1.5
 	github.com/lmittmann/tint v1.0.3
 	github.com/oapi-codegen/runtime v1.0.0
 	github.com/opentracing-contrib/echo v0.0.0-20190807091611-5fe2e1308f06

@@ -3,6 +3,7 @@ package blocktx
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"testing"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
-	"github.com/ordishs/gocore"
 	"github.com/stretchr/testify/require"
 )
 
@@ -79,7 +79,7 @@ func TestNewBlockNotifier(t *testing.T) {
 				},
 			}
 
-			logger := gocore.Log("test", gocore.NewLogLevelFromString("INFO"))
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			peerHandler := NewPeerHandler(logger, storeMock, blockCh, 100)
 			notifier, err := NewBlockNotifier(storeMock, logger, blockCh, peerHandler, peerSettings, wire.TestNet3, WithFillGapsInterval(time.Millisecond*30))
 			require.NoError(t, err)

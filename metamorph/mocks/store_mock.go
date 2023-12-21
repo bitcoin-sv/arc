@@ -363,7 +363,7 @@ func (mock *MetamorphStoreMock) GetBlockProcessedCalls() []struct {
 }
 
 // GetUnmined calls GetUnminedFunc.
-func (mock *MetamorphStoreMock) GetUnmined(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
+func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time) ([]*store.StoreData, error) {
 	if mock.GetUnminedFunc == nil {
 		panic("MetamorphStoreMock.GetUnminedFunc: method is nil but MetamorphStore.GetUnmined was just called")
 	}
@@ -377,7 +377,7 @@ func (mock *MetamorphStoreMock) GetUnmined(contextMoqParam context.Context, call
 	mock.lockGetUnmined.Lock()
 	mock.calls.GetUnmined = append(mock.calls.GetUnmined, callInfo)
 	mock.lockGetUnmined.Unlock()
-	return mock.GetUnminedFunc(contextMoqParam, callback)
+	return nil, mock.GetUnminedFunc(contextMoqParam, callback)
 }
 
 // GetUnminedCalls gets all the calls that were made to GetUnmined.

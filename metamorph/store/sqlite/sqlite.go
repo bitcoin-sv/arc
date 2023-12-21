@@ -348,12 +348,12 @@ func (s *SqLite) Set(ctx context.Context, _ []byte, value *store.StoreData) erro
 	return err
 }
 
-func (s *SqLite) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
+func (s *SqLite) GetUnmined(ctx context.Context, since time.Time) ([]*store.StoreData, error) {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("getunmined").AddTime(startNanos)
 	}()
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:GetUnmined")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "sql:GetUnmined")
 	defer span.Finish()
 
 	q := `SELECT
@@ -374,7 +374,7 @@ func (s *SqLite) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
-		return err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -400,7 +400,7 @@ func (s *SqLite) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 			&data.MerkleProof,
 			&data.RawTx,
 		); err != nil {
-			return err
+			return nil, err
 		}
 
 		if txHash != nil {
@@ -416,7 +416,7 @@ func (s *SqLite) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
-				return err
+				return nil, err
 			}
 		}
 
@@ -425,7 +425,7 @@ func (s *SqLite) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
-				return err
+				return nil, err
 			}
 		}
 		if minedAt != "" {
@@ -433,14 +433,14 @@ func (s *SqLite) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
-				return err
+				return nil, err
 			}
 		}
 
 		callback(data)
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (s *SqLite) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {

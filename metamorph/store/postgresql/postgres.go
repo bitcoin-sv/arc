@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	postgresDriverName = "postgres"
+	postgresDriverName      = "postgres"
+	numericalDateHourLayout = "2006010215"
 	loadLimit          = 20000
 )
 
@@ -321,7 +322,7 @@ func (p *PostgreSQL) setLockedBy(ctx context.Context, hash *chainhash.Hash, lock
 	return nil
 }
 
-func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
+func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time) ([]*store.StoreData, error) {
 	startNanos := p.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("getunmined").AddTime(startNanos)
@@ -342,16 +343,20 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 		,merkle_proof
 		,raw_tx
 		,locked_by
-		FROM metamorph.transactions WHERE locked_by = 'NONE' AND (status < $1 OR status = $2 ) LIMIT $3;`
+		FROM metamorph.transactions
+		WHERE locked_by = 'NONE'
+		AND (status < $1 OR status = $2)
+		AND inserted_at_num > $3 LIMIT $4;`
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, loadLimit)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout), loadLimit)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
-		return err
+		return nil, err
 	}
 	defer rows.Close()
 
+	unminedTxs := make([]*store.StoreData, 0)
 	for rows.Next() {
 		data := &store.StoreData{}
 
@@ -383,7 +388,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 		); err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
-			return err
+			return nil, err
 		}
 
 		if len(txHash) > 0 {
@@ -391,7 +396,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
-				return err
+				return nil, err
 			}
 		}
 
@@ -400,7 +405,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
-				return err
+				return nil, err
 			}
 		}
 
@@ -440,15 +445,15 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 			data.LockedBy = lockedBy.String
 		}
 
-		callback(data)
-
 		err = p.setLockedBy(ctx, data.Hash, p.hostname)
 		if err != nil {
-			return err
+			return nil, err
 		}
+
+		unminedTxs = append(unminedTxs, data)
 	}
 
-	return nil
+	return unminedTxs, nil
 }
 
 func (p *PostgreSQL) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {

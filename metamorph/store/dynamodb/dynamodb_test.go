@@ -181,10 +181,7 @@ func TestDynamoDBIntegration(t *testing.T) {
 
 		i := 0
 		returnedData := make([]*store.StoreData, 2)
-		err := repo.GetUnmined(ctx, func(s *store.StoreData) {
-			returnedData[i] = s
-			i++
-		})
+		_, err := repo.GetUnmined(ctx, 0)
 		require.NoError(t, err)
 		require.Contains(t, returnedData, dataStatusAnnounced)
 		require.Contains(t, returnedData, dataStatusSent)

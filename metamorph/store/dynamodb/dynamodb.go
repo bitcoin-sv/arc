@@ -400,13 +400,13 @@ func (ddb *DynamoDB) setLockedBy(ctx context.Context, hash *chainhash.Hash, lock
 	return nil
 }
 
-func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
+func (ddb *DynamoDB) GetUnmined(ctx context.Context, since time.Time) ([]*store.StoreData, error) {
 	// setup log and tracing
 	startNanos := ddb.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_dynamodb").NewStat("getunmined").AddTime(startNanos)
 	}()
-	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:GetUnmined")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "dynamodb:GetUnmined")
 	defer span.Finish()
 
 	// get unmined set
@@ -424,7 +424,7 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
-		return err
+		return nil, err
 	}
 
 	for _, item := range out.Items {
@@ -433,7 +433,7 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
-			return err
+			return nil, err
 		}
 
 		callback(&transaction)
@@ -442,10 +442,10 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {

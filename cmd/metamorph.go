@@ -58,7 +58,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 
 	s, err := NewStore(dbMode, folder)
 	if err != nil {
-		return nil, fmt.Errorf("Error creating metamorph store: %v", err)
+		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
 
 	blocktxAddress := viper.GetString("blocktx.dialAddr")
@@ -117,7 +117,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	mapExpiryStr := viper.GetString("metamorph.processorCacheExpiryTime")
 	mapExpiry, err := time.ParseDuration(mapExpiryStr)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid metamorph.processorCacheExpiryTime: %s", mapExpiryStr)
+		return nil, fmt.Errorf("invalid metamorph.processorCacheExpiryTime: %s", mapExpiryStr)
 	}
 
 	processorLogger, err := config.NewLogger()

@@ -65,12 +65,9 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to get hostname: %v", err)
 	}
 	go func() {
-		for {
-			select {
-			case <-primaryTicker.C:
-				if err := blockStore.TryToBecomePrimary(context.Background(), hostName); err != nil {
-					logger.Error("failed to try to become primary", slog.String("err", err.Error()))
-				}
+		for range primaryTicker.C {
+			if err := blockStore.TryToBecomePrimary(context.Background(), hostName); err != nil {
+				logger.Error("failed to try to become primary", slog.String("err", err.Error()))
 			}
 		}
 	}()

@@ -59,7 +59,7 @@ func run() error {
 
 	shutdown, err := cmd.StartAPIServer(logger)
 	if err != nil {
-		return fmt.Errorf("Error starting API server: %v", err)
+		return fmt.Errorf("failed to start API server: %v", err)
 	}
 
 	// setup signal catching

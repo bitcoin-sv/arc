@@ -36,7 +36,7 @@ func run() error {
 	viper.AddConfigPath("../../")
 	err := viper.ReadInConfig()
 	if err != nil {
-		return fmt.Errorf("failed to read config file config.yaml: %v \n", err)
+		return fmt.Errorf("failed to read config file config.yaml: %v", err)
 	}
 
 	logger, err := cfg.NewLogger()

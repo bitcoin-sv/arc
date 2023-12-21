@@ -61,7 +61,7 @@ func run() error {
 
 	shutdown, err := cmd.StartBlockTx(logger)
 	if err != nil {
-		return fmt.Errorf("Error starting blocktx: %v", err)
+		return fmt.Errorf("failed to start blocktx: %v", err)
 	}
 
 	// setup signal catching

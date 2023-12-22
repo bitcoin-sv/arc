@@ -26,7 +26,10 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-const transactionStoringBatchsizeDefault = 65536 // power of 2 for easier memory allocation
+const (
+	transactionStoringBatchsizeDefault = 65536 // power of 2 for easier memory allocation
+	maxRequestBlocks                   = 5
+)
 
 func init() {
 	// override the default wire block handler with our own that streams and stores only the transaction ids
@@ -394,7 +397,11 @@ func (bs *PeerHandler) FillGaps(peer p2p.PeerI) error {
 		return nil
 	}
 
-	for _, gaps := range blockHeightGaps {
+	for i, gaps := range blockHeightGaps {
+		if i+1 > maxRequestBlocks {
+			break
+		}
+
 		_, found := bs.announcedCache.Get(*gaps.Hash)
 		if found {
 			return nil

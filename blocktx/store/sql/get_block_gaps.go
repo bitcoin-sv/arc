@@ -26,7 +26,8 @@ func (s *SQL) GetBlockGaps(ctx context.Context) ([]*store.BlockGap, error) {
 				)) AS block_heights) AS bl
 				LEFT JOIN blocks blks ON blks.height = bl.block_heights
 				WHERE blks.height IS NULL
-				) AS missing_blocks ON blocks.height = missing_blocks.missing_block_height + 1;`
+				) AS missing_blocks ON blocks.height = missing_blocks.missing_block_height + 1
+				ORDER BY missing_blocks.missing_block_height DESC;`
 
 	rows, err := s.db.QueryContext(ctx, q)
 	if err != nil {

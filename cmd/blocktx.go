@@ -53,8 +53,12 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 
 	blockTxServer := blocktx.NewServer(blockStore, blockNotifier, logger)
 
+	address, err := config.GetString("blocktx.listenAddr")
+	if err != nil {
+		return nil, err
+	}
 	go func() {
-		if err = blockTxServer.StartGRPCServer(); err != nil {
+		if err = blockTxServer.StartGRPCServer(address); err != nil {
 			logger.Error("failed to start blocktx server", slog.String("err", err.Error()))
 		}
 	}()

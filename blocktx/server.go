@@ -40,11 +40,7 @@ func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger *slo
 }
 
 // StartGRPCServer function.
-func (s *Server) StartGRPCServer() error {
-	address := viper.GetString("blocktx.listenAddr")
-	if address == "" {
-		return errors.New("no blocktx.listenAddr setting found")
-	}
+func (s *Server) StartGRPCServer(address string) error {
 
 	// LEVEL 0 - no security / no encryption
 	var opts []grpc.ServerOption
@@ -168,4 +164,9 @@ func (s *Server) GetBlockNotificationStream(height *blocktx_api.Height, srv bloc
 
 func (s *Server) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
 	return s.store.GetMinedTransactionsForBlock(ctx, blockAndSource)
+}
+
+func (s *Server) Shutdown() {
+	s.logger.Info("Shutting down")
+	s.grpcServer.Stop()
 }

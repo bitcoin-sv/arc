@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
+	"os"
 
 	"github.com/bitcoin-sv/arc/api"
 	apiHandler "github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
 	"github.com/labstack/echo/v4"
-	"github.com/ordishs/gocore"
 )
 
 func main() {
@@ -21,11 +22,11 @@ func main() {
 		panic(err)
 	}
 
-	logger := gocore.Log("simple")
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	defaultPolicy, err := apiHandler.GetDefaultPolicy()
 	if err != nil {
-		logger.Error(err)
+		logger.Error("failed to get default policy", slog.String("err", err.Error()))
 		// this is a fatal error, we cannot start the server without a valid default policy
 		panic(err)
 	}

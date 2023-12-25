@@ -301,7 +301,6 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		value.RawTx,
 		p.hostname,
 	)
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -485,7 +484,6 @@ func (p *PostgreSQL) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 		args = []any{status, rejectReason, hash[:]}
 	}
 	result, err := p.db.ExecContext(ctx, q, args...)
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -524,7 +522,6 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 	;`
 
 	_, err := p.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHash[:], blockHeight, p.now().Format(time.RFC3339), hash[:])
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -544,7 +541,6 @@ func (p *PostgreSQL) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash)
 	q := `UPDATE metamorph.transactions SET callback_url = '' WHERE hash = $5;`
 
 	_, err := p.db.ExecContext(ctx, q, metamorph_api.Status_MINED, p.now().Format(time.RFC3339), hash[:])
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -614,7 +610,6 @@ func (p *PostgreSQL) SetBlockProcessed(ctx context.Context, blockHash *chainhash
 		blockHash[:],
 		processedAt,
 	)
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -642,7 +637,6 @@ func (p *PostgreSQL) Del(ctx context.Context, key []byte) error {
 	rows, _ := result.RowsAffected()
 	fmt.Println(rows)
 	return err
-
 }
 
 // Close implements the MetamorphStore interface. It closes the connection to the underlying

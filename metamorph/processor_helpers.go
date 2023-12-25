@@ -54,7 +54,7 @@ func (p *Processor) PrintStatsOnKeypress() func() {
 
 	// Print stats when the user presses a key...
 	go func() {
-		var b = make([]byte, 1)
+		b := make([]byte, 1)
 		for {
 			_, _ = os.Stdin.Read(b)
 
@@ -341,7 +341,6 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, hash *chainhash.Hash
 						_, _ = io.WriteString(w, fmt.Sprintf(`<pre>%s</pre>`, txJson))
 					}
 				}
-
 			} else {
 				// transaction not found, return error and close html
 				_, _ = io.WriteString(w, `
@@ -382,7 +381,6 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, hash *chainhash.Hash
 }
 
 func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *processor_response.ProcessorResponse) []byte {
-
 	announcedPeers := make([]string, 0, len(prm.AnnouncedPeers))
 	for _, peer := range prm.AnnouncedPeers {
 		if peer != nil {

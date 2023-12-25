@@ -80,7 +80,7 @@ func TestCallbacker_AddCallback(t *testing.T) {
 		{
 			name:      "success",
 			responder: httpmock.NewStringResponder(200, "OK"),
-			//expectedErrGet: store.ErrNotFound,
+			// expectedErrGet: store.ErrNotFound,
 			expectedNrOfPosts: 1,
 		},
 		{
@@ -305,9 +305,9 @@ func TestCallbacker_sendCallbacksWithBadgerHold(t *testing.T) {
 			}
 
 			assert.NoError(t, err)
-			assert.Equal(t, testCallback.Url, data.Url)
-			assert.Equal(t, testCallback.Token, data.Token)
-			assert.Equal(t, testCallback.Status, data.Status)
+			assert.Equal(t, testCallback.GetUrl(), data.GetUrl())
+			assert.Equal(t, testCallback.GetToken(), data.GetToken())
+			assert.Equal(t, testCallback.GetStatus(), data.GetStatus())
 		})
 	}
 }

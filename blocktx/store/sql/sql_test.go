@@ -6,9 +6,8 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
-
 	_ "github.com/lib/pq"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -61,8 +60,8 @@ func TestInOut(t *testing.T) {
 	txns, err := s.GetBlockTransactions(ctx, block)
 	require.NoError(t, err)
 
-	for i, txn := range txns.Transactions {
-		assert.Equal(t, bytes.Equal(transactions[i].Hash, txn.Hash), true)
+	for i, txn := range txns.GetTransactions() {
+		assert.Equal(t, bytes.Equal(transactions[i].GetHash(), txn.GetHash()), true)
 	}
 
 	height := uint64(1)
@@ -72,7 +71,7 @@ func TestInOut(t *testing.T) {
 
 	block2, err := s.GetBlockForHeight(ctx, height)
 	require.NoError(t, err)
-	assert.Equal(t, bytes.Equal(block.Hash, block2.Hash), true)
+	assert.Equal(t, bytes.Equal(block.GetHash(), block2.GetHash()), true)
 
 	err = s.OrphanHeight(ctx, height)
 	require.NoError(t, err)
@@ -80,7 +79,6 @@ func TestInOut(t *testing.T) {
 	block3, err := s.GetBlockForHeight(ctx, height)
 	require.Error(t, err)
 	assert.Nil(t, block3)
-
 }
 
 func TestBlockNotExists(t *testing.T) {

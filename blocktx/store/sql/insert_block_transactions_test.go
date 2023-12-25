@@ -42,10 +42,10 @@ func (s *InsertBlockTransactionsSuite) Test() {
 
 	var storedtx Tx
 
-	err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(tx.Hash))
+	err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(tx.GetHash()))
 	require.NoError(s.T(), err)
 
-	assert.Equal(s.T(), string(tx.Hash), storedtx.Hash)
+	assert.Equal(s.T(), string(tx.GetHash()), storedtx.Hash)
 	assert.Equal(s.T(), testMerkle, storedtx.MerklePath)
 
 	var mp store.BlockTransactionMap

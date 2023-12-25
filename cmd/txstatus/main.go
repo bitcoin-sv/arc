@@ -11,11 +11,8 @@ import (
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/ordishs/gocore"
 	"github.com/spf13/viper"
 )
-
-var logger = gocore.Log("txstatus")
 
 func main() {
 	argsWithoutProg := os.Args[1:]
@@ -56,7 +53,8 @@ func main() {
 	if grpcMessageSize == 0 {
 		panic("Missing grpcMessageSize")
 	}
-	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize, logger, false)
+
+	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize, false)
 	if err != nil {
 		panic(err)
 	}

@@ -37,7 +37,7 @@ func (s *GetTransactionBlockSuite) Test() {
 	})
 	require.NoError(s.T(), err)
 
-	assert.Equal(s.T(), block.Hash, string(b.Hash))
+	assert.Equal(s.T(), block.Hash, string(b.GetHash()))
 }
 
 func TestGetTransactionBlock(t *testing.T) {

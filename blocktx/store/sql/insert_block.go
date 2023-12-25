@@ -37,7 +37,7 @@ func (s *SQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64
 
 	var blockId uint64
 
-	if err := s.db.QueryRowContext(ctx, q, block.Hash, block.PreviousHash, block.MerkleRoot, block.Height).Scan(&blockId); err != nil {
+	if err := s.db.QueryRowContext(ctx, q, block.GetHash(), block.GetPreviousHash(), block.GetMerkleRoot(), block.GetHeight()).Scan(&blockId); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// The insert failed because the block already exists.
 			// We will mark the block as un-orphaned whilst retrieving the id.
@@ -48,7 +48,7 @@ func (s *SQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64
 				RETURNING id
 			`
 
-			if err := s.db.QueryRowContext(ctx, q, block.Hash).Scan(&blockId); err != nil {
+			if err := s.db.QueryRowContext(ctx, q, block.GetHash()).Scan(&blockId); err != nil {
 				return 0, fmt.Errorf("failed when updating block: %v", err)
 			}
 		} else {

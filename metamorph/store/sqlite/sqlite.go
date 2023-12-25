@@ -344,7 +344,6 @@ func (s *SqLite) Set(ctx context.Context, _ []byte, value *store.StoreData) erro
 		value.RejectReason,
 		value.RawTx,
 	)
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -501,7 +500,6 @@ func (s *SqLite) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHas
 	;`
 
 	_, err := s.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHash[:], blockHeight, hash[:])
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -571,7 +569,6 @@ func (s *SqLite) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Has
 		blockHash[:],
 		processedAt,
 	)
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -593,14 +590,12 @@ func (s *SqLite) Del(ctx context.Context, key []byte) error {
 	q := `DELETE FROM transactions WHERE hash = $1;`
 
 	_, err := s.db.ExecContext(ctx, q, hash)
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 	}
 
 	return err
-
 }
 
 // Close implements the MetamorphStore interface. It closes the connection to the underlying

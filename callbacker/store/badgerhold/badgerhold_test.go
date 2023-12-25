@@ -41,10 +41,10 @@ func TestBadgerHold_Get(t *testing.T) {
 		var data *callbacker_api.Callback
 		data, err = bh.Get(context.Background(), key)
 		require.NoError(t, err)
-		assert.Equal(t, "test hash", string(data.Hash))
-		assert.Equal(t, "url", data.Url)
-		assert.Equal(t, "token", data.Token)
-		assert.Equal(t, int32(metamorph_api.Status_SENT_TO_NETWORK), data.Status)
+		assert.Equal(t, "test hash", string(data.GetHash()))
+		assert.Equal(t, "url", data.GetUrl())
+		assert.Equal(t, "token", data.GetToken())
+		assert.Equal(t, int32(metamorph_api.Status_SENT_TO_NETWORK), data.GetStatus())
 	})
 }
 
@@ -74,8 +74,8 @@ func TestBadgerHold_GetExpired(t *testing.T) {
 		expired, err := bh.GetExpired(context.Background())
 		require.NoError(t, err)
 		assert.Len(t, expired, 2)
-		assert.Equal(t, "test hash", string(expired[key1].Hash))
-		assert.Equal(t, "test hash 2", string(expired[key2].Hash))
+		assert.Equal(t, "test hash", string(expired[key1].GetHash()))
+		assert.Equal(t, "test hash 2", string(expired[key2].GetHash()))
 	})
 }
 
@@ -107,7 +107,7 @@ func TestBadgerHold_Set(t *testing.T) {
 		var data *callbacker_api.Callback
 		data, err = bh.Get(context.Background(), key)
 		require.NoError(t, err)
-		assert.Equal(t, testCallback.Hash, data.Hash)
+		assert.Equal(t, testCallback.GetHash(), data.GetHash())
 	})
 }
 
@@ -126,7 +126,7 @@ func TestBadgerHold_Del(t *testing.T) {
 
 		key, _ := bh.Set(context.Background(), testCallback)
 		data, _ := bh.Get(context.Background(), key)
-		assert.Equal(t, testCallback.Hash, data.Hash)
+		assert.Equal(t, testCallback.GetHash(), data.GetHash())
 
 		err := bh.Del(context.Background(), key)
 		require.NoError(t, err)

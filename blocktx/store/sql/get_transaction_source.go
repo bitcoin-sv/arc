@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// GetTransactionSource returns the source of a transaction
+// GetTransactionSource returns the source of a transaction.
 func (s *SQL) GetTransactionSource(ctx context.Context, txhash *chainhash.Hash) (string, error) {
 	start := gocore.CurrentNanos()
 	defer func() {

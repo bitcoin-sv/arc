@@ -1,0 +1,2 @@
+ALTER TABLE transactions ADD COLUMN inserted_at TIMESTAMPTZ;
+ALTER TABLE blocks ADD COLUMN inserted_at TIMESTAMPTZ;

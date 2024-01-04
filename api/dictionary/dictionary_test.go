@@ -7,11 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestErrorCode_IsValid tests the method IsValid()
+// TestErrorCode_IsValid tests the method IsValid().
 func TestErrorCode_IsValid(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		testCase    string
 		code        ErrorCode
 		expectValid bool
@@ -76,11 +76,11 @@ func TestErrorCode_IsValid(t *testing.T) {
 	}
 }
 
-// TestGetInternalMessage tests the method GetInternalMessage()
+// TestGetInternalMessage tests the method GetInternalMessage().
 func TestGetInternalMessage(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		testCase        string
 		code            ErrorCode
 		expectedMessage string
@@ -145,11 +145,11 @@ func TestGetInternalMessage(t *testing.T) {
 	}
 }
 
-// TestGetPublicMessage tests the method GetPublicMessage()
+// TestGetPublicMessage tests the method GetPublicMessage().
 func TestGetPublicMessage(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		testCase        string
 		code            ErrorCode
 		expectedMessage string
@@ -214,11 +214,11 @@ func TestGetPublicMessage(t *testing.T) {
 	}
 }
 
-// TestGetStatusCode tests the method GetStatusCode()
+// TestGetStatusCode tests the method GetStatusCode().
 func TestGetStatusCode(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		testCase       string
 		code           ErrorCode
 		expectedStatus int
@@ -234,7 +234,6 @@ func TestGetStatusCode(t *testing.T) {
 			http.StatusBadRequest,
 		},
 		{
-
 			"ErrorInvalidEnv",
 			ErrorInvalidEnv,
 			http.StatusBadRequest,
@@ -284,11 +283,11 @@ func TestGetStatusCode(t *testing.T) {
 	}
 }
 
-// TestGetError tests the method GetError()
+// TestGetError tests the method GetError().
 func TestGetError(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		testCase     string
 		code         ErrorCode
 		expectedCode ErrorCode

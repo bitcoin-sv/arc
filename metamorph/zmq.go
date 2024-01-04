@@ -61,7 +61,7 @@ type ZMQDiscardFromMempool struct {
 }
 
 func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage) *ZMQ {
-	var zmqLogger = gocore.Log("zmq")
+	zmqLogger := gocore.Log("zmq")
 	z := &ZMQ{
 		URL: zmqURL,
 		Stats: &ZMQStats{
@@ -81,7 +81,6 @@ type ZMQI interface {
 }
 
 func (z *ZMQ) Start(zmqi ZMQI) {
-
 	ch := make(chan []string)
 
 	go func() {

@@ -2,34 +2,64 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/bitcoin-sv/arc/cmd"
-	"github.com/ordishs/go-utils"
-	"github.com/ordishs/gocore"
+	cfg "github.com/bitcoin-sv/arc/config"
 	"github.com/spf13/viper"
 )
 
-const progname = "api"
+// Version & commit strings injected at build with -ldflags -X...
+var (
+	version string
+	commit  string
+)
 
 func main() {
+	err := run()
+	if err != nil {
+		log.Fatalf("failed to run ARC: %v", err)
+	}
 
+	os.Exit(0)
+}
+
+func run() error {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("../../")
 	err := viper.ReadInConfig()
 	if err != nil {
-		fmt.Printf("failed to read config file config.yaml: %v \n", err)
-		return
+		return fmt.Errorf("failed to read config file config.yaml: %v", err)
 	}
 
-	logLevel := viper.GetString("logLevel")
-	logger := gocore.Log(progname, gocore.NewLogLevelFromString(logLevel))
+	logger, err := cfg.NewLogger()
+	if err != nil {
+		return fmt.Errorf("failed to create logger: %v", err)
+	}
+
+	logger.Info("starting api", slog.String("version", version), slog.String("commit", commit))
+
+	go func() {
+		profilerAddr := viper.GetString("metamorph.profilerAddr")
+		if profilerAddr != "" {
+			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", profilerAddr))
+
+			err := http.ListenAndServe(profilerAddr, nil)
+			if err != nil {
+				logger.Error("failed to start profiler server", slog.String("err", err.Error()))
+			}
+		}
+	}()
+
 	shutdown, err := cmd.StartAPIServer(logger)
 	if err != nil {
-		logger.Fatalf("Error starting API server: %v", err)
+		return fmt.Errorf("failed to start API server: %v", err)
 	}
 
 	// setup signal catching
@@ -38,10 +68,11 @@ func main() {
 
 	<-signalChan
 	appCleanup(logger, shutdown)
-	os.Exit(0)
+
+	return nil
 }
 
-func appCleanup(logger utils.Logger, shutdown func()) {
-	logger.Infof("Shutting down...")
+func appCleanup(logger *slog.Logger, shutdown func()) {
+	logger.Info("Shutting down...")
 	shutdown()
 }

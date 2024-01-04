@@ -97,7 +97,6 @@ func run() error {
 		return fmt.Errorf("failed to read config file: %v", err)
 	}
 
-	logLevel := viper.GetString("logLevel")
 	logger, err := cfg.NewLogger()
 	if err != nil {
 		return fmt.Errorf("failed to create logger: %v", err)
@@ -111,7 +110,9 @@ func run() error {
 			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", profilerAddr))
 
 			err := http.ListenAndServe(profilerAddr, nil)
-			logger.Error("failed to start profiler server", slog.String("err", err.Error()))
+			if err != nil {
+				logger.Error("failed to start profiler server", slog.String("err", err.Error()))
+			}
 		}
 	}()
 
@@ -177,8 +178,7 @@ func run() error {
 
 	if startBlockTx != nil && *startBlockTx {
 		logger.Info("Starting BlockTx")
-		blockTxLogger := gocore.Log("btx", gocore.NewLogLevelFromString(logLevel))
-		shutdown, err := cmd.StartBlockTx(blockTxLogger)
+		shutdown, err := cmd.StartBlockTx(logger)
 		if err != nil {
 			return fmt.Errorf("failed to start blocktx: %v", err)
 		}
@@ -196,8 +196,7 @@ func run() error {
 
 	if startMetamorph != nil && *startMetamorph {
 		logger.Info("Starting Metamorph")
-		metamorphLogger := gocore.Log("mtm", gocore.NewLogLevelFromString(logLevel))
-		shutdown, err := cmd.StartMetamorph(metamorphLogger)
+		shutdown, err := cmd.StartMetamorph(logger)
 		if err != nil {
 			return fmt.Errorf("failed to start metamorph: %v", err)
 		}
@@ -206,8 +205,7 @@ func run() error {
 
 	if startApi != nil && *startApi {
 		logger.Info("Starting API")
-		var apiLogger = gocore.Log("api", gocore.NewLogLevelFromString(logLevel))
-		shutdown, err := cmd.StartAPIServer(apiLogger)
+		shutdown, err := cmd.StartAPIServer(logger)
 		if err != nil {
 			return fmt.Errorf("failed to start api: %v", err)
 		}

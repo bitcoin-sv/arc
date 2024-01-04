@@ -17,7 +17,7 @@ type StoreData struct {
 	StoredAt      time.Time            `dynamodbav:"stored_at"`
 	AnnouncedAt   time.Time            `dynamodbav:"announced_at"`
 	MinedAt       time.Time            `dynamodbav:"mined_at"`
-	Hash          *chainhash.Hash      `dynamodbav:"tx_hash" badgerhold:"key"`
+	Hash          *chainhash.Hash      `badgerhold:"key"            dynamodbav:"tx_hash"`
 	Status        metamorph_api.Status `dynamodbav:"tx_status"`
 	BlockHeight   uint64               `dynamodbav:"block_height"`
 	BlockHash     *chainhash.Hash      `dynamodbav:"block_hash"`
@@ -213,6 +213,7 @@ type MetamorphStore interface {
 	SetUnlockedByName(ctx context.Context, lockedBy string) (int, error)
 	GetUnminedTransactions(context.Context) ([]StoreData, error)
 	UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error
+	RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error
 	UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error
 	Close(ctx context.Context) error
 	GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error)
@@ -290,7 +291,7 @@ func encodeString(buf *bytes.Buffer, str string) error {
 		return err
 	}
 
-	if _, err := buf.Write([]byte(str)); err != nil {
+	if _, err := buf.WriteString(str); err != nil {
 		return err
 	}
 

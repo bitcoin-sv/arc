@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -21,14 +22,13 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/go-bitcoin"
-	"github.com/ordishs/go-utils"
 	"github.com/pkg/errors"
 )
 
 type ArcDefaultHandler struct {
 	TransactionHandler transactionHandler.TransactionHandler
 	NodePolicy         *bitcoin.Settings
-	logger             utils.Logger
+	logger             *slog.Logger
 	now                func() time.Time
 }
 
@@ -40,8 +40,7 @@ func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 
 type Option func(f *ArcDefaultHandler)
 
-func NewDefault(logger utils.Logger, transactionHandler transactionHandler.TransactionHandler, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
-
+func NewDefault(logger *slog.Logger, transactionHandler transactionHandler.TransactionHandler, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
 	handler := &ArcDefaultHandler{
 		TransactionHandler: transactionHandler,
 		NodePolicy:         policy,
@@ -347,7 +346,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		if tx, ok := btTx.(api.TransactionResponse); ok {
 			sizing, found := sizingMap[tx.Txid]
 			if !found {
-				m.logger.Warnf("tx id %s not found in sizing map", tx.Txid)
+				m.logger.Warn("tx id not found in sizing map", slog.String("id", tx.Txid))
 			}
 
 			sizingInfo = append(sizingInfo, sizing)
@@ -368,7 +367,6 @@ func getTransactionsOptions(params api.POSTTransactionsParams) (*api.Transaction
 	transactionOptions := &api.TransactionOptions{}
 	if params.XCallbackUrl != nil {
 		_, err := url.ParseRequestURI(*params.XCallbackUrl)
-
 		if err != nil {
 			return nil, fmt.Errorf("invalid callback URL [%w]", err)
 		}
@@ -411,7 +409,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 		err := m.extendTransaction(tracingCtx, transaction)
 		if err != nil {
 			statusCode, arcError := m.handleError(tracingCtx, transaction, err)
-			m.logger.Errorf("failed to extend transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, err)
+			m.logger.Error("failed to extend transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
 			return statusCode, arcError, err
 		}
 	}
@@ -421,7 +419,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 		if err := txValidator.ValidateTransaction(transaction, transactionOptions.SkipFeeValidation, transactionOptions.SkipScriptValidation); err != nil {
 			validateSpan.Finish()
 			statusCode, arcError := m.handleError(validateCtx, transaction, err)
-			m.logger.Errorf("failed to validate transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, err)
+			m.logger.Error("failed to validate transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
 			return statusCode, arcError, err
 		}
 		validateSpan.Finish()
@@ -430,7 +428,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 	tx, err := m.TransactionHandler.SubmitTransaction(tracingCtx, transaction.Bytes(), transactionOptions)
 	if err != nil {
 		statusCode, arcError := m.handleError(tracingCtx, transaction, err)
-		m.logger.Errorf("failed to submit transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, err)
+		m.logger.Error("failed to submit transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
 		return statusCode, arcError, err
 	}
 
@@ -457,7 +455,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 	}, nil
 }
 
-// processTransactions validates all the transactions in the array and submits to metamorph for processing
+// processTransactions validates all the transactions in the array and submits to metamorph for processing.
 func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions []*bt.Tx, transactionOptions *api.TransactionOptions) (api.StatusCode, []interface{}, error) {
 	span, tracingCtx := opentracing.StartSpanFromContext(ctx, "ArcDefaultHandler:processTransactions")
 	defer span.Finish()
@@ -475,7 +473,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 			err := m.extendTransaction(tracingCtx, transaction)
 			if err != nil {
 				statusCode, arcError := m.handleError(tracingCtx, transaction, err)
-				m.logger.Errorf("failed to extend transaction with ID %s, status Code: %d: %v", transaction.TxID(), statusCode, err)
+				m.logger.Error("failed to extend transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
 				txErrors = append(txErrors, arcError)
 				continue
 			}
@@ -499,7 +497,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	txStatuses, err := m.TransactionHandler.SubmitTransactions(tracingCtx, transactionsInput, transactionOptions)
 	if err != nil {
 		statusCode, arcError := m.handleError(tracingCtx, nil, err)
-		m.logger.Errorf("failed to submit %d transactions, status Code: %d: %v", len(transactions), statusCode, err)
+		m.logger.Error("failed to submit transactions", slog.Int("txs", len(transactions)), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
 		return statusCode, []interface{}{arcError}, err
 	}
 
@@ -592,7 +590,7 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, subm
 	return status, arcError
 }
 
-// getTransaction returns the transaction with the given id from a store
+// getTransaction returns the transaction with the given id from a store.
 func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string) ([]byte, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "ArcDefaultHandler:getTransaction")
 	defer span.Finish()
@@ -607,7 +605,7 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 	// get from node
 	txBytes, err := getTransactionFromNode(ctx, inputTxID)
 	if err != nil {
-		m.logger.Warnf("failed to get transaction %s from node: %v", inputTxID, err)
+		m.logger.Warn("failed to get transaction from node", slog.String("id", inputTxID), slog.String("err", err.Error()))
 	}
 	// we can ignore any error here, we just check whether we have the transaction
 	if txBytes != nil {
@@ -617,7 +615,7 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 	// get from woc
 	txBytes, err = getTransactionFromWhatsOnChain(ctx, inputTxID)
 	if err != nil {
-		m.logger.Warnf("failed to get transaction %s from WhatsOnChain: %v", inputTxID, err)
+		m.logger.Warn("failed to get transaction from WhatsOnChain", slog.String("id", inputTxID), slog.String("err", err.Error()))
 	}
 	// we can ignore any error here, we just check whether we have the transaction
 	if txBytes != nil {

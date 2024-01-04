@@ -22,7 +22,7 @@ func NewRegisterCallbackClient(callbacker callbacker.ClientI) *RegisterCallbackC
 
 func (r *RegisterCallbackClient) Caller(data *callbacker_api.Callback) error {
 	if err := r.callbacker.RegisterCallback(context.Background(), data); err != nil {
-		return fmt.Errorf("error registering callback %x: %v", bt.ReverseBytes(data.Hash), err)
+		return fmt.Errorf("error registering callback %x: %v", bt.ReverseBytes(data.GetHash()), err)
 	}
 	return nil
 }

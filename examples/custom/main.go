@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/bitcoin-sv/arc/api"
@@ -15,7 +17,6 @@ import (
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
-	"github.com/ordishs/gocore"
 	"github.com/spf13/viper"
 )
 
@@ -23,8 +24,8 @@ import (
 // but demonstrates how to initialize the arc server in a completely custom way
 func main() {
 
-	// Set up a basic gocore logger
-	logger := gocore.Log("arc", gocore.DEBUG)
+	// Set up a basic logger
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	// Set up a basic Echo router
 	e := echo.New()
@@ -77,14 +78,14 @@ func main() {
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn))
 	grpcMessageSize := viper.GetInt("grpcMessageSize")
 	// add a single metamorph, with the BlockTx client we want to use
-	txHandler, err := transactionHandler.NewMetamorph("localhost:8011", blockTxClient, grpcMessageSize, logger)
+	txHandler, err := transactionHandler.NewMetamorph("localhost:8011", blockTxClient, grpcMessageSize, false)
 	if err != nil {
 		panic(err)
 	}
 
 	defaultPolicy, err := apiHandler.GetDefaultPolicy()
 	if err != nil {
-		logger.Error(err)
+		logger.Error("failed to get default policy", slog.String("err", err.Error()))
 		// this is a fatal error, we cannot start the server without a valid default policy
 		panic(err)
 	}

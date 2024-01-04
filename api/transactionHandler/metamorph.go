@@ -14,32 +14,31 @@ import (
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/ordishs/go-utils"
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Metamorph is the connector to a metamorph server
+// Metamorph is the connector to a metamorph server.
 type Metamorph struct {
-	mu            sync.RWMutex
-	Client        metamorph_api.MetaMorphAPIClient
-	ClientCache   map[string]metamorph_api.MetaMorphAPIClient
-	blockTxClient blocktx.ClientI
-	logger        utils.Logger
+	mu                     sync.RWMutex
+	Client                 metamorph_api.MetaMorphAPIClient
+	ClientCache            map[string]metamorph_api.MetaMorphAPIClient
+	blockTxClient          blocktx.ClientI
+	isCentralisedMetamorph bool
 }
 
-// NewMetamorph creates a connection to a list of metamorph servers via gRPC
-func NewMetamorph(address string, blockTxClient blocktx.ClientI, grpcMessageSize int, logger utils.Logger) (*Metamorph, error) {
+// NewMetamorph creates a connection to a list of metamorph servers via gRPC.
+func NewMetamorph(address string, blockTxClient blocktx.ClientI, grpcMessageSize int, isCentralisedMetamorph bool) (*Metamorph, error) {
 	conn, err := DialGRPC(address, grpcMessageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connection to address %s: %v", address, err)
 	}
 
 	return &Metamorph{
-		Client:        metamorph_api.NewMetaMorphAPIClient(conn),
-		ClientCache:   make(map[string]metamorph_api.MetaMorphAPIClient),
-		blockTxClient: blockTxClient,
-		logger:        logger,
+		Client:                 metamorph_api.NewMetaMorphAPIClient(conn),
+		ClientCache:            make(map[string]metamorph_api.MetaMorphAPIClient),
+		blockTxClient:          blockTxClient,
+		isCentralisedMetamorph: isCentralisedMetamorph,
 	}, nil
 }
 
@@ -60,7 +59,7 @@ func DialGRPC(address string, grpcMessageSize int) (*grpc.ClientConn, error) {
 	return conn, nil
 }
 
-// GetTransaction gets the transaction bytes from metamorph
+// GetTransaction gets the transaction bytes from metamorph.
 func (m *Metamorph) GetTransaction(ctx context.Context, txID string) ([]byte, error) {
 	client, err := m.getMetamorphClientForTx(ctx, txID)
 	if err != nil {
@@ -79,10 +78,10 @@ func (m *Metamorph) GetTransaction(ctx context.Context, txID string) ([]byte, er
 		return nil, ErrTransactionNotFound
 	}
 
-	return tx.RawTx, nil
+	return tx.GetRawTx(), nil
 }
 
-// GetTransactionStatus gets the status of a transaction
+// GetTransactionStatus gets the status of a transaction.
 func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (status *TransactionStatus, err error) {
 	var client metamorph_api.MetaMorphAPIClient
 	if client, err = m.getMetamorphClientForTx(ctx, txID); err != nil {
@@ -103,15 +102,15 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 
 	return &TransactionStatus{
 		TxID:        txID,
-		MerklePath:  tx.MerklePath,
-		Status:      tx.Status.String(),
-		BlockHash:   tx.BlockHash,
-		BlockHeight: tx.BlockHeight,
+		MerklePath:  tx.GetMerklePath(),
+		Status:      tx.GetStatus().String(),
+		BlockHash:   tx.GetBlockHash(),
+		BlockHeight: tx.GetBlockHeight(),
 		Timestamp:   time.Now().Unix(),
 	}, nil
 }
 
-// SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format
+// SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
 func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions *arc.TransactionOptions) (*TransactionStatus, error) {
 	response, err := m.Client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
 		RawTx:         tx,
@@ -125,23 +124,23 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions 
 	}
 
 	return &TransactionStatus{
-		TxID:        response.Txid,
+		TxID:        response.GetTxid(),
 		Status:      response.GetStatus().String(),
-		ExtraInfo:   response.RejectReason,
-		BlockHash:   response.BlockHash,
-		BlockHeight: response.BlockHeight,
-		MerklePath:  response.MerklePath,
+		ExtraInfo:   response.GetRejectReason(),
+		BlockHash:   response.GetBlockHash(),
+		BlockHeight: response.GetBlockHeight(),
+		MerklePath:  response.GetMerklePath(),
 		Timestamp:   time.Now().Unix(),
 	}, nil
 }
 
-// SubmitTransactions submits transactions to the bitcoin network and returns the transaction in raw format
+// SubmitTransactions submits transactions to the bitcoin network and returns the transaction in raw format.
 func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOptions *arc.TransactionOptions) ([]*TransactionStatus, error) {
 	// prepare transaction inputs
 	in := new(metamorph_api.TransactionRequests)
 	in.Transactions = make([]*metamorph_api.TransactionRequest, 0)
 	for _, tx := range txs {
-		in.Transactions = append(in.Transactions, &metamorph_api.TransactionRequest{
+		in.Transactions = append(in.GetTransactions(), &metamorph_api.TransactionRequest{
 			RawTx:         tx,
 			CallbackUrl:   txOptions.CallbackURL,
 			CallbackToken: txOptions.CallbackToken,
@@ -158,14 +157,14 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOpti
 
 	// parse response and return to user
 	ret := make([]*TransactionStatus, 0)
-	for _, response := range responses.Statuses {
+	for _, response := range responses.GetStatuses() {
 		ret = append(ret, &TransactionStatus{
-			TxID:        response.Txid,
-			MerklePath:  response.MerklePath,
+			TxID:        response.GetTxid(),
+			MerklePath:  response.GetMerklePath(),
 			Status:      response.GetStatus().String(),
-			ExtraInfo:   response.RejectReason,
-			BlockHash:   response.BlockHash,
-			BlockHeight: response.BlockHeight,
+			ExtraInfo:   response.GetRejectReason(),
+			BlockHash:   response.GetBlockHash(),
+			BlockHeight: response.GetBlockHeight(),
 			Timestamp:   time.Now().Unix(),
 		})
 	}
@@ -174,7 +173,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOpti
 }
 
 func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (metamorph_api.MetaMorphAPIClient, error) {
-	if viper.GetString("metamorph.db.mode") == "dynamodb" {
+	if m.isCentralisedMetamorph {
 		return m.Client, nil
 	}
 

@@ -95,12 +95,10 @@ func TestNewErrorFields(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			errFields := NewErrorFields(tc.status, "some extra info")
 
 			require.Equal(t, int(tc.expectedStatus), errFields.Status)
 			require.Equal(t, "some extra info", *errFields.ExtraInfo)
-
 		})
 	}
 }

@@ -30,6 +30,7 @@ const (
 	rejectReasonAttributeKey     = ":reject_reason"
 	announcedAtAttributeKey      = ":announced_at"
 	minedAtAttributeKey          = ":mined_at"
+	callbackUrl                  = ":callback_url"
 )
 
 type DynamoDB struct {
@@ -98,7 +99,6 @@ func New(client *dynamodb.Client, hostname string, timeToLive time.Duration, tab
 	}
 
 	err := repo.initialize(context.Background(), repo)
-
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,6 @@ func New(client *dynamodb.Client, hostname string, timeToLive time.Duration, tab
 }
 
 func (ddb *DynamoDB) initialize(ctx context.Context, dynamodbClient *DynamoDB) error {
-
 	// create table if not exists
 	exists, err := dynamodbClient.TableExists(ctx, ddb.transactionsTableName)
 	if err != nil {
@@ -145,7 +144,6 @@ func (ddb *DynamoDB) TableExists(ctx context.Context, tableName string) (bool, e
 
 	for _, tn := range resp.TableNames {
 		if tn == tableName {
-
 			return true, nil
 		}
 	}
@@ -184,17 +182,10 @@ func (ddb *DynamoDB) CreateTransactionsTable(ctx context.Context) error {
 				Projection: &types.Projection{
 					ProjectionType: types.ProjectionTypeAll,
 				},
-				ProvisionedThroughput: &types.ProvisionedThroughput{
-					ReadCapacityUnits:  aws.Int64(10),
-					WriteCapacityUnits: aws.Int64(10),
-				},
 			},
 		},
-		TableName: aws.String(ddb.transactionsTableName),
-		ProvisionedThroughput: &types.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(10),
-			WriteCapacityUnits: aws.Int64(10),
-		},
+		TableName:   aws.String(ddb.transactionsTableName),
+		BillingMode: types.BillingModePayPerRequest,
 	})
 	if err != nil {
 		return err
@@ -231,11 +222,8 @@ func (ddb *DynamoDB) CreateBlocksTable(ctx context.Context) error {
 				KeyType:       types.KeyTypeHash,
 			},
 		},
-		TableName: aws.String(ddb.blocksTableName),
-		ProvisionedThroughput: &types.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(10),
-			WriteCapacityUnits: aws.Int64(10),
-		},
+		TableName:   aws.String(ddb.blocksTableName),
+		BillingMode: types.BillingModePayPerRequest,
 	}); err != nil {
 		return err
 	}
@@ -348,7 +336,6 @@ func (ddb *DynamoDB) Del(ctx context.Context, key []byte) error {
 	_, err := ddb.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 		TableName: aws.String(ddb.transactionsTableName), Key: val,
 	})
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -369,7 +356,6 @@ func (ddb *DynamoDB) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) 
 
 	// update tx
 	for _, hash := range hashes {
-
 		err := ddb.setLockedBy(ctx, hash, lockedByNone)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
@@ -444,7 +430,6 @@ func (ddb *DynamoDB) setLockedBy(ctx context.Context, hash *chainhash.Hash, lock
 			lockedByAttributeKey: &types.AttributeValueMemberS{Value: lockedByValue},
 		},
 	})
-
 	if err != nil {
 		return err
 	}
@@ -473,7 +458,6 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 			txStatusAttributeKeyOrphaned: &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL))},
 		},
 	})
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -510,6 +494,14 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
 	defer span.Finish()
 
+	// do not store other statuses than the following
+	if status != metamorph_api.Status_REJECTED &&
+		status != metamorph_api.Status_SEEN_ON_NETWORK &&
+		status != metamorph_api.Status_MINED &&
+		status != metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
+		return nil
+	}
+
 	updateExpression := fmt.Sprintf("SET tx_status = %s, reject_reason = %s", txStatusAttributeKey, rejectReasonAttributeKey)
 	expressionAttributevalues := map[string]types.AttributeValue{
 		txStatusAttributeKey:     &types.AttributeValueMemberN{Value: strconv.Itoa(int(status))},
@@ -534,7 +526,34 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 		UpdateExpression:          aws.String(updateExpression),
 		ExpressionAttributeValues: expressionAttributevalues,
 	})
+	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return err
+	}
 
+	return nil
+}
+
+func (ddb *DynamoDB) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error {
+	// setup log and tracing
+	startNanos := ddb.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("RemoveCallbacker").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:RemoveCallbacker")
+	defer span.Finish()
+
+	_, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName: aws.String(ddb.transactionsTableName),
+		Key: map[string]types.AttributeValue{
+			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
+		},
+		UpdateExpression: aws.String("SET callback_url = :callback_url"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			callbackUrl: &types.AttributeValueMemberS{Value: ""},
+		},
+	})
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -567,7 +586,6 @@ func (ddb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 			minedAtAttributeKey:     &types.AttributeValueMemberS{Value: ddb.now().Format(time.RFC3339)},
 		},
 	})
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))

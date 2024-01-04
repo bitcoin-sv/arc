@@ -12,10 +12,9 @@ import (
 	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/callbacker/store"
 	"github.com/labstack/gommon/random"
+	"github.com/ordishs/gocore"
 	"github.com/spf13/viper"
 	"github.com/timshannon/badgerhold/v3"
-
-	"github.com/ordishs/gocore"
 )
 
 type BadgerData struct {
@@ -131,12 +130,12 @@ func (bh *BadgerHold) Set(_ context.Context, callback *callbacker_api.Callback) 
 		Key:           key,
 		CallbackAfter: callbackAfter,
 		CallbackCount: 0,
-		Hash:          callback.Hash,
-		Url:           callback.Url,
-		Token:         callback.Token,
-		Status:        callback.Status,
-		BlockHash:     callback.BlockHash,
-		BlockHeight:   callback.BlockHeight,
+		Hash:          callback.GetHash(),
+		Url:           callback.GetUrl(),
+		Token:         callback.GetToken(),
+		Status:        callback.GetStatus(),
+		BlockHash:     callback.GetBlockHash(),
+		BlockHeight:   callback.GetBlockHeight(),
 	}
 	if err := bh.store.Upsert(key, value); err != nil {
 		return "", fmt.Errorf("failed to insert data: %w", err)

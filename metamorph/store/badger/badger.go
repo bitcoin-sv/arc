@@ -251,6 +251,36 @@ func (s *Badger) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status 
 	return nil
 }
 
+func (s *Badger) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("mtm_store_badger").NewStat("RemoveCallbacker").AddTime(start)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "badger:RemoveCallbacker")
+	defer span.Finish()
+
+	// we need a lock here since we are doing 2 operations that need to be atomic
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, err := s.Get(ctx, hash[:])
+	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return err
+	}
+
+	tx.CallbackUrl = ""
+
+	if err = s.Set(ctx, hash[:], tx); err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return fmt.Errorf("failed to update data: %w", err)
+	}
+
+	return nil
+}
+
 // UpdateMined updates the transaction to mined
 func (s *Badger) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 	start := gocore.CurrentNanos()

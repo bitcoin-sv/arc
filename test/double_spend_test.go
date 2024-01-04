@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/stretchr/testify/require"
 )
@@ -71,7 +70,7 @@ func TestDoubleSpend(t *testing.T) {
 			var statusResponse *api.GETTransactionStatusResponse
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
 
-			require.Equal(t, handler.PtrTo("MINED"), statusResponse.JSON200.TxStatus)
+			require.Equal(t, "MINED", *statusResponse.JSON200.TxStatus)
 
 			// send double spending transaction when first tx was mined
 			arcBodyMined := getArcBody(t, privateKey, utxos[0], tc.extFormat)

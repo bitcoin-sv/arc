@@ -9,12 +9,12 @@ import (
 	"github.com/ordishs/go-bitcoin"
 )
 
-// BitcoinNode is a real Bitcoin node
+// BitcoinNode is a real Bitcoin node.
 type BitcoinNode struct {
 	Node *bitcoin.Bitcoind
 }
 
-// NewBitcoinNode creates a connection to a real bitcoin node via RPC
+// NewBitcoinNode creates a connection to a real bitcoin node via RPC.
 func NewBitcoinNode(host string, port int, user, passwd string, useSSL bool) (*BitcoinNode, error) {
 	node, err := bitcoin.New(host, port, user, passwd, useSSL)
 	if err != nil {
@@ -26,7 +26,7 @@ func NewBitcoinNode(host string, port int, user, passwd string, useSSL bool) (*B
 	}, nil
 }
 
-// GetTransaction gets a raw transaction from the bitcoin node
+// GetTransaction gets a raw transaction from the bitcoin node.
 func (b *BitcoinNode) GetTransaction(_ context.Context, txID string) (txBytes []byte, err error) {
 	var rawTx *bitcoin.RawTransaction
 	rawTx, err = b.Node.GetRawTransaction(txID)
@@ -42,7 +42,7 @@ func (b *BitcoinNode) GetTransaction(_ context.Context, txID string) (txBytes []
 	return txBytes, nil
 }
 
-// GetTransactionStatus gets a raw transaction from the bitcoin node
+// GetTransactionStatus gets a raw transaction from the bitcoin node.
 func (b *BitcoinNode) GetTransactionStatus(_ context.Context, txID string) (status *TransactionStatus, err error) {
 	var rawTx *bitcoin.RawTransaction
 	rawTx, err = b.Node.GetRawTransaction(txID)
@@ -64,7 +64,7 @@ func (b *BitcoinNode) GetTransactionStatus(_ context.Context, txID string) (stat
 	}, nil
 }
 
-// SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format
+// SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
 func (b *BitcoinNode) SubmitTransaction(_ context.Context, tx []byte, _ *api.TransactionOptions) (*TransactionStatus, error) {
 	txID, err := b.Node.SendRawTransaction(hex.EncodeToString(tx))
 	if err != nil {
@@ -85,7 +85,7 @@ func (b *BitcoinNode) SubmitTransaction(_ context.Context, tx []byte, _ *api.Tra
 	}, nil
 }
 
-// SubmitTransactions submits a list of transaction to the bitcoin network and returns the transaction statuses
+// SubmitTransactions submits a list of transaction to the bitcoin network and returns the transaction statuses.
 func (b *BitcoinNode) SubmitTransactions(_ context.Context, txs [][]byte, _ *api.TransactionOptions) ([]*TransactionStatus, error) {
 	statuses := make([]*TransactionStatus, 0, len(txs))
 	for _, tx := range txs {

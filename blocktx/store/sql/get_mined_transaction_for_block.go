@@ -9,7 +9,7 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-// GetMinedTransactionsForBlock returns the transaction hashes for a given block hash and source
+// GetMinedTransactionsForBlock returns the transaction hashes for a given block hash and source.
 func (s *SQL) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
@@ -46,7 +46,7 @@ func (s *SQL) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *
 
 	var processedAt sql.NullString
 
-	if err := s.db.QueryRowContext(ctx, qBlock, blockAndSource.Hash).Scan(
+	if err := s.db.QueryRowContext(ctx, qBlock, blockAndSource.GetHash()).Scan(
 		&block.Hash,
 		&block.Height,
 		&block.MerkleRoot,
@@ -59,7 +59,7 @@ func (s *SQL) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *
 
 	block.Processed = processedAt.Valid
 
-	rows, err := s.db.QueryContext(ctx, qTransactions, blockAndSource.Hash, blockAndSource.Source)
+	rows, err := s.db.QueryContext(ctx, qTransactions, blockAndSource.GetHash(), blockAndSource.GetSource())
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}

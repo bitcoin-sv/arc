@@ -11,13 +11,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/ory/dockertest"
-	"github.com/stretchr/testify/require"
-
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/store"
+	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/ory/dockertest/v3"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -97,7 +96,6 @@ func NewDynamoDBIntegrationTestRepo(t *testing.T) (*DynamoDB, *dynamodb.Client) 
 }
 
 func putItem(t *testing.T, ctx context.Context, client *dynamodb.Client, storeData any) {
-
 	item, err := attributevalue.MarshalMap(storeData)
 	require.NoError(t, err)
 	// put item into table
@@ -225,13 +223,19 @@ func TestDynamoDBIntegration(t *testing.T) {
 		require.Equal(t, "missing inputs", returnedDataRejected.RejectReason)
 		require.Equal(t, TX1RawBytes, returnedDataRejected.RawTx)
 
-		err = repo.UpdateStatus(ctx, TX1Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
+		err = repo.UpdateStatus(ctx, TX1Hash, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, "")
 		require.NoError(t, err)
-		returnedDataAnnounced, err := repo.Get(ctx, TX1Hash[:])
+		returnedDataSeenInOrphanMempool, err := repo.Get(ctx, TX1Hash[:])
 		require.NoError(t, err)
-		require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, returnedDataAnnounced.Status)
-		require.Equal(t, dateNow, returnedDataAnnounced.AnnouncedAt)
-		require.Equal(t, TX1RawBytes, returnedDataAnnounced.RawTx)
+		require.Equal(t, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, returnedDataSeenInOrphanMempool.Status)
+		require.Equal(t, TX1RawBytes, returnedDataSeenInOrphanMempool.RawTx)
+
+		err = repo.UpdateStatus(ctx, TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK, "")
+		require.NoError(t, err)
+		returnedDataSeenOnNetwork, err := repo.Get(ctx, TX1Hash[:])
+		require.NoError(t, err)
+		require.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, returnedDataSeenOnNetwork.Status)
+		require.Equal(t, TX1RawBytes, returnedDataSeenOnNetwork.RawTx)
 
 		err = repo.UpdateStatus(ctx, TX1Hash, metamorph_api.Status_MINED, "")
 		require.NoError(t, err)

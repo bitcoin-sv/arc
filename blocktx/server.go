@@ -4,36 +4,34 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"time"
 
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 )
 
-// Server type carries the logger within it
+// Server type carries the logger within it.
 type Server struct {
 	blocktx_api.UnsafeBlockTxAPIServer
 	store         store.Interface
-	logger        utils.Logger
+	logger        *slog.Logger
 	blockNotifier *BlockNotifier
 	grpcServer    *grpc.Server
 }
 
-// NewServer will return a server instance with the logger stored within it
-func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger utils.Logger) *Server {
-
+// NewServer will return a server instance with the logger stored within it.
+func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger *slog.Logger) *Server {
 	return &Server{
 		store:         storeI,
 		logger:        logger,
@@ -41,13 +39,8 @@ func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger util
 	}
 }
 
-// StartGRPCServer function
-func (s *Server) StartGRPCServer() error {
-
-	address := viper.GetString("blocktx.listenAddr")
-	if address == "" {
-		return errors.New("no blocktx.listenAddr setting found")
-	}
+// StartGRPCServer function.
+func (s *Server) StartGRPCServer(address string) error {
 
 	// LEVEL 0 - no security / no encryption
 	var opts []grpc.ServerOption
@@ -73,7 +66,7 @@ func (s *Server) StartGRPCServer() error {
 	// Register reflection service on gRPC server.
 	reflection.Register(s.grpcServer)
 
-	s.logger.Infof("GRPC server listening on %s", address)
+	s.logger.Info("GRPC server listening", slog.String("address", address))
 
 	if err = s.grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("GRPC server failed [%w]", err)
@@ -90,7 +83,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.Healt
 }
 
 func (s *Server) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Source, error) {
-	hash, err := chainhash.NewHash(transaction.Hash)
+	hash, err := chainhash.NewHash(transaction.GetHash())
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +102,7 @@ func (s *Server) LocateTransaction(ctx context.Context, transaction *blocktx_api
 }
 
 func (s *Server) GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.MerklePath, error) {
-	hash, err := chainhash.NewHash(transaction.Hash)
+	hash, err := chainhash.NewHash(transaction.GetHash())
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +141,7 @@ func (s *Server) GetTransactionBlocks(ctx context.Context, transaction *blocktx_
 }
 
 func (s *Server) GetBlock(ctx context.Context, req *blocktx_api.Hash) (*blocktx_api.Block, error) {
-	hash, err := chainhash.NewHash(req.Hash)
+	hash, err := chainhash.NewHash(req.GetHash())
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +150,7 @@ func (s *Server) GetBlock(ctx context.Context, req *blocktx_api.Hash) (*blocktx_
 }
 
 func (s *Server) GetBlockForHeight(ctx context.Context, height *blocktx_api.Height) (*blocktx_api.Block, error) {
-	return s.store.GetBlockForHeight(ctx, height.Height)
+	return s.store.GetBlockForHeight(ctx, height.GetHeight())
 }
 
 func (s *Server) GetLastProcessedBlock(ctx context.Context, _ *emptypb.Empty) (*blocktx_api.Block, error) {
@@ -171,4 +164,9 @@ func (s *Server) GetBlockNotificationStream(height *blocktx_api.Height, srv bloc
 
 func (s *Server) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
 	return s.store.GetMinedTransactionsForBlock(ctx, blockAndSource)
+}
+
+func (s *Server) Shutdown() {
+	s.logger.Info("Shutting down")
+	s.grpcServer.Stop()
 }

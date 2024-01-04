@@ -1,4 +1,4 @@
-package sql
+package sqlite
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
 	"path"
 	"path/filepath"
 	"time"
@@ -15,151 +14,65 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/labstack/gommon/random"
 	_ "github.com/lib/pq"
-	"github.com/libsv/go-bt"
+	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
-	"github.com/spf13/viper"
 	_ "modernc.org/sqlite"
 )
 
-const (
-	ISO8601        = "2006-01-02T15:04:05.999Z"
-	DbModePostgres = "postgres"
-	DbModeSQLiteM  = "sqlite_memory"
-	DbModeSQLite   = "sqlite"
-)
-
-type SQL struct {
-	db *sql.DB
+func WithNow(nowFunc func() time.Time) func(*SqLite) {
+	return func(s *SqLite) {
+		s.now = nowFunc
+	}
 }
 
 // New returns a new initialized SqlLiteStore database implementing the MetamorphStore
 // interface. If the database cannot be initialized, an error will be returned.
-func New(engine string) (store.MetamorphStore, error) {
-	var db *sql.DB
+func New(memory bool, folder string, opts ...func(postgreSQL *SqLite)) (store.MetamorphStore, error) {
 	var err error
-
-	var memory bool
-
-	logLevel := viper.GetString("logLevel")
-	logger := gocore.Log("mmsql", gocore.NewLogLevelFromString(logLevel))
-
-	switch engine {
-	case DbModePostgres:
-		dbHost := viper.GetString("metamorph.db.postgres.host")
-		dbPort := viper.GetInt("metamorph.db.postgres.port")
-		dbName := viper.GetString("metamorph.db.postgres.name")
-		dbUser := viper.GetString("metamorph.db.postgres.user")
-		dbPassword := viper.GetString("metamorph.db.postgres.password")
-		sslMode := viper.GetString("metamorph.db.postgres.sslMode")
-
-		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbPassword, dbName, dbHost, dbPort, sslMode)
-
-		db, err = sql.Open(engine, dbInfo)
+	var filename string
+	if memory {
+		filename = fmt.Sprintf("file:%s?mode=memory&cache=shared", random.String(16))
+	} else {
+		filename, err = filepath.Abs(path.Join(folder, "metamorph.db"))
 		if err != nil {
-			return nil, fmt.Errorf("failed to open postgres DB: %+v", err)
+			return nil, fmt.Errorf("failed to get absolute path for sqlite DB: %+v", err)
 		}
-
-		if err := CreatePostgresSchema(db); err != nil {
-			return nil, fmt.Errorf("failed to create postgres schema: %+v", err)
-		}
-
-	case DbModeSQLiteM:
-		memory = true
-		fallthrough
-	case DbModeSQLite:
-		var filename string
-		if memory {
-			filename = fmt.Sprintf("file:%s?mode=memory&cache=shared", random.String(16))
-		} else {
-			folder := viper.GetString("dataFolder")
-			if folder == "" {
-				return nil, fmt.Errorf("dataFolder not found in config")
-			}
-			if err := os.MkdirAll(folder, 0755); err != nil {
-				return nil, fmt.Errorf("failed to create data folder %s: %+v", folder, err)
-			}
-
-			filename, err = filepath.Abs(path.Join(folder, "metamorph.db"))
-			if err != nil {
-				return nil, fmt.Errorf("failed to get absolute path for sqlite DB: %+v", err)
-			}
-			filename = fmt.Sprintf("%s?cache=shared&_pragma=busy_timeout=10000&_pragma=journal_mode=WAL", filename)
-		}
-
-		logger.Infof("Using sqlite DB: %s", filename)
-
-		db, err = sql.Open("sqlite", filename)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open sqlite DB: %+v", err)
-		}
-
-		if _, err = db.Exec(`PRAGMA foreign_keys = ON;`); err != nil {
-			_ = db.Close()
-			return nil, fmt.Errorf("could not enable foreign keys support: %+v", err)
-		}
-
-		if _, err = db.Exec(`PRAGMA locking_mode = SHARED;`); err != nil {
-			_ = db.Close()
-			return nil, fmt.Errorf("could not enable shared locking mode: %+v", err)
-		}
-
-		if err = CreateSqliteSchema(db); err != nil {
-			return nil, fmt.Errorf("failed to create sqlite schema: %+v", err)
-		}
-
-	default:
-		return nil, fmt.Errorf("unknown database engine: %s", engine)
+		filename = fmt.Sprintf("%s?cache=shared&_pragma=busy_timeout=10000&_pragma=journal_mode=WAL", filename)
 	}
 
-	return &SQL{
-		db: db,
-	}, nil
-}
-
-func CreatePostgresSchema(db *sql.DB) error {
-	startNanos := time.Now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("CreatePostgresSchema").NewStat("duration").AddTime(startNanos)
-	}()
-
-	// Create schema, if necessary...
-	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS transactions (
-		hash BYTEA PRIMARY KEY,
-		stored_at TEXT,
-		announced_at TEXT,
-		mined_at TEXT,
-		status INTEGER,
-		block_height BIGINT,
-		block_hash BYTEA,
-		callback_url TEXT,
-		callback_token TEXT,
-		merkle_proof TEXT,
-		reject_reason TEXT,
-		raw_tx BYTEA
-		);
-	`); err != nil {
-		db.Close()
-		return fmt.Errorf("could not create transactions table - [%+v]", err)
+	db, err := sql.Open("sqlite", filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open sqlite DB: %+v", err)
 	}
 
-	// Create schema, if necessary...
-	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS blocks (
-		hash BYTEA PRIMARY KEY,
-		processed_at TEXT
-		);
-	`); err != nil {
-		db.Close()
-		return fmt.Errorf("could not create blocks table - [%+v]", err)
+	if _, err = db.Exec(`PRAGMA foreign_keys = ON;`); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("could not enable foreign keys support: %+v", err)
 	}
 
-	return nil
+	if _, err = db.Exec(`PRAGMA locking_mode = SHARED;`); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("could not enable shared locking mode: %+v", err)
+	}
+
+	if err = CreateSqliteSchema(db); err != nil {
+		return nil, fmt.Errorf("failed to create sqlite schema: %+v", err)
+	}
+	s := &SqLite{
+		db:  db,
+		now: time.Now,
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s, nil
 }
 
 func CreateSqliteSchema(db *sql.DB) error {
@@ -185,7 +98,7 @@ func CreateSqliteSchema(db *sql.DB) error {
 		raw_tx BLOB
 		);
 	`); err != nil {
-		db.Close()
+		_ = db.Close()
 		return fmt.Errorf("could not create transactions table - [%+v]", err)
 	}
 
@@ -196,26 +109,62 @@ func CreateSqliteSchema(db *sql.DB) error {
 		processed_at TEXT
 		);
 	`); err != nil {
-		db.Close()
+		_ = db.Close()
 		return fmt.Errorf("could not create blocks table - [%+v]", err)
 	}
 
 	return nil
 }
 
-func (ddb *SQL) IsCentralised() bool {
+type SqLite struct {
+	db  *sql.DB
+	now func() time.Time
+}
+
+func (s *SqLite) IsCentralised() bool {
 	return false
 }
 
-func (ddb *SQL) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
+func (s *SqLite) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error {
+	startNanos := s.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("RemoveCallbacker").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:RemoveCallbacker")
+	defer span.Finish()
+
+	q := `UPDATE transactions SET status = callback_url = '' WHERE hash = $3;`
+
+	result, err := s.db.ExecContext(ctx, q, hash[:])
+	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return err
+	}
+
+	var n int64
+	n, err = result.RowsAffected()
+	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return err
+	}
+	if n == 0 {
+		return store.ErrNotFound
+	}
+
 	return nil
 }
 
-func (ddb *SQL) SetUnlockedByName(ctx context.Context, lockedBy string) (int, error) { return 0, nil }
+func (s *SqLite) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
+	return nil
+}
+
+func (s *SqLite) SetUnlockedByName(ctx context.Context, lockedBy string) (int, error) { return 0, nil }
 
 // Get implements the MetamorphStore interface. It attempts to get a value for a given key.
 // If the key does not exist an error is returned, otherwise the retrieved value.
-func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
+func (s *SqLite) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("Get").AddTime(startNanos)
@@ -284,7 +233,7 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 	}
 
 	if storedAt != "" {
-		data.StoredAt, err = time.Parse(ISO8601, storedAt)
+		data.StoredAt, err = time.Parse(time.RFC3339, storedAt)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
@@ -293,7 +242,7 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 	}
 
 	if announcedAt != "" {
-		data.AnnouncedAt, err = time.Parse(ISO8601, announcedAt)
+		data.AnnouncedAt, err = time.Parse(time.RFC3339, announcedAt)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
@@ -301,7 +250,7 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 		}
 	}
 	if minedAt != "" {
-		data.MinedAt, err = time.Parse(ISO8601, minedAt)
+		data.MinedAt, err = time.Parse(time.RFC3339, minedAt)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
@@ -314,7 +263,7 @@ func (s *SQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 
 // Set implements the MetamorphStore interface. It attempts to store a value for a given key
 // and namespace. If the key/value pair cannot be saved, an error is returned.
-func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
+func (s *SqLite) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("Set").AddTime(startNanos)
@@ -365,7 +314,7 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 	}
 
 	if value.StoredAt.UnixMilli() != 0 {
-		storedAt = value.StoredAt.UTC().Format(ISO8601)
+		storedAt = value.StoredAt.UTC().Format(time.RFC3339)
 	}
 
 	// If the storedAt time is zero, set it to now on insert
@@ -374,11 +323,11 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 	}
 
 	if value.AnnouncedAt.UnixMilli() != 0 {
-		announcedAt = value.AnnouncedAt.UTC().Format(ISO8601)
+		announcedAt = value.AnnouncedAt.UTC().Format(time.RFC3339)
 	}
 
 	if value.MinedAt.UnixMilli() != 0 {
-		minedAt = value.MinedAt.UTC().Format(ISO8601)
+		minedAt = value.MinedAt.UTC().Format(time.RFC3339)
 	}
 
 	_, err := s.db.ExecContext(ctx, q,
@@ -395,7 +344,6 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 		value.RejectReason,
 		value.RawTx,
 	)
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -404,7 +352,7 @@ func (s *SQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
 	return err
 }
 
-func (s *SQL) GetUnminedTransactions(ctx context.Context) ([]store.StoreData, error) {
+func (s *SqLite) GetUnminedTransactions(ctx context.Context) ([]store.StoreData, error) {
 	q := `SELECT
 	   stored_at
 		,announced_at
@@ -484,7 +432,7 @@ func (s *SQL) GetUnminedTransactions(ctx context.Context) ([]store.StoreData, er
 	return txs, nil
 }
 
-func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
+func (s *SqLite) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("getunmined").AddTime(startNanos)
@@ -548,7 +496,7 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 		}
 
 		if storedAt != "" {
-			data.StoredAt, err = time.Parse(ISO8601, storedAt)
+			data.StoredAt, err = time.Parse(time.RFC3339, storedAt)
 			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
@@ -557,7 +505,7 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 		}
 
 		if announcedAt != "" {
-			data.AnnouncedAt, err = time.Parse(ISO8601, announcedAt)
+			data.AnnouncedAt, err = time.Parse(time.RFC3339, announcedAt)
 			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
@@ -565,7 +513,7 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 			}
 		}
 		if minedAt != "" {
-			data.MinedAt, err = time.Parse(ISO8601, minedAt)
+			data.MinedAt, err = time.Parse(time.RFC3339, minedAt)
 			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
@@ -579,8 +527,8 @@ func (s *SQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData))
 	return nil
 }
 
-func (s *SQL) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
-	startNanos := time.Now().UnixNano()
+func (s *SqLite) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
+	startNanos := s.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("UpdateStatus").AddTime(startNanos)
 	}()
@@ -615,8 +563,8 @@ func (s *SQL) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status met
 	return nil
 }
 
-func (s *SQL) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
-	startNanos := time.Now().UnixNano()
+func (s *SqLite) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
+	startNanos := s.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("UpdateMined").AddTime(startNanos)
 	}()
@@ -632,7 +580,6 @@ func (s *SQL) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *
 	;`
 
 	_, err := s.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHash[:], blockHeight, hash[:])
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -641,8 +588,8 @@ func (s *SQL) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *
 	return err
 }
 
-func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
-	startNanos := time.Now().UnixNano()
+func (s *SqLite) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
+	startNanos := s.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("GetBlockProcessed").AddTime(startNanos)
 	}()
@@ -669,7 +616,7 @@ func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) 
 
 	var processedAtTime time.Time
 	if processedAt != "" {
-		processedAtTime, err = time.Parse(ISO8601, processedAt)
+		processedAtTime, err = time.Parse(time.RFC3339, processedAt)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
@@ -680,8 +627,8 @@ func (s *SQL) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) 
 	return &processedAtTime, nil
 }
 
-func (s *SQL) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) error {
-	startNanos := time.Now().UnixNano()
+func (s *SqLite) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) error {
+	startNanos := s.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("SetBlockProcessed").AddTime(startNanos)
 	}()
@@ -696,13 +643,12 @@ func (s *SQL) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) 
 		,$2
 	);`
 
-	processedAt := time.Now().UTC().Format(ISO8601)
+	processedAt := s.now().UTC().Format(time.RFC3339)
 
 	_, err := s.db.ExecContext(ctx, q,
 		blockHash[:],
 		processedAt,
 	)
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -711,37 +657,31 @@ func (s *SQL) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) 
 	return err
 }
 
-func HashString(b []byte) string {
-	return hex.EncodeToString(bt.ReverseBytes(utils.Sha256d(b)))
-}
-
-func (s *SQL) Del(ctx context.Context, key []byte) error {
-	startNanos := time.Now().UnixNano()
+func (s *SqLite) Del(ctx context.Context, key []byte) error {
+	startNanos := s.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("Del").AddTime(startNanos)
 	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Del")
 	defer span.Finish()
 
-	hash := HashString(key)
+	hash := hex.EncodeToString(bt.ReverseBytes(utils.Sha256d(key)))
 
 	q := `DELETE FROM transactions WHERE hash = $1;`
 
 	_, err := s.db.ExecContext(ctx, q, hash)
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
 	}
 
 	return err
-
 }
 
 // Close implements the MetamorphStore interface. It closes the connection to the underlying
 // MemoryStore database as well as invoking the context's cancel function.
-func (s *SQL) Close(ctx context.Context) error {
-	startNanos := time.Now().UnixNano()
+func (s *SqLite) Close(ctx context.Context) error {
+	startNanos := s.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("Close").AddTime(startNanos)
 	}()

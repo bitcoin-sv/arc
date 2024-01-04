@@ -84,9 +84,15 @@ func NewPeerHandlerCollector(service string, stats *safemap.Safemap[string, *Pee
 		),
 	}
 
-	prometheus.MustRegister(c)
-
 	return c
+}
+
+func Register(c *PeerHandlerCollector) {
+	prometheus.MustRegister(c)
+}
+
+func Unregister(c *PeerHandlerCollector) {
+	prometheus.Unregister(c)
 }
 
 // Describe writes all descriptors to the prometheus desc channel.

@@ -3,14 +3,17 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
 
-// InsertBlockTransactions inserts the transaction hashes for a given block hash
+// InsertBlockTransactions inserts the transaction hashes for a given block hash.
 func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
 	start := gocore.CurrentNanos()
 	defer func() {
@@ -27,7 +30,7 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 			;
 		`)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to prepare query for insertion into transactions: %v", err)
 	}
 
 	qMap := `
@@ -42,19 +45,19 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 	for pos, tx := range transactions {
 		var txid uint64
 
-		err = qTx.QueryRowContext(ctx, tx.Hash, merklePaths[pos]).Scan(&txid)
+		err = qTx.QueryRowContext(ctx, tx.GetHash(), merklePaths[pos]).Scan(&txid)
 		if err != nil {
-			if err != sql.ErrNoRows {
-				return err
+			if !errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("failed to execute insertion of tx %s into transactions table: %v", utils.ReverseAndHexEncodeSlice(tx.GetHash()), err)
 			}
 
 			err = s.db.QueryRowContext(ctx, `
 					SELECT id
 					FROM transactions
 					WHERE hash = $1
-				`, tx.Hash).Scan(&txid)
+				`, tx.GetHash()).Scan(&txid)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to query for transactions with id %d: %v", txid, err)
 			}
 		}
 
@@ -63,8 +66,8 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 
 		// maximum of 1000 rows per query is allowed in postgres
 		if len(qMapRows) >= 1000 {
-			if err := s.bulkInsert(ctx, qMap, qMapRows); err != nil {
-				return err
+			if err = s.bulkInsert(ctx, qMap, qMapRows); err != nil {
+				return fmt.Errorf("failed to bulk insert transactions into block transactions map for block with id %d: %v", blockId, err)
 			}
 			qMapRows = qMapRows[:0]
 		}
@@ -72,8 +75,8 @@ func (s *SQL) InsertBlockTransactions(ctx context.Context, blockId uint64, trans
 
 	// insert the remaining rows
 	if len(qMapRows) > 0 {
-		if err := s.bulkInsert(ctx, qMap, qMapRows); err != nil {
-			return err
+		if err = s.bulkInsert(ctx, qMap, qMapRows); err != nil {
+			return fmt.Errorf("failed to bulk insert transactions into block transactions map for block with id %d: %v", blockId, err)
 		}
 	}
 

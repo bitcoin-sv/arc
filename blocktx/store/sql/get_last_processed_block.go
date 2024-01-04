@@ -1,10 +1,10 @@
 package sql
 
 import (
+	"context"
+
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/ordishs/gocore"
-
-	"context"
 )
 
 func (s *SQL) GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, error) {

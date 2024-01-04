@@ -268,6 +268,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 		getTxMerklePathErr error
 		getErr             error
 		status             metamorph_api.Status
+		merklePath         string
 
 		want    *metamorph_api.TransactionStatus
 		wantErr assert.ErrorAssertionFunc
@@ -289,7 +290,8 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			req: &metamorph_api.TransactionStatusRequest{
 				Txid: testdata.TX1,
 			},
-			status: metamorph_api.Status_SENT_TO_NETWORK,
+			status:     metamorph_api.Status_SENT_TO_NETWORK,
+			merklePath: "00000",
 
 			want: &metamorph_api.TransactionStatus{
 				StoredAt:    timestamppb.New(testdata.Time),
@@ -315,7 +317,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				MinedAt:     timestamppb.New(testdata.Time.Add(2 * time.Second)),
 				Txid:        testdata.TX1,
 				Status:      metamorph_api.Status_SENT_TO_NETWORK,
-				MerklePath:  "00000",
+				MerklePath:  "",
 			},
 			wantErr: assert.NoError,
 		},
@@ -333,7 +335,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				MinedAt:     timestamppb.New(testdata.Time.Add(2 * time.Second)),
 				Txid:        testdata.TX1,
 				Status:      metamorph_api.Status_MINED,
-				MerklePath:  "00000",
+				MerklePath:  "",
 			},
 			wantErr: assert.NoError,
 		},
@@ -342,7 +344,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := &ClientIMock{
 				GetTransactionMerklePathFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
-					return "00000", tt.getTxMerklePathErr
+					return tt.merklePath, tt.getTxMerklePathErr
 				},
 			}
 

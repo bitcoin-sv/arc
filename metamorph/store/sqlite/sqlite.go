@@ -408,20 +408,20 @@ func (s *SqLite) GetUnminedTransactions(ctx context.Context) ([]store.StoreData,
 		}
 
 		if storedAt != "" {
-			data.StoredAt, err = time.Parse(ISO8601, storedAt)
+			data.StoredAt, err = time.Parse(time.RFC3339, storedAt)
 			if err != nil {
 				return nil, err
 			}
 		}
 
 		if announcedAt != "" {
-			data.AnnouncedAt, err = time.Parse(ISO8601, announcedAt)
+			data.AnnouncedAt, err = time.Parse(time.RFC3339, announcedAt)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if minedAt != "" {
-			data.MinedAt, err = time.Parse(ISO8601, minedAt)
+			data.MinedAt, err = time.Parse(time.RFC3339, minedAt)
 			if err != nil {
 				return nil, err
 			}

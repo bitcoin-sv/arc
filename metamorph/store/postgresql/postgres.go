@@ -324,6 +324,136 @@ func (p *PostgreSQL) setLockedBy(ctx context.Context, hash *chainhash.Hash, lock
 	return nil
 }
 
+func (p *PostgreSQL) GetUnminedTransactions(ctx context.Context) ([]store.StoreData, error) {
+	startNanos := p.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("getunmined").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:GetUnmined")
+	defer span.Finish()
+
+	q := `SELECT
+	     stored_at
+		,announced_at
+		,mined_at
+		,hash
+		,status
+		,block_height
+		,block_hash
+		,callback_url
+		,callback_token
+		,merkle_proof
+		,raw_tx
+		,locked_by
+		FROM metamorph.transactions WHERE locked_by = 'NONE' AND (status < $1 OR status = $2 );`
+
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
+	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []store.StoreData
+	for rows.Next() {
+		data := &store.StoreData{}
+
+		var storedAt sql.NullTime
+		var announcedAt sql.NullTime
+		var minedAt sql.NullTime
+		var blockHeight sql.NullInt64
+		var txHash []byte
+		var blockHash []byte
+		var callbackUrl sql.NullString
+		var callbackToken sql.NullString
+		var merkleProof sql.NullBool
+		var lockedBy sql.NullString
+		var status sql.NullInt32
+
+		if err = rows.Scan(
+			&storedAt,
+			&announcedAt,
+			&minedAt,
+			&txHash,
+			&status,
+			&blockHeight,
+			&blockHash,
+			&callbackUrl,
+			&callbackToken,
+			&merkleProof,
+			&data.RawTx,
+			&lockedBy,
+		); err != nil {
+			span.SetTag(string(ext.Error), true)
+			span.LogFields(log.Error(err))
+			return nil, err
+		}
+
+		if len(txHash) > 0 {
+			data.Hash, err = chainhash.NewHash(txHash)
+			if err != nil {
+				span.SetTag(string(ext.Error), true)
+				span.LogFields(log.Error(err))
+				return nil, err
+			}
+		}
+
+		if len(blockHash) > 0 {
+			data.BlockHash, err = chainhash.NewHash(blockHash)
+			if err != nil {
+				span.SetTag(string(ext.Error), true)
+				span.LogFields(log.Error(err))
+				return nil, err
+			}
+		}
+
+		if storedAt.Valid {
+			data.StoredAt = storedAt.Time.UTC()
+		}
+
+		if announcedAt.Valid {
+			data.AnnouncedAt = announcedAt.Time.UTC()
+		}
+
+		if minedAt.Valid {
+			data.MinedAt = minedAt.Time.UTC()
+		}
+
+		if status.Valid {
+			data.Status = metamorph_api.Status(status.Int32)
+		}
+
+		if blockHeight.Valid {
+			data.BlockHeight = uint64(blockHeight.Int64)
+		}
+
+		if callbackUrl.Valid {
+			data.CallbackUrl = callbackUrl.String
+		}
+
+		if callbackToken.Valid {
+			data.CallbackToken = callbackToken.String
+		}
+
+		if merkleProof.Valid {
+			data.MerkleProof = merkleProof.Bool
+		}
+
+		if lockedBy.Valid {
+			data.LockedBy = lockedBy.String
+		}
+
+		out = append(out, *data)
+		err = p.setLockedBy(ctx, data.Hash, p.hostname)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return out, nil
+}
+
 func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
 	startNanos := p.now().UnixNano()
 	defer func() {

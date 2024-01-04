@@ -524,11 +524,11 @@ func (s *Server) getMerklePath(ctx context.Context, hash *chainhash.Hash, dataSt
 		if err != nil {
 			if errors.Is(err, blocktx.ErrTransactionNotFoundForMerklePath) {
 				if dataStatus == metamorph_api.Status_MINED {
-					s.logger.Error("Merkle path not found for mined transaction", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+					errCh <- fmt.Errorf("merkle path not found for mined transaction %s: %v", hash.String(), err)
 					return
 				}
 			} else {
-				s.logger.Error("failed to get Merkle path for transaction", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+				errCh <- fmt.Errorf("failed to get Merkle path for transaction %s: %v", hash.String(), err)
 				return
 			}
 		}

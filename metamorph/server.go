@@ -28,7 +28,6 @@ import (
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -366,34 +365,6 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		return 0, 0, nil, nil, err
 	}
 
-	if !s.store.IsCentralised() && rtr.GetSource() != s.source {
-		if isForwarded(ctx) {
-			// This is a forwarded request, so we should not forward it again
-			s.logger.Warn("Endless forwarding loop detected for", slog.String("hash", hash.String()), slog.String("address", s.source), slog.String("source", rtr.GetSource()))
-			return 0, 0, nil, nil, fmt.Errorf("endless forwarding loop detected")
-		}
-
-		// This transaction was already registered by another metamorph, and we
-		// should forward the request to that metamorph
-		var ownerConn *grpc.ClientConn
-		if ownerConn, err = dialMetamorph(initCtx, rtr.GetSource()); err != nil {
-			return 0, 0, nil, nil, err
-		}
-
-		defer ownerConn.Close()
-
-		ownerMM := metamorph_api.NewMetaMorphAPIClient(ownerConn)
-
-		var transactionStatus *metamorph_api.TransactionStatus
-		if transactionStatus, err = ownerMM.PutTransaction(createForwardedContext(initCtx), req); err != nil {
-			return 0, 0, nil, nil, err
-		}
-
-		transactionStatus.MerklePath = rtr.GetMerklePath()
-
-		return 0, 0, nil, transactionStatus, nil
-	}
-
 	if rtr.BlockHash != nil {
 		// In case a transaction is submitted to network outside of ARC and mined and now
 		// submitting the same transaction through arc endpoint we have problem.
@@ -437,7 +408,6 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 			return 0, 0, nil, &metamorph_api.TransactionStatus{
 				Status:       metamorph_api.Status_REJECTED,
 				Txid:         hash.String(),
-				MerklePath:   rtr.GetMerklePath(),
 				RejectReason: err.Error(),
 			}, nil
 		}
@@ -608,22 +578,4 @@ func dialMetamorph(ctx context.Context, address string) (*grpc.ClientConn, error
 	}
 
 	return grpc.DialContext(ctx, address, tracing.AddGRPCDialOptions(opts)...)
-}
-
-func createForwardedContext(ctx context.Context) context.Context {
-	return metadata.NewOutgoingContext(
-		ctx,
-		metadata.Pairs("forwarded", "true"),
-	)
-}
-
-func isForwarded(ctx context.Context) bool {
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		f := md.Get("forwarded")
-		if len(f) > 0 && f[0] == "true" {
-			return true
-		}
-	}
-
-	return false
 }

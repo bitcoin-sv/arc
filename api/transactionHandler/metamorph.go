@@ -3,7 +3,6 @@ package transactionHandler
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	arc "github.com/bitcoin-sv/arc/api"
@@ -16,7 +15,6 @@ import (
 
 // Metamorph is the connector to a metamorph server.
 type Metamorph struct {
-	mu     sync.RWMutex
 	Client metamorph_api.MetaMorphAPIClient
 }
 

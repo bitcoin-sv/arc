@@ -1,2 +1,2 @@
-ALTER TABLE transactions ADD COLUMN inserted_at TIMESTAMPTZ;
-ALTER TABLE blocks ADD COLUMN inserted_at TIMESTAMPTZ;
+ALTER TABLE blocks DROP COLUMN inserted_at;
+ALTER TABLE transactions DROP COLUMN inserted_at;

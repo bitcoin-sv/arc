@@ -3,9 +3,10 @@ package store
 import "time"
 
 type Block struct {
-	Hash        string    `db:"hash"`
-	ProcessedAt time.Time `db:"processed_at"`
-	InsertedAt  time.Time `db:"inserted_at"`
+	Hash          string    `db:"hash"`
+	ProcessedAt   time.Time `db:"processed_at"`
+	InsertedAt    time.Time `db:"inserted_at"`
+	InsertedAtNum int64     `db:"inserted_at_num"`
 }
 
 type Transaction struct {
@@ -23,4 +24,5 @@ type Transaction struct {
 	RawTX         []byte    `db:"raw_tx"`
 	LockedBy      string    `db:"locked_by"`
 	InsertedAt    time.Time `db:"inserted_at"`
+	InsertedAtNum int64     `db:"inserted_at_num"`
 }

@@ -65,9 +65,8 @@ func (s *MetamorphDBTestSuite) SetupSuite() {
 
 	path := "file://" + testDir + "/../database/migrations/metamorph/postgres"
 	m, err := migrate.New(path, DefaultMMParams.String())
-
 	require.NoError(s.T(), err)
-
+	s.T().Log("applied migrations")
 	if err := m.Up(); err != nil {
 		if !errors.Is(err, migrate.ErrNoChange) {
 			require.NoError(s.T(), err)

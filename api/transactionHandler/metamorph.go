@@ -2,43 +2,33 @@ package transactionHandler
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	arc "github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/blocktx"
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/ordishs/go-utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Metamorph is the connector to a metamorph server.
 type Metamorph struct {
-	mu                     sync.RWMutex
-	Client                 metamorph_api.MetaMorphAPIClient
-	ClientCache            map[string]metamorph_api.MetaMorphAPIClient
-	blockTxClient          blocktx.ClientI
-	isCentralisedMetamorph bool
+	mu     sync.RWMutex
+	Client metamorph_api.MetaMorphAPIClient
 }
 
 // NewMetamorph creates a connection to a list of metamorph servers via gRPC.
-func NewMetamorph(address string, blockTxClient blocktx.ClientI, grpcMessageSize int, isCentralisedMetamorph bool) (*Metamorph, error) {
+func NewMetamorph(address string, grpcMessageSize int) (*Metamorph, error) {
 	conn, err := DialGRPC(address, grpcMessageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connection to address %s: %v", address, err)
 	}
 
 	return &Metamorph{
-		Client:                 metamorph_api.NewMetaMorphAPIClient(conn),
-		ClientCache:            make(map[string]metamorph_api.MetaMorphAPIClient),
-		blockTxClient:          blockTxClient,
-		isCentralisedMetamorph: isCentralisedMetamorph,
+		Client: metamorph_api.NewMetaMorphAPIClient(conn),
 	}, nil
 }
 
@@ -61,13 +51,8 @@ func DialGRPC(address string, grpcMessageSize int) (*grpc.ClientConn, error) {
 
 // GetTransaction gets the transaction bytes from metamorph.
 func (m *Metamorph) GetTransaction(ctx context.Context, txID string) ([]byte, error) {
-	client, err := m.getMetamorphClientForTx(ctx, txID)
-	if err != nil {
-		return nil, err
-	}
-
 	var tx *metamorph_api.Transaction
-	tx, err = client.GetTransaction(ctx, &metamorph_api.TransactionStatusRequest{
+	tx, err := m.Client.GetTransaction(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
 	})
 	if err != nil {
@@ -83,13 +68,8 @@ func (m *Metamorph) GetTransaction(ctx context.Context, txID string) ([]byte, er
 
 // GetTransactionStatus gets the status of a transaction.
 func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (status *TransactionStatus, err error) {
-	var client metamorph_api.MetaMorphAPIClient
-	if client, err = m.getMetamorphClientForTx(ctx, txID); err != nil {
-		return nil, err
-	}
-
 	var tx *metamorph_api.TransactionStatus
-	tx, err = client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
+	tx, err = m.Client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
 	})
 	if err != nil {
@@ -170,53 +150,4 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOpti
 	}
 
 	return ret, nil
-}
-
-func (m *Metamorph) getMetamorphClientForTx(ctx context.Context, txID string) (metamorph_api.MetaMorphAPIClient, error) {
-	if m.isCentralisedMetamorph {
-		return m.Client, nil
-	}
-
-	hash, err := utils.DecodeAndReverseHexString(txID)
-	if err != nil {
-		return nil, err
-	}
-
-	var target string
-	if target, err = m.blockTxClient.LocateTransaction(ctx, &blocktx_api.Transaction{
-		Hash: hash,
-	}); err != nil {
-		if errors.Is(err, blocktx.ErrTransactionNotFound) {
-			return nil, ErrTransactionNotFound
-		}
-		return nil, err
-	}
-
-	if target == "" {
-		// TODO what do we do in this case? Reach out to all metamorph servers or reach out to a node?
-		return nil, ErrTransactionNotFound
-	}
-
-	m.mu.RLock()
-	client, found := m.ClientCache[target]
-	m.mu.RUnlock()
-
-	if !found {
-		var conn *grpc.ClientConn
-		opts := []grpc.DialOption{
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
-			grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
-		}
-		if conn, err = grpc.Dial(target, tracing.AddGRPCDialOptions(opts)...); err != nil {
-			return nil, err
-		}
-		client = metamorph_api.NewMetaMorphAPIClient(conn)
-
-		m.mu.Lock()
-		m.ClientCache[target] = client
-		m.mu.Unlock()
-	}
-
-	return client, nil
 }

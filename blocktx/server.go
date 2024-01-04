@@ -82,25 +82,6 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.Healt
 	}, nil
 }
 
-func (s *Server) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Source, error) {
-	hash, err := chainhash.NewHash(transaction.GetHash())
-	if err != nil {
-		return nil, err
-	}
-
-	source, err := s.store.GetTransactionSource(ctx, hash)
-	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, ErrTransactionNotFound
-		}
-		return nil, err
-	}
-
-	return &blocktx_api.Source{
-		Source: source,
-	}, nil
-}
-
 func (s *Server) GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.MerklePath, error) {
 	hash, err := chainhash.NewHash(transaction.GetHash())
 	if err != nil {

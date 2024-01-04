@@ -287,9 +287,6 @@ func TestLoadUnmined(t *testing.T) {
 					require.Equal(t, len(tc.expectedItemTxHashesFinal), len(hashes))
 					return nil
 				},
-				IsCentralisedFunc: func() bool {
-					return tc.isCentralised
-				},
 				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 					return nil
 				},

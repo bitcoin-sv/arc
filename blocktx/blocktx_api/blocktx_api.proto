@@ -14,9 +14,6 @@ service BlockTxAPI {
   // RegisterTransaction registers a transaction with the API.
   rpc RegisterTransaction (TransactionAndSource) returns (RegisterTransactionResponse) {}
 
-  // LocateTransaction returns the source of a transaction.
-  rpc LocateTransaction(Transaction) returns (Source) {}
-
   // GetTransactionMerklePath returns the merkle path of a transaction.
   rpc GetTransactionMerklePath(Transaction) returns (MerklePath) {}
 
@@ -98,12 +95,6 @@ message Hash {
   bytes hash = 1;
 }
 
-// swagger:model Source
-message Source {
-  string source = 1;
-}
-
-// swagger:model Source
 message MerklePath {
   string merklePath = 1;
 }

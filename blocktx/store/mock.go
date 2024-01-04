@@ -50,9 +50,6 @@ var _ Interface = &InterfaceMock{}
 //			GetTransactionMerklePathFunc: func(ctx context.Context, hash *chainhash.Hash) (string, error) {
 //				panic("mock out the GetTransactionMerklePath method")
 //			},
-//			GetTransactionSourceFunc: func(ctx context.Context, hash *chainhash.Hash) (string, error) {
-//				panic("mock out the GetTransactionSource method")
-//			},
 //			InsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
 //				panic("mock out the InsertBlock method")
 //			},
@@ -113,9 +110,6 @@ type InterfaceMock struct {
 
 	// GetTransactionMerklePathFunc mocks the GetTransactionMerklePath method.
 	GetTransactionMerklePathFunc func(ctx context.Context, hash *chainhash.Hash) (string, error)
-
-	// GetTransactionSourceFunc mocks the GetTransactionSource method.
-	GetTransactionSourceFunc func(ctx context.Context, hash *chainhash.Hash) (string, error)
 
 	// InsertBlockFunc mocks the InsertBlock method.
 	InsertBlockFunc func(ctx context.Context, block *blocktx_api.Block) (uint64, error)
@@ -205,13 +199,6 @@ type InterfaceMock struct {
 			// Hash is the hash argument value.
 			Hash *chainhash.Hash
 		}
-		// GetTransactionSource holds details about calls to the GetTransactionSource method.
-		GetTransactionSource []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Hash is the hash argument value.
-			Hash *chainhash.Hash
-		}
 		// InsertBlock holds details about calls to the InsertBlock method.
 		InsertBlock []struct {
 			// Ctx is the ctx argument value.
@@ -287,7 +274,6 @@ type InterfaceMock struct {
 	lockGetTransactionBlock          sync.RWMutex
 	lockGetTransactionBlocks         sync.RWMutex
 	lockGetTransactionMerklePath     sync.RWMutex
-	lockGetTransactionSource         sync.RWMutex
 	lockInsertBlock                  sync.RWMutex
 	lockInsertBlockTransactions      sync.RWMutex
 	lockMarkBlockAsDone              sync.RWMutex
@@ -638,42 +624,6 @@ func (mock *InterfaceMock) GetTransactionMerklePathCalls() []struct {
 	mock.lockGetTransactionMerklePath.RLock()
 	calls = mock.calls.GetTransactionMerklePath
 	mock.lockGetTransactionMerklePath.RUnlock()
-	return calls
-}
-
-// GetTransactionSource calls GetTransactionSourceFunc.
-func (mock *InterfaceMock) GetTransactionSource(ctx context.Context, hash *chainhash.Hash) (string, error) {
-	if mock.GetTransactionSourceFunc == nil {
-		panic("InterfaceMock.GetTransactionSourceFunc: method is nil but Interface.GetTransactionSource was just called")
-	}
-	callInfo := struct {
-		Ctx  context.Context
-		Hash *chainhash.Hash
-	}{
-		Ctx:  ctx,
-		Hash: hash,
-	}
-	mock.lockGetTransactionSource.Lock()
-	mock.calls.GetTransactionSource = append(mock.calls.GetTransactionSource, callInfo)
-	mock.lockGetTransactionSource.Unlock()
-	return mock.GetTransactionSourceFunc(ctx, hash)
-}
-
-// GetTransactionSourceCalls gets all the calls that were made to GetTransactionSource.
-// Check the length with:
-//
-//	len(mockedInterface.GetTransactionSourceCalls())
-func (mock *InterfaceMock) GetTransactionSourceCalls() []struct {
-	Ctx  context.Context
-	Hash *chainhash.Hash
-} {
-	var calls []struct {
-		Ctx  context.Context
-		Hash *chainhash.Hash
-	}
-	mock.lockGetTransactionSource.RLock()
-	calls = mock.calls.GetTransactionSource
-	mock.lockGetTransactionSource.RUnlock()
 	return calls
 }
 

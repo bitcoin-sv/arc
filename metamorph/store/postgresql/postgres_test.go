@@ -290,8 +290,4 @@ func TestPostgresDB(t *testing.T) {
 
 		require.Equal(t, &now, processedAt)
 	})
-
-	t.Run("is centralised", func(t *testing.T) {
-		require.True(t, postgresDB.IsCentralised())
-	})
 }

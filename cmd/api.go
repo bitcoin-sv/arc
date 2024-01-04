@@ -11,9 +11,6 @@ import (
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
-	"github.com/bitcoin-sv/arc/blocktx"
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/config"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	apmecho "github.com/opentracing-contrib/echo"
@@ -91,34 +88,12 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 		return fmt.Errorf("metamorph.dialAddr not found in config")
 	}
 
-	blocktxAddress := viper.GetString("blocktx.dialAddr")
-	if blocktxAddress == "" {
-		return fmt.Errorf("blocktx.dialAddr not found in config")
-	}
-
-	blockTxLogger, err := config.NewLogger()
-	if err != nil {
-		return fmt.Errorf("failed to create new logger: %v", err)
-	}
-
-	conn, err := blocktx.DialGRPC(blocktxAddress)
-	if err != nil {
-		return fmt.Errorf("failed to connect to block-tx server: %v", err)
-	}
-
-	bTx := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn), blocktx.WithLogger(blockTxLogger))
-
 	grpcMessageSize := viper.GetInt("grpcMessageSize")
 	if grpcMessageSize == 0 {
 		return fmt.Errorf("grpcMessageSize not found in config")
 	}
 
-	isCentralisedMetamorph := false
-	if viper.GetString("metamorph.db.mode") == "dynamodb" || viper.GetString("metamorph.db.mode") == "postgres" {
-		isCentralisedMetamorph = true
-	}
-
-	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize, isCentralisedMetamorph)
+	txHandler, err := transactionHandler.NewMetamorph(addresses, grpcMessageSize)
 	if err != nil {
 		return err
 	}

@@ -19,7 +19,6 @@ import (
 // ClientI is the interface for the block-tx transactionHandler.
 type ClientI interface {
 	Start(minedBlockChan chan *blocktx_api.Block)
-	LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 	GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error)
 	GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error)
@@ -122,15 +121,6 @@ func (btc *Client) Shutdown() {
 	btc.shutdown <- struct{}{}
 
 	<-btc.shutdownComplete
-}
-
-func (btc *Client) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
-	location, err := btc.client.LocateTransaction(ctx, transaction)
-	if err != nil {
-		return "", ErrTransactionNotFound
-	}
-
-	return location.GetSource(), nil
 }
 
 func (btc *Client) GetTransactionMerklePath(ctx context.Context, hash *blocktx_api.Transaction) (string, error) {

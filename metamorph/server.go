@@ -27,8 +27,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -40,6 +38,7 @@ func init() {
 
 const (
 	responseTimeout = 5 * time.Second
+	blocktxTimeout  = 2 * time.Second
 )
 
 type BitcoinNode interface {
@@ -345,6 +344,35 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	}
 }
 
+func (s *Server) registerTransaction(ctx context.Context, hash chainhash.Hash) (*blocktx_api.RegisterTransactionResponse, error) {
+	responseCh := make(chan *blocktx_api.RegisterTransactionResponse, 1)
+	errCh := make(chan error, 1)
+	blocktxCtx, cancel := context.WithTimeout(ctx, blocktxTimeout)
+	defer cancel()
+
+	go func() {
+		rtr, err := s.btc.RegisterTransaction(blocktxCtx, &blocktx_api.TransactionAndSource{
+			Hash:   hash[:],
+			Source: s.source,
+		})
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		responseCh <- rtr
+	}()
+
+	select {
+	case <-blocktxCtx.Done():
+		return nil, errors.New("failed to register transaction due to timeout")
+	case err := <-errCh:
+		return nil, fmt.Errorf("failed to register transaction: %v", err)
+	case response := <-responseCh:
+		return response, nil
+	}
+}
+
 func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.TransactionRequest, start int64) (int64, metamorph_api.Status, *chainhash.Hash, *metamorph_api.TransactionStatus, error) {
 	initSpan, initCtx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:init")
 	defer initSpan.Finish()
@@ -358,40 +386,9 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 	initSpan.SetTag("txid", hash.String())
 
 	// Register the transaction in blocktx store
-	rtr, err := s.btc.RegisterTransaction(initCtx, &blocktx_api.TransactionAndSource{
-		Hash:   hash[:],
-		Source: s.source,
-	})
+	rtr, err := s.registerTransaction(ctx, hash)
 	if err != nil {
 		return 0, 0, nil, nil, err
-	}
-
-	if !s.store.IsCentralised() && rtr.GetSource() != s.source {
-		if isForwarded(ctx) {
-			// This is a forwarded request, so we should not forward it again
-			s.logger.Warn("Endless forwarding loop detected for", slog.String("hash", hash.String()), slog.String("address", s.source), slog.String("source", rtr.GetSource()))
-			return 0, 0, nil, nil, fmt.Errorf("endless forwarding loop detected")
-		}
-
-		// This transaction was already registered by another metamorph, and we
-		// should forward the request to that metamorph
-		var ownerConn *grpc.ClientConn
-		if ownerConn, err = dialMetamorph(initCtx, rtr.GetSource()); err != nil {
-			return 0, 0, nil, nil, err
-		}
-
-		defer ownerConn.Close()
-
-		ownerMM := metamorph_api.NewMetaMorphAPIClient(ownerConn)
-
-		var transactionStatus *metamorph_api.TransactionStatus
-		if transactionStatus, err = ownerMM.PutTransaction(createForwardedContext(initCtx), req); err != nil {
-			return 0, 0, nil, nil, err
-		}
-
-		transactionStatus.MerklePath = rtr.GetMerklePath()
-
-		return 0, 0, nil, transactionStatus, nil
 	}
 
 	if rtr.BlockHash != nil {
@@ -437,7 +434,6 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 			return 0, 0, nil, &metamorph_api.TransactionStatus{
 				Status:       metamorph_api.Status_REJECTED,
 				Txid:         hash.String(),
-				MerklePath:   rtr.GetMerklePath(),
 				RejectReason: err.Error(),
 			}, nil
 		}
@@ -517,6 +513,39 @@ func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.Transact
 	return txn, nil
 }
 
+func (s *Server) getMerklePath(ctx context.Context, hash *chainhash.Hash, dataStatus metamorph_api.Status) (string, error) {
+	merklePathCh := make(chan string, 1)
+	errCh := make(chan error, 1)
+	blocktxCtx, cancel := context.WithTimeout(ctx, blocktxTimeout)
+	defer cancel()
+
+	go func() {
+		mp, err := s.btc.GetTransactionMerklePath(blocktxCtx, &blocktx_api.Transaction{Hash: hash[:]})
+		if err != nil {
+			if errors.Is(err, blocktx.ErrTransactionNotFoundForMerklePath) {
+				if dataStatus == metamorph_api.Status_MINED {
+					errCh <- fmt.Errorf("merkle path not found for mined transaction %s: %v", hash.String(), err)
+					return
+				}
+			} else {
+				errCh <- fmt.Errorf("failed to get Merkle path for transaction %s: %v", hash.String(), err)
+				return
+			}
+		}
+
+		merklePathCh <- mp
+	}()
+
+	select {
+	case <-blocktxCtx.Done():
+		return "", errors.New("failed to get Merkle path due to timeout")
+	case err := <-errCh:
+		return "", fmt.Errorf("failed to get Merkle path: %v", err)
+	case merklePath := <-merklePathCh:
+		return merklePath, nil
+	}
+}
+
 func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.TransactionStatus, error) {
 	data, announcedAt, minedAt, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
@@ -532,16 +561,9 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 	if err != nil {
 		return nil, err
 	}
-
-	merklePath, err := s.btc.GetTransactionMerklePath(ctx, &blocktx_api.Transaction{Hash: hash[:]})
+	merklePath, err := s.getMerklePath(ctx, hash, data.Status)
 	if err != nil {
-		if errors.Is(err, blocktx.ErrTransactionNotFoundForMerklePath) {
-			if data.Status == metamorph_api.Status_MINED {
-				s.logger.Error("Merkle path not found for mined transaction", slog.String("hash", hash.String()), slog.String("err", err.Error()))
-			}
-		} else {
-			s.logger.Error("failed to get Merkle path for transaction", slog.String("hash", hash.String()), slog.String("err", err.Error()))
-		}
+		s.logger.Error("failed to get merkle path")
 	}
 
 	return &metamorph_api.TransactionStatus{
@@ -598,32 +620,4 @@ func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUn
 	}
 
 	return result, err
-}
-
-func dialMetamorph(ctx context.Context, address string) (*grpc.ClientConn, error) {
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
-		grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
-	}
-
-	return grpc.DialContext(ctx, address, tracing.AddGRPCDialOptions(opts)...)
-}
-
-func createForwardedContext(ctx context.Context) context.Context {
-	return metadata.NewOutgoingContext(
-		ctx,
-		metadata.Pairs("forwarded", "true"),
-	)
-}
-
-func isForwarded(ctx context.Context) bool {
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		f := md.Get("forwarded")
-		if len(f) > 0 && f[0] == "true" {
-			return true
-		}
-	}
-
-	return false
 }

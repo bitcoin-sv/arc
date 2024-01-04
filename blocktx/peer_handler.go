@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	transactionStoringBatchsizeDefault = 65536 // power of 2 for easier memory allocation
+	transactionStoringBatchsizeDefault = 2048 // power of 2 for easier memory allocation
 	maxRequestBlocks                   = 5
 )
 

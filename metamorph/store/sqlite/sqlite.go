@@ -121,10 +121,6 @@ type SqLite struct {
 	now func() time.Time
 }
 
-func (s *SqLite) IsCentralised() bool {
-	return false
-}
-
 func (s *SqLite) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error {
 	startNanos := s.now().UnixNano()
 	defer func() {

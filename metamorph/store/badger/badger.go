@@ -116,10 +116,6 @@ func New(dir string) (*Badger, error) {
 	return badgerStore, nil
 }
 
-func (ddb *Badger) IsCentralised() bool {
-	return false
-}
-
 func (s *Badger) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
 	return nil
 }

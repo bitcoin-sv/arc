@@ -54,10 +54,6 @@ func New(dbInfo string, hostname string, idleConns int, maxOpenConns int, opts .
 	return p, nil
 }
 
-func (p *PostgreSQL) IsCentralised() bool {
-	return true
-}
-
 func (p *PostgreSQL) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
 	startNanos := p.now().UnixNano()
 	defer func() {

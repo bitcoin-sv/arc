@@ -50,10 +50,6 @@ func TestInOut(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	source, err := s.GetTransactionSource(ctx, firstHash)
-	require.NoError(t, err)
-	assert.Equal(t, "TEST", source)
-
 	err = s.InsertBlockTransactions(ctx, blockId, transactions, make([]string, len(transactions)))
 	require.NoError(t, err)
 

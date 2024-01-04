@@ -243,10 +243,6 @@ func (ddb *DynamoDB) CreateBlocksTable(ctx context.Context) error {
 	return nil
 }
 
-func (ddb *DynamoDB) IsCentralised() bool {
-	return true
-}
-
 func (ddb *DynamoDB) Get(ctx context.Context, key []byte) (*store.StoreData, error) {
 	// config log and tracing
 	startNanos := ddb.now().UnixNano()

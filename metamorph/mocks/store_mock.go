@@ -37,9 +37,6 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetUnminedTransactionsFunc: func(contextMoqParam context.Context) ([]store.StoreData, error) {
 //				panic("mock out the GetUnminedTransactions method")
 //			},
-//			IsCentralisedFunc: func() bool {
-//				panic("mock out the IsCentralised method")
-//			},
 //			RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 //				panic("mock out the RemoveCallbacker method")
 //			},
@@ -82,9 +79,6 @@ type MetamorphStoreMock struct {
 
 	// GetUnminedTransactionsFunc mocks the GetUnminedTransactions method.
 	GetUnminedTransactionsFunc func(contextMoqParam context.Context) ([]store.StoreData, error)
-
-	// IsCentralisedFunc mocks the IsCentralised method.
-	IsCentralisedFunc func() bool
 
 	// RemoveCallbackerFunc mocks the RemoveCallbacker method.
 	RemoveCallbackerFunc func(ctx context.Context, hash *chainhash.Hash) error
@@ -139,9 +133,6 @@ type MetamorphStoreMock struct {
 		GetUnminedTransactions []struct {
 			// ContextMoqParam is the contextMoqParam argument value.
 			ContextMoqParam context.Context
-		}
-		// IsCentralised holds details about calls to the IsCentralised method.
-		IsCentralised []struct {
 		}
 		// RemoveCallbacker holds details about calls to the RemoveCallbacker method.
 		RemoveCallbacker []struct {
@@ -208,7 +199,6 @@ type MetamorphStoreMock struct {
 	lockGet                    sync.RWMutex
 	lockGetBlockProcessed      sync.RWMutex
 	lockGetUnminedTransactions sync.RWMutex
-	lockIsCentralised          sync.RWMutex
 	lockRemoveCallbacker       sync.RWMutex
 	lockSet                    sync.RWMutex
 	lockSetBlockProcessed      sync.RWMutex
@@ -387,33 +377,6 @@ func (mock *MetamorphStoreMock) GetUnminedTransactionsCalls() []struct {
 	mock.lockGetUnminedTransactions.RLock()
 	calls = mock.calls.GetUnminedTransactions
 	mock.lockGetUnminedTransactions.RUnlock()
-	return calls
-}
-
-// IsCentralised calls IsCentralisedFunc.
-func (mock *MetamorphStoreMock) IsCentralised() bool {
-	if mock.IsCentralisedFunc == nil {
-		panic("MetamorphStoreMock.IsCentralisedFunc: method is nil but MetamorphStore.IsCentralised was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockIsCentralised.Lock()
-	mock.calls.IsCentralised = append(mock.calls.IsCentralised, callInfo)
-	mock.lockIsCentralised.Unlock()
-	return mock.IsCentralisedFunc()
-}
-
-// IsCentralisedCalls gets all the calls that were made to IsCentralised.
-// Check the length with:
-//
-//	len(mockedMetamorphStore.IsCentralisedCalls())
-func (mock *MetamorphStoreMock) IsCentralisedCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockIsCentralised.RLock()
-	calls = mock.calls.IsCentralised
-	mock.lockIsCentralised.RUnlock()
 	return calls
 }
 

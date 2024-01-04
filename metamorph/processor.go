@@ -324,7 +324,7 @@ func (p *Processor) LoadUnmined() {
 	}
 	for i := 0; i < len(txs); i++ {
 		record := &txs[i]
-		if !p.store.IsCentralised() && p.deleteExpired(record) {
+		if p.deleteExpired(record) {
 			return
 		}
 

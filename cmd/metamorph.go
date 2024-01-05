@@ -271,6 +271,11 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		opts = append(opts, metamorph.WithForceCheckUtxos(node))
 	}
 
+	btxTimeout := viper.GetDuration("metamorph.blocktxTimeout")
+	if btxTimeout > 0 {
+		opts = append(opts, metamorph.WithBlocktxTimeout(btxTimeout))
+	}
+
 	serv := metamorph.NewServer(s, metamorphProcessor, btx, source, opts...)
 
 	go func() {

@@ -61,6 +61,7 @@ metamorph:
   network:
     fixedIp: true # Denotes if ARC is running with fixed IP addresses
     ipAddressHint: ^172.28.*
+  blocktxTimeout: 1s # timeout for blocktx service
 
 blocktx:
   listenAddr: localhost:8011 # address space for blocktx to listen on. Can be for example localhost:8011 or :8011 for listening on all addresses

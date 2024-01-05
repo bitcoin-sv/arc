@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/bitcoin-sv/arc/api/handler"
 	"log/slog"
 	"net"
 	"net/url"
@@ -38,7 +39,11 @@ func init() {
 
 const (
 	responseTimeout = 5 * time.Second
-	blocktxTimeout  = 2 * time.Second
+	blocktxTimeout  = 1 * time.Second
+)
+
+var (
+	ErrRegisterTxTimeout = errors.New("failed to register transaction due to timeout")
 )
 
 type BitcoinNode interface {
@@ -68,22 +73,29 @@ type Server struct {
 	source          string
 	bitcoinNode     BitcoinNode
 	forceCheckUtxos bool
+	blocktxTimeout  time.Duration
+}
+
+func WithBlocktxTimeout(d time.Duration) func(*Server) {
+	return func(s *Server) {
+		s.blocktxTimeout = d
+	}
 }
 
 func WithLogger(logger *slog.Logger) func(*Server) {
-	return func(p *Server) {
-		p.logger = logger.With(slog.String("service", "mtm"))
+	return func(s *Server) {
+		s.logger = logger.With(slog.String("service", "mtm"))
 	}
 }
 
 func WithForceCheckUtxos(bitcoinNode BitcoinNode) func(*Server) {
-	return func(p *Server) {
-		p.bitcoinNode = bitcoinNode
-		p.forceCheckUtxos = true
+	return func(s *Server) {
+		s.bitcoinNode = bitcoinNode
+		s.forceCheckUtxos = true
 	}
 }
 
-type ServerOption func(f *Server)
+type ServerOption func(s *Server)
 
 // NewServer will return a server instance with the zmqLogger stored within it
 func NewServer(s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI, source string, opts ...ServerOption) *Server {
@@ -95,6 +107,7 @@ func NewServer(s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI, source
 		btc:             btc,
 		source:          source,
 		forceCheckUtxos: false,
+		blocktxTimeout:  blocktxTimeout,
 	}
 
 	for _, opt := range opts {
@@ -200,8 +213,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	next, status, hash, transactionStatus, err := s.putTransactionInit(ctx, req, start)
 	if err != nil {
-		// if we have an error, we will return immediately
-		return nil, err
+		s.logger.Error("failed to initialize transaction", slog.String("err", err.Error()))
 	}
 
 	if transactionStatus != nil {
@@ -249,6 +261,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	resp.Statuses = make([]*metamorph_api.TransactionStatus, len(req.GetTransactions()))
 
 	processTxsInputMap := make(map[chainhash.Hash]processTxInput)
+	skipTxInit := false
 
 	for ind, txReq := range req.GetTransactions() {
 		err := ValidateCallbackURL(txReq.GetCallbackUrl())
@@ -256,16 +269,26 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			return nil, err
 		}
 
-		_, status, hash, transactionStatus, err := s.putTransactionInit(ctx, txReq, start)
-		if err != nil {
-			// if we have an error, we will return immediately
-			return nil, err
-		}
+		status := metamorph_api.Status_UNKNOWN
+		hash := handler.PtrTo(chainhash.DoubleHashH(txReq.GetRawTx()))
 
-		if transactionStatus != nil {
-			// if we have a transactionStatus, no need to process it another time
-			resp.Statuses[ind] = transactionStatus
-			continue
+		var transactionStatus *metamorph_api.TransactionStatus
+
+		if !skipTxInit {
+			_, status, hash, transactionStatus, err = s.putTransactionInit(ctx, txReq, start)
+			if err != nil {
+				// If the initialization step times out once, then don't repeat for subsequent transactions in the batch as it may consume a lot of time
+				if errors.Is(err, ErrRegisterTxTimeout) {
+					skipTxInit = true
+				}
+
+				s.logger.Error("failed to register transaction", slog.String("err", err.Error()))
+			}
+			if transactionStatus != nil {
+				// if we have a transactionStatus, no need to process it another time
+				resp.Statuses[ind] = transactionStatus
+				continue
+			}
 		}
 
 		// Convert gRPC req to store.StoreData struct...
@@ -347,7 +370,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 func (s *Server) registerTransaction(ctx context.Context, hash chainhash.Hash) (*blocktx_api.RegisterTransactionResponse, error) {
 	responseCh := make(chan *blocktx_api.RegisterTransactionResponse, 1)
 	errCh := make(chan error, 1)
-	blocktxCtx, cancel := context.WithTimeout(ctx, blocktxTimeout)
+	blocktxCtx, cancel := context.WithTimeout(ctx, s.blocktxTimeout)
 	defer cancel()
 
 	go func() {
@@ -365,7 +388,7 @@ func (s *Server) registerTransaction(ctx context.Context, hash chainhash.Hash) (
 
 	select {
 	case <-blocktxCtx.Done():
-		return nil, errors.New("failed to register transaction due to timeout")
+		return nil, ErrRegisterTxTimeout
 	case err := <-errCh:
 		return nil, fmt.Errorf("failed to register transaction: %v", err)
 	case response := <-responseCh:
@@ -516,7 +539,7 @@ func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.Transact
 func (s *Server) getMerklePath(ctx context.Context, hash *chainhash.Hash, dataStatus metamorph_api.Status) (string, error) {
 	merklePathCh := make(chan string, 1)
 	errCh := make(chan error, 1)
-	blocktxCtx, cancel := context.WithTimeout(ctx, blocktxTimeout)
+	blocktxCtx, cancel := context.WithTimeout(ctx, s.blocktxTimeout)
 	defer cancel()
 
 	go func() {

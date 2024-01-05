@@ -495,8 +495,11 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 				return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 			}
 			// free up memory
-			txs = txs[:0]
-			merklePaths = merklePaths[:0]
+			txs = nil
+			merklePaths = nil
+
+			txs = make([]*blocktx_api.TransactionAndSource, 0, bs.transactionStorageBatchSize)
+			merklePaths = make([]string, 0, bs.transactionStorageBatchSize)
 
 			// print stats, call gc and chec the result
 			bs.printMemStats()

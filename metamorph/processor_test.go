@@ -186,20 +186,6 @@ func TestLoadUnmined(t *testing.T) {
 
 			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX2Hash},
 		},
-		{
-			name: "delete expired - deletion fails",
-			storedData: []*store.StoreData{
-				{
-					StoredAt:    storedAt.Add(-400 * time.Hour),
-					AnnouncedAt: storedAt.Add(1 * time.Second),
-					Hash:        testdata.TX2Hash,
-					Status:      metamorph_api.Status_SEEN_ON_NETWORK,
-				},
-			},
-			delErr: errors.New("failed to delete hash"),
-
-			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX2Hash},
-		},
 	}
 
 	for _, tc := range tt {

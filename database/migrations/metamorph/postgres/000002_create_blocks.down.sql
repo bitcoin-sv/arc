@@ -1,1 +1,1 @@
-DROP TABLE blocks;
+DROP TABLE metamorph.blocks;

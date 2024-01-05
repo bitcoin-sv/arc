@@ -427,7 +427,9 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, since time.Time) ([]*store.
 		return nil, err
 	}
 
-	for _, item := range out.Items {
+	data := make([]*store.StoreData, len(out.Items))
+
+	for i, item := range out.Items {
 		var transaction store.StoreData
 		err = attributevalue.UnmarshalMap(item, &transaction)
 		if err != nil {
@@ -436,7 +438,7 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, since time.Time) ([]*store.
 			return nil, err
 		}
 
-		callback(&transaction)
+		data[i] = &transaction
 
 		err = ddb.setLockedBy(ctx, transaction.Hash, ddb.hostname)
 		if err != nil {
@@ -445,7 +447,8 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, since time.Time) ([]*store.
 			return nil, err
 		}
 	}
-	return nil, nil
+
+	return data, nil
 }
 
 func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {

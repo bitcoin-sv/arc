@@ -14,6 +14,18 @@ import (
 	"modernc.org/sqlite"
 )
 
+const (
+	queryGetBlockHashHeightForTransactionHash = `
+		SELECT
+		 b.hash, b.height
+		FROM blocks b
+		INNER JOIN block_transactions_map m ON m.blockid = b.id
+		INNER JOIN transactions t ON m.txid = t.id
+		WHERE t.hash = $1
+		AND b.orphanedyn = false
+	`
+)
+
 // RegisterTransaction registers a transaction in the database.
 func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (string, string, []byte, uint64, error) {
 	start := gocore.CurrentNanos()

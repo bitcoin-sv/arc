@@ -377,7 +377,7 @@ func (s *SqLite) GetUnmined(ctx context.Context, since time.Time) ([]*store.Stor
 		return nil, err
 	}
 	defer rows.Close()
-
+	storeData := make([]*store.StoreData, 0)
 	for rows.Next() {
 		data := &store.StoreData{}
 
@@ -437,10 +437,10 @@ func (s *SqLite) GetUnmined(ctx context.Context, since time.Time) ([]*store.Stor
 			}
 		}
 
-		callback(data)
+		storeData = append(storeData, data)
 	}
 
-	return nil, nil
+	return storeData, nil
 }
 
 func (s *SqLite) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {

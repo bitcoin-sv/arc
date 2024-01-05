@@ -179,9 +179,7 @@ func TestDynamoDBIntegration(t *testing.T) {
 		}
 		putItem(t, ctx, client, dataStatusAnnounced)
 
-		i := 0
-		returnedData := make([]*store.StoreData, 2)
-		_, err := repo.GetUnmined(ctx, 0)
+		returnedData, err := repo.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC))
 		require.NoError(t, err)
 		require.Contains(t, returnedData, dataStatusAnnounced)
 		require.Contains(t, returnedData, dataStatusSent)

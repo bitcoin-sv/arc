@@ -142,11 +142,8 @@ func TestLoadUnmined(t *testing.T) {
 			pm := p2p.NewPeerManagerMock()
 
 			mtmStore := &MetamorphStoreMock{
-				GetUnminedFunc: func(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
-					for _, data := range tc.storedData {
-						callback(data)
-					}
-					return tc.getUnminedErr
+				GetUnminedFunc: func(ctx context.Context, since time.Time) ([]*store.StoreData, error) {
+					return tc.storedData, nil
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
 					require.ElementsMatch(t, tc.expectedItemTxHashesFinal, hashes)

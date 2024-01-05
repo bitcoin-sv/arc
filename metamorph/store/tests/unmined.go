@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/store"
@@ -28,8 +29,7 @@ func NoUnmined(t *testing.T, s store.MetamorphStore) {
 		require.NoError(t, err)
 	}
 
-	unseen := make([]*store.StoreData, 0)
-	_, err = s.GetUnmined(context.Background(), 0)
+	unseen, err := s.GetUnmined(context.Background(), time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC))
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(unseen))
 
@@ -56,8 +56,7 @@ func MultipleUnmined(t *testing.T, s store.MetamorphStore) {
 		require.NoError(t, err)
 	}
 
-	unseen := make([]*store.StoreData, 0)
-	_, err = s.GetUnmined(context.Background(), 0)
+	unseen, err := s.GetUnmined(context.Background(), time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC))
 	require.NoError(t, err)
 	assert.Equal(t, 3, len(unseen))
 

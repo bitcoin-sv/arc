@@ -283,9 +283,10 @@ func (s *Badger) GetUnmined(ctx context.Context, since time.Time) ([]*store.Stor
 		gocore.NewStat("mtm_store_badger").NewStat("GetUnmined").AddTime(start)
 	}()
 	span, ctx := opentracing.StartSpanFromContext(ctx, "badger:GetUnmined")
-	defer span.Finish()
 
-	return nil, s.store.View(func(tx *badger.Txn) error {
+	defer span.Finish()
+	data := make([]*store.StoreData, 0)
+	s.store.View(func(tx *badger.Txn) error {
 		iter := tx.NewIterator(badger.DefaultIteratorOptions)
 		defer iter.Close()
 
@@ -299,13 +300,14 @@ func (s *Badger) GetUnmined(ctx context.Context, since time.Time) ([]*store.Stor
 			}
 
 			var result *store.StoreData
-			if err := item.Value(func(val []byte) error {
+			err := item.Value(func(val []byte) error {
 				var err2 error
 				if result, err2 = store.DecodeFromBytes(val); err2 != nil {
 					return err2
 				}
 				return nil
-			}); err != nil {
+			})
+			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
 				s.logger.Errorf("failed to decode data for %s: %w", item.Key(), err)
@@ -313,12 +315,14 @@ func (s *Badger) GetUnmined(ctx context.Context, since time.Time) ([]*store.Stor
 			}
 
 			if result.Status < metamorph_api.Status_MINED || result.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
-				callback(result)
+				data = append(data, result)
 			}
 		}
 
 		return nil
 	})
+
+	return data, nil
 }
 
 func (s *Badger) Del(ctx context.Context, hash []byte) error {

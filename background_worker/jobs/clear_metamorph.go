@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"fmt"
+
 	"github.com/jmoiron/sqlx"
 )
 
@@ -31,10 +32,10 @@ func runDelete(table string, params ClearRecordsParams) error {
 }
 
 func ClearMetamorph(params ClearRecordsParams) error {
-	if err := runDelete("blocks", params); err != nil {
+	if err := runDelete("metamorph.blocks", params); err != nil {
 		return err
 	}
-	if err := runDelete("transactions", params); err != nil {
+	if err := runDelete("metamorph.transactions", params); err != nil {
 		return err
 	}
 

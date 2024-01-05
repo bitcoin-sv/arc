@@ -83,8 +83,8 @@ func (s *MetamorphDBTestSuite) truncateTables() {
 	db, err := sqlx.Open("postgres", DefaultMMParams.String())
 	require.NoError(s.T(), err)
 
-	db.MustExec("truncate  table blocks;")
-	db.MustExec("truncate  table transactions;")
+	db.MustExec("truncate  table metamorph.blocks;")
+	db.MustExec("truncate  table metamorph.transactions;")
 }
 
 func (s *MetamorphDBTestSuite) Conn() *sqlx.Conn {
@@ -95,7 +95,7 @@ func (s *MetamorphDBTestSuite) InsertBlock(block *store.Block) {
 	db, err := sqlx.Open("postgres", DefaultMMParams.String())
 	require.NoError(s.T(), err)
 
-	q := `INSERT INTO blocks(
+	q := `INSERT INTO metamorph.blocks(
 		hash,
 		processed_at,
 		inserted_at)
@@ -114,7 +114,7 @@ func (s *MetamorphDBTestSuite) InsertBlock(block *store.Block) {
 func (s *MetamorphDBTestSuite) InsertTransaction(tx *store.Transaction) {
 	db, err := sqlx.Open("postgres", DefaultMMParams.String())
 	require.NoError(s.T(), err)
-	q := `INSERT INTO transactions (hash, 
+	q := `INSERT INTO metamorph.transactions (hash, 
      stored_at, 
      announced_at, 
      mined_at, 

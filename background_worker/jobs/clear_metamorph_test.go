@@ -1,14 +1,15 @@
 package jobs
 
 import (
+	"testing"
+	"time"
+
 	. "github.com/bitcoin-sv/arc/database_testing"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"testing"
-	"time"
 )
 
 type ClearMetamorphSuite struct {
@@ -54,12 +55,12 @@ func (s *ClearMetamorphSuite) Test() {
 	require.NoError(s.T(), err)
 
 	var blks []store.Block
-	require.NoError(s.T(), db.Select(&blks, "SELECT * from blocks"))
+	require.NoError(s.T(), db.Select(&blks, "SELECT * from metamorph.blocks"))
 
 	assert.Len(s.T(), blks, 5)
 
 	var stx []store.Transaction
-	require.NoError(s.T(), db.Select(&stx, "SELECT * from transactions"))
+	require.NoError(s.T(), db.Select(&stx, "SELECT * from metamorph.transactions"))
 	assert.Len(s.T(), stx, 5)
 
 }

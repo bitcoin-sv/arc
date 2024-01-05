@@ -113,10 +113,6 @@ func (s *Server) GetBlockTransactions(ctx context.Context, block *blocktx_api.Bl
 	return s.store.GetBlockTransactions(ctx, block)
 }
 
-func (s *Server) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Block, error) {
-	return s.store.GetTransactionBlock(ctx, transaction)
-}
-
 func (s *Server) GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
 	return s.store.GetTransactionBlocks(ctx, transaction)
 }

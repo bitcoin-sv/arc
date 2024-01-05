@@ -17,7 +17,6 @@ import (
 type ClientI interface {
 	GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 	GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error)
-	GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error)
 	GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*blocktx_api.Block, error)
 	GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, error)
 	GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
@@ -65,18 +64,6 @@ func (btc *Client) GetTransactionMerklePath(ctx context.Context, hash *blocktx_a
 
 func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
 	return btc.client.RegisterTransaction(ctx, transaction)
-}
-
-func (btc *Client) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error) {
-	block, err := btc.client.GetTransactionBlock(ctx, transaction)
-	if err != nil {
-		return nil, err
-	}
-
-	return &blocktx_api.RegisterTransactionResponse{
-		BlockHash:   block.GetHash(),
-		BlockHeight: block.GetHeight(),
-	}, nil
 }
 
 func (btc *Client) GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {

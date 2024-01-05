@@ -210,8 +210,9 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	if err != nil {
 		return nil, err
 	}
+	hash := handler.PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
 
-	next, status, hash, transactionStatus, err := s.putTransactionInit(ctx, req, start)
+	next, status, transactionStatus, err := s.putTransactionInit(ctx, req, start)
 	if err != nil {
 		s.logger.Error("failed to initialize transaction", slog.String("err", err.Error()))
 	}
@@ -275,7 +276,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		var transactionStatus *metamorph_api.TransactionStatus
 
 		if !skipTxInit {
-			_, status, hash, transactionStatus, err = s.putTransactionInit(ctx, txReq, start)
+			_, status, transactionStatus, err = s.putTransactionInit(ctx, txReq, start)
 			if err != nil {
 				// If the initialization step times out once, then don't repeat for subsequent transactions in the batch as it may consume a lot of time
 				if errors.Is(err, ErrRegisterTxTimeout) {
@@ -396,7 +397,7 @@ func (s *Server) registerTransaction(ctx context.Context, hash chainhash.Hash) (
 	}
 }
 
-func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.TransactionRequest, start int64) (int64, metamorph_api.Status, *chainhash.Hash, *metamorph_api.TransactionStatus, error) {
+func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.TransactionRequest, start int64) (int64, metamorph_api.Status, *metamorph_api.TransactionStatus, error) {
 	initSpan, initCtx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:init")
 	defer initSpan.Finish()
 
@@ -411,7 +412,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 	// Register the transaction in blocktx store
 	rtr, err := s.registerTransaction(ctx, hash)
 	if err != nil {
-		return 0, 0, nil, nil, err
+		return 0, 0, nil, err
 	}
 
 	if rtr.BlockHash != nil {
@@ -437,7 +438,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		status = metamorph_api.Status_MINED
 		blockHash, _ := chainhash.NewHash(rtr.GetBlockHash())
 		if err = s.store.UpdateMined(initCtx, &hash, blockHash, rtr.GetBlockHeight()); err != nil {
-			return 0, 0, nil, nil, err
+			return 0, 0, nil, err
 		}
 	}
 
@@ -447,14 +448,14 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 	if transactionStatus != nil {
 		// just return the status if we found it in the store
 		transactionStatus.MerklePath = rtr.GetMerklePath()
-		return 0, 0, nil, transactionStatus, nil
+		return 0, 0, transactionStatus, nil
 	}
 
 	if s.forceCheckUtxos {
 		next, err = s.CheckUtxos(initCtx, next, req.GetRawTx())
 		s.logger.Error("Error checking utxos", slog.String("err", err.Error()))
 		if err != nil {
-			return 0, 0, nil, &metamorph_api.TransactionStatus{
+			return 0, 0, &metamorph_api.TransactionStatus{
 				Status:       metamorph_api.Status_REJECTED,
 				Txid:         hash.String(),
 				RejectReason: err.Error(),
@@ -462,7 +463,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		}
 	}
 
-	return next, status, &hash, nil, nil
+	return next, status, nil, nil
 }
 
 func (s *Server) checkStore(ctx context.Context, hash *chainhash.Hash, next int64) (int64, *metamorph_api.TransactionStatus) {

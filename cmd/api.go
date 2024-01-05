@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -10,22 +11,16 @@ import (
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
-	"github.com/bitcoin-sv/arc/blocktx"
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/config"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	apmecho "github.com/opentracing-contrib/echo"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
-	"github.com/ordishs/go-utils"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
-const progname = "arc"
-
-func StartAPIServer(logger utils.Logger) (func(), error) {
+func StartAPIServer(logger *slog.Logger) (func(), error) {
 	// Set up a basic Echo router
 	e := echo.New()
 	e.HideBanner = true
@@ -35,7 +30,7 @@ func StartAPIServer(logger utils.Logger) (func(), error) {
 	e.Use(echomiddleware.Recover())
 
 	if opentracing.GlobalTracer() != nil {
-		e.Use(apmecho.Middleware(progname))
+		e.Use(apmecho.Middleware("arc"))
 	}
 
 	// Add CORS headers to the server - all request origins are allowed
@@ -59,29 +54,30 @@ func StartAPIServer(logger utils.Logger) (func(), error) {
 	}
 	// Serve HTTP until the world ends.
 	go func() {
-		logger.Infof("Starting API server on %s", apiAddress)
+		logger.Info("Starting API server", slog.String("address", apiAddress))
 		err := e.Start(apiAddress)
 		if err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
-				logger.Infof("API http server closed")
+				logger.Info("API http server closed")
 				return
-			} else {
-				logger.Fatalf("Error starting API server: %v", err)
 			}
+
+			logger.Error("Failed to start API server", slog.String("err", err.Error()))
+			return
 		}
 	}()
 
 	return func() {
-		logger.Infof("Shutting down api service")
+		logger.Info("Shutting down api service")
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := e.Shutdown(ctx); err != nil {
-			logger.Errorf("Error closing API echo server: %v", err)
+			logger.Error("Failed to close API echo server", slog.String("err", err.Error()))
 		}
 	}, nil
 }
 
-func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
+func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 	// check the swagger definition against our requests
 	handler.CheckSwagger(e)
 
@@ -92,34 +88,12 @@ func LoadArcHandler(e *echo.Echo, logger utils.Logger) error {
 		return fmt.Errorf("metamorph.dialAddr not found in config")
 	}
 
-	blocktxAddress := viper.GetString("blocktx.dialAddr")
-	if blocktxAddress == "" {
-		return fmt.Errorf("blocktx.dialAddr not found in config")
-	}
-
-	blockTxLogger, err := config.NewLogger()
-	if err != nil {
-		return fmt.Errorf("failed to create new logger: %v", err)
-	}
-
-	conn, err := blocktx.DialGRPC(blocktxAddress)
-	if err != nil {
-		return fmt.Errorf("failed to connect to block-tx server: %v", err)
-	}
-
-	bTx := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn), blocktx.WithLogger(blockTxLogger))
-
 	grpcMessageSize := viper.GetInt("grpcMessageSize")
 	if grpcMessageSize == 0 {
 		return fmt.Errorf("grpcMessageSize not found in config")
 	}
 
-	isCentralisedMetamorph := false
-	if viper.GetString("metamorph.db.mode") == "dynamodb" || viper.GetString("metamorph.db.mode") == "postgres" {
-		isCentralisedMetamorph = true
-	}
-
-	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize, logger, isCentralisedMetamorph)
+	txHandler, err := transactionHandler.NewMetamorph(addresses, grpcMessageSize)
 	if err != nil {
 		return err
 	}

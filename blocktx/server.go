@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -25,13 +25,13 @@ import (
 type Server struct {
 	blocktx_api.UnsafeBlockTxAPIServer
 	store         store.Interface
-	logger        utils.Logger
+	logger        *slog.Logger
 	blockNotifier *BlockNotifier
 	grpcServer    *grpc.Server
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger utils.Logger) *Server {
+func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger *slog.Logger) *Server {
 	return &Server{
 		store:         storeI,
 		logger:        logger,
@@ -40,11 +40,7 @@ func NewServer(storeI store.Interface, blockNotifier *BlockNotifier, logger util
 }
 
 // StartGRPCServer function.
-func (s *Server) StartGRPCServer() error {
-	address := viper.GetString("blocktx.listenAddr")
-	if address == "" {
-		return errors.New("no blocktx.listenAddr setting found")
-	}
+func (s *Server) StartGRPCServer(address string) error {
 
 	// LEVEL 0 - no security / no encryption
 	var opts []grpc.ServerOption
@@ -70,7 +66,7 @@ func (s *Server) StartGRPCServer() error {
 	// Register reflection service on gRPC server.
 	reflection.Register(s.grpcServer)
 
-	s.logger.Infof("GRPC server listening on %s", address)
+	s.logger.Info("GRPC server listening", slog.String("address", address))
 
 	if err = s.grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("GRPC server failed [%w]", err)
@@ -83,25 +79,6 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.Healt
 	return &blocktx_api.HealthResponse{
 		Ok:        true,
 		Timestamp: timestamppb.New(time.Now()),
-	}, nil
-}
-
-func (s *Server) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Source, error) {
-	hash, err := chainhash.NewHash(transaction.GetHash())
-	if err != nil {
-		return nil, err
-	}
-
-	source, err := s.store.GetTransactionSource(ctx, hash)
-	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, ErrTransactionNotFound
-		}
-		return nil, err
-	}
-
-	return &blocktx_api.Source{
-		Source: source,
 	}, nil
 }
 
@@ -168,4 +145,9 @@ func (s *Server) GetBlockNotificationStream(height *blocktx_api.Height, srv bloc
 
 func (s *Server) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
 	return s.store.GetMinedTransactionsForBlock(ctx, blockAndSource)
+}
+
+func (s *Server) Shutdown() {
+	s.logger.Info("Shutting down")
+	s.grpcServer.Stop()
 }

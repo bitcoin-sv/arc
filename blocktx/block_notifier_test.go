@@ -3,6 +3,8 @@ package blocktx
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
 	"testing"
 	"time"
 
@@ -11,23 +13,27 @@ import (
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
-	"github.com/ordishs/gocore"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewBlockNotifier(t *testing.T) {
 	hash822014, err := chainhash.NewHashFromStr("0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
 	require.NoError(t, err)
+	hostname, err := os.Hostname()
+	require.NoError(t, err)
 
 	tt := []struct {
 		name            string
+		hostname        string
 		getBlockGapsErr error
 	}{
 		{
-			name: "success",
+			name:     "success",
+			hostname: hostname,
 		},
 		{
 			name:            "error getting block gaps",
+			hostname:        hostname,
 			getBlockGapsErr: errors.New("failed to get block gaps"),
 		},
 	}
@@ -43,6 +49,9 @@ func TestNewBlockNotifier(t *testing.T) {
 						},
 					}, tc.getBlockGapsErr
 				},
+				PrimaryBlocktxFunc: func(ctx context.Context) (string, error) {
+					return tc.hostname, nil
+				},
 			}
 			blockCh := make(chan *blocktx_api.Block)
 
@@ -54,14 +63,28 @@ func TestNewBlockNotifier(t *testing.T) {
 						ZMQ: 28332,
 					},
 				},
+				{
+					Host: "127.0.0.2",
+					Port: config.PeerPort{
+						P2P: 18333,
+						ZMQ: 28332,
+					},
+				},
+				{
+					Host: "127.0.0.3",
+					Port: config.PeerPort{
+						P2P: 18333,
+						ZMQ: 28332,
+					},
+				},
 			}
 
-			logger := gocore.Log("test", gocore.NewLogLevelFromString("INFO"))
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			peerHandler := NewPeerHandler(logger, storeMock, blockCh, 100)
 			notifier, err := NewBlockNotifier(storeMock, logger, blockCh, peerHandler, peerSettings, wire.TestNet3, WithFillGapsInterval(time.Millisecond*30))
 			require.NoError(t, err)
 
-			time.Sleep(55 * time.Millisecond)
+			time.Sleep(120 * time.Millisecond)
 			peerHandler.Shutdown()
 			notifier.Shutdown()
 		})

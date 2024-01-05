@@ -39,9 +39,6 @@ var _ blocktx.ClientI = &ClientIMock{}
 //			GetTransactionMerklePathFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
 //				panic("mock out the GetTransactionMerklePath method")
 //			},
-//			LocateTransactionFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
-//				panic("mock out the LocateTransaction method")
-//			},
 //			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
 //				panic("mock out the RegisterTransaction method")
 //			},
@@ -75,9 +72,6 @@ type ClientIMock struct {
 
 	// GetTransactionMerklePathFunc mocks the GetTransactionMerklePath method.
 	GetTransactionMerklePathFunc func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
-
-	// LocateTransactionFunc mocks the LocateTransaction method.
-	LocateTransactionFunc func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error)
@@ -130,13 +124,6 @@ type ClientIMock struct {
 			// Transaction is the transaction argument value.
 			Transaction *blocktx_api.Transaction
 		}
-		// LocateTransaction holds details about calls to the LocateTransaction method.
-		LocateTransaction []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Transaction is the transaction argument value.
-			Transaction *blocktx_api.Transaction
-		}
 		// RegisterTransaction holds details about calls to the RegisterTransaction method.
 		RegisterTransaction []struct {
 			// Ctx is the ctx argument value.
@@ -159,7 +146,6 @@ type ClientIMock struct {
 	lockGetTransactionBlock          sync.RWMutex
 	lockGetTransactionBlocks         sync.RWMutex
 	lockGetTransactionMerklePath     sync.RWMutex
-	lockLocateTransaction            sync.RWMutex
 	lockRegisterTransaction          sync.RWMutex
 	lockShutdown                     sync.RWMutex
 	lockStart                        sync.RWMutex
@@ -374,42 +360,6 @@ func (mock *ClientIMock) GetTransactionMerklePathCalls() []struct {
 	mock.lockGetTransactionMerklePath.RLock()
 	calls = mock.calls.GetTransactionMerklePath
 	mock.lockGetTransactionMerklePath.RUnlock()
-	return calls
-}
-
-// LocateTransaction calls LocateTransactionFunc.
-func (mock *ClientIMock) LocateTransaction(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
-	if mock.LocateTransactionFunc == nil {
-		panic("ClientIMock.LocateTransactionFunc: method is nil but ClientI.LocateTransaction was just called")
-	}
-	callInfo := struct {
-		Ctx         context.Context
-		Transaction *blocktx_api.Transaction
-	}{
-		Ctx:         ctx,
-		Transaction: transaction,
-	}
-	mock.lockLocateTransaction.Lock()
-	mock.calls.LocateTransaction = append(mock.calls.LocateTransaction, callInfo)
-	mock.lockLocateTransaction.Unlock()
-	return mock.LocateTransactionFunc(ctx, transaction)
-}
-
-// LocateTransactionCalls gets all the calls that were made to LocateTransaction.
-// Check the length with:
-//
-//	len(mockedClientI.LocateTransactionCalls())
-func (mock *ClientIMock) LocateTransactionCalls() []struct {
-	Ctx         context.Context
-	Transaction *blocktx_api.Transaction
-} {
-	var calls []struct {
-		Ctx         context.Context
-		Transaction *blocktx_api.Transaction
-	}
-	mock.lockLocateTransaction.RLock()
-	calls = mock.calls.LocateTransaction
-	mock.lockLocateTransaction.RUnlock()
 	return calls
 }
 

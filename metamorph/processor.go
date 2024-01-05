@@ -32,7 +32,6 @@ const (
 	unseenTransactionRebroadcastingInterval = 60
 
 	processCheckIfMinedIntervalDefault = 1 * time.Minute
-	checkIfMinedTimeRange              = time.Minute * 60
 
 	mapExpiryTimeDefault = 24 * time.Hour
 	LogLevelDefault      = slog.LevelInfo
@@ -173,8 +172,7 @@ func (p *Processor) processCheckIfMined() {
 	// filter for transactions which have been at least announced but not mined and which haven't started to be processed longer than a specified amount of time ago
 	filterFunc := func(processorResp *processor_response.ProcessorResponse) bool {
 		return processorResp.GetStatus() != metamorph_api.Status_MINED &&
-			processorResp.GetStatus() != metamorph_api.Status_CONFIRMED &&
-			p.now().Sub(processorResp.Start) < checkIfMinedTimeRange
+			processorResp.GetStatus() != metamorph_api.Status_CONFIRMED
 	}
 
 	// Check transactions that have been seen on the network, but haven't been marked as mined
@@ -201,23 +199,23 @@ func (p *Processor) processCheckIfMined() {
 			return
 		}
 
-		p.logger.Debug("found blocks for transactions", slog.Int("number", len(blockTransactions.TransactionBlocks)))
+		p.logger.Debug("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))
 
-		for _, blockTxs := range blockTransactions.TransactionBlocks {
-			blockHash, err := chainhash.NewHash(blockTxs.BlockHash)
+		for _, blockTxs := range blockTransactions.GetTransactionBlocks() {
+			blockHash, err := chainhash.NewHash(blockTxs.GetBlockHash())
 			if err != nil {
 				p.logger.Error("failed to parse block hash", slog.String("err", err.Error()))
 				continue
 			}
 
-			txHash, err := chainhash.NewHash(blockTxs.TransactionHash)
+			txHash, err := chainhash.NewHash(blockTxs.GetTransactionHash())
 			if err != nil {
 				p.logger.Error("failed to parse tx hash", slog.String("err", err.Error()))
 				continue
 			}
 			p.logger.Debug("found block for transaction", slog.String("txhash", txHash.String()), slog.String("blockhash", blockHash.String()))
 
-			_, err = p.SendStatusMinedForTransaction(txHash, blockHash, blockTxs.BlockHeight)
+			_, err = p.SendStatusMinedForTransaction(txHash, blockHash, blockTxs.GetBlockHeight())
 			if err != nil {
 				p.logger.Error("failed to send status mined for tx", slog.String("err", err.Error()))
 			}
@@ -283,33 +281,11 @@ func (p *Processor) GetPeers() ([]string, []string) {
 	return peersConnected, peersDisconnected
 }
 
-func (p *Processor) deleteExpired(record *store.StoreData) (recordDeleted bool) {
-	if p.now().Sub(record.StoredAt) <= p.dataRetentionPeriod {
-		return recordDeleted
-	}
-
-	p.logger.Debug("deleting transaction from storage", slog.String("hash", record.Hash.String()), slog.String("status", metamorph_api.Status_name[int32(record.Status)]), slog.Time("storage date", record.StoredAt))
-
-	err := p.store.Del(context.Background(), record.Hash[:])
-	if err != nil {
-		p.logger.Error("failed to delete transaction", slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
-		return recordDeleted
-	}
-	recordDeleted = true
-
-	return recordDeleted
-}
-
 func (p *Processor) LoadUnmined() {
 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:LoadUnmined")
 	defer span.Finish()
 
 	err := p.store.GetUnmined(spanCtx, func(record *store.StoreData) {
-
-		if !p.store.IsCentralised() && p.deleteExpired(record) {
-			return
-		}
-
 		// add the records we have in the database, but that have not been processed, to the mempool watcher
 		pr := processor_response.NewProcessorResponseWithStatus(record.Hash, record.Status)
 		pr.NoStats = true
@@ -335,25 +311,24 @@ func (p *Processor) LoadUnmined() {
 		case metamorph_api.Status_SEEN_ON_NETWORK:
 			// could it already be mined, and we need to get it from BlockTx?
 			transactionResponse, err := p.btc.GetTransactionBlock(context.Background(), &blocktx_api.Transaction{Hash: record.Hash[:]})
-
 			if err != nil {
 				p.logger.Error("failed to get transaction block", slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
 				return
 			}
 
-			if transactionResponse == nil || transactionResponse.BlockHeight <= 0 {
+			if transactionResponse == nil || transactionResponse.GetBlockHeight() <= 0 {
 				return
 			}
 
 			// we have a mined transaction, let's update the status
 			var blockHash *chainhash.Hash
-			blockHash, err = chainhash.NewHash(transactionResponse.BlockHash)
+			blockHash, err = chainhash.NewHash(transactionResponse.GetBlockHash())
 			if err != nil {
 				p.logger.Error("Failed to convert block hash", slog.String("err", err.Error()))
 				return
 			}
 
-			_, err = p.SendStatusMinedForTransaction(record.Hash, blockHash, transactionResponse.BlockHeight)
+			_, err = p.SendStatusMinedForTransaction(record.Hash, blockHash, transactionResponse.GetBlockHeight())
 			if err != nil {
 				p.logger.Error("Failed to update status for mined transaction", slog.String("err", err.Error()))
 			}
@@ -402,23 +377,21 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 	return true, nil
 }
 
-var (
-	statusValueMap = map[metamorph_api.Status]int{
-		metamorph_api.Status_UNKNOWN:                0,
-		metamorph_api.Status_QUEUED:                 1,
-		metamorph_api.Status_RECEIVED:               2,
-		metamorph_api.Status_STORED:                 3,
-		metamorph_api.Status_ANNOUNCED_TO_NETWORK:   4,
-		metamorph_api.Status_REQUESTED_BY_NETWORK:   5,
-		metamorph_api.Status_SENT_TO_NETWORK:        6,
-		metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL: 7,
-		metamorph_api.Status_ACCEPTED_BY_NETWORK:    8,
-		metamorph_api.Status_SEEN_ON_NETWORK:        9,
-		metamorph_api.Status_REJECTED:               10,
-		metamorph_api.Status_MINED:                  11,
-		metamorph_api.Status_CONFIRMED:              12,
-	}
-)
+var statusValueMap = map[metamorph_api.Status]int{
+	metamorph_api.Status_UNKNOWN:                0,
+	metamorph_api.Status_QUEUED:                 1,
+	metamorph_api.Status_RECEIVED:               2,
+	metamorph_api.Status_STORED:                 3,
+	metamorph_api.Status_ANNOUNCED_TO_NETWORK:   4,
+	metamorph_api.Status_REQUESTED_BY_NETWORK:   5,
+	metamorph_api.Status_SENT_TO_NETWORK:        6,
+	metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL: 7,
+	metamorph_api.Status_ACCEPTED_BY_NETWORK:    8,
+	metamorph_api.Status_SEEN_ON_NETWORK:        9,
+	metamorph_api.Status_REJECTED:               10,
+	metamorph_api.Status_MINED:                  11,
+	metamorph_api.Status_CONFIRMED:              12,
+}
 
 func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) (bool, error) {
 	processorResponse, ok := p.ProcessorResponseMap.Get(hash)

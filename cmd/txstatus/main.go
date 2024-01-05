@@ -9,13 +9,8 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
-	"github.com/bitcoin-sv/arc/blocktx"
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/ordishs/gocore"
 	"github.com/spf13/viper"
 )
-
-var logger = gocore.Log("txstatus")
 
 func main() {
 	argsWithoutProg := os.Args[1:]
@@ -41,22 +36,12 @@ func main() {
 		panic("Missing metamorph.dialAddr")
 	}
 
-	btxAddress := viper.GetString("blocktx.dialAddr")
-	if btxAddress == "" {
-		panic("Missing blocktx.dialAddr")
-	}
-
-	conn, err := blocktx.DialGRPC(btxAddress)
-	if err != nil {
-		panic("failed to connect to block-tx server")
-	}
-
-	bTx := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn))
 	grpcMessageSize := viper.GetInt("grpcMessageSize")
 	if grpcMessageSize == 0 {
 		panic("Missing grpcMessageSize")
 	}
-	txHandler, err := transactionHandler.NewMetamorph(addresses, bTx, grpcMessageSize, logger, false)
+
+	txHandler, err := transactionHandler.NewMetamorph(addresses, grpcMessageSize)
 	if err != nil {
 		panic(err)
 	}

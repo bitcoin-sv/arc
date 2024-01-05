@@ -76,7 +76,6 @@ func TestNewProcessor(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			processor, err := NewProcessor(tc.store, tc.pm, nil,
 				WithCacheExpiryTime(time.Second*5),
 				WithProcessCheckIfMinedInterval(time.Second*5),
@@ -109,7 +108,6 @@ func TestLoadUnmined(t *testing.T) {
 		getTransactionBlockErr error
 		delErr                 error
 
-		expectedDeletions         int
 		expectedItemTxHashesFinal []*chainhash.Hash
 	}{
 		{
@@ -189,20 +187,6 @@ func TestLoadUnmined(t *testing.T) {
 			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX2Hash},
 		},
 		{
-			name: "delete expired",
-			storedData: []*store.StoreData{
-				{
-					StoredAt:    storedAt.Add(-400 * time.Hour),
-					AnnouncedAt: storedAt.Add(1 * time.Second),
-					Hash:        testdata.TX2Hash,
-					Status:      metamorph_api.Status_SEEN_ON_NETWORK,
-				},
-			},
-
-			expectedDeletions:         1,
-			expectedItemTxHashesFinal: []*chainhash.Hash{},
-		},
-		{
 			name: "delete expired - deletion fails",
 			storedData: []*store.StoreData{
 				{
@@ -214,22 +198,6 @@ func TestLoadUnmined(t *testing.T) {
 			},
 			delErr: errors.New("failed to delete hash"),
 
-			expectedDeletions:         1,
-			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX2Hash},
-		},
-		{
-			name:          "delete expired - centralised storage",
-			isCentralised: true,
-			storedData: []*store.StoreData{
-				{
-					StoredAt:    storedAt.Add(-400 * time.Hour),
-					AnnouncedAt: storedAt.Add(1 * time.Second),
-					Hash:        testdata.TX2Hash,
-					Status:      metamorph_api.Status_SEEN_ON_NETWORK,
-				},
-			},
-
-			expectedDeletions:         0,
 			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX2Hash},
 		},
 	}
@@ -240,7 +208,6 @@ func TestLoadUnmined(t *testing.T) {
 
 			btxMock := &ClientIMock{
 				GetTransactionBlockFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error) {
-
 					var txResponse *blocktx_api.RegisterTransactionResponse
 
 					// TX2 was mined
@@ -289,9 +256,6 @@ func TestLoadUnmined(t *testing.T) {
 					require.Equal(t, len(tc.expectedItemTxHashesFinal), len(hashes))
 					return nil
 				},
-				IsCentralisedFunc: func() bool {
-					return tc.isCentralised
-				},
 				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 					return nil
 				},
@@ -319,7 +283,6 @@ func TestLoadUnmined(t *testing.T) {
 				allItemHashes = append(allItemHashes, item.Hash)
 			}
 
-			require.Equal(t, tc.expectedDeletions, len(mtmStore.DelCalls()))
 			require.ElementsMatch(t, tc.expectedItemTxHashesFinal, allItemHashes)
 		})
 	}
@@ -783,7 +746,6 @@ func TestProcessCheckIfMined(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			metamorphStore := &MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
@@ -805,7 +767,7 @@ func TestProcessCheckIfMined(t *testing.T) {
 			}
 			btxMock := &ClientIMock{
 				GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
-					require.Equal(t, 3, len(transaction.Transactions))
+					require.Equal(t, 3, len(transaction.GetTransactions()))
 
 					return &blocktx_api.TransactionBlocks{TransactionBlocks: tc.blocks}, tc.getTransactionBlocksErr
 				},

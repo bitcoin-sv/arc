@@ -66,7 +66,6 @@ func New(client *dynamodb.Client, hostname string, timeToLive time.Duration, tab
 	}
 
 	err := repo.initialize(context.Background(), repo)
-
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +73,6 @@ func New(client *dynamodb.Client, hostname string, timeToLive time.Duration, tab
 }
 
 func (ddb *DynamoDB) initialize(ctx context.Context, dynamodbClient *DynamoDB) error {
-
 	// create table if not exists
 	exists, err := dynamodbClient.TableExists(ctx, ddb.transactionsTableName)
 	if err != nil {
@@ -113,7 +111,6 @@ func (ddb *DynamoDB) TableExists(ctx context.Context, tableName string) (bool, e
 
 	for _, tn := range resp.TableNames {
 		if tn == tableName {
-
 			return true, nil
 		}
 	}
@@ -213,10 +210,6 @@ func (ddb *DynamoDB) CreateBlocksTable(ctx context.Context) error {
 	return nil
 }
 
-func (ddb *DynamoDB) IsCentralised() bool {
-	return true
-}
-
 func (ddb *DynamoDB) Get(ctx context.Context, key []byte) (*store.StoreData, error) {
 	// config log and tracing
 	startNanos := ddb.now().UnixNano()
@@ -306,7 +299,6 @@ func (ddb *DynamoDB) Del(ctx context.Context, key []byte) error {
 	_, err := ddb.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 		TableName: aws.String(ddb.transactionsTableName), Key: val,
 	})
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -327,7 +319,6 @@ func (ddb *DynamoDB) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) 
 
 	// update tx
 	for _, hash := range hashes {
-
 		err := ddb.setLockedBy(ctx, hash, lockedByNone)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
@@ -402,7 +393,6 @@ func (ddb *DynamoDB) setLockedBy(ctx context.Context, hash *chainhash.Hash, lock
 			lockedByAttributeKey: &types.AttributeValueMemberS{Value: lockedByValue},
 		},
 	})
-
 	if err != nil {
 		return err
 	}
@@ -431,7 +421,6 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 			txStatusAttributeKeyOrphaned: &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL))},
 		},
 	})
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -500,7 +489,6 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 		UpdateExpression:          aws.String(updateExpression),
 		ExpressionAttributeValues: expressionAttributevalues,
 	})
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -529,7 +517,6 @@ func (ddb *DynamoDB) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash)
 			callbackUrl: &types.AttributeValueMemberS{Value: ""},
 		},
 	})
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -562,7 +549,6 @@ func (ddb *DynamoDB) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 			minedAtAttributeKey:     &types.AttributeValueMemberS{Value: ddb.now().Format(time.RFC3339)},
 		},
 	})
-
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))

@@ -234,7 +234,6 @@ func TestSQLite_SetBlockProcessed(t *testing.T) {
 	}
 	for _, tt := range testStructs {
 		t.Run(tt.name, func(t *testing.T) {
-
 			tt.wantErr(t, sqliteDB.SetBlockProcessed(ctx, tt.blockHash), fmt.Sprintf("SetBlockProcessed(%v)", tt.blockHash))
 		})
 	}

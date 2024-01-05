@@ -2,15 +2,14 @@ package blocktx
 
 import (
 	"context"
-	"database/sql"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/rand"
 	"os"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
@@ -27,7 +26,10 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-const transactionStoringBatchsizeDefault = 65536 // power of 2 for easier memory allocation
+const (
+	transactionStoringBatchsizeDefault = 2048 // power of 2 for easier memory allocation
+	maxRequestBlocks                   = 5
+)
 
 func init() {
 	// override the default wire block handler with our own that streams and stores only the transaction ids
@@ -85,7 +87,7 @@ type PeerHandler struct {
 	workerCh                    chan utils.Pair[*chainhash.Hash, p2p.PeerI]
 	blockCh                     chan *blocktx_api.Block
 	store                       store.Interface
-	logger                      utils.Logger
+	logger                      *slog.Logger
 	announcedCache              *expiringmap.ExpiringMap[chainhash.Hash, []p2p.PeerI]
 	stats                       *safemap.Safemap[string, *tracing.PeerHandlerStats]
 	transactionStorageBatchSize int
@@ -103,23 +105,23 @@ func WithTransactionBatchSize(size int) func(handler *PeerHandler) {
 	}
 }
 
-func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *blocktx_api.Block, startingHeight int, opts ...func(*PeerHandler)) *PeerHandler {
+func NewPeerHandler(logger *slog.Logger, storeI store.Interface, blockCh chan *blocktx_api.Block, startingHeight int, opts ...func(*PeerHandler)) *PeerHandler {
 	evictionFunc := func(hash chainhash.Hash, peers []p2p.PeerI) bool {
 		msg := wire.NewMsgGetData()
 
 		if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, &hash)); err != nil {
-			logger.Errorf("EvictionFunc: could not create InvVect: %v", err)
+			logger.Error("EvictionFunc: could not create InvVect", slog.String("err", err.Error()))
 			return false
 		}
 		// Select a random peer to send the request to
 		peer := peers[rand.Intn(len(peers))]
 
 		if err := peer.WriteMsg(msg); err != nil {
-			logger.Errorf("EvictionFunc: failed to write message to peer: %v", err)
+			logger.Error("EvictionFunc: failed to write message to peer", slog.String("err", err.Error()))
 			return false
 		}
 
-		logger.Infof("EvictionFunc: sent block request %s to peer %s", hash.String(), peer.String())
+		logger.Info("EvictionFunc: sent block request to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 
 		return false
 	}
@@ -150,7 +152,7 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 			item, found := s.announcedCache.Get(*hash)
 			if !found {
 				s.announcedCache.Set(*hash, []p2p.PeerI{peer})
-				logger.Debugf("added block hash %s with peer %s to announced cache", hash.String(), peer.String())
+				logger.Debug("added block hash with peer to announced cache", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 			} else {
 				// if already was announced to peer, continue
 				for _, announcedPeer := range item {
@@ -161,22 +163,22 @@ func NewPeerHandler(logger utils.Logger, storeI store.Interface, blockCh chan *b
 
 				item = append(item, peer)
 				s.announcedCache.Set(*hash, item)
-				logger.Debugf("added peer %s to announced cache of block hash %s", peer.String(), hash.String())
+				logger.Debug("added peer to announced cache of block hash", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 				continue
 			}
 
 			msg := wire.NewMsgGetData()
 			if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
-				logger.Errorf("ProcessBlock: could not create InvVect: %v", err)
+				logger.Error("ProcessBlock: could not create InvVect", slog.String("err", err.Error()))
 				continue
 			}
 
 			if err := peer.WriteMsg(msg); err != nil {
-				logger.Errorf("ProcessBlock: failed to write message to peer: %v", err)
+				logger.Error("ProcessBlock: failed to write message to peer", slog.String("err", err.Error()))
 				continue
 			}
 
-			logger.Infof("ProcessBlock: %s", hash.String())
+			logger.Info("ProcessBlock", slog.String("hash", hash.String()))
 		}
 	}()
 
@@ -265,7 +267,7 @@ func (bs *PeerHandler) CheckPrimary() (bool, error) {
 	}
 
 	if primaryBlocktx != hostName {
-		bs.logger.Infof("Not primary, skipping block processing")
+		bs.logger.Info("Not primary, skipping block processing")
 		return false, nil
 	}
 
@@ -346,10 +348,7 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 		return fmt.Errorf("unable to insert block %s: %v", blockHash.String(), err)
 	}
 
-	calculatedMerkleTree, err := bc.BuildMerkleTreeStoreChainHash(msg.TransactionHashes)
-	if err != nil {
-		return err
-	}
+	calculatedMerkleTree := bc.BuildMerkleTreeStoreChainHash(msg.TransactionHashes)
 
 	if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
 		return fmt.Errorf("merkle root mismatch for block %s", blockHash.String())
@@ -374,12 +373,21 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 
 	// add the total block processing time to the stats
 	stat.BlockProcessingMs.Add(uint64(time.Since(timeStart).Milliseconds()))
-	bs.logger.Infof("Processed block %s, %d transactions in %0.2f seconds", blockHash.String(), len(msg.TransactionHashes), time.Since(timeStart).Seconds())
+	bs.logger.Info("Processed block", slog.String("hash", blockHash.String()), slog.Int("txs", len(msg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))
 
 	return nil
 }
 
 func (bs *PeerHandler) FillGaps(peer p2p.PeerI) error {
+	primary, err := bs.CheckPrimary()
+	if err != nil {
+		return err
+	}
+
+	if !primary {
+		return nil
+	}
+
 	blockHeightGaps, err := bs.store.GetBlockGaps(context.Background())
 	if err != nil {
 		return err
@@ -389,13 +397,17 @@ func (bs *PeerHandler) FillGaps(peer p2p.PeerI) error {
 		return nil
 	}
 
-	for _, gaps := range blockHeightGaps {
+	for i, gaps := range blockHeightGaps {
+		if i+1 > maxRequestBlocks {
+			break
+		}
+
 		_, found := bs.announcedCache.Get(*gaps.Hash)
 		if found {
 			return nil
 		}
 
-		bs.logger.Infof("filling block gap for hash %s at height %d", gaps.Hash.String(), gaps.Height)
+		bs.logger.Info("requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Int64("height", int64(gaps.Height)))
 
 		pair := utils.NewPair(gaps.Hash, peer)
 		utils.SafeSend(bs.workerCh, pair)
@@ -413,15 +425,17 @@ func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 	if height > uint64(bs.startingHeight) {
 		if _, found := bs.announcedCache.Get(*previousBlockHash); !found {
 			if _, err := bs.store.GetBlock(context.Background(), previousBlockHash); err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
+				if errors.Is(err, store.ErrBlockNotFound) {
 					pair := utils.NewPair(previousBlockHash, peer)
 					utils.SafeSend(bs.workerCh, pair)
 				} else if err != nil {
-					bs.logger.Errorf("failed to get previous block hash %s: %v", previousBlockHash.String(), err)
+					bs.logger.Error("failed to get previous block", slog.String("hash", previousBlockHash.String()), slog.Int64("height", int64(height-1)), slog.String("err", err.Error()))
 				}
 			}
 		}
 	}
+
+	bs.logger.Info("inserting block", slog.String("hash", blockHash.String()), slog.Int64("height", int64(height)))
 
 	block := &blocktx_api.Block{
 		Hash:         blockHash[:],
@@ -433,14 +447,15 @@ func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 	return bs.store.InsertBlock(context.Background(), block)
 }
 
-func printMemStats() {
+func (bs *PeerHandler) printMemStats() {
 	bToMb := func(b uint64) uint64 {
 		return b / 1024 / 1024
 	}
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
-	fmt.Printf("Alloc = %v MiB, TotalAlloc = %v MiB, Sys = %v MiB, NumGC = %v\n",
-		bToMb(mem.Alloc), bToMb(mem.TotalAlloc), bToMb(mem.Sys), mem.NumGC)
+	bs.logger.Info(fmt.Sprintf("Alloc = %v MiB, TotalAlloc = %v MiB, Sys = %v MiB, NumGC = %v\n",
+		bToMb(mem.Alloc), bToMb(mem.TotalAlloc), bToMb(mem.Sys), mem.NumGC))
+
 }
 
 func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64) error {
@@ -466,33 +481,33 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 
 		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(blockHeight, merkleTree, uint64(txIndex))
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create new bump for tx hash %s from merkle tree and index at block height %d: %v", hash.String(), blockHeight, err)
 		}
 
 		bumpHex, err := bump.String()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get string from bump for tx hash %s at block height %d: %v", hash.String(), blockHeight, err)
 		}
 
 		merklePaths = append(merklePaths, bumpHex)
 		if (txIndex+1)%bs.transactionStorageBatchSize == 0 {
 			if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
-				return err
+				return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 			}
 			// free up memory
-			txs = txs[:0]
-			merklePaths = merklePaths[:0]
+			txs = make([]*blocktx_api.TransactionAndSource, 0, bs.transactionStorageBatchSize)
+			merklePaths = make([]string, 0, bs.transactionStorageBatchSize)
 
 			// print stats, call gc and chec the result
-			printMemStats()
+			bs.printMemStats()
 			runtime.GC()
-			printMemStats()
+			bs.printMemStats()
 		}
 	}
 
 	// insert all remaining transactions into the table
 	if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
-		return err
+		return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 	}
 
 	return nil
@@ -522,7 +537,7 @@ func (bs *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {
 	}
 
 	bs.announcedCache.Delete(*block.Hash)
-	bs.logger.Debugf("removed block hash %s from announced cache - remaining block hashes: %s", block.Hash.String(), strings.Join(bs.getAnnouncedCacheBlockHashes(), ","))
+	bs.logger.Debug("removed block from announced cache", slog.String("hash", block.Hash.String()))
 
 	utils.SafeSend(bs.blockCh, &blocktx_api.Block{
 		Hash:         block.Hash[:],

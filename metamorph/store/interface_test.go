@@ -32,7 +32,6 @@ func TestEncDec(t *testing.T) {
 
 	t.Log(sd.MinedAt)
 	t.Log(sd2.MinedAt)
-
 }
 
 func TestTime(t *testing.T) {

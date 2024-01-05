@@ -114,10 +114,6 @@ func (m *ProcessorResponseMap) Get(hash *chainhash.Hash) (*processor_response.Pr
 		return nil, false
 	}
 
-	if m.now().Sub(processorResponse.Start) > m.Expiry {
-		return nil, false
-	}
-
 	return processorResponse, true
 }
 

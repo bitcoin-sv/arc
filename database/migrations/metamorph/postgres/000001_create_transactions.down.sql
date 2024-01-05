@@ -1,0 +1,1 @@
+DROP TABLE metamorph.transactions;

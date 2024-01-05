@@ -27,7 +27,7 @@ func main() {
 		}
 	}
 
-	params := jobs.ClearRecrodsParams{
+	params := jobs.ClearRecordsParams{
 		DBConnectionParams: dbconn.New(
 			viper.GetString("cleanBlocks.host"),
 			viper.GetInt("cleanBlocks.port"),

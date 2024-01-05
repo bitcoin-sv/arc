@@ -13,7 +13,7 @@ import (
 )
 
 type OrphanHeightSutie struct {
-	DatabaseTestSuite
+	BlockTXDBTestSuite
 }
 
 func (s *OrphanHeightSutie) Test() {

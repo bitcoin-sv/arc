@@ -13,7 +13,7 @@ import (
 )
 
 type GetTransactionMerklePathSuite struct {
-	DatabaseTestSuite
+	BlockTXDBTestSuite
 }
 
 func (s *GetTransactionMerklePathSuite) Test() {

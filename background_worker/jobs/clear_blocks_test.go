@@ -16,11 +16,11 @@ import (
 )
 
 type ClearJobSuite struct {
-	DatabaseTestSuite
+	BlockTXDBTestSuite
 }
 
 func (s *ClearJobSuite) Test() {
-	params := ClearRecrodsParams{
+	params := ClearRecordsParams{
 		DBConnectionParams:  DefaultParams,
 		RecordRetentionDays: 10,
 	}

@@ -8,7 +8,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func (c ClearJob) ClearTransactions(params ClearRecrodsParams) error {
+func (c ClearJob) ClearTransactions(params ClearRecordsParams) error {
 	Log(INFO, "Connecting to database ...")
 
 	conn, err := sqlx.Open(params.Scheme(), params.String())

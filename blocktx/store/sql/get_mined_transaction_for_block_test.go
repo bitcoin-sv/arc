@@ -13,7 +13,7 @@ import (
 )
 
 type MinedTransactionForBlockSuite struct {
-	DatabaseTestSuite
+	BlockTXDBTestSuite
 }
 
 func (s *MinedTransactionForBlockSuite) Test() {

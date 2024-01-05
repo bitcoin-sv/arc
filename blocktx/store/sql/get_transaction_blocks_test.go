@@ -15,7 +15,7 @@ import (
 )
 
 type GetTransactionBlocksSuite struct {
-	DatabaseTestSuite
+	BlockTXDBTestSuite
 }
 
 func (s *GetTransactionBlocksSuite) Test() {

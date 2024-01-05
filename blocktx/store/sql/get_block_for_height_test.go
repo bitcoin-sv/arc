@@ -13,7 +13,7 @@ import (
 )
 
 type GetBlockByHeightTestSuite struct {
-	DatabaseTestSuite
+	BlockTXDBTestSuite
 }
 
 func (s *GetBlockByHeightTestSuite) Test() {

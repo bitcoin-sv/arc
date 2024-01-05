@@ -57,7 +57,7 @@ func StartBackGroundWorker(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	params := jobs.ClearRecrodsParams{
+	params := jobs.ClearRecordsParams{
 		DBConnectionParams: dbconn.New(
 			dbHost,
 			dbPort,

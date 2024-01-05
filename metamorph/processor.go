@@ -41,15 +41,14 @@ const (
 )
 
 type Processor struct {
-	store                store.MetamorphStore
-	ProcessorResponseMap *ProcessorResponseMap
-	pm                   p2p.PeerManagerI
-	btc                  blocktx.ClientI
-	logger               *slog.Logger
-	logFile              string
-	mapExpiryTime        time.Duration
-	dataRetentionPeriod  time.Duration
-	now                  func() time.Time
+	store               store.MetamorphStore
+	pm                  p2p.PeerManagerI
+	btc                 blocktx.ClientI
+	logger              *slog.Logger
+	logFile             string
+	mapExpiryTime       time.Duration
+	dataRetentionPeriod time.Duration
+	now                 func() time.Time
 
 	processCheckIfMinedInterval time.Duration
 	processCheckIfMinedTicker   *time.Ticker
@@ -111,14 +110,13 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, btc blocktx.Clien
 		opt(p)
 	}
 
-	p.ProcessorResponseMap = NewProcessorResponseMap(p.mapExpiryTime, WithLogFile(p.logFile), WithNowResponseMap(p.now))
 	p.processCheckIfMinedTicker = time.NewTicker(p.processCheckIfMinedInterval)
 
 	p.logger.Info("Starting processor", slog.Duration("cacheExpiryTime", p.mapExpiryTime))
 
 	// Start a goroutine to resend transactions that have not been seen on the network
-	go p.processExpiredTransactions()
-	go p.processCheckIfMined()
+	//go p.processExpiredTransactions()
+	//go p.processCheckIfMined()
 
 	gocore.AddAppPayloadFn("mtm", func() interface{} {
 		return p.GetStats(false)
@@ -142,128 +140,127 @@ func (p *Processor) Set(ctx context.Context, req *ProcessorRequest) error {
 func (p *Processor) Shutdown() {
 	p.logger.Info("Shutting down processor")
 
-	err := p.unlockItems()
-	if err != nil {
-		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
-	}
+	//err := p.unlockItems()
+	//if err != nil {
+	//	p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
+	//}
 	p.processCheckIfMinedTicker.Stop()
 	p.processExpiredTxsTicker.Stop()
-	p.ProcessorResponseMap.Close()
 }
 
-func (p *Processor) unlockItems() error {
-	items := p.ProcessorResponseMap.Items()
-	hashes := make([]*chainhash.Hash, len(items))
-	index := 0
-	for key := range items {
-		hash, err := chainhash.NewHash(key.CloneBytes())
-		if err != nil {
-			return err
-		}
-		hashes[index] = hash
-		index++
-	}
+//func (p *Processor) unlockItems() error {
+//	items := p.ProcessorResponseMap.Items()
+//	hashes := make([]*chainhash.Hash, len(items))
+//	index := 0
+//	for key := range items {
+//		hash, err := chainhash.NewHash(key.CloneBytes())
+//		if err != nil {
+//			return err
+//		}
+//		hashes[index] = hash
+//		index++
+//	}
+//
+//	p.logger.Info("unlocking items", slog.Int("number", len(hashes)))
+//	return p.store.SetUnlocked(context.Background(), hashes)
+//}
 
-	p.logger.Info("unlocking items", slog.Int("number", len(hashes)))
-	return p.store.SetUnlocked(context.Background(), hashes)
-}
+//func (p *Processor) processCheckIfMined() {
+//	// filter for transactions which have been at least announced but not mined and which haven't started to be processed longer than a specified amount of time ago
+//	filterFunc := func(processorResp *processor_response.ProcessorResponse) bool {
+//		return processorResp.GetStatus() != metamorph_api.Status_MINED &&
+//			processorResp.GetStatus() != metamorph_api.Status_CONFIRMED
+//	}
+//
+//	// Check transactions that have been seen on the network, but haven't been marked as mined
+//	// The Items() method will return a copy of the map, so we can iterate over it without locking
+//	for range p.processCheckIfMinedTicker.C {
+//		expiredTransactionItems := p.ProcessorResponseMap.Items(filterFunc)
+//		if len(expiredTransactionItems) == 0 {
+//			continue
+//		}
+//
+//		transactions := &blocktx_api.Transactions{}
+//		txs := make([]*blocktx_api.Transaction, len(expiredTransactionItems))
+//		index := 0
+//		for _, item := range expiredTransactionItems {
+//			p.logger.Debug("checking if mined for transaction", slog.String("hash", item.Hash.String()))
+//			txs[index] = &blocktx_api.Transaction{Hash: item.Hash.CloneBytes()}
+//			index++
+//			transactions.Transactions = txs
+//		}
+//
+//		blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
+//		if err != nil {
+//			p.logger.Error("failed to get transaction blocks from blocktx", slog.String("err", err.Error()))
+//			return
+//		}
+//
+//		p.logger.Debug("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))
+//
+//		for _, blockTxs := range blockTransactions.GetTransactionBlocks() {
+//			blockHash, err := chainhash.NewHash(blockTxs.GetBlockHash())
+//			if err != nil {
+//				p.logger.Error("failed to parse block hash", slog.String("err", err.Error()))
+//				continue
+//			}
+//
+//			txHash, err := chainhash.NewHash(blockTxs.GetTransactionHash())
+//			if err != nil {
+//				p.logger.Error("failed to parse tx hash", slog.String("err", err.Error()))
+//				continue
+//			}
+//			p.logger.Debug("found block for transaction", slog.String("txhash", txHash.String()), slog.String("blockhash", blockHash.String()))
+//
+//			_, err = p.SendStatusMinedForTransaction(txHash, blockHash, blockTxs.GetBlockHeight())
+//			if err != nil {
+//				p.logger.Error("failed to send status mined for tx", slog.String("err", err.Error()))
+//			}
+//		}
+//	}
+//}
 
-func (p *Processor) processCheckIfMined() {
-	// filter for transactions which have been at least announced but not mined and which haven't started to be processed longer than a specified amount of time ago
-	filterFunc := func(processorResp *processor_response.ProcessorResponse) bool {
-		return processorResp.GetStatus() != metamorph_api.Status_MINED &&
-			processorResp.GetStatus() != metamorph_api.Status_CONFIRMED
-	}
-
-	// Check transactions that have been seen on the network, but haven't been marked as mined
-	// The Items() method will return a copy of the map, so we can iterate over it without locking
-	for range p.processCheckIfMinedTicker.C {
-		expiredTransactionItems := p.ProcessorResponseMap.Items(filterFunc)
-		if len(expiredTransactionItems) == 0 {
-			continue
-		}
-
-		transactions := &blocktx_api.Transactions{}
-		txs := make([]*blocktx_api.Transaction, len(expiredTransactionItems))
-		index := 0
-		for _, item := range expiredTransactionItems {
-			p.logger.Debug("checking if mined for transaction", slog.String("hash", item.Hash.String()))
-			txs[index] = &blocktx_api.Transaction{Hash: item.Hash.CloneBytes()}
-			index++
-			transactions.Transactions = txs
-		}
-
-		blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
-		if err != nil {
-			p.logger.Error("failed to get transaction blocks from blocktx", slog.String("err", err.Error()))
-			return
-		}
-
-		p.logger.Debug("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))
-
-		for _, blockTxs := range blockTransactions.GetTransactionBlocks() {
-			blockHash, err := chainhash.NewHash(blockTxs.GetBlockHash())
-			if err != nil {
-				p.logger.Error("failed to parse block hash", slog.String("err", err.Error()))
-				continue
-			}
-
-			txHash, err := chainhash.NewHash(blockTxs.GetTransactionHash())
-			if err != nil {
-				p.logger.Error("failed to parse tx hash", slog.String("err", err.Error()))
-				continue
-			}
-			p.logger.Debug("found block for transaction", slog.String("txhash", txHash.String()), slog.String("blockhash", blockHash.String()))
-
-			_, err = p.SendStatusMinedForTransaction(txHash, blockHash, blockTxs.GetBlockHeight())
-			if err != nil {
-				p.logger.Error("failed to send status mined for tx", slog.String("err", err.Error()))
-			}
-		}
-	}
-}
-
-func (p *Processor) processExpiredTransactions() {
-	// filterFunc returns true if the transaction has not been seen on the network
-	filterFunc := func(procResp *processor_response.ProcessorResponse) bool {
-		return (procResp.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK || procResp.GetStatus() == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL) && p.now().Sub(procResp.Start) > unseenTransactionRebroadcastingInterval*time.Second
-	}
-
-	// Resend transactions that have not been seen on the network
-	// The Items() method will return a copy of the map, so we can iterate over it without locking
-	for range p.processExpiredTxsTicker.C {
-		expiredTransactionItems := p.ProcessorResponseMap.Items(filterFunc)
-		if len(expiredTransactionItems) > 0 {
-			p.logger.Info("Resending expired transactions", slog.Int("number", len(expiredTransactionItems)))
-			for txID, item := range expiredTransactionItems {
-				startTime := time.Now()
-				retries := item.GetRetries()
-				item.IncrementRetry()
-
-				if retries > MaxRetries {
-					// Sending GETDATA to peers to see if they have it
-					p.logger.Debug("Re-getting expired tx", slog.String("hash", txID.String()))
-					p.pm.RequestTransaction(item.Hash)
-					item.AddLog(
-						item.Status,
-						"expired",
-						"Sent GETDATA for transaction",
-					)
-				} else {
-					p.logger.Debug("Re-announcing expired tx", slog.String("hash", txID.String()))
-					p.pm.AnnounceTransaction(item.Hash, item.AnnouncedPeers)
-					item.AddLog(
-						metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-						"expired",
-						"Re-announced expired tx",
-					)
-				}
-
-				p.retries.AddDuration(time.Since(startTime))
-			}
-		}
-	}
-}
+//func (p *Processor) processExpiredTransactions() {
+//	// filterFunc returns true if the transaction has not been seen on the network
+//	filterFunc := func(procResp *processor_response.ProcessorResponse) bool {
+//		return (procResp.GetStatus() < metamorph_api.Status_SEEN_ON_NETWORK || procResp.GetStatus() == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL) && p.now().Sub(procResp.Start) > unseenTransactionRebroadcastingInterval*time.Second
+//	}
+//
+//	// Resend transactions that have not been seen on the network
+//	// The Items() method will return a copy of the map, so we can iterate over it without locking
+//	for range p.processExpiredTxsTicker.C {
+//		expiredTransactionItems := p.ProcessorResponseMap.Items(filterFunc)
+//		if len(expiredTransactionItems) > 0 {
+//			p.logger.Info("Resending expired transactions", slog.Int("number", len(expiredTransactionItems)))
+//			for txID, item := range expiredTransactionItems {
+//				startTime := time.Now()
+//				retries := item.GetRetries()
+//				item.IncrementRetry()
+//
+//				if retries > MaxRetries {
+//					// Sending GETDATA to peers to see if they have it
+//					p.logger.Debug("Re-getting expired tx", slog.String("hash", txID.String()))
+//					p.pm.RequestTransaction(item.Hash)
+//					item.AddLog(
+//						item.Status,
+//						"expired",
+//						"Sent GETDATA for transaction",
+//					)
+//				} else {
+//					p.logger.Debug("Re-announcing expired tx", slog.String("hash", txID.String()))
+//					p.pm.AnnounceTransaction(item.Hash, item.AnnouncedPeers)
+//					item.AddLog(
+//						metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+//						"expired",
+//						"Re-announced expired tx",
+//					)
+//				}
+//
+//				p.retries.AddDuration(time.Since(startTime))
+//			}
+//		}
+//	}
+//}
 
 // GetPeers returns a list of connected and a list of disconnected peers
 func (p *Processor) GetPeers() ([]string, []string) {
@@ -291,7 +288,7 @@ func (p *Processor) LoadUnmined() {
 		pr.NoStats = true
 		pr.Start = record.StoredAt
 
-		p.ProcessorResponseMap.Set(record.Hash, pr)
+		//p.ProcessorResponseMap.Set(record.Hash, pr)
 
 		switch record.Status {
 		case metamorph_api.Status_STORED:
@@ -340,39 +337,10 @@ func (p *Processor) LoadUnmined() {
 }
 
 func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error) {
-	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusMinedForTransaction")
-	defer span.Finish()
 
-	resp, ok := p.ProcessorResponseMap.Get(hash)
-	if !ok {
-		return false, fmt.Errorf("failed to get tx %s from response map", hash.String())
+	if err := p.store.UpdateMined(context.TODO(), hash, blockHash, blockHeight); err != nil {
+		return false, fmt.Errorf("failed to set tx  mined %s from response map", hash.String())
 	}
-
-	resp.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-		Status: metamorph_api.Status_MINED,
-		Source: "blocktx",
-		UpdateStore: func() error {
-			return p.store.UpdateMined(spanCtx, hash, blockHash, blockHeight)
-		},
-		Callback: func(err error) {
-			if err != nil {
-				p.logger.Error(failedToUpdateStatus, slog.String("hash", hash.String()), slog.String("err", err.Error()))
-				return
-			}
-
-			if !resp.NoStats {
-				p.mined.AddDuration(time.Since(resp.Start))
-			}
-
-			resp.Close()
-			p.ProcessorResponseMap.Delete(hash)
-
-			data, _ := p.store.Get(spanCtx, hash[:])
-			if data.CallbackUrl != "" {
-				go SendCallback(p.logger, p.store, data)
-			}
-		},
-	})
 
 	return true, nil
 }
@@ -394,70 +362,22 @@ var statusValueMap = map[metamorph_api.Status]int{
 }
 
 func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) (bool, error) {
-	processorResponse, ok := p.ProcessorResponseMap.Get(hash)
-	if !ok {
+
+	tx, err := p.store.Get(context.TODO(), hash.CloneBytes())
+	if err != nil {
+		return false, err
+	}
+
+	if statusValueMap[status] <= statusValueMap[tx.Status] {
+		p.logger.Debug("Status not updated for tx", slog.String("status", status.String()), slog.String("previous status", tx.Status.String()), slog.String("hash", hash.String()))
+
 		return false, nil
 	}
 
-	// Do not overwrite a higher value status with a lower or equal value status
-	if statusValueMap[status] <= statusValueMap[processorResponse.Status] {
-		p.logger.Debug("Status not updated for tx", slog.String("status", status.String()), slog.String("previous status", processorResponse.Status.String()), slog.String("hash", hash.String()))
-
-		return false, nil
+	err = p.store.UpdateStatus(context.TODO(), hash, status, "")
+	if err != nil {
+		return false, err
 	}
-
-	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
-	defer span.Finish()
-
-	statusUpdate := &processor_response.ProcessorResponseStatusUpdate{
-		Status:    status,
-		Source:    source,
-		StatusErr: statusErr,
-		UpdateStore: func() error {
-			// we have cached this transaction, so process accordingly
-			rejectReason := ""
-			if statusErr != nil {
-				rejectReason = statusErr.Error()
-			}
-
-			return p.store.UpdateStatus(spanCtx, hash, status, rejectReason)
-		},
-		IgnoreCallback: processorResponse.NoStats, // do not do this callback if we are not keeping stats
-		Callback: func(err error) {
-			if err != nil {
-				p.logger.Error(failedToUpdateStatus, slog.String("hash", hash.String()), slog.String("err", err.Error()))
-				return
-			}
-
-			p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
-
-			switch status {
-			case metamorph_api.Status_REQUESTED_BY_NETWORK:
-				p.requestedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-			case metamorph_api.Status_SENT_TO_NETWORK:
-				p.sentToNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-			case metamorph_api.Status_ACCEPTED_BY_NETWORK:
-				p.acceptedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-			case metamorph_api.Status_SEEN_ON_NETWORK:
-				p.seenOnNetwork.AddDuration(source, time.Since(processorResponse.Start))
-
-			case metamorph_api.Status_MINED:
-				p.mined.AddDuration(time.Since(processorResponse.Start))
-				processorResponse.Close()
-				p.ProcessorResponseMap.Delete(hash)
-
-			case metamorph_api.Status_REJECTED:
-				p.logger.Warn("transaction rejected", slog.String("status", status.String()), slog.String("hash", hash.String()))
-
-				p.rejected.AddDuration(source, time.Since(processorResponse.Start))
-			}
-		},
-	}
-
-	processorResponse.UpdateStatus(statusUpdate)
 
 	return true, nil
 }
@@ -502,9 +422,6 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 						span.LogFields(tracingLog.Error(err))
 						return
 					}
-
-					// Add this transaction to the map of transactions that we are processing
-					p.ProcessorResponseMap.Set(req.Data.Hash, processorResponse)
 
 					p.stored.AddDuration(time.Since(processorResponse.Start))
 

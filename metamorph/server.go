@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/bitcoin-sv/arc/api/handler"
 	"log/slog"
 	"net"
 	"net/url"
@@ -13,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"

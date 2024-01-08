@@ -281,32 +281,11 @@ func (p *Processor) GetPeers() ([]string, []string) {
 	return peersConnected, peersDisconnected
 }
 
-func (p *Processor) deleteExpired(record *store.StoreData) (recordDeleted bool) {
-	if p.now().Sub(record.StoredAt) <= p.dataRetentionPeriod {
-		return recordDeleted
-	}
-
-	p.logger.Debug("deleting transaction from storage", slog.String("hash", record.Hash.String()), slog.String("status", metamorph_api.Status_name[int32(record.Status)]), slog.Time("storage date", record.StoredAt))
-
-	err := p.store.Del(context.Background(), record.Hash[:])
-	if err != nil {
-		p.logger.Error("failed to delete transaction", slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
-		return recordDeleted
-	}
-	recordDeleted = true
-
-	return recordDeleted
-}
-
 func (p *Processor) LoadUnmined() {
 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:LoadUnmined")
 	defer span.Finish()
 
 	err := p.store.GetUnmined(spanCtx, func(record *store.StoreData) {
-		if !p.store.IsCentralised() && p.deleteExpired(record) {
-			return
-		}
-
 		// add the records we have in the database, but that have not been processed, to the mempool watcher
 		pr := processor_response.NewProcessorResponseWithStatus(record.Hash, record.Status)
 		pr.NoStats = true

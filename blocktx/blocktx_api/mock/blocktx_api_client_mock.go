@@ -51,9 +51,6 @@ var _ blocktx_api.BlockTxAPIClient = &BlockTxAPIClientMock{}
 //			HealthFunc: func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error) {
 //				panic("mock out the Health method")
 //			},
-//			LocateTransactionFunc: func(ctx context.Context, in *blocktx_api.Transaction, opts ...grpc.CallOption) (*blocktx_api.Source, error) {
-//				panic("mock out the LocateTransaction method")
-//			},
 //			RegisterTransactionFunc: func(ctx context.Context, in *blocktx_api.TransactionAndSource, opts ...grpc.CallOption) (*blocktx_api.RegisterTransactionResponse, error) {
 //				panic("mock out the RegisterTransaction method")
 //			},
@@ -93,9 +90,6 @@ type BlockTxAPIClientMock struct {
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error)
-
-	// LocateTransactionFunc mocks the LocateTransaction method.
-	LocateTransactionFunc func(ctx context.Context, in *blocktx_api.Transaction, opts ...grpc.CallOption) (*blocktx_api.Source, error)
 
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(ctx context.Context, in *blocktx_api.TransactionAndSource, opts ...grpc.CallOption) (*blocktx_api.RegisterTransactionResponse, error)
@@ -192,15 +186,6 @@ type BlockTxAPIClientMock struct {
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
-		// LocateTransaction holds details about calls to the LocateTransaction method.
-		LocateTransaction []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// In is the in argument value.
-			In *blocktx_api.Transaction
-			// Opts is the opts argument value.
-			Opts []grpc.CallOption
-		}
 		// RegisterTransaction holds details about calls to the RegisterTransaction method.
 		RegisterTransaction []struct {
 			// Ctx is the ctx argument value.
@@ -221,7 +206,6 @@ type BlockTxAPIClientMock struct {
 	lockGetTransactionBlocks         sync.RWMutex
 	lockGetTransactionMerklePath     sync.RWMutex
 	lockHealth                       sync.RWMutex
-	lockLocateTransaction            sync.RWMutex
 	lockRegisterTransaction          sync.RWMutex
 }
 
@@ -622,46 +606,6 @@ func (mock *BlockTxAPIClientMock) HealthCalls() []struct {
 	mock.lockHealth.RLock()
 	calls = mock.calls.Health
 	mock.lockHealth.RUnlock()
-	return calls
-}
-
-// LocateTransaction calls LocateTransactionFunc.
-func (mock *BlockTxAPIClientMock) LocateTransaction(ctx context.Context, in *blocktx_api.Transaction, opts ...grpc.CallOption) (*blocktx_api.Source, error) {
-	if mock.LocateTransactionFunc == nil {
-		panic("BlockTxAPIClientMock.LocateTransactionFunc: method is nil but BlockTxAPIClient.LocateTransaction was just called")
-	}
-	callInfo := struct {
-		Ctx  context.Context
-		In   *blocktx_api.Transaction
-		Opts []grpc.CallOption
-	}{
-		Ctx:  ctx,
-		In:   in,
-		Opts: opts,
-	}
-	mock.lockLocateTransaction.Lock()
-	mock.calls.LocateTransaction = append(mock.calls.LocateTransaction, callInfo)
-	mock.lockLocateTransaction.Unlock()
-	return mock.LocateTransactionFunc(ctx, in, opts...)
-}
-
-// LocateTransactionCalls gets all the calls that were made to LocateTransaction.
-// Check the length with:
-//
-//	len(mockedBlockTxAPIClient.LocateTransactionCalls())
-func (mock *BlockTxAPIClientMock) LocateTransactionCalls() []struct {
-	Ctx  context.Context
-	In   *blocktx_api.Transaction
-	Opts []grpc.CallOption
-} {
-	var calls []struct {
-		Ctx  context.Context
-		In   *blocktx_api.Transaction
-		Opts []grpc.CallOption
-	}
-	mock.lockLocateTransaction.RLock()
-	calls = mock.calls.LocateTransaction
-	mock.lockLocateTransaction.RUnlock()
 	return calls
 }
 

@@ -54,10 +54,6 @@ func New(dbInfo string, hostname string, idleConns int, maxOpenConns int, opts .
 	return p, nil
 }
 
-func (p *PostgreSQL) IsCentralised() bool {
-	return true
-}
-
 func (p *PostgreSQL) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
 	startNanos := p.now().UnixNano()
 	defer func() {
@@ -538,9 +534,9 @@ func (p *PostgreSQL) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash)
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:RemoveCallbacker")
 	defer span.Finish()
 
-	q := `UPDATE metamorph.transactions SET callback_url = '' WHERE hash = $5;`
+	q := `UPDATE metamorph.transactions SET callback_url = '' WHERE hash = $1;`
 
-	_, err := p.db.ExecContext(ctx, q, metamorph_api.Status_MINED, p.now().Format(time.RFC3339), hash[:])
+	_, err := p.db.ExecContext(ctx, q, hash[:])
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))

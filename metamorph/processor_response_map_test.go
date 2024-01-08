@@ -20,21 +20,42 @@ func TestNewProcessorResponseMap(t *testing.T) {
 		assert.Equalf(t, expiry, prm.Expiry, "NewProcessorResponseMap(%v)", expiry)
 		assert.Len(t, prm.ResponseItems, 0)
 	})
+}
 
-	t.Run("go routine", func(t *testing.T) {
-		proc := NewProcessorResponseMap(50 * time.Millisecond)
-		proc.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK))
-		item, ok := proc.Get(testdata.TX1Hash)
-		assert.True(t, ok)
-		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.GetStatus())
+func TestProcessorResponseMapGet(t *testing.T) {
+	tt := []struct {
+		name string
+		hash *chainhash.Hash
 
-		time.Sleep(100 * time.Millisecond)
+		expectedFound bool
+	}{
+		{
+			name: "found",
+			hash: testdata.TX1Hash,
 
-		// should be cleaned up
-		item, ok = proc.Get(testdata.TX1Hash)
-		assert.False(t, ok)
-		assert.Nil(t, item)
-	})
+			expectedFound: true,
+		},
+		{
+			name: "not found",
+			hash: testdata.TX2Hash,
+
+			expectedFound: false,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			proc := NewProcessorResponseMap(50 * time.Millisecond)
+			proc.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK))
+
+			item, ok := proc.Get(tc.hash)
+			require.Equal(t, tc.expectedFound, ok)
+
+			if tc.expectedFound {
+				require.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, item.GetStatus())
+			}
+		})
+	}
 }
 
 func TestProcessorResponseMap_Clear(t *testing.T) {

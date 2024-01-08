@@ -22,7 +22,6 @@ const _ = grpc.SupportPackageIsVersion7
 const (
 	BlockTxAPI_Health_FullMethodName                       = "/blocktx_api.BlockTxAPI/Health"
 	BlockTxAPI_RegisterTransaction_FullMethodName          = "/blocktx_api.BlockTxAPI/RegisterTransaction"
-	BlockTxAPI_LocateTransaction_FullMethodName            = "/blocktx_api.BlockTxAPI/LocateTransaction"
 	BlockTxAPI_GetTransactionMerklePath_FullMethodName     = "/blocktx_api.BlockTxAPI/GetTransactionMerklePath"
 	BlockTxAPI_GetBlockTransactions_FullMethodName         = "/blocktx_api.BlockTxAPI/GetBlockTransactions"
 	BlockTxAPI_GetTransactionBlock_FullMethodName          = "/blocktx_api.BlockTxAPI/GetTransactionBlock"
@@ -42,8 +41,6 @@ type BlockTxAPIClient interface {
 	Health(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HealthResponse, error)
 	// RegisterTransaction registers a transaction with the API.
 	RegisterTransaction(ctx context.Context, in *TransactionAndSource, opts ...grpc.CallOption) (*RegisterTransactionResponse, error)
-	// LocateTransaction returns the source of a transaction.
-	LocateTransaction(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*Source, error)
 	// GetTransactionMerklePath returns the merkle path of a transaction.
 	GetTransactionMerklePath(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*MerklePath, error)
 	// GetBlockTransactions returns a list of transaction hashes for a given block.
@@ -84,15 +81,6 @@ func (c *blockTxAPIClient) Health(ctx context.Context, in *emptypb.Empty, opts .
 func (c *blockTxAPIClient) RegisterTransaction(ctx context.Context, in *TransactionAndSource, opts ...grpc.CallOption) (*RegisterTransactionResponse, error) {
 	out := new(RegisterTransactionResponse)
 	err := c.cc.Invoke(ctx, BlockTxAPI_RegisterTransaction_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *blockTxAPIClient) LocateTransaction(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*Source, error) {
-	out := new(Source)
-	err := c.cc.Invoke(ctx, BlockTxAPI_LocateTransaction_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -211,8 +199,6 @@ type BlockTxAPIServer interface {
 	Health(context.Context, *emptypb.Empty) (*HealthResponse, error)
 	// RegisterTransaction registers a transaction with the API.
 	RegisterTransaction(context.Context, *TransactionAndSource) (*RegisterTransactionResponse, error)
-	// LocateTransaction returns the source of a transaction.
-	LocateTransaction(context.Context, *Transaction) (*Source, error)
 	// GetTransactionMerklePath returns the merkle path of a transaction.
 	GetTransactionMerklePath(context.Context, *Transaction) (*MerklePath, error)
 	// GetBlockTransactions returns a list of transaction hashes for a given block.
@@ -243,9 +229,6 @@ func (UnimplementedBlockTxAPIServer) Health(context.Context, *emptypb.Empty) (*H
 }
 func (UnimplementedBlockTxAPIServer) RegisterTransaction(context.Context, *TransactionAndSource) (*RegisterTransactionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterTransaction not implemented")
-}
-func (UnimplementedBlockTxAPIServer) LocateTransaction(context.Context, *Transaction) (*Source, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method LocateTransaction not implemented")
 }
 func (UnimplementedBlockTxAPIServer) GetTransactionMerklePath(context.Context, *Transaction) (*MerklePath, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionMerklePath not implemented")
@@ -319,24 +302,6 @@ func _BlockTxAPI_RegisterTransaction_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BlockTxAPIServer).RegisterTransaction(ctx, req.(*TransactionAndSource))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _BlockTxAPI_LocateTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Transaction)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BlockTxAPIServer).LocateTransaction(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BlockTxAPI_LocateTransaction_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BlockTxAPIServer).LocateTransaction(ctx, req.(*Transaction))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -520,10 +485,6 @@ var BlockTxAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RegisterTransaction",
 			Handler:    _BlockTxAPI_RegisterTransaction_Handler,
-		},
-		{
-			MethodName: "LocateTransaction",
-			Handler:    _BlockTxAPI_LocateTransaction_Handler,
 		},
 		{
 			MethodName: "GetTransactionMerklePath",

@@ -181,6 +181,11 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("remove callback url", func(t *testing.T) {
+		err = postgresDB.RemoveCallbacker(ctx, minedHash)
+		require.NoError(t, err)
+	})
+
 	t.Run("get unmined", func(t *testing.T) {
 		fmt.Println(dbInfo)
 
@@ -284,9 +289,5 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, &now, processedAt)
-	})
-
-	t.Run("is centralised", func(t *testing.T) {
-		require.True(t, postgresDB.IsCentralised())
 	})
 }

@@ -66,17 +66,17 @@ var DefaultParams = dbconn.New(
 	"disable",
 )
 
-// DatabaseTestSuite test helper suite to
+// BlockTXDBTestSuite test helper suite to
 // 1. create database
-// 2. run database/migrations
+// 2. run database/postgres
 // 3. use in test scenario
 // 4. tear down when tests are finished
-type DatabaseTestSuite struct {
+type BlockTXDBTestSuite struct {
 	suite.Suite
 	Connection *sqlx.Conn
 }
 
-func (s *DatabaseTestSuite) SetupSuite() {
+func (s *BlockTXDBTestSuite) SetupSuite() {
 	_, callerFilePath, _, _ := runtime.Caller(0)
 
 	testDir := filepath.Dir(callerFilePath)
@@ -93,24 +93,15 @@ func (s *DatabaseTestSuite) SetupSuite() {
 	}
 }
 
-func (s *DatabaseTestSuite) SetupTest() {
+func (s *BlockTXDBTestSuite) SetupTest() {
 	s.truncateTables()
 }
 
-func (s *DatabaseTestSuite) truncateTables() {
-	db, err := sqlx.Open("postgres", DefaultParams.String())
-	require.NoError(s.T(), err)
-
-	db.MustExec("truncate  table blocks;")
-	db.MustExec("truncate  table transactions;")
-	db.MustExec("truncate  table block_transactions_map;")
-}
-
-func (s *DatabaseTestSuite) Conn() *sqlx.Conn {
+func (s *BlockTXDBTestSuite) Conn() *sqlx.Conn {
 	return s.Connection
 }
 
-func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
+func (s *BlockTXDBTestSuite) InsertBlock(block *store.Block) {
 	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
@@ -140,7 +131,7 @@ func (s *DatabaseTestSuite) InsertBlock(block *store.Block) {
 
 }
 
-func (s *DatabaseTestSuite) InsertTransaction(tx *store.Transaction) {
+func (s *BlockTXDBTestSuite) InsertTransaction(tx *store.Transaction) {
 	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 	q := `INSERT INTO transactions(
@@ -159,7 +150,7 @@ func (s *DatabaseTestSuite) InsertTransaction(tx *store.Transaction) {
 	require.NoError(s.T(), err, fmt.Sprintf("tx %+v", tx))
 }
 
-func (s *DatabaseTestSuite) InsertBlockTransactionMap(btx *store.BlockTransactionMap) {
+func (s *BlockTXDBTestSuite) InsertBlockTransactionMap(btx *store.BlockTransactionMap) {
 	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
@@ -177,6 +168,15 @@ func (s *DatabaseTestSuite) InsertBlockTransactionMap(btx *store.BlockTransactio
 }
 
 // TearDownTest clear all the tables
-func (s *DatabaseTestSuite) TearDownTest() {
+func (s *BlockTXDBTestSuite) TearDownTest() {
 	s.truncateTables()
+}
+
+func (s *BlockTXDBTestSuite) truncateTables() {
+	db, err := sqlx.Open("postgres", DefaultParams.String())
+	require.NoError(s.T(), err)
+
+	db.MustExec("truncate  table blocks;")
+	db.MustExec("truncate  table transactions;")
+	db.MustExec("truncate  table block_transactions_map;")
 }

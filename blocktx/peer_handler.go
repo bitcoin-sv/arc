@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	transactionStoringBatchsizeDefault = 65536 // power of 2 for easier memory allocation
+	transactionStoringBatchsizeDefault = 2048 // power of 2 for easier memory allocation
 	maxRequestBlocks                   = 5
 )
 
@@ -447,14 +447,15 @@ func (bs *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 	return bs.store.InsertBlock(context.Background(), block)
 }
 
-func printMemStats() {
+func (bs *PeerHandler) printMemStats() {
 	bToMb := func(b uint64) uint64 {
 		return b / 1024 / 1024
 	}
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
-	fmt.Printf("Alloc = %v MiB, TotalAlloc = %v MiB, Sys = %v MiB, NumGC = %v\n",
-		bToMb(mem.Alloc), bToMb(mem.TotalAlloc), bToMb(mem.Sys), mem.NumGC)
+	bs.logger.Info(fmt.Sprintf("Alloc = %v MiB, TotalAlloc = %v MiB, Sys = %v MiB, NumGC = %v\n",
+		bToMb(mem.Alloc), bToMb(mem.TotalAlloc), bToMb(mem.Sys), mem.NumGC))
+
 }
 
 func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64) error {
@@ -494,13 +495,13 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 				return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 			}
 			// free up memory
-			txs = txs[:0]
-			merklePaths = merklePaths[:0]
+			txs = make([]*blocktx_api.TransactionAndSource, 0, bs.transactionStorageBatchSize)
+			merklePaths = make([]string, 0, bs.transactionStorageBatchSize)
 
 			// print stats, call gc and chec the result
-			printMemStats()
+			bs.printMemStats()
 			runtime.GC()
-			printMemStats()
+			bs.printMemStats()
 		}
 	}
 

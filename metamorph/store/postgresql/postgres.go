@@ -458,28 +458,23 @@ func (p *PostgreSQL) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
 	defer span.Finish()
-	var args []any
-	var q string
 
-	if status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
-		q = `
+	// do not store other statuses than the following
+	if status != metamorph_api.Status_REJECTED &&
+		status != metamorph_api.Status_SEEN_ON_NETWORK &&
+		status != metamorph_api.Status_MINED &&
+		status != metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
+		return nil
+	}
+
+	args := []any{status, rejectReason, hash[:]}
+	q := `
 		UPDATE metamorph.transactions
-		SET  status = $1
-			,reject_reason = $2
-			,announced_at = $3
-		WHERE hash = $4
-	;`
-		args = []any{status, rejectReason, p.now(), hash[:]}
-	} else {
-		q = `
-		UPDATE metamorph.transactions
-		SET  status = $1
-			,reject_reason = $2
+		SET status = $1,
+		    reject_reason = $2
 		WHERE hash = $3
 	;`
 
-		args = []any{status, rejectReason, hash[:]}
-	}
 	result, err := p.db.ExecContext(ctx, q, args...)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)

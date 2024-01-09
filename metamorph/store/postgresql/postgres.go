@@ -646,6 +646,13 @@ func (p *PostgreSQL) Close(ctx context.Context) error {
 }
 
 func (p *PostgreSQL) Ping(ctx context.Context) error {
+	startNanos := p.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("Ping").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Ping")
+	defer span.Finish()
+
 	_, err := p.db.QueryContext(ctx, "SELECT 1;")
 	if err != nil {
 		return err

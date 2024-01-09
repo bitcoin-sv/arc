@@ -662,5 +662,17 @@ func (ddb *DynamoDB) Close(ctx context.Context) error {
 }
 
 func (ddb *DynamoDB) Ping(ctx context.Context) error {
+	startNanos := ddb.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_dynamodb").NewStat("Ping").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:Ping")
+	defer span.Finish()
+
+	_, err := ddb.client.ListTables(ctx, &dynamodb.ListTablesInput{})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

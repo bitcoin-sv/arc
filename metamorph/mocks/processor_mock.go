@@ -27,6 +27,9 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //			GetStatsFunc: func(debugItems bool) *metamorph.ProcessorStats {
 //				panic("mock out the GetStats method")
 //			},
+//			HealthFunc: func() error {
+//				panic("mock out the Health method")
+//			},
 //			LoadUnminedFunc: func()  {
 //				panic("mock out the LoadUnmined method")
 //			},
@@ -58,6 +61,9 @@ type ProcessorIMock struct {
 	// GetStatsFunc mocks the GetStats method.
 	GetStatsFunc func(debugItems bool) *metamorph.ProcessorStats
 
+	// HealthFunc mocks the Health method.
+	HealthFunc func() error
+
 	// LoadUnminedFunc mocks the LoadUnmined method.
 	LoadUnminedFunc func()
 
@@ -85,6 +91,9 @@ type ProcessorIMock struct {
 		GetStats []struct {
 			// DebugItems is the debugItems argument value.
 			DebugItems bool
+		}
+		// Health holds details about calls to the Health method.
+		Health []struct {
 		}
 		// LoadUnmined holds details about calls to the LoadUnmined method.
 		LoadUnmined []struct {
@@ -129,6 +138,7 @@ type ProcessorIMock struct {
 	}
 	lockGetPeers                      sync.RWMutex
 	lockGetStats                      sync.RWMutex
+	lockHealth                        sync.RWMutex
 	lockLoadUnmined                   sync.RWMutex
 	lockProcessTransaction            sync.RWMutex
 	lockSendStatusForTransaction      sync.RWMutex
@@ -193,6 +203,33 @@ func (mock *ProcessorIMock) GetStatsCalls() []struct {
 	mock.lockGetStats.RLock()
 	calls = mock.calls.GetStats
 	mock.lockGetStats.RUnlock()
+	return calls
+}
+
+// Health calls HealthFunc.
+func (mock *ProcessorIMock) Health() error {
+	if mock.HealthFunc == nil {
+		panic("ProcessorIMock.HealthFunc: method is nil but ProcessorI.Health was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockHealth.Lock()
+	mock.calls.Health = append(mock.calls.Health, callInfo)
+	mock.lockHealth.Unlock()
+	return mock.HealthFunc()
+}
+
+// HealthCalls gets all the calls that were made to Health.
+// Check the length with:
+//
+//	len(mockedProcessorI.HealthCalls())
+func (mock *ProcessorIMock) HealthCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockHealth.RLock()
+	calls = mock.calls.Health
+	mock.lockHealth.RUnlock()
 	return calls
 }
 

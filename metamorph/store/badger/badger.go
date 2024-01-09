@@ -404,5 +404,16 @@ func (s *Badger) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Has
 }
 
 func (s *Badger) Ping(ctx context.Context) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("mtm_store_badger").NewStat("Ping").AddTime(start)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "badger:Ping")
+	defer span.Finish()
+
+	if s.store == nil {
+		return errors.New("badger db store not found")
+	}
+
 	return nil
 }

@@ -37,6 +37,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetUnminedFunc: func(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
 //				panic("mock out the GetUnmined method")
 //			},
+//			PingFunc: func(ctx context.Context) error {
+//				panic("mock out the Ping method")
+//			},
 //			RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 //				panic("mock out the RemoveCallbacker method")
 //			},
@@ -79,6 +82,9 @@ type MetamorphStoreMock struct {
 
 	// GetUnminedFunc mocks the GetUnmined method.
 	GetUnminedFunc func(contextMoqParam context.Context, callback func(s *store.StoreData)) error
+
+	// PingFunc mocks the Ping method.
+	PingFunc func(ctx context.Context) error
 
 	// RemoveCallbackerFunc mocks the RemoveCallbacker method.
 	RemoveCallbackerFunc func(ctx context.Context, hash *chainhash.Hash) error
@@ -135,6 +141,11 @@ type MetamorphStoreMock struct {
 			ContextMoqParam context.Context
 			// Callback is the callback argument value.
 			Callback func(s *store.StoreData)
+		}
+		// Ping holds details about calls to the Ping method.
+		Ping []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 		}
 		// RemoveCallbacker holds details about calls to the RemoveCallbacker method.
 		RemoveCallbacker []struct {
@@ -201,6 +212,7 @@ type MetamorphStoreMock struct {
 	lockGet               sync.RWMutex
 	lockGetBlockProcessed sync.RWMutex
 	lockGetUnmined        sync.RWMutex
+	lockPing              sync.RWMutex
 	lockRemoveCallbacker  sync.RWMutex
 	lockSet               sync.RWMutex
 	lockSetBlockProcessed sync.RWMutex
@@ -383,6 +395,38 @@ func (mock *MetamorphStoreMock) GetUnminedCalls() []struct {
 	mock.lockGetUnmined.RLock()
 	calls = mock.calls.GetUnmined
 	mock.lockGetUnmined.RUnlock()
+	return calls
+}
+
+// Ping calls PingFunc.
+func (mock *MetamorphStoreMock) Ping(ctx context.Context) error {
+	if mock.PingFunc == nil {
+		panic("MetamorphStoreMock.PingFunc: method is nil but MetamorphStore.Ping was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockPing.Lock()
+	mock.calls.Ping = append(mock.calls.Ping, callInfo)
+	mock.lockPing.Unlock()
+	return mock.PingFunc(ctx)
+}
+
+// PingCalls gets all the calls that were made to Ping.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.PingCalls())
+func (mock *MetamorphStoreMock) PingCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockPing.RLock()
+	calls = mock.calls.Ping
+	mock.lockPing.RUnlock()
 	return calls
 }
 

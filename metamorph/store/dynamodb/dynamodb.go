@@ -400,6 +400,30 @@ func (ddb *DynamoDB) setLockedBy(ctx context.Context, hash *chainhash.Hash, lock
 	return nil
 }
 
+func (ddb *DynamoDB) GetByStatus(ctx context.Context, status metamorph_api.Status) ([]store.StoreData, error) {
+
+	out, err := ddb.client.Query(ctx, &dynamodb.QueryInput{
+		TableName:        aws.String(ddb.transactionsTableName),
+		FilterExpression: aws.String(fmt.Sprintf("tx_status = %s ", status)),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	txs := make([]store.StoreData, len(out.Items))
+
+	for i, item := range out.Items {
+		var transaction store.StoreData
+		err = attributevalue.UnmarshalMap(item, &transaction)
+		if err != nil {
+			return nil, err
+		}
+		txs[i] = transaction
+
+	}
+	return txs, nil
+}
+
 func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
 	// setup log and tracing
 	startNanos := ddb.now().UnixNano()
@@ -473,10 +497,10 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 
 	switch status {
 	case metamorph_api.Status_ANNOUNCED_TO_NETWORK:
-		updateExpression = updateExpression + fmt.Sprintf(", announced_at = %s", announcedAtAttributeKey)
+		updateExpression += fmt.Sprintf(", announced_at = %s", announcedAtAttributeKey)
 		expressionAttributevalues[announcedAtAttributeKey] = &types.AttributeValueMemberS{Value: ddb.now().Format(time.RFC3339)}
 	case metamorph_api.Status_MINED:
-		updateExpression = updateExpression + fmt.Sprintf(", mined_at = %s", minedAtAttributeKey)
+		updateExpression += fmt.Sprintf(", mined_at = %s", minedAtAttributeKey)
 		expressionAttributevalues[minedAtAttributeKey] = &types.AttributeValueMemberS{Value: ddb.now().Format(time.RFC3339)}
 	}
 

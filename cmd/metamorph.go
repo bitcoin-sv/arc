@@ -20,6 +20,7 @@ import (
 	blockTxStore "github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/badger"
 	"github.com/bitcoin-sv/arc/metamorph/store/dynamodb"
@@ -144,7 +145,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 
 	go func() {
 		for message := range statusMessageCh {
-			_, err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
+			err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status)
 			if err != nil {
 				logger.Error("Could not send status for transaction", slog.String("hash", message.Hash.String()), slog.String("err", err.Error()))
 			}
@@ -478,9 +479,7 @@ func processBlock(logger *slog.Logger, btc blocktx.ClientI, p metamorph.Processo
 		logger.Debug("Received MINED message from BlockTX for transaction", slog.String("hash", utils.ReverseAndHexEncodeSlice(tx.GetHash())))
 
 		hash, _ := chainhash.NewHash(tx.GetHash())
-		blockHash, _ := chainhash.NewHash(mt.GetBlock().GetHash())
-
-		_, err = p.SendStatusMinedForTransaction(hash, blockHash, mt.GetBlock().GetHeight())
+		err := p.SendStatusForTransaction(hash, metamorph_api.Status_MINED)
 		if err != nil {
 			logger.Error("Could not send mined status for transaction", slog.String("hash", utils.ReverseAndHexEncodeSlice(tx.GetHash())), slog.String("err", err.Error()))
 			return

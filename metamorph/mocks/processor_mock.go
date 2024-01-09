@@ -33,11 +33,8 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //			ProcessTransactionFunc: func(ctx context.Context, req *metamorph.ProcessorRequest)  {
 //				panic("mock out the ProcessTransaction method")
 //			},
-//			SendStatusForTransactionFunc: func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error) {
+//			SendStatusForTransactionFunc: func(hash *chainhash.Hash, status metamorph_api.Status) error {
 //				panic("mock out the SendStatusForTransaction method")
-//			},
-//			SendStatusMinedForTransactionFunc: func(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error) {
-//				panic("mock out the SendStatusMinedForTransaction method")
 //			},
 //			SetFunc: func(ctx context.Context, req *metamorph.ProcessorRequest) error {
 //				panic("mock out the Set method")
@@ -65,10 +62,7 @@ type ProcessorIMock struct {
 	ProcessTransactionFunc func(ctx context.Context, req *metamorph.ProcessorRequest)
 
 	// SendStatusForTransactionFunc mocks the SendStatusForTransaction method.
-	SendStatusForTransactionFunc func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
-
-	// SendStatusMinedForTransactionFunc mocks the SendStatusMinedForTransaction method.
-	SendStatusMinedForTransactionFunc func(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error)
+	SendStatusForTransactionFunc func(hash *chainhash.Hash, status metamorph_api.Status) error
 
 	// SetFunc mocks the Set method.
 	SetFunc func(ctx context.Context, req *metamorph.ProcessorRequest) error
@@ -102,19 +96,6 @@ type ProcessorIMock struct {
 			Hash *chainhash.Hash
 			// Status is the status argument value.
 			Status metamorph_api.Status
-			// ID is the id argument value.
-			ID string
-			// Err is the err argument value.
-			Err error
-		}
-		// SendStatusMinedForTransaction holds details about calls to the SendStatusMinedForTransaction method.
-		SendStatusMinedForTransaction []struct {
-			// Hash is the hash argument value.
-			Hash *chainhash.Hash
-			// BlockHash is the blockHash argument value.
-			BlockHash *chainhash.Hash
-			// BlockHeight is the blockHeight argument value.
-			BlockHeight uint64
 		}
 		// Set holds details about calls to the Set method.
 		Set []struct {
@@ -127,14 +108,13 @@ type ProcessorIMock struct {
 		Shutdown []struct {
 		}
 	}
-	lockGetPeers                      sync.RWMutex
-	lockGetStats                      sync.RWMutex
-	lockLoadUnmined                   sync.RWMutex
-	lockProcessTransaction            sync.RWMutex
-	lockSendStatusForTransaction      sync.RWMutex
-	lockSendStatusMinedForTransaction sync.RWMutex
-	lockSet                           sync.RWMutex
-	lockShutdown                      sync.RWMutex
+	lockGetPeers                 sync.RWMutex
+	lockGetStats                 sync.RWMutex
+	lockLoadUnmined              sync.RWMutex
+	lockProcessTransaction       sync.RWMutex
+	lockSendStatusForTransaction sync.RWMutex
+	lockSet                      sync.RWMutex
+	lockShutdown                 sync.RWMutex
 }
 
 // GetPeers calls GetPeersFunc.
@@ -260,25 +240,21 @@ func (mock *ProcessorIMock) ProcessTransactionCalls() []struct {
 }
 
 // SendStatusForTransaction calls SendStatusForTransactionFunc.
-func (mock *ProcessorIMock) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error) {
+func (mock *ProcessorIMock) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status) error {
 	if mock.SendStatusForTransactionFunc == nil {
 		panic("ProcessorIMock.SendStatusForTransactionFunc: method is nil but ProcessorI.SendStatusForTransaction was just called")
 	}
 	callInfo := struct {
 		Hash   *chainhash.Hash
 		Status metamorph_api.Status
-		ID     string
-		Err    error
 	}{
 		Hash:   hash,
 		Status: status,
-		ID:     id,
-		Err:    err,
 	}
 	mock.lockSendStatusForTransaction.Lock()
 	mock.calls.SendStatusForTransaction = append(mock.calls.SendStatusForTransaction, callInfo)
 	mock.lockSendStatusForTransaction.Unlock()
-	return mock.SendStatusForTransactionFunc(hash, status, id, err)
+	return mock.SendStatusForTransactionFunc(hash, status)
 }
 
 // SendStatusForTransactionCalls gets all the calls that were made to SendStatusForTransaction.
@@ -288,58 +264,14 @@ func (mock *ProcessorIMock) SendStatusForTransaction(hash *chainhash.Hash, statu
 func (mock *ProcessorIMock) SendStatusForTransactionCalls() []struct {
 	Hash   *chainhash.Hash
 	Status metamorph_api.Status
-	ID     string
-	Err    error
 } {
 	var calls []struct {
 		Hash   *chainhash.Hash
 		Status metamorph_api.Status
-		ID     string
-		Err    error
 	}
 	mock.lockSendStatusForTransaction.RLock()
 	calls = mock.calls.SendStatusForTransaction
 	mock.lockSendStatusForTransaction.RUnlock()
-	return calls
-}
-
-// SendStatusMinedForTransaction calls SendStatusMinedForTransactionFunc.
-func (mock *ProcessorIMock) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error) {
-	if mock.SendStatusMinedForTransactionFunc == nil {
-		panic("ProcessorIMock.SendStatusMinedForTransactionFunc: method is nil but ProcessorI.SendStatusMinedForTransaction was just called")
-	}
-	callInfo := struct {
-		Hash        *chainhash.Hash
-		BlockHash   *chainhash.Hash
-		BlockHeight uint64
-	}{
-		Hash:        hash,
-		BlockHash:   blockHash,
-		BlockHeight: blockHeight,
-	}
-	mock.lockSendStatusMinedForTransaction.Lock()
-	mock.calls.SendStatusMinedForTransaction = append(mock.calls.SendStatusMinedForTransaction, callInfo)
-	mock.lockSendStatusMinedForTransaction.Unlock()
-	return mock.SendStatusMinedForTransactionFunc(hash, blockHash, blockHeight)
-}
-
-// SendStatusMinedForTransactionCalls gets all the calls that were made to SendStatusMinedForTransaction.
-// Check the length with:
-//
-//	len(mockedProcessorI.SendStatusMinedForTransactionCalls())
-func (mock *ProcessorIMock) SendStatusMinedForTransactionCalls() []struct {
-	Hash        *chainhash.Hash
-	BlockHash   *chainhash.Hash
-	BlockHeight uint64
-} {
-	var calls []struct {
-		Hash        *chainhash.Hash
-		BlockHash   *chainhash.Hash
-		BlockHeight uint64
-	}
-	mock.lockSendStatusMinedForTransaction.RLock()
-	calls = mock.calls.SendStatusMinedForTransaction
-	mock.lockSendStatusMinedForTransaction.RUnlock()
 	return calls
 }
 

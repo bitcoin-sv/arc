@@ -27,6 +27,124 @@ type PostgreSQL struct {
 	now      func() time.Time
 }
 
+func (p *PostgreSQL) GetByStatus(ctx context.Context, stat metamorph_api.Status) ([]store.StoreData, error) {
+	q := `SELECT
+	     stored_at
+		,announced_at
+		,mined_at
+		,hash
+		,status
+		,block_height
+		,block_hash
+		,callback_url
+		,callback_token
+		,merkle_proof
+		,raw_tx
+		,locked_by
+		FROM metamorph.transactions WHERE status = $1;`
+
+	stmt, err := p.db.PrepareContext(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := stmt.QueryContext(ctx, q, stat)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []store.StoreData
+	for rows.Next() {
+		data := &store.StoreData{}
+
+		var storedAt sql.NullTime
+		var announcedAt sql.NullTime
+		var minedAt sql.NullTime
+		var blockHeight sql.NullInt64
+		var txHash []byte
+		var blockHash []byte
+		var callbackUrl sql.NullString
+		var callbackToken sql.NullString
+		var merkleProof sql.NullBool
+		var lockedBy sql.NullString
+		var status sql.NullInt32
+
+		if err = rows.Scan(
+			&storedAt,
+			&announcedAt,
+			&minedAt,
+			&txHash,
+			&status,
+			&blockHeight,
+			&blockHash,
+			&callbackUrl,
+			&callbackToken,
+			&merkleProof,
+			&data.RawTx,
+			&lockedBy,
+		); err != nil {
+			return nil, err
+		}
+
+		if len(txHash) > 0 {
+			data.Hash, err = chainhash.NewHash(txHash)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if len(blockHash) > 0 {
+			data.BlockHash, err = chainhash.NewHash(blockHash)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if storedAt.Valid {
+			data.StoredAt = storedAt.Time.UTC()
+		}
+
+		if announcedAt.Valid {
+			data.AnnouncedAt = announcedAt.Time.UTC()
+		}
+
+		if minedAt.Valid {
+			data.MinedAt = minedAt.Time.UTC()
+		}
+
+		if status.Valid {
+			data.Status = metamorph_api.Status(status.Int32)
+		}
+
+		if blockHeight.Valid {
+			data.BlockHeight = uint64(blockHeight.Int64)
+		}
+
+		if callbackUrl.Valid {
+			data.CallbackUrl = callbackUrl.String
+		}
+
+		if callbackToken.Valid {
+			data.CallbackToken = callbackToken.String
+		}
+
+		if merkleProof.Valid {
+			data.MerkleProof = merkleProof.Bool
+		}
+
+		if lockedBy.Valid {
+			data.LockedBy = lockedBy.String
+		}
+
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *data)
+	}
+	return out, nil
+}
+
 func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
 	return func(p *PostgreSQL) {
 		p.now = nowFunc

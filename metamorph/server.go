@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/bitcoin-sv/arc/api/handler"
 	"log/slog"
 	"net"
 	"net/url"
@@ -13,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
@@ -54,8 +54,7 @@ type ProcessorI interface {
 	LoadUnmined()
 	Set(ctx context.Context, req *ProcessorRequest) error
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
-	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
-	SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error)
+	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status) error
 	GetStats(debugItems bool) *ProcessorStats
 	GetPeers() ([]string, []string)
 	Shutdown()

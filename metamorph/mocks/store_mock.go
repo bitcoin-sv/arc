@@ -34,6 +34,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetBlockProcessedFunc: func(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
 //				panic("mock out the GetBlockProcessed method")
 //			},
+//			GetByStatusFunc: func(ctx context.Context, status metamorph_api.Status) ([]store.StoreData, error) {
+//				panic("mock out the GetByStatus method")
+//			},
 //			GetUnminedFunc: func(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
 //				panic("mock out the GetUnmined method")
 //			},
@@ -76,6 +79,9 @@ type MetamorphStoreMock struct {
 
 	// GetBlockProcessedFunc mocks the GetBlockProcessed method.
 	GetBlockProcessedFunc func(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error)
+
+	// GetByStatusFunc mocks the GetByStatus method.
+	GetByStatusFunc func(ctx context.Context, status metamorph_api.Status) ([]store.StoreData, error)
 
 	// GetUnminedFunc mocks the GetUnmined method.
 	GetUnminedFunc func(contextMoqParam context.Context, callback func(s *store.StoreData)) error
@@ -128,6 +134,13 @@ type MetamorphStoreMock struct {
 			Ctx context.Context
 			// BlockHash is the blockHash argument value.
 			BlockHash *chainhash.Hash
+		}
+		// GetByStatus holds details about calls to the GetByStatus method.
+		GetByStatus []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Status is the status argument value.
+			Status metamorph_api.Status
 		}
 		// GetUnmined holds details about calls to the GetUnmined method.
 		GetUnmined []struct {
@@ -200,6 +213,7 @@ type MetamorphStoreMock struct {
 	lockDel               sync.RWMutex
 	lockGet               sync.RWMutex
 	lockGetBlockProcessed sync.RWMutex
+	lockGetByStatus       sync.RWMutex
 	lockGetUnmined        sync.RWMutex
 	lockRemoveCallbacker  sync.RWMutex
 	lockSet               sync.RWMutex
@@ -347,6 +361,42 @@ func (mock *MetamorphStoreMock) GetBlockProcessedCalls() []struct {
 	mock.lockGetBlockProcessed.RLock()
 	calls = mock.calls.GetBlockProcessed
 	mock.lockGetBlockProcessed.RUnlock()
+	return calls
+}
+
+// GetByStatus calls GetByStatusFunc.
+func (mock *MetamorphStoreMock) GetByStatus(ctx context.Context, status metamorph_api.Status) ([]store.StoreData, error) {
+	if mock.GetByStatusFunc == nil {
+		panic("MetamorphStoreMock.GetByStatusFunc: method is nil but MetamorphStore.GetByStatus was just called")
+	}
+	callInfo := struct {
+		Ctx    context.Context
+		Status metamorph_api.Status
+	}{
+		Ctx:    ctx,
+		Status: status,
+	}
+	mock.lockGetByStatus.Lock()
+	mock.calls.GetByStatus = append(mock.calls.GetByStatus, callInfo)
+	mock.lockGetByStatus.Unlock()
+	return mock.GetByStatusFunc(ctx, status)
+}
+
+// GetByStatusCalls gets all the calls that were made to GetByStatus.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.GetByStatusCalls())
+func (mock *MetamorphStoreMock) GetByStatusCalls() []struct {
+	Ctx    context.Context
+	Status metamorph_api.Status
+} {
+	var calls []struct {
+		Ctx    context.Context
+		Status metamorph_api.Status
+	}
+	mock.lockGetByStatus.RLock()
+	calls = mock.calls.GetByStatus
+	mock.lockGetByStatus.RUnlock()
 	return calls
 }
 

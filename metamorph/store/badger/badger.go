@@ -276,6 +276,45 @@ func (s *Badger) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHas
 	return nil
 }
 
+func (s *Badger) GetByStatus(ctx context.Context, status metamorph_api.Status) ([]store.StoreData, error) {
+	var out []store.StoreData
+	err := s.store.View(func(tx *badger.Txn) error {
+		iter := tx.NewIterator(badger.DefaultIteratorOptions)
+		defer iter.Close()
+
+		for iter.Rewind(); iter.Valid(); iter.Next() {
+			item := iter.Item()
+			if strings.HasPrefix(string(item.Key()), "block_processed_") {
+				continue
+			}
+			if item.IsDeletedOrExpired() {
+				continue
+			}
+
+			var result *store.StoreData
+			if err := item.Value(func(val []byte) error {
+				var err2 error
+				if result, err2 = store.DecodeFromBytes(val); err2 != nil {
+					return err2
+				}
+				return nil
+			}); err != nil {
+				s.logger.Errorf("failed to decode data for %s: %w", item.Key(), err)
+				continue
+			}
+
+			if result.Status == status {
+				out = append(out, *result)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GetUnmined returns all transactions that have not been mined
 func (s *Badger) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
 	start := gocore.CurrentNanos()

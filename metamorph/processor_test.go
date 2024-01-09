@@ -429,12 +429,9 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			wg := &sync.WaitGroup{}
-			wg.Add(tc.expectedUpdateStatusCalls)
 			metamorphStore := &MetamorphStoreMock{
 				UpdateStatusFunc: func(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
 					require.Equal(t, tc.txResponseHash, hash)
-					wg.Done()
 					return tc.updateErr
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
@@ -449,29 +446,9 @@ func TestSendStatusForTransaction(t *testing.T) {
 			}))
 			require.NoError(t, err)
 
-			if waitTimeout(wg, time.Millisecond*200) {
-				t.Fatal("status was not updated as expected")
-			}
-
 			assert.Equal(t, tc.expectedUpdateStatusCalls, len(metamorphStore.UpdateStatusCalls()))
 			processor.Shutdown()
 		})
-	}
-}
-
-// waitTimeout waits for the waitgroup for the specified max timeout.
-// Returns true if waiting timed out.
-func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		wg.Wait()
-	}()
-	select {
-	case <-c:
-		return false // completed normally
-	case <-time.After(timeout):
-		return true // timed out
 	}
 }
 
@@ -486,9 +463,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		processor, err := NewProcessor(s, pm, nil)
 		require.NoError(t, err)
 
-		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
-		time.Sleep(100 * time.Millisecond)
-		assert.True(t, ok)
+		sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
 		assert.NoError(t, sendErr)
 
 		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
@@ -568,9 +543,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		})
 		wg.Wait()
 
-		ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
-		time.Sleep(10 * time.Millisecond)
-		assert.True(t, ok)
+		sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
 		assert.NoError(t, sendErr)
 
 		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
@@ -684,8 +657,6 @@ func TestProcessCheckIfMined(t *testing.T) {
 			require.NoError(t, err)
 			defer processor.Shutdown()
 
-			//require.Equal(t, tc.expectedNrOfUpdates, len(metamorphStore.UpdateMinedCalls()))
-			//require.Equal(t, 1, len(btxMock.GetTransactionBlocksCalls()))
 		})
 	}
 }

@@ -19,6 +19,7 @@ import (
 
 const (
 	postgresDriverName = "postgres"
+	loadLimit          = 20000
 )
 
 type PostgreSQL struct {
@@ -341,9 +342,9 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 		,merkle_proof
 		,raw_tx
 		,locked_by
-		FROM metamorph.transactions WHERE locked_by = 'NONE' AND (status < $1 OR status = $2 );`
+		FROM metamorph.transactions WHERE locked_by = 'NONE' AND (status < $1 OR status = $2 ) LIMIT $3;`
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, loadLimit)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))

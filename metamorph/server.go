@@ -59,6 +59,7 @@ type ProcessorI interface {
 	GetStats(debugItems bool) *ProcessorStats
 	GetPeers() ([]string, []string)
 	Shutdown()
+	Health() error
 }
 
 // Server type carries the zmqLogger within it

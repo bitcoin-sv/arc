@@ -660,3 +660,7 @@ func (ddb *DynamoDB) Close(ctx context.Context) error {
 	ctx.Done()
 	return nil
 }
+
+func (ddb *DynamoDB) Ping(ctx context.Context) error {
+	return nil
+}

@@ -607,3 +607,7 @@ func (s *SqLite) Close(ctx context.Context) error {
 	ctx.Done()
 	return s.db.Close()
 }
+
+func (s *SqLite) Ping(ctx context.Context) error {
+	return nil
+}

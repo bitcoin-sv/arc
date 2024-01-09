@@ -402,3 +402,7 @@ func (s *Badger) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Has
 
 	return nil
 }
+
+func (s *Badger) Ping(ctx context.Context) error {
+	return nil
+}

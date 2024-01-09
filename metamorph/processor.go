@@ -539,3 +539,12 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		},
 	})
 }
+
+func (p *Processor) Health() error {
+	connected, _ := p.GetPeers()
+	if len(connected) == 0 {
+		return errors.New("no connection to any peers")
+	}
+
+	return nil
+}

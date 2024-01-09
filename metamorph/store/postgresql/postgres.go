@@ -644,3 +644,12 @@ func (p *PostgreSQL) Close(ctx context.Context) error {
 	ctx.Done()
 	return p.db.Close()
 }
+
+func (p *PostgreSQL) Ping(ctx context.Context) error {
+	_, err := p.db.QueryContext(ctx, "SELECT 1;")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -17,7 +17,6 @@ import (
 	awsdynamodb "github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	blockTxStore "github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/store"
@@ -26,7 +25,6 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/store/postgresql"
 	"github.com/bitcoin-sv/arc/metamorph/store/sqlite"
 	"github.com/libsv/go-p2p"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/safemap"
@@ -130,6 +128,11 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
+	checkIfMinedInterval, err := config.GetDuration("metamorph.checkIfMinedInterval")
+	if err != nil {
+		return nil, err
+	}
+
 	metamorphProcessor, err := metamorph.NewProcessor(
 		s,
 		pm,
@@ -138,6 +141,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithProcessorLogger(processorLogger),
 		metamorph.WithLogFilePath(viper.GetString("metamorph.log.file")),
 		metamorph.WithDataRetentionPeriod(time.Duration(dataRetentionDays)*24*time.Hour),
+		metamorph.WithProcessCheckIfMinedInterval(checkIfMinedInterval),
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
@@ -169,64 +173,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 			}
 		}
 	}()
-
-	// create a channel to receive mined block messages from the block tx service
-	blockChan := make(chan *blocktx_api.Block)
-	go func() {
-		var processedAt *time.Time
-		for block := range blockChan {
-			hash, _ := chainhash.NewHash(block.Hash[:])
-			processedAt, err = s.GetBlockProcessed(context.Background(), hash)
-			if err != nil {
-				logger.Error("Could not get block processed status", slog.String("err", err.Error()))
-				continue
-			}
-
-			// check whether we have already processed this block
-			if processedAt == nil || processedAt.IsZero() {
-				// process the block
-				processBlock(logger, btx, metamorphProcessor, s, &blocktx_api.BlockAndSource{
-					Hash:   block.GetHash(),
-					Source: source,
-				})
-			}
-
-			// check whether we have already processed the previous block
-			blockHash, _ := chainhash.NewHash(block.GetPreviousHash())
-
-			processedAt, err = s.GetBlockProcessed(context.Background(), blockHash)
-			if err != nil {
-				logger.Error("Could not get previous block processed status", slog.String("err", err.Error()))
-				continue
-			}
-			if processedAt == nil || processedAt.IsZero() {
-				// get the full previous block from block tx
-				var previousBlock *blocktx_api.Block
-				pHash, err := chainhash.NewHash(block.GetPreviousHash())
-				if err != nil {
-					logger.Error("Could not get previous block hash", slog.String("err", err.Error()))
-					continue
-				}
-
-				previousBlock, err = btx.GetBlock(context.Background(), pHash)
-				if err != nil {
-					if !errors.Is(err, blockTxStore.ErrBlockNotFound) {
-						logger.Error("Could not get previous block from block tx", slog.String("hash", pHash.String()), slog.String("err", err.Error()))
-					}
-					continue
-				}
-
-				// send the previous block to the process channel
-				if previousBlock == nil {
-					go func() {
-						blockChan <- previousBlock
-					}()
-				}
-			}
-		}
-	}()
-
-	btx.Start(blockChan)
 
 	metamorphLogger, err := config.NewLogger()
 	if err != nil {
@@ -463,36 +409,4 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore) (p2p.PeerManag
 	}
 
 	return pm, messageCh, nil
-}
-
-func processBlock(logger *slog.Logger, btc blocktx.ClientI, p metamorph.ProcessorI, s store.MetamorphStore, blockAndSource *blocktx_api.BlockAndSource) {
-	mt, err := btc.GetMinedTransactionsForBlock(context.Background(), blockAndSource)
-	if err != nil {
-		logger.Error("Could not get mined transactions for block", slog.String("hash", utils.ReverseAndHexEncodeSlice(blockAndSource.GetHash())), slog.String("err", err.Error()))
-		return
-	}
-
-	logger.Info("Incoming BLOCK", slog.String("hash", utils.ReverseAndHexEncodeSlice(mt.GetBlock().GetHash())))
-
-	for _, tx := range mt.GetTransactions() {
-		logger.Debug("Received MINED message from BlockTX for transaction", slog.String("hash", utils.ReverseAndHexEncodeSlice(tx.GetHash())))
-
-		hash, _ := chainhash.NewHash(tx.GetHash())
-		blockHash, _ := chainhash.NewHash(mt.GetBlock().GetHash())
-
-		_, err = p.SendStatusMinedForTransaction(hash, blockHash, mt.GetBlock().GetHeight())
-		if err != nil {
-			logger.Error("Could not send mined status for transaction", slog.String("hash", utils.ReverseAndHexEncodeSlice(tx.GetHash())), slog.String("err", err.Error()))
-			return
-		}
-	}
-
-	logger.Info("Marked transactions as MINED", slog.Int("number", len(mt.GetTransactions())))
-
-	hash, _ := chainhash.NewHash(blockAndSource.GetHash())
-
-	err = s.SetBlockProcessed(context.Background(), hash)
-	if err != nil {
-		logger.Error("Could not set block processed status", slog.String("err", err.Error()))
-	}
 }

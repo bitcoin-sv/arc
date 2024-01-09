@@ -16,7 +16,6 @@ import (
 // ClientI is the interface for the block-tx transactionHandler.
 type ClientI interface {
 	GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
-	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error)
 	GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error)
 	GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error)
 	GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*blocktx_api.Block, error)

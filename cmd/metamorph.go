@@ -160,7 +160,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		// that can be deferred to reset the TTY when the program exits.
 		defer metamorphProcessor.PrintStatsOnKeypress()()
 	}
-	ticker := time.NewTimer(unminedTxsPeriod)
+	ticker := time.NewTimer(unminedTxsPeriod) // Todo: configuration setting
 	stopUnminedProcessor := make(chan bool)
 
 	go func() {

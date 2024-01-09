@@ -29,6 +29,9 @@ import (
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/safemap"
 	"github.com/spf13/viper"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/reflection"
 )
 
 const (
@@ -264,6 +267,11 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	// pass all the started peers to the collector
 	_ = metamorph.NewZMQCollector(zmqCollector)
 
+	err = StartHealthServer(serv)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start health server: %v", err)
+	}
+
 	return func() {
 		logger.Info("Shutting down metamorph")
 
@@ -274,6 +282,32 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 			logger.Error("Could not close store", slog.String("err", err.Error()))
 		}
 	}, nil
+}
+
+func StartHealthServer(serv *metamorph.Server) error {
+	gs := grpc.NewServer()
+	defer gs.Stop()
+
+	grpc_health_v1.RegisterHealthServer(gs, serv) // registration
+	// register your own services
+	reflection.Register(gs)
+
+	address, err := config.GetString("metamorph.healthServerDialAddr") //"localhost:8005"
+	if err != nil {
+		return err
+	}
+
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return err
+	}
+
+	err = gs.Serve(listener)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) {

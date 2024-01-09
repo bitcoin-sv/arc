@@ -2,9 +2,8 @@ package metamorph
 
 import (
 	"context"
-	"log/slog"
-
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"log/slog"
 )
 
 func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {

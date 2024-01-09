@@ -199,7 +199,7 @@ func (p *Processor) processCheckIfMined() {
 			return
 		}
 
-		p.logger.Debug("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))
+		p.logger.Info("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))
 
 		for _, blockTxs := range blockTransactions.GetTransactionBlocks() {
 			blockHash, err := chainhash.NewHash(blockTxs.GetBlockHash())

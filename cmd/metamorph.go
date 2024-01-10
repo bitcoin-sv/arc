@@ -240,10 +240,12 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	// pass all the started peers to the collector
 	_ = metamorph.NewZMQCollector(zmqCollector)
 
-	err = StartHealthServer(serv)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start health server: %v", err)
-	}
+	go func() {
+		err = StartHealthServer(serv)
+		if err != nil {
+			logger.Error("failed to start health server", slog.String("err", err.Error()))
+		}
+	}()
 
 	return func() {
 		logger.Info("Shutting down metamorph")

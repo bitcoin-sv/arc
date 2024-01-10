@@ -400,6 +400,7 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		// The transaction doesn't exist in metamorph so the call after this line
 		// (updating tx status to MINED) will fail as there is no transaction to update.
 		// In that case we take the transaction and store it first in metamorph database.
+		status = metamorph_api.Status_MINED
 		if err := s.store.Set(ctx, hash[:], &store.StoreData{
 			Hash:          &hash,
 			Status:        status,
@@ -412,9 +413,6 @@ func (s *Server) putTransactionInit(ctx context.Context, req *metamorph_api.Tran
 		}
 
 		s.logger.Debug("Found block for transaction", slog.String("hash", hash.String()))
-
-		// If the transaction was mined, we should mark it as such
-		status = metamorph_api.Status_MINED
 		blockHash, _ := chainhash.NewHash(rtr.GetBlockHash())
 		if err = s.store.UpdateMined(initCtx, &hash, blockHash, rtr.GetBlockHeight()); err != nil {
 			return 0, 0, nil, nil, err

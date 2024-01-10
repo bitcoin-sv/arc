@@ -118,14 +118,15 @@ func TestGetTransactionBlocks(t *testing.T) {
 			name: "query fails",
 			sqlmockExpectations: func(mock sqlmock.Sqlmock) {
 				query := `
-				SELECT
-				b.hash, b.height, t.hash
-				FROM blocks b
-				INNER JOIN block_transactions_map m ON m.blockid = b.id
-				INNER JOIN transactions t ON m.txid = t.id
-				WHERE t.hash = ANY($1)
-				AND b.orphanedyn = FALSE`
+			SELECT
+			b.hash, b.height, t.hash
+			FROM transactions t
+			LEFT JOIN block_transactions_map m ON m.txid = t.id
+			LEFT JOIN blocks b ON m.blockid = b.id
+			WHERE t.hash = ANY($1)
+			;`
 
+				//SELECT b.hash, b.height, t.hash FROM transactions t LEFT JOIN block_transactions_map m ON m.txid = t.id LEFT JOIN blocks b ON m.blockid = b.id WHERE t.hash = ANY($1)
 				mock.ExpectQuery(query).WillReturnError(errors.New("db connection error"))
 			},
 			expectedErrorStr: "db connection error",
@@ -134,13 +135,13 @@ func TestGetTransactionBlocks(t *testing.T) {
 			name: "scanning fails",
 			sqlmockExpectations: func(mock sqlmock.Sqlmock) {
 				query := `
-				SELECT
-				b.hash, b.height, t.hash
-				FROM blocks b
-				INNER JOIN block_transactions_map m ON m.blockid = b.id
-				INNER JOIN transactions t ON m.txid = t.id
-				WHERE t.hash = ANY($1)
-				AND b.orphanedyn = FALSE`
+			SELECT
+			b.hash, b.height, t.hash
+			FROM transactions t
+			LEFT JOIN block_transactions_map m ON m.txid = t.id
+			LEFT JOIN blocks b ON m.blockid = b.id
+			WHERE t.hash = ANY($1)
+			;`
 
 				mock.ExpectQuery(query).WillReturnRows(
 					sqlmock.NewRows([]string{"hash", "height", "hash"}).AddRow(

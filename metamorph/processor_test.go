@@ -1,7 +1,6 @@
 package metamorph_test
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -101,43 +100,14 @@ func TestLoadUnmined(t *testing.T) {
 	storedAt := time.Date(2023, 10, 3, 5, 0, 0, 0, time.UTC)
 
 	tt := []struct {
-		name                   string
-		storedData             []*store.StoreData
-		isCentralised          bool
-		updateStatusErr        error
-		getTransactionBlockErr error
-		delErr                 error
+		name          string
+		storedData    []*store.StoreData
+		getUnminedErr error
 
 		expectedItemTxHashesFinal []*chainhash.Hash
 	}{
 		{
 			name: "no unmined transactions loaded",
-		},
-		{
-			name: "load 3 unmined transactions, TX2 was mined",
-			storedData: []*store.StoreData{
-				{
-					StoredAt:    storedAt,
-					AnnouncedAt: storedAt.Add(1 * time.Second),
-					Hash:        testdata.TX1Hash,
-					Status:      metamorph_api.Status_SENT_TO_NETWORK,
-				},
-				{
-					StoredAt:    storedAt,
-					AnnouncedAt: storedAt.Add(1 * time.Second),
-					Hash:        testdata.TX2Hash,
-					Status:      metamorph_api.Status_SEEN_ON_NETWORK,
-					CallbackUrl: "http://api.example.com",
-				},
-				{
-					StoredAt:    storedAt,
-					AnnouncedAt: storedAt.Add(1 * time.Second),
-					Hash:        testdata.TX3Hash,
-					Status:      metamorph_api.Status_SEEN_ON_NETWORK,
-				},
-			},
-
-			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX1Hash, testdata.TX3Hash},
 		},
 		{
 			name: "load 2 unmined transactions, none mined",
@@ -159,32 +129,11 @@ func TestLoadUnmined(t *testing.T) {
 			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX1Hash, testdata.TX2Hash},
 		},
 		{
-			name: "update status fails",
-			storedData: []*store.StoreData{
-				{
-					StoredAt:    storedAt,
-					AnnouncedAt: storedAt.Add(1 * time.Second),
-					Hash:        testdata.TX2Hash,
-					Status:      metamorph_api.Status_STORED,
-				},
-			},
-			updateStatusErr: errors.New("failed to update status"),
+			name:          "load 2 unmined transactions, failed to get unmined",
+			storedData:    []*store.StoreData{},
+			getUnminedErr: errors.New("failed to get unmined"),
 
-			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX2Hash},
-		},
-		{
-			name: "get transaction block fails",
-			storedData: []*store.StoreData{
-				{
-					StoredAt:    storedAt,
-					AnnouncedAt: storedAt.Add(1 * time.Second),
-					Hash:        testdata.TX2Hash,
-					Status:      metamorph_api.Status_SEEN_ON_NETWORK,
-				},
-			},
-			getTransactionBlockErr: errors.New("failed to get transaction block"),
-
-			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX2Hash},
+			expectedItemTxHashesFinal: []*chainhash.Hash{},
 		},
 	}
 
@@ -192,62 +141,21 @@ func TestLoadUnmined(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			pm := p2p.NewPeerManagerMock()
 
-			btxMock := &ClientIMock{
-				GetTransactionBlockFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error) {
-					var txResponse *blocktx_api.RegisterTransactionResponse
-
-					// TX2 was mined
-					if bytes.Equal(testdata.TX2Hash[:], transaction.Hash[:]) {
-						txResponse = &blocktx_api.RegisterTransactionResponse{
-							BlockHash:   testdata.Block2Hash[:],
-							BlockHeight: 2,
-						}
-					}
-
-					return txResponse, tc.getTransactionBlockErr
-				},
-			}
 			mtmStore := &MetamorphStoreMock{
 				GetUnminedFunc: func(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
 					for _, data := range tc.storedData {
 						callback(data)
 					}
-					return nil
-				},
-				UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
-					require.Equal(t, testdata.TX2Hash, hash)
-					return nil
-				},
-				UpdateStatusFunc: func(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
-					require.Equal(t, bytes.Compare(testdata.TX2Hash[:], hash[:]), 0)
-					return tc.updateStatusErr
-				},
-				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-					return &store.StoreData{
-						StoredAt:    storedAt,
-						AnnouncedAt: storedAt.Add(1 * time.Second),
-						Hash:        testdata.TX2Hash,
-						Status:      metamorph_api.Status_SEEN_ON_NETWORK,
-						CallbackUrl: "http://api.example.com",
-						BlockHash:   testdata.Block2Hash,
-						BlockHeight: 2,
-					}, nil
-				},
-				DelFunc: func(ctx context.Context, key []byte) error {
-					require.Equal(t, testdata.TX2Hash[:], key)
-					return tc.delErr
+					return tc.getUnminedErr
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
 					require.ElementsMatch(t, tc.expectedItemTxHashesFinal, hashes)
 					require.Equal(t, len(tc.expectedItemTxHashesFinal), len(hashes))
 					return nil
 				},
-				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
-					return nil
-				},
 			}
 
-			processor, err := NewProcessor(mtmStore, pm, btxMock,
+			processor, err := NewProcessor(mtmStore, pm, nil,
 				WithProcessCheckIfMinedInterval(time.Hour*24),
 				WithCacheExpiryTime(time.Hour*24),
 				WithNow(func() time.Time {

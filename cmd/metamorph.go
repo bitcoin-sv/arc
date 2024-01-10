@@ -26,7 +26,6 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/store/sqlite"
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
-	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/safemap"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -82,32 +81,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	metamorphGRPCListenAddress := viper.GetString("metamorph.listenAddr")
 	if metamorphGRPCListenAddress == "" {
 		return nil, fmt.Errorf("no metamorph.listenAddr setting found")
-	}
-
-	source := metamorphGRPCListenAddress
-	if viper.GetBool("metamorph.network.fixedIp") {
-		ip, port, err := net.SplitHostPort(metamorphGRPCListenAddress)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse ip address: %v", err)
-		}
-
-		if ip != "" {
-			source = metamorphGRPCListenAddress
-		} else {
-			hint := viper.GetString("metamorph.network.ipAddressHint")
-			ips, err := utils.GetIPAddressesWithHint(hint)
-			if err != nil {
-				return nil, fmt.Errorf("cannot get local ip address")
-			}
-
-			if len(ips) != 1 {
-				return nil, fmt.Errorf("cannot determine local ip address [%v]", ips)
-			}
-
-			source = fmt.Sprintf("%s:%s", ips[0], port)
-		}
-
-		logger.Info("Instance will register transactions with location", "source", source)
 	}
 
 	pm, statusMessageCh, err := initPeerManager(logger, s)
@@ -225,7 +198,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		opts = append(opts, metamorph.WithBlocktxTimeout(btxTimeout))
 	}
 
-	serv := metamorph.NewServer(s, metamorphProcessor, btx, source, opts...)
+	serv := metamorph.NewServer(s, metamorphProcessor, btx, opts...)
 
 	go func() {
 		grpcMessageSize := viper.GetInt("grpcMessageSize")

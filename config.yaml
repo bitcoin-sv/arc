@@ -58,9 +58,6 @@ metamorph:
   checkUtxos: false # force check each utxo for validity. If enabled ARC connects to bitcoin node using rpc for each utxo
   statsKeypress: false # enable stats keypress. If enabled pressing any key will print stats to stdout
   profilerAddr: localhost:9992 # address to start profiler server on
-  network:
-    fixedIp: true # Denotes if ARC is running with fixed IP addresses
-    ipAddressHint: ^172.28.*
   blocktxTimeout: 1s # timeout for blocktx service
   checkIfMinedInterval: 1m
   healthServerDialAddr: localhost:8005

@@ -292,47 +292,6 @@ func (p *Processor) LoadUnmined() {
 		pr.Start = record.StoredAt
 
 		p.ProcessorResponseMap.Set(record.Hash, pr)
-
-		switch record.Status {
-		case metamorph_api.Status_STORED:
-			// announce the transaction to the network
-			pr.SetPeers(p.pm.AnnounceTransaction(record.Hash, nil))
-
-			err := p.store.UpdateStatus(spanCtx, record.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
-			if err != nil {
-				p.logger.Error(failedToUpdateStatus, slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
-			}
-		case metamorph_api.Status_ANNOUNCED_TO_NETWORK:
-			// we only announced the transaction, but we did not receive a SENT_TO_NETWORK response
-			// let's send a GETDATA message to the network to check whether the transaction is actually there
-			p.pm.RequestTransaction(record.Hash)
-		case metamorph_api.Status_SENT_TO_NETWORK:
-			p.pm.RequestTransaction(record.Hash)
-		case metamorph_api.Status_SEEN_ON_NETWORK:
-			// could it already be mined, and we need to get it from BlockTx?
-			transactionResponse, err := p.btc.GetTransactionBlock(context.Background(), &blocktx_api.Transaction{Hash: record.Hash[:]})
-			if err != nil {
-				p.logger.Error("failed to get transaction block", slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
-				return
-			}
-
-			if transactionResponse == nil || transactionResponse.GetBlockHeight() <= 0 {
-				return
-			}
-
-			// we have a mined transaction, let's update the status
-			var blockHash *chainhash.Hash
-			blockHash, err = chainhash.NewHash(transactionResponse.GetBlockHash())
-			if err != nil {
-				p.logger.Error("Failed to convert block hash", slog.String("err", err.Error()))
-				return
-			}
-
-			_, err = p.SendStatusMinedForTransaction(record.Hash, blockHash, transactionResponse.GetBlockHeight())
-			if err != nil {
-				p.logger.Error("Failed to update status for mined transaction", slog.String("err", err.Error()))
-			}
-		}
 	})
 	if err != nil {
 		p.logger.Error("Failed to iterate through stored transactions", slog.String("err", err.Error()))

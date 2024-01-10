@@ -384,7 +384,7 @@ func (mock *InterfaceMock) GetBlockForHeightCalls() []struct {
 }
 
 // GetBlockGaps calls GetBlockGapsFunc.
-func (mock *InterfaceMock) GetBlockGaps(ctx context.Context) ([]*BlockGap, error) {
+func (mock *InterfaceMock) GetBlockGaps(ctx context.Context, heightRange int) ([]*BlockGap, error) {
 	if mock.GetBlockGapsFunc == nil {
 		panic("InterfaceMock.GetBlockGapsFunc: method is nil but Interface.GetBlockGaps was just called")
 	}

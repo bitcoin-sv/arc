@@ -35,7 +35,12 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	peerHandler := blocktx.NewPeerHandler(logger, blockStore, blockCh, startingBlockHeight)
+	recordRetentionDays, err := config.GetInt("blocktx.db.cleanData.recordRetentionDays")
+	if err != nil {
+		return nil, err
+	}
+
+	peerHandler := blocktx.NewPeerHandler(logger, blockStore, blockCh, startingBlockHeight, blocktx.WithRetentionDays(recordRetentionDays))
 
 	network, err := config.GetNetwork()
 	if err != nil {

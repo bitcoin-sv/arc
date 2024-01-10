@@ -93,6 +93,7 @@ type PeerHandler struct {
 	transactionStorageBatchSize int
 	peerHandlerCollector        *tracing.PeerHandlerCollector
 	startingHeight              int
+	dataRetentionDays           int
 }
 
 func init() {
@@ -102,6 +103,12 @@ func init() {
 func WithTransactionBatchSize(size int) func(handler *PeerHandler) {
 	return func(p *PeerHandler) {
 		p.transactionStorageBatchSize = size
+	}
+}
+
+func WithRetentionDays(dataRetentionDays int) func(handler *PeerHandler) {
+	return func(p *PeerHandler) {
+		p.dataRetentionDays = dataRetentionDays
 	}
 }
 
@@ -378,6 +385,11 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	return nil
 }
 
+const (
+	hoursPerDay   = 24
+	blocksPerHour = 6
+)
+
 func (bs *PeerHandler) FillGaps(peer p2p.PeerI) error {
 	primary, err := bs.CheckPrimary()
 	if err != nil {
@@ -388,7 +400,9 @@ func (bs *PeerHandler) FillGaps(peer p2p.PeerI) error {
 		return nil
 	}
 
-	blockHeightGaps, err := bs.store.GetBlockGaps(context.Background())
+	heightRange := bs.dataRetentionDays * hoursPerDay * blocksPerHour
+
+	blockHeightGaps, err := bs.store.GetBlockGaps(context.Background(), heightRange)
 	if err != nil {
 		return err
 	}

@@ -34,7 +34,7 @@ func (s *GetBlockGapTestSuite) Test() {
 	require.NoError(s.T(), err)
 	ctx := context.Background()
 
-	blockGaps, err := st.GetBlockGaps(ctx)
+	blockGaps, err := st.GetBlockGaps(ctx, 7)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 2, len(blockGaps))
 
@@ -45,12 +45,12 @@ func (s *GetBlockGapTestSuite) Test() {
 
 	expectedBlockGaps := []*store.BlockGap{
 		{
-			Height: 822014,
-			Hash:   hash822014,
-		},
-		{
 			Height: 8220119,
 			Hash:   hash822019,
+		},
+		{
+			Height: 822014,
+			Hash:   hash822014,
 		},
 	}
 

@@ -507,6 +507,9 @@ func TestSendStatusForTransaction(t *testing.T) {
 			wg := &sync.WaitGroup{}
 			wg.Add(tc.expectedUpdateStatusCalls)
 			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{Hash: testdata.TX2Hash}, nil
+				},
 				UpdateStatusFunc: func(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
 					require.Equal(t, tc.txResponseHash, hash)
 					wg.Done()

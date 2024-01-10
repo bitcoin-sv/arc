@@ -202,10 +202,14 @@ func (p *Processor) processCheckIfMined() {
 		p.logger.Debug("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))
 
 		for _, blockTxs := range blockTransactions.GetTransactionBlocks() {
+			var blockHashString string
+
 			blockHash, err := chainhash.NewHash(blockTxs.GetBlockHash())
 			if err != nil {
 				p.logger.Error("failed to parse block hash", slog.String("err", err.Error()))
-				continue
+				blockHashString = ""
+			} else {
+				blockHashString = blockHash.String()
 			}
 
 			txHash, err := chainhash.NewHash(blockTxs.GetTransactionHash())
@@ -213,7 +217,7 @@ func (p *Processor) processCheckIfMined() {
 				p.logger.Error("failed to parse tx hash", slog.String("err", err.Error()))
 				continue
 			}
-			p.logger.Debug("found block for transaction", slog.String("txhash", txHash.String()), slog.String("blockhash", blockHash.String()))
+			p.logger.Debug("found block for transaction", slog.String("txhash", txHash.String()), slog.String("blockhash", blockHashString))
 
 			_, err = p.SendStatusMinedForTransaction(txHash, blockHash, blockTxs.GetBlockHeight())
 			if err != nil {

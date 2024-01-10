@@ -298,6 +298,26 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("update mined - missing block info", func(t *testing.T) {
+		unmined := *unminedData
+		err = postgresDB.Set(ctx, unminedHash[:], &unmined)
+		require.NoError(t, err)
+
+		err := postgresDB.UpdateMined(ctx, unminedHash, nil, 0)
+		require.NoError(t, err)
+
+		dataReturned, err := postgresDB.Get(ctx, unminedHash[:])
+		require.NoError(t, err)
+		unmined.Status = metamorph_api.Status_MINED
+		unmined.MinedAt = now
+		unmined.BlockHeight = 0
+		unmined.BlockHash = nil
+		require.Equal(t, dataReturned, &unmined)
+
+		err = postgresDB.Del(ctx, unminedHash[:])
+		require.NoError(t, err)
+	})
+
 	t.Run("get/set block processed", func(t *testing.T) {
 		err = postgresDB.SetBlockProcessed(ctx, testdata.Block1Hash)
 		require.NoError(t, err)

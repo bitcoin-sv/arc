@@ -728,6 +728,22 @@ func TestProcessCheckIfMined(t *testing.T) {
 
 			expectedNrOfUpdates: 0,
 		},
+		{
+			name: "missing block info",
+			blocks: []*blocktx_api.TransactionBlock{
+				{
+					TransactionHash: testdata.TX1Hash[:],
+				},
+				{
+					TransactionHash: testdata.TX2Hash[:],
+				},
+				{
+					TransactionHash: testdata.TX3Hash[:],
+				},
+			},
+
+			expectedNrOfUpdates: 3,
+		},
 	}
 
 	for _, tc := range tt {
@@ -739,9 +755,7 @@ func TestProcessCheckIfMined(t *testing.T) {
 				UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
 					require.Condition(t, func() (success bool) {
 						oneOfHash := hash.IsEqual(testdata.TX1Hash) || hash.IsEqual(testdata.TX2Hash) || hash.IsEqual(testdata.TX3Hash)
-						isBlockHeight := blockHeight == 1234
-						isBlockHash := blockHash.IsEqual(testdata.Block1Hash)
-						return oneOfHash && isBlockHeight && isBlockHash
+						return oneOfHash
 					})
 
 					return tc.updateMinedErr

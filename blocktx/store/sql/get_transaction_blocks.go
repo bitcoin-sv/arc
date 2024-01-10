@@ -16,11 +16,11 @@ const (
 	queryGetBlockHashHeightForTxHashesPostgres = `
 			SELECT
 			b.hash, b.height, t.hash
-			FROM blocks b
-			INNER JOIN block_transactions_map m ON m.blockid = b.id
-			INNER JOIN transactions t ON m.txid = t.id
+			FROM transactions t
+			LEFT JOIN block_transactions_map m ON m.txid = t.id
+			LEFT JOIN blocks b ON m.blockid = b.id
 			WHERE t.hash = ANY($1)
-			AND b.orphanedyn = FALSE`
+			;`
 
 	queryGetBlockHashHeightForTxHashesSQLite = `
 			SELECT
@@ -80,7 +80,7 @@ func (s *SQL) GetTransactionBlocks(ctx context.Context, transactions *blocktx_ap
 
 	for rows.Next() {
 		var BlockHash []byte
-		var BlockHeight uint64
+		var BlockHeight sql.NullInt64
 		var TransactionHash []byte
 		err := rows.Scan(&BlockHash, &BlockHeight, &TransactionHash)
 		if err != nil {
@@ -89,7 +89,7 @@ func (s *SQL) GetTransactionBlocks(ctx context.Context, transactions *blocktx_ap
 
 		newBlockTransaction := &blocktx_api.TransactionBlock{
 			BlockHash:       BlockHash,
-			BlockHeight:     BlockHeight,
+			BlockHeight:     uint64(BlockHeight.Int64),
 			TransactionHash: TransactionHash,
 		}
 

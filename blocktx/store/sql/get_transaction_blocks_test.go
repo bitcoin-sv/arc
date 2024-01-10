@@ -2,12 +2,14 @@ package sql
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
+	"github.com/go-testfixtures/testfixtures/v3"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/blocktx/store"
 	. "github.com/bitcoin-sv/arc/database_testing"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
@@ -19,31 +21,54 @@ type GetTransactionBlocksSuite struct {
 }
 
 func (s *GetTransactionBlocksSuite) Test() {
-	block := GetTestBlock()
-	tx := GetTestTransaction()
-	s.InsertBlock(block)
 
-	s.InsertTransaction(tx)
-
-	s.InsertBlockTransactionMap(&store.BlockTransactionMap{
-		BlockID:       block.ID,
-		TransactionID: tx.ID,
-		Pos:           2,
-	})
-
-	store, err := NewPostgresStore(DefaultParams)
+	db, err := sql.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
-	b, err := store.GetTransactionBlocks(context.Background(), &blocktx_api.Transactions{
+	st := &SQL{db: db, engine: postgresEngine}
+
+	fixtures, err := testfixtures.New(
+		testfixtures.Database(db),
+		testfixtures.Dialect("postgresql"),
+		testfixtures.Directory("fixtures/get_transaction_blocks"), // The directory containing the YAML files
+	)
+	require.NoError(s.T(), err)
+
+	err = fixtures.Load()
+	require.NoError(s.T(), err)
+	ctx := context.Background()
+
+	txHash1, err := chainhash.NewHashFromStr("b0926372c449731ffb84b7d2f808087d4b5e6e26aafee872232bbcd5a5854e16")
+	require.NoError(s.T(), err)
+
+	blockHash, err := chainhash.NewHashFromStr("000000000000000001d29fef90f0f86eb7a99f043b994c7e363e0aa72db05862")
+	require.NoError(s.T(), err)
+
+	b, err := st.GetTransactionBlocks(ctx, &blocktx_api.Transactions{
 		Transactions: []*blocktx_api.Transaction{
 			{
-				Hash: []byte(tx.Hash),
+				Hash: txHash1[:],
 			},
 		},
 	})
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), block.Hash, string(b.GetTransactionBlocks()[0].GetBlockHash()))
-	require.Equal(s.T(), tx.Hash, string(b.GetTransactionBlocks()[0].GetTransactionHash()))
+	require.Equal(s.T(), blockHash[:], b.TransactionBlocks[0].BlockHash)
+	require.Equal(s.T(), uint64(826481), b.TransactionBlocks[0].BlockHeight)
+	require.Equal(s.T(), txHash1[:], b.TransactionBlocks[0].TransactionHash)
+
+	txHash2, err := chainhash.NewHashFromStr("3b8c1676470f44043069f66fdc0d5df9bdad1865a8f03b8da1268359802b7376")
+	require.NoError(s.T(), err)
+	b, err = st.GetTransactionBlocks(ctx, &blocktx_api.Transactions{
+		Transactions: []*blocktx_api.Transaction{
+			{
+				Hash: txHash2[:],
+			},
+		},
+	})
+	require.NoError(s.T(), err)
+	require.Nil(s.T(), b.TransactionBlocks[0].BlockHash)
+	require.Equal(s.T(), uint64(0), b.TransactionBlocks[0].BlockHeight)
+	require.Equal(s.T(), txHash2[:], b.TransactionBlocks[0].TransactionHash)
 }
 
 func TestGetTransactionBlocksIntegration(t *testing.T) {
@@ -93,14 +118,15 @@ func TestGetTransactionBlocks(t *testing.T) {
 			name: "query fails",
 			sqlmockExpectations: func(mock sqlmock.Sqlmock) {
 				query := `
-				SELECT
-				b.hash, b.height, t.hash
-				FROM blocks b
-				INNER JOIN block_transactions_map m ON m.blockid = b.id
-				INNER JOIN transactions t ON m.txid = t.id
-				WHERE t.hash = ANY($1)
-				AND b.orphanedyn = FALSE`
+			SELECT
+			b.hash, b.height, t.hash
+			FROM transactions t
+			LEFT JOIN block_transactions_map m ON m.txid = t.id
+			LEFT JOIN blocks b ON m.blockid = b.id
+			WHERE t.hash = ANY($1)
+			;`
 
+				//SELECT b.hash, b.height, t.hash FROM transactions t LEFT JOIN block_transactions_map m ON m.txid = t.id LEFT JOIN blocks b ON m.blockid = b.id WHERE t.hash = ANY($1)
 				mock.ExpectQuery(query).WillReturnError(errors.New("db connection error"))
 			},
 			expectedErrorStr: "db connection error",
@@ -109,13 +135,13 @@ func TestGetTransactionBlocks(t *testing.T) {
 			name: "scanning fails",
 			sqlmockExpectations: func(mock sqlmock.Sqlmock) {
 				query := `
-				SELECT
-				b.hash, b.height, t.hash
-				FROM blocks b
-				INNER JOIN block_transactions_map m ON m.blockid = b.id
-				INNER JOIN transactions t ON m.txid = t.id
-				WHERE t.hash = ANY($1)
-				AND b.orphanedyn = FALSE`
+			SELECT
+			b.hash, b.height, t.hash
+			FROM transactions t
+			LEFT JOIN block_transactions_map m ON m.txid = t.id
+			LEFT JOIN blocks b ON m.blockid = b.id
+			WHERE t.hash = ANY($1)
+			;`
 
 				mock.ExpectQuery(query).WillReturnRows(
 					sqlmock.NewRows([]string{"hash", "height", "hash"}).AddRow(

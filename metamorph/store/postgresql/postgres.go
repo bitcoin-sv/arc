@@ -504,16 +504,23 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateMined")
 	defer span.Finish()
 
+	var blockHashBytes []byte
+	if blockHash == nil {
+		blockHashBytes = nil
+	} else {
+		blockHashBytes = blockHash[:]
+	}
+
 	q := `
 		UPDATE metamorph.transactions
 		SET status = $1
 			,block_hash = $2
 			,block_height = $3
-			, mined_at = $4
+			,mined_at = $4
 		WHERE hash = $5
 	;`
 
-	_, err := p.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHash[:], blockHeight, p.now().Format(time.RFC3339), hash[:])
+	_, err := p.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHashBytes, blockHeight, p.now().Format(time.RFC3339), hash[:])
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))

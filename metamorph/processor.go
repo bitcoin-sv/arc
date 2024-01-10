@@ -196,7 +196,7 @@ func (p *Processor) processCheckIfMined() {
 		blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
 		if err != nil {
 			p.logger.Error("failed to get transaction blocks from blocktx", slog.String("err", err.Error()))
-			return
+			continue
 		}
 
 		p.logger.Debug("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))

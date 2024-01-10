@@ -472,8 +472,12 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 
 			case metamorph_api.Status_REJECTED:
 				p.logger.Warn("transaction rejected", slog.String("status", status.String()), slog.String("hash", hash.String()))
-
 				p.rejected.AddDuration(source, time.Since(processorResponse.Start))
+				p.ProcessorResponseMap.Delete(hash)
+				data, _ := p.store.Get(spanCtx, hash[:])
+				if data.CallbackUrl != "" {
+					go SendCallback(p.logger, p.store, data)
+				}
 			}
 		},
 	}

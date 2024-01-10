@@ -20,6 +20,7 @@ type ClientI interface {
 	GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*blocktx_api.Block, error)
 	GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, error)
 	GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
+	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error)
 	Health(ctx context.Context) error
 }
 
@@ -62,7 +63,7 @@ func (btc *Client) GetTransactionMerklePath(ctx context.Context, hash *blocktx_a
 	return merklePath.GetMerklePath(), nil
 }
 
-func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
+func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
 	return btc.client.RegisterTransaction(ctx, transaction)
 }
 

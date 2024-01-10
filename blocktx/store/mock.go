@@ -62,7 +62,7 @@ var _ Interface = &InterfaceMock{}
 //			PrimaryBlocktxFunc: func(ctx context.Context) (string, error) {
 //				panic("mock out the PrimaryBlocktx method")
 //			},
-//			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (string, string, []byte, uint64, error) {
+//			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
 //				panic("mock out the RegisterTransaction method")
 //			},
 //			SetOrphanHeightFunc: func(ctx context.Context, height uint64, orphaned bool) error {
@@ -121,7 +121,7 @@ type InterfaceMock struct {
 	PrimaryBlocktxFunc func(ctx context.Context) (string, error)
 
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
-	RegisterTransactionFunc func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (string, string, []byte, uint64, error)
+	RegisterTransactionFunc func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error
 
 	// SetOrphanHeightFunc mocks the SetOrphanHeight method.
 	SetOrphanHeightFunc func(ctx context.Context, height uint64, orphaned bool) error
@@ -776,7 +776,7 @@ func (mock *InterfaceMock) PrimaryBlocktxCalls() []struct {
 }
 
 // RegisterTransaction calls RegisterTransactionFunc.
-func (mock *InterfaceMock) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (string, string, []byte, uint64, error) {
+func (mock *InterfaceMock) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
 	if mock.RegisterTransactionFunc == nil {
 		panic("InterfaceMock.RegisterTransactionFunc: method is nil but Interface.RegisterTransaction was just called")
 	}

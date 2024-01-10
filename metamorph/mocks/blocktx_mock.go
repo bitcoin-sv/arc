@@ -8,6 +8,7 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"sync"
 )
 
@@ -39,6 +40,9 @@ var _ blocktx.ClientI = &ClientIMock{}
 //			HealthFunc: func(ctx context.Context) error {
 //				panic("mock out the Health method")
 //			},
+//			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
+//				panic("mock out the RegisterTransaction method")
+//			},
 //		}
 //
 //		// use mockedClientI in code that requires blocktx.ClientI
@@ -63,6 +67,9 @@ type ClientIMock struct {
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context) error
+
+	// RegisterTransactionFunc mocks the RegisterTransaction method.
+	RegisterTransactionFunc func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -104,6 +111,13 @@ type ClientIMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
+		// RegisterTransaction holds details about calls to the RegisterTransaction method.
+		RegisterTransaction []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Transaction is the transaction argument value.
+			Transaction *blocktx_api.TransactionAndSource
+		}
 	}
 	lockGetBlock                     sync.RWMutex
 	lockGetLastProcessedBlock        sync.RWMutex
@@ -111,6 +125,7 @@ type ClientIMock struct {
 	lockGetTransactionBlocks         sync.RWMutex
 	lockGetTransactionMerklePath     sync.RWMutex
 	lockHealth                       sync.RWMutex
+	lockRegisterTransaction          sync.RWMutex
 }
 
 // GetBlock calls GetBlockFunc.
@@ -318,5 +333,41 @@ func (mock *ClientIMock) HealthCalls() []struct {
 	mock.lockHealth.RLock()
 	calls = mock.calls.Health
 	mock.lockHealth.RUnlock()
+	return calls
+}
+
+// RegisterTransaction calls RegisterTransactionFunc.
+func (mock *ClientIMock) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
+	if mock.RegisterTransactionFunc == nil {
+		panic("ClientIMock.RegisterTransactionFunc: method is nil but ClientI.RegisterTransaction was just called")
+	}
+	callInfo := struct {
+		Ctx         context.Context
+		Transaction *blocktx_api.TransactionAndSource
+	}{
+		Ctx:         ctx,
+		Transaction: transaction,
+	}
+	mock.lockRegisterTransaction.Lock()
+	mock.calls.RegisterTransaction = append(mock.calls.RegisterTransaction, callInfo)
+	mock.lockRegisterTransaction.Unlock()
+	return mock.RegisterTransactionFunc(ctx, transaction)
+}
+
+// RegisterTransactionCalls gets all the calls that were made to RegisterTransaction.
+// Check the length with:
+//
+//	len(mockedClientI.RegisterTransactionCalls())
+func (mock *ClientIMock) RegisterTransactionCalls() []struct {
+	Ctx         context.Context
+	Transaction *blocktx_api.TransactionAndSource
+} {
+	var calls []struct {
+		Ctx         context.Context
+		Transaction *blocktx_api.TransactionAndSource
+	}
+	mock.lockRegisterTransaction.RLock()
+	calls = mock.calls.RegisterTransaction
+	mock.lockRegisterTransaction.RUnlock()
 	return calls
 }

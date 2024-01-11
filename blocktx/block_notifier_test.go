@@ -41,7 +41,7 @@ func TestNewBlockNotifier(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			storeMock := &store.InterfaceMock{
-				GetBlockGapsFunc: func(ctx context.Context) ([]*store.BlockGap, error) {
+				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return []*store.BlockGap{
 						{
 							Height: 822014,

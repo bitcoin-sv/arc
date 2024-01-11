@@ -379,7 +379,7 @@ func TestFillGaps(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			bockChannel := make(chan *blocktx_api.Block, 1)
 			var storeMock = &store.InterfaceMock{
-				GetBlockGapsFunc: func(ctx context.Context) ([]*store.BlockGap, error) {
+				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return tc.blockGaps, tc.getBlockGapsErr
 				},
 				PrimaryBlocktxFunc: func(ctx context.Context) (string, error) {

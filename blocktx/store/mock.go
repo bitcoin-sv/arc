@@ -29,7 +29,7 @@ var _ Interface = &InterfaceMock{}
 //			GetBlockForHeightFunc: func(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
 //				panic("mock out the GetBlockForHeight method")
 //			},
-//			GetBlockGapsFunc: func(ctx context.Context) ([]*BlockGap, error) {
+//			GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*BlockGap, error) {
 //				panic("mock out the GetBlockGaps method")
 //			},
 //			GetBlockTransactionsFunc: func(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error) {
@@ -91,7 +91,7 @@ type InterfaceMock struct {
 	GetBlockForHeightFunc func(ctx context.Context, height uint64) (*blocktx_api.Block, error)
 
 	// GetBlockGapsFunc mocks the GetBlockGaps method.
-	GetBlockGapsFunc func(ctx context.Context) ([]*BlockGap, error)
+	GetBlockGapsFunc func(ctx context.Context, heightRange int) ([]*BlockGap, error)
 
 	// GetBlockTransactionsFunc mocks the GetBlockTransactions method.
 	GetBlockTransactionsFunc func(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error)
@@ -158,6 +158,8 @@ type InterfaceMock struct {
 		GetBlockGaps []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
+			// HeightRange is the heightRange argument value.
+			HeightRange int
 		}
 		// GetBlockTransactions holds details about calls to the GetBlockTransactions method.
 		GetBlockTransactions []struct {
@@ -389,14 +391,16 @@ func (mock *InterfaceMock) GetBlockGaps(ctx context.Context, heightRange int) ([
 		panic("InterfaceMock.GetBlockGapsFunc: method is nil but Interface.GetBlockGaps was just called")
 	}
 	callInfo := struct {
-		Ctx context.Context
+		Ctx         context.Context
+		HeightRange int
 	}{
-		Ctx: ctx,
+		Ctx:         ctx,
+		HeightRange: heightRange,
 	}
 	mock.lockGetBlockGaps.Lock()
 	mock.calls.GetBlockGaps = append(mock.calls.GetBlockGaps, callInfo)
 	mock.lockGetBlockGaps.Unlock()
-	return mock.GetBlockGapsFunc(ctx)
+	return mock.GetBlockGapsFunc(ctx, heightRange)
 }
 
 // GetBlockGapsCalls gets all the calls that were made to GetBlockGaps.
@@ -404,10 +408,12 @@ func (mock *InterfaceMock) GetBlockGaps(ctx context.Context, heightRange int) ([
 //
 //	len(mockedInterface.GetBlockGapsCalls())
 func (mock *InterfaceMock) GetBlockGapsCalls() []struct {
-	Ctx context.Context
+	Ctx         context.Context
+	HeightRange int
 } {
 	var calls []struct {
-		Ctx context.Context
+		Ctx         context.Context
+		HeightRange int
 	}
 	mock.lockGetBlockGaps.RLock()
 	calls = mock.calls.GetBlockGaps

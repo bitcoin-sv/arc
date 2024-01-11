@@ -200,17 +200,15 @@ func (p *Processor) processCheckIfMined() {
 			transactions.Transactions = txs
 		}
 
-		if p.checkIfMined(transactions) {
-			return
-		}
+		p.checkIfMined(transactions)
 	}
 }
 
-func (p *Processor) checkIfMined(transactions *blocktx_api.Transactions) bool {
+func (p *Processor) checkIfMined(transactions *blocktx_api.Transactions) {
 	blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
 	if err != nil {
 		p.logger.Error("failed to get transaction blocks from blocktx", slog.String("err", err.Error()))
-		return true
+		return
 	}
 
 	p.logger.Info("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))
@@ -238,7 +236,6 @@ func (p *Processor) checkIfMined(transactions *blocktx_api.Transactions) bool {
 			p.logger.Error("failed to send status mined for tx", slog.String("err", err.Error()))
 		}
 	}
-	return false
 }
 
 func (p *Processor) processExpiredTransactions() {
@@ -336,10 +333,7 @@ func (p *Processor) LoadUnmined() {
 		transactions.Transactions = txs
 	}
 
-	// check if mined
-	if p.checkIfMined(transactions) {
-		return
-	}
+	p.checkIfMined(transactions)
 }
 
 func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error) {

@@ -217,6 +217,8 @@ type MetamorphStore interface {
 	Close(ctx context.Context) error
 	GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error)
 	SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) error
+
+	Ping(ctx context.Context) error
 }
 
 func encodeTime(buf *bytes.Buffer, tm time.Time) error {

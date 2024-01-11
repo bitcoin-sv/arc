@@ -27,8 +27,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const source = "localhost:8000"
-
 //go:generate moq -pkg mocks -out ./mocks/processor_mock.go . ProcessorI
 //go:generate moq -pkg mocks -out ./mocks/bitcon_mock.go . BitcoinNode
 
@@ -72,7 +70,7 @@ func setStoreTestData(t *testing.T, s store.MetamorphStore) {
 
 func TestNewServer(t *testing.T) {
 	t.Run("NewServer", func(t *testing.T) {
-		server := NewServer(nil, nil, nil, source)
+		server := NewServer(nil, nil, nil)
 		assert.IsType(t, &Server{}, server)
 	})
 }
@@ -99,7 +97,7 @@ func TestHealth(t *testing.T) {
 			return []string{"peer1"}, []string{}
 		}
 
-		server := NewServer(nil, processor, nil, source)
+		server := NewServer(nil, processor, nil)
 		stats, err := server.Health(context.Background(), &emptypb.Empty{})
 		assert.NoError(t, err)
 		assert.Equal(t, expectedStats.ChannelMapSize, stats.GetMapSize())
@@ -119,7 +117,7 @@ func TestPutTransaction(t *testing.T) {
 
 		client := &ClientIMock{}
 
-		server := NewServer(s, processor, client, source)
+		server := NewServer(s, processor, client)
 		server.SetTimeout(100 * time.Millisecond)
 
 		var txStatus *metamorph_api.TransactionStatus
@@ -143,7 +141,7 @@ func TestPutTransaction(t *testing.T) {
 	})
 
 	t.Run("invalid request", func(t *testing.T) {
-		server := NewServer(nil, nil, nil, source)
+		server := NewServer(nil, nil, nil)
 
 		txRequest := &metamorph_api.TransactionRequest{
 			CallbackUrl: "api.callback.com",
@@ -160,7 +158,7 @@ func TestPutTransaction(t *testing.T) {
 		processor := &ProcessorIMock{}
 		btc := &ClientIMock{}
 
-		server := NewServer(s, processor, btc, source)
+		server := NewServer(s, processor, btc)
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
@@ -187,7 +185,7 @@ func TestPutTransaction(t *testing.T) {
 		processor := &ProcessorIMock{}
 		btc := &ClientIMock{}
 
-		server := NewServer(s, processor, btc, source)
+		server := NewServer(s, processor, btc)
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
@@ -316,7 +314,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				},
 			}
 
-			server := NewServer(metamorphStore, nil, client, source)
+			server := NewServer(metamorphStore, nil, client)
 			got, err := server.GetTransactionStatus(context.Background(), tt.req)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetTransactionStatus(%v)", tt.req)) {
 				return
@@ -564,7 +562,7 @@ func TestPutTransactions(t *testing.T) {
 			}
 
 			serverLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			server := NewServer(nil, processor, nil, source, WithLogger(serverLogger))
+			server := NewServer(nil, processor, nil, WithLogger(serverLogger))
 
 			server.SetTimeout(5 * time.Second)
 			statuses, err := server.PutTransactions(context.Background(), tc.requests)
@@ -623,7 +621,7 @@ func TestSetUnlockedbyName(t *testing.T) {
 				},
 			}
 
-			server := NewServer(metamorphStore, nil, nil, source)
+			server := NewServer(metamorphStore, nil, nil)
 			response, err := server.SetUnlockedByName(context.Background(), &metamorph_api.SetUnlockedByNameRequest{
 				Name: "test",
 			})
@@ -666,7 +664,7 @@ func TestStartGRPCServer(t *testing.T) {
 			processor := &ProcessorIMock{
 				ShutdownFunc: func() {},
 			}
-			server := NewServer(metamorphStore, processor, btc, source)
+			server := NewServer(metamorphStore, processor, btc)
 
 			go func() {
 				err := server.StartGRPCServer("localhost:7000", 10000)

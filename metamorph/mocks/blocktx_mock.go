@@ -39,6 +39,9 @@ var _ blocktx.ClientI = &ClientIMock{}
 //			GetTransactionMerklePathFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
 //				panic("mock out the GetTransactionMerklePath method")
 //			},
+//			HealthFunc: func(ctx context.Context) error {
+//				panic("mock out the Health method")
+//			},
 //		}
 //
 //		// use mockedClientI in code that requires blocktx.ClientI
@@ -63,6 +66,9 @@ type ClientIMock struct {
 
 	// GetTransactionMerklePathFunc mocks the GetTransactionMerklePath method.
 	GetTransactionMerklePathFunc func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
+
+	// HealthFunc mocks the Health method.
+	HealthFunc func(ctx context.Context) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -106,6 +112,11 @@ type ClientIMock struct {
 			// Transaction is the transaction argument value.
 			Transaction *blocktx_api.Transaction
 		}
+		// Health holds details about calls to the Health method.
+		Health []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
 	}
 	lockGetBlock                     sync.RWMutex
 	lockGetLastProcessedBlock        sync.RWMutex
@@ -113,6 +124,7 @@ type ClientIMock struct {
 	lockGetTransactionBlock          sync.RWMutex
 	lockGetTransactionBlocks         sync.RWMutex
 	lockGetTransactionMerklePath     sync.RWMutex
+	lockHealth                       sync.RWMutex
 }
 
 // GetBlock calls GetBlockFunc.
@@ -324,5 +336,37 @@ func (mock *ClientIMock) GetTransactionMerklePathCalls() []struct {
 	mock.lockGetTransactionMerklePath.RLock()
 	calls = mock.calls.GetTransactionMerklePath
 	mock.lockGetTransactionMerklePath.RUnlock()
+	return calls
+}
+
+// Health calls HealthFunc.
+func (mock *ClientIMock) Health(ctx context.Context) error {
+	if mock.HealthFunc == nil {
+		panic("ClientIMock.HealthFunc: method is nil but ClientI.Health was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockHealth.Lock()
+	mock.calls.Health = append(mock.calls.Health, callInfo)
+	mock.lockHealth.Unlock()
+	return mock.HealthFunc(ctx)
+}
+
+// HealthCalls gets all the calls that were made to Health.
+// Check the length with:
+//
+//	len(mockedClientI.HealthCalls())
+func (mock *ClientIMock) HealthCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockHealth.RLock()
+	calls = mock.calls.Health
+	mock.lockHealth.RUnlock()
 	return calls
 }

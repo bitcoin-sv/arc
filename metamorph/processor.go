@@ -199,7 +199,7 @@ func (p *Processor) processCheckIfMined() {
 			continue
 		}
 
-		p.logger.Debug("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))
+		p.logger.Info("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))
 
 		for _, blockTxs := range blockTransactions.GetTransactionBlocks() {
 			var blockHashString string
@@ -505,4 +505,13 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 			})
 		},
 	})
+}
+
+func (p *Processor) Health() error {
+	connected, _ := p.GetPeers()
+	if len(connected) == 0 {
+		return errors.New("no connection to any peers")
+	}
+
+	return nil
 }

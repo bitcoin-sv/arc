@@ -59,6 +59,7 @@ type ProcessorI interface {
 	GetStats(debugItems bool) *ProcessorStats
 	GetPeers() ([]string, []string)
 	Shutdown()
+	Health() error
 }
 
 // Server type carries the zmqLogger within it
@@ -70,7 +71,6 @@ type Server struct {
 	timeout         time.Duration
 	grpcServer      *grpc.Server
 	btc             blocktx.ClientI
-	source          string
 	bitcoinNode     BitcoinNode
 	forceCheckUtxos bool
 	blocktxTimeout  time.Duration
@@ -98,14 +98,13 @@ func WithForceCheckUtxos(bitcoinNode BitcoinNode) func(*Server) {
 type ServerOption func(s *Server)
 
 // NewServer will return a server instance with the zmqLogger stored within it
-func NewServer(s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI, source string, opts ...ServerOption) *Server {
+func NewServer(s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI, opts ...ServerOption) *Server {
 	server := &Server{
 		logger:          slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm")),
 		processor:       p,
 		store:           s,
 		timeout:         responseTimeout,
 		btc:             btc,
-		source:          source,
 		forceCheckUtxos: false,
 		blocktxTimeout:  blocktxTimeout,
 	}

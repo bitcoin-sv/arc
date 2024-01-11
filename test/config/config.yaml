@@ -58,6 +58,7 @@ metamorph:
   profilerAddr: localhost:9992 # address to start profiler server on
   checkIfMinedInterval: 1s
   healthServerDialAddr: localhost:8005
+  loadUnminedPeriod: 2m
 
 blocktx:
   listenAddr: 0.0.0.0:8011 # address space for blocktx to listen on. Can be for example localhost:8011 or :8011 for listening on all addresses

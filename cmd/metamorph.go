@@ -34,12 +34,11 @@ import (
 )
 
 const (
-	DbModeBadger     = "badger"
-	DbModeDynamoDB   = "dynamodb"
-	DbModePostgres   = "postgres"
-	DbModeSQLiteM    = "sqlite_memory"
-	DbModeSQLite     = "sqlite"
-	unminedTxsPeriod = 2 * time.Minute
+	DbModeBadger   = "badger"
+	DbModeDynamoDB = "dynamodb"
+	DbModePostgres = "postgres"
+	DbModeSQLiteM  = "sqlite_memory"
+	DbModeSQLite   = "sqlite"
 )
 
 func StartMetamorph(logger *slog.Logger) (func(), error) {
@@ -136,8 +135,14 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		// that can be deferred to reset the TTY when the program exits.
 		defer metamorphProcessor.PrintStatsOnKeypress()()
 	}
-	ticker := time.NewTimer(unminedTxsPeriod) // Todo: configuration setting
-	stopUnminedProcessor := make(chan bool)
+
+	unminedTxsPeriod, err := config.GetDuration("metamorph.loadUnminedPeriod")
+	if err != nil {
+		return nil, err
+	}
+
+	ticker := time.NewTimer(unminedTxsPeriod)
+	stopUnminedProcessor := make(chan struct{})
 
 	go func() {
 		for {
@@ -250,7 +255,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	return func() {
 		logger.Info("Shutting down metamorph")
 
-		stopUnminedProcessor <- true
+		stopUnminedProcessor <- struct{}{}
 		metamorphProcessor.Shutdown()
 		err = s.Close(context.Background())
 		if err != nil {

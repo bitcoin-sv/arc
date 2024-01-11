@@ -298,7 +298,8 @@ func (p *Processor) LoadUnmined() {
 
 	unminedTxs, err := p.store.GetUnmined(spanCtx, p.now().Add(-1*p.mapExpiryTime))
 	if err != nil {
-		p.logger.Error("Failed to iterate through stored transactions", slog.String("err", err.Error()))
+		p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
+		return
 	}
 
 	transactions := &blocktx_api.Transactions{}

@@ -46,3 +46,9 @@ func WithDataRetentionPeriod(d time.Duration) func(*Processor) {
 		p.dataRetentionPeriod = d
 	}
 }
+
+func WithMaxMonitoredTxs(m int64) func(processor *Processor) {
+	return func(p *Processor) {
+		p.maxMonitoredTxs = m
+	}
+}

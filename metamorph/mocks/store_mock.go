@@ -363,7 +363,7 @@ func (mock *MetamorphStoreMock) GetBlockProcessedCalls() []struct {
 }
 
 // GetUnmined calls GetUnminedFunc.
-func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time) ([]*store.StoreData, error) {
+func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 	if mock.GetUnminedFunc == nil {
 		panic("MetamorphStoreMock.GetUnminedFunc: method is nil but MetamorphStore.GetUnmined was just called")
 	}

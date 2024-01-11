@@ -38,6 +38,9 @@ const (
 
 	failedToUpdateStatus       = "Failed to update status"
 	dataRetentionPeriodDefault = 14 * 24 * time.Hour // 14 days
+
+	maxMonitoriedTxs = 100000
+	loadUnminedLimit = int64(5000)
 )
 
 type Processor struct {
@@ -55,6 +58,8 @@ type Processor struct {
 	processCheckIfMinedTicker   *time.Ticker
 
 	processExpiredTxsTicker *time.Ticker
+
+	maxMonitoredTxs int64
 
 	startTime          time.Time
 	queueLength        atomic.Int32
@@ -92,6 +97,8 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, btc blocktx.Clien
 		processExpiredTxsTicker: time.NewTicker(unseenTransactionRebroadcastingInterval * time.Second),
 
 		processCheckIfMinedInterval: processCheckIfMinedIntervalDefault,
+
+		maxMonitoredTxs: maxMonitoriedTxs,
 
 		stored:             stat.NewAtomicStat(),
 		announcedToNetwork: stat.NewAtomicStats(),
@@ -296,7 +303,20 @@ func (p *Processor) LoadUnmined() {
 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:LoadUnmined")
 	defer span.Finish()
 
-	unminedTxs, err := p.store.GetUnmined(spanCtx, p.now().Add(-1*p.mapExpiryTime))
+	limit := loadUnminedLimit
+	margin := p.maxMonitoredTxs - int64(len(p.ProcessorResponseMap.Items()))
+
+	if margin < limit {
+		limit = margin
+	}
+
+	if limit <= 0 {
+		return
+	}
+
+	p.logger.Info("loading unmined transactions", slog.Int64("limit", limit))
+
+	unminedTxs, err := p.store.GetUnmined(spanCtx, p.now().Add(-1*p.mapExpiryTime), limit)
 	if err != nil {
 		p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
 		return

@@ -107,6 +107,10 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
+	maxMonitoredTxs, err := config.GetInt64("metamorph.maxMonitoredTxs")
+	if err != nil {
+		return nil, err
+	}
 
 	metamorphProcessor, err := metamorph.NewProcessor(
 		s,
@@ -117,6 +121,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithLogFilePath(viper.GetString("metamorph.log.file")),
 		metamorph.WithDataRetentionPeriod(time.Duration(dataRetentionDays)*24*time.Hour),
 		metamorph.WithProcessCheckIfMinedInterval(checkIfMinedInterval),
+		metamorph.WithMaxMonitoredTxs(maxMonitoredTxs),
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)

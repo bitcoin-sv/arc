@@ -62,6 +62,7 @@ metamorph:
   checkIfMinedInterval: 1m
   healthServerDialAddr: localhost:8005
   loadUnminedPeriod: 2m
+  maxMonitoredTxs: 100000
 
 blocktx:
   listenAddr: localhost:8011 # address space for blocktx to listen on. Can be for example localhost:8011 or :8011 for listening on all addresses

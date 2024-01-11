@@ -348,7 +348,7 @@ func (s *SqLite) Set(ctx context.Context, _ []byte, value *store.StoreData) erro
 	return err
 }
 
-func (s *SqLite) GetUnmined(ctx context.Context, since time.Time) ([]*store.StoreData, error) {
+func (s *SqLite) GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("getunmined").AddTime(startNanos)

@@ -277,7 +277,7 @@ func (s *Badger) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHas
 }
 
 // GetUnmined returns all transactions that have not been mined
-func (s *Badger) GetUnmined(ctx context.Context, since time.Time) ([]*store.StoreData, error) {
+func (s *Badger) GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("mtm_store_badger").NewStat("GetUnmined").AddTime(start)

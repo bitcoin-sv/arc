@@ -20,7 +20,6 @@ import (
 const (
 	postgresDriverName      = "postgres"
 	numericalDateHourLayout = "2006010215"
-	loadLimit               = 20000
 )
 
 type PostgreSQL struct {
@@ -322,7 +321,7 @@ func (p *PostgreSQL) setLockedBy(ctx context.Context, hash *chainhash.Hash, lock
 	return nil
 }
 
-func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time) ([]*store.StoreData, error) {
+func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 	startNanos := p.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("getunmined").AddTime(startNanos)
@@ -350,7 +349,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time) ([]*store.
 		ORDER BY inserted_at_num DESC
 		LIMIT $4;`
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout), loadLimit)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout), limit)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))

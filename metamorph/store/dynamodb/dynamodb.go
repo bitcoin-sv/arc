@@ -400,7 +400,7 @@ func (ddb *DynamoDB) setLockedBy(ctx context.Context, hash *chainhash.Hash, lock
 	return nil
 }
 
-func (ddb *DynamoDB) GetUnmined(ctx context.Context, since time.Time) ([]*store.StoreData, error) {
+func (ddb *DynamoDB) GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 	// setup log and tracing
 	startNanos := ddb.now().UnixNano()
 	defer func() {

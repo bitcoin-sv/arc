@@ -191,7 +191,7 @@ func TestPostgresDB(t *testing.T) {
 
 		expectedHash, err := chainhash.NewHashFromStr("57438c4340b9a5e0d77120d999765589048f6f2dd49a6325cdf14356fc4cc012")
 		require.NoError(t, err)
-		records, err := postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC))
+		records, err := postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 0)
 		require.NoError(t, err)
 		require.Equal(t, expectedHash, records[0].Hash)
 

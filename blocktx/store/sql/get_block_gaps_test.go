@@ -45,7 +45,7 @@ func (s *GetBlockGapTestSuite) Test() {
 
 	expectedBlockGaps := []*store.BlockGap{
 		{
-			Height: 8220119,
+			Height: 822019,
 			Hash:   hash822019,
 		},
 		{

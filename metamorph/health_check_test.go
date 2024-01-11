@@ -17,6 +17,7 @@ func TestCheck(t *testing.T) {
 		service            string
 		pingErr            error
 		processorHealthErr error
+		clientHealthErr    error
 
 		expectedStatus grpc_health_v1.HealthCheckResponse_ServingStatus
 	}{
@@ -46,6 +47,13 @@ func TestCheck(t *testing.T) {
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 		},
+		{
+			name:            "readiness - unhealthy blocktx client connection",
+			service:         "readiness",
+			clientHealthErr: errors.New("unhealthy blocktx client connection"),
+
+			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
+		},
 	}
 
 	for _, tc := range tt {
@@ -67,7 +75,13 @@ func TestCheck(t *testing.T) {
 				},
 			}
 
-			server := metamorph.NewServer(metamorphStore, processor, nil)
+			btx := &mocks.ClientIMock{
+				HealthFunc: func(ctx context.Context) error {
+					return tc.clientHealthErr
+				},
+			}
+
+			server := metamorph.NewServer(metamorphStore, processor, btx)
 
 			resp, err := server.Check(context.Background(), req)
 			require.NoError(t, err)
@@ -83,6 +97,7 @@ func TestWatch(t *testing.T) {
 		service            string
 		pingErr            error
 		processorHealthErr error
+		clientHealthErr    error
 
 		expectedStatus grpc_health_v1.HealthCheckResponse_ServingStatus
 	}{
@@ -112,6 +127,13 @@ func TestWatch(t *testing.T) {
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 		},
+		{
+			name:            "readiness - unhealthy blocktx client connection",
+			service:         "readiness",
+			clientHealthErr: errors.New("unhealthy blocktx client connection"),
+
+			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
+		},
 	}
 
 	for _, tc := range tt {
@@ -133,7 +155,13 @@ func TestWatch(t *testing.T) {
 				},
 			}
 
-			server := metamorph.NewServer(metamorphStore, processor, nil)
+			btx := &mocks.ClientIMock{
+				HealthFunc: func(ctx context.Context) error {
+					return tc.clientHealthErr
+				},
+			}
+
+			server := metamorph.NewServer(metamorphStore, processor, btx)
 
 			watchServer := &mocks.HealthWatchServerMock{
 				SendFunc: func(healthCheckResponse *grpc_health_v1.HealthCheckResponse) error {

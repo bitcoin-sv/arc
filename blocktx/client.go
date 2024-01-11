@@ -21,6 +21,7 @@ type ClientI interface {
 	GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*blocktx_api.Block, error)
 	GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, error)
 	GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
+	Health(ctx context.Context) error
 }
 
 const (
@@ -114,6 +115,15 @@ func (btc *Client) GetMinedTransactionsForBlock(ctx context.Context, blockAndSou
 	}
 
 	return mt, nil
+}
+
+func (btc *Client) Health(ctx context.Context) error {
+	_, err := btc.client.Health(ctx, &emptypb.Empty{})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func DialGRPC(address string) (*grpc.ClientConn, error) {

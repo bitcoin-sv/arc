@@ -25,6 +25,7 @@ const (
 	lockedByAttributeKey         = ":locked_by"
 	txStatusAttributeKey         = ":tx_status"
 	txStatusAttributeKeyOrphaned = ":tx_orphaned"
+	dateSinceKey                 = ":date_since"
 	blockHeightAttributeKey      = ":block_height"
 	blockHashAttributeKey        = ":block_hash"
 	rejectReasonAttributeKey     = ":reject_reason"
@@ -414,12 +415,14 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, since time.Time, limit int6
 		TableName:              aws.String(ddb.transactionsTableName),
 		IndexName:              aws.String("locked_by_index"),
 		KeyConditionExpression: aws.String(fmt.Sprintf("locked_by = %s", lockedByAttributeKey)),
-		FilterExpression:       aws.String(fmt.Sprintf("tx_status < %s or tx_status = %s", txStatusAttributeKey, txStatusAttributeKeyOrphaned)),
+		FilterExpression:       aws.String(fmt.Sprintf("(tx_status < %s or tx_status = %s) and stored_at >= %s", txStatusAttributeKey, txStatusAttributeKeyOrphaned, dateSinceKey)),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			lockedByAttributeKey:         &types.AttributeValueMemberS{Value: lockedByNone},
 			txStatusAttributeKey:         &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
 			txStatusAttributeKeyOrphaned: &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL))},
+			dateSinceKey:                 &types.AttributeValueMemberS{Value: since.Format(time.DateOnly)},
 		},
+		Limit: aws.Int32(int32(limit)),
 	})
 	if err != nil {
 		span.SetTag(string(ext.Error), true)

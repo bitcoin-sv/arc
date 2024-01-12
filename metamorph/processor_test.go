@@ -183,67 +183,105 @@ func TestLoadUnmined(t *testing.T) {
 }
 
 func TestProcessTransaction(t *testing.T) {
-	t.Run("ProcessTransaction", func(t *testing.T) {
-		s := &MetamorphStoreMock{
-			GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-				require.Equal(t, testdata.TX1Hash[:], key)
+	tt := []struct {
+		name            string
+		storeData       *store.StoreData
+		storeDataGetErr error
 
-				return nil, store.ErrNotFound
+		expectedResponseMapItems int
+		expectedResponses        []metamorph_api.Status
+		expectedSetCalls         int
+	}{
+		{
+			name:            "record not found",
+			storeData:       nil,
+			storeDataGetErr: store.ErrNotFound,
+
+			expectedResponses: []metamorph_api.Status{
+				metamorph_api.Status_RECEIVED,
+				metamorph_api.Status_STORED,
+				metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			},
-			SetFunc: func(ctx context.Context, key []byte, value *store.StoreData) error {
-				require.Equal(t, testdata.TX1Hash[:], key)
-
-				return nil
+			expectedResponseMapItems: 1,
+			expectedSetCalls:         1,
+		},
+		{
+			name: "record found",
+			storeData: &store.StoreData{
+				Hash:         testdata.TX1Hash,
+				Status:       metamorph_api.Status_REJECTED,
+				RejectReason: "missing inputs",
 			},
-			UpdateStatusFunc: func(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
-				require.Equal(t, testdata.TX1Hash, hash)
+			storeDataGetErr: nil,
 
-				return nil
+			expectedResponses: []metamorph_api.Status{
+				metamorph_api.Status_REJECTED,
 			},
-		}
-		pm := p2p.NewPeerManagerMock()
+			expectedSetCalls: 0,
+		},
+	}
 
-		processor, err := NewProcessor(s, pm, nil)
-		require.NoError(t, err)
-		require.Equal(t, 0, processor.ProcessorResponseMap.Len())
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					require.Equal(t, testdata.TX1Hash[:], key)
 
-		expectedResponses := []metamorph_api.Status{
-			metamorph_api.Status_RECEIVED,
-			metamorph_api.Status_STORED,
-			metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-		}
+					return tc.storeData, tc.storeDataGetErr
+				},
+				SetFunc: func(ctx context.Context, key []byte, value *store.StoreData) error {
+					require.Equal(t, testdata.TX1Hash[:], key)
 
-		responseChannel := make(chan processor_response.StatusAndError)
+					return nil
+				},
+				UpdateStatusFunc: func(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
+					require.Equal(t, testdata.TX1Hash, hash)
 
-		var wg sync.WaitGroup
-		wg.Add(len(expectedResponses))
-		go func() {
-			n := 0
-			for response := range responseChannel {
-				status := response.Status
-				require.Equal(t, testdata.TX1Hash, response.Hash)
-				require.Equalf(t, expectedResponses[n], status, "Iteration %d: Expected %s, got %s", n, expectedResponses[n].String(), status.String())
-				wg.Done()
-				n++
+					return nil
+				},
 			}
-		}()
+			pm := p2p.NewPeerManagerMock()
 
-		processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
-			Data: &store.StoreData{
-				Hash: testdata.TX1Hash,
-			},
-			ResponseChannel: responseChannel,
+			processor, err := NewProcessor(s, pm, nil)
+			require.NoError(t, err)
+			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
+
+			responseChannel := make(chan processor_response.StatusAndError)
+
+			var wg sync.WaitGroup
+			wg.Add(len(tc.expectedResponses))
+			go func() {
+				n := 0
+				for response := range responseChannel {
+					status := response.Status
+					require.Equal(t, testdata.TX1Hash, response.Hash)
+					require.Equalf(t, tc.expectedResponses[n], status, "Iteration %d: Expected %s, got %s", n, tc.expectedResponses[n].String(), status.String())
+					wg.Done()
+					n++
+				}
+			}()
+
+			processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
+				Data: &store.StoreData{
+					Hash: testdata.TX1Hash,
+				},
+				ResponseChannel: responseChannel,
+			})
+			wg.Wait()
+
+			if tc.expectedResponseMapItems > 0 {
+				require.Equal(t, tc.expectedResponseMapItems, processor.ProcessorResponseMap.Len())
+				items := processor.ProcessorResponseMap.Items()
+				require.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
+				require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[*testdata.TX1Hash].Status)
+
+				require.Len(t, pm.AnnouncedTransactions, 1)
+				require.Equal(t, testdata.TX1Hash, pm.AnnouncedTransactions[0])
+			}
+
+			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
 		})
-		wg.Wait()
-
-		require.Equal(t, 1, processor.ProcessorResponseMap.Len())
-		items := processor.ProcessorResponseMap.Items()
-		require.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
-		require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[*testdata.TX1Hash].Status)
-
-		require.Len(t, pm.AnnouncedTransactions, 1)
-		require.Equal(t, testdata.TX1Hash, pm.AnnouncedTransactions[0])
-	})
+	}
 }
 
 func Benchmark_ProcessTransaction(b *testing.B) {

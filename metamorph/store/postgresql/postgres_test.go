@@ -181,6 +181,11 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("get - not found", func(t *testing.T) {
+		_, err := postgresDB.Get(ctx, []byte("not to be found"))
+		require.True(t, errors.Is(err, store.ErrNotFound))
+	})
+
 	t.Run("remove callback url", func(t *testing.T) {
 		err = postgresDB.RemoveCallbacker(ctx, minedHash)
 		require.NoError(t, err)

@@ -34,7 +34,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetBlockProcessedFunc: func(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
 //				panic("mock out the GetBlockProcessed method")
 //			},
-//			GetUnminedFunc: func(ctx context.Context, since time.Time) ([]*store.StoreData, error) {
+//			GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 //				panic("mock out the GetUnmined method")
 //			},
 //			PingFunc: func(ctx context.Context) error {
@@ -81,7 +81,7 @@ type MetamorphStoreMock struct {
 	GetBlockProcessedFunc func(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error)
 
 	// GetUnminedFunc mocks the GetUnmined method.
-	GetUnminedFunc func(ctx context.Context, since time.Time) ([]*store.StoreData, error)
+	GetUnminedFunc func(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error)
 
 	// PingFunc mocks the Ping method.
 	PingFunc func(ctx context.Context) error
@@ -141,6 +141,8 @@ type MetamorphStoreMock struct {
 			Ctx context.Context
 			// Since is the since argument value.
 			Since time.Time
+			// Limit is the limit argument value.
+			Limit int64
 		}
 		// Ping holds details about calls to the Ping method.
 		Ping []struct {
@@ -370,14 +372,16 @@ func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time,
 	callInfo := struct {
 		Ctx   context.Context
 		Since time.Time
+		Limit int64
 	}{
 		Ctx:   ctx,
 		Since: since,
+		Limit: limit,
 	}
 	mock.lockGetUnmined.Lock()
 	mock.calls.GetUnmined = append(mock.calls.GetUnmined, callInfo)
 	mock.lockGetUnmined.Unlock()
-	return mock.GetUnminedFunc(ctx, since)
+	return mock.GetUnminedFunc(ctx, since, limit)
 }
 
 // GetUnminedCalls gets all the calls that were made to GetUnmined.
@@ -387,10 +391,12 @@ func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time,
 func (mock *MetamorphStoreMock) GetUnminedCalls() []struct {
 	Ctx   context.Context
 	Since time.Time
+	Limit int64
 } {
 	var calls []struct {
 		Ctx   context.Context
 		Since time.Time
+		Limit int64
 	}
 	mock.lockGetUnmined.RLock()
 	calls = mock.calls.GetUnmined

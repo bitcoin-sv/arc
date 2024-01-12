@@ -103,16 +103,17 @@ func TestLoadUnmined(t *testing.T) {
 		name              string
 		storedData        []*store.StoreData
 		transactionBlocks *blocktx_api.TransactionBlocks
+		maxMonitoredTxs   int64
 		getUnminedErr     error
 
-		expectedGetTransactionBlocks int
-		expectedItemTxHashesFinal    []*chainhash.Hash
+		expectedGetTransactionBlocksCalls int
+		expectedItemTxHashesFinal         []*chainhash.Hash
 	}{
 		{
 			name: "no unmined transactions loaded",
 
-			expectedGetTransactionBlocks: 0,
-			expectedItemTxHashesFinal:    []*chainhash.Hash{},
+			expectedGetTransactionBlocksCalls: 0,
+			expectedItemTxHashesFinal:         []*chainhash.Hash{testdata.TX3Hash, testdata.TX4Hash},
 		},
 		{
 			name: "load 2 unmined transactions, none mined",
@@ -135,16 +136,39 @@ func TestLoadUnmined(t *testing.T) {
 				BlockHeight:     0,
 				TransactionHash: nil,
 			}}},
+			maxMonitoredTxs: 5,
 
-			expectedGetTransactionBlocks: 1,
-			expectedItemTxHashesFinal:    []*chainhash.Hash{testdata.TX1Hash, testdata.TX2Hash},
+			expectedGetTransactionBlocksCalls: 1,
+			expectedItemTxHashesFinal:         []*chainhash.Hash{testdata.TX1Hash, testdata.TX2Hash, testdata.TX3Hash, testdata.TX4Hash},
 		},
 		{
-			name:          "load 2 unmined transactions, failed to get unmined",
-			storedData:    []*store.StoreData{},
-			getUnminedErr: errors.New("failed to get unmined"),
+			name:            "load 2 unmined transactions, failed to get unmined",
+			storedData:      []*store.StoreData{},
+			getUnminedErr:   errors.New("failed to get unmined"),
+			maxMonitoredTxs: 5,
 
-			expectedItemTxHashesFinal: []*chainhash.Hash{},
+			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX3Hash, testdata.TX4Hash},
+		},
+		{
+			name: "load 2 unmined transactions, limit reached",
+			storedData: []*store.StoreData{
+				{
+					StoredAt:    storedAt,
+					AnnouncedAt: storedAt.Add(1 * time.Second),
+					Hash:        testdata.TX1Hash,
+					Status:      metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+				},
+				{
+					StoredAt:    storedAt,
+					AnnouncedAt: storedAt.Add(1 * time.Second),
+					Hash:        testdata.TX2Hash,
+					Status:      metamorph_api.Status_STORED,
+				},
+			},
+			maxMonitoredTxs: 1,
+
+			expectedGetTransactionBlocksCalls: 0,
+			expectedItemTxHashesFinal:         []*chainhash.Hash{testdata.TX3Hash, testdata.TX4Hash},
 		},
 	}
 
@@ -154,7 +178,7 @@ func TestLoadUnmined(t *testing.T) {
 
 			mtmStore := &MetamorphStoreMock{
 				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
-					return tc.storedData, nil
+					return tc.storedData, tc.getUnminedErr
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
 					require.ElementsMatch(t, tc.expectedItemTxHashesFinal, hashes)
@@ -177,17 +201,22 @@ func TestLoadUnmined(t *testing.T) {
 					return storedAt.Add(1 * time.Hour)
 				}),
 				WithDataRetentionPeriod(time.Hour*24),
+				WithMaxMonitoredTxs(tc.maxMonitoredTxs),
 			)
 			require.NoError(t, err)
 			defer processor.Shutdown()
 			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
+
+			processor.ProcessorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK))
+			processor.ProcessorResponseMap.Set(testdata.TX4Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX4Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK))
+
 			processor.LoadUnmined()
 
 			time.Sleep(time.Millisecond * 200)
 
 			allItemHashes := make([]*chainhash.Hash, 0, len(processor.ProcessorResponseMap.Items()))
 
-			require.Equal(t, tc.expectedGetTransactionBlocks, len(btc.GetTransactionBlocksCalls()))
+			require.Equal(t, tc.expectedGetTransactionBlocksCalls, len(btc.GetTransactionBlocksCalls()))
 
 			for i, item := range processor.ProcessorResponseMap.Items() {
 				require.Equal(t, i, *item.Hash)

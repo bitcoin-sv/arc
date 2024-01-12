@@ -100,14 +100,19 @@ func TestLoadUnmined(t *testing.T) {
 	storedAt := time.Date(2023, 10, 3, 5, 0, 0, 0, time.UTC)
 
 	tt := []struct {
-		name          string
-		storedData    []*store.StoreData
-		getUnminedErr error
+		name              string
+		storedData        []*store.StoreData
+		transactionBlocks *blocktx_api.TransactionBlocks
+		getUnminedErr     error
 
-		expectedItemTxHashesFinal []*chainhash.Hash
+		expectedGetTransactionBlocks int
+		expectedItemTxHashesFinal    []*chainhash.Hash
 	}{
 		{
 			name: "no unmined transactions loaded",
+
+			expectedGetTransactionBlocks: 0,
+			expectedItemTxHashesFinal:    []*chainhash.Hash{},
 		},
 		{
 			name: "load 2 unmined transactions, none mined",
@@ -125,8 +130,14 @@ func TestLoadUnmined(t *testing.T) {
 					Status:      metamorph_api.Status_STORED,
 				},
 			},
+			transactionBlocks: &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{{
+				BlockHash:       nil,
+				BlockHeight:     0,
+				TransactionHash: nil,
+			}}},
 
-			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX1Hash, testdata.TX2Hash},
+			expectedGetTransactionBlocks: 1,
+			expectedItemTxHashesFinal:    []*chainhash.Hash{testdata.TX1Hash, testdata.TX2Hash},
 		},
 		{
 			name:          "load 2 unmined transactions, failed to get unmined",
@@ -150,9 +161,16 @@ func TestLoadUnmined(t *testing.T) {
 					require.Equal(t, len(tc.expectedItemTxHashesFinal), len(hashes))
 					return nil
 				},
+				UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
+					return nil
+				},
 			}
 
-			processor, err := NewProcessor(mtmStore, pm, nil,
+			btc := &ClientIMock{GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
+				return nil, nil
+			}}
+
+			processor, err := NewProcessor(mtmStore, pm, btc,
 				WithProcessCheckIfMinedInterval(time.Hour*24),
 				WithCacheExpiryTime(time.Hour*24),
 				WithNow(func() time.Time {
@@ -168,6 +186,8 @@ func TestLoadUnmined(t *testing.T) {
 			time.Sleep(time.Millisecond * 200)
 
 			allItemHashes := make([]*chainhash.Hash, 0, len(processor.ProcessorResponseMap.Items()))
+
+			require.Equal(t, tc.expectedGetTransactionBlocks, len(btc.GetTransactionBlocksCalls()))
 
 			for i, item := range processor.ProcessorResponseMap.Items() {
 				require.Equal(t, i, *item.Hash)

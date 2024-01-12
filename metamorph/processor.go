@@ -319,6 +319,10 @@ func (p *Processor) LoadUnmined() {
 		return
 	}
 
+	if len(unminedTxs) == 0 {
+		return
+	}
+
 	transactions := &blocktx_api.Transactions{}
 	txs := make([]*blocktx_api.Transaction, len(unminedTxs))
 	index := 0

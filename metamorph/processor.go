@@ -442,6 +442,23 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	p.logger.Debug("Adding channel", slog.String("hash", req.Data.Hash.String()))
 
+	// check if tx already stored, return it
+	data, err := p.store.Get(ctx, req.Data.Hash[:])
+	if err == nil {
+		var rejectErr error
+		if data.RejectReason != "" {
+			rejectErr = errors.New(data.RejectReason)
+		}
+
+		req.ResponseChannel <- processor_response.StatusAndError{
+			Hash:   data.Hash,
+			Status: data.Status,
+			Err:    rejectErr,
+		}
+
+		return
+	}
+
 	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel)
 
 	// STEP 1: RECEIVED

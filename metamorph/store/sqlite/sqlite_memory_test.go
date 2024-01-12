@@ -95,7 +95,7 @@ func TestPutGetMulti(t *testing.T) {
 	wg.Wait()
 }
 
-func TestGetUnseen(t *testing.T) {
+func TestGetUnmined(t *testing.T) {
 	t.Run("no unseen", func(t *testing.T) {
 		sqliteDB, err := New(true, "")
 		require.NoError(t, err)
@@ -105,7 +105,7 @@ func TestGetUnseen(t *testing.T) {
 		tests.NoUnmined(t, sqliteDB)
 	})
 
-	t.Run("multiple unseen", func(t *testing.T) {
+	t.Run("multiple unmined", func(t *testing.T) {
 		sqliteDB, err := New(true, "")
 		require.NoError(t, err)
 

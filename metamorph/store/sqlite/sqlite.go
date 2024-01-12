@@ -357,7 +357,7 @@ func (s *SqLite) GetUnmined(ctx context.Context, since time.Time, limit int64) (
 	defer span.Finish()
 
 	q := `SELECT
-	   stored_at
+	     stored_at
 		,announced_at
 		,mined_at
 		,hash
@@ -368,9 +368,12 @@ func (s *SqLite) GetUnmined(ctx context.Context, since time.Time, limit int64) (
 		,callback_token
 		,merkle_proof
 		,raw_tx
-		FROM transactions WHERE status < $1 OR status = $2 ;`
+		FROM transactions
+		WHERE (status < $1 OR status = $2)
+		LIMIT $3
+		;`
 
-	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
+	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, limit)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))

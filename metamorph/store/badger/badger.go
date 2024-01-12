@@ -282,11 +282,11 @@ func (s *Badger) GetUnmined(ctx context.Context, since time.Time, limit int64) (
 	defer func() {
 		gocore.NewStat("mtm_store_badger").NewStat("GetUnmined").AddTime(start)
 	}()
-	span, ctx := opentracing.StartSpanFromContext(ctx, "badger:GetUnmined")
+	span, _ := opentracing.StartSpanFromContext(ctx, "badger:GetUnmined")
 
 	defer span.Finish()
 	data := make([]*store.StoreData, 0)
-	s.store.View(func(tx *badger.Txn) error {
+	err := s.store.View(func(tx *badger.Txn) error {
 		iter := tx.NewIterator(badger.DefaultIteratorOptions)
 		defer iter.Close()
 
@@ -321,6 +321,10 @@ func (s *Badger) GetUnmined(ctx context.Context, since time.Time, limit int64) (
 
 		return nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
 
 	return data, nil
 }

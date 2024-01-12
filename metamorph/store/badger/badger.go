@@ -314,8 +314,16 @@ func (s *Badger) GetUnmined(ctx context.Context, since time.Time, limit int64) (
 				continue
 			}
 
+			if result.StoredAt.Before(since) {
+				continue
+			}
+
 			if result.Status < metamorph_api.Status_MINED || result.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
 				data = append(data, result)
+			}
+
+			if int64(len(data)) >= limit {
+				return nil
 			}
 		}
 

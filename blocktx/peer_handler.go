@@ -505,7 +505,7 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 
 		merklePaths = append(merklePaths, bumpHex)
 		if (txIndex+1)%bs.transactionStorageBatchSize == 0 {
-			if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
+			if err := bs.store.UpdateBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
 				return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 			}
 			// free up memory
@@ -519,8 +519,8 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 		}
 	}
 
-	// insert all remaining transactions into the table
-	if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
+	// update all remaining transactions
+	if err := bs.store.UpdateBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
 		return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 	}
 

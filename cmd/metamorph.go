@@ -17,7 +17,6 @@ import (
 	awsdynamodb "github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	blockTxStore "github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/store"
@@ -26,11 +25,12 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/store/postgresql"
 	"github.com/bitcoin-sv/arc/metamorph/store/sqlite"
 	"github.com/libsv/go-p2p"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
-	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/safemap"
 	"github.com/spf13/viper"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/reflection"
 )
 
 const (
@@ -83,32 +83,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("no metamorph.listenAddr setting found")
 	}
 
-	source := metamorphGRPCListenAddress
-	if viper.GetBool("metamorph.network.fixedIp") {
-		ip, port, err := net.SplitHostPort(metamorphGRPCListenAddress)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse ip address: %v", err)
-		}
-
-		if ip != "" {
-			source = metamorphGRPCListenAddress
-		} else {
-			hint := viper.GetString("metamorph.network.ipAddressHint")
-			ips, err := utils.GetIPAddressesWithHint(hint)
-			if err != nil {
-				return nil, fmt.Errorf("cannot get local ip address")
-			}
-
-			if len(ips) != 1 {
-				return nil, fmt.Errorf("cannot determine local ip address [%v]", ips)
-			}
-
-			source = fmt.Sprintf("%s:%s", ips[0], port)
-		}
-
-		logger.Info("Instance will register transactions with location", "source", source)
-	}
-
 	pm, statusMessageCh, err := initPeerManager(logger, s)
 	if err != nil {
 		return nil, err
@@ -130,6 +104,11 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
+	checkIfMinedInterval, err := config.GetDuration("metamorph.checkIfMinedInterval")
+	if err != nil {
+		return nil, err
+	}
+
 	metamorphProcessor, err := metamorph.NewProcessor(
 		s,
 		pm,
@@ -138,6 +117,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithProcessorLogger(processorLogger),
 		metamorph.WithLogFilePath(viper.GetString("metamorph.log.file")),
 		metamorph.WithDataRetentionPeriod(time.Duration(dataRetentionDays)*24*time.Hour),
+		metamorph.WithProcessCheckIfMinedInterval(checkIfMinedInterval),
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
@@ -156,7 +136,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		// that can be deferred to reset the TTY when the program exits.
 		defer metamorphProcessor.PrintStatsOnKeypress()()
 	}
-	ticker := time.NewTimer(unminedTxsPeriod)
+	ticker := time.NewTimer(unminedTxsPeriod) // Todo: configuration setting
 	stopUnminedProcessor := make(chan bool)
 
 	go func() {
@@ -169,64 +149,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 			}
 		}
 	}()
-
-	// create a channel to receive mined block messages from the block tx service
-	blockChan := make(chan *blocktx_api.Block)
-	go func() {
-		var processedAt *time.Time
-		for block := range blockChan {
-			hash, _ := chainhash.NewHash(block.Hash[:])
-			processedAt, err = s.GetBlockProcessed(context.Background(), hash)
-			if err != nil {
-				logger.Error("Could not get block processed status", slog.String("err", err.Error()))
-				continue
-			}
-
-			// check whether we have already processed this block
-			if processedAt == nil || processedAt.IsZero() {
-				// process the block
-				processBlock(logger, btx, metamorphProcessor, s, &blocktx_api.BlockAndSource{
-					Hash:   block.GetHash(),
-					Source: source,
-				})
-			}
-
-			// check whether we have already processed the previous block
-			blockHash, _ := chainhash.NewHash(block.GetPreviousHash())
-
-			processedAt, err = s.GetBlockProcessed(context.Background(), blockHash)
-			if err != nil {
-				logger.Error("Could not get previous block processed status", slog.String("err", err.Error()))
-				continue
-			}
-			if processedAt == nil || processedAt.IsZero() {
-				// get the full previous block from block tx
-				var previousBlock *blocktx_api.Block
-				pHash, err := chainhash.NewHash(block.GetPreviousHash())
-				if err != nil {
-					logger.Error("Could not get previous block hash", slog.String("err", err.Error()))
-					continue
-				}
-
-				previousBlock, err = btx.GetBlock(context.Background(), pHash)
-				if err != nil {
-					if !errors.Is(err, blockTxStore.ErrBlockNotFound) {
-						logger.Error("Could not get previous block from block tx", slog.String("hash", pHash.String()), slog.String("err", err.Error()))
-					}
-					continue
-				}
-
-				// send the previous block to the process channel
-				if previousBlock == nil {
-					go func() {
-						blockChan <- previousBlock
-					}()
-				}
-			}
-		}
-	}()
-
-	btx.Start(blockChan)
 
 	metamorphLogger, err := config.NewLogger()
 	if err != nil {
@@ -276,7 +198,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		opts = append(opts, metamorph.WithBlocktxTimeout(btxTimeout))
 	}
 
-	serv := metamorph.NewServer(s, metamorphProcessor, btx, source, opts...)
+	serv := metamorph.NewServer(s, metamorphProcessor, btx, opts...)
 
 	go func() {
 		grpcMessageSize := viper.GetInt("grpcMessageSize")
@@ -318,6 +240,13 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	// pass all the started peers to the collector
 	_ = metamorph.NewZMQCollector(zmqCollector)
 
+	go func() {
+		err = StartHealthServer(serv)
+		if err != nil {
+			logger.Error("failed to start health server", slog.String("err", err.Error()))
+		}
+	}()
+
 	return func() {
 		logger.Info("Shutting down metamorph")
 
@@ -328,6 +257,32 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 			logger.Error("Could not close store", slog.String("err", err.Error()))
 		}
 	}, nil
+}
+
+func StartHealthServer(serv *metamorph.Server) error {
+	gs := grpc.NewServer()
+	defer gs.Stop()
+
+	grpc_health_v1.RegisterHealthServer(gs, serv) // registration
+	// register your own services
+	reflection.Register(gs)
+
+	address, err := config.GetString("metamorph.healthServerDialAddr") //"localhost:8005"
+	if err != nil {
+		return err
+	}
+
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return err
+	}
+
+	err = gs.Serve(listener)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) {
@@ -463,36 +418,4 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore) (p2p.PeerManag
 	}
 
 	return pm, messageCh, nil
-}
-
-func processBlock(logger *slog.Logger, btc blocktx.ClientI, p metamorph.ProcessorI, s store.MetamorphStore, blockAndSource *blocktx_api.BlockAndSource) {
-	mt, err := btc.GetMinedTransactionsForBlock(context.Background(), blockAndSource)
-	if err != nil {
-		logger.Error("Could not get mined transactions for block", slog.String("hash", utils.ReverseAndHexEncodeSlice(blockAndSource.GetHash())), slog.String("err", err.Error()))
-		return
-	}
-
-	logger.Info("Incoming BLOCK", slog.String("hash", utils.ReverseAndHexEncodeSlice(mt.GetBlock().GetHash())))
-
-	for _, tx := range mt.GetTransactions() {
-		logger.Debug("Received MINED message from BlockTX for transaction", slog.String("hash", utils.ReverseAndHexEncodeSlice(tx.GetHash())))
-
-		hash, _ := chainhash.NewHash(tx.GetHash())
-		blockHash, _ := chainhash.NewHash(mt.GetBlock().GetHash())
-
-		_, err = p.SendStatusMinedForTransaction(hash, blockHash, mt.GetBlock().GetHeight())
-		if err != nil {
-			logger.Error("Could not send mined status for transaction", slog.String("hash", utils.ReverseAndHexEncodeSlice(tx.GetHash())), slog.String("err", err.Error()))
-			return
-		}
-	}
-
-	logger.Info("Marked transactions as MINED", slog.Int("number", len(mt.GetTransactions())))
-
-	hash, _ := chainhash.NewHash(blockAndSource.GetHash())
-
-	err = s.SetBlockProcessed(context.Background(), hash)
-	if err != nil {
-		logger.Error("Could not set block processed status", slog.String("err", err.Error()))
-	}
 }

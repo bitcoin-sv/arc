@@ -243,7 +243,24 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, 2, rows)
 	})
 
-	t.Run("update status", func(t *testing.T) {
+	t.Run("update status announced - no update", func(t *testing.T) {
+		unmined := *unminedData
+		err = postgresDB.Set(ctx, unminedHash[:], &unmined)
+		require.NoError(t, err)
+
+		err := postgresDB.UpdateStatus(ctx, unminedHash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
+		require.NoError(t, err)
+
+		dataReturned, err := postgresDB.Get(ctx, unminedHash[:])
+		require.NoError(t, err)
+		unmined.Status = metamorph_api.Status_SENT_TO_NETWORK
+		require.Equal(t, dataReturned, &unmined)
+
+		err = postgresDB.Del(ctx, unminedHash[:])
+		require.NoError(t, err)
+	})
+
+	t.Run("update status rejected", func(t *testing.T) {
 		unmined := *unminedData
 		err = postgresDB.Set(ctx, unminedHash[:], &unmined)
 		require.NoError(t, err)
@@ -275,6 +292,26 @@ func TestPostgresDB(t *testing.T) {
 		unmined.MinedAt = now
 		unmined.BlockHeight = 100
 		unmined.BlockHash = testdata.Block1Hash
+		require.Equal(t, dataReturned, &unmined)
+
+		err = postgresDB.Del(ctx, unminedHash[:])
+		require.NoError(t, err)
+	})
+
+	t.Run("update mined - missing block info", func(t *testing.T) {
+		unmined := *unminedData
+		err = postgresDB.Set(ctx, unminedHash[:], &unmined)
+		require.NoError(t, err)
+
+		err := postgresDB.UpdateMined(ctx, unminedHash, nil, 0)
+		require.NoError(t, err)
+
+		dataReturned, err := postgresDB.Get(ctx, unminedHash[:])
+		require.NoError(t, err)
+		unmined.Status = metamorph_api.Status_MINED
+		unmined.MinedAt = now
+		unmined.BlockHeight = 0
+		unmined.BlockHash = nil
 		require.Equal(t, dataReturned, &unmined)
 
 		err = postgresDB.Del(ctx, unminedHash[:])

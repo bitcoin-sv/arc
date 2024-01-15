@@ -196,16 +196,20 @@ func (p *Processor) processCheckIfMined() {
 		blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
 		if err != nil {
 			p.logger.Error("failed to get transaction blocks from blocktx", slog.String("err", err.Error()))
-			return
+			continue
 		}
 
-		p.logger.Debug("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))
+		p.logger.Info("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))
 
 		for _, blockTxs := range blockTransactions.GetTransactionBlocks() {
+			var blockHashString string
+
 			blockHash, err := chainhash.NewHash(blockTxs.GetBlockHash())
 			if err != nil {
 				p.logger.Error("failed to parse block hash", slog.String("err", err.Error()))
-				continue
+				blockHashString = ""
+			} else {
+				blockHashString = blockHash.String()
 			}
 
 			txHash, err := chainhash.NewHash(blockTxs.GetTransactionHash())
@@ -213,7 +217,7 @@ func (p *Processor) processCheckIfMined() {
 				p.logger.Error("failed to parse tx hash", slog.String("err", err.Error()))
 				continue
 			}
-			p.logger.Debug("found block for transaction", slog.String("txhash", txHash.String()), slog.String("blockhash", blockHash.String()))
+			p.logger.Debug("found block for transaction", slog.String("txhash", txHash.String()), slog.String("blockhash", blockHashString))
 
 			_, err = p.SendStatusMinedForTransaction(txHash, blockHash, blockTxs.GetBlockHeight())
 			if err != nil {
@@ -292,47 +296,6 @@ func (p *Processor) LoadUnmined() {
 		pr.Start = record.StoredAt
 
 		p.ProcessorResponseMap.Set(record.Hash, pr)
-
-		switch record.Status {
-		case metamorph_api.Status_STORED:
-			// announce the transaction to the network
-			pr.SetPeers(p.pm.AnnounceTransaction(record.Hash, nil))
-
-			err := p.store.UpdateStatus(spanCtx, record.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
-			if err != nil {
-				p.logger.Error(failedToUpdateStatus, slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
-			}
-		case metamorph_api.Status_ANNOUNCED_TO_NETWORK:
-			// we only announced the transaction, but we did not receive a SENT_TO_NETWORK response
-			// let's send a GETDATA message to the network to check whether the transaction is actually there
-			p.pm.RequestTransaction(record.Hash)
-		case metamorph_api.Status_SENT_TO_NETWORK:
-			p.pm.RequestTransaction(record.Hash)
-		case metamorph_api.Status_SEEN_ON_NETWORK:
-			// could it already be mined, and we need to get it from BlockTx?
-			transactionResponse, err := p.btc.GetTransactionBlock(context.Background(), &blocktx_api.Transaction{Hash: record.Hash[:]})
-			if err != nil {
-				p.logger.Error("failed to get transaction block", slog.String("hash", record.Hash.String()), slog.String("err", err.Error()))
-				return
-			}
-
-			if transactionResponse == nil || transactionResponse.GetBlockHeight() <= 0 {
-				return
-			}
-
-			// we have a mined transaction, let's update the status
-			var blockHash *chainhash.Hash
-			blockHash, err = chainhash.NewHash(transactionResponse.GetBlockHash())
-			if err != nil {
-				p.logger.Error("Failed to convert block hash", slog.String("err", err.Error()))
-				return
-			}
-
-			_, err = p.SendStatusMinedForTransaction(record.Hash, blockHash, transactionResponse.GetBlockHeight())
-			if err != nil {
-				p.logger.Error("Failed to update status for mined transaction", slog.String("err", err.Error()))
-			}
-		}
 	})
 	if err != nil {
 		p.logger.Error("Failed to iterate through stored transactions", slog.String("err", err.Error()))
@@ -451,8 +414,11 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 
 			case metamorph_api.Status_REJECTED:
 				p.logger.Warn("transaction rejected", slog.String("status", status.String()), slog.String("hash", hash.String()))
-
 				p.rejected.AddDuration(source, time.Since(processorResponse.Start))
+				data, _ := p.store.Get(spanCtx, hash[:])
+				if data.CallbackUrl != "" {
+					go SendCallback(p.logger, p.store, data)
+				}
 			}
 		},
 	}
@@ -508,6 +474,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 					p.stored.AddDuration(time.Since(processorResponse.Start))
 
+					p.logger.Info("announcing transaction", slog.String("hash", req.Data.Hash.String()))
 					// STEP 3: ANNOUNCED_TO_NETWORK
 					peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
 					processorResponse.SetPeers(peers)
@@ -538,4 +505,13 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 			})
 		},
 	})
+}
+
+func (p *Processor) Health() error {
+	connected, _ := p.GetPeers()
+	if len(connected) == 0 {
+		return errors.New("no connection to any peers")
+	}
+
+	return nil
 }

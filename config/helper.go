@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/libsv/go-p2p/wire"
 	"github.com/lmittmann/tint"
@@ -60,6 +61,15 @@ func GetString(settingName string) (string, error) {
 
 func GetInt(settingName string) (int, error) {
 	setting := viper.GetInt(settingName)
+	if setting == 0 {
+		return 0, fmt.Errorf("setting %s not found", settingName)
+	}
+
+	return setting, nil
+}
+
+func GetDuration(settingName string) (time.Duration, error) {
+	setting := viper.GetDuration(settingName)
 	if setting == 0 {
 		return 0, fmt.Errorf("setting %s not found", settingName)
 	}

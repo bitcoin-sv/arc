@@ -39,14 +39,8 @@ var _ blocktx.ClientI = &ClientIMock{}
 //			GetTransactionMerklePathFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error) {
 //				panic("mock out the GetTransactionMerklePath method")
 //			},
-//			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
-//				panic("mock out the RegisterTransaction method")
-//			},
-//			ShutdownFunc: func()  {
-//				panic("mock out the Shutdown method")
-//			},
-//			StartFunc: func(minedBlockChan chan *blocktx_api.Block)  {
-//				panic("mock out the Start method")
+//			HealthFunc: func(ctx context.Context) error {
+//				panic("mock out the Health method")
 //			},
 //		}
 //
@@ -73,14 +67,8 @@ type ClientIMock struct {
 	// GetTransactionMerklePathFunc mocks the GetTransactionMerklePath method.
 	GetTransactionMerklePathFunc func(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 
-	// RegisterTransactionFunc mocks the RegisterTransaction method.
-	RegisterTransactionFunc func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error)
-
-	// ShutdownFunc mocks the Shutdown method.
-	ShutdownFunc func()
-
-	// StartFunc mocks the Start method.
-	StartFunc func(minedBlockChan chan *blocktx_api.Block)
+	// HealthFunc mocks the Health method.
+	HealthFunc func(ctx context.Context) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -124,20 +112,10 @@ type ClientIMock struct {
 			// Transaction is the transaction argument value.
 			Transaction *blocktx_api.Transaction
 		}
-		// RegisterTransaction holds details about calls to the RegisterTransaction method.
-		RegisterTransaction []struct {
+		// Health holds details about calls to the Health method.
+		Health []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// Transaction is the transaction argument value.
-			Transaction *blocktx_api.TransactionAndSource
-		}
-		// Shutdown holds details about calls to the Shutdown method.
-		Shutdown []struct {
-		}
-		// Start holds details about calls to the Start method.
-		Start []struct {
-			// MinedBlockChan is the minedBlockChan argument value.
-			MinedBlockChan chan *blocktx_api.Block
 		}
 	}
 	lockGetBlock                     sync.RWMutex
@@ -146,9 +124,7 @@ type ClientIMock struct {
 	lockGetTransactionBlock          sync.RWMutex
 	lockGetTransactionBlocks         sync.RWMutex
 	lockGetTransactionMerklePath     sync.RWMutex
-	lockRegisterTransaction          sync.RWMutex
-	lockShutdown                     sync.RWMutex
-	lockStart                        sync.RWMutex
+	lockHealth                       sync.RWMutex
 }
 
 // GetBlock calls GetBlockFunc.
@@ -363,97 +339,34 @@ func (mock *ClientIMock) GetTransactionMerklePathCalls() []struct {
 	return calls
 }
 
-// RegisterTransaction calls RegisterTransactionFunc.
-func (mock *ClientIMock) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
-	if mock.RegisterTransactionFunc == nil {
-		panic("ClientIMock.RegisterTransactionFunc: method is nil but ClientI.RegisterTransaction was just called")
+// Health calls HealthFunc.
+func (mock *ClientIMock) Health(ctx context.Context) error {
+	if mock.HealthFunc == nil {
+		panic("ClientIMock.HealthFunc: method is nil but ClientI.Health was just called")
 	}
 	callInfo := struct {
-		Ctx         context.Context
-		Transaction *blocktx_api.TransactionAndSource
+		Ctx context.Context
 	}{
-		Ctx:         ctx,
-		Transaction: transaction,
+		Ctx: ctx,
 	}
-	mock.lockRegisterTransaction.Lock()
-	mock.calls.RegisterTransaction = append(mock.calls.RegisterTransaction, callInfo)
-	mock.lockRegisterTransaction.Unlock()
-	return mock.RegisterTransactionFunc(ctx, transaction)
+	mock.lockHealth.Lock()
+	mock.calls.Health = append(mock.calls.Health, callInfo)
+	mock.lockHealth.Unlock()
+	return mock.HealthFunc(ctx)
 }
 
-// RegisterTransactionCalls gets all the calls that were made to RegisterTransaction.
+// HealthCalls gets all the calls that were made to Health.
 // Check the length with:
 //
-//	len(mockedClientI.RegisterTransactionCalls())
-func (mock *ClientIMock) RegisterTransactionCalls() []struct {
-	Ctx         context.Context
-	Transaction *blocktx_api.TransactionAndSource
+//	len(mockedClientI.HealthCalls())
+func (mock *ClientIMock) HealthCalls() []struct {
+	Ctx context.Context
 } {
 	var calls []struct {
-		Ctx         context.Context
-		Transaction *blocktx_api.TransactionAndSource
+		Ctx context.Context
 	}
-	mock.lockRegisterTransaction.RLock()
-	calls = mock.calls.RegisterTransaction
-	mock.lockRegisterTransaction.RUnlock()
-	return calls
-}
-
-// Shutdown calls ShutdownFunc.
-func (mock *ClientIMock) Shutdown() {
-	if mock.ShutdownFunc == nil {
-		panic("ClientIMock.ShutdownFunc: method is nil but ClientI.Shutdown was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockShutdown.Lock()
-	mock.calls.Shutdown = append(mock.calls.Shutdown, callInfo)
-	mock.lockShutdown.Unlock()
-	mock.ShutdownFunc()
-}
-
-// ShutdownCalls gets all the calls that were made to Shutdown.
-// Check the length with:
-//
-//	len(mockedClientI.ShutdownCalls())
-func (mock *ClientIMock) ShutdownCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockShutdown.RLock()
-	calls = mock.calls.Shutdown
-	mock.lockShutdown.RUnlock()
-	return calls
-}
-
-// Start calls StartFunc.
-func (mock *ClientIMock) Start(minedBlockChan chan *blocktx_api.Block) {
-	if mock.StartFunc == nil {
-		panic("ClientIMock.StartFunc: method is nil but ClientI.Start was just called")
-	}
-	callInfo := struct {
-		MinedBlockChan chan *blocktx_api.Block
-	}{
-		MinedBlockChan: minedBlockChan,
-	}
-	mock.lockStart.Lock()
-	mock.calls.Start = append(mock.calls.Start, callInfo)
-	mock.lockStart.Unlock()
-	mock.StartFunc(minedBlockChan)
-}
-
-// StartCalls gets all the calls that were made to Start.
-// Check the length with:
-//
-//	len(mockedClientI.StartCalls())
-func (mock *ClientIMock) StartCalls() []struct {
-	MinedBlockChan chan *blocktx_api.Block
-} {
-	var calls []struct {
-		MinedBlockChan chan *blocktx_api.Block
-	}
-	mock.lockStart.RLock()
-	calls = mock.calls.Start
-	mock.lockStart.RUnlock()
+	mock.lockHealth.RLock()
+	calls = mock.calls.Health
+	mock.lockHealth.RUnlock()
 	return calls
 }

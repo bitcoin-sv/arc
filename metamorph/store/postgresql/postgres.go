@@ -19,6 +19,7 @@ import (
 
 const (
 	postgresDriverName = "postgres"
+	loadLimit          = 20000
 )
 
 type PostgreSQL struct {
@@ -341,9 +342,9 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 		,merkle_proof
 		,raw_tx
 		,locked_by
-		FROM metamorph.transactions WHERE locked_by = 'NONE' AND (status < $1 OR status = $2 );`
+		FROM metamorph.transactions WHERE locked_by = 'NONE' AND (status < $1 OR status = $2 ) LIMIT $3;`
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, loadLimit)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -457,28 +458,23 @@ func (p *PostgreSQL) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
 	defer span.Finish()
-	var args []any
-	var q string
 
-	if status == metamorph_api.Status_ANNOUNCED_TO_NETWORK {
-		q = `
+	// do not store other statuses than the following
+	if status != metamorph_api.Status_REJECTED &&
+		status != metamorph_api.Status_SEEN_ON_NETWORK &&
+		status != metamorph_api.Status_MINED &&
+		status != metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
+		return nil
+	}
+
+	args := []any{status, rejectReason, hash[:]}
+	q := `
 		UPDATE metamorph.transactions
-		SET  status = $1
-			,reject_reason = $2
-			,announced_at = $3
-		WHERE hash = $4
-	;`
-		args = []any{status, rejectReason, p.now(), hash[:]}
-	} else {
-		q = `
-		UPDATE metamorph.transactions
-		SET  status = $1
-			,reject_reason = $2
+		SET status = $1,
+		    reject_reason = $2
 		WHERE hash = $3
 	;`
 
-		args = []any{status, rejectReason, hash[:]}
-	}
 	result, err := p.db.ExecContext(ctx, q, args...)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
@@ -508,16 +504,23 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, hash *chainhash.Hash, bloc
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateMined")
 	defer span.Finish()
 
+	var blockHashBytes []byte
+	if blockHash == nil {
+		blockHashBytes = nil
+	} else {
+		blockHashBytes = blockHash[:]
+	}
+
 	q := `
 		UPDATE metamorph.transactions
 		SET status = $1
 			,block_hash = $2
 			,block_height = $3
-			, mined_at = $4
+			,mined_at = $4
 		WHERE hash = $5
 	;`
 
-	_, err := p.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHash[:], blockHeight, p.now().Format(time.RFC3339), hash[:])
+	_, err := p.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHashBytes, blockHeight, p.now().Format(time.RFC3339), hash[:])
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -647,4 +650,20 @@ func (p *PostgreSQL) Close(ctx context.Context) error {
 
 	ctx.Done()
 	return p.db.Close()
+}
+
+func (p *PostgreSQL) Ping(ctx context.Context) error {
+	startNanos := p.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("Ping").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Ping")
+	defer span.Finish()
+
+	_, err := p.db.QueryContext(ctx, "SELECT 1;")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

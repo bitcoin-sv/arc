@@ -337,3 +337,10 @@ The tests can be executed like this:
 ```
 make clean_restart_e2e_test
 ```
+
+## Profiler
+Each service runs a http profiler server if it is configured in `config.yaml`. In order to access it, a connection can be created using the Go `pprof` [tool](https://pkg.go.dev/net/http/pprof). For example to investigate the memory usage
+```bash
+go tool pprof http://localhost:9999/debug/pprof/allocs
+```
+Then type `top` to see the functions which consume the most memory. Find more information [here](https://go.dev/blog/pprof).

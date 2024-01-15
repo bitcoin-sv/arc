@@ -95,7 +95,7 @@ services:
       ]
     command: [ "up" ]
     volumes:
-      - ../metamorph/store/postgresql/migrations:/migrations
+      - ../database/migrations/metamorph/postgres:/migrations
     depends_on:
       db:
         condition: service_healthy

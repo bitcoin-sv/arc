@@ -28,7 +28,7 @@ import (
 var stdFee = &bt.Fee{
 	FeeType: bt.FeeTypeStandard,
 	MiningFee: bt.FeeUnit{
-		Satoshis: 50,
+		Satoshis: 3,
 		Bytes:    1000,
 	},
 	RelayFee: bt.FeeUnit{
@@ -40,7 +40,7 @@ var stdFee = &bt.Fee{
 var dataFee = &bt.Fee{
 	FeeType: bt.FeeTypeData,
 	MiningFee: bt.FeeUnit{
-		Satoshis: 50,
+		Satoshis: 3,
 		Bytes:    1000,
 	},
 	RelayFee: bt.FeeUnit{

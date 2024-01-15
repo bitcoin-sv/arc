@@ -406,6 +406,9 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 
 			case metamorph_api.Status_SEEN_ON_NETWORK:
 				p.seenOnNetwork.AddDuration(source, time.Since(processorResponse.Start))
+				if data.CallbackUrl != "" {
+					go SendCallback(p.logger, p.store, data)
+				}
 
 			case metamorph_api.Status_MINED:
 				p.mined.AddDuration(time.Since(processorResponse.Start))

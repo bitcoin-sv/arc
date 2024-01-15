@@ -110,7 +110,7 @@ func (c *Watcher) Start() error {
 						// A previously running pod has been terminated => set records locked by this pod unlocked
 						resp, err := c.metamorphClient.SetUnlockedByName(ctx, &metamorph_api.SetUnlockedByNameRequest{Name: podName})
 						if err != nil {
-							c.logger.Error("failed to unlock metamorph records", slog.String("pod-name", podName))
+							c.logger.Error("failed to unlock metamorph records", slog.String("pod-name", podName), slog.String("err", err.Error()))
 							continue
 						}
 

@@ -183,57 +183,105 @@ func TestLoadUnmined(t *testing.T) {
 }
 
 func TestProcessTransaction(t *testing.T) {
-	t.Run("ProcessTransaction", func(t *testing.T) {
-		s, err := sqlite.New(true, "")
-		require.NoError(t, err)
+	tt := []struct {
+		name            string
+		storeData       *store.StoreData
+		storeDataGetErr error
 
-		pm := p2p.NewPeerManagerMock()
+		expectedResponseMapItems int
+		expectedResponses        []metamorph_api.Status
+		expectedSetCalls         int
+	}{
+		{
+			name:            "record not found",
+			storeData:       nil,
+			storeDataGetErr: store.ErrNotFound,
 
-		processor, err := NewProcessor(s, pm, nil)
-		require.NoError(t, err)
-		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
-
-		expectedResponses := []metamorph_api.Status{
-			metamorph_api.Status_RECEIVED,
-			metamorph_api.Status_STORED,
-			metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-		}
-
-		responseChannel := make(chan processor_response.StatusAndError)
-
-		var wg sync.WaitGroup
-		wg.Add(len(expectedResponses))
-		go func() {
-			n := 0
-			for response := range responseChannel {
-				status := response.Status
-				assert.Equal(t, testdata.TX1Hash, response.Hash)
-				assert.Equalf(t, expectedResponses[n], status, "Iteration %d: Expected %s, got %s", n, expectedResponses[n].String(), status.String())
-				wg.Done()
-				n++
-			}
-		}()
-
-		processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
-			Data: &store.StoreData{
-				Hash: testdata.TX1Hash,
+			expectedResponses: []metamorph_api.Status{
+				metamorph_api.Status_RECEIVED,
+				metamorph_api.Status_STORED,
+				metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			},
-			ResponseChannel: responseChannel,
+			expectedResponseMapItems: 1,
+			expectedSetCalls:         1,
+		},
+		{
+			name: "record found",
+			storeData: &store.StoreData{
+				Hash:         testdata.TX1Hash,
+				Status:       metamorph_api.Status_REJECTED,
+				RejectReason: "missing inputs",
+			},
+			storeDataGetErr: nil,
+
+			expectedResponses: []metamorph_api.Status{
+				metamorph_api.Status_REJECTED,
+			},
+			expectedSetCalls: 0,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					require.Equal(t, testdata.TX1Hash[:], key)
+
+					return tc.storeData, tc.storeDataGetErr
+				},
+				SetFunc: func(ctx context.Context, key []byte, value *store.StoreData) error {
+					require.Equal(t, testdata.TX1Hash[:], key)
+
+					return nil
+				},
+				UpdateStatusFunc: func(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
+					require.Equal(t, testdata.TX1Hash, hash)
+
+					return nil
+				},
+			}
+			pm := p2p.NewPeerManagerMock()
+
+			processor, err := NewProcessor(s, pm, nil)
+			require.NoError(t, err)
+			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
+
+			responseChannel := make(chan processor_response.StatusAndError)
+
+			var wg sync.WaitGroup
+			wg.Add(len(tc.expectedResponses))
+			go func() {
+				n := 0
+				for response := range responseChannel {
+					status := response.Status
+					require.Equal(t, testdata.TX1Hash, response.Hash)
+					require.Equalf(t, tc.expectedResponses[n], status, "Iteration %d: Expected %s, got %s", n, tc.expectedResponses[n].String(), status.String())
+					wg.Done()
+					n++
+				}
+			}()
+
+			processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
+				Data: &store.StoreData{
+					Hash: testdata.TX1Hash,
+				},
+				ResponseChannel: responseChannel,
+			})
+			wg.Wait()
+
+			if tc.expectedResponseMapItems > 0 {
+				require.Equal(t, tc.expectedResponseMapItems, processor.ProcessorResponseMap.Len())
+				items := processor.ProcessorResponseMap.Items()
+				require.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
+				require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[*testdata.TX1Hash].Status)
+
+				require.Len(t, pm.AnnouncedTransactions, 1)
+				require.Equal(t, testdata.TX1Hash, pm.AnnouncedTransactions[0])
+			}
+
+			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
 		})
-		wg.Wait()
-
-		assert.Equal(t, 1, processor.ProcessorResponseMap.Len())
-		items := processor.ProcessorResponseMap.Items()
-		assert.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
-		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[*testdata.TX1Hash].Status)
-
-		assert.Len(t, pm.AnnouncedTransactions, 1)
-		assert.Equal(t, testdata.TX1Hash, pm.AnnouncedTransactions[0])
-
-		txStored, err := s.Get(context.Background(), testdata.TX1Hash[:])
-		require.NoError(t, err)
-		assert.Equal(t, testdata.TX1Hash, txStored.Hash)
-	})
+	}
 }
 
 func Benchmark_ProcessTransaction(b *testing.B) {
@@ -447,44 +495,6 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_MINED, txStored.Status)
 	})
-
-	// t.Run("SendStatusMinedForTransaction callback", func(t *testing.T) {
-	// 	s, err := metamorphSql.New("sqlite_memory")
-	// 	require.NoError(t, err)
-	// 	setStoreTestData(t, s)
-
-	// 	pm := p2p.NewPeerManagerMock()
-
-	// 	var wg sync.WaitGroup
-	// 	callbackCh := make(chan *callbacker_api.Callback)
-	// 	wg.Add(1)
-	// 	go func() {
-	// 		for cb := range callbackCh {
-	// 			assert.Equal(t, metamorph_api.Status_MINED, metamorph_api.Status(cb.Status))
-	// 			assert.Equal(t, testdata.TX1Hash.CloneBytes(), cb.Hash)
-	// 			assert.Equal(t, testdata.Block1Hash[:], cb.BlockHash)
-	// 			assert.Equal(t, uint64(1233), cb.BlockHeight)
-	// 			assert.Equal(t, "https://test.com", cb.Url)
-	// 			assert.Equal(t, "token", cb.Token)
-	// 			wg.Done()
-	// 		}
-	// 	}()
-
-	// 	processor, err := NewProcessor(s, pm, callbackCh, nil)
-	// 	require.NoError(t, err)
-	// 	// add the tx to the map
-	// 	processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(
-	// 		testdata.TX1Hash,
-	// 		metamorph_api.Status_SEEN_ON_NETWORK,
-	// 	))
-
-	// 	ok, sendErr := processor.SendStatusMinedForTransaction(testdata.TX1Hash, testdata.Block1Hash, 1233)
-	// 	time.Sleep(100 * time.Millisecond)
-	// 	assert.True(t, ok)
-	// 	assert.NoError(t, sendErr)
-
-	// 	wg.Wait()
-	// })
 
 	t.Run("SendStatusForTransaction known tx - processed", func(t *testing.T) {
 		s, err := sqlite.New(true, "")

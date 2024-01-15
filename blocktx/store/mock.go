@@ -41,9 +41,6 @@ var _ Interface = &InterfaceMock{}
 //			GetMinedTransactionsForBlockFunc: func(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
 //				panic("mock out the GetMinedTransactionsForBlock method")
 //			},
-//			GetTransactionBlockFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Block, error) {
-//				panic("mock out the GetTransactionBlock method")
-//			},
 //			GetTransactionBlocksFunc: func(ctx context.Context, transactions *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
 //				panic("mock out the GetTransactionBlocks method")
 //			},
@@ -101,9 +98,6 @@ type InterfaceMock struct {
 
 	// GetMinedTransactionsForBlockFunc mocks the GetMinedTransactionsForBlock method.
 	GetMinedTransactionsForBlockFunc func(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
-
-	// GetTransactionBlockFunc mocks the GetTransactionBlock method.
-	GetTransactionBlockFunc func(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Block, error)
 
 	// GetTransactionBlocksFunc mocks the GetTransactionBlocks method.
 	GetTransactionBlocksFunc func(ctx context.Context, transactions *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error)
@@ -179,13 +173,6 @@ type InterfaceMock struct {
 			Ctx context.Context
 			// BlockAndSource is the blockAndSource argument value.
 			BlockAndSource *blocktx_api.BlockAndSource
-		}
-		// GetTransactionBlock holds details about calls to the GetTransactionBlock method.
-		GetTransactionBlock []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Transaction is the transaction argument value.
-			Transaction *blocktx_api.Transaction
 		}
 		// GetTransactionBlocks holds details about calls to the GetTransactionBlocks method.
 		GetTransactionBlocks []struct {
@@ -273,7 +260,6 @@ type InterfaceMock struct {
 	lockGetBlockTransactions         sync.RWMutex
 	lockGetLastProcessedBlock        sync.RWMutex
 	lockGetMinedTransactionsForBlock sync.RWMutex
-	lockGetTransactionBlock          sync.RWMutex
 	lockGetTransactionBlocks         sync.RWMutex
 	lockGetTransactionMerklePath     sync.RWMutex
 	lockInsertBlock                  sync.RWMutex
@@ -522,42 +508,6 @@ func (mock *InterfaceMock) GetMinedTransactionsForBlockCalls() []struct {
 	mock.lockGetMinedTransactionsForBlock.RLock()
 	calls = mock.calls.GetMinedTransactionsForBlock
 	mock.lockGetMinedTransactionsForBlock.RUnlock()
-	return calls
-}
-
-// GetTransactionBlock calls GetTransactionBlockFunc.
-func (mock *InterfaceMock) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Block, error) {
-	if mock.GetTransactionBlockFunc == nil {
-		panic("InterfaceMock.GetTransactionBlockFunc: method is nil but Interface.GetTransactionBlock was just called")
-	}
-	callInfo := struct {
-		Ctx         context.Context
-		Transaction *blocktx_api.Transaction
-	}{
-		Ctx:         ctx,
-		Transaction: transaction,
-	}
-	mock.lockGetTransactionBlock.Lock()
-	mock.calls.GetTransactionBlock = append(mock.calls.GetTransactionBlock, callInfo)
-	mock.lockGetTransactionBlock.Unlock()
-	return mock.GetTransactionBlockFunc(ctx, transaction)
-}
-
-// GetTransactionBlockCalls gets all the calls that were made to GetTransactionBlock.
-// Check the length with:
-//
-//	len(mockedInterface.GetTransactionBlockCalls())
-func (mock *InterfaceMock) GetTransactionBlockCalls() []struct {
-	Ctx         context.Context
-	Transaction *blocktx_api.Transaction
-} {
-	var calls []struct {
-		Ctx         context.Context
-		Transaction *blocktx_api.Transaction
-	}
-	mock.lockGetTransactionBlock.RLock()
-	calls = mock.calls.GetTransactionBlock
-	mock.lockGetTransactionBlock.RUnlock()
 	return calls
 }
 

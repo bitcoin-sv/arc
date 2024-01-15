@@ -34,7 +34,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetBlockProcessedFunc: func(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
 //				panic("mock out the GetBlockProcessed method")
 //			},
-//			GetUnminedFunc: func(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
+//			GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 //				panic("mock out the GetUnmined method")
 //			},
 //			PingFunc: func(ctx context.Context) error {
@@ -81,7 +81,7 @@ type MetamorphStoreMock struct {
 	GetBlockProcessedFunc func(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error)
 
 	// GetUnminedFunc mocks the GetUnmined method.
-	GetUnminedFunc func(contextMoqParam context.Context, callback func(s *store.StoreData)) error
+	GetUnminedFunc func(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error)
 
 	// PingFunc mocks the Ping method.
 	PingFunc func(ctx context.Context) error
@@ -137,10 +137,12 @@ type MetamorphStoreMock struct {
 		}
 		// GetUnmined holds details about calls to the GetUnmined method.
 		GetUnmined []struct {
-			// ContextMoqParam is the contextMoqParam argument value.
-			ContextMoqParam context.Context
-			// Callback is the callback argument value.
-			Callback func(s *store.StoreData)
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Since is the since argument value.
+			Since time.Time
+			// Limit is the limit argument value.
+			Limit int64
 		}
 		// Ping holds details about calls to the Ping method.
 		Ping []struct {
@@ -363,21 +365,23 @@ func (mock *MetamorphStoreMock) GetBlockProcessedCalls() []struct {
 }
 
 // GetUnmined calls GetUnminedFunc.
-func (mock *MetamorphStoreMock) GetUnmined(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
+func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 	if mock.GetUnminedFunc == nil {
 		panic("MetamorphStoreMock.GetUnminedFunc: method is nil but MetamorphStore.GetUnmined was just called")
 	}
 	callInfo := struct {
-		ContextMoqParam context.Context
-		Callback        func(s *store.StoreData)
+		Ctx   context.Context
+		Since time.Time
+		Limit int64
 	}{
-		ContextMoqParam: contextMoqParam,
-		Callback:        callback,
+		Ctx:   ctx,
+		Since: since,
+		Limit: limit,
 	}
 	mock.lockGetUnmined.Lock()
 	mock.calls.GetUnmined = append(mock.calls.GetUnmined, callInfo)
 	mock.lockGetUnmined.Unlock()
-	return mock.GetUnminedFunc(contextMoqParam, callback)
+	return mock.GetUnminedFunc(ctx, since, limit)
 }
 
 // GetUnminedCalls gets all the calls that were made to GetUnmined.
@@ -385,12 +389,14 @@ func (mock *MetamorphStoreMock) GetUnmined(contextMoqParam context.Context, call
 //
 //	len(mockedMetamorphStore.GetUnminedCalls())
 func (mock *MetamorphStoreMock) GetUnminedCalls() []struct {
-	ContextMoqParam context.Context
-	Callback        func(s *store.StoreData)
+	Ctx   context.Context
+	Since time.Time
+	Limit int64
 } {
 	var calls []struct {
-		ContextMoqParam context.Context
-		Callback        func(s *store.StoreData)
+		Ctx   context.Context
+		Since time.Time
+		Limit int64
 	}
 	mock.lockGetUnmined.RLock()
 	calls = mock.calls.GetUnmined

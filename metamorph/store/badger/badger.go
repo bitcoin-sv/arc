@@ -277,15 +277,16 @@ func (s *Badger) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHas
 }
 
 // GetUnmined returns all transactions that have not been mined
-func (s *Badger) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
+func (s *Badger) GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("mtm_store_badger").NewStat("GetUnmined").AddTime(start)
 	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "badger:GetUnmined")
-	defer span.Finish()
 
-	return s.store.View(func(tx *badger.Txn) error {
+	defer span.Finish()
+	data := make([]*store.StoreData, 0)
+	err := s.store.View(func(tx *badger.Txn) error {
 		iter := tx.NewIterator(badger.DefaultIteratorOptions)
 		defer iter.Close()
 
@@ -299,26 +300,41 @@ func (s *Badger) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 			}
 
 			var result *store.StoreData
-			if err := item.Value(func(val []byte) error {
+			err := item.Value(func(val []byte) error {
 				var err2 error
 				if result, err2 = store.DecodeFromBytes(val); err2 != nil {
 					return err2
 				}
 				return nil
-			}); err != nil {
+			})
+			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
 				s.logger.Errorf("failed to decode data for %s: %w", item.Key(), err)
 				continue
 			}
 
+			if result.StoredAt.Before(since) {
+				continue
+			}
+
 			if result.Status < metamorph_api.Status_MINED || result.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
-				callback(result)
+				data = append(data, result)
+			}
+
+			if int64(len(data)) >= limit {
+				return nil
 			}
 		}
 
 		return nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }
 
 func (s *Badger) Del(ctx context.Context, hash []byte) error {

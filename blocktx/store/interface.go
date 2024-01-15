@@ -27,7 +27,6 @@ type Interface interface {
 	GetBlockForHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error)
 	GetBlockTransactions(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error)
 	GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, error)
-	GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Block, error)
 	GetTransactionBlocks(ctx context.Context, transactions *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error)
 	InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error)
 	InsertBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error

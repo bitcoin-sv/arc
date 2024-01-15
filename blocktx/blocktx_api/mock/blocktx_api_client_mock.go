@@ -39,9 +39,6 @@ var _ blocktx_api.BlockTxAPIClient = &BlockTxAPIClientMock{}
 //			GetMinedTransactionsForBlockFunc: func(ctx context.Context, in *blocktx_api.BlockAndSource, opts ...grpc.CallOption) (*blocktx_api.MinedTransactions, error) {
 //				panic("mock out the GetMinedTransactionsForBlock method")
 //			},
-//			GetTransactionBlockFunc: func(ctx context.Context, in *blocktx_api.Transaction, opts ...grpc.CallOption) (*blocktx_api.Block, error) {
-//				panic("mock out the GetTransactionBlock method")
-//			},
 //			GetTransactionBlocksFunc: func(ctx context.Context, in *blocktx_api.Transactions, opts ...grpc.CallOption) (*blocktx_api.TransactionBlocks, error) {
 //				panic("mock out the GetTransactionBlocks method")
 //			},
@@ -78,9 +75,6 @@ type BlockTxAPIClientMock struct {
 
 	// GetMinedTransactionsForBlockFunc mocks the GetMinedTransactionsForBlock method.
 	GetMinedTransactionsForBlockFunc func(ctx context.Context, in *blocktx_api.BlockAndSource, opts ...grpc.CallOption) (*blocktx_api.MinedTransactions, error)
-
-	// GetTransactionBlockFunc mocks the GetTransactionBlock method.
-	GetTransactionBlockFunc func(ctx context.Context, in *blocktx_api.Transaction, opts ...grpc.CallOption) (*blocktx_api.Block, error)
 
 	// GetTransactionBlocksFunc mocks the GetTransactionBlocks method.
 	GetTransactionBlocksFunc func(ctx context.Context, in *blocktx_api.Transactions, opts ...grpc.CallOption) (*blocktx_api.TransactionBlocks, error)
@@ -150,15 +144,6 @@ type BlockTxAPIClientMock struct {
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
-		// GetTransactionBlock holds details about calls to the GetTransactionBlock method.
-		GetTransactionBlock []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// In is the in argument value.
-			In *blocktx_api.Transaction
-			// Opts is the opts argument value.
-			Opts []grpc.CallOption
-		}
 		// GetTransactionBlocks holds details about calls to the GetTransactionBlocks method.
 		GetTransactionBlocks []struct {
 			// Ctx is the ctx argument value.
@@ -202,7 +187,6 @@ type BlockTxAPIClientMock struct {
 	lockGetBlockTransactions         sync.RWMutex
 	lockGetLastProcessedBlock        sync.RWMutex
 	lockGetMinedTransactionsForBlock sync.RWMutex
-	lockGetTransactionBlock          sync.RWMutex
 	lockGetTransactionBlocks         sync.RWMutex
 	lockGetTransactionMerklePath     sync.RWMutex
 	lockHealth                       sync.RWMutex
@@ -446,46 +430,6 @@ func (mock *BlockTxAPIClientMock) GetMinedTransactionsForBlockCalls() []struct {
 	mock.lockGetMinedTransactionsForBlock.RLock()
 	calls = mock.calls.GetMinedTransactionsForBlock
 	mock.lockGetMinedTransactionsForBlock.RUnlock()
-	return calls
-}
-
-// GetTransactionBlock calls GetTransactionBlockFunc.
-func (mock *BlockTxAPIClientMock) GetTransactionBlock(ctx context.Context, in *blocktx_api.Transaction, opts ...grpc.CallOption) (*blocktx_api.Block, error) {
-	if mock.GetTransactionBlockFunc == nil {
-		panic("BlockTxAPIClientMock.GetTransactionBlockFunc: method is nil but BlockTxAPIClient.GetTransactionBlock was just called")
-	}
-	callInfo := struct {
-		Ctx  context.Context
-		In   *blocktx_api.Transaction
-		Opts []grpc.CallOption
-	}{
-		Ctx:  ctx,
-		In:   in,
-		Opts: opts,
-	}
-	mock.lockGetTransactionBlock.Lock()
-	mock.calls.GetTransactionBlock = append(mock.calls.GetTransactionBlock, callInfo)
-	mock.lockGetTransactionBlock.Unlock()
-	return mock.GetTransactionBlockFunc(ctx, in, opts...)
-}
-
-// GetTransactionBlockCalls gets all the calls that were made to GetTransactionBlock.
-// Check the length with:
-//
-//	len(mockedBlockTxAPIClient.GetTransactionBlockCalls())
-func (mock *BlockTxAPIClientMock) GetTransactionBlockCalls() []struct {
-	Ctx  context.Context
-	In   *blocktx_api.Transaction
-	Opts []grpc.CallOption
-} {
-	var calls []struct {
-		Ctx  context.Context
-		In   *blocktx_api.Transaction
-		Opts []grpc.CallOption
-	}
-	mock.lockGetTransactionBlock.RLock()
-	calls = mock.calls.GetTransactionBlock
-	mock.lockGetTransactionBlock.RUnlock()
 	return calls
 }
 

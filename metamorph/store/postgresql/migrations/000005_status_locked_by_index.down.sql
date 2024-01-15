@@ -1,0 +1,1 @@
+DROP INDEX idx_metamorph_transactions_locked_by_status;

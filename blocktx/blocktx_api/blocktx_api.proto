@@ -21,8 +21,6 @@ service BlockTxAPI {
   rpc GetBlockTransactions (Block) returns (Transactions) {}
 
   // GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash.
-  rpc GetTransactionBlock (Transaction) returns (Block) {}
-
   rpc GetTransactionBlocks (Transactions) returns (TransactionBlocks) {}
 
   // GetBlock returns the non-orphaned block for a given block hash.

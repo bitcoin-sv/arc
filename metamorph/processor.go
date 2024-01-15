@@ -38,6 +38,9 @@ const (
 
 	failedToUpdateStatus       = "Failed to update status"
 	dataRetentionPeriodDefault = 14 * 24 * time.Hour // 14 days
+
+	maxMonitoriedTxs = 100000
+	loadUnminedLimit = int64(5000)
 )
 
 type Processor struct {
@@ -55,6 +58,8 @@ type Processor struct {
 	processCheckIfMinedTicker   *time.Ticker
 
 	processExpiredTxsTicker *time.Ticker
+
+	maxMonitoredTxs int64
 
 	startTime          time.Time
 	queueLength        atomic.Int32
@@ -92,6 +97,8 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, btc blocktx.Clien
 		processExpiredTxsTicker: time.NewTicker(unseenTransactionRebroadcastingInterval * time.Second),
 
 		processCheckIfMinedInterval: processCheckIfMinedIntervalDefault,
+
+		maxMonitoredTxs: maxMonitoriedTxs,
 
 		stored:             stat.NewAtomicStat(),
 		announcedToNetwork: stat.NewAtomicStats(),
@@ -193,36 +200,40 @@ func (p *Processor) processCheckIfMined() {
 			transactions.Transactions = txs
 		}
 
-		blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
+		p.checkIfMined(transactions)
+	}
+}
+
+func (p *Processor) checkIfMined(transactions *blocktx_api.Transactions) {
+	blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
+	if err != nil {
+		p.logger.Error("failed to get transaction blocks from blocktx", slog.String("err", err.Error()))
+		return
+	}
+
+	p.logger.Info("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))
+
+	for _, blockTxs := range blockTransactions.GetTransactionBlocks() {
+		var blockHashString string
+
+		blockHash, err := chainhash.NewHash(blockTxs.GetBlockHash())
 		if err != nil {
-			p.logger.Error("failed to get transaction blocks from blocktx", slog.String("err", err.Error()))
-			continue
+			p.logger.Error("failed to parse block hash", slog.String("err", err.Error()))
+			blockHashString = ""
+		} else {
+			blockHashString = blockHash.String()
 		}
 
-		p.logger.Info("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))
+		txHash, err := chainhash.NewHash(blockTxs.GetTransactionHash())
+		if err != nil {
+			p.logger.Error("failed to parse tx hash", slog.String("err", err.Error()))
+			continue
+		}
+		p.logger.Debug("found block for transaction", slog.String("txhash", txHash.String()), slog.String("blockhash", blockHashString))
 
-		for _, blockTxs := range blockTransactions.GetTransactionBlocks() {
-			var blockHashString string
-
-			blockHash, err := chainhash.NewHash(blockTxs.GetBlockHash())
-			if err != nil {
-				p.logger.Error("failed to parse block hash", slog.String("err", err.Error()))
-				blockHashString = ""
-			} else {
-				blockHashString = blockHash.String()
-			}
-
-			txHash, err := chainhash.NewHash(blockTxs.GetTransactionHash())
-			if err != nil {
-				p.logger.Error("failed to parse tx hash", slog.String("err", err.Error()))
-				continue
-			}
-			p.logger.Debug("found block for transaction", slog.String("txhash", txHash.String()), slog.String("blockhash", blockHashString))
-
-			_, err = p.SendStatusMinedForTransaction(txHash, blockHash, blockTxs.GetBlockHeight())
-			if err != nil {
-				p.logger.Error("failed to send status mined for tx", slog.String("err", err.Error()))
-			}
+		_, err = p.SendStatusMinedForTransaction(txHash, blockHash, blockTxs.GetBlockHeight())
+		if err != nil {
+			p.logger.Error("failed to send status mined for tx", slog.String("err", err.Error()))
 		}
 	}
 }
@@ -289,17 +300,44 @@ func (p *Processor) LoadUnmined() {
 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:LoadUnmined")
 	defer span.Finish()
 
-	err := p.store.GetUnmined(spanCtx, func(record *store.StoreData) {
-		// add the records we have in the database, but that have not been processed, to the mempool watcher
+	limit := loadUnminedLimit
+	margin := p.maxMonitoredTxs - int64(len(p.ProcessorResponseMap.Items()))
+
+	if margin < limit {
+		limit = margin
+	}
+
+	if limit <= 0 {
+		return
+	}
+
+	p.logger.Info("loading unmined transactions", slog.Int64("limit", limit))
+
+	unminedTxs, err := p.store.GetUnmined(spanCtx, p.now().Add(-1*p.mapExpiryTime), limit)
+	if err != nil {
+		p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
+		return
+	}
+
+	if len(unminedTxs) == 0 {
+		return
+	}
+
+	transactions := &blocktx_api.Transactions{}
+	txs := make([]*blocktx_api.Transaction, len(unminedTxs))
+	index := 0
+	for _, record := range unminedTxs {
 		pr := processor_response.NewProcessorResponseWithStatus(record.Hash, record.Status)
 		pr.NoStats = true
 		pr.Start = record.StoredAt
-
 		p.ProcessorResponseMap.Set(record.Hash, pr)
-	})
-	if err != nil {
-		p.logger.Error("Failed to iterate through stored transactions", slog.String("err", err.Error()))
+
+		txs[index] = &blocktx_api.Transaction{Hash: record.Hash.CloneBytes()}
+		index++
+		transactions.Transactions = txs
 	}
+
+	p.checkIfMined(transactions)
 }
 
 func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error) {

@@ -14,23 +14,10 @@ import (
 
 const maximumBlockSize = 4000000000 // 4Gb
 
-type subscriber struct {
-	height uint64
-	stream blocktx_api.BlockTxAPI_GetBlockNotificationStreamServer
-}
-
 type BlockNotifier struct {
 	logger         *slog.Logger
 	storeI         store.Interface
-	subscribers    map[subscriber]bool
 	fillGapsTicker *time.Ticker
-
-	newSubscriptions  chan subscriber
-	deadSubscriptions chan subscriber
-	blockCh           chan *blocktx_api.Block
-
-	quitBlockStream         chan struct{}
-	quitBlockStreamComplete chan struct{}
 
 	quitFillBlockGap         chan struct{}
 	quitFillBlockGapComplete chan struct{}
@@ -44,18 +31,9 @@ func WithFillGapsInterval(interval time.Duration) func(notifier *BlockNotifier) 
 
 func NewBlockNotifier(storeI store.Interface, l *slog.Logger, blockCh chan *blocktx_api.Block, peerHandler *PeerHandler, peerSettings []config.Peer, network wire.BitcoinNet, opts ...func(notifier *BlockNotifier)) (*BlockNotifier, error) {
 	bn := &BlockNotifier{
-		storeI:      storeI,
-		logger:      l,
-		subscribers: make(map[subscriber]bool),
-
-		newSubscriptions:  make(chan subscriber, 128),
-		deadSubscriptions: make(chan subscriber, 128),
-		blockCh:           blockCh,
-		fillGapsTicker:    time.NewTicker(15 * time.Minute),
-
-		quitBlockStream:         make(chan struct{}),
-		quitBlockStreamComplete: make(chan struct{}),
-
+		storeI:                   storeI,
+		logger:                   l,
+		fillGapsTicker:           time.NewTicker(15 * time.Minute),
 		quitFillBlockGap:         make(chan struct{}),
 		quitFillBlockGapComplete: make(chan struct{}),
 	}
@@ -83,39 +61,6 @@ func NewBlockNotifier(storeI store.Interface, l *slog.Logger, blockCh chan *bloc
 
 		peers[i] = peer
 	}
-
-	go func() {
-		defer func() {
-			bn.quitBlockStreamComplete <- struct{}{}
-		}()
-
-		for {
-			select {
-			case <-bn.quitBlockStream:
-				return
-			case s := <-bn.newSubscriptions:
-				bn.subscribers[s] = true
-				bn.logger.Info("NewHandler MinedTransactions subscription received", slog.Int("total", len(bn.subscribers)))
-				// go func() {
-				// 	TODO - send all the transactions that were mined since the last time the client was connected
-				// }()
-
-			case s := <-bn.deadSubscriptions:
-				delete(bn.subscribers, s)
-				bn.logger.Info("BlockNotification subscription removed", slog.Int("total", len(bn.subscribers)))
-
-			case block := <-bn.blockCh:
-				for sub := range bn.subscribers {
-					go func(s subscriber) {
-						if err := s.stream.Send(block); err != nil {
-							bn.logger.Error("Error sending block to subscriber", slog.String("error", err.Error()))
-							bn.deadSubscriptions <- s
-						}
-					}(sub)
-				}
-			}
-		}
-	}()
 
 	go func() {
 		defer func() {
@@ -149,28 +94,8 @@ func NewBlockNotifier(storeI store.Interface, l *slog.Logger, blockCh chan *bloc
 
 // Shutdown stops the handler.
 func (bn *BlockNotifier) Shutdown() {
-	bn.quitBlockStream <- struct{}{}
 	bn.quitFillBlockGap <- struct{}{}
-	<-bn.quitBlockStreamComplete
 	<-bn.quitFillBlockGapComplete
 
 	bn.fillGapsTicker.Stop()
-}
-
-// NewSubscription adds a new subscription to the handler.
-func (bn *BlockNotifier) NewSubscription(heightAndSource *blocktx_api.Height, s blocktx_api.BlockTxAPI_GetBlockNotificationStreamServer) {
-	bn.newSubscriptions <- subscriber{
-		height: heightAndSource.GetHeight(),
-		stream: s,
-	}
-
-	// Keep this subscription alive without endless loop - use a channel that blocks forever.
-	ch := make(chan bool)
-	for {
-		<-ch
-	}
-}
-
-func (bn *BlockNotifier) SendBlock(block *blocktx_api.Block) {
-	bn.blockCh <- block
 }

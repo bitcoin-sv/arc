@@ -109,38 +109,12 @@ func (s *Server) RegisterTransaction(ctx context.Context, transaction *blocktx_a
 	}, err
 }
 
-func (s *Server) GetBlockTransactions(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error) {
-	return s.store.GetBlockTransactions(ctx, block)
-}
-
 func (s *Server) GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
 	return s.store.GetTransactionBlocks(ctx, transaction)
 }
 
-func (s *Server) GetBlock(ctx context.Context, req *blocktx_api.Hash) (*blocktx_api.Block, error) {
-	hash, err := chainhash.NewHash(req.GetHash())
-	if err != nil {
-		return nil, err
-	}
-
-	return s.store.GetBlock(ctx, hash)
-}
-
 func (s *Server) GetBlockForHeight(ctx context.Context, height *blocktx_api.Height) (*blocktx_api.Block, error) {
 	return s.store.GetBlockForHeight(ctx, height.GetHeight())
-}
-
-func (s *Server) GetLastProcessedBlock(ctx context.Context, _ *emptypb.Empty) (*blocktx_api.Block, error) {
-	return s.store.GetLastProcessedBlock(ctx)
-}
-
-func (s *Server) GetBlockNotificationStream(height *blocktx_api.Height, srv blocktx_api.BlockTxAPI_GetBlockNotificationStreamServer) error {
-	s.blockNotifier.NewSubscription(height, srv)
-	return nil
-}
-
-func (s *Server) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
-	return s.store.GetMinedTransactionsForBlock(ctx, blockAndSource)
 }
 
 func (s *Server) Shutdown() {

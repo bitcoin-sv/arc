@@ -17,25 +17,16 @@ func (s *SQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	q := `
-		INSERT INTO blocks (
-		 hash
-		,prevhash
-		,merkleroot
-		,height
-		) VALUES (
-		 $1
-		,$2
-		,$3
-		,$4
-		)
-		ON CONFLICT DO SET orphanedyn = FALSE
+	qInsert := `
+		INSERT INTO blocks (hash, prevhash, merkleroot, height)
+		VALUES ($1 ,$2 , $3, $4)
+		ON CONFLICT (hash) DO UPDATE SET orphanedyn = FALSE
 		RETURNING id
 	`
 
 	var blockId uint64
 
-	err := s.db.QueryRowContext(ctx, q, block.GetHash(), block.GetPreviousHash(), block.GetMerkleRoot(), block.GetHeight()).Scan(&blockId)
+	err := s.db.QueryRowContext(ctx, qInsert, block.GetHash(), block.GetPreviousHash(), block.GetMerkleRoot(), block.GetHeight()).Scan(&blockId)
 	if err != nil {
 		return 0, fmt.Errorf("failed when inserting block: %v", err)
 	}

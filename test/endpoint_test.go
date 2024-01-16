@@ -381,11 +381,15 @@ func TestPostCallbackToken(t *testing.T) {
 
 			var statusResponse *api.GETTransactionStatusResponse
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
-
-			for i := 0; i <= 1; i++ {
+			seenOnNetworkReceived := false
+			for i := 0; i <= 2; i++ {
 				t.Logf("callback iteration %d", i)
 				select {
 				case callback := <-callbackReceivedChan:
+					if *callback.TxStatus == "SEEN_ON_NETWORK" {
+						seenOnNetworkReceived = true
+						continue
+					}
 					require.NotNil(t, statusResponse)
 					require.NotNil(t, statusResponse.JSON200)
 					require.NotNil(t, callback)
@@ -400,6 +404,7 @@ func TestPostCallbackToken(t *testing.T) {
 					t.Fatal("callback not received")
 				}
 			}
+			require.Equal(t, seenOnNetworkReceived, true)
 		})
 	}
 }

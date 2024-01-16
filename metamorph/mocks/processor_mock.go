@@ -42,9 +42,6 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //			SendStatusMinedForTransactionFunc: func(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error) {
 //				panic("mock out the SendStatusMinedForTransaction method")
 //			},
-//			SetFunc: func(ctx context.Context, req *metamorph.ProcessorRequest) error {
-//				panic("mock out the Set method")
-//			},
 //			ShutdownFunc: func()  {
 //				panic("mock out the Shutdown method")
 //			},
@@ -75,9 +72,6 @@ type ProcessorIMock struct {
 
 	// SendStatusMinedForTransactionFunc mocks the SendStatusMinedForTransaction method.
 	SendStatusMinedForTransactionFunc func(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error)
-
-	// SetFunc mocks the Set method.
-	SetFunc func(ctx context.Context, req *metamorph.ProcessorRequest) error
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func()
@@ -125,13 +119,6 @@ type ProcessorIMock struct {
 			// BlockHeight is the blockHeight argument value.
 			BlockHeight uint64
 		}
-		// Set holds details about calls to the Set method.
-		Set []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Req is the req argument value.
-			Req *metamorph.ProcessorRequest
-		}
 		// Shutdown holds details about calls to the Shutdown method.
 		Shutdown []struct {
 		}
@@ -143,7 +130,6 @@ type ProcessorIMock struct {
 	lockProcessTransaction            sync.RWMutex
 	lockSendStatusForTransaction      sync.RWMutex
 	lockSendStatusMinedForTransaction sync.RWMutex
-	lockSet                           sync.RWMutex
 	lockShutdown                      sync.RWMutex
 }
 
@@ -377,42 +363,6 @@ func (mock *ProcessorIMock) SendStatusMinedForTransactionCalls() []struct {
 	mock.lockSendStatusMinedForTransaction.RLock()
 	calls = mock.calls.SendStatusMinedForTransaction
 	mock.lockSendStatusMinedForTransaction.RUnlock()
-	return calls
-}
-
-// Set calls SetFunc.
-func (mock *ProcessorIMock) Set(ctx context.Context, req *metamorph.ProcessorRequest) error {
-	if mock.SetFunc == nil {
-		panic("ProcessorIMock.SetFunc: method is nil but ProcessorI.Set was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Req *metamorph.ProcessorRequest
-	}{
-		Ctx: ctx,
-		Req: req,
-	}
-	mock.lockSet.Lock()
-	mock.calls.Set = append(mock.calls.Set, callInfo)
-	mock.lockSet.Unlock()
-	return mock.SetFunc(ctx, req)
-}
-
-// SetCalls gets all the calls that were made to Set.
-// Check the length with:
-//
-//	len(mockedProcessorI.SetCalls())
-func (mock *ProcessorIMock) SetCalls() []struct {
-	Ctx context.Context
-	Req *metamorph.ProcessorRequest
-} {
-	var calls []struct {
-		Ctx context.Context
-		Req *metamorph.ProcessorRequest
-	}
-	mock.lockSet.RLock()
-	calls = mock.calls.Set
-	mock.lockSet.RUnlock()
 	return calls
 }
 

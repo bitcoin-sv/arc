@@ -52,7 +52,6 @@ type BitcoinNode interface {
 
 type ProcessorI interface {
 	LoadUnmined()
-	Set(ctx context.Context, req *ProcessorRequest) error
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
 	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
 	SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error)

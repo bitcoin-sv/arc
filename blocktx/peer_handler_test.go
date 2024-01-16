@@ -238,7 +238,7 @@ func TestHandleBlock(t *testing.T) {
 			},
 
 			// main assert for the test to make sure block with a single transaction doesn't have any merkle paths other than empty ones "0000"
-			InsertBlockTransactionsFunc: func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
+			UpdateBlockTransactionsFunc: func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
 				assert.Equal(t, uint64(1), uint64(len(merklePaths)))
 				assert.Equal(t, merklePaths[0], "fe12031800010100027fda0fc8f5d26a8616869add086c8421fa07245a96d1b6ac5ae8d46bbbb2643d")
 				return nil
@@ -263,7 +263,7 @@ func TestHandleBlock(t *testing.T) {
 
 			var insertedBlockTransactions []*blocktx_api.TransactionAndSource
 
-			storeMock.InsertBlockTransactionsFunc = func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
+			storeMock.UpdateBlockTransactionsFunc = func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
 				require.True(t, len(merklePaths) <= batchSize)
 				require.True(t, len(transactions) <= batchSize)
 

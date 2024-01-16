@@ -8,6 +8,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/libsv/go-bt/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -53,16 +54,12 @@ func TestDoubleSpend(t *testing.T) {
 			arcClient, err := api.NewClientWithResponses(url)
 			require.NoError(t, err)
 
-			arcBody := api.POSTTransactionJSONRequestBody{
-				RawTx: hex.EncodeToString(tx.ExtendedBytes()),
-			}
-
 			//submit first transaction
-			postTxChecksStatus(t, arcClient, arcBody, "SEEN_ON_NETWORK")
+			postTxChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", tc.extFormat)
 
 			// send double spending transaction when first tx is in mempool
-			arcBodyMempool := getArcBody(t, privateKey, utxos[0], tc.extFormat)
-			postTxChecksStatus(t, arcClient, arcBodyMempool, "REJECTED")
+			txMempool := createTxToNewAddress(t, privateKey, utxos[0])
+			postTxChecksStatus(t, arcClient, txMempool, "REJECTED", tc.extFormat)
 
 			generate(t, 10)
 
@@ -73,13 +70,21 @@ func TestDoubleSpend(t *testing.T) {
 			require.Equal(t, "MINED", *statusResponse.JSON200.TxStatus)
 
 			// send double spending transaction when first tx was mined
-			arcBodyMined := getArcBody(t, privateKey, utxos[0], tc.extFormat)
-			postTxChecksStatus(t, arcClient, arcBodyMined, "SEEN_IN_ORPHAN_MEMPOOL")
+			txMined := createTxToNewAddress(t, privateKey, utxos[0])
+			postTxChecksStatus(t, arcClient, txMined, "SEEN_IN_ORPHAN_MEMPOOL", tc.extFormat)
 		})
 	}
 }
 
-func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, body api.POSTTransactionJSONRequestBody, expectedStatus string) {
+func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus string, extFormat bool) {
+	rawTxString := hex.EncodeToString(tx.Bytes())
+	if extFormat {
+		rawTxString = hex.EncodeToString(tx.ExtendedBytes())
+	}
+	body := api.POSTTransactionJSONRequestBody{
+		RawTx: rawTxString,
+	}
+
 	ctx := context.Background()
 	waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
 	params := &api.POSTTransactionParams{
@@ -90,22 +95,14 @@ func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, body api.
 
 	require.Equal(t, http.StatusOK, response.StatusCode())
 	require.NotNil(t, response.JSON200)
-	require.Equalf(t, expectedStatus, response.JSON200.TxStatus, "status of response: %s does not match expected status: %s", response.JSON200.TxStatus, expectedStatus)
+	require.Equalf(t, expectedStatus, response.JSON200.TxStatus, "status of response: %s does not match expected status: %s for tx ID %s", response.JSON200.TxStatus, expectedStatus, tx.TxID())
 }
 
-func getArcBody(t *testing.T, privateKey string, utxo NodeUnspentUtxo, extFormat bool) api.POSTTransactionJSONRequestBody {
+func createTxToNewAddress(t *testing.T, privateKey string, utxo NodeUnspentUtxo) *bt.Tx {
 	address, err := bitcoind.GetNewAddress()
 
 	tx1, err := createTx(privateKey, address, utxo)
 	require.NoError(t, err)
-	var arcBodyTx string
-	if extFormat {
-		arcBodyTx = hex.EncodeToString(tx1.ExtendedBytes())
-	} else {
-		arcBodyTx = hex.EncodeToString(tx1.Bytes())
-	}
-	arcBody := api.POSTTransactionJSONRequestBody{
-		RawTx: arcBodyTx,
-	}
-	return arcBody
+
+	return tx1
 }

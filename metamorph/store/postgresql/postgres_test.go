@@ -328,4 +328,15 @@ func TestPostgresDB(t *testing.T) {
 
 		require.Equal(t, &now, processedAt)
 	})
+
+	t.Run("clear data", func(t *testing.T) {
+		resp, err := postgresDB.ClearData(ctx, 14)
+		require.NoError(t, err)
+		require.Equal(t, int64(3), resp.Rows)
+
+		var numberOfRemainingTxs int
+		err = postgresDB.db.QueryRowContext(ctx, "SELECT count(*) FROM metamorph.transactions;").Scan(&numberOfRemainingTxs)
+		require.NoError(t, err)
+		require.Equal(t, 7, numberOfRemainingTxs)
+	})
 }

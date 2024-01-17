@@ -1,43 +1,35 @@
 package jobs
 
 import (
-	"fmt"
+	"context"
+	"log/slog"
+	"time"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 )
 
-func runDelete(table string, params ClearRecordsParams) error {
-	Log(INFO, "Connecting to database ...")
-	conn, err := sqlx.Open(params.Scheme(), params.String())
-	if err != nil {
-		Log(ERROR, fmt.Sprintf("unable to create connection %s", err))
-		return err
-	}
-	interval := fmt.Sprintf("%d days", params.RecordRetentionDays)
-
-	stmt, err := conn.Preparex(fmt.Sprintf("DELETE FROM %s WHERE inserted_at <= (CURRENT_DATE - $1::interval)", table))
-	if err != nil {
-		Log(ERROR, fmt.Sprintf("unable to prepare statement %s", err))
-		return err
-	}
-
-	res, err := stmt.Exec(interval)
-	if err != nil {
-		Log(ERROR, "unable to delete block rows")
-		return err
-	}
-	rows, _ := res.RowsAffected()
-	Log(INFO, fmt.Sprintf("Successfully deleted %d rows", rows))
-	return nil
+type Metamorph struct {
+	client        metamorph_api.MetaMorphAPIClient
+	logger        *slog.Logger
+	retentionDays int32
 }
 
-func ClearMetamorph(params ClearRecordsParams) error {
-	if err := runDelete("metamorph.blocks", params); err != nil {
+func NewMetamorph(client metamorph_api.MetaMorphAPIClient, retentionDays int32, logger *slog.Logger) *Metamorph {
+	return &Metamorph{
+		client:        client,
+		logger:        logger,
+		retentionDays: retentionDays,
+	}
+}
+
+func (c Metamorph) ClearTransactions() error {
+	ctx := context.Background()
+	start := time.Now()
+	resp, err := c.client.ClearData(ctx, &metamorph_api.ClearDataRequest{RetentionDays: c.retentionDays})
+	if err != nil {
 		return err
 	}
-	if err := runDelete("metamorph.transactions", params); err != nil {
-		return err
-	}
+	c.logger.Info("cleared transactions in blocktx", slog.Int64("rows", resp.Rows), slog.Duration("duration", time.Since(start)))
 
 	return nil
 }

@@ -1,9 +1,12 @@
 package jobs
 
 import (
-	"github.com/go-testfixtures/testfixtures/v3"
+	"log/slog"
+	"os"
 	"testing"
 	"time"
+
+	"github.com/go-testfixtures/testfixtures/v3"
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	. "github.com/bitcoin-sv/arc/database_testing"
@@ -40,7 +43,9 @@ func (s *ClearBlockTransactionsMapSuite) Test() {
 
 	now := time.Date(2023, 12, 22, 12, 0, 0, 0, time.UTC)
 
-	clearJob := NewClearJob(WithNow(func() time.Time {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+	clearJob := NewClearJob(logger, WithNow(func() time.Time {
 		return now
 	}))
 

@@ -1,6 +1,8 @@
 package jobs
 
 import (
+	"log/slog"
+	"os"
 	"testing"
 	"time"
 
@@ -40,7 +42,9 @@ func (s *ClearTransactionsSuite) Test() {
 
 	now := time.Date(2023, 12, 22, 12, 0, 0, 0, time.UTC)
 
-	clearJob := NewClearJob(WithNow(func() time.Time {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+	clearJob := NewClearJob(logger, WithNow(func() time.Time {
 		return now
 	}))
 

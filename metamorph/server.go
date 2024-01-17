@@ -468,3 +468,7 @@ func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUn
 
 	return result, err
 }
+
+func (s *Server) ClearData(ctx context.Context, clearData *metamorph_api.ClearDataRequest) (*metamorph_api.ClearDataResponse, error) {
+	return s.store.ClearData(ctx, clearData.RetentionDays)
+}

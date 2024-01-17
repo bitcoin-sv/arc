@@ -1,38 +1,48 @@
 package background_worker
 
 import (
-	"fmt"
+	"log/slog"
+
 	"github.com/bitcoin-sv/arc/background_worker/jobs"
 	"github.com/go-co-op/gocron"
 )
 
-type ARCScheduler struct {
+type BlockTxScheduler struct {
 	Scheduler       *gocron.Scheduler
 	IntervalInHours int
 	Params          jobs.ClearRecordsParams
+	logger          *slog.Logger
 }
 
-func (sched *ARCScheduler) RunJob(table string, job func(params jobs.ClearRecordsParams) error) {
-	_, err := sched.Scheduler.Every(sched.IntervalInHours).Hours().Do(func() {
-		jobs.Log(jobs.INFO, fmt.Sprintf("Clearing expired %s...", table))
-		err := job(sched.Params)
+func NewBlocktxScheduler(scheduler *gocron.Scheduler, intervalHours int, params jobs.ClearRecordsParams, logger *slog.Logger) *BlockTxScheduler {
+	return &BlockTxScheduler{
+		Scheduler:       scheduler,
+		IntervalInHours: intervalHours,
+		Params:          params,
+		logger:          logger,
+	}
+}
+
+func (b *BlockTxScheduler) RunJob(jobName string, job func(params jobs.ClearRecordsParams) error) {
+	_, err := b.Scheduler.Every(b.IntervalInHours).Hours().Do(func() {
+		err := job(b.Params)
 		if err != nil {
-			jobs.Log(jobs.ERROR, fmt.Sprintf("unable to clear expired %s %s", table, err))
+			b.logger.Error("failed to run job", slog.String("name", jobName), slog.String("err", err.Error()))
 			return
 		}
-		jobs.Log(jobs.INFO, fmt.Sprintf("%s cleanup complete", table))
+		b.logger.Info("job complete", slog.String("name", jobName))
 	})
 
 	if err != nil {
-		jobs.Log(jobs.ERROR, fmt.Sprintf("unable to run %s job", table))
+		b.logger.Error("unable to run job", slog.String("name", jobName), slog.String("err", err.Error()))
 		return
 	}
 }
 
-func (sched *ARCScheduler) Start() {
-	sched.Scheduler.StartBlocking()
+func (b *BlockTxScheduler) Start() {
+	b.Scheduler.StartAsync()
 }
 
-func (sched *ARCScheduler) Shutdown() {
-	sched.Scheduler.Stop()
+func (b *BlockTxScheduler) Shutdown() {
+	b.Scheduler.Stop()
 }

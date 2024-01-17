@@ -10,12 +10,10 @@ import (
 )
 
 func (c ClearJob) ClearBlockTransactionsMap(params ClearRecordsParams) error {
-	Log(INFO, "Connecting to database ...")
+	c.logger.Info("Connecting to database")
 	conn, err := sqlx.Open(params.Scheme(), params.String())
-
 	if err != nil {
-		Log(ERROR, fmt.Sprintf("unable to create connection %s", err))
-		return err
+		return fmt.Errorf("unable to create connection: %v", err)
 	}
 
 	start := c.now()
@@ -23,19 +21,16 @@ func (c ClearJob) ClearBlockTransactionsMap(params ClearRecordsParams) error {
 
 	stmt, err := conn.Preparex("DELETE FROM block_transactions_map WHERE inserted_at_num <= $1::int")
 	if err != nil {
-		Log(ERROR, fmt.Sprintf("unable to prepare statement %s", err))
-		return err
+		return fmt.Errorf("unable to prepare statement: %v", err)
 	}
-
 	res, err := stmt.Exec(deleteBeforeDate.Format(numericalDateHourLayout))
 	if err != nil {
-		Log(ERROR, "unable to delete rows")
-		return err
+		return fmt.Errorf("unable to delete rows: %v", err)
 	}
 	rows, _ := res.RowsAffected()
 
 	timePassed := time.Since(start)
 
-	logger.Info("Successfully cleared block_transactions_map table", slog.Int64("rows", rows), slog.String("duration", timePassed.String()))
+	c.logger.Info("cleared block_transactions_map table", slog.Int64("rows", rows), slog.String("duration", timePassed.String()))
 	return nil
 }

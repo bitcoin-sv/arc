@@ -136,15 +136,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, btc blocktx.Clien
 	return p, nil
 }
 
-func (p *Processor) Set(ctx context.Context, req *ProcessorRequest) error {
-	// we need to decouple the Context from the request, so that we don't get cancelled
-	// when the request is cancelled
-	callerSpan := opentracing.SpanFromContext(ctx)
-	newctx := opentracing.ContextWithSpan(context.Background(), callerSpan)
-	_, spanCtx := opentracing.StartSpanFromContext(newctx, "Processor:processTransaction")
-	return p.store.Set(spanCtx, req.Data.Hash[:], req.Data)
-}
-
 // Shutdown closes all channels and goroutines gracefully
 func (p *Processor) Shutdown() {
 	p.logger.Info("Shutting down processor")
@@ -518,6 +509,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 				Status: metamorph_api.Status_STORED,
 				Source: "processor",
 				UpdateStore: func() error {
+					req.Data.Status = metamorph_api.Status_STORED
 					return p.store.Set(spanCtx, req.Data.Hash[:], req.Data)
 				},
 				Callback: func(err error) {

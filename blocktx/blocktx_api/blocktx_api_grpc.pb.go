@@ -39,7 +39,7 @@ type BlockTxAPIClient interface {
 	// Health returns the health of the API.
 	Health(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HealthResponse, error)
 	// RegisterTransaction registers a transaction with the API.
-	RegisterTransaction(ctx context.Context, in *TransactionAndSource, opts ...grpc.CallOption) (*RegisterTransactionResponse, error)
+	RegisterTransaction(ctx context.Context, in *TransactionAndSource, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// GetTransactionMerklePath returns the merkle path of a transaction.
 	GetTransactionMerklePath(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*MerklePath, error)
 	// GetBlockTransactions returns a list of transaction hashes for a given block.
@@ -76,8 +76,8 @@ func (c *blockTxAPIClient) Health(ctx context.Context, in *emptypb.Empty, opts .
 	return out, nil
 }
 
-func (c *blockTxAPIClient) RegisterTransaction(ctx context.Context, in *TransactionAndSource, opts ...grpc.CallOption) (*RegisterTransactionResponse, error) {
-	out := new(RegisterTransactionResponse)
+func (c *blockTxAPIClient) RegisterTransaction(ctx context.Context, in *TransactionAndSource, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, BlockTxAPI_RegisterTransaction_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -187,7 +187,7 @@ type BlockTxAPIServer interface {
 	// Health returns the health of the API.
 	Health(context.Context, *emptypb.Empty) (*HealthResponse, error)
 	// RegisterTransaction registers a transaction with the API.
-	RegisterTransaction(context.Context, *TransactionAndSource) (*RegisterTransactionResponse, error)
+	RegisterTransaction(context.Context, *TransactionAndSource) (*emptypb.Empty, error)
 	// GetTransactionMerklePath returns the merkle path of a transaction.
 	GetTransactionMerklePath(context.Context, *Transaction) (*MerklePath, error)
 	// GetBlockTransactions returns a list of transaction hashes for a given block.
@@ -215,7 +215,7 @@ type UnimplementedBlockTxAPIServer struct {
 func (UnimplementedBlockTxAPIServer) Health(context.Context, *emptypb.Empty) (*HealthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Health not implemented")
 }
-func (UnimplementedBlockTxAPIServer) RegisterTransaction(context.Context, *TransactionAndSource) (*RegisterTransactionResponse, error) {
+func (UnimplementedBlockTxAPIServer) RegisterTransaction(context.Context, *TransactionAndSource) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterTransaction not implemented")
 }
 func (UnimplementedBlockTxAPIServer) GetTransactionMerklePath(context.Context, *Transaction) (*MerklePath, error) {

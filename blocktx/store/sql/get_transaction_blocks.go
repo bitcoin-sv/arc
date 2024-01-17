@@ -16,11 +16,11 @@ const (
 	queryGetBlockHashHeightForTxHashesPostgres = `
 			SELECT
 			b.hash, b.height, t.hash
-			FROM transactions t
-			LEFT JOIN block_transactions_map m ON m.txid = t.id
-			LEFT JOIN blocks b ON m.blockid = b.id
+			FROM blocks b
+			INNER JOIN block_transactions_map m ON m.blockid = b.id
+			INNER JOIN transactions t ON m.txid = t.id
 			WHERE t.hash = ANY($1)
-			;`
+			AND b.orphanedyn = FALSE`
 
 	queryGetBlockHashHeightForTxHashesSQLite = `
 			SELECT

@@ -205,22 +205,19 @@ func (p *Processor) checkIfMined(transactions *blocktx_api.Transactions) {
 	p.logger.Info("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))
 
 	for _, blockTxs := range blockTransactions.GetTransactionBlocks() {
-		var blockHashString string
-
-		blockHash, err := chainhash.NewHash(blockTxs.GetBlockHash())
-		if err != nil {
-			p.logger.Error("failed to parse block hash", slog.String("err", err.Error()))
-			blockHashString = ""
-		} else {
-			blockHashString = blockHash.String()
-		}
-
 		txHash, err := chainhash.NewHash(blockTxs.GetTransactionHash())
 		if err != nil {
 			p.logger.Error("failed to parse tx hash", slog.String("err", err.Error()))
 			continue
 		}
-		p.logger.Debug("found block for transaction", slog.String("txhash", txHash.String()), slog.String("blockhash", blockHashString))
+
+		blockHash, err := chainhash.NewHash(blockTxs.GetBlockHash())
+		if err != nil {
+			p.logger.Error("failed to parse block hash", slog.String("txhash", txHash.String()), slog.String("err", err.Error()))
+			continue
+		}
+
+		p.logger.Debug("found block for transaction", slog.String("txhash", txHash.String()), slog.String("blockhash", blockHash.String()))
 
 		_, err = p.SendStatusMinedForTransaction(txHash, blockHash, blockTxs.GetBlockHeight())
 		if err != nil {
@@ -491,6 +488,17 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 		return
 	}
+
+	// register transaction in blocktx
+	go func() {
+		_, err := p.btc.RegisterTransaction(ctx, &blocktx_api.TransactionAndSource{
+			Hash: req.Data.Hash[:],
+		})
+
+		if err != nil {
+			p.logger.Error("failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+		}
+	}()
 
 	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel)
 

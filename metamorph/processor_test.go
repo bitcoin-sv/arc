@@ -25,6 +25,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 //go:generate moq -pkg mocks -out ./mocks/store_mock.go ./store/ MetamorphStore
@@ -288,7 +289,13 @@ func TestProcessTransaction(t *testing.T) {
 			}
 			pm := p2p.NewPeerManagerMock()
 
-			processor, err := NewProcessor(s, pm, nil)
+			btc := &ClientIMock{
+				RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
+					return &emptypb.Empty{}, nil
+				},
+			}
+
+			processor, err := NewProcessor(s, pm, btc)
 			require.NoError(t, err)
 			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
@@ -548,7 +555,13 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor, err := NewProcessor(s, pm, nil)
+		btc := &ClientIMock{
+			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
+				return &emptypb.Empty{}, nil
+			},
+		}
+
+		processor, err := NewProcessor(s, pm, btc)
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
@@ -709,7 +722,7 @@ func TestProcessCheckIfMined(t *testing.T) {
 				},
 			},
 
-			expectedNrOfUpdates: 3,
+			expectedNrOfUpdates: 0,
 		},
 	}
 

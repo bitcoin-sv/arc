@@ -26,6 +26,7 @@ const (
 	MetaMorphAPI_GetTransaction_FullMethodName       = "/metamorph_api.MetaMorphAPI/GetTransaction"
 	MetaMorphAPI_GetTransactionStatus_FullMethodName = "/metamorph_api.MetaMorphAPI/GetTransactionStatus"
 	MetaMorphAPI_SetUnlockedByName_FullMethodName    = "/metamorph_api.MetaMorphAPI/SetUnlockedByName"
+	MetaMorphAPI_ClearData_FullMethodName            = "/metamorph_api.MetaMorphAPI/ClearData"
 )
 
 // MetaMorphAPIClient is the client API for MetaMorphAPI service.
@@ -38,6 +39,7 @@ type MetaMorphAPIClient interface {
 	GetTransaction(ctx context.Context, in *TransactionStatusRequest, opts ...grpc.CallOption) (*Transaction, error)
 	GetTransactionStatus(ctx context.Context, in *TransactionStatusRequest, opts ...grpc.CallOption) (*TransactionStatus, error)
 	SetUnlockedByName(ctx context.Context, in *SetUnlockedByNameRequest, opts ...grpc.CallOption) (*SetUnlockedByNameResponse, error)
+	ClearData(ctx context.Context, in *ClearDataRequest, opts ...grpc.CallOption) (*ClearDataResponse, error)
 }
 
 type metaMorphAPIClient struct {
@@ -102,6 +104,15 @@ func (c *metaMorphAPIClient) SetUnlockedByName(ctx context.Context, in *SetUnloc
 	return out, nil
 }
 
+func (c *metaMorphAPIClient) ClearData(ctx context.Context, in *ClearDataRequest, opts ...grpc.CallOption) (*ClearDataResponse, error) {
+	out := new(ClearDataResponse)
+	err := c.cc.Invoke(ctx, MetaMorphAPI_ClearData_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MetaMorphAPIServer is the server API for MetaMorphAPI service.
 // All implementations must embed UnimplementedMetaMorphAPIServer
 // for forward compatibility
@@ -112,6 +123,7 @@ type MetaMorphAPIServer interface {
 	GetTransaction(context.Context, *TransactionStatusRequest) (*Transaction, error)
 	GetTransactionStatus(context.Context, *TransactionStatusRequest) (*TransactionStatus, error)
 	SetUnlockedByName(context.Context, *SetUnlockedByNameRequest) (*SetUnlockedByNameResponse, error)
+	ClearData(context.Context, *ClearDataRequest) (*ClearDataResponse, error)
 	mustEmbedUnimplementedMetaMorphAPIServer()
 }
 
@@ -136,6 +148,9 @@ func (UnimplementedMetaMorphAPIServer) GetTransactionStatus(context.Context, *Tr
 }
 func (UnimplementedMetaMorphAPIServer) SetUnlockedByName(context.Context, *SetUnlockedByNameRequest) (*SetUnlockedByNameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetUnlockedByName not implemented")
+}
+func (UnimplementedMetaMorphAPIServer) ClearData(context.Context, *ClearDataRequest) (*ClearDataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClearData not implemented")
 }
 func (UnimplementedMetaMorphAPIServer) mustEmbedUnimplementedMetaMorphAPIServer() {}
 
@@ -258,6 +273,24 @@ func _MetaMorphAPI_SetUnlockedByName_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MetaMorphAPI_ClearData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearDataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MetaMorphAPIServer).ClearData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MetaMorphAPI_ClearData_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MetaMorphAPIServer).ClearData(ctx, req.(*ClearDataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MetaMorphAPI_ServiceDesc is the grpc.ServiceDesc for MetaMorphAPI service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -288,6 +321,10 @@ var MetaMorphAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetUnlockedByName",
 			Handler:    _MetaMorphAPI_SetUnlockedByName_Handler,
+		},
+		{
+			MethodName: "ClearData",
+			Handler:    _MetaMorphAPI_ClearData_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -31,6 +31,7 @@ service MetaMorphAPI {
   rpc GetTransaction (TransactionStatusRequest) returns (Transaction) {}
   rpc GetTransactionStatus (TransactionStatusRequest) returns (TransactionStatus) {}
   rpc SetUnlockedByName (SetUnlockedByNameRequest) returns (SetUnlockedByNameResponse) {}
+  rpc ClearData (ClearDataRequest) returns (ClearDataResponse) {}
 }
 
 // swagger:model HealthResponse
@@ -113,4 +114,14 @@ message SetUnlockedByNameRequest {
 // swagger:model SetUnlockedRequest
 message SetUnlockedByNameResponse {
   int32 records_affected = 1;
+}
+
+// swagger:model ClearDataRequest
+message ClearDataRequest {
+  int32 retentionDays = 1;
+}
+
+// swagger:model ClearDataResponse
+message ClearDataResponse {
+  int64 rows = 1;
 }

@@ -21,6 +21,9 @@ var _ metamorph_api.MetaMorphAPIClient = &MetaMorphAPIClientMock{}
 //
 //		// make and configure a mocked metamorph_api.MetaMorphAPIClient
 //		mockedMetaMorphAPIClient := &MetaMorphAPIClientMock{
+//			ClearDataFunc: func(ctx context.Context, in *metamorph_api.ClearDataRequest, opts ...grpc.CallOption) (*metamorph_api.ClearDataResponse, error) {
+//				panic("mock out the ClearData method")
+//			},
 //			GetTransactionFunc: func(ctx context.Context, in *metamorph_api.TransactionStatusRequest, opts ...grpc.CallOption) (*metamorph_api.Transaction, error) {
 //				panic("mock out the GetTransaction method")
 //			},
@@ -46,6 +49,9 @@ var _ metamorph_api.MetaMorphAPIClient = &MetaMorphAPIClientMock{}
 //
 //	}
 type MetaMorphAPIClientMock struct {
+	// ClearDataFunc mocks the ClearData method.
+	ClearDataFunc func(ctx context.Context, in *metamorph_api.ClearDataRequest, opts ...grpc.CallOption) (*metamorph_api.ClearDataResponse, error)
+
 	// GetTransactionFunc mocks the GetTransaction method.
 	GetTransactionFunc func(ctx context.Context, in *metamorph_api.TransactionStatusRequest, opts ...grpc.CallOption) (*metamorph_api.Transaction, error)
 
@@ -66,6 +72,15 @@ type MetaMorphAPIClientMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// ClearData holds details about calls to the ClearData method.
+		ClearData []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// In is the in argument value.
+			In *metamorph_api.ClearDataRequest
+			// Opts is the opts argument value.
+			Opts []grpc.CallOption
+		}
 		// GetTransaction holds details about calls to the GetTransaction method.
 		GetTransaction []struct {
 			// Ctx is the ctx argument value.
@@ -121,12 +136,53 @@ type MetaMorphAPIClientMock struct {
 			Opts []grpc.CallOption
 		}
 	}
+	lockClearData            sync.RWMutex
 	lockGetTransaction       sync.RWMutex
 	lockGetTransactionStatus sync.RWMutex
 	lockHealth               sync.RWMutex
 	lockPutTransaction       sync.RWMutex
 	lockPutTransactions      sync.RWMutex
 	lockSetUnlockedByName    sync.RWMutex
+}
+
+// ClearData calls ClearDataFunc.
+func (mock *MetaMorphAPIClientMock) ClearData(ctx context.Context, in *metamorph_api.ClearDataRequest, opts ...grpc.CallOption) (*metamorph_api.ClearDataResponse, error) {
+	if mock.ClearDataFunc == nil {
+		panic("MetaMorphAPIClientMock.ClearDataFunc: method is nil but MetaMorphAPIClient.ClearData was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		In   *metamorph_api.ClearDataRequest
+		Opts []grpc.CallOption
+	}{
+		Ctx:  ctx,
+		In:   in,
+		Opts: opts,
+	}
+	mock.lockClearData.Lock()
+	mock.calls.ClearData = append(mock.calls.ClearData, callInfo)
+	mock.lockClearData.Unlock()
+	return mock.ClearDataFunc(ctx, in, opts...)
+}
+
+// ClearDataCalls gets all the calls that were made to ClearData.
+// Check the length with:
+//
+//	len(mockedMetaMorphAPIClient.ClearDataCalls())
+func (mock *MetaMorphAPIClientMock) ClearDataCalls() []struct {
+	Ctx  context.Context
+	In   *metamorph_api.ClearDataRequest
+	Opts []grpc.CallOption
+} {
+	var calls []struct {
+		Ctx  context.Context
+		In   *metamorph_api.ClearDataRequest
+		Opts []grpc.CallOption
+	}
+	mock.lockClearData.RLock()
+	calls = mock.calls.ClearData
+	mock.lockClearData.RUnlock()
+	return calls
 }
 
 // GetTransaction calls GetTransactionFunc.

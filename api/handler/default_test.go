@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/api/test"
+	"github.com/bitcoin-sv/arc/api/handler/mock"
 	"github.com/bitcoin-sv/arc/api/transactionHandler"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/validator"
@@ -75,6 +75,8 @@ var (
 	}
 	testLogger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 )
+
+//go:generate moq -pkg mock -out ./mock/transaction_handler_mock.go ../transactionHandler/ TransactionHandler
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {
@@ -169,7 +171,7 @@ func TestGETTransactionStatus(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			rec, ctx := createEchoGetRequest("/v1/tx/c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
 
-			txHandler := &test.TransactionHandlerMock{
+			txHandler := &mock.TransactionHandlerMock{
 				GetTransactionStatusFunc: func(ctx context.Context, txID string) (*transactionHandler.TransactionStatus, error) {
 					return tc.txHandlerStatusFound, tc.txHandlerErr
 				},
@@ -351,7 +353,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			inputTx := strings.NewReader(tc.txHexString)
 			rec, ctx := createEchoPostRequest(inputTx, tc.contentType, "/v1/tx")
 
-			txHandler := &test.TransactionHandlerMock{
+			txHandler := &mock.TransactionHandlerMock{
 				GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
 					return tc.getTx, nil
 				},
@@ -485,7 +487,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("valid tx - missing inputs", func(t *testing.T) {
-		txHandler := &test.TransactionHandlerMock{
+		txHandler := &mock.TransactionHandlerMock{
 			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *api.TransactionOptions) ([]*transactionHandler.TransactionStatus, error) {
 				txStatuses := []*transactionHandler.TransactionStatus{}
 				return txStatuses, nil
@@ -529,7 +531,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			Timestamp:   time.Now().Unix(),
 		}
 		// set the node/metamorph responses for the 3 test requests
-		txHandler := &test.TransactionHandlerMock{
+		txHandler := &mock.TransactionHandlerMock{
 			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *api.TransactionOptions) ([]*transactionHandler.TransactionStatus, error) {
 				txStatuses := []*transactionHandler.TransactionStatus{txResult}
 				return txStatuses, nil
@@ -628,12 +630,16 @@ func Test_calcFeesFromBSVPerKB(t *testing.T) {
 }
 
 func TestArcDefaultHandler_extendTransaction(t *testing.T) {
-	node := test.Node{
-		GetTransactionResult: []interface{}{
-			nil,
-			validTxBytes,
-		},
-	}
+
+	count := 0
+	node := &mock.TransactionHandlerMock{GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
+		if count == 0 {
+			return nil, nil
+		}
+		count++
+		return validTxBytes, nil
+	}}
+
 	tests := []struct {
 		name        string
 		transaction string
@@ -655,7 +661,7 @@ func TestArcDefaultHandler_extendTransaction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			handler := &ArcDefaultHandler{
-				TransactionHandler: &node,
+				TransactionHandler: node,
 				NodePolicy:         &bitcoin.Settings{},
 				logger:             testLogger,
 			}

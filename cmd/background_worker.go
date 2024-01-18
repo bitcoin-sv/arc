@@ -63,9 +63,9 @@ func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 
 	metamorphJobs := jobs.NewMetamorph(metamorph_api.NewMetaMorphAPIClient(conn), int32(meatmorphClearDataRetentionDays), logger)
 
-	scheduler := background_worker.NewMetamorphScheduler(gocron.NewScheduler(time.UTC), logger, executionIntervalHours)
+	scheduler := background_worker.NewScheduler(gocron.NewScheduler(time.UTC), time.Duration(executionIntervalHours)*time.Hour, logger)
 
-	scheduler.RunJob("clear metamorph transactions", metamorphJobs.ClearTransactions)
+	scheduler.RunJob("clear metamorph transactions", "", metamorphJobs.ClearTransactions)
 
 	scheduler.Start()
 
@@ -129,9 +129,9 @@ func startBlocktxScheduler(logger *slog.Logger) (func(), error) {
 		RecordRetentionDays: cleanBlocksRecordRetentionDays,
 	}
 
-	scheduler := background_worker.NewBlocktxScheduler(gocron.NewScheduler(time.UTC), intervalInHours, params, logger)
+	scheduler := background_worker.NewScheduler(gocron.NewScheduler(time.UTC), time.Duration(intervalInHours)*time.Hour, logger)
 
-	clearJob := jobs.NewClearJob(logger)
+	clearJob := jobs.NewClearJob(logger, params)
 
 	scheduler.RunJob("clear blocktx blocks", "blocks", clearJob.ClearBlocktxTable)
 	scheduler.RunJob("clear blocktx transactions", "transactions", clearJob.ClearBlocktxTable)

@@ -43,11 +43,11 @@ func (s *ClearJobSuite) Test() {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	clearJob := NewClearJob(logger, WithNow(func() time.Time {
+	clearJob := NewClearJob(logger, params, WithNow(func() time.Time {
 		return now
 	}))
 
-	err = clearJob.ClearBlocktxTable(params, "blocks")
+	err = clearJob.ClearBlocktxTable("blocks")
 	require.NoError(s.T(), err)
 
 	var blocks []store.Block
@@ -56,7 +56,7 @@ func (s *ClearJobSuite) Test() {
 
 	require.Len(s.T(), blocks, 1)
 
-	err = clearJob.ClearBlocktxTable(params, "block_transactions_map")
+	err = clearJob.ClearBlocktxTable("block_transactions_map")
 	require.NoError(s.T(), err)
 
 	var mps []store.BlockTransactionMap
@@ -64,7 +64,7 @@ func (s *ClearJobSuite) Test() {
 
 	require.Len(s.T(), mps, 5)
 
-	err = clearJob.ClearBlocktxTable(params, "transactions")
+	err = clearJob.ClearBlocktxTable("transactions")
 	require.NoError(s.T(), err)
 
 	var txs []store.Transaction

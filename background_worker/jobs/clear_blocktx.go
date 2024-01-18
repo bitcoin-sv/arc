@@ -22,6 +22,7 @@ type ClearRecordsParams struct {
 type ClearJob struct {
 	now    func() time.Time
 	logger *slog.Logger
+	params ClearRecordsParams
 }
 
 func WithNow(nowFunc func() time.Time) func(*ClearJob) {
@@ -30,10 +31,11 @@ func WithNow(nowFunc func() time.Time) func(*ClearJob) {
 	}
 }
 
-func NewClearJob(logger *slog.Logger, opts ...func(job *ClearJob)) *ClearJob {
+func NewClearJob(logger *slog.Logger, params ClearRecordsParams, opts ...func(job *ClearJob)) *ClearJob {
 	c := &ClearJob{
 		now:    time.Now,
 		logger: logger,
+		params: params,
 	}
 
 	for _, opt := range opts {
@@ -43,16 +45,16 @@ func NewClearJob(logger *slog.Logger, opts ...func(job *ClearJob)) *ClearJob {
 	return c
 }
 
-func (c ClearJob) ClearBlocktxTable(params ClearRecordsParams, table string) error {
+func (c ClearJob) ClearBlocktxTable(table string) error {
 	c.logger.Info("Connecting to database")
 
-	conn, err := sqlx.Open(params.Scheme(), params.String())
+	conn, err := sqlx.Open(c.params.Scheme(), c.params.String())
 	if err != nil {
 		return fmt.Errorf("unable to create connection: %v", err)
 	}
 
 	start := c.now()
-	deleteBeforeDate := start.Add(-24 * time.Hour * time.Duration(params.RecordRetentionDays))
+	deleteBeforeDate := start.Add(-24 * time.Hour * time.Duration(c.params.RecordRetentionDays))
 
 	stmt, err := conn.Preparex(fmt.Sprintf("DELETE FROM %s WHERE inserted_at_num <= $1::int", table))
 	if err != nil {

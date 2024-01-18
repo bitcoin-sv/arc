@@ -133,9 +133,9 @@ func startBlocktxScheduler(logger *slog.Logger) (func(), error) {
 
 	clearJob := jobs.NewClearJob(logger)
 
-	scheduler.RunJob("clear blocktx blocks", clearJob.ClearBlocks)
-	scheduler.RunJob("clear blocktx transactions", clearJob.ClearTransactions)
-	scheduler.RunJob("clear blocktx block transactions map", clearJob.ClearBlockTransactionsMap)
+	scheduler.RunJob("clear blocktx blocks", "blocks", clearJob.ClearBlocktxTable)
+	scheduler.RunJob("clear blocktx transactions", "transactions", clearJob.ClearBlocktxTable)
+	scheduler.RunJob("clear blocktx block transactions map", "block_transactions_map", clearJob.ClearBlocktxTable)
 
 	scheduler.Start()
 

@@ -23,9 +23,9 @@ func NewBlocktxScheduler(scheduler *gocron.Scheduler, intervalHours int, params 
 	}
 }
 
-func (b *BlockTxScheduler) RunJob(jobName string, job func(params jobs.ClearRecordsParams) error) {
+func (b *BlockTxScheduler) RunJob(jobName string, table string, job func(params jobs.ClearRecordsParams, table string) error) {
 	_, err := b.Scheduler.Every(b.IntervalInHours).Hours().Do(func() {
-		err := job(b.Params)
+		err := job(b.Params, table)
 		if err != nil {
 			b.logger.Error("failed to run job", slog.String("name", jobName), slog.String("err", err.Error()))
 			return

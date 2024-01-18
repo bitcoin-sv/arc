@@ -43,7 +43,7 @@ func NewClearJob(logger *slog.Logger, opts ...func(job *ClearJob)) *ClearJob {
 	return c
 }
 
-func (c ClearJob) ClearBlocks(params ClearRecordsParams) error {
+func (c ClearJob) ClearBlocktxTable(params ClearRecordsParams, table string) error {
 	c.logger.Info("Connecting to database")
 
 	conn, err := sqlx.Open(params.Scheme(), params.String())
@@ -54,7 +54,7 @@ func (c ClearJob) ClearBlocks(params ClearRecordsParams) error {
 	start := c.now()
 	deleteBeforeDate := start.Add(-24 * time.Hour * time.Duration(params.RecordRetentionDays))
 
-	stmt, err := conn.Preparex("DELETE FROM blocks WHERE inserted_at_num <= $1::int")
+	stmt, err := conn.Preparex(fmt.Sprintf("DELETE FROM %s WHERE inserted_at_num <= $1::int", table))
 	if err != nil {
 		return fmt.Errorf("unable to prepare statement: %v", err)
 	}
@@ -66,6 +66,6 @@ func (c ClearJob) ClearBlocks(params ClearRecordsParams) error {
 	rows, _ := res.RowsAffected()
 	timePassed := time.Since(start)
 
-	c.logger.Info("cleared blocks table", slog.Int64("rows", rows), slog.String("duration", timePassed.String()))
+	c.logger.Info("cleared blocktx data", slog.String("table", table), slog.Int64("rows", rows), slog.String("duration", timePassed.String()))
 	return nil
 }

@@ -639,7 +639,7 @@ func (p *SqLite) ClearData(ctx context.Context, retentionDays int32) (*metamorph
 
 	deleteBeforeDate := start.Add(-24 * time.Hour * time.Duration(retentionDays))
 
-	res, err := p.db.ExecContext(ctx, "DELETE FROM transactions WHERE inserted_at <= $1::int", deleteBeforeDate)
+	res, err := p.db.ExecContext(ctx, "DELETE FROM transactions WHERE stored_at <= $1", deleteBeforeDate)
 	if err != nil {
 		return nil, err
 	}

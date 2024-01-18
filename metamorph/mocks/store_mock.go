@@ -22,6 +22,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //
 //		// make and configure a mocked store.MetamorphStore
 //		mockedMetamorphStore := &MetamorphStoreMock{
+//			ClearDataFunc: func(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+//				panic("mock out the ClearData method")
+//			},
 //			CloseFunc: func(ctx context.Context) error {
 //				panic("mock out the Close method")
 //			},
@@ -68,6 +71,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //
 //	}
 type MetamorphStoreMock struct {
+	// ClearDataFunc mocks the ClearData method.
+	ClearDataFunc func(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error)
+
 	// CloseFunc mocks the Close method.
 	CloseFunc func(ctx context.Context) error
 
@@ -109,6 +115,13 @@ type MetamorphStoreMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// ClearData holds details about calls to the ClearData method.
+		ClearData []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// RetentionDays is the retentionDays argument value.
+			RetentionDays int32
+		}
 		// Close holds details about calls to the Close method.
 		Close []struct {
 			// Ctx is the ctx argument value.
@@ -209,6 +222,7 @@ type MetamorphStoreMock struct {
 			RejectReason string
 		}
 	}
+	lockClearData         sync.RWMutex
 	lockClose             sync.RWMutex
 	lockDel               sync.RWMutex
 	lockGet               sync.RWMutex
@@ -222,6 +236,42 @@ type MetamorphStoreMock struct {
 	lockSetUnlockedByName sync.RWMutex
 	lockUpdateMined       sync.RWMutex
 	lockUpdateStatus      sync.RWMutex
+}
+
+// ClearData calls ClearDataFunc.
+func (mock *MetamorphStoreMock) ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+	if mock.ClearDataFunc == nil {
+		panic("MetamorphStoreMock.ClearDataFunc: method is nil but MetamorphStore.ClearData was just called")
+	}
+	callInfo := struct {
+		Ctx           context.Context
+		RetentionDays int32
+	}{
+		Ctx:           ctx,
+		RetentionDays: retentionDays,
+	}
+	mock.lockClearData.Lock()
+	mock.calls.ClearData = append(mock.calls.ClearData, callInfo)
+	mock.lockClearData.Unlock()
+	return mock.ClearDataFunc(ctx, retentionDays)
+}
+
+// ClearDataCalls gets all the calls that were made to ClearData.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.ClearDataCalls())
+func (mock *MetamorphStoreMock) ClearDataCalls() []struct {
+	Ctx           context.Context
+	RetentionDays int32
+} {
+	var calls []struct {
+		Ctx           context.Context
+		RetentionDays int32
+	}
+	mock.lockClearData.RLock()
+	calls = mock.calls.ClearData
+	mock.lockClearData.RUnlock()
+	return calls
 }
 
 // Close calls CloseFunc.

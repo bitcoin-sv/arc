@@ -626,3 +626,28 @@ func (s *SqLite) Ping(ctx context.Context) error {
 
 	return nil
 }
+
+func (p *SqLite) ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+	startNanos := p.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("ClearData").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:ClearData")
+	defer span.Finish()
+
+	start := p.now()
+
+	deleteBeforeDate := start.Add(-24 * time.Hour * time.Duration(retentionDays))
+
+	res, err := p.db.ExecContext(ctx, "DELETE FROM transactions WHERE stored_at <= $1", deleteBeforeDate)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+
+	return &metamorph_api.ClearDataResponse{Rows: rows}, nil
+}

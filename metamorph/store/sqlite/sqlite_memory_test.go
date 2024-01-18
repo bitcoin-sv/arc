@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"fmt"
+	"github.com/bitcoin-sv/arc/testdata"
 	"sync"
 	"testing"
 	"time"
@@ -237,4 +238,49 @@ func TestSQLite_SetBlockProcessed(t *testing.T) {
 			tt.wantErr(t, sqliteDB.SetBlockProcessed(ctx, tt.blockHash), fmt.Sprintf("SetBlockProcessed(%v)", tt.blockHash))
 		})
 	}
+}
+
+func TestSqLite_ClearData(t *testing.T) {
+	t.Run("clear data", func(t *testing.T) {
+		now := time.Date(2023, 10, 1, 14, 0, 0, 0, time.UTC)
+		monthAgo := time.Date(2023, 9, 1, 14, 0, 0, 0, time.UTC)
+
+		sqliteDB, err := New(true, "", WithNow(func() time.Time {
+			return now
+		}))
+		require.NoError(t, err)
+
+		defer sqliteDB.Close(context.Background())
+
+		data1 := &store.StoreData{
+			Hash:     testdata.TX1Hash,
+			StoredAt: now,
+		}
+		data2 := &store.StoreData{
+			Hash:     testdata.TX2Hash,
+			StoredAt: now,
+		}
+		data3 := &store.StoreData{
+			Hash:     testdata.TX3Hash,
+			StoredAt: monthAgo,
+		}
+		data4 := &store.StoreData{
+			Hash:     testdata.TX4Hash,
+			StoredAt: monthAgo,
+		}
+
+		err = sqliteDB.Set(context.Background(), testdata.TX1Hash[:], data1)
+		require.NoError(t, err)
+		err = sqliteDB.Set(context.Background(), testdata.TX2Hash[:], data2)
+		require.NoError(t, err)
+		err = sqliteDB.Set(context.Background(), testdata.TX3Hash[:], data3)
+		require.NoError(t, err)
+		err = sqliteDB.Set(context.Background(), testdata.TX4Hash[:], data4)
+		require.NoError(t, err)
+
+		resp, err := sqliteDB.ClearData(context.Background(), 14)
+		require.NoError(t, err)
+
+		require.Equal(t, int64(2), resp.Rows)
+	})
 }

@@ -673,3 +673,28 @@ func (p *PostgreSQL) Ping(ctx context.Context) error {
 
 	return nil
 }
+
+func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+	startNanos := p.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("ClearData").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:ClearData")
+	defer span.Finish()
+
+	start := p.now()
+
+	deleteBeforeDate := start.Add(-24 * time.Hour * time.Duration(retentionDays))
+
+	res, err := p.db.ExecContext(ctx, "DELETE FROM metamorph.transactions WHERE inserted_at_num <= $1::int", deleteBeforeDate.Format(numericalDateHourLayout))
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+
+	return &metamorph_api.ClearDataResponse{Rows: rows}, nil
+}

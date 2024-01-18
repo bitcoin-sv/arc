@@ -352,7 +352,7 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 
 	blockId, err := bs.insertBlock(&blockHash, &merkleRoot, &previousBlockHash, msg.Height, peer)
 	if err != nil {
-		return fmt.Errorf("unable to insert block %s: %v", blockHash.String(), err)
+		return fmt.Errorf("unable to insert block %s at height %d: %v", blockHash.String(), msg.Height, err)
 	}
 
 	calculatedMerkleTree := bc.BuildMerkleTreeStoreChainHash(msg.TransactionHashes)

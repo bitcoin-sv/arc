@@ -682,3 +682,8 @@ func (ddb *DynamoDB) Ping(ctx context.Context) error {
 
 	return nil
 }
+
+func (p *DynamoDB) ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+	// Implementation not needed as clearing data handled by TTL-feature
+	return nil, nil
+}

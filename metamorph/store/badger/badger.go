@@ -433,3 +433,8 @@ func (s *Badger) Ping(ctx context.Context) error {
 
 	return nil
 }
+
+func (p *Badger) ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+	// Todo: implement function for clearing data
+	return nil, errors.New("not implemented")
+}

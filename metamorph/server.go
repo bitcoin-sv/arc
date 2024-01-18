@@ -374,6 +374,9 @@ func (s *Server) getMerklePath(ctx context.Context, hash *chainhash.Hash, dataSt
 					errCh <- fmt.Errorf("merkle path not found for mined transaction %s: %v", hash.String(), err)
 					return
 				}
+
+				merklePathCh <- ""
+				return
 			} else {
 				errCh <- fmt.Errorf("failed to get Merkle path for transaction %s: %v", hash.String(), err)
 				return
@@ -410,7 +413,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 	}
 	merklePath, err := s.getMerklePath(ctx, hash, data.Status)
 	if err != nil {
-		s.logger.Error("failed to get merkle path")
+		s.logger.Error("failed to get merkle path", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 	}
 
 	return &metamorph_api.TransactionStatus{

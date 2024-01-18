@@ -78,7 +78,7 @@ func (p *PostgreSQL) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) 
 	return nil
 }
 
-func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (int, error) {
+func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error) {
 	startNanos := p.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("setunlockedbyname").AddTime(startNanos)
@@ -98,7 +98,7 @@ func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 		return 0, err
 	}
 
-	return int(rowsAffected), nil
+	return rowsAffected, nil
 }
 
 // Get implements the MetamorphStore interface. It attempts to get a value for a given key.
@@ -674,7 +674,7 @@ func (p *PostgreSQL) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
 	startNanos := p.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("ClearData").AddTime(startNanos)
@@ -688,13 +688,13 @@ func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (*metam
 
 	res, err := p.db.ExecContext(ctx, "DELETE FROM metamorph.transactions WHERE inserted_at_num <= $1::int", deleteBeforeDate.Format(numericalDateHourLayout))
 	if err != nil {
-		return &metamorph_api.ClearDataResponse{Rows: 0}, err
+		return 0, err
 	}
 
 	rows, err := res.RowsAffected()
 	if err != nil {
-		return &metamorph_api.ClearDataResponse{Rows: rows}, err
+		return 0, err
 	}
 
-	return &metamorph_api.ClearDataResponse{Rows: rows}, nil
+	return rows, nil
 }

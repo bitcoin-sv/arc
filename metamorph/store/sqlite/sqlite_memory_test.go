@@ -3,10 +3,11 @@ package sqlite
 import (
 	"context"
 	"fmt"
-	"github.com/bitcoin-sv/arc/testdata"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/bitcoin-sv/arc/testdata"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/store"
@@ -278,9 +279,9 @@ func TestSqLite_ClearData(t *testing.T) {
 		err = sqliteDB.Set(context.Background(), testdata.TX4Hash[:], data4)
 		require.NoError(t, err)
 
-		resp, err := sqliteDB.ClearData(context.Background(), 14)
+		res, err := sqliteDB.ClearData(context.Background(), 14)
 		require.NoError(t, err)
 
-		require.Equal(t, int64(2), resp.Rows)
+		require.Equal(t, int64(2), res)
 	})
 }

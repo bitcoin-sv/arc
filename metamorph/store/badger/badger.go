@@ -82,7 +82,9 @@ func (s *Badger) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) erro
 	return nil
 }
 
-func (s *Badger) SetUnlockedByName(ctx context.Context, lockedBy string) (int, error) { return 0, nil }
+func (s *Badger) SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error) {
+	return 0, nil
+}
 
 func (s *Badger) Close(ctx context.Context) error {
 	start := gocore.CurrentNanos()
@@ -434,7 +436,7 @@ func (s *Badger) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (p *Badger) ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+func (p *Badger) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
 	// Todo: implement function for clearing data
-	return nil, errors.New("not implemented")
+	return 0, errors.New("not implemented")
 }

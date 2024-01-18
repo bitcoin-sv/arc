@@ -587,7 +587,7 @@ func TestPutTransactions(t *testing.T) {
 func TestSetUnlockedbyName(t *testing.T) {
 	tt := []struct {
 		name            string
-		recordsAffected int
+		recordsAffected int64
 		errSetUnlocked  error
 
 		expectedRecordsAffected int
@@ -613,7 +613,7 @@ func TestSetUnlockedbyName(t *testing.T) {
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{}, nil
 				},
-				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int, error) {
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
 					return tc.recordsAffected, tc.errSetUnlocked
 				},
 				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {

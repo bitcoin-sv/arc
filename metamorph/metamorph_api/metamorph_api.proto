@@ -113,7 +113,7 @@ message SetUnlockedByNameRequest {
 
 // swagger:model SetUnlockedRequest
 message SetUnlockedByNameResponse {
-  int32 records_affected = 1;
+  int64 records_affected = 1;
 }
 
 // swagger:model ClearDataRequest
@@ -123,5 +123,5 @@ message ClearDataRequest {
 
 // swagger:model ClearDataResponse
 message ClearDataResponse {
-  int64 rows = 1;
+  int64 records_affected = 1;
 }

@@ -2,10 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/bitcoin-sv/arc/config"
 	"log/slog"
 
 	"github.com/bitcoin-sv/arc/api/transaction_handler"
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/k8s_watcher"
 	"github.com/bitcoin-sv/arc/k8s_watcher/k8s_client"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"

@@ -18,7 +18,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/handler/mock"
-	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/validator"
 	"github.com/labstack/echo/v4"
@@ -76,7 +76,7 @@ var (
 	testLogger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 )
 
-//go:generate moq -pkg mock -out ./mock/transaction_handler_mock.go ../transactionHandler/ TransactionHandler
+//go:generate moq -pkg mock -out ./mock/transaction_handler_mock.go ../transaction_handler/ TransactionHandler
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {
@@ -117,7 +117,7 @@ func TestGETPolicy(t *testing.T) {
 func TestGETTransactionStatus(t *testing.T) {
 	tt := []struct {
 		name                 string
-		txHandlerStatusFound *transactionHandler.TransactionStatus
+		txHandlerStatusFound *transaction_handler.TransactionStatus
 		txHandlerErr         error
 
 		expectedStatus   api.StatusCode
@@ -125,7 +125,7 @@ func TestGETTransactionStatus(t *testing.T) {
 	}{
 		{
 			name: "success",
-			txHandlerStatusFound: &transactionHandler.TransactionStatus{
+			txHandlerStatusFound: &transaction_handler.TransactionStatus{
 				TxID:      "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46",
 				Status:    "SEEN_ON_NETWORK",
 				Timestamp: time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC).Unix(),
@@ -144,7 +144,7 @@ func TestGETTransactionStatus(t *testing.T) {
 		{
 			name:                 "error - tx not found",
 			txHandlerStatusFound: nil,
-			txHandlerErr:         transactionHandler.ErrTransactionNotFound,
+			txHandlerErr:         transaction_handler.ErrTransactionNotFound,
 
 			expectedStatus:   api.ErrStatusNotFound,
 			expectedResponse: *api.NewErrorFields(api.ErrStatusNotFound, "transaction not found"),
@@ -172,7 +172,7 @@ func TestGETTransactionStatus(t *testing.T) {
 			rec, ctx := createEchoGetRequest("/v1/tx/c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
 
 			txHandler := &mock.TransactionHandlerMock{
-				GetTransactionStatusFunc: func(ctx context.Context, txID string) (*transactionHandler.TransactionStatus, error) {
+				GetTransactionStatusFunc: func(ctx context.Context, txID string) (*transaction_handler.TransactionStatus, error) {
 					return tc.txHandlerStatusFound, tc.txHandlerErr
 				},
 			}
@@ -224,7 +224,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		contentType      string
 		txHexString      string
 		getTx            []byte
-		submitTxResponse *transactionHandler.TransactionStatus
+		submitTxResponse *transaction_handler.TransactionStatus
 		submitTxErr      error
 
 		expectedStatus   api.StatusCode
@@ -325,7 +325,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: validExtendedTx,
 			getTx:       inputTxLowFeesBytes,
 
-			submitTxResponse: &transactionHandler.TransactionStatus{
+			submitTxResponse: &transaction_handler.TransactionStatus{
 				TxID:        validTxID,
 				BlockHash:   "",
 				BlockHeight: 0,
@@ -358,7 +358,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 					return tc.getTx, nil
 				},
 
-				SubmitTransactionFunc: func(ctx context.Context, tx []byte, options *api.TransactionOptions) (*transactionHandler.TransactionStatus, error) {
+				SubmitTransactionFunc: func(ctx context.Context, tx []byte, options *api.TransactionOptions) (*transaction_handler.TransactionStatus, error) {
 					return tc.submitTxResponse, tc.submitTxErr
 				},
 			}
@@ -488,13 +488,13 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("valid tx - missing inputs", func(t *testing.T) {
 		txHandler := &mock.TransactionHandlerMock{
-			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *api.TransactionOptions) ([]*transactionHandler.TransactionStatus, error) {
-				txStatuses := []*transactionHandler.TransactionStatus{}
+			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *api.TransactionOptions) ([]*transaction_handler.TransactionStatus, error) {
+				txStatuses := []*transaction_handler.TransactionStatus{}
 				return txStatuses, nil
 			},
 
 			GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
-				return nil, transactionHandler.ErrTransactionNotFound
+				return nil, transaction_handler.ErrTransactionNotFound
 			},
 		}
 		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
@@ -523,7 +523,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("valid tx", func(t *testing.T) {
-		txResult := &transactionHandler.TransactionStatus{
+		txResult := &transaction_handler.TransactionStatus{
 			TxID:        validTxID,
 			BlockHash:   "",
 			BlockHeight: 0,
@@ -532,8 +532,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mock.TransactionHandlerMock{
-			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *api.TransactionOptions) ([]*transactionHandler.TransactionStatus, error) {
-				txStatuses := []*transactionHandler.TransactionStatus{txResult}
+			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *api.TransactionOptions) ([]*transaction_handler.TransactionStatus, error) {
+				txStatuses := []*transaction_handler.TransactionStatus{txResult}
 				return txStatuses, nil
 			},
 		}
@@ -648,7 +648,7 @@ func TestArcDefaultHandler_extendTransaction(t *testing.T) {
 		{
 			name:        "valid normal transaction - missing parent",
 			transaction: validTx,
-			err:         transactionHandler.ErrParentTransactionNotFound,
+			err:         transaction_handler.ErrParentTransactionNotFound,
 		},
 		{
 			name:        "valid normal transaction",
@@ -835,7 +835,7 @@ func Test_handleError(t *testing.T) {
 		},
 		{
 			name:        "parent not found error",
-			submitError: transactionHandler.ErrParentTransactionNotFound,
+			submitError: transaction_handler.ErrParentTransactionNotFound,
 
 			expectedStatus: api.ErrStatusTxFormat,
 			expectedArcErr: &api.ErrorFields{

@@ -5,7 +5,7 @@ import (
 	"github.com/bitcoin-sv/arc/config"
 	"log/slog"
 
-	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/k8s_watcher"
 	"github.com/bitcoin-sv/arc/k8s_watcher/k8s_client"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
@@ -23,7 +23,7 @@ func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	metamorphConn, err := transactionHandler.DialGRPC(metamorphAddress, grpcMessageSize)
+	metamorphConn, err := transaction_handler.DialGRPC(metamorphAddress, grpcMessageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connection to metamorph with address %s: %v", metamorphAddress, err)
 	}

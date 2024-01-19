@@ -631,24 +631,17 @@ func Test_calcFeesFromBSVPerKB(t *testing.T) {
 
 func TestArcDefaultHandler_extendTransaction(t *testing.T) {
 
-	count := 0
-	node := &mock.TransactionHandlerMock{GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
-		if count == 0 {
-			return nil, nil
-		}
-		count++
-		return validTxBytes, nil
-	}}
-
 	tests := []struct {
-		name        string
-		transaction string
-		err         error
+		name          string
+		transaction   string
+		missingParent bool
+		err           error
 	}{
 		{
-			name:        "valid normal transaction - missing parent",
-			transaction: validTx,
-			err:         transaction_handler.ErrParentTransactionNotFound,
+			name:          "valid normal transaction - missing parent",
+			transaction:   validTx,
+			missingParent: true,
+			err:           transaction_handler.ErrParentTransactionNotFound,
 		},
 		{
 			name:        "valid normal transaction",
@@ -660,6 +653,16 @@ func TestArcDefaultHandler_extendTransaction(t *testing.T) {
 	ctx := context.Background()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
+			count := 0
+			node := &mock.TransactionHandlerMock{GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
+				if count == 0 && tt.missingParent {
+					return nil, nil
+				}
+				count++
+				return validTxBytes, nil
+			}}
+
 			handler := &ArcDefaultHandler{
 				TransactionHandler: node,
 				NodePolicy:         &bitcoin.Settings{},

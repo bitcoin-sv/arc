@@ -29,6 +29,8 @@ import (
 const (
 	transactionStoringBatchsizeDefault = 2048 // power of 2 for easier memory allocation
 	maxRequestBlocks                   = 5
+	fillGapsInterval                   = 15 * time.Minute
+	maximumBlockSize                   = 4000000000 // 4Gb
 )
 
 func init() {
@@ -93,6 +95,10 @@ type PeerHandler struct {
 	peerHandlerCollector        *tracing.PeerHandlerCollector
 	startingHeight              int
 	dataRetentionDays           int
+
+	fillGapsTicker           *time.Ticker
+	quitFillBlockGap         chan struct{}
+	quitFillBlockGapComplete chan struct{}
 }
 
 func init() {
@@ -111,7 +117,13 @@ func WithRetentionDays(dataRetentionDays int) func(handler *PeerHandler) {
 	}
 }
 
-func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight int, opts ...func(*PeerHandler)) *PeerHandler {
+func WithFillGapsInterval(interval time.Duration) func(notifier *PeerHandler) {
+	return func(notifier *PeerHandler) {
+		notifier.fillGapsTicker = time.NewTicker(interval)
+	}
+}
+
+func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight int, peerURLs []string, network wire.BitcoinNet, opts ...func(*PeerHandler)) (*PeerHandler, error) {
 	evictionFunc := func(hash chainhash.Hash, peers []p2p.PeerI) bool {
 		msg := wire.NewMsgGetData()
 
@@ -132,7 +144,7 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 		return false
 	}
 
-	s := &PeerHandler{
+	ph := &PeerHandler{
 		store:                       storeI,
 		logger:                      logger,
 		workerCh:                    make(chan utils.Pair[*chainhash.Hash, p2p.PeerI], 100),
@@ -140,24 +152,51 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 		stats:                       safemap.New[string, *tracing.PeerHandlerStats](),
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
 		startingHeight:              startingHeight,
+
+		fillGapsTicker:           time.NewTicker(fillGapsInterval),
+		quitFillBlockGap:         make(chan struct{}),
+		quitFillBlockGapComplete: make(chan struct{}),
 	}
 
 	for _, opt := range opts {
-		opt(s)
+		opt(ph)
 	}
 
-	s.peerHandlerCollector = tracing.NewPeerHandlerCollector("blocktx", s.stats)
-	tracing.Register(s.peerHandlerCollector)
+	ph.peerHandlerCollector = tracing.NewPeerHandlerCollector("blocktx", ph.stats)
+	tracing.Register(ph.peerHandlerCollector)
 
+	peers := make([]*p2p.Peer, len(peerURLs))
+	pm := p2p.NewPeerManager(logger, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
+
+	for i, peerURL := range peerURLs {
+		peer, err := p2p.NewPeer(logger, peerURL, ph, network, p2p.WithMaximumMessageSize(maximumBlockSize))
+		if err != nil {
+			return nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
+		}
+		err = pm.AddPeer(peer)
+		if err != nil {
+			return nil, fmt.Errorf("error adding peer: %v", err)
+		}
+
+		peers[i] = peer
+	}
+
+	ph.startFillGaps(peers)
+	ph.startPeerWorker()
+
+	return ph, nil
+}
+
+func (bs *PeerHandler) startPeerWorker() {
 	go func() {
-		for pair := range s.workerCh {
+		for pair := range bs.workerCh {
 			hash := pair.First
 			peer := pair.Second
 
-			item, found := s.announcedCache.Get(*hash)
+			item, found := bs.announcedCache.Get(*hash)
 			if !found {
-				s.announcedCache.Set(*hash, []p2p.PeerI{peer})
-				logger.Debug("added block hash with peer to announced cache", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
+				bs.announcedCache.Set(*hash, []p2p.PeerI{peer})
+				bs.logger.Debug("added block hash with peer to announced cache", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 			} else {
 				// if already was announced to peer, continue
 				for _, announcedPeer := range item {
@@ -167,27 +206,54 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 				}
 
 				item = append(item, peer)
-				s.announcedCache.Set(*hash, item)
-				logger.Debug("added peer to announced cache of block hash", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
+				bs.announcedCache.Set(*hash, item)
+				bs.logger.Debug("added peer to announced cache of block hash", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 				continue
 			}
 
 			msg := wire.NewMsgGetData()
 			if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
-				logger.Error("ProcessBlock: could not create InvVect", slog.String("err", err.Error()))
+				bs.logger.Error("ProcessBlock: could not create InvVect", slog.String("err", err.Error()))
 				continue
 			}
 
 			if err := peer.WriteMsg(msg); err != nil {
-				logger.Error("ProcessBlock: failed to write message to peer", slog.String("err", err.Error()))
+				bs.logger.Error("ProcessBlock: failed to write message to peer", slog.String("err", err.Error()))
 				continue
 			}
 
-			logger.Info("ProcessBlock", slog.String("hash", hash.String()))
+			bs.logger.Info("ProcessBlock", slog.String("hash", hash.String()))
 		}
 	}()
+}
 
-	return s
+func (bn *PeerHandler) startFillGaps(peers []*p2p.Peer) {
+	go func() {
+		defer func() {
+			bn.quitFillBlockGapComplete <- struct{}{}
+		}()
+
+		peerIndex := 0
+		for {
+			select {
+			case <-bn.quitFillBlockGap:
+				return
+			case <-bn.fillGapsTicker.C:
+				if peerIndex >= len(peers) {
+					peerIndex = 0
+				}
+
+				bn.logger.Info("requesting missing blocks from peer", slog.Int("index", peerIndex))
+
+				err := bn.FillGaps(peers[peerIndex])
+				if err != nil {
+					bn.logger.Error("failed to fill gaps", slog.String("error", err.Error()))
+				}
+
+				peerIndex++
+			}
+		}
+	}()
 }
 
 func (bs *PeerHandler) HandleTransactionGet(_ *wire.InvVect, peer p2p.PeerI) ([]byte, error) {
@@ -575,5 +641,9 @@ func extractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
 }
 
 func (bs *PeerHandler) Shutdown() {
+	bs.quitFillBlockGap <- struct{}{}
+	<-bs.quitFillBlockGapComplete
+
+	bs.fillGapsTicker.Stop()
 	tracing.Unregister(bs.peerHandlerCollector)
 }

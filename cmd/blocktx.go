@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx"
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/spf13/viper"
 )
@@ -28,8 +27,6 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
 
-	blockCh := make(chan *blocktx_api.Block)
-
 	startingBlockHeight, err := config.GetInt("blocktx.startingBlockHeight")
 	if err != nil {
 		return nil, err
@@ -40,7 +37,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	peerHandler := blocktx.NewPeerHandler(logger, blockStore, blockCh, startingBlockHeight, blocktx.WithRetentionDays(recordRetentionDays))
+	peerHandler := blocktx.NewPeerHandler(logger, blockStore, startingBlockHeight, blocktx.WithRetentionDays(recordRetentionDays))
 
 	network, err := config.GetNetwork()
 	if err != nil {
@@ -51,7 +48,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get peer settings: %v", err)
 	}
-	blockNotifier, err := blocktx.NewBlockNotifier(blockStore, logger, blockCh, peerHandler, peerSettings, network)
+	blockNotifier, err := blocktx.NewBlockNotifier(blockStore, logger, peerHandler, peerSettings, network)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create block notifier: %v", err)
 	}

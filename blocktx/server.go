@@ -132,11 +132,6 @@ func (s *Server) GetLastProcessedBlock(ctx context.Context, _ *emptypb.Empty) (*
 	return s.store.GetLastProcessedBlock(ctx)
 }
 
-func (s *Server) GetBlockNotificationStream(height *blocktx_api.Height, srv blocktx_api.BlockTxAPI_GetBlockNotificationStreamServer) error {
-	s.blockNotifier.NewSubscription(height, srv)
-	return nil
-}
-
 func (s *Server) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
 	return s.store.GetMinedTransactionsForBlock(ctx, blockAndSource)
 }

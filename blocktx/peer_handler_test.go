@@ -244,12 +244,10 @@ func TestHandleBlock(t *testing.T) {
 				return nil
 			},
 		}
-		// create mocked peer handler
-		bockChannel := make(chan *blocktx_api.Block, 1)
 
 		// build peer manager
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-		peerHandler := NewPeerHandler(logger, storeMock, bockChannel, 100, WithTransactionBatchSize(batchSize))
+		peerHandler := NewPeerHandler(logger, storeMock, 100, WithTransactionBatchSize(batchSize))
 		t.Run(tc.name, func(t *testing.T) {
 			expectedInsertedTransactions := []*blocktx_api.TransactionAndSource{}
 			transactionHashes := make([]*chainhash.Hash, len(tc.txHashes))
@@ -302,7 +300,6 @@ func TestHandleBlock(t *testing.T) {
 			require.NoError(t, err)
 
 			require.ElementsMatch(t, expectedInsertedTransactions, insertedBlockTransactions)
-			<-bockChannel
 			peerHandler.Shutdown()
 		})
 	}
@@ -377,7 +374,6 @@ func TestFillGaps(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			bockChannel := make(chan *blocktx_api.Block, 1)
 			var storeMock = &store.InterfaceMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return tc.blockGaps, tc.getBlockGapsErr
@@ -388,7 +384,7 @@ func TestFillGaps(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler := NewPeerHandler(logger, storeMock, bockChannel, 100)
+			peerHandler := NewPeerHandler(logger, storeMock, 100)
 			peer := &MockedPeer{}
 			err = peerHandler.FillGaps(peer)
 

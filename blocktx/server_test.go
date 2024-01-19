@@ -1,7 +1,6 @@
 package blocktx
 
 import (
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/config"
 	"log/slog"
 	"os"
@@ -26,8 +25,7 @@ func TestStartGRPCServer(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &store.InterfaceMock{}
-			blockCh := make(chan *blocktx_api.Block)
-			peerHandler := NewPeerHandler(logger, storeMock, blockCh, 100)
+			peerHandler := NewPeerHandler(logger, storeMock, 100)
 			peerSettings := []config.Peer{
 				{
 					Host: "127.0.0.1",
@@ -38,7 +36,7 @@ func TestStartGRPCServer(t *testing.T) {
 				},
 			}
 
-			notifier, err := NewBlockNotifier(storeMock, logger, blockCh, peerHandler, peerSettings, wire.TestNet3, WithFillGapsInterval(time.Millisecond*30))
+			notifier, err := NewBlockNotifier(storeMock, logger, peerHandler, peerSettings, wire.TestNet3, WithFillGapsInterval(time.Millisecond*30))
 			require.NoError(t, err)
 
 			server := NewServer(storeMock, notifier, logger)

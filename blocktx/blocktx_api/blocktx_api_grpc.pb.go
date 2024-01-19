@@ -29,7 +29,6 @@ const (
 	BlockTxAPI_GetBlockForHeight_FullMethodName            = "/blocktx_api.BlockTxAPI/GetBlockForHeight"
 	BlockTxAPI_GetLastProcessedBlock_FullMethodName        = "/blocktx_api.BlockTxAPI/GetLastProcessedBlock"
 	BlockTxAPI_GetMinedTransactionsForBlock_FullMethodName = "/blocktx_api.BlockTxAPI/GetMinedTransactionsForBlock"
-	BlockTxAPI_GetBlockNotificationStream_FullMethodName   = "/blocktx_api.BlockTxAPI/GetBlockNotificationStream"
 )
 
 // BlockTxAPIClient is the client API for BlockTxAPI service.
@@ -54,9 +53,6 @@ type BlockTxAPIClient interface {
 	GetLastProcessedBlock(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Block, error)
 	// GetMyTransactionsForBlock returns a list of transaction hashes for a given block that were registered by this API.
 	GetMinedTransactionsForBlock(ctx context.Context, in *BlockAndSource, opts ...grpc.CallOption) (*MinedTransactions, error)
-	// GetBlockNotificationStream returns a stream of mined blocks starting at a specific block height.
-	// If Height is 0, the stream starts from the current best block.
-	GetBlockNotificationStream(ctx context.Context, in *Height, opts ...grpc.CallOption) (BlockTxAPI_GetBlockNotificationStreamClient, error)
 }
 
 type blockTxAPIClient struct {
@@ -148,38 +144,6 @@ func (c *blockTxAPIClient) GetMinedTransactionsForBlock(ctx context.Context, in 
 	return out, nil
 }
 
-func (c *blockTxAPIClient) GetBlockNotificationStream(ctx context.Context, in *Height, opts ...grpc.CallOption) (BlockTxAPI_GetBlockNotificationStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &BlockTxAPI_ServiceDesc.Streams[0], BlockTxAPI_GetBlockNotificationStream_FullMethodName, opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &blockTxAPIGetBlockNotificationStreamClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type BlockTxAPI_GetBlockNotificationStreamClient interface {
-	Recv() (*Block, error)
-	grpc.ClientStream
-}
-
-type blockTxAPIGetBlockNotificationStreamClient struct {
-	grpc.ClientStream
-}
-
-func (x *blockTxAPIGetBlockNotificationStreamClient) Recv() (*Block, error) {
-	m := new(Block)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
 // BlockTxAPIServer is the server API for BlockTxAPI service.
 // All implementations must embed UnimplementedBlockTxAPIServer
 // for forward compatibility
@@ -202,9 +166,6 @@ type BlockTxAPIServer interface {
 	GetLastProcessedBlock(context.Context, *emptypb.Empty) (*Block, error)
 	// GetMyTransactionsForBlock returns a list of transaction hashes for a given block that were registered by this API.
 	GetMinedTransactionsForBlock(context.Context, *BlockAndSource) (*MinedTransactions, error)
-	// GetBlockNotificationStream returns a stream of mined blocks starting at a specific block height.
-	// If Height is 0, the stream starts from the current best block.
-	GetBlockNotificationStream(*Height, BlockTxAPI_GetBlockNotificationStreamServer) error
 	mustEmbedUnimplementedBlockTxAPIServer()
 }
 
@@ -238,9 +199,6 @@ func (UnimplementedBlockTxAPIServer) GetLastProcessedBlock(context.Context, *emp
 }
 func (UnimplementedBlockTxAPIServer) GetMinedTransactionsForBlock(context.Context, *BlockAndSource) (*MinedTransactions, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMinedTransactionsForBlock not implemented")
-}
-func (UnimplementedBlockTxAPIServer) GetBlockNotificationStream(*Height, BlockTxAPI_GetBlockNotificationStreamServer) error {
-	return status.Errorf(codes.Unimplemented, "method GetBlockNotificationStream not implemented")
 }
 func (UnimplementedBlockTxAPIServer) mustEmbedUnimplementedBlockTxAPIServer() {}
 
@@ -417,27 +375,6 @@ func _BlockTxAPI_GetMinedTransactionsForBlock_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BlockTxAPI_GetBlockNotificationStream_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(Height)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(BlockTxAPIServer).GetBlockNotificationStream(m, &blockTxAPIGetBlockNotificationStreamServer{stream})
-}
-
-type BlockTxAPI_GetBlockNotificationStreamServer interface {
-	Send(*Block) error
-	grpc.ServerStream
-}
-
-type blockTxAPIGetBlockNotificationStreamServer struct {
-	grpc.ServerStream
-}
-
-func (x *blockTxAPIGetBlockNotificationStreamServer) Send(m *Block) error {
-	return x.ServerStream.SendMsg(m)
-}
-
 // BlockTxAPI_ServiceDesc is the grpc.ServiceDesc for BlockTxAPI service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -482,12 +419,6 @@ var BlockTxAPI_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BlockTxAPI_GetMinedTransactionsForBlock_Handler,
 		},
 	},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "GetBlockNotificationStream",
-			Handler:       _BlockTxAPI_GetBlockNotificationStream_Handler,
-			ServerStreams: true,
-		},
-	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "blocktx/blocktx_api/blocktx_api.proto",
 }

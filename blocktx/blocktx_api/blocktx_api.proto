@@ -35,9 +35,6 @@ service BlockTxAPI {
   // GetMyTransactionsForBlock returns a list of transaction hashes for a given block that were registered by this API.
   rpc GetMinedTransactionsForBlock(BlockAndSource) returns (MinedTransactions) {}
 
-  // GetBlockNotificationStream returns a stream of mined blocks starting at a specific block height.
-  // If Height is 0, the stream starts from the current best block.
-  rpc GetBlockNotificationStream (Height) returns (stream Block) {}
 }
 
 // swagger:model HealthResponse

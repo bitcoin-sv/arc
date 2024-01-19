@@ -85,7 +85,6 @@ func init() {
 
 type PeerHandler struct {
 	workerCh                    chan utils.Pair[*chainhash.Hash, p2p.PeerI]
-	blockCh                     chan *blocktx_api.Block
 	store                       store.Interface
 	logger                      *slog.Logger
 	announcedCache              *expiringmap.ExpiringMap[chainhash.Hash, []p2p.PeerI]
@@ -112,7 +111,7 @@ func WithRetentionDays(dataRetentionDays int) func(handler *PeerHandler) {
 	}
 }
 
-func NewPeerHandler(logger *slog.Logger, storeI store.Interface, blockCh chan *blocktx_api.Block, startingHeight int, opts ...func(*PeerHandler)) *PeerHandler {
+func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight int, opts ...func(*PeerHandler)) *PeerHandler {
 	evictionFunc := func(hash chainhash.Hash, peers []p2p.PeerI) bool {
 		msg := wire.NewMsgGetData()
 
@@ -135,7 +134,6 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, blockCh chan *b
 
 	s := &PeerHandler{
 		store:                       storeI,
-		blockCh:                     blockCh,
 		logger:                      logger,
 		workerCh:                    make(chan utils.Pair[*chainhash.Hash, p2p.PeerI], 100),
 		announcedCache:              expiringmap.New[chainhash.Hash, []p2p.PeerI](10 * time.Minute).WithEvictionFunction(evictionFunc),
@@ -552,13 +550,6 @@ func (bs *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {
 
 	bs.announcedCache.Delete(*block.Hash)
 	bs.logger.Debug("removed block from announced cache", slog.String("hash", block.Hash.String()))
-
-	utils.SafeSend(bs.blockCh, &blocktx_api.Block{
-		Hash:         block.Hash[:],
-		PreviousHash: block.PreviousHash[:],
-		MerkleRoot:   block.MerkleRoot[:],
-		Height:       block.Height,
-	})
 
 	return nil
 }

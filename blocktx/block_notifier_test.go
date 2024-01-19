@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -53,7 +52,6 @@ func TestNewBlockNotifier(t *testing.T) {
 					return tc.hostname, nil
 				},
 			}
-			blockCh := make(chan *blocktx_api.Block)
 
 			peerSettings := []config.Peer{
 				{
@@ -80,8 +78,8 @@ func TestNewBlockNotifier(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler := NewPeerHandler(logger, storeMock, blockCh, 100)
-			notifier, err := NewBlockNotifier(storeMock, logger, blockCh, peerHandler, peerSettings, wire.TestNet3, WithFillGapsInterval(time.Millisecond*30))
+			peerHandler := NewPeerHandler(logger, storeMock, 100)
+			notifier, err := NewBlockNotifier(storeMock, logger, peerHandler, peerSettings, wire.TestNet3, WithFillGapsInterval(time.Millisecond*30))
 			require.NoError(t, err)
 
 			time.Sleep(120 * time.Millisecond)

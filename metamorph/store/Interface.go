@@ -210,14 +210,14 @@ type MetamorphStore interface {
 
 	SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error
 	SetUnlockedByName(ctx context.Context, lockedBy string) (int, error)
-	GetUnmined(_ context.Context, callback func(s *StoreData)) error
+	GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*StoreData, error)
 	UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error
 	RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error
 	UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error
 	Close(ctx context.Context) error
 	GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error)
 	SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) error
-
+	ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error)
 	Ping(ctx context.Context) error
 }
 

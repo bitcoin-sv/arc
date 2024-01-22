@@ -161,24 +161,32 @@ func TestBatchChainedTxs(t *testing.T) {
 
 			req.Header.Set("Content-Type", "application/json")
 			client := &http.Client{}
-			resp, err := client.Do(req)
-			require.NoError(t, err)
-			defer resp.Body.Close()
 
-			require.Equal(t, http.StatusOK, resp.StatusCode)
+			postBatchRequest(t, client, req)
 
-			b, err := io.ReadAll(resp.Body)
-			require.NoError(t, err)
-
-			bodyResponse := make([]Response, 0)
-			err = json.Unmarshal(b, &bodyResponse)
-			require.NoError(t, err)
-
-			for _, txResponse := range bodyResponse {
-				require.NoError(t, err)
-				require.Equal(t, "SEEN_ON_NETWORK", txResponse.TxStatus)
-			}
+			// repeat request to ensure response remains the same
+			postBatchRequest(t, client, req)
 		})
+	}
+}
+
+func postBatchRequest(t *testing.T, client *http.Client, req *http.Request) {
+	httpResp, err := client.Do(req)
+	require.NoError(t, err)
+	defer httpResp.Body.Close()
+
+	require.Equal(t, http.StatusOK, httpResp.StatusCode)
+
+	b, err := io.ReadAll(httpResp.Body)
+	require.NoError(t, err)
+
+	bodyResponse := make([]Response, 0)
+	err = json.Unmarshal(b, &bodyResponse)
+	require.NoError(t, err)
+
+	for _, txResponse := range bodyResponse {
+		require.NoError(t, err)
+		require.Equal(t, "SEEN_ON_NETWORK", txResponse.TxStatus)
 	}
 }
 
@@ -373,11 +381,15 @@ func TestPostCallbackToken(t *testing.T) {
 
 			var statusResponse *api.GETTransactionStatusResponse
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
-
-			for i := 0; i <= 1; i++ {
+			seenOnNetworkReceived := false
+			for i := 0; i <= 2; i++ {
 				t.Logf("callback iteration %d", i)
 				select {
 				case callback := <-callbackReceivedChan:
+					if *callback.TxStatus == "SEEN_ON_NETWORK" {
+						seenOnNetworkReceived = true
+						continue
+					}
 					require.NotNil(t, statusResponse)
 					require.NotNil(t, statusResponse.JSON200)
 					require.NotNil(t, callback)
@@ -392,6 +404,7 @@ func TestPostCallbackToken(t *testing.T) {
 					t.Fatal("callback not received")
 				}
 			}
+			require.True(t, seenOnNetworkReceived)
 		})
 	}
 }
@@ -430,17 +443,14 @@ func Test_E2E_Success(t *testing.T) {
 
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{}
-	resp, err := client.Do(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
+	txID := postSingleRequest(t, client, req)
 
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-
-	var response Response
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&response))
+	// repeat request to ensure response remains the same
+	txIDRepeat := postSingleRequest(t, client, req)
+	require.Equal(t, txID, txIDRepeat)
 
 	// Check transaction status
-	statusUrl := fmt.Sprintf("http://arc:9090/v1/tx/%s", response.Txid)
+	statusUrl := fmt.Sprintf("http://arc:9090/v1/tx/%s", txID)
 	statusResp, err := http.Get(statusUrl)
 	require.NoError(t, err)
 	defer statusResp.Body.Close()
@@ -464,6 +474,20 @@ func Test_E2E_Success(t *testing.T) {
 	require.Equal(t, "MINED", statusResponse.TxStatus, "Expected txStatus to be 'MINED'")
 	fmt.Println("Transaction status:", statusResponse.TxStatus)
 
+}
+
+func postSingleRequest(t *testing.T, client *http.Client, req *http.Request) string {
+	httpResp, err := client.Do(req)
+	require.NoError(t, err)
+	defer httpResp.Body.Close()
+
+	require.Equal(t, http.StatusOK, httpResp.StatusCode)
+
+	var response Response
+	require.NoError(t, json.NewDecoder(httpResp.Body).Decode(&response))
+	require.Equal(t, "SEEN_ON_NETWORK", response.TxStatus)
+
+	return response.Txid
 }
 
 func TestPostTx_Success(t *testing.T) {

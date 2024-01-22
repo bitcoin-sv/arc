@@ -40,17 +40,17 @@ func TestInOut(t *testing.T) {
 	}
 
 	for _, txn := range transactions {
-		_, _, _, _, err = s.RegisterTransaction(ctx, txn)
+		err = s.RegisterTransaction(ctx, txn)
 		require.NoError(t, err)
 	}
 
-	_, _, _, _, err = s.RegisterTransaction(ctx, &blocktx_api.TransactionAndSource{
+	err = s.RegisterTransaction(ctx, &blocktx_api.TransactionAndSource{
 		Hash:   firstHash[:],
 		Source: "TEST",
 	})
 	require.NoError(t, err)
 
-	err = s.InsertBlockTransactions(ctx, blockId, transactions, make([]string, len(transactions)))
+	err = s.UpdateBlockTransactions(ctx, blockId, transactions, make([]string, len(transactions)))
 	require.NoError(t, err)
 
 	txns, err := s.GetBlockTransactions(ctx, block)

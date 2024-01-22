@@ -5,30 +5,42 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/stretchr/testify/assert"
+	"github.com/bitcoin-sv/arc/database_testing"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestRegister(t *testing.T) {
-	s, err := New("sqlite_memory")
+type RegisterTransactionSuite struct {
+	database_testing.BlockTXDBTestSuite
+}
 
-	require.NoError(t, err)
+func (s *RegisterTransactionSuite) Test() {
+	pstore, err := NewPostgresStore(database_testing.DefaultParams)
+	require.NoError(s.T(), err)
 
-	source, _, _, blockHeight, err := s.RegisterTransaction(context.Background(), &blocktx_api.TransactionAndSource{
-		Hash:   []byte("test transaction hash 1"),
-		Source: "TEST",
-	})
+	err = pstore.RegisterTransaction(context.Background(), &blocktx_api.TransactionAndSource{})
+	require.ErrorIs(s.T(), err, ErrRegisterTransactionMissingHash)
 
-	assert.NoError(t, err)
-	assert.Equal(t, "TEST", source)
-	assert.Zero(t, blockHeight)
+	tx := &blocktx_api.TransactionAndSource{
+		Hash: []byte(database_testing.GetRandomBytes()),
+	}
+	err = pstore.RegisterTransaction(context.Background(), tx)
+	require.NoError(s.T(), err)
 
-	source, _, _, blockHeight, err = s.RegisterTransaction(context.Background(), &blocktx_api.TransactionAndSource{
-		Hash:   []byte("test transaction hash 1"),
-		Source: "TEST2",
-	})
+	d, err := sqlx.Open("postgres", database_testing.DefaultParams.String())
+	require.NoError(s.T(), err)
 
-	assert.NoError(t, err)
-	assert.Equal(t, "TEST", source)
-	assert.Zero(t, blockHeight)
+	var storedtx Tx
+
+	err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(tx.GetHash()))
+	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), tx.GetHash(), storedtx.Hash)
+
+}
+
+func TestRegisterTransactionSuite(t *testing.T) {
+	s := new(RegisterTransactionSuite)
+	suite.Run(t, s)
 }

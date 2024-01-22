@@ -181,6 +181,11 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("get - not found", func(t *testing.T) {
+		_, err := postgresDB.Get(ctx, []byte("not to be found"))
+		require.True(t, errors.Is(err, store.ErrNotFound))
+	})
+
 	t.Run("remove callback url", func(t *testing.T) {
 		err = postgresDB.RemoveCallbacker(ctx, minedHash)
 		require.NoError(t, err)
@@ -191,13 +196,9 @@ func TestPostgresDB(t *testing.T) {
 
 		expectedHash, err := chainhash.NewHashFromStr("57438c4340b9a5e0d77120d999765589048f6f2dd49a6325cdf14356fc4cc012")
 		require.NoError(t, err)
-		expectedHashFound := false
-		err = postgresDB.GetUnmined(ctx, func(record *store.StoreData) {
-			expectedHashFound = true
-			require.Equal(t, expectedHash, record.Hash)
-		})
+		records, err := postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1)
 		require.NoError(t, err)
-		require.True(t, expectedHashFound)
+		require.Equal(t, expectedHash, records[0].Hash)
 
 		dataReturned, err := postgresDB.Get(ctx, expectedHash[:])
 		require.NoError(t, err)
@@ -326,5 +327,16 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, &now, processedAt)
+	})
+
+	t.Run("clear data", func(t *testing.T) {
+		resp, err := postgresDB.ClearData(ctx, 14)
+		require.NoError(t, err)
+		require.Equal(t, int64(3), resp.Rows)
+
+		var numberOfRemainingTxs int
+		err = postgresDB.db.QueryRowContext(ctx, "SELECT count(*) FROM metamorph.transactions;").Scan(&numberOfRemainingTxs)
+		require.NoError(t, err)
+		require.Equal(t, 7, numberOfRemainingTxs)
 	})
 }

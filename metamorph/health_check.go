@@ -20,7 +20,7 @@ type HealthWatchServer interface {
 
 func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
 
-	s.logger.Info("checking health", slog.String("service", req.Service))
+	s.logger.Debug("checking health", slog.String("service", req.Service))
 
 	if req.Service == readiness {
 		err := s.store.Ping(ctx)

@@ -52,7 +52,6 @@ type BitcoinNode interface {
 
 type ProcessorI interface {
 	LoadUnmined()
-	Set(ctx context.Context, req *ProcessorRequest) error
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
 	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
 	SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error)
@@ -375,6 +374,9 @@ func (s *Server) getMerklePath(ctx context.Context, hash *chainhash.Hash, dataSt
 					errCh <- fmt.Errorf("merkle path not found for mined transaction %s: %v", hash.String(), err)
 					return
 				}
+
+				merklePathCh <- ""
+				return
 			} else {
 				errCh <- fmt.Errorf("failed to get Merkle path for transaction %s: %v", hash.String(), err)
 				return
@@ -411,7 +413,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 	}
 	merklePath, err := s.getMerklePath(ctx, hash, data.Status)
 	if err != nil {
-		s.logger.Error("failed to get merkle path")
+		s.logger.Error("failed to get merkle path", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 	}
 
 	return &metamorph_api.TransactionStatus{
@@ -468,4 +470,8 @@ func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUn
 	}
 
 	return result, err
+}
+
+func (s *Server) ClearData(ctx context.Context, clearData *metamorph_api.ClearDataRequest) (*metamorph_api.ClearDataResponse, error) {
+	return s.store.ClearData(ctx, clearData.RetentionDays)
 }

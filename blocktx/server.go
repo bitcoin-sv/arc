@@ -99,22 +99,16 @@ func (s *Server) GetTransactionMerklePath(ctx context.Context, transaction *bloc
 	return &blocktx_api.MerklePath{MerklePath: merklePath}, nil
 }
 
-func (s *Server) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
-	source, merklePath, hash, height, err := s.store.RegisterTransaction(ctx, transaction)
-	return &blocktx_api.RegisterTransactionResponse{
-		Source:      source,
-		MerklePath:  merklePath,
-		BlockHash:   hash,
-		BlockHeight: height,
-	}, err
+func (s *Server) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
+	err := s.store.RegisterTransaction(ctx, transaction)
+	if err != nil {
+		return &emptypb.Empty{}, err
+	}
+	return &emptypb.Empty{}, err
 }
 
 func (s *Server) GetBlockTransactions(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error) {
 	return s.store.GetBlockTransactions(ctx, block)
-}
-
-func (s *Server) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.Block, error) {
-	return s.store.GetTransactionBlock(ctx, transaction)
 }
 
 func (s *Server) GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {

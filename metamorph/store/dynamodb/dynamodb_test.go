@@ -176,18 +176,14 @@ func TestDynamoDBIntegration(t *testing.T) {
 			Status:   metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			RawTx:    TX2RawBytes,
 			LockedBy: lockedByNone,
+			StoredAt: dateNow,
 		}
 		putItem(t, ctx, client, dataStatusAnnounced)
 
-		i := 0
-		returnedData := make([]*store.StoreData, 2)
-		err := repo.GetUnmined(ctx, func(s *store.StoreData) {
-			returnedData[i] = s
-			i++
-		})
+		returnedData, err := repo.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 2)
 		require.NoError(t, err)
-		require.Contains(t, returnedData, dataStatusAnnounced)
 		require.Contains(t, returnedData, dataStatusSent)
+		require.Contains(t, returnedData, dataStatusAnnounced)
 
 		tx1, err := repo.Get(ctx, TX1Hash[:])
 		require.NoError(t, err)

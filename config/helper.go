@@ -77,6 +77,15 @@ func GetDuration(settingName string) (time.Duration, error) {
 	return setting, nil
 }
 
+func GetInt64(settingName string) (int64, error) {
+	setting := viper.GetInt64(settingName)
+	if setting == 0 {
+		return 0, fmt.Errorf("setting %s not found", settingName)
+	}
+
+	return setting, nil
+}
+
 type Peer struct {
 	Host string
 	Port PeerPort `mapstructure:"port"`

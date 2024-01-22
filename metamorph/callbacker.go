@@ -2,7 +2,6 @@ package metamorph
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -72,11 +71,11 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 
 		// if callback was sent successfully we stop here
 		if response.StatusCode == http.StatusOK {
-			err = s.RemoveCallbacker(context.Background(), tx.Hash)
-			if err != nil {
-				logger.Error("Couldn't update/remove callback url", slog.String("err", err.Error()))
-				return
-			}
+			// err = s.RemoveCallbacker(context.Background(), tx.Hash)
+			// if err != nil {
+			// 	logger.Error("Couldn't update/remove callback url", slog.String("err", err.Error()))
+			// 	return
+			// }
 			return
 		}
 
@@ -88,10 +87,10 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 		sleepDuration *= 2
 	}
 
-	err := s.RemoveCallbacker(context.Background(), tx.Hash)
-	if err != nil {
-		logger.Error("Couldn't update/remove callback url", slog.String("err", err.Error()))
-		return
-	}
+	// err := s.RemoveCallbacker(context.Background(), tx.Hash)
+	// if err != nil {
+	// 	logger.Error("Couldn't update/remove callback url", slog.String("err", err.Error()))
+	// 	return
+	// }
 	logger.Error("Couldn't send transaction info through callback url after tries: ", slog.String("status", strconv.Itoa(CallbackTries)))
 }

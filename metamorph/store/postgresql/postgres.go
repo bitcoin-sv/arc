@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	postgresDriverName = "postgres"
-	loadLimit          = 20000
+	postgresDriverName      = "postgres"
+	numericalDateHourLayout = "2006010215"
 )
 
 type PostgreSQL struct {
@@ -321,7 +321,7 @@ func (p *PostgreSQL) setLockedBy(ctx context.Context, hash *chainhash.Hash, lock
 	return nil
 }
 
-func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
+func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 	startNanos := p.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("getunmined").AddTime(startNanos)
@@ -342,16 +342,22 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 		,merkle_proof
 		,raw_tx
 		,locked_by
-		FROM metamorph.transactions WHERE locked_by = 'NONE' AND (status < $1 OR status = $2 ) LIMIT $3;`
+		FROM metamorph.transactions
+		WHERE locked_by = 'NONE'
+		AND (status < $1 OR status = $2)
+		AND inserted_at_num > $3
+		ORDER BY inserted_at_num DESC
+		LIMIT $4;`
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, loadLimit)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout), limit)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
-		return err
+		return nil, err
 	}
 	defer rows.Close()
 
+	unminedTxs := make([]*store.StoreData, 0)
 	for rows.Next() {
 		data := &store.StoreData{}
 
@@ -383,7 +389,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 		); err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
-			return err
+			return nil, err
 		}
 
 		if len(txHash) > 0 {
@@ -391,7 +397,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
-				return err
+				return nil, err
 			}
 		}
 
@@ -400,7 +406,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
-				return err
+				return nil, err
 			}
 		}
 
@@ -440,15 +446,15 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, callback func(s *store.Stor
 			data.LockedBy = lockedBy.String
 		}
 
-		callback(data)
-
 		err = p.setLockedBy(ctx, data.Hash, p.hostname)
 		if err != nil {
-			return err
+			return nil, err
 		}
+
+		unminedTxs = append(unminedTxs, data)
 	}
 
-	return nil
+	return unminedTxs, nil
 }
 
 func (p *PostgreSQL) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
@@ -666,4 +672,29 @@ func (p *PostgreSQL) Ping(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+	startNanos := p.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("ClearData").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:ClearData")
+	defer span.Finish()
+
+	start := p.now()
+
+	deleteBeforeDate := start.Add(-24 * time.Hour * time.Duration(retentionDays))
+
+	res, err := p.db.ExecContext(ctx, "DELETE FROM metamorph.transactions WHERE inserted_at_num <= $1::int", deleteBeforeDate.Format(numericalDateHourLayout))
+	if err != nil {
+		return &metamorph_api.ClearDataResponse{Rows: 0}, err
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return &metamorph_api.ClearDataResponse{Rows: rows}, err
+	}
+
+	return &metamorph_api.ClearDataResponse{Rows: rows}, nil
 }

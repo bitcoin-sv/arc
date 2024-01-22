@@ -25,6 +25,7 @@ const (
 	lockedByAttributeKey         = ":locked_by"
 	txStatusAttributeKey         = ":tx_status"
 	txStatusAttributeKeyOrphaned = ":tx_orphaned"
+	dateSinceKey                 = ":date_since"
 	blockHeightAttributeKey      = ":block_height"
 	blockHashAttributeKey        = ":block_hash"
 	rejectReasonAttributeKey     = ":reject_reason"
@@ -400,13 +401,13 @@ func (ddb *DynamoDB) setLockedBy(ctx context.Context, hash *chainhash.Hash, lock
 	return nil
 }
 
-func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
+func (ddb *DynamoDB) GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 	// setup log and tracing
 	startNanos := ddb.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_dynamodb").NewStat("getunmined").AddTime(startNanos)
 	}()
-	span, _ := opentracing.StartSpanFromContext(ctx, "dynamodb:GetUnmined")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "dynamodb:GetUnmined")
 	defer span.Finish()
 
 	// get unmined set
@@ -414,38 +415,43 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, callback func(s *store.Stor
 		TableName:              aws.String(ddb.transactionsTableName),
 		IndexName:              aws.String("locked_by_index"),
 		KeyConditionExpression: aws.String(fmt.Sprintf("locked_by = %s", lockedByAttributeKey)),
-		FilterExpression:       aws.String(fmt.Sprintf("tx_status < %s or tx_status = %s", txStatusAttributeKey, txStatusAttributeKeyOrphaned)),
+		FilterExpression:       aws.String(fmt.Sprintf("(tx_status < %s or tx_status = %s) and stored_at >= %s", txStatusAttributeKey, txStatusAttributeKeyOrphaned, dateSinceKey)),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			lockedByAttributeKey:         &types.AttributeValueMemberS{Value: lockedByNone},
 			txStatusAttributeKey:         &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_MINED))},
 			txStatusAttributeKeyOrphaned: &types.AttributeValueMemberN{Value: strconv.Itoa(int(metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL))},
+			dateSinceKey:                 &types.AttributeValueMemberS{Value: since.Format(time.DateOnly)},
 		},
+		Limit: aws.Int32(int32(limit)),
 	})
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
-		return err
+		return nil, err
 	}
 
-	for _, item := range out.Items {
+	data := make([]*store.StoreData, len(out.Items))
+
+	for i, item := range out.Items {
 		var transaction store.StoreData
 		err = attributevalue.UnmarshalMap(item, &transaction)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
-			return err
+			return nil, err
 		}
 
-		callback(&transaction)
+		data[i] = &transaction
 
 		err = ddb.setLockedBy(ctx, transaction.Hash, ddb.hostname)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
-			return err
+			return nil, err
 		}
 	}
-	return nil
+
+	return data, nil
 }
 
 func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
@@ -675,4 +681,9 @@ func (ddb *DynamoDB) Ping(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (p *DynamoDB) ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+	// Implementation not needed as clearing data handled by TTL-feature
+	return nil, nil
 }

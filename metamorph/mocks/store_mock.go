@@ -22,6 +22,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //
 //		// make and configure a mocked store.MetamorphStore
 //		mockedMetamorphStore := &MetamorphStoreMock{
+//			ClearDataFunc: func(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+//				panic("mock out the ClearData method")
+//			},
 //			CloseFunc: func(ctx context.Context) error {
 //				panic("mock out the Close method")
 //			},
@@ -34,7 +37,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetBlockProcessedFunc: func(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
 //				panic("mock out the GetBlockProcessed method")
 //			},
-//			GetUnminedFunc: func(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
+//			GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 //				panic("mock out the GetUnmined method")
 //			},
 //			PingFunc: func(ctx context.Context) error {
@@ -68,6 +71,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //
 //	}
 type MetamorphStoreMock struct {
+	// ClearDataFunc mocks the ClearData method.
+	ClearDataFunc func(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error)
+
 	// CloseFunc mocks the Close method.
 	CloseFunc func(ctx context.Context) error
 
@@ -81,7 +87,7 @@ type MetamorphStoreMock struct {
 	GetBlockProcessedFunc func(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error)
 
 	// GetUnminedFunc mocks the GetUnmined method.
-	GetUnminedFunc func(contextMoqParam context.Context, callback func(s *store.StoreData)) error
+	GetUnminedFunc func(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error)
 
 	// PingFunc mocks the Ping method.
 	PingFunc func(ctx context.Context) error
@@ -109,6 +115,13 @@ type MetamorphStoreMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// ClearData holds details about calls to the ClearData method.
+		ClearData []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// RetentionDays is the retentionDays argument value.
+			RetentionDays int32
+		}
 		// Close holds details about calls to the Close method.
 		Close []struct {
 			// Ctx is the ctx argument value.
@@ -137,10 +150,12 @@ type MetamorphStoreMock struct {
 		}
 		// GetUnmined holds details about calls to the GetUnmined method.
 		GetUnmined []struct {
-			// ContextMoqParam is the contextMoqParam argument value.
-			ContextMoqParam context.Context
-			// Callback is the callback argument value.
-			Callback func(s *store.StoreData)
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Since is the since argument value.
+			Since time.Time
+			// Limit is the limit argument value.
+			Limit int64
 		}
 		// Ping holds details about calls to the Ping method.
 		Ping []struct {
@@ -207,6 +222,7 @@ type MetamorphStoreMock struct {
 			RejectReason string
 		}
 	}
+	lockClearData         sync.RWMutex
 	lockClose             sync.RWMutex
 	lockDel               sync.RWMutex
 	lockGet               sync.RWMutex
@@ -220,6 +236,42 @@ type MetamorphStoreMock struct {
 	lockSetUnlockedByName sync.RWMutex
 	lockUpdateMined       sync.RWMutex
 	lockUpdateStatus      sync.RWMutex
+}
+
+// ClearData calls ClearDataFunc.
+func (mock *MetamorphStoreMock) ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+	if mock.ClearDataFunc == nil {
+		panic("MetamorphStoreMock.ClearDataFunc: method is nil but MetamorphStore.ClearData was just called")
+	}
+	callInfo := struct {
+		Ctx           context.Context
+		RetentionDays int32
+	}{
+		Ctx:           ctx,
+		RetentionDays: retentionDays,
+	}
+	mock.lockClearData.Lock()
+	mock.calls.ClearData = append(mock.calls.ClearData, callInfo)
+	mock.lockClearData.Unlock()
+	return mock.ClearDataFunc(ctx, retentionDays)
+}
+
+// ClearDataCalls gets all the calls that were made to ClearData.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.ClearDataCalls())
+func (mock *MetamorphStoreMock) ClearDataCalls() []struct {
+	Ctx           context.Context
+	RetentionDays int32
+} {
+	var calls []struct {
+		Ctx           context.Context
+		RetentionDays int32
+	}
+	mock.lockClearData.RLock()
+	calls = mock.calls.ClearData
+	mock.lockClearData.RUnlock()
+	return calls
 }
 
 // Close calls CloseFunc.
@@ -363,21 +415,23 @@ func (mock *MetamorphStoreMock) GetBlockProcessedCalls() []struct {
 }
 
 // GetUnmined calls GetUnminedFunc.
-func (mock *MetamorphStoreMock) GetUnmined(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
+func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 	if mock.GetUnminedFunc == nil {
 		panic("MetamorphStoreMock.GetUnminedFunc: method is nil but MetamorphStore.GetUnmined was just called")
 	}
 	callInfo := struct {
-		ContextMoqParam context.Context
-		Callback        func(s *store.StoreData)
+		Ctx   context.Context
+		Since time.Time
+		Limit int64
 	}{
-		ContextMoqParam: contextMoqParam,
-		Callback:        callback,
+		Ctx:   ctx,
+		Since: since,
+		Limit: limit,
 	}
 	mock.lockGetUnmined.Lock()
 	mock.calls.GetUnmined = append(mock.calls.GetUnmined, callInfo)
 	mock.lockGetUnmined.Unlock()
-	return mock.GetUnminedFunc(contextMoqParam, callback)
+	return mock.GetUnminedFunc(ctx, since, limit)
 }
 
 // GetUnminedCalls gets all the calls that were made to GetUnmined.
@@ -385,12 +439,14 @@ func (mock *MetamorphStoreMock) GetUnmined(contextMoqParam context.Context, call
 //
 //	len(mockedMetamorphStore.GetUnminedCalls())
 func (mock *MetamorphStoreMock) GetUnminedCalls() []struct {
-	ContextMoqParam context.Context
-	Callback        func(s *store.StoreData)
+	Ctx   context.Context
+	Since time.Time
+	Limit int64
 } {
 	var calls []struct {
-		ContextMoqParam context.Context
-		Callback        func(s *store.StoreData)
+		Ctx   context.Context
+		Since time.Time
+		Limit int64
 	}
 	mock.lockGetUnmined.RLock()
 	calls = mock.calls.GetUnmined

@@ -125,12 +125,3 @@ api:
 
 .PHONY: clean_restart_e2e_test
 clean_restart_e2e_test: clean_e2e_tests build_release run_e2e_tests
-
-migrate_postgres_blocktx:
-	migrate -database "postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/blocktx_dev?sslmode=disable"  -path database/migrations/blocktx/postgres  up
-
-migrate_postgres_metamorph:
-	migrate -database "postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/metamorph_dev?sslmode=disable"  -path database/migrations/metamorph/postgres  up
-
-migrate_sqlite:
-	migrate -path database/migrations/sqlite -database "sqlite3://data/sqlite/arcdb.sqlite3"  up

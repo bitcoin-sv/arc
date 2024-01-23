@@ -19,13 +19,7 @@ func WithCacheExpiryTime(d time.Duration) func(*Processor) {
 
 func WithProcessorLogger(l *slog.Logger) func(*Processor) {
 	return func(p *Processor) {
-		p.logger = l.With(slog.String("service", "mtm"))
-	}
-}
-
-func WithLogFilePath(errLogFilePath string) func(*Processor) {
-	return func(p *Processor) {
-		p.logFile = errLogFilePath
+		p.logger = l
 	}
 }
 

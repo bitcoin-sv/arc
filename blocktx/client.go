@@ -9,8 +9,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"log/slog"
-	"os"
 )
 
 // ClientI is the interface for the block-tx transactionHandler.
@@ -24,26 +22,14 @@ type ClientI interface {
 	Health(ctx context.Context) error
 }
 
-const (
-	logLevelDefault = slog.LevelInfo
-)
-
 type Client struct {
-	logger *slog.Logger
 	client blocktx_api.BlockTxAPIClient
-}
-
-func WithLogger(logger *slog.Logger) func(*Client) {
-	return func(p *Client) {
-		p.logger = logger.With(slog.String("service", "btx"))
-	}
 }
 
 type Option func(f *Client)
 
 func NewClient(client blocktx_api.BlockTxAPIClient, opts ...Option) ClientI {
 	btc := &Client{
-		logger: slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "btx")),
 		client: client,
 	}
 

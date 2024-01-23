@@ -42,6 +42,8 @@ const (
 )
 
 func StartMetamorph(logger *slog.Logger) (func(), error) {
+	logger = logger.With(slog.String("service", "mtm"))
+
 	dbMode, err := config.GetString("metamorph.db.mode")
 	if dbMode == "" {
 		return nil, errors.New("metamorph.db.mode not found in config")

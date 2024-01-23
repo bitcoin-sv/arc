@@ -206,8 +206,8 @@ paths:
         This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates. The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
       parameters:
         - $ref: '#/components/parameters/callbackUrl'
-        - $ref: '#/components/parameters/skipFeeValidation'
         - $ref: '#/components/parameters/fullStatusUpdates'
+        - $ref: '#/components/parameters/skipFeeValidation'
         - $ref: '#/components/parameters/skipScriptValidation'
         - $ref: '#/components/parameters/skipTxValidation'
         - $ref: '#/components/parameters/callbackToken'

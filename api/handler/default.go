@@ -387,6 +387,7 @@ func getTransactionsOptions(params api.POSTTransactionsParams) (*api.Transaction
 	if params.XSkipFeeValidation != nil {
 		transactionOptions.SkipFeeValidation = *params.XSkipFeeValidation
 	}
+
 	if params.XSkipScriptValidation != nil {
 		transactionOptions.SkipScriptValidation = *params.XSkipScriptValidation
 	}

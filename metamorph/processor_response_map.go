@@ -1,30 +1,23 @@
 package metamorph
 
 import (
-	"encoding/json"
 	"log"
 	"log/slog"
-	"os"
-	"path"
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/ordishs/go-utils"
 	"github.com/sasha-s/go-deadlock"
 )
 
 const (
-	cleanUpInterval    = 15 * time.Minute
-	logFilePathDefault = "./data/metamorph.log"
+	cleanUpInterval = 15 * time.Minute
 )
 
 type ProcessorResponseMap struct {
 	mu            deadlock.RWMutex
 	Expiry        time.Duration
 	ResponseItems map[chainhash.Hash]*processor_response.ProcessorResponse
-	logFile       string
-	logWorker     chan statResponse
 	now           func() time.Time
 }
 
@@ -34,19 +27,12 @@ func WithNowResponseMap(nowFunc func() time.Time) func(*ProcessorResponseMap) {
 	}
 }
 
-func WithLogFile(logFile string) func(*ProcessorResponseMap) {
-	return func(p *ProcessorResponseMap) {
-		p.logFile = logFile
-	}
-}
-
 type OptionProcRespMap func(p *ProcessorResponseMap)
 
 func NewProcessorResponseMap(expiry time.Duration, opts ...OptionProcRespMap) *ProcessorResponseMap {
 	m := &ProcessorResponseMap{
 		Expiry:        expiry,
 		ResponseItems: make(map[chainhash.Hash]*processor_response.ProcessorResponse),
-		logFile:       logFilePathDefault,
 		now:           time.Now,
 	}
 
@@ -61,41 +47,7 @@ func NewProcessorResponseMap(expiry time.Duration, opts ...OptionProcRespMap) *P
 		}
 	}()
 
-	// start log write worker
-	if m.logFile != "" {
-		m.logWorker = make(chan statResponse, 10000)
-		go m.logWriter()
-	}
-
 	return m
-}
-
-func (m *ProcessorResponseMap) logWriter() {
-	dir := path.Dir(m.logFile)
-	err := os.MkdirAll(dir, 0o750)
-	if err != nil {
-		log.Fatalf("failed to create folder for logging %s", err)
-	}
-	f, err := os.OpenFile(m.logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
-	if err != nil {
-		log.Fatalf("error opening log file: %s", err)
-	}
-	defer f.Close()
-
-	for prl := range m.logWorker {
-		var b []byte
-		b, err = json.Marshal(prl)
-		if err != nil {
-			log.Printf("error marshaling log data: %s", err)
-			continue
-		}
-
-		_, err = f.WriteString(string(b) + "\n")
-		if err != nil {
-			log.Printf("error writing to log file: %s", err)
-			continue
-		}
-	}
 }
 
 func (m *ProcessorResponseMap) Set(hash *chainhash.Hash, value *processor_response.ProcessorResponse) {
@@ -121,29 +73,9 @@ func (m *ProcessorResponseMap) Delete(hash *chainhash.Hash) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	item, ok := m.ResponseItems[*hash]
+	_, ok := m.ResponseItems[*hash]
 	if !ok {
 		return
-	}
-
-	// append stats to log file
-	if m.logFile != "" && m.logWorker != nil {
-		announcedPeers := make([]string, 0, len(item.AnnouncedPeers))
-		for _, peer := range item.AnnouncedPeers {
-			announcedPeers = append(announcedPeers, peer.String())
-		}
-
-		utils.SafeSend(m.logWorker, statResponse{
-			Txid:                  item.Hash.String(),
-			Start:                 item.Start,
-			Retries:               item.Retries.Load(),
-			Err:                   item.Err,
-			AnnouncedPeers:        announcedPeers,
-			Status:                item.Status,
-			NoStats:               item.NoStats,
-			LastStatusUpdateNanos: item.LastStatusUpdateNanos.Load(),
-			Log:                   item.Log,
-		})
 	}
 
 	delete(m.ResponseItems, *hash)

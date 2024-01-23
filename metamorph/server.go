@@ -42,10 +42,6 @@ const (
 	blocktxTimeout  = 1 * time.Second
 )
 
-var (
-	ErrRegisterTxTimeout = errors.New("failed to register transaction due to timeout")
-)
-
 type BitcoinNode interface {
 	GetTxOut(txHex string, vout int, includeMempool bool) (res *bitcoin.TXOut, err error)
 }
@@ -83,7 +79,7 @@ func WithBlocktxTimeout(d time.Duration) func(*Server) {
 
 func WithLogger(logger *slog.Logger) func(*Server) {
 	return func(s *Server) {
-		s.logger = logger.With(slog.String("service", "mtm"))
+		s.logger = logger
 	}
 }
 

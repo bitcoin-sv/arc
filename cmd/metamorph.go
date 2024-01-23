@@ -93,11 +93,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("invalid metamorph.processorCacheExpiryTime: %s", mapExpiryStr)
 	}
 
-	processorLogger, err := config.NewLogger()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get logger: %v", err)
-	}
-
 	dataRetentionDays, err := config.GetInt("metamorph.db.cleanData.recordRetentionDays")
 	if err != nil {
 		return nil, err
@@ -117,8 +112,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		pm,
 		btx,
 		metamorph.WithCacheExpiryTime(mapExpiry),
-		metamorph.WithProcessorLogger(processorLogger),
-		metamorph.WithLogFilePath(viper.GetString("metamorph.log.file")),
+		metamorph.WithProcessorLogger(logger.With(slog.String("module", "mtm-proc"))),
 		metamorph.WithDataRetentionPeriod(time.Duration(dataRetentionDays)*24*time.Hour),
 		metamorph.WithProcessCheckIfMinedInterval(checkIfMinedInterval),
 		metamorph.WithMaxMonitoredTxs(maxMonitoredTxs),

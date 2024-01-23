@@ -42,11 +42,11 @@ const (
 )
 
 func StartMetamorph(logger *slog.Logger) (func(), error) {
-	dbMode := viper.GetString("metamorph.db.mode")
+	dbMode, err := config.GetString("metamorph.db.mode")
 	if dbMode == "" {
 		return nil, errors.New("metamorph.db.mode not found in config")
 	}
-	folder := viper.GetString("dataFolder")
+	folder, err := config.GetString("dataFolder")
 	if folder == "" {
 		return nil, errors.New("dataFolder not found in config")
 	}
@@ -60,14 +60,9 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
 
-	blocktxAddress := viper.GetString("blocktx.dialAddr")
-	if blocktxAddress == "" {
-		return nil, errors.New("blocktx.dialAddr not found in config")
-	}
-
-	blockTxLogger, err := config.NewLogger()
+	blocktxAddress, err := config.GetString("blocktx.dialAddr")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new logger: %v", err)
+		return nil, err
 	}
 
 	conn, err := blocktx.DialGRPC(blocktxAddress)
@@ -75,19 +70,23 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
 	}
 
-	btx := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn), blocktx.WithLogger(blockTxLogger))
+	btx := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn))
 
-	metamorphGRPCListenAddress := viper.GetString("metamorph.listenAddr")
-	if metamorphGRPCListenAddress == "" {
-		return nil, fmt.Errorf("no metamorph.listenAddr setting found")
-	}
-
-	pm, statusMessageCh, err := initPeerManager(logger, s)
+	metamorphGRPCListenAddress, err := config.GetString("metamorph.listenAddr")
 	if err != nil {
 		return nil, err
 	}
 
-	mapExpiryStr := viper.GetString("metamorph.processorCacheExpiryTime")
+	pm, statusMessageCh, err := initPeerManager(logger.With(slog.String("module", "mtm-peer-handler")), s)
+	if err != nil {
+		return nil, err
+	}
+
+	mapExpiryStr, err := config.GetString("metamorph.processorCacheExpiryTime")
+	if err != nil {
+		return nil, err
+	}
+
 	mapExpiry, err := time.ParseDuration(mapExpiryStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid metamorph.processorCacheExpiryTime: %s", mapExpiryStr)
@@ -154,29 +153,24 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		}
 	}()
 
-	metamorphLogger, err := config.NewLogger()
-	if err != nil {
-		logger.Error("failed to get new logger", slog.String("err", err.Error()))
-		return nil, err
-	}
-	opts := []metamorph.ServerOption{
-		metamorph.WithLogger(metamorphLogger),
+	optsServer := []metamorph.ServerOption{
+		metamorph.WithLogger(logger.With(slog.String("module", "mtm-server"))),
 	}
 
 	if viper.GetBool("metamorph.checkUtxos") {
-		peerRpcPassword := viper.GetString("peerRpc.password")
-		if peerRpcPassword == "" {
-			return nil, errors.New("setting peerRpc.password not found")
+		peerRpcPassword, err := config.GetString("peerRpc.password")
+		if err != nil {
+			return nil, err
 		}
 
-		peerRpcUser := viper.GetString("peerRpc.user")
-		if peerRpcUser == "" {
-			return nil, errors.New("setting peerRpc.user not found")
+		peerRpcUser, err := config.GetString("peerRpc.user")
+		if err != nil {
+			return nil, err
 		}
 
-		peerRpcHost := viper.GetString("peerRpc.host")
-		if peerRpcHost == "" {
-			return nil, errors.New("setting peerRpc.host not found")
+		peerRpcHost, err := config.GetString("peerRpc.host")
+		if err != nil {
+			return nil, err
 		}
 
 		peerRpcPort := viper.GetInt("peerRpc.port")
@@ -194,15 +188,15 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 			return nil, err
 		}
 
-		opts = append(opts, metamorph.WithForceCheckUtxos(node))
+		optsServer = append(optsServer, metamorph.WithForceCheckUtxos(node))
 	}
 
 	btxTimeout := viper.GetDuration("metamorph.blocktxTimeout")
 	if btxTimeout > 0 {
-		opts = append(opts, metamorph.WithBlocktxTimeout(btxTimeout))
+		optsServer = append(optsServer, metamorph.WithBlocktxTimeout(btxTimeout))
 	}
 
-	serv := metamorph.NewServer(s, metamorphProcessor, btx, opts...)
+	serv := metamorph.NewServer(s, metamorphProcessor, btx, optsServer...)
 
 	go func() {
 		grpcMessageSize := viper.GetInt("grpcMessageSize")
@@ -290,13 +284,13 @@ func StartHealthServer(serv *metamorph.Server) error {
 }
 
 func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+
 	switch dbMode {
 	case DbModePostgres:
-		var hostname string
-		hostname, err = os.Hostname()
-		if err != nil {
-			return nil, err
-		}
 		dbHost, err := config.GetString("metamorph.db.postgres.host")
 		if err != nil {
 			return nil, err
@@ -351,11 +345,6 @@ func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) 
 			return nil, err
 		}
 	case DbModeDynamoDB:
-		hostname, err := os.Hostname()
-		if err != nil {
-			return nil, err
-		}
-
 		ctx := context.Background()
 		cfg, err := awscfg.LoadDefaultConfig(ctx, awscfg.WithEC2IMDSRegion())
 		if err != nil {
@@ -367,7 +356,10 @@ func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) 
 			return nil, err
 		}
 
-		tableNameSuffix := viper.GetString("metamorph.db.dynamoDB.tableNameSuffix")
+		tableNameSuffix, err := config.GetString("metamorph.db.dynamoDB.tableNameSuffix")
+		if err != nil {
+			return nil, err
+		}
 
 		s, err = dynamodb.New(
 			awsdynamodb.NewFromConfig(cfg),

@@ -60,6 +60,7 @@ message TransactionRequest {
   bool merkle_proof = 7;
   bytes raw_tx = 8;
   Status wait_for_status = 9;
+  bool full_status_updates = 10;
 }
 
 // swagger:model TransactionRequests

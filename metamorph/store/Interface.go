@@ -13,20 +13,21 @@ import (
 )
 
 type StoreData struct {
-	RawTx         []byte               `dynamodbav:"raw_tx"`
-	StoredAt      time.Time            `dynamodbav:"stored_at"`
-	AnnouncedAt   time.Time            `dynamodbav:"announced_at"`
-	MinedAt       time.Time            `dynamodbav:"mined_at"`
-	Hash          *chainhash.Hash      `badgerhold:"key"            dynamodbav:"tx_hash"`
-	Status        metamorph_api.Status `dynamodbav:"tx_status"`
-	BlockHeight   uint64               `dynamodbav:"block_height"`
-	BlockHash     *chainhash.Hash      `dynamodbav:"block_hash"`
-	MerkleProof   bool                 `dynamodbav:"merkle_proof"`
-	CallbackUrl   string               `dynamodbav:"callback_url"`
-	CallbackToken string               `dynamodbav:"callback_token"`
-	RejectReason  string               `dynamodbav:"reject_reason"`
-	LockedBy      string               `dynamodbav:"locked_by"`
-	Ttl           int64                `dynamodbav:"ttl"`
+	RawTx             []byte               `dynamodbav:"raw_tx"`
+	StoredAt          time.Time            `dynamodbav:"stored_at"`
+	AnnouncedAt       time.Time            `dynamodbav:"announced_at"`
+	MinedAt           time.Time            `dynamodbav:"mined_at"`
+	Hash              *chainhash.Hash      `badgerhold:"key"            dynamodbav:"tx_hash"`
+	Status            metamorph_api.Status `dynamodbav:"tx_status"`
+	BlockHeight       uint64               `dynamodbav:"block_height"`
+	BlockHash         *chainhash.Hash      `dynamodbav:"block_hash"`
+	MerkleProof       bool                 `dynamodbav:"merkle_proof"`
+	CallbackUrl       string               `dynamodbav:"callback_url"`
+	FullStatusUpdates bool                 `dynamodbav:"full_status_updates"`
+	CallbackToken     string               `dynamodbav:"callback_token"`
+	RejectReason      string               `dynamodbav:"reject_reason"`
+	LockedBy          string               `dynamodbav:"locked_by"`
+	Ttl               int64                `dynamodbav:"ttl"`
 }
 
 func (sd *StoreData) EncodeToBytes() ([]byte, error) {

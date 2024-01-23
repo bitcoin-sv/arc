@@ -214,12 +214,13 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	// Convert gRPC req to store.StoreData struct...
 	sReq := &store.StoreData{
-		Hash:          hash,
-		Status:        status,
-		CallbackUrl:   req.GetCallbackUrl(),
-		CallbackToken: req.GetCallbackToken(),
-		MerkleProof:   req.GetMerkleProof(),
-		RawTx:         req.GetRawTx(),
+		Hash:              hash,
+		Status:            status,
+		CallbackUrl:       req.GetCallbackUrl(),
+		CallbackToken:     req.GetCallbackToken(),
+		FullStatusUpdates: req.GetFullStatusUpdates(),
+		MerkleProof:       req.GetMerkleProof(),
+		RawTx:             req.GetRawTx(),
 	}
 
 	next := gocore.NewStat("PutTransaction").NewStat("2: ProcessTransaction").AddTime(start)
@@ -264,12 +265,13 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 
 		// Convert gRPC req to store.StoreData struct...
 		sReq := &store.StoreData{
-			Hash:          hash,
-			Status:        status,
-			CallbackUrl:   txReq.GetCallbackUrl(),
-			CallbackToken: txReq.GetCallbackToken(),
-			MerkleProof:   txReq.GetMerkleProof(),
-			RawTx:         txReq.GetRawTx(),
+			Hash:              hash,
+			Status:            status,
+			CallbackUrl:       txReq.GetCallbackUrl(),
+			CallbackToken:     txReq.GetCallbackToken(),
+			FullStatusUpdates: req.GetFullStatusUpdates(),
+			MerkleProof:       txReq.GetMerkleProof(),
+			RawTx:             txReq.GetRawTx(),
 		}
 
 		processTxsInputMap[*hash] = processTxInput{

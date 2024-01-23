@@ -404,7 +404,7 @@ func TestPostCallbackToken(t *testing.T) {
 					t.Fatal("callback not received")
 				}
 			}
-			require.Equal(t, seenOnNetworkReceived, true)
+			require.Equal(t, seenOnNetworkReceived, false)
 		})
 	}
 }

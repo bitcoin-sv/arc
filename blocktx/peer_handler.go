@@ -30,7 +30,7 @@ const (
 	transactionStoringBatchsizeDefault = 2048 // power of 2 for easier memory allocation
 	maxRequestBlocks                   = 5
 	fillGapsInterval                   = 15 * time.Minute
-	maximumBlockSize                   = 4000000000 // 4Gb
+	maximumBlockSize                   = 4294967296 // 4Gb
 )
 
 func init() {

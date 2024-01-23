@@ -376,6 +376,8 @@ func TestFillGaps(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			const batchSize = 4
+
 			var storeMock = &store.InterfaceMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return tc.blockGaps, tc.getBlockGapsErr
@@ -386,7 +388,6 @@ func TestFillGaps(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			batchSize := 4
 			peerHandler, err := NewPeerHandler(logger, storeMock, 100, []string{}, wire.TestNet, WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
 			peer := &MockedPeer{}

@@ -389,9 +389,6 @@ type CallbackToken = string
 // CallbackUrl defines model for callbackUrl.
 type CallbackUrl = string
 
-// FullStatusUpdates defines model for fullStatusUpdates.
-type FullStatusUpdates = bool
-
 // MerkleProof defines model for merkleProof.
 type MerkleProof = string
 
@@ -414,9 +411,6 @@ type POSTTransactionTextBody = string
 type POSTTransactionParams struct {
 	// XCallbackUrl Default double spend and merkle proof notification callback endpoint.
 	XCallbackUrl *CallbackUrl `json:"X-CallbackUrl,omitempty"`
-
-	// XFullStatusUpdates whether we need to send full status updates or not.
-	XFullStatusUpdates *FullStatusUpdates `json:"X-XFullStatusUpdates,omitempty"`
 
 	// XSkipFeeValidation Whether we should skip fee validation or not.
 	XSkipFeeValidation *SkipFeeValidation `json:"X-SkipFeeValidation,omitempty"`
@@ -447,9 +441,6 @@ type POSTTransactionsTextBody = string
 type POSTTransactionsParams struct {
 	// XCallbackUrl Default double spend and merkle proof notification callback endpoint.
 	XCallbackUrl *CallbackUrl `json:"X-CallbackUrl,omitempty"`
-
-	// XCallbackUrl Send full updates about the tx or not
-	XFullStatusUpdates *FullStatusUpdates `json:"X-FullStatusUpdates,omitempty"`
 
 	// XSkipFeeValidation Whether we should skip fee validation or not.
 	XSkipFeeValidation *SkipFeeValidation `json:"X-SkipFeeValidation,omitempty"`
@@ -958,17 +949,6 @@ func NewPOSTTransactionRequestWithBody(server string, params *POSTTransactionPar
 			req.Header.Set("X-CallbackUrl", headerParam0)
 		}
 
-		if params.XFullStatusUpdates != nil {
-			var headerParam0 string
-
-			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "X-FullStatusUpdates", runtime.ParamLocationHeader, *params.XFullStatusUpdates)
-			if err != nil {
-				return nil, err
-			}
-
-			req.Header.Set("X-FullStatusUpdates", headerParam0)
-		}
-
 		if params.XSkipFeeValidation != nil {
 			var headerParam1 string
 
@@ -1129,17 +1109,6 @@ func NewPOSTTransactionsRequestWithBody(server string, params *POSTTransactionsP
 			}
 
 			req.Header.Set("X-CallbackUrl", headerParam0)
-		}
-
-		if params.XFullStatusUpdates != nil {
-			var headerParam1 string
-
-			headerParam1, err = runtime.StyleParamWithLocation("simple", false, "X-FullStatusUpdates", runtime.ParamLocationHeader, *params.XFullStatusUpdates)
-			if err != nil {
-				return nil, err
-			}
-
-			req.Header.Set("X-FullStatusUpdates", headerParam1)
 		}
 
 		if params.XSkipFeeValidation != nil {
@@ -1762,21 +1731,6 @@ func (w *ServerInterfaceWrapper) POSTTransaction(ctx echo.Context) error {
 
 		params.XCallbackUrl = &XCallbackUrl
 	}
-	// ------------- Optional header parameter "X-FullStatusUpdates" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-FullStatusUpdates")]; found {
-		var XFullStatusUpdates FullStatusUpdates
-		n := len(valueList)
-		if n != 1 {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-FullStatusUpdates, got %d", n))
-		}
-
-		err = runtime.BindStyledParameterWithLocation("simple", false, "X-FullStatusUpdates", runtime.ParamLocationHeader, valueList[0], &XFullStatusUpdates)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-FullStatusUpdates: %s", err))
-		}
-
-		params.XSkipFeeValidation = &XFullStatusUpdates
-	}
 	// ------------- Optional header parameter "X-SkipFeeValidation" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-SkipFeeValidation")]; found {
 		var XSkipFeeValidation SkipFeeValidation
@@ -1923,21 +1877,6 @@ func (w *ServerInterfaceWrapper) POSTTransactions(ctx echo.Context) error {
 		}
 
 		params.XCallbackUrl = &XCallbackUrl
-	}
-	// ------------- Optional header parameter "X-FullStatusUpdates" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-FullStatusUpdates")]; found {
-		var XFullStatusUpdates FullStatusUpdates
-		n := len(valueList)
-		if n != 1 {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-FullStatusUpdates, got %d", n))
-		}
-
-		err = runtime.BindStyledParameterWithLocation("simple", false, "X-FullStatusUpdates", runtime.ParamLocationHeader, valueList[0], &XFullStatusUpdates)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-FullStatusUpdates: %s", err))
-		}
-
-		params.XFullStatusUpdates = &XFullStatusUpdates
 	}
 	// ------------- Optional header parameter "X-SkipFeeValidation" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-SkipFeeValidation")]; found {

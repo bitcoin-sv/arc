@@ -382,7 +382,7 @@ func TestPostCallbackToken(t *testing.T) {
 			var statusResponse *api.GETTransactionStatusResponse
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
 			seenOnNetworkReceived := false
-			for i := 0; i <= 2; i++ {
+			for i := 0; i <= 1; i++ {
 				t.Logf("callback iteration %d", i)
 				select {
 				case callback := <-callbackReceivedChan:

@@ -48,16 +48,8 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	if dbMode == "" {
 		return nil, errors.New("metamorph.db.mode not found in config")
 	}
-	folder, err := config.GetString("dataFolder")
-	if folder == "" {
-		return nil, errors.New("dataFolder not found in config")
-	}
 
-	if err := os.MkdirAll(folder, 0750); err != nil {
-		return nil, fmt.Errorf("failed to create data folder %s: %+v", folder, err)
-	}
-
-	s, err := NewStore(dbMode, folder)
+	s, err := NewStore(dbMode)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
@@ -285,7 +277,20 @@ func StartHealthServer(serv *metamorph.Server) error {
 	return nil
 }
 
-func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) {
+func getDataFolder() (string, error) {
+	folder, err := config.GetString("dataFolder")
+	if folder == "" {
+		return "", fmt.Errorf("dataFolder not found in config: %v", err)
+	}
+
+	if err := os.MkdirAll(folder, 0750); err != nil {
+		return "", fmt.Errorf("failed to create data folder %s: %+v", folder, err)
+	}
+
+	return folder, nil
+}
+
+func NewStore(dbMode string) (s store.MetamorphStore, err error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -332,6 +337,11 @@ func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) 
 			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
 		}
 	case DbModeSQLite:
+		folder, err := getDataFolder()
+		if err != nil {
+			return nil, err
+		}
+
 		s, err = sqlite.New(false, folder)
 		if err != nil {
 			return nil, err
@@ -342,6 +352,11 @@ func NewStore(dbMode string, folder string) (s store.MetamorphStore, err error) 
 			return nil, err
 		}
 	case DbModeBadger:
+		folder, err := getDataFolder()
+		if err != nil {
+			return nil, err
+		}
+
 		s, err = badger.New(path.Join(folder, "metamorph"))
 		if err != nil {
 			return nil, err

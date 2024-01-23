@@ -9,41 +9,27 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"log/slog"
-	"os"
 )
 
 // ClientI is the interface for the block-tx transactionHandler.
 type ClientI interface {
 	GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 	GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error)
-	GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error)
 	GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*blocktx_api.Block, error)
 	GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, error)
 	GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
+	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error)
 	Health(ctx context.Context) error
 }
 
-const (
-	logLevelDefault = slog.LevelInfo
-)
-
 type Client struct {
-	logger *slog.Logger
 	client blocktx_api.BlockTxAPIClient
-}
-
-func WithLogger(logger *slog.Logger) func(*Client) {
-	return func(p *Client) {
-		p.logger = logger.With(slog.String("service", "btx"))
-	}
 }
 
 type Option func(f *Client)
 
 func NewClient(client blocktx_api.BlockTxAPIClient, opts ...Option) ClientI {
 	btc := &Client{
-		logger: slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "btx")),
 		client: client,
 	}
 
@@ -63,20 +49,8 @@ func (btc *Client) GetTransactionMerklePath(ctx context.Context, hash *blocktx_a
 	return merklePath.GetMerklePath(), nil
 }
 
-func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*blocktx_api.RegisterTransactionResponse, error) {
+func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
 	return btc.client.RegisterTransaction(ctx, transaction)
-}
-
-func (btc *Client) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error) {
-	block, err := btc.client.GetTransactionBlock(ctx, transaction)
-	if err != nil {
-		return nil, err
-	}
-
-	return &blocktx_api.RegisterTransactionResponse{
-		BlockHash:   block.GetHash(),
-		BlockHeight: block.GetHeight(),
-	}, nil
 }
 
 func (btc *Client) GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {

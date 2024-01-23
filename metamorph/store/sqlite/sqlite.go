@@ -348,16 +348,16 @@ func (s *SqLite) Set(ctx context.Context, _ []byte, value *store.StoreData) erro
 	return err
 }
 
-func (s *SqLite) GetUnmined(ctx context.Context, callback func(s *store.StoreData)) error {
+func (s *SqLite) GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 	startNanos := time.Now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("getunmined").AddTime(startNanos)
 	}()
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:GetUnmined")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "sql:GetUnmined")
 	defer span.Finish()
 
 	q := `SELECT
-	   stored_at
+	     stored_at
 		,announced_at
 		,mined_at
 		,hash
@@ -368,16 +368,19 @@ func (s *SqLite) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 		,callback_token
 		,merkle_proof
 		,raw_tx
-		FROM transactions WHERE status < $1 OR status = $2 ;`
+		FROM transactions
+		WHERE (status < $1 OR status = $2)
+		LIMIT $3
+		;`
 
-	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
+	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, limit)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
-		return err
+		return nil, err
 	}
 	defer rows.Close()
-
+	storeData := make([]*store.StoreData, 0)
 	for rows.Next() {
 		data := &store.StoreData{}
 
@@ -400,7 +403,7 @@ func (s *SqLite) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 			&data.MerkleProof,
 			&data.RawTx,
 		); err != nil {
-			return err
+			return nil, err
 		}
 
 		if txHash != nil {
@@ -416,7 +419,7 @@ func (s *SqLite) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
-				return err
+				return nil, err
 			}
 		}
 
@@ -425,7 +428,7 @@ func (s *SqLite) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
-				return err
+				return nil, err
 			}
 		}
 		if minedAt != "" {
@@ -433,14 +436,14 @@ func (s *SqLite) GetUnmined(ctx context.Context, callback func(s *store.StoreDat
 			if err != nil {
 				span.SetTag(string(ext.Error), true)
 				span.LogFields(log.Error(err))
-				return err
+				return nil, err
 			}
 		}
 
-		callback(data)
+		storeData = append(storeData, data)
 	}
 
-	return nil
+	return storeData, nil
 }
 
 func (s *SqLite) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
@@ -622,4 +625,29 @@ func (s *SqLite) Ping(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (p *SqLite) ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+	startNanos := p.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("ClearData").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:ClearData")
+	defer span.Finish()
+
+	start := p.now()
+
+	deleteBeforeDate := start.Add(-24 * time.Hour * time.Duration(retentionDays))
+
+	res, err := p.db.ExecContext(ctx, "DELETE FROM transactions WHERE stored_at <= $1", deleteBeforeDate)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+
+	return &metamorph_api.ClearDataResponse{Rows: rows}, nil
 }

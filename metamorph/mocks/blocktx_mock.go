@@ -8,6 +8,7 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"sync"
 )
 
@@ -30,9 +31,6 @@ var _ blocktx.ClientI = &ClientIMock{}
 //			GetMinedTransactionsForBlockFunc: func(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
 //				panic("mock out the GetMinedTransactionsForBlock method")
 //			},
-//			GetTransactionBlockFunc: func(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error) {
-//				panic("mock out the GetTransactionBlock method")
-//			},
 //			GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
 //				panic("mock out the GetTransactionBlocks method")
 //			},
@@ -41,6 +39,9 @@ var _ blocktx.ClientI = &ClientIMock{}
 //			},
 //			HealthFunc: func(ctx context.Context) error {
 //				panic("mock out the Health method")
+//			},
+//			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
+//				panic("mock out the RegisterTransaction method")
 //			},
 //		}
 //
@@ -58,9 +59,6 @@ type ClientIMock struct {
 	// GetMinedTransactionsForBlockFunc mocks the GetMinedTransactionsForBlock method.
 	GetMinedTransactionsForBlockFunc func(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
 
-	// GetTransactionBlockFunc mocks the GetTransactionBlock method.
-	GetTransactionBlockFunc func(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error)
-
 	// GetTransactionBlocksFunc mocks the GetTransactionBlocks method.
 	GetTransactionBlocksFunc func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error)
 
@@ -69,6 +67,9 @@ type ClientIMock struct {
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context) error
+
+	// RegisterTransactionFunc mocks the RegisterTransaction method.
+	RegisterTransactionFunc func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -91,13 +92,6 @@ type ClientIMock struct {
 			// BlockAndSource is the blockAndSource argument value.
 			BlockAndSource *blocktx_api.BlockAndSource
 		}
-		// GetTransactionBlock holds details about calls to the GetTransactionBlock method.
-		GetTransactionBlock []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Transaction is the transaction argument value.
-			Transaction *blocktx_api.Transaction
-		}
 		// GetTransactionBlocks holds details about calls to the GetTransactionBlocks method.
 		GetTransactionBlocks []struct {
 			// Ctx is the ctx argument value.
@@ -117,14 +111,21 @@ type ClientIMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
+		// RegisterTransaction holds details about calls to the RegisterTransaction method.
+		RegisterTransaction []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Transaction is the transaction argument value.
+			Transaction *blocktx_api.TransactionAndSource
+		}
 	}
 	lockGetBlock                     sync.RWMutex
 	lockGetLastProcessedBlock        sync.RWMutex
 	lockGetMinedTransactionsForBlock sync.RWMutex
-	lockGetTransactionBlock          sync.RWMutex
 	lockGetTransactionBlocks         sync.RWMutex
 	lockGetTransactionMerklePath     sync.RWMutex
 	lockHealth                       sync.RWMutex
+	lockRegisterTransaction          sync.RWMutex
 }
 
 // GetBlock calls GetBlockFunc.
@@ -231,42 +232,6 @@ func (mock *ClientIMock) GetMinedTransactionsForBlockCalls() []struct {
 	return calls
 }
 
-// GetTransactionBlock calls GetTransactionBlockFunc.
-func (mock *ClientIMock) GetTransactionBlock(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.RegisterTransactionResponse, error) {
-	if mock.GetTransactionBlockFunc == nil {
-		panic("ClientIMock.GetTransactionBlockFunc: method is nil but ClientI.GetTransactionBlock was just called")
-	}
-	callInfo := struct {
-		Ctx         context.Context
-		Transaction *blocktx_api.Transaction
-	}{
-		Ctx:         ctx,
-		Transaction: transaction,
-	}
-	mock.lockGetTransactionBlock.Lock()
-	mock.calls.GetTransactionBlock = append(mock.calls.GetTransactionBlock, callInfo)
-	mock.lockGetTransactionBlock.Unlock()
-	return mock.GetTransactionBlockFunc(ctx, transaction)
-}
-
-// GetTransactionBlockCalls gets all the calls that were made to GetTransactionBlock.
-// Check the length with:
-//
-//	len(mockedClientI.GetTransactionBlockCalls())
-func (mock *ClientIMock) GetTransactionBlockCalls() []struct {
-	Ctx         context.Context
-	Transaction *blocktx_api.Transaction
-} {
-	var calls []struct {
-		Ctx         context.Context
-		Transaction *blocktx_api.Transaction
-	}
-	mock.lockGetTransactionBlock.RLock()
-	calls = mock.calls.GetTransactionBlock
-	mock.lockGetTransactionBlock.RUnlock()
-	return calls
-}
-
 // GetTransactionBlocks calls GetTransactionBlocksFunc.
 func (mock *ClientIMock) GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
 	if mock.GetTransactionBlocksFunc == nil {
@@ -368,5 +333,41 @@ func (mock *ClientIMock) HealthCalls() []struct {
 	mock.lockHealth.RLock()
 	calls = mock.calls.Health
 	mock.lockHealth.RUnlock()
+	return calls
+}
+
+// RegisterTransaction calls RegisterTransactionFunc.
+func (mock *ClientIMock) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
+	if mock.RegisterTransactionFunc == nil {
+		panic("ClientIMock.RegisterTransactionFunc: method is nil but ClientI.RegisterTransaction was just called")
+	}
+	callInfo := struct {
+		Ctx         context.Context
+		Transaction *blocktx_api.TransactionAndSource
+	}{
+		Ctx:         ctx,
+		Transaction: transaction,
+	}
+	mock.lockRegisterTransaction.Lock()
+	mock.calls.RegisterTransaction = append(mock.calls.RegisterTransaction, callInfo)
+	mock.lockRegisterTransaction.Unlock()
+	return mock.RegisterTransactionFunc(ctx, transaction)
+}
+
+// RegisterTransactionCalls gets all the calls that were made to RegisterTransaction.
+// Check the length with:
+//
+//	len(mockedClientI.RegisterTransactionCalls())
+func (mock *ClientIMock) RegisterTransactionCalls() []struct {
+	Ctx         context.Context
+	Transaction *blocktx_api.TransactionAndSource
+} {
+	var calls []struct {
+		Ctx         context.Context
+		Transaction *blocktx_api.TransactionAndSource
+	}
+	mock.lockRegisterTransaction.RLock()
+	calls = mock.calls.RegisterTransaction
+	mock.lockRegisterTransaction.RUnlock()
 	return calls
 }

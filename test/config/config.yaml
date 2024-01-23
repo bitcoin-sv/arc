@@ -37,8 +37,6 @@ callbacker:
 metamorph:
   listenAddr: localhost:8001 # address space for metamorph to listen on. Can be for example localhost:8001 or :8001 for listening on all addresses
   dialAddr: localhost:8001 # address for other services to dial metamorph service
-  log:
-    file: ./data/metamorph.log # location of log file
   db:
     mode: postgres # db mode inidicates which db to use. Value can be one of badger | postgres
     postgres: # postgres db configuration in case that mode: postgres
@@ -58,6 +56,8 @@ metamorph:
   profilerAddr: localhost:9992 # address to start profiler server on
   checkIfMinedInterval: 1s
   healthServerDialAddr: localhost:8005
+  loadUnminedPeriod: 2m
+  maxMonitoredTxs: 100000
 
 blocktx:
   listenAddr: 0.0.0.0:8011 # address space for blocktx to listen on. Can be for example localhost:8011 or :8011 for listening on all addresses

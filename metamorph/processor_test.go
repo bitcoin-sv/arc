@@ -25,6 +25,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 //go:generate moq -pkg mocks -out ./mocks/store_mock.go ./store/ MetamorphStore
@@ -100,14 +101,20 @@ func TestLoadUnmined(t *testing.T) {
 	storedAt := time.Date(2023, 10, 3, 5, 0, 0, 0, time.UTC)
 
 	tt := []struct {
-		name          string
-		storedData    []*store.StoreData
-		getUnminedErr error
+		name              string
+		storedData        []*store.StoreData
+		transactionBlocks *blocktx_api.TransactionBlocks
+		maxMonitoredTxs   int64
+		getUnminedErr     error
 
-		expectedItemTxHashesFinal []*chainhash.Hash
+		expectedGetTransactionBlocksCalls int
+		expectedItemTxHashesFinal         []*chainhash.Hash
 	}{
 		{
 			name: "no unmined transactions loaded",
+
+			expectedGetTransactionBlocksCalls: 0,
+			expectedItemTxHashesFinal:         []*chainhash.Hash{testdata.TX3Hash, testdata.TX4Hash},
 		},
 		{
 			name: "load 2 unmined transactions, none mined",
@@ -125,15 +132,44 @@ func TestLoadUnmined(t *testing.T) {
 					Status:      metamorph_api.Status_STORED,
 				},
 			},
+			transactionBlocks: &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{{
+				BlockHash:       nil,
+				BlockHeight:     0,
+				TransactionHash: nil,
+			}}},
+			maxMonitoredTxs: 5,
 
-			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX1Hash, testdata.TX2Hash},
+			expectedGetTransactionBlocksCalls: 1,
+			expectedItemTxHashesFinal:         []*chainhash.Hash{testdata.TX1Hash, testdata.TX2Hash, testdata.TX3Hash, testdata.TX4Hash},
 		},
 		{
-			name:          "load 2 unmined transactions, failed to get unmined",
-			storedData:    []*store.StoreData{},
-			getUnminedErr: errors.New("failed to get unmined"),
+			name:            "load 2 unmined transactions, failed to get unmined",
+			storedData:      []*store.StoreData{},
+			getUnminedErr:   errors.New("failed to get unmined"),
+			maxMonitoredTxs: 5,
 
-			expectedItemTxHashesFinal: []*chainhash.Hash{},
+			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX3Hash, testdata.TX4Hash},
+		},
+		{
+			name: "load 2 unmined transactions, limit reached",
+			storedData: []*store.StoreData{
+				{
+					StoredAt:    storedAt,
+					AnnouncedAt: storedAt.Add(1 * time.Second),
+					Hash:        testdata.TX1Hash,
+					Status:      metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+				},
+				{
+					StoredAt:    storedAt,
+					AnnouncedAt: storedAt.Add(1 * time.Second),
+					Hash:        testdata.TX2Hash,
+					Status:      metamorph_api.Status_STORED,
+				},
+			},
+			maxMonitoredTxs: 1,
+
+			expectedGetTransactionBlocksCalls: 0,
+			expectedItemTxHashesFinal:         []*chainhash.Hash{testdata.TX3Hash, testdata.TX4Hash},
 		},
 	}
 
@@ -142,35 +178,46 @@ func TestLoadUnmined(t *testing.T) {
 			pm := p2p.NewPeerManagerMock()
 
 			mtmStore := &MetamorphStoreMock{
-				GetUnminedFunc: func(contextMoqParam context.Context, callback func(s *store.StoreData)) error {
-					for _, data := range tc.storedData {
-						callback(data)
-					}
-					return tc.getUnminedErr
+				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
+					return tc.storedData, tc.getUnminedErr
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
 					require.ElementsMatch(t, tc.expectedItemTxHashesFinal, hashes)
 					require.Equal(t, len(tc.expectedItemTxHashesFinal), len(hashes))
 					return nil
 				},
+				UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
+					return nil
+				},
 			}
 
-			processor, err := NewProcessor(mtmStore, pm, nil,
+			btc := &ClientIMock{GetTransactionBlocksFunc: func(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
+				return nil, nil
+			}}
+
+			processor, err := NewProcessor(mtmStore, pm, btc,
 				WithProcessCheckIfMinedInterval(time.Hour*24),
 				WithCacheExpiryTime(time.Hour*24),
 				WithNow(func() time.Time {
 					return storedAt.Add(1 * time.Hour)
 				}),
 				WithDataRetentionPeriod(time.Hour*24),
+				WithMaxMonitoredTxs(tc.maxMonitoredTxs),
 			)
 			require.NoError(t, err)
 			defer processor.Shutdown()
 			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
+
+			processor.ProcessorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK))
+			processor.ProcessorResponseMap.Set(testdata.TX4Hash, processor_response.NewProcessorResponseWithStatus(testdata.TX4Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK))
+
 			processor.LoadUnmined()
 
 			time.Sleep(time.Millisecond * 200)
 
 			allItemHashes := make([]*chainhash.Hash, 0, len(processor.ProcessorResponseMap.Items()))
+
+			require.Equal(t, tc.expectedGetTransactionBlocksCalls, len(btc.GetTransactionBlocksCalls()))
 
 			for i, item := range processor.ProcessorResponseMap.Items() {
 				require.Equal(t, i, *item.Hash)
@@ -242,7 +289,13 @@ func TestProcessTransaction(t *testing.T) {
 			}
 			pm := p2p.NewPeerManagerMock()
 
-			processor, err := NewProcessor(s, pm, nil)
+			btc := &ClientIMock{
+				RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
+					return &emptypb.Empty{}, nil
+				},
+			}
+
+			processor, err := NewProcessor(s, pm, btc)
 			require.NoError(t, err)
 			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
@@ -502,7 +555,13 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		processor, err := NewProcessor(s, pm, nil)
+		btc := &ClientIMock{
+			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
+				return &emptypb.Empty{}, nil
+			},
+		}
+
+		processor, err := NewProcessor(s, pm, btc)
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
@@ -663,7 +722,7 @@ func TestProcessCheckIfMined(t *testing.T) {
 				},
 			},
 
-			expectedNrOfUpdates: 3,
+			expectedNrOfUpdates: 0,
 		},
 	}
 

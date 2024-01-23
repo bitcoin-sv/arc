@@ -42,17 +42,12 @@ const (
 	blocktxTimeout  = 1 * time.Second
 )
 
-var (
-	ErrRegisterTxTimeout = errors.New("failed to register transaction due to timeout")
-)
-
 type BitcoinNode interface {
 	GetTxOut(txHex string, vout int, includeMempool bool) (res *bitcoin.TXOut, err error)
 }
 
 type ProcessorI interface {
 	LoadUnmined()
-	Set(ctx context.Context, req *ProcessorRequest) error
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
 	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
 	SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error)
@@ -84,7 +79,7 @@ func WithBlocktxTimeout(d time.Duration) func(*Server) {
 
 func WithLogger(logger *slog.Logger) func(*Server) {
 	return func(s *Server) {
-		s.logger = logger.With(slog.String("service", "mtm"))
+		s.logger = logger
 	}
 }
 
@@ -377,6 +372,9 @@ func (s *Server) getMerklePath(ctx context.Context, hash *chainhash.Hash, dataSt
 					errCh <- fmt.Errorf("merkle path not found for mined transaction %s: %v", hash.String(), err)
 					return
 				}
+
+				merklePathCh <- ""
+				return
 			} else {
 				errCh <- fmt.Errorf("failed to get Merkle path for transaction %s: %v", hash.String(), err)
 				return
@@ -413,7 +411,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 	}
 	merklePath, err := s.getMerklePath(ctx, hash, data.Status)
 	if err != nil {
-		s.logger.Error("failed to get merkle path")
+		s.logger.Error("failed to get merkle path", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 	}
 
 	return &metamorph_api.TransactionStatus{
@@ -470,4 +468,8 @@ func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUn
 	}
 
 	return result, err
+}
+
+func (s *Server) ClearData(ctx context.Context, clearData *metamorph_api.ClearDataRequest) (*metamorph_api.ClearDataResponse, error) {
+	return s.store.ClearData(ctx, clearData.RetentionDays)
 }

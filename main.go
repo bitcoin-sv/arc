@@ -102,6 +102,13 @@ func run() error {
 		return fmt.Errorf("failed to create logger: %v", err)
 	}
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		return fmt.Errorf("failed to get host name: %v", err)
+	}
+
+	logger = logger.With(slog.String("host", hostname))
+
 	logger.Info("starting arc", slog.String("version", version), slog.String("commit", commit))
 
 	go func() {

@@ -352,7 +352,7 @@ func (bs *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 
 	blockId, err := bs.insertBlock(&blockHash, &merkleRoot, &previousBlockHash, msg.Height, peer)
 	if err != nil {
-		return fmt.Errorf("unable to insert block %s: %v", blockHash.String(), err)
+		return fmt.Errorf("unable to insert block %s at height %d: %v", blockHash.String(), msg.Height, err)
 	}
 
 	calculatedMerkleTree := bc.BuildMerkleTreeStoreChainHash(msg.TransactionHashes)
@@ -505,7 +505,7 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 
 		merklePaths = append(merklePaths, bumpHex)
 		if (txIndex+1)%bs.transactionStorageBatchSize == 0 {
-			if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
+			if err := bs.store.UpdateBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
 				return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 			}
 			// free up memory
@@ -519,8 +519,8 @@ func (bs *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 		}
 	}
 
-	// insert all remaining transactions into the table
-	if err := bs.store.InsertBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
+	// update all remaining transactions
+	if err := bs.store.UpdateBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
 		return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 	}
 

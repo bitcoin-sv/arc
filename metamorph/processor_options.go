@@ -19,13 +19,7 @@ func WithCacheExpiryTime(d time.Duration) func(*Processor) {
 
 func WithProcessorLogger(l *slog.Logger) func(*Processor) {
 	return func(p *Processor) {
-		p.logger = l.With(slog.String("service", "mtm"))
-	}
-}
-
-func WithLogFilePath(errLogFilePath string) func(*Processor) {
-	return func(p *Processor) {
-		p.logFile = errLogFilePath
+		p.logger = l
 	}
 }
 
@@ -44,5 +38,11 @@ func WithProcessExpiredTxsInterval(d time.Duration) func(*Processor) {
 func WithDataRetentionPeriod(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.dataRetentionPeriod = d
+	}
+}
+
+func WithMaxMonitoredTxs(m int64) func(processor *Processor) {
+	return func(p *Processor) {
+		p.maxMonitoredTxs = m
 	}
 }

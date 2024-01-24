@@ -313,15 +313,16 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	}
 
 	// normally a node would respond very quickly, unless it's under heavy load
-	if timeout == 0 || timeout > maxTimeout {
-		timeout = s.timeout
+	timeDuration := s.timeout
+	if timeout != 0 || timeout < maxTimeout {
+		timeDuration = time.Duration(int64(time.Second) * timeout)
 	}
-	timeout := time.NewTimer(timeout)
+	t := time.NewTimer(timeDuration)
 	returnedStatus := &metamorph_api.TransactionStatus{Txid: TxID}
 
 	for {
 		select {
-		case <-timeout.C:
+		case <-t.C:
 			returnedStatus.TimedOut = true
 			return returnedStatus
 		case res := <-responseChannel:

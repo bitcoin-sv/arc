@@ -26,11 +26,11 @@ var _ Interface = &InterfaceMock{}
 //			GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 //				panic("mock out the GetBlock method")
 //			},
-//			GetBlockForHeightFunc: func(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
-//				panic("mock out the GetBlockForHeight method")
-//			},
 //			GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*BlockGap, error) {
 //				panic("mock out the GetBlockGaps method")
+//			},
+//			GetPrimaryFunc: func(ctx context.Context) (string, error) {
+//				panic("mock out the GetPrimary method")
 //			},
 //			GetTransactionBlocksFunc: func(ctx context.Context, transactions *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
 //				panic("mock out the GetTransactionBlocks method")
@@ -43,9 +43,6 @@ var _ Interface = &InterfaceMock{}
 //			},
 //			MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 //				panic("mock out the MarkBlockAsDone method")
-//			},
-//			PrimaryBlocktxFunc: func(ctx context.Context) (string, error) {
-//				panic("mock out the PrimaryBlocktx method")
 //			},
 //			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
 //				panic("mock out the RegisterTransaction method")
@@ -69,11 +66,11 @@ type InterfaceMock struct {
 	// GetBlockFunc mocks the GetBlock method.
 	GetBlockFunc func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
 
-	// GetBlockForHeightFunc mocks the GetBlockForHeight method.
-	GetBlockForHeightFunc func(ctx context.Context, height uint64) (*blocktx_api.Block, error)
-
 	// GetBlockGapsFunc mocks the GetBlockGaps method.
 	GetBlockGapsFunc func(ctx context.Context, heightRange int) ([]*BlockGap, error)
+
+	// GetPrimaryFunc mocks the GetPrimary method.
+	GetPrimaryFunc func(ctx context.Context) (string, error)
 
 	// GetTransactionBlocksFunc mocks the GetTransactionBlocks method.
 	GetTransactionBlocksFunc func(ctx context.Context, transactions *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error)
@@ -86,9 +83,6 @@ type InterfaceMock struct {
 
 	// MarkBlockAsDoneFunc mocks the MarkBlockAsDone method.
 	MarkBlockAsDoneFunc func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
-
-	// PrimaryBlocktxFunc mocks the PrimaryBlocktx method.
-	PrimaryBlocktxFunc func(ctx context.Context) (string, error)
 
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error
@@ -111,19 +105,17 @@ type InterfaceMock struct {
 			// Hash is the hash argument value.
 			Hash *chainhash.Hash
 		}
-		// GetBlockForHeight holds details about calls to the GetBlockForHeight method.
-		GetBlockForHeight []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Height is the height argument value.
-			Height uint64
-		}
 		// GetBlockGaps holds details about calls to the GetBlockGaps method.
 		GetBlockGaps []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// HeightRange is the heightRange argument value.
 			HeightRange int
+		}
+		// GetPrimary holds details about calls to the GetPrimary method.
+		GetPrimary []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 		}
 		// GetTransactionBlocks holds details about calls to the GetTransactionBlocks method.
 		GetTransactionBlocks []struct {
@@ -157,11 +149,6 @@ type InterfaceMock struct {
 			// TxCount is the txCount argument value.
 			TxCount uint64
 		}
-		// PrimaryBlocktx holds details about calls to the PrimaryBlocktx method.
-		PrimaryBlocktx []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-		}
 		// RegisterTransaction holds details about calls to the RegisterTransaction method.
 		RegisterTransaction []struct {
 			// Ctx is the ctx argument value.
@@ -190,13 +177,12 @@ type InterfaceMock struct {
 	}
 	lockClose                    sync.RWMutex
 	lockGetBlock                 sync.RWMutex
-	lockGetBlockForHeight        sync.RWMutex
 	lockGetBlockGaps             sync.RWMutex
+	lockGetPrimary               sync.RWMutex
 	lockGetTransactionBlocks     sync.RWMutex
 	lockGetTransactionMerklePath sync.RWMutex
 	lockInsertBlock              sync.RWMutex
 	lockMarkBlockAsDone          sync.RWMutex
-	lockPrimaryBlocktx           sync.RWMutex
 	lockRegisterTransaction      sync.RWMutex
 	lockTryToBecomePrimary       sync.RWMutex
 	lockUpdateBlockTransactions  sync.RWMutex
@@ -265,42 +251,6 @@ func (mock *InterfaceMock) GetBlockCalls() []struct {
 	return calls
 }
 
-// GetBlockForHeight calls GetBlockForHeightFunc.
-func (mock *InterfaceMock) GetBlockForHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
-	if mock.GetBlockForHeightFunc == nil {
-		panic("InterfaceMock.GetBlockForHeightFunc: method is nil but Interface.GetBlockForHeight was just called")
-	}
-	callInfo := struct {
-		Ctx    context.Context
-		Height uint64
-	}{
-		Ctx:    ctx,
-		Height: height,
-	}
-	mock.lockGetBlockForHeight.Lock()
-	mock.calls.GetBlockForHeight = append(mock.calls.GetBlockForHeight, callInfo)
-	mock.lockGetBlockForHeight.Unlock()
-	return mock.GetBlockForHeightFunc(ctx, height)
-}
-
-// GetBlockForHeightCalls gets all the calls that were made to GetBlockForHeight.
-// Check the length with:
-//
-//	len(mockedInterface.GetBlockForHeightCalls())
-func (mock *InterfaceMock) GetBlockForHeightCalls() []struct {
-	Ctx    context.Context
-	Height uint64
-} {
-	var calls []struct {
-		Ctx    context.Context
-		Height uint64
-	}
-	mock.lockGetBlockForHeight.RLock()
-	calls = mock.calls.GetBlockForHeight
-	mock.lockGetBlockForHeight.RUnlock()
-	return calls
-}
-
 // GetBlockGaps calls GetBlockGapsFunc.
 func (mock *InterfaceMock) GetBlockGaps(ctx context.Context, heightRange int) ([]*BlockGap, error) {
 	if mock.GetBlockGapsFunc == nil {
@@ -334,6 +284,38 @@ func (mock *InterfaceMock) GetBlockGapsCalls() []struct {
 	mock.lockGetBlockGaps.RLock()
 	calls = mock.calls.GetBlockGaps
 	mock.lockGetBlockGaps.RUnlock()
+	return calls
+}
+
+// GetPrimary calls GetPrimaryFunc.
+func (mock *InterfaceMock) GetPrimary(ctx context.Context) (string, error) {
+	if mock.GetPrimaryFunc == nil {
+		panic("InterfaceMock.GetPrimaryFunc: method is nil but Interface.GetPrimary was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockGetPrimary.Lock()
+	mock.calls.GetPrimary = append(mock.calls.GetPrimary, callInfo)
+	mock.lockGetPrimary.Unlock()
+	return mock.GetPrimaryFunc(ctx)
+}
+
+// GetPrimaryCalls gets all the calls that were made to GetPrimary.
+// Check the length with:
+//
+//	len(mockedInterface.GetPrimaryCalls())
+func (mock *InterfaceMock) GetPrimaryCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockGetPrimary.RLock()
+	calls = mock.calls.GetPrimary
+	mock.lockGetPrimary.RUnlock()
 	return calls
 }
 
@@ -486,38 +468,6 @@ func (mock *InterfaceMock) MarkBlockAsDoneCalls() []struct {
 	mock.lockMarkBlockAsDone.RLock()
 	calls = mock.calls.MarkBlockAsDone
 	mock.lockMarkBlockAsDone.RUnlock()
-	return calls
-}
-
-// PrimaryBlocktx calls PrimaryBlocktxFunc.
-func (mock *InterfaceMock) PrimaryBlocktx(ctx context.Context) (string, error) {
-	if mock.PrimaryBlocktxFunc == nil {
-		panic("InterfaceMock.PrimaryBlocktxFunc: method is nil but Interface.PrimaryBlocktx was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-	}{
-		Ctx: ctx,
-	}
-	mock.lockPrimaryBlocktx.Lock()
-	mock.calls.PrimaryBlocktx = append(mock.calls.PrimaryBlocktx, callInfo)
-	mock.lockPrimaryBlocktx.Unlock()
-	return mock.PrimaryBlocktxFunc(ctx)
-}
-
-// PrimaryBlocktxCalls gets all the calls that were made to PrimaryBlocktx.
-// Check the length with:
-//
-//	len(mockedInterface.PrimaryBlocktxCalls())
-func (mock *InterfaceMock) PrimaryBlocktxCalls() []struct {
-	Ctx context.Context
-} {
-	var calls []struct {
-		Ctx context.Context
-	}
-	mock.lockPrimaryBlocktx.RLock()
-	calls = mock.calls.PrimaryBlocktx
-	mock.lockPrimaryBlocktx.RUnlock()
 	return calls
 }
 

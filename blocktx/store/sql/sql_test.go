@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"github.com/ordishs/gocore"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
@@ -67,14 +68,14 @@ func TestInOut(t *testing.T) {
 	err = setOrphanedForHeight(ctx, s.db, height, false)
 	require.NoError(t, err)
 
-	block2, err := s.GetBlockForHeight(ctx, height)
+	block2, err := getBlockForHeight(ctx, s.db, height)
 	require.NoError(t, err)
 	assert.Equal(t, bytes.Equal(block.GetHash(), block2.GetHash()), true)
 
 	err = setOrphanedForHeight(ctx, s.db, height, true)
 	require.NoError(t, err)
 
-	block3, err := s.GetBlockForHeight(ctx, height)
+	block3, err := getBlockForHeight(ctx, s.db, height)
 	require.Error(t, err)
 	assert.Nil(t, block3)
 }
@@ -87,7 +88,7 @@ func TestBlockNotExists(t *testing.T) {
 
 	height := uint64(1000000)
 
-	b, err := s.GetBlockForHeight(ctx, height)
+	b, err := getBlockForHeight(ctx, s.db, height)
 	require.Error(t, err)
 	assert.Nil(t, b)
 }
@@ -144,4 +145,32 @@ func setOrphanedForHeight(ctx context.Context, db *sql.DB, height uint64, orphan
 	}
 
 	return nil
+}
+
+func getBlockForHeight(ctx context.Context, db *sql.DB, height uint64) (*blocktx_api.Block, error) {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("GetBlockForHeight").AddTime(start)
+	}()
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	q := `
+		SELECT
+		 b.hash
+		,b.prevhash
+		,b.merkleroot
+		,b.height
+		FROM blocks b
+		WHERE b.height = $1
+		AND b.orphanedyn = false
+	`
+
+	var block blocktx_api.Block
+	if err := db.QueryRowContext(ctx, q, height).Scan(&block.Hash, &block.PreviousHash, &block.MerkleRoot, &block.Height); err != nil {
+		return nil, err
+	}
+
+	return &block, nil
 }

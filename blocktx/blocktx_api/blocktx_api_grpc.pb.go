@@ -24,7 +24,6 @@ const (
 	BlockTxAPI_RegisterTransaction_FullMethodName      = "/blocktx_api.BlockTxAPI/RegisterTransaction"
 	BlockTxAPI_GetTransactionMerklePath_FullMethodName = "/blocktx_api.BlockTxAPI/GetTransactionMerklePath"
 	BlockTxAPI_GetTransactionBlocks_FullMethodName     = "/blocktx_api.BlockTxAPI/GetTransactionBlocks"
-	BlockTxAPI_GetBlockForHeight_FullMethodName        = "/blocktx_api.BlockTxAPI/GetBlockForHeight"
 )
 
 // BlockTxAPIClient is the client API for BlockTxAPI service.
@@ -39,8 +38,6 @@ type BlockTxAPIClient interface {
 	GetTransactionMerklePath(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*MerklePath, error)
 	// GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash.
 	GetTransactionBlocks(ctx context.Context, in *Transactions, opts ...grpc.CallOption) (*TransactionBlocks, error)
-	// GetBlockForHeight returns the non-orphaned block for a given block height.
-	GetBlockForHeight(ctx context.Context, in *Height, opts ...grpc.CallOption) (*Block, error)
 }
 
 type blockTxAPIClient struct {
@@ -87,15 +84,6 @@ func (c *blockTxAPIClient) GetTransactionBlocks(ctx context.Context, in *Transac
 	return out, nil
 }
 
-func (c *blockTxAPIClient) GetBlockForHeight(ctx context.Context, in *Height, opts ...grpc.CallOption) (*Block, error) {
-	out := new(Block)
-	err := c.cc.Invoke(ctx, BlockTxAPI_GetBlockForHeight_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // BlockTxAPIServer is the server API for BlockTxAPI service.
 // All implementations must embed UnimplementedBlockTxAPIServer
 // for forward compatibility
@@ -108,8 +96,6 @@ type BlockTxAPIServer interface {
 	GetTransactionMerklePath(context.Context, *Transaction) (*MerklePath, error)
 	// GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash.
 	GetTransactionBlocks(context.Context, *Transactions) (*TransactionBlocks, error)
-	// GetBlockForHeight returns the non-orphaned block for a given block height.
-	GetBlockForHeight(context.Context, *Height) (*Block, error)
 	mustEmbedUnimplementedBlockTxAPIServer()
 }
 
@@ -128,9 +114,6 @@ func (UnimplementedBlockTxAPIServer) GetTransactionMerklePath(context.Context, *
 }
 func (UnimplementedBlockTxAPIServer) GetTransactionBlocks(context.Context, *Transactions) (*TransactionBlocks, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionBlocks not implemented")
-}
-func (UnimplementedBlockTxAPIServer) GetBlockForHeight(context.Context, *Height) (*Block, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetBlockForHeight not implemented")
 }
 func (UnimplementedBlockTxAPIServer) mustEmbedUnimplementedBlockTxAPIServer() {}
 
@@ -217,24 +200,6 @@ func _BlockTxAPI_GetTransactionBlocks_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BlockTxAPI_GetBlockForHeight_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Height)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BlockTxAPIServer).GetBlockForHeight(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BlockTxAPI_GetBlockForHeight_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BlockTxAPIServer).GetBlockForHeight(ctx, req.(*Height))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // BlockTxAPI_ServiceDesc is the grpc.ServiceDesc for BlockTxAPI service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -257,10 +222,6 @@ var BlockTxAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTransactionBlocks",
 			Handler:    _BlockTxAPI_GetTransactionBlocks_Handler,
-		},
-		{
-			MethodName: "GetBlockForHeight",
-			Handler:    _BlockTxAPI_GetBlockForHeight_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

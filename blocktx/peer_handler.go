@@ -327,7 +327,7 @@ func (bs *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error 
 }
 
 func (bs *PeerHandler) CheckPrimary() (bool, error) {
-	primaryBlocktx, err := bs.store.PrimaryBlocktx(context.TODO())
+	primaryBlocktx, err := bs.store.GetPrimary(context.TODO())
 	if err != nil {
 		return false, err
 	}

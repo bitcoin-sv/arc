@@ -870,7 +870,7 @@ components:
       name: X-FullStatusUpdates
       in: header
       description: >-
-        Whether we should have full status updates in callback or not.
+        Whether we should have full status updates in callback or not (including SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK statuses).
       schema:
         type: boolean
     skipScriptValidation:

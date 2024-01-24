@@ -76,6 +76,7 @@ paths:
         This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.  The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
       parameters:
         - $ref: '#/components/parameters/callbackUrl'
+        - $ref: '#/components/parameters/fullStatusUpdates'
         - $ref: '#/components/parameters/skipFeeValidation'
         - $ref: '#/components/parameters/skipScriptValidation'
         - $ref: '#/components/parameters/skipTxValidation'
@@ -205,6 +206,7 @@ paths:
         This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates. The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
       parameters:
         - $ref: '#/components/parameters/callbackUrl'
+        - $ref: '#/components/parameters/fullStatusUpdates'
         - $ref: '#/components/parameters/skipFeeValidation'
         - $ref: '#/components/parameters/skipScriptValidation'
         - $ref: '#/components/parameters/skipTxValidation'
@@ -862,6 +864,13 @@ components:
       in: header
       description: >-
         Whether we should skip fee validation or not.
+      schema:
+        type: boolean
+    fullStatusUpdates:
+      name: X-FullStatusUpdates
+      in: header
+      description: >-
+        Whether we should have full status updates in callback or not (including SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK statuses).
       schema:
         type: boolean
     skipScriptValidation:

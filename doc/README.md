@@ -50,7 +50,7 @@ they were mined. Metamorph is responsible for storing the transaction data.
 Callbacker is a very simple microservice that is responsible for sending callbacks to clients when a transaction has
 been accepted by the Bitcoin network. To register a callback, the client must add the `X-CallbackUrl` header to the
 request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
-the body. See the [API documentation](/arc/api.html) for more information.
+the body. In case the client wants to receive all the intermediate status updates (SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK) about the transaction `X-FullStatusUpdates` header needs to be set to `true`. See the [API documentation](/arc/api.html) for more information.
 
 ## Extended format
 

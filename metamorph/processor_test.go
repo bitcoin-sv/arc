@@ -25,7 +25,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 //go:generate moq -pkg mocks -out ./mocks/store_mock.go ./store/ MetamorphStore
@@ -290,8 +289,8 @@ func TestProcessTransaction(t *testing.T) {
 			pm := p2p.NewPeerManagerMock()
 
 			btc := &ClientIMock{
-				RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
-					return &emptypb.Empty{}, nil
+				RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
+					return nil
 				},
 			}
 
@@ -556,8 +555,8 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		pm := p2p.NewPeerManagerMock()
 
 		btc := &ClientIMock{
-			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
-				return &emptypb.Empty{}, nil
+			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
+				return nil
 			},
 		}
 

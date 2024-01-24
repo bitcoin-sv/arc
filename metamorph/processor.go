@@ -505,7 +505,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// register transaction in blocktx
 	go func() {
-		_, err := p.btc.RegisterTransaction(ctx, &blocktx_api.TransactionAndSource{
+		err = p.btc.RegisterTransaction(ctx, &blocktx_api.TransactionAndSource{
 			Hash: req.Data.Hash[:],
 		})
 

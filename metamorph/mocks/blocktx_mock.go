@@ -7,7 +7,6 @@ import (
 	"context"
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"sync"
 )
 
@@ -30,7 +29,7 @@ var _ blocktx.ClientI = &ClientIMock{}
 //			HealthFunc: func(ctx context.Context) error {
 //				panic("mock out the Health method")
 //			},
-//			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
+//			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
 //				panic("mock out the RegisterTransaction method")
 //			},
 //		}
@@ -50,7 +49,7 @@ type ClientIMock struct {
 	HealthFunc func(ctx context.Context) error
 
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
-	RegisterTransactionFunc func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error)
+	RegisterTransactionFunc func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -192,7 +191,7 @@ func (mock *ClientIMock) HealthCalls() []struct {
 }
 
 // RegisterTransaction calls RegisterTransactionFunc.
-func (mock *ClientIMock) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
+func (mock *ClientIMock) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
 	if mock.RegisterTransactionFunc == nil {
 		panic("ClientIMock.RegisterTransactionFunc: method is nil but ClientI.RegisterTransaction was just called")
 	}

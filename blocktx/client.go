@@ -2,10 +2,10 @@ package blocktx
 
 import (
 	"context"
+
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -15,9 +15,6 @@ import (
 type ClientI interface {
 	GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 	GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error)
-	GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*blocktx_api.Block, error)
-	GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, error)
-	GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
 	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error)
 	Health(ctx context.Context) error
 }
@@ -60,35 +57,6 @@ func (btc *Client) GetTransactionBlocks(ctx context.Context, transaction *blockt
 	}
 
 	return transactionBlocks, nil
-}
-
-func (btc *Client) GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*blocktx_api.Block, error) {
-	block, err := btc.client.GetBlock(ctx, &blocktx_api.Hash{
-		Hash: blockHash[:],
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return block, nil
-}
-
-func (btc *Client) GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, error) {
-	block, err := btc.client.GetLastProcessedBlock(ctx, &emptypb.Empty{})
-	if err != nil {
-		return nil, err
-	}
-
-	return block, nil
-}
-
-func (btc *Client) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
-	mt, err := btc.client.GetMinedTransactionsForBlock(ctx, blockAndSource)
-	if err != nil {
-		return nil, err
-	}
-
-	return mt, nil
 }
 
 func (btc *Client) Health(ctx context.Context) error {

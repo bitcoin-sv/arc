@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx"
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/spf13/viper"
 )
@@ -28,8 +27,6 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
 
-	blockCh := make(chan *blocktx_api.Block)
-
 	startingBlockHeight, err := config.GetInt("blocktx.startingBlockHeight")
 	if err != nil {
 		return nil, err
@@ -40,23 +37,30 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	peerHandler := blocktx.NewPeerHandler(logger, blockStore, blockCh, startingBlockHeight, blocktx.WithRetentionDays(recordRetentionDays))
+	peerSettings, err := config.GetPeerSettings()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get peer settings: %v", err)
+	}
 
+	peerURLs := make([]string, len(peerSettings))
+	for i, peerSetting := range peerSettings {
+		peerUrl, err := peerSetting.GetP2PUrl()
+		if err != nil {
+			return nil, fmt.Errorf("error getting peer url: %v", err)
+		}
+		peerURLs[i] = peerUrl
+	}
 	network, err := config.GetNetwork()
 	if err != nil {
 		return nil, err
 	}
 
-	peerSettings, err := config.GetPeerSettings()
+	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore, startingBlockHeight, peerURLs, network, blocktx.WithRetentionDays(recordRetentionDays))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get peer settings: %v", err)
-	}
-	blockNotifier, err := blocktx.NewBlockNotifier(blockStore, logger, blockCh, peerHandler, peerSettings, network)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create block notifier: %v", err)
+		return nil, err
 	}
 
-	blockTxServer := blocktx.NewServer(blockStore, blockNotifier, logger)
+	blockTxServer := blocktx.NewServer(blockStore, logger)
 
 	address, err := config.GetString("blocktx.listenAddr")
 	if err != nil {
@@ -88,6 +92,6 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 			logger.Error("Error closing blocktx store", slog.String("err", err.Error()))
 		}
 		primaryTicker.Stop()
-		blockNotifier.Shutdown()
+		peerHandler.Shutdown()
 	}, nil
 }

@@ -249,6 +249,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	resp.Statuses = make([]*metamorph_api.TransactionStatus, len(req.GetTransactions()))
 
 	processTxsInputMap := make(map[chainhash.Hash]processTxInput)
+	var timeout int64
 
 	for ind, txReq := range req.GetTransactions() {
 		err := ValidateCallbackURL(txReq.GetCallbackUrl())
@@ -258,6 +259,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 
 		status := metamorph_api.Status_UNKNOWN
 		hash := handler.PtrTo(chainhash.DoubleHashH(txReq.GetRawTx()))
+		timeout = txReq.GetMaxTimeout()
 
 		// Convert gRPC req to store.StoreData struct...
 		sReq := &store.StoreData{
@@ -285,7 +287,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		go func(ctx context.Context, processTxInput processTxInput, txID string, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
 			defer wg.Done()
 
-			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, req.GetMaxTimeout(), txID)
+			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, timeout, txID)
 
 			resp.Statuses[processTxInput.responseIndex] = statusNew
 		}(ctx, input, hash.String(), wg, resp)

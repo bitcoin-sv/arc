@@ -3,6 +3,7 @@ package sql
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Todo: Revisit this test and check if it still makes sense
 func TestInOut(t *testing.T) {
 	ctx := context.Background()
 
@@ -53,7 +55,7 @@ func TestInOut(t *testing.T) {
 	err = s.UpdateBlockTransactions(ctx, blockId, transactions, make([]string, len(transactions)))
 	require.NoError(t, err)
 
-	txns, err := s.GetBlockTransactions(ctx, block)
+	txns, err := getBlockTransactions(ctx, block, s.db)
 	require.NoError(t, err)
 
 	for i, txn := range txns.GetTransactions() {
@@ -62,14 +64,14 @@ func TestInOut(t *testing.T) {
 
 	height := uint64(1)
 
-	err = s.SetOrphanHeight(ctx, height, false)
+	err = setOrphanedForHeight(ctx, s.db, height, false)
 	require.NoError(t, err)
 
 	block2, err := s.GetBlockForHeight(ctx, height)
 	require.NoError(t, err)
 	assert.Equal(t, bytes.Equal(block.GetHash(), block2.GetHash()), true)
 
-	err = s.OrphanHeight(ctx, height)
+	err = setOrphanedForHeight(ctx, s.db, height, true)
 	require.NoError(t, err)
 
 	block3, err := s.GetBlockForHeight(ctx, height)
@@ -88,4 +90,58 @@ func TestBlockNotExists(t *testing.T) {
 	b, err := s.GetBlockForHeight(ctx, height)
 	require.Error(t, err)
 	assert.Nil(t, b)
+}
+
+func getBlockTransactions(ctx context.Context, block *blocktx_api.Block, db *sql.DB) (*blocktx_api.Transactions, error) {
+
+	q := `
+		SELECT
+		 t.hash
+		FROM transactions t
+		INNER JOIN block_transactions_map m ON m.txid = t.id
+		INNER JOIN blocks b ON m.blockid = b.id
+		WHERE b.hash = $1
+	`
+
+	rows, err := db.QueryContext(ctx, q, block.GetHash())
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var hash []byte
+	var transactions []*blocktx_api.Transaction
+
+	for rows.Next() {
+		err = rows.Scan(&hash)
+		if err != nil {
+			return nil, err
+		}
+
+		transactions = append(transactions, &blocktx_api.Transaction{
+			Hash: hash,
+		})
+	}
+
+	return &blocktx_api.Transactions{
+		Transactions: transactions,
+	}, nil
+}
+
+func setOrphanedForHeight(ctx context.Context, db *sql.DB, height uint64, orphaned bool) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	q := `
+		UPDATE blocks
+		SET orphanedyn = $1
+		WHERE height = $2
+	`
+
+	if _, err := db.ExecContext(ctx, q, orphaned, height); err != nil {
+		return err
+	}
+
+	return nil
 }

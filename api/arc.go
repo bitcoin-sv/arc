@@ -392,6 +392,9 @@ type CallbackUrl = string
 // FullStatusUpdates defines model for fullStatusUpdates.
 type FullStatusUpdates = bool
 
+// MaxTimeout defines model for maxTimeout.
+type MaxTimeout = bool
+
 // MerkleProof defines model for merkleProof.
 type MerkleProof = string
 
@@ -415,8 +418,11 @@ type POSTTransactionParams struct {
 	// XCallbackUrl Default double spend and merkle proof notification callback endpoint.
 	XCallbackUrl *CallbackUrl `json:"X-CallbackUrl,omitempty"`
 
-	// XFullStatusUpdates Whether we should have full status updates in callback or not.
+	// XFullStatusUpdates Whether we should have full status updates in callback or not (including SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK statuses).
 	XFullStatusUpdates *FullStatusUpdates `json:"X-FullStatusUpdates,omitempty"`
+
+	// XMaxTimeout Timeout to wait for new transaction status before request expires (max 30 seconds, default 5)
+	XMaxTimeout *MaxTimeout `json:"X-MaxTimeout,omitempty"`
 
 	// XSkipFeeValidation Whether we should skip fee validation or not.
 	XSkipFeeValidation *SkipFeeValidation `json:"X-SkipFeeValidation,omitempty"`
@@ -448,8 +454,11 @@ type POSTTransactionsParams struct {
 	// XCallbackUrl Default double spend and merkle proof notification callback endpoint.
 	XCallbackUrl *CallbackUrl `json:"X-CallbackUrl,omitempty"`
 
-	// XFullStatusUpdates Whether we should have full status updates in callback or not.
+	// XFullStatusUpdates Whether we should have full status updates in callback or not (including SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK statuses).
 	XFullStatusUpdates *FullStatusUpdates `json:"X-FullStatusUpdates,omitempty"`
+
+	// XMaxTimeout Timeout to wait for new transaction status before request expires (max 30 seconds, default 5)
+	XMaxTimeout *MaxTimeout `json:"X-MaxTimeout,omitempty"`
 
 	// XSkipFeeValidation Whether we should skip fee validation or not.
 	XSkipFeeValidation *SkipFeeValidation `json:"X-SkipFeeValidation,omitempty"`
@@ -969,70 +978,81 @@ func NewPOSTTransactionRequestWithBody(server string, params *POSTTransactionPar
 			req.Header.Set("X-FullStatusUpdates", headerParam1)
 		}
 
-		if params.XSkipFeeValidation != nil {
+		if params.XMaxTimeout != nil {
 			var headerParam2 string
 
-			headerParam2, err = runtime.StyleParamWithLocation("simple", false, "X-SkipFeeValidation", runtime.ParamLocationHeader, *params.XSkipFeeValidation)
+			headerParam2, err = runtime.StyleParamWithLocation("simple", false, "X-MaxTimeout", runtime.ParamLocationHeader, *params.XMaxTimeout)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-SkipFeeValidation", headerParam2)
+			req.Header.Set("X-MaxTimeout", headerParam2)
+		}
+
+		if params.XSkipFeeValidation != nil {
+			var headerParam3 string
+
+			headerParam3, err = runtime.StyleParamWithLocation("simple", false, "X-SkipFeeValidation", runtime.ParamLocationHeader, *params.XSkipFeeValidation)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-SkipFeeValidation", headerParam3)
 		}
 
 		if params.XSkipScriptValidation != nil {
-			var headerParam3 string
+			var headerParam4 string
 
-			headerParam3, err = runtime.StyleParamWithLocation("simple", false, "X-SkipScriptValidation", runtime.ParamLocationHeader, *params.XSkipScriptValidation)
+			headerParam4, err = runtime.StyleParamWithLocation("simple", false, "X-SkipScriptValidation", runtime.ParamLocationHeader, *params.XSkipScriptValidation)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-SkipScriptValidation", headerParam3)
+			req.Header.Set("X-SkipScriptValidation", headerParam4)
 		}
 
 		if params.XSkipTxValidation != nil {
-			var headerParam4 string
+			var headerParam5 string
 
-			headerParam4, err = runtime.StyleParamWithLocation("simple", false, "X-SkipTxValidation", runtime.ParamLocationHeader, *params.XSkipTxValidation)
+			headerParam5, err = runtime.StyleParamWithLocation("simple", false, "X-SkipTxValidation", runtime.ParamLocationHeader, *params.XSkipTxValidation)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-SkipTxValidation", headerParam4)
+			req.Header.Set("X-SkipTxValidation", headerParam5)
 		}
 
 		if params.XCallbackToken != nil {
-			var headerParam5 string
+			var headerParam6 string
 
-			headerParam5, err = runtime.StyleParamWithLocation("simple", false, "X-CallbackToken", runtime.ParamLocationHeader, *params.XCallbackToken)
+			headerParam6, err = runtime.StyleParamWithLocation("simple", false, "X-CallbackToken", runtime.ParamLocationHeader, *params.XCallbackToken)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-CallbackToken", headerParam5)
+			req.Header.Set("X-CallbackToken", headerParam6)
 		}
 
 		if params.XMerkleProof != nil {
-			var headerParam6 string
+			var headerParam7 string
 
-			headerParam6, err = runtime.StyleParamWithLocation("simple", false, "X-MerkleProof", runtime.ParamLocationHeader, *params.XMerkleProof)
+			headerParam7, err = runtime.StyleParamWithLocation("simple", false, "X-MerkleProof", runtime.ParamLocationHeader, *params.XMerkleProof)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-MerkleProof", headerParam6)
+			req.Header.Set("X-MerkleProof", headerParam7)
 		}
 
 		if params.XWaitForStatus != nil {
-			var headerParam7 string
+			var headerParam8 string
 
-			headerParam7, err = runtime.StyleParamWithLocation("simple", false, "X-WaitForStatus", runtime.ParamLocationHeader, *params.XWaitForStatus)
+			headerParam8, err = runtime.StyleParamWithLocation("simple", false, "X-WaitForStatus", runtime.ParamLocationHeader, *params.XWaitForStatus)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-WaitForStatus", headerParam7)
+			req.Header.Set("X-WaitForStatus", headerParam8)
 		}
 
 	}
@@ -1142,70 +1162,81 @@ func NewPOSTTransactionsRequestWithBody(server string, params *POSTTransactionsP
 			req.Header.Set("X-FullStatusUpdates", headerParam1)
 		}
 
-		if params.XSkipFeeValidation != nil {
+		if params.XMaxTimeout != nil {
 			var headerParam2 string
 
-			headerParam2, err = runtime.StyleParamWithLocation("simple", false, "X-SkipFeeValidation", runtime.ParamLocationHeader, *params.XSkipFeeValidation)
+			headerParam2, err = runtime.StyleParamWithLocation("simple", false, "X-MaxTimeout", runtime.ParamLocationHeader, *params.XMaxTimeout)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-SkipFeeValidation", headerParam2)
+			req.Header.Set("X-MaxTimeout", headerParam2)
+		}
+
+		if params.XSkipFeeValidation != nil {
+			var headerParam3 string
+
+			headerParam3, err = runtime.StyleParamWithLocation("simple", false, "X-SkipFeeValidation", runtime.ParamLocationHeader, *params.XSkipFeeValidation)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-SkipFeeValidation", headerParam3)
 		}
 
 		if params.XSkipScriptValidation != nil {
-			var headerParam3 string
+			var headerParam4 string
 
-			headerParam3, err = runtime.StyleParamWithLocation("simple", false, "X-SkipScriptValidation", runtime.ParamLocationHeader, *params.XSkipScriptValidation)
+			headerParam4, err = runtime.StyleParamWithLocation("simple", false, "X-SkipScriptValidation", runtime.ParamLocationHeader, *params.XSkipScriptValidation)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-SkipScriptValidation", headerParam3)
+			req.Header.Set("X-SkipScriptValidation", headerParam4)
 		}
 
 		if params.XSkipTxValidation != nil {
-			var headerParam4 string
+			var headerParam5 string
 
-			headerParam4, err = runtime.StyleParamWithLocation("simple", false, "X-SkipTxValidation", runtime.ParamLocationHeader, *params.XSkipTxValidation)
+			headerParam5, err = runtime.StyleParamWithLocation("simple", false, "X-SkipTxValidation", runtime.ParamLocationHeader, *params.XSkipTxValidation)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-SkipTxValidation", headerParam4)
+			req.Header.Set("X-SkipTxValidation", headerParam5)
 		}
 
 		if params.XCallbackToken != nil {
-			var headerParam5 string
+			var headerParam6 string
 
-			headerParam5, err = runtime.StyleParamWithLocation("simple", false, "X-CallbackToken", runtime.ParamLocationHeader, *params.XCallbackToken)
+			headerParam6, err = runtime.StyleParamWithLocation("simple", false, "X-CallbackToken", runtime.ParamLocationHeader, *params.XCallbackToken)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-CallbackToken", headerParam5)
+			req.Header.Set("X-CallbackToken", headerParam6)
 		}
 
 		if params.XMerkleProof != nil {
-			var headerParam6 string
+			var headerParam7 string
 
-			headerParam6, err = runtime.StyleParamWithLocation("simple", false, "X-MerkleProof", runtime.ParamLocationHeader, *params.XMerkleProof)
+			headerParam7, err = runtime.StyleParamWithLocation("simple", false, "X-MerkleProof", runtime.ParamLocationHeader, *params.XMerkleProof)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-MerkleProof", headerParam6)
+			req.Header.Set("X-MerkleProof", headerParam7)
 		}
 
 		if params.XWaitForStatus != nil {
-			var headerParam7 string
+			var headerParam8 string
 
-			headerParam7, err = runtime.StyleParamWithLocation("simple", false, "X-WaitForStatus", runtime.ParamLocationHeader, *params.XWaitForStatus)
+			headerParam8, err = runtime.StyleParamWithLocation("simple", false, "X-WaitForStatus", runtime.ParamLocationHeader, *params.XWaitForStatus)
 			if err != nil {
 				return nil, err
 			}
 
-			req.Header.Set("X-WaitForStatus", headerParam7)
+			req.Header.Set("X-WaitForStatus", headerParam8)
 		}
 
 	}
@@ -1777,6 +1808,21 @@ func (w *ServerInterfaceWrapper) POSTTransaction(ctx echo.Context) error {
 
 		params.XFullStatusUpdates = &XFullStatusUpdates
 	}
+	// ------------- Optional header parameter "X-MaxTimeout" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MaxTimeout")]; found {
+		var XMaxTimeout MaxTimeout
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-MaxTimeout, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-MaxTimeout", runtime.ParamLocationHeader, valueList[0], &XMaxTimeout)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-MaxTimeout: %s", err))
+		}
+
+		params.XMaxTimeout = &XMaxTimeout
+	}
 	// ------------- Optional header parameter "X-SkipFeeValidation" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-SkipFeeValidation")]; found {
 		var XSkipFeeValidation SkipFeeValidation
@@ -1939,6 +1985,21 @@ func (w *ServerInterfaceWrapper) POSTTransactions(ctx echo.Context) error {
 
 		params.XFullStatusUpdates = &XFullStatusUpdates
 	}
+	// ------------- Optional header parameter "X-MaxTimeout" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MaxTimeout")]; found {
+		var XMaxTimeout MaxTimeout
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-MaxTimeout, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-MaxTimeout", runtime.ParamLocationHeader, valueList[0], &XMaxTimeout)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-MaxTimeout: %s", err))
+		}
+
+		params.XMaxTimeout = &XMaxTimeout
+	}
 	// ------------- Optional header parameter "X-SkipFeeValidation" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-SkipFeeValidation")]; found {
 		var XSkipFeeValidation SkipFeeValidation
@@ -2073,74 +2134,75 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/+xce3Pbtpb/Khje/SOZkW0QfHums5M49r3Z3thZW2l3N/V08Di0cEORugTo2M36u+8A",
-	"JCVSomQpkd3ubfpHxyJeB78DnDfyxeHFdFbkkGvlHH9xZrSkU9BQ2l+cZhmj/NO4+AS5+SBA8VLOtCxy",
-	"59h5xTkohbRpRWlRorzQMpWcmnbUDkaQi1khc32I3mr0WWYZYoAqBQJRhSh6VelJUcrf6lEToAJKO5ue",
-	"AJpoPZvP5Iwcadat+zgjJ6dTcI6d/zo46RE6chSfwJQaivX9zHRRupT5jfPwMJpv6kOZrW7pDaS0yjQS",
-	"RcUyQGoGuUA0F2gK5acM0KwsivSxfT5Op1l7M5VplWVXmupKfZgJqkGt0vrzBPQESvQZkJoUVSbQhN4C",
-	"MiORskNRVY9FskNmzacNRJ6tLD1AKiuKDGhuaa2xeW+gWU+lLpDMeVYJ6GFpaTOcbulT6IUuK0D/i1Ka",
-	"KXi5gdB3nXU3o6k+ydkZwE80k4LWhD2OphmEUgB0Ox/2OHhXKys9Ap5Z5crS8RXU1V12JnBlvS1oHN99",
-	"BX3FLZQ0y5C+25nG3nqP0PeZSn1WlPWhHSJO8kl7JXSBTHcrYdKymNrDp6C8hRIxSIsSUAm6KnOZ36AX",
-	"BP2ALk9PTt/+dPpmhDz0A7oaX1yav330A3p1fn7x4fzk9M2v44tfz0/HP19c/jhCgR3znx9Or8anb359",
-	"/d+LltCMPz0f97pHZqKTk9P3y71j2/v0/NeL8/bjy/WY/dzDYAAwmWu4gdJ5MIiVoGZFrmqxcl7oVgiD",
-	"WIXvCnhVSn2PSvhnJUuYGmWBUiozEPXxsEvZqU4mVOZv87RYncY2IWnaRs6sLGZQalkTwLKCf/obVZPV",
-	"Ua9NE5qYtpEDd3Q6y8xm8PJ/ceBHfsI87pJABISHie+FURT4Po9pSOM4IH6UeAGjsXAj4YyWpcSooQLk",
-	"zUSvpaNu7VASxcRz45GTFuWUaufYqWSuQ38x/wL2+aeC/QO4NkueFNNpkV82zBjAzLajlluoGbmMn5ZT",
-	"UJpOZ+bHnBIjuw9M0+pm7QmwzBTO8cfO+OsBIk/LsigHtH+O/jYev0fvy4JlMEVvQFOZqYbGkVHuAlKZ",
-	"gzAi/u3p+Axdnp2gKMYRemH0ujo+OtJFkalDCTo9LMqbo4meZkdlyk0nK/mLHC5S5/jjF+ffSkidY+cv",
-	"RwuD5ag5eEeWwg+5YZHMb2rpppyH0Raj3uazatu+72hmwDWnfpvuZ2XxG+Tvi0zy+11GnBhW56pSzsN1",
-	"C/9rKi7hnxUoezRplm2LypmETNT7658ZYdll/lrcqvEE7CUHpZECmFppyQBN241bU4jTPC+0+T4rC2MB",
-	"WkAcmStNcw79KVtG05IfakqzQ15Mj8BQpo5c4vlBEJrBai6650N9jM2VkTpbmvI1FS2VzvxSDa3JpOaF",
-	"zA/U7eGN1JOKHcrCEHL0l4aCf5fih199jIcu59qbcAbw1DxIARSiJSBdFCgrPn8DvGQdumEwjO4Z9Jb9",
-	"ZnTDYDd0a6yO10PVl0J/L/IbKFHnIypSZAnoKYwG1tba1CXNFeW2v1Tthpvj3tipVm5RZNXC4ZDCgDtd",
-	"0mFld2H/oBmyfazWM1LZLEdZUWlLhKVyYYRMZV6r9CrLKDNUG0N4YN3uUegv+6Jd9yX6u8w/mf1QritD",
-	"h12ryBtTZ5tl1BpzyvIJ8UJAF2Efk44WlLkeUIGdA7fsdjW/bgFpuKuts5aJK4TpOzlgpow7LH37BumJ",
-	"VM2upUIlpFCa8UgX2+y9PfZLS9zPYH68Ruiz1BOUNThPjeXY4fPjSte0tojM0R61J339DVlSEk8oi6xy",
-	"RPWC6AXLKP+USaXRlObU3DreEoHmbSBePoW0isiwtOpSuBdxFZHdxFVXx/+OnJhZCp6eDe5zscHdiQ1/",
-	"hRxKyZ9UL3fEC7ce7vMYQckw4s2OGyG5FzMo2QnyxnB+JsSlQjK3IQTEgNNKgVWZ0hJhTaW8yA/gzhz9",
-	"XKOitKE7/SSG01pRVNMnW49iD7bTbsJo4Z88H1ee0jVYzwJvmAVzALr23X444e3EifNCnxVVLp7JWQPj",
-	"EKmiKjn0ZVNqiXgSueQPs+C80ItVv10m+TvBflHpP4BQKmoqBqVS0/9JLoW/WS41ZO3nOuzGl/HdWeMY",
-	"PBtjzAWQuXG/IDeuXG2Xj9BUKmXcACulm/i5epIbEuL1N2SJrP3wZLcwxkq47F9dZ7jPrjO2tmHPAF5N",
-	"iyqvL4gQsnbi33eAtcmwlbj5/WBi8LyaMiiNo1p32CY6PXIU1YWayIH5atrMdbpq+2wZ8O76u2oxtiZr",
-	"CImOJ7UJhjlPvjhTetfcYvkbzJrhgc0JjEyjvlPyppgpbvag2g4+SfwkjEgSzDstRrtNTmHkTGUu85sm",
-	"4teg7dqWBVqu2WifL4M0LaP6jt7JaTVtc3imK/po17jekmNrd7duqXx+MJS8yamuSkCGbhuwULut+vjG",
-	"ujG2r9ldF/tN8mhxe5aP3BAf1sO2urUuEetPazd9s50EXUr7GCG6w61f4L5pjTbvsARJM3h1N9cPo66c",
-	"brI52++pM/aqYlOpm0yk2VznunZSfY6zlHPDvZCqaW4qC6ieNDm/RaDsmJhr2Ml8OQQT7wB7BzgZu+QY",
-	"e8d+fOjFJHFx4Pr/Mw+1HTsXP5ofd2262FlKsjpthNHhWIQph8j1wSckCF0/xRjzkAZUCEqp6/ku5Ywl",
-	"PI5cN3BdX/A09lMvYokfUGsa9Hm3IWR8uiFS3FVNo81GT21fbhHi7GK7KZb6rqnWoHpSF+xM4A7V0xiV",
-	"8PrDu/eNGYM+vr48OYj863l6j5X8UMDtUeS/3Crqercuhd8laB4phbyamjP94fzH84ufz52R06bqnZFT",
-	"5+mdkTOUpLddVzP0Zlg/PW+/LJ+Od2/P7cwnF+dnby/f2b8vT//j9GR8+sbcrAV/2rz+V0exZW7g7vE8",
-	"ZILxlDIckFB4GGIRxiRK0igRaRq6KfMxCSmHmEXMI1Gc0BS7oeeFEPgpSfFgYHrVSFlPlmhEw1I422xn",
-	"SEh2hnZSmB2RUNLP4zvn2PmlwtjjXa2xOGm2DVbvUzN2GcVL+rkz+NFQfD3Lo8TvQcxv7D6vnXis54Cc",
-	"3lGHbCWHnlGK/J5i5Btv5iNZnjsrjeckdVXco0r4slul8wxnbocD1Lmm9rfUMLV/bFexseYEP+p21hA1",
-	"qNGypPeD4qsP4+I0/LEw3Isx8GfQ8wtnvdG8e1OmUUIi4nnCxYJyEYQ45AABSzEjcRjGKXcTFyIPY5JQ",
-	"Dj6PUu5jEBAklMQkgG3vf7OXR298z3TejI7tuQCpf7TW5e6vVjAl2P36vP24SV53LB4hQNh8OExnRZE9",
-	"CtBCDNu5VhF6GDmqqUC8Mjeu3uBroCWUr6qhU123IVrpCeS6rdPu16Ndnp2gMApwWylpS0rtuAXF5nTX",
-	"5ZKyuaSZ5NCYAE3h5cUMcvT66if0d9PEDRhVma0Gi6hSBZeWksMc9FExg/yAqduDZsqjDsqOme/V5Ykz",
-	"cm6hVPWm3EN8iE0nM5LOpHPsePbTyDFX1oJydOseLbzDGxioYxzbsoimUr2pdFVWrDQpZAVay/xG2eq7",
-	"Njbw1nhDfz0dv2/94l79KMHYvhYocg1NDGs2yxrcj/6h6oLhRUHq427rQvYa9JeOcGWfHRgofOyum29O",
-	"4FG/utUep2o6peW9zaLqob2bI0BvlDmer0ruXJtBBlt9V/vf6lFgpapfOOgCKfuEAJX0cy8iogtE65If",
-	"W+xia46U9ePqCqUc7nRde4T0hOpFhRDiJVAN6hCh8QTaBxOLhxuI03z+wkIXtga7lKLOTdxkBaPZfKNm",
-	"sfuiKtGrkiNB1YQVtBTt6wvV0zUDJ+L9xdV43NNG3fcja7TsostR9ynGOi3b6b76JmKLQaul/1sOWimS",
-	"33Jcr3B9izH9RzZbDOg+t9iie7843rh2TdbwdSHu93ZvB7w8c2u6ExZcgz5QugQ67U88Vz9M5uZiDnqo",
-	"cKePZhmVS0QtVM8W/uPqxA+bPN2eC7lQWsaqefgqGdgQW1t/bVn1Qhwtp+pGzi3NKuimVfaVgOyH2mjZ",
-	"VJIgP/SO0dLPLqT13AijNgDeIcLpZm2MEbgI1vmht1Bvq9ts4m0UizChRKRURC6OIgyCxIRz8NyQB1FC",
-	"0tDFLg1j7IeUhB51I+pSwCSMQux2rbGd0/u/OM1Tptpq6bGlB3nesWzm3PmGqOb/t4hmHZmva0yGIaqb",
-	"16DTe7RBKY+TlIFwQw9EiHHoMup5jGPKEgExRKmImedTkfic+K7PxTK6kRcSEm+GOIXAJ4EbY4wJ9s3/",
-	"Y5FEaQIMhBBJmlAaA4Yk8JhHozD13JAkMWU4gCT2fEpj143cEBLhJVEQ+hBgF5MgDX070CVAQhrwIMYe",
-	"T9LEFy4nPAYaxsAhdX03wK4LLjf9WMKTMGQhFZhg4qZBSr0kxBGnHvNjEXg8wYSJgDGfsTSkEeVJwtMk",
-	"FdQPOCcui1wIgaRRHCch9jDxKWHMdUOIQ48EPGFx4JLUxYwQTkhMmUcikoKXepHHXCZ8mtCQeZ7PcBgz",
-	"FmJiWBG6UeIxEsUe9swdc70Ec6AQ0Mj1BGCgTCRc0NCLMEkh9nlC4iTClKcR9wPALsY0CCPwBA5D8OLQ",
-	"i810SRQEiYcJUMbjAFiYMIIJJxCHwve8mFFm3Ks49cOnCe7PXcb6ArAwZjj0meeFLKE+ZYK5kZd64JGU",
-	"RMyLKSGEM+JikgYui3lCgtCD2A2ZS5hPa5XxFTpxS4N2f5b08ruRgZWXXlJ8jTltRiX7pbkt5hwgeKXq",
-	"0Sdkv4sPrfohbyoTKMsAGZdS36ODuvy7/66pLo1fhI/Nod4refNKmgEy1xSW+KG7XxpWH1qt0rK2qsIP",
-	"98yw9gHXKg2rBZl+6O138c6LsJ0w8PdLRlv3tgGETvWXHwb7Xf4MBuVa7yVRz+2uo1yIdoE5XO90H30x",
-	"wvthy5hGx/W+adx7XpWlsX+bJ8BFiiialXAri0pl900oTfcZNRj/WA0qr7i8y6T13xq9fYNeeMTW5dhH",
-	"rS/7PoZ92zszVsv8ZW8TQOx7H5teu18/YXRmdf/7D9CYUXu+H/Ny3DVSc16w+jvqstW41EoofMMVUV8b",
-	"mJpWmZazDJbjU2ofAao/WHxKfQ9Q/WsHqOZJyF0jVQMpxT9W5OqX/OuiW98epqJCbHL2h+IhH/9UAZHr",
-	"h9FOsbyP34N5Tx3Mq5myW5jq4xPHqUI3Dr/Hqb7HqZ4tTnX9TYEq9VhuRLXlvd+DVt+DVt+DVt+DVn+S",
-	"oNXcYV52PZc8807ZkjUuugVLH6+NW/RqJg9+hPv5z+6/g2k/XpspytvWV+3XFWk6k4sncLTkRuL/XwAA",
-	"AP//ghQaC89TAAA=",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

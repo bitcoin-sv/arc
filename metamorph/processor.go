@@ -357,7 +357,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 
 			data, _ := p.store.Get(spanCtx, hash[:])
 			if data.CallbackUrl != "" {
-				go SendCallback(p.logger, p.store, data)
+				go SendCallback(p.logger, data)
 			}
 		},
 	})
@@ -433,7 +433,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 				p.seenOnNetwork.AddDuration(source, time.Since(processorResponse.Start))
 				data, _ := p.store.Get(spanCtx, hash[:])
 				if data.CallbackUrl != "" {
-					go SendCallback(p.logger, p.store, data)
+					go SendCallback(p.logger, data)
 				}
 
 			case metamorph_api.Status_MINED:
@@ -446,7 +446,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 				p.rejected.AddDuration(source, time.Since(processorResponse.Start))
 				data, _ := p.store.Get(spanCtx, hash[:])
 				if data.CallbackUrl != "" {
-					go SendCallback(p.logger, p.store, data)
+					go SendCallback(p.logger, data)
 				}
 			}
 		},

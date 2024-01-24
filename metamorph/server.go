@@ -40,6 +40,7 @@ func init() {
 const (
 	responseTimeout = 5 * time.Second
 	blocktxTimeout  = 1 * time.Second
+	maxTimeout = 30
 )
 
 type BitcoinNode interface {
@@ -226,7 +227,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		gocore.NewStat("PutTransaction").NewStat("3: Wait for status").AddTime(next)
 	}()
 
-	return s.processTransaction(ctx, req.GetWaitForStatus(), sReq, hash.String()), nil
+	return s.processTransaction(ctx, req.GetWaitForStatus(), sReq, req.GetMaxTimeout(), hash.String()), nil
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
@@ -284,7 +285,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		go func(ctx context.Context, processTxInput processTxInput, txID string, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
 			defer wg.Done()
 
-			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, txID)
+			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, req.GetMaxTimeout(), txID)
 
 			resp.Statuses[processTxInput.responseIndex] = statusNew
 		}(ctx, input, hash.String(), wg, resp)
@@ -295,7 +296,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	return resp, nil
 }
 
-func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, TxID string) *metamorph_api.TransactionStatus {
+func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, timeout int64, TxID string) *metamorph_api.TransactionStatus {
 	responseChannel := make(chan processor_response.StatusAndError, 1)
 	defer func() {
 		close(responseChannel)
@@ -310,7 +311,10 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	}
 
 	// normally a node would respond very quickly, unless it's under heavy load
-	timeout := time.NewTimer(s.timeout)
+	if timeout = 0 || timeout > maxTimeout {
+		timeout = s.timeout
+	}
+	timeout := time.NewTimer(timeout)
 	returnedStatus := &metamorph_api.TransactionStatus{Txid: TxID}
 
 	for {

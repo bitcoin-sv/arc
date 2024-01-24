@@ -244,12 +244,12 @@ func TestHandleBlock(t *testing.T) {
 				return nil
 			},
 		}
-		// create mocked peer handler
-		bockChannel := make(chan *blocktx_api.Block, 1)
 
 		// build peer manager
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-		peerHandler := NewPeerHandler(logger, storeMock, bockChannel, 100, WithTransactionBatchSize(batchSize))
+		peerHandler, err := NewPeerHandler(logger, storeMock, 100, []string{}, wire.TestNet, WithTransactionBatchSize(batchSize))
+		require.NoError(t, err)
+
 		t.Run(tc.name, func(t *testing.T) {
 			expectedInsertedTransactions := []*blocktx_api.TransactionAndSource{}
 			transactionHashes := make([]*chainhash.Hash, len(tc.txHashes))
@@ -302,7 +302,6 @@ func TestHandleBlock(t *testing.T) {
 			require.NoError(t, err)
 
 			require.ElementsMatch(t, expectedInsertedTransactions, insertedBlockTransactions)
-			<-bockChannel
 			peerHandler.Shutdown()
 		})
 	}
@@ -377,7 +376,8 @@ func TestFillGaps(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			bockChannel := make(chan *blocktx_api.Block, 1)
+			const batchSize = 4
+
 			var storeMock = &store.InterfaceMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return tc.blockGaps, tc.getBlockGapsErr
@@ -388,7 +388,8 @@ func TestFillGaps(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler := NewPeerHandler(logger, storeMock, bockChannel, 100)
+			peerHandler, err := NewPeerHandler(logger, storeMock, 100, []string{}, wire.TestNet, WithTransactionBatchSize(batchSize))
+			require.NoError(t, err)
 			peer := &MockedPeer{}
 			err = peerHandler.FillGaps(peer)
 
@@ -400,6 +401,54 @@ func TestFillGaps(t *testing.T) {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
+		})
+	}
+}
+
+func TestStartFillGaps(t *testing.T) {
+	hash822014, err := chainhash.NewHashFromStr("0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
+	require.NoError(t, err)
+	hostname, err := os.Hostname()
+	require.NoError(t, err)
+
+	tt := []struct {
+		name            string
+		hostname        string
+		getBlockGapsErr error
+	}{
+		{
+			name:     "success",
+			hostname: hostname,
+		},
+		{
+			name:            "error getting block gaps",
+			hostname:        hostname,
+			getBlockGapsErr: errors.New("failed to get block gaps"),
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			storeMock := &store.InterfaceMock{
+				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
+					return []*store.BlockGap{
+						{
+							Height: 822014,
+							Hash:   hash822014,
+						},
+					}, tc.getBlockGapsErr
+				},
+				PrimaryBlocktxFunc: func(ctx context.Context) (string, error) {
+					return tc.hostname, nil
+				},
+			}
+
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			peerHandler, err := NewPeerHandler(logger, storeMock, 100, []string{"127.0.0.1:18333", "127.0.0.2:18333", "127.0.0.3:18333"}, wire.TestNet, WithFillGapsInterval(time.Millisecond*20))
+			require.NoError(t, err)
+
+			time.Sleep(120 * time.Millisecond)
+			peerHandler.Shutdown()
 		})
 	}
 }

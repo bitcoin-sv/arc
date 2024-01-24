@@ -7,11 +7,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/ordishs/go-utils"
 )
@@ -21,16 +19,16 @@ const (
 	CallbackIntervalSeconds = 5
 )
 
-func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreData) {
+func SendCallback(logger *slog.Logger, tx *store.StoreData) {
 	sleepDuration := CallbackIntervalSeconds
 	for i := 0; i < CallbackTries; i++ {
-		statusString := metamorph_api.Status(tx.Status).String()
+		statusString := tx.Status.String()
 		blockHash := ""
 		if tx.BlockHash != nil {
 			blockHash = utils.ReverseAndHexEncodeSlice(tx.BlockHash.CloneBytes())
 		}
 
-		logger.Info("sending callback for transaction", slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.String("url", tx.CallbackUrl), slog.Uint64("block height", tx.BlockHeight), slog.String("block hash", blockHash))
+		logger.Info("Sending callback for transaction", slog.String("hash", tx.Hash.String()), slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("status", statusString), slog.Uint64("block height", tx.BlockHeight), slog.String("block hash", blockHash))
 
 		status := &api.TransactionStatus{
 			BlockHash:   &blockHash,
@@ -48,7 +46,7 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 		var request *http.Request
 		request, err = http.NewRequest("POST", tx.CallbackUrl, bytes.NewBuffer(statusBytes))
 		if err != nil {
-			logger.Error("Couldn't marshal status", slog.String("err", errors.Join(err, fmt.Errorf("failed to post callback for transaction id %s", tx.Hash)).Error()))
+			logger.Error("Couldn't marshal status", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.String("err", errors.Join(err, fmt.Errorf("failed to post callback for transaction id %s", tx.Hash)).Error()))
 			return
 		}
 		request.Header.Set("Content-Type", "application/json; charset=UTF-8")
@@ -64,7 +62,7 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 		var response *http.Response
 		response, err = httpClient.Do(request)
 		if err != nil {
-			logger.Error("Couldn't send transaction info through callback url", slog.String("err", err.Error()))
+			logger.Error("Couldn't send transaction info through callback url", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
 			continue
 		}
 		defer response.Body.Close()
@@ -79,7 +77,7 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 			return
 		}
 
-		logger.Error("callback response status code not ok - ", slog.String("status", strconv.Itoa(response.StatusCode)))
+		logger.Error("Callback response status code not ok", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.Int("status", response.StatusCode))
 
 		// sleep before trying again
 		time.Sleep(time.Duration(sleepDuration) * time.Second)
@@ -87,10 +85,5 @@ func SendCallback(logger *slog.Logger, s store.MetamorphStore, tx *store.StoreDa
 		sleepDuration *= 2
 	}
 
-	// err := s.RemoveCallbacker(context.Background(), tx.Hash)
-	// if err != nil {
-	// 	logger.Error("Couldn't update/remove callback url", slog.String("err", err.Error()))
-	// 	return
-	// }
-	logger.Error("Couldn't send transaction info through callback url after tries: ", slog.String("status", strconv.Itoa(CallbackTries)))
+	logger.Error("Couldn't send transaction info through callback url after tries", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.Int("retries", CallbackTries))
 }

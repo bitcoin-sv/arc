@@ -32,15 +32,6 @@ var _ Interface = &InterfaceMock{}
 //			GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*BlockGap, error) {
 //				panic("mock out the GetBlockGaps method")
 //			},
-//			GetBlockTransactionsFunc: func(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error) {
-//				panic("mock out the GetBlockTransactions method")
-//			},
-//			GetLastProcessedBlockFunc: func(ctx context.Context) (*blocktx_api.Block, error) {
-//				panic("mock out the GetLastProcessedBlock method")
-//			},
-//			GetMinedTransactionsForBlockFunc: func(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
-//				panic("mock out the GetMinedTransactionsForBlock method")
-//			},
 //			GetTransactionBlocksFunc: func(ctx context.Context, transactions *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
 //				panic("mock out the GetTransactionBlocks method")
 //			},
@@ -53,17 +44,11 @@ var _ Interface = &InterfaceMock{}
 //			MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 //				panic("mock out the MarkBlockAsDone method")
 //			},
-//			OrphanHeightFunc: func(ctx context.Context, height uint64) error {
-//				panic("mock out the OrphanHeight method")
-//			},
 //			PrimaryBlocktxFunc: func(ctx context.Context) (string, error) {
 //				panic("mock out the PrimaryBlocktx method")
 //			},
 //			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
 //				panic("mock out the RegisterTransaction method")
-//			},
-//			SetOrphanHeightFunc: func(ctx context.Context, height uint64, orphaned bool) error {
-//				panic("mock out the SetOrphanHeight method")
 //			},
 //			TryToBecomePrimaryFunc: func(ctx context.Context, myHostName string) error {
 //				panic("mock out the TryToBecomePrimary method")
@@ -90,15 +75,6 @@ type InterfaceMock struct {
 	// GetBlockGapsFunc mocks the GetBlockGaps method.
 	GetBlockGapsFunc func(ctx context.Context, heightRange int) ([]*BlockGap, error)
 
-	// GetBlockTransactionsFunc mocks the GetBlockTransactions method.
-	GetBlockTransactionsFunc func(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error)
-
-	// GetLastProcessedBlockFunc mocks the GetLastProcessedBlock method.
-	GetLastProcessedBlockFunc func(ctx context.Context) (*blocktx_api.Block, error)
-
-	// GetMinedTransactionsForBlockFunc mocks the GetMinedTransactionsForBlock method.
-	GetMinedTransactionsForBlockFunc func(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error)
-
 	// GetTransactionBlocksFunc mocks the GetTransactionBlocks method.
 	GetTransactionBlocksFunc func(ctx context.Context, transactions *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error)
 
@@ -111,17 +87,11 @@ type InterfaceMock struct {
 	// MarkBlockAsDoneFunc mocks the MarkBlockAsDone method.
 	MarkBlockAsDoneFunc func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 
-	// OrphanHeightFunc mocks the OrphanHeight method.
-	OrphanHeightFunc func(ctx context.Context, height uint64) error
-
 	// PrimaryBlocktxFunc mocks the PrimaryBlocktx method.
 	PrimaryBlocktxFunc func(ctx context.Context) (string, error)
 
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error
-
-	// SetOrphanHeightFunc mocks the SetOrphanHeight method.
-	SetOrphanHeightFunc func(ctx context.Context, height uint64, orphaned bool) error
 
 	// TryToBecomePrimaryFunc mocks the TryToBecomePrimary method.
 	TryToBecomePrimaryFunc func(ctx context.Context, myHostName string) error
@@ -155,25 +125,6 @@ type InterfaceMock struct {
 			// HeightRange is the heightRange argument value.
 			HeightRange int
 		}
-		// GetBlockTransactions holds details about calls to the GetBlockTransactions method.
-		GetBlockTransactions []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Block is the block argument value.
-			Block *blocktx_api.Block
-		}
-		// GetLastProcessedBlock holds details about calls to the GetLastProcessedBlock method.
-		GetLastProcessedBlock []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-		}
-		// GetMinedTransactionsForBlock holds details about calls to the GetMinedTransactionsForBlock method.
-		GetMinedTransactionsForBlock []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// BlockAndSource is the blockAndSource argument value.
-			BlockAndSource *blocktx_api.BlockAndSource
-		}
 		// GetTransactionBlocks holds details about calls to the GetTransactionBlocks method.
 		GetTransactionBlocks []struct {
 			// Ctx is the ctx argument value.
@@ -206,13 +157,6 @@ type InterfaceMock struct {
 			// TxCount is the txCount argument value.
 			TxCount uint64
 		}
-		// OrphanHeight holds details about calls to the OrphanHeight method.
-		OrphanHeight []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Height is the height argument value.
-			Height uint64
-		}
 		// PrimaryBlocktx holds details about calls to the PrimaryBlocktx method.
 		PrimaryBlocktx []struct {
 			// Ctx is the ctx argument value.
@@ -224,15 +168,6 @@ type InterfaceMock struct {
 			Ctx context.Context
 			// Transaction is the transaction argument value.
 			Transaction *blocktx_api.TransactionAndSource
-		}
-		// SetOrphanHeight holds details about calls to the SetOrphanHeight method.
-		SetOrphanHeight []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Height is the height argument value.
-			Height uint64
-			// Orphaned is the orphaned argument value.
-			Orphaned bool
 		}
 		// TryToBecomePrimary holds details about calls to the TryToBecomePrimary method.
 		TryToBecomePrimary []struct {
@@ -253,23 +188,18 @@ type InterfaceMock struct {
 			MerklePaths []string
 		}
 	}
-	lockClose                        sync.RWMutex
-	lockGetBlock                     sync.RWMutex
-	lockGetBlockForHeight            sync.RWMutex
-	lockGetBlockGaps                 sync.RWMutex
-	lockGetBlockTransactions         sync.RWMutex
-	lockGetLastProcessedBlock        sync.RWMutex
-	lockGetMinedTransactionsForBlock sync.RWMutex
-	lockGetTransactionBlocks         sync.RWMutex
-	lockGetTransactionMerklePath     sync.RWMutex
-	lockInsertBlock                  sync.RWMutex
-	lockMarkBlockAsDone              sync.RWMutex
-	lockOrphanHeight                 sync.RWMutex
-	lockPrimaryBlocktx               sync.RWMutex
-	lockRegisterTransaction          sync.RWMutex
-	lockSetOrphanHeight              sync.RWMutex
-	lockTryToBecomePrimary           sync.RWMutex
-	lockUpdateBlockTransactions      sync.RWMutex
+	lockClose                    sync.RWMutex
+	lockGetBlock                 sync.RWMutex
+	lockGetBlockForHeight        sync.RWMutex
+	lockGetBlockGaps             sync.RWMutex
+	lockGetTransactionBlocks     sync.RWMutex
+	lockGetTransactionMerklePath sync.RWMutex
+	lockInsertBlock              sync.RWMutex
+	lockMarkBlockAsDone          sync.RWMutex
+	lockPrimaryBlocktx           sync.RWMutex
+	lockRegisterTransaction      sync.RWMutex
+	lockTryToBecomePrimary       sync.RWMutex
+	lockUpdateBlockTransactions  sync.RWMutex
 }
 
 // Close calls CloseFunc.
@@ -404,110 +334,6 @@ func (mock *InterfaceMock) GetBlockGapsCalls() []struct {
 	mock.lockGetBlockGaps.RLock()
 	calls = mock.calls.GetBlockGaps
 	mock.lockGetBlockGaps.RUnlock()
-	return calls
-}
-
-// GetBlockTransactions calls GetBlockTransactionsFunc.
-func (mock *InterfaceMock) GetBlockTransactions(ctx context.Context, block *blocktx_api.Block) (*blocktx_api.Transactions, error) {
-	if mock.GetBlockTransactionsFunc == nil {
-		panic("InterfaceMock.GetBlockTransactionsFunc: method is nil but Interface.GetBlockTransactions was just called")
-	}
-	callInfo := struct {
-		Ctx   context.Context
-		Block *blocktx_api.Block
-	}{
-		Ctx:   ctx,
-		Block: block,
-	}
-	mock.lockGetBlockTransactions.Lock()
-	mock.calls.GetBlockTransactions = append(mock.calls.GetBlockTransactions, callInfo)
-	mock.lockGetBlockTransactions.Unlock()
-	return mock.GetBlockTransactionsFunc(ctx, block)
-}
-
-// GetBlockTransactionsCalls gets all the calls that were made to GetBlockTransactions.
-// Check the length with:
-//
-//	len(mockedInterface.GetBlockTransactionsCalls())
-func (mock *InterfaceMock) GetBlockTransactionsCalls() []struct {
-	Ctx   context.Context
-	Block *blocktx_api.Block
-} {
-	var calls []struct {
-		Ctx   context.Context
-		Block *blocktx_api.Block
-	}
-	mock.lockGetBlockTransactions.RLock()
-	calls = mock.calls.GetBlockTransactions
-	mock.lockGetBlockTransactions.RUnlock()
-	return calls
-}
-
-// GetLastProcessedBlock calls GetLastProcessedBlockFunc.
-func (mock *InterfaceMock) GetLastProcessedBlock(ctx context.Context) (*blocktx_api.Block, error) {
-	if mock.GetLastProcessedBlockFunc == nil {
-		panic("InterfaceMock.GetLastProcessedBlockFunc: method is nil but Interface.GetLastProcessedBlock was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-	}{
-		Ctx: ctx,
-	}
-	mock.lockGetLastProcessedBlock.Lock()
-	mock.calls.GetLastProcessedBlock = append(mock.calls.GetLastProcessedBlock, callInfo)
-	mock.lockGetLastProcessedBlock.Unlock()
-	return mock.GetLastProcessedBlockFunc(ctx)
-}
-
-// GetLastProcessedBlockCalls gets all the calls that were made to GetLastProcessedBlock.
-// Check the length with:
-//
-//	len(mockedInterface.GetLastProcessedBlockCalls())
-func (mock *InterfaceMock) GetLastProcessedBlockCalls() []struct {
-	Ctx context.Context
-} {
-	var calls []struct {
-		Ctx context.Context
-	}
-	mock.lockGetLastProcessedBlock.RLock()
-	calls = mock.calls.GetLastProcessedBlock
-	mock.lockGetLastProcessedBlock.RUnlock()
-	return calls
-}
-
-// GetMinedTransactionsForBlock calls GetMinedTransactionsForBlockFunc.
-func (mock *InterfaceMock) GetMinedTransactionsForBlock(ctx context.Context, blockAndSource *blocktx_api.BlockAndSource) (*blocktx_api.MinedTransactions, error) {
-	if mock.GetMinedTransactionsForBlockFunc == nil {
-		panic("InterfaceMock.GetMinedTransactionsForBlockFunc: method is nil but Interface.GetMinedTransactionsForBlock was just called")
-	}
-	callInfo := struct {
-		Ctx            context.Context
-		BlockAndSource *blocktx_api.BlockAndSource
-	}{
-		Ctx:            ctx,
-		BlockAndSource: blockAndSource,
-	}
-	mock.lockGetMinedTransactionsForBlock.Lock()
-	mock.calls.GetMinedTransactionsForBlock = append(mock.calls.GetMinedTransactionsForBlock, callInfo)
-	mock.lockGetMinedTransactionsForBlock.Unlock()
-	return mock.GetMinedTransactionsForBlockFunc(ctx, blockAndSource)
-}
-
-// GetMinedTransactionsForBlockCalls gets all the calls that were made to GetMinedTransactionsForBlock.
-// Check the length with:
-//
-//	len(mockedInterface.GetMinedTransactionsForBlockCalls())
-func (mock *InterfaceMock) GetMinedTransactionsForBlockCalls() []struct {
-	Ctx            context.Context
-	BlockAndSource *blocktx_api.BlockAndSource
-} {
-	var calls []struct {
-		Ctx            context.Context
-		BlockAndSource *blocktx_api.BlockAndSource
-	}
-	mock.lockGetMinedTransactionsForBlock.RLock()
-	calls = mock.calls.GetMinedTransactionsForBlock
-	mock.lockGetMinedTransactionsForBlock.RUnlock()
 	return calls
 }
 
@@ -663,42 +489,6 @@ func (mock *InterfaceMock) MarkBlockAsDoneCalls() []struct {
 	return calls
 }
 
-// OrphanHeight calls OrphanHeightFunc.
-func (mock *InterfaceMock) OrphanHeight(ctx context.Context, height uint64) error {
-	if mock.OrphanHeightFunc == nil {
-		panic("InterfaceMock.OrphanHeightFunc: method is nil but Interface.OrphanHeight was just called")
-	}
-	callInfo := struct {
-		Ctx    context.Context
-		Height uint64
-	}{
-		Ctx:    ctx,
-		Height: height,
-	}
-	mock.lockOrphanHeight.Lock()
-	mock.calls.OrphanHeight = append(mock.calls.OrphanHeight, callInfo)
-	mock.lockOrphanHeight.Unlock()
-	return mock.OrphanHeightFunc(ctx, height)
-}
-
-// OrphanHeightCalls gets all the calls that were made to OrphanHeight.
-// Check the length with:
-//
-//	len(mockedInterface.OrphanHeightCalls())
-func (mock *InterfaceMock) OrphanHeightCalls() []struct {
-	Ctx    context.Context
-	Height uint64
-} {
-	var calls []struct {
-		Ctx    context.Context
-		Height uint64
-	}
-	mock.lockOrphanHeight.RLock()
-	calls = mock.calls.OrphanHeight
-	mock.lockOrphanHeight.RUnlock()
-	return calls
-}
-
 // PrimaryBlocktx calls PrimaryBlocktxFunc.
 func (mock *InterfaceMock) PrimaryBlocktx(ctx context.Context) (string, error) {
 	if mock.PrimaryBlocktxFunc == nil {
@@ -764,46 +554,6 @@ func (mock *InterfaceMock) RegisterTransactionCalls() []struct {
 	mock.lockRegisterTransaction.RLock()
 	calls = mock.calls.RegisterTransaction
 	mock.lockRegisterTransaction.RUnlock()
-	return calls
-}
-
-// SetOrphanHeight calls SetOrphanHeightFunc.
-func (mock *InterfaceMock) SetOrphanHeight(ctx context.Context, height uint64, orphaned bool) error {
-	if mock.SetOrphanHeightFunc == nil {
-		panic("InterfaceMock.SetOrphanHeightFunc: method is nil but Interface.SetOrphanHeight was just called")
-	}
-	callInfo := struct {
-		Ctx      context.Context
-		Height   uint64
-		Orphaned bool
-	}{
-		Ctx:      ctx,
-		Height:   height,
-		Orphaned: orphaned,
-	}
-	mock.lockSetOrphanHeight.Lock()
-	mock.calls.SetOrphanHeight = append(mock.calls.SetOrphanHeight, callInfo)
-	mock.lockSetOrphanHeight.Unlock()
-	return mock.SetOrphanHeightFunc(ctx, height, orphaned)
-}
-
-// SetOrphanHeightCalls gets all the calls that were made to SetOrphanHeight.
-// Check the length with:
-//
-//	len(mockedInterface.SetOrphanHeightCalls())
-func (mock *InterfaceMock) SetOrphanHeightCalls() []struct {
-	Ctx      context.Context
-	Height   uint64
-	Orphaned bool
-} {
-	var calls []struct {
-		Ctx      context.Context
-		Height   uint64
-		Orphaned bool
-	}
-	mock.lockSetOrphanHeight.RLock()
-	calls = mock.calls.SetOrphanHeight
-	mock.lockSetOrphanHeight.RUnlock()
 	return calls
 }
 

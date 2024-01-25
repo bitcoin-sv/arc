@@ -359,6 +359,8 @@ Host: tapi.taal.com
 Content-Type: text/plain
 Accept: application/json
 X-CallbackUrl: string
+X-FullStatusUpdates: true
+X-MaxTimeout: 0
 X-SkipFeeValidation: true
 X-SkipScriptValidation: true
 X-SkipTxValidation: true
@@ -374,6 +376,8 @@ const headers = {
   'Content-Type':'text/plain',
   'Accept':'application/json',
   'X-CallbackUrl':'string',
+  'X-FullStatusUpdates':'true',
+  'X-MaxTimeout':'0',
   'X-SkipFeeValidation':'true',
   'X-SkipScriptValidation':'true',
   'X-SkipTxValidation':'true',
@@ -428,6 +432,8 @@ func main() {
         "Content-Type": []string{"text/plain"},
         "Accept": []string{"application/json"},
         "X-CallbackUrl": []string{"string"},
+        "X-FullStatusUpdates": []string{"true"},
+        "X-MaxTimeout": []string{"0"},
         "X-SkipFeeValidation": []string{"true"},
         "X-SkipScriptValidation": []string{"true"},
         "X-SkipTxValidation": []string{"true"},
@@ -456,6 +462,8 @@ headers = {
   'Content-Type' => 'text/plain',
   'Accept' => 'application/json',
   'X-CallbackUrl' => 'string',
+  'X-FullStatusUpdates' => 'true',
+  'X-MaxTimeout' => '0',
   'X-SkipFeeValidation' => 'true',
   'X-SkipScriptValidation' => 'true',
   'X-SkipTxValidation' => 'true',
@@ -479,6 +487,8 @@ headers = {
   'Content-Type': 'text/plain',
   'Accept': 'application/json',
   'X-CallbackUrl': 'string',
+  'X-FullStatusUpdates': 'true',
+  'X-MaxTimeout': '0',
   'X-SkipFeeValidation': 'true',
   'X-SkipScriptValidation': 'true',
   'X-SkipTxValidation': 'true',
@@ -500,6 +510,8 @@ curl -X POST https://tapi.taal.com/arc/v1/tx \
   -H 'Content-Type: text/plain' \
   -H 'Accept: application/json' \
   -H 'X-CallbackUrl: string' \
+  -H 'X-FullStatusUpdates: true' \
+  -H 'X-MaxTimeout: 0' \
   -H 'X-SkipFeeValidation: true' \
   -H 'X-SkipScriptValidation: true' \
   -H 'X-SkipTxValidation: true' \
@@ -535,6 +547,8 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |Name|In|Type|Required|Description|
 |---|---|---|---|---|
 |X-CallbackUrl|header|string|false|Default double spend and merkle proof notification callback endpoint.|
+|X-FullStatusUpdates|header|boolean|false|Whether we should have full status updates in callback or not (including SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK statuses).|
+|X-MaxTimeout|header|integer|false|Timeout in seconds to wait for new transaction status before request expires (max 30 seconds, default 5)|
 |X-SkipFeeValidation|header|boolean|false|Whether we should skip fee validation or not.|
 |X-SkipScriptValidation|header|boolean|false|Whether we should skip script validation or not.|
 |X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
@@ -634,6 +648,8 @@ Host: tapi.taal.com
 Content-Type: text/plain
 Accept: application/json
 X-CallbackUrl: string
+X-FullStatusUpdates: true
+X-MaxTimeout: 0
 X-SkipFeeValidation: true
 X-SkipScriptValidation: true
 X-SkipTxValidation: true
@@ -650,6 +666,8 @@ const headers = {
   'Content-Type':'text/plain',
   'Accept':'application/json',
   'X-CallbackUrl':'string',
+  'X-FullStatusUpdates':'true',
+  'X-MaxTimeout':'0',
   'X-SkipFeeValidation':'true',
   'X-SkipScriptValidation':'true',
   'X-SkipTxValidation':'true',
@@ -704,6 +722,8 @@ func main() {
         "Content-Type": []string{"text/plain"},
         "Accept": []string{"application/json"},
         "X-CallbackUrl": []string{"string"},
+        "X-FullStatusUpdates": []string{"true"},
+        "X-MaxTimeout": []string{"0"},
         "X-SkipFeeValidation": []string{"true"},
         "X-SkipScriptValidation": []string{"true"},
         "X-SkipTxValidation": []string{"true"},
@@ -732,6 +752,8 @@ headers = {
   'Content-Type' => 'text/plain',
   'Accept' => 'application/json',
   'X-CallbackUrl' => 'string',
+  'X-FullStatusUpdates' => 'true',
+  'X-MaxTimeout' => '0',
   'X-SkipFeeValidation' => 'true',
   'X-SkipScriptValidation' => 'true',
   'X-SkipTxValidation' => 'true',
@@ -755,6 +777,8 @@ headers = {
   'Content-Type': 'text/plain',
   'Accept': 'application/json',
   'X-CallbackUrl': 'string',
+  'X-FullStatusUpdates': 'true',
+  'X-MaxTimeout': '0',
   'X-SkipFeeValidation': 'true',
   'X-SkipScriptValidation': 'true',
   'X-SkipTxValidation': 'true',
@@ -776,6 +800,8 @@ curl -X POST https://tapi.taal.com/arc/v1/txs \
   -H 'Content-Type: text/plain' \
   -H 'Accept: application/json' \
   -H 'X-CallbackUrl: string' \
+  -H 'X-FullStatusUpdates: true' \
+  -H 'X-MaxTimeout: 0' \
   -H 'X-SkipFeeValidation: true' \
   -H 'X-SkipScriptValidation: true' \
   -H 'X-SkipTxValidation: true' \
@@ -815,6 +841,8 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 |Name|In|Type|Required|Description|
 |---|---|---|---|---|
 |X-CallbackUrl|header|string|false|Default double spend and merkle proof notification callback endpoint.|
+|X-FullStatusUpdates|header|boolean|false|Whether we should have full status updates in callback or not (including SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK statuses).|
+|X-MaxTimeout|header|integer|false|Timeout in seconds to wait for new transaction status before request expires (max 30 seconds, default 5)|
 |X-SkipFeeValidation|header|boolean|false|Whether we should skip fee validation or not.|
 |X-SkipScriptValidation|header|boolean|false|Whether we should skip script validation or not.|
 |X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|

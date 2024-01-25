@@ -51,6 +51,7 @@ Callbacker is a very simple microservice that is responsible for sending callbac
 been accepted by the Bitcoin network. To register a callback, the client must add the `X-CallbackUrl` header to the
 request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
 the body. In case the client wants to receive all the intermediate status updates (SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK) about the transaction `X-FullStatusUpdates` header needs to be set to `true`. See the [API documentation](/arc/api.html) for more information.
+`X-MaxTimeout` header determines maximum number of seconds to wait for transaction new statuses before request expires (default 5sec, max value 30s)
 
 ## Extended format
 

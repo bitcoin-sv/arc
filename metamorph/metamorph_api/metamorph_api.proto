@@ -62,6 +62,7 @@ message TransactionRequest {
   bytes raw_tx = 8;
   Status wait_for_status = 9;
   bool full_status_updates = 10;
+  int64 max_timeout = 11;
 }
 
 // swagger:model TransactionRequests

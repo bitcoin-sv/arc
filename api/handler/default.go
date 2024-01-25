@@ -25,6 +25,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	maxTimeout = 30
+)
+
 type ArcDefaultHandler struct {
 	TransactionHandler transaction_handler.TransactionHandler
 	NodePolicy         *bitcoin.Settings
@@ -393,6 +397,18 @@ func getTransactionsOptions(params api.POSTTransactionsParams) (*api.Transaction
 	}
 	if params.XSkipTxValidation != nil {
 		transactionOptions.SkipTxValidation = *params.XSkipTxValidation
+	}
+
+	if params.XMaxTimeout != nil {
+		if *params.XMaxTimeout > maxTimeout {
+			return nil, fmt.Errorf("max timeout %d can not be higher than %d", *params.XMaxTimeout, maxTimeout)
+		}
+
+		transactionOptions.MaxTimeout = *params.XMaxTimeout
+	}
+
+	if params.XFullStatusUpdates != nil {
+		transactionOptions.FullStatusUpdates = *params.XFullStatusUpdates
 	}
 
 	return transactionOptions, nil

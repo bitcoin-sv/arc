@@ -39,8 +39,13 @@ const (
 	failedToUpdateStatus       = "Failed to update status"
 	dataRetentionPeriodDefault = 14 * 24 * time.Hour // 14 days
 
-	maxMonitoriedTxs = 100000
-	loadUnminedLimit = int64(5000)
+	maxMonitoriedTxs          = 100000
+	loadUnminedLimit          = int64(5000)
+	minimumHealthyConnections = 2
+)
+
+var (
+	ErrUnhealthy = errors.New("processor has less than 2 healthy peer connections")
 )
 
 type Processor struct {
@@ -198,6 +203,10 @@ func (p *Processor) checkIfMined(transactions *blocktx_api.Transactions) {
 	blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
 	if err != nil {
 		p.logger.Error("failed to get transaction blocks from blocktx", slog.String("err", err.Error()))
+		return
+	}
+
+	if len(blockTransactions.GetTransactionBlocks()) == 0 {
 		return
 	}
 
@@ -572,9 +581,16 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 }
 
 func (p *Processor) Health() error {
-	connected, _ := p.GetPeers()
-	if len(connected) == 0 {
-		return errors.New("no connection to any peers")
+	healthyConnections := 0
+
+	for _, peer := range p.pm.GetPeers() {
+		if peer.Connected() && peer.IsHealthy() {
+			healthyConnections++
+		}
+	}
+
+	if healthyConnections < minimumHealthyConnections {
+		return ErrUnhealthy
 	}
 
 	return nil

@@ -5,7 +5,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/handler"
-	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/api/transaction_handler"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 )
@@ -19,7 +19,7 @@ type CustomHandler struct {
 
 func NewCustomHandler() (api.ServerInterface, error) {
 	// add a single bitcoin node
-	node, err := transactionHandler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
+	node, err := transaction_handler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
 	if err != nil {
 		return nil, err
 	}

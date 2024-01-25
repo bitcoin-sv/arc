@@ -7,7 +7,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/api"
 	apiHandler "github.com/bitcoin-sv/arc/api/handler"
-	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/api/transaction_handler"
 	"github.com/labstack/echo/v4"
 )
 
@@ -17,7 +17,7 @@ func main() {
 	e := echo.New()
 
 	// add a single bitcoin node
-	txHandler, err := transactionHandler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
+	txHandler, err := transaction_handler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
 	if err != nil {
 		panic(err)
 	}

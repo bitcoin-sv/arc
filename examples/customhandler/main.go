@@ -58,7 +58,7 @@ func main() {
 
 	//
 	// initialise our Custom arc handler
-	// which also initialises the transactionHandler and datastore etc.
+	// which also initialises the transaction_handler and datastore etc.
 	//
 	apiHandler, err := NewCustomHandler()
 	if err != nil {

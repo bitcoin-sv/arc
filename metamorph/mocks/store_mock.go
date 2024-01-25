@@ -22,7 +22,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //
 //		// make and configure a mocked store.MetamorphStore
 //		mockedMetamorphStore := &MetamorphStoreMock{
-//			ClearDataFunc: func(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+//			ClearDataFunc: func(ctx context.Context, retentionDays int32) (int64, error) {
 //				panic("mock out the ClearData method")
 //			},
 //			CloseFunc: func(ctx context.Context) error {
@@ -55,7 +55,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
 //				panic("mock out the SetUnlocked method")
 //			},
-//			SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int, error) {
+//			SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
 //				panic("mock out the SetUnlockedByName method")
 //			},
 //			UpdateMinedFunc: func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
@@ -72,7 +72,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //	}
 type MetamorphStoreMock struct {
 	// ClearDataFunc mocks the ClearData method.
-	ClearDataFunc func(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error)
+	ClearDataFunc func(ctx context.Context, retentionDays int32) (int64, error)
 
 	// CloseFunc mocks the Close method.
 	CloseFunc func(ctx context.Context) error
@@ -105,7 +105,7 @@ type MetamorphStoreMock struct {
 	SetUnlockedFunc func(ctx context.Context, hashes []*chainhash.Hash) error
 
 	// SetUnlockedByNameFunc mocks the SetUnlockedByName method.
-	SetUnlockedByNameFunc func(ctx context.Context, lockedBy string) (int, error)
+	SetUnlockedByNameFunc func(ctx context.Context, lockedBy string) (int64, error)
 
 	// UpdateMinedFunc mocks the UpdateMined method.
 	UpdateMinedFunc func(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error
@@ -239,7 +239,7 @@ type MetamorphStoreMock struct {
 }
 
 // ClearData calls ClearDataFunc.
-func (mock *MetamorphStoreMock) ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+func (mock *MetamorphStoreMock) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
 	if mock.ClearDataFunc == nil {
 		panic("MetamorphStoreMock.ClearDataFunc: method is nil but MetamorphStore.ClearData was just called")
 	}
@@ -635,7 +635,7 @@ func (mock *MetamorphStoreMock) SetUnlockedCalls() []struct {
 }
 
 // SetUnlockedByName calls SetUnlockedByNameFunc.
-func (mock *MetamorphStoreMock) SetUnlockedByName(ctx context.Context, lockedBy string) (int, error) {
+func (mock *MetamorphStoreMock) SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error) {
 	if mock.SetUnlockedByNameFunc == nil {
 		panic("MetamorphStoreMock.SetUnlockedByNameFunc: method is nil but MetamorphStore.SetUnlockedByName was just called")
 	}

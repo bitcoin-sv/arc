@@ -195,11 +195,11 @@ func TestDynamoDBIntegration(t *testing.T) {
 
 	t.Run("set unlocked by name", func(t *testing.T) {
 		results, err := repo.SetUnlockedByName(ctx, "this-does-not-exist")
-		require.Equal(t, 0, results)
+		require.Equal(t, int64(0), results)
 		require.NoError(t, err)
 
 		results, err = repo.SetUnlockedByName(ctx, hostname)
-		require.Equal(t, 2, results)
+		require.Equal(t, int64(2), results)
 		require.NoError(t, err)
 
 		returnedData, err := repo.Get(ctx, TX1Hash[:])

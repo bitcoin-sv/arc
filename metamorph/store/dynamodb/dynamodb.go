@@ -332,7 +332,7 @@ func (ddb *DynamoDB) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) 
 }
 
 // SetUnlockedByName sets all items to unlocked which were locked by a name
-func (ddb *DynamoDB) SetUnlockedByName(ctx context.Context, lockedBy string) (int, error) {
+func (ddb *DynamoDB) SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error) {
 	// setup log and tracing
 	startNanos := ddb.now().UnixNano()
 	defer func() {
@@ -355,7 +355,7 @@ func (ddb *DynamoDB) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 		return 0, err
 	}
 
-	numberOfUpdated := 0
+	numberOfUpdated := int64(0)
 
 	for _, item := range out.Items {
 		var transaction store.StoreData
@@ -683,7 +683,7 @@ func (ddb *DynamoDB) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (p *DynamoDB) ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+func (p *DynamoDB) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
 	// Implementation not needed as clearing data handled by TTL-feature
-	return nil, nil
+	return 0, nil
 }

@@ -19,12 +19,12 @@ const (
 )
 
 func StartBackGroundWorker(logger *slog.Logger) (func(), error) {
-	shutdownBlocktxScheduler, err := startBlocktxScheduler(logger)
+	shutdownBlocktxScheduler, err := startBlocktxScheduler(logger.With("service", "background-worker"))
 	if err != nil {
 		return nil, err
 	}
 
-	shutdownMetamorphScheduler, err := startMetamorphScheduler(logger)
+	shutdownMetamorphScheduler, err := startMetamorphScheduler(logger.With("service", "background-worker"))
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,6 @@ func StartBackGroundWorker(logger *slog.Logger) (func(), error) {
 }
 
 func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
-	logger.With("service", "background-worker")
 
 	metamorphAddress, err := config.GetString("metamorph.dialAddr")
 	if err != nil {

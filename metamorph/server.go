@@ -40,7 +40,6 @@ func init() {
 const (
 	responseTimeout = 5 * time.Second
 	blocktxTimeout  = 1 * time.Second
-	maxTimeout      = 30
 )
 
 type BitcoinNode interface {
@@ -310,7 +309,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeDuration := s.timeout
-	if timeoutSeconds > 0 && timeoutSeconds < maxTimeout {
+	if timeoutSeconds > 0 {
 		timeDuration = time.Second * time.Duration(timeoutSeconds)
 	}
 

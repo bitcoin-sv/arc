@@ -879,9 +879,9 @@ components:
       name: X-MaxTimeout
       in: header
       description: >-
-        Timeout to wait for new transaction status before request expires (max 30 seconds, default 5)
+        Timeout in seconds to wait for new transaction status before request expires (max 30 seconds, default 5)
       schema:
-        type: boolean
+        type: integer
     skipScriptValidation:
       name: X-SkipScriptValidation
       in: header

@@ -22,6 +22,8 @@ type TransactionOptions struct {
 	SkipTxValidation     bool                 `json:"X-SkipTxValidation,omitempty"`
 	MerkleProof          bool                 `json:"merkle_proof,omitempty"`
 	WaitForStatus        metamorph_api.Status `json:"wait_for_status,omitempty"`
+	FullStatusUpdates    bool                 `json:"full_status_updates,omitempty"`
+	MaxTimeout           int                  `json:"max_timeout,omitempty"`
 }
 
 type JWTCustomClaims struct {

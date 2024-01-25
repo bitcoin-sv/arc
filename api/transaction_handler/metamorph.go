@@ -3,6 +3,7 @@ package transaction_handler
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	arc "github.com/bitcoin-sv/arc/api"
@@ -70,7 +71,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 	tx, err = m.Client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
 	})
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "key could not be found") {
 		return nil, err
 	}
 

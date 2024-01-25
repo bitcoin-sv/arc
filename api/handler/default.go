@@ -606,7 +606,6 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, subm
 func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string) ([]byte, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "ArcDefaultHandler:getTransaction")
 	defer span.Finish()
-
 	// get from our transaction handler
 	txBytes, _ := m.TransactionHandler.GetTransaction(ctx, inputTxID)
 	// ignore error, we try other options if we don't find it

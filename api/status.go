@@ -85,7 +85,7 @@ func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {
 	default:
 		errFields.Status = int(ErrStatusGeneric)
 		errFields.Detail = "Transaction could not be processed"
-		errFields.Title = "Generic error"
+		errFields.Title = "Not found"
 		errFields.Type = arcDocServerErrorsUrl + strconv.Itoa(int(ErrStatusGeneric))
 	}
 

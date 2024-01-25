@@ -832,3 +832,57 @@ func TestProcessExpiredTransactions(t *testing.T) {
 		})
 	}
 }
+
+func TestProcessorHealth(t *testing.T) {
+	tt := []struct {
+		name       string
+		peersAdded int
+
+		expectedErr error
+	}{
+		{
+			name:       "3 healthy peers",
+			peersAdded: 3,
+		},
+		{
+			name:       "1 healthy peer",
+			peersAdded: 1,
+
+			expectedErr: ErrUnhealthy,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{Hash: testdata.TX2Hash}, nil
+				},
+				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
+				},
+			}
+			pm := p2p.NewPeerManagerMock()
+
+			for i := 0; i < tc.peersAdded; i++ {
+				err := pm.AddPeer(&p2p.PeerMock{})
+				require.NoError(t, err)
+			}
+
+			processor, err := NewProcessor(metamorphStore, pm, nil,
+				WithProcessCheckIfMinedInterval(time.Hour),
+				WithProcessExpiredTxsInterval(time.Millisecond*20),
+				WithNow(func() time.Time {
+					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
+				}),
+			)
+			require.NoError(t, err)
+			defer processor.Shutdown()
+
+			err = processor.Health()
+
+			require.ErrorIs(t, err, tc.expectedErr)
+		})
+	}
+}

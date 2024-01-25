@@ -4,26 +4,26 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/api/transaction_handler"
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/k8s_watcher"
 	"github.com/bitcoin-sv/arc/k8s_watcher/k8s_client"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/spf13/viper"
 )
 
 func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 	logger.With(slog.String("service", "k8s-watcher"))
-	metamorphAddress := viper.GetString("metamorph.dialAddr")
-	if metamorphAddress == "" {
-		return nil, fmt.Errorf("metamorph.dialAddr not found in config")
+
+	metamorphAddress, err := config.GetString("metamorph.dialAddr")
+	if err != nil {
+		return nil, err
+	}
+	grpcMessageSize, err := config.GetInt("grpcMessageSize")
+	if err != nil {
+		return nil, err
 	}
 
-	grpcMessageSize := viper.GetInt("grpcMessageSize")
-	if grpcMessageSize == 0 {
-		return nil, fmt.Errorf("grpcMessageSize not found in config")
-	}
-
-	metamorphConn, err := transactionHandler.DialGRPC(metamorphAddress, grpcMessageSize)
+	metamorphConn, err := transaction_handler.DialGRPC(metamorphAddress, grpcMessageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connection to metamorph with address %s: %v", metamorphAddress, err)
 	}
@@ -35,9 +35,9 @@ func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to get k8s-client: %v", err)
 	}
 
-	namespace := viper.GetString("k8sWatcher.namespace")
-	if namespace == "" {
-		return nil, fmt.Errorf("k8sWatcher.namespace not found in config")
+	namespace, err := config.GetString("k8sWatcher.namespace")
+	if err != nil {
+		return nil, err
 	}
 
 	k8sWatcher := k8s_watcher.New(metamorphClient, k8sClient, namespace, k8s_watcher.WithLogger(logger))

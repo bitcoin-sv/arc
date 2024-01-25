@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// ClientI is the interface for the callbacker transactionHandler.
+// ClientI is the interface for the callbacker transaction_handler.
 type ClientI interface {
 	RegisterCallback(ctx context.Context, callback *callbacker_api.Callback) error
 }

@@ -1,4 +1,4 @@
-package transactionHandler
+package transaction_handler
 
 import (
 	"context"
@@ -15,7 +15,6 @@ var (
 	ErrParentTransactionNotFound = errors.New("parent transaction not found")
 )
 
-//go:generate moq -pkg test -out ../test/transactionHandler_mock.go . TransactionHandler
 type TransactionHandler interface {
 	GetTransaction(ctx context.Context, txID string) ([]byte, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)

@@ -244,7 +244,6 @@ func TestProcessTransaction(t *testing.T) {
 			storeDataGetErr: store.ErrNotFound,
 
 			expectedResponses: []metamorph_api.Status{
-				metamorph_api.Status_RECEIVED,
 				metamorph_api.Status_STORED,
 				metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			},

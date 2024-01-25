@@ -11,7 +11,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/dictionary"
-	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/api/transaction_handler"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
@@ -71,7 +71,7 @@ func getTransactionFromNode(ctx context.Context, inputTxID string) ([]byte, erro
 		return txBytes, nil
 	}
 
-	return nil, transactionHandler.ErrParentTransactionNotFound
+	return nil, transaction_handler.ErrParentTransactionNotFound
 }
 
 func getTransactionFromWhatsOnChain(ctx context.Context, inputTxID string) ([]byte, error) {
@@ -101,7 +101,7 @@ func getTransactionFromWhatsOnChain(ctx context.Context, inputTxID string) ([]by
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, transactionHandler.ErrParentTransactionNotFound
+		return nil, transaction_handler.ErrParentTransactionNotFound
 	}
 
 	var txHexBytes []byte
@@ -121,7 +121,7 @@ func getTransactionFromWhatsOnChain(ctx context.Context, inputTxID string) ([]by
 		return txBytes, nil
 	}
 
-	return nil, transactionHandler.ErrParentTransactionNotFound
+	return nil, transaction_handler.ErrParentTransactionNotFound
 }
 
 // To returns a pointer to the given value.

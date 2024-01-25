@@ -201,6 +201,10 @@ func (p *Processor) checkIfMined(transactions *blocktx_api.Transactions) {
 		return
 	}
 
+	if len(blockTransactions.GetTransactionBlocks()) == 0 {
+		return
+	}
+
 	p.logger.Info("found blocks for transactions", slog.Int("number", len(blockTransactions.GetTransactionBlocks())))
 
 	for _, blockTxs := range blockTransactions.GetTransactionBlocks() {

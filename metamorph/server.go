@@ -314,7 +314,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeDuration := s.timeout
-	if timeout != 0 || timeout < maxTimeout {
+	if timeout != 0 && timeout < maxTimeout {
 		timeDuration = time.Duration(int64(time.Second) * timeout)
 	}
 	t := time.NewTimer(timeDuration)

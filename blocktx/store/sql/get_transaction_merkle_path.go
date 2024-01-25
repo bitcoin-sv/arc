@@ -3,11 +3,11 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/gocore"
-	"github.com/pkg/errors"
 )
 
 // GetTransactionMerklePath returns the merkle path of a transaction.

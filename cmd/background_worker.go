@@ -5,11 +5,11 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/bitcoin-sv/arc/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/background_worker"
 	"github.com/bitcoin-sv/arc/background_worker/jobs"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/dbconn"
+	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/go-co-op/gocron"
 )
@@ -46,7 +46,7 @@ func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	metamorphConn, err := transaction_handler.DialGRPC(metamorphAddress, grpcMessageSize)
+	metamorphConn, err := metamorph.DialGRPC(metamorphAddress, grpcMessageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connection to metamorph with address %s: %v", metamorphAddress, err)
 	}

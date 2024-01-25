@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/ordishs/go-utils"
 )
@@ -18,6 +17,17 @@ const (
 	CallbackTries           = 5
 	CallbackIntervalSeconds = 5
 )
+
+// Callback defines model for Callback.
+type Callback struct {
+	BlockHash   *string   `json:"blockHash,omitempty"`
+	BlockHeight *uint64   `json:"blockHeight,omitempty"`
+	ExtraInfo   *string   `json:"extraInfo"`
+	MerklePath  *string   `json:"merklePath"`
+	Timestamp   time.Time `json:"timestamp"`
+	TxStatus    *string   `json:"txStatus,omitempty"`
+	Txid        string    `json:"txid"`
+}
 
 func SendCallback(logger *slog.Logger, tx *store.StoreData, merklePath string) {
 	sleepDuration := CallbackIntervalSeconds
@@ -31,7 +41,7 @@ func SendCallback(logger *slog.Logger, tx *store.StoreData, merklePath string) {
 
 		logger.Info("Sending callback for transaction", slog.String("hash", tx.Hash.String()), slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("status", statusString), slog.Uint64("block height", tx.BlockHeight), slog.String("block hash", blockHash))
 
-		status := &api.TransactionStatus{
+		status := &Callback{
 			BlockHash:   &blockHash,
 			BlockHeight: &tx.BlockHeight,
 			TxStatus:    &statusString,

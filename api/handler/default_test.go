@@ -18,7 +18,8 @@ import (
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/handler/mock"
-	"github.com/bitcoin-sv/arc/api/transaction_handler"
+	"github.com/bitcoin-sv/arc/lib"
+	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/validator"
 	"github.com/labstack/echo/v4"
@@ -76,7 +77,7 @@ var (
 	testLogger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 )
 
-//go:generate moq -pkg mock -out ./mock/transaction_handler_mock.go ../transaction_handler/ TransactionHandler
+//go:generate moq -pkg mock -out ./mock/transaction_handler_mock.go ../../metamorph/ TransactionHandler
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {
@@ -117,7 +118,7 @@ func TestGETPolicy(t *testing.T) {
 func TestGETTransactionStatus(t *testing.T) {
 	tt := []struct {
 		name                 string
-		txHandlerStatusFound *transaction_handler.TransactionStatus
+		txHandlerStatusFound *metamorph.TransactionStatus
 		txHandlerErr         error
 
 		expectedStatus   api.StatusCode
@@ -125,7 +126,7 @@ func TestGETTransactionStatus(t *testing.T) {
 	}{
 		{
 			name: "success",
-			txHandlerStatusFound: &transaction_handler.TransactionStatus{
+			txHandlerStatusFound: &metamorph.TransactionStatus{
 				TxID:      "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46",
 				Status:    "SEEN_ON_NETWORK",
 				Timestamp: time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC).Unix(),
@@ -133,18 +134,18 @@ func TestGETTransactionStatus(t *testing.T) {
 
 			expectedStatus: api.StatusOK,
 			expectedResponse: api.TransactionStatus{
-				MerklePath:  PtrTo(""),
-				BlockHeight: PtrTo(uint64(0)),
-				BlockHash:   PtrTo(""),
+				MerklePath:  lib.PtrTo(""),
+				BlockHeight: lib.PtrTo(uint64(0)),
+				BlockHash:   lib.PtrTo(""),
 				Timestamp:   time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC),
-				TxStatus:    PtrTo("SEEN_ON_NETWORK"),
+				TxStatus:    lib.PtrTo("SEEN_ON_NETWORK"),
 				Txid:        "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46",
 			},
 		},
 		{
 			name:                 "error - tx not found",
 			txHandlerStatusFound: nil,
-			txHandlerErr:         transaction_handler.ErrTransactionNotFound,
+			txHandlerErr:         metamorph.ErrTransactionNotFound,
 
 			expectedStatus:   api.ErrStatusNotFound,
 			expectedResponse: *api.NewErrorFields(api.ErrStatusNotFound, "transaction not found"),
@@ -172,7 +173,7 @@ func TestGETTransactionStatus(t *testing.T) {
 			rec, ctx := createEchoGetRequest("/v1/tx/c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
 
 			txHandler := &mock.TransactionHandlerMock{
-				GetTransactionStatusFunc: func(ctx context.Context, txID string) (*transaction_handler.TransactionStatus, error) {
+				GetTransactionStatusFunc: func(ctx context.Context, txID string) (*metamorph.TransactionStatus, error) {
 					return tc.txHandlerStatusFound, tc.txHandlerErr
 				},
 			}
@@ -209,13 +210,13 @@ func TestGETTransactionStatus(t *testing.T) {
 
 func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	errFieldMissingInputs := *api.NewErrorFields(api.ErrStatusTxFormat, "parent transaction not found")
-	errFieldMissingInputs.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
+	errFieldMissingInputs.Txid = lib.PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
 	errFieldSubmitTx := *api.NewErrorFields(api.ErrStatusGeneric, "failed to submit tx")
-	errFieldSubmitTx.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
+	errFieldSubmitTx.Txid = lib.PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
 	errFieldValidation := *api.NewErrorFields(api.ErrStatusFees, "arc error 465: transaction fee of 0 sat is too low - minimum expected fee is 0 sat")
-	errFieldValidation.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
+	errFieldValidation.Txid = lib.PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
 	now := time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC)
 
@@ -224,7 +225,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		contentType      string
 		txHexString      string
 		getTx            []byte
-		submitTxResponse *transaction_handler.TransactionStatus
+		submitTxResponse *metamorph.TransactionStatus
 		submitTxErr      error
 
 		expectedStatus   api.StatusCode
@@ -325,7 +326,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: validExtendedTx,
 			getTx:       inputTxLowFeesBytes,
 
-			submitTxResponse: &transaction_handler.TransactionStatus{
+			submitTxResponse: &metamorph.TransactionStatus{
 				TxID:        validTxID,
 				BlockHash:   "",
 				BlockHeight: 0,
@@ -335,10 +336,10 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 			expectedStatus: 200,
 			expectedResponse: api.TransactionResponse{
-				BlockHash:   PtrTo(""),
-				BlockHeight: PtrTo(uint64(0)),
-				ExtraInfo:   PtrTo(""),
-				MerklePath:  PtrTo(""),
+				BlockHash:   lib.PtrTo(""),
+				BlockHeight: lib.PtrTo(uint64(0)),
+				ExtraInfo:   lib.PtrTo(""),
+				MerklePath:  lib.PtrTo(""),
 				Status:      200,
 				Timestamp:   now,
 				Title:       "OK",
@@ -358,7 +359,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 					return tc.getTx, nil
 				},
 
-				SubmitTransactionFunc: func(ctx context.Context, tx []byte, options *api.TransactionOptions) (*transaction_handler.TransactionStatus, error) {
+				SubmitTransactionFunc: func(ctx context.Context, tx []byte, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 					return tc.submitTxResponse, tc.submitTxErr
 				},
 			}
@@ -422,9 +423,9 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		req.Header.Set(echo.HeaderContentType, echo.MIMETextPlain)
 
 		options := api.POSTTransactionsParams{
-			XCallbackUrl:   PtrTo("callback.example.com"),
-			XCallbackToken: PtrTo("test-token"),
-			XWaitForStatus: PtrTo(4),
+			XCallbackUrl:   lib.PtrTo("callback.example.com"),
+			XCallbackToken: lib.PtrTo("test-token"),
+			XWaitForStatus: lib.PtrTo(4),
 		}
 
 		err = defaultHandler.POSTTransactions(ctx, options)
@@ -487,13 +488,13 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("valid tx - missing inputs", func(t *testing.T) {
 		txHandler := &mock.TransactionHandlerMock{
-			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *api.TransactionOptions) ([]*transaction_handler.TransactionStatus, error) {
-				txStatuses := []*transaction_handler.TransactionStatus{}
+			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+				txStatuses := []*metamorph.TransactionStatus{}
 				return txStatuses, nil
 			},
 
 			GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
-				return nil, transaction_handler.ErrTransactionNotFound
+				return nil, metamorph.ErrTransactionNotFound
 			},
 		}
 		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
@@ -522,7 +523,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("valid tx", func(t *testing.T) {
-		txResult := &transaction_handler.TransactionStatus{
+		txResult := &metamorph.TransactionStatus{
 			TxID:        validTxID,
 			BlockHash:   "",
 			BlockHeight: 0,
@@ -531,8 +532,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mock.TransactionHandlerMock{
-			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *api.TransactionOptions) ([]*transaction_handler.TransactionStatus, error) {
-				txStatuses := []*transaction_handler.TransactionStatus{txResult}
+			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+				txStatuses := []*metamorph.TransactionStatus{txResult}
 				return txStatuses, nil
 			},
 		}
@@ -640,7 +641,7 @@ func TestArcDefaultHandler_extendTransaction(t *testing.T) {
 			name:          "valid normal transaction - missing parent",
 			transaction:   validTx,
 			missingParent: true,
-			err:           transaction_handler.ErrParentTransactionNotFound,
+			err:           metamorph.ErrParentTransactionNotFound,
 		},
 		{
 			name:        "valid normal transaction",
@@ -684,22 +685,22 @@ func TestGetTransactionOptions(t *testing.T) {
 		params api.POSTTransactionParams
 
 		expectedErrorStr string
-		expectedOptions  *api.TransactionOptions
+		expectedOptions  *metamorph.TransactionOptions
 	}{
 		{
 			name:   "no options",
 			params: api.POSTTransactionParams{},
 
-			expectedOptions: &api.TransactionOptions{},
+			expectedOptions: &metamorph.TransactionOptions{},
 		},
 		{
 			name: "valid callback url",
 			params: api.POSTTransactionParams{
-				XCallbackUrl:   PtrTo("http://api.callme.com"),
-				XCallbackToken: PtrTo("1234"),
+				XCallbackUrl:   lib.PtrTo("http://api.callme.com"),
+				XCallbackToken: lib.PtrTo("1234"),
 			},
 
-			expectedOptions: &api.TransactionOptions{
+			expectedOptions: &metamorph.TransactionOptions{
 				CallbackURL:   "http://api.callme.com",
 				CallbackToken: "1234",
 			},
@@ -707,48 +708,68 @@ func TestGetTransactionOptions(t *testing.T) {
 		{
 			name: "invalid callback url",
 			params: api.POSTTransactionParams{
-				XCallbackUrl: PtrTo("api.callme.com"),
+				XCallbackUrl: lib.PtrTo("api.callme.com"),
 			},
 
 			expectedErrorStr: "invalid callback URL",
 		},
 		{
-			name: "wait for status - 1",
+			name: "merkle proof - true",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(1),
+				XMerkleProof: lib.PtrTo("true"),
 			},
 
-			expectedOptions: &api.TransactionOptions{
+			expectedOptions: &metamorph.TransactionOptions{
+				MerkleProof: true,
+			},
+		},
+		{
+			name: "merkle proof - 1",
+			params: api.POSTTransactionParams{
+				XMerkleProof: lib.PtrTo("1"),
+			},
+
+			expectedOptions: &metamorph.TransactionOptions{
+				MerkleProof: true,
+			},
+		},
+		{
+			name: "wait for status - 1",
+			params: api.POSTTransactionParams{
+				XWaitForStatus: lib.PtrTo(1),
+			},
+
+			expectedOptions: &metamorph.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_QUEUED,
 			},
 		},
 		{
 			name: "wait for status - 2",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(2),
+				XWaitForStatus: lib.PtrTo(2),
 			},
 
-			expectedOptions: &api.TransactionOptions{
+			expectedOptions: &metamorph.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 			},
 		},
 		{
 			name: "wait for status - 6",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(6),
+				XWaitForStatus: lib.PtrTo(6),
 			},
 
-			expectedOptions: &api.TransactionOptions{
+			expectedOptions: &metamorph.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
 			},
 		},
 		{
 			name: "wait for status - 7",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(7),
+				XWaitForStatus: lib.PtrTo(7),
 			},
 
-			expectedOptions: &api.TransactionOptions{
+			expectedOptions: &metamorph.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_ACCEPTED_BY_NETWORK,
 			},
 		},
@@ -791,10 +812,10 @@ func Test_handleError(t *testing.T) {
 			expectedStatus: api.ErrStatusGeneric,
 			expectedArcErr: &api.ErrorFields{
 				Detail:    "Transaction could not be processed",
-				ExtraInfo: PtrTo("some error"),
+				ExtraInfo: lib.PtrTo("some error"),
 				Title:     "Generic error",
 				Type:      "https://bitcoin-sv.github.io/arc/#/errors?id=_409",
-				Txid:      PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
+				Txid:      lib.PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
 				Status:    409,
 			},
 		},
@@ -808,24 +829,24 @@ func Test_handleError(t *testing.T) {
 			expectedStatus: api.ErrStatusBadRequest,
 			expectedArcErr: &api.ErrorFields{
 				Detail:    "The request seems to be malformed and cannot be processed",
-				ExtraInfo: PtrTo("arc error 400: validation failed"),
+				ExtraInfo: lib.PtrTo("arc error 400: validation failed"),
 				Title:     "Bad request",
 				Type:      "https://bitcoin-sv.github.io/arc/#/errors?id=_400",
-				Txid:      PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
+				Txid:      lib.PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
 				Status:    400,
 			},
 		},
 		{
 			name:        "parent not found error",
-			submitError: transaction_handler.ErrParentTransactionNotFound,
+			submitError: metamorph.ErrParentTransactionNotFound,
 
 			expectedStatus: api.ErrStatusTxFormat,
 			expectedArcErr: &api.ErrorFields{
 				Detail:    "Transaction is not in extended format, missing input scripts",
-				ExtraInfo: PtrTo("parent transaction not found"),
+				ExtraInfo: lib.PtrTo("parent transaction not found"),
 				Title:     "Not extended format",
 				Type:      "https://bitcoin-sv.github.io/arc/#/errors?id=_460",
-				Txid:      PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
+				Txid:      lib.PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
 				Status:    460,
 			},
 		},

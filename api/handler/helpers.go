@@ -11,13 +11,12 @@ import (
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/dictionary"
-	"github.com/bitcoin-sv/arc/api/transaction_handler"
+	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
-	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
@@ -27,27 +26,27 @@ func getTransactionFromNode(ctx context.Context, inputTxID string) ([]byte, erro
 
 	peerRpcPassword := viper.GetString("peerRpc.password")
 	if peerRpcPassword == "" {
-		return nil, errors.Errorf("setting peerRpc.password not found")
+		return nil, fmt.Errorf("setting peerRpc.password not found")
 	}
 
 	peerRpcUser := viper.GetString("peerRpc.user")
 	if peerRpcUser == "" {
-		return nil, errors.Errorf("setting peerRpc.user not found")
+		return nil, fmt.Errorf("setting peerRpc.user not found")
 	}
 
 	peerRpcHost := viper.GetString("peerRpc.host")
 	if peerRpcHost == "" {
-		return nil, errors.Errorf("setting peerRpc.host not found")
+		return nil, fmt.Errorf("setting peerRpc.host not found")
 	}
 
 	peerRpcPort := viper.GetInt("peerRpc.port")
 	if peerRpcPort == 0 {
-		return nil, errors.Errorf("setting peerRpc.port not found")
+		return nil, fmt.Errorf("setting peerRpc.port not found")
 	}
 
 	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
 	if err != nil {
-		return nil, errors.Errorf("failed to parse rpc URL: %v", err)
+		return nil, fmt.Errorf("failed to parse rpc URL: %v", err)
 	}
 	// get the transaction from the bitcoin node rpc
 	node, err := bitcoin.NewFromURL(rpcURL, false)
@@ -71,7 +70,7 @@ func getTransactionFromNode(ctx context.Context, inputTxID string) ([]byte, erro
 		return txBytes, nil
 	}
 
-	return nil, transaction_handler.ErrParentTransactionNotFound
+	return nil, metamorph.ErrParentTransactionNotFound
 }
 
 func getTransactionFromWhatsOnChain(ctx context.Context, inputTxID string) ([]byte, error) {
@@ -81,7 +80,7 @@ func getTransactionFromWhatsOnChain(ctx context.Context, inputTxID string) ([]by
 	wocApiKey := viper.GetString("api.wocApiKey")
 
 	if wocApiKey == "" {
-		return nil, errors.Errorf("setting wocApiKey not found")
+		return nil, fmt.Errorf("setting wocApiKey not found")
 	}
 
 	wocURL := fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/tx/%s/hex", "main", inputTxID)
@@ -101,7 +100,7 @@ func getTransactionFromWhatsOnChain(ctx context.Context, inputTxID string) ([]by
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, transaction_handler.ErrParentTransactionNotFound
+		return nil, metamorph.ErrParentTransactionNotFound
 	}
 
 	var txHexBytes []byte
@@ -121,12 +120,7 @@ func getTransactionFromWhatsOnChain(ctx context.Context, inputTxID string) ([]by
 		return txBytes, nil
 	}
 
-	return nil, transaction_handler.ErrParentTransactionNotFound
-}
-
-// To returns a pointer to the given value.
-func PtrTo[T any](v T) *T {
-	return &v
+	return nil, metamorph.ErrParentTransactionNotFound
 }
 
 func GetDefaultPolicy() (*bitcoin.Settings, error) {

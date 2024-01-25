@@ -3,9 +3,9 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/ordishs/gocore"
-	"github.com/pkg/errors"
 )
 
 // GetPrimary returns the host name of the blocktx instance which is currently primary

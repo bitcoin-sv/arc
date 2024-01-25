@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/bitcoin-sv/arc/api/transaction_handler"
+	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/spf13/viper"
 )
 
@@ -41,19 +41,19 @@ func main() {
 		panic("Missing grpcMessageSize")
 	}
 
-	txHandler, err := transaction_handler.NewMetamorph(addresses, grpcMessageSize)
+	txHandler, err := metamorph.NewMetamorph(addresses, grpcMessageSize)
 	if err != nil {
 		panic(err)
 	}
 
-	var res *transaction_handler.TransactionStatus
+	var res *metamorph.TransactionStatus
 	res, err = txHandler.GetTransactionStatus(ctx, txid)
 	if err != nil {
 		panic(err)
 	}
 
 	type response struct {
-		*transaction_handler.TransactionStatus
+		*metamorph.TransactionStatus
 		TransactionBytes string    `json:"transactionBytes"`
 		Timestamp        time.Time `json:"timestamp"`
 	}

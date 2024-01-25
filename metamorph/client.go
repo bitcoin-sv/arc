@@ -1,19 +1,43 @@
-package transaction_handler
+package metamorph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	arc "github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+var (
+	// ErrTransactionNotFound is returned when a transaction is not found.
+	ErrTransactionNotFound = errors.New("transaction not found")
+
+	// ErrParentTransactionNotFound is returned when a parent transaction is not found.
+	ErrParentTransactionNotFound = errors.New("parent transaction not found")
+)
+
+type TransactionHandler interface {
+	GetTransaction(ctx context.Context, txID string) ([]byte, error)
+	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
+	SubmitTransaction(ctx context.Context, tx []byte, options *TransactionOptions) (*TransactionStatus, error)
+	SubmitTransactions(ctx context.Context, tx [][]byte, options *TransactionOptions) ([]*TransactionStatus, error)
+}
+// TransactionStatus defines model for TransactionStatus.
+type TransactionStatus struct {
+	TxID        string
+	MerklePath  string
+	BlockHash   string
+	BlockHeight uint64
+	Status      string
+	ExtraInfo   string
+	Timestamp   int64
+}
 
 // Metamorph is the connector to a metamorph server.
 type Metamorph struct {
@@ -72,7 +96,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 	tx, err = m.Client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
 	})
-	if err != nil && !strings.Contains(err.Error(), metamorph.ErrNotFound.Error()) {
+	if err != nil && !strings.Contains(err.Error(), ErrNotFound.Error()) {
 		return nil, err
 	}
 
@@ -91,7 +115,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 }
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
-func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions *arc.TransactionOptions) (*TransactionStatus, error) {
+func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions *TransactionOptions) (*TransactionStatus, error) {
 	response, err := m.Client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
 		RawTx:             tx,
 		CallbackUrl:       txOptions.CallbackURL,
@@ -116,7 +140,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions 
 }
 
 // SubmitTransactions submits transactions to the bitcoin network and returns the transaction in raw format.
-func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOptions *arc.TransactionOptions) ([]*TransactionStatus, error) {
+func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOptions *TransactionOptions) ([]*TransactionStatus, error) {
 	// prepare transaction inputs
 	in := new(metamorph_api.TransactionRequests)
 	in.Transactions = make([]*metamorph_api.TransactionRequest, 0)

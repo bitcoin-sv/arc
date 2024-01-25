@@ -27,6 +27,12 @@ type TransactionHandler interface {
 	SubmitTransaction(ctx context.Context, tx []byte, options *TransactionOptions) (*TransactionStatus, error)
 	SubmitTransactions(ctx context.Context, tx [][]byte, options *TransactionOptions) ([]*TransactionStatus, error)
 }
+
+type TransactionMaintainer interface {
+	ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (int64, error)
+	SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (int64, error)
+}
+
 // TransactionStatus defines model for TransactionStatus.
 type TransactionStatus struct {
 	TxID        string
@@ -173,4 +179,22 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOpti
 	}
 
 	return ret, nil
+}
+
+func (m *Metamorph) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (int64, error) {
+	resp, err := m.Client.ClearData(ctx, req)
+	if err != nil {
+		return 0, err
+	}
+
+	return resp.RecordsAffected, nil
+}
+
+func (m *Metamorph) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (int64, error) {
+	resp, err := m.Client.SetUnlockedByName(ctx, req)
+	if err != nil {
+		return 0, err
+	}
+
+	return resp.RecordsAffected, nil
 }

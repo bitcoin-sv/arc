@@ -3,17 +3,16 @@ package jobs
 import (
 	"context"
 	"errors"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 	"log/slog"
 	"os"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/background_worker/jobs/mock"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/stretchr/testify/require"
 )
 
-//go:generate moq -pkg mock -out ./mock/metamorph_api_client_mock.go ../../metamorph/metamorph_api MetaMorphAPIClient
+//go:generate moq -pkg mock -out ./mock/metamorph_api_client_mock.go ../../metamorph TransactionMaintainer
 func TestClearTransactions(t *testing.T) {
 	tt := []struct {
 		name     string
@@ -35,9 +34,9 @@ func TestClearTransactions(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 
-			client := &mock.MetaMorphAPIClientMock{
-				ClearDataFunc: func(ctx context.Context, in *metamorph_api.ClearDataRequest, opts ...grpc.CallOption) (*metamorph_api.ClearDataResponse, error) {
-					return &metamorph_api.ClearDataResponse{}, tc.clearErr
+			client := &mock.TransactionMaintainerMock{
+				ClearDataFunc: func(ctx context.Context, req *metamorph_api.ClearDataRequest) (int64, error) {
+					return 0, tc.clearErr
 				},
 			}
 

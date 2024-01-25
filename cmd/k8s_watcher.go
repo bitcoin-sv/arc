@@ -8,7 +8,6 @@ import (
 	"github.com/bitcoin-sv/arc/k8s_watcher"
 	"github.com/bitcoin-sv/arc/k8s_watcher/k8s_client"
 	"github.com/bitcoin-sv/arc/metamorph"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 )
 
 func StartK8sWatcher(logger *slog.Logger) (func(), error) {
@@ -18,17 +17,16 @@ func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
+
 	grpcMessageSize, err := config.GetInt("grpcMessageSize")
 	if err != nil {
 		return nil, err
 	}
 
-	metamorphConn, err := metamorph.DialGRPC(metamorphAddress, grpcMessageSize)
+	metamorphClient, err := metamorph.NewMetamorph(metamorphAddress, grpcMessageSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get connection to metamorph with address %s: %v", metamorphAddress, err)
+		return nil, err
 	}
-
-	metamorphClient := metamorph_api.NewMetaMorphAPIClient(metamorphConn)
 
 	k8sClient, err := k8s_client.New()
 	if err != nil {

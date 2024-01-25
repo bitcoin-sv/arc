@@ -111,6 +111,10 @@ func NewServer(s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI, opts .
 	return server
 }
 
+func (s *Server) SetTimeout(timeout time.Duration) {
+	s.timeout = timeout
+}
+
 // StartGRPCServer function
 func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 	// LEVEL 0 - no security / no encryption

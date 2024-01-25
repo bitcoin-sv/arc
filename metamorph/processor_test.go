@@ -630,7 +630,7 @@ func BenchmarkProcessTransaction(b *testing.B) {
 		processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
 			Data: &store.StoreData{
 				Hash:   &txHash,
-				Status: metamorph_api.Status_UNKNOWN,
+				Status: metamorph_api.Status_RECEIVED,
 				RawTx:  testdata.TX1RawBytes,
 			},
 		})

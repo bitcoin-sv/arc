@@ -205,7 +205,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		return nil, err
 	}
 	hash := handler.PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
-	status := metamorph_api.Status_UNKNOWN
+	status := metamorph_api.Status_RECEIVED
 
 	// Convert gRPC req to store.StoreData struct...
 	sReq := &store.StoreData{
@@ -256,7 +256,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			return nil, err
 		}
 
-		status := metamorph_api.Status_UNKNOWN
+		status := metamorph_api.Status_RECEIVED
 		hash := handler.PtrTo(chainhash.DoubleHashH(txReq.GetRawTx()))
 		timeout = txReq.GetMaxTimeout()
 

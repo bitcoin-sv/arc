@@ -456,7 +456,7 @@ func TestPutTransactions(t *testing.T) {
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
 						Txid:     hash0.String(),
-						Status:   metamorph_api.Status_UNKNOWN,
+						Status:   metamorph_api.Status_RECEIVED,
 						TimedOut: true,
 					},
 				},

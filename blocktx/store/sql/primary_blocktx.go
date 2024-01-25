@@ -3,9 +3,9 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/ordishs/gocore"
-	"github.com/pkg/errors"
 )
 
 // GetBlockTransactions returns the transaction hashes for a given block hash.

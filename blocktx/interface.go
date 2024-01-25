@@ -1,6 +1,6 @@
 package blocktx
 
-import "github.com/pkg/errors"
+import "errors"
 
 var (
 	// ErrBlockNotFound is returned when a block is not found.

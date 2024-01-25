@@ -3,6 +3,7 @@ package broadcaster
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"net/url"
@@ -21,7 +22,6 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
-	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
@@ -465,26 +465,26 @@ func (b *Broadcaster) SendToAddress(address string, satoshis uint64) (string, ui
 
 	peerRpcPassword := viper.GetString("peerRpc.password")
 	if peerRpcPassword == "" {
-		return "", 0, "", errors.Errorf("setting peerRpc.password not found")
+		return "", 0, "", fmt.Errorf("setting peerRpc.password not found")
 	}
 
 	peerRpcUser := viper.GetString("peerRpc.user")
 	if peerRpcUser == "" {
-		return "", 0, "", errors.Errorf("setting peerRpc.user not found")
+		return "", 0, "", fmt.Errorf("setting peerRpc.user not found")
 	}
 
 	peerRpcHost := viper.GetString("peerRpc.host")
 	if peerRpcHost == "" {
-		return "", 0, "", errors.Errorf("setting peerRpc.host not found")
+		return "", 0, "", fmt.Errorf("setting peerRpc.host not found")
 	}
 	peerRpcPort := viper.GetInt("peerRpc.port")
 	if peerRpcPort == 0 {
-		return "", 0, "", errors.Errorf("setting peerRpc.port not found")
+		return "", 0, "", fmt.Errorf("setting peerRpc.port not found")
 	}
 
 	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
 	if err != nil {
-		return "", 0, "", errors.Errorf("failed to parse rpc URL: %v", err)
+		return "", 0, "", fmt.Errorf("failed to parse rpc URL: %v", err)
 	}
 
 	// we are only in dry run mode and will not actually send anything

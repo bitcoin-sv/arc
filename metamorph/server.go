@@ -112,10 +112,6 @@ func NewServer(s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI, opts .
 	return server
 }
 
-func (s *Server) SetTimeout(timeout time.Duration) {
-	s.timeout = timeout
-}
-
 // StartGRPCServer function
 func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 	// LEVEL 0 - no security / no encryption
@@ -298,7 +294,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	return resp, nil
 }
 
-func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, timeout int64, TxID string) *metamorph_api.TransactionStatus {
+func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, timeoutSeconds int64, TxID string) *metamorph_api.TransactionStatus {
 	responseChannel := make(chan processor_response.StatusAndError, 1)
 	defer func() {
 		close(responseChannel)
@@ -314,9 +310,10 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeDuration := s.timeout
-	if timeout != 0 || timeout < maxTimeout {
-		timeDuration = time.Duration(int64(time.Second) * timeout)
+	if timeoutSeconds > 0 && timeoutSeconds < maxTimeout {
+		timeDuration = time.Second * time.Duration(timeoutSeconds)
 	}
+
 	t := time.NewTimer(timeDuration)
 	returnedStatus := &metamorph_api.TransactionStatus{Txid: TxID}
 

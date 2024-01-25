@@ -2,7 +2,6 @@ package api
 
 import (
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/golang-jwt/jwt"
 )
 
 // ContextKey type.
@@ -24,17 +23,4 @@ type TransactionOptions struct {
 	WaitForStatus        metamorph_api.Status `json:"wait_for_status,omitempty"`
 	FullStatusUpdates    bool                 `json:"full_status_updates,omitempty"`
 	MaxTimeout           int                  `json:"max_timeout,omitempty"`
-}
-
-type JWTCustomClaims struct {
-	ClientID string `json:"client_id"`
-	Name     string `json:"name"`
-	Admin    bool   `json:"admin"`
-	jwt.StandardClaims
-}
-
-type User struct {
-	ClientID string `json:"client_id"`
-	Name     string `json:"name"`
-	Admin    bool   `json:"admin"`
 }

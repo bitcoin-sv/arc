@@ -156,7 +156,9 @@ func (s *SqLite) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) erro
 	return nil
 }
 
-func (s *SqLite) SetUnlockedByName(ctx context.Context, lockedBy string) (int, error) { return 0, nil }
+func (s *SqLite) SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error) {
+	return 0, nil
+}
 
 // Get implements the MetamorphStore interface. It attempts to get a value for a given key.
 // If the key does not exist an error is returned, otherwise the retrieved value.
@@ -627,7 +629,7 @@ func (s *SqLite) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (p *SqLite) ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+func (p *SqLite) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
 	startNanos := p.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("ClearData").AddTime(startNanos)
@@ -641,13 +643,13 @@ func (p *SqLite) ClearData(ctx context.Context, retentionDays int32) (*metamorph
 
 	res, err := p.db.ExecContext(ctx, "DELETE FROM transactions WHERE stored_at <= $1", deleteBeforeDate)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	rows, err := res.RowsAffected()
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	return &metamorph_api.ClearDataResponse{Rows: rows}, nil
+	return rows, nil
 }

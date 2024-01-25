@@ -467,12 +467,21 @@ func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUn
 	}
 
 	result := &metamorph_api.SetUnlockedByNameResponse{
-		RecordsAffected: int32(recordsAffected),
+		RecordsAffected: recordsAffected,
 	}
 
-	return result, err
+	return result, nil
 }
 
-func (s *Server) ClearData(ctx context.Context, clearData *metamorph_api.ClearDataRequest) (*metamorph_api.ClearDataResponse, error) {
-	return s.store.ClearData(ctx, clearData.RetentionDays)
+func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (*metamorph_api.ClearDataResponse, error) {
+	recordsAffected, err := s.store.ClearData(ctx, req.RetentionDays)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &metamorph_api.ClearDataResponse{
+		RecordsAffected: recordsAffected,
+	}
+
+	return result, nil
 }

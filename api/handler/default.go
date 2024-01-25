@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/validator"
 	defaultValidator "github.com/bitcoin-sv/arc/validator/default"
@@ -30,7 +30,7 @@ const (
 )
 
 type ArcDefaultHandler struct {
-	TransactionHandler transactionHandler.TransactionHandler
+	TransactionHandler transaction_handler.TransactionHandler
 	NodePolicy         *bitcoin.Settings
 	logger             *slog.Logger
 	now                func() time.Time
@@ -44,7 +44,7 @@ func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 
 type Option func(f *ArcDefaultHandler)
 
-func NewDefault(logger *slog.Logger, transactionHandler transactionHandler.TransactionHandler, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
+func NewDefault(logger *slog.Logger, transactionHandler transaction_handler.TransactionHandler, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
 	handler := &ArcDefaultHandler{
 		TransactionHandler: transactionHandler,
 		NodePolicy:         policy,
@@ -185,7 +185,7 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 
 	tx, err := m.getTransactionStatus(tracingCtx, id)
 	if err != nil {
-		if errors.Is(err, transactionHandler.ErrTransactionNotFound) {
+		if errors.Is(err, transaction_handler.ErrTransactionNotFound) {
 			e := api.NewErrorFields(api.ErrStatusNotFound, err.Error())
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
@@ -573,7 +573,7 @@ func (m ArcDefaultHandler) extendTransaction(ctx context.Context, transaction *b
 	return nil
 }
 
-func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) (*transactionHandler.TransactionStatus, error) {
+func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) (*transaction_handler.TransactionStatus, error) {
 	tx, err := m.TransactionHandler.GetTransactionStatus(ctx, id)
 	if err != nil {
 		return nil, err
@@ -593,7 +593,7 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, subm
 	ok := errors.As(submitErr, &validatorErr)
 	if ok {
 		status = validatorErr.ArcErrorStatus
-	} else if errors.Is(submitErr, transactionHandler.ErrParentTransactionNotFound) {
+	} else if errors.Is(submitErr, transaction_handler.ErrParentTransactionNotFound) {
 		status = api.ErrStatusTxFormat
 	}
 
@@ -639,7 +639,7 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 		return txBytes, nil
 	}
 
-	return nil, transactionHandler.ErrParentTransactionNotFound
+	return nil, transaction_handler.ErrParentTransactionNotFound
 }
 
 func getSizings(tx *bt.Tx) (uint64, uint64, uint64) {

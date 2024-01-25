@@ -36,6 +36,7 @@ func (peer *MockedPeer) RequestTransaction(txHash *chainhash.Hash)  {}
 func (peer *MockedPeer) AnnounceBlock(blockHash *chainhash.Hash)    {}
 func (peer *MockedPeer) RequestBlock(blockHash *chainhash.Hash)     {}
 func (peer *MockedPeer) Network() wire.BitcoinNet                   { return 0 }
+func (peer *MockedPeer) IsHealthy() bool                            { return true }
 
 func TestExtractHeight(t *testing.T) {
 	coinbase, _ := hex.DecodeString("01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff570350cc0b041547b5630cfabe6d6d0000000000000000000000000000000000000000000000000000000000000000010000000000000047ed20542096bd0000000000143362663865373833636662643732306431383436000000000140be4025000000001976a914c9b0abe09b7dd8e9d1e8c1e3502d32ab0d7119e488ac00000000")

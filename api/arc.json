@@ -108,6 +108,12 @@
             "$ref": "#/components/parameters/callbackUrl"
           },
           {
+            "$ref": "#/components/parameters/fullStatusUpdates"
+          },
+          {
+            "$ref": "#/components/parameters/maxTimeout"
+          },
+          {
             "$ref": "#/components/parameters/skipFeeValidation"
           },
           {
@@ -309,6 +315,12 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/callbackUrl"
+          },
+          {
+            "$ref": "#/components/parameters/fullStatusUpdates"
+          },
+          {
+            "$ref": "#/components/parameters/maxTimeout"
           },
           {
             "$ref": "#/components/parameters/skipFeeValidation"
@@ -1278,6 +1290,22 @@
         "description": "Whether we should skip fee validation or not.",
         "schema": {
           "type": "boolean"
+        }
+      },
+      "fullStatusUpdates": {
+        "name": "X-FullStatusUpdates",
+        "in": "header",
+        "description": "Whether we should have full status updates in callback or not (including SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK statuses).",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "maxTimeout": {
+        "name": "X-MaxTimeout",
+        "in": "header",
+        "description": "Timeout in seconds to wait for new transaction status before request expires (max 30 seconds, default 5)",
+        "schema": {
+          "type": "integer"
         }
       },
       "skipScriptValidation": {

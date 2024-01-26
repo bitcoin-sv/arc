@@ -516,64 +516,52 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel)
 
-	// STEP 1: RECEIVED
+	// STEP 1: STORED
 	processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-		Status: metamorph_api.Status_RECEIVED,
+		Status: metamorph_api.Status_STORED,
 		Source: "processor",
+		UpdateStore: func() error {
+			req.Data.Status = metamorph_api.Status_STORED
+			return p.store.Set(spanCtx, req.Data.Hash[:], req.Data)
+		},
 		Callback: func(err error) {
 			if err != nil {
-				p.logger.Error("Error received when setting status", slog.String("status", metamorph_api.Status_RECEIVED.String()), slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+				span.SetTag(string(ext.Error), true)
+				p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+				span.LogFields(tracingLog.Error(err))
 				return
 			}
 
-			// STEP 2: STORED
+			// Add this transaction to the map of transactions that we are processing
+			p.ProcessorResponseMap.Set(req.Data.Hash, processorResponse)
+
+			p.stored.AddDuration(time.Since(processorResponse.Start))
+
+			p.logger.Info("announcing transaction", slog.String("hash", req.Data.Hash.String()))
+			// STEP 2: ANNOUNCED_TO_NETWORK
+			peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
+			processorResponse.SetPeers(peers)
+
+			peersStr := make([]string, 0, len(peers))
+			if len(peers) > 0 {
+				for _, peer := range peers {
+					peersStr = append(peersStr, peer.String())
+				}
+			}
+
 			processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-				Status: metamorph_api.Status_STORED,
-				Source: "processor",
+				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+				Source: strings.Join(peersStr, ", "),
 				UpdateStore: func() error {
-					req.Data.Status = metamorph_api.Status_STORED
-					return p.store.Set(spanCtx, req.Data.Hash[:], req.Data)
+					return p.store.UpdateStatus(spanCtx, req.Data.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
 				},
 				Callback: func(err error) {
-					if err != nil {
-						span.SetTag(string(ext.Error), true)
-						p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
-						span.LogFields(tracingLog.Error(err))
-						return
+					duration := time.Since(processorResponse.Start)
+					for _, peerStr := range peersStr {
+						p.announcedToNetwork.AddDuration(peerStr, duration)
 					}
 
-					// Add this transaction to the map of transactions that we are processing
-					p.ProcessorResponseMap.Set(req.Data.Hash, processorResponse)
-
-					p.stored.AddDuration(time.Since(processorResponse.Start))
-
-					p.logger.Info("announcing transaction", slog.String("hash", req.Data.Hash.String()))
-					// STEP 3: ANNOUNCED_TO_NETWORK
-					peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
-					processorResponse.SetPeers(peers)
-
-					peersStr := make([]string, 0, len(peers))
-					if len(peers) > 0 {
-						for _, peer := range peers {
-							peersStr = append(peersStr, peer.String())
-						}
-					}
-
-					processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-						Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-						Source: strings.Join(peersStr, ", "),
-						UpdateStore: func() error {
-							return p.store.UpdateStatus(spanCtx, req.Data.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
-						},
-						Callback: func(err error) {
-							duration := time.Since(processorResponse.Start)
-							for _, peerStr := range peersStr {
-								p.announcedToNetwork.AddDuration(peerStr, duration)
-							}
-
-							gocore.NewStat("processor").AddTime(startNanos)
-						},
-					})
+					gocore.NewStat("processor").AddTime(startNanos)
 				},
 			})
 		},

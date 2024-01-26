@@ -25,7 +25,7 @@ func TestStartGRPCServer(t *testing.T) {
 
 			store := &mock_gen.StoreMock{}
 
-			cb, err := New(store)
+			cb, err := New(store, nil)
 			require.NoError(t, err)
 
 			server := NewServer(logger, cb)

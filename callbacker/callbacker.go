@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/blocktx"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/callbacker/store"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
@@ -24,6 +26,7 @@ const (
 )
 
 type Callbacker struct {
+	btc                   blocktx.ClientI
 	logger                *slog.Logger
 	store                 store.Store
 	ticker                *time.Ticker
@@ -47,12 +50,13 @@ func WithSendCallbacksInterval(d time.Duration) func(callbacker *Callbacker) {
 type Option func(f *Callbacker)
 
 // New creates a new callback worker.
-func New(s store.Store, opts ...Option) (*Callbacker, error) {
+func New(s store.Store, btc blocktx.ClientI, opts ...Option) (*Callbacker, error) {
 	if s == nil {
 		return nil, fmt.Errorf("store is nil")
 	}
 
 	c := &Callbacker{
+		btc:                   btc,
 		store:                 s,
 		logger:                slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "clb")),
 		sendCallbacksInterval: sendCallbacksIntervalDefault,
@@ -153,6 +157,17 @@ func (c *Callbacker) sendCallback(key string, callback *callbacker_api.Callback)
 		Txid:        txId,
 		Timestamp:   time.Now(),
 	}
+
+	// TODO: add X-MerklePath value to *callbacker_api.Callback and in result to BadgerData
+	if callback.BlockHeight > 0 {
+		mp, err := c.btc.GetTransactionMerklePath(context.Background(), &blocktx_api.Transaction{Hash: callback.BlockHash})
+		if err != nil {
+			c.logger.Error("merkle path for tx: %s not found with error: %v", txId, err)
+		}
+
+		status.MerklePath = &mp
+	}
+
 	statusBytes, err := json.Marshal(status)
 	if err != nil {
 		return err

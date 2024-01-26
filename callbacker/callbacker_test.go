@@ -57,7 +57,7 @@ func TestNewCallbacker(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := New(tc.store)
+			_, err := New(tc.store, nil)
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
@@ -121,7 +121,7 @@ func TestCallbacker_AddCallback(t *testing.T) {
 				},
 			}
 
-			cb, err := New(mockStore)
+			cb, err := New(mockStore, nil)
 			require.NoError(t, err)
 
 			var key string
@@ -221,7 +221,7 @@ func TestCallbacker_Start(t *testing.T) {
 				},
 			}
 
-			cb, err := New(store,
+			cb, err := New(store, nil,
 				WithLogger(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))),
 				WithSendCallbacksInterval(time.Millisecond*20),
 			)
@@ -286,7 +286,7 @@ func TestCallbacker_sendCallbacksWithBadgerHold(t *testing.T) {
 			key, err := mockStore.Set(context.Background(), testCallback)
 			require.NoError(t, err)
 
-			cb, err := New(mockStore)
+			cb, err := New(mockStore, nil)
 			require.NoError(t, err)
 
 			time.Sleep(tc.timeToSleep)
@@ -346,7 +346,7 @@ func TestCallbacker_sendCallback(t *testing.T) {
 			key, err := mockStore.Set(context.Background(), testCallback)
 			require.NoError(t, err)
 
-			cb, err := New(mockStore)
+			cb, err := New(mockStore, nil)
 			require.NoError(t, err)
 
 			err = cb.sendCallback(key, testCallback)

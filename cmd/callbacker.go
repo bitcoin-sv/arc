@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/bitcoin-sv/arc/blocktx"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/callbacker"
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/spf13/viper"
 )
 
@@ -26,8 +29,20 @@ func StartCallbacker(logger *slog.Logger) (func(), error) {
 
 	callbackerInterval := viper.GetDuration("callbacker.interval")
 
+	blocktxAddress, err := config.GetString("blocktx.dialAddr")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := blocktx.DialGRPC(blocktxAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
+	}
+
+	btx := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn))
+
 	var callbackWorker *callbacker.Callbacker
-	callbackWorker, err = callbacker.New(callbackStore, callbacker.WithLogger(logger), callbacker.WithSendCallbacksInterval(callbackerInterval))
+	callbackWorker, err = callbacker.New(callbackStore, btx, callbacker.WithLogger(logger), callbacker.WithSendCallbacksInterval(callbackerInterval))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callbacker: %v", err)
 	}

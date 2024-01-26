@@ -446,7 +446,27 @@ func TestPutTransactions(t *testing.T) {
 			},
 		},
 		{
-			name: "single new transaction no response",
+			name: "single new transaction - wait for received status",
+			requests: &metamorph_api.TransactionRequests{
+				Transactions: []*metamorph_api.TransactionRequest{{
+					RawTx:         tx0.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+				}},
+			},
+
+			expectedProcessorProcessTransactionCalls: 1,
+			expectedStatuses: &metamorph_api.TransactionStatuses{
+				Statuses: []*metamorph_api.TransactionStatus{
+					{
+						Txid:     hash0.String(),
+						Status:   metamorph_api.Status_RECEIVED,
+						TimedOut: false,
+					},
+				},
+			},
+		},
+		{
+			name: "single new transaction - time out",
 			requests: &metamorph_api.TransactionRequests{
 				Transactions: []*metamorph_api.TransactionRequest{{RawTx: tx0.Bytes()}},
 			},

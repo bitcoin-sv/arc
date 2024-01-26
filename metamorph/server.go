@@ -318,7 +318,15 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	}
 
 	t := time.NewTimer(timeDuration)
-	returnedStatus := &metamorph_api.TransactionStatus{Txid: TxID}
+	returnedStatus := &metamorph_api.TransactionStatus{
+		Txid:   TxID,
+		Status: metamorph_api.Status_RECEIVED,
+	}
+
+	// Return the status if it has greater or equal value
+	if statusValueMap[returnedStatus.GetStatus()] >= statusValueMap[waitForStatus] {
+		return returnedStatus
+	}
 
 	for {
 		select {

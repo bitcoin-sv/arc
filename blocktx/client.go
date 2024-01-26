@@ -15,7 +15,7 @@ import (
 type ClientI interface {
 	GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (string, error)
 	GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error)
-	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error)
+	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error
 	Health(ctx context.Context) error
 }
 
@@ -46,17 +46,17 @@ func (btc *Client) GetTransactionMerklePath(ctx context.Context, hash *blocktx_a
 	return merklePath.GetMerklePath(), nil
 }
 
-func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
-	return btc.client.RegisterTransaction(ctx, transaction)
+func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
+	_, err := btc.client.RegisterTransaction(ctx, transaction)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (btc *Client) GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
-	transactionBlocks, err := btc.client.GetTransactionBlocks(ctx, transaction)
-	if err != nil {
-		return nil, err
-	}
-
-	return transactionBlocks, nil
+	return btc.client.GetTransactionBlocks(ctx, transaction)
 }
 
 func (btc *Client) Health(ctx context.Context) error {

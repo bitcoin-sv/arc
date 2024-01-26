@@ -230,7 +230,7 @@ func TestHandleBlock(t *testing.T) {
 			MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 				return nil
 			},
-			PrimaryBlocktxFunc: func(ctx context.Context) (string, error) {
+			GetPrimaryFunc: func(ctx context.Context) (string, error) {
 				hostName, err := os.Hostname()
 				return hostName, err
 			},
@@ -383,7 +383,7 @@ func TestFillGaps(t *testing.T) {
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return tc.blockGaps, tc.getBlockGapsErr
 				},
-				PrimaryBlocktxFunc: func(ctx context.Context) (string, error) {
+				GetPrimaryFunc: func(ctx context.Context) (string, error) {
 					return tc.hostname, tc.primaryBlocktxErr
 				},
 			}
@@ -439,7 +439,7 @@ func TestStartFillGaps(t *testing.T) {
 						},
 					}, tc.getBlockGapsErr
 				},
-				PrimaryBlocktxFunc: func(ctx context.Context) (string, error) {
+				GetPrimaryFunc: func(ctx context.Context) (string, error) {
 					return tc.hostname, nil
 				},
 			}

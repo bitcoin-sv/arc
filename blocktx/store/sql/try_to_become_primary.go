@@ -18,7 +18,7 @@ func (s *SQL) TryToBecomePrimary(ctx context.Context, myHostName string) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	primaryBlocktx, err := s.PrimaryBlocktx(ctx)
+	primaryBlocktx, err := s.GetPrimary(ctx)
 	if err != nil {
 		return err
 	}

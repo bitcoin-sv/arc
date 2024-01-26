@@ -8,8 +8,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// GetBlockTransactions returns the transaction hashes for a given block hash.
-func (s *SQL) PrimaryBlocktx(ctx context.Context) (string, error) {
+// GetPrimary returns the host name of the blocktx instance which is currently primary
+func (s *SQL) GetPrimary(ctx context.Context) (string, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("AmIPrimary").AddTime(start)

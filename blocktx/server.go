@@ -109,10 +109,6 @@ func (s *Server) GetTransactionBlocks(ctx context.Context, transaction *blocktx_
 	return s.store.GetTransactionBlocks(ctx, transaction)
 }
 
-func (s *Server) GetBlockForHeight(ctx context.Context, height *blocktx_api.Height) (*blocktx_api.Block, error) {
-	return s.store.GetBlockForHeight(ctx, height.GetHeight())
-}
-
 func (s *Server) Shutdown() {
 	s.logger.Info("Shutting down")
 	s.grpcServer.Stop()

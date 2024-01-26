@@ -16,6 +16,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/handler"
+
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoinsv/bsvd/bsvec"
 	"github.com/bitcoinsv/bsvutil"
@@ -62,7 +63,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func createTx(privateKey string, address string, utxo NodeUnspentUtxo) (*bt.Tx, error) {
+func createTx(privateKey string, address string, utxo NodeUnspentUtxo, fee ...uint64) (*bt.Tx, error) {
 	tx := bt.NewTx()
 
 	// Add an input using the first UTXO
@@ -78,7 +79,14 @@ func createTx(privateKey string, address string, utxo NodeUnspentUtxo) (*bt.Tx, 
 
 	// Add an output to the address you've previously created
 	recipientAddress := address
-	amountToSend := uint64(1) // Example value - 0.009 BTC (taking fees into account)
+
+	var feeValue uint64
+	if len(fee) > 0 {
+		feeValue = fee[0]
+	} else {
+		feeValue = 20 // Set your default fee value here
+	}
+	amountToSend := uint64(30) - feeValue // Example value - 0.009 BTC (taking fees into account)
 
 	recipientScript, err := bscript.NewP2PKHFromAddress(recipientAddress)
 	if err != nil {
@@ -405,6 +413,72 @@ func TestPostCallbackToken(t *testing.T) {
 				}
 			}
 			require.Equal(t, seenOnNetworkReceived, false)
+		})
+	}
+}
+
+func TestPostSkipFee(t *testing.T) {
+	tt := []struct {
+		name string
+	}{
+		{
+			name: "post transaction with skip fee",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			address, privateKey := getNewWalletAddress(t)
+
+			generate(t, 100)
+
+			t.Logf("generated address: %s", address)
+
+			sendToAddress(t, address, 0.001)
+
+			txID := sendToAddress(t, address, 0.02)
+			t.Logf("sent 0.02 BSV to: %s", txID)
+
+			hash := generate(t, 1)
+			t.Logf("generated 1 block: %s", hash)
+
+			utxos := getUtxos(t, address)
+			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+
+			customFee := uint64(0)
+
+			tx, err := createTx(privateKey, address, utxos[0], customFee)
+			require.NoError(t, err)
+
+			fmt.Println("Transaction with Zero fee:", tx)
+
+			url := "http://arc:9090/"
+
+			arcClient, err := api.NewClientWithResponses(url)
+			require.NoError(t, err)
+
+			ctx := context.Background()
+
+			waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
+			params := &api.POSTTransactionParams{
+				XWaitForStatus:     &waitForStatus,
+				XSkipFeeValidation: handler.PtrTo(true),
+			}
+
+			arcBody := api.POSTTransactionJSONRequestBody{
+				RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+			}
+
+			var response *api.POSTTransactionResponse
+			response, err = arcClient.POSTTransactionWithResponse(ctx, params, arcBody)
+			require.NoError(t, err)
+			fmt.Println("Response Transaction with Zero fee:", response)
+			fmt.Println("Response Transaction with Zero fee:", response.JSON200)
+
+			require.Equal(t, http.StatusOK, response.StatusCode())
+			require.NotNil(t, response.JSON200)
+			require.Equal(t, "SEEN_ON_NETWORK", response.JSON200.TxStatus)
+
 		})
 	}
 }

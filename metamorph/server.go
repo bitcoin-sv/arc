@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
@@ -37,10 +36,17 @@ func init() {
 	gocore.NewStat("PutTransaction", true)
 }
 
+// PtrTo returns a pointer to the given value.
+func PtrTo[T any](v T) *T {
+	return &v
+}
+
 const (
 	responseTimeout = 5 * time.Second
 	blocktxTimeout  = 1 * time.Second
 )
+
+var ErrNotFound = errors.New("key could not be found")
 
 type BitcoinNode interface {
 	GetTxOut(txHex string, vout int, includeMempool bool) (res *bitcoin.TXOut, err error)
@@ -205,7 +211,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		s.logger.Error("failed to validate callback URL", slog.String("err", err.Error()))
 		return nil, err
 	}
-	hash := handler.PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
+	hash := PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
 	status := metamorph_api.Status_RECEIVED
 
 	// Convert gRPC req to store.StoreData struct...
@@ -258,7 +264,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		}
 
 		status := metamorph_api.Status_RECEIVED
-		hash := handler.PtrTo(chainhash.DoubleHashH(txReq.GetRawTx()))
+		hash := PtrTo(chainhash.DoubleHashH(txReq.GetRawTx()))
 		timeout = txReq.GetMaxTimeout()
 
 		// Convert gRPC req to store.StoreData struct...

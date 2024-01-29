@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/background_worker"
 	"github.com/bitcoin-sv/arc/background_worker/jobs"
 	"github.com/bitcoin-sv/arc/config"
@@ -19,12 +19,12 @@ const (
 )
 
 func StartBackGroundWorker(logger *slog.Logger) (func(), error) {
-	shutdownBlocktxScheduler, err := startBlocktxScheduler(logger)
+	shutdownBlocktxScheduler, err := startBlocktxScheduler(logger.With("service", "background-worker"))
 	if err != nil {
 		return nil, err
 	}
 
-	shutdownMetamorphScheduler, err := startMetamorphScheduler(logger)
+	shutdownMetamorphScheduler, err := startMetamorphScheduler(logger.With("service", "background-worker"))
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func StartBackGroundWorker(logger *slog.Logger) (func(), error) {
 }
 
 func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
-	logger.With("service", "background-worker")
+
 	metamorphAddress, err := config.GetString("metamorph.dialAddr")
 	if err != nil {
 		return nil, err
@@ -46,12 +46,14 @@ func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	conn, err := transactionHandler.DialGRPC(metamorphAddress, grpcMessageSize)
+	metamorphConn, err := transaction_handler.DialGRPC(metamorphAddress, grpcMessageSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
+		return nil, fmt.Errorf("failed to get connection to metamorph with address %s: %v", metamorphAddress, err)
 	}
 
-	meatmorphClearDataRetentionDays, err := config.GetInt("metamorph.db.cleanData.recordRetentionDays")
+	metamorphClient := metamorph_api.NewMetaMorphAPIClient(metamorphConn)
+
+	metamorphClearDataRetentionDays, err := config.GetInt("metamorph.db.cleanData.recordRetentionDays")
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +63,7 @@ func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	metamorphJobs := jobs.NewMetamorph(metamorph_api.NewMetaMorphAPIClient(conn), int32(meatmorphClearDataRetentionDays), logger)
+	metamorphJobs := jobs.NewMetamorph(metamorphClient, int32(metamorphClearDataRetentionDays), logger)
 
 	scheduler := background_worker.NewScheduler(gocron.NewScheduler(time.UTC), time.Duration(executionIntervalHours)*time.Hour, logger)
 

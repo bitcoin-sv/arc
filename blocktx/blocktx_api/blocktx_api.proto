@@ -17,27 +17,9 @@ service BlockTxAPI {
   // GetTransactionMerklePath returns the merkle path of a transaction.
   rpc GetTransactionMerklePath(Transaction) returns (MerklePath) {}
 
-  // GetBlockTransactions returns a list of transaction hashes for a given block.
-  rpc GetBlockTransactions (Block) returns (Transactions) {}
-
   // GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash.
   rpc GetTransactionBlocks (Transactions) returns (TransactionBlocks) {}
 
-  // GetBlock returns the non-orphaned block for a given block hash.
-  rpc GetBlock (Hash) returns (Block) {}
-
-  // GetBlockForHeight returns the non-orphaned block for a given block height.
-  rpc GetBlockForHeight (Height) returns (Block) {}
-
-  // GetLastProcessedBlock returns the last processed block.
-  rpc GetLastProcessedBlock (google.protobuf.Empty) returns (Block) {}
-
-  // GetMyTransactionsForBlock returns a list of transaction hashes for a given block that were registered by this API.
-  rpc GetMinedTransactionsForBlock(BlockAndSource) returns (MinedTransactions) {}
-
-  // GetBlockNotificationStream returns a stream of mined blocks starting at a specific block height.
-  // If Height is 0, the stream starts from the current best block.
-  rpc GetBlockNotificationStream (Height) returns (stream Block) {}
 }
 
 // swagger:model HealthResponse

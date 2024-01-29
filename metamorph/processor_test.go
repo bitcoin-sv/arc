@@ -25,7 +25,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 //go:generate moq -pkg mocks -out ./mocks/store_mock.go ./store/ MetamorphStore
@@ -245,7 +244,6 @@ func TestProcessTransaction(t *testing.T) {
 			storeDataGetErr: store.ErrNotFound,
 
 			expectedResponses: []metamorph_api.Status{
-				metamorph_api.Status_RECEIVED,
 				metamorph_api.Status_STORED,
 				metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			},
@@ -290,8 +288,8 @@ func TestProcessTransaction(t *testing.T) {
 			pm := p2p.NewPeerManagerMock()
 
 			btc := &ClientIMock{
-				RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
-					return &emptypb.Empty{}, nil
+				RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
+					return nil
 				},
 			}
 
@@ -556,8 +554,8 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		pm := p2p.NewPeerManagerMock()
 
 		btc := &ClientIMock{
-			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
-				return &emptypb.Empty{}, nil
+			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
+				return nil
 			},
 		}
 
@@ -631,7 +629,7 @@ func BenchmarkProcessTransaction(b *testing.B) {
 		processor.ProcessTransaction(context.TODO(), &ProcessorRequest{
 			Data: &store.StoreData{
 				Hash:   &txHash,
-				Status: metamorph_api.Status_UNKNOWN,
+				Status: metamorph_api.Status_RECEIVED,
 				RawTx:  testdata.TX1RawBytes,
 			},
 		})
@@ -829,6 +827,60 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			processor.ProcessorResponseMap.Set(testdata.TX3Hash, respAccepted)
 
 			time.Sleep(50 * time.Millisecond)
+		})
+	}
+}
+
+func TestProcessorHealth(t *testing.T) {
+	tt := []struct {
+		name       string
+		peersAdded int
+
+		expectedErr error
+	}{
+		{
+			name:       "3 healthy peers",
+			peersAdded: 3,
+		},
+		{
+			name:       "1 healthy peer",
+			peersAdded: 1,
+
+			expectedErr: ErrUnhealthy,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			metamorphStore := &MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					return &store.StoreData{Hash: testdata.TX2Hash}, nil
+				},
+				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+					return nil
+				},
+			}
+			pm := p2p.NewPeerManagerMock()
+
+			for i := 0; i < tc.peersAdded; i++ {
+				err := pm.AddPeer(&p2p.PeerMock{})
+				require.NoError(t, err)
+			}
+
+			processor, err := NewProcessor(metamorphStore, pm, nil,
+				WithProcessCheckIfMinedInterval(time.Hour),
+				WithProcessExpiredTxsInterval(time.Millisecond*20),
+				WithNow(func() time.Time {
+					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
+				}),
+			)
+			require.NoError(t, err)
+			defer processor.Shutdown()
+
+			err = processor.Health()
+
+			require.ErrorIs(t, err, tc.expectedErr)
 		})
 	}
 }

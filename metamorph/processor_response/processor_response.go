@@ -45,7 +45,7 @@ type ProcessorResponse struct {
 }
 
 func NewProcessorResponse(hash *chainhash.Hash) *ProcessorResponse {
-	return newProcessorResponse(hash, metamorph_api.Status_UNKNOWN, nil)
+	return newProcessorResponse(hash, metamorph_api.Status_RECEIVED, nil)
 }
 
 // NewProcessorResponseWithStatus creates a new ProcessorResponse with the given status.
@@ -55,7 +55,7 @@ func NewProcessorResponseWithStatus(hash *chainhash.Hash, status metamorph_api.S
 }
 
 func NewProcessorResponseWithChannel(hash *chainhash.Hash, ch chan StatusAndError) *ProcessorResponse {
-	return newProcessorResponse(hash, metamorph_api.Status_UNKNOWN, ch)
+	return newProcessorResponse(hash, metamorph_api.Status_RECEIVED, ch)
 }
 
 func newProcessorResponse(hash *chainhash.Hash, status metamorph_api.Status, ch chan StatusAndError) *ProcessorResponse {

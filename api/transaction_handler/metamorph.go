@@ -1,4 +1,4 @@
-package transactionHandler
+package transaction_handler
 
 import (
 	"context"
@@ -91,11 +91,13 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
 func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions *arc.TransactionOptions) (*TransactionStatus, error) {
 	response, err := m.Client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
-		RawTx:         tx,
-		CallbackUrl:   txOptions.CallbackURL,
-		CallbackToken: txOptions.CallbackToken,
-		MerkleProof:   txOptions.MerkleProof,
-		WaitForStatus: txOptions.WaitForStatus,
+		RawTx:             tx,
+		CallbackUrl:       txOptions.CallbackURL,
+		CallbackToken:     txOptions.CallbackToken,
+		MerkleProof:       txOptions.MerkleProof,
+		WaitForStatus:     txOptions.WaitForStatus,
+		FullStatusUpdates: txOptions.FullStatusUpdates,
+		MaxTimeout:        int64(txOptions.MaxTimeout),
 	})
 	if err != nil {
 		return nil, err
@@ -119,11 +121,13 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOpti
 	in.Transactions = make([]*metamorph_api.TransactionRequest, 0)
 	for _, tx := range txs {
 		in.Transactions = append(in.GetTransactions(), &metamorph_api.TransactionRequest{
-			RawTx:         tx,
-			CallbackUrl:   txOptions.CallbackURL,
-			CallbackToken: txOptions.CallbackToken,
-			MerkleProof:   txOptions.MerkleProof,
-			WaitForStatus: txOptions.WaitForStatus,
+			RawTx:             tx,
+			CallbackUrl:       txOptions.CallbackURL,
+			CallbackToken:     txOptions.CallbackToken,
+			MerkleProof:       txOptions.MerkleProof,
+			WaitForStatus:     txOptions.WaitForStatus,
+			FullStatusUpdates: txOptions.FullStatusUpdates,
+			MaxTimeout:        int64(txOptions.MaxTimeout),
 		})
 	}
 

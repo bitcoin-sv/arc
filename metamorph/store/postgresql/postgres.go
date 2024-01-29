@@ -78,7 +78,7 @@ func (p *PostgreSQL) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) 
 	return nil
 }
 
-func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (int, error) {
+func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error) {
 	startNanos := p.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("setunlockedbyname").AddTime(startNanos)
@@ -98,7 +98,7 @@ func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 		return 0, err
 	}
 
-	return int(rowsAffected), nil
+	return rowsAffected, nil
 }
 
 // Get implements the MetamorphStore interface. It attempts to get a value for a given key.
@@ -121,6 +121,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		,block_hash
 		,callback_url
 		,callback_token
+		,full_status_updates
 		,merkle_proof
 		,reject_reason
 		,raw_tx
@@ -137,6 +138,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	var blockHash []byte
 	var callbackUrl sql.NullString
 	var callbackToken sql.NullString
+	var fullStatusUpdates sql.NullBool
 	var merkleProof sql.NullBool
 	var rejectReason sql.NullString
 	var lockedBy sql.NullString
@@ -152,6 +154,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		&blockHash,
 		&callbackUrl,
 		&callbackToken,
+		&fullStatusUpdates,
 		&merkleProof,
 		&rejectReason,
 		&data.RawTx,
@@ -212,6 +215,10 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		data.CallbackToken = callbackToken.String
 	}
 
+	if fullStatusUpdates.Valid {
+		data.FullStatusUpdates = fullStatusUpdates.Bool
+	}
+
 	if merkleProof.Valid {
 		data.MerkleProof = merkleProof.Bool
 	}
@@ -247,6 +254,7 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		,block_hash
 		,callback_url
 		,callback_token
+		,full_status_updates
 		,merkle_proof
 		,reject_reason
 		,raw_tx
@@ -265,6 +273,7 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		,$11
 		,$12
 		,$13
+		,$14
 	);`
 
 	var txHash []byte
@@ -293,6 +302,7 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		blockHash,
 		value.CallbackUrl,
 		value.CallbackToken,
+		value.FullStatusUpdates,
 		value.MerkleProof,
 		value.RejectReason,
 		value.RawTx,
@@ -339,6 +349,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 		,block_hash
 		,callback_url
 		,callback_token
+		,full_status_updates
 		,merkle_proof
 		,raw_tx
 		,locked_by
@@ -369,6 +380,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 		var blockHash []byte
 		var callbackUrl sql.NullString
 		var callbackToken sql.NullString
+		var fullStatusUpdates sql.NullBool
 		var merkleProof sql.NullBool
 		var lockedBy sql.NullString
 		var status sql.NullInt32
@@ -383,6 +395,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 			&blockHash,
 			&callbackUrl,
 			&callbackToken,
+			&fullStatusUpdates,
 			&merkleProof,
 			&data.RawTx,
 			&lockedBy,
@@ -440,6 +453,10 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 
 		if merkleProof.Valid {
 			data.MerkleProof = merkleProof.Bool
+		}
+
+		if fullStatusUpdates.Valid {
+			data.FullStatusUpdates = fullStatusUpdates.Bool
 		}
 
 		if lockedBy.Valid {
@@ -674,7 +691,7 @@ func (p *PostgreSQL) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (*metamorph_api.ClearDataResponse, error) {
+func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
 	startNanos := p.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("ClearData").AddTime(startNanos)
@@ -688,13 +705,13 @@ func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (*metam
 
 	res, err := p.db.ExecContext(ctx, "DELETE FROM metamorph.transactions WHERE inserted_at_num <= $1::int", deleteBeforeDate.Format(numericalDateHourLayout))
 	if err != nil {
-		return &metamorph_api.ClearDataResponse{Rows: 0}, err
+		return 0, err
 	}
 
 	rows, err := res.RowsAffected()
 	if err != nil {
-		return &metamorph_api.ClearDataResponse{Rows: rows}, err
+		return 0, err
 	}
 
-	return &metamorph_api.ClearDataResponse{Rows: rows}, nil
+	return rows, nil
 }

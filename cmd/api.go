@@ -10,7 +10,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/handler"
-	"github.com/bitcoin-sv/arc/api/transactionHandler"
+	"github.com/bitcoin-sv/arc/api/transaction_handler"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	apmecho "github.com/opentracing-contrib/echo"
@@ -93,7 +93,7 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 		return fmt.Errorf("grpcMessageSize not found in config")
 	}
 
-	txHandler, err := transactionHandler.NewMetamorph(addresses, grpcMessageSize)
+	txHandler, err := transaction_handler.NewMetamorph(addresses, grpcMessageSize)
 	if err != nil {
 		return err
 	}

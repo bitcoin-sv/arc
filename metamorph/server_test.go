@@ -446,7 +446,27 @@ func TestPutTransactions(t *testing.T) {
 			},
 		},
 		{
-			name: "single new transaction no response",
+			name: "single new transaction - wait for received status",
+			requests: &metamorph_api.TransactionRequests{
+				Transactions: []*metamorph_api.TransactionRequest{{
+					RawTx:         tx0.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+				}},
+			},
+
+			expectedProcessorProcessTransactionCalls: 1,
+			expectedStatuses: &metamorph_api.TransactionStatuses{
+				Statuses: []*metamorph_api.TransactionStatus{
+					{
+						Txid:     hash0.String(),
+						Status:   metamorph_api.Status_RECEIVED,
+						TimedOut: false,
+					},
+				},
+			},
+		},
+		{
+			name: "single new transaction - time out",
 			requests: &metamorph_api.TransactionRequests{
 				Transactions: []*metamorph_api.TransactionRequest{{RawTx: tx0.Bytes()}},
 			},
@@ -456,7 +476,7 @@ func TestPutTransactions(t *testing.T) {
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
 						Txid:     hash0.String(),
-						Status:   metamorph_api.Status_UNKNOWN,
+						Status:   metamorph_api.Status_RECEIVED,
 						TimedOut: true,
 					},
 				},
@@ -587,7 +607,7 @@ func TestPutTransactions(t *testing.T) {
 func TestSetUnlockedbyName(t *testing.T) {
 	tt := []struct {
 		name            string
-		recordsAffected int
+		recordsAffected int64
 		errSetUnlocked  error
 
 		expectedRecordsAffected int
@@ -613,7 +633,7 @@ func TestSetUnlockedbyName(t *testing.T) {
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{}, nil
 				},
-				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int, error) {
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
 					return tc.recordsAffected, tc.errSetUnlocked
 				},
 				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {

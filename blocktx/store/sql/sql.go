@@ -45,7 +45,7 @@ func NewPostgresStore(params dbconn.DBConnectionParams) (store.Interface, error)
 	}, nil
 }
 
-func New(engine string) (store.Interface, error) {
+func New(engine string) (*SQL, error) {
 	var db *sql.DB
 	var err error
 	var memory bool

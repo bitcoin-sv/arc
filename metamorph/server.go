@@ -42,10 +42,6 @@ const (
 	blocktxTimeout  = 1 * time.Second
 )
 
-var (
-	ErrRegisterTxTimeout = errors.New("failed to register transaction due to timeout")
-)
-
 type BitcoinNode interface {
 	GetTxOut(txHex string, vout int, includeMempool bool) (res *bitcoin.TXOut, err error)
 }
@@ -83,7 +79,7 @@ func WithBlocktxTimeout(d time.Duration) func(*Server) {
 
 func WithLogger(logger *slog.Logger) func(*Server) {
 	return func(s *Server) {
-		s.logger = logger.With(slog.String("service", "mtm"))
+		s.logger = logger
 	}
 }
 
@@ -209,16 +205,17 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		return nil, err
 	}
 	hash := handler.PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
-	status := metamorph_api.Status_UNKNOWN
+	status := metamorph_api.Status_RECEIVED
 
 	// Convert gRPC req to store.StoreData struct...
 	sReq := &store.StoreData{
-		Hash:          hash,
-		Status:        status,
-		CallbackUrl:   req.GetCallbackUrl(),
-		CallbackToken: req.GetCallbackToken(),
-		MerkleProof:   req.GetMerkleProof(),
-		RawTx:         req.GetRawTx(),
+		Hash:              hash,
+		Status:            status,
+		CallbackUrl:       req.GetCallbackUrl(),
+		CallbackToken:     req.GetCallbackToken(),
+		FullStatusUpdates: req.GetFullStatusUpdates(),
+		MerkleProof:       req.GetMerkleProof(),
+		RawTx:             req.GetRawTx(),
 	}
 
 	next := gocore.NewStat("PutTransaction").NewStat("2: ProcessTransaction").AddTime(start)
@@ -229,7 +226,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		gocore.NewStat("PutTransaction").NewStat("3: Wait for status").AddTime(next)
 	}()
 
-	return s.processTransaction(ctx, req.GetWaitForStatus(), sReq, hash.String()), nil
+	return s.processTransaction(ctx, req.GetWaitForStatus(), sReq, req.GetMaxTimeout(), hash.String()), nil
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
@@ -251,6 +248,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	resp.Statuses = make([]*metamorph_api.TransactionStatus, len(req.GetTransactions()))
 
 	processTxsInputMap := make(map[chainhash.Hash]processTxInput)
+	var timeout int64
 
 	for ind, txReq := range req.GetTransactions() {
 		err := ValidateCallbackURL(txReq.GetCallbackUrl())
@@ -258,17 +256,19 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			return nil, err
 		}
 
-		status := metamorph_api.Status_UNKNOWN
+		status := metamorph_api.Status_RECEIVED
 		hash := handler.PtrTo(chainhash.DoubleHashH(txReq.GetRawTx()))
+		timeout = txReq.GetMaxTimeout()
 
 		// Convert gRPC req to store.StoreData struct...
 		sReq := &store.StoreData{
-			Hash:          hash,
-			Status:        status,
-			CallbackUrl:   txReq.GetCallbackUrl(),
-			CallbackToken: txReq.GetCallbackToken(),
-			MerkleProof:   txReq.GetMerkleProof(),
-			RawTx:         txReq.GetRawTx(),
+			Hash:              hash,
+			Status:            status,
+			CallbackUrl:       txReq.GetCallbackUrl(),
+			CallbackToken:     txReq.GetCallbackToken(),
+			FullStatusUpdates: txReq.GetFullStatusUpdates(),
+			MerkleProof:       txReq.GetMerkleProof(),
+			RawTx:             txReq.GetRawTx(),
 		}
 
 		processTxsInputMap[*hash] = processTxInput{
@@ -286,7 +286,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		go func(ctx context.Context, processTxInput processTxInput, txID string, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
 			defer wg.Done()
 
-			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, txID)
+			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, timeout, txID)
 
 			resp.Statuses[processTxInput.responseIndex] = statusNew
 		}(ctx, input, hash.String(), wg, resp)
@@ -297,7 +297,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	return resp, nil
 }
 
-func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, TxID string) *metamorph_api.TransactionStatus {
+func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, timeoutSeconds int64, TxID string) *metamorph_api.TransactionStatus {
 	responseChannel := make(chan processor_response.StatusAndError, 1)
 	defer func() {
 		close(responseChannel)
@@ -312,12 +312,25 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	}
 
 	// normally a node would respond very quickly, unless it's under heavy load
-	timeout := time.NewTimer(s.timeout)
-	returnedStatus := &metamorph_api.TransactionStatus{Txid: TxID}
+	timeDuration := s.timeout
+	if timeoutSeconds > 0 {
+		timeDuration = time.Second * time.Duration(timeoutSeconds)
+	}
+
+	t := time.NewTimer(timeDuration)
+	returnedStatus := &metamorph_api.TransactionStatus{
+		Txid:   TxID,
+		Status: metamorph_api.Status_RECEIVED,
+	}
+
+	// Return the status if it has greater or equal value
+	if statusValueMap[returnedStatus.GetStatus()] >= statusValueMap[waitForStatus] {
+		return returnedStatus
+	}
 
 	for {
 		select {
-		case <-timeout.C:
+		case <-t.C:
 			returnedStatus.TimedOut = true
 			return returnedStatus
 		case res := <-responseChannel:
@@ -466,12 +479,21 @@ func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUn
 	}
 
 	result := &metamorph_api.SetUnlockedByNameResponse{
-		RecordsAffected: int32(recordsAffected),
+		RecordsAffected: recordsAffected,
 	}
 
-	return result, err
+	return result, nil
 }
 
-func (s *Server) ClearData(ctx context.Context, clearData *metamorph_api.ClearDataRequest) (*metamorph_api.ClearDataResponse, error) {
-	return s.store.ClearData(ctx, clearData.RetentionDays)
+func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (*metamorph_api.ClearDataResponse, error) {
+	recordsAffected, err := s.store.ClearData(ctx, req.RetentionDays)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &metamorph_api.ClearDataResponse{
+		RecordsAffected: recordsAffected,
+	}
+
+	return result, nil
 }

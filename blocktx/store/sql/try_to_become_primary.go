@@ -9,7 +9,6 @@ import (
 
 const PrimaryDurationSecs = 2 * 60
 
-// GetBlockTransactions returns the transaction hashes for a given block hash.
 func (s *SQL) TryToBecomePrimary(ctx context.Context, myHostName string) error {
 	start := gocore.CurrentNanos()
 	defer func() {
@@ -19,7 +18,7 @@ func (s *SQL) TryToBecomePrimary(ctx context.Context, myHostName string) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	primaryBlocktx, err := s.PrimaryBlocktx(ctx)
+	primaryBlocktx, err := s.GetPrimary(ctx)
 	if err != nil {
 		return err
 	}

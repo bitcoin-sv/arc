@@ -241,7 +241,7 @@ func TestPostgresDB(t *testing.T) {
 		fmt.Println(dbInfo)
 		rows, err := postgresDB.SetUnlockedByName(ctx, "metamorph-3")
 		require.NoError(t, err)
-		require.Equal(t, 2, rows)
+		require.Equal(t, int64(2), rows)
 	})
 
 	t.Run("update status announced - no update", func(t *testing.T) {
@@ -330,9 +330,9 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("clear data", func(t *testing.T) {
-		resp, err := postgresDB.ClearData(ctx, 14)
+		res, err := postgresDB.ClearData(ctx, 14)
 		require.NoError(t, err)
-		require.Equal(t, int64(3), resp.Rows)
+		require.Equal(t, int64(3), res)
 
 		var numberOfRemainingTxs int
 		err = postgresDB.db.QueryRowContext(ctx, "SELECT count(*) FROM metamorph.transactions;").Scan(&numberOfRemainingTxs)

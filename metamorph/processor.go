@@ -39,8 +39,13 @@ const (
 	failedToUpdateStatus       = "Failed to update status"
 	dataRetentionPeriodDefault = 14 * 24 * time.Hour // 14 days
 
-	maxMonitoriedTxs = 100000
-	loadUnminedLimit = int64(5000)
+	maxMonitoriedTxs          = 100000
+	loadUnminedLimit          = int64(5000)
+	minimumHealthyConnections = 2
+)
+
+var (
+	ErrUnhealthy = errors.New("processor has less than 2 healthy peer connections")
 )
 
 type Processor struct {
@@ -49,7 +54,6 @@ type Processor struct {
 	pm                   p2p.PeerManagerI
 	btc                  blocktx.ClientI
 	logger               *slog.Logger
-	logFile              string
 	mapExpiryTime        time.Duration
 	dataRetentionPeriod  time.Duration
 	now                  func() time.Time
@@ -118,7 +122,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, btc blocktx.Clien
 		opt(p)
 	}
 
-	p.ProcessorResponseMap = NewProcessorResponseMap(p.mapExpiryTime, WithLogFile(p.logFile), WithNowResponseMap(p.now))
+	p.ProcessorResponseMap = NewProcessorResponseMap(p.mapExpiryTime, WithNowResponseMap(p.now))
 	p.processCheckIfMinedTicker = time.NewTicker(p.processCheckIfMinedInterval)
 
 	p.logger.Info("Starting processor", slog.Duration("cacheExpiryTime", p.mapExpiryTime))
@@ -199,6 +203,10 @@ func (p *Processor) checkIfMined(transactions *blocktx_api.Transactions) {
 	blockTransactions, err := p.btc.GetTransactionBlocks(context.Background(), transactions)
 	if err != nil {
 		p.logger.Error("failed to get transaction blocks from blocktx", slog.String("err", err.Error()))
+		return
+	}
+
+	if len(blockTransactions.GetTransactionBlocks()) == 0 {
 		return
 	}
 
@@ -358,7 +366,7 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 
 			data, _ := p.store.Get(spanCtx, hash[:])
 			if data.CallbackUrl != "" {
-				go SendCallback(p.logger, p.store, data)
+				go SendCallback(p.logger, data)
 			}
 		},
 	})
@@ -430,11 +438,17 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 			case metamorph_api.Status_ACCEPTED_BY_NETWORK:
 				p.acceptedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
 
+			case metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL:
+				data, _ := p.store.Get(spanCtx, hash[:])
+				if data.CallbackUrl != "" && data.FullStatusUpdates {
+					go SendCallback(p.logger, data)
+				}
+
 			case metamorph_api.Status_SEEN_ON_NETWORK:
 				p.seenOnNetwork.AddDuration(source, time.Since(processorResponse.Start))
 				data, _ := p.store.Get(spanCtx, hash[:])
-				if data.CallbackUrl != "" {
-					go SendCallback(p.logger, p.store, data)
+				if data.CallbackUrl != "" && data.FullStatusUpdates {
+					go SendCallback(p.logger, data)
 				}
 
 			case metamorph_api.Status_MINED:
@@ -447,7 +461,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 				p.rejected.AddDuration(source, time.Since(processorResponse.Start))
 				data, _ := p.store.Get(spanCtx, hash[:])
 				if data.CallbackUrl != "" {
-					go SendCallback(p.logger, p.store, data)
+					go SendCallback(p.logger, data)
 				}
 			}
 		},
@@ -491,7 +505,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// register transaction in blocktx
 	go func() {
-		_, err := p.btc.RegisterTransaction(ctx, &blocktx_api.TransactionAndSource{
+		err = p.btc.RegisterTransaction(ctx, &blocktx_api.TransactionAndSource{
 			Hash: req.Data.Hash[:],
 		})
 
@@ -502,64 +516,52 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel)
 
-	// STEP 1: RECEIVED
+	// STEP 1: STORED
 	processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-		Status: metamorph_api.Status_RECEIVED,
+		Status: metamorph_api.Status_STORED,
 		Source: "processor",
+		UpdateStore: func() error {
+			req.Data.Status = metamorph_api.Status_STORED
+			return p.store.Set(spanCtx, req.Data.Hash[:], req.Data)
+		},
 		Callback: func(err error) {
 			if err != nil {
-				p.logger.Error("Error received when setting status", slog.String("status", metamorph_api.Status_RECEIVED.String()), slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+				span.SetTag(string(ext.Error), true)
+				p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+				span.LogFields(tracingLog.Error(err))
 				return
 			}
 
-			// STEP 2: STORED
+			// Add this transaction to the map of transactions that we are processing
+			p.ProcessorResponseMap.Set(req.Data.Hash, processorResponse)
+
+			p.stored.AddDuration(time.Since(processorResponse.Start))
+
+			p.logger.Info("announcing transaction", slog.String("hash", req.Data.Hash.String()))
+			// STEP 2: ANNOUNCED_TO_NETWORK
+			peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
+			processorResponse.SetPeers(peers)
+
+			peersStr := make([]string, 0, len(peers))
+			if len(peers) > 0 {
+				for _, peer := range peers {
+					peersStr = append(peersStr, peer.String())
+				}
+			}
+
 			processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-				Status: metamorph_api.Status_STORED,
-				Source: "processor",
+				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+				Source: strings.Join(peersStr, ", "),
 				UpdateStore: func() error {
-					req.Data.Status = metamorph_api.Status_STORED
-					return p.store.Set(spanCtx, req.Data.Hash[:], req.Data)
+					return p.store.UpdateStatus(spanCtx, req.Data.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
 				},
 				Callback: func(err error) {
-					if err != nil {
-						span.SetTag(string(ext.Error), true)
-						p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
-						span.LogFields(tracingLog.Error(err))
-						return
+					duration := time.Since(processorResponse.Start)
+					for _, peerStr := range peersStr {
+						p.announcedToNetwork.AddDuration(peerStr, duration)
 					}
 
-					// Add this transaction to the map of transactions that we are processing
-					p.ProcessorResponseMap.Set(req.Data.Hash, processorResponse)
-
-					p.stored.AddDuration(time.Since(processorResponse.Start))
-
-					p.logger.Info("announcing transaction", slog.String("hash", req.Data.Hash.String()))
-					// STEP 3: ANNOUNCED_TO_NETWORK
-					peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
-					processorResponse.SetPeers(peers)
-
-					peersStr := make([]string, 0, len(peers))
-					if len(peers) > 0 {
-						for _, peer := range peers {
-							peersStr = append(peersStr, peer.String())
-						}
-					}
-
-					processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-						Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-						Source: strings.Join(peersStr, ", "),
-						UpdateStore: func() error {
-							return p.store.UpdateStatus(spanCtx, req.Data.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
-						},
-						Callback: func(err error) {
-							duration := time.Since(processorResponse.Start)
-							for _, peerStr := range peersStr {
-								p.announcedToNetwork.AddDuration(peerStr, duration)
-							}
-
-							gocore.NewStat("processor").AddTime(startNanos)
-						},
-					})
+					gocore.NewStat("processor").AddTime(startNanos)
 				},
 			})
 		},
@@ -567,9 +569,16 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 }
 
 func (p *Processor) Health() error {
-	connected, _ := p.GetPeers()
-	if len(connected) == 0 {
-		return errors.New("no connection to any peers")
+	healthyConnections := 0
+
+	for _, peer := range p.pm.GetPeers() {
+		if peer.Connected() && peer.IsHealthy() {
+			healthyConnections++
+		}
+	}
+
+	if healthyConnections < minimumHealthyConnections {
+		return ErrUnhealthy
 	}
 
 	return nil

@@ -29,7 +29,7 @@ func (c Metamorph) ClearTransactions(_ string) error {
 	if err != nil {
 		return err
 	}
-	c.logger.Info("cleared transactions in blocktx", slog.Int64("rows", resp.Rows), slog.Duration("duration", time.Since(start)))
+	c.logger.Info("cleared transactions in blocktx", slog.Int64("rows", resp.RecordsAffected), slog.Duration("duration", time.Since(start)))
 
 	return nil
 }

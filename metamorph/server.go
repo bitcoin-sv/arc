@@ -202,6 +202,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	err := ValidateCallbackURL(req.GetCallbackUrl())
 	if err != nil {
+		s.logger.Error("failed to validate callback URL", slog.String("err", err.Error()))
 		return nil, err
 	}
 	hash := handler.PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
@@ -253,6 +254,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	for ind, txReq := range req.GetTransactions() {
 		err := ValidateCallbackURL(txReq.GetCallbackUrl())
 		if err != nil {
+			s.logger.Error("failed to validate callback URL", slog.String("err", err.Error()))
 			return nil, err
 		}
 
@@ -353,6 +355,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.Transaction, error) {
 	data, announcedAt, minedAt, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
+		s.logger.Error("failed to get transaction", slog.String("hash", req.GetTxid()), slog.String("err", err.Error()))
 		return nil, err
 	}
 
@@ -412,6 +415,7 @@ func (s *Server) getMerklePath(ctx context.Context, hash *chainhash.Hash, dataSt
 func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.TransactionStatus, error) {
 	data, announcedAt, minedAt, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
+		s.logger.Error("failed to get transaction status", slog.String("hash", req.GetTxid()), slog.String("err", err.Error()))
 		return nil, err
 	}
 
@@ -475,6 +479,7 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (*metamorph_api.SetUnlockedByNameResponse, error) {
 	recordsAffected, err := s.store.SetUnlockedByName(ctx, req.GetName())
 	if err != nil {
+		s.logger.Error("failed to set unlocked by name", slog.String("name", req.GetName()), slog.String("err", err.Error()))
 		return nil, err
 	}
 
@@ -488,6 +493,7 @@ func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUn
 func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (*metamorph_api.ClearDataResponse, error) {
 	recordsAffected, err := s.store.ClearData(ctx, req.RetentionDays)
 	if err != nil {
+		s.logger.Error("failed to clear data", slog.String("err", err.Error()))
 		return nil, err
 	}
 

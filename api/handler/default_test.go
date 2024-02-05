@@ -425,7 +425,6 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			XCallbackUrl:   PtrTo("callback.example.com"),
 			XCallbackToken: PtrTo("test-token"),
 			XWaitForStatus: PtrTo(4),
-			XMerkleProof:   PtrTo("true"),
 		}
 
 		err = defaultHandler.POSTTransactions(ctx, options)
@@ -712,26 +711,6 @@ func TestGetTransactionOptions(t *testing.T) {
 			},
 
 			expectedErrorStr: "invalid callback URL",
-		},
-		{
-			name: "merkle proof - true",
-			params: api.POSTTransactionParams{
-				XMerkleProof: PtrTo("true"),
-			},
-
-			expectedOptions: &api.TransactionOptions{
-				MerkleProof: true,
-			},
-		},
-		{
-			name: "merkle proof - 1",
-			params: api.POSTTransactionParams{
-				XMerkleProof: PtrTo("1"),
-			},
-
-			expectedOptions: &api.TransactionOptions{
-				MerkleProof: true,
-			},
 		},
 		{
 			name: "wait for status - 1",

@@ -380,11 +380,6 @@ func getTransactionsOptions(params api.POSTTransactionsParams) (*api.Transaction
 			transactionOptions.CallbackToken = *params.XCallbackToken
 		}
 	}
-	if params.XMerkleProof != nil {
-		if *params.XMerkleProof == "true" || *params.XMerkleProof == "1" {
-			transactionOptions.MerkleProof = true
-		}
-	}
 	if params.XWaitForStatus != nil {
 		transactionOptions.WaitForStatus = metamorph_api.Status(*params.XWaitForStatus)
 	}

@@ -366,7 +366,12 @@ func (p *Processor) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHas
 
 			data, _ := p.store.Get(spanCtx, hash[:])
 			if data.CallbackUrl != "" {
-				go SendCallback(p.logger, data)
+				merklePath, err := p.btc.GetTransactionMerklePath(spanCtx, &blocktx_api.Transaction{Hash: hash[:]})
+				if err != nil {
+					p.logger.Error("failed to get Merkle path for callback", slog.String("err", err.Error()))
+				}
+
+				go SendCallback(p.logger, data, merklePath)
 			}
 		},
 	})
@@ -441,14 +446,14 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 			case metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL:
 				data, _ := p.store.Get(spanCtx, hash[:])
 				if data.CallbackUrl != "" && data.FullStatusUpdates {
-					go SendCallback(p.logger, data)
+					go SendCallback(p.logger, data, "")
 				}
 
 			case metamorph_api.Status_SEEN_ON_NETWORK:
 				p.seenOnNetwork.AddDuration(source, time.Since(processorResponse.Start))
 				data, _ := p.store.Get(spanCtx, hash[:])
 				if data.CallbackUrl != "" && data.FullStatusUpdates {
-					go SendCallback(p.logger, data)
+					go SendCallback(p.logger, data, "")
 				}
 
 			case metamorph_api.Status_MINED:
@@ -461,7 +466,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 				p.rejected.AddDuration(source, time.Since(processorResponse.Start))
 				data, _ := p.store.Get(spanCtx, hash[:])
 				if data.CallbackUrl != "" {
-					go SendCallback(p.logger, data)
+					go SendCallback(p.logger, data, "")
 				}
 			}
 		},

@@ -29,6 +29,7 @@ import (
 
 //go:generate moq -pkg mocks -out ./mocks/store_mock.go ./store/ MetamorphStore
 //go:generate moq -pkg mocks -out ./mocks/blocktx_mock.go ../blocktx/ ClientI
+//go:generate moq -pkg mocks -out ./mocks/publisher_mock.go ./async/ Publisher
 
 func TestNewProcessor(t *testing.T) {
 	mtmStore := &mocks.MetamorphStoreMock{
@@ -287,13 +288,13 @@ func TestProcessTransaction(t *testing.T) {
 			}
 			pm := p2p.NewPeerManagerMock()
 
-			btc := &mocks.ClientIMock{
-				RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
+			publisher := &mocks.PublisherMock{
+				PublishTransactionFunc: func(ctx context.Context, hash []byte) error {
 					return nil
 				},
 			}
 
-			processor, err := metamorph.NewProcessor(s, pm, btc)
+			processor, err := metamorph.NewProcessor(s, pm, nil, metamorph.WithPublisher(publisher))
 			require.NoError(t, err)
 			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
@@ -534,6 +535,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 			},
 		}
 
+		// Todo: Fix failing test with race condition
 		processor, err := metamorph.NewProcessor(s, pm, btc)
 		require.NoError(t, err)
 		processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponseWithStatus(
@@ -559,13 +561,13 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 
 		pm := p2p.NewPeerManagerMock()
 
-		btc := &mocks.ClientIMock{
-			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
+		publisher := &mocks.PublisherMock{
+			PublishTransactionFunc: func(ctx context.Context, hash []byte) error {
 				return nil
 			},
 		}
 
-		processor, err := metamorph.NewProcessor(s, pm, btc)
+		processor, err := metamorph.NewProcessor(s, pm, nil, metamorph.WithPublisher(publisher))
 		require.NoError(t, err)
 		assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 

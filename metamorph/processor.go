@@ -12,6 +12,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/metamorph/async"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
@@ -53,6 +54,7 @@ type Processor struct {
 	ProcessorResponseMap *ProcessorResponseMap
 	pm                   p2p.PeerManagerI
 	btc                  blocktx.ClientI
+	publisher            async.Publisher
 	logger               *slog.Logger
 	mapExpiryTime        time.Duration
 	dataRetentionPeriod  time.Duration
@@ -308,8 +310,9 @@ func (p *Processor) LoadUnmined() {
 	}
 
 	p.logger.Info("loading unmined transactions", slog.Int64("limit", limit))
+	getUnminedSince := p.now().Add(-1 * p.mapExpiryTime)
 
-	unminedTxs, err := p.store.GetUnmined(spanCtx, p.now().Add(-1*p.mapExpiryTime), limit)
+	unminedTxs, err := p.store.GetUnmined(spanCtx, getUnminedSince, limit)
 	if err != nil {
 		p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
 		return
@@ -510,9 +513,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// register transaction in blocktx
 	go func() {
-		err = p.btc.RegisterTransaction(ctx, &blocktx_api.TransactionAndSource{
-			Hash: req.Data.Hash[:],
-		})
+		err = p.publisher.PublishTransaction(ctx, req.Data.Hash[:])
 
 		if err != nil {
 			p.logger.Error("failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))

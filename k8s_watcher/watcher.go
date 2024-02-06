@@ -114,7 +114,7 @@ func (c *Watcher) Start() error {
 							continue
 						}
 
-						c.logger.Info("records unlocked", slog.Int("rows-affected", int(resp.RecordsAffected)), slog.String("pod-name", podName))
+						c.logger.Info("records unlocked", slog.Int64("rows-affected", resp.RecordsAffected), slog.String("pod-name", podName))
 					}
 				}
 

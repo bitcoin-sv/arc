@@ -3,6 +3,8 @@ package metamorph
 import (
 	"log/slog"
 	"time"
+
+	"github.com/bitcoin-sv/arc/metamorph/async"
 )
 
 func WithProcessCheckIfMinedInterval(d time.Duration) func(*Processor) {
@@ -44,5 +46,11 @@ func WithDataRetentionPeriod(d time.Duration) func(*Processor) {
 func WithMaxMonitoredTxs(m int64) func(processor *Processor) {
 	return func(p *Processor) {
 		p.maxMonitoredTxs = m
+	}
+}
+
+func WithPublisher(publisher async.Publisher) func(processor *Processor) {
+	return func(p *Processor) {
+		p.publisher = publisher
 	}
 }

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -10,15 +9,14 @@ import (
 
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/config"
-	"github.com/spf13/viper"
 )
 
 const BecomePrimaryintervalSecs = 30
 
 func StartBlockTx(logger *slog.Logger) (func(), error) {
-	dbMode := viper.GetString("blocktx.db.mode")
-	if dbMode == "" {
-		return nil, errors.New("blocktx.db.mode not found in config")
+	dbMode, err := config.GetString("blocktx.db.mode")
+	if err != nil {
+		return nil, err
 	}
 
 	// dbMode can be sqlite, sqlite_memory or postgres

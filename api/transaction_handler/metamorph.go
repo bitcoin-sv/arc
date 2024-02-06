@@ -3,9 +3,11 @@ package transaction_handler
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	arc "github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -70,7 +72,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 	tx, err = m.Client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
 	})
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), metamorph.ErrNotFound.Error()) {
 		return nil, err
 	}
 

@@ -230,7 +230,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 
 			want: nil,
 			wantErr: func(t assert.TestingT, err error, rest ...interface{}) bool {
-				return assert.ErrorIs(t, err, store.ErrNotFound, rest...)
+				return assert.ErrorIs(t, err, ErrNotFound, rest...)
 			},
 		},
 		{

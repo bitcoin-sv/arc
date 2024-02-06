@@ -419,6 +419,9 @@ func (s *Server) getMerklePath(ctx context.Context, hash *chainhash.Hash, dataSt
 func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.TransactionStatus, error) {
 	data, announcedAt, minedAt, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, ErrNotFound
+		}
 		s.logger.Error("failed to get transaction status", slog.String("hash", req.GetTxid()), slog.String("err", err.Error()))
 		return nil, err
 	}

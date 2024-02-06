@@ -122,7 +122,6 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		,callback_url
 		,callback_token
 		,full_status_updates
-		,merkle_proof
 		,reject_reason
 		,raw_tx
 		,locked_by
@@ -139,7 +138,6 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	var callbackUrl sql.NullString
 	var callbackToken sql.NullString
 	var fullStatusUpdates sql.NullBool
-	var merkleProof sql.NullBool
 	var rejectReason sql.NullString
 	var lockedBy sql.NullString
 	var status sql.NullInt32
@@ -155,7 +153,6 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		&callbackUrl,
 		&callbackToken,
 		&fullStatusUpdates,
-		&merkleProof,
 		&rejectReason,
 		&data.RawTx,
 		&lockedBy,
@@ -219,10 +216,6 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		data.FullStatusUpdates = fullStatusUpdates.Bool
 	}
 
-	if merkleProof.Valid {
-		data.MerkleProof = merkleProof.Bool
-	}
-
 	if rejectReason.Valid {
 		data.RejectReason = rejectReason.String
 	}
@@ -255,7 +248,6 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		,callback_url
 		,callback_token
 		,full_status_updates
-		,merkle_proof
 		,reject_reason
 		,raw_tx
 		,locked_by
@@ -273,7 +265,6 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		,$11
 		,$12
 		,$13
-		,$14
 	);`
 
 	var txHash []byte
@@ -303,7 +294,6 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		value.CallbackUrl,
 		value.CallbackToken,
 		value.FullStatusUpdates,
-		value.MerkleProof,
 		value.RejectReason,
 		value.RawTx,
 		p.hostname,
@@ -350,7 +340,6 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 		,callback_url
 		,callback_token
 		,full_status_updates
-		,merkle_proof
 		,raw_tx
 		,locked_by
 		FROM metamorph.transactions
@@ -381,7 +370,6 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 		var callbackUrl sql.NullString
 		var callbackToken sql.NullString
 		var fullStatusUpdates sql.NullBool
-		var merkleProof sql.NullBool
 		var lockedBy sql.NullString
 		var status sql.NullInt32
 
@@ -396,7 +384,6 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 			&callbackUrl,
 			&callbackToken,
 			&fullStatusUpdates,
-			&merkleProof,
 			&data.RawTx,
 			&lockedBy,
 		); err != nil {
@@ -449,10 +436,6 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 
 		if callbackToken.Valid {
 			data.CallbackToken = callbackToken.String
-		}
-
-		if merkleProof.Valid {
-			data.MerkleProof = merkleProof.Bool
 		}
 
 		if fullStatusUpdates.Valid {

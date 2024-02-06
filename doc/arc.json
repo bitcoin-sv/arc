@@ -126,9 +126,6 @@
             "$ref": "#/components/parameters/callbackToken"
           },
           {
-            "$ref": "#/components/parameters/merkleProof"
-          },
-          {
             "$ref": "#/components/parameters/waitForStatus"
           }
         ],
@@ -333,9 +330,6 @@
           },
           {
             "$ref": "#/components/parameters/callbackToken"
-          },
-          {
-            "$ref": "#/components/parameters/merkleProof"
           },
           {
             "$ref": "#/components/parameters/waitForStatus"
@@ -1328,14 +1322,6 @@
         "name": "X-CallbackToken",
         "in": "header",
         "description": "Access token for notification callback endpoint. It will be used as a Authorization header for the http callback",
-        "schema": {
-          "type": "string"
-        }
-      },
-      "merkleProof": {
-        "name": "X-MerkleProof",
-        "in": "header",
-        "description": "Whether to include merkle proofs in the callbacks (true | false).",
         "schema": {
           "type": "string"
         }

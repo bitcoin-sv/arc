@@ -215,7 +215,6 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		CallbackUrl:       req.GetCallbackUrl(),
 		CallbackToken:     req.GetCallbackToken(),
 		FullStatusUpdates: req.GetFullStatusUpdates(),
-		MerkleProof:       req.GetMerkleProof(),
 		RawTx:             req.GetRawTx(),
 	}
 
@@ -269,7 +268,6 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			CallbackUrl:       txReq.GetCallbackUrl(),
 			CallbackToken:     txReq.GetCallbackToken(),
 			FullStatusUpdates: txReq.GetFullStatusUpdates(),
-			MerkleProof:       txReq.GetMerkleProof(),
 			RawTx:             txReq.GetRawTx(),
 		}
 

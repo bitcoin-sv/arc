@@ -19,14 +19,15 @@ const (
 	CallbackIntervalSeconds = 5
 )
 
-func SendCallback(logger *slog.Logger, tx *store.StoreData) {
+func SendCallback(logger *slog.Logger, tx *store.StoreData, merklePath string) {
 	sleepDuration := CallbackIntervalSeconds
+	statusString := tx.Status.String()
+	blockHash := ""
+	if tx.BlockHash != nil {
+		blockHash = utils.ReverseAndHexEncodeSlice(tx.BlockHash.CloneBytes())
+	}
+
 	for i := 0; i < CallbackTries; i++ {
-		statusString := tx.Status.String()
-		blockHash := ""
-		if tx.BlockHash != nil {
-			blockHash = utils.ReverseAndHexEncodeSlice(tx.BlockHash.CloneBytes())
-		}
 
 		logger.Info("Sending callback for transaction", slog.String("hash", tx.Hash.String()), slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("status", statusString), slog.Uint64("block height", tx.BlockHeight), slog.String("block hash", blockHash))
 
@@ -36,6 +37,7 @@ func SendCallback(logger *slog.Logger, tx *store.StoreData) {
 			TxStatus:    &statusString,
 			Txid:        tx.Hash.String(),
 			Timestamp:   time.Now(),
+			MerklePath:  &merklePath,
 		}
 		statusBytes, err := json.Marshal(status)
 		if err != nil {
@@ -69,11 +71,6 @@ func SendCallback(logger *slog.Logger, tx *store.StoreData) {
 
 		// if callback was sent successfully we stop here
 		if response.StatusCode == http.StatusOK {
-			// err = s.RemoveCallbacker(context.Background(), tx.Hash)
-			// if err != nil {
-			// 	logger.Error("Couldn't update/remove callback url", slog.String("err", err.Error()))
-			// 	return
-			// }
 			return
 		}
 

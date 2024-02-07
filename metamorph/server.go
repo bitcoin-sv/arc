@@ -389,7 +389,7 @@ func (s *Server) getMerklePath(ctx context.Context, hash *chainhash.Hash, dataSt
 	go func() {
 		mp, err := s.btc.GetTransactionMerklePath(blocktxCtx, &blocktx_api.Transaction{Hash: hash[:]})
 		if err != nil {
-			if errors.Is(err, blocktx.ErrTransactionNotFoundForMerklePath) {
+			if strings.Contains(err.Error(), blocktx.ErrTransactionNotFoundForMerklePath.Error()) {
 				if dataStatus == metamorph_api.Status_MINED {
 					errCh <- fmt.Errorf("merkle path not found for mined transaction %s: %v", hash.String(), err)
 					return

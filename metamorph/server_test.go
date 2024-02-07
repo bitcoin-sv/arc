@@ -275,7 +275,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				Txid: testdata.TX1,
 			},
 			status:             metamorph_api.Status_MINED,
-			getTxMerklePathErr: blocktx.ErrTransactionNotFoundForMerklePath,
+			getTxMerklePathErr: blocktx.ErrMerklePathNotFoundForTransaction,
 
 			want: &metamorph_api.TransactionStatus{
 				StoredAt:    timestamppb.New(testdata.Time),

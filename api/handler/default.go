@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/lib"
 	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/validator"
@@ -597,7 +596,7 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, subm
 	arcError := api.NewErrorFields(status, submitErr.Error())
 
 	if transaction != nil {
-		arcError.Txid = lib.PtrTo(transaction.TxID())
+		arcError.Txid = PtrTo(transaction.TxID())
 	}
 
 	return status, arcError
@@ -670,3 +669,8 @@ type ContextKey int
 const (
 	ContextSizings ContextKey = iota
 )
+
+// PtrTo returns a pointer to the given value.
+func PtrTo[T any](v T) *T {
+	return &v
+}

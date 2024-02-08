@@ -511,9 +511,8 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		return
 	}
 
-	// register transaction in blocktx
 	go func() {
-		err = p.publisher.PublishTransaction(ctx, req.Data.Hash[:])
+		err = p.publisher.PublishTransaction(req.Data.Hash[:])
 
 		if err != nil {
 			p.logger.Error("failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))

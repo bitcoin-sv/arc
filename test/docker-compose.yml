@@ -102,9 +102,14 @@ services:
     restart: on-failure
 
   nats:
-    image: nats-streaming:0.16.2
+    image: nats:2.10.10
+    container_name: 'nats-server'
     restart: on-failure
-    container_name: 'natsmq'
+    expose:
+      - "4222"
+    ports:
+      - "8222:8222"
+    hostname: nats-server
 
   arc:
     build: ..

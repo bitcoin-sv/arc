@@ -1,64 +1,56 @@
 package nats_mq
 
 import (
-	"context"
-	"crypto/rand"
 	"log/slog"
 	"time"
 
-	"github.com/ThreeDotsLabs/watermill"
-	"github.com/ThreeDotsLabs/watermill-nats/pkg/nats"
-	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/nats-io/stan.go"
-	"github.com/oklog/ulid"
+	"github.com/nats-io/nats.go"
 )
 
+const topic = "register-tx"
+
 type Publisher struct {
-	publisher *nats.StreamingPublisher
-	topic     string
-	logger    *slog.Logger
+	topic  string
+	logger *slog.Logger
+	nc     *nats.Conn
 }
 
-func NewNatsMQPublisher(logger *slog.Logger) (*Publisher, error) {
+func NewNatsMQPublisher(logger *slog.Logger, natsURL string) (*Publisher, error) {
 
-	const topic = "register-tx"
-	const clusterID = "test-cluster"
-	const natsURL = "nats://nats:4222"
+	var nc *nats.Conn
+	var err error
+	for i := 0; i < 5; i++ {
+		nc, err = nats.Connect(natsURL)
+		if err == nil {
+			break
+		}
 
-	publisher, err := nats.NewStreamingPublisher(
-		nats.StreamingPublisherConfig{
-			ClusterID: clusterID,
-			ClientID:  "publisher",
-			StanOptions: []stan.Option{
-				stan.NatsURL(natsURL),
-			},
-			Marshaler: nats.GobMarshaler{},
-		},
-		watermill.NewStdLogger(false, false),
-	)
-	if err != nil {
-		return nil, err
+		logger.Info("Waiting before connecting to NATS", slog.String("url", natsURL))
+		time.Sleep(1 * time.Second)
 	}
 
-	return &Publisher{publisher: publisher, topic: topic, logger: logger}, nil
+	logger.Info("Connected to NATS at", slog.String("url", nc.ConnectedUrl()))
+
+	return &Publisher{nc: nc, topic: topic, logger: logger}, nil
 }
 
-func (p Publisher) PublishTransaction(ctx context.Context, hash []byte) error {
-	uuid := ulid.MustNew(ulid.Timestamp(time.Now()), rand.Reader)
-	msg := message.NewMessage(uuid.String(), hash)
-
-	txHash, err := chainhash.NewHash(msg.Payload)
-	if err != nil {
-		p.logger.Error("failed to parse payload", slog.String("err", err.Error()))
-		return err
-	}
-	p.logger.Info("SENDING TX OVER NATS", slog.String("hash", txHash.String()))
-
-	err = p.publisher.Publish(p.topic, msg)
+func (p Publisher) PublishTransaction(hash []byte) error {
+	err := p.nc.Publish(p.topic, hash)
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (p Publisher) Shutdown() error {
+
+	err := p.nc.Drain()
+	if err != nil {
+		return err
+	}
+
+	p.nc.Close()
 
 	return nil
 }

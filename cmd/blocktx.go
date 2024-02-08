@@ -54,13 +54,18 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	txChannel := make(chan []byte, 20)
-	consumer, err := nats_mq.NewNatsMQConsumer(txChannel, logger)
+	natsURL, err := config.GetString("queueURL")
 	if err != nil {
 		return nil, err
 	}
 
-	err = consumer.ConsumeTransactions(context.Background())
+	txChannel := make(chan []byte, 100)
+	consumer, err := nats_mq.NewNatsMQConsumer(txChannel, logger, natsURL)
+	if err != nil {
+		return nil, err
+	}
+
+	err = consumer.ConsumeTransactions()
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +102,12 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 
 	return func() {
 		logger.Info("Shutting down blocktx store")
+
+		err = consumer.Shutdown()
+		if err != nil {
+			logger.Error("failed to shutdown consumer", slog.String("err", err.Error()))
+		}
+
 		err = blockStore.Close()
 		if err != nil {
 			logger.Error("Error closing blocktx store", slog.String("err", err.Error()))

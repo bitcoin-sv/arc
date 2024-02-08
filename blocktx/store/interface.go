@@ -16,6 +16,7 @@ var (
 )
 
 type Interface interface {
+	RegisterTransactions(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error
 	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error
 	TryToBecomePrimary(ctx context.Context, myHostName string) error
 	GetPrimary(ctx context.Context) (string, error)

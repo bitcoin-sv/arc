@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx"
+	"github.com/bitcoin-sv/arc/blocktx/async/nats_mq"
 	"github.com/bitcoin-sv/arc/config"
 )
 
@@ -53,7 +54,18 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore, startingBlockHeight, peerURLs, network, blocktx.WithRetentionDays(recordRetentionDays))
+	txChannel := make(chan []byte, 20)
+	consumer, err := nats_mq.NewNatsMQConsumer(txChannel, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	err = consumer.ConsumeTransactions(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore, startingBlockHeight, peerURLs, network, blocktx.WithRetentionDays(recordRetentionDays), blocktx.WithTxChan(txChannel))
 	if err != nil {
 		return nil, err
 	}

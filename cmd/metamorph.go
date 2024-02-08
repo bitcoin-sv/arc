@@ -19,7 +19,7 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
-	"github.com/bitcoin-sv/arc/metamorph/async/blocktxstore"
+	"github.com/bitcoin-sv/arc/metamorph/async/nats_mq"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/badger"
 	"github.com/bitcoin-sv/arc/metamorph/store/dynamodb"
@@ -101,18 +101,10 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	// Todo: Replace with message queue
-	btxDbMode, err := config.GetString("blocktx.db.mode")
+	publisher, err := nats_mq.NewNatsMQPublisher(logger)
 	if err != nil {
 		return nil, err
 	}
-
-	blocktxStore, err := blocktx.NewStore(btxDbMode)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
-	}
-
-	publisher := blocktxstore.NewBlocktxStorePublisher(blocktxStore)
 
 	metamorphProcessor, err := metamorph.NewProcessor(
 		s,

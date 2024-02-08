@@ -101,6 +101,10 @@ services:
         condition: service_healthy
     restart: on-failure
 
+  nats:
+    image: nats-streaming:0.16.2
+    restart: on-failure
+    container_name: 'natsmq'
 
   arc:
     build: ..
@@ -117,6 +121,7 @@ services:
       - node3
       - migrate-blocktx
       - migrate-metamorph
+      - nats
 
   tests:
     build: .

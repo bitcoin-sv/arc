@@ -31,6 +31,7 @@ const (
 	maxRequestBlocks                   = 5
 	fillGapsInterval                   = 15 * time.Minute
 	maximumBlockSize                   = 4294967296 // 4Gb
+	registerTxsIntervalDefault         = time.Second * 15
 )
 
 func init() {
@@ -96,6 +97,7 @@ type PeerHandler struct {
 	startingHeight              int
 	dataRetentionDays           int
 	txChannel                   chan []byte
+	registerTxsInterval         time.Duration
 
 	fillGapsTicker              *time.Ticker
 	quitFillBlockGap            chan struct{}
@@ -111,6 +113,12 @@ func init() {
 func WithTransactionBatchSize(size int) func(handler *PeerHandler) {
 	return func(p *PeerHandler) {
 		p.transactionStorageBatchSize = size
+	}
+}
+
+func WithRegisterTxsInterval(d time.Duration) func(handler *PeerHandler) {
+	return func(p *PeerHandler) {
+		p.registerTxsInterval = d
 	}
 }
 
@@ -161,6 +169,7 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 		stats:                       safemap.New[string, *tracing.PeerHandlerStats](),
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
 		startingHeight:              startingHeight,
+		registerTxsInterval:         registerTxsIntervalDefault,
 
 		fillGapsTicker:              time.NewTicker(fillGapsInterval),
 		quitFillBlockGap:            make(chan struct{}),
@@ -273,7 +282,7 @@ func (ph *PeerHandler) startListenTxChannel() {
 	const batchSize = 100
 	txHashes := make([]*blocktx_api.TransactionAndSource, 0, batchSize)
 
-	ticker := time.NewTicker(time.Millisecond * 200)
+	ticker := time.NewTicker(ph.registerTxsInterval)
 	go func() {
 		defer func() {
 			ph.quitListenTxChannelComplete <- struct{}{}

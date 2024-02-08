@@ -15,10 +15,7 @@ import (
 )
 
 var (
-	// ErrTransactionNotFound is returned when a transaction is not found.
-	ErrTransactionNotFound = errors.New("transaction not found")
-
-	// ErrParentTransactionNotFound is returned when a parent transaction is not found.
+	ErrTransactionNotFound       = errors.New("transaction not found")
 	ErrParentTransactionNotFound = errors.New("parent transaction not found")
 )
 

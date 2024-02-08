@@ -714,26 +714,6 @@ func TestGetTransactionOptions(t *testing.T) {
 			expectedErrorStr: "invalid callback URL",
 		},
 		{
-			name: "merkle proof - true",
-			params: api.POSTTransactionParams{
-				XMerkleProof: lib.PtrTo("true"),
-			},
-
-			expectedOptions: &metamorph.TransactionOptions{
-				MerkleProof: true,
-			},
-		},
-		{
-			name: "merkle proof - 1",
-			params: api.POSTTransactionParams{
-				XMerkleProof: lib.PtrTo("1"),
-			},
-
-			expectedOptions: &metamorph.TransactionOptions{
-				MerkleProof: true,
-			},
-		},
-		{
 			name: "wait for status - 1",
 			params: api.POSTTransactionParams{
 				XWaitForStatus: lib.PtrTo(1),

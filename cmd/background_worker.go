@@ -1,16 +1,14 @@
 package cmd
 
 import (
-	"fmt"
 	"log/slog"
 	"time"
 
-	"github.com/bitcoin-sv/arc/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/background_worker"
 	"github.com/bitcoin-sv/arc/background_worker/jobs"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/dbconn"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/go-co-op/gocron"
 )
 
@@ -41,17 +39,16 @@ func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
+
 	grpcMessageSize, err := config.GetInt("grpcMessageSize")
 	if err != nil {
 		return nil, err
 	}
 
-	metamorphConn, err := transaction_handler.DialGRPC(metamorphAddress, grpcMessageSize)
+	metamorphClient, err := metamorph.NewMetamorph(metamorphAddress, grpcMessageSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get connection to metamorph with address %s: %v", metamorphAddress, err)
+		return nil, err
 	}
-
-	metamorphClient := metamorph_api.NewMetaMorphAPIClient(metamorphConn)
 
 	metamorphClearDataRetentionDays, err := config.GetInt("metamorph.db.cleanData.recordRetentionDays")
 	if err != nil {

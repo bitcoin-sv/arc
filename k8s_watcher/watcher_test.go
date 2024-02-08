@@ -13,10 +13,9 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/lmittmann/tint"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
-//go:generate moq -pkg mock -out ./mock/metamorph_api_client_mock.go ../metamorph/metamorph_api MetaMorphAPIClient
+//go:generate moq -pkg mock -out ./mock/metamorph_api_client_mock.go ../metamorph TransactionMaintainer
 //go:generate moq -pkg mock -out ./mock/k8s_client_client_mock.go . K8sClient
 //go:generate moq -pkg mock -out ./mock/ticker_mock.go . Ticker
 
@@ -61,15 +60,15 @@ func TestStart(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphMock := &mock.MetaMorphAPIClientMock{
-				SetUnlockedByNameFunc: func(ctx context.Context, in *metamorph_api.SetUnlockedByNameRequest, opts ...grpc.CallOption) (*metamorph_api.SetUnlockedByNameResponse, error) {
-					require.Equal(t, "metamorph-pod-2", in.Name)
+			metamorphMock := &mock.TransactionMaintainerMock{
+				SetUnlockedByNameFunc: func(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (int64, error) {
+					require.Equal(t, "metamorph-pod-2", req.Name)
 
 					if tc.setUnlockedErr != nil {
-						return nil, tc.setUnlockedErr
+						return 0, tc.setUnlockedErr
 					}
 
-					return &metamorph_api.SetUnlockedByNameResponse{RecordsAffected: 3}, nil
+					return 3, nil
 				},
 			}
 

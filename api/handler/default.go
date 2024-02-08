@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,7 +13,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/api/transaction_handler"
+	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/validator"
 	defaultValidator "github.com/bitcoin-sv/arc/validator/default"
@@ -22,7 +23,6 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/ordishs/go-bitcoin"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -30,7 +30,7 @@ const (
 )
 
 type ArcDefaultHandler struct {
-	TransactionHandler transaction_handler.TransactionHandler
+	TransactionHandler metamorph.TransactionHandler
 	NodePolicy         *bitcoin.Settings
 	logger             *slog.Logger
 	now                func() time.Time
@@ -44,7 +44,7 @@ func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 
 type Option func(f *ArcDefaultHandler)
 
-func NewDefault(logger *slog.Logger, transactionHandler transaction_handler.TransactionHandler, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
+func NewDefault(logger *slog.Logger, transactionHandler metamorph.TransactionHandler, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
 	handler := &ArcDefaultHandler{
 		TransactionHandler: transactionHandler,
 		NodePolicy:         policy,
@@ -170,7 +170,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 	normalBytes, dataBytes, feeAmount := getSizings(transaction)
 	sizingInfo[0] = []uint64{normalBytes, dataBytes, feeAmount}
-	sizingCtx := context.WithValue(ctx.Request().Context(), api.ContextSizings, sizingInfo)
+	sizingCtx := context.WithValue(ctx.Request().Context(), ContextSizings, sizingInfo)
 	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
 
 	return ctx.JSON(int(status), response)
@@ -185,7 +185,7 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 
 	tx, err := m.getTransactionStatus(tracingCtx, id)
 	if err != nil {
-		if errors.Is(err, transaction_handler.ErrTransactionNotFound) {
+		if errors.Is(err, metamorph.ErrTransactionNotFound) {
 			e := api.NewErrorFields(api.ErrStatusNotFound, err.Error())
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
@@ -356,19 +356,19 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			sizingInfo = append(sizingInfo, sizing)
 		}
 	}
-	sizingCtx := context.WithValue(ctx.Request().Context(), api.ContextSizings, sizingInfo)
+	sizingCtx := context.WithValue(ctx.Request().Context(), ContextSizings, sizingInfo)
 	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
 	// we cannot really return any other status here
 	// each transaction in the slice will have the result of the transaction submission
 	return ctx.JSON(int(status), transactions)
 }
 
-func getTransactionOptions(params api.POSTTransactionParams) (*api.TransactionOptions, error) {
+func getTransactionOptions(params api.POSTTransactionParams) (*metamorph.TransactionOptions, error) {
 	return getTransactionsOptions(api.POSTTransactionsParams(params))
 }
 
-func getTransactionsOptions(params api.POSTTransactionsParams) (*api.TransactionOptions, error) {
-	transactionOptions := &api.TransactionOptions{}
+func getTransactionsOptions(params api.POSTTransactionsParams) (*metamorph.TransactionOptions, error) {
+	transactionOptions := &metamorph.TransactionOptions{}
 	if params.XCallbackUrl != nil {
 		_, err := url.ParseRequestURI(*params.XCallbackUrl)
 		if err != nil {
@@ -409,7 +409,7 @@ func getTransactionsOptions(params api.POSTTransactionsParams) (*api.Transaction
 	return transactionOptions, nil
 }
 
-func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *bt.Tx, transactionOptions *api.TransactionOptions) (api.StatusCode, interface{}, error) {
+func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *bt.Tx, transactionOptions *metamorph.TransactionOptions) (api.StatusCode, interface{}, error) {
 	span, tracingCtx := opentracing.StartSpanFromContext(ctx, "ArcDefaultHandler:processTransaction")
 	defer span.Finish()
 
@@ -468,7 +468,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 }
 
 // processTransactions validates all the transactions in the array and submits to metamorph for processing.
-func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions []*bt.Tx, transactionOptions *api.TransactionOptions) (api.StatusCode, []interface{}, error) {
+func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions []*bt.Tx, transactionOptions *metamorph.TransactionOptions) (api.StatusCode, []interface{}, error) {
 	span, tracingCtx := opentracing.StartSpanFromContext(ctx, "ArcDefaultHandler:processTransactions")
 	defer span.Finish()
 
@@ -568,7 +568,7 @@ func (m ArcDefaultHandler) extendTransaction(ctx context.Context, transaction *b
 	return nil
 }
 
-func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) (*transaction_handler.TransactionStatus, error) {
+func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) (*metamorph.TransactionStatus, error) {
 	tx, err := m.TransactionHandler.GetTransactionStatus(ctx, id)
 	if err != nil {
 		return nil, err
@@ -588,7 +588,7 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, subm
 	ok := errors.As(submitErr, &validatorErr)
 	if ok {
 		status = validatorErr.ArcErrorStatus
-	} else if errors.Is(submitErr, transaction_handler.ErrParentTransactionNotFound) {
+	} else if errors.Is(submitErr, metamorph.ErrParentTransactionNotFound) {
 		status = api.ErrStatusTxFormat
 	}
 
@@ -634,7 +634,7 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 		return txBytes, nil
 	}
 
-	return nil, transaction_handler.ErrParentTransactionNotFound
+	return nil, metamorph.ErrParentTransactionNotFound
 }
 
 func getSizings(tx *bt.Tx) (uint64, uint64, uint64) {
@@ -661,4 +661,16 @@ func getSizings(tx *bt.Tx) (uint64, uint64, uint64) {
 	normalBytes := uint64(len(tx.Bytes())) - dataBytes
 
 	return normalBytes, dataBytes, feeAmount
+}
+
+// ContextKey type.
+type ContextKey int
+
+const (
+	ContextSizings ContextKey = iota
+)
+
+// PtrTo returns a pointer to the given value.
+func PtrTo[T any](v T) *T {
+	return &v
 }

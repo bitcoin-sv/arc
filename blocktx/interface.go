@@ -3,5 +3,5 @@ package blocktx
 import "errors"
 
 var (
-	ErrMerklePathNotFoundForTransaction = errors.New("Merkle path not found for transaction")
+	ErrMerklePathNotFoundForTransaction = errors.New("merkle path not found for transaction")
 )

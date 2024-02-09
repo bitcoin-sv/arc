@@ -3,6 +3,7 @@ package sql
 import (
 	"context"
 	"fmt"
+	"github.com/ordishs/gocore"
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
@@ -14,9 +15,13 @@ const (
 )
 
 func (s *SQL) ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.ClearDataResponse, error) {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("ClearBlocktxTable").AddTime(start)
+	}()
 
-	start := time.Now()
-	deleteBeforeDate := start.Add(-24 * time.Hour * time.Duration(retentionDays))
+	now := s.now()
+	deleteBeforeDate := now.Add(-24 * time.Hour * time.Duration(retentionDays))
 
 	stmt, err := s.db.Prepare(fmt.Sprintf("DELETE FROM %s WHERE inserted_at_num <= $1::int", table))
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/dbconn"
@@ -26,6 +27,7 @@ const (
 type SQL struct {
 	db     *sqlx.DB
 	engine string
+	now    func() time.Time
 }
 
 func init() {
@@ -42,6 +44,7 @@ func NewPostgresStore(params dbconn.DBConnectionParams) (store.Interface, error)
 	return &SQL{
 		db:     db,
 		engine: postgresEngine,
+		now:    time.Now,
 	}, nil
 }
 
@@ -162,6 +165,7 @@ func New(engine string) (*SQL, error) {
 	return &SQL{
 		db:     db,
 		engine: engine,
+		now:    time.Now,
 	}, nil
 }
 

@@ -1,13 +1,17 @@
 package nats_mq
 
 import (
+	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/nats-io/nats.go"
 )
 
-const topic = "register-tx"
+const (
+	topic           = "register-tx"
+	connectionTries = 5
+)
 
 type Publisher struct {
 	topic  string
@@ -19,14 +23,26 @@ func NewNatsMQPublisher(logger *slog.Logger, natsURL string) (*Publisher, error)
 
 	var nc *nats.Conn
 	var err error
-	for i := 0; i < 5; i++ {
+
+	nc, err = nats.Connect(natsURL)
+	if err == nil {
+		return &Publisher{nc: nc, logger: logger, topic: topic}, nil
+	}
+
+	// Try to reconnect in intervals
+	i := 0
+	for range time.NewTicker(2 * time.Second).C {
 		nc, err = nats.Connect(natsURL)
+		if err != nil && i >= connectionTries {
+			return nil, fmt.Errorf("failed to connect to NATS server: %v", err)
+		}
+
 		if err == nil {
 			break
 		}
 
 		logger.Info("Waiting before connecting to NATS", slog.String("url", natsURL))
-		time.Sleep(1 * time.Second)
+		i++
 	}
 
 	logger.Info("Connected to NATS at", slog.String("url", nc.ConnectedUrl()))

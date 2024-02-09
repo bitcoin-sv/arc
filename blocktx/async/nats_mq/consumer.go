@@ -1,6 +1,7 @@
 package nats_mq
 
 import (
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -8,8 +9,9 @@ import (
 )
 
 const (
-	consumerQueue = "register-tx-group"
-	topic         = "register-tx"
+	consumerQueue   = "register-tx-group"
+	topic           = "register-tx"
+	connectionTries = 5
 )
 
 type Consumer struct {
@@ -21,18 +23,28 @@ type Consumer struct {
 }
 
 func NewNatsMQConsumer(txChannel chan []byte, logger *slog.Logger, natsURL string) (*Consumer, error) {
-
 	var nc *nats.Conn
-
 	var err error
-	for i := 0; i < 5; i++ {
+
+	nc, err = nats.Connect(natsURL)
+	if err == nil {
+		return &Consumer{nc: nc, logger: logger, topic: topic, txChannel: txChannel}, nil
+	}
+
+	// Try to reconnect in intervals
+	i := 0
+	for range time.NewTicker(2 * time.Second).C {
 		nc, err = nats.Connect(natsURL)
+		if err != nil && i >= connectionTries {
+			return nil, fmt.Errorf("failed to connect to NATS server: %v", err)
+		}
+
 		if err == nil {
 			break
 		}
 
 		logger.Info("Waiting before connecting to NATS", slog.String("url", natsURL))
-		time.Sleep(1 * time.Second)
+		i++
 	}
 
 	logger.Info("Connected to NATS at", slog.String("url", nc.ConnectedUrl()))

@@ -31,7 +31,8 @@ const (
 	maxRequestBlocks                   = 5
 	fillGapsInterval                   = 15 * time.Minute
 	maximumBlockSize                   = 4294967296 // 4Gb
-	registerTxsIntervalDefault         = time.Second * 15
+	registerTxsIntervalDefault         = time.Second * 10
+	registerTxsBatchSizeDefault        = 100
 )
 
 func init() {
@@ -98,6 +99,7 @@ type PeerHandler struct {
 	dataRetentionDays           int
 	txChannel                   chan []byte
 	registerTxsInterval         time.Duration
+	registerTxsBatchSize        int
 
 	fillGapsTicker              *time.Ticker
 	quitFillBlockGap            chan struct{}
@@ -116,12 +118,6 @@ func WithTransactionBatchSize(size int) func(handler *PeerHandler) {
 	}
 }
 
-func WithRegisterTxsInterval(d time.Duration) func(handler *PeerHandler) {
-	return func(p *PeerHandler) {
-		p.registerTxsInterval = d
-	}
-}
-
 func WithRetentionDays(dataRetentionDays int) func(handler *PeerHandler) {
 	return func(p *PeerHandler) {
 		p.dataRetentionDays = dataRetentionDays
@@ -134,9 +130,21 @@ func WithFillGapsInterval(interval time.Duration) func(handler *PeerHandler) {
 	}
 }
 
+func WithRegisterTxsInterval(d time.Duration) func(handler *PeerHandler) {
+	return func(p *PeerHandler) {
+		p.registerTxsInterval = d
+	}
+}
+
 func WithTxChan(txChannel chan []byte) func(handler *PeerHandler) {
 	return func(handler *PeerHandler) {
 		handler.txChannel = txChannel
+	}
+}
+
+func WithRegisterTxsBatchSize(size int) func(handler *PeerHandler) {
+	return func(handler *PeerHandler) {
+		handler.registerTxsBatchSize = size
 	}
 }
 
@@ -170,6 +178,7 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
 		startingHeight:              startingHeight,
 		registerTxsInterval:         registerTxsIntervalDefault,
+		registerTxsBatchSize:        registerTxsBatchSizeDefault,
 
 		fillGapsTicker:              time.NewTicker(fillGapsInterval),
 		quitFillBlockGap:            make(chan struct{}),
@@ -203,7 +212,7 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 
 	ph.startFillGaps(peers)
 	ph.startPeerWorker()
-	ph.startListenTxChannel()
+	ph.startProcessTxs()
 
 	return ph, nil
 }
@@ -277,10 +286,8 @@ func (bn *PeerHandler) startFillGaps(peers []*p2p.Peer) {
 	}()
 }
 
-func (ph *PeerHandler) startListenTxChannel() {
-
-	const batchSize = 100
-	txHashes := make([]*blocktx_api.TransactionAndSource, 0, batchSize)
+func (ph *PeerHandler) startProcessTxs() {
+	txHashes := make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
 
 	ticker := time.NewTicker(ph.registerTxsInterval)
 	go func() {
@@ -297,14 +304,14 @@ func (ph *PeerHandler) startListenTxChannel() {
 					Hash: txHash,
 				})
 
-				if len(txHashes) < batchSize {
+				if len(txHashes) < ph.registerTxsBatchSize {
 					continue
 				}
 				err := ph.store.RegisterTransactions(context.Background(), txHashes)
 				if err != nil {
 					ph.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 				}
-				txHashes = make([]*blocktx_api.TransactionAndSource, 0, batchSize)
+				txHashes = make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
 
 			case <-ticker.C:
 				if len(txHashes) == 0 {
@@ -314,7 +321,7 @@ func (ph *PeerHandler) startListenTxChannel() {
 				if err != nil {
 					ph.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 				}
-				txHashes = make([]*blocktx_api.TransactionAndSource, 0, batchSize)
+				txHashes = make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
 			}
 		}
 	}()
@@ -707,6 +714,9 @@ func extractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
 func (ph *PeerHandler) Shutdown() {
 	ph.quitFillBlockGap <- struct{}{}
 	<-ph.quitFillBlockGapComplete
+
+	ph.quitListenTxChannel <- struct{}{}
+	<-ph.quitListenTxChannelComplete
 
 	ph.fillGapsTicker.Stop()
 	tracing.Unregister(ph.peerHandlerCollector)

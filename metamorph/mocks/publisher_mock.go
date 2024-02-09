@@ -4,7 +4,6 @@
 package mocks
 
 import (
-	"context"
 	"github.com/bitcoin-sv/arc/metamorph/async"
 	"sync"
 )
@@ -19,7 +18,7 @@ var _ async.Publisher = &PublisherMock{}
 //
 //		// make and configure a mocked async.Publisher
 //		mockedPublisher := &PublisherMock{
-//			PublishTransactionFunc: func(ctx context.Context, hash []byte) error {
+//			PublishTransactionFunc: func(hash []byte) error {
 //				panic("mock out the PublishTransaction method")
 //			},
 //		}
@@ -30,14 +29,12 @@ var _ async.Publisher = &PublisherMock{}
 //	}
 type PublisherMock struct {
 	// PublishTransactionFunc mocks the PublishTransaction method.
-	PublishTransactionFunc func(ctx context.Context, hash []byte) error
+	PublishTransactionFunc func(hash []byte) error
 
 	// calls tracks calls to the methods.
 	calls struct {
 		// PublishTransaction holds details about calls to the PublishTransaction method.
 		PublishTransaction []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
 			// Hash is the hash argument value.
 			Hash []byte
 		}
@@ -46,21 +43,19 @@ type PublisherMock struct {
 }
 
 // PublishTransaction calls PublishTransactionFunc.
-func (mock *PublisherMock) PublishTransaction(ctx context.Context, hash []byte) error {
+func (mock *PublisherMock) PublishTransaction(hash []byte) error {
 	if mock.PublishTransactionFunc == nil {
 		panic("PublisherMock.PublishTransactionFunc: method is nil but Publisher.PublishTransaction was just called")
 	}
 	callInfo := struct {
-		Ctx  context.Context
 		Hash []byte
 	}{
-		Ctx:  ctx,
 		Hash: hash,
 	}
 	mock.lockPublishTransaction.Lock()
 	mock.calls.PublishTransaction = append(mock.calls.PublishTransaction, callInfo)
 	mock.lockPublishTransaction.Unlock()
-	return mock.PublishTransactionFunc(ctx, hash)
+	return mock.PublishTransactionFunc(hash)
 }
 
 // PublishTransactionCalls gets all the calls that were made to PublishTransaction.
@@ -68,11 +63,9 @@ func (mock *PublisherMock) PublishTransaction(ctx context.Context, hash []byte) 
 //
 //	len(mockedPublisher.PublishTransactionCalls())
 func (mock *PublisherMock) PublishTransactionCalls() []struct {
-	Ctx  context.Context
 	Hash []byte
 } {
 	var calls []struct {
-		Ctx  context.Context
 		Hash []byte
 	}
 	mock.lockPublishTransaction.RLock()

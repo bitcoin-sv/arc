@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx"
+	"github.com/bitcoin-sv/arc/blocktx/async/nats_mq"
 	"github.com/bitcoin-sv/arc/config"
 )
 
@@ -53,7 +54,38 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore, startingBlockHeight, peerURLs, network, blocktx.WithRetentionDays(recordRetentionDays))
+	natsURL, err := config.GetString("queueURL")
+	if err != nil {
+		return nil, err
+	}
+
+	registerTxInterval, err := config.GetDuration("blocktx.registerTxsInterval")
+	if err != nil {
+		return nil, err
+	}
+
+	// The tx channel needs the capacity so that it could potentially buffer up to a certain nr of transactions per second
+	const targetTps = 6000
+	capacityRequired := int(registerTxInterval.Seconds() * targetTps)
+	if capacityRequired < 100 {
+		capacityRequired = 100
+	}
+
+	txChannel := make(chan []byte, capacityRequired)
+	consumer, err := nats_mq.NewNatsMQConsumer(txChannel, logger, natsURL)
+	if err != nil {
+		return nil, err
+	}
+
+	err = consumer.ConsumeTransactions()
+	if err != nil {
+		return nil, err
+	}
+
+	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore, startingBlockHeight, peerURLs, network,
+		blocktx.WithRetentionDays(recordRetentionDays),
+		blocktx.WithTxChan(txChannel),
+		blocktx.WithRegisterTxsInterval(registerTxInterval))
 	if err != nil {
 		return nil, err
 	}
@@ -85,6 +117,12 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 
 	return func() {
 		logger.Info("Shutting down blocktx store")
+
+		err = consumer.Shutdown()
+		if err != nil {
+			logger.Error("failed to shutdown consumer", slog.String("err", err.Error()))
+		}
+
 		err = blockStore.Close()
 		if err != nil {
 			logger.Error("Error closing blocktx store", slog.String("err", err.Error()))

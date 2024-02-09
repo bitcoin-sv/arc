@@ -47,6 +47,9 @@ var _ Interface = &InterfaceMock{}
 //			RegisterTransactionFunc: func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
 //				panic("mock out the RegisterTransaction method")
 //			},
+//			RegisterTransactionsFunc: func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error {
+//				panic("mock out the RegisterTransactions method")
+//			},
 //			TryToBecomePrimaryFunc: func(ctx context.Context, myHostName string) error {
 //				panic("mock out the TryToBecomePrimary method")
 //			},
@@ -86,6 +89,9 @@ type InterfaceMock struct {
 
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error
+
+	// RegisterTransactionsFunc mocks the RegisterTransactions method.
+	RegisterTransactionsFunc func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error
 
 	// TryToBecomePrimaryFunc mocks the TryToBecomePrimary method.
 	TryToBecomePrimaryFunc func(ctx context.Context, myHostName string) error
@@ -156,6 +162,13 @@ type InterfaceMock struct {
 			// Transaction is the transaction argument value.
 			Transaction *blocktx_api.TransactionAndSource
 		}
+		// RegisterTransactions holds details about calls to the RegisterTransactions method.
+		RegisterTransactions []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Transaction is the transaction argument value.
+			Transaction []*blocktx_api.TransactionAndSource
+		}
 		// TryToBecomePrimary holds details about calls to the TryToBecomePrimary method.
 		TryToBecomePrimary []struct {
 			// Ctx is the ctx argument value.
@@ -184,6 +197,7 @@ type InterfaceMock struct {
 	lockInsertBlock              sync.RWMutex
 	lockMarkBlockAsDone          sync.RWMutex
 	lockRegisterTransaction      sync.RWMutex
+	lockRegisterTransactions     sync.RWMutex
 	lockTryToBecomePrimary       sync.RWMutex
 	lockUpdateBlockTransactions  sync.RWMutex
 }
@@ -504,6 +518,42 @@ func (mock *InterfaceMock) RegisterTransactionCalls() []struct {
 	mock.lockRegisterTransaction.RLock()
 	calls = mock.calls.RegisterTransaction
 	mock.lockRegisterTransaction.RUnlock()
+	return calls
+}
+
+// RegisterTransactions calls RegisterTransactionsFunc.
+func (mock *InterfaceMock) RegisterTransactions(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error {
+	if mock.RegisterTransactionsFunc == nil {
+		panic("InterfaceMock.RegisterTransactionsFunc: method is nil but Interface.RegisterTransactions was just called")
+	}
+	callInfo := struct {
+		Ctx         context.Context
+		Transaction []*blocktx_api.TransactionAndSource
+	}{
+		Ctx:         ctx,
+		Transaction: transaction,
+	}
+	mock.lockRegisterTransactions.Lock()
+	mock.calls.RegisterTransactions = append(mock.calls.RegisterTransactions, callInfo)
+	mock.lockRegisterTransactions.Unlock()
+	return mock.RegisterTransactionsFunc(ctx, transaction)
+}
+
+// RegisterTransactionsCalls gets all the calls that were made to RegisterTransactions.
+// Check the length with:
+//
+//	len(mockedInterface.RegisterTransactionsCalls())
+func (mock *InterfaceMock) RegisterTransactionsCalls() []struct {
+	Ctx         context.Context
+	Transaction []*blocktx_api.TransactionAndSource
+} {
+	var calls []struct {
+		Ctx         context.Context
+		Transaction []*blocktx_api.TransactionAndSource
+	}
+	mock.lockRegisterTransactions.RLock()
+	calls = mock.calls.RegisterTransactions
+	mock.lockRegisterTransactions.RUnlock()
 	return calls
 }
 

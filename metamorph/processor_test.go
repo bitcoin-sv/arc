@@ -289,7 +289,7 @@ func TestProcessTransaction(t *testing.T) {
 			pm := p2p.NewPeerManagerMock()
 
 			publisher := &mocks.PublisherMock{
-				PublishTransactionFunc: func(ctx context.Context, hash []byte) error {
+				PublishTransactionFunc: func(hash []byte) error {
 					return nil
 				},
 			}
@@ -562,7 +562,7 @@ func TestSendStatusMinedForTransaction(t *testing.T) {
 		pm := p2p.NewPeerManagerMock()
 
 		publisher := &mocks.PublisherMock{
-			PublishTransactionFunc: func(ctx context.Context, hash []byte) error {
+			PublishTransactionFunc: func(hash []byte) error {
 				return nil
 			},
 		}

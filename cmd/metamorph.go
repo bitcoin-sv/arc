@@ -19,7 +19,7 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
-	"github.com/bitcoin-sv/arc/metamorph/async/blocktxstore"
+	"github.com/bitcoin-sv/arc/metamorph/async/nats_mq"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/badger"
 	"github.com/bitcoin-sv/arc/metamorph/store/dynamodb"
@@ -96,23 +96,21 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
+
 	maxMonitoredTxs, err := config.GetInt64("metamorph.maxMonitoredTxs")
 	if err != nil {
 		return nil, err
 	}
 
-	// Todo: Replace with message queue
-	btxDbMode, err := config.GetString("blocktx.db.mode")
+	natsURL, err := config.GetString("queueURL")
 	if err != nil {
 		return nil, err
 	}
 
-	blocktxStore, err := blocktx.NewStore(btxDbMode)
+	publisher, err := nats_mq.NewNatsMQPublisher(logger, natsURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
+		return nil, err
 	}
-
-	publisher := blocktxstore.NewBlocktxStorePublisher(blocktxStore)
 
 	metamorphProcessor, err := metamorph.NewProcessor(
 		s,
@@ -256,7 +254,10 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 
 	return func() {
 		logger.Info("Shutting down metamorph")
-
+		err = publisher.Shutdown()
+		if err != nil {
+			logger.Error("failed to shutdown publisher", slog.String("err", err.Error()))
+		}
 		stopUnminedProcessor <- struct{}{}
 		metamorphProcessor.Shutdown()
 		err = s.Close(context.Background())

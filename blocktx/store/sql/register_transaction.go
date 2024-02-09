@@ -3,6 +3,7 @@ package sql
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/lib/pq"
@@ -44,40 +45,20 @@ func (s *SQL) RegisterTransactions(ctx context.Context, transactions []*blocktx_
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:RegisterTransactions")
 	defer span.Finish()
 
-	txn, err := s.db.Begin()
+	hashes := make([][]byte, len(transactions))
+
+	for i, transaction := range transactions {
+		hashes[i] = transaction.Hash
+	}
+
+	q := `
+			INSERT INTO transactions (hash)
+			SELECT * FROM UNNEST ($1::BYTEA[])
+			ON CONFLICT DO NOTHING
+			`
+	_, err := s.db.ExecContext(ctx, q, pq.Array(hashes))
 	if err != nil {
-		return err
-	}
-
-	defer func() {
-		_ = txn.Rollback()
-	}()
-
-	stmt, err := txn.Prepare(
-		pq.CopyIn(
-			"transactions", // table name
-			"hash",
-		),
-	)
-	if err != nil {
-		return err
-	}
-
-	for _, transaction := range transactions {
-		if _, err := stmt.Exec(
-			transaction.Hash,
-		); err != nil {
-			stmt.Close()
-			return err
-		}
-	}
-
-	if err = stmt.Close(); err != nil {
-		return err
-	}
-
-	if err := txn.Commit(); err != nil {
-		return err
+		return fmt.Errorf("failed to bulk insert transactions: %v", err)
 	}
 
 	return nil

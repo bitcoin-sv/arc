@@ -56,6 +56,7 @@ func (s *RegisterTransactionsSuite) Test() {
 	err = pstore.RegisterTransaction(context.Background(), &blocktx_api.TransactionAndSource{})
 	require.ErrorIs(s.T(), err, ErrRegisterTransactionMissingHash)
 
+	// Register new transactions
 	txs := []*blocktx_api.TransactionAndSource{
 		{
 			Hash: []byte(database_testing.GetRandomBytes()),
@@ -96,6 +97,30 @@ func (s *RegisterTransactionsSuite) Test() {
 	require.NoError(s.T(), err)
 
 	require.Equal(s.T(), txs[3].GetHash(), storedtx.Hash)
+
+	// Register transactions which are partly already registered
+	txs2 := []*blocktx_api.TransactionAndSource{
+		txs[0],
+		txs[2],
+		{
+			Hash: []byte(database_testing.GetRandomBytes()),
+		},
+		{
+			Hash: []byte(database_testing.GetRandomBytes()),
+		},
+	}
+	err = pstore.RegisterTransactions(context.Background(), txs2)
+	require.NoError(s.T(), err)
+
+	err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(txs2[2].GetHash()))
+	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), txs2[2].GetHash(), storedtx.Hash)
+
+	err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(txs2[3].GetHash()))
+	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), txs2[3].GetHash(), storedtx.Hash)
 
 }
 

@@ -59,18 +59,25 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	txChannel := make(chan []byte, 100)
+	registerTxInterval, err := config.GetDuration("blocktx.registerTxsInterval")
+	if err != nil {
+		return nil, err
+	}
+
+	// The tx channel needs the capacity so that it could potentially buffer up to a certain nr of transactions per second
+	const targetTps = 6000
+	capacityRequired := int(registerTxInterval.Seconds() * targetTps)
+	if capacityRequired < 100 {
+		capacityRequired = 100
+	}
+
+	txChannel := make(chan []byte, capacityRequired)
 	consumer, err := nats_mq.NewNatsMQConsumer(txChannel, logger, natsURL)
 	if err != nil {
 		return nil, err
 	}
 
 	err = consumer.ConsumeTransactions()
-	if err != nil {
-		return nil, err
-	}
-
-	registerTxInterval, err := config.GetDuration("blocktx.registerTxsInterval")
 	if err != nil {
 		return nil, err
 	}

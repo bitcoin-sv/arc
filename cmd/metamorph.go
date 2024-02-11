@@ -92,11 +92,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	checkIfMinedInterval, err := config.GetDuration("metamorph.checkIfMinedInterval")
-	if err != nil {
-		return nil, err
-	}
-
 	maxMonitoredTxs, err := config.GetInt64("metamorph.maxMonitoredTxs")
 	if err != nil {
 		return nil, err
@@ -107,7 +102,14 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	publisher, err := nats_mq.NewNatsMQPublisher(logger, natsURL)
+	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 400)
+
+	mqClient, err := nats_mq.NewNatsMQClient(minedTxsChan, logger, natsURL)
+	if err != nil {
+		return nil, err
+	}
+
+	err = mqClient.SubscribeMinedTxs()
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +121,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithProcessorLogger(logger.With(slog.String("module", "mtm-proc"))),
 		metamorph.WithDataRetentionPeriod(time.Duration(dataRetentionDays)*24*time.Hour),
-		metamorph.WithProcessCheckIfMinedInterval(checkIfMinedInterval),
 		metamorph.WithMaxMonitoredTxs(maxMonitoredTxs),
 		metamorph.WithPublisher(publisher),
 	)
@@ -254,9 +255,9 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 
 	return func() {
 		logger.Info("Shutting down metamorph")
-		err = publisher.Shutdown()
+		err = mqClient.Shutdown()
 		if err != nil {
-			logger.Error("failed to shutdown publisher", slog.String("err", err.Error()))
+			logger.Error("failed to shutdown mqClient", slog.String("err", err.Error()))
 		}
 		stopUnminedProcessor <- struct{}{}
 		metamorphProcessor.Shutdown()

@@ -97,6 +97,7 @@ type PeerHandler struct {
 	peerHandlerCollector        *tracing.PeerHandlerCollector
 	startingHeight              int
 	dataRetentionDays           int
+	mqClient                    MessageQueueClient
 	txChannel                   chan []byte
 	registerTxsInterval         time.Duration
 	registerTxsBatchSize        int
@@ -110,6 +111,12 @@ type PeerHandler struct {
 
 func init() {
 	gocore.NewStat("blocktx", true).NewStat("HandleBlock", true)
+}
+
+func WithMessageQueueClient(mqClient MessageQueueClient) func(handler *PeerHandler) {
+	return func(p *PeerHandler) {
+		p.mqClient = mqClient
+	}
 }
 
 func WithTransactionBatchSize(size int) func(handler *PeerHandler) {
@@ -496,7 +503,7 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 		return fmt.Errorf("merkle root mismatch for block %s", blockHash.String())
 	}
 
-	if err = ph.markTransactionsAsMined(blockId, calculatedMerkleTree, msg.Height); err != nil {
+	if err = ph.markTransactionsAsMined(blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
 		return fmt.Errorf("unable to mark block as mined %s: %v", blockHash.String(), err)
 	}
 
@@ -607,7 +614,7 @@ func (ph *PeerHandler) printMemStats() {
 
 }
 
-func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64) error {
+func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("markTransactionsAsMined").AddTime(start)
@@ -616,6 +623,7 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 	txs := make([]*blocktx_api.TransactionAndSource, 0, ph.transactionStorageBatchSize)
 	merklePaths := make([]string, 0, ph.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
+	updates := make([]*blocktx_api.TransactionBlock, 0)
 
 	for txIndex, hash := range leaves {
 		// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.
@@ -640,13 +648,30 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 
 		merklePaths = append(merklePaths, bumpHex)
 		if (txIndex+1)%ph.transactionStorageBatchSize == 0 {
-			if err := ph.store.UpdateBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
+			updateResp, err := ph.store.UpdateBlockTransactions(context.Background(), blockId, txs, merklePaths)
+			if err != nil {
 				return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 			}
 			// free up memory
 			txs = make([]*blocktx_api.TransactionAndSource, 0, ph.transactionStorageBatchSize)
 			merklePaths = make([]string, 0, ph.transactionStorageBatchSize)
 
+			updatesBatch := make([]*blocktx_api.TransactionBlock, len(updateResp))
+
+			for i, updResp := range updateResp {
+				txHash, err := chainhash.NewHash(updResp.TxHash)
+				if err != nil {
+					return err
+				}
+				updatesBatch[i] = &blocktx_api.TransactionBlock{
+					TransactionHash: txHash[:],
+					BlockHash:       blockhash[:],
+					BlockHeight:     blockHeight,
+					MerklePath:      updResp.MerklePath,
+				}
+			}
+
+			updates = append(updates, updatesBatch...)
 			// print stats, call gc and chec the result
 			ph.printMemStats()
 			runtime.GC()
@@ -655,23 +680,34 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 	}
 
 	// update all remaining transactions
-	if err := ph.store.UpdateBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
+	updateResp, err := ph.store.UpdateBlockTransactions(context.Background(), blockId, txs, merklePaths)
+	if err != nil {
 		return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 	}
 
-	return nil
-}
+	updatesBatch := make([]*blocktx_api.TransactionBlock, len(updateResp))
 
-func (ph *PeerHandler) getAnnouncedCacheBlockHashes() []string {
-	items := ph.announcedCache.Items()
-	blockHashes := make([]string, len(items))
-	i := 0
-	for k := range items {
-		blockHashes[i] = k.String()
-		i++
+	for i, updResp := range updateResp {
+		txHash, err := chainhash.NewHash(updResp.TxHash)
+		if err != nil {
+			return err
+		}
+		updatesBatch[i] = &blocktx_api.TransactionBlock{
+			TransactionHash: txHash[:],
+			BlockHash:       blockhash[:],
+			BlockHeight:     blockHeight,
+			MerklePath:      updResp.MerklePath,
+		}
 	}
 
-	return blockHashes
+	updates = append(updates, updatesBatch...)
+
+	err = ph.mqClient.PublishMinedTxs(&blocktx_api.TransactionBlocks{TransactionBlocks: updates})
+	if err != nil {
+		ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+	}
+
+	return nil
 }
 
 func (ph *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {

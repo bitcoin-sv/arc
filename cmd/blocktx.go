@@ -85,7 +85,9 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore, startingBlockHeight, peerURLs, network,
 		blocktx.WithRetentionDays(recordRetentionDays),
 		blocktx.WithTxChan(txChannel),
-		blocktx.WithRegisterTxsInterval(registerTxInterval))
+		blocktx.WithRegisterTxsInterval(registerTxInterval),
+		blocktx.WithMessageQueueClient(mqClient))
+
 	if err != nil {
 		return nil, err
 	}

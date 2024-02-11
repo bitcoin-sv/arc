@@ -56,7 +56,7 @@ var _ Interface = &InterfaceMock{}
 //			TryToBecomePrimaryFunc: func(ctx context.Context, myHostName string) error {
 //				panic("mock out the TryToBecomePrimary method")
 //			},
-//			UpdateBlockTransactionsFunc: func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
+//			UpdateBlockTransactionsFunc: func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]UpdateBlockTransactionsResult, error) {
 //				panic("mock out the UpdateBlockTransactions method")
 //			},
 //		}
@@ -103,7 +103,7 @@ type InterfaceMock struct {
 	TryToBecomePrimaryFunc func(ctx context.Context, myHostName string) error
 
 	// UpdateBlockTransactionsFunc mocks the UpdateBlockTransactions method.
-	UpdateBlockTransactionsFunc func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error
+	UpdateBlockTransactionsFunc func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]UpdateBlockTransactionsResult, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -650,7 +650,7 @@ func (mock *InterfaceMock) TryToBecomePrimaryCalls() []struct {
 }
 
 // UpdateBlockTransactions calls UpdateBlockTransactionsFunc.
-func (mock *InterfaceMock) UpdateBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
+func (mock *InterfaceMock) UpdateBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]UpdateBlockTransactionsResult, error) {
 	if mock.UpdateBlockTransactionsFunc == nil {
 		panic("InterfaceMock.UpdateBlockTransactionsFunc: method is nil but Interface.UpdateBlockTransactions was just called")
 	}

@@ -5,31 +5,40 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/bitcoin-sv/arc/blocktx"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/nats-io/nats.go"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
 	consumerQueue   = "register-tx-group"
-	topic           = "register-tx"
+	registerTxTopic = "register-tx"
+	minedTxsTopic   = "mined-txs"
 	connectionTries = 5
 )
 
-type Consumer struct {
+type MQClient struct {
 	logger       *slog.Logger
 	nc           *nats.Conn
-	topic        string
 	txChannel    chan []byte
 	subscription *nats.Subscription
 }
 
-func NewNatsMQConsumer(txChannel chan []byte, logger *slog.Logger, natsURL string) (*Consumer, error) {
+func NewNatsMQClient(txChannel chan []byte, logger *slog.Logger, natsURL string) (blocktx.MessageQueueClient, error) {
 	var nc *nats.Conn
 	var err error
 
 	nc, err = nats.Connect(natsURL)
 	if err == nil {
-		return &Consumer{nc: nc, logger: logger, topic: topic, txChannel: txChannel}, nil
+		return &MQClient{nc: nc, logger: logger, txChannel: txChannel}, nil
 	}
+
+	ec, err := nats.NewEncodedConn(nc, nats.JSON_ENCODER)
+	if err != nil {
+		return nil, err
+	}
+	defer ec.Close()
 
 	// Try to reconnect in intervals
 	i := 0
@@ -49,12 +58,12 @@ func NewNatsMQConsumer(txChannel chan []byte, logger *slog.Logger, natsURL strin
 
 	logger.Info("Connected to NATS at", slog.String("url", nc.ConnectedUrl()))
 
-	return &Consumer{nc: nc, logger: logger, topic: topic, txChannel: txChannel}, nil
+	return &MQClient{nc: nc, logger: logger, txChannel: txChannel}, nil
 }
 
-func (c Consumer) ConsumeTransactions() error {
+func (c MQClient) SubscribeRegisterTxs() error {
 
-	subscription, err := c.nc.QueueSubscribe(c.topic, consumerQueue, func(msg *nats.Msg) {
+	subscription, err := c.nc.QueueSubscribe(registerTxTopic, consumerQueue, func(msg *nats.Msg) {
 		c.txChannel <- msg.Data
 	})
 
@@ -67,7 +76,21 @@ func (c Consumer) ConsumeTransactions() error {
 	return nil
 }
 
-func (c Consumer) Shutdown() error {
+func (c MQClient) PublishMinedTxs(txsBlocks *blocktx_api.TransactionBlocks) error {
+	data, err := proto.Marshal(txsBlocks)
+	if err != nil {
+		return err
+	}
+
+	err = c.nc.Publish(minedTxsTopic, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c MQClient) Shutdown() error {
 	err := c.subscription.Unsubscribe()
 	if err != nil {
 		return err

@@ -94,7 +94,9 @@ func startBlocktxScheduler(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	blocktxJobs := jobs.NewBlocktx(blocktx_api.NewBlockTxAPIClient(conn), int32(cleanBlocksRecordRetentionDays), logger)
+	blocktxApiClient := blocktx_api.NewBlockTxAPIClient(conn)
+
+	blocktxJobs := jobs.NewBlocktx(blocktx.NewClient(blocktxApiClient), int32(cleanBlocksRecordRetentionDays), logger)
 
 	scheduler := background_worker.NewScheduler(gocron.NewScheduler(time.UTC), time.Duration(executionIntervalHours)*time.Hour, logger)
 

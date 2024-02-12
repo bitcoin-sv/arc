@@ -304,7 +304,6 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, hash *chainhash.Hash
 						<tr><td>Block hash</td><td><a href="https://whatsonchain.com/block/%v" target="_blank">%v</a></td></tr>
 						<tr><td>Callback URL</td><td>%s</td></tr>
 						<tr><td>Callback token</td><td>%s</td></tr>
-						<tr><td>Merkle proof</td><td>%v</td></tr>
 						<tr><td>Reject reason</td><td>%s</td></tr>
 						<tr><td>TX hex</td><td style="word-break: break-all; width: 75%%;">%s</td></tr>
 					</table>
@@ -319,7 +318,6 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, hash *chainhash.Hash
 				storeData.BlockHash,
 				storeData.CallbackUrl,
 				storeData.CallbackToken,
-				storeData.MerkleProof,
 				storeData.RejectReason,
 				hex.EncodeToString(storeData.RawTx),
 				string(b),

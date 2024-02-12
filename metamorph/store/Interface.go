@@ -21,7 +21,6 @@ type StoreData struct {
 	Status            metamorph_api.Status `dynamodbav:"tx_status"`
 	BlockHeight       uint64               `dynamodbav:"block_height"`
 	BlockHash         *chainhash.Hash      `dynamodbav:"block_hash"`
-	MerkleProof       bool                 `dynamodbav:"merkle_proof"`
 	CallbackUrl       string               `dynamodbav:"callback_url"`
 	FullStatusUpdates bool                 `dynamodbav:"full_status_updates"`
 	CallbackToken     string               `dynamodbav:"callback_token"`
@@ -79,17 +78,6 @@ func (sd *StoreData) EncodeToBytes() ([]byte, error) {
 	// BlockHash
 	if err := encodeHash(&buf, sd.BlockHash); err != nil {
 		return nil, err
-	}
-
-	// MerkleProof
-	if sd.MerkleProof {
-		if err := buf.WriteByte(0x01); err != nil {
-			return nil, err
-		}
-	} else {
-		if err := buf.WriteByte(0x00); err != nil {
-			return nil, err
-		}
 	}
 
 	// CallbackUrl
@@ -176,13 +164,6 @@ func DecodeFromBytes(b []byte) (*StoreData, error) {
 	if sd.BlockHash, err = decodeHash(buf); err != nil {
 		return nil, err
 	}
-
-	// MerkleProof
-	var tmpByte byte
-	if tmpByte, err = buf.ReadByte(); err != nil {
-		return nil, err
-	}
-	sd.MerkleProof = tmpByte == 0x01
 
 	// CallbackUrl
 	if sd.CallbackUrl, err = decodeString(buf); err != nil {

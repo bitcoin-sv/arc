@@ -93,7 +93,6 @@ func CreateSqliteSchema(db *sql.DB) error {
 		block_hash BLOB,
 		callback_url TEXT,
 		callback_token TEXT,
-		merkle_proof TEXT,
 		reject_reason TEXT,
 		raw_tx BLOB
 		);
@@ -180,7 +179,6 @@ func (s *SqLite) Get(ctx context.Context, hash []byte) (*store.StoreData, error)
 		,block_hash
 		,callback_url
 		,callback_token
-		,merkle_proof
 		,reject_reason
 		,raw_tx
 	 	FROM transactions WHERE hash = $1 LIMIT 1;`
@@ -203,7 +201,6 @@ func (s *SqLite) Get(ctx context.Context, hash []byte) (*store.StoreData, error)
 		&blockHash,
 		&data.CallbackUrl,
 		&data.CallbackToken,
-		&data.MerkleProof,
 		&data.RejectReason,
 		&data.RawTx,
 	)
@@ -279,7 +276,6 @@ func (s *SqLite) Set(ctx context.Context, _ []byte, value *store.StoreData) erro
 		,block_hash
 		,callback_url
 		,callback_token
-		,merkle_proof
 		,reject_reason
 		,raw_tx
 	) VALUES (
@@ -294,7 +290,6 @@ func (s *SqLite) Set(ctx context.Context, _ []byte, value *store.StoreData) erro
 		,$9
 		,$10
 		,$11
-		,$12
 	);`
 
 	var storedAt string
@@ -338,7 +333,6 @@ func (s *SqLite) Set(ctx context.Context, _ []byte, value *store.StoreData) erro
 		blockHash,
 		value.CallbackUrl,
 		value.CallbackToken,
-		value.MerkleProof,
 		value.RejectReason,
 		value.RawTx,
 	)
@@ -368,7 +362,6 @@ func (s *SqLite) GetUnmined(ctx context.Context, since time.Time, limit int64) (
 		,block_hash
 		,callback_url
 		,callback_token
-		,merkle_proof
 		,raw_tx
 		FROM transactions
 		WHERE (status < $1 OR status = $2)
@@ -402,7 +395,6 @@ func (s *SqLite) GetUnmined(ctx context.Context, since time.Time, limit int64) (
 			&blockHash,
 			&data.CallbackUrl,
 			&data.CallbackToken,
-			&data.MerkleProof,
 			&data.RawTx,
 		); err != nil {
 			return nil, err

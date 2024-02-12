@@ -116,7 +116,6 @@ func TestDynamoDBIntegration(t *testing.T) {
 		Status:        metamorph_api.Status_SENT_TO_NETWORK,
 		CallbackUrl:   "http://callback.com",
 		CallbackToken: "abcd",
-		MerkleProof:   false,
 		RawTx:         TX1RawBytes,
 		LockedBy:      hostname,
 	}

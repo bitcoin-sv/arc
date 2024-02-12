@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/ordishs/go-utils"
 )
@@ -19,23 +18,36 @@ const (
 	CallbackIntervalSeconds = 5
 )
 
-func SendCallback(logger *slog.Logger, tx *store.StoreData) {
+// Callback defines model for Callback.
+type Callback struct {
+	BlockHash   *string   `json:"blockHash,omitempty"`
+	BlockHeight *uint64   `json:"blockHeight,omitempty"`
+	ExtraInfo   *string   `json:"extraInfo"`
+	MerklePath  *string   `json:"merklePath"`
+	Timestamp   time.Time `json:"timestamp"`
+	TxStatus    *string   `json:"txStatus,omitempty"`
+	Txid        string    `json:"txid"`
+}
+
+func SendCallback(logger *slog.Logger, tx *store.StoreData, merklePath string) {
 	sleepDuration := CallbackIntervalSeconds
+	statusString := tx.Status.String()
+	blockHash := ""
+	if tx.BlockHash != nil {
+		blockHash = utils.ReverseAndHexEncodeSlice(tx.BlockHash.CloneBytes())
+	}
+
 	for i := 0; i < CallbackTries; i++ {
-		statusString := tx.Status.String()
-		blockHash := ""
-		if tx.BlockHash != nil {
-			blockHash = utils.ReverseAndHexEncodeSlice(tx.BlockHash.CloneBytes())
-		}
 
 		logger.Info("Sending callback for transaction", slog.String("hash", tx.Hash.String()), slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("status", statusString), slog.Uint64("block height", tx.BlockHeight), slog.String("block hash", blockHash))
 
-		status := &api.TransactionStatus{
+		status := &Callback{
 			BlockHash:   &blockHash,
 			BlockHeight: &tx.BlockHeight,
 			TxStatus:    &statusString,
 			Txid:        tx.Hash.String(),
 			Timestamp:   time.Now(),
+			MerklePath:  &merklePath,
 		}
 		statusBytes, err := json.Marshal(status)
 		if err != nil {
@@ -69,11 +81,6 @@ func SendCallback(logger *slog.Logger, tx *store.StoreData) {
 
 		// if callback was sent successfully we stop here
 		if response.StatusCode == http.StatusOK {
-			// err = s.RemoveCallbacker(context.Background(), tx.Hash)
-			// if err != nil {
-			// 	logger.Error("Couldn't update/remove callback url", slog.String("err", err.Error()))
-			// 	return
-			// }
 			return
 		}
 

@@ -101,6 +101,15 @@ services:
         condition: service_healthy
     restart: on-failure
 
+  nats:
+    image: nats:2.10.10
+    container_name: 'nats-server'
+    restart: on-failure
+    expose:
+      - "4222"
+    ports:
+      - "8222:8222"
+    hostname: nats-server
 
   arc:
     build: ..
@@ -117,6 +126,7 @@ services:
       - node3
       - migrate-blocktx
       - migrate-metamorph
+      - nats
 
   tests:
     build: .

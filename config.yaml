@@ -8,6 +8,7 @@ tracing: true # enable trancing
 dataFolder: data # name of data folder
 grpcMessageSize: 100000000 # maximum grpc message size
 network: regtest # bitcoin network to connect to
+queueURL: nats://nats:4222
 
 peerRpc: # rpc configuration for bitcoin node
   password: bitcoin
@@ -82,6 +83,7 @@ blocktx:
       executionIntervalHours: 24
   profilerAddr: localhost:9993 # address to start profiler server on
   startingBlockHeight: 100 # starting block height for blocktx to start from. blocktx will not request blocks lower than this height
+  registerTxsInterval: 10s
 
 broadcaster:
   apiURL: http://arc.taal.com # api url for broadcaster to connect to

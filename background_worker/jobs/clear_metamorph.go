@@ -5,16 +5,17 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 )
 
 type Metamorph struct {
-	client        metamorph_api.MetaMorphAPIClient
+	client        metamorph.TransactionMaintainer
 	logger        *slog.Logger
 	retentionDays int32
 }
 
-func NewMetamorph(client metamorph_api.MetaMorphAPIClient, retentionDays int32, logger *slog.Logger) *Metamorph {
+func NewMetamorph(client metamorph.TransactionMaintainer, retentionDays int32, logger *slog.Logger) *Metamorph {
 	return &Metamorph{
 		client:        client,
 		logger:        logger,
@@ -29,7 +30,7 @@ func (c Metamorph) ClearTransactions(_ string) error {
 	if err != nil {
 		return err
 	}
-	c.logger.Info("cleared transactions in blocktx", slog.Int64("rows", resp.RecordsAffected), slog.Duration("duration", time.Since(start)))
+	c.logger.Info("cleared transactions in metamorph", slog.Int64("rows", resp), slog.Duration("duration", time.Since(start)))
 
 	return nil
 }

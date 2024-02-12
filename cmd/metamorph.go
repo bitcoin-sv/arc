@@ -19,6 +19,7 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
+	"github.com/bitcoin-sv/arc/metamorph/async/nats_mq"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/badger"
 	"github.com/bitcoin-sv/arc/metamorph/store/dynamodb"
@@ -95,7 +96,18 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
+
 	maxMonitoredTxs, err := config.GetInt64("metamorph.maxMonitoredTxs")
+	if err != nil {
+		return nil, err
+	}
+
+	natsURL, err := config.GetString("queueURL")
+	if err != nil {
+		return nil, err
+	}
+
+	publisher, err := nats_mq.NewNatsMQPublisher(logger, natsURL)
 	if err != nil {
 		return nil, err
 	}
@@ -109,6 +121,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithDataRetentionPeriod(time.Duration(dataRetentionDays)*24*time.Hour),
 		metamorph.WithProcessCheckIfMinedInterval(checkIfMinedInterval),
 		metamorph.WithMaxMonitoredTxs(maxMonitoredTxs),
+		metamorph.WithPublisher(publisher),
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
@@ -241,7 +254,10 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 
 	return func() {
 		logger.Info("Shutting down metamorph")
-
+		err = publisher.Shutdown()
+		if err != nil {
+			logger.Error("failed to shutdown publisher", slog.String("err", err.Error()))
+		}
 		stopUnminedProcessor <- struct{}{}
 		metamorphProcessor.Shutdown()
 		err = s.Close(context.Background())

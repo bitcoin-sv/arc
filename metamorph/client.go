@@ -1,17 +1,46 @@
-package transaction_handler
+package metamorph
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
-	arc "github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+var (
+	ErrTransactionNotFound       = errors.New("transaction not found")
+	ErrParentTransactionNotFound = errors.New("parent transaction not found")
+)
+
+type TransactionHandler interface {
+	GetTransaction(ctx context.Context, txID string) ([]byte, error)
+	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
+	SubmitTransaction(ctx context.Context, tx []byte, options *TransactionOptions) (*TransactionStatus, error)
+	SubmitTransactions(ctx context.Context, tx [][]byte, options *TransactionOptions) ([]*TransactionStatus, error)
+}
+
+type TransactionMaintainer interface {
+	ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (int64, error)
+	SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (int64, error)
+}
+
+// TransactionStatus defines model for TransactionStatus.
+type TransactionStatus struct {
+	TxID        string
+	MerklePath  string
+	BlockHash   string
+	BlockHeight uint64
+	Status      string
+	ExtraInfo   string
+	Timestamp   int64
+}
 
 // Metamorph is the connector to a metamorph server.
 type Metamorph struct {
@@ -70,7 +99,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 	tx, err = m.Client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
 	})
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), ErrNotFound.Error()) {
 		return nil, err
 	}
 
@@ -89,12 +118,11 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 }
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
-func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions *arc.TransactionOptions) (*TransactionStatus, error) {
+func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions *TransactionOptions) (*TransactionStatus, error) {
 	response, err := m.Client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
 		RawTx:             tx,
 		CallbackUrl:       txOptions.CallbackURL,
 		CallbackToken:     txOptions.CallbackToken,
-		MerkleProof:       txOptions.MerkleProof,
 		WaitForStatus:     txOptions.WaitForStatus,
 		FullStatusUpdates: txOptions.FullStatusUpdates,
 		MaxTimeout:        int64(txOptions.MaxTimeout),
@@ -115,7 +143,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions 
 }
 
 // SubmitTransactions submits transactions to the bitcoin network and returns the transaction in raw format.
-func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOptions *arc.TransactionOptions) ([]*TransactionStatus, error) {
+func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOptions *TransactionOptions) ([]*TransactionStatus, error) {
 	// prepare transaction inputs
 	in := new(metamorph_api.TransactionRequests)
 	in.Transactions = make([]*metamorph_api.TransactionRequest, 0)
@@ -124,7 +152,6 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOpti
 			RawTx:             tx,
 			CallbackUrl:       txOptions.CallbackURL,
 			CallbackToken:     txOptions.CallbackToken,
-			MerkleProof:       txOptions.MerkleProof,
 			WaitForStatus:     txOptions.WaitForStatus,
 			FullStatusUpdates: txOptions.FullStatusUpdates,
 			MaxTimeout:        int64(txOptions.MaxTimeout),
@@ -152,4 +179,22 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOpti
 	}
 
 	return ret, nil
+}
+
+func (m *Metamorph) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (int64, error) {
+	resp, err := m.Client.ClearData(ctx, req)
+	if err != nil {
+		return 0, err
+	}
+
+	return resp.RecordsAffected, nil
+}
+
+func (m *Metamorph) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (int64, error) {
+	resp, err := m.Client.SetUnlockedByName(ctx, req)
+	if err != nil {
+		return 0, err
+	}
+
+	return resp.RecordsAffected, nil
 }

@@ -143,7 +143,6 @@ func TestPostgresDB(t *testing.T) {
 		Status:        metamorph_api.Status_MINED,
 		BlockHeight:   100,
 		BlockHash:     testdata.Block1Hash,
-		MerkleProof:   true,
 		CallbackUrl:   "http://callback.example.com",
 		CallbackToken: "12345",
 		RejectReason:  "not rejected",

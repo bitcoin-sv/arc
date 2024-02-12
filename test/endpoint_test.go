@@ -68,7 +68,7 @@ func createTx(privateKey string, address string, utxo NodeUnspentUtxo, fee ...ui
 
 	// Add an input using the first UTXO
 	utxoTxID := utxo.Txid
-	utxoVout := uint32(utxo.Vout)
+	utxoVout := utxo.Vout
 	utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
 	utxoScript := utxo.ScriptPubKey
 
@@ -406,6 +406,10 @@ func TestPostCallbackToken(t *testing.T) {
 					require.Equal(t, statusResponse.JSON200.BlockHash, callback.BlockHash)
 					require.Equal(t, statusResponse.JSON200.TxStatus, callback.TxStatus)
 					require.Equal(t, "MINED", *callback.TxStatus)
+					require.NotNil(t, statusResponse.JSON200.MerklePath)
+					_, err = bc.NewBUMPFromStr(*statusResponse.JSON200.MerklePath)
+					require.NoError(t, err)
+
 				case err := <-errChan:
 					t.Fatalf("callback received - failed to parse callback %v", err)
 				case <-time.NewTicker(time.Second * 15).C:

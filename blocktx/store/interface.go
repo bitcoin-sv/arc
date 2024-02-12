@@ -2,10 +2,10 @@ package store
 
 import (
 	"context"
+	"errors"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -16,6 +16,7 @@ var (
 )
 
 type Interface interface {
+	RegisterTransactions(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error
 	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error
 	TryToBecomePrimary(ctx context.Context, myHostName string) error
 	GetPrimary(ctx context.Context) (string, error)

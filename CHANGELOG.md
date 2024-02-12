@@ -4,11 +4,25 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.1.19](#1119---2024-02-05)
+- [1.1.16](#1116---2024-01-23)
 - [1.0.62](#1062---2023-11-23)
 - [1.0.60](#1060---2023-11-21)
 - [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
 
 ## [Unreleased]
+
+## [1.1.19] - 2024-02-05
+
+### Deprecated
+
+- Request header `X-MerkleProof` is deprecated and does no longer need to be provided. The Merkle proof is included in the MINED callback by default.
+
+## [1.1.16] - 2024-01-23
+
+### Added
+
+- Callbacks for status `SEEN_ON_NETWORK` and `SEEN_IN_ORPHAN_MEMPOOL` if new request header `X-SkipFeeValidation` is given with value `true`.
 
 ## [1.0.62] - 2023-11-23
 

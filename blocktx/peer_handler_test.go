@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"github.com/bitcoin-sv/arc/testdata"
 	"log/slog"
 	"os"
 	"testing"
@@ -450,6 +451,62 @@ func TestStartFillGaps(t *testing.T) {
 
 			time.Sleep(120 * time.Millisecond)
 			peerHandler.Shutdown()
+		})
+	}
+}
+
+func TestStartProcessTxs(t *testing.T) {
+	tt := []struct {
+		name        string
+		registerErr error
+
+		expectedRegisterTxsCalls int
+	}{
+		{
+			name: "success",
+
+			expectedRegisterTxsCalls: 2,
+		},
+		{
+			name:        "error",
+			registerErr: errors.New("failed to register"),
+
+			expectedRegisterTxsCalls: 2,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			storeMock := &store.InterfaceMock{
+				RegisterTransactionsFunc: func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error {
+					return tc.registerErr
+				},
+			}
+
+			txChan := make(chan []byte, 10)
+
+			txChan <- testdata.TX1Hash[:]
+			txChan <- testdata.TX2Hash[:]
+			txChan <- testdata.TX3Hash[:]
+			txChan <- testdata.TX4Hash[:]
+
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			peerHandler, err := NewPeerHandler(
+				logger,
+				storeMock,
+				100,
+				[]string{},
+				wire.TestNet,
+				WithRegisterTxsInterval(time.Millisecond*20),
+				WithTxChan(txChan),
+				WithRegisterTxsBatchSize(3),
+			)
+			require.NoError(t, err)
+
+			time.Sleep(120 * time.Millisecond)
+			peerHandler.Shutdown()
+
+			require.Equal(t, tc.expectedRegisterTxsCalls, len(storeMock.RegisterTransactionsCalls()))
 		})
 	}
 }

@@ -3,12 +3,12 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/gocore"
-	"github.com/pkg/errors"
 )
 
 func (s *SQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {

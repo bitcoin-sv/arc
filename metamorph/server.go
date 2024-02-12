@@ -3,6 +3,7 @@ package metamorph
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -12,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/api/handler"
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
@@ -25,7 +25,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/gocore"
-	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -37,10 +36,17 @@ func init() {
 	gocore.NewStat("PutTransaction", true)
 }
 
+// PtrTo returns a pointer to the given value.
+func PtrTo[T any](v T) *T {
+	return &v
+}
+
 const (
 	responseTimeout = 5 * time.Second
 	blocktxTimeout  = 1 * time.Second
 )
+
+var ErrNotFound = errors.New("key could not be found")
 
 type BitcoinNode interface {
 	GetTxOut(txHex string, vout int, includeMempool bool) (res *bitcoin.TXOut, err error)
@@ -202,9 +208,10 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	err := ValidateCallbackURL(req.GetCallbackUrl())
 	if err != nil {
+		s.logger.Error("failed to validate callback URL", slog.String("err", err.Error()))
 		return nil, err
 	}
-	hash := handler.PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
+	hash := PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
 	status := metamorph_api.Status_RECEIVED
 
 	// Convert gRPC req to store.StoreData struct...
@@ -214,7 +221,6 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		CallbackUrl:       req.GetCallbackUrl(),
 		CallbackToken:     req.GetCallbackToken(),
 		FullStatusUpdates: req.GetFullStatusUpdates(),
-		MerkleProof:       req.GetMerkleProof(),
 		RawTx:             req.GetRawTx(),
 	}
 
@@ -253,11 +259,12 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	for ind, txReq := range req.GetTransactions() {
 		err := ValidateCallbackURL(txReq.GetCallbackUrl())
 		if err != nil {
+			s.logger.Error("failed to validate callback URL", slog.String("err", err.Error()))
 			return nil, err
 		}
 
 		status := metamorph_api.Status_RECEIVED
-		hash := handler.PtrTo(chainhash.DoubleHashH(txReq.GetRawTx()))
+		hash := PtrTo(chainhash.DoubleHashH(txReq.GetRawTx()))
 		timeout = txReq.GetMaxTimeout()
 
 		// Convert gRPC req to store.StoreData struct...
@@ -267,7 +274,6 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 			CallbackUrl:       txReq.GetCallbackUrl(),
 			CallbackToken:     txReq.GetCallbackToken(),
 			FullStatusUpdates: txReq.GetFullStatusUpdates(),
-			MerkleProof:       txReq.GetMerkleProof(),
 			RawTx:             txReq.GetRawTx(),
 		}
 
@@ -353,6 +359,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.Transaction, error) {
 	data, announcedAt, minedAt, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
+		s.logger.Error("failed to get transaction", slog.String("hash", req.GetTxid()), slog.String("err", err.Error()))
 		return nil, err
 	}
 
@@ -382,7 +389,7 @@ func (s *Server) getMerklePath(ctx context.Context, hash *chainhash.Hash, dataSt
 	go func() {
 		mp, err := s.btc.GetTransactionMerklePath(blocktxCtx, &blocktx_api.Transaction{Hash: hash[:]})
 		if err != nil {
-			if errors.Is(err, blocktx.ErrTransactionNotFoundForMerklePath) {
+			if strings.Contains(err.Error(), blocktx.ErrMerklePathNotFoundForTransaction.Error()) {
 				if dataStatus == metamorph_api.Status_MINED {
 					errCh <- fmt.Errorf("merkle path not found for mined transaction %s: %v", hash.String(), err)
 					return
@@ -412,6 +419,10 @@ func (s *Server) getMerklePath(ctx context.Context, hash *chainhash.Hash, dataSt
 func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.TransactionStatus, error) {
 	data, announcedAt, minedAt, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		s.logger.Error("failed to get transaction status", slog.String("hash", req.GetTxid()), slog.String("err", err.Error()))
 		return nil, err
 	}
 
@@ -475,6 +486,7 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (*metamorph_api.SetUnlockedByNameResponse, error) {
 	recordsAffected, err := s.store.SetUnlockedByName(ctx, req.GetName())
 	if err != nil {
+		s.logger.Error("failed to set unlocked by name", slog.String("name", req.GetName()), slog.String("err", err.Error()))
 		return nil, err
 	}
 
@@ -488,6 +500,7 @@ func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUn
 func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (*metamorph_api.ClearDataResponse, error) {
 	recordsAffected, err := s.store.ClearData(ctx, req.RetentionDays)
 	if err != nil {
+		s.logger.Error("failed to clear data", slog.String("err", err.Error()))
 		return nil, err
 	}
 
@@ -496,4 +509,17 @@ func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequ
 	}
 
 	return result, nil
+}
+
+// TransactionOptions options passed from header when creating transactions.
+type TransactionOptions struct {
+	ClientID             string               `json:"client_id"`
+	CallbackURL          string               `json:"callback_url,omitempty"`
+	CallbackToken        string               `json:"callback_token,omitempty"`
+	SkipFeeValidation    bool                 `json:"X-SkipFeeValidation,omitempty"`
+	SkipScriptValidation bool                 `json:"X-SkipScriptValidation,omitempty"`
+	SkipTxValidation     bool                 `json:"X-SkipTxValidation,omitempty"`
+	WaitForStatus        metamorph_api.Status `json:"wait_for_status,omitempty"`
+	FullStatusUpdates    bool                 `json:"full_status_updates,omitempty"`
+	MaxTimeout           int                  `json:"max_timeout,omitempty"`
 }

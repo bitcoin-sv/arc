@@ -22,13 +22,13 @@ import (
 // Server type carries the logger within it.
 type Server struct {
 	blocktx_api.UnsafeBlockTxAPIServer
-	store      store.Interface
+	store      store.BlocktxStore
 	logger     *slog.Logger
 	grpcServer *grpc.Server
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(storeI store.Interface, logger *slog.Logger) *Server {
+func NewServer(storeI store.BlocktxStore, logger *slog.Logger) *Server {
 	return &Server{
 		store:  storeI,
 		logger: logger,

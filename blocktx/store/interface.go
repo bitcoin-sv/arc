@@ -12,7 +12,7 @@ var (
 	ErrBlockNotFound = errors.New("block not found")
 )
 
-type Interface interface {
+type BlocktxStore interface {
 	RegisterTransactions(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error
 	TryToBecomePrimary(ctx context.Context, myHostName string) error
 	GetPrimary(ctx context.Context) (string, error)

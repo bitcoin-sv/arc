@@ -137,7 +137,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 	}, nil
 }
 
-func NewBlocktxStore(dbMode string) (s store.Interface, err error) {
+func NewBlocktxStore(dbMode string) (s store.BlocktxStore, err error) {
 	switch dbMode {
 	case DbModePostgres:
 		dbHost, err := config.GetString("metamorph.db.postgres.host")

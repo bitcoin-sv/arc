@@ -89,7 +89,7 @@ func init() {
 
 type PeerHandler struct {
 	workerCh                    chan utils.Pair[*chainhash.Hash, p2p.PeerI]
-	store                       store.Interface
+	store                       store.BlocktxStore
 	logger                      *slog.Logger
 	announcedCache              *expiringmap.ExpiringMap[chainhash.Hash, []p2p.PeerI]
 	stats                       *safemap.Safemap[string, *tracing.PeerHandlerStats]
@@ -155,7 +155,7 @@ func WithRegisterTxsBatchSize(size int) func(handler *PeerHandler) {
 	}
 }
 
-func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight int, peerURLs []string, network wire.BitcoinNet, opts ...func(*PeerHandler)) (*PeerHandler, error) {
+func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, startingHeight int, peerURLs []string, network wire.BitcoinNet, opts ...func(*PeerHandler)) (*PeerHandler, error) {
 	evictionFunc := func(hash chainhash.Hash, peers []p2p.PeerI) bool {
 		msg := wire.NewMsgGetData()
 

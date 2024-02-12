@@ -2,22 +2,23 @@ package postgresql
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/blocktx/store"
-	"github.com/bitcoin-sv/arc/database_testing"
-	"github.com/go-testfixtures/testfixtures/v3"
-	"github.com/jmoiron/sqlx"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"log"
 	"os"
 	"testing"
 
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/blocktx/store"
+	"github.com/bitcoin-sv/arc/testdata"
+	"github.com/go-testfixtures/testfixtures/v3"
 	"github.com/golang-migrate/migrate/v4"
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
@@ -169,16 +170,16 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("register transactions", func(t *testing.T) {
 		txs := []*blocktx_api.TransactionAndSource{
 			{
-				Hash: []byte(database_testing.GetRandomBytes()),
+				Hash: testdata.TX1Hash[:],
 			},
 			{
-				Hash: []byte(database_testing.GetRandomBytes()),
+				Hash: testdata.TX2Hash[:],
 			},
 			{
-				Hash: []byte(database_testing.GetRandomBytes()),
+				Hash: testdata.TX3Hash[:],
 			},
 			{
-				Hash: []byte(database_testing.GetRandomBytes()),
+				Hash: testdata.TX4Hash[:],
 			},
 		}
 		err = postgresDB.RegisterTransactions(context.Background(), txs)
@@ -208,15 +209,20 @@ func TestPostgresDB(t *testing.T) {
 
 		require.Equal(t, txs[3].GetHash(), storedtx.Hash)
 
+		newHash1, err := hex.DecodeString("bb6817dad4c9a0e34803c2f1dec13ac8b89d539a57749be808d61f314bbbd855")
+		require.NoError(t, err)
+
+		newHash2, err := hex.DecodeString("ec52c6f777e6cb254d596001050f4151ef74cea78b6d50163407bf54bdd54e3f")
+		require.NoError(t, err)
 		// Register transactions which are partly already registered
 		txs2 := []*blocktx_api.TransactionAndSource{
 			txs[0],
 			txs[2],
 			{
-				Hash: []byte(database_testing.GetRandomBytes()),
+				Hash: newHash1,
 			},
 			{
-				Hash: []byte(database_testing.GetRandomBytes()),
+				Hash: newHash2,
 			},
 		}
 		err = postgresDB.RegisterTransactions(context.Background(), txs2)

@@ -21,9 +21,9 @@ func NewScheduler(scheduler *gocron.Scheduler, interval time.Duration, logger *s
 	}
 }
 
-func (b *Scheduler) RunJob(jobName string, jobParameter string, job func(jobParameter string) error) {
+func (b *Scheduler) RunJob(jobName string, job func() error) {
 	_, err := b.scheduler.Every(b.interval).Do(func() {
-		err := job(jobParameter)
+		err := job()
 		if err != nil {
 			b.logger.Error("failed to run job", slog.String("name", jobName), slog.String("err", err.Error()))
 			return

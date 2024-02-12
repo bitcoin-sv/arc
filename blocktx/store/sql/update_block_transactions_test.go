@@ -2,7 +2,6 @@ package sql
 
 import (
 	"context"
-	"database/sql"
 	"github.com/go-testfixtures/testfixtures/v3"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"testing"
@@ -26,7 +25,7 @@ type Tx struct {
 }
 
 func (s *UpdateBlockTransactionsSuite) Test() {
-	db, err := sql.Open("postgres", database_testing.DefaultParams.String())
+	db, err := sqlx.Open("postgres", database_testing.DefaultParams.String())
 	require.NoError(s.T(), err)
 
 	st := &SQL{
@@ -35,7 +34,7 @@ func (s *UpdateBlockTransactionsSuite) Test() {
 	}
 
 	fixtures, err := testfixtures.New(
-		testfixtures.Database(db),
+		testfixtures.Database(db.DB),
 		testfixtures.Dialect("postgresql"),
 		testfixtures.Directory("fixtures/insert_block_transactions"),
 	)

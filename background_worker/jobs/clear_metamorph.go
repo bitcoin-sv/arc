@@ -23,7 +23,7 @@ func NewMetamorph(client metamorph.TransactionMaintainer, retentionDays int32, l
 	}
 }
 
-func (c Metamorph) ClearTransactions(_ string) error {
+func (c Metamorph) ClearTransactions() error {
 	ctx := context.Background()
 	start := time.Now()
 	resp, err := c.client.ClearData(ctx, &metamorph_api.ClearDataRequest{RetentionDays: c.retentionDays})

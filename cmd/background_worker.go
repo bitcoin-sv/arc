@@ -1,19 +1,17 @@
 package cmd
 
 import (
+	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/bitcoin-sv/arc/background_worker"
 	"github.com/bitcoin-sv/arc/background_worker/jobs"
+	"github.com/bitcoin-sv/arc/blocktx"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/config"
-	"github.com/bitcoin-sv/arc/dbconn"
 	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/go-co-op/gocron"
-)
-
-const (
-	dbSchema = "postgres"
 )
 
 func StartBackGroundWorker(logger *slog.Logger) (func(), error) {
@@ -64,7 +62,7 @@ func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 
 	scheduler := background_worker.NewScheduler(gocron.NewScheduler(time.UTC), time.Duration(executionIntervalHours)*time.Hour, logger)
 
-	scheduler.RunJob("clear metamorph transactions", "", metamorphJobs.ClearTransactions)
+	scheduler.RunJob("clear metamorph transactions", metamorphJobs.ClearTransactions)
 
 	scheduler.Start()
 
@@ -75,34 +73,15 @@ func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 }
 
 func startBlocktxScheduler(logger *slog.Logger) (func(), error) {
-	dbHost, err := config.GetString("blocktx.db.postgres.host")
+	logger.With("service", "background-worker")
+	blocktxAddress, err := config.GetString("blocktx.dialAddr")
 	if err != nil {
 		return nil, err
 	}
 
-	dbPort, err := config.GetInt("blocktx.db.postgres.port")
+	conn, err := blocktx.DialGRPC(blocktxAddress)
 	if err != nil {
-		return nil, err
-	}
-
-	dbUsername, err := config.GetString("blocktx.db.postgres.user")
-	if err != nil {
-		return nil, err
-	}
-
-	dbPassword, err := config.GetString("blocktx.db.postgres.password")
-	if err != nil {
-		return nil, err
-	}
-
-	dbName, err := config.GetString("blocktx.db.postgres.name")
-	if err != nil {
-		return nil, err
-	}
-
-	sslMode, err := config.GetString("blocktx.db.postgres.sslMode")
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
 	}
 
 	cleanBlocksRecordRetentionDays, err := config.GetInt("blocktx.db.cleanData.recordRetentionDays")
@@ -110,36 +89,23 @@ func startBlocktxScheduler(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	intervalInHours, err := config.GetInt("blocktx.db.cleanData.executionIntervalHours")
+	executionIntervalHours, err := config.GetInt("blocktx.db.cleanData.executionIntervalHours")
 	if err != nil {
 		return nil, err
 	}
 
-	params := jobs.ClearRecordsParams{
-		DBConnectionParams: dbconn.New(
-			dbHost,
-			dbPort,
-			dbUsername,
-			dbPassword,
-			dbName,
-			dbSchema,
-			sslMode,
-		),
-		RecordRetentionDays: cleanBlocksRecordRetentionDays,
-	}
+	blocktxJobs := jobs.NewBlocktx(blocktx_api.NewBlockTxAPIClient(conn), int32(cleanBlocksRecordRetentionDays), logger)
 
-	scheduler := background_worker.NewScheduler(gocron.NewScheduler(time.UTC), time.Duration(intervalInHours)*time.Hour, logger)
+	scheduler := background_worker.NewScheduler(gocron.NewScheduler(time.UTC), time.Duration(executionIntervalHours)*time.Hour, logger)
 
-	clearJob := jobs.NewClearJob(logger, params)
-
-	scheduler.RunJob("clear blocktx blocks", "blocks", clearJob.ClearBlocktxTable)
-	scheduler.RunJob("clear blocktx transactions", "transactions", clearJob.ClearBlocktxTable)
-	scheduler.RunJob("clear blocktx block transactions map", "block_transactions_map", clearJob.ClearBlocktxTable)
+	scheduler.RunJob("clear blocktx blocks", blocktxJobs.ClearBlocks)
+	scheduler.RunJob("clear blocktx transactions", blocktxJobs.ClearTransactions)
+	scheduler.RunJob("clear blocktx block transactions map", blocktxJobs.ClearBlockTransactionsMap)
 
 	scheduler.Start()
 
 	return func() {
-		logger.Info("Shutting down blocktx scheduler")
+		logger.Info("Shutting Background-Worker")
 		scheduler.Shutdown()
 	}, nil
 }

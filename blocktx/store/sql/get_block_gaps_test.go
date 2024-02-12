@@ -2,13 +2,13 @@ package sql
 
 import (
 	"context"
-	"database/sql"
-	"github.com/bitcoin-sv/arc/blocktx/store"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"testing"
 
+	"github.com/bitcoin-sv/arc/blocktx/store"
 	. "github.com/bitcoin-sv/arc/database_testing"
 	"github.com/go-testfixtures/testfixtures/v3"
+	"github.com/jmoiron/sqlx"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -18,13 +18,13 @@ type GetBlockGapTestSuite struct {
 }
 
 func (s *GetBlockGapTestSuite) Test() {
-	db, err := sql.Open("postgres", DefaultParams.String())
+	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
 	st := &SQL{db: db}
 
 	fixtures, err := testfixtures.New(
-		testfixtures.Database(db),
+		testfixtures.Database(db.DB),
 		testfixtures.Dialect("postgresql"),
 		testfixtures.Directory("fixtures/get_block_gaps"), // The directory containing the YAML files
 	)

@@ -41,7 +41,7 @@ func TestScheduler_RunJob(t *testing.T) {
 			wg := &sync.WaitGroup{}
 			wg.Add(1)
 			runJobCount := 0
-			scheduler.RunJob("test job", "test table", func(table string) error {
+			scheduler.RunJob("test job", func() error {
 				runJobCount++
 				wg.Done()
 				return tc.jobErr

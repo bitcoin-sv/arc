@@ -6,12 +6,11 @@ import (
 	"os"
 	"sync"
 	"testing"
-	"time"
 
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/tests"
-	"github.com/dgraph-io/badger/v3"
 	"github.com/labstack/gommon/random"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
@@ -111,7 +110,14 @@ func TestUpdateMined(t *testing.T) {
 		bh, tearDown := setupSuite(t)
 		defer tearDown(t)
 
-		err := bh.UpdateMined(context.Background(), tests.Tx1Hash, tests.Block1Hash, 123)
+		txBlocks := &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{{
+			BlockHash:       tests.Block1Hash[:],
+			BlockHeight:     123,
+			TransactionHash: tests.Tx1Hash[:],
+			MerklePath:      "",
+		}}}
+
+		_, err := bh.UpdateMined(context.Background(), txBlocks)
 		require.NoError(t, err) // an error is not thrown if not found
 	})
 
@@ -162,83 +168,5 @@ func setupSuite(t *testing.T) (store.MetamorphStore, func(t *testing.T)) {
 		bh.Close(context.Background())
 		err = os.RemoveAll(dataDir)
 		require.NoErrorf(t, err, "Could not delete old test data")
-	}
-}
-
-func TestBadger_GetBlockProcessed(t *testing.T) {
-	bh, tearDown := setupSuite(t)
-	defer tearDown(t)
-
-	ctx := context.Background()
-
-	timeNow := time.Now()
-	err := bh.SetBlockProcessed(ctx, tests.Block1Hash)
-	require.NoError(t, err)
-
-	testStruct := []struct {
-		name      string
-		store     *badger.DB
-		blockHash *chainhash.Hash
-		want      *time.Time
-		wantErr   assert.ErrorAssertionFunc
-	}{
-		{
-			name:      "success",
-			store:     bh.(*Badger).store,
-			blockHash: tests.Block1Hash,
-			want:      &timeNow,
-			wantErr:   assert.NoError,
-		},
-		{
-			name:      "missing",
-			store:     bh.(*Badger).store,
-			blockHash: tests.Block2Hash,
-			want:      nil,
-			wantErr:   assert.NoError,
-		},
-	}
-	for _, tt := range testStruct {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &Badger{
-				store: tt.store,
-			}
-			got, err := s.GetBlockProcessed(ctx, tt.blockHash)
-			if !tt.wantErr(t, err, fmt.Sprintf("GetBlockProcessed(%v)", tt.blockHash)) {
-				return
-			}
-			if tt.want == nil {
-				assert.Nil(t, got, "GetBlockProcessed(%v)", tt.blockHash)
-				return
-			}
-			assert.WithinDurationf(t, *tt.want, *got, 1000000, "GetBlockProcessed(%v)", tt.blockHash)
-		})
-	}
-}
-
-func TestBadger_SetBlockProcessed(t *testing.T) {
-	bh, tearDown := setupSuite(t)
-	defer tearDown(t)
-
-	ctx := context.Background()
-	testStructs := []struct {
-		name      string
-		store     *badger.DB
-		blockHash *chainhash.Hash
-		wantErr   assert.ErrorAssertionFunc
-	}{
-		{
-			name:      "success",
-			store:     bh.(*Badger).store,
-			blockHash: tests.Block1Hash,
-			wantErr:   assert.NoError,
-		},
-	}
-	for _, tt := range testStructs {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &Badger{
-				store: tt.store,
-			}
-			tt.wantErr(t, s.SetBlockProcessed(ctx, tt.blockHash), fmt.Sprintf("SetBlockProcessed(%v)", tt.blockHash))
-		})
 	}
 }

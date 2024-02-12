@@ -1,35 +1,18 @@
-package store
+package badger
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"errors"
 	"io"
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
-type StoreData struct {
-	RawTx             []byte               `dynamodbav:"raw_tx"`
-	StoredAt          time.Time            `dynamodbav:"stored_at"`
-	AnnouncedAt       time.Time            `dynamodbav:"announced_at"`
-	MinedAt           time.Time            `dynamodbav:"mined_at"`
-	Hash              *chainhash.Hash      `badgerhold:"key"            dynamodbav:"tx_hash"`
-	Status            metamorph_api.Status `dynamodbav:"tx_status"`
-	BlockHeight       uint64               `dynamodbav:"block_height"`
-	BlockHash         *chainhash.Hash      `dynamodbav:"block_hash"`
-	CallbackUrl       string               `dynamodbav:"callback_url"`
-	FullStatusUpdates bool                 `dynamodbav:"full_status_updates"`
-	CallbackToken     string               `dynamodbav:"callback_token"`
-	RejectReason      string               `dynamodbav:"reject_reason"`
-	LockedBy          string               `dynamodbav:"locked_by"`
-	Ttl               int64                `dynamodbav:"ttl"`
-}
-
-func (sd *StoreData) EncodeToBytes() ([]byte, error) {
+func EncodeToBytes(sd *store.StoreData) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// Version
@@ -98,8 +81,8 @@ func (sd *StoreData) EncodeToBytes() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func DecodeFromBytes(b []byte) (*StoreData, error) {
-	sd := &StoreData{}
+func DecodeFromBytes(b []byte) (*store.StoreData, error) {
+	sd := &store.StoreData{}
 
 	buf := bytes.NewReader(b)
 
@@ -181,26 +164,6 @@ func DecodeFromBytes(b []byte) (*StoreData, error) {
 	}
 
 	return sd, nil
-}
-
-var ErrNotFound = errors.New("key could not be found")
-
-type MetamorphStore interface {
-	Get(ctx context.Context, key []byte) (*StoreData, error)
-	Set(ctx context.Context, key []byte, value *StoreData) error
-	Del(ctx context.Context, key []byte) error
-
-	SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error
-	SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error)
-	GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*StoreData, error)
-	UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error
-	RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error
-	UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error
-	Close(ctx context.Context) error
-	GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error)
-	SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) error
-	ClearData(ctx context.Context, retentionDays int32) (int64, error)
-	Ping(ctx context.Context) error
 }
 
 func encodeTime(buf *bytes.Buffer, tm time.Time) error {

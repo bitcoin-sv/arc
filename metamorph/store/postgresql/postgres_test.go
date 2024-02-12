@@ -2,6 +2,7 @@ package postgresql
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/testdata"
@@ -159,6 +161,26 @@ func TestPostgresDB(t *testing.T) {
 		LockedBy:    "metamorph-1",
 	}
 
+	hash1, err := hex.DecodeString("b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430")
+	require.NoError(t, err)
+	chainHash1, err := chainhash.NewHash(hash1)
+	require.NoError(t, err)
+
+	hash2, err := hex.DecodeString("ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
+	require.NoError(t, err)
+	chainHash2, err := chainhash.NewHash(hash2)
+	require.NoError(t, err)
+
+	hash3, err := hex.DecodeString("3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd")
+	require.NoError(t, err)
+	chainHash3, err := chainhash.NewHash(hash3)
+	require.NoError(t, err)
+
+	hash4, err := hex.DecodeString("213a8c87c5460e82b5ae529212956b853c7ce6bf06e56b2e040eb063cf9a49f0")
+	require.NoError(t, err)
+	chainHash4, err := chainhash.NewHash(hash4)
+	require.NoError(t, err)
+
 	postgresDB, err := New(dbInfo, "metamorph-1", 10, 10, WithNow(func() time.Time {
 		return now
 	}))
@@ -185,11 +207,6 @@ func TestPostgresDB(t *testing.T) {
 		require.True(t, errors.Is(err, store.ErrNotFound))
 	})
 
-	t.Run("remove callback url", func(t *testing.T) {
-		err = postgresDB.RemoveCallbacker(ctx, minedHash)
-		require.NoError(t, err)
-	})
-
 	t.Run("get unmined", func(t *testing.T) {
 		fmt.Println(dbInfo)
 
@@ -209,14 +226,6 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("set unlocked", func(t *testing.T) {
 		fmt.Println(dbInfo)
-		chainHash1, err := chainhash.NewHashFromStr("30f409d6951483e4d65a586205f373c2f72431ade49abb6f143e82fc53ea6cb1")
-		require.NoError(t, err)
-		chainHash2, err := chainhash.NewHashFromStr("aaf6dcac409778330982371560bd4e4f7064e4154aa1e66a3e3d8946b7f576ee")
-		require.NoError(t, err)
-		chainHash3, err := chainhash.NewHashFromStr("cd8e0640fadac1f9ed854174558e37a54ede58bc85f49bf01041348c215b0b3e")
-		require.NoError(t, err)
-		chainHash4, err := chainhash.NewHashFromStr("f0499acf63b00e042e6be506bfe67c3c856b95129252aeb5820e46c5878c3a21")
-		require.NoError(t, err)
 
 		err = postgresDB.SetUnlocked(ctx, []*chainhash.Hash{chainHash1, chainHash2, chainHash3, chainHash4})
 		require.NoError(t, err)
@@ -283,8 +292,31 @@ func TestPostgresDB(t *testing.T) {
 		err = postgresDB.Set(ctx, unminedHash[:], &unmined)
 		require.NoError(t, err)
 
-		err := postgresDB.UpdateMined(ctx, unminedHash, testdata.Block1Hash, 100)
+		txBlocks := &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{
+			{
+				BlockHash:       testdata.Block1Hash[:],
+				BlockHeight:     100,
+				TransactionHash: unminedHash[:],
+				MerklePath:      "merkle-path-1",
+			},
+			{
+				BlockHash:       testdata.Block1Hash[:],
+				BlockHeight:     100,
+				TransactionHash: chainHash2[:],
+				MerklePath:      "merkle-path-2",
+			},
+		}}
+
+		updated, err := postgresDB.UpdateMined(ctx, txBlocks)
 		require.NoError(t, err)
+
+		require.True(t, unminedHash.IsEqual(updated[1].Hash))
+		require.True(t, testdata.Block1Hash.IsEqual(updated[1].BlockHash))
+		require.Equal(t, "merkle-path-1", updated[1].MerklePath)
+
+		require.True(t, chainHash2.IsEqual(updated[0].Hash))
+		require.True(t, testdata.Block1Hash.IsEqual(updated[0].BlockHash))
+		require.Equal(t, "merkle-path-2", updated[0].MerklePath)
 
 		dataReturned, err := postgresDB.Get(ctx, unminedHash[:])
 		require.NoError(t, err)
@@ -292,6 +324,7 @@ func TestPostgresDB(t *testing.T) {
 		unmined.MinedAt = now
 		unmined.BlockHeight = 100
 		unmined.BlockHash = testdata.Block1Hash
+		unmined.MerklePath = "merkle-path-1"
 		require.Equal(t, dataReturned, &unmined)
 
 		err = postgresDB.Del(ctx, unminedHash[:])
@@ -302,8 +335,14 @@ func TestPostgresDB(t *testing.T) {
 		unmined := *unminedData
 		err = postgresDB.Set(ctx, unminedHash[:], &unmined)
 		require.NoError(t, err)
+		txBlocks := &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{{
+			BlockHash:       nil,
+			BlockHeight:     0,
+			TransactionHash: unminedHash[:],
+			MerklePath:      "",
+		}}}
 
-		err := postgresDB.UpdateMined(ctx, unminedHash, nil, 0)
+		_, err := postgresDB.UpdateMined(ctx, txBlocks)
 		require.NoError(t, err)
 
 		dataReturned, err := postgresDB.Get(ctx, unminedHash[:])
@@ -316,16 +355,6 @@ func TestPostgresDB(t *testing.T) {
 
 		err = postgresDB.Del(ctx, unminedHash[:])
 		require.NoError(t, err)
-	})
-
-	t.Run("get/set block processed", func(t *testing.T) {
-		err = postgresDB.SetBlockProcessed(ctx, testdata.Block1Hash)
-		require.NoError(t, err)
-
-		processedAt, err := postgresDB.GetBlockProcessed(ctx, testdata.Block1Hash)
-		require.NoError(t, err)
-
-		require.Equal(t, &now, processedAt)
 	})
 
 	t.Run("clear data", func(t *testing.T) {

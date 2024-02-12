@@ -1,15 +1,14 @@
 package badger
 
 import (
-	"bytes"
 	"context"
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/dgraph-io/badger/v3"
@@ -115,7 +114,7 @@ func (s *Badger) Set(ctx context.Context, key []byte, value *store.StoreData) er
 		value.StoredAt = time.Now()
 	}
 
-	data, err := value.EncodeToBytes()
+	data, err := EncodeToBytes(value)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -155,7 +154,7 @@ func (s *Badger) Get(ctx context.Context, hash []byte) (*store.StoreData, error)
 		}
 
 		if err = data.Value(func(val []byte) error {
-			if result, err = store.DecodeFromBytes(val); err != nil {
+			if result, err = DecodeFromBytes(val); err != nil {
 				return err
 			}
 			return nil
@@ -211,38 +210,8 @@ func (s *Badger) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status 
 	return nil
 }
 
-func (s *Badger) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error {
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("mtm_store_badger").NewStat("RemoveCallbacker").AddTime(start)
-	}()
-	span, _ := opentracing.StartSpanFromContext(ctx, "badger:RemoveCallbacker")
-	defer span.Finish()
-
-	// we need a lock here since we are doing 2 operations that need to be atomic
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	tx, err := s.Get(ctx, hash[:])
-	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return err
-	}
-
-	tx.CallbackUrl = ""
-
-	if err = s.Set(ctx, hash[:], tx); err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return fmt.Errorf("failed to update data: %w", err)
-	}
-
-	return nil
-}
-
 // UpdateMined updates the transaction to mined
-func (s *Badger) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
+func (s *Badger) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("mtm_store_badger").NewStat("UpdateMined").AddTime(start)
@@ -254,28 +223,44 @@ func (s *Badger) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHas
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	tx, err := s.Get(ctx, hash[:])
-	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			// no need to update status if we don't have the transaction
-			// we also shouldn't need to return an error here
-			return nil
+	storeData := make([]*store.StoreData, 0, len(txsBlocks.TransactionBlocks))
+
+	for _, txBlock := range txsBlocks.TransactionBlocks {
+
+		tx, err := s.Get(ctx, txBlock.TransactionHash[:])
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				// no need to update status if we don't have the transaction
+				// we also shouldn't need to return an error here
+				return nil, nil
+			}
+			span.SetTag(string(ext.Error), true)
+			span.LogFields(log.Error(err))
+			return nil, err
 		}
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return err
+
+		blockHash, err := chainhash.NewHash(txBlock.BlockHash)
+		if err != nil {
+			span.SetTag(string(ext.Error), true)
+			span.LogFields(log.Error(err))
+			return nil, err
+		}
+
+		tx.Status = metamorph_api.Status_MINED
+		tx.BlockHash = blockHash
+		tx.BlockHeight = txBlock.BlockHeight
+		tx.MerklePath = txBlock.MerklePath
+		tx.MinedAt = time.Now()
+		if err = s.Set(ctx, txBlock.TransactionHash[:], tx); err != nil {
+			span.SetTag(string(ext.Error), true)
+			span.LogFields(log.Error(err))
+			return nil, fmt.Errorf("failed to update data: %w", err)
+		}
+
+		storeData = append(storeData, tx)
 	}
 
-	tx.Status = metamorph_api.Status_MINED
-	tx.BlockHash = blockHash
-	tx.BlockHeight = blockHeight
-	if err = s.Set(ctx, hash[:], tx); err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return fmt.Errorf("failed to update data: %w", err)
-	}
-
-	return nil
+	return storeData, nil
 }
 
 // GetUnmined returns all transactions that have not been mined
@@ -304,7 +289,7 @@ func (s *Badger) GetUnmined(ctx context.Context, since time.Time, limit int64) (
 			var result *store.StoreData
 			err := item.Value(func(val []byte) error {
 				var err2 error
-				if result, err2 = store.DecodeFromBytes(val); err2 != nil {
+				if result, err2 = DecodeFromBytes(val); err2 != nil {
 					return err2
 				}
 				return nil
@@ -350,75 +335,6 @@ func (s *Badger) Del(ctx context.Context, hash []byte) error {
 	return s.store.Update(func(tx *badger.Txn) error {
 		return tx.Delete(hash)
 	})
-}
-
-func (s *Badger) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("mtm_store_badger").NewStat("GetBlockProcessed").AddTime(start)
-	}()
-	span, _ := opentracing.StartSpanFromContext(ctx, "badger:GetBlockProcessed")
-	defer span.Finish()
-
-	var result *time.Time
-
-	key := append([]byte("block_processed_"), blockHash[:]...)
-
-	err := s.store.View(func(tx *badger.Txn) error {
-		item, err := tx.Get(key)
-		if err != nil {
-			if errors.Is(err, badger.ErrKeyNotFound) {
-				return nil
-			}
-			span.SetTag(string(ext.Error), true)
-			span.LogFields(log.Error(err))
-			return err
-		}
-
-		if err = item.Value(func(val []byte) error {
-			dec := gob.NewDecoder(bytes.NewReader(val))
-			return dec.Decode(&result)
-		}); err != nil {
-			span.SetTag(string(ext.Error), true)
-			span.LogFields(log.Error(err))
-			return fmt.Errorf("failed to decode data: %w", err)
-		}
-
-		return nil
-	})
-
-	return result, err
-}
-
-func (s *Badger) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) error {
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("mtm_store_badger").NewStat("SetBlockProcessed").AddTime(start)
-	}()
-	span, _ := opentracing.StartSpanFromContext(ctx, "badger:SetBlockProcessed")
-	defer span.Finish()
-
-	value := time.Now()
-	key := append([]byte("block_processed_"), blockHash[:]...)
-
-	var data bytes.Buffer
-	enc := gob.NewEncoder(&data)
-	err := enc.Encode(value)
-	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return fmt.Errorf("failed to encode data: %w", err)
-	}
-
-	if err = s.store.Update(func(tx *badger.Txn) error {
-		return tx.Set(key, data.Bytes())
-	}); err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return fmt.Errorf("failed to set data: %w", err)
-	}
-
-	return nil
 }
 
 func (s *Badger) Ping(ctx context.Context) error {

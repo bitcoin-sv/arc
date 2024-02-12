@@ -3,6 +3,9 @@ package dynamodb
 import (
 	"context"
 	"encoding/hex"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/metamorph/store"
+	"github.com/bitcoin-sv/arc/testdata"
 	"testing"
 	"time"
 
@@ -12,7 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ory/dockertest/v3"
@@ -90,7 +92,7 @@ func NewDynamoDBIntegrationTestRepo(t *testing.T) (*DynamoDB, *dynamodb.Client) 
 
 	tables, err := client.ListTables(context.Background(), &dynamodb.ListTablesInput{})
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"blocks-test-env", "transactions-test-env"}, tables.TableNames)
+	require.ElementsMatch(t, []string{"transactions-test-env"}, tables.TableNames)
 
 	return repo, client
 }
@@ -107,9 +109,6 @@ func putItem(t *testing.T, ctx context.Context, client *dynamodb.Client, storeDa
 }
 
 func TestDynamoDBIntegration(t *testing.T) {
-	Block1 := "0000000000000000072be13e375ffd673b1f37b0ec5ecde7b7e15b01f5685d07"
-	Block1Hash, err := chainhash.NewHashFromStr(Block1)
-	require.NoError(t, err)
 
 	dataStatusSent := &store.StoreData{
 		Hash:          TX1Hash,
@@ -122,17 +121,6 @@ func TestDynamoDBIntegration(t *testing.T) {
 
 	repo, client := NewDynamoDBIntegrationTestRepo(t)
 	ctx := context.Background()
-
-	t.Run("set block processed", func(t *testing.T) {
-		err := repo.SetBlockProcessed(ctx, Block1Hash)
-		require.NoError(t, err)
-	})
-
-	t.Run("get block processed", func(t *testing.T) {
-		processedAt, err := repo.GetBlockProcessed(ctx, Block1Hash)
-		require.NoError(t, err)
-		require.NotNil(t, processedAt)
-	})
 
 	t.Run("get - error", func(t *testing.T) {
 		type invalid struct {
@@ -210,7 +198,7 @@ func TestDynamoDBIntegration(t *testing.T) {
 	})
 
 	t.Run("update status", func(t *testing.T) {
-		err = repo.UpdateStatus(ctx, TX1Hash, metamorph_api.Status_REJECTED, "missing inputs")
+		err := repo.UpdateStatus(ctx, TX1Hash, metamorph_api.Status_REJECTED, "missing inputs")
 		require.NoError(t, err)
 		returnedDataRejected, err := repo.Get(ctx, TX1Hash[:])
 		require.NoError(t, err)
@@ -242,8 +230,37 @@ func TestDynamoDBIntegration(t *testing.T) {
 	})
 
 	t.Run("update mined", func(t *testing.T) {
-		err = repo.UpdateMined(ctx, TX2Hash, Block1Hash, 100)
+		txBlocks := &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{
+			{
+				BlockHash:       testdata.Block1Hash[:],
+				BlockHeight:     100,
+				TransactionHash: TX1Hash[:],
+				MerklePath:      "merkle-path-1",
+			},
+			{
+				BlockHash:       testdata.Block1Hash[:],
+				BlockHeight:     100,
+				TransactionHash: TX2Hash[:],
+				MerklePath:      "merkle-path-2",
+			},
+		}}
+
+		updated, err := repo.UpdateMined(ctx, txBlocks)
 		require.NoError(t, err)
+		require.Equal(t, metamorph_api.Status_MINED, updated[0].Status)
+		require.Equal(t, TX1RawBytes, updated[0].RawTx)
+		require.Equal(t, dateNow, updated[0].MinedAt)
+		require.Equal(t, "merkle-path-1", updated[0].MerklePath)
+		require.Equal(t, uint64(100), updated[0].BlockHeight)
+		require.True(t, testdata.Block1Hash.IsEqual(updated[0].BlockHash))
+
+		require.Equal(t, metamorph_api.Status_MINED, updated[1].Status)
+		require.Equal(t, TX2RawBytes, updated[1].RawTx)
+		require.Equal(t, dateNow, updated[1].MinedAt)
+		require.Equal(t, "merkle-path-2", updated[1].MerklePath)
+		require.Equal(t, uint64(100), updated[1].BlockHeight)
+		require.True(t, testdata.Block1Hash.IsEqual(updated[1].BlockHash))
+
 		returnedData, err := repo.Get(ctx, TX2Hash[:])
 		require.NoError(t, err)
 		require.Equal(t, metamorph_api.Status_MINED, returnedData.Status)
@@ -256,17 +273,6 @@ func TestDynamoDBIntegration(t *testing.T) {
 		require.NoError(t, err)
 		_, err = repo.Get(ctx, TX1Hash[:])
 		require.ErrorIs(t, err, store.ErrNotFound)
-	})
-
-	t.Run("blocks - time to live = -1 hour", func(t *testing.T) {
-		repo.ttl = time.Minute * -10
-		err := repo.SetBlockProcessed(ctx, Block1Hash)
-		require.NoError(t, err)
-
-		time.Sleep(2 * time.Second) // give DynamoDB time to delete
-		processedAt, err := repo.GetBlockProcessed(ctx, Block1Hash)
-		require.NoError(t, err)
-		require.Nil(t, processedAt)
 	})
 
 	t.Run("transactions - time to live = -1 hour", func(t *testing.T) {

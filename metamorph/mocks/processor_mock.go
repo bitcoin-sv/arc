@@ -39,9 +39,6 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //			SendStatusForTransactionFunc: func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error) {
 //				panic("mock out the SendStatusForTransaction method")
 //			},
-//			SendStatusMinedForTransactionFunc: func(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error) {
-//				panic("mock out the SendStatusMinedForTransaction method")
-//			},
 //			ShutdownFunc: func()  {
 //				panic("mock out the Shutdown method")
 //			},
@@ -69,9 +66,6 @@ type ProcessorIMock struct {
 
 	// SendStatusForTransactionFunc mocks the SendStatusForTransaction method.
 	SendStatusForTransactionFunc func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
-
-	// SendStatusMinedForTransactionFunc mocks the SendStatusMinedForTransaction method.
-	SendStatusMinedForTransactionFunc func(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error)
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func()
@@ -110,27 +104,17 @@ type ProcessorIMock struct {
 			// Err is the err argument value.
 			Err error
 		}
-		// SendStatusMinedForTransaction holds details about calls to the SendStatusMinedForTransaction method.
-		SendStatusMinedForTransaction []struct {
-			// Hash is the hash argument value.
-			Hash *chainhash.Hash
-			// BlockHash is the blockHash argument value.
-			BlockHash *chainhash.Hash
-			// BlockHeight is the blockHeight argument value.
-			BlockHeight uint64
-		}
 		// Shutdown holds details about calls to the Shutdown method.
 		Shutdown []struct {
 		}
 	}
-	lockGetPeers                      sync.RWMutex
-	lockGetStats                      sync.RWMutex
-	lockHealth                        sync.RWMutex
-	lockLoadUnmined                   sync.RWMutex
-	lockProcessTransaction            sync.RWMutex
-	lockSendStatusForTransaction      sync.RWMutex
-	lockSendStatusMinedForTransaction sync.RWMutex
-	lockShutdown                      sync.RWMutex
+	lockGetPeers                 sync.RWMutex
+	lockGetStats                 sync.RWMutex
+	lockHealth                   sync.RWMutex
+	lockLoadUnmined              sync.RWMutex
+	lockProcessTransaction       sync.RWMutex
+	lockSendStatusForTransaction sync.RWMutex
+	lockShutdown                 sync.RWMutex
 }
 
 // GetPeers calls GetPeersFunc.
@@ -323,46 +307,6 @@ func (mock *ProcessorIMock) SendStatusForTransactionCalls() []struct {
 	mock.lockSendStatusForTransaction.RLock()
 	calls = mock.calls.SendStatusForTransaction
 	mock.lockSendStatusForTransaction.RUnlock()
-	return calls
-}
-
-// SendStatusMinedForTransaction calls SendStatusMinedForTransactionFunc.
-func (mock *ProcessorIMock) SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error) {
-	if mock.SendStatusMinedForTransactionFunc == nil {
-		panic("ProcessorIMock.SendStatusMinedForTransactionFunc: method is nil but ProcessorI.SendStatusMinedForTransaction was just called")
-	}
-	callInfo := struct {
-		Hash        *chainhash.Hash
-		BlockHash   *chainhash.Hash
-		BlockHeight uint64
-	}{
-		Hash:        hash,
-		BlockHash:   blockHash,
-		BlockHeight: blockHeight,
-	}
-	mock.lockSendStatusMinedForTransaction.Lock()
-	mock.calls.SendStatusMinedForTransaction = append(mock.calls.SendStatusMinedForTransaction, callInfo)
-	mock.lockSendStatusMinedForTransaction.Unlock()
-	return mock.SendStatusMinedForTransactionFunc(hash, blockHash, blockHeight)
-}
-
-// SendStatusMinedForTransactionCalls gets all the calls that were made to SendStatusMinedForTransaction.
-// Check the length with:
-//
-//	len(mockedProcessorI.SendStatusMinedForTransactionCalls())
-func (mock *ProcessorIMock) SendStatusMinedForTransactionCalls() []struct {
-	Hash        *chainhash.Hash
-	BlockHash   *chainhash.Hash
-	BlockHeight uint64
-} {
-	var calls []struct {
-		Hash        *chainhash.Hash
-		BlockHash   *chainhash.Hash
-		BlockHeight uint64
-	}
-	mock.lockSendStatusMinedForTransaction.RLock()
-	calls = mock.calls.SendStatusMinedForTransaction
-	mock.lockSendStatusMinedForTransaction.RUnlock()
 	return calls
 }
 

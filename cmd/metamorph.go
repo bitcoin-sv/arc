@@ -15,7 +15,6 @@ import (
 
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
 	awsdynamodb "github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
@@ -54,18 +53,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
-
-	blocktxAddress, err := config.GetString("blocktx.dialAddr")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := blocktx.DialGRPC(blocktxAddress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
-	}
-
-	btx := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn))
 
 	metamorphGRPCListenAddress, err := config.GetString("metamorph.listenAddr")
 	if err != nil {
@@ -117,12 +104,12 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	metamorphProcessor, err := metamorph.NewProcessor(
 		s,
 		pm,
-		btx,
 		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithProcessorLogger(logger.With(slog.String("module", "mtm-proc"))),
 		metamorph.WithDataRetentionPeriod(time.Duration(dataRetentionDays)*24*time.Hour),
 		metamorph.WithMaxMonitoredTxs(maxMonitoredTxs),
-		metamorph.WithPublisher(publisher),
+		metamorph.WithMessageQueueClient(mqClient),
+		metamorph.WithMinedTxsChan(minedTxsChan),
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
@@ -204,7 +191,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		optsServer = append(optsServer, metamorph.WithBlocktxTimeout(btxTimeout))
 	}
 
-	serv := metamorph.NewServer(s, metamorphProcessor, btx, optsServer...)
+	serv := metamorph.NewServer(s, metamorphProcessor, optsServer...)
 
 	go func() {
 		grpcMessageSize := viper.GetInt("grpcMessageSize")

@@ -18,7 +18,6 @@ const (
 	CallbackIntervalSeconds = 5
 )
 
-// Callback defines model for Callback.
 type Callback struct {
 	BlockHash   *string   `json:"blockHash,omitempty"`
 	BlockHeight *uint64   `json:"blockHeight,omitempty"`
@@ -29,7 +28,7 @@ type Callback struct {
 	Txid        string    `json:"txid"`
 }
 
-func SendCallback(logger *slog.Logger, tx *store.StoreData, merklePath string) {
+func SendCallback(logger *slog.Logger, tx *store.StoreData) {
 	sleepDuration := CallbackIntervalSeconds
 	statusString := tx.Status.String()
 	blockHash := ""
@@ -47,7 +46,7 @@ func SendCallback(logger *slog.Logger, tx *store.StoreData, merklePath string) {
 			TxStatus:    &statusString,
 			Txid:        tx.Hash.String(),
 			Timestamp:   time.Now(),
-			MerklePath:  &merklePath,
+			MerklePath:  &tx.MerklePath,
 		}
 		statusBytes, err := json.Marshal(status)
 		if err != nil {

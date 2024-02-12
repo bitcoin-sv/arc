@@ -1,6 +1,7 @@
 package postgresql
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -8,6 +9,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
@@ -23,6 +25,33 @@ import (
 	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
 )
+
+type Block struct {
+	ID           int64     `db:"id"`
+	Hash         string    `db:"hash"`
+	PreviousHash string    `db:"prevhash"`
+	MerkleRoot   string    `db:"merkleroot"`
+	MerklePath   *string   `db:"merkle_path"`
+	Height       int64     `db:"height"`
+	Orphaned     bool      `db:"orphanedyn"`
+	Size         *int64    `db:"size"`
+	TxCount      *int64    `db:"tx_count"`
+	Processed    bool      `db:"processed"`
+	ProcessedAt  time.Time `db:"processed_at"`
+	InsertedAt   time.Time `db:"inserted_at"`
+}
+
+type Transaction struct {
+	ID         int64  `db:"id"`
+	Hash       []byte `db:"hash"`
+	MerklePath string `db:"merkle_path"`
+}
+
+type BlockTransactionMap struct {
+	BlockID       int64 `db:"blockid"`
+	TransactionID int64 `db:"txid"`
+	Pos           int64 `db:"pos"`
+}
 
 const (
 	postgresPort   = "5432"
@@ -75,6 +104,7 @@ func TestMain(m *testing.M) {
 	hostPort := resource.GetPort("5432/tcp")
 
 	dbInfo = fmt.Sprintf("host=localhost port=%s user=%s password=%s dbname=%s sslmode=disable", hostPort, dbUsername, dbPassword, dbName)
+	fmt.Println(dbInfo)
 	var postgresDB *PostgreSQL
 	err = pool.Retry(func() error {
 		postgresDB, err = New(dbInfo, 10, 10)
@@ -144,7 +174,9 @@ func TestPostgresDB(t *testing.T) {
 	merkleRoot, err := chainhash.NewHashFromStr("31e25c5ac7c143687f55fc49caf0f552ba6a16d4f785e4c9a9a842179a085f0c")
 	require.NoError(t, err)
 
-	postgresDB, err := New(dbInfo, 10, 10)
+	postgresDB, err := New(dbInfo, 10, 10, WithNow(func() time.Time {
+		return time.Date(2023, 12, 22, 12, 0, 0, 0, time.UTC)
+	}))
 	ctx := context.Background()
 	require.NoError(t, err)
 	defer func() {
@@ -160,7 +192,8 @@ func TestPostgresDB(t *testing.T) {
 
 		id, err := postgresDB.InsertBlock(ctx, block)
 		require.NoError(t, err)
-		require.Equal(t, uint64(1), id)
+		fmt.Println(id)
+		require.Equal(t, uint64(10001), id)
 
 		blockResp, err := postgresDB.GetBlock(ctx, blockHash2)
 		require.NoError(t, err)
@@ -188,26 +221,26 @@ func TestPostgresDB(t *testing.T) {
 		d, err := sqlx.Open("postgres", dbInfo)
 		require.NoError(t, err)
 
-		var storedtx store.Transaction
+		var storedtx Transaction
 		err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(txs[0].GetHash()))
 		require.NoError(t, err)
 
-		require.Equal(t, txs[0].GetHash(), storedtx.Hash)
+		require.True(t, bytes.Equal(txs[0].GetHash(), storedtx.Hash))
 
 		err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(txs[1].GetHash()))
 		require.NoError(t, err)
 
-		require.Equal(t, txs[1].GetHash(), storedtx.Hash)
+		require.True(t, bytes.Equal(txs[1].GetHash(), storedtx.Hash))
 
 		err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(txs[2].GetHash()))
 		require.NoError(t, err)
 
-		require.Equal(t, txs[2].GetHash(), storedtx.Hash)
+		require.True(t, bytes.Equal(txs[2].GetHash(), storedtx.Hash))
 
 		err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(txs[3].GetHash()))
 		require.NoError(t, err)
 
-		require.Equal(t, txs[3].GetHash(), storedtx.Hash)
+		require.True(t, bytes.Equal(txs[3].GetHash(), storedtx.Hash))
 
 		newHash1, err := hex.DecodeString("bb6817dad4c9a0e34803c2f1dec13ac8b89d539a57749be808d61f314bbbd855")
 		require.NoError(t, err)
@@ -231,12 +264,12 @@ func TestPostgresDB(t *testing.T) {
 		err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(txs2[2].GetHash()))
 		require.NoError(t, err)
 
-		require.Equal(t, txs2[2].GetHash(), storedtx.Hash)
+		require.True(t, bytes.Equal(txs2[2].GetHash(), storedtx.Hash))
 
 		err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(txs2[3].GetHash()))
 		require.NoError(t, err)
 
-		require.Equal(t, txs2[3].GetHash(), storedtx.Hash)
+		require.True(t, bytes.Equal(txs2[3].GetHash(), storedtx.Hash))
 	})
 
 	t.Run("get block gaps", func(t *testing.T) {
@@ -306,7 +339,7 @@ func TestPostgresDB(t *testing.T) {
 		d, err := sqlx.Open("postgres", dbInfo)
 		require.NoError(t, err)
 
-		var storedtx store.Transaction
+		var storedtx Transaction
 
 		err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", txHash1[:])
 		require.NoError(t, err)
@@ -314,14 +347,14 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, txHash1[:], storedtx.Hash)
 		require.Equal(t, testMerklePaths[0], storedtx.MerklePath)
 
-		var mp store.BlockTransactionMap
+		var mp BlockTransactionMap
 		err = d.Get(&mp, "SELECT blockid, txid, pos from block_transactions_map WHERE txid=$1", storedtx.ID)
 		require.NoError(t, err)
 
 		require.Equal(t, storedtx.ID, mp.TransactionID)
 		require.Equal(t, testBlockID, uint64(mp.BlockID))
 
-		var storedtx2 store.Transaction
+		var storedtx2 Transaction
 
 		err = d.Get(&storedtx2, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", txHash2[:])
 		require.NoError(t, err)
@@ -329,7 +362,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, txHash2[:], storedtx2.Hash)
 		require.Equal(t, testMerklePaths[1], storedtx2.MerklePath)
 
-		var mp2 store.BlockTransactionMap
+		var mp2 BlockTransactionMap
 		err = d.Get(&mp2, "SELECT blockid, txid, pos from block_transactions_map WHERE txid=$1", storedtx2.ID)
 		require.NoError(t, err)
 
@@ -347,7 +380,7 @@ func TestPostgresDB(t *testing.T) {
 		d, err := sqlx.Open("postgres", dbInfo)
 		require.NoError(t, err)
 
-		var blocks []store.Block
+		var blocks []Block
 
 		require.NoError(t, d.Select(&blocks, "SELECT id FROM blocks"))
 
@@ -357,7 +390,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, int64(5), resp.Rows)
 
-		var mps []store.BlockTransactionMap
+		var mps []BlockTransactionMap
 		require.NoError(t, d.Select(&mps, "SELECT blockid FROM block_transactions_map"))
 
 		require.Len(t, mps, 5)
@@ -366,7 +399,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, int64(5), resp.Rows)
 
-		var txs []store.Transaction
+		var txs []Transaction
 		require.NoError(t, d.Select(&txs, "SELECT id FROM transactions"))
 
 		require.Len(t, txs, 5)

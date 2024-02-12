@@ -22,7 +22,13 @@ func init() {
 	gocore.NewStat("blocktx")
 }
 
-func New(dbInfo string, idleConns int, maxOpenConns int) (*PostgreSQL, error) {
+func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
+	return func(p *PostgreSQL) {
+		p.now = nowFunc
+	}
+}
+
+func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL *PostgreSQL)) (*PostgreSQL, error) {
 	var db *sql.DB
 	var err error
 
@@ -34,10 +40,16 @@ func New(dbInfo string, idleConns int, maxOpenConns int) (*PostgreSQL, error) {
 	db.SetMaxIdleConns(idleConns)
 	db.SetMaxOpenConns(maxOpenConns)
 
-	return &PostgreSQL{
+	p := &PostgreSQL{
 		db:  db,
 		now: time.Now,
-	}, nil
+	}
+
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	return p, nil
 }
 
 func (s *PostgreSQL) Close() error {

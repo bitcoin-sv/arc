@@ -162,6 +162,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, uint64(1), id)
 
 		blockResp, err := postgresDB.GetBlock(ctx, blockHash2)
+		require.NoError(t, err)
 		require.Equal(t, block, blockResp)
 	})
 
@@ -296,7 +297,7 @@ func TestPostgresDB(t *testing.T) {
 		}, testMerklePaths)
 		require.NoError(t, err)
 
-		d, err := sqlx.Open("postgres", database_testing.DefaultParams.String())
+		d, err := sqlx.Open("postgres", dbInfo)
 		require.NoError(t, err)
 
 		var storedtx store.Transaction
@@ -329,5 +330,39 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, storedtx2.ID, mp2.TransactionID)
 		require.Equal(t, testBlockID, uint64(mp2.BlockID))
 
+	})
+
+	t.Run("clear data", func(t *testing.T) {
+
+		resp, err := postgresDB.ClearBlocktxTable(context.Background(), 10, "blocks")
+		require.NoError(t, err)
+		require.Equal(t, int64(1), resp.Rows)
+
+		d, err := sqlx.Open("postgres", dbInfo)
+		require.NoError(t, err)
+
+		var blocks []store.Block
+
+		require.NoError(t, d.Select(&blocks, "SELECT id FROM blocks"))
+
+		require.Len(t, blocks, 1)
+
+		resp, err = postgresDB.ClearBlocktxTable(context.Background(), 10, "block_transactions_map")
+		require.NoError(t, err)
+		require.Equal(t, int64(5), resp.Rows)
+
+		var mps []store.BlockTransactionMap
+		require.NoError(t, d.Select(&mps, "SELECT blockid FROM block_transactions_map"))
+
+		require.Len(t, mps, 5)
+
+		resp, err = postgresDB.ClearBlocktxTable(context.Background(), 10, "transactions")
+		require.NoError(t, err)
+		require.Equal(t, int64(5), resp.Rows)
+
+		var txs []store.Transaction
+		require.NoError(t, d.Select(&txs, "SELECT id FROM transactions"))
+
+		require.Len(t, txs, 5)
 	})
 }

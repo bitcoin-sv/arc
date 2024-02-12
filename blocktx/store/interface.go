@@ -9,9 +9,6 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("not found")
-
-	// ErrBlockNotFound is returned when a block is not found.
 	ErrBlockNotFound = errors.New("block not found")
 )
 

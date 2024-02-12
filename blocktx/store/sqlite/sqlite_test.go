@@ -56,7 +56,7 @@ func TestInOut(t *testing.T) {
 	_, err = s.UpdateBlockTransactions(ctx, blockId, transactions, make([]string, len(transactions)))
 	require.NoError(t, err)
 
-	txns, err := getBlockTransactions(ctx, block, s.db.DB)
+	txns, err := getBlockTransactions(ctx, block, s.db)
 	require.NoError(t, err)
 
 	for i, txn := range txns.GetTransactions() {
@@ -65,17 +65,17 @@ func TestInOut(t *testing.T) {
 
 	height := uint64(1)
 
-	err = setOrphanedForHeight(ctx, s.db.DB, height, false)
+	err = setOrphanedForHeight(ctx, s.db, height, false)
 	require.NoError(t, err)
 
-	block2, err := getBlockForHeight(ctx, s.db.DB, height)
+	block2, err := getBlockForHeight(ctx, s.db, height)
 	require.NoError(t, err)
 	assert.Equal(t, bytes.Equal(block.GetHash(), block2.GetHash()), true)
 
-	err = setOrphanedForHeight(ctx, s.db.DB, height, true)
+	err = setOrphanedForHeight(ctx, s.db, height, true)
 	require.NoError(t, err)
 
-	block3, err := getBlockForHeight(ctx, s.db.DB, height)
+	block3, err := getBlockForHeight(ctx, s.db, height)
 	require.Error(t, err)
 	assert.Nil(t, block3)
 }
@@ -88,7 +88,7 @@ func TestBlockNotExists(t *testing.T) {
 
 	height := uint64(1000000)
 
-	b, err := getBlockForHeight(ctx, s.db.DB, height)
+	b, err := getBlockForHeight(ctx, s.db, height)
 	require.Error(t, err)
 	assert.Nil(t, b)
 }

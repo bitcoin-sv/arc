@@ -13,15 +13,15 @@ import (
 	"time"
 )
 
-// Ensure, that MetamorphStoreMock does implement metamorph.MetamorphStore.
+// Ensure, that MetamorphStoreMock does implement store.MetamorphStore.
 // If this is not the case, regenerate this file with moq.
 var _ store.MetamorphStore = &MetamorphStoreMock{}
 
-// MetamorphStoreMock is a mock implementation of metamorph.MetamorphStore.
+// MetamorphStoreMock is a mock implementation of store.MetamorphStore.
 //
 //	func TestSomethingThatUsesMetamorphStore(t *testing.T) {
 //
-//		// make and configure a mocked metamorph.MetamorphStore
+//		// make and configure a mocked store.MetamorphStore
 //		mockedMetamorphStore := &MetamorphStoreMock{
 //			ClearDataFunc: func(ctx context.Context, retentionDays int32) (int64, error) {
 //				panic("mock out the ClearData method")
@@ -32,19 +32,16 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			DelFunc: func(ctx context.Context, key []byte) error {
 //				panic("mock out the Del method")
 //			},
-//			GetFunc: func(ctx context.Context, key []byte) (*metamorph.StoreData, error) {
+//			GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 //				panic("mock out the Get method")
 //			},
-//			GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64) ([]*metamorph.StoreData, error) {
+//			GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 //				panic("mock out the GetUnmined method")
 //			},
 //			PingFunc: func(ctx context.Context) error {
 //				panic("mock out the Ping method")
 //			},
-//			RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
-//				panic("mock out the RemoveCallbacker method")
-//			},
-//			SetFunc: func(ctx context.Context, key []byte, value *metamorph.StoreData) error {
+//			SetFunc: func(ctx context.Context, key []byte, value *store.StoreData) error {
 //				panic("mock out the Set method")
 //			},
 //			SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
@@ -53,7 +50,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
 //				panic("mock out the SetUnlockedByName method")
 //			},
-//			UpdateMinedFunc: func(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*metamorph.StoreData, error) {
+//			UpdateMinedFunc: func(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
 //				panic("mock out the UpdateMined method")
 //			},
 //			UpdateStatusFunc: func(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
@@ -61,7 +58,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			},
 //		}
 //
-//		// use mockedMetamorphStore in code that requires metamorph.MetamorphStore
+//		// use mockedMetamorphStore in code that requires store.MetamorphStore
 //		// and then make assertions.
 //
 //	}
@@ -83,9 +80,6 @@ type MetamorphStoreMock struct {
 
 	// PingFunc mocks the Ping method.
 	PingFunc func(ctx context.Context) error
-
-	// RemoveCallbackerFunc mocks the RemoveCallbacker method.
-	RemoveCallbackerFunc func(ctx context.Context, hash *chainhash.Hash) error
 
 	// SetFunc mocks the Set method.
 	SetFunc func(ctx context.Context, key []byte, value *store.StoreData) error
@@ -144,13 +138,6 @@ type MetamorphStoreMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
-		// RemoveCallbacker holds details about calls to the RemoveCallbacker method.
-		RemoveCallbacker []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Hash is the hash argument value.
-			Hash *chainhash.Hash
-		}
 		// Set holds details about calls to the Set method.
 		Set []struct {
 			// Ctx is the ctx argument value.
@@ -199,7 +186,6 @@ type MetamorphStoreMock struct {
 	lockGet               sync.RWMutex
 	lockGetUnmined        sync.RWMutex
 	lockPing              sync.RWMutex
-	lockRemoveCallbacker  sync.RWMutex
 	lockSet               sync.RWMutex
 	lockSetUnlocked       sync.RWMutex
 	lockSetUnlockedByName sync.RWMutex
@@ -416,42 +402,6 @@ func (mock *MetamorphStoreMock) PingCalls() []struct {
 	mock.lockPing.RLock()
 	calls = mock.calls.Ping
 	mock.lockPing.RUnlock()
-	return calls
-}
-
-// RemoveCallbacker calls RemoveCallbackerFunc.
-func (mock *MetamorphStoreMock) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error {
-	if mock.RemoveCallbackerFunc == nil {
-		panic("MetamorphStoreMock.RemoveCallbackerFunc: method is nil but MetamorphStore.RemoveCallbacker was just called")
-	}
-	callInfo := struct {
-		Ctx  context.Context
-		Hash *chainhash.Hash
-	}{
-		Ctx:  ctx,
-		Hash: hash,
-	}
-	mock.lockRemoveCallbacker.Lock()
-	mock.calls.RemoveCallbacker = append(mock.calls.RemoveCallbacker, callInfo)
-	mock.lockRemoveCallbacker.Unlock()
-	return mock.RemoveCallbackerFunc(ctx, hash)
-}
-
-// RemoveCallbackerCalls gets all the calls that were made to RemoveCallbacker.
-// Check the length with:
-//
-//	len(mockedMetamorphStore.RemoveCallbackerCalls())
-func (mock *MetamorphStoreMock) RemoveCallbackerCalls() []struct {
-	Ctx  context.Context
-	Hash *chainhash.Hash
-} {
-	var calls []struct {
-		Ctx  context.Context
-		Hash *chainhash.Hash
-	}
-	mock.lockRemoveCallbacker.RLock()
-	calls = mock.calls.RemoveCallbacker
-	mock.lockRemoveCallbacker.RUnlock()
 	return calls
 }
 

@@ -261,9 +261,6 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 					}
 					return data, tt.getErr
 				},
-				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
-					return nil
-				},
 			}
 
 			server := NewServer(metamorphStore, nil)
@@ -588,9 +585,6 @@ func TestSetUnlockedbyName(t *testing.T) {
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
 					return tc.recordsAffected, tc.errSetUnlocked
 				},
-				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
-					return nil
-				},
 			}
 
 			server := NewServer(metamorphStore, nil)
@@ -626,9 +620,6 @@ func TestStartGRPCServer(t *testing.T) {
 					return &store.StoreData{}, nil
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
-				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
-					return nil
-				},
 			}
 
 			processor := &ProcessorIMock{

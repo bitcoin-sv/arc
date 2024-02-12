@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:generate moq -pkg mocks -out ./mocks/store_mock.go . MetamorphStore
+//go:generate moq -pkg mocks -out ./mocks/store_mock.go ./store/ MetamorphStore
 //go:generate moq -pkg mocks -out ./mocks/message_queue_mock.go . MessageQueueClient
 
 func TestNewProcessor(t *testing.T) {
@@ -36,9 +36,6 @@ func TestNewProcessor(t *testing.T) {
 			return &store.StoreData{Hash: testdata.TX2Hash}, nil
 		},
 		SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
-		RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
-			return nil
-		},
 	}
 
 	pm := p2p.NewPeerManagerMock()
@@ -579,9 +576,6 @@ func TestProcessExpiredTransactions(t *testing.T) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
-				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
-					return nil
-				},
 			}
 			pm := p2p.NewPeerManagerMock()
 			processor, err := metamorph.NewProcessor(metamorphStore, pm,
@@ -639,9 +633,6 @@ func TestProcessorHealth(t *testing.T) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
-				RemoveCallbackerFunc: func(ctx context.Context, hash *chainhash.Hash) error {
-					return nil
-				},
 			}
 			pm := p2p.NewPeerManagerMock()
 

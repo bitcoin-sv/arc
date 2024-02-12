@@ -1,4 +1,4 @@
-package sql
+package sqlite
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-func (s *SQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+func (s *SqLite) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("InsertBlock").AddTime(start)

@@ -1,4 +1,4 @@
-package sql
+package postgresql
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 )
 
 // GetTransactionMerklePath returns the merkle path of a transaction.
-func (s *SQL) GetTransactionMerklePath(ctx context.Context, txhash *chainhash.Hash) (string, error) {
+func (s *PostgreSQL) GetTransactionMerklePath(ctx context.Context, txhash *chainhash.Hash) (string, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("GetTransactionMerklePath").AddTime(start)

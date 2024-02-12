@@ -1,15 +1,16 @@
-package sql
+package postgresql
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
+
+	"github.com/go-testfixtures/testfixtures/v3"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	. "github.com/bitcoin-sv/arc/database_testing"
-	"github.com/go-testfixtures/testfixtures/v3"
-	"github.com/jmoiron/sqlx"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -21,13 +22,13 @@ type GetTransactionBlocksSuite struct {
 
 func (s *GetTransactionBlocksSuite) Test() {
 
-	db, err := sqlx.Open("postgres", DefaultParams.String())
+	db, err := sql.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
-	st := &SQL{db: db, engine: postgresEngine}
+	st := &PostgreSQL{db: db}
 
 	fixtures, err := testfixtures.New(
-		testfixtures.Database(db.DB),
+		testfixtures.Database(db),
 		testfixtures.Dialect("postgresql"),
 		testfixtures.Directory("fixtures/get_transaction_blocks"), // The directory containing the YAML files
 	)
@@ -158,9 +159,8 @@ func TestGetTransactionBlocks(t *testing.T) {
 
 			defer db.Close()
 
-			dbEngine := SQL{
-				db:     sqlx.NewDb(db, "postgres"),
-				engine: "postgres",
+			dbEngine := PostgreSQL{
+				db: db,
 			}
 
 			tc.sqlmockExpectations(mock)

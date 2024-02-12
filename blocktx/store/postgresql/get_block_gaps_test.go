@@ -1,4 +1,4 @@
-package sql
+package postgresql
 
 import (
 	"context"
@@ -21,7 +21,7 @@ func (s *GetBlockGapTestSuite) Test() {
 	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
 
-	st := &SQL{db: db}
+	st := &PostgreSQL{db: db}
 
 	fixtures, err := testfixtures.New(
 		testfixtures.Database(db.DB),

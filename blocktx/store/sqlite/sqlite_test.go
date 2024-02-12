@@ -1,4 +1,4 @@
-package sql
+package sqlite
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ func TestInOut(t *testing.T) {
 		Height:       1,
 	}
 
-	s, err := New("sqlite_memory")
+	s, err := New(true, "")
 	require.NoError(t, err)
 
 	blockId, err := s.InsertBlock(ctx, block)
@@ -83,7 +83,7 @@ func TestInOut(t *testing.T) {
 func TestBlockNotExists(t *testing.T) {
 	ctx := context.Background()
 
-	s, err := New("sqlite_memory")
+	s, err := New(true, "")
 	require.NoError(t, err)
 
 	height := uint64(1000000)

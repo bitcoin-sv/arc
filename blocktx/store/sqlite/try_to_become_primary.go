@@ -1,4 +1,4 @@
-package sql
+package sqlite
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 
 const PrimaryDurationSecs = 2 * 60
 
-func (s *SQL) TryToBecomePrimary(ctx context.Context, myHostName string) error {
+func (s *SqLite) TryToBecomePrimary(ctx context.Context, myHostName string) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("AmIPrimary").AddTime(start)

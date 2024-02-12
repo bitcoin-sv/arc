@@ -1,4 +1,4 @@
-package sql
+package postgresql
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-func (s *SQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]*store.BlockGap, error) {
+func (s *PostgreSQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]*store.BlockGap, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("GetBlockGaps").AddTime(start)

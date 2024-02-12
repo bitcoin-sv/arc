@@ -1,4 +1,4 @@
-package sql
+package sqlite
 
 import (
 	"context"
@@ -8,20 +8,10 @@ import (
 	"strings"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/lib/pq"
 	"github.com/ordishs/gocore"
 )
 
 const (
-	queryGetBlockHashHeightForTxHashesPostgres = `
-			SELECT
-			b.hash, b.height, t.hash
-			FROM blocks b
-			INNER JOIN block_transactions_map m ON m.blockid = b.id
-			INNER JOIN transactions t ON m.txid = t.id
-			WHERE t.hash = ANY($1)
-			AND b.orphanedyn = FALSE`
-
 	queryGetBlockHashHeightForTxHashesSQLite = `
 			SELECT
 			b.hash, b.height, t.hash
@@ -41,7 +31,7 @@ func getQuerySQLite(transactions *blocktx_api.Transactions) string {
 	return fmt.Sprintf(queryGetBlockHashHeightForTxHashesSQLite, strings.Join(result, "','"))
 }
 
-func (s *SQL) GetTransactionBlocks(ctx context.Context, transactions *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
+func (s *SqLite) GetTransactionBlocks(ctx context.Context, transactions *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
 	start := gocore.CurrentNanos()
 
 	defer gocore.NewStat("blocktx").NewStat("GetTransactionsBlocks").AddTime(start)
@@ -53,27 +43,9 @@ func (s *SQL) GetTransactionBlocks(ctx context.Context, transactions *blocktx_ap
 	var rows *sql.Rows
 	var err error
 
-	switch s.engine {
-	case sqliteEngine:
-		fallthrough
-	case sqliteMemoryEngine:
-		rows, err = s.db.QueryContext(ctx, getQuerySQLite(transactions))
-		if err != nil {
-			return nil, err
-		}
-	case postgresEngine:
-		var hashSlice [][]byte
-		for _, tx := range transactions.GetTransactions() {
-			hashSlice = append(hashSlice, tx.GetHash())
-		}
-
-		rows, err = s.db.QueryContext(ctx, queryGetBlockHashHeightForTxHashesPostgres, pq.Array(hashSlice))
-		if err != nil {
-			return nil, err
-		}
-
-	default:
-		return nil, fmt.Errorf("engine not supported: %s", s.engine)
+	rows, err = s.db.QueryContext(ctx, getQuerySQLite(transactions))
+	if err != nil {
+		return nil, err
 	}
 
 	defer rows.Close()

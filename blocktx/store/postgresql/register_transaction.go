@@ -1,4 +1,4 @@
-package sql
+package postgresql
 
 import (
 	"context"
@@ -16,7 +16,7 @@ var (
 )
 
 // RegisterTransaction registers a transaction in the database.
-func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
+func (s *PostgreSQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("RegisterTransaction").AddTime(start)
@@ -37,7 +37,7 @@ func (s *SQL) RegisterTransaction(ctx context.Context, transaction *blocktx_api.
 	return nil
 }
 
-func (s *SQL) RegisterTransactions(ctx context.Context, transactions []*blocktx_api.TransactionAndSource) error {
+func (s *PostgreSQL) RegisterTransactions(ctx context.Context, transactions []*blocktx_api.TransactionAndSource) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("RegisterTransactions").AddTime(start)

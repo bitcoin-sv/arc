@@ -1,10 +1,12 @@
-package sql
+package postgresql
 
 import (
 	"context"
+	"database/sql"
+	"testing"
+
 	"github.com/go-testfixtures/testfixtures/v3"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"testing"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/blocktx/store"
@@ -25,16 +27,15 @@ type Tx struct {
 }
 
 func (s *UpdateBlockTransactionsSuite) Test() {
-	db, err := sqlx.Open("postgres", database_testing.DefaultParams.String())
+	db, err := sql.Open("postgres", database_testing.DefaultParams.String())
 	require.NoError(s.T(), err)
 
-	st := &SQL{
-		db:     db,
-		engine: postgresEngine,
+	st := &PostgreSQL{
+		db: db,
 	}
 
 	fixtures, err := testfixtures.New(
-		testfixtures.Database(db.DB),
+		testfixtures.Database(db),
 		testfixtures.Dialect("postgresql"),
 		testfixtures.Directory("fixtures/insert_block_transactions"),
 	)

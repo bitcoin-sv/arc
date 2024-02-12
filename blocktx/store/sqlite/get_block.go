@@ -1,4 +1,4 @@
-package sql
+package sqlite
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-func (s *SQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+func (s *SqLite) GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("GetBlock").AddTime(start)

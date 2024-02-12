@@ -1,4 +1,4 @@
-package sql
+package sqlite
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 )
 
 // GetPrimary returns the host name of the blocktx instance which is currently primary
-func (s *SQL) GetPrimary(ctx context.Context) (string, error) {
+func (s *SqLite) GetPrimary(ctx context.Context) (string, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("AmIPrimary").AddTime(start)

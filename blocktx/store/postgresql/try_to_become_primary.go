@@ -12,7 +12,7 @@ const PrimaryDurationSecs = 2 * 60
 func (s *PostgreSQL) TryToBecomePrimary(ctx context.Context, myHostName string) error {
 	start := gocore.CurrentNanos()
 	defer func() {
-		gocore.NewStat("blocktx").NewStat("AmIPrimary").AddTime(start)
+		gocore.NewStat("blocktx").NewStat("TryToBecomePrimary").AddTime(start)
 	}()
 
 	ctx, cancel := context.WithCancel(ctx)

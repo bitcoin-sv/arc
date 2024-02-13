@@ -50,8 +50,8 @@ var dataFeeDefault = &bt.Fee{
 }
 
 type ClientI interface {
-	BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status) (*metamorph_api.TransactionStatus, error)
-	BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status) ([]*metamorph_api.TransactionStatus, error)
+	BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error)
+	BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) ([]*metamorph_api.TransactionStatus, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*metamorph_api.TransactionStatus, error)
 }
 
@@ -67,6 +67,7 @@ type Broadcaster struct {
 	PrintTxIDs    bool
 	Consolidate   bool
 	Concurrency   int
+	CallbackURL   string
 	BatchSize     int64
 	WaitForStatus api.WaitForStatus
 	BatchSend     int
@@ -208,7 +209,7 @@ func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 		// retry 3 times to get the funding transaction broadcast with seen on network status
 		for i := 1; i <= 3; i++ {
 			b.logger.Infof("retrying broadcasting funding tx: %d", i)
-			status, err := b.Client.BroadcastTransaction(ctx, fundingTx, metamorph_api.Status(b.WaitForStatus))
+			status, err := b.Client.BroadcastTransaction(ctx, fundingTx, metamorph_api.Status(b.WaitForStatus), b.CallbackURL)
 			if err != nil {
 				b.logger.Fatalf("[%d] error broadcasting funding tx: %s", iteration, err.Error())
 			}
@@ -297,7 +298,6 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 
 	if b.IsDryRun {
 		for _, tx := range txs {
-			// b.logger.Infof("Processing tx %d / %d", i+1, len(b.txs))
 			if err := b.ProcessTransaction(ctx, tx, iteration); err != nil {
 				return err
 			}
@@ -318,7 +318,7 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 				go func(txs []*bt.Tx, indexStart, indexEnd int) {
 					defer wg.Done()
 
-					txStatus, err := b.Client.BroadcastTransactions(ctx, txs, metamorph_api.Status(b.WaitForStatus))
+					txStatus, err := b.Client.BroadcastTransactions(ctx, txs, metamorph_api.Status(b.WaitForStatus), b.CallbackURL)
 					if err != nil {
 						b.logger.Errorf("[%d]   batch of %d - %d failed %s", iteration, indexStart, indexEnd, err.Error())
 					} else {
@@ -366,7 +366,7 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 }
 
 func (b *Broadcaster) ProcessTransaction(ctx context.Context, tx *bt.Tx, iteration int64) error {
-	res, err := b.Client.BroadcastTransaction(ctx, tx, metamorph_api.Status(b.WaitForStatus))
+	res, err := b.Client.BroadcastTransaction(ctx, tx, metamorph_api.Status(b.WaitForStatus), b.CallbackURL)
 	if err != nil {
 		return fmt.Errorf("error broadcasting transaction %s: %s", tx.TxID(), err.Error())
 	}

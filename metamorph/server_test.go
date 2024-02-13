@@ -167,6 +167,9 @@ func TestPutTransaction(t *testing.T) {
 }
 
 func TestServer_GetTransactionStatus(t *testing.T) {
+
+	errFailedToGetTxData := errors.New("failed to get transaction data")
+
 	tests := []struct {
 		name               string
 		req                *metamorph_api.TransactionStatusRequest
@@ -179,15 +182,27 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{
-			name: "GetTransactionStatus - not found",
+			name: "GetTransactionStatus - error: not found",
 			req: &metamorph_api.TransactionStatusRequest{
 				Txid: "a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118",
 			},
-			getErr: ErrNotFound,
+			getErr: store.ErrNotFound,
 
 			want: nil,
 			wantErr: func(t assert.TestingT, err error, rest ...interface{}) bool {
 				return assert.ErrorIs(t, err, ErrNotFound, rest...)
+			},
+		},
+		{
+			name: "GetTransactionStatus - error: failed to get tx data",
+			req: &metamorph_api.TransactionStatusRequest{
+				Txid: "a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118",
+			},
+			getErr: errFailedToGetTxData,
+
+			want: nil,
+			wantErr: func(t assert.TestingT, err error, rest ...interface{}) bool {
+				return assert.ErrorIs(t, err, errFailedToGetTxData, rest...)
 			},
 		},
 		{

@@ -609,9 +609,12 @@ func (ph *PeerHandler) printMemStats() {
 	}
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
-	ph.logger.Info(fmt.Sprintf("Alloc = %v MiB, TotalAlloc = %v MiB, Sys = %v MiB, NumGC = %v\n",
-		bToMb(mem.Alloc), bToMb(mem.TotalAlloc), bToMb(mem.Sys), mem.NumGC))
-
+	ph.logger.Debug("stats",
+		slog.Uint64("Alloc [MiB]", bToMb(mem.Alloc)),
+		slog.Uint64("TotalAlloc [MiB]", bToMb(mem.TotalAlloc)),
+		slog.Uint64("Sys [MiB]", bToMb(mem.Sys)),
+		slog.Int64("NumGC [MiB]", int64(mem.NumGC)),
+	)
 }
 
 func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
@@ -702,9 +705,11 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 
 	updates = append(updates, updatesBatch...)
 
-	err = ph.mqClient.PublishMinedTxs(&blocktx_api.TransactionBlocks{TransactionBlocks: updates})
-	if err != nil {
-		ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+	if len(updates) > 0 {
+		err = ph.mqClient.PublishMinedTxs(&blocktx_api.TransactionBlocks{TransactionBlocks: updates})
+		if err != nil {
+			ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+		}
 	}
 
 	return nil

@@ -6,13 +6,16 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/bitcoin-sv/arc/broadcaster"
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/lib/keyset"
+	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/gocore"
 	"github.com/spf13/viper"
 )
@@ -24,6 +27,15 @@ var (
 )
 
 func main() {
+	err := run()
+	if err != nil {
+		log.Fatalf("failed to run broadcaster: %v", err)
+	}
+
+	os.Exit(0)
+}
+
+func run() error {
 	logLevel := gocore.NewLogLevelFromString("debug")
 	logger := gocore.Log("brdcst", logLevel)
 
@@ -79,7 +91,7 @@ func main() {
 		fmt.Println("    -testnet=<true|false>")
 		fmt.Println("          whether to send testnet or mainnet transactions, default=false")
 		fmt.Println("")
-		return
+		return nil
 	}
 
 	if dryRun != nil && *dryRun {
@@ -96,8 +108,7 @@ func main() {
 	viper.AddConfigPath("../../")
 	err := viper.ReadInConfig()
 	if err != nil {
-		fmt.Printf("failed to read config file config.yaml: %v \n", err)
-		return
+		return fmt.Errorf("failed to read config file config.yaml: %v", err)
 	}
 
 	var xpriv string
@@ -108,14 +119,14 @@ func main() {
 		var inputKey string
 		inputKey, err = reader.ReadString('\n')
 		if err != nil {
-			panic("An error occurred while reading input. Please try again:" + err.Error())
+			return fmt.Errorf("failed to read input: %v", err)
 		}
 		xpriv = strings.TrimSpace(inputKey)
 	}
 
 	sendNrOfTransactions, err := strconv.ParseInt(args[0], 10, 64)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to parse number of transactions: %v", err)
 	}
 	if sendNrOfTransactions == 0 {
 		sendNrOfTransactions = 1
@@ -128,17 +139,23 @@ func main() {
 		Authorization: *authorization,
 	})
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to create client: %v", err)
 	}
 
 	var fundingKeySet *keyset.KeySet
 	var receivingKeySet *keyset.KeySet
 	fundingKeySet, receivingKeySet, err = getKeySets(xpriv, keyFile)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to get key sets: %v", err)
 	}
 
-	bCaster := broadcaster.New(logger, client, fundingKeySet, receivingKeySet, sendNrOfTransactions)
+	var feeOpts []func(fee *bt.Fee)
+	miningFeeSat, err := config.GetInt("broadcaster.miningFeeSatPerKb")
+	if err == nil {
+		feeOpts = append(feeOpts, broadcaster.WithMiningFee(miningFeeSat))
+	}
+
+	bCaster := broadcaster.New(logger, client, fundingKeySet, receivingKeySet, sendNrOfTransactions, feeOpts...)
 	bCaster.IsRegtest = isRegtest
 	bCaster.IsDryRun = isDryRun
 	bCaster.WaitForStatus = *waitForStatus
@@ -149,12 +166,15 @@ func main() {
 
 	err = bCaster.Run(ctx, *concurrency)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to run broadcaster: %v", err)
 	}
+
+	return nil
 }
 
 func createClient(auth *broadcaster.Auth) (broadcaster.ClientI, error) {
 	var client broadcaster.ClientI
+	var err error
 	if isDryRun {
 		client = broadcaster.NewDryRunClient()
 	} else if isAPIClient {
@@ -176,7 +196,10 @@ func createClient(auth *broadcaster.Auth) (broadcaster.ClientI, error) {
 			return nil, errors.New("metamorph.dialAddr not found in config")
 		}
 		fmt.Printf("Metamorph addresses: %s\n", addresses)
-		client = broadcaster.NewMetamorphBroadcaster(addresses)
+		client, err = broadcaster.NewMetamorphBroadcaster(addresses)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return client, nil
@@ -189,7 +212,7 @@ func getKeySets(xpriv string, keyFile *string) (fundingKeySet *keyset.KeySet, re
 			extendedBytes, err = os.ReadFile(*keyFile)
 			if err != nil {
 				if os.IsNotExist(err) {
-					panic("arc.key not found. Please create this file with the xpriv you want to use")
+					return nil, nil, errors.New("arc.key not found. Please create this file with the xpriv you want to use")
 				}
 				return nil, nil, err
 			}

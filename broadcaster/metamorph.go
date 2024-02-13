@@ -2,7 +2,6 @@ package broadcaster
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/tracing"
@@ -18,9 +17,8 @@ type MetamorphBroadcaster struct {
 	client  metamorph_api.MetaMorphAPIClient
 }
 
-func NewMetamorphBroadcaster(address string) *MetamorphBroadcaster {
+func NewMetamorphBroadcaster(address string) (*MetamorphBroadcaster, error) {
 	addresses := viper.GetString("metamorph.dialAddr")
-	fmt.Printf("Metamorph addresses: %s\n", addresses)
 
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -31,7 +29,7 @@ func NewMetamorphBroadcaster(address string) *MetamorphBroadcaster {
 
 	cc, err := grpc.DialContext(context.Background(), addresses, tracing.AddGRPCDialOptions(opts)...)
 	if err != nil {
-		panic(fmt.Errorf("DIALCONTEXT: %v", err))
+		return nil, err
 	}
 
 	client := metamorph_api.NewMetaMorphAPIClient(cc)
@@ -39,7 +37,7 @@ func NewMetamorphBroadcaster(address string) *MetamorphBroadcaster {
 	return &MetamorphBroadcaster{
 		address: address,
 		client:  client,
-	}
+	}, nil
 }
 
 func (m *MetamorphBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitFor metamorph_api.Status) ([]*metamorph_api.TransactionStatus, error) {

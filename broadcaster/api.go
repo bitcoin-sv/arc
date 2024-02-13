@@ -1,7 +1,6 @@
 package broadcaster
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -51,28 +50,33 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx
 		XWaitForStatus: &waitForStatus,
 	}
 
-	var body []byte
-	for _, tx := range txs {
-		body = append(body, tx.ExtendedBytes()...)
+	body := make([]api.TransactionRequest, len(txs))
+	for i := range txs {
+		tx := txs[i]
+		newApiTransactionRequest := api.TransactionRequest{
+			RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+		}
+		body[i] = newApiTransactionRequest
 	}
 
-	bodyReader := bytes.NewReader(body)
-
-	contentType := "application/octet-stream"
 	var response *http.Response
-	response, err = arcClient.POSTTransactionsWithBody(ctx, params, contentType, bodyReader)
+	response, err = arcClient.POSTTransactions(ctx, params, body)
 	if err != nil {
 		return nil, err
-	}
-
-	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
-		return nil, errors.New("failed to broadcast transactions")
 	}
 
 	var bodyBytes []byte
 	bodyBytes, err = io.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
+	}
+
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
+		_, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("failed to broadcast transactions: %s", string(bodyBytes))
 	}
 
 	var bodyResponse []Response

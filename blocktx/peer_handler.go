@@ -702,9 +702,11 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 
 	updates = append(updates, updatesBatch...)
 
-	err = ph.mqClient.PublishMinedTxs(&blocktx_api.TransactionBlocks{TransactionBlocks: updates})
-	if err != nil {
-		ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+	if len(updates) > 0 {
+		err = ph.mqClient.PublishMinedTxs(&blocktx_api.TransactionBlocks{TransactionBlocks: updates})
+		if err != nil {
+			ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+		}
 	}
 
 	return nil

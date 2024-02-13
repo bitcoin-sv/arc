@@ -487,6 +487,72 @@ func TestPostSkipFee(t *testing.T) {
 	}
 }
 
+func TestPostSkipTxValidation(t *testing.T) {
+	tt := []struct {
+		name string
+	}{
+		{
+			name: "post transaction with skip fee",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			address, privateKey := getNewWalletAddress(t)
+
+			generate(t, 100)
+
+			t.Logf("generated address: %s", address)
+
+			sendToAddress(t, address, 0.001)
+
+			txID := sendToAddress(t, address, 0.02)
+			t.Logf("sent 0.02 BSV to: %s", txID)
+
+			hash := generate(t, 1)
+			t.Logf("generated 1 block: %s", hash)
+
+			utxos := getUtxos(t, address)
+			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+
+			customFee := uint64(0)
+
+			tx, err := createTx(privateKey, address, utxos[0], customFee)
+			require.NoError(t, err)
+
+			fmt.Println("Transaction with Zero fee:", tx)
+
+			url := "http://arc:9090/"
+
+			arcClient, err := api.NewClientWithResponses(url)
+			require.NoError(t, err)
+
+			ctx := context.Background()
+
+			waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
+			params := &api.POSTTransactionParams{
+				XWaitForStatus:    &waitForStatus,
+				XSkipTxValidation: handler.PtrTo(true),
+			}
+
+			arcBody := api.POSTTransactionJSONRequestBody{
+				RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+			}
+
+			var response *api.POSTTransactionResponse
+			response, err = arcClient.POSTTransactionWithResponse(ctx, params, arcBody)
+			require.NoError(t, err)
+			fmt.Println("Response Transaction with Zero fee:", response)
+			fmt.Println("Response Transaction with Zero fee:", response.JSON200)
+
+			require.Equal(t, http.StatusOK, response.StatusCode())
+			require.NotNil(t, response.JSON200)
+			require.Equal(t, "SEEN_ON_NETWORK", response.JSON200.TxStatus)
+
+		})
+	}
+}
+
 func respondToCallback(w http.ResponseWriter, success bool) error {
 	resp := make(map[string]string)
 	if success {

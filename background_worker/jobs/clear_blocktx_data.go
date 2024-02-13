@@ -28,7 +28,7 @@ func (c Blocktx) ClearTransactions() error {
 	if err != nil {
 		return err
 	}
-	c.logger.Info("cleared transactions in blocktx", slog.Int64("rows", resp.Rows), slog.Duration("duration", time.Since(start)))
+	c.logger.Info("cleared transactions in blocktx", slog.Int64("rows", resp.Rows), slog.String("duration", time.Since(start).String()))
 
 	return nil
 }
@@ -40,7 +40,7 @@ func (c Blocktx) ClearBlocks() error {
 	if err != nil {
 		return err
 	}
-	c.logger.Info("cleared transactions in blocktx", slog.Int64("rows", resp.Rows), slog.Duration("duration", time.Since(start)))
+	c.logger.Info("cleared transactions in blocktx", slog.Int64("rows", resp.Rows), slog.String("duration", time.Since(start).String()))
 
 	return nil
 }
@@ -52,7 +52,7 @@ func (c Blocktx) ClearBlockTransactionsMap() error {
 	if err != nil {
 		return err
 	}
-	c.logger.Info("cleared transactions in blocktx", slog.Int64("rows", resp.Rows), slog.Duration("duration", time.Since(start)))
+	c.logger.Info("cleared transactions in blocktx", slog.Int64("rows", resp.Rows), slog.String("duration", time.Since(start).String()))
 
 	return nil
 }

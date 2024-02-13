@@ -92,6 +92,8 @@ func New(engine string) (*SQL, error) {
 			return nil, fmt.Errorf("setting blocktx.db.postgres.sslMode not found")
 		}
 
+		logger.Info(fmt.Sprintf("db connection: user=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbName, dbHost, dbPort, sslMode))
+
 		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbPassword, dbName, dbHost, dbPort, sslMode)
 
 		db, err = sqlx.Open(engine, dbInfo)

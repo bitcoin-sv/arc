@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/broadcast"
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/prep_utxos"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -25,8 +26,10 @@ func InitCommand(v *viper.Viper) *cobra.Command {
 	}
 
 	broadcastCmd := broadcast.InitCommand(v)
-
 	cmd.AddCommand(broadcastCmd)
+
+	prepUTXOsCmd := prep_utxos.InitCommand(v)
+	cmd.AddCommand(prepUTXOsCmd)
 
 	return cmd
 }

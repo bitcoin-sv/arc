@@ -26,10 +26,11 @@ func InitCommand(v *viper.Viper) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			useKey := v.GetBool("useKey")
-			isDryRun := v.GetBool("dryrun")
-			isAPIClient := v.GetBool("api")
-			isTestnet := v.GetBool("testnet")
-			printTxIDs := v.GetBool("print")
+			isDryRun := v.GetBool("isDryRun")
+			isAPIClient := v.GetBool("isAPIClient")
+			isTestnet := v.GetBool("isTestnet")
+			printTxIDs := v.GetBool("printTxIDs")
+			callbackURL := v.GetString("callback")
 			consolidate := v.GetBool("consolidate")
 			authorization := v.GetString("authorization")
 			keyFile := v.GetString("keyFile")
@@ -94,6 +95,7 @@ func InitCommand(v *viper.Viper) *cobra.Command {
 			bCaster.BatchSend = batch
 			bCaster.Consolidate = consolidate
 			bCaster.IsTestnet = isTestnet
+			bCaster.CallbackURL = callbackURL
 
 			err = bCaster.Run(ctx, concurrency)
 			if err != nil {
@@ -108,25 +110,28 @@ func InitCommand(v *viper.Viper) *cobra.Command {
 	_ = v.BindPFlag("useKey", cmd.Flags().Lookup("useKey"))
 
 	cmd.Flags().Bool("dryrun", false, "whether to not send transactions or just output to console")
-	_ = v.BindPFlag("dryrun", cmd.Flags().Lookup("dryrun"))
+	_ = v.BindPFlag("isDryRun", cmd.Flags().Lookup("dryrun"))
 
 	cmd.Flags().Bool("api", true, "whether to not send transactions to api or metamorph")
-	_ = v.BindPFlag("api", cmd.Flags().Lookup("api"))
+	_ = v.BindPFlag("isAPIClient", cmd.Flags().Lookup("api"))
 
 	cmd.Flags().Bool("testnet", false, "send transactions to testnet")
-	_ = v.BindPFlag("testnet", cmd.Flags().Lookup("testnet"))
+	_ = v.BindPFlag("isTestnet", cmd.Flags().Lookup("testnet"))
 
 	cmd.Flags().Bool("print", false, "Whether to print out all the tx ids of the transactions")
-	_ = v.BindPFlag("print", cmd.Flags().Lookup("print"))
+	_ = v.BindPFlag("printTxIDs", cmd.Flags().Lookup("print"))
 
 	cmd.Flags().Bool("consolidate", false, "whether to consolidate all output transactions back into the original")
 	_ = v.BindPFlag("consolidate", cmd.Flags().Lookup("consolidate"))
 
-	cmd.Flags().String("authorization", "", "Authorization header to use for the http api client")
+	cmd.Flags().String("authorization", "abcd", "Authorization header to use for the http api client")
 	_ = v.BindPFlag("authorization", cmd.Flags().Lookup("authorization"))
 
-	cmd.Flags().String("keyFile", "", "private key from file (arc.key) to use for funding transactions")
-	_ = v.BindPFlag("keyFile", cmd.Flags().Lookup("keyFile"))
+	cmd.Flags().String("callback", "", "URL which will be called with ARC callbacks")
+	_ = v.BindPFlag("callback", cmd.Flags().Lookup("callback"))
+
+	cmd.Flags().String("keyfile", "", "private key from file (arc.key) to use for funding transactions")
+	_ = v.BindPFlag("keyFile", cmd.Flags().Lookup("keyfile"))
 
 	cmd.Flags().Int("waitForStatus", 0, "wait for transaction to be in a certain status before continuing")
 	_ = v.BindPFlag("waitForStatus", cmd.Flags().Lookup("waitForStatus"))

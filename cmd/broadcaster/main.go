@@ -174,6 +174,7 @@ func run() error {
 
 func createClient(auth *broadcaster.Auth) (broadcaster.ClientI, error) {
 	var client broadcaster.ClientI
+	var err error
 	if isDryRun {
 		client = broadcaster.NewDryRunClient()
 	} else if isAPIClient {
@@ -195,7 +196,10 @@ func createClient(auth *broadcaster.Auth) (broadcaster.ClientI, error) {
 			return nil, errors.New("metamorph.dialAddr not found in config")
 		}
 		fmt.Printf("Metamorph addresses: %s\n", addresses)
-		client = broadcaster.NewMetamorphBroadcaster(addresses)
+		client, err = broadcaster.NewMetamorphBroadcaster(addresses)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return client, nil

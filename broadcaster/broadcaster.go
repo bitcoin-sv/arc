@@ -196,12 +196,14 @@ func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 
 		iteration := (i / b.BatchSize) + 1
 
-		fundingTx := b.NewFundingTransaction(batchSize, iteration)
+		fundingTx, err := b.NewFundingTransaction(batchSize, iteration)
+		if err != nil {
+			return err
+		}
 		for i := range fundingTx.Inputs {
 			b.logger.Infof("[%d] funding previous tx id [%d]: %s, vout: %d", iteration, i, hex.EncodeToString(fundingTx.Inputs[i].PreviousTxID()), fundingTx.Inputs[i].PreviousTxOutIndex)
 		}
 		b.logger.Infof("[%d] funding tx: %s", iteration, fundingTx.TxID())
-		b.logger.Infof("[%d] funding raw tx: %s", iteration, fundingTx.String())
 
 		// retry 3 times to get the funding transaction broadcast with seen on network status
 		for i := 1; i <= 3; i++ {
@@ -285,7 +287,12 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 			LockingScript: fundingTx.Outputs[i].LockingScript,
 			Satoshis:      fundingTx.Outputs[i].Satoshis,
 		}
-		txs[i] = b.NewTransaction(b.ToKeySet, u)
+		tx, err := b.NewTransaction(b.ToKeySet, u)
+		if err != nil {
+			return err
+		}
+		txs[i] = tx
+
 	}
 
 	if b.IsDryRun {
@@ -351,7 +358,7 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 
 	if b.Consolidate {
 		if err := b.ConsolidateOutputsToOriginal(ctx, txs, iteration); err != nil {
-			panic(err)
+			return err
 		}
 	}
 
@@ -393,7 +400,7 @@ func (b *Broadcaster) processResult(res *metamorph_api.TransactionStatus, iterat
 	b.summaryMu.Unlock()
 }
 
-func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
+func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) (*bt.Tx, error) {
 	var err error
 	addr := b.FromKeySet.Address(!b.IsRegtest)
 
@@ -418,23 +425,23 @@ func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
 		}
 		err = tx.From(txid, vout, scriptPubKey, 100_000_000)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	} else {
 		// live mode, we need to get the utxos from woc
 		var utxos []*bt.UTXO
 		utxos, err = b.FromKeySet.GetUTXOs(!b.IsTestnet)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		if len(utxos) == 0 {
-			panic("no utxos for arcUrl: " + addr)
+			return nil, err
 		}
 
 		// this consumes all the utxos from the key
 		err = tx.FromUTXOs(utxos...)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 
 	}
@@ -454,13 +461,13 @@ func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
 
 	unlockerGetter := unlocker.Getter{PrivateKey: b.FromKeySet.PrivateKey}
 	if err = tx.FillAllInputs(context.Background(), &unlockerGetter); err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return tx
+	return tx, nil
 }
 
-func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) *bt.Tx {
+func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) (*bt.Tx, error) {
 	var err error
 
 	tx := bt.NewTx()
@@ -478,10 +485,10 @@ func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) *bt.T
 
 	unlockerGetter := unlocker.Getter{PrivateKey: key.PrivateKey}
 	if err = tx.FillAllInputs(context.Background(), &unlockerGetter); err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return tx
+	return tx, nil
 }
 
 // SendToAddress Let the bitcoin node in regtest mode send some bitcoin to our arcUrl

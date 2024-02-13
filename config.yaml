@@ -59,7 +59,6 @@ metamorph:
   statsKeypress: false # enable stats keypress. If enabled pressing any key will print stats to stdout
   profilerAddr: localhost:9992 # address to start profiler server on
   blocktxTimeout: 1s # timeout for blocktx service
-  checkIfMinedInterval: 1m
   healthServerDialAddr: localhost:8005
   loadUnminedPeriod: 2m
   maxMonitoredTxs: 100000

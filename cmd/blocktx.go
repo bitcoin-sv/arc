@@ -72,12 +72,12 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 	}
 
 	txChannel := make(chan []byte, capacityRequired)
-	consumer, err := nats_mq.NewNatsMQConsumer(txChannel, logger, natsURL)
+	mqClient, err := nats_mq.NewNatsMQClient(txChannel, logger, natsURL)
 	if err != nil {
 		return nil, err
 	}
 
-	err = consumer.ConsumeTransactions()
+	err = mqClient.SubscribeRegisterTxs()
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,9 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore, startingBlockHeight, peerURLs, network,
 		blocktx.WithRetentionDays(recordRetentionDays),
 		blocktx.WithTxChan(txChannel),
-		blocktx.WithRegisterTxsInterval(registerTxInterval))
+		blocktx.WithRegisterTxsInterval(registerTxInterval),
+		blocktx.WithMessageQueueClient(mqClient))
+
 	if err != nil {
 		return nil, err
 	}
@@ -118,9 +120,9 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 	return func() {
 		logger.Info("Shutting down blocktx store")
 
-		err = consumer.Shutdown()
+		err = mqClient.Shutdown()
 		if err != nil {
-			logger.Error("failed to shutdown consumer", slog.String("err", err.Error()))
+			logger.Error("failed to shutdown mqClient", slog.String("err", err.Error()))
 		}
 
 		err = blockStore.Close()

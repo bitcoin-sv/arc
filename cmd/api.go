@@ -45,7 +45,7 @@ func StartAPIServer(logger *slog.Logger) (func(), error) {
 	// load the ARC handler from config
 	// If you want to customize this for your own server, see examples dir
 	if err := LoadArcHandler(e, logger); err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	apiAddress := viper.GetString("api.address")

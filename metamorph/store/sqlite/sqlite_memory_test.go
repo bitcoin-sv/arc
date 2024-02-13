@@ -3,12 +3,13 @@ package sqlite
 import (
 	"context"
 	"fmt"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/metamorph/store"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/metamorph/store/tests"
 	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -123,7 +124,13 @@ func TestUpdateMined(t *testing.T) {
 
 		defer sqliteDB.Close(context.Background())
 
-		err = sqliteDB.UpdateMined(context.Background(), tests.Tx1Hash, tests.Block1Hash, 123)
+		txBlocks := &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{{
+			BlockHash:       tests.Block1Hash[:],
+			BlockHeight:     123,
+			TransactionHash: tests.Tx1Hash[:],
+			MerklePath:      "merkle-path-1",
+		}}}
+		_, err = sqliteDB.UpdateMined(context.Background(), txBlocks)
 		require.NoError(t, err) // an error is not thrown if not found
 	})
 
@@ -163,81 +170,6 @@ func TestUpdateStatus(t *testing.T) {
 		defer sqliteDB.Close(context.Background())
 		tests.UpdateStatusWithError(t, sqliteDB)
 	})
-}
-
-func TestSQLite_GetBlockProcessed(t *testing.T) {
-	now := time.Date(2023, 10, 1, 12, 0, 0, 0, time.UTC)
-	sqliteDB, err := New(true, "", WithNow(func() time.Time {
-		return now
-	}))
-	require.NoError(t, err)
-
-	defer sqliteDB.Close(context.Background())
-
-	ctx := context.Background()
-
-	err = sqliteDB.SetBlockProcessed(ctx, tests.Block1Hash)
-	require.NoError(t, err)
-
-	testStruct := []struct {
-		name      string
-		blockHash *chainhash.Hash
-		want      *time.Time
-		wantErr   assert.ErrorAssertionFunc
-	}{
-		{
-			name:      "success",
-			blockHash: tests.Block1Hash,
-			want:      &now,
-			wantErr:   assert.NoError,
-		},
-		{
-			name:      "missing",
-			blockHash: tests.Block2Hash,
-			want:      nil,
-			wantErr:   assert.NoError,
-		},
-	}
-	for _, tt := range testStruct {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := sqliteDB.GetBlockProcessed(ctx, tt.blockHash)
-			if !tt.wantErr(t, err, fmt.Sprintf("GetBlockProcessed(%v)", tt.blockHash)) {
-				return
-			}
-
-			if tt.want == nil {
-				assert.Nil(t, got, "GetBlockProcessed(%v)", tt.blockHash)
-				return
-			}
-
-			require.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestSQLite_SetBlockProcessed(t *testing.T) {
-	sqliteDB, err := New(true, "")
-	require.NoError(t, err)
-
-	defer sqliteDB.Close(context.Background())
-
-	ctx := context.Background()
-	testStructs := []struct {
-		name      string
-		blockHash *chainhash.Hash
-		wantErr   assert.ErrorAssertionFunc
-	}{
-		{
-			name:      "success",
-			blockHash: tests.Block1Hash,
-			wantErr:   assert.NoError,
-		},
-	}
-	for _, tt := range testStructs {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.wantErr(t, sqliteDB.SetBlockProcessed(ctx, tt.blockHash), fmt.Sprintf("SetBlockProcessed(%v)", tt.blockHash))
-		})
-	}
 }
 
 func TestSqLite_ClearData(t *testing.T) {

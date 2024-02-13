@@ -56,6 +56,7 @@ message TransactionBlock {
   bytes block_hash = 1; // Little endian
   uint64 block_height = 2;
   bytes transaction_hash = 3; // Little endian
+  string merklePath = 4;
 }
 
 message TransactionBlocks {

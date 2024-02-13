@@ -1,7 +1,8 @@
-package store
+package badger
 
 import (
 	"bytes"
+	"github.com/bitcoin-sv/arc/metamorph/store"
 	"testing"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 )
 
 func TestEncDec(t *testing.T) {
-	sd := &StoreData{
+	sd := &store.StoreData{
 		StoredAt:     time.Now(),
 		AnnouncedAt:  time.Now(),
 		Status:       metamorph_api.Status_ANNOUNCED_TO_NETWORK,
@@ -21,7 +22,7 @@ func TestEncDec(t *testing.T) {
 		RejectReason: "This is a reject reason",
 	}
 
-	b, err := sd.EncodeToBytes()
+	b, err := EncodeToBytes(sd)
 	require.NoError(t, err)
 
 	sd2, err := DecodeFromBytes(b)

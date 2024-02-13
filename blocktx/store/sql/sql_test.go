@@ -53,7 +53,7 @@ func TestInOut(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = s.UpdateBlockTransactions(ctx, blockId, transactions, make([]string, len(transactions)))
+	_, err = s.UpdateBlockTransactions(ctx, blockId, transactions, make([]string, len(transactions)))
 	require.NoError(t, err)
 
 	txns, err := getBlockTransactions(ctx, block, s.db.DB)

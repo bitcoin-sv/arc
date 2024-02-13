@@ -4,14 +4,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/bitcoin-sv/arc/metamorph/async"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 )
-
-func WithProcessCheckIfMinedInterval(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.processCheckIfMinedInterval = d
-	}
-}
 
 func WithCacheExpiryTime(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
@@ -49,8 +43,14 @@ func WithMaxMonitoredTxs(m int64) func(processor *Processor) {
 	}
 }
 
-func WithPublisher(publisher async.Publisher) func(processor *Processor) {
+func WithMessageQueueClient(mqClient MessageQueueClient) func(processor *Processor) {
 	return func(p *Processor) {
-		p.publisher = publisher
+		p.mqClient = mqClient
+	}
+}
+
+func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlocks) func(processor *Processor) {
+	return func(p *Processor) {
+		p.minedTxsChan = minedTxsChan
 	}
 }

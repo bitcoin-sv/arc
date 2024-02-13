@@ -54,7 +54,7 @@ func (s *UpdateBlockTransactionsSuite) Test() {
 	txHashNotRegistered, err := chainhash.NewHashFromStr("edd33fdcdfa68444d227780e2b62a4437c00120c5320d2026aeb24a781f4c3f1")
 	require.NoError(s.T(), err)
 
-	err = st.UpdateBlockTransactions(context.Background(), testBlockID, []*blocktx_api.TransactionAndSource{
+	_, err = st.UpdateBlockTransactions(context.Background(), testBlockID, []*blocktx_api.TransactionAndSource{
 		{
 			Hash: txHash1[:],
 		},
@@ -68,7 +68,7 @@ func (s *UpdateBlockTransactionsSuite) Test() {
 
 	require.ErrorContains(s.T(), err, "transactions (len=3) and Merkle paths (len=1) have not the same lengths")
 
-	err = st.UpdateBlockTransactions(context.Background(), testBlockID, []*blocktx_api.TransactionAndSource{
+	_, err = st.UpdateBlockTransactions(context.Background(), testBlockID, []*blocktx_api.TransactionAndSource{
 		{
 			Hash: txHash1[:],
 		},

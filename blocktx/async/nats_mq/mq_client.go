@@ -5,7 +5,6 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
-	"log/slog"
 )
 
 const (
@@ -17,7 +16,6 @@ const (
 )
 
 type MQClient struct {
-	logger       *slog.Logger
 	nc           NatsClient
 	txChannel    chan []byte
 	subscription *nats.Subscription

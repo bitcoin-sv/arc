@@ -18,7 +18,7 @@ var _ MessageQueueClient = &MessageQueueClientMock{}
 //
 //		// make and configure a mocked MessageQueueClient
 //		mockedMessageQueueClient := &MessageQueueClientMock{
-//			PublishMinedTxsFunc: func(txsBlocks *blocktx_api.TransactionBlocks) error {
+//			PublishMinedTxsFunc: func(txsBlocks []*blocktx_api.TransactionBlock) error {
 //				panic("mock out the PublishMinedTxs method")
 //			},
 //			ShutdownFunc: func() error {
@@ -35,7 +35,7 @@ var _ MessageQueueClient = &MessageQueueClientMock{}
 //	}
 type MessageQueueClientMock struct {
 	// PublishMinedTxsFunc mocks the PublishMinedTxs method.
-	PublishMinedTxsFunc func(txsBlocks *blocktx_api.TransactionBlocks) error
+	PublishMinedTxsFunc func(txsBlocks []*blocktx_api.TransactionBlock) error
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func() error
@@ -48,7 +48,7 @@ type MessageQueueClientMock struct {
 		// PublishMinedTxs holds details about calls to the PublishMinedTxs method.
 		PublishMinedTxs []struct {
 			// TxsBlocks is the txsBlocks argument value.
-			TxsBlocks *blocktx_api.TransactionBlocks
+			TxsBlocks []*blocktx_api.TransactionBlock
 		}
 		// Shutdown holds details about calls to the Shutdown method.
 		Shutdown []struct {
@@ -63,12 +63,12 @@ type MessageQueueClientMock struct {
 }
 
 // PublishMinedTxs calls PublishMinedTxsFunc.
-func (mock *MessageQueueClientMock) PublishMinedTxs(txsBlocks *blocktx_api.TransactionBlocks) error {
+func (mock *MessageQueueClientMock) PublishMinedTxs(txsBlocks []*blocktx_api.TransactionBlock) error {
 	if mock.PublishMinedTxsFunc == nil {
 		panic("MessageQueueClientMock.PublishMinedTxsFunc: method is nil but MessageQueueClient.PublishMinedTxs was just called")
 	}
 	callInfo := struct {
-		TxsBlocks *blocktx_api.TransactionBlocks
+		TxsBlocks []*blocktx_api.TransactionBlock
 	}{
 		TxsBlocks: txsBlocks,
 	}
@@ -83,10 +83,10 @@ func (mock *MessageQueueClientMock) PublishMinedTxs(txsBlocks *blocktx_api.Trans
 //
 //	len(mockedMessageQueueClient.PublishMinedTxsCalls())
 func (mock *MessageQueueClientMock) PublishMinedTxsCalls() []struct {
-	TxsBlocks *blocktx_api.TransactionBlocks
+	TxsBlocks []*blocktx_api.TransactionBlock
 } {
 	var calls []struct {
-		TxsBlocks *blocktx_api.TransactionBlocks
+		TxsBlocks []*blocktx_api.TransactionBlock
 	}
 	mock.lockPublishMinedTxs.RLock()
 	calls = mock.calls.PublishMinedTxs

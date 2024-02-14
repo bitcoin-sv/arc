@@ -626,7 +626,6 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 	txs := make([]*blocktx_api.TransactionAndSource, 0, ph.transactionStorageBatchSize)
 	merklePaths := make([]string, 0, ph.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
-	updates := make([]*blocktx_api.TransactionBlock, 0)
 
 	for txIndex, hash := range leaves {
 		// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.
@@ -674,7 +673,13 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 				}
 			}
 
-			updates = append(updates, updatesBatch...)
+			if len(updatesBatch) > 0 {
+				err = ph.mqClient.PublishMinedTxs(updatesBatch)
+				if err != nil {
+					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+				}
+			}
+
 			// print stats, call gc and chec the result
 			ph.printMemStats()
 			runtime.GC()
@@ -703,10 +708,8 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 		}
 	}
 
-	updates = append(updates, updatesBatch...)
-
-	if len(updates) > 0 {
-		err = ph.mqClient.PublishMinedTxs(&blocktx_api.TransactionBlocks{TransactionBlocks: updates})
+	if len(updatesBatch) > 0 {
+		err = ph.mqClient.PublishMinedTxs(updatesBatch)
 		if err != nil {
 			ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 		}

@@ -32,7 +32,7 @@ func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckReque
 			}, nil
 		}
 
-		// verify we have at least 2 nodes connected to blocktx
+		// verify we have at least 1 node connected to blocktx
 		healthy := false
 		for _, peer := range s.ph.peers {
 			if peer.IsHealthy() {

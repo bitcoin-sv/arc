@@ -92,7 +92,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	blockTxServer := blocktx.NewServer(blockStore, logger)
+	blockTxServer := blocktx.NewServer(blockStore, logger, peerHandler)
 
 	address, err := config.GetString("blocktx.listenAddr")
 	if err != nil {

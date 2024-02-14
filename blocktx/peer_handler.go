@@ -101,6 +101,7 @@ type PeerHandler struct {
 	txChannel                   chan []byte
 	registerTxsInterval         time.Duration
 	registerTxsBatchSize        int
+	peers                       []*p2p.Peer
 
 	fillGapsTicker              *time.Ticker
 	quitFillBlockGap            chan struct{}
@@ -186,6 +187,7 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 		startingHeight:              startingHeight,
 		registerTxsInterval:         registerTxsIntervalDefault,
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
+		peers:                       make([]*p2p.Peer, len(peerURLs)),
 
 		fillGapsTicker:              time.NewTicker(fillGapsInterval),
 		quitFillBlockGap:            make(chan struct{}),
@@ -201,7 +203,6 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 	ph.peerHandlerCollector = tracing.NewPeerHandlerCollector("blocktx", ph.stats)
 	tracing.Register(ph.peerHandlerCollector)
 
-	peers := make([]*p2p.Peer, len(peerURLs))
 	pm := p2p.NewPeerManager(logger, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
 
 	for i, peerURL := range peerURLs {
@@ -214,10 +215,10 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 			return nil, fmt.Errorf("error adding peer: %v", err)
 		}
 
-		peers[i] = peer
+		ph.peers[i] = peer
 	}
 
-	ph.startFillGaps(peers)
+	ph.startFillGaps(ph.peers)
 	ph.startPeerWorker()
 	ph.startProcessTxs()
 

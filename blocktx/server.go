@@ -27,13 +27,15 @@ type Server struct {
 	store      store.Interface
 	logger     *slog.Logger
 	grpcServer *grpc.Server
+	ph         *PeerHandler
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(storeI store.Interface, logger *slog.Logger) *Server {
+func NewServer(storeI store.Interface, logger *slog.Logger, ph *PeerHandler) *Server {
 	return &Server{
 		store:  storeI,
 		logger: logger,
+		ph:     ph,
 	}
 }
 

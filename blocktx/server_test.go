@@ -24,7 +24,7 @@ func TestStartGRPCServer(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &store.InterfaceMock{}
 
-			server := NewServer(storeMock, logger)
+			server := NewServer(storeMock, logger, nil)
 
 			go func() {
 				err := server.StartGRPCServer("localhost:8000")

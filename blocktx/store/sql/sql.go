@@ -19,15 +19,17 @@ import (
 )
 
 const (
-	postgresEngine     = "postgres"
-	sqliteEngine       = "sqlite"
-	sqliteMemoryEngine = "sqlite_memory"
+	postgresEngine            = "postgres"
+	sqliteEngine              = "sqlite"
+	sqliteMemoryEngine        = "sqlite_memory"
+	maxPostgresBulkInsertRows = 1000
 )
 
 type SQL struct {
-	db     *sqlx.DB
-	engine string
-	now    func() time.Time
+	db                        *sqlx.DB
+	engine                    string
+	now                       func() time.Time
+	maxPostgresBulkInsertRows int
 }
 
 func init() {
@@ -165,9 +167,10 @@ func New(engine string) (*SQL, error) {
 	}
 
 	return &SQL{
-		db:     db,
-		engine: engine,
-		now:    time.Now,
+		db:                        db,
+		engine:                    engine,
+		now:                       time.Now,
+		maxPostgresBulkInsertRows: maxPostgresBulkInsertRows,
 	}, nil
 }
 

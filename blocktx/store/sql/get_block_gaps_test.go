@@ -34,9 +34,9 @@ func (s *GetBlockGapTestSuite) Test() {
 	require.NoError(s.T(), err)
 	ctx := context.Background()
 
-	blockGaps, err := st.GetBlockGaps(ctx, 7)
+	blockGaps, err := st.GetBlockGaps(ctx, 20)
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), 2, len(blockGaps))
+	require.Equal(s.T(), 3, len(blockGaps))
 
 	hash822014, err := chainhash.NewHashFromStr("0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
 	require.NoError(s.T(), err)

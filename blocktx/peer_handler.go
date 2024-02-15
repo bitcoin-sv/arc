@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
@@ -88,6 +89,7 @@ func init() {
 }
 
 type PeerHandler struct {
+	hostname                    string
 	workerCh                    chan utils.Pair[*chainhash.Hash, p2p.PeerI]
 	store                       store.Interface
 	logger                      *slog.Logger
@@ -232,10 +234,7 @@ func (ph *PeerHandler) startPeerWorker() {
 			peer := pair.Second
 
 			item, found := ph.announcedCache.Get(*hash)
-			if !found {
-				ph.announcedCache.Set(*hash, []p2p.PeerI{peer})
-				ph.logger.Debug("added block hash with peer to announced cache", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
-			} else {
+			if found {
 				// if already was announced to peer, continue
 				for _, announcedPeer := range item {
 					if announcedPeer.String() == peer.String() {
@@ -249,16 +248,46 @@ func (ph *PeerHandler) startPeerWorker() {
 				continue
 			}
 
+			ctx := context.Background()
+
+			blockHashes, err := ph.store.GetBlockHashesProcessed(ctx, ph.hostname)
+			if err == nil && len(blockHashes) > 0 {
+				// this blocktx instance is already processing at least one block
+				txHashStrings := make([]string, len(blockHashes))
+
+				for i, txHash := range blockHashes {
+					txHashStrings[i] = txHash.String()
+				}
+
+				ph.logger.Info("block processing already in progress", slog.String("hashes", strings.Join(txHashStrings, ",")))
+				continue
+			}
+
+			processedBy, err := ph.store.SetBlockProcessing(ctx, hash, ph.hostname)
+			if err != nil {
+				// block is already being processed by another blocktx instance
+				if errors.Is(err, store.ErrBlockProcessingDuplicateKey) {
+					ph.logger.Info("block processing already in progress", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
+					continue
+				}
+
+				ph.logger.Error("failed to set block processing", slog.String("hash", hash.String()))
+				continue
+			}
+
 			msg := wire.NewMsgGetData()
-			if err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
+			if err = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
 				ph.logger.Error("ProcessBlock: could not create InvVect", slog.String("err", err.Error()))
 				continue
 			}
 
-			if err := peer.WriteMsg(msg); err != nil {
+			if err = peer.WriteMsg(msg); err != nil {
 				ph.logger.Error("ProcessBlock: failed to write message to peer", slog.String("err", err.Error()))
 				continue
 			}
+
+			ph.announcedCache.Set(*hash, []p2p.PeerI{peer})
+			ph.logger.Debug("added block hash with peer to announced cache", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 
 			ph.logger.Info("ProcessBlock", slog.String("hash", hash.String()))
 		}
@@ -425,14 +454,6 @@ func (ph *PeerHandler) CheckPrimary() (bool, error) {
 }
 
 func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI) error {
-	primary, err := ph.CheckPrimary()
-	if err != nil {
-		return err
-	}
-
-	if !primary {
-		return nil
-	}
 
 	peerStr := peer.String()
 
@@ -471,15 +492,6 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").AddTime(start)
 	}()
 
-	primary, err := ph.CheckPrimary()
-	if err != nil {
-		return err
-	}
-
-	if !primary {
-		return nil
-	}
-
 	timeStart := time.Now()
 
 	msg, ok := wireMsg.(*p2p.BlockMessage)
@@ -495,16 +507,28 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 
 	blockId, err := ph.insertBlock(&blockHash, &merkleRoot, &previousBlockHash, msg.Height, peer)
 	if err != nil {
+		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
+		if errDel != nil {
+			ph.logger.Error("failed to delete block processing", slog.String("err", errDel.Error()))
+		}
 		return fmt.Errorf("unable to insert block %s at height %d: %v", blockHash.String(), msg.Height, err)
 	}
 
 	calculatedMerkleTree := bc.BuildMerkleTreeStoreChainHash(msg.TransactionHashes)
 
 	if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
+		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
+		if errDel != nil {
+			ph.logger.Error("failed to delete block processing", slog.String("err", errDel.Error()))
+		}
 		return fmt.Errorf("merkle root mismatch for block %s", blockHash.String())
 	}
 
 	if err = ph.markTransactionsAsMined(blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
+		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
+		if errDel != nil {
+			ph.logger.Error("failed to delete block processing", slog.String("err", errDel.Error()))
+		}
 		return fmt.Errorf("unable to mark block as mined %s: %v", blockHash.String(), err)
 	}
 
@@ -518,6 +542,10 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	}
 
 	if err = ph.markBlockAsProcessed(block); err != nil {
+		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
+		if errDel != nil {
+			ph.logger.Error("failed to delete block processing", slog.String("err", errDel.Error()))
+		}
 		return fmt.Errorf("unable to mark block as processed %s: %v", blockHash.String(), err)
 	}
 
@@ -534,14 +562,6 @@ const (
 )
 
 func (ph *PeerHandler) FillGaps(peer p2p.PeerI) error {
-	primary, err := ph.CheckPrimary()
-	if err != nil {
-		return err
-	}
-
-	if !primary {
-		return nil
-	}
 
 	heightRange := ph.dataRetentionDays * hoursPerDay * blocksPerHour
 

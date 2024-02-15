@@ -17,7 +17,8 @@ func (s *SQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]*store.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	q := `SELECT missing_blocks.missing_block_height, prevhash AS hash FROM blocks
+	q := `
+	SELECT missing_blocks.missing_block_height, prevhash AS hash FROM blocks
 				JOIN (
 				SELECT bl.block_heights AS missing_block_height FROM (
 				SELECT unnest(ARRAY(
@@ -27,7 +28,9 @@ func (s *SQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]*store.
 				LEFT JOIN blocks blks ON blks.height = bl.block_heights
 				WHERE blks.height IS NULL
 				) AS missing_blocks ON blocks.height = missing_blocks.missing_block_height + 1
-				ORDER BY missing_blocks.missing_block_height DESC;`
+	LEFT JOIN block_processing bp ON bp.block_hash = prevhash
+	WHERE bp.block_hash IS NULL
+	ORDER BY missing_blocks.missing_block_height DESC;`
 
 	rows, err := s.db.QueryContext(ctx, q, blockHeightRange)
 	if err != nil {

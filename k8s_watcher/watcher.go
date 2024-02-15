@@ -100,6 +100,8 @@ func (c *Watcher) Start() error {
 					continue
 				}
 
+				// Todo: for each blocktx pods which terminated, call blocktx to delete blocks where processed_by=block-pod-nam && processed_at=NULL
+
 				for podName := range runningPods {
 					// Ignore all other serivces than metamorph
 					if !strings.Contains(podName, metamorphService) {

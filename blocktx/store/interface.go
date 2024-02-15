@@ -9,10 +9,9 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("not found")
-
-	// ErrBlockNotFound is returned when a block is not found.
-	ErrBlockNotFound = errors.New("block not found")
+	ErrNotFound                    = errors.New("not found")
+	ErrBlockProcessingDuplicateKey = errors.New("block hash already exists")
+	ErrBlockNotFound               = errors.New("block not found")
 )
 
 type Interface interface {
@@ -28,5 +27,10 @@ type Interface interface {
 	MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 	GetBlockGaps(ctx context.Context, heightRange int) ([]*BlockGap, error)
 	ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.ClearDataResponse, error)
+
+	SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error)
+	GetBlockHashesProcessed(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)
+	DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) error
+
 	Close() error
 }

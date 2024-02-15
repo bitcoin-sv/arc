@@ -2,6 +2,7 @@ package sql
 
 import (
 	"context"
+	"encoding/hex"
 	"github.com/go-testfixtures/testfixtures/v3"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"testing"
@@ -29,14 +30,15 @@ func (s *UpdateBlockTransactionsSuite) Test() {
 	require.NoError(s.T(), err)
 
 	st := &SQL{
-		db:     db,
-		engine: postgresEngine,
+		db:                        db,
+		engine:                    postgresEngine,
+		maxPostgresBulkInsertRows: 5,
 	}
 
 	fixtures, err := testfixtures.New(
 		testfixtures.Database(db.DB),
 		testfixtures.Dialect("postgresql"),
-		testfixtures.Directory("fixtures/insert_block_transactions"),
+		testfixtures.Directory("fixtures/update_block_transactions"),
 	)
 	require.NoError(s.T(), err)
 
@@ -45,11 +47,8 @@ func (s *UpdateBlockTransactionsSuite) Test() {
 	testMerklePaths := []string{"test1", "test2", "test3"}
 	testBlockID := uint64(9736)
 
-	txHash1, err := chainhash.NewHashFromStr("3b8c1676470f44043069f66fdc0d5df9bdad1865a8f03b8da1268359802b7376")
-	require.NoError(s.T(), err)
-
-	txHash2, err := chainhash.NewHashFromStr("b0926372c449731ffb84b7d2f808087d4b5e6e26aafee872232bbcd5a5854e16")
-	require.NoError(s.T(), err)
+	txHash1 := createTxHash(s, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")
+	txHash2 := createTxHash(s, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")
 
 	txHashNotRegistered, err := chainhash.NewHashFromStr("edd33fdcdfa68444d227780e2b62a4437c00120c5320d2026aeb24a781f4c3f1")
 	require.NoError(s.T(), err)
@@ -114,6 +113,45 @@ func (s *UpdateBlockTransactionsSuite) Test() {
 	require.Equal(s.T(), storedtx2.ID, mp2.TransactionID)
 	require.Equal(s.T(), testBlockID, uint64(mp2.BlockID))
 
+	// update exceeds max batch size
+
+	txHash3 := createTxHash(s, "b4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743")
+	txHash4 := createTxHash(s, "37bd6c87927e75faeb3b3c939f64721cda48e1bb98742676eebe83aceee1a669")
+	txHash5 := createTxHash(s, "952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb")
+	txHash6 := createTxHash(s, "861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608")
+	txHash7 := createTxHash(s, "9421cc760c5405af950a76dc3e4345eaefd4e7322f172a3aee5e0ddc7b4f8313")
+	txHash8 := createTxHash(s, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")
+
+	_, err = st.UpdateBlockTransactions(context.Background(), testBlockID, []*blocktx_api.TransactionAndSource{
+		{
+			Hash: txHash3[:],
+		},
+		{
+			Hash: txHash4[:],
+		},
+		{
+			Hash: txHash5[:],
+		},
+		{
+			Hash: txHash6[:],
+		},
+		{
+			Hash: txHash7[:],
+		},
+		{
+			Hash: txHash8[:],
+		},
+	}, []string{"test1", "test2", "test3", "test4", "test5", "test6"})
+	require.NoError(s.T(), err)
+}
+
+func createTxHash(s *UpdateBlockTransactionsSuite, hashString string) *chainhash.Hash {
+	hash, err := hex.DecodeString(hashString)
+	require.NoError(s.T(), err)
+	txHash, err := chainhash.NewHash(hash)
+	require.NoError(s.T(), err)
+
+	return txHash
 }
 
 func TestUpdateBlockTransactionsSuite(t *testing.T) {

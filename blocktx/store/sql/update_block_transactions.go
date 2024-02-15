@@ -16,10 +16,6 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-const (
-	maxPostgresBulkInsertRows = 1000
-)
-
 // UpdateBlockTransactions updates the transaction hashes for a given block hash.
 func (s *SQL) UpdateBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpdateBlockTransactionsResult, error) {
 	start := gocore.CurrentNanos()
@@ -193,13 +189,14 @@ func (s *SQL) updateBlockTransactionsPostgres(ctx context.Context, blockId uint6
 
 		positions = append(positions, txHashesMap[hex.EncodeToString(txHash)])
 
-		if len(txIDs) >= maxPostgresBulkInsertRows {
+		if len(txIDs) >= s.maxPostgresBulkInsertRows {
 			_, err = s.db.ExecContext(ctx, qMap, pq.Array(blockIDs), pq.Array(txIDs), pq.Array(positions))
 			if err != nil {
 				return nil, fmt.Errorf("failed to bulk insert transactions into block transactions map for block with id %d: %v", blockId, err)
 			}
 			txIDs = make([]uint64, 0)
 			blockIDs = make([]uint64, 0)
+			positions = make([]int, 0)
 		}
 	}
 

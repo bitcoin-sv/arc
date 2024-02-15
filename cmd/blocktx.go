@@ -78,7 +78,12 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	mqClient := nats_mq.NewNatsMQClient(natsClient, txChannel)
+	maxBatchSize, err := config.GetInt("blocktx.mq.txsMinedMaxBatchSize")
+	if err != nil {
+		return nil, err
+	}
+
+	mqClient := nats_mq.NewNatsMQClient(natsClient, txChannel, nats_mq.WithMaxBatchSize(maxBatchSize))
 	if err != nil {
 		return nil, err
 	}

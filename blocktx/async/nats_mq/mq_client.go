@@ -36,7 +36,7 @@ type NatsClient interface {
 }
 
 func NewNatsMQClient(nc NatsClient, txChannel chan []byte, opts ...func(client *MQClient)) blocktx.MessageQueueClient {
-	m := &MQClient{nc: nc, txChannel: txChannel}
+	m := &MQClient{nc: nc, txChannel: txChannel, maxBatchSize: maxBatchSizeDefault}
 
 	for _, opt := range opts {
 		opt(m)
@@ -61,15 +61,15 @@ func (c MQClient) SubscribeRegisterTxs() error {
 }
 
 func (c MQClient) PublishMinedTxs(txsBlocks []*blocktx_api.TransactionBlock) error {
-	txBlockBatch := make([]*blocktx_api.TransactionBlock, 0, maxBatchSizeDefault)
+	txBlockBatch := make([]*blocktx_api.TransactionBlock, 0, c.maxBatchSize)
 	for i, txBlock := range txsBlocks {
 		txBlockBatch = append(txBlockBatch, txBlock)
-		if (i+1)%maxBatchSizeDefault == 0 {
+		if (i+1)%c.maxBatchSize == 0 {
 			err := c.publish(txBlockBatch)
 			if err != nil {
 				return err
 			}
-			txBlockBatch = make([]*blocktx_api.TransactionBlock, 0, maxBatchSizeDefault)
+			txBlockBatch = make([]*blocktx_api.TransactionBlock, 0, c.maxBatchSize)
 		}
 	}
 

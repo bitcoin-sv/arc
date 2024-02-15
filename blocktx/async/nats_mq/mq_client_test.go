@@ -38,8 +38,7 @@ func TestMQClient_PublishMinedTxs(t *testing.T) {
 		{
 			name: "exactly batch size",
 			txsBlocks: []*blocktx_api.TransactionBlock{
-				txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock,
-				txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock,
+				txBlock, txBlock, txBlock, txBlock, txBlock,
 			},
 
 			expectedPublishCalls: 1,
@@ -50,9 +49,10 @@ func TestMQClient_PublishMinedTxs(t *testing.T) {
 				txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock,
 				txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock,
 				txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock,
+				txBlock,
 			},
 
-			expectedPublishCalls: 2,
+			expectedPublishCalls: 7,
 		},
 		{
 			name: "publish err",
@@ -77,7 +77,7 @@ func TestMQClient_PublishMinedTxs(t *testing.T) {
 
 			txChannel := make(chan []byte, 10)
 
-			mqClient := NewNatsMQClient(natsMock, txChannel)
+			mqClient := NewNatsMQClient(natsMock, txChannel, WithMaxBatchSize(5))
 
 			err := mqClient.PublishMinedTxs(tc.txsBlocks)
 

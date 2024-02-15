@@ -89,7 +89,19 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 400)
+	// The tx channel needs the capacity so that it could potentially buffer up to a certain nr of transactions per second
+	const targetTps = 6000
+	const avgMinPerBlock = 10
+	const secPerMin = 60
+
+	maxBatchSize, err := config.GetInt("blocktx.mq.txsMinedMaxBatchSize")
+	if err != nil {
+		return nil, err
+	}
+
+	// maximum amount of messages that could be coming from a single block
+	capacityRequired := int(float64(targetTps*avgMinPerBlock*secPerMin) / float64(maxBatchSize))
+	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, capacityRequired)
 
 	mqClient, err := nats_mq.NewNatsMQClient(minedTxsChan, logger, natsURL)
 	if err != nil {

@@ -8,17 +8,24 @@ import (
 )
 
 const (
-	consumerQueue   = "register-tx-group"
-	registerTxTopic = "register-tx"
-	minedTxsTopic   = "mined-txs"
-	connectionTries = 5
-	maxBatchSize    = 20
+	consumerQueue       = "register-tx-group"
+	registerTxTopic     = "register-tx"
+	minedTxsTopic       = "mined-txs"
+	connectionTries     = 5
+	maxBatchSizeDefault = 20
 )
+
+func WithMaxBatchSize(size int) func(*MQClient) {
+	return func(m *MQClient) {
+		m.maxBatchSize = size
+	}
+}
 
 type MQClient struct {
 	nc           NatsClient
 	txChannel    chan []byte
 	subscription *nats.Subscription
+	maxBatchSize int
 }
 
 type NatsClient interface {
@@ -28,8 +35,14 @@ type NatsClient interface {
 	Drain() error
 }
 
-func NewNatsMQClient(nc NatsClient, txChannel chan []byte) blocktx.MessageQueueClient {
-	return &MQClient{nc: nc, txChannel: txChannel}
+func NewNatsMQClient(nc NatsClient, txChannel chan []byte, opts ...func(client *MQClient)) blocktx.MessageQueueClient {
+	m := &MQClient{nc: nc, txChannel: txChannel, maxBatchSize: maxBatchSizeDefault}
+
+	for _, opt := range opts {
+		opt(m)
+	}
+
+	return m
 }
 
 func (c MQClient) SubscribeRegisterTxs() error {
@@ -48,15 +61,15 @@ func (c MQClient) SubscribeRegisterTxs() error {
 }
 
 func (c MQClient) PublishMinedTxs(txsBlocks []*blocktx_api.TransactionBlock) error {
-	txBlockBatch := make([]*blocktx_api.TransactionBlock, 0, maxBatchSize)
+	txBlockBatch := make([]*blocktx_api.TransactionBlock, 0, c.maxBatchSize)
 	for i, txBlock := range txsBlocks {
 		txBlockBatch = append(txBlockBatch, txBlock)
-		if (i+1)%maxBatchSize == 0 {
+		if (i+1)%c.maxBatchSize == 0 {
 			err := c.publish(txBlockBatch)
 			if err != nil {
 				return err
 			}
-			txBlockBatch = make([]*blocktx_api.TransactionBlock, 0, maxBatchSize)
+			txBlockBatch = make([]*blocktx_api.TransactionBlock, 0, c.maxBatchSize)
 		}
 	}
 

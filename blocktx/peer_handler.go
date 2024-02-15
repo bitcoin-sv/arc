@@ -265,27 +265,27 @@ func (ph *PeerHandler) startPeerWorker() {
 	}()
 }
 
-func (bn *PeerHandler) startFillGaps(peers []*p2p.Peer) {
+func (ph *PeerHandler) startFillGaps(peers []*p2p.Peer) {
 	go func() {
 		defer func() {
-			bn.quitFillBlockGapComplete <- struct{}{}
+			ph.quitFillBlockGapComplete <- struct{}{}
 		}()
 
 		peerIndex := 0
 		for {
 			select {
-			case <-bn.quitFillBlockGap:
+			case <-ph.quitFillBlockGap:
 				return
-			case <-bn.fillGapsTicker.C:
+			case <-ph.fillGapsTicker.C:
 				if peerIndex >= len(peers) {
 					peerIndex = 0
 				}
 
-				bn.logger.Info("requesting missing blocks from peer", slog.Int("index", peerIndex))
+				ph.logger.Info("requesting missing blocks from peer", slog.Int("index", peerIndex))
 
-				err := bn.FillGaps(peers[peerIndex])
+				err := ph.FillGaps(peers[peerIndex])
 				if err != nil {
-					bn.logger.Error("failed to fill gaps", slog.String("error", err.Error()))
+					ph.logger.Error("failed to fill gaps", slog.String("error", err.Error()))
 				}
 
 				peerIndex++
@@ -335,13 +335,13 @@ func (ph *PeerHandler) startProcessTxs() {
 	}()
 }
 
-func (bs *PeerHandler) HandleTransactionGet(_ *wire.InvVect, peer p2p.PeerI) ([]byte, error) {
+func (ph *PeerHandler) HandleTransactionGet(_ *wire.InvVect, peer p2p.PeerI) ([]byte, error) {
 	peerStr := peer.String()
 
-	stat, ok := bs.stats.Get(peerStr)
+	stat, ok := ph.stats.Get(peerStr)
 	if !ok {
 		stat = &tracing.PeerHandlerStats{}
-		bs.stats.Set(peerStr, stat)
+		ph.stats.Set(peerStr, stat)
 	}
 
 	stat.TransactionGet.Add(1)
@@ -349,13 +349,13 @@ func (bs *PeerHandler) HandleTransactionGet(_ *wire.InvVect, peer p2p.PeerI) ([]
 	return nil, nil
 }
 
-func (bs *PeerHandler) HandleTransactionSent(_ *wire.MsgTx, peer p2p.PeerI) error {
+func (ph *PeerHandler) HandleTransactionSent(_ *wire.MsgTx, peer p2p.PeerI) error {
 	peerStr := peer.String()
 
-	stat, ok := bs.stats.Get(peerStr)
+	stat, ok := ph.stats.Get(peerStr)
 	if !ok {
 		stat = &tracing.PeerHandlerStats{}
-		bs.stats.Set(peerStr, stat)
+		ph.stats.Set(peerStr, stat)
 	}
 
 	stat.TransactionSent.Add(1)
@@ -627,7 +627,6 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 	txs := make([]*blocktx_api.TransactionAndSource, 0, ph.transactionStorageBatchSize)
 	merklePaths := make([]string, 0, ph.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
-	updates := make([]*blocktx_api.TransactionBlock, 0)
 
 	for txIndex, hash := range leaves {
 		// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.
@@ -663,19 +662,21 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 			updatesBatch := make([]*blocktx_api.TransactionBlock, len(updateResp))
 
 			for i, updResp := range updateResp {
-				txHash, err := chainhash.NewHash(updResp.TxHash)
-				if err != nil {
-					return err
-				}
 				updatesBatch[i] = &blocktx_api.TransactionBlock{
-					TransactionHash: txHash[:],
+					TransactionHash: updResp.TxHash[:],
 					BlockHash:       blockhash[:],
 					BlockHeight:     blockHeight,
 					MerklePath:      updResp.MerklePath,
 				}
 			}
 
-			updates = append(updates, updatesBatch...)
+			if len(updatesBatch) > 0 {
+				err = ph.mqClient.PublishMinedTxs(updatesBatch)
+				if err != nil {
+					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+				}
+			}
+
 			// print stats, call gc and chec the result
 			ph.printMemStats()
 			runtime.GC()
@@ -692,22 +693,16 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 	updatesBatch := make([]*blocktx_api.TransactionBlock, len(updateResp))
 
 	for i, updResp := range updateResp {
-		txHash, err := chainhash.NewHash(updResp.TxHash)
-		if err != nil {
-			return err
-		}
 		updatesBatch[i] = &blocktx_api.TransactionBlock{
-			TransactionHash: txHash[:],
+			TransactionHash: updResp.TxHash[:],
 			BlockHash:       blockhash[:],
 			BlockHeight:     blockHeight,
 			MerklePath:      updResp.MerklePath,
 		}
 	}
 
-	updates = append(updates, updatesBatch...)
-
-	if len(updates) > 0 {
-		err = ph.mqClient.PublishMinedTxs(&blocktx_api.TransactionBlocks{TransactionBlocks: updates})
+	if len(updatesBatch) > 0 {
+		err = ph.mqClient.PublishMinedTxs(updatesBatch)
 		if err != nil {
 			ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 		}

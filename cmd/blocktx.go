@@ -72,7 +72,13 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 	}
 
 	txChannel := make(chan []byte, capacityRequired)
-	mqClient, err := nats_mq.NewNatsMQClient(txChannel, logger, natsURL)
+
+	natsClient, err := nats_mq.NewNatsClient(natsURL)
+	if err != nil {
+		return nil, err
+	}
+
+	mqClient := nats_mq.NewNatsMQClient(natsClient, txChannel)
 	if err != nil {
 		return nil, err
 	}

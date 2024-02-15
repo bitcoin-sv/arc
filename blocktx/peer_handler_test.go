@@ -221,7 +221,7 @@ func TestHandleBlock(t *testing.T) {
 		}
 
 		mq := &MessageQueueClientMock{
-			PublishMinedTxsFunc: func(txsBlocks *blocktx_api.TransactionBlocks) error {
+			PublishMinedTxsFunc: func(txsBlocks []*blocktx_api.TransactionBlock) error {
 				return nil
 			},
 		}

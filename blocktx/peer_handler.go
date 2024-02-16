@@ -461,7 +461,7 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	if err != nil {
 		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
 		if errDel != nil {
-			ph.logger.Error("failed to delete block processing", slog.String("err", errDel.Error()))
+			ph.logger.Error("failed to delete block processing - after inserting block failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}
 		return fmt.Errorf("unable to insert block %s at height %d: %v", blockHash.String(), msg.Height, err)
 	}
@@ -471,7 +471,7 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
 		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
 		if errDel != nil {
-			ph.logger.Error("failed to delete block processing", slog.String("err", errDel.Error()))
+			ph.logger.Error("failed to delete block processing - after merkle root mismatch", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}
 		return fmt.Errorf("merkle root mismatch for block %s", blockHash.String())
 	}
@@ -479,7 +479,7 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	if err = ph.markTransactionsAsMined(blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
 		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
 		if errDel != nil {
-			ph.logger.Error("failed to delete block processing", slog.String("err", errDel.Error()))
+			ph.logger.Error("failed to delete block processing - after marking transactions as mined failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}
 		return fmt.Errorf("unable to mark block as mined %s: %v", blockHash.String(), err)
 	}
@@ -496,7 +496,7 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	if err = ph.markBlockAsProcessed(block); err != nil {
 		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
 		if errDel != nil {
-			ph.logger.Error("failed to delete block processing", slog.String("err", errDel.Error()))
+			ph.logger.Error("failed to delete block processing - after marking block as processed failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}
 		return fmt.Errorf("unable to mark block as processed %s: %v", blockHash.String(), err)
 	}

@@ -211,12 +211,8 @@ func TestHandleBlock(t *testing.T) {
 			MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 				return nil
 			},
-			GetPrimaryFunc: func(ctx context.Context) (string, error) {
-				hostName, err := os.Hostname()
-				return hostName, err
-			},
-			TryToBecomePrimaryFunc: func(ctx context.Context, myHostName string) error {
-				return nil
+			GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+				return []*chainhash.Hash{testdata.TX1Hash}, nil
 			},
 		}
 
@@ -302,11 +298,10 @@ func TestFillGaps(t *testing.T) {
 	hash822019, err := chainhash.NewHashFromStr("00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656")
 	require.NoError(t, err)
 	tt := []struct {
-		name              string
-		blockGaps         []*store.BlockGap
-		getBlockGapsErr   error
-		primaryBlocktxErr error
-		hostname          string
+		name            string
+		blockGaps       []*store.BlockGap
+		getBlockGapsErr error
+		hostname        string
 
 		expectedGetBlockGapsCalls int
 		expectedErrorStr          string
@@ -343,22 +338,6 @@ func TestFillGaps(t *testing.T) {
 			expectedGetBlockGapsCalls: 1,
 			expectedErrorStr:          "failed to get block gaps",
 		},
-		{
-			name:      "not primary",
-			blockGaps: []*store.BlockGap{},
-			hostname:  "not primary",
-
-			expectedGetBlockGapsCalls: 0,
-		},
-		{
-			name:              "check primary - error",
-			blockGaps:         []*store.BlockGap{},
-			hostname:          "not primary",
-			primaryBlocktxErr: errors.New("failed to check primary"),
-
-			expectedGetBlockGapsCalls: 0,
-			expectedErrorStr:          "failed to check primary",
-		},
 	}
 
 	for _, tc := range tt {
@@ -369,8 +348,8 @@ func TestFillGaps(t *testing.T) {
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return tc.blockGaps, tc.getBlockGapsErr
 				},
-				GetPrimaryFunc: func(ctx context.Context) (string, error) {
-					return tc.hostname, tc.primaryBlocktxErr
+				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+					return []*chainhash.Hash{testdata.TX1Hash}, nil
 				},
 			}
 
@@ -425,8 +404,8 @@ func TestStartFillGaps(t *testing.T) {
 						},
 					}, tc.getBlockGapsErr
 				},
-				GetPrimaryFunc: func(ctx context.Context) (string, error) {
-					return tc.hostname, nil
+				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+					return []*chainhash.Hash{testdata.TX1Hash}, nil
 				},
 			}
 

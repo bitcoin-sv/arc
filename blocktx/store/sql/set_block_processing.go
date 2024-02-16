@@ -23,12 +23,15 @@ func (s *SQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setP
 	err := s.db.QueryRowContext(ctx, qInsert, hash[:], setProcessedBy).Scan(&processedBy)
 	if err != nil {
 		var pqErr *pq.Error
-		errors.As(err, &pqErr)
-		if pqErr.Code == pq.ErrorCode("23505") {
+
+		if errors.As(err, &pqErr) && pqErr.Code == pq.ErrorCode("23505") {
+			err = s.db.QueryRowContext(ctx, `SELECT processed_by FROM block_processing WHERE block_hash = $1`, hash[:]).Scan(&processedBy)
+			if err != nil {
+				return "", fmt.Errorf("failed to set block processing: %v", err)
+			}
+
 			return processedBy, store.ErrBlockProcessingDuplicateKey
 		}
-
-		return "", fmt.Errorf("failed to set block processing: %v", err)
 	}
 
 	return processedBy, nil
@@ -36,12 +39,16 @@ func (s *SQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setP
 
 func (s *SQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) error {
 	q := `
-		DELETE FROM block_processing WHERE hash = $1 AND processed_by = $2;
+		DELETE FROM block_processing WHERE block_hash = $1 AND processed_by = $2;
     `
 
-	_, err := s.db.ExecContext(ctx, q, hash[:], processedBy)
+	res, err := s.db.ExecContext(ctx, q, hash[:], processedBy)
 	if err != nil {
 		return err
+	}
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected != 1 {
+		return store.ErrBlockNotFound
 	}
 
 	return nil

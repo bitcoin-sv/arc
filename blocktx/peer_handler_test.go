@@ -214,6 +214,9 @@ func TestHandleBlock(t *testing.T) {
 			GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
 				return []*chainhash.Hash{testdata.TX1Hash}, nil
 			},
+			SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
+				return "abc", nil
+			},
 		}
 
 		mq := &MessageQueueClientMock{
@@ -351,6 +354,9 @@ func TestFillGaps(t *testing.T) {
 				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
 					return []*chainhash.Hash{testdata.TX1Hash}, nil
 				},
+				SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
+					return "abc", nil
+				},
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -406,6 +412,9 @@ func TestStartFillGaps(t *testing.T) {
 				},
 				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
 					return []*chainhash.Hash{testdata.TX1Hash}, nil
+				},
+				SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
+					return "abc", nil
 				},
 			}
 

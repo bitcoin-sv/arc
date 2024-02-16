@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"os"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
@@ -215,19 +214,6 @@ func (ph *PeerHandler) startPeerWorker() {
 			peer := workerItem.Peer
 
 			ctx := context.Background()
-
-			blockHashes, err := ph.store.GetBlockHashesProcessingInProgress(ctx, ph.hostname)
-			if err == nil && len(blockHashes) > 0 {
-				// this blocktx instance is already processing at least one block
-				txHashStrings := make([]string, len(blockHashes))
-
-				for i, txHash := range blockHashes {
-					txHashStrings[i] = txHash.String()
-				}
-
-				ph.logger.Info("block processing already in progress", slog.String("hashes", strings.Join(txHashStrings, ",")))
-				continue
-			}
 
 			processedBy, err := ph.store.SetBlockProcessing(ctx, hash, ph.hostname)
 			if err != nil {

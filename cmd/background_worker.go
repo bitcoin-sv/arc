@@ -74,16 +74,6 @@ func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 
 func startBlocktxScheduler(logger *slog.Logger) (func(), error) {
 	logger.With("service", "background-worker")
-	blocktxAddress, err := config.GetString("blocktx.dialAddr")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := blocktx.DialGRPC(blocktxAddress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
-	}
-
 	cleanBlocksRecordRetentionDays, err := config.GetInt("blocktx.db.cleanData.recordRetentionDays")
 	if err != nil {
 		return nil, err
@@ -92,6 +82,16 @@ func startBlocktxScheduler(logger *slog.Logger) (func(), error) {
 	executionIntervalHours, err := config.GetInt("blocktx.db.cleanData.executionIntervalHours")
 	if err != nil {
 		return nil, err
+	}
+
+	blocktxAddress, err := config.GetString("blocktx.dialAddr")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := blocktx.DialGRPC(blocktxAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
 	}
 
 	client := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn))

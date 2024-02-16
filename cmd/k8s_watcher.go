@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/bitcoin-sv/arc/blocktx"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"log/slog"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -38,7 +40,19 @@ func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	k8sWatcher := k8s_watcher.New(metamorphClient, k8sClient, namespace, k8s_watcher.WithLogger(logger))
+	blocktxAddress, err := config.GetString("blocktx.dialAddr")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := blocktx.DialGRPC(blocktxAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
+	}
+
+	blocktxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn))
+
+	k8sWatcher := k8s_watcher.New(metamorphClient, blocktxClient, k8sClient, namespace, k8s_watcher.WithLogger(logger))
 	err = k8sWatcher.Start()
 	if err != nil {
 		return nil, fmt.Errorf("faile to start k8s-watcher: %v", err)

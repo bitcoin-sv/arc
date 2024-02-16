@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"log/slog"
 	"time"
 
@@ -43,10 +44,12 @@ func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	metamorphClient, err := metamorph.NewMetamorph(metamorphAddress, grpcMessageSize)
+	conn, err := metamorph.DialGRPC(metamorphAddress, grpcMessageSize)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
+
+	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
 	metamorphClearDataRetentionDays, err := config.GetInt("metamorph.db.cleanData.recordRetentionDays")
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"log/slog"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -25,10 +26,12 @@ func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	metamorphClient, err := metamorph.NewMetamorph(metamorphAddress, grpcMessageSize)
+	mtmConn, err := metamorph.DialGRPC(metamorphAddress, grpcMessageSize)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
+
+	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(mtmConn))
 
 	k8sClient, err := k8s_client.New()
 	if err != nil {
@@ -45,12 +48,12 @@ func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	conn, err := blocktx.DialGRPC(blocktxAddress)
+	blocktxConn, err := blocktx.DialGRPC(blocktxAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
 	}
 
-	blocktxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn))
+	blocktxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(blocktxConn))
 
 	k8sWatcher := k8s_watcher.New(metamorphClient, blocktxClient, k8sClient, namespace, k8s_watcher.WithLogger(logger))
 	err = k8sWatcher.Start()

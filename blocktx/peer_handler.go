@@ -20,7 +20,6 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
-	"github.com/ordishs/go-utils"
 	"github.com/ordishs/go-utils/safemap"
 	"github.com/ordishs/gocore"
 )
@@ -86,9 +85,14 @@ func init() {
 	})
 }
 
+type hashPeer struct {
+	Hash *chainhash.Hash
+	Peer p2p.PeerI
+}
+
 type PeerHandler struct {
 	hostname                    string
-	workerCh                    chan utils.Pair[*chainhash.Hash, p2p.PeerI]
+	workerCh                    chan hashPeer
 	store                       store.Interface
 	logger                      *slog.Logger
 	announcedCache              map[chainhash.Hash][]p2p.PeerI
@@ -161,7 +165,7 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 	ph := &PeerHandler{
 		store:                       storeI,
 		logger:                      logger,
-		workerCh:                    make(chan utils.Pair[*chainhash.Hash, p2p.PeerI], 100),
+		workerCh:                    make(chan hashPeer, 100),
 		announcedCache:              map[chainhash.Hash][]p2p.PeerI{},
 		stats:                       safemap.New[string, *tracing.PeerHandlerStats](),
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
@@ -208,9 +212,9 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 
 func (ph *PeerHandler) startPeerWorker() {
 	go func() {
-		for pair := range ph.workerCh {
-			hash := pair.First
-			peer := pair.Second
+		for workerItem := range ph.workerCh {
+			hash := workerItem.Hash
+			peer := workerItem.Peer
 
 			item, found := ph.announcedCache[*hash]
 			if found {
@@ -449,8 +453,11 @@ func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 		gocore.NewStat("blocktx").NewStat("HandleBlockAnnouncement").AddTime(start)
 	}()
 
-	pair := utils.NewPair(&msg.Hash, peer)
-	utils.SafeSend(ph.workerCh, pair)
+	pair := hashPeer{
+		Hash: &msg.Hash,
+		Peer: peer,
+	}
+	ph.workerCh <- pair
 
 	return nil
 }
@@ -565,8 +572,11 @@ func (ph *PeerHandler) FillGaps(peer p2p.PeerI) error {
 
 		ph.logger.Info("requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Int64("height", int64(gaps.Height)))
 
-		pair := utils.NewPair(gaps.Hash, peer)
-		utils.SafeSend(ph.workerCh, pair)
+		pair := hashPeer{
+			Hash: gaps.Hash,
+			Peer: peer,
+		}
+		ph.workerCh <- pair
 	}
 
 	return nil
@@ -582,8 +592,12 @@ func (ph *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 		if _, found := ph.announcedCache[*previousBlockHash]; !found {
 			if _, err := ph.store.GetBlock(context.Background(), previousBlockHash); err != nil {
 				if errors.Is(err, store.ErrBlockNotFound) {
-					pair := utils.NewPair(previousBlockHash, peer)
-					utils.SafeSend(ph.workerCh, pair)
+
+					pair := hashPeer{
+						Hash: previousBlockHash,
+						Peer: peer,
+					}
+					ph.workerCh <- pair
 				} else if err != nil {
 					ph.logger.Error("failed to get previous block", slog.String("hash", previousBlockHash.String()), slog.Int64("height", int64(height-1)), slog.String("err", err.Error()))
 				}

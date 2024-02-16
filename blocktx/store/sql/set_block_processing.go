@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ordishs/gocore"
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/lib/pq"
@@ -11,7 +12,13 @@ import (
 )
 
 func (s *SQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string) (string, error) {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("SetBlockProcessing").AddTime(start)
+	}()
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	// Try to set a block as being processed by this instance
 	qInsert := `
 		INSERT INTO block_processing (block_hash, processed_by)
@@ -38,6 +45,14 @@ func (s *SQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setP
 }
 
 func (s *SQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) error {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("DelBlockProcessing").AddTime(start)
+	}()
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	q := `
 		DELETE FROM block_processing WHERE block_hash = $1 AND processed_by = $2;
     `
@@ -55,6 +70,14 @@ func (s *SQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, proc
 }
 
 func (s *SQL) GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("blocktx").NewStat("GetBlockHashesProcessingInProgress").AddTime(start)
+	}()
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// Check how many blocks this instance is currently processing
 	q := `
 	SELECT bp.block_hash FROM block_processing bp

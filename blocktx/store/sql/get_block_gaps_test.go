@@ -34,9 +34,9 @@ func (s *GetBlockGapTestSuite) Test() {
 	require.NoError(s.T(), err)
 	ctx := context.Background()
 
-	blockGaps, err := st.GetBlockGaps(ctx, 20)
+	blockGaps, err := st.GetBlockGaps(ctx, 12)
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), 3, len(blockGaps))
+	require.Equal(s.T(), 5, len(blockGaps))
 
 	hash822014, err := chainhash.NewHashFromStr("0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
 	require.NoError(s.T(), err)
@@ -44,19 +44,31 @@ func (s *GetBlockGapTestSuite) Test() {
 	require.NoError(s.T(), err)
 	hash822011, err := chainhash.NewHashFromStr("000000000000000002a0926c51854d2bd525c26026ab0f178ca07f723b31033a")
 	require.NoError(s.T(), err)
+	hash822020, err := chainhash.NewHashFromStr("00000000000000000a5c4d27edc0178e953a5bb0ab0081e66cb30c8890484076")
+	require.NoError(s.T(), err)
+	hash822009, err := chainhash.NewHashFromStr("00000000000000000e3f79a11df0f07581b91bc7a8c7d80e9a1264a4b173d74a")
+	require.NoError(s.T(), err)
 
 	expectedBlockGaps := []*store.BlockGap{
-		{
+		{ // gap
 			Height: 822019,
 			Hash:   hash822019,
 		},
-		{
+		{ // gap
 			Height: 822014,
 			Hash:   hash822014,
 		},
-		{
-			Height: 822011,
+		{ // gap
+			Height: 822011, // gap
 			Hash:   hash822011,
+		},
+		{ // processing not finished
+			Height: 822020,
+			Hash:   hash822020,
+		},
+		{ // gap
+			Height: 822009,
+			Hash:   hash822009,
 		},
 	}
 

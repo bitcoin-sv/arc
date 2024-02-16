@@ -2,7 +2,6 @@ package blocktx
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -12,7 +11,6 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/gocore"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -82,48 +80,35 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.Healt
 	}, nil
 }
 
-func (s *Server) GetTransactionMerklePath(ctx context.Context, transaction *blocktx_api.Transaction) (*blocktx_api.MerklePath, error) {
-	hash, err := chainhash.NewHash(transaction.GetHash())
-	if err != nil {
-		return nil, err
-	}
-
-	merklePath, err := s.store.GetTransactionMerklePath(ctx, hash)
-	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, ErrMerklePathNotFoundForTransaction
-		}
-		return nil, err
-	}
-
-	return &blocktx_api.MerklePath{MerklePath: merklePath}, nil
+func (s *Server) ClearTransactions(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
+	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "transactions")
 }
 
-func (s *Server) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) (*emptypb.Empty, error) {
-	err := s.store.RegisterTransaction(ctx, transaction)
+func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
+	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "blocks")
+}
+
+func (s *Server) ClearBlockTransactionsMap(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
+	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "block_transactions_map")
+}
+
+func (s *Server) DelUnfinishedProcessedBlocks(ctx context.Context, req *blocktx_api.DelUnfinishedProcessedBlocksRequest) (*emptypb.Empty, error) {
+	bhs, err := s.store.GetBlockHashesProcessed(ctx, req.GetProcessedBy())
 	if err != nil {
 		return &emptypb.Empty{}, err
 	}
-	return &emptypb.Empty{}, err
-}
 
-func (s *Server) GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
-	return s.store.GetTransactionBlocks(ctx, transaction)
+	for _, bh := range bhs {
+		err = s.store.DelBlockProcessing(ctx, bh, req.GetProcessedBy())
+		if err != nil {
+			return &emptypb.Empty{}, err
+		}
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (s *Server) Shutdown() {
 	s.logger.Info("Shutting down")
 	s.grpcServer.Stop()
-}
-
-func (s *Server) ClearTransactions(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
-	return s.store.ClearBlocktxTable(ctx, clearData.RetentionDays, "transactions")
-}
-
-func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
-	return s.store.ClearBlocktxTable(ctx, clearData.RetentionDays, "blocks")
-}
-
-func (s *Server) ClearBlockTransactionsMap(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
-	return s.store.ClearBlocktxTable(ctx, clearData.RetentionDays, "block_transactions_map")
 }

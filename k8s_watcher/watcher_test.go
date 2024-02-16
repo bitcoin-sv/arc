@@ -10,12 +10,11 @@ import (
 
 	"github.com/bitcoin-sv/arc/k8s_watcher"
 	"github.com/bitcoin-sv/arc/k8s_watcher/mock"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/lmittmann/tint"
 	"github.com/stretchr/testify/require"
 )
 
-//go:generate moq -pkg mock -out ./mock/metamorph_api_client_mock.go ../metamorph TransactionMaintainer
+//go:generate moq -pkg mock -out ./mock/metamorph_client_mock.go ../metamorph TransactionMaintainer
 //go:generate moq -pkg mock -out ./mock/k8s_client_client_mock.go . K8sClient
 //go:generate moq -pkg mock -out ./mock/ticker_mock.go . Ticker
 
@@ -61,8 +60,8 @@ func TestStart(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphMock := &mock.TransactionMaintainerMock{
-				SetUnlockedByNameFunc: func(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (int64, error) {
-					require.Equal(t, "metamorph-pod-2", req.Name)
+				SetUnlockedByNameFunc: func(ctx context.Context, name string) (int64, error) {
+					require.Equal(t, "metamorph-pod-2", name)
 
 					if tc.setUnlockedErr != nil {
 						return 0, tc.setUnlockedErr

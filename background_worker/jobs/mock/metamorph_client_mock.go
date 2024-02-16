@@ -6,7 +6,6 @@ package mock
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/metamorph"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"sync"
 )
 
@@ -20,10 +19,10 @@ var _ metamorph.TransactionMaintainer = &TransactionMaintainerMock{}
 //
 //		// make and configure a mocked metamorph.TransactionMaintainer
 //		mockedTransactionMaintainer := &TransactionMaintainerMock{
-//			ClearDataFunc: func(ctx context.Context, req *metamorph_api.ClearDataRequest) (int64, error) {
+//			ClearDataFunc: func(ctx context.Context, retentionDays int32) (int64, error) {
 //				panic("mock out the ClearData method")
 //			},
-//			SetUnlockedByNameFunc: func(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (int64, error) {
+//			SetUnlockedByNameFunc: func(ctx context.Context, name string) (int64, error) {
 //				panic("mock out the SetUnlockedByName method")
 //			},
 //		}
@@ -34,10 +33,10 @@ var _ metamorph.TransactionMaintainer = &TransactionMaintainerMock{}
 //	}
 type TransactionMaintainerMock struct {
 	// ClearDataFunc mocks the ClearData method.
-	ClearDataFunc func(ctx context.Context, req *metamorph_api.ClearDataRequest) (int64, error)
+	ClearDataFunc func(ctx context.Context, retentionDays int32) (int64, error)
 
 	// SetUnlockedByNameFunc mocks the SetUnlockedByName method.
-	SetUnlockedByNameFunc func(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (int64, error)
+	SetUnlockedByNameFunc func(ctx context.Context, name string) (int64, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -45,15 +44,15 @@ type TransactionMaintainerMock struct {
 		ClearData []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// Req is the req argument value.
-			Req *metamorph_api.ClearDataRequest
+			// RetentionDays is the retentionDays argument value.
+			RetentionDays int32
 		}
 		// SetUnlockedByName holds details about calls to the SetUnlockedByName method.
 		SetUnlockedByName []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// Req is the req argument value.
-			Req *metamorph_api.SetUnlockedByNameRequest
+			// Name is the name argument value.
+			Name string
 		}
 	}
 	lockClearData         sync.RWMutex
@@ -61,21 +60,21 @@ type TransactionMaintainerMock struct {
 }
 
 // ClearData calls ClearDataFunc.
-func (mock *TransactionMaintainerMock) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (int64, error) {
+func (mock *TransactionMaintainerMock) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
 	if mock.ClearDataFunc == nil {
 		panic("TransactionMaintainerMock.ClearDataFunc: method is nil but TransactionMaintainer.ClearData was just called")
 	}
 	callInfo := struct {
-		Ctx context.Context
-		Req *metamorph_api.ClearDataRequest
+		Ctx           context.Context
+		RetentionDays int32
 	}{
-		Ctx: ctx,
-		Req: req,
+		Ctx:           ctx,
+		RetentionDays: retentionDays,
 	}
 	mock.lockClearData.Lock()
 	mock.calls.ClearData = append(mock.calls.ClearData, callInfo)
 	mock.lockClearData.Unlock()
-	return mock.ClearDataFunc(ctx, req)
+	return mock.ClearDataFunc(ctx, retentionDays)
 }
 
 // ClearDataCalls gets all the calls that were made to ClearData.
@@ -83,12 +82,12 @@ func (mock *TransactionMaintainerMock) ClearData(ctx context.Context, req *metam
 //
 //	len(mockedTransactionMaintainer.ClearDataCalls())
 func (mock *TransactionMaintainerMock) ClearDataCalls() []struct {
-	Ctx context.Context
-	Req *metamorph_api.ClearDataRequest
+	Ctx           context.Context
+	RetentionDays int32
 } {
 	var calls []struct {
-		Ctx context.Context
-		Req *metamorph_api.ClearDataRequest
+		Ctx           context.Context
+		RetentionDays int32
 	}
 	mock.lockClearData.RLock()
 	calls = mock.calls.ClearData
@@ -97,21 +96,21 @@ func (mock *TransactionMaintainerMock) ClearDataCalls() []struct {
 }
 
 // SetUnlockedByName calls SetUnlockedByNameFunc.
-func (mock *TransactionMaintainerMock) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (int64, error) {
+func (mock *TransactionMaintainerMock) SetUnlockedByName(ctx context.Context, name string) (int64, error) {
 	if mock.SetUnlockedByNameFunc == nil {
 		panic("TransactionMaintainerMock.SetUnlockedByNameFunc: method is nil but TransactionMaintainer.SetUnlockedByName was just called")
 	}
 	callInfo := struct {
-		Ctx context.Context
-		Req *metamorph_api.SetUnlockedByNameRequest
+		Ctx  context.Context
+		Name string
 	}{
-		Ctx: ctx,
-		Req: req,
+		Ctx:  ctx,
+		Name: name,
 	}
 	mock.lockSetUnlockedByName.Lock()
 	mock.calls.SetUnlockedByName = append(mock.calls.SetUnlockedByName, callInfo)
 	mock.lockSetUnlockedByName.Unlock()
-	return mock.SetUnlockedByNameFunc(ctx, req)
+	return mock.SetUnlockedByNameFunc(ctx, name)
 }
 
 // SetUnlockedByNameCalls gets all the calls that were made to SetUnlockedByName.
@@ -119,12 +118,12 @@ func (mock *TransactionMaintainerMock) SetUnlockedByName(ctx context.Context, re
 //
 //	len(mockedTransactionMaintainer.SetUnlockedByNameCalls())
 func (mock *TransactionMaintainerMock) SetUnlockedByNameCalls() []struct {
-	Ctx context.Context
-	Req *metamorph_api.SetUnlockedByNameRequest
+	Ctx  context.Context
+	Name string
 } {
 	var calls []struct {
-		Ctx context.Context
-		Req *metamorph_api.SetUnlockedByNameRequest
+		Ctx  context.Context
+		Name string
 	}
 	mock.lockSetUnlockedByName.RLock()
 	calls = mock.calls.SetUnlockedByName

@@ -11,15 +11,6 @@ service BlockTxAPI {
   // Health returns the health of the API.
   rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
 
-  // RegisterTransaction registers a transaction with the API.
-  rpc RegisterTransaction (TransactionAndSource) returns (google.protobuf.Empty) {}
-
-  // GetTransactionMerklePath returns the merkle path of a transaction.
-  rpc GetTransactionMerklePath(Transaction) returns (MerklePath) {}
-
-  // GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash.
-  rpc GetTransactionBlocks (Transactions) returns (TransactionBlocks) {}
-
   // ClearTransactions clears transaction data
   rpc ClearTransactions(ClearData) returns (ClearDataResponse) {}
 
@@ -28,6 +19,8 @@ service BlockTxAPI {
 
   // ClearBlockTransactionsMap clears block-transaction-map data
   rpc ClearBlockTransactionsMap(ClearData) returns (ClearDataResponse) {}
+
+  rpc DelUnfinishedProcessedBlocks(DelUnfinishedProcessedBlocksRequest) returns (google.protobuf.Empty) {}
 }
 
 // swagger:model HealthResponse
@@ -107,4 +100,8 @@ message TransactionAndSource {
 message BlockAndSource {
   bytes hash = 1;
   string source = 2;
+}
+
+message DelUnfinishedProcessedBlocksRequest {
+  string processed_by = 1;
 }

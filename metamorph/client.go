@@ -27,8 +27,8 @@ type TransactionHandler interface {
 }
 
 type TransactionMaintainer interface {
-	ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (int64, error)
-	SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (int64, error)
+	ClearData(ctx context.Context, retentionDays int32) (int64, error)
+	SetUnlockedByName(ctx context.Context, name string) (int64, error)
 }
 
 // TransactionStatus defines model for TransactionStatus.
@@ -181,8 +181,8 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOpti
 	return ret, nil
 }
 
-func (m *Metamorph) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (int64, error) {
-	resp, err := m.Client.ClearData(ctx, req)
+func (m *Metamorph) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
+	resp, err := m.Client.ClearData(ctx, &metamorph_api.ClearDataRequest{RetentionDays: retentionDays})
 	if err != nil {
 		return 0, err
 	}
@@ -190,8 +190,8 @@ func (m *Metamorph) ClearData(ctx context.Context, req *metamorph_api.ClearDataR
 	return resp.RecordsAffected, nil
 }
 
-func (m *Metamorph) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (int64, error) {
-	resp, err := m.Client.SetUnlockedByName(ctx, req)
+func (m *Metamorph) SetUnlockedByName(ctx context.Context, name string) (int64, error) {
+	resp, err := m.Client.SetUnlockedByName(ctx, &metamorph_api.SetUnlockedByNameRequest{Name: name})
 	if err != nil {
 		return 0, err
 	}

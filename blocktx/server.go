@@ -92,7 +92,7 @@ func (s *Server) ClearBlockTransactionsMap(ctx context.Context, clearData *block
 	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "block_transactions_map")
 }
 
-func (s *Server) DelUnfinishedProcessedBlocks(ctx context.Context, req *blocktx_api.DelUnfinishedProcessedBlocksRequest) (*emptypb.Empty, error) {
+func (s *Server) DelUnfinishedBlockProcessing(ctx context.Context, req *blocktx_api.DelUnfinishedBlockProcessingRequest) (*emptypb.Empty, error) {
 	bhs, err := s.store.GetBlockHashesProcessed(ctx, req.GetProcessedBy())
 	if err != nil {
 		return &emptypb.Empty{}, err

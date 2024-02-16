@@ -24,7 +24,7 @@ const (
 	BlockTxAPI_ClearTransactions_FullMethodName            = "/blocktx_api.BlockTxAPI/ClearTransactions"
 	BlockTxAPI_ClearBlocks_FullMethodName                  = "/blocktx_api.BlockTxAPI/ClearBlocks"
 	BlockTxAPI_ClearBlockTransactionsMap_FullMethodName    = "/blocktx_api.BlockTxAPI/ClearBlockTransactionsMap"
-	BlockTxAPI_DelUnfinishedProcessedBlocks_FullMethodName = "/blocktx_api.BlockTxAPI/DelUnfinishedProcessedBlocks"
+	BlockTxAPI_DelUnfinishedBlockProcessing_FullMethodName = "/blocktx_api.BlockTxAPI/DelUnfinishedBlockProcessing"
 )
 
 // BlockTxAPIClient is the client API for BlockTxAPI service.
@@ -39,7 +39,8 @@ type BlockTxAPIClient interface {
 	ClearBlocks(ctx context.Context, in *ClearData, opts ...grpc.CallOption) (*ClearDataResponse, error)
 	// ClearBlockTransactionsMap clears block-transaction-map data
 	ClearBlockTransactionsMap(ctx context.Context, in *ClearData, opts ...grpc.CallOption) (*ClearDataResponse, error)
-	DelUnfinishedProcessedBlocks(ctx context.Context, in *DelUnfinishedProcessedBlocksRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// DelUnfinishedBlockProcessing deletes unfinished block processing
+	DelUnfinishedBlockProcessing(ctx context.Context, in *DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type blockTxAPIClient struct {
@@ -86,9 +87,9 @@ func (c *blockTxAPIClient) ClearBlockTransactionsMap(ctx context.Context, in *Cl
 	return out, nil
 }
 
-func (c *blockTxAPIClient) DelUnfinishedProcessedBlocks(ctx context.Context, in *DelUnfinishedProcessedBlocksRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *blockTxAPIClient) DelUnfinishedBlockProcessing(ctx context.Context, in *DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, BlockTxAPI_DelUnfinishedProcessedBlocks_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, BlockTxAPI_DelUnfinishedBlockProcessing_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +108,8 @@ type BlockTxAPIServer interface {
 	ClearBlocks(context.Context, *ClearData) (*ClearDataResponse, error)
 	// ClearBlockTransactionsMap clears block-transaction-map data
 	ClearBlockTransactionsMap(context.Context, *ClearData) (*ClearDataResponse, error)
-	DelUnfinishedProcessedBlocks(context.Context, *DelUnfinishedProcessedBlocksRequest) (*emptypb.Empty, error)
+	// DelUnfinishedBlockProcessing deletes unfinished block processing
+	DelUnfinishedBlockProcessing(context.Context, *DelUnfinishedBlockProcessingRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedBlockTxAPIServer()
 }
 
@@ -127,8 +129,8 @@ func (UnimplementedBlockTxAPIServer) ClearBlocks(context.Context, *ClearData) (*
 func (UnimplementedBlockTxAPIServer) ClearBlockTransactionsMap(context.Context, *ClearData) (*ClearDataResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ClearBlockTransactionsMap not implemented")
 }
-func (UnimplementedBlockTxAPIServer) DelUnfinishedProcessedBlocks(context.Context, *DelUnfinishedProcessedBlocksRequest) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DelUnfinishedProcessedBlocks not implemented")
+func (UnimplementedBlockTxAPIServer) DelUnfinishedBlockProcessing(context.Context, *DelUnfinishedBlockProcessingRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DelUnfinishedBlockProcessing not implemented")
 }
 func (UnimplementedBlockTxAPIServer) mustEmbedUnimplementedBlockTxAPIServer() {}
 
@@ -215,20 +217,20 @@ func _BlockTxAPI_ClearBlockTransactionsMap_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BlockTxAPI_DelUnfinishedProcessedBlocks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DelUnfinishedProcessedBlocksRequest)
+func _BlockTxAPI_DelUnfinishedBlockProcessing_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DelUnfinishedBlockProcessingRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BlockTxAPIServer).DelUnfinishedProcessedBlocks(ctx, in)
+		return srv.(BlockTxAPIServer).DelUnfinishedBlockProcessing(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: BlockTxAPI_DelUnfinishedProcessedBlocks_FullMethodName,
+		FullMethod: BlockTxAPI_DelUnfinishedBlockProcessing_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BlockTxAPIServer).DelUnfinishedProcessedBlocks(ctx, req.(*DelUnfinishedProcessedBlocksRequest))
+		return srv.(BlockTxAPIServer).DelUnfinishedBlockProcessing(ctx, req.(*DelUnfinishedBlockProcessingRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -257,8 +259,8 @@ var BlockTxAPI_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BlockTxAPI_ClearBlockTransactionsMap_Handler,
 		},
 		{
-			MethodName: "DelUnfinishedProcessedBlocks",
-			Handler:    _BlockTxAPI_DelUnfinishedProcessedBlocks_Handler,
+			MethodName: "DelUnfinishedBlockProcessing",
+			Handler:    _BlockTxAPI_DelUnfinishedBlockProcessing_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

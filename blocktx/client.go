@@ -42,7 +42,7 @@ func (btc *Client) Health(ctx context.Context) error {
 }
 
 func (btc *Client) DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) error {
-	_, err := btc.client.DelUnfinishedProcessedBlocks(ctx, &blocktx_api.DelUnfinishedProcessedBlocksRequest{ProcessedBy: processedBy})
+	_, err := btc.client.DelUnfinishedBlockProcessing(ctx, &blocktx_api.DelUnfinishedBlockProcessingRequest{ProcessedBy: processedBy})
 	if err != nil {
 		return err
 	}

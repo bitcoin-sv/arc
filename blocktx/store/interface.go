@@ -29,7 +29,7 @@ type Interface interface {
 	ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.ClearDataResponse, error)
 
 	SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error)
-	GetBlockHashesProcessed(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)
+	GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)
 	DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) error
 
 	Close() error

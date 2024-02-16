@@ -95,7 +95,6 @@ type PeerHandler struct {
 	workerCh                    chan hashPeer
 	store                       store.Interface
 	logger                      *slog.Logger
-	announcedCache              map[chainhash.Hash][]p2p.PeerI
 	stats                       *safemap.Safemap[string, *tracing.PeerHandlerStats]
 	transactionStorageBatchSize int
 	peerHandlerCollector        *tracing.PeerHandlerCollector
@@ -166,7 +165,6 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 		store:                       storeI,
 		logger:                      logger,
 		workerCh:                    make(chan hashPeer, 100),
-		announcedCache:              map[chainhash.Hash][]p2p.PeerI{},
 		stats:                       safemap.New[string, *tracing.PeerHandlerStats](),
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
 		startingHeight:              startingHeight,
@@ -216,24 +214,9 @@ func (ph *PeerHandler) startPeerWorker() {
 			hash := workerItem.Hash
 			peer := workerItem.Peer
 
-			item, found := ph.announcedCache[*hash]
-			if found {
-				// if already was announced to peer, continue
-				for _, announcedPeer := range item {
-					if announcedPeer.String() == peer.String() {
-						continue
-					}
-				}
-
-				item = append(item, peer)
-				ph.announcedCache[*hash] = item
-				ph.logger.Debug("added peer to announced cache of block hash", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
-				continue
-			}
-
 			ctx := context.Background()
 
-			blockHashes, err := ph.store.GetBlockHashesProcessed(ctx, ph.hostname)
+			blockHashes, err := ph.store.GetBlockHashesProcessingInProgress(ctx, ph.hostname)
 			if err == nil && len(blockHashes) > 0 {
 				// this blocktx instance is already processing at least one block
 				txHashStrings := make([]string, len(blockHashes))
@@ -268,9 +251,6 @@ func (ph *PeerHandler) startPeerWorker() {
 				ph.logger.Error("ProcessBlock: failed to write message to peer", slog.String("err", err.Error()))
 				continue
 			}
-
-			ph.announcedCache[*hash] = []p2p.PeerI{peer}
-			ph.logger.Debug("added block hash with peer to announced cache", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 
 			ph.logger.Info("ProcessBlock", slog.String("hash", hash.String()))
 		}
@@ -565,11 +545,6 @@ func (ph *PeerHandler) FillGaps(peer p2p.PeerI) error {
 			break
 		}
 
-		_, found := ph.announcedCache[*gaps.Hash]
-		if found {
-			return nil
-		}
-
 		ph.logger.Info("requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Int64("height", int64(gaps.Height)))
 
 		pair := hashPeer{
@@ -589,18 +564,18 @@ func (ph *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 	}()
 
 	if height > uint64(ph.startingHeight) {
-		if _, found := ph.announcedCache[*previousBlockHash]; !found {
-			if _, err := ph.store.GetBlock(context.Background(), previousBlockHash); err != nil {
-				if errors.Is(err, store.ErrBlockNotFound) {
-
-					pair := hashPeer{
-						Hash: previousBlockHash,
-						Peer: peer,
-					}
-					ph.workerCh <- pair
-				} else if err != nil {
-					ph.logger.Error("failed to get previous block", slog.String("hash", previousBlockHash.String()), slog.Int64("height", int64(height-1)), slog.String("err", err.Error()))
+		_, err := ph.store.GetBlock(context.Background(), previousBlockHash)
+		if err != nil {
+			if errors.Is(err, store.ErrBlockNotFound) {
+				pair := hashPeer{
+					Hash: previousBlockHash,
+					Peer: peer,
 				}
+
+				// request previous block
+				ph.workerCh <- pair
+			} else {
+				ph.logger.Error("failed to get previous block", slog.String("hash", previousBlockHash.String()), slog.Int64("height", int64(height-1)), slog.String("err", err.Error()))
 			}
 		}
 	}
@@ -734,9 +709,6 @@ func (ph *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {
 	if err != nil {
 		return err
 	}
-
-	delete(ph.announcedCache, *block.Hash)
-	ph.logger.Debug("removed block from announced cache", slog.String("hash", block.Hash.String()))
 
 	return nil
 }

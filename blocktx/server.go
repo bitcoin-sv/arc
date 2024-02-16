@@ -93,7 +93,7 @@ func (s *Server) ClearBlockTransactionsMap(ctx context.Context, clearData *block
 }
 
 func (s *Server) DelUnfinishedBlockProcessing(ctx context.Context, req *blocktx_api.DelUnfinishedBlockProcessingRequest) (*emptypb.Empty, error) {
-	bhs, err := s.store.GetBlockHashesProcessed(ctx, req.GetProcessedBy())
+	bhs, err := s.store.GetBlockHashesProcessingInProgress(ctx, req.GetProcessedBy())
 	if err != nil {
 		return &emptypb.Empty{}, err
 	}

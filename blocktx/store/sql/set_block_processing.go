@@ -47,7 +47,7 @@ func (s *SQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, proc
 	return nil
 }
 
-func (s *SQL) GetBlockHashesProcessed(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+func (s *SQL) GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
 	// Check how many blocks this instance is currently processing
 	q := `
 	SELECT bp.block_hash FROM block_processing bp

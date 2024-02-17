@@ -403,6 +403,63 @@ func (ddb *DynamoDB) GetUnmined(ctx context.Context, since time.Time, limit int6
 	return data, nil
 }
 
+func (ddb *DynamoDB) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+	startNanos := ddb.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("UpdateStatusBulk").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatusBulk")
+	defer span.Finish()
+
+	var storeData []*store.StoreData
+
+	for _, update := range updates {
+		updateExpression := fmt.Sprintf("SET tx_status = %s, reject_reason = %s", txStatusAttributeKey, rejectReasonAttributeKey)
+		expressionAttributevalues := map[string]types.AttributeValue{
+			txStatusAttributeKey:     &types.AttributeValueMemberN{Value: strconv.Itoa(int(update.Status))},
+			rejectReasonAttributeKey: &types.AttributeValueMemberS{Value: update.RejectReason},
+		}
+
+		switch update.Status {
+		case metamorph_api.Status_ANNOUNCED_TO_NETWORK:
+			updateExpression = updateExpression + fmt.Sprintf(", announced_at = %s", announcedAtAttributeKey)
+			expressionAttributevalues[announcedAtAttributeKey] = &types.AttributeValueMemberS{Value: ddb.now().Format(time.RFC3339)}
+		case metamorph_api.Status_MINED:
+			updateExpression = updateExpression + fmt.Sprintf(", mined_at = %s", minedAtAttributeKey)
+			expressionAttributevalues[minedAtAttributeKey] = &types.AttributeValueMemberS{Value: ddb.now().Format(time.RFC3339)}
+		}
+
+		// update tx
+		output, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+			TableName: aws.String(ddb.transactionsTableName),
+			Key: map[string]types.AttributeValue{
+				"tx_hash": &types.AttributeValueMemberB{Value: update.Hash[:]},
+			},
+			UpdateExpression:          aws.String(updateExpression),
+			ExpressionAttributeValues: expressionAttributevalues,
+			ReturnValues:              types.ReturnValueAllNew,
+		})
+		if err != nil {
+			span.SetTag(string(ext.Error), true)
+			span.LogFields(log.Error(err))
+			return nil, err
+		}
+
+		var data store.StoreData
+		err = attributevalue.UnmarshalMap(output.Attributes, &data)
+		if err != nil {
+			span.SetTag(string(ext.Error), true)
+			span.LogFields(log.Error(err))
+			return nil, err
+		}
+
+		storeData = append(storeData, &data)
+	}
+
+	return storeData, nil
+
+}
+
 func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
 	// setup log and tracing
 	startNanos := ddb.now().UnixNano()
@@ -536,7 +593,7 @@ func (ddb *DynamoDB) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (p *DynamoDB) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
+func (ddb *DynamoDB) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
 	// Implementation not needed as clearing data handled by TTL-feature
 	return 0, nil
 }

@@ -229,6 +229,41 @@ func TestDynamoDBIntegration(t *testing.T) {
 		require.Equal(t, TX1RawBytes, returnedDataMined.RawTx)
 	})
 
+	t.Run("update status bulk", func(t *testing.T) {
+		updates := []store.UpdateStatus{
+			{
+				Hash:         *TX1Hash,
+				Status:       metamorph_api.Status_REJECTED,
+				RejectReason: "missing inputs",
+			},
+			{
+				Hash:   *TX2Hash,
+				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
+			},
+		}
+
+		statusUpdates, err := repo.UpdateStatusBulk(ctx, updates)
+		require.NoError(t, err)
+
+		require.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[0].Status)
+		require.Equal(t, "missing inputs", statusUpdates[0].RejectReason)
+		require.Equal(t, TX1RawBytes, statusUpdates[0].RawTx)
+
+		require.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, statusUpdates[1].Status)
+		require.Equal(t, TX2RawBytes, statusUpdates[1].RawTx)
+
+		returnedDataRejected, err := repo.Get(ctx, TX1Hash[:])
+		require.NoError(t, err)
+		require.Equal(t, metamorph_api.Status_REJECTED, returnedDataRejected.Status)
+		require.Equal(t, "missing inputs", returnedDataRejected.RejectReason)
+		require.Equal(t, TX1RawBytes, returnedDataRejected.RawTx)
+
+		returnedDataRequested, err := repo.Get(ctx, TX2Hash[:])
+		require.NoError(t, err)
+		require.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, returnedDataRequested.Status)
+		require.Equal(t, TX2RawBytes, returnedDataRequested.RawTx)
+	})
+
 	t.Run("update mined", func(t *testing.T) {
 		txBlocks := &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{
 			{

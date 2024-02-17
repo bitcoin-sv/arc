@@ -170,6 +170,43 @@ func (s *Badger) Get(ctx context.Context, hash []byte) (*store.StoreData, error)
 	return result, err
 }
 
+func (s *Badger) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+	start := gocore.CurrentNanos()
+	defer func() {
+		gocore.NewStat("mtm_store_badger").NewStat("UpdateStatusBulk").AddTime(start)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "badger:UpdateStatusBulk")
+	defer span.Finish()
+	storeData := make([]*store.StoreData, 0, len(updates))
+
+	for _, update := range updates {
+
+		tx, err := s.Get(ctx, update.Hash[:])
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				// no need to update status if we don't have the transaction
+				// we also shouldn't need to return an error here
+				return nil, nil
+			}
+			span.SetTag(string(ext.Error), true)
+			span.LogFields(log.Error(err))
+			return nil, err
+		}
+
+		tx.Status = update.Status
+		tx.RejectReason = update.RejectReason
+		if err = s.Set(ctx, tx.Hash[:], tx); err != nil {
+			span.SetTag(string(ext.Error), true)
+			span.LogFields(log.Error(err))
+			return nil, fmt.Errorf("failed to update data: %w", err)
+		}
+
+		storeData = append(storeData, tx)
+	}
+
+	return storeData, nil
+}
+
 // UpdateStatus attempts to update the status of a transaction
 func (s *Badger) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
 	start := gocore.CurrentNanos()
@@ -352,7 +389,7 @@ func (s *Badger) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (p *Badger) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
+func (s *Badger) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
 	// Todo: implement function for clearing data
 	return 0, errors.New("not implemented")
 }

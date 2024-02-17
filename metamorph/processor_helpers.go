@@ -30,20 +30,21 @@ func (p *Processor) GetStats(debugItems bool) *ProcessorStats {
 	}
 
 	return &ProcessorStats{
-		StartTime:          p.startTime,
-		UptimeMillis:       time.Since(p.startTime).String(),
-		QueueLength:        p.queueLength.Load(),
-		QueuedCount:        p.queuedCount.Load(),
-		Stored:             p.stored,
-		AnnouncedToNetwork: p.announcedToNetwork,
-		RequestedByNetwork: p.requestedByNetwork,
-		SentToNetwork:      p.sentToNetwork,
-		AcceptedByNetwork:  p.acceptedByNetwork,
-		SeenOnNetwork:      p.seenOnNetwork,
-		Rejected:           p.rejected,
-		Mined:              p.mined,
-		Retries:            p.retries,
-		ChannelMapSize:     int32(p.ProcessorResponseMap.Len()),
+		StartTime:           p.startTime,
+		UptimeMillis:        time.Since(p.startTime).String(),
+		QueueLength:         p.queueLength.Load(),
+		QueuedCount:         p.queuedCount.Load(),
+		Stored:              p.stored,
+		AnnouncedToNetwork:  p.announcedToNetwork,
+		RequestedByNetwork:  p.requestedByNetwork,
+		SentToNetwork:       p.sentToNetwork,
+		AcceptedByNetwork:   p.acceptedByNetwork,
+		SeenInOrphanMempool: p.seenInOrphanMempool,
+		SeenOnNetwork:       p.seenOnNetwork,
+		Rejected:            p.rejected,
+		Mined:               p.mined,
+		Retries:             p.retries,
+		ChannelMapSize:      int32(p.ProcessorResponseMap.Len()),
 	}
 }
 
@@ -395,7 +396,6 @@ func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *proc
 		Status:                prm.Status,
 		NoStats:               prm.NoStats,
 		LastStatusUpdateNanos: prm.LastStatusUpdateNanos.Load(),
-		Log:                   prm.Log,
 	}
 
 	resLog := strings.Builder{}

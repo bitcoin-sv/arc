@@ -1,6 +1,7 @@
 package metamorph
 
 import (
+	"github.com/bitcoin-sv/arc/metamorph/store"
 	"log/slog"
 	"time"
 
@@ -28,6 +29,19 @@ func WithNow(nowFunc func() time.Time) func(*Processor) {
 func WithProcessExpiredTxsInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.processExpiredTxsTicker = time.NewTicker(d)
+	}
+}
+
+func WithProcessStatusUpdatesInterval(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.processStatusUpdatesInterval = d
+	}
+}
+
+func WithProcessStatusUpdatesBatchSize(size int) func(*Processor) {
+	return func(p *Processor) {
+		p.processStatusUpdatesBatchSize = size
+		p.statusUpdateCh = make(chan store.UpdateStatus, size)
 	}
 }
 

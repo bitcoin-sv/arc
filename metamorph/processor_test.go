@@ -429,13 +429,12 @@ func TestSendStatusForTransaction(t *testing.T) {
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
-				UpdateStatusFunc: func(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
-					require.Equal(t, tc.txResponseHash, hash)
-					wg.Done()
-					return tc.updateErr
-				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
 					return nil
+				},
+				UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+					wg.Done()
+					return nil, nil
 				},
 			}
 
@@ -443,7 +442,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 			processor, err := metamorph.NewProcessor(metamorphStore, pm, metamorph.WithNow(func() time.Time {
 				return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC)
-			}))
+			}), metamorph.WithProcessStatusUpdatesInterval(20*time.Millisecond))
 			require.NoError(t, err)
 			assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
@@ -459,7 +458,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 				t.Fatal("status was not updated as expected")
 			}
 
-			assert.Equal(t, tc.expectedUpdateStatusCalls, len(metamorphStore.UpdateStatusCalls()))
+			assert.Equal(t, tc.expectedUpdateStatusCalls, len(metamorphStore.UpdateStatusBulkCalls()))
 			processor.Shutdown()
 		})
 	}

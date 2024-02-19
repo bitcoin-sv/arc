@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"github.com/go-testfixtures/testfixtures/v3"
@@ -67,7 +68,7 @@ func (s *UpdateBlockTransactionsSuite) Test() {
 
 	require.ErrorContains(s.T(), err, "transactions (len=3) and Merkle paths (len=1) have not the same lengths")
 
-	_, err = st.UpdateBlockTransactions(context.Background(), testBlockID, []*blocktx_api.TransactionAndSource{
+	updateResult, err := st.UpdateBlockTransactions(context.Background(), testBlockID, []*blocktx_api.TransactionAndSource{
 		{
 			Hash: txHash1[:],
 		},
@@ -79,6 +80,12 @@ func (s *UpdateBlockTransactionsSuite) Test() {
 		},
 	}, testMerklePaths)
 	require.NoError(s.T(), err)
+
+	require.True(s.T(), bytes.Equal(txHash1[:], updateResult[0].TxHash))
+	require.Equal(s.T(), testMerklePaths[0], updateResult[0].MerklePath)
+
+	require.True(s.T(), bytes.Equal(txHash2[:], updateResult[1].TxHash))
+	require.Equal(s.T(), testMerklePaths[1], updateResult[1].MerklePath)
 
 	d, err := sqlx.Open("postgres", database_testing.DefaultParams.String())
 	require.NoError(s.T(), err)

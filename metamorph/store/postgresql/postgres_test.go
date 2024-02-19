@@ -22,6 +22,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,7 +34,9 @@ const (
 	dbPassword     = "arcpass"
 )
 
-var dbInfo string
+var (
+	dbInfo string
+)
 
 func TestMain(m *testing.M) {
 	pool, err := dockertest.NewPool("")
@@ -76,6 +79,7 @@ func TestMain(m *testing.M) {
 	hostPort := resource.GetPort("5432/tcp")
 
 	dbInfo = fmt.Sprintf("host=localhost port=%s user=%s password=%s dbname=%s sslmode=disable", hostPort, dbUsername, dbPassword, dbName)
+	fmt.Println(dbInfo)
 	var postgresDB *PostgreSQL
 	err = pool.Retry(func() error {
 		postgresDB, err = New(dbInfo, "localhost", 10, 10)
@@ -208,8 +212,6 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("get unmined", func(t *testing.T) {
-		fmt.Println(dbInfo)
-
 		expectedHash, err := chainhash.NewHashFromStr("57438c4340b9a5e0d77120d999765589048f6f2dd49a6325cdf14356fc4cc012")
 		require.NoError(t, err)
 		records, err := postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1)
@@ -225,8 +227,6 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("set unlocked", func(t *testing.T) {
-		fmt.Println(dbInfo)
-
 		err = postgresDB.SetUnlocked(ctx, []*chainhash.Hash{chainHash1, chainHash2, chainHash3, chainHash4})
 		require.NoError(t, err)
 
@@ -246,7 +246,6 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("set unlocked by name", func(t *testing.T) {
-		fmt.Println(dbInfo)
 		rows, err := postgresDB.SetUnlockedByName(ctx, "metamorph-3")
 		require.NoError(t, err)
 		require.Equal(t, int64(2), rows)
@@ -284,6 +283,67 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, dataReturned, &unmined)
 
 		err = postgresDB.Del(ctx, unminedHash[:])
+		require.NoError(t, err)
+	})
+
+	t.Run("update status bulk", func(t *testing.T) {
+
+		tx1Data := &store.StoreData{
+			RawTx:  testdata.TX1RawBytes,
+			Hash:   testdata.TX1Hash,
+			Status: metamorph_api.Status_STORED,
+		}
+		err = postgresDB.Set(ctx, testdata.TX1Hash[:], tx1Data)
+		require.NoError(t, err)
+
+		tx6Data := &store.StoreData{
+			RawTx:  testdata.TX6RawBytes,
+			Hash:   testdata.TX6Hash,
+			Status: metamorph_api.Status_STORED,
+		}
+
+		err = postgresDB.Set(ctx, testdata.TX6Hash[:], tx6Data)
+		require.NoError(t, err)
+
+		updates := []store.UpdateStatus{
+			{
+				Hash:         *testdata.TX1Hash,
+				Status:       metamorph_api.Status_REQUESTED_BY_NETWORK,
+				RejectReason: "",
+			},
+			{
+				Hash:         *testdata.TX6Hash,
+				Status:       metamorph_api.Status_REJECTED,
+				RejectReason: "missing inputs",
+			},
+		}
+
+		statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
+		require.NoError(t, err)
+		require.Len(t, statusUpdates, 2)
+
+		assert.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, statusUpdates[0].Status)
+		assert.Equal(t, testdata.TX1RawBytes, statusUpdates[0].RawTx)
+
+		assert.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[1].Status)
+		assert.Equal(t, "missing inputs", statusUpdates[1].RejectReason)
+		assert.Equal(t, testdata.TX6RawBytes, statusUpdates[1].RawTx)
+
+		returnedDataRejected, err := postgresDB.Get(ctx, testdata.TX1Hash[:])
+		require.NoError(t, err)
+		assert.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, returnedDataRejected.Status)
+		assert.Equal(t, "", returnedDataRejected.RejectReason)
+		assert.Equal(t, testdata.TX1RawBytes, returnedDataRejected.RawTx)
+
+		returnedDataRequested, err := postgresDB.Get(ctx, testdata.TX6Hash[:])
+		require.NoError(t, err)
+		assert.Equal(t, metamorph_api.Status_REJECTED, returnedDataRequested.Status)
+		assert.Equal(t, "missing inputs", returnedDataRequested.RejectReason)
+		assert.Equal(t, testdata.TX6RawBytes, returnedDataRequested.RawTx)
+
+		err = postgresDB.Del(ctx, testdata.TX1Hash[:])
+		require.NoError(t, err)
+		err = postgresDB.Del(ctx, testdata.TX6Hash[:])
 		require.NoError(t, err)
 	})
 

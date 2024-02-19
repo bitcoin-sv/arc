@@ -2,10 +2,6 @@ package dynamodb
 
 import (
 	"context"
-	"encoding/hex"
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/metamorph/store"
-	"github.com/bitcoin-sv/arc/testdata"
 	"testing"
 	"time"
 
@@ -14,8 +10,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/libsv/go-bt/v2"
+	"github.com/bitcoin-sv/arc/metamorph/store"
+	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
@@ -29,16 +27,7 @@ const (
 )
 
 var (
-	TX1Raw         = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff1a0386c40b2f7461616c2e636f6d2f00cf47ad9c7af83836000000ffffffff0117564425000000001976a914522cf9e7626d9bd8729e5a1398ece40dad1b6a2f88ac00000000"
-	TX1RawBytes, _ = hex.DecodeString(TX1Raw)
-	TX1, _         = bt.NewTxFromBytes(TX1RawBytes)
-	TX1Hash, _     = chainhash.NewHashFromStr(TX1.TxID())
-
-	TX2raw         = "010000000000000000ef016f8828b2d3f8085561d0b4ff6f5d17c269206fa3d32bcd3b22e26ce659ed12e7000000006b483045022100d3649d120249a09af44b4673eecec873109a3e120b9610b78858087fb225c9b9022037f16999b7a4fecdd9f47ebdc44abd74567a18940c37e1481ab0fe84d62152e4412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffe7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01e7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000"
-	TX2RawBytes, _ = hex.DecodeString(TX2raw)
-	TX2, _         = bt.NewTxFromBytes(TX2RawBytes)
-	TX2Hash, _     = chainhash.NewHashFromStr(TX2.TxID())
-	dateNow        = time.Date(2023, 11, 12, 13, 0, 0, 0, time.UTC)
+	dateNow = time.Date(2023, 11, 12, 13, 0, 0, 0, time.UTC)
 )
 
 func NewDynamoDBIntegrationTestRepo(t *testing.T) (*DynamoDB, *dynamodb.Client) {
@@ -111,11 +100,11 @@ func putItem(t *testing.T, ctx context.Context, client *dynamodb.Client, storeDa
 func TestDynamoDBIntegration(t *testing.T) {
 
 	dataStatusSent := &store.StoreData{
-		Hash:          TX1Hash,
+		Hash:          testdata.TX1Hash,
 		Status:        metamorph_api.Status_SENT_TO_NETWORK,
 		CallbackUrl:   "http://callback.com",
 		CallbackToken: "abcd",
-		RawTx:         TX1RawBytes,
+		RawTx:         testdata.TX1RawBytes,
 		LockedBy:      hostname,
 	}
 
@@ -128,11 +117,11 @@ func TestDynamoDBIntegration(t *testing.T) {
 			WrongType bool            `dynamodbav:"block_height"`
 		}
 		putItem(t, ctx, client, invalid{
-			Hash:      TX1Hash,
+			Hash:      testdata.TX1Hash,
 			WrongType: false,
 		})
 
-		_, err := repo.Get(ctx, TX1Hash[:])
+		_, err := repo.Get(ctx, testdata.TX1Hash[:])
 
 		_, isAttrErr := err.(*attributevalue.UnmarshalTypeError)
 		require.True(t, isAttrErr)
@@ -141,16 +130,16 @@ func TestDynamoDBIntegration(t *testing.T) {
 		err := repo.Set(ctx, nil, dataStatusSent)
 		require.NoError(t, err)
 
-		returnedData, err := repo.Get(ctx, TX1Hash[:])
+		returnedData, err := repo.Get(ctx, testdata.TX1Hash[:])
 		require.NoError(t, err)
 		require.Equal(t, dataStatusSent, returnedData)
 	})
 
 	t.Run("set unlocked", func(t *testing.T) {
-		err := repo.SetUnlocked(ctx, []*chainhash.Hash{TX1Hash})
+		err := repo.SetUnlocked(ctx, []*chainhash.Hash{testdata.TX1Hash})
 		require.NoError(t, err)
 
-		returnedData, err := repo.Get(ctx, TX1Hash[:])
+		returnedData, err := repo.Get(ctx, testdata.TX1Hash[:])
 		require.NoError(t, err)
 		require.Equal(t, lockedByNone, returnedData.LockedBy)
 
@@ -159,9 +148,9 @@ func TestDynamoDBIntegration(t *testing.T) {
 
 	t.Run("get unmined", func(t *testing.T) {
 		dataStatusAnnounced := &store.StoreData{
-			Hash:     TX2Hash,
+			Hash:     testdata.TX6Hash,
 			Status:   metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-			RawTx:    TX2RawBytes,
+			RawTx:    testdata.TX6RawBytes,
 			LockedBy: lockedByNone,
 			StoredAt: dateNow,
 		}
@@ -172,10 +161,10 @@ func TestDynamoDBIntegration(t *testing.T) {
 		require.Contains(t, returnedData, dataStatusSent)
 		require.Contains(t, returnedData, dataStatusAnnounced)
 
-		tx1, err := repo.Get(ctx, TX1Hash[:])
+		tx1, err := repo.Get(ctx, testdata.TX1Hash[:])
 		require.NoError(t, err)
 		require.Contains(t, hostname, tx1.LockedBy)
-		tx2, err := repo.Get(ctx, TX2Hash[:])
+		tx2, err := repo.Get(ctx, testdata.TX6Hash[:])
 		require.NoError(t, err)
 		require.Contains(t, hostname, tx2.LockedBy)
 	})
@@ -189,55 +178,55 @@ func TestDynamoDBIntegration(t *testing.T) {
 		require.Equal(t, int64(2), results)
 		require.NoError(t, err)
 
-		returnedData, err := repo.Get(ctx, TX1Hash[:])
+		returnedData, err := repo.Get(ctx, testdata.TX1Hash[:])
 		require.NoError(t, err)
 		require.Equal(t, lockedByNone, returnedData.LockedBy)
-		tx2, err := repo.Get(ctx, TX2Hash[:])
+		tx2, err := repo.Get(ctx, testdata.TX6Hash[:])
 		require.NoError(t, err)
 		require.Contains(t, lockedByNone, tx2.LockedBy)
 	})
 
 	t.Run("update status", func(t *testing.T) {
-		err := repo.UpdateStatus(ctx, TX1Hash, metamorph_api.Status_REJECTED, "missing inputs")
+		err := repo.UpdateStatus(ctx, testdata.TX1Hash, metamorph_api.Status_REJECTED, "missing inputs")
 		require.NoError(t, err)
-		returnedDataRejected, err := repo.Get(ctx, TX1Hash[:])
+		returnedDataRejected, err := repo.Get(ctx, testdata.TX1Hash[:])
 		require.NoError(t, err)
 		require.Equal(t, metamorph_api.Status_REJECTED, returnedDataRejected.Status)
 		require.Equal(t, "missing inputs", returnedDataRejected.RejectReason)
-		require.Equal(t, TX1RawBytes, returnedDataRejected.RawTx)
+		require.Equal(t, testdata.TX1RawBytes, returnedDataRejected.RawTx)
 
-		err = repo.UpdateStatus(ctx, TX1Hash, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, "")
+		err = repo.UpdateStatus(ctx, testdata.TX1Hash, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, "")
 		require.NoError(t, err)
-		returnedDataSeenInOrphanMempool, err := repo.Get(ctx, TX1Hash[:])
+		returnedDataSeenInOrphanMempool, err := repo.Get(ctx, testdata.TX1Hash[:])
 		require.NoError(t, err)
 		require.Equal(t, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, returnedDataSeenInOrphanMempool.Status)
-		require.Equal(t, TX1RawBytes, returnedDataSeenInOrphanMempool.RawTx)
+		require.Equal(t, testdata.TX1RawBytes, returnedDataSeenInOrphanMempool.RawTx)
 
-		err = repo.UpdateStatus(ctx, TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK, "")
+		err = repo.UpdateStatus(ctx, testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK, "")
 		require.NoError(t, err)
-		returnedDataSeenOnNetwork, err := repo.Get(ctx, TX1Hash[:])
+		returnedDataSeenOnNetwork, err := repo.Get(ctx, testdata.TX1Hash[:])
 		require.NoError(t, err)
 		require.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, returnedDataSeenOnNetwork.Status)
-		require.Equal(t, TX1RawBytes, returnedDataSeenOnNetwork.RawTx)
+		require.Equal(t, testdata.TX1RawBytes, returnedDataSeenOnNetwork.RawTx)
 
-		err = repo.UpdateStatus(ctx, TX1Hash, metamorph_api.Status_MINED, "")
+		err = repo.UpdateStatus(ctx, testdata.TX1Hash, metamorph_api.Status_MINED, "")
 		require.NoError(t, err)
-		returnedDataMined, err := repo.Get(ctx, TX1Hash[:])
+		returnedDataMined, err := repo.Get(ctx, testdata.TX1Hash[:])
 		require.NoError(t, err)
 		require.Equal(t, metamorph_api.Status_MINED, returnedDataMined.Status)
 		require.Equal(t, dateNow, returnedDataMined.MinedAt)
-		require.Equal(t, TX1RawBytes, returnedDataMined.RawTx)
+		require.Equal(t, testdata.TX1RawBytes, returnedDataMined.RawTx)
 	})
 
 	t.Run("update status bulk", func(t *testing.T) {
 		updates := []store.UpdateStatus{
 			{
-				Hash:         *TX1Hash,
+				Hash:         *testdata.TX1Hash,
 				Status:       metamorph_api.Status_REJECTED,
 				RejectReason: "missing inputs",
 			},
 			{
-				Hash:   *TX2Hash,
+				Hash:   *testdata.TX6Hash,
 				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
 			},
 		}
@@ -247,21 +236,21 @@ func TestDynamoDBIntegration(t *testing.T) {
 
 		require.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[0].Status)
 		require.Equal(t, "missing inputs", statusUpdates[0].RejectReason)
-		require.Equal(t, TX1RawBytes, statusUpdates[0].RawTx)
+		require.Equal(t, testdata.TX1RawBytes, statusUpdates[0].RawTx)
 
 		require.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, statusUpdates[1].Status)
-		require.Equal(t, TX2RawBytes, statusUpdates[1].RawTx)
+		require.Equal(t, testdata.TX6RawBytes, statusUpdates[1].RawTx)
 
-		returnedDataRejected, err := repo.Get(ctx, TX1Hash[:])
+		returnedDataRejected, err := repo.Get(ctx, testdata.TX1Hash[:])
 		require.NoError(t, err)
 		require.Equal(t, metamorph_api.Status_REJECTED, returnedDataRejected.Status)
 		require.Equal(t, "missing inputs", returnedDataRejected.RejectReason)
-		require.Equal(t, TX1RawBytes, returnedDataRejected.RawTx)
+		require.Equal(t, testdata.TX1RawBytes, returnedDataRejected.RawTx)
 
-		returnedDataRequested, err := repo.Get(ctx, TX2Hash[:])
+		returnedDataRequested, err := repo.Get(ctx, testdata.TX6Hash[:])
 		require.NoError(t, err)
 		require.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, returnedDataRequested.Status)
-		require.Equal(t, TX2RawBytes, returnedDataRequested.RawTx)
+		require.Equal(t, testdata.TX6RawBytes, returnedDataRequested.RawTx)
 	})
 
 	t.Run("update mined", func(t *testing.T) {
@@ -269,13 +258,13 @@ func TestDynamoDBIntegration(t *testing.T) {
 			{
 				BlockHash:       testdata.Block1Hash[:],
 				BlockHeight:     100,
-				TransactionHash: TX1Hash[:],
+				TransactionHash: testdata.TX1Hash[:],
 				MerklePath:      "merkle-path-1",
 			},
 			{
 				BlockHash:       testdata.Block1Hash[:],
 				BlockHeight:     100,
-				TransactionHash: TX2Hash[:],
+				TransactionHash: testdata.TX6Hash[:],
 				MerklePath:      "merkle-path-2",
 			},
 		}}
@@ -283,30 +272,30 @@ func TestDynamoDBIntegration(t *testing.T) {
 		updated, err := repo.UpdateMined(ctx, txBlocks)
 		require.NoError(t, err)
 		require.Equal(t, metamorph_api.Status_MINED, updated[0].Status)
-		require.Equal(t, TX1RawBytes, updated[0].RawTx)
+		require.Equal(t, testdata.TX1RawBytes, updated[0].RawTx)
 		require.Equal(t, dateNow, updated[0].MinedAt)
 		require.Equal(t, "merkle-path-1", updated[0].MerklePath)
 		require.Equal(t, uint64(100), updated[0].BlockHeight)
 		require.True(t, testdata.Block1Hash.IsEqual(updated[0].BlockHash))
 
 		require.Equal(t, metamorph_api.Status_MINED, updated[1].Status)
-		require.Equal(t, TX2RawBytes, updated[1].RawTx)
+		require.Equal(t, testdata.TX6RawBytes, updated[1].RawTx)
 		require.Equal(t, dateNow, updated[1].MinedAt)
 		require.Equal(t, "merkle-path-2", updated[1].MerklePath)
 		require.Equal(t, uint64(100), updated[1].BlockHeight)
 		require.True(t, testdata.Block1Hash.IsEqual(updated[1].BlockHash))
 
-		returnedData, err := repo.Get(ctx, TX2Hash[:])
+		returnedData, err := repo.Get(ctx, testdata.TX6Hash[:])
 		require.NoError(t, err)
 		require.Equal(t, metamorph_api.Status_MINED, returnedData.Status)
-		require.Equal(t, TX2RawBytes, returnedData.RawTx)
+		require.Equal(t, testdata.TX6RawBytes, returnedData.RawTx)
 		require.Equal(t, dateNow, returnedData.MinedAt)
 	})
 
 	t.Run("del", func(t *testing.T) {
-		err := repo.Del(ctx, TX1Hash[:])
+		err := repo.Del(ctx, testdata.TX1Hash[:])
 		require.NoError(t, err)
-		_, err = repo.Get(ctx, TX1Hash[:])
+		_, err = repo.Get(ctx, testdata.TX1Hash[:])
 		require.ErrorIs(t, err, store.ErrNotFound)
 	})
 
@@ -316,7 +305,7 @@ func TestDynamoDBIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		time.Sleep(10 * time.Second) // give DynamoDB time to delete
-		_, err = repo.Get(ctx, TX1Hash[:])
+		_, err = repo.Get(ctx, testdata.TX1Hash[:])
 		require.ErrorIs(t, err, store.ErrNotFound)
 	})
 }

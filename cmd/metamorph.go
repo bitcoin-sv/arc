@@ -99,6 +99,11 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
+	processStatusUpdateInterval, err := config.GetDuration("metamorph.processStatusUpdateInterval")
+	if err != nil {
+		return nil, err
+	}
+
 	// maximum amount of messages that could be coming from a single block
 	capacityRequired := int(float64(targetTps*avgMinPerBlock*secPerMin) / float64(maxBatchSize))
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, capacityRequired)
@@ -122,6 +127,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithMaxMonitoredTxs(maxMonitoredTxs),
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
+		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)

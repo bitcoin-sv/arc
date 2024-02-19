@@ -320,111 +320,234 @@ func TestProcessTransaction(t *testing.T) {
 }
 
 func TestSendStatusForTransaction(t *testing.T) {
-	tt := []struct {
-		name                string
-		updateStatus        metamorph_api.Status
+	type input struct {
+		hash      *chainhash.Hash
+		newStatus metamorph_api.Status
+		statusErr error
+
 		txResponseHash      *chainhash.Hash
 		txResponseHashValue *processor_response.ProcessorResponse
-		statusErr           error
-		updateErr           error
+	}
+
+	tt := []struct {
+		name       string
+		inputs     []input
+		updateErr  error
+		updateResp []*store.StoreData
 
 		expectedUpdateStatusCalls int
 		expectedStatusUpdated     bool
 	}{
 		{
-			name:         "tx not in response map - no update",
-			updateStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			name: "tx not in response map - no update",
+			inputs: []input{
+				{
+					hash:                testdata.TX1Hash,
+					newStatus:           metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+					statusErr:           nil,
+					txResponseHash:      nil,
+					txResponseHashValue: nil,
+				},
+			},
 
 			expectedUpdateStatusCalls: 0,
 		},
 		{
-			name:                "tx in response map - current status REJECTED, new status SEEN_ON_NETWORK - no update",
-			updateStatus:        metamorph_api.Status_SEEN_ON_NETWORK,
-			txResponseHash:      testdata.TX1Hash,
-			txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_REJECTED),
+			name: "tx in response map - current status REJECTED, new status SEEN_ON_NETWORK - no update",
+			inputs: []input{
+				{
+					hash:                testdata.TX1Hash,
+					newStatus:           metamorph_api.Status_SEEN_ON_NETWORK,
+					statusErr:           nil,
+					txResponseHash:      testdata.TX1Hash,
+					txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_REJECTED),
+				},
+			},
 
 			expectedUpdateStatusCalls: 0,
 		},
 		{
-			name:                "new status ANNOUNCED_TO_NETWORK - update",
-			updateStatus:        metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-			txResponseHash:      testdata.TX1Hash,
-			txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_STORED),
+			name: "new status ANNOUNCED_TO_NETWORK - update",
+			inputs: []input{
+				{
+					hash:                testdata.TX1Hash,
+					newStatus:           metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+					statusErr:           nil,
+					txResponseHash:      testdata.TX1Hash,
+					txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_STORED),
+				},
+			},
 
 			expectedUpdateStatusCalls: 1,
 			expectedStatusUpdated:     true,
 		},
 		{
-			name:                "new status REJECTED - update",
-			updateStatus:        metamorph_api.Status_REJECTED,
-			txResponseHash:      testdata.TX1Hash,
-			txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK),
-			statusErr:           errors.New("missing inputs"),
+			name: "new status REJECTED - update",
+			inputs: []input{
+				{
+					hash:                testdata.TX1Hash,
+					newStatus:           metamorph_api.Status_REJECTED,
+					statusErr:           errors.New("missing inputs"),
+					txResponseHash:      testdata.TX1Hash,
+					txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK),
+				},
+			},
 
 			expectedUpdateStatusCalls: 1,
 			expectedStatusUpdated:     true,
 		},
 		{
-			name:                "new status SEEN_ON_NETWORK - update",
-			updateStatus:        metamorph_api.Status_SEEN_ON_NETWORK,
-			txResponseHash:      testdata.TX1Hash,
-			txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK),
+			name: "new status SEEN_ON_NETWORK - update",
+			inputs: []input{
+				{
+					hash:                testdata.TX1Hash,
+					newStatus:           metamorph_api.Status_SEEN_ON_NETWORK,
+					txResponseHash:      testdata.TX1Hash,
+					txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK),
+				},
+			},
 
 			expectedUpdateStatusCalls: 1,
 			expectedStatusUpdated:     true,
 		},
 		{
-			name:                "new status ACCEPTED_BY_NETWORK - update",
-			updateStatus:        metamorph_api.Status_ACCEPTED_BY_NETWORK,
-			txResponseHash:      testdata.TX1Hash,
-			txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK),
+			name: "new status ACCEPTED_BY_NETWORK - update",
+			inputs: []input{
+				{
+					hash:                testdata.TX1Hash,
+					newStatus:           metamorph_api.Status_ACCEPTED_BY_NETWORK,
+					txResponseHash:      testdata.TX1Hash,
+					txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SENT_TO_NETWORK),
+				},
+			},
 
 			expectedUpdateStatusCalls: 1,
 			expectedStatusUpdated:     true,
 		},
 		{
-			name:                "new status SENT_TO_NETWORK - update",
-			updateStatus:        metamorph_api.Status_SENT_TO_NETWORK,
-			txResponseHash:      testdata.TX1Hash,
-			txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_REQUESTED_BY_NETWORK),
+			name: "new status SENT_TO_NETWORK - update",
+			inputs: []input{
+				{
+					hash:                testdata.TX1Hash,
+					newStatus:           metamorph_api.Status_SENT_TO_NETWORK,
+					txResponseHash:      testdata.TX1Hash,
+					txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_REQUESTED_BY_NETWORK),
+				},
+			},
 
 			expectedUpdateStatusCalls: 1,
 			expectedStatusUpdated:     true,
 		},
 		{
-			name:                "new status REQUESTED_BY_NETWORK - update",
-			updateStatus:        metamorph_api.Status_REQUESTED_BY_NETWORK,
-			txResponseHash:      testdata.TX1Hash,
-			txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_STORED),
+			name: "new status REQUESTED_BY_NETWORK - update",
+			inputs: []input{
+				{
+					hash:                testdata.TX1Hash,
+					newStatus:           metamorph_api.Status_REQUESTED_BY_NETWORK,
+					txResponseHash:      testdata.TX1Hash,
+					txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_STORED),
+				},
+			},
 
 			expectedUpdateStatusCalls: 1,
 			expectedStatusUpdated:     true,
 		},
 		{
-			name:                "new status MINED - update",
-			updateStatus:        metamorph_api.Status_MINED,
-			txResponseHash:      testdata.TX1Hash,
-			txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK),
+			name: "new status MINED - update",
+			inputs: []input{
+				{
+					hash:                testdata.TX1Hash,
+					newStatus:           metamorph_api.Status_MINED,
+					txResponseHash:      testdata.TX1Hash,
+					txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK),
+				},
+			},
 
 			expectedUpdateStatusCalls: 1,
 			expectedStatusUpdated:     true,
 		},
 		{
-			name:                "new status MINED - update error",
-			updateStatus:        metamorph_api.Status_MINED,
-			txResponseHash:      testdata.TX1Hash,
-			txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK),
-			updateErr:           errors.New("failed to update status"),
+			name: "new status MINED - update error",
+			inputs: []input{
+				{
+					hash:                testdata.TX1Hash,
+					newStatus:           metamorph_api.Status_MINED,
+					txResponseHash:      testdata.TX1Hash,
+					txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_SEEN_ON_NETWORK),
+				},
+			},
+			updateErr: errors.New("failed to update status"),
 
 			expectedUpdateStatusCalls: 1,
+			expectedStatusUpdated:     true,
+		},
+		{
+			name: "multiple updates",
+			inputs: []input{
+				{
+					hash:      testdata.TX1Hash,
+					newStatus: metamorph_api.Status_REQUESTED_BY_NETWORK,
+
+					txResponseHash:      testdata.TX1Hash,
+					txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX1Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK),
+				},
+				{
+					hash:                testdata.TX2Hash,
+					newStatus:           metamorph_api.Status_REQUESTED_BY_NETWORK,
+					txResponseHash:      testdata.TX2Hash,
+					txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX2Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK),
+				},
+				{
+					hash:                testdata.TX3Hash,
+					newStatus:           metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL,
+					txResponseHash:      testdata.TX3Hash,
+					txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX3Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK),
+				},
+				{
+					hash:                testdata.TX4Hash,
+					newStatus:           metamorph_api.Status_SEEN_ON_NETWORK,
+					txResponseHash:      testdata.TX4Hash,
+					txResponseHashValue: processor_response.NewProcessorResponseWithStatus(testdata.TX4Hash, metamorph_api.Status_SENT_TO_NETWORK),
+				},
+			},
+			updateResp: []*store.StoreData{
+				{
+					Hash:              testdata.TX1Hash,
+					CallbackUrl:       "http://callback.com",
+					FullStatusUpdates: true,
+					Status:            metamorph_api.Status_REQUESTED_BY_NETWORK,
+				},
+				{
+					Hash:              testdata.TX2Hash,
+					CallbackUrl:       "http://callback.com",
+					FullStatusUpdates: true,
+					Status:            metamorph_api.Status_REQUESTED_BY_NETWORK,
+				},
+				{
+					Hash:              testdata.TX3Hash,
+					CallbackUrl:       "http://callback.com",
+					FullStatusUpdates: true,
+					Status:            metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL,
+				},
+				{
+					Hash:              testdata.TX4Hash,
+					CallbackUrl:       "http://callback.com",
+					FullStatusUpdates: true,
+					Status:            metamorph_api.Status_SEEN_ON_NETWORK,
+				},
+			},
+
+			expectedUpdateStatusCalls: 2,
 			expectedStatusUpdated:     true,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			wg := &sync.WaitGroup{}
-			wg.Add(tc.expectedUpdateStatusCalls)
+
+			counter := 0
+			updatesFinished := make(chan struct{})
+
 			metamorphStore := &mocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
@@ -433,8 +556,12 @@ func TestSendStatusForTransaction(t *testing.T) {
 					return nil
 				},
 				UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
-					wg.Done()
-					return nil, nil
+					counter++
+
+					if counter >= tc.expectedUpdateStatusCalls && tc.expectedUpdateStatusCalls > 0 {
+						updatesFinished <- struct{}{}
+					}
+					return tc.updateResp, tc.updateErr
 				},
 			}
 
@@ -442,41 +569,29 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 			processor, err := metamorph.NewProcessor(metamorphStore, pm, metamorph.WithNow(func() time.Time {
 				return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC)
-			}), metamorph.WithProcessStatusUpdatesInterval(20*time.Millisecond))
+			}), metamorph.WithProcessStatusUpdatesInterval(50*time.Millisecond), metamorph.WithProcessStatusUpdatesBatchSize(3))
 			require.NoError(t, err)
 			assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 
-			if tc.txResponseHash != nil {
-				processor.ProcessorResponseMap.Set(tc.txResponseHash, tc.txResponseHashValue)
+			for _, testInput := range tc.inputs {
+				if testInput.txResponseHash != nil {
+					processor.ProcessorResponseMap.Set(testInput.txResponseHash, testInput.txResponseHashValue)
+				}
+
+				statusUpdated, sendErr := processor.SendStatusForTransaction(testInput.hash, testInput.newStatus, "test", testInput.statusErr)
+				assert.NoError(t, sendErr)
+				assert.Equal(t, tc.expectedStatusUpdated, statusUpdated)
 			}
 
-			statusUpdated, sendErr := processor.SendStatusForTransaction(testdata.TX1Hash, tc.updateStatus, "test", tc.statusErr)
-			assert.NoError(t, sendErr)
-			assert.Equal(t, tc.expectedStatusUpdated, statusUpdated)
-
-			if waitTimeout(wg, time.Millisecond*200) {
-				t.Fatal("status was not updated as expected")
+			if tc.expectedUpdateStatusCalls > 0 {
+				<-updatesFinished
 			}
+
+			time.Sleep(time.Millisecond * 100)
 
 			assert.Equal(t, tc.expectedUpdateStatusCalls, len(metamorphStore.UpdateStatusBulkCalls()))
 			processor.Shutdown()
 		})
-	}
-}
-
-// waitTimeout waits for the waitgroup for the specified max timeout.
-// Returns true if waiting timed out.
-func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		wg.Wait()
-	}()
-	select {
-	case <-c:
-		return false // completed normally
-	case <-time.After(timeout):
-		return true // timed out
 	}
 }
 

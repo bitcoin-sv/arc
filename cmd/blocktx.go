@@ -164,7 +164,7 @@ func StartHealthServerBlocktx(serv *blocktx.Server) error {
 	// register your own services
 	reflection.Register(gs)
 
-	address, err := config.GetString("blocktx.blocktxHealthServerDialAddr") //"localhost:8005"
+	address, err := config.GetString("blocktx.healthServerDialAddr") //"localhost:8005"
 	if err != nil {
 		return err
 	}

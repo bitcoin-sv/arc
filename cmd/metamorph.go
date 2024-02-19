@@ -275,7 +275,7 @@ func StartHealthServerMetamorph(serv *metamorph.Server) error {
 	// register your own services
 	reflection.Register(gs)
 
-	address, err := config.GetString("metamorph.metamorphHealthServerDialAddr") //"localhost:8005"
+	address, err := config.GetString("metamorph.healthServerDialAddr") //"localhost:8005"
 	if err != nil {
 		return err
 	}

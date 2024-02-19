@@ -414,46 +414,14 @@ func (ddb *DynamoDB) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	var storeData []*store.StoreData
 
 	for _, update := range updates {
-		updateExpression := fmt.Sprintf("SET tx_status = %s, reject_reason = %s", txStatusAttributeKey, rejectReasonAttributeKey)
-		expressionAttributevalues := map[string]types.AttributeValue{
-			txStatusAttributeKey:     &types.AttributeValueMemberN{Value: strconv.Itoa(int(update.Status))},
-			rejectReasonAttributeKey: &types.AttributeValueMemberS{Value: update.RejectReason},
-		}
-
-		switch update.Status {
-		case metamorph_api.Status_ANNOUNCED_TO_NETWORK:
-			updateExpression = updateExpression + fmt.Sprintf(", announced_at = %s", announcedAtAttributeKey)
-			expressionAttributevalues[announcedAtAttributeKey] = &types.AttributeValueMemberS{Value: ddb.now().Format(time.RFC3339)}
-		case metamorph_api.Status_MINED:
-			updateExpression = updateExpression + fmt.Sprintf(", mined_at = %s", minedAtAttributeKey)
-			expressionAttributevalues[minedAtAttributeKey] = &types.AttributeValueMemberS{Value: ddb.now().Format(time.RFC3339)}
-		}
-
-		// update tx
-		output, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
-			TableName: aws.String(ddb.transactionsTableName),
-			Key: map[string]types.AttributeValue{
-				"tx_hash": &types.AttributeValueMemberB{Value: update.Hash[:]},
-			},
-			UpdateExpression:          aws.String(updateExpression),
-			ExpressionAttributeValues: expressionAttributevalues,
-			ReturnValues:              types.ReturnValueAllNew,
-		})
+		data, err := ddb.updateStatus(ctx, &update.Hash, update.Status, update.RejectReason)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
 			return nil, err
 		}
 
-		var data store.StoreData
-		err = attributevalue.UnmarshalMap(output.Attributes, &data)
-		if err != nil {
-			span.SetTag(string(ext.Error), true)
-			span.LogFields(log.Error(err))
-			return nil, err
-		}
-
-		storeData = append(storeData, &data)
+		storeData = append(storeData, data)
 	}
 
 	return storeData, nil
@@ -469,14 +437,17 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
 	defer span.Finish()
 
-	// do not store other statuses than the following
-	if status != metamorph_api.Status_REJECTED &&
-		status != metamorph_api.Status_SEEN_ON_NETWORK &&
-		status != metamorph_api.Status_MINED &&
-		status != metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
-		return nil
+	_, err := ddb.updateStatus(ctx, hash, status, rejectReason)
+	if err != nil {
+		span.SetTag(string(ext.Error), true)
+		span.LogFields(log.Error(err))
+		return err
 	}
 
+	return nil
+}
+
+func (ddb *DynamoDB) updateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) (*store.StoreData, error) {
 	updateExpression := fmt.Sprintf("SET tx_status = %s, reject_reason = %s", txStatusAttributeKey, rejectReasonAttributeKey)
 	expressionAttributevalues := map[string]types.AttributeValue{
 		txStatusAttributeKey:     &types.AttributeValueMemberN{Value: strconv.Itoa(int(status))},
@@ -493,21 +464,26 @@ func (ddb *DynamoDB) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 	}
 
 	// update tx
-	_, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+	output, err := ddb.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String(ddb.transactionsTableName),
 		Key: map[string]types.AttributeValue{
-			"tx_hash": &types.AttributeValueMemberB{Value: hash.CloneBytes()},
+			"tx_hash": &types.AttributeValueMemberB{Value: hash[:]},
 		},
 		UpdateExpression:          aws.String(updateExpression),
 		ExpressionAttributeValues: expressionAttributevalues,
+		ReturnValues:              types.ReturnValueAllNew,
 	})
 	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return err
+		return nil, err
 	}
 
-	return nil
+	var data *store.StoreData
+	err = attributevalue.UnmarshalMap(output.Attributes, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }
 
 func (ddb *DynamoDB) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {

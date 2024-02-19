@@ -434,117 +434,9 @@ func (s *SqLite) UpdateStatusBulk(ctx context.Context, updates []store.UpdateSta
 
 	for _, update := range updates {
 
-		data := &store.StoreData{}
-
-		var storedAt string
-		var announcedAt string
-		var minedAt string
-		var blockHeight sql.NullInt64
-		var txHash []byte
-		var blockHash []byte
-		var callbackUrl sql.NullString
-		var callbackToken sql.NullString
-		var fullStatusUpdates sql.NullBool
-		var rejectReason sql.NullString
-		var lockedBy sql.NullString
-		var status sql.NullInt32
-		var merklePath sql.NullString
-
-		err := s.db.QueryRowContext(ctx, q, update.Status, update.RejectReason, update.Hash[:]).Scan(
-			&storedAt,
-			&announcedAt,
-			&minedAt,
-			&txHash,
-			&status,
-			&blockHeight,
-			&blockHash,
-			&callbackUrl,
-			&callbackToken,
-			&fullStatusUpdates,
-			&rejectReason,
-			&data.RawTx,
-			&merklePath,
-		)
+		data, err := s.updateStatus(ctx, q, []any{update.Status, update.RejectReason, update.Hash[:]})
 		if err != nil {
-			span.SetTag(string(ext.Error), true)
-			span.LogFields(log.Error(err))
-		}
-
-		if len(txHash) > 0 {
-			data.Hash, err = chainhash.NewHash(txHash)
-			if err != nil {
-				span.SetTag(string(ext.Error), true)
-				span.LogFields(log.Error(err))
-				return nil, err
-			}
-		}
-
-		if len(blockHash) > 0 {
-			data.BlockHash, err = chainhash.NewHash(blockHash)
-			if err != nil {
-				span.SetTag(string(ext.Error), true)
-				span.LogFields(log.Error(err))
-				return nil, err
-			}
-		}
-
-		if storedAt != "" {
-			data.StoredAt, err = time.Parse(time.RFC3339, storedAt)
-			if err != nil {
-				span.SetTag(string(ext.Error), true)
-				span.LogFields(log.Error(err))
-				return nil, err
-			}
-		}
-
-		if announcedAt != "" {
-			data.AnnouncedAt, err = time.Parse(time.RFC3339, announcedAt)
-			if err != nil {
-				span.SetTag(string(ext.Error), true)
-				span.LogFields(log.Error(err))
-				return nil, err
-			}
-		}
-
-		if minedAt != "" {
-			data.MinedAt, err = time.Parse(time.RFC3339, minedAt)
-			if err != nil {
-				span.SetTag(string(ext.Error), true)
-				span.LogFields(log.Error(err))
-				return nil, err
-			}
-		}
-
-		if status.Valid {
-			data.Status = metamorph_api.Status(status.Int32)
-		}
-
-		if blockHeight.Valid {
-			data.BlockHeight = uint64(blockHeight.Int64)
-		}
-
-		if callbackUrl.Valid {
-			data.CallbackUrl = callbackUrl.String
-		}
-
-		if callbackToken.Valid {
-			data.CallbackToken = callbackToken.String
-		}
-
-		if fullStatusUpdates.Valid {
-			data.FullStatusUpdates = fullStatusUpdates.Bool
-		}
-
-		if rejectReason.Valid {
-			data.RejectReason = rejectReason.String
-		}
-
-		if lockedBy.Valid {
-			data.LockedBy = lockedBy.String
-		}
-
-		if merklePath.Valid {
-			data.MerklePath = merklePath.String
+			return nil, err
 		}
 
 		storeData = append(storeData, data)
@@ -624,117 +516,9 @@ func (s *SqLite) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Transac
 
 	for _, txBlock := range txsBlocks.TransactionBlocks {
 
-		data := &store.StoreData{}
-
-		var storedAt string
-		var announcedAt string
-		var minedAt string
-		var blockHeight sql.NullInt64
-		var txHash []byte
-		var blockHash []byte
-		var callbackUrl sql.NullString
-		var callbackToken sql.NullString
-		var fullStatusUpdates sql.NullBool
-		var rejectReason sql.NullString
-		var lockedBy sql.NullString
-		var status sql.NullInt32
-		var merklePath sql.NullString
-
-		err := s.db.QueryRowContext(ctx, q, metamorph_api.Status_MINED, txBlock.BlockHash[:], txBlock.BlockHeight, txBlock.MerklePath, txBlock.TransactionHash[:]).Scan(
-			&storedAt,
-			&announcedAt,
-			&minedAt,
-			&txHash,
-			&status,
-			&blockHeight,
-			&blockHash,
-			&callbackUrl,
-			&callbackToken,
-			&fullStatusUpdates,
-			&rejectReason,
-			&data.RawTx,
-			&merklePath,
-		)
+		data, err := s.updateStatus(ctx, q, []any{metamorph_api.Status_MINED, txBlock.BlockHash[:], txBlock.BlockHeight, txBlock.MerklePath, txBlock.TransactionHash[:]})
 		if err != nil {
-			span.SetTag(string(ext.Error), true)
-			span.LogFields(log.Error(err))
-		}
-
-		if len(txHash) > 0 {
-			data.Hash, err = chainhash.NewHash(txHash)
-			if err != nil {
-				span.SetTag(string(ext.Error), true)
-				span.LogFields(log.Error(err))
-				return nil, err
-			}
-		}
-
-		if len(blockHash) > 0 {
-			data.BlockHash, err = chainhash.NewHash(blockHash)
-			if err != nil {
-				span.SetTag(string(ext.Error), true)
-				span.LogFields(log.Error(err))
-				return nil, err
-			}
-		}
-
-		if storedAt != "" {
-			data.StoredAt, err = time.Parse(time.RFC3339, storedAt)
-			if err != nil {
-				span.SetTag(string(ext.Error), true)
-				span.LogFields(log.Error(err))
-				return nil, err
-			}
-		}
-
-		if announcedAt != "" {
-			data.AnnouncedAt, err = time.Parse(time.RFC3339, announcedAt)
-			if err != nil {
-				span.SetTag(string(ext.Error), true)
-				span.LogFields(log.Error(err))
-				return nil, err
-			}
-		}
-
-		if minedAt != "" {
-			data.MinedAt, err = time.Parse(time.RFC3339, minedAt)
-			if err != nil {
-				span.SetTag(string(ext.Error), true)
-				span.LogFields(log.Error(err))
-				return nil, err
-			}
-		}
-
-		if status.Valid {
-			data.Status = metamorph_api.Status(status.Int32)
-		}
-
-		if blockHeight.Valid {
-			data.BlockHeight = uint64(blockHeight.Int64)
-		}
-
-		if callbackUrl.Valid {
-			data.CallbackUrl = callbackUrl.String
-		}
-
-		if callbackToken.Valid {
-			data.CallbackToken = callbackToken.String
-		}
-
-		if fullStatusUpdates.Valid {
-			data.FullStatusUpdates = fullStatusUpdates.Bool
-		}
-
-		if rejectReason.Valid {
-			data.RejectReason = rejectReason.String
-		}
-
-		if lockedBy.Valid {
-			data.LockedBy = lockedBy.String
-		}
-
-		if merklePath.Valid {
-			data.MerklePath = merklePath.String
+			return nil, err
 		}
 
 		storeData = append(storeData, data)
@@ -742,6 +526,111 @@ func (s *SqLite) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Transac
 	}
 
 	return storeData, nil
+}
+
+func (s *SqLite) updateStatus(ctx context.Context, q string, args []any) (*store.StoreData, error) {
+	data := &store.StoreData{}
+
+	var storedAt string
+	var announcedAt string
+	var minedAt string
+	var blockHeight sql.NullInt64
+	var txHash []byte
+	var blockHash []byte
+	var callbackUrl sql.NullString
+	var callbackToken sql.NullString
+	var fullStatusUpdates sql.NullBool
+	var rejectReason sql.NullString
+	var lockedBy sql.NullString
+	var status sql.NullInt32
+	var merklePath sql.NullString
+
+	err := s.db.QueryRowContext(ctx, q, args...).Scan(
+		&storedAt,
+		&announcedAt,
+		&minedAt,
+		&txHash,
+		&status,
+		&blockHeight,
+		&blockHash,
+		&callbackUrl,
+		&callbackToken,
+		&fullStatusUpdates,
+		&rejectReason,
+		&data.RawTx,
+		&merklePath,
+	)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+
+	if len(txHash) > 0 {
+		data.Hash, err = chainhash.NewHash(txHash)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(blockHash) > 0 {
+		data.BlockHash, err = chainhash.NewHash(blockHash)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if storedAt != "" {
+		data.StoredAt, err = time.Parse(time.RFC3339, storedAt)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if announcedAt != "" {
+		data.AnnouncedAt, err = time.Parse(time.RFC3339, announcedAt)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if minedAt != "" {
+		data.MinedAt, err = time.Parse(time.RFC3339, minedAt)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if status.Valid {
+		data.Status = metamorph_api.Status(status.Int32)
+	}
+
+	if blockHeight.Valid {
+		data.BlockHeight = uint64(blockHeight.Int64)
+	}
+
+	if callbackUrl.Valid {
+		data.CallbackUrl = callbackUrl.String
+	}
+
+	if callbackToken.Valid {
+		data.CallbackToken = callbackToken.String
+	}
+
+	if fullStatusUpdates.Valid {
+		data.FullStatusUpdates = fullStatusUpdates.Bool
+	}
+
+	if rejectReason.Valid {
+		data.RejectReason = rejectReason.String
+	}
+
+	if lockedBy.Valid {
+		data.LockedBy = lockedBy.String
+	}
+
+	if merklePath.Valid {
+		data.MerklePath = merklePath.String
+	}
+	return data, nil
 }
 
 func (s *SqLite) Del(ctx context.Context, key []byte) error {

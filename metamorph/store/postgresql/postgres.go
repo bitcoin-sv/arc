@@ -478,39 +478,40 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	rejectReasons := make([]string, len(updates))
 
 	for i, update := range updates {
-		txHashes[i] = update.Hash[:]
+		txHashes[i] = update.Hash.CloneBytes()
 		statuses[i] = update.Status
 		rejectReasons[i] = update.RejectReason
 	}
 
 	qBulk := `
 		UPDATE metamorph.transactions
-		SET
-		status=bulk_query.status
-		reject_reason=bulk_query.reject_reason
-		FROM
-		(
-			SELECT *
-				FROM
-		        UNNEST($1::BYTEA[], $2::INT[], $3::TEXT[])
-		AS t(hash, status, reject_reason)
-		) AS bulk_query
-		WHERE
-		metamorph.transactions.hash=bulk_query.hash
-		RETURNING t.stored_at
-		,t.announced_at
-		,t.mined_at
-		,t.hash
-		,t.status
-		,t.block_height
-		,t.block_hash
-		,t.callback_url
-		,t.callback_token
-		,t.full_status_updates
-		,t.reject_reason
-		,t.raw_tx
-		,t.locked_by
-		,t.merkle_path
+			SET
+			status=bulk_query.status,
+			reject_reason=bulk_query.reject_reason
+			FROM
+			(
+				SELECT *
+						FROM
+						UNNEST($1::BYTEA[], $2::INT[], $3::TEXT[])
+				AS t(hash, status, reject_reason)
+			) AS bulk_query
+			WHERE
+			metamorph.transactions.hash=bulk_query.hash
+		RETURNING metamorph.transactions.stored_at
+		,metamorph.transactions.announced_at
+		,metamorph.transactions.mined_at
+		,metamorph.transactions.hash
+		,metamorph.transactions.status
+		,metamorph.transactions.block_height
+		,metamorph.transactions.block_hash
+		,metamorph.transactions.callback_url
+		,metamorph.transactions.callback_token
+		,metamorph.transactions.full_status_updates
+		,metamorph.transactions.reject_reason
+		,metamorph.transactions.raw_tx
+		,metamorph.transactions.locked_by
+		,metamorph.transactions.merkle_path
+		;
     `
 
 	rows, err := p.db.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons))

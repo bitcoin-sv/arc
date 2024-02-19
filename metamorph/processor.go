@@ -228,64 +228,60 @@ func (p *Processor) processStatusUpdates() {
 		}()
 
 		statusUpdates := make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
+		statusUpdatesMap := map[chainhash.Hash]store.UpdateStatus{}
 
 		for {
 			select {
 			case <-p.quitListenStatusUpdateCh:
 				return
 			case statusUpdate := <-p.statusUpdateCh:
-				statusUpdates = append(statusUpdates, statusUpdate)
 
-				if len(statusUpdates) < p.processStatusUpdatesBatchSize {
+				// Ensure no duplicate hashes, overwrite value if the status has higher value than existing status
+				foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
+				if !found || (found && statusValueMap[foundStatusUpdate.Status] < statusValueMap[statusUpdate.Status]) {
+					statusUpdatesMap[statusUpdate.Hash] = statusUpdate
+				}
+
+				if len(statusUpdatesMap) < p.processStatusUpdatesBatchSize {
 					continue
 				}
+
+				for _, distinctStatusUpdate := range statusUpdatesMap {
+					statusUpdates = append(statusUpdates, distinctStatusUpdate)
+				}
+
 				err := p.updateStatusBulk(statusUpdates)
 				if err != nil {
 					p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
 				}
 
 				statusUpdates = make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
+				statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 
 			case <-ticker.C:
-				if len(statusUpdates) == 0 {
+				if len(statusUpdatesMap) == 0 {
 					continue
 				}
+
+				for _, distinctStatusUpdate := range statusUpdatesMap {
+					statusUpdates = append(statusUpdates, distinctStatusUpdate)
+				}
+
 				err := p.updateStatusBulk(statusUpdates)
 				if err != nil {
 					p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
 				}
 
 				statusUpdates = make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
+				statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
+
 			}
 		}
 	}()
 }
 
 func (p *Processor) updateStatusBulk(statusUpdates []store.UpdateStatus) error {
-
-	// Remove duplicate hashes, only do update with latest status
-	statusUpdateMap := map[chainhash.Hash]store.UpdateStatus{}
-	for _, statusUpdate := range statusUpdates {
-		update, found := statusUpdateMap[statusUpdate.Hash]
-
-		if !found {
-			statusUpdateMap[statusUpdate.Hash] = statusUpdate
-			continue
-		}
-
-		if statusValueMap[update.Status] < statusValueMap[statusUpdate.Status] {
-			statusUpdateMap[statusUpdate.Hash] = statusUpdate
-		}
-	}
-
-	finalStatusUpdates := make([]store.UpdateStatus, len(statusUpdateMap))
-	counter := 0
-	for _, value := range statusUpdateMap {
-		finalStatusUpdates[counter] = value
-		counter++
-	}
-
-	updatedData, err := p.store.UpdateStatusBulk(context.Background(), finalStatusUpdates)
+	updatedData, err := p.store.UpdateStatusBulk(context.Background(), statusUpdates)
 	if err != nil {
 		return err
 	}

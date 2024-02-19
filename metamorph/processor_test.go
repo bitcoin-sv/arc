@@ -563,16 +563,22 @@ func (r readCloser) Close() error                     { return nil }
 
 func TestProcessExpiredTransactions(t *testing.T) {
 	tt := []struct {
-		name    string
-		retries uint32
+		name        string
+		retries     uint32
+		minedOrSeen []*store.StoreData
 	}{
 		{
 			name:    "expired txs - 0 retries",
 			retries: 0,
 		},
 		{
-			name:    "expired txs - 0 retries",
+			name:    "expired txs - 16 retries",
 			retries: 16,
+		},
+		{
+			name:        "expired txs - one seen",
+			retries:     0,
+			minedOrSeen: []*store.StoreData{{Hash: testdata.TX1Hash, Status: metamorph_api.Status_SEEN_ON_NETWORK}},
 		},
 	}
 
@@ -583,6 +589,9 @@ func TestProcessExpiredTransactions(t *testing.T) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+				GetMinedOrSeenFunc: func(ctx context.Context, hashes []*chainhash.Hash) ([]*store.StoreData, error) {
+					return tc.minedOrSeen, nil
+				},
 			}
 			pm := p2p.NewPeerManagerMock()
 			processor, err := metamorph.NewProcessor(metamorphStore, pm,

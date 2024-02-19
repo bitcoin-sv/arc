@@ -10,17 +10,14 @@ import (
 	"strings"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/lib/pq"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
 )
 
-const (
-	maxPostgresBulkInsertRows = 1000
-)
-
 // UpdateBlockTransactions updates the transaction hashes for a given block hash.
-func (s *SQL) UpdateBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
+func (s *SQL) UpdateBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpdateBlockTransactionsResult, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("UpdateBlockTransactions").AddTime(start)
@@ -30,19 +27,19 @@ func (s *SQL) UpdateBlockTransactions(ctx context.Context, blockId uint64, trans
 	defer cancel()
 
 	if len(transactions) != len(merklePaths) {
-		return fmt.Errorf("transactions (len=%d) and Merkle paths (len=%d) have not the same lengths", len(transactions), len(merklePaths))
+		return nil, fmt.Errorf("transactions (len=%d) and Merkle paths (len=%d) have not the same lengths", len(transactions), len(merklePaths))
 	}
 
 	switch s.engine {
 	case sqliteEngine:
 		fallthrough
 	case sqliteMemoryEngine:
-		return s.updateBlockTransactionsSqLite(ctx, blockId, transactions, merklePaths)
+		return nil, s.updateBlockTransactionsSqLite(ctx, blockId, transactions, merklePaths)
 	case postgresEngine:
 		return s.updateBlockTransactionsPostgres(ctx, blockId, transactions, merklePaths)
 	}
 
-	return fmt.Errorf("engine not supported: %s", s.engine)
+	return nil, fmt.Errorf("engine not supported: %s", s.engine)
 }
 
 func (s *SQL) updateBlockTransactionsSqLite(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
@@ -108,6 +105,8 @@ func (s *SQL) updateBlockTransactionsSqLite(ctx context.Context, blockId uint64,
 		}
 	}
 
+	// Todo: return updated rows
+
 	return nil
 }
 
@@ -125,7 +124,7 @@ func (s *SQL) bulkInsert(ctx context.Context, queryTemplate string, queryRows []
 	return nil
 }
 
-func (s *SQL) updateBlockTransactionsPostgres(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
+func (s *SQL) updateBlockTransactionsPostgres(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpdateBlockTransactionsResult, error) {
 	txHashes := make([][]byte, len(transactions))
 	txHashesMap := map[string]int{}
 	for pos, tx := range transactions {
@@ -148,7 +147,7 @@ func (s *SQL) updateBlockTransactionsPostgres(ctx context.Context, blockId uint6
 			  ) AS bulk_query
 			WHERE
 			  transactions.hash=bulk_query.hash
-		RETURNING transactions.id, transactions.hash
+		RETURNING transactions.id, transactions.hash, transactions.merkle_path
 `
 
 	qMap := `
@@ -160,9 +159,11 @@ func (s *SQL) updateBlockTransactionsPostgres(ctx context.Context, blockId uint6
 		ON CONFLICT DO NOTHING
 	`
 
+	results := make([]store.UpdateBlockTransactionsResult, 0)
+
 	rows, err := s.db.QueryContext(ctx, qBulkUpdate, pq.Array(txHashes), pq.Array(merklePaths))
 	if err != nil {
-		return fmt.Errorf("failed to execute transaction update query: %v", err)
+		return nil, fmt.Errorf("failed to execute transaction update query: %v", err)
 	}
 
 	txIDs := make([]uint64, 0)
@@ -172,32 +173,39 @@ func (s *SQL) updateBlockTransactionsPostgres(ctx context.Context, blockId uint6
 	for rows.Next() {
 		var txID uint64
 		var txHash []byte
-		err = rows.Scan(&txID, &txHash)
+		var merklePath string
+		err = rows.Scan(&txID, &txHash, &merklePath)
 		if err != nil {
-			return fmt.Errorf("failed to get rows: %v", err)
+			return nil, fmt.Errorf("failed to get rows: %v", err)
 		}
+
+		results = append(results, store.UpdateBlockTransactionsResult{
+			TxHash:     txHash,
+			MerklePath: merklePath,
+		})
 
 		txIDs = append(txIDs, txID)
 		blockIDs = append(blockIDs, blockId)
 
 		positions = append(positions, txHashesMap[hex.EncodeToString(txHash)])
 
-		if len(txIDs) >= maxPostgresBulkInsertRows {
+		if len(txIDs) >= s.maxPostgresBulkInsertRows {
 			_, err = s.db.ExecContext(ctx, qMap, pq.Array(blockIDs), pq.Array(txIDs), pq.Array(positions))
 			if err != nil {
-				return fmt.Errorf("failed to bulk insert transactions into block transactions map for block with id %d: %v", blockId, err)
+				return nil, fmt.Errorf("failed to bulk insert transactions into block transactions map for block with id %d: %v", blockId, err)
 			}
 			txIDs = make([]uint64, 0)
 			blockIDs = make([]uint64, 0)
+			positions = make([]int, 0)
 		}
 	}
 
 	if len(txIDs) > 0 {
 		_, err = s.db.ExecContext(ctx, qMap, pq.Array(blockIDs), pq.Array(txIDs), pq.Array(positions))
 		if err != nil {
-			return fmt.Errorf("failed to bulk insert transactions into block transactions map for block with id %d: %v", blockId, err)
+			return nil, fmt.Errorf("failed to bulk insert transactions into block transactions map for block with id %d: %v", blockId, err)
 		}
 	}
 
-	return nil
+	return results, nil
 }

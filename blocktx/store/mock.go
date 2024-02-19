@@ -20,6 +20,9 @@ var _ Interface = &InterfaceMock{}
 //
 //		// make and configure a mocked Interface
 //		mockedInterface := &InterfaceMock{
+//			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.ClearDataResponse, error) {
+//				panic("mock out the ClearBlocktxTable method")
+//			},
 //			CloseFunc: func() error {
 //				panic("mock out the Close method")
 //			},
@@ -53,7 +56,7 @@ var _ Interface = &InterfaceMock{}
 //			TryToBecomePrimaryFunc: func(ctx context.Context, myHostName string) error {
 //				panic("mock out the TryToBecomePrimary method")
 //			},
-//			UpdateBlockTransactionsFunc: func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
+//			UpdateBlockTransactionsFunc: func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]UpdateBlockTransactionsResult, error) {
 //				panic("mock out the UpdateBlockTransactions method")
 //			},
 //		}
@@ -63,6 +66,9 @@ var _ Interface = &InterfaceMock{}
 //
 //	}
 type InterfaceMock struct {
+	// ClearBlocktxTableFunc mocks the ClearBlocktxTable method.
+	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.ClearDataResponse, error)
+
 	// CloseFunc mocks the Close method.
 	CloseFunc func() error
 
@@ -97,10 +103,19 @@ type InterfaceMock struct {
 	TryToBecomePrimaryFunc func(ctx context.Context, myHostName string) error
 
 	// UpdateBlockTransactionsFunc mocks the UpdateBlockTransactions method.
-	UpdateBlockTransactionsFunc func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error
+	UpdateBlockTransactionsFunc func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]UpdateBlockTransactionsResult, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// ClearBlocktxTable holds details about calls to the ClearBlocktxTable method.
+		ClearBlocktxTable []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// RetentionDays is the retentionDays argument value.
+			RetentionDays int32
+			// Table is the table argument value.
+			Table string
+		}
 		// Close holds details about calls to the Close method.
 		Close []struct {
 		}
@@ -188,6 +203,7 @@ type InterfaceMock struct {
 			MerklePaths []string
 		}
 	}
+	lockClearBlocktxTable        sync.RWMutex
 	lockClose                    sync.RWMutex
 	lockGetBlock                 sync.RWMutex
 	lockGetBlockGaps             sync.RWMutex
@@ -200,6 +216,46 @@ type InterfaceMock struct {
 	lockRegisterTransactions     sync.RWMutex
 	lockTryToBecomePrimary       sync.RWMutex
 	lockUpdateBlockTransactions  sync.RWMutex
+}
+
+// ClearBlocktxTable calls ClearBlocktxTableFunc.
+func (mock *InterfaceMock) ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.ClearDataResponse, error) {
+	if mock.ClearBlocktxTableFunc == nil {
+		panic("InterfaceMock.ClearBlocktxTableFunc: method is nil but Interface.ClearBlocktxTable was just called")
+	}
+	callInfo := struct {
+		Ctx           context.Context
+		RetentionDays int32
+		Table         string
+	}{
+		Ctx:           ctx,
+		RetentionDays: retentionDays,
+		Table:         table,
+	}
+	mock.lockClearBlocktxTable.Lock()
+	mock.calls.ClearBlocktxTable = append(mock.calls.ClearBlocktxTable, callInfo)
+	mock.lockClearBlocktxTable.Unlock()
+	return mock.ClearBlocktxTableFunc(ctx, retentionDays, table)
+}
+
+// ClearBlocktxTableCalls gets all the calls that were made to ClearBlocktxTable.
+// Check the length with:
+//
+//	len(mockedInterface.ClearBlocktxTableCalls())
+func (mock *InterfaceMock) ClearBlocktxTableCalls() []struct {
+	Ctx           context.Context
+	RetentionDays int32
+	Table         string
+} {
+	var calls []struct {
+		Ctx           context.Context
+		RetentionDays int32
+		Table         string
+	}
+	mock.lockClearBlocktxTable.RLock()
+	calls = mock.calls.ClearBlocktxTable
+	mock.lockClearBlocktxTable.RUnlock()
+	return calls
 }
 
 // Close calls CloseFunc.
@@ -594,7 +650,7 @@ func (mock *InterfaceMock) TryToBecomePrimaryCalls() []struct {
 }
 
 // UpdateBlockTransactions calls UpdateBlockTransactionsFunc.
-func (mock *InterfaceMock) UpdateBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
+func (mock *InterfaceMock) UpdateBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]UpdateBlockTransactionsResult, error) {
 	if mock.UpdateBlockTransactionsFunc == nil {
 		panic("InterfaceMock.UpdateBlockTransactionsFunc: method is nil but Interface.UpdateBlockTransactions was just called")
 	}

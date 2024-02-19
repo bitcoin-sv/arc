@@ -43,7 +43,7 @@ func TestClearTransactions(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 			job := NewMetamorph(client, 10, logger)
-			err := job.ClearTransactions("")
+			err := job.ClearTransactions()
 
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)

@@ -97,9 +97,11 @@ type PeerHandler struct {
 	peerHandlerCollector        *tracing.PeerHandlerCollector
 	startingHeight              int
 	dataRetentionDays           int
+	mqClient                    MessageQueueClient
 	txChannel                   chan []byte
 	registerTxsInterval         time.Duration
 	registerTxsBatchSize        int
+	peers                       []*p2p.Peer
 
 	fillGapsTicker              *time.Ticker
 	quitFillBlockGap            chan struct{}
@@ -110,6 +112,12 @@ type PeerHandler struct {
 
 func init() {
 	gocore.NewStat("blocktx", true).NewStat("HandleBlock", true)
+}
+
+func WithMessageQueueClient(mqClient MessageQueueClient) func(handler *PeerHandler) {
+	return func(p *PeerHandler) {
+		p.mqClient = mqClient
+	}
 }
 
 func WithTransactionBatchSize(size int) func(handler *PeerHandler) {
@@ -179,6 +187,7 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 		startingHeight:              startingHeight,
 		registerTxsInterval:         registerTxsIntervalDefault,
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
+		peers:                       make([]*p2p.Peer, len(peerURLs)),
 
 		fillGapsTicker:              time.NewTicker(fillGapsInterval),
 		quitFillBlockGap:            make(chan struct{}),
@@ -194,7 +203,6 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 	ph.peerHandlerCollector = tracing.NewPeerHandlerCollector("blocktx", ph.stats)
 	tracing.Register(ph.peerHandlerCollector)
 
-	peers := make([]*p2p.Peer, len(peerURLs))
 	pm := p2p.NewPeerManager(logger, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
 
 	for i, peerURL := range peerURLs {
@@ -207,10 +215,10 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 			return nil, fmt.Errorf("error adding peer: %v", err)
 		}
 
-		peers[i] = peer
+		ph.peers[i] = peer
 	}
 
-	ph.startFillGaps(peers)
+	ph.startFillGaps(ph.peers)
 	ph.startPeerWorker()
 	ph.startProcessTxs()
 
@@ -257,27 +265,27 @@ func (ph *PeerHandler) startPeerWorker() {
 	}()
 }
 
-func (bn *PeerHandler) startFillGaps(peers []*p2p.Peer) {
+func (ph *PeerHandler) startFillGaps(peers []*p2p.Peer) {
 	go func() {
 		defer func() {
-			bn.quitFillBlockGapComplete <- struct{}{}
+			ph.quitFillBlockGapComplete <- struct{}{}
 		}()
 
 		peerIndex := 0
 		for {
 			select {
-			case <-bn.quitFillBlockGap:
+			case <-ph.quitFillBlockGap:
 				return
-			case <-bn.fillGapsTicker.C:
+			case <-ph.fillGapsTicker.C:
 				if peerIndex >= len(peers) {
 					peerIndex = 0
 				}
 
-				bn.logger.Info("requesting missing blocks from peer", slog.Int("index", peerIndex))
+				ph.logger.Info("requesting missing blocks from peer", slog.Int("index", peerIndex))
 
-				err := bn.FillGaps(peers[peerIndex])
+				err := ph.FillGaps(peers[peerIndex])
 				if err != nil {
-					bn.logger.Error("failed to fill gaps", slog.String("error", err.Error()))
+					ph.logger.Error("failed to fill gaps", slog.String("error", err.Error()))
 				}
 
 				peerIndex++
@@ -327,13 +335,13 @@ func (ph *PeerHandler) startProcessTxs() {
 	}()
 }
 
-func (bs *PeerHandler) HandleTransactionGet(_ *wire.InvVect, peer p2p.PeerI) ([]byte, error) {
+func (ph *PeerHandler) HandleTransactionGet(_ *wire.InvVect, peer p2p.PeerI) ([]byte, error) {
 	peerStr := peer.String()
 
-	stat, ok := bs.stats.Get(peerStr)
+	stat, ok := ph.stats.Get(peerStr)
 	if !ok {
 		stat = &tracing.PeerHandlerStats{}
-		bs.stats.Set(peerStr, stat)
+		ph.stats.Set(peerStr, stat)
 	}
 
 	stat.TransactionGet.Add(1)
@@ -341,13 +349,13 @@ func (bs *PeerHandler) HandleTransactionGet(_ *wire.InvVect, peer p2p.PeerI) ([]
 	return nil, nil
 }
 
-func (bs *PeerHandler) HandleTransactionSent(_ *wire.MsgTx, peer p2p.PeerI) error {
+func (ph *PeerHandler) HandleTransactionSent(_ *wire.MsgTx, peer p2p.PeerI) error {
 	peerStr := peer.String()
 
-	stat, ok := bs.stats.Get(peerStr)
+	stat, ok := ph.stats.Get(peerStr)
 	if !ok {
 		stat = &tracing.PeerHandlerStats{}
-		bs.stats.Set(peerStr, stat)
+		ph.stats.Set(peerStr, stat)
 	}
 
 	stat.TransactionSent.Add(1)
@@ -496,7 +504,7 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 		return fmt.Errorf("merkle root mismatch for block %s", blockHash.String())
 	}
 
-	if err = ph.markTransactionsAsMined(blockId, calculatedMerkleTree, msg.Height); err != nil {
+	if err = ph.markTransactionsAsMined(blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
 		return fmt.Errorf("unable to mark block as mined %s: %v", blockHash.String(), err)
 	}
 
@@ -602,12 +610,15 @@ func (ph *PeerHandler) printMemStats() {
 	}
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
-	ph.logger.Info(fmt.Sprintf("Alloc = %v MiB, TotalAlloc = %v MiB, Sys = %v MiB, NumGC = %v\n",
-		bToMb(mem.Alloc), bToMb(mem.TotalAlloc), bToMb(mem.Sys), mem.NumGC))
-
+	ph.logger.Debug("stats",
+		slog.Uint64("Alloc [MiB]", bToMb(mem.Alloc)),
+		slog.Uint64("TotalAlloc [MiB]", bToMb(mem.TotalAlloc)),
+		slog.Uint64("Sys [MiB]", bToMb(mem.Sys)),
+		slog.Int64("NumGC [MiB]", int64(mem.NumGC)),
+	)
 }
 
-func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64) error {
+func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("markTransactionsAsMined").AddTime(start)
@@ -640,12 +651,31 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 
 		merklePaths = append(merklePaths, bumpHex)
 		if (txIndex+1)%ph.transactionStorageBatchSize == 0 {
-			if err := ph.store.UpdateBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
+			updateResp, err := ph.store.UpdateBlockTransactions(context.Background(), blockId, txs, merklePaths)
+			if err != nil {
 				return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 			}
 			// free up memory
 			txs = make([]*blocktx_api.TransactionAndSource, 0, ph.transactionStorageBatchSize)
 			merklePaths = make([]string, 0, ph.transactionStorageBatchSize)
+
+			updatesBatch := make([]*blocktx_api.TransactionBlock, len(updateResp))
+
+			for i, updResp := range updateResp {
+				updatesBatch[i] = &blocktx_api.TransactionBlock{
+					TransactionHash: updResp.TxHash[:],
+					BlockHash:       blockhash[:],
+					BlockHeight:     blockHeight,
+					MerklePath:      updResp.MerklePath,
+				}
+			}
+
+			if len(updatesBatch) > 0 {
+				err = ph.mqClient.PublishMinedTxs(updatesBatch)
+				if err != nil {
+					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+				}
+			}
 
 			// print stats, call gc and chec the result
 			ph.printMemStats()
@@ -655,23 +685,30 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 	}
 
 	// update all remaining transactions
-	if err := ph.store.UpdateBlockTransactions(context.Background(), blockId, txs, merklePaths); err != nil {
+	updateResp, err := ph.store.UpdateBlockTransactions(context.Background(), blockId, txs, merklePaths)
+	if err != nil {
 		return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 	}
 
-	return nil
-}
+	updatesBatch := make([]*blocktx_api.TransactionBlock, len(updateResp))
 
-func (ph *PeerHandler) getAnnouncedCacheBlockHashes() []string {
-	items := ph.announcedCache.Items()
-	blockHashes := make([]string, len(items))
-	i := 0
-	for k := range items {
-		blockHashes[i] = k.String()
-		i++
+	for i, updResp := range updateResp {
+		updatesBatch[i] = &blocktx_api.TransactionBlock{
+			TransactionHash: updResp.TxHash[:],
+			BlockHash:       blockhash[:],
+			BlockHeight:     blockHeight,
+			MerklePath:      updResp.MerklePath,
+		}
 	}
 
-	return blockHashes
+	if len(updatesBatch) > 0 {
+		err = ph.mqClient.PublishMinedTxs(updatesBatch)
+		if err != nil {
+			ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+		}
+	}
+
+	return nil
 }
 
 func (ph *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {

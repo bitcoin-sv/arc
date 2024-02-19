@@ -15,7 +15,6 @@ import (
 
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
 	awsdynamodb "github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
@@ -55,18 +54,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
 
-	blocktxAddress, err := config.GetString("blocktx.dialAddr")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := blocktx.DialGRPC(blocktxAddress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
-	}
-
-	btx := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn))
-
 	metamorphGRPCListenAddress, err := config.GetString("metamorph.listenAddr")
 	if err != nil {
 		return nil, err
@@ -92,11 +79,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	checkIfMinedInterval, err := config.GetDuration("metamorph.checkIfMinedInterval")
-	if err != nil {
-		return nil, err
-	}
-
 	maxMonitoredTxs, err := config.GetInt64("metamorph.maxMonitoredTxs")
 	if err != nil {
 		return nil, err
@@ -107,7 +89,26 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	publisher, err := nats_mq.NewNatsMQPublisher(logger, natsURL)
+	// The tx channel needs the capacity so that it could potentially buffer up to a certain nr of transactions per second
+	const targetTps = 6000
+	const avgMinPerBlock = 10
+	const secPerMin = 60
+
+	maxBatchSize, err := config.GetInt("blocktx.mq.txsMinedMaxBatchSize")
+	if err != nil {
+		return nil, err
+	}
+
+	// maximum amount of messages that could be coming from a single block
+	capacityRequired := int(float64(targetTps*avgMinPerBlock*secPerMin) / float64(maxBatchSize))
+	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, capacityRequired)
+
+	mqClient, err := nats_mq.NewNatsMQClient(minedTxsChan, logger, natsURL)
+	if err != nil {
+		return nil, err
+	}
+
+	err = mqClient.SubscribeMinedTxs()
 	if err != nil {
 		return nil, err
 	}
@@ -115,13 +116,12 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	metamorphProcessor, err := metamorph.NewProcessor(
 		s,
 		pm,
-		btx,
 		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithProcessorLogger(logger.With(slog.String("module", "mtm-proc"))),
 		metamorph.WithDataRetentionPeriod(time.Duration(dataRetentionDays)*24*time.Hour),
-		metamorph.WithProcessCheckIfMinedInterval(checkIfMinedInterval),
 		metamorph.WithMaxMonitoredTxs(maxMonitoredTxs),
-		metamorph.WithPublisher(publisher),
+		metamorph.WithMessageQueueClient(mqClient),
+		metamorph.WithMinedTxsChan(minedTxsChan),
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
@@ -203,7 +203,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		optsServer = append(optsServer, metamorph.WithBlocktxTimeout(btxTimeout))
 	}
 
-	serv := metamorph.NewServer(s, metamorphProcessor, btx, optsServer...)
+	serv := metamorph.NewServer(s, metamorphProcessor, optsServer...)
 
 	go func() {
 		grpcMessageSize := viper.GetInt("grpcMessageSize")
@@ -254,9 +254,9 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 
 	return func() {
 		logger.Info("Shutting down metamorph")
-		err = publisher.Shutdown()
+		err = mqClient.Shutdown()
 		if err != nil {
-			logger.Error("failed to shutdown publisher", slog.String("err", err.Error()))
+			logger.Error("failed to shutdown mqClient", slog.String("err", err.Error()))
 		}
 		stopUnminedProcessor <- struct{}{}
 		metamorphProcessor.Shutdown()

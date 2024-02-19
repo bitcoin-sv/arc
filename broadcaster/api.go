@@ -1,7 +1,6 @@
 package broadcaster
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -40,7 +39,7 @@ func NewHTTPBroadcaster(arcServer string, auth *Auth) *APIBroadcaster {
 	}
 }
 
-func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitFor metamorph_api.Status) ([]*metamorph_api.TransactionStatus, error) {
+func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitFor metamorph_api.Status, callbackURL string) ([]*metamorph_api.TransactionStatus, error) {
 	arcClient, err := a.getArcClient()
 	if err != nil {
 		return nil, err
@@ -51,28 +50,37 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx
 		XWaitForStatus: &waitForStatus,
 	}
 
-	var body []byte
-	for _, tx := range txs {
-		body = append(body, tx.ExtendedBytes()...)
+	if callbackURL != "" {
+		params.XCallbackUrl = &callbackURL
 	}
 
-	bodyReader := bytes.NewReader(body)
+	body := make([]api.TransactionRequest, len(txs))
+	for i := range txs {
+		tx := txs[i]
+		newApiTransactionRequest := api.TransactionRequest{
+			RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+		}
+		body[i] = newApiTransactionRequest
+	}
 
-	contentType := "application/octet-stream"
 	var response *http.Response
-	response, err = arcClient.POSTTransactionsWithBody(ctx, params, contentType, bodyReader)
+	response, err = arcClient.POSTTransactions(ctx, params, body)
 	if err != nil {
 		return nil, err
-	}
-
-	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
-		return nil, errors.New("failed to broadcast transactions")
 	}
 
 	var bodyBytes []byte
 	bodyBytes, err = io.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
+	}
+
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
+		_, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("failed to broadcast transactions: %s", string(bodyBytes))
 	}
 
 	var bodyResponse []Response
@@ -103,7 +111,7 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx
 	return txStatuses, nil
 }
 
-func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitFor metamorph_api.Status) (*metamorph_api.TransactionStatus, error) {
+func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitFor metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error) {
 	arcClient, err := a.getArcClient()
 	if err != nil {
 		return nil, err
@@ -112,6 +120,10 @@ func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, wa
 	waitForStatus := api.WaitForStatus(waitFor)
 	params := &api.POSTTransactionParams{
 		XWaitForStatus: &waitForStatus,
+	}
+
+	if callbackURL != "" {
+		params.XCallbackUrl = &callbackURL
 	}
 
 	arcBody := api.POSTTransactionJSONRequestBody{

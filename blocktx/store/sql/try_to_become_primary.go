@@ -2,6 +2,7 @@ package sql
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/ordishs/gocore"
@@ -20,7 +21,7 @@ func (s *SQL) TryToBecomePrimary(ctx context.Context, myHostName string) error {
 
 	primaryBlocktx, err := s.GetPrimary(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get primary: %v", err)
 	}
 
 	if primaryBlocktx == "" {

@@ -35,7 +35,7 @@ func (d DryRunClient) Health(ctx context.Context, in *emptypb.Empty, opts ...grp
 	}, nil
 }
 
-func (d DryRunClient) BroadcastTransactions(_ context.Context, txs []*bt.Tx, _ metamorph_api.Status) ([]*metamorph_api.TransactionStatus, error) {
+func (d DryRunClient) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) ([]*metamorph_api.TransactionStatus, error) {
 	var txStatuses []*metamorph_api.TransactionStatus
 	for _, tx := range txs {
 		fmt.Printf("%s\n\n", hex.EncodeToString(tx.Bytes()))
@@ -45,7 +45,7 @@ func (d DryRunClient) BroadcastTransactions(_ context.Context, txs []*bt.Tx, _ m
 	return txStatuses, nil
 }
 
-func (d DryRunClient) BroadcastTransaction(ctx context.Context, tx *bt.Tx, _ metamorph_api.Status) (*metamorph_api.TransactionStatus, error) {
+func (d DryRunClient) BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error) {
 	fmt.Printf("%s\n\n", hex.EncodeToString(tx.Bytes()))
 	return &metamorph_api.TransactionStatus{}, nil
 }

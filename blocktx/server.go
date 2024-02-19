@@ -27,13 +27,15 @@ type Server struct {
 	store      store.Interface
 	logger     *slog.Logger
 	grpcServer *grpc.Server
+	ph         *PeerHandler
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(storeI store.Interface, logger *slog.Logger) *Server {
+func NewServer(storeI store.Interface, logger *slog.Logger, ph *PeerHandler) *Server {
 	return &Server{
 		store:  storeI,
 		logger: logger,
+		ph:     ph,
 	}
 }
 
@@ -112,4 +114,16 @@ func (s *Server) GetTransactionBlocks(ctx context.Context, transaction *blocktx_
 func (s *Server) Shutdown() {
 	s.logger.Info("Shutting down")
 	s.grpcServer.Stop()
+}
+
+func (s *Server) ClearTransactions(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
+	return s.store.ClearBlocktxTable(ctx, clearData.RetentionDays, "transactions")
+}
+
+func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
+	return s.store.ClearBlocktxTable(ctx, clearData.RetentionDays, "blocks")
+}
+
+func (s *Server) ClearBlockTransactionsMap(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
+	return s.store.ClearBlocktxTable(ctx, clearData.RetentionDays, "block_transactions_map")
 }

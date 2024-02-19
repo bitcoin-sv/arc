@@ -19,7 +19,6 @@ import (
 	"github.com/libsv/go-p2p/bsvutil"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
-	"github.com/ordishs/go-utils/expiringmap"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,6 +26,8 @@ import (
 // mocking wire.peerI as it's third party library and need to mock in here
 //
 //go:generate moq -out ./store/mock.go ./store Interface
+//go:generate moq -out ./mq_mock.go . MessageQueueClient
+
 type MockedPeer struct{}
 
 func (peer *MockedPeer) Connected() bool                            { return true }
@@ -69,27 +70,6 @@ func TestExtractHeightForRegtest(t *testing.T) {
 	height := extractHeightFromCoinbaseTx(btTx)
 
 	assert.Equalf(t, uint64(2012), height, "height should be 2012, got %d", height)
-}
-
-func TestGetAnnouncedCacheBlockHashes(t *testing.T) {
-	peerHandler := PeerHandler{
-		announcedCache: expiringmap.New[chainhash.Hash, []p2p.PeerI](5 * time.Minute),
-	}
-
-	peer, err := p2p.NewPeerMock("", &peerHandler, wire.MainNet)
-	assert.NoError(t, err)
-
-	hash, err := chainhash.NewHashFromStr("00000000000000000e3c9aafb4c823562dd38f15b75849be348131a785154e33")
-	assert.NoError(t, err)
-	peerHandler.announcedCache.Set(*hash, []p2p.PeerI{peer})
-
-	hash, err = chainhash.NewHashFromStr("00000000000000000cd097bf90c0f8480b930c88f3994503abccf45d579c601c")
-	assert.NoError(t, err)
-	peerHandler.announcedCache.Set(*hash, []p2p.PeerI{peer})
-
-	hashes := peerHandler.getAnnouncedCacheBlockHashes()
-
-	assert.ElementsMatch(t, hashes, []string{"00000000000000000e3c9aafb4c823562dd38f15b75849be348131a785154e33", "00000000000000000cd097bf90c0f8480b930c88f3994503abccf45d579c601c"})
 }
 
 func TestHandleBlock(t *testing.T) {
@@ -238,18 +218,17 @@ func TestHandleBlock(t *testing.T) {
 			TryToBecomePrimaryFunc: func(ctx context.Context, myHostName string) error {
 				return nil
 			},
+		}
 
-			// main assert for the test to make sure block with a single transaction doesn't have any merkle paths other than empty ones "0000"
-			UpdateBlockTransactionsFunc: func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
-				assert.Equal(t, uint64(1), uint64(len(merklePaths)))
-				assert.Equal(t, merklePaths[0], "fe12031800010100027fda0fc8f5d26a8616869add086c8421fa07245a96d1b6ac5ae8d46bbbb2643d")
+		mq := &MessageQueueClientMock{
+			PublishMinedTxsFunc: func(txsBlocks []*blocktx_api.TransactionBlock) error {
 				return nil
 			},
 		}
 
 		// build peer manager
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-		peerHandler, err := NewPeerHandler(logger, storeMock, 100, []string{}, wire.TestNet, WithTransactionBatchSize(batchSize))
+		peerHandler, err := NewPeerHandler(logger, storeMock, 100, []string{}, wire.TestNet, WithTransactionBatchSize(batchSize), WithMessageQueueClient(mq))
 		require.NoError(t, err)
 
 		t.Run(tc.name, func(t *testing.T) {
@@ -265,7 +244,7 @@ func TestHandleBlock(t *testing.T) {
 
 			var insertedBlockTransactions []*blocktx_api.TransactionAndSource
 
-			storeMock.UpdateBlockTransactionsFunc = func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) error {
+			storeMock.UpdateBlockTransactionsFunc = func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpdateBlockTransactionsResult, error) {
 				require.True(t, len(merklePaths) <= batchSize)
 				require.True(t, len(transactions) <= batchSize)
 
@@ -281,7 +260,13 @@ func TestHandleBlock(t *testing.T) {
 				}
 
 				insertedBlockTransactions = append(insertedBlockTransactions, transactions...)
-				return nil
+
+				result := make([]store.UpdateBlockTransactionsResult, len(transactions))
+				for i, tx := range transactions {
+					result[i] = store.UpdateBlockTransactionsResult{TxHash: tx.Hash}
+				}
+
+				return result, nil
 			}
 
 			peer := &MockedPeer{}

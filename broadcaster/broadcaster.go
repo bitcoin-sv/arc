@@ -25,7 +25,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var stdFee = &bt.Fee{
+var stdFeeDefault = &bt.Fee{
 	FeeType: bt.FeeTypeStandard,
 	MiningFee: bt.FeeUnit{
 		Satoshis: 3,
@@ -37,7 +37,7 @@ var stdFee = &bt.Fee{
 	},
 }
 
-var dataFee = &bt.Fee{
+var dataFeeDefault = &bt.Fee{
 	FeeType: bt.FeeTypeData,
 	MiningFee: bt.FeeUnit{
 		Satoshis: 3,
@@ -50,8 +50,8 @@ var dataFee = &bt.Fee{
 }
 
 type ClientI interface {
-	BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status) (*metamorph_api.TransactionStatus, error)
-	BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status) ([]*metamorph_api.TransactionStatus, error)
+	BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error)
+	BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) ([]*metamorph_api.TransactionStatus, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*metamorph_api.TransactionStatus, error)
 }
 
@@ -67,6 +67,7 @@ type Broadcaster struct {
 	PrintTxIDs    bool
 	Consolidate   bool
 	Concurrency   int
+	CallbackURL   string
 	BatchSize     int64
 	WaitForStatus api.WaitForStatus
 	BatchSend     int
@@ -75,10 +76,26 @@ type Broadcaster struct {
 	summaryMu     sync.Mutex
 }
 
-func New(logger utils.Logger, client ClientI, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, outputs int64) *Broadcaster {
+func WithMiningFee(miningFeeSatPerKb int) func(fee *bt.Fee) {
+	return func(fee *bt.Fee) {
+		fee.RelayFee.Satoshis = miningFeeSatPerKb
+		fee.MiningFee.Satoshis = miningFeeSatPerKb
+	}
+}
+
+func New(logger utils.Logger, client ClientI, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, outputs int64, feeOpts ...func(fee *bt.Fee)) *Broadcaster {
 	var fq = bt.NewFeeQuote()
-	fq.AddQuote(bt.FeeTypeStandard, stdFee)
-	fq.AddQuote(bt.FeeTypeData, dataFee)
+
+	stdFee := *stdFeeDefault
+	dataFee := *dataFeeDefault
+
+	for _, opt := range feeOpts {
+		opt(&stdFee)
+		opt(&dataFee)
+	}
+
+	fq.AddQuote(bt.FeeTypeData, &stdFee)
+	fq.AddQuote(bt.FeeTypeStandard, &dataFee)
 
 	return &Broadcaster{
 		logger:        logger,
@@ -180,24 +197,38 @@ func (b *Broadcaster) Run(ctx context.Context, concurrency int) error {
 
 		iteration := (i / b.BatchSize) + 1
 
-		fundingTx := b.NewFundingTransaction(batchSize, iteration)
+		fundingTx, err := b.NewFundingTransaction(batchSize, iteration)
+		if err != nil {
+			return err
+		}
 		for i := range fundingTx.Inputs {
 			b.logger.Infof("[%d] funding previous tx id [%d]: %s, vout: %d", iteration, i, hex.EncodeToString(fundingTx.Inputs[i].PreviousTxID()), fundingTx.Inputs[i].PreviousTxOutIndex)
 		}
 		b.logger.Infof("[%d] funding tx: %s", iteration, fundingTx.TxID())
 
-		_, err := b.Client.BroadcastTransaction(ctx, fundingTx, metamorph_api.Status(b.WaitForStatus))
-		if err != nil {
-			b.logger.Fatalf("[%d] error broadcasting funding tx: %s", iteration, err.Error())
+		// retry 3 times to get the funding transaction broadcast with seen on network status
+		for i := 1; i <= 3; i++ {
+			b.logger.Infof("retrying broadcasting funding tx: %d", i)
+			status, err := b.Client.BroadcastTransaction(ctx, fundingTx, metamorph_api.Status(b.WaitForStatus), b.CallbackURL)
+			if err != nil {
+				b.logger.Fatalf("[%d] error broadcasting funding tx: %s", iteration, err.Error())
+			}
+
+			if status.Status == metamorph_api.Status_SEEN_ON_NETWORK {
+				break
+			} else if i == 3 {
+				b.logger.Fatalf("[%d] funding tx not seen on network: %s", iteration, status.Status.String())
+			} else {
+				// wait for things to settle down
+				time.Sleep(5 * time.Second)
+			}
 		}
 
 		fundingTxs[iteration-1] = fundingTx
 	}
 
 	b.logger.Infof("Created %d funding batches in %0.2f seconds", batches, time.Since(timeStart).Seconds())
-
-	// wait for things to settle down
-	time.Sleep(2 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	// start the timer for the transaction sending
 	timeStart = time.Now()
@@ -257,12 +288,16 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 			LockingScript: fundingTx.Outputs[i].LockingScript,
 			Satoshis:      fundingTx.Outputs[i].Satoshis,
 		}
-		txs[i] = b.NewTransaction(b.ToKeySet, u)
+		tx, err := b.NewTransaction(b.ToKeySet, u)
+		if err != nil {
+			return err
+		}
+		txs[i] = tx
+
 	}
 
 	if b.IsDryRun {
 		for _, tx := range txs {
-			// b.logger.Infof("Processing tx %d / %d", i+1, len(b.txs))
 			if err := b.ProcessTransaction(ctx, tx, iteration); err != nil {
 				return err
 			}
@@ -283,7 +318,7 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 				go func(txs []*bt.Tx, indexStart, indexEnd int) {
 					defer wg.Done()
 
-					txStatus, err := b.Client.BroadcastTransactions(ctx, txs, metamorph_api.Status(b.WaitForStatus))
+					txStatus, err := b.Client.BroadcastTransactions(ctx, txs, metamorph_api.Status(b.WaitForStatus), b.CallbackURL)
 					if err != nil {
 						b.logger.Errorf("[%d]   batch of %d - %d failed %s", iteration, indexStart, indexEnd, err.Error())
 					} else {
@@ -323,7 +358,7 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 
 	if b.Consolidate {
 		if err := b.ConsolidateOutputsToOriginal(ctx, txs, iteration); err != nil {
-			panic(err)
+			return err
 		}
 	}
 
@@ -331,7 +366,7 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 }
 
 func (b *Broadcaster) ProcessTransaction(ctx context.Context, tx *bt.Tx, iteration int64) error {
-	res, err := b.Client.BroadcastTransaction(ctx, tx, metamorph_api.Status(b.WaitForStatus))
+	res, err := b.Client.BroadcastTransaction(ctx, tx, metamorph_api.Status(b.WaitForStatus), b.CallbackURL)
 	if err != nil {
 		return fmt.Errorf("error broadcasting transaction %s: %s", tx.TxID(), err.Error())
 	}
@@ -365,11 +400,7 @@ func (b *Broadcaster) processResult(res *metamorph_api.TransactionStatus, iterat
 	b.summaryMu.Unlock()
 }
 
-func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
-	var fq = bt.NewFeeQuote()
-	fq.AddQuote(bt.FeeTypeStandard, stdFee)
-	fq.AddQuote(bt.FeeTypeData, dataFee)
-
+func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) (*bt.Tx, error) {
 	var err error
 	addr := b.FromKeySet.Address(!b.IsRegtest)
 
@@ -394,28 +425,28 @@ func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
 		}
 		err = tx.From(txid, vout, scriptPubKey, 100_000_000)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	} else {
 		// live mode, we need to get the utxos from woc
 		var utxos []*bt.UTXO
 		utxos, err = b.FromKeySet.GetUTXOs(!b.IsTestnet)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		if len(utxos) == 0 {
-			panic("no utxos for arcUrl: " + addr)
+			return nil, err
 		}
 
 		// this consumes all the utxos from the key
 		err = tx.FromUTXOs(utxos...)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 
 	}
 
-	estimateFee := fees.EstimateFee(uint64(stdFee.MiningFee.Satoshis), 1, 1)
+	estimateFee := fees.EstimateFee(uint64(stdFeeDefault.MiningFee.Satoshis), 1, 1)
 	for i := int64(0); i < outputs; i++ {
 		if b.Consolidate {
 			// we send triple the fee to the output arcUrl
@@ -426,17 +457,17 @@ func (b *Broadcaster) NewFundingTransaction(outputs, iteration int64) *bt.Tx {
 		}
 	}
 
-	_ = tx.Change(b.FromKeySet.Script, fq)
+	_ = tx.Change(b.FromKeySet.Script, b.FeeQuote)
 
 	unlockerGetter := unlocker.Getter{PrivateKey: b.FromKeySet.PrivateKey}
 	if err = tx.FillAllInputs(context.Background(), &unlockerGetter); err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return tx
+	return tx, nil
 }
 
-func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) *bt.Tx {
+func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) (*bt.Tx, error) {
 	var err error
 
 	tx := bt.NewTx()
@@ -454,10 +485,10 @@ func (b *Broadcaster) NewTransaction(key *keyset.KeySet, useUtxo *bt.UTXO) *bt.T
 
 	unlockerGetter := unlocker.Getter{PrivateKey: key.PrivateKey}
 	if err = tx.FillAllInputs(context.Background(), &unlockerGetter); err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return tx
+	return tx, nil
 }
 
 // SendToAddress Let the bitcoin node in regtest mode send some bitcoin to our arcUrl

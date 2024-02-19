@@ -2,7 +2,6 @@ package broadcaster
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/tracing"
@@ -18,9 +17,8 @@ type MetamorphBroadcaster struct {
 	client  metamorph_api.MetaMorphAPIClient
 }
 
-func NewMetamorphBroadcaster(address string) *MetamorphBroadcaster {
+func NewMetamorphBroadcaster(address string) (*MetamorphBroadcaster, error) {
 	addresses := viper.GetString("metamorph.dialAddr")
-	fmt.Printf("Metamorph addresses: %s\n", addresses)
 
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -31,7 +29,7 @@ func NewMetamorphBroadcaster(address string) *MetamorphBroadcaster {
 
 	cc, err := grpc.DialContext(context.Background(), addresses, tracing.AddGRPCDialOptions(opts)...)
 	if err != nil {
-		panic(fmt.Errorf("DIALCONTEXT: %v", err))
+		return nil, err
 	}
 
 	client := metamorph_api.NewMetaMorphAPIClient(cc)
@@ -39,16 +37,23 @@ func NewMetamorphBroadcaster(address string) *MetamorphBroadcaster {
 	return &MetamorphBroadcaster{
 		address: address,
 		client:  client,
-	}
+	}, nil
 }
 
-func (m *MetamorphBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitFor metamorph_api.Status) ([]*metamorph_api.TransactionStatus, error) {
+func (m *MetamorphBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitFor metamorph_api.Status, callbackURL string) ([]*metamorph_api.TransactionStatus, error) {
 	txStatuses := make([]*metamorph_api.TransactionStatus, len(txs))
 	for idx, tx := range txs {
-		txStatus, err := m.client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
+
+		req := &metamorph_api.TransactionRequest{
 			RawTx:         tx.Bytes(),
 			WaitForStatus: waitFor,
-		})
+		}
+
+		if callbackURL != "" {
+			req.CallbackUrl = callbackURL
+		}
+
+		txStatus, err := m.client.PutTransaction(ctx, req)
 		if err != nil {
 			// return nil, err
 			// we should not return here, but continue with the next tx and mark this one as failed
@@ -61,11 +66,17 @@ func (m *MetamorphBroadcaster) BroadcastTransactions(ctx context.Context, txs []
 	return txStatuses, nil
 }
 
-func (m *MetamorphBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitFor metamorph_api.Status) (*metamorph_api.TransactionStatus, error) {
-	return m.client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
+func (m *MetamorphBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitFor metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error) {
+	req := &metamorph_api.TransactionRequest{
 		RawTx:         tx.Bytes(),
 		WaitForStatus: waitFor,
-	})
+	}
+
+	if callbackURL != "" {
+		req.CallbackUrl = callbackURL
+	}
+
+	return m.client.PutTransaction(ctx, req)
 }
 
 func (m *MetamorphBroadcaster) GetTransactionStatus(ctx context.Context, txID string) (*metamorph_api.TransactionStatus, error) {

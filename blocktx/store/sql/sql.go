@@ -6,9 +6,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/dbconn"
+	"github.com/jmoiron/sqlx"
 	"github.com/labstack/gommon/random"
 	_ "github.com/lib/pq"
 	"github.com/ordishs/gocore"
@@ -17,14 +19,17 @@ import (
 )
 
 const (
-	postgresEngine     = "postgres"
-	sqliteEngine       = "sqlite"
-	sqliteMemoryEngine = "sqlite_memory"
+	postgresEngine            = "postgres"
+	sqliteEngine              = "sqlite"
+	sqliteMemoryEngine        = "sqlite_memory"
+	maxPostgresBulkInsertRows = 1000
 )
 
 type SQL struct {
-	db     *sql.DB
-	engine string
+	db                        *sqlx.DB
+	engine                    string
+	now                       func() time.Time
+	maxPostgresBulkInsertRows int
 }
 
 func init() {
@@ -33,7 +38,7 @@ func init() {
 
 // NewPostgresStore postgres storage that accepts connection parameters and returns connection or an error.
 func NewPostgresStore(params dbconn.DBConnectionParams) (store.Interface, error) {
-	db, err := sql.Open("postgres", params.String())
+	db, err := sqlx.Open("postgres", params.String())
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to db due to %s", err)
 	}
@@ -41,11 +46,12 @@ func NewPostgresStore(params dbconn.DBConnectionParams) (store.Interface, error)
 	return &SQL{
 		db:     db,
 		engine: postgresEngine,
+		now:    time.Now,
 	}, nil
 }
 
 func New(engine string) (*SQL, error) {
-	var db *sql.DB
+	var db *sqlx.DB
 	var err error
 	var memory bool
 
@@ -88,9 +94,11 @@ func New(engine string) (*SQL, error) {
 			return nil, fmt.Errorf("setting blocktx.db.postgres.sslMode not found")
 		}
 
+		logger.Info(fmt.Sprintf("db connection: user=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbName, dbHost, dbPort, sslMode))
+
 		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbPassword, dbName, dbHost, dbPort, sslMode)
 
-		db, err = sql.Open(engine, dbInfo)
+		db, err = sqlx.Open(engine, dbInfo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open postgres DB: %+v", err)
 		}
@@ -135,7 +143,7 @@ func New(engine string) (*SQL, error) {
 
 		logger.Infof("Using sqlite DB: %s", filename)
 
-		db, err = sql.Open("sqlite", filename)
+		db, err = sqlx.Open("sqlite", filename)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open sqlite DB: %+v", err)
 		}
@@ -150,7 +158,7 @@ func New(engine string) (*SQL, error) {
 			return nil, fmt.Errorf("could not enable shared locking mode: %+v", err)
 		}
 
-		if err := createSqliteSchema(db); err != nil {
+		if err := createSqliteSchema(db.DB); err != nil {
 			return nil, fmt.Errorf("failed to create sqlite schema: %+v", err)
 		}
 
@@ -159,8 +167,10 @@ func New(engine string) (*SQL, error) {
 	}
 
 	return &SQL{
-		db:     db,
-		engine: engine,
+		db:                        db,
+		engine:                    engine,
+		now:                       time.Now,
+		maxPostgresBulkInsertRows: maxPostgresBulkInsertRows,
 	}, nil
 }
 

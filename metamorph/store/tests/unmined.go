@@ -2,11 +2,11 @@ package tests
 
 import (
 	"context"
+	"github.com/bitcoin-sv/arc/metamorph/store"
 	"testing"
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

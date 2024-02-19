@@ -13,8 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/blocktx"
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
@@ -56,7 +54,6 @@ type ProcessorI interface {
 	LoadUnmined()
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
 	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
-	SendStatusMinedForTransaction(hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) (bool, error)
 	GetStats(debugItems bool) *ProcessorStats
 	GetPeers() ([]string, []string)
 	Shutdown()
@@ -71,7 +68,6 @@ type Server struct {
 	store           store.MetamorphStore
 	timeout         time.Duration
 	grpcServer      *grpc.Server
-	btc             blocktx.ClientI
 	bitcoinNode     BitcoinNode
 	forceCheckUtxos bool
 	blocktxTimeout  time.Duration
@@ -99,13 +95,12 @@ func WithForceCheckUtxos(bitcoinNode BitcoinNode) func(*Server) {
 type ServerOption func(s *Server)
 
 // NewServer will return a server instance with the zmqLogger stored within it
-func NewServer(s store.MetamorphStore, p ProcessorI, btc blocktx.ClientI, opts ...ServerOption) *Server {
+func NewServer(s store.MetamorphStore, p ProcessorI, opts ...ServerOption) *Server {
 	server := &Server{
 		logger:          slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm")),
 		processor:       p,
 		store:           s,
 		timeout:         responseTimeout,
-		btc:             btc,
 		forceCheckUtxos: false,
 		blocktxTimeout:  blocktxTimeout,
 	}
@@ -380,42 +375,6 @@ func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.Transact
 	return txn, nil
 }
 
-func (s *Server) getMerklePath(ctx context.Context, hash *chainhash.Hash, dataStatus metamorph_api.Status) (string, error) {
-	merklePathCh := make(chan string, 1)
-	errCh := make(chan error, 1)
-	blocktxCtx, cancel := context.WithTimeout(ctx, s.blocktxTimeout)
-	defer cancel()
-
-	go func() {
-		mp, err := s.btc.GetTransactionMerklePath(blocktxCtx, &blocktx_api.Transaction{Hash: hash[:]})
-		if err != nil {
-			if strings.Contains(err.Error(), blocktx.ErrMerklePathNotFoundForTransaction.Error()) {
-				if dataStatus == metamorph_api.Status_MINED {
-					errCh <- fmt.Errorf("merkle path not found for mined transaction %s: %v", hash.String(), err)
-					return
-				}
-
-				merklePathCh <- ""
-				return
-			} else {
-				errCh <- fmt.Errorf("failed to get Merkle path for transaction %s: %v", hash.String(), err)
-				return
-			}
-		}
-
-		merklePathCh <- mp
-	}()
-
-	select {
-	case <-blocktxCtx.Done():
-		return "", errors.New("failed to get Merkle path due to timeout")
-	case err := <-errCh:
-		return "", fmt.Errorf("failed to get Merkle path: %v", err)
-	case merklePath := <-merklePathCh:
-		return merklePath, nil
-	}
-}
-
 func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.TransactionStatus, error) {
 	data, announcedAt, minedAt, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
@@ -431,15 +390,6 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		blockHash = data.BlockHash.String()
 	}
 
-	hash, err := chainhash.NewHashFromStr(req.GetTxid())
-	if err != nil {
-		return nil, err
-	}
-	merklePath, err := s.getMerklePath(ctx, hash, data.Status)
-	if err != nil {
-		s.logger.Error("failed to get merkle path", slog.String("hash", hash.String()), slog.String("err", err.Error()))
-	}
-
 	return &metamorph_api.TransactionStatus{
 		Txid:         data.Hash.String(),
 		AnnouncedAt:  announcedAt,
@@ -449,7 +399,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		BlockHeight:  data.BlockHeight,
 		BlockHash:    blockHash,
 		RejectReason: data.RejectReason,
-		MerklePath:   merklePath,
+		MerklePath:   data.MerklePath,
 	}, nil
 }
 

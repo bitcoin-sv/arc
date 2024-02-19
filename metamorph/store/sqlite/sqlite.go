@@ -6,12 +6,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/metamorph/store"
 	"path"
 	"path/filepath"
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/labstack/gommon/random"
 	_ "github.com/lib/pq"
 	"github.com/libsv/go-bt/v2"
@@ -94,22 +95,13 @@ func CreateSqliteSchema(db *sql.DB) error {
 		callback_url TEXT,
 		callback_token TEXT,
 		reject_reason TEXT,
-		raw_tx BLOB
+		raw_tx BLOB,
+		merkle_path TEXT,
+		full_status_updates BOOLEAN DEFAULT(FALSE)
 		);
 	`); err != nil {
 		_ = db.Close()
 		return fmt.Errorf("could not create transactions table - [%+v]", err)
-	}
-
-	// Create schema for processed blocks, if necessary...
-	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS blocks (
-		hash BLOB PRIMARY KEY,
-		processed_at TEXT
-		);
-	`); err != nil {
-		_ = db.Close()
-		return fmt.Errorf("could not create blocks table - [%+v]", err)
 	}
 
 	return nil
@@ -118,37 +110,6 @@ func CreateSqliteSchema(db *sql.DB) error {
 type SqLite struct {
 	db  *sql.DB
 	now func() time.Time
-}
-
-func (s *SqLite) RemoveCallbacker(ctx context.Context, hash *chainhash.Hash) error {
-	startNanos := s.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("RemoveCallbacker").AddTime(startNanos)
-	}()
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:RemoveCallbacker")
-	defer span.Finish()
-
-	q := `UPDATE transactions SET status = callback_url = '' WHERE hash = $3;`
-
-	result, err := s.db.ExecContext(ctx, q, hash[:])
-	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return err
-	}
-
-	var n int64
-	n, err = result.RowsAffected()
-	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return err
-	}
-	if n == 0 {
-		return store.ErrNotFound
-	}
-
-	return nil
 }
 
 func (s *SqLite) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
@@ -368,7 +329,7 @@ func (s *SqLite) GetUnmined(ctx context.Context, since time.Time, limit int64) (
 		LIMIT $3
 		;`
 
-	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_MINED, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, limit)
+	rows, err := s.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, limit)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -476,7 +437,7 @@ func (s *SqLite) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status 
 	return nil
 }
 
-func (s *SqLite) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHash *chainhash.Hash, blockHeight uint64) error {
+func (s *SqLite) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
 	startNanos := s.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("UpdateMined").AddTime(startNanos)
@@ -489,85 +450,145 @@ func (s *SqLite) UpdateMined(ctx context.Context, hash *chainhash.Hash, blockHas
 		SET status = $1
 			,block_hash = $2
 			,block_height = $3
-		WHERE hash = $4
-	;`
+			,merkle_path = $4
+		WHERE hash = $5
+		RETURNING stored_at
+		,announced_at
+		,mined_at
+		,hash
+		,status
+		,block_height
+		,block_hash
+		,callback_url
+		,callback_token
+		,full_status_updates
+		,reject_reason
+		,raw_tx
+		,merkle_path
+		;`
 
-	_, err := s.db.ExecContext(ctx, q, metamorph_api.Status_MINED, blockHash[:], blockHeight, hash[:])
-	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-	}
+	var storeData []*store.StoreData
 
-	return err
-}
+	for _, txBlock := range txsBlocks.TransactionBlocks {
 
-func (s *SqLite) GetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) (*time.Time, error) {
-	startNanos := s.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("GetBlockProcessed").AddTime(startNanos)
-	}()
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:GetBlockProcessed")
-	defer span.Finish()
+		data := &store.StoreData{}
 
-	q := `SELECT
-		processed_at
-	 	FROM blocks WHERE hash = $1 LIMIT 1;`
+		var storedAt string
+		var announcedAt string
+		var minedAt string
+		var blockHeight sql.NullInt64
+		var txHash []byte
+		var blockHash []byte
+		var callbackUrl sql.NullString
+		var callbackToken sql.NullString
+		var fullStatusUpdates sql.NullBool
+		var rejectReason sql.NullString
+		var lockedBy sql.NullString
+		var status sql.NullInt32
+		var merklePath sql.NullString
 
-	var processedAt string
-
-	err := s.db.QueryRowContext(ctx, q, blockHash[:]).Scan(
-		&processedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return nil, err
-	}
-
-	var processedAtTime time.Time
-	if processedAt != "" {
-		processedAtTime, err = time.Parse(time.RFC3339, processedAt)
+		err := s.db.QueryRowContext(ctx, q, metamorph_api.Status_MINED, txBlock.BlockHash[:], txBlock.BlockHeight, txBlock.MerklePath, txBlock.TransactionHash[:]).Scan(
+			&storedAt,
+			&announcedAt,
+			&minedAt,
+			&txHash,
+			&status,
+			&blockHeight,
+			&blockHash,
+			&callbackUrl,
+			&callbackToken,
+			&fullStatusUpdates,
+			&rejectReason,
+			&data.RawTx,
+			&merklePath,
+		)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
-			return nil, err
 		}
+
+		if len(txHash) > 0 {
+			data.Hash, err = chainhash.NewHash(txHash)
+			if err != nil {
+				span.SetTag(string(ext.Error), true)
+				span.LogFields(log.Error(err))
+				return nil, err
+			}
+		}
+
+		if len(blockHash) > 0 {
+			data.BlockHash, err = chainhash.NewHash(blockHash)
+			if err != nil {
+				span.SetTag(string(ext.Error), true)
+				span.LogFields(log.Error(err))
+				return nil, err
+			}
+		}
+
+		if storedAt != "" {
+			data.StoredAt, err = time.Parse(time.RFC3339, storedAt)
+			if err != nil {
+				span.SetTag(string(ext.Error), true)
+				span.LogFields(log.Error(err))
+				return nil, err
+			}
+		}
+
+		if announcedAt != "" {
+			data.AnnouncedAt, err = time.Parse(time.RFC3339, announcedAt)
+			if err != nil {
+				span.SetTag(string(ext.Error), true)
+				span.LogFields(log.Error(err))
+				return nil, err
+			}
+		}
+
+		if minedAt != "" {
+			data.MinedAt, err = time.Parse(time.RFC3339, minedAt)
+			if err != nil {
+				span.SetTag(string(ext.Error), true)
+				span.LogFields(log.Error(err))
+				return nil, err
+			}
+		}
+
+		if status.Valid {
+			data.Status = metamorph_api.Status(status.Int32)
+		}
+
+		if blockHeight.Valid {
+			data.BlockHeight = uint64(blockHeight.Int64)
+		}
+
+		if callbackUrl.Valid {
+			data.CallbackUrl = callbackUrl.String
+		}
+
+		if callbackToken.Valid {
+			data.CallbackToken = callbackToken.String
+		}
+
+		if fullStatusUpdates.Valid {
+			data.FullStatusUpdates = fullStatusUpdates.Bool
+		}
+
+		if rejectReason.Valid {
+			data.RejectReason = rejectReason.String
+		}
+
+		if lockedBy.Valid {
+			data.LockedBy = lockedBy.String
+		}
+
+		if merklePath.Valid {
+			data.MerklePath = merklePath.String
+		}
+
+		storeData = append(storeData, data)
+
 	}
 
-	return &processedAtTime, nil
-}
-
-func (s *SqLite) SetBlockProcessed(ctx context.Context, blockHash *chainhash.Hash) error {
-	startNanos := s.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("SetBlockProcessed").AddTime(startNanos)
-	}()
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:SetBlockProcessed")
-	defer span.Finish()
-
-	q := `INSERT INTO blocks (
-		hash
-		,processed_at
-	) VALUES (
-		 $1
-		,$2
-	);`
-
-	processedAt := s.now().UTC().Format(time.RFC3339)
-
-	_, err := s.db.ExecContext(ctx, q,
-		blockHash[:],
-		processedAt,
-	)
-	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-	}
-
-	return err
+	return storeData, nil
 }
 
 func (s *SqLite) Del(ctx context.Context, key []byte) error {

@@ -313,9 +313,9 @@ go run cmd/broadcaster/main.go -api=false -consolidate -keyfile=./cmd/broadcaste
 
 Detailed information about flags can is displayed by running `go run cmd/broadcaster/main.go`.
 
-## Background jobs
+## Background worker
 
-See [here](cmd/background_worker/README.md)
+The goal of this submodule is to provide simple and convenient way to schedule repetitive tasks to be performed on ARC.
 
 ## Tests
 ### Unit tests

@@ -104,6 +104,7 @@ func (s *BlockTXDBTestSuite) Conn() *sqlx.Conn {
 func (s *BlockTXDBTestSuite) InsertBlock(block *store.Block) {
 	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
+	defer db.Close()
 
 	q := `INSERT INTO blocks(
 		id,
@@ -144,6 +145,7 @@ func (s *BlockTXDBTestSuite) InsertTransaction(tx *store.Transaction) {
 		:hash,
 		:source,
 		:merkle_path);`
+	defer db.Close()
 
 	_, err = db.NamedExec(q, tx)
 
@@ -153,6 +155,7 @@ func (s *BlockTXDBTestSuite) InsertTransaction(tx *store.Transaction) {
 func (s *BlockTXDBTestSuite) InsertBlockTransactionMap(btx *store.BlockTransactionMap) {
 	db, err := sqlx.Open("postgres", DefaultParams.String())
 	require.NoError(s.T(), err)
+	defer db.Close()
 
 	q := `INSERT INTO block_transactions_map(
 	blockid,

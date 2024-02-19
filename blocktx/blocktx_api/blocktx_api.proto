@@ -20,6 +20,14 @@ service BlockTxAPI {
   // GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash.
   rpc GetTransactionBlocks (Transactions) returns (TransactionBlocks) {}
 
+  // ClearTransactions clears transaction data
+  rpc ClearTransactions(ClearData) returns (ClearDataResponse) {}
+
+  // ClearBlocks clears block data
+  rpc ClearBlocks(ClearData) returns (ClearDataResponse) {}
+
+  // ClearBlockTransactionsMap clears block-transaction-map data
+  rpc ClearBlockTransactionsMap(ClearData) returns (ClearDataResponse) {}
 }
 
 // swagger:model HealthResponse
@@ -48,6 +56,7 @@ message TransactionBlock {
   bytes block_hash = 1; // Little endian
   uint64 block_height = 2;
   bytes transaction_hash = 3; // Little endian
+  string merklePath = 4;
 }
 
 message TransactionBlocks {
@@ -69,6 +78,16 @@ message Transaction {
 // swagger:model Height
 message Height {
   uint64 height = 1;
+}
+
+// swagger:model ClearData
+message ClearData {
+  int32 retentionDays = 1;
+}
+
+// swagger:model ClearDataResponse
+message ClearDataResponse {
+  int64 rows = 1;
 }
 
 message Hash {

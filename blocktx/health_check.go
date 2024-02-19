@@ -35,7 +35,7 @@ func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckReque
 		// verify we have at least 1 node connected to blocktx
 		healthy := false
 		for _, peer := range s.ph.peers {
-			if peer.IsHealthy() {
+			if peer.IsHealthy() && peer.Connected() {
 				healthy = true
 				break
 			}
@@ -52,4 +52,39 @@ func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckReque
 	return &grpc_health_v1.HealthCheckResponse{
 		Status: grpc_health_v1.HealthCheckResponse_SERVING,
 	}, nil
+}
+
+func (s *Server) Watch(req *grpc_health_v1.HealthCheckRequest, server grpc_health_v1.Health_WatchServer) error {
+	s.logger.Info("watching health", slog.String("service", req.Service))
+	ctx := context.Background()
+	if req.Service == readiness {
+		// check db connection
+		_, err := s.store.GetPrimary(ctx)
+		if err != nil {
+			s.logger.Error("no connection to DB", slog.String("err", err.Error()))
+			return server.Send(&grpc_health_v1.HealthCheckResponse{
+				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
+			})
+		}
+
+		// verify we have at least 1 node connected to blocktx
+		healthy := false
+		for _, peer := range s.ph.peers {
+			if peer.IsHealthy() && peer.Connected() {
+				healthy = true
+				break
+			}
+		}
+
+		if !healthy {
+			s.logger.Error("healthy peer not found")
+			return server.Send(&grpc_health_v1.HealthCheckResponse{
+				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
+			})
+		}
+	}
+
+	return server.Send(&grpc_health_v1.HealthCheckResponse{
+		Status: grpc_health_v1.HealthCheckResponse_SERVING,
+	})
 }

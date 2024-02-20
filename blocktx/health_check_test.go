@@ -83,29 +83,31 @@ func TestCheck(t *testing.T) {
 
 func TestWatch(t *testing.T) {
 	tt := []struct {
-		name               string
-		service            string
-		pingErr            error
-		processorHealthErr error
-		getBlockErr        error
-		primaryErr         error
+		name       string
+		service    string
+		pingErr    error
+		primaryErr error
 
 		expectedStatus grpc_health_v1.HealthCheckResponse_ServingStatus
 	}{
 		{
-			name:               "liveness - healthy",
-			service:            "liveness",
-			processorHealthErr: errors.New("unhealthy processor"),
-			getBlockErr:        errors.New("failed to get block"),
-			primaryErr:         nil,
+			name:       "liveness - healthy",
+			service:    "liveness",
+			primaryErr: nil,
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_SERVING,
+		},
+		{
+			name:       "not ready - healthy",
+			service:    "readiness",
+			primaryErr: nil,
+
+			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			const batchSize = 4
 
 			var storeMock = &store.InterfaceMock{
@@ -137,6 +139,7 @@ func TestWatch(t *testing.T) {
 
 			err = server.Watch(req, watchServer)
 			require.NoError(t, err)
+			peerHandler.Shutdown()
 		})
 	}
 }

@@ -24,7 +24,7 @@ type K8sClient interface {
 
 type Watcher struct {
 	metamorphClient           metamorph.TransactionMaintainer
-	blocktxClient             blocktx.ClientI
+	blocktxClient             blocktx.BlocktxClient
 	k8sClient                 K8sClient
 	logger                    *slog.Logger
 	tickerMetamorph           Ticker
@@ -45,7 +45,7 @@ func WithLogger(logger *slog.Logger) func(*Watcher) {
 type ServerOption func(f *Watcher)
 
 // New The K8s watcher listens to events coming from Kubernetes. If it detects a metamorph pod which was terminated, then it sets records locked by this pod to unlocked. This is a safety measure for the case that metamorph is terminated ungracefully where it misses to unlock its records itself.
-func New(metamorphClient metamorph.TransactionMaintainer, blocktxClient blocktx.ClientI, k8sClient K8sClient, namespace string, opts ...ServerOption) *Watcher {
+func New(metamorphClient metamorph.TransactionMaintainer, blocktxClient blocktx.BlocktxClient, k8sClient K8sClient, namespace string, opts ...ServerOption) *Watcher {
 	watcher := &Watcher{
 		metamorphClient: metamorphClient,
 		blocktxClient:   blocktxClient,

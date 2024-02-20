@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:generate moq -pkg mock -out ./mock/blocktx_client_mock.go ../../blocktx ClientI
+//go:generate moq -pkg mock -out ./mock/blocktx_client_mock.go ../../blocktx BlocktxClient
 
 func TestClearBlocktxTransactions(t *testing.T) {
 	tt := []struct {
@@ -36,7 +36,7 @@ func TestClearBlocktxTransactions(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 
-			client := &mock.ClientIMock{
+			client := &mock.BlocktxClientMock{
 				ClearTransactionsFunc: func(ctx context.Context, retentionDays int32) (int64, error) {
 					return tc.response, tc.clearErr
 				},
@@ -80,7 +80,7 @@ func TestClearBlocks(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 
-			client := &mock.ClientIMock{
+			client := &mock.BlocktxClientMock{
 				ClearBlocksFunc: func(ctx context.Context, retentionDays int32) (int64, error) {
 					return tc.response, tc.clearErr
 				},
@@ -124,7 +124,7 @@ func TestClearBlockTransactionsMap(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 
-			client := &mock.ClientIMock{
+			client := &mock.BlocktxClientMock{
 				ClearBlockTransactionsMapFunc: func(ctx context.Context, retentionDays int32) (int64, error) {
 					return tc.response, tc.clearErr
 				},

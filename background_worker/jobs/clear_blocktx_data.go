@@ -8,12 +8,12 @@ import (
 )
 
 type Blocktx struct {
-	client        blocktx.ClientI
+	client        blocktx.BlocktxClient
 	logger        *slog.Logger
 	retentionDays int32
 }
 
-func NewBlocktx(client blocktx.ClientI, retentionDays int32, logger *slog.Logger) *Blocktx {
+func NewBlocktx(client blocktx.BlocktxClient, retentionDays int32, logger *slog.Logger) *Blocktx {
 	return &Blocktx{
 		client:        client,
 		logger:        logger,

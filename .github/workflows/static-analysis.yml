@@ -22,9 +22,6 @@ jobs:
         with:
           go-version-file: "./go.mod"
 
-      - name: Launch test database
-        run: docker compose -f docker-compose.itest.yml up -d
-
       - name: Run unit Tests
         continue-on-error: true
         run: |

@@ -92,7 +92,7 @@ type hashPeer struct {
 type PeerHandler struct {
 	hostname                    string
 	workerCh                    chan hashPeer
-	store                       store.Interface
+	store                       store.BlocktxStore
 	logger                      *slog.Logger
 	stats                       *safemap.Safemap[string, *tracing.PeerHandlerStats]
 	transactionStorageBatchSize int
@@ -158,7 +158,7 @@ func WithRegisterTxsBatchSize(size int) func(handler *PeerHandler) {
 	}
 }
 
-func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight int, peerURLs []string, network wire.BitcoinNet, opts ...func(*PeerHandler)) (*PeerHandler, error) {
+func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, startingHeight int, peerURLs []string, network wire.BitcoinNet, opts ...func(*PeerHandler)) (*PeerHandler, error) {
 
 	hostname, err := os.Hostname()
 	if err != nil {

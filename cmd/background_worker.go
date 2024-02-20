@@ -97,9 +97,7 @@ func startBlocktxScheduler(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
 	}
 
-	client := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn))
-
-	blocktxJobs := jobs.NewBlocktx(client, int32(cleanBlocksRecordRetentionDays), logger)
+	blocktxJobs := jobs.NewBlocktx(blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn)), int32(cleanBlocksRecordRetentionDays), logger)
 
 	scheduler := background_worker.NewScheduler(gocron.NewScheduler(time.UTC), time.Duration(executionIntervalHours)*time.Hour, logger)
 

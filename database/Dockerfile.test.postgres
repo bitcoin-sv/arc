@@ -1,4 +1,0 @@
-FROM postgres:latest
-
-RUN echo "CREATE DATABASE metamorph_test;" >> /docker-entrypoint-initdb.d/init.sql
-RUN echo "CREATE DATABASE blocktx_test;" >> /docker-entrypoint-initdb.d/init.sql

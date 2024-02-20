@@ -246,7 +246,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	_ = metamorph.NewZMQCollector(zmqCollector)
 
 	go func() {
-		err = StartHealthServer(serv)
+		err = StartHealthServerMetamorph(serv)
 		if err != nil {
 			logger.Error("failed to start health server", slog.String("err", err.Error()))
 		}
@@ -267,7 +267,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	}, nil
 }
 
-func StartHealthServer(serv *metamorph.Server) error {
+func StartHealthServerMetamorph(serv *metamorph.Server) error {
 	gs := grpc.NewServer()
 	defer gs.Stop()
 

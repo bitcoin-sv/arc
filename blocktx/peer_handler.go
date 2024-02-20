@@ -25,7 +25,7 @@ import (
 
 const (
 	transactionStoringBatchsizeDefault = 2048 // power of 2 for easier memory allocation
-	maxRequestBlocks                   = 5
+	maxRequestBlocks                   = 1
 	fillGapsInterval                   = 15 * time.Minute
 	maximumBlockSize                   = 4294967296 // 4Gb
 	registerTxsIntervalDefault         = time.Second * 10
@@ -160,6 +160,11 @@ func WithRegisterTxsBatchSize(size int) func(handler *PeerHandler) {
 
 func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight int, peerURLs []string, network wire.BitcoinNet, opts ...func(*PeerHandler)) (*PeerHandler, error) {
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+
 	ph := &PeerHandler{
 		store:                       storeI,
 		logger:                      logger,
@@ -170,6 +175,7 @@ func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight 
 		registerTxsInterval:         registerTxsIntervalDefault,
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
 		peers:                       make([]*p2p.Peer, len(peerURLs)),
+		hostname:                    hostname,
 
 		fillGapsTicker:              time.NewTicker(fillGapsInterval),
 		quitFillBlockGap:            make(chan struct{}),

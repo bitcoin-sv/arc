@@ -412,9 +412,11 @@ func (ddb *DynamoDB) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	defer span.Finish()
 
 	var storeData []*store.StoreData
+	var data *store.StoreData
+	var err error
 
 	for _, update := range updates {
-		data, err := ddb.updateStatus(ctx, &update.Hash, update.Status, update.RejectReason)
+		data, err = ddb.updateStatus(ctx, &update.Hash, update.Status, update.RejectReason)
 		if err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))

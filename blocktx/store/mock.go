@@ -38,23 +38,20 @@ var _ BlocktxStore = &BlocktxStoreMock{}
 //			GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
 //				panic("mock out the GetBlockHashesProcessingInProgress method")
 //			},
-//			GetPrimaryFunc: func(ctx context.Context) (string, error) {
-//				panic("mock out the GetPrimary method")
-//			},
 //			InsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
 //				panic("mock out the InsertBlock method")
 //			},
 //			MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 //				panic("mock out the MarkBlockAsDone method")
 //			},
+//			PingFunc: func(ctx context.Context) error {
+//				panic("mock out the Ping method")
+//			},
 //			RegisterTransactionsFunc: func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error {
 //				panic("mock out the RegisterTransactions method")
 //			},
 //			SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
 //				panic("mock out the SetBlockProcessing method")
-//			},
-//			TryToBecomePrimaryFunc: func(ctx context.Context, myHostName string) error {
-//				panic("mock out the TryToBecomePrimary method")
 //			},
 //			UpdateBlockTransactionsFunc: func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]UpdateBlockTransactionsResult, error) {
 //				panic("mock out the UpdateBlockTransactions method")
@@ -84,23 +81,20 @@ type BlocktxStoreMock struct {
 	// GetBlockHashesProcessingInProgressFunc mocks the GetBlockHashesProcessingInProgress method.
 	GetBlockHashesProcessingInProgressFunc func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)
 
-	// GetPrimaryFunc mocks the GetPrimary method.
-	GetPrimaryFunc func(ctx context.Context) (string, error)
-
 	// InsertBlockFunc mocks the InsertBlock method.
 	InsertBlockFunc func(ctx context.Context, block *blocktx_api.Block) (uint64, error)
 
 	// MarkBlockAsDoneFunc mocks the MarkBlockAsDone method.
 	MarkBlockAsDoneFunc func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 
+	// PingFunc mocks the Ping method.
+	PingFunc func(ctx context.Context) error
+
 	// RegisterTransactionsFunc mocks the RegisterTransactions method.
 	RegisterTransactionsFunc func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error
 
 	// SetBlockProcessingFunc mocks the SetBlockProcessing method.
 	SetBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error)
-
-	// TryToBecomePrimaryFunc mocks the TryToBecomePrimary method.
-	TryToBecomePrimaryFunc func(ctx context.Context, myHostName string) error
 
 	// UpdateBlockTransactionsFunc mocks the UpdateBlockTransactions method.
 	UpdateBlockTransactionsFunc func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]UpdateBlockTransactionsResult, error)
@@ -149,11 +143,6 @@ type BlocktxStoreMock struct {
 			// ProcessedBy is the processedBy argument value.
 			ProcessedBy string
 		}
-		// GetPrimary holds details about calls to the GetPrimary method.
-		GetPrimary []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-		}
 		// InsertBlock holds details about calls to the InsertBlock method.
 		InsertBlock []struct {
 			// Ctx is the ctx argument value.
@@ -172,6 +161,11 @@ type BlocktxStoreMock struct {
 			// TxCount is the txCount argument value.
 			TxCount uint64
 		}
+		// Ping holds details about calls to the Ping method.
+		Ping []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
 		// RegisterTransactions holds details about calls to the RegisterTransactions method.
 		RegisterTransactions []struct {
 			// Ctx is the ctx argument value.
@@ -187,13 +181,6 @@ type BlocktxStoreMock struct {
 			Hash *chainhash.Hash
 			// ProcessedBy is the processedBy argument value.
 			ProcessedBy string
-		}
-		// TryToBecomePrimary holds details about calls to the TryToBecomePrimary method.
-		TryToBecomePrimary []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// MyHostName is the myHostName argument value.
-			MyHostName string
 		}
 		// UpdateBlockTransactions holds details about calls to the UpdateBlockTransactions method.
 		UpdateBlockTransactions []struct {
@@ -213,12 +200,11 @@ type BlocktxStoreMock struct {
 	lockGetBlock                           sync.RWMutex
 	lockGetBlockGaps                       sync.RWMutex
 	lockGetBlockHashesProcessingInProgress sync.RWMutex
-	lockGetPrimary                         sync.RWMutex
 	lockInsertBlock                        sync.RWMutex
 	lockMarkBlockAsDone                    sync.RWMutex
+	lockPing                               sync.RWMutex
 	lockRegisterTransactions               sync.RWMutex
 	lockSetBlockProcessing                 sync.RWMutex
-	lockTryToBecomePrimary                 sync.RWMutex
 	lockUpdateBlockTransactions            sync.RWMutex
 }
 
@@ -437,38 +423,6 @@ func (mock *BlocktxStoreMock) GetBlockHashesProcessingInProgressCalls() []struct
 	return calls
 }
 
-// GetPrimary calls GetPrimaryFunc.
-func (mock *BlocktxStoreMock) GetPrimary(ctx context.Context) (string, error) {
-	if mock.GetPrimaryFunc == nil {
-		panic("BlocktxStoreMock.GetPrimaryFunc: method is nil but BlocktxStore.GetPrimary was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-	}{
-		Ctx: ctx,
-	}
-	mock.lockGetPrimary.Lock()
-	mock.calls.GetPrimary = append(mock.calls.GetPrimary, callInfo)
-	mock.lockGetPrimary.Unlock()
-	return mock.GetPrimaryFunc(ctx)
-}
-
-// GetPrimaryCalls gets all the calls that were made to GetPrimary.
-// Check the length with:
-//
-//	len(mockedBlocktxStore.GetPrimaryCalls())
-func (mock *BlocktxStoreMock) GetPrimaryCalls() []struct {
-	Ctx context.Context
-} {
-	var calls []struct {
-		Ctx context.Context
-	}
-	mock.lockGetPrimary.RLock()
-	calls = mock.calls.GetPrimary
-	mock.lockGetPrimary.RUnlock()
-	return calls
-}
-
 // InsertBlock calls InsertBlockFunc.
 func (mock *BlocktxStoreMock) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
 	if mock.InsertBlockFunc == nil {
@@ -549,6 +503,38 @@ func (mock *BlocktxStoreMock) MarkBlockAsDoneCalls() []struct {
 	return calls
 }
 
+// Ping calls PingFunc.
+func (mock *BlocktxStoreMock) Ping(ctx context.Context) error {
+	if mock.PingFunc == nil {
+		panic("BlocktxStoreMock.PingFunc: method is nil but BlocktxStore.Ping was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockPing.Lock()
+	mock.calls.Ping = append(mock.calls.Ping, callInfo)
+	mock.lockPing.Unlock()
+	return mock.PingFunc(ctx)
+}
+
+// PingCalls gets all the calls that were made to Ping.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.PingCalls())
+func (mock *BlocktxStoreMock) PingCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockPing.RLock()
+	calls = mock.calls.Ping
+	mock.lockPing.RUnlock()
+	return calls
+}
+
 // RegisterTransactions calls RegisterTransactionsFunc.
 func (mock *BlocktxStoreMock) RegisterTransactions(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error {
 	if mock.RegisterTransactionsFunc == nil {
@@ -622,42 +608,6 @@ func (mock *BlocktxStoreMock) SetBlockProcessingCalls() []struct {
 	mock.lockSetBlockProcessing.RLock()
 	calls = mock.calls.SetBlockProcessing
 	mock.lockSetBlockProcessing.RUnlock()
-	return calls
-}
-
-// TryToBecomePrimary calls TryToBecomePrimaryFunc.
-func (mock *BlocktxStoreMock) TryToBecomePrimary(ctx context.Context, myHostName string) error {
-	if mock.TryToBecomePrimaryFunc == nil {
-		panic("BlocktxStoreMock.TryToBecomePrimaryFunc: method is nil but BlocktxStore.TryToBecomePrimary was just called")
-	}
-	callInfo := struct {
-		Ctx        context.Context
-		MyHostName string
-	}{
-		Ctx:        ctx,
-		MyHostName: myHostName,
-	}
-	mock.lockTryToBecomePrimary.Lock()
-	mock.calls.TryToBecomePrimary = append(mock.calls.TryToBecomePrimary, callInfo)
-	mock.lockTryToBecomePrimary.Unlock()
-	return mock.TryToBecomePrimaryFunc(ctx, myHostName)
-}
-
-// TryToBecomePrimaryCalls gets all the calls that were made to TryToBecomePrimary.
-// Check the length with:
-//
-//	len(mockedBlocktxStore.TryToBecomePrimaryCalls())
-func (mock *BlocktxStoreMock) TryToBecomePrimaryCalls() []struct {
-	Ctx        context.Context
-	MyHostName string
-} {
-	var calls []struct {
-		Ctx        context.Context
-		MyHostName string
-	}
-	mock.lockTryToBecomePrimary.RLock()
-	calls = mock.calls.TryToBecomePrimary
-	mock.lockTryToBecomePrimary.RUnlock()
 	return calls
 }
 

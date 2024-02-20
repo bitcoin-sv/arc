@@ -16,8 +16,6 @@ var (
 
 type BlocktxStore interface {
 	RegisterTransactions(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error
-	TryToBecomePrimary(ctx context.Context, myHostName string) error
-	GetPrimary(ctx context.Context) (string, error)
 	GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
 	InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error)
 	UpdateBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]UpdateBlockTransactionsResult, error)
@@ -29,5 +27,6 @@ type BlocktxStore interface {
 	GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)
 	DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) error
 
+	Ping(ctx context.Context) error
 	Close() error
 }

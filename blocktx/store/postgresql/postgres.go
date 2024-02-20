@@ -1,12 +1,15 @@
 package postgresql
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"time"
+
 	_ "github.com/lib/pq"
+	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/gocore"
 	_ "modernc.org/sqlite"
-	"time"
 )
 
 const (
@@ -57,4 +60,20 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 
 func (p *PostgreSQL) Close() error {
 	return p.db.Close()
+}
+
+func (p *PostgreSQL) Ping(ctx context.Context) error {
+	startNanos := p.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("Ping").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Ping")
+	defer span.Finish()
+
+	_, err := p.db.QueryContext(ctx, "SELECT 1;")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -1,13 +1,17 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 
 	"github.com/labstack/gommon/random"
+	"github.com/opentracing/opentracing-go"
+	"github.com/ordishs/gocore"
 	_ "modernc.org/sqlite"
 )
 
@@ -59,6 +63,22 @@ func New(memory bool, folder string) (*SqLite, error) {
 	return &SqLite{
 		db: db,
 	}, nil
+}
+
+func (s *SqLite) Ping(ctx context.Context) error {
+	startNanos := time.Now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("Ping").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Ping")
+	defer span.Finish()
+
+	_, err := s.db.QueryContext(ctx, "SELECT 1;")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *SqLite) Close() error {

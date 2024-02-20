@@ -24,7 +24,7 @@ func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckReque
 
 	if req.Service == readiness {
 		// check db connection
-		_, err := s.store.GetPrimary(ctx)
+		err := s.store.Ping(ctx)
 		if err != nil {
 			s.logger.Error("no connection to DB", slog.String("err", err.Error()))
 			return &grpc_health_v1.HealthCheckResponse{

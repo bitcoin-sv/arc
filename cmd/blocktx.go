@@ -1,12 +1,9 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"net"
-	"os"
-	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/async/nats_mq"
@@ -129,19 +126,6 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		}
 	}()
 
-	primaryTicker := time.NewTicker(time.Second * BecomePrimaryintervalSecs)
-	hostName, err := os.Hostname()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get hostname: %v", err)
-	}
-	go func() {
-		for range primaryTicker.C {
-			if err := blockStore.TryToBecomePrimary(context.Background(), hostName); err != nil {
-				logger.Error("failed to try to become primary", slog.String("err", err.Error()))
-			}
-		}
-	}()
-
 	return func() {
 		logger.Info("Shutting down blocktx store")
 
@@ -154,7 +138,6 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		if err != nil {
 			logger.Error("Error closing blocktx store", slog.String("err", err.Error()))
 		}
-		primaryTicker.Stop()
 		peerHandler.Shutdown()
 	}, nil
 }

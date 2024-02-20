@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"runtime"
 	"time"
 
@@ -387,25 +386,6 @@ func (ph *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error 
 	stat.Transaction.Add(1)
 
 	return nil
-}
-
-func (ph *PeerHandler) CheckPrimary() (bool, error) {
-	primaryBlocktx, err := ph.store.GetPrimary(context.TODO())
-	if err != nil {
-		return false, err
-	}
-
-	hostName, err := os.Hostname()
-	if err != nil {
-		return false, err
-	}
-
-	if primaryBlocktx != hostName {
-		ph.logger.Info("Not primary, skipping block processing")
-		return false, nil
-	}
-
-	return true, nil
 }
 
 func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI) error {

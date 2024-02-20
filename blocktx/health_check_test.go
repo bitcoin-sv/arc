@@ -104,6 +104,13 @@ func TestWatch(t *testing.T) {
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 		},
+		{
+			name:       "not ready - healthy",
+			service:    "readiness",
+			primaryErr: errors.New("not connected"),
+
+			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
+		},
 	}
 
 	for _, tc := range tt {

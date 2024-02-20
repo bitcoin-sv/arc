@@ -8,11 +8,10 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/arc/background_worker/jobs/mock"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/stretchr/testify/require"
 )
 
-//go:generate moq -pkg mock -out ./mock/metamorph_api_client_mock.go ../../metamorph TransactionMaintainer
+//go:generate moq -pkg mock -out ./mock/metamorph_client_mock.go ../../metamorph TransactionMaintainer
 func TestClearTransactions(t *testing.T) {
 	tt := []struct {
 		name     string
@@ -35,7 +34,7 @@ func TestClearTransactions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			client := &mock.TransactionMaintainerMock{
-				ClearDataFunc: func(ctx context.Context, req *metamorph_api.ClearDataRequest) (int64, error) {
+				ClearDataFunc: func(ctx context.Context, retentionDays int32) (int64, error) {
 					return 0, tc.clearErr
 				},
 			}

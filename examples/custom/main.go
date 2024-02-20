@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"log/slog"
 	"net/http"
 	"os"
@@ -69,10 +70,12 @@ func main() {
 
 	grpcMessageSize := viper.GetInt("grpcMessageSize")
 	// add a single metamorph, with the BlockTx client we want to use
-	txHandler, err := metamorph.NewMetamorph("localhost:8011", grpcMessageSize)
+	conn, err := metamorph.DialGRPC("localhost:8011", grpcMessageSize)
 	if err != nil {
 		panic(err)
 	}
+
+	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
 	defaultPolicy, err := apiHandler.GetDefaultPolicy()
 	if err != nil {
@@ -83,7 +86,7 @@ func main() {
 
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
-	if handler, err = apiHandler.NewDefault(logger, txHandler, defaultPolicy); err != nil {
+	if handler, err = apiHandler.NewDefault(logger, metamorphClient, defaultPolicy); err != nil {
 		panic(err)
 	}
 

@@ -11,15 +11,6 @@ service BlockTxAPI {
   // Health returns the health of the API.
   rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
 
-  // RegisterTransaction registers a transaction with the API.
-  rpc RegisterTransaction (TransactionAndSource) returns (google.protobuf.Empty) {}
-
-  // GetTransactionMerklePath returns the merkle path of a transaction.
-  rpc GetTransactionMerklePath(Transaction) returns (MerklePath) {}
-
-  // GetTransactionBlocks returns a list of block hashes (excluding orphaned) for a given transaction hash.
-  rpc GetTransactionBlocks (Transactions) returns (TransactionBlocks) {}
-
   // ClearTransactions clears transaction data
   rpc ClearTransactions(ClearData) returns (ClearDataResponse) {}
 
@@ -28,6 +19,9 @@ service BlockTxAPI {
 
   // ClearBlockTransactionsMap clears block-transaction-map data
   rpc ClearBlockTransactionsMap(ClearData) returns (ClearDataResponse) {}
+
+  // DelUnfinishedBlockProcessing deletes unfinished block processing
+  rpc DelUnfinishedBlockProcessing(DelUnfinishedBlockProcessingRequest) returns (google.protobuf.Empty) {}
 }
 
 // swagger:model HealthResponse
@@ -63,21 +57,10 @@ message TransactionBlocks {
   repeated TransactionBlock transaction_blocks = 1;
 }
 
-// swagger:model MinedTransactions
-message MinedTransactions {
-  Block block = 1; // Little endian
-  repeated Transaction transactions = 2; // Little endian
-}
-
 // swagger:model Transaction
 message Transaction {
   bytes hash = 1; // Little endian
   string source = 2; // This is the metamorph address:port
-}
-
-// swagger:model Height
-message Height {
-  uint64 height = 1;
 }
 
 // swagger:model ClearData
@@ -90,21 +73,13 @@ message ClearDataResponse {
   int64 rows = 1;
 }
 
-message Hash {
-  bytes hash = 1;
-}
-
-message MerklePath {
-  string merklePath = 1;
-}
 
 message TransactionAndSource {
   bytes hash = 1;
   string source = 2;
 }
 
-// swagger:model BlockAndSource
-message BlockAndSource {
-  bytes hash = 1;
-  string source = 2;
+
+message DelUnfinishedBlockProcessingRequest {
+  string processed_by = 1;
 }

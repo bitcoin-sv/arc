@@ -13,49 +13,23 @@ import (
 
 // ClientI is the interface for the block-tx transaction_handler.
 type ClientI interface {
-	GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error)
-	RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error
 	Health(ctx context.Context) error
+	ClearTransactions(ctx context.Context, retentionDays int32) (int64, error)
+	ClearBlocks(ctx context.Context, retentionDays int32) (int64, error)
+	ClearBlockTransactionsMap(ctx context.Context, retentionDays int32) (int64, error)
+	DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) error
 }
 
 type Client struct {
 	client blocktx_api.BlockTxAPIClient
 }
 
-type Option func(f *Client)
-
-func NewClient(client blocktx_api.BlockTxAPIClient, opts ...Option) ClientI {
+func NewClient(client blocktx_api.BlockTxAPIClient) ClientI {
 	btc := &Client{
 		client: client,
 	}
 
-	for _, opt := range opts {
-		opt(btc)
-	}
-
 	return btc
-}
-
-func (btc *Client) GetTransactionMerklePath(ctx context.Context, hash *blocktx_api.Transaction) (string, error) {
-	merklePath, err := btc.client.GetTransactionMerklePath(ctx, hash)
-	if err != nil {
-		return "", err
-	}
-
-	return merklePath.GetMerklePath(), nil
-}
-
-func (btc *Client) RegisterTransaction(ctx context.Context, transaction *blocktx_api.TransactionAndSource) error {
-	_, err := btc.client.RegisterTransaction(ctx, transaction)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (btc *Client) GetTransactionBlocks(ctx context.Context, transaction *blocktx_api.Transactions) (*blocktx_api.TransactionBlocks, error) {
-	return btc.client.GetTransactionBlocks(ctx, transaction)
 }
 
 func (btc *Client) Health(ctx context.Context) error {
@@ -65,6 +39,38 @@ func (btc *Client) Health(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (btc *Client) DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) error {
+	_, err := btc.client.DelUnfinishedBlockProcessing(ctx, &blocktx_api.DelUnfinishedBlockProcessingRequest{ProcessedBy: processedBy})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (btc *Client) ClearTransactions(ctx context.Context, retentionDays int32) (int64, error) {
+	resp, err := btc.client.ClearTransactions(ctx, &blocktx_api.ClearData{RetentionDays: retentionDays})
+	if err != nil {
+		return 0, err
+	}
+	return resp.Rows, nil
+}
+
+func (btc *Client) ClearBlocks(ctx context.Context, retentionDays int32) (int64, error) {
+	resp, err := btc.client.ClearBlocks(ctx, &blocktx_api.ClearData{RetentionDays: retentionDays})
+	if err != nil {
+		return 0, err
+	}
+	return resp.Rows, nil
+}
+
+func (btc *Client) ClearBlockTransactionsMap(ctx context.Context, retentionDays int32) (int64, error) {
+	resp, err := btc.client.ClearBlockTransactionsMap(ctx, &blocktx_api.ClearData{RetentionDays: retentionDays})
+	if err != nil {
+		return 0, err
+	}
+	return resp.Rows, nil
 }
 
 func DialGRPC(address string) (*grpc.ClientConn, error) {

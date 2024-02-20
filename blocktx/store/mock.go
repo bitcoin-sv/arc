@@ -26,11 +26,17 @@ var _ Interface = &InterfaceMock{}
 //			CloseFunc: func() error {
 //				panic("mock out the Close method")
 //			},
+//			DelBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) error {
+//				panic("mock out the DelBlockProcessing method")
+//			},
 //			GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 //				panic("mock out the GetBlock method")
 //			},
 //			GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*BlockGap, error) {
 //				panic("mock out the GetBlockGaps method")
+//			},
+//			GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+//				panic("mock out the GetBlockHashesProcessingInProgress method")
 //			},
 //			GetPrimaryFunc: func(ctx context.Context) (string, error) {
 //				panic("mock out the GetPrimary method")
@@ -53,6 +59,9 @@ var _ Interface = &InterfaceMock{}
 //			RegisterTransactionsFunc: func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error {
 //				panic("mock out the RegisterTransactions method")
 //			},
+//			SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
+//				panic("mock out the SetBlockProcessing method")
+//			},
 //			TryToBecomePrimaryFunc: func(ctx context.Context, myHostName string) error {
 //				panic("mock out the TryToBecomePrimary method")
 //			},
@@ -72,11 +81,17 @@ type InterfaceMock struct {
 	// CloseFunc mocks the Close method.
 	CloseFunc func() error
 
+	// DelBlockProcessingFunc mocks the DelBlockProcessing method.
+	DelBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, processedBy string) error
+
 	// GetBlockFunc mocks the GetBlock method.
 	GetBlockFunc func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
 
 	// GetBlockGapsFunc mocks the GetBlockGaps method.
 	GetBlockGapsFunc func(ctx context.Context, heightRange int) ([]*BlockGap, error)
+
+	// GetBlockHashesProcessingInProgressFunc mocks the GetBlockHashesProcessingInProgress method.
+	GetBlockHashesProcessingInProgressFunc func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)
 
 	// GetPrimaryFunc mocks the GetPrimary method.
 	GetPrimaryFunc func(ctx context.Context) (string, error)
@@ -99,6 +114,9 @@ type InterfaceMock struct {
 	// RegisterTransactionsFunc mocks the RegisterTransactions method.
 	RegisterTransactionsFunc func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error
 
+	// SetBlockProcessingFunc mocks the SetBlockProcessing method.
+	SetBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error)
+
 	// TryToBecomePrimaryFunc mocks the TryToBecomePrimary method.
 	TryToBecomePrimaryFunc func(ctx context.Context, myHostName string) error
 
@@ -119,6 +137,15 @@ type InterfaceMock struct {
 		// Close holds details about calls to the Close method.
 		Close []struct {
 		}
+		// DelBlockProcessing holds details about calls to the DelBlockProcessing method.
+		DelBlockProcessing []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hash is the hash argument value.
+			Hash *chainhash.Hash
+			// ProcessedBy is the processedBy argument value.
+			ProcessedBy string
+		}
 		// GetBlock holds details about calls to the GetBlock method.
 		GetBlock []struct {
 			// Ctx is the ctx argument value.
@@ -132,6 +159,13 @@ type InterfaceMock struct {
 			Ctx context.Context
 			// HeightRange is the heightRange argument value.
 			HeightRange int
+		}
+		// GetBlockHashesProcessingInProgress holds details about calls to the GetBlockHashesProcessingInProgress method.
+		GetBlockHashesProcessingInProgress []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// ProcessedBy is the processedBy argument value.
+			ProcessedBy string
 		}
 		// GetPrimary holds details about calls to the GetPrimary method.
 		GetPrimary []struct {
@@ -184,6 +218,15 @@ type InterfaceMock struct {
 			// Transaction is the transaction argument value.
 			Transaction []*blocktx_api.TransactionAndSource
 		}
+		// SetBlockProcessing holds details about calls to the SetBlockProcessing method.
+		SetBlockProcessing []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hash is the hash argument value.
+			Hash *chainhash.Hash
+			// ProcessedBy is the processedBy argument value.
+			ProcessedBy string
+		}
 		// TryToBecomePrimary holds details about calls to the TryToBecomePrimary method.
 		TryToBecomePrimary []struct {
 			// Ctx is the ctx argument value.
@@ -203,19 +246,22 @@ type InterfaceMock struct {
 			MerklePaths []string
 		}
 	}
-	lockClearBlocktxTable        sync.RWMutex
-	lockClose                    sync.RWMutex
-	lockGetBlock                 sync.RWMutex
-	lockGetBlockGaps             sync.RWMutex
-	lockGetPrimary               sync.RWMutex
-	lockGetTransactionBlocks     sync.RWMutex
-	lockGetTransactionMerklePath sync.RWMutex
-	lockInsertBlock              sync.RWMutex
-	lockMarkBlockAsDone          sync.RWMutex
-	lockRegisterTransaction      sync.RWMutex
-	lockRegisterTransactions     sync.RWMutex
-	lockTryToBecomePrimary       sync.RWMutex
-	lockUpdateBlockTransactions  sync.RWMutex
+	lockClearBlocktxTable                  sync.RWMutex
+	lockClose                              sync.RWMutex
+	lockDelBlockProcessing                 sync.RWMutex
+	lockGetBlock                           sync.RWMutex
+	lockGetBlockGaps                       sync.RWMutex
+	lockGetBlockHashesProcessingInProgress sync.RWMutex
+	lockGetPrimary                         sync.RWMutex
+	lockGetTransactionBlocks               sync.RWMutex
+	lockGetTransactionMerklePath           sync.RWMutex
+	lockInsertBlock                        sync.RWMutex
+	lockMarkBlockAsDone                    sync.RWMutex
+	lockRegisterTransaction                sync.RWMutex
+	lockRegisterTransactions               sync.RWMutex
+	lockSetBlockProcessing                 sync.RWMutex
+	lockTryToBecomePrimary                 sync.RWMutex
+	lockUpdateBlockTransactions            sync.RWMutex
 }
 
 // ClearBlocktxTable calls ClearBlocktxTableFunc.
@@ -282,6 +328,46 @@ func (mock *InterfaceMock) CloseCalls() []struct {
 	mock.lockClose.RLock()
 	calls = mock.calls.Close
 	mock.lockClose.RUnlock()
+	return calls
+}
+
+// DelBlockProcessing calls DelBlockProcessingFunc.
+func (mock *InterfaceMock) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) error {
+	if mock.DelBlockProcessingFunc == nil {
+		panic("InterfaceMock.DelBlockProcessingFunc: method is nil but Interface.DelBlockProcessing was just called")
+	}
+	callInfo := struct {
+		Ctx         context.Context
+		Hash        *chainhash.Hash
+		ProcessedBy string
+	}{
+		Ctx:         ctx,
+		Hash:        hash,
+		ProcessedBy: processedBy,
+	}
+	mock.lockDelBlockProcessing.Lock()
+	mock.calls.DelBlockProcessing = append(mock.calls.DelBlockProcessing, callInfo)
+	mock.lockDelBlockProcessing.Unlock()
+	return mock.DelBlockProcessingFunc(ctx, hash, processedBy)
+}
+
+// DelBlockProcessingCalls gets all the calls that were made to DelBlockProcessing.
+// Check the length with:
+//
+//	len(mockedInterface.DelBlockProcessingCalls())
+func (mock *InterfaceMock) DelBlockProcessingCalls() []struct {
+	Ctx         context.Context
+	Hash        *chainhash.Hash
+	ProcessedBy string
+} {
+	var calls []struct {
+		Ctx         context.Context
+		Hash        *chainhash.Hash
+		ProcessedBy string
+	}
+	mock.lockDelBlockProcessing.RLock()
+	calls = mock.calls.DelBlockProcessing
+	mock.lockDelBlockProcessing.RUnlock()
 	return calls
 }
 
@@ -354,6 +440,42 @@ func (mock *InterfaceMock) GetBlockGapsCalls() []struct {
 	mock.lockGetBlockGaps.RLock()
 	calls = mock.calls.GetBlockGaps
 	mock.lockGetBlockGaps.RUnlock()
+	return calls
+}
+
+// GetBlockHashesProcessingInProgress calls GetBlockHashesProcessingInProgressFunc.
+func (mock *InterfaceMock) GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+	if mock.GetBlockHashesProcessingInProgressFunc == nil {
+		panic("InterfaceMock.GetBlockHashesProcessingInProgressFunc: method is nil but Interface.GetBlockHashesProcessingInProgress was just called")
+	}
+	callInfo := struct {
+		Ctx         context.Context
+		ProcessedBy string
+	}{
+		Ctx:         ctx,
+		ProcessedBy: processedBy,
+	}
+	mock.lockGetBlockHashesProcessingInProgress.Lock()
+	mock.calls.GetBlockHashesProcessingInProgress = append(mock.calls.GetBlockHashesProcessingInProgress, callInfo)
+	mock.lockGetBlockHashesProcessingInProgress.Unlock()
+	return mock.GetBlockHashesProcessingInProgressFunc(ctx, processedBy)
+}
+
+// GetBlockHashesProcessingInProgressCalls gets all the calls that were made to GetBlockHashesProcessingInProgress.
+// Check the length with:
+//
+//	len(mockedInterface.GetBlockHashesProcessingInProgressCalls())
+func (mock *InterfaceMock) GetBlockHashesProcessingInProgressCalls() []struct {
+	Ctx         context.Context
+	ProcessedBy string
+} {
+	var calls []struct {
+		Ctx         context.Context
+		ProcessedBy string
+	}
+	mock.lockGetBlockHashesProcessingInProgress.RLock()
+	calls = mock.calls.GetBlockHashesProcessingInProgress
+	mock.lockGetBlockHashesProcessingInProgress.RUnlock()
 	return calls
 }
 
@@ -610,6 +732,46 @@ func (mock *InterfaceMock) RegisterTransactionsCalls() []struct {
 	mock.lockRegisterTransactions.RLock()
 	calls = mock.calls.RegisterTransactions
 	mock.lockRegisterTransactions.RUnlock()
+	return calls
+}
+
+// SetBlockProcessing calls SetBlockProcessingFunc.
+func (mock *InterfaceMock) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
+	if mock.SetBlockProcessingFunc == nil {
+		panic("InterfaceMock.SetBlockProcessingFunc: method is nil but Interface.SetBlockProcessing was just called")
+	}
+	callInfo := struct {
+		Ctx         context.Context
+		Hash        *chainhash.Hash
+		ProcessedBy string
+	}{
+		Ctx:         ctx,
+		Hash:        hash,
+		ProcessedBy: processedBy,
+	}
+	mock.lockSetBlockProcessing.Lock()
+	mock.calls.SetBlockProcessing = append(mock.calls.SetBlockProcessing, callInfo)
+	mock.lockSetBlockProcessing.Unlock()
+	return mock.SetBlockProcessingFunc(ctx, hash, processedBy)
+}
+
+// SetBlockProcessingCalls gets all the calls that were made to SetBlockProcessing.
+// Check the length with:
+//
+//	len(mockedInterface.SetBlockProcessingCalls())
+func (mock *InterfaceMock) SetBlockProcessingCalls() []struct {
+	Ctx         context.Context
+	Hash        *chainhash.Hash
+	ProcessedBy string
+} {
+	var calls []struct {
+		Ctx         context.Context
+		Hash        *chainhash.Hash
+		ProcessedBy string
+	}
+	mock.lockSetBlockProcessing.RLock()
+	calls = mock.calls.SetBlockProcessing
+	mock.lockSetBlockProcessing.RUnlock()
 	return calls
 }
 

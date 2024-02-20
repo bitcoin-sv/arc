@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"log/slog"
 	"time"
 
@@ -43,10 +44,12 @@ func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	metamorphClient, err := metamorph.NewMetamorph(metamorphAddress, grpcMessageSize)
+	conn, err := metamorph.DialGRPC(metamorphAddress, grpcMessageSize)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
+
+	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
 	metamorphClearDataRetentionDays, err := config.GetInt("metamorph.db.cleanData.recordRetentionDays")
 	if err != nil {
@@ -74,16 +77,6 @@ func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 
 func startBlocktxScheduler(logger *slog.Logger) (func(), error) {
 	logger.With("service", "background-worker")
-	blocktxAddress, err := config.GetString("blocktx.dialAddr")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := blocktx.DialGRPC(blocktxAddress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
-	}
-
 	cleanBlocksRecordRetentionDays, err := config.GetInt("blocktx.db.cleanData.recordRetentionDays")
 	if err != nil {
 		return nil, err
@@ -94,7 +87,19 @@ func startBlocktxScheduler(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	blocktxJobs := jobs.NewBlocktx(blocktx_api.NewBlockTxAPIClient(conn), int32(cleanBlocksRecordRetentionDays), logger)
+	blocktxAddress, err := config.GetString("blocktx.dialAddr")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := blocktx.DialGRPC(blocktxAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
+	}
+
+	client := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn))
+
+	blocktxJobs := jobs.NewBlocktx(client, int32(cleanBlocksRecordRetentionDays), logger)
 
 	scheduler := background_worker.NewScheduler(gocron.NewScheduler(time.UTC), time.Duration(executionIntervalHours)*time.Hour, logger)
 

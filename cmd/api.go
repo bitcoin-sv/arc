@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/bitcoin-sv/arc/config"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -83,20 +85,22 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 
 	// Check the security requirements
 
-	addresses := viper.GetString("metamorph.dialAddr")
-	if addresses == "" {
-		return fmt.Errorf("metamorph.dialAddr not found in config")
-	}
-
-	grpcMessageSize := viper.GetInt("grpcMessageSize")
-	if grpcMessageSize == 0 {
-		return fmt.Errorf("grpcMessageSize not found in config")
-	}
-
-	txHandler, err := metamorph.NewMetamorph(addresses, grpcMessageSize)
+	metamorphAddress, err := config.GetString("metamorph.dialAddr")
 	if err != nil {
 		return err
 	}
+
+	grpcMessageSize, err := config.GetInt("grpcMessageSize")
+	if err != nil {
+		return err
+	}
+
+	conn, err := metamorph.DialGRPC(metamorphAddress, grpcMessageSize)
+	if err != nil {
+		return fmt.Errorf("failed to connect to metamorph server: %v", err)
+	}
+
+	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
 	var policy *bitcoin.Settings
 	policy, err = getPolicyFromNode()
@@ -108,7 +112,7 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 	}
 
 	// TODO WithSecurityConfig(appConfig.Security)
-	apiHandler, err := handler.NewDefault(logger, txHandler, policy)
+	apiHandler, err := handler.NewDefault(logger, metamorphClient, policy)
 	if err != nil {
 		return err
 	}

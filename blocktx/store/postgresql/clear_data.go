@@ -14,16 +14,16 @@ const (
 	numericalDateHourLayout = "2006010215"
 )
 
-func (s *PostgreSQL) ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.ClearDataResponse, error) {
+func (p *PostgreSQL) ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.ClearDataResponse, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("ClearBlocktxTable").AddTime(start)
 	}()
 
-	now := s.now()
+	now := p.now()
 	deleteBeforeDate := now.Add(-24 * time.Hour * time.Duration(retentionDays))
 
-	stmt, err := s.db.Prepare(fmt.Sprintf("DELETE FROM %s WHERE inserted_at_num <= $1::int", table))
+	stmt, err := p.db.Prepare(fmt.Sprintf("DELETE FROM %s WHERE inserted_at_num <= $1::int", table))
 	if err != nil {
 		return nil, fmt.Errorf("unable to prepare statement: %v", err)
 	}

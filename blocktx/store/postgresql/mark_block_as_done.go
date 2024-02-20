@@ -7,7 +7,7 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-func (s *PostgreSQL) MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
+func (p *PostgreSQL) MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("MarkBlockAsDone").AddTime(start)
@@ -18,13 +18,13 @@ func (s *PostgreSQL) MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, 
 
 	q := `
 		UPDATE blocks
-		SET processed_at = CURRENT_TIMESTAMP
+		SET processed_at = $4
 		,size = $1
 		,tx_count = $2
 		WHERE hash = $3
 		`
 
-	if _, err := s.db.ExecContext(ctx, q, size, txCount, hash[:]); err != nil {
+	if _, err := p.db.ExecContext(ctx, q, size, txCount, hash[:], p.now()); err != nil {
 		return err
 	}
 

@@ -55,6 +55,6 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 	return p, nil
 }
 
-func (s *PostgreSQL) Close() error {
-	return s.db.Close()
+func (p *PostgreSQL) Close() error {
+	return p.db.Close()
 }

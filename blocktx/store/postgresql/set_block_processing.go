@@ -11,7 +11,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
-func (s *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string) (string, error) {
+func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string) (string, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("SetBlockProcessing").AddTime(start)
@@ -27,12 +27,12 @@ func (s *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 	`
 
 	var processedBy string
-	err := s.db.QueryRowContext(ctx, qInsert, hash[:], setProcessedBy).Scan(&processedBy)
+	err := p.db.QueryRowContext(ctx, qInsert, hash[:], setProcessedBy).Scan(&processedBy)
 	if err != nil {
 		var pqErr *pq.Error
 
 		if errors.As(err, &pqErr) && pqErr.Code == pq.ErrorCode("23505") {
-			err = s.db.QueryRowContext(ctx, `SELECT processed_by FROM block_processing WHERE block_hash = $1`, hash[:]).Scan(&processedBy)
+			err = p.db.QueryRowContext(ctx, `SELECT processed_by FROM block_processing WHERE block_hash = $1`, hash[:]).Scan(&processedBy)
 			if err != nil {
 				return "", fmt.Errorf("failed to set block processing: %v", err)
 			}
@@ -44,7 +44,7 @@ func (s *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 	return processedBy, nil
 }
 
-func (s *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) error {
+func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) error {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("DelBlockProcessing").AddTime(start)
@@ -57,7 +57,7 @@ func (s *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Has
 		DELETE FROM block_processing WHERE block_hash = $1 AND processed_by = $2;
     `
 
-	res, err := s.db.ExecContext(ctx, q, hash[:], processedBy)
+	res, err := p.db.ExecContext(ctx, q, hash[:], processedBy)
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func (s *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Has
 	return nil
 }
 
-func (s *PostgreSQL) GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+func (p *PostgreSQL) GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("GetBlockHashesProcessingInProgress").AddTime(start)
@@ -85,7 +85,7 @@ func (s *PostgreSQL) GetBlockHashesProcessingInProgress(ctx context.Context, pro
 	WHERE b.processed_at IS NULL AND bp.processed_by = $1;
     `
 
-	rows, err := s.db.QueryContext(ctx, q, processedBy)
+	rows, err := p.db.QueryContext(ctx, q, processedBy)
 	if err != nil {
 		return nil, err
 	}

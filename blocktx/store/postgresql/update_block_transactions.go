@@ -12,7 +12,7 @@ import (
 )
 
 // UpdateBlockTransactions updates the transaction hashes for a given block hash.
-func (s *PostgreSQL) UpdateBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpdateBlockTransactionsResult, error) {
+func (p *PostgreSQL) UpdateBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpdateBlockTransactionsResult, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("UpdateBlockTransactions").AddTime(start)
@@ -61,7 +61,7 @@ func (s *PostgreSQL) UpdateBlockTransactions(ctx context.Context, blockId uint64
 
 	results := make([]store.UpdateBlockTransactionsResult, 0)
 
-	rows, err := s.db.QueryContext(ctx, qBulkUpdate, pq.Array(txHashes), pq.Array(merklePaths))
+	rows, err := p.db.QueryContext(ctx, qBulkUpdate, pq.Array(txHashes), pq.Array(merklePaths))
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute transaction update query: %v", err)
 	}
@@ -89,8 +89,8 @@ func (s *PostgreSQL) UpdateBlockTransactions(ctx context.Context, blockId uint64
 
 		positions = append(positions, txHashesMap[hex.EncodeToString(txHash)])
 
-		if len(txIDs) >= s.maxPostgresBulkInsertRows {
-			_, err = s.db.ExecContext(ctx, qMap, pq.Array(blockIDs), pq.Array(txIDs), pq.Array(positions))
+		if len(txIDs) >= p.maxPostgresBulkInsertRows {
+			_, err = p.db.ExecContext(ctx, qMap, pq.Array(blockIDs), pq.Array(txIDs), pq.Array(positions))
 			if err != nil {
 				return nil, fmt.Errorf("failed to bulk insert transactions into block transactions map for block with id %d: %v", blockId, err)
 			}
@@ -101,7 +101,7 @@ func (s *PostgreSQL) UpdateBlockTransactions(ctx context.Context, blockId uint64
 	}
 
 	if len(txIDs) > 0 {
-		_, err = s.db.ExecContext(ctx, qMap, pq.Array(blockIDs), pq.Array(txIDs), pq.Array(positions))
+		_, err = p.db.ExecContext(ctx, qMap, pq.Array(blockIDs), pq.Array(txIDs), pq.Array(positions))
 		if err != nil {
 			return nil, fmt.Errorf("failed to bulk insert transactions into block transactions map for block with id %d: %v", blockId, err)
 		}

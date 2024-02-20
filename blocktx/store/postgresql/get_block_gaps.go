@@ -8,7 +8,7 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-func (s *PostgreSQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]*store.BlockGap, error) {
+func (p *PostgreSQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]*store.BlockGap, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("GetBlockGaps").AddTime(start)
@@ -33,10 +33,12 @@ func (s *PostgreSQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]
 			SELECT height, hash FROM blocks WHERE processed_at IS NULL AND height < (SELECT max(height) AS block_height FROM blocks b)
 			AND height > (SELECT max(height) - $1 AS block_height FROM blocks b)
 			) AS all_missing
-			ORDER BY all_missing.height DESC
-			;`
+			LEFT JOIN block_processing bp ON bp.block_hash = all_missing.hash
+			WHERE bp IS NULL ORDER BY all_missing.height DESC
+			;
+			`
 
-	rows, err := s.db.QueryContext(ctx, q, blockHeightRange)
+	rows, err := p.db.QueryContext(ctx, q, blockHeightRange)
 	if err != nil {
 		return nil, err
 	}

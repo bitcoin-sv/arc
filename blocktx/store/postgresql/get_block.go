@@ -11,7 +11,7 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-func (s *PostgreSQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+func (p *PostgreSQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("GetBlock").AddTime(start)
@@ -36,7 +36,7 @@ func (s *PostgreSQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*block
 
 	var processed_at sql.NullString
 
-	if err := s.db.QueryRowContext(ctx, q, hash[:]).Scan(
+	if err := p.db.QueryRowContext(ctx, q, hash[:]).Scan(
 		&block.Hash,
 		&block.PreviousHash,
 		&block.MerkleRoot,

@@ -470,7 +470,7 @@ func TestStartPeerWorker(t *testing.T) {
 			setBlockProcessingErr: store.ErrBlockProcessingDuplicateKey,
 
 			expectedSetBlockProcessingCalls:                 1,
-			expectedGetBlockHashesProcessingInProgressCalls: 0,
+			expectedGetBlockHashesProcessingInProgressCalls: 1,
 			expectedPeerWriteMessageCalls:                   0,
 		},
 		{
@@ -478,14 +478,14 @@ func TestStartPeerWorker(t *testing.T) {
 			setBlockProcessingErr: errors.New("failed to set block processing"),
 
 			expectedSetBlockProcessingCalls:                 1,
-			expectedGetBlockHashesProcessingInProgressCalls: 0,
+			expectedGetBlockHashesProcessingInProgressCalls: 1,
 			expectedPeerWriteMessageCalls:                   0,
 		},
 		{
 			name:          "max blocks being processed reached",
 			bhsProcInProg: []*chainhash.Hash{testdata.Block1Hash, testdata.Block2Hash},
 
-			expectedSetBlockProcessingCalls:                 1,
+			expectedSetBlockProcessingCalls:                 0,
 			expectedGetBlockHashesProcessingInProgressCalls: 1,
 			expectedPeerWriteMessageCalls:                   0,
 		},

@@ -87,6 +87,11 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
+	fillGapsInterval, err := config.GetDuration("blocktx.fillGapsInterval")
+	if err != nil {
+		return nil, err
+	}
+
 	mqClient := nats_mq.NewNatsMQClient(natsClient, txChannel, nats_mq.WithMaxBatchSize(maxBatchSize))
 	if err != nil {
 		return nil, err
@@ -101,7 +106,9 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		blocktx.WithRetentionDays(recordRetentionDays),
 		blocktx.WithTxChan(txChannel),
 		blocktx.WithRegisterTxsInterval(registerTxInterval),
-		blocktx.WithMessageQueueClient(mqClient))
+		blocktx.WithMessageQueueClient(mqClient),
+		blocktx.WithFillGapsInterval(fillGapsInterval),
+	)
 
 	if err != nil {
 		return nil, err

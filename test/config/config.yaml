@@ -80,6 +80,7 @@ blocktx:
   profilerAddr: localhost:9993 # address to start profiler server on
   startingBlockHeight: 100 # starting block height for blocktx to start from. blocktx will not request blocks lower than this height
   registerTxsInterval: 200ms
+  fillGapsInterval: 30m
   mq:
     txsMinedMaxBatchSize: 20 # size of batches for transactions which got mined to be published to the message queue
 

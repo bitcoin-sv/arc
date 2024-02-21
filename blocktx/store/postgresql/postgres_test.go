@@ -379,7 +379,7 @@ func TestPostgresDB(t *testing.T) {
 
 		require.ErrorContains(t, err, "transactions (len=3) and Merkle paths (len=1) have not the same lengths")
 
-		_, err = postgresDB.UpdateBlockTransactions(context.Background(), testBlockID, []*blocktx_api.TransactionAndSource{
+		updateResult, err := postgresDB.UpdateBlockTransactions(context.Background(), testBlockID, []*blocktx_api.TransactionAndSource{
 			{
 				Hash: txHash1[:],
 			},
@@ -391,6 +391,12 @@ func TestPostgresDB(t *testing.T) {
 			},
 		}, testMerklePaths)
 		require.NoError(t, err)
+
+		require.True(t, bytes.Equal(txHash1[:], updateResult[0].TxHash))
+		require.Equal(t, testMerklePaths[0], updateResult[0].MerklePath)
+
+		require.True(t, bytes.Equal(txHash2[:], updateResult[1].TxHash))
+		require.Equal(t, testMerklePaths[1], updateResult[1].MerklePath)
 
 		d, err := sqlx.Open("postgres", dbInfo)
 		require.NoError(t, err)

@@ -2,12 +2,12 @@ package k8s_watcher
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/blocktx"
 	"log/slog"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/metamorph"
 )
 

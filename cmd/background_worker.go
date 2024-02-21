@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"log/slog"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/go-co-op/gocron"
 )
 

@@ -30,6 +30,7 @@ const (
 	maximumBlockSize                   = 4294967296 // 4Gb
 	registerTxsIntervalDefault         = time.Second * 10
 	registerTxsBatchSizeDefault        = 100
+	maxBlocksInProgress                = 1
 )
 
 func init() {
@@ -236,21 +237,29 @@ func (ph *PeerHandler) startPeerWorker() {
 				if err != nil {
 					// block is already being processed by another blocktx instance
 					if errors.Is(err, store.ErrBlockProcessingDuplicateKey) {
-						ph.logger.Debug("Block processing already in progress", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
+						ph.logger.Debug("block processing already in progress", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
 						continue
 					}
 
-					ph.logger.Error("Failed to set block processing", slog.String("hash", hash.String()))
+					ph.logger.Error("failed to set block processing", slog.String("hash", hash.String()))
 					continue
 				}
 
-				msg := wire.NewMsgGetData()
+				bhs, err := ph.store.GetBlockHashesProcessingInProgress(ctx, ph.hostname)
+				if err == nil {
+					if len(bhs) >= maxBlocksInProgress {
+						ph.logger.Debug("max blocks being processed reached", slog.String("hash", hash.String()), slog.Int("max", maxBlocksInProgress), slog.Int("number", len(bhs)))
+						continue
+					}
+				}
+
+						msg := wire.NewMsgGetData()
 				if err = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
 					ph.logger.Error("Failed to create InvVect for block request", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 					continue
 				}
 
-				if err = peer.WriteMsg(msg); err != nil {
+						if err = peer.WriteMsg(msg); err != nil {
 					ph.logger.Error("Failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 					continue
 				}
@@ -276,8 +285,6 @@ func (ph *PeerHandler) startFillGaps(peers []*p2p.Peer) {
 				if peerIndex >= len(peers) {
 					peerIndex = 0
 				}
-
-				ph.logger.Info("requesting missing blocks from peer", slog.Int("index", peerIndex))
 
 				err := ph.FillGaps(peers[peerIndex])
 				if err != nil {
@@ -422,6 +429,7 @@ func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 		Hash: &msg.Hash,
 		Peer: peer,
 	}
+
 	ph.workerCh <- pair
 
 	return nil
@@ -530,7 +538,7 @@ func (ph *PeerHandler) FillGaps(peer p2p.PeerI) error {
 			break
 		}
 
-		ph.logger.Info("requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Int64("height", int64(gaps.Height)))
+		ph.logger.Info("requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Int64("height", int64(gaps.Height)), slog.String("peer", peer.String()))
 
 		pair := hashPeer{
 			Hash: gaps.Hash,

@@ -94,6 +94,7 @@ func TestHandleBlock(t *testing.T) {
 		nonce                 uint32
 		getBlockErr           error
 		setBlockProcessingErr error
+		bhsProcInProg         []*chainhash.Hash
 	}{
 		{
 			name:          "block height 1573650",
@@ -220,6 +221,17 @@ func TestHandleBlock(t *testing.T) {
 			getBlockErr:           store.ErrBlockNotFound,
 			setBlockProcessingErr: errors.New("failed to set block processing"),
 		},
+		{
+			name:          "get block error - not found - too many blocks in progress",
+			txHashes:      []string{"3d64b2bb6bd4e85aacb6d1965a2407fa21846c08dd9a8616866ad2f5c80fda7f"},
+			prevBlockHash: *prevBlockHash1573650,
+			merkleRoot:    *merkleRootHash1573650,
+			height:        1573650,
+			nonce:         3694498168,
+			size:          216,
+			getBlockErr:   store.ErrBlockNotFound,
+			bhsProcInProg: []*chainhash.Hash{testdata.Block1Hash, testdata.Block2Hash},
+		},
 	}
 
 	for _, tc := range tt {
@@ -237,6 +249,9 @@ func TestHandleBlock(t *testing.T) {
 				},
 				SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
 					return "abc", tc.setBlockProcessingErr
+				},
+				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+					return tc.bhsProcInProg, nil
 				},
 			}
 
@@ -306,7 +321,7 @@ func TestHandleBlock(t *testing.T) {
 			// call tested function
 			err = peerHandler.HandleBlock(blockMessage, peer)
 			require.NoError(t, err)
-
+			time.Sleep(20 * time.Millisecond)
 			require.ElementsMatch(t, expectedInsertedTransactions, insertedBlockTransactions)
 			peerHandler.Shutdown()
 		})

@@ -15,8 +15,6 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-const BecomePrimaryintervalSecs = 30
-
 func StartBlockTx(logger *slog.Logger) (func(), error) {
 	dbMode, err := config.GetString("blocktx.db.mode")
 	if err != nil {

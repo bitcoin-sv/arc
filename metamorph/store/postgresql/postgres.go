@@ -522,51 +522,6 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	return p.getStoreDataFromRows(rows)
 }
 
-func (p *PostgreSQL) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
-	startNanos := p.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("UpdateStatus").AddTime(startNanos)
-	}()
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
-	defer span.Finish()
-
-	// do not store other statuses than the following
-	if status != metamorph_api.Status_REJECTED &&
-		status != metamorph_api.Status_SEEN_ON_NETWORK &&
-		status != metamorph_api.Status_MINED &&
-		status != metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
-		return nil
-	}
-
-	args := []any{status, rejectReason, hash[:]}
-	q := `
-		UPDATE metamorph.transactions
-		SET status = $1,
-		    reject_reason = $2
-		WHERE hash = $3
-	;`
-
-	result, err := p.db.ExecContext(ctx, q, args...)
-	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return err
-	}
-
-	var n int64
-	n, err = result.RowsAffected()
-	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return err
-	}
-	if n == 0 {
-		return store.ErrNotFound
-	}
-
-	return nil
-}
-
 func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
 	startNanos := p.now().UnixNano()
 	defer func() {

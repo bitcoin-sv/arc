@@ -2,6 +2,7 @@ package postgresql
 
 import (
 	"context"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -133,6 +134,33 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+func loadFixtures(db *sql.DB, path string) error {
+	fixtures, err := testfixtures.New(
+		testfixtures.Database(db),
+		testfixtures.Dialect("postgresql"),
+		testfixtures.Directory(path), // The directory containing the YAML files
+	)
+	if err != nil {
+		log.Fatalf("failed to create fixtures: %v", err)
+	}
+
+	err = fixtures.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load fixtures: %v", err)
+	}
+
+	return nil
+}
+
+func pruneTables(db *sql.DB) error {
+	_, err := db.Exec("TRUNCATE TABLE metamorph.transactions;")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func TestPostgresDB(t *testing.T) {
 	t.Helper()
 	if testing.Short() {
@@ -194,6 +222,8 @@ func TestPostgresDB(t *testing.T) {
 		postgresDB.Close(ctx)
 	}()
 	t.Run("get/set/del", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
 		mined := *minedData
 		err = postgresDB.Set(ctx, minedHash[:], &mined)
 		require.NoError(t, err)
@@ -204,14 +234,19 @@ func TestPostgresDB(t *testing.T) {
 
 		err = postgresDB.Del(ctx, minedHash[:])
 		require.NoError(t, err)
-	})
 
-	t.Run("get - not found", func(t *testing.T) {
-		_, err := postgresDB.Get(ctx, []byte("not to be found"))
+		_, err = postgresDB.Get(ctx, minedHash[:])
+		require.True(t, errors.Is(err, store.ErrNotFound))
+
+		_, err = postgresDB.Get(ctx, []byte("not to be found"))
 		require.True(t, errors.Is(err, store.ErrNotFound))
 	})
 
 	t.Run("get unmined", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+
 		expectedHash, err := chainhash.NewHashFromStr("57438c4340b9a5e0d77120d999765589048f6f2dd49a6325cdf14356fc4cc012")
 		require.NoError(t, err)
 		records, err := postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1)
@@ -221,12 +256,13 @@ func TestPostgresDB(t *testing.T) {
 		dataReturned, err := postgresDB.Get(ctx, expectedHash[:])
 		require.NoError(t, err)
 		require.Equal(t, "metamorph-1", dataReturned.LockedBy)
-
-		err = postgresDB.Del(ctx, unminedHash[:])
-		require.NoError(t, err)
 	})
 
 	t.Run("set unlocked", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+
 		err = postgresDB.SetUnlocked(ctx, []*chainhash.Hash{chainHash1, chainHash2, chainHash3, chainHash4})
 		require.NoError(t, err)
 
@@ -246,47 +282,19 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("set unlocked by name", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+
 		rows, err := postgresDB.SetUnlockedByName(ctx, "metamorph-3")
 		require.NoError(t, err)
 		require.Equal(t, int64(2), rows)
 	})
 
-	t.Run("update status announced - no update", func(t *testing.T) {
-		unmined := *unminedData
-		err = postgresDB.Set(ctx, unminedHash[:], &unmined)
-		require.NoError(t, err)
+	t.Run("update status", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		err := postgresDB.UpdateStatus(ctx, unminedHash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
-		require.NoError(t, err)
-
-		dataReturned, err := postgresDB.Get(ctx, unminedHash[:])
-		require.NoError(t, err)
-		unmined.Status = metamorph_api.Status_SENT_TO_NETWORK
-		require.Equal(t, dataReturned, &unmined)
-
-		err = postgresDB.Del(ctx, unminedHash[:])
-		require.NoError(t, err)
-	})
-
-	t.Run("update status rejected", func(t *testing.T) {
-		unmined := *unminedData
-		err = postgresDB.Set(ctx, unminedHash[:], &unmined)
-		require.NoError(t, err)
-
-		err := postgresDB.UpdateStatus(ctx, unminedHash, metamorph_api.Status_REJECTED, "missing inputs")
-		require.NoError(t, err)
-
-		dataReturned, err := postgresDB.Get(ctx, unminedHash[:])
-		require.NoError(t, err)
-		unmined.Status = metamorph_api.Status_REJECTED
-		unmined.RejectReason = "missing inputs"
-		require.Equal(t, dataReturned, &unmined)
-
-		err = postgresDB.Del(ctx, unminedHash[:])
-		require.NoError(t, err)
-	})
-
-	t.Run("update status bulk", func(t *testing.T) {
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
 
 		tx1Data := &store.StoreData{
 			RawTx:  testdata.TX1RawBytes,
@@ -316,6 +324,14 @@ func TestPostgresDB(t *testing.T) {
 				Status:       metamorph_api.Status_REJECTED,
 				RejectReason: "missing inputs",
 			},
+			{
+				Hash:   *testdata.TX3Hash, // hash non-existent in db
+				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			},
+			{
+				Hash:   *testdata.TX4Hash, // hash non-existent in db
+				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			},
 		}
 
 		statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
@@ -340,14 +356,13 @@ func TestPostgresDB(t *testing.T) {
 		assert.Equal(t, metamorph_api.Status_REJECTED, returnedDataRequested.Status)
 		assert.Equal(t, "missing inputs", returnedDataRequested.RejectReason)
 		assert.Equal(t, testdata.TX6RawBytes, returnedDataRequested.RawTx)
-
-		err = postgresDB.Del(ctx, testdata.TX1Hash[:])
-		require.NoError(t, err)
-		err = postgresDB.Del(ctx, testdata.TX6Hash[:])
-		require.NoError(t, err)
 	})
 
 	t.Run("update mined", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+
 		unmined := *unminedData
 		err = postgresDB.Set(ctx, unminedHash[:], &unmined)
 		require.NoError(t, err)
@@ -365,18 +380,25 @@ func TestPostgresDB(t *testing.T) {
 				TransactionHash: chainHash2[:],
 				MerklePath:      "merkle-path-2",
 			},
+			{
+				BlockHash:       testdata.Block1Hash[:],
+				BlockHeight:     100,
+				TransactionHash: testdata.TX3Hash[:], // hash non-existent in db
+				MerklePath:      "merkle-path-3",
+			},
 		}}
 
 		updated, err := postgresDB.UpdateMined(ctx, txBlocks)
 		require.NoError(t, err)
-
-		require.True(t, unminedHash.IsEqual(updated[1].Hash))
-		require.True(t, testdata.Block1Hash.IsEqual(updated[1].BlockHash))
-		require.Equal(t, "merkle-path-1", updated[1].MerklePath)
+		require.Len(t, updated, 2)
 
 		require.True(t, chainHash2.IsEqual(updated[0].Hash))
 		require.True(t, testdata.Block1Hash.IsEqual(updated[0].BlockHash))
 		require.Equal(t, "merkle-path-2", updated[0].MerklePath)
+
+		require.True(t, unminedHash.IsEqual(updated[1].Hash))
+		require.True(t, testdata.Block1Hash.IsEqual(updated[1].BlockHash))
+		require.Equal(t, "merkle-path-1", updated[1].MerklePath)
 
 		dataReturned, err := postgresDB.Get(ctx, unminedHash[:])
 		require.NoError(t, err)
@@ -387,11 +409,11 @@ func TestPostgresDB(t *testing.T) {
 		unmined.MerklePath = "merkle-path-1"
 		require.Equal(t, dataReturned, &unmined)
 
-		err = postgresDB.Del(ctx, unminedHash[:])
-		require.NoError(t, err)
 	})
 
 	t.Run("update mined - missing block info", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
 		unmined := *unminedData
 		err = postgresDB.Set(ctx, unminedHash[:], &unmined)
 		require.NoError(t, err)
@@ -412,12 +434,13 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
 		require.Equal(t, dataReturned, &unmined)
-
-		err = postgresDB.Del(ctx, unminedHash[:])
-		require.NoError(t, err)
 	})
 
 	t.Run("clear data", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+
 		res, err := postgresDB.ClearData(ctx, 14)
 		require.NoError(t, err)
 		require.Equal(t, int64(3), res)

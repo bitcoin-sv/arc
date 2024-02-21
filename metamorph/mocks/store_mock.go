@@ -6,7 +6,6 @@ package mocks
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"sync"
@@ -53,9 +52,6 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			UpdateMinedFunc: func(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
 //				panic("mock out the UpdateMined method")
 //			},
-//			UpdateStatusFunc: func(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
-//				panic("mock out the UpdateStatus method")
-//			},
 //			UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
 //				panic("mock out the UpdateStatusBulk method")
 //			},
@@ -95,9 +91,6 @@ type MetamorphStoreMock struct {
 
 	// UpdateMinedFunc mocks the UpdateMined method.
 	UpdateMinedFunc func(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error)
-
-	// UpdateStatusFunc mocks the UpdateStatus method.
-	UpdateStatusFunc func(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error
 
 	// UpdateStatusBulkFunc mocks the UpdateStatusBulk method.
 	UpdateStatusBulkFunc func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error)
@@ -174,17 +167,6 @@ type MetamorphStoreMock struct {
 			// TxsBlocks is the txsBlocks argument value.
 			TxsBlocks *blocktx_api.TransactionBlocks
 		}
-		// UpdateStatus holds details about calls to the UpdateStatus method.
-		UpdateStatus []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Hash is the hash argument value.
-			Hash *chainhash.Hash
-			// Status is the status argument value.
-			Status metamorph_api.Status
-			// RejectReason is the rejectReason argument value.
-			RejectReason string
-		}
 		// UpdateStatusBulk holds details about calls to the UpdateStatusBulk method.
 		UpdateStatusBulk []struct {
 			// Ctx is the ctx argument value.
@@ -203,7 +185,6 @@ type MetamorphStoreMock struct {
 	lockSetUnlocked       sync.RWMutex
 	lockSetUnlockedByName sync.RWMutex
 	lockUpdateMined       sync.RWMutex
-	lockUpdateStatus      sync.RWMutex
 	lockUpdateStatusBulk  sync.RWMutex
 }
 
@@ -564,50 +545,6 @@ func (mock *MetamorphStoreMock) UpdateMinedCalls() []struct {
 	mock.lockUpdateMined.RLock()
 	calls = mock.calls.UpdateMined
 	mock.lockUpdateMined.RUnlock()
-	return calls
-}
-
-// UpdateStatus calls UpdateStatusFunc.
-func (mock *MetamorphStoreMock) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
-	if mock.UpdateStatusFunc == nil {
-		panic("MetamorphStoreMock.UpdateStatusFunc: method is nil but MetamorphStore.UpdateStatus was just called")
-	}
-	callInfo := struct {
-		Ctx          context.Context
-		Hash         *chainhash.Hash
-		Status       metamorph_api.Status
-		RejectReason string
-	}{
-		Ctx:          ctx,
-		Hash:         hash,
-		Status:       status,
-		RejectReason: rejectReason,
-	}
-	mock.lockUpdateStatus.Lock()
-	mock.calls.UpdateStatus = append(mock.calls.UpdateStatus, callInfo)
-	mock.lockUpdateStatus.Unlock()
-	return mock.UpdateStatusFunc(ctx, hash, status, rejectReason)
-}
-
-// UpdateStatusCalls gets all the calls that were made to UpdateStatus.
-// Check the length with:
-//
-//	len(mockedMetamorphStore.UpdateStatusCalls())
-func (mock *MetamorphStoreMock) UpdateStatusCalls() []struct {
-	Ctx          context.Context
-	Hash         *chainhash.Hash
-	Status       metamorph_api.Status
-	RejectReason string
-} {
-	var calls []struct {
-		Ctx          context.Context
-		Hash         *chainhash.Hash
-		Status       metamorph_api.Status
-		RejectReason string
-	}
-	mock.lockUpdateStatus.RLock()
-	calls = mock.calls.UpdateStatus
-	mock.lockUpdateStatus.RUnlock()
 	return calls
 }
 

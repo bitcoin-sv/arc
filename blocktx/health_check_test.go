@@ -21,28 +21,27 @@ func TestCheck(t *testing.T) {
 		service            string
 		pingErr            error
 		processorHealthErr error
-		primaryErr         error
 
 		expectedStatus grpc_health_v1.HealthCheckResponse_ServingStatus
 	}{
 		{
-			name:       "liveness - peer not found",
-			service:    "readiness",
-			primaryErr: nil,
+			name:    "liveness - peer not found",
+			service: "readiness",
+			pingErr: nil,
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 		},
 		{
-			name:       "db error - not connected",
-			service:    "readiness",
-			primaryErr: errors.New("not connected"),
+			name:    "db error - not connected",
+			service: "readiness",
+			pingErr: errors.New("not connected"),
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 		},
 		{
-			name:       "db error - not connected",
-			service:    "readiness",
-			primaryErr: nil,
+			name:    "db error - not connected",
+			service: "readiness",
+			pingErr: nil,
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 		},
@@ -52,13 +51,13 @@ func TestCheck(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			const batchSize = 4
 
-			var storeMock = &store.InterfaceMock{
+			var storeMock = &store.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return nil, nil
 				},
 
-				GetPrimaryFunc: func(ctx context.Context) (string, error) {
-					return "", tc.primaryErr
+				PingFunc: func(ctx context.Context) error {
+					return tc.pingErr
 				},
 			}
 
@@ -83,31 +82,30 @@ func TestCheck(t *testing.T) {
 
 func TestWatch(t *testing.T) {
 	tt := []struct {
-		name       string
-		service    string
-		pingErr    error
-		primaryErr error
+		name    string
+		service string
+		pingErr error
 
 		expectedStatus grpc_health_v1.HealthCheckResponse_ServingStatus
 	}{
 		{
-			name:       "liveness - healthy",
-			service:    "liveness",
-			primaryErr: nil,
+			name:    "liveness - healthy",
+			service: "liveness",
+			pingErr: nil,
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_SERVING,
 		},
 		{
-			name:       "not ready - healthy",
-			service:    "readiness",
-			primaryErr: nil,
+			name:    "not ready - healthy",
+			service: "readiness",
+			pingErr: nil,
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 		},
 		{
-			name:       "not ready - healthy",
-			service:    "readiness",
-			primaryErr: errors.New("not connected"),
+			name:    "not ready - healthy",
+			service: "readiness",
+			pingErr: errors.New("not connected"),
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 		},
@@ -117,13 +115,13 @@ func TestWatch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			const batchSize = 4
 
-			var storeMock = &store.InterfaceMock{
+			var storeMock = &store.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return nil, nil
 				},
 
-				GetPrimaryFunc: func(ctx context.Context) (string, error) {
-					return "", tc.primaryErr
+				PingFunc: func(ctx context.Context) error {
+					return tc.pingErr
 				},
 			}
 

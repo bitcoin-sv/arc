@@ -92,7 +92,7 @@ type hashPeer struct {
 type PeerHandler struct {
 	hostname                    string
 	workerCh                    chan hashPeer
-	store                       store.Interface
+	store                       store.BlocktxStore
 	logger                      *slog.Logger
 	stats                       *safemap.Safemap[string, *tracing.PeerHandlerStats]
 	transactionStorageBatchSize int
@@ -158,7 +158,7 @@ func WithRegisterTxsBatchSize(size int) func(handler *PeerHandler) {
 	}
 }
 
-func NewPeerHandler(logger *slog.Logger, storeI store.Interface, startingHeight int, peerURLs []string, network wire.BitcoinNet, opts ...func(*PeerHandler)) (*PeerHandler, error) {
+func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, startingHeight int, peerURLs []string, network wire.BitcoinNet, opts ...func(*PeerHandler)) (*PeerHandler, error) {
 
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -387,25 +387,6 @@ func (ph *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error 
 	stat.Transaction.Add(1)
 
 	return nil
-}
-
-func (ph *PeerHandler) CheckPrimary() (bool, error) {
-	primaryBlocktx, err := ph.store.GetPrimary(context.TODO())
-	if err != nil {
-		return false, err
-	}
-
-	hostName, err := os.Hostname()
-	if err != nil {
-		return false, err
-	}
-
-	if primaryBlocktx != hostName {
-		ph.logger.Info("Not primary, skipping block processing")
-		return false, nil
-	}
-
-	return true, nil
 }
 
 func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI) error {

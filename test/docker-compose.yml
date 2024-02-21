@@ -76,7 +76,7 @@ services:
       ]
     command: [ "up" ]
     volumes:
-      - ../database/migrations/blocktx/postgres:/migrations
+      - ../blocktx/store/postgresql/migrations:/migrations
     depends_on:
       db:
         condition: service_healthy

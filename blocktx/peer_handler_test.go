@@ -25,7 +25,7 @@ import (
 
 // mocking wire.peerI as it's third party library and need to mock in here
 //
-//go:generate moq -out ./store/mock.go ./store Interface
+//go:generate moq -out ./store/mock.go ./store BlocktxStore
 //go:generate moq -out ./mq_mock.go . MessageQueueClient
 
 type MockedPeer struct{}
@@ -225,7 +225,7 @@ func TestHandleBlock(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			batchSize := 4
-			storeMock := &store.InterfaceMock{
+			storeMock := &store.BlocktxStoreMock{
 				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 					return &blocktx_api.Block{}, tc.getBlockErr
 				},
@@ -367,7 +367,7 @@ func TestFillGaps(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			const batchSize = 4
 
-			var storeMock = &store.InterfaceMock{
+			var storeMock = &store.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return tc.blockGaps, tc.getBlockGapsErr
 				},
@@ -421,7 +421,7 @@ func TestStartFillGaps(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			storeMock := &store.InterfaceMock{
+			storeMock := &store.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return []*store.BlockGap{
 						{
@@ -470,7 +470,7 @@ func TestStartProcessTxs(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			storeMock := &store.InterfaceMock{
+			storeMock := &store.BlocktxStoreMock{
 				RegisterTransactionsFunc: func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error {
 					return tc.registerErr
 				},

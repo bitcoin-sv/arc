@@ -1,15 +1,15 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"net"
-	"os"
-	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/async/nats_mq"
+	"github.com/bitcoin-sv/arc/blocktx/store"
+	"github.com/bitcoin-sv/arc/blocktx/store/postgresql"
+	"github.com/bitcoin-sv/arc/blocktx/store/sqlite"
 	"github.com/bitcoin-sv/arc/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -25,7 +25,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 	}
 
 	// dbMode can be sqlite, sqlite_memory or postgres
-	blockStore, err := blocktx.NewStore(dbMode)
+	blockStore, err := NewBlocktxStore(dbMode)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
@@ -126,19 +126,6 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		}
 	}()
 
-	primaryTicker := time.NewTicker(time.Second * BecomePrimaryintervalSecs)
-	hostName, err := os.Hostname()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get hostname: %v", err)
-	}
-	go func() {
-		for range primaryTicker.C {
-			if err := blockStore.TryToBecomePrimary(context.Background(), hostName); err != nil {
-				logger.Error("failed to try to become primary", slog.String("err", err.Error()))
-			}
-		}
-	}()
-
 	return func() {
 		logger.Info("Shutting down blocktx store")
 
@@ -151,7 +138,6 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		if err != nil {
 			logger.Error("Error closing blocktx store", slog.String("err", err.Error()))
 		}
-		primaryTicker.Stop()
 		peerHandler.Shutdown()
 	}, nil
 }
@@ -180,4 +166,67 @@ func StartHealthServerBlocktx(serv *blocktx.Server) error {
 	}
 
 	return nil
+}
+
+func NewBlocktxStore(dbMode string) (s store.BlocktxStore, err error) {
+	switch dbMode {
+	case DbModePostgres:
+		dbHost, err := config.GetString("metamorph.db.postgres.host")
+		if err != nil {
+			return nil, err
+		}
+		dbPort, err := config.GetInt("metamorph.db.postgres.port")
+		if err != nil {
+			return nil, err
+		}
+		dbName, err := config.GetString("metamorph.db.postgres.name")
+		if err != nil {
+			return nil, err
+		}
+		dbUser, err := config.GetString("metamorph.db.postgres.user")
+		if err != nil {
+			return nil, err
+		}
+		dbPassword, err := config.GetString("metamorph.db.postgres.password")
+		if err != nil {
+			return nil, err
+		}
+		sslMode, err := config.GetString("metamorph.db.postgres.sslMode")
+		if err != nil {
+			return nil, err
+		}
+		idleConns, err := config.GetInt("metamorph.db.postgres.maxIdleConns")
+		if err != nil {
+			return nil, err
+		}
+		maxOpenConns, err := config.GetInt("metamorph.db.postgres.maxOpenConns")
+		if err != nil {
+			return nil, err
+		}
+
+		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbPassword, dbName, dbHost, dbPort, sslMode)
+		s, err = postgresql.New(dbInfo, idleConns, maxOpenConns)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
+		}
+	case DbModeSQLite:
+		folder, err := getDataFolder()
+		if err != nil {
+			return nil, err
+		}
+
+		s, err = sqlite.New(false, folder)
+		if err != nil {
+			return nil, err
+		}
+	case DbModeSQLiteM:
+		s, err = sqlite.New(true, "")
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("db mode %s is invalid", dbMode)
+	}
+
+	return s, err
 }

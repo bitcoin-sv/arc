@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"log/slog"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/go-co-op/gocron"
 )
 
@@ -97,9 +97,7 @@ func startBlocktxScheduler(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
 	}
 
-	client := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn))
-
-	blocktxJobs := jobs.NewBlocktx(client, int32(cleanBlocksRecordRetentionDays), logger)
+	blocktxJobs := jobs.NewBlocktx(blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(conn)), int32(cleanBlocksRecordRetentionDays), logger)
 
 	scheduler := background_worker.NewScheduler(gocron.NewScheduler(time.UTC), time.Duration(executionIntervalHours)*time.Hour, logger)
 

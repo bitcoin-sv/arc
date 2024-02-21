@@ -3,7 +3,6 @@ module github.com/bitcoin-sv/arc
 go 1.21.3
 
 require (
-	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/aws/aws-sdk-go-v2 v1.21.2
 	github.com/aws/aws-sdk-go-v2/config v1.18.45
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.43
@@ -43,7 +42,6 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/timshannon/badgerhold/v3 v3.0.0
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
-	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.31.0
 	k8s.io/api v0.28.4

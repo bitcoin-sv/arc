@@ -334,12 +334,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorFee'
-        422:
-          description: Unprocessable entity - with IETF RFC 7807 Error object
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 components:
 
   schemas:

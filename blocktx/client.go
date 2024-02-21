@@ -11,8 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-// ClientI is the interface for the block-tx transaction_handler.
-type ClientI interface {
+type BlocktxClient interface {
 	Health(ctx context.Context) error
 	ClearTransactions(ctx context.Context, retentionDays int32) (int64, error)
 	ClearBlocks(ctx context.Context, retentionDays int32) (int64, error)
@@ -24,7 +23,7 @@ type Client struct {
 	client blocktx_api.BlockTxAPIClient
 }
 
-func NewClient(client blocktx_api.BlockTxAPIClient) ClientI {
+func NewClient(client blocktx_api.BlockTxAPIClient) BlocktxClient {
 	btc := &Client{
 		client: client,
 	}

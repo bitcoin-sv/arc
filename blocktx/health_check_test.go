@@ -66,7 +66,7 @@ func TestCheck(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, 100, []string{}, wire.TestNet, blocktx.WithTransactionBatchSize(batchSize))
+			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, []string{}, wire.TestNet, blocktx.WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
 
 			server := blocktx.NewServer(storeMock, logger, peerHandler)
@@ -130,7 +130,7 @@ func TestWatch(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, 100, []string{}, wire.TestNet, blocktx.WithTransactionBatchSize(batchSize))
+			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, []string{}, wire.TestNet, blocktx.WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
 
 			server := blocktx.NewServer(storeMock, logger, peerHandler)

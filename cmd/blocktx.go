@@ -27,11 +27,6 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
 
-	startingBlockHeight, err := config.GetInt("blocktx.startingBlockHeight")
-	if err != nil {
-		return nil, err
-	}
-
 	recordRetentionDays, err := config.GetInt("blocktx.db.cleanData.recordRetentionDays")
 	if err != nil {
 		return nil, err
@@ -94,7 +89,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore, startingBlockHeight, peerURLs, network,
+	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore, peerURLs, network,
 		blocktx.WithRetentionDays(recordRetentionDays),
 		blocktx.WithTxChan(txChannel),
 		blocktx.WithRegisterTxsInterval(registerTxInterval),

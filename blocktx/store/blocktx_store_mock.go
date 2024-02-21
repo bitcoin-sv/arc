@@ -29,9 +29,6 @@ var _ BlocktxStore = &BlocktxStoreMock{}
 //			DelBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) error {
 //				panic("mock out the DelBlockProcessing method")
 //			},
-//			GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
-//				panic("mock out the GetBlock method")
-//			},
 //			GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*BlockGap, error) {
 //				panic("mock out the GetBlockGaps method")
 //			},
@@ -71,9 +68,6 @@ type BlocktxStoreMock struct {
 
 	// DelBlockProcessingFunc mocks the DelBlockProcessing method.
 	DelBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, processedBy string) error
-
-	// GetBlockFunc mocks the GetBlock method.
-	GetBlockFunc func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
 
 	// GetBlockGapsFunc mocks the GetBlockGaps method.
 	GetBlockGapsFunc func(ctx context.Context, heightRange int) ([]*BlockGap, error)
@@ -121,13 +115,6 @@ type BlocktxStoreMock struct {
 			Hash *chainhash.Hash
 			// ProcessedBy is the processedBy argument value.
 			ProcessedBy string
-		}
-		// GetBlock holds details about calls to the GetBlock method.
-		GetBlock []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Hash is the hash argument value.
-			Hash *chainhash.Hash
 		}
 		// GetBlockGaps holds details about calls to the GetBlockGaps method.
 		GetBlockGaps []struct {
@@ -197,7 +184,6 @@ type BlocktxStoreMock struct {
 	lockClearBlocktxTable                  sync.RWMutex
 	lockClose                              sync.RWMutex
 	lockDelBlockProcessing                 sync.RWMutex
-	lockGetBlock                           sync.RWMutex
 	lockGetBlockGaps                       sync.RWMutex
 	lockGetBlockHashesProcessingInProgress sync.RWMutex
 	lockInsertBlock                        sync.RWMutex
@@ -312,42 +298,6 @@ func (mock *BlocktxStoreMock) DelBlockProcessingCalls() []struct {
 	mock.lockDelBlockProcessing.RLock()
 	calls = mock.calls.DelBlockProcessing
 	mock.lockDelBlockProcessing.RUnlock()
-	return calls
-}
-
-// GetBlock calls GetBlockFunc.
-func (mock *BlocktxStoreMock) GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
-	if mock.GetBlockFunc == nil {
-		panic("BlocktxStoreMock.GetBlockFunc: method is nil but BlocktxStore.GetBlock was just called")
-	}
-	callInfo := struct {
-		Ctx  context.Context
-		Hash *chainhash.Hash
-	}{
-		Ctx:  ctx,
-		Hash: hash,
-	}
-	mock.lockGetBlock.Lock()
-	mock.calls.GetBlock = append(mock.calls.GetBlock, callInfo)
-	mock.lockGetBlock.Unlock()
-	return mock.GetBlockFunc(ctx, hash)
-}
-
-// GetBlockCalls gets all the calls that were made to GetBlock.
-// Check the length with:
-//
-//	len(mockedBlocktxStore.GetBlockCalls())
-func (mock *BlocktxStoreMock) GetBlockCalls() []struct {
-	Ctx  context.Context
-	Hash *chainhash.Hash
-} {
-	var calls []struct {
-		Ctx  context.Context
-		Hash *chainhash.Hash
-	}
-	mock.lockGetBlock.RLock()
-	calls = mock.calls.GetBlock
-	mock.lockGetBlock.RUnlock()
 	return calls
 }
 

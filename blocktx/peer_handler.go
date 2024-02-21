@@ -98,7 +98,6 @@ type PeerHandler struct {
 	stats                       *safemap.Safemap[string, *tracing.PeerHandlerStats]
 	transactionStorageBatchSize int
 	peerHandlerCollector        *tracing.PeerHandlerCollector
-	startingHeight              int
 	dataRetentionDays           int
 	mqClient                    MessageQueueClient
 	txChannel                   chan []byte
@@ -161,7 +160,7 @@ func WithRegisterTxsBatchSize(size int) func(handler *PeerHandler) {
 	}
 }
 
-func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, startingHeight int, peerURLs []string, network wire.BitcoinNet, opts ...func(*PeerHandler)) (*PeerHandler, error) {
+func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, peerURLs []string, network wire.BitcoinNet, opts ...func(*PeerHandler)) (*PeerHandler, error) {
 
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -174,7 +173,6 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, startingHeig
 		workerCh:                    make(chan hashPeer, 100),
 		stats:                       safemap.New[string, *tracing.PeerHandlerStats](),
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
-		startingHeight:              startingHeight,
 		registerTxsInterval:         registerTxsIntervalDefault,
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
 		peers:                       make([]*p2p.Peer, len(peerURLs)),
@@ -555,23 +553,6 @@ func (ph *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("insertBlock").AddTime(start)
 	}()
-
-	if height > uint64(ph.startingHeight) {
-		_, err := ph.store.GetBlock(context.Background(), previousBlockHash)
-		if err != nil {
-			if errors.Is(err, store.ErrBlockNotFound) {
-				pair := hashPeer{
-					Hash: previousBlockHash,
-					Peer: peer,
-				}
-
-				// request previous block
-				ph.workerCh <- pair
-			} else {
-				ph.logger.Error("failed to get previous block", slog.String("hash", previousBlockHash.String()), slog.Int64("height", int64(height-1)), slog.String("err", err.Error()))
-			}
-		}
-	}
 
 	ph.logger.Info("inserting block", slog.String("hash", blockHash.String()), slog.Int64("height", int64(height)))
 

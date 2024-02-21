@@ -4,16 +4,16 @@ import (
 	"net/url"
 	"testing"
 
-	. "github.com/bitcoin-sv/arc/metamorph"
+	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	. "github.com/bitcoin-sv/arc/metamorph/mocks"
+	"github.com/bitcoin-sv/arc/metamorph/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
 //go:generate moq -pkg mocks -out ./mocks/zmq_mock.go . ZMQI
 func TestMissingInputsZMQI(t *testing.T) {
 	// make and configure a mocked ZMQI
-	mockedZMQI := &ZMQIMock{
+	mockedZMQI := &mocks.ZMQIMock{
 		SubscribeFunc: func(s string, stringsCh chan []string) error {
 			if s != "invalidtx" {
 				return nil
@@ -27,9 +27,9 @@ func TestMissingInputsZMQI(t *testing.T) {
 		},
 	}
 
-	statuses := make(chan *PeerTxMessage, 1)
+	statuses := make(chan *metamorph.PeerTxMessage, 1)
 	url, _ := url.Parse("https://some-url.com")
-	zmq := NewZMQ(url, statuses)
+	zmq := metamorph.NewZMQ(url, statuses)
 	zmq.Start(mockedZMQI)
 	status := <-statuses
 
@@ -38,7 +38,7 @@ func TestMissingInputsZMQI(t *testing.T) {
 
 func TestInvalidTxZMQI(t *testing.T) {
 	// make and configure a mocked ZMQI
-	mockedZMQI := &ZMQIMock{
+	mockedZMQI := &mocks.ZMQIMock{
 		SubscribeFunc: func(s string, stringsCh chan []string) error {
 			if s != "hashtx2" {
 				return nil
@@ -52,9 +52,9 @@ func TestInvalidTxZMQI(t *testing.T) {
 		},
 	}
 
-	statuses := make(chan *PeerTxMessage, 1)
+	statuses := make(chan *metamorph.PeerTxMessage, 1)
 	url, _ := url.Parse("https://some-url.com")
-	zmq := NewZMQ(url, statuses)
+	zmq := metamorph.NewZMQ(url, statuses)
 	zmq.Start(mockedZMQI)
 	status := <-statuses
 

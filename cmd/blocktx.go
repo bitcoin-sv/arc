@@ -9,7 +9,6 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/async/nats_mq"
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/blocktx/store/postgresql"
-	"github.com/bitcoin-sv/arc/blocktx/store/sqlite"
 	"github.com/bitcoin-sv/arc/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -208,21 +207,6 @@ func NewBlocktxStore(dbMode string) (s store.BlocktxStore, err error) {
 		s, err = postgresql.New(dbInfo, idleConns, maxOpenConns)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
-		}
-	case DbModeSQLite:
-		folder, err := getDataFolder()
-		if err != nil {
-			return nil, err
-		}
-
-		s, err = sqlite.New(false, folder)
-		if err != nil {
-			return nil, err
-		}
-	case DbModeSQLiteM:
-		s, err = sqlite.New(true, "")
-		if err != nil {
-			return nil, err
 		}
 	default:
 		return nil, fmt.Errorf("db mode %s is invalid", dbMode)

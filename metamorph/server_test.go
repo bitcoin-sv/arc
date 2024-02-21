@@ -10,12 +10,11 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx"
-	. "github.com/bitcoin-sv/arc/metamorph"
+	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	. "github.com/bitcoin-sv/arc/metamorph/mocks"
+	"github.com/bitcoin-sv/arc/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/metamorph/store"
-	"github.com/bitcoin-sv/arc/metamorph/store/sqlite"
 	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -31,19 +30,19 @@ import (
 
 func TestNewServer(t *testing.T) {
 	t.Run("NewServer", func(t *testing.T) {
-		server := NewServer(nil, nil)
-		assert.IsType(t, &Server{}, server)
+		server := metamorph.NewServer(nil, nil)
+		assert.IsType(t, &metamorph.Server{}, server)
 	})
 }
 
 func TestHealth(t *testing.T) {
 	t.Run("Health", func(t *testing.T) {
-		processor := &ProcessorIMock{}
+		processor := &mocks.ProcessorIMock{}
 		sentToNetworkStat := stat.NewAtomicStats()
 		for i := 0; i < 10; i++ {
 			sentToNetworkStat.AddDuration("test", 10*time.Millisecond)
 		}
-		expectedStats := &ProcessorStats{
+		expectedStats := &metamorph.ProcessorStats{
 			StartTime:      time.Now(),
 			UptimeMillis:   "2000ms",
 			QueueLength:    136,
@@ -51,14 +50,14 @@ func TestHealth(t *testing.T) {
 			SentToNetwork:  sentToNetworkStat,
 			ChannelMapSize: 22,
 		}
-		processor.GetStatsFunc = func(debugItems bool) *ProcessorStats {
+		processor.GetStatsFunc = func(debugItems bool) *metamorph.ProcessorStats {
 			return expectedStats
 		}
 		processor.GetPeersFunc = func() ([]string, []string) {
 			return []string{"peer1"}, []string{}
 		}
 
-		server := NewServer(nil, processor)
+		server := metamorph.NewServer(nil, processor)
 		stats, err := server.Health(context.Background(), &emptypb.Empty{})
 		assert.NoError(t, err)
 		assert.Equal(t, expectedStats.ChannelMapSize, stats.GetMapSize())
@@ -71,12 +70,11 @@ func TestHealth(t *testing.T) {
 
 func TestPutTransaction(t *testing.T) {
 	t.Run("PutTransaction - ANNOUNCED", func(t *testing.T) {
-		s, err := sqlite.New(true, "")
-		require.NoError(t, err)
+		s := &mocks.MetamorphStoreMock{}
 
-		processor := &ProcessorIMock{}
+		processor := &mocks.ProcessorIMock{}
 
-		server := NewServer(s, processor)
+		server := metamorph.NewServer(s, processor)
 		server.SetTimeout(100 * time.Millisecond)
 
 		var txStatus *metamorph_api.TransactionStatus
@@ -84,7 +82,7 @@ func TestPutTransaction(t *testing.T) {
 			RawTx: testdata.TX1RawBytes,
 		}
 
-		processor.ProcessTransactionFunc = func(ctx context.Context, req *ProcessorRequest) {
+		processor.ProcessTransactionFunc = func(ctx context.Context, req *metamorph.ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
 
 			req.ResponseChannel <- processor_response.StatusAndError{
@@ -93,14 +91,14 @@ func TestPutTransaction(t *testing.T) {
 			}
 		}
 
-		txStatus, err = server.PutTransaction(context.Background(), txRequest)
+		txStatus, err := server.PutTransaction(context.Background(), txRequest)
 		assert.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, txStatus.GetStatus())
 		assert.True(t, txStatus.GetTimedOut())
 	})
 
 	t.Run("invalid request", func(t *testing.T) {
-		server := NewServer(nil, nil)
+		server := metamorph.NewServer(nil, nil)
 
 		txRequest := &metamorph_api.TransactionRequest{
 			CallbackUrl: "api.callback.com",
@@ -111,45 +109,43 @@ func TestPutTransaction(t *testing.T) {
 	})
 
 	t.Run("PutTransaction - SEEN to network", func(t *testing.T) {
-		s, err := sqlite.New(true, "")
-		require.NoError(t, err)
+		s := &mocks.MetamorphStoreMock{}
 
-		processor := &ProcessorIMock{}
+		processor := &mocks.ProcessorIMock{}
 
-		server := NewServer(s, processor)
+		server := metamorph.NewServer(s, processor)
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
 			RawTx: testdata.TX1RawBytes,
 		}
 
-		processor.ProcessTransactionFunc = func(ctx context.Context, req *ProcessorRequest) {
+		processor.ProcessTransactionFunc = func(ctx context.Context, req *metamorph.ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
 			req.ResponseChannel <- processor_response.StatusAndError{
 				Hash:   testdata.TX1Hash,
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			}
 		}
-		txStatus, err = server.PutTransaction(context.Background(), txRequest)
+		txStatus, err := server.PutTransaction(context.Background(), txRequest)
 		assert.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, txStatus.GetStatus())
 		assert.False(t, txStatus.GetTimedOut())
 	})
 
 	t.Run("PutTransaction - Err", func(t *testing.T) {
-		s, err := sqlite.New(true, "")
-		require.NoError(t, err)
+		s := &mocks.MetamorphStoreMock{}
 
-		processor := &ProcessorIMock{}
+		processor := &mocks.ProcessorIMock{}
 
-		server := NewServer(s, processor)
+		server := metamorph.NewServer(s, processor)
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
 			RawTx:         testdata.TX1RawBytes,
 			WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
 		}
-		processor.ProcessTransactionFunc = func(ctx context.Context, req *ProcessorRequest) {
+		processor.ProcessTransactionFunc = func(ctx context.Context, req *metamorph.ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
 			req.ResponseChannel <- processor_response.StatusAndError{
 				Hash:   testdata.TX1Hash,
@@ -158,7 +154,7 @@ func TestPutTransaction(t *testing.T) {
 			}
 		}
 
-		txStatus, err = server.PutTransaction(context.Background(), txRequest)
+		txStatus, err := server.PutTransaction(context.Background(), txRequest)
 		assert.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_REJECTED, txStatus.GetStatus())
 		assert.Equal(t, "some error", txStatus.GetRejectReason())
@@ -190,7 +186,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 
 			want: nil,
 			wantErr: func(t assert.TestingT, err error, rest ...interface{}) bool {
-				return assert.ErrorIs(t, err, ErrNotFound, rest...)
+				return assert.ErrorIs(t, err, metamorph.ErrNotFound, rest...)
 			},
 		},
 		{
@@ -262,7 +258,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metamorphStore := &MetamorphStoreMock{
+			metamorphStore := &mocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					data := &store.StoreData{
 						StoredAt:      testdata.Time,
@@ -278,7 +274,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				},
 			}
 
-			server := NewServer(metamorphStore, nil)
+			server := metamorph.NewServer(metamorphStore, nil)
 			got, err := server.GetTransactionStatus(context.Background(), tt.req)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetTransactionStatus(%v)", tt.req)) {
 				return
@@ -313,7 +309,7 @@ func TestValidateCallbackURL(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			err := ValidateCallbackURL(tc.callbackURL)
+			err := metamorph.ValidateCallbackURL(tc.callbackURL)
 
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
@@ -536,8 +532,8 @@ func TestPutTransactions(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			processor := &ProcessorIMock{
-				ProcessTransactionFunc: func(_ context.Context, req *ProcessorRequest) {
+			processor := &mocks.ProcessorIMock{
+				ProcessTransactionFunc: func(_ context.Context, req *metamorph.ProcessorRequest) {
 					resp, found := tc.processorResponse[req.Data.Hash.String()]
 					if found {
 						req.ResponseChannel <- *resp
@@ -546,7 +542,7 @@ func TestPutTransactions(t *testing.T) {
 			}
 
 			serverLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			server := NewServer(nil, processor, WithLogger(serverLogger))
+			server := metamorph.NewServer(nil, processor, metamorph.WithLogger(serverLogger))
 
 			server.SetTimeout(5 * time.Second)
 			statuses, err := server.PutTransactions(context.Background(), tc.requests)
@@ -593,7 +589,7 @@ func TestSetUnlockedbyName(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &MetamorphStoreMock{
+			metamorphStore := &mocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{}, nil
 				},
@@ -602,7 +598,7 @@ func TestSetUnlockedbyName(t *testing.T) {
 				},
 			}
 
-			server := NewServer(metamorphStore, nil)
+			server := metamorph.NewServer(metamorphStore, nil)
 			response, err := server.SetUnlockedByName(context.Background(), &metamorph_api.SetUnlockedByNameRequest{
 				Name: "test",
 			})
@@ -630,17 +626,17 @@ func TestStartGRPCServer(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &MetamorphStoreMock{
+			metamorphStore := &mocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{}, nil
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
 			}
 
-			processor := &ProcessorIMock{
+			processor := &mocks.ProcessorIMock{
 				ShutdownFunc: func() {},
 			}
-			server := NewServer(metamorphStore, processor)
+			server := metamorph.NewServer(metamorphStore, processor)
 
 			go func() {
 				err := server.StartGRPCServer("localhost:7000", 10000)

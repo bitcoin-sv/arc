@@ -170,15 +170,16 @@ This status is returned in the `txStatus` field whenever the transaction is quer
 
 #### Metamorph stores
 
-The metamorph store has been implemented for multiple databases, depending on your needs. In high-volume environments,
-you may want to use a database that is optimized for high throughput, such as [Badger](https://dgraph.io/docs/badger).
+Currently, metamorph only offers one storage implementation which is Postgres.
+~~The metamorph store has been implemented for multiple databases, depending on your needs. In high-volume environments,
+you may want to use a database that is optimized for high throughput, such as [Badger](https://dgraph.io/docs/badger).~~
 
 The following databases have been implemented:
 
-* Sqlite3 (`sqlite` or `sqlite_memory` for in-memory)
 * Postgres (`postgres`)
-* Badger (`badger`)
-* BadgerHold (`badgerhold`)
+* ~~Sqlite3 (`sqlite` or `sqlite_memory` for in-memory)~~
+* ~~Badger (`badger`)~~
+* ~~BadgerHold (`badgerhold`)~~
 
 You can select the store to use by setting the `metamorph.db.mode` in the settings file or adding `metamorph.db.mode` as
 an environment variable.
@@ -231,13 +232,14 @@ The only difference between the two is that the generic `main.go` starts the Go 
 
 #### BlockTx stores
 
-The BlockTx store has been implemented for multiple databases, depending on your needs. In high-volume environments,
-you may want to use a database that is optimized for high throughput, such as Postgres.
+Currently, metamorph only offers one storage implementation which is Postgres.
+~~The BlockTx store has been implemented for multiple databases, depending on your needs. In high-volume environments,
+you may want to use a database that is optimized for high throughput, such as Postgres.~~
 
 The following databases have been implemented:
 
-* Sqlite3 (`sqlite` or `sqlite_memory` for in-memory)
 * Postgres (`postgres`)
+* ~~Sqlite3 (`sqlite` or `sqlite_memory` for in-memory)~~
 
 You can select the store to use by setting the `blocktx.db.mode` in the settings file or adding `blocktx.db.mode` as
 an environment variable.
@@ -249,24 +251,11 @@ If BlockTx is configured to run with `postgres` db, then migrations have to be e
 migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslmode=<ssl-mode>"  -path database/migrations/postgres  up
 ```
 
-### Callbacker
+### Callbacks
 
-Callbacker is a very simple microservice that is responsible for sending callbacks to clients when a transaction has
-been accepted by the Bitcoin network. To register a callback, the client must add the `X-CallbackUrl` header to the
+To register a callback, the client must add the `X-CallbackUrl` header to the
 request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
 the body. See the [API documentation](https://bitcoin-sv.github.io/arc/api.html) for more information.
-
-You can run the Callbacker service like this:
-
-```shell
-go run cmd/callbacker/main.go
-```
-
-or using the generic `main.go`:
-
-```shell
-go run main.go -callbacker=true
-```
 
 ### K8s-Watcher
 
@@ -305,7 +294,7 @@ make test
 ```
 
 ### Integration tests
-Integration tests of DynamoDB need docker installed to run them. If colima implementation of Docker is being used on Mac OS, the `DOCKER_HOST` environment variable may need to be given as follows
+Integration tests of DynamoDB need docker installed to run them. If `colima` implementation of Docker is being used on macOS, the `DOCKER_HOST` environment variable may need to be given as follows
 ```bash
 DOCKER_HOST=unix:///Users/<username>/.colima/default/docker.sock make test
 ```

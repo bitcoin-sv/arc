@@ -18,19 +18,21 @@ clean_e2e_tests:
 	docker container stop test-arc-1 || true
 	docker container rm test-tests-1 || true
 	docker container rm test-arc-1 || true
-	docker rmi test-tests || true
-	docker rmi test-arc || true
 
 .PHONY: build_release
 build_release:
 	mkdir -p build
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -o build/arc_linux_amd64 ./main.go
 
+.PHONY: build_docker
+build_docker:
+	docker build . -t test-arc
+
 .PHONY: run_e2e_tests
 run_e2e_tests:
 	cd ./test && docker-compose down
 	cd ./test && docker-compose up -d node1 node2 node3 db migrate-blocktx migrate-metamorph
-	cd ./test && docker-compose up --exit-code-from tests tests arc-blocktx arc-metamorph arc --scale arc-blocktx=5
+	cd ./test && docker-compose up --exit-code-from tests tests arc-blocktx arc-metamorph arc --scale arc-blocktx=10
 	cd ./test && docker-compose down
 
 .PHONY: test
@@ -116,4 +118,4 @@ api:
 	oapi-codegen -config api/config.yaml api/arc.yml > api/arc.go
 
 .PHONY: clean_restart_e2e_test
-clean_restart_e2e_test: clean_e2e_tests build_release run_e2e_tests
+clean_restart_e2e_test: clean_e2e_tests build_release build_docker run_e2e_tests

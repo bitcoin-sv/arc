@@ -112,7 +112,7 @@ services:
     hostname: nats-server
 
   arc-blocktx:
-    build: ..
+    image: test-arc:latest
     expose:
       - "8011"
     volumes:
@@ -128,7 +128,7 @@ services:
       - nats
 
   arc-metamorph:
-    build: ..
+    image: test-arc:latest
     expose:
       - "8001"
     command: [ "./arc", "-metamorph=true" ]
@@ -139,7 +139,7 @@ services:
       - arc-blocktx
 
   arc:
-    build: ..
+    image: test-arc:latest
     ports:
       - "8011:8011"
       - "9090:9090"

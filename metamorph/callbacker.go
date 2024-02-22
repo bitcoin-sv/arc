@@ -28,7 +28,7 @@ type Callback struct {
 	Txid        string    `json:"txid"`
 }
 
-func SendCallback(logger *slog.Logger, tx *store.StoreData) {
+func (p *Processor) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 	sleepDuration := CallbackIntervalSeconds
 	statusString := tx.Status.String()
 	blockHash := ""
@@ -65,13 +65,8 @@ func SendCallback(logger *slog.Logger, tx *store.StoreData) {
 			request.Header.Set("Authorization", "Bearer "+tx.CallbackToken)
 		}
 
-		// default http client
-		httpClient := http.Client{
-			Timeout: 5 * time.Second,
-		}
-
 		var response *http.Response
-		response, err = httpClient.Do(request)
+		response, err = p.httpClient.Do(request)
 		if err != nil {
 			logger.Error("Couldn't send transaction info through callback url", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
 			continue

@@ -68,3 +68,9 @@ func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlocks) func(pro
 		p.minedTxsChan = minedTxsChan
 	}
 }
+
+func WithHttpClient(httpClient HttpClient) func(processor *Processor) {
+	return func(p *Processor) {
+		p.httpClient = httpClient
+	}
+}

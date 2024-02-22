@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -57,8 +58,8 @@ type Processor struct {
 	dataRetentionPeriod     time.Duration
 	now                     func() time.Time
 	processExpiredTxsTicker *time.Ticker
-
-	maxMonitoredTxs int64
+	httpClient              HttpClient
+	maxMonitoredTxs         int64
 
 	quitListenTxChannel         chan struct{}
 	quitListenTxChannelComplete chan struct{}
@@ -87,6 +88,10 @@ type Processor struct {
 
 type Option func(f *Processor)
 
+type HttpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (*Processor, error) {
 	if s == nil {
 		return nil, errors.New("store cannot be nil")
@@ -114,7 +119,9 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		processStatusUpdatesInterval:     processStatusUpdatesIntervalDefault,
 		processStatusUpdatesBatchSize:    processStatusUpdatesBatchSizeDefault,
 		statusUpdateCh:                   make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
-
+		httpClient: &http.Client{
+			Timeout: 5 * time.Second,
+		},
 		stored:              stat.NewAtomicStat(),
 		announcedToNetwork:  stat.NewAtomicStats(),
 		requestedByNetwork:  stat.NewAtomicStats(),
@@ -164,7 +171,6 @@ func (p *Processor) Shutdown() {
 	p.ProcessorResponseMap.Close()
 	p.quitListenTxChannel <- struct{}{}
 	<-p.quitListenTxChannelComplete
-
 	p.quitListenStatusUpdateCh <- struct{}{}
 	<-p.quitListenStatusUpdateChComplete
 }
@@ -211,7 +217,7 @@ func (p *Processor) processMinedCallbacks() {
 					}
 
 					if data.CallbackUrl != "" {
-						go SendCallback(p.logger, data)
+						go p.SendCallback(p.logger, data)
 					}
 				}
 			}
@@ -287,7 +293,6 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus)
 	}
 
 	for _, data := range updatedData {
-
 		if data.Status == metamorph_api.Status_SEEN_ON_NETWORK {
 			processorResponse, ok := p.ProcessorResponseMap.Get(data.Hash)
 			if ok {
@@ -298,7 +303,7 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus)
 		}
 
 		if ((data.Status == metamorph_api.Status_SEEN_ON_NETWORK || data.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL) && data.FullStatusUpdates || data.Status == metamorph_api.Status_REJECTED) && data.CallbackUrl != "" {
-			go SendCallback(p.logger, data)
+			go p.SendCallback(p.logger, data)
 		}
 	}
 	return nil

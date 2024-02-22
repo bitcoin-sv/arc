@@ -46,7 +46,6 @@ func run() error {
 	startApi := flag.Bool("api", false, "start ARC api server")
 	startMetamorph := flag.Bool("metamorph", false, "start metamorph")
 	startBlockTx := flag.Bool("blocktx", false, "start blocktx")
-	startCallbacker := flag.Bool("callbacker", false, "start callbacker")
 	startK8sWatcher := flag.Bool("k8s-watcher", false, "start k8s-watcher")
 	startBackgroundWorker := flag.Bool("background-worker", false, "start background-worker")
 	useTracer := flag.Bool("tracer", false, "start tracer")
@@ -67,9 +66,6 @@ func run() error {
 		fmt.Println("")
 		fmt.Println("    -blocktx=<true|false>")
 		fmt.Println("          whether to start block tx (default=true)")
-		fmt.Println("")
-		fmt.Println("    -callbacker=<true|false>")
-		fmt.Println("          whether to start callbacker (default=true)")
 		fmt.Println("")
 		fmt.Println("    -k8s-watcher=<true|false>")
 		fmt.Println("          whether to start k8s-watcher (default=true)")
@@ -156,7 +152,6 @@ func run() error {
 		*startApi = true
 		*startMetamorph = true
 		*startBlockTx = true
-		*startCallbacker = true
 	}
 
 	// Check the settings to see it the service has a listen address
@@ -169,9 +164,6 @@ func run() error {
 	}
 	if v := viper.GetString("blocktx.listenAddr"); v == "" {
 		*startBlockTx = false
-	}
-	if v := viper.GetString("callbacker.listenAddr"); v == "" {
-		*startCallbacker = false
 	}
 
 	shutdownFns := make([]func(), 0)
@@ -188,15 +180,6 @@ func run() error {
 		shutdown, err := cmd.StartBlockTx(logger)
 		if err != nil {
 			return fmt.Errorf("failed to start blocktx: %v", err)
-		}
-		shutdownFns = append(shutdownFns, func() { shutdown() })
-	}
-
-	if startCallbacker != nil && *startCallbacker {
-		logger.Info("Starting Callbacker")
-		shutdown, err := cmd.StartCallbacker(logger)
-		if err != nil {
-			return fmt.Errorf("failed to start callbacker: %v", err)
 		}
 		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}

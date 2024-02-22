@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.1.32](#1132---2024-02-21)
 - [1.1.19](#1119---2024-02-05)
 - [1.1.16](#1116---2024-01-23)
 - [1.0.62](#1062---2023-11-23)
@@ -11,6 +12,13 @@ All notable changes to this project will be documented in this file. The format 
 - [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
 
 ## [Unreleased]
+
+
+## [1.1.32] - 2024-02-21
+
+### Deprecated
+
+- All database implementations in both `metamorph` and `blocktx` except Postgres have been removed in order to focus on one well tested implementation. Other implementations may be made available again at a later point in time. The commit where the db implementations were removed can be found here https://github.com/bitcoin-sv/arc/commit/053f7147ef41be2f5904c7d76ed51e91b7129780.
 
 ## [1.1.19] - 2024-02-05
 

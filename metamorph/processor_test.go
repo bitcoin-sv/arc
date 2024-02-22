@@ -3,8 +3,6 @@ package metamorph_test
 import (
 	"context"
 	"errors"
-	"fmt"
-	"github.com/bitcoin-sv/arc/metamorph/store"
 	"log/slog"
 	"os"
 	"sync"
@@ -16,11 +14,8 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
-	"github.com/bitcoin-sv/arc/metamorph/store/badger"
-	"github.com/bitcoin-sv/arc/metamorph/store/sqlite"
+	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/bitcoin-sv/arc/testdata"
-	"github.com/labstack/gommon/random"
-	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
@@ -324,29 +319,6 @@ func TestProcessTransaction(t *testing.T) {
 	}
 }
 
-func Benchmark_ProcessTransaction(b *testing.B) {
-	s, err := sqlite.New(true, "") // prevents profiling database code
-	require.NoError(b, err)
-
-	pm := p2p.NewPeerManagerMock()
-
-	processor, err := metamorph.NewProcessor(s, pm)
-	require.NoError(b, err)
-	assert.Equal(b, 0, processor.ProcessorResponseMap.Len())
-
-	btTx, _ := bt.NewTxFromBytes(testdata.TX1RawBytes)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		btTx.Inputs[0].SequenceNumber = uint32(i)
-		hash, _ := chainhash.NewHashFromStr(btTx.TxID())
-		processor.ProcessTransaction(context.TODO(), &metamorph.ProcessorRequest{
-			Data: &store.StoreData{
-				Hash: hash,
-			},
-		})
-	}
-}
-
 func TestSendStatusForTransaction(t *testing.T) {
 	tt := []struct {
 		name                string
@@ -507,51 +479,6 @@ func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
 	case <-time.After(timeout):
 		return true // timed out
 	}
-}
-
-func BenchmarkProcessTransaction(b *testing.B) {
-	direName := fmt.Sprintf("./test-benchmark-%s", random.String(6))
-	s, err := badger.New(direName)
-	require.NoError(b, err)
-	defer func() {
-		_ = s.Close(context.Background())
-		_ = os.RemoveAll(direName)
-	}()
-
-	pm := p2p.NewPeerManagerMock()
-
-	publisher := &mocks.MessageQueueClientMock{
-		PublishRegisterTxsFunc: func(hash []byte) error {
-			return nil
-		},
-	}
-
-	processor, err := metamorph.NewProcessor(s, pm, metamorph.WithMessageQueueClient(publisher))
-	require.NoError(b, err)
-	assert.Equal(b, 0, processor.ProcessorResponseMap.Len())
-
-	txs := make(map[string]*chainhash.Hash)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		txID := fmt.Sprintf("%x", i)
-
-		txHash := chainhash.HashH([]byte(txID))
-
-		txs[txID] = &txHash
-
-		processor.ProcessTransaction(context.TODO(), &metamorph.ProcessorRequest{
-			Data: &store.StoreData{
-				Hash:   &txHash,
-				Status: metamorph_api.Status_RECEIVED,
-				RawTx:  testdata.TX1RawBytes,
-			},
-		})
-	}
-	b.StopTimer()
-
-	// wait for the last ResponseItems to be written to the store
-	time.Sleep(1 * time.Second)
 }
 
 func TestProcessExpiredTransactions(t *testing.T) {

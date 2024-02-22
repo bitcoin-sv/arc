@@ -184,7 +184,7 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 
 				txids.WriteString(fmt.Sprintf(`<td>%s</td>`, processorResponse.Start.UTC().Format(time.RFC3339Nano)))
 				txids.WriteString(fmt.Sprintf(`<td>%d</td>`, processorResponse.Retries.Load()))
-				txids.WriteString(fmt.Sprintf(`<td>%s</td>`, processorResponse.Status.String()))
+				txids.WriteString(fmt.Sprintf(`<td>%s</td>`, processorResponse.GetStatus().String()))
 				txids.WriteString(fmt.Sprintf(`<td><a href="/pstats?tx=%v">%v</a></td>`, processorResponse.Hash, processorResponse.Hash))
 
 				txids.WriteString(`</tr>`)
@@ -393,7 +393,7 @@ func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *proc
 		Retries:               prm.Retries.Load(),
 		Err:                   prm.Err,
 		AnnouncedPeers:        announcedPeers,
-		Status:                prm.Status,
+		Status:                prm.GetStatus(),
 		NoStats:               prm.NoStats,
 		LastStatusUpdateNanos: prm.LastStatusUpdateNanos.Load(),
 	}

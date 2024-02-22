@@ -305,7 +305,7 @@ func TestProcessTransaction(t *testing.T) {
 				require.Equal(t, tc.expectedResponseMapItems, processor.ProcessorResponseMap.Len())
 				items := processor.ProcessorResponseMap.Items()
 				require.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
-				require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[*testdata.TX1Hash].Status)
+				require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[*testdata.TX1Hash].GetStatus())
 
 				require.Len(t, pm.AnnouncedTransactions, 1)
 				require.Equal(t, testdata.TX1Hash, pm.AnnouncedTransactions[0])

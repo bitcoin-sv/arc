@@ -2,11 +2,11 @@ package nats_mq
 
 import (
 	"fmt"
-	"github.com/bitcoin-sv/arc/metamorph"
 	"log/slog"
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 )

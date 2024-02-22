@@ -263,11 +263,6 @@ func TestProcessTransaction(t *testing.T) {
 
 					return nil
 				},
-				UpdateStatusFunc: func(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
-					require.Equal(t, testdata.TX1Hash, hash)
-
-					return nil
-				},
 			}
 			pm := p2p.NewPeerManagerMock()
 

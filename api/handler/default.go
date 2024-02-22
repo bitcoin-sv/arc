@@ -94,10 +94,9 @@ func (m ArcDefaultHandler) GETHealth(ctx echo.Context) error {
 			Reason:  nil,
 		})
 	} else {
-		healthy = false
 		reason := err.Error()
 		return ctx.JSON(http.StatusOK, api.Health{
-			Healthy: &healthy,
+			Healthy: PtrTo(false),
 			Reason:  &reason,
 		})
 	}

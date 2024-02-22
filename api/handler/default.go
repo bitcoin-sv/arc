@@ -93,13 +93,12 @@ func (m ArcDefaultHandler) GETHealth(ctx echo.Context) error {
 			Healthy: &healthy,
 			Reason:  nil,
 		})
-	} else {
-		reason := err.Error()
-		return ctx.JSON(http.StatusOK, api.Health{
-			Healthy: PtrTo(false),
-			Reason:  &reason,
-		})
 	}
+	reason := err.Error()
+	return ctx.JSON(http.StatusOK, api.Health{
+		Healthy: PtrTo(false),
+		Reason:  &reason,
+	})
 }
 
 func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {

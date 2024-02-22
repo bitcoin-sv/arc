@@ -42,6 +42,11 @@ func (b *BitcoinNode) GetTransaction(_ context.Context, txID string) (txBytes []
 	return txBytes, nil
 }
 
+// GetTransaction gets a raw transaction from the bitcoin node.
+func (b *BitcoinNode) Health(_ context.Context) error {
+	return nil
+}
+
 // GetTransactionStatus gets a raw transaction from the bitcoin node.
 func (b *BitcoinNode) GetTransactionStatus(_ context.Context, txID string) (status *metamorph.TransactionStatus, err error) {
 	var rawTx *bitcoin.RawTransaction

@@ -11,6 +11,7 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -114,7 +115,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 
 // GetTransactionStatus gets the status of a transaction.
 func (m *Metamorph) Health(ctx context.Context) error {
-	resp, err := m.client.Health(ctx, nil)
+	resp, err := m.client.Health(ctx, &emptypb.Empty{})
 	if err != nil {
 		return err
 	}

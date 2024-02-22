@@ -25,6 +25,9 @@ var _ metamorph.TransactionHandler = &TransactionHandlerMock{}
 //			GetTransactionStatusFunc: func(ctx context.Context, txID string) (*metamorph.TransactionStatus, error) {
 //				panic("mock out the GetTransactionStatus method")
 //			},
+//			HealthFunc: func(ctx context.Context) error {
+//				panic("mock out the Health method")
+//			},
 //			SubmitTransactionFunc: func(ctx context.Context, tx []byte, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 //				panic("mock out the SubmitTransaction method")
 //			},
@@ -43,6 +46,9 @@ type TransactionHandlerMock struct {
 
 	// GetTransactionStatusFunc mocks the GetTransactionStatus method.
 	GetTransactionStatusFunc func(ctx context.Context, txID string) (*metamorph.TransactionStatus, error)
+
+	// HealthFunc mocks the Health method.
+	HealthFunc func(ctx context.Context) error
 
 	// SubmitTransactionFunc mocks the SubmitTransaction method.
 	SubmitTransactionFunc func(ctx context.Context, tx []byte, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error)
@@ -66,6 +72,11 @@ type TransactionHandlerMock struct {
 			// TxID is the txID argument value.
 			TxID string
 		}
+		// Health holds details about calls to the Health method.
+		Health []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
 		// SubmitTransaction holds details about calls to the SubmitTransaction method.
 		SubmitTransaction []struct {
 			// Ctx is the ctx argument value.
@@ -87,6 +98,7 @@ type TransactionHandlerMock struct {
 	}
 	lockGetTransaction       sync.RWMutex
 	lockGetTransactionStatus sync.RWMutex
+	lockHealth               sync.RWMutex
 	lockSubmitTransaction    sync.RWMutex
 	lockSubmitTransactions   sync.RWMutex
 }
@@ -107,11 +119,6 @@ func (mock *TransactionHandlerMock) GetTransaction(ctx context.Context, txID str
 	mock.calls.GetTransaction = append(mock.calls.GetTransaction, callInfo)
 	mock.lockGetTransaction.Unlock()
 	return mock.GetTransactionFunc(ctx, txID)
-}
-
-// GetTransaction calls GetTransactionFunc.
-func (mock *TransactionHandlerMock) Health(ctx context.Context) error {
-	return nil
 }
 
 // GetTransactionCalls gets all the calls that were made to GetTransaction.
@@ -165,6 +172,38 @@ func (mock *TransactionHandlerMock) GetTransactionStatusCalls() []struct {
 	mock.lockGetTransactionStatus.RLock()
 	calls = mock.calls.GetTransactionStatus
 	mock.lockGetTransactionStatus.RUnlock()
+	return calls
+}
+
+// Health calls HealthFunc.
+func (mock *TransactionHandlerMock) Health(ctx context.Context) error {
+	if mock.HealthFunc == nil {
+		panic("TransactionHandlerMock.HealthFunc: method is nil but TransactionHandler.Health was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockHealth.Lock()
+	mock.calls.Health = append(mock.calls.Health, callInfo)
+	mock.lockHealth.Unlock()
+	return mock.HealthFunc(ctx)
+}
+
+// HealthCalls gets all the calls that were made to Health.
+// Check the length with:
+//
+//	len(mockedTransactionHandler.HealthCalls())
+func (mock *TransactionHandlerMock) HealthCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockHealth.RLock()
+	calls = mock.calls.Health
+	mock.lockHealth.RUnlock()
 	return calls
 }
 

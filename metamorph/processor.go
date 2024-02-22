@@ -250,7 +250,7 @@ func (p *Processor) processStatusUpdates() {
 					statusUpdates = append(statusUpdates, distinctStatusUpdate)
 				}
 
-				err := p.updateStatusBulk(statusUpdates)
+				err := p.statusUpdateWithCallback(statusUpdates)
 				if err != nil {
 					p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
 				}
@@ -267,7 +267,7 @@ func (p *Processor) processStatusUpdates() {
 					statusUpdates = append(statusUpdates, distinctStatusUpdate)
 				}
 
-				err := p.updateStatusBulk(statusUpdates)
+				err := p.statusUpdateWithCallback(statusUpdates)
 				if err != nil {
 					p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
 				}
@@ -280,7 +280,7 @@ func (p *Processor) processStatusUpdates() {
 	}()
 }
 
-func (p *Processor) updateStatusBulk(statusUpdates []store.UpdateStatus) error {
+func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus) error {
 	updatedData, err := p.store.UpdateStatusBulk(context.Background(), statusUpdates)
 	if err != nil {
 		return err

@@ -109,6 +109,11 @@ func (mock *TransactionHandlerMock) GetTransaction(ctx context.Context, txID str
 	return mock.GetTransactionFunc(ctx, txID)
 }
 
+// GetTransaction calls GetTransactionFunc.
+func (mock *TransactionHandlerMock) Health(ctx context.Context) error {
+	return nil
+}
+
 // GetTransactionCalls gets all the calls that were made to GetTransaction.
 // Check the length with:
 //

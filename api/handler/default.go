@@ -80,6 +80,29 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
 	})
 }
 
+func (m ArcDefaultHandler) GETHealth(ctx echo.Context) error {
+	span, ct := opentracing.StartSpanFromContext(ctx.Request().Context(), "ArcDefaultHandler:GETPolicy")
+	defer span.Finish()
+
+	healthy := true
+
+	err := m.TransactionHandler.Health(ct)
+
+	if err == nil {
+		return ctx.JSON(http.StatusOK, api.Health{
+			Healthy: &healthy,
+			Reason:  nil,
+		})
+	} else {
+		healthy = false
+		reason := err.Error()
+		return ctx.JSON(http.StatusOK, api.Health{
+			Healthy: &healthy,
+			Reason:  &reason,
+		})
+	}
+}
+
 func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
 	bytes := uint64(1000)
 	fSatoshis := feePerKB * 1e8

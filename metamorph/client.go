@@ -19,6 +19,7 @@ var (
 )
 
 type TransactionHandler interface {
+	Health(ctx context.Context) error
 	GetTransaction(ctx context.Context, txID string) ([]byte, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
 	SubmitTransaction(ctx context.Context, tx []byte, options *TransactionOptions) (*TransactionStatus, error)
@@ -109,6 +110,20 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 		BlockHeight: tx.GetBlockHeight(),
 		Timestamp:   time.Now().Unix(),
 	}, nil
+}
+
+// GetTransactionStatus gets the status of a transaction.
+func (m *Metamorph) Health(ctx context.Context) error {
+	resp, err := m.client.Health(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	if !resp.Ok {
+		return errors.New(resp.Details)
+	}
+
+	return nil
 }
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.

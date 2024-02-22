@@ -124,7 +124,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 
 	go func() {
 		for message := range statusMessageCh {
-			_, err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
+			err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
 			if err != nil {
 				logger.Error("Could not send status for transaction", slog.String("hash", message.Hash.String()), slog.String("err", err.Error()))
 			}

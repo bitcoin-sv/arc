@@ -143,7 +143,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 
 	p.ProcessorResponseMap = NewProcessorResponseMap(p.mapExpiryTime, WithNowResponseMap(p.now))
 
-	p.logger.Info("Starting processor", slog.Duration("cacheExpiryTime", p.mapExpiryTime))
+	p.logger.Info("Starting processor", slog.String("cacheExpiryTime", p.mapExpiryTime.String()))
 
 	// Start a goroutine to resend transactions that have not been seen on the network
 	go p.processExpiredTransactions()
@@ -410,17 +410,17 @@ var statusValueMap = map[metamorph_api.Status]int{
 	metamorph_api.Status_CONFIRMED:              12,
 }
 
-func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) (bool, error) {
+func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) error {
 	processorResponse, ok := p.ProcessorResponseMap.Get(hash)
 	if !ok {
-		return false, nil
+		return nil
 	}
 
 	// Do not overwrite a higher value status with a lower or equal value status
 	if statusValueMap[status] <= statusValueMap[processorResponse.Status] {
 		p.logger.Debug("Status not updated for tx", slog.String("status", status.String()), slog.String("previous status", processorResponse.Status.String()), slog.String("hash", hash.String()))
 
-		return false, nil
+		return nil
 	}
 
 	span, _ := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
@@ -479,7 +479,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 
 	processorResponse.UpdateStatus(statusUpdate)
 
-	return true, nil
+	return nil
 }
 
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {

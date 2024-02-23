@@ -170,9 +170,11 @@ func TestBatchChainedTxs(t *testing.T) {
 			req.Header.Set("Content-Type", "application/json")
 			client := &http.Client{}
 
+			t.Logf("submitting batch of %d chained txs", len(txs))
 			postBatchRequest(t, client, req)
 
 			// repeat request to ensure response remains the same
+			t.Logf("re-submitting batch of %d chained txs", len(txs))
 			postBatchRequest(t, client, req)
 		})
 	}
@@ -192,9 +194,9 @@ func postBatchRequest(t *testing.T, client *http.Client, req *http.Request) {
 	err = json.Unmarshal(b, &bodyResponse)
 	require.NoError(t, err)
 
-	for _, txResponse := range bodyResponse {
+	for i, txResponse := range bodyResponse {
 		require.NoError(t, err)
-		require.Equal(t, "SEEN_ON_NETWORK", txResponse.TxStatus)
+		require.Equalf(t, "SEEN_ON_NETWORK", txResponse.TxStatus, "status of tx %d in chain not as expected", i)
 	}
 }
 

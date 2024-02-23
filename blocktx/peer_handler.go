@@ -236,26 +236,26 @@ func (ph *PeerHandler) startPeerWorker() {
 				if err != nil {
 					// block is already being processed by another blocktx instance
 					if errors.Is(err, store.ErrBlockProcessingDuplicateKey) {
-						ph.logger.Info("block processing already in progress", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
+						ph.logger.Debug("Block processing already in progress", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
 						continue
 					}
 
-					ph.logger.Error("failed to set block processing", slog.String("hash", hash.String()))
+					ph.logger.Error("Failed to set block processing", slog.String("hash", hash.String()))
 					continue
 				}
 
 				msg := wire.NewMsgGetData()
 				if err = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
-					ph.logger.Error("ProcessBlock: could not create InvVect", slog.String("err", err.Error()))
+					ph.logger.Error("Failed to create InvVect for block request", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 					continue
 				}
 
 				if err = peer.WriteMsg(msg); err != nil {
-					ph.logger.Error("ProcessBlock: failed to write message to peer", slog.String("err", err.Error()))
+					ph.logger.Error("Failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 					continue
 				}
 
-				ph.logger.Info("ProcessBlock", slog.String("hash", hash.String()))
+				ph.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 			}
 		}
 	}()

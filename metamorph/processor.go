@@ -40,8 +40,8 @@ const (
 	loadUnminedLimit          = int64(5000)
 	minimumHealthyConnections = 2
 
-	processStatusUpdatesIntervalDefault  = 5 * time.Second
-	processStatusUpdatesBatchSizeDefault = 100
+	processStatusUpdatesIntervalDefault  = 500 * time.Millisecond
+	processStatusUpdatesBatchSizeDefault = 1000
 )
 
 var (

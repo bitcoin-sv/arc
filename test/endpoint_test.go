@@ -790,6 +790,8 @@ func TestMerklePath(t *testing.T) {
 
 			generate(t, 10)
 
+			time.Sleep(1 * time.Second)
+
 			var statusResponse *api.GETTransactionStatusResponse
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
 			require.NoError(t, err)

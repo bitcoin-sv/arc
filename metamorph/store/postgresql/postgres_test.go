@@ -193,22 +193,22 @@ func TestPostgresDB(t *testing.T) {
 		LockedBy:    "metamorph-1",
 	}
 
-	hash1, err := hex.DecodeString("b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430")
+	hash1, err := hex.DecodeString("b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430") // sent
 	require.NoError(t, err)
 	chainHash1, err := chainhash.NewHash(hash1)
 	require.NoError(t, err)
 
-	hash2, err := hex.DecodeString("ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
+	hash2, err := hex.DecodeString("ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa") // seen
 	require.NoError(t, err)
 	chainHash2, err := chainhash.NewHash(hash2)
 	require.NoError(t, err)
 
-	hash3, err := hex.DecodeString("3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd")
+	hash3, err := hex.DecodeString("3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd") // announced
 	require.NoError(t, err)
 	chainHash3, err := chainhash.NewHash(hash3)
 	require.NoError(t, err)
 
-	hash4, err := hex.DecodeString("213a8c87c5460e82b5ae529212956b853c7ce6bf06e56b2e040eb063cf9a49f0")
+	hash4, err := hex.DecodeString("213a8c87c5460e82b5ae529212956b853c7ce6bf06e56b2e040eb063cf9a49f0") // mined
 	require.NoError(t, err)
 	chainHash4, err := chainhash.NewHash(hash4)
 	require.NoError(t, err)
@@ -408,6 +408,34 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHash = testdata.Block1Hash
 		unmined.MerklePath = "merkle-path-1"
 		require.Equal(t, dataReturned, &unmined)
+
+	})
+
+	t.Run("get mined or seen transactions", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+
+		hash5, err := hex.DecodeString("1e7ce0d2fcac0a1a0c174e57a7334f9bf6803280af838a0a0389b230ee488dad") // mined
+		require.NoError(t, err)
+		chainHash5, err := chainhash.NewHash(hash5)
+		require.NoError(t, err)
+
+		hash6, err := hex.DecodeString("9a391adf8c716cfdb5fc17dadc85761259762a099dd4727b4412288661ef3c95") // mined
+		require.NoError(t, err)
+		chainHash6, err := chainhash.NewHash(hash6)
+		require.NoError(t, err)
+
+		hash7, err := hex.DecodeString("a8b965b5901163a9bdcd38d2ad524c3bb27ae31fb86dc8947253b541af8dd308") // mined
+		require.NoError(t, err)
+		chainHash7, err := chainhash.NewHash(hash7)
+		require.NoError(t, err)
+
+		hashes := []*chainhash.Hash{chainHash1, chainHash2, chainHash4, chainHash5, chainHash6, chainHash7}
+
+		minedSeen, err := postgresDB.GetMinedOrSeen(ctx, hashes)
+		require.NoError(t, err)
+		require.Len(t, minedSeen, 5)
 
 	})
 

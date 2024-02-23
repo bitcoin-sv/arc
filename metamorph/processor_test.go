@@ -26,6 +26,7 @@ import (
 //go:generate moq -pkg mocks -out ./mocks/store_mock.go ./store/ MetamorphStore
 //go:generate moq -pkg mocks -out ./mocks/message_queue_mock.go . MessageQueueClient
 //go:generate moq -pkg mocks -out ./mocks/http_client_mock.go . HttpClient
+//go:generate moq -pkg mocks -out ./mocks/peer_manager_mock.go . PeerManager
 
 func TestNewProcessor(t *testing.T) {
 	mtmStore := &mocks.MetamorphStoreMock{
@@ -35,7 +36,7 @@ func TestNewProcessor(t *testing.T) {
 		SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
 	}
 
-	pm := p2p.NewPeerManagerMock()
+	pm := &mocks.PeerManagerMock{}
 
 	tt := []struct {
 		name  string
@@ -167,7 +168,7 @@ func TestLoadUnmined(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			pm := p2p.NewPeerManagerMock()
+			pm := &mocks.PeerManagerMock{}
 
 			mtmStore := &mocks.MetamorphStoreMock{
 				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
@@ -266,7 +267,10 @@ func TestProcessTransaction(t *testing.T) {
 					return nil
 				},
 			}
-			pm := p2p.NewPeerManagerMock()
+			pm := &mocks.PeerManagerMock{AnnounceTransactionFunc: func(txHash *chainhash.Hash, peers []p2p.PeerI) []p2p.PeerI {
+				require.True(t, testdata.TX1Hash.IsEqual(txHash))
+				return nil
+			}}
 
 			publisher := &mocks.MessageQueueClientMock{
 				PublishRegisterTxsFunc: func(hash []byte) error {
@@ -307,8 +311,8 @@ func TestProcessTransaction(t *testing.T) {
 				require.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
 				require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[*testdata.TX1Hash].GetStatus())
 
-				require.Len(t, pm.AnnouncedTransactions, 1)
-				require.Equal(t, testdata.TX1Hash, pm.AnnouncedTransactions[0])
+				require.Len(t, pm.AnnounceTransactionCalls(), 1)
+
 			}
 
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
@@ -479,6 +483,29 @@ func TestSendStatusForTransaction(t *testing.T) {
 			expectedUpdateStatusCalls: 1,
 			expectedCallbacks:         1,
 		},
+		{
+			name: "status update - seen on network, not found in response map",
+			inputs: []input{
+				{
+					hash:      testdata.TX5Hash,
+					newStatus: metamorph_api.Status_SEEN_ON_NETWORK,
+				},
+			},
+			updateResp: [][]*store.StoreData{
+				{
+					{
+						Hash:              testdata.TX5Hash,
+						Status:            metamorph_api.Status_SEEN_ON_NETWORK,
+						RejectReason:      "",
+						FullStatusUpdates: true,
+						CallbackUrl:       "http://callback.com",
+					},
+				},
+			},
+
+			expectedCallbacks:         1,
+			expectedUpdateStatusCalls: 1,
+		},
 	}
 
 	for _, tc := range tt {
@@ -503,7 +530,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 				},
 			}
 
-			pm := p2p.NewPeerManagerMock()
+			pm := &mocks.PeerManagerMock{}
 			httpClientMock := &mocks.HttpClientMock{
 				DoFunc: func(req *http.Request) (*http.Response, error) {
 					callbackSent <- struct{}{}
@@ -563,16 +590,40 @@ func (r readCloser) Close() error                     { return nil }
 
 func TestProcessExpiredTransactions(t *testing.T) {
 	tt := []struct {
-		name    string
-		retries uint32
+		name        string
+		retries     uint32
+		minedOrSeen []*store.StoreData
+
+		expectedRequests      int
+		expectedAnnouncements int
 	}{
 		{
-			name:    "expired txs - 0 retries",
-			retries: 0,
+			name: "expired txs",
+
+			expectedAnnouncements: 6,
+			expectedRequests:      0,
 		},
 		{
-			name:    "expired txs - 0 retries",
+			name:        "expired txs - one seen",
+			minedOrSeen: []*store.StoreData{{Hash: testdata.TX1Hash, Status: metamorph_api.Status_SEEN_ON_NETWORK}},
+
+			expectedAnnouncements: 4,
+			expectedRequests:      0,
+		},
+		{
+			name:    "expired txs - max retries exceeded",
 			retries: 16,
+
+			expectedAnnouncements: 0,
+			expectedRequests:      6,
+		},
+		{
+			name:        "expired txs - max retries exceeded, one seen",
+			minedOrSeen: []*store.StoreData{{Hash: testdata.TX1Hash, Status: metamorph_api.Status_SEEN_ON_NETWORK}},
+			retries:     16,
+
+			expectedAnnouncements: 0,
+			expectedRequests:      4,
 		},
 	}
 
@@ -583,8 +634,18 @@ func TestProcessExpiredTransactions(t *testing.T) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+				GetMinedOrSeenFunc: func(ctx context.Context, hashes []*chainhash.Hash) ([]*store.StoreData, error) {
+					return tc.minedOrSeen, nil
+				},
 			}
-			pm := p2p.NewPeerManagerMock()
+			pm := &mocks.PeerManagerMock{
+				RequestTransactionFunc: func(txHash *chainhash.Hash) p2p.PeerI {
+					return nil
+				},
+				AnnounceTransactionFunc: func(txHash *chainhash.Hash, peers []p2p.PeerI) []p2p.PeerI {
+					return nil
+				},
+			}
 			processor, err := metamorph.NewProcessor(metamorphStore, pm,
 				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
 				metamorph.WithNow(func() time.Time {
@@ -610,6 +671,9 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			processor.ProcessorResponseMap.Set(testdata.TX3Hash, respAccepted)
 
 			time.Sleep(50 * time.Millisecond)
+
+			require.Equal(t, tc.expectedAnnouncements, len(pm.AnnounceTransactionCalls()))
+			require.Equal(t, tc.expectedRequests, len(pm.RequestTransactionCalls()))
 		})
 	}
 }
@@ -641,11 +705,19 @@ func TestProcessorHealth(t *testing.T) {
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
 			}
-			pm := p2p.NewPeerManagerMock()
 
-			for i := 0; i < tc.peersAdded; i++ {
-				err := pm.AddPeer(&p2p.PeerMock{})
-				require.NoError(t, err)
+			pm := &mocks.PeerManagerMock{
+				AddPeerFunc: func(peer p2p.PeerI) error {
+					return nil
+				},
+				GetPeersFunc: func() []p2p.PeerI {
+					peers := make([]p2p.PeerI, tc.peersAdded)
+					for i := 0; i < tc.peersAdded; i++ {
+						peers[i] = &p2p.PeerMock{}
+					}
+
+					return peers
+				},
 			}
 
 			processor, err := metamorph.NewProcessor(metamorphStore, pm,

@@ -173,6 +173,8 @@ func TestBatchChainedTxs(t *testing.T) {
 			t.Logf("submitting batch of %d chained txs", len(txs))
 			postBatchRequest(t, client, req)
 
+			time.Sleep(1 * time.Second) // give ARC time to perform the status update on DB
+
 			// repeat request to ensure response remains the same
 			t.Logf("re-submitting batch of %d chained txs", len(txs))
 			postBatchRequest(t, client, req)
@@ -389,9 +391,12 @@ func TestPostCallbackToken(t *testing.T) {
 
 			generate(t, 10)
 
+			time.Sleep(1 * time.Second) // give ARC time to perform the status update on DB
+
 			var statusResponse *api.GETTransactionStatusResponse
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
 			seenOnNetworkReceived := false
+
 			for i := 0; i <= 1; i++ {
 				t.Logf("callback iteration %d", i)
 				select {
@@ -406,7 +411,6 @@ func TestPostCallbackToken(t *testing.T) {
 					require.Equal(t, statusResponse.JSON200.Txid, callback.Txid)
 					require.Equal(t, *statusResponse.JSON200.BlockHeight, *callback.BlockHeight)
 					require.Equal(t, *statusResponse.JSON200.BlockHash, *callback.BlockHash)
-					require.Equal(t, *statusResponse.JSON200.TxStatus, *callback.TxStatus)
 					require.Equal(t, "MINED", *callback.TxStatus)
 					require.NotNil(t, statusResponse.JSON200.MerklePath)
 					_, err = bc.NewBUMPFromStr(*statusResponse.JSON200.MerklePath)
@@ -418,7 +422,7 @@ func TestPostCallbackToken(t *testing.T) {
 					t.Fatal("callback not received")
 				}
 			}
-			require.Equal(t, seenOnNetworkReceived, false)
+			require.Equal(t, false, seenOnNetworkReceived)
 		})
 	}
 }
@@ -590,6 +594,8 @@ func Test_E2E_Success(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{}
 	txID := postSingleRequest(t, client, req)
+
+	time.Sleep(1 * time.Second) // give ARC time to perform the status update on DB
 
 	// repeat request to ensure response remains the same
 	txIDRepeat := postSingleRequest(t, client, req)

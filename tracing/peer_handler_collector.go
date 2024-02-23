@@ -19,19 +19,6 @@ type PeerHandlerStats struct {
 	BlockProcessingMs       atomic.Uint64
 }
 
-func NewPeerHandlerStats() *PeerHandlerStats {
-	return &PeerHandlerStats{
-		TransactionSent:         atomic.Uint64{},
-		TransactionAnnouncement: atomic.Uint64{},
-		TransactionRejection:    atomic.Uint64{},
-		TransactionGet:          atomic.Uint64{},
-		Transaction:             atomic.Uint64{},
-		BlockAnnouncement:       atomic.Uint64{},
-		Block:                   atomic.Uint64{},
-		BlockProcessingMs:       atomic.Uint64{},
-	}
-}
-
 type PeerHandlerCollector struct {
 	service                 string
 	stats                   *safemap.Safemap[string, *PeerHandlerStats]

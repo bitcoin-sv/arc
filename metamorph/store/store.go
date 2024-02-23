@@ -38,9 +38,15 @@ type MetamorphStore interface {
 	SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error
 	SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error)
 	GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*StoreData, error)
-	UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error
+	UpdateStatusBulk(ctx context.Context, updates []UpdateStatus) ([]*StoreData, error)
 	UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*StoreData, error)
 	Close(ctx context.Context) error
 	ClearData(ctx context.Context, retentionDays int32) (int64, error)
 	Ping(ctx context.Context) error
+}
+
+type UpdateStatus struct {
+	Hash         chainhash.Hash
+	Status       metamorph_api.Status
+	RejectReason string
 }

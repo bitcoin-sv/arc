@@ -36,7 +36,7 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //			ProcessTransactionFunc: func(ctx context.Context, req *metamorph.ProcessorRequest)  {
 //				panic("mock out the ProcessTransaction method")
 //			},
-//			SendStatusForTransactionFunc: func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error) {
+//			SendStatusForTransactionFunc: func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) error {
 //				panic("mock out the SendStatusForTransaction method")
 //			},
 //			ShutdownFunc: func()  {
@@ -65,7 +65,7 @@ type ProcessorIMock struct {
 	ProcessTransactionFunc func(ctx context.Context, req *metamorph.ProcessorRequest)
 
 	// SendStatusForTransactionFunc mocks the SendStatusForTransaction method.
-	SendStatusForTransactionFunc func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
+	SendStatusForTransactionFunc func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) error
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func()
@@ -267,7 +267,7 @@ func (mock *ProcessorIMock) ProcessTransactionCalls() []struct {
 }
 
 // SendStatusForTransaction calls SendStatusForTransactionFunc.
-func (mock *ProcessorIMock) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error) {
+func (mock *ProcessorIMock) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) error {
 	if mock.SendStatusForTransactionFunc == nil {
 		panic("ProcessorIMock.SendStatusForTransactionFunc: method is nil but ProcessorI.SendStatusForTransaction was just called")
 	}

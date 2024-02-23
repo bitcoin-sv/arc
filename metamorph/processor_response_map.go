@@ -180,7 +180,7 @@ func (m *ProcessorResponseMap) logMapItems(logger *slog.Logger) {
 	defer m.mu.RUnlock()
 
 	for hash, processorResponse := range m.ResponseItems {
-		logger.Debug("Processor response map item", slog.String("hash", hash.String()), slog.String("status", processorResponse.Status.String()), slog.Int("retries", int(processorResponse.Retries.Load())), slog.String("err", processorResponse.Err.Error()), slog.Time("start", processorResponse.Start))
+		logger.Debug("Processor response map item", slog.String("hash", hash.String()), slog.String("status", processorResponse.GetStatus().String()), slog.Int("retries", int(processorResponse.Retries.Load())), slog.String("err", processorResponse.Err.Error()), slog.Time("start", processorResponse.Start))
 	}
 }
 

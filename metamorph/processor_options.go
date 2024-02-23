@@ -1,6 +1,7 @@
 package metamorph
 
 import (
+	"github.com/bitcoin-sv/arc/metamorph/store"
 	"log/slog"
 	"time"
 
@@ -31,6 +32,19 @@ func WithProcessExpiredTxsInterval(d time.Duration) func(*Processor) {
 	}
 }
 
+func WithProcessStatusUpdatesInterval(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.processStatusUpdatesInterval = d
+	}
+}
+
+func WithProcessStatusUpdatesBatchSize(size int) func(*Processor) {
+	return func(p *Processor) {
+		p.processStatusUpdatesBatchSize = size
+		p.statusUpdateCh = make(chan store.UpdateStatus, size)
+	}
+}
+
 func WithDataRetentionPeriod(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.dataRetentionPeriod = d
@@ -52,5 +66,11 @@ func WithMessageQueueClient(mqClient MessageQueueClient) func(processor *Process
 func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlocks) func(processor *Processor) {
 	return func(p *Processor) {
 		p.minedTxsChan = minedTxsChan
+	}
+}
+
+func WithHttpClient(httpClient HttpClient) func(processor *Processor) {
+	return func(p *Processor) {
+		p.httpClient = httpClient
 	}
 }

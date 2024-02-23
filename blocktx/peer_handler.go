@@ -108,6 +108,8 @@ type PeerHandler struct {
 	fillGapsTicker              *time.Ticker
 	quitFillBlockGap            chan struct{}
 	quitFillBlockGapComplete    chan struct{}
+	quitPeerWorker              chan struct{}
+	quitPeerWorkerComplete      chan struct{}
 	quitListenTxChannel         chan struct{}
 	quitListenTxChannelComplete chan struct{}
 }
@@ -180,6 +182,8 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, startingHeig
 		fillGapsTicker:              time.NewTicker(fillGapsInterval),
 		quitFillBlockGap:            make(chan struct{}),
 		quitFillBlockGapComplete:    make(chan struct{}),
+		quitPeerWorker:              make(chan struct{}),
+		quitPeerWorkerComplete:      make(chan struct{}),
 		quitListenTxChannel:         make(chan struct{}),
 		quitListenTxChannelComplete: make(chan struct{}),
 	}
@@ -215,36 +219,44 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, startingHeig
 
 func (ph *PeerHandler) startPeerWorker() {
 	go func() {
-		for workerItem := range ph.workerCh {
-			hash := workerItem.Hash
-			peer := workerItem.Peer
+		defer func() {
+			ph.quitPeerWorkerComplete <- struct{}{}
+		}()
+		for {
+			select {
+			case <-ph.quitPeerWorker:
+				return
+			case workerItem := <-ph.workerCh:
+				hash := workerItem.Hash
+				peer := workerItem.Peer
 
-			ctx := context.Background()
+				ctx := context.Background()
 
-			processedBy, err := ph.store.SetBlockProcessing(ctx, hash, ph.hostname)
-			if err != nil {
-				// block is already being processed by another blocktx instance
-				if errors.Is(err, store.ErrBlockProcessingDuplicateKey) {
-					ph.logger.Info("block processing already in progress", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
+				processedBy, err := ph.store.SetBlockProcessing(ctx, hash, ph.hostname)
+				if err != nil {
+					// block is already being processed by another blocktx instance
+					if errors.Is(err, store.ErrBlockProcessingDuplicateKey) {
+						ph.logger.Debug("Block processing already in progress", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
+						continue
+					}
+
+					ph.logger.Error("Failed to set block processing", slog.String("hash", hash.String()))
 					continue
 				}
 
-				ph.logger.Error("failed to set block processing", slog.String("hash", hash.String()))
-				continue
-			}
+				msg := wire.NewMsgGetData()
+				if err = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
+					ph.logger.Error("Failed to create InvVect for block request", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+					continue
+				}
 
-			msg := wire.NewMsgGetData()
-			if err = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
-				ph.logger.Error("ProcessBlock: could not create InvVect", slog.String("err", err.Error()))
-				continue
-			}
+				if err = peer.WriteMsg(msg); err != nil {
+					ph.logger.Error("Failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+					continue
+				}
 
-			if err = peer.WriteMsg(msg); err != nil {
-				ph.logger.Error("ProcessBlock: failed to write message to peer", slog.String("err", err.Error()))
-				continue
+				ph.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 			}
-
-			ph.logger.Info("ProcessBlock", slog.String("hash", hash.String()))
 		}
 	}()
 }
@@ -712,6 +724,9 @@ func (ph *PeerHandler) Shutdown() {
 
 	ph.quitListenTxChannel <- struct{}{}
 	<-ph.quitListenTxChannelComplete
+
+	ph.quitPeerWorker <- struct{}{}
+	<-ph.quitPeerWorkerComplete
 
 	ph.fillGapsTicker.Stop()
 	tracing.Unregister(ph.peerHandlerCollector)

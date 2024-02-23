@@ -38,10 +38,9 @@ type ProcessorResponse struct {
 	LastStatusUpdateNanos atomic.Int64    `json:"lastStatusUpdateNanos"`
 	// The following fields are protected by the mutex
 	mu             deadlock.RWMutex
-	Err            error                  `json:"err"`
-	AnnouncedPeers []p2p.PeerI            `json:"announcedPeers"`
-	Status         metamorph_api.Status   `json:"status"`
-	Log            []ProcessorResponseLog `json:"log"`
+	Err            error                `json:"err"`
+	AnnouncedPeers []p2p.PeerI          `json:"announcedPeers"`
+	Status         metamorph_api.Status `json:"status"`
 }
 
 func NewProcessorResponse(hash *chainhash.Hash) *ProcessorResponse {
@@ -65,12 +64,6 @@ func newProcessorResponse(hash *chainhash.Hash, status metamorph_api.Status, ch 
 		Status:         status,
 		callerCh:       ch,
 		statusUpdateCh: make(chan *ProcessorResponseStatusUpdate, 10),
-		Log: []ProcessorResponseLog{
-			{
-				DeltaT: 0,
-				Status: status.String(),
-			},
-		},
 	}
 	pr.LastStatusUpdateNanos.Store(pr.Start.UnixNano())
 
@@ -161,8 +154,6 @@ func (r *ProcessorResponse) setStatus(status metamorph_api.Status, source string
 
 	ch := r.callerCh
 
-	r.addLog(status, source, "")
-
 	if ch != nil {
 		return utils.SafeSend(ch, sae)
 	}
@@ -190,8 +181,6 @@ func (r *ProcessorResponse) setErr(err error, source string) bool {
 
 	ch := r.callerCh
 
-	r.addLog(r.Status, source, err.Error())
-
 	r.mu.Unlock()
 
 	if ch != nil {
@@ -212,8 +201,6 @@ func (r *ProcessorResponse) setStatusAndError(status metamorph_api.Status, err e
 	}
 
 	ch := r.callerCh
-
-	r.addLog(status, source, err.Error())
 
 	if ch != nil {
 		return utils.SafeSend(ch, sae)
@@ -236,20 +223,4 @@ func (r *ProcessorResponse) GetRetries() uint32 {
 func (r *ProcessorResponse) IncrementRetry() uint32 {
 	r.Retries.Add(1)
 	return r.Retries.Load()
-}
-
-func (r *ProcessorResponse) AddLog(status metamorph_api.Status, source string, info string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.addLog(status, source, info)
-}
-
-func (r *ProcessorResponse) addLog(status metamorph_api.Status, source string, info string) {
-	r.Log = append(r.Log, ProcessorResponseLog{
-		DeltaT: time.Since(r.Start).Nanoseconds(),
-		Status: status.String(),
-		Source: source,
-		Info:   info,
-	})
 }

@@ -30,20 +30,21 @@ func (p *Processor) GetStats(debugItems bool) *ProcessorStats {
 	}
 
 	return &ProcessorStats{
-		StartTime:          p.startTime,
-		UptimeMillis:       time.Since(p.startTime).String(),
-		QueueLength:        p.queueLength.Load(),
-		QueuedCount:        p.queuedCount.Load(),
-		Stored:             p.stored,
-		AnnouncedToNetwork: p.announcedToNetwork,
-		RequestedByNetwork: p.requestedByNetwork,
-		SentToNetwork:      p.sentToNetwork,
-		AcceptedByNetwork:  p.acceptedByNetwork,
-		SeenOnNetwork:      p.seenOnNetwork,
-		Rejected:           p.rejected,
-		Mined:              p.mined,
-		Retries:            p.retries,
-		ChannelMapSize:     int32(p.ProcessorResponseMap.Len()),
+		StartTime:           p.startTime,
+		UptimeMillis:        time.Since(p.startTime).String(),
+		QueueLength:         p.queueLength.Load(),
+		QueuedCount:         p.queuedCount.Load(),
+		Stored:              p.stored,
+		AnnouncedToNetwork:  p.announcedToNetwork,
+		RequestedByNetwork:  p.requestedByNetwork,
+		SentToNetwork:       p.sentToNetwork,
+		AcceptedByNetwork:   p.acceptedByNetwork,
+		SeenInOrphanMempool: p.seenInOrphanMempool,
+		SeenOnNetwork:       p.seenOnNetwork,
+		Rejected:            p.rejected,
+		Mined:               p.mined,
+		Retries:             p.retries,
+		ChannelMapSize:      int32(p.ProcessorResponseMap.Len()),
 	}
 }
 
@@ -183,7 +184,7 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 
 				txids.WriteString(fmt.Sprintf(`<td>%s</td>`, processorResponse.Start.UTC().Format(time.RFC3339Nano)))
 				txids.WriteString(fmt.Sprintf(`<td>%d</td>`, processorResponse.Retries.Load()))
-				txids.WriteString(fmt.Sprintf(`<td>%s</td>`, processorResponse.Status.String()))
+				txids.WriteString(fmt.Sprintf(`<td>%s</td>`, processorResponse.GetStatus().String()))
 				txids.WriteString(fmt.Sprintf(`<td><a href="/pstats?tx=%v">%v</a></td>`, processorResponse.Hash, processorResponse.Hash))
 
 				txids.WriteString(`</tr>`)
@@ -392,10 +393,9 @@ func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *proc
 		Retries:               prm.Retries.Load(),
 		Err:                   prm.Err,
 		AnnouncedPeers:        announcedPeers,
-		Status:                prm.Status,
+		Status:                prm.GetStatus(),
 		NoStats:               prm.NoStats,
 		LastStatusUpdateNanos: prm.LastStatusUpdateNanos.Load(),
-		Log:                   prm.Log,
 	}
 
 	resLog := strings.Builder{}

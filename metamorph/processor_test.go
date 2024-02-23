@@ -483,6 +483,29 @@ func TestSendStatusForTransaction(t *testing.T) {
 			expectedUpdateStatusCalls: 1,
 			expectedCallbacks:         1,
 		},
+		{
+			name: "status update - seen on network, not found in response map",
+			inputs: []input{
+				{
+					hash:      testdata.TX5Hash,
+					newStatus: metamorph_api.Status_SEEN_ON_NETWORK,
+				},
+			},
+			updateResp: [][]*store.StoreData{
+				{
+					{
+						Hash:              testdata.TX5Hash,
+						Status:            metamorph_api.Status_SEEN_ON_NETWORK,
+						RejectReason:      "",
+						FullStatusUpdates: true,
+						CallbackUrl:       "http://callback.com",
+					},
+				},
+			},
+
+			expectedCallbacks:         1,
+			expectedUpdateStatusCalls: 1,
+		},
 	}
 
 	for _, tc := range tt {

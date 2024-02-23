@@ -432,6 +432,13 @@ var statusValueMap = map[metamorph_api.Status]int{
 func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) error {
 	processorResponse, ok := p.ProcessorResponseMap.Get(hash)
 	if !ok {
+		if status == metamorph_api.Status_SEEN_ON_NETWORK {
+			p.statusUpdateCh <- store.UpdateStatus{
+				Hash:   *hash,
+				Status: status,
+			}
+		}
+
 		return nil
 	}
 

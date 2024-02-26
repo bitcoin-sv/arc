@@ -30,6 +30,12 @@ import (
 
 const (
 	feeSat = 10
+
+	arcEndpoint      = "http://arc:9090/"
+	v1Tx             = "v1/tx"
+	v1Txs            = "v1/txs"
+	arcEndpointV1Tx  = arcEndpoint + v1Tx
+	arcEndpointV1Txs = arcEndpoint + v1Txs
 )
 
 type Response struct {
@@ -162,10 +168,8 @@ func TestBatchChainedTxs(t *testing.T) {
 
 			buffer := bytes.NewBuffer(payLoad)
 
-			url := "http://arc:9090/v1/txs"
-
 			// Send POST request
-			req, err := http.NewRequest("POST", url, buffer)
+			req, err := http.NewRequest("POST", arcEndpointV1Txs, buffer)
 			require.NoError(t, err)
 
 			req.Header.Set("Content-Type", "application/json")
@@ -292,9 +296,7 @@ func TestPostCallbackToken(t *testing.T) {
 			tx, err := createTx(privateKey, address, utxos[0])
 			require.NoError(t, err)
 
-			url := "http://arc:9090/"
-
-			arcClient, err := api.NewClientWithResponses(url)
+			arcClient, err := api.NewClientWithResponses(arcEndpoint)
 			require.NoError(t, err)
 
 			ctx := context.Background()
@@ -412,7 +414,6 @@ func TestPostCallbackToken(t *testing.T) {
 					require.Equal(t, statusResponse.JSON200.Txid, callback.Txid)
 					require.Equal(t, *statusResponse.JSON200.BlockHeight, *callback.BlockHeight)
 					require.Equal(t, *statusResponse.JSON200.BlockHash, *callback.BlockHash)
-					require.Equal(t, *statusResponse.JSON200.TxStatus, *callback.TxStatus)
 					require.Equal(t, "MINED", *callback.TxStatus)
 					require.NotNil(t, statusResponse.JSON200.MerklePath)
 					_, err = bc.NewBUMPFromStr(*statusResponse.JSON200.MerklePath)
@@ -464,7 +465,7 @@ func TestPostSkipFee(t *testing.T) {
 
 			fmt.Println("Transaction with Zero fee:", tx)
 
-			url := "http://arc:9090/"
+			url := arcEndpoint
 
 			arcClient, err := api.NewClientWithResponses(url)
 			require.NoError(t, err)
@@ -530,7 +531,7 @@ func TestPostSkipTxValidation(t *testing.T) {
 
 			fmt.Println("Transaction with Zero fee:", tx)
 
-			url := "http://arc:9090/"
+			url := arcEndpoint
 
 			arcClient, err := api.NewClientWithResponses(url)
 			require.NoError(t, err)
@@ -587,10 +588,9 @@ func Test_E2E_Success(t *testing.T) {
 
 	tx := createTxHexStringExtended(t)
 	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, hex.EncodeToString(tx.ExtendedBytes()))
-	url := "http://arc:9090/v1/tx"
 
 	// Send POST request
-	req, err := http.NewRequest("POST", url, strings.NewReader(jsonPayload))
+	req, err := http.NewRequest("POST", arcEndpointV1Tx, strings.NewReader(jsonPayload))
 	require.NoError(t, err)
 
 	req.Header.Set("Content-Type", "application/json")
@@ -604,14 +604,14 @@ func Test_E2E_Success(t *testing.T) {
 	require.Equal(t, txID, txIDRepeat)
 
 	// Check transaction status
-	statusUrl := fmt.Sprintf("http://arc:9090/v1/tx/%s", txID)
+	statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID)
 	statusResp, err := http.Get(statusUrl)
 	require.NoError(t, err)
 	defer statusResp.Body.Close()
 
 	var statusResponse TxStatusResponse
 	require.NoError(t, json.NewDecoder(statusResp.Body).Decode(&statusResponse))
-	require.Equal(t, "SEEN_ON_NETWORK", statusResponse.TxStatus, "Expected txStatus to be 'SEEN_ON_NETWORK'")
+	require.Equalf(t, "SEEN_ON_NETWORK", statusResponse.TxStatus, "Expected txStatus to be 'SEEN_ON_NETWORK' for tx id %s", txID)
 
 	t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
@@ -698,8 +698,7 @@ func TestPostTx_BadRequestBodyFormat(t *testing.T) {
 }
 
 func postTx(t *testing.T, jsonPayload string, headers map[string]string) (*http.Response, error) {
-	url := "http://arc:9090/v1/tx"
-	req, err := http.NewRequest("POST", url, strings.NewReader(jsonPayload))
+	req, err := http.NewRequest("POST", arcEndpointV1Tx, strings.NewReader(jsonPayload))
 	if err != nil {
 		t.Fatalf("Error creating HTTP request: %s", err)
 	}

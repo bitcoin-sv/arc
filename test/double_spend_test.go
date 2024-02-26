@@ -49,7 +49,7 @@ func TestDoubleSpend(t *testing.T) {
 			tx, err := createTx(privateKey, address, utxos[0])
 			require.NoError(t, err)
 
-			url := "http://arc:9090/"
+			url := arcEndpoint
 
 			arcClient, err := api.NewClientWithResponses(url)
 			require.NoError(t, err)

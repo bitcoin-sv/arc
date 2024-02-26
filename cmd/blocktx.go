@@ -99,6 +99,8 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
+	peerHandler.Start()
+
 	blockTxServer := blocktx.NewServer(blockStore, logger, peerHandler)
 
 	address, err := config.GetString("blocktx.listenAddr")

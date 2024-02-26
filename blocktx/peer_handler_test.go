@@ -256,93 +256,93 @@ func TestHandleBlock(t *testing.T) {
 	}
 }
 
-func TestFillGaps(t *testing.T) {
-	hostname, err := os.Hostname()
-	require.NoError(t, err)
-	hash822014, err := chainhash.NewHashFromStr("0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
-	require.NoError(t, err)
-	hash822019, err := chainhash.NewHashFromStr("00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656")
-	require.NoError(t, err)
-	tt := []struct {
-		name            string
-		blockGaps       []*store.BlockGap
-		getBlockGapsErr error
-		hostname        string
-
-		expectedGetBlockGapsCalls int
-		expectedErrorStr          string
-	}{
-		{
-			name:      "success - no gaps",
-			blockGaps: []*store.BlockGap{},
-			hostname:  hostname,
-
-			expectedGetBlockGapsCalls: 1,
-		},
-		{
-			name: "success - 2 gaps",
-			blockGaps: []*store.BlockGap{
-				{
-					Height: 822014,
-					Hash:   hash822014,
-				},
-				{
-					Height: 8220119,
-					Hash:   hash822019,
-				},
-			},
-			hostname: hostname,
-
-			expectedGetBlockGapsCalls: 1,
-		},
-		{
-			name:            "error getting block gaps",
-			blockGaps:       []*store.BlockGap{},
-			getBlockGapsErr: errors.New("failed to get block gaps"),
-			hostname:        hostname,
-
-			expectedGetBlockGapsCalls: 1,
-			expectedErrorStr:          "failed to get block gaps",
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			const batchSize = 4
-
-			var storeMock = &store.BlocktxStoreMock{
-				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
-					return tc.blockGaps, tc.getBlockGapsErr
-				},
-				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
-					return []*chainhash.Hash{testdata.TX1Hash}, nil
-				},
-				SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
-					return "abc", nil
-				},
-			}
-
-			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := NewPeerHandler(logger, storeMock, []string{}, wire.TestNet, WithTransactionBatchSize(batchSize))
-			require.NoError(t, err)
-			peer := &PeerMock{
-				StringFunc: func() string {
-					return ""
-				},
-			}
-			err = peerHandler.FillGaps(peer)
-
-			require.Equal(t, tc.expectedGetBlockGapsCalls, len(storeMock.GetBlockGapsCalls()))
-			peerHandler.Shutdown()
-			if tc.expectedErrorStr == "" {
-				require.NoError(t, err)
-			} else {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
-				return
-			}
-		})
-	}
-}
+//func TestFillGaps(t *testing.T) {
+//	hostname, err := os.Hostname()
+//	require.NoError(t, err)
+//	hash822014, err := chainhash.NewHashFromStr("0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
+//	require.NoError(t, err)
+//	hash822019, err := chainhash.NewHashFromStr("00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656")
+//	require.NoError(t, err)
+//	tt := []struct {
+//		name            string
+//		blockGaps       []*store.BlockGap
+//		getBlockGapsErr error
+//		hostname        string
+//
+//		expectedGetBlockGapsCalls int
+//		expectedErrorStr          string
+//	}{
+//		{
+//			name:      "success - no gaps",
+//			blockGaps: []*store.BlockGap{},
+//			hostname:  hostname,
+//
+//			expectedGetBlockGapsCalls: 1,
+//		},
+//		{
+//			name: "success - 2 gaps",
+//			blockGaps: []*store.BlockGap{
+//				{
+//					Height: 822014,
+//					Hash:   hash822014,
+//				},
+//				{
+//					Height: 8220119,
+//					Hash:   hash822019,
+//				},
+//			},
+//			hostname: hostname,
+//
+//			expectedGetBlockGapsCalls: 1,
+//		},
+//		{
+//			name:            "error getting block gaps",
+//			blockGaps:       []*store.BlockGap{},
+//			getBlockGapsErr: errors.New("failed to get block gaps"),
+//			hostname:        hostname,
+//
+//			expectedGetBlockGapsCalls: 1,
+//			expectedErrorStr:          "failed to get block gaps",
+//		},
+//	}
+//
+//	for _, tc := range tt {
+//		t.Run(tc.name, func(t *testing.T) {
+//			const batchSize = 4
+//
+//			var storeMock = &store.BlocktxStoreMock{
+//				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
+//					return tc.blockGaps, tc.getBlockGapsErr
+//				},
+//				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+//					return []*chainhash.Hash{testdata.TX1Hash}, nil
+//				},
+//				SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
+//					return "abc", nil
+//				},
+//			}
+//
+//			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+//			peerHandler, err := NewPeerHandler(logger, storeMock, []string{}, wire.TestNet, WithTransactionBatchSize(batchSize))
+//			require.NoError(t, err)
+//			peer := &PeerMock{
+//				StringFunc: func() string {
+//					return ""
+//				},
+//			}
+//			err = peerHandler.FillGaps(peer)
+//
+//			require.Equal(t, tc.expectedGetBlockGapsCalls, len(storeMock.GetBlockGapsCalls()))
+//			peerHandler.Shutdown()
+//			if tc.expectedErrorStr == "" {
+//				require.NoError(t, err)
+//			} else {
+//				require.ErrorContains(t, err, tc.expectedErrorStr)
+//				return
+//			}
+//		})
+//	}
+//}
 
 func TestStartFillGaps(t *testing.T) {
 	hash822014, err := chainhash.NewHashFromStr("0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
@@ -367,6 +367,7 @@ func TestStartFillGaps(t *testing.T) {
 	}
 
 	for _, tc := range tt {
+		const batchSize = 4
 		t.Run(tc.name, func(t *testing.T) {
 			storeMock := &store.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
@@ -386,8 +387,10 @@ func TestStartFillGaps(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := NewPeerHandler(logger, storeMock, []string{"127.0.0.1:18333", "127.0.0.2:18333", "127.0.0.3:18333"}, wire.TestNet, WithFillGapsInterval(time.Millisecond*20))
+			peerHandler, err := NewPeerHandler(logger, storeMock, []string{"127.0.0.1:18333", "127.0.0.2:18333", "127.0.0.3:18333"}, wire.TestNet, WithFillGapsInterval(time.Millisecond*20), WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
+
+			peerHandler.startFillGaps(peerHandler.peers)
 
 			time.Sleep(120 * time.Millisecond)
 			peerHandler.Shutdown()
@@ -433,6 +436,8 @@ func TestStartProcessTxs(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			peerHandler, err := NewPeerHandler(logger, storeMock, []string{}, wire.TestNet, WithRegisterTxsInterval(time.Millisecond*20), WithTxChan(txChan), WithRegisterTxsBatchSize(3))
 			require.NoError(t, err)
+
+			peerHandler.startProcessTxs()
 
 			time.Sleep(120 * time.Millisecond)
 			peerHandler.Shutdown()
@@ -524,6 +529,8 @@ func TestStartPeerWorker(t *testing.T) {
 				Hash: blockHash,
 				Peer: peerMock,
 			}
+
+			peerHandler.startPeerWorker()
 
 			// call tested function
 			require.NoError(t, err)

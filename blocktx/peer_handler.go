@@ -210,11 +210,13 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, peerURLs []s
 		ph.peers[i] = peer
 	}
 
+	return ph, nil
+}
+
+func (ph *PeerHandler) Start() {
 	ph.startFillGaps(ph.peers)
 	ph.startPeerWorker()
 	ph.startProcessTxs()
-
-	return ph, nil
 }
 
 func (ph *PeerHandler) startPeerWorker() {
@@ -252,13 +254,13 @@ func (ph *PeerHandler) startPeerWorker() {
 					continue
 				}
 
-						msg := wire.NewMsgGetData()
+				msg := wire.NewMsgGetData()
 				if err = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
 					ph.logger.Error("Failed to create InvVect for block request", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 					continue
 				}
 
-						if err = peer.WriteMsg(msg); err != nil {
+				if err = peer.WriteMsg(msg); err != nil {
 					ph.logger.Error("Failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 					continue
 				}

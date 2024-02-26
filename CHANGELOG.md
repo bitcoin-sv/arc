@@ -30,7 +30,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
-- Callbacks for status `SEEN_ON_NETWORK` and `SEEN_IN_ORPHAN_MEMPOOL` if new request header `X-SkipFeeValidation` is given with value `true`.
+- Callbacks for status `SEEN_ON_NETWORK` and `SEEN_IN_ORPHAN_MEMPOOL` if new request header `X-FullStatusUpdates` is given with value `true`.
 
 ## [1.0.62] - 2023-11-23
 

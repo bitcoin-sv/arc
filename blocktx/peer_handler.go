@@ -28,7 +28,6 @@ const (
 	transactionStoringBatchsizeDefault = 2048 // power of 2 for easier memory allocation
 	maxRequestBlocks                   = 1
 	fillGapsInterval                   = 15 * time.Minute
-	maximumBlockSize                   = 4294967296 // 4Gb
 	registerTxsIntervalDefault         = time.Second * 10
 	registerTxsBatchSizeDefault        = 100
 	maxBlocksInProgress                = 1
@@ -104,7 +103,6 @@ type PeerHandler struct {
 	txChannel                   chan []byte
 	registerTxsInterval         time.Duration
 	registerTxsBatchSize        int
-	peers                       []*p2p.Peer
 
 	fillGapsTicker              *time.Ticker
 	quitFillBlockGap            chan struct{}
@@ -161,7 +159,7 @@ func WithRegisterTxsBatchSize(size int) func(handler *PeerHandler) {
 	}
 }
 
-func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, peerURLs []string, network wire.BitcoinNet, opts ...func(*PeerHandler)) (*PeerHandler, error) {
+func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func(*PeerHandler)) (*PeerHandler, error) {
 
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -176,7 +174,6 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, peerURLs []s
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
 		registerTxsInterval:         registerTxsIntervalDefault,
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
-		peers:                       make([]*p2p.Peer, len(peerURLs)),
 		hostname:                    hostname,
 
 		fillGapsTicker:              time.NewTicker(fillGapsInterval),
@@ -195,26 +192,10 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, peerURLs []s
 	ph.peerHandlerCollector = tracing.NewPeerHandlerCollector("blocktx", ph.stats)
 	tracing.Register(ph.peerHandlerCollector)
 
-	pm := p2p.NewPeerManager(logger, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
-
-	for i, peerURL := range peerURLs {
-		peer, err := p2p.NewPeer(logger, peerURL, ph, network, p2p.WithMaximumMessageSize(maximumBlockSize))
-		if err != nil {
-			return nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
-		}
-		err = pm.AddPeer(peer)
-		if err != nil {
-			return nil, fmt.Errorf("error adding peer: %v", err)
-		}
-
-		ph.peers[i] = peer
-	}
-
 	return ph, nil
 }
 
 func (ph *PeerHandler) Start() {
-	ph.startFillGaps(ph.peers)
 	ph.startPeerWorker()
 	ph.startProcessTxs()
 }
@@ -271,7 +252,7 @@ func (ph *PeerHandler) startPeerWorker() {
 	}()
 }
 
-func (ph *PeerHandler) startFillGaps(peers []*p2p.Peer) {
+func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
 	go func() {
 		defer func() {
 			ph.quitFillBlockGapComplete <- struct{}{}

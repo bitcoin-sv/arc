@@ -10,7 +10,6 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/blocktx/store"
-	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -66,10 +65,10 @@ func TestCheck(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, []string{}, wire.TestNet, blocktx.WithTransactionBatchSize(batchSize))
+			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
 
-			server := blocktx.NewServer(storeMock, logger, peerHandler)
+			server := blocktx.NewServer(storeMock, logger, nil)
 			resp, err := server.Check(context.Background(), req)
 			require.NoError(t, err)
 
@@ -130,10 +129,10 @@ func TestWatch(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, []string{}, wire.TestNet, blocktx.WithTransactionBatchSize(batchSize))
+			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
 
-			server := blocktx.NewServer(storeMock, logger, peerHandler)
+			server := blocktx.NewServer(storeMock, logger, nil)
 
 			watchServer := &mocks.HealthWatchServerMock{
 				SendFunc: func(healthCheckResponse *grpc_health_v1.HealthCheckResponse) error {

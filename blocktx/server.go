@@ -3,6 +3,7 @@ package blocktx
 import (
 	"context"
 	"fmt"
+	"github.com/libsv/go-p2p"
 	"log/slog"
 	"net"
 	"time"
@@ -25,15 +26,15 @@ type Server struct {
 	store      store.BlocktxStore
 	logger     *slog.Logger
 	grpcServer *grpc.Server
-	ph         *PeerHandler
+	peers      []p2p.PeerI
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(storeI store.BlocktxStore, logger *slog.Logger, ph *PeerHandler) *Server {
+func NewServer(storeI store.BlocktxStore, logger *slog.Logger, peers []p2p.PeerI) *Server {
 	return &Server{
 		store:  storeI,
 		logger: logger,
-		ph:     ph,
+		peers:  peers,
 	}
 }
 

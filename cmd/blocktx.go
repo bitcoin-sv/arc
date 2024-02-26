@@ -10,9 +10,14 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/config"
+	"github.com/libsv/go-p2p"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
+)
+
+const (
+	maximumBlockSize = 4294967296 // 4Gb
 )
 
 func StartBlockTx(logger *slog.Logger) (func(), error) {
@@ -32,19 +37,6 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	peerSettings, err := config.GetPeerSettings()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get peer settings: %v", err)
-	}
-
-	peerURLs := make([]string, len(peerSettings))
-	for i, peerSetting := range peerSettings {
-		peerUrl, err := peerSetting.GetP2PUrl()
-		if err != nil {
-			return nil, fmt.Errorf("error getting peer url: %v", err)
-		}
-		peerURLs[i] = peerUrl
-	}
 	network, err := config.GetNetwork()
 	if err != nil {
 		return nil, err
@@ -89,19 +81,50 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore, peerURLs, network,
+	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore,
 		blocktx.WithRetentionDays(recordRetentionDays),
 		blocktx.WithTxChan(txChannel),
 		blocktx.WithRegisterTxsInterval(registerTxInterval),
 		blocktx.WithMessageQueueClient(mqClient))
-
 	if err != nil {
 		return nil, err
 	}
 
 	peerHandler.Start()
 
-	blockTxServer := blocktx.NewServer(blockStore, logger, peerHandler)
+	pm := p2p.NewPeerManager(logger, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
+
+	peerSettings, err := config.GetPeerSettings()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get peer settings: %v", err)
+	}
+
+	peerURLs := make([]string, len(peerSettings))
+	for i, peerSetting := range peerSettings {
+		peerUrl, err := peerSetting.GetP2PUrl()
+		if err != nil {
+			return nil, fmt.Errorf("error getting peer url: %v", err)
+		}
+		peerURLs[i] = peerUrl
+	}
+	peers := make([]p2p.PeerI, len(peerURLs))
+
+	for i, peerURL := range peerURLs {
+		peer, err := p2p.NewPeer(logger, peerURL, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize))
+		if err != nil {
+			return nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
+		}
+		err = pm.AddPeer(peer)
+		if err != nil {
+			return nil, fmt.Errorf("error adding peer: %v", err)
+		}
+
+		peers[i] = peer
+	}
+
+	peerHandler.StartFillGaps(peers)
+
+	blockTxServer := blocktx.NewServer(blockStore, logger, peers)
 
 	address, err := config.GetString("blocktx.listenAddr")
 	if err != nil {

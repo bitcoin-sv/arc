@@ -176,13 +176,7 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
 		hostname:                    hostname,
 
-		fillGapsTicker:              time.NewTicker(fillGapsInterval),
-		quitFillBlockGap:            make(chan struct{}),
-		quitFillBlockGapComplete:    make(chan struct{}),
-		quitPeerWorker:              make(chan struct{}),
-		quitPeerWorkerComplete:      make(chan struct{}),
-		quitListenTxChannel:         make(chan struct{}),
-		quitListenTxChannelComplete: make(chan struct{}),
+		fillGapsTicker: time.NewTicker(fillGapsInterval),
 	}
 
 	for _, opt := range opts {
@@ -201,6 +195,9 @@ func (ph *PeerHandler) Start() {
 }
 
 func (ph *PeerHandler) startPeerWorker() {
+	ph.quitPeerWorker = make(chan struct{})
+	ph.quitPeerWorkerComplete = make(chan struct{})
+
 	go func() {
 		defer func() {
 			ph.quitPeerWorkerComplete <- struct{}{}
@@ -253,6 +250,9 @@ func (ph *PeerHandler) startPeerWorker() {
 }
 
 func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
+	ph.quitFillBlockGap = make(chan struct{})
+	ph.quitFillBlockGapComplete = make(chan struct{})
+
 	go func() {
 		defer func() {
 			ph.quitFillBlockGapComplete <- struct{}{}
@@ -280,6 +280,8 @@ func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
 }
 
 func (ph *PeerHandler) startProcessTxs() {
+	ph.quitListenTxChannel = make(chan struct{})
+	ph.quitListenTxChannelComplete = make(chan struct{})
 	txHashes := make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
 
 	ticker := time.NewTicker(ph.registerTxsInterval)
@@ -446,7 +448,7 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 
 	merkleRoot := msg.Header.MerkleRoot
 
-	blockId, err := ph.insertBlock(&blockHash, &merkleRoot, &previousBlockHash, msg.Height, peer)
+	blockId, err := ph.insertBlock(&blockHash, &merkleRoot, &previousBlockHash, msg.Height)
 	if err != nil {
 		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
 		if errDel != nil {
@@ -532,7 +534,7 @@ func (ph *PeerHandler) FillGaps(peer p2p.PeerI) error {
 	return nil
 }
 
-func (ph *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainhash.Hash, previousBlockHash *chainhash.Hash, height uint64, peer p2p.PeerI) (uint64, error) {
+func (ph *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainhash.Hash, previousBlockHash *chainhash.Hash, height uint64) (uint64, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("insertBlock").AddTime(start)
@@ -709,15 +711,24 @@ func extractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
 }
 
 func (ph *PeerHandler) Shutdown() {
-	ph.quitFillBlockGap <- struct{}{}
-	<-ph.quitFillBlockGapComplete
+	if ph.quitFillBlockGap != nil {
+		ph.quitFillBlockGap <- struct{}{}
+		<-ph.quitFillBlockGapComplete
+		ph.fillGapsTicker.Stop()
+	}
 
-	ph.quitListenTxChannel <- struct{}{}
-	<-ph.quitListenTxChannelComplete
+	if ph.quitPeerWorker != nil {
+		ph.quitPeerWorker <- struct{}{}
+		<-ph.quitPeerWorkerComplete
+	}
 
-	ph.quitPeerWorker <- struct{}{}
-	<-ph.quitPeerWorkerComplete
+	if ph.quitListenTxChannel != nil {
+		ph.quitListenTxChannel <- struct{}{}
+		<-ph.quitListenTxChannelComplete
+	}
+	ph.unregisterTracing()
+}
 
-	ph.fillGapsTicker.Stop()
+func (ph *PeerHandler) unregisterTracing() {
 	tracing.Unregister(ph.peerHandlerCollector)
 }

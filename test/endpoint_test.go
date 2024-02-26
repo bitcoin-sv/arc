@@ -411,6 +411,7 @@ func TestPostCallbackToken(t *testing.T) {
 					require.Equal(t, statusResponse.JSON200.Txid, callback.Txid)
 					require.Equal(t, *statusResponse.JSON200.BlockHeight, *callback.BlockHeight)
 					require.Equal(t, *statusResponse.JSON200.BlockHash, *callback.BlockHash)
+					require.Equal(t, *statusResponse.JSON200.TxStatus, *callback.TxStatus)
 					require.Equal(t, "MINED", *callback.TxStatus)
 					require.NotNil(t, statusResponse.JSON200.MerklePath)
 					_, err = bc.NewBUMPFromStr(*statusResponse.JSON200.MerklePath)

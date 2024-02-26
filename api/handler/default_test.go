@@ -114,6 +114,28 @@ func TestGETPolicy(t *testing.T) {
 	})
 }
 
+func TestGETHealth(t *testing.T) {
+	t.Run("health check", func(t *testing.T) {
+		txHandler := &mock.TransactionHandlerMock{
+			HealthFunc: func(ctx context.Context) error {
+				return nil
+			},
+		}
+
+		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
+		require.NoError(t, err)
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+		ctx := e.NewContext(req, rec)
+
+		err = defaultHandler.GETHealth(ctx)
+		require.Nil(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+}
+
 func TestGETTransactionStatus(t *testing.T) {
 	tt := []struct {
 		name                 string

@@ -22,7 +22,7 @@ func TestStartGRPCServer(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			storeMock := &store.InterfaceMock{}
+			storeMock := &store.BlocktxStoreMock{}
 
 			server := NewServer(storeMock, logger, nil)
 

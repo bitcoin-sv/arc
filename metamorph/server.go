@@ -53,7 +53,7 @@ type BitcoinNode interface {
 type ProcessorI interface {
 	LoadUnmined()
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
-	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) (bool, error)
+	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) error
 	GetStats(debugItems bool) *ProcessorStats
 	GetPeers() ([]string, []string)
 	Shutdown()
@@ -341,6 +341,18 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 				returnedStatus.RejectReason = res.Err.Error()
 			} else {
 				returnedStatus.RejectReason = ""
+				if res.Status == metamorph_api.Status_MINED {
+					tx, err := s.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
+						Txid: TxID,
+					})
+					if err != nil {
+						s.logger.Error("failed to get mined transaction from storage", slog.String("err", err.Error()))
+						returnedStatus.RejectReason = err.Error()
+						return returnedStatus
+					}
+
+					return tx
+				}
 			}
 
 			// Return the status if it has greater or equal value

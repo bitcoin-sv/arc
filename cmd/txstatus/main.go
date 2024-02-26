@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"os"
 	"time"
 
@@ -31,8 +32,8 @@ func main() {
 		return
 	}
 
-	addresses := viper.GetString("metamorph.dialAddr")
-	if addresses == "" {
+	metamorphAddress := viper.GetString("metamorph.dialAddr")
+	if metamorphAddress == "" {
 		panic("Missing metamorph.dialAddr")
 	}
 
@@ -41,13 +42,15 @@ func main() {
 		panic("Missing grpcMessageSize")
 	}
 
-	txHandler, err := metamorph.NewMetamorph(addresses, grpcMessageSize)
+	mtmConn, err := metamorph.DialGRPC(metamorphAddress, grpcMessageSize)
 	if err != nil {
 		panic(err)
 	}
 
+	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(mtmConn))
+
 	var res *metamorph.TransactionStatus
-	res, err = txHandler.GetTransactionStatus(ctx, txid)
+	res, err = metamorphClient.GetTransactionStatus(ctx, txid)
 	if err != nil {
 		panic(err)
 	}
@@ -58,7 +61,7 @@ func main() {
 		Timestamp        time.Time `json:"timestamp"`
 	}
 
-	transactionBytes, err := txHandler.GetTransaction(ctx, txid)
+	transactionBytes, err := metamorphClient.GetTransaction(ctx, txid)
 	if err != nil {
 		panic(err)
 	}

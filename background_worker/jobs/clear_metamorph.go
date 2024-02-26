@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 )
 
 type Metamorph struct {
@@ -26,7 +25,7 @@ func NewMetamorph(client metamorph.TransactionMaintainer, retentionDays int32, l
 func (c Metamorph) ClearTransactions() error {
 	ctx := context.Background()
 	start := time.Now()
-	resp, err := c.client.ClearData(ctx, &metamorph_api.ClearDataRequest{RetentionDays: c.retentionDays})
+	resp, err := c.client.ClearData(ctx, c.retentionDays)
 	if err != nil {
 		return err
 	}

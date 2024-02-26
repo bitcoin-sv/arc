@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -38,6 +39,9 @@ const (
 	maxMonitoriedTxs          = 100000
 	loadUnminedLimit          = int64(5000)
 	minimumHealthyConnections = 2
+
+	processStatusUpdatesIntervalDefault  = 500 * time.Millisecond
+	processStatusUpdatesBatchSizeDefault = 1000
 )
 
 var (
@@ -45,38 +49,48 @@ var (
 )
 
 type Processor struct {
-	store                store.MetamorphStore
-	ProcessorResponseMap *ProcessorResponseMap
-	pm                   p2p.PeerManagerI
-	mqClient             MessageQueueClient
-	logger               *slog.Logger
-	mapExpiryTime        time.Duration
-	dataRetentionPeriod  time.Duration
-	now                  func() time.Time
-
+	store                   store.MetamorphStore
+	ProcessorResponseMap    *ProcessorResponseMap
+	pm                      p2p.PeerManagerI
+	mqClient                MessageQueueClient
+	logger                  *slog.Logger
+	mapExpiryTime           time.Duration
+	dataRetentionPeriod     time.Duration
+	now                     func() time.Time
 	processExpiredTxsTicker *time.Ticker
-
-	maxMonitoredTxs int64
+	httpClient              HttpClient
+	maxMonitoredTxs         int64
 
 	quitListenTxChannel         chan struct{}
 	quitListenTxChannelComplete chan struct{}
 	minedTxsChan                chan *blocktx_api.TransactionBlocks
 
-	startTime          time.Time
-	queueLength        atomic.Int32
-	queuedCount        atomic.Int32
-	stored             *stat.AtomicStat
-	announcedToNetwork *stat.AtomicStats
-	requestedByNetwork *stat.AtomicStats
-	sentToNetwork      *stat.AtomicStats
-	acceptedByNetwork  *stat.AtomicStats
-	seenOnNetwork      *stat.AtomicStats
-	rejected           *stat.AtomicStats
-	mined              *stat.AtomicStat
-	retries            *stat.AtomicStat
+	statusUpdateCh                   chan store.UpdateStatus
+	quitListenStatusUpdateCh         chan struct{}
+	quitListenStatusUpdateChComplete chan struct{}
+	processStatusUpdatesInterval     time.Duration
+	processStatusUpdatesBatchSize    int
+
+	startTime           time.Time
+	queueLength         atomic.Int32
+	queuedCount         atomic.Int32
+	stored              *stat.AtomicStat
+	announcedToNetwork  *stat.AtomicStats
+	requestedByNetwork  *stat.AtomicStats
+	sentToNetwork       *stat.AtomicStats
+	acceptedByNetwork   *stat.AtomicStats
+	seenInOrphanMempool *stat.AtomicStats
+	seenOnNetwork       *stat.AtomicStats
+	rejected            *stat.AtomicStats
+	mined               *stat.AtomicStat
+	retries             *stat.AtomicStat
 }
 
 type Option func(f *Processor)
+
+type HttpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
 
 func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (*Processor, error) {
 	if s == nil {
@@ -95,18 +109,29 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		mapExpiryTime:           mapExpiryTimeDefault,
 		now:                     time.Now,
 		processExpiredTxsTicker: time.NewTicker(unseenTransactionRebroadcastingInterval * time.Second),
+		maxMonitoredTxs:         maxMonitoriedTxs,
 
-		maxMonitoredTxs: maxMonitoriedTxs,
+		quitListenTxChannel:         make(chan struct{}),
+		quitListenTxChannelComplete: make(chan struct{}),
 
-		stored:             stat.NewAtomicStat(),
-		announcedToNetwork: stat.NewAtomicStats(),
-		requestedByNetwork: stat.NewAtomicStats(),
-		sentToNetwork:      stat.NewAtomicStats(),
-		acceptedByNetwork:  stat.NewAtomicStats(),
-		seenOnNetwork:      stat.NewAtomicStats(),
-		rejected:           stat.NewAtomicStats(),
-		mined:              stat.NewAtomicStat(),
-		retries:            stat.NewAtomicStat(),
+		quitListenStatusUpdateCh:         make(chan struct{}),
+		quitListenStatusUpdateChComplete: make(chan struct{}),
+		processStatusUpdatesInterval:     processStatusUpdatesIntervalDefault,
+		processStatusUpdatesBatchSize:    processStatusUpdatesBatchSizeDefault,
+		statusUpdateCh:                   make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
+		httpClient: &http.Client{
+			Timeout: 5 * time.Second,
+		},
+		stored:              stat.NewAtomicStat(),
+		announcedToNetwork:  stat.NewAtomicStats(),
+		requestedByNetwork:  stat.NewAtomicStats(),
+		sentToNetwork:       stat.NewAtomicStats(),
+		acceptedByNetwork:   stat.NewAtomicStats(),
+		seenInOrphanMempool: stat.NewAtomicStats(),
+		seenOnNetwork:       stat.NewAtomicStats(),
+		rejected:            stat.NewAtomicStats(),
+		mined:               stat.NewAtomicStat(),
+		retries:             stat.NewAtomicStat(),
 	}
 
 	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm"))
@@ -118,11 +143,12 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 
 	p.ProcessorResponseMap = NewProcessorResponseMap(p.mapExpiryTime, WithNowResponseMap(p.now))
 
-	p.logger.Info("Starting processor", slog.Duration("cacheExpiryTime", p.mapExpiryTime))
+	p.logger.Info("Starting processor", slog.String("cacheExpiryTime", p.mapExpiryTime.String()))
 
 	// Start a goroutine to resend transactions that have not been seen on the network
 	go p.processExpiredTransactions()
 	go p.processMinedCallbacks()
+	go p.processStatusUpdates()
 
 	gocore.AddAppPayloadFn("mtm", func() interface{} {
 		return p.GetStats(false)
@@ -143,6 +169,10 @@ func (p *Processor) Shutdown() {
 	}
 	p.processExpiredTxsTicker.Stop()
 	p.ProcessorResponseMap.Close()
+	p.quitListenTxChannel <- struct{}{}
+	<-p.quitListenTxChannelComplete
+	p.quitListenStatusUpdateCh <- struct{}{}
+	<-p.quitListenStatusUpdateChComplete
 }
 
 func (p *Processor) unlockItems() error {
@@ -179,13 +209,104 @@ func (p *Processor) processMinedCallbacks() {
 				}
 
 				for _, data := range updatedData {
+					processorResponse, ok := p.ProcessorResponseMap.Get(data.Hash)
+					if ok {
+						p.mined.AddDuration(time.Since(processorResponse.Start))
+						processorResponse.Close()
+						p.ProcessorResponseMap.Delete(data.Hash)
+					}
+
 					if data.CallbackUrl != "" {
-						go SendCallback(p.logger, data)
+						go p.SendCallback(p.logger, data)
 					}
 				}
 			}
 		}
 	}()
+}
+
+func (p *Processor) processStatusUpdates() {
+	ticker := time.NewTicker(p.processStatusUpdatesInterval)
+
+	go func() {
+		defer func() {
+			p.quitListenStatusUpdateChComplete <- struct{}{}
+		}()
+
+		statusUpdates := make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
+		statusUpdatesMap := map[chainhash.Hash]store.UpdateStatus{}
+
+		for {
+			select {
+			case <-p.quitListenStatusUpdateCh:
+				return
+			case statusUpdate := <-p.statusUpdateCh:
+
+				// Ensure no duplicate hashes, overwrite value if the status has higher value than existing status
+				foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
+				if !found || (found && statusValueMap[foundStatusUpdate.Status] < statusValueMap[statusUpdate.Status]) {
+					statusUpdatesMap[statusUpdate.Hash] = statusUpdate
+				}
+
+				if len(statusUpdatesMap) < p.processStatusUpdatesBatchSize {
+					continue
+				}
+
+				for _, distinctStatusUpdate := range statusUpdatesMap {
+					statusUpdates = append(statusUpdates, distinctStatusUpdate)
+				}
+
+				err := p.statusUpdateWithCallback(statusUpdates)
+				if err != nil {
+					p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
+				}
+
+				statusUpdates = make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
+				statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
+
+			case <-ticker.C:
+				if len(statusUpdatesMap) == 0 {
+					continue
+				}
+
+				for _, distinctStatusUpdate := range statusUpdatesMap {
+					statusUpdates = append(statusUpdates, distinctStatusUpdate)
+				}
+
+				err := p.statusUpdateWithCallback(statusUpdates)
+				if err != nil {
+					p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
+				}
+
+				statusUpdates = make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
+				statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
+
+			}
+		}
+	}()
+}
+
+func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus) error {
+	updatedData, err := p.store.UpdateStatusBulk(context.Background(), statusUpdates)
+	if err != nil {
+		return err
+	}
+
+	for _, data := range updatedData {
+		if data.Status == metamorph_api.Status_SEEN_ON_NETWORK {
+			processorResponse, ok := p.ProcessorResponseMap.Get(data.Hash)
+			if ok {
+				p.mined.AddDuration(time.Since(processorResponse.Start))
+				processorResponse.Close()
+				p.ProcessorResponseMap.Delete(data.Hash)
+			}
+		}
+
+		if ((data.Status == metamorph_api.Status_SEEN_ON_NETWORK || data.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL) && data.FullStatusUpdates || data.Status == metamorph_api.Status_REJECTED) && data.CallbackUrl != "" {
+			go p.SendCallback(p.logger, data)
+		}
+	}
+	return nil
 }
 
 func (p *Processor) processExpiredTransactions() {
@@ -198,6 +319,26 @@ func (p *Processor) processExpiredTransactions() {
 	// The Items() method will return a copy of the map, so we can iterate over it without locking
 	for range p.processExpiredTxsTicker.C {
 		expiredTransactionItems := p.ProcessorResponseMap.Items(filterFunc)
+
+		var hashSlice []*chainhash.Hash
+		for hash := range expiredTransactionItems {
+			hashSlice = append(hashSlice, &hash)
+		}
+
+		// Before re-requesting/re-announcing txs check if they had been mined or seen in mempool in the meantime
+		minedOrSeen, err := p.store.GetMinedOrSeen(context.Background(), hashSlice)
+		if err == nil {
+			// if tx has been mined or seen in the meantime delete both from processor response map and expired transactions
+			p.logger.Info("found mined or seen txs", slog.Int("number", len(minedOrSeen)))
+
+			for _, data := range minedOrSeen {
+				processorResponse := expiredTransactionItems[*data.Hash]
+				processorResponse.Close()
+				p.ProcessorResponseMap.Delete(data.Hash)
+				delete(expiredTransactionItems, *data.Hash)
+			}
+		}
+
 		if len(expiredTransactionItems) > 0 {
 			p.logger.Info("Resending expired transactions", slog.Int("number", len(expiredTransactionItems)))
 			for txID, item := range expiredTransactionItems {
@@ -209,19 +350,9 @@ func (p *Processor) processExpiredTransactions() {
 					// Sending GETDATA to peers to see if they have it
 					p.logger.Debug("Re-getting expired tx", slog.String("hash", txID.String()))
 					p.pm.RequestTransaction(item.Hash)
-					item.AddLog(
-						item.Status,
-						"expired",
-						"Sent GETDATA for transaction",
-					)
 				} else {
 					p.logger.Debug("Re-announcing expired tx", slog.String("hash", txID.String()))
 					p.pm.AnnounceTransaction(item.Hash, item.AnnouncedPeers)
-					item.AddLog(
-						metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-						"expired",
-						"Re-announced expired tx",
-					)
 				}
 
 				p.retries.AddDuration(time.Since(startTime))
@@ -298,20 +429,27 @@ var statusValueMap = map[metamorph_api.Status]int{
 	metamorph_api.Status_CONFIRMED:              12,
 }
 
-func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) (bool, error) {
+func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) error {
 	processorResponse, ok := p.ProcessorResponseMap.Get(hash)
 	if !ok {
-		return false, nil
+		if status == metamorph_api.Status_SEEN_ON_NETWORK {
+			p.statusUpdateCh <- store.UpdateStatus{
+				Hash:   *hash,
+				Status: status,
+			}
+		}
+
+		return nil
 	}
 
 	// Do not overwrite a higher value status with a lower or equal value status
-	if statusValueMap[status] <= statusValueMap[processorResponse.Status] {
-		p.logger.Debug("Status not updated for tx", slog.String("status", status.String()), slog.String("previous status", processorResponse.Status.String()), slog.String("hash", hash.String()))
+	if statusValueMap[status] <= statusValueMap[processorResponse.GetStatus()] {
+		p.logger.Debug("Status not updated for tx", slog.String("status", status.String()), slog.String("previous status", processorResponse.GetStatus().String()), slog.String("hash", hash.String()))
 
-		return false, nil
+		return nil
 	}
 
-	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
+	span, _ := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
 	defer span.Finish()
 
 	statusUpdate := &processor_response.ProcessorResponseStatusUpdate{
@@ -325,7 +463,13 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 				rejectReason = statusErr.Error()
 			}
 
-			return p.store.UpdateStatus(spanCtx, hash, status, rejectReason)
+			p.statusUpdateCh <- store.UpdateStatus{
+				Hash:         *hash,
+				Status:       status,
+				RejectReason: rejectReason,
+			}
+
+			return nil
 		},
 		IgnoreCallback: processorResponse.NoStats, // do not do this callback if we are not keeping stats
 		Callback: func(err error) {
@@ -347,39 +491,21 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 				p.acceptedByNetwork.AddDuration(source, time.Since(processorResponse.Start))
 
 			case metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL:
-				data, _ := p.store.Get(spanCtx, hash[:])
-				if data.CallbackUrl != "" && data.FullStatusUpdates {
-					go SendCallback(p.logger, data)
-				}
+				p.seenInOrphanMempool.AddDuration(source, time.Since(processorResponse.Start))
 
 			case metamorph_api.Status_SEEN_ON_NETWORK:
 				p.seenOnNetwork.AddDuration(source, time.Since(processorResponse.Start))
-				data, _ := p.store.Get(spanCtx, hash[:])
-				if data.CallbackUrl != "" && data.FullStatusUpdates {
-					go SendCallback(p.logger, data)
-				}
-
-				p.ProcessorResponseMap.Delete(hash)
-
-			case metamorph_api.Status_MINED:
-				p.mined.AddDuration(time.Since(processorResponse.Start))
-				processorResponse.Close()
-				p.ProcessorResponseMap.Delete(hash)
 
 			case metamorph_api.Status_REJECTED:
-				p.logger.Warn("transaction rejected", slog.String("status", status.String()), slog.String("hash", hash.String()))
 				p.rejected.AddDuration(source, time.Since(processorResponse.Start))
-				data, _ := p.store.Get(spanCtx, hash[:])
-				if data.CallbackUrl != "" {
-					go SendCallback(p.logger, data)
-				}
+				p.logger.Warn("transaction rejected", slog.String("status", status.String()), slog.String("hash", hash.String()))
 			}
 		},
 	}
 
 	processorResponse.UpdateStatus(statusUpdate)
 
-	return true, nil
+	return nil
 }
 
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
@@ -460,7 +586,14 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 				Source: strings.Join(peersStr, ", "),
 				UpdateStore: func() error {
-					return p.store.UpdateStatus(spanCtx, req.Data.Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, "")
+
+					p.statusUpdateCh <- store.UpdateStatus{
+						Hash:         *req.Data.Hash,
+						Status:       metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+						RejectReason: "",
+					}
+
+					return nil
 				},
 				Callback: func(err error) {
 					duration := time.Since(processorResponse.Start)

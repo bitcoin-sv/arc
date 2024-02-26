@@ -9,21 +9,15 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"time"
 
-	awscfg "github.com/aws/aws-sdk-go-v2/config"
-	awsdynamodb "github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/async/nats_mq"
 	"github.com/bitcoin-sv/arc/metamorph/store"
-	"github.com/bitcoin-sv/arc/metamorph/store/badger"
-	"github.com/bitcoin-sv/arc/metamorph/store/dynamodb"
 	"github.com/bitcoin-sv/arc/metamorph/store/postgresql"
-	"github.com/bitcoin-sv/arc/metamorph/store/sqlite"
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils/safemap"
@@ -34,11 +28,7 @@ import (
 )
 
 const (
-	DbModeBadger   = "badger"
-	DbModeDynamoDB = "dynamodb"
 	DbModePostgres = "postgres"
-	DbModeSQLiteM  = "sqlite_memory"
-	DbModeSQLite   = "sqlite"
 )
 
 func StartMetamorph(logger *slog.Logger) (func(), error) {
@@ -49,7 +39,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, errors.New("metamorph.db.mode not found in config")
 	}
 
-	s, err := NewStore(dbMode)
+	s, err := NewMetamorphStore(dbMode)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
@@ -99,6 +89,11 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
+	processStatusUpdateInterval, err := config.GetDuration("metamorph.processStatusUpdateInterval")
+	if err != nil {
+		return nil, err
+	}
+
 	// maximum amount of messages that could be coming from a single block
 	capacityRequired := int(float64(targetTps*avgMinPerBlock*secPerMin) / float64(maxBatchSize))
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, capacityRequired)
@@ -122,13 +117,14 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithMaxMonitoredTxs(maxMonitoredTxs),
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
+		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),
 	)
 
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
 
 	go func() {
 		for message := range statusMessageCh {
-			_, err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
+			err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
 			if err != nil {
 				logger.Error("Could not send status for transaction", slog.String("hash", message.Hash.String()), slog.String("err", err.Error()))
 			}
@@ -246,7 +242,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	_ = metamorph.NewZMQCollector(zmqCollector)
 
 	go func() {
-		err = StartHealthServer(serv)
+		err = StartHealthServerMetamorph(serv)
 		if err != nil {
 			logger.Error("failed to start health server", slog.String("err", err.Error()))
 		}
@@ -267,7 +263,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	}, nil
 }
 
-func StartHealthServer(serv *metamorph.Server) error {
+func StartHealthServerMetamorph(serv *metamorph.Server) error {
 	gs := grpc.NewServer()
 	defer gs.Stop()
 
@@ -293,20 +289,7 @@ func StartHealthServer(serv *metamorph.Server) error {
 	return nil
 }
 
-func getDataFolder() (string, error) {
-	folder, err := config.GetString("dataFolder")
-	if folder == "" {
-		return "", fmt.Errorf("dataFolder not found in config: %v", err)
-	}
-
-	if err := os.MkdirAll(folder, 0750); err != nil {
-		return "", fmt.Errorf("failed to create data folder %s: %+v", folder, err)
-	}
-
-	return folder, nil
-}
-
-func NewStore(dbMode string) (s store.MetamorphStore, err error) {
+func NewMetamorphStore(dbMode string) (s store.MetamorphStore, err error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -351,57 +334,6 @@ func NewStore(dbMode string) (s store.MetamorphStore, err error) {
 		s, err = postgresql.New(dbInfo, hostname, idleConns, maxOpenConns)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
-		}
-	case DbModeSQLite:
-		folder, err := getDataFolder()
-		if err != nil {
-			return nil, err
-		}
-
-		s, err = sqlite.New(false, folder)
-		if err != nil {
-			return nil, err
-		}
-	case DbModeSQLiteM:
-		s, err = sqlite.New(true, "")
-		if err != nil {
-			return nil, err
-		}
-	case DbModeBadger:
-		folder, err := getDataFolder()
-		if err != nil {
-			return nil, err
-		}
-
-		s, err = badger.New(path.Join(folder, "metamorph"))
-		if err != nil {
-			return nil, err
-		}
-	case DbModeDynamoDB:
-		ctx := context.Background()
-		cfg, err := awscfg.LoadDefaultConfig(ctx, awscfg.WithEC2IMDSRegion())
-		if err != nil {
-			return nil, err
-		}
-
-		dataRetentionDays, err := config.GetInt("metamorph.db.cleanData.recordRetentionDays")
-		if err != nil {
-			return nil, err
-		}
-
-		tableNameSuffix, err := config.GetString("metamorph.db.dynamoDB.tableNameSuffix")
-		if err != nil {
-			return nil, err
-		}
-
-		s, err = dynamodb.New(
-			awsdynamodb.NewFromConfig(cfg),
-			hostname,
-			time.Duration(dataRetentionDays)*24*time.Hour,
-			tableNameSuffix,
-		)
-		if err != nil {
-			return nil, err
 		}
 	default:
 		return nil, fmt.Errorf("db mode %s is invalid", dbMode)

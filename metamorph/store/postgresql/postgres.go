@@ -5,11 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/arc/metamorph/store"
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
@@ -465,7 +465,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 	return unminedTxs, nil
 }
 
-func (p *PostgreSQL) UpdateStatus(ctx context.Context, hash *chainhash.Hash, status metamorph_api.Status, rejectReason string) error {
+func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
 	startNanos := p.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("UpdateStatus").AddTime(startNanos)
@@ -473,41 +473,53 @@ func (p *PostgreSQL) UpdateStatus(ctx context.Context, hash *chainhash.Hash, sta
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
 	defer span.Finish()
 
-	// do not store other statuses than the following
-	if status != metamorph_api.Status_REJECTED &&
-		status != metamorph_api.Status_SEEN_ON_NETWORK &&
-		status != metamorph_api.Status_MINED &&
-		status != metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
-		return nil
+	txHashes := make([][]byte, len(updates))
+	statuses := make([]metamorph_api.Status, len(updates))
+	rejectReasons := make([]string, len(updates))
+
+	for i, update := range updates {
+		txHashes[i] = update.Hash.CloneBytes()
+		statuses[i] = update.Status
+		rejectReasons[i] = update.RejectReason
 	}
 
-	args := []any{status, rejectReason, hash[:]}
-	q := `
+	qBulk := `
 		UPDATE metamorph.transactions
-		SET status = $1,
-		    reject_reason = $2
-		WHERE hash = $3
-	;`
+			SET
+			status=bulk_query.status,
+			reject_reason=bulk_query.reject_reason
+			FROM
+			(
+				SELECT *
+						FROM
+						UNNEST($1::BYTEA[], $2::INT[], $3::TEXT[])
+				AS t(hash, status, reject_reason)
+			) AS bulk_query
+			WHERE
+			metamorph.transactions.hash=bulk_query.hash
+		RETURNING metamorph.transactions.stored_at
+		,metamorph.transactions.announced_at
+		,metamorph.transactions.mined_at
+		,metamorph.transactions.hash
+		,metamorph.transactions.status
+		,metamorph.transactions.block_height
+		,metamorph.transactions.block_hash
+		,metamorph.transactions.callback_url
+		,metamorph.transactions.callback_token
+		,metamorph.transactions.full_status_updates
+		,metamorph.transactions.reject_reason
+		,metamorph.transactions.raw_tx
+		,metamorph.transactions.locked_by
+		,metamorph.transactions.merkle_path
+		;
+    `
 
-	result, err := p.db.ExecContext(ctx, q, args...)
+	rows, err := p.db.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons))
 	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return err
+		return nil, err
 	}
 
-	var n int64
-	n, err = result.RowsAffected()
-	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
-		return err
-	}
-	if n == 0 {
-		return store.ErrNotFound
-	}
-
-	return nil
+	return p.getStoreDataFromRows(rows)
 }
 
 func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
@@ -567,6 +579,51 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 		return nil, fmt.Errorf("failed to execute transaction update query: %v", err)
 	}
 
+	return p.getStoreDataFromRows(rows)
+}
+
+func (p *PostgreSQL) GetMinedOrSeen(ctx context.Context, hashes []*chainhash.Hash) ([]*store.StoreData, error) {
+	startNanos := p.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("UpdateMined").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:CheckMinedOrSeen")
+	defer span.Finish()
+
+	q := `SELECT
+	   	 stored_at
+		,announced_at
+		,mined_at
+		,hash
+		,status
+		,block_height
+		,block_hash
+		,callback_url
+		,callback_token
+		,full_status_updates
+		,reject_reason
+		,raw_tx
+		,locked_by
+		,merkle_path
+		FROM metamorph.transactions t
+		WHERE t.hash = ANY($1)
+		AND (status = $2 OR status = $3)
+		;`
+
+	var hashSlice [][]byte
+	for _, hash := range hashes {
+		hashSlice = append(hashSlice, hash[:])
+	}
+
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(hashSlice), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_MINED)
+	if err != nil {
+		return nil, err
+	}
+
+	return p.getStoreDataFromRows(rows)
+}
+
+func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 	var storeData []*store.StoreData
 
 	for rows.Next() {
@@ -587,7 +644,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 		var status sql.NullInt32
 		var merklePath sql.NullString
 
-		err = rows.Scan(
+		err := rows.Scan(
 			&storedAt,
 			&announcedAt,
 			&minedAt,
@@ -613,8 +670,6 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 		if len(txHash) > 0 {
 			data.Hash, err = chainhash.NewHash(txHash)
 			if err != nil {
-				span.SetTag(string(ext.Error), true)
-				span.LogFields(log.Error(err))
 				return nil, err
 			}
 		}
@@ -622,8 +677,6 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 		if len(blockHash) > 0 {
 			data.BlockHash, err = chainhash.NewHash(blockHash)
 			if err != nil {
-				span.SetTag(string(ext.Error), true)
-				span.LogFields(log.Error(err))
 				return nil, err
 			}
 		}

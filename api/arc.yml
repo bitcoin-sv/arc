@@ -27,6 +27,25 @@ paths:
                 $ref: '#/components/schemas/PolicyResponse'
         401:
           $ref: '#/components/responses/NotAuthorized'
+  
+  # Get Health
+  /v1/health:
+    get:
+      operationId: GET health
+      tags:
+        - Arc
+      summary: Get metamorph health
+      description: >-
+        Checks if metamorph is healthy and running
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        401:
+          $ref: '#/components/responses/NotAuthorized'
 
   # Get transaction status
   /v1/tx/{txid}:
@@ -334,12 +353,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorFee'
-        422:
-          description: Unprocessable entity - with IETF RFC 7807 Error object
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 components:
 
   schemas:
@@ -355,6 +368,21 @@ components:
           type: string
           format: date-time
           nullable: false
+    
+    Health:
+      type: object
+      description: healthy or not
+      properties:
+        healthy:
+          type: boolean
+          nullable: false
+          example: false
+          description: whether healthy or not
+        reason:
+          type: string
+          nullable: true
+          example: "no db connection"
+          description: explains the problem with metamorph
 
     ChainInfo:
       type: object

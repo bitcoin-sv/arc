@@ -25,7 +25,7 @@ import (
 
 // mocking wire.peerI as it's third party library and need to mock in here
 //
-//go:generate moq -out ./store/mock.go ./store Interface
+//go:generate moq -out ./store/mock.go ./store BlocktxStore
 //go:generate moq -out ./mq_mock.go . MessageQueueClient
 
 type MockedPeer struct{}
@@ -85,14 +85,15 @@ func TestHandleBlock(t *testing.T) {
 	merkleRootHash1585018, _ := chainhash.NewHashFromStr("9c1fe95a7ac4502e281f4f2eaa2902e12b0f486cf610977c73afb3cd060bebde")
 
 	tt := []struct {
-		name          string
-		prevBlockHash chainhash.Hash
-		merkleRoot    chainhash.Hash
-		height        uint64
-		txHashes      []string
-		size          uint64
-		nonce         uint32
-		getBlockErr   error
+		name                  string
+		prevBlockHash         chainhash.Hash
+		merkleRoot            chainhash.Hash
+		height                uint64
+		txHashes              []string
+		size                  uint64
+		nonce                 uint32
+		getBlockErr           error
+		setBlockProcessingErr error
 	}{
 		{
 			name:          "block height 1573650",
@@ -197,41 +198,59 @@ func TestHandleBlock(t *testing.T) {
 			size:          216,
 			getBlockErr:   store.ErrBlockNotFound,
 		},
+		{
+			name:                  "block height 1573650 - set block processing - duplicate key error",
+			txHashes:              []string{"3d64b2bb6bd4e85aacb6d1965a2407fa21846c08dd9a8616866ad2f5c80fda7f"},
+			prevBlockHash:         *prevBlockHash1573650,
+			merkleRoot:            *merkleRootHash1573650,
+			height:                1573650,
+			nonce:                 3694498168,
+			size:                  216,
+			getBlockErr:           store.ErrBlockNotFound,
+			setBlockProcessingErr: store.ErrBlockProcessingDuplicateKey,
+		},
+		{
+			name:                  "block height 1573650 - set block processing - other error",
+			txHashes:              []string{"3d64b2bb6bd4e85aacb6d1965a2407fa21846c08dd9a8616866ad2f5c80fda7f"},
+			prevBlockHash:         *prevBlockHash1573650,
+			merkleRoot:            *merkleRootHash1573650,
+			height:                1573650,
+			nonce:                 3694498168,
+			size:                  216,
+			getBlockErr:           store.ErrBlockNotFound,
+			setBlockProcessingErr: errors.New("failed to set block processing"),
+		},
 	}
 
 	for _, tc := range tt {
-		batchSize := 4
-		storeMock := &store.InterfaceMock{
-			GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
-				return &blocktx_api.Block{}, tc.getBlockErr
-			},
-			InsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
-				return 0, nil
-			},
-			MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
-				return nil
-			},
-			GetPrimaryFunc: func(ctx context.Context) (string, error) {
-				hostName, err := os.Hostname()
-				return hostName, err
-			},
-			TryToBecomePrimaryFunc: func(ctx context.Context, myHostName string) error {
-				return nil
-			},
-		}
-
-		mq := &MessageQueueClientMock{
-			PublishMinedTxsFunc: func(txsBlocks []*blocktx_api.TransactionBlock) error {
-				return nil
-			},
-		}
-
-		// build peer manager
-		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-		peerHandler, err := NewPeerHandler(logger, storeMock, 100, []string{}, wire.TestNet, WithTransactionBatchSize(batchSize), WithMessageQueueClient(mq))
-		require.NoError(t, err)
-
 		t.Run(tc.name, func(t *testing.T) {
+			batchSize := 4
+			storeMock := &store.BlocktxStoreMock{
+				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+					return &blocktx_api.Block{}, tc.getBlockErr
+				},
+				InsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+					return 0, nil
+				},
+				MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
+					return nil
+				},
+				SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
+					return "abc", tc.setBlockProcessingErr
+				},
+			}
+
+			mq := &MessageQueueClientMock{
+				PublishMinedTxsFunc: func(txsBlocks []*blocktx_api.TransactionBlock) error {
+					return nil
+				},
+			}
+
+			// build peer manager
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			peerHandler, err := NewPeerHandler(logger, storeMock, 100, []string{}, wire.TestNet, WithTransactionBatchSize(batchSize), WithMessageQueueClient(mq))
+			require.NoError(t, err)
+
 			expectedInsertedTransactions := []*blocktx_api.TransactionAndSource{}
 			transactionHashes := make([]*chainhash.Hash, len(tc.txHashes))
 			for i, hash := range tc.txHashes {
@@ -285,7 +304,7 @@ func TestHandleBlock(t *testing.T) {
 			}
 
 			// call tested function
-			err := peerHandler.HandleBlock(blockMessage, peer)
+			err = peerHandler.HandleBlock(blockMessage, peer)
 			require.NoError(t, err)
 
 			require.ElementsMatch(t, expectedInsertedTransactions, insertedBlockTransactions)
@@ -302,11 +321,10 @@ func TestFillGaps(t *testing.T) {
 	hash822019, err := chainhash.NewHashFromStr("00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656")
 	require.NoError(t, err)
 	tt := []struct {
-		name              string
-		blockGaps         []*store.BlockGap
-		getBlockGapsErr   error
-		primaryBlocktxErr error
-		hostname          string
+		name            string
+		blockGaps       []*store.BlockGap
+		getBlockGapsErr error
+		hostname        string
 
 		expectedGetBlockGapsCalls int
 		expectedErrorStr          string
@@ -343,34 +361,21 @@ func TestFillGaps(t *testing.T) {
 			expectedGetBlockGapsCalls: 1,
 			expectedErrorStr:          "failed to get block gaps",
 		},
-		{
-			name:      "not primary",
-			blockGaps: []*store.BlockGap{},
-			hostname:  "not primary",
-
-			expectedGetBlockGapsCalls: 0,
-		},
-		{
-			name:              "check primary - error",
-			blockGaps:         []*store.BlockGap{},
-			hostname:          "not primary",
-			primaryBlocktxErr: errors.New("failed to check primary"),
-
-			expectedGetBlockGapsCalls: 0,
-			expectedErrorStr:          "failed to check primary",
-		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			const batchSize = 4
 
-			var storeMock = &store.InterfaceMock{
+			var storeMock = &store.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return tc.blockGaps, tc.getBlockGapsErr
 				},
-				GetPrimaryFunc: func(ctx context.Context) (string, error) {
-					return tc.hostname, tc.primaryBlocktxErr
+				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+					return []*chainhash.Hash{testdata.TX1Hash}, nil
+				},
+				SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
+					return "abc", nil
 				},
 			}
 
@@ -416,7 +421,7 @@ func TestStartFillGaps(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			storeMock := &store.InterfaceMock{
+			storeMock := &store.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return []*store.BlockGap{
 						{
@@ -425,8 +430,11 @@ func TestStartFillGaps(t *testing.T) {
 						},
 					}, tc.getBlockGapsErr
 				},
-				GetPrimaryFunc: func(ctx context.Context) (string, error) {
-					return tc.hostname, nil
+				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+					return []*chainhash.Hash{testdata.TX1Hash}, nil
+				},
+				SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
+					return "abc", nil
 				},
 			}
 
@@ -462,7 +470,7 @@ func TestStartProcessTxs(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			storeMock := &store.InterfaceMock{
+			storeMock := &store.BlocktxStoreMock{
 				RegisterTransactionsFunc: func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error {
 					return tc.registerErr
 				},

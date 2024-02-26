@@ -3,7 +3,6 @@ package metamorph
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -20,6 +20,7 @@ var (
 )
 
 type TransactionHandler interface {
+	Health(ctx context.Context) error
 	GetTransaction(ctx context.Context, txID string) ([]byte, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
 	SubmitTransaction(ctx context.Context, tx []byte, options *TransactionOptions) (*TransactionStatus, error)
@@ -27,8 +28,8 @@ type TransactionHandler interface {
 }
 
 type TransactionMaintainer interface {
-	ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (int64, error)
-	SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (int64, error)
+	ClearData(ctx context.Context, retentionDays int32) (int64, error)
+	SetUnlockedByName(ctx context.Context, name string) (int64, error)
 }
 
 // TransactionStatus defines model for TransactionStatus.
@@ -44,19 +45,14 @@ type TransactionStatus struct {
 
 // Metamorph is the connector to a metamorph server.
 type Metamorph struct {
-	Client metamorph_api.MetaMorphAPIClient
+	client metamorph_api.MetaMorphAPIClient
 }
 
-// NewMetamorph creates a connection to a list of metamorph servers via gRPC.
-func NewMetamorph(address string, grpcMessageSize int) (*Metamorph, error) {
-	conn, err := DialGRPC(address, grpcMessageSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get connection to address %s: %v", address, err)
-	}
-
+// NewClient creates a connection to a list of metamorph servers via gRPC.
+func NewClient(client metamorph_api.MetaMorphAPIClient) *Metamorph {
 	return &Metamorph{
-		Client: metamorph_api.NewMetaMorphAPIClient(conn),
-	}, nil
+		client: client,
+	}
 }
 
 func DialGRPC(address string, grpcMessageSize int) (*grpc.ClientConn, error) {
@@ -79,7 +75,7 @@ func DialGRPC(address string, grpcMessageSize int) (*grpc.ClientConn, error) {
 // GetTransaction gets the transaction bytes from metamorph.
 func (m *Metamorph) GetTransaction(ctx context.Context, txID string) ([]byte, error) {
 	var tx *metamorph_api.Transaction
-	tx, err := m.Client.GetTransaction(ctx, &metamorph_api.TransactionStatusRequest{
+	tx, err := m.client.GetTransaction(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
 	})
 	if err != nil {
@@ -96,7 +92,7 @@ func (m *Metamorph) GetTransaction(ctx context.Context, txID string) ([]byte, er
 // GetTransactionStatus gets the status of a transaction.
 func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (status *TransactionStatus, err error) {
 	var tx *metamorph_api.TransactionStatus
-	tx, err = m.Client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
+	tx, err = m.client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
 	})
 	if err != nil && !strings.Contains(err.Error(), ErrNotFound.Error()) {
@@ -117,9 +113,23 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 	}, nil
 }
 
+// GetTransactionStatus gets the status of a transaction.
+func (m *Metamorph) Health(ctx context.Context) error {
+	resp, err := m.client.Health(ctx, &emptypb.Empty{})
+	if err != nil {
+		return err
+	}
+
+	if !resp.Ok {
+		return errors.New(resp.Details)
+	}
+
+	return nil
+}
+
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
 func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions *TransactionOptions) (*TransactionStatus, error) {
-	response, err := m.Client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
+	response, err := m.client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
 		RawTx:             tx,
 		CallbackUrl:       txOptions.CallbackURL,
 		CallbackToken:     txOptions.CallbackToken,
@@ -159,7 +169,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOpti
 	}
 
 	// put all transactions together
-	responses, err := m.Client.PutTransactions(ctx, in)
+	responses, err := m.client.PutTransactions(ctx, in)
 	if err != nil {
 		return nil, err
 	}
@@ -181,8 +191,8 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOpti
 	return ret, nil
 }
 
-func (m *Metamorph) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (int64, error) {
-	resp, err := m.Client.ClearData(ctx, req)
+func (m *Metamorph) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
+	resp, err := m.client.ClearData(ctx, &metamorph_api.ClearDataRequest{RetentionDays: retentionDays})
 	if err != nil {
 		return 0, err
 	}
@@ -190,8 +200,8 @@ func (m *Metamorph) ClearData(ctx context.Context, req *metamorph_api.ClearDataR
 	return resp.RecordsAffected, nil
 }
 
-func (m *Metamorph) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (int64, error) {
-	resp, err := m.Client.SetUnlockedByName(ctx, req)
+func (m *Metamorph) SetUnlockedByName(ctx context.Context, name string) (int64, error) {
+	resp, err := m.client.SetUnlockedByName(ctx, &metamorph_api.SetUnlockedByNameRequest{Name: name})
 	if err != nil {
 		return 0, err
 	}

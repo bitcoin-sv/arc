@@ -442,16 +442,6 @@
               }
             }
           },
-          "422": {
-            "description": "Unprocessable entity - with IETF RFC 7807 Error object",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "460": {
             "description": "Not extended format",
             "content": {

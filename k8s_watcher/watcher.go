@@ -7,13 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/metamorph"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 )
 
 const (
 	logLevelDefault  = slog.LevelInfo
 	metamorphService = "metamorph"
+	blocktxService   = "blocktx"
 	intervalDefault  = 15 * time.Second
 )
 
@@ -22,13 +23,17 @@ type K8sClient interface {
 }
 
 type Watcher struct {
-	metamorphClient  metamorph.TransactionMaintainer
-	k8sClient        K8sClient
-	logger           *slog.Logger
-	ticker           Ticker
-	namespace        string
-	shutdown         chan struct{}
-	shutdownComplete chan struct{}
+	metamorphClient           metamorph.TransactionMaintainer
+	blocktxClient             blocktx.BlocktxClient
+	k8sClient                 K8sClient
+	logger                    *slog.Logger
+	tickerMetamorph           Ticker
+	tickerBlocktx             Ticker
+	namespace                 string
+	shutdownMetamorph         chan struct{}
+	shutdownMetamorphComplete chan struct{}
+	shutdownBlocktx           chan struct{}
+	shutdownBlocktxComplete   chan struct{}
 }
 
 func WithLogger(logger *slog.Logger) func(*Watcher) {
@@ -40,16 +45,20 @@ func WithLogger(logger *slog.Logger) func(*Watcher) {
 type ServerOption func(f *Watcher)
 
 // New The K8s watcher listens to events coming from Kubernetes. If it detects a metamorph pod which was terminated, then it sets records locked by this pod to unlocked. This is a safety measure for the case that metamorph is terminated ungracefully where it misses to unlock its records itself.
-func New(client metamorph.TransactionMaintainer, k8sClient K8sClient, namespace string, opts ...ServerOption) *Watcher {
+func New(metamorphClient metamorph.TransactionMaintainer, blocktxClient blocktx.BlocktxClient, k8sClient K8sClient, namespace string, opts ...ServerOption) *Watcher {
 	watcher := &Watcher{
-		metamorphClient: client,
+		metamorphClient: metamorphClient,
+		blocktxClient:   blocktxClient,
 		k8sClient:       k8sClient,
 
-		namespace:        namespace,
-		logger:           slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "k8s-watcher")),
-		shutdown:         make(chan struct{}),
-		shutdownComplete: make(chan struct{}),
-		ticker:           NewDefaultTicker(intervalDefault),
+		namespace:                 namespace,
+		logger:                    slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "k8s-watcher")),
+		shutdownMetamorph:         make(chan struct{}),
+		shutdownMetamorphComplete: make(chan struct{}),
+		shutdownBlocktx:           make(chan struct{}),
+		shutdownBlocktxComplete:   make(chan struct{}),
+		tickerMetamorph:           NewDefaultTicker(intervalDefault),
+		tickerBlocktx:             NewDefaultTicker(intervalDefault),
 	}
 	for _, opt := range opts {
 		opt(watcher)
@@ -75,23 +84,82 @@ func (d DefaultTicker) Tick() <-chan time.Time {
 	return d.C
 }
 
-func WithTicker(t Ticker) func(*Watcher) {
+func WithMetamorphTicker(t Ticker) func(*Watcher) {
 	return func(p *Watcher) {
-		p.ticker = t
+		p.tickerMetamorph = t
+	}
+}
+
+func WithBlocktxTicker(t Ticker) func(*Watcher) {
+	return func(p *Watcher) {
+		p.tickerBlocktx = t
 	}
 }
 
 func (c *Watcher) Start() error {
+	c.watchMetamorph()
+
+	c.watchBlocktx()
+
+	return nil
+}
+
+func (c *Watcher) watchBlocktx() {
 	go func() {
 		defer func() {
-			c.shutdownComplete <- struct{}{}
+			c.shutdownBlocktxComplete <- struct{}{}
 		}()
 
 		var runningPods map[string]struct{}
 
 		for {
 			select {
-			case <-c.ticker.Tick():
+			case <-c.tickerBlocktx.Tick():
+				// Update the list of running pods. Detect those which have been terminated and call them to delete unfinished block processing
+				ctx := context.Background()
+				runningPodsK8s, err := c.k8sClient.GetRunningPodNames(ctx, c.namespace, blocktxService)
+				if err != nil {
+					c.logger.Error("failed to get pods", slog.String("err", err.Error()))
+					continue
+				}
+
+				for podName := range runningPods {
+					// Ignore all other serivces than metamorph
+					if !strings.Contains(podName, blocktxService) {
+						continue
+					}
+
+					_, found := runningPodsK8s[podName]
+					if !found {
+						// A previously running pod has been terminated => set records locked by this pod unlocked
+						err = c.blocktxClient.DelUnfinishedBlockProcessing(ctx, podName)
+						if err != nil {
+							c.logger.Error("failed to delete unfinished block processing", slog.String("pod-name", podName), slog.String("err", err.Error()))
+							continue
+						}
+					}
+				}
+
+				runningPods = runningPodsK8s
+
+			case <-c.shutdownBlocktx:
+				return
+			}
+		}
+	}()
+}
+
+func (c *Watcher) watchMetamorph() {
+	go func() {
+		defer func() {
+			c.shutdownMetamorphComplete <- struct{}{}
+		}()
+
+		var runningPods map[string]struct{}
+
+		for {
+			select {
+			case <-c.tickerMetamorph.Tick():
 				// Update the list of running pods. Detect those which have been terminated and unlock records for these pods
 				ctx := context.Background()
 				runningPodsK8s, err := c.k8sClient.GetRunningPodNames(ctx, c.namespace, metamorphService)
@@ -109,7 +177,7 @@ func (c *Watcher) Start() error {
 					_, found := runningPodsK8s[podName]
 					if !found {
 						// A previously running pod has been terminated => set records locked by this pod unlocked
-						resp, err := c.metamorphClient.SetUnlockedByName(ctx, &metamorph_api.SetUnlockedByNameRequest{Name: podName})
+						resp, err := c.metamorphClient.SetUnlockedByName(ctx, podName)
 						if err != nil {
 							c.logger.Error("failed to unlock metamorph records", slog.String("pod-name", podName), slog.String("err", err.Error()))
 							continue
@@ -121,17 +189,18 @@ func (c *Watcher) Start() error {
 
 				runningPods = runningPodsK8s
 
-			case <-c.shutdown:
+			case <-c.shutdownMetamorph:
 				return
 			}
 		}
 	}()
-
-	return nil
 }
 
 func (c *Watcher) Shutdown() {
-	c.ticker.Stop()
-	c.shutdown <- struct{}{}
-	<-c.shutdownComplete
+	c.tickerMetamorph.Stop()
+	c.shutdownMetamorph <- struct{}{}
+	<-c.shutdownMetamorphComplete
+
+	c.shutdownBlocktx <- struct{}{}
+	<-c.shutdownBlocktxComplete
 }

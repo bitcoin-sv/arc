@@ -909,7 +909,6 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Bad request|[ErrorBadRequest](#schemaerrorbadrequest)|
 |401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Security requirements failed|None|
 |409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|Generic error|[ErrorGeneric](#schemaerrorgeneric)|
-|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Unprocessable entity - with IETF RFC 7807 Error object|[Error](#schemaerror)|
 |460|Unknown|Not extended format|[ErrorTxFormat](#schemaerrortxformat)|
 |461|Unknown|Malformed transaction|[ErrorUnlockingScripts](#schemaerrorunlockingscripts)|
 |462|Unknown|Invalid inputs|[ErrorInputs](#schemaerrorinputs)|

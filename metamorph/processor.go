@@ -327,7 +327,7 @@ func (p *Processor) processExpiredTransactions() {
 
 		// Before re-requesting/re-announcing txs check if they had been mined or seen in mempool in the meantime
 		minedOrSeen, err := p.store.GetMinedOrSeen(context.Background(), hashSlice)
-		if err == nil {
+		if err == nil && len(minedOrSeen) > 0 {
 			// if tx has been mined or seen in the meantime delete both from processor response map and expired transactions
 			p.logger.Info("found mined or seen txs", slog.Int("number", len(minedOrSeen)))
 

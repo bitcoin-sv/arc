@@ -22,7 +22,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 	}
 
 	// dbMode can be sqlite, sqlite_memory or postgres
-	blockStore, err := NewBlocktxStore(dbMode)
+	blockStore, err := NewBlocktxStore(dbMode, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
@@ -165,41 +165,43 @@ func StartHealthServerBlocktx(serv *blocktx.Server) error {
 	return nil
 }
 
-func NewBlocktxStore(dbMode string) (s store.BlocktxStore, err error) {
+func NewBlocktxStore(dbMode string, logger *slog.Logger) (s store.BlocktxStore, err error) {
 	switch dbMode {
 	case DbModePostgres:
-		dbHost, err := config.GetString("metamorph.db.postgres.host")
+		dbHost, err := config.GetString("blocktx.db.postgres.host")
 		if err != nil {
 			return nil, err
 		}
-		dbPort, err := config.GetInt("metamorph.db.postgres.port")
+		dbPort, err := config.GetInt("blocktx.db.postgres.port")
 		if err != nil {
 			return nil, err
 		}
-		dbName, err := config.GetString("metamorph.db.postgres.name")
+		dbName, err := config.GetString("blocktx.db.postgres.name")
 		if err != nil {
 			return nil, err
 		}
-		dbUser, err := config.GetString("metamorph.db.postgres.user")
+		dbUser, err := config.GetString("blocktx.db.postgres.user")
 		if err != nil {
 			return nil, err
 		}
-		dbPassword, err := config.GetString("metamorph.db.postgres.password")
+		dbPassword, err := config.GetString("blocktx.db.postgres.password")
 		if err != nil {
 			return nil, err
 		}
-		sslMode, err := config.GetString("metamorph.db.postgres.sslMode")
+		sslMode, err := config.GetString("blocktx.db.postgres.sslMode")
 		if err != nil {
 			return nil, err
 		}
-		idleConns, err := config.GetInt("metamorph.db.postgres.maxIdleConns")
+		idleConns, err := config.GetInt("blocktx.db.postgres.maxIdleConns")
 		if err != nil {
 			return nil, err
 		}
-		maxOpenConns, err := config.GetInt("metamorph.db.postgres.maxOpenConns")
+		maxOpenConns, err := config.GetInt("blocktx.db.postgres.maxOpenConns")
 		if err != nil {
 			return nil, err
 		}
+
+		logger.Info(fmt.Sprintf("db connection: user=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbName, dbHost, dbPort, sslMode))
 
 		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbPassword, dbName, dbHost, dbPort, sslMode)
 		s, err = postgresql.New(dbInfo, idleConns, maxOpenConns)

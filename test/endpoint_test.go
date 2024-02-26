@@ -50,6 +50,7 @@ type TxStatusResponse struct {
 	Timestamp   string      `json:"timestamp"`
 	TxStatus    string      `json:"txStatus"`
 	Txid        string      `json:"txid"`
+	MerklePath  string      `json:"merklePath"`
 }
 
 func TestMain(m *testing.M) {
@@ -146,7 +147,7 @@ func TestBatchChainedTxs(t *testing.T) {
 			utxos := getUtxos(t, address)
 			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-			txs, err := createTxChain(privateKey, utxos[0], 50)
+			txs, err := createTxChain(privateKey, utxos[0], 30)
 			require.NoError(t, err)
 
 			arcBody := make([]api.TransactionRequest, len(txs))
@@ -411,6 +412,7 @@ func TestPostCallbackToken(t *testing.T) {
 					require.Equal(t, statusResponse.JSON200.Txid, callback.Txid)
 					require.Equal(t, *statusResponse.JSON200.BlockHeight, *callback.BlockHeight)
 					require.Equal(t, *statusResponse.JSON200.BlockHash, *callback.BlockHash)
+					require.Equal(t, *statusResponse.JSON200.TxStatus, *callback.TxStatus)
 					require.Equal(t, "MINED", *callback.TxStatus)
 					require.NotNil(t, statusResponse.JSON200.MerklePath)
 					_, err = bc.NewBUMPFromStr(*statusResponse.JSON200.MerklePath)
@@ -583,8 +585,8 @@ func respondToCallback(w http.ResponseWriter, success bool) error {
 
 func Test_E2E_Success(t *testing.T) {
 
-	txHexString := createTxHexStringExtended(t)
-	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
+	tx := createTxHexStringExtended(t)
+	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, hex.EncodeToString(tx.ExtendedBytes()))
 	url := "http://arc:9090/v1/tx"
 
 	// Send POST request
@@ -611,7 +613,7 @@ func Test_E2E_Success(t *testing.T) {
 	require.NoError(t, json.NewDecoder(statusResp.Body).Decode(&statusResponse))
 	require.Equal(t, "SEEN_ON_NETWORK", statusResponse.TxStatus, "Expected txStatus to be 'SEEN_ON_NETWORK'")
 
-	fmt.Println("Transaction status:", statusResponse.TxStatus)
+	t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
 	generate(t, 10)
 
@@ -624,7 +626,23 @@ func Test_E2E_Success(t *testing.T) {
 	require.NoError(t, json.NewDecoder(statusResp.Body).Decode(&statusResponse))
 
 	require.Equal(t, "MINED", statusResponse.TxStatus, "Expected txStatus to be 'MINED'")
-	fmt.Println("Transaction status:", statusResponse.TxStatus)
+	t.Logf("Transaction status: %s", statusResponse.TxStatus)
+
+	// Check Merkle path
+	t.Logf("BUMP: %s", statusResponse.MerklePath)
+
+	bump, err := bc.NewBUMPFromStr(statusResponse.MerklePath)
+	require.NoError(t, err)
+
+	jsonB, err := json.Marshal(bump)
+	require.NoError(t, err)
+	t.Logf("BUMPjson: %s", string(jsonB))
+
+	root, err := bump.CalculateRootGivenTxid(tx.TxID())
+	require.NoError(t, err)
+
+	blockRoot := getBlockRootByHeight(t, statusResponse.BlockHeight)
+	require.Equal(t, blockRoot, root)
 
 }
 
@@ -643,8 +661,8 @@ func postSingleRequest(t *testing.T, client *http.Client, req *http.Request) str
 }
 
 func TestPostTx_Success(t *testing.T) {
-	txHexString := createTxHexStringExtended(t) // This is a placeholder for the method to create a valid transaction string.
-	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
+	tx := createTxHexStringExtended(t) // This is a placeholder for the method to create a valid transaction string.
+	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, hex.EncodeToString(tx.ExtendedBytes()))
 	resp, err := postTx(t, jsonPayload, nil) // no extra headers
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -696,7 +714,7 @@ func postTx(t *testing.T, jsonPayload string, headers map[string]string) (*http.
 	return client.Do(req)
 }
 
-func createTxHexStringExtended(t *testing.T) string {
+func createTxHexStringExtended(t *testing.T) *bt.Tx {
 	address, privateKey := getNewWalletAddress(t)
 
 	generate(t, 100)
@@ -716,103 +734,5 @@ func createTxHexStringExtended(t *testing.T) string {
 	tx, err := createTx(privateKey, address, utxos[0])
 	require.NoError(t, err)
 
-	return hex.EncodeToString(tx.ExtendedBytes())
-
-}
-
-// func TestPostTx_Success(t *testing.T) {
-// 	txHexString := createTxHexStringExtended(t) // This is a placeholder for the method to create a valid transaction string.
-// 	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
-// 	resp, err := postTx(t, jsonPayload, nil) // no extra headers
-// 	if err != nil {
-// 		t.Fatalf("Error sending HTTP request: %s", err)
-// 	}
-// 	defer resp.Body.Close()
-
-// 	if resp.StatusCode != http.StatusOK {
-// 		t.Errorf("Expected 200 OK but got: %d", resp.StatusCode)
-// 	}
-// }
-
-func TestMerklePath(t *testing.T) {
-	tt := []struct {
-		name string
-	}{
-		{
-			name: "post transaction - check returned Merkle path",
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			address, privateKey := getNewWalletAddress(t)
-
-			generate(t, 100)
-
-			t.Logf("generated address: %s", address)
-
-			sendToAddress(t, address, 0.001)
-
-			txID := sendToAddress(t, address, 0.02)
-			t.Logf("sent 0.02 BSV to: %s", txID)
-
-			hash := generate(t, 1)
-			t.Logf("generated 1 block: %s", hash)
-
-			utxos := getUtxos(t, address)
-			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
-
-			tx, err := createTx(privateKey, address, utxos[0])
-			require.NoError(t, err)
-
-			url := "http://arc:9090/"
-
-			arcClient, err := api.NewClientWithResponses(url)
-			require.NoError(t, err)
-
-			ctx := context.Background()
-			waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
-			params := &api.POSTTransactionParams{
-				XWaitForStatus: &waitForStatus,
-			}
-
-			arcBody := api.POSTTransactionJSONRequestBody{
-				RawTx: hex.EncodeToString(tx.ExtendedBytes()),
-			}
-
-			var response *api.POSTTransactionResponse
-			response, err = arcClient.POSTTransactionWithResponse(ctx, params, arcBody)
-			require.NoError(t, err)
-
-			require.Equal(t, http.StatusOK, response.StatusCode())
-			require.NotNil(t, response.JSON200)
-			require.Equal(t, "SEEN_ON_NETWORK", response.JSON200.TxStatus)
-
-			generate(t, 10)
-
-			time.Sleep(1 * time.Second)
-
-			var statusResponse *api.GETTransactionStatusResponse
-			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
-			require.NoError(t, err)
-
-			require.Equal(t, "MINED", *statusResponse.JSON200.TxStatus)
-			require.NotNil(t, statusResponse.JSON200.MerklePath)
-
-			t.Logf("BUMP: %s", *statusResponse.JSON200.MerklePath)
-
-			bump, err := bc.NewBUMPFromStr(*statusResponse.JSON200.MerklePath)
-			require.NoError(t, err)
-
-			jsonB, err := json.Marshal(bump)
-			require.NoError(t, err)
-			t.Logf("BUMPjson: %s", string(jsonB))
-
-			root, err := bump.CalculateRootGivenTxid(tx.TxID())
-			require.NoError(t, err)
-
-			blockRoot := getBlockRootByHeight(t, int(*statusResponse.JSON200.BlockHeight))
-			require.Equal(t, blockRoot, root)
-		})
-	}
+	return tx
 }

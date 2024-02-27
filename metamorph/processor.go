@@ -570,7 +570,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 			p.stored.AddDuration(time.Since(processorResponse.Start))
 
-			p.logger.Info("announcing transaction", slog.String("hash", req.Data.Hash.String()))
+			p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
 			// STEP 2: ANNOUNCED_TO_NETWORK
 			peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
 			processorResponse.SetPeers(peers)

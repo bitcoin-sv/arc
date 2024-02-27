@@ -618,6 +618,7 @@ func (p *Processor) Health() error {
 	}
 
 	if healthyConnections < minimumHealthyConnections {
+		p.logger.Error("Less than expected healthy peers - ", healthyConnections)
 		return ErrUnhealthy
 	}
 

@@ -521,6 +521,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
 				return nil, metamorph.ErrTransactionNotFound
 			},
+
+			HealthFunc: func(ctx context.Context) error {
+				return nil
+			},
 		}
 		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
 		require.NoError(t, err)

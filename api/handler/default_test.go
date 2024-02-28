@@ -565,6 +565,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				txStatuses := []*metamorph.TransactionStatus{txResult}
 				return txStatuses, nil
 			},
+
+			HealthFunc: func(ctx context.Context) error {
+				return nil
+			},
 		}
 
 		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)

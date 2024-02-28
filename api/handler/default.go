@@ -505,8 +505,6 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		return statusCode, []interface{}{arcError}, err
 	}
 
-	m.logger.Info("Starting to process ", len(transactions), " transactions")
-
 	// validate before submitting array of transactions to metamorph
 	transactionsInput := make([][]byte, 0, len(transactions))
 	txErrors := make([]interface{}, 0, len(transactions))

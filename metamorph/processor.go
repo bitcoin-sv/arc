@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -619,7 +618,7 @@ func (p *Processor) Health() error {
 	}
 
 	if healthyConnections < minimumHealthyConnections {
-		p.logger.Error("Less than expected healthy peers - ", strconv.Itoa(healthyConnections))
+		p.logger.Error("Less than expected healthy peers - ", slog.Int("number", healthyConnections))
 		return ErrUnhealthy
 	}
 

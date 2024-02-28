@@ -376,6 +376,10 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			rec, ctx := createEchoPostRequest(inputTx, tc.contentType, "/v1/tx")
 
 			txHandler := &mock.TransactionHandlerMock{
+				HealthFunc: func(ctx context.Context) error {
+					return nil
+				},
+
 				GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
 					return tc.getTx, nil
 				},

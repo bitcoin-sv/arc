@@ -499,13 +499,13 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	span, tracingCtx := opentracing.StartSpanFromContext(ctx, "ArcDefaultHandler:processTransactions")
 	defer span.Finish()
 
-	m.logger.Info("Starting to process ", len(transactions), " transactions")
-
 	err := m.TransactionHandler.Health(tracingCtx)
 	if err != nil {
 		statusCode, arcError := m.handleError(tracingCtx, nil, err)
 		return statusCode, []interface{}{arcError}, err
 	}
+
+	m.logger.Info("Starting to process ", len(transactions), " transactions")
 
 	// validate before submitting array of transactions to metamorph
 	transactionsInput := make([][]byte, 0, len(transactions))

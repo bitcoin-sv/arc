@@ -458,6 +458,12 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 		validateSpan.Finish()
 	}
 
+	err := m.TransactionHandler.Health(tracingCtx)
+	if err != nil {
+		statusCode, arcError := m.handleError(tracingCtx, transaction, err)
+		return statusCode, arcError, err
+	}
+
 	tx, err := m.TransactionHandler.SubmitTransaction(tracingCtx, transaction.Bytes(), transactionOptions)
 	if err != nil {
 		statusCode, arcError := m.handleError(tracingCtx, transaction, err)
@@ -494,6 +500,12 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	defer span.Finish()
 
 	m.logger.Info("Starting to process ", len(transactions), " transactions")
+
+	err := m.TransactionHandler.Health(tracingCtx)
+	if err != nil {
+		statusCode, arcError := m.handleError(tracingCtx, nil, err)
+		return statusCode, []interface{}{arcError}, err
+	}
 
 	// validate before submitting array of transactions to metamorph
 	transactionsInput := make([][]byte, 0, len(transactions))

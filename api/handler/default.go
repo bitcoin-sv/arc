@@ -462,6 +462,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 	err := m.TransactionHandler.Health(tracingCtx)
 	if err != nil {
 		statusCode, arcError := m.handleError(tracingCtx, transaction, err)
+		m.logger.Error("metamorph not healthy")
 		return statusCode, arcError, err
 	}
 
@@ -503,6 +504,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	err := m.TransactionHandler.Health(tracingCtx)
 	if err != nil {
 		statusCode, arcError := m.handleError(tracingCtx, nil, err)
+		m.logger.Error("metamorph not healthy")
 		return statusCode, []interface{}{arcError}, err
 	}
 

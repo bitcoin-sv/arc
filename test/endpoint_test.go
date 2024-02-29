@@ -402,8 +402,6 @@ func TestPostCallbackToken(t *testing.T) {
 				t.Logf("callback iteration %d", i)
 				select {
 				case callback := <-callbackReceivedChan:
-					t.Logf(*callback.TxStatus)
-					t.Logf(*statusResponse.JSON200.TxStatus)
 					if *callback.TxStatus == "SEEN_ON_NETWORK" {
 						seenOnNetworkReceived = true
 						continue

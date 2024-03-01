@@ -618,7 +618,12 @@ func (p *Processor) Health() error {
 	}
 
 	if healthyConnections < minimumHealthyConnections {
-		p.logger.Error("Less than expected healthy peers - ", slog.Int("number", healthyConnections))
+		p.logger.Warn("Less than expected healthy peers - ", slog.Int("number", healthyConnections))
+		return nil
+	}
+
+	if healthyConnections == 0 {
+		p.logger.Error("Metamorph not healthy")
 		return ErrUnhealthy
 	}
 

@@ -392,7 +392,7 @@ func TestPostCallbackToken(t *testing.T) {
 
 			generate(t, 10)
 
-			time.Sleep(5 * time.Second) // give ARC time to perform the status update on DB
+			time.Sleep(1 * time.Second) // give ARC time to perform the status update on DB
 
 			var statusResponse *api.GETTransactionStatusResponse
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)

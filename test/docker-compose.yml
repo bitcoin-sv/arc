@@ -126,6 +126,11 @@ services:
       - migrate-blocktx
       - migrate-metamorph
       - nats
+    healthcheck:
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8006", "-service=liveness", "-rpc-timeout=5s"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   arc-metamorph:
     image: test-arc:latest
@@ -137,6 +142,11 @@ services:
       - ./config/config.yaml:/service/config.yaml
     depends_on:
       - arc-blocktx
+    healthcheck:
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8005", "-service=liveness", "-rpc-timeout=5s"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   arc:
     image: test-arc:latest

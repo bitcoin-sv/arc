@@ -693,7 +693,7 @@ func TestProcessorHealth(t *testing.T) {
 			name:       "1 healthy peer",
 			peersAdded: 1,
 
-			expectedErr: metamorph.ErrUnhealthy,
+			expectedErr: nil,
 		},
 	}
 

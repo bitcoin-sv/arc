@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
 	"github.com/ordishs/gocore"
@@ -21,7 +20,6 @@ type StatusAndError struct {
 
 type ProcessorResponseStatusUpdate struct {
 	Status         metamorph_api.Status
-	Source         string
 	StatusErr      error
 	UpdateStore    func() error
 	IgnoreCallback bool
@@ -37,10 +35,9 @@ type ProcessorResponse struct {
 	Retries               atomic.Uint32   `json:"retries"`
 	LastStatusUpdateNanos atomic.Int64    `json:"lastStatusUpdateNanos"`
 	// The following fields are protected by the mutex
-	mu             deadlock.RWMutex
-	Err            error                `json:"err"`
-	AnnouncedPeers []p2p.PeerI          `json:"announcedPeers"`
-	Status         metamorph_api.Status `json:"status"`
+	mu     deadlock.RWMutex
+	Err    error                `json:"err"`
+	Status metamorph_api.Status `json:"status"`
 }
 
 func NewProcessorResponse(hash *chainhash.Hash) *ProcessorResponse {
@@ -105,9 +102,9 @@ func (r *ProcessorResponse) updateStatus(statusUpdate *ProcessorResponseStatusUp
 	}
 
 	if statusUpdate.StatusErr != nil {
-		_ = r.setStatusAndError(statusUpdate.Status, statusUpdate.StatusErr, statusUpdate.Source)
+		_ = r.setStatusAndError(statusUpdate.Status, statusUpdate.StatusErr)
 	} else {
-		_ = r.setStatus(statusUpdate.Status, statusUpdate.Source)
+		_ = r.setStatus(statusUpdate.Status)
 	}
 
 	statKey := fmt.Sprintf("%d: %s", statusUpdate.Status, statusUpdate.Status.String())
@@ -116,20 +113,6 @@ func (r *ProcessorResponse) updateStatus(statusUpdate *ProcessorResponseStatusUp
 	if !statusUpdate.IgnoreCallback {
 		statusUpdate.Callback(nil)
 	}
-}
-
-func (r *ProcessorResponse) SetPeers(peers []p2p.PeerI) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.AnnouncedPeers = peers
-}
-
-func (r *ProcessorResponse) GetPeers() []p2p.PeerI {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	return r.AnnouncedPeers
 }
 
 func (r *ProcessorResponse) String() string {
@@ -142,7 +125,7 @@ func (r *ProcessorResponse) String() string {
 	return fmt.Sprintf("%v: %s [%s]", r.Hash, r.Start.Format(time.RFC3339), r.Status.String())
 }
 
-func (r *ProcessorResponse) setStatus(status metamorph_api.Status, source string) bool {
+func (r *ProcessorResponse) setStatus(status metamorph_api.Status) bool {
 	r.mu.Lock()
 	r.Status = status
 	r.mu.Unlock()
@@ -190,7 +173,7 @@ func (r *ProcessorResponse) setErr(err error, source string) bool {
 	return true
 }
 
-func (r *ProcessorResponse) setStatusAndError(status metamorph_api.Status, err error, source string) bool {
+func (r *ProcessorResponse) setStatusAndError(status metamorph_api.Status, err error) bool {
 	r.Status = status
 	r.Err = err
 

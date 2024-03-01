@@ -380,19 +380,12 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, hash *chainhash.Hash
 }
 
 func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *processor_response.ProcessorResponse) []byte {
-	announcedPeers := make([]string, 0, len(prm.AnnouncedPeers))
-	for _, peer := range prm.AnnouncedPeers {
-		if peer != nil {
-			announcedPeers = append(announcedPeers, peer.String())
-		}
-	}
 
 	res := &statResponse{
 		Txid:                  prm.Hash.String(),
 		Start:                 prm.Start,
 		Retries:               prm.Retries.Load(),
 		Err:                   prm.Err,
-		AnnouncedPeers:        announcedPeers,
 		Status:                prm.GetStatus(),
 		NoStats:               prm.NoStats,
 		LastStatusUpdateNanos: prm.LastStatusUpdateNanos.Load(),

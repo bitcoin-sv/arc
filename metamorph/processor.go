@@ -334,7 +334,7 @@ func (p *Processor) processExpiredTransactions() {
 					p.pm.RequestTransaction(item.Hash)
 				} else {
 					p.logger.Debug("Re-announcing expired tx", slog.String("hash", txID.String()))
-					p.pm.AnnounceTransaction(item.Hash, item.AnnouncedPeers)
+					p.pm.AnnounceTransaction(item.Hash, nil)
 				}
 
 				p.retries.AddDuration(time.Since(startTime))
@@ -429,7 +429,6 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 
 	statusUpdate := &processor_response.ProcessorResponseStatusUpdate{
 		Status:    status,
-		Source:    source,
 		StatusErr: statusErr,
 		UpdateStore: func() error {
 			// we have cached this transaction, so process accordingly
@@ -534,7 +533,6 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	// STEP 1: STORED
 	processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
 		Status: metamorph_api.Status_STORED,
-		Source: "processor",
 		UpdateStore: func() error {
 			req.Data.Status = metamorph_api.Status_STORED
 			insertedAtNum, _ := strconv.Atoi(p.now().Format("2006010215"))
@@ -557,7 +555,6 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 			p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
 			// STEP 2: ANNOUNCED_TO_NETWORK
 			peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
-			processorResponse.SetPeers(peers)
 
 			peersStr := make([]string, 0, len(peers))
 			if len(peers) > 0 {
@@ -568,7 +565,6 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 			processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-				Source: strings.Join(peersStr, ", "),
 				UpdateStore: func() error {
 
 					p.statusUpdateCh <- store.UpdateStatus{

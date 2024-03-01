@@ -567,9 +567,8 @@ func (r readCloser) Close() error                     { return nil }
 
 func TestProcessExpiredTransactions(t *testing.T) {
 	tt := []struct {
-		name        string
-		retries     uint32
-		minedOrSeen []*store.StoreData
+		name    string
+		retries uint32
 
 		expectedRequests      int
 		expectedAnnouncements int
@@ -581,26 +580,11 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			expectedRequests:      0,
 		},
 		{
-			name:        "expired txs - one seen",
-			minedOrSeen: []*store.StoreData{{Hash: testdata.TX1Hash, Status: metamorph_api.Status_SEEN_ON_NETWORK}},
-
-			expectedAnnouncements: 4,
-			expectedRequests:      0,
-		},
-		{
 			name:    "expired txs - max retries exceeded",
 			retries: 16,
 
 			expectedAnnouncements: 0,
 			expectedRequests:      6,
-		},
-		{
-			name:        "expired txs - max retries exceeded, one seen",
-			minedOrSeen: []*store.StoreData{{Hash: testdata.TX1Hash, Status: metamorph_api.Status_SEEN_ON_NETWORK}},
-			retries:     16,
-
-			expectedAnnouncements: 0,
-			expectedRequests:      4,
 		},
 	}
 
@@ -611,9 +595,6 @@ func TestProcessExpiredTransactions(t *testing.T) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
-				GetMinedOrSeenFunc: func(ctx context.Context, hashes []*chainhash.Hash) ([]*store.StoreData, error) {
-					return tc.minedOrSeen, nil
-				},
 			}
 			pm := &mocks.PeerManagerMock{
 				RequestTransactionFunc: func(txHash *chainhash.Hash) p2p.PeerI {

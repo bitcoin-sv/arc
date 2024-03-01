@@ -320,25 +320,6 @@ func (p *Processor) processExpiredTransactions() {
 	for range p.processExpiredTxsTicker.C {
 		expiredTransactionItems := p.ProcessorResponseMap.Items(filterFunc)
 
-		var hashSlice []*chainhash.Hash
-		for hash := range expiredTransactionItems {
-			hashSlice = append(hashSlice, &hash)
-		}
-
-		// Before re-requesting/re-announcing txs check if they had been mined or seen in mempool in the meantime
-		minedOrSeen, err := p.store.GetMinedOrSeen(context.Background(), hashSlice)
-		if err == nil && len(minedOrSeen) > 0 {
-			// if tx has been mined or seen in the meantime delete both from processor response map and expired transactions
-			p.logger.Info("found mined or seen txs", slog.Int("number", len(minedOrSeen)))
-
-			for _, data := range minedOrSeen {
-				processorResponse := expiredTransactionItems[*data.Hash]
-				processorResponse.Close()
-				p.ProcessorResponseMap.Delete(data.Hash)
-				delete(expiredTransactionItems, *data.Hash)
-			}
-		}
-
 		if len(expiredTransactionItems) > 0 {
 			p.logger.Info("Resending expired transactions", slog.Int("number", len(expiredTransactionItems)))
 			for txID, item := range expiredTransactionItems {

@@ -4,7 +4,7 @@ logFormat: text # format of logging. Value can be one of text | json | tint
 profilerAddr: localhost:9999 # address to start profiler server on
 statisticsServerAddress: localhost:9005 # address to start statistics server on
 prometheusEndpoint: /metrics # endpoint for prometheus metrics
-prometheusAddr: :2112
+prometheusAddr: :2112 # port for serving prometheus metrics
 tracing: true # enable trancing
 grpcMessageSize: 100000000 # maximum grpc message size
 network: regtest # bitcoin network to connect to
@@ -32,7 +32,7 @@ metamorph:
   listenAddr: localhost:8001 # address space for metamorph to listen on. Can be for example localhost:8001 or :8001 for listening on all addresses
   dialAddr: localhost:8001 # address for other services to dial metamorph service
   db:
-    mode: badger # db mode inidicates which db to use. Value can be one of badger | postgres | dynamodb
+    mode: postgres # db mode inidicates which db to use. At the moment only postgres is offered
     postgres: # postgres db configuration in case that mode: postgres
       host: localhost
       port: 5432
@@ -62,7 +62,7 @@ blocktx:
   dialAddr: localhost:8011 # address for other services to dial blocktx service
   healthServerDialAddr: localhost:8006
   db:
-    mode: sqlite # db mode indicates which db to use. Value can be one of sqlite | sqlite_memory | postgres
+    mode: postgres # db mode indicates which db to use. At the moment only postgres is offered
     postgres: # postgres db configuration in case that mode: postgres
       host: localhost
       port: 5432

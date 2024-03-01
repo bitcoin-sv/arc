@@ -17,8 +17,8 @@ var prepCmd = &cobra.Command{
 	Short: "Create UTXO set to be used with broadcaster",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		isTestnet := viper.GetBool("isTestnet")
-		isPayback := viper.GetBool("isPayback")
+		isTestnet := viper.GetBool("testnet")
+		isPayback := viper.GetBool("payback")
 		callbackURL := viper.GetString("callback")
 		authorization := viper.GetString("authorization")
 		keyFile := viper.GetString("keyFile")
@@ -69,9 +69,8 @@ var prepCmd = &cobra.Command{
 }
 
 func init() {
+	prepCmd.Flags().Bool("payback", false, "send all funds from receiving key set to funding key set")
+	viper.BindPFlag("payback", prepCmd.Flags().Lookup("payback"))
 
 	rootCmd.AddCommand(prepCmd)
-
-	prepCmd.Flags().Bool("payback", false, "send all funds from receiving key set to funding key set")
-	viper.BindPFlag("isPayback", prepCmd.Flags().Lookup("payback"))
 }

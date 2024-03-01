@@ -3,6 +3,7 @@ package broadcaster
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 
 	"github.com/bitcoin-sv/arc/lib/keyset"
@@ -53,7 +54,7 @@ func (b *UTXOPreparer) Payback() error {
 	if err != nil {
 		return err
 	}
-	const fee = 3
+	const feePerKb = 3
 	tx := bt.NewTx()
 
 	totalSatoshis := uint64(0)
@@ -68,7 +69,7 @@ func (b *UTXOPreparer) Payback() error {
 		totalSatoshis += utxo.Satoshis
 
 		if len(tx.Inputs) >= 100 {
-			err = b.submitPaybackTx(tx, totalSatoshis, fee)
+			err = b.submitPaybackTx(tx, totalSatoshis, feePerKb)
 			if err != nil {
 				return err
 			}
@@ -77,7 +78,7 @@ func (b *UTXOPreparer) Payback() error {
 			totalSatoshis = 0
 		}
 	}
-	err = b.submitPaybackTx(tx, totalSatoshis, fee)
+	err = b.submitPaybackTx(tx, totalSatoshis, feePerKb)
 	if err != nil {
 		return err
 	}
@@ -85,7 +86,11 @@ func (b *UTXOPreparer) Payback() error {
 	return nil
 }
 
-func (b *UTXOPreparer) submitPaybackTx(tx *bt.Tx, totalSatoshis uint64, fee uint64) error {
+func (b *UTXOPreparer) submitPaybackTx(tx *bt.Tx, totalSatoshis uint64, feePerKb uint64) error {
+	var fee uint64
+
+	fee = uint64(math.Ceil(float64(tx.Size())/1000) * float64(feePerKb))
+
 	err := tx.PayTo(b.FromKeySet.Script, totalSatoshis-fee)
 	if err != nil {
 		return err

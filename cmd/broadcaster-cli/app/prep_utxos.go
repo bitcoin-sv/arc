@@ -1,8 +1,10 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"github.com/spf13/viper"
+	"log/slog"
 
 	"github.com/bitcoin-sv/arc/broadcaster"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
@@ -56,7 +58,11 @@ var prepCmd = &cobra.Command{
 		preparer.CallbackURL = callbackURL
 
 		if isPayback {
-			return preparer.Payback()
+			err := preparer.Payback()
+
+			logger.Error("failed to submit pay back txs", slog.String("err", err.Error()))
+
+			return errors.New("command failed")
 		}
 
 		err = preparer.PrepareUTXOSet(uint64(outputs), uint64(satoshisPerOutput))
@@ -69,8 +75,11 @@ var prepCmd = &cobra.Command{
 }
 
 func init() {
-	prepCmd.Flags().Bool("payback", false, "send all funds from receiving key set to funding key set")
+	prepCmd.Flags().Bool("payback", false, "Send all funds from receiving key set to funding key set")
 	viper.BindPFlag("payback", prepCmd.Flags().Lookup("payback"))
+
+	prepCmd.Flags().String("api-url", "", "Send all funds from receiving key set to funding key set")
+	viper.BindPFlag("api-url", prepCmd.Flags().Lookup("api-url"))
 
 	rootCmd.AddCommand(prepCmd)
 }

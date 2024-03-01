@@ -78,7 +78,7 @@ jobs:
 
       - name: e2e test
         run: |
-          docker compose up -d node1 node2 node3 db migrate-blocktx migrate-metamorph arc-blocktx arc-metamorph --scale arc-blocktx=10
+          docker compose up -d node1 node2 node3 db migrate-blocktx migrate-metamorph arc-blocktx arc-metamorph --scale arc-blocktx=5 --scale arc-metamorph=2
           docker compose up --exit-code-from tests tests arc
           docker compose down
         working-directory: ./test

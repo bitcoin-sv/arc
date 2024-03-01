@@ -213,11 +213,13 @@ func (ph *PeerHandler) startPeerWorker() {
 				ctx := context.Background()
 
 				bhs, err := ph.store.GetBlockHashesProcessingInProgress(ctx, ph.hostname)
-				if err == nil {
-					if len(bhs) >= maxBlocksInProgress {
-						ph.logger.Debug("max blocks being processed reached", slog.String("hash", hash.String()), slog.Int("max", maxBlocksInProgress), slog.Int("number", len(bhs)))
-						continue
-					}
+				if err != nil {
+					ph.logger.Error("failed to get block hashes where processing in progress", slog.String("err", err.Error()))
+				}
+
+				if len(bhs) >= maxBlocksInProgress {
+					ph.logger.Debug("max blocks being processed reached", slog.String("hash", hash.String()), slog.Int("max", maxBlocksInProgress), slog.Int("number", len(bhs)))
+					continue
 				}
 
 				processedBy, err := ph.store.SetBlockProcessing(ctx, hash, ph.hostname)

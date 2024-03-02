@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"time"
 
 	"github.com/bitcoin-sv/arc/lib/keyset"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
@@ -68,11 +69,15 @@ func (b *UTXOPreparer) Payback() error {
 
 		totalSatoshis += utxo.Satoshis
 
+		// create payback transactions with maximum 100 inputs
 		if len(tx.Inputs) >= 100 {
 			err = b.submitPaybackTx(tx, totalSatoshis, feePerKb)
 			if err != nil {
 				return err
 			}
+
+			time.Sleep(time.Millisecond * 500)
+			b.logger.Infof("paid back %d satoshis", totalSatoshis)
 
 			tx = bt.NewTx()
 			totalSatoshis = 0
@@ -105,6 +110,7 @@ func (b *UTXOPreparer) submitPaybackTx(tx *bt.Tx, totalSatoshis uint64, feePerKb
 	if err != nil {
 		return err
 	}
+
 	if res.Status != metamorph_api.Status_SEEN_ON_NETWORK {
 		return fmt.Errorf("payback transaction does not have %s status: %s", metamorph_api.Status_SEEN_ON_NETWORK.String(), res.Status.String())
 	}

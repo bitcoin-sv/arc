@@ -3,15 +3,13 @@ package app
 import (
 	"errors"
 	"fmt"
-	"github.com/spf13/viper"
-	"log/slog"
-
 	"github.com/bitcoin-sv/arc/broadcaster"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/lib/keyset"
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/gocore"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var prepCmd = &cobra.Command{
@@ -60,7 +58,7 @@ var prepCmd = &cobra.Command{
 		if isPayback {
 			err := preparer.Payback()
 
-			logger.Error("failed to submit pay back txs", slog.String("err", err.Error()))
+			logger.Errorf("failed to submit pay back txs: %v", err)
 
 			return errors.New("command failed")
 		}

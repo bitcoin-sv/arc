@@ -16,7 +16,7 @@ var addrCmd = &cobra.Command{
 	Short: "show address of the wallet",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		keyFile := viper.GetString("keyFile")
-		isTestnet := viper.GetBool("isTestnet")
+		isTestnet := viper.GetBool("testnet")
 
 		extendedBytes, err := os.ReadFile(keyFile)
 		if err != nil {
@@ -32,13 +32,13 @@ var addrCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Println(fundingKeySet.Address(!isTestnet))
+		fmt.Printf("funding key address: \t%s\n", fundingKeySet.Address(!isTestnet))
 
 		receivingKeySet, err := keyset.NewFromExtendedKeyStr(xpriv, "0/1")
 		if err != nil {
 			return err
 		}
-		fmt.Println(receivingKeySet.Address(!isTestnet))
+		fmt.Printf("receiving key address: \t%s\n", receivingKeySet.Address(!isTestnet))
 
 		return nil
 	},

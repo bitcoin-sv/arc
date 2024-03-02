@@ -582,47 +582,6 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 	return p.getStoreDataFromRows(rows)
 }
 
-func (p *PostgreSQL) GetMinedOrSeen(ctx context.Context, hashes []*chainhash.Hash) ([]*store.StoreData, error) {
-	startNanos := p.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("UpdateMined").AddTime(startNanos)
-	}()
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:CheckMinedOrSeen")
-	defer span.Finish()
-
-	q := `SELECT
-	   	 stored_at
-		,announced_at
-		,mined_at
-		,hash
-		,status
-		,block_height
-		,block_hash
-		,callback_url
-		,callback_token
-		,full_status_updates
-		,reject_reason
-		,raw_tx
-		,locked_by
-		,merkle_path
-		FROM metamorph.transactions t
-		WHERE t.hash = ANY($1)
-		AND (status = $2 OR status = $3)
-		;`
-
-	var hashSlice [][]byte
-	for _, hash := range hashes {
-		hashSlice = append(hashSlice, hash[:])
-	}
-
-	rows, err := p.db.QueryContext(ctx, q, pq.Array(hashSlice), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_MINED)
-	if err != nil {
-		return nil, err
-	}
-
-	return p.getStoreDataFromRows(rows)
-}
-
 func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 	var storeData []*store.StoreData
 

@@ -411,34 +411,6 @@ func TestPostgresDB(t *testing.T) {
 
 	})
 
-	t.Run("get mined or seen transactions", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
-
-		hash5, err := hex.DecodeString("1e7ce0d2fcac0a1a0c174e57a7334f9bf6803280af838a0a0389b230ee488dad") // mined
-		require.NoError(t, err)
-		chainHash5, err := chainhash.NewHash(hash5)
-		require.NoError(t, err)
-
-		hash6, err := hex.DecodeString("9a391adf8c716cfdb5fc17dadc85761259762a099dd4727b4412288661ef3c95") // mined
-		require.NoError(t, err)
-		chainHash6, err := chainhash.NewHash(hash6)
-		require.NoError(t, err)
-
-		hash7, err := hex.DecodeString("a8b965b5901163a9bdcd38d2ad524c3bb27ae31fb86dc8947253b541af8dd308") // mined
-		require.NoError(t, err)
-		chainHash7, err := chainhash.NewHash(hash7)
-		require.NoError(t, err)
-
-		hashes := []*chainhash.Hash{chainHash1, chainHash2, chainHash4, chainHash5, chainHash6, chainHash7}
-
-		minedSeen, err := postgresDB.GetMinedOrSeen(ctx, hashes)
-		require.NoError(t, err)
-		require.Len(t, minedSeen, 5)
-
-	})
-
 	t.Run("update mined - missing block info", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 

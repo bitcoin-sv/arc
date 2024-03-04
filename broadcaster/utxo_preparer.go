@@ -14,6 +14,11 @@ import (
 	"github.com/libsv/go-bt/v2/unlocker"
 )
 
+const (
+	maxOutputsDefault = 100
+	batchSizeDefault  = 20
+)
+
 type UtxoClient interface {
 	GetUTXOs(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
 }
@@ -29,31 +34,58 @@ type UTXOPreparer struct {
 	CallbackURL       string
 	FeeQuote          *bt.FeeQuote
 	UtxoClient        UtxoClient
+
+	maxOutputs int
+	batchSize  int
 }
 
-func NewUTXOPreparer(logger *slog.Logger, client ArcClient, fromKeySet *keyset.KeySet, toKeyset *keyset.KeySet, utxoClient UtxoClient, feeOpts ...func(fee *bt.Fee)) *UTXOPreparer {
-	var fq = bt.NewFeeQuote()
+func WithFees(miningFeeSatPerKb int) func(preparer *UTXOPreparer) {
+	return func(preparer *UTXOPreparer) {
+		var fq = bt.NewFeeQuote()
 
-	stdFee := *stdFeeDefault
-	dataFee := *dataFeeDefault
+		newStdFee := *stdFeeDefault
+		newDataFee := *dataFeeDefault
 
-	for _, opt := range feeOpts {
-		opt(&stdFee)
-		opt(&dataFee)
+		newStdFee.RelayFee.Satoshis = miningFeeSatPerKb
+		newDataFee.RelayFee.Satoshis = miningFeeSatPerKb
+
+		fq.AddQuote(bt.FeeTypeData, &newStdFee)
+		fq.AddQuote(bt.FeeTypeStandard, &newDataFee)
+
+		preparer.FeeQuote = fq
 	}
+}
 
-	fq.AddQuote(bt.FeeTypeData, &stdFee)
-	fq.AddQuote(bt.FeeTypeStandard, &dataFee)
+func WithBatchSize(batchSize int) func(preparer *UTXOPreparer) {
+	return func(preparer *UTXOPreparer) {
+		preparer.batchSize = batchSize
+	}
+}
 
-	return &UTXOPreparer{
+func WithMaxOutputs(maxOutputs int) func(preparer *UTXOPreparer) {
+	return func(preparer *UTXOPreparer) {
+		preparer.maxOutputs = maxOutputs
+	}
+}
+
+func NewUTXOPreparer(logger *slog.Logger, client ArcClient, fromKeySet *keyset.KeySet, toKeyset *keyset.KeySet, utxoClient UtxoClient, opts ...func(p *UTXOPreparer)) *UTXOPreparer {
+	utxoPreparer := &UTXOPreparer{
 		logger:     logger,
 		Client:     client,
 		FromKeySet: fromKeySet,
 		ToKeySet:   toKeyset,
 		IsTestnet:  true,
-		FeeQuote:   fq,
+		FeeQuote:   bt.NewFeeQuote(),
 		UtxoClient: utxoClient,
+		batchSize:  batchSizeDefault,
+		maxOutputs: maxOutputsDefault,
 	}
+
+	for _, opt := range opts {
+		opt(utxoPreparer)
+	}
+
+	return utxoPreparer
 }
 
 // Payback sends all funds currently held on the receiving address back to the funding address
@@ -62,8 +94,6 @@ func (b *UTXOPreparer) Payback() error {
 	if err != nil {
 		return err
 	}
-	const maxOutputs = 100
-	const batchSize = 20
 
 	tx := bt.NewTx()
 	txSatoshis := uint64(0)
@@ -73,7 +103,7 @@ func (b *UTXOPreparer) Payback() error {
 		return err
 	}
 
-	txs := make([]*bt.Tx, 0, batchSize)
+	txs := make([]*bt.Tx, 0, b.batchSize)
 
 	for _, utxo := range utxos {
 
@@ -85,7 +115,7 @@ func (b *UTXOPreparer) Payback() error {
 		txSatoshis += utxo.Satoshis
 
 		// create payback transactions with maximum 100 inputs
-		if len(tx.Inputs) >= maxOutputs {
+		if len(tx.Inputs) >= b.maxOutputs {
 			batchSatoshis += txSatoshis
 
 			err = b.addOutputs(tx, txSatoshis, uint64(miningFee.MiningFee.Satoshis))
@@ -99,7 +129,7 @@ func (b *UTXOPreparer) Payback() error {
 			txSatoshis = 0
 		}
 
-		if len(txs) == batchSize {
+		if len(txs) == b.batchSize {
 			err = b.submitPaybackTxs(txs)
 			if err != nil {
 				return err
@@ -107,9 +137,20 @@ func (b *UTXOPreparer) Payback() error {
 			b.logger.Info("paid back satoshis", slog.Uint64("satoshis", batchSatoshis))
 
 			batchSatoshis = 0
-			txs = make([]*bt.Tx, 0, batchSize)
-			time.Sleep(time.Millisecond * 500)
+			txs = make([]*bt.Tx, 0, b.batchSize)
+			time.Sleep(time.Millisecond * 100)
 		}
+	}
+
+	if len(tx.Inputs) > 0 {
+		batchSatoshis += txSatoshis
+
+		err = b.addOutputs(tx, txSatoshis, uint64(miningFee.MiningFee.Satoshis))
+		if err != nil {
+			return err
+		}
+
+		txs = append(txs, tx)
 	}
 
 	if len(txs) > 0 {
@@ -117,6 +158,7 @@ func (b *UTXOPreparer) Payback() error {
 		if err != nil {
 			return err
 		}
+
 		b.logger.Info("paid back satoshis", slog.Uint64("satoshis", batchSatoshis))
 	}
 
@@ -150,7 +192,7 @@ func (b *UTXOPreparer) submitPaybackTxs(txs []*bt.Tx) error {
 
 	for _, res := range resp {
 		if res.Status != metamorph_api.Status_SEEN_ON_NETWORK {
-			return fmt.Errorf("payback transaction does not have %s status: %s", metamorph_api.Status_SEEN_ON_NETWORK.String(), res.Status.String())
+			return fmt.Errorf("payback transaction does not have expected status %s, but %s", metamorph_api.Status_SEEN_ON_NETWORK.String(), res.Status.String())
 		}
 	}
 

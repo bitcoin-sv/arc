@@ -10,7 +10,7 @@ import (
 	"github.com/bitcoin-sv/arc/broadcaster"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/lib/keyset"
-	"github.com/libsv/go-bt/v2"
+	"github.com/bitcoin-sv/arc/lib/woc_client"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -46,12 +46,11 @@ var prepCmd = &cobra.Command{
 			return fmt.Errorf("failed to get key sets: %v", err)
 		}
 
-		var feeOpts []func(fee *bt.Fee)
-		if err == nil {
-			feeOpts = append(feeOpts, broadcaster.WithMiningFee(miningFeeSat))
-		}
+		wocClient := woc_client.New()
 
-		preparer := broadcaster.NewUTXOPreparer(logger, client, fundingKeySet, receivingKeySet, nil, feeOpts...)
+		preparer := broadcaster.NewUTXOPreparer(logger, client, fundingKeySet, receivingKeySet, &wocClient,
+			broadcaster.WithFees(miningFeeSat),
+		)
 		preparer.IsTestnet = isTestnet
 		preparer.CallbackURL = callbackURL
 

@@ -56,9 +56,14 @@ func (b *UTXOPreparer) Payback() error {
 		return err
 	}
 	const feePerKb = 3
-	tx := bt.NewTx()
+	const maxOutputs = 100
+	const batchSize = 20
 
-	totalSatoshis := uint64(0)
+	tx := bt.NewTx()
+	txSatoshis := uint64(0)
+	batchSatoshis := uint64(0)
+
+	txs := make([]*bt.Tx, 0, batchSize)
 
 	for _, utxo := range utxos {
 
@@ -67,31 +72,47 @@ func (b *UTXOPreparer) Payback() error {
 			return err
 		}
 
-		totalSatoshis += utxo.Satoshis
+		txSatoshis += utxo.Satoshis
 
 		// create payback transactions with maximum 100 inputs
-		if len(tx.Inputs) >= 100 {
-			err = b.submitPaybackTx(tx, totalSatoshis, feePerKb)
+		if len(tx.Inputs) >= maxOutputs {
+			batchSatoshis += txSatoshis
+			err = b.addOutputs(tx, txSatoshis, feePerKb)
 			if err != nil {
 				return err
 			}
 
-			time.Sleep(time.Millisecond * 500)
-			b.logger.Infof("paid back %d satoshis", totalSatoshis)
+			txs = append(txs, tx)
 
 			tx = bt.NewTx()
-			totalSatoshis = 0
+			txSatoshis = 0
+		}
+
+		if len(txs) == batchSize {
+			err = b.submitPaybackTxs(txs)
+			if err != nil {
+				return err
+			}
+			b.logger.Infof("paid back %d satoshis", batchSatoshis)
+
+			batchSatoshis = 0
+			txs = make([]*bt.Tx, 0, batchSize)
+			time.Sleep(time.Millisecond * 500)
 		}
 	}
-	err = b.submitPaybackTx(tx, totalSatoshis, feePerKb)
-	if err != nil {
-		return err
+
+	if len(txs) > 0 {
+		err = b.submitPaybackTxs(txs)
+		if err != nil {
+			return err
+		}
+		b.logger.Infof("paid back %d satoshis", batchSatoshis)
 	}
 
 	return nil
 }
 
-func (b *UTXOPreparer) submitPaybackTx(tx *bt.Tx, totalSatoshis uint64, feePerKb uint64) error {
+func (b *UTXOPreparer) addOutputs(tx *bt.Tx, totalSatoshis uint64, feePerKb uint64) error {
 	var fee uint64
 
 	fee = uint64(math.Ceil(float64(tx.Size())/1000) * float64(feePerKb))
@@ -106,6 +127,11 @@ func (b *UTXOPreparer) submitPaybackTx(tx *bt.Tx, totalSatoshis uint64, feePerKb
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (b *UTXOPreparer) submitPaybackTx(tx *bt.Tx) error {
 	res, err := b.Client.BroadcastTransaction(context.Background(), tx, metamorph_api.Status_SEEN_ON_NETWORK, b.CallbackURL)
 	if err != nil {
 		return err
@@ -114,6 +140,22 @@ func (b *UTXOPreparer) submitPaybackTx(tx *bt.Tx, totalSatoshis uint64, feePerKb
 	if res.Status != metamorph_api.Status_SEEN_ON_NETWORK {
 		return fmt.Errorf("payback transaction does not have %s status: %s", metamorph_api.Status_SEEN_ON_NETWORK.String(), res.Status.String())
 	}
+	return nil
+}
+
+func (b *UTXOPreparer) submitPaybackTxs(txs []*bt.Tx) error {
+
+	resp, err := b.Client.BroadcastTransactions(context.Background(), txs, metamorph_api.Status_SEEN_ON_NETWORK, b.CallbackURL)
+	if err != nil {
+		return err
+	}
+
+	for _, res := range resp {
+		if res.Status != metamorph_api.Status_SEEN_ON_NETWORK {
+			return fmt.Errorf("payback transaction does not have %s status: %s", metamorph_api.Status_SEEN_ON_NETWORK.String(), res.Status.String())
+		}
+	}
+
 	return nil
 }
 

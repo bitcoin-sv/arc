@@ -57,10 +57,10 @@ var prepCmd = &cobra.Command{
 
 		if isPayback {
 			err := preparer.Payback()
-
-			logger.Errorf("failed to submit pay back txs: %v", err)
-
-			return errors.New("command failed")
+			if err != nil {
+				logger.Errorf("failed to submit pay back txs: %v", err)
+				return errors.New("command failed")
+			}
 		}
 
 		err = preparer.PrepareUTXOSet(uint64(outputs), uint64(satoshisPerOutput))

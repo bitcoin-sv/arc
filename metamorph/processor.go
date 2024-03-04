@@ -374,7 +374,6 @@ func (p *Processor) LoadUnmined() {
 		return
 	}
 
-	p.logger.Info("loading unmined transactions", slog.Int64("limit", limit))
 	getUnminedSince := p.now().Add(-1 * p.mapExpiryTime)
 
 	unminedTxs, err := p.store.GetUnmined(spanCtx, getUnminedSince, limit)
@@ -382,6 +381,8 @@ func (p *Processor) LoadUnmined() {
 		p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
 		return
 	}
+
+	p.logger.Info("loaded unmined transactions", slog.Int("number", len(unminedTxs)), slog.Int64("limit", limit))
 
 	if len(unminedTxs) == 0 {
 		return

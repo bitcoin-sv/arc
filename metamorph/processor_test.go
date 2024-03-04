@@ -249,7 +249,7 @@ func TestProcessTransaction(t *testing.T) {
 			expectedResponses: []metamorph_api.Status{
 				metamorph_api.Status_REJECTED,
 			},
-			expectedSetCalls: 0,
+			expectedSetCalls: 1,
 		},
 	}
 

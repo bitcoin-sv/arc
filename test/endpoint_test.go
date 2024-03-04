@@ -432,6 +432,41 @@ func TestPostCallbackToken(t *testing.T) {
 	}
 }
 
+func postTxWithHeadersChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus string, skipFeeValidation bool, skipTxValidation bool) {
+
+	ctx := context.Background()
+	waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
+
+	var skipFeeValidationPtr *bool
+	if skipFeeValidation {
+		skipFeeValidationPtr = handler.PtrTo(true)
+	}
+
+	var skipTxValidationPtr *bool
+	if skipTxValidation {
+		skipTxValidationPtr = handler.PtrTo(true)
+	}
+	params := &api.POSTTransactionParams{
+		XWaitForStatus:     &waitForStatus,
+		XSkipFeeValidation: skipFeeValidationPtr,
+		XSkipTxValidation:  skipTxValidationPtr,
+	}
+
+	arcBody := api.POSTTransactionJSONRequestBody{
+		RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+	}
+
+	var response *api.POSTTransactionResponse
+	response, err := client.POSTTransactionWithResponse(ctx, params, arcBody)
+	require.NoError(t, err)
+	fmt.Println("Response Transaction with Zero fee:", response)
+	fmt.Println("Response Transaction with Zero fee:", response.JSON200)
+
+	require.Equal(t, http.StatusOK, response.StatusCode())
+	require.NotNil(t, response.JSON200)
+	require.Equalf(t, expectedStatus, response.JSON200.TxStatus, "status of response: %s does not match expected status: %s for tx ID %s", response.JSON200.TxStatus, expectedStatus, tx.TxID())
+}
+
 func TestPostSkipFee(t *testing.T) {
 	tt := []struct {
 		name string
@@ -472,27 +507,7 @@ func TestPostSkipFee(t *testing.T) {
 			arcClient, err := api.NewClientWithResponses(url)
 			require.NoError(t, err)
 
-			ctx := context.Background()
-
-			waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
-			params := &api.POSTTransactionParams{
-				XWaitForStatus:     &waitForStatus,
-				XSkipFeeValidation: handler.PtrTo(true),
-			}
-
-			arcBody := api.POSTTransactionJSONRequestBody{
-				RawTx: hex.EncodeToString(tx.ExtendedBytes()),
-			}
-
-			var response *api.POSTTransactionResponse
-			response, err = arcClient.POSTTransactionWithResponse(ctx, params, arcBody)
-			require.NoError(t, err)
-			fmt.Println("Response Transaction with Zero fee:", response)
-			fmt.Println("Response Transaction with Zero fee:", response.JSON200)
-
-			require.Equal(t, http.StatusOK, response.StatusCode())
-			require.NotNil(t, response.JSON200)
-			require.Equal(t, "SEEN_ON_NETWORK", response.JSON200.TxStatus)
+			postTxWithHeadersChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", true, false)
 
 		})
 	}
@@ -538,27 +553,7 @@ func TestPostSkipTxValidation(t *testing.T) {
 			arcClient, err := api.NewClientWithResponses(url)
 			require.NoError(t, err)
 
-			ctx := context.Background()
-
-			waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
-			params := &api.POSTTransactionParams{
-				XWaitForStatus:    &waitForStatus,
-				XSkipTxValidation: handler.PtrTo(true),
-			}
-
-			arcBody := api.POSTTransactionJSONRequestBody{
-				RawTx: hex.EncodeToString(tx.ExtendedBytes()),
-			}
-
-			var response *api.POSTTransactionResponse
-			response, err = arcClient.POSTTransactionWithResponse(ctx, params, arcBody)
-			require.NoError(t, err)
-			fmt.Println("Response Transaction with Zero fee:", response)
-			fmt.Println("Response Transaction with Zero fee:", response.JSON200)
-
-			require.Equal(t, http.StatusOK, response.StatusCode())
-			require.NotNil(t, response.JSON200)
-			require.Equal(t, "SEEN_ON_NETWORK", response.JSON200.TxStatus)
+			postTxWithHeadersChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", false, true)
 
 		})
 	}

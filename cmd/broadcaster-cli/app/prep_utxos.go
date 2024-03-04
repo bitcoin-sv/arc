@@ -3,11 +3,13 @@ package app
 import (
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+
 	"github.com/bitcoin-sv/arc/broadcaster"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/lib/keyset"
 	"github.com/libsv/go-bt/v2"
-	"github.com/ordishs/gocore"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -27,8 +29,7 @@ var prepCmd = &cobra.Command{
 		satoshisPerOutput := viper.GetInt64("broadcaster.utxoSet.outputSat")
 		miningFeeSat := viper.GetInt("broadcaster.miningFeeSatPerKb")
 
-		logLevel := gocore.NewLogLevelFromString("debug")
-		logger := gocore.Log("brdcst", logLevel)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 		var client broadcaster.ClientI
 		client, err := helper.CreateClient(&broadcaster.Auth{
@@ -58,9 +59,10 @@ var prepCmd = &cobra.Command{
 		if isPayback {
 			err := preparer.Payback()
 			if err != nil {
-				logger.Errorf("failed to submit pay back txs: %v", err)
+				logger.Error("failed to submit pay back txs", slog.String("err", err.Error()))
 				return errors.New("command failed")
 			}
+			return nil
 		}
 
 		err = preparer.PrepareUTXOSet(uint64(outputs), uint64(satoshisPerOutput))

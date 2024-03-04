@@ -2,7 +2,7 @@ package app
 
 import (
 	"errors"
-	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -18,6 +18,8 @@ var addrCmd = &cobra.Command{
 		keyFile := viper.GetString("keyFile")
 		isTestnet := viper.GetBool("testnet")
 
+		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
 		extendedBytes, err := os.ReadFile(keyFile)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -32,13 +34,13 @@ var addrCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Printf("funding key address: \t%s\n", fundingKeySet.Address(!isTestnet))
+		logger.Info("address", "funding key", fundingKeySet.Address(!isTestnet))
 
 		receivingKeySet, err := keyset.NewFromExtendedKeyStr(xpriv, "0/1")
 		if err != nil {
 			return err
 		}
-		fmt.Printf("receiving key address: \t%s\n", receivingKeySet.Address(!isTestnet))
+		logger.Info("address", "receiving key", receivingKeySet.Address(!isTestnet))
 
 		return nil
 	},

@@ -3,6 +3,7 @@ package broadcaster
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math"
 	"sort"
 	"time"
@@ -11,11 +12,10 @@ import (
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/unlocker"
-	"github.com/ordishs/go-utils"
 )
 
 type UTXOPreparer struct {
-	logger            utils.Logger
+	logger            *slog.Logger
 	Client            ClientI
 	FromKeySet        *keyset.KeySet
 	ToKeySet          *keyset.KeySet
@@ -26,7 +26,7 @@ type UTXOPreparer struct {
 	FeeQuote          *bt.FeeQuote
 }
 
-func NewUTXOPreparer(logger utils.Logger, client ClientI, fromKeySet *keyset.KeySet, toKeyset *keyset.KeySet, feeOpts ...func(fee *bt.Fee)) *UTXOPreparer {
+func NewUTXOPreparer(logger *slog.Logger, client ClientI, fromKeySet *keyset.KeySet, toKeyset *keyset.KeySet, feeOpts ...func(fee *bt.Fee)) *UTXOPreparer {
 	var fq = bt.NewFeeQuote()
 
 	stdFee := *stdFeeDefault
@@ -93,7 +93,7 @@ func (b *UTXOPreparer) Payback() error {
 			if err != nil {
 				return err
 			}
-			b.logger.Infof("paid back %d satoshis", batchSatoshis)
+			b.logger.Info("paid back satoshis", slog.Uint64("satoshis", batchSatoshis))
 
 			batchSatoshis = 0
 			txs = make([]*bt.Tx, 0, batchSize)
@@ -106,7 +106,7 @@ func (b *UTXOPreparer) Payback() error {
 		if err != nil {
 			return err
 		}
-		b.logger.Infof("paid back %d satoshis", batchSatoshis)
+		b.logger.Info("paid back satoshis", slog.Uint64("satoshis", batchSatoshis))
 	}
 
 	return nil

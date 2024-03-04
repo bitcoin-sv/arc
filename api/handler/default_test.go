@@ -376,6 +376,10 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			rec, ctx := createEchoPostRequest(inputTx, tc.contentType, "/v1/tx")
 
 			txHandler := &mock.TransactionHandlerMock{
+				HealthFunc: func(ctx context.Context) error {
+					return nil
+				},
+
 				GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
 					return tc.getTx, nil
 				},
@@ -517,6 +521,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
 				return nil, metamorph.ErrTransactionNotFound
 			},
+
+			HealthFunc: func(ctx context.Context) error {
+				return nil
+			},
 		}
 		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
 		require.NoError(t, err)
@@ -556,6 +564,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				txStatuses := []*metamorph.TransactionStatus{txResult}
 				return txStatuses, nil
+			},
+
+			HealthFunc: func(ctx context.Context) error {
+				return nil
 			},
 		}
 

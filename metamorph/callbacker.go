@@ -38,7 +38,7 @@ func (p *Processor) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 
 	for i := 0; i < CallbackTries; i++ {
 
-		logger.Info("Sending callback for transaction", slog.String("hash", tx.Hash.String()), slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("status", statusString), slog.Uint64("block height", tx.BlockHeight), slog.String("block hash", blockHash))
+		logger.Debug("Sending callback for transaction", slog.String("hash", tx.Hash.String()), slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("status", statusString), slog.Uint64("block height", tx.BlockHeight), slog.String("block hash", blockHash))
 
 		status := &Callback{
 			BlockHash:   &blockHash,

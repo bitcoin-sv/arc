@@ -49,17 +49,17 @@ func TestDoubleSpend(t *testing.T) {
 			tx, err := createTx(privateKey, address, utxos[0])
 			require.NoError(t, err)
 
-			url := "http://arc:9090/"
+			url := arcEndpoint
 
 			arcClient, err := api.NewClientWithResponses(url)
 			require.NoError(t, err)
 
 			//submit first transaction
-			postTxChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", tc.extFormat)
+			postTxChecksStatus(t, arcClient, tx, metamorph_api.Status_SEEN_ON_NETWORK, tc.extFormat)
 
 			// send double spending transaction when first tx is in mempool
 			txMempool := createTxToNewAddress(t, privateKey, utxos[0])
-			postTxChecksStatus(t, arcClient, txMempool, "REJECTED", tc.extFormat)
+			postTxChecksStatus(t, arcClient, txMempool, metamorph_api.Status_REJECTED, tc.extFormat)
 
 			generate(t, 10)
 
@@ -71,12 +71,12 @@ func TestDoubleSpend(t *testing.T) {
 
 			// send double spending transaction when first tx was mined
 			txMined := createTxToNewAddress(t, privateKey, utxos[0])
-			postTxChecksStatus(t, arcClient, txMined, "SEEN_IN_ORPHAN_MEMPOOL", tc.extFormat)
+			postTxChecksStatus(t, arcClient, txMined, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, tc.extFormat)
 		})
 	}
 }
 
-func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus string, extFormat bool) {
+func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus metamorph_api.Status, extFormat bool) {
 	rawTxString := hex.EncodeToString(tx.Bytes())
 	if extFormat {
 		rawTxString = hex.EncodeToString(tx.ExtendedBytes())
@@ -86,7 +86,7 @@ func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx
 	}
 
 	ctx := context.Background()
-	waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
+	waitForStatus := api.WaitForStatus(expectedStatus)
 	params := &api.POSTTransactionParams{
 		XWaitForStatus: &waitForStatus,
 	}
@@ -95,7 +95,7 @@ func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx
 
 	require.Equal(t, http.StatusOK, response.StatusCode())
 	require.NotNil(t, response.JSON200)
-	require.Equalf(t, expectedStatus, response.JSON200.TxStatus, "status of response: %s does not match expected status: %s for tx ID %s", response.JSON200.TxStatus, expectedStatus, tx.TxID())
+	require.Equalf(t, expectedStatus.String(), response.JSON200.TxStatus, "status of response: %s does not match expected status: %s for tx ID %s", response.JSON200.TxStatus, expectedStatus.String(), tx.TxID())
 }
 
 func createTxToNewAddress(t *testing.T, privateKey string, utxo NodeUnspentUtxo) *bt.Tx {

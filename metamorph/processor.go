@@ -320,25 +320,6 @@ func (p *Processor) processExpiredTransactions() {
 	for range p.processExpiredTxsTicker.C {
 		expiredTransactionItems := p.ProcessorResponseMap.Items(filterFunc)
 
-		var hashSlice []*chainhash.Hash
-		for hash := range expiredTransactionItems {
-			hashSlice = append(hashSlice, &hash)
-		}
-
-		// Before re-requesting/re-announcing txs check if they had been mined or seen in mempool in the meantime
-		minedOrSeen, err := p.store.GetMinedOrSeen(context.Background(), hashSlice)
-		if err == nil {
-			// if tx has been mined or seen in the meantime delete both from processor response map and expired transactions
-			p.logger.Info("found mined or seen txs", slog.Int("number", len(minedOrSeen)))
-
-			for _, data := range minedOrSeen {
-				processorResponse := expiredTransactionItems[*data.Hash]
-				processorResponse.Close()
-				p.ProcessorResponseMap.Delete(data.Hash)
-				delete(expiredTransactionItems, *data.Hash)
-			}
-		}
-
 		if len(expiredTransactionItems) > 0 {
 			p.logger.Info("Resending expired transactions", slog.Int("number", len(expiredTransactionItems)))
 			for txID, item := range expiredTransactionItems {
@@ -432,13 +413,6 @@ var statusValueMap = map[metamorph_api.Status]int{
 func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) error {
 	processorResponse, ok := p.ProcessorResponseMap.Get(hash)
 	if !ok {
-		if status == metamorph_api.Status_SEEN_ON_NETWORK {
-			p.statusUpdateCh <- store.UpdateStatus{
-				Hash:   *hash,
-				Status: status,
-			}
-		}
-
 		return nil
 	}
 
@@ -570,7 +544,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 			p.stored.AddDuration(time.Since(processorResponse.Start))
 
-			p.logger.Info("announcing transaction", slog.String("hash", req.Data.Hash.String()))
+			p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
 			// STEP 2: ANNOUNCED_TO_NETWORK
 			peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
 			processorResponse.SetPeers(peers)
@@ -618,6 +592,12 @@ func (p *Processor) Health() error {
 	}
 
 	if healthyConnections < minimumHealthyConnections {
+		p.logger.Warn("Less than expected healthy peers - ", slog.Int("number", healthyConnections))
+		return nil
+	}
+
+	if healthyConnections == 0 {
+		p.logger.Error("Metamorph not healthy")
 		return ErrUnhealthy
 	}
 

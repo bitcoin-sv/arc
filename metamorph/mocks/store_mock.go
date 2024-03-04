@@ -34,9 +34,6 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 //				panic("mock out the Get method")
 //			},
-//			GetMinedOrSeenFunc: func(ctx context.Context, hashes []*chainhash.Hash) ([]*store.StoreData, error) {
-//				panic("mock out the GetMinedOrSeen method")
-//			},
 //			GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
 //				panic("mock out the GetUnmined method")
 //			},
@@ -76,9 +73,6 @@ type MetamorphStoreMock struct {
 
 	// GetFunc mocks the Get method.
 	GetFunc func(ctx context.Context, key []byte) (*store.StoreData, error)
-
-	// GetMinedOrSeenFunc mocks the GetMinedOrSeen method.
-	GetMinedOrSeenFunc func(ctx context.Context, hashes []*chainhash.Hash) ([]*store.StoreData, error)
 
 	// GetUnminedFunc mocks the GetUnmined method.
 	GetUnminedFunc func(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error)
@@ -128,13 +122,6 @@ type MetamorphStoreMock struct {
 			Ctx context.Context
 			// Key is the key argument value.
 			Key []byte
-		}
-		// GetMinedOrSeen holds details about calls to the GetMinedOrSeen method.
-		GetMinedOrSeen []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Hashes is the hashes argument value.
-			Hashes []*chainhash.Hash
 		}
 		// GetUnmined holds details about calls to the GetUnmined method.
 		GetUnmined []struct {
@@ -192,7 +179,6 @@ type MetamorphStoreMock struct {
 	lockClose             sync.RWMutex
 	lockDel               sync.RWMutex
 	lockGet               sync.RWMutex
-	lockGetMinedOrSeen    sync.RWMutex
 	lockGetUnmined        sync.RWMutex
 	lockPing              sync.RWMutex
 	lockSet               sync.RWMutex
@@ -339,42 +325,6 @@ func (mock *MetamorphStoreMock) GetCalls() []struct {
 	mock.lockGet.RLock()
 	calls = mock.calls.Get
 	mock.lockGet.RUnlock()
-	return calls
-}
-
-// GetMinedOrSeen calls GetMinedOrSeenFunc.
-func (mock *MetamorphStoreMock) GetMinedOrSeen(ctx context.Context, hashes []*chainhash.Hash) ([]*store.StoreData, error) {
-	if mock.GetMinedOrSeenFunc == nil {
-		panic("MetamorphStoreMock.GetMinedOrSeenFunc: method is nil but MetamorphStore.GetMinedOrSeen was just called")
-	}
-	callInfo := struct {
-		Ctx    context.Context
-		Hashes []*chainhash.Hash
-	}{
-		Ctx:    ctx,
-		Hashes: hashes,
-	}
-	mock.lockGetMinedOrSeen.Lock()
-	mock.calls.GetMinedOrSeen = append(mock.calls.GetMinedOrSeen, callInfo)
-	mock.lockGetMinedOrSeen.Unlock()
-	return mock.GetMinedOrSeenFunc(ctx, hashes)
-}
-
-// GetMinedOrSeenCalls gets all the calls that were made to GetMinedOrSeen.
-// Check the length with:
-//
-//	len(mockedMetamorphStore.GetMinedOrSeenCalls())
-func (mock *MetamorphStoreMock) GetMinedOrSeenCalls() []struct {
-	Ctx    context.Context
-	Hashes []*chainhash.Hash
-} {
-	var calls []struct {
-		Ctx    context.Context
-		Hashes []*chainhash.Hash
-	}
-	mock.lockGetMinedOrSeen.RLock()
-	calls = mock.calls.GetMinedOrSeen
-	mock.lockGetMinedOrSeen.RUnlock()
 	return calls
 }
 

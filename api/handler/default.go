@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/bitcoin-sv/arc/api"
@@ -458,6 +459,13 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 		validateSpan.Finish()
 	}
 
+	err := m.TransactionHandler.Health(tracingCtx)
+	if err != nil {
+		statusCode, arcError := m.handleError(tracingCtx, transaction, err)
+		m.logger.Error("metamorph not healthy")
+		return statusCode, arcError, err
+	}
+
 	tx, err := m.TransactionHandler.SubmitTransaction(tracingCtx, transaction.Bytes(), transactionOptions)
 	if err != nil {
 		statusCode, arcError := m.handleError(tracingCtx, transaction, err)
@@ -492,6 +500,15 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions []*bt.Tx, transactionOptions *metamorph.TransactionOptions) (api.StatusCode, []interface{}, error) {
 	span, tracingCtx := opentracing.StartSpanFromContext(ctx, "ArcDefaultHandler:processTransactions")
 	defer span.Finish()
+
+	err := m.TransactionHandler.Health(tracingCtx)
+	if err != nil {
+		statusCode, arcError := m.handleError(tracingCtx, nil, err)
+		m.logger.Error("metamorph not healthy")
+		return statusCode, []interface{}{arcError}, err
+	}
+
+	m.logger.Info("Starting to process ", strconv.Itoa(len(transactions)), " transactions")
 
 	// validate before submitting array of transactions to metamorph
 	transactionsInput := make([][]byte, 0, len(transactions))

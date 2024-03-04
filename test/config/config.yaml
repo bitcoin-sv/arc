@@ -4,6 +4,7 @@ logFormat: tint # format of logging. Value can be one of text | json | tint
 profilerAddr: localhost:9999 # address to start profiler server on
 statisticsServerAddress: localhost:9005 # address to start statistics server on
 prometheusEndpoint: /metrics # endpoint for prometheus metrics
+prometheusAddr: :2112
 tracing: true # enable trancing
 grpcMessageSize: 100000000 # maximum grpc message size
 network: regtest # bitcoin network to connect to

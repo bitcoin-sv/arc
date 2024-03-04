@@ -119,11 +119,18 @@ func run() error {
 		}
 	}()
 
-	prometheusEndpoint := viper.GetString("prometheusEndpoint")
-	if prometheusEndpoint != "" {
-		logger.Info("Starting prometheus", slog.String("endpoint", prometheusEndpoint))
-		http.Handle(prometheusEndpoint, promhttp.Handler())
-	}
+	go func() {
+		prometheusAddr := viper.GetString("prometheusAddr")
+		prometheusEndpoint := viper.GetString("prometheusEndpoint")
+		if prometheusEndpoint != "" && prometheusAddr != "" {
+			logger.Info("Starting prometheus", slog.String("endpoint", prometheusEndpoint))
+			http.Handle(prometheusEndpoint, promhttp.Handler())
+			err = http.ListenAndServe(prometheusAddr, nil)
+			if err != nil {
+				logger.Error("failed to start prometheus server", slog.String("err", err.Error()))
+			}
+		}
+	}()
 
 	tracingOn := viper.GetBool("tracing")
 	if (useTracer != nil && *useTracer) || tracingOn {

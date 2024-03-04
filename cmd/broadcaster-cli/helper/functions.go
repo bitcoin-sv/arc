@@ -11,8 +11,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-func CreateClient(auth *broadcaster.Auth, isDryRun bool, isAPIClient bool) (broadcaster.ClientI, error) {
-	var client broadcaster.ClientI
+func CreateClient(auth *broadcaster.Auth, isDryRun bool, isAPIClient bool) (broadcaster.ArcClient, error) {
+	var client broadcaster.ArcClient
 	var err error
 	if isDryRun {
 		client = broadcaster.NewDryRunClient()

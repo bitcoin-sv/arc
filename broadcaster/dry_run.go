@@ -16,7 +16,7 @@ import (
 type DryRunClient struct {
 }
 
-func NewDryRunClient() ClientI {
+func NewDryRunClient() ArcClient {
 	return &DryRunClient{}
 }
 

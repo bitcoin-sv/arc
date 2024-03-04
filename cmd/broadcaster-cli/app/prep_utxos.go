@@ -30,7 +30,7 @@ var prepCmd = &cobra.Command{
 
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-		var client broadcaster.ClientI
+		var client broadcaster.ArcClient
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
 		}, false, true)
@@ -51,7 +51,7 @@ var prepCmd = &cobra.Command{
 			feeOpts = append(feeOpts, broadcaster.WithMiningFee(miningFeeSat))
 		}
 
-		preparer := broadcaster.NewUTXOPreparer(logger, client, fundingKeySet, receivingKeySet, feeOpts...)
+		preparer := broadcaster.NewUTXOPreparer(logger, client, fundingKeySet, receivingKeySet, nil, feeOpts...)
 		preparer.IsTestnet = isTestnet
 		preparer.CallbackURL = callbackURL
 

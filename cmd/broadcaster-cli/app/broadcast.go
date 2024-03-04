@@ -80,7 +80,7 @@ var broadcastCmd = &cobra.Command{
 
 		ctx := context.Background()
 
-		var client broadcaster.ClientI
+		var client broadcaster.ArcClient
 		client, err = helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
 		}, isDryRun, isAPIClient)

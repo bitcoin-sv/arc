@@ -10,12 +10,17 @@ import (
 	"github.com/bitcoin-sv/arc/lib/keyset"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/libsv/go-bt/v2/unlocker"
 )
 
+type UtxoClient interface {
+	GetUTXOs(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
+}
+
 type UTXOPreparer struct {
 	logger            *slog.Logger
-	Client            ClientI
+	Client            ArcClient
 	FromKeySet        *keyset.KeySet
 	ToKeySet          *keyset.KeySet
 	Outputs           int64
@@ -23,9 +28,10 @@ type UTXOPreparer struct {
 	IsTestnet         bool
 	CallbackURL       string
 	FeeQuote          *bt.FeeQuote
+	UtxoClient        UtxoClient
 }
 
-func NewUTXOPreparer(logger *slog.Logger, client ClientI, fromKeySet *keyset.KeySet, toKeyset *keyset.KeySet, feeOpts ...func(fee *bt.Fee)) *UTXOPreparer {
+func NewUTXOPreparer(logger *slog.Logger, client ArcClient, fromKeySet *keyset.KeySet, toKeyset *keyset.KeySet, utxoClient UtxoClient, feeOpts ...func(fee *bt.Fee)) *UTXOPreparer {
 	var fq = bt.NewFeeQuote()
 
 	stdFee := *stdFeeDefault
@@ -46,12 +52,13 @@ func NewUTXOPreparer(logger *slog.Logger, client ClientI, fromKeySet *keyset.Key
 		ToKeySet:   toKeyset,
 		IsTestnet:  true,
 		FeeQuote:   fq,
+		UtxoClient: utxoClient,
 	}
 }
 
 // Payback sends all funds currently held on the receiving address back to the funding address
 func (b *UTXOPreparer) Payback() error {
-	utxos, err := b.ToKeySet.GetUTXOs(!b.IsTestnet)
+	utxos, err := b.UtxoClient.GetUTXOs(!b.IsTestnet, b.ToKeySet.Script, b.ToKeySet.Address(!b.IsTestnet))
 	if err != nil {
 		return err
 	}

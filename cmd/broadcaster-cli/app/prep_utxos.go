@@ -26,8 +26,6 @@ var prepCmd = &cobra.Command{
 		authorization := viper.GetString("authorization")
 		keyFile := viper.GetString("keyFile")
 
-		outputs := viper.GetInt64("broadcaster.utxoSet.outputs")
-		satoshisPerOutput := viper.GetInt64("broadcaster.utxoSet.outputSat")
 		miningFeeSat := viper.GetInt("broadcaster.miningFeeSatPerKb")
 
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -60,18 +58,12 @@ var prepCmd = &cobra.Command{
 		if isPayback {
 			err := preparer.Payback()
 			if err != nil {
-				logger.Error("failed to submit pay back txs", slog.String("err", err.Error()))
-				return errors.New("command failed")
+				return fmt.Errorf("failed to submit pay back txs: %v", err)
 			}
 			return nil
 		}
 
-		err = preparer.PrepareUTXOSet(uint64(outputs), uint64(satoshisPerOutput))
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return errors.New("prepare-utxos functionality not yet implemented")
 	},
 }
 

@@ -259,6 +259,7 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		,reject_reason
 		,raw_tx
 		,locked_by
+		,inserted_at_num
 	) VALUES (
 		 $1
 		,$2
@@ -273,7 +274,8 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		,$11
 		,$12
 		,$13
-	);`
+		,$14
+	) ON CONFLICT DO NOTHING;`
 
 	var txHash []byte
 	var blockHash []byte
@@ -305,6 +307,7 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		value.RejectReason,
 		value.RawTx,
 		p.hostname,
+		value.InsertedAtNum,
 	)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)

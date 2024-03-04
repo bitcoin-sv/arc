@@ -50,18 +50,22 @@ func NewUTXOPreparer(logger *slog.Logger, client ClientI, fromKeySet *keyset.Key
 	}
 }
 
+// Payback sends all funds currently held on the receiving address back to the funding address
 func (b *UTXOPreparer) Payback() error {
 	utxos, err := b.ToKeySet.GetUTXOs(!b.IsTestnet)
 	if err != nil {
 		return err
 	}
-	const feePerKb = 3
 	const maxOutputs = 100
 	const batchSize = 20
 
 	tx := bt.NewTx()
 	txSatoshis := uint64(0)
 	batchSatoshis := uint64(0)
+	miningFee, err := b.FeeQuote.Fee(bt.FeeTypeStandard)
+	if err != nil {
+		return err
+	}
 
 	txs := make([]*bt.Tx, 0, batchSize)
 
@@ -77,7 +81,8 @@ func (b *UTXOPreparer) Payback() error {
 		// create payback transactions with maximum 100 inputs
 		if len(tx.Inputs) >= maxOutputs {
 			batchSatoshis += txSatoshis
-			err = b.addOutputs(tx, txSatoshis, feePerKb)
+
+			err = b.addOutputs(tx, txSatoshis, uint64(miningFee.MiningFee.Satoshis))
 			if err != nil {
 				return err
 			}
@@ -113,9 +118,8 @@ func (b *UTXOPreparer) Payback() error {
 }
 
 func (b *UTXOPreparer) addOutputs(tx *bt.Tx, totalSatoshis uint64, feePerKb uint64) error {
-	var fee uint64
 
-	fee = uint64(math.Ceil(float64(tx.Size())/1000) * float64(feePerKb))
+	fee := uint64(math.Ceil(float64(tx.Size())/1000) * float64(feePerKb))
 
 	err := tx.PayTo(b.FromKeySet.Script, totalSatoshis-fee)
 	if err != nil {
@@ -128,18 +132,6 @@ func (b *UTXOPreparer) addOutputs(tx *bt.Tx, totalSatoshis uint64, feePerKb uint
 		return err
 	}
 
-	return nil
-}
-
-func (b *UTXOPreparer) submitPaybackTx(tx *bt.Tx) error {
-	res, err := b.Client.BroadcastTransaction(context.Background(), tx, metamorph_api.Status_SEEN_ON_NETWORK, b.CallbackURL)
-	if err != nil {
-		return err
-	}
-
-	if res.Status != metamorph_api.Status_SEEN_ON_NETWORK {
-		return fmt.Errorf("payback transaction does not have %s status: %s", metamorph_api.Status_SEEN_ON_NETWORK.String(), res.Status.String())
-	}
 	return nil
 }
 
@@ -159,6 +151,7 @@ func (b *UTXOPreparer) submitPaybackTxs(txs []*bt.Tx) error {
 	return nil
 }
 
+// PrepareUTXOSet creates a UTXO set with a certain number of outputs and a minimum nr of satoshis per output
 func (b *UTXOPreparer) PrepareUTXOSet(outputs uint64, satoshisPerOutput uint64) error {
 	addr := b.FromKeySet.Address(!b.IsTestnet)
 
@@ -167,13 +160,8 @@ func (b *UTXOPreparer) PrepareUTXOSet(outputs uint64, satoshisPerOutput uint64) 
 		return err
 	}
 
-	const (
-		requiredNrOutputs = 1000
-		requiredOutputSat = 1000
-	)
-
 	if balance.Confirmed < outputs*satoshisPerOutput {
-		return fmt.Errorf("not enough funds on wallet: %d - at least %d sat needed", balance.Confirmed, requiredNrOutputs*requiredOutputSat)
+		return fmt.Errorf("not enough funds on wallet: %d - at least %d sat needed", balance.Confirmed, outputs*satoshisPerOutput)
 	}
 
 	utxos, err := b.FromKeySet.GetUTXOs(!b.IsTestnet)
@@ -190,11 +178,12 @@ func (b *UTXOPreparer) PrepareUTXOSet(outputs uint64, satoshisPerOutput uint64) 
 	})
 
 	// ensure that there exist at least the required nr of outputs with at least the required nr of satoshis
-	streamUtxos := make([]*bt.UTXO, 0, requiredNrOutputs)
+	streamUtxos := make([]*bt.UTXO, 0, outputs)
 	consolidationUtxos := make([]*bt.UTXO, 0, len(utxos))
 	for _, utxo := range utxos {
-		if utxo.Satoshis >= requiredOutputSat {
-			streamUtxos = append(streamUtxos, utxo)
+		if utxo.Satoshis >= satoshisPerOutput {
+			//lint:ignore SA4010 we love invalid regular expressions!
+			streamUtxos = append(streamUtxos, utxo) //nolint
 		} else {
 			consolidationUtxos = append(consolidationUtxos, utxo)
 		}
@@ -210,7 +199,7 @@ func (b *UTXOPreparer) PrepareUTXOSet(outputs uint64, satoshisPerOutput uint64) 
 		return err
 	}
 
-	// Todo: create missing outputs
+	// Todo: create outputs
 
 	return nil
 }

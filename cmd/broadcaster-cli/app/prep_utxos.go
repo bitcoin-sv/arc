@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 
@@ -75,11 +76,18 @@ var prepCmd = &cobra.Command{
 }
 
 func init() {
+	var err error
+
 	prepCmd.Flags().Bool("payback", false, "Send all funds from receiving key set to funding key set")
-	viper.BindPFlag("payback", prepCmd.Flags().Lookup("payback"))
+	err = viper.BindPFlag("payback", prepCmd.Flags().Lookup("payback"))
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	prepCmd.Flags().String("api-url", "", "Send all funds from receiving key set to funding key set")
-	viper.BindPFlag("api-url", prepCmd.Flags().Lookup("api-url"))
-
+	err = viper.BindPFlag("api-url", prepCmd.Flags().Lookup("api-url"))
+	if err != nil {
+		log.Fatal(err)
+	}
 	rootCmd.AddCommand(prepCmd)
 }

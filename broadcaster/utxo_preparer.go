@@ -15,13 +15,14 @@ import (
 )
 
 const (
-	maxOutputsDefault = 100
-	batchSizeDefault  = 20
+	maxInputsDefault = 100
+	batchSizeDefault = 20
 	isTestnetDefault  = true
 )
 
 type UtxoClient interface {
 	GetUTXOs(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
+	GetBalance(mainnet bool, address string) (int64, error)
 }
 
 type UTXOPreparer struct {
@@ -36,8 +37,8 @@ type UTXOPreparer struct {
 	feeQuote          *bt.FeeQuote
 	utxoClient        UtxoClient
 
-	maxOutputs int
-	batchSize  int
+	maxInputs int
+	batchSize int
 }
 
 func WithFees(miningFeeSatPerKb int) func(preparer *UTXOPreparer) {
@@ -63,9 +64,9 @@ func WithBatchSize(batchSize int) func(preparer *UTXOPreparer) {
 	}
 }
 
-func WithMaxOutputs(maxOutputs int) func(preparer *UTXOPreparer) {
+func WithMaxInputs(maxInputs int) func(preparer *UTXOPreparer) {
 	return func(preparer *UTXOPreparer) {
-		preparer.maxOutputs = maxOutputs
+		preparer.maxInputs = maxInputs
 	}
 }
 
@@ -91,7 +92,7 @@ func NewUTXOPreparer(logger *slog.Logger, client ArcClient, fromKeySet *keyset.K
 		feeQuote:   bt.NewFeeQuote(),
 		utxoClient: utxoClient,
 		batchSize:  batchSizeDefault,
-		maxOutputs: maxOutputsDefault,
+		maxInputs:  maxInputsDefault,
 	}
 
 	for _, opt := range opts {
@@ -128,10 +129,10 @@ func (b *UTXOPreparer) Payback() error {
 		txSatoshis += utxo.Satoshis
 
 		// create payback transactions with maximum 100 inputs
-		if len(tx.Inputs) >= b.maxOutputs {
+		if len(tx.Inputs) >= b.maxInputs {
 			batchSatoshis += txSatoshis
 
-			err = b.addOutputs(tx, txSatoshis, uint64(miningFee.MiningFee.Satoshis))
+			err = b.addOutput(tx, txSatoshis, uint64(miningFee.MiningFee.Satoshis))
 			if err != nil {
 				return err
 			}
@@ -158,7 +159,7 @@ func (b *UTXOPreparer) Payback() error {
 	if len(tx.Inputs) > 0 {
 		batchSatoshis += txSatoshis
 
-		err = b.addOutputs(tx, txSatoshis, uint64(miningFee.MiningFee.Satoshis))
+		err = b.addOutput(tx, txSatoshis, uint64(miningFee.MiningFee.Satoshis))
 		if err != nil {
 			return err
 		}
@@ -178,7 +179,7 @@ func (b *UTXOPreparer) Payback() error {
 	return nil
 }
 
-func (b *UTXOPreparer) addOutputs(tx *bt.Tx, totalSatoshis uint64, feePerKb uint64) error {
+func (b *UTXOPreparer) addOutput(tx *bt.Tx, totalSatoshis uint64, feePerKb uint64) error {
 
 	fee := uint64(math.Ceil(float64(tx.Size())/1000) * float64(feePerKb))
 
@@ -186,6 +187,35 @@ func (b *UTXOPreparer) addOutputs(tx *bt.Tx, totalSatoshis uint64, feePerKb uint
 	if err != nil {
 		return err
 	}
+
+	unlockerGetter := unlocker.Getter{PrivateKey: b.toKeySet.PrivateKey}
+	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (b *UTXOPreparer) addOutputs(tx *bt.Tx, totalSatoshis uint64, requestedSatoshis uint64, feePerKb uint64) error {
+
+	if requestedSatoshis > totalSatoshis {
+		err := b.addOutput(tx, totalSatoshis, feePerKb)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	for remaining := totalSatoshis; remaining > 0; remaining = totalSatoshis - requestedSatoshis {
+		err := tx.PayTo(b.fromKeySet.Script, requestedSatoshis)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := tx.ChangeToAddress(b.fromKeySet.Address(!b.isTestnet), b.feeQuote)
 
 	unlockerGetter := unlocker.Getter{PrivateKey: b.toKeySet.PrivateKey}
 	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
@@ -210,4 +240,67 @@ func (b *UTXOPreparer) submitPaybackTxs(txs []*bt.Tx) error {
 	}
 
 	return nil
+}
+
+func (b *UTXOPreparer) CreateUtxos(requestedOutputs int, requestedSatoshisPerOutput uint64) ([]*bt.UTXO, error) {
+	utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.toKeySet.Script, b.toKeySet.Address(!b.isTestnet))
+	if err != nil {
+		return nil, err
+	}
+
+	requestedOutputsSatoshis := int64(requestedOutputs) * int64(requestedSatoshisPerOutput)
+
+	balance, err := b.utxoClient.GetBalance(!b.isTestnet, b.fromKeySet.Address(!b.isTestnet))
+	if err != nil {
+		return nil, err
+	}
+
+	if requestedOutputsSatoshis > balance {
+		return nil, fmt.Errorf("requested total of satoshis %d exceeds balance on funding keyset %d", requestedOutputsSatoshis, balance)
+	}
+	miningFee, err := b.feeQuote.Fee(bt.FeeTypeStandard)
+	utxoSet := make([]*bt.UTXO, 0, requestedOutputs)
+
+	consolidationTxs := make([]*bt.Tx, 0)
+	txSatoshis := uint64(0)
+
+	for _, utxo := range utxos {
+		if utxo.Satoshis == requestedSatoshisPerOutput {
+			utxoSet = append(utxos, utxo)
+			continue
+		}
+
+		if utxo.Satoshis < requestedSatoshisPerOutput {
+			tx := bt.NewTx()
+			err = tx.FromUTXOs(utxo)
+			if err != nil {
+				return nil, err
+			}
+
+			txSatoshis += utxo.Satoshis
+
+			// create payback transactions with maximum 100 inputs
+			if len(tx.Inputs) >= b.maxInputs {
+
+				err = b.addOutputs(tx, txSatoshis, requestedSatoshisPerOutput, uint64(miningFee.MiningFee.Satoshis))
+				if err != nil {
+					return nil, err
+				}
+
+				consolidationTxs = append(consolidationTxs, tx)
+
+				tx = bt.NewTx()
+				txSatoshis = 0
+			}
+
+			if len(consolidationTxs) == b.batchSize {
+				err = b.submitPaybackTxs(consolidationTxs)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	return utxoSet, nil
 }

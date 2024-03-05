@@ -25,8 +25,8 @@ type wocUtxo struct {
 }
 
 type wocBalance struct {
-	Confirmed   uint64 `json:"confirmed"`
-	Unconfirmed uint64 `json:"unconfirmed"`
+	Confirmed   int64 `json:"confirmed"`
+	Unconfirmed int64 `json:"unconfirmed"`
 }
 
 func (w *WocClient) GetUTXOs(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error) {
@@ -90,5 +90,5 @@ func (w *WocClient) GetBalance(mainnet bool, address string) (int64, error) {
 		return 0, err
 	}
 
-	return int64(balance.Confirmed + balance.Confirmed), nil
+	return balance.Confirmed + balance.Unconfirmed, nil
 }

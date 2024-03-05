@@ -36,7 +36,10 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fundingBalance, err := wocClient.GetBalance(isTestnet, fundingKeySet.Address(!isTestnet))
+		fundingBalance, err := wocClient.GetBalance(!isTestnet, fundingKeySet.Address(!isTestnet))
+		if err != nil {
+			return err
+		}
 
 		logger.Info("balance", slog.Int64("funding key", fundingBalance))
 
@@ -44,7 +47,7 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		receivingBalance, err := wocClient.GetBalance(isTestnet, receivingKeySet.Address(!isTestnet))
+		receivingBalance, err := wocClient.GetBalance(!isTestnet, receivingKeySet.Address(!isTestnet))
 		logger.Info("balance", slog.Int64("receiving key", receivingBalance))
 
 		return nil

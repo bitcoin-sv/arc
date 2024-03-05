@@ -1,7 +1,6 @@
-package app
+package payback
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -15,13 +14,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-var prepCmd = &cobra.Command{
-	Use:   "prepare-utxos",
-	Short: "Create UTXO set to be used with broadcaster",
+var PaybackCmd = &cobra.Command{
+	Use:   "payback",
+	Short: "Pay all funds from receiving key set to funding keyset",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		isTestnet := viper.GetBool("testnet")
-		isPayback := viper.GetBool("payback")
 		callbackURL := viper.GetString("callback")
 		authorization := viper.GetString("authorization")
 		keyFile := viper.GetString("keyFile")
@@ -54,31 +52,27 @@ var prepCmd = &cobra.Command{
 			broadcaster.WithCallbackURL(callbackURL),
 		)
 
-		if isPayback {
-			err := preparer.Payback()
-			if err != nil {
-				return fmt.Errorf("failed to submit pay back txs: %v", err)
-			}
-			return nil
+		err = preparer.Payback()
+		if err != nil {
+			return fmt.Errorf("failed to submit pay back txs: %v", err)
 		}
-
-		return errors.New("prepare-utxos functionality not yet implemented")
+		return nil
 	},
 }
 
 func init() {
 	var err error
 
-	prepCmd.Flags().Bool("payback", false, "Send all funds from receiving key set to funding key set")
-	err = viper.BindPFlag("payback", prepCmd.Flags().Lookup("payback"))
+	PaybackCmd.Flags().Bool("payback", false, "Send all funds from receiving key set to funding key set")
+	err = viper.BindPFlag("payback", PaybackCmd.Flags().Lookup("payback"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	prepCmd.Flags().String("api-url", "", "Send all funds from receiving key set to funding key set")
-	err = viper.BindPFlag("api-url", prepCmd.Flags().Lookup("api-url"))
+	PaybackCmd.Flags().String("api-url", "", "Send all funds from receiving key set to funding key set")
+	err = viper.BindPFlag("api-url", PaybackCmd.Flags().Lookup("api-url"))
 	if err != nil {
 		log.Fatal(err)
 	}
-	rootCmd.AddCommand(prepCmd)
+
 }

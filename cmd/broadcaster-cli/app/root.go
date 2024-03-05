@@ -2,12 +2,15 @@ package app
 
 import (
 	"fmt"
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/broadcast"
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos"
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/wallet"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"log"
 )
 
-var rootCmd = &cobra.Command{
+var RootCmd = &cobra.Command{
 	Use:   "broadcaster",
 	Short: "cli tool to broadcast transactions to ARC",
 }
@@ -16,34 +19,37 @@ func init() {
 	var err error
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().Bool("testnet", false, "Use testnet")
-	err = viper.BindPFlag("testnet", rootCmd.PersistentFlags().Lookup("testnet"))
+	RootCmd.PersistentFlags().Bool("testnet", false, "Use testnet")
+	err = viper.BindPFlag("testnet", RootCmd.PersistentFlags().Lookup("testnet"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	rootCmd.PersistentFlags().String("authorization", "", "Authorization header to use for the http api client")
-	err = viper.BindPFlag("authorization", rootCmd.PersistentFlags().Lookup("authorization"))
+	RootCmd.PersistentFlags().String("authorization", "", "Authorization header to use for the http api client")
+	err = viper.BindPFlag("authorization", RootCmd.PersistentFlags().Lookup("authorization"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	rootCmd.PersistentFlags().String("callback", "", "URL which will be called with ARC callbacks")
-	err = viper.BindPFlag("callback", rootCmd.PersistentFlags().Lookup("callback"))
+	RootCmd.PersistentFlags().String("callback", "", "URL which will be called with ARC callbacks")
+	err = viper.BindPFlag("callback", RootCmd.PersistentFlags().Lookup("callback"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	rootCmd.PersistentFlags().String("keyfile", "", "private key from file (arc.key) to use for funding transactions")
-	err = viper.BindPFlag("keyFile", rootCmd.PersistentFlags().Lookup("keyfile"))
+	RootCmd.PersistentFlags().String("keyfile", "", "private key from file (arc.key) to use for funding transactions")
+	err = viper.BindPFlag("keyFile", RootCmd.PersistentFlags().Lookup("keyfile"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	RootCmd.AddCommand(broadcast.BroadcastCmd)
+	RootCmd.AddCommand(wallet.WalletCmd)
+	RootCmd.AddCommand(utxos.UtxosCmd)
 }
 
 func Execute() error {
-	return rootCmd.Execute()
+	return RootCmd.Execute()
 }
 
 func initConfig() {

@@ -1,4 +1,4 @@
-package app
+package address
 
 import (
 	"errors"
@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var addrCmd = &cobra.Command{
+var AddrCmd = &cobra.Command{
 	Use:   "address",
 	Short: "show address of the wallet",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -44,8 +44,4 @@ var addrCmd = &cobra.Command{
 
 		return nil
 	},
-}
-
-func init() {
-	walletCmd.AddCommand(addrCmd)
 }

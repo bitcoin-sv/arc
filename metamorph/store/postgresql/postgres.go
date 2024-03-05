@@ -275,7 +275,7 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		,$12
 		,$13
 		,$14
-	) ON CONFLICT DO NOTHING;`
+	) ON CONFLICT (hash) DO UPDATE SET inserted_at_num=$14`
 
 	var txHash []byte
 	var blockHash []byte

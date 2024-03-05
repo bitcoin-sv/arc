@@ -75,7 +75,7 @@ func TestSetStatusAndError(t *testing.T) {
 		assert.Equal(t, metamorph_api.Status_RECEIVED, response.Status)
 
 		err := fmt.Errorf("test error")
-		response.setStatusAndError(metamorph_api.Status_SENT_TO_NETWORK, err, "test")
+		response.setStatusAndError(metamorph_api.Status_SENT_TO_NETWORK, err)
 		assert.Equal(t, err, response.Err)
 		assert.Equal(t, err, response.GetErr())
 		assert.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, response.Status)
@@ -100,7 +100,7 @@ func TestSetStatusAndError(t *testing.T) {
 			}
 		}()
 
-		response.setStatusAndError(metamorph_api.Status_SENT_TO_NETWORK, err, "test")
+		response.setStatusAndError(metamorph_api.Status_SENT_TO_NETWORK, err)
 		wg.Wait()
 
 		assert.Equal(t, err, response.Err)

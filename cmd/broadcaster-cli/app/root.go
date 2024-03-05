@@ -3,8 +3,8 @@ package app
 import (
 	"fmt"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/broadcast"
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos"
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/wallet"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"log"
@@ -44,7 +44,7 @@ func init() {
 	}
 
 	RootCmd.AddCommand(broadcast.BroadcastCmd)
-	RootCmd.AddCommand(wallet.WalletCmd)
+	RootCmd.AddCommand(keyset.WalletCmd)
 	RootCmd.AddCommand(utxos.UtxosCmd)
 }
 

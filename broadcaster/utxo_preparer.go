@@ -17,6 +17,7 @@ import (
 const (
 	maxOutputsDefault = 100
 	batchSizeDefault  = 20
+	isTestnetDefault  = true
 )
 
 type UtxoClient interface {
@@ -25,15 +26,15 @@ type UtxoClient interface {
 
 type UTXOPreparer struct {
 	logger            *slog.Logger
-	Client            ArcClient
-	FromKeySet        *keyset.KeySet
-	ToKeySet          *keyset.KeySet
+	client            ArcClient
+	fromKeySet        *keyset.KeySet
+	toKeySet          *keyset.KeySet
 	Outputs           int64
 	SatoshisPerOutput uint64
-	IsTestnet         bool
+	isTestnet         bool
 	CallbackURL       string
-	FeeQuote          *bt.FeeQuote
-	UtxoClient        UtxoClient
+	feeQuote          *bt.FeeQuote
+	utxoClient        UtxoClient
 
 	maxOutputs int
 	batchSize  int
@@ -52,7 +53,7 @@ func WithFees(miningFeeSatPerKb int) func(preparer *UTXOPreparer) {
 		fq.AddQuote(bt.FeeTypeData, &newStdFee)
 		fq.AddQuote(bt.FeeTypeStandard, &newDataFee)
 
-		preparer.FeeQuote = fq
+		preparer.feeQuote = fq
 	}
 }
 
@@ -68,15 +69,27 @@ func WithMaxOutputs(maxOutputs int) func(preparer *UTXOPreparer) {
 	}
 }
 
+func WithIsTestnet(isTestnet bool) func(preparer *UTXOPreparer) {
+	return func(preparer *UTXOPreparer) {
+		preparer.isTestnet = isTestnet
+	}
+}
+
+func WithCallbackURL(callbackURL string) func(preparer *UTXOPreparer) {
+	return func(preparer *UTXOPreparer) {
+		preparer.CallbackURL = callbackURL
+	}
+}
+
 func NewUTXOPreparer(logger *slog.Logger, client ArcClient, fromKeySet *keyset.KeySet, toKeyset *keyset.KeySet, utxoClient UtxoClient, opts ...func(p *UTXOPreparer)) *UTXOPreparer {
 	utxoPreparer := &UTXOPreparer{
 		logger:     logger,
-		Client:     client,
-		FromKeySet: fromKeySet,
-		ToKeySet:   toKeyset,
-		IsTestnet:  true,
-		FeeQuote:   bt.NewFeeQuote(),
-		UtxoClient: utxoClient,
+		client:     client,
+		fromKeySet: fromKeySet,
+		toKeySet:   toKeyset,
+		isTestnet:  isTestnetDefault,
+		feeQuote:   bt.NewFeeQuote(),
+		utxoClient: utxoClient,
 		batchSize:  batchSizeDefault,
 		maxOutputs: maxOutputsDefault,
 	}
@@ -90,7 +103,7 @@ func NewUTXOPreparer(logger *slog.Logger, client ArcClient, fromKeySet *keyset.K
 
 // Payback sends all funds currently held on the receiving address back to the funding address
 func (b *UTXOPreparer) Payback() error {
-	utxos, err := b.UtxoClient.GetUTXOs(!b.IsTestnet, b.ToKeySet.Script, b.ToKeySet.Address(!b.IsTestnet))
+	utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.toKeySet.Script, b.toKeySet.Address(!b.isTestnet))
 	if err != nil {
 		return err
 	}
@@ -98,7 +111,7 @@ func (b *UTXOPreparer) Payback() error {
 	tx := bt.NewTx()
 	txSatoshis := uint64(0)
 	batchSatoshis := uint64(0)
-	miningFee, err := b.FeeQuote.Fee(bt.FeeTypeStandard)
+	miningFee, err := b.feeQuote.Fee(bt.FeeTypeStandard)
 	if err != nil {
 		return err
 	}
@@ -169,12 +182,12 @@ func (b *UTXOPreparer) addOutputs(tx *bt.Tx, totalSatoshis uint64, feePerKb uint
 
 	fee := uint64(math.Ceil(float64(tx.Size())/1000) * float64(feePerKb))
 
-	err := tx.PayTo(b.FromKeySet.Script, totalSatoshis-fee)
+	err := tx.PayTo(b.fromKeySet.Script, totalSatoshis-fee)
 	if err != nil {
 		return err
 	}
 
-	unlockerGetter := unlocker.Getter{PrivateKey: b.ToKeySet.PrivateKey}
+	unlockerGetter := unlocker.Getter{PrivateKey: b.toKeySet.PrivateKey}
 	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
 	if err != nil {
 		return err
@@ -185,7 +198,7 @@ func (b *UTXOPreparer) addOutputs(tx *bt.Tx, totalSatoshis uint64, feePerKb uint
 
 func (b *UTXOPreparer) submitPaybackTxs(txs []*bt.Tx) error {
 
-	resp, err := b.Client.BroadcastTransactions(context.Background(), txs, metamorph_api.Status_SEEN_ON_NETWORK, b.CallbackURL)
+	resp, err := b.client.BroadcastTransactions(context.Background(), txs, metamorph_api.Status_SEEN_ON_NETWORK, b.CallbackURL)
 	if err != nil {
 		return err
 	}

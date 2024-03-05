@@ -50,9 +50,9 @@ var prepCmd = &cobra.Command{
 
 		preparer := broadcaster.NewUTXOPreparer(logger, client, fundingKeySet, receivingKeySet, &wocClient,
 			broadcaster.WithFees(miningFeeSat),
+			broadcaster.WithIsTestnet(isTestnet),
+			broadcaster.WithCallbackURL(callbackURL),
 		)
-		preparer.IsTestnet = isTestnet
-		preparer.CallbackURL = callbackURL
 
 		if isPayback {
 			err := preparer.Payback()

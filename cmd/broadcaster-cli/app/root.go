@@ -43,8 +43,8 @@ func init() {
 		log.Fatal(err)
 	}
 
-	RootCmd.AddCommand(keyset.WalletCmd)
-	RootCmd.AddCommand(utxos.UtxosCmd)
+	RootCmd.AddCommand(keyset.Cmd)
+	RootCmd.AddCommand(utxos.Cmd)
 }
 
 func Execute() error {

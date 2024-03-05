@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var PaybackCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "payback",
 	Short: "Pay all funds from receiving key set to funding keyset",
 	RunE: func(cmd *cobra.Command, args []string) error {

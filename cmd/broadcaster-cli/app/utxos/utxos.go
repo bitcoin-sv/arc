@@ -8,7 +8,7 @@ import (
 	"log"
 )
 
-var UtxosCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "utxos",
 	Short: "Create UTXO set to be used with broadcaster",
 }
@@ -16,12 +16,12 @@ var UtxosCmd = &cobra.Command{
 func init() {
 	var err error
 
-	UtxosCmd.PersistentFlags().String("api-url", "", "Send all funds from receiving key set to funding key set")
-	err = viper.BindPFlag("api-url", UtxosCmd.PersistentFlags().Lookup("api-url"))
+	Cmd.PersistentFlags().String("api-url", "", "Send all funds from receiving key set to funding key set")
+	err = viper.BindPFlag("api-url", Cmd.PersistentFlags().Lookup("api-url"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	UtxosCmd.AddCommand(payback.PaybackCmd)
-	UtxosCmd.AddCommand(create.CreateCmd)
+	Cmd.AddCommand(payback.Cmd)
+	Cmd.AddCommand(create.Cmd)
 }

@@ -1,7 +1,8 @@
-package address
+package balance
 
 import (
 	"errors"
+	"github.com/bitcoin-sv/arc/lib/woc_client"
 	"log/slog"
 	"os"
 	"strings"
@@ -12,8 +13,8 @@ import (
 )
 
 var Cmd = &cobra.Command{
-	Use:   "address",
-	Short: "show address of the keyset",
+	Use:   "balance",
+	Short: "show balance of the keyset",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		keyFile := viper.GetString("keyFile")
 		isTestnet := viper.GetBool("testnet")
@@ -29,18 +30,22 @@ var Cmd = &cobra.Command{
 		}
 		xpriv := strings.TrimRight(strings.TrimSpace((string)(extendedBytes)), "\n")
 
+		wocClient := woc_client.New()
+
 		fundingKeySet, err := keyset.NewFromExtendedKeyStr(xpriv, "0/0")
 		if err != nil {
 			return err
 		}
+		fundingBalance, err := wocClient.GetBalance(isTestnet, fundingKeySet.Address(!isTestnet))
 
-		logger.Info("address", slog.String("funding key", fundingKeySet.Address(!isTestnet)))
+		logger.Info("balance", slog.Int64("funding key", fundingBalance))
 
 		receivingKeySet, err := keyset.NewFromExtendedKeyStr(xpriv, "0/1")
 		if err != nil {
 			return err
 		}
-		logger.Info("address", slog.String("receiving key", receivingKeySet.Address(!isTestnet)))
+		receivingBalance, err := wocClient.GetBalance(isTestnet, receivingKeySet.Address(!isTestnet))
+		logger.Info("balance", slog.Int64("receiving key", receivingBalance))
 
 		return nil
 	},

@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var CreateCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a UTXO set",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -53,7 +53,7 @@ var CreateCmd = &cobra.Command{
 			broadcaster.WithCallbackURL(callbackURL),
 		)
 
-		_, err = preparer.CreateUtxos(outputs, satoshisPerOutput)
+		err = preparer.CreateUtxos(outputs, satoshisPerOutput)
 		if err != nil {
 			return fmt.Errorf("failed to submit pay back txs: %v", err)
 		}
@@ -64,14 +64,14 @@ var CreateCmd = &cobra.Command{
 func init() {
 	var err error
 
-	CreateCmd.Flags().Int("outputs", 10, "Nr of requested outputs")
-	err = viper.BindPFlag("outputs", CreateCmd.Flags().Lookup("outputs"))
+	Cmd.Flags().Int("outputs", 10, "Nr of requested outputs")
+	err = viper.BindPFlag("outputs", Cmd.Flags().Lookup("outputs"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	CreateCmd.Flags().Int("satoshis", 1000, "Nr of satoshis per output outputs")
-	err = viper.BindPFlag("satoshis", CreateCmd.Flags().Lookup("satoshis"))
+	Cmd.Flags().Int("satoshis", 1000, "Nr of satoshis per output outputs")
+	err = viper.BindPFlag("satoshis", Cmd.Flags().Lookup("satoshis"))
 	if err != nil {
 		log.Fatal(err)
 	}

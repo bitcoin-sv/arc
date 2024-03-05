@@ -269,17 +269,17 @@ func (b *UTXOPreparer) submitPaybackTxs(txs []*bt.Tx) error {
 	return nil
 }
 
-func (b *UTXOPreparer) CreateUtxos(requestedOutputs int, requestedSatoshisPerOutput uint64) ([]*bt.UTXO, error) {
+func (b *UTXOPreparer) CreateUtxos(requestedOutputs int, requestedSatoshisPerOutput uint64) error {
 
 	requestedOutputsSatoshis := int64(requestedOutputs) * int64(requestedSatoshisPerOutput)
 
 	balance, err := b.utxoClient.GetBalance(!b.isTestnet, b.fromKeySet.Address(!b.isTestnet))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if requestedOutputsSatoshis > balance {
-		return nil, fmt.Errorf("requested total of satoshis %d exceeds balance on funding keyset %d", requestedOutputsSatoshis, balance)
+		return fmt.Errorf("requested total of satoshis %d exceeds balance on funding keyset %d", requestedOutputsSatoshis, balance)
 	}
 
 	miningFee, err := b.feeQuote.Fee(bt.FeeTypeStandard)
@@ -298,7 +298,7 @@ requestedOutputsLoop:
 
 		utxos, err = b.utxoClient.GetUTXOs(!b.isTestnet, b.fromKeySet.Script, b.fromKeySet.Address(!b.isTestnet))
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		txSatoshis := uint64(0)
@@ -317,7 +317,7 @@ requestedOutputsLoop:
 				tx := bt.NewTx()
 				err = tx.FromUTXOs(utxo)
 				if err != nil {
-					return nil, err
+					return err
 				}
 
 				txSatoshis += utxo.Satoshis
@@ -327,7 +327,7 @@ requestedOutputsLoop:
 
 					err = b.addOutputsConsolidate(tx, txSatoshis, requestedSatoshisPerOutput, uint64(miningFee.MiningFee.Satoshis))
 					if err != nil {
-						return nil, err
+						return err
 					}
 
 					txs = append(txs, tx)
@@ -346,18 +346,20 @@ requestedOutputsLoop:
 				tx := bt.NewTx()
 				err = tx.FromUTXOs(utxo)
 				if err != nil {
-					return nil, err
+					return err
 				}
 
 				err = b.addOutputsSplit(tx, utxo.Satoshis, requestedSatoshisPerOutput, uint64(miningFee.MiningFee.Satoshis))
 				if err != nil {
-					return nil, err
+					return err
 				}
 
 				txs = append(txs, tx)
 
 				tx = bt.NewTx()
 			}
+
+			b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs))
 		}
 
 		if len(txs) > 0 {
@@ -367,11 +369,11 @@ requestedOutputsLoop:
 		for _, batch := range txsBatches {
 			err = b.submitPaybackTxs(batch)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 
 		time.Sleep(5 * time.Second)
 	}
-	return utxoSet, nil
+	return nil
 }

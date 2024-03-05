@@ -2,11 +2,12 @@ package app
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"log"
 )
 
 var RootCmd = &cobra.Command{

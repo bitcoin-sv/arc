@@ -16,8 +16,8 @@ var UtxosCmd = &cobra.Command{
 func init() {
 	var err error
 
-	UtxosCmd.Flags().String("api-url", "", "Send all funds from receiving key set to funding key set")
-	err = viper.BindPFlag("api-url", UtxosCmd.Flags().Lookup("api-url"))
+	UtxosCmd.PersistentFlags().String("api-url", "", "Send all funds from receiving key set to funding key set")
+	err = viper.BindPFlag("api-url", UtxosCmd.PersistentFlags().Lookup("api-url"))
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -2,34 +2,58 @@ package app
 
 import (
 	"fmt"
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/broadcast"
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/prep_utxos"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"log"
 )
 
-func InitCommand(v *viper.Viper) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "broadcaster",
-		Short: "cli tool to broadcast transactions to ARC",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			v.SetConfigName("config")
-			v.SetConfigType("yaml")
-			v.AddConfigPath(".")
-			v.AddConfigPath("../../")
-			err := v.ReadInConfig()
-			if err != nil {
-				return fmt.Errorf("failed to read config file config.yaml: %v", err)
-			}
-			return nil
-		},
+var rootCmd = &cobra.Command{
+	Use:   "broadcaster",
+	Short: "cli tool to broadcast transactions to ARC",
+}
+
+func init() {
+	var err error
+	cobra.OnInitialize(initConfig)
+
+	rootCmd.PersistentFlags().Bool("testnet", false, "Use testnet")
+	err = viper.BindPFlag("testnet", rootCmd.PersistentFlags().Lookup("testnet"))
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	broadcastCmd := broadcast.InitCommand(v)
-	cmd.AddCommand(broadcastCmd)
+	rootCmd.PersistentFlags().String("authorization", "", "Authorization header to use for the http api client")
+	err = viper.BindPFlag("authorization", rootCmd.PersistentFlags().Lookup("authorization"))
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	prepUTXOsCmd := prep_utxos.InitCommand(v)
-	cmd.AddCommand(prepUTXOsCmd)
+	rootCmd.PersistentFlags().String("callback", "", "URL which will be called with ARC callbacks")
+	err = viper.BindPFlag("callback", rootCmd.PersistentFlags().Lookup("callback"))
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	return cmd
+	rootCmd.PersistentFlags().String("keyfile", "", "private key from file (arc.key) to use for funding transactions")
+	err = viper.BindPFlag("keyFile", rootCmd.PersistentFlags().Lookup("keyfile"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+}
+
+func Execute() error {
+	return rootCmd.Execute()
+}
+
+func initConfig() {
+
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("../../")
+	err := viper.ReadInConfig()
+	if err != nil {
+		fmt.Printf("failed to read config file: %v\n", err)
+	}
 }

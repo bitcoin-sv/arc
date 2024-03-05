@@ -141,3 +141,33 @@ func (k *KeySet) GetUTXOs(mainnet bool) ([]*bt.UTXO, error) {
 
 	return unspent, nil
 }
+
+type WocBalance struct {
+	Confirmed   uint64 `json:"confirmed"`
+	Unconfirmed uint64 `json:"unconfirmed"`
+}
+
+func (k *KeySet) GetBalance(mainnet bool) (WocBalance, error) {
+	// Get UTXOs from WhatsOnChain
+	net := "test"
+	if mainnet {
+		net = "main"
+	}
+	resp, err := http.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/balance", net, k.Address(mainnet)))
+	if err != nil {
+		return WocBalance{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return WocBalance{}, errors.New("failed to get utxos")
+	}
+
+	var balance WocBalance
+	err = json.NewDecoder(resp.Body).Decode(&balance)
+	if err != nil {
+		return WocBalance{}, err
+	}
+
+	return balance, nil
+}

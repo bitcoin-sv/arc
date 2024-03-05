@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app"
-	"github.com/spf13/viper"
 	"log"
 	"os"
 )
@@ -17,11 +16,8 @@ func main() {
 }
 
 func run() error {
-	v := viper.GetViper()
 
-	rootCmd := app.InitCommand(v)
-
-	err := rootCmd.Execute()
+	err := app.Execute()
 	if err != nil {
 		return err
 	}

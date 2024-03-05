@@ -47,7 +47,7 @@ var Cmd = &cobra.Command{
 
 		wocClient := woc_client.New()
 
-		preparer := broadcaster.NewUTXOPreparer(logger, client, fundingKeySet, receivingKeySet, &wocClient,
+		preparer := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithIsTestnet(isTestnet),
 			broadcaster.WithCallbackURL(callbackURL),
@@ -55,7 +55,7 @@ var Cmd = &cobra.Command{
 
 		err = preparer.CreateUtxos(outputs, satoshisPerOutput)
 		if err != nil {
-			return fmt.Errorf("failed to submit pay back txs: %v", err)
+			return fmt.Errorf("failed to create utxos: %v", err)
 		}
 		return nil
 	},

@@ -123,7 +123,7 @@ func TestUTXOPreparer_Payback(t *testing.T) {
 				},
 			}
 
-			utxoPreparer := broadcaster.NewUTXOPreparer(logger, client, fromKeySet, toKeySet, utxoClient,
+			utxoPreparer := broadcaster.NewRateBroadcaster(logger, client, fromKeySet, toKeySet, utxoClient,
 				broadcaster.WithFees(10),
 				broadcaster.WithBatchSize(2),
 				broadcaster.WithMaxInputs(2),

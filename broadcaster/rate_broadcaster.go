@@ -25,7 +25,7 @@ type UtxoClient interface {
 	GetBalance(mainnet bool, address string) (int64, error)
 }
 
-type UTXOPreparer struct {
+type RateBroadcaster struct {
 	logger            *slog.Logger
 	client            ArcClient
 	fromKeySet        *keyset.KeySet
@@ -41,8 +41,8 @@ type UTXOPreparer struct {
 	batchSize int
 }
 
-func WithFees(miningFeeSatPerKb int) func(preparer *UTXOPreparer) {
-	return func(preparer *UTXOPreparer) {
+func WithFees(miningFeeSatPerKb int) func(preparer *RateBroadcaster) {
+	return func(preparer *RateBroadcaster) {
 		var fq = bt.NewFeeQuote()
 
 		newStdFee := *stdFeeDefault
@@ -58,32 +58,32 @@ func WithFees(miningFeeSatPerKb int) func(preparer *UTXOPreparer) {
 	}
 }
 
-func WithBatchSize(batchSize int) func(preparer *UTXOPreparer) {
-	return func(preparer *UTXOPreparer) {
+func WithBatchSize(batchSize int) func(preparer *RateBroadcaster) {
+	return func(preparer *RateBroadcaster) {
 		preparer.batchSize = batchSize
 	}
 }
 
-func WithMaxInputs(maxInputs int) func(preparer *UTXOPreparer) {
-	return func(preparer *UTXOPreparer) {
+func WithMaxInputs(maxInputs int) func(preparer *RateBroadcaster) {
+	return func(preparer *RateBroadcaster) {
 		preparer.maxInputs = maxInputs
 	}
 }
 
-func WithIsTestnet(isTestnet bool) func(preparer *UTXOPreparer) {
-	return func(preparer *UTXOPreparer) {
+func WithIsTestnet(isTestnet bool) func(preparer *RateBroadcaster) {
+	return func(preparer *RateBroadcaster) {
 		preparer.isTestnet = isTestnet
 	}
 }
 
-func WithCallbackURL(callbackURL string) func(preparer *UTXOPreparer) {
-	return func(preparer *UTXOPreparer) {
+func WithCallbackURL(callbackURL string) func(preparer *RateBroadcaster) {
+	return func(preparer *RateBroadcaster) {
 		preparer.CallbackURL = callbackURL
 	}
 }
 
-func NewUTXOPreparer(logger *slog.Logger, client ArcClient, fromKeySet *keyset.KeySet, toKeyset *keyset.KeySet, utxoClient UtxoClient, opts ...func(p *UTXOPreparer)) *UTXOPreparer {
-	utxoPreparer := &UTXOPreparer{
+func NewRateBroadcaster(logger *slog.Logger, client ArcClient, fromKeySet *keyset.KeySet, toKeyset *keyset.KeySet, utxoClient UtxoClient, opts ...func(p *RateBroadcaster)) *RateBroadcaster {
+	utxoPreparer := &RateBroadcaster{
 		logger:     logger,
 		client:     client,
 		fromKeySet: fromKeySet,
@@ -103,7 +103,7 @@ func NewUTXOPreparer(logger *slog.Logger, client ArcClient, fromKeySet *keyset.K
 }
 
 // Payback sends all funds currently held on the receiving address back to the funding address
-func (b *UTXOPreparer) Payback() error {
+func (b *RateBroadcaster) Payback() error {
 	utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.toKeySet.Script, b.toKeySet.Address(!b.isTestnet))
 	if err != nil {
 		return err
@@ -179,7 +179,7 @@ func (b *UTXOPreparer) Payback() error {
 	return nil
 }
 
-func (b *UTXOPreparer) addOutput(tx *bt.Tx, totalSatoshis uint64, feePerKb uint64) error {
+func (b *RateBroadcaster) addOutput(tx *bt.Tx, totalSatoshis uint64, feePerKb uint64) error {
 
 	fee := uint64(math.Ceil(float64(tx.Size())/1000) * float64(feePerKb))
 
@@ -197,7 +197,7 @@ func (b *UTXOPreparer) addOutput(tx *bt.Tx, totalSatoshis uint64, feePerKb uint6
 	return nil
 }
 
-func (b *UTXOPreparer) addOutputsConsolidate(tx *bt.Tx, totalSatoshis uint64, requestedSatoshis uint64, feePerKb uint64) error {
+func (b *RateBroadcaster) addOutputsConsolidate(tx *bt.Tx, totalSatoshis uint64, requestedSatoshis uint64, feePerKb uint64) error {
 
 	if requestedSatoshis > totalSatoshis {
 		err := b.addOutput(tx, totalSatoshis, feePerKb)
@@ -227,7 +227,7 @@ func (b *UTXOPreparer) addOutputsConsolidate(tx *bt.Tx, totalSatoshis uint64, re
 	return nil
 }
 
-func (b *UTXOPreparer) addOutputsSplit(tx *bt.Tx, splitSatoshis uint64, requestedSatoshis uint64, feePerKb uint64) error {
+func (b *RateBroadcaster) addOutputsSplit(tx *bt.Tx, splitSatoshis uint64, requestedSatoshis uint64, feePerKb uint64) error {
 
 	if requestedSatoshis < splitSatoshis {
 
@@ -253,7 +253,7 @@ func (b *UTXOPreparer) addOutputsSplit(tx *bt.Tx, splitSatoshis uint64, requeste
 	return nil
 }
 
-func (b *UTXOPreparer) submitPaybackTxs(txs []*bt.Tx) error {
+func (b *RateBroadcaster) submitPaybackTxs(txs []*bt.Tx) error {
 
 	resp, err := b.client.BroadcastTransactions(context.Background(), txs, metamorph_api.Status_SEEN_ON_NETWORK, b.CallbackURL)
 	if err != nil {
@@ -269,7 +269,7 @@ func (b *UTXOPreparer) submitPaybackTxs(txs []*bt.Tx) error {
 	return nil
 }
 
-func (b *UTXOPreparer) CreateUtxos(requestedOutputs int, requestedSatoshisPerOutput uint64) error {
+func (b *RateBroadcaster) CreateUtxos(requestedOutputs int, requestedSatoshisPerOutput uint64) error {
 
 	requestedOutputsSatoshis := int64(requestedOutputs) * int64(requestedSatoshisPerOutput)
 

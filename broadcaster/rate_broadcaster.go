@@ -310,7 +310,6 @@ requestedOutputsLoop:
 		smaller := make([]*bt.UTXO, 0)
 
 		utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fromKeySet.Script, b.fromKeySet.Address(!b.isTestnet))
-
 		if err != nil {
 			return err
 		}
@@ -319,14 +318,16 @@ requestedOutputsLoop:
 			if len(utxoSet) >= requestedOutputs {
 				break requestedOutputsLoop
 			}
+
 			if utxo.Satoshis == requestedSatoshisPerOutput {
 				utxoSet = append(utxoSet, utxo)
-
 				continue
 			}
+
 			if utxo.Satoshis > requestedSatoshisPerOutput {
 				greater = append(greater, utxo)
 			}
+
 			if utxo.Satoshis < requestedSatoshisPerOutput {
 				smaller = append(smaller, utxo)
 			}
@@ -408,14 +409,51 @@ requestedOutputsLoop:
 			if err != nil {
 				return err
 			}
+
+			time.Sleep(1 * time.Second)
 		}
 
 		b.logger.Info("utxo set", slog.Int("ready", outputs), slog.Int("requested", requestedOutputs))
-
-		time.Sleep(1 * time.Second)
 	}
 
 	b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs))
+
+	return nil
+}
+
+func (b *RateBroadcaster) Broadcast(requestedOutputs int, requestedSatoshisPerOutput uint64, rate int) error {
+
+	requestedOutputsSatoshis := int64(requestedOutputs) * int64(requestedSatoshisPerOutput)
+
+	balance, err := b.utxoClient.GetBalance(!b.isTestnet, b.fromKeySet.Address(!b.isTestnet))
+	if err != nil {
+		return err
+	}
+
+	if requestedOutputsSatoshis > balance {
+		return fmt.Errorf("requested total of satoshis %d exceeds balance on funding keyset %d", requestedOutputsSatoshis, balance)
+	}
+
+	utxoSet := make([]*bt.UTXO, 0, requestedOutputs)
+
+	utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fromKeySet.Script, b.fromKeySet.Address(!b.isTestnet))
+	if err != nil {
+		return err
+	}
+
+	for _, utxo := range utxos {
+
+		if len(utxoSet) >= requestedOutputs {
+			break
+		}
+
+		if utxo.Satoshis == requestedSatoshisPerOutput {
+			utxoSet = append(utxoSet, utxo)
+			continue
+		}
+
+		b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs))
+	}
 
 	return nil
 }

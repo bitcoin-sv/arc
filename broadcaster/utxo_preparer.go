@@ -17,7 +17,7 @@ import (
 const (
 	maxInputsDefault = 100
 	batchSizeDefault = 20
-	isTestnetDefault  = true
+	isTestnetDefault = true
 )
 
 type UtxoClient interface {
@@ -258,6 +258,7 @@ func (b *UTXOPreparer) CreateUtxos(requestedOutputs int, requestedSatoshisPerOut
 	if requestedOutputsSatoshis > balance {
 		return nil, fmt.Errorf("requested total of satoshis %d exceeds balance on funding keyset %d", requestedOutputsSatoshis, balance)
 	}
+
 	miningFee, err := b.feeQuote.Fee(bt.FeeTypeStandard)
 	utxoSet := make([]*bt.UTXO, 0, requestedOutputs)
 

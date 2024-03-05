@@ -2,7 +2,6 @@ package payback
 
 import (
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 
@@ -58,21 +57,4 @@ var PaybackCmd = &cobra.Command{
 		}
 		return nil
 	},
-}
-
-func init() {
-	var err error
-
-	PaybackCmd.Flags().Bool("payback", false, "Send all funds from receiving key set to funding key set")
-	err = viper.BindPFlag("payback", PaybackCmd.Flags().Lookup("payback"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	PaybackCmd.Flags().String("api-url", "", "Send all funds from receiving key set to funding key set")
-	err = viper.BindPFlag("api-url", PaybackCmd.Flags().Lookup("api-url"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
 }

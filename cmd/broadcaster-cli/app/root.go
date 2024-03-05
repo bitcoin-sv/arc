@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/broadcast"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos"
 	"github.com/spf13/cobra"
@@ -43,7 +42,6 @@ func init() {
 		log.Fatal(err)
 	}
 
-	RootCmd.AddCommand(broadcast.BroadcastCmd)
 	RootCmd.AddCommand(keyset.WalletCmd)
 	RootCmd.AddCommand(utxos.UtxosCmd)
 }

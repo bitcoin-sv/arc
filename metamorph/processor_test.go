@@ -484,7 +484,6 @@ func TestSendStatusForTransaction(t *testing.T) {
 			expectedCallbacks:         1,
 		},
 	}
-
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 

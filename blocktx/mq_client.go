@@ -1,6 +1,8 @@
 package blocktx
 
-import "github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+import (
+	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+)
 
 type MessageQueueClient interface {
 	SubscribeRegisterTxs() error

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -498,7 +499,14 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// check if tx already stored, return it
 	data, err := p.store.Get(ctx, req.Data.Hash[:])
+
 	if err == nil {
+		insertedAtNum, _ := strconv.Atoi(p.now().Format("2006010215"))
+		data.InsertedAtNum = insertedAtNum
+		if set_err := p.store.Set(spanCtx, req.Data.Hash[:], data); set_err != nil {
+			p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", set_err.Error()))
+		}
+
 		var rejectErr error
 		if data.RejectReason != "" {
 			rejectErr = errors.New(data.RejectReason)
@@ -529,6 +537,8 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		Source: "processor",
 		UpdateStore: func() error {
 			req.Data.Status = metamorph_api.Status_STORED
+			insertedAtNum, _ := strconv.Atoi(p.now().Format("2006010215"))
+			req.Data.InsertedAtNum = insertedAtNum
 			return p.store.Set(spanCtx, req.Data.Hash[:], req.Data)
 		},
 		Callback: func(err error) {

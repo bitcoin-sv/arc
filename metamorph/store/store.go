@@ -28,6 +28,7 @@ type StoreData struct {
 	LockedBy          string               `dynamodbav:"locked_by"`
 	Ttl               int64                `dynamodbav:"ttl"`
 	MerklePath        string               `dynamodbav:"merkle_path"`
+	InsertedAtNum     int                  `dynamodbav:"inserted_at_num"`
 }
 
 type MetamorphStore interface {

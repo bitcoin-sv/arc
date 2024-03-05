@@ -116,6 +116,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	   stored_at
 		,announced_at
 		,mined_at
+		,inserted_at_num
 		,hash
 		,status
 		,block_height
@@ -134,6 +135,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	var storedAt sql.NullTime
 	var announcedAt sql.NullTime
 	var minedAt sql.NullTime
+	var intertedAtNum sql.NullInt32
 	var blockHeight sql.NullInt64
 	var txHash []byte
 	var blockHash []byte
@@ -149,6 +151,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		&storedAt,
 		&announcedAt,
 		&minedAt,
+		&intertedAtNum,
 		&txHash,
 		&status,
 		&blockHeight,
@@ -198,6 +201,10 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 
 	if minedAt.Valid {
 		data.MinedAt = minedAt.Time.UTC()
+	}
+
+	if intertedAtNum.Valid {
+		data.InsertedAtNum = int(intertedAtNum.Int32)
 	}
 
 	if status.Valid {
@@ -259,6 +266,7 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		,reject_reason
 		,raw_tx
 		,locked_by
+		,inserted_at_num
 	) VALUES (
 		 $1
 		,$2
@@ -273,7 +281,8 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		,$11
 		,$12
 		,$13
-	);`
+		,$14
+	) ON CONFLICT (hash) DO UPDATE SET inserted_at_num=$14`
 
 	var txHash []byte
 	var blockHash []byte
@@ -305,6 +314,7 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		value.RejectReason,
 		value.RawTx,
 		p.hostname,
+		value.InsertedAtNum,
 	)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)

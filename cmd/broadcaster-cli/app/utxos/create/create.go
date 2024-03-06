@@ -47,7 +47,7 @@ var Cmd = &cobra.Command{
 
 		wocClient := woc_client.New()
 
-		preparer := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
+		preparer, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithIsTestnet(isTestnet),
 			broadcaster.WithCallbackURL(callbackURL),

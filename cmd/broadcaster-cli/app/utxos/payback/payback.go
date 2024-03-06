@@ -45,11 +45,14 @@ var Cmd = &cobra.Command{
 
 		wocClient := woc_client.New()
 
-		preparer := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
+		preparer, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithIsTestnet(isTestnet),
 			broadcaster.WithCallbackURL(callbackURL),
 		)
+		if err != nil {
+			return fmt.Errorf("failed to create rate broadcaster: %v", err)
+		}
 
 		err = preparer.Payback()
 		if err != nil {

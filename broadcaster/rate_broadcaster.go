@@ -36,6 +36,7 @@ type RateBroadcaster struct {
 	CallbackURL       string
 	feeQuote          *bt.FeeQuote
 	utxoClient        UtxoClient
+	standardMiningFee bt.FeeUnit
 
 	maxInputs int
 	batchSize int
@@ -82,8 +83,8 @@ func WithCallbackURL(callbackURL string) func(preparer *RateBroadcaster) {
 	}
 }
 
-func NewRateBroadcaster(logger *slog.Logger, client ArcClient, fromKeySet *keyset.KeySet, toKeyset *keyset.KeySet, utxoClient UtxoClient, opts ...func(p *RateBroadcaster)) *RateBroadcaster {
-	utxoPreparer := &RateBroadcaster{
+func NewRateBroadcaster(logger *slog.Logger, client ArcClient, fromKeySet *keyset.KeySet, toKeyset *keyset.KeySet, utxoClient UtxoClient, opts ...func(p *RateBroadcaster)) (*RateBroadcaster, error) {
+	broadcaster := &RateBroadcaster{
 		logger:     logger,
 		client:     client,
 		fromKeySet: fromKeySet,
@@ -96,10 +97,17 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, fromKeySet *keyse
 	}
 
 	for _, opt := range opts {
-		opt(utxoPreparer)
+		opt(broadcaster)
 	}
 
-	return utxoPreparer
+	standardFee, err := broadcaster.feeQuote.Fee(bt.FeeTypeStandard)
+	if err != nil {
+		return nil, err
+	}
+
+	broadcaster.standardMiningFee = standardFee.MiningFee
+
+	return broadcaster, nil
 }
 
 // Payback sends all funds currently held on the receiving address back to the funding address
@@ -112,7 +120,6 @@ func (b *RateBroadcaster) Payback() error {
 	tx := bt.NewTx()
 	txSatoshis := uint64(0)
 	batchSatoshis := uint64(0)
-	miningFee, err := b.feeQuote.Fee(bt.FeeTypeStandard)
 	if err != nil {
 		return err
 	}
@@ -132,7 +139,7 @@ func (b *RateBroadcaster) Payback() error {
 		if len(tx.Inputs) >= b.maxInputs {
 			batchSatoshis += txSatoshis
 
-			err = b.addOutput(tx, txSatoshis, uint64(miningFee.MiningFee.Satoshis))
+			err = b.addSingleOutput(tx, txSatoshis)
 			if err != nil {
 				return err
 			}
@@ -159,7 +166,7 @@ func (b *RateBroadcaster) Payback() error {
 	if len(tx.Inputs) > 0 {
 		batchSatoshis += txSatoshis
 
-		err = b.addOutput(tx, txSatoshis, uint64(miningFee.MiningFee.Satoshis))
+		err = b.addSingleOutput(tx, txSatoshis)
 		if err != nil {
 			return err
 		}
@@ -179,11 +186,13 @@ func (b *RateBroadcaster) Payback() error {
 	return nil
 }
 
-func (b *RateBroadcaster) addOutput(tx *bt.Tx, totalSatoshis uint64, feePerKb uint64) error {
+func (b *RateBroadcaster) getFeeSat(sizeBytes int) uint64 {
+	return uint64(math.Ceil(float64(sizeBytes)/float64(b.standardMiningFee.Bytes)) * float64(b.standardMiningFee.Satoshis))
+}
 
-	fee := uint64(math.Ceil(float64(tx.Size())/1000) * float64(feePerKb))
+func (b *RateBroadcaster) addSingleOutput(tx *bt.Tx, totalSatoshis uint64) error {
 
-	err := tx.PayTo(b.fromKeySet.Script, totalSatoshis-fee)
+	err := tx.PayTo(b.fromKeySet.Script, totalSatoshis-b.getFeeSat(tx.Size()))
 	if err != nil {
 		return err
 	}
@@ -195,6 +204,36 @@ func (b *RateBroadcaster) addOutput(tx *bt.Tx, totalSatoshis uint64, feePerKb ui
 	}
 
 	return nil
+}
+
+func (b *RateBroadcaster) addOutputsConsolidate(tx *bt.Tx, totalSatoshis uint64, requestedSatoshis uint64) (addedOutputs int, err error) {
+
+	if requestedSatoshis > totalSatoshis {
+		err := b.addSingleOutput(tx, totalSatoshis)
+		if err != nil {
+			return 0, err
+		}
+
+		return 0, nil
+	}
+
+	err = tx.PayTo(b.fromKeySet.Script, requestedSatoshis)
+	if err != nil {
+		return 0, err
+	}
+
+	err = tx.PayTo(b.fromKeySet.Script, totalSatoshis-requestedSatoshis-b.getFeeSat(tx.Size()))
+	if err != nil {
+		return 0, err
+	}
+
+	unlockerGetter := unlocker.Getter{PrivateKey: b.toKeySet.PrivateKey}
+	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
+	if err != nil {
+		return 0, err
+	}
+
+	return 1, nil
 }
 
 func (b *RateBroadcaster) addOutputsSplit(tx *bt.Tx, splitSatoshis uint64, requestedSatoshis uint64, requestedOutputs int) (addedOutputs int, err error) {
@@ -217,16 +256,7 @@ func (b *RateBroadcaster) addOutputsSplit(tx *bt.Tx, splitSatoshis uint64, reque
 		counter++
 	}
 
-	miningFee, err := b.feeQuote.Fee(bt.FeeTypeStandard)
-	if err != nil {
-		return 0, err
-	}
-
-	feePerKb := uint64(miningFee.MiningFee.Satoshis)
-
-	fee := uint64(math.Ceil(float64(tx.Size()) / 1000 * float64(feePerKb)))
-
-	err = tx.PayTo(b.fromKeySet.Script, uint64(remaining)-fee)
+	err = tx.PayTo(b.fromKeySet.Script, uint64(remaining)-b.getFeeSat(tx.Size()))
 	//err := tx.Change(b.fromKeySet.Script, b.feeQuote)
 	if err != nil {
 		return 0, err
@@ -276,8 +306,8 @@ requestedOutputsLoop:
 	for len(utxoSet) < requestedOutputs {
 
 		utxoSet = make([]*bt.UTXO, 0, requestedOutputs)
-
 		greater := make([]*bt.UTXO, 0)
+		smaller := make([]*bt.UTXO, 0)
 
 		utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fromKeySet.Script, b.fromKeySet.Address(!b.isTestnet))
 
@@ -286,19 +316,19 @@ requestedOutputsLoop:
 		}
 
 		for _, utxo := range utxos {
-
 			if len(utxoSet) >= requestedOutputs {
 				break requestedOutputsLoop
 			}
-
 			if utxo.Satoshis == requestedSatoshisPerOutput {
 				utxoSet = append(utxoSet, utxo)
 
 				continue
 			}
-
 			if utxo.Satoshis > requestedSatoshisPerOutput {
 				greater = append(greater, utxo)
+			}
+			if utxo.Satoshis < requestedSatoshisPerOutput {
+				smaller = append(smaller, utxo)
 			}
 		}
 
@@ -306,7 +336,12 @@ requestedOutputsLoop:
 		txs := make([]*bt.Tx, 0)
 		outputs := len(utxoSet)
 
+		// prepare txs for splitting down utxos for next iteration
 		for _, utxo := range greater {
+			if outputs >= requestedOutputs {
+				break
+			}
+
 			tx := bt.NewTx()
 			err = tx.FromUTXOs(utxo)
 			if err != nil {
@@ -320,11 +355,48 @@ requestedOutputsLoop:
 
 			outputs += addedOutputs
 
-			//fmt.Println(tx.String())
-
 			txs = append(txs, tx)
 
-			tx = bt.NewTx()
+			if len(txs) == b.batchSize {
+				txsBatches = append(txsBatches, txs)
+				txs = make([]*bt.Tx, 0)
+			}
+		}
+
+		// prepare txs for consolidating utxos for next iteration
+		txSatoshis := uint64(0)
+		for _, utxo := range smaller {
+			if outputs >= requestedOutputs {
+				break
+			}
+
+			tx := bt.NewTx()
+			err = tx.FromUTXOs(utxo)
+			if err != nil {
+				return err
+			}
+
+			txSatoshis += utxo.Satoshis
+
+			if len(tx.Inputs) >= b.maxInputs || txSatoshis > requestedSatoshisPerOutput {
+
+				addedOutputs, err := b.addOutputsConsolidate(tx, txSatoshis, requestedSatoshisPerOutput)
+				if err != nil {
+					return err
+				}
+
+				outputs += addedOutputs
+
+				txs = append(txs, tx)
+
+				tx = bt.NewTx()
+				txSatoshis = 0
+			}
+
+			if len(txs) == b.batchSize {
+				txsBatches = append(txsBatches, txs)
+				txs = make([]*bt.Tx, 0)
+			}
 		}
 
 		if len(txs) > 0 {

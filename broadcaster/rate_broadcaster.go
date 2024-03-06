@@ -30,8 +30,8 @@ type UtxoClient interface {
 type RateBroadcaster struct {
 	logger            *slog.Logger
 	client            ArcClient
-	fromKeySet        *keyset.KeySet
-	toKeySet          *keyset.KeySet
+	fundingKeyset     *keyset.KeySet
+	receivingKeyset   *keyset.KeySet
 	Outputs           int64
 	SatoshisPerOutput uint64
 	isTestnet         bool
@@ -87,15 +87,15 @@ func WithCallbackURL(callbackURL string) func(preparer *RateBroadcaster) {
 
 func NewRateBroadcaster(logger *slog.Logger, client ArcClient, fromKeySet *keyset.KeySet, toKeyset *keyset.KeySet, utxoClient UtxoClient, opts ...func(p *RateBroadcaster)) (*RateBroadcaster, error) {
 	broadcaster := &RateBroadcaster{
-		logger:     logger,
-		client:     client,
-		fromKeySet: fromKeySet,
-		toKeySet:   toKeyset,
-		isTestnet:  isTestnetDefault,
-		feeQuote:   bt.NewFeeQuote(),
-		utxoClient: utxoClient,
-		batchSize:  batchSizeDefault,
-		maxInputs:  maxInputsDefault,
+		logger:          logger,
+		client:          client,
+		fundingKeyset:   fromKeySet,
+		receivingKeyset: toKeyset,
+		isTestnet:       isTestnetDefault,
+		feeQuote:        bt.NewFeeQuote(),
+		utxoClient:      utxoClient,
+		batchSize:       batchSizeDefault,
+		maxInputs:       maxInputsDefault,
 	}
 
 	for _, opt := range opts {
@@ -114,7 +114,7 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, fromKeySet *keyse
 
 // Payback sends all funds currently held on the receiving address back to the funding address
 func (b *RateBroadcaster) Payback() error {
-	utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.toKeySet.Script, b.toKeySet.Address(!b.isTestnet))
+	utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.receivingKeyset.Script, b.receivingKeyset.Address(!b.isTestnet))
 	if err != nil {
 		return err
 	}
@@ -141,7 +141,7 @@ func (b *RateBroadcaster) Payback() error {
 		if len(tx.Inputs) >= b.maxInputs {
 			batchSatoshis += txSatoshis
 
-			err = b.addSingleOutput(tx, txSatoshis)
+			err = b.payToFundingKeySet(tx, txSatoshis, b.receivingKeyset)
 			if err != nil {
 				return err
 			}
@@ -168,7 +168,7 @@ func (b *RateBroadcaster) Payback() error {
 	if len(tx.Inputs) > 0 {
 		batchSatoshis += txSatoshis
 
-		err = b.addSingleOutput(tx, txSatoshis)
+		err = b.payToFundingKeySet(tx, txSatoshis, b.receivingKeyset)
 		if err != nil {
 			return err
 		}
@@ -188,18 +188,37 @@ func (b *RateBroadcaster) Payback() error {
 	return nil
 }
 
-func (b *RateBroadcaster) getFeeSat(sizeBytes int) uint64 {
-	return uint64(math.Ceil(float64(sizeBytes)/float64(b.standardMiningFee.Bytes)) * float64(b.standardMiningFee.Satoshis))
+func (b *RateBroadcaster) calculateFeeSat(tx *bt.Tx) uint64 {
+	size, err := tx.EstimateSizeWithTypes()
+	if err != nil {
+		return 0
+	}
+	varIntUpper := bt.VarInt(tx.OutputCount()).UpperLimitInc()
+	if varIntUpper == -1 {
+		return 0
+	}
+
+	changeOutputFee := varIntUpper
+	changeP2pkhByteLen := uint64(8 + 1 + 25)
+
+	totalBytes := size.TotalStdBytes + changeP2pkhByteLen
+
+	miningFeeSat := float64(totalBytes*uint64(b.standardMiningFee.Satoshis)) / float64(b.standardMiningFee.Bytes)
+
+	sFees := uint64(math.Ceil(miningFeeSat))
+	txFees := sFees + uint64(changeOutputFee)
+
+	return txFees
 }
 
-func (b *RateBroadcaster) addSingleOutput(tx *bt.Tx, totalSatoshis uint64) error {
+func (b *RateBroadcaster) payToFundingKeySet(tx *bt.Tx, totalSatoshis uint64, payingKeyset *keyset.KeySet) error {
 
-	err := tx.PayTo(b.fromKeySet.Script, totalSatoshis-b.getFeeSat(tx.Size()))
+	err := tx.PayTo(b.fundingKeyset.Script, totalSatoshis-b.calculateFeeSat(tx))
 	if err != nil {
 		return err
 	}
 
-	unlockerGetter := unlocker.Getter{PrivateKey: b.toKeySet.PrivateKey}
+	unlockerGetter := unlocker.Getter{PrivateKey: payingKeyset.PrivateKey}
 	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
 	if err != nil {
 		return err
@@ -208,10 +227,10 @@ func (b *RateBroadcaster) addSingleOutput(tx *bt.Tx, totalSatoshis uint64) error
 	return nil
 }
 
-func (b *RateBroadcaster) addOutputsConsolidate(tx *bt.Tx, totalSatoshis uint64, requestedSatoshis uint64) (addedOutputs int, err error) {
+func (b *RateBroadcaster) consolidateToFundingKeyset(tx *bt.Tx, totalSatoshis uint64, requestedSatoshis uint64) (addedOutputs int, err error) {
 
 	if requestedSatoshis > totalSatoshis {
-		err := b.addSingleOutput(tx, totalSatoshis)
+		err := b.payToFundingKeySet(tx, totalSatoshis, b.fundingKeyset)
 		if err != nil {
 			return 0, err
 		}
@@ -219,17 +238,17 @@ func (b *RateBroadcaster) addOutputsConsolidate(tx *bt.Tx, totalSatoshis uint64,
 		return 0, nil
 	}
 
-	err = tx.PayTo(b.fromKeySet.Script, requestedSatoshis)
+	err = tx.PayTo(b.fundingKeyset.Script, requestedSatoshis)
 	if err != nil {
 		return 0, err
 	}
 
-	err = tx.PayTo(b.fromKeySet.Script, totalSatoshis-requestedSatoshis-b.getFeeSat(tx.Size()))
+	err = tx.PayTo(b.fundingKeyset.Script, totalSatoshis-requestedSatoshis-b.calculateFeeSat(tx))
 	if err != nil {
 		return 0, err
 	}
 
-	unlockerGetter := unlocker.Getter{PrivateKey: b.toKeySet.PrivateKey}
+	unlockerGetter := unlocker.Getter{PrivateKey: b.fundingKeyset.PrivateKey}
 	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
 	if err != nil {
 		return 0, err
@@ -238,7 +257,7 @@ func (b *RateBroadcaster) addOutputsConsolidate(tx *bt.Tx, totalSatoshis uint64,
 	return 1, nil
 }
 
-func (b *RateBroadcaster) addOutputsSplit(tx *bt.Tx, splitSatoshis uint64, requestedSatoshis uint64, requestedOutputs int) (addedOutputs int, err error) {
+func (b *RateBroadcaster) splitToFundingKeyset(tx *bt.Tx, splitSatoshis uint64, requestedSatoshis uint64, requestedOutputs int) (addedOutputs int, err error) {
 
 	if requestedSatoshis > splitSatoshis {
 		return 0, fmt.Errorf("requested satoshis %d greater than satoshis to be split %d", requestedSatoshis, splitSatoshis)
@@ -249,7 +268,7 @@ func (b *RateBroadcaster) addOutputsSplit(tx *bt.Tx, splitSatoshis uint64, reque
 	remaining := int64(splitSatoshis)
 	for remaining > int64(requestedSatoshis) && counter < requestedOutputs {
 
-		err := tx.PayTo(b.fromKeySet.Script, requestedSatoshis)
+		err := tx.PayTo(b.fundingKeyset.Script, requestedSatoshis)
 		if err != nil {
 			return 0, err
 		}
@@ -258,13 +277,12 @@ func (b *RateBroadcaster) addOutputsSplit(tx *bt.Tx, splitSatoshis uint64, reque
 		counter++
 	}
 
-	err = tx.PayTo(b.fromKeySet.Script, uint64(remaining)-b.getFeeSat(tx.Size()))
-	//err := tx.Change(b.fromKeySet.Script, b.feeQuote)
+	err = tx.PayTo(b.fundingKeyset.Script, uint64(remaining)-b.calculateFeeSat(tx))
 	if err != nil {
 		return 0, err
 	}
 
-	unlockerGetter := unlocker.Getter{PrivateKey: b.fromKeySet.PrivateKey}
+	unlockerGetter := unlocker.Getter{PrivateKey: b.fundingKeyset.PrivateKey}
 	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
 	if err != nil {
 		return 0, err
@@ -274,7 +292,6 @@ func (b *RateBroadcaster) addOutputsSplit(tx *bt.Tx, splitSatoshis uint64, reque
 }
 
 func (b *RateBroadcaster) submitTxs(txs []*bt.Tx, expectedStatus metamorph_api.Status) error {
-
 	resp, err := b.client.BroadcastTransactions(context.Background(), txs, expectedStatus, b.CallbackURL)
 	if err != nil {
 		return err
@@ -293,7 +310,7 @@ func (b *RateBroadcaster) CreateUtxos(requestedOutputs int, requestedSatoshisPer
 
 	requestedOutputsSatoshis := int64(requestedOutputs) * int64(requestedSatoshisPerOutput)
 
-	balance, err := b.utxoClient.GetBalance(!b.isTestnet, b.fromKeySet.Address(!b.isTestnet))
+	balance, err := b.utxoClient.GetBalance(!b.isTestnet, b.fundingKeyset.Address(!b.isTestnet))
 	if err != nil {
 		return err
 	}
@@ -311,7 +328,7 @@ requestedOutputsLoop:
 		greater := make([]*bt.UTXO, 0)
 		smaller := make([]*bt.UTXO, 0)
 
-		utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fromKeySet.Script, b.fromKeySet.Address(!b.isTestnet))
+		utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
 		if err != nil {
 			return err
 		}
@@ -351,7 +368,7 @@ requestedOutputsLoop:
 				return err
 			}
 
-			addedOutputs, err := b.addOutputsSplit(tx, utxo.Satoshis, requestedSatoshisPerOutput, requestedOutputs-outputs)
+			addedOutputs, err := b.splitToFundingKeyset(tx, utxo.Satoshis, requestedSatoshisPerOutput, requestedOutputs-outputs)
 			if err != nil {
 				return err
 			}
@@ -368,12 +385,12 @@ requestedOutputsLoop:
 
 		// prepare txs for consolidating utxos for next iteration
 		txSatoshis := uint64(0)
+		tx := bt.NewTx()
 		for _, utxo := range smaller {
 			if outputs >= requestedOutputs {
 				break
 			}
 
-			tx := bt.NewTx()
 			err = tx.FromUTXOs(utxo)
 			if err != nil {
 				return err
@@ -383,7 +400,7 @@ requestedOutputsLoop:
 
 			if len(tx.Inputs) >= b.maxInputs || txSatoshis > requestedSatoshisPerOutput {
 
-				addedOutputs, err := b.addOutputsConsolidate(tx, txSatoshis, requestedSatoshisPerOutput)
+				addedOutputs, err := b.consolidateToFundingKeyset(tx, txSatoshis, requestedSatoshisPerOutput)
 				if err != nil {
 					return err
 				}
@@ -392,6 +409,7 @@ requestedOutputsLoop:
 
 				txs = append(txs, tx)
 
+				tx = bt.NewTx()
 				txSatoshis = 0
 			}
 
@@ -411,7 +429,7 @@ requestedOutputsLoop:
 				return err
 			}
 
-			time.Sleep(1 * time.Second)
+			time.Sleep(10 * time.Second)
 		}
 
 		b.logger.Info("utxo set", slog.Int("ready", outputs), slog.Int("requested", requestedOutputs))
@@ -424,7 +442,7 @@ requestedOutputsLoop:
 
 func (b *RateBroadcaster) Broadcast(rateTxsPerSecond int) error {
 
-	utxoSet, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fromKeySet.Script, b.fromKeySet.Address(!b.isTestnet))
+	utxoSet, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
 	if err != nil {
 		return err
 	}
@@ -451,7 +469,7 @@ sendBatchLoop:
 			break sendBatchLoop
 		case <-ticker.C:
 			if len(utxoSet) == batchIndex+b.batchSize+1 {
-				utxoSet, err = b.utxoClient.GetUTXOs(!b.isTestnet, b.fromKeySet.Script, b.fromKeySet.Address(!b.isTestnet))
+				utxoSet, err = b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
 				if err != nil {
 					return err
 				}
@@ -485,12 +503,12 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos []*bt.UTXO) ([]*bt.Tx, error
 			return nil, err
 		}
 
-		err = tx.PayTo(b.fromKeySet.Script, utxo.Satoshis-b.getFeeSat(tx.Size()))
+		err = tx.PayTo(b.fundingKeyset.Script, utxo.Satoshis-b.calculateFeeSat(tx))
 		if err != nil {
 			return nil, err
 		}
 
-		unlockerGetter := unlocker.Getter{PrivateKey: b.fromKeySet.PrivateKey}
+		unlockerGetter := unlocker.Getter{PrivateKey: b.fundingKeyset.PrivateKey}
 		err = tx.FillAllInputs(context.Background(), &unlockerGetter)
 		if err != nil {
 			return nil, err

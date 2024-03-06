@@ -2,13 +2,18 @@ package dist
 
 import (
 	"errors"
-	"github.com/bitcoin-sv/arc/lib/woc_client"
+	"fmt"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 
-	"github.com/bitcoin-sv/arc/lib/keyset"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/bitcoin-sv/arc/lib/keyset"
+	"github.com/bitcoin-sv/arc/lib/woc_client"
 )
 
 var Cmd = &cobra.Command{
@@ -33,12 +38,38 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		_, err = wocClient.GetUTXOs(!isTestnet, fundingKeySet.Script, fundingKeySet.Address(!isTestnet))
+		utxos, err := wocClient.GetUTXOs(!isTestnet, fundingKeySet.Script, fundingKeySet.Address(!isTestnet))
 		if err != nil {
 			return err
 		}
 
-		// todo: draw historgram of utxo satoshi sizes
+		valuesMap := map[uint64]int{}
+		keysSlice := []uint64{}
+		var found bool
+		for _, utxo := range utxos {
+			_, found = valuesMap[utxo.Satoshis]
+			if found {
+				valuesMap[utxo.Satoshis]++
+				continue
+			}
+
+			valuesMap[utxo.Satoshis] = 1
+
+			keysSlice = append(keysSlice, utxo.Satoshis)
+		}
+
+		sort.Slice(keysSlice, func(i, j int) bool {
+			return keysSlice[j] < keysSlice[i]
+		})
+
+		t := table.NewWriter()
+		fmt.Printf("Distribution of satoshis for address %s\n", fundingKeySet.Address(!isTestnet))
+
+		t.AppendHeader(table.Row{"Satoshis", "Outputs"})
+		for _, satoshi := range keysSlice {
+			t.AppendRow(table.Row{strconv.FormatUint(satoshi, 10), strconv.Itoa(valuesMap[satoshi])})
+		}
+		fmt.Println(t.Render())
 
 		return nil
 	},

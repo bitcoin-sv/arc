@@ -2,6 +2,7 @@ package broadcaster
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"math"
@@ -15,9 +16,10 @@ import (
 )
 
 const (
-	maxInputsDefault = 100
-	batchSizeDefault = 20
-	isTestnetDefault = true
+	maxInputsDefault      = 100
+	batchSizeDefault      = 20
+	isTestnetDefault      = true
+	millisecondsPerSecond = 1000
 )
 
 type UtxoClient interface {
@@ -390,7 +392,6 @@ requestedOutputsLoop:
 
 				txs = append(txs, tx)
 
-				tx = bt.NewTx()
 				txSatoshis = 0
 			}
 
@@ -421,39 +422,110 @@ requestedOutputsLoop:
 	return nil
 }
 
-func (b *RateBroadcaster) Broadcast(requestedOutputs int, requestedSatoshisPerOutput uint64, rate int) error {
+func (b *RateBroadcaster) Broadcast(rateTxsPerSecond int) error {
 
-	requestedOutputsSatoshis := int64(requestedOutputs) * int64(requestedSatoshisPerOutput)
-
-	balance, err := b.utxoClient.GetBalance(!b.isTestnet, b.fromKeySet.Address(!b.isTestnet))
+	utxoSet, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fromKeySet.Script, b.fromKeySet.Address(!b.isTestnet))
 	if err != nil {
 		return err
 	}
 
-	if requestedOutputsSatoshis > balance {
-		return fmt.Errorf("requested total of satoshis %d exceeds balance on funding keyset %d", requestedOutputsSatoshis, balance)
+	b.logger.Info("starting broadcasting", slog.Int("batch size", b.batchSize))
+
+	submitBatchesPerSecond := float64(rateTxsPerSecond) / float64(b.batchSize)
+
+	if submitBatchesPerSecond > millisecondsPerSecond {
+		return fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", rateTxsPerSecond, b.batchSize, submitBatchesPerSecond)
 	}
 
-	utxoSet := make([]*bt.UTXO, 0, requestedOutputs)
+	batchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
 
-	utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fromKeySet.Script, b.fromKeySet.Address(!b.isTestnet))
-	if err != nil {
-		return err
-	}
+	ticker := time.NewTicker(batchInterval)
+	shutdown := make(chan struct{})
 
-	for _, utxo := range utxos {
+	batchIndex := 0
 
-		if len(utxoSet) >= requestedOutputs {
-			break
+sendBatchLoop:
+	for {
+		select {
+		case <-shutdown:
+			break sendBatchLoop
+		case <-ticker.C:
+			if len(utxoSet) == batchIndex+b.batchSize+1 {
+				utxoSet, err = b.utxoClient.GetUTXOs(!b.isTestnet, b.fromKeySet.Script, b.fromKeySet.Address(!b.isTestnet))
+				if err != nil {
+					return err
+				}
+
+				batchIndex = 0
+			}
+
+			txs, err := b.createSelfPayingTxs(utxoSet[batchIndex : batchIndex+b.batchSize])
+			if err != nil {
+				return err
+			}
+
+			b.sendTxsBatchAsync(txs, shutdown)
+
+			batchIndex += b.batchSize
+
 		}
-
-		if utxo.Satoshis == requestedSatoshisPerOutput {
-			utxoSet = append(utxoSet, utxo)
-			continue
-		}
-
-		b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs))
 	}
 
 	return nil
+}
+
+func (b *RateBroadcaster) createSelfPayingTxs(utxos []*bt.UTXO) ([]*bt.Tx, error) {
+	txs := make([]*bt.Tx, len(utxos))
+
+	for i, utxo := range utxos {
+		tx := bt.NewTx()
+
+		err := tx.FromUTXOs(utxo)
+		if err != nil {
+			return nil, err
+		}
+
+		err = tx.PayTo(b.fromKeySet.Script, utxo.Satoshis-b.getFeeSat(tx.Size()))
+		if err != nil {
+			return nil, err
+		}
+
+		unlockerGetter := unlocker.Getter{PrivateKey: b.fromKeySet.PrivateKey}
+		err = tx.FillAllInputs(context.Background(), &unlockerGetter)
+		if err != nil {
+			return nil, err
+		}
+
+		txs[i] = tx
+	}
+
+	return txs, nil
+}
+
+func (b *RateBroadcaster) sendTxsBatchAsync(txs []*bt.Tx, shutdown chan struct{}) {
+	go func() {
+
+		resp, err := b.client.BroadcastTransactions(context.Background(), txs, metamorph_api.Status_SEEN_ON_NETWORK, b.CallbackURL)
+		if err != nil {
+
+			slog.Default().Error("failed to submit batch", slog.String("err", err.Error()))
+
+			shutdown <- struct{}{}
+			return
+		}
+
+		for _, res := range resp {
+
+			resBytes, err := json.Marshal(res)
+			if err != nil {
+
+				slog.Default().Error("failed to marshal response", slog.String("err", err.Error()))
+
+				shutdown <- struct{}{}
+				return
+			}
+
+			slog.Default().Info(string(resBytes))
+		}
+	}()
 }

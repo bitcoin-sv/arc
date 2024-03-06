@@ -25,18 +25,6 @@ func init() {
 		log.Fatal(err)
 	}
 
-	RootCmd.PersistentFlags().String("authorization", "", "Authorization header to use for the http api client")
-	err = viper.BindPFlag("authorization", RootCmd.PersistentFlags().Lookup("authorization"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	RootCmd.PersistentFlags().String("callback", "", "URL which will be called with ARC callbacks")
-	err = viper.BindPFlag("callback", RootCmd.PersistentFlags().Lookup("callback"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	RootCmd.PersistentFlags().String("keyfile", "", "private key from file (arc.key) to use for funding transactions")
 	err = viper.BindPFlag("keyFile", RootCmd.PersistentFlags().Lookup("keyfile"))
 	if err != nil {

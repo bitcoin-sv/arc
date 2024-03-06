@@ -1,9 +1,8 @@
-package balance
+package dist
 
 import (
 	"errors"
 	"github.com/bitcoin-sv/arc/lib/woc_client"
-	"log/slog"
 	"os"
 	"strings"
 
@@ -13,13 +12,11 @@ import (
 )
 
 var Cmd = &cobra.Command{
-	Use:   "balance",
-	Short: "show balance of the keyset",
+	Use:   "dist",
+	Short: "show distribution of utxo sizes in key set",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		keyFile := viper.GetString("keyFile")
 		isTestnet := viper.GetBool("testnet")
-
-		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 		extendedBytes, err := os.ReadFile(keyFile)
 		if err != nil {
@@ -36,22 +33,12 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fundingBalance, err := wocClient.GetBalance(!isTestnet, fundingKeySet.Address(!isTestnet))
+		_, err = wocClient.GetUTXOs(!isTestnet, fundingKeySet.Script, fundingKeySet.Address(!isTestnet))
 		if err != nil {
 			return err
 		}
 
-		logger.Info("balance", slog.Int64("funding key", fundingBalance))
-
-		receivingKeySet, err := keyset.NewFromExtendedKeyStr(xpriv, "0/1")
-		if err != nil {
-			return err
-		}
-		receivingBalance, err := wocClient.GetBalance(!isTestnet, receivingKeySet.Address(!isTestnet))
-		if err != nil {
-			return err
-		}
-		logger.Info("balance", slog.Int64("receiving key", receivingBalance))
+		// todo: draw historgram of utxo satoshi sizes
 
 		return nil
 	},

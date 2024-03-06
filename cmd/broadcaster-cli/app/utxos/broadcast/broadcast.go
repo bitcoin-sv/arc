@@ -19,9 +19,8 @@ var Cmd = &cobra.Command{
 	Short: "submit transactions to ARC",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		outputs := viper.GetInt("outputs")
-		satoshisPerOutput := viper.GetUint64("satoshis")
-		rate := viper.GetInt("rate")
+		rateTxsPerSecond := viper.GetInt("rate")
+		batchSize := viper.GetInt("batchsize")
 
 		isTestnet := viper.GetBool("testnet")
 		callbackURL := viper.GetString("callback")
@@ -53,12 +52,13 @@ var Cmd = &cobra.Command{
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithIsTestnet(isTestnet),
 			broadcaster.WithCallbackURL(callbackURL),
+			broadcaster.WithBatchSize(batchSize),
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create rate broadcaster: %v", err)
 		}
 
-		err = preparer.Broadcast(outputs, satoshisPerOutput, rate)
+		err = preparer.Broadcast(rateTxsPerSecond)
 		if err != nil {
 			return fmt.Errorf("failed to broadcast back txs: %v", err)
 		}
@@ -75,15 +75,10 @@ func init() {
 		log.Fatal(err)
 	}
 
-	Cmd.Flags().Int("outputs", 10, "Nr of requested outputs")
-	err = viper.BindPFlag("outputs", Cmd.Flags().Lookup("outputs"))
+	Cmd.Flags().Int("batchsize", 10, "size of batches to submit transactions")
+	err = viper.BindPFlag("batchsize", Cmd.Flags().Lookup("batchsize"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	Cmd.Flags().Int("satoshis", 1000, "Nr of satoshis per output outputs")
-	err = viper.BindPFlag("satoshis", Cmd.Flags().Lookup("satoshis"))
-	if err != nil {
-		log.Fatal(err)
-	}
 }

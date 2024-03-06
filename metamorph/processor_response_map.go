@@ -1,11 +1,11 @@
 package metamorph
 
 import (
-	"log"
 	"log/slog"
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
+	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/sasha-s/go-deadlock"
 )
@@ -19,6 +19,7 @@ type ProcessorResponseMap struct {
 	Expiry        time.Duration
 	ResponseItems map[chainhash.Hash]*processor_response.ProcessorResponse
 	now           func() time.Time
+	store         store.MetamorphStore
 }
 
 func WithNowResponseMap(nowFunc func() time.Time) func(*ProcessorResponseMap) {
@@ -29,23 +30,18 @@ func WithNowResponseMap(nowFunc func() time.Time) func(*ProcessorResponseMap) {
 
 type OptionProcRespMap func(p *ProcessorResponseMap)
 
-func NewProcessorResponseMap(expiry time.Duration, opts ...OptionProcRespMap) *ProcessorResponseMap {
+func NewProcessorResponseMap(s store.MetamorphStore, expiry time.Duration, opts ...OptionProcRespMap) *ProcessorResponseMap {
 	m := &ProcessorResponseMap{
 		Expiry:        expiry,
 		ResponseItems: make(map[chainhash.Hash]*processor_response.ProcessorResponse),
 		now:           time.Now,
+		store:         s,
 	}
 
 	// apply options
 	for _, opt := range opts {
 		opt(m)
 	}
-
-	go func() {
-		for range time.NewTicker(cleanUpInterval).C {
-			m.Clean()
-		}
-	}()
 
 	return m
 }
@@ -90,28 +86,6 @@ func (m *ProcessorResponseMap) Len() int {
 	defer m.mu.RUnlock()
 
 	return len(m.ResponseItems)
-}
-
-func (m *ProcessorResponseMap) Retries(hash *chainhash.Hash) uint32 {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if _, ok := m.ResponseItems[*hash]; !ok {
-		return 0
-	}
-
-	return m.ResponseItems[*hash].GetRetries()
-}
-
-func (m *ProcessorResponseMap) IncrementRetry(hash *chainhash.Hash) uint32 {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if _, ok := m.ResponseItems[*hash]; !ok {
-		return 0
-	}
-
-	return m.ResponseItems[*hash].IncrementRetry()
 }
 
 // Hashes will return a slice of the hashes in the map.
@@ -180,7 +154,7 @@ func (m *ProcessorResponseMap) logMapItems(logger *slog.Logger) {
 	defer m.mu.RUnlock()
 
 	for hash, processorResponse := range m.ResponseItems {
-		logger.Debug("Processor response map item", slog.String("hash", hash.String()), slog.String("status", processorResponse.GetStatus().String()), slog.Int("retries", int(processorResponse.Retries.Load())), slog.String("err", processorResponse.Err.Error()), slog.Time("start", processorResponse.Start))
+		logger.Debug("Processor response map item", slog.String("hash", hash.String()), slog.String("status", processorResponse.GetStatus().String()), slog.String("err", processorResponse.Err.Error()))
 	}
 }
 
@@ -190,26 +164,4 @@ func (m *ProcessorResponseMap) Clear() {
 	defer m.mu.Unlock()
 
 	m.ResponseItems = make(map[chainhash.Hash]*processor_response.ProcessorResponse)
-}
-
-func (m *ProcessorResponseMap) Close() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for _, item := range m.ResponseItems {
-		item.Close()
-	}
-}
-
-// Todo: unlock in storage
-func (m *ProcessorResponseMap) Clean() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for key, item := range m.ResponseItems {
-		if time.Since(item.Start) > m.Expiry {
-			log.Printf("ProcessorResponseMap: Expired %s", key)
-			item.Close()
-			delete(m.ResponseItems, key)
-		}
-	}
 }

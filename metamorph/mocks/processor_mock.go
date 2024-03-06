@@ -203,19 +203,6 @@ func (mock *ProcessorIMock) HealthCalls() []struct {
 	return calls
 }
 
-// LoadUnmined calls LoadUnminedFunc.
-func (mock *ProcessorIMock) LoadUnmined() {
-	if mock.LoadUnminedFunc == nil {
-		panic("ProcessorIMock.LoadUnminedFunc: method is nil but ProcessorI.LoadUnmined was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockLoadUnmined.Lock()
-	mock.calls.LoadUnmined = append(mock.calls.LoadUnmined, callInfo)
-	mock.lockLoadUnmined.Unlock()
-	mock.LoadUnminedFunc()
-}
-
 // LoadUnminedCalls gets all the calls that were made to LoadUnmined.
 // Check the length with:
 //

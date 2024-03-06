@@ -29,6 +29,7 @@ type StoreData struct {
 	Ttl               int64                `dynamodbav:"ttl"`
 	MerklePath        string               `dynamodbav:"merkle_path"`
 	InsertedAtNum     int                  `dynamodbav:"inserted_at_num"`
+	Retries           int                  `dynamodbav:"retries"`
 }
 
 type MetamorphStore interface {
@@ -37,8 +38,9 @@ type MetamorphStore interface {
 	Del(ctx context.Context, key []byte) error
 
 	SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error
+	IncrementRetries(ctx context.Context, hash *chainhash.Hash) error
 	SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error)
-	GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*StoreData, error)
+	GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*StoreData, error)
 	UpdateStatusBulk(ctx context.Context, updates []UpdateStatus) ([]*StoreData, error)
 	UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*StoreData, error)
 	Close(ctx context.Context) error

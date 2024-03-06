@@ -242,6 +242,17 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	return data, nil
 }
 
+func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash) error {
+	q := `UPDATE metamorph.transactions SET retries = retries+1 WHERE hash = $1;`
+
+	_, err := p.db.ExecContext(ctx, q, hash[:])
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Set implements the MetamorphStore interface. It attempts to store a value for a given key
 // and namespace. If the key/value pair cannot be saved, an error is returned.
 func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
@@ -339,7 +350,7 @@ func (p *PostgreSQL) setLockedBy(ctx context.Context, hash *chainhash.Hash, lock
 	return nil
 }
 
-func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
+func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 	startNanos := p.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("getunmined").AddTime(startNanos)
@@ -360,14 +371,15 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 		,full_status_updates
 		,raw_tx
 		,locked_by
+		,retries
 		FROM metamorph.transactions
 		WHERE locked_by = 'NONE'
 		AND (status < $1 OR status = $2)
 		AND inserted_at_num > $3
 		ORDER BY inserted_at_num DESC
-		LIMIT $4;`
+		LIMIT $4 OFFSET $5;`
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout), limit)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout), limit, offset)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -389,6 +401,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 		var callbackToken sql.NullString
 		var fullStatusUpdates sql.NullBool
 		var lockedBy sql.NullString
+		var retries sql.NullInt32
 		var status sql.NullInt32
 
 		if err = rows.Scan(
@@ -404,6 +417,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 			&fullStatusUpdates,
 			&data.RawTx,
 			&lockedBy,
+			&retries,
 		); err != nil {
 			span.SetTag(string(ext.Error), true)
 			span.LogFields(log.Error(err))
@@ -462,6 +476,10 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 
 		if lockedBy.Valid {
 			data.LockedBy = lockedBy.String
+		}
+
+		if retries.Valid {
+			data.Retries = int(retries.Int32)
 		}
 
 		err = p.setLockedBy(ctx, data.Hash, p.hostname)

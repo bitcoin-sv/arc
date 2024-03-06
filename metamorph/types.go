@@ -31,6 +31,7 @@ type ProcessorStats struct {
 type ProcessorRequest struct {
 	Data            *store.StoreData
 	ResponseChannel chan processor_response.StatusAndError
+	Timeout         time.Duration
 }
 
 type PeerTxMessage struct {

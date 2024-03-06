@@ -48,8 +48,8 @@ func WithFees(miningFeeSatPerKb int) func(preparer *RateBroadcaster) {
 		newStdFee := *stdFeeDefault
 		newDataFee := *dataFeeDefault
 
-		newStdFee.RelayFee.Satoshis = miningFeeSatPerKb
-		newDataFee.RelayFee.Satoshis = miningFeeSatPerKb
+		newStdFee.MiningFee.Satoshis = miningFeeSatPerKb
+		newDataFee.MiningFee.Satoshis = miningFeeSatPerKb
 
 		fq.AddQuote(bt.FeeTypeData, &newStdFee)
 		fq.AddQuote(bt.FeeTypeStandard, &newDataFee)
@@ -144,7 +144,7 @@ func (b *RateBroadcaster) Payback() error {
 		}
 
 		if len(txs) == b.batchSize {
-			err = b.submitPaybackTxs(txs)
+			err = b.submitTxs(txs, metamorph_api.Status_SEEN_ON_NETWORK)
 			if err != nil {
 				return err
 			}
@@ -168,7 +168,7 @@ func (b *RateBroadcaster) Payback() error {
 	}
 
 	if len(txs) > 0 {
-		err = b.submitPaybackTxs(txs)
+		err = b.submitTxs(txs, metamorph_api.Status_SEEN_ON_NETWORK)
 		if err != nil {
 			return err
 		}
@@ -197,72 +197,60 @@ func (b *RateBroadcaster) addOutput(tx *bt.Tx, totalSatoshis uint64, feePerKb ui
 	return nil
 }
 
-func (b *RateBroadcaster) addOutputsConsolidate(tx *bt.Tx, totalSatoshis uint64, requestedSatoshis uint64, feePerKb uint64) error {
+func (b *RateBroadcaster) addOutputsSplit(tx *bt.Tx, splitSatoshis uint64, requestedSatoshis uint64, requestedOutputs int) (addedOutputs int, err error) {
 
-	if requestedSatoshis > totalSatoshis {
-		err := b.addOutput(tx, totalSatoshis, feePerKb)
-		if err != nil {
-			return err
-		}
-
-		return nil
+	if requestedSatoshis > splitSatoshis {
+		return 0, fmt.Errorf("requested satoshis %d greater than satoshis to be split %d", requestedSatoshis, splitSatoshis)
 	}
 
-	err := tx.PayTo(b.fromKeySet.Script, requestedSatoshis)
-	if err != nil {
-		return err
-	}
+	counter := 0
 
-	err = tx.ChangeToAddress(b.fromKeySet.Address(!b.isTestnet), b.feeQuote)
-	if err != nil {
-		return err
-	}
+	remaining := int64(splitSatoshis)
+	for remaining > int64(requestedSatoshis) && counter < requestedOutputs {
 
-	unlockerGetter := unlocker.Getter{PrivateKey: b.toKeySet.PrivateKey}
-	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (b *RateBroadcaster) addOutputsSplit(tx *bt.Tx, splitSatoshis uint64, requestedSatoshis uint64, feePerKb uint64) error {
-
-	if requestedSatoshis < splitSatoshis {
-
-		return fmt.Errorf("requested satoshis %d smaller than satoshis to be split %d", requestedSatoshis, splitSatoshis)
-	}
-
-	// split satoshis into requested size
-	for remaining := splitSatoshis; remaining > 0; remaining = splitSatoshis - requestedSatoshis {
 		err := tx.PayTo(b.fromKeySet.Script, requestedSatoshis)
 		if err != nil {
-			return err
+			return 0, err
 		}
+
+		remaining -= int64(requestedSatoshis)
+		counter++
 	}
 
-	err := tx.ChangeToAddress(b.fromKeySet.Address(!b.isTestnet), b.feeQuote)
+	miningFee, err := b.feeQuote.Fee(bt.FeeTypeStandard)
+	if err != nil {
+		return 0, err
+	}
 
-	unlockerGetter := unlocker.Getter{PrivateKey: b.toKeySet.PrivateKey}
+	feePerKb := uint64(miningFee.MiningFee.Satoshis)
+
+	fee := uint64(math.Ceil(float64(tx.Size()) / 1000 * float64(feePerKb)))
+
+	err = tx.PayTo(b.fromKeySet.Script, uint64(remaining)-fee)
+	//err := tx.Change(b.fromKeySet.Script, b.feeQuote)
+	if err != nil {
+		return 0, err
+	}
+
+	unlockerGetter := unlocker.Getter{PrivateKey: b.fromKeySet.PrivateKey}
 	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return counter, nil
 }
 
-func (b *RateBroadcaster) submitPaybackTxs(txs []*bt.Tx) error {
+func (b *RateBroadcaster) submitTxs(txs []*bt.Tx, expectedStatus metamorph_api.Status) error {
 
-	resp, err := b.client.BroadcastTransactions(context.Background(), txs, metamorph_api.Status_SEEN_ON_NETWORK, b.CallbackURL)
+	resp, err := b.client.BroadcastTransactions(context.Background(), txs, expectedStatus, b.CallbackURL)
 	if err != nil {
 		return err
 	}
 
 	for _, res := range resp {
-		if res.Status != metamorph_api.Status_SEEN_ON_NETWORK {
-			return fmt.Errorf("payback transaction does not have expected status %s, but %s", metamorph_api.Status_SEEN_ON_NETWORK.String(), res.Status.String())
+		if res.Status != expectedStatus {
+			return fmt.Errorf("transaction does not have expected status %s, but %s", expectedStatus.String(), res.Status.String())
 		}
 	}
 
@@ -282,84 +270,61 @@ func (b *RateBroadcaster) CreateUtxos(requestedOutputs int, requestedSatoshisPer
 		return fmt.Errorf("requested total of satoshis %d exceeds balance on funding keyset %d", requestedOutputsSatoshis, balance)
 	}
 
-	miningFee, err := b.feeQuote.Fee(bt.FeeTypeStandard)
 	utxoSet := make([]*bt.UTXO, 0, requestedOutputs)
-
-	txsBatches := make([][]*bt.Tx, 0)
-	txs := make([]*bt.Tx, 0)
-
-	var utxos []*bt.UTXO
-	var utxo *bt.UTXO
 
 requestedOutputsLoop:
 	for len(utxoSet) < requestedOutputs {
 
 		utxoSet = make([]*bt.UTXO, 0, requestedOutputs)
 
-		utxos, err = b.utxoClient.GetUTXOs(!b.isTestnet, b.fromKeySet.Script, b.fromKeySet.Address(!b.isTestnet))
+		greater := make([]*bt.UTXO, 0)
+
+		utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fromKeySet.Script, b.fromKeySet.Address(!b.isTestnet))
+
 		if err != nil {
 			return err
 		}
 
-		txSatoshis := uint64(0)
-		for _, utxo = range utxos {
+		for _, utxo := range utxos {
 
 			if len(utxoSet) >= requestedOutputs {
 				break requestedOutputsLoop
 			}
 
 			if utxo.Satoshis == requestedSatoshisPerOutput {
-				utxoSet = append(utxos, utxo)
+				utxoSet = append(utxoSet, utxo)
+
 				continue
 			}
 
-			if utxo.Satoshis < requestedSatoshisPerOutput {
-				tx := bt.NewTx()
-				err = tx.FromUTXOs(utxo)
-				if err != nil {
-					return err
-				}
-
-				txSatoshis += utxo.Satoshis
-
-				// create payback transactions with a maximum of inputs
-				if len(tx.Inputs) >= b.maxInputs || txSatoshis > requestedSatoshisPerOutput {
-
-					err = b.addOutputsConsolidate(tx, txSatoshis, requestedSatoshisPerOutput, uint64(miningFee.MiningFee.Satoshis))
-					if err != nil {
-						return err
-					}
-
-					txs = append(txs, tx)
-
-					tx = bt.NewTx()
-					txSatoshis = 0
-				}
-
-				if len(txs) == b.batchSize {
-					txsBatches = append(txsBatches, txs)
-					txs = make([]*bt.Tx, 0)
-				}
-			}
-
 			if utxo.Satoshis > requestedSatoshisPerOutput {
-				tx := bt.NewTx()
-				err = tx.FromUTXOs(utxo)
-				if err != nil {
-					return err
-				}
+				greater = append(greater, utxo)
+			}
+		}
 
-				err = b.addOutputsSplit(tx, utxo.Satoshis, requestedSatoshisPerOutput, uint64(miningFee.MiningFee.Satoshis))
-				if err != nil {
-					return err
-				}
+		txsBatches := make([][]*bt.Tx, 0)
+		txs := make([]*bt.Tx, 0)
+		outputs := len(utxoSet)
 
-				txs = append(txs, tx)
-
-				tx = bt.NewTx()
+		for _, utxo := range greater {
+			tx := bt.NewTx()
+			err = tx.FromUTXOs(utxo)
+			if err != nil {
+				return err
 			}
 
-			b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs))
+			addedOutputs, err := b.addOutputsSplit(tx, utxo.Satoshis, requestedSatoshisPerOutput, requestedOutputs-outputs)
+			if err != nil {
+				return err
+			}
+
+			outputs += addedOutputs
+
+			//fmt.Println(tx.String())
+
+			txs = append(txs, tx)
+
+			tx = bt.NewTx()
 		}
 
 		if len(txs) > 0 {
@@ -367,13 +332,18 @@ requestedOutputsLoop:
 		}
 
 		for _, batch := range txsBatches {
-			err = b.submitPaybackTxs(batch)
+			err = b.submitTxs(batch, metamorph_api.Status_SEEN_ON_NETWORK)
 			if err != nil {
 				return err
 			}
 		}
 
-		time.Sleep(5 * time.Second)
+		b.logger.Info("utxo set", slog.Int("ready", outputs), slog.Int("requested", requestedOutputs))
+
+		time.Sleep(1 * time.Second)
 	}
+
+	b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs))
+
 	return nil
 }

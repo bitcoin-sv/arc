@@ -82,7 +82,7 @@ blocktx:
 
 broadcaster:
   apiURL: http://api.taal.com/arc # api url for broadcaster to connect to
-  miningFeeSatPerKb: 3
+  miningFeeSatPerKb: 1
   utxoSet:
     outputs: 1000 # number of outputs
     outputSat: 1000 # satoshis per output

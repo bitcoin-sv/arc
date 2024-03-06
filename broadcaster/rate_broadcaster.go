@@ -267,6 +267,9 @@ func (b *RateBroadcaster) splitToFundingKeyset(tx *bt.Tx, splitSatoshis uint64, 
 
 	remaining := int64(splitSatoshis)
 	for remaining > int64(requestedSatoshis) && counter < requestedOutputs {
+		if uint64(remaining)-requestedSatoshis < b.calculateFeeSat(tx) {
+			break
+		}
 
 		err := tx.PayTo(b.fundingKeyset.Script, requestedSatoshis)
 		if err != nil {
@@ -275,6 +278,7 @@ func (b *RateBroadcaster) splitToFundingKeyset(tx *bt.Tx, splitSatoshis uint64, 
 
 		remaining -= int64(requestedSatoshis)
 		counter++
+
 	}
 
 	err = tx.PayTo(b.fundingKeyset.Script, uint64(remaining)-b.calculateFeeSat(tx))
@@ -419,6 +423,8 @@ requestedOutputsLoop:
 			}
 		}
 
+		b.logger.Info("utxo set", slog.Int("created", outputs), slog.Int("requested", requestedOutputs))
+
 		if len(txs) > 0 {
 			txsBatches = append(txsBatches, txs)
 		}
@@ -429,10 +435,9 @@ requestedOutputsLoop:
 				return err
 			}
 
-			time.Sleep(10 * time.Second)
+			// do not performance test ARC when creating the utxos
+			time.Sleep(2 * time.Second)
 		}
-
-		b.logger.Info("utxo set", slog.Int("ready", outputs), slog.Int("requested", requestedOutputs))
 	}
 
 	b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs))

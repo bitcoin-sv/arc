@@ -20,7 +20,7 @@ import (
 
 var Cmd = &cobra.Command{
 	Use:   "broadcast",
-	Short: "submit transactions to ARC",
+	Short: "Submit transactions to ARC",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		useKey := viper.GetBool("useKey")

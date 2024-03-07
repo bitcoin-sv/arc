@@ -18,7 +18,7 @@ import (
 
 var Cmd = &cobra.Command{
 	Use:   "dist",
-	Short: "show distribution of utxo sizes in key set",
+	Short: "Show distribution of utxo sizes in key set",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		keyFile := viper.GetString("keyFile")
 		isTestnet := viper.GetBool("testnet")

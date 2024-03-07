@@ -14,7 +14,7 @@ import (
 
 var Cmd = &cobra.Command{
 	Use:   "balance",
-	Short: "show balance of the keyset",
+	Short: "Show balance of the keyset",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		keyFile := viper.GetString("keyFile")
 		isTestnet := viper.GetBool("testnet")

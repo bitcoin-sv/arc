@@ -62,7 +62,11 @@ var Cmd = &cobra.Command{
 				return err
 			}
 
-			writer, err = os.Create(fmt.Sprintf("results/responses-%s.json", time.Now().Format(time.DateTime)))
+			network := "mainnet"
+			if isTestnet {
+				network = "testnet"
+			}
+			writer, err = os.Create(fmt.Sprintf("results/%s-batchsize-%d-rate-%d-%s.json", network, batchSize, rateTxsPerSecond, time.Now().Format(time.DateTime)))
 			if err != nil {
 				return err
 			}

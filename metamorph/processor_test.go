@@ -3,6 +3,7 @@ package metamorph_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -172,6 +173,9 @@ func TestLoadUnmined(t *testing.T) {
 
 			mtmStore := &mocks.MetamorphStoreMock{
 				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+					if offset != 0 {
+						return nil, nil
+					}
 					return tc.storedData, tc.getUnminedErr
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
@@ -269,18 +273,15 @@ func TestProcessTransaction(t *testing.T) {
 					return nil
 				},
 				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+					if offset != 0 {
+						return nil, nil
+					}
 					return []*store.StoreData{
 						{
 							StoredAt:    time.Now(),
 							AnnouncedAt: time.Now(),
 							Hash:        testdata.TX1Hash,
 							Status:      metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-						},
-						{
-							StoredAt:    time.Now(),
-							AnnouncedAt: time.Now(),
-							Hash:        testdata.TX2Hash,
-							Status:      metamorph_api.Status_STORED,
 						},
 					}, nil
 				},
@@ -311,6 +312,7 @@ func TestProcessTransaction(t *testing.T) {
 				n := 0
 				for response := range responseChannel {
 					status := response.Status
+					fmt.Println(status.String())
 					require.Equal(t, testdata.TX1Hash, response.Hash)
 					require.Equalf(t, tc.expectedResponses[n], status, "Iteration %d: Expected %s, got %s", n, tc.expectedResponses[n].String(), status.String())
 					wg.Done()
@@ -621,6 +623,9 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
 				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+					if offset != 0 {
+						return nil, nil
+					}
 					return []*store.StoreData{
 						{
 							StoredAt:    time.Now(),
@@ -704,6 +709,9 @@ func TestProcessorHealth(t *testing.T) {
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
 				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+					if offset != 0 {
+						return nil, nil
+					}
 					return []*store.StoreData{
 						{
 							StoredAt:    time.Now(),

@@ -3,6 +3,7 @@ package metamorph
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -249,12 +250,22 @@ func (p *Processor) processStatusUpdates() {
 			case <-p.quitListenStatusUpdateCh:
 				return
 			case statusUpdate := <-p.statusUpdateCh:
-
 				// Ensure no duplicate hashes, overwrite value if the status has higher value than existing status
 				foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
 				if !found || (found && statusValueMap[foundStatusUpdate.Status] < statusValueMap[statusUpdate.Status]) {
 					statusUpdatesMap[statusUpdate.Hash] = statusUpdate
 				}
+
+				// if we recieve new update check if we have client connection waiting for status and send it
+				processorResponse, ok := p.ProcessorResponseMap.Get(&statusUpdate.Hash)
+				if ok {
+					fmt.Println("aq movida bolobllo")
+					processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
+						Status:    statusUpdate.Status,
+						StatusErr: nil,
+					})
+				}
+
 				p.CheckAndUpdate(&statusUpdates, &statusUpdatesMap, true)
 			case <-ticker.C:
 				p.CheckAndUpdate(&statusUpdates, &statusUpdatesMap, false)
@@ -264,6 +275,7 @@ func (p *Processor) processStatusUpdates() {
 }
 
 func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus) error {
+	fmt.Println("shota 1")
 	updatedData, err := p.store.UpdateStatusBulk(context.Background(), statusUpdates)
 	if err != nil {
 		return err
@@ -290,6 +302,7 @@ func (p *Processor) processExpiredTransactions() {
 
 		for {
 			// get all transactions since then chunk by chunk
+			fmt.Println(loadUnminedLimit, offset)
 			unminedTxs, err := p.store.GetUnmined(dbctx, getUnminedSince, loadUnminedLimit, offset)
 			if err != nil {
 				p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))

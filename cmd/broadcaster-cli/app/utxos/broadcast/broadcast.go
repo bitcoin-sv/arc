@@ -60,7 +60,7 @@ var Cmd = &cobra.Command{
 			}
 		}
 
-		preparer, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
+		rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithIsTestnet(isTestnet),
 			broadcaster.WithCallbackURL(callbackURL),
@@ -71,27 +71,19 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create rate broadcaster: %v", err)
 		}
 
-		shutdown := make(chan struct{})
-		shutdownComplete := make(chan struct{})
+		err = rateBroadcaster.StartRateBroadcaster(rateTxsPerSecond)
+		if err != nil {
+			return fmt.Errorf("failed to start rate broadcaster: %v", err)
+		}
 
-		go func() {
-			err = preparer.Broadcast(rateTxsPerSecond, shutdown, shutdownComplete)
-			if err != nil {
-				logger.Error("failed to broadcast back txs", slog.String("err", err.Error()))
-				return
-			}
-		}()
+		defer rateBroadcaster.Shutdown()
 
 		signalChan := make(chan os.Signal, 1)
 		signal.Notify(signalChan, syscall.SIGTERM)
+		signal.Notify(signalChan, os.Interrupt) // Signal from Ctrl+C
 
 		// wait for termination of program
 		<-signalChan
-
-		shutdown <- struct{}{}
-
-		// wait for graceful shutdown
-		<-shutdownComplete
 
 		return nil
 	},

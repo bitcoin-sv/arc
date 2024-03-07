@@ -460,6 +460,10 @@ func (b *RateBroadcaster) Broadcast(rateTxsPerSecond int) error {
 		return fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", rateTxsPerSecond, b.batchSize, submitBatchesPerSecond)
 	}
 
+	if len(utxoSet) < b.batchSize {
+		return fmt.Errorf("size of utxo set %d is smaller than requested batch size %d - create more utxos first", len(utxoSet), b.batchSize)
+	}
+
 	batchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
 
 	ticker := time.NewTicker(batchInterval)

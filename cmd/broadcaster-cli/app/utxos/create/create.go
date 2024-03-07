@@ -22,17 +22,21 @@ var Cmd = &cobra.Command{
 		satoshisPerOutput := viper.GetUint64("satoshis")
 
 		isTestnet := viper.GetBool("testnet")
-		callbackURL := viper.GetString("callback")
-		authorization := viper.GetString("authorization")
-		keyFile := viper.GetString("keyFile")
-		miningFeeSat := viper.GetInt("broadcaster.miningFeeSatPerKb")
+		callbackURL := helper.GetString("callback")
+		authorization := helper.GetString("authorization")
+		keyFile := helper.GetString("keyFile")
+		miningFeeSat := helper.GetInt("miningFeeSatPerKb")
 
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-		var client broadcaster.ArcClient
+		arcServer := helper.GetString("apiURL")
+
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
-		}, false, true)
+		}, arcServer)
+		if err != nil {
+			return fmt.Errorf("failed to create client: %v", err)
+		}
 		if err != nil {
 			return fmt.Errorf("failed to create client: %v", err)
 		}

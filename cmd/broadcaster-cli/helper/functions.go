@@ -11,40 +11,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-func CreateClient(auth *broadcaster.Auth, isDryRun bool, isAPIClient bool) (broadcaster.ArcClient, error) {
-	var client broadcaster.ArcClient
-	var err error
-	if isDryRun {
-		client = broadcaster.NewDryRunClient()
-	} else if isAPIClient {
-
-		arcServer := viper.GetString("api-url")
-		if arcServer == "" {
-			arcServer = viper.GetString("broadcaster.apiURL")
-			if arcServer == "" {
-				return nil, errors.New("arcUrl not found in config")
-			}
-		}
-
-		arcServerUrl, err := url.Parse(arcServer)
-		if err != nil {
-			return nil, errors.New("arcUrl is not a valid url")
-		}
-
-		// create a http connection to the arc node
-		client = broadcaster.NewHTTPBroadcaster(arcServerUrl.String(), auth)
-	} else {
-		addresses := viper.GetString("metamorph.dialAddr")
-		if addresses == "" {
-			return nil, errors.New("metamorph.dialAddr not found in config")
-		}
-		client, err = broadcaster.NewMetamorphBroadcaster(addresses)
-		if err != nil {
-			return nil, err
-		}
+func CreateClient(auth *broadcaster.Auth, arcServer string) (broadcaster.ArcClient, error) {
+	arcServerUrl, err := url.Parse(arcServer)
+	if err != nil {
+		return nil, errors.New("arcUrl is not a valid url")
 	}
-
-	return client, nil
+	return broadcaster.NewHTTPBroadcaster(arcServerUrl.String(), auth), nil
 }
 
 func GetKeySetsKeyFile(keyFile string) (fundingKeySet *keyset.KeySet, receivingKeySet *keyset.KeySet, err error) {
@@ -83,4 +55,59 @@ func GetNewKeySets() (fundingKeySet *keyset.KeySet, receivingKeySet *keyset.KeyS
 	receivingKeySet = fundingKeySet
 
 	return fundingKeySet, receivingKeySet, err
+}
+
+func GetString(settingName string) string {
+
+	setting := viper.GetString(settingName)
+	if setting != "" {
+		return setting
+	}
+
+	viper.AddConfigPath(".")
+	var result map[string]interface{}
+	viper.SetConfigFile(".env")
+	if err := viper.ReadInConfig(); err != nil {
+		return ""
+	}
+
+	err := viper.Unmarshal(&result)
+	if err != nil {
+		return ""
+	}
+
+	value, ok := result[strings.ToLower(settingName)].(string)
+	if !ok {
+		return ""
+	}
+
+	return value
+}
+
+func GetInt(settingName string) int {
+
+	setting := viper.GetInt(settingName)
+	if setting != 0 {
+		return setting
+	}
+
+	viper.AddConfigPath(".")
+	var result map[string]interface{}
+	viper.SetConfigFile(".env")
+	if err := viper.ReadInConfig(); err != nil {
+		return 0
+	}
+
+	err := viper.Unmarshal(&result)
+	if err != nil {
+		return 0
+	}
+
+	value, ok := result[settingName].(int)
+
+	if !ok {
+		return 0
+	}
+
+	return value
 }

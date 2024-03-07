@@ -23,7 +23,6 @@ type ProcessorResponseStatusUpdate struct {
 
 type ProcessorResponse struct {
 	callerCh chan StatusAndError
-	NoStats  bool            `json:"noStats"`
 	Hash     *chainhash.Hash `json:"hash"`
 	// The following fields are protected by the mutex
 	mu     deadlock.RWMutex

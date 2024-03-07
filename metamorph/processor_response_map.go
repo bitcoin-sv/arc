@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/metamorph/processor_response"
-	"github.com/bitcoin-sv/arc/metamorph/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/sasha-s/go-deadlock"
 )
@@ -16,10 +15,8 @@ const (
 
 type ProcessorResponseMap struct {
 	mu            deadlock.RWMutex
-	Expiry        time.Duration
 	ResponseItems map[chainhash.Hash]*processor_response.ProcessorResponse
 	now           func() time.Time
-	store         store.MetamorphStore
 }
 
 func WithNowResponseMap(nowFunc func() time.Time) func(*ProcessorResponseMap) {
@@ -30,12 +27,10 @@ func WithNowResponseMap(nowFunc func() time.Time) func(*ProcessorResponseMap) {
 
 type OptionProcRespMap func(p *ProcessorResponseMap)
 
-func NewProcessorResponseMap(s store.MetamorphStore, expiry time.Duration, opts ...OptionProcRespMap) *ProcessorResponseMap {
+func NewProcessorResponseMap(expiry time.Duration, opts ...OptionProcRespMap) *ProcessorResponseMap {
 	m := &ProcessorResponseMap{
-		Expiry:        expiry,
 		ResponseItems: make(map[chainhash.Hash]*processor_response.ProcessorResponse),
 		now:           time.Now,
-		store:         s,
 	}
 
 	// apply options
@@ -75,10 +70,6 @@ func (m *ProcessorResponseMap) Delete(hash *chainhash.Hash) {
 	}
 
 	delete(m.ResponseItems, *hash)
-	// Check if the item was deleted
-	// if _, ok := m.ResponseItems[*hash]; ok {
-	// 	log.Printf("Failed to delete item from map: %v", hash)
-	// }
 }
 
 func (m *ProcessorResponseMap) Len() int {
@@ -156,12 +147,4 @@ func (m *ProcessorResponseMap) logMapItems(logger *slog.Logger) {
 	for hash, processorResponse := range m.ResponseItems {
 		logger.Debug("Processor response map item", slog.String("hash", hash.String()), slog.String("status", processorResponse.GetStatus().String()), slog.String("err", processorResponse.Err.Error()))
 	}
-}
-
-// Clear clears the map.
-func (m *ProcessorResponseMap) Clear() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.ResponseItems = make(map[chainhash.Hash]*processor_response.ProcessorResponse)
 }

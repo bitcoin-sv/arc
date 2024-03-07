@@ -3,7 +3,6 @@ package metamorph
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -140,7 +139,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		opt(p)
 	}
 
-	p.ProcessorResponseMap = NewProcessorResponseMap(s, p.mapExpiryTime, WithNowResponseMap(p.now))
+	p.ProcessorResponseMap = NewProcessorResponseMap(p.mapExpiryTime, WithNowResponseMap(p.now))
 
 	p.logger.Info("Starting processor", slog.String("cacheExpiryTime", p.mapExpiryTime.String()))
 
@@ -256,7 +255,6 @@ func (p *Processor) processStatusUpdates() {
 				if !found || (found && statusValueMap[foundStatusUpdate.Status] < statusValueMap[statusUpdate.Status]) {
 					statusUpdatesMap[statusUpdate.Hash] = statusUpdate
 				}
-				fmt.Println("AAAAA")
 				p.CheckAndUpdate(&statusUpdates, &statusUpdatesMap, true)
 			case <-ticker.C:
 				p.CheckAndUpdate(&statusUpdates, &statusUpdatesMap, false)

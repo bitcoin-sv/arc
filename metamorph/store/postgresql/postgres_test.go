@@ -80,7 +80,6 @@ func TestMain(m *testing.M) {
 	hostPort := resource.GetPort("5432/tcp")
 
 	dbInfo = fmt.Sprintf("host=localhost port=%s user=%s password=%s dbname=%s sslmode=disable", hostPort, dbUsername, dbPassword, dbName)
-	fmt.Println(dbInfo)
 	var postgresDB *PostgreSQL
 	err = pool.Retry(func() error {
 		postgresDB, err = New(dbInfo, "localhost", 10, 10)
@@ -257,7 +256,7 @@ func TestPostgresDB(t *testing.T) {
 
 		expectedHash, err := chainhash.NewHashFromStr("57438c4340b9a5e0d77120d999765589048f6f2dd49a6325cdf14356fc4cc012")
 		require.NoError(t, err)
-		records, err := postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1)
+		records, err := postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1, 0)
 		require.NoError(t, err)
 		require.Equal(t, expectedHash, records[0].Hash)
 

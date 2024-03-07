@@ -30,9 +30,6 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //			HealthFunc: func() error {
 //				panic("mock out the Health method")
 //			},
-//			LoadUnminedFunc: func()  {
-//				panic("mock out the LoadUnmined method")
-//			},
 //			ProcessTransactionFunc: func(ctx context.Context, req *metamorph.ProcessorRequest)  {
 //				panic("mock out the ProcessTransaction method")
 //			},
@@ -58,9 +55,6 @@ type ProcessorIMock struct {
 	// HealthFunc mocks the Health method.
 	HealthFunc func() error
 
-	// LoadUnminedFunc mocks the LoadUnmined method.
-	LoadUnminedFunc func()
-
 	// ProcessTransactionFunc mocks the ProcessTransaction method.
 	ProcessTransactionFunc func(ctx context.Context, req *metamorph.ProcessorRequest)
 
@@ -82,9 +76,6 @@ type ProcessorIMock struct {
 		}
 		// Health holds details about calls to the Health method.
 		Health []struct {
-		}
-		// LoadUnmined holds details about calls to the LoadUnmined method.
-		LoadUnmined []struct {
 		}
 		// ProcessTransaction holds details about calls to the ProcessTransaction method.
 		ProcessTransaction []struct {
@@ -111,7 +102,6 @@ type ProcessorIMock struct {
 	lockGetPeers                 sync.RWMutex
 	lockGetStats                 sync.RWMutex
 	lockHealth                   sync.RWMutex
-	lockLoadUnmined              sync.RWMutex
 	lockProcessTransaction       sync.RWMutex
 	lockSendStatusForTransaction sync.RWMutex
 	lockShutdown                 sync.RWMutex
@@ -200,20 +190,6 @@ func (mock *ProcessorIMock) HealthCalls() []struct {
 	mock.lockHealth.RLock()
 	calls = mock.calls.Health
 	mock.lockHealth.RUnlock()
-	return calls
-}
-
-// LoadUnminedCalls gets all the calls that were made to LoadUnmined.
-// Check the length with:
-//
-//	len(mockedProcessorI.LoadUnminedCalls())
-func (mock *ProcessorIMock) LoadUnminedCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockLoadUnmined.RLock()
-	calls = mock.calls.LoadUnmined
-	mock.lockLoadUnmined.RUnlock()
 	return calls
 }
 

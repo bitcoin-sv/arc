@@ -510,6 +510,8 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 			b.shutdownComplete <- struct{}{}
 		}()
 
+		firstResponse := true
+
 		for {
 			select {
 			case <-b.shutdown:
@@ -567,7 +569,14 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 					b.logger.Error("failed to marshal response", slog.String("err", err.Error()))
 					continue
 				}
-				_, err = fmt.Fprintf(writer, "%s,\n", string(resBytes))
+
+				if firstResponse {
+					_, err = fmt.Fprintf(writer, "%s\n", string(resBytes))
+					firstResponse = false
+				} else {
+					_, err = fmt.Fprintf(writer, ",%s\n", string(resBytes))
+				}
+
 				if err != nil {
 					b.logger.Error("failed to print response", slog.String("err", err.Error()))
 					continue
@@ -602,7 +611,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 }
 
 func (b *RateBroadcaster) Shutdown() {
-	b.logger.Info("Shutting down broadcaster")
+	b.logger.Info("shutting down broadcaster")
 
 	b.shutdown <- struct{}{}
 	<-b.shutdownComplete

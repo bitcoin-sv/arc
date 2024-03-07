@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 )
@@ -55,7 +56,13 @@ var Cmd = &cobra.Command{
 
 		var writer io.Writer
 		if store {
-			writer, err = os.Open(fmt.Sprintf("results/responses-%s.json", time.Now().Format(time.DateTime)))
+			resultsPath := filepath.Join(".", "results")
+			err := os.MkdirAll(resultsPath, os.ModePerm)
+			if err != nil {
+				return err
+			}
+
+			writer, err = os.Create(fmt.Sprintf("results/responses-%s.json", time.Now().Format(time.DateTime)))
 			if err != nil {
 				return err
 			}

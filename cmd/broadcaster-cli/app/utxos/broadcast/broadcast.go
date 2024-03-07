@@ -2,13 +2,6 @@ package broadcast
 
 import (
 	"fmt"
-	"github.com/bitcoin-sv/arc/broadcaster"
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
-	"github.com/bitcoin-sv/arc/lib/keyset"
-	"github.com/bitcoin-sv/arc/lib/woc_client"
-	"github.com/lmittmann/tint"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"io"
 	"log"
 	"log/slog"
@@ -17,6 +10,14 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"github.com/bitcoin-sv/arc/broadcaster"
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
+	"github.com/bitcoin-sv/arc/lib/keyset"
+	"github.com/bitcoin-sv/arc/lib/woc_client"
+	"github.com/lmittmann/tint"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var Cmd = &cobra.Command{
@@ -24,22 +25,26 @@ var Cmd = &cobra.Command{
 	Short: "Submit transactions to ARC",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
+		store := viper.GetBool("store")
 		rateTxsPerSecond := viper.GetInt("rate")
 		batchSize := viper.GetInt("batchsize")
-		store := viper.GetBool("store")
 
 		isTestnet := viper.GetBool("testnet")
-		callbackURL := viper.GetString("callback")
-		authorization := viper.GetString("authorization")
-		keyFile := viper.GetString("keyFile")
-		miningFeeSat := viper.GetInt("broadcaster.miningFeeSatPerKb")
+
+		callbackURL := helper.GetString("callback")
+		authorization := helper.GetString("authorization")
+		keyFile := helper.GetString("keyFile")
+		miningFeeSat := helper.GetInt("miningFeeSatPerKb")
 
 		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
 
 		var client broadcaster.ArcClient
+
+		arcServer := helper.GetString("apiURL")
+
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
-		}, false, true)
+		}, arcServer)
 		if err != nil {
 			return fmt.Errorf("failed to create client: %v", err)
 		}

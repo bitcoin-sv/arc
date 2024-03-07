@@ -80,13 +80,6 @@ blocktx:
   mq:
     txsMinedMaxBatchSize: 20 # size of batches for transactions which got mined to be published to the message queue
 
-broadcaster:
-  apiURL: https://api.taal.com/arc # api url for broadcaster to connect to
-  miningFeeSatPerKb: 1
-  utxoSet:
-    outputs: 1000 # number of outputs
-    outputSat: 1000 # satoshis per output
-
 api:
   address: localhost:9090 # address to start api server on
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX" # api key for www.whatsonchain.com

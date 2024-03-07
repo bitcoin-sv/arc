@@ -64,7 +64,7 @@ type Processor struct {
 	quitListenTxChannelComplete chan struct{}
 	minedTxsChan                chan *blocktx_api.TransactionBlocks
 
-	statusUpdateCh                   chan store.UpdateStatus
+	storageStatusUpdateCh            chan store.UpdateStatus
 	quitListenStatusUpdateCh         chan struct{}
 	quitListenStatusUpdateChComplete chan struct{}
 	processStatusUpdatesInterval     time.Duration
@@ -117,7 +117,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		quitListenStatusUpdateChComplete: make(chan struct{}),
 		processStatusUpdatesInterval:     processStatusUpdatesIntervalDefault,
 		processStatusUpdatesBatchSize:    processStatusUpdatesBatchSizeDefault,
-		statusUpdateCh:                   make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
+		storageStatusUpdateCh:            make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
@@ -147,7 +147,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 	// Start a goroutine to resend transactions that have not been seen on the network
 	go p.processExpiredTransactions()
 	go p.processMinedCallbacks()
-	go p.processStatusUpdates()
+	go p.processStatusUpdatesInStorage()
 
 	gocore.AddAppPayloadFn("mtm", func() interface{} {
 		return p.GetStats(false)
@@ -234,7 +234,7 @@ func (p *Processor) CheckAndUpdate(statusUpdatesMap *map[chainhash.Hash]store.Up
 	*statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 }
 
-func (p *Processor) processStatusUpdates() {
+func (p *Processor) processStatusUpdatesInStorage() {
 	ticker := time.NewTicker(p.processStatusUpdatesInterval)
 
 	go func() {
@@ -248,20 +248,11 @@ func (p *Processor) processStatusUpdates() {
 			select {
 			case <-p.quitListenStatusUpdateCh:
 				return
-			case statusUpdate := <-p.statusUpdateCh:
+			case statusUpdate := <-p.storageStatusUpdateCh:
 				// Ensure no duplicate hashes, overwrite value if the status has higher value than existing status
 				foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
 				if !found || (found && statusValueMap[foundStatusUpdate.Status] < statusValueMap[statusUpdate.Status]) {
 					statusUpdatesMap[statusUpdate.Hash] = statusUpdate
-				}
-
-				// if we recieve new update check if we have client connection waiting for status and send it
-				processorResponse, ok := p.ProcessorResponseMap.Get(&statusUpdate.Hash)
-				if ok {
-					processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-						Status:    statusUpdate.Status,
-						StatusErr: nil,
-					})
 				}
 
 				p.CheckAndUpdate(&statusUpdatesMap, true)
@@ -414,10 +405,19 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 		rejectReason = statusErr.Error()
 	}
 
-	p.statusUpdateCh <- store.UpdateStatus{
+	p.storageStatusUpdateCh <- store.UpdateStatus{
 		Hash:         *hash,
 		Status:       status,
 		RejectReason: rejectReason,
+	}
+
+	// if we recieve new update check if we have client connection waiting for status and send it
+	processorResponse, ok := p.ProcessorResponseMap.Get(hash)
+	if ok {
+		processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
+			Status:    status,
+			StatusErr: nil,
+		})
 	}
 
 	p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
@@ -499,8 +499,17 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
 	p.pm.AnnounceTransaction(req.Data.Hash, nil)
 
+	// notify existing client about new status
+	processorResponse, ok := p.ProcessorResponseMap.Get(req.Data.Hash)
+	if ok {
+		processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
+			Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			StatusErr: nil,
+		})
+	}
+
 	// broadcast that transaction is announced to network (eventually active clientს catch that)
-	p.statusUpdateCh <- store.UpdateStatus{
+	p.storageStatusUpdateCh <- store.UpdateStatus{
 		Hash:         *req.Data.Hash,
 		Status:       metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 		RejectReason: "",

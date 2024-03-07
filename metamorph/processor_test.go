@@ -170,7 +170,6 @@ func TestLoadUnmined(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			pm := &mocks.PeerManagerMock{}
-
 			mtmStore := &mocks.MetamorphStoreMock{
 				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 					if offset != 0 {
@@ -191,6 +190,7 @@ func TestLoadUnmined(t *testing.T) {
 					return nil
 				},
 			}
+			fmt.Println("movida aq ukve")
 
 			processor, err := metamorph.NewProcessor(mtmStore, pm,
 				metamorph.WithCacheExpiryTime(time.Hour*24),

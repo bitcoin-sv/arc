@@ -70,12 +70,12 @@ func (r *ProcessorResponse) String() string {
 func (r *ProcessorResponse) setStatus(status metamorph_api.Status) bool {
 	r.mu.Lock()
 	r.Status = status
-	r.mu.Unlock()
 
 	sae := StatusAndError{
 		Hash:   r.Hash,
 		Status: r.Status,
 	}
+	r.mu.Unlock()
 
 	if r.callerCh != nil {
 		return utils.SafeSend(r.callerCh, sae)

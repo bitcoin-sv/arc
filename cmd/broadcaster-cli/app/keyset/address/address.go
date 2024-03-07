@@ -13,7 +13,7 @@ import (
 
 var Cmd = &cobra.Command{
 	Use:   "address",
-	Short: "show address of the keyset",
+	Short: "Show address of the keyset",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		keyFile := viper.GetString("keyFile")
 		isTestnet := viper.GetBool("testnet")

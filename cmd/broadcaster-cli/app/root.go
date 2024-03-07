@@ -12,7 +12,7 @@ import (
 
 var RootCmd = &cobra.Command{
 	Use:   "broadcaster",
-	Short: "cli tool to broadcast transactions to ARC",
+	Short: "CLI tool to broadcast transactions to ARC",
 }
 
 func init() {

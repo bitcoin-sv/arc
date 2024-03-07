@@ -552,15 +552,9 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 			case responseErr := <-errCh:
 				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
 			case res := <-responseCh:
-				resBytes, err := json.Marshal(res)
-				if err != nil {
-					b.logger.Error("failed to marshal response", slog.String("err", err.Error()))
-					continue
-				}
-
 				// if writer is not given, just log response
 				if writer == nil {
-					b.logger.Info(string(resBytes))
+					b.logger.Info(res.Txid, slog.String("status", res.Status.String()))
 					continue
 				}
 
@@ -568,6 +562,11 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 				resultsMap[res.Status]++
 				counter++
 
+				resBytes, err := json.Marshal(res)
+				if err != nil {
+					b.logger.Error("failed to marshal response", slog.String("err", err.Error()))
+					continue
+				}
 				_, err = fmt.Fprintf(writer, "%s,\n", string(resBytes))
 				if err != nil {
 					b.logger.Error("failed to print response", slog.String("err", err.Error()))

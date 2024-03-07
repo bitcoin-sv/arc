@@ -305,7 +305,9 @@ func (p *Processor) processExpiredTransactions() {
 			p.logger.Info("Resending unmined transactions", slog.Int("number", len(unminedTxs)))
 			for _, tx := range unminedTxs {
 				// mark that we retried processing this transaction once more
-				p.store.IncrementRetries(dbctx, tx.Hash)
+				if err = p.store.IncrementRetries(dbctx, tx.Hash); err != nil {
+					p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
+				}
 
 				if tx.Retries > MaxRetries {
 					// Sending GETDATA to peers to see if they have it

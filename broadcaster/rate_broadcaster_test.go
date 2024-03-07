@@ -55,7 +55,7 @@ func TestRateBroadcaster_Payback(t *testing.T) {
 			},
 
 			expectedBatchSubmissions: 1,
-			expectedErrorStr:         "payback transaction does not have expected status SEEN_ON_NETWORK, but SENT_TO_NETWORK",
+			expectedErrorStr:         "transaction does not have expected status SEEN_ON_NETWORK, but SENT_TO_NETWORK",
 		},
 		{
 			name:         "broadcast err",

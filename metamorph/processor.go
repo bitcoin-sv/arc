@@ -216,21 +216,21 @@ func (p *Processor) processMinedCallbacks() {
 	}()
 }
 
-func (p *Processor) CheckAndUpdate(statusUpdates *[]store.UpdateStatus, statusUpdatesMap *map[chainhash.Hash]store.UpdateStatus, skipCheck bool) {
-	if skipCheck && len(*statusUpdatesMap) < p.processStatusUpdatesBatchSize {
+func (p *Processor) CheckAndUpdate(statusUpdatesMap *map[chainhash.Hash]store.UpdateStatus, skipCheck bool) {
+	if (skipCheck && len(*statusUpdatesMap) < p.processStatusUpdatesBatchSize) || len(*statusUpdatesMap) == 0 {
 		return
 	}
 
+	statusUpdates := make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
 	for _, distinctStatusUpdate := range *statusUpdatesMap {
-		*statusUpdates = append(*statusUpdates, distinctStatusUpdate)
+		statusUpdates = append(statusUpdates, distinctStatusUpdate)
 	}
 
-	err := p.statusUpdateWithCallback(*statusUpdates)
+	err := p.statusUpdateWithCallback(statusUpdates)
 	if err != nil {
 		p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
 	}
 
-	*statusUpdates = make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
 	*statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 }
 
@@ -242,7 +242,6 @@ func (p *Processor) processStatusUpdates() {
 			p.quitListenStatusUpdateChComplete <- struct{}{}
 		}()
 
-		statusUpdates := make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
 		statusUpdatesMap := map[chainhash.Hash]store.UpdateStatus{}
 
 		for {
@@ -259,23 +258,21 @@ func (p *Processor) processStatusUpdates() {
 				// if we recieve new update check if we have client connection waiting for status and send it
 				processorResponse, ok := p.ProcessorResponseMap.Get(&statusUpdate.Hash)
 				if ok {
-					fmt.Println("aq movida bolobllo")
 					processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
 						Status:    statusUpdate.Status,
 						StatusErr: nil,
 					})
 				}
 
-				p.CheckAndUpdate(&statusUpdates, &statusUpdatesMap, true)
+				p.CheckAndUpdate(&statusUpdatesMap, true)
 			case <-ticker.C:
-				p.CheckAndUpdate(&statusUpdates, &statusUpdatesMap, false)
+				p.CheckAndUpdate(&statusUpdatesMap, false)
 			}
 		}
 	}()
 }
 
 func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus) error {
-	fmt.Println("shota 1")
 	updatedData, err := p.store.UpdateStatusBulk(context.Background(), statusUpdates)
 	if err != nil {
 		return err
@@ -421,18 +418,6 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 		Hash:         *hash,
 		Status:       status,
 		RejectReason: rejectReason,
-	}
-
-	/*
-		we check if we have response object in the map. If we do, it means the client
-		connection is still open and waiting for new statuses, so let's send status.
-	*/
-	processorResponse, ok := p.ProcessorResponseMap.Get(hash)
-	if ok {
-		processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-			Status:    status,
-			StatusErr: statusErr,
-		})
 	}
 
 	p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))

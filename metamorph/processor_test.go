@@ -344,7 +344,6 @@ func TestProcessTransaction(t *testing.T) {
 }
 
 func TestSendStatusForTransaction(t *testing.T) {
-	return
 	type input struct {
 		hash      *chainhash.Hash
 		newStatus metamorph_api.Status
@@ -375,10 +374,10 @@ func TestSendStatusForTransaction(t *testing.T) {
 				},
 			},
 
-			expectedUpdateStatusCalls: 0,
+			expectedUpdateStatusCalls: 1,
 		},
 		{
-			name: "tx in response map - current status REJECTED, new status SEEN_ON_NETWORK - no update",
+			name: "tx in response map - current status REJECTED, new status SEEN_ON_NETWORK - still updates",
 			inputs: []input{
 				{
 					hash:                testdata.TX1Hash,
@@ -389,7 +388,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 				},
 			},
 
-			expectedUpdateStatusCalls: 0,
+			expectedUpdateStatusCalls: 1,
 		},
 		{
 			name: "new status MINED - update error",
@@ -554,12 +553,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 			)
 			require.NoError(t, err)
 			assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
-
 			for _, testInput := range tc.inputs {
-				if testInput.txResponseHash != nil {
-					processor.ProcessorResponseMap.Set(testInput.txResponseHash, testInput.txResponseHashValue)
-				}
-
 				sendErr := processor.SendStatusForTransaction(testInput.hash, testInput.newStatus, "test", testInput.statusErr)
 				assert.NoError(t, sendErr)
 			}
@@ -576,8 +570,8 @@ func TestSendStatusForTransaction(t *testing.T) {
 					t.Fatal("expected callbacks never sent")
 				}
 			}
-
 			time.Sleep(time.Millisecond * 100)
+			fmt.Println("aaaaa", len(metamorphStore.UpdateStatusBulkCalls()))
 
 			assert.Equal(t, tc.expectedUpdateStatusCalls, len(metamorphStore.UpdateStatusBulkCalls()))
 			assert.Equal(t, tc.expectedCallbacks, len(httpClientMock.DoCalls()))

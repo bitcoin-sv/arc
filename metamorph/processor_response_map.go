@@ -9,10 +9,6 @@ import (
 	"github.com/sasha-s/go-deadlock"
 )
 
-const (
-	cleanUpInterval = 15 * time.Minute
-)
-
 type ProcessorResponseMap struct {
 	mu            deadlock.RWMutex
 	ResponseItems map[chainhash.Hash]*processor_response.ProcessorResponse

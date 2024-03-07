@@ -31,19 +31,19 @@ type UtxoClient interface {
 }
 
 type RateBroadcaster struct {
-	logger                   *slog.Logger
-	client                   ArcClient
-	fundingKeyset            *keyset.KeySet
-	receivingKeyset          *keyset.KeySet
-	Outputs                  int64
-	SatoshisPerOutput        uint64
-	isTestnet                bool
-	CallbackURL              string
-	feeQuote                 *bt.FeeQuote
-	utxoClient               UtxoClient
-	standardMiningFee        bt.FeeUnit
-	responseWriter           io.Writer
-	responseResultIterations int
+	logger                         *slog.Logger
+	client                         ArcClient
+	fundingKeyset                  *keyset.KeySet
+	receivingKeyset                *keyset.KeySet
+	Outputs                        int64
+	SatoshisPerOutput              uint64
+	isTestnet                      bool
+	CallbackURL                    string
+	feeQuote                       *bt.FeeQuote
+	utxoClient                     UtxoClient
+	standardMiningFee              bt.FeeUnit
+	responseWriter                 io.Writer
+	responseWriteIterationInterval int
 
 	shutdown         chan struct{}
 	shutdownComplete chan struct{}
@@ -96,23 +96,23 @@ func WithCallbackURL(callbackURL string) func(preparer *RateBroadcaster) {
 func WithStoreWriter(storeWriter io.Writer, resultIterations int) func(preparer *RateBroadcaster) {
 	return func(preparer *RateBroadcaster) {
 		preparer.responseWriter = storeWriter
-		preparer.responseResultIterations = resultIterations
+		preparer.responseWriteIterationInterval = resultIterations
 	}
 }
 
 func NewRateBroadcaster(logger *slog.Logger, client ArcClient, fromKeySet *keyset.KeySet, toKeyset *keyset.KeySet, utxoClient UtxoClient, opts ...func(p *RateBroadcaster)) (*RateBroadcaster, error) {
 	broadcaster := &RateBroadcaster{
-		logger:                   logger,
-		client:                   client,
-		fundingKeyset:            fromKeySet,
-		receivingKeyset:          toKeyset,
-		isTestnet:                isTestnetDefault,
-		feeQuote:                 bt.NewFeeQuote(),
-		utxoClient:               utxoClient,
-		batchSize:                batchSizeDefault,
-		maxInputs:                maxInputsDefault,
-		responseWriter:           nil,
-		responseResultIterations: resultsIterationsDefault,
+		logger:                         logger,
+		client:                         client,
+		fundingKeyset:                  fromKeySet,
+		receivingKeyset:                toKeyset,
+		isTestnet:                      isTestnetDefault,
+		feeQuote:                       bt.NewFeeQuote(),
+		utxoClient:                     utxoClient,
+		batchSize:                      batchSizeDefault,
+		maxInputs:                      maxInputsDefault,
+		responseWriter:                 nil,
+		responseWriteIterationInterval: resultsIterationsDefault,
 
 		shutdown:         make(chan struct{}),
 		shutdownComplete: make(chan struct{}),
@@ -483,9 +483,10 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 		return fmt.Errorf("size of utxo set %d is smaller than requested batch size %d - create more utxos first", len(utxoSet), b.batchSize)
 	}
 
-	batchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
+	submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
 
-	ticker := time.NewTicker(batchInterval)
+	submitBatchTicker := time.NewTicker(submitBatchInterval)
+	showResultsTicker := time.NewTicker(3 * time.Second)
 
 	batchIndex := 0
 
@@ -529,7 +530,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 				}
 
 				return
-			case <-ticker.C:
+			case <-submitBatchTicker.C:
 
 				// if end of utxo set is reached => get the updated utxo set
 				if len(utxoSet) == batchIndex+b.batchSize+1 {
@@ -553,6 +554,19 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 				batchIndex += b.batchSize
 			case responseErr := <-errCh:
 				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
+
+			case <-showResultsTicker.C:
+				b.logger.Info("total responses",
+					slog.Int64(metamorph_api.Status_STORED.String(), resultsMap[metamorph_api.Status_STORED]),
+					slog.Int64(metamorph_api.Status_ANNOUNCED_TO_NETWORK.String(), resultsMap[metamorph_api.Status_ANNOUNCED_TO_NETWORK]),
+					slog.Int64(metamorph_api.Status_REQUESTED_BY_NETWORK.String(), resultsMap[metamorph_api.Status_REQUESTED_BY_NETWORK]),
+					slog.Int64(metamorph_api.Status_SENT_TO_NETWORK.String(), resultsMap[metamorph_api.Status_SENT_TO_NETWORK]),
+					slog.Int64(metamorph_api.Status_ACCEPTED_BY_NETWORK.String(), resultsMap[metamorph_api.Status_ACCEPTED_BY_NETWORK]),
+					slog.Int64(metamorph_api.Status_SEEN_ON_NETWORK.String(), resultsMap[metamorph_api.Status_SEEN_ON_NETWORK]),
+					slog.Int64(metamorph_api.Status_MINED.String(), resultsMap[metamorph_api.Status_MINED]),
+					slog.Int64(metamorph_api.Status_REJECTED.String(), resultsMap[metamorph_api.Status_REJECTED]),
+					slog.Int64(metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL.String(), resultsMap[metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL]),
+				)
 			case res := <-responseCh:
 				// if writer is not given, just log response
 				if writer == nil {
@@ -582,24 +596,12 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 					continue
 				}
 
-				if counter%b.responseResultIterations == 0 {
+				if counter%b.responseWriteIterationInterval == 0 {
 					err = writer.Flush()
 					if err != nil {
 						b.logger.Error("failed flush writer", slog.String("err", err.Error()))
 						continue
 					}
-
-					b.logger.Info("total responses",
-						slog.Int64(metamorph_api.Status_STORED.String(), resultsMap[metamorph_api.Status_STORED]),
-						slog.Int64(metamorph_api.Status_ANNOUNCED_TO_NETWORK.String(), resultsMap[metamorph_api.Status_ANNOUNCED_TO_NETWORK]),
-						slog.Int64(metamorph_api.Status_REQUESTED_BY_NETWORK.String(), resultsMap[metamorph_api.Status_REQUESTED_BY_NETWORK]),
-						slog.Int64(metamorph_api.Status_SENT_TO_NETWORK.String(), resultsMap[metamorph_api.Status_SENT_TO_NETWORK]),
-						slog.Int64(metamorph_api.Status_ACCEPTED_BY_NETWORK.String(), resultsMap[metamorph_api.Status_ACCEPTED_BY_NETWORK]),
-						slog.Int64(metamorph_api.Status_SEEN_ON_NETWORK.String(), resultsMap[metamorph_api.Status_SEEN_ON_NETWORK]),
-						slog.Int64(metamorph_api.Status_MINED.String(), resultsMap[metamorph_api.Status_MINED]),
-						slog.Int64(metamorph_api.Status_REJECTED.String(), resultsMap[metamorph_api.Status_REJECTED]),
-						slog.Int64(metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL.String(), resultsMap[metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL]),
-					)
 
 					counter = 0
 				}

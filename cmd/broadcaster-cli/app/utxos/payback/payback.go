@@ -10,7 +10,6 @@ import (
 	"github.com/bitcoin-sv/arc/lib/keyset"
 	"github.com/bitcoin-sv/arc/lib/woc_client"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var Cmd = &cobra.Command{
@@ -18,16 +17,16 @@ var Cmd = &cobra.Command{
 	Short: "Pay all funds from receiving key set to funding keyset",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		isTestnet := viper.GetBool("testnet")
-		callbackURL := viper.GetString("callback")
-		authorization := viper.GetString("authorization")
-		keyFile := viper.GetString("keyFile")
-
+		isTestnet := helper.GetBool("testnet")
+		callbackURL := helper.GetString("callback")
+		callbackToken := helper.GetString("callbackToken")
+		authorization := helper.GetString("authorization")
+		keyFile := helper.GetString("keyFile")
 		miningFeeSat := helper.GetInt("miningFeeSatPerKb")
+		arcServer := helper.GetString("apiURL")
 
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-		arcServer := helper.GetString("apiURL")
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
 		}, arcServer)
@@ -48,7 +47,7 @@ var Cmd = &cobra.Command{
 		preparer, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithIsTestnet(isTestnet),
-			broadcaster.WithCallbackURL(callbackURL),
+			broadcaster.WithCallback(callbackURL, callbackToken),
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create rate broadcaster: %v", err)

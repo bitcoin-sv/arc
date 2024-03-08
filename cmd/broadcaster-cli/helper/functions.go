@@ -111,3 +111,30 @@ func GetInt(settingName string) int {
 
 	return value
 }
+
+func GetBool(settingName string) bool {
+
+	setting := viper.GetBool(settingName)
+	if setting {
+		return true
+	}
+
+	viper.AddConfigPath(".")
+	var result map[string]interface{}
+	viper.SetConfigFile(".env")
+	if err := viper.ReadInConfig(); err != nil {
+		return false
+	}
+
+	err := viper.Unmarshal(&result)
+	if err != nil {
+		return false
+	}
+
+	value, ok := result[settingName].(bool)
+	if !ok {
+		return false
+	}
+
+	return value
+}

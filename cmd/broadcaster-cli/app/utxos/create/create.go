@@ -21,15 +21,15 @@ var Cmd = &cobra.Command{
 		outputs := viper.GetInt("outputs")
 		satoshisPerOutput := viper.GetUint64("satoshis")
 
-		isTestnet := viper.GetBool("testnet")
+		isTestnet := helper.GetBool("testnet")
 		callbackURL := helper.GetString("callback")
+		callbackToken := helper.GetString("callbackToken")
 		authorization := helper.GetString("authorization")
 		keyFile := helper.GetString("keyFile")
 		miningFeeSat := helper.GetInt("miningFeeSatPerKb")
+		arcServer := helper.GetString("apiURL")
 
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-
-		arcServer := helper.GetString("apiURL")
 
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
@@ -54,7 +54,7 @@ var Cmd = &cobra.Command{
 		preparer, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithIsTestnet(isTestnet),
-			broadcaster.WithCallbackURL(callbackURL),
+			broadcaster.WithCallback(callbackURL, callbackToken),
 		)
 
 		err = preparer.CreateUtxos(outputs, satoshisPerOutput)

@@ -1,4 +1,4 @@
-package app
+package address
 
 import (
 	"errors"
@@ -11,9 +11,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-var addrCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "address",
-	Short: "show address of the wallet",
+	Short: "show address of the keyset",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		keyFile := viper.GetString("keyFile")
 		isTestnet := viper.GetBool("testnet")
@@ -34,18 +34,14 @@ var addrCmd = &cobra.Command{
 			return err
 		}
 
-		logger.Info("address", "funding key", fundingKeySet.Address(!isTestnet))
+		logger.Info("address", slog.String("funding key", fundingKeySet.Address(!isTestnet)))
 
 		receivingKeySet, err := keyset.NewFromExtendedKeyStr(xpriv, "0/1")
 		if err != nil {
 			return err
 		}
-		logger.Info("address", "receiving key", receivingKeySet.Address(!isTestnet))
+		logger.Info("address", slog.String("receiving key", receivingKeySet.Address(!isTestnet)))
 
 		return nil
 	},
-}
-
-func init() {
-	walletCmd.AddCommand(addrCmd)
 }

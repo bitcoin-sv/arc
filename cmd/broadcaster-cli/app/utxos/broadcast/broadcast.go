@@ -1,7 +1,6 @@
-package app
+package broadcast
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -15,17 +14,18 @@ import (
 	"github.com/spf13/viper"
 )
 
-var prepCmd = &cobra.Command{
-	Use:   "prepare-utxos",
-	Short: "Create UTXO set to be used with broadcaster",
+var Cmd = &cobra.Command{
+	Use:   "broadcast",
+	Short: "submit transactions to ARC",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
+		rateTxsPerSecond := viper.GetInt("rate")
+		batchSize := viper.GetInt("batchsize")
+
 		isTestnet := viper.GetBool("testnet")
-		isPayback := viper.GetBool("payback")
 		callbackURL := viper.GetString("callback")
 		authorization := viper.GetString("authorization")
 		keyFile := viper.GetString("keyFile")
-
 		miningFeeSat := viper.GetInt("broadcaster.miningFeeSatPerKb")
 
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -48,37 +48,37 @@ var prepCmd = &cobra.Command{
 
 		wocClient := woc_client.New()
 
-		preparer := broadcaster.NewUTXOPreparer(logger, client, fundingKeySet, receivingKeySet, &wocClient,
+		preparer, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithIsTestnet(isTestnet),
 			broadcaster.WithCallbackURL(callbackURL),
+			broadcaster.WithBatchSize(batchSize),
 		)
-
-		if isPayback {
-			err := preparer.Payback()
-			if err != nil {
-				return fmt.Errorf("failed to submit pay back txs: %v", err)
-			}
-			return nil
+		if err != nil {
+			return fmt.Errorf("failed to create rate broadcaster: %v", err)
 		}
 
-		return errors.New("prepare-utxos functionality not yet implemented")
+		err = preparer.Broadcast(rateTxsPerSecond)
+		if err != nil {
+			return fmt.Errorf("failed to broadcast back txs: %v", err)
+		}
+		return nil
 	},
 }
 
 func init() {
 	var err error
 
-	prepCmd.Flags().Bool("payback", false, "Send all funds from receiving key set to funding key set")
-	err = viper.BindPFlag("payback", prepCmd.Flags().Lookup("payback"))
+	Cmd.Flags().Int("rate", 10, "transactions per second to be rate broadcasted")
+	err = viper.BindPFlag("rate", Cmd.Flags().Lookup("rate"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	prepCmd.Flags().String("api-url", "", "Send all funds from receiving key set to funding key set")
-	err = viper.BindPFlag("api-url", prepCmd.Flags().Lookup("api-url"))
+	Cmd.Flags().Int("batchsize", 10, "size of batches to submit transactions")
+	err = viper.BindPFlag("batchsize", Cmd.Flags().Lookup("batchsize"))
 	if err != nil {
 		log.Fatal(err)
 	}
-	rootCmd.AddCommand(prepCmd)
+
 }

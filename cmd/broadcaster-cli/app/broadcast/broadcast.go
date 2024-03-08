@@ -1,4 +1,4 @@
-package app
+package broadcast
 
 import (
 	"bufio"
@@ -18,7 +18,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var broadcastCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "broadcast",
 	Short: "submit transactions to ARC",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -116,52 +116,50 @@ var broadcastCmd = &cobra.Command{
 func init() {
 	var err error
 
-	rootCmd.AddCommand(broadcastCmd)
-
-	broadcastCmd.Flags().Bool("useKey", false, "private key to use for funding transactions")
-	err = viper.BindPFlag("useKey", broadcastCmd.Flags().Lookup("useKey"))
+	Cmd.Flags().Bool("useKey", false, "private key to use for funding transactions")
+	err = viper.BindPFlag("useKey", Cmd.Flags().Lookup("useKey"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	broadcastCmd.Flags().Bool("dryrun", false, "whether to not send transactions or just output to console")
-	err = viper.BindPFlag("isDryRun", broadcastCmd.Flags().Lookup("dryrun"))
+	Cmd.Flags().Bool("dryrun", false, "whether to not send transactions or just output to console")
+	err = viper.BindPFlag("isDryRun", Cmd.Flags().Lookup("dryrun"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	broadcastCmd.Flags().Bool("api", true, "whether to not send transactions to api or metamorph")
-	err = viper.BindPFlag("isAPIClient", broadcastCmd.Flags().Lookup("api"))
+	Cmd.Flags().Bool("api", true, "whether to not send transactions to api or metamorph")
+	err = viper.BindPFlag("isAPIClient", Cmd.Flags().Lookup("api"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	broadcastCmd.Flags().Bool("print", false, "Whether to print out all the tx ids of the transactions")
-	err = viper.BindPFlag("printTxIDs", broadcastCmd.Flags().Lookup("print"))
+	Cmd.Flags().Bool("print", false, "Whether to print out all the tx ids of the transactions")
+	err = viper.BindPFlag("printTxIDs", Cmd.Flags().Lookup("print"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	broadcastCmd.Flags().Bool("consolidate", false, "whether to consolidate all output transactions back into the original")
-	err = viper.BindPFlag("consolidate", broadcastCmd.Flags().Lookup("consolidate"))
+	Cmd.Flags().Bool("consolidate", false, "whether to consolidate all output transactions back into the original")
+	err = viper.BindPFlag("consolidate", Cmd.Flags().Lookup("consolidate"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	broadcastCmd.Flags().Int("waitForStatus", 0, "wait for transaction to be in a certain status before continuing")
-	err = viper.BindPFlag("waitForStatus", broadcastCmd.Flags().Lookup("waitForStatus"))
+	Cmd.Flags().Int("waitForStatus", 0, "wait for transaction to be in a certain status before continuing")
+	err = viper.BindPFlag("waitForStatus", Cmd.Flags().Lookup("waitForStatus"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	broadcastCmd.Flags().Int("concurrency", 0, "How many transactions to send concurrently")
-	err = viper.BindPFlag("concurrency", broadcastCmd.Flags().Lookup("concurrency"))
+	Cmd.Flags().Int("concurrency", 0, "How many transactions to send concurrently")
+	err = viper.BindPFlag("concurrency", Cmd.Flags().Lookup("concurrency"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	broadcastCmd.Flags().Int("batch", 0, "send transactions in batches of this size")
-	err = viper.BindPFlag("batch", broadcastCmd.Flags().Lookup("batch"))
+	Cmd.Flags().Int("batch", 0, "send transactions in batches of this size")
+	err = viper.BindPFlag("batch", Cmd.Flags().Lookup("batch"))
 	if err != nil {
 		log.Fatal(err)
 	}

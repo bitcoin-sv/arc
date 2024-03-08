@@ -21,7 +21,7 @@ import (
 //go:generate moq -pkg mocks -out ./mocks/arc_client_mock.go . ArcClient
 //go:generate moq -pkg mocks -out ./mocks/utxo_client_mock.go . UtxoClient
 
-func TestUTXOPreparer_Payback(t *testing.T) {
+func TestRateBroadcaster_Payback(t *testing.T) {
 	tt := []struct {
 		name         string
 		statuses     []*metamorph_api.TransactionStatus
@@ -55,7 +55,7 @@ func TestUTXOPreparer_Payback(t *testing.T) {
 			},
 
 			expectedBatchSubmissions: 1,
-			expectedErrorStr:         "payback transaction does not have expected status SEEN_ON_NETWORK, but SENT_TO_NETWORK",
+			expectedErrorStr:         "transaction does not have expected status SEEN_ON_NETWORK, but SENT_TO_NETWORK",
 		},
 		{
 			name:         "broadcast err",
@@ -123,11 +123,12 @@ func TestUTXOPreparer_Payback(t *testing.T) {
 				},
 			}
 
-			utxoPreparer := broadcaster.NewUTXOPreparer(logger, client, fromKeySet, toKeySet, utxoClient,
+			utxoPreparer, err := broadcaster.NewRateBroadcaster(logger, client, fromKeySet, toKeySet, utxoClient,
 				broadcaster.WithFees(10),
 				broadcaster.WithBatchSize(2),
-				broadcaster.WithMaxOutputs(2),
+				broadcaster.WithMaxInputs(2),
 			)
+			require.NoError(t, err)
 
 			err = utxoPreparer.Payback()
 			require.Equal(t, tc.expectedBatchSubmissions, len(client.BroadcastTransactionsCalls()))

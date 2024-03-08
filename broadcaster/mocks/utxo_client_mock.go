@@ -20,6 +20,9 @@ var _ broadcaster.UtxoClient = &UtxoClientMock{}
 //
 //		// make and configure a mocked broadcaster.UtxoClient
 //		mockedUtxoClient := &UtxoClientMock{
+//			GetBalanceFunc: func(mainnet bool, address string) (int64, error) {
+//				panic("mock out the GetBalance method")
+//			},
 //			GetUTXOsFunc: func(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error) {
 //				panic("mock out the GetUTXOs method")
 //			},
@@ -30,11 +33,21 @@ var _ broadcaster.UtxoClient = &UtxoClientMock{}
 //
 //	}
 type UtxoClientMock struct {
+	// GetBalanceFunc mocks the GetBalance method.
+	GetBalanceFunc func(mainnet bool, address string) (int64, error)
+
 	// GetUTXOsFunc mocks the GetUTXOs method.
 	GetUTXOsFunc func(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// GetBalance holds details about calls to the GetBalance method.
+		GetBalance []struct {
+			// Mainnet is the mainnet argument value.
+			Mainnet bool
+			// Address is the address argument value.
+			Address string
+		}
 		// GetUTXOs holds details about calls to the GetUTXOs method.
 		GetUTXOs []struct {
 			// Mainnet is the mainnet argument value.
@@ -45,7 +58,44 @@ type UtxoClientMock struct {
 			Address string
 		}
 	}
-	lockGetUTXOs sync.RWMutex
+	lockGetBalance sync.RWMutex
+	lockGetUTXOs   sync.RWMutex
+}
+
+// GetBalance calls GetBalanceFunc.
+func (mock *UtxoClientMock) GetBalance(mainnet bool, address string) (int64, error) {
+	if mock.GetBalanceFunc == nil {
+		panic("UtxoClientMock.GetBalanceFunc: method is nil but UtxoClient.GetBalance was just called")
+	}
+	callInfo := struct {
+		Mainnet bool
+		Address string
+	}{
+		Mainnet: mainnet,
+		Address: address,
+	}
+	mock.lockGetBalance.Lock()
+	mock.calls.GetBalance = append(mock.calls.GetBalance, callInfo)
+	mock.lockGetBalance.Unlock()
+	return mock.GetBalanceFunc(mainnet, address)
+}
+
+// GetBalanceCalls gets all the calls that were made to GetBalance.
+// Check the length with:
+//
+//	len(mockedUtxoClient.GetBalanceCalls())
+func (mock *UtxoClientMock) GetBalanceCalls() []struct {
+	Mainnet bool
+	Address string
+} {
+	var calls []struct {
+		Mainnet bool
+		Address string
+	}
+	mock.lockGetBalance.RLock()
+	calls = mock.calls.GetBalance
+	mock.lockGetBalance.RUnlock()
+	return calls
 }
 
 // GetUTXOs calls GetUTXOsFunc.

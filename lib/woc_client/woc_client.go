@@ -24,6 +24,11 @@ type wocUtxo struct {
 	Satoshis uint64 `json:"value"`
 }
 
+type wocBalance struct {
+	Confirmed   int64 `json:"confirmed"`
+	Unconfirmed int64 `json:"unconfirmed"`
+}
+
 func (w *WocClient) GetUTXOs(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error) {
 	// Get UTXOs from WhatsOnChain
 	net := "test"
@@ -62,4 +67,28 @@ func (w *WocClient) GetUTXOs(mainnet bool, lockingScript *bscript.Script, addres
 	}
 
 	return unspent, nil
+}
+
+func (w *WocClient) GetBalance(mainnet bool, address string) (int64, error) {
+	net := "test"
+	if mainnet {
+		net = "main"
+	}
+	resp, err := http.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/balance", net, address))
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return 0, errors.New("failed to get balance")
+	}
+
+	var balance wocBalance
+	err = json.NewDecoder(resp.Body).Decode(&balance)
+	if err != nil {
+		return 0, err
+	}
+
+	return balance.Confirmed + balance.Unconfirmed, nil
 }

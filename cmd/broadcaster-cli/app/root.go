@@ -28,6 +28,9 @@ func init() {
 		log.Fatal(err)
 	}
 
+	viper.AddConfigPath(".")
+	viper.SetConfigFile("broadcaster-cli.env")
+
 	RootCmd.AddCommand(keyset.Cmd)
 	RootCmd.AddCommand(utxos.Cmd)
 }

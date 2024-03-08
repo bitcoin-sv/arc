@@ -13,15 +13,20 @@ import (
 	"github.com/bitcoin-sv/arc/lib/woc_client"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var Cmd = &cobra.Command{
 	Use:   "dist",
 	Short: "Show distribution of utxo sizes in key set",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		keyFile := helper.GetString("keyFile")
-		isTestnet := viper.GetBool("testnet")
+		keyFile, err := helper.GetString("keyFile")
+		if err != nil {
+			return err
+		}
+		isTestnet, err := helper.GetBool("testnet")
+		if err != nil {
+			return err
+		}
 
 		extendedBytes, err := os.ReadFile(keyFile)
 		if err != nil {

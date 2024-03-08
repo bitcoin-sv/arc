@@ -34,7 +34,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 //				panic("mock out the Get method")
 //			},
-//			GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64, hostname string) ([]*store.StoreData, error) {
+//			GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 //				panic("mock out the GetUnmined method")
 //			},
 //			IncrementRetriesFunc: func(ctx context.Context, hash *chainhash.Hash) error {
@@ -78,7 +78,7 @@ type MetamorphStoreMock struct {
 	GetFunc func(ctx context.Context, key []byte) (*store.StoreData, error)
 
 	// GetUnminedFunc mocks the GetUnmined method.
-	GetUnminedFunc func(ctx context.Context, since time.Time, limit int64, offset int64, hostname string) ([]*store.StoreData, error)
+	GetUnminedFunc func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error)
 
 	// IncrementRetriesFunc mocks the IncrementRetries method.
 	IncrementRetriesFunc func(ctx context.Context, hash *chainhash.Hash) error
@@ -139,8 +139,6 @@ type MetamorphStoreMock struct {
 			Limit int64
 			// Offset is the offset argument value.
 			Offset int64
-			// Hostname is the hostname argument value.
-			Hostname string
 		}
 		// IncrementRetries holds details about calls to the IncrementRetries method.
 		IncrementRetries []struct {
@@ -347,27 +345,25 @@ func (mock *MetamorphStoreMock) GetCalls() []struct {
 }
 
 // GetUnmined calls GetUnminedFunc.
-func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64, hostname string) ([]*store.StoreData, error) {
+func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 	if mock.GetUnminedFunc == nil {
 		panic("MetamorphStoreMock.GetUnminedFunc: method is nil but MetamorphStore.GetUnmined was just called")
 	}
 	callInfo := struct {
-		Ctx      context.Context
-		Since    time.Time
-		Limit    int64
-		Offset   int64
-		Hostname string
+		Ctx    context.Context
+		Since  time.Time
+		Limit  int64
+		Offset int64
 	}{
-		Ctx:      ctx,
-		Since:    since,
-		Limit:    limit,
-		Offset:   offset,
-		Hostname: hostname,
+		Ctx:    ctx,
+		Since:  since,
+		Limit:  limit,
+		Offset: offset,
 	}
 	mock.lockGetUnmined.Lock()
 	mock.calls.GetUnmined = append(mock.calls.GetUnmined, callInfo)
 	mock.lockGetUnmined.Unlock()
-	return mock.GetUnminedFunc(ctx, since, limit, offset, hostname)
+	return mock.GetUnminedFunc(ctx, since, limit, offset)
 }
 
 // GetUnminedCalls gets all the calls that were made to GetUnmined.
@@ -375,18 +371,16 @@ func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time,
 //
 //	len(mockedMetamorphStore.GetUnminedCalls())
 func (mock *MetamorphStoreMock) GetUnminedCalls() []struct {
-	Ctx      context.Context
-	Since    time.Time
-	Limit    int64
-	Offset   int64
-	Hostname string
+	Ctx    context.Context
+	Since  time.Time
+	Limit  int64
+	Offset int64
 } {
 	var calls []struct {
-		Ctx      context.Context
-		Since    time.Time
-		Limit    int64
-		Offset   int64
-		Hostname string
+		Ctx    context.Context
+		Since  time.Time
+		Limit  int64
+		Offset int64
 	}
 	mock.lockGetUnmined.RLock()
 	calls = mock.calls.GetUnmined

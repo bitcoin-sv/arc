@@ -84,7 +84,7 @@ func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("setunlockedbyname").AddTime(startNanos)
 	}()
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:GetUnmined")
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:SetUnlockedByName")
 	defer span.Finish()
 
 	q := "UPDATE metamorph.transactions SET locked_by = 'NONE' WHERE locked_by = $1;"
@@ -350,7 +350,7 @@ func (p *PostgreSQL) setLockedBy(ctx context.Context, hash *chainhash.Hash, lock
 	return nil
 }
 
-func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64, hostname string) ([]*store.StoreData, error) {
+func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 	startNanos := p.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("getunmined").AddTime(startNanos)
@@ -379,7 +379,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 		ORDER BY inserted_at_num DESC
 		LIMIT $4 OFFSET $5;`
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout), limit, offset, hostname)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout), limit, offset, p.hostname)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))
@@ -482,9 +482,11 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 			data.Retries = int(retries.Int32)
 		}
 
-		err = p.setLockedBy(ctx, data.Hash, p.hostname)
-		if err != nil {
-			return nil, err
+		if data.LockedBy == "NONE" {
+			err = p.setLockedBy(ctx, data.Hash, p.hostname)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		unminedTxs = append(unminedTxs, data)

@@ -291,8 +291,7 @@ func (p *Processor) processExpiredTransactions() {
 
 		for {
 			// get all transactions since then chunk by chunk
-			hostname, _ := os.Hostname()
-			unminedTxs, err := p.store.GetUnmined(dbctx, getUnminedSince, loadUnminedLimit, offset, hostname)
+			unminedTxs, err := p.store.GetUnmined(dbctx, getUnminedSince, loadUnminedLimit, offset)
 			if err != nil {
 				p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
 				continue

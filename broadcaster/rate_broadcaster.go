@@ -473,7 +473,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 		return err
 	}
 
-	b.logger.Info("starting broadcasting", slog.Int("batch size", b.batchSize))
+	b.logger.Info("starting broadcasting", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", b.batchSize))
 
 	submitBatchesPerSecond := float64(rateTxsPerSecond) / float64(b.batchSize)
 
@@ -486,25 +486,25 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 	}
 
 	submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
-
 	submitBatchTicker := time.NewTicker(submitBatchInterval)
-	showResultsTicker := time.NewTicker(3 * time.Second)
+
+	logSummaryTicker := time.NewTicker(3 * time.Second)
 
 	batchIndex := 0
 
-	responseCh := make(chan *metamorph_api.TransactionStatus)
-	errCh := make(chan error)
+	responseCh := make(chan *metamorph_api.TransactionStatus, 100)
+	errCh := make(chan error, 100)
 
 	var writer *bufio.Writer
 	if b.responseWriter != nil {
 		writer = bufio.NewWriter(b.responseWriter)
-		_, err = fmt.Fprint(writer, "[")
 		if err != nil {
 			return err
 		}
 	}
 
 	resultsMap := map[metamorph_api.Status]int64{}
+	logSummary := writer != nil
 
 	counter := 0
 	go func() {
@@ -513,8 +513,6 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 			b.shutdownComplete <- struct{}{}
 		}()
 
-		firstResponse := true
-
 		for {
 			select {
 			case <-b.shutdown:
@@ -522,10 +520,6 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 					return
 				}
 
-				_, err = fmt.Fprint(writer, "]")
-				if err != nil {
-					b.logger.Error("failed to create self paying txs", slog.String("err", err.Error()))
-				}
 				err = writer.Flush()
 				if err != nil {
 					b.logger.Error("failed flush writer", slog.String("err", err.Error()))
@@ -556,9 +550,14 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 				batchIndex += b.batchSize
 			case responseErr := <-errCh:
 				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
+			case <-logSummaryTicker.C:
 
-			case <-showResultsTicker.C:
-				b.logger.Info("total responses",
+				// only log summary of results if responses are written to file
+				if !logSummary {
+					continue
+				}
+
+				b.logger.Info("response summary",
 					slog.Int64(metamorph_api.Status_STORED.String(), resultsMap[metamorph_api.Status_STORED]),
 					slog.Int64(metamorph_api.Status_ANNOUNCED_TO_NETWORK.String(), resultsMap[metamorph_api.Status_ANNOUNCED_TO_NETWORK]),
 					slog.Int64(metamorph_api.Status_REQUESTED_BY_NETWORK.String(), resultsMap[metamorph_api.Status_REQUESTED_BY_NETWORK]),
@@ -571,47 +570,51 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 				)
 			case res := <-responseCh:
 				// if writer is not given, just log response
-				if writer == nil {
+				if !logSummary {
 					b.logger.Info(res.Txid, slog.String("status", res.Status.String()))
-					continue
 				}
 
 				// if writer is given, store the response in the writer and log summarized results every 50 iterations
 				resultsMap[res.Status]++
 				counter++
 
-				resBytes, err := json.Marshal(res)
-				if err != nil {
-					b.logger.Error("failed to marshal response", slog.String("err", err.Error()))
+				if writer == nil {
 					continue
 				}
 
-				if firstResponse {
-					_, err = fmt.Fprintf(writer, "%s\n", string(resBytes))
-					firstResponse = false
-				} else {
-					_, err = fmt.Fprintf(writer, ",%s\n", string(resBytes))
-				}
-
+				counter, err = b.writeResponse(writer, res, counter)
 				if err != nil {
-					b.logger.Error("failed to print response", slog.String("err", err.Error()))
-					continue
-				}
-
-				if counter%b.responseWriteIterationInterval == 0 {
-					err = writer.Flush()
-					if err != nil {
-						b.logger.Error("failed flush writer", slog.String("err", err.Error()))
-						continue
-					}
-
-					counter = 0
+					b.logger.Error("failed to write response", slog.String("err", err.Error()))
 				}
 			}
 		}
 	}()
 
 	return nil
+}
+
+func (b *RateBroadcaster) writeResponse(writer *bufio.Writer, res *metamorph_api.TransactionStatus, counter int) (int, error) {
+
+	resBytes, err := json.Marshal(res)
+	if err != nil {
+		return counter, fmt.Errorf("failed to marshal response: %v", err)
+	}
+
+	_, err = fmt.Fprintf(writer, ",%s\n", string(resBytes))
+	if err != nil {
+		return counter, fmt.Errorf("failed to print response: %v", err)
+	}
+
+	if counter%b.responseWriteIterationInterval == 0 {
+		err = writer.Flush()
+		if err != nil {
+			return 0, fmt.Errorf("failed flush writer: %v", err)
+		}
+
+		counter = 0
+	}
+
+	return counter, nil
 }
 
 func (b *RateBroadcaster) Shutdown() {

@@ -6,15 +6,20 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 )
 
-type WocClient struct{}
+type WocClient struct {
+	client http.Client
+}
 
 func New() WocClient {
-	return WocClient{}
+	return WocClient{
+		client: http.Client{Timeout: 5 * time.Second},
+	}
 }
 
 type wocUtxo struct {
@@ -35,7 +40,7 @@ func (w *WocClient) GetUTXOs(mainnet bool, lockingScript *bscript.Script, addres
 	if mainnet {
 		net = "main"
 	}
-	resp, err := http.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/unspent", net, address))
+	resp, err := w.client.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/unspent", net, address))
 	if err != nil {
 		return nil, err
 	}

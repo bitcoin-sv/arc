@@ -254,13 +254,32 @@ func TestPostgresDB(t *testing.T) {
 
 		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
 
-		expectedHash, err := chainhash.NewHashFromStr("57438c4340b9a5e0d77120d999765589048f6f2dd49a6325cdf14356fc4cc012")
+		// locked by metamorph-1
+		expectedHash0, err := chainhash.NewHashFromStr("30f409d6951483e4d65a586205f373c2f72431ade49abb6f143e82fc53ea6cb1")
 		require.NoError(t, err)
+		// offset 0
 		records, err := postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1, 0)
 		require.NoError(t, err)
-		require.Equal(t, expectedHash, records[0].Hash)
+		require.Equal(t, expectedHash0, records[0].Hash)
 
-		dataReturned, err := postgresDB.Get(ctx, expectedHash[:])
+		// locked by metamorph-1
+		expectedHash1, err := chainhash.NewHashFromStr("cd8e0640fadac1f9ed854174558e37a54ede58bc85f49bf01041348c215b0b3e")
+		require.NoError(t, err)
+		// offset 1
+		records, err = postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1, 1)
+		require.NoError(t, err)
+		require.Equal(t, expectedHash1, records[0].Hash)
+
+		// locked by NONE
+		expectedHash2, err := chainhash.NewHashFromStr("57438c4340b9a5e0d77120d999765589048f6f2dd49a6325cdf14356fc4cc012")
+		require.NoError(t, err)
+		// offset 2
+		records, err = postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1, 2)
+		require.NoError(t, err)
+		require.Equal(t, expectedHash2, records[0].Hash)
+
+		// check if previously unlocked tx has been locked
+		dataReturned, err := postgresDB.Get(ctx, expectedHash2[:])
 		require.NoError(t, err)
 		require.Equal(t, "metamorph-1", dataReturned.LockedBy)
 	})

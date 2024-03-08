@@ -37,6 +37,12 @@ func init() {
 		log.Fatal(err)
 	}
 
+	Cmd.PersistentFlags().String("callbackToken", "", "Token used as authentication header to be sent with ARC callbacks")
+	err = viper.BindPFlag("callbackToken", Cmd.PersistentFlags().Lookup("callbackToken"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	Cmd.AddCommand(payback.Cmd)
 	Cmd.AddCommand(create.Cmd)
 	Cmd.AddCommand(broadcast.Cmd)

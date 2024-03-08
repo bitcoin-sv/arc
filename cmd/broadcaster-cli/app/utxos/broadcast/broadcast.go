@@ -29,18 +29,17 @@ var Cmd = &cobra.Command{
 		rateTxsPerSecond := viper.GetInt("rate")
 		batchSize := viper.GetInt("batchsize")
 
-		isTestnet := viper.GetBool("testnet")
-
+		isTestnet := helper.GetBool("testnet")
 		callbackURL := helper.GetString("callback")
+		callbackToken := helper.GetString("callbackToken")
 		authorization := helper.GetString("authorization")
 		keyFile := helper.GetString("keyFile")
 		miningFeeSat := helper.GetInt("miningFeeSatPerKb")
+		arcServer := helper.GetString("apiURL")
 
 		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
 
 		var client broadcaster.ArcClient
-
-		arcServer := helper.GetString("apiURL")
 
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
@@ -80,7 +79,7 @@ var Cmd = &cobra.Command{
 		rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithIsTestnet(isTestnet),
-			broadcaster.WithCallbackURL(callbackURL),
+			broadcaster.WithCallback(callbackURL, callbackToken),
 			broadcaster.WithBatchSize(batchSize),
 			broadcaster.WithStoreWriter(writer, 50),
 		)

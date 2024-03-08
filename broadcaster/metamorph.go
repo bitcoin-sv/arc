@@ -40,7 +40,7 @@ func NewMetamorphBroadcaster(address string) (*MetamorphBroadcaster, error) {
 	}, nil
 }
 
-func (m *MetamorphBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitFor metamorph_api.Status, callbackURL string) ([]*metamorph_api.TransactionStatus, error) {
+func (m *MetamorphBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitFor metamorph_api.Status, callbackURL string, callbackToken string) ([]*metamorph_api.TransactionStatus, error) {
 	txStatuses := make([]*metamorph_api.TransactionStatus, len(txs))
 	for idx, tx := range txs {
 

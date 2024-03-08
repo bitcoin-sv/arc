@@ -21,13 +21,34 @@ var Cmd = &cobra.Command{
 		outputs := viper.GetInt("outputs")
 		satoshisPerOutput := viper.GetUint64("satoshis")
 
-		isTestnet := helper.GetBool("testnet")
-		callbackURL := helper.GetString("callback")
-		callbackToken := helper.GetString("callbackToken")
-		authorization := helper.GetString("authorization")
-		keyFile := helper.GetString("keyFile")
-		miningFeeSat := helper.GetInt("miningFeeSatPerKb")
-		arcServer := helper.GetString("apiURL")
+		isTestnet, err := helper.GetBool("testnet")
+		if err != nil {
+			return err
+		}
+		callbackURL, err := helper.GetString("callback")
+		if err != nil {
+			return err
+		}
+		callbackToken, err := helper.GetString("callbackToken")
+		if err != nil {
+			return err
+		}
+		authorization, err := helper.GetString("authorization")
+		if err != nil {
+			return err
+		}
+		keyFile, err := helper.GetString("keyFile")
+		if err != nil {
+			return err
+		}
+		miningFeeSat, err := helper.GetInt("miningFeeSatPerKb")
+		if err != nil {
+			return err
+		}
+		arcServer, err := helper.GetString("apiURL")
+		if err != nil {
+			return err
+		}
 
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 

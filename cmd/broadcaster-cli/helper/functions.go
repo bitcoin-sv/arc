@@ -2,8 +2,10 @@ package helper
 
 import (
 	"errors"
+	"golang.org/x/sys/unix"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/bitcoin-sv/arc/broadcaster"
@@ -57,84 +59,98 @@ func GetNewKeySets() (fundingKeySet *keyset.KeySet, receivingKeySet *keyset.KeyS
 	return fundingKeySet, receivingKeySet, err
 }
 
-func GetString(settingName string) string {
+func GetString(settingName string) (string, error) {
 
 	setting := viper.GetString(settingName)
 	if setting != "" {
-		return setting
+		return setting, nil
 	}
 
-	viper.AddConfigPath(".")
 	var result map[string]interface{}
-	viper.SetConfigFile(".env")
-	if err := viper.ReadInConfig(); err != nil {
-		return ""
+
+	err := viper.ReadInConfig()
+	if err != nil {
+		if errors.Is(err, unix.ENOENT) {
+			return "", nil
+		}
+		return "", err
 	}
 
-	err := viper.Unmarshal(&result)
+	err = viper.Unmarshal(&result)
 	if err != nil {
-		return ""
+		return "", err
 	}
 
 	value, ok := result[strings.ToLower(settingName)].(string)
 	if !ok {
-		return ""
+		return "", nil
 	}
 
-	return value
+	return value, nil
 }
 
-func GetInt(settingName string) int {
+func GetInt(settingName string) (int, error) {
 
 	setting := viper.GetInt(settingName)
 	if setting != 0 {
-		return setting
+		return setting, nil
 	}
 
-	viper.AddConfigPath(".")
 	var result map[string]interface{}
-	viper.SetConfigFile(".env")
-	if err := viper.ReadInConfig(); err != nil {
-		return 0
+
+	err := viper.ReadInConfig()
+	if err != nil {
+		if errors.Is(err, unix.ENOENT) {
+			return 0, nil
+		}
+		return 0, err
 	}
 
-	err := viper.Unmarshal(&result)
+	err = viper.Unmarshal(&result)
 	if err != nil {
-		return 0
+		return 0, err
 	}
 
 	value, ok := result[settingName].(int)
 
 	if !ok {
-		return 0
+		return 0, nil
 	}
 
-	return value
+	return value, nil
 }
 
-func GetBool(settingName string) bool {
+func GetBool(settingName string) (bool, error) {
 
 	setting := viper.GetBool(settingName)
 	if setting {
-		return true
+		return true, nil
 	}
 
-	viper.AddConfigPath(".")
 	var result map[string]interface{}
-	viper.SetConfigFile(".env")
-	if err := viper.ReadInConfig(); err != nil {
-		return false
-	}
 
-	err := viper.Unmarshal(&result)
+	err := viper.ReadInConfig()
 	if err != nil {
-		return false
+		if errors.Is(err, unix.ENOENT) {
+			return false, nil
+		}
+		return false, err
 	}
 
-	value, ok := result[settingName].(bool)
+	err = viper.Unmarshal(&result)
+	if err != nil {
+		return false, err
+	}
+
+	valueString, ok := result[settingName].(string)
 	if !ok {
-		return false
+		return false, nil
 	}
 
-	return value
+	boolValue, err := strconv.ParseBool(valueString)
+	if err != nil {
+		return false, err
+	}
+
+	return boolValue, nil
 }

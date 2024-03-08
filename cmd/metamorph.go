@@ -137,25 +137,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		defer metamorphProcessor.PrintStatsOnKeypress()()
 	}
 
-	unminedTxsPeriod, err := config.GetDuration("metamorph.loadUnminedPeriod")
-	if err != nil {
-		return nil, err
-	}
-
-	ticker := time.NewTimer(unminedTxsPeriod)
-	stopUnminedProcessor := make(chan struct{})
-
-	go func() {
-		for {
-			select {
-			case <-stopUnminedProcessor:
-				return
-			case <-ticker.C:
-				metamorphProcessor.LoadUnmined()
-			}
-		}
-	}()
-
 	optsServer := []metamorph.ServerOption{
 		metamorph.WithLogger(logger.With(slog.String("module", "mtm-server"))),
 	}
@@ -254,7 +235,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		if err != nil {
 			logger.Error("failed to shutdown mqClient", slog.String("err", err.Error()))
 		}
-		stopUnminedProcessor <- struct{}{}
 		metamorphProcessor.Shutdown()
 		err = s.Close(context.Background())
 		if err != nil {

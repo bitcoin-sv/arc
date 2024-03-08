@@ -228,7 +228,6 @@ func TestPostgresDB(t *testing.T) {
 
 		id, err := postgresDB.InsertBlock(ctx, block)
 		require.NoError(t, err)
-		fmt.Println(id)
 		require.Equal(t, uint64(1), id)
 
 		blockResp, err := postgresDB.GetBlock(ctx, blockHash2)

@@ -1,9 +1,10 @@
 package metamorph
 
 import (
-	"github.com/bitcoin-sv/arc/metamorph/store"
 	"log/slog"
 	"time"
+
+	"github.com/bitcoin-sv/arc/metamorph/store"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 )
@@ -41,7 +42,7 @@ func WithProcessStatusUpdatesInterval(d time.Duration) func(*Processor) {
 func WithProcessStatusUpdatesBatchSize(size int) func(*Processor) {
 	return func(p *Processor) {
 		p.processStatusUpdatesBatchSize = size
-		p.statusUpdateCh = make(chan store.UpdateStatus, size)
+		p.storageStatusUpdateCh = make(chan store.UpdateStatus, size)
 	}
 }
 

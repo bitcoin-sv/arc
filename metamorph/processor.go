@@ -3,7 +3,6 @@ package metamorph
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -216,8 +215,8 @@ func (p *Processor) processMinedCallbacks() {
 	}()
 }
 
-func (p *Processor) CheckAndUpdate(statusUpdatesMap *map[chainhash.Hash]store.UpdateStatus, skipCheck bool) {
-	if (skipCheck && len(*statusUpdatesMap) < p.processStatusUpdatesBatchSize) || len(*statusUpdatesMap) == 0 {
+func (p *Processor) CheckAndUpdate(statusUpdatesMap *map[chainhash.Hash]store.UpdateStatus) {
+	if len(*statusUpdatesMap) == 0 {
 		return
 	}
 
@@ -255,9 +254,11 @@ func (p *Processor) processStatusUpdatesInStorage() {
 					statusUpdatesMap[statusUpdate.Hash] = statusUpdate
 				}
 
-				p.CheckAndUpdate(&statusUpdatesMap, true)
+				if len(statusUpdatesMap) >= p.processStatusUpdatesBatchSize {
+					p.CheckAndUpdate(&statusUpdatesMap)
+				}
 			case <-ticker.C:
-				p.CheckAndUpdate(&statusUpdatesMap, false)
+				p.CheckAndUpdate(&statusUpdatesMap)
 			}
 		}
 	}()
@@ -290,8 +291,8 @@ func (p *Processor) processExpiredTransactions() {
 
 		for {
 			// get all transactions since then chunk by chunk
-			fmt.Println(loadUnminedLimit, offset)
-			unminedTxs, err := p.store.GetUnmined(dbctx, getUnminedSince, loadUnminedLimit, offset)
+			hostname, _ := os.Hostname()
+			unminedTxs, err := p.store.GetUnmined(dbctx, getUnminedSince, loadUnminedLimit, offset, hostname)
 			if err != nil {
 				p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
 				continue
@@ -342,43 +343,6 @@ func (p *Processor) GetPeers() ([]string, []string) {
 	return peersConnected, peersDisconnected
 }
 
-// func (p *Processor) LoadUnmined() {
-// 	span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "Processor:LoadUnmined")
-// 	defer span.Finish()
-
-// 	limit := loadUnminedLimit
-// 	margin := p.maxMonitoredTxs - int64(len(p.ProcessorResponseMap.Items()))
-
-// 	if margin < limit {
-// 		limit = margin
-// 	}
-
-// 	if limit <= 0 {
-// 		return
-// 	}
-
-// 	getUnminedSince := p.now().Add(-1 * p.mapExpiryTime)
-
-// 	unminedTxs, err := p.store.GetUnmined(spanCtx, getUnminedSince, limit)
-// 	if err != nil {
-// 		p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
-// 		return
-// 	}
-
-// 	p.logger.Info("loaded unmined transactions", slog.Int("number", len(unminedTxs)), slog.Int64("limit", limit))
-
-// 	if len(unminedTxs) == 0 {
-// 		return
-// 	}
-
-// 	for _, record := range unminedTxs {
-// 		pr := processor_response.NewProcessorResponseWithStatus(record.Hash, record.Status)
-// 		pr.NoStats = true
-// 		pr.Start = record.StoredAt
-// 		p.ProcessorResponseMap.Set(record.Hash, pr)
-// 	}
-// }
-
 var statusValueMap = map[metamorph_api.Status]int{
 	metamorph_api.Status_UNKNOWN:                0,
 	metamorph_api.Status_QUEUED:                 1,
@@ -411,7 +375,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 		RejectReason: rejectReason,
 	}
 
-	// if we recieve new update check if we have client connection waiting for status and send it
+	// if we receive new update check if we have client connection waiting for status and send it
 	processorResponse, ok := p.ProcessorResponseMap.Get(hash)
 	if ok {
 		processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
@@ -445,8 +409,8 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		*/
 		insertedAtNum, _ := strconv.Atoi(p.now().Format("2006010215"))
 		data.InsertedAtNum = insertedAtNum
-		if set_err := p.store.Set(spanCtx, req.Data.Hash[:], data); set_err != nil {
-			p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", set_err.Error()))
+		if setErr := p.store.Set(spanCtx, req.Data.Hash[:], data); setErr != nil {
+			p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", setErr.Error()))
 		}
 
 		var rejectErr error

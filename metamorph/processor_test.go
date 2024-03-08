@@ -171,7 +171,7 @@ func TestLoadUnmined(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			pm := &mocks.PeerManagerMock{}
 			mtmStore := &mocks.MetamorphStoreMock{
-				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64, hostname string) ([]*store.StoreData, error) {
 					if offset != 0 {
 						return nil, nil
 					}
@@ -272,7 +272,7 @@ func TestProcessTransaction(t *testing.T) {
 
 					return nil
 				},
-				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64, hostname string) ([]*store.StoreData, error) {
 					if offset != 0 {
 						return nil, nil
 					}
@@ -618,7 +618,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
-				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64, hostname string) ([]*store.StoreData, error) {
 					if offset != 0 {
 						return nil, nil
 					}
@@ -701,7 +701,7 @@ func TestProcessorHealth(t *testing.T) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
 				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
-				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64, hostname string) ([]*store.StoreData, error) {
 					if offset != 0 {
 						return nil, nil
 					}

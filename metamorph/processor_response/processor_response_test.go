@@ -10,13 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestString(t *testing.T) {
-	t.Run("String", func(t *testing.T) {
-		response := NewProcessorResponse(testdata.TX1Hash)
-		assert.IsType(t, "string", response.String())
-	})
-}
-
 func TestNewProcessorResponse(t *testing.T) {
 	t.Run("NewProcessorResponse", func(t *testing.T) {
 		response := NewProcessorResponse(testdata.TX1Hash)

@@ -350,7 +350,7 @@ func (p *PostgreSQL) setLockedBy(ctx context.Context, hash *chainhash.Hash, lock
 	return nil
 }
 
-func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64, hostname string) ([]*store.StoreData, error) {
 	startNanos := p.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("getunmined").AddTime(startNanos)
@@ -373,13 +373,13 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 		,locked_by
 		,retries
 		FROM metamorph.transactions
-		WHERE locked_by = 'NONE'
+		WHERE (locked_by = 'NONE' OR locked_by = $6)
 		AND (status < $1 OR status = $2)
 		AND inserted_at_num > $3
 		ORDER BY inserted_at_num DESC
 		LIMIT $4 OFFSET $5;`
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout), limit, offset)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout), limit, offset, hostname)
 	if err != nil {
 		span.SetTag(string(ext.Error), true)
 		span.LogFields(log.Error(err))

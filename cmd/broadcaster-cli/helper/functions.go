@@ -49,16 +49,6 @@ func GetKeySetsXpriv(xpriv string) (fundingKeySet *keyset.KeySet, receivingKeySe
 	return fundingKeySet, receivingKeySet, err
 }
 
-func GetNewKeySets() (fundingKeySet *keyset.KeySet, receivingKeySet *keyset.KeySet, err error) {
-	fundingKeySet, err = keyset.New()
-	if err != nil {
-		return nil, nil, err
-	}
-	receivingKeySet = fundingKeySet
-
-	return fundingKeySet, receivingKeySet, err
-}
-
 func GetString(settingName string) (string, error) {
 
 	setting := viper.GetString(settingName)

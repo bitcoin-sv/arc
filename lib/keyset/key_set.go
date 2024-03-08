@@ -147,6 +147,10 @@ type WocBalance struct {
 	Unconfirmed uint64 `json:"unconfirmed"`
 }
 
+func (k *KeySet) GetMaster() *bip32.ExtendedKey {
+	return k.master
+}
+
 func (k *KeySet) GetBalance(mainnet bool) (WocBalance, error) {
 	// Get UTXOs from WhatsOnChain
 	net := "test"

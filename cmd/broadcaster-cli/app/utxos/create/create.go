@@ -10,6 +10,7 @@ import (
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/lib/keyset"
 	"github.com/bitcoin-sv/arc/lib/woc_client"
+	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -50,7 +51,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
 
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,

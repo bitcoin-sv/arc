@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/metamorph/mocks"
@@ -86,135 +85,6 @@ func TestNewProcessor(t *testing.T) {
 			if tc.expectedNonNilProcessor && processor == nil {
 				t.Error("Expected a non-nil Processor")
 			}
-		})
-	}
-}
-
-func TestLoadUnmined(t *testing.T) {
-	storedAt := time.Date(2023, 10, 3, 5, 0, 0, 0, time.UTC)
-
-	tt := []struct {
-		name              string
-		storedData        []*store.StoreData
-		transactionBlocks *blocktx_api.TransactionBlocks
-		maxMonitoredTxs   int64
-		getUnminedErr     error
-
-		expectedGetTransactionBlocksCalls int
-		expectedItemTxHashesFinal         []*chainhash.Hash
-	}{
-		{
-			name: "no unmined transactions loaded",
-
-			expectedGetTransactionBlocksCalls: 0,
-			expectedItemTxHashesFinal:         []*chainhash.Hash{testdata.TX3Hash, testdata.TX4Hash},
-		},
-		{
-			name: "load 2 unmined transactions, none mined",
-			storedData: []*store.StoreData{
-				{
-					StoredAt:    storedAt,
-					AnnouncedAt: storedAt.Add(1 * time.Second),
-					Hash:        testdata.TX1Hash,
-					Status:      metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-				},
-				{
-					StoredAt:    storedAt,
-					AnnouncedAt: storedAt.Add(1 * time.Second),
-					Hash:        testdata.TX2Hash,
-					Status:      metamorph_api.Status_STORED,
-				},
-			},
-			transactionBlocks: &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{{
-				BlockHash:       nil,
-				BlockHeight:     0,
-				TransactionHash: nil,
-			}}},
-			maxMonitoredTxs: 5,
-
-			expectedGetTransactionBlocksCalls: 1,
-			expectedItemTxHashesFinal:         []*chainhash.Hash{testdata.TX3Hash, testdata.TX4Hash},
-		},
-		{
-			name:            "load 2 unmined transactions, failed to get unmined",
-			storedData:      []*store.StoreData{},
-			getUnminedErr:   errors.New("failed to get unmined"),
-			maxMonitoredTxs: 5,
-
-			expectedItemTxHashesFinal: []*chainhash.Hash{testdata.TX3Hash, testdata.TX4Hash},
-		},
-		{
-			name: "load 2 unmined transactions, limit reached",
-			storedData: []*store.StoreData{
-				{
-					StoredAt:    storedAt,
-					AnnouncedAt: storedAt.Add(1 * time.Second),
-					Hash:        testdata.TX1Hash,
-					Status:      metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-				},
-				{
-					StoredAt:    storedAt,
-					AnnouncedAt: storedAt.Add(1 * time.Second),
-					Hash:        testdata.TX2Hash,
-					Status:      metamorph_api.Status_STORED,
-				},
-			},
-			maxMonitoredTxs: 1,
-
-			expectedGetTransactionBlocksCalls: 0,
-			expectedItemTxHashesFinal:         []*chainhash.Hash{testdata.TX3Hash, testdata.TX4Hash},
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			pm := &mocks.PeerManagerMock{}
-			mtmStore := &mocks.MetamorphStoreMock{
-				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
-					if offset != 0 {
-						return nil, nil
-					}
-					return tc.storedData, tc.getUnminedErr
-				},
-				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
-					require.Equal(t, len(tc.expectedItemTxHashesFinal), len(hashes))
-					require.ElementsMatch(t, tc.expectedItemTxHashesFinal, hashes)
-					return nil
-				},
-				UpdateMinedFunc: func(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
-					return nil, nil
-				},
-
-				IncrementRetriesFunc: func(ctx context.Context, hash *chainhash.Hash) error {
-					return nil
-				},
-			}
-
-			processor, err := metamorph.NewProcessor(mtmStore, pm,
-				metamorph.WithCacheExpiryTime(time.Hour*24),
-				metamorph.WithNow(func() time.Time {
-					return storedAt.Add(1 * time.Hour)
-				}),
-				metamorph.WithDataRetentionPeriod(time.Hour*24),
-				metamorph.WithMaxMonitoredTxs(tc.maxMonitoredTxs),
-			)
-			require.NoError(t, err)
-			defer processor.Shutdown()
-			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
-
-			processor.ProcessorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponse(testdata.TX3Hash))
-			processor.ProcessorResponseMap.Set(testdata.TX4Hash, processor_response.NewProcessorResponse(testdata.TX4Hash))
-
-			time.Sleep(time.Millisecond * 200)
-
-			allItemHashes := make([]*chainhash.Hash, 0, len(processor.ProcessorResponseMap.Items()))
-
-			for i, item := range processor.ProcessorResponseMap.Items() {
-				require.Equal(t, i, *item.Hash)
-				allItemHashes = append(allItemHashes, item.Hash)
-			}
-
-			require.ElementsMatch(t, tc.expectedItemTxHashesFinal, allItemHashes)
 		})
 	}
 }
@@ -548,6 +418,9 @@ func TestSendStatusForTransaction(t *testing.T) {
 				metamorph.WithHttpClient(httpClientMock),
 			)
 			require.NoError(t, err)
+
+			processor.StartProcessStatusUpdatesInStorage()
+
 			assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 			for _, testInput := range tc.inputs {
 				sendErr := processor.SendStatusForTransaction(testInput.hash, testInput.newStatus, "test", testInput.statusErr)
@@ -654,6 +527,8 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			)
 			require.NoError(t, err)
 			defer processor.Shutdown()
+
+			processor.StartProcessExpiredTransactions()
 
 			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
 

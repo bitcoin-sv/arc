@@ -630,9 +630,9 @@ func (b *RateBroadcaster) Shutdown() {
 }
 
 func (b *RateBroadcaster) createSelfPayingTxs(utxos []*bt.UTXO) ([]*bt.Tx, error) {
-	txs := make([]*bt.Tx, len(utxos))
+	txs := make([]*bt.Tx, 0, len(utxos))
 
-	for i, utxo := range utxos {
+	for _, utxo := range utxos {
 		tx := bt.NewTx()
 
 		err := tx.FromUTXOs(utxo)
@@ -640,7 +640,13 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos []*bt.UTXO) ([]*bt.Tx, error
 			return nil, err
 		}
 
-		err = tx.PayTo(b.fundingKeyset.Script, utxo.Satoshis-b.calculateFeeSat(tx))
+		fee := b.calculateFeeSat(tx)
+
+		if utxo.Satoshis <= fee {
+			continue
+		}
+
+		err = tx.PayTo(b.fundingKeyset.Script, utxo.Satoshis-fee)
 		if err != nil {
 			return nil, err
 		}
@@ -651,7 +657,7 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos []*bt.UTXO) ([]*bt.Tx, error
 			return nil, err
 		}
 
-		txs[i] = tx
+		txs = append(txs, tx)
 	}
 
 	return txs, nil

@@ -8,20 +8,25 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/lib/keyset"
 	"github.com/bitcoin-sv/arc/lib/woc_client"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/spf13/cobra"
 )
 
 var Cmd = &cobra.Command{
 	Use:   "dist",
-	Short: "show distribution of utxo sizes in key set",
+	Short: "Show distribution of utxo sizes in key set",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		keyFile := viper.GetString("keyFile")
-		isTestnet := viper.GetBool("testnet")
+		keyFile, err := helper.GetString("keyFile")
+		if err != nil {
+			return err
+		}
+		isTestnet, err := helper.GetBool("testnet")
+		if err != nil {
+			return err
+		}
 
 		extendedBytes, err := os.ReadFile(keyFile)
 		if err != nil {

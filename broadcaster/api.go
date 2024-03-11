@@ -39,7 +39,7 @@ func NewHTTPBroadcaster(arcServer string, auth *Auth) *APIBroadcaster {
 	}
 }
 
-func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitFor metamorph_api.Status, callbackURL string) ([]*metamorph_api.TransactionStatus, error) {
+func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitFor metamorph_api.Status, callbackURL string, callbackToken string) ([]*metamorph_api.TransactionStatus, error) {
 	arcClient, err := a.getArcClient()
 	if err != nil {
 		return nil, err
@@ -52,6 +52,9 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx
 
 	if callbackURL != "" {
 		params.XCallbackUrl = &callbackURL
+	}
+	if callbackToken != "" {
+		params.XCallbackToken = &callbackToken
 	}
 
 	body := make([]api.TransactionRequest, len(txs))

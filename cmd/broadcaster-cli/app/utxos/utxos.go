@@ -19,8 +19,8 @@ var Cmd = &cobra.Command{
 func init() {
 	var err error
 
-	Cmd.PersistentFlags().String("api-url", "", "Send all funds from receiving key set to funding key set")
-	err = viper.BindPFlag("api-url", Cmd.PersistentFlags().Lookup("api-url"))
+	Cmd.PersistentFlags().String("apiURL", "", "Send all funds from receiving key set to funding key set")
+	err = viper.BindPFlag("apiURL", Cmd.PersistentFlags().Lookup("apiURL"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -33,6 +33,12 @@ func init() {
 
 	Cmd.PersistentFlags().String("callback", "", "URL which will be called with ARC callbacks")
 	err = viper.BindPFlag("callback", Cmd.PersistentFlags().Lookup("callback"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	Cmd.PersistentFlags().String("callbackToken", "", "Token used as authentication header to be sent with ARC callbacks")
+	err = viper.BindPFlag("callbackToken", Cmd.PersistentFlags().Lookup("callbackToken"))
 	if err != nil {
 		log.Fatal(err)
 	}

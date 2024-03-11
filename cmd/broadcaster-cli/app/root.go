@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset"
@@ -12,13 +11,11 @@ import (
 
 var RootCmd = &cobra.Command{
 	Use:   "broadcaster",
-	Short: "cli tool to broadcast transactions to ARC",
+	Short: "CLI tool to broadcast transactions to ARC",
 }
 
 func init() {
 	var err error
-	cobra.OnInitialize(initConfig)
-
 	RootCmd.PersistentFlags().Bool("testnet", false, "Use testnet")
 	err = viper.BindPFlag("testnet", RootCmd.PersistentFlags().Lookup("testnet"))
 	if err != nil {
@@ -31,22 +28,13 @@ func init() {
 		log.Fatal(err)
 	}
 
+	viper.AddConfigPath(".")
+	viper.SetConfigFile("broadcaster-cli.env")
+
 	RootCmd.AddCommand(keyset.Cmd)
 	RootCmd.AddCommand(utxos.Cmd)
 }
 
 func Execute() error {
 	return RootCmd.Execute()
-}
-
-func initConfig() {
-
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	viper.AddConfigPath("../../")
-	err := viper.ReadInConfig()
-	if err != nil {
-		fmt.Printf("failed to read config file: %v\n", err)
-	}
 }

@@ -21,18 +21,43 @@ var Cmd = &cobra.Command{
 		outputs := viper.GetInt("outputs")
 		satoshisPerOutput := viper.GetUint64("satoshis")
 
-		isTestnet := viper.GetBool("testnet")
-		callbackURL := viper.GetString("callback")
-		authorization := viper.GetString("authorization")
-		keyFile := viper.GetString("keyFile")
-		miningFeeSat := viper.GetInt("broadcaster.miningFeeSatPerKb")
+		isTestnet, err := helper.GetBool("testnet")
+		if err != nil {
+			return err
+		}
+		callbackURL, err := helper.GetString("callback")
+		if err != nil {
+			return err
+		}
+		callbackToken, err := helper.GetString("callbackToken")
+		if err != nil {
+			return err
+		}
+		authorization, err := helper.GetString("authorization")
+		if err != nil {
+			return err
+		}
+		keyFile, err := helper.GetString("keyFile")
+		if err != nil {
+			return err
+		}
+		miningFeeSat, err := helper.GetInt("miningFeeSatPerKb")
+		if err != nil {
+			return err
+		}
+		arcServer, err := helper.GetString("apiURL")
+		if err != nil {
+			return err
+		}
 
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-		var client broadcaster.ArcClient
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
-		}, false, true)
+		}, arcServer)
+		if err != nil {
+			return fmt.Errorf("failed to create client: %v", err)
+		}
 		if err != nil {
 			return fmt.Errorf("failed to create client: %v", err)
 		}
@@ -50,7 +75,7 @@ var Cmd = &cobra.Command{
 		preparer, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithIsTestnet(isTestnet),
-			broadcaster.WithCallbackURL(callbackURL),
+			broadcaster.WithCallback(callbackURL, callbackToken),
 		)
 
 		err = preparer.CreateUtxos(outputs, satoshisPerOutput)

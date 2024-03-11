@@ -1,9 +1,11 @@
 package broadcaster
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"math"
 	"time"
@@ -16,10 +18,11 @@ import (
 )
 
 const (
-	maxInputsDefault      = 100
-	batchSizeDefault      = 20
-	isTestnetDefault      = true
-	millisecondsPerSecond = 1000
+	maxInputsDefault         = 100
+	batchSizeDefault         = 20
+	isTestnetDefault         = true
+	millisecondsPerSecond    = 1000
+	resultsIterationsDefault = 50
 )
 
 type UtxoClient interface {
@@ -28,17 +31,23 @@ type UtxoClient interface {
 }
 
 type RateBroadcaster struct {
-	logger            *slog.Logger
-	client            ArcClient
-	fundingKeyset     *keyset.KeySet
-	receivingKeyset   *keyset.KeySet
-	Outputs           int64
-	SatoshisPerOutput uint64
-	isTestnet         bool
-	CallbackURL       string
-	feeQuote          *bt.FeeQuote
-	utxoClient        UtxoClient
-	standardMiningFee bt.FeeUnit
+	logger                         *slog.Logger
+	client                         ArcClient
+	fundingKeyset                  *keyset.KeySet
+	receivingKeyset                *keyset.KeySet
+	Outputs                        int64
+	SatoshisPerOutput              uint64
+	isTestnet                      bool
+	CallbackURL                    string
+	CallbackToken                  string
+	feeQuote                       *bt.FeeQuote
+	utxoClient                     UtxoClient
+	standardMiningFee              bt.FeeUnit
+	responseWriter                 io.Writer
+	responseWriteIterationInterval int
+
+	shutdown         chan struct{}
+	shutdownComplete chan struct{}
 
 	maxInputs int
 	batchSize int
@@ -79,23 +88,36 @@ func WithIsTestnet(isTestnet bool) func(preparer *RateBroadcaster) {
 	}
 }
 
-func WithCallbackURL(callbackURL string) func(preparer *RateBroadcaster) {
+func WithCallback(callbackURL string, callbackToken string) func(preparer *RateBroadcaster) {
 	return func(preparer *RateBroadcaster) {
 		preparer.CallbackURL = callbackURL
+		preparer.CallbackToken = callbackToken
+	}
+}
+
+func WithStoreWriter(storeWriter io.Writer, resultIterations int) func(preparer *RateBroadcaster) {
+	return func(preparer *RateBroadcaster) {
+		preparer.responseWriter = storeWriter
+		preparer.responseWriteIterationInterval = resultIterations
 	}
 }
 
 func NewRateBroadcaster(logger *slog.Logger, client ArcClient, fromKeySet *keyset.KeySet, toKeyset *keyset.KeySet, utxoClient UtxoClient, opts ...func(p *RateBroadcaster)) (*RateBroadcaster, error) {
 	broadcaster := &RateBroadcaster{
-		logger:          logger,
-		client:          client,
-		fundingKeyset:   fromKeySet,
-		receivingKeyset: toKeyset,
-		isTestnet:       isTestnetDefault,
-		feeQuote:        bt.NewFeeQuote(),
-		utxoClient:      utxoClient,
-		batchSize:       batchSizeDefault,
-		maxInputs:       maxInputsDefault,
+		logger:                         logger,
+		client:                         client,
+		fundingKeyset:                  fromKeySet,
+		receivingKeyset:                toKeyset,
+		isTestnet:                      isTestnetDefault,
+		feeQuote:                       bt.NewFeeQuote(),
+		utxoClient:                     utxoClient,
+		batchSize:                      batchSizeDefault,
+		maxInputs:                      maxInputsDefault,
+		responseWriter:                 nil,
+		responseWriteIterationInterval: resultsIterationsDefault,
+
+		shutdown:         make(chan struct{}),
+		shutdownComplete: make(chan struct{}),
 	}
 
 	for _, opt := range opts {
@@ -296,7 +318,7 @@ func (b *RateBroadcaster) splitToFundingKeyset(tx *bt.Tx, splitSatoshis uint64, 
 }
 
 func (b *RateBroadcaster) submitTxs(txs []*bt.Tx, expectedStatus metamorph_api.Status) error {
-	resp, err := b.client.BroadcastTransactions(context.Background(), txs, expectedStatus, b.CallbackURL)
+	resp, err := b.client.BroadcastTransactions(context.Background(), txs, expectedStatus, b.CallbackURL, b.CallbackToken)
 	if err != nil {
 		return err
 	}
@@ -445,14 +467,13 @@ requestedOutputsLoop:
 	return nil
 }
 
-func (b *RateBroadcaster) Broadcast(rateTxsPerSecond int) error {
-
+func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 	utxoSet, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
 	if err != nil {
 		return err
 	}
 
-	b.logger.Info("starting broadcasting", slog.Int("batch size", b.batchSize))
+	b.logger.Info("starting broadcasting", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", b.batchSize))
 
 	submitBatchesPerSecond := float64(rateTxsPerSecond) / float64(b.batchSize)
 
@@ -464,41 +485,143 @@ func (b *RateBroadcaster) Broadcast(rateTxsPerSecond int) error {
 		return fmt.Errorf("size of utxo set %d is smaller than requested batch size %d - create more utxos first", len(utxoSet), b.batchSize)
 	}
 
-	batchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
+	submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
+	submitBatchTicker := time.NewTicker(submitBatchInterval)
 
-	ticker := time.NewTicker(batchInterval)
-	shutdown := make(chan struct{})
+	logSummaryTicker := time.NewTicker(3 * time.Second)
 
 	batchIndex := 0
 
-sendBatchLoop:
-	for {
-		select {
-		case <-shutdown:
-			break sendBatchLoop
-		case <-ticker.C:
-			if len(utxoSet) == batchIndex+b.batchSize+1 {
-				utxoSet, err = b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
-				if err != nil {
-					return err
-				}
+	responseCh := make(chan *metamorph_api.TransactionStatus, 100)
+	errCh := make(chan error, 100)
 
-				batchIndex = 0
-			}
-
-			txs, err := b.createSelfPayingTxs(utxoSet[batchIndex : batchIndex+b.batchSize])
-			if err != nil {
-				return err
-			}
-
-			b.sendTxsBatchAsync(txs, shutdown)
-
-			batchIndex += b.batchSize
-
+	var writer *bufio.Writer
+	if b.responseWriter != nil {
+		writer = bufio.NewWriter(b.responseWriter)
+		if err != nil {
+			return err
 		}
 	}
 
+	resultsMap := map[metamorph_api.Status]int64{}
+	logSummary := writer != nil
+
+	counter := 0
+	go func() {
+
+		defer func() {
+			b.shutdownComplete <- struct{}{}
+		}()
+
+		for {
+			select {
+			case <-b.shutdown:
+				if writer == nil {
+					return
+				}
+
+				err = writer.Flush()
+				if err != nil {
+					b.logger.Error("failed flush writer", slog.String("err", err.Error()))
+				}
+
+				return
+			case <-submitBatchTicker.C:
+
+				// if end of utxo set is reached => get the updated utxo set
+				if len(utxoSet) == batchIndex+b.batchSize+1 {
+					utxoSet, err = b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
+					if err != nil {
+						b.logger.Error("failed to get utxos", slog.String("err", err.Error()))
+						continue
+					}
+
+					batchIndex = 0
+				}
+
+				txs, err := b.createSelfPayingTxs(utxoSet[batchIndex : batchIndex+b.batchSize])
+				if err != nil {
+					b.logger.Error("failed to create self paying txs", slog.String("err", err.Error()))
+					continue
+				}
+
+				b.sendTxsBatchAsync(txs, responseCh, errCh)
+
+				batchIndex += b.batchSize
+			case responseErr := <-errCh:
+				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
+			case <-logSummaryTicker.C:
+
+				// only log summary of results if responses are written to file
+				if !logSummary {
+					continue
+				}
+
+				b.logger.Info("response summary",
+					slog.Int64(metamorph_api.Status_STORED.String(), resultsMap[metamorph_api.Status_STORED]),
+					slog.Int64(metamorph_api.Status_ANNOUNCED_TO_NETWORK.String(), resultsMap[metamorph_api.Status_ANNOUNCED_TO_NETWORK]),
+					slog.Int64(metamorph_api.Status_REQUESTED_BY_NETWORK.String(), resultsMap[metamorph_api.Status_REQUESTED_BY_NETWORK]),
+					slog.Int64(metamorph_api.Status_SENT_TO_NETWORK.String(), resultsMap[metamorph_api.Status_SENT_TO_NETWORK]),
+					slog.Int64(metamorph_api.Status_ACCEPTED_BY_NETWORK.String(), resultsMap[metamorph_api.Status_ACCEPTED_BY_NETWORK]),
+					slog.Int64(metamorph_api.Status_SEEN_ON_NETWORK.String(), resultsMap[metamorph_api.Status_SEEN_ON_NETWORK]),
+					slog.Int64(metamorph_api.Status_MINED.String(), resultsMap[metamorph_api.Status_MINED]),
+					slog.Int64(metamorph_api.Status_REJECTED.String(), resultsMap[metamorph_api.Status_REJECTED]),
+					slog.Int64(metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL.String(), resultsMap[metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL]),
+				)
+			case res := <-responseCh:
+				// if writer is not given, just log response
+				if !logSummary {
+					b.logger.Info(res.Txid, slog.String("status", res.Status.String()))
+				}
+
+				// if writer is given, store the response in the writer and log summarized results every 50 iterations
+				resultsMap[res.Status]++
+				counter++
+
+				if writer == nil {
+					continue
+				}
+
+				counter, err = b.writeResponse(writer, res, counter)
+				if err != nil {
+					b.logger.Error("failed to write response", slog.String("err", err.Error()))
+				}
+			}
+		}
+	}()
+
 	return nil
+}
+
+func (b *RateBroadcaster) writeResponse(writer *bufio.Writer, res *metamorph_api.TransactionStatus, counter int) (int, error) {
+
+	resBytes, err := json.Marshal(res)
+	if err != nil {
+		return counter, fmt.Errorf("failed to marshal response: %v", err)
+	}
+
+	_, err = fmt.Fprintf(writer, ",%s\n", string(resBytes))
+	if err != nil {
+		return counter, fmt.Errorf("failed to print response: %v", err)
+	}
+
+	if counter%b.responseWriteIterationInterval == 0 {
+		err = writer.Flush()
+		if err != nil {
+			return 0, fmt.Errorf("failed flush writer: %v", err)
+		}
+
+		counter = 0
+	}
+
+	return counter, nil
+}
+
+func (b *RateBroadcaster) Shutdown() {
+	b.logger.Info("shutting down broadcaster")
+
+	b.shutdown <- struct{}{}
+	<-b.shutdownComplete
 }
 
 func (b *RateBroadcaster) createSelfPayingTxs(utxos []*bt.UTXO) ([]*bt.Tx, error) {
@@ -529,30 +652,16 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos []*bt.UTXO) ([]*bt.Tx, error
 	return txs, nil
 }
 
-func (b *RateBroadcaster) sendTxsBatchAsync(txs []*bt.Tx, shutdown chan struct{}) {
+func (b *RateBroadcaster) sendTxsBatchAsync(txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error) {
 	go func() {
 
-		resp, err := b.client.BroadcastTransactions(context.Background(), txs, metamorph_api.Status_SEEN_ON_NETWORK, b.CallbackURL)
+		resp, err := b.client.BroadcastTransactions(context.Background(), txs, metamorph_api.Status_SEEN_ON_NETWORK, b.CallbackURL, b.CallbackToken)
 		if err != nil {
-
-			slog.Default().Error("failed to submit batch", slog.String("err", err.Error()))
-
-			shutdown <- struct{}{}
-			return
+			errCh <- err
 		}
 
 		for _, res := range resp {
-
-			resBytes, err := json.Marshal(res)
-			if err != nil {
-
-				slog.Default().Error("failed to marshal response", slog.String("err", err.Error()))
-
-				shutdown <- struct{}{}
-				return
-			}
-
-			slog.Default().Info(string(resBytes))
+			resultCh <- res
 		}
 	}()
 }

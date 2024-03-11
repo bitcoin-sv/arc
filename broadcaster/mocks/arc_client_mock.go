@@ -24,7 +24,7 @@ var _ broadcaster.ArcClient = &ArcClientMock{}
 //			BroadcastTransactionFunc: func(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error) {
 //				panic("mock out the BroadcastTransaction method")
 //			},
-//			BroadcastTransactionsFunc: func(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) ([]*metamorph_api.TransactionStatus, error) {
+//			BroadcastTransactionsFunc: func(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string) ([]*metamorph_api.TransactionStatus, error) {
 //				panic("mock out the BroadcastTransactions method")
 //			},
 //			GetTransactionStatusFunc: func(ctx context.Context, txID string) (*metamorph_api.TransactionStatus, error) {
@@ -41,7 +41,7 @@ type ArcClientMock struct {
 	BroadcastTransactionFunc func(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error)
 
 	// BroadcastTransactionsFunc mocks the BroadcastTransactions method.
-	BroadcastTransactionsFunc func(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) ([]*metamorph_api.TransactionStatus, error)
+	BroadcastTransactionsFunc func(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string) ([]*metamorph_api.TransactionStatus, error)
 
 	// GetTransactionStatusFunc mocks the GetTransactionStatus method.
 	GetTransactionStatusFunc func(ctx context.Context, txID string) (*metamorph_api.TransactionStatus, error)
@@ -69,6 +69,8 @@ type ArcClientMock struct {
 			WaitForStatus metamorph_api.Status
 			// CallbackURL is the callbackURL argument value.
 			CallbackURL string
+			// CallbackToken is the callbackToken argument value.
+			CallbackToken string
 		}
 		// GetTransactionStatus holds details about calls to the GetTransactionStatus method.
 		GetTransactionStatus []struct {
@@ -128,7 +130,7 @@ func (mock *ArcClientMock) BroadcastTransactionCalls() []struct {
 }
 
 // BroadcastTransactions calls BroadcastTransactionsFunc.
-func (mock *ArcClientMock) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) ([]*metamorph_api.TransactionStatus, error) {
+func (mock *ArcClientMock) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string) ([]*metamorph_api.TransactionStatus, error) {
 	if mock.BroadcastTransactionsFunc == nil {
 		panic("ArcClientMock.BroadcastTransactionsFunc: method is nil but ArcClient.BroadcastTransactions was just called")
 	}
@@ -137,16 +139,18 @@ func (mock *ArcClientMock) BroadcastTransactions(ctx context.Context, txs []*bt.
 		Txs           []*bt.Tx
 		WaitForStatus metamorph_api.Status
 		CallbackURL   string
+		CallbackToken string
 	}{
 		Ctx:           ctx,
 		Txs:           txs,
 		WaitForStatus: waitForStatus,
 		CallbackURL:   callbackURL,
+		CallbackToken: callbackToken,
 	}
 	mock.lockBroadcastTransactions.Lock()
 	mock.calls.BroadcastTransactions = append(mock.calls.BroadcastTransactions, callInfo)
 	mock.lockBroadcastTransactions.Unlock()
-	return mock.BroadcastTransactionsFunc(ctx, txs, waitForStatus, callbackURL)
+	return mock.BroadcastTransactionsFunc(ctx, txs, waitForStatus, callbackURL, callbackToken)
 }
 
 // BroadcastTransactionsCalls gets all the calls that were made to BroadcastTransactions.
@@ -158,12 +162,14 @@ func (mock *ArcClientMock) BroadcastTransactionsCalls() []struct {
 	Txs           []*bt.Tx
 	WaitForStatus metamorph_api.Status
 	CallbackURL   string
+	CallbackToken string
 } {
 	var calls []struct {
 		Ctx           context.Context
 		Txs           []*bt.Tx
 		WaitForStatus metamorph_api.Status
 		CallbackURL   string
+		CallbackToken string
 	}
 	mock.lockBroadcastTransactions.RLock()
 	calls = mock.calls.BroadcastTransactions

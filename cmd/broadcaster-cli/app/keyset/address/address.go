@@ -6,18 +6,23 @@ import (
 	"os"
 	"strings"
 
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/lib/keyset"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var Cmd = &cobra.Command{
 	Use:   "address",
-	Short: "show address of the keyset",
+	Short: "Show address of the keyset",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		keyFile := viper.GetString("keyFile")
-		isTestnet := viper.GetBool("testnet")
-
+		keyFile, err := helper.GetString("keyFile")
+		if err != nil {
+			return err
+		}
+		isTestnet, err := helper.GetBool("testnet")
+		if err != nil {
+			return err
+		}
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 		extendedBytes, err := os.ReadFile(keyFile)

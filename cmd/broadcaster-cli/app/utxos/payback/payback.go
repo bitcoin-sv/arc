@@ -10,7 +10,6 @@ import (
 	"github.com/bitcoin-sv/arc/lib/keyset"
 	"github.com/bitcoin-sv/arc/lib/woc_client"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var Cmd = &cobra.Command{
@@ -18,19 +17,40 @@ var Cmd = &cobra.Command{
 	Short: "Pay all funds from receiving key set to funding keyset",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		isTestnet := viper.GetBool("testnet")
-		callbackURL := viper.GetString("callback")
-		authorization := viper.GetString("authorization")
-		keyFile := viper.GetString("keyFile")
-
-		miningFeeSat := viper.GetInt("broadcaster.miningFeeSatPerKb")
+		isTestnet, err := helper.GetBool("testnet")
+		if err != nil {
+			return err
+		}
+		callbackURL, err := helper.GetString("callback")
+		if err != nil {
+			return err
+		}
+		callbackToken, err := helper.GetString("callbackToken")
+		if err != nil {
+			return err
+		}
+		authorization, err := helper.GetString("authorization")
+		if err != nil {
+			return err
+		}
+		keyFile, err := helper.GetString("keyFile")
+		if err != nil {
+			return err
+		}
+		miningFeeSat, err := helper.GetInt("miningFeeSatPerKb")
+		if err != nil {
+			return err
+		}
+		arcServer, err := helper.GetString("apiURL")
+		if err != nil {
+			return err
+		}
 
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-		var client broadcaster.ArcClient
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
-		}, false, true)
+		}, arcServer)
 		if err != nil {
 			return fmt.Errorf("failed to create client: %v", err)
 		}
@@ -48,7 +68,7 @@ var Cmd = &cobra.Command{
 		preparer, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithIsTestnet(isTestnet),
-			broadcaster.WithCallbackURL(callbackURL),
+			broadcaster.WithCallback(callbackURL, callbackToken),
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create rate broadcaster: %v", err)

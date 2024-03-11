@@ -2,6 +2,14 @@ package broadcast
 
 import (
 	"fmt"
+	"github.com/bitcoin-sv/arc/broadcaster"
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
+	"github.com/bitcoin-sv/arc/lib/keyset"
+	"github.com/bitcoin-sv/arc/lib/woc_client"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/lmittmann/tint"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"io"
 	"log"
 	"log/slog"
@@ -10,14 +18,6 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
-
-	"github.com/bitcoin-sv/arc/broadcaster"
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
-	"github.com/bitcoin-sv/arc/lib/keyset"
-	"github.com/bitcoin-sv/arc/lib/woc_client"
-	"github.com/lmittmann/tint"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var Cmd = &cobra.Command{
@@ -28,6 +28,7 @@ var Cmd = &cobra.Command{
 		store := viper.GetBool("store")
 		rateTxsPerSecond := viper.GetInt("rate")
 		batchSize := viper.GetInt("batchsize")
+		fullStatusUpdates := viper.GetBool("fullStatusUpdates")
 
 		isTestnet, err := helper.GetBool("testnet")
 		if err != nil {
@@ -89,7 +90,7 @@ var Cmd = &cobra.Command{
 			if isTestnet {
 				network = "testnet"
 			}
-			file, err := os.Create(fmt.Sprintf("results/%s-batchsize-%d-rate-%d-%s.json", network, batchSize, rateTxsPerSecond, time.Now().Format(time.DateTime)))
+			file, err := os.Create(fmt.Sprintf("results/%s-%s-batchsize-%d-rate-%d.json", network, time.Now().Format(time.DateTime), batchSize, rateTxsPerSecond))
 			if err != nil {
 				return err
 			}
@@ -103,6 +104,7 @@ var Cmd = &cobra.Command{
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithIsTestnet(isTestnet),
 			broadcaster.WithCallback(callbackURL, callbackToken),
+			broadcaster.WithFullstatusUpdates(fullStatusUpdates),
 			broadcaster.WithBatchSize(batchSize),
 			broadcaster.WithStoreWriter(writer, 50),
 		)
@@ -149,4 +151,9 @@ func init() {
 		log.Fatal(err)
 	}
 
+	Cmd.Flags().BoolP("fullstatusupdates", "f", false, fmt.Sprintf("Send callbacks for %s or %s status", metamorph_api.Status_SEEN_ON_NETWORK.String(), metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL.String()))
+	err = viper.BindPFlag("fullStatusUpdates", Cmd.Flags().Lookup("fullstatusupdates"))
+	if err != nil {
+		log.Fatal(err)
+	}
 }

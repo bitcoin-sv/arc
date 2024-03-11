@@ -70,7 +70,7 @@ func TestRateBroadcaster_Payback(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			client := &mocks.ArcClientMock{
-				BroadcastTransactionsFunc: func(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string) ([]*metamorph_api.TransactionStatus, error) {
+				BroadcastTransactionsFunc: func(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool) ([]*metamorph_api.TransactionStatus, error) {
 					return tc.statuses, tc.broadcastErr
 				},
 			}

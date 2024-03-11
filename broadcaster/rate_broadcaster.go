@@ -35,11 +35,10 @@ type RateBroadcaster struct {
 	client                         ArcClient
 	fundingKeyset                  *keyset.KeySet
 	receivingKeyset                *keyset.KeySet
-	Outputs                        int64
-	SatoshisPerOutput              uint64
 	isTestnet                      bool
-	CallbackURL                    string
-	CallbackToken                  string
+	callbackURL                    string
+	callbackToken                  string
+	fullStatusUpdates              bool
 	feeQuote                       *bt.FeeQuote
 	utxoClient                     UtxoClient
 	standardMiningFee              bt.FeeUnit
@@ -90,8 +89,14 @@ func WithIsTestnet(isTestnet bool) func(preparer *RateBroadcaster) {
 
 func WithCallback(callbackURL string, callbackToken string) func(preparer *RateBroadcaster) {
 	return func(preparer *RateBroadcaster) {
-		preparer.CallbackURL = callbackURL
-		preparer.CallbackToken = callbackToken
+		preparer.callbackURL = callbackURL
+		preparer.callbackToken = callbackToken
+	}
+}
+
+func WithFullstatusUpdates(fullStatusUpdates bool) func(preparer *RateBroadcaster) {
+	return func(preparer *RateBroadcaster) {
+		preparer.fullStatusUpdates = fullStatusUpdates
 	}
 }
 
@@ -318,7 +323,7 @@ func (b *RateBroadcaster) splitToFundingKeyset(tx *bt.Tx, splitSatoshis uint64, 
 }
 
 func (b *RateBroadcaster) submitTxs(txs []*bt.Tx, expectedStatus metamorph_api.Status) error {
-	resp, err := b.client.BroadcastTransactions(context.Background(), txs, expectedStatus, b.CallbackURL, b.CallbackToken)
+	resp, err := b.client.BroadcastTransactions(context.Background(), txs, expectedStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates)
 	if err != nil {
 		return err
 	}
@@ -655,7 +660,7 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos []*bt.UTXO) ([]*bt.Tx, error
 func (b *RateBroadcaster) sendTxsBatchAsync(txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error) {
 	go func() {
 
-		resp, err := b.client.BroadcastTransactions(context.Background(), txs, metamorph_api.Status_SEEN_ON_NETWORK, b.CallbackURL, b.CallbackToken)
+		resp, err := b.client.BroadcastTransactions(context.Background(), txs, metamorph_api.Status_SEEN_ON_NETWORK, b.callbackURL, b.callbackToken, b.fullStatusUpdates)
 		if err != nil {
 			errCh <- err
 		}

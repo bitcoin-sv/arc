@@ -121,6 +121,12 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	)
 
 	metamorphProcessor.StartLockTransactions()
+	time.Sleep(200 * time.Millisecond) // wait a short time so that process expired transactions will start shortly after lock transactions go routine
+
+	metamorphProcessor.StartProcessExpiredTransactions()
+	metamorphProcessor.StartProcessStatusUpdatesInStorage()
+	metamorphProcessor.StartProcessMinedCallbacks()
+
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
 
 	go func() {

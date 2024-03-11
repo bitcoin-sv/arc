@@ -29,7 +29,13 @@ func WithNow(nowFunc func() time.Time) func(*Processor) {
 
 func WithProcessExpiredTxsInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.processExpiredTxsTicker = time.NewTicker(d)
+		p.processExpiredTxsInterval = d
+	}
+}
+
+func WithLockTxsInterval(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.lockTransactionsInterval = d
 	}
 }
 

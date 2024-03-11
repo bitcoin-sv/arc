@@ -255,7 +255,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
 
 		// locked by metamorph-1
-		expectedHash0, err := chainhash.NewHashFromStr("30f409d6951483e4d65a586205f373c2f72431ade49abb6f143e82fc53ea6cb1")
+		expectedHash0, err := chainhash.NewHashFromStr("cd8e0640fadac1f9ed854174558e37a54ede58bc85f49bf01041348c215b0b3e")
 		require.NoError(t, err)
 		// offset 0
 		records, err := postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1, 0)
@@ -263,25 +263,48 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, expectedHash0, records[0].Hash)
 
 		// locked by metamorph-1
-		expectedHash1, err := chainhash.NewHashFromStr("cd8e0640fadac1f9ed854174558e37a54ede58bc85f49bf01041348c215b0b3e")
+		expectedHash1, err := chainhash.NewHashFromStr("30f409d6951483e4d65a586205f373c2f72431ade49abb6f143e82fc53ea6cb1")
 		require.NoError(t, err)
 		// offset 1
 		records, err = postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1, 1)
 		require.NoError(t, err)
 		require.Equal(t, expectedHash1, records[0].Hash)
+	})
+
+	t.Run("set locked by", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+
+		err := postgresDB.SetLocked(ctx, 2)
+		require.NoError(t, err)
 
 		// locked by NONE
 		expectedHash2, err := chainhash.NewHashFromStr("57438c4340b9a5e0d77120d999765589048f6f2dd49a6325cdf14356fc4cc012")
 		require.NoError(t, err)
-		// offset 2
-		records, err = postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1, 2)
+
+		// locked by NONE
+		expectedHash3, err := chainhash.NewHashFromStr("6e17823257a83a3ab8f3f3774f740b42cbfa4596e394b4654a5eff91836cd678")
 		require.NoError(t, err)
-		require.Equal(t, expectedHash2, records[0].Hash)
+
+		// check if previously unlocked tx has b
+		// locked by NONE
+		expectedHash4, err := chainhash.NewHashFromStr("43a754291d6cb1cbb2e5a7609253838c9bf445140d640220b78490d9b95e9b31")
+		require.NoError(t, err)
 
 		// check if previously unlocked tx has been locked
 		dataReturned, err := postgresDB.Get(ctx, expectedHash2[:])
 		require.NoError(t, err)
 		require.Equal(t, "metamorph-1", dataReturned.LockedBy)
+
+		dataReturned, err = postgresDB.Get(ctx, expectedHash3[:])
+		require.NoError(t, err)
+		require.Equal(t, "metamorph-1", dataReturned.LockedBy)
+
+		// this unlocked tx remains unlocked as the limit was 2
+		dataReturned, err = postgresDB.Get(ctx, expectedHash4[:])
+		require.NoError(t, err)
+		require.Equal(t, "NONE", dataReturned.LockedBy)
 	})
 
 	t.Run("set unlocked", func(t *testing.T) {
@@ -474,6 +497,6 @@ func TestPostgresDB(t *testing.T) {
 		var numberOfRemainingTxs int
 		err = postgresDB.db.QueryRowContext(ctx, "SELECT count(*) FROM metamorph.transactions;").Scan(&numberOfRemainingTxs)
 		require.NoError(t, err)
-		require.Equal(t, 7, numberOfRemainingTxs)
+		require.Equal(t, 9, numberOfRemainingTxs)
 	})
 }

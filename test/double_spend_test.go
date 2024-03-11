@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
 	"github.com/stretchr/testify/require"
 )

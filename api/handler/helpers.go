@@ -11,7 +11,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/dictionary"
-	"github.com/bitcoin-sv/arc/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"

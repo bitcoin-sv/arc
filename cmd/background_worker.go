@@ -5,13 +5,13 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/bitcoin-sv/arc/background_worker"
-	"github.com/bitcoin-sv/arc/background_worker/jobs"
-	"github.com/bitcoin-sv/arc/blocktx"
-	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/background_worker"
+	"github.com/bitcoin-sv/arc/internal/background_worker/jobs"
+	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	cfg "github.com/bitcoin-sv/arc/internal/helpers"
-	"github.com/bitcoin-sv/arc/metamorph"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/go-co-op/gocron"
 )
 

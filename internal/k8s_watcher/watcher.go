@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitcoin-sv/arc/blocktx"
-	"github.com/bitcoin-sv/arc/metamorph"
+	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 )
 
 const (

@@ -9,11 +9,11 @@ import (
 	"time"
 
 	hp "github.com/bitcoin-sv/arc/internal/helpers"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/handler"
-	"github.com/bitcoin-sv/arc/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	apmecho "github.com/opentracing-contrib/echo"

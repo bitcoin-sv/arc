@@ -38,6 +38,7 @@ type MetamorphStore interface {
 	Del(ctx context.Context, key []byte) error
 
 	SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error
+	SetLocked(ctx context.Context, limit int64) error
 	IncrementRetries(ctx context.Context, hash *chainhash.Hash) error
 	SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error)
 	GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*StoreData, error)

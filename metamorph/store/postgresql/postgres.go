@@ -128,6 +128,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		,raw_tx
 		,locked_by
 		,merkle_path
+		,retries
 	 	FROM metamorph.transactions WHERE hash = $1 LIMIT 1;`
 
 	data := &store.StoreData{}
@@ -146,6 +147,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	var lockedBy sql.NullString
 	var status sql.NullInt32
 	var merklePath sql.NullString
+	var retries sql.NullInt32
 
 	err := p.db.QueryRowContext(ctx, q, hash).Scan(
 		&storedAt,
@@ -163,6 +165,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		&data.RawTx,
 		&lockedBy,
 		&merklePath,
+		&retries,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -237,6 +240,10 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 
 	if merklePath.Valid {
 		data.MerklePath = merklePath.String
+	}
+
+	if retries.Valid {
+		data.Retries = int(retries.Int32)
 	}
 
 	return data, nil
@@ -335,14 +342,28 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 	return err
 }
 
-func (p *PostgreSQL) setLockedBy(ctx context.Context, hash *chainhash.Hash, lockedByValue string) error {
+func (p *PostgreSQL) SetLocked(ctx context.Context, limit int64) error {
+	startNanos := p.now().UnixNano()
+	defer func() {
+		gocore.NewStat("mtm_store_sql").NewStat("setlockedby").AddTime(startNanos)
+	}()
+	span, _ := opentracing.StartSpanFromContext(ctx, "sql:SetLocked")
+	defer span.Finish()
+
 	q := `
-		UPDATE metamorph.transactions
+		UPDATE metamorph.transactions t
 		SET locked_by = $1
-		WHERE hash = $2
+		WHERE t.hash IN (
+		   SELECT t2.hash
+		   FROM metamorph.transactions t2
+		   WHERE t2.locked_by = 'NONE'
+		   AND (t2.status < $3 OR t2.status = $4)
+		   LIMIT $2
+		   FOR UPDATE SKIP LOCKED
+		);
 	;`
 
-	_, err := p.db.ExecContext(ctx, q, lockedByValue, hash[:])
+	_, err := p.db.ExecContext(ctx, q, p.hostname, limit, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
 	if err != nil {
 		return err
 	}
@@ -369,11 +390,13 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 		,callback_url
 		,callback_token
 		,full_status_updates
+     	,reject_reason
 		,raw_tx
 		,locked_by
+     	,merkle_path
 		,retries
 		FROM metamorph.transactions
-		WHERE (locked_by = 'NONE' OR locked_by = $6)
+		WHERE locked_by = $6
 		AND (status < $1 OR status = $2)
 		AND inserted_at_num > $3
 		ORDER BY inserted_at_num DESC
@@ -387,112 +410,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 	}
 	defer rows.Close()
 
-	unminedTxs := make([]*store.StoreData, 0)
-	for rows.Next() {
-		data := &store.StoreData{}
-
-		var storedAt sql.NullTime
-		var announcedAt sql.NullTime
-		var minedAt sql.NullTime
-		var blockHeight sql.NullInt64
-		var txHash []byte
-		var blockHash []byte
-		var callbackUrl sql.NullString
-		var callbackToken sql.NullString
-		var fullStatusUpdates sql.NullBool
-		var lockedBy sql.NullString
-		var retries sql.NullInt32
-		var status sql.NullInt32
-
-		if err = rows.Scan(
-			&storedAt,
-			&announcedAt,
-			&minedAt,
-			&txHash,
-			&status,
-			&blockHeight,
-			&blockHash,
-			&callbackUrl,
-			&callbackToken,
-			&fullStatusUpdates,
-			&data.RawTx,
-			&lockedBy,
-			&retries,
-		); err != nil {
-			span.SetTag(string(ext.Error), true)
-			span.LogFields(log.Error(err))
-			return nil, err
-		}
-
-		if len(txHash) > 0 {
-			data.Hash, err = chainhash.NewHash(txHash)
-			if err != nil {
-				span.SetTag(string(ext.Error), true)
-				span.LogFields(log.Error(err))
-				return nil, err
-			}
-		}
-
-		if len(blockHash) > 0 {
-			data.BlockHash, err = chainhash.NewHash(blockHash)
-			if err != nil {
-				span.SetTag(string(ext.Error), true)
-				span.LogFields(log.Error(err))
-				return nil, err
-			}
-		}
-
-		if storedAt.Valid {
-			data.StoredAt = storedAt.Time.UTC()
-		}
-
-		if announcedAt.Valid {
-			data.AnnouncedAt = announcedAt.Time.UTC()
-		}
-
-		if minedAt.Valid {
-			data.MinedAt = minedAt.Time.UTC()
-		}
-
-		if status.Valid {
-			data.Status = metamorph_api.Status(status.Int32)
-		}
-
-		if blockHeight.Valid {
-			data.BlockHeight = uint64(blockHeight.Int64)
-		}
-
-		if callbackUrl.Valid {
-			data.CallbackUrl = callbackUrl.String
-		}
-
-		if callbackToken.Valid {
-			data.CallbackToken = callbackToken.String
-		}
-
-		if fullStatusUpdates.Valid {
-			data.FullStatusUpdates = fullStatusUpdates.Bool
-		}
-
-		if lockedBy.Valid {
-			data.LockedBy = lockedBy.String
-		}
-
-		if retries.Valid {
-			data.Retries = int(retries.Int32)
-		}
-
-		if data.LockedBy == "NONE" {
-			err = p.setLockedBy(ctx, data.Hash, p.hostname)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		unminedTxs = append(unminedTxs, data)
-	}
-
-	return unminedTxs, nil
+	return p.getStoreDataFromRows(rows)
 }
 
 func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
@@ -541,6 +459,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		,metamorph.transactions.raw_tx
 		,metamorph.transactions.locked_by
 		,metamorph.transactions.merkle_path
+		,metamorph.transactions.retries
 		;
     `
 
@@ -602,6 +521,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 		,t.raw_tx
 		,t.locked_by
 		,t.merkle_path
+		,t.retries
 		;
 `
 	rows, err := p.db.QueryContext(ctx, qBulkUpdate, metamorph_api.Status_MINED, p.now(), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
@@ -622,16 +542,17 @@ func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, e
 		var storedAt sql.NullTime
 		var announcedAt sql.NullTime
 		var minedAt sql.NullTime
-		var blockHeight sql.NullInt64
 		var txHash []byte
+		var status sql.NullInt32
+		var blockHeight sql.NullInt64
 		var blockHash []byte
 		var callbackUrl sql.NullString
 		var callbackToken sql.NullString
 		var fullStatusUpdates sql.NullBool
 		var rejectReason sql.NullString
 		var lockedBy sql.NullString
-		var status sql.NullInt32
 		var merklePath sql.NullString
+		var retries sql.NullInt32
 
 		err := rows.Scan(
 			&storedAt,
@@ -648,6 +569,7 @@ func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, e
 			&data.RawTx,
 			&lockedBy,
 			&merklePath,
+			&retries,
 		)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -712,6 +634,10 @@ func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, e
 
 		if merklePath.Valid {
 			data.MerklePath = merklePath.String
+		}
+
+		if retries.Valid {
+			data.Retries = int(retries.Int32)
 		}
 
 		storeData = append(storeData, data)

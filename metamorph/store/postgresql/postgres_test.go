@@ -362,6 +362,10 @@ func TestPostgresDB(t *testing.T) {
 		err = postgresDB.Set(ctx, testdata.TX6Hash[:], tx6Data)
 		require.NoError(t, err)
 
+		// will not be updated because it is locked by metamorph-3
+		metamorph3Hash, err := chainhash.NewHashFromStr("538808e847d0add40ed9622fff53954c79e1f52db7c47ea0b6cdc0df972f3dcd")
+		require.NoError(t, err)
+
 		updates := []store.UpdateStatus{
 			{
 				Hash:         *testdata.TX1Hash,
@@ -380,6 +384,10 @@ func TestPostgresDB(t *testing.T) {
 			{
 				Hash:   *testdata.TX4Hash, // hash non-existent in db
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			},
+			{
+				Hash:   *metamorph3Hash,
+				Status: metamorph_api.Status_MINED,
 			},
 		}
 

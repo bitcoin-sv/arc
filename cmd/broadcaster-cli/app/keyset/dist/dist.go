@@ -1,18 +1,13 @@
 package dist
 
 import (
-	"errors"
 	"fmt"
-	"os"
-	"sort"
-	"strconv"
-	"strings"
-
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
-	"github.com/bitcoin-sv/arc/lib/keyset"
 	"github.com/bitcoin-sv/arc/lib/woc_client"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
+	"sort"
+	"strconv"
 )
 
 var Cmd = &cobra.Command{
@@ -28,18 +23,13 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		extendedBytes, err := os.ReadFile(keyFile)
-		if err != nil {
-			if os.IsNotExist(err) {
-				return errors.New("arc.key not found. Please create this file with the xpriv you want to use")
-			}
-			return err
-		}
-		xpriv := strings.TrimRight(strings.TrimSpace((string)(extendedBytes)), "\n")
-
 		wocClient := woc_client.New()
 
-		fundingKeySet, err := keyset.NewFromExtendedKeyStr(xpriv, "0/0")
+		fundingKeySet, _, err := helper.GetKeySetsKeyFile(keyFile)
+		if err != nil {
+			return fmt.Errorf("failed to get key sets: %v", err)
+		}
+
 		if err != nil {
 			return err
 		}
@@ -67,9 +57,9 @@ var Cmd = &cobra.Command{
 			return keysSlice[j] < keysSlice[i]
 		})
 
-		t := table.NewWriter()
 		fmt.Printf("Distribution of satoshis for address %s\n", fundingKeySet.Address(!isTestnet))
 
+		t := table.NewWriter()
 		t.AppendHeader(table.Row{"Satoshis", "Outputs"})
 		for _, satoshi := range keysSlice {
 			t.AppendRow(table.Row{strconv.FormatUint(satoshi, 10), strconv.Itoa(valuesMap[satoshi])})

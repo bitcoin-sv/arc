@@ -89,10 +89,14 @@ var Cmd = &cobra.Command{
 			if isTestnet {
 				network = "testnet"
 			}
-			writer, err = os.Create(fmt.Sprintf("results/%s-batchsize-%d-rate-%d-%s.json", network, batchSize, rateTxsPerSecond, time.Now().Format(time.DateTime)))
+			file, err := os.Create(fmt.Sprintf("results/%s-batchsize-%d-rate-%d-%s.json", network, batchSize, rateTxsPerSecond, time.Now().Format(time.DateTime)))
 			if err != nil {
 				return err
 			}
+
+			writer = file
+
+			defer file.Close()
 		}
 
 		rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,

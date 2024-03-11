@@ -298,7 +298,6 @@ func (p *Processor) processExpiredTransactions() {
 			}
 
 			offset += loadUnminedLimit
-			p.logger.Info("loaded unmined transactions", slog.Int("number", len(unminedTxs)), slog.Int64("limit", loadUnminedLimit))
 			if len(unminedTxs) == 0 {
 				break
 			}

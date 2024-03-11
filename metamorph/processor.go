@@ -56,6 +56,7 @@ type Processor struct {
 	dataRetentionPeriod     time.Duration
 	now                     func() time.Time
 	processExpiredTxsTicker *time.Ticker
+	lockTransactionsTicker  *time.Ticker
 	httpClient              HttpClient
 	maxMonitoredTxs         int64
 
@@ -107,6 +108,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		mapExpiryTime:           mapExpiryTimeDefault,
 		now:                     time.Now,
 		processExpiredTxsTicker: time.NewTicker(unseenTransactionRebroadcastingInterval * time.Second),
+		lockTransactionsTicker:  time.NewTicker(unseenTransactionRebroadcastingInterval * time.Second),
 		maxMonitoredTxs:         maxMonitoriedTxs,
 
 		quitListenTxChannel:         make(chan struct{}),
@@ -185,8 +187,12 @@ func (p *Processor) unlockItems() error {
 		index++
 	}
 
-	p.logger.Info("unlocking items", slog.Int("number", len(hashes)))
-	return p.store.SetUnlocked(context.Background(), hashes)
+	if len(hashes) > 0 {
+		p.logger.Info("unlocking items", slog.Int("number", len(hashes)))
+		return p.store.SetUnlocked(context.Background(), hashes)
+	}
+
+	return nil
 }
 
 func (p *Processor) processMinedCallbacks() {
@@ -276,6 +282,19 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus)
 		}
 	}
 	return nil
+}
+
+func (p *Processor) StartLockTransactions() {
+	span, _ := opentracing.StartSpanFromContext(context.Background(), "Processor:lockTransactions")
+	dbctx := opentracing.ContextWithSpan(context.Background(), span)
+	defer span.Finish()
+
+	for range p.lockTransactionsTicker.C {
+		err := p.store.SetLocked(dbctx, loadUnminedLimit)
+		if err != nil {
+			p.logger.Error("Failed to set transactions locked", slog.String("err", err.Error()))
+		}
+	}
 }
 
 func (p *Processor) processExpiredTransactions() {

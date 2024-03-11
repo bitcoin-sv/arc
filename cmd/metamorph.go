@@ -120,6 +120,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),
 	)
 
+	metamorphProcessor.StartLockTransactions()
 	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
 
 	go func() {

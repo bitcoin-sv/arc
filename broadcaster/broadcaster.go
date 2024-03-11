@@ -49,7 +49,7 @@ var dataFeeDefault = &bt.Fee{
 	},
 }
 
-type ClientI interface {
+type ArcClient interface {
 	BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error)
 	BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) ([]*metamorph_api.TransactionStatus, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*metamorph_api.TransactionStatus, error)
@@ -57,7 +57,7 @@ type ClientI interface {
 
 type Broadcaster struct {
 	logger        utils.Logger
-	Client        ClientI
+	Client        ArcClient
 	FromKeySet    *keyset.KeySet
 	ToKeySet      *keyset.KeySet
 	Outputs       int64
@@ -83,7 +83,7 @@ func WithMiningFee(miningFeeSatPerKb int) func(fee *bt.Fee) {
 	}
 }
 
-func New(logger utils.Logger, client ClientI, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, outputs int64, feeOpts ...func(fee *bt.Fee)) *Broadcaster {
+func New(logger utils.Logger, client ArcClient, fromKeySet *keyset.KeySet, toKeySet *keyset.KeySet, outputs int64, feeOpts ...func(fee *bt.Fee)) *Broadcaster {
 	var fq = bt.NewFeeQuote()
 
 	stdFee := *stdFeeDefault

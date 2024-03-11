@@ -12,7 +12,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -169,10 +168,6 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 			processorResponses = append(processorResponses, item)
 		}
 
-		sort.Slice(processorResponses, func(i, j int) bool {
-			return processorResponses[i].Start.Before(processorResponses[j].Start)
-		})
-
 		txids.WriteString(`<br/><h2 class="subtitle">Transactions</h2>`)
 
 		if len(processorResponses) > 0 {
@@ -182,8 +177,6 @@ func (p *Processor) HandleStats(w http.ResponseWriter, r *http.Request) {
 			for _, processorResponse := range processorResponses {
 				txids.WriteString(`<tr>`)
 
-				txids.WriteString(fmt.Sprintf(`<td>%s</td>`, processorResponse.Start.UTC().Format(time.RFC3339Nano)))
-				txids.WriteString(fmt.Sprintf(`<td>%d</td>`, processorResponse.Retries.Load()))
 				txids.WriteString(fmt.Sprintf(`<td>%s</td>`, processorResponse.GetStatus().String()))
 				txids.WriteString(fmt.Sprintf(`<td><a href="/pstats?tx=%v">%v</a></td>`, processorResponse.Hash, processorResponse.Hash))
 
@@ -380,22 +373,11 @@ func (p *Processor) writeTransaction(w http.ResponseWriter, hash *chainhash.Hash
 }
 
 func (p *Processor) processorResponseStatsTable(w http.ResponseWriter, prm *processor_response.ProcessorResponse) []byte {
-	announcedPeers := make([]string, 0, len(prm.AnnouncedPeers))
-	for _, peer := range prm.AnnouncedPeers {
-		if peer != nil {
-			announcedPeers = append(announcedPeers, peer.String())
-		}
-	}
 
 	res := &statResponse{
-		Txid:                  prm.Hash.String(),
-		Start:                 prm.Start,
-		Retries:               prm.Retries.Load(),
-		Err:                   prm.Err,
-		AnnouncedPeers:        announcedPeers,
-		Status:                prm.GetStatus(),
-		NoStats:               prm.NoStats,
-		LastStatusUpdateNanos: prm.LastStatusUpdateNanos.Load(),
+		Txid:   prm.Hash.String(),
+		Err:    prm.Err,
+		Status: prm.GetStatus(),
 	}
 
 	resLog := strings.Builder{}

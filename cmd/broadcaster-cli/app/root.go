@@ -2,34 +2,51 @@ package app
 
 import (
 	"fmt"
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/broadcast"
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/prep_utxos"
+	"log"
+
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset"
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-func InitCommand(v *viper.Viper) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "broadcaster",
-		Short: "cli tool to broadcast transactions to ARC",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			v.SetConfigName("config")
-			v.SetConfigType("yaml")
-			v.AddConfigPath(".")
-			v.AddConfigPath("../../")
-			err := v.ReadInConfig()
-			if err != nil {
-				return fmt.Errorf("failed to read config file config.yaml: %v", err)
-			}
-			return nil
-		},
+var RootCmd = &cobra.Command{
+	Use:   "broadcaster",
+	Short: "cli tool to broadcast transactions to ARC",
+}
+
+func init() {
+	var err error
+	cobra.OnInitialize(initConfig)
+
+	RootCmd.PersistentFlags().Bool("testnet", false, "Use testnet")
+	err = viper.BindPFlag("testnet", RootCmd.PersistentFlags().Lookup("testnet"))
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	broadcastCmd := broadcast.InitCommand(v)
-	cmd.AddCommand(broadcastCmd)
+	RootCmd.PersistentFlags().String("keyfile", "", "private key from file (arc.key) to use for funding transactions")
+	err = viper.BindPFlag("keyFile", RootCmd.PersistentFlags().Lookup("keyfile"))
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	prepUTXOsCmd := prep_utxos.InitCommand(v)
-	cmd.AddCommand(prepUTXOsCmd)
+	RootCmd.AddCommand(keyset.Cmd)
+	RootCmd.AddCommand(utxos.Cmd)
+}
 
-	return cmd
+func Execute() error {
+	return RootCmd.Execute()
+}
+
+func initConfig() {
+
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("../../")
+	err := viper.ReadInConfig()
+	if err != nil {
+		fmt.Printf("failed to read config file: %v\n", err)
+	}
 }

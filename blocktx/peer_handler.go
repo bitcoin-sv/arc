@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"os"
 	"runtime"
 	"time"
@@ -27,9 +28,9 @@ const (
 	transactionStoringBatchsizeDefault = 2048 // power of 2 for easier memory allocation
 	maxRequestBlocks                   = 1
 	fillGapsInterval                   = 15 * time.Minute
-	maximumBlockSize                   = 4294967296 // 4Gb
 	registerTxsIntervalDefault         = time.Second * 10
 	registerTxsBatchSizeDefault        = 100
+	maxBlocksInProgress                = 1
 )
 
 func init() {
@@ -97,13 +98,11 @@ type PeerHandler struct {
 	stats                       *safemap.Safemap[string, *tracing.PeerHandlerStats]
 	transactionStorageBatchSize int
 	peerHandlerCollector        *tracing.PeerHandlerCollector
-	startingHeight              int
 	dataRetentionDays           int
 	mqClient                    MessageQueueClient
 	txChannel                   chan []byte
 	registerTxsInterval         time.Duration
 	registerTxsBatchSize        int
-	peers                       []*p2p.Peer
 
 	fillGapsTicker              *time.Ticker
 	quitFillBlockGap            chan struct{}
@@ -160,7 +159,7 @@ func WithRegisterTxsBatchSize(size int) func(handler *PeerHandler) {
 	}
 }
 
-func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, startingHeight int, peerURLs []string, network wire.BitcoinNet, opts ...func(*PeerHandler)) (*PeerHandler, error) {
+func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func(*PeerHandler)) (*PeerHandler, error) {
 
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -173,19 +172,11 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, startingHeig
 		workerCh:                    make(chan hashPeer, 100),
 		stats:                       safemap.New[string, *tracing.PeerHandlerStats](),
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
-		startingHeight:              startingHeight,
 		registerTxsInterval:         registerTxsIntervalDefault,
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
-		peers:                       make([]*p2p.Peer, len(peerURLs)),
 		hostname:                    hostname,
 
-		fillGapsTicker:              time.NewTicker(fillGapsInterval),
-		quitFillBlockGap:            make(chan struct{}),
-		quitFillBlockGapComplete:    make(chan struct{}),
-		quitPeerWorker:              make(chan struct{}),
-		quitPeerWorkerComplete:      make(chan struct{}),
-		quitListenTxChannel:         make(chan struct{}),
-		quitListenTxChannelComplete: make(chan struct{}),
+		fillGapsTicker: time.NewTicker(fillGapsInterval),
 	}
 
 	for _, opt := range opts {
@@ -195,29 +186,18 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, startingHeig
 	ph.peerHandlerCollector = tracing.NewPeerHandlerCollector("blocktx", ph.stats)
 	tracing.Register(ph.peerHandlerCollector)
 
-	pm := p2p.NewPeerManager(logger, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
-
-	for i, peerURL := range peerURLs {
-		peer, err := p2p.NewPeer(logger, peerURL, ph, network, p2p.WithMaximumMessageSize(maximumBlockSize))
-		if err != nil {
-			return nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
-		}
-		err = pm.AddPeer(peer)
-		if err != nil {
-			return nil, fmt.Errorf("error adding peer: %v", err)
-		}
-
-		ph.peers[i] = peer
-	}
-
-	ph.startFillGaps(ph.peers)
-	ph.startPeerWorker()
-	ph.startProcessTxs()
-
 	return ph, nil
 }
 
+func (ph *PeerHandler) Start() {
+	ph.startPeerWorker()
+	ph.startProcessTxs()
+}
+
 func (ph *PeerHandler) startPeerWorker() {
+	ph.quitPeerWorker = make(chan struct{})
+	ph.quitPeerWorkerComplete = make(chan struct{})
+
 	go func() {
 		defer func() {
 			ph.quitPeerWorkerComplete <- struct{}{}
@@ -232,15 +212,25 @@ func (ph *PeerHandler) startPeerWorker() {
 
 				ctx := context.Background()
 
+				bhs, err := ph.store.GetBlockHashesProcessingInProgress(ctx, ph.hostname)
+				if err != nil {
+					ph.logger.Error("failed to get block hashes where processing in progress", slog.String("err", err.Error()))
+				}
+
+				if len(bhs) >= maxBlocksInProgress {
+					ph.logger.Debug("max blocks being processed reached", slog.String("hash", hash.String()), slog.Int("max", maxBlocksInProgress), slog.Int("number", len(bhs)))
+					continue
+				}
+
 				processedBy, err := ph.store.SetBlockProcessing(ctx, hash, ph.hostname)
 				if err != nil {
 					// block is already being processed by another blocktx instance
 					if errors.Is(err, store.ErrBlockProcessingDuplicateKey) {
-						ph.logger.Debug("Block processing already in progress", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
+						ph.logger.Debug("block processing already in progress", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
 						continue
 					}
 
-					ph.logger.Error("Failed to set block processing", slog.String("hash", hash.String()))
+					ph.logger.Error("failed to set block processing", slog.String("hash", hash.String()))
 					continue
 				}
 
@@ -261,7 +251,10 @@ func (ph *PeerHandler) startPeerWorker() {
 	}()
 }
 
-func (ph *PeerHandler) startFillGaps(peers []*p2p.Peer) {
+func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
+	ph.quitFillBlockGap = make(chan struct{})
+	ph.quitFillBlockGapComplete = make(chan struct{})
+
 	go func() {
 		defer func() {
 			ph.quitFillBlockGapComplete <- struct{}{}
@@ -277,8 +270,6 @@ func (ph *PeerHandler) startFillGaps(peers []*p2p.Peer) {
 					peerIndex = 0
 				}
 
-				ph.logger.Info("requesting missing blocks from peer", slog.Int("index", peerIndex))
-
 				err := ph.FillGaps(peers[peerIndex])
 				if err != nil {
 					ph.logger.Error("failed to fill gaps", slog.String("error", err.Error()))
@@ -291,6 +282,8 @@ func (ph *PeerHandler) startFillGaps(peers []*p2p.Peer) {
 }
 
 func (ph *PeerHandler) startProcessTxs() {
+	ph.quitListenTxChannel = make(chan struct{})
+	ph.quitListenTxChannelComplete = make(chan struct{})
 	txHashes := make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
 
 	ticker := time.NewTicker(ph.registerTxsInterval)
@@ -422,6 +415,7 @@ func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 		Hash: &msg.Hash,
 		Peer: peer,
 	}
+
 	ph.workerCh <- pair
 
 	return nil
@@ -456,7 +450,7 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 
 	merkleRoot := msg.Header.MerkleRoot
 
-	blockId, err := ph.insertBlock(&blockHash, &merkleRoot, &previousBlockHash, msg.Height, peer)
+	blockId, err := ph.insertBlock(&blockHash, &merkleRoot, &previousBlockHash, msg.Height)
 	if err != nil {
 		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
 		if errDel != nil {
@@ -530,7 +524,7 @@ func (ph *PeerHandler) FillGaps(peer p2p.PeerI) error {
 			break
 		}
 
-		ph.logger.Info("requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Int64("height", int64(gaps.Height)))
+		ph.logger.Info("requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Int64("height", int64(gaps.Height)), slog.String("peer", peer.String()))
 
 		pair := hashPeer{
 			Hash: gaps.Hash,
@@ -542,28 +536,11 @@ func (ph *PeerHandler) FillGaps(peer p2p.PeerI) error {
 	return nil
 }
 
-func (ph *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainhash.Hash, previousBlockHash *chainhash.Hash, height uint64, peer p2p.PeerI) (uint64, error) {
+func (ph *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainhash.Hash, previousBlockHash *chainhash.Hash, height uint64) (uint64, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("insertBlock").AddTime(start)
 	}()
-
-	if height > uint64(ph.startingHeight) {
-		_, err := ph.store.GetBlock(context.Background(), previousBlockHash)
-		if err != nil {
-			if errors.Is(err, store.ErrBlockNotFound) {
-				pair := hashPeer{
-					Hash: previousBlockHash,
-					Peer: peer,
-				}
-
-				// request previous block
-				ph.workerCh <- pair
-			} else {
-				ph.logger.Error("failed to get previous block", slog.String("hash", previousBlockHash.String()), slog.Int64("height", int64(height-1)), slog.String("err", err.Error()))
-			}
-		}
-	}
 
 	ph.logger.Info("inserting block", slog.String("hash", blockHash.String()), slog.Int64("height", int64(height)))
 
@@ -601,10 +578,27 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 	merklePaths := make([]string, 0, ph.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
 
+	totalSize := 0
+	for txIndex, hash := range leaves {
+		if hash == nil {
+			totalSize = txIndex
+			break
+		}
+	}
+
+	step := int(math.Ceil(float64(totalSize) / 5))
+	progressIndices := map[int]int{step: 20, step * 2: 40, step * 3: 60, step * 4: 80}
+
 	for txIndex, hash := range leaves {
 		// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.
 		if hash == nil {
 			break
+		}
+
+		if percentage, found := progressIndices[txIndex]; found {
+			if totalSize > 0 {
+				ph.logger.Info(fmt.Sprintf("%d txs out of %d marked as mined", txIndex, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)))
+			}
 		}
 
 		// Otherwise they're txids, which should have merkle paths calculated.
@@ -646,7 +640,7 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 			if len(updatesBatch) > 0 {
 				err = ph.mqClient.PublishMinedTxs(updatesBatch)
 				if err != nil {
-					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+					ph.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
 				}
 			}
 
@@ -719,15 +713,24 @@ func extractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
 }
 
 func (ph *PeerHandler) Shutdown() {
-	ph.quitFillBlockGap <- struct{}{}
-	<-ph.quitFillBlockGapComplete
+	if ph.quitFillBlockGap != nil {
+		ph.quitFillBlockGap <- struct{}{}
+		<-ph.quitFillBlockGapComplete
+		ph.fillGapsTicker.Stop()
+	}
 
-	ph.quitListenTxChannel <- struct{}{}
-	<-ph.quitListenTxChannelComplete
+	if ph.quitPeerWorker != nil {
+		ph.quitPeerWorker <- struct{}{}
+		<-ph.quitPeerWorkerComplete
+	}
 
-	ph.quitPeerWorker <- struct{}{}
-	<-ph.quitPeerWorkerComplete
+	if ph.quitListenTxChannel != nil {
+		ph.quitListenTxChannel <- struct{}{}
+		<-ph.quitListenTxChannelComplete
+	}
+	ph.unregisterTracing()
+}
 
-	ph.fillGapsTicker.Stop()
+func (ph *PeerHandler) unregisterTracing() {
 	tracing.Unregister(ph.peerHandlerCollector)
 }

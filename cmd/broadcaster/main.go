@@ -134,7 +134,7 @@ func run() error {
 
 	ctx := context.Background()
 
-	var client broadcaster.ClientI
+	var client broadcaster.ArcClient
 	client, err = createClient(&broadcaster.Auth{
 		Authorization: *authorization,
 	})
@@ -172,8 +172,8 @@ func run() error {
 	return nil
 }
 
-func createClient(auth *broadcaster.Auth) (broadcaster.ClientI, error) {
-	var client broadcaster.ClientI
+func createClient(auth *broadcaster.Auth) (broadcaster.ArcClient, error) {
+	var client broadcaster.ArcClient
 	var err error
 	if isDryRun {
 		client = broadcaster.NewDryRunClient()

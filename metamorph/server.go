@@ -51,7 +51,6 @@ type BitcoinNode interface {
 }
 
 type ProcessorI interface {
-	LoadUnmined()
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
 	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) error
 	GetStats(debugItems bool) *ProcessorStats
@@ -299,18 +298,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 }
 
 func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, timeoutSeconds int64, TxID string) *metamorph_api.TransactionStatus {
-	responseChannel := make(chan processor_response.StatusAndError, 1)
-	defer func() {
-		close(responseChannel)
-	}()
-
-	// TODO check the context when API call ends
-	s.processor.ProcessTransaction(ctx, &ProcessorRequest{Data: data, ResponseChannel: responseChannel})
-
-	if waitForStatus == 0 {
-		// wait for seen by default, this is the safest option
-		waitForStatus = metamorph_api.Status_SEEN_ON_NETWORK
-	}
+	responseChannel := make(chan processor_response.StatusAndError, 10)
 
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeDuration := s.timeout
@@ -318,7 +306,16 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 		timeDuration = time.Second * time.Duration(timeoutSeconds)
 	}
 
+	// TODO check the context when API call ends
+	s.processor.ProcessTransaction(ctx, &ProcessorRequest{Data: data, ResponseChannel: responseChannel, Timeout: timeDuration})
+
+	if waitForStatus == 0 {
+		// wait for seen by default, this is the safest option
+		waitForStatus = metamorph_api.Status_SEEN_ON_NETWORK
+	}
+
 	t := time.NewTimer(timeDuration)
+
 	returnedStatus := &metamorph_api.TransactionStatus{
 		Txid:   TxID,
 		Status: metamorph_api.Status_RECEIVED,

@@ -69,9 +69,16 @@ jobs:
           name: arc-build
           path: ./build
 
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: test-arc
+
       - name: e2e test
         run: |
-          docker-compose up -d node1 node2 node3 db migrate-blocktx migrate-metamorph arc
-          docker-compose up --exit-code-from tests tests
-          docker-compose down
+          docker compose up -d node1 node2 node3 db migrate-blocktx migrate-metamorph arc-blocktx arc-metamorph --scale arc-blocktx=5 --scale arc-metamorph=2
+          docker compose up --exit-code-from tests tests arc
+          docker compose down
         working-directory: ./test

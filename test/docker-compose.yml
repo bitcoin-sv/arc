@@ -2,7 +2,7 @@ version: '3'
 services:
   node1:
     container_name: node1
-    image: bitcoinsv/bitcoin-sv:1.0.15
+    image: bitcoinsv/bitcoin-sv:1.1.0
     ports:
       - "18332:18332"
     expose:
@@ -18,7 +18,7 @@ services:
 
   node2:
     container_name: node2
-    image: bitcoinsv/bitcoin-sv:1.0.15
+    image: bitcoinsv/bitcoin-sv:1.1.0
     ports:
       - "48332:18332"
     expose:
@@ -33,7 +33,7 @@ services:
 
   node3:
     container_name: node3
-    image: bitcoinsv/bitcoin-sv:1.0.15
+    image: bitcoinsv/bitcoin-sv:1.1.0
     ports:
       - "58332:18332"
     expose:
@@ -111,15 +111,14 @@ services:
       - "8222:8222"
     hostname: nats-server
 
-  arc:
-    build: ..
-    ports:
-      - "8011:8011"
-      - "9090:9090"
-      - "9999:9999"
+  arc-blocktx:
+    image: test-arc:latest
+    expose:
+      - "8011"
     volumes:
       - ./data:/data
       - ./config/config.yaml:/service/config.yaml
+    command: [ "./arc", "-blocktx=true" ]
     depends_on:
       - node1
       - node2
@@ -127,6 +126,42 @@ services:
       - migrate-blocktx
       - migrate-metamorph
       - nats
+    healthcheck:
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8006", "-service=liveness", "-rpc-timeout=5s"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  arc-metamorph:
+    image: test-arc:latest
+    expose:
+      - "8001"
+    command: [ "./arc", "-metamorph=true" ]
+    volumes:
+      - ./data:/data
+      - ./config/config.yaml:/service/config.yaml
+    depends_on:
+      - arc-blocktx
+    healthcheck:
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8005", "-service=liveness", "-rpc-timeout=5s"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  arc:
+    image: test-arc:latest
+    ports:
+      - "8011:8011"
+      - "9090:9090"
+      - "9999:9999"
+    expose:
+      - "9090"
+    command: [ "./arc", "-api=true" ]
+    volumes:
+      - ./data:/data
+      - ./config/config.yaml:/service/config.yaml
+    depends_on:
+      - arc-metamorph
 
   tests:
     build: .

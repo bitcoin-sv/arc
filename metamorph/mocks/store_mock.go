@@ -34,8 +34,11 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 //				panic("mock out the Get method")
 //			},
-//			GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
+//			GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 //				panic("mock out the GetUnmined method")
+//			},
+//			IncrementRetriesFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+//				panic("mock out the IncrementRetries method")
 //			},
 //			PingFunc: func(ctx context.Context) error {
 //				panic("mock out the Ping method")
@@ -75,7 +78,10 @@ type MetamorphStoreMock struct {
 	GetFunc func(ctx context.Context, key []byte) (*store.StoreData, error)
 
 	// GetUnminedFunc mocks the GetUnmined method.
-	GetUnminedFunc func(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error)
+	GetUnminedFunc func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error)
+
+	// IncrementRetriesFunc mocks the IncrementRetries method.
+	IncrementRetriesFunc func(ctx context.Context, hash *chainhash.Hash) error
 
 	// PingFunc mocks the Ping method.
 	PingFunc func(ctx context.Context) error
@@ -131,6 +137,15 @@ type MetamorphStoreMock struct {
 			Since time.Time
 			// Limit is the limit argument value.
 			Limit int64
+			// Offset is the offset argument value.
+			Offset int64
+		}
+		// IncrementRetries holds details about calls to the IncrementRetries method.
+		IncrementRetries []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hash is the hash argument value.
+			Hash *chainhash.Hash
 		}
 		// Ping holds details about calls to the Ping method.
 		Ping []struct {
@@ -180,6 +195,7 @@ type MetamorphStoreMock struct {
 	lockDel               sync.RWMutex
 	lockGet               sync.RWMutex
 	lockGetUnmined        sync.RWMutex
+	lockIncrementRetries  sync.RWMutex
 	lockPing              sync.RWMutex
 	lockSet               sync.RWMutex
 	lockSetUnlocked       sync.RWMutex
@@ -329,23 +345,25 @@ func (mock *MetamorphStoreMock) GetCalls() []struct {
 }
 
 // GetUnmined calls GetUnminedFunc.
-func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time, limit int64) ([]*store.StoreData, error) {
+func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 	if mock.GetUnminedFunc == nil {
 		panic("MetamorphStoreMock.GetUnminedFunc: method is nil but MetamorphStore.GetUnmined was just called")
 	}
 	callInfo := struct {
-		Ctx   context.Context
-		Since time.Time
-		Limit int64
+		Ctx    context.Context
+		Since  time.Time
+		Limit  int64
+		Offset int64
 	}{
-		Ctx:   ctx,
-		Since: since,
-		Limit: limit,
+		Ctx:    ctx,
+		Since:  since,
+		Limit:  limit,
+		Offset: offset,
 	}
 	mock.lockGetUnmined.Lock()
 	mock.calls.GetUnmined = append(mock.calls.GetUnmined, callInfo)
 	mock.lockGetUnmined.Unlock()
-	return mock.GetUnminedFunc(ctx, since, limit)
+	return mock.GetUnminedFunc(ctx, since, limit, offset)
 }
 
 // GetUnminedCalls gets all the calls that were made to GetUnmined.
@@ -353,18 +371,56 @@ func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time,
 //
 //	len(mockedMetamorphStore.GetUnminedCalls())
 func (mock *MetamorphStoreMock) GetUnminedCalls() []struct {
-	Ctx   context.Context
-	Since time.Time
-	Limit int64
+	Ctx    context.Context
+	Since  time.Time
+	Limit  int64
+	Offset int64
 } {
 	var calls []struct {
-		Ctx   context.Context
-		Since time.Time
-		Limit int64
+		Ctx    context.Context
+		Since  time.Time
+		Limit  int64
+		Offset int64
 	}
 	mock.lockGetUnmined.RLock()
 	calls = mock.calls.GetUnmined
 	mock.lockGetUnmined.RUnlock()
+	return calls
+}
+
+// IncrementRetries calls IncrementRetriesFunc.
+func (mock *MetamorphStoreMock) IncrementRetries(ctx context.Context, hash *chainhash.Hash) error {
+	if mock.IncrementRetriesFunc == nil {
+		panic("MetamorphStoreMock.IncrementRetriesFunc: method is nil but MetamorphStore.IncrementRetries was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Hash *chainhash.Hash
+	}{
+		Ctx:  ctx,
+		Hash: hash,
+	}
+	mock.lockIncrementRetries.Lock()
+	mock.calls.IncrementRetries = append(mock.calls.IncrementRetries, callInfo)
+	mock.lockIncrementRetries.Unlock()
+	return mock.IncrementRetriesFunc(ctx, hash)
+}
+
+// IncrementRetriesCalls gets all the calls that were made to IncrementRetries.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.IncrementRetriesCalls())
+func (mock *MetamorphStoreMock) IncrementRetriesCalls() []struct {
+	Ctx  context.Context
+	Hash *chainhash.Hash
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Hash *chainhash.Hash
+	}
+	mock.lockIncrementRetries.RLock()
+	calls = mock.calls.IncrementRetries
+	mock.lockIncrementRetries.RUnlock()
 	return calls
 }
 

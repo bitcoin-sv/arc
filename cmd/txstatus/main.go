@@ -5,9 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"os"
 	"time"
+
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 
 	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/spf13/viper"
@@ -23,7 +24,7 @@ func main() {
 
 	ctx := context.Background()
 
-	viper.SetConfigName("config")
+	viper.SetConfigName("config/config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("../../")
 	err := viper.ReadInConfig()

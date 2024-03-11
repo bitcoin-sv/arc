@@ -9,7 +9,7 @@ import (
 	"github.com/bitcoin-sv/arc/background_worker/jobs"
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/config"
+	cfg "github.com/bitcoin-sv/arc/internal/helpers"
 	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/go-co-op/gocron"
@@ -34,12 +34,12 @@ func StartBackGroundWorker(logger *slog.Logger) (func(), error) {
 
 func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 
-	metamorphAddress, err := config.GetString("metamorph.dialAddr")
+	metamorphAddress, err := cfg.GetString("metamorph.dialAddr")
 	if err != nil {
 		return nil, err
 	}
 
-	grpcMessageSize, err := config.GetInt("grpcMessageSize")
+	grpcMessageSize, err := cfg.GetInt("grpcMessageSize")
 	if err != nil {
 		return nil, err
 	}
@@ -51,12 +51,12 @@ func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
-	metamorphClearDataRetentionDays, err := config.GetInt("metamorph.db.cleanData.recordRetentionDays")
+	metamorphClearDataRetentionDays, err := cfg.GetInt("metamorph.db.cleanData.recordRetentionDays")
 	if err != nil {
 		return nil, err
 	}
 
-	executionIntervalHours, err := config.GetInt("metamorph.db.cleanData.executionIntervalHours")
+	executionIntervalHours, err := cfg.GetInt("metamorph.db.cleanData.executionIntervalHours")
 	if err != nil {
 		return nil, err
 	}
@@ -77,17 +77,17 @@ func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 
 func startBlocktxScheduler(logger *slog.Logger) (func(), error) {
 	logger.With("service", "background-worker")
-	cleanBlocksRecordRetentionDays, err := config.GetInt("blocktx.db.cleanData.recordRetentionDays")
+	cleanBlocksRecordRetentionDays, err := cfg.GetInt("blocktx.db.cleanData.recordRetentionDays")
 	if err != nil {
 		return nil, err
 	}
 
-	executionIntervalHours, err := config.GetInt("blocktx.db.cleanData.executionIntervalHours")
+	executionIntervalHours, err := cfg.GetInt("blocktx.db.cleanData.executionIntervalHours")
 	if err != nil {
 		return nil, err
 	}
 
-	blocktxAddress, err := config.GetString("blocktx.dialAddr")
+	blocktxAddress, err := cfg.GetString("blocktx.dialAddr")
 	if err != nil {
 		return nil, err
 	}

@@ -14,7 +14,7 @@ import (
 	"syscall"
 
 	"github.com/bitcoin-sv/arc/cmd"
-	cfg "github.com/bitcoin-sv/arc/config"
+	cfg "github.com/bitcoin-sv/arc/internal/helpers"
 	"github.com/bitcoin-sv/arc/tracing"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/gocore"
@@ -50,7 +50,7 @@ func run() error {
 	startBackgroundWorker := flag.Bool("background-worker", false, "start background-worker")
 	useTracer := flag.Bool("tracer", false, "start tracer")
 	help := flag.Bool("help", false, "Show help")
-	config := flag.String("config", ".", "path to configuration yaml file")
+	config := flag.String("config", "config/", "path to configuration yaml file")
 
 	flag.Parse()
 

@@ -24,7 +24,7 @@ func main() {
 
 	ctx := context.Background()
 
-	viper.SetConfigName("config")
+	viper.SetConfigName("config/config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("../../")
 	err := viper.ReadInConfig()

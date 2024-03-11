@@ -2,26 +2,27 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
+
 	"github.com/bitcoin-sv/arc/blocktx"
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"log/slog"
 
-	"github.com/bitcoin-sv/arc/config"
-	"github.com/bitcoin-sv/arc/k8s_watcher"
-	"github.com/bitcoin-sv/arc/k8s_watcher/k8s_client"
+	cfg "github.com/bitcoin-sv/arc/internal/helpers"
+	"github.com/bitcoin-sv/arc/internal/k8s_watcher"
+	"github.com/bitcoin-sv/arc/internal/k8s_watcher/k8s_client"
 	"github.com/bitcoin-sv/arc/metamorph"
 )
 
 func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 	logger.With(slog.String("service", "k8s-watcher"))
 
-	metamorphAddress, err := config.GetString("metamorph.dialAddr")
+	metamorphAddress, err := cfg.GetString("metamorph.dialAddr")
 	if err != nil {
 		return nil, err
 	}
 
-	grpcMessageSize, err := config.GetInt("grpcMessageSize")
+	grpcMessageSize, err := cfg.GetInt("grpcMessageSize")
 	if err != nil {
 		return nil, err
 	}
@@ -38,12 +39,12 @@ func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to get k8s-client: %v", err)
 	}
 
-	namespace, err := config.GetString("k8sWatcher.namespace")
+	namespace, err := cfg.GetString("k8sWatcher.namespace")
 	if err != nil {
 		return nil, err
 	}
 
-	blocktxAddress, err := config.GetString("blocktx.dialAddr")
+	blocktxAddress, err := cfg.GetString("blocktx.dialAddr")
 	if err != nil {
 		return nil, err
 	}

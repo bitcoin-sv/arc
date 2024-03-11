@@ -4,7 +4,7 @@
 package mock
 
 import (
-	"github.com/bitcoin-sv/arc/k8s_watcher"
+	"github.com/bitcoin-sv/arc/internal/k8s_watcher"
 	"sync"
 	"time"
 )

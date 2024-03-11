@@ -9,7 +9,7 @@ import (
 	"github.com/bitcoin-sv/arc/blocktx/async/nats_mq"
 	"github.com/bitcoin-sv/arc/blocktx/store"
 	"github.com/bitcoin-sv/arc/blocktx/store/postgresql"
-	"github.com/bitcoin-sv/arc/config"
+	cfg "github.com/bitcoin-sv/arc/internal/helpers"
 	"github.com/libsv/go-p2p"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -21,7 +21,7 @@ const (
 )
 
 func StartBlockTx(logger *slog.Logger) (func(), error) {
-	dbMode, err := config.GetString("blocktx.db.mode")
+	dbMode, err := cfg.GetString("blocktx.db.mode")
 	if err != nil {
 		return nil, err
 	}
@@ -32,22 +32,22 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
 
-	recordRetentionDays, err := config.GetInt("blocktx.db.cleanData.recordRetentionDays")
+	recordRetentionDays, err := cfg.GetInt("blocktx.db.cleanData.recordRetentionDays")
 	if err != nil {
 		return nil, err
 	}
 
-	network, err := config.GetNetwork()
+	network, err := cfg.GetNetwork()
 	if err != nil {
 		return nil, err
 	}
 
-	natsURL, err := config.GetString("queueURL")
+	natsURL, err := cfg.GetString("queueURL")
 	if err != nil {
 		return nil, err
 	}
 
-	registerTxInterval, err := config.GetDuration("blocktx.registerTxsInterval")
+	registerTxInterval, err := cfg.GetDuration("blocktx.registerTxsInterval")
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	maxBatchSize, err := config.GetInt("blocktx.mq.txsMinedMaxBatchSize")
+	maxBatchSize, err := cfg.GetInt("blocktx.mq.txsMinedMaxBatchSize")
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 
 	pm := p2p.NewPeerManager(logger, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
 
-	peerSettings, err := config.GetPeerSettings()
+	peerSettings, err := cfg.GetPeerSettings()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get peer settings: %v", err)
 	}
@@ -126,7 +126,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 
 	blockTxServer := blocktx.NewServer(blockStore, logger, peers)
 
-	address, err := config.GetString("blocktx.listenAddr")
+	address, err := cfg.GetString("blocktx.listenAddr")
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func StartHealthServerBlocktx(serv *blocktx.Server) error {
 	// register your own services
 	reflection.Register(gs)
 
-	address, err := config.GetString("blocktx.healthServerDialAddr") //"localhost:8005"
+	address, err := cfg.GetString("blocktx.healthServerDialAddr") //"localhost:8005"
 	if err != nil {
 		return err
 	}
@@ -188,35 +188,35 @@ func StartHealthServerBlocktx(serv *blocktx.Server) error {
 func NewBlocktxStore(dbMode string, logger *slog.Logger) (s store.BlocktxStore, err error) {
 	switch dbMode {
 	case DbModePostgres:
-		dbHost, err := config.GetString("blocktx.db.postgres.host")
+		dbHost, err := cfg.GetString("blocktx.db.postgres.host")
 		if err != nil {
 			return nil, err
 		}
-		dbPort, err := config.GetInt("blocktx.db.postgres.port")
+		dbPort, err := cfg.GetInt("blocktx.db.postgres.port")
 		if err != nil {
 			return nil, err
 		}
-		dbName, err := config.GetString("blocktx.db.postgres.name")
+		dbName, err := cfg.GetString("blocktx.db.postgres.name")
 		if err != nil {
 			return nil, err
 		}
-		dbUser, err := config.GetString("blocktx.db.postgres.user")
+		dbUser, err := cfg.GetString("blocktx.db.postgres.user")
 		if err != nil {
 			return nil, err
 		}
-		dbPassword, err := config.GetString("blocktx.db.postgres.password")
+		dbPassword, err := cfg.GetString("blocktx.db.postgres.password")
 		if err != nil {
 			return nil, err
 		}
-		sslMode, err := config.GetString("blocktx.db.postgres.sslMode")
+		sslMode, err := cfg.GetString("blocktx.db.postgres.sslMode")
 		if err != nil {
 			return nil, err
 		}
-		idleConns, err := config.GetInt("blocktx.db.postgres.maxIdleConns")
+		idleConns, err := cfg.GetInt("blocktx.db.postgres.maxIdleConns")
 		if err != nil {
 			return nil, err
 		}
-		maxOpenConns, err := config.GetInt("blocktx.db.postgres.maxOpenConns")
+		maxOpenConns, err := cfg.GetInt("blocktx.db.postgres.maxOpenConns")
 		if err != nil {
 			return nil, err
 		}

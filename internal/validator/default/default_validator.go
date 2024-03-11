@@ -6,7 +6,7 @@ import (
 	"math"
 
 	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/validator"
+	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/libsv/go-bt/v2/bscript/interpreter"

@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/config"
+	cfg "github.com/bitcoin-sv/arc/internal/helpers"
 	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/async/nats_mq"
 	"github.com/bitcoin-sv/arc/metamorph/store"
@@ -34,7 +34,7 @@ const (
 func StartMetamorph(logger *slog.Logger) (func(), error) {
 	logger = logger.With(slog.String("service", "mtm"))
 
-	dbMode, err := config.GetString("metamorph.db.mode")
+	dbMode, err := cfg.GetString("metamorph.db.mode")
 	if dbMode == "" {
 		return nil, errors.New("metamorph.db.mode not found in config")
 	}
@@ -44,7 +44,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
 
-	metamorphGRPCListenAddress, err := config.GetString("metamorph.listenAddr")
+	metamorphGRPCListenAddress, err := cfg.GetString("metamorph.listenAddr")
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	mapExpiryStr, err := config.GetString("metamorph.processorCacheExpiryTime")
+	mapExpiryStr, err := cfg.GetString("metamorph.processorCacheExpiryTime")
 	if err != nil {
 		return nil, err
 	}
@@ -64,17 +64,17 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("invalid metamorph.processorCacheExpiryTime: %s", mapExpiryStr)
 	}
 
-	dataRetentionDays, err := config.GetInt("metamorph.db.cleanData.recordRetentionDays")
+	dataRetentionDays, err := cfg.GetInt("metamorph.db.cleanData.recordRetentionDays")
 	if err != nil {
 		return nil, err
 	}
 
-	maxMonitoredTxs, err := config.GetInt64("metamorph.maxMonitoredTxs")
+	maxMonitoredTxs, err := cfg.GetInt64("metamorph.maxMonitoredTxs")
 	if err != nil {
 		return nil, err
 	}
 
-	natsURL, err := config.GetString("queueURL")
+	natsURL, err := cfg.GetString("queueURL")
 	if err != nil {
 		return nil, err
 	}
@@ -84,12 +84,12 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	const avgMinPerBlock = 10
 	const secPerMin = 60
 
-	maxBatchSize, err := config.GetInt("blocktx.mq.txsMinedMaxBatchSize")
+	maxBatchSize, err := cfg.GetInt("blocktx.mq.txsMinedMaxBatchSize")
 	if err != nil {
 		return nil, err
 	}
 
-	processStatusUpdateInterval, err := config.GetDuration("metamorph.processStatusUpdateInterval")
+	processStatusUpdateInterval, err := cfg.GetDuration("metamorph.processStatusUpdateInterval")
 	if err != nil {
 		return nil, err
 	}
@@ -142,17 +142,17 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	}
 
 	if viper.GetBool("metamorph.checkUtxos") {
-		peerRpcPassword, err := config.GetString("peerRpc.password")
+		peerRpcPassword, err := cfg.GetString("peerRpc.password")
 		if err != nil {
 			return nil, err
 		}
 
-		peerRpcUser, err := config.GetString("peerRpc.user")
+		peerRpcUser, err := cfg.GetString("peerRpc.user")
 		if err != nil {
 			return nil, err
 		}
 
-		peerRpcHost, err := config.GetString("peerRpc.host")
+		peerRpcHost, err := cfg.GetString("peerRpc.host")
 		if err != nil {
 			return nil, err
 		}
@@ -193,7 +193,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		}
 	}()
 
-	peerSettings, err := config.GetPeerSettings()
+	peerSettings, err := cfg.GetPeerSettings()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get peer settings: %v", err)
 	}
@@ -251,7 +251,7 @@ func StartHealthServerMetamorph(serv *metamorph.Server) error {
 	// register your own services
 	reflection.Register(gs)
 
-	address, err := config.GetString("metamorph.healthServerDialAddr") //"localhost:8005"
+	address, err := cfg.GetString("metamorph.healthServerDialAddr") //"localhost:8005"
 	if err != nil {
 		return err
 	}
@@ -277,35 +277,35 @@ func NewMetamorphStore(dbMode string) (s store.MetamorphStore, err error) {
 
 	switch dbMode {
 	case DbModePostgres:
-		dbHost, err := config.GetString("metamorph.db.postgres.host")
+		dbHost, err := cfg.GetString("metamorph.db.postgres.host")
 		if err != nil {
 			return nil, err
 		}
-		dbPort, err := config.GetInt("metamorph.db.postgres.port")
+		dbPort, err := cfg.GetInt("metamorph.db.postgres.port")
 		if err != nil {
 			return nil, err
 		}
-		dbName, err := config.GetString("metamorph.db.postgres.name")
+		dbName, err := cfg.GetString("metamorph.db.postgres.name")
 		if err != nil {
 			return nil, err
 		}
-		dbUser, err := config.GetString("metamorph.db.postgres.user")
+		dbUser, err := cfg.GetString("metamorph.db.postgres.user")
 		if err != nil {
 			return nil, err
 		}
-		dbPassword, err := config.GetString("metamorph.db.postgres.password")
+		dbPassword, err := cfg.GetString("metamorph.db.postgres.password")
 		if err != nil {
 			return nil, err
 		}
-		sslMode, err := config.GetString("metamorph.db.postgres.sslMode")
+		sslMode, err := cfg.GetString("metamorph.db.postgres.sslMode")
 		if err != nil {
 			return nil, err
 		}
-		idleConns, err := config.GetInt("metamorph.db.postgres.maxIdleConns")
+		idleConns, err := cfg.GetInt("metamorph.db.postgres.maxIdleConns")
 		if err != nil {
 			return nil, err
 		}
-		maxOpenConns, err := config.GetInt("metamorph.db.postgres.maxOpenConns")
+		maxOpenConns, err := cfg.GetInt("metamorph.db.postgres.maxOpenConns")
 		if err != nil {
 			return nil, err
 		}
@@ -324,7 +324,7 @@ func NewMetamorphStore(dbMode string) (s store.MetamorphStore, err error) {
 
 func initPeerManager(logger *slog.Logger, s store.MetamorphStore) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage, error) {
 
-	network, err := config.GetNetwork()
+	network, err := cfg.GetNetwork()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get network: %v", err)
 	}
@@ -336,7 +336,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore) (p2p.PeerManag
 
 	peerHandler := metamorph.NewPeerHandler(s, messageCh)
 
-	peerSettings, err := config.GetPeerSettings()
+	peerSettings, err := cfg.GetPeerSettings()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting peer settings: %v", err)
 	}

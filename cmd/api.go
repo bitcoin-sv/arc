@@ -3,12 +3,13 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/bitcoin-sv/arc/config"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
+
+	hp "github.com/bitcoin-sv/arc/internal/helpers"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/handler"
@@ -85,12 +86,12 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 
 	// Check the security requirements
 
-	metamorphAddress, err := config.GetString("metamorph.dialAddr")
+	metamorphAddress, err := hp.GetString("metamorph.dialAddr")
 	if err != nil {
 		return err
 	}
 
-	grpcMessageSize, err := config.GetInt("grpcMessageSize")
+	grpcMessageSize, err := hp.GetInt("grpcMessageSize")
 	if err != nil {
 		return err
 	}

@@ -24,7 +24,7 @@ func TestGetPeerSettings(t *testing.T) {
 			},
 		}
 
-		viper.SetConfigName("config")
+		viper.SetConfigName("config/config")
 		viper.SetConfigType("yaml")
 		viper.AddConfigPath("./testdata")
 		err := viper.ReadInConfig()

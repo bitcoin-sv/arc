@@ -18,9 +18,9 @@ import (
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/handler/mock"
+	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/metamorph"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/validator"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/go-bitcoin"

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/k8s_watcher"
-	"github.com/bitcoin-sv/arc/k8s_watcher/mock"
+	"github.com/bitcoin-sv/arc/internal/k8s_watcher"
+	"github.com/bitcoin-sv/arc/internal/k8s_watcher/mock"
 	"github.com/lmittmann/tint"
 	"github.com/stretchr/testify/require"
 )

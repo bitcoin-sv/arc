@@ -102,7 +102,7 @@ func run() error {
 		isAPIClient = true
 	}
 
-	viper.SetConfigName("config")
+	viper.SetConfigName("config/config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("../../")

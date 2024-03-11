@@ -89,6 +89,52 @@ func TestNewProcessor(t *testing.T) {
 	}
 }
 
+func TestStartLockTransactions(t *testing.T) {
+	tt := []struct {
+		name         string
+		setLockedErr error
+
+		expectedSetLockedCalls int
+	}{
+		{
+			name: "no error",
+
+			expectedSetLockedCalls: 2,
+		},
+		{
+			name:         "error",
+			setLockedErr: errors.New("failed to set locked"),
+
+			expectedSetLockedCalls: 2,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			metamorphStore := &mocks.MetamorphStoreMock{
+				SetLockedFunc: func(ctx context.Context, limit int64) error {
+					require.Equal(t, int64(5000), limit)
+					return tc.setLockedErr
+				},
+			}
+
+			pm := &mocks.PeerManagerMock{}
+
+			processor, err := metamorph.NewProcessor(
+				metamorphStore,
+				pm,
+				metamorph.WithLockTxsInterval(20*time.Millisecond),
+			)
+			require.NoError(t, err)
+			defer processor.Shutdown()
+			processor.StartLockTransactions()
+			time.Sleep(50 * time.Millisecond)
+
+			require.Equal(t, tc.expectedSetLockedCalls, len(metamorphStore.SetLockedCalls()))
+		})
+	}
+}
+
 func TestProcessTransaction(t *testing.T) {
 	tt := []struct {
 		name            string

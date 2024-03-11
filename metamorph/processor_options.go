@@ -33,6 +33,12 @@ func WithProcessExpiredTxsInterval(d time.Duration) func(*Processor) {
 	}
 }
 
+func WithLockTxsInterval(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.lockTransactionsInterval = d
+	}
+}
+
 func WithProcessStatusUpdatesInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.processStatusUpdatesInterval = d

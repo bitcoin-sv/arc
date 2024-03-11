@@ -342,7 +342,7 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 	return err
 }
 
-func (p *PostgreSQL) SetLocked(ctx context.Context, limit int64) error {
+func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64) error {
 	startNanos := p.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("setlockedby").AddTime(startNanos)
@@ -358,12 +358,13 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, limit int64) error {
 		   FROM metamorph.transactions t2
 		   WHERE t2.locked_by = 'NONE'
 		   AND (t2.status < $3 OR t2.status = $4)
+		   AND inserted_at_num > $5
 		   LIMIT $2
 		   FOR UPDATE SKIP LOCKED
 		);
 	;`
 
-	_, err := p.db.ExecContext(ctx, q, p.hostname, limit, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
+	_, err := p.db.ExecContext(ctx, q, p.hostname, limit, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout))
 	if err != nil {
 		return err
 	}

@@ -112,7 +112,7 @@ func TestStartLockTransactions(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphStore := &mocks.MetamorphStoreMock{
-				SetLockedFunc: func(ctx context.Context, limit int64) error {
+				SetLockedFunc: func(ctx context.Context, since time.Time, limit int64) error {
 					require.Equal(t, int64(5000), limit)
 					return tc.setLockedErr
 				},

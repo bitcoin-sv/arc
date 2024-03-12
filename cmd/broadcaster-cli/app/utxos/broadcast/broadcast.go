@@ -11,10 +11,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bitcoin-sv/arc/broadcaster"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
-	"github.com/bitcoin-sv/arc/lib/keyset"
-	"github.com/bitcoin-sv/arc/lib/woc_client"
+	"github.com/bitcoin-sv/arc/internal/broadcaster"
+	"github.com/bitcoin-sv/arc/internal/keyset"
+	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

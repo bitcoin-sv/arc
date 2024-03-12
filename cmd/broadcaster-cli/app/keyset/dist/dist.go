@@ -2,12 +2,13 @@ package dist
 
 import (
 	"fmt"
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
-	"github.com/bitcoin-sv/arc/lib/woc_client"
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/spf13/cobra"
 	"sort"
 	"strconv"
+
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
+	"github.com/bitcoin-sv/arc/internal/woc_client"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/spf13/cobra"
 )
 
 var Cmd = &cobra.Command{

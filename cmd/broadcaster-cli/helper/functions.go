@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/bitcoin-sv/arc//internal/broadcaster"
+	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/keyset"
 	"github.com/spf13/viper"
 )

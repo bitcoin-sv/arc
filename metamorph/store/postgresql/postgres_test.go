@@ -276,7 +276,7 @@ func TestPostgresDB(t *testing.T) {
 
 		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
 
-		err := postgresDB.SetLocked(ctx, 2)
+		err := postgresDB.SetLocked(ctx, time.Date(2023, 9, 15, 1, 0, 0, 0, time.UTC), 2)
 		require.NoError(t, err)
 
 		// locked by NONE
@@ -362,6 +362,10 @@ func TestPostgresDB(t *testing.T) {
 		err = postgresDB.Set(ctx, testdata.TX6Hash[:], tx6Data)
 		require.NoError(t, err)
 
+		// will not be updated because it is locked by metamorph-3
+		metamorph3Hash, err := chainhash.NewHashFromStr("538808e847d0add40ed9622fff53954c79e1f52db7c47ea0b6cdc0df972f3dcd")
+		require.NoError(t, err)
+
 		updates := []store.UpdateStatus{
 			{
 				Hash:         *testdata.TX1Hash,
@@ -380,6 +384,10 @@ func TestPostgresDB(t *testing.T) {
 			{
 				Hash:   *testdata.TX4Hash, // hash non-existent in db
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			},
+			{
+				Hash:   *metamorph3Hash,
+				Status: metamorph_api.Status_MINED,
 			},
 		}
 
@@ -492,7 +500,7 @@ func TestPostgresDB(t *testing.T) {
 
 		res, err := postgresDB.ClearData(ctx, 14)
 		require.NoError(t, err)
-		require.Equal(t, int64(3), res)
+		require.Equal(t, int64(4), res)
 
 		var numberOfRemainingTxs int
 		err = postgresDB.db.QueryRowContext(ctx, "SELECT count(*) FROM metamorph.transactions;").Scan(&numberOfRemainingTxs)

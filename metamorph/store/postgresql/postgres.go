@@ -342,7 +342,7 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 	return err
 }
 
-func (p *PostgreSQL) SetLocked(ctx context.Context, limit int64) error {
+func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64) error {
 	startNanos := p.now().UnixNano()
 	defer func() {
 		gocore.NewStat("mtm_store_sql").NewStat("setlockedby").AddTime(startNanos)
@@ -358,12 +358,13 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, limit int64) error {
 		   FROM metamorph.transactions t2
 		   WHERE t2.locked_by = 'NONE'
 		   AND (t2.status < $3 OR t2.status = $4)
+		   AND inserted_at_num > $5
 		   LIMIT $2
 		   FOR UPDATE SKIP LOCKED
 		);
 	;`
 
-	_, err := p.db.ExecContext(ctx, q, p.hostname, limit, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
+	_, err := p.db.ExecContext(ctx, q, p.hostname, limit, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout))
 	if err != nil {
 		return err
 	}
@@ -444,7 +445,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 				AS t(hash, status, reject_reason)
 			) AS bulk_query
 			WHERE
-			metamorph.transactions.hash=bulk_query.hash
+			metamorph.transactions.hash=bulk_query.hash AND metamorph.transactions.locked_by = $4
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.announced_at
 		,metamorph.transactions.mined_at
@@ -463,7 +464,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		;
     `
 
-	rows, err := p.db.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons))
+	rows, err := p.db.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), p.hostname)
 	if err != nil {
 		return nil, err
 	}

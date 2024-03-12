@@ -26,7 +26,7 @@ const (
 	MaxRetries = 15
 	// length of interval for checking transactions if they are seen on the network
 	// if not we resend them again for a few times
-	unseenTransactionRebroadcastingInterval = 60
+	unseenTransactionRebroadcastingInterval = 60 * time.Second
 
 	mapExpiryTimeDefault = 24 * time.Hour
 	LogLevelDefault      = slog.LevelInfo
@@ -47,27 +47,35 @@ var (
 )
 
 type Processor struct {
-	store                   store.MetamorphStore
-	ProcessorResponseMap    *ProcessorResponseMap
-	pm                      p2p.PeerManagerI
-	mqClient                MessageQueueClient
-	logger                  *slog.Logger
-	mapExpiryTime           time.Duration
-	dataRetentionPeriod     time.Duration
-	now                     func() time.Time
-	processExpiredTxsTicker *time.Ticker
-	httpClient              HttpClient
-	maxMonitoredTxs         int64
+	store                store.MetamorphStore
+	ProcessorResponseMap *ProcessorResponseMap
+	pm                   p2p.PeerManagerI
+	mqClient             MessageQueueClient
+	logger               *slog.Logger
+	mapExpiryTime        time.Duration
+	dataRetentionPeriod  time.Duration
+	now                  func() time.Time
 
-	quitListenTxChannel         chan struct{}
-	quitListenTxChannelComplete chan struct{}
-	minedTxsChan                chan *blocktx_api.TransactionBlocks
+	httpClient      HttpClient
+	maxMonitoredTxs int64
 
-	storageStatusUpdateCh            chan store.UpdateStatus
-	quitListenStatusUpdateCh         chan struct{}
-	quitListenStatusUpdateChComplete chan struct{}
-	processStatusUpdatesInterval     time.Duration
-	processStatusUpdatesBatchSize    int
+	lockTransactionsInterval     time.Duration
+	quitLockTransactions         chan struct{}
+	quitLockTransactionsComplete chan struct{}
+
+	quitProcessMinedCallbacks         chan struct{}
+	quitProcessMinedCallbacksComplete chan struct{}
+	minedTxsChan                      chan *blocktx_api.TransactionBlocks
+
+	storageStatusUpdateCh                     chan store.UpdateStatus
+	quitProcessStatusUpdatesInStorage         chan struct{}
+	quitProcessStatusUpdatesInStorageComplete chan struct{}
+	processStatusUpdatesInterval              time.Duration
+	processStatusUpdatesBatchSize             int
+
+	processExpiredTxsInterval              time.Duration
+	quitProcessExpiredTransactions         chan struct{}
+	quitProcessExpiredTransactionsComplete chan struct{}
 
 	startTime           time.Time
 	queueLength         atomic.Int32
@@ -100,23 +108,22 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 	}
 
 	p := &Processor{
-		startTime:               time.Now().UTC(),
-		store:                   s,
-		pm:                      pm,
-		dataRetentionPeriod:     dataRetentionPeriodDefault,
-		mapExpiryTime:           mapExpiryTimeDefault,
-		now:                     time.Now,
-		processExpiredTxsTicker: time.NewTicker(unseenTransactionRebroadcastingInterval * time.Second),
-		maxMonitoredTxs:         maxMonitoriedTxs,
+		startTime:           time.Now().UTC(),
+		store:               s,
+		pm:                  pm,
+		dataRetentionPeriod: dataRetentionPeriodDefault,
+		mapExpiryTime:       mapExpiryTimeDefault,
+		now:                 time.Now,
 
-		quitListenTxChannel:         make(chan struct{}),
-		quitListenTxChannelComplete: make(chan struct{}),
+		processExpiredTxsInterval: unseenTransactionRebroadcastingInterval,
+		lockTransactionsInterval:  unseenTransactionRebroadcastingInterval,
 
-		quitListenStatusUpdateCh:         make(chan struct{}),
-		quitListenStatusUpdateChComplete: make(chan struct{}),
-		processStatusUpdatesInterval:     processStatusUpdatesIntervalDefault,
-		processStatusUpdatesBatchSize:    processStatusUpdatesBatchSizeDefault,
-		storageStatusUpdateCh:            make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
+		maxMonitoredTxs: maxMonitoriedTxs,
+
+		processStatusUpdatesInterval:  processStatusUpdatesIntervalDefault,
+		processStatusUpdatesBatchSize: processStatusUpdatesBatchSizeDefault,
+		storageStatusUpdateCh:         make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
+
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
@@ -143,11 +150,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 
 	p.logger.Info("Starting processor", slog.String("cacheExpiryTime", p.mapExpiryTime.String()))
 
-	// Start a goroutine to resend transactions that have not been seen on the network
-	go p.processExpiredTransactions()
-	go p.processMinedCallbacks()
-	go p.processStatusUpdatesInStorage()
-
 	gocore.AddAppPayloadFn("mtm", func() interface{} {
 		return p.GetStats(false)
 	})
@@ -165,11 +167,25 @@ func (p *Processor) Shutdown() {
 	if err != nil {
 		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
 	}
-	p.processExpiredTxsTicker.Stop()
-	p.quitListenTxChannel <- struct{}{}
-	<-p.quitListenTxChannelComplete
-	p.quitListenStatusUpdateCh <- struct{}{}
-	<-p.quitListenStatusUpdateChComplete
+
+	if p.quitLockTransactions != nil {
+		p.quitLockTransactions <- struct{}{}
+		<-p.quitLockTransactionsComplete
+	}
+	if p.quitProcessMinedCallbacks != nil {
+		p.quitProcessMinedCallbacks <- struct{}{}
+		<-p.quitProcessMinedCallbacksComplete
+	}
+
+	if p.quitProcessStatusUpdatesInStorage != nil {
+		p.quitProcessStatusUpdatesInStorage <- struct{}{}
+		<-p.quitProcessStatusUpdatesInStorageComplete
+	}
+
+	if p.quitProcessExpiredTransactions != nil {
+		p.quitProcessExpiredTransactions <- struct{}{}
+		<-p.quitProcessExpiredTransactionsComplete
+	}
 }
 
 func (p *Processor) unlockItems() error {
@@ -185,19 +201,27 @@ func (p *Processor) unlockItems() error {
 		index++
 	}
 
-	p.logger.Info("unlocking items", slog.Int("number", len(hashes)))
-	return p.store.SetUnlocked(context.Background(), hashes)
+	if len(hashes) > 0 {
+		p.logger.Info("unlocking items", slog.Int("number", len(hashes)))
+		return p.store.SetUnlocked(context.Background(), hashes)
+	}
+
+	return nil
 }
 
-func (p *Processor) processMinedCallbacks() {
+func (p *Processor) StartProcessMinedCallbacks() {
+
+	p.quitProcessMinedCallbacks = make(chan struct{})
+	p.quitProcessMinedCallbacksComplete = make(chan struct{})
+
 	go func() {
 		defer func() {
-			p.quitListenTxChannelComplete <- struct{}{}
+			p.quitProcessMinedCallbacksComplete <- struct{}{}
 		}()
 
 		for {
 			select {
-			case <-p.quitListenTxChannel:
+			case <-p.quitProcessMinedCallbacks:
 				return
 			case txBlocks := <-p.minedTxsChan:
 				updatedData, err := p.store.UpdateMined(context.Background(), txBlocks)
@@ -233,19 +257,22 @@ func (p *Processor) CheckAndUpdate(statusUpdatesMap *map[chainhash.Hash]store.Up
 	*statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 }
 
-func (p *Processor) processStatusUpdatesInStorage() {
+func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	ticker := time.NewTicker(p.processStatusUpdatesInterval)
+
+	p.quitProcessStatusUpdatesInStorage = make(chan struct{})
+	p.quitProcessStatusUpdatesInStorageComplete = make(chan struct{})
 
 	go func() {
 		defer func() {
-			p.quitListenStatusUpdateChComplete <- struct{}{}
+			p.quitProcessStatusUpdatesInStorageComplete <- struct{}{}
 		}()
 
 		statusUpdatesMap := map[chainhash.Hash]store.UpdateStatus{}
 
 		for {
 			select {
-			case <-p.quitListenStatusUpdateCh:
+			case <-p.quitProcessStatusUpdatesInStorage:
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
 				// Ensure no duplicate hashes, overwrite value if the status has higher value than existing status
@@ -278,51 +305,92 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus)
 	return nil
 }
 
-func (p *Processor) processExpiredTransactions() {
-	span, _ := opentracing.StartSpanFromContext(context.Background(), "Processor:processExpiredTransactions")
+func (p *Processor) StartLockTransactions() {
+	span, _ := opentracing.StartSpanFromContext(context.Background(), "Processor:lockTransactions")
 	dbctx := opentracing.ContextWithSpan(context.Background(), span)
 	defer span.Finish()
+	ticker := time.NewTicker(p.lockTransactionsInterval)
 
-	// Periodically read unmined transactions from database and announce them again
-	for range p.processExpiredTxsTicker.C {
-		// define from what point in time we are interested in unmined transactions
-		getUnminedSince := p.now().Add(-1 * p.mapExpiryTime)
-		var offset int64
+	p.quitLockTransactions = make(chan struct{})
+	p.quitLockTransactionsComplete = make(chan struct{})
 
+	go func() {
+		defer func() {
+			p.quitLockTransactionsComplete <- struct{}{}
+		}()
 		for {
-			// get all transactions since then chunk by chunk
-			unminedTxs, err := p.store.GetUnmined(dbctx, getUnminedSince, loadUnminedLimit, offset)
-			if err != nil {
-				p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
-				continue
-			}
-
-			offset += loadUnminedLimit
-			if len(unminedTxs) == 0 {
-				break
-			}
-
-			p.logger.Info("Resending unmined transactions", slog.Int("number", len(unminedTxs)))
-			for _, tx := range unminedTxs {
-				// mark that we retried processing this transaction once more
-				if err = p.store.IncrementRetries(dbctx, tx.Hash); err != nil {
-					p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
+			select {
+			case <-p.quitLockTransactions:
+				return
+			case <-ticker.C:
+				err := p.store.SetLocked(dbctx, loadUnminedLimit)
+				if err != nil {
+					p.logger.Error("Failed to set transactions locked", slog.String("err", err.Error()))
 				}
-
-				if tx.Retries > MaxRetries {
-					// Sending GETDATA to peers to see if they have it
-					p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
-					p.pm.RequestTransaction(tx.Hash)
-				} else {
-					p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
-					p.pm.AnnounceTransaction(tx.Hash, nil)
-				}
-
-				p.retries.AddDuration(time.Since(time.Now()))
 			}
 		}
+	}()
+}
 
-	}
+func (p *Processor) StartProcessExpiredTransactions() {
+	span, _ := opentracing.StartSpanFromContext(context.Background(), "Processor:processExpiredTransactions")
+	dbctx := opentracing.ContextWithSpan(context.Background(), span)
+
+	ticker := time.NewTicker(p.processExpiredTxsInterval)
+
+	p.quitProcessExpiredTransactions = make(chan struct{})
+	p.quitProcessExpiredTransactionsComplete = make(chan struct{})
+
+	defer span.Finish()
+	go func() {
+		defer func() {
+			p.quitProcessExpiredTransactionsComplete <- struct{}{}
+		}()
+
+		for {
+			select {
+			case <-p.quitProcessExpiredTransactions:
+				return
+			case <-ticker.C: // Periodically read unmined transactions from database and announce them again
+				// define from what point in time we are interested in unmined transactions
+				getUnminedSince := p.now().Add(-1 * p.mapExpiryTime)
+				var offset int64
+
+				for {
+					// get all transactions since then chunk by chunk
+					unminedTxs, err := p.store.GetUnmined(dbctx, getUnminedSince, loadUnminedLimit, offset)
+					if err != nil {
+						p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
+						continue
+					}
+
+					offset += loadUnminedLimit
+					if len(unminedTxs) == 0 {
+						break
+					}
+
+					p.logger.Info("Resending unmined transactions", slog.Int("number", len(unminedTxs)))
+					for _, tx := range unminedTxs {
+						// mark that we retried processing this transaction once more
+						if err = p.store.IncrementRetries(dbctx, tx.Hash); err != nil {
+							p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
+						}
+
+						if tx.Retries > MaxRetries {
+							// Sending GETDATA to peers to see if they have it
+							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
+							p.pm.RequestTransaction(tx.Hash)
+						} else {
+							p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
+							p.pm.AnnounceTransaction(tx.Hash, nil)
+						}
+
+						p.retries.AddDuration(time.Since(time.Now()))
+					}
+				}
+			}
+		}
+	}()
 }
 
 // GetPeers returns a list of connected and a list of disconnected peers

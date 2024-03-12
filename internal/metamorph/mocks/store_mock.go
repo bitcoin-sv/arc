@@ -46,6 +46,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			SetFunc: func(ctx context.Context, key []byte, value *store.StoreData) error {
 //				panic("mock out the Set method")
 //			},
+//			SetLockedFunc: func(ctx context.Context, limit int64) error {
+//				panic("mock out the SetLocked method")
+//			},
 //			SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
 //				panic("mock out the SetUnlocked method")
 //			},
@@ -88,6 +91,9 @@ type MetamorphStoreMock struct {
 
 	// SetFunc mocks the Set method.
 	SetFunc func(ctx context.Context, key []byte, value *store.StoreData) error
+
+	// SetLockedFunc mocks the SetLocked method.
+	SetLockedFunc func(ctx context.Context, limit int64) error
 
 	// SetUnlockedFunc mocks the SetUnlocked method.
 	SetUnlockedFunc func(ctx context.Context, hashes []*chainhash.Hash) error
@@ -161,6 +167,13 @@ type MetamorphStoreMock struct {
 			// Value is the value argument value.
 			Value *store.StoreData
 		}
+		// SetLocked holds details about calls to the SetLocked method.
+		SetLocked []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Limit is the limit argument value.
+			Limit int64
+		}
 		// SetUnlocked holds details about calls to the SetUnlocked method.
 		SetUnlocked []struct {
 			// Ctx is the ctx argument value.
@@ -198,6 +211,7 @@ type MetamorphStoreMock struct {
 	lockIncrementRetries  sync.RWMutex
 	lockPing              sync.RWMutex
 	lockSet               sync.RWMutex
+	lockSetLocked         sync.RWMutex
 	lockSetUnlocked       sync.RWMutex
 	lockSetUnlockedByName sync.RWMutex
 	lockUpdateMined       sync.RWMutex
@@ -493,6 +507,42 @@ func (mock *MetamorphStoreMock) SetCalls() []struct {
 	mock.lockSet.RLock()
 	calls = mock.calls.Set
 	mock.lockSet.RUnlock()
+	return calls
+}
+
+// SetLocked calls SetLockedFunc.
+func (mock *MetamorphStoreMock) SetLocked(ctx context.Context, limit int64) error {
+	if mock.SetLockedFunc == nil {
+		panic("MetamorphStoreMock.SetLockedFunc: method is nil but MetamorphStore.SetLocked was just called")
+	}
+	callInfo := struct {
+		Ctx   context.Context
+		Limit int64
+	}{
+		Ctx:   ctx,
+		Limit: limit,
+	}
+	mock.lockSetLocked.Lock()
+	mock.calls.SetLocked = append(mock.calls.SetLocked, callInfo)
+	mock.lockSetLocked.Unlock()
+	return mock.SetLockedFunc(ctx, limit)
+}
+
+// SetLockedCalls gets all the calls that were made to SetLocked.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.SetLockedCalls())
+func (mock *MetamorphStoreMock) SetLockedCalls() []struct {
+	Ctx   context.Context
+	Limit int64
+} {
+	var calls []struct {
+		Ctx   context.Context
+		Limit int64
+	}
+	mock.lockSetLocked.RLock()
+	calls = mock.calls.SetLocked
+	mock.lockSetLocked.RUnlock()
 	return calls
 }
 

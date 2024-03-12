@@ -22,7 +22,7 @@ clean_e2e_tests:
 .PHONY: build_release
 build_release:
 	mkdir -p build
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -o build/arc_linux_amd64 ./main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -o build/arc_linux_amd64 ./init/main.go
 
 .PHONY: build_docker
 build_docker:

@@ -22,7 +22,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	RootCmd.PersistentFlags().String("keyfile", "", "private key from file (arc.key) to use for funding transactions")
+	RootCmd.PersistentFlags().String("keyfile", "", "Private key from file (arc.key) to use for funding transactions")
 	err = viper.BindPFlag("keyFile", RootCmd.PersistentFlags().Lookup("keyfile"))
 	if err != nil {
 		log.Fatal(err)

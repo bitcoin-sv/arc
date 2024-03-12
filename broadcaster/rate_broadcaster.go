@@ -28,6 +28,7 @@ const (
 type UtxoClient interface {
 	GetUTXOs(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
 	GetBalance(mainnet bool, address string) (int64, error)
+	// Todo: Function to top up using faucet
 }
 
 type RateBroadcaster struct {
@@ -360,6 +361,7 @@ requestedOutputsLoop:
 		smaller := make([]*bt.UTXO, 0)
 
 		utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
+
 		if err != nil {
 			return err
 		}
@@ -382,6 +384,8 @@ requestedOutputsLoop:
 				smaller = append(smaller, utxo)
 			}
 		}
+
+		b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput))
 
 		txsBatches := make([][]*bt.Tx, 0)
 		txs := make([]*bt.Tx, 0)
@@ -450,8 +454,6 @@ requestedOutputsLoop:
 			}
 		}
 
-		b.logger.Info("utxo set", slog.Int("created", outputs), slog.Int("requested", requestedOutputs))
-
 		if len(txs) > 0 {
 			txsBatches = append(txsBatches, txs)
 		}
@@ -467,7 +469,7 @@ requestedOutputsLoop:
 		}
 	}
 
-	b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs))
+	b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput))
 
 	return nil
 }
@@ -475,7 +477,7 @@ requestedOutputsLoop:
 func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) (chan struct{}, error) {
 	utxoSet, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get utxos: %v", err)
 	}
 
 	b.logger.Info("starting broadcasting", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", b.batchSize))
@@ -535,7 +537,8 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 			case <-submitBatchTicker.C:
 
 				// if end of utxo set is reached => get the updated utxo set
-				if len(utxoSet) == batchIndex+b.batchSize+1 {
+				if len(utxoSet) <= batchIndex+b.batchSize+1 {
+					b.logger.Info("updating utxos")
 					utxoSet, err = b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
 					if err != nil {
 						b.logger.Error("failed to get utxos", slog.String("err", err.Error()))

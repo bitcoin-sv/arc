@@ -35,7 +35,7 @@ var Cmd = &cobra.Command{
 		}
 		utxos, err := wocClient.GetUTXOs(!isTestnet, fundingKeySet.Script, fundingKeySet.Address(!isTestnet))
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get utxos from WoC: %v", err)
 		}
 
 		valuesMap := map[uint64]int{}

@@ -92,7 +92,7 @@ var Cmd = &cobra.Command{
 			if isTestnet {
 				network = "testnet"
 			}
-			file, err := os.Create(fmt.Sprintf("results/%s-%s-batchsize-%d-rate-%d.json", network, time.Now().Format(time.DateTime), batchSize, rateTxsPerSecond))
+			file, err := os.Create(fmt.Sprintf("results/%s-%s-rate-%d-batchsize-%d.json", network, time.Now().Format(time.DateTime), rateTxsPerSecond, batchSize))
 			if err != nil {
 				return err
 			}
@@ -137,19 +137,19 @@ var Cmd = &cobra.Command{
 func init() {
 	var err error
 
-	Cmd.Flags().Int("rate", 10, "transactions per second to be rate broad casted")
+	Cmd.Flags().Int("rate", 10, "Transactions per second to be rate broad casted")
 	err = viper.BindPFlag("rate", Cmd.Flags().Lookup("rate"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	Cmd.Flags().Int("batchsize", 10, "size of batches to submit transactions")
+	Cmd.Flags().Int("batchsize", 10, "Size of batches to submit transactions")
 	err = viper.BindPFlag("batchsize", Cmd.Flags().Lookup("batchsize"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	Cmd.Flags().Int("limit", 0, "limit to number of transactions to be submitted after which broadcaster will stop, default: no limit")
+	Cmd.Flags().Int("limit", 0, "Limit to number of transactions to be submitted after which broadcaster will stop, default: no limit")
 	err = viper.BindPFlag("limit", Cmd.Flags().Lookup("limit"))
 	if err != nil {
 		log.Fatal(err)

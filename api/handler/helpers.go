@@ -76,7 +76,7 @@ func getTransactionFromNode(ctx context.Context, inputTxID string) ([]byte, erro
 func getTransactionFromWhatsOnChain(ctx context.Context, inputTxID string) ([]byte, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "getTransactionFromWhatsOnChain")
 	defer span.Finish()
-
+	viper.AddConfigPath("./config/")
 	wocApiKey := viper.GetString("api.wocApiKey")
 
 	if wocApiKey == "" {

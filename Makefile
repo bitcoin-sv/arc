@@ -31,7 +31,8 @@ build_docker:
 .PHONY: run_e2e_tests
 run_e2e_tests:
 	cd ./test && docker-compose down
-	cd ./test && docker-compose up -d node1 node2 node3 db migrate-blocktx migrate-metamorph
+	cd ./test && docker-compose up -d node1 node2 node3 db
+	cd ./test && docker-compose up --abort-on-container-exit migrate-blocktx migrate-metamorph
 	cd ./test && docker-compose up --exit-code-from tests tests arc-blocktx arc-metamorph arc --scale arc-blocktx=5 --scale arc-metamorph=2
 	cd ./test && docker-compose down
 

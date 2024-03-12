@@ -46,7 +46,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			SetFunc: func(ctx context.Context, key []byte, value *store.StoreData) error {
 //				panic("mock out the Set method")
 //			},
-//			SetLockedFunc: func(ctx context.Context, limit int64) error {
+//			SetLockedFunc: func(ctx context.Context, since time.Time, limit int64) error {
 //				panic("mock out the SetLocked method")
 //			},
 //			SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
@@ -93,7 +93,7 @@ type MetamorphStoreMock struct {
 	SetFunc func(ctx context.Context, key []byte, value *store.StoreData) error
 
 	// SetLockedFunc mocks the SetLocked method.
-	SetLockedFunc func(ctx context.Context, limit int64) error
+	SetLockedFunc func(ctx context.Context, since time.Time, limit int64) error
 
 	// SetUnlockedFunc mocks the SetUnlocked method.
 	SetUnlockedFunc func(ctx context.Context, hashes []*chainhash.Hash) error
@@ -171,6 +171,8 @@ type MetamorphStoreMock struct {
 		SetLocked []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
+			// Since is the since argument value.
+			Since time.Time
 			// Limit is the limit argument value.
 			Limit int64
 		}
@@ -511,21 +513,23 @@ func (mock *MetamorphStoreMock) SetCalls() []struct {
 }
 
 // SetLocked calls SetLockedFunc.
-func (mock *MetamorphStoreMock) SetLocked(ctx context.Context, limit int64) error {
+func (mock *MetamorphStoreMock) SetLocked(ctx context.Context, since time.Time, limit int64) error {
 	if mock.SetLockedFunc == nil {
 		panic("MetamorphStoreMock.SetLockedFunc: method is nil but MetamorphStore.SetLocked was just called")
 	}
 	callInfo := struct {
 		Ctx   context.Context
+		Since time.Time
 		Limit int64
 	}{
 		Ctx:   ctx,
+		Since: since,
 		Limit: limit,
 	}
 	mock.lockSetLocked.Lock()
 	mock.calls.SetLocked = append(mock.calls.SetLocked, callInfo)
 	mock.lockSetLocked.Unlock()
-	return mock.SetLockedFunc(ctx, limit)
+	return mock.SetLockedFunc(ctx, since, limit)
 }
 
 // SetLockedCalls gets all the calls that were made to SetLocked.
@@ -534,10 +538,12 @@ func (mock *MetamorphStoreMock) SetLocked(ctx context.Context, limit int64) erro
 //	len(mockedMetamorphStore.SetLockedCalls())
 func (mock *MetamorphStoreMock) SetLockedCalls() []struct {
 	Ctx   context.Context
+	Since time.Time
 	Limit int64
 } {
 	var calls []struct {
 		Ctx   context.Context
+		Since time.Time
 		Limit int64
 	}
 	mock.lockSetLocked.RLock()

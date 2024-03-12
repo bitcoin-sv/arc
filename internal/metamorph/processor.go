@@ -323,7 +323,8 @@ func (p *Processor) StartLockTransactions() {
 			case <-p.quitLockTransactions:
 				return
 			case <-ticker.C:
-				err := p.store.SetLocked(dbctx, loadUnminedLimit)
+				expiredSince := p.now().Add(-1 * p.mapExpiryTime)
+				err := p.store.SetLocked(dbctx, expiredSince, loadUnminedLimit)
 				if err != nil {
 					p.logger.Error("Failed to set transactions locked", slog.String("err", err.Error()))
 				}

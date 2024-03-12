@@ -76,7 +76,7 @@ var (
 	testLogger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 )
 
-//go:generate moq -pkg mock -out ./mock/transaction_handler_mock.go ../../metamorph/ TransactionHandler
+//go:generate moq -pkg mock -out ./mock/transaction_handler_mock.go ../../internal/metamorph/ TransactionHandler
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {

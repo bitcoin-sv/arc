@@ -14,8 +14,8 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 
-	"github.com/bitcoin-sv/arc/broadcaster/mocks"
-	"github.com/bitcoin-sv/arc/lib/keyset"
+	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
+	"github.com/bitcoin-sv/arc/internal/keyset"
 	"github.com/stretchr/testify/require"
 )
 

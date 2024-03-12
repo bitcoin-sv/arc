@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/broadcaster"
+	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/libsv/go-bt/v2"

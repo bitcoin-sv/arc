@@ -13,7 +13,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/bitcoin-sv/arc/cmd"
+	cmd "github.com/bitcoin-sv/arc/cmd/starters"
 	cfg "github.com/bitcoin-sv/arc/internal/helpers"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/opentracing/opentracing-go"

@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bitcoin-sv/arc/broadcaster"
-	"github.com/bitcoin-sv/arc/config"
-	"github.com/bitcoin-sv/arc/lib/keyset"
+	"github.com/bitcoin-sv/arc/internal/broadcaster"
+	config "github.com/bitcoin-sv/arc/internal/helpers"
+	"github.com/bitcoin-sv/arc/internal/keyset"
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/gocore"
 	"github.com/spf13/viper"

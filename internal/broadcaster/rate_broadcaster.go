@@ -10,8 +10,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/keyset"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/lib/keyset"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/libsv/go-bt/v2/unlocker"

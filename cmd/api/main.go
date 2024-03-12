@@ -9,7 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/bitcoin-sv/arc/cmd"
+	cmd "github.com/bitcoin-sv/arc/cmd/starters"
+	cfg "github.com/bitcoin-sv/arc/internal/helpers"
 	"github.com/spf13/viper"
 )
 

@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/api"
+	"github.com/bitcoin-sv/arc/internal/fees"
+	"github.com/bitcoin-sv/arc/internal/keyset"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/lib/fees"
-	"github.com/bitcoin-sv/arc/lib/keyset"
 	"github.com/labstack/gommon/random"
 	"github.com/libsv/go-bk/base58"
 	"github.com/libsv/go-bt/v2"

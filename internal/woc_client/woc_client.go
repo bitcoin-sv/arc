@@ -79,21 +79,40 @@ func (w *WocClient) GetBalance(mainnet bool, address string) (int64, error) {
 	if mainnet {
 		net = "main"
 	}
-	resp, err := http.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/balance", net, address))
+	resp, err := w.client.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/balance", net, address))
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("request to get balance failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return 0, errors.New("failed to get balance")
+		return 0, fmt.Errorf("response status not OK: %s", resp.Status)
 	}
 
 	var balance wocBalance
 	err = json.NewDecoder(resp.Body).Decode(&balance)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to decode response: %v", err)
 	}
 
 	return balance.Confirmed + balance.Unconfirmed, nil
+}
+
+func (w *WocClient) TopUp(mainnet bool, address string) error {
+	net := "test"
+	if mainnet {
+		return errors.New("top up can only be done on testnet")
+	}
+
+	resp, err := w.client.Get(fmt.Sprintf("https://api-test.whatsonchain.com/v1/bsv/%s/faucet/send/%s", net, address))
+	if err != nil {
+		return fmt.Errorf("request to top up failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("response status not OK: %s", resp.Status)
+	}
+
+	return nil
 }

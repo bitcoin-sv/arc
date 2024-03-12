@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/keyset"
@@ -28,7 +29,7 @@ const (
 type UtxoClient interface {
 	GetUTXOs(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
 	GetBalance(mainnet bool, address string) (int64, error)
-	// Todo: Function to top up using faucet
+	TopUp(mainnet bool, address string) error
 }
 
 type RateBroadcaster struct {
@@ -474,10 +475,10 @@ requestedOutputsLoop:
 	return nil
 }
 
-func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) (chan struct{}, error) {
+func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int, wg *sync.WaitGroup) error {
 	utxoSet, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get utxos: %v", err)
+		return fmt.Errorf("failed to get utxos: %v", err)
 	}
 
 	b.logger.Info("starting broadcasting", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", b.batchSize))
@@ -485,11 +486,11 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 	submitBatchesPerSecond := float64(rateTxsPerSecond) / float64(b.batchSize)
 
 	if submitBatchesPerSecond > millisecondsPerSecond {
-		return nil, fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", rateTxsPerSecond, b.batchSize, submitBatchesPerSecond)
+		return fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", rateTxsPerSecond, b.batchSize, submitBatchesPerSecond)
 	}
 
 	if len(utxoSet) < b.batchSize {
-		return nil, fmt.Errorf("size of utxo set %d is smaller than requested batch size %d - create more utxos first", len(utxoSet), b.batchSize)
+		return fmt.Errorf("size of utxo set %d is smaller than requested batch size %d - create more utxos first", len(utxoSet), b.batchSize)
 	}
 
 	submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
@@ -506,11 +507,11 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 	if b.responseWriter != nil {
 		writer = bufio.NewWriter(b.responseWriter)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		err = writeJsonArrayStart(writer)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
@@ -523,6 +524,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 
 		defer func() {
 			b.shutdownComplete <- struct{}{}
+			wg.Done()
 		}()
 
 		for {
@@ -547,8 +549,11 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 
 				// if end of utxo set is reached => get the updated utxo set
 				if len(utxoSet) <= batchIndex+b.batchSize+1 {
-					b.logger.Info("updating utxos")
+					b.logger.Info("updating utxos", slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
 					utxoSet, err = b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
+
+					// Todo: utxo set
+
 					if err != nil {
 						b.logger.Error("failed to get utxos", slog.String("err", err.Error()))
 						continue
@@ -569,7 +574,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 				totalTxs += len(txs)
 
 				if limit > 0 && totalTxs >= limit {
-					b.logger.Info("limit reached", slog.Int("total", totalTxs))
+					b.logger.Info("limit reached", slog.Int("total", totalTxs), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
 					b.shutdown <- struct{}{}
 				}
 			case responseErr := <-errCh:
@@ -581,7 +586,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 					continue
 				}
 
-				b.logger.Info("response summary",
+				b.logger.Info("summary", slog.String("funding address", b.fundingKeyset.Address(!b.isTestnet)),
 					slog.Int64(metamorph_api.Status_STORED.String(), resultsMap[metamorph_api.Status_STORED]),
 					slog.Int64(metamorph_api.Status_ANNOUNCED_TO_NETWORK.String(), resultsMap[metamorph_api.Status_ANNOUNCED_TO_NETWORK]),
 					slog.Int64(metamorph_api.Status_REQUESTED_BY_NETWORK.String(), resultsMap[metamorph_api.Status_REQUESTED_BY_NETWORK]),
@@ -597,6 +602,8 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 				if !logSummary {
 					b.logger.Info(res.Txid, slog.String("status", res.Status.String()))
 				}
+
+				// Todo: add to
 
 				// if writer is given, store the response in the writer and log summarized results every 50 iterations
 				resultsMap[res.Status]++
@@ -614,7 +621,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 		}
 	}()
 
-	return b.shutdownComplete, nil
+	return nil
 }
 
 func writeJsonArrayStart(writer *bufio.Writer) error {

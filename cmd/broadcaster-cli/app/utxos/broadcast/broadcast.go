@@ -8,12 +8,12 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"syscall"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
-	"github.com/bitcoin-sv/arc/internal/keyset"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/lmittmann/tint"
@@ -61,6 +61,8 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
+		keyFiles := strings.Split(keyFile, ",")
+
 		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
 
 		client, err := helper.CreateClient(&broadcaster.Auth{
@@ -70,65 +72,77 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %v", err)
 		}
 
-		var fundingKeySet *keyset.KeySet
-		var receivingKeySet *keyset.KeySet
+		rbs := make([]*broadcaster.RateBroadcaster, len(keyFiles))
 
-		fundingKeySet, receivingKeySet, err = helper.GetKeySetsKeyFile(keyFile)
-		if err != nil {
-			return fmt.Errorf("failed to get key sets: %v", err)
-		}
+		wg := &sync.WaitGroup{}
+		for i, kf := range keyFiles {
 
-		wocClient := woc_client.New()
+			wg.Add(1)
 
-		var writer io.Writer
-		if store {
-			resultsPath := filepath.Join(".", "results")
-			err := os.MkdirAll(resultsPath, os.ModePerm)
+			fundingKeySet, receivingKeySet, err := helper.GetKeySetsKeyFile(kf)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to get key sets: %v", err)
 			}
 
-			network := "mainnet"
-			if isTestnet {
-				network = "testnet"
+			wocClient := woc_client.New()
+
+			var writer io.Writer
+			if store {
+				resultsPath := filepath.Join(".", "results")
+				err := os.MkdirAll(resultsPath, os.ModePerm)
+				if err != nil {
+					return err
+				}
+
+				_, keyFileName := filepath.Split(kf)
+
+				network := "mainnet"
+				if isTestnet {
+					network = "testnet"
+				}
+				file, err := os.Create(fmt.Sprintf("results/%s-%s-rate-%d-batchsize-%d-%s.json", network, time.Now().Format(time.DateTime), rateTxsPerSecond, batchSize, keyFileName))
+				if err != nil {
+					return err
+				}
+
+				writer = file
+
+				defer file.Close()
 			}
-			file, err := os.Create(fmt.Sprintf("results/%s-%s-rate-%d-batchsize-%d.json", network, time.Now().Format(time.DateTime), rateTxsPerSecond, batchSize))
+
+			rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
+				broadcaster.WithFees(miningFeeSat),
+				broadcaster.WithIsTestnet(isTestnet),
+				broadcaster.WithCallback(callbackURL, callbackToken),
+				broadcaster.WithFullstatusUpdates(fullStatusUpdates),
+				broadcaster.WithBatchSize(batchSize),
+				broadcaster.WithStoreWriter(writer, 50),
+			)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create rate broadcaster: %v", err)
 			}
 
-			writer = file
+			rbs[i] = rateBroadcaster
 
-			defer file.Close()
+			err = rateBroadcaster.StartRateBroadcaster(rateTxsPerSecond, limit, wg)
+			if err != nil {
+				return fmt.Errorf("failed to start rate broadcaster: %v", err)
+			}
 		}
 
-		rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
-			broadcaster.WithFees(miningFeeSat),
-			broadcaster.WithIsTestnet(isTestnet),
-			broadcaster.WithCallback(callbackURL, callbackToken),
-			broadcaster.WithFullstatusUpdates(fullStatusUpdates),
-			broadcaster.WithBatchSize(batchSize),
-			broadcaster.WithStoreWriter(writer, 50),
-		)
-		if err != nil {
-			return fmt.Errorf("failed to create rate broadcaster: %v", err)
-		}
+		go func() {
+			signalChan := make(chan os.Signal, 1)
+			//signal.Notify(signalChan, syscall.SIGTERM)
+			signal.Notify(signalChan, os.Interrupt) // Signal from Ctrl+C
+			select {
+			case <-signalChan:
+				for _, rb := range rbs {
+					rb.Shutdown()
+				}
+			}
+		}()
 
-		shutdownComplete, err := rateBroadcaster.StartRateBroadcaster(rateTxsPerSecond, limit)
-		if err != nil {
-			return fmt.Errorf("failed to start rate broadcaster: %v", err)
-		}
-
-		signalChan := make(chan os.Signal, 1)
-		signal.Notify(signalChan, syscall.SIGTERM)
-		signal.Notify(signalChan, os.Interrupt) // Signal from Ctrl+C
-
-		select {
-		case <-signalChan:
-			rateBroadcaster.Shutdown()
-		case <-shutdownComplete:
-			logger.Info("broadcaster completed")
-		}
+		wg.Wait()
 
 		return nil
 	},

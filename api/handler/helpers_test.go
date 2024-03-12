@@ -13,7 +13,7 @@ import (
 
 func TestGetDefaultPolicy(t *testing.T) {
 	t.Run("get default policy from config", func(t *testing.T) {
-		viper.SetConfigName("config/config")
+		viper.SetConfigName("../config/config")
 		viper.SetConfigType("yaml")
 		viper.AddConfigPath("./testdata")
 		err := viper.ReadInConfig()

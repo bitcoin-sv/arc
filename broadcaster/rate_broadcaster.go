@@ -508,6 +508,10 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 		if err != nil {
 			return nil, err
 		}
+		err = writeJsonArrayStart(writer)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	resultsMap := map[metamorph_api.Status]int64{}
@@ -526,6 +530,11 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 			case <-b.shutdown:
 				if writer == nil {
 					return
+				}
+
+				err = writeJsonArrayFinish(writer)
+				if err != nil {
+					b.logger.Error("failed to write json array finish", slog.String("err", err.Error()))
 				}
 
 				err = writer.Flush()
@@ -606,6 +615,24 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 	}()
 
 	return b.shutdownComplete, nil
+}
+
+func writeJsonArrayStart(writer *bufio.Writer) error {
+	_, err := fmt.Fprint(writer, "[")
+	if err != nil {
+		return fmt.Errorf("failed to print response: %v", err)
+	}
+
+	return nil
+}
+
+func writeJsonArrayFinish(writer *bufio.Writer) error {
+	_, err := fmt.Fprint(writer, "]")
+	if err != nil {
+		return fmt.Errorf("failed to print response: %v", err)
+	}
+
+	return nil
 }
 
 func (b *RateBroadcaster) writeResponse(writer *bufio.Writer, res *metamorph_api.TransactionStatus, counter int) (int, error) {

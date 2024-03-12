@@ -542,7 +542,7 @@ func (ph *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("insertBlock").AddTime(start)
 	}()
 
-	ph.logger.Info("inserting block", slog.String("hash", blockHash.String()), slog.Int64("height", int64(height)))
+	ph.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Int64("height", int64(height)))
 
 	block := &blocktx_api.Block{
 		Hash:         blockHash[:],

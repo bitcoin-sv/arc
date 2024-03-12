@@ -4,7 +4,7 @@
 package mocks
 
 import (
-	"github.com/bitcoin-sv/arc/broadcaster"
+	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"sync"

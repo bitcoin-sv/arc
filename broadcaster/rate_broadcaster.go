@@ -121,8 +121,8 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, fromKeySet *keyse
 		responseWriter:                 nil,
 		responseWriteIterationInterval: resultsIterationsDefault,
 
-		shutdown:         make(chan struct{}),
-		shutdownComplete: make(chan struct{}),
+		shutdown:         make(chan struct{}, 10),
+		shutdownComplete: make(chan struct{}, 10),
 	}
 
 	for _, opt := range opts {
@@ -472,10 +472,10 @@ requestedOutputsLoop:
 	return nil
 }
 
-func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
+func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) (chan struct{}, error) {
 	utxoSet, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	b.logger.Info("starting broadcasting", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", b.batchSize))
@@ -483,11 +483,11 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 	submitBatchesPerSecond := float64(rateTxsPerSecond) / float64(b.batchSize)
 
 	if submitBatchesPerSecond > millisecondsPerSecond {
-		return fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", rateTxsPerSecond, b.batchSize, submitBatchesPerSecond)
+		return nil, fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", rateTxsPerSecond, b.batchSize, submitBatchesPerSecond)
 	}
 
 	if len(utxoSet) < b.batchSize {
-		return fmt.Errorf("size of utxo set %d is smaller than requested batch size %d - create more utxos first", len(utxoSet), b.batchSize)
+		return nil, fmt.Errorf("size of utxo set %d is smaller than requested batch size %d - create more utxos first", len(utxoSet), b.batchSize)
 	}
 
 	submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
@@ -504,12 +504,13 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 	if b.responseWriter != nil {
 		writer = bufio.NewWriter(b.responseWriter)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	resultsMap := map[metamorph_api.Status]int64{}
 	logSummary := writer != nil
+	totalTxs := 0
 
 	counter := 0
 	go func() {
@@ -553,6 +554,12 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 				b.sendTxsBatchAsync(txs, responseCh, errCh)
 
 				batchIndex += b.batchSize
+				totalTxs += len(txs)
+
+				if limit > 0 && totalTxs >= limit {
+					b.logger.Info("limit reached", slog.Int("total", totalTxs))
+					b.shutdown <- struct{}{}
+				}
 			case responseErr := <-errCh:
 				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
 			case <-logSummaryTicker.C:
@@ -595,7 +602,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int) error {
 		}
 	}()
 
-	return nil
+	return b.shutdownComplete, nil
 }
 
 func (b *RateBroadcaster) writeResponse(writer *bufio.Writer, res *metamorph_api.TransactionStatus, counter int) (int, error) {

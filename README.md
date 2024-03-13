@@ -267,7 +267,74 @@ The K8s-Watcher can be started as follows
 go run main.go -k8s-watcher=true
 ```
 
-## Broadcaster
+## Broadcaster-cli
+
+The `broadcaster-cli` provides a set of functions which allow to interact with any instance of ARC. It also provides functions for key sets.
+
+### Instalation
+
+The broadcaster-cli can be installed using the following command.
+```
+go install github.com/bitcoin-sv/arc/cmd/broadcaster-cli
+```
+
+If the ARC repository is checked out it can also be installed from that local repository like this
+```
+go install ./cmd/broadcaster-cli/
+```
+
+### Configuration
+
+`broadcaster-cli` uses flags for adding context needed to run it. The flags and commands available can be shown by running `broadcaster-cli` with the flag `--help`. For example this command `broadcaster-cli --help` will have the following output:
+```
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  keyset      Function set for the keyset
+  utxos       Create UTXO set to be used with broadcaster
+
+Flags:
+  -h, --help             help for broadcaster
+      --keyfile string   Private key from file (arc.key) to use for funding transactions
+      --testnet          Use testnet
+```
+
+As there can be a lot of flags you can also define them in the file `broadcaster-cli.env`. For example like this:
+```
+keyfile=./cmd/broadcaster-cli/arc-0.key
+testnet=true
+```
+If file `broadcaster-cli.env` is present in the folder where `broadcaster-cli` is run, then these values will be used as flags (if available to the command). You can still provide the flags, in that case the value provided in the flag will override the value provided in `broadcaster-cli.env`
+
+### How to use broadcaster-cli to send batches of transactions to ARC
+
+These instructions will provide the steps needed in order to use `broadcaster-cli` to send transactions to ARC.
+
+1. Create a new key set by running `broadcaster-cli keyset new`
+   1. You can give a path where the key set should be stored as a file using the `--filename` flag
+   2. Existing files will not be overwritten
+   3. Omitting the `--filename` flag will create the file using a file name `./cmd/broadcaster-cli/arc-{i}.key`, where i is an iterator counting up until an available filename is found
+2. The keyfile flag `--keyfile=<path to key file>` and `--testnet` flag have to be given in all commands except `broadcaster-cli keyfile new`
+3. Add funds to the funding address
+   1. Show the funding address by running `broadcaster-cli keyset address`
+   2. In case of `testnet` (using the `--testnet` flag) funds can be added using the WoC faucet. For that you can use the command `broadcaster-cli keyset topup --testnet`
+   3. You can view the balance of the key set using the command `broadcaster-cli keyset balance`
+4. Create utxo set
+   1. There must be a certain utxo set available so that `broadcaster-cli` can broadcast a reasonable number of transactions in batches
+   2. First look at the existing utxo set using `broadcaster-cli utxos dist`
+   3. In order to create more outputs use the following command `broadcaster-cli utxos create --outputs=<number of outputs> --satoshis=<number of satoshis per output>`
+   4. This command will send transactions creating the requested outputs to ARC. There are more flags needed for this command. Please see `go run cmd/broadcaster-cli/main.go utxos -h` for more details
+   5. See the new distribution of utxos using `broadcaster-cli utxos dist`
+5. Broadcast transactions to ARC
+   1. Now `broadcaster-cli` can be used to broadcast transactions to ARC at a given rate using this command `broadcaster-cli utxos broadcast --rate=<txs per second> --batchsize=<nr ot txs per batch>`
+   2. The limit flag `--limit=<nr of transactions at which broadcasting stops>` is optional. If not given `broadcaster-cli` will only stop at abortion e.g. using `CTRL+C`
+   3. The optional `--store` flag will store all the responses of each request to ARC in a folder `results/` as a json file
+   4. In order to broadcast a large number of transactions in parallel, multiple key sets can be given in a comma separated way using the keyfile flag `--keyfile=./cmd/broadcaster-cli/arc-0.key,./cmd/broadcaster-cli/arc-1.key,./cmd/broadcaster-cli/arc-2.key`
+      1. Each concurrently running broadcasting process will broadcast at the given rate
+      2. For example: If a rate of `--rate=100` is given with 3 key files `--keyfile=arc-1.key,arc-2.key,arc-3.key`, then the final rate will be 300 transactions per second.
+
+
+## Broadcaster (legacy)
 
 Broadcaster is a tool to broadcast example transactions to ARC. It can be used to test the ARC API and Metamorph.
 

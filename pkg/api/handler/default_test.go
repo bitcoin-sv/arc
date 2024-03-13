@@ -16,11 +16,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/api/handler/mock"
-	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/validator"
+	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/bitcoin-sv/arc/pkg/api/handler/mock"
+	"github.com/bitcoin-sv/arc/pkg/metamorph"
+	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/go-bitcoin"
@@ -76,7 +76,7 @@ var (
 	testLogger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 )
 
-//go:generate moq -pkg mock -out ./mock/transaction_handler_mock.go ../../internal/metamorph/ TransactionHandler
+//go:generate moq -pkg mock -out ./mock/transaction_handler_mock.go ../../metamorph/ TransactionHandler
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {

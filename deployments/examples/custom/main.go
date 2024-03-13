@@ -8,11 +8,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-
-	"github.com/bitcoin-sv/arc/api"
-	apiHandler "github.com/bitcoin-sv/arc/api/handler"
-	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/pkg/api"
+	apiHandler "github.com/bitcoin-sv/arc/pkg/api/handler"
+	"github.com/bitcoin-sv/arc/pkg/metamorph"
+	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/labstack/echo/v4"

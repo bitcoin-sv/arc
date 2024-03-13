@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
+	"github.com/bitcoin-sv/arc/pkg/blocktx"
+	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/pkg/blocktx/mocks"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"

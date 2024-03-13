@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/pkg/metamorph"
+	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/ordishs/go-bitcoin"
 )
 
@@ -42,7 +42,6 @@ func (b *BitcoinNode) GetTransaction(_ context.Context, txID string) (txBytes []
 	return txBytes, nil
 }
 
-// GetTransaction gets a raw transaction from the bitcoin node.
 func (b *BitcoinNode) Health(_ context.Context) error {
 	return nil
 }

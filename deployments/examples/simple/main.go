@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/bitcoin-sv/arc/api"
-	apiHandler "github.com/bitcoin-sv/arc/api/handler"
-	"github.com/bitcoin-sv/arc/api/transaction_handler"
+	"github.com/bitcoin-sv/arc/pkg/api"
+	apiHandler "github.com/bitcoin-sv/arc/pkg/api/handler"
+	"github.com/bitcoin-sv/arc/pkg/api/transaction_handler"
 	"github.com/labstack/echo/v4"
 )
 

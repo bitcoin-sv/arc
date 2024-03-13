@@ -5,7 +5,7 @@ package mock
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"sync"
 )
 

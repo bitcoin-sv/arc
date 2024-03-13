@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:generate moq -pkg mock -out ./mock/blocktx_client_mock.go ../../blocktx BlocktxClient
+//go:generate moq -pkg mock -out ./mock/blocktx_client_mock.go ../../../pkg/blocktx BlocktxClient
 
 func TestClearBlocktxTransactions(t *testing.T) {
 	tt := []struct {

@@ -7,12 +7,11 @@ import (
 	"net"
 	"time"
 
-	"github.com/libsv/go-p2p"
-
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/libsv/go-p2p"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"

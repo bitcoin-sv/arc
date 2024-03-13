@@ -3,9 +3,9 @@ package main
 import (
 	"net/http"
 
-	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/api/handler"
-	"github.com/bitcoin-sv/arc/api/transaction_handler"
+	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/bitcoin-sv/arc/pkg/api/handler"
+	"github.com/bitcoin-sv/arc/pkg/api/transaction_handler"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 )

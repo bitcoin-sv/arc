@@ -5,7 +5,7 @@ package mock
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"sync"
 )
 

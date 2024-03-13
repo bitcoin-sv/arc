@@ -3,10 +3,10 @@ package metamorph
 import (
 	"context"
 	"fmt"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils/safemap"

@@ -6,8 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -95,7 +96,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 	tx, err = m.client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
 	})
-	if err != nil && !strings.Contains(err.Error(), ErrNotFound.Error()) {
+	if err != nil && !strings.Contains(err.Error(), metamorph.ErrNotFound.Error()) {
 		return nil, err
 	}
 
@@ -113,7 +114,6 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 	}, nil
 }
 
-// GetTransactionStatus gets the status of a transaction.
 func (m *Metamorph) Health(ctx context.Context) error {
 	resp, err := m.client.Health(ctx, &emptypb.Empty{})
 	if err != nil {
@@ -207,4 +207,17 @@ func (m *Metamorph) SetUnlockedByName(ctx context.Context, name string) (int64, 
 	}
 
 	return resp.RecordsAffected, nil
+}
+
+// TransactionOptions options passed from header when creating transactions.
+type TransactionOptions struct {
+	ClientID             string               `json:"client_id"`
+	CallbackURL          string               `json:"callback_url,omitempty"`
+	CallbackToken        string               `json:"callback_token,omitempty"`
+	SkipFeeValidation    bool                 `json:"X-SkipFeeValidation,omitempty"`
+	SkipScriptValidation bool                 `json:"X-SkipScriptValidation,omitempty"`
+	SkipTxValidation     bool                 `json:"X-SkipTxValidation,omitempty"`
+	WaitForStatus        metamorph_api.Status `json:"wait_for_status,omitempty"`
+	FullStatusUpdates    bool                 `json:"full_status_updates,omitempty"`
+	MaxTimeout           int                  `json:"max_timeout,omitempty"`
 }

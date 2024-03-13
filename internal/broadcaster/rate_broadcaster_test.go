@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"github.com/bitcoin-sv/arc/internal/testdata"
 	"log/slog"
 	"os"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 

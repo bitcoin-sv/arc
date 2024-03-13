@@ -2,11 +2,11 @@ package processor_response
 
 import (
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/testdata"
 	"sync"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/stretchr/testify/assert"
 )
 

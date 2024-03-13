@@ -3,10 +3,10 @@ package defaultvalidator
 import (
 	"encoding/hex"
 	"encoding/json"
+	"github.com/bitcoin-sv/arc/internal/testdata"
 	"os"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/testdata"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/ordishs/go-bitcoin"

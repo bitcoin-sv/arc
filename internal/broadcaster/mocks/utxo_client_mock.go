@@ -4,6 +4,7 @@
 package mocks
 
 import (
+	"container/list"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
@@ -26,6 +27,12 @@ var _ broadcaster.UtxoClient = &UtxoClientMock{}
 //			GetUTXOsFunc: func(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error) {
 //				panic("mock out the GetUTXOs method")
 //			},
+//			GetUTXOsListFunc: func(mainnet bool, lockingScript *bscript.Script, address string) (*list.List, error) {
+//				panic("mock out the GetUTXOsList method")
+//			},
+//			TopUpFunc: func(mainnet bool, address string) error {
+//				panic("mock out the TopUp method")
+//			},
 //		}
 //
 //		// use mockedUtxoClient in code that requires broadcaster.UtxoClient
@@ -38,6 +45,12 @@ type UtxoClientMock struct {
 
 	// GetUTXOsFunc mocks the GetUTXOs method.
 	GetUTXOsFunc func(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
+
+	// GetUTXOsListFunc mocks the GetUTXOsList method.
+	GetUTXOsListFunc func(mainnet bool, lockingScript *bscript.Script, address string) (*list.List, error)
+
+	// TopUpFunc mocks the TopUp method.
+	TopUpFunc func(mainnet bool, address string) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -57,9 +70,27 @@ type UtxoClientMock struct {
 			// Address is the address argument value.
 			Address string
 		}
+		// GetUTXOsList holds details about calls to the GetUTXOsList method.
+		GetUTXOsList []struct {
+			// Mainnet is the mainnet argument value.
+			Mainnet bool
+			// LockingScript is the lockingScript argument value.
+			LockingScript *bscript.Script
+			// Address is the address argument value.
+			Address string
+		}
+		// TopUp holds details about calls to the TopUp method.
+		TopUp []struct {
+			// Mainnet is the mainnet argument value.
+			Mainnet bool
+			// Address is the address argument value.
+			Address string
+		}
 	}
-	lockGetBalance sync.RWMutex
-	lockGetUTXOs   sync.RWMutex
+	lockGetBalance   sync.RWMutex
+	lockGetUTXOs     sync.RWMutex
+	lockGetUTXOsList sync.RWMutex
+	lockTopUp        sync.RWMutex
 }
 
 // GetBalance calls GetBalanceFunc.
@@ -135,5 +166,81 @@ func (mock *UtxoClientMock) GetUTXOsCalls() []struct {
 	mock.lockGetUTXOs.RLock()
 	calls = mock.calls.GetUTXOs
 	mock.lockGetUTXOs.RUnlock()
+	return calls
+}
+
+// GetUTXOsList calls GetUTXOsListFunc.
+func (mock *UtxoClientMock) GetUTXOsList(mainnet bool, lockingScript *bscript.Script, address string) (*list.List, error) {
+	if mock.GetUTXOsListFunc == nil {
+		panic("UtxoClientMock.GetUTXOsListFunc: method is nil but UtxoClient.GetUTXOsList was just called")
+	}
+	callInfo := struct {
+		Mainnet       bool
+		LockingScript *bscript.Script
+		Address       string
+	}{
+		Mainnet:       mainnet,
+		LockingScript: lockingScript,
+		Address:       address,
+	}
+	mock.lockGetUTXOsList.Lock()
+	mock.calls.GetUTXOsList = append(mock.calls.GetUTXOsList, callInfo)
+	mock.lockGetUTXOsList.Unlock()
+	return mock.GetUTXOsListFunc(mainnet, lockingScript, address)
+}
+
+// GetUTXOsListCalls gets all the calls that were made to GetUTXOsList.
+// Check the length with:
+//
+//	len(mockedUtxoClient.GetUTXOsListCalls())
+func (mock *UtxoClientMock) GetUTXOsListCalls() []struct {
+	Mainnet       bool
+	LockingScript *bscript.Script
+	Address       string
+} {
+	var calls []struct {
+		Mainnet       bool
+		LockingScript *bscript.Script
+		Address       string
+	}
+	mock.lockGetUTXOsList.RLock()
+	calls = mock.calls.GetUTXOsList
+	mock.lockGetUTXOsList.RUnlock()
+	return calls
+}
+
+// TopUp calls TopUpFunc.
+func (mock *UtxoClientMock) TopUp(mainnet bool, address string) error {
+	if mock.TopUpFunc == nil {
+		panic("UtxoClientMock.TopUpFunc: method is nil but UtxoClient.TopUp was just called")
+	}
+	callInfo := struct {
+		Mainnet bool
+		Address string
+	}{
+		Mainnet: mainnet,
+		Address: address,
+	}
+	mock.lockTopUp.Lock()
+	mock.calls.TopUp = append(mock.calls.TopUp, callInfo)
+	mock.lockTopUp.Unlock()
+	return mock.TopUpFunc(mainnet, address)
+}
+
+// TopUpCalls gets all the calls that were made to TopUp.
+// Check the length with:
+//
+//	len(mockedUtxoClient.TopUpCalls())
+func (mock *UtxoClientMock) TopUpCalls() []struct {
+	Mainnet bool
+	Address string
+} {
+	var calls []struct {
+		Mainnet bool
+		Address string
+	}
+	mock.lockTopUp.RLock()
+	calls = mock.calls.TopUp
+	mock.lockTopUp.RUnlock()
 	return calls
 }

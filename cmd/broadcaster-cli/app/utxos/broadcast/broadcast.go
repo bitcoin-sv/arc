@@ -132,7 +132,6 @@ var Cmd = &cobra.Command{
 
 		go func() {
 			signalChan := make(chan os.Signal, 1)
-			//signal.Notify(signalChan, syscall.SIGTERM)
 			signal.Notify(signalChan, os.Interrupt) // Signal from Ctrl+C
 			select {
 			case <-signalChan:

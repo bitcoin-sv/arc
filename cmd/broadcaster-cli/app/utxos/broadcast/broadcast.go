@@ -18,6 +18,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var Cmd = &cobra.Command{

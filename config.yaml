@@ -42,8 +42,6 @@ metamorph:
       maxIdleConns: 10 # maximum idle connections
       maxOpenConns: 80 # maximum open connections
       sslMode: disable
-    dynamoDB:
-      tableNameSuffix: regtest
     cleanData:
       recordRetentionDays: 14 # number of days for which data is kept in the storage before it can be deleted
       executionIntervalHours: 24

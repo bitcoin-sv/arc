@@ -133,11 +133,9 @@ var Cmd = &cobra.Command{
 		go func() {
 			signalChan := make(chan os.Signal, 1)
 			signal.Notify(signalChan, os.Interrupt) // Signal from Ctrl+C
-			select {
-			case <-signalChan:
-				for _, rb := range rbs {
-					rb.Shutdown()
-				}
+			<-signalChan
+			for _, rb := range rbs {
+				rb.Shutdown()
 			}
 		}()
 

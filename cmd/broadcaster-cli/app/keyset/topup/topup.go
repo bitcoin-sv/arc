@@ -2,11 +2,11 @@ package topup
 
 import (
 	"fmt"
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
-	"github.com/bitcoin-sv/arc/lib/woc_client"
 	"log/slog"
 	"os"
 
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
+	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 )

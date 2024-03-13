@@ -366,6 +366,14 @@ func TestPostgresDB(t *testing.T) {
 		metamorph3Hash, err := chainhash.NewHashFromStr("538808e847d0add40ed9622fff53954c79e1f52db7c47ea0b6cdc0df972f3dcd")
 		require.NoError(t, err)
 
+		// will not be updated because has already status seen on network
+		seenOnNetworkHash, err := chainhash.NewHashFromStr("aaf6dcac409778330982371560bd4e4f7064e4154aa1e66a3e3d8946b7f576ee")
+		require.NoError(t, err)
+
+		// will not be updated because has already status mined
+		minedHash, err := chainhash.NewHashFromStr("1d7b3ab38d773d5cf6815dce868087b61783a1778b97a5c1f018951f614548a2")
+		require.NoError(t, err)
+
 		updates := []store.UpdateStatus{
 			{
 				Hash:         *testdata.TX1Hash,
@@ -388,6 +396,14 @@ func TestPostgresDB(t *testing.T) {
 			{
 				Hash:   *metamorph3Hash,
 				Status: metamorph_api.Status_MINED,
+			},
+			{
+				Hash:   *seenOnNetworkHash,
+				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
+			},
+			{
+				Hash:   *minedHash,
+				Status: metamorph_api.Status_SENT_TO_NETWORK,
 			},
 		}
 
@@ -413,6 +429,14 @@ func TestPostgresDB(t *testing.T) {
 		assert.Equal(t, metamorph_api.Status_REJECTED, returnedDataRequested.Status)
 		assert.Equal(t, "missing inputs", returnedDataRequested.RejectReason)
 		assert.Equal(t, testdata.TX6RawBytes, returnedDataRequested.RawTx)
+
+		returnedDataSeen, err := postgresDB.Get(ctx, seenOnNetworkHash[:])
+		require.NoError(t, err)
+		assert.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, returnedDataSeen.Status)
+
+		returnedDataMined, err := postgresDB.Get(ctx, minedHash[:])
+		require.NoError(t, err)
+		assert.Equal(t, metamorph_api.Status_MINED, returnedDataMined.Status)
 	})
 
 	t.Run("update mined", func(t *testing.T) {
@@ -505,6 +529,6 @@ func TestPostgresDB(t *testing.T) {
 		var numberOfRemainingTxs int
 		err = postgresDB.db.QueryRowContext(ctx, "SELECT count(*) FROM metamorph.transactions;").Scan(&numberOfRemainingTxs)
 		require.NoError(t, err)
-		require.Equal(t, 9, numberOfRemainingTxs)
+		require.Equal(t, 10, numberOfRemainingTxs)
 	})
 }

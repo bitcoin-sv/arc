@@ -50,7 +50,7 @@ func run() error {
 	startBackgroundWorker := flag.Bool("background-worker", false, "start background-worker")
 	useTracer := flag.Bool("tracer", false, "start tracer")
 	help := flag.Bool("help", false, "Show help")
-	config := flag.String("config", "config/", "path to configuration yaml file")
+	config := flag.String("config", ".", "path to configuration yaml file")
 
 	flag.Parse()
 

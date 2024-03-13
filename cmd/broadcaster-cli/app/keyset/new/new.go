@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/bitcoin-sv/arc/lib/keyset"
+	"github.com/bitcoin-sv/arc/internal/keyset"
 	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

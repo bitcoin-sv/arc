@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/bitcoin-sv/arc/lib/keyset"
+	"github.com/bitcoin-sv/arc/internal/keyset"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/unlocker"
 )

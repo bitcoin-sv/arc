@@ -2,14 +2,15 @@ package helper
 
 import (
 	"errors"
-	"golang.org/x/sys/unix"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 
-	"github.com/bitcoin-sv/arc/broadcaster"
-	"github.com/bitcoin-sv/arc/lib/keyset"
+	"golang.org/x/sys/unix"
+
+	"github.com/bitcoin-sv/arc/internal/broadcaster"
+	"github.com/bitcoin-sv/arc/internal/keyset"
 	"github.com/spf13/viper"
 )
 

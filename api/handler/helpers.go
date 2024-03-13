@@ -11,7 +11,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/dictionary"
-	"github.com/bitcoin-sv/arc/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
@@ -24,6 +24,7 @@ func getTransactionFromNode(ctx context.Context, inputTxID string) ([]byte, erro
 	span, _ := opentracing.StartSpanFromContext(ctx, "getTransactionFromNode")
 	defer span.Finish()
 
+	viper.AddConfigPath("../../config/")
 	peerRpcPassword := viper.GetString("peerRpc.password")
 	if peerRpcPassword == "" {
 		return nil, fmt.Errorf("setting peerRpc.password not found")
@@ -76,7 +77,6 @@ func getTransactionFromNode(ctx context.Context, inputTxID string) ([]byte, erro
 func getTransactionFromWhatsOnChain(ctx context.Context, inputTxID string) ([]byte, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "getTransactionFromWhatsOnChain")
 	defer span.Finish()
-
 	wocApiKey := viper.GetString("api.wocApiKey")
 
 	if wocApiKey == "" {
@@ -125,7 +125,7 @@ func getTransactionFromWhatsOnChain(ctx context.Context, inputTxID string) ([]by
 
 func GetDefaultPolicy() (*bitcoin.Settings, error) {
 	defaultPolicy := &bitcoin.Settings{}
-
+	viper.AddConfigPath("../../config/")
 	err := viper.UnmarshalKey("api.defaultPolicy", defaultPolicy)
 	if err != nil {
 		return nil, err

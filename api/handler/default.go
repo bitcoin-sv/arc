@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/bitcoin-sv/arc/api"
@@ -508,7 +507,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		return statusCode, []interface{}{arcError}, err
 	}
 
-	m.logger.Info("Starting to process ", strconv.Itoa(len(transactions)), " transactions")
+	m.logger.Info(fmt.Sprintf("Starting to process %d transactions", len(transactions)))
 
 	// validate before submitting array of transactions to metamorph
 	transactionsInput := make([][]byte, 0, len(transactions))

@@ -28,6 +28,8 @@ var Cmd = &cobra.Command{
 		store := viper.GetBool("store")
 		rateTxsPerSecond := viper.GetInt("rate")
 		batchSize := viper.GetInt("batchsize")
+		fullStatusUpdates := viper.GetBool("fullStatusUpdates")
+		limit := viper.GetInt("limit")
 
 		isTestnet, err := helper.GetBool("testnet")
 		if err != nil {
@@ -89,7 +91,7 @@ var Cmd = &cobra.Command{
 			if isTestnet {
 				network = "testnet"
 			}
-			file, err := os.Create(fmt.Sprintf("results/%s-batchsize-%d-rate-%d-%s.json", network, batchSize, rateTxsPerSecond, time.Now().Format(time.DateTime)))
+			file, err := os.Create(fmt.Sprintf("results/%s-%s-rate-%d-batchsize-%d.json", network, time.Now().Format(time.DateTime), rateTxsPerSecond, batchSize))
 			if err != nil {
 				return err
 			}
@@ -103,6 +105,7 @@ var Cmd = &cobra.Command{
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithIsTestnet(isTestnet),
 			broadcaster.WithCallback(callbackURL, callbackToken),
+			broadcaster.WithFullstatusUpdates(fullStatusUpdates),
 			broadcaster.WithBatchSize(batchSize),
 			broadcaster.WithStoreWriter(writer, 50),
 		)
@@ -110,19 +113,21 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create rate broadcaster: %v", err)
 		}
 
-		err = rateBroadcaster.StartRateBroadcaster(rateTxsPerSecond)
+		shutdownComplete, err := rateBroadcaster.StartRateBroadcaster(rateTxsPerSecond, limit)
 		if err != nil {
 			return fmt.Errorf("failed to start rate broadcaster: %v", err)
 		}
-
-		defer rateBroadcaster.Shutdown()
 
 		signalChan := make(chan os.Signal, 1)
 		signal.Notify(signalChan, syscall.SIGTERM)
 		signal.Notify(signalChan, os.Interrupt) // Signal from Ctrl+C
 
-		// wait for termination of program
-		<-signalChan
+		select {
+		case <-signalChan:
+			rateBroadcaster.Shutdown()
+		case <-shutdownComplete:
+			logger.Info("broadcaster completed")
+		}
 
 		return nil
 	},
@@ -131,14 +136,20 @@ var Cmd = &cobra.Command{
 func init() {
 	var err error
 
-	Cmd.Flags().Int("rate", 10, "transactions per second to be rate broadcasted")
+	Cmd.Flags().Int("rate", 10, "Transactions per second to be rate broad casted")
 	err = viper.BindPFlag("rate", Cmd.Flags().Lookup("rate"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	Cmd.Flags().Int("batchsize", 10, "size of batches to submit transactions")
+	Cmd.Flags().Int("batchsize", 10, "Size of batches to submit transactions")
 	err = viper.BindPFlag("batchsize", Cmd.Flags().Lookup("batchsize"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	Cmd.Flags().Int("limit", 0, "Limit to number of transactions to be submitted after which broadcaster will stop, default: no limit")
+	err = viper.BindPFlag("limit", Cmd.Flags().Lookup("limit"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -149,4 +160,9 @@ func init() {
 		log.Fatal(err)
 	}
 
+	Cmd.Flags().BoolP("fullstatusupdates", "f", false, fmt.Sprintf("Send callbacks for %s or %s status", metamorph_api.Status_SEEN_ON_NETWORK.String(), metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL.String()))
+	err = viper.BindPFlag("fullStatusUpdates", Cmd.Flags().Lookup("fullstatusupdates"))
+	if err != nil {
+		log.Fatal(err)
+	}
 }

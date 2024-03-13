@@ -51,7 +51,7 @@ var dataFeeDefault = &bt.Fee{
 
 type ArcClient interface {
 	BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error)
-	BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string) ([]*metamorph_api.TransactionStatus, error)
+	BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool) ([]*metamorph_api.TransactionStatus, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*metamorph_api.TransactionStatus, error)
 }
 
@@ -318,7 +318,7 @@ func (b *Broadcaster) runBatch(ctx context.Context, concurrency int, fundingTx *
 				go func(txs []*bt.Tx, indexStart, indexEnd int) {
 					defer wg.Done()
 
-					txStatus, err := b.Client.BroadcastTransactions(ctx, txs, metamorph_api.Status(b.WaitForStatus), b.CallbackURL, "")
+					txStatus, err := b.Client.BroadcastTransactions(ctx, txs, metamorph_api.Status(b.WaitForStatus), b.CallbackURL, "", false)
 					if err != nil {
 						b.logger.Errorf("[%d]   batch of %d - %d failed %s", iteration, indexStart, indexEnd, err.Error())
 					} else {

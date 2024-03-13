@@ -18,7 +18,7 @@ type WocClient struct {
 
 func New() WocClient {
 	return WocClient{
-		client: http.Client{Timeout: 5 * time.Second},
+		client: http.Client{Timeout: 10 * time.Second},
 	}
 }
 
@@ -34,33 +34,33 @@ type wocBalance struct {
 	Unconfirmed int64 `json:"unconfirmed"`
 }
 
+// GetUTXOs Get UTXOs from WhatsOnChain
 func (w *WocClient) GetUTXOs(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error) {
-	// Get UTXOs from WhatsOnChain
 	net := "test"
 	if mainnet {
 		net = "main"
 	}
 	resp, err := w.client.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/unspent", net, address))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("request to get utxos failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, errors.New("failed to get utxos")
+		return nil, fmt.Errorf("response status not OK: %s", resp.Status)
 	}
 
 	var wocUnspent []*wocUtxo
 	err = json.NewDecoder(resp.Body).Decode(&wocUnspent)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
 	unspent := make([]*bt.UTXO, len(wocUnspent))
 	for i, utxo := range wocUnspent {
 		txIDBytes, err := hex.DecodeString(utxo.Txid)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to decode hex string: %v", err)
 		}
 
 		unspent[i] = &bt.UTXO{

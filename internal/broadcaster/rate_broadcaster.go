@@ -520,7 +520,6 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int, 
 	}
 
 	resultsMap := map[metamorph_api.Status]int64{}
-	logSummary := writer != nil
 	totalTxs := 0
 
 	counter := 0
@@ -564,11 +563,6 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int, 
 				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
 			case <-logSummaryTicker.C:
 
-				// only log summary of results if responses are written to file
-				if !logSummary {
-					continue
-				}
-
 				b.logger.Info("summary", slog.String("funding address", b.fundingKeyset.Address(!b.isTestnet)),
 					slog.Int64(metamorph_api.Status_STORED.String(), resultsMap[metamorph_api.Status_STORED]),
 					slog.Int64(metamorph_api.Status_ANNOUNCED_TO_NETWORK.String(), resultsMap[metamorph_api.Status_ANNOUNCED_TO_NETWORK]),
@@ -581,10 +575,6 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int, 
 					slog.Int64(metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL.String(), resultsMap[metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL]),
 				)
 			case res := <-responseCh:
-
-				if !logSummary {
-					b.logger.Info(res.Txid, slog.String("status", res.Status.String()))
-				}
 
 				txIDBytes, err := hex.DecodeString(res.Txid)
 				if err != nil {

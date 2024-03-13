@@ -75,6 +75,22 @@ var Cmd = &cobra.Command{
 		rbs := make([]*broadcaster.RateBroadcaster, len(keyFiles))
 
 		wg := &sync.WaitGroup{}
+
+		var resultsPath string
+		if store {
+			network := "mainnet"
+			if isTestnet {
+				network = "testnet"
+			}
+			resultsPath = filepath.Join(".", fmt.Sprintf("results/%s-%s-rate-%d-batchsize-%d", network, time.Now().Format(time.DateTime), rateTxsPerSecond, batchSize))
+			err := os.MkdirAll(resultsPath, os.ModePerm)
+			if err != nil {
+				return err
+			}
+		}
+
+		fmt.Println(resultsPath)
+
 		for i, kf := range keyFiles {
 
 			wg.Add(1)
@@ -88,19 +104,10 @@ var Cmd = &cobra.Command{
 
 			var writer io.Writer
 			if store {
-				resultsPath := filepath.Join(".", "results")
-				err := os.MkdirAll(resultsPath, os.ModePerm)
-				if err != nil {
-					return err
-				}
 
 				_, keyFileName := filepath.Split(kf)
 
-				network := "mainnet"
-				if isTestnet {
-					network = "testnet"
-				}
-				file, err := os.Create(fmt.Sprintf("results/%s-%s-rate-%d-batchsize-%d-%s.json", network, time.Now().Format(time.DateTime), rateTxsPerSecond, batchSize, keyFileName))
+				file, err := os.Create(fmt.Sprintf("%s/%s.json", resultsPath, keyFileName))
 				if err != nil {
 					return err
 				}

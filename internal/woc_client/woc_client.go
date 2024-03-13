@@ -1,6 +1,7 @@
 package woc_client
 
 import (
+	"container/list"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -74,26 +75,87 @@ func (w *WocClient) GetUTXOs(mainnet bool, lockingScript *bscript.Script, addres
 	return unspent, nil
 }
 
+// GetUTXOsList Get UTXOs from WhatsOnChain as a list
+func (w *WocClient) GetUTXOsList(mainnet bool, lockingScript *bscript.Script, address string) (*list.List, error) {
+	net := "test"
+	if mainnet {
+		net = "main"
+	}
+	resp, err := w.client.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/unspent", net, address))
+	if err != nil {
+		return nil, fmt.Errorf("request to get utxos failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("response status not OK: %s", resp.Status)
+	}
+
+	var wocUnspent []*wocUtxo
+	err = json.NewDecoder(resp.Body).Decode(&wocUnspent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	values := list.New()
+	for _, utxo := range wocUnspent {
+		txIDBytes, err := hex.DecodeString(utxo.Txid)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode hex string: %v", err)
+		}
+
+		btUtxo := &bt.UTXO{
+			TxID:          txIDBytes,
+			Vout:          utxo.Vout,
+			LockingScript: lockingScript,
+			Satoshis:      utxo.Satoshis,
+		}
+
+		values.PushBack(btUtxo)
+	}
+
+	return values, nil
+}
+
 func (w *WocClient) GetBalance(mainnet bool, address string) (int64, error) {
 	net := "test"
 	if mainnet {
 		net = "main"
 	}
-	resp, err := http.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/balance", net, address))
+	resp, err := w.client.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/balance", net, address))
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("request to get balance failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return 0, errors.New("failed to get balance")
+		return 0, fmt.Errorf("response status not OK: %s", resp.Status)
 	}
 
 	var balance wocBalance
 	err = json.NewDecoder(resp.Body).Decode(&balance)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to decode response: %v", err)
 	}
 
 	return balance.Confirmed + balance.Unconfirmed, nil
+}
+
+func (w *WocClient) TopUp(mainnet bool, address string) error {
+	net := "test"
+	if mainnet {
+		return errors.New("top up can only be done on testnet")
+	}
+
+	resp, err := w.client.Get(fmt.Sprintf("https://api-test.whatsonchain.com/v1/bsv/%s/faucet/send/%s", net, address))
+	if err != nil {
+		return fmt.Errorf("request to top up failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("response status not OK: %s", resp.Status)
+	}
+
+	return nil
 }

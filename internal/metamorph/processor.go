@@ -559,7 +559,7 @@ func (p *Processor) Health() error {
 	}
 
 	if healthyConnections < minimumHealthyConnections {
-		p.logger.Warn("Less than expected healthy peers - ", slog.Int("number", healthyConnections))
+		p.logger.Warn("Less than expected healthy peers", slog.Int("number", healthyConnections))
 		return nil
 	}
 

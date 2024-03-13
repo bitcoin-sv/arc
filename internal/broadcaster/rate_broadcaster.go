@@ -2,12 +2,16 @@ package broadcaster
 
 import (
 	"bufio"
+	"container/list"
 	"context"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/keyset"
@@ -27,8 +31,9 @@ const (
 
 type UtxoClient interface {
 	GetUTXOs(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
+	GetUTXOsList(mainnet bool, lockingScript *bscript.Script, address string) (*list.List, error)
 	GetBalance(mainnet bool, address string) (int64, error)
-	// Todo: Function to top up using faucet
+	TopUp(mainnet bool, address string) error
 }
 
 type RateBroadcaster struct {
@@ -474,10 +479,10 @@ requestedOutputsLoop:
 	return nil
 }
 
-func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) (chan struct{}, error) {
-	utxoSet, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
+func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int, wg *sync.WaitGroup) error {
+	utxoSet, err := b.utxoClient.GetUTXOsList(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get utxos: %v", err)
+		return fmt.Errorf("failed to get utxos: %v", err)
 	}
 
 	b.logger.Info("starting broadcasting", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", b.batchSize))
@@ -485,19 +490,19 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 	submitBatchesPerSecond := float64(rateTxsPerSecond) / float64(b.batchSize)
 
 	if submitBatchesPerSecond > millisecondsPerSecond {
-		return nil, fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", rateTxsPerSecond, b.batchSize, submitBatchesPerSecond)
+		return fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", rateTxsPerSecond, b.batchSize, submitBatchesPerSecond)
 	}
 
-	if len(utxoSet) < b.batchSize {
-		return nil, fmt.Errorf("size of utxo set %d is smaller than requested batch size %d - create more utxos first", len(utxoSet), b.batchSize)
+	if utxoSet.Len() < b.batchSize {
+		return fmt.Errorf("size of utxo set %d is smaller than requested batch size %d - create more utxos first", utxoSet.Len(), b.batchSize)
 	}
+
+	satoshiMap := map[string]uint64{}
 
 	submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
 	submitBatchTicker := time.NewTicker(submitBatchInterval)
 
 	logSummaryTicker := time.NewTicker(3 * time.Second)
-
-	batchIndex := 0
 
 	responseCh := make(chan *metamorph_api.TransactionStatus, 100)
 	errCh := make(chan error, 100)
@@ -506,16 +511,15 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 	if b.responseWriter != nil {
 		writer = bufio.NewWriter(b.responseWriter)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		err = writeJsonArrayStart(writer)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	resultsMap := map[metamorph_api.Status]int64{}
-	logSummary := writer != nil
 	totalTxs := 0
 
 	counter := 0
@@ -523,6 +527,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 
 		defer func() {
 			b.shutdownComplete <- struct{}{}
+			wg.Done()
 		}()
 
 		for {
@@ -545,43 +550,20 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 				return
 			case <-submitBatchTicker.C:
 
-				// if end of utxo set is reached => get the updated utxo set
-				if len(utxoSet) <= batchIndex+b.batchSize+1 {
-					b.logger.Info("updating utxos")
-					utxoSet, err = b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
-					if err != nil {
-						b.logger.Error("failed to get utxos", slog.String("err", err.Error()))
-						continue
-					}
-
-					batchIndex = 0
-				}
-
-				txs, err := b.createSelfPayingTxs(utxoSet[batchIndex : batchIndex+b.batchSize])
+				txs, err := b.createSelfPayingTxs(utxoSet, satoshiMap)
 				if err != nil {
 					b.logger.Error("failed to create self paying txs", slog.String("err", err.Error()))
+					b.shutdown <- struct{}{}
 					continue
 				}
 
 				b.sendTxsBatchAsync(txs, responseCh, errCh)
 
-				batchIndex += b.batchSize
-				totalTxs += len(txs)
-
-				if limit > 0 && totalTxs >= limit {
-					b.logger.Info("limit reached", slog.Int("total", totalTxs))
-					b.shutdown <- struct{}{}
-				}
 			case responseErr := <-errCh:
 				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
 			case <-logSummaryTicker.C:
 
-				// only log summary of results if responses are written to file
-				if !logSummary {
-					continue
-				}
-
-				b.logger.Info("response summary",
+				b.logger.Info("summary", slog.String("funding address", b.fundingKeyset.Address(!b.isTestnet)),
 					slog.Int64(metamorph_api.Status_STORED.String(), resultsMap[metamorph_api.Status_STORED]),
 					slog.Int64(metamorph_api.Status_ANNOUNCED_TO_NETWORK.String(), resultsMap[metamorph_api.Status_ANNOUNCED_TO_NETWORK]),
 					slog.Int64(metamorph_api.Status_REQUESTED_BY_NETWORK.String(), resultsMap[metamorph_api.Status_REQUESTED_BY_NETWORK]),
@@ -593,28 +575,46 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int) 
 					slog.Int64(metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL.String(), resultsMap[metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL]),
 				)
 			case res := <-responseCh:
-				// if writer is not given, just log response
-				if !logSummary {
-					b.logger.Info(res.Txid, slog.String("status", res.Status.String()))
-				}
 
-				// if writer is given, store the response in the writer and log summarized results every 50 iterations
-				resultsMap[res.Status]++
-				counter++
-
-				if writer == nil {
+				txIDBytes, err := hex.DecodeString(res.Txid)
+				if err != nil {
+					b.logger.Error("failed to decode txid", slog.String("err", err.Error()))
 					continue
 				}
 
-				counter, err = b.writeResponse(writer, res, counter)
-				if err != nil {
-					b.logger.Error("failed to write response", slog.String("err", err.Error()))
+				newUtxo := &bt.UTXO{
+					TxID:          txIDBytes,
+					Vout:          0,
+					LockingScript: b.fundingKeyset.Script,
+					Satoshis:      satoshiMap[res.Txid],
+				}
+
+				delete(satoshiMap, res.Txid)
+
+				utxoSet.PushBack(newUtxo)
+
+				resultsMap[res.Status]++
+				counter++
+
+				totalTxs += 1
+
+				if limit > 0 && totalTxs >= limit {
+					b.logger.Info("limit reached", slog.Int("total", totalTxs), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
+					b.shutdown <- struct{}{}
+				}
+
+				// if writer is given, store the response in the writer
+				if writer != nil {
+					counter, err = b.writeResponse(writer, res, counter)
+					if err != nil {
+						b.logger.Error("failed to write response", slog.String("err", err.Error()))
+					}
 				}
 			}
 		}
 	}()
 
-	return b.shutdownComplete, nil
+	return nil
 }
 
 func writeJsonArrayStart(writer *bufio.Writer) error {
@@ -666,10 +666,29 @@ func (b *RateBroadcaster) Shutdown() {
 	<-b.shutdownComplete
 }
 
-func (b *RateBroadcaster) createSelfPayingTxs(utxos []*bt.UTXO) ([]*bt.Tx, error) {
-	txs := make([]*bt.Tx, 0, len(utxos))
+func (b *RateBroadcaster) createSelfPayingTxs(utxos *list.List, satoshiMap map[string]uint64) ([]*bt.Tx, error) {
+	txs := make([]*bt.Tx, 0, b.batchSize)
 
-	for _, utxo := range utxos {
+	counter := 0
+	var next *list.Element
+	for front := utxos.Front(); front != nil; front = next {
+		counter++
+		next = front.Next()
+		utxos.Remove(front)
+
+		if counter >= b.batchSize {
+			break
+		}
+
+		if next == nil {
+			return nil, errors.New("list of remaining utxos is empty")
+		}
+
+		utxo, ok := next.Value.(*bt.UTXO)
+		if !ok {
+			return nil, errors.New("failed to parse value to utxo")
+		}
+
 		tx := bt.NewTx()
 
 		err := tx.FromUTXOs(utxo)
@@ -693,6 +712,8 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos []*bt.UTXO) ([]*bt.Tx, error
 		if err != nil {
 			return nil, err
 		}
+
+		satoshiMap[tx.TxID()] = tx.Outputs[0].Satoshis
 
 		txs = append(txs, tx)
 	}

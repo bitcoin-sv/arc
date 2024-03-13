@@ -60,11 +60,16 @@ var Cmd = &cobra.Command{
 
 		fmt.Printf("Distribution of satoshis for address %s\n", fundingKeySet.Address(!isTestnet))
 
+		totalOutputs := 0
 		t := table.NewWriter()
 		t.AppendHeader(table.Row{"Satoshis", "Outputs"})
 		for _, satoshi := range keysSlice {
+
+			totalOutputs += valuesMap[satoshi]
 			t.AppendRow(table.Row{strconv.FormatUint(satoshi, 10), strconv.Itoa(valuesMap[satoshi])})
 		}
+
+		t.AppendRow(table.Row{"Total", totalOutputs})
 		fmt.Println(t.Render())
 
 		return nil

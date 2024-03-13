@@ -3,6 +3,7 @@ package new
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 
@@ -17,7 +18,7 @@ var Cmd = &cobra.Command{
 	Short: "Create new key set",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		keyFile := viper.GetString("keyFile")
+		keyFile := viper.GetString("filename")
 
 		newKeyset, err := keyset.New()
 		if err != nil {
@@ -68,4 +69,15 @@ var Cmd = &cobra.Command{
 		logger.Info("new key file created", slog.String("file", keyFile))
 		return nil
 	},
+}
+
+func init() {
+	var err error
+
+	Cmd.Flags().String("filename", "", "Name of new key file")
+	err = viper.BindPFlag("filename", Cmd.Flags().Lookup("filename"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }

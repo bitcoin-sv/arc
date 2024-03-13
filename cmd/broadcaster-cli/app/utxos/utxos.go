@@ -8,6 +8,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/broadcast"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/create"
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/dist"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/payback"
 )
 
@@ -46,4 +47,5 @@ func init() {
 	Cmd.AddCommand(payback.Cmd)
 	Cmd.AddCommand(create.Cmd)
 	Cmd.AddCommand(broadcast.Cmd)
+	Cmd.AddCommand(dist.Cmd)
 }

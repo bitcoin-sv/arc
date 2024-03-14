@@ -438,9 +438,6 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	}
 
 	qBulk := `
-		BEGIN;
-		LOCK TABLE metamorph.transactions IN ACCESS EXCLUSIVE MODE;
-
 		UPDATE metamorph.transactions
 			SET
 			status=bulk_query.status,
@@ -469,12 +466,29 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		,metamorph.transactions.locked_by
 		,metamorph.transactions.merkle_path
 		,metamorph.transactions.retries;
-		COMMIT;
     `
 
-	rows, err := p.db.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_MINED)
+	tx, err := p.db.Begin()
 	if err != nil {
+		panic(err)
+	}
+
+	// Execute the LOCK statement within the transaction
+	_, err = tx.Exec("LOCK TABLE metamorph.transactions IN EXCLUSIVE MODE")
+	if err != nil {
+		tx.Rollback()
 		return nil, err
+	}
+
+	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_MINED)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		panic(err)
 	}
 
 	return p.getStoreDataFromRows(rows)

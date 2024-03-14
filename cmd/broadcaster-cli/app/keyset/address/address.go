@@ -1,13 +1,15 @@
 package address
 
 import (
+	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
-	"github.com/lmittmann/tint"
-	"github.com/spf13/cobra"
 	"log/slog"
 	"os"
 	"strings"
+
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
+	"github.com/lmittmann/tint"
+	"github.com/spf13/cobra"
 )
 
 var Cmd = &cobra.Command{
@@ -18,6 +20,11 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
+		if keyFile == "" {
+			return errors.New("no key file given")
+		}
+
 		isTestnet, err := helper.GetBool("testnet")
 		if err != nil {
 			return err

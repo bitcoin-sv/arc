@@ -299,12 +299,12 @@ Flags:
       --testnet          Use testnet
 ```
 
-As there can be a lot of flags you can also define them in the file `broadcaster-cli.env`. For example like this:
+As there can be a lot of flags you can also define them in a `.env` file. For example like this:
 ```
 keyfile=./cmd/broadcaster-cli/arc-0.key
 testnet=true
 ```
-If file `broadcaster-cli.env` is present in the folder where `broadcaster-cli` is run, then these values will be used as flags (if available to the command). You can still provide the flags, in that case the value provided in the flag will override the value provided in `broadcaster-cli.env`
+If file `.env` is present in either the folder where `broadcaster-cli` is run or the folder `./cmd/broadcaster-cli/`, then these values will be used as flags (if available to the command). You can still provide the flags, in that case the value provided in the flag will override the value provided in `.env`
 
 ### How to use broadcaster-cli to send batches of transactions to ARC
 

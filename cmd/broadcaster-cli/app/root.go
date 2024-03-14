@@ -1,12 +1,13 @@
 package app
 
 import (
-	"log"
-
+	"errors"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/sys/unix"
+	"log"
 )
 
 var RootCmd = &cobra.Command{
@@ -35,7 +36,14 @@ func init() {
 	}
 
 	viper.AddConfigPath(".")
-	viper.SetConfigFile("broadcaster-cli.env")
+	viper.AddConfigPath("./cmd/broadcaster-cli/")
+
+	viper.SetConfigName(".env")
+	viper.SetConfigType("env")
+	err = viper.ReadInConfig()
+	if err != nil && !errors.Is(err, unix.ENOENT) {
+		log.Fatal(err)
+	}
 
 	RootCmd.AddCommand(keyset.Cmd)
 	RootCmd.AddCommand(utxos.Cmd)

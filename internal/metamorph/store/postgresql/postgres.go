@@ -468,7 +468,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		,metamorph.transactions.raw_tx
 		,metamorph.transactions.locked_by
 		,metamorph.transactions.merkle_path
-		,metamorph.transactions.retries ORDER BY metamorph.transactions.hash;
+		,metamorph.transactions.retries;
 		COMMIT;
     `
 

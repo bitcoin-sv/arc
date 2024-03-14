@@ -439,7 +439,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 
 	qBulk := `
 		BEGIN;
-		SELECT * FROM transactions tx INNER JOIN  (SELECT * FROM UNNEST($1::BYTEA[])) AS t(hash) on t.hash = tx.hash ORDER BY tx.hash FOR UPDATE;
+		LOCK TABLE metamorph.transactions IN ACCESS EXCLUSIVE MODE;
 
 		UPDATE metamorph.transactions
 			SET
@@ -453,7 +453,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 				AS t(hash, status, reject_reason)
 			) AS bulk_query
 			WHERE
-			metamorph.transactions.hash=bulk_query.hash AND metamorph.transactions.status != $4 AND metamorph.transactions.status != $5
+			metamorph.transactions.hash=bulk_query.hash AND metamorph.transactions.status != $4 AND metamorph.transactions.status != $5 ORDER BY metamorph.transactions.hash
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.announced_at
 		,metamorph.transactions.mined_at

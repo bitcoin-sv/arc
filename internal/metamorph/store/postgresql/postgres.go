@@ -453,7 +453,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 				AS t(hash, status, reject_reason)
 			) AS bulk_query
 			WHERE
-			metamorph.transactions.hash=bulk_query.hash AND metamorph.transactions.status != $4 AND metamorph.transactions.status != $5 ORDER BY metamorph.transactions.hash
+			metamorph.transactions.hash=bulk_query.hash AND metamorph.transactions.status != $4 AND metamorph.transactions.status != $5
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.announced_at
 		,metamorph.transactions.mined_at
@@ -468,7 +468,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		,metamorph.transactions.raw_tx
 		,metamorph.transactions.locked_by
 		,metamorph.transactions.merkle_path
-		,metamorph.transactions.retries;
+		,metamorph.transactions.retries ORDER BY metamorph.transactions.hash;
 		COMMIT;
     `
 

@@ -476,7 +476,9 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	// Execute the LOCK statement within the transaction
 	_, err = tx.Exec("LOCK TABLE metamorph.transactions IN EXCLUSIVE MODE")
 	if err != nil {
-		tx.Rollback()
+		if err := tx.Rollback(); err != nil {
+			panic(err)
+		}
 		return nil, err
 	}
 

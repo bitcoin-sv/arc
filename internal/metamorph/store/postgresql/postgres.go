@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -423,9 +422,9 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
 	defer span.Finish()
 
-	sort.Slice(updates, func(i, j int) bool {
-		return updates[i].Hash.String() < updates[j].Hash.String()
-	})
+	// sort.Slice(updates, func(i, j int) bool {
+	// 	return updates[i].Hash.String() < updates[j].Hash.String()
+	// })
 
 	txHashes := make([][]byte, len(updates))
 	statuses := make([]metamorph_api.Status, len(updates))

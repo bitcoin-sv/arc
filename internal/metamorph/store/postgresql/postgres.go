@@ -476,13 +476,13 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		panic(err)
 	}
 
-	// _, err = tx.Exec("LOCK TABLE metamorph.transactions IN EXCLUSIVE MODE")
-	// if err != nil {
-	// 	if err := tx.Rollback(); err != nil {
-	// 		panic(err)
-	// 	}
-	// 	return nil, err
-	// }
+	_, err = tx.Exec("LOCK TABLE metamorph.transactions IN EXCLUSIVE MODE")
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			panic(err)
+		}
+		return nil, err
+	}
 
 	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_MINED)
 	if err != nil {

@@ -1,4 +1,5 @@
-.idea
+.idea/
+.vscode/
 build/
 results/
 *.key

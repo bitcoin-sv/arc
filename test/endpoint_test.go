@@ -17,7 +17,7 @@ import (
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/api/handler"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
 	"github.com/bitcoinsv/bsvd/bsvec"
 	"github.com/bitcoinsv/bsvutil"
 	"github.com/libsv/go-bc"

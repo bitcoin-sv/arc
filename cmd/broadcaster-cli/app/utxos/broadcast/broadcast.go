@@ -92,8 +92,6 @@ var Cmd = &cobra.Command{
 			}
 		}
 
-		fmt.Println(resultsPath)
-
 		for i, kf := range keyFiles {
 
 			wg.Add(1)

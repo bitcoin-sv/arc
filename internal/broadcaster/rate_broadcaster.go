@@ -58,8 +58,8 @@ type RateBroadcaster struct {
 	batchSize int
 }
 
-func WithFees(miningFeeSatPerKb int) func(preparer *RateBroadcaster) {
-	return func(preparer *RateBroadcaster) {
+func WithFees(miningFeeSatPerKb int) func(broadcaster *RateBroadcaster) {
+	return func(broadcaster *RateBroadcaster) {
 		var fq = bt.NewFeeQuote()
 
 		newStdFee := *stdFeeDefault
@@ -71,45 +71,45 @@ func WithFees(miningFeeSatPerKb int) func(preparer *RateBroadcaster) {
 		fq.AddQuote(bt.FeeTypeData, &newStdFee)
 		fq.AddQuote(bt.FeeTypeStandard, &newDataFee)
 
-		preparer.feeQuote = fq
+		broadcaster.feeQuote = fq
 	}
 }
 
-func WithBatchSize(batchSize int) func(preparer *RateBroadcaster) {
-	return func(preparer *RateBroadcaster) {
-		preparer.batchSize = batchSize
+func WithBatchSize(batchSize int) func(broadcaster *RateBroadcaster) {
+	return func(broadcaster *RateBroadcaster) {
+		broadcaster.batchSize = batchSize
 	}
 }
 
-func WithMaxInputs(maxInputs int) func(preparer *RateBroadcaster) {
-	return func(preparer *RateBroadcaster) {
-		preparer.maxInputs = maxInputs
+func WithMaxInputs(maxInputs int) func(broadcaster *RateBroadcaster) {
+	return func(broadcaster *RateBroadcaster) {
+		broadcaster.maxInputs = maxInputs
 	}
 }
 
-func WithIsTestnet(isTestnet bool) func(preparer *RateBroadcaster) {
-	return func(preparer *RateBroadcaster) {
-		preparer.isTestnet = isTestnet
+func WithIsTestnet(isTestnet bool) func(broadcaster *RateBroadcaster) {
+	return func(broadcaster *RateBroadcaster) {
+		broadcaster.isTestnet = isTestnet
 	}
 }
 
-func WithCallback(callbackURL string, callbackToken string) func(preparer *RateBroadcaster) {
-	return func(preparer *RateBroadcaster) {
-		preparer.callbackURL = callbackURL
-		preparer.callbackToken = callbackToken
+func WithCallback(callbackURL string, callbackToken string) func(broadcaster *RateBroadcaster) {
+	return func(broadcaster *RateBroadcaster) {
+		broadcaster.callbackURL = callbackURL
+		broadcaster.callbackToken = callbackToken
 	}
 }
 
-func WithFullstatusUpdates(fullStatusUpdates bool) func(preparer *RateBroadcaster) {
-	return func(preparer *RateBroadcaster) {
-		preparer.fullStatusUpdates = fullStatusUpdates
+func WithFullstatusUpdates(fullStatusUpdates bool) func(broadcaster *RateBroadcaster) {
+	return func(broadcaster *RateBroadcaster) {
+		broadcaster.fullStatusUpdates = fullStatusUpdates
 	}
 }
 
-func WithStoreWriter(storeWriter io.Writer, resultIterations int) func(preparer *RateBroadcaster) {
-	return func(preparer *RateBroadcaster) {
-		preparer.responseWriter = storeWriter
-		preparer.responseWriteIterationInterval = resultIterations
+func WithStoreWriter(storeWriter io.Writer, resultIterations int) func(broadcaster *RateBroadcaster) {
+	return func(broadcaster *RateBroadcaster) {
+		broadcaster.responseWriter = storeWriter
+		broadcaster.responseWriteIterationInterval = resultIterations
 	}
 }
 

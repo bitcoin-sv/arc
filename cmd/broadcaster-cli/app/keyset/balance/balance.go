@@ -42,7 +42,9 @@ var Cmd = &cobra.Command{
 				return fmt.Errorf("failed to get key sets: %v", err)
 			}
 
-			time.Sleep(500 * time.Millisecond)
+			if wocApiKey == "" {
+				time.Sleep(500 * time.Millisecond)
+			}
 			fundingBalance, err := wocClient.GetBalance(!isTestnet, fundingKeySet.Address(!isTestnet))
 			if err != nil {
 				return err

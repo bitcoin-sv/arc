@@ -81,7 +81,9 @@ var Cmd = &cobra.Command{
 
 		for _, kf := range keyFiles {
 
-			time.Sleep(1 * time.Second)
+			if wocApiKey == "" {
+				time.Sleep(1 * time.Second)
+			}
 
 			wg.Add(1)
 

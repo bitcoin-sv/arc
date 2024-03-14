@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -422,6 +423,10 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
 	defer span.Finish()
 
+	sort.Slice(updates, func(i, j int) bool {
+		return updates[i].Hash.String() < updates[j].Hash.String()
+	})
+
 	txHashes := make([][]byte, len(updates))
 	statuses := make([]metamorph_api.Status, len(updates))
 	rejectReasons := make([]string, len(updates))
@@ -445,7 +450,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 				AS t(hash, status, reject_reason)
 			) AS bulk_query
 			WHERE
-			metamorph.transactions.hash=bulk_query.hash AND metamorph.transactions.locked_by = $4 AND metamorph.transactions.status != $5 AND metamorph.transactions.status != $6
+			metamorph.transactions.hash=bulk_query.hash AND metamorph.transactions.status != $4 AND metamorph.transactions.status != $5
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.announced_at
 		,metamorph.transactions.mined_at
@@ -464,7 +469,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		;
     `
 
-	rows, err := p.db.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), p.hostname, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_MINED)
+	rows, err := p.db.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_MINED)
 	if err != nil {
 		return nil, err
 	}

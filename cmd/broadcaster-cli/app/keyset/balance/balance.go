@@ -25,10 +25,14 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		wocApiKey, err := helper.GetString("wocAPIKey")
+		if err != nil {
+			return err
+		}
 
 		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
 
-		wocClient := woc_client.New()
+		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey))
 
 		keyFiles := strings.Split(keyFile, ",")
 
@@ -38,7 +42,7 @@ var Cmd = &cobra.Command{
 				return fmt.Errorf("failed to get key sets: %v", err)
 			}
 
-			time.Sleep(1 * time.Second)
+			time.Sleep(500 * time.Millisecond)
 			fundingBalance, err := wocClient.GetBalance(!isTestnet, fundingKeySet.Address(!isTestnet))
 			if err != nil {
 				return err

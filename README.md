@@ -271,7 +271,7 @@ go run main.go -k8s-watcher=true
 
 The `broadcaster-cli` provides a set of functions which allow to interact with any instance of ARC. It also provides functions for key sets.
 
-### Instalation
+### Installation
 
 The broadcaster-cli can be installed using the following command.
 ```

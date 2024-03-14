@@ -28,6 +28,12 @@ func init() {
 		log.Fatal(err)
 	}
 
+	RootCmd.PersistentFlags().String("wocAPIKey", "", "Optional WhatsOnChain API key for allowing for higher request rates")
+	err = viper.BindPFlag("wocAPIKey", RootCmd.PersistentFlags().Lookup("wocAPIKey"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	viper.AddConfigPath(".")
 	viper.SetConfigFile("broadcaster-cli.env")
 

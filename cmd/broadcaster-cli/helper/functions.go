@@ -2,6 +2,7 @@ package helper
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"strconv"
@@ -27,7 +28,7 @@ func GetKeySetsKeyFile(keyFile string) (fundingKeySet *keyset.KeySet, receivingK
 	extendedBytes, err = os.ReadFile(keyFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil, errors.New("arc.key not found. Please create this file with the xpriv you want to use")
+			return nil, nil, fmt.Errorf("key file %s not found. Please create this file with the xpriv you want to use", keyFile)
 		}
 		return nil, nil, err
 	}

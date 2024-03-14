@@ -276,7 +276,15 @@ func (b *RateBroadcaster) consolidateToFundingKeyset(tx *bt.Tx, totalSatoshis ui
 		return 0, err
 	}
 
-	err = tx.PayTo(b.fundingKeyset.Script, totalSatoshis-requestedSatoshis-b.calculateFeeSat(tx))
+	fee := b.calculateFeeSat(tx)
+
+	if totalSatoshis-requestedSatoshis <= fee {
+		return 0, nil
+	}
+
+	// Todo: Send consolidation txs with header X-SkipFeeValidation and remove fee from transaction
+
+	err = tx.PayTo(b.fundingKeyset.Script, totalSatoshis-requestedSatoshis-fee)
 	if err != nil {
 		return 0, err
 	}
@@ -314,7 +322,8 @@ func (b *RateBroadcaster) splitToFundingKeyset(tx *bt.Tx, splitSatoshis uint64, 
 
 	}
 
-	err = tx.PayTo(b.fundingKeyset.Script, uint64(remaining)-b.calculateFeeSat(tx))
+	fee := b.calculateFeeSat(tx)
+	err = tx.PayTo(b.fundingKeyset.Script, uint64(remaining)-fee)
 	if err != nil {
 		return 0, err
 	}
@@ -390,7 +399,7 @@ requestedOutputsLoop:
 			}
 		}
 
-		b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput))
+		b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
 
 		txsBatches := make([][]*bt.Tx, 0)
 		txs := make([]*bt.Tx, 0)
@@ -470,11 +479,11 @@ requestedOutputsLoop:
 			}
 
 			// do not performance test ARC when creating the utxos
-			time.Sleep(2 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 
-	b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput))
+	b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
 
 	return nil
 }
@@ -485,7 +494,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int, 
 		return fmt.Errorf("failed to get utxos: %v", err)
 	}
 
-	b.logger.Info("starting broadcasting", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", b.batchSize))
+	b.logger.Info("starting broadcasting", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", b.batchSize), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
 
 	submitBatchesPerSecond := float64(rateTxsPerSecond) / float64(b.batchSize)
 

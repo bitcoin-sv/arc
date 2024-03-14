@@ -438,6 +438,9 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	}
 
 	qBulk := `
+		BEGIN;
+		SELECT * FROM transactions tx INNER JOIN  (SELECT * FROM UNNEST($1::BYTEA[])) AS t(hash) on t.hash = tx.hash ORDER BY tx.hash FOR UPDATE;
+
 		UPDATE metamorph.transactions
 			SET
 			status=bulk_query.status,
@@ -465,8 +468,8 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		,metamorph.transactions.raw_tx
 		,metamorph.transactions.locked_by
 		,metamorph.transactions.merkle_path
-		,metamorph.transactions.retries
-		;
+		,metamorph.transactions.retries;
+		COMMIT;
     `
 
 	rows, err := p.db.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_MINED)

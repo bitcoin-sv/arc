@@ -409,6 +409,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 		fmt.Println("daiwyoooo")
 		statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
+		fmt.Println("damtavrdaaa")
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 2)
 

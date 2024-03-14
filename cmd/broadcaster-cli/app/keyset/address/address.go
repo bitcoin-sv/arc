@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"log/slog"
 	"os"
+	"strings"
 )
 
 var Cmd = &cobra.Command{
@@ -23,14 +24,16 @@ var Cmd = &cobra.Command{
 		}
 		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
 
-		fundingKeySet, receivingKeySet, err := helper.GetKeySetsKeyFile(keyFile)
-		if err != nil {
-			return fmt.Errorf("failed to get key sets: %v", err)
+		keyFiles := strings.Split(keyFile, ",")
+
+		for _, kf := range keyFiles {
+			fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
+			if err != nil {
+				return fmt.Errorf("failed to get key sets: %v", err)
+			}
+
+			logger.Info("address", slog.String(kf, fundingKeySet.Address(!isTestnet)))
 		}
-
-		logger.Info("address", slog.String("funding key", fundingKeySet.Address(!isTestnet)))
-
-		logger.Info("address", slog.String("receiving key", receivingKeySet.Address(!isTestnet)))
 
 		return nil
 	},

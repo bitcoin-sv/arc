@@ -482,13 +482,15 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 
 	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_MINED)
 	if err != nil {
-		tx.Rollback()
+		if err := tx.Rollback(); err != nil {
+			panic(err)
+		}
 		return nil, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	return p.getStoreDataFromRows(rows)

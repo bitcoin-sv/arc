@@ -6,11 +6,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/testdata"
 	"log"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/bitcoin-sv/arc/internal/testdata"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -406,7 +407,7 @@ func TestPostgresDB(t *testing.T) {
 				Status: metamorph_api.Status_SENT_TO_NETWORK,
 			},
 		}
-
+		fmt.Println("daiwyoooo")
 		statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 2)

@@ -437,6 +437,8 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		rejectReasons[i] = update.RejectReason
 	}
 
+	fmt.Println(updates)
+
 	qBulk := `
 		UPDATE metamorph.transactions
 			SET

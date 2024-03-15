@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -423,10 +422,6 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
 	defer span.Finish()
 
-	sort.Slice(updates, func(i, j int) bool {
-		return updates[i].Hash.String() < updates[j].Hash.String()
-	})
-
 	txHashes := make([][]byte, len(updates))
 	statuses := make([]metamorph_api.Status, len(updates))
 	rejectReasons := make([]string, len(updates))
@@ -515,6 +510,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 	blockHashes := make([][]byte, len(txsBlocks.TransactionBlocks))
 	blockHeights := make([]uint64, len(txsBlocks.TransactionBlocks))
 	merklePaths := make([]string, len(txsBlocks.TransactionBlocks))
+
 	for i, tx := range txsBlocks.TransactionBlocks {
 		txHashes[i] = tx.TransactionHash
 		blockHashes[i] = tx.BlockHash

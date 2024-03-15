@@ -556,12 +556,38 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 		,t.retries
 		;
 `
-	rows, err := p.db.QueryContext(ctx, qBulkUpdate, metamorph_api.Status_MINED, p.now(), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
+	tx, err := p.db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute transaction update query: %v", err)
+		panic(err)
 	}
 
-	return p.getStoreDataFromRows(rows)
+	_, err = tx.Exec("LOCK TABLE metamorph.transactions IN EXCLUSIVE MODE")
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			panic(err)
+		}
+		return nil, err
+	}
+
+	rows, err := tx.QueryContext(ctx, qBulkUpdate, metamorph_api.Status_MINED, p.now(), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			panic(err)
+		}
+		return nil, err
+	}
+
+	res, err := p.getStoreDataFromRows(rows)
+	if err != nil {
+		return res, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {

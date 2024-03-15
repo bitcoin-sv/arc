@@ -13,14 +13,9 @@ func (p *PostgreSQL) TransactionExists(ctx context.Context, hash *chainhash.Hash
 		gocore.NewStat("blocktx").NewStat("TransactionExists").AddTime(start)
 	}()
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	query := "SELECT EXISTS(SELECT 1 FROM transactions WHERE hash = $1)"
-
 	// Execute the query
 	var exists bool
-	err := p.db.QueryRow(query, hash).Scan(&exists)
+	err := p.db.QueryRow("SELECT EXISTS(SELECT 1 FROM transactions WHERE hash = $1)", hash).Scan(&exists)
 	if err != nil {
 		return false, err
 	}

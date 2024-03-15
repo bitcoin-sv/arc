@@ -410,9 +410,9 @@ func TestPostgresDB(t *testing.T) {
 
 		statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
 		require.NoError(t, err)
-		fmt.Println(" aq var ", statusUpdates[0].RawTx, statusUpdates[0].Status)
-		fmt.Println(" aq var ", statusUpdates[1].RawTx, statusUpdates[1].Status)
-		fmt.Println(" aq var ", statusUpdates[2].RawTx, statusUpdates[2].Status)
+		fmt.Println(" aq var ", statusUpdates[0].Hash, statusUpdates[0].RawTx, statusUpdates[0].Status)
+		fmt.Println(" aq var ", statusUpdates[1].Hash, statusUpdates[1].RawTx, statusUpdates[1].Status)
+		fmt.Println(" aq var ", statusUpdates[2].Hash, statusUpdates[2].RawTx, statusUpdates[2].Status)
 		require.Len(t, statusUpdates, 2)
 
 		assert.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, statusUpdates[0].Status)

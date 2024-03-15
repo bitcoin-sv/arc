@@ -492,6 +492,10 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		return nil, err
 	}
 
+	for rows.Next() {
+		fmt.Println("mamamia")
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		return nil, err

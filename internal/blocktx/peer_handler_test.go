@@ -5,11 +5,12 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/testdata"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/bitcoin-sv/arc/internal/testdata"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -176,6 +177,9 @@ func TestHandleBlock(t *testing.T) {
 				},
 				MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 					return nil
+				},
+				TransactionExistsFunc: func(ctx context.Context, hash *chainhash.Hash) (bool, error) {
+					return true, nil
 				},
 			}
 

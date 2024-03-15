@@ -414,6 +414,14 @@ func TestPostgresDB(t *testing.T) {
 
 		fmt.Println("aaaaa")
 		statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
+		require.NoError(t, err)
+
+		returnedDataRejected, err = postgresDB.Get(ctx, testdata.TX1Hash[:])
+		require.NoError(t, err)
+		assert.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, returnedDataRejected.Status)
+		assert.Equal(t, "", returnedDataRejected.RejectReason)
+		assert.Equal(t, testdata.TX1RawBytes, returnedDataRejected.RawTx)
+
 		fmt.Println("bbbbb")
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 2)

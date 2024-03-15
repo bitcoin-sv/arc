@@ -425,7 +425,7 @@ func TestPostgresDB(t *testing.T) {
 		assert.Equal(t, "missing inputs", statusUpdates[1].RejectReason)
 		assert.Equal(t, testdata.TX6RawBytes, statusUpdates[1].RawTx)
 
-		returnedDataRejected, err := postgresDB.Get(ctx, testdata.TX1Hash[:])
+		returnedDataRejected, err = postgresDB.Get(ctx, testdata.TX1Hash[:])
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, returnedDataRejected.Status)
 		assert.Equal(t, "", returnedDataRejected.RejectReason)

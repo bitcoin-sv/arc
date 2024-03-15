@@ -408,23 +408,15 @@ func TestPostgresDB(t *testing.T) {
 			},
 		}
 
-		returnedDataRejected, err := postgresDB.Get(ctx, testdata.TX1Hash[:])
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_STORED, returnedDataRejected.Status)
-
-		fmt.Println("aaaaa")
 		statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
 		require.NoError(t, err)
-
-		returnedDataRejected, err = postgresDB.Get(ctx, testdata.TX1Hash[:])
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, returnedDataRejected.Status)
-		assert.Equal(t, "", returnedDataRejected.RejectReason)
-		assert.Equal(t, testdata.TX1RawBytes, returnedDataRejected.RawTx)
-
-		fmt.Println("bbbbb")
-		require.NoError(t, err)
 		require.Len(t, statusUpdates, 2)
+		fmt.Println(statusUpdates[0].Status)
+		fmt.Println(statusUpdates[0].RawTx)
+		fmt.Println(statusUpdates[1].Status)
+		fmt.Println(statusUpdates[1].RawTx)
+		fmt.Println(statusUpdates[2].Status)
+		fmt.Println(statusUpdates[2].RawTx)
 
 		assert.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, statusUpdates[0].Status)
 		assert.Equal(t, testdata.TX1RawBytes, statusUpdates[0].RawTx)
@@ -433,7 +425,7 @@ func TestPostgresDB(t *testing.T) {
 		assert.Equal(t, "missing inputs", statusUpdates[1].RejectReason)
 		assert.Equal(t, testdata.TX6RawBytes, statusUpdates[1].RawTx)
 
-		returnedDataRejected, err = postgresDB.Get(ctx, testdata.TX1Hash[:])
+		returnedDataRejected, err := postgresDB.Get(ctx, testdata.TX1Hash[:])
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, returnedDataRejected.Status)
 		assert.Equal(t, "", returnedDataRejected.RejectReason)

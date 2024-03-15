@@ -7,7 +7,7 @@ import (
 	"github.com/ordishs/gocore"
 )
 
-func (p *PostgreSQL) TransactionExists(ctx context.Context, hash chainhash.Hash) (bool, error) {
+func (p *PostgreSQL) TransactionExists(ctx context.Context, hash *chainhash.Hash) (bool, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
 		gocore.NewStat("blocktx").NewStat("TransactionExists").AddTime(start)

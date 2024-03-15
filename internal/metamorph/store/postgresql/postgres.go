@@ -437,8 +437,6 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		rejectReasons[i] = update.RejectReason
 	}
 
-	fmt.Println(updates)
-
 	qBulk := `
 		UPDATE metamorph.transactions
 			SET
@@ -570,7 +568,6 @@ func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, e
 	var storeData []*store.StoreData
 
 	for rows.Next() {
-		fmt.Println("aaaaa--")
 		data := &store.StoreData{}
 
 		var storedAt sql.NullTime

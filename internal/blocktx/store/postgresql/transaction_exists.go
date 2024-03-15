@@ -10,7 +10,7 @@ import (
 func (p *PostgreSQL) TransactionExists(ctx context.Context, hash chainhash.Hash) (bool, error) {
 	start := gocore.CurrentNanos()
 	defer func() {
-		gocore.NewStat("blocktx").NewStat("GetBlockGaps").AddTime(start)
+		gocore.NewStat("blocktx").NewStat("TransactionExists").AddTime(start)
 	}()
 
 	ctx, cancel := context.WithCancel(ctx)

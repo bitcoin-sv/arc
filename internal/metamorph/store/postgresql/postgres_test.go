@@ -409,7 +409,6 @@ func TestPostgresDB(t *testing.T) {
 		}
 
 		statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
-		postgresDB.UpdateStatusBulk(ctx, updates)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 3)
 
@@ -439,6 +438,10 @@ func TestPostgresDB(t *testing.T) {
 		returnedDataMined, err := postgresDB.Get(ctx, minedHash[:])
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_MINED, returnedDataMined.Status)
+
+		statusUpdates, err = postgresDB.UpdateStatusBulk(ctx, updates)
+		require.NoError(t, err)
+		require.Len(t, statusUpdates, 0)
 	})
 
 	t.Run("update mined", func(t *testing.T) {

@@ -1,12 +1,13 @@
 package app
 
 import (
-	"log"
-
+	"errors"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/sys/unix"
+	"log"
 )
 
 var RootCmd = &cobra.Command{
@@ -28,8 +29,21 @@ func init() {
 		log.Fatal(err)
 	}
 
+	RootCmd.PersistentFlags().String("wocAPIKey", "", "Optional WhatsOnChain API key for allowing for higher request rates")
+	err = viper.BindPFlag("wocAPIKey", RootCmd.PersistentFlags().Lookup("wocAPIKey"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	viper.AddConfigPath(".")
-	viper.SetConfigFile("broadcaster-cli.env")
+	viper.AddConfigPath("./cmd/broadcaster-cli/")
+
+	viper.SetConfigName(".env")
+	viper.SetConfigType("env")
+	err = viper.ReadInConfig()
+	if err != nil && !errors.Is(err, unix.ENOENT) {
+		log.Fatal(err)
+	}
 
 	RootCmd.AddCommand(keyset.Cmd)
 	RootCmd.AddCommand(utxos.Cmd)

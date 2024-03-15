@@ -23,8 +23,11 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
-		wocClient := woc_client.New()
+		wocApiKey, err := helper.GetString("wocAPIKey")
+		if err != nil {
+			return err
+		}
+		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey))
 
 		fundingKeySet, _, err := helper.GetKeySetsKeyFile(keyFile)
 		if err != nil {

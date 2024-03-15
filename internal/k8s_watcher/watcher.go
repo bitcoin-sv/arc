@@ -137,6 +137,7 @@ func (c *Watcher) watchBlocktx() {
 							c.logger.Error("failed to delete unfinished block processing", slog.String("pod-name", podName), slog.String("err", err.Error()))
 							continue
 						}
+						c.logger.Info("Deleted unfinished block processing", slog.String("pod-name", podName))
 					}
 				}
 

@@ -60,7 +60,10 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
+		wocApiKey, err := helper.GetString("wocAPIKey")
+		if err != nil {
+			return err
+		}
 		keyFiles := strings.Split(keyFile, ",")
 
 		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
@@ -89,8 +92,6 @@ var Cmd = &cobra.Command{
 			}
 		}
 
-		fmt.Println(resultsPath)
-
 		for i, kf := range keyFiles {
 
 			wg.Add(1)
@@ -100,7 +101,7 @@ var Cmd = &cobra.Command{
 				return fmt.Errorf("failed to get key sets: %v", err)
 			}
 
-			wocClient := woc_client.New()
+			wocClient := woc_client.New(woc_client.WithAuth(wocApiKey))
 
 			var writer io.Writer
 			if store {
@@ -117,7 +118,7 @@ var Cmd = &cobra.Command{
 				defer file.Close()
 			}
 
-			rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
+			rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, wocClient,
 				broadcaster.WithFees(miningFeeSat),
 				broadcaster.WithIsTestnet(isTestnet),
 				broadcaster.WithCallback(callbackURL, callbackToken),

@@ -14,13 +14,26 @@ import (
 )
 
 type WocClient struct {
-	client http.Client
+	client        http.Client
+	authorization string
 }
 
-func New() WocClient {
-	return WocClient{
+func WithAuth(authorization string) func(*WocClient) {
+	return func(p *WocClient) {
+		p.authorization = authorization
+	}
+}
+
+func New(opts ...func(client *WocClient)) *WocClient {
+	w := &WocClient{
 		client: http.Client{Timeout: 10 * time.Second},
 	}
+
+	for _, opt := range opts {
+		opt(w)
+	}
+
+	return w
 }
 
 type wocUtxo struct {
@@ -41,7 +54,17 @@ func (w *WocClient) GetUTXOs(mainnet bool, lockingScript *bscript.Script, addres
 	if mainnet {
 		net = "main"
 	}
-	resp, err := w.client.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/unspent", net, address))
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/unspent", net, address), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to crreate request: %v", err)
+	}
+
+	if w.authorization != "" {
+		req.Header.Set("Authorization", w.authorization)
+	}
+
+	resp, err := w.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request to get utxos failed: %v", err)
 	}
@@ -81,7 +104,17 @@ func (w *WocClient) GetUTXOsList(mainnet bool, lockingScript *bscript.Script, ad
 	if mainnet {
 		net = "main"
 	}
-	resp, err := w.client.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/unspent", net, address))
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/unspent", net, address), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to crreate request: %v", err)
+	}
+
+	if w.authorization != "" {
+		req.Header.Set("Authorization", w.authorization)
+	}
+
+	resp, err := w.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request to get utxos failed: %v", err)
 	}
@@ -122,7 +155,17 @@ func (w *WocClient) GetBalance(mainnet bool, address string) (int64, error) {
 	if mainnet {
 		net = "main"
 	}
-	resp, err := w.client.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/balance", net, address))
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/balance", net, address), nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to crreate request: %v", err)
+	}
+
+	if w.authorization != "" {
+		req.Header.Set("Authorization", w.authorization)
+	}
+
+	resp, err := w.client.Do(req)
 	if err != nil {
 		return 0, fmt.Errorf("request to get balance failed: %v", err)
 	}
@@ -147,7 +190,16 @@ func (w *WocClient) TopUp(mainnet bool, address string) error {
 		return errors.New("top up can only be done on testnet")
 	}
 
-	resp, err := w.client.Get(fmt.Sprintf("https://api-test.whatsonchain.com/v1/bsv/%s/faucet/send/%s", net, address))
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://api-test.whatsonchain.com/v1/bsv/%s/faucet/send/%s", net, address), nil)
+	if err != nil {
+		return fmt.Errorf("failed to crreate request: %v", err)
+	}
+
+	if w.authorization != "" {
+		req.Header.Set("Authorization", w.authorization)
+	}
+
+	resp, err := w.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("request to top up failed: %v", err)
 	}

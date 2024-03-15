@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
@@ -23,26 +25,32 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		wocApiKey, err := helper.GetString("wocAPIKey")
+		if err != nil {
+			return err
+		}
 
 		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
 
-		wocClient := woc_client.New()
-		fundingKeySet, receivingKeySet, err := helper.GetKeySetsKeyFile(keyFile)
-		if err != nil {
-			return fmt.Errorf("failed to get key sets: %v", err)
-		}
+		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey))
 
-		fundingBalance, err := wocClient.GetBalance(!isTestnet, fundingKeySet.Address(!isTestnet))
-		if err != nil {
-			return err
-		}
-		logger.Info("balance", slog.Int64("funding key", fundingBalance))
+		keyFiles := strings.Split(keyFile, ",")
 
-		receivingBalance, err := wocClient.GetBalance(!isTestnet, receivingKeySet.Address(!isTestnet))
-		if err != nil {
-			return err
+		for _, kf := range keyFiles {
+			fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
+			if err != nil {
+				return fmt.Errorf("failed to get key sets: %v", err)
+			}
+
+			if wocApiKey == "" {
+				time.Sleep(500 * time.Millisecond)
+			}
+			fundingBalance, err := wocClient.GetBalance(!isTestnet, fundingKeySet.Address(!isTestnet))
+			if err != nil {
+				return err
+			}
+			logger.Info("balance", slog.Int64(fundingKeySet.Address(!isTestnet), fundingBalance))
 		}
-		logger.Info("balance", slog.Int64("receiving key", receivingBalance))
 
 		return nil
 	},

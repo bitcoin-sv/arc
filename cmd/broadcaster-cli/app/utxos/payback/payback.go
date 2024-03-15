@@ -45,7 +45,10 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
+		wocApiKey, err := helper.GetString("wocAPIKey")
+		if err != nil {
+			return err
+		}
 		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
 
 		client, err := helper.CreateClient(&broadcaster.Auth{
@@ -60,9 +63,9 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to get key sets: %v", err)
 		}
 
-		wocClient := woc_client.New()
+		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey))
 
-		preparer, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
+		preparer, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, wocClient,
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithIsTestnet(isTestnet),
 			broadcaster.WithCallback(callbackURL, callbackToken),

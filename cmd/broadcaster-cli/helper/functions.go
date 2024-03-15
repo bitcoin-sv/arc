@@ -2,12 +2,11 @@ package helper
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
-
-	"golang.org/x/sys/unix"
 
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/keyset"
@@ -27,7 +26,7 @@ func GetKeySetsKeyFile(keyFile string) (fundingKeySet *keyset.KeySet, receivingK
 	extendedBytes, err = os.ReadFile(keyFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil, errors.New("arc.key not found. Please create this file with the xpriv you want to use")
+			return nil, nil, fmt.Errorf("key file %s not found. Please create this file with the xpriv you want to use", keyFile)
 		}
 		return nil, nil, err
 	}
@@ -58,16 +57,7 @@ func GetString(settingName string) (string, error) {
 	}
 
 	var result map[string]interface{}
-
-	err := viper.ReadInConfig()
-	if err != nil {
-		if errors.Is(err, unix.ENOENT) {
-			return "", nil
-		}
-		return "", err
-	}
-
-	err = viper.Unmarshal(&result)
+	err := viper.Unmarshal(&result)
 	if err != nil {
 		return "", err
 	}
@@ -89,15 +79,7 @@ func GetInt(settingName string) (int, error) {
 
 	var result map[string]interface{}
 
-	err := viper.ReadInConfig()
-	if err != nil {
-		if errors.Is(err, unix.ENOENT) {
-			return 0, nil
-		}
-		return 0, err
-	}
-
-	err = viper.Unmarshal(&result)
+	err := viper.Unmarshal(&result)
 	if err != nil {
 		return 0, err
 	}
@@ -120,15 +102,7 @@ func GetBool(settingName string) (bool, error) {
 
 	var result map[string]interface{}
 
-	err := viper.ReadInConfig()
-	if err != nil {
-		if errors.Is(err, unix.ENOENT) {
-			return false, nil
-		}
-		return false, err
-	}
-
-	err = viper.Unmarshal(&result)
+	err := viper.Unmarshal(&result)
 	if err != nil {
 		return false, err
 	}

@@ -492,8 +492,9 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		return nil, err
 	}
 
-	for rows.Next() {
-		fmt.Println("mamamia")
+	res, err := p.getStoreDataFromRows(rows)
+	if err != nil {
+		return res, err
 	}
 
 	err = tx.Commit()
@@ -501,7 +502,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		return nil, err
 	}
 
-	return p.getStoreDataFromRows(rows)
+	return res, nil
 }
 
 func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {

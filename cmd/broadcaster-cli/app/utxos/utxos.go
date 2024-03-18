@@ -44,6 +44,12 @@ func init() {
 		log.Fatal(err)
 	}
 
+	Cmd.PersistentFlags().Int("miningfeesatperkb", 1, "Mining fee offered in transactions [sat/kb]")
+	err = viper.BindPFlag("miningFeeSatPerKb", Cmd.PersistentFlags().Lookup("miningfeesatperkb"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	Cmd.AddCommand(payback.Cmd)
 	Cmd.AddCommand(create.Cmd)
 	Cmd.AddCommand(broadcast.Cmd)

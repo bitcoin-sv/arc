@@ -41,7 +41,11 @@ func init() {
 	viper.SetConfigName(".env")
 	viper.SetConfigType("env")
 	err = viper.ReadInConfig()
-	if err != nil && !errors.Is(err, unix.ENOENT) {
+
+	var viperErr viper.ConfigFileNotFoundError
+	isConfigFileNotFoundErr := errors.As(err, &viperErr)
+
+	if err != nil && !errors.Is(err, unix.ENOENT) && !isConfigFileNotFoundErr {
 		log.Fatal(err)
 	}
 

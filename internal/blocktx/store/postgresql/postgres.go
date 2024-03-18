@@ -8,7 +8,6 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/opentracing/opentracing-go"
-	"github.com/ordishs/gocore"
 	_ "modernc.org/sqlite"
 )
 
@@ -21,10 +20,6 @@ type PostgreSQL struct {
 	db                        *sql.DB
 	now                       func() time.Time
 	maxPostgresBulkInsertRows int
-}
-
-func init() {
-	gocore.NewStat("blocktx")
 }
 
 func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
@@ -63,10 +58,6 @@ func (p *PostgreSQL) Close() error {
 }
 
 func (p *PostgreSQL) Ping(ctx context.Context) error {
-	startNanos := p.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("Ping").AddTime(startNanos)
-	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Ping")
 	defer span.Finish()
 

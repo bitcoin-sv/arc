@@ -2,7 +2,6 @@
 logLevel: DEBUG # mode of logging. Value can be one of DEBUG | INFO | WARN | ERROR
 logFormat: text # format of logging. Value can be one of text | json | tint
 profilerAddr: localhost:9999 # address to start profiler server on
-statisticsServerAddress: localhost:9005 # address to start statistics server on
 prometheusEndpoint: /metrics # endpoint for prometheus metrics
 prometheusAddr: :2112 # port for serving prometheus metrics
 tracing: true # enable trancing
@@ -45,7 +44,6 @@ metamorph:
   processorCacheExpiryTime: 24h # time after which processor cache is cleaned
   processStatusUpdateInterval: 5s # interval of procesing status updates
   checkUtxos: false # force check each utxo for validity. If enabled ARC connects to bitcoin node using rpc for each utxo
-  statsKeypress: false # enable stats keypress. If enabled pressing any key will print stats to stdout
   profilerAddr: localhost:9992 # address to start profiler server on
   healthServerDialAddr: localhost:8005 # address at which the grpc health server is exposed
 

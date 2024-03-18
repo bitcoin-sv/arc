@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/version"
 	"log"
 	"log/slog"
 	"net/http"
@@ -14,17 +13,21 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/bitcoin-sv/arc/internal/version"
 	cmd "github.com/bitcoin-sv/arc/cmd/starters"
 	cfg "github.com/bitcoin-sv/arc/internal/helpers"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/opentracing/opentracing-go"
-	"github.com/ordishs/gocore"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
 )
 
 // Name used by build script for the binaries. (Please keep on single line)
 const progname = "arc"
+
+// // Version & commit strings injected at build with -ldflags -X...
+var version string
+var commit string
 
 func main() {
 	err := run()
@@ -167,13 +170,6 @@ func run() error {
 	}
 
 	shutdownFns := make([]func(), 0)
-
-	statisticsServerAddr := viper.GetString("statisticsServerAddress")
-	if statisticsServerAddr != "" {
-		go func() {
-			gocore.StartStatsServer(statisticsServerAddr)
-		}()
-	}
 
 	if startBlockTx != nil && *startBlockTx {
 		logger.Info("Starting BlockTx")

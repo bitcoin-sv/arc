@@ -2,7 +2,6 @@
 logLevel: INFO
 logFormat: tint
 profilerAddr: localhost:9999
-statisticsServerAddress: localhost:9005
 prometheusEndpoint: /metrics
 prometheusAddr: :2112
 tracing: true
@@ -45,7 +44,6 @@ metamorph:
   processorCacheExpiryTime: 24h
   processStatusUpdateInterval: 50ms
   checkUtxos: false
-  statsKeypress: false
   profilerAddr: localhost:9992
   healthServerDialAddr: localhost:8005
 

@@ -5,14 +5,9 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/ordishs/gocore"
 )
 
 func (p *PostgreSQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]*store.BlockGap, error) {
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("GetBlockGaps").AddTime(start)
-	}()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

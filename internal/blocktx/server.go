@@ -13,7 +13,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/ordishs/gocore"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -53,8 +52,6 @@ func (s *Server) StartGRPCServer(address string) error {
 	}
 
 	s.grpcServer = grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
-
-	gocore.SetAddress(address)
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {

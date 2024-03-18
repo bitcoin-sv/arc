@@ -186,7 +186,7 @@ func (b *RateBroadcaster) Payback() error {
 		}
 
 		if len(txs) == b.batchSize {
-			err = b.submitTxs(txs, metamorph_api.Status_SEEN_ON_NETWORK)
+			err = b.submitTxs(txs, metamorph_api.Status_SEEN_ON_NETWORK, false)
 			if err != nil {
 				return err
 			}
@@ -210,7 +210,7 @@ func (b *RateBroadcaster) Payback() error {
 	}
 
 	if len(txs) > 0 {
-		err = b.submitTxs(txs, metamorph_api.Status_SEEN_ON_NETWORK)
+		err = b.submitTxs(txs, metamorph_api.Status_SEEN_ON_NETWORK, false)
 		if err != nil {
 			return err
 		}
@@ -337,8 +337,8 @@ func (b *RateBroadcaster) splitToFundingKeyset(tx *bt.Tx, splitSatoshis uint64, 
 	return counter, nil
 }
 
-func (b *RateBroadcaster) submitTxs(txs []*bt.Tx, expectedStatus metamorph_api.Status) error {
-	resp, err := b.client.BroadcastTransactions(context.Background(), txs, expectedStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates)
+func (b *RateBroadcaster) submitTxs(txs []*bt.Tx, expectedStatus metamorph_api.Status, skipFeeValidation bool) error {
+	resp, err := b.client.BroadcastTransactions(context.Background(), txs, expectedStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, skipFeeValidation)
 	if err != nil {
 		return err
 	}
@@ -401,8 +401,8 @@ requestedOutputsLoop:
 
 		b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
 
-		txsBatches := make([][]*bt.Tx, 0)
-		txs := make([]*bt.Tx, 0)
+		txsSplitBatches := make([][]*bt.Tx, 0)
+		txsSplit := make([]*bt.Tx, 0)
 		outputs := len(utxoSet)
 
 		// prepare txs for splitting down utxos for next iteration
@@ -424,16 +424,23 @@ requestedOutputsLoop:
 
 			outputs += addedOutputs
 
-			txs = append(txs, tx)
+			txsSplit = append(txsSplit, tx)
 
-			if len(txs) == b.batchSize {
-				txsBatches = append(txsBatches, txs)
-				txs = make([]*bt.Tx, 0)
+			if len(txsSplit) == b.batchSize {
+				txsSplitBatches = append(txsSplitBatches, txsSplit)
+				txsSplit = make([]*bt.Tx, 0)
 			}
+		}
+
+		if len(txsSplit) > 0 {
+			txsSplitBatches = append(txsSplitBatches, txsSplit)
 		}
 
 		// prepare txs for consolidating utxos for next iteration
 		txSatoshis := uint64(0)
+		txsConsolidationBatches := make([][]*bt.Tx, 0)
+		txsConsolidation := make([]*bt.Tx, 0)
+
 		tx := bt.NewTx()
 		for _, utxo := range smaller {
 			if outputs >= requestedOutputs {
@@ -446,34 +453,44 @@ requestedOutputsLoop:
 			}
 
 			txSatoshis += utxo.Satoshis
-
-			if len(tx.Inputs) >= b.maxInputs || txSatoshis > requestedSatoshisPerOutput {
-
-				addedOutputs, err := b.consolidateToFundingKeyset(tx, txSatoshis, requestedSatoshisPerOutput)
+			if len(tx.Inputs) >= b.maxInputs {
+				err = tx.PayTo(b.fundingKeyset.Script, txSatoshis)
+				if err != nil {
+					return err
+				}
+				unlockerGetter := unlocker.Getter{PrivateKey: b.fundingKeyset.PrivateKey}
+				err = tx.FillAllInputs(context.Background(), &unlockerGetter)
 				if err != nil {
 					return err
 				}
 
-				outputs += addedOutputs
-
-				txs = append(txs, tx)
+				txsConsolidation = append(txsConsolidation, tx)
 
 				tx = bt.NewTx()
-				txSatoshis = 0
 			}
 
-			if len(txs) == b.batchSize {
-				txsBatches = append(txsBatches, txs)
-				txs = make([]*bt.Tx, 0)
+			if len(txsConsolidation) == b.batchSize {
+				txsConsolidationBatches = append(txsConsolidationBatches, txsSplit)
+				txsConsolidation = make([]*bt.Tx, 0)
 			}
 		}
 
-		if len(txs) > 0 {
-			txsBatches = append(txsBatches, txs)
+		if len(txsConsolidation) > 0 {
+			txsConsolidationBatches = append(txsConsolidationBatches, txsConsolidation)
 		}
 
-		for _, batch := range txsBatches {
-			err = b.submitTxs(batch, metamorph_api.Status_SEEN_ON_NETWORK)
+		for _, batch := range txsSplitBatches {
+			err = b.submitTxs(batch, metamorph_api.Status_SEEN_ON_NETWORK, false)
+			if err != nil {
+				return err
+			}
+
+			// do not performance test ARC when creating the utxos
+			time.Sleep(100 * time.Millisecond)
+		}
+
+		for _, batch := range txsConsolidationBatches {
+			err = b.submitTxs(batch, metamorph_api.Status_SEEN_ON_NETWORK, true)
 			if err != nil {
 				return err
 			}
@@ -731,7 +748,7 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos *list.List, satoshiMap map[s
 func (b *RateBroadcaster) sendTxsBatchAsync(txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error) {
 	go func() {
 
-		resp, err := b.client.BroadcastTransactions(context.Background(), txs, metamorph_api.Status_SEEN_ON_NETWORK, b.callbackURL, b.callbackToken, b.fullStatusUpdates)
+		resp, err := b.client.BroadcastTransactions(context.Background(), txs, metamorph_api.Status_SEEN_ON_NETWORK, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 		if err != nil {
 			errCh <- err
 		}

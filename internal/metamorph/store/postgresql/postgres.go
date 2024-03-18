@@ -466,13 +466,13 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 
 	tx, err := p.db.Begin()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	_, err = tx.Exec("LOCK TABLE metamorph.transactions IN EXCLUSIVE MODE")
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
-			panic(err)
+			return nil, err
 		}
 		return nil, err
 	}
@@ -480,7 +480,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_MINED)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
-			panic(err)
+			return nil, err
 		}
 		return nil, err
 	}
@@ -554,13 +554,13 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 `
 	tx, err := p.db.Begin()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	_, err = tx.Exec("LOCK TABLE metamorph.transactions IN EXCLUSIVE MODE")
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
-			panic(err)
+			return nil, err
 		}
 		return nil, err
 	}
@@ -568,7 +568,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 	rows, err := tx.QueryContext(ctx, qBulkUpdate, metamorph_api.Status_MINED, p.now(), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
-			panic(err)
+			return nil, err
 		}
 		return nil, err
 	}

@@ -275,7 +275,7 @@ The `broadcaster-cli` provides a set of functions which allow to interact with a
 
 The broadcaster-cli can be installed using the following command.
 ```
-go install github.com/bitcoin-sv/arc/cmd/broadcaster-cli
+go install github.com/bitcoin-sv/arc/cmd/broadcaster-cli@latest
 ```
 
 If the ARC repository is checked out it can also be installed from that local repository like this

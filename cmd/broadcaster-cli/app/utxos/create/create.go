@@ -11,7 +11,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
-	"github.com/bitcoin-sv/arc/internal/keyset"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
@@ -70,9 +69,6 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %v", err)
 		}
 
-		var fundingKeySet *keyset.KeySet
-		var receivingKeySet *keyset.KeySet
-
 		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey))
 
 		keyFiles := strings.Split(keyFile, ",")
@@ -90,7 +86,9 @@ var Cmd = &cobra.Command{
 			go func(keyfile string, waitGroup *sync.WaitGroup) {
 				defer waitGroup.Done()
 
-				fundingKeySet, receivingKeySet, err = helper.GetKeySetsKeyFile(keyfile)
+				time.Sleep(500 * time.Millisecond)
+
+				fundingKeySet, receivingKeySet, err := helper.GetKeySetsKeyFile(keyfile)
 				if err != nil {
 					logger.Error("failed to get key sets", slog.String("err", err.Error()))
 					return

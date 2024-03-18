@@ -678,16 +678,10 @@ func (b *RateBroadcaster) Shutdown() {
 func (b *RateBroadcaster) createSelfPayingTxs(utxos *list.List, satoshiMap map[string]uint64) ([]*bt.Tx, error) {
 	txs := make([]*bt.Tx, 0, b.batchSize)
 
-	counter := 0
 	var next *list.Element
 	for front := utxos.Front(); front != nil; front = next {
-		counter++
 		next = front.Next()
 		utxos.Remove(front)
-
-		if counter >= b.batchSize {
-			break
-		}
 
 		if next == nil {
 			return nil, errors.New("list of remaining utxos is empty")
@@ -725,6 +719,10 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos *list.List, satoshiMap map[s
 		satoshiMap[tx.TxID()] = tx.Outputs[0].Satoshis
 
 		txs = append(txs, tx)
+
+		if len(txs) >= b.batchSize {
+			break
+		}
 	}
 
 	return txs, nil

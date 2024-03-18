@@ -1,33 +1,47 @@
 package app
 
 import (
-	"fmt"
-	"log"
-
+	"errors"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/sys/unix"
+	"log"
 )
 
 var RootCmd = &cobra.Command{
 	Use:   "broadcaster",
-	Short: "cli tool to broadcast transactions to ARC",
+	Short: "CLI tool to broadcast transactions to ARC",
 }
 
 func init() {
 	var err error
-	cobra.OnInitialize(initConfig)
-
 	RootCmd.PersistentFlags().Bool("testnet", false, "Use testnet")
 	err = viper.BindPFlag("testnet", RootCmd.PersistentFlags().Lookup("testnet"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	RootCmd.PersistentFlags().String("keyfile", "", "private key from file (arc.key) to use for funding transactions")
+	RootCmd.PersistentFlags().String("keyfile", "", "Private key from file (arc.key) to use for funding transactions")
 	err = viper.BindPFlag("keyFile", RootCmd.PersistentFlags().Lookup("keyfile"))
 	if err != nil {
+		log.Fatal(err)
+	}
+
+	RootCmd.PersistentFlags().String("wocAPIKey", "", "Optional WhatsOnChain API key for allowing for higher request rates")
+	err = viper.BindPFlag("wocAPIKey", RootCmd.PersistentFlags().Lookup("wocAPIKey"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("./cmd/broadcaster-cli/")
+
+	viper.SetConfigName(".env")
+	viper.SetConfigType("env")
+	err = viper.ReadInConfig()
+	if err != nil && !errors.Is(err, unix.ENOENT) {
 		log.Fatal(err)
 	}
 
@@ -37,16 +51,4 @@ func init() {
 
 func Execute() error {
 	return RootCmd.Execute()
-}
-
-func initConfig() {
-
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	viper.AddConfigPath("../../")
-	err := viper.ReadInConfig()
-	if err != nil {
-		fmt.Printf("failed to read config file: %v\n", err)
-	}
 }

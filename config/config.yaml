@@ -1,0 +1,116 @@
+---
+logLevel: DEBUG # mode of logging. Value can be one of DEBUG | INFO | WARN | ERROR
+logFormat: text # format of logging. Value can be one of text | json | tint
+profilerAddr: localhost:9999 # address to start profiler server on
+statisticsServerAddress: localhost:9005 # address to start statistics server on
+prometheusEndpoint: /metrics # endpoint for prometheus metrics
+prometheusAddr: :2112 # port for serving prometheus metrics
+tracing: true # enable trancing
+grpcMessageSize: 100000000 # maximum grpc message size
+network: regtest # bitcoin network to connect to
+queueURL: nats://nats:4222
+
+peerRpc: # rpc configuration for bitcoin node
+  password: bitcoin
+  user: bitcoin
+  host: localhost
+  port: 18332
+
+peers: # list of bitcoin node peers to connect to
+  - host: localhost
+    port:
+      p2p: 18333
+      zmq: 28332
+  - host: localhost
+    port:
+      p2p: 18334
+  - host: localhost
+    port:
+      p2p: 18335
+
+metamorph:
+  listenAddr: localhost:8001 # address space for metamorph to listen on. Can be for example localhost:8001 or :8001 for listening on all addresses
+  dialAddr: localhost:8001 # address for other services to dial metamorph service
+  db:
+    mode: postgres # db mode inidicates which db to use. At the moment only postgres is offered
+    postgres: # postgres db configuration in case that mode: postgres
+      host: localhost
+      port: 5432
+      name: metamorph
+      user: arc
+      password: arc
+      maxIdleConns: 10 # maximum idle connections
+      maxOpenConns: 80 # maximum open connections
+      sslMode: disable
+    cleanData:
+      recordRetentionDays: 14 # number of days for which data is kept in the storage before it can be deleted
+      executionIntervalHours: 24
+  processorCacheExpiryTime: 24h # time after which processor cache is cleaned
+  processStatusUpdateInterval: 5s # interval of procesing status updates
+  checkUtxos: false # force check each utxo for validity. If enabled ARC connects to bitcoin node using rpc for each utxo
+  statsKeypress: false # enable stats keypress. If enabled pressing any key will print stats to stdout
+  profilerAddr: localhost:9992 # address to start profiler server on
+  blocktxTimeout: 1s # timeout for blocktx service
+  healthServerDialAddr: localhost:8005
+  loadUnminedPeriod: 2m
+  maxMonitoredTxs: 100000
+
+blocktx:
+  listenAddr: localhost:8011 # address space for blocktx to listen on. Can be for example localhost:8011 or :8011 for listening on all addresses
+  dialAddr: localhost:8011 # address for other services to dial blocktx service
+  healthServerDialAddr: localhost:8006
+  db:
+    mode: postgres # db mode indicates which db to use. At the moment only postgres is offered
+    postgres: # postgres db configuration in case that mode: postgres
+      host: localhost
+      port: 5432
+      name: blocktx
+      user: arc
+      password: arc
+      maxIdleConns: 10 # maximum idle connections
+      maxOpenConns: 80 # maximum open connections
+      sslMode: disable
+    cleanData:
+      recordRetentionDays: 14 # number of days for which data is kept in the storage before it can be deleted
+      executionIntervalHours: 24
+  profilerAddr: localhost:9993 # address to start profiler server on
+  registerTxsInterval: 10s # time interval to read from the channel registered transactions
+  mq:
+    txsMinedMaxBatchSize: 20 # size of batches for transactions which got mined to be published to the message queue
+
+api:
+  address: localhost:9090 # address to start api server on
+  wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX" # api key for www.whatsonchain.com
+  defaultPolicy: # default policy of bitcoin node
+    excessiveblocksize: 2000000000
+    blockmaxsize: 512000000
+    maxtxsizepolicy: 100000000
+    maxorphantxsize: 1000000000
+    datacarriersize: 4294967295
+    maxscriptsizepolicy: 100000000
+    maxopsperscriptpolicy: 4294967295
+    maxscriptnumlengthpolicy: 10000
+    maxpubkeyspermultisigpolicy: 4294967295
+    maxtxsigopscountspolicy: 4294967295
+    maxstackmemoryusagepolicy: 100000000
+    maxstackmemoryusageconsensus: 200000000
+    limitancestorcount: 10000
+    limitcpfpgroupmemberscount: 25
+    maxmempool: 2000000000
+    maxmempoolsizedisk: 0
+    mempoolmaxpercentcpfp: 10
+    acceptnonstdoutputs: true
+    datacarrier: true
+    minminingtxfee: 1e-8
+    maxstdtxvalidationduration: 3
+    maxnonstdtxvalidationduration: 1000
+    maxtxchainvalidationbudget: 50
+    validationclockcpu: true
+    minconsolidationfactor: 20
+    maxconsolidationinputscriptsize: 150
+    minconfconsolidationinput: 6
+    minconsolidationinputmaturity: 6
+    acceptnonstdconsolidationinput: false
+
+k8sWatcher:
+  namespace: arc-testnet

@@ -10,14 +10,13 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/bitcoin-sv/arc/api"
-	"github.com/bitcoin-sv/arc/metamorph"
-	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/validator"
-	defaultValidator "github.com/bitcoin-sv/arc/validator/default"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/validator"
+	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/opentracing/opentracing-go"
@@ -508,7 +507,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		return statusCode, []interface{}{arcError}, err
 	}
 
-	m.logger.Info("Starting to process ", strconv.Itoa(len(transactions)), " transactions")
+	m.logger.Info(fmt.Sprintf("Starting to process %d transactions", len(transactions)))
 
 	// validate before submitting array of transactions to metamorph
 	transactionsInput := make([][]byte, 0, len(transactions))

@@ -76,7 +76,7 @@ services:
       ]
     command: [ "up" ]
     volumes:
-      - ../blocktx/store/postgresql/migrations:/migrations
+      - ../internal/blocktx/store/postgresql/migrations:/migrations
     depends_on:
       db:
         condition: service_healthy
@@ -95,7 +95,7 @@ services:
       ]
     command: [ "up" ]
     volumes:
-      - ../metamorph/store/postgresql/migrations:/migrations
+      - ../internal/metamorph/store/postgresql/migrations:/migrations
     depends_on:
       db:
         condition: service_healthy
@@ -116,7 +116,6 @@ services:
     expose:
       - "8011"
     volumes:
-      - ./data:/data
       - ./config/config.yaml:/service/config.yaml
     command: [ "./arc", "-blocktx=true" ]
     depends_on:
@@ -138,7 +137,6 @@ services:
       - "8001"
     command: [ "./arc", "-metamorph=true" ]
     volumes:
-      - ./data:/data
       - ./config/config.yaml:/service/config.yaml
     depends_on:
       - arc-blocktx
@@ -158,7 +156,6 @@ services:
       - "9090"
     command: [ "./arc", "-api=true" ]
     volumes:
-      - ./data:/data
       - ./config/config.yaml:/service/config.yaml
     depends_on:
       - arc-metamorph

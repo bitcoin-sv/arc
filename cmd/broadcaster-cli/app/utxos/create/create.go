@@ -5,11 +5,15 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"strings"
+	"sync"
+	"time"
 
-	"github.com/bitcoin-sv/arc/broadcaster"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
-	"github.com/bitcoin-sv/arc/lib/keyset"
-	"github.com/bitcoin-sv/arc/lib/woc_client"
+	"github.com/bitcoin-sv/arc/internal/broadcaster"
+	"github.com/bitcoin-sv/arc/internal/keyset"
+	"github.com/bitcoin-sv/arc/internal/woc_client"
+	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -21,18 +25,47 @@ var Cmd = &cobra.Command{
 		outputs := viper.GetInt("outputs")
 		satoshisPerOutput := viper.GetUint64("satoshis")
 
-		isTestnet := viper.GetBool("testnet")
-		callbackURL := viper.GetString("callback")
-		authorization := viper.GetString("authorization")
-		keyFile := viper.GetString("keyFile")
-		miningFeeSat := viper.GetInt("broadcaster.miningFeeSatPerKb")
+		isTestnet, err := helper.GetBool("testnet")
+		if err != nil {
+			return err
+		}
+		callbackURL, err := helper.GetString("callback")
+		if err != nil {
+			return err
+		}
+		callbackToken, err := helper.GetString("callbackToken")
+		if err != nil {
+			return err
+		}
+		authorization, err := helper.GetString("authorization")
+		if err != nil {
+			return err
+		}
+		keyFile, err := helper.GetString("keyFile")
+		if err != nil {
+			return err
+		}
+		miningFeeSat, err := helper.GetInt("miningFeeSatPerKb")
+		if err != nil {
+			return err
+		}
+		arcServer, err := helper.GetString("apiURL")
+		if err != nil {
+			return err
+		}
+		wocApiKey, err := helper.GetString("wocAPIKey")
+		if err != nil {
+			return err
+		}
 
-		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
 
-		var client broadcaster.ArcClient
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
-		}, false, true)
+		}, arcServer)
+		if err != nil {
+			return fmt.Errorf("failed to create client: %v", err)
+		}
 		if err != nil {
 			return fmt.Errorf("failed to create client: %v", err)
 		}
@@ -40,23 +73,45 @@ var Cmd = &cobra.Command{
 		var fundingKeySet *keyset.KeySet
 		var receivingKeySet *keyset.KeySet
 
-		fundingKeySet, receivingKeySet, err = helper.GetKeySetsKeyFile(keyFile)
-		if err != nil {
-			return fmt.Errorf("failed to get key sets: %v", err)
+		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey))
+
+		keyFiles := strings.Split(keyFile, ",")
+
+		wg := &sync.WaitGroup{}
+
+		for _, kf := range keyFiles {
+
+			if wocApiKey == "" {
+				time.Sleep(1 * time.Second)
+			}
+
+			wg.Add(1)
+
+			go func(keyfile string, waitGroup *sync.WaitGroup) {
+				defer waitGroup.Done()
+
+				fundingKeySet, receivingKeySet, err = helper.GetKeySetsKeyFile(keyfile)
+				if err != nil {
+					logger.Error("failed to get key sets", slog.String("err", err.Error()))
+					return
+				}
+
+				rateBroadcaster, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, wocClient,
+					broadcaster.WithFees(miningFeeSat),
+					broadcaster.WithIsTestnet(isTestnet),
+					broadcaster.WithCallback(callbackURL, callbackToken),
+				)
+
+				err = rateBroadcaster.CreateUtxos(outputs, satoshisPerOutput)
+				if err != nil {
+					logger.Error("failed to create utxos", slog.String("address", fundingKeySet.Address(!isTestnet)), slog.String("err", err.Error()))
+					return
+				}
+			}(kf, wg)
 		}
 
-		wocClient := woc_client.New()
+		wg.Wait()
 
-		preparer, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
-			broadcaster.WithFees(miningFeeSat),
-			broadcaster.WithIsTestnet(isTestnet),
-			broadcaster.WithCallbackURL(callbackURL),
-		)
-
-		err = preparer.CreateUtxos(outputs, satoshisPerOutput)
-		if err != nil {
-			return fmt.Errorf("failed to create utxos: %v", err)
-		}
 		return nil
 	},
 }

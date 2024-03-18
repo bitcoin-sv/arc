@@ -22,7 +22,7 @@ clean_e2e_tests:
 .PHONY: build_release
 build_release:
 	mkdir -p build
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -o build/arc_linux_amd64 ./main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -o build/arc_linux_amd64 ./init/main.go
 
 .PHONY: build_docker
 build_docker:
@@ -30,10 +30,11 @@ build_docker:
 
 .PHONY: run_e2e_tests
 run_e2e_tests:
-	cd ./test && docker-compose down
-	cd ./test && docker-compose up -d node1 node2 node3 db migrate-blocktx migrate-metamorph
-	cd ./test && docker-compose up --exit-code-from tests tests arc-blocktx arc-metamorph arc --scale arc-blocktx=5 --scale arc-metamorph=2
-	cd ./test && docker-compose down
+	docker-compose -f test/docker-compose.yml down
+	docker-compose -f test/docker-compose.yml up -d node1 node2 node3 db
+	docker-compose -f test/docker-compose.yml up --abort-on-container-exit migrate-blocktx migrate-metamorph
+	docker-compose -f test/docker-compose.yml up --exit-code-from tests tests arc-blocktx arc-metamorph arc --scale arc-blocktx=7 --scale arc-metamorph=2
+	docker-compose -f test/docker-compose.yml down
 
 .PHONY: test
 test:
@@ -45,7 +46,7 @@ install_lint:
 
 .PHONY: lint
 lint:
-	golangci-lint run -v ./...
+	golangci-lint run --config=config/.golangci.yml -v ./...
 	staticcheck ./...
 
 .PHONY: gen_go
@@ -60,7 +61,7 @@ gen:
 	--go_opt=paths=source_relative \
 	--go-grpc_out=. \
 	--go-grpc_opt=paths=source_relative \
-	metamorph/metamorph_api/metamorph_api.proto
+	internal/metamorph/metamorph_api/metamorph_api.proto
 
 	protoc \
 	--proto_path=. \
@@ -68,13 +69,13 @@ gen:
 	--go_opt=paths=source_relative \
 	--go-grpc_out=. \
 	--go-grpc_opt=paths=source_relative \
-	blocktx/blocktx_api/blocktx_api.proto
+	internal/blocktx/blocktx_api/blocktx_api.proto
 
 .PHONY: clean_gen
 clean_gen:
-	rm -f ./metamorph/metamorph_api/*.pb.go
-	rm -f ./blocktx/blocktx_api/*.pb.go
-	rm -f ./callbacker/callbacker_api/*.pb.go
+	rm -f ./internal/metamorph/metamorph_api/*.pb.go
+	rm -f ./internal/blocktx/blocktx_api/*.pb.go
+	rm -f ./internal/callbacker/callbacker_api/*.pb.go
 
 .PHONY: coverage
 coverage:
@@ -90,7 +91,6 @@ install_coverage:
 
 .PHONY: clean
 clean:
-	rm -f ./arc_*.tar.gz
 	rm -rf build/
 
 .PHONY: install
@@ -108,7 +108,7 @@ install_gen:
 
 .PHONY: docs
 docs:
-	sh generate_docs.sh
+	sh scripts/generate_docs.sh
 
 gh-pages:
 	git push --force origin `git subtree split --prefix doc master`:gh-pages

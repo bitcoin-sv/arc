@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/bitcoin-sv/arc/api"
 	"github.com/bitcoin-sv/arc/metamorph/metamorph_api"
@@ -62,6 +63,8 @@ func TestDoubleSpend(t *testing.T) {
 			postTxChecksStatus(t, arcClient, txMempool, metamorph_api.Status_REJECTED, tc.extFormat)
 
 			generate(t, 10)
+
+			time.Sleep(15 * time.Second) // give ARC time to perform the status update on DB
 
 			ctx := context.Background()
 			var statusResponse *api.GETTransactionStatusResponse

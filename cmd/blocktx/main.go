@@ -10,8 +10,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/bitcoin-sv/arc/cmd"
-	cfg "github.com/bitcoin-sv/arc/config"
+	cmd "github.com/bitcoin-sv/arc/cmd/starters"
+	cfg "github.com/bitcoin-sv/arc/internal/helpers"
 	_ "github.com/lib/pq"
 	"github.com/spf13/viper"
 )
@@ -32,7 +32,7 @@ func main() {
 }
 
 func run() error {
-	viper.SetConfigName("config")
+	viper.SetConfigName("config/config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("../../")
 	err := viper.ReadInConfig()

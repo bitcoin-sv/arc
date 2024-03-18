@@ -2,49 +2,23 @@ package helper
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 
-	"github.com/bitcoin-sv/arc/broadcaster"
-	"github.com/bitcoin-sv/arc/lib/keyset"
+	"github.com/bitcoin-sv/arc/internal/broadcaster"
+	"github.com/bitcoin-sv/arc/internal/keyset"
 	"github.com/spf13/viper"
 )
 
-func CreateClient(auth *broadcaster.Auth, isDryRun bool, isAPIClient bool) (broadcaster.ArcClient, error) {
-	var client broadcaster.ArcClient
-	var err error
-	if isDryRun {
-		client = broadcaster.NewDryRunClient()
-	} else if isAPIClient {
-
-		arcServer := viper.GetString("api-url")
-		if arcServer == "" {
-			arcServer = viper.GetString("broadcaster.apiURL")
-			if arcServer == "" {
-				return nil, errors.New("arcUrl not found in config")
-			}
-		}
-
-		arcServerUrl, err := url.Parse(arcServer)
-		if err != nil {
-			return nil, errors.New("arcUrl is not a valid url")
-		}
-
-		// create a http connection to the arc node
-		client = broadcaster.NewHTTPBroadcaster(arcServerUrl.String(), auth)
-	} else {
-		addresses := viper.GetString("metamorph.dialAddr")
-		if addresses == "" {
-			return nil, errors.New("metamorph.dialAddr not found in config")
-		}
-		client, err = broadcaster.NewMetamorphBroadcaster(addresses)
-		if err != nil {
-			return nil, err
-		}
+func CreateClient(auth *broadcaster.Auth, arcServer string) (broadcaster.ArcClient, error) {
+	arcServerUrl, err := url.Parse(arcServer)
+	if err != nil {
+		return nil, errors.New("arcUrl is not a valid url")
 	}
-
-	return client, nil
+	return broadcaster.NewHTTPBroadcaster(arcServerUrl.String(), auth), nil
 }
 
 func GetKeySetsKeyFile(keyFile string) (fundingKeySet *keyset.KeySet, receivingKeySet *keyset.KeySet, err error) {
@@ -52,7 +26,7 @@ func GetKeySetsKeyFile(keyFile string) (fundingKeySet *keyset.KeySet, receivingK
 	extendedBytes, err = os.ReadFile(keyFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil, errors.New("arc.key not found. Please create this file with the xpriv you want to use")
+			return nil, nil, fmt.Errorf("key file %s not found. Please create this file with the xpriv you want to use", keyFile)
 		}
 		return nil, nil, err
 	}
@@ -75,12 +49,73 @@ func GetKeySetsXpriv(xpriv string) (fundingKeySet *keyset.KeySet, receivingKeySe
 	return fundingKeySet, receivingKeySet, err
 }
 
-func GetNewKeySets() (fundingKeySet *keyset.KeySet, receivingKeySet *keyset.KeySet, err error) {
-	fundingKeySet, err = keyset.New()
-	if err != nil {
-		return nil, nil, err
-	}
-	receivingKeySet = fundingKeySet
+func GetString(settingName string) (string, error) {
 
-	return fundingKeySet, receivingKeySet, err
+	setting := viper.GetString(settingName)
+	if setting != "" {
+		return setting, nil
+	}
+
+	var result map[string]interface{}
+	err := viper.Unmarshal(&result)
+	if err != nil {
+		return "", err
+	}
+
+	value, ok := result[strings.ToLower(settingName)].(string)
+	if !ok {
+		return "", nil
+	}
+
+	return value, nil
+}
+
+func GetInt(settingName string) (int, error) {
+
+	setting := viper.GetInt(settingName)
+	if setting != 0 {
+		return setting, nil
+	}
+
+	var result map[string]interface{}
+
+	err := viper.Unmarshal(&result)
+	if err != nil {
+		return 0, err
+	}
+
+	value, ok := result[settingName].(int)
+
+	if !ok {
+		return 0, nil
+	}
+
+	return value, nil
+}
+
+func GetBool(settingName string) (bool, error) {
+
+	setting := viper.GetBool(settingName)
+	if setting {
+		return true, nil
+	}
+
+	var result map[string]interface{}
+
+	err := viper.Unmarshal(&result)
+	if err != nil {
+		return false, err
+	}
+
+	valueString, ok := result[settingName].(string)
+	if !ok {
+		return false, nil
+	}
+
+	boolValue, err := strconv.ParseBool(valueString)
+	if err != nil {
+		return false, err
+	}
+
+	return boolValue, nil
 }

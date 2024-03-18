@@ -8,6 +8,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/broadcast"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/create"
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/dist"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/payback"
 )
 
@@ -19,8 +20,8 @@ var Cmd = &cobra.Command{
 func init() {
 	var err error
 
-	Cmd.PersistentFlags().String("api-url", "", "Send all funds from receiving key set to funding key set")
-	err = viper.BindPFlag("api-url", Cmd.PersistentFlags().Lookup("api-url"))
+	Cmd.PersistentFlags().String("apiURL", "", "Send all funds from receiving key set to funding key set")
+	err = viper.BindPFlag("apiURL", Cmd.PersistentFlags().Lookup("apiURL"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -37,7 +38,14 @@ func init() {
 		log.Fatal(err)
 	}
 
+	Cmd.PersistentFlags().String("callbackToken", "", "Token used as authentication header to be sent with ARC callbacks")
+	err = viper.BindPFlag("callbackToken", Cmd.PersistentFlags().Lookup("callbackToken"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	Cmd.AddCommand(payback.Cmd)
 	Cmd.AddCommand(create.Cmd)
 	Cmd.AddCommand(broadcast.Cmd)
+	Cmd.AddCommand(dist.Cmd)
 }

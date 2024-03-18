@@ -5,12 +5,11 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/bitcoin-sv/arc/broadcaster"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
-	"github.com/bitcoin-sv/arc/lib/keyset"
-	"github.com/bitcoin-sv/arc/lib/woc_client"
+	"github.com/bitcoin-sv/arc/internal/broadcaster"
+	"github.com/bitcoin-sv/arc/internal/woc_client"
+	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var Cmd = &cobra.Command{
@@ -18,37 +17,58 @@ var Cmd = &cobra.Command{
 	Short: "Pay all funds from receiving key set to funding keyset",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		isTestnet := viper.GetBool("testnet")
-		callbackURL := viper.GetString("callback")
-		authorization := viper.GetString("authorization")
-		keyFile := viper.GetString("keyFile")
+		isTestnet, err := helper.GetBool("testnet")
+		if err != nil {
+			return err
+		}
+		callbackURL, err := helper.GetString("callback")
+		if err != nil {
+			return err
+		}
+		callbackToken, err := helper.GetString("callbackToken")
+		if err != nil {
+			return err
+		}
+		authorization, err := helper.GetString("authorization")
+		if err != nil {
+			return err
+		}
+		keyFile, err := helper.GetString("keyFile")
+		if err != nil {
+			return err
+		}
+		miningFeeSat, err := helper.GetInt("miningFeeSatPerKb")
+		if err != nil {
+			return err
+		}
+		arcServer, err := helper.GetString("apiURL")
+		if err != nil {
+			return err
+		}
+		wocApiKey, err := helper.GetString("wocAPIKey")
+		if err != nil {
+			return err
+		}
+		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
 
-		miningFeeSat := viper.GetInt("broadcaster.miningFeeSatPerKb")
-
-		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-
-		var client broadcaster.ArcClient
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
-		}, false, true)
+		}, arcServer)
 		if err != nil {
 			return fmt.Errorf("failed to create client: %v", err)
 		}
 
-		var fundingKeySet *keyset.KeySet
-		var receivingKeySet *keyset.KeySet
-
-		fundingKeySet, receivingKeySet, err = helper.GetKeySetsKeyFile(keyFile)
+		fundingKeySet, receivingKeySet, err := helper.GetKeySetsKeyFile(keyFile)
 		if err != nil {
 			return fmt.Errorf("failed to get key sets: %v", err)
 		}
 
-		wocClient := woc_client.New()
+		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey))
 
-		preparer, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, &wocClient,
+		preparer, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, wocClient,
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithIsTestnet(isTestnet),
-			broadcaster.WithCallbackURL(callbackURL),
+			broadcaster.WithCallback(callbackURL, callbackToken),
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create rate broadcaster: %v", err)

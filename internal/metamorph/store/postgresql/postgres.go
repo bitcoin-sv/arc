@@ -464,38 +464,12 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		;
     `
 
-	tx, err := p.db.Begin()
+	rows, err := p.db.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_MINED)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = tx.Exec("LOCK TABLE metamorph.transactions IN EXCLUSIVE MODE")
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			return nil, err
-		}
-		return nil, err
-	}
-
-	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_MINED)
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			return nil, err
-		}
-		return nil, err
-	}
-
-	res, err := p.getStoreDataFromRows(rows)
-	if err != nil {
-		return res, err
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
+	return p.getStoreDataFromRows(rows)
 }
 
 func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
@@ -552,38 +526,13 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 		,t.retries
 		;
 `
-	tx, err := p.db.Begin()
+
+	rows, err := p.db.QueryContext(ctx, qBulkUpdate, metamorph_api.Status_MINED, p.now(), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = tx.Exec("LOCK TABLE metamorph.transactions IN EXCLUSIVE MODE")
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			return nil, err
-		}
-		return nil, err
-	}
-
-	rows, err := tx.QueryContext(ctx, qBulkUpdate, metamorph_api.Status_MINED, p.now(), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			return nil, err
-		}
-		return nil, err
-	}
-
-	res, err := p.getStoreDataFromRows(rows)
-	if err != nil {
-		return res, err
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
+	return p.getStoreDataFromRows(rows)
 }
 
 func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {

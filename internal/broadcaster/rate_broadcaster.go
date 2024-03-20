@@ -490,7 +490,6 @@ requestedOutputsLoop:
 
 		utxoSet = make([]*bt.UTXO, 0, requestedOutputs)
 		greater := make([]*bt.UTXO, 0)
-		smaller := make([]*bt.UTXO, 0)
 
 		utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
 		if err != nil {
@@ -512,23 +511,12 @@ requestedOutputsLoop:
 			if utxo.Satoshis > requestedSatoshisPerOutput {
 				greater = append(greater, utxo)
 			}
-
-			// collect utxos which are smaller than requested
-			if utxo.Satoshis < requestedSatoshisPerOutput {
-				smaller = append(smaller, utxo)
-			}
 		}
 
 		b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
 
 		// create splitting txs
 		txsSplitBatches, err := b.splitOutputs(requestedOutputs, requestedSatoshisPerOutput, utxoSet, greater)
-		if err != nil {
-			return err
-		}
-
-		// create consolidating txs
-		txsConsolidationBatches, err := b.consolidateOutputs(smaller)
 		if err != nil {
 			return err
 		}
@@ -542,62 +530,11 @@ requestedOutputsLoop:
 			// do not performance test ARC when creating the utxos
 			time.Sleep(100 * time.Millisecond)
 		}
-
-		for _, batch := range txsConsolidationBatches {
-			err = b.submitTxs(batch, metamorph_api.Status_SEEN_ON_NETWORK, true)
-			if err != nil {
-				return err
-			}
-
-			// do not performance test ARC when creating the utxos
-			time.Sleep(100 * time.Millisecond)
-		}
 	}
 
 	b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
 
 	return nil
-}
-
-func (b *RateBroadcaster) consolidateOutputs(smaller []*bt.UTXO) ([][]*bt.Tx, error) {
-	txSatoshis := uint64(0)
-	txsConsolidationBatches := make([][]*bt.Tx, 0)
-	txsConsolidation := make([]*bt.Tx, 0)
-	var err error
-	tx := bt.NewTx()
-	for _, utxo := range smaller {
-		err = tx.FromUTXOs(utxo)
-		if err != nil {
-			return nil, err
-		}
-
-		txSatoshis += utxo.Satoshis
-		if len(tx.Inputs) >= b.maxInputs {
-			err = tx.PayTo(b.fundingKeyset.Script, txSatoshis)
-			if err != nil {
-				return nil, err
-			}
-			unlockerGetter := unlocker.Getter{PrivateKey: b.fundingKeyset.PrivateKey}
-			err = tx.FillAllInputs(context.Background(), &unlockerGetter)
-			if err != nil {
-				return nil, err
-			}
-
-			txsConsolidation = append(txsConsolidation, tx)
-
-			tx = bt.NewTx()
-		}
-
-		if len(txsConsolidation) == b.batchSize {
-			txsConsolidationBatches = append(txsConsolidationBatches, txsConsolidation)
-			txsConsolidation = make([]*bt.Tx, 0)
-		}
-	}
-
-	if len(txsConsolidation) > 0 {
-		txsConsolidationBatches = append(txsConsolidationBatches, txsConsolidation)
-	}
-	return txsConsolidationBatches, nil
 }
 
 func (b *RateBroadcaster) splitOutputs(requestedOutputs int, requestedSatoshisPerOutput uint64, utxoSet []*bt.UTXO, greater []*bt.UTXO) ([][]*bt.Tx, error) {

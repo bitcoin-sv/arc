@@ -1,6 +1,7 @@
 package utxos
 
 import (
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/consolidate"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -54,4 +55,5 @@ func init() {
 	Cmd.AddCommand(create.Cmd)
 	Cmd.AddCommand(broadcast.Cmd)
 	Cmd.AddCommand(dist.Cmd)
+	Cmd.AddCommand(consolidate.Cmd)
 }

@@ -314,6 +314,162 @@ func (b *RateBroadcaster) submitTxs(txs []*bt.Tx, expectedStatus metamorph_api.S
 	return nil
 }
 
+func (b *RateBroadcaster) createConsolidationTxs(utxos *list.List, satoshiMap map[string]uint64) ([][]*bt.Tx, error) {
+	tx := bt.NewTx()
+	txSatoshis := uint64(0)
+	txsConsolidationBatches := make([][]*bt.Tx, 0)
+	txsConsolidation := make([]*bt.Tx, 0)
+	const consolidateBatchSize = 20
+
+	var next *list.Element
+	for front := utxos.Front(); front != nil; front = next {
+		next = front.Next()
+
+		utxos.Remove(front)
+
+		utxo, ok := front.Value.(*bt.UTXO)
+		if !ok {
+			return nil, errors.New("failed to parse value to utxo")
+		}
+
+		txSatoshis += utxo.Satoshis
+		if next == nil {
+			if len(tx.Inputs) > 0 {
+				err := tx.FromUTXOs(utxo)
+				if err != nil {
+					return nil, err
+				}
+
+				err = tx.PayTo(b.fundingKeyset.Script, txSatoshis)
+				if err != nil {
+					return nil, err
+				}
+				unlockerGetter := unlocker.Getter{PrivateKey: b.fundingKeyset.PrivateKey}
+				err = tx.FillAllInputs(context.Background(), &unlockerGetter)
+				if err != nil {
+					return nil, err
+				}
+
+				txsConsolidation = append(txsConsolidation, tx)
+				satoshiMap[tx.TxID()] = txSatoshis
+			}
+
+			if len(txsConsolidation) > 0 {
+				txsConsolidationBatches = append(txsConsolidationBatches, txsConsolidation)
+			}
+			break
+		}
+
+		err := tx.FromUTXOs(utxo)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(tx.Inputs) >= b.maxInputs {
+			err = tx.PayTo(b.fundingKeyset.Script, txSatoshis)
+			if err != nil {
+				return nil, err
+			}
+			unlockerGetter := unlocker.Getter{PrivateKey: b.fundingKeyset.PrivateKey}
+			err = tx.FillAllInputs(context.Background(), &unlockerGetter)
+			if err != nil {
+				return nil, err
+			}
+
+			txsConsolidation = append(txsConsolidation, tx)
+
+			fmt.Println(tx.String())
+
+			satoshiMap[tx.TxID()] = txSatoshis
+			tx = bt.NewTx()
+			txSatoshis = 0
+		}
+
+		if len(txsConsolidation) >= consolidateBatchSize {
+			txsConsolidationBatches = append(txsConsolidationBatches, txsConsolidation)
+			txsConsolidation = make([]*bt.Tx, 0)
+		}
+	}
+
+	return txsConsolidationBatches, nil
+}
+
+func (b *RateBroadcaster) Consolidate() error {
+	utxoSet, err := b.utxoClient.GetUTXOsList(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
+	if err != nil {
+		return fmt.Errorf("failed to get utxos: %v", err)
+	}
+
+	if utxoSet.Len() == 1 {
+		b.logger.Info("utxos already consolidated")
+		return nil
+	}
+
+	submitBatchTicker := time.NewTicker(5 * time.Second)
+
+	responseCh := make(chan *metamorph_api.TransactionStatus, 200000)
+	errCh := make(chan error, 100)
+
+	satoshiMap := map[string]uint64{}
+
+outerLoop:
+	for {
+		select {
+		case <-submitBatchTicker.C:
+
+			b.logger.Info("consolidating outputs", slog.Int("outputs", utxoSet.Len()))
+
+			consolidationTxsBatches, err := b.createConsolidationTxs(utxoSet, satoshiMap)
+			if err != nil {
+				return fmt.Errorf("failed to create consolidation txs: %v", err)
+			}
+
+			if len(consolidationTxsBatches) == 0 {
+				b.logger.Info("finished consolidation")
+				break outerLoop
+			}
+
+			for _, batch := range consolidationTxsBatches {
+				b.sendTxsBatchAsync(batch, responseCh, errCh, true)
+				time.Sleep(200 * time.Millisecond)
+			}
+
+		case responseErr := <-errCh:
+			b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
+
+		case res := <-responseCh:
+
+			if res.Status == metamorph_api.Status_REJECTED || res.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
+				bytes, err := json.Marshal(res)
+				if err != nil {
+					b.logger.Error("failed to decode res", slog.String("err", err.Error()))
+				}
+
+				return fmt.Errorf("consolidation tx was not successful: %s", string(bytes))
+			}
+
+			txIDBytes, err := hex.DecodeString(res.Txid)
+			if err != nil {
+				b.logger.Error("failed to decode txid", slog.String("err", err.Error()))
+				continue
+			}
+
+			newUtxo := &bt.UTXO{
+				TxID:          txIDBytes,
+				Vout:          0,
+				LockingScript: b.fundingKeyset.Script,
+				Satoshis:      satoshiMap[res.Txid],
+			}
+
+			delete(satoshiMap, res.Txid)
+
+			utxoSet.PushBack(newUtxo)
+		}
+	}
+
+	return nil
+}
+
 func (b *RateBroadcaster) CreateUtxos(requestedOutputs int, requestedSatoshisPerOutput uint64) error {
 
 	requestedOutputsSatoshis := int64(requestedOutputs) * int64(requestedSatoshisPerOutput)
@@ -559,7 +715,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int, 
 					continue
 				}
 
-				b.sendTxsBatchAsync(txs, responseCh, errCh)
+				b.sendTxsBatchAsync(txs, responseCh, errCh, false)
 
 			case responseErr := <-errCh:
 				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
@@ -721,10 +877,9 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos *list.List, satoshiMap map[s
 	return txs, nil
 }
 
-func (b *RateBroadcaster) sendTxsBatchAsync(txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error) {
+func (b *RateBroadcaster) sendTxsBatchAsync(txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error, skipFeeValidation bool) {
 	go func() {
-
-		resp, err := b.client.BroadcastTransactions(context.Background(), txs, metamorph_api.Status_SEEN_ON_NETWORK, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
+		resp, err := b.client.BroadcastTransactions(context.Background(), txs, metamorph_api.Status_SEEN_ON_NETWORK, b.callbackURL, b.callbackToken, b.fullStatusUpdates, skipFeeValidation)
 		if err != nil {
 			errCh <- err
 		}

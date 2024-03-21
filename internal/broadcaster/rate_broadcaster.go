@@ -671,6 +671,8 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int, 
 					continue
 				}
 
+				totalTxs += len(txs)
+
 				b.sendTxsBatchAsync(txs, responseCh, errCh, false, metamorph_api.Status_STORED)
 
 			case responseErr := <-errCh:
@@ -704,8 +706,6 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int, 
 
 				resultsMap[res.Status]++
 				counter++
-
-				totalTxs += 1
 
 				if limit > 0 && totalTxs >= limit {
 					b.logger.Info("limit reached", slog.Int("total", totalTxs), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))

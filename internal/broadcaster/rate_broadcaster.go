@@ -379,8 +379,6 @@ func (b *RateBroadcaster) createConsolidationTxs(utxos *list.List, satoshiMap ma
 
 			txsConsolidation = append(txsConsolidation, tx)
 
-			fmt.Println(tx.String())
-
 			satoshiMap[tx.TxID()] = txSatoshis
 			tx = bt.NewTx()
 			txSatoshis = 0
@@ -396,6 +394,14 @@ func (b *RateBroadcaster) createConsolidationTxs(utxos *list.List, satoshiMap ma
 }
 
 func (b *RateBroadcaster) Consolidate() error {
+	_, unconfirmed, err := b.utxoClient.GetBalance(!b.isTestnet, b.fundingKeyset.Address(!b.isTestnet))
+	if err != nil {
+		return err
+	}
+	if math.Abs(float64(unconfirmed)) > 0 {
+		return fmt.Errorf("key with address %s balance has unconfirmed amount %d sat", b.fundingKeyset.Address(!b.isTestnet), unconfirmed)
+	}
+
 	utxoSet, err := b.utxoClient.GetUTXOsList(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
 	if err != nil {
 		return fmt.Errorf("failed to get utxos: %v", err)
@@ -590,8 +596,8 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int, 
 	if err != nil {
 		return err
 	}
-	if unconfirmed > 0 {
-		return fmt.Errorf("key balance has unconfirmed amount %d sat", unconfirmed)
+	if math.Abs(float64(unconfirmed)) > 0 {
+		return fmt.Errorf("key with address %s balance has unconfirmed amount %d sat", b.fundingKeyset.Address(!b.isTestnet), unconfirmed)
 	}
 
 	utxoSet, err := b.utxoClient.GetUTXOsList(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))

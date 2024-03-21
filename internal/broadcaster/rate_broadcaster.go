@@ -327,65 +327,53 @@ func (b *RateBroadcaster) Consolidate(ctx context.Context) error {
 		return nil
 	}
 
-	submitBatchTicker := time.NewTicker(20 * time.Second)
-
-	responseCh := make(chan *metamorph_api.TransactionStatus, 200000)
-	errCh := make(chan error, 100)
-
 	satoshiMap := map[string]uint64{}
+	b.logger.Info("consolidating outputs", slog.Int("outputs", utxoSet.Len()))
+	consolidationTxsBatches, err := b.createConsolidationTxs(utxoSet, satoshiMap)
+	if err != nil {
+		return fmt.Errorf("failed to create consolidation txs: %v", err)
+	}
 
-outerLoop:
-	for {
-		select {
-		case <-submitBatchTicker.C:
+	for len(consolidationTxsBatches) > 0 {
 
-			b.logger.Info("consolidating outputs", slog.Int("outputs", utxoSet.Len()))
+		b.logger.Info("consolidating outputs", slog.Int("outputs", utxoSet.Len()))
 
-			consolidationTxsBatches, err := b.createConsolidationTxs(utxoSet, satoshiMap)
+		for _, batch := range consolidationTxsBatches {
+			time.Sleep(1000 * time.Millisecond) // do not performance test ARC
+			resp, err := b.client.BroadcastTransactions(context.Background(), batch, metamorph_api.Status_SEEN_ON_NETWORK, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 			if err != nil {
-				return fmt.Errorf("failed to create consolidation txs: %v", err)
+				return fmt.Errorf("failed to broadcast consolidation txs: %v", err)
 			}
 
-			if len(consolidationTxsBatches) == 0 {
-				b.logger.Info("finished consolidation")
-				break outerLoop
-			}
-
-			for _, batch := range consolidationTxsBatches {
-				b.sendTxsBatchAsync(batch, responseCh, errCh, false, metamorph_api.Status_SEEN_ON_NETWORK)
-				time.Sleep(200 * time.Millisecond)
-			}
-
-		case responseErr := <-errCh:
-			b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
-
-		case res := <-responseCh:
-
-			if res.Status == metamorph_api.Status_REJECTED || res.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
-				bytes, err := json.Marshal(res)
-				if err != nil {
-					b.logger.Error("failed to decode res", slog.String("err", err.Error()))
+			for _, res := range resp {
+				if res.Status == metamorph_api.Status_REJECTED || res.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
+					return fmt.Errorf("consolidation tx %s was not successful: %s", res.Txid, res.Status.String())
 				}
 
-				return fmt.Errorf("consolidation tx was not successful: %s", string(bytes))
+				txIDBytes, err := hex.DecodeString(res.Txid)
+				if err != nil {
+					b.logger.Error("failed to decode txid", slog.String("err", err.Error()))
+					continue
+				}
+
+				newUtxo := &bt.UTXO{
+					TxID:          txIDBytes,
+					Vout:          0,
+					LockingScript: b.fundingKeyset.Script,
+					Satoshis:      satoshiMap[res.Txid],
+				}
+
+				delete(satoshiMap, res.Txid)
+
+				utxoSet.PushBack(newUtxo)
 			}
+		}
 
-			txIDBytes, err := hex.DecodeString(res.Txid)
-			if err != nil {
-				b.logger.Error("failed to decode txid", slog.String("err", err.Error()))
-				continue
-			}
+		b.logger.Info("consolidating outputs", slog.Int("outputs", utxoSet.Len()))
 
-			newUtxo := &bt.UTXO{
-				TxID:          txIDBytes,
-				Vout:          0,
-				LockingScript: b.fundingKeyset.Script,
-				Satoshis:      satoshiMap[res.Txid],
-			}
-
-			delete(satoshiMap, res.Txid)
-
-			utxoSet.PushBack(newUtxo)
+		consolidationTxsBatches, err = b.createConsolidationTxs(utxoSet, satoshiMap)
+		if err != nil {
+			return fmt.Errorf("failed to create consolidation txs: %v", err)
 		}
 	}
 

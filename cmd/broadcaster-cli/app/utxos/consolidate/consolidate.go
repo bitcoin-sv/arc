@@ -10,7 +10,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
@@ -120,9 +119,4 @@ func init() {
 		log.Fatal(err)
 	}
 
-	Cmd.Flags().BoolP("fullstatusupdates", "f", false, fmt.Sprintf("Send callbacks for %s or %s status", metamorph_api.Status_SEEN_ON_NETWORK.String(), metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL.String()))
-	err = viper.BindPFlag("fullStatusUpdates", Cmd.Flags().Lookup("fullstatusupdates"))
-	if err != nil {
-		log.Fatal(err)
-	}
 }

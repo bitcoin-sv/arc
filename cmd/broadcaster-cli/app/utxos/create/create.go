@@ -23,6 +23,7 @@ var Cmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		outputs := viper.GetInt("outputs")
 		satoshisPerOutput := viper.GetUint64("satoshis")
+		fullStatusUpdates := viper.GetBool("fullStatusUpdates")
 
 		isTestnet, err := helper.GetBool("testnet")
 		if err != nil {
@@ -98,6 +99,7 @@ var Cmd = &cobra.Command{
 					broadcaster.WithFees(miningFeeSat),
 					broadcaster.WithIsTestnet(isTestnet),
 					broadcaster.WithCallback(callbackURL, callbackToken),
+					broadcaster.WithFullstatusUpdates(fullStatusUpdates),
 				)
 
 				err = rateBroadcaster.CreateUtxos(outputs, satoshisPerOutput)

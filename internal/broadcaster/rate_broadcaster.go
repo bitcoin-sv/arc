@@ -549,6 +549,9 @@ func (b *RateBroadcaster) splitOutputs(requestedOutputs int, requestedSatoshisPe
 	txsSplit := make([]*bt.Tx, 0)
 	outputs := len(utxoSet)
 	var err error
+
+	// Todo: create txs with maximum number of outputs per tx
+
 	for _, utxo := range greater {
 		if outputs >= requestedOutputs {
 			break

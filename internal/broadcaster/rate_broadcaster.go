@@ -367,7 +367,8 @@ func (b *RateBroadcaster) createConsolidationTxs(utxos *list.List, satoshiMap ma
 		}
 
 		if len(tx.Inputs) >= b.maxInputs {
-			err = tx.PayTo(b.fundingKeyset.Script, txSatoshis)
+			fee := b.calculateFeeSat(tx)
+			err = tx.PayTo(b.fundingKeyset.Script, txSatoshis-fee)
 			if err != nil {
 				return nil, err
 			}
@@ -412,7 +413,7 @@ func (b *RateBroadcaster) Consolidate() error {
 		return nil
 	}
 
-	submitBatchTicker := time.NewTicker(5 * time.Second)
+	submitBatchTicker := time.NewTicker(20 * time.Second)
 
 	responseCh := make(chan *metamorph_api.TransactionStatus, 200000)
 	errCh := make(chan error, 100)

@@ -150,7 +150,7 @@ func (w *WocClient) GetUTXOsList(mainnet bool, lockingScript *bscript.Script, ad
 	return values, nil
 }
 
-func (w *WocClient) GetBalance(mainnet bool, address string) (int64, error) {
+func (w *WocClient) GetBalance(mainnet bool, address string) (int64, int64, error) {
 	net := "test"
 	if mainnet {
 		net = "main"
@@ -158,7 +158,7 @@ func (w *WocClient) GetBalance(mainnet bool, address string) (int64, error) {
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/balance", net, address), nil)
 	if err != nil {
-		return 0, fmt.Errorf("failed to crreate request: %v", err)
+		return 0, 0, fmt.Errorf("failed to crreate request: %v", err)
 	}
 
 	if w.authorization != "" {
@@ -167,21 +167,21 @@ func (w *WocClient) GetBalance(mainnet bool, address string) (int64, error) {
 
 	resp, err := w.client.Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("request to get balance failed: %v", err)
+		return 0, 0, fmt.Errorf("request to get balance failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return 0, fmt.Errorf("response status not OK: %s", resp.Status)
+		return 0, 0, fmt.Errorf("response status not OK: %s", resp.Status)
 	}
 
 	var balance wocBalance
 	err = json.NewDecoder(resp.Body).Decode(&balance)
 	if err != nil {
-		return 0, fmt.Errorf("failed to decode response: %v", err)
+		return 0, 0, fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	return balance.Confirmed + balance.Unconfirmed, nil
+	return balance.Confirmed, balance.Unconfirmed, nil
 }
 
 func (w *WocClient) TopUp(mainnet bool, address string) error {

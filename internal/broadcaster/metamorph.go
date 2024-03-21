@@ -40,13 +40,13 @@ func NewMetamorphBroadcaster(address string) (*MetamorphBroadcaster, error) {
 	}, nil
 }
 
-func (m *MetamorphBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitFor metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool) ([]*metamorph_api.TransactionStatus, error) {
+func (m *MetamorphBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, _ bool) ([]*metamorph_api.TransactionStatus, error) {
 	txStatuses := make([]*metamorph_api.TransactionStatus, len(txs))
 	for idx, tx := range txs {
 
 		req := &metamorph_api.TransactionRequest{
 			RawTx:             tx.Bytes(),
-			WaitForStatus:     waitFor,
+			WaitForStatus:     waitForStatus,
 			FullStatusUpdates: fullStatusUpdates,
 		}
 

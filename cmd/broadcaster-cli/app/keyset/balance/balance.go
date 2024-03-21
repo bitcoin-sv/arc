@@ -45,11 +45,11 @@ var Cmd = &cobra.Command{
 			if wocApiKey == "" {
 				time.Sleep(500 * time.Millisecond)
 			}
-			fundingBalance, err := wocClient.GetBalance(!isTestnet, fundingKeySet.Address(!isTestnet))
+			confirmed, unconfirmed, err := wocClient.GetBalance(!isTestnet, fundingKeySet.Address(!isTestnet))
 			if err != nil {
 				return err
 			}
-			logger.Info("balance", slog.Int64(fundingKeySet.Address(!isTestnet), fundingBalance))
+			logger.Info("balance", slog.String("address", fundingKeySet.Address(!isTestnet)), slog.Int64("confirmed", confirmed), slog.Int64("unconfirmed", unconfirmed))
 		}
 
 		return nil

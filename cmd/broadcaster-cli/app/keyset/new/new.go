@@ -74,7 +74,7 @@ var Cmd = &cobra.Command{
 func init() {
 	var err error
 
-	Cmd.Flags().String("filename", "./cmd/broadcaster-cli/arc-0.key", "Name of new key file")
+	Cmd.Flags().String("filename", "", "Name of new key file")
 	err = viper.BindPFlag("filename", Cmd.Flags().Lookup("filename"))
 	if err != nil {
 		log.Fatal(err)

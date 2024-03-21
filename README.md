@@ -275,7 +275,7 @@ The `broadcaster-cli` provides a set of functions which allow to interact with a
 
 The broadcaster-cli can be installed using the following command.
 ```
-go install github.com/bitcoin-sv/arc/cmd/broadcaster-cli
+go install github.com/bitcoin-sv/arc/cmd/broadcaster-cli@latest
 ```
 
 If the ARC repository is checked out it can also be installed from that local repository like this
@@ -332,7 +332,11 @@ These instructions will provide the steps needed in order to use `broadcaster-cl
    4. In order to broadcast a large number of transactions in parallel, multiple key sets can be given in a comma separated way using the keyfile flag `--keyfile=./cmd/broadcaster-cli/arc-0.key,./cmd/broadcaster-cli/arc-1.key,./cmd/broadcaster-cli/arc-2.key`
       1. Each concurrently running broadcasting process will broadcast at the given rate
       2. For example: If a rate of `--rate=100` is given with 3 key files `--keyfile=arc-1.key,arc-2.key,arc-3.key`, then the final rate will be 300 transactions per second.
-
+6. Consolidate outputs
+   1. After each broadcasting run it is best to consolidate the outputs so that there remains only output using `broadcaster-cli utxos consolidate`
+   2. After this step you can continue with step 4
+      1. Before continuing with step 4 it is advisable to wait until all consolidation transactions were mined
+      2. The command `broadcaster-cli keyset balance` shows the amount of satoshis in the balance that have been confirmed and the amount which has not yet been confirmed
 
 ## Broadcaster (legacy)
 

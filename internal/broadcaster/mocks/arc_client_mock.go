@@ -24,7 +24,7 @@ var _ broadcaster.ArcClient = &ArcClientMock{}
 //			BroadcastTransactionFunc: func(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error) {
 //				panic("mock out the BroadcastTransaction method")
 //			},
-//			BroadcastTransactionsFunc: func(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool) ([]*metamorph_api.TransactionStatus, error) {
+//			BroadcastTransactionsFunc: func(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
 //				panic("mock out the BroadcastTransactions method")
 //			},
 //			GetTransactionStatusFunc: func(ctx context.Context, txID string) (*metamorph_api.TransactionStatus, error) {
@@ -41,7 +41,7 @@ type ArcClientMock struct {
 	BroadcastTransactionFunc func(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error)
 
 	// BroadcastTransactionsFunc mocks the BroadcastTransactions method.
-	BroadcastTransactionsFunc func(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool) ([]*metamorph_api.TransactionStatus, error)
+	BroadcastTransactionsFunc func(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error)
 
 	// GetTransactionStatusFunc mocks the GetTransactionStatus method.
 	GetTransactionStatusFunc func(ctx context.Context, txID string) (*metamorph_api.TransactionStatus, error)
@@ -73,6 +73,8 @@ type ArcClientMock struct {
 			CallbackToken string
 			// FullStatusUpdates is the fullStatusUpdates argument value.
 			FullStatusUpdates bool
+			// SkipFeeValidation is the skipFeeValidation argument value.
+			SkipFeeValidation bool
 		}
 		// GetTransactionStatus holds details about calls to the GetTransactionStatus method.
 		GetTransactionStatus []struct {
@@ -132,7 +134,7 @@ func (mock *ArcClientMock) BroadcastTransactionCalls() []struct {
 }
 
 // BroadcastTransactions calls BroadcastTransactionsFunc.
-func (mock *ArcClientMock) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool) ([]*metamorph_api.TransactionStatus, error) {
+func (mock *ArcClientMock) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
 	if mock.BroadcastTransactionsFunc == nil {
 		panic("ArcClientMock.BroadcastTransactionsFunc: method is nil but ArcClient.BroadcastTransactions was just called")
 	}
@@ -143,6 +145,7 @@ func (mock *ArcClientMock) BroadcastTransactions(ctx context.Context, txs []*bt.
 		CallbackURL       string
 		CallbackToken     string
 		FullStatusUpdates bool
+		SkipFeeValidation bool
 	}{
 		Ctx:               ctx,
 		Txs:               txs,
@@ -150,11 +153,12 @@ func (mock *ArcClientMock) BroadcastTransactions(ctx context.Context, txs []*bt.
 		CallbackURL:       callbackURL,
 		CallbackToken:     callbackToken,
 		FullStatusUpdates: fullStatusUpdates,
+		SkipFeeValidation: skipFeeValidation,
 	}
 	mock.lockBroadcastTransactions.Lock()
 	mock.calls.BroadcastTransactions = append(mock.calls.BroadcastTransactions, callInfo)
 	mock.lockBroadcastTransactions.Unlock()
-	return mock.BroadcastTransactionsFunc(ctx, txs, waitForStatus, callbackURL, callbackToken, fullStatusUpdates)
+	return mock.BroadcastTransactionsFunc(ctx, txs, waitForStatus, callbackURL, callbackToken, fullStatusUpdates, skipFeeValidation)
 }
 
 // BroadcastTransactionsCalls gets all the calls that were made to BroadcastTransactions.
@@ -168,6 +172,7 @@ func (mock *ArcClientMock) BroadcastTransactionsCalls() []struct {
 	CallbackURL       string
 	CallbackToken     string
 	FullStatusUpdates bool
+	SkipFeeValidation bool
 } {
 	var calls []struct {
 		Ctx               context.Context
@@ -176,6 +181,7 @@ func (mock *ArcClientMock) BroadcastTransactionsCalls() []struct {
 		CallbackURL       string
 		CallbackToken     string
 		FullStatusUpdates bool
+		SkipFeeValidation bool
 	}
 	mock.lockBroadcastTransactions.RLock()
 	calls = mock.calls.BroadcastTransactions

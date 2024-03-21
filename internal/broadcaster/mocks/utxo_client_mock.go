@@ -21,7 +21,7 @@ var _ broadcaster.UtxoClient = &UtxoClientMock{}
 //
 //		// make and configure a mocked broadcaster.UtxoClient
 //		mockedUtxoClient := &UtxoClientMock{
-//			GetBalanceFunc: func(mainnet bool, address string) (int64, error) {
+//			GetBalanceFunc: func(mainnet bool, address string) (int64, int64, error) {
 //				panic("mock out the GetBalance method")
 //			},
 //			GetUTXOsFunc: func(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error) {
@@ -41,7 +41,7 @@ var _ broadcaster.UtxoClient = &UtxoClientMock{}
 //	}
 type UtxoClientMock struct {
 	// GetBalanceFunc mocks the GetBalance method.
-	GetBalanceFunc func(mainnet bool, address string) (int64, error)
+	GetBalanceFunc func(mainnet bool, address string) (int64, int64, error)
 
 	// GetUTXOsFunc mocks the GetUTXOs method.
 	GetUTXOsFunc func(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
@@ -94,7 +94,7 @@ type UtxoClientMock struct {
 }
 
 // GetBalance calls GetBalanceFunc.
-func (mock *UtxoClientMock) GetBalance(mainnet bool, address string) (int64, error) {
+func (mock *UtxoClientMock) GetBalance(mainnet bool, address string) (int64, int64, error) {
 	if mock.GetBalanceFunc == nil {
 		panic("UtxoClientMock.GetBalanceFunc: method is nil but UtxoClient.GetBalance was just called")
 	}

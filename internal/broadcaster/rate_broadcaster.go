@@ -32,7 +32,7 @@ const (
 type UtxoClient interface {
 	GetUTXOs(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
 	GetUTXOsList(mainnet bool, lockingScript *bscript.Script, address string) (*list.List, error)
-	GetBalance(mainnet bool, address string) (int64, error)
+	GetBalance(mainnet bool, address string) (int64, int64, error)
 	TopUp(mainnet bool, address string) error
 }
 
@@ -340,7 +340,8 @@ func (b *RateBroadcaster) createConsolidationTxs(utxos *list.List, satoshiMap ma
 					return nil, err
 				}
 
-				err = tx.PayTo(b.fundingKeyset.Script, txSatoshis)
+				fee := b.calculateFeeSat(tx)
+				err = tx.PayTo(b.fundingKeyset.Script, txSatoshis-fee)
 				if err != nil {
 					return nil, err
 				}
@@ -430,7 +431,7 @@ outerLoop:
 			}
 
 			for _, batch := range consolidationTxsBatches {
-				b.sendTxsBatchAsync(batch, responseCh, errCh, true)
+				b.sendTxsBatchAsync(batch, responseCh, errCh, false, metamorph_api.Status_SEEN_ON_NETWORK)
 				time.Sleep(200 * time.Millisecond)
 			}
 
@@ -474,10 +475,16 @@ func (b *RateBroadcaster) CreateUtxos(requestedOutputs int, requestedSatoshisPer
 
 	requestedOutputsSatoshis := int64(requestedOutputs) * int64(requestedSatoshisPerOutput)
 
-	balance, err := b.utxoClient.GetBalance(!b.isTestnet, b.fundingKeyset.Address(!b.isTestnet))
+	confirmed, unconfirmed, err := b.utxoClient.GetBalance(!b.isTestnet, b.fundingKeyset.Address(!b.isTestnet))
 	if err != nil {
 		return err
 	}
+
+	if unconfirmed > 0 {
+		return fmt.Errorf("total balance not confirmed yet")
+	}
+
+	balance := confirmed + unconfirmed
 
 	if requestedOutputsSatoshis > balance {
 		return fmt.Errorf("requested total of satoshis %d exceeds balance on funding keyset %d", requestedOutputsSatoshis, balance)
@@ -575,6 +582,15 @@ func (b *RateBroadcaster) splitOutputs(requestedOutputs int, requestedSatoshisPe
 }
 
 func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int, wg *sync.WaitGroup) error {
+
+	_, unconfirmed, err := b.utxoClient.GetBalance(!b.isTestnet, b.fundingKeyset.Address(!b.isTestnet))
+	if err != nil {
+		return err
+	}
+	if unconfirmed > 0 {
+		return fmt.Errorf("key balance has unconfirmed amount %d sat", unconfirmed)
+	}
+
 	utxoSet, err := b.utxoClient.GetUTXOsList(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
 	if err != nil {
 		return fmt.Errorf("failed to get utxos: %v", err)
@@ -652,22 +668,17 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int, 
 					continue
 				}
 
-				b.sendTxsBatchAsync(txs, responseCh, errCh, false)
+				b.sendTxsBatchAsync(txs, responseCh, errCh, false, metamorph_api.Status_STORED)
 
 			case responseErr := <-errCh:
 				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
 			case <-logSummaryTicker.C:
 
-				b.logger.Info("summary", slog.String("funding address", b.fundingKeyset.Address(!b.isTestnet)),
+				b.logger.Info("summary",
+					slog.String("funding address", b.fundingKeyset.Address(!b.isTestnet)),
 					slog.Int64(metamorph_api.Status_STORED.String(), resultsMap[metamorph_api.Status_STORED]),
-					slog.Int64(metamorph_api.Status_ANNOUNCED_TO_NETWORK.String(), resultsMap[metamorph_api.Status_ANNOUNCED_TO_NETWORK]),
-					slog.Int64(metamorph_api.Status_REQUESTED_BY_NETWORK.String(), resultsMap[metamorph_api.Status_REQUESTED_BY_NETWORK]),
-					slog.Int64(metamorph_api.Status_SENT_TO_NETWORK.String(), resultsMap[metamorph_api.Status_SENT_TO_NETWORK]),
-					slog.Int64(metamorph_api.Status_ACCEPTED_BY_NETWORK.String(), resultsMap[metamorph_api.Status_ACCEPTED_BY_NETWORK]),
-					slog.Int64(metamorph_api.Status_SEEN_ON_NETWORK.String(), resultsMap[metamorph_api.Status_SEEN_ON_NETWORK]),
-					slog.Int64(metamorph_api.Status_MINED.String(), resultsMap[metamorph_api.Status_MINED]),
-					slog.Int64(metamorph_api.Status_REJECTED.String(), resultsMap[metamorph_api.Status_REJECTED]),
-					slog.Int64(metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL.String(), resultsMap[metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL]),
+					slog.Int("utxo set length", utxoSet.Len()),
+					slog.Int("total", totalTxs),
 				)
 			case res := <-responseCh:
 
@@ -814,9 +825,9 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos *list.List, satoshiMap map[s
 	return txs, nil
 }
 
-func (b *RateBroadcaster) sendTxsBatchAsync(txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error, skipFeeValidation bool) {
+func (b *RateBroadcaster) sendTxsBatchAsync(txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error, skipFeeValidation bool, waitForStatus metamorph_api.Status) {
 	go func() {
-		resp, err := b.client.BroadcastTransactions(context.Background(), txs, metamorph_api.Status_SEEN_ON_NETWORK, b.callbackURL, b.callbackToken, b.fullStatusUpdates, skipFeeValidation)
+		resp, err := b.client.BroadcastTransactions(context.Background(), txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, skipFeeValidation)
 		if err != nil {
 			errCh <- err
 		}

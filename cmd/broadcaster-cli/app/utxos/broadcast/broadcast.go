@@ -29,7 +29,7 @@ var Cmd = &cobra.Command{
 		rateTxsPerSecond := viper.GetInt("rate")
 		batchSize := viper.GetInt("batchsize")
 		fullStatusUpdates := viper.GetBool("fullStatusUpdates")
-		limit := viper.GetInt("limit")
+		limit := viper.GetInt64("limit")
 
 		isTestnet, err := helper.GetBool("testnet")
 		if err != nil {

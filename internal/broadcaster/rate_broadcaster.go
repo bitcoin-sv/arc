@@ -338,8 +338,18 @@ func (b *RateBroadcaster) Consolidate(ctx context.Context) error {
 
 		b.logger.Info("consolidating outputs", slog.Int("outputs", utxoSet.Len()))
 
-		for _, batch := range consolidationTxsBatches {
+		for i, batch := range consolidationTxsBatches {
 			time.Sleep(1000 * time.Millisecond) // do not performance test ARC
+
+			nrOutputs := 0
+			nrInputs := 0
+			for _, txBatch := range batch {
+				nrOutputs += len(txBatch.Outputs)
+				nrInputs += len(txBatch.Inputs)
+			}
+
+			b.logger.Info(fmt.Sprintf("broadcasting consolidation batch %d/%d", i, len(consolidationTxsBatches)), slog.Int("size", len(batch)), slog.Int("inputs", nrInputs), slog.Int("outputs", nrOutputs))
+
 			resp, err := b.client.BroadcastTransactions(context.Background(), batch, metamorph_api.Status_SEEN_ON_NETWORK, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 			if err != nil {
 				return fmt.Errorf("failed to broadcast consolidation txs: %v", err)
@@ -347,7 +357,9 @@ func (b *RateBroadcaster) Consolidate(ctx context.Context) error {
 
 			for _, res := range resp {
 				if res.Status == metamorph_api.Status_REJECTED || res.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
-					return fmt.Errorf("consolidation tx %s was not successful: %s", res.Txid, res.Status.String())
+					b.logger.Error("consolidation tx was not successful", slog.String("status", res.Status.String()), slog.String("hash", res.Txid))
+					//return fmt.Errorf("consolidation tx %s was not successful: %s", res.Txid, res.Status.String())
+					continue
 				}
 
 				txIDBytes, err := hex.DecodeString(res.Txid)
@@ -369,12 +381,12 @@ func (b *RateBroadcaster) Consolidate(ctx context.Context) error {
 			}
 		}
 
-		b.logger.Info("consolidating outputs", slog.Int("outputs", utxoSet.Len()))
-
 		consolidationTxsBatches, err = b.createConsolidationTxs(utxoSet, satoshiMap)
 		if err != nil {
 			return fmt.Errorf("failed to create consolidation txs: %v", err)
 		}
+
+		b.logger.Info("remaining outputs", slog.Int("outputs", len(consolidationTxsBatches)))
 	}
 
 	return nil

@@ -26,7 +26,7 @@ func main() {
 
 	viper.SetConfigName("config/config")
 	viper.SetConfigType("yaml")
-	viper.AddConfigPath("../../")
+	viper.AddConfigPath("./")
 	err := viper.ReadInConfig()
 	if err != nil {
 		fmt.Printf("failed to read config file config.yaml: %v \n", err)

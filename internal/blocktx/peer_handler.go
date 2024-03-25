@@ -598,6 +598,7 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 		if percentage, found := progressIndices[txIndex]; found {
 			if totalSize > 0 {
 				ph.logger.Info(fmt.Sprintf("%d txs out of %d marked as mined", txIndex, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)))
+				// Todo: log for 100% marked as mined
 			}
 		}
 

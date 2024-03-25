@@ -445,7 +445,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 				AS t(hash, status, reject_reason)
 			) AS bulk_query
 			WHERE
-			metamorph.transactions.hash=bulk_query.hash AND metamorph.transactions.locked_by = $4 AND metamorph.transactions.status != $5 AND metamorph.transactions.status != $6
+			metamorph.transactions.hash=bulk_query.hash AND metamorph.transactions.status != $4 AND metamorph.transactions.status != $5
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.announced_at
 		,metamorph.transactions.mined_at
@@ -464,12 +464,38 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		;
     `
 
-	rows, err := p.db.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), p.hostname, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_MINED)
+	tx, err := p.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 
-	return p.getStoreDataFromRows(rows)
+	_, err = tx.Exec("LOCK TABLE metamorph.transactions IN EXCLUSIVE MODE")
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
+
+	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_MINED)
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
+
+	res, err := p.getStoreDataFromRows(rows)
+	if err != nil {
+		return res, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
@@ -484,6 +510,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 	blockHashes := make([][]byte, len(txsBlocks.TransactionBlocks))
 	blockHeights := make([]uint64, len(txsBlocks.TransactionBlocks))
 	merklePaths := make([]string, len(txsBlocks.TransactionBlocks))
+
 	for i, tx := range txsBlocks.TransactionBlocks {
 		txHashes[i] = tx.TransactionHash
 		blockHashes[i] = tx.BlockHash
@@ -525,19 +552,44 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 		,t.retries
 		;
 `
-	rows, err := p.db.QueryContext(ctx, qBulkUpdate, metamorph_api.Status_MINED, p.now(), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
+	tx, err := p.db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute transaction update query: %v", err)
+		return nil, err
 	}
 
-	return p.getStoreDataFromRows(rows)
+	_, err = tx.Exec("LOCK TABLE metamorph.transactions IN EXCLUSIVE MODE")
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
+
+	rows, err := tx.QueryContext(ctx, qBulkUpdate, metamorph_api.Status_MINED, p.now(), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
+
+	res, err := p.getStoreDataFromRows(rows)
+	if err != nil {
+		return res, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 	var storeData []*store.StoreData
 
 	for rows.Next() {
-
 		data := &store.StoreData{}
 
 		var storedAt sql.NullTime

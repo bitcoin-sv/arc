@@ -1,4 +1,4 @@
-package create
+package consolidate
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
@@ -18,11 +17,10 @@ import (
 )
 
 var Cmd = &cobra.Command{
-	Use:   "create",
-	Short: "Create a UTXO set",
+	Use:   "consolidate",
+	Short: "Consolidate UTXO set",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		outputs := viper.GetInt("outputs")
-		satoshisPerOutput := viper.GetUint64("satoshis")
+
 		fullStatusUpdates := viper.GetBool("fullStatusUpdates")
 
 		isTestnet, err := helper.GetBool("testnet")
@@ -74,43 +72,33 @@ var Cmd = &cobra.Command{
 
 		keyFiles := strings.Split(keyFile, ",")
 
-		wg := &sync.WaitGroup{}
-
 		for _, kf := range keyFiles {
 
 			if wocApiKey == "" {
 				time.Sleep(1 * time.Second)
 			}
 
-			wg.Add(1)
+			logger.Info("starting consolidation", slog.String("key", kf))
+			time.Sleep(500 * time.Millisecond)
 
-			go func(keyfile string, waitGroup *sync.WaitGroup) {
-				defer waitGroup.Done()
+			fundingKeySet, receivingKeySet, err := helper.GetKeySetsKeyFile(kf)
+			if err != nil {
+				//logger.Error("failed to get key sets", slog.String("err", err.Error()))
+				return fmt.Errorf("failed to get key sets: %v", err)
+			}
 
-				time.Sleep(500 * time.Millisecond)
+			rateBroadcaster, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, wocClient,
+				broadcaster.WithFees(miningFeeSat),
+				broadcaster.WithIsTestnet(isTestnet),
+				broadcaster.WithCallback(callbackURL, callbackToken),
+				broadcaster.WithFullstatusUpdates(fullStatusUpdates),
+			)
 
-				fundingKeySet, receivingKeySet, err := helper.GetKeySetsKeyFile(keyfile)
-				if err != nil {
-					logger.Error("failed to get key sets", slog.String("err", err.Error()))
-					return
-				}
-
-				rateBroadcaster, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, wocClient,
-					broadcaster.WithFees(miningFeeSat),
-					broadcaster.WithIsTestnet(isTestnet),
-					broadcaster.WithCallback(callbackURL, callbackToken),
-					broadcaster.WithFullstatusUpdates(fullStatusUpdates),
-				)
-
-				err = rateBroadcaster.CreateUtxos(outputs, satoshisPerOutput)
-				if err != nil {
-					logger.Error("failed to create utxos", slog.String("address", fundingKeySet.Address(!isTestnet)), slog.String("err", err.Error()))
-					return
-				}
-			}(kf, wg)
+			err = rateBroadcaster.Consolidate()
+			if err != nil {
+				return fmt.Errorf("failed to consolidate utxos: %v", err)
+			}
 		}
-
-		wg.Wait()
 
 		return nil
 	},
@@ -130,4 +118,5 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 }

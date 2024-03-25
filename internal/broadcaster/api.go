@@ -39,15 +39,15 @@ func NewHTTPBroadcaster(arcServer string, auth *Auth) *APIBroadcaster {
 	}
 }
 
-func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitFor metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool) ([]*metamorph_api.TransactionStatus, error) {
+func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
 	arcClient, err := a.getArcClient()
 	if err != nil {
 		return nil, err
 	}
 
-	waitForStatus := api.WaitForStatus(waitFor)
+	waitFor := api.WaitForStatus(waitForStatus)
 	params := &api.POSTTransactionsParams{
-		XWaitForStatus: &waitForStatus,
+		XWaitForStatus: &waitFor,
 	}
 
 	if callbackURL != "" {
@@ -57,6 +57,8 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx
 		params.XCallbackToken = &callbackToken
 	}
 	params.XFullStatusUpdates = &fullStatusUpdates
+
+	params.XSkipFeeValidation = &skipFeeValidation
 
 	body := make([]api.TransactionRequest, len(txs))
 	for i := range txs {

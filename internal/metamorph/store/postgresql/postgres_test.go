@@ -6,11 +6,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/testdata"
 	"log"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/bitcoin-sv/arc/internal/testdata"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -362,7 +363,7 @@ func TestPostgresDB(t *testing.T) {
 		err = postgresDB.Set(ctx, testdata.TX6Hash[:], tx6Data)
 		require.NoError(t, err)
 
-		// will not be updated because it is locked by metamorph-3
+		// will now be updated even though it is locked by metamorph-3
 		metamorph3Hash, err := chainhash.NewHashFromStr("538808e847d0add40ed9622fff53954c79e1f52db7c47ea0b6cdc0df972f3dcd")
 		require.NoError(t, err)
 
@@ -409,14 +410,14 @@ func TestPostgresDB(t *testing.T) {
 
 		statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
 		require.NoError(t, err)
-		require.Len(t, statusUpdates, 2)
+		require.Len(t, statusUpdates, 3)
 
-		assert.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, statusUpdates[0].Status)
-		assert.Equal(t, testdata.TX1RawBytes, statusUpdates[0].RawTx)
+		assert.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, statusUpdates[1].Status)
+		assert.Equal(t, testdata.TX1RawBytes, statusUpdates[1].RawTx)
 
-		assert.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[1].Status)
-		assert.Equal(t, "missing inputs", statusUpdates[1].RejectReason)
-		assert.Equal(t, testdata.TX6RawBytes, statusUpdates[1].RawTx)
+		assert.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[2].Status)
+		assert.Equal(t, "missing inputs", statusUpdates[2].RejectReason)
+		assert.Equal(t, testdata.TX6RawBytes, statusUpdates[2].RawTx)
 
 		returnedDataRejected, err := postgresDB.Get(ctx, testdata.TX1Hash[:])
 		require.NoError(t, err)
@@ -437,6 +438,10 @@ func TestPostgresDB(t *testing.T) {
 		returnedDataMined, err := postgresDB.Get(ctx, minedHash[:])
 		require.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_MINED, returnedDataMined.Status)
+
+		statusUpdates, err = postgresDB.UpdateStatusBulk(ctx, updates)
+		require.NoError(t, err)
+		require.Len(t, statusUpdates, 2)
 	})
 
 	t.Run("update mined", func(t *testing.T) {

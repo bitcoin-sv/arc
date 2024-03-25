@@ -1,4 +1,9 @@
-SHELL=/bin/bash
+
+REPOSITORY := github.com/bitcoin-sv/arc
+LDFLAGS := -ldflags "\
+	-X $(REPOSITORY)/internal/version.Commit=$(shell git rev-parse --short HEAD)' \
+	-X $(REPOSITORY)/internal/version.Version=$(shell git describe --tags --always --abbrev=0 --match='v[0-9]*.[0-9]*.[0-9]*' 2> /dev/null | sed 's/^.//')' \
+"
 
 .PHONY: all
 all: deps lint build test
@@ -22,7 +27,7 @@ clean_e2e_tests:
 .PHONY: build_release
 build_release:
 	mkdir -p build
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -o build/arc_linux_amd64 ./init/main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -v -o build/arc_linux_amd64 ./init/main.go
 
 .PHONY: build_docker
 build_docker:

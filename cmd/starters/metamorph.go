@@ -18,6 +18,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/async/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
+	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils/safemap"
@@ -355,7 +356,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore) (p2p.PeerManag
 		}
 
 		var peer *p2p.Peer
-		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network)
+		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network, p2p.WithUserAgent("ARC", version.Version))
 		if err != nil {
 			return nil, nil, fmt.Errorf("error creating peer %s: %v", peerUrl, err)
 		}

@@ -10,6 +10,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	cfg "github.com/bitcoin-sv/arc/internal/helpers"
+	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -110,7 +111,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 	peers := make([]p2p.PeerI, len(peerURLs))
 
 	for i, peerURL := range peerURLs {
-		peer, err := p2p.NewPeer(logger, peerURL, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize))
+		peer, err := p2p.NewPeer(logger, peerURL, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize), p2p.WithUserAgent("ARC", version.Version))
 		if err != nil {
 			return nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
 		}

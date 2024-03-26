@@ -3,14 +3,20 @@ package dist
 import (
 	"fmt"
 	"log"
+	"log/slog"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/libsv/go-bt/v2"
+	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -42,7 +48,7 @@ var Cmd = &cobra.Command{
 			satoshis string
 			outputs  string
 		}
-
+		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
 		columns := make([][]row, len(keyFiles))
 		maxRowNr := 0
 
@@ -63,9 +69,24 @@ var Cmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			utxos, err := wocClient.GetUTXOs(!isTestnet, fundingKeySet.Script, fundingKeySet.Address(!isTestnet))
+
+			policy := backoff.WithMaxRetries(backoff.NewConstantBackOff(1*time.Second), 5)
+
+			operation := func() ([]*bt.UTXO, error) {
+				wocUtxos, err := wocClient.GetUTXOs(!isTestnet, fundingKeySet.Script, fundingKeySet.Address(!isTestnet))
+				if err != nil {
+					return nil, fmt.Errorf("failed to get utxos from WoC: %v", err)
+				}
+				return wocUtxos, nil
+			}
+
+			notify := func(err error, nextTry time.Duration) {
+				logger.Error("failed to get utxos from WoC", slog.String("key", keyName), slog.String("address", fundingKeySet.Address(!isTestnet)), slog.String("next try", nextTry.String()), slog.String("err", err.Error()))
+			}
+
+			utxos, err := backoff.RetryNotifyWithData(operation, policy, notify)
 			if err != nil {
-				return fmt.Errorf("failed to get utxos from WoC: %v", err)
+				continue
 			}
 
 			outputsMap := map[uint64]int{}

@@ -49,7 +49,7 @@ var Cmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			logger.Info("balance", slog.String("address", fundingKeySet.Address(!isTestnet)), slog.Int64("confirmed", confirmed), slog.Int64("unconfirmed", unconfirmed))
+			logger.Info("balance", slog.String("keyfile", kf), slog.String("address", fundingKeySet.Address(!isTestnet)), slog.Int64("confirmed", confirmed), slog.Int64("unconfirmed", unconfirmed))
 		}
 
 		return nil

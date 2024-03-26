@@ -150,7 +150,7 @@ var Cmd = &cobra.Command{
 			tableRow := table.Row{}
 
 			if maxRows != 0 && i == maxRows+1 {
-				for _ = range row {
+				for range row {
 					tableRow = append(tableRow, "...")
 				}
 

@@ -7,6 +7,69 @@ ARC is a transaction processor for Bitcoin that keeps track of the life cycle of
 the Bitcoin network. Next to the mining status of a transaction, ARC also keeps track of the various states that a
 transaction can be in, such as `ANNOUNCED_TO_NETWORK`, `SEEN_IN_ORPHAN_MEMPOOL`, `SENT_TO_NETWORK`, `SEEN_ON_NETWORK`, `MINED`, `REJECTED`, etc.
 
+```plantuml
+@startuml
+title Transaction lifecycle
+
+state VALIDATED
+state ANNOUNCED
+state ERROR
+state REQUESTED_BY_NETWORK
+state SENT_TO_NETWORK
+state SEEN_ON_NETWORK
+state REJECTED
+state MINED
+
+[*] --> VALIDATED
+
+VALIDATED --> ANNOUNCED
+note on link
+  Transaction has passed all checks except
+  for verifying each UTXO is correct. This
+  check is done by the nodes themselves.
+end note
+VALIDATED -> ERROR: Bad transaction
+
+ANNOUNCED --> REQUESTED_BY_NETWORK
+note on link
+  Transaction ID has been announced to P2P
+  network via an INV message.
+end note
+
+REQUESTED_BY_NETWORK --> SENT_TO_NETWORK
+note on link
+  Peer has requested the transaction with a
+  GETDATA message.
+end note
+
+
+SENT_TO_NETWORK -> REJECTED
+note on link
+  Peer has sent a REJECT message.
+end note
+
+SENT_TO_NETWORK --> SEEN_ON_NETWORK
+note on link
+  Transaction has been sent to peer.
+end note
+
+
+SEEN_ON_NETWORK --> MINED
+note on link
+  Transaction ID has been announced to us
+  from another peer.
+end note
+
+
+MINED --> [*]
+note on link
+  Transaction ID was included in a BLOCK message.
+end note
+
+
+@enduml
+```
+
 If a transaction is not `SEEN_ON_NETWORK` within a certain time period (60 seconds by default), ARC will re-send the
 transaction to the Bitcoin network. ARC also monitors the Bitcoin network for transaction and block messages, and
 will notify the client when a transaction has been mined, or rejected.
@@ -20,7 +83,75 @@ ARC consists of four microservices: [API](#API), [Metamorph](#Metamorph), [Block
 
 All the microservices are designed to be horizontally scalable, and can be deployed on a single machine or on multiple machines. Each one has been programmed with a store interface and various databases can be used to store data. The default store is sqlite3, but any database that implements the store interface can be used.
 
-![Architecture](./Bitcoin_Arc_Architecture_-_January_2023.png)
+```plantuml
+@startuml
+digraph arc {
+  rankdir=TB;
+  graph [fontsize=10 fontname="Verdana"];
+  node [shape=record fontsize=10 fontname="Verdana"];
+  edge [fontsize=9 fontname="Verdana"];
+
+  customer_app [shape=rectangle, label="customer\n app"]
+  customer_app -> api
+
+  subgraph cluster_arc {
+		label = "ARC";
+		color=black;
+
+    api [shape=rectangle, label="API", style=filled, fillcolor=yellow]
+    api -> metamorph
+
+    validation [shape=rectangle, label="validation"]
+    api -> validation
+
+    { rank=same; api; validation; }
+    { rank=same; metamorph; blocktx; }
+
+
+    metamorph -> blocktx [style="dashed", dir="both"]
+
+    subgraph cluster_mtm {
+      label = "metamorph";
+      metamorph [shape=rectangle, label="service", style=filled, fillcolor=yellow]
+      metamorph_store [shape=cylinder, label="store", style=filled]
+      metamorph -> metamorph_store
+      metamorph -> node_connection [style="dashed", arrowhead=none]
+    }
+
+
+    subgraph cluster_blocktx {
+      label = "blocktx";
+      blocktx_store [shape=cylinder, label="store", style=filled]
+      blocktx [shape=rectangle, label="service", style=filled, fillcolor=yellow]
+      blocktx -> blocktx_store
+      blocktx -> node_connection [style="dashed", arrowhead=none]
+    }
+	}
+
+  subgraph cluster_nodes {
+    newrank=true;
+    node_connection [ shape=point ];
+    label = "bitcoin nodes"
+
+    node_connection -> b_node_1 [style="dashed", label="p2p"]
+    node_connection -> b_node_n [style="dashed"]
+    node_connection -> b_node_2 [style="dashed"]
+
+    b_node_1 -> metamorph [style="dashed", label="zmq"]
+    b_node_1 [shape=rectangle, label="node 1", style=filled, fillcolor=cyan]
+    b_node_2 [shape=rectangle, label="node 2", style=filled, fillcolor=cyan]
+    b_node_n [shape=rectangle, label="node n ...", style=filled, fillcolor=cyan]
+  }
+
+  b_node_1 -> p2p_network [style="dashed"]
+  b_node_2 -> p2p_network [style="dashed"]
+  b_node_n -> p2p_network [style="dashed"]
+
+  p2p_network [shape=hexagon, label="p2p\n network", style=filled, fillcolor=lightblue]
+}
+@enduml
+
+```
 
 ### API
 
@@ -209,7 +340,6 @@ actor "client" as tx
 
 box api server
     participant handler
-    participant auth
     participant validator
 end box
 
@@ -217,7 +347,8 @@ box metamorph
     participant grpc
     participant worker
     database store
-    participant "peer\nhandler" as peer
+    participant "peer\nserver" as peer
+    participant "zmq\nlistener" as zmq
 end box
 
 database "bitcoin\nnetwork" as bsv
@@ -226,32 +357,41 @@ title Submit transaction via P2P
 
 tx -> handler ++: extended\nraw tx
 
-    handler -> auth ++: apikey
-    return
-
     handler -> validator ++: tx
     return success
 
     handler -> grpc ++: tx
         grpc -> worker ++: tx
-            worker -> store++: register txid
-            worker -> store: tx
+            worker -> store++: tx
         return STORED
         worker --> grpc: STORED
 
         worker -> peer: txid
         peer -> bsv: INV txid
+        peer -> worker: ANNOUNCED
+
         worker -> store: ANNOUNCED
-        worker --> grpc: ANNOUNCED
+
 
         bsv -> peer++: GETDATA txid
+            peer -> worker: REQUESTED
+            worker -> store: REQUESTED
             peer -> store ++ : get tx
-                store -> worker : SENT
             return raw tx
 
-            worker -> store: SENT
-            worker --> grpc: SENT
         return tx
+
+        peer -> worker: SENT
+
+        worker -> store: SENT
+
+
+
+        bsv -> zmq: txid
+        zmq -> worker: ACCEPTED
+
+        worker -> store: ACCEPTED
+
 
         bsv -> peer: INV txid
         peer -> worker: SEEN
@@ -259,11 +399,13 @@ tx -> handler ++: extended\nraw tx
 
     return status
 
-    grpc -> grpc: wait for SENT\nor TIMEOUT
+    grpc -> grpc: wait for\nspecified status\nor TIMEOUT
+    return last status
 
 return last status
 
 @enduml
+
 ```
 
 ```plantuml

@@ -110,8 +110,15 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 	}
 	peers := make([]p2p.PeerI, len(peerURLs))
 
+	opts := make([]p2p.PeerOptions, 0)
+
+	opts = append(opts, p2p.WithMaximumMessageSize(maximumBlockSize))
+	if version.Version != "" {
+		opts = append(opts, p2p.WithUserAgent("ARC", version.Version))
+	}
+
 	for i, peerURL := range peerURLs {
-		peer, err := p2p.NewPeer(logger, peerURL, peerHandler, network, p2p.WithMaximumMessageSize(maximumBlockSize), p2p.WithUserAgent("ARC", version.Version))
+		peer, err := p2p.NewPeer(logger, peerURL, peerHandler, network, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
 		}

@@ -349,6 +349,11 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore) (p2p.PeerManag
 		return nil, nil, fmt.Errorf("error getting peer settings: %v", err)
 	}
 
+	opts := make([]p2p.PeerOptions, 0)
+	if version.Version != "" {
+		opts = append(opts, p2p.WithUserAgent("ARC", version.Version))
+	}
+
 	for _, peerSetting := range peerSettings {
 		peerUrl, err := peerSetting.GetP2PUrl()
 		if err != nil {
@@ -356,7 +361,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore) (p2p.PeerManag
 		}
 
 		var peer *p2p.Peer
-		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network, p2p.WithUserAgent("ARC", version.Version))
+		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network, opts...)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error creating peer %s: %v", peerUrl, err)
 		}

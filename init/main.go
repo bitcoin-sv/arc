@@ -13,10 +13,10 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/bitcoin-sv/arc/internal/version"
 	cmd "github.com/bitcoin-sv/arc/cmd/starters"
 	cfg "github.com/bitcoin-sv/arc/internal/helpers"
 	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
@@ -24,10 +24,6 @@ import (
 
 // Name used by build script for the binaries. (Please keep on single line)
 const progname = "arc"
-
-// // Version & commit strings injected at build with -ldflags -X...
-var version string
-var commit string
 
 func main() {
 	err := run()

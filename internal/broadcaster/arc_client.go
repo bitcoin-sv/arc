@@ -2,6 +2,7 @@ package broadcaster
 
 import (
 	"context"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
 )
@@ -32,6 +33,6 @@ var dataFeeDefault = &bt.Fee{
 
 type ArcClient interface {
 	BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error)
-	BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool) ([]*metamorph_api.TransactionStatus, error)
+	BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*metamorph_api.TransactionStatus, error)
 }

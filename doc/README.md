@@ -79,9 +79,9 @@ interface of a Bitcoin node. This makes it possible for ARC to connect and broad
 as are desired. In the future, ARC will be also able to send transactions using ipv6 multicast, which will make it
 possible to connect to a large number of nodes without incurring large bandwidth costs.
 
-ARC consists of four microservices: [API](#API), [Metamorph](#Metamorph), [BlockTx](#BlockTx) and [Callbacker](#Callbacker), which are all described below.
+ARC consists of 3 core microservices: [API](#API), [Metamorph](#Metamorph) and [BlockTx](#BlockTx), which are all described below.
 
-All the microservices are designed to be horizontally scalable, and can be deployed on a single machine or on multiple machines. Each one has been programmed with a store interface and various databases can be used to store data. The default store is sqlite3, but any database that implements the store interface can be used.
+All the microservices are designed to be horizontally scalable, and can be deployed on a single machine or on multiple machines. Each one has been programmed with a store interface. The default store is postgres, but any database that implements the store interface can be used.
 
 ```plantuml
 @startuml
@@ -157,7 +157,7 @@ digraph arc {
 
 API is the REST API microservice for interacting with ARC. See the [API documentation](/arc/api.html) for more information.
 
-The API takes care of authentication, validation, and sending transactions to Metamorph.  The API talks to one or more Metamorph instances using client-based, round robin load balancing.
+The API takes care of validation and sending transactions to Metamorph. The API talks to one or more Metamorph instances using client-based, round robin load balancing.
 
 ### Metamorph
 
@@ -165,24 +165,18 @@ Metamorph is a microservice that is responsible for processing transactions sent
 takes care of re-sending transactions if they are not acknowledged by the network within a certain time period (60
 seconds by default).
 
-Metamorph is designed to be horizontally scalable, with each instance operating independently and having its own
-transaction store. As a result, the metamorphs do not communicate with each other and remain unaware of each other's existence.
+Metamorph is also can send callbacks to a specified URL. To register a callback, the client must add the `X-CallbackUrl` header to the request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
+the body. By default callbacks are sent to the specified URL in case the submitted transaction has status `REJECTED` or `MINED`. In case the client wants to receive the intermediate status updates (`SEEN_IN_ORPHAN_MEMPOOL` and `SEEN_ON_NETWORK`) about the transaction, additionally the `X-FullStatusUpdates` header needs to be set to `true`. See the [API documentation](/arc/api.html) for more information.
+`X-MaxTimeout` header determines maximum number of seconds to wait for transaction new statuses before request expires (default 5sec, max value 30s)
+
+Metamorph is designed to be horizontally scalable. As a result, the metamorphs do not communicate with each other and remain unaware of each other's existence.
 
 ### BlockTx
 
 BlockTx is a microservice that is responsible for processing blocks mined on the Bitcoin network, and for propagating
 the status of transactions to each Metamorph that has subscribed to this service.
 
-The main purpose of BlockTx is to de-duplicate processing of (large) blocks. As an incoming block is processed by BlockTx, each Metamorph is notified of transactions that they have registered an interest in.  BlockTx does not store the transaction data, but instead stores only the transaction IDs and the block height in which
-they were mined. Metamorph is responsible for storing the transaction data.
-
-### Callbacker
-
-Callbacker is a very simple microservice that is responsible for sending callbacks to clients when a transaction has
-been accepted by the Bitcoin network. To register a callback, the client must add the `X-CallbackUrl` header to the
-request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
-the body. In case the client wants to receive all the intermediate status updates (SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK) about the transaction `X-FullStatusUpdates` header needs to be set to `true`. See the [API documentation](/arc/api.html) for more information.
-`X-MaxTimeout` header determines maximum number of seconds to wait for transaction new statuses before request expires (default 5sec, max value 30s)
+The main purpose of BlockTx is to de-duplicate processing of (large) blocks. As an incoming block is processed by BlockTx, Metamorph is notified about mined transactions by means of a message queue.  BlockTx does not store the transaction data, but instead stores only the transaction IDs and the block height in which they were mined. Metamorph is responsible for storing the transaction data.
 
 ## Extended format
 

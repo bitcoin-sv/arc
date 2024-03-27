@@ -42,8 +42,6 @@ metamorph:
       maxIdleConns: 10
       maxOpenConns: 80
       sslMode: disable
-    cleanData:
-      recordRetentionDays: 14
   processorCacheExpiryTime: 24h
   processStatusUpdateInterval: 50ms
   checkUtxos: false
@@ -66,9 +64,7 @@ blocktx:
       maxIdleConns: 10
       maxOpenConns: 80
       sslMode: disable
-    cleanData:
-      recordRetentionDays: 14
-      executionIntervalHours: 24
+  recordRetentionDays: 14
   profilerAddr: localhost:9993
   registerTxsInterval: 200ms
   mq:

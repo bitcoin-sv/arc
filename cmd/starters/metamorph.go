@@ -65,11 +65,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("invalid metamorph.processorCacheExpiryTime: %s", mapExpiryStr)
 	}
 
-	dataRetentionDays, err := cfg.GetInt("metamorph.db.cleanData.recordRetentionDays")
-	if err != nil {
-		return nil, err
-	}
-
 	natsURL, err := cfg.GetString("queueURL")
 	if err != nil {
 		return nil, err
@@ -109,7 +104,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		pm,
 		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithProcessorLogger(logger.With(slog.String("module", "mtm-proc"))),
-		metamorph.WithDataRetentionPeriod(time.Duration(dataRetentionDays)*24*time.Hour),
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),

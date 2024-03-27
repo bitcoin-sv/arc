@@ -33,7 +33,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
 
-	recordRetentionDays, err := cfg.GetInt("blocktx.db.cleanData.recordRetentionDays")
+	recordRetentionDays, err := cfg.GetInt("blocktx.recordRetentionDays")
 	if err != nil {
 		return nil, err
 	}

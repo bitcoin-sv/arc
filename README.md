@@ -314,21 +314,6 @@ These instructions will provide the steps needed in order to use `broadcaster-cl
       1. Before continuing with step 4 it is advisable to wait until all consolidation transactions were mined
       2. The command `broadcaster-cli keyset balance` shows the amount of satoshis in the balance that have been confirmed and the amount which has not yet been confirmed
 
-## Broadcaster (legacy)
-
-Broadcaster is a tool to broadcast example transactions to ARC. It can be used to test the ARC API and Metamorph.
-
-Examples of broadcaster usage:
-```bash
-# Send 10 txs via API and send back to the original address (consolidate). Address for API is configured in config.yaml - broadcaster.apiURL
-go run cmd/broadcaster/main.go -api=true -consolidate -keyfile=./cmd/broadcaster/arc.key -authorization=mainnet_XXX 10
-
-# Send 20 txs with 5 txs/batch to a single metamorph via gRPC. Address for metamorph is configured in config.yaml - metamorph.dialAddr
-go run cmd/broadcaster/main.go -api=false -consolidate -keyfile=./cmd/broadcaster/arc.key -authorization=mainnet_XXX -batch=5 20
-```
-
-Detailed information about flags can is displayed by running `go run cmd/broadcaster/main.go`.
-
 ## Background worker
 
 The goal of this submodule is to provide simple and convenient way to schedule repetitive tasks to be performed on ARC.

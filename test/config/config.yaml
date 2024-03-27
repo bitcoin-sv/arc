@@ -50,7 +50,6 @@ metamorph:
   statsKeypress: false
   profilerAddr: localhost:9992
   healthServerDialAddr: localhost:8005
-  maxMonitoredTxs: 100000
 
 blocktx:
   listenAddr: 0.0.0.0:8011

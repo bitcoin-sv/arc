@@ -152,19 +152,12 @@ This status is returned in the `txStatus` field whenever the transaction is quer
 
 #### Metamorph stores
 
-Currently, metamorph only offers one storage implementation which is Postgres.
-~~The metamorph store has been implemented for multiple databases, depending on your needs. In high-volume environments,
-you may want to use a database that is optimized for high throughput, such as [Badger](https://dgraph.io/docs/badger).~~
+Currently, Metamorph only offers one storage implementation which is Postgres.
 
-The following databases have been implemented:
-
-* Postgres (`postgres`)
-* ~~Sqlite3 (`sqlite` or `sqlite_memory` for in-memory)~~
-* ~~Badger (`badger`)~~
-* ~~BadgerHold (`badgerhold`)~~
-
-You can select the store to use by setting the `metamorph.db.mode` in the settings file or adding `ARC_METAMORPH_DB_MODE` as
-an environment variable.
+Migrations have to be executed prior to starting Metamorph. For this you'll need the [go-migrate](https://github.com/golang-migrate/migrate) tool. Once `go-migrate` has been installed, the migrations can be executed as follows:
+```bash
+migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslmode=<ssl-mode>"  -path internal/metamorph/store/postgresql/migrations  up
+```
 
 #### Connections to Bitcoin nodes
 
@@ -205,23 +198,11 @@ go run main.go -blocktx=true
 
 #### BlockTx stores
 
-Currently, metamorph only offers one storage implementation which is Postgres.
-~~The BlockTx store has been implemented for multiple databases, depending on your needs. In high-volume environments,
-you may want to use a database that is optimized for high throughput, such as Postgres.~~
+Currently, BlockTx only offers one storage implementation which is Postgres.
 
-The following databases have been implemented:
-
-* Postgres (`postgres`)
-* ~~Sqlite3 (`sqlite` or `sqlite_memory` for in-memory)~~
-
-You can select the store to use by setting the `blocktx.db.mode` in the settings file or adding `blocktx.db.mode` as
-an environment variable.
-
-Please note that if you are running multiple instances of BlockTX for resilience, each BlockTx can be configured to use a shared database and in this case, Postgres is probably a sensible choice.
-
-If BlockTx is configured to run with `postgres` db, then migrations have to be executed prior to starting ARC. For this you'll need the [go-migrate](https://github.com/golang-migrate/migrate) tool. Once `go-migrate` has been installed, the migrations can be executed as follows:
+Migrations have to be executed prior to starting BlockTx. For this you'll need the [go-migrate](https://github.com/golang-migrate/migrate) tool. Once `go-migrate` has been installed, the migrations can be executed as follows:
 ```bash
-migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslmode=<ssl-mode>"  -path database/migrations/postgres  up
+migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslmode=<ssl-mode>"  -path internal/blocktx/store/postgresql/migrations  up
 ```
 
 ### Message Queue

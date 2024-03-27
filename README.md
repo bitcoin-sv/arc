@@ -54,6 +54,10 @@ API is the REST API microservice for interacting with ARC. See the [API document
 
 The API takes care of authentication, validation, and sending transactions to Metamorph.  The API talks to one or more Metamorph instances using client-based, round robin load balancing.
 
+To register a callback, the client must add the `X-CallbackUrl` header to the
+request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
+the body. See the [API documentation](https://bitcoin-sv.github.io/arc/api.html) for more information.
+
 You can run the API like this:
 
 ```shell
@@ -115,8 +119,7 @@ Metamorph is a microservice that is responsible for processing transactions sent
 takes care of re-sending transactions if they are not acknowledged by the network within a certain time period (60
 seconds by default).
 
-Metamorph is designed to be horizontally scalable, with each instance operating independently and having its own
-transaction store. As a result, they do not communicate with each other and remain unaware of each other's existence.
+Metamorph is designed to be horizontally scalable, with each instance operating independently. As a result, they do not communicate with each other and remain unaware of each other's existence.
 
 You can run metamorph like this:
 
@@ -142,7 +145,7 @@ available:
 | 8   | `SEEN_ON_NETWORK`      | The transaction has been seen on the Bitcoin network and propagated to other nodes. This status is set when metamorph receives an INV message for the transaction from another node than it was sent to. |
 | 9   | `MINED`                | The transaction has been mined into a block by a mining node.                                                                                                                                            |
 | 10  | `SEEN_IN_ORPHAN_MEMPOOL`             | The transaction has been sent to at least 1 Bitcoin node but parent transaction was not found. |
-| 108 | `CONFIRMED`            | The transaction is marked as confirmed when it is in a block with 100 blocks built on top of that block.                                                                                                 |
+| 108 | `CONFIRMED`            | The transaction is marked as confirmed when it is in a block with 100 blocks built on top of that block (Currently this status is not maintained)                                                                                                 |
 | 109 | `REJECTED`             | The transaction has been rejected by the Bitcoin network.                                                                                                                                                |
 
 This status is returned in the `txStatus` field whenever the transaction is queried.
@@ -160,7 +163,7 @@ The following databases have been implemented:
 * ~~Badger (`badger`)~~
 * ~~BadgerHold (`badgerhold`)~~
 
-You can select the store to use by setting the `metamorph.db.mode` in the settings file or adding `metamorph.db.mode` as
+You can select the store to use by setting the `metamorph.db.mode` in the settings file or adding `ARC_METAMORPH_DB_MODE` as
 an environment variable.
 
 #### Connections to Bitcoin nodes

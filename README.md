@@ -224,11 +224,14 @@ If BlockTx is configured to run with `postgres` db, then migrations have to be e
 migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslmode=<ssl-mode>"  -path database/migrations/postgres  up
 ```
 
-### Callbacks
+### Message Queue
 
-To register a callback, the client must add the `X-CallbackUrl` header to the
-request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
-the body. See the [API documentation](https://bitcoin-sv.github.io/arc/api.html) for more information.
+For the communication between Metamorph and BlockTx a message queue is used. Currently the only available implementation of that message queue uses [NATS](https://nats.io/). A message queue of this type has to run in order for ARC to run.
+
+Metamorph publishes new transactions to the message queue and BlockTx subscribes to the message queue, receive the transactions and stores them. Once BlockTx finds these transactions have been mined in a block it updates the block information and publishes the block information to the message queue. Metamorph subscribes to the message queue and receives the block information and updates the status of the transactions.
+
+![Message Queue](./doc/message_queue.png)
+
 
 ### K8s-Watcher
 
@@ -306,7 +309,7 @@ These instructions will provide the steps needed in order to use `broadcaster-cl
       1. Each concurrently running broadcasting process will broadcast at the given rate
       2. For example: If a rate of `--rate=100` is given with 3 key files `--keyfile=arc-1.key,arc-2.key,arc-3.key`, then the final rate will be 300 transactions per second.
 6. Consolidate outputs
-   1. After each broadcasting run it is best to consolidate the outputs so that there remains only output using `broadcaster-cli utxos consolidate`
+   1. If not enough outputs are available for another test run it is best to consolidate the outputs so that there remains only output using `broadcaster-cli utxos consolidate`
    2. After this step you can continue with step 4
       1. Before continuing with step 4 it is advisable to wait until all consolidation transactions were mined
       2. The command `broadcaster-cli keyset balance` shows the amount of satoshis in the balance that have been confirmed and the amount which has not yet been confirmed
@@ -357,3 +360,5 @@ Each service runs a http profiler server if it is configured in `config.yaml`. I
 go tool pprof http://localhost:9999/debug/pprof/allocs
 ```
 Then type `top` to see the functions which consume the most memory. Find more information [here](https://go.dev/blog/pprof).
+
+## Build ARC

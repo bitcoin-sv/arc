@@ -31,10 +31,6 @@ const (
 	mapExpiryTimeDefault = 24 * time.Hour
 	LogLevelDefault      = slog.LevelInfo
 
-	failedToUpdateStatus       = "Failed to update status"
-	dataRetentionPeriodDefault = 14 * 24 * time.Hour // 14 days
-
-	maxMonitoriedTxs          = 100000
 	loadUnminedLimit          = int64(5000)
 	minimumHealthyConnections = 2
 
@@ -53,11 +49,9 @@ type Processor struct {
 	mqClient             MessageQueueClient
 	logger               *slog.Logger
 	mapExpiryTime        time.Duration
-	dataRetentionPeriod  time.Duration
 	now                  func() time.Time
 
-	httpClient      HttpClient
-	maxMonitoredTxs int64
+	httpClient HttpClient
 
 	lockTransactionsInterval     time.Duration
 	quitLockTransactions         chan struct{}
@@ -108,17 +102,14 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 	}
 
 	p := &Processor{
-		startTime:           time.Now().UTC(),
-		store:               s,
-		pm:                  pm,
-		dataRetentionPeriod: dataRetentionPeriodDefault,
-		mapExpiryTime:       mapExpiryTimeDefault,
-		now:                 time.Now,
+		startTime:     time.Now().UTC(),
+		store:         s,
+		pm:            pm,
+		mapExpiryTime: mapExpiryTimeDefault,
+		now:           time.Now,
 
 		processExpiredTxsInterval: unseenTransactionRebroadcastingInterval,
 		lockTransactionsInterval:  unseenTransactionRebroadcastingInterval,
-
-		maxMonitoredTxs: maxMonitoriedTxs,
 
 		processStatusUpdatesInterval:  processStatusUpdatesIntervalDefault,
 		processStatusUpdatesBatchSize: processStatusUpdatesBatchSizeDefault,

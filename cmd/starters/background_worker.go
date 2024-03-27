@@ -51,12 +51,12 @@ func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
-	metamorphClearDataRetentionDays, err := cfg.GetInt("metamorph.db.cleanData.recordRetentionDays")
+	metamorphClearDataRetentionDays, err := cfg.GetInt("backgroundWorker.metamorph.recordRetentionDays")
 	if err != nil {
 		return nil, err
 	}
 
-	executionIntervalHours, err := cfg.GetInt("metamorph.db.cleanData.executionIntervalHours")
+	executionIntervalHours, err := cfg.GetInt("backgroundWorker.metamorph.executionIntervalHours")
 	if err != nil {
 		return nil, err
 	}
@@ -77,12 +77,12 @@ func startMetamorphScheduler(logger *slog.Logger) (func(), error) {
 
 func startBlocktxScheduler(logger *slog.Logger) (func(), error) {
 	logger.With("service", "background-worker")
-	cleanBlocksRecordRetentionDays, err := cfg.GetInt("blocktx.db.cleanData.recordRetentionDays")
+	cleanBlocksRecordRetentionDays, err := cfg.GetInt("backgroundWorker.blocktx.recordRetentionDays")
 	if err != nil {
 		return nil, err
 	}
 
-	executionIntervalHours, err := cfg.GetInt("blocktx.db.cleanData.executionIntervalHours")
+	executionIntervalHours, err := cfg.GetInt("backgroundWorker.blocktx.executionIntervalHours")
 	if err != nil {
 		return nil, err
 	}

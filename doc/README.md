@@ -7,6 +7,69 @@ ARC is a transaction processor for Bitcoin that keeps track of the life cycle of
 the Bitcoin network. Next to the mining status of a transaction, ARC also keeps track of the various states that a
 transaction can be in, such as `ANNOUNCED_TO_NETWORK`, `SEEN_IN_ORPHAN_MEMPOOL`, `SENT_TO_NETWORK`, `SEEN_ON_NETWORK`, `MINED`, `REJECTED`, etc.
 
+```plantuml
+@startuml
+title Transaction lifecycle
+
+state VALIDATED
+state ANNOUNCED
+state ERROR
+state REQUESTED_BY_NETWORK
+state SENT_TO_NETWORK
+state SEEN_ON_NETWORK
+state REJECTED
+state MINED
+
+[*] --> VALIDATED
+
+VALIDATED --> ANNOUNCED
+note on link
+  Transaction has passed all checks except
+  for verifying each UTXO is correct. This
+  check is done by the nodes themselves.
+end note
+VALIDATED -> ERROR: Bad transaction
+
+ANNOUNCED --> REQUESTED_BY_NETWORK
+note on link
+  Transaction ID has been announced to P2P
+  network via an INV message.
+end note
+
+REQUESTED_BY_NETWORK --> SENT_TO_NETWORK
+note on link
+  Peer has requested the transaction with a
+  GETDATA message.
+end note
+
+
+SENT_TO_NETWORK -> REJECTED
+note on link
+  Peer has sent a REJECT message.
+end note
+
+SENT_TO_NETWORK --> SEEN_ON_NETWORK
+note on link
+  Transaction has been sent to peer.
+end note
+
+
+SEEN_ON_NETWORK --> MINED
+note on link
+  Transaction ID has been announced to us
+  from another peer.
+end note
+
+
+MINED --> [*]
+note on link
+  Transaction ID was included in a BLOCK message.
+end note
+
+
+@enduml
+```
+
 If a transaction is not `SEEN_ON_NETWORK` within a certain time period (60 seconds by default), ARC will re-send the
 transaction to the Bitcoin network. ARC also monitors the Bitcoin network for transaction and block messages, and
 will notify the client when a transaction has been mined, or rejected.
@@ -16,17 +79,85 @@ interface of a Bitcoin node. This makes it possible for ARC to connect and broad
 as are desired. In the future, ARC will be also able to send transactions using ipv6 multicast, which will make it
 possible to connect to a large number of nodes without incurring large bandwidth costs.
 
-ARC consists of four microservices: [API](#API), [Metamorph](#Metamorph), [BlockTx](#BlockTx) and [Callbacker](#Callbacker), which are all described below.
+ARC consists of 3 core microservices: [API](#API), [Metamorph](#Metamorph) and [BlockTx](#BlockTx), which are all described below.
 
-All the microservices are designed to be horizontally scalable, and can be deployed on a single machine or on multiple machines. Each one has been programmed with a store interface and various databases can be used to store data. The default store is sqlite3, but any database that implements the store interface can be used.
+All the microservices are designed to be horizontally scalable, and can be deployed on a single machine or on multiple machines. Each one has been programmed with a store interface. The default store is postgres, but any database that implements the store interface can be used.
 
-![Architecture](./Bitcoin_Arc_Architecture_-_January_2023.png)
+```plantuml
+@startuml
+digraph arc {
+  rankdir=TB;
+  graph [fontsize=10 fontname="Verdana"];
+  node [shape=record fontsize=10 fontname="Verdana"];
+  edge [fontsize=9 fontname="Verdana"];
+
+  customer_app [shape=rectangle, label="customer\n app"]
+  customer_app -> api
+
+  subgraph cluster_arc {
+		label = "ARC";
+		color=black;
+
+    api [shape=rectangle, label="API", style=filled, fillcolor=yellow]
+    api -> metamorph
+
+    validation [shape=rectangle, label="validation"]
+    api -> validation
+
+    { rank=same; api; validation; }
+    { rank=same; metamorph; blocktx; }
+
+
+    metamorph -> blocktx [style="dashed", dir="both"]
+
+    subgraph cluster_mtm {
+      label = "metamorph";
+      metamorph [shape=rectangle, label="service", style=filled, fillcolor=yellow]
+      metamorph_store [shape=cylinder, label="store", style=filled]
+      metamorph -> metamorph_store
+      metamorph -> node_connection [style="dashed", arrowhead=none]
+    }
+
+
+    subgraph cluster_blocktx {
+      label = "blocktx";
+      blocktx_store [shape=cylinder, label="store", style=filled]
+      blocktx [shape=rectangle, label="service", style=filled, fillcolor=yellow]
+      blocktx -> blocktx_store
+      blocktx -> node_connection [style="dashed", arrowhead=none]
+    }
+	}
+
+  subgraph cluster_nodes {
+    newrank=true;
+    node_connection [ shape=point ];
+    label = "bitcoin nodes"
+
+    node_connection -> b_node_1 [style="dashed", label="p2p"]
+    node_connection -> b_node_n [style="dashed"]
+    node_connection -> b_node_2 [style="dashed"]
+
+    b_node_1 -> metamorph [style="dashed", label="zmq"]
+    b_node_1 [shape=rectangle, label="node 1", style=filled, fillcolor=cyan]
+    b_node_2 [shape=rectangle, label="node 2", style=filled, fillcolor=cyan]
+    b_node_n [shape=rectangle, label="node n ...", style=filled, fillcolor=cyan]
+  }
+
+  b_node_1 -> p2p_network [style="dashed"]
+  b_node_2 -> p2p_network [style="dashed"]
+  b_node_n -> p2p_network [style="dashed"]
+
+  p2p_network [shape=hexagon, label="p2p\n network", style=filled, fillcolor=lightblue]
+}
+@enduml
+
+```
 
 ### API
 
 API is the REST API microservice for interacting with ARC. See the [API documentation](/arc/api.html) for more information.
 
-The API takes care of authentication, validation, and sending transactions to Metamorph.  The API talks to one or more Metamorph instances using client-based, round robin load balancing.
+The API takes care of validation and sending transactions to Metamorph. The API talks to one or more Metamorph instances using client-based, round robin load balancing.
 
 ### Metamorph
 
@@ -34,43 +165,31 @@ Metamorph is a microservice that is responsible for processing transactions sent
 takes care of re-sending transactions if they are not acknowledged by the network within a certain time period (60
 seconds by default).
 
-Metamorph is designed to be horizontally scalable, with each instance operating independently and having its own
-transaction store. As a result, the metamorphs do not communicate with each other and remain unaware of each other's existence.
+Metamorph is also can send callbacks to a specified URL. To register a callback, the client must add the `X-CallbackUrl` header to the request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
+the body. By default callbacks are sent to the specified URL in case the submitted transaction has status `REJECTED` or `MINED`. In case the client wants to receive the intermediate status updates (`SEEN_IN_ORPHAN_MEMPOOL` and `SEEN_ON_NETWORK`) about the transaction, additionally the `X-FullStatusUpdates` header needs to be set to `true`. See the [API documentation](/arc/api.html) for more information.
+`X-MaxTimeout` header determines maximum number of seconds to wait for transaction new statuses before request expires (default 5sec, max value 30s).
+The following example shows the format of a callback body
+
+```json
+{
+  "blockHash": "0000000000000000064cbaac5cedf71a5447771573ba585501952c023873817b",
+  "blockHeight": 837394,
+  "extraInfo": null,
+  "merklePath": "fe12c70c000c020a008d1c719355d718dad0ccc...",
+  "timestamp": "2024-03-26T16:02:29.655390092Z",
+  "txStatus": "MINED",
+  "txid": "48ccf56b16ec11ddd9cfafc4f28492fb7e989d58594a0acd150a1592570ccd13"
+}
+```
+
+Metamorph is designed to be horizontally scalable. As a result, the metamorphs do not communicate with each other and remain unaware of each other's existence.
 
 ### BlockTx
 
 BlockTx is a microservice that is responsible for processing blocks mined on the Bitcoin network, and for propagating
 the status of transactions to each Metamorph that has subscribed to this service.
 
-The main purpose of BlockTx is to de-duplicate processing of (large) blocks. As an incoming block is processed by BlockTx, each Metamorph is notified of transactions that they have registered an interest in.  BlockTx does not store the transaction data, but instead stores only the transaction IDs and the block height in which
-they were mined. Metamorph is responsible for storing the transaction data.
-
-### Callbacker
-
-Callbacker is a very simple microservice that is responsible for sending callbacks to clients when a transaction has
-been accepted by the Bitcoin network. To register a callback, the client must add the `X-CallbackUrl` header to the
-request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
-the body. In case the client wants to receive all the intermediate status updates (SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK) about the transaction `X-FullStatusUpdates` header needs to be set to `true`. See the [API documentation](/arc/api.html) for more information.
-`X-MaxTimeout` header determines maximum number of seconds to wait for transaction new statuses before request expires (default 5sec, max value 30s)
-
-## Extended format
-
-For optimal performance, ARC uses a custom format for transactions. This format is called the extended format, and is a
-superset of the raw transaction format. The extended format includes the satoshis and scriptPubKey for each input,
-which makes it possible for ARC to validate the transaction without having to download the parent transactions. In most
-cases the sender already has all the information from the parent transaction, as this is needed to sign the transaction.
-
-The only check that cannot be done on a transaction in the extended format is the check for double spends. This can
-only be done by downloading the parent transactions, or by querying a utxo store. A robust utxo store is still in
-development and will be added to ARC when it is ready. At this moment, the utxo check is performed in the Bitcoin
-node when a transaction is sent to the network.
-
-With the successful adoption of Bitcoin ARC, this format should establish itself as the new standard of interchange
-between wallets and non-mining nodes on the network.
-
-The extended format has been described in detail in [BIP-239](BIP-239).
-
-The following diagrams show the difference between validating a transaction in the standard and extended format:
+The main purpose of BlockTx is to de-duplicate processing of (large) blocks. As an incoming block is processed by BlockTx, Metamorph is notified about mined transactions by means of a message queue.  BlockTx does not store the transaction data, but instead stores only the transaction IDs and the block height in which they were mined. Metamorph is responsible for storing the transaction data.
 
 ```plantuml
 @startuml
@@ -113,6 +232,26 @@ return status
 
 @enduml
 ```
+
+
+## Extended format
+
+For optimal performance, ARC uses a custom format for transactions. This format is called the extended format, and is a
+superset of the raw transaction format. The extended format includes the satoshis and scriptPubKey for each input,
+which makes it possible for ARC to validate the transaction without having to download the parent transactions. In most
+cases the sender already has all the information from the parent transaction, as this is needed to sign the transaction.
+
+The only check that cannot be done on a transaction in the extended format is the check for double spends. This can
+only be done by downloading the parent transactions, or by querying a utxo store. A robust utxo store is still in
+development and will be added to ARC when it is ready. At this moment, the utxo check is performed in the Bitcoin
+node when a transaction is sent to the network.
+
+With the successful adoption of Bitcoin ARC, this format should establish itself as the new standard of interchange
+between wallets and non-mining nodes on the network.
+
+The extended format has been described in detail in [BIP-239](BIP-239).
+
+The following diagrams show the difference between validating a transaction in the standard and extended format:
 
 ```plantuml
 @startuml
@@ -209,7 +348,6 @@ actor "client" as tx
 
 box api server
     participant handler
-    participant auth
     participant validator
 end box
 
@@ -217,7 +355,8 @@ box metamorph
     participant grpc
     participant worker
     database store
-    participant "peer\nhandler" as peer
+    participant "peer\nserver" as peer
+    participant "zmq\nlistener" as zmq
 end box
 
 database "bitcoin\nnetwork" as bsv
@@ -226,32 +365,41 @@ title Submit transaction via P2P
 
 tx -> handler ++: extended\nraw tx
 
-    handler -> auth ++: apikey
-    return
-
     handler -> validator ++: tx
     return success
 
     handler -> grpc ++: tx
         grpc -> worker ++: tx
-            worker -> store++: register txid
-            worker -> store: tx
+            worker -> store++: tx
         return STORED
         worker --> grpc: STORED
 
         worker -> peer: txid
         peer -> bsv: INV txid
+        peer -> worker: ANNOUNCED
+
         worker -> store: ANNOUNCED
-        worker --> grpc: ANNOUNCED
+
 
         bsv -> peer++: GETDATA txid
+            peer -> worker: REQUESTED
+            worker -> store: REQUESTED
             peer -> store ++ : get tx
-                store -> worker : SENT
             return raw tx
 
-            worker -> store: SENT
-            worker --> grpc: SENT
         return tx
+
+        peer -> worker: SENT
+
+        worker -> store: SENT
+
+
+
+        bsv -> zmq: txid
+        zmq -> worker: ACCEPTED
+
+        worker -> store: ACCEPTED
+
 
         bsv -> peer: INV txid
         peer -> worker: SEEN
@@ -259,11 +407,13 @@ tx -> handler ++: extended\nraw tx
 
     return status
 
-    grpc -> grpc: wait for SENT\nor TIMEOUT
+    grpc -> grpc: wait for\nspecified status\nor TIMEOUT
+    return last status
 
 return last status
 
 @enduml
+
 ```
 
 ```plantuml
@@ -277,6 +427,10 @@ box metamorph
     participant worker
     database store
     participant "peer\nhandler" as mpeer
+end box
+
+box message queue
+    participant "queue" as queue
 end box
 
 box blocktx
@@ -298,12 +452,10 @@ peer -> blocktx++: blockhash
 peer -> blocktx--: block
 
 blocktx -> blockstore: block
-blocktx -> blockstore: txids
-blocktx -> worker++: blockhash
-    worker -> blocktx: get txs in block
-    blockstore -> blocktx: txids
-    blocktx -> worker--: txids
-    worker -> store: mark txs mined
+worker -> queue++: subscribe
+blocktx -> queue--: publish txs
+queue -> worker--: txs
+worker -> store: mark txs mined
 
 @enduml
 ```

@@ -33,7 +33,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
 
-	recordRetentionDays, err := cfg.GetInt("blocktx.db.cleanData.recordRetentionDays")
+	recordRetentionDays, err := cfg.GetInt("blocktx.recordRetentionDays")
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 
 	natsClient, err := nats_mq.NewNatsClient(natsURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", natsURL, err)
 	}
 
 	maxBatchSize, err := cfg.GetInt("blocktx.mq.txsMinedMaxBatchSize")
@@ -74,7 +74,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 
 	mqClient := nats_mq.NewNatsMQClient(natsClient, txChannel, nats_mq.WithMaxBatchSize(maxBatchSize))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create message queue client: %v", err)
 	}
 
 	err = mqClient.SubscribeRegisterTxs()

@@ -65,16 +65,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("invalid metamorph.processorCacheExpiryTime: %s", mapExpiryStr)
 	}
 
-	dataRetentionDays, err := cfg.GetInt("metamorph.db.cleanData.recordRetentionDays")
-	if err != nil {
-		return nil, err
-	}
-
-	maxMonitoredTxs, err := cfg.GetInt64("metamorph.maxMonitoredTxs")
-	if err != nil {
-		return nil, err
-	}
-
 	natsURL, err := cfg.GetString("queueURL")
 	if err != nil {
 		return nil, err
@@ -114,8 +104,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		pm,
 		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithProcessorLogger(logger.With(slog.String("module", "mtm-proc"))),
-		metamorph.WithDataRetentionPeriod(time.Duration(dataRetentionDays)*24*time.Hour),
-		metamorph.WithMaxMonitoredTxs(maxMonitoredTxs),
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),
@@ -181,11 +169,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		}
 
 		optsServer = append(optsServer, metamorph.WithForceCheckUtxos(node))
-	}
-
-	btxTimeout := viper.GetDuration("metamorph.blocktxTimeout")
-	if btxTimeout > 0 {
-		optsServer = append(optsServer, metamorph.WithBlocktxTimeout(btxTimeout))
 	}
 
 	serv := metamorph.NewServer(s, metamorphProcessor, optsServer...)

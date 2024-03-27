@@ -98,7 +98,7 @@ func run() error {
 
 	logger = logger.With(slog.String("host", hostname))
 
-	logger.Info("starting arc", slog.String("version", version.Version), slog.String("commit", version.Commit))
+	logger.Info("Starting arc", slog.String("version", version.Version), slog.String("commit", version.Commit))
 
 	go func() {
 		profilerAddr := viper.GetString("profilerAddr")

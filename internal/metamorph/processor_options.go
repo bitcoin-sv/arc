@@ -58,12 +58,6 @@ func WithDataRetentionPeriod(d time.Duration) func(*Processor) {
 	}
 }
 
-func WithMaxMonitoredTxs(m int64) func(processor *Processor) {
-	return func(p *Processor) {
-		p.maxMonitoredTxs = m
-	}
-}
-
 func WithMessageQueueClient(mqClient MessageQueueClient) func(processor *Processor) {
 	return func(p *Processor) {
 		p.mqClient = mqClient

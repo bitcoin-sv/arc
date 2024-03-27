@@ -56,8 +56,7 @@ type Processor struct {
 	dataRetentionPeriod  time.Duration
 	now                  func() time.Time
 
-	httpClient      HttpClient
-	maxMonitoredTxs int64
+	httpClient HttpClient
 
 	lockTransactionsInterval     time.Duration
 	quitLockTransactions         chan struct{}
@@ -117,8 +116,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 
 		processExpiredTxsInterval: unseenTransactionRebroadcastingInterval,
 		lockTransactionsInterval:  unseenTransactionRebroadcastingInterval,
-
-		maxMonitoredTxs: maxMonitoriedTxs,
 
 		processStatusUpdatesInterval:  processStatusUpdatesIntervalDefault,
 		processStatusUpdatesBatchSize: processStatusUpdatesBatchSizeDefault,

@@ -38,9 +38,6 @@ where options are:
     -blocktx=<true|false>
           whether to start block tx (default=true)
 
-    -callbacker=<true|false>
-          whether to start callbacker (default=true)
-
     -tracer=<true|false>
           whether to start the Jaeger tracer (default=false)
 
@@ -60,17 +57,8 @@ The API takes care of authentication, validation, and sending transactions to Me
 You can run the API like this:
 
 ```shell
-go run cmd/api/main.go
-```
-
-or using the generic `main.go`:
-
-```shell
 go run main.go -api=true
 ```
-
-The only difference between the two is that the generic `main.go` starts the Go profiler, while the specific `cmd/api/main.go`
-command does not.
 
 #### Integration into an echo server
 
@@ -133,17 +121,8 @@ transaction store. As a result, they do not communicate with each other and rema
 You can run metamorph like this:
 
 ```shell
-go run cmd/metamorph/main.go
-```
-
-or using the generic `main.go`:
-
-```shell
 go run main.go -metamorph=true
 ```
-
-The only difference between the two is that the generic `main.go` starts the Go profiler, while the specific
-`cmd/metamorph/main.go` command does not.
 
 #### Metamorph transaction statuses
 
@@ -218,17 +197,8 @@ they were mined. Metamorph is responsible for storing the transaction data.
 You can run BlockTx like this:
 
 ```shell
-go run cmd/blocktx/main.go
-```
-
-or using the generic `main.go`:
-
-```shell
 go run main.go -blocktx=true
 ```
-
-The only difference between the two is that the generic `main.go` starts the Go profiler, while the specific
-`cmd/blocktx/main.go`command does not.
 
 #### BlockTx stores
 

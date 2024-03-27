@@ -347,12 +347,14 @@ DOCKER_HOST=unix:///Users/<username>/.colima/default/docker.sock make test
 ```
 These integration tests can be excluded from execution with `go test ./...` by adding the `-short` flag like this `go test -short ./...`.
 
-### end-to-end tests
+### E2E tests
 The end-to-end tests are located in the folder `test`. Docker needs to be installed in order to run them. End-to-end tests can be run locally together with arc and 3 nodes using the provided docker-compose file.
 The tests can be executed like this:
 ```
 make clean_restart_e2e_test
 ```
+
+The [docker-compose](./test/docker-compose.yml) file also shows the minimum setup that is needed for ARC to run.
 
 ## Profiler
 Each service runs a http profiler server if it is configured in `config.yaml`. In order to access it, a connection can be created using the Go `pprof` [tool](https://pkg.go.dev/net/http/pprof). For example to investigate the memory usage

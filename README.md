@@ -176,7 +176,7 @@ metamorph, or make sure that all metamorph servers are **whitelisted** on the Bi
 
 Although not required, zmq can be used to listen for transaction messages (`hashtx`, `invalidtx`, `discardedfrommempool`).
 This is especially useful if you are not connecting to multiple Bitcoin nodes, and therefore are not receiving INV
-messages for your transactions.
+messages for your transactions. Currently, ARC can only detect whether a transaction was rejected e.g. due to double spending if ZMQ is connected to at least one node.
 
 If you want to use zmq, you can set the `host.port.zmq` setting for the respective `peers` setting in the configuration file.
 
@@ -185,7 +185,7 @@ ZMQ does seem to be a bit faster than the p2p network, so it is recommended to t
 ### BlockTx
 
 BlockTx is a microservice that is responsible for processing blocks mined on the Bitcoin network, and for propagating
-the status of transactions to each Metamorph that has subscribed to this service.
+the status of transactions to Metamorph. The communication between BlockTx and Metamorph is asynchronous and happens through a message queue. More details about that message queue can be found [here](#message-queue-).
 
 The main purpose of BlockTx is to de-duplicate processing of (large) blocks. As an incoming block is processed by BlockTx, each Metamorph is notified of transactions that they have registered an interest in.  BlockTx does not store the transaction data, but instead stores only the transaction IDs and the block height in which
 they were mined. Metamorph is responsible for storing the transaction data.
@@ -205,7 +205,8 @@ Migrations have to be executed prior to starting BlockTx. For this you'll need t
 migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslmode=<ssl-mode>"  -path internal/blocktx/store/postgresql/migrations  up
 ```
 
-### Message Queue
+<a id="message-queue"></a>
+## Message Queue
 
 For the communication between Metamorph and BlockTx a message queue is used. Currently the only available implementation of that message queue uses [NATS](https://nats.io/). A message queue of this type has to run in order for ARC to run.
 
@@ -214,7 +215,7 @@ Metamorph publishes new transactions to the message queue and BlockTx subscribes
 ![Message Queue](./doc/message_queue.png)
 
 
-### K8s-Watcher
+## K8s-Watcher
 
 The K8s-Watcher is a service which is needed for a special use case. If ARC runs on a Kubernetes cluster and is configured to run with AWS DynamoDB as a `metamorph` centralised storage, then the K8s-Watcher can be run as a safety measure. Due to the centralisation of `metamorph` storage, each `metamorph` pod has to ensure the exclusive processing of records by locking the records. If `metamorph` shuts down gracefully it will unlock all the records it holds in memory. The graceful shutdown is not guaranteed though. For this eventuality the K8s-Watcher can be run in a separate pod. K8s-Watcher detects when `metamorph` pods are terminated and will additionally call on the `metamorph` service to unlock the records of that terminated `metamorph` pod. This ensures that no records will stay in a locked state.
 
@@ -222,6 +223,16 @@ The K8s-Watcher can be started as follows
 
 ```shell
 go run main.go -k8s-watcher=true
+```
+
+## Background-Worker
+
+The Background-Worker can be run alongside ARC and runs [background jobs](./internal/background_worker/jobs). Currently, these background jobs trigger the deletion of old data in Metamorph and Blocktx.
+
+The Background-Worker can be started as follows
+
+```shell
+go run main.go -background-worker=true
 ```
 
 ## Broadcaster-cli
@@ -242,19 +253,7 @@ go install ./cmd/broadcaster-cli/
 
 ### Configuration
 
-`broadcaster-cli` uses flags for adding context needed to run it. The flags and commands available can be shown by running `broadcaster-cli` with the flag `--help`. For example this command `broadcaster-cli --help` will have the following output:
-```
-Available Commands:
-  completion  Generate the autocompletion script for the specified shell
-  help        Help about any command
-  keyset      Function set for the keyset
-  utxos       Create UTXO set to be used with broadcaster
-
-Flags:
-  -h, --help             help for broadcaster
-      --keyfile string   Private key from file (arc.key) to use for funding transactions
-      --testnet          Use testnet
-```
+`broadcaster-cli` uses flags for adding context needed to run it. The flags and commands available can be shown by running `broadcaster-cli` with the flag `--help`.
 
 As there can be a lot of flags you can also define them in a `.env` file. For example like this:
 ```
@@ -294,10 +293,6 @@ These instructions will provide the steps needed in order to use `broadcaster-cl
    2. After this step you can continue with step 4
       1. Before continuing with step 4 it is advisable to wait until all consolidation transactions were mined
       2. The command `broadcaster-cli keyset balance` shows the amount of satoshis in the balance that have been confirmed and the amount which has not yet been confirmed
-
-## Background worker
-
-The goal of this submodule is to provide simple and convenient way to schedule repetitive tasks to be performed on ARC.
 
 ## Tests
 ### Unit tests

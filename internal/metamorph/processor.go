@@ -31,9 +31,6 @@ const (
 	mapExpiryTimeDefault = 24 * time.Hour
 	LogLevelDefault      = slog.LevelInfo
 
-	failedToUpdateStatus = "Failed to update status"
-
-	maxMonitoriedTxs          = 100000
 	loadUnminedLimit          = int64(5000)
 	minimumHealthyConnections = 2
 

@@ -167,7 +167,20 @@ seconds by default).
 
 Metamorph is also can send callbacks to a specified URL. To register a callback, the client must add the `X-CallbackUrl` header to the request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
 the body. By default callbacks are sent to the specified URL in case the submitted transaction has status `REJECTED` or `MINED`. In case the client wants to receive the intermediate status updates (`SEEN_IN_ORPHAN_MEMPOOL` and `SEEN_ON_NETWORK`) about the transaction, additionally the `X-FullStatusUpdates` header needs to be set to `true`. See the [API documentation](/arc/api.html) for more information.
-`X-MaxTimeout` header determines maximum number of seconds to wait for transaction new statuses before request expires (default 5sec, max value 30s)
+`X-MaxTimeout` header determines maximum number of seconds to wait for transaction new statuses before request expires (default 5sec, max value 30s).
+The following example shows the format of a callback body
+
+```json
+{
+  "blockHash": "0000000000000000064cbaac5cedf71a5447771573ba585501952c023873817b",
+  "blockHeight": 837394,
+  "extraInfo": null,
+  "merklePath": "fe12c70c000c020a008d1c719355d718dad0ccc...",
+  "timestamp": "2024-03-26T16:02:29.655390092Z",
+  "txStatus": "MINED",
+  "txid": "48ccf56b16ec11ddd9cfafc4f28492fb7e989d58594a0acd150a1592570ccd13"
+}
+```
 
 Metamorph is designed to be horizontally scalable. As a result, the metamorphs do not communicate with each other and remain unaware of each other's existence.
 

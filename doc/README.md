@@ -191,25 +191,6 @@ the status of transactions to each Metamorph that has subscribed to this service
 
 The main purpose of BlockTx is to de-duplicate processing of (large) blocks. As an incoming block is processed by BlockTx, Metamorph is notified about mined transactions by means of a message queue.  BlockTx does not store the transaction data, but instead stores only the transaction IDs and the block height in which they were mined. Metamorph is responsible for storing the transaction data.
 
-## Extended format
-
-For optimal performance, ARC uses a custom format for transactions. This format is called the extended format, and is a
-superset of the raw transaction format. The extended format includes the satoshis and scriptPubKey for each input,
-which makes it possible for ARC to validate the transaction without having to download the parent transactions. In most
-cases the sender already has all the information from the parent transaction, as this is needed to sign the transaction.
-
-The only check that cannot be done on a transaction in the extended format is the check for double spends. This can
-only be done by downloading the parent transactions, or by querying a utxo store. A robust utxo store is still in
-development and will be added to ARC when it is ready. At this moment, the utxo check is performed in the Bitcoin
-node when a transaction is sent to the network.
-
-With the successful adoption of Bitcoin ARC, this format should establish itself as the new standard of interchange
-between wallets and non-mining nodes on the network.
-
-The extended format has been described in detail in [BIP-239](BIP-239).
-
-The following diagrams show the difference between validating a transaction in the standard and extended format:
-
 ```plantuml
 @startuml
 hide footbox
@@ -251,6 +232,26 @@ return status
 
 @enduml
 ```
+
+
+## Extended format
+
+For optimal performance, ARC uses a custom format for transactions. This format is called the extended format, and is a
+superset of the raw transaction format. The extended format includes the satoshis and scriptPubKey for each input,
+which makes it possible for ARC to validate the transaction without having to download the parent transactions. In most
+cases the sender already has all the information from the parent transaction, as this is needed to sign the transaction.
+
+The only check that cannot be done on a transaction in the extended format is the check for double spends. This can
+only be done by downloading the parent transactions, or by querying a utxo store. A robust utxo store is still in
+development and will be added to ARC when it is ready. At this moment, the utxo check is performed in the Bitcoin
+node when a transaction is sent to the network.
+
+With the successful adoption of Bitcoin ARC, this format should establish itself as the new standard of interchange
+between wallets and non-mining nodes on the network.
+
+The extended format has been described in detail in [BIP-239](BIP-239).
+
+The following diagrams show the difference between validating a transaction in the standard and extended format:
 
 ```plantuml
 @startuml
@@ -428,6 +429,10 @@ box metamorph
     participant "peer\nhandler" as mpeer
 end box
 
+box message queue
+    participant "queue" as queue
+end box
+
 box blocktx
     participant "worker" as blocktx
     database blockstore
@@ -447,12 +452,10 @@ peer -> blocktx++: blockhash
 peer -> blocktx--: block
 
 blocktx -> blockstore: block
-blocktx -> blockstore: txids
-blocktx -> worker++: blockhash
-    worker -> blocktx: get txs in block
-    blockstore -> blocktx: txids
-    blocktx -> worker--: txids
-    worker -> store: mark txs mined
+worker -> queue++: subscribe
+blocktx -> queue--: publish txs
+queue -> worker--: txs
+worker -> store: mark txs mined
 
 @enduml
 ```

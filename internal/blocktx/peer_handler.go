@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	transactionStoringBatchsizeDefault = 2048 // power of 2 for easier memory allocation
+	transactionStoringBatchsizeDefault = 8192 // power of 2 for easier memory allocation
 	maxRequestBlocks                   = 1
 	fillGapsInterval                   = 15 * time.Minute
 	registerTxsIntervalDefault         = time.Second * 10

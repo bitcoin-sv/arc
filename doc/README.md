@@ -83,75 +83,7 @@ ARC consists of 3 core microservices: [API](#API), [Metamorph](#Metamorph) and [
 
 All the microservices are designed to be horizontally scalable, and can be deployed on a single machine or on multiple machines. Each one has been programmed with a store interface. The default store is postgres, but any database that implements the store interface can be used.
 
-```plantuml
-@startuml
-digraph arc {
-  rankdir=TB;
-  graph [fontsize=10 fontname="Verdana"];
-  node [shape=record fontsize=10 fontname="Verdana"];
-  edge [fontsize=9 fontname="Verdana"];
-
-  customer_app [shape=rectangle, label="customer\n app"]
-  customer_app -> api
-
-  subgraph cluster_arc {
-		label = "ARC";
-		color=black;
-
-    api [shape=rectangle, label="API", style=filled, fillcolor=yellow]
-    api -> metamorph
-
-    validation [shape=rectangle, label="validation"]
-    api -> validation
-
-    { rank=same; api; validation; }
-    { rank=same; metamorph; blocktx; }
-
-
-    metamorph -> blocktx [style="dashed", dir="both"]
-
-    subgraph cluster_mtm {
-      label = "metamorph";
-      metamorph [shape=rectangle, label="service", style=filled, fillcolor=yellow]
-      metamorph_store [shape=cylinder, label="store", style=filled]
-      metamorph -> metamorph_store
-      metamorph -> node_connection [style="dashed", arrowhead=none]
-    }
-
-
-    subgraph cluster_blocktx {
-      label = "blocktx";
-      blocktx_store [shape=cylinder, label="store", style=filled]
-      blocktx [shape=rectangle, label="service", style=filled, fillcolor=yellow]
-      blocktx -> blocktx_store
-      blocktx -> node_connection [style="dashed", arrowhead=none]
-    }
-	}
-
-  subgraph cluster_nodes {
-    newrank=true;
-    node_connection [ shape=point ];
-    label = "bitcoin nodes"
-
-    node_connection -> b_node_1 [style="dashed", label="p2p"]
-    node_connection -> b_node_n [style="dashed"]
-    node_connection -> b_node_2 [style="dashed"]
-
-    b_node_1 -> metamorph [style="dashed", label="zmq"]
-    b_node_1 [shape=rectangle, label="node 1", style=filled, fillcolor=cyan]
-    b_node_2 [shape=rectangle, label="node 2", style=filled, fillcolor=cyan]
-    b_node_n [shape=rectangle, label="node n ...", style=filled, fillcolor=cyan]
-  }
-
-  b_node_1 -> p2p_network [style="dashed"]
-  b_node_2 -> p2p_network [style="dashed"]
-  b_node_n -> p2p_network [style="dashed"]
-
-  p2p_network [shape=hexagon, label="p2p\n network", style=filled, fillcolor=lightblue]
-}
-@enduml
-
-```
+![Building block diagram](./building_block_diagram.png)
 
 ### API
 
@@ -190,6 +122,25 @@ BlockTx is a microservice that is responsible for processing blocks mined on the
 the status of transactions to each Metamorph that has subscribed to this service.
 
 The main purpose of BlockTx is to de-duplicate processing of (large) blocks. As an incoming block is processed by BlockTx, Metamorph is notified about mined transactions by means of a message queue.  BlockTx does not store the transaction data, but instead stores only the transaction IDs and the block height in which they were mined. Metamorph is responsible for storing the transaction data.
+
+## Extended format
+
+For optimal performance, ARC uses a custom format for transactions. This format is called the extended format, and is a
+superset of the raw transaction format. The extended format includes the satoshis and scriptPubKey for each input,
+which makes it possible for ARC to validate the transaction without having to download the parent transactions. In most
+cases the sender already has all the information from the parent transaction, as this is needed to sign the transaction.
+
+The only check that cannot be done on a transaction in the extended format is the check for double spends. This can
+only be done by downloading the parent transactions, or by querying a utxo store. A robust utxo store is still in
+development and will be added to ARC when it is ready. At this moment, the utxo check is performed in the Bitcoin
+node when a transaction is sent to the network.
+
+With the successful adoption of Bitcoin ARC, this format should establish itself as the new standard of interchange
+between wallets and non-mining nodes on the network.
+
+The extended format has been described in detail in [BIP-239](BIP-239).
+
+The following diagrams show the difference between validating a transaction in the standard and extended format:
 
 ```plantuml
 @startuml
@@ -234,24 +185,7 @@ return status
 ```
 
 
-## Extended format
 
-For optimal performance, ARC uses a custom format for transactions. This format is called the extended format, and is a
-superset of the raw transaction format. The extended format includes the satoshis and scriptPubKey for each input,
-which makes it possible for ARC to validate the transaction without having to download the parent transactions. In most
-cases the sender already has all the information from the parent transaction, as this is needed to sign the transaction.
-
-The only check that cannot be done on a transaction in the extended format is the check for double spends. This can
-only be done by downloading the parent transactions, or by querying a utxo store. A robust utxo store is still in
-development and will be added to ARC when it is ready. At this moment, the utxo check is performed in the Bitcoin
-node when a transaction is sent to the network.
-
-With the successful adoption of Bitcoin ARC, this format should establish itself as the new standard of interchange
-between wallets and non-mining nodes on the network.
-
-The extended format has been described in detail in [BIP-239](BIP-239).
-
-The following diagrams show the difference between validating a transaction in the standard and extended format:
 
 ```plantuml
 @startuml

@@ -602,15 +602,6 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 			}
 		}
 
-		exists, err := ph.store.TransactionExists(context.Background(), hash)
-		if err != nil {
-			return err
-		}
-
-		if !exists {
-			continue
-		}
-
 		// Otherwise they're txids, which should have merkle paths calculated.
 		txs = append(txs, &blocktx_api.TransactionAndSource{
 			Hash: hash[:],

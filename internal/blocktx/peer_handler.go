@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	transactionStoringBatchsizeDefault = 2048 // power of 2 for easier memory allocation
+	transactionStoringBatchsizeDefault = 8192 // power of 2 for easier memory allocation
 	maxRequestBlocks                   = 1
 	fillGapsInterval                   = 15 * time.Minute
 	registerTxsIntervalDefault         = time.Second * 10
@@ -601,15 +601,6 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 			if totalSize > 0 {
 				ph.logger.Info(fmt.Sprintf("%d txs out of %d marked as mined", txIndex, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("duration", time.Since(now).String()))
 			}
-		}
-
-		exists, err := ph.store.TransactionExists(context.Background(), hash)
-		if err != nil {
-			return err
-		}
-
-		if !exists {
-			continue
 		}
 
 		// Otherwise they're txids, which should have merkle paths calculated.

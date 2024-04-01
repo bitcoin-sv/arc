@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/version"
 	"log"
 	"log/slog"
 	"net/http"
@@ -24,14 +25,6 @@ import (
 
 // Name used by build script for the binaries. (Please keep on single line)
 const progname = "arc"
-
-// // Version & commit strings injected at build with -ldflags -X...
-var version string
-var commit string
-
-func init() {
-	gocore.SetInfo(progname, version, commit)
-}
 
 func main() {
 	err := run()
@@ -105,7 +98,7 @@ func run() error {
 
 	logger = logger.With(slog.String("host", hostname))
 
-	logger.Info("starting arc", slog.String("version", version), slog.String("commit", commit))
+	logger.Info("Starting arc", slog.String("version", version.Version), slog.String("commit", version.Commit))
 
 	go func() {
 		profilerAddr := viper.GetString("profilerAddr")

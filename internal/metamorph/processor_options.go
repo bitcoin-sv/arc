@@ -52,18 +52,6 @@ func WithProcessStatusUpdatesBatchSize(size int) func(*Processor) {
 	}
 }
 
-func WithDataRetentionPeriod(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.dataRetentionPeriod = d
-	}
-}
-
-func WithMaxMonitoredTxs(m int64) func(processor *Processor) {
-	return func(p *Processor) {
-		p.maxMonitoredTxs = m
-	}
-}
-
 func WithMessageQueueClient(mqClient MessageQueueClient) func(processor *Processor) {
 	return func(p *Processor) {
 		p.mqClient = mqClient

@@ -192,6 +192,148 @@ To perform this operation, you must be authenticated by means of one of the foll
 BearerAuth, None, None
 </aside>
 
+## Get metamorph health
+
+<a id="opIdGET health"></a>
+
+> Code samples
+
+```http
+GET https://tapi.taal.com/arc/v1/health HTTP/1.1
+Host: tapi.taal.com
+Accept: application/json
+
+```
+
+```javascript
+
+const headers = {
+  'Accept':'application/json',
+  'Authorization':'Bearer {access-token}'
+};
+
+fetch('https://tapi.taal.com/arc/v1/health',
+{
+  method: 'GET',
+
+  headers: headers
+})
+.then(function(res) {
+    return res.json();
+}).then(function(body) {
+    console.log(body);
+});
+
+```
+
+```java
+URL obj = new URL("https://tapi.taal.com/arc/v1/health");
+HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+con.setRequestMethod("GET");
+int responseCode = con.getResponseCode();
+BufferedReader in = new BufferedReader(
+    new InputStreamReader(con.getInputStream()));
+String inputLine;
+StringBuffer response = new StringBuffer();
+while ((inputLine = in.readLine()) != null) {
+    response.append(inputLine);
+}
+in.close();
+System.out.println(response.toString());
+
+```
+
+```go
+package main
+
+import (
+       "bytes"
+       "net/http"
+)
+
+func main() {
+
+    headers := map[string][]string{
+        "Accept": []string{"application/json"},
+        "Authorization": []string{"Bearer {access-token}"},
+    }
+
+    data := bytes.NewBuffer([]byte{jsonReq})
+    req, err := http.NewRequest("GET", "https://tapi.taal.com/arc/v1/health", data)
+    req.Header = headers
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    // ...
+}
+
+```
+
+```ruby
+require 'rest-client'
+require 'json'
+
+headers = {
+  'Accept' => 'application/json',
+  'Authorization' => 'Bearer {access-token}'
+}
+
+result = RestClient.get 'https://tapi.taal.com/arc/v1/health',
+  params: {
+  }, headers: headers
+
+p JSON.parse(result)
+
+```
+
+```python
+import requests
+headers = {
+  'Accept': 'application/json',
+  'Authorization': 'Bearer {access-token}'
+}
+
+r = requests.get('https://tapi.taal.com/arc/v1/health', headers = headers)
+
+print(r.json())
+
+```
+
+```shell
+# You can also use wget
+curl -X GET https://tapi.taal.com/arc/v1/health \
+  -H 'Accept: application/json' \
+  -H 'Authorization: Bearer {access-token}'
+
+```
+
+`GET /v1/health`
+
+Checks if metamorph is healthy and running
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "healthy": false,
+  "reason": "no db connection"
+}
+```
+
+<h3 id="get-metamorph-health-responses">Responses</h3>
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Success|[Health](#schemahealth)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Security requirements failed|None|
+
+<aside class="warning">
+To perform this operation, you must be authenticated by means of one of the following methods:
+BearerAuth, None, None
+</aside>
+
 ## Get transaction status.
 
 <a id="opIdGET transaction status"></a>
@@ -944,6 +1086,30 @@ Common response object
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
 |timestamp|string(date-time)|true|none|none|
+
+<h2 id="tocS_Health">Health</h2>
+<!-- backwards compatibility -->
+<a id="schemahealth"></a>
+<a id="schema_Health"></a>
+<a id="tocShealth"></a>
+<a id="tocshealth"></a>
+
+```json
+{
+  "healthy": false,
+  "reason": "no db connection"
+}
+
+```
+
+healthy or not
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|healthy|boolean|false|none|whether healthy or not|
+|reason|string¦null|false|none|explains the problem with metamorph|
 
 <h2 id="tocS_ChainInfo">ChainInfo</h2>
 <!-- backwards compatibility -->

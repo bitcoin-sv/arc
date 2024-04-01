@@ -41,7 +41,6 @@ func PtrTo[T any](v T) *T {
 
 const (
 	responseTimeout = 5 * time.Second
-	blocktxTimeout  = 1 * time.Second
 )
 
 var ErrNotFound = errors.New("key could not be found")
@@ -69,13 +68,6 @@ type Server struct {
 	grpcServer      *grpc.Server
 	bitcoinNode     BitcoinNode
 	forceCheckUtxos bool
-	blocktxTimeout  time.Duration
-}
-
-func WithBlocktxTimeout(d time.Duration) func(*Server) {
-	return func(s *Server) {
-		s.blocktxTimeout = d
-	}
 }
 
 func WithLogger(logger *slog.Logger) func(*Server) {
@@ -101,7 +93,6 @@ func NewServer(s store.MetamorphStore, p ProcessorI, opts ...ServerOption) *Serv
 		store:           s,
 		timeout:         responseTimeout,
 		forceCheckUtxos: false,
-		blocktxTimeout:  blocktxTimeout,
 	}
 
 	for _, opt := range opts {

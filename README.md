@@ -58,9 +58,6 @@ where options are:
     -blocktx=<true|false>
           whether to start block tx (default=true)
 
-    -callbacker=<true|false>
-          whether to start callbacker (default=true)
-
     -tracer=<true|false>
           whether to start the Jaeger tracer (default=false)
 
@@ -77,20 +74,15 @@ API is the REST API microservice for interacting with ARC. See the [API document
 
 The API takes care of authentication, validation, and sending transactions to Metamorph.  The API talks to one or more Metamorph instances using client-based, round robin load balancing.
 
+To register a callback, the client must add the `X-CallbackUrl` header to the
+request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
+the body. See the [API documentation](https://bitcoin-sv.github.io/arc/api.html) for more information.
+
 You can run the API like this:
-
-```shell
-go run cmd/api/main.go
-```
-
-or using the generic `main.go`:
 
 ```shell
 go run main.go -api=true
 ```
-
-The only difference between the two is that the generic `main.go` starts the Go profiler, while the specific `cmd/api/main.go`
-command does not.
 
 #### Integration into an echo server
 
@@ -147,23 +139,13 @@ Metamorph is a microservice that is responsible for processing transactions sent
 takes care of re-sending transactions if they are not acknowledged by the network within a certain time period (60
 seconds by default).
 
-Metamorph is designed to be horizontally scalable, with each instance operating independently and having its own
-transaction store. As a result, they do not communicate with each other and remain unaware of each other's existence.
+Metamorph is designed to be horizontally scalable, with each instance operating independently. As a result, they do not communicate with each other and remain unaware of each other's existence.
 
 You can run metamorph like this:
 
 ```shell
-go run cmd/metamorph/main.go
-```
-
-or using the generic `main.go`:
-
-```shell
 go run main.go -metamorph=true
 ```
-
-The only difference between the two is that the generic `main.go` starts the Go profiler, while the specific
-`cmd/metamorph/main.go` command does not.
 
 #### Metamorph transaction statuses
 
@@ -183,26 +165,19 @@ available:
 | 8   | `SEEN_ON_NETWORK`      | The transaction has been seen on the Bitcoin network and propagated to other nodes. This status is set when metamorph receives an INV message for the transaction from another node than it was sent to. |
 | 9   | `MINED`                | The transaction has been mined into a block by a mining node.                                                                                                                                            |
 | 10  | `SEEN_IN_ORPHAN_MEMPOOL`             | The transaction has been sent to at least 1 Bitcoin node but parent transaction was not found. |
-| 108 | `CONFIRMED`            | The transaction is marked as confirmed when it is in a block with 100 blocks built on top of that block.                                                                                                 |
+| 108 | `CONFIRMED`            | The transaction is marked as confirmed when it is in a block with 100 blocks built on top of that block (Currently this status is not maintained)                                                                                                 |
 | 109 | `REJECTED`             | The transaction has been rejected by the Bitcoin network.                                                                                                                                                |
 
 This status is returned in the `txStatus` field whenever the transaction is queried.
 
 #### Metamorph stores
 
-Currently, metamorph only offers one storage implementation which is Postgres.
-~~The metamorph store has been implemented for multiple databases, depending on your needs. In high-volume environments,
-you may want to use a database that is optimized for high throughput, such as [Badger](https://dgraph.io/docs/badger).~~
+Currently, Metamorph only offers one storage implementation which is Postgres.
 
-The following databases have been implemented:
-
-* Postgres (`postgres`)
-* ~~Sqlite3 (`sqlite` or `sqlite_memory` for in-memory)~~
-* ~~Badger (`badger`)~~
-* ~~BadgerHold (`badgerhold`)~~
-
-You can select the store to use by setting the `metamorph.db.mode` in the settings file or adding `metamorph.db.mode` as
-an environment variable.
+Migrations have to be executed prior to starting Metamorph. For this you'll need the [go-migrate](https://github.com/golang-migrate/migrate) tool. Once `go-migrate` has been installed, the migrations can be executed as follows:
+```bash
+migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslmode=<ssl-mode>"  -path internal/metamorph/store/postgresql/migrations  up
+```
 
 #### Connections to Bitcoin nodes
 
@@ -221,7 +196,7 @@ metamorph, or make sure that all metamorph servers are **whitelisted** on the Bi
 
 Although not required, zmq can be used to listen for transaction messages (`hashtx`, `invalidtx`, `discardedfrommempool`).
 This is especially useful if you are not connecting to multiple Bitcoin nodes, and therefore are not receiving INV
-messages for your transactions.
+messages for your transactions. Currently, ARC can only detect whether a transaction was rejected e.g. due to double spending if ZMQ is connected to at least one node.
 
 If you want to use zmq, you can set the `host.port.zmq` setting for the respective `peers` setting in the configuration file.
 
@@ -230,7 +205,7 @@ ZMQ does seem to be a bit faster than the p2p network, so it is recommended to t
 ### BlockTx
 
 BlockTx is a microservice that is responsible for processing blocks mined on the Bitcoin network, and for propagating
-the status of transactions to each Metamorph that has subscribed to this service.
+the status of transactions to Metamorph. The communication between BlockTx and Metamorph is asynchronous and happens through a message queue. More details about that message queue can be found [here](#message-queue-).
 
 The main purpose of BlockTx is to de-duplicate processing of (large) blocks. As an incoming block is processed by BlockTx, each Metamorph is notified of transactions that they have registered an interest in.  BlockTx does not store the transaction data, but instead stores only the transaction IDs and the block height in which
 they were mined. Metamorph is responsible for storing the transaction data.
@@ -238,46 +213,29 @@ they were mined. Metamorph is responsible for storing the transaction data.
 You can run BlockTx like this:
 
 ```shell
-go run cmd/blocktx/main.go
-```
-
-or using the generic `main.go`:
-
-```shell
 go run main.go -blocktx=true
 ```
 
-The only difference between the two is that the generic `main.go` starts the Go profiler, while the specific
-`cmd/blocktx/main.go`command does not.
-
 #### BlockTx stores
 
-Currently, metamorph only offers one storage implementation which is Postgres.
-~~The BlockTx store has been implemented for multiple databases, depending on your needs. In high-volume environments,
-you may want to use a database that is optimized for high throughput, such as Postgres.~~
+Currently, BlockTx only offers one storage implementation which is Postgres.
 
-The following databases have been implemented:
-
-* Postgres (`postgres`)
-* ~~Sqlite3 (`sqlite` or `sqlite_memory` for in-memory)~~
-
-You can select the store to use by setting the `blocktx.db.mode` in the settings file or adding `blocktx.db.mode` as
-an environment variable.
-
-Please note that if you are running multiple instances of BlockTX for resilience, each BlockTx can be configured to use a shared database and in this case, Postgres is probably a sensible choice.
-
-If BlockTx is configured to run with `postgres` db, then migrations have to be executed prior to starting ARC. For this you'll need the [go-migrate](https://github.com/golang-migrate/migrate) tool. Once `go-migrate` has been installed, the migrations can be executed as follows:
+Migrations have to be executed prior to starting BlockTx. For this you'll need the [go-migrate](https://github.com/golang-migrate/migrate) tool. Once `go-migrate` has been installed, the migrations can be executed as follows:
 ```bash
-migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslmode=<ssl-mode>"  -path database/migrations/postgres  up
+migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslmode=<ssl-mode>"  -path internal/blocktx/store/postgresql/migrations  up
 ```
 
-### Callbacks
+<a id="message-queue"></a>
+## Message Queue
 
-To register a callback, the client must add the `X-CallbackUrl` header to the
-request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
-the body. See the [API documentation](https://bitcoin-sv.github.io/arc/api.html) for more information.
+For the communication between Metamorph and BlockTx a message queue is used. Currently the only available implementation of that message queue uses [NATS](https://nats.io/). A message queue of this type has to run in order for ARC to run.
 
-### K8s-Watcher
+Metamorph publishes new transactions to the message queue and BlockTx subscribes to the message queue, receive the transactions and stores them. Once BlockTx finds these transactions have been mined in a block it updates the block information and publishes the block information to the message queue. Metamorph subscribes to the message queue and receives the block information and updates the status of the transactions.
+
+![Message Queue](./doc/message_queue.png)
+
+
+## K8s-Watcher
 
 The K8s-Watcher is a service which is needed for a special use case. If ARC runs on a Kubernetes cluster and is configured to run with AWS DynamoDB as a `metamorph` centralised storage, then the K8s-Watcher can be run as a safety measure. Due to the centralisation of `metamorph` storage, each `metamorph` pod has to ensure the exclusive processing of records by locking the records. If `metamorph` shuts down gracefully it will unlock all the records it holds in memory. The graceful shutdown is not guaranteed though. For this eventuality the K8s-Watcher can be run in a separate pod. K8s-Watcher detects when `metamorph` pods are terminated and will additionally call on the `metamorph` service to unlock the records of that terminated `metamorph` pod. This ensures that no records will stay in a locked state.
 
@@ -285,6 +243,16 @@ The K8s-Watcher can be started as follows
 
 ```shell
 go run main.go -k8s-watcher=true
+```
+
+## Background-Worker
+
+The Background-Worker can be run alongside ARC and runs [background jobs](./internal/background_worker/jobs). Currently, these background jobs trigger the deletion of old data in Metamorph and Blocktx.
+
+The Background-Worker can be started as follows
+
+```shell
+go run main.go -background-worker=true
 ```
 
 ## Broadcaster-cli
@@ -305,19 +273,7 @@ go install ./cmd/broadcaster-cli/
 
 ### Configuration
 
-`broadcaster-cli` uses flags for adding context needed to run it. The flags and commands available can be shown by running `broadcaster-cli` with the flag `--help`. For example this command `broadcaster-cli --help` will have the following output:
-```
-Available Commands:
-  completion  Generate the autocompletion script for the specified shell
-  help        Help about any command
-  keyset      Function set for the keyset
-  utxos       Create UTXO set to be used with broadcaster
-
-Flags:
-  -h, --help             help for broadcaster
-      --keyfile string   Private key from file (arc.key) to use for funding transactions
-      --testnet          Use testnet
-```
+`broadcaster-cli` uses flags for adding context needed to run it. The flags and commands available can be shown by running `broadcaster-cli` with the flag `--help`.
 
 As there can be a lot of flags you can also define them in a `.env` file. For example like this:
 ```
@@ -353,29 +309,10 @@ These instructions will provide the steps needed in order to use `broadcaster-cl
       1. Each concurrently running broadcasting process will broadcast at the given rate
       2. For example: If a rate of `--rate=100` is given with 3 key files `--keyfile=arc-1.key,arc-2.key,arc-3.key`, then the final rate will be 300 transactions per second.
 6. Consolidate outputs
-   1. After each broadcasting run it is best to consolidate the outputs so that there remains only output using `broadcaster-cli utxos consolidate`
+   1. If not enough outputs are available for another test run it is best to consolidate the outputs so that there remains only output using `broadcaster-cli utxos consolidate`
    2. After this step you can continue with step 4
       1. Before continuing with step 4 it is advisable to wait until all consolidation transactions were mined
       2. The command `broadcaster-cli keyset balance` shows the amount of satoshis in the balance that have been confirmed and the amount which has not yet been confirmed
-
-## Broadcaster (legacy)
-
-Broadcaster is a tool to broadcast example transactions to ARC. It can be used to test the ARC API and Metamorph.
-
-Examples of broadcaster usage:
-```bash
-# Send 10 txs via API and send back to the original address (consolidate). Address for API is configured in config.yaml - broadcaster.apiURL
-go run cmd/broadcaster/main.go -api=true -consolidate -keyfile=./cmd/broadcaster/arc.key -authorization=mainnet_XXX 10
-
-# Send 20 txs with 5 txs/batch to a single metamorph via gRPC. Address for metamorph is configured in config.yaml - metamorph.dialAddr
-go run cmd/broadcaster/main.go -api=false -consolidate -keyfile=./cmd/broadcaster/arc.key -authorization=mainnet_XXX -batch=5 20
-```
-
-Detailed information about flags can is displayed by running `go run cmd/broadcaster/main.go`.
-
-## Background worker
-
-The goal of this submodule is to provide simple and convenient way to schedule repetitive tasks to be performed on ARC.
 
 ## Tests
 ### Unit tests
@@ -391,12 +328,14 @@ DOCKER_HOST=unix:///Users/<username>/.colima/default/docker.sock make test
 ```
 These integration tests can be excluded from execution with `go test ./...` by adding the `-short` flag like this `go test -short ./...`.
 
-### end-to-end tests
+### E2E tests
 The end-to-end tests are located in the folder `test`. Docker needs to be installed in order to run them. End-to-end tests can be run locally together with arc and 3 nodes using the provided docker-compose file.
 The tests can be executed like this:
 ```
 make clean_restart_e2e_test
 ```
+
+The [docker-compose](./test/docker-compose.yml) file also shows the minimum setup that is needed for ARC to run.
 
 ## Profiler
 Each service runs a http profiler server if it is configured in `config.yaml`. In order to access it, a connection can be created using the Go `pprof` [tool](https://pkg.go.dev/net/http/pprof). For example to investigate the memory usage
@@ -404,3 +343,49 @@ Each service runs a http profiler server if it is configured in `config.yaml`. I
 go tool pprof http://localhost:9999/debug/pprof/allocs
 ```
 Then type `top` to see the functions which consume the most memory. Find more information [here](https://go.dev/blog/pprof).
+
+## Building ARC
+
+For building the ARC binary, there is a make target available. ARC can be built for Linux OS and amd64 architecture using
+
+```
+make build_release
+```
+
+Once this is done additionally a docker image can be built using
+
+```
+make build_docker
+```
+
+### Generate grpc code
+
+GRPC code are generated from protobuf definitions. In order to generate the necessary tools need to be installed first by running
+```
+make install_gen
+```
+Additionally, [protoc](https://grpc.io/docs/protoc-installation/) needs to be installed.
+
+Once that is done, GRPC code can be generated by running
+```
+make gen
+```
+
+### Generate REST API
+
+The rest api is defined in a [yaml file](./api/arc.yml) following the OpenAPI 3.0.0 specification. Before the rest API can be generated install the necessary tools by running
+```
+make install_gen
+```
+Once that is done, the API code can be generated by running
+```
+make api
+```
+
+### Generate REST API documentation
+Before the documentation can be generated [swagger-cli](https://apitools.dev/swagger-cli/) and [widdershins](https://github.com/Mermade/widdershins) need to be installed.
+
+Once that is done the documentation can be created by running
+```
+make docs
+```

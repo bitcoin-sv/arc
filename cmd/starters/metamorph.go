@@ -18,6 +18,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/async/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
+	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils/safemap"
@@ -64,16 +65,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("invalid metamorph.processorCacheExpiryTime: %s", mapExpiryStr)
 	}
 
-	dataRetentionDays, err := cfg.GetInt("metamorph.db.cleanData.recordRetentionDays")
-	if err != nil {
-		return nil, err
-	}
-
-	maxMonitoredTxs, err := cfg.GetInt64("metamorph.maxMonitoredTxs")
-	if err != nil {
-		return nil, err
-	}
-
 	natsURL, err := cfg.GetString("queueURL")
 	if err != nil {
 		return nil, err
@@ -113,8 +104,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		pm,
 		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithProcessorLogger(logger.With(slog.String("module", "mtm-proc"))),
-		metamorph.WithDataRetentionPeriod(time.Duration(dataRetentionDays)*24*time.Hour),
-		metamorph.WithMaxMonitoredTxs(maxMonitoredTxs),
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),
@@ -180,11 +169,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		}
 
 		optsServer = append(optsServer, metamorph.WithForceCheckUtxos(node))
-	}
-
-	btxTimeout := viper.GetDuration("metamorph.blocktxTimeout")
-	if btxTimeout > 0 {
-		optsServer = append(optsServer, metamorph.WithBlocktxTimeout(btxTimeout))
 	}
 
 	serv := metamorph.NewServer(s, metamorphProcessor, optsServer...)
@@ -348,6 +332,11 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore) (p2p.PeerManag
 		return nil, nil, fmt.Errorf("error getting peer settings: %v", err)
 	}
 
+	opts := make([]p2p.PeerOptions, 0)
+	if version.Version != "" {
+		opts = append(opts, p2p.WithUserAgent("ARC", version.Version))
+	}
+
 	for _, peerSetting := range peerSettings {
 		peerUrl, err := peerSetting.GetP2PUrl()
 		if err != nil {
@@ -355,7 +344,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore) (p2p.PeerManag
 		}
 
 		var peer *p2p.Peer
-		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network)
+		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network, opts...)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error creating peer %s: %v", peerUrl, err)
 		}

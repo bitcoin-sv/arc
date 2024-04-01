@@ -587,7 +587,9 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 	}
 
 	step := int(math.Ceil(float64(totalSize) / 5))
-	progressIndices := map[int]int{step: 20, step * 2: 40, step * 3: 60, step * 4: 80}
+	progressIndices := map[int]int{step: 20, step * 2: 40, step * 3: 60, step * 4: 80, step * 5: 100}
+
+	now := time.Now()
 
 	for txIndex, hash := range leaves {
 		// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.
@@ -597,7 +599,7 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 
 		if percentage, found := progressIndices[txIndex]; found {
 			if totalSize > 0 {
-				ph.logger.Info(fmt.Sprintf("%d txs out of %d marked as mined", txIndex, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)))
+				ph.logger.Info(fmt.Sprintf("%d txs out of %d marked as mined", txIndex, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("duration", time.Since(now).String()))
 			}
 		}
 

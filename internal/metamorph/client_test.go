@@ -5,12 +5,11 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
-	"google.golang.org/grpc"
-
-	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
 //go:generate moq -pkg mocks -out ./mocks/metamorph_api_mock.go ./metamorph_api MetaMorphAPIClient

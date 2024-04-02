@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/version"
 	"log"
 	"log/slog"
 	"net/http"
@@ -17,8 +16,8 @@ import (
 	cmd "github.com/bitcoin-sv/arc/cmd/starters"
 	cfg "github.com/bitcoin-sv/arc/internal/helpers"
 	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/opentracing/opentracing-go"
-	"github.com/ordishs/gocore"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
 )
@@ -167,13 +166,6 @@ func run() error {
 	}
 
 	shutdownFns := make([]func(), 0)
-
-	statisticsServerAddr := viper.GetString("statisticsServerAddress")
-	if statisticsServerAddr != "" {
-		go func() {
-			gocore.StartStatsServer(statisticsServerAddr)
-		}()
-	}
 
 	if startBlockTx != nil && *startBlockTx {
 		logger.Info("Starting BlockTx")

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ordishs/gocore"
-
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	_ "github.com/lib/pq"
 )
@@ -16,10 +14,6 @@ const (
 )
 
 func (p *PostgreSQL) ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.ClearDataResponse, error) {
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("ClearBlocktxTable").AddTime(start)
-	}()
 
 	now := p.now()
 	deleteBeforeDate := now.Add(-24 * time.Hour * time.Duration(retentionDays))

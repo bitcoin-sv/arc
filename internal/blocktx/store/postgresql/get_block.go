@@ -8,14 +8,9 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/ordishs/gocore"
 )
 
 func (p *PostgreSQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("GetBlock").AddTime(start)
-	}()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

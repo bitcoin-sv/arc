@@ -542,7 +542,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		transactionsInput = append(transactionsInput, transaction.Bytes())
 	}
 
-	// submit all the validated array of transactiosn to metamorph endpoint
+	// submit all the validated array of transactions to metamorph endpoint
 	txStatuses, err := m.TransactionHandler.SubmitTransactions(tracingCtx, transactionsInput, transactionOptions)
 	if err != nil {
 		statusCode, arcError := m.handleError(tracingCtx, nil, err)

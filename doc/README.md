@@ -255,16 +255,7 @@ The settings available for running ARC are managed by [viper](github.com/spf13/v
 
 ## ARC stats
 
-`gocore` keeps real-time stats about the metamorph servers, which can be viewed at `/stats` (e.g. `http://localhost:8011/stats`).
-These stats show aggregated information about a metamorph server, such as the number of transactions processed, the number of
-transactions sent to the Bitcoin network, etc. It also shows the average time it takes for each step in the process.
-
-More detailed statistics are available at `/pstats` (e.g. `http://localhost:8011/pstats`). These stats show information
-about the internal metamorph processor. The processor stats also allows you to see details for a single transaction. If
-a transaction has already been mined, and evicted from the processor memory, you can still see the stored stats
-retrieved from the data store, and potentially the timing stats, if they are found in the log file.
-
-ARC can also expose a Prometheus endpoint that can be used to monitor the metamorph servers. Set the `prometheusEndpoint`
+ARC can expose a Prometheus endpoint that can be used to monitor the metamorph servers. Set the `prometheusEndpoint`
 setting in the settings file to activate prometheus. Normally you would want to set this to `/metrics`.
 
 ## Client Libraries

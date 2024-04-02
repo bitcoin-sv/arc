@@ -21,7 +21,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils/safemap"
-	"github.com/ordishs/gocore"
 )
 
 const (
@@ -111,10 +110,6 @@ type PeerHandler struct {
 	quitPeerWorkerComplete      chan struct{}
 	quitListenTxChannel         chan struct{}
 	quitListenTxChannelComplete chan struct{}
-}
-
-func init() {
-	gocore.NewStat("blocktx", true).NewStat("HandleBlock", true)
 }
 
 func WithMessageQueueClient(mqClient MessageQueueClient) func(handler *PeerHandler) {
@@ -406,11 +401,6 @@ func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 
 	stat.BlockAnnouncement.Add(1)
 
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("HandleBlockAnnouncement").AddTime(start)
-	}()
-
 	pair := hashPeer{
 		Hash: &msg.Hash,
 		Peer: peer,
@@ -431,11 +421,6 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	}
 
 	stat.Block.Add(1)
-
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("HandleBlock").AddTime(start)
-	}()
 
 	timeStart := time.Now()
 
@@ -537,10 +522,6 @@ func (ph *PeerHandler) FillGaps(peer p2p.PeerI) error {
 }
 
 func (ph *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainhash.Hash, previousBlockHash *chainhash.Hash, height uint64) (uint64, error) {
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("insertBlock").AddTime(start)
-	}()
 
 	ph.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Int64("height", int64(height)))
 
@@ -569,10 +550,6 @@ func (ph *PeerHandler) printMemStats() {
 }
 
 func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("markTransactionsAsMined").AddTime(start)
-	}()
 
 	txs := make([]*blocktx_api.TransactionAndSource, 0, ph.transactionStorageBatchSize)
 	merklePaths := make([]string, 0, ph.transactionStorageBatchSize)
@@ -681,10 +658,6 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 }
 
 func (ph *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("HandleBlock").NewStat("markBlockAsProcessed").AddTime(start)
-	}()
 
 	err := ph.store.MarkBlockAsDone(context.Background(), block.Hash, block.Size, block.TxCount)
 	if err != nil {

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -116,8 +115,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	metamorphProcessor.StartProcessStatusUpdatesInStorage()
 	metamorphProcessor.StartProcessMinedCallbacks()
 
-	http.HandleFunc("/pstats", metamorphProcessor.HandleStats)
-
 	go func() {
 		for message := range statusMessageCh {
 			err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
@@ -126,12 +123,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 			}
 		}
 	}()
-
-	if viper.GetBool("metamorph.statsKeypress") {
-		// The double invocation is the get PrintStatsOnKeypress to start and return a function
-		// that can be deferred to reset the TTY when the program exits.
-		defer metamorphProcessor.PrintStatsOnKeypress()()
-	}
 
 	optsServer := []metamorph.ServerOption{
 		metamorph.WithLogger(logger.With(slog.String("module", "mtm-server"))),
@@ -198,16 +189,16 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 			continue
 		}
 
-		z := metamorph.NewZMQ(zmqURL, statusMessageCh)
-		zmqCollector.Set(zmqURL.Host, z.Stats)
-		port, err := strconv.Atoi(z.URL.Port())
+		zmq := metamorph.NewZMQ(zmqURL, statusMessageCh)
+		zmqCollector.Set(zmqURL.Host, zmq.Stats)
+		port, err := strconv.Atoi(zmq.URL.Port())
 		if err != nil {
-			z.Logger.Fatalf("Could not parse port from metamorph_zmqAddress: %v", err)
+			return nil, fmt.Errorf("failed to parse port from peer settings: %v", err)
 		}
 
-		z.Logger.Infof("Listening to ZMQ on %s:%d", z.URL.Hostname(), port)
+		zmq.Logger.Info("Listening to ZMQ", slog.String("host", zmq.URL.Hostname()), slog.Int("port", port))
 
-		go z.Start(bitcoin.NewZMQ(z.URL.Hostname(), port, z.Logger))
+		go zmq.Start(bitcoin.NewZMQ(zmq.URL.Hostname(), port, zmq.Logger))
 	}
 
 	// pass all the started peers to the collector

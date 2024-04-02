@@ -15,7 +15,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
-	"github.com/ordishs/gocore"
 )
 
 const (
@@ -57,10 +56,6 @@ func New(dbInfo string, hostname string, idleConns int, maxOpenConns int, opts .
 }
 
 func (p *PostgreSQL) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
-	startNanos := p.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("setunlocked").AddTime(startNanos)
-	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:SetUnlocked")
 	defer span.Finish()
 
@@ -80,10 +75,6 @@ func (p *PostgreSQL) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) 
 }
 
 func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error) {
-	startNanos := p.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("setunlockedbyname").AddTime(startNanos)
-	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:SetUnlockedByName")
 	defer span.Finish()
 
@@ -105,10 +96,6 @@ func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 // Get implements the MetamorphStore interface. It attempts to get a value for a given key.
 // If the key does not exist an error is returned, otherwise the retrieved value.
 func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
-	startNanos := p.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("Get").AddTime(startNanos)
-	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Get")
 	defer span.Finish()
 
@@ -263,10 +250,6 @@ func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash)
 // Set implements the MetamorphStore interface. It attempts to store a value for a given key
 // and namespace. If the key/value pair cannot be saved, an error is returned.
 func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
-	startNanos := p.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("Set").AddTime(startNanos)
-	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Set")
 	defer span.Finish()
 
@@ -343,10 +326,6 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 }
 
 func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64) error {
-	startNanos := p.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("setlockedby").AddTime(startNanos)
-	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:SetLocked")
 	defer span.Finish()
 
@@ -373,10 +352,6 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 }
 
 func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
-	startNanos := p.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("getunmined").AddTime(startNanos)
-	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:GetUnmined")
 	defer span.Finish()
 
@@ -415,10 +390,6 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 }
 
 func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
-	startNanos := p.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("UpdateStatus").AddTime(startNanos)
-	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
 	defer span.Finish()
 
@@ -499,10 +470,6 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 }
 
 func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
-	startNanos := p.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("UpdateMined").AddTime(startNanos)
-	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateMined")
 	defer span.Finish()
 
@@ -700,10 +667,6 @@ func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, e
 }
 
 func (p *PostgreSQL) Del(ctx context.Context, key []byte) error {
-	startNanos := p.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("Del").AddTime(startNanos)
-	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Del")
 	defer span.Finish()
 
@@ -723,10 +686,6 @@ func (p *PostgreSQL) Del(ctx context.Context, key []byte) error {
 // Close implements the MetamorphStore interface. It closes the connection to the underlying
 // MemoryStore database as well as invoking the context's cancel function.
 func (p *PostgreSQL) Close(ctx context.Context) error {
-	startNanos := p.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("Close").AddTime(startNanos)
-	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Close")
 	defer span.Finish()
 
@@ -735,10 +694,6 @@ func (p *PostgreSQL) Close(ctx context.Context) error {
 }
 
 func (p *PostgreSQL) Ping(ctx context.Context) error {
-	startNanos := p.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("Ping").AddTime(startNanos)
-	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Ping")
 	defer span.Finish()
 
@@ -751,10 +706,6 @@ func (p *PostgreSQL) Ping(ctx context.Context) error {
 }
 
 func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
-	startNanos := p.now().UnixNano()
-	defer func() {
-		gocore.NewStat("mtm_store_sql").NewStat("ClearData").AddTime(startNanos)
-	}()
 	span, _ := opentracing.StartSpanFromContext(ctx, "sql:ClearData")
 	defer span.Finish()
 

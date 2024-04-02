@@ -56,18 +56,7 @@ func GetString(settingName string) (string, error) {
 		return setting, nil
 	}
 
-	var result map[string]interface{}
-	err := viper.Unmarshal(&result)
-	if err != nil {
-		return "", err
-	}
-
-	value, ok := result[strings.ToLower(settingName)].(string)
-	if !ok {
-		return "", nil
-	}
-
-	return value, nil
+	return getSettingFromEnvFile[string](settingName)
 }
 
 func GetInt(settingName string) (int, error) {
@@ -77,17 +66,33 @@ func GetInt(settingName string) (int, error) {
 		return setting, nil
 	}
 
+	return getSettingFromEnvFile[int](settingName)
+}
+
+func GetInt64(settingName string) (int64, error) {
+
+	setting := viper.GetInt64(settingName)
+	if setting != 0 {
+		return setting, nil
+	}
+
+	return getSettingFromEnvFile[int64](settingName)
+}
+
+func getSettingFromEnvFile[T any](settingName string) (T, error) {
 	var result map[string]interface{}
+
+	var nullValue T
 
 	err := viper.Unmarshal(&result)
 	if err != nil {
-		return 0, err
+		return nullValue, err
 	}
 
-	value, ok := result[settingName].(int)
+	value, ok := result[strings.ToLower(settingName)].(T)
 
 	if !ok {
-		return 0, nil
+		return nullValue, nil
 	}
 
 	return value, nil

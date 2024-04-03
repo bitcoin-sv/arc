@@ -1,6 +1,7 @@
 package broadcast
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -25,44 +26,86 @@ var Cmd = &cobra.Command{
 	Short: "Submit transactions to ARC",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		store := viper.GetBool("store")
-		rateTxsPerSecond := viper.GetInt("rate")
-		batchSize := viper.GetInt("batchsize")
-		fullStatusUpdates := viper.GetBool("fullStatusUpdates")
-		limit := viper.GetInt64("limit")
+		rateTxsPerSecond, err := helper.GetInt("rate")
+		if err != nil {
+			return err
+		}
+		if rateTxsPerSecond == 0 {
+			return errors.New("rate must be a value greater than 0")
+		}
+
+		batchSize, err := helper.GetInt("batchsize")
+		if err != nil {
+			return err
+		}
+		if batchSize == 0 {
+			return errors.New("batch size must be a value greater than 0")
+		}
+
+		limit, err := helper.GetInt64("limit")
+		if err != nil {
+			return err
+		}
+
+		store, err := helper.GetBool("store")
+		if err != nil {
+			return err
+		}
+
+		fullStatusUpdates, err := helper.GetBool("fullStatusUpdates")
+		if err != nil {
+			return err
+		}
 
 		isTestnet, err := helper.GetBool("testnet")
 		if err != nil {
 			return err
 		}
+
 		callbackURL, err := helper.GetString("callback")
 		if err != nil {
 			return err
 		}
+
 		callbackToken, err := helper.GetString("callbackToken")
 		if err != nil {
 			return err
 		}
+
 		authorization, err := helper.GetString("authorization")
 		if err != nil {
 			return err
 		}
+
 		keyFile, err := helper.GetString("keyFile")
 		if err != nil {
 			return err
 		}
+		if keyFile == "" {
+			return errors.New("no key file was given")
+		}
+
 		miningFeeSat, err := helper.GetInt("miningFeeSatPerKb")
 		if err != nil {
 			return err
 		}
+		if miningFeeSat == 0 {
+			return errors.New("no mining fee was given")
+		}
+
 		arcServer, err := helper.GetString("apiURL")
 		if err != nil {
 			return err
 		}
+		if arcServer == "" {
+			return errors.New("no api URL was given")
+		}
+
 		wocApiKey, err := helper.GetString("wocAPIKey")
 		if err != nil {
 			return err
 		}
+
 		keyFiles := strings.Split(keyFile, ",")
 
 		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))

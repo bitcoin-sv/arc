@@ -1,6 +1,7 @@
 package topup
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -15,11 +16,14 @@ var Cmd = &cobra.Command{
 	Use:   "topup",
 	Short: "Top up funding address with BSV",
 	RunE: func(cmd *cobra.Command, args []string) error {
-
 		keyFile, err := helper.GetString("keyFile")
 		if err != nil {
 			return err
 		}
+		if keyFile == "" {
+			return errors.New("no key file given")
+		}
+
 		isTestnet, err := helper.GetBool("testnet")
 		if err != nil {
 			return err

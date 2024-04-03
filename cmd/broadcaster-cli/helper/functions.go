@@ -69,6 +69,16 @@ func GetInt(settingName string) (int, error) {
 	return getSettingFromEnvFile[int](settingName)
 }
 
+func GetUint64(settingName string) (uint64, error) {
+
+	setting := viper.GetUint64(settingName)
+	if setting != 0 {
+		return setting, nil
+	}
+
+	return getSettingFromEnvFile[uint64](settingName)
+}
+
 func GetInt64(settingName string) (int64, error) {
 
 	setting := viper.GetInt64(settingName)

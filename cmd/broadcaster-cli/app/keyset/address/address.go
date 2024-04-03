@@ -20,7 +20,6 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
 		if keyFile == "" {
 			return errors.New("no key file given")
 		}

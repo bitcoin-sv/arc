@@ -37,6 +37,10 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		if keyFile == "" {
+			return errors.New("no key file was given")
+		}
+
 		miningFeeSat, err := helper.GetInt("miningFeeSatPerKb")
 		if err != nil {
 			return err

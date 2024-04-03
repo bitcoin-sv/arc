@@ -1,6 +1,7 @@
 package consolidate
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -84,7 +85,7 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %v", err)
 		}
 
-		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey))
+		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
 		keyFiles := strings.Split(keyFile, ",")
 
@@ -110,7 +111,7 @@ var Cmd = &cobra.Command{
 				broadcaster.WithFullstatusUpdates(fullStatusUpdates),
 			)
 
-			err = rateBroadcaster.Consolidate()
+			err = rateBroadcaster.Consolidate(context.Background())
 			if err != nil {
 				return fmt.Errorf("failed to consolidate utxos: %v", err)
 			}

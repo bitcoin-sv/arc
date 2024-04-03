@@ -1,6 +1,7 @@
 package broadcast
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -143,7 +144,7 @@ var Cmd = &cobra.Command{
 				return fmt.Errorf("failed to get key sets: %v", err)
 			}
 
-			wocClient := woc_client.New(woc_client.WithAuth(wocApiKey))
+			wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
 			var writer io.Writer
 			if store {
@@ -167,7 +168,7 @@ var Cmd = &cobra.Command{
 
 			rbs[i] = rateBroadcaster
 
-			err = rateBroadcaster.StartRateBroadcaster(rateTxsPerSecond, limit, wg)
+			err = rateBroadcaster.StartRateBroadcaster(context.Background(), rateTxsPerSecond, limit, wg)
 			if err != nil {
 				return fmt.Errorf("failed to start rate broadcaster: %v", err)
 			}

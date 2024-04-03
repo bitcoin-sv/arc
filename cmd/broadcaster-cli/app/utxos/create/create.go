@@ -2,6 +2,7 @@ package create
 
 import (
 	"errors"
+	"context"
 	"fmt"
 	"log"
 	"log/slog"
@@ -101,7 +102,7 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %v", err)
 		}
 
-		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey))
+		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
 		keyFiles := strings.Split(keyFile, ",")
 
@@ -128,7 +129,7 @@ var Cmd = &cobra.Command{
 
 				rateBroadcaster, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, wocClient, broadcaster.WithFees(miningFeeSat), broadcaster.WithIsTestnet(isTestnet), broadcaster.WithCallback(callbackURL, callbackToken), broadcaster.WithFullstatusUpdates(fullStatusUpdates))
 
-				err = rateBroadcaster.CreateUtxos(outputs, satoshisPerOutput)
+				err = rateBroadcaster.CreateUtxos(context.Background(), outputs, satoshisPerOutput)
 				if err != nil {
 					logger.Error("failed to create utxos", slog.String("address", fundingKeySet.Address(!isTestnet)), slog.String("err", err.Error()))
 					return

@@ -440,7 +440,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		return nil, err
 	}
 
-	_, err = tx.Exec("LOCK TABLE metamorph.transactions IN EXCLUSIVE MODE")
+	_, err = tx.Exec(`SELECT * FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			return nil, err
@@ -524,7 +524,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 		return nil, err
 	}
 
-	_, err = tx.Exec("LOCK TABLE metamorph.transactions IN EXCLUSIVE MODE")
+	_, err = tx.Exec(`SELECT * FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			return nil, err

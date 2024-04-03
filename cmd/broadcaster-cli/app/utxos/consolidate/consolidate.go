@@ -1,6 +1,7 @@
 package consolidate
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -20,37 +21,52 @@ var Cmd = &cobra.Command{
 	Use:   "consolidate",
 	Short: "Consolidate UTXO set",
 	RunE: func(cmd *cobra.Command, args []string) error {
-
-		fullStatusUpdates := viper.GetBool("fullStatusUpdates")
+		fullStatusUpdates, err := helper.GetBool("fullStatusUpdates")
+		if err != nil {
+			return err
+		}
 
 		isTestnet, err := helper.GetBool("testnet")
 		if err != nil {
 			return err
 		}
+
 		callbackURL, err := helper.GetString("callback")
 		if err != nil {
 			return err
 		}
+
 		callbackToken, err := helper.GetString("callbackToken")
 		if err != nil {
 			return err
 		}
+
 		authorization, err := helper.GetString("authorization")
 		if err != nil {
 			return err
 		}
+
 		keyFile, err := helper.GetString("keyFile")
 		if err != nil {
 			return err
 		}
+		if keyFile == "" {
+			return errors.New("no key file was given")
+		}
+
 		miningFeeSat, err := helper.GetInt("miningFeeSatPerKb")
 		if err != nil {
 			return err
 		}
+
 		arcServer, err := helper.GetString("apiURL")
 		if err != nil {
 			return err
 		}
+		if arcServer == "" {
+			return errors.New("no api URL was given")
+		}
+
 		wocApiKey, err := helper.GetString("wocAPIKey")
 		if err != nil {
 			return err
@@ -81,13 +97,13 @@ var Cmd = &cobra.Command{
 			logger.Info("starting consolidation", slog.String("key", kf))
 			time.Sleep(500 * time.Millisecond)
 
-			fundingKeySet, receivingKeySet, err := helper.GetKeySetsKeyFile(kf)
+			fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
 			if err != nil {
 				//logger.Error("failed to get key sets", slog.String("err", err.Error()))
 				return fmt.Errorf("failed to get key sets: %v", err)
 			}
 
-			rateBroadcaster, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, wocClient,
+			rateBroadcaster, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, wocClient,
 				broadcaster.WithFees(miningFeeSat),
 				broadcaster.WithIsTestnet(isTestnet),
 				broadcaster.WithCallback(callbackURL, callbackToken),

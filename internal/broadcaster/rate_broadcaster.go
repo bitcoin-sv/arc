@@ -40,7 +40,6 @@ type RateBroadcaster struct {
 	logger                         *slog.Logger
 	client                         ArcClient
 	fundingKeyset                  *keyset.KeySet
-	receivingKeyset                *keyset.KeySet
 	isTestnet                      bool
 	callbackURL                    string
 	callbackToken                  string
@@ -117,12 +116,11 @@ func WithStoreWriter(storeWriter io.Writer, resultIterations int) func(broadcast
 	}
 }
 
-func NewRateBroadcaster(logger *slog.Logger, client ArcClient, fromKeySet *keyset.KeySet, toKeyset *keyset.KeySet, utxoClient UtxoClient, opts ...func(p *RateBroadcaster)) (*RateBroadcaster, error) {
+func NewRateBroadcaster(logger *slog.Logger, client ArcClient, fromKeySet *keyset.KeySet, utxoClient UtxoClient, opts ...func(p *RateBroadcaster)) (*RateBroadcaster, error) {
 	broadcaster := &RateBroadcaster{
 		logger:                         logger,
 		client:                         client,
 		fundingKeyset:                  fromKeySet,
-		receivingKeyset:                toKeyset,
 		isTestnet:                      isTestnetDefault,
 		feeQuote:                       bt.NewFeeQuote(),
 		utxoClient:                     utxoClient,
@@ -150,82 +148,6 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, fromKeySet *keyse
 	return broadcaster, nil
 }
 
-// Payback sends all funds currently held on the receiving address back to the funding address
-func (b *RateBroadcaster) Payback() error {
-	utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.receivingKeyset.Script, b.receivingKeyset.Address(!b.isTestnet))
-	if err != nil {
-		return err
-	}
-
-	tx := bt.NewTx()
-	txSatoshis := uint64(0)
-	batchSatoshis := uint64(0)
-	if err != nil {
-		return err
-	}
-
-	txs := make([]*bt.Tx, 0, b.batchSize)
-
-	for _, utxo := range utxos {
-
-		err = tx.FromUTXOs(utxo)
-		if err != nil {
-			return err
-		}
-
-		txSatoshis += utxo.Satoshis
-
-		// create payback transactions with maximum 100 inputs
-		if len(tx.Inputs) >= b.maxInputs {
-			batchSatoshis += txSatoshis
-
-			err = b.payToFundingKeySet(tx, txSatoshis, b.receivingKeyset)
-			if err != nil {
-				return err
-			}
-
-			txs = append(txs, tx)
-
-			tx = bt.NewTx()
-			txSatoshis = 0
-		}
-
-		if len(txs) == b.batchSize {
-			err = b.submitTxs(txs, metamorph_api.Status_SEEN_ON_NETWORK, false)
-			if err != nil {
-				return err
-			}
-			b.logger.Info("paid back satoshis", slog.Uint64("satoshis", batchSatoshis))
-
-			batchSatoshis = 0
-			txs = make([]*bt.Tx, 0, b.batchSize)
-			time.Sleep(time.Millisecond * 100)
-		}
-	}
-
-	if len(tx.Inputs) > 0 {
-		batchSatoshis += txSatoshis
-
-		err = b.payToFundingKeySet(tx, txSatoshis, b.receivingKeyset)
-		if err != nil {
-			return err
-		}
-
-		txs = append(txs, tx)
-	}
-
-	if len(txs) > 0 {
-		err = b.submitTxs(txs, metamorph_api.Status_SEEN_ON_NETWORK, false)
-		if err != nil {
-			return err
-		}
-
-		b.logger.Info("paid back satoshis", slog.Uint64("satoshis", batchSatoshis))
-	}
-
-	return nil
-}
-
 func (b *RateBroadcaster) calculateFeeSat(tx *bt.Tx) uint64 {
 	size, err := tx.EstimateSizeWithTypes()
 	if err != nil {
@@ -247,22 +169,6 @@ func (b *RateBroadcaster) calculateFeeSat(tx *bt.Tx) uint64 {
 	txFees := sFees + uint64(changeOutputFee)
 
 	return txFees
-}
-
-func (b *RateBroadcaster) payToFundingKeySet(tx *bt.Tx, totalSatoshis uint64, payingKeyset *keyset.KeySet) error {
-
-	err := tx.PayTo(b.fundingKeyset.Script, totalSatoshis-b.calculateFeeSat(tx))
-	if err != nil {
-		return err
-	}
-
-	unlockerGetter := unlocker.Getter{PrivateKey: payingKeyset.PrivateKey}
-	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (b *RateBroadcaster) splitToFundingKeyset(tx *bt.Tx, splitSatoshis uint64, requestedSatoshis uint64, requestedOutputs int) (addedOutputs int, err error) {

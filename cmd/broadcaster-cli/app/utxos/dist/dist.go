@@ -1,6 +1,7 @@
 package dist
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -31,6 +32,10 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		if keyFile == "" {
+			return errors.New("no key file was given")
+		}
+
 		isTestnet, err := helper.GetBool("testnet")
 		if err != nil {
 			return err

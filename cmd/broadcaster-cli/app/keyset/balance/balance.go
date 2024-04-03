@@ -1,6 +1,7 @@
 package balance
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -21,6 +22,10 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		if keyFile == "" {
+			return errors.New("no key file given")
+		}
+
 		isTestnet, err := helper.GetBool("testnet")
 		if err != nil {
 			return err

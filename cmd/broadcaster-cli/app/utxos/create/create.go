@@ -1,6 +1,7 @@
 package create
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -21,38 +22,68 @@ var Cmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a UTXO set",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		outputs := viper.GetInt("outputs")
-		satoshisPerOutput := viper.GetUint64("satoshis")
-		fullStatusUpdates := viper.GetBool("fullStatusUpdates")
+		outputs, err := helper.GetInt("outputs")
+		if err != nil {
+			return err
+		}
+		if outputs == 0 {
+			return errors.New("outputs must be a value greater than 0")
+		}
+
+		satoshisPerOutput, err := helper.GetUint64("satoshis")
+		if err != nil {
+			return err
+		}
+		if satoshisPerOutput == 0 {
+			return errors.New("satoshis must be a value greater than 0")
+		}
+
+		fullStatusUpdates, err := helper.GetBool("fullStatusUpdates")
+		if err != nil {
+			return err
+		}
 
 		isTestnet, err := helper.GetBool("testnet")
 		if err != nil {
 			return err
 		}
+
 		callbackURL, err := helper.GetString("callback")
 		if err != nil {
 			return err
 		}
+
 		callbackToken, err := helper.GetString("callbackToken")
 		if err != nil {
 			return err
 		}
+
 		authorization, err := helper.GetString("authorization")
 		if err != nil {
 			return err
 		}
+
 		keyFile, err := helper.GetString("keyFile")
 		if err != nil {
 			return err
 		}
+		if keyFile == "" {
+			return errors.New("no key file was given")
+		}
+
 		miningFeeSat, err := helper.GetInt("miningFeeSatPerKb")
 		if err != nil {
 			return err
 		}
+
 		arcServer, err := helper.GetString("apiURL")
 		if err != nil {
 			return err
 		}
+		if arcServer == "" {
+			return errors.New("no api URL was given")
+		}
+
 		wocApiKey, err := helper.GetString("wocAPIKey")
 		if err != nil {
 			return err
@@ -89,18 +120,13 @@ var Cmd = &cobra.Command{
 
 				time.Sleep(500 * time.Millisecond)
 
-				fundingKeySet, receivingKeySet, err := helper.GetKeySetsKeyFile(keyfile)
+				fundingKeySet, _, err := helper.GetKeySetsKeyFile(keyfile)
 				if err != nil {
 					logger.Error("failed to get key sets", slog.String("err", err.Error()))
 					return
 				}
 
-				rateBroadcaster, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, wocClient,
-					broadcaster.WithFees(miningFeeSat),
-					broadcaster.WithIsTestnet(isTestnet),
-					broadcaster.WithCallback(callbackURL, callbackToken),
-					broadcaster.WithFullstatusUpdates(fullStatusUpdates),
-				)
+				rateBroadcaster, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, wocClient, broadcaster.WithFees(miningFeeSat), broadcaster.WithIsTestnet(isTestnet), broadcaster.WithCallback(callbackURL, callbackToken), broadcaster.WithFullstatusUpdates(fullStatusUpdates))
 
 				err = rateBroadcaster.CreateUtxos(outputs, satoshisPerOutput)
 				if err != nil {

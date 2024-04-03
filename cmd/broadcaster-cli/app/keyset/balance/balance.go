@@ -1,6 +1,7 @@
 package balance
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -37,7 +38,7 @@ var Cmd = &cobra.Command{
 
 		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
 
-		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey))
+		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
 		keyFiles := strings.Split(keyFile, ",")
 
@@ -50,7 +51,7 @@ var Cmd = &cobra.Command{
 			if wocApiKey == "" {
 				time.Sleep(500 * time.Millisecond)
 			}
-			confirmed, unconfirmed, err := wocClient.GetBalance(!isTestnet, fundingKeySet.Address(!isTestnet))
+			confirmed, unconfirmed, err := wocClient.GetBalanceWithRetries(context.Background(), !isTestnet, fundingKeySet.Address(!isTestnet), 1*time.Second, 5)
 			if err != nil {
 				return err
 			}

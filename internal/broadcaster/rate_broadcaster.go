@@ -30,10 +30,13 @@ const (
 )
 
 type UtxoClient interface {
-	GetUTXOs(mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
-	GetUTXOsList(mainnet bool, lockingScript *bscript.Script, address string) (*list.List, error)
-	GetBalance(mainnet bool, address string) (int64, int64, error)
-	TopUp(mainnet bool, address string) error
+	GetUTXOs(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
+	GetUTXOsWithRetries(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) ([]*bt.UTXO, error)
+	GetUTXOsList(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string) (*list.List, error)
+	GetUTXOsListWithRetries(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) (*list.List, error)
+	GetBalance(ctx context.Context, mainnet bool, address string) (int64, int64, error)
+	GetBalanceWithRetries(ctx context.Context, mainnet bool, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error)
+	TopUp(ctx context.Context, mainnet bool, address string) error
 }
 
 type RateBroadcaster struct {
@@ -305,8 +308,8 @@ func (b *RateBroadcaster) createConsolidationTxs(utxos *list.List, satoshiMap ma
 	return txsConsolidationBatches, nil
 }
 
-func (b *RateBroadcaster) Consolidate() error {
-	_, unconfirmed, err := b.utxoClient.GetBalance(!b.isTestnet, b.fundingKeyset.Address(!b.isTestnet))
+func (b *RateBroadcaster) Consolidate(ctx context.Context) error {
+	_, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(ctx, !b.isTestnet, b.fundingKeyset.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
 		return err
 	}
@@ -314,7 +317,7 @@ func (b *RateBroadcaster) Consolidate() error {
 		return fmt.Errorf("key with address %s balance has unconfirmed amount %d sat", b.fundingKeyset.Address(!b.isTestnet), unconfirmed)
 	}
 
-	utxoSet, err := b.utxoClient.GetUTXOsList(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
+	utxoSet, err := b.utxoClient.GetUTXOsListWithRetries(ctx, !b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
 		return fmt.Errorf("failed to get utxos: %v", err)
 	}
@@ -389,11 +392,11 @@ outerLoop:
 	return nil
 }
 
-func (b *RateBroadcaster) CreateUtxos(requestedOutputs int, requestedSatoshisPerOutput uint64) error {
+func (b *RateBroadcaster) CreateUtxos(ctx context.Context, requestedOutputs int, requestedSatoshisPerOutput uint64) error {
 
 	requestedOutputsSatoshis := int64(requestedOutputs) * int64(requestedSatoshisPerOutput)
 
-	confirmed, unconfirmed, err := b.utxoClient.GetBalance(!b.isTestnet, b.fundingKeyset.Address(!b.isTestnet))
+	confirmed, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(ctx, !b.isTestnet, b.fundingKeyset.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
 		return err
 	}
@@ -416,7 +419,7 @@ requestedOutputsLoop:
 		utxoSet = make([]*bt.UTXO, 0, requestedOutputs)
 		greater := make([]*bt.UTXO, 0)
 
-		utxos, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
+		utxos, err := b.utxoClient.GetUTXOsWithRetries(ctx, !b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet), 1*time.Second, 5)
 		if err != nil {
 			return err
 		}
@@ -502,9 +505,9 @@ func (b *RateBroadcaster) splitOutputs(requestedOutputs int, requestedSatoshisPe
 	return txsSplitBatches, nil
 }
 
-func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int64, wg *sync.WaitGroup) error {
+func (b *RateBroadcaster) StartRateBroadcaster(ctx context.Context, rateTxsPerSecond int, limit int64, wg *sync.WaitGroup) error {
 
-	_, unconfirmed, err := b.utxoClient.GetBalance(!b.isTestnet, b.fundingKeyset.Address(!b.isTestnet))
+	_, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(ctx, !b.isTestnet, b.fundingKeyset.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
 		return err
 	}
@@ -512,7 +515,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int64
 		return fmt.Errorf("key with address %s balance has unconfirmed amount %d sat", b.fundingKeyset.Address(!b.isTestnet), unconfirmed)
 	}
 
-	utxoSet, err := b.utxoClient.GetUTXOs(!b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet))
+	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(ctx, !b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
 		return fmt.Errorf("failed to get utxos: %v", err)
 	}

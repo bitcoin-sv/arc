@@ -356,7 +356,8 @@ func (p *Processor) StartProcessExpiredTransactions() {
 						break
 					}
 
-					p.logger.Info("Resending unmined transactions", slog.Int("number", len(unminedTxs)))
+					requested := 0
+					announced := 0
 					for _, tx := range unminedTxs {
 						// mark that we retried processing this transaction once more
 						if err = p.store.IncrementRetries(dbctx, tx.Hash); err != nil {
@@ -367,13 +368,17 @@ func (p *Processor) StartProcessExpiredTransactions() {
 							// Sending GETDATA to peers to see if they have it
 							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.RequestTransaction(tx.Hash)
+							requested++
 						} else {
 							p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.AnnounceTransaction(tx.Hash, nil)
+							announced++
 						}
 
 						p.retries.AddDuration(time.Since(time.Now()))
 					}
+
+					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested))
 				}
 			}
 		}

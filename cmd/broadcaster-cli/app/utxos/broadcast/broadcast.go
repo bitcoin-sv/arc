@@ -138,7 +138,7 @@ var Cmd = &cobra.Command{
 
 			wg.Add(1)
 
-			fundingKeySet, receivingKeySet, err := helper.GetKeySetsKeyFile(kf)
+			fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
 			if err != nil {
 				return fmt.Errorf("failed to get key sets: %v", err)
 			}
@@ -160,14 +160,7 @@ var Cmd = &cobra.Command{
 				defer file.Close()
 			}
 
-			rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, wocClient,
-				broadcaster.WithFees(miningFeeSat),
-				broadcaster.WithIsTestnet(isTestnet),
-				broadcaster.WithCallback(callbackURL, callbackToken),
-				broadcaster.WithFullstatusUpdates(fullStatusUpdates),
-				broadcaster.WithBatchSize(batchSize),
-				broadcaster.WithStoreWriter(writer, 50),
-			)
+			rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, wocClient, broadcaster.WithFees(miningFeeSat), broadcaster.WithIsTestnet(isTestnet), broadcaster.WithCallback(callbackURL, callbackToken), broadcaster.WithFullstatusUpdates(fullStatusUpdates), broadcaster.WithBatchSize(batchSize), broadcaster.WithStoreWriter(writer, 50))
 			if err != nil {
 				return fmt.Errorf("failed to create rate broadcaster: %v", err)
 			}

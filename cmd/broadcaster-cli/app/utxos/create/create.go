@@ -120,18 +120,13 @@ var Cmd = &cobra.Command{
 
 				time.Sleep(500 * time.Millisecond)
 
-				fundingKeySet, receivingKeySet, err := helper.GetKeySetsKeyFile(keyfile)
+				fundingKeySet, _, err := helper.GetKeySetsKeyFile(keyfile)
 				if err != nil {
 					logger.Error("failed to get key sets", slog.String("err", err.Error()))
 					return
 				}
 
-				rateBroadcaster, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, wocClient,
-					broadcaster.WithFees(miningFeeSat),
-					broadcaster.WithIsTestnet(isTestnet),
-					broadcaster.WithCallback(callbackURL, callbackToken),
-					broadcaster.WithFullstatusUpdates(fullStatusUpdates),
-				)
+				rateBroadcaster, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, wocClient, broadcaster.WithFees(miningFeeSat), broadcaster.WithIsTestnet(isTestnet), broadcaster.WithCallback(callbackURL, callbackToken), broadcaster.WithFullstatusUpdates(fullStatusUpdates))
 
 				err = rateBroadcaster.CreateUtxos(outputs, satoshisPerOutput)
 				if err != nil {

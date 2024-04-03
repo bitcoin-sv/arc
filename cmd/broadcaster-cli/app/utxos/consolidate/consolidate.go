@@ -97,13 +97,13 @@ var Cmd = &cobra.Command{
 			logger.Info("starting consolidation", slog.String("key", kf))
 			time.Sleep(500 * time.Millisecond)
 
-			fundingKeySet, receivingKeySet, err := helper.GetKeySetsKeyFile(kf)
+			fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
 			if err != nil {
 				//logger.Error("failed to get key sets", slog.String("err", err.Error()))
 				return fmt.Errorf("failed to get key sets: %v", err)
 			}
 
-			rateBroadcaster, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, receivingKeySet, wocClient,
+			rateBroadcaster, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, wocClient,
 				broadcaster.WithFees(miningFeeSat),
 				broadcaster.WithIsTestnet(isTestnet),
 				broadcaster.WithCallback(callbackURL, callbackToken),

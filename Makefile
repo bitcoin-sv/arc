@@ -119,7 +119,7 @@ gh-pages:
 
 .PHONY: api
 api:
-	oapi-codegen -config api/config.yaml api/arc.yml > api/arc.go
+	oapi-codegen -config pkg/api/config.yaml pkg/api/arc.yml > pkg/api/arc.go
 
 .PHONY: clean_restart_e2e_test
 clean_restart_e2e_test: clean_e2e_tests build_release build_docker run_e2e_tests

@@ -328,6 +328,8 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore) (p2p.PeerManag
 		opts = append(opts, p2p.WithUserAgent("ARC", version.Version))
 	}
 
+	opts = append(opts, p2p.WithRetryReadWriteMessageInterval(5*time.Second))
+
 	for _, peerSetting := range peerSettings {
 		peerUrl, err := peerSetting.GetP2PUrl()
 		if err != nil {

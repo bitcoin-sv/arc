@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/async/nats_mq"
@@ -116,6 +117,8 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 	if version.Version != "" {
 		opts = append(opts, p2p.WithUserAgent("ARC", version.Version))
 	}
+
+	opts = append(opts, p2p.WithRetryReadWriteMessageInterval(5*time.Second))
 
 	for i, peerURL := range peerURLs {
 		peer, err := p2p.NewPeer(logger, peerURL, peerHandler, network, opts...)

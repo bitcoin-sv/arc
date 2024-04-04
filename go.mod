@@ -17,7 +17,7 @@ require (
 	github.com/libsv/go-bc v0.1.28
 	github.com/libsv/go-bk v0.1.6
 	github.com/libsv/go-bt/v2 v2.2.5
-	github.com/libsv/go-p2p v0.2.1
+	github.com/libsv/go-p2p v0.2.2
 	github.com/lmittmann/tint v1.0.3
 	github.com/nats-io/nats.go v1.31.0
 	github.com/oapi-codegen/runtime v1.0.0

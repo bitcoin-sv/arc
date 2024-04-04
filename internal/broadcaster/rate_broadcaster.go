@@ -804,6 +804,14 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos chan *bt.UTXO) ([]*bt.Tx, er
 
 func (b *RateBroadcaster) sendTxsBatchAsyncBroadcast(txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error, utxoCh chan *bt.UTXO, skipFeeValidation bool, waitForStatus metamorph_api.Status, limit int64) {
 	go func() {
+		b.mu.Lock()
+		if limit > 0 && b.totalTxs >= limit {
+			return
+		}
+		b.mu.Unlock()
+
+		limitReachedNotified := false
+
 		resp, err := b.client.BroadcastTransactions(context.Background(), txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, skipFeeValidation)
 		if err != nil {
 			errCh <- err
@@ -824,16 +832,16 @@ func (b *RateBroadcaster) sendTxsBatchAsyncBroadcast(txs []*bt.Tx, resultCh chan
 				LockingScript: b.fundingKeyset.Script,
 				Satoshis:      b.satoshiMap[res.Txid],
 			}
+			utxoCh <- newUtxo
 
 			delete(b.satoshiMap, res.Txid)
 			b.totalTxs++
-			if limit > 0 && b.totalTxs >= limit {
+			if limit > 0 && b.totalTxs >= limit && !limitReachedNotified {
 				b.logger.Info("limit reached", slog.Int64("total", b.totalTxs), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
 				b.shutdown <- struct{}{}
+				limitReachedNotified = true
 			}
 			b.mu.Unlock()
-
-			utxoCh <- newUtxo
 		}
 	}()
 }

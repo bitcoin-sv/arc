@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	hp "github.com/bitcoin-sv/arc/internal/helpers"
+	cfg "github.com/bitcoin-sv/arc/internal/helpers"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
@@ -50,9 +50,9 @@ func StartAPIServer(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	apiAddress := viper.GetString("api.address")
+	apiAddress, err := cfg.GetString("api.address")
 	if apiAddress == "" {
-		panic("api.address not found in config")
+		return nil, err
 	}
 	// Serve HTTP until the world ends.
 	go func() {
@@ -85,12 +85,12 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 
 	// Check the security requirements
 
-	metamorphAddress, err := hp.GetString("metamorph.dialAddr")
+	metamorphAddress, err := cfg.GetString("metamorph.dialAddr")
 	if err != nil {
 		return err
 	}
 
-	grpcMessageSize, err := hp.GetInt("grpcMessageSize")
+	grpcMessageSize, err := cfg.GetInt("grpcMessageSize")
 	if err != nil {
 		return err
 	}

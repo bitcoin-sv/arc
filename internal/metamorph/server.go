@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -440,17 +440,4 @@ func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequ
 	}
 
 	return result, nil
-}
-
-// TransactionOptions options passed from header when creating transactions.
-type TransactionOptions struct {
-	ClientID             string               `json:"client_id"`
-	CallbackURL          string               `json:"callback_url,omitempty"`
-	CallbackToken        string               `json:"callback_token,omitempty"`
-	SkipFeeValidation    bool                 `json:"X-SkipFeeValidation,omitempty"`
-	SkipScriptValidation bool                 `json:"X-SkipScriptValidation,omitempty"`
-	SkipTxValidation     bool                 `json:"X-SkipTxValidation,omitempty"`
-	WaitForStatus        metamorph_api.Status `json:"wait_for_status,omitempty"`
-	FullStatusUpdates    bool                 `json:"full_status_updates,omitempty"`
-	MaxTimeout           int                  `json:"max_timeout,omitempty"`
 }

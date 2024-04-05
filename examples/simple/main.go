@@ -1,0 +1,48 @@
+package main
+
+import (
+	"fmt"
+	"log/slog"
+	"os"
+
+	"github.com/bitcoin-sv/arc/pkg/api"
+	apiHandler "github.com/bitcoin-sv/arc/pkg/api/handler"
+	"github.com/bitcoin-sv/arc/pkg/api/transaction_handler"
+	"github.com/labstack/echo/v4"
+)
+
+func main() {
+
+	// Set up a basic Echo router
+	e := echo.New()
+
+	// add a single bitcoin node
+	txHandler, err := transaction_handler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
+	if err != nil {
+		panic(err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+	defaultPolicy, err := apiHandler.GetDefaultPolicy()
+	if err != nil {
+		logger.Error("failed to get default policy", slog.String("err", err.Error()))
+		// this is a fatal error, we cannot start the server without a valid default policy
+		panic(err)
+	}
+
+	// initialise the arc default api handler, with our txHandler and any handler options
+	var handler api.ServerInterface
+	if handler, err = apiHandler.NewDefault(logger, txHandler, defaultPolicy); err != nil {
+		panic(err)
+	}
+
+	// Register the ARC API
+	// the arc handler registers routes under /v1/...
+	api.RegisterHandlers(e, handler)
+	// or with a base url => /mySubDir/v1/...
+	// arc.RegisterHandlersWithBaseURL(e. blocktx_api, "/arc")
+
+	// Serve HTTP until the world ends.
+	e.Logger.Fatal(e.Start(fmt.Sprintf("%s:%d", "0.0.0.0", 8080)))
+}

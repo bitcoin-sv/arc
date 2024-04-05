@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:generate moq -pkg mock -out ./mock/metamorph_client_mock.go ../../metamorph TransactionMaintainer
+//go:generate moq -pkg mock -out ./mock/metamorph_client_mock.go ../../../pkg/metamorph TransactionMaintainer
 func TestClearTransactions(t *testing.T) {
 	tt := []struct {
 		name     string

@@ -2,8 +2,9 @@ package nats_mq
 
 import (
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/testdata"
 	"testing"
+
+	"github.com/bitcoin-sv/arc/internal/testdata"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/stretchr/testify/require"
@@ -77,8 +78,9 @@ func TestMQClient_PublishMinedTxs(t *testing.T) {
 			}
 
 			txChannel := make(chan []byte, 10)
+			requestTxChannel := make(chan []byte, 10)
 
-			mqClient := NewNatsMQClient(natsMock, txChannel, WithMaxBatchSize(5))
+			mqClient := NewNatsMQClient(natsMock, txChannel, requestTxChannel, WithMaxBatchSize(5))
 
 			err := mqClient.PublishMinedTxs(tc.txsBlocks)
 

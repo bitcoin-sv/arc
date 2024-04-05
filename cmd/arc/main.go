@@ -15,7 +15,7 @@ import (
 
 	cmd "github.com/bitcoin-sv/arc/cmd/arc/services"
 	cfg "github.com/bitcoin-sv/arc/internal/helpers"
-	"github.com/bitcoin-sv/arc/pkg/tracing"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

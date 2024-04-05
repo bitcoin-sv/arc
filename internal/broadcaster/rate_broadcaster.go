@@ -252,7 +252,7 @@ func (b *RateBroadcaster) createConsolidationTxs(utxoSet *list.List, satoshiMap 
 					return nil, err
 				}
 
-				err = b.consolidateToFundingKeyset(tx, err, txSatoshis)
+				err = b.consolidateToFundingKeyset(tx, txSatoshis)
 				if err != nil {
 					return nil, err
 				}
@@ -273,7 +273,7 @@ func (b *RateBroadcaster) createConsolidationTxs(utxoSet *list.List, satoshiMap 
 		}
 
 		if len(tx.Inputs) >= b.maxInputs {
-			err = b.consolidateToFundingKeyset(tx, err, txSatoshis)
+			err = b.consolidateToFundingKeyset(tx, txSatoshis)
 			if err != nil {
 				return nil, err
 			}
@@ -295,9 +295,9 @@ func (b *RateBroadcaster) createConsolidationTxs(utxoSet *list.List, satoshiMap 
 	return txsConsolidationBatches, nil
 }
 
-func (b *RateBroadcaster) consolidateToFundingKeyset(tx *bt.Tx, err error, txSatoshis uint64) error {
+func (b *RateBroadcaster) consolidateToFundingKeyset(tx *bt.Tx, txSatoshis uint64) error {
 	fee := b.calculateFeeSat(tx)
-	err = tx.PayTo(b.fundingKeyset.Script, txSatoshis-fee)
+	err := tx.PayTo(b.fundingKeyset.Script, txSatoshis-fee)
 	if err != nil {
 		return err
 	}
@@ -738,19 +738,6 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos chan *bt.UTXO) ([]*bt.Tx, er
 	}
 
 	return txs, nil
-}
-
-func (b *RateBroadcaster) sendTxsBatchAsync(txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error, skipFeeValidation bool, waitForStatus metamorph_api.Status) {
-	go func() {
-		resp, err := b.client.BroadcastTransactions(context.Background(), txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, skipFeeValidation)
-		if err != nil {
-			errCh <- err
-		}
-
-		for _, res := range resp {
-			resultCh <- res
-		}
-	}()
 }
 
 func (b *RateBroadcaster) sendTxsBatchAsyncBroadcast(txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error, utxoCh chan *bt.UTXO, skipFeeValidation bool, waitForStatus metamorph_api.Status, limit int64) {

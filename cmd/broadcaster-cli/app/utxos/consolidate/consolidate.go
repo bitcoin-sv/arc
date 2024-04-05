@@ -20,7 +20,7 @@ import (
 
 var Cmd = &cobra.Command{
 	Use:   "consolidate",
-	Short: "Consolidate UTXO set",
+	Short: "Consolidate UTXO set to 1 output",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fullStatusUpdates, err := helper.GetBool("fullStatusUpdates")
 		if err != nil {

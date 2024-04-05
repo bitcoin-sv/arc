@@ -61,6 +61,9 @@ type ZMQDiscardFromMempool struct {
 }
 
 func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage) *ZMQ {
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.JSONFormatter{})
+
 	z := &ZMQ{
 		URL: zmqURL,
 		Stats: &ZMQStats{
@@ -69,7 +72,7 @@ func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage) *ZMQ {
 			discardedFromMempool: atomic.Uint64{},
 		},
 		statusMessageCh: statusMessageCh,
-		Logger:          logrus.StandardLogger(),
+		Logger:          logger,
 	}
 
 	return z

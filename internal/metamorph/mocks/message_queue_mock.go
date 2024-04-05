@@ -21,6 +21,9 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //			PublishRegisterTxsFunc: func(hash []byte) error {
 //				panic("mock out the PublishRegisterTxs method")
 //			},
+//			RequestTxFunc: func(hash []byte) error {
+//				panic("mock out the RequestTx method")
+//			},
 //			ShutdownFunc: func() error {
 //				panic("mock out the Shutdown method")
 //			},
@@ -37,6 +40,9 @@ type MessageQueueClientMock struct {
 	// PublishRegisterTxsFunc mocks the PublishRegisterTxs method.
 	PublishRegisterTxsFunc func(hash []byte) error
 
+	// RequestTxFunc mocks the RequestTx method.
+	RequestTxFunc func(hash []byte) error
+
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func() error
 
@@ -50,6 +56,11 @@ type MessageQueueClientMock struct {
 			// Hash is the hash argument value.
 			Hash []byte
 		}
+		// RequestTx holds details about calls to the RequestTx method.
+		RequestTx []struct {
+			// Hash is the hash argument value.
+			Hash []byte
+		}
 		// Shutdown holds details about calls to the Shutdown method.
 		Shutdown []struct {
 		}
@@ -58,6 +69,7 @@ type MessageQueueClientMock struct {
 		}
 	}
 	lockPublishRegisterTxs sync.RWMutex
+	lockRequestTx          sync.RWMutex
 	lockShutdown           sync.RWMutex
 	lockSubscribeMinedTxs  sync.RWMutex
 }
@@ -91,6 +103,38 @@ func (mock *MessageQueueClientMock) PublishRegisterTxsCalls() []struct {
 	mock.lockPublishRegisterTxs.RLock()
 	calls = mock.calls.PublishRegisterTxs
 	mock.lockPublishRegisterTxs.RUnlock()
+	return calls
+}
+
+// RequestTx calls RequestTxFunc.
+func (mock *MessageQueueClientMock) RequestTx(hash []byte) error {
+	if mock.RequestTxFunc == nil {
+		panic("MessageQueueClientMock.RequestTxFunc: method is nil but MessageQueueClient.RequestTx was just called")
+	}
+	callInfo := struct {
+		Hash []byte
+	}{
+		Hash: hash,
+	}
+	mock.lockRequestTx.Lock()
+	mock.calls.RequestTx = append(mock.calls.RequestTx, callInfo)
+	mock.lockRequestTx.Unlock()
+	return mock.RequestTxFunc(hash)
+}
+
+// RequestTxCalls gets all the calls that were made to RequestTx.
+// Check the length with:
+//
+//	len(mockedMessageQueueClient.RequestTxCalls())
+func (mock *MessageQueueClientMock) RequestTxCalls() []struct {
+	Hash []byte
+} {
+	var calls []struct {
+		Hash []byte
+	}
+	mock.lockRequestTx.RLock()
+	calls = mock.calls.RequestTx
+	mock.lockRequestTx.RUnlock()
 	return calls
 }
 

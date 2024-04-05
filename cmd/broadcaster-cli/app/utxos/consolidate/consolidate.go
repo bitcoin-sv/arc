@@ -73,7 +73,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
+		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelDebug}))
 
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
@@ -95,22 +95,22 @@ var Cmd = &cobra.Command{
 				time.Sleep(1 * time.Second)
 			}
 
-			logger.Info("starting consolidation", slog.String("key", kf))
-			time.Sleep(500 * time.Millisecond)
-
 			fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
 			if err != nil {
-				//logger.Error("failed to get key sets", slog.String("err", err.Error()))
 				return fmt.Errorf("failed to get key sets: %v", err)
 			}
 
-			rateBroadcaster, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, wocClient,
+			rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, wocClient,
 				broadcaster.WithFees(miningFeeSat),
 				broadcaster.WithIsTestnet(isTestnet),
 				broadcaster.WithCallback(callbackURL, callbackToken),
 				broadcaster.WithFullstatusUpdates(fullStatusUpdates),
 			)
+			if err != nil {
+				return fmt.Errorf("failed to create broadcaster: %v", err)
+			}
 
+			logger.Info("consolidating utxos", slog.String("key", kf), slog.String("address", fundingKeySet.Address(!isTestnet)))
 			err = rateBroadcaster.Consolidate(context.Background())
 			if err != nil {
 				return fmt.Errorf("failed to consolidate utxos: %v", err)

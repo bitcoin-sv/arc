@@ -28,7 +28,9 @@ const (
 	maxRequestBlocks                   = 1
 	fillGapsInterval                   = 15 * time.Minute
 	registerTxsIntervalDefault         = time.Second * 10
+	registerRequestTxsIntervalDefault  = time.Second * 5
 	registerTxsBatchSizeDefault        = 100
+	registerRequestTxBatchSizeDefault  = 100
 	maxBlocksInProgress                = 1
 )
 
@@ -100,16 +102,21 @@ type PeerHandler struct {
 	dataRetentionDays           int
 	mqClient                    MessageQueueClient
 	txChannel                   chan []byte
+	requestTxChannel            chan []byte
 	registerTxsInterval         time.Duration
+	registerRequestTxsInterval  time.Duration
 	registerTxsBatchSize        int
+	registerRequestTxsBatchSize int
 
-	fillGapsTicker              *time.Ticker
-	quitFillBlockGap            chan struct{}
-	quitFillBlockGapComplete    chan struct{}
-	quitPeerWorker              chan struct{}
-	quitPeerWorkerComplete      chan struct{}
-	quitListenTxChannel         chan struct{}
-	quitListenTxChannelComplete chan struct{}
+	fillGapsTicker                     *time.Ticker
+	quitFillBlockGap                   chan struct{}
+	quitFillBlockGapComplete           chan struct{}
+	quitPeerWorker                     chan struct{}
+	quitPeerWorkerComplete             chan struct{}
+	quitListenTxChannel                chan struct{}
+	quitListenTxChannelComplete        chan struct{}
+	quitListenRequestTxChannel         chan struct{}
+	quitListenRequestTxChannelComplete chan struct{}
 }
 
 func WithMessageQueueClient(mqClient MessageQueueClient) func(handler *PeerHandler) {
@@ -142,15 +149,33 @@ func WithRegisterTxsInterval(d time.Duration) func(handler *PeerHandler) {
 	}
 }
 
+func WithRegisterRequestTxsInterval(d time.Duration) func(handler *PeerHandler) {
+	return func(p *PeerHandler) {
+		p.registerRequestTxsInterval = d
+	}
+}
+
 func WithTxChan(txChannel chan []byte) func(handler *PeerHandler) {
 	return func(handler *PeerHandler) {
 		handler.txChannel = txChannel
 	}
 }
 
+func WithRequestTxChan(requestTxChannel chan []byte) func(handler *PeerHandler) {
+	return func(handler *PeerHandler) {
+		handler.requestTxChannel = requestTxChannel
+	}
+}
+
 func WithRegisterTxsBatchSize(size int) func(handler *PeerHandler) {
 	return func(handler *PeerHandler) {
 		handler.registerTxsBatchSize = size
+	}
+}
+
+func WithRegisterRequestTxsBatchSize(size int) func(handler *PeerHandler) {
+	return func(handler *PeerHandler) {
+		handler.registerRequestTxsBatchSize = size
 	}
 }
 
@@ -168,7 +193,9 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func
 		stats:                       safemap.New[string, *tracing.PeerHandlerStats](),
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
 		registerTxsInterval:         registerTxsIntervalDefault,
+		registerRequestTxsInterval:  registerRequestTxsIntervalDefault,
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
+		registerRequestTxsBatchSize: registerRequestTxBatchSizeDefault,
 		hostname:                    hostname,
 
 		fillGapsTicker: time.NewTicker(fillGapsInterval),
@@ -187,6 +214,7 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func
 func (ph *PeerHandler) Start() {
 	ph.startPeerWorker()
 	ph.startProcessTxs()
+	ph.startProcessRequestTxs()
 }
 
 func (ph *PeerHandler) startPeerWorker() {
@@ -314,6 +342,58 @@ func (ph *PeerHandler) startProcessTxs() {
 					ph.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 				}
 				txHashes = make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
+			}
+		}
+	}()
+}
+
+func (ph *PeerHandler) startProcessRequestTxs() {
+	ph.quitListenRequestTxChannel = make(chan struct{})
+	ph.quitListenRequestTxChannelComplete = make(chan struct{})
+	updatesBatch := make([]*blocktx_api.TransactionBlock, ph.registerRequestTxsBatchSize)
+
+	ticker := time.NewTicker(ph.registerRequestTxsInterval)
+	go func() {
+		defer func() {
+			ph.quitListenRequestTxChannelComplete <- struct{}{}
+		}()
+
+		for {
+			select {
+			case <-ph.quitListenRequestTxChannel:
+				return
+			case txHash := <-ph.requestTxChannel:
+				blockHash, blockHeight, merklePath, err := ph.store.GetMinedTransaction(context.Background(), txHash)
+				if err != nil {
+					continue
+				}
+
+				updatesBatch = append(updatesBatch, &blocktx_api.TransactionBlock{
+					TransactionHash: txHash,
+					BlockHash:       blockHash,
+					BlockHeight:     blockHeight,
+					MerklePath:      merklePath,
+				})
+
+				if len(updatesBatch) < ph.registerRequestTxsBatchSize || len(updatesBatch) == 0 {
+					continue
+				}
+
+				if err = ph.mqClient.PublishMinedTxs(updatesBatch); err != nil {
+					ph.logger.Error("failed to publish mined txs for requested hashes")
+				}
+
+				updatesBatch = make([]*blocktx_api.TransactionBlock, ph.registerRequestTxsBatchSize)
+
+			case <-ticker.C:
+				if len(updatesBatch) == 0 {
+					continue
+				}
+				if err := ph.mqClient.PublishMinedTxs(updatesBatch); err != nil {
+					ph.logger.Error("failed to publish mined txs for requested hashes")
+				}
+
+				updatesBatch = make([]*blocktx_api.TransactionBlock, ph.registerRequestTxsBatchSize)
 			}
 		}
 	}()
@@ -702,6 +782,11 @@ func (ph *PeerHandler) Shutdown() {
 	if ph.quitListenTxChannel != nil {
 		ph.quitListenTxChannel <- struct{}{}
 		<-ph.quitListenTxChannelComplete
+	}
+
+	if ph.quitListenRequestTxChannel != nil {
+		ph.quitListenRequestTxChannel <- struct{}{}
+		<-ph.quitListenRequestTxChannelComplete
 	}
 	ph.unregisterTracing()
 }

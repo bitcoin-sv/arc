@@ -35,6 +35,9 @@ var _ BlocktxStore = &BlocktxStoreMock{}
 //			GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
 //				panic("mock out the GetBlockHashesProcessingInProgress method")
 //			},
+//			GetMinedTransactionFunc: func(ctx context.Context, hash []byte) ([]byte, uint64, string, error) {
+//				panic("mock out the GetMinedTransaction method")
+//			},
 //			InsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
 //				panic("mock out the InsertBlock method")
 //			},
@@ -77,6 +80,9 @@ type BlocktxStoreMock struct {
 
 	// GetBlockHashesProcessingInProgressFunc mocks the GetBlockHashesProcessingInProgress method.
 	GetBlockHashesProcessingInProgressFunc func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)
+
+	// GetMinedTransactionFunc mocks the GetMinedTransaction method.
+	GetMinedTransactionFunc func(ctx context.Context, hash []byte) ([]byte, uint64, string, error)
 
 	// InsertBlockFunc mocks the InsertBlock method.
 	InsertBlockFunc func(ctx context.Context, block *blocktx_api.Block) (uint64, error)
@@ -135,6 +141,13 @@ type BlocktxStoreMock struct {
 			Ctx context.Context
 			// ProcessedBy is the processedBy argument value.
 			ProcessedBy string
+		}
+		// GetMinedTransaction holds details about calls to the GetMinedTransaction method.
+		GetMinedTransaction []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hash is the hash argument value.
+			Hash []byte
 		}
 		// InsertBlock holds details about calls to the InsertBlock method.
 		InsertBlock []struct {
@@ -199,6 +212,7 @@ type BlocktxStoreMock struct {
 	lockDelBlockProcessing                 sync.RWMutex
 	lockGetBlockGaps                       sync.RWMutex
 	lockGetBlockHashesProcessingInProgress sync.RWMutex
+	lockGetMinedTransaction                sync.RWMutex
 	lockInsertBlock                        sync.RWMutex
 	lockMarkBlockAsDone                    sync.RWMutex
 	lockPing                               sync.RWMutex
@@ -384,6 +398,42 @@ func (mock *BlocktxStoreMock) GetBlockHashesProcessingInProgressCalls() []struct
 	mock.lockGetBlockHashesProcessingInProgress.RLock()
 	calls = mock.calls.GetBlockHashesProcessingInProgress
 	mock.lockGetBlockHashesProcessingInProgress.RUnlock()
+	return calls
+}
+
+// GetMinedTransaction calls GetMinedTransactionFunc.
+func (mock *BlocktxStoreMock) GetMinedTransaction(ctx context.Context, hash []byte) ([]byte, uint64, string, error) {
+	if mock.GetMinedTransactionFunc == nil {
+		panic("BlocktxStoreMock.GetMinedTransactionFunc: method is nil but BlocktxStore.GetMinedTransaction was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Hash []byte
+	}{
+		Ctx:  ctx,
+		Hash: hash,
+	}
+	mock.lockGetMinedTransaction.Lock()
+	mock.calls.GetMinedTransaction = append(mock.calls.GetMinedTransaction, callInfo)
+	mock.lockGetMinedTransaction.Unlock()
+	return mock.GetMinedTransactionFunc(ctx, hash)
+}
+
+// GetMinedTransactionCalls gets all the calls that were made to GetMinedTransaction.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.GetMinedTransactionCalls())
+func (mock *BlocktxStoreMock) GetMinedTransactionCalls() []struct {
+	Ctx  context.Context
+	Hash []byte
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Hash []byte
+	}
+	mock.lockGetMinedTransaction.RLock()
+	calls = mock.calls.GetMinedTransaction
+	mock.lockGetMinedTransaction.RUnlock()
 	return calls
 }
 

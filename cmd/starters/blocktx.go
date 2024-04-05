@@ -62,6 +62,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 	}
 
 	txChannel := make(chan []byte, capacityRequired)
+	requestTxChannel := make(chan []byte, capacityRequired)
 
 	natsClient, err := nats_mq.NewNatsClient(natsURL)
 	if err != nil {
@@ -73,7 +74,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	mqClient := nats_mq.NewNatsMQClient(natsClient, txChannel, nats_mq.WithMaxBatchSize(maxBatchSize))
+	mqClient := nats_mq.NewNatsMQClient(natsClient, txChannel, requestTxChannel, nats_mq.WithMaxBatchSize(maxBatchSize))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create message queue client: %v", err)
 	}
@@ -83,9 +84,15 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
+	err = mqClient.SubscribeRequestTxs()
+	if err != nil {
+		return nil, err
+	}
+
 	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore,
 		blocktx.WithRetentionDays(recordRetentionDays),
 		blocktx.WithTxChan(txChannel),
+		blocktx.WithRequestTxChan(txChannel),
 		blocktx.WithRegisterTxsInterval(registerTxInterval),
 		blocktx.WithMessageQueueClient(mqClient))
 	if err != nil {

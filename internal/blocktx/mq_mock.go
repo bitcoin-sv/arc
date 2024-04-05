@@ -27,6 +27,9 @@ var _ MessageQueueClient = &MessageQueueClientMock{}
 //			SubscribeRegisterTxsFunc: func() error {
 //				panic("mock out the SubscribeRegisterTxs method")
 //			},
+//			SubscribeRequestTxsFunc: func() error {
+//				panic("mock out the SubscribeRequestTxs method")
+//			},
 //		}
 //
 //		// use mockedMessageQueueClient in code that requires MessageQueueClient
@@ -43,6 +46,9 @@ type MessageQueueClientMock struct {
 	// SubscribeRegisterTxsFunc mocks the SubscribeRegisterTxs method.
 	SubscribeRegisterTxsFunc func() error
 
+	// SubscribeRequestTxsFunc mocks the SubscribeRequestTxs method.
+	SubscribeRequestTxsFunc func() error
+
 	// calls tracks calls to the methods.
 	calls struct {
 		// PublishMinedTxs holds details about calls to the PublishMinedTxs method.
@@ -56,10 +62,14 @@ type MessageQueueClientMock struct {
 		// SubscribeRegisterTxs holds details about calls to the SubscribeRegisterTxs method.
 		SubscribeRegisterTxs []struct {
 		}
+		// SubscribeRequestTxs holds details about calls to the SubscribeRequestTxs method.
+		SubscribeRequestTxs []struct {
+		}
 	}
 	lockPublishMinedTxs      sync.RWMutex
 	lockShutdown             sync.RWMutex
 	lockSubscribeRegisterTxs sync.RWMutex
+	lockSubscribeRequestTxs  sync.RWMutex
 }
 
 // PublishMinedTxs calls PublishMinedTxsFunc.
@@ -145,5 +155,32 @@ func (mock *MessageQueueClientMock) SubscribeRegisterTxsCalls() []struct {
 	mock.lockSubscribeRegisterTxs.RLock()
 	calls = mock.calls.SubscribeRegisterTxs
 	mock.lockSubscribeRegisterTxs.RUnlock()
+	return calls
+}
+
+// SubscribeRequestTxs calls SubscribeRequestTxsFunc.
+func (mock *MessageQueueClientMock) SubscribeRequestTxs() error {
+	if mock.SubscribeRequestTxsFunc == nil {
+		panic("MessageQueueClientMock.SubscribeRequestTxsFunc: method is nil but MessageQueueClient.SubscribeRequestTxs was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockSubscribeRequestTxs.Lock()
+	mock.calls.SubscribeRequestTxs = append(mock.calls.SubscribeRequestTxs, callInfo)
+	mock.lockSubscribeRequestTxs.Unlock()
+	return mock.SubscribeRequestTxsFunc()
+}
+
+// SubscribeRequestTxsCalls gets all the calls that were made to SubscribeRequestTxs.
+// Check the length with:
+//
+//	len(mockedMessageQueueClient.SubscribeRequestTxsCalls())
+func (mock *MessageQueueClientMock) SubscribeRequestTxsCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockSubscribeRequestTxs.RLock()
+	calls = mock.calls.SubscribeRequestTxs
+	mock.lockSubscribeRequestTxs.RUnlock()
 	return calls
 }

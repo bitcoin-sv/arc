@@ -487,13 +487,16 @@ func (b *RateBroadcaster) CreateUtxos(ctx context.Context, requestedOutputs int,
 
 			for _, res := range resp {
 				if res.Status == metamorph_api.Status_REJECTED || res.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
-					bytes, err := json.Marshal(res)
-					if err != nil {
-						b.logger.Error("failed to decode res", slog.String("err", err.Error()))
+					b.logger.Error("splitting tx was not successful", slog.String("status", res.Status.String()), slog.String("hash", res.Txid), slog.String("reason", res.RejectReason))
+					for _, tx := range batch {
+						if tx.TxID() == res.Txid {
+							b.logger.Debug(tx.String())
+							break
+						}
 					}
-
-					return fmt.Errorf("consolidation tx was not successful: %s", string(bytes))
+					continue
 				}
+
 				txIDBytes, err := hex.DecodeString(res.Txid)
 				if err != nil {
 					b.logger.Error("failed to decode txid", slog.String("err", err.Error()))

@@ -258,7 +258,7 @@ func (b *RateBroadcaster) createConsolidationTxs(utxoSet *list.List, satoshiMap 
 				}
 
 				txsConsolidation = append(txsConsolidation, tx)
-				satoshiMap[tx.TxID()] = txSatoshis
+				satoshiMap[tx.TxID()] = tx.TotalOutputSatoshis()
 			}
 
 			if len(txsConsolidation) > 0 {
@@ -280,7 +280,7 @@ func (b *RateBroadcaster) createConsolidationTxs(utxoSet *list.List, satoshiMap 
 
 			txsConsolidation = append(txsConsolidation, tx)
 
-			satoshiMap[tx.TxID()] = txSatoshis
+			satoshiMap[tx.TxID()] = tx.TotalOutputSatoshis()
 			tx = bt.NewTx()
 			txSatoshis = 0
 		}
@@ -369,7 +369,13 @@ func (b *RateBroadcaster) Consolidate(ctx context.Context) error {
 
 			for _, res := range resp {
 				if res.Status == metamorph_api.Status_REJECTED || res.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
-					b.logger.Error("consolidation tx was not successful", slog.String("status", res.Status.String()), slog.String("hash", res.Txid))
+					b.logger.Error("consolidation tx was not successful", slog.String("status", res.Status.String()), slog.String("hash", res.Txid), slog.String("reason", res.RejectReason))
+					for _, tx := range batch {
+						if tx.TxID() == res.Txid {
+							b.logger.Debug(tx.String())
+							break
+						}
+					}
 					continue
 				}
 

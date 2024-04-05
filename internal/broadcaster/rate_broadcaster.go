@@ -228,7 +228,7 @@ func (b *RateBroadcaster) submitTxs(txs []*bt.Tx, expectedStatus metamorph_api.S
 	return nil
 }
 
-func (b *RateBroadcaster) createConsolidationTxs(utxos *list.List, satoshiMap map[string]uint64) ([][]*bt.Tx, error) {
+func (b *RateBroadcaster) createConsolidationTxs(utxoSet *list.List, satoshiMap map[string]uint64) ([][]*bt.Tx, error) {
 	tx := bt.NewTx()
 	txSatoshis := uint64(0)
 	txsConsolidationBatches := make([][]*bt.Tx, 0)
@@ -236,11 +236,9 @@ func (b *RateBroadcaster) createConsolidationTxs(utxos *list.List, satoshiMap ma
 	const consolidateBatchSize = 20
 
 	var next *list.Element
-	for front := utxos.Front(); front != nil; front = next {
+	for front := utxoSet.Front(); front != nil; front = next {
 		next = front.Next()
-
-		utxos.Remove(front)
-
+		utxoSet.Remove(front)
 		utxo, ok := front.Value.(*bt.UTXO)
 		if !ok {
 			return nil, errors.New("failed to parse value to utxo")
@@ -254,13 +252,7 @@ func (b *RateBroadcaster) createConsolidationTxs(utxos *list.List, satoshiMap ma
 					return nil, err
 				}
 
-				fee := b.calculateFeeSat(tx)
-				err = tx.PayTo(b.fundingKeyset.Script, txSatoshis-fee)
-				if err != nil {
-					return nil, err
-				}
-				unlockerGetter := unlocker.Getter{PrivateKey: b.fundingKeyset.PrivateKey}
-				err = tx.FillAllInputs(context.Background(), &unlockerGetter)
+				err = b.consolidateToFundingKeyset(tx, err, txSatoshis)
 				if err != nil {
 					return nil, err
 				}
@@ -281,13 +273,7 @@ func (b *RateBroadcaster) createConsolidationTxs(utxos *list.List, satoshiMap ma
 		}
 
 		if len(tx.Inputs) >= b.maxInputs {
-			fee := b.calculateFeeSat(tx)
-			err = tx.PayTo(b.fundingKeyset.Script, txSatoshis-fee)
-			if err != nil {
-				return nil, err
-			}
-			unlockerGetter := unlocker.Getter{PrivateKey: b.fundingKeyset.PrivateKey}
-			err = tx.FillAllInputs(context.Background(), &unlockerGetter)
+			err = b.consolidateToFundingKeyset(tx, err, txSatoshis)
 			if err != nil {
 				return nil, err
 			}
@@ -303,9 +289,24 @@ func (b *RateBroadcaster) createConsolidationTxs(utxos *list.List, satoshiMap ma
 			txsConsolidationBatches = append(txsConsolidationBatches, txsConsolidation)
 			txsConsolidation = make([]*bt.Tx, 0)
 		}
+
 	}
 
 	return txsConsolidationBatches, nil
+}
+
+func (b *RateBroadcaster) consolidateToFundingKeyset(tx *bt.Tx, err error, txSatoshis uint64) error {
+	fee := b.calculateFeeSat(tx)
+	err = tx.PayTo(b.fundingKeyset.Script, txSatoshis-fee)
+	if err != nil {
+		return err
+	}
+	unlockerGetter := unlocker.Getter{PrivateKey: b.fundingKeyset.PrivateKey}
+	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (b *RateBroadcaster) Consolidate(ctx context.Context) error {
@@ -328,18 +329,29 @@ func (b *RateBroadcaster) Consolidate(ctx context.Context) error {
 	}
 
 	satoshiMap := map[string]uint64{}
-	b.logger.Info("consolidating outputs", slog.Int("outputs", utxoSet.Len()))
-	consolidationTxsBatches, err := b.createConsolidationTxs(utxoSet, satoshiMap)
-	if err != nil {
-		return fmt.Errorf("failed to create consolidation txs: %v", err)
-	}
+	lastUtxoSetLen := 100_000_000
 
-	for len(consolidationTxsBatches) > 0 {
+	for {
+		if lastUtxoSetLen <= utxoSet.Len() {
+			b.logger.Error("utxo set length hasn't changed since last iteration")
+			break
+		}
+		lastUtxoSetLen = utxoSet.Len()
 
-		b.logger.Info("consolidating outputs", slog.Int("outputs", utxoSet.Len()))
+		// if requested outputs satisfied, return
+		if utxoSet.Len() == 1 {
+			break
+		}
+
+		b.logger.Info("consolidating outputs", slog.Int("remaining", utxoSet.Len()))
+
+		consolidationTxsBatches, err := b.createConsolidationTxs(utxoSet, satoshiMap)
+		if err != nil {
+			return fmt.Errorf("failed to create consolidation txs: %v", err)
+		}
 
 		for i, batch := range consolidationTxsBatches {
-			time.Sleep(1000 * time.Millisecond) // do not performance test ARC
+			time.Sleep(100 * time.Millisecond) // do not performance test ARC
 
 			nrOutputs := 0
 			nrInputs := 0
@@ -348,7 +360,7 @@ func (b *RateBroadcaster) Consolidate(ctx context.Context) error {
 				nrInputs += len(txBatch.Inputs)
 			}
 
-			b.logger.Info(fmt.Sprintf("broadcasting consolidation batch %d/%d", i, len(consolidationTxsBatches)), slog.Int("size", len(batch)), slog.Int("inputs", nrInputs), slog.Int("outputs", nrOutputs))
+			b.logger.Info(fmt.Sprintf("broadcasting consolidation batch %d/%d", i+1, len(consolidationTxsBatches)), slog.Int("size", len(batch)), slog.Int("inputs", nrInputs), slog.Int("outputs", nrOutputs))
 
 			resp, err := b.client.BroadcastTransactions(context.Background(), batch, metamorph_api.Status_SEEN_ON_NETWORK, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 			if err != nil {
@@ -358,7 +370,6 @@ func (b *RateBroadcaster) Consolidate(ctx context.Context) error {
 			for _, res := range resp {
 				if res.Status == metamorph_api.Status_REJECTED || res.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
 					b.logger.Error("consolidation tx was not successful", slog.String("status", res.Status.String()), slog.String("hash", res.Txid))
-					//return fmt.Errorf("consolidation tx %s was not successful: %s", res.Txid, res.Status.String())
 					continue
 				}
 
@@ -380,13 +391,6 @@ func (b *RateBroadcaster) Consolidate(ctx context.Context) error {
 				utxoSet.PushBack(newUtxo)
 			}
 		}
-
-		consolidationTxsBatches, err = b.createConsolidationTxs(utxoSet, satoshiMap)
-		if err != nil {
-			return fmt.Errorf("failed to create consolidation txs: %v", err)
-		}
-
-		b.logger.Info("remaining outputs", slog.Int("outputs", len(consolidationTxsBatches)))
 	}
 
 	return nil

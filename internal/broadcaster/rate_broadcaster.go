@@ -213,21 +213,6 @@ func (b *RateBroadcaster) splitToFundingKeyset(tx *bt.Tx, splitSatoshis uint64, 
 	return counter, nil
 }
 
-func (b *RateBroadcaster) submitTxs(txs []*bt.Tx, expectedStatus metamorph_api.Status, skipFeeValidation bool) error {
-	resp, err := b.client.BroadcastTransactions(context.Background(), txs, expectedStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, skipFeeValidation)
-	if err != nil {
-		return err
-	}
-
-	for _, res := range resp {
-		if res.Status != expectedStatus {
-			return fmt.Errorf("transaction does not have expected status %s, but %s", expectedStatus.String(), res.Status.String())
-		}
-	}
-
-	return nil
-}
-
 func (b *RateBroadcaster) createConsolidationTxs(utxoSet *list.List, satoshiMap map[string]uint64) ([][]*bt.Tx, error) {
 	tx := bt.NewTx()
 	txSatoshis := uint64(0)
@@ -815,34 +800,6 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos chan *bt.UTXO) ([]*bt.Tx, er
 	}
 
 	return txs, nil
-}
-
-func (b *RateBroadcaster) sendTxs(txs []*bt.Tx, expectedStatus metamorph_api.Status, skipFeeValidation bool) error {
-	resp, err := b.client.BroadcastTransactions(context.Background(), txs, expectedStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, skipFeeValidation)
-	if err != nil {
-		return err
-	}
-
-	for _, res := range resp {
-		if res.Status != expectedStatus {
-			return fmt.Errorf("transaction does not have expected status %s, but %s", expectedStatus.String(), res.Status.String())
-		}
-	}
-
-	return nil
-}
-
-func (b *RateBroadcaster) sendTxsBatchAsync(txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error, skipFeeValidation bool, waitForStatus metamorph_api.Status) {
-	go func() {
-		resp, err := b.client.BroadcastTransactions(context.Background(), txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, skipFeeValidation)
-		if err != nil {
-			errCh <- err
-		}
-
-		for _, res := range resp {
-			resultCh <- res
-		}
-	}()
 }
 
 func (b *RateBroadcaster) sendTxsBatchAsyncBroadcast(txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error, utxoCh chan *bt.UTXO, skipFeeValidation bool, waitForStatus metamorph_api.Status, limit int64) {

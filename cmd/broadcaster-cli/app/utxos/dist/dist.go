@@ -167,6 +167,8 @@ var Cmd = &cobra.Command{
 		}
 		t.AppendRow(totalRow)
 
+		// Todo: Add row with total Satoshis
+
 		fmt.Println(t.Render())
 
 		return nil

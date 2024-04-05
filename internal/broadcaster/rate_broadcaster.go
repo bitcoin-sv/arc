@@ -402,7 +402,7 @@ func (b *RateBroadcaster) Consolidate(ctx context.Context) error {
 	return nil
 }
 
-type output struct {
+type splittingOutput struct {
 	satoshis uint64
 	vout     uint32
 }
@@ -442,11 +442,11 @@ func (b *RateBroadcaster) CreateUtxos(ctx context.Context, requestedOutputs int,
 
 	// if requested outputs satisfied, return
 	if utxoSet.Len() >= requestedOutputs {
-		b.logger.Info("utxo set", slog.Int("ready", utxoSet.Len()), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
+		b.logger.Info("utxo set", slog.Int("ready", utxoSet.Len()), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput))
 		return nil
 	}
 
-	satoshiMap := map[string][]output{}
+	satoshiMap := map[string][]splittingOutput{}
 	lastUtxoSetLen := 0
 
 	// if requested outputs not satisfied, create them
@@ -462,7 +462,7 @@ func (b *RateBroadcaster) CreateUtxos(ctx context.Context, requestedOutputs int,
 			break
 		}
 
-		b.logger.Info("utxo set", slog.Int("ready", utxoSet.Len()), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
+		b.logger.Info("splitting outputs", slog.Int("ready", utxoSet.Len()), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput))
 
 		// create splitting txs
 		txsSplitBatches, err := b.splitOutputs(requestedOutputs, requestedSatoshisPerOutput, utxoSet, satoshiMap)
@@ -470,7 +470,15 @@ func (b *RateBroadcaster) CreateUtxos(ctx context.Context, requestedOutputs int,
 			return err
 		}
 
-		for _, batch := range txsSplitBatches {
+		for i, batch := range txsSplitBatches {
+			nrOutputs := 0
+			nrInputs := 0
+			for _, txBatch := range batch {
+				nrOutputs += len(txBatch.Outputs)
+				nrInputs += len(txBatch.Inputs)
+			}
+
+			b.logger.Info(fmt.Sprintf("broadcasting splitting batch %d/%d", i+1, len(txsSplitBatches)), slog.Int("size", len(batch)), slog.Int("inputs", nrInputs), slog.Int("outputs", nrOutputs))
 
 			resp, err := b.client.BroadcastTransactions(context.Background(), batch, metamorph_api.Status_SEEN_ON_NETWORK, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 			if err != nil {
@@ -516,12 +524,12 @@ func (b *RateBroadcaster) CreateUtxos(ctx context.Context, requestedOutputs int,
 		}
 	}
 
-	b.logger.Info("utxo set", slog.Int("ready", utxoSet.Len()), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
+	b.logger.Info("utxo set", slog.Int("ready", utxoSet.Len()), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput))
 
 	return nil
 }
 
-func (b *RateBroadcaster) splitOutputs(requestedOutputs int, requestedSatoshisPerOutput uint64, utxoSet *list.List, satoshiMap map[string][]output) ([][]*bt.Tx, error) {
+func (b *RateBroadcaster) splitOutputs(requestedOutputs int, requestedSatoshisPerOutput uint64, utxoSet *list.List, satoshiMap map[string][]splittingOutput) ([][]*bt.Tx, error) {
 	txsSplitBatches := make([][]*bt.Tx, 0)
 	txsSplit := make([]*bt.Tx, 0)
 	outputs := utxoSet.Len()
@@ -562,9 +570,9 @@ func (b *RateBroadcaster) splitOutputs(requestedOutputs int, requestedSatoshisPe
 
 		txsSplit = append(txsSplit, tx)
 
-		txOutputs := make([]output, len(tx.Outputs))
+		txOutputs := make([]splittingOutput, len(tx.Outputs))
 		for i, txOutput := range tx.Outputs {
-			txOutputs[i] = output{satoshis: txOutput.Satoshis, vout: uint32(i)}
+			txOutputs[i] = splittingOutput{satoshis: txOutput.Satoshis, vout: uint32(i)}
 		}
 
 		satoshiMap[tx.TxID()] = txOutputs

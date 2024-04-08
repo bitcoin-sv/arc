@@ -583,7 +583,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			processor.ProcessorResponseMap.Set(testdata.TX2Hash, processor_response.NewProcessorResponse(testdata.TX2Hash))
 			processor.ProcessorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponse(testdata.TX3Hash))
 
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 
 			require.Equal(t, tc.expectedAnnouncements, len(pm.AnnounceTransactionCalls()))
 			require.Equal(t, tc.expectedRequests, len(pm.RequestTransactionCalls()))

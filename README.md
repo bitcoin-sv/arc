@@ -236,10 +236,10 @@ These instructions will provide the steps needed in order to use `broadcaster-cl
    3. You can view the balance of the key set using the command `broadcaster-cli keyset balance`
 4. Create utxo set
    1. There must be a certain utxo set available so that `broadcaster-cli` can broadcast a reasonable number of transactions in batches
-   2. First look at the existing utxo set using `broadcaster-cli utxos dist`
+   2. First look at the existing utxo set using `broadcaster-cli keyset utxos`
    3. In order to create more outputs use the following command `broadcaster-cli utxos create --outputs=<number of outputs> --satoshis=<number of satoshis per output>`
    4. This command will send transactions creating the requested outputs to ARC. There are more flags needed for this command. Please see `go run cmd/broadcaster-cli/main.go utxos -h` for more details
-   5. See the new distribution of utxos using `broadcaster-cli utxos dist`
+   5. See the new distribution of utxos using `broadcaster-cli keyset utxos`
 5. Broadcast transactions to ARC
    1. Now `broadcaster-cli` can be used to broadcast transactions to ARC at a given rate using this command `broadcaster-cli utxos broadcast --rate=<txs per second> --batchsize=<nr ot txs per batch>`
    2. The limit flag `--limit=<nr of transactions at which broadcasting stops>` is optional. If not given `broadcaster-cli` will only stop at abortion e.g. using `CTRL+C`

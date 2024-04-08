@@ -1,4 +1,4 @@
-package dist
+package utxos
 
 import (
 	"context"
@@ -22,7 +22,7 @@ import (
 )
 
 var Cmd = &cobra.Command{
-	Use:   "dist",
+	Use:   "utxos",
 	Short: "Show distribution of utxo sizes in key set",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		maxRows := viper.GetInt("rows")

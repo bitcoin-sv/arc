@@ -213,21 +213,6 @@ func (b *RateBroadcaster) splitToFundingKeyset(tx *bt.Tx, splitSatoshis uint64, 
 	return counter, nil
 }
 
-func (b *RateBroadcaster) submitTxs(txs []*bt.Tx, expectedStatus metamorph_api.Status, skipFeeValidation bool) error {
-	resp, err := b.client.BroadcastTransactions(context.Background(), txs, expectedStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, skipFeeValidation)
-	if err != nil {
-		return err
-	}
-
-	for _, res := range resp {
-		if res.Status != expectedStatus {
-			return fmt.Errorf("transaction does not have expected status %s, but %s", expectedStatus.String(), res.Status.String())
-		}
-	}
-
-	return nil
-}
-
 func (b *RateBroadcaster) createConsolidationTxs(utxoSet *list.List, satoshiMap map[string]uint64) ([][]*bt.Tx, error) {
 	tx := bt.NewTx()
 	txSatoshis := uint64(0)
@@ -402,6 +387,11 @@ func (b *RateBroadcaster) Consolidate(ctx context.Context) error {
 	return nil
 }
 
+type splittingOutput struct {
+	satoshis uint64
+	vout     uint32
+}
+
 func (b *RateBroadcaster) CreateUtxos(ctx context.Context, requestedOutputs int, requestedSatoshisPerOutput uint64) error {
 
 	requestedOutputsSatoshis := int64(requestedOutputs) * int64(requestedSatoshisPerOutput)
@@ -421,48 +411,100 @@ func (b *RateBroadcaster) CreateUtxos(ctx context.Context, requestedOutputs int,
 		return fmt.Errorf("requested total of satoshis %d exceeds balance on funding keyset %d", requestedOutputsSatoshis, balance)
 	}
 
-	utxoSet := make([]*bt.UTXO, 0, requestedOutputs)
+	utxos, err := b.utxoClient.GetUTXOsWithRetries(ctx, !b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet), 1*time.Second, 5)
+	if err != nil {
+		return err
+	}
 
-requestedOutputsLoop:
-	for len(utxoSet) < requestedOutputs {
+	utxoSet := list.New()
+	for _, utxo := range utxos {
+		// collect right sized utxos
+		if utxo.Satoshis >= requestedSatoshisPerOutput {
+			utxoSet.PushBack(utxo)
+			continue
+		}
+	}
 
-		utxoSet = make([]*bt.UTXO, 0, requestedOutputs)
-		greater := make([]*bt.UTXO, 0)
+	// if requested outputs satisfied, return
+	if utxoSet.Len() >= requestedOutputs {
+		b.logger.Info("utxo set", slog.Int("ready", utxoSet.Len()), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput))
+		return nil
+	}
 
-		utxos, err := b.utxoClient.GetUTXOsWithRetries(ctx, !b.isTestnet, b.fundingKeyset.Script, b.fundingKeyset.Address(!b.isTestnet), 1*time.Second, 5)
-		if err != nil {
-			return err
+	satoshiMap := map[string][]splittingOutput{}
+	lastUtxoSetLen := 0
+
+	// if requested outputs not satisfied, create them
+	for {
+		if lastUtxoSetLen >= utxoSet.Len() {
+			b.logger.Error("utxo set length hasn't changed since last iteration")
+			break
+		}
+		lastUtxoSetLen = utxoSet.Len()
+
+		// if requested outputs satisfied, return
+		if utxoSet.Len() >= requestedOutputs {
+			break
 		}
 
-		for _, utxo := range utxos {
-			if len(utxoSet) >= requestedOutputs {
-				break requestedOutputsLoop
-			}
-
-			// collect right sized utxos
-			if utxo.Satoshis == requestedSatoshisPerOutput {
-				utxoSet = append(utxoSet, utxo)
-				continue
-			}
-
-			// collect uxtos which are greater than requested
-			if utxo.Satoshis > requestedSatoshisPerOutput {
-				greater = append(greater, utxo)
-			}
-		}
-
-		b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
+		b.logger.Info("splitting outputs", slog.Int("ready", utxoSet.Len()), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput))
 
 		// create splitting txs
-		txsSplitBatches, err := b.splitOutputs(requestedOutputs, requestedSatoshisPerOutput, utxoSet, greater)
+		txsSplitBatches, err := b.splitOutputs(requestedOutputs, requestedSatoshisPerOutput, utxoSet, satoshiMap)
 		if err != nil {
 			return err
 		}
 
-		for _, batch := range txsSplitBatches {
-			err = b.submitTxs(batch, metamorph_api.Status_SEEN_ON_NETWORK, false)
+		for i, batch := range txsSplitBatches {
+			nrOutputs := 0
+			nrInputs := 0
+			for _, txBatch := range batch {
+				nrOutputs += len(txBatch.Outputs)
+				nrInputs += len(txBatch.Inputs)
+			}
+
+			b.logger.Info(fmt.Sprintf("broadcasting splitting batch %d/%d", i+1, len(txsSplitBatches)), slog.Int("size", len(batch)), slog.Int("inputs", nrInputs), slog.Int("outputs", nrOutputs))
+
+			resp, err := b.client.BroadcastTransactions(context.Background(), batch, metamorph_api.Status_SEEN_ON_NETWORK, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to braodcast tx: %v", err)
+			}
+
+			for _, res := range resp {
+				if res.Status == metamorph_api.Status_REJECTED || res.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
+					b.logger.Error("splitting tx was not successful", slog.String("status", res.Status.String()), slog.String("hash", res.Txid), slog.String("reason", res.RejectReason))
+					for _, tx := range batch {
+						if tx.TxID() == res.Txid {
+							b.logger.Debug(tx.String())
+							break
+						}
+					}
+					continue
+				}
+
+				txIDBytes, err := hex.DecodeString(res.Txid)
+				if err != nil {
+					b.logger.Error("failed to decode txid", slog.String("err", err.Error()))
+					continue
+				}
+
+				foundOutputs, found := satoshiMap[res.Txid]
+				if !found {
+					b.logger.Error("output not found", slog.String("hash", res.Txid))
+					continue
+				}
+
+				for _, foundOutput := range foundOutputs {
+					newUtxo := &bt.UTXO{
+						TxID:          txIDBytes,
+						Vout:          foundOutput.vout,
+						LockingScript: b.fundingKeyset.Script,
+						Satoshis:      foundOutput.satoshis,
+					}
+
+					utxoSet.PushBack(newUtxo)
+				}
+				delete(satoshiMap, res.Txid)
 			}
 
 			// do not performance test ARC when creating the utxos
@@ -470,22 +512,28 @@ requestedOutputsLoop:
 		}
 	}
 
-	b.logger.Info("utxo set", slog.Int("ready", len(utxoSet)), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
+	b.logger.Info("utxo set", slog.Int("ready", utxoSet.Len()), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput))
 
 	return nil
 }
 
-func (b *RateBroadcaster) splitOutputs(requestedOutputs int, requestedSatoshisPerOutput uint64, utxoSet []*bt.UTXO, greater []*bt.UTXO) ([][]*bt.Tx, error) {
+func (b *RateBroadcaster) splitOutputs(requestedOutputs int, requestedSatoshisPerOutput uint64, utxoSet *list.List, satoshiMap map[string][]splittingOutput) ([][]*bt.Tx, error) {
 	txsSplitBatches := make([][]*bt.Tx, 0)
 	txsSplit := make([]*bt.Tx, 0)
-	outputs := len(utxoSet)
+	outputs := utxoSet.Len()
 	var err error
 
-	// Todo: create txs with maximum number of outputs per tx
+	var next *list.Element
+	for front := utxoSet.Front(); front != nil; front = next {
+		next = front.Next()
 
-	for _, utxo := range greater {
-		if outputs >= requestedOutputs {
+		if front == nil || outputs >= requestedOutputs {
 			break
+		}
+
+		utxo, ok := front.Value.(*bt.UTXO)
+		if !ok {
+			return nil, errors.New("failed to parse value to utxo")
 		}
 
 		tx := bt.NewTx()
@@ -494,14 +542,28 @@ func (b *RateBroadcaster) splitOutputs(requestedOutputs int, requestedSatoshisPe
 			return nil, err
 		}
 
+		// only split if splitting increases nr of outputs
+		const feeMargin = 50
+		if utxo.Satoshis < 2*requestedSatoshisPerOutput+feeMargin {
+			continue
+		}
+
 		addedOutputs, err := b.splitToFundingKeyset(tx, utxo.Satoshis, requestedSatoshisPerOutput, requestedOutputs-outputs)
 		if err != nil {
 			return nil, err
 		}
+		utxoSet.Remove(front)
 
 		outputs += addedOutputs
 
 		txsSplit = append(txsSplit, tx)
+
+		txOutputs := make([]splittingOutput, len(tx.Outputs))
+		for i, txOutput := range tx.Outputs {
+			txOutputs[i] = splittingOutput{satoshis: txOutput.Satoshis, vout: uint32(i)}
+		}
+
+		satoshiMap[tx.TxID()] = txOutputs
 
 		if len(txsSplit) == b.batchSize {
 			txsSplitBatches = append(txsSplitBatches, txsSplit)

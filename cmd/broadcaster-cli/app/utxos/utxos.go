@@ -21,7 +21,7 @@ var Cmd = &cobra.Command{
 func init() {
 	var err error
 
-	Cmd.PersistentFlags().String("apiURL", "", "Send all funds from receiving key set to funding key set")
+	Cmd.PersistentFlags().String("apiURL", "", "URL of ARC api")
 	err = viper.BindPFlag("apiURL", Cmd.PersistentFlags().Lookup("apiURL"))
 	if err != nil {
 		log.Fatal(err)

@@ -3,12 +3,12 @@ package new
 import (
 	"bufio"
 	"fmt"
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"log"
 	"log/slog"
 	"os"
 
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -82,7 +82,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	logger = slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
+	logger = helper.GetLogger()
 
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags

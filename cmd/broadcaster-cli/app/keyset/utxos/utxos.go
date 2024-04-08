@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"log/slog"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -16,7 +14,6 @@ import (
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -44,7 +41,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
+		logger := helper.GetLogger()
 		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
 		keyFiles := strings.Split(keyFile, ",")

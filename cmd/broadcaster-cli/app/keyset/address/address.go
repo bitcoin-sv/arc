@@ -4,11 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
-	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 )
 
@@ -48,7 +46,7 @@ var (
 )
 
 func init() {
-	logger = slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
+	logger = helper.GetLogger()
 
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags

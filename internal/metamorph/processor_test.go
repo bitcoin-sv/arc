@@ -566,7 +566,18 @@ func TestProcessExpiredTransactions(t *testing.T) {
 					return nil
 				},
 			}
+
+			publisher := &mocks.MessageQueueClientMock{
+				PublishRegisterTxsFunc: func(hash []byte) error {
+					return nil
+				},
+				RequestTxFunc: func(hash []byte) error {
+					return nil
+				},
+			}
+
 			processor, err := metamorph.NewProcessor(metamorphStore, pm,
+				metamorph.WithMessageQueueClient(publisher)
 				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)

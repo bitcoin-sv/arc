@@ -586,8 +586,8 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 			time.Sleep(50 * time.Millisecond)
 
-			fmt.Println("shota", tc.expectedAnnouncements, len(pm.AnnounceTransactionCalls()))
 			require.Equal(t, tc.expectedAnnouncements, len(pm.AnnounceTransactionCalls()))
+			fmt.Println("shota", tc.expectedRequests, len(pm.RequestTransactionCalls()))
 			require.Equal(t, tc.expectedRequests, len(pm.RequestTransactionCalls()))
 		})
 	}

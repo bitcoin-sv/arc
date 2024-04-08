@@ -577,7 +577,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			}
 
 			processor, err := metamorph.NewProcessor(metamorphStore, pm,
-				metamorph.WithMessageQueueClient(publisher)
+				metamorph.WithMessageQueueClient(publisher),
 				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)

@@ -1,12 +1,10 @@
-package dist
+package utxos
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"log"
-	"log/slog"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -16,13 +14,12 @@ import (
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var Cmd = &cobra.Command{
-	Use:   "dist",
+	Use:   "utxos",
 	Short: "Show distribution of utxo sizes in key set",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		maxRows := viper.GetInt("rows")
@@ -44,7 +41,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
+		logger := helper.GetLogger()
 		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
 		keyFiles := strings.Split(keyFile, ",")

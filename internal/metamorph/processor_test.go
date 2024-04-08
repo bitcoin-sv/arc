@@ -3,7 +3,6 @@ package metamorph_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -598,7 +597,6 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 
 			require.Equal(t, tc.expectedAnnouncements, len(pm.AnnounceTransactionCalls()))
-			fmt.Println("shota", tc.expectedRequests, len(pm.RequestTransactionCalls()))
 			require.Equal(t, tc.expectedRequests, len(pm.RequestTransactionCalls()))
 		})
 	}

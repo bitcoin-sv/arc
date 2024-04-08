@@ -3,7 +3,6 @@ package metamorph
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -372,12 +371,9 @@ func (p *Processor) StartProcessExpiredTransactions() {
 							requested++
 
 							// by requesting tx, blocktx checks if it has the transaction mined in the database and sends it back
-							fmt.Println("shota 1")
-							if err = p.mqClient.RequestTx(tx.Hash[:]); err != nil {
-								fmt.Println("shota 1")
-								p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()))
-							}
-							fmt.Println("shota 3")
+							// if err = p.mqClient.RequestTx(tx.Hash[:]); err != nil {
+							// 	p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()))
+							// }
 
 						} else {
 							p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))

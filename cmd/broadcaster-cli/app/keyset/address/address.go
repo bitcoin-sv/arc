@@ -44,3 +44,12 @@ var Cmd = &cobra.Command{
 		return nil
 	},
 }
+
+func init() {
+	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
+		// Hide unused persistent flags
+		command.Flags().MarkHidden("wocAPIKey")
+		// Call parent help func
+		command.Parent().HelpFunc()(command, strings)
+	})
+}

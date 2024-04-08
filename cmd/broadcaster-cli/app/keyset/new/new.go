@@ -80,4 +80,12 @@ func init() {
 		log.Fatal(err)
 	}
 
+	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
+		// Hide unused persistent flags
+		command.Flags().MarkHidden("testnet")
+		command.Flags().MarkHidden("keyfile")
+		command.Flags().MarkHidden("wocAPIKey")
+		// Call parent help func
+		command.Parent().HelpFunc()(command, strings)
+	})
 }

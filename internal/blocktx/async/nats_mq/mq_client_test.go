@@ -2,10 +2,10 @@ package nats_mq
 
 import (
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/testdata"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/testdata"
+	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/stretchr/testify/require"
 )
 

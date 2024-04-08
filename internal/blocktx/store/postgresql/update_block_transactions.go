@@ -5,18 +5,13 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/lib/pq"
-	"github.com/ordishs/gocore"
 )
 
 // UpdateBlockTransactions updates the transaction hashes for a given block hash.
 func (p *PostgreSQL) UpdateBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpdateBlockTransactionsResult, error) {
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("UpdateBlockTransactions").AddTime(start)
-	}()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

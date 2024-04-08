@@ -4,15 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/ordishs/gocore"
+	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 )
 
 func (p *PostgreSQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("InsertBlock").AddTime(start)
-	}()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

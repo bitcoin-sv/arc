@@ -13,26 +13,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
-	"github.com/ordishs/gocore"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-func init() {
-	gocore.NewStat("PutTransaction", true)
-}
 
 // PtrTo returns a pointer to the given value.
 func PtrTo[T any](v T) *T {
@@ -121,8 +116,6 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 
 	s.grpcServer = grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
 
-	gocore.SetAddress(address)
-
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		return fmt.Errorf("GRPC server failed to listen [%w]", err)
@@ -186,11 +179,6 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction")
 	defer span.Finish()
 
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("PutTransaction").AddTime(start)
-	}()
-
 	err := ValidateCallbackURL(req.GetCallbackUrl())
 	if err != nil {
 		s.logger.Error("failed to validate callback URL", slog.String("err", err.Error()))
@@ -209,13 +197,8 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		RawTx:             req.GetRawTx(),
 	}
 
-	next := gocore.NewStat("PutTransaction").NewStat("2: ProcessTransaction").AddTime(start)
 	span2, _ := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:Wait")
 	defer span2.Finish()
-
-	defer func() {
-		gocore.NewStat("PutTransaction").NewStat("3: Wait for status").AddTime(next)
-	}()
 
 	return s.processTransaction(ctx, req.GetWaitForStatus(), sReq, req.GetMaxTimeout(), hash.String()), nil
 }
@@ -223,8 +206,6 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransactions")
 	defer span.Finish()
-	start := gocore.CurrentNanos()
-	defer gocore.NewStat("PutTransactions").AddTime(start)
 
 	// for each transaction if we have status in the db already set that status in the response
 	// if not we store the transaction data and set the transaction status in response array to - STORED
@@ -459,17 +440,4 @@ func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequ
 	}
 
 	return result, nil
-}
-
-// TransactionOptions options passed from header when creating transactions.
-type TransactionOptions struct {
-	ClientID             string               `json:"client_id"`
-	CallbackURL          string               `json:"callback_url,omitempty"`
-	CallbackToken        string               `json:"callback_token,omitempty"`
-	SkipFeeValidation    bool                 `json:"X-SkipFeeValidation,omitempty"`
-	SkipScriptValidation bool                 `json:"X-SkipScriptValidation,omitempty"`
-	SkipTxValidation     bool                 `json:"X-SkipTxValidation,omitempty"`
-	WaitForStatus        metamorph_api.Status `json:"wait_for_status,omitempty"`
-	FullStatusUpdates    bool                 `json:"full_status_updates,omitempty"`
-	MaxTimeout           int                  `json:"max_timeout,omitempty"`
 }

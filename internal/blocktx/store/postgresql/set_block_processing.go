@@ -5,18 +5,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ordishs/gocore"
-
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string) (string, error) {
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("SetBlockProcessing").AddTime(start)
-	}()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -46,10 +40,6 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 }
 
 func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) error {
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("DelBlockProcessing").AddTime(start)
-	}()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -71,10 +61,6 @@ func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Has
 }
 
 func (p *PostgreSQL) GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
-	start := gocore.CurrentNanos()
-	defer func() {
-		gocore.NewStat("blocktx").NewStat("GetBlockHashesProcessingInProgress").AddTime(start)
-	}()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

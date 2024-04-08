@@ -10,15 +10,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-utils/stat"
-	"github.com/ordishs/gocore"
 )
 
 const (
@@ -140,10 +139,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 	p.ProcessorResponseMap = NewProcessorResponseMap(p.mapExpiryTime, WithNowResponseMap(p.now))
 
 	p.logger.Info("Starting processor", slog.String("cacheExpiryTime", p.mapExpiryTime.String()))
-
-	gocore.AddAppPayloadFn("mtm", func() interface{} {
-		return p.GetStats(false)
-	})
 
 	_ = newPrometheusCollector(p)
 
@@ -361,7 +356,8 @@ func (p *Processor) StartProcessExpiredTransactions() {
 						break
 					}
 
-					p.logger.Info("Resending unmined transactions", slog.Int("number", len(unminedTxs)))
+					requested := 0
+					announced := 0
 					for _, tx := range unminedTxs {
 						// mark that we retried processing this transaction once more
 						if err = p.store.IncrementRetries(dbctx, tx.Hash); err != nil {
@@ -372,13 +368,17 @@ func (p *Processor) StartProcessExpiredTransactions() {
 							// Sending GETDATA to peers to see if they have it
 							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.RequestTransaction(tx.Hash)
+							requested++
 						} else {
 							p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.AnnounceTransaction(tx.Hash, nil)
+							announced++
 						}
 
 						p.retries.AddDuration(time.Since(time.Now()))
 					}
+
+					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested))
 				}
 			}
 		}
@@ -447,8 +447,6 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 }
 
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
-	startNanos := time.Now().UnixNano()
-
 	// we need to decouple the Context from the request, so that we don't get cancelled
 	// when the request is cancelled
 	callerSpan := opentracing.SpanFromContext(ctx)
@@ -536,8 +534,6 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		Status:       metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 		RejectReason: "",
 	}
-
-	gocore.NewStat("processor").AddTime(startNanos)
 }
 
 func (p *Processor) Health() error {

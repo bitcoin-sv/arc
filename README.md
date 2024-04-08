@@ -84,54 +84,13 @@ You can run the API like this:
 go run main.go -api=true
 ```
 
+The only difference between the two is that the generic `main.go` starts the Go profiler, while the specific `cmd/api/main.go`
+command does not.
+
 #### Integration into an echo server
 
 If you want to integrate the ARC API into an existing echo server, check out the
-[`examples`](https://github.com/bitcoin-sv/arc/tree/master/examples) folder in the GitHub repo.
-
-A very simple example:
-
-```go
-package main
-
-import (
-	"fmt"
-
-	"github.com/bitcoin-sv/arc/api"
-	apiHandler "github.com/bitcoin-sv/arc/api/handler"
-	"github.com/bitcoin-sv/arc/api/transactionHandler"
-	"github.com/labstack/echo/v4"
-)
-
-func main() {
-
-	// Set up a basic Echo router
-	e := echo.New()
-
-	// add a single bitcoin node
-	txHandler, err := transactionHandler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
-	if err != nil {
-		panic(err)
-	}
-
-	// initialise the arc default api handler, with our txHandler and any handler options
-	var handler api.HandlerInterface
-	if handler, err = apiHandler.NewDefault(txHandler); err != nil {
-		panic(err)
-	}
-
-	// Register the ARC API
-	// the arc handler registers routes under /v1/...
-	api.RegisterHandlers(e, handler)
-	// or with a base url => /mySubDir/v1/...
-	// arc.RegisterHandlersWithBaseURL(e. blocktx_api, "/arc")
-
-	// Serve HTTP until the world ends.
-	e.Logger.Fatal(e.Start(fmt.Sprintf("%s:%d", "0.0.0.0", 8080)))
-}
-```
-
-This will initialise the ARC API with a single Bitcoin node (not Metamorph), similar to how MAPI is run at the moment.
+[examples](./examples) folder in the GitHub repo.
 
 ### Metamorph
 

@@ -11,35 +11,50 @@ transaction can be in, such as `ANNOUNCED_TO_NETWORK`, `SEEN_IN_ORPHAN_MEMPOOL`,
 @startuml
 title Transaction lifecycle
 
-state VALIDATED
+state UNKNOWN
+state RECEIVED
+state STORED
 state ANNOUNCED
 state ERROR
 state REQUESTED_BY_NETWORK
 state SENT_TO_NETWORK
+state ACCEPTED
 state SEEN_ON_NETWORK
 state REJECTED
+state SEEN_IN_ORPHAN_MEMPOOL
 state MINED
 
-[*] --> VALIDATED
+[*] --> UNKNOWN
 
-VALIDATED --> ANNOUNCED
+UNKNOWN --> RECEIVED
 note on link
   Transaction has passed all checks except
   for verifying each UTXO is correct. This
   check is done by the nodes themselves.
 end note
-VALIDATED -> ERROR: Bad transaction
+UNKNOWN -> ERROR: transaction validation failed
 
-ANNOUNCED --> REQUESTED_BY_NETWORK
+RECEIVED --> STORED
+note on link
+  Transaction has been stored in ARC.
+end note
+
+
+STORED --> ANNOUNCED
 note on link
   Transaction ID has been announced to P2P
   network via an INV message.
 end note
 
-REQUESTED_BY_NETWORK --> SENT_TO_NETWORK
+ANNOUNCED --> REQUESTED_BY_NETWORK
 note on link
   Peer has requested the transaction with a
   GETDATA message.
+end note
+
+REQUESTED_BY_NETWORK --> SENT_TO_NETWORK
+note on link
+  Transaction has been sent to peer.
 end note
 
 
@@ -48,24 +63,29 @@ note on link
   Peer has sent a REJECT message.
 end note
 
-SENT_TO_NETWORK --> SEEN_ON_NETWORK
+SENT_TO_NETWORK -> SEEN_IN_ORPHAN_MEMPOOL
 note on link
-  Transaction has been sent to peer.
+  Peer has sent a 'missing inputs' message.
 end note
 
+SENT_TO_NETWORK --> ACCEPTED
+note on link
+  The transaction has been accepted by a connected Bitcoin node on the ZMQ interface.
+end note
 
-SEEN_ON_NETWORK --> MINED
+ACCEPTED --> SEEN_ON_NETWORK
 note on link
   Transaction ID has been announced to us
   from another peer.
 end note
 
-
-MINED --> [*]
+SEEN_ON_NETWORK --> MINED
 note on link
   Transaction ID was included in a BLOCK message.
 end note
 
+
+MINED --> [*]
 
 @enduml
 ```
@@ -235,16 +255,7 @@ The settings available for running ARC are managed by [viper](github.com/spf13/v
 
 ## ARC stats
 
-`gocore` keeps real-time stats about the metamorph servers, which can be viewed at `/stats` (e.g. `http://localhost:8011/stats`).
-These stats show aggregated information about a metamorph server, such as the number of transactions processed, the number of
-transactions sent to the Bitcoin network, etc. It also shows the average time it takes for each step in the process.
-
-More detailed statistics are available at `/pstats` (e.g. `http://localhost:8011/pstats`). These stats show information
-about the internal metamorph processor. The processor stats also allows you to see details for a single transaction. If
-a transaction has already been mined, and evicted from the processor memory, you can still see the stored stats
-retrieved from the data store, and potentially the timing stats, if they are found in the log file.
-
-ARC can also expose a Prometheus endpoint that can be used to monitor the metamorph servers. Set the `prometheusEndpoint`
+ARC can expose a Prometheus endpoint that can be used to monitor the metamorph servers. Set the `prometheusEndpoint`
 setting in the settings file to activate prometheus. Normally you would want to set this to `/metrics`.
 
 ## Client Libraries

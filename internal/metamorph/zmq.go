@@ -8,9 +8,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/ordishs/gocore"
+	"github.com/sirupsen/logrus"
 )
 
 type ZMQStats struct {
@@ -23,7 +23,7 @@ type ZMQ struct {
 	URL             *url.URL
 	Stats           *ZMQStats
 	statusMessageCh chan<- *PeerTxMessage
-	Logger          *gocore.Logger
+	Logger          logrus.FieldLogger
 }
 
 type ZMQTxInfo struct {
@@ -61,7 +61,9 @@ type ZMQDiscardFromMempool struct {
 }
 
 func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage) *ZMQ {
-	zmqLogger := gocore.Log("zmq")
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.JSONFormatter{})
+
 	z := &ZMQ{
 		URL: zmqURL,
 		Stats: &ZMQStats{
@@ -70,7 +72,7 @@ func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage) *ZMQ {
 			discardedFromMempool: atomic.Uint64{},
 		},
 		statusMessageCh: statusMessageCh,
-		Logger:          zmqLogger,
+		Logger:          logger,
 	}
 
 	return z

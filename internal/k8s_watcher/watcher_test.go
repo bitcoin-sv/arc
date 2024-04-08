@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:generate moq -pkg mock -out ./mock/metamorph_client_mock.go ../metamorph TransactionMaintainer
-//go:generate moq -pkg mock -out ./mock/blocktx_client_mock.go ../blocktx BlocktxClient
+//go:generate moq -pkg mock -out ./mock/metamorph_client_mock.go ../../pkg/metamorph TransactionMaintainer
+//go:generate moq -pkg mock -out ./mock/blocktx_client_mock.go ../../pkg/blocktx BlocktxClient
 //go:generate moq -pkg mock -out ./mock/k8s_client_client_mock.go . K8sClient
 //go:generate moq -pkg mock -out ./mock/ticker_mock.go . Ticker
 

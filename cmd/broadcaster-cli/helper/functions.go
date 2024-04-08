@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
-	"github.com/bitcoin-sv/arc/internal/keyset"
+	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"github.com/spf13/viper"
 )
 

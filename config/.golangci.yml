@@ -164,7 +164,7 @@ linters:
     - asasalint # checks for pass []any as any in variadic func(...any)
 
 #    - govet # reports suspicious constructs, such as Printf calls whose arguments do not align with the format string
-#    - unused # checks for unused constants, variables, functions and types
+    - unused # checks for unused constants, variables, functions and types
 #    ## disabled by default
 #    - asciicheck # checks that your code does not contain non-ASCII identifiers
 #    - bidichk # checks for dangerous unicode character sequences

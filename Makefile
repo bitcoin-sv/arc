@@ -27,7 +27,7 @@ clean_e2e_tests:
 .PHONY: build_release
 build_release:
 	mkdir -p build
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -v -o build/arc_linux_amd64 ./init/main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -v -o build/arc_linux_amd64 ./cmd/arc/main.go
 
 .PHONY: build_docker
 build_docker:
@@ -66,7 +66,7 @@ gen:
 	--go_opt=paths=source_relative \
 	--go-grpc_out=. \
 	--go-grpc_opt=paths=source_relative \
-	internal/metamorph/metamorph_api/metamorph_api.proto
+	pkg/metamorph/metamorph_api/metamorph_api.proto
 
 	protoc \
 	--proto_path=. \
@@ -74,13 +74,12 @@ gen:
 	--go_opt=paths=source_relative \
 	--go-grpc_out=. \
 	--go-grpc_opt=paths=source_relative \
-	internal/blocktx/blocktx_api/blocktx_api.proto
+	pkg/blocktx/blocktx_api/blocktx_api.proto
 
 .PHONY: clean_gen
 clean_gen:
-	rm -f ./internal/metamorph/metamorph_api/*.pb.go
-	rm -f ./internal/blocktx/blocktx_api/*.pb.go
-	rm -f ./internal/callbacker/callbacker_api/*.pb.go
+	rm -f ./pkg/metamorph/metamorph_api/*.pb.go
+	rm -f ./pkg/blocktx/blocktx_api/*.pb.go
 
 .PHONY: coverage
 coverage:
@@ -120,7 +119,7 @@ gh-pages:
 
 .PHONY: api
 api:
-	oapi-codegen -config api/config.yaml api/arc.yml > api/arc.go
+	oapi-codegen -config pkg/api/config.yaml pkg/api/arc.yml > pkg/api/arc.go
 
 .PHONY: clean_restart_e2e_test
 clean_restart_e2e_test: clean_e2e_tests build_release build_docker run_e2e_tests

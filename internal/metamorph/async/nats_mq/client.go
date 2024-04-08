@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 )

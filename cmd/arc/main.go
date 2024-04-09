@@ -127,18 +127,6 @@ func run() error {
 		*startBlockTx = true
 	}
 
-	// Check the settings to see it the service has a listen address
-
-	if v := viper.GetString("api.address"); v == "" {
-		*startApi = false
-	}
-	if v := viper.GetString("metamorph.listenAddr"); v == "" {
-		*startMetamorph = false
-	}
-	if v := viper.GetString("blocktx.listenAddr"); v == "" {
-		*startBlockTx = false
-	}
-
 	shutdownFns := make([]func(), 0)
 
 	if startBlockTx != nil && *startBlockTx {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -15,15 +16,45 @@ import (
 
 	cmd "github.com/bitcoin-sv/arc/cmd/arc/services"
 	cfg "github.com/bitcoin-sv/arc/internal/helpers"
-	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/version"
-	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	"go.opentelemetry.io/otel/trace"
 )
+
+var tracer trace.Tracer
 
 // Name used by build script for the binaries. (Please keep on single line)
 const progname = "arc"
+
+func newExporter(ctx context.Context) (sdktrace.SpanExporter, error) {
+	return otlptracegrpc.New(ctx)
+}
+
+func newTraceProvider(exp sdktrace.SpanExporter) (*sdktrace.TracerProvider, error) {
+	// Ensure default SDK resources and the required service name are set.
+	r, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName(progname),
+		),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exp),
+		sdktrace.WithResource(r),
+	), nil
+}
 
 func main() {
 	err := run()
@@ -126,19 +157,27 @@ func run() error {
 
 	tracingOn := viper.GetBool("tracing")
 	if (useTracer != nil && *useTracer) || tracingOn {
-		logger.Info("Starting tracer")
-		// Start the tracer
-		tracer, closer, err := tracing.InitTracer(progname)
+
+		ctx := context.Background()
+
+		exp, err := newExporter(ctx)
 		if err != nil {
-			logger.Error("failed to initialise tracer", slog.String("err", err.Error()))
+			return fmt.Errorf("failed to initialize exporter: %v", err)
 		}
 
-		defer closer.Close()
-
-		if tracer != nil {
-			// set the global tracer to use in all services
-			opentracing.SetGlobalTracer(tracer)
+		// Create a new tracer provider with a batch span processor and the given exporter.
+		tp, err := newTraceProvider(exp)
+		if err != nil {
+			return fmt.Errorf("failed to create trace provider: %v", err)
 		}
+
+		// Handle shutdown properly so nothing leaks.
+		defer func() { _ = tp.Shutdown(ctx) }()
+
+		otel.SetTracerProvider(tp)
+
+		// Finally, set the tracer that can be used for this package.
+		tracer = tp.Tracer(progname)
 	}
 
 	if !isFlagPassed("api") &&

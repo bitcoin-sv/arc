@@ -64,6 +64,7 @@ func (c MQClient) SubscribeRegisterTxs() error {
 }
 
 func (c MQClient) SubscribeRequestTxs() error {
+	return nil
 
 	subscription, err := c.nc.QueueSubscribe(requestTxTopic, consumerQueue, func(msg *nats.Msg) {
 		c.requestTxChannel <- msg.Data

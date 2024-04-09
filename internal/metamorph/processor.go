@@ -371,9 +371,9 @@ func (p *Processor) StartProcessExpiredTransactions() {
 							requested++
 
 							// by requesting tx, blocktx checks if it has the transaction mined in the database and sends it back
-							// if err = p.mqClient.RequestTx(tx.Hash[:]); err != nil {
-							// 	p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()))
-							// }
+							if err = p.mqClient.RequestTx(tx.Hash[:]); err != nil {
+								p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()))
+							}
 
 						} else {
 							p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))

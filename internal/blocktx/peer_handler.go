@@ -421,6 +421,13 @@ func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 }
 
 func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
+	ctx := context.Background()
+
+	if tracer != nil {
+		var span trace.Span
+		ctx, span = tracer.Start(ctx, "HandleBlock")
+		defer span.End()
+	}
 	peerStr := peer.String()
 
 	stat, ok := ph.stats.Get(peerStr)
@@ -463,7 +470,7 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 		return fmt.Errorf("merkle root mismatch for block %s", blockHash.String())
 	}
 
-	if err = ph.markTransactionsAsMined(blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
+	if err = ph.markTransactionsAsMined(ctx, blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
 		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
 		if errDel != nil {
 			ph.logger.Error("failed to delete block processing - after marking transactions as mined failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
@@ -558,8 +565,12 @@ func (ph *PeerHandler) printMemStats() {
 	)
 }
 
-func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
-
+func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
+	if tracer != nil {
+		var span trace.Span
+		ctx, span = tracer.Start(ctx, "markTransactionsAsMined")
+		defer span.End()
+	}
 	txs := make([]*blocktx_api.TransactionAndSource, 0, ph.transactionStorageBatchSize)
 	merklePaths := make([]string, 0, ph.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
@@ -640,7 +651,7 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 	}
 
 	// update all remaining transactions
-	updateResp, err := ph.store.UpdateBlockTransactions(context.Background(), blockId, txs, merklePaths)
+	updateResp, err := ph.store.UpdateBlockTransactions(ctx, blockId, txs, merklePaths)
 	if err != nil {
 		return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 	}

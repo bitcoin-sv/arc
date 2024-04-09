@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -19,42 +18,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/sdk/resource"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
-	"go.opentelemetry.io/otel/trace"
 )
-
-var tracer trace.Tracer
-
-// Name used by build script for the binaries. (Please keep on single line)
-const progname = "arc"
-
-func newExporter(ctx context.Context) (sdktrace.SpanExporter, error) {
-	return otlptracegrpc.New(ctx)
-}
-
-func newTraceProvider(exp sdktrace.SpanExporter) (*sdktrace.TracerProvider, error) {
-	// Ensure default SDK resources and the required service name are set.
-	r, err := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(progname),
-		),
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exp),
-		sdktrace.WithResource(r),
-	), nil
-}
 
 func main() {
 	err := run()
@@ -71,7 +35,6 @@ func run() error {
 	startBlockTx := flag.Bool("blocktx", false, "start blocktx")
 	startK8sWatcher := flag.Bool("k8s-watcher", false, "start k8s-watcher")
 	startBackgroundWorker := flag.Bool("background-worker", false, "start background-worker")
-	useTracer := flag.Bool("tracer", false, "start tracer")
 	help := flag.Bool("help", false, "Show help")
 	config := flag.String("config", ".", "path to configuration yaml file")
 
@@ -95,9 +58,6 @@ func run() error {
 		fmt.Println("")
 		fmt.Println("    -background-worker=<true|false>")
 		fmt.Println("          whether to background-worker (default=true)")
-		fmt.Println("")
-		fmt.Println("    -tracer=<true|false>")
-		fmt.Println("          whether to start the Jaeger tracer (default=false)")
 		fmt.Println("")
 		fmt.Println("    -config=/location")
 		fmt.Println("          directory to look for config.yaml (default='')")
@@ -154,31 +114,6 @@ func run() error {
 			}
 		}
 	}()
-
-	tracingOn := viper.GetBool("tracing")
-	if (useTracer != nil && *useTracer) || tracingOn {
-
-		ctx := context.Background()
-
-		exp, err := newExporter(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to initialize exporter: %v", err)
-		}
-
-		// Create a new tracer provider with a batch span processor and the given exporter.
-		tp, err := newTraceProvider(exp)
-		if err != nil {
-			return fmt.Errorf("failed to create trace provider: %v", err)
-		}
-
-		// Handle shutdown properly so nothing leaks.
-		defer func() { _ = tp.Shutdown(ctx) }()
-
-		otel.SetTracerProvider(tp)
-
-		// Finally, set the tracer that can be used for this package.
-		tracer = tp.Tracer(progname)
-	}
 
 	if !isFlagPassed("api") &&
 		!isFlagPassed("blocktx") &&

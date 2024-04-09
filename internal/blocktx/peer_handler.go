@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/internal/metrics"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-bt/v2"
@@ -21,7 +21,10 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils/safemap"
+	"go.opentelemetry.io/otel/trace"
 )
+
+var tracer trace.Tracer
 
 const (
 	transactionStoringBatchsizeDefault = 8192 // power of 2 for easier memory allocation
@@ -94,9 +97,9 @@ type PeerHandler struct {
 	workerCh                    chan hashPeer
 	store                       store.BlocktxStore
 	logger                      *slog.Logger
-	stats                       *safemap.Safemap[string, *tracing.PeerHandlerStats]
+	stats                       *safemap.Safemap[string, *metrics.PeerHandlerStats]
 	transactionStorageBatchSize int
-	peerHandlerCollector        *tracing.PeerHandlerCollector
+	peerHandlerCollector        *metrics.PeerHandlerCollector
 	dataRetentionDays           int
 	mqClient                    MessageQueueClient
 	txChannel                   chan []byte
@@ -154,6 +157,12 @@ func WithRegisterTxsBatchSize(size int) func(handler *PeerHandler) {
 	}
 }
 
+func WithTracer(tr trace.Tracer) func(handler *PeerHandler) {
+	return func(_ *PeerHandler) {
+		tracer = tr
+	}
+}
+
 func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func(*PeerHandler)) (*PeerHandler, error) {
 
 	hostname, err := os.Hostname()
@@ -165,7 +174,7 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func
 		store:                       storeI,
 		logger:                      logger,
 		workerCh:                    make(chan hashPeer, 100),
-		stats:                       safemap.New[string, *tracing.PeerHandlerStats](),
+		stats:                       safemap.New[string, *metrics.PeerHandlerStats](),
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
 		registerTxsInterval:         registerTxsIntervalDefault,
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
@@ -178,8 +187,8 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func
 		opt(ph)
 	}
 
-	ph.peerHandlerCollector = tracing.NewPeerHandlerCollector("blocktx", ph.stats)
-	tracing.Register(ph.peerHandlerCollector)
+	ph.peerHandlerCollector = metrics.NewPeerHandlerCollector("blocktx", ph.stats)
+	metrics.Register(ph.peerHandlerCollector)
 
 	return ph, nil
 }
@@ -324,7 +333,7 @@ func (ph *PeerHandler) HandleTransactionGet(_ *wire.InvVect, peer p2p.PeerI) ([]
 
 	stat, ok := ph.stats.Get(peerStr)
 	if !ok {
-		stat = &tracing.PeerHandlerStats{}
+		stat = &metrics.PeerHandlerStats{}
 		ph.stats.Set(peerStr, stat)
 	}
 
@@ -338,7 +347,7 @@ func (ph *PeerHandler) HandleTransactionSent(_ *wire.MsgTx, peer p2p.PeerI) erro
 
 	stat, ok := ph.stats.Get(peerStr)
 	if !ok {
-		stat = &tracing.PeerHandlerStats{}
+		stat = &metrics.PeerHandlerStats{}
 		ph.stats.Set(peerStr, stat)
 	}
 
@@ -352,7 +361,7 @@ func (ph *PeerHandler) HandleTransactionAnnouncement(_ *wire.InvVect, peer p2p.P
 
 	stat, ok := ph.stats.Get(peerStr)
 	if !ok {
-		stat = &tracing.PeerHandlerStats{}
+		stat = &metrics.PeerHandlerStats{}
 		ph.stats.Set(peerStr, stat)
 	}
 
@@ -366,7 +375,7 @@ func (ph *PeerHandler) HandleTransactionRejection(_ *wire.MsgReject, peer p2p.Pe
 
 	stat, ok := ph.stats.Get(peerStr)
 	if !ok {
-		stat = &tracing.PeerHandlerStats{}
+		stat = &metrics.PeerHandlerStats{}
 		ph.stats.Set(peerStr, stat)
 	}
 
@@ -380,7 +389,7 @@ func (ph *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error 
 
 	stat, ok := ph.stats.Get(peerStr)
 	if !ok {
-		stat = &tracing.PeerHandlerStats{}
+		stat = &metrics.PeerHandlerStats{}
 		ph.stats.Set(peerStr, stat)
 	}
 
@@ -395,7 +404,7 @@ func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 
 	stat, ok := ph.stats.Get(peerStr)
 	if !ok {
-		stat = &tracing.PeerHandlerStats{}
+		stat = &metrics.PeerHandlerStats{}
 		ph.stats.Set(peerStr, stat)
 	}
 
@@ -412,11 +421,18 @@ func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 }
 
 func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
+	ctx := context.Background()
+
+	if tracer != nil {
+		var span trace.Span
+		ctx, span = tracer.Start(ctx, "HandleBlock")
+		defer span.End()
+	}
 	peerStr := peer.String()
 
 	stat, ok := ph.stats.Get(peerStr)
 	if !ok {
-		stat = &tracing.PeerHandlerStats{}
+		stat = &metrics.PeerHandlerStats{}
 		ph.stats.Set(peerStr, stat)
 	}
 
@@ -454,7 +470,7 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 		return fmt.Errorf("merkle root mismatch for block %s", blockHash.String())
 	}
 
-	if err = ph.markTransactionsAsMined(blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
+	if err = ph.markTransactionsAsMined(ctx, blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
 		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
 		if errDel != nil {
 			ph.logger.Error("failed to delete block processing - after marking transactions as mined failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
@@ -549,8 +565,12 @@ func (ph *PeerHandler) printMemStats() {
 	)
 }
 
-func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
-
+func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
+	if tracer != nil {
+		var span trace.Span
+		ctx, span = tracer.Start(ctx, "markTransactionsAsMined")
+		defer span.End()
+	}
 	txs := make([]*blocktx_api.TransactionAndSource, 0, ph.transactionStorageBatchSize)
 	merklePaths := make([]string, 0, ph.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
@@ -631,7 +651,7 @@ func (ph *PeerHandler) markTransactionsAsMined(blockId uint64, merkleTree []*cha
 	}
 
 	// update all remaining transactions
-	updateResp, err := ph.store.UpdateBlockTransactions(context.Background(), blockId, txs, merklePaths)
+	updateResp, err := ph.store.UpdateBlockTransactions(ctx, blockId, txs, merklePaths)
 	if err != nil {
 		return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 	}
@@ -707,5 +727,5 @@ func (ph *PeerHandler) Shutdown() {
 }
 
 func (ph *PeerHandler) unregisterTracing() {
-	tracing.Unregister(ph.peerHandlerCollector)
+	metrics.Unregister(ph.peerHandlerCollector)
 }

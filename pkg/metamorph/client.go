@@ -65,7 +65,7 @@ func DialGRPC(address string, grpcMessageSize int) (*grpc.ClientConn, error) {
 		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)),
 	}
 
-	conn, err := grpc.Dial(address, tracing.AddGRPCDialOptions(opts)...)
+	conn, err := grpc.NewClient(address, tracing.AddGRPCDialOptions(opts)...)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -11,8 +12,12 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	cfg "github.com/bitcoin-sv/arc/internal/helpers"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
+	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
@@ -20,6 +25,7 @@ import (
 
 const (
 	maximumBlockSize = 4294967296 // 4Gb
+	service          = "blocktx"
 )
 
 func StartBlockTx(logger *slog.Logger) (func(), error) {
@@ -83,11 +89,34 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore,
+	peerHandlerOpts := []func(handler *blocktx.PeerHandler){
 		blocktx.WithRetentionDays(recordRetentionDays),
 		blocktx.WithTxChan(txChannel),
 		blocktx.WithRegisterTxsInterval(registerTxInterval),
-		blocktx.WithMessageQueueClient(mqClient))
+		blocktx.WithMessageQueueClient(mqClient),
+	}
+
+	var tp *trace.TracerProvider
+
+	if viper.GetBool("tracing") {
+		ctx := context.Background()
+		exporter, err := tracing.NewExporter(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize exporter: %v", err)
+		}
+
+		tp, err = tracing.NewTraceProvider(exporter, service)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create trace provider: %v", err)
+		}
+
+		otel.SetTracerProvider(tp)
+
+		peerHandlerOpts = append(peerHandlerOpts, blocktx.WithTracer(tp.Tracer(service)))
+	}
+
+	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore,
+		peerHandlerOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -159,14 +188,22 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 
 		err = mqClient.Shutdown()
 		if err != nil {
-			logger.Error("failed to shutdown mqClient", slog.String("err", err.Error()))
+			logger.Error("Failed to shutdown mqClient", slog.String("err", err.Error()))
 		}
 
 		err = blockStore.Close()
 		if err != nil {
-			logger.Error("Error closing blocktx store", slog.String("err", err.Error()))
+			logger.Error("Failed to close blocktx store", slog.String("err", err.Error()))
 		}
+
 		peerHandler.Shutdown()
+
+		if tp != nil {
+			err = tp.Shutdown(context.Background())
+			if err != nil {
+				logger.Error("Failed to shutdown tracing provider", slog.String("err", err.Error()))
+			}
+		}
 	}, nil
 }
 

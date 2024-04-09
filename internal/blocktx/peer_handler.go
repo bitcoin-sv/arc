@@ -21,7 +21,10 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils/safemap"
+	"go.opentelemetry.io/otel/trace"
 )
+
+var tracer trace.Tracer
 
 const (
 	transactionStoringBatchsizeDefault = 8192 // power of 2 for easier memory allocation
@@ -151,6 +154,12 @@ func WithTxChan(txChannel chan []byte) func(handler *PeerHandler) {
 func WithRegisterTxsBatchSize(size int) func(handler *PeerHandler) {
 	return func(handler *PeerHandler) {
 		handler.registerTxsBatchSize = size
+	}
+}
+
+func WithTracer(tr trace.Tracer) func(handler *PeerHandler) {
+	return func(_ *PeerHandler) {
+		tracer = tr
 	}
 }
 

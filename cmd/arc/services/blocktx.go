@@ -90,15 +90,15 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	// err = mqClient.SubscribeRequestTxs()
-	// if err != nil {
-	// 	return nil, err
-	// }
+	err = mqClient.SubscribeRequestTxs()
+	if err != nil {
+		return nil, err
+	}
 
 	peerHandlerOpts := []func(handler *blocktx.PeerHandler){
 		blocktx.WithRetentionDays(recordRetentionDays),
 		blocktx.WithTxChan(txChannel),
-		blocktx.WithRequestTxChan(txChannel),
+		blocktx.WithRequestTxChan(requestTxChannel),
 		blocktx.WithRegisterTxsInterval(registerTxInterval),
 		blocktx.WithMessageQueueClient(mqClient),
 	}

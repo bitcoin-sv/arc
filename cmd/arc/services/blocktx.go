@@ -98,9 +98,15 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 
 	var tp *trace.TracerProvider
 
-	if viper.GetBool("tracing") {
+	if viper.GetBool("blocktx.tracing.enabled") {
 		ctx := context.Background()
-		exporter, err := tracing.NewExporter(ctx)
+
+		tracingAddr, err := cfg.GetString("blocktx.tracing.dialAddr")
+		if err != nil {
+			return nil, err
+		}
+
+		exporter, err := tracing.NewExporter(ctx, tracingAddr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize exporter: %v", err)
 		}

@@ -6,11 +6,11 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/semconv/v1.21.0"
+	"go.opentelemetry.io/otel/semconv/v1.24.0"
 )
 
-func NewExporter(ctx context.Context) (trace.SpanExporter, error) {
-	return otlptracegrpc.New(ctx)
+func NewExporter(ctx context.Context, endpointURL string) (trace.SpanExporter, error) {
+	return otlptracegrpc.New(ctx, otlptracegrpc.WithEndpointURL(endpointURL), otlptracegrpc.WithInsecure())
 }
 
 func NewTraceProvider(exp trace.SpanExporter, serviceName string) (*trace.TracerProvider, error) {

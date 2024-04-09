@@ -223,6 +223,7 @@ func (ph *PeerHandler) Start() {
 	ph.startPeerWorker()
 	ph.startProcessTxs()
 	ph.startProcessRequestTxs()
+
 }
 
 func (ph *PeerHandler) startPeerWorker() {

@@ -222,7 +222,7 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func
 func (ph *PeerHandler) Start() {
 	ph.startPeerWorker()
 	ph.startProcessTxs()
-	// ph.startProcessRequestTxs()
+	ph.startProcessRequestTxs()
 }
 
 func (ph *PeerHandler) startPeerWorker() {
@@ -356,55 +356,55 @@ func (ph *PeerHandler) startProcessTxs() {
 }
 
 func (ph *PeerHandler) startProcessRequestTxs() {
-	ph.quitListenRequestTxChannel = make(chan struct{})
-	ph.quitListenRequestTxChannelComplete = make(chan struct{})
-	updatesBatch := make([]*blocktx_api.TransactionBlock, ph.registerRequestTxsBatchSize)
+	// ph.quitListenRequestTxChannel = make(chan struct{})
+	// ph.quitListenRequestTxChannelComplete = make(chan struct{})
+	// updatesBatch := make([]*blocktx_api.TransactionBlock, ph.registerRequestTxsBatchSize)
 
-	ticker := time.NewTicker(ph.registerRequestTxsInterval)
-	go func() {
-		defer func() {
-			ph.quitListenRequestTxChannelComplete <- struct{}{}
-		}()
+	// ticker := time.NewTicker(ph.registerRequestTxsInterval)
+	// go func() {
+	// 	defer func() {
+	// 		ph.quitListenRequestTxChannelComplete <- struct{}{}
+	// 	}()
 
-		for {
-			select {
-			case <-ph.quitListenRequestTxChannel:
-				return
-			case txHash := <-ph.requestTxChannel:
-				blockHash, blockHeight, merklePath, err := ph.store.GetMinedTransaction(context.Background(), txHash)
-				if err != nil {
-					continue
-				}
+	// 	for {
+	// 		select {
+	// 		case <-ph.quitListenRequestTxChannel:
+	// 			return
+	// 		case txHash := <-ph.requestTxChannel:
+	// 			blockHash, blockHeight, merklePath, err := ph.store.GetMinedTransaction(context.Background(), txHash)
+	// 			if err != nil {
+	// 				continue
+	// 			}
 
-				updatesBatch = append(updatesBatch, &blocktx_api.TransactionBlock{
-					TransactionHash: txHash,
-					BlockHash:       blockHash,
-					BlockHeight:     blockHeight,
-					MerklePath:      merklePath,
-				})
+	// 			updatesBatch = append(updatesBatch, &blocktx_api.TransactionBlock{
+	// 				TransactionHash: txHash,
+	// 				BlockHash:       blockHash,
+	// 				BlockHeight:     blockHeight,
+	// 				MerklePath:      merklePath,
+	// 			})
 
-				if len(updatesBatch) < ph.registerRequestTxsBatchSize || len(updatesBatch) == 0 {
-					continue
-				}
+	// 			if len(updatesBatch) < ph.registerRequestTxsBatchSize || len(updatesBatch) == 0 {
+	// 				continue
+	// 			}
 
-				if err = ph.mqClient.PublishMinedTxs(updatesBatch); err != nil {
-					ph.logger.Error("failed to publish mined txs for requested hashes")
-				}
+	// 			if err = ph.mqClient.PublishMinedTxs(updatesBatch); err != nil {
+	// 				ph.logger.Error("failed to publish mined txs for requested hashes")
+	// 			}
 
-				updatesBatch = make([]*blocktx_api.TransactionBlock, ph.registerRequestTxsBatchSize)
+	// 			updatesBatch = make([]*blocktx_api.TransactionBlock, ph.registerRequestTxsBatchSize)
 
-			case <-ticker.C:
-				if len(updatesBatch) == 0 {
-					continue
-				}
-				if err := ph.mqClient.PublishMinedTxs(updatesBatch); err != nil {
-					ph.logger.Error("failed to publish mined txs for requested hashes")
-				}
+	// 		case <-ticker.C:
+	// 			if len(updatesBatch) == 0 {
+	// 				continue
+	// 			}
+	// 			if err := ph.mqClient.PublishMinedTxs(updatesBatch); err != nil {
+	// 				ph.logger.Error("failed to publish mined txs for requested hashes")
+	// 			}
 
-				updatesBatch = make([]*blocktx_api.TransactionBlock, ph.registerRequestTxsBatchSize)
-			}
-		}
-	}()
+	// 			updatesBatch = make([]*blocktx_api.TransactionBlock, ph.registerRequestTxsBatchSize)
+	// 		}
+	// 	}
+	// }()
 }
 
 func (ph *PeerHandler) HandleTransactionGet(_ *wire.InvVect, peer p2p.PeerI) ([]byte, error) {

@@ -1,8 +1,8 @@
 
 REPOSITORY := github.com/bitcoin-sv/arc
 LDFLAGS := -ldflags "\
-	-X $(REPOSITORY)/internal/version.Commit=$(shell git rev-parse --short HEAD)' \
-	-X $(REPOSITORY)/internal/version.Version=$(shell git describe --tags --always --abbrev=0 --match='v[0-9]*.[0-9]*.[0-9]*' 2> /dev/null | sed 's/^.//')' \
+	-X $(REPOSITORY)/internal/version.Commit=$(shell git rev-parse --short HEAD) \
+	-X $(REPOSITORY)/internal/version.Version=$(shell git describe --tags --always --abbrev=0 --match='v[0-9]*.[0-9]*.[0-9]*' 2> /dev/null | sed 's/^.//') \
 "
 
 .PHONY: all

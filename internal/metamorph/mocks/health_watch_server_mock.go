@@ -24,7 +24,7 @@ var _ metamorph.HealthWatchServer = &HealthWatchServerMock{}
 //			ContextFunc: func() context.Context {
 //				panic("mock out the Context method")
 //			},
-//			RecvMsgFunc: func(m interface{}) error {
+//			RecvMsgFunc: func(m any) error {
 //				panic("mock out the RecvMsg method")
 //			},
 //			SendFunc: func(healthCheckResponse *grpc_health_v1.HealthCheckResponse) error {
@@ -33,7 +33,7 @@ var _ metamorph.HealthWatchServer = &HealthWatchServerMock{}
 //			SendHeaderFunc: func(mD metadata.MD) error {
 //				panic("mock out the SendHeader method")
 //			},
-//			SendMsgFunc: func(m interface{}) error {
+//			SendMsgFunc: func(m any) error {
 //				panic("mock out the SendMsg method")
 //			},
 //			SetHeaderFunc: func(mD metadata.MD) error {
@@ -53,7 +53,7 @@ type HealthWatchServerMock struct {
 	ContextFunc func() context.Context
 
 	// RecvMsgFunc mocks the RecvMsg method.
-	RecvMsgFunc func(m interface{}) error
+	RecvMsgFunc func(m any) error
 
 	// SendFunc mocks the Send method.
 	SendFunc func(healthCheckResponse *grpc_health_v1.HealthCheckResponse) error
@@ -62,7 +62,7 @@ type HealthWatchServerMock struct {
 	SendHeaderFunc func(mD metadata.MD) error
 
 	// SendMsgFunc mocks the SendMsg method.
-	SendMsgFunc func(m interface{}) error
+	SendMsgFunc func(m any) error
 
 	// SetHeaderFunc mocks the SetHeader method.
 	SetHeaderFunc func(mD metadata.MD) error
@@ -78,7 +78,7 @@ type HealthWatchServerMock struct {
 		// RecvMsg holds details about calls to the RecvMsg method.
 		RecvMsg []struct {
 			// M is the m argument value.
-			M interface{}
+			M any
 		}
 		// Send holds details about calls to the Send method.
 		Send []struct {
@@ -93,7 +93,7 @@ type HealthWatchServerMock struct {
 		// SendMsg holds details about calls to the SendMsg method.
 		SendMsg []struct {
 			// M is the m argument value.
-			M interface{}
+			M any
 		}
 		// SetHeader holds details about calls to the SetHeader method.
 		SetHeader []struct {
@@ -143,12 +143,12 @@ func (mock *HealthWatchServerMock) ContextCalls() []struct {
 }
 
 // RecvMsg calls RecvMsgFunc.
-func (mock *HealthWatchServerMock) RecvMsg(m interface{}) error {
+func (mock *HealthWatchServerMock) RecvMsg(m any) error {
 	if mock.RecvMsgFunc == nil {
 		panic("HealthWatchServerMock.RecvMsgFunc: method is nil but HealthWatchServer.RecvMsg was just called")
 	}
 	callInfo := struct {
-		M interface{}
+		M any
 	}{
 		M: m,
 	}
@@ -163,10 +163,10 @@ func (mock *HealthWatchServerMock) RecvMsg(m interface{}) error {
 //
 //	len(mockedHealthWatchServer.RecvMsgCalls())
 func (mock *HealthWatchServerMock) RecvMsgCalls() []struct {
-	M interface{}
+	M any
 } {
 	var calls []struct {
-		M interface{}
+		M any
 	}
 	mock.lockRecvMsg.RLock()
 	calls = mock.calls.RecvMsg
@@ -239,12 +239,12 @@ func (mock *HealthWatchServerMock) SendHeaderCalls() []struct {
 }
 
 // SendMsg calls SendMsgFunc.
-func (mock *HealthWatchServerMock) SendMsg(m interface{}) error {
+func (mock *HealthWatchServerMock) SendMsg(m any) error {
 	if mock.SendMsgFunc == nil {
 		panic("HealthWatchServerMock.SendMsgFunc: method is nil but HealthWatchServer.SendMsg was just called")
 	}
 	callInfo := struct {
-		M interface{}
+		M any
 	}{
 		M: m,
 	}
@@ -259,10 +259,10 @@ func (mock *HealthWatchServerMock) SendMsg(m interface{}) error {
 //
 //	len(mockedHealthWatchServer.SendMsgCalls())
 func (mock *HealthWatchServerMock) SendMsgCalls() []struct {
-	M interface{}
+	M any
 } {
 	var calls []struct {
-		M interface{}
+		M any
 	}
 	mock.lockSendMsg.RLock()
 	calls = mock.calls.SendMsg

@@ -10,7 +10,6 @@ require (
 	github.com/go-testfixtures/testfixtures/v3 v3.9.0
 	github.com/golang-migrate/migrate/v4 v4.16.2
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
-	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
 	github.com/jedib0t/go-pretty/v6 v6.5.4
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/labstack/echo/v4 v4.11.1
@@ -22,8 +21,6 @@ require (
 	github.com/lmittmann/tint v1.0.3
 	github.com/nats-io/nats.go v1.31.0
 	github.com/oapi-codegen/runtime v1.0.0
-	github.com/opentracing-contrib/echo v0.0.0-20190807091611-5fe2e1308f06
-	github.com/opentracing/opentracing-go v1.2.0
 	github.com/ordishs/go-bitcoin v1.0.85
 	github.com/ordishs/go-utils v1.0.34
 	github.com/ory/dockertest/v3 v3.10.0

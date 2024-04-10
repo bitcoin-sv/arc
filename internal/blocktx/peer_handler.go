@@ -651,11 +651,10 @@ func (ph *PeerHandler) printMemStats() {
 
 func getBump(ctx context.Context, blockHeight uint64, merkleTree []*chainhash.Hash, txIndex uint64) (*bc.BUMP, error) {
 	if tracer != nil {
-		var span trace.Span
-		ctx, span = tracer.Start(ctx, "getBump")
+		_, span := tracer.Start(ctx, "getBump")
 		defer span.End()
 	}
-	return bc.NewBUMPFromMerkleTreeAndIndex(blockHeight, merkleTree, uint64(txIndex))
+	return bc.NewBUMPFromMerkleTreeAndIndex(blockHeight, merkleTree, txIndex)
 }
 
 func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {

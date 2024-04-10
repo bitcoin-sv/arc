@@ -6,12 +6,9 @@ import (
 
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/lib/pq"
-	"github.com/opentracing/opentracing-go"
 )
 
 func (p *PostgreSQL) RegisterTransactions(ctx context.Context, transactions []*blocktx_api.TransactionAndSource) error {
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:RegisterTransactions")
-	defer span.Finish()
 
 	hashes := make([][]byte, len(transactions))
 

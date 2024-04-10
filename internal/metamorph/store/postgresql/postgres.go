@@ -12,9 +12,6 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
-	"github.com/opentracing/opentracing-go/log"
 )
 
 const (
@@ -56,9 +53,6 @@ func New(dbInfo string, hostname string, idleConns int, maxOpenConns int, opts .
 }
 
 func (p *PostgreSQL) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:SetUnlocked")
-	defer span.Finish()
-
 	var hashSlice [][]byte
 	for _, hash := range hashes {
 		hashSlice = append(hashSlice, hash[:])
@@ -75,9 +69,6 @@ func (p *PostgreSQL) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) 
 }
 
 func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:SetUnlockedByName")
-	defer span.Finish()
-
 	q := "UPDATE metamorph.transactions SET locked_by = 'NONE' WHERE locked_by = $1;"
 
 	rows, err := p.db.ExecContext(ctx, q, lockedBy)
@@ -96,9 +87,6 @@ func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 // Get implements the MetamorphStore interface. It attempts to get a value for a given key.
 // If the key does not exist an error is returned, otherwise the retrieved value.
 func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Get")
-	defer span.Finish()
-
 	q := `SELECT
 	   stored_at
 		,announced_at
@@ -158,16 +146,12 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, store.ErrNotFound
 		}
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
 		return nil, err
 	}
 
 	if len(txHash) > 0 {
 		data.Hash, err = chainhash.NewHash(txHash)
 		if err != nil {
-			span.SetTag(string(ext.Error), true)
-			span.LogFields(log.Error(err))
 			return nil, err
 		}
 	}
@@ -175,8 +159,6 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	if len(blockHash) > 0 {
 		data.BlockHash, err = chainhash.NewHash(blockHash)
 		if err != nil {
-			span.SetTag(string(ext.Error), true)
-			span.LogFields(log.Error(err))
 			return nil, err
 		}
 	}
@@ -250,9 +232,6 @@ func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash)
 // Set implements the MetamorphStore interface. It attempts to store a value for a given key
 // and namespace. If the key/value pair cannot be saved, an error is returned.
 func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Set")
-	defer span.Finish()
-
 	q := `INSERT INTO metamorph.transactions (
 		 stored_at
 		,announced_at
@@ -318,17 +297,13 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		value.InsertedAtNum,
 	)
 	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
+		return err
 	}
 
-	return err
+	return nil
 }
 
 func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64) error {
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:SetLocked")
-	defer span.Finish()
-
 	q := `
 		UPDATE metamorph.transactions t
 		SET locked_by = $1
@@ -352,8 +327,6 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 }
 
 func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:GetUnmined")
-	defer span.Finish()
 
 	q := `SELECT
 	     stored_at
@@ -380,8 +353,6 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 
 	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout), limit, offset, p.hostname)
 	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
 		return nil, err
 	}
 	defer rows.Close()
@@ -390,9 +361,6 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 }
 
 func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateStatus")
-	defer span.Finish()
-
 	txHashes := make([][]byte, len(updates))
 	statuses := make([]metamorph_api.Status, len(updates))
 	rejectReasons := make([]string, len(updates))
@@ -470,9 +438,6 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 }
 
 func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:UpdateMined")
-	defer span.Finish()
-
 	txHashes := make([][]byte, len(txsBlocks.TransactionBlocks))
 	blockHashes := make([][]byte, len(txsBlocks.TransactionBlocks))
 	blockHeights := make([]uint64, len(txsBlocks.TransactionBlocks))
@@ -667,36 +632,24 @@ func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, e
 }
 
 func (p *PostgreSQL) Del(ctx context.Context, key []byte) error {
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Del")
-	defer span.Finish()
-
 	q := `DELETE FROM metamorph.transactions WHERE hash = $1;`
 
-	result, err := p.db.ExecContext(ctx, q, key)
+	_, err := p.db.ExecContext(ctx, q, key)
 	if err != nil {
-		span.SetTag(string(ext.Error), true)
-		span.LogFields(log.Error(err))
+		return err
 	}
 
-	rows, _ := result.RowsAffected()
-	fmt.Println(rows)
-	return err
+	return nil
 }
 
 // Close implements the MetamorphStore interface. It closes the connection to the underlying
 // MemoryStore database as well as invoking the context's cancel function.
 func (p *PostgreSQL) Close(ctx context.Context) error {
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Close")
-	defer span.Finish()
-
 	ctx.Done()
 	return p.db.Close()
 }
 
 func (p *PostgreSQL) Ping(ctx context.Context) error {
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Ping")
-	defer span.Finish()
-
 	_, err := p.db.QueryContext(ctx, "SELECT 1;")
 	if err != nil {
 		return err
@@ -706,9 +659,6 @@ func (p *PostgreSQL) Ping(ctx context.Context) error {
 }
 
 func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:ClearData")
-	defer span.Finish()
-
 	start := p.now()
 
 	deleteBeforeDate := start.Add(-24 * time.Hour * time.Duration(retentionDays))

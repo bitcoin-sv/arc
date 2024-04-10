@@ -15,15 +15,11 @@ import (
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
-	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/spf13/viper"
 )
 
 func getTransactionFromNode(ctx context.Context, inputTxID string) ([]byte, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "getTransactionFromNode")
-	defer span.Finish()
-
 	viper.AddConfigPath("../../config/")
 	peerRpcPassword := viper.GetString("peerRpc.password")
 	if peerRpcPassword == "" {
@@ -75,8 +71,6 @@ func getTransactionFromNode(ctx context.Context, inputTxID string) ([]byte, erro
 }
 
 func getTransactionFromWhatsOnChain(ctx context.Context, inputTxID string) ([]byte, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "getTransactionFromWhatsOnChain")
-	defer span.Finish()
 	wocApiKey := viper.GetString("api.wocApiKey")
 
 	if wocApiKey == "" {

@@ -7,11 +7,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/testdata"
 	"log"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/bitcoin-sv/arc/internal/testdata"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
@@ -460,6 +461,17 @@ func TestPostgresDB(t *testing.T) {
 			},
 		}, []string{"test1", "test2", "test3", "test4", "test5", "test6"})
 		require.NoError(t, err)
+	})
+
+	t.Run("test getting mined txs", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+		txHash := createTxHash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")
+		bhInProgress, _ := chainhash.NewHashFromStr("000000000000000005aa39a25e7e8bf440c270ec9a1bd30e99ab026f39207ef9")
+		blockHash, blockHeight, merklePath, err := postgresDB.GetMinedTransaction(ctx, txHash[:])
+		require.NoError(t, err)
+		require.Equal(t, blockHash, bhInProgress)
+		require.Equal(t, blockHeight, 32)
+		require.Equal(t, merklePath, "shota")
 	})
 
 	t.Run("clear data", func(t *testing.T) {

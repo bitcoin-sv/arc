@@ -21,6 +21,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ordishs/go-utils/safemap"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -182,9 +183,9 @@ func WithRegisterRequestTxsBatchSize(size int) func(handler *PeerHandler) {
 	}
 }
 
-func WithTracer(tr trace.Tracer) func(handler *PeerHandler) {
+func WithTracer() func(handler *PeerHandler) {
 	return func(_ *PeerHandler) {
-		tracer = tr
+		tracer = otel.GetTracerProvider().Tracer("peer_handler")
 	}
 }
 
@@ -648,6 +649,15 @@ func (ph *PeerHandler) printMemStats() {
 	)
 }
 
+func getBump(ctx context.Context, blockHeight uint64, merkleTree []*chainhash.Hash, txIndex uint64) (*bc.BUMP, error) {
+	if tracer != nil {
+		var span trace.Span
+		ctx, span = tracer.Start(ctx, "getBump")
+		defer span.End()
+	}
+	return bc.NewBUMPFromMerkleTreeAndIndex(blockHeight, merkleTree, uint64(txIndex))
+}
+
 func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
 	if tracer != nil {
 		var span trace.Span
@@ -688,7 +698,7 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 			Hash: hash[:],
 		})
 
-		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(blockHeight, merkleTree, uint64(txIndex))
+		bump, err := getBump(ctx, blockHeight, merkleTree, uint64(txIndex))
 		if err != nil {
 			return fmt.Errorf("failed to create new bump for tx hash %s from merkle tree and index at block height %d: %v", hash.String(), blockHeight, err)
 		}
@@ -726,7 +736,7 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 				}
 			}
 
-			// print stats, call gc and chec the result
+			// print stats, call gc and check the result
 			ph.printMemStats()
 			runtime.GC()
 			ph.printMemStats()

@@ -125,7 +125,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 
 		otel.SetTracerProvider(tp)
 
-		peerHandlerOpts = append(peerHandlerOpts, blocktx.WithTracer(tp.Tracer(service)))
+		peerHandlerOpts = append(peerHandlerOpts, blocktx.WithTracer())
 	}
 
 	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore,
@@ -285,7 +285,13 @@ func NewBlocktxStore(dbMode string, logger *slog.Logger) (s store.BlocktxStore, 
 		logger.Info(fmt.Sprintf("db connection: user=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbName, dbHost, dbPort, sslMode))
 
 		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbPassword, dbName, dbHost, dbPort, sslMode)
-		s, err = postgresql.New(dbInfo, idleConns, maxOpenConns)
+
+		var postgresOpts []func(handler *postgresql.PostgreSQL)
+		if viper.GetBool("blocktx.tracing.enabled") {
+			postgresOpts = append(postgresOpts, postgresql.WithTracer())
+		}
+
+		s, err = postgresql.New(dbInfo, idleConns, maxOpenConns, postgresOpts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
 		}

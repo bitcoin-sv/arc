@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
@@ -33,6 +34,9 @@ func (p *PostgreSQL) GetMinedTransaction(ctx context.Context, hash []byte) ([]by
 		&merklePath,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) || merklePath == "" || blockHeight == 0 {
+			fmt.Println(err)
+			fmt.Println(merklePath)
+			fmt.Println(blockHeight)
 			return nil, 0, "", store.ErrBlockNotFound
 		}
 		return nil, 0, "", err

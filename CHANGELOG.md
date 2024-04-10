@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.1.52](#1152---2024-04-11)
 - [1.1.32](#1132---2024-02-21)
 - [1.1.19](#1119---2024-02-05)
 - [1.1.16](#1116---2024-01-23)
@@ -13,6 +14,11 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [1.1.52] - 2024-04-11
+
+### Deprecated
+
+- Background-worker is removed. Deletion of data can be done by calling the respective rpc functions for [blocktx](./pkg/blocktx/blocktx_api/blocktx_api.proto) and [metamorph](./pkg/metamorph/metamorph_api/metamorph_api.proto) e.g. using a tool like [gRPCurl](https://github.com/fullstorydev/grpcurl).
 
 ## [1.1.32] - 2024-02-21
 

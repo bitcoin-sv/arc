@@ -369,6 +369,12 @@ func (p *Processor) StartProcessExpiredTransactions() {
 							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.RequestTransaction(tx.Hash)
 							requested++
+
+							// register transaction in blocktx using message queue
+							if err = p.mqClient.RequestTx(tx.Hash[:]); err != nil {
+								p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()))
+							}
+
 						} else {
 							p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.AnnounceTransaction(tx.Hash, nil)

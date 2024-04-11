@@ -10,6 +10,7 @@ import (
 const (
 	consumerQueue       = "register-tx-group"
 	registerTxTopic     = "register-tx"
+	requestTxTopic      = "request-tx"
 	minedTxsTopic       = "mined-txs"
 	connectionTries     = 5
 	maxBatchSizeDefault = 20
@@ -22,10 +23,12 @@ func WithMaxBatchSize(size int) func(*MQClient) {
 }
 
 type MQClient struct {
-	nc           NatsClient
-	txChannel    chan []byte
-	subscription *nats.Subscription
-	maxBatchSize int
+	nc                  NatsClient
+	txChannel           chan []byte
+	requestTxChannel    chan []byte
+	subscription        *nats.Subscription
+	requestSubscription *nats.Subscription
+	maxBatchSize        int
 }
 
 type NatsClient interface {
@@ -35,8 +38,8 @@ type NatsClient interface {
 	Drain() error
 }
 
-func NewNatsMQClient(nc NatsClient, txChannel chan []byte, opts ...func(client *MQClient)) blocktx.MessageQueueClient {
-	m := &MQClient{nc: nc, txChannel: txChannel, maxBatchSize: maxBatchSizeDefault}
+func NewNatsMQClient(nc NatsClient, txChannel chan []byte, requestTxChannel chan []byte, opts ...func(client *MQClient)) blocktx.MessageQueueClient {
+	m := &MQClient{nc: nc, txChannel: txChannel, requestTxChannel: requestTxChannel, maxBatchSize: maxBatchSizeDefault}
 
 	for _, opt := range opts {
 		opt(m)
@@ -52,6 +55,20 @@ func (c MQClient) SubscribeRegisterTxs() error {
 	})
 
 	c.subscription = subscription
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c MQClient) SubscribeRequestTxs() error {
+	subscription, err := c.nc.QueueSubscribe(requestTxTopic, consumerQueue, func(msg *nats.Msg) {
+		c.requestTxChannel <- msg.Data
+	})
+
+	c.requestSubscription = subscription
 
 	if err != nil {
 		return err
@@ -101,6 +118,11 @@ func (c MQClient) publish(txBlockBatch []*blocktx_api.TransactionBlock) error {
 
 func (c MQClient) Shutdown() error {
 	err := c.subscription.Unsubscribe()
+	if err != nil {
+		return err
+	}
+
+	err = c.requestSubscription.Unsubscribe()
 	if err != nil {
 		return err
 	}

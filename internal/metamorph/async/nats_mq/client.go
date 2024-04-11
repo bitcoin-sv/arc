@@ -13,6 +13,7 @@ import (
 
 const (
 	registerTxTopic = "register-tx"
+	requestTxTopic  = "request-tx"
 
 	consumerQueue   = "mined-txs-group"
 	minedTxsTopic   = "mined-txs"
@@ -59,6 +60,15 @@ func NewNatsMQClient(minedTxsChan chan *blocktx_api.TransactionBlocks, logger *s
 
 func (c MQClient) PublishRegisterTxs(hash []byte) error {
 	err := c.nc.Publish(registerTxTopic, hash)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c MQClient) RequestTx(hash []byte) error {
+	err := c.nc.Publish(requestTxTopic, hash)
 	if err != nil {
 		return err
 	}

@@ -70,14 +70,6 @@ blocktx:
   mq:
     txsMinedMaxBatchSize: 20 # size of batches for transactions which got mined to be published to the message queue
 
-backgroundWorker:
-  blocktx:
-    recordRetentionDays: 14 # number of days for which data is kept in the storage before it can be deleted
-    executionIntervalHours: 24 # time interval at which data cleaning is executed
-  metamorph:
-    recordRetentionDays: 14 # number of days for which data is kept in the storage before it can be deleted
-    executionIntervalHours: 24 # time interval at which data cleaning is executed
-
 api:
   address: localhost:9090 # address to start api server on
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX" # api key for www.whatsonchain.com

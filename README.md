@@ -184,16 +184,6 @@ The K8s-Watcher can be started as follows
 go run main.go -k8s-watcher=true
 ```
 
-## Background-Worker
-
-The Background-Worker can be run alongside ARC and runs [background jobs](./internal/background_worker/jobs). Currently, these background jobs trigger the deletion of old data in Metamorph and Blocktx.
-
-The Background-Worker can be started as follows
-
-```shell
-go run main.go -background-worker=true
-```
-
 ## Broadcaster-cli
 
 The `broadcaster-cli` provides a set of functions which allow to interact with any instance of ARC. It also provides functions for key sets.

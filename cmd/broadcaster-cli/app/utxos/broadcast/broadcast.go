@@ -133,6 +133,9 @@ var Cmd = &cobra.Command{
 			}
 		}
 
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
 		for i, kf := range keyFiles {
 
 			wg.Add(1)
@@ -166,7 +169,7 @@ var Cmd = &cobra.Command{
 
 			rbs[i] = rateBroadcaster
 
-			err = rateBroadcaster.StartRateBroadcaster(context.Background(), rateTxsPerSecond, limit, wg)
+			err = rateBroadcaster.StartRateBroadcaster(ctx, rateTxsPerSecond, limit, wg)
 			if err != nil {
 				return fmt.Errorf("failed to start rate broadcaster: %v", err)
 			}
@@ -176,9 +179,8 @@ var Cmd = &cobra.Command{
 			signalChan := make(chan os.Signal, 1)
 			signal.Notify(signalChan, os.Interrupt) // Signal from Ctrl+C
 			<-signalChan
-			for _, rb := range rbs {
-				rb.Shutdown()
-			}
+
+			cancel()
 		}()
 
 		wg.Wait()

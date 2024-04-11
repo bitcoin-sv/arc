@@ -53,8 +53,7 @@ type RateBroadcaster struct {
 	responseWriter                 io.Writer
 	responseWriteIterationInterval int
 
-	shutdown         chan struct{}
-	shutdownComplete chan struct{}
+	shutdown chan struct{}
 
 	maxInputs int
 	batchSize int
@@ -132,9 +131,8 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, fromKeySet *keyse
 		responseWriter:                 nil,
 		responseWriteIterationInterval: resultsIterationsDefault,
 
-		shutdown:         make(chan struct{}, 10),
-		shutdownComplete: make(chan struct{}, 10),
-		satoshiMap:       map[string]uint64{},
+		shutdown:   make(chan struct{}, 10),
+		satoshiMap: map[string]uint64{},
 	}
 
 	for _, opt := range opts {
@@ -636,17 +634,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(ctx context.Context, rateTxsPerSe
 	go func() {
 
 		defer func() {
-			b.shutdownComplete <- struct{}{}
-			wg.Done()
-		}()
-
-		for {
-			select {
-			case <-b.shutdown:
-				if writer == nil {
-					return
-				}
-
+			if writer != nil {
 				err = writeJsonArrayFinish(writer)
 				if err != nil {
 					b.logger.Error("failed to write json array finish", slog.String("err", err.Error()))
@@ -656,7 +644,17 @@ func (b *RateBroadcaster) StartRateBroadcaster(ctx context.Context, rateTxsPerSe
 				if err != nil {
 					b.logger.Error("failed flush writer", slog.String("err", err.Error()))
 				}
+			}
 
+			b.logger.Info("shutting down broadcaster", slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
+			wg.Done()
+		}()
+
+		for {
+			select {
+			case <-b.shutdown:
+				return
+			case <-ctx.Done():
 				return
 			case <-submitBatchTicker.C:
 
@@ -676,7 +674,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(ctx context.Context, rateTxsPerSe
 				b.mu.Unlock()
 
 				b.logger.Info("summary",
-					slog.String("funding address", b.fundingKeyset.Address(!b.isTestnet)),
+					slog.String("address", b.fundingKeyset.Address(!b.isTestnet)),
 					slog.Int("utxo set length", len(utxoCh)),
 					slog.Int64("total", totalTxs),
 				)
@@ -752,13 +750,6 @@ func (b *RateBroadcaster) write(counter *int, writer *bufio.Writer, content stri
 	}
 
 	return nil
-}
-
-func (b *RateBroadcaster) Shutdown() {
-	b.logger.Info("shutting down broadcaster")
-
-	b.shutdown <- struct{}{}
-	<-b.shutdownComplete
 }
 
 func (b *RateBroadcaster) createSelfPayingTxs(utxos chan *bt.UTXO) ([]*bt.Tx, error) {

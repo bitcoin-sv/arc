@@ -1,12 +1,13 @@
 package blocktx
 
 import (
+	"context"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 )
 
 type MessageQueueClient interface {
 	SubscribeRegisterTxs() error
 	SubscribeRequestTxs() error
-	PublishMinedTxs(txsBlocks []*blocktx_api.TransactionBlock) error
+	PublishMinedTxs(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error
 	Shutdown() error
 }

@@ -33,7 +33,7 @@ func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
 
 func WithTracer() func(handler *PostgreSQL) {
 	return func(_ *PostgreSQL) {
-		tracer = otel.GetTracerProvider().Tracer("postgres")
+		tracer = otel.GetTracerProvider().Tracer("")
 	}
 }
 

@@ -185,7 +185,7 @@ func WithRegisterRequestTxsBatchSize(size int) func(handler *PeerHandler) {
 
 func WithTracer() func(handler *PeerHandler) {
 	return func(_ *PeerHandler) {
-		tracer = otel.GetTracerProvider().Tracer("peer_handler")
+		tracer = otel.GetTracerProvider().Tracer("")
 	}
 }
 
@@ -504,6 +504,16 @@ func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 	return nil
 }
 
+func buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash) []*chainhash.Hash {
+	if tracer != nil {
+		var span trace.Span
+		_, span = tracer.Start(ctx, "buildMerkleTreeStoreChainHash")
+		defer span.End()
+	}
+
+	return bc.BuildMerkleTreeStoreChainHash(txids)
+}
+
 func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	ctx := context.Background()
 
@@ -535,19 +545,19 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 
 	merkleRoot := msg.Header.MerkleRoot
 
-	blockId, err := ph.insertBlock(&blockHash, &merkleRoot, &previousBlockHash, msg.Height)
+	blockId, err := ph.insertBlock(ctx, &blockHash, &merkleRoot, &previousBlockHash, msg.Height)
 	if err != nil {
-		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
+		errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
 		if errDel != nil {
 			ph.logger.Error("failed to delete block processing - after inserting block failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}
 		return fmt.Errorf("unable to insert block %s at height %d: %v", blockHash.String(), msg.Height, err)
 	}
 
-	calculatedMerkleTree := bc.BuildMerkleTreeStoreChainHash(msg.TransactionHashes)
+	calculatedMerkleTree := buildMerkleTreeStoreChainHash(ctx, msg.TransactionHashes)
 
 	if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
-		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
+		errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
 		if errDel != nil {
 			ph.logger.Error("failed to delete block processing - after merkle root mismatch", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}
@@ -555,7 +565,7 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	}
 
 	if err = ph.markTransactionsAsMined(ctx, blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
-		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
+		errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
 		if errDel != nil {
 			ph.logger.Error("failed to delete block processing - after marking transactions as mined failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}
@@ -571,8 +581,8 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 		TxCount:      uint64(len(msg.TransactionHashes)),
 	}
 
-	if err = ph.markBlockAsProcessed(block); err != nil {
-		errDel := ph.store.DelBlockProcessing(context.Background(), &blockHash, ph.hostname)
+	if err = ph.markBlockAsProcessed(ctx, block); err != nil {
+		errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
 		if errDel != nil {
 			ph.logger.Error("failed to delete block processing - after marking block as processed failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}
@@ -621,7 +631,7 @@ func (ph *PeerHandler) FillGaps(peer p2p.PeerI) error {
 	return nil
 }
 
-func (ph *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainhash.Hash, previousBlockHash *chainhash.Hash, height uint64) (uint64, error) {
+func (ph *PeerHandler) insertBlock(ctx context.Context, blockHash *chainhash.Hash, merkleRoot *chainhash.Hash, previousBlockHash *chainhash.Hash, height uint64) (uint64, error) {
 
 	ph.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Int64("height", int64(height)))
 
@@ -632,7 +642,7 @@ func (ph *PeerHandler) insertBlock(blockHash *chainhash.Hash, merkleRoot *chainh
 		Height:       height,
 	}
 
-	return ph.store.InsertBlock(context.Background(), block)
+	return ph.store.InsertBlock(ctx, block)
 }
 
 func (ph *PeerHandler) printMemStats() {
@@ -709,7 +719,7 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 
 		merklePaths = append(merklePaths, bumpHex)
 		if (txIndex+1)%ph.transactionStorageBatchSize == 0 {
-			updateResp, err := ph.store.UpdateBlockTransactions(context.Background(), blockId, txs, merklePaths)
+			updateResp, err := ph.store.UpdateBlockTransactions(ctx, blockId, txs, merklePaths)
 			if err != nil {
 				return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 			}
@@ -729,7 +739,7 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 			}
 
 			if len(updatesBatch) > 0 {
-				err = ph.mqClient.PublishMinedTxs(updatesBatch)
+				err = ph.mqClient.PublishMinedTxs(ctx, updatesBatch)
 				if err != nil {
 					ph.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
 				}
@@ -760,7 +770,7 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 	}
 
 	if len(updatesBatch) > 0 {
-		err = ph.mqClient.PublishMinedTxs(updatesBatch)
+		err = ph.mqClient.PublishMinedTxs(ctx, updatesBatch)
 		if err != nil {
 			ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 		}
@@ -769,9 +779,8 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 	return nil
 }
 
-func (ph *PeerHandler) markBlockAsProcessed(block *p2p.Block) error {
-
-	err := ph.store.MarkBlockAsDone(context.Background(), block.Hash, block.Size, block.TxCount)
+func (ph *PeerHandler) markBlockAsProcessed(ctx context.Context, block *p2p.Block) error {
+	err := ph.store.MarkBlockAsDone(ctx, block.Hash, block.Size, block.TxCount)
 	if err != nil {
 		return err
 	}

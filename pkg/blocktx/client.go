@@ -80,5 +80,5 @@ func DialGRPC(address string) (*grpc.ClientConn, error) {
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
 	}
 
-	return grpc.Dial(address, tracing.AddGRPCDialOptions(opts)...)
+	return grpc.NewClient(address, tracing.AddGRPCDialOptions(opts)...)
 }

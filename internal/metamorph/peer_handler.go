@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/internal/metrics"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/wire"
@@ -15,19 +15,19 @@ import (
 type PeerHandler struct {
 	store                store.MetamorphStore
 	messageCh            chan *PeerTxMessage
-	stats                *safemap.Safemap[string, *tracing.PeerHandlerStats]
-	peerHandlerCollector *tracing.PeerHandlerCollector
+	stats                *safemap.Safemap[string, *metrics.PeerHandlerStats]
+	peerHandlerCollector *metrics.PeerHandlerCollector
 }
 
 func NewPeerHandler(s store.MetamorphStore, messageCh chan *PeerTxMessage) p2p.PeerHandlerI {
 	ph := &PeerHandler{
 		store:     s,
 		messageCh: messageCh,
-		stats:     safemap.New[string, *tracing.PeerHandlerStats](),
+		stats:     safemap.New[string, *metrics.PeerHandlerStats](),
 	}
 
-	ph.peerHandlerCollector = tracing.NewPeerHandlerCollector("metamorph", ph.stats)
-	tracing.Register(ph.peerHandlerCollector)
+	ph.peerHandlerCollector = metrics.NewPeerHandlerCollector("metamorph", ph.stats)
+	metrics.Register(ph.peerHandlerCollector)
 
 	return ph
 }
@@ -38,7 +38,7 @@ func (m *PeerHandler) HandleTransactionSent(msg *wire.MsgTx, peer p2p.PeerI) err
 
 	stat, ok := m.stats.Get(peerStr)
 	if !ok {
-		stat = &tracing.PeerHandlerStats{}
+		stat = &metrics.PeerHandlerStats{}
 		m.stats.Set(peerStr, stat)
 	}
 
@@ -60,7 +60,7 @@ func (m *PeerHandler) HandleTransactionAnnouncement(msg *wire.InvVect, peer p2p.
 
 	stat, ok := m.stats.Get(peerStr)
 	if !ok {
-		stat = &tracing.PeerHandlerStats{}
+		stat = &metrics.PeerHandlerStats{}
 		m.stats.Set(peerStr, stat)
 	}
 
@@ -81,7 +81,7 @@ func (m *PeerHandler) HandleTransactionRejection(rejMsg *wire.MsgReject, peer p2
 
 	stat, ok := m.stats.Get(peerStr)
 	if !ok {
-		stat = &tracing.PeerHandlerStats{}
+		stat = &metrics.PeerHandlerStats{}
 		m.stats.Set(peerStr, stat)
 	}
 
@@ -102,7 +102,7 @@ func (m *PeerHandler) HandleTransactionGet(msg *wire.InvVect, peer p2p.PeerI) ([
 
 	stat, ok := m.stats.Get(peerStr)
 	if !ok {
-		stat = &tracing.PeerHandlerStats{}
+		stat = &metrics.PeerHandlerStats{}
 		m.stats.Set(peerStr, stat)
 	}
 
@@ -128,7 +128,7 @@ func (m *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error {
 
 	stat, ok := m.stats.Get(peerStr)
 	if !ok {
-		stat = &tracing.PeerHandlerStats{}
+		stat = &metrics.PeerHandlerStats{}
 		m.stats.Set(peerStr, stat)
 	}
 
@@ -151,7 +151,7 @@ func (m *PeerHandler) HandleBlockAnnouncement(_ *wire.InvVect, peer p2p.PeerI) e
 
 	stat, ok := m.stats.Get(peerStr)
 	if !ok {
-		stat = &tracing.PeerHandlerStats{}
+		stat = &metrics.PeerHandlerStats{}
 		m.stats.Set(peerStr, stat)
 	}
 
@@ -166,7 +166,7 @@ func (m *PeerHandler) HandleBlock(_ wire.Message, peer p2p.PeerI) error {
 
 	stat, ok := m.stats.Get(peerStr)
 	if !ok {
-		stat = &tracing.PeerHandlerStats{}
+		stat = &metrics.PeerHandlerStats{}
 		m.stats.Set(peerStr, stat)
 	}
 
@@ -176,5 +176,5 @@ func (m *PeerHandler) HandleBlock(_ wire.Message, peer p2p.PeerI) error {
 }
 
 func (m *PeerHandler) Shutdown() {
-	tracing.Unregister(m.peerHandlerCollector)
+	metrics.Unregister(m.peerHandlerCollector)
 }

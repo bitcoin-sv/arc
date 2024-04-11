@@ -6,15 +6,12 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
-	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -90,7 +87,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
+		logger := helper.GetLogger()
 
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
@@ -106,38 +103,33 @@ var Cmd = &cobra.Command{
 
 		keyFiles := strings.Split(keyFile, ",")
 
-		wg := &sync.WaitGroup{}
-
 		for _, kf := range keyFiles {
 
 			if wocApiKey == "" {
 				time.Sleep(1 * time.Second)
 			}
 
-			wg.Add(1)
+			fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
+			if err != nil {
+				return fmt.Errorf("failed to get key sets: %v", err)
+			}
 
-			go func(keyfile string, waitGroup *sync.WaitGroup) {
-				defer waitGroup.Done()
+			rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, wocClient,
+				broadcaster.WithFees(miningFeeSat),
+				broadcaster.WithIsTestnet(isTestnet),
+				broadcaster.WithCallback(callbackURL, callbackToken),
+				broadcaster.WithFullstatusUpdates(fullStatusUpdates),
+			)
+			if err != nil {
+				return fmt.Errorf("failed to create broadcaster: %v", err)
+			}
 
-				time.Sleep(500 * time.Millisecond)
-
-				fundingKeySet, _, err := helper.GetKeySetsKeyFile(keyfile)
-				if err != nil {
-					logger.Error("failed to get key sets", slog.String("err", err.Error()))
-					return
-				}
-
-				rateBroadcaster, _ := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, wocClient, broadcaster.WithFees(miningFeeSat), broadcaster.WithIsTestnet(isTestnet), broadcaster.WithCallback(callbackURL, callbackToken), broadcaster.WithFullstatusUpdates(fullStatusUpdates))
-
-				err = rateBroadcaster.CreateUtxos(context.Background(), outputs, satoshisPerOutput)
-				if err != nil {
-					logger.Error("failed to create utxos", slog.String("address", fundingKeySet.Address(!isTestnet)), slog.String("err", err.Error()))
-					return
-				}
-			}(kf, wg)
+			logger.Info("creating utxos", slog.String("key", kf), slog.String("address", fundingKeySet.Address(!isTestnet)))
+			err = rateBroadcaster.CreateUtxos(context.Background(), outputs, satoshisPerOutput)
+			if err != nil {
+				return fmt.Errorf("failed to create utxos: %v", err)
+			}
 		}
-
-		wg.Wait()
 
 		return nil
 	},

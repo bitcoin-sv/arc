@@ -22,6 +22,7 @@ type BlocktxStore interface {
 	MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 	GetBlockGaps(ctx context.Context, heightRange int) ([]*BlockGap, error)
 	ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.ClearDataResponse, error)
+	GetMinedTransaction(ctx context.Context, hash []byte) ([]byte, uint64, string, error)
 
 	SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error)
 	GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)

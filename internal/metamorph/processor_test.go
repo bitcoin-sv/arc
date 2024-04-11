@@ -565,7 +565,18 @@ func TestProcessExpiredTransactions(t *testing.T) {
 					return nil
 				},
 			}
+
+			publisher := &mocks.MessageQueueClientMock{
+				PublishRegisterTxsFunc: func(hash []byte) error {
+					return nil
+				},
+				RequestTxFunc: func(hash []byte) error {
+					return nil
+				},
+			}
+
 			processor, err := metamorph.NewProcessor(metamorphStore, pm,
+				metamorph.WithMessageQueueClient(publisher),
 				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
@@ -583,9 +594,8 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			processor.ProcessorResponseMap.Set(testdata.TX2Hash, processor_response.NewProcessorResponse(testdata.TX2Hash))
 			processor.ProcessorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponse(testdata.TX3Hash))
 
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 
-			fmt.Println(len(pm.AnnounceTransactionCalls())
 			require.Equal(t, tc.expectedAnnouncements, len(pm.AnnounceTransactionCalls()))
 			require.Equal(t, tc.expectedRequests, len(pm.RequestTransactionCalls()))
 		})

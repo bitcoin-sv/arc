@@ -4,13 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
-	"os"
-
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
-	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
+	"log/slog"
 )
 
 var Cmd = &cobra.Command{
@@ -33,7 +30,7 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
+		logger := helper.GetLogger()
 
 		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 		fundingKeySet, _, err := helper.GetKeySetsKeyFile(keyFile)

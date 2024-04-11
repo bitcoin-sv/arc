@@ -15,14 +15,15 @@ func (p *PostgreSQL) GetMinedTransaction(ctx context.Context, hash []byte) ([]by
 
 	q := `
 		SELECT
-		 b.hash
-		,b.height
-		,t.merkle_path
-		FROM transactions as t 
-		JOIN block_transactions_map ON t.id = block_transactions_map.txid
-		JOIN blocks as b ON block_transactions_map.blockid = b.id
-		WHERE t.hash = $1
+		b.hash
+	   ,b.height
+	   ,t.merkle_path
+	   FROM transactions as t
+	   JOIN block_transactions_map ON t.id = block_transactions_map.txid
+	   JOIN blocks as b ON block_transactions_map.blockid = b.id
+	   WHERE t.hash = $1
 	`
+
 	var blockHash []byte
 	var blockHeight uint64
 	var merklePath string

@@ -3,73 +3,75 @@ package new
 import (
 	"bufio"
 	"fmt"
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"log"
 	"log/slog"
 	"os"
 
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var Cmd = &cobra.Command{
-	Use:   "new",
-	Short: "Create new key set",
-	RunE: func(cmd *cobra.Command, args []string) error {
+var (
+	logger *slog.Logger
+	Cmd    = &cobra.Command{
+		Use:   "new",
+		Short: "Create new key set",
+		RunE: func(cmd *cobra.Command, args []string) error {
 
-		keyFile := viper.GetString("filename")
+			keyFile := viper.GetString("filename")
 
-		newKeyset, err := keyset.New()
-		if err != nil {
-			return err
-		}
-
-		// if keyfile not given, create new file name with iterator
-		if keyFile == "" {
-			i := 0
-			for {
-				keyFile = fmt.Sprintf("./cmd/broadcaster-cli/arc-%d.key", i)
-				_, err = os.Open(keyFile)
-				if os.IsNotExist(err) {
-					break
-				}
-				i++
+			newKeyset, err := keyset.New()
+			if err != nil {
+				return err
 			}
-		}
 
-		// return error if file already exists -> do not overwrite key files
-		_, err = os.Open(keyFile)
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("key file %s already exists", keyFile)
-		}
+			// if keyfile not given, create new file name with iterator
+			if keyFile == "" {
+				i := 0
+				for {
+					keyFile = fmt.Sprintf("./cmd/broadcaster-cli/arc-%d.key", i)
+					_, err = os.Open(keyFile)
+					if os.IsNotExist(err) {
+						break
+					}
+					i++
+				}
+			}
 
-		writer, err := os.Create(keyFile)
-		if err != nil {
-			return err
-		}
+			// return error if file already exists -> do not overwrite key files
+			_, err = os.Open(keyFile)
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("key file %s already exists", keyFile)
+			}
 
-		defer writer.Close()
+			writer, err := os.Create(keyFile)
+			if err != nil {
+				return err
+			}
 
-		buffer := bufio.NewWriter(writer)
-		if err != nil {
-			return err
-		}
-		_, err = fmt.Fprint(buffer, newKeyset.GetMaster().String())
-		if err != nil {
-			return err
-		}
+			defer writer.Close()
 
-		err = buffer.Flush()
-		if err != nil {
-			return err
-		}
+			buffer := bufio.NewWriter(writer)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprint(buffer, newKeyset.GetMaster().String())
+			if err != nil {
+				return err
+			}
 
-		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
-		logger.Info("new key file created", slog.String("file", keyFile))
-		return nil
-	},
-}
+			err = buffer.Flush()
+			if err != nil {
+				return err
+			}
+
+			logger.Info("new key file created", slog.String("file", keyFile))
+			return nil
+		},
+	}
+)
 
 func init() {
 	var err error
@@ -80,4 +82,23 @@ func init() {
 		log.Fatal(err)
 	}
 
+	logger = helper.GetLogger()
+
+	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
+		// Hide unused persistent flags
+		err = command.Flags().MarkHidden("testnet")
+		if err != nil {
+			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+		}
+		err = command.Flags().MarkHidden("keyfile")
+		if err != nil {
+			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+		}
+		err = command.Flags().MarkHidden("wocAPIKey")
+		if err != nil {
+			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+		}
+		// Call parent help func
+		command.Parent().HelpFunc()(command, strings)
+	})
 }

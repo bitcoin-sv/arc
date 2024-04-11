@@ -6,9 +6,15 @@ import (
 	"errors"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func (p *PostgreSQL) GetMinedTransaction(ctx context.Context, hash []byte) ([]byte, uint64, string, error) {
+	if tracer != nil {
+		var span trace.Span
+		ctx, span = tracer.Start(ctx, "GetMinedTransaction")
+		defer span.End()
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

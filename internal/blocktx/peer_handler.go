@@ -390,7 +390,7 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 					continue
 				}
 
-				if err = ph.mqClient.PublishMinedTxs(updatesBatch); err != nil {
+				if err = ph.mqClient.PublishMinedTxs(context.Background(), updatesBatch); err != nil {
 					ph.logger.Error("failed to publish mined txs for requested hashes", slog.String("err", err.Error()))
 					continue
 				}
@@ -401,7 +401,7 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 				if len(updatesBatch) == 0 {
 					continue
 				}
-				if err := ph.mqClient.PublishMinedTxs(updatesBatch); err != nil {
+				if err := ph.mqClient.PublishMinedTxs(context.Background(), updatesBatch); err != nil {
 					ph.logger.Error("failed to publish mined txs for requested hashes", slog.String("err", err.Error()))
 					continue
 				}

@@ -34,8 +34,31 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
+	tracingEnabled := viper.GetBool("blocktx.tracing.enabled")
+	var tp *trace.TracerProvider
+	if tracingEnabled {
+		ctx := context.Background()
+
+		tracingAddr, err := cfg.GetString("blocktx.tracing.dialAddr")
+		if err != nil {
+			return nil, err
+		}
+
+		exporter, err := tracing.NewExporter(ctx, tracingAddr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize exporter: %v", err)
+		}
+
+		tp, err = tracing.NewTraceProvider(exporter, service)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create trace provider: %v", err)
+		}
+
+		otel.SetTracerProvider(tp)
+	}
+
 	// dbMode can be sqlite, sqlite_memory or postgres
-	blockStore, err := NewBlocktxStore(dbMode, logger)
+	blockStore, err := NewBlocktxStore(dbMode, logger, tracingEnabled)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
@@ -80,17 +103,20 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	mqClient := nats_mq.NewNatsMQClient(natsClient, txChannel, requestTxChannel, nats_mq.WithMaxBatchSize(maxBatchSize))
+	mqOpts := []func(handler *nats_mq.MQClient){
+		nats_mq.WithMaxBatchSize(maxBatchSize),
+	}
+
+	if tracingEnabled {
+		mqOpts = append(mqOpts, nats_mq.WithTracer())
+	}
+
+	mqClient := nats_mq.NewNatsMQClient(natsClient, txChannel, requestTxChannel, mqOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create message queue client: %v", err)
 	}
 
 	err = mqClient.SubscribeRegisterTxs()
-	if err != nil {
-		return nil, err
-	}
-
-	err = mqClient.SubscribeRequestTxs()
 	if err != nil {
 		return nil, err
 	}
@@ -102,30 +128,8 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		blocktx.WithRegisterTxsInterval(registerTxInterval),
 		blocktx.WithMessageQueueClient(mqClient),
 	}
-
-	var tp *trace.TracerProvider
-
-	if viper.GetBool("blocktx.tracing.enabled") {
-		ctx := context.Background()
-
-		tracingAddr, err := cfg.GetString("blocktx.tracing.dialAddr")
-		if err != nil {
-			return nil, err
-		}
-
-		exporter, err := tracing.NewExporter(ctx, tracingAddr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize exporter: %v", err)
-		}
-
-		tp, err = tracing.NewTraceProvider(exporter, service)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create trace provider: %v", err)
-		}
-
-		otel.SetTracerProvider(tp)
-
-		peerHandlerOpts = append(peerHandlerOpts, blocktx.WithTracer(tp.Tracer(service)))
+	if tracingEnabled {
+		peerHandlerOpts = append(peerHandlerOpts, blocktx.WithTracer())
 	}
 
 	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore,
@@ -246,7 +250,7 @@ func StartHealthServerBlocktx(serv *blocktx.Server) error {
 	return nil
 }
 
-func NewBlocktxStore(dbMode string, logger *slog.Logger) (s store.BlocktxStore, err error) {
+func NewBlocktxStore(dbMode string, logger *slog.Logger, tracingEnabled bool) (s store.BlocktxStore, err error) {
 	switch dbMode {
 	case DbModePostgres:
 		dbHost, err := cfg.GetString("blocktx.db.postgres.host")
@@ -285,7 +289,13 @@ func NewBlocktxStore(dbMode string, logger *slog.Logger) (s store.BlocktxStore, 
 		logger.Info(fmt.Sprintf("db connection: user=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbName, dbHost, dbPort, sslMode))
 
 		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbPassword, dbName, dbHost, dbPort, sslMode)
-		s, err = postgresql.New(dbInfo, idleConns, maxOpenConns)
+
+		var postgresOpts []func(handler *postgresql.PostgreSQL)
+		if tracingEnabled {
+			postgresOpts = append(postgresOpts, postgresql.WithTracer())
+		}
+
+		s, err = postgresql.New(dbInfo, idleConns, maxOpenConns, postgresOpts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
 		}

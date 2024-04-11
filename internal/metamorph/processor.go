@@ -16,7 +16,6 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-utils/stat"
 )
 
@@ -292,9 +291,7 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus)
 }
 
 func (p *Processor) StartLockTransactions() {
-	span, _ := opentracing.StartSpanFromContext(context.Background(), "Processor:lockTransactions")
-	dbctx := opentracing.ContextWithSpan(context.Background(), span)
-	defer span.Finish()
+	ctx := context.Background()
 	ticker := time.NewTicker(p.lockTransactionsInterval)
 
 	p.quitLockTransactions = make(chan struct{})
@@ -310,7 +307,7 @@ func (p *Processor) StartLockTransactions() {
 				return
 			case <-ticker.C:
 				expiredSince := p.now().Add(-1 * p.mapExpiryTime)
-				err := p.store.SetLocked(dbctx, expiredSince, loadUnminedLimit)
+				err := p.store.SetLocked(ctx, expiredSince, loadUnminedLimit)
 				if err != nil {
 					p.logger.Error("Failed to set transactions locked", slog.String("err", err.Error()))
 				}
@@ -320,15 +317,12 @@ func (p *Processor) StartLockTransactions() {
 }
 
 func (p *Processor) StartProcessExpiredTransactions() {
-	span, _ := opentracing.StartSpanFromContext(context.Background(), "Processor:processExpiredTransactions")
-	dbctx := opentracing.ContextWithSpan(context.Background(), span)
-
+	ctx := context.Background()
 	ticker := time.NewTicker(p.processExpiredTxsInterval)
 
 	p.quitProcessExpiredTransactions = make(chan struct{})
 	p.quitProcessExpiredTransactionsComplete = make(chan struct{})
 
-	defer span.Finish()
 	go func() {
 		defer func() {
 			p.quitProcessExpiredTransactionsComplete <- struct{}{}
@@ -345,7 +339,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 
 				for {
 					// get all transactions since then chunk by chunk
-					unminedTxs, err := p.store.GetUnmined(dbctx, getUnminedSince, loadUnminedLimit, offset)
+					unminedTxs, err := p.store.GetUnmined(ctx, getUnminedSince, loadUnminedLimit, offset)
 					if err != nil {
 						p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
 						continue
@@ -360,7 +354,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 					announced := 0
 					for _, tx := range unminedTxs {
 						// mark that we retried processing this transaction once more
-						if err = p.store.IncrementRetries(dbctx, tx.Hash); err != nil {
+						if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
 							p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
 						}
 
@@ -424,9 +418,6 @@ var statusValueMap = map[metamorph_api.Status]int{
 }
 
 func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) error {
-	span, _ := opentracing.StartSpanFromContext(context.Background(), "Processor:SendStatusForTransaction")
-	defer span.Finish()
-
 	// make sure we update the transaction status in database
 	var rejectReason string
 	if statusErr != nil {
@@ -455,11 +446,6 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
 	// we need to decouple the Context from the request, so that we don't get cancelled
 	// when the request is cancelled
-	callerSpan := opentracing.SpanFromContext(ctx)
-	newctx := opentracing.ContextWithSpan(context.Background(), callerSpan)
-	span, spanCtx := opentracing.StartSpanFromContext(newctx, "Processor:processTransaction")
-	defer span.Finish()
-
 	p.queuedCount.Add(1)
 
 	// check if tx already stored, return it
@@ -471,7 +457,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		*/
 		insertedAtNum, _ := strconv.Atoi(p.now().Format("2006010215"))
 		data.InsertedAtNum = insertedAtNum
-		if setErr := p.store.Set(spanCtx, req.Data.Hash[:], data); setErr != nil {
+		if setErr := p.store.Set(ctx, req.Data.Hash[:], data); setErr != nil {
 			p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", setErr.Error()))
 		}
 
@@ -501,7 +487,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	req.Data.Status = metamorph_api.Status_STORED
 	insertedAtNum, _ := strconv.Atoi(p.now().Format("2006010215"))
 	req.Data.InsertedAtNum = insertedAtNum
-	err = p.store.Set(spanCtx, req.Data.Hash[:], req.Data)
+	err = p.store.Set(ctx, req.Data.Hash[:], req.Data)
 	if err != nil {
 		p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 	}

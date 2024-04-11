@@ -15,12 +15,10 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -114,7 +112,7 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 		)
 	}
 
-	s.grpcServer = grpc.NewServer(tracing.AddGRPCServerOptions(opts)...)
+	s.grpcServer = grpc.NewServer(opts...)
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
@@ -176,9 +174,6 @@ func ValidateCallbackURL(callbackURL string) error {
 }
 
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction")
-	defer span.Finish()
-
 	err := ValidateCallbackURL(req.GetCallbackUrl())
 	if err != nil {
 		s.logger.Error("failed to validate callback URL", slog.String("err", err.Error()))
@@ -197,16 +192,10 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 		RawTx:             req.GetRawTx(),
 	}
 
-	span2, _ := opentracing.StartSpanFromContext(ctx, "Server:PutTransaction:Wait")
-	defer span2.Finish()
-
 	return s.processTransaction(ctx, req.GetWaitForStatus(), sReq, req.GetMaxTimeout(), hash.String()), nil
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "Server:PutTransactions")
-	defer span.Finish()
-
 	// for each transaction if we have status in the db already set that status in the response
 	// if not we store the transaction data and set the transaction status in response array to - STORED
 	type processTxInput struct {

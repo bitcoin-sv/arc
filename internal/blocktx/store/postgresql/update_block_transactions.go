@@ -8,10 +8,16 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/lib/pq"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // UpdateBlockTransactions updates the transaction hashes for a given block hash.
 func (p *PostgreSQL) UpdateBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpdateBlockTransactionsResult, error) {
+	if tracer != nil {
+		var span trace.Span
+		ctx, span = tracer.Start(ctx, "UpdateBlockTransactions")
+		defer span.End()
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

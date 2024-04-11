@@ -1,9 +1,12 @@
 package nats_mq
 
 import (
+	"context"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/nats-io/nats.go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -16,9 +19,17 @@ const (
 	maxBatchSizeDefault = 20
 )
 
+var tracer trace.Tracer
+
 func WithMaxBatchSize(size int) func(*MQClient) {
 	return func(m *MQClient) {
 		m.maxBatchSize = size
+	}
+}
+
+func WithTracer() func(handler *MQClient) {
+	return func(_ *MQClient) {
+		tracer = otel.GetTracerProvider().Tracer("")
 	}
 }
 
@@ -77,7 +88,13 @@ func (c MQClient) SubscribeRequestTxs() error {
 	return nil
 }
 
-func (c MQClient) PublishMinedTxs(txsBlocks []*blocktx_api.TransactionBlock) error {
+func (c MQClient) PublishMinedTxs(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error {
+	if tracer != nil {
+		var span trace.Span
+		_, span = tracer.Start(ctx, "PublishMinedTxs")
+		defer span.End()
+	}
+
 	txBlockBatch := make([]*blocktx_api.TransactionBlock, 0, c.maxBatchSize)
 	for i, txBlock := range txsBlocks {
 		txBlockBatch = append(txBlockBatch, txBlock)

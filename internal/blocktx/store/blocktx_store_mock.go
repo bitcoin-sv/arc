@@ -53,9 +53,6 @@ var _ BlocktxStore = &BlocktxStoreMock{}
 //			SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
 //				panic("mock out the SetBlockProcessing method")
 //			},
-//			TransactionExistsFunc: func(ctx context.Context, hash *chainhash.Hash) (bool, error) {
-//				panic("mock out the TransactionExists method")
-//			},
 //			UpdateBlockTransactionsFunc: func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]UpdateBlockTransactionsResult, error) {
 //				panic("mock out the UpdateBlockTransactions method")
 //			},
@@ -98,9 +95,6 @@ type BlocktxStoreMock struct {
 
 	// SetBlockProcessingFunc mocks the SetBlockProcessing method.
 	SetBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error)
-
-	// TransactionExistsFunc mocks the TransactionExists method.
-	TransactionExistsFunc func(ctx context.Context, hash *chainhash.Hash) (bool, error)
 
 	// UpdateBlockTransactionsFunc mocks the UpdateBlockTransactions method.
 	UpdateBlockTransactionsFunc func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]UpdateBlockTransactionsResult, error)
@@ -188,13 +182,6 @@ type BlocktxStoreMock struct {
 			// ProcessedBy is the processedBy argument value.
 			ProcessedBy string
 		}
-		// TransactionExists holds details about calls to the TransactionExists method.
-		TransactionExists []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Hash is the hash argument value.
-			Hash *chainhash.Hash
-		}
 		// UpdateBlockTransactions holds details about calls to the UpdateBlockTransactions method.
 		UpdateBlockTransactions []struct {
 			// Ctx is the ctx argument value.
@@ -218,7 +205,6 @@ type BlocktxStoreMock struct {
 	lockPing                               sync.RWMutex
 	lockRegisterTransactions               sync.RWMutex
 	lockSetBlockProcessing                 sync.RWMutex
-	lockTransactionExists                  sync.RWMutex
 	lockUpdateBlockTransactions            sync.RWMutex
 }
 
@@ -622,42 +608,6 @@ func (mock *BlocktxStoreMock) SetBlockProcessingCalls() []struct {
 	mock.lockSetBlockProcessing.RLock()
 	calls = mock.calls.SetBlockProcessing
 	mock.lockSetBlockProcessing.RUnlock()
-	return calls
-}
-
-// TransactionExists calls TransactionExistsFunc.
-func (mock *BlocktxStoreMock) TransactionExists(ctx context.Context, hash *chainhash.Hash) (bool, error) {
-	if mock.TransactionExistsFunc == nil {
-		panic("BlocktxStoreMock.TransactionExistsFunc: method is nil but BlocktxStore.TransactionExists was just called")
-	}
-	callInfo := struct {
-		Ctx  context.Context
-		Hash *chainhash.Hash
-	}{
-		Ctx:  ctx,
-		Hash: hash,
-	}
-	mock.lockTransactionExists.Lock()
-	mock.calls.TransactionExists = append(mock.calls.TransactionExists, callInfo)
-	mock.lockTransactionExists.Unlock()
-	return mock.TransactionExistsFunc(ctx, hash)
-}
-
-// TransactionExistsCalls gets all the calls that were made to TransactionExists.
-// Check the length with:
-//
-//	len(mockedBlocktxStore.TransactionExistsCalls())
-func (mock *BlocktxStoreMock) TransactionExistsCalls() []struct {
-	Ctx  context.Context
-	Hash *chainhash.Hash
-} {
-	var calls []struct {
-		Ctx  context.Context
-		Hash *chainhash.Hash
-	}
-	mock.lockTransactionExists.RLock()
-	calls = mock.calls.TransactionExists
-	mock.lockTransactionExists.RUnlock()
 	return calls
 }
 

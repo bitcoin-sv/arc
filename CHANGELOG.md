@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
-- [1.1.52](#1152---2024-04-11)
+- [1.1.53](#1152---2024-04-11)
 - [1.1.32](#1132---2024-02-21)
 - [1.1.19](#1119---2024-02-05)
 - [1.1.16](#1116---2024-01-23)
@@ -14,7 +14,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
-## [1.1.52] - 2024-04-11
+## [1.1.53] - 2024-04-11
 
 ### Deprecated
 

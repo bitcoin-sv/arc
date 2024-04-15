@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -17,7 +16,6 @@ import (
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
-	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -109,7 +107,7 @@ var Cmd = &cobra.Command{
 
 		keyFiles := strings.Split(keyFile, ",")
 
-		logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo}))
+		logger := helper.GetLogger()
 
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
@@ -134,6 +132,9 @@ var Cmd = &cobra.Command{
 				return err
 			}
 		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
 		for i, kf := range keyFiles {
 
@@ -168,7 +169,7 @@ var Cmd = &cobra.Command{
 
 			rbs[i] = rateBroadcaster
 
-			err = rateBroadcaster.StartRateBroadcaster(context.Background(), rateTxsPerSecond, limit, wg)
+			err = rateBroadcaster.StartRateBroadcaster(ctx, rateTxsPerSecond, limit, wg)
 			if err != nil {
 				return fmt.Errorf("failed to start rate broadcaster: %v", err)
 			}
@@ -178,9 +179,8 @@ var Cmd = &cobra.Command{
 			signalChan := make(chan os.Signal, 1)
 			signal.Notify(signalChan, os.Interrupt) // Signal from Ctrl+C
 			<-signalChan
-			for _, rb := range rbs {
-				rb.Shutdown()
-			}
+
+			cancel()
 		}()
 
 		wg.Wait()

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -11,8 +12,12 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	cfg "github.com/bitcoin-sv/arc/internal/helpers"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
+	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
@@ -20,6 +25,7 @@ import (
 
 const (
 	maximumBlockSize = 4294967296 // 4Gb
+	service          = "blocktx"
 )
 
 func StartBlockTx(logger *slog.Logger) (func(), error) {
@@ -28,8 +34,31 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
+	tracingEnabled := viper.GetBool("blocktx.tracing.enabled")
+	var tp *trace.TracerProvider
+	if tracingEnabled {
+		ctx := context.Background()
+
+		tracingAddr, err := cfg.GetString("blocktx.tracing.dialAddr")
+		if err != nil {
+			return nil, err
+		}
+
+		exporter, err := tracing.NewExporter(ctx, tracingAddr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize exporter: %v", err)
+		}
+
+		tp, err = tracing.NewTraceProvider(exporter, service)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create trace provider: %v", err)
+		}
+
+		otel.SetTracerProvider(tp)
+	}
+
 	// dbMode can be sqlite, sqlite_memory or postgres
-	blockStore, err := NewBlocktxStore(dbMode, logger)
+	blockStore, err := NewBlocktxStore(dbMode, logger, tracingEnabled)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
@@ -62,6 +91,7 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 	}
 
 	txChannel := make(chan []byte, capacityRequired)
+	requestTxChannel := make(chan []byte, capacityRequired)
 
 	natsClient, err := nats_mq.NewNatsClient(natsURL)
 	if err != nil {
@@ -73,7 +103,15 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	mqClient := nats_mq.NewNatsMQClient(natsClient, txChannel, nats_mq.WithMaxBatchSize(maxBatchSize))
+	mqOpts := []func(handler *nats_mq.MQClient){
+		nats_mq.WithMaxBatchSize(maxBatchSize),
+	}
+
+	if tracingEnabled {
+		mqOpts = append(mqOpts, nats_mq.WithTracer())
+	}
+
+	mqClient := nats_mq.NewNatsMQClient(natsClient, txChannel, requestTxChannel, mqOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create message queue client: %v", err)
 	}
@@ -83,11 +121,19 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore,
+	peerHandlerOpts := []func(handler *blocktx.PeerHandler){
 		blocktx.WithRetentionDays(recordRetentionDays),
 		blocktx.WithTxChan(txChannel),
+		blocktx.WithRequestTxChan(requestTxChannel),
 		blocktx.WithRegisterTxsInterval(registerTxInterval),
-		blocktx.WithMessageQueueClient(mqClient))
+		blocktx.WithMessageQueueClient(mqClient),
+	}
+	if tracingEnabled {
+		peerHandlerOpts = append(peerHandlerOpts, blocktx.WithTracer())
+	}
+
+	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore,
+		peerHandlerOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -159,14 +205,22 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 
 		err = mqClient.Shutdown()
 		if err != nil {
-			logger.Error("failed to shutdown mqClient", slog.String("err", err.Error()))
+			logger.Error("Failed to shutdown mqClient", slog.String("err", err.Error()))
 		}
 
 		err = blockStore.Close()
 		if err != nil {
-			logger.Error("Error closing blocktx store", slog.String("err", err.Error()))
+			logger.Error("Failed to close blocktx store", slog.String("err", err.Error()))
 		}
+
 		peerHandler.Shutdown()
+
+		if tp != nil {
+			err = tp.Shutdown(context.Background())
+			if err != nil {
+				logger.Error("Failed to shutdown tracing provider", slog.String("err", err.Error()))
+			}
+		}
 	}, nil
 }
 
@@ -196,7 +250,7 @@ func StartHealthServerBlocktx(serv *blocktx.Server) error {
 	return nil
 }
 
-func NewBlocktxStore(dbMode string, logger *slog.Logger) (s store.BlocktxStore, err error) {
+func NewBlocktxStore(dbMode string, logger *slog.Logger, tracingEnabled bool) (s store.BlocktxStore, err error) {
 	switch dbMode {
 	case DbModePostgres:
 		dbHost, err := cfg.GetString("blocktx.db.postgres.host")
@@ -235,7 +289,13 @@ func NewBlocktxStore(dbMode string, logger *slog.Logger) (s store.BlocktxStore, 
 		logger.Info(fmt.Sprintf("db connection: user=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbName, dbHost, dbPort, sslMode))
 
 		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbPassword, dbName, dbHost, dbPort, sslMode)
-		s, err = postgresql.New(dbInfo, idleConns, maxOpenConns)
+
+		var postgresOpts []func(handler *postgresql.PostgreSQL)
+		if tracingEnabled {
+			postgresOpts = append(postgresOpts, postgresql.WithTracer())
+		}
+
+		s, err = postgresql.New(dbInfo, idleConns, maxOpenConns, postgresOpts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
 		}

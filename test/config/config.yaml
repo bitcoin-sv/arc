@@ -4,7 +4,6 @@ logFormat: tint
 profilerAddr: localhost:9999
 prometheusEndpoint: /metrics
 prometheusAddr: :2112
-tracing: true
 grpcMessageSize: 100000000
 network: regtest
 queueURL: nats://nats:4222
@@ -67,9 +66,6 @@ blocktx:
   registerTxsInterval: 200ms
   mq:
     txsMinedMaxBatchSize: 20
-
-broadcaster:
-  apiURL: http://localhost:9090
 
 api:
   address: 0.0.0.0:9090

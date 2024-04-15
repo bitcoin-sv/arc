@@ -7,7 +7,6 @@ import (
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/broadcast"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/consolidate"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/create"
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/dist"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -21,7 +20,7 @@ var Cmd = &cobra.Command{
 func init() {
 	var err error
 
-	Cmd.PersistentFlags().String("apiURL", "", "Send all funds from receiving key set to funding key set")
+	Cmd.PersistentFlags().String("apiURL", "", "URL of ARC api")
 	err = viper.BindPFlag("apiURL", Cmd.PersistentFlags().Lookup("apiURL"))
 	if err != nil {
 		log.Fatal(err)
@@ -59,6 +58,5 @@ func init() {
 
 	Cmd.AddCommand(create.Cmd)
 	Cmd.AddCommand(broadcast.Cmd)
-	Cmd.AddCommand(dist.Cmd)
 	Cmd.AddCommand(consolidate.Cmd)
 }

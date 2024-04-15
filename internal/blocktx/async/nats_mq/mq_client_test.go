@@ -1,6 +1,7 @@
 package nats_mq
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -77,10 +78,11 @@ func TestMQClient_PublishMinedTxs(t *testing.T) {
 			}
 
 			txChannel := make(chan []byte, 10)
+			requestTxChannel := make(chan []byte, 10)
 
-			mqClient := NewNatsMQClient(natsMock, txChannel, WithMaxBatchSize(5))
+			mqClient := NewNatsMQClient(natsMock, txChannel, requestTxChannel, WithMaxBatchSize(5))
 
-			err := mqClient.PublishMinedTxs(tc.txsBlocks)
+			err := mqClient.PublishMinedTxs(context.Background(), tc.txsBlocks)
 
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)

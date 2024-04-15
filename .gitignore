@@ -9,3 +9,4 @@ gosec-report.json
 .scannerwork
 gotest.out
 *.env
+report.xml

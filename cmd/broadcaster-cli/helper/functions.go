@@ -3,6 +3,8 @@ package helper
 import (
 	"errors"
 	"fmt"
+	"github.com/lmittmann/tint"
+	"log/slog"
 	"net/url"
 	"os"
 	"strconv"
@@ -133,4 +135,8 @@ func GetBool(settingName string) (bool, error) {
 	}
 
 	return boolValue, nil
+}
+
+func GetLogger() *slog.Logger {
+	return slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelDebug}))
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string) (string, error) {
@@ -40,6 +41,11 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 }
 
 func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) error {
+	if tracer != nil {
+		var span trace.Span
+		ctx, span = tracer.Start(ctx, "InsertBlock")
+		defer span.End()
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

@@ -7,7 +7,8 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/opentracing/opentracing-go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	_ "modernc.org/sqlite"
 )
 
@@ -15,6 +16,8 @@ const (
 	postgresDriverName        = "postgres"
 	maxPostgresBulkInsertRows = 1000
 )
+
+var tracer trace.Tracer
 
 type PostgreSQL struct {
 	db                        *sql.DB
@@ -25,6 +28,12 @@ type PostgreSQL struct {
 func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
 	return func(p *PostgreSQL) {
 		p.now = nowFunc
+	}
+}
+
+func WithTracer() func(handler *PostgreSQL) {
+	return func(_ *PostgreSQL) {
+		tracer = otel.GetTracerProvider().Tracer("")
 	}
 }
 
@@ -58,9 +67,6 @@ func (p *PostgreSQL) Close() error {
 }
 
 func (p *PostgreSQL) Ping(ctx context.Context) error {
-	span, _ := opentracing.StartSpanFromContext(ctx, "sql:Ping")
-	defer span.Finish()
-
 	_, err := p.db.QueryContext(ctx, "SELECT 1;")
 	if err != nil {
 		return err

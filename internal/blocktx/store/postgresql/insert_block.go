@@ -5,9 +5,15 @@ import (
 	"fmt"
 
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func (p *PostgreSQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+	if tracer != nil {
+		var span trace.Span
+		ctx, span = tracer.Start(ctx, "InsertBlock")
+		defer span.End()
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

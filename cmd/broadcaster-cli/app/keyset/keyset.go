@@ -5,6 +5,7 @@ import (
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset/balance"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset/new"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset/topup"
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset/utxos"
 	"github.com/spf13/cobra"
 )
 
@@ -18,4 +19,5 @@ func init() {
 	Cmd.AddCommand(balance.Cmd)
 	Cmd.AddCommand(new.Cmd)
 	Cmd.AddCommand(topup.Cmd)
+	Cmd.AddCommand(utxos.Cmd)
 }

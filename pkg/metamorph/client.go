@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
@@ -65,7 +64,7 @@ func DialGRPC(address string, grpcMessageSize int) (*grpc.ClientConn, error) {
 		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)),
 	}
 
-	conn, err := grpc.Dial(address, tracing.AddGRPCDialOptions(opts)...)
+	conn, err := grpc.NewClient(address, opts...)
 	if err != nil {
 		return nil, err
 	}

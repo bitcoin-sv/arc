@@ -3,7 +3,6 @@ package blocktx
 import (
 	"context"
 
-	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
@@ -80,5 +79,5 @@ func DialGRPC(address string) (*grpc.ClientConn, error) {
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
 	}
 
-	return grpc.Dial(address, tracing.AddGRPCDialOptions(opts)...)
+	return grpc.NewClient(address, opts...)
 }

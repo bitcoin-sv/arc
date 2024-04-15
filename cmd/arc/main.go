@@ -15,15 +15,10 @@ import (
 
 	cmd "github.com/bitcoin-sv/arc/cmd/arc/services"
 	cfg "github.com/bitcoin-sv/arc/internal/helpers"
-	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/version"
-	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
 )
-
-// Name used by build script for the binaries. (Please keep on single line)
-const progname = "arc"
 
 func main() {
 	err := run()
@@ -39,8 +34,6 @@ func run() error {
 	startMetamorph := flag.Bool("metamorph", false, "start metamorph")
 	startBlockTx := flag.Bool("blocktx", false, "start blocktx")
 	startK8sWatcher := flag.Bool("k8s-watcher", false, "start k8s-watcher")
-	startBackgroundWorker := flag.Bool("background-worker", false, "start background-worker")
-	useTracer := flag.Bool("tracer", false, "start tracer")
 	help := flag.Bool("help", false, "Show help")
 	config := flag.String("config", ".", "path to configuration yaml file")
 
@@ -61,12 +54,6 @@ func run() error {
 		fmt.Println("")
 		fmt.Println("    -k8s-watcher=<true|false>")
 		fmt.Println("          whether to start k8s-watcher (default=true)")
-		fmt.Println("")
-		fmt.Println("    -background-worker=<true|false>")
-		fmt.Println("          whether to background-worker (default=true)")
-		fmt.Println("")
-		fmt.Println("    -tracer=<true|false>")
-		fmt.Println("          whether to start the Jaeger tracer (default=false)")
 		fmt.Println("")
 		fmt.Println("    -config=/location")
 		fmt.Println("          directory to look for config.yaml (default='')")
@@ -124,23 +111,6 @@ func run() error {
 		}
 	}()
 
-	tracingOn := viper.GetBool("tracing")
-	if (useTracer != nil && *useTracer) || tracingOn {
-		logger.Info("Starting tracer")
-		// Start the tracer
-		tracer, closer, err := tracing.InitTracer(progname)
-		if err != nil {
-			logger.Error("failed to initialise tracer", slog.String("err", err.Error()))
-		}
-
-		defer closer.Close()
-
-		if tracer != nil {
-			// set the global tracer to use in all services
-			opentracing.SetGlobalTracer(tracer)
-		}
-	}
-
 	if !isFlagPassed("api") &&
 		!isFlagPassed("blocktx") &&
 		!isFlagPassed("callbacker") &&
@@ -151,18 +121,6 @@ func run() error {
 		*startApi = true
 		*startMetamorph = true
 		*startBlockTx = true
-	}
-
-	// Check the settings to see it the service has a listen address
-
-	if v := viper.GetString("api.address"); v == "" {
-		*startApi = false
-	}
-	if v := viper.GetString("metamorph.listenAddr"); v == "" {
-		*startMetamorph = false
-	}
-	if v := viper.GetString("blocktx.listenAddr"); v == "" {
-		*startBlockTx = false
 	}
 
 	shutdownFns := make([]func(), 0)
@@ -200,15 +158,6 @@ func run() error {
 		shutdown, err := cmd.StartK8sWatcher(logger)
 		if err != nil {
 			return fmt.Errorf("failed to start k8s-watcher: %v", err)
-		}
-		shutdownFns = append(shutdownFns, func() { shutdown() })
-	}
-
-	if startBackgroundWorker != nil && *startBackgroundWorker {
-		logger.Info("Starting Background-Worker")
-		shutdown, err := cmd.StartBackGroundWorker(logger)
-		if err != nil {
-			return fmt.Errorf("failed to start background-worker: %v", err)
 		}
 		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}

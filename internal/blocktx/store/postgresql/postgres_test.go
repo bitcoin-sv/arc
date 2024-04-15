@@ -7,11 +7,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/testdata"
 	"log"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/bitcoin-sv/arc/internal/testdata"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
@@ -460,6 +461,51 @@ func TestPostgresDB(t *testing.T) {
 			},
 		}, []string{"test1", "test2", "test3", "test4", "test5", "test6"})
 		require.NoError(t, err)
+	})
+
+	t.Run("test getting mined txs", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		// insert block
+		blockHash, err := chainhash.NewHashFromStr("00000000000000000a081a539601645abe977946f8f6466a3c9e0c34d50be4a1")
+		require.NoError(t, err)
+		previousBlockHash, err := chainhash.NewHashFromStr("000000000000000001b8adefc1eb98896c80e30e517b9e2655f1f929d9958a42")
+		require.NoError(t, err)
+		block := &blocktx_api.Block{
+			Hash:         blockHash[:],
+			PreviousHash: previousBlockHash[:],
+			MerkleRoot:   merkleRoot[:],
+			Height:       100,
+		}
+		id, err := postgresDB.InsertBlock(ctx, block)
+		require.NoError(t, err)
+		require.Equal(t, uint64(10001), id)
+
+		// register transaction
+		txHash := createTxHash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3c")
+		txs := []*blocktx_api.TransactionAndSource{
+			{
+				Hash: createTxHash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3c")[:],
+			},
+		}
+		err = postgresDB.RegisterTransactions(context.Background(), txs)
+		require.NoError(t, err)
+
+		// bind transaction and block
+		res, err := postgresDB.UpdateBlockTransactions(context.Background(), id, []*blocktx_api.TransactionAndSource{
+			{
+				Hash: txHash[:],
+			},
+		}, []string{"test1"})
+		require.NoError(t, err)
+		require.Equal(t, res[0].TxHash, txHash[:])
+
+		// get mined transaction and corresponding block
+		blockHashRes, blockHeight, merklePath, err := postgresDB.GetMinedTransaction(ctx, txHash[:])
+		require.NoError(t, err)
+		require.Equal(t, blockHash[:], blockHashRes)
+		require.Equal(t, int(blockHeight), 100)
+		require.Equal(t, merklePath, "test1")
 	})
 
 	t.Run("clear data", func(t *testing.T) {

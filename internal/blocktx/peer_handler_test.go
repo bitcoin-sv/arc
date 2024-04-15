@@ -177,13 +177,10 @@ func TestHandleBlock(t *testing.T) {
 				MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 					return nil
 				},
-				TransactionExistsFunc: func(ctx context.Context, hash *chainhash.Hash) (bool, error) {
-					return true, nil
-				},
 			}
 
 			mq := &MessageQueueClientMock{
-				PublishMinedTxsFunc: func(txsBlocks []*blocktx_api.TransactionBlock) error {
+				PublishMinedTxsFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error {
 					return nil
 				},
 			}

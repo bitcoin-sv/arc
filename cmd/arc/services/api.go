@@ -15,8 +15,6 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
-	apmecho "github.com/opentracing-contrib/echo"
-	"github.com/opentracing/opentracing-go"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -30,10 +28,6 @@ func StartAPIServer(logger *slog.Logger) (func(), error) {
 
 	// Recover returns a middleware which recovers from panics anywhere in the chain
 	e.Use(echomiddleware.Recover())
-
-	if opentracing.GlobalTracer() != nil {
-		e.Use(apmecho.Middleware("arc"))
-	}
 
 	// Add CORS headers to the server - all request origins are allowed
 	e.Use(echomiddleware.CORSWithConfig(echomiddleware.CORSConfig{

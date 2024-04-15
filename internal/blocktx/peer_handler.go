@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"math"
 	"os"
-	"runtime"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -645,18 +644,25 @@ func (ph *PeerHandler) insertBlock(ctx context.Context, blockHash *chainhash.Has
 	return ph.store.InsertBlock(ctx, block)
 }
 
-func (ph *PeerHandler) printMemStats() {
-	bToMb := func(b uint64) uint64 {
-		return b / 1024 / 1024
+func (ph *PeerHandler) updateAndPublishTxs(ctx context.Context, blockId uint64, blockHeight uint64, blockhash *chainhash.Hash, txs []*blocktx_api.TransactionAndSource, merklePaths []string) {
+	updateResp, err := ph.store.UpdateBlockTransactions(ctx, blockId, txs, merklePaths)
+	if err != nil {
+		ph.logger.Error("failed to insert block transactions at block height:", slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
 	}
-	var mem runtime.MemStats
-	runtime.ReadMemStats(&mem)
-	ph.logger.Debug("stats",
-		slog.Uint64("Alloc [MiB]", bToMb(mem.Alloc)),
-		slog.Uint64("TotalAlloc [MiB]", bToMb(mem.TotalAlloc)),
-		slog.Uint64("Sys [MiB]", bToMb(mem.Sys)),
-		slog.Int64("NumGC [MiB]", int64(mem.NumGC)),
-	)
+
+	updatesBatch := make([]*blocktx_api.TransactionBlock, len(updateResp))
+	for i, updResp := range updateResp {
+		updatesBatch[i] = &blocktx_api.TransactionBlock{
+			TransactionHash: updResp.TxHash[:],
+			BlockHash:       blockhash[:],
+			BlockHeight:     blockHeight,
+			MerklePath:      updResp.MerklePath,
+		}
+	}
+
+	if err := ph.mqClient.PublishMinedTxs(ctx, updatesBatch); err != nil {
+		ph.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
+	}
 }
 
 func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
@@ -716,36 +722,11 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 
 		merklePaths = append(merklePaths, bumpHex)
 		if (txIndex+1)%ph.transactionStorageBatchSize == 0 {
-			updateResp, err := ph.store.UpdateBlockTransactions(ctx, blockId, txs, merklePaths)
-			if err != nil {
-				return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
-			}
+			go ph.updateAndPublishTxs(ctx, blockId, blockHeight, blockhash, txs, merklePaths)
+
 			// free up memory
 			txs = make([]*blocktx_api.TransactionAndSource, 0, ph.transactionStorageBatchSize)
 			merklePaths = make([]string, 0, ph.transactionStorageBatchSize)
-
-			updatesBatch := make([]*blocktx_api.TransactionBlock, len(updateResp))
-
-			for i, updResp := range updateResp {
-				updatesBatch[i] = &blocktx_api.TransactionBlock{
-					TransactionHash: updResp.TxHash[:],
-					BlockHash:       blockhash[:],
-					BlockHeight:     blockHeight,
-					MerklePath:      updResp.MerklePath,
-				}
-			}
-
-			if len(updatesBatch) > 0 {
-				err = ph.mqClient.PublishMinedTxs(ctx, updatesBatch)
-				if err != nil {
-					ph.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
-				}
-			}
-
-			// print stats, call gc and check the result
-			ph.printMemStats()
-			runtime.GC()
-			ph.printMemStats()
 		}
 	}
 

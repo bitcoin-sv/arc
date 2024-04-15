@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -202,7 +203,10 @@ func TestHandleBlock(t *testing.T) {
 
 			var insertedBlockTransactions []*blocktx_api.TransactionAndSource
 
+			var mu sync.Mutex
 			storeMock.UpdateBlockTransactionsFunc = func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpdateBlockTransactionsResult, error) {
+				mu.Lock()
+				defer mu.Unlock()
 				require.True(t, len(merklePaths) <= batchSize)
 				require.True(t, len(transactions) <= batchSize)
 
@@ -249,8 +253,10 @@ func TestHandleBlock(t *testing.T) {
 			// call tested function
 			err = peerHandler.HandleBlock(blockMessage, peer)
 			require.NoError(t, err)
-			time.Sleep(20 * time.Millisecond)
+			time.Sleep(1 * time.Second)
+			mu.Lock()
 			require.ElementsMatch(t, expectedInsertedTransactions, insertedBlockTransactions)
+			mu.Unlock()
 			peerHandler.unregisterTracing()
 		})
 	}

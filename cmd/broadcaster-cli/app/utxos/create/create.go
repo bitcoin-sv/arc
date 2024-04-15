@@ -138,13 +138,13 @@ var Cmd = &cobra.Command{
 func init() {
 	var err error
 
-	Cmd.Flags().Int("outputs", 10, "Nr of requested outputs")
+	Cmd.Flags().Int("outputs", 0, "Nr of requested outputs")
 	err = viper.BindPFlag("outputs", Cmd.Flags().Lookup("outputs"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	Cmd.Flags().Int("satoshis", 1000, "Nr of satoshis per output outputs")
+	Cmd.Flags().Int("satoshis", 0, "Nr of satoshis per output outputs")
 	err = viper.BindPFlag("satoshis", Cmd.Flags().Lookup("satoshis"))
 	if err != nil {
 		log.Fatal(err)

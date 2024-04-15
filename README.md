@@ -38,9 +38,6 @@ where options are:
     -blocktx=<true|false>
           whether to start block tx (default=true)
 
-    -tracer=<true|false>
-          whether to start the Jaeger tracer (default=false)
-
     -config=<path>
           path to config file (default='')
 ```

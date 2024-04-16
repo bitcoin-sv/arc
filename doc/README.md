@@ -159,12 +159,16 @@ For optimal performance, ARC uses a custom format for transactions. This format 
 
 The only check that cannot be done on a transaction in the extended format is the check for double spends. This can only be done by downloading the parent transactions, or by querying a utxo store. A robust utxo store is still in development and will be added to ARC when it is ready. At this moment, the utxo check is performed in the Bitcoin node when a transaction is sent to the network.
 
+### Extended format efficiency
+
 With the successful adoption of Bitcoin ARC, this format should establish itself as the new standard of interchange
 between wallets and non-mining nodes on the network.
 
 The extended format has been described in detail in [BIP-239](BIP-239).
 
 The following diagrams show the difference between validating a transaction in the standard and extended format:
+
+#### Standard format flow
 
 ```plantuml
 @startuml
@@ -207,9 +211,14 @@ return status
 
 @enduml
 ```
+For each request ARC receives in standard format, it must request the utxos from the Bitcoin node. This is a slow process, as it requires a round trip to the Bitcoin node for each input.
+
+For this reason it is expected that transactions come in an extended format. Transactions in standard format requires a pretreatment to convert each tx into one in extended format to pass through the ARC pipeline.
+
+That pretreatment detracts from the expected efficiency of the process because it requires extra requests to the Bitcoin network. Therefore, it is expected that the trend will be to use the extended format, which may be the only one supported in the future.
 
 
-
+#### Extended format flow
 
 ```plantuml
 @startuml
@@ -246,12 +255,10 @@ return status
 
 @enduml
 ```
+In contrast, the extended format allows the API to perform a preliminary validation and rule out malformed transactions by reviewing the transaction data provided in the extended fashion. Obviously, double spending (for example) cannot be checked without an updated utxo set and it is assumed that the API does not have this data. Therefore, the "validator" subfunction within the API filters as much as it can to reduce spurious transactions passing through the pipeline but leaves others for the bitcoin nodes themselves.
 
-As you can see, the extended format is much more efficient, as it does not require any RPC calls to the Bitcoin node.
 
-This validation takes place in the ARC API microservice. The actual utxos are left to be checked by the Bitcoin node
-itself, like it would do anyway, regardless of where the transactions is coming from. With this process flow we save
-the node from having to lookup and send the input utxos to the ARC API, which could be slow under heavy load.
+This [validation](#validation) takes place in the ARC API microservice. The actual utxos are left to be checked by the Bitcoin node itself, like it would do anyway, regardless of where the transaction is coming from. With this process flow we save the node from having to lookup and send the input utxos to the ARC API, which could be slow under heavy load.
 
 ## Settings
 

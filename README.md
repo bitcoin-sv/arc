@@ -15,7 +15,8 @@ metamorph:
   listenAddr:
 ```
 
-## Microservices
+
+## How to run ARC
 
 To run all the microservices in one process (during development), use the `main.go` file in the root directory.
 
@@ -42,8 +43,26 @@ where options are:
           path to config file (default='')
 ```
 
+Each individual microservice can also be started individually by running e.g. `go run main.go -api=true`.
 NOTE: If you start the `main.go` with a microservice set to true, it will not start the other services. For example, if
 you run `go run main.go -api=true`, it will only start the API server, and not the other services, although you can start multiple services by specifying them on the command line.
+
+In order to run ARC there needs to be a Postgres database available. The connection to the database is defined in the `config.yaml` file. The database needs to be created before running ARC. The migrations for the database can be found in the `internal/metamorph/store/postgresql/migrations` folder. The migrations can be executed using the [go-migrate](https://github.com/golang-migrate/migrate) tool (see section [Metamorph stores](#metamorph-stores) and [Blocktx stores](#blocktx-stores)).
+
+Additionally ARC relies on a message queue to communicate between Metamorph and BlockTx (see section [Message Queue](#message-queue)) section. The message queue can be started as a docker container. The docker image can be found [here](https://hub.docker.com/_/nats). The message queue can be started like this:
+
+```
+docker run -p 4222:4222 nats
+```
+
+The [docker-compose file](./test/docker-compose.yml) of the e2e-tests (see section [E2E tests](#e2e-tests)) additionally shows how ARC can be run with the message queue and the Postgres database and db migrations.
+
+### Docker
+ARC can be run as a docker container. The docker image can be built using the provided `Dockerfile` (see section [Building ARC](#building-arc)).
+
+The latest docker image of ARC can be found [here](https://hub.docker.com/r/bsvb/arc/).
+
+## Microservices
 
 ### API
 

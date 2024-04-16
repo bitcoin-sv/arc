@@ -118,7 +118,7 @@ migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslm
 #### Connections to Bitcoin nodes
 
 Metamorph can connect to multiple Bitcoin nodes, and will use a subset of the nodes to send transactions to. The other
-nodes will be used to listen for transaction INV message, which will trigger the SEEN_ON_NETWORK status of a transaction.
+nodes will be used to listen for transaction **INV** message, which will trigger the SEEN_ON_NETWORK status of a transaction.
 
 The Bitcoin nodes can be configured in the settings file.
 
@@ -263,12 +263,41 @@ make clean_restart_e2e_test
 
 The [docker-compose](./test/docker-compose.yml) file also shows the minimum setup that is needed for ARC to run.
 
-## Profiler
+
+## Monitoring
+
+### Prometheus
+
+Prometheus can collect ARC metrics. It improves observability in production and enables debugging during development and deployment. As Prometheus is a very standard tool for monitoring, any other complementary tool such as Grafana and others can be added for better data analysis.
+
+Prometheus periodically poll the system data by querying specific urls.
+
+ARC can expose a Prometheus endpoint that can be used to monitor the metamorph servers. Set the `prometheusEndpoint` setting in the settings file to activate prometheus. Normally you would want to set this to `/metrics`.
+
+Enable monitoring consists of setting the **prometheusEndpoint** property in config.yaml file:
+
+```yaml
+prometheusEndpoint: /metrics # endpoint for prometheus metrics
+```
+
+### Profiler
 Each service runs a http profiler server if it is configured in `config.yaml`. In order to access it, a connection can be created using the Go `pprof` [tool](https://pkg.go.dev/net/http/pprof). For example to investigate the memory usage
 ```bash
 go tool pprof http://localhost:9999/debug/pprof/allocs
 ```
 Then type `top` to see the functions which consume the most memory. Find more information [here](https://go.dev/blog/pprof).
+
+### Tracing
+
+In order to enable tracing for each service ther respective setting in the service has to be set in `config.yaml`
+
+```yaml
+  tracing:
+    enabled: true # is tracing enabled
+    dialAddr: http://localhost:4317 # address where traces are exported to
+```
+
+Currently the traces are exported only in [open telemtry protocol (OTLP)](https://opentelemetry.io/docs/specs/otel/protocol/) on the gRPC endpoint. This endpoint URL of the receiving tracing backend (e.g. [Jaeger](https://www.jaegertracing.io/), [Grafana Tempo](https://grafana.com/oss/tempo/), etc.) can be configured with the respective `tracing.dialAddr` setting.
 
 ## Building ARC
 

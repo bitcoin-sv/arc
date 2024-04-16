@@ -155,15 +155,9 @@ The main purpose of BlockTx is to de-duplicate processing of (large) blocks. As 
 
 ## Extended format
 
-For optimal performance, ARC uses a custom format for transactions. This format is called the extended format, and is a
-superset of the raw transaction format. The extended format includes the satoshis and scriptPubKey for each input,
-which makes it possible for ARC to validate the transaction without having to download the parent transactions. In most
-cases the sender already has all the information from the parent transaction, as this is needed to sign the transaction.
+For optimal performance, ARC uses a custom format for transactions. This format is called the extended format, and is a superset of the raw transaction format. The extended format includes the satoshis and scriptPubKey for each input, which makes it possible for ARC to validate the transaction without having to download the parent transactions. In most cases the sender already has all the information from the parent transaction, as this is needed to sign the transaction.
 
-The only check that cannot be done on a transaction in the extended format is the check for double spends. This can
-only be done by downloading the parent transactions, or by querying a utxo store. A robust utxo store is still in
-development and will be added to ARC when it is ready. At this moment, the utxo check is performed in the Bitcoin
-node when a transaction is sent to the network.
+The only check that cannot be done on a transaction in the extended format is the check for double spends. This can only be done by downloading the parent transactions, or by querying a utxo store. A robust utxo store is still in development and will be added to ARC when it is ready. At this moment, the utxo check is performed in the Bitcoin node when a transaction is sent to the network.
 
 With the successful adoption of Bitcoin ARC, this format should establish itself as the new standard of interchange
 between wallets and non-mining nodes on the network.

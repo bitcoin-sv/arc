@@ -363,3 +363,6 @@ Once that is done the documentation can be created by running
 ```
 make docs
 ```
+
+# Acknowledgements
+Special thanks to [rloadd](https://github.com/rloadd/) for his inputs to the documentation of ARC.

@@ -665,7 +665,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(ctx context.Context, rateTxsPerSe
 					continue
 				}
 
-				b.sendTxsBatchAsyncBroadcast(txs, responseCh, errCh, utxoCh, false, metamorph_api.Status_STORED, limit)
+				go b.broadcastBatch(ctx, txs, responseCh, errCh, utxoCh, false, metamorph_api.Status_STORED, limit)
 
 			case <-logSummaryTicker.C:
 
@@ -793,46 +793,51 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos chan *bt.UTXO) ([]*bt.Tx, er
 	return txs, nil
 }
 
-func (b *RateBroadcaster) sendTxsBatchAsyncBroadcast(txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error, utxoCh chan *bt.UTXO, skipFeeValidation bool, waitForStatus metamorph_api.Status, limit int64) {
-	go func() {
-		b.mu.Lock()
-		if limit > 0 && b.totalTxs >= limit {
+func (b *RateBroadcaster) broadcastBatch(ctx context.Context, txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error, utxoCh chan *bt.UTXO, skipFeeValidation bool, waitForStatus metamorph_api.Status, limit int64) {
+	b.mu.Lock()
+	if limit > 0 && b.totalTxs >= limit {
+		return
+	}
+	b.mu.Unlock()
+
+	limitReachedNotified := false
+
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+
+	resp, err := b.client.BroadcastTransactions(ctxWithTimeout, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, skipFeeValidation)
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			b.logger.Error("broadcasting canceled", slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
 			return
 		}
-		b.mu.Unlock()
+		errCh <- err
+	}
 
-		limitReachedNotified := false
+	for _, res := range resp {
+		resultCh <- res
 
-		resp, err := b.client.BroadcastTransactions(context.Background(), txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, skipFeeValidation)
+		txIDBytes, err := hex.DecodeString(res.Txid)
 		if err != nil {
-			errCh <- err
+			b.logger.Error("failed to decode txid", slog.String("err", err.Error()))
+			continue
 		}
-
-		for _, res := range resp {
-			resultCh <- res
-
-			txIDBytes, err := hex.DecodeString(res.Txid)
-			if err != nil {
-				b.logger.Error("failed to decode txid", slog.String("err", err.Error()))
-				continue
-			}
-			b.mu.Lock()
-			newUtxo := &bt.UTXO{
-				TxID:          txIDBytes,
-				Vout:          0,
-				LockingScript: b.fundingKeyset.Script,
-				Satoshis:      b.satoshiMap[res.Txid],
-			}
-			utxoCh <- newUtxo
-
-			delete(b.satoshiMap, res.Txid)
-			b.totalTxs++
-			if limit > 0 && b.totalTxs >= limit && !limitReachedNotified {
-				b.logger.Info("limit reached", slog.Int64("total", b.totalTxs), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
-				b.shutdown <- struct{}{}
-				limitReachedNotified = true
-			}
-			b.mu.Unlock()
+		b.mu.Lock()
+		newUtxo := &bt.UTXO{
+			TxID:          txIDBytes,
+			Vout:          0,
+			LockingScript: b.fundingKeyset.Script,
+			Satoshis:      b.satoshiMap[res.Txid],
 		}
-	}()
+		utxoCh <- newUtxo
+
+		delete(b.satoshiMap, res.Txid)
+		b.totalTxs++
+		if limit > 0 && b.totalTxs >= limit && !limitReachedNotified {
+			b.logger.Info("limit reached", slog.Int64("total", b.totalTxs), slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
+			b.shutdown <- struct{}{}
+			limitReachedNotified = true
+		}
+		b.mu.Unlock()
+	}
 }

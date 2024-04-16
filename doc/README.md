@@ -115,13 +115,19 @@ API is the REST API microservice for interacting with ARC. See the [API document
 
 The API takes care of validation and sending transactions to Metamorph. The API talks to one or more Metamorph instances using client-based, round robin load balancing.
 
+#### Validation
+
+The API is the first component of ARC and therefore the one that by design derives a benefit for ARC performing a preliminar validation of transactions thanks to the use of the [extended transaction format](#extended-format).
+
+However, sending transactions in classic format is supported through the ARC API.
+
+When possible, the API is responsible for rejecting transactions that would be unacceptable to the Bitcoin network.
+
 ### Metamorph
 
-Metamorph is a microservice that is responsible for processing transactions sent by the API to the Bitcoin network. It
-takes care of re-sending transactions if they are not acknowledged by the network within a certain time period (60
-seconds by default).
+Metamorph is a microservice that is responsible for processing transactions sent by the API to the Bitcoin network. It takes care of re-sending transactions if they are not acknowledged by the network within a certain time period (60 seconds by default).
 
-Metamorph is also can send callbacks to a specified URL. To register a callback, the client must add the `X-CallbackUrl` header to the request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
+Metamorph also can send callbacks to a specified URL. To register a callback, the client must add the `X-CallbackUrl` header to the request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
 the body. By default callbacks are sent to the specified URL in case the submitted transaction has status `REJECTED` or `MINED`. In case the client wants to receive the intermediate status updates (`SEEN_IN_ORPHAN_MEMPOOL` and `SEEN_ON_NETWORK`) about the transaction, additionally the `X-FullStatusUpdates` header needs to be set to `true`. See the [API documentation](/arc/api.html) for more information.
 `X-MaxTimeout` header determines maximum number of seconds to wait for transaction new statuses before request expires (default 5sec, max value 30s).
 The following example shows the format of a callback body

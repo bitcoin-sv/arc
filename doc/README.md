@@ -3,9 +3,27 @@
 
 ## Overview
 
-ARC is a transaction processor for Bitcoin that keeps track of the life cycle of a transaction as it is processed by
-the Bitcoin network. Next to the mining status of a transaction, ARC also keeps track of the various states that a
+**ARC** is a multi-layer transaction processor for Bitcoin that keeps track of the life cycle of a transaction as it is processed by the Bitcoin network. Next to the mining status of a transaction, ARC also keeps track of the various states that a
 transaction can be in, such as `ANNOUNCED_TO_NETWORK`, `SEEN_IN_ORPHAN_MEMPOOL`, `SENT_TO_NETWORK`, `SEEN_ON_NETWORK`, `MINED`, `REJECTED`, etc.
+
+Unlike other transaction processors, ARC broadcasts all transactions on the p2p network, and does not rely on the rpc interface of a single Bitcoin node. This makes it possible for ARC to connect and broadcast to any number of nodes, as many as are desired. In the future, ARC will be also able to send transactions using ipv6 multicast, which will make it
+possible to connect to a large number of nodes without incurring large bandwidth costs.
+
+The ARC design decouples the core functions of a transaction processor and encapsulates them as microservices with the ability to scale horizontally adaptively. Interaction between microservices is decoupled using asynchronous messaging where possible.
+
+ARC consists of 3 core microservices: [API](#API), [Metamorph](#Metamorph) and [BlockTx](#BlockTx), which are all described below.
+
+All the microservices are designed to be horizontally scalable, and can be deployed on a single machine or on multiple machines. Each one has been programmed with a store interface. The default store is postgres, but any database that implements the store interface can be used.
+
+![Building block diagram](./building_block_diagram.png)
+
+## Transaction lifecycle
+
+The ARC architecture has been designed to assist in the management of the transaction lifecycle, enabling better tracking of the status of each transaction, reissuing transactions until they are seen by the network and notifying the issuer of relevant status changes. This ARC feature allows clients and bitcoin wallets to be lighter and more efficient in their mission.
+
+ARC is a transaction processor for Bitcoin that keeps track of the life cycle of a transaction as it is processed by the Bitcoin network. Next to the mining status of a transaction, ARC also keeps track of the various states that a transaction can be in, such as `ANNOUNCED_TO_NETWORK`, `SEEN_IN_ORPHAN_MEMPOOL`, `SENT_TO_NETWORK`, `SEEN_ON_NETWORK`, `MINED`, `REJECTED`, etc.
+
+If a transaction is not `SEEN_ON_NETWORK` within a certain time period (60 seconds by default), ARC will re-send the transaction to the Bitcoin network. ARC also monitors the Bitcoin network for transaction and block messages, and will notify the client when a transaction has been mined, or rejected.
 
 ```plantuml
 @startuml
@@ -89,21 +107,7 @@ MINED --> [*]
 
 @enduml
 ```
-
-If a transaction is not `SEEN_ON_NETWORK` within a certain time period (60 seconds by default), ARC will re-send the
-transaction to the Bitcoin network. ARC also monitors the Bitcoin network for transaction and block messages, and
-will notify the client when a transaction has been mined, or rejected.
-
-Unlike other transaction processors, ARC broadcasts all transactions on the p2p network, and does not rely on the rpc
-interface of a Bitcoin node. This makes it possible for ARC to connect and broadcast to any number of nodes, as many
-as are desired. In the future, ARC will be also able to send transactions using ipv6 multicast, which will make it
-possible to connect to a large number of nodes without incurring large bandwidth costs.
-
-ARC consists of 3 core microservices: [API](#API), [Metamorph](#Metamorph) and [BlockTx](#BlockTx), which are all described below.
-
-All the microservices are designed to be horizontally scalable, and can be deployed on a single machine or on multiple machines. Each one has been programmed with a store interface. The default store is postgres, but any database that implements the store interface can be used.
-
-![Building block diagram](./building_block_diagram.png)
+## Microservices
 
 ### API
 

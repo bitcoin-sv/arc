@@ -67,7 +67,7 @@ func (c MQClient) PublishRegisterTxs(hash []byte) error {
 	return nil
 }
 
-func (c MQClient) RequestTx(hash []byte) error {
+func (c MQClient) PublishRequestTx(hash []byte) error {
 	err := c.nc.Publish(requestTxTopic, hash)
 	if err != nil {
 		return err

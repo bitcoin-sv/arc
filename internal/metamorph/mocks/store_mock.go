@@ -34,6 +34,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 //				panic("mock out the Get method")
 //			},
+//			GetSeenOnNetworkFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+//				panic("mock out the GetSeenOnNetwork method")
+//			},
 //			GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 //				panic("mock out the GetUnmined method")
 //			},
@@ -79,6 +82,9 @@ type MetamorphStoreMock struct {
 
 	// GetFunc mocks the Get method.
 	GetFunc func(ctx context.Context, key []byte) (*store.StoreData, error)
+
+	// GetSeenOnNetworkFunc mocks the GetSeenOnNetwork method.
+	GetSeenOnNetworkFunc func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error)
 
 	// GetUnminedFunc mocks the GetUnmined method.
 	GetUnminedFunc func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error)
@@ -134,6 +140,17 @@ type MetamorphStoreMock struct {
 			Ctx context.Context
 			// Key is the key argument value.
 			Key []byte
+		}
+		// GetSeenOnNetwork holds details about calls to the GetSeenOnNetwork method.
+		GetSeenOnNetwork []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Since is the since argument value.
+			Since time.Time
+			// Limit is the limit argument value.
+			Limit int64
+			// Offset is the offset argument value.
+			Offset int64
 		}
 		// GetUnmined holds details about calls to the GetUnmined method.
 		GetUnmined []struct {
@@ -209,6 +226,7 @@ type MetamorphStoreMock struct {
 	lockClose             sync.RWMutex
 	lockDel               sync.RWMutex
 	lockGet               sync.RWMutex
+	lockGetSeenOnNetwork  sync.RWMutex
 	lockGetUnmined        sync.RWMutex
 	lockIncrementRetries  sync.RWMutex
 	lockPing              sync.RWMutex
@@ -357,6 +375,50 @@ func (mock *MetamorphStoreMock) GetCalls() []struct {
 	mock.lockGet.RLock()
 	calls = mock.calls.Get
 	mock.lockGet.RUnlock()
+	return calls
+}
+
+// GetSeenOnNetwork calls GetSeenOnNetworkFunc.
+func (mock *MetamorphStoreMock) GetSeenOnNetwork(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+	if mock.GetSeenOnNetworkFunc == nil {
+		panic("MetamorphStoreMock.GetSeenOnNetworkFunc: method is nil but MetamorphStore.GetSeenOnNetwork was just called")
+	}
+	callInfo := struct {
+		Ctx    context.Context
+		Since  time.Time
+		Limit  int64
+		Offset int64
+	}{
+		Ctx:    ctx,
+		Since:  since,
+		Limit:  limit,
+		Offset: offset,
+	}
+	mock.lockGetSeenOnNetwork.Lock()
+	mock.calls.GetSeenOnNetwork = append(mock.calls.GetSeenOnNetwork, callInfo)
+	mock.lockGetSeenOnNetwork.Unlock()
+	return mock.GetSeenOnNetworkFunc(ctx, since, limit, offset)
+}
+
+// GetSeenOnNetworkCalls gets all the calls that were made to GetSeenOnNetwork.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.GetSeenOnNetworkCalls())
+func (mock *MetamorphStoreMock) GetSeenOnNetworkCalls() []struct {
+	Ctx    context.Context
+	Since  time.Time
+	Limit  int64
+	Offset int64
+} {
+	var calls []struct {
+		Ctx    context.Context
+		Since  time.Time
+		Limit  int64
+		Offset int64
+	}
+	mock.lockGetSeenOnNetwork.RLock()
+	calls = mock.calls.GetSeenOnNetwork
+	mock.lockGetSeenOnNetwork.RUnlock()
 	return calls
 }
 

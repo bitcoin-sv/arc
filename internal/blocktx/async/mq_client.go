@@ -98,7 +98,7 @@ func (c MQClient) PublishMinedTxs(ctx context.Context, txsBlocks []*blocktx_api.
 	for i, txBlock := range txsBlocks {
 		txBlockBatch = append(txBlockBatch, txBlock)
 		if (i+1)%c.maxBatchSize == 0 {
-			err := c.publish(txBlockBatch)
+			err := c.publishMinedTxs(txBlockBatch)
 			if err != nil {
 				return err
 			}
@@ -110,7 +110,7 @@ func (c MQClient) PublishMinedTxs(ctx context.Context, txsBlocks []*blocktx_api.
 		return nil
 	}
 
-	err := c.publish(txBlockBatch)
+	err := c.publishMinedTxs(txBlockBatch)
 	if err != nil {
 		return err
 	}
@@ -118,7 +118,7 @@ func (c MQClient) PublishMinedTxs(ctx context.Context, txsBlocks []*blocktx_api.
 	return nil
 }
 
-func (c MQClient) publish(txBlockBatch []*blocktx_api.TransactionBlock) error {
+func (c MQClient) publishMinedTxs(txBlockBatch []*blocktx_api.TransactionBlock) error {
 	data, err := proto.Marshal(&blocktx_api.TransactionBlocks{TransactionBlocks: txBlockBatch})
 	if err != nil {
 		return err

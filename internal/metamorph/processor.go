@@ -328,7 +328,7 @@ func (p *Processor) StartLockTransactions() {
 	}()
 }
 
-func (p *Processor) StartRquestingSeenOnNetworkTxs() {
+func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 	ctx := context.Background()
 	ticker := time.NewTicker(p.processSeenOnNetworkTxsInterval)
 

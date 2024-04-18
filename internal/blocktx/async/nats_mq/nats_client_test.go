@@ -55,15 +55,30 @@ func TestMain(m *testing.M) {
 func TestNewNatsClient(t *testing.T) {
 	tt := []struct {
 		name string
+		url  string
+
+		expectedErrorStr string
 	}{
 		{
 			name: "success",
+			url:  "nats://localhost:4222",
+		},
+		{
+			name: "error",
+			url:  "wrong url",
+
+			expectedErrorStr: "failed to connect to NATS server",
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewNatsClient("nats://localhost:4222")
+			_, err := NewNatsClient(tc.url)
+			if tc.expectedErrorStr != "" || err != nil {
+				require.ErrorContains(t, err, tc.expectedErrorStr)
+				return
+			}
+
 			require.NoError(t, err)
 		})
 	}

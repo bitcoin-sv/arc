@@ -360,6 +360,40 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 	return p.getStoreDataFromRows(rows)
 }
 
+func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+
+	q := `SELECT
+	     stored_at
+		,announced_at
+		,mined_at
+		,hash
+		,status
+		,block_height
+		,block_hash
+		,callback_url
+		,callback_token
+		,full_status_updates
+     	,reject_reason
+		,raw_tx
+		,locked_by
+     	,merkle_path
+		,retries
+		FROM metamorph.transactions
+		WHERE locked_by = $5
+		AND status = $1
+		AND inserted_at_num > $2
+		ORDER BY inserted_at_num DESC
+		LIMIT $3 OFFSET $4;`
+
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since.Format(numericalDateHourLayout), limit, offset, p.hostname)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return p.getStoreDataFromRows(rows)
+}
+
 func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
 	txHashes := make([][]byte, len(updates))
 	statuses := make([]metamorph_api.Status, len(updates))

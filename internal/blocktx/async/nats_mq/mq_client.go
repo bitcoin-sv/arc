@@ -34,12 +34,12 @@ func WithTracer() func(handler *MQClient) {
 }
 
 type MQClient struct {
-	nc                  NatsClient
-	txChannel           chan []byte
-	requestTxChannel    chan []byte
-	subscription        *nats.Subscription
-	requestSubscription *nats.Subscription
-	maxBatchSize        int
+	nc                      NatsClient
+	txChannel               chan []byte
+	requestTxChannel        chan []byte
+	registerTxsSubscription *nats.Subscription
+	requestSubscription     *nats.Subscription
+	maxBatchSize            int
 }
 
 type NatsClient interface {
@@ -65,7 +65,7 @@ func (c MQClient) SubscribeRegisterTxs() error {
 		c.txChannel <- msg.Data
 	})
 
-	c.subscription = subscription
+	c.registerTxsSubscription = subscription
 
 	if err != nil {
 		return err
@@ -134,7 +134,7 @@ func (c MQClient) publish(txBlockBatch []*blocktx_api.TransactionBlock) error {
 }
 
 func (c MQClient) Shutdown() error {
-	err := c.subscription.Unsubscribe()
+	err := c.registerTxsSubscription.Unsubscribe()
 	if err != nil {
 		return err
 	}

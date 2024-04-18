@@ -1,4 +1,4 @@
-package nats_mq
+package async
 
 import (
 	"context"

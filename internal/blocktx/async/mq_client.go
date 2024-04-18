@@ -1,4 +1,4 @@
-package nats_mq
+package async
 
 import (
 	"context"
@@ -15,7 +15,6 @@ const (
 	registerTxTopic     = "register-tx"
 	requestTxTopic      = "request-tx"
 	minedTxsTopic       = "mined-txs"
-	connectionTries     = 5
 	maxBatchSizeDefault = 20
 )
 

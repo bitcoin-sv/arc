@@ -133,22 +133,14 @@ func (c MQClient) publishMinedTxs(txBlockBatch []*blocktx_api.TransactionBlock) 
 }
 
 func (c MQClient) Shutdown() error {
-	err := c.registerTxsSubscription.Unsubscribe()
+
+	err := c.nc.Drain()
 	if err != nil {
 		return err
 	}
 
-	err = c.requestSubscription.Unsubscribe()
-	if err != nil {
-		return err
-	}
-
-	c.nc.Close()
-
-	err = c.nc.Drain()
-	if err != nil {
-		return err
-	}
+	close(c.txChannel)
+	close(c.requestTxChannel)
 
 	return nil
 }

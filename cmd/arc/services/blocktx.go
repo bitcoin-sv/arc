@@ -112,11 +112,13 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 	}
 
 	mqClient := nats_mq.NewNatsMQClient(natsClient, txChannel, requestTxChannel, mqOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create message queue client: %v", err)
-	}
 
 	err = mqClient.SubscribeRegisterTxs()
+	if err != nil {
+		return nil, err
+	}
+
+	err = mqClient.SubscribeRequestTxs()
 	if err != nil {
 		return nil, err
 	}

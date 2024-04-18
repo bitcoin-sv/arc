@@ -535,4 +535,31 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 10, numberOfRemainingTxs)
 	})
+
+	t.Run("get seen on network txs", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+
+		tx1Data := &store.StoreData{
+			RawTx:  testdata.TX1RawBytes,
+			Hash:   testdata.TX1Hash,
+			Status: metamorph_api.Status_SEEN_ON_NETWORK,
+		}
+		err = postgresDB.Set(ctx, testdata.TX1Hash[:], tx1Data)
+		require.NoError(t, err)
+
+		tx6Data := &store.StoreData{
+			RawTx:  testdata.TX6RawBytes,
+			Hash:   testdata.TX6Hash,
+			Status: metamorph_api.Status_STORED,
+		}
+
+		err = postgresDB.Set(ctx, testdata.TX6Hash[:], tx6Data)
+		require.NoError(t, err)
+
+		records, err := postgresDB.GetSeenOnNetwork(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 2, 0)
+		require.NoError(t, err)
+		require.Equal(t, len(records), 1)
+	})
 }

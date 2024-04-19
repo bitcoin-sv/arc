@@ -107,12 +107,15 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	metamorphProcessor.StartLockTransactions()
 	time.Sleep(200 * time.Millisecond) // wait a short time so that process expired transactions will start shortly after lock transactions go routine
 
 	metamorphProcessor.StartProcessExpiredTransactions()
-	metamorphProcessor.StartRquestingSeenOnNetworkTxs()
+	metamorphProcessor.StartRequestingSeenOnNetworkTxs()
 	metamorphProcessor.StartProcessStatusUpdatesInStorage()
 	metamorphProcessor.StartProcessMinedCallbacks()
 

@@ -359,7 +359,9 @@ func (p *Processor) StartRquestingSeenOnNetworkTxs() {
 					continue
 				}
 
-				p.logger.Info("SEEN_ON_NETWORK txs being requested", slog.String("number", strconv.Itoa(len(seenOnNetworkTxs))))
+				if len(seenOnNetworkTxs) > 0 {
+					p.logger.Info("SEEN_ON_NETWORK txs being requested", slog.Int("number", len(seenOnNetworkTxs)))
+				}
 				for _, tx := range seenOnNetworkTxs {
 					// by requesting tx, blocktx checks if it has the transaction mined in the database and sends it back
 					if err = p.mqClient.PublishRequestTx(tx.Hash[:]); err != nil {

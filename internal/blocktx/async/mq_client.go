@@ -147,5 +147,7 @@ func (c MQClient) Shutdown() error {
 		close(c.requestTxChannel)
 	}
 
+	c.nc.Close()
+
 	return nil
 }

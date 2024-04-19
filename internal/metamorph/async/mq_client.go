@@ -32,9 +32,8 @@ type MQClient struct {
 	subscription *nats.Subscription
 }
 
-func NewNatsMQClient(nc NatsClient, minedTxsChan chan *blocktx_api.TransactionBlocks, logger *slog.Logger) (metamorph.MessageQueueClient, error) {
-
-	return &MQClient{nc: nc, logger: logger, minedTxsChan: minedTxsChan}, nil
+func NewNatsMQClient(nc NatsClient, minedTxsChan chan *blocktx_api.TransactionBlocks, logger *slog.Logger) metamorph.MessageQueueClient {
+	return &MQClient{nc: nc, logger: logger, minedTxsChan: minedTxsChan}
 }
 
 func (c MQClient) PublishRegisterTxs(hash []byte) error {

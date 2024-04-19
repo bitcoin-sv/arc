@@ -34,7 +34,7 @@ func WithTracer() func(handler *MQClient) {
 
 type MQClient struct {
 	nc                      NatsClient
-	txChannel               chan []byte
+	registerTxsChannel      chan []byte
 	requestTxChannel        chan []byte
 	registerTxsSubscription *nats.Subscription
 	requestSubscription     *nats.Subscription
@@ -48,8 +48,8 @@ type NatsClient interface {
 	Drain() error
 }
 
-func NewNatsMQClient(nc NatsClient, txChannel chan []byte, requestTxChannel chan []byte, opts ...func(client *MQClient)) blocktx.MessageQueueClient {
-	m := &MQClient{nc: nc, txChannel: txChannel, requestTxChannel: requestTxChannel, maxBatchSize: maxBatchSizeDefault}
+func NewNatsMQClient(nc NatsClient, registerTxsChannel chan []byte, requestTxChannel chan []byte, opts ...func(client *MQClient)) blocktx.MessageQueueClient {
+	m := &MQClient{nc: nc, registerTxsChannel: registerTxsChannel, requestTxChannel: requestTxChannel, maxBatchSize: maxBatchSizeDefault}
 
 	for _, opt := range opts {
 		opt(m)
@@ -61,7 +61,7 @@ func NewNatsMQClient(nc NatsClient, txChannel chan []byte, requestTxChannel chan
 func (c MQClient) SubscribeRegisterTxs() error {
 
 	subscription, err := c.nc.QueueSubscribe(registerTxTopic, consumerQueue, func(msg *nats.Msg) {
-		c.txChannel <- msg.Data
+		c.registerTxsChannel <- msg.Data
 	})
 
 	c.registerTxsSubscription = subscription
@@ -139,8 +139,13 @@ func (c MQClient) Shutdown() error {
 		return err
 	}
 
-	close(c.txChannel)
-	close(c.requestTxChannel)
+	if c.registerTxsChannel != nil {
+		close(c.registerTxsChannel)
+	}
+
+	if c.requestTxChannel != nil {
+		close(c.requestTxChannel)
+	}
 
 	return nil
 }

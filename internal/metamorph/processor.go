@@ -349,19 +349,18 @@ func (p *Processor) StartRquestingSeenOnNetworkTxs() {
 				getSeenOnNetworkSince := p.now().Add(-1 * p.mapExpiryTime)
 				var offset int64
 
-				for {
-					seenOnNetworkTxs, err := p.store.GetSeenOnNetwork(ctx, getSeenOnNetworkSince, loadSeenOnNetworkLimit, offset)
-					offset += loadSeenOnNetworkLimit
-					if err != nil {
-						p.logger.Error("Failed to get SeenOnNetwork transactions", slog.String("err", err.Error()))
-						continue
-					}
+				seenOnNetworkTxs, err := p.store.GetSeenOnNetwork(ctx, getSeenOnNetworkSince, loadSeenOnNetworkLimit, offset)
+				offset += loadSeenOnNetworkLimit
+				if err != nil {
+					p.logger.Error("Failed to get SeenOnNetwork transactions", slog.String("err", err.Error()))
+					continue
+				}
 
-					for _, tx := range seenOnNetworkTxs {
-						// by requesting tx, blocktx checks if it has the transaction mined in the database and sends it back
-						if err = p.mqClient.PublishRequestTx(tx.Hash[:]); err != nil {
-							p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()))
-						}
+				p.logger.Info("SEEN_ON_NETWORK txs being requested", slog.String("number", strconv.Itoa(len(seenOnNetworkTxs))))
+				for _, tx := range seenOnNetworkTxs {
+					// by requesting tx, blocktx checks if it has the transaction mined in the database and sends it back
+					if err = p.mqClient.PublishRequestTx(tx.Hash[:]); err != nil {
+						p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()))
 					}
 				}
 			}

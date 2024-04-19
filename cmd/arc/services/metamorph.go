@@ -94,10 +94,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", natsURL, err)
 	}
 
-	mqClient, err := async.NewNatsMQClient(natsClient, minedTxsChan, logger)
-	if err != nil {
-		return nil, err
-	}
+	mqClient := async.NewNatsMQClient(natsClient, minedTxsChan, logger)
 
 	err = mqClient.SubscribeMinedTxs()
 	if err != nil {

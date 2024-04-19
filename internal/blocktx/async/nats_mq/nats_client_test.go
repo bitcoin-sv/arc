@@ -1,6 +1,7 @@
 package nats_mq
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -14,19 +15,24 @@ const (
 	natsPort = "4222"
 )
 
+var (
+	natsURL string
+)
+
 func TestMain(m *testing.M) {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		log.Fatalf("failed to create pool: %v", err)
 	}
 
+	port := "4334"
 	opts := dockertest.RunOptions{
 		Repository:   "nats",
 		Tag:          "2.10.10",
 		ExposedPorts: []string{natsPort},
 		PortBindings: map[docker.Port][]docker.PortBinding{
 			natsPort: {
-				{HostIP: "0.0.0.0", HostPort: natsPort},
+				{HostIP: "0.0.0.0", HostPort: port},
 			},
 		},
 	}
@@ -42,6 +48,9 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to create resource: %v", err)
 	}
 
+	hostPort := resource.GetPort(fmt.Sprintf("%s/tcp", natsPort))
+	natsURL = fmt.Sprintf("nats://localhost:%s", hostPort)
+
 	code := m.Run()
 
 	err = pool.Purge(resource)
@@ -51,7 +60,6 @@ func TestMain(m *testing.M) {
 
 	os.Exit(code)
 }
-
 func TestNewNatsClient(t *testing.T) {
 	tt := []struct {
 		name string
@@ -61,7 +69,7 @@ func TestNewNatsClient(t *testing.T) {
 	}{
 		{
 			name: "success",
-			url:  "nats://localhost:4222",
+			url:  natsURL,
 		},
 		{
 			name: "error",

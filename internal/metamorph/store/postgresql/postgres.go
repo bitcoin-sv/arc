@@ -362,11 +362,23 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 
 func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 
-	q := `SELECT
+	q := `UPDATE metamorph.transactions
+		SET locked_by=$5
+		FROM (
+			SELECT hash
+			FROM metamorph.transactions
+			WHERE (locked_by = $5 OR locked_by = 'NONE')
+			AND status = $1
+			AND inserted_at_num > $2
+			ORDER BY inserted_at_num DESC
+			LIMIT $3 OFFSET $4)
+		as t
+		WHERE metamorph.transactions.hash = t.hash
+		RETURNING
 	     stored_at
 		,announced_at
 		,mined_at
-		,hash
+		,t.hash
 		,status
 		,block_height
 		,block_hash
@@ -377,18 +389,36 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, limi
 		,raw_tx
 		,locked_by
      	,merkle_path
-		,retries
-		FROM metamorph.transactions
-		WHERE locked_by = $5
-		AND status = $1
-		AND inserted_at_num > $2
-		ORDER BY inserted_at_num DESC
-		LIMIT $3 OFFSET $4;`
+		,retries;`
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since.Format(numericalDateHourLayout), limit, offset, p.hostname)
+	tx, err := p.db.Begin()
 	if err != nil {
 		return nil, err
 	}
+
+	_, err = tx.Exec(`SELECT hash 
+	FROM metamorph.transactions 
+	WHERE (locked_by = $5 OR locked_by = 'NONE') 
+	AND status = $1
+	AND inserted_at_num > $2
+	ORDER BY inserted_at_num DESC 
+	LIMIT $3 OFFSET $4
+	FOR UPDATE`, metamorph_api.Status_SEEN_ON_NETWORK, since.Format(numericalDateHourLayout), limit, offset, p.hostname)
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
+
+	rows, err := tx.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since.Format(numericalDateHourLayout), limit, offset, p.hostname)
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
+
 	defer rows.Close()
 
 	return p.getStoreDataFromRows(rows)

@@ -23,7 +23,6 @@ const (
 )
 
 var (
-	natsURL        string
 	natsConnClient *nats.Conn
 	natsConn       *nats.Conn
 )
@@ -58,7 +57,7 @@ func TestMain(m *testing.M) {
 	}
 
 	hostPort := resource.GetPort(fmt.Sprintf("%s/tcp", natsPort))
-	natsURL = fmt.Sprintf("nats://localhost:%s", hostPort)
+	natsURL := fmt.Sprintf("nats://localhost:%s", hostPort)
 
 	natsConnClient, err = nats_mq.NewNatsClient(natsURL)
 	if err != nil {

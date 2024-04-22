@@ -1,4 +1,4 @@
-package nats_mq
+package async
 
 import (
 	"context"
@@ -80,7 +80,7 @@ func TestMQClient_PublishMinedTxs(t *testing.T) {
 			txChannel := make(chan []byte, 10)
 			requestTxChannel := make(chan []byte, 10)
 
-			mqClient := NewNatsMQClient(natsMock, txChannel, requestTxChannel, WithMaxBatchSize(5))
+			mqClient := NewNatsMQClient(natsMock, txChannel, requestTxChannel, WithMaxBatchSize(5), WithTracer())
 
 			err := mqClient.PublishMinedTxs(context.Background(), tc.txsBlocks)
 

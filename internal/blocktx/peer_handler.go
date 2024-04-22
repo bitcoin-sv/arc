@@ -373,9 +373,14 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 			case <-ph.quitListenRequestTxChannel:
 				return
 			case txHash := <-ph.requestTxChannel:
-				blockHash, blockHeight, merklePath, err := ph.store.GetMinedTransaction(context.Background(), txHash)
+				tx, err := chainhash.NewHash(txHash)
 				if err != nil {
-					ph.logger.Error("Couldn't get mined transactions from store", slog.String("err", err.Error()))
+					ph.logger.Error("Couldn't create tx from byte array")
+				}
+
+				blockHash, blockHeight, merklePath, err := ph.store.GetMinedTransaction(context.Background(), tx[:])
+				if err != nil {
+					ph.logger.Error("Couldn't get mined transactions from store", slog.String("hash", tx.String()), slog.String("err", err.Error()))
 					continue
 				}
 

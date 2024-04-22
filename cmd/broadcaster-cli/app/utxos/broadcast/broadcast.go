@@ -192,7 +192,7 @@ var Cmd = &cobra.Command{
 func init() {
 	var err error
 
-	Cmd.Flags().Int("rate", 10, "Transactions per second to be rate broad casted")
+	Cmd.Flags().Int("rate", 10, "Transactions per second to be rate broad casted per key set")
 	err = viper.BindPFlag("rate", Cmd.Flags().Lookup("rate"))
 	if err != nil {
 		log.Fatal(err)
@@ -204,7 +204,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	Cmd.Flags().Int("limit", 0, "Limit to number of transactions to be submitted after which broadcaster will stop, default: no limit")
+	Cmd.Flags().Int("limit", 0, "Limit to number of transactions to be submitted after which broadcaster will stop per key set, default: no limit")
 	err = viper.BindPFlag("limit", Cmd.Flags().Lookup("limit"))
 	if err != nil {
 		log.Fatal(err)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/async/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
@@ -103,20 +104,22 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	mqOpts := []func(handler *nats_mq.MQClient){
-		nats_mq.WithMaxBatchSize(maxBatchSize),
+	mqOpts := []func(handler *async.MQClient){
+		async.WithMaxBatchSize(maxBatchSize),
 	}
 
 	if tracingEnabled {
-		mqOpts = append(mqOpts, nats_mq.WithTracer())
+		mqOpts = append(mqOpts, async.WithTracer())
 	}
 
-	mqClient := nats_mq.NewNatsMQClient(natsClient, txChannel, requestTxChannel, mqOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create message queue client: %v", err)
-	}
+	mqClient := async.NewNatsMQClient(natsClient, txChannel, requestTxChannel, mqOpts...)
 
 	err = mqClient.SubscribeRegisterTxs()
+	if err != nil {
+		return nil, err
+	}
+
+	err = mqClient.SubscribeRequestTxs()
 	if err != nil {
 		return nil, err
 	}

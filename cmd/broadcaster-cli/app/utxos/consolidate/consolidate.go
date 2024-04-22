@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"strings"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var Cmd = &cobra.Command{
@@ -117,21 +115,4 @@ var Cmd = &cobra.Command{
 
 		return nil
 	},
-}
-
-func init() {
-	var err error
-
-	Cmd.Flags().Int("outputs", 10, "Nr of requested outputs")
-	err = viper.BindPFlag("outputs", Cmd.Flags().Lookup("outputs"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	Cmd.Flags().Int("satoshis", 1000, "Nr of satoshis per output outputs")
-	err = viper.BindPFlag("satoshis", Cmd.Flags().Lookup("satoshis"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
 }

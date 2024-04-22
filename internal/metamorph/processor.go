@@ -24,12 +24,15 @@ const (
 	MaxRetries = 15
 	// length of interval for checking transactions if they are seen on the network
 	// if not we resend them again for a few times
-	unseenTransactionRebroadcastingInterval = 60 * time.Second
+	unseenTransactionRebroadcastingInterval    = 60 * time.Second
+	seenOnNetworkTransactionRequestingInterval = 3 * time.Minute
 
-	mapExpiryTimeDefault = 24 * time.Hour
-	LogLevelDefault      = slog.LevelInfo
+	mapExpiryTimeDefault       = 24 * time.Hour
+	seenOnNetworkTxTimeDefault = 3 * 24 * time.Hour
+	LogLevelDefault            = slog.LevelInfo
 
 	loadUnminedLimit          = int64(5000)
+	loadSeenOnNetworkLimit    = int64(5000)
 	minimumHealthyConnections = 2
 
 	processStatusUpdatesIntervalDefault  = 500 * time.Millisecond
@@ -47,6 +50,7 @@ type Processor struct {
 	mqClient             MessageQueueClient
 	logger               *slog.Logger
 	mapExpiryTime        time.Duration
+	seenOnNetworkTxTime  time.Duration
 	now                  func() time.Time
 
 	httpClient HttpClient
@@ -66,8 +70,12 @@ type Processor struct {
 	processStatusUpdatesBatchSize             int
 
 	processExpiredTxsInterval              time.Duration
+	processSeenOnNetworkTxsInterval        time.Duration
 	quitProcessExpiredTransactions         chan struct{}
 	quitProcessExpiredTransactionsComplete chan struct{}
+
+	quitProcessSeenOnNetworkTxRequesting         chan struct{}
+	quitProcessSeenOnNetworkTxRequestingComplete chan struct{}
 
 	startTime           time.Time
 	queueLength         atomic.Int32
@@ -100,14 +108,16 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 	}
 
 	p := &Processor{
-		startTime:     time.Now().UTC(),
-		store:         s,
-		pm:            pm,
-		mapExpiryTime: mapExpiryTimeDefault,
-		now:           time.Now,
+		startTime:           time.Now().UTC(),
+		store:               s,
+		pm:                  pm,
+		mapExpiryTime:       mapExpiryTimeDefault,
+		seenOnNetworkTxTime: seenOnNetworkTxTimeDefault,
+		now:                 time.Now,
 
-		processExpiredTxsInterval: unseenTransactionRebroadcastingInterval,
-		lockTransactionsInterval:  unseenTransactionRebroadcastingInterval,
+		processExpiredTxsInterval:       unseenTransactionRebroadcastingInterval,
+		processSeenOnNetworkTxsInterval: seenOnNetworkTransactionRequestingInterval,
+		lockTransactionsInterval:        unseenTransactionRebroadcastingInterval,
 
 		processStatusUpdatesInterval:  processStatusUpdatesIntervalDefault,
 		processStatusUpdatesBatchSize: processStatusUpdatesBatchSizeDefault,
@@ -170,6 +180,11 @@ func (p *Processor) Shutdown() {
 	if p.quitProcessExpiredTransactions != nil {
 		p.quitProcessExpiredTransactions <- struct{}{}
 		<-p.quitProcessExpiredTransactionsComplete
+	}
+
+	if p.quitProcessSeenOnNetworkTxRequesting != nil {
+		p.quitProcessSeenOnNetworkTxRequesting <- struct{}{}
+		<-p.quitProcessSeenOnNetworkTxRequestingComplete
 	}
 }
 
@@ -316,6 +331,48 @@ func (p *Processor) StartLockTransactions() {
 	}()
 }
 
+func (p *Processor) StartRequestingSeenOnNetworkTxs() {
+	ctx := context.Background()
+	ticker := time.NewTicker(p.processSeenOnNetworkTxsInterval)
+
+	p.quitProcessSeenOnNetworkTxRequesting = make(chan struct{})
+	p.quitProcessSeenOnNetworkTxRequestingComplete = make(chan struct{})
+
+	go func() {
+		defer func() {
+			p.quitProcessSeenOnNetworkTxRequestingComplete <- struct{}{}
+		}()
+
+		for {
+			select {
+			case <-p.quitProcessSeenOnNetworkTxRequesting:
+				return
+			case <-ticker.C:
+				// Periodically read SEEN_ON_NETWORK transactions from database check their status in blocktx
+				getSeenOnNetworkSince := p.now().Add(-1 * p.seenOnNetworkTxTime)
+				var offset int64
+
+				seenOnNetworkTxs, err := p.store.GetSeenOnNetwork(ctx, getSeenOnNetworkSince, loadSeenOnNetworkLimit, offset)
+				offset += loadSeenOnNetworkLimit
+				if err != nil {
+					p.logger.Error("Failed to get SeenOnNetwork transactions", slog.String("err", err.Error()))
+					continue
+				}
+
+				if len(seenOnNetworkTxs) > 0 {
+					p.logger.Info("SEEN_ON_NETWORK txs being requested", slog.Int("number", len(seenOnNetworkTxs)))
+				}
+				for _, tx := range seenOnNetworkTxs {
+					// by requesting tx, blocktx checks if it has the transaction mined in the database and sends it back
+					if err = p.mqClient.PublishRequestTx(tx.Hash[:]); err != nil {
+						p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()))
+					}
+				}
+			}
+		}
+	}()
+}
+
 func (p *Processor) StartProcessExpiredTransactions() {
 	ctx := context.Background()
 	ticker := time.NewTicker(p.processExpiredTxsInterval)
@@ -363,11 +420,6 @@ func (p *Processor) StartProcessExpiredTransactions() {
 							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.RequestTransaction(tx.Hash)
 							requested++
-
-							// by requesting tx, blocktx checks if it has the transaction mined in the database and sends it back
-							if err = p.mqClient.RequestTx(tx.Hash[:]); err != nil {
-								p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()))
-							}
 
 						} else {
 							p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))

@@ -570,7 +570,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				PublishRegisterTxsFunc: func(hash []byte) error {
 					return nil
 				},
-				RequestTxFunc: func(hash []byte) error {
+				PublishRequestTxFunc: func(hash []byte) error {
 					return nil
 				},
 			}

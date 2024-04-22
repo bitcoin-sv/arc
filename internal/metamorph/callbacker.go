@@ -86,5 +86,5 @@ func (p *Processor) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 		sleepDuration *= 2
 	}
 
-	logger.Warn("Couldn't send transaction info through callback url after tries", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.Int("retries", CallbackTries))
+	logger.Debug("Couldn't send transaction info through callback url after tries", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.Int("retries", CallbackTries))
 }

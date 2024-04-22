@@ -52,7 +52,7 @@ blocktx:
   healthServerDialAddr: localhost:8006 # address at which the grpc health server is exposed
   tracing:
     enabled: true # is tracing enabled
-    dialAddr: localhost:4317 # address where traces are exported to
+    dialAddr: http://localhost:4317 # address where traces are exported to
   db:
     mode: postgres # db mode indicates which db to use. At the moment only postgres is offered
     postgres: # postgres db configuration in case that mode: postgres

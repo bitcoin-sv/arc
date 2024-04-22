@@ -14,7 +14,7 @@ import (
 
 const (
 	postgresDriverName        = "postgres"
-	maxPostgresBulkInsertRows = 1000
+	maxPostgresBulkInsertRows = 8192
 )
 
 var tracer trace.Tracer

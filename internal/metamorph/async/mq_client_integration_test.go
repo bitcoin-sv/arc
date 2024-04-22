@@ -72,11 +72,6 @@ func TestMain(m *testing.M) {
 
 	code := m.Run()
 
-	err = natsConnClient.Drain()
-	if err != nil {
-		log.Fatalf("failed to drain nats connection: %v", err)
-	}
-
 	err = natsConn.Drain()
 	if err != nil {
 		log.Fatalf("failed to drain nats connection: %v", err)
@@ -218,5 +213,8 @@ func TestNatsClient(t *testing.T) {
 				}
 			}
 		}
+
+		err = mqClient.Shutdown()
+		require.NoError(t, err)
 	})
 }

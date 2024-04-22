@@ -3,7 +3,7 @@ package async
 import (
 	"context"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/nats_mq"
+	"github.com/bitcoin-sv/arc/internal/blocktx/async/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/nats-io/nats.go"

@@ -128,7 +128,10 @@ func TestNatsClient(t *testing.T) {
 
 				t.Logf("counter, %d", counter)
 			}
-			break
+
+			if counter >= 1 {
+				break
+			}
 		}
 
 		require.Len(t, txBlockBatch, counter)
@@ -149,8 +152,11 @@ func TestNatsClient(t *testing.T) {
 
 		t.Log("publish")
 		err = mqClient.PublishRegisterTxs(testdata.TX1Hash[:])
+		require.NoError(t, err)
 		err = mqClient.PublishRegisterTxs(testdata.TX1Hash[:])
+		require.NoError(t, err)
 		err = mqClient.PublishRegisterTxs(testdata.TX1Hash[:])
+		require.NoError(t, err)
 		err = mqClient.PublishRegisterTxs(testdata.TX1Hash[:])
 		require.NoError(t, err)
 
@@ -187,8 +193,11 @@ func TestNatsClient(t *testing.T) {
 
 		t.Log("publish")
 		err = mqClient.PublishRequestTx(testdata.TX1Hash[:])
+		require.NoError(t, err)
 		err = mqClient.PublishRequestTx(testdata.TX1Hash[:])
+		require.NoError(t, err)
 		err = mqClient.PublishRequestTx(testdata.TX1Hash[:])
+		require.NoError(t, err)
 		err = mqClient.PublishRequestTx(testdata.TX1Hash[:])
 		require.NoError(t, err)
 

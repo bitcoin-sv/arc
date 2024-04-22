@@ -13,9 +13,8 @@ const (
 	registerTxTopic = "register-tx"
 	requestTxTopic  = "request-tx"
 
-	consumerQueue   = "mined-txs-group"
-	minedTxsTopic   = "mined-txs"
-	connectionTries = 5
+	consumerQueue = "mined-txs-group"
+	minedTxsTopic = "mined-txs"
 )
 
 type NatsClient interface {

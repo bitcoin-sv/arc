@@ -370,7 +370,7 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, limi
 			WHERE (locked_by = $5 OR locked_by = 'NONE')
 			AND status = $1
 			AND inserted_at_num > $2
-			ORDER BY inserted_at_num DESC
+			ORDER BY hash DESC
 			LIMIT $3 OFFSET $4)
 		as t
 		WHERE metamorph.transactions.hash = t.hash
@@ -401,7 +401,7 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, limi
 	WHERE (locked_by = $5 OR locked_by = 'NONE') 
 	AND status = $1
 	AND inserted_at_num > $2
-	ORDER BY inserted_at_num DESC 
+	ORDER BY hash DESC
 	LIMIT $3 OFFSET $4
 	FOR UPDATE`, metamorph_api.Status_SEEN_ON_NETWORK, since.Format(numericalDateHourLayout), limit, offset, p.hostname)
 	if err != nil {

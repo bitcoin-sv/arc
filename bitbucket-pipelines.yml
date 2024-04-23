@@ -37,7 +37,8 @@ pipelines:
             - echo $BUILD_TAG
             - echo "Logging in to Amazon ECR..."
             - aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REGISTRY_BLOCKTX}
-            - aws ecr list-images --repository-name ${ECR_REGISTRY_BLOCKTX}
+            - REPOSITORY_NAME=$(echo $ECR_REGISTRY_BLOCKTX | rev | cut -d / -f 1 | rev)
+            - aws ecr list-images --repository-name ${REPOSITORY_NAME}
             - docker build -t ${ECR_REGISTRY_BLOCKTX}:${BUILD_TAG} . -f Dockerfile.blocktx_migrations
             - docker push ${ECR_REGISTRY_BLOCKTX}:${BUILD_TAG}
 

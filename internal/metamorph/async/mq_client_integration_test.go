@@ -1,9 +1,9 @@
 package async
 
 import (
-	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"testing"
 	"time"
@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to create pool: %v", err)
 	}
 
-	port := "4333"
+	port := "4335"
 	opts := dockertest.RunOptions{
 		Repository:   "nats",
 		Tag:          "2.10.10",
@@ -92,32 +92,23 @@ func TestNatsClient(t *testing.T) {
 		MerklePath:      "mp-1",
 	}
 
+	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 100)
+	mqClient := NewNatsMQClient(natsConnClient, minedTxsChan, slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
+
 	t.Run("publish mined txs", func(t *testing.T) {
 
-		minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 100)
-
-		_, err := natsConn.QueueSubscribe(minedTxsTopic, "queue", func(msg *nats.Msg) {
-			serialized := &blocktx_api.TransactionBlocks{}
-			unmarshalErr := proto.Unmarshal(msg.Data, serialized)
-			if unmarshalErr != nil {
-				t.Logf("failed to unmarshal message: %v", unmarshalErr)
-				return
-			}
-
-			minedTxsChan <- serialized
-		})
+		t.Log("subscribing to mined txs")
+		err := mqClient.SubscribeMinedTxs()
 		require.NoError(t, err)
 
-		txsBlocks := []*blocktx_api.TransactionBlock{
-			txBlock, txBlock, txBlock, txBlock, txBlock,
-		}
+		txBlockBatch := []*blocktx_api.TransactionBlock{txBlock, txBlock, txBlock}
 
-		mqClient := NewNatsMQClient(natsConnClient, nil, nil, WithMaxBatchSize(5))
+		data, err := proto.Marshal(&blocktx_api.TransactionBlocks{TransactionBlocks: txBlockBatch})
+		require.NoError(t, err)
 
 		time.Sleep(1 * time.Second)
 
-		t.Log("publish mined txs")
-		err = mqClient.PublishMinedTxs(context.Background(), txsBlocks)
+		err = natsConn.Publish(minedTxsTopic, data)
 		require.NoError(t, err)
 
 		counter := 0
@@ -128,33 +119,39 @@ func TestNatsClient(t *testing.T) {
 				require.Equal(t, minedTxBlock.TransactionHash, txBlock.TransactionHash)
 				require.Equal(t, minedTxBlock.MerklePath, txBlock.MerklePath)
 				counter++
+
+				t.Logf("counter, %d", counter)
 			}
 
-			close(minedTxsChan)
+			if counter >= 1 {
+				break
+			}
 		}
 
-		require.Len(t, txsBlocks, counter)
+		require.Len(t, txBlockBatch, counter)
 	})
 
-	t.Run("subscribe register txs", func(t *testing.T) {
+	t.Run("publish register txs", func(t *testing.T) {
+
 		registerTxsChannel := make(chan []byte, 10)
 
-		mqClient := NewNatsMQClient(natsConnClient, registerTxsChannel, nil, WithMaxBatchSize(5))
-
-		t.Log("subscribe register txs")
-		err := mqClient.SubscribeRegisterTxs()
+		t.Log("subscribe to register txs")
+		_, err := natsConnClient.QueueSubscribe(registerTxTopic, "queue", func(msg *nats.Msg) {
+			t.Log("register")
+			registerTxsChannel <- msg.Data
+		})
 		require.NoError(t, err)
 
 		time.Sleep(1 * time.Second)
 
-		t.Log("publish tx")
-		err = natsConn.Publish(registerTxTopic, testdata.TX1Hash[:])
+		t.Log("publish")
+		err = mqClient.PublishRegisterTxs(testdata.TX1Hash[:])
 		require.NoError(t, err)
-		err = natsConn.Publish(registerTxTopic, testdata.TX1Hash[:])
+		err = mqClient.PublishRegisterTxs(testdata.TX1Hash[:])
 		require.NoError(t, err)
-		err = natsConn.Publish(registerTxTopic, testdata.TX1Hash[:])
+		err = mqClient.PublishRegisterTxs(testdata.TX1Hash[:])
 		require.NoError(t, err)
-		err = natsConn.Publish(registerTxTopic, testdata.TX1Hash[:])
+		err = mqClient.PublishRegisterTxs(testdata.TX1Hash[:])
 		require.NoError(t, err)
 
 		counter := 0
@@ -173,28 +170,29 @@ func TestNatsClient(t *testing.T) {
 				}
 			}
 		}
-
 	})
 
-	t.Run("subscribe request txs", func(t *testing.T) {
-		requestTxsChannel := make(chan []byte, 10)
+	t.Run("publish request txs", func(t *testing.T) {
 
-		mqClient := NewNatsMQClient(natsConnClient, nil, requestTxsChannel, WithMaxBatchSize(5))
+		requestChannel := make(chan []byte, 10)
 
-		t.Log("subscribe request txs")
-		err := mqClient.SubscribeRequestTxs()
+		t.Log("subscribe to request txs")
+		_, err := natsConn.QueueSubscribe(requestTxTopic, "queue", func(msg *nats.Msg) {
+			t.Log("request")
+			requestChannel <- msg.Data
+		})
 		require.NoError(t, err)
 
 		time.Sleep(1 * time.Second)
 
-		t.Log("publish tx")
-		err = natsConn.Publish(requestTxTopic, testdata.TX1Hash[:])
+		t.Log("publish")
+		err = mqClient.PublishRequestTx(testdata.TX1Hash[:])
 		require.NoError(t, err)
-		err = natsConn.Publish(requestTxTopic, testdata.TX1Hash[:])
+		err = mqClient.PublishRequestTx(testdata.TX1Hash[:])
 		require.NoError(t, err)
-		err = natsConn.Publish(requestTxTopic, testdata.TX1Hash[:])
+		err = mqClient.PublishRequestTx(testdata.TX1Hash[:])
 		require.NoError(t, err)
-		err = natsConn.Publish(requestTxTopic, testdata.TX1Hash[:])
+		err = mqClient.PublishRequestTx(testdata.TX1Hash[:])
 		require.NoError(t, err)
 
 		counter := 0
@@ -206,7 +204,7 @@ func TestNatsClient(t *testing.T) {
 			select {
 			case <-time.NewTimer(15 * time.Second).C:
 				t.Fatal("receiving requested tx timed out")
-			case data := <-requestTxsChannel:
+			case data := <-requestChannel:
 				counter++
 				require.Equal(t, testdata.TX1Hash[:], data)
 				if counter == 4 {

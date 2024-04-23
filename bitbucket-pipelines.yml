@@ -13,7 +13,7 @@ pipelines:
             - git remote add public https://github.com/bitcoin-sv/arc.git || true # The "|| true" ensures the command doesn't fail if the remote already exists.
             - git fetch --tags public
             - git merge public/main
-            - git push origin main
+            - git push --tags origin main
 
     testnet:
       - step:

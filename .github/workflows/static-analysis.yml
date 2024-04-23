@@ -22,10 +22,8 @@ jobs:
         with:
           go-version-file: "./go.mod"
 
-      - name: Run unit Tests
-        continue-on-error: true
-        run: |
-          go test -race -coverprofile=./cov.out ./...
+      - name: Run unit tests
+        run: go test -race -count=1 -vet=off -coverprofile=./cov.out ./...
 
       - name: Run gosec Security Scanner
         continue-on-error: true

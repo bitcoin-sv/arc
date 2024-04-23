@@ -65,6 +65,6 @@ pipelines:
             - echo $BUILD_TAG
             - echo "Logging in to Amazon ECR..."
             - aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REGISTRY_METAMORPH}
-            - aws ecr list-images --repository-name ${ECR_REGISTRY_METAMORPH}
+            - aws ecr list-images --repository-name ${ECR_REPOSITORY_NAME_METAMORPH}
             - docker build -t ${ECR_REGISTRY_METAMORPH}:${BUILD_TAG} . -f Dockerfile.metamorph_migrations
             - docker push ${ECR_REGISTRY_METAMORPH}:${BUILD_TAG}

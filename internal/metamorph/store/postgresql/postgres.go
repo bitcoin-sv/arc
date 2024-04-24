@@ -422,9 +422,21 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 		return nil, err
 	}
 
+	res, err := p.getStoreDataFromRows(rows)
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
 	defer rows.Close()
 
-	return p.getStoreDataFromRows(rows)
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {

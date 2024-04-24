@@ -27,9 +27,10 @@ const (
 	unseenTransactionRebroadcastingInterval    = 60 * time.Second
 	seenOnNetworkTransactionRequestingInterval = 3 * time.Minute
 
-	mapExpiryTimeDefault       = 24 * time.Hour
-	seenOnNetworkTxTimeDefault = 3 * 24 * time.Hour
-	LogLevelDefault            = slog.LevelInfo
+	mapExpiryTimeDefault            = 24 * time.Hour
+	seenOnNetworkTxTimeDefault      = 3 * 24 * time.Hour
+	seenOnNetworkTxTimeUntilDefault = 2 * time.Hour
+	LogLevelDefault                 = slog.LevelInfo
 
 	loadUnminedLimit          = int64(5000)
 	loadSeenOnNetworkLimit    = int64(5000)
@@ -44,14 +45,15 @@ var (
 )
 
 type Processor struct {
-	store                store.MetamorphStore
-	ProcessorResponseMap *ProcessorResponseMap
-	pm                   p2p.PeerManagerI
-	mqClient             MessageQueueClient
-	logger               *slog.Logger
-	mapExpiryTime        time.Duration
-	seenOnNetworkTxTime  time.Duration
-	now                  func() time.Time
+	store                    store.MetamorphStore
+	ProcessorResponseMap     *ProcessorResponseMap
+	pm                       p2p.PeerManagerI
+	mqClient                 MessageQueueClient
+	logger                   *slog.Logger
+	mapExpiryTime            time.Duration
+	seenOnNetworkTxTime      time.Duration
+	seenOnNetworkTxTimeUntil time.Duration
+	now                      func() time.Time
 
 	httpClient HttpClient
 
@@ -108,12 +110,13 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 	}
 
 	p := &Processor{
-		startTime:           time.Now().UTC(),
-		store:               s,
-		pm:                  pm,
-		mapExpiryTime:       mapExpiryTimeDefault,
-		seenOnNetworkTxTime: seenOnNetworkTxTimeDefault,
-		now:                 time.Now,
+		startTime:                time.Now().UTC(),
+		store:                    s,
+		pm:                       pm,
+		mapExpiryTime:            mapExpiryTimeDefault,
+		seenOnNetworkTxTime:      seenOnNetworkTxTimeDefault,
+		seenOnNetworkTxTimeUntil: seenOnNetworkTxTimeUntilDefault,
+		now:                      time.Now,
 
 		processExpiredTxsInterval:       unseenTransactionRebroadcastingInterval,
 		processSeenOnNetworkTxsInterval: seenOnNetworkTransactionRequestingInterval,
@@ -350,11 +353,12 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 			case <-ticker.C:
 				// Periodically read SEEN_ON_NETWORK transactions from database check their status in blocktx
 				getSeenOnNetworkSince := p.now().Add(-1 * p.seenOnNetworkTxTime)
+				getSeenOnNetworkUntil := p.now().Add(-1 * p.seenOnNetworkTxTimeUntil)
 				var offset int64
 
 				for {
 					p.logger.Info("Getting seen on network txs to request from blocktx")
-					seenOnNetworkTxs, err := p.store.GetSeenOnNetwork(ctx, getSeenOnNetworkSince, loadSeenOnNetworkLimit, offset)
+					seenOnNetworkTxs, err := p.store.GetSeenOnNetwork(ctx, getSeenOnNetworkSince, getSeenOnNetworkUntil, loadSeenOnNetworkLimit, offset)
 					offset += loadSeenOnNetworkLimit
 					if err != nil {
 						p.logger.Error("Failed to get SeenOnNetwork transactions", slog.String("err", err.Error()))
@@ -362,6 +366,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 					}
 
 					if len(seenOnNetworkTxs) == 0 {
+						p.logger.Info("No transactions with SEEN_ON_NETWORK to request")
 						break
 					}
 

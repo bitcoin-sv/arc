@@ -370,7 +370,7 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 			FROM metamorph.transactions
 			WHERE (locked_by = $6 OR locked_by = 'NONE')
 			AND status = $1
-			AND inserted_at_num > $2
+			AND inserted_at_num >= $2
 			AND inserted_at_num <= $3
 			ORDER BY hash DESC
 			LIMIT $4 OFFSET $5)

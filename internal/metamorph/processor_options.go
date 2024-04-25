@@ -8,6 +8,18 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 )
 
+func WithSeenOnNetworkTxTime(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.seenOnNetworkTxTime = d
+	}
+}
+
+func WithSeenOnNetworkTxTimeUntil(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.seenOnNetworkTxTimeUntil = d
+	}
+}
+
 func WithCacheExpiryTime(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.mapExpiryTime = d

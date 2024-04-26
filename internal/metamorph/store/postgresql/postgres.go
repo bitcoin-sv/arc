@@ -398,8 +398,8 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 		return nil, err
 	}
 
-	_, err = tx.Exec(`SELECT hash 
-	FROM metamorph.transactions 
+	_, err = tx.Exec(`SELECT hash
+	FROM metamorph.transactions
 	WHERE (locked_by = $6 OR locked_by = 'NONE')
 	AND status = $1
 	AND inserted_at_num > $2
@@ -753,4 +753,55 @@ func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (int64,
 	}
 
 	return rows, nil
+}
+
+func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time) (*store.Stats, error) {
+	q := `
+		SELECT
+			t.status,
+			count(*)
+		FROM
+			metamorph.transactions t WHERE t.inserted_at_num > $1 AND t.locked_by = $2
+		GROUP BY
+			t.status
+	;
+	`
+	rows, err := p.db.QueryContext(ctx, q, since.Format(numericalDateHourLayout), p.hostname)
+	if err != nil {
+		return nil, err
+	}
+
+	stats := &store.Stats{}
+	defer rows.Close()
+	for rows.Next() {
+		var status metamorph_api.Status
+		var count int64
+		err = rows.Scan(&status, &count)
+		if err != nil {
+			return nil, err
+		}
+
+		switch status {
+		case metamorph_api.Status_STORED:
+			stats.StatusStored = count
+		case metamorph_api.Status_ANNOUNCED_TO_NETWORK:
+			stats.StatusAnnouncedToNetwork = count
+		case metamorph_api.Status_REQUESTED_BY_NETWORK:
+			stats.StatusRequestedByNetwork = count
+		case metamorph_api.Status_SENT_TO_NETWORK:
+			stats.StatusSentToNetwork = count
+		case metamorph_api.Status_ACCEPTED_BY_NETWORK:
+			stats.StatusAcceptedByNetwork = count
+		case metamorph_api.Status_SEEN_ON_NETWORK:
+			stats.StatusSeenOnNetwork = count
+		case metamorph_api.Status_MINED:
+			stats.StatusMined = count
+		case metamorph_api.Status_REJECTED:
+			stats.StatusRejected = count
+		case metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL:
+			stats.StatusSeenInOrphanMempool = count
+		}
+	}
+
+	return stats, nil
 }

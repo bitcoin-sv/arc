@@ -165,6 +165,10 @@ func ValidateCallbackURL(callbackURL string) error {
 		return nil
 	}
 
+	if strings.HasPrefix(callbackURL, "http://localhost") || strings.HasPrefix(callbackURL, "https://localhost") {
+		return fmt.Errorf("callback url cannot contain 'localhost'")
+	}
+
 	_, err := url.ParseRequestURI(callbackURL)
 	if err != nil {
 		return fmt.Errorf("invalid URL [%w]", err)

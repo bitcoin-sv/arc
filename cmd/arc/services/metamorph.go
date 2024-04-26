@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"log/slog"
 	"net"
 	"net/url"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/bitcoin-sv/arc/internal/nats_mq"
 
 	cfg "github.com/bitcoin-sv/arc/internal/helpers"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
@@ -65,6 +66,16 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("invalid metamorph.processorCacheExpiryTime: %s", mapExpiryStr)
 	}
 
+	seenOnNetworkOlderThan, err := cfg.GetDuration("metamorph.checkSeenOnNetworkOlderThan")
+	if err != nil {
+		return nil, err
+	}
+
+	checkSeenOnNetworkPeriod, err := cfg.GetDuration("metamorph.checkSeenOnNetworkPeriod")
+	if err != nil {
+		return nil, err
+	}
+
 	natsURL, err := cfg.GetString("queueURL")
 	if err != nil {
 		return nil, err
@@ -105,6 +116,8 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		s,
 		pm,
 		metamorph.WithCacheExpiryTime(mapExpiry),
+		metamorph.WithSeenOnNetworkTxTimeUntil(seenOnNetworkOlderThan),
+		metamorph.WithSeenOnNetworkTxTime(checkSeenOnNetworkPeriod),
 		metamorph.WithProcessorLogger(logger.With(slog.String("module", "mtm-proc"))),
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),

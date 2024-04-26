@@ -355,9 +355,9 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 				getSeenOnNetworkSince := p.now().Add(-1 * p.seenOnNetworkTxTime)
 				getSeenOnNetworkUntil := p.now().Add(-1 * p.seenOnNetworkTxTimeUntil)
 				var offset int64
+				var totalSeenOnNetworkTxs int
 
 				for {
-					p.logger.Info("Getting seen on network txs to request from blocktx")
 					seenOnNetworkTxs, err := p.store.GetSeenOnNetwork(ctx, getSeenOnNetworkSince, getSeenOnNetworkUntil, loadSeenOnNetworkLimit, offset)
 					offset += loadSeenOnNetworkLimit
 					if err != nil {
@@ -366,17 +366,21 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 					}
 
 					if len(seenOnNetworkTxs) == 0 {
-						p.logger.Info("No transactions with SEEN_ON_NETWORK to request")
 						break
 					}
 
-					p.logger.Info("SEEN_ON_NETWORK txs being requested", slog.Int("number", len(seenOnNetworkTxs)))
+					totalSeenOnNetworkTxs += len(seenOnNetworkTxs)
+
 					for _, tx := range seenOnNetworkTxs {
 						// by requesting tx, blocktx checks if it has the transaction mined in the database and sends it back
 						if err = p.mqClient.PublishRequestTx(tx.Hash[:]); err != nil {
 							p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()))
 						}
 					}
+				}
+
+				if totalSeenOnNetworkTxs > 0 {
+					p.logger.Info("SEEN_ON_NETWORK txs being requested", slog.Int("number", totalSeenOnNetworkTxs))
 				}
 			}
 		}
@@ -417,8 +421,6 @@ func (p *Processor) StartProcessExpiredTransactions() {
 						break
 					}
 
-					requested := 0
-					announced := 0
 					for _, tx := range unminedTxs {
 						// mark that we retried processing this transaction once more
 						if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
@@ -429,18 +431,14 @@ func (p *Processor) StartProcessExpiredTransactions() {
 							// Sending GETDATA to peers to see if they have it
 							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.RequestTransaction(tx.Hash)
-							requested++
 
 						} else {
 							p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.AnnounceTransaction(tx.Hash, nil)
-							announced++
 						}
 
 						p.retries.AddDuration(time.Since(time.Now()))
 					}
-
-					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested))
 				}
 			}
 		}

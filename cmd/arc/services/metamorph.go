@@ -121,6 +121,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	metamorphProcessor.StartRequestingSeenOnNetworkTxs()
 	metamorphProcessor.StartProcessStatusUpdatesInStorage()
 	metamorphProcessor.StartProcessMinedCallbacks()
+	metamorphProcessor.StartCollectStats()
 
 	go func() {
 		for message := range statusMessageCh {

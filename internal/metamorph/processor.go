@@ -57,6 +57,9 @@ type Processor struct {
 
 	httpClient HttpClient
 
+	cancelCollectStats       context.CancelFunc
+	quitCollectStatsComplete chan struct{}
+
 	lockTransactionsInterval     time.Duration
 	cancelLockTransactions       context.CancelFunc
 	quitLockTransactionsComplete chan struct{}
@@ -190,6 +193,11 @@ func (p *Processor) Shutdown() {
 		p.cancelProcessSeenOnNetworkTxRequesting()
 		<-p.quitProcessSeenOnNetworkTxRequestingComplete
 	}
+
+	if p.cancelCollectStats != nil {
+		p.cancelCollectStats()
+		<-p.quitCollectStatsComplete
+	}
 }
 
 func (p *Processor) unlockItems() error {
@@ -213,7 +221,7 @@ func (p *Processor) unlockItems() error {
 	return nil
 }
 
-func (p *Processor) StartProcessMinedCallbacks(ctx context.Context) {
+func (p *Processor) StartProcessMinedCallbacks() {
 	ctx, cancel := context.WithCancel(context.Background())
 	p.cancelMinedCallbacks = cancel
 	p.quitProcessMinedCallbacksComplete = make(chan struct{})

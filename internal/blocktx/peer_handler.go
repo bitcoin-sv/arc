@@ -119,7 +119,7 @@ type PeerHandler struct {
 	quitPeerWorkerComplete             chan struct{}
 	quitListenTxChannel                chan struct{}
 	quitListenTxChannelComplete        chan struct{}
-	quitListenRequestTxChannel         chan struct{}
+	cancelListenRequestTxChannel       context.CancelFunc
 	quitListenRequestTxChannelComplete chan struct{}
 }
 
@@ -358,11 +358,14 @@ func (ph *PeerHandler) startProcessTxs() {
 }
 
 func (ph *PeerHandler) startProcessRequestTxs() {
-	ph.quitListenRequestTxChannel = make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	ph.cancelListenRequestTxChannel = cancel
 	ph.quitListenRequestTxChannelComplete = make(chan struct{})
-	updatesBatch := make([]*blocktx_api.TransactionBlock, ph.registerRequestTxsBatchSize)
+
+	txHashes := make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)
 
 	ticker := time.NewTicker(ph.registerRequestTxsInterval)
+
 	go func() {
 		defer func() {
 			ph.quitListenRequestTxChannelComplete <- struct{}{}
@@ -370,51 +373,68 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 
 		for {
 			select {
-			case <-ph.quitListenRequestTxChannel:
+			case <-ctx.Done():
 				return
 			case txHash := <-ph.requestTxChannel:
 				tx, err := chainhash.NewHash(txHash)
 				if err != nil {
 					ph.logger.Error("Couldn't create tx from byte array")
+					continue
 				}
 
-				blockHash, blockHeight, merklePath, err := ph.store.GetMinedTransaction(context.Background(), tx[:])
+				txHashes = append(txHashes, tx)
+
+				if len(txHashes) < ph.registerRequestTxsBatchSize || len(txHashes) == 0 {
+					continue
+				}
+
+				err = ph.publishMinedTxs(ctx, txHashes)
 				if err != nil {
-					ph.logger.Error("Couldn't get mined transactions from store", slog.String("hash", tx.String()), slog.String("err", err.Error()))
+					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 					continue
 				}
 
-				updatesBatch = append(updatesBatch, &blocktx_api.TransactionBlock{
-					TransactionHash: txHash,
-					BlockHash:       blockHash,
-					BlockHeight:     blockHeight,
-					MerklePath:      merklePath,
-				})
-
-				if len(updatesBatch) < ph.registerRequestTxsBatchSize || len(updatesBatch) == 0 {
-					continue
-				}
-
-				if err = ph.mqClient.PublishMinedTxs(context.Background(), updatesBatch); err != nil {
-					ph.logger.Error("failed to publish mined txs for requested hashes", slog.String("err", err.Error()))
-					continue
-				}
-
-				updatesBatch = make([]*blocktx_api.TransactionBlock, ph.registerRequestTxsBatchSize)
+				txHashes = make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)
 
 			case <-ticker.C:
-				if len(updatesBatch) == 0 {
-					continue
-				}
-				if err := ph.mqClient.PublishMinedTxs(context.Background(), updatesBatch); err != nil {
-					ph.logger.Error("failed to publish mined txs for requested hashes", slog.String("err", err.Error()))
+				if len(txHashes) == 0 {
 					continue
 				}
 
-				updatesBatch = make([]*blocktx_api.TransactionBlock, ph.registerRequestTxsBatchSize)
+				err := ph.publishMinedTxs(ctx, txHashes)
+				if err != nil {
+					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+					continue
+				}
+
+				txHashes = make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)
 			}
 		}
 	}()
+}
+
+func (ph *PeerHandler) publishMinedTxs(ctx context.Context, txHashes []*chainhash.Hash) error {
+	minedTxs, err := ph.store.GetMinedTransactions(ctx, txHashes)
+	if err != nil {
+		return fmt.Errorf("failed to get mined transactions: %v", err)
+	}
+
+	updatesBatch := make([]*blocktx_api.TransactionBlock, 0, ph.registerRequestTxsBatchSize)
+	for _, minedTx := range minedTxs {
+		updatesBatch = append(updatesBatch, &blocktx_api.TransactionBlock{
+			TransactionHash: minedTx.TxHash,
+			BlockHash:       minedTx.BlockHash,
+			BlockHeight:     minedTx.BlockHeight,
+			MerklePath:      minedTx.MerklePath,
+		})
+	}
+
+	err = ph.mqClient.PublishMinedTxs(ctx, updatesBatch)
+	if err != nil {
+		return fmt.Errorf("failed to publish mined transactions: %v", err)
+	}
+
+	return nil
 }
 
 func (ph *PeerHandler) HandleTransactionGet(_ *wire.InvVect, peer p2p.PeerI) ([]byte, error) {
@@ -831,8 +851,8 @@ func (ph *PeerHandler) Shutdown() {
 		<-ph.quitListenTxChannelComplete
 	}
 
-	if ph.quitListenRequestTxChannel != nil {
-		ph.quitListenRequestTxChannel <- struct{}{}
+	if ph.cancelListenRequestTxChannel != nil {
+		ph.cancelListenRequestTxChannel()
 		<-ph.quitListenRequestTxChannelComplete
 	}
 	ph.unregisterTracing()

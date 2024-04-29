@@ -60,8 +60,6 @@ func TestStartCollectStats(t *testing.T) {
 			time.Sleep(25 * time.Millisecond)
 
 			processor.Shutdown()
-			//require.Equal(t, processor.stats.statusSentToNetwork.)
-
 		})
 	}
 }

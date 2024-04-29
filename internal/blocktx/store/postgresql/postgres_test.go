@@ -466,46 +466,26 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("test getting mined txs", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		// insert block
-		blockHash, err := chainhash.NewHashFromStr("00000000000000000a081a539601645abe977946f8f6466a3c9e0c34d50be4a1")
-		require.NoError(t, err)
-		previousBlockHash, err := chainhash.NewHashFromStr("000000000000000001b8adefc1eb98896c80e30e517b9e2655f1f929d9958a42")
-		require.NoError(t, err)
-		block := &blocktx_api.Block{
-			Hash:         blockHash[:],
-			PreviousHash: previousBlockHash[:],
-			MerkleRoot:   merkleRoot[:],
-			Height:       100,
-		}
-		id, err := postgresDB.InsertBlock(ctx, block)
-		require.NoError(t, err)
-		require.Equal(t, uint64(10001), id)
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/get_mined_transactions"))
 
-		// register transaction
-		txHash := createTxHash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3c")
-		txs := []*blocktx_api.TransactionAndSource{
-			{
-				Hash: createTxHash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3c")[:],
-			},
-		}
-		err = postgresDB.RegisterTransactions(context.Background(), txs)
-		require.NoError(t, err)
+		txHash1 := createTxHash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")
+		txHash2 := createTxHash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")
+		txHash3 := createTxHash(t, "dbbd24251b9bb824566412395bb76a579bca3477c2d0b4cbc210a769d3bb4177")
+		txHash4 := createTxHash(t, "0d60dd6dc1f2649efb2847f801dfaa61361a438deb526da2de5b6875e0016514")
 
-		// bind transaction and block
-		res, err := postgresDB.UpdateBlockTransactions(context.Background(), id, []*blocktx_api.TransactionAndSource{
-			{
-				Hash: txHash[:],
-			},
-		}, []string{"test1"})
-		require.NoError(t, err)
-		require.Equal(t, res[0].TxHash, txHash[:])
+		blockHash := createTxHash(t, "6258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")
 
 		// get mined transaction and corresponding block
-		_, err := postgresDB.GetMinedTransactions(ctx, txHash[:])
+		minedTxs, err := postgresDB.GetMinedTransactions(ctx, []*chainhash.Hash{txHash1, txHash2, txHash3, txHash4})
 		require.NoError(t, err)
-		require.Equal(t, blockHash[:], blockHashRes)
-		require.Equal(t, int(blockHeight), 100)
-		require.Equal(t, merklePath, "test1")
+
+		require.Len(t, minedTxs, 3)
+
+		for _, tx := range minedTxs {
+			require.True(t, bytes.Equal(tx.TxHash, txHash2[:]) || bytes.Equal(tx.TxHash, txHash3[:]) || bytes.Equal(tx.TxHash, txHash4[:]))
+			require.Equal(t, tx.BlockHash, blockHash[:])
+			require.Equal(t, uint64(826481), tx.BlockHeight)
+		}
 	})
 
 	t.Run("clear data", func(t *testing.T) {

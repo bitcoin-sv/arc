@@ -17,6 +17,7 @@ import (
 const (
 	postgresDriverName      = "postgres"
 	numericalDateHourLayout = "2006010215"
+	until                   = -1 * 2 * time.Hour
 )
 
 type PostgreSQL struct {
@@ -360,18 +361,19 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 	return p.getStoreDataFromRows(rows)
 }
 
-func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, untilTime time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 
 	q := `UPDATE metamorph.transactions
-		SET locked_by=$5
+		SET locked_by=$6
 		FROM (
 			SELECT hash
 			FROM metamorph.transactions
-			WHERE (locked_by = $5 OR locked_by = 'NONE')
+			WHERE (locked_by = $6 OR locked_by = 'NONE')
 			AND status = $1
-			AND inserted_at_num > $2
+			AND inserted_at_num >= $2
+			AND inserted_at_num <= $3
 			ORDER BY hash DESC
-			LIMIT $3 OFFSET $4)
+			LIMIT $4 OFFSET $5)
 		as t
 		WHERE metamorph.transactions.hash = t.hash
 		RETURNING
@@ -398,12 +400,13 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, limi
 
 	_, err = tx.Exec(`SELECT hash 
 	FROM metamorph.transactions 
-	WHERE (locked_by = $5 OR locked_by = 'NONE') 
+	WHERE (locked_by = $6 OR locked_by = 'NONE')
 	AND status = $1
 	AND inserted_at_num > $2
+	AND inserted_at_num <= $3
 	ORDER BY hash DESC
-	LIMIT $3 OFFSET $4
-	FOR UPDATE`, metamorph_api.Status_SEEN_ON_NETWORK, since.Format(numericalDateHourLayout), limit, offset, p.hostname)
+	LIMIT $4 OFFSET $5
+	FOR UPDATE`, metamorph_api.Status_SEEN_ON_NETWORK, since.Format(numericalDateHourLayout), untilTime.Format(numericalDateHourLayout), limit, offset, p.hostname)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			return nil, err
@@ -411,7 +414,7 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, limi
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since.Format(numericalDateHourLayout), limit, offset, p.hostname)
+	rows, err := tx.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since.Format(numericalDateHourLayout), untilTime.Format(numericalDateHourLayout), limit, offset, p.hostname)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			return nil, err
@@ -419,9 +422,21 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, limi
 		return nil, err
 	}
 
+	res, err := p.getStoreDataFromRows(rows)
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
 	defer rows.Close()
 
-	return p.getStoreDataFromRows(rows)
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {

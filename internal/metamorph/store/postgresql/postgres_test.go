@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -538,12 +539,12 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("get seen on network txs", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
-
+		insertedAtNum, _ := strconv.Atoi(time.Date(2023, 1, 1, 2, 0, 0, 0, time.UTC).Format(numericalDateHourLayout))
 		tx1Data := &store.StoreData{
 			RawTx:         testdata.TX1RawBytes,
 			Hash:          testdata.TX1Hash,
 			Status:        metamorph_api.Status_SEEN_ON_NETWORK,
-			InsertedAtNum: 2024010101,
+			InsertedAtNum: insertedAtNum,
 		}
 		err = postgresDB.Set(ctx, testdata.TX1Hash[:], tx1Data)
 		require.NoError(t, err)
@@ -552,13 +553,13 @@ func TestPostgresDB(t *testing.T) {
 			RawTx:         testdata.TX6RawBytes,
 			Hash:          testdata.TX6Hash,
 			Status:        metamorph_api.Status_STORED,
-			InsertedAtNum: 2024010101,
+			InsertedAtNum: insertedAtNum,
 		}
 
 		err = postgresDB.Set(ctx, testdata.TX6Hash[:], tx6Data)
 		require.NoError(t, err)
 
-		records, err := postgresDB.GetSeenOnNetwork(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 2, 0)
+		records, err := postgresDB.GetSeenOnNetwork(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), time.Date(2023, 1, 1, 3, 0, 0, 0, time.UTC), 2, 0)
 		require.NoError(t, err)
 		require.Equal(t, 1, len(records))
 		require.Equal(t, records[0].LockedBy, postgresDB.hostname)

@@ -2,6 +2,7 @@ package metamorph
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -69,18 +70,22 @@ func newProcessorStats() *processorStats {
 	return c
 }
 
-func (p *Processor) StartCollectStats() {
+func (p *Processor) StartCollectStats() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	p.cancelCollectStats = cancel
 	p.quitCollectStatsComplete = make(chan struct{})
 
-	ticker := time.NewTicker(statCollectionIntervalDefault)
+	ticker := time.NewTicker(p.statCollectionInterval)
 
-	prometheus.MustRegister(p.stats.statusStored, p.stats.statusAnnouncedToNetwork, p.stats.statusRequestedByNetwork, p.stats.statusSentToNetwork, p.stats.statusAcceptedByNetwork, p.stats.statusSeenOnNetwork, p.stats.statusMined, p.stats.statusRejected, p.stats.statusSeenInOrphanMempool)
-
+	err := registerStats(p.stats.statusStored, p.stats.statusAnnouncedToNetwork, p.stats.statusRequestedByNetwork, p.stats.statusSentToNetwork, p.stats.statusAcceptedByNetwork, p.stats.statusSeenOnNetwork, p.stats.statusMined, p.stats.statusRejected, p.stats.statusSeenInOrphanMempool)
+	if err != nil {
+		return err
+	}
 	go func() {
 		defer func() {
 			p.quitCollectStatsComplete <- struct{}{}
+
+			unregisterStats(p.stats.statusStored, p.stats.statusAnnouncedToNetwork, p.stats.statusRequestedByNetwork, p.stats.statusSentToNetwork, p.stats.statusAcceptedByNetwork, p.stats.statusSeenOnNetwork, p.stats.statusMined, p.stats.statusRejected, p.stats.statusSeenInOrphanMempool)
 		}()
 
 		for {
@@ -112,4 +117,23 @@ func (p *Processor) StartCollectStats() {
 		}
 
 	}()
+
+	return nil
+}
+
+func registerStats(cs ...prometheus.Collector) error {
+	for _, c := range cs {
+		err := prometheus.Register(c)
+		if err != nil {
+			return fmt.Errorf("failed to register stats collector: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func unregisterStats(cs ...prometheus.Collector) {
+	for _, c := range cs {
+		_ = prometheus.Unregister(c)
+	}
 }

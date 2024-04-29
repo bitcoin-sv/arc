@@ -13,7 +13,7 @@ const (
 	statCollectionIntervalDefault = 60 * time.Second
 )
 
-type txStats struct {
+type processorStats struct {
 	mu                        sync.RWMutex
 	statusStored              prometheus.Gauge
 	statusAnnouncedToNetwork  prometheus.Gauge
@@ -26,43 +26,43 @@ type txStats struct {
 	statusSeenInOrphanMempool prometheus.Gauge
 }
 
-func newTxStats() *txStats {
-	c := &txStats{
+func newProcessorStats() *processorStats {
+	c := &processorStats{
 		statusStored: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_status_stored_count",
-			Help: "Shows the number of monitored transactions with status STORED",
+			Help: "Number of monitored transactions with status STORED",
 		}),
 		statusAnnouncedToNetwork: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_status_announced_count",
-			Help: "Shows the number of monitored transactions with status ANNOUNCED_TO_NETWORK",
+			Help: "Number of monitored transactions with status ANNOUNCED_TO_NETWORK",
 		}),
 		statusRequestedByNetwork: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_status_requested_count",
-			Help: "Shows the number of monitored transactions with status REQUESTED_BY_NETWORK",
+			Help: "Number of monitored transactions with status REQUESTED_BY_NETWORK",
 		}),
 		statusSentToNetwork: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_status_sent_count",
-			Help: "Shows the number of monitored transactions with status SENT_TO_NETWORK",
+			Help: "Number of monitored transactions with status SENT_TO_NETWORK",
 		}),
 		statusAcceptedByNetwork: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_status_accepted_count",
-			Help: "Shows the number of monitored transactions with status ACCEPTED_BY_NETWORK",
+			Help: "Number of monitored transactions with status ACCEPTED_BY_NETWORK",
 		}),
 		statusSeenOnNetwork: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_status_seen_on_network_count",
-			Help: "Shows the number of monitored transactions with status SEEN_ON_NETWORK",
+			Help: "Number of monitored transactions with status SEEN_ON_NETWORK",
 		}),
 		statusMined: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_status_mined_count",
-			Help: "Shows the number of monitored transactions with status MINED",
+			Help: "Number of monitored transactions with status MINED",
 		}),
 		statusRejected: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_status_rejected_count",
-			Help: "Shows the number of monitored transactions with status REJECTED",
+			Help: "Number of monitored transactions with status REJECTED",
 		}),
 		statusSeenInOrphanMempool: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_status_seen_in_orphan_mempool_count",
-			Help: "Shows the number of monitored transactions with status SEEN_IN_ORPHAN_MEMPOOL",
+			Help: "Number of monitored transactions with status SEEN_IN_ORPHAN_MEMPOOL",
 		}),
 	}
 
@@ -75,11 +75,10 @@ func (p *Processor) StartCollectStats() {
 	p.quitCollectStatsComplete = make(chan struct{})
 
 	ticker := time.NewTicker(statCollectionIntervalDefault)
-	stats := newTxStats()
 
-	prometheus.MustRegister(stats.statusStored, stats.statusAnnouncedToNetwork, stats.statusRequestedByNetwork, stats.statusSentToNetwork, stats.statusAcceptedByNetwork, stats.statusSeenOnNetwork, stats.statusMined, stats.statusRejected, stats.statusSeenInOrphanMempool)
+	prometheus.MustRegister(p.stats.statusStored, p.stats.statusAnnouncedToNetwork, p.stats.statusRequestedByNetwork, p.stats.statusSentToNetwork, p.stats.statusAcceptedByNetwork, p.stats.statusSeenOnNetwork, p.stats.statusMined, p.stats.statusRejected, p.stats.statusSeenInOrphanMempool)
 
-	go func(stats *txStats) {
+	go func() {
 		defer func() {
 			p.quitCollectStatsComplete <- struct{}{}
 		}()
@@ -98,20 +97,19 @@ func (p *Processor) StartCollectStats() {
 					continue
 				}
 
-				stats.mu.Lock()
-				stats.statusStored.Set(float64(collectedStats.StatusStored))
-				stats.statusAnnouncedToNetwork.Set(float64(collectedStats.StatusAnnouncedToNetwork))
-				stats.statusRequestedByNetwork.Set(float64(collectedStats.StatusRequestedByNetwork))
-				stats.statusSentToNetwork.Set(float64(collectedStats.StatusSentToNetwork))
-				stats.statusAcceptedByNetwork.Set(float64(collectedStats.StatusAcceptedByNetwork))
-				stats.statusSeenOnNetwork.Set(float64(collectedStats.StatusSeenOnNetwork))
-				stats.statusMined.Set(float64(collectedStats.StatusMined))
-				stats.statusRejected.Set(float64(collectedStats.StatusRejected))
-				stats.statusSeenInOrphanMempool.Set(float64(collectedStats.StatusSeenInOrphanMempool))
-
-				stats.mu.Unlock()
+				p.stats.mu.Lock()
+				p.stats.statusStored.Set(float64(collectedStats.StatusStored))
+				p.stats.statusAnnouncedToNetwork.Set(float64(collectedStats.StatusAnnouncedToNetwork))
+				p.stats.statusRequestedByNetwork.Set(float64(collectedStats.StatusRequestedByNetwork))
+				p.stats.statusSentToNetwork.Set(float64(collectedStats.StatusSentToNetwork))
+				p.stats.statusAcceptedByNetwork.Set(float64(collectedStats.StatusAcceptedByNetwork))
+				p.stats.statusSeenOnNetwork.Set(float64(collectedStats.StatusSeenOnNetwork))
+				p.stats.statusMined.Set(float64(collectedStats.StatusMined))
+				p.stats.statusRejected.Set(float64(collectedStats.StatusRejected))
+				p.stats.statusSeenInOrphanMempool.Set(float64(collectedStats.StatusSeenInOrphanMempool))
+				p.stats.mu.Unlock()
 			}
 		}
 
-	}(stats)
+	}()
 }

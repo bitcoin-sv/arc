@@ -54,6 +54,7 @@ type Processor struct {
 	seenOnNetworkTxTime      time.Duration
 	seenOnNetworkTxTimeUntil time.Duration
 	now                      func() time.Time
+	stats                    *processorStats
 
 	httpClient HttpClient
 
@@ -128,6 +129,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		processStatusUpdatesInterval:  processStatusUpdatesIntervalDefault,
 		processStatusUpdatesBatchSize: processStatusUpdatesBatchSizeDefault,
 		storageStatusUpdateCh:         make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
+		stats:                         newProcessorStats(),
 
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,

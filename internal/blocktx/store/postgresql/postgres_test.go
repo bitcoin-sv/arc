@@ -56,7 +56,7 @@ type BlockTransactionMap struct {
 	Pos           int64 `db:"pos"`
 }
 
-func createTxHash(t *testing.T, hashString string) *chainhash.Hash {
+func revChainhash(t *testing.T, hashString string) *chainhash.Hash {
 	hash, err := hex.DecodeString(hashString)
 	require.NoError(t, err)
 	txHash, err := chainhash.NewHash(hash)
@@ -359,8 +359,8 @@ func TestPostgresDB(t *testing.T) {
 		testMerklePaths := []string{"test1", "test2", "test3"}
 		testBlockID := uint64(9736)
 
-		txHash1 := createTxHash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")
-		txHash2 := createTxHash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")
+		txHash1 := revChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")
+		txHash2 := revChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")
 
 		txHashNotRegistered, err := chainhash.NewHashFromStr("edd33fdcdfa68444d227780e2b62a4437c00120c5320d2026aeb24a781f4c3f1")
 		require.NoError(t, err)
@@ -433,12 +433,12 @@ func TestPostgresDB(t *testing.T) {
 
 		// update exceeds max batch size
 
-		txHash3 := createTxHash(t, "b4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743")
-		txHash4 := createTxHash(t, "37bd6c87927e75faeb3b3c939f64721cda48e1bb98742676eebe83aceee1a669")
-		txHash5 := createTxHash(t, "952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb")
-		txHash6 := createTxHash(t, "861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608")
-		txHash7 := createTxHash(t, "9421cc760c5405af950a76dc3e4345eaefd4e7322f172a3aee5e0ddc7b4f8313")
-		txHash8 := createTxHash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")
+		txHash3 := revChainhash(t, "b4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743")
+		txHash4 := revChainhash(t, "37bd6c87927e75faeb3b3c939f64721cda48e1bb98742676eebe83aceee1a669")
+		txHash5 := revChainhash(t, "952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb")
+		txHash6 := revChainhash(t, "861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608")
+		txHash7 := revChainhash(t, "9421cc760c5405af950a76dc3e4345eaefd4e7322f172a3aee5e0ddc7b4f8313")
+		txHash8 := revChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")
 
 		_, err = postgresDB.UpdateBlockTransactions(context.Background(), testBlockID, []*blocktx_api.TransactionAndSource{
 			{
@@ -468,12 +468,12 @@ func TestPostgresDB(t *testing.T) {
 
 		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/get_mined_transactions"))
 
-		txHash1 := createTxHash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")
-		txHash2 := createTxHash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")
-		txHash3 := createTxHash(t, "dbbd24251b9bb824566412395bb76a579bca3477c2d0b4cbc210a769d3bb4177")
-		txHash4 := createTxHash(t, "0d60dd6dc1f2649efb2847f801dfaa61361a438deb526da2de5b6875e0016514")
+		txHash1 := revChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")
+		txHash2 := revChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")
+		txHash3 := revChainhash(t, "dbbd24251b9bb824566412395bb76a579bca3477c2d0b4cbc210a769d3bb4177")
+		txHash4 := revChainhash(t, "0d60dd6dc1f2649efb2847f801dfaa61361a438deb526da2de5b6875e0016514")
 
-		blockHash := createTxHash(t, "6258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")
+		blockHash := revChainhash(t, "6258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")
 
 		// get mined transaction and corresponding block
 		minedTxs, err := postgresDB.GetMinedTransactions(ctx, []*chainhash.Hash{txHash1, txHash2, txHash3, txHash4})

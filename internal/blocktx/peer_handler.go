@@ -399,9 +399,8 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 				txHashes = make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)
 
 				for _, minedTx := range minedTxs {
-
 					updatesBatch = append(updatesBatch, &blocktx_api.TransactionBlock{
-						TransactionHash: txHash,
+						TransactionHash: minedTx.TxHash,
 						BlockHash:       minedTx.BlockHash,
 						BlockHeight:     minedTx.BlockHeight,
 						MerklePath:      minedTx.MerklePath,

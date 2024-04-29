@@ -15,6 +15,7 @@ type UpdateBlockTransactionsResult struct {
 }
 
 type GetMinedTransactionResult struct {
+	TxHash      []byte
 	BlockHash   []byte
 	BlockHeight uint64
 	MerklePath  string

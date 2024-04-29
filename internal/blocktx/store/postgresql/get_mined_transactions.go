@@ -27,7 +27,8 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainha
 
 	q := `
 		SELECT
-		b.hash
+		t.hash
+       ,b.hash
 	   ,b.height
 	   ,t.merkle_path
 	   FROM transactions as t
@@ -42,12 +43,13 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainha
 	}
 
 	for rows.Next() {
-
+		var txHash []byte
 		var blockHash []byte
 		var blockHeight uint64
 		var merklePath string
 
 		err = rows.Scan(
+			&txHash,
 			&blockHash,
 			&blockHeight,
 			&merklePath,
@@ -57,6 +59,7 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainha
 		}
 
 		result = append(result, store.GetMinedTransactionResult{
+			TxHash:      txHash,
 			BlockHash:   blockHash,
 			BlockHeight: blockHeight,
 			MerklePath:  merklePath,

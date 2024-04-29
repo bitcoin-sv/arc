@@ -105,8 +105,10 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 		}
 	}
 
+	rejectedCallbackUrlSubstrings := viper.GetStringSlice("metamorph.rejectCallbackContaining")
+
 	// TODO WithSecurityConfig(appConfig.Security)
-	apiHandler, err := handler.NewDefault(logger, metamorphClient, policy)
+	apiHandler, err := handler.NewDefault(logger, metamorphClient, policy, handler.WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings))
 	if err != nil {
 		return err
 	}

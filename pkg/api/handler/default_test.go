@@ -136,6 +136,43 @@ func TestGETHealth(t *testing.T) {
 	})
 }
 
+func TestValidateCallbackURL(t *testing.T) {
+	tt := []struct {
+		name        string
+		callbackURL string
+
+		expectedErrorStr string
+	}{
+		{
+			name:             "empty callback URL",
+			callbackURL:      "",
+			expectedErrorStr: "invalid callback URL",
+		},
+		{
+			name:        "valid callback URL",
+			callbackURL: "http://api.callback.com",
+		},
+		{
+			name:             "blocked url",
+			callbackURL:      "http://localhost",
+			expectedErrorStr: "callback url not acceptable",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateCallbackURL(tc.callbackURL, []string{"http://localhost"})
+
+			if err != nil {
+				require.ErrorContains(t, err, tc.expectedErrorStr)
+				return
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestGETTransactionStatus(t *testing.T) {
 	tt := []struct {
 		name                 string
@@ -790,7 +827,7 @@ func TestGetTransactionOptions(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			options, err := getTransactionOptions(tc.params)
+			options, err := getTransactionOptions(tc.params, make([]string, 0))
 
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)

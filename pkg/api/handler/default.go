@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/validator"
@@ -27,15 +28,22 @@ const (
 )
 
 type ArcDefaultHandler struct {
-	TransactionHandler metamorph.TransactionHandler
-	NodePolicy         *bitcoin.Settings
-	logger             *slog.Logger
-	now                func() time.Time
+	TransactionHandler            metamorph.TransactionHandler
+	NodePolicy                    *bitcoin.Settings
+	logger                        *slog.Logger
+	now                           func() time.Time
+	rejectedCallbackUrlSubstrings []string
 }
 
 func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
 		p.now = nowFunc
+	}
+}
+
+func WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings []string) func(*ArcDefaultHandler) {
+	return func(p *ArcDefaultHandler) {
+		p.rejectedCallbackUrlSubstrings = rejectedCallbackUrlSubstrings
 	}
 }
 
@@ -109,7 +117,7 @@ func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
 
 // POSTTransaction ...
 func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) error {
-	transactionOptions, err := getTransactionOptions(params)
+	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackUrlSubstrings)
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 		return ctx.JSON(e.Status, e)
@@ -200,7 +208,7 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 // POSTTransactions ...
 func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) error {
 	// set the globals for all transactions in this request
-	transactionOptions, err := getTransactionsOptions(params)
+	transactionOptions, err := getTransactionsOptions(params, m.rejectedCallbackUrlSubstrings)
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 		return ctx.JSON(e.Status, e)
@@ -328,16 +336,29 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	return ctx.JSON(int(status), transactions)
 }
 
-func getTransactionOptions(params api.POSTTransactionParams) (*metamorph.TransactionOptions, error) {
-	return getTransactionsOptions(api.POSTTransactionsParams(params))
+func getTransactionOptions(params api.POSTTransactionParams, rejectedCallbackUrlSubstrings []string) (*metamorph.TransactionOptions, error) {
+	return getTransactionsOptions(api.POSTTransactionsParams(params), rejectedCallbackUrlSubstrings)
 }
 
-func getTransactionsOptions(params api.POSTTransactionsParams) (*metamorph.TransactionOptions, error) {
+func ValidateCallbackURL(callbackURL string, rejectedCallbackUrlSubstrings []string) error {
+	_, err := url.ParseRequestURI(callbackURL)
+	if err != nil {
+		return fmt.Errorf("invalid callback URL [%w]", err)
+	}
+
+	for _, substring := range rejectedCallbackUrlSubstrings {
+		if strings.Contains(callbackURL, substring) {
+			return fmt.Errorf("callback url not acceptable %s", callbackURL)
+		}
+	}
+	return nil
+}
+
+func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackUrlSubstrings []string) (*metamorph.TransactionOptions, error) {
 	transactionOptions := &metamorph.TransactionOptions{}
 	if params.XCallbackUrl != nil {
-		_, err := url.ParseRequestURI(*params.XCallbackUrl)
-		if err != nil {
-			return nil, fmt.Errorf("invalid callback URL [%w]", err)
+		if err := ValidateCallbackURL(*params.XCallbackUrl, rejectedCallbackUrlSubstrings); err != nil {
+			return nil, err
 		}
 
 		transactionOptions.CallbackURL = *params.XCallbackUrl

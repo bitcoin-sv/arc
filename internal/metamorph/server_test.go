@@ -97,17 +97,6 @@ func TestPutTransaction(t *testing.T) {
 		assert.True(t, txStatus.GetTimedOut())
 	})
 
-	t.Run("invalid request", func(t *testing.T) {
-		server := metamorph.NewServer(nil, nil)
-
-		txRequest := &metamorph_api.TransactionRequest{
-			CallbackUrl: "api.callback.com",
-		}
-
-		_, err := server.PutTransaction(context.Background(), txRequest)
-		assert.ErrorContains(t, err, "invalid URL [parse \"api.callback.com\": invalid URI for request]")
-	})
-
 	t.Run("PutTransaction - SEEN to network", func(t *testing.T) {
 		s := &mocks.MetamorphStoreMock{}
 
@@ -280,43 +269,6 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				return
 			}
 			assert.Equalf(t, tt.want, got, "GetTransactionStatus(%v)", tt.req)
-		})
-	}
-}
-
-func TestValidateCallbackURL(t *testing.T) {
-	tt := []struct {
-		name        string
-		callbackURL string
-
-		expectedErrorStr string
-	}{
-		{
-			name:        "empty callback URL",
-			callbackURL: "",
-		},
-		{
-			name:        "valid callback URL",
-			callbackURL: "http://api.callback.com",
-		},
-		{
-			name:        "invalid callback URL",
-			callbackURL: "api.callback.com",
-
-			expectedErrorStr: "invalid URL [parse \"api.callback.com\": invalid URI for request]",
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			err := metamorph.ValidateCallbackURL(tc.callbackURL)
-
-			if tc.expectedErrorStr != "" || err != nil {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
-				return
-			} else {
-				require.NoError(t, err)
-			}
 		})
 	}
 }

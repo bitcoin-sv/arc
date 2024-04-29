@@ -362,8 +362,10 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 	ph.cancelListenRequestTxChannel = cancel
 	ph.quitListenRequestTxChannelComplete = make(chan struct{})
 	updatesBatch := make([]*blocktx_api.TransactionBlock, ph.registerRequestTxsBatchSize)
+	txHashes := make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)
 
 	ticker := time.NewTicker(ph.registerRequestTxsInterval)
+
 	go func() {
 		defer func() {
 			ph.quitListenRequestTxChannelComplete <- struct{}{}
@@ -377,26 +379,37 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 				tx, err := chainhash.NewHash(txHash)
 				if err != nil {
 					ph.logger.Error("Couldn't create tx from byte array")
+					continue
 				}
 
-				blockHash, blockHeight, merklePath, err := ph.store.GetMinedTransaction(context.Background(), tx[:])
+				txHashes = append(txHashes, tx)
+
+				if len(txHashes) < ph.registerRequestTxsBatchSize || len(txHashes) == 0 {
+					continue
+				}
+
+				minedTxs, err := ph.store.GetMinedTransactions(ctx, txHashes)
 				if err != nil {
-					ph.logger.Error("Couldn't get mined transactions from store", slog.String("hash", tx.String()), slog.String("err", err.Error()))
+					if err != nil {
+						ph.logger.Error("Couldn't get mined transactions from store", slog.String("hash", tx.String()), slog.String("err", err.Error()))
+					}
 					continue
 				}
 
-				updatesBatch = append(updatesBatch, &blocktx_api.TransactionBlock{
-					TransactionHash: txHash,
-					BlockHash:       blockHash,
-					BlockHeight:     blockHeight,
-					MerklePath:      merklePath,
-				})
+				txHashes = make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)
 
-				if len(updatesBatch) < ph.registerRequestTxsBatchSize || len(updatesBatch) == 0 {
-					continue
+				for _, minedTx := range minedTxs {
+
+					updatesBatch = append(updatesBatch, &blocktx_api.TransactionBlock{
+						TransactionHash: txHash,
+						BlockHash:       minedTx.BlockHash,
+						BlockHeight:     minedTx.BlockHeight,
+						MerklePath:      minedTx.MerklePath,
+					})
+
 				}
 
-				if err = ph.mqClient.PublishMinedTxs(context.Background(), updatesBatch); err != nil {
+				if err = ph.mqClient.PublishMinedTxs(ctx, updatesBatch); err != nil {
 					ph.logger.Error("failed to publish mined txs for requested hashes", slog.String("err", err.Error()))
 					continue
 				}
@@ -407,7 +420,7 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 				if len(updatesBatch) == 0 {
 					continue
 				}
-				if err := ph.mqClient.PublishMinedTxs(context.Background(), updatesBatch); err != nil {
+				if err := ph.mqClient.PublishMinedTxs(ctx, updatesBatch); err != nil {
 					ph.logger.Error("failed to publish mined txs for requested hashes", slog.String("err", err.Error()))
 					continue
 				}

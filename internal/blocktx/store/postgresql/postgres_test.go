@@ -501,7 +501,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, res[0].TxHash, txHash[:])
 
 		// get mined transaction and corresponding block
-		blockHashRes, blockHeight, merklePath, err := postgresDB.GetMinedTransaction(ctx, txHash[:])
+		_, err := postgresDB.GetMinedTransactions(ctx, txHash[:])
 		require.NoError(t, err)
 		require.Equal(t, blockHash[:], blockHashRes)
 		require.Equal(t, int(blockHeight), 100)

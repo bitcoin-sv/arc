@@ -2,22 +2,28 @@ package postgresql
 
 import (
 	"context"
-	"database/sql"
-	"errors"
-
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	"github.com/lib/pq"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"go.opentelemetry.io/otel/trace"
 )
 
-func (p *PostgreSQL) GetMinedTransaction(ctx context.Context, hash []byte) ([]byte, uint64, string, error) {
+func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
 	if tracer != nil {
 		var span trace.Span
-		ctx, span = tracer.Start(ctx, "GetMinedTransaction")
+		ctx, span = tracer.Start(ctx, "GetMinedTransactions")
 		defer span.End()
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	var hashSlice [][]byte
+	for _, hash := range hashes {
+		hashSlice = append(hashSlice, hash[:])
+	}
+
+	result := make([]store.GetMinedTransactionResult, 0, len(hashSlice))
 
 	q := `
 		SELECT
@@ -27,23 +33,36 @@ func (p *PostgreSQL) GetMinedTransaction(ctx context.Context, hash []byte) ([]by
 	   FROM transactions as t
 	   JOIN block_transactions_map ON t.id = block_transactions_map.txid
 	   JOIN blocks as b ON block_transactions_map.blockid = b.id
-	   WHERE t.hash = $1
+	   WHERE t.hash = ANY($1)
 	`
 
-	var blockHash []byte
-	var blockHeight uint64
-	var merklePath string
-
-	if err := p.db.QueryRowContext(ctx, q, hash).Scan(
-		&blockHash,
-		&blockHeight,
-		&merklePath,
-	); err != nil {
-		if errors.Is(err, sql.ErrNoRows) || merklePath == "" || blockHeight == 0 {
-			return nil, 0, "", store.ErrBlockNotFound
-		}
-		return nil, 0, "", err
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(hashSlice))
+	if err != nil {
+		return nil, err
 	}
 
-	return blockHash, blockHeight, merklePath, nil
+	for rows.Next() {
+
+		var blockHash []byte
+		var blockHeight uint64
+		var merklePath string
+
+		err = rows.Scan(
+			&blockHash,
+			&blockHeight,
+			&merklePath,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, store.GetMinedTransactionResult{
+			BlockHash:   blockHash,
+			BlockHeight: blockHeight,
+			MerklePath:  merklePath,
+		})
+
+	}
+
+	return result, nil
 }

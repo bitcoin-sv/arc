@@ -80,3 +80,9 @@ func WithHttpClient(httpClient HttpClient) func(processor *Processor) {
 		p.httpClient = httpClient
 	}
 }
+
+func WithStatCollectionInterval(statCollectionInterval time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.statCollectionInterval = statCollectionInterval
+	}
+}

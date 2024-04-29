@@ -54,29 +54,34 @@ type Processor struct {
 	seenOnNetworkTxTime      time.Duration
 	seenOnNetworkTxTimeUntil time.Duration
 	now                      func() time.Time
+	stats                    *processorStats
 
 	httpClient HttpClient
 
+	cancelCollectStats       context.CancelFunc
+	quitCollectStatsComplete chan struct{}
+	statCollectionInterval   time.Duration
+
 	lockTransactionsInterval     time.Duration
-	quitLockTransactions         chan struct{}
+	cancelLockTransactions       context.CancelFunc
 	quitLockTransactionsComplete chan struct{}
 
-	quitProcessMinedCallbacks         chan struct{}
+	cancelMinedCallbacks              context.CancelFunc
 	quitProcessMinedCallbacksComplete chan struct{}
 	minedTxsChan                      chan *blocktx_api.TransactionBlocks
 
 	storageStatusUpdateCh                     chan store.UpdateStatus
-	quitProcessStatusUpdatesInStorage         chan struct{}
+	cancelProcessStatusUpdatesInStorage       context.CancelFunc
 	quitProcessStatusUpdatesInStorageComplete chan struct{}
 	processStatusUpdatesInterval              time.Duration
 	processStatusUpdatesBatchSize             int
 
 	processExpiredTxsInterval              time.Duration
 	processSeenOnNetworkTxsInterval        time.Duration
-	quitProcessExpiredTransactions         chan struct{}
+	cancelProcessExpiredTransactions       context.CancelFunc
 	quitProcessExpiredTransactionsComplete chan struct{}
 
-	quitProcessSeenOnNetworkTxRequesting         chan struct{}
+	cancelProcessSeenOnNetworkTxRequesting       context.CancelFunc
 	quitProcessSeenOnNetworkTxRequestingComplete chan struct{}
 
 	startTime           time.Time
@@ -125,6 +130,9 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		processStatusUpdatesInterval:  processStatusUpdatesIntervalDefault,
 		processStatusUpdatesBatchSize: processStatusUpdatesBatchSizeDefault,
 		storageStatusUpdateCh:         make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
+		stats:                         newProcessorStats(),
+
+		statCollectionInterval: statCollectionIntervalDefault,
 
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
@@ -166,28 +174,34 @@ func (p *Processor) Shutdown() {
 		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
 	}
 
-	if p.quitLockTransactions != nil {
-		p.quitLockTransactions <- struct{}{}
+	if p.cancelLockTransactions != nil {
+		p.cancelLockTransactions()
 		<-p.quitLockTransactionsComplete
 	}
-	if p.quitProcessMinedCallbacks != nil {
-		p.quitProcessMinedCallbacks <- struct{}{}
+
+	if p.cancelMinedCallbacks != nil {
+		p.cancelMinedCallbacks()
 		<-p.quitProcessMinedCallbacksComplete
 	}
 
-	if p.quitProcessStatusUpdatesInStorage != nil {
-		p.quitProcessStatusUpdatesInStorage <- struct{}{}
+	if p.cancelProcessStatusUpdatesInStorage != nil {
+		p.cancelProcessStatusUpdatesInStorage()
 		<-p.quitProcessStatusUpdatesInStorageComplete
 	}
 
-	if p.quitProcessExpiredTransactions != nil {
-		p.quitProcessExpiredTransactions <- struct{}{}
+	if p.cancelProcessExpiredTransactions != nil {
+		p.cancelProcessExpiredTransactions()
 		<-p.quitProcessExpiredTransactionsComplete
 	}
 
-	if p.quitProcessSeenOnNetworkTxRequesting != nil {
-		p.quitProcessSeenOnNetworkTxRequesting <- struct{}{}
+	if p.cancelProcessSeenOnNetworkTxRequesting != nil {
+		p.cancelProcessSeenOnNetworkTxRequesting()
 		<-p.quitProcessSeenOnNetworkTxRequestingComplete
+	}
+
+	if p.cancelCollectStats != nil {
+		p.cancelCollectStats()
+		<-p.quitCollectStatsComplete
 	}
 }
 
@@ -213,8 +227,8 @@ func (p *Processor) unlockItems() error {
 }
 
 func (p *Processor) StartProcessMinedCallbacks() {
-
-	p.quitProcessMinedCallbacks = make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	p.cancelMinedCallbacks = cancel
 	p.quitProcessMinedCallbacksComplete = make(chan struct{})
 
 	go func() {
@@ -224,10 +238,10 @@ func (p *Processor) StartProcessMinedCallbacks() {
 
 		for {
 			select {
-			case <-p.quitProcessMinedCallbacks:
+			case <-ctx.Done():
 				return
 			case txBlocks := <-p.minedTxsChan:
-				updatedData, err := p.store.UpdateMined(context.Background(), txBlocks)
+				updatedData, err := p.store.UpdateMined(ctx, txBlocks)
 				if err != nil {
 					p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 				}
@@ -262,8 +276,8 @@ func (p *Processor) CheckAndUpdate(statusUpdatesMap *map[chainhash.Hash]store.Up
 
 func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	ticker := time.NewTicker(p.processStatusUpdatesInterval)
-
-	p.quitProcessStatusUpdatesInStorage = make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	p.cancelProcessStatusUpdatesInStorage = cancel
 	p.quitProcessStatusUpdatesInStorageComplete = make(chan struct{})
 
 	go func() {
@@ -275,7 +289,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 
 		for {
 			select {
-			case <-p.quitProcessStatusUpdatesInStorage:
+			case <-ctx.Done():
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
 				// Ensure no duplicate hashes, overwrite value if the status has higher value than existing status
@@ -309,10 +323,9 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus)
 }
 
 func (p *Processor) StartLockTransactions() {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	ticker := time.NewTicker(p.lockTransactionsInterval)
-
-	p.quitLockTransactions = make(chan struct{})
+	p.cancelLockTransactions = cancel
 	p.quitLockTransactionsComplete = make(chan struct{})
 
 	go func() {
@@ -321,7 +334,7 @@ func (p *Processor) StartLockTransactions() {
 		}()
 		for {
 			select {
-			case <-p.quitLockTransactions:
+			case <-ctx.Done():
 				return
 			case <-ticker.C:
 				expiredSince := p.now().Add(-1 * p.mapExpiryTime)
@@ -335,10 +348,9 @@ func (p *Processor) StartLockTransactions() {
 }
 
 func (p *Processor) StartRequestingSeenOnNetworkTxs() {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	ticker := time.NewTicker(p.processSeenOnNetworkTxsInterval)
-
-	p.quitProcessSeenOnNetworkTxRequesting = make(chan struct{})
+	p.cancelProcessSeenOnNetworkTxRequesting = cancel
 	p.quitProcessSeenOnNetworkTxRequestingComplete = make(chan struct{})
 
 	go func() {
@@ -348,7 +360,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 
 		for {
 			select {
-			case <-p.quitProcessSeenOnNetworkTxRequesting:
+			case <-ctx.Done():
 				return
 			case <-ticker.C:
 				// Periodically read SEEN_ON_NETWORK transactions from database check their status in blocktx
@@ -388,10 +400,9 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 }
 
 func (p *Processor) StartProcessExpiredTransactions() {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	ticker := time.NewTicker(p.processExpiredTxsInterval)
-
-	p.quitProcessExpiredTransactions = make(chan struct{})
+	p.cancelProcessExpiredTransactions = cancel
 	p.quitProcessExpiredTransactionsComplete = make(chan struct{})
 
 	go func() {
@@ -401,7 +412,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 
 		for {
 			select {
-			case <-p.quitProcessExpiredTransactions:
+			case <-ctx.Done():
 				return
 			case <-ticker.C: // Periodically read unmined transactions from database and announce them again
 				// define from what point in time we are interested in unmined transactions

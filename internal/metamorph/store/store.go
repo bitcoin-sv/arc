@@ -32,6 +32,19 @@ type StoreData struct {
 	Retries           int                  `dynamodbav:"retries"`
 }
 
+type Stats struct {
+	StatusStored              int64
+	StatusAnnouncedToNetwork  int64
+	StatusRequestedByNetwork  int64
+	StatusSentToNetwork       int64
+	StatusAcceptedByNetwork   int64
+	StatusSeenOnNetwork       int64
+	StatusMined               int64
+	StatusConfirmed           int64
+	StatusRejected            int64
+	StatusSeenInOrphanMempool int64
+}
+
 type MetamorphStore interface {
 	Get(ctx context.Context, key []byte) (*StoreData, error)
 	Set(ctx context.Context, key []byte, value *StoreData) error
@@ -48,6 +61,8 @@ type MetamorphStore interface {
 	Close(ctx context.Context) error
 	ClearData(ctx context.Context, retentionDays int32) (int64, error)
 	Ping(ctx context.Context) error
+
+	GetStats(ctx context.Context, since time.Time) (*Stats, error)
 }
 
 type UpdateStatus struct {

@@ -119,7 +119,7 @@ type PeerHandler struct {
 	quitPeerWorkerComplete             chan struct{}
 	quitListenTxChannel                chan struct{}
 	quitListenTxChannelComplete        chan struct{}
-	quitListenRequestTxChannel         chan struct{}
+	cancelListenRequestTxChannel       context.CancelFunc
 	quitListenRequestTxChannelComplete chan struct{}
 }
 
@@ -358,7 +358,8 @@ func (ph *PeerHandler) startProcessTxs() {
 }
 
 func (ph *PeerHandler) startProcessRequestTxs() {
-	ph.quitListenRequestTxChannel = make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	ph.cancelListenRequestTxChannel = cancel
 	ph.quitListenRequestTxChannelComplete = make(chan struct{})
 	updatesBatch := make([]*blocktx_api.TransactionBlock, ph.registerRequestTxsBatchSize)
 
@@ -370,7 +371,7 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 
 		for {
 			select {
-			case <-ph.quitListenRequestTxChannel:
+			case <-ctx.Done():
 				return
 			case txHash := <-ph.requestTxChannel:
 				tx, err := chainhash.NewHash(txHash)
@@ -831,8 +832,8 @@ func (ph *PeerHandler) Shutdown() {
 		<-ph.quitListenTxChannelComplete
 	}
 
-	if ph.quitListenRequestTxChannel != nil {
-		ph.quitListenRequestTxChannel <- struct{}{}
+	if ph.cancelListenRequestTxChannel != nil {
+		ph.cancelListenRequestTxChannel()
 		<-ph.quitListenRequestTxChannelComplete
 	}
 	ph.unregisterTracing()

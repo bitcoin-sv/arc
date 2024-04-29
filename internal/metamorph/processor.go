@@ -60,6 +60,7 @@ type Processor struct {
 
 	cancelCollectStats       context.CancelFunc
 	quitCollectStatsComplete chan struct{}
+	statCollectionInterval   time.Duration
 
 	lockTransactionsInterval     time.Duration
 	cancelLockTransactions       context.CancelFunc
@@ -130,6 +131,8 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		processStatusUpdatesBatchSize: processStatusUpdatesBatchSizeDefault,
 		storageStatusUpdateCh:         make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
 		stats:                         newProcessorStats(),
+
+		statCollectionInterval: statCollectionIntervalDefault,
 
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,

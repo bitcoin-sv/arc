@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"net/http"
 	"os"
 	"runtime/debug"
 	"strings"
@@ -17,8 +16,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
@@ -28,7 +25,6 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
@@ -46,9 +42,6 @@ func PtrTo[T any](v T) *T {
 
 const (
 	responseTimeout = 5 * time.Second
-	component       = "grpc-example"
-	grpcAddr        = ":8080"
-	httpAddr        = ":8081"
 )
 
 var ErrNotFound = errors.New("key could not be found")
@@ -114,20 +107,18 @@ func (s *Server) SetTimeout(timeout time.Duration) {
 	s.timeout = timeout
 }
 
-// interceptorLogger adapts go-kit logger to interceptor logger.
-// This code is simple enough to be copied and not imported.
-func interceptorLogger(l log.Logger) logging.Logger {
+// interceptorLogger adapts slog logger to interceptor logger.
+func interceptorLogger(l *slog.Logger) logging.Logger {
 	return logging.LoggerFunc(func(_ context.Context, lvl logging.Level, msg string, fields ...any) {
-		largs := append([]any{"msg", msg}, fields...)
 		switch lvl {
 		case logging.LevelDebug:
-			_ = level.Debug(l).Log(largs...)
+			l.Debug(msg, fields...)
 		case logging.LevelInfo:
-			_ = level.Info(l).Log(largs...)
+			l.Info(msg, fields...)
 		case logging.LevelWarn:
-			_ = level.Warn(l).Log(largs...)
+			l.Warn(msg, fields...)
 		case logging.LevelError:
-			_ = level.Error(l).Log(largs...)
+			l.Error(msg, fields...)
 		default:
 			panic(fmt.Sprintf("unknown level %v", lvl))
 		}
@@ -135,12 +126,11 @@ func interceptorLogger(l log.Logger) logging.Logger {
 }
 
 // StartGRPCServer function
-func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
+func (s *Server) StartGRPCServer(address string, grpcMessageSize int, logger *slog.Logger) error {
 	// LEVEL 0 - no security / no encryption
 
 	// Setup logging.
-	logger := log.NewLogfmtLogger(os.Stderr)
-	rpcLogger := log.With(logger, "service", "gRPC/server", "component", component)
+	rpcLogger := logger.With(slog.String("service", "gRPC/server"))
 	logTraceID := func(ctx context.Context) logging.Fields {
 		if span := trace.SpanContextFromContext(ctx); span.IsSampled() {
 			return logging.Fields{"traceID", span.TraceID().String()}
@@ -173,7 +163,7 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 	})
 	grpcPanicRecoveryHandler := func(p any) (err error) {
 		panicsTotal.Inc()
-		level.Error(rpcLogger).Log("msg", "recovered from panic", "panic", p, "stack", debug.Stack())
+		rpcLogger.Error("recovered from panic", "panic", p, "stack", debug.Stack())
 		return status.Errorf(codes.Internal, "%s", p)
 	}
 
@@ -202,26 +192,6 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 	t := &testpb.TestPingService{}
 	testpb.RegisterTestServiceServer(grpcSrv, t)
 	srvMetrics.InitializeMetrics(grpcSrv)
-
-	httpSrv := &http.Server{Addr: httpAddr}
-	g.Add(func() error {
-		m := http.NewServeMux()
-		// Create HTTP handler for Prometheus metrics.
-		m.Handle("/metrics", promhttp.HandlerFor(
-			reg,
-			promhttp.HandlerOpts{
-				// Opt into OpenMetrics e.g. to support exemplars.
-				EnableOpenMetrics: true,
-			},
-		))
-		httpSrv.Handler = m
-		level.Info(logger).Log("msg", "starting HTTP server", "addr", httpSrv.Addr)
-		return httpSrv.ListenAndServe()
-	}, func(error) {
-		if err := httpSrv.Close(); err != nil {
-			level.Error(logger).Log("msg", "failed to stop web server", "err", err)
-		}
-	})
 
 	s.grpcServer = grpcSrv
 

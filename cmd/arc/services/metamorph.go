@@ -194,7 +194,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 			logger.Error("grpcMessageSize must be set")
 			return
 		}
-		if err = serv.StartGRPCServer(metamorphGRPCListenAddress, grpcMessageSize); err != nil {
+		if err = serv.StartGRPCServer(metamorphGRPCListenAddress, grpcMessageSize, logger); err != nil {
 			logger.Error("GRPCServer failed", slog.String("err", err.Error()))
 		}
 	}()

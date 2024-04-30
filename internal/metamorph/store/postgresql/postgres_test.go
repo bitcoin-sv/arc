@@ -494,6 +494,14 @@ func TestPostgresDB(t *testing.T) {
 		unmined.MerklePath = "merkle-path-1"
 		require.Equal(t, dataReturned, &unmined)
 
+		updated, err = postgresDB.UpdateMined(ctx, &blocktx_api.TransactionBlocks{})
+		require.NoError(t, err)
+		require.Len(t, updated, 0)
+		require.Len(t, updated, 0)
+
+		updated, err = postgresDB.UpdateMined(ctx, nil)
+		require.NoError(t, err)
+		require.Nil(t, updated)
 	})
 
 	t.Run("update mined - missing block info", func(t *testing.T) {

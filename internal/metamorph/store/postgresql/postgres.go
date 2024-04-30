@@ -517,6 +517,10 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 }
 
 func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
+	if txsBlocks == nil {
+		return nil, nil
+	}
+
 	txHashes := make([][]byte, len(txsBlocks.TransactionBlocks))
 	blockHashes := make([][]byte, len(txsBlocks.TransactionBlocks))
 	blockHeights := make([]uint64, len(txsBlocks.TransactionBlocks))

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"net/http"
 	"os"
 	"strconv"
 	"sync/atomic"
@@ -56,7 +55,7 @@ type Processor struct {
 	now                      func() time.Time
 	stats                    *processorStats
 
-	httpClient HttpClient
+	callbackSender CallbackSender
 
 	cancelCollectStats       context.CancelFunc
 	quitCollectStatsComplete chan struct{}
@@ -101,8 +100,8 @@ type Processor struct {
 
 type Option func(f *Processor)
 
-type HttpClient interface {
-	Do(req *http.Request) (*http.Response, error)
+type CallbackSender interface {
+	SendCallback(logger *slog.Logger, tx *store.StoreData)
 }
 
 func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (*Processor, error) {
@@ -134,9 +133,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 
 		statCollectionInterval: statCollectionIntervalDefault,
 
-		httpClient: &http.Client{
-			Timeout: 5 * time.Second,
-		},
 		stored:              stat.NewAtomicStat(),
 		announcedToNetwork:  stat.NewAtomicStats(),
 		requestedByNetwork:  stat.NewAtomicStats(),
@@ -241,14 +237,19 @@ func (p *Processor) StartProcessMinedCallbacks() {
 			case <-ctx.Done():
 				return
 			case txBlocks := <-p.minedTxsChan:
+				if txBlocks == nil {
+					continue
+				}
+
 				updatedData, err := p.store.UpdateMined(ctx, txBlocks)
 				if err != nil {
 					p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
+					return
 				}
 
 				for _, data := range updatedData {
 					if data.CallbackUrl != "" {
-						go p.SendCallback(p.logger, data)
+						go p.callbackSender.SendCallback(p.logger, data)
 					}
 				}
 			}
@@ -316,7 +317,7 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus)
 
 	for _, data := range updatedData {
 		if ((data.Status == metamorph_api.Status_SEEN_ON_NETWORK || data.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL) && data.FullStatusUpdates || data.Status == metamorph_api.Status_REJECTED) && data.CallbackUrl != "" {
-			go p.SendCallback(p.logger, data)
+			go p.callbackSender.SendCallback(p.logger, data)
 		}
 	}
 	return nil

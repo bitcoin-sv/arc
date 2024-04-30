@@ -6,18 +6,18 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"time"
-
-	"github.com/bitcoin-sv/arc/internal/nats_mq"
 
 	cfg "github.com/bitcoin-sv/arc/internal/helpers"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/async"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
+	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/libsv/go-p2p"
@@ -122,7 +122,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),
-	)
+		metamorph.WithCallbackSender(metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})))
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	metamorphProcessor.StartProcessMinedCallbacks()
 	err = metamorphProcessor.StartCollectStats()
 	if err != nil {
-		return nil, fmt.Errorf("failed to start collect stats: %v", err)
+		return nil, fmt.Errorf("failed to start collecting stats: %v", err)
 	}
 
 	go func() {

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -160,25 +159,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 	}, nil
 }
 
-func ValidateCallbackURL(callbackURL string) error {
-	if callbackURL == "" {
-		return nil
-	}
-
-	_, err := url.ParseRequestURI(callbackURL)
-	if err != nil {
-		return fmt.Errorf("invalid URL [%w]", err)
-	}
-
-	return nil
-}
-
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
-	err := ValidateCallbackURL(req.GetCallbackUrl())
-	if err != nil {
-		s.logger.Error("failed to validate callback URL", slog.String("err", err.Error()))
-		return nil, err
-	}
 	hash := PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
 	status := metamorph_api.Status_RECEIVED
 
@@ -212,12 +193,6 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	var timeout int64
 
 	for ind, txReq := range req.GetTransactions() {
-		err := ValidateCallbackURL(txReq.GetCallbackUrl())
-		if err != nil {
-			s.logger.Error("failed to validate callback URL", slog.String("err", err.Error()))
-			return nil, err
-		}
-
 		status := metamorph_api.Status_RECEIVED
 		hash := PtrTo(chainhash.DoubleHashH(txReq.GetRawTx()))
 		timeout = txReq.GetMaxTimeout()

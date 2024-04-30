@@ -49,6 +49,7 @@ metamorph:
   checkUtxos: false
   profilerAddr: localhost:9992
   healthServerDialAddr: localhost:8005
+  rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
 
 blocktx:
   listenAddr: 0.0.0.0:8011

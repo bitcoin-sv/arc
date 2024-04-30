@@ -594,6 +594,60 @@ func TestProcessExpiredTransactions(t *testing.T) {
 	}
 }
 
+func TestStartProcessMinedCallbacks(t *testing.T) {
+	tt := []struct {
+		name           string
+		retries        int
+		updateMinedErr error
+
+		expectedSendCallbackCalls int
+	}{
+		{
+			name:                      "success",
+			expectedSendCallbackCalls: 2,
+		},
+		{
+			name:           "error - updated mined",
+			updateMinedErr: errors.New("update failed"),
+
+			expectedSendCallbackCalls: 0,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+
+			metamorphStore := &mocks.MetamorphStoreMock{
+				UpdateMinedFunc: func(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
+					return []*store.StoreData{{CallbackUrl: "http://callback.com"}, {CallbackUrl: "http://callback.com"}, {}}, tc.updateMinedErr
+				},
+			}
+			pm := &mocks.PeerManagerMock{}
+			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 5)
+			callbackSender := &mocks.CallbackSenderMock{
+				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {},
+			}
+			processor, err := metamorph.NewProcessor(
+				metamorphStore,
+				pm,
+				metamorph.WithMinedTxsChan(minedTxsChan),
+				metamorph.WithCallbackSender(callbackSender),
+			)
+			require.NoError(t, err)
+
+			minedTxsChan <- &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{{}, {}, {}}}
+			minedTxsChan <- nil
+
+			processor.StartProcessMinedCallbacks()
+
+			time.Sleep(50 * time.Millisecond)
+			processor.Shutdown()
+
+			require.Equal(t, tc.expectedSendCallbackCalls, len(callbackSender.SendCallbackCalls()))
+		})
+	}
+}
+
 func TestProcessorHealth(t *testing.T) {
 	tt := []struct {
 		name       string

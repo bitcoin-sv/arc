@@ -158,6 +158,7 @@ func TestGETTransactionStatus(t *testing.T) {
 				MerklePath:  PtrTo(""),
 				BlockHeight: PtrTo(uint64(0)),
 				BlockHash:   PtrTo(""),
+				ExtraInfo:   PtrTo(""),
 				Timestamp:   time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC),
 				TxStatus:    PtrTo("SEEN_ON_NETWORK"),
 				Txid:        "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46",
@@ -361,9 +362,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				BlockHeight: PtrTo(uint64(0)),
 				ExtraInfo:   PtrTo(""),
 				MerklePath:  PtrTo(""),
-				Status:      200,
 				Timestamp:   now,
-				Title:       "OK",
 				TxStatus:    "SEEN_ON_NETWORK",
 				Txid:        validTxID,
 			},
@@ -502,8 +501,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 			errBadRequest := api.NewErrorFields(api.ErrStatusBadRequest, "")
 
-			assert.Equal(t, float64(errBadRequest.Status), bErr.Status)
-			assert.Equal(t, errBadRequest.Title, bErr.Title)
+			assert.Equal(t, errBadRequest.Status, bErr.Status)
 			if expectedError != "" {
 				require.NotNil(t, bErr.ExtraInfo)
 				assert.Equal(t, expectedError, *bErr.ExtraInfo)
@@ -540,7 +538,6 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
 			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
 			require.NoError(t, err)
-			assert.Equal(t, api.StatusOK, api.StatusCode(rec.Code))
 
 			b := rec.Body.Bytes()
 			var bErr []api.ErrorFields
@@ -826,7 +823,6 @@ func Test_handleError(t *testing.T) {
 			expectedArcErr: &api.ErrorFields{
 				Detail:    "Transaction could not be processed",
 				ExtraInfo: PtrTo("some error"),
-				Title:     "Generic error",
 				Type:      "https://bitcoin-sv.github.io/arc/#/errors?id=_409",
 				Txid:      PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
 				Status:    409,
@@ -843,7 +839,6 @@ func Test_handleError(t *testing.T) {
 			expectedArcErr: &api.ErrorFields{
 				Detail:    "The request seems to be malformed and cannot be processed",
 				ExtraInfo: PtrTo("arc error 400: validation failed"),
-				Title:     "Bad request",
 				Type:      "https://bitcoin-sv.github.io/arc/#/errors?id=_400",
 				Txid:      PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
 				Status:    400,
@@ -857,7 +852,6 @@ func Test_handleError(t *testing.T) {
 			expectedArcErr: &api.ErrorFields{
 				Detail:    "Transaction is not in extended format, missing input scripts",
 				ExtraInfo: PtrTo("parent transaction not found"),
-				Title:     "Not extended format",
 				Type:      "https://bitcoin-sv.github.io/arc/#/errors?id=_460",
 				Txid:      PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),
 				Status:    460,

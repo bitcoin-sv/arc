@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/spf13/viper"
 	"log/slog"
 	"net"
 	"net/http"
@@ -13,10 +12,8 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
@@ -28,15 +25,11 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/testing/testpb"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/oklog/run"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.opentelemetry.io/otel"
-	stdout "go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
-	"go.opentelemetry.io/otel/propagation"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -162,27 +155,16 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 		),
 	)
 	reg := prometheus.NewRegistry()
-	reg.MustRegister(srvMetrics)
+	err := reg.Register(srvMetrics)
+	if err != nil {
+		return err
+	}
 	exemplarFromContext := func(ctx context.Context) prometheus.Labels {
 		if span := trace.SpanContextFromContext(ctx); span.IsSampled() {
 			return prometheus.Labels{"traceID": span.TraceID().String()}
 		}
 		return nil
 	}
-
-	// Set up OTLP tracing (stdout for debug).
-	exporter, err := stdout.New(stdout.WithPrettyPrint())
-	if err != nil {
-		level.Error(logger).Log("err", err)
-		os.Exit(1)
-	}
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-		sdktrace.WithBatcher(exporter),
-	)
-	otel.SetTracerProvider(tp)
-	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
-	defer func() { _ = exporter.Shutdown(context.Background()) }()
 
 	// Setup metric for panic recoveries.
 	panicsTotal := promauto.With(reg).NewCounter(prometheus.CounterOpts{
@@ -195,47 +177,31 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 		return status.Errorf(codes.Internal, "%s", p)
 	}
 
-	opts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(
-			// Order matters e.g. tracing interceptor have to create span first for the later exemplars to work.
-			srvMetrics.UnaryServerInterceptor(grpcprom.WithExemplarFromContext(exemplarFromContext)),
-			logging.UnaryServerInterceptor(interceptorLogger(rpcLogger), logging.WithFieldsFromContext(logTraceID)),
-			recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpcPanicRecoveryHandler)),
-		),
-		grpc.ChainStreamInterceptor(
-			srvMetrics.StreamServerInterceptor(grpcprom.WithExemplarFromContext(exemplarFromContext)),
-			logging.StreamServerInterceptor(interceptorLogger(rpcLogger), logging.WithFieldsFromContext(logTraceID)),
-			recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(grpcPanicRecoveryHandler)),
-		),
-		grpc.MaxRecvMsgSize(grpcMessageSize),
-	}
+	var chainUnaryInterceptors []grpc.UnaryServerInterceptor
+	var chainStreamInterceptors []grpc.StreamServerInterceptor
 
 	prometheusEndpoint := viper.GetString("prometheusEndpoint")
 	if prometheusEndpoint != "" {
-		opts = append(opts,
-			grpc.ChainStreamInterceptor(grpc_prometheus.StreamServerInterceptor),
-			grpc.ChainUnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
-			grpc.MaxRecvMsgSize(grpcMessageSize),
-		)
+		chainUnaryInterceptors = append(chainUnaryInterceptors, srvMetrics.UnaryServerInterceptor(grpcprom.WithExemplarFromContext(exemplarFromContext)))
+		chainStreamInterceptors = append(chainStreamInterceptors, srvMetrics.StreamServerInterceptor(grpcprom.WithExemplarFromContext(exemplarFromContext)))
+	}
+
+	chainUnaryInterceptors = append(chainUnaryInterceptors, // Order matters e.g. tracing interceptor have to create span first for the later exemplars to work.
+		logging.UnaryServerInterceptor(interceptorLogger(rpcLogger), logging.WithFieldsFromContext(logTraceID)),
+		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpcPanicRecoveryHandler)))
+	chainStreamInterceptors = append(chainStreamInterceptors, srvMetrics.StreamServerInterceptor(grpcprom.WithExemplarFromContext(exemplarFromContext)),
+		logging.StreamServerInterceptor(interceptorLogger(rpcLogger), logging.WithFieldsFromContext(logTraceID)),
+		recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(grpcPanicRecoveryHandler)))
+	opts := []grpc.ServerOption{
+		grpc.ChainUnaryInterceptor(chainUnaryInterceptors...),
+		grpc.ChainStreamInterceptor(chainStreamInterceptors...),
+		grpc.MaxRecvMsgSize(grpcMessageSize),
 	}
 
 	grpcSrv := grpc.NewServer(opts...)
 	t := &testpb.TestPingService{}
 	testpb.RegisterTestServiceServer(grpcSrv, t)
 	srvMetrics.InitializeMetrics(grpcSrv)
-
-	g := &run.Group{}
-	g.Add(func() error {
-		l, err := net.Listen("tcp", grpcAddr)
-		if err != nil {
-			return err
-		}
-		level.Info(logger).Log("msg", "starting gRPC server", "addr", l.Addr().String())
-		return grpcSrv.Serve(l)
-	}, func(err error) {
-		grpcSrv.GracefulStop()
-		grpcSrv.Stop()
-	})
 
 	httpSrv := &http.Server{Addr: httpAddr}
 	g.Add(func() error {
@@ -256,13 +222,6 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 			level.Error(logger).Log("msg", "failed to stop web server", "err", err)
 		}
 	})
-
-	g.Add(run.SignalHandler(context.Background(), syscall.SIGINT, syscall.SIGTERM))
-
-	if err := g.Run(); err != nil {
-		level.Error(logger).Log("err", err)
-		os.Exit(1)
-	}
 
 	s.grpcServer = grpcSrv
 
@@ -287,8 +246,9 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 
 func (s *Server) Shutdown() {
 	s.logger.Info("Shutting down")
-	s.grpcServer.Stop()
 	s.processor.Shutdown()
+	s.grpcServer.GracefulStop()
+	s.grpcServer.Stop()
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.HealthResponse, error) {
@@ -314,12 +274,12 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
 	hash := PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
-	status := metamorph_api.Status_RECEIVED
+	statusReceived := metamorph_api.Status_RECEIVED
 
 	// Convert gRPC req to store.StoreData struct...
 	sReq := &store.StoreData{
 		Hash:              hash,
-		Status:            status,
+		Status:            statusReceived,
 		CallbackUrl:       req.GetCallbackUrl(),
 		CallbackToken:     req.GetCallbackToken(),
 		FullStatusUpdates: req.GetFullStatusUpdates(),
@@ -346,14 +306,14 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	var timeout int64
 
 	for ind, txReq := range req.GetTransactions() {
-		status := metamorph_api.Status_RECEIVED
+		statusReceived := metamorph_api.Status_RECEIVED
 		hash := PtrTo(chainhash.DoubleHashH(txReq.GetRawTx()))
 		timeout = txReq.GetMaxTimeout()
 
 		// Convert gRPC req to store.StoreData struct...
 		sReq := &store.StoreData{
 			Hash:              hash,
-			Status:            status,
+			Status:            statusReceived,
 			CallbackUrl:       txReq.GetCallbackUrl(),
 			CallbackToken:     txReq.GetCallbackToken(),
 			FullStatusUpdates: txReq.GetFullStatusUpdates(),

@@ -241,9 +241,14 @@ func (p *Processor) StartProcessMinedCallbacks() {
 			case <-ctx.Done():
 				return
 			case txBlocks := <-p.minedTxsChan:
+				if txBlocks == nil {
+					continue
+				}
+
 				updatedData, err := p.store.UpdateMined(ctx, txBlocks)
 				if err != nil {
 					p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
+					return
 				}
 
 				for _, data := range updatedData {

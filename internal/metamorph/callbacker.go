@@ -28,7 +28,21 @@ type Callback struct {
 	Txid        string    `json:"txid"`
 }
 
-func (p *Processor) SendCallback(logger *slog.Logger, tx *store.StoreData) {
+type Callbacker struct {
+	httpClient HttpClient
+}
+
+func NewCallbacker(httpClient HttpClient) *Callbacker {
+	return &Callbacker{
+		httpClient: httpClient,
+	}
+}
+
+type HttpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 	sleepDuration := CallbackIntervalSeconds
 	statusString := tx.Status.String()
 	blockHash := ""

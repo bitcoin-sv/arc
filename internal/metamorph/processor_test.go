@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"net/http"
 	"os"
 	"sync"
 	"testing"
@@ -15,6 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/testdata"
+	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -24,7 +24,7 @@ import (
 
 //go:generate moq -pkg mocks -out ./mocks/store_mock.go ./store/ MetamorphStore
 //go:generate moq -pkg mocks -out ./mocks/message_queue_mock.go . MessageQueueClient
-//go:generate moq -pkg mocks -out ./mocks/http_client_mock.go . HttpClient
+//go:generate moq -pkg mocks -out ./mocks/callback_sender_mock.go . CallbackSender
 //go:generate moq -pkg mocks -out ./mocks/peer_manager_mock.go . PeerManager
 
 func TestNewProcessor(t *testing.T) {
@@ -446,14 +446,12 @@ func TestSendStatusForTransaction(t *testing.T) {
 			}
 
 			pm := &mocks.PeerManagerMock{}
-			httpClientMock := &mocks.HttpClientMock{
-				DoFunc: func(req *http.Request) (*http.Response, error) {
+
+			callbackSender := &mocks.CallbackSenderMock{
+				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {
 					callbackSent <- struct{}{}
-					return &http.Response{
-						Body:       readCloser{},
-						StatusCode: 200,
-					}, nil
-				}}
+				},
+			}
 
 			processor, err := metamorph.NewProcessor(
 				metamorphStore,
@@ -461,7 +459,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 				metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }),
 				metamorph.WithProcessStatusUpdatesInterval(50*time.Millisecond),
 				metamorph.WithProcessStatusUpdatesBatchSize(3),
-				metamorph.WithHttpClient(httpClientMock),
+				metamorph.WithCallbackSender(callbackSender),
 			)
 			require.NoError(t, err)
 
@@ -488,17 +486,11 @@ func TestSendStatusForTransaction(t *testing.T) {
 			time.Sleep(time.Millisecond * 100)
 
 			assert.Equal(t, tc.expectedUpdateStatusCalls, len(metamorphStore.UpdateStatusBulkCalls()))
-			assert.Equal(t, tc.expectedCallbacks, len(httpClientMock.DoCalls()))
+			assert.Equal(t, tc.expectedCallbacks, len(callbackSender.SendCallbackCalls()))
 			processor.Shutdown()
 		})
 	}
 }
-
-type readCloser struct {
-}
-
-func (r readCloser) Read(p []byte) (n int, err error) { return 0, nil }
-func (r readCloser) Close() error                     { return nil }
 
 func TestProcessExpiredTransactions(t *testing.T) {
 	tt := []struct {

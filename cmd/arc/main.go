@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -15,9 +16,14 @@ import (
 
 	cmd "github.com/bitcoin-sv/arc/cmd/arc/services"
 	cfg "github.com/bitcoin-sv/arc/internal/helpers"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/trace"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 func main() {
@@ -86,6 +92,31 @@ func run() error {
 
 	logger.Info("Starting arc", slog.String("version", version.Version), slog.String("commit", version.Commit))
 
+	shutdownFns := make([]func(), 0)
+
+	tracingAddr := viper.GetString("tracing.dialAddr")
+	tracingEnabled := false
+	var tp *trace.TracerProvider
+	if tracingAddr != "" {
+		ctx := context.Background()
+
+		exporter, err := tracing.NewExporter(ctx, tracingAddr)
+		if err != nil {
+			return fmt.Errorf("failed to initialize exporter: %v", err)
+		}
+
+		tp, err = tracing.NewTraceProvider(exporter, "arc")
+		if err != nil {
+			return fmt.Errorf("failed to create trace provider: %v", err)
+		}
+
+		otel.SetTracerProvider(tp)
+		otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+		tracingEnabled = true
+
+		shutdownFns = append(shutdownFns, func() { _ = exporter.Shutdown(ctx) })
+	}
+
 	go func() {
 		profilerAddr := viper.GetString("profilerAddr")
 		if profilerAddr != "" {
@@ -123,11 +154,9 @@ func run() error {
 		*startBlockTx = true
 	}
 
-	shutdownFns := make([]func(), 0)
-
 	if startBlockTx != nil && *startBlockTx {
 		logger.Info("Starting BlockTx")
-		shutdown, err := cmd.StartBlockTx(logger)
+		shutdown, err := cmd.StartBlockTx(logger, tracingEnabled)
 		if err != nil {
 			return fmt.Errorf("failed to start blocktx: %v", err)
 		}
@@ -161,6 +190,19 @@ func run() error {
 		}
 		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}
+
+	shutdownFns = append(shutdownFns, func() {
+		if tp != nil {
+			err = tp.Shutdown(context.Background())
+			if err != nil {
+				logger.Error("Failed to shutdown tracing provider", slog.String("err", err.Error()))
+			}
+		}
+
+		if err != nil {
+			logger.Error("Failed to close http server", slog.String("err", err.Error()))
+		}
+	})
 
 	// setup signal catching
 	signalChan := make(chan os.Signal, 1)

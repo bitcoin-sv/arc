@@ -188,16 +188,14 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 
 	serv := metamorph.NewServer(s, metamorphProcessor, optsServer...)
 
-	go func() {
-		grpcMessageSize := viper.GetInt("grpcMessageSize")
-		if grpcMessageSize == 0 {
-			logger.Error("grpcMessageSize must be set")
-			return
-		}
-		if err = serv.StartGRPCServer(metamorphGRPCListenAddress, grpcMessageSize, logger); err != nil {
-			logger.Error("GRPCServer failed", slog.String("err", err.Error()))
-		}
-	}()
+	grpcMessageSize, err := cfg.GetInt("grpcMessageSize")
+	if err != nil {
+		return nil, err
+	}
+	err = serv.StartGRPCServer(metamorphGRPCListenAddress, grpcMessageSize, logger)
+	if err != nil {
+		logger.Error("GRPCServer failed", slog.String("err", err.Error()))
+	}
 
 	peerSettings, err := cfg.GetPeerSettings()
 	if err != nil {

@@ -208,9 +208,12 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int, logger *sl
 
 	s.logger.Info("GRPC server listening on", slog.String("address", address))
 
-	if err = s.grpcServer.Serve(lis); err != nil {
-		return fmt.Errorf("metamorph GRPC server failed [%w]", err)
-	}
+	go func() {
+		err = s.grpcServer.Serve(lis)
+		if err != nil {
+			s.logger.Error("metamorph GRPC server failed", slog.String("err", err.Error()))
+		}
+	}()
 
 	return nil
 }

@@ -24,6 +24,7 @@ type Server struct {
 	logger     *slog.Logger
 	grpcServer *grpc.Server
 	peers      []p2p.PeerI
+	cleanup    func()
 }
 
 // NewServer will return a server instance with the logger stored within it.
@@ -39,10 +40,12 @@ func NewServer(storeI store.BlocktxStore, logger *slog.Logger, peers []p2p.PeerI
 func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheusEndpoint string, logger *slog.Logger) error {
 
 	// LEVEL 0 - no security / no encryption
-	srvMetrics, opts, err := grpc_server.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize)
+	srvMetrics, opts, cleanup, err := grpc_server.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize)
 	if err != nil {
 		return err
 	}
+
+	s.cleanup = cleanup
 
 	grpcSrv := grpc.NewServer(opts...)
 	srvMetrics.InitializeMetrics(grpcSrv)
@@ -108,4 +111,6 @@ func (s *Server) DelUnfinishedBlockProcessing(ctx context.Context, req *blocktx_
 func (s *Server) Shutdown() {
 	s.logger.Info("Shutting down")
 	s.grpcServer.Stop()
+
+	s.cleanup()
 }

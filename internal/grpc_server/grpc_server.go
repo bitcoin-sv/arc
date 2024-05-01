@@ -9,7 +9,7 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
-	prometheus2 "github.com/prometheus/client_golang/prometheus"
+	prometheusclient "github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -34,7 +34,7 @@ func interceptorLogger(l *slog.Logger) logging.Logger {
 	})
 }
 
-func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int) (*prometheus.ServerMetrics, []grpc.ServerOption, error) {
+func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
 	// Setup logging.
 	rpcLogger := logger.With(slog.String("service", "gRPC/server"))
 	logTraceID := func(ctx context.Context) logging.Fields {
@@ -51,22 +51,22 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 		),
 	)
 
-	exemplarFromContext := func(ctx context.Context) prometheus2.Labels {
+	exemplarFromContext := func(ctx context.Context) prometheusclient.Labels {
 		if span := trace.SpanContextFromContext(ctx); span.IsSampled() {
-			return prometheus2.Labels{"traceID": span.TraceID().String()}
+			return prometheusclient.Labels{"traceID": span.TraceID().String()}
 		}
 		return nil
 	}
 
 	// Setup metric for panic recoveries.
-	panicsTotal := prometheus2.NewCounter(prometheus2.CounterOpts{
+	panicsTotal := prometheusclient.NewCounter(prometheusclient.CounterOpts{
 		Name: "grpc_req_panics_recovered_total",
 		Help: "Total number of gRPC requests recovered from internal panic.",
 	})
 
-	err := prometheus2.Register(panicsTotal)
+	err := prometheusclient.Register(panicsTotal)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to register panics total metric: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to register panics total metric: %w", err)
 	}
 
 	grpcPanicRecoveryHandler := func(p any) (err error) {
@@ -94,5 +94,10 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 		grpc.ChainStreamInterceptor(chainStreamInterceptors...),
 		grpc.MaxRecvMsgSize(grpcMessageSize),
 	}
-	return srvMetrics, opts, err
+
+	cleanup := func() {
+		prometheusclient.Unregister(panicsTotal)
+	}
+
+	return srvMetrics, opts, cleanup, err
 }

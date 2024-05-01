@@ -59,6 +59,7 @@ type Server struct {
 	grpcServer      *grpc.Server
 	bitcoinNode     BitcoinNode
 	forceCheckUtxos bool
+	cleanup         func()
 }
 
 func WithLogger(logger *slog.Logger) func(*Server) {
@@ -101,10 +102,12 @@ func (s *Server) SetTimeout(timeout time.Duration) {
 func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheusEndpoint string, logger *slog.Logger) error {
 	// LEVEL 0 - no security / no encryption
 
-	srvMetrics, opts, err := grpc_server.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize)
+	srvMetrics, opts, cleanup, err := grpc_server.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize)
 	if err != nil {
 		return err
 	}
+
+	s.cleanup = cleanup
 
 	grpcSrv := grpc.NewServer(opts...)
 	srvMetrics.InitializeMetrics(grpcSrv)
@@ -137,6 +140,7 @@ func (s *Server) Shutdown() {
 	s.processor.Shutdown()
 	s.grpcServer.GracefulStop()
 	s.grpcServer.Stop()
+	s.cleanup()
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.HealthResponse, error) {

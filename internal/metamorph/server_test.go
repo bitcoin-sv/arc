@@ -57,7 +57,6 @@ func TestHealth(t *testing.T) {
 		assert.Equal(t, expectedStats.ChannelMapSize, stats.GetMapSize())
 		assert.Equal(t, expectedStats.QueuedCount, stats.GetQueued())
 		assert.Equal(t, expectedStats.QueueLength, stats.GetWaiting())
-		assert.Equal(t, float32(10), stats.GetAverage())
 	})
 }
 

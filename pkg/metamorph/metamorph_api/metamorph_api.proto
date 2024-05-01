@@ -39,15 +39,12 @@ message HealthResponse {
   bool ok = 1;
   string details = 2;
   google.protobuf.Timestamp timestamp = 3;
-  int32 workers = 4;
-  float uptime = 5;
-  int32 queued = 6;
-  int32 processed = 7;
-  int32 waiting = 8;
-  float average = 9;
-  int32 mapSize = 10;
-  string PeersConnected = 11;
-  string PeersDisconnected = 12;
+  float uptime = 4;
+  int32 queued = 5;
+  int32 waiting = 6;
+  int32 mapSize = 7;
+  string PeersConnected = 8;
+  string PeersDisconnected = 9;
 }
 
 // swagger:model TransactionRequest

@@ -15,7 +15,6 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/ordishs/go-utils/stat"
 )
 
 const (
@@ -83,19 +82,9 @@ type Processor struct {
 	cancelProcessSeenOnNetworkTxRequesting       context.CancelFunc
 	quitProcessSeenOnNetworkTxRequestingComplete chan struct{}
 
-	startTime           time.Time
-	queueLength         atomic.Int32
-	queuedCount         atomic.Int32
-	stored              *stat.AtomicStat
-	announcedToNetwork  *stat.AtomicStats
-	requestedByNetwork  *stat.AtomicStats
-	sentToNetwork       *stat.AtomicStats
-	acceptedByNetwork   *stat.AtomicStats
-	seenInOrphanMempool *stat.AtomicStats
-	seenOnNetwork       *stat.AtomicStats
-	rejected            *stat.AtomicStats
-	mined               *stat.AtomicStat
-	retries             *stat.AtomicStat
+	startTime   time.Time
+	queueLength atomic.Int32
+	queuedCount atomic.Int32
 }
 
 type Option func(f *Processor)
@@ -132,17 +121,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		stats:                         newProcessorStats(),
 
 		statCollectionInterval: statCollectionIntervalDefault,
-
-		stored:              stat.NewAtomicStat(),
-		announcedToNetwork:  stat.NewAtomicStats(),
-		requestedByNetwork:  stat.NewAtomicStats(),
-		sentToNetwork:       stat.NewAtomicStats(),
-		acceptedByNetwork:   stat.NewAtomicStats(),
-		seenInOrphanMempool: stat.NewAtomicStats(),
-		seenOnNetwork:       stat.NewAtomicStats(),
-		rejected:            stat.NewAtomicStats(),
-		mined:               stat.NewAtomicStat(),
-		retries:             stat.NewAtomicStat(),
 	}
 
 	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm"))
@@ -448,8 +426,6 @@ func (p *Processor) StartProcessExpiredTransactions() {
 							p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.AnnounceTransaction(tx.Hash, nil)
 						}
-
-						p.retries.AddDuration(time.Since(time.Now()))
 					}
 				}
 			}

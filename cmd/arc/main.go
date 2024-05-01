@@ -22,8 +22,6 @@ import (
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/trace"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 func main() {
@@ -96,7 +94,6 @@ func run() error {
 
 	tracingAddr := viper.GetString("tracing.dialAddr")
 	tracingEnabled := false
-	var tp *trace.TracerProvider
 	if tracingAddr != "" {
 		ctx := context.Background()
 
@@ -105,7 +102,7 @@ func run() error {
 			return fmt.Errorf("failed to initialize exporter: %v", err)
 		}
 
-		tp, err = tracing.NewTraceProvider(exporter, "arc")
+		tp, err := tracing.NewTraceProvider(exporter, "arc")
 		if err != nil {
 			return fmt.Errorf("failed to create trace provider: %v", err)
 		}
@@ -114,7 +111,18 @@ func run() error {
 		otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 		tracingEnabled = true
 
-		shutdownFns = append(shutdownFns, func() { _ = exporter.Shutdown(ctx) })
+		cleanup := func() {
+			err = exporter.Shutdown(ctx)
+			if err != nil {
+				logger.Error("Failed to shutdown exporter", slog.String("err", err.Error()))
+			}
+
+			err = tp.Shutdown(ctx)
+			if err != nil {
+				logger.Error("Failed to shutdown tracing provider", slog.String("err", err.Error()))
+			}
+		}
+		shutdownFns = append(shutdownFns, cleanup)
 	}
 
 	go func() {
@@ -190,19 +198,6 @@ func run() error {
 		}
 		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}
-
-	shutdownFns = append(shutdownFns, func() {
-		if tp != nil {
-			err = tp.Shutdown(context.Background())
-			if err != nil {
-				logger.Error("Failed to shutdown tracing provider", slog.String("err", err.Error()))
-			}
-		}
-
-		if err != nil {
-			logger.Error("Failed to close http server", slog.String("err", err.Error()))
-		}
-	})
 
 	// setup signal catching
 	signalChan := make(chan os.Signal, 1)

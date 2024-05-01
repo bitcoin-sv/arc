@@ -14,6 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
@@ -156,20 +157,27 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 
 	peerHandler.StartFillGaps(peers)
 
-	blockTxServer := blocktx.NewServer(blockStore, logger, peers)
+	server := blocktx.NewServer(blockStore, logger, peers)
 
-	address, err := cfg.GetString("blocktx.listenAddr")
+	blocktxGRPCListenAddress, err := cfg.GetString("blocktx.listenAddr")
 	if err != nil {
 		return nil, err
 	}
-	go func() {
-		if err = blockTxServer.StartGRPCServer(address); err != nil {
-			logger.Error("failed to start blocktx server", slog.String("err", err.Error()))
-		}
-	}()
+
+	grpcMessageSize, err := cfg.GetInt("grpcMessageSize")
+	if err != nil {
+		return nil, err
+	}
+
+	prometheusEndpoint := viper.GetString("prometheusEndpoint")
+
+	err = server.StartGRPCServer(blocktxGRPCListenAddress, grpcMessageSize, prometheusEndpoint, logger)
+	if err != nil {
+		return nil, fmt.Errorf("GRPCServer failed: %v", err)
+	}
 
 	go func() {
-		err = StartHealthServerBlocktx(blockTxServer)
+		err = StartHealthServerBlocktx(server)
 		if err != nil {
 			logger.Error("failed to start health server", slog.String("err", err.Error()))
 		}

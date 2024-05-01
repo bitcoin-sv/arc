@@ -8,10 +8,9 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	"github.com/bitcoin-sv/arc/internal/grpc_server"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-p2p"
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -37,19 +36,20 @@ func NewServer(storeI store.BlocktxStore, logger *slog.Logger, peers []p2p.PeerI
 }
 
 // StartGRPCServer function.
-func (s *Server) StartGRPCServer(address string) error {
+func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheusEndpoint string, logger *slog.Logger) error {
 
 	// LEVEL 0 - no security / no encryption
-	var opts []grpc.ServerOption
-	prometheusEndpoint := viper.Get("prometheusEndpoint")
-	if prometheusEndpoint != "" {
-		opts = append(opts,
-			grpc.ChainStreamInterceptor(grpc_prometheus.StreamServerInterceptor),
-			grpc.ChainUnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
-		)
+	srvMetrics, opts, err := grpc_server.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize)
+	if err != nil {
+		return err
 	}
 
-	s.grpcServer = grpc.NewServer(opts...)
+	grpcSrv := grpc.NewServer(opts...)
+	//t := &testpb.TestPingService{}
+	//testpb.RegisterTestServiceServer(grpcSrv, t)
+	srvMetrics.InitializeMetrics(grpcSrv)
+
+	s.grpcServer = grpcSrv
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
@@ -61,11 +61,13 @@ func (s *Server) StartGRPCServer(address string) error {
 	// Register reflection service on gRPC server.
 	reflection.Register(s.grpcServer)
 
-	s.logger.Info("GRPC server listening", slog.String("address", address))
-
-	if err = s.grpcServer.Serve(lis); err != nil {
-		return fmt.Errorf("GRPC server failed [%w]", err)
-	}
+	go func() {
+		s.logger.Info("GRPC server listening", slog.String("address", address))
+		err = s.grpcServer.Serve(lis)
+		if err != nil {
+			s.logger.Error("GRPC server failed to serve", slog.String("err", err.Error()))
+		}
+	}()
 
 	return nil
 }

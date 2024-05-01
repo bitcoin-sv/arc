@@ -111,13 +111,9 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 }
 
 func (m *Metamorph) Health(ctx context.Context) error {
-	resp, err := m.client.Health(ctx, &emptypb.Empty{})
+	_, err := m.client.Health(ctx, &emptypb.Empty{})
 	if err != nil {
 		return err
-	}
-
-	if !resp.Ok {
-		return errors.New(resp.Details)
 	}
 
 	return nil

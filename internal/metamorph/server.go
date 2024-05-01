@@ -148,14 +148,8 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 
 	peersConnected, peersDisconnected := s.processor.GetPeers()
 
-	details := fmt.Sprintf(`Peer stats (started: %s)`, stats.StartTime.UTC().Format(time.RFC3339))
 	return &metamorph_api.HealthResponse{
-		Ok:                true,
-		Details:           details,
 		Timestamp:         timestamppb.New(time.Now()),
-		Uptime:            float32(time.Since(stats.StartTime).Milliseconds()) / 1000.0,
-		Queued:            stats.QueuedCount,
-		Waiting:           stats.QueueLength,
 		MapSize:           stats.ChannelMapSize,
 		PeersConnected:    strings.Join(peersConnected, ","),
 		PeersDisconnected: strings.Join(peersDisconnected, ","),

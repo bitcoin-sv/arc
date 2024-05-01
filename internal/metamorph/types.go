@@ -10,10 +10,6 @@ import (
 )
 
 type ProcessorStats struct {
-	StartTime      time.Time
-	UptimeMillis   string
-	QueueLength    int32
-	QueuedCount    int32
 	ChannelMapSize int32
 }
 

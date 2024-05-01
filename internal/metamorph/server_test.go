@@ -38,10 +38,6 @@ func TestHealth(t *testing.T) {
 	t.Run("Health", func(t *testing.T) {
 		processor := &mocks.ProcessorIMock{}
 		expectedStats := &metamorph.ProcessorStats{
-			StartTime:      time.Now(),
-			UptimeMillis:   "2000ms",
-			QueueLength:    136,
-			QueuedCount:    356,
 			ChannelMapSize: 22,
 		}
 		processor.GetStatsFunc = func(debugItems bool) *metamorph.ProcessorStats {
@@ -55,8 +51,6 @@ func TestHealth(t *testing.T) {
 		stats, err := server.Health(context.Background(), &emptypb.Empty{})
 		assert.NoError(t, err)
 		assert.Equal(t, expectedStats.ChannelMapSize, stats.GetMapSize())
-		assert.Equal(t, expectedStats.QueuedCount, stats.GetQueued())
-		assert.Equal(t, expectedStats.QueueLength, stats.GetWaiting())
 	})
 }
 

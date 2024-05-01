@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
@@ -81,10 +80,6 @@ type Processor struct {
 
 	cancelProcessSeenOnNetworkTxRequesting       context.CancelFunc
 	quitProcessSeenOnNetworkTxRequestingComplete chan struct{}
-
-	startTime   time.Time
-	queueLength atomic.Int32
-	queuedCount atomic.Int32
 }
 
 type Option func(f *Processor)
@@ -103,7 +98,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 	}
 
 	p := &Processor{
-		startTime:                time.Now().UTC(),
 		store:                    s,
 		pm:                       pm,
 		mapExpiryTime:            mapExpiryTimeDefault,
@@ -494,7 +488,6 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
 	// we need to decouple the Context from the request, so that we don't get cancelled
 	// when the request is cancelled
-	p.queuedCount.Add(1)
 
 	// check if tx already stored, return it
 	data, err := p.store.Get(ctx, req.Data.Hash[:])

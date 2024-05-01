@@ -36,15 +36,10 @@ service MetaMorphAPI {
 
 // swagger:model HealthResponse
 message HealthResponse {
-  bool ok = 1;
-  string details = 2;
-  google.protobuf.Timestamp timestamp = 3;
-  float uptime = 4;
-  int32 queued = 5;
-  int32 waiting = 6;
-  int32 mapSize = 7;
-  string PeersConnected = 8;
-  string PeersDisconnected = 9;
+  google.protobuf.Timestamp timestamp = 1;
+  int32 mapSize = 2;
+  string PeersConnected = 3;
+  string PeersDisconnected = 4;
 }
 
 // swagger:model TransactionRequest

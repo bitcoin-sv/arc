@@ -371,6 +371,25 @@ components:
           nullable: true
           example: "no db connection"
           description: explains the problem with metamorph
+#        timestamp:
+#          type: string
+#          format: date-time
+#          nullable: false
+#        mapSize:
+#          type: integer
+#          nullable: false
+#          format: int
+#          description: current size of response map
+#        peersConnected:
+#          type: integer
+#          nullable: false
+#          format: int
+#          description: number of peers conected
+#        peersDisconnected:
+#          type: integer
+#          nullable: false
+#          format: int
+#          description: current size of response map
 
     ChainInfo:
       type: object

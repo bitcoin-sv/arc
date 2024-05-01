@@ -8,8 +8,6 @@ import (
 
 type prometheusCollector struct {
 	processor      ProcessorI
-	queueLength    *prometheus.Desc
-	queued         *prometheus.Desc
 	channelMapSize *prometheus.Desc
 }
 
@@ -24,14 +22,6 @@ func newPrometheusCollector(p ProcessorI) *prometheusCollector {
 
 	c := &prometheusCollector{
 		processor: p,
-		queueLength: prometheus.NewDesc("arc_metamorph_processor_queue_length",
-			"Number of ResponseItems in the processor queue",
-			nil, nil,
-		),
-		queued: prometheus.NewDesc("arc_metamorph_processor_queued",
-			"Number of ResponseItems queued in the processor",
-			nil, nil,
-		),
 		channelMapSize: prometheus.NewDesc("arc_metamorph_processor_map_size",
 			"Number of ResponseItems in the processor map",
 			nil, nil,
@@ -46,8 +36,6 @@ func newPrometheusCollector(p ProcessorI) *prometheusCollector {
 // Describe writes all descriptors to the prometheus desc channel.
 func (c *prometheusCollector) Describe(ch chan<- *prometheus.Desc) {
 	// Update this section with each metric you create for a given prometheusCollector
-	ch <- c.queueLength
-	ch <- c.queued
 	ch <- c.channelMapSize
 }
 
@@ -56,7 +44,5 @@ func (c *prometheusCollector) Collect(ch chan<- prometheus.Metric) {
 	stats := c.processor.GetStats(false)
 
 	//Note that you can pass erValue, GaugeValue, or UntypedValue types here.
-	ch <- prometheus.MustNewConstMetric(c.queueLength, prometheus.GaugeValue, float64(stats.QueueLength))
-	ch <- prometheus.MustNewConstMetric(c.queued, prometheus.CounterValue, float64(stats.QueuedCount))
-	ch <- prometheus.MustNewConstMetric(c.channelMapSize, prometheus.CounterValue, float64(stats.ChannelMapSize))
+	ch <- prometheus.MustNewConstMetric(c.channelMapSize, prometheus.GaugeValue, float64(stats.ChannelMapSize))
 }

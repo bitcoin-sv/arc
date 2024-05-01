@@ -143,10 +143,7 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int, logger *sl
 			grpcprom.WithHistogramBuckets([]float64{0.001, 0.01, 0.1, 0.3, 0.6, 1, 3, 6, 9, 20, 30, 60, 90, 120}),
 		),
 	)
-	err := prometheus.Register(srvMetrics)
-	if err != nil {
-		return fmt.Errorf("failed to register server metrics: %w", err)
-	}
+
 	exemplarFromContext := func(ctx context.Context) prometheus.Labels {
 		if span := trace.SpanContextFromContext(ctx); span.IsSampled() {
 			return prometheus.Labels{"traceID": span.TraceID().String()}
@@ -160,7 +157,7 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int, logger *sl
 		Help: "Total number of gRPC requests recovered from internal panic.",
 	})
 
-	err = prometheus.Register(panicsTotal)
+	err := prometheus.Register(panicsTotal)
 	if err != nil {
 		return fmt.Errorf("failed to register panics total metric: %w", err)
 	}

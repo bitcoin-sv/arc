@@ -192,7 +192,10 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
-	err = serv.StartGRPCServer(metamorphGRPCListenAddress, grpcMessageSize, logger)
+
+	prometheusEndpoint := viper.GetString("prometheusEndpoint")
+
+	err = serv.StartGRPCServer(metamorphGRPCListenAddress, grpcMessageSize, prometheusEndpoint, logger)
 	if err != nil {
 		logger.Error("GRPCServer failed", slog.String("err", err.Error()))
 	}

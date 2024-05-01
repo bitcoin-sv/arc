@@ -24,7 +24,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -125,11 +124,11 @@ func interceptorLogger(l *slog.Logger) logging.Logger {
 }
 
 // StartGRPCServer function
-func (s *Server) StartGRPCServer(address string, grpcMessageSize int, logger *slog.Logger) error {
+func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheusEndpoint string, loggern *slog.Logger) error {
 	// LEVEL 0 - no security / no encryption
 
 	// Setup logging.
-	rpcLogger := logger.With(slog.String("service", "gRPC/server"))
+	rpcLogger := loggern.With(slog.String("service", "gRPC/server"))
 	logTraceID := func(ctx context.Context) logging.Fields {
 		if span := trace.SpanContextFromContext(ctx); span.IsSampled() {
 			return logging.Fields{"traceID", span.TraceID().String()}
@@ -171,7 +170,6 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int, logger *sl
 	var chainUnaryInterceptors []grpc.UnaryServerInterceptor
 	var chainStreamInterceptors []grpc.StreamServerInterceptor
 
-	prometheusEndpoint := viper.GetString("prometheusEndpoint")
 	if prometheusEndpoint != "" {
 		chainUnaryInterceptors = append(chainUnaryInterceptors, srvMetrics.UnaryServerInterceptor(grpcprom.WithExemplarFromContext(exemplarFromContext)))
 		chainStreamInterceptors = append(chainStreamInterceptors, srvMetrics.StreamServerInterceptor(grpcprom.WithExemplarFromContext(exemplarFromContext)))

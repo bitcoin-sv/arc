@@ -229,12 +229,10 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	// pass all the started peers to the collector
 	_ = metamorph.NewZMQCollector(zmqCollector)
 
-	go func() {
-		err = StartHealthServerMetamorph(server)
-		if err != nil {
-			logger.Error("failed to start health server", slog.String("err", err.Error()))
-		}
-	}()
+	err = StartHealthServerMetamorph(server, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start health server: %v", err)
+	}
 
 	return func() {
 		logger.Info("Shutting down metamorph")
@@ -250,7 +248,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	}, nil
 }
 
-func StartHealthServerMetamorph(serv *metamorph.Server) error {
+func StartHealthServerMetamorph(serv *metamorph.Server, logger *slog.Logger) error {
 	gs := grpc.NewServer()
 	defer gs.Stop()
 
@@ -268,10 +266,12 @@ func StartHealthServerMetamorph(serv *metamorph.Server) error {
 		return err
 	}
 
-	err = gs.Serve(listener)
-	if err != nil {
-		return err
-	}
+	go func() {
+		err = gs.Serve(listener)
+		if err != nil {
+			logger.Error("GRPC server failed to serve", slog.String("err", err.Error()))
+		}
+	}()
 
 	return nil
 }

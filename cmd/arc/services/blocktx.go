@@ -176,12 +176,10 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 		return nil, fmt.Errorf("GRPCServer failed: %v", err)
 	}
 
-	go func() {
-		err = StartHealthServerBlocktx(server)
-		if err != nil {
-			logger.Error("failed to start health server", slog.String("err", err.Error()))
-		}
-	}()
+	err = StartHealthServerBlocktx(server, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start health server: %v", err)
+	}
 
 	return func() {
 		logger.Info("Shutting down blocktx store")
@@ -201,7 +199,7 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 	}, nil
 }
 
-func StartHealthServerBlocktx(serv *blocktx.Server) error {
+func StartHealthServerBlocktx(serv *blocktx.Server, logger *slog.Logger) error {
 	gs := grpc.NewServer()
 	defer gs.Stop()
 
@@ -219,10 +217,12 @@ func StartHealthServerBlocktx(serv *blocktx.Server) error {
 		return err
 	}
 
-	err = gs.Serve(listener)
-	if err != nil {
-		return err
-	}
+	go func() {
+		err = gs.Serve(listener)
+		if err != nil {
+			logger.Error("GRPC server failed to serve", slog.String("err", err.Error()))
+		}
+	}()
 
 	return nil
 }

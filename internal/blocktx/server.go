@@ -45,8 +45,6 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheus
 	}
 
 	grpcSrv := grpc.NewServer(opts...)
-	//t := &testpb.TestPingService{}
-	//testpb.RegisterTestServiceServer(grpcSrv, t)
 	srvMetrics.InitializeMetrics(grpcSrv)
 
 	s.grpcServer = grpcSrv

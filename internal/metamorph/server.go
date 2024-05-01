@@ -24,7 +24,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
@@ -144,10 +143,9 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int, logger *sl
 			grpcprom.WithHistogramBuckets([]float64{0.001, 0.01, 0.1, 0.3, 0.6, 1, 3, 6, 9, 20, 30, 60, 90, 120}),
 		),
 	)
-	reg := prometheus.NewRegistry()
-	err := reg.Register(srvMetrics)
+	err := prometheus.Register(srvMetrics)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to register server metrics: %w", err)
 	}
 	exemplarFromContext := func(ctx context.Context) prometheus.Labels {
 		if span := trace.SpanContextFromContext(ctx); span.IsSampled() {
@@ -157,10 +155,16 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int, logger *sl
 	}
 
 	// Setup metric for panic recoveries.
-	panicsTotal := promauto.With(reg).NewCounter(prometheus.CounterOpts{
+	panicsTotal := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "grpc_req_panics_recovered_total",
 		Help: "Total number of gRPC requests recovered from internal panic.",
 	})
+
+	err = prometheus.Register(panicsTotal)
+	if err != nil {
+		return fmt.Errorf("failed to register panics total metric: %w", err)
+	}
+
 	grpcPanicRecoveryHandler := func(p any) (err error) {
 		panicsTotal.Inc()
 		rpcLogger.Error("recovered from panic", "panic", p, "stack", debug.Stack())

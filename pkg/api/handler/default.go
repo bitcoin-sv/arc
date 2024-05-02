@@ -172,7 +172,6 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	sizingInfo[0] = []uint64{normalBytes, dataBytes, feeAmount}
 	sizingCtx := context.WithValue(ctx.Request().Context(), ContextSizings, sizingInfo)
 	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
-
 	return ctx.JSON(int(status), response)
 }
 
@@ -202,6 +201,7 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 		Timestamp:   m.now(),
 		Txid:        tx.TxID,
 		MerklePath:  &tx.MerklePath,
+		ExtraInfo:   PtrTo(""),
 	})
 }
 
@@ -442,8 +442,6 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 	}
 
 	return api.StatusOK, api.TransactionResponse{
-		Status:      int(api.StatusOK),
-		Title:       "OK",
 		BlockHash:   &tx.BlockHash,
 		BlockHeight: &tx.BlockHeight,
 		TxStatus:    tx.Status,
@@ -508,8 +506,6 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 
 	for ind, tx := range txStatuses {
 		transactionOutput = append(transactionOutput, api.TransactionResponse{
-			Status:      int(api.StatusOK),
-			Title:       "OK",
 			BlockHash:   &txStatuses[ind].BlockHash,
 			BlockHeight: &txStatuses[ind].BlockHeight,
 			TxStatus:    tx.Status,

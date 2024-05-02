@@ -31,6 +31,9 @@ WORKDIR /service
 COPY --from=build-stage /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build-stage /arc_linux_amd64 /service/arc
 COPY --from=build-stage /bin/grpc_health_probe /bin/grpc_health_probe
+COPY deployments/passwd /etc/passwd
+
+USER nobody
 
 EXPOSE 9090
 

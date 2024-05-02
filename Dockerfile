@@ -8,10 +8,14 @@ RUN apk --update add ca-certificates
 
 WORKDIR /app
 
-COPY . .
-
+COPY go.mod go.sum ./
 RUN go mod download
 RUN go mod verify
+
+COPY cmd/ cmd/
+COPY internal/ internal/
+COPY pkg/ pkg/
+
 # Add grpc_health_probe
 RUN GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \
     wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \

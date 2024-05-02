@@ -2,12 +2,11 @@ package blocktx
 
 import (
 	"context"
-
+	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"log/slog"
 )
 
 type BlocktxClient interface {
@@ -71,13 +70,11 @@ func (btc *Client) ClearBlockTransactionsMap(ctx context.Context, retentionDays 
 	return resp.Rows, nil
 }
 
-func DialGRPC(address string) (*grpc.ClientConn, error) {
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
-		grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
+func DialGRPC(logger *slog.Logger, address string, prometheusEndpoint string, grpcMessageSize int) (*grpc.ClientConn, error) {
+	dialOpts, err := grpc_opts.GetGRPCClientOpts(logger, prometheusEndpoint, grpcMessageSize)
+	if err != nil {
+		return nil, err
 	}
 
-	return grpc.NewClient(address, opts...)
+	return grpc.NewClient(address, dialOpts...)
 }

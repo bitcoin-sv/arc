@@ -589,11 +589,11 @@ func TestStartGRPCServer(t *testing.T) {
 				ShutdownFunc: func() {},
 			}
 			server := metamorph.NewServer(metamorphStore, processor)
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-			go func() {
-				err := server.StartGRPCServer("localhost:7000", 10000)
-				require.NoError(t, err)
-			}()
+			err := server.StartGRPCServer("localhost:7000", 10000, "", logger)
+			require.NoError(t, err)
+
 			time.Sleep(50 * time.Millisecond)
 
 			server.Shutdown()

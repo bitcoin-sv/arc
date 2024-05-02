@@ -89,7 +89,9 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 		return err
 	}
 
-	conn, err := metamorph.DialGRPC(metamorphAddress, grpcMessageSize)
+	prometheusEndpoint := viper.GetString("prometheusEndpoint")
+
+	conn, err := metamorph.DialGRPC(logger, metamorphAddress, prometheusEndpoint, grpcMessageSize)
 	if err != nil {
 		return fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}

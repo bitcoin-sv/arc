@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -13,12 +12,9 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	cfg "github.com/bitcoin-sv/arc/internal/helpers"
 	"github.com/bitcoin-sv/arc/internal/nats_mq"
-	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
 	"github.com/spf13/viper"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
@@ -29,33 +25,10 @@ const (
 	service          = "blocktx"
 )
 
-func StartBlockTx(logger *slog.Logger) (func(), error) {
+func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 	dbMode, err := cfg.GetString("blocktx.db.mode")
 	if err != nil {
 		return nil, err
-	}
-
-	tracingEnabled := viper.GetBool("blocktx.tracing.enabled")
-	var tp *trace.TracerProvider
-	if tracingEnabled {
-		ctx := context.Background()
-
-		tracingAddr, err := cfg.GetString("blocktx.tracing.dialAddr")
-		if err != nil {
-			return nil, err
-		}
-
-		exporter, err := tracing.NewExporter(ctx, tracingAddr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize exporter: %v", err)
-		}
-
-		tp, err = tracing.NewTraceProvider(exporter, service)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create trace provider: %v", err)
-		}
-
-		otel.SetTracerProvider(tp)
 	}
 
 	// dbMode can be sqlite, sqlite_memory or postgres
@@ -184,24 +157,29 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 
 	peerHandler.StartFillGaps(peers)
 
-	blockTxServer := blocktx.NewServer(blockStore, logger, peers)
+	server := blocktx.NewServer(blockStore, logger, peers)
 
-	address, err := cfg.GetString("blocktx.listenAddr")
+	blocktxGRPCListenAddress, err := cfg.GetString("blocktx.listenAddr")
 	if err != nil {
 		return nil, err
 	}
-	go func() {
-		if err = blockTxServer.StartGRPCServer(address); err != nil {
-			logger.Error("failed to start blocktx server", slog.String("err", err.Error()))
-		}
-	}()
 
-	go func() {
-		err = StartHealthServerBlocktx(blockTxServer)
-		if err != nil {
-			logger.Error("failed to start health server", slog.String("err", err.Error()))
-		}
-	}()
+	grpcMessageSize, err := cfg.GetInt("grpcMessageSize")
+	if err != nil {
+		return nil, err
+	}
+
+	prometheusEndpoint := viper.GetString("prometheusEndpoint")
+
+	err = server.StartGRPCServer(blocktxGRPCListenAddress, grpcMessageSize, prometheusEndpoint, logger)
+	if err != nil {
+		return nil, fmt.Errorf("GRPCServer failed: %v", err)
+	}
+
+	err = StartHealthServerBlocktx(server, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start health server: %v", err)
+	}
 
 	return func() {
 		logger.Info("Shutting down blocktx store")
@@ -218,16 +196,10 @@ func StartBlockTx(logger *slog.Logger) (func(), error) {
 
 		peerHandler.Shutdown()
 
-		if tp != nil {
-			err = tp.Shutdown(context.Background())
-			if err != nil {
-				logger.Error("Failed to shutdown tracing provider", slog.String("err", err.Error()))
-			}
-		}
 	}, nil
 }
 
-func StartHealthServerBlocktx(serv *blocktx.Server) error {
+func StartHealthServerBlocktx(serv *blocktx.Server, logger *slog.Logger) error {
 	gs := grpc.NewServer()
 	defer gs.Stop()
 
@@ -245,10 +217,12 @@ func StartHealthServerBlocktx(serv *blocktx.Server) error {
 		return err
 	}
 
-	err = gs.Serve(listener)
-	if err != nil {
-		return err
-	}
+	go func() {
+		err = gs.Serve(listener)
+		if err != nil {
+			logger.Error("GRPC server failed to serve", slog.String("err", err.Error()))
+		}
+	}()
 
 	return nil
 }

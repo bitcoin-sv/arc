@@ -11,6 +11,7 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
+	"github.com/spf13/viper"
 )
 
 func StartK8sWatcher(logger *slog.Logger) (func(), error) {
@@ -26,7 +27,9 @@ func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	mtmConn, err := metamorph.DialGRPC(metamorphAddress, grpcMessageSize)
+	prometheusEndpoint := viper.GetString("prometheusEndpoint")
+
+	mtmConn, err := metamorph.DialGRPC(logger, metamorphAddress, prometheusEndpoint, grpcMessageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
@@ -48,7 +51,7 @@ func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	blocktxConn, err := blocktx.DialGRPC(blocktxAddress)
+	blocktxConn, err := blocktx.DialGRPC(logger, blocktxAddress, prometheusEndpoint, grpcMessageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
 	}

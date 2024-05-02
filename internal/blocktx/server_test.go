@@ -26,10 +26,8 @@ func TestStartGRPCServer(t *testing.T) {
 
 			server := NewServer(storeMock, logger, nil)
 
-			go func() {
-				err := server.StartGRPCServer("localhost:8000")
-				require.NoError(t, err)
-			}()
+			err := server.StartGRPCServer("localhost:7000", 10000, "", logger)
+			require.NoError(t, err)
 			time.Sleep(10 * time.Millisecond)
 
 			server.Shutdown()

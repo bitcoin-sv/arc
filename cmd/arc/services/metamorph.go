@@ -46,11 +46,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
 
-	metamorphGRPCListenAddress, err := cfg.GetString("metamorph.listenAddr")
-	if err != nil {
-		return nil, err
-	}
-
 	pm, statusMessageCh, err := initPeerManager(logger.With(slog.String("module", "mtm-peer-handler")), s)
 	if err != nil {
 		return nil, err
@@ -186,18 +181,24 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		optsServer = append(optsServer, metamorph.WithForceCheckUtxos(node))
 	}
 
-	serv := metamorph.NewServer(s, metamorphProcessor, optsServer...)
+	server := metamorph.NewServer(s, metamorphProcessor, optsServer...)
 
-	go func() {
-		grpcMessageSize := viper.GetInt("grpcMessageSize")
-		if grpcMessageSize == 0 {
-			logger.Error("grpcMessageSize must be set")
-			return
-		}
-		if err = serv.StartGRPCServer(metamorphGRPCListenAddress, grpcMessageSize); err != nil {
-			logger.Error("GRPCServer failed", slog.String("err", err.Error()))
-		}
-	}()
+	metamorphGRPCListenAddress, err := cfg.GetString("metamorph.listenAddr")
+	if err != nil {
+		return nil, err
+	}
+
+	grpcMessageSize, err := cfg.GetInt("grpcMessageSize")
+	if err != nil {
+		return nil, err
+	}
+
+	prometheusEndpoint := viper.GetString("prometheusEndpoint")
+
+	err = server.StartGRPCServer(metamorphGRPCListenAddress, grpcMessageSize, prometheusEndpoint, logger)
+	if err != nil {
+		return nil, fmt.Errorf("GRPCServer failed: %v", err)
+	}
 
 	peerSettings, err := cfg.GetPeerSettings()
 	if err != nil {
@@ -228,12 +229,10 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	// pass all the started peers to the collector
 	_ = metamorph.NewZMQCollector(zmqCollector)
 
-	go func() {
-		err = StartHealthServerMetamorph(serv)
-		if err != nil {
-			logger.Error("failed to start health server", slog.String("err", err.Error()))
-		}
-	}()
+	err = StartHealthServerMetamorph(server, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start health server: %v", err)
+	}
 
 	return func() {
 		logger.Info("Shutting down metamorph")
@@ -249,7 +248,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	}, nil
 }
 
-func StartHealthServerMetamorph(serv *metamorph.Server) error {
+func StartHealthServerMetamorph(serv *metamorph.Server, logger *slog.Logger) error {
 	gs := grpc.NewServer()
 	defer gs.Stop()
 
@@ -267,10 +266,12 @@ func StartHealthServerMetamorph(serv *metamorph.Server) error {
 		return err
 	}
 
-	err = gs.Serve(listener)
-	if err != nil {
-		return err
-	}
+	go func() {
+		err = gs.Serve(listener)
+		if err != nil {
+			logger.Error("GRPC server failed to serve", slog.String("err", err.Error()))
+		}
+	}()
 
 	return nil
 }

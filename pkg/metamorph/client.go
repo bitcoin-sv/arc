@@ -3,14 +3,14 @@ package metamorph
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -55,16 +55,13 @@ func NewClient(client metamorph_api.MetaMorphAPIClient) *Metamorph {
 	}
 }
 
-func DialGRPC(address string, grpcMessageSize int) (*grpc.ClientConn, error) {
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
-		grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
-		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)),
+func DialGRPC(logger *slog.Logger, address string, prometheusEndpoint string, grpcMessageSize int) (*grpc.ClientConn, error) {
+	dialOpts, err := grpc_opts.GetGRPCClientOpts(logger, prometheusEndpoint, grpcMessageSize)
+	if err != nil {
+		return nil, err
 	}
 
-	conn, err := grpc.NewClient(address, opts...)
+	conn, err := grpc.NewClient(address, dialOpts...)
 	if err != nil {
 		return nil, err
 	}

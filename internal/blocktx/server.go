@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/bitcoin-sv/arc/internal/grpc_server"
+	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/libsv/go-p2p"
 	"google.golang.org/grpc"
@@ -40,7 +40,7 @@ func NewServer(storeI store.BlocktxStore, logger *slog.Logger, peers []p2p.PeerI
 func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheusEndpoint string, logger *slog.Logger) error {
 
 	// LEVEL 0 - no security / no encryption
-	srvMetrics, opts, cleanup, err := grpc_server.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize)
+	srvMetrics, opts, cleanup, err := grpc_opts.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize)
 	if err != nil {
 		return err
 	}

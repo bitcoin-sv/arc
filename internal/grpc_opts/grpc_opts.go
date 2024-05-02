@@ -1,4 +1,4 @@
-package grpc_server
+package grpc_opts
 
 import (
 	"context"
@@ -16,8 +16,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// interceptorLogger adapts slog logger to interceptor logger.
-func interceptorLogger(l *slog.Logger) logging.Logger {
+// InterceptorLogger adapts slog logger to interceptor logger.
+func InterceptorLogger(l *slog.Logger) logging.Logger {
 	return logging.LoggerFunc(func(_ context.Context, lvl logging.Level, msg string, fields ...any) {
 		switch lvl {
 		case logging.LevelDebug:
@@ -76,22 +76,17 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	}
 
 	var chainUnaryInterceptors []grpc.UnaryServerInterceptor
-	var chainStreamInterceptors []grpc.StreamServerInterceptor
 
 	if prometheusEndpoint != "" {
 		chainUnaryInterceptors = append(chainUnaryInterceptors, srvMetrics.UnaryServerInterceptor(prometheus.WithExemplarFromContext(exemplarFromContext)))
-		chainStreamInterceptors = append(chainStreamInterceptors, srvMetrics.StreamServerInterceptor(prometheus.WithExemplarFromContext(exemplarFromContext)))
 	}
 
 	chainUnaryInterceptors = append(chainUnaryInterceptors, // Order matters e.g. tracing interceptor have to create span first for the later exemplars to work.
-		logging.UnaryServerInterceptor(interceptorLogger(rpcLogger), logging.WithFieldsFromContext(logTraceID)),
+		logging.UnaryServerInterceptor(InterceptorLogger(rpcLogger), logging.WithFieldsFromContext(logTraceID)),
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpcPanicRecoveryHandler)))
-	chainStreamInterceptors = append(chainStreamInterceptors, srvMetrics.StreamServerInterceptor(prometheus.WithExemplarFromContext(exemplarFromContext)),
-		logging.StreamServerInterceptor(interceptorLogger(rpcLogger), logging.WithFieldsFromContext(logTraceID)),
-		recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(grpcPanicRecoveryHandler)))
+
 	opts := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(chainUnaryInterceptors...),
-		grpc.ChainStreamInterceptor(chainStreamInterceptors...),
 		grpc.MaxRecvMsgSize(grpcMessageSize),
 	}
 

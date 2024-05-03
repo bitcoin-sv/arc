@@ -15,8 +15,8 @@ import (
 	"syscall"
 
 	cmd "github.com/bitcoin-sv/arc/cmd/arc/services"
-	"github.com/bitcoin-sv/arc/internal/tracing"
 	cfg "github.com/bitcoin-sv/arc/internal/config"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"

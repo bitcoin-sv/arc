@@ -125,7 +125,7 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheus
 	reflection.Register(s.grpcServer)
 
 	go func() {
-		s.logger.Info("GRPC server listening on", slog.String("address", address))
+		s.logger.Info("GRPC server listening", slog.String("address", address))
 		err = s.grpcServer.Serve(lis)
 		if err != nil {
 			s.logger.Error("GRPC server failed to serve", slog.String("err", err.Error()))

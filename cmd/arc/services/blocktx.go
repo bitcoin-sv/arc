@@ -176,7 +176,7 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 		return nil, fmt.Errorf("GRPCServer failed: %v", err)
 	}
 
-	err = StartHealthServerBlocktx(server, logger)
+	healthServer, err := StartHealthServerBlocktx(server, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start health server: %v", err)
 	}
@@ -196,12 +196,14 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 
 		peerHandler.Shutdown()
 
+		server.Shutdown()
+
+		healthServer.Stop()
 	}, nil
 }
 
-func StartHealthServerBlocktx(serv *blocktx.Server, logger *slog.Logger) error {
+func StartHealthServerBlocktx(serv *blocktx.Server, logger *slog.Logger) (*grpc.Server, error) {
 	gs := grpc.NewServer()
-	defer gs.Stop()
 
 	grpc_health_v1.RegisterHealthServer(gs, serv) // registration
 	// register your own services
@@ -209,22 +211,23 @@ func StartHealthServerBlocktx(serv *blocktx.Server, logger *slog.Logger) error {
 
 	address, err := cfg.GetString("blocktx.healthServerDialAddr") //"localhost:8005"
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	go func() {
+		logger.Info("GRPC health server listening", slog.String("address", address))
 		err = gs.Serve(listener)
 		if err != nil {
-			logger.Error("GRPC server failed to serve", slog.String("err", err.Error()))
+			logger.Error("GRPC health server failed to serve", slog.String("err", err.Error()))
 		}
 	}()
 
-	return nil
+	return gs, nil
 }
 
 func NewBlocktxStore(dbMode string, logger *slog.Logger, tracingEnabled bool) (s store.BlocktxStore, err error) {

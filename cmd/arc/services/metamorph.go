@@ -229,28 +229,33 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	// pass all the started peers to the collector
 	_ = metamorph.NewZMQCollector(zmqCollector)
 
-	err = StartHealthServerMetamorph(server, logger)
+	healthServer, err := StartHealthServerMetamorph(server, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start health server: %v", err)
 	}
 
 	return func() {
 		logger.Info("Shutting down metamorph")
+
 		err = mqClient.Shutdown()
 		if err != nil {
 			logger.Error("failed to shutdown mqClient", slog.String("err", err.Error()))
 		}
+
 		metamorphProcessor.Shutdown()
 		err = s.Close(context.Background())
 		if err != nil {
 			logger.Error("Could not close store", slog.String("err", err.Error()))
 		}
+
+		server.Shutdown()
+
+		healthServer.Stop()
 	}, nil
 }
 
-func StartHealthServerMetamorph(serv *metamorph.Server, logger *slog.Logger) error {
+func StartHealthServerMetamorph(serv *metamorph.Server, logger *slog.Logger) (*grpc.Server, error) {
 	gs := grpc.NewServer()
-	defer gs.Stop()
 
 	grpc_health_v1.RegisterHealthServer(gs, serv) // registration
 	// register your own services
@@ -258,22 +263,23 @@ func StartHealthServerMetamorph(serv *metamorph.Server, logger *slog.Logger) err
 
 	address, err := cfg.GetString("metamorph.healthServerDialAddr") //"localhost:8005"
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	go func() {
+		logger.Info("GRPC health server listening", slog.String("address", address))
 		err = gs.Serve(listener)
 		if err != nil {
-			logger.Error("GRPC server failed to serve", slog.String("err", err.Error()))
+			logger.Error("GRPC health server failed to serve", slog.String("err", err.Error()))
 		}
 	}()
 
-	return nil
+	return gs, nil
 }
 
 func NewMetamorphStore(dbMode string) (s store.MetamorphStore, err error) {

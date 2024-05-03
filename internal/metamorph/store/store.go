@@ -40,9 +40,10 @@ type Stats struct {
 	StatusAcceptedByNetwork   int64
 	StatusSeenOnNetwork       int64
 	StatusMined               int64
-	StatusConfirmed           int64
 	StatusRejected            int64
 	StatusSeenInOrphanMempool int64
+	StatusNotSeen             int64
+	StatusNotMined            int64
 }
 
 type MetamorphStore interface {

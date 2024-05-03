@@ -37,7 +37,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetSeenOnNetworkFunc: func(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 //				panic("mock out the GetSeenOnNetwork method")
 //			},
-//			GetStatsFunc: func(ctx context.Context, since time.Time) (*store.Stats, error) {
+//			GetStatsFunc: func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
 //				panic("mock out the GetStats method")
 //			},
 //			GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
@@ -90,7 +90,7 @@ type MetamorphStoreMock struct {
 	GetSeenOnNetworkFunc func(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.StoreData, error)
 
 	// GetStatsFunc mocks the GetStats method.
-	GetStatsFunc func(ctx context.Context, since time.Time) (*store.Stats, error)
+	GetStatsFunc func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error)
 
 	// GetUnminedFunc mocks the GetUnmined method.
 	GetUnminedFunc func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error)
@@ -166,6 +166,10 @@ type MetamorphStoreMock struct {
 			Ctx context.Context
 			// Since is the since argument value.
 			Since time.Time
+			// NotSeenLimit is the notSeenLimit argument value.
+			NotSeenLimit time.Duration
+			// NotMinedLimit is the notMinedLimit argument value.
+			NotMinedLimit time.Duration
 		}
 		// GetUnmined holds details about calls to the GetUnmined method.
 		GetUnmined []struct {
@@ -448,16 +452,20 @@ func (mock *MetamorphStoreMock) GetStats(ctx context.Context, since time.Time, n
 		panic("MetamorphStoreMock.GetStatsFunc: method is nil but MetamorphStore.GetStats was just called")
 	}
 	callInfo := struct {
-		Ctx   context.Context
-		Since time.Time
+		Ctx           context.Context
+		Since         time.Time
+		NotSeenLimit  time.Duration
+		NotMinedLimit time.Duration
 	}{
-		Ctx:   ctx,
-		Since: since,
+		Ctx:           ctx,
+		Since:         since,
+		NotSeenLimit:  notSeenLimit,
+		NotMinedLimit: notMinedLimit,
 	}
 	mock.lockGetStats.Lock()
 	mock.calls.GetStats = append(mock.calls.GetStats, callInfo)
 	mock.lockGetStats.Unlock()
-	return mock.GetStatsFunc(ctx, since)
+	return mock.GetStatsFunc(ctx, since, notSeenLimit, notMinedLimit)
 }
 
 // GetStatsCalls gets all the calls that were made to GetStats.
@@ -465,12 +473,16 @@ func (mock *MetamorphStoreMock) GetStats(ctx context.Context, since time.Time, n
 //
 //	len(mockedMetamorphStore.GetStatsCalls())
 func (mock *MetamorphStoreMock) GetStatsCalls() []struct {
-	Ctx   context.Context
-	Since time.Time
+	Ctx           context.Context
+	Since         time.Time
+	NotSeenLimit  time.Duration
+	NotMinedLimit time.Duration
 } {
 	var calls []struct {
-		Ctx   context.Context
-		Since time.Time
+		Ctx           context.Context
+		Since         time.Time
+		NotSeenLimit  time.Duration
+		NotMinedLimit time.Duration
 	}
 	mock.lockGetStats.RLock()
 	calls = mock.calls.GetStats

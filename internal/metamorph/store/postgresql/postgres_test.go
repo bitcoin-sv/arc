@@ -165,7 +165,7 @@ func TestPostgresDB(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
-	now := time.Date(2023, 10, 1, 12, 0, 0, 0, time.UTC)
+	now := time.Date(2023, 10, 1, 14, 25, 0, 0, time.UTC)
 	minedHash := testdata.TX1Hash
 	minedData := &store.StoreData{
 		RawTx:         make([]byte, 0),
@@ -563,21 +563,21 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("get stats", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/get_stats"))
 
 		res, err := postgresDB.GetStats(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC))
 		require.NoError(t, err)
 
 		require.Equal(t, int64(1), res.StatusSeenOnNetwork)
 		require.Equal(t, int64(1), res.StatusAcceptedByNetwork)
-		require.Equal(t, int64(1), res.StatusAnnouncedToNetwork)
-		require.Equal(t, int64(1), res.StatusMined)
+		require.Equal(t, int64(2), res.StatusAnnouncedToNetwork)
+		require.Equal(t, int64(2), res.StatusMined)
 		require.Equal(t, int64(0), res.StatusStored)
 		require.Equal(t, int64(0), res.StatusRequestedByNetwork)
 		require.Equal(t, int64(0), res.StatusSentToNetwork)
-		require.Equal(t, int64(0), res.StatusConfirmed)
-		require.Equal(t, int64(0), res.StatusRejected)
+		require.Equal(t, int64(1), res.StatusRejected)
 		require.Equal(t, int64(0), res.StatusSeenInOrphanMempool)
+		require.Equal(t, int64(1), res.StatusNotMined)
+		require.Equal(t, int64(2), res.StatusNotSeen)
 	})
-
 }

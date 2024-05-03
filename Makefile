@@ -36,7 +36,6 @@ build_docker:
 .PHONY: run_e2e_tests
 run_e2e_tests:
 	docker-compose -f test/docker-compose.yml down
-	docker-compose -f test/docker-compose.yml up -d node1 node2 node3 db nats
 	docker-compose -f test/docker-compose.yml up --abort-on-container-exit migrate-blocktx migrate-metamorph
 	docker-compose -f test/docker-compose.yml up --exit-code-from tests tests arc-blocktx arc-metamorph arc --scale arc-blocktx=7 --scale arc-metamorph=2
 	docker-compose -f test/docker-compose.yml down

@@ -12,6 +12,8 @@ import (
 
 const (
 	statCollectionIntervalDefault = 60 * time.Second
+	notSeenLimit                  = 10 * time.Minute
+	notMinedLimit                 = 20 * time.Minute
 )
 
 type processorStats struct {
@@ -25,6 +27,8 @@ type processorStats struct {
 	statusMined               prometheus.Gauge
 	statusRejected            prometheus.Gauge
 	statusSeenInOrphanMempool prometheus.Gauge
+	statusNotMined            prometheus.Gauge
+	statusNotSeen             prometheus.Gauge
 }
 
 func newProcessorStats() *processorStats {
@@ -65,6 +69,14 @@ func newProcessorStats() *processorStats {
 			Name: "arc_status_seen_in_orphan_mempool_count",
 			Help: "Number of monitored transactions with status SEEN_IN_ORPHAN_MEMPOOL",
 		}),
+		statusNotMined: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "arc_status_not_mined_count",
+			Help: fmt.Sprintf("Number of monitored transactions which are SEEN_ON_NETWORK but haven reached status MINED for more than %s", notMinedLimit.String()),
+		}),
+		statusNotSeen: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "arc_status_not_seen_count",
+			Help: fmt.Sprintf("Number of monitored transactions which are not SEEN_ON_NETWORK for more than %s", notSeenLimit.String()),
+		}),
 	}
 
 	return c
@@ -77,7 +89,19 @@ func (p *Processor) StartCollectStats() error {
 
 	ticker := time.NewTicker(p.statCollectionInterval)
 
-	err := registerStats(p.stats.statusStored, p.stats.statusAnnouncedToNetwork, p.stats.statusRequestedByNetwork, p.stats.statusSentToNetwork, p.stats.statusAcceptedByNetwork, p.stats.statusSeenOnNetwork, p.stats.statusMined, p.stats.statusRejected, p.stats.statusSeenInOrphanMempool)
+	err := registerStats(
+		p.stats.statusStored,
+		p.stats.statusAnnouncedToNetwork,
+		p.stats.statusRequestedByNetwork,
+		p.stats.statusSentToNetwork,
+		p.stats.statusAcceptedByNetwork,
+		p.stats.statusSeenOnNetwork,
+		p.stats.statusMined,
+		p.stats.statusRejected,
+		p.stats.statusSeenInOrphanMempool,
+		p.stats.statusNotMined,
+		p.stats.statusNotSeen,
+	)
 	if err != nil {
 		return err
 	}
@@ -85,7 +109,19 @@ func (p *Processor) StartCollectStats() error {
 		defer func() {
 			p.quitCollectStatsComplete <- struct{}{}
 
-			unregisterStats(p.stats.statusStored, p.stats.statusAnnouncedToNetwork, p.stats.statusRequestedByNetwork, p.stats.statusSentToNetwork, p.stats.statusAcceptedByNetwork, p.stats.statusSeenOnNetwork, p.stats.statusMined, p.stats.statusRejected, p.stats.statusSeenInOrphanMempool)
+			unregisterStats(
+				p.stats.statusStored,
+				p.stats.statusAnnouncedToNetwork,
+				p.stats.statusRequestedByNetwork,
+				p.stats.statusSentToNetwork,
+				p.stats.statusAcceptedByNetwork,
+				p.stats.statusSeenOnNetwork,
+				p.stats.statusMined,
+				p.stats.statusRejected,
+				p.stats.statusSeenInOrphanMempool,
+				p.stats.statusNotMined,
+				p.stats.statusNotSeen,
+			)
 		}()
 
 		for {
@@ -96,7 +132,7 @@ func (p *Processor) StartCollectStats() error {
 
 				getStatsSince := p.now().Add(-1 * p.mapExpiryTime)
 
-				collectedStats, err := p.store.GetStats(ctx, getStatsSince)
+				collectedStats, err := p.store.GetStats(ctx, getStatsSince, notSeenLimit, notMinedLimit)
 				if err != nil {
 					p.logger.Error("failed to get stats", slog.String("err", err.Error()))
 					continue
@@ -112,6 +148,8 @@ func (p *Processor) StartCollectStats() error {
 				p.stats.statusMined.Set(float64(collectedStats.StatusMined))
 				p.stats.statusRejected.Set(float64(collectedStats.StatusRejected))
 				p.stats.statusSeenInOrphanMempool.Set(float64(collectedStats.StatusSeenInOrphanMempool))
+				p.stats.statusNotMined.Set(float64(collectedStats.StatusNotMined))
+				p.stats.statusNotSeen.Set(float64(collectedStats.StatusNotSeen))
 				p.stats.mu.Unlock()
 			}
 		}

@@ -759,7 +759,7 @@ func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (int64,
 	return rows, nil
 }
 
-func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time) (*store.Stats, error) {
+func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
 	q := `
 	SELECT
 	max(status_counts.status_count) FILTER (where status_counts.status = $3 )
@@ -823,8 +823,6 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time) (*store.Stat
 		return nil, err
 	}
 
-	const notSeenLimit = 10 * time.Minute
-
 	qNotSeen := `
 	SELECT
 		count(*)
@@ -837,8 +835,6 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time) (*store.Stat
 	if err != nil {
 		return nil, err
 	}
-
-	const notMinedLimit = 20 * time.Minute
 
 	qNotMined := `
 	SELECT

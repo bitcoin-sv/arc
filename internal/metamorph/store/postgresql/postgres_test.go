@@ -565,7 +565,7 @@ func TestPostgresDB(t *testing.T) {
 
 		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/get_stats"))
 
-		res, err := postgresDB.GetStats(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC))
+		res, err := postgresDB.GetStats(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 10*time.Minute, 20*time.Minute)
 		require.NoError(t, err)
 
 		require.Equal(t, int64(1), res.StatusSeenOnNetwork)

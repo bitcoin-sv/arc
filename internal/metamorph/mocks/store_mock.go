@@ -443,7 +443,7 @@ func (mock *MetamorphStoreMock) GetSeenOnNetworkCalls() []struct {
 }
 
 // GetStats calls GetStatsFunc.
-func (mock *MetamorphStoreMock) GetStats(ctx context.Context, since time.Time) (*store.Stats, error) {
+func (mock *MetamorphStoreMock) GetStats(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
 	if mock.GetStatsFunc == nil {
 		panic("MetamorphStoreMock.GetStatsFunc: method is nil but MetamorphStore.GetStats was just called")
 	}

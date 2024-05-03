@@ -40,7 +40,6 @@ func TestStartCollectStats(t *testing.T) {
 						StatusAcceptedByNetwork:   21,
 						StatusSeenOnNetwork:       55,
 						StatusMined:               75,
-						StatusConfirmed:           123,
 						StatusRejected:            683,
 						StatusSeenInOrphanMempool: 8,
 					}, tc.getStatsErr

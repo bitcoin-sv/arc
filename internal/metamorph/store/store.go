@@ -63,7 +63,7 @@ type MetamorphStore interface {
 	ClearData(ctx context.Context, retentionDays int32) (int64, error)
 	Ping(ctx context.Context) error
 
-	GetStats(ctx context.Context, since time.Time) (*Stats, error)
+	GetStats(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*Stats, error)
 }
 
 type UpdateStatus struct {

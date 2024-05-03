@@ -21,7 +21,7 @@ import (
 
 const (
 	maxRetries      = 3
-	perRetryTimeout = 1000 * time.Millisecond
+	perRetryTimeout = 2000 * time.Millisecond
 )
 
 // InterceptorLogger adapts slog logger to interceptor logger.

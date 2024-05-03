@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"time"
 
-	cfg "github.com/bitcoin-sv/arc/internal/helpers"
+	cfg "github.com/bitcoin-sv/arc/internal/config"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/async"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"

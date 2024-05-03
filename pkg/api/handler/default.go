@@ -83,20 +83,18 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
 }
 
 func (m ArcDefaultHandler) GETHealth(ctx echo.Context) error {
-	healthy := true
-
 	err := m.TransactionHandler.Health(ctx.Request().Context())
-
-	if err == nil {
+	if err != nil {
+		reason := err.Error()
 		return ctx.JSON(http.StatusOK, api.Health{
-			Healthy: &healthy,
-			Reason:  nil,
+			Healthy: PtrTo(false),
+			Reason:  &reason,
 		})
 	}
-	reason := err.Error()
+
 	return ctx.JSON(http.StatusOK, api.Health{
-		Healthy: PtrTo(false),
-		Reason:  &reason,
+		Healthy: PtrTo(true),
+		Reason:  nil,
 	})
 }
 
@@ -417,13 +415,6 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 		}
 	}
 
-	err := m.TransactionHandler.Health(ctx)
-	if err != nil {
-		statusCode, arcError := m.handleError(ctx, transaction, err)
-		m.logger.Error("metamorph not healthy")
-		return statusCode, arcError, err
-	}
-
 	tx, err := m.TransactionHandler.SubmitTransaction(ctx, transaction.Bytes(), transactionOptions)
 	if err != nil {
 		statusCode, arcError := m.handleError(ctx, transaction, err)
@@ -454,13 +445,6 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 
 // processTransactions validates all the transactions in the array and submits to metamorph for processing.
 func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions []*bt.Tx, transactionOptions *metamorph.TransactionOptions) (api.StatusCode, []interface{}, error) {
-	err := m.TransactionHandler.Health(ctx)
-	if err != nil {
-		statusCode, arcError := m.handleError(ctx, nil, err)
-		m.logger.Error("metamorph not healthy")
-		return statusCode, []interface{}{arcError}, err
-	}
-
 	m.logger.Info(fmt.Sprintf("Starting to process %d transactions", len(transactions)))
 
 	// validate before submitting array of transactions to metamorph

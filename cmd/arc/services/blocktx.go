@@ -10,7 +10,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
-	cfg "github.com/bitcoin-sv/arc/internal/helpers"
+	cfg "github.com/bitcoin-sv/arc/internal/config"
 	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"

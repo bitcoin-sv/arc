@@ -125,7 +125,7 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheus
 	reflection.Register(s.grpcServer)
 
 	go func() {
-		s.logger.Info("GRPC server listening on", slog.String("address", address))
+		s.logger.Info("GRPC server listening", slog.String("address", address))
 		err = s.grpcServer.Serve(lis)
 		if err != nil {
 			s.logger.Error("GRPC server failed to serve", slog.String("err", err.Error()))
@@ -148,16 +148,8 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 
 	peersConnected, peersDisconnected := s.processor.GetPeers()
 
-	details := fmt.Sprintf(`Peer stats (started: %s)`, stats.StartTime.UTC().Format(time.RFC3339))
 	return &metamorph_api.HealthResponse{
-		Ok:                true,
-		Details:           details,
 		Timestamp:         timestamppb.New(time.Now()),
-		Uptime:            float32(time.Since(stats.StartTime).Milliseconds()) / 1000.0,
-		Queued:            stats.QueuedCount,
-		Processed:         stats.SentToNetwork.GetCount(),
-		Waiting:           stats.QueueLength,
-		Average:           float32(stats.SentToNetwork.GetAverageDuration().Milliseconds()),
 		MapSize:           stats.ChannelMapSize,
 		PeersConnected:    strings.Join(peersConnected, ","),
 		PeersDisconnected: strings.Join(peersDisconnected, ","),

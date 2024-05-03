@@ -18,7 +18,6 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/ordishs/go-utils/stat"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -38,16 +37,7 @@ func TestNewServer(t *testing.T) {
 func TestHealth(t *testing.T) {
 	t.Run("Health", func(t *testing.T) {
 		processor := &mocks.ProcessorIMock{}
-		sentToNetworkStat := stat.NewAtomicStats()
-		for i := 0; i < 10; i++ {
-			sentToNetworkStat.AddDuration("test", 10*time.Millisecond)
-		}
 		expectedStats := &metamorph.ProcessorStats{
-			StartTime:      time.Now(),
-			UptimeMillis:   "2000ms",
-			QueueLength:    136,
-			QueuedCount:    356,
-			SentToNetwork:  sentToNetworkStat,
 			ChannelMapSize: 22,
 		}
 		processor.GetStatsFunc = func(debugItems bool) *metamorph.ProcessorStats {
@@ -61,10 +51,6 @@ func TestHealth(t *testing.T) {
 		stats, err := server.Health(context.Background(), &emptypb.Empty{})
 		assert.NoError(t, err)
 		assert.Equal(t, expectedStats.ChannelMapSize, stats.GetMapSize())
-		assert.Equal(t, expectedStats.QueuedCount, stats.GetQueued())
-		assert.Equal(t, expectedStats.SentToNetwork.GetMap()["test"].GetCount(), stats.GetProcessed())
-		assert.Equal(t, expectedStats.QueueLength, stats.GetWaiting())
-		assert.Equal(t, float32(10), stats.GetAverage())
 	})
 }
 

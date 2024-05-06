@@ -6,18 +6,18 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/nats_mq"
-
-	cfg "github.com/bitcoin-sv/arc/internal/helpers"
+	cfg "github.com/bitcoin-sv/arc/internal/config"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/async"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
+	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/libsv/go-p2p"
@@ -44,11 +44,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	s, err := NewMetamorphStore(dbMode)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
-	}
-
-	metamorphGRPCListenAddress, err := cfg.GetString("metamorph.listenAddr")
-	if err != nil {
-		return nil, err
 	}
 
 	pm, statusMessageCh, err := initPeerManager(logger.With(slog.String("module", "mtm-peer-handler")), s)
@@ -122,7 +117,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),
-	)
+		metamorph.WithCallbackSender(metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})))
 	if err != nil {
 		return nil, err
 	}
@@ -134,6 +129,10 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	metamorphProcessor.StartRequestingSeenOnNetworkTxs()
 	metamorphProcessor.StartProcessStatusUpdatesInStorage()
 	metamorphProcessor.StartProcessMinedCallbacks()
+	err = metamorphProcessor.StartCollectStats()
+	if err != nil {
+		return nil, fmt.Errorf("failed to start collecting stats: %v", err)
+	}
 
 	go func() {
 		for message := range statusMessageCh {
@@ -182,18 +181,24 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		optsServer = append(optsServer, metamorph.WithForceCheckUtxos(node))
 	}
 
-	serv := metamorph.NewServer(s, metamorphProcessor, optsServer...)
+	server := metamorph.NewServer(s, metamorphProcessor, optsServer...)
 
-	go func() {
-		grpcMessageSize := viper.GetInt("grpcMessageSize")
-		if grpcMessageSize == 0 {
-			logger.Error("grpcMessageSize must be set")
-			return
-		}
-		if err = serv.StartGRPCServer(metamorphGRPCListenAddress, grpcMessageSize); err != nil {
-			logger.Error("GRPCServer failed", slog.String("err", err.Error()))
-		}
-	}()
+	metamorphGRPCListenAddress, err := cfg.GetString("metamorph.listenAddr")
+	if err != nil {
+		return nil, err
+	}
+
+	grpcMessageSize, err := cfg.GetInt("grpcMessageSize")
+	if err != nil {
+		return nil, err
+	}
+
+	prometheusEndpoint := viper.GetString("prometheusEndpoint")
+
+	err = server.StartGRPCServer(metamorphGRPCListenAddress, grpcMessageSize, prometheusEndpoint, logger)
+	if err != nil {
+		return nil, fmt.Errorf("GRPCServer failed: %v", err)
+	}
 
 	peerSettings, err := cfg.GetPeerSettings()
 	if err != nil {
@@ -224,30 +229,33 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	// pass all the started peers to the collector
 	_ = metamorph.NewZMQCollector(zmqCollector)
 
-	go func() {
-		err = StartHealthServerMetamorph(serv)
-		if err != nil {
-			logger.Error("failed to start health server", slog.String("err", err.Error()))
-		}
-	}()
+	healthServer, err := StartHealthServerMetamorph(server, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start health server: %v", err)
+	}
 
 	return func() {
 		logger.Info("Shutting down metamorph")
+
 		err = mqClient.Shutdown()
 		if err != nil {
 			logger.Error("failed to shutdown mqClient", slog.String("err", err.Error()))
 		}
+
 		metamorphProcessor.Shutdown()
 		err = s.Close(context.Background())
 		if err != nil {
 			logger.Error("Could not close store", slog.String("err", err.Error()))
 		}
+
+		server.Shutdown()
+
+		healthServer.Stop()
 	}, nil
 }
 
-func StartHealthServerMetamorph(serv *metamorph.Server) error {
+func StartHealthServerMetamorph(serv *metamorph.Server, logger *slog.Logger) (*grpc.Server, error) {
 	gs := grpc.NewServer()
-	defer gs.Stop()
 
 	grpc_health_v1.RegisterHealthServer(gs, serv) // registration
 	// register your own services
@@ -255,20 +263,23 @@ func StartHealthServerMetamorph(serv *metamorph.Server) error {
 
 	address, err := cfg.GetString("metamorph.healthServerDialAddr") //"localhost:8005"
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	err = gs.Serve(listener)
-	if err != nil {
-		return err
-	}
+	go func() {
+		logger.Info("GRPC health server listening", slog.String("address", address))
+		err = gs.Serve(listener)
+		if err != nil {
+			logger.Error("GRPC health server failed to serve", slog.String("err", err.Error()))
+		}
+	}()
 
-	return nil
+	return gs, nil
 }
 
 func NewMetamorphStore(dbMode string) (s store.MetamorphStore, err error) {

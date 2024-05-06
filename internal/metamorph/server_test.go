@@ -18,7 +18,6 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/ordishs/go-utils/stat"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -38,16 +37,7 @@ func TestNewServer(t *testing.T) {
 func TestHealth(t *testing.T) {
 	t.Run("Health", func(t *testing.T) {
 		processor := &mocks.ProcessorIMock{}
-		sentToNetworkStat := stat.NewAtomicStats()
-		for i := 0; i < 10; i++ {
-			sentToNetworkStat.AddDuration("test", 10*time.Millisecond)
-		}
 		expectedStats := &metamorph.ProcessorStats{
-			StartTime:      time.Now(),
-			UptimeMillis:   "2000ms",
-			QueueLength:    136,
-			QueuedCount:    356,
-			SentToNetwork:  sentToNetworkStat,
 			ChannelMapSize: 22,
 		}
 		processor.GetStatsFunc = func(debugItems bool) *metamorph.ProcessorStats {
@@ -61,10 +51,6 @@ func TestHealth(t *testing.T) {
 		stats, err := server.Health(context.Background(), &emptypb.Empty{})
 		assert.NoError(t, err)
 		assert.Equal(t, expectedStats.ChannelMapSize, stats.GetMapSize())
-		assert.Equal(t, expectedStats.QueuedCount, stats.GetQueued())
-		assert.Equal(t, expectedStats.SentToNetwork.GetMap()["test"].GetCount(), stats.GetProcessed())
-		assert.Equal(t, expectedStats.QueueLength, stats.GetWaiting())
-		assert.Equal(t, float32(10), stats.GetAverage())
 	})
 }
 
@@ -95,17 +81,6 @@ func TestPutTransaction(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, txStatus.GetStatus())
 		assert.True(t, txStatus.GetTimedOut())
-	})
-
-	t.Run("invalid request", func(t *testing.T) {
-		server := metamorph.NewServer(nil, nil)
-
-		txRequest := &metamorph_api.TransactionRequest{
-			CallbackUrl: "api.callback.com",
-		}
-
-		_, err := server.PutTransaction(context.Background(), txRequest)
-		assert.ErrorContains(t, err, "invalid URL [parse \"api.callback.com\": invalid URI for request]")
 	})
 
 	t.Run("PutTransaction - SEEN to network", func(t *testing.T) {
@@ -280,43 +255,6 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				return
 			}
 			assert.Equalf(t, tt.want, got, "GetTransactionStatus(%v)", tt.req)
-		})
-	}
-}
-
-func TestValidateCallbackURL(t *testing.T) {
-	tt := []struct {
-		name        string
-		callbackURL string
-
-		expectedErrorStr string
-	}{
-		{
-			name:        "empty callback URL",
-			callbackURL: "",
-		},
-		{
-			name:        "valid callback URL",
-			callbackURL: "http://api.callback.com",
-		},
-		{
-			name:        "invalid callback URL",
-			callbackURL: "api.callback.com",
-
-			expectedErrorStr: "invalid URL [parse \"api.callback.com\": invalid URI for request]",
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			err := metamorph.ValidateCallbackURL(tc.callbackURL)
-
-			if tc.expectedErrorStr != "" || err != nil {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
-				return
-			} else {
-				require.NoError(t, err)
-			}
 		})
 	}
 }
@@ -637,11 +575,11 @@ func TestStartGRPCServer(t *testing.T) {
 				ShutdownFunc: func() {},
 			}
 			server := metamorph.NewServer(metamorphStore, processor)
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-			go func() {
-				err := server.StartGRPCServer("localhost:7000", 10000)
-				require.NoError(t, err)
-			}()
+			err := server.StartGRPCServer("localhost:7000", 10000, "", logger)
+			require.NoError(t, err)
+
 			time.Sleep(50 * time.Millisecond)
 
 			server.Shutdown()

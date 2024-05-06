@@ -141,7 +141,8 @@ services:
     volumes:
       - ./config/config.yaml:/service/config.yaml
     depends_on:
-      - arc-blocktx
+      arc-blocktx:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "/bin/grpc_health_probe", "-addr=:8005", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
@@ -162,7 +163,8 @@ services:
     volumes:
       - ./config/config.yaml:/service/config.yaml
     depends_on:
-      - arc-metamorph
+      arc-metamorph:
+        condition: service_healthy
 
 volumes:
   node1-data:

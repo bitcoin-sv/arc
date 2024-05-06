@@ -12,6 +12,12 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v4
 
+      - name: Get build args
+        id: build_args
+        run: |
+          echo "APP_COMMIT=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "APP_VERSION=$(git describe --tags --always --abbrev=0 --match='v[0-9]*.[0-9]*.[0-9]*' 2> /dev/null | sed 's/^.//')" >> "$GITHUB_OUTPUT"
+
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
@@ -29,14 +35,17 @@ jobs:
         with:
           images: bsvb/arc
 
-      - name: Build release
-        run: make build_release
-
       - name: Build and push image
         uses: docker/build-push-action@v5
+        env:
+          APP_COMMIT: ${{ steps.build_args.outputs.APP_COMMIT }}
+          APP_VERSION: ${{ steps.build_args.outputs.APP_VERSION }}
         with:
           context: .
           file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            APP_COMMIT=$APP_COMMIT
+            APP_VERSION=$APP_VERSION

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
@@ -495,6 +494,14 @@ func TestPostgresDB(t *testing.T) {
 		unmined.MerklePath = "merkle-path-1"
 		require.Equal(t, dataReturned, &unmined)
 
+		updated, err = postgresDB.UpdateMined(ctx, &blocktx_api.TransactionBlocks{})
+		require.NoError(t, err)
+		require.Len(t, updated, 0)
+		require.Len(t, updated, 0)
+
+		updated, err = postgresDB.UpdateMined(ctx, nil)
+		require.NoError(t, err)
+		require.Nil(t, updated)
 	})
 
 	t.Run("update mined - missing block info", func(t *testing.T) {
@@ -529,7 +536,7 @@ func TestPostgresDB(t *testing.T) {
 
 		res, err := postgresDB.ClearData(ctx, 14)
 		require.NoError(t, err)
-		require.Equal(t, int64(4), res)
+		require.Equal(t, int64(5), res)
 
 		var numberOfRemainingTxs int
 		err = postgresDB.db.QueryRowContext(ctx, "SELECT count(*) FROM metamorph.transactions;").Scan(&numberOfRemainingTxs)
@@ -539,29 +546,38 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("get seen on network txs", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
-		insertedAtNum, _ := strconv.Atoi(time.Date(2023, 1, 1, 2, 0, 0, 0, time.UTC).Format(numericalDateHourLayout))
-		tx1Data := &store.StoreData{
-			RawTx:         testdata.TX1RawBytes,
-			Hash:          testdata.TX1Hash,
-			Status:        metamorph_api.Status_SEEN_ON_NETWORK,
-			InsertedAtNum: insertedAtNum,
-		}
-		err = postgresDB.Set(ctx, testdata.TX1Hash[:], tx1Data)
-		require.NoError(t, err)
 
-		tx6Data := &store.StoreData{
-			RawTx:         testdata.TX6RawBytes,
-			Hash:          testdata.TX6Hash,
-			Status:        metamorph_api.Status_STORED,
-			InsertedAtNum: insertedAtNum,
-		}
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
 
-		err = postgresDB.Set(ctx, testdata.TX6Hash[:], tx6Data)
+		txHash, err := chainhash.NewHashFromStr("0fb1bc42190ef7e3080a9cc8147b67393765971285fe61a552df2014ea2a5b85")
 		require.NoError(t, err)
 
 		records, err := postgresDB.GetSeenOnNetwork(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), time.Date(2023, 1, 1, 3, 0, 0, 0, time.UTC), 2, 0)
 		require.NoError(t, err)
+
+		require.Equal(t, txHash, records[0].Hash)
 		require.Equal(t, 1, len(records))
 		require.Equal(t, records[0].LockedBy, postgresDB.hostname)
 	})
+
+	t.Run("get stats", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+
+		res, err := postgresDB.GetStats(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC))
+		require.NoError(t, err)
+
+		require.Equal(t, int64(1), res.StatusSeenOnNetwork)
+		require.Equal(t, int64(1), res.StatusAcceptedByNetwork)
+		require.Equal(t, int64(1), res.StatusAnnouncedToNetwork)
+		require.Equal(t, int64(1), res.StatusMined)
+		require.Equal(t, int64(0), res.StatusStored)
+		require.Equal(t, int64(0), res.StatusRequestedByNetwork)
+		require.Equal(t, int64(0), res.StatusSentToNetwork)
+		require.Equal(t, int64(0), res.StatusConfirmed)
+		require.Equal(t, int64(0), res.StatusRejected)
+		require.Equal(t, int64(0), res.StatusSeenInOrphanMempool)
+	})
+
 }

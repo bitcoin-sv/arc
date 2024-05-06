@@ -7,20 +7,18 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"net/url"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -61,6 +59,7 @@ type Server struct {
 	grpcServer      *grpc.Server
 	bitcoinNode     BitcoinNode
 	forceCheckUtxos bool
+	cleanup         func()
 }
 
 func WithLogger(logger *slog.Logger) func(*Server) {
@@ -100,19 +99,20 @@ func (s *Server) SetTimeout(timeout time.Duration) {
 }
 
 // StartGRPCServer function
-func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
+func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheusEndpoint string, logger *slog.Logger) error {
 	// LEVEL 0 - no security / no encryption
-	var opts []grpc.ServerOption
-	prometheusEndpoint := viper.GetString("prometheusEndpoint")
-	if prometheusEndpoint != "" {
-		opts = append(opts,
-			grpc.ChainStreamInterceptor(grpc_prometheus.StreamServerInterceptor),
-			grpc.ChainUnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
-			grpc.MaxRecvMsgSize(grpcMessageSize),
-		)
+
+	srvMetrics, opts, cleanup, err := grpc_opts.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize)
+	if err != nil {
+		return err
 	}
 
-	s.grpcServer = grpc.NewServer(opts...)
+	s.cleanup = cleanup
+
+	grpcSrv := grpc.NewServer(opts...)
+	srvMetrics.InitializeMetrics(grpcSrv)
+
+	s.grpcServer = grpcSrv
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
@@ -124,19 +124,23 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int) error {
 	// Register reflection service on gRPC server.
 	reflection.Register(s.grpcServer)
 
-	s.logger.Info("GRPC server listening on", slog.String("address", address))
-
-	if err = s.grpcServer.Serve(lis); err != nil {
-		return fmt.Errorf("metamorph GRPC server failed [%w]", err)
-	}
+	go func() {
+		s.logger.Info("GRPC server listening", slog.String("address", address))
+		err = s.grpcServer.Serve(lis)
+		if err != nil {
+			s.logger.Error("GRPC server failed to serve", slog.String("err", err.Error()))
+		}
+	}()
 
 	return nil
 }
 
 func (s *Server) Shutdown() {
 	s.logger.Info("Shutting down")
-	s.grpcServer.Stop()
 	s.processor.Shutdown()
+	s.grpcServer.GracefulStop()
+	s.grpcServer.Stop()
+	s.cleanup()
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.HealthResponse, error) {
@@ -144,48 +148,22 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 
 	peersConnected, peersDisconnected := s.processor.GetPeers()
 
-	details := fmt.Sprintf(`Peer stats (started: %s)`, stats.StartTime.UTC().Format(time.RFC3339))
 	return &metamorph_api.HealthResponse{
-		Ok:                true,
-		Details:           details,
 		Timestamp:         timestamppb.New(time.Now()),
-		Uptime:            float32(time.Since(stats.StartTime).Milliseconds()) / 1000.0,
-		Queued:            stats.QueuedCount,
-		Processed:         stats.SentToNetwork.GetCount(),
-		Waiting:           stats.QueueLength,
-		Average:           float32(stats.SentToNetwork.GetAverageDuration().Milliseconds()),
 		MapSize:           stats.ChannelMapSize,
 		PeersConnected:    strings.Join(peersConnected, ","),
 		PeersDisconnected: strings.Join(peersDisconnected, ","),
 	}, nil
 }
 
-func ValidateCallbackURL(callbackURL string) error {
-	if callbackURL == "" {
-		return nil
-	}
-
-	_, err := url.ParseRequestURI(callbackURL)
-	if err != nil {
-		return fmt.Errorf("invalid URL [%w]", err)
-	}
-
-	return nil
-}
-
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
-	err := ValidateCallbackURL(req.GetCallbackUrl())
-	if err != nil {
-		s.logger.Error("failed to validate callback URL", slog.String("err", err.Error()))
-		return nil, err
-	}
 	hash := PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
-	status := metamorph_api.Status_RECEIVED
+	statusReceived := metamorph_api.Status_RECEIVED
 
 	// Convert gRPC req to store.StoreData struct...
 	sReq := &store.StoreData{
 		Hash:              hash,
-		Status:            status,
+		Status:            statusReceived,
 		CallbackUrl:       req.GetCallbackUrl(),
 		CallbackToken:     req.GetCallbackToken(),
 		FullStatusUpdates: req.GetFullStatusUpdates(),
@@ -212,20 +190,14 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	var timeout int64
 
 	for ind, txReq := range req.GetTransactions() {
-		err := ValidateCallbackURL(txReq.GetCallbackUrl())
-		if err != nil {
-			s.logger.Error("failed to validate callback URL", slog.String("err", err.Error()))
-			return nil, err
-		}
-
-		status := metamorph_api.Status_RECEIVED
+		statusReceived := metamorph_api.Status_RECEIVED
 		hash := PtrTo(chainhash.DoubleHashH(txReq.GetRawTx()))
 		timeout = txReq.GetMaxTimeout()
 
 		// Convert gRPC req to store.StoreData struct...
 		sReq := &store.StoreData{
 			Hash:              hash,
-			Status:            status,
+			Status:            statusReceived,
 			CallbackUrl:       txReq.GetCallbackUrl(),
 			CallbackToken:     txReq.GetCallbackToken(),
 			FullStatusUpdates: txReq.GetFullStatusUpdates(),

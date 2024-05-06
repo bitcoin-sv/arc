@@ -1,9 +1,7 @@
 
 REPOSITORY := github.com/bitcoin-sv/arc
-LDFLAGS := -ldflags "\
-	-X $(REPOSITORY)/internal/version.Commit=$(shell git rev-parse --short HEAD) \
-	-X $(REPOSITORY)/internal/version.Version=$(shell git describe --tags --always --abbrev=0 --match='v[0-9]*.[0-9]*.[0-9]*' 2> /dev/null | sed 's/^.//') \
-"
+APP_COMMIT := $(shell git rev-parse --short HEAD)
+APP_VERSION := $(shell git describe --tags --always --abbrev=0 --match='v[0-9]*.[0-9]*.[0-9]*' 2> /dev/null | sed 's/^.//')
 
 .PHONY: all
 all: deps lint build test
@@ -27,16 +25,15 @@ clean_e2e_tests:
 .PHONY: build_release
 build_release:
 	mkdir -p build
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -v -o build/arc_linux_amd64 ./cmd/arc/main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-X $(REPOSITORY)/internal/version.Commit=$(APP_COMMIT) -X $(REPOSITORY)/internal/version.Version=$(APP_VERSION)" -o build/arc_linux_amd64 ./cmd/arc/main.go
 
 .PHONY: build_docker
 build_docker:
-	docker build . -t test-arc
+	docker build . -t test-arc --build-arg="APP_COMMIT=$(APP_COMMIT)" --build-arg="APP_VERSION=$(APP_VERSION)"
 
 .PHONY: run_e2e_tests
 run_e2e_tests:
 	docker-compose -f test/docker-compose.yml down
-	docker-compose -f test/docker-compose.yml up -d node1 node2 node3 db nats
 	docker-compose -f test/docker-compose.yml up --abort-on-container-exit migrate-blocktx migrate-metamorph
 	docker-compose -f test/docker-compose.yml up --exit-code-from tests tests arc-blocktx arc-metamorph arc --scale arc-blocktx=7 --scale arc-metamorph=2
 	docker-compose -f test/docker-compose.yml down
@@ -122,4 +119,4 @@ api:
 	oapi-codegen -config pkg/api/config.yaml pkg/api/arc.yml > pkg/api/arc.go
 
 .PHONY: clean_restart_e2e_test
-clean_restart_e2e_test: clean_e2e_tests build_release build_docker run_e2e_tests
+clean_restart_e2e_test: clean_e2e_tests build_docker run_e2e_tests

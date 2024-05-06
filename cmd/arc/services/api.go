@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	cfg "github.com/bitcoin-sv/arc/internal/helpers"
+	cfg "github.com/bitcoin-sv/arc/internal/config"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
@@ -89,7 +89,9 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 		return err
 	}
 
-	conn, err := metamorph.DialGRPC(metamorphAddress, grpcMessageSize)
+	prometheusEndpoint := viper.GetString("prometheusEndpoint")
+
+	conn, err := metamorph.DialGRPC(logger, metamorphAddress, prometheusEndpoint, grpcMessageSize)
 	if err != nil {
 		return fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
@@ -105,8 +107,10 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 		}
 	}
 
+	rejectedCallbackUrlSubstrings := viper.GetStringSlice("metamorph.rejectCallbackContaining")
+
 	// TODO WithSecurityConfig(appConfig.Security)
-	apiHandler, err := handler.NewDefault(logger, metamorphClient, policy)
+	apiHandler, err := handler.NewDefault(logger, metamorphClient, policy, handler.WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings))
 	if err != nil {
 		return err
 	}

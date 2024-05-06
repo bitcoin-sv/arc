@@ -28,7 +28,21 @@ type Callback struct {
 	Txid        string    `json:"txid"`
 }
 
-func (p *Processor) SendCallback(logger *slog.Logger, tx *store.StoreData) {
+type Callbacker struct {
+	httpClient HttpClient
+}
+
+func NewCallbacker(httpClient HttpClient) *Callbacker {
+	return &Callbacker{
+		httpClient: httpClient,
+	}
+}
+
+type HttpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 	sleepDuration := CallbackIntervalSeconds
 	statusString := tx.Status.String()
 	blockHash := ""
@@ -68,7 +82,7 @@ func (p *Processor) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 		var response *http.Response
 		response, err = p.httpClient.Do(request)
 		if err != nil {
-			logger.Warn("Couldn't send transaction info through callback url", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
+			logger.Debug("Couldn't send transaction callback", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
 			continue
 		}
 		defer response.Body.Close()
@@ -78,7 +92,7 @@ func (p *Processor) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 			return
 		}
 
-		logger.Warn("Callback response status code not ok", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.Int("status", response.StatusCode))
+		logger.Debug("Callback response status code not ok", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.Int("status", response.StatusCode))
 
 		// sleep before trying again
 		time.Sleep(time.Duration(sleepDuration) * time.Second)
@@ -86,5 +100,5 @@ func (p *Processor) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 		sleepDuration *= 2
 	}
 
-	logger.Debug("Couldn't send transaction info through callback url after tries", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.Int("retries", CallbackTries))
+	logger.Warn("Couldn't send transaction callback after tries", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.Int("retries", CallbackTries))
 }

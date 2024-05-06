@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/validator"
@@ -27,15 +28,22 @@ const (
 )
 
 type ArcDefaultHandler struct {
-	TransactionHandler metamorph.TransactionHandler
-	NodePolicy         *bitcoin.Settings
-	logger             *slog.Logger
-	now                func() time.Time
+	TransactionHandler            metamorph.TransactionHandler
+	NodePolicy                    *bitcoin.Settings
+	logger                        *slog.Logger
+	now                           func() time.Time
+	rejectedCallbackUrlSubstrings []string
 }
 
 func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
 		p.now = nowFunc
+	}
+}
+
+func WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings []string) func(*ArcDefaultHandler) {
+	return func(p *ArcDefaultHandler) {
+		p.rejectedCallbackUrlSubstrings = rejectedCallbackUrlSubstrings
 	}
 }
 
@@ -75,20 +83,18 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
 }
 
 func (m ArcDefaultHandler) GETHealth(ctx echo.Context) error {
-	healthy := true
-
 	err := m.TransactionHandler.Health(ctx.Request().Context())
-
-	if err == nil {
+	if err != nil {
+		reason := err.Error()
 		return ctx.JSON(http.StatusOK, api.Health{
-			Healthy: &healthy,
-			Reason:  nil,
+			Healthy: PtrTo(false),
+			Reason:  &reason,
 		})
 	}
-	reason := err.Error()
+
 	return ctx.JSON(http.StatusOK, api.Health{
-		Healthy: PtrTo(false),
-		Reason:  &reason,
+		Healthy: PtrTo(true),
+		Reason:  nil,
 	})
 }
 
@@ -109,7 +115,7 @@ func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
 
 // POSTTransaction ...
 func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) error {
-	transactionOptions, err := getTransactionOptions(params)
+	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackUrlSubstrings)
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 		return ctx.JSON(e.Status, e)
@@ -164,7 +170,6 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	sizingInfo[0] = []uint64{normalBytes, dataBytes, feeAmount}
 	sizingCtx := context.WithValue(ctx.Request().Context(), ContextSizings, sizingInfo)
 	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
-
 	return ctx.JSON(int(status), response)
 }
 
@@ -194,13 +199,14 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 		Timestamp:   m.now(),
 		Txid:        tx.TxID,
 		MerklePath:  &tx.MerklePath,
+		ExtraInfo:   PtrTo(""),
 	})
 }
 
 // POSTTransactions ...
 func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) error {
 	// set the globals for all transactions in this request
-	transactionOptions, err := getTransactionsOptions(params)
+	transactionOptions, err := getTransactionsOptions(params, m.rejectedCallbackUrlSubstrings)
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 		return ctx.JSON(e.Status, e)
@@ -328,16 +334,29 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	return ctx.JSON(int(status), transactions)
 }
 
-func getTransactionOptions(params api.POSTTransactionParams) (*metamorph.TransactionOptions, error) {
-	return getTransactionsOptions(api.POSTTransactionsParams(params))
+func getTransactionOptions(params api.POSTTransactionParams, rejectedCallbackUrlSubstrings []string) (*metamorph.TransactionOptions, error) {
+	return getTransactionsOptions(api.POSTTransactionsParams(params), rejectedCallbackUrlSubstrings)
 }
 
-func getTransactionsOptions(params api.POSTTransactionsParams) (*metamorph.TransactionOptions, error) {
+func ValidateCallbackURL(callbackURL string, rejectedCallbackUrlSubstrings []string) error {
+	_, err := url.ParseRequestURI(callbackURL)
+	if err != nil {
+		return fmt.Errorf("invalid callback URL [%w]", err)
+	}
+
+	for _, substring := range rejectedCallbackUrlSubstrings {
+		if strings.Contains(callbackURL, substring) {
+			return fmt.Errorf("callback url not acceptable %s", callbackURL)
+		}
+	}
+	return nil
+}
+
+func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackUrlSubstrings []string) (*metamorph.TransactionOptions, error) {
 	transactionOptions := &metamorph.TransactionOptions{}
 	if params.XCallbackUrl != nil {
-		_, err := url.ParseRequestURI(*params.XCallbackUrl)
-		if err != nil {
-			return nil, fmt.Errorf("invalid callback URL [%w]", err)
+		if err := ValidateCallbackURL(*params.XCallbackUrl, rejectedCallbackUrlSubstrings); err != nil {
+			return nil, err
 		}
 
 		transactionOptions.CallbackURL = *params.XCallbackUrl
@@ -396,13 +415,6 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 		}
 	}
 
-	err := m.TransactionHandler.Health(ctx)
-	if err != nil {
-		statusCode, arcError := m.handleError(ctx, transaction, err)
-		m.logger.Error("metamorph not healthy")
-		return statusCode, arcError, err
-	}
-
 	tx, err := m.TransactionHandler.SubmitTransaction(ctx, transaction.Bytes(), transactionOptions)
 	if err != nil {
 		statusCode, arcError := m.handleError(ctx, transaction, err)
@@ -421,8 +433,6 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 	}
 
 	return api.StatusOK, api.TransactionResponse{
-		Status:      int(api.StatusOK),
-		Title:       "OK",
 		BlockHash:   &tx.BlockHash,
 		BlockHeight: &tx.BlockHeight,
 		TxStatus:    tx.Status,
@@ -435,13 +445,6 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 
 // processTransactions validates all the transactions in the array and submits to metamorph for processing.
 func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions []*bt.Tx, transactionOptions *metamorph.TransactionOptions) (api.StatusCode, []interface{}, error) {
-	err := m.TransactionHandler.Health(ctx)
-	if err != nil {
-		statusCode, arcError := m.handleError(ctx, nil, err)
-		m.logger.Error("metamorph not healthy")
-		return statusCode, []interface{}{arcError}, err
-	}
-
 	m.logger.Info(fmt.Sprintf("Starting to process %d transactions", len(transactions)))
 
 	// validate before submitting array of transactions to metamorph
@@ -487,8 +490,6 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 
 	for ind, tx := range txStatuses {
 		transactionOutput = append(transactionOutput, api.TransactionResponse{
-			Status:      int(api.StatusOK),
-			Title:       "OK",
 			BlockHash:   &txStatuses[ind].BlockHash,
 			BlockHeight: &txStatuses[ind].BlockHeight,
 			TxStatus:    tx.Status,

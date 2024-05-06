@@ -7,25 +7,10 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/ordishs/go-utils/stat"
 )
 
 type ProcessorStats struct {
-	StartTime           time.Time
-	UptimeMillis        string
-	QueueLength         int32
-	QueuedCount         int32
-	Stored              *stat.AtomicStat
-	AnnouncedToNetwork  *stat.AtomicStats
-	RequestedByNetwork  *stat.AtomicStats
-	SentToNetwork       *stat.AtomicStats
-	AcceptedByNetwork   *stat.AtomicStats
-	SeenOnNetwork       *stat.AtomicStats
-	SeenInOrphanMempool *stat.AtomicStats
-	Rejected            *stat.AtomicStats
-	Mined               *stat.AtomicStat
-	Retries             *stat.AtomicStat
-	ChannelMapSize      int32
+	ChannelMapSize int32
 }
 
 type ProcessorRequest struct {

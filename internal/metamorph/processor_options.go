@@ -75,8 +75,14 @@ func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlocks) func(pro
 	}
 }
 
-func WithHttpClient(httpClient HttpClient) func(processor *Processor) {
+func WithCallbackSender(callbackSender CallbackSender) func(processor *Processor) {
 	return func(p *Processor) {
-		p.httpClient = httpClient
+		p.callbackSender = callbackSender
+	}
+}
+
+func WithStatCollectionInterval(statCollectionInterval time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.statCollectionInterval = statCollectionInterval
 	}
 }

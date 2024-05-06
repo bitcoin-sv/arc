@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime/debug"
-	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
@@ -20,8 +19,7 @@ import (
 )
 
 const (
-	maxRetries      = 3
-	perRetryTimeout = 2000 * time.Millisecond
+	maxRetries = 3
 )
 
 // InterceptorLogger adapts slog logger to interceptor logger.
@@ -108,7 +106,6 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 func GetGRPCClientOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int) ([]grpc.DialOption, error) {
 	retryOpts := []retry.CallOption{
 		retry.WithMax(maxRetries),
-		retry.WithPerRetryTimeout(perRetryTimeout),
 		retry.WithCodes(codes.NotFound, codes.Aborted),
 	}
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"runtime/debug"
 	"sync/atomic"
 	"time"
 
@@ -86,6 +87,9 @@ func (z *ZMQ) Start(zmqi ZMQI) {
 	ch := make(chan []string)
 
 	go func() {
+		if r := recover(); r != nil {
+			z.Logger.Errorf("Recovered from panic: %s", string(debug.Stack()))
+		}
 		var err error
 		for c := range ch {
 			switch c[0] {

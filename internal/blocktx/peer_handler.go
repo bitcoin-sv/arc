@@ -10,6 +10,7 @@ import (
 	"math"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -233,6 +234,9 @@ func (ph *PeerHandler) startPeerWorker() {
 
 	go func() {
 		defer func() {
+			if r := recover(); r != nil {
+				ph.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+			}
 			ph.quitPeerWorkerComplete <- struct{}{}
 		}()
 		for {
@@ -290,6 +294,9 @@ func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
 
 	go func() {
 		defer func() {
+			if r := recover(); r != nil {
+				ph.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+			}
 			ph.quitFillBlockGapComplete <- struct{}{}
 		}()
 
@@ -322,6 +329,9 @@ func (ph *PeerHandler) startProcessTxs() {
 	ticker := time.NewTicker(ph.registerTxsInterval)
 	go func() {
 		defer func() {
+			if r := recover(); r != nil {
+				ph.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+			}
 			ph.quitListenTxChannelComplete <- struct{}{}
 		}()
 
@@ -368,6 +378,9 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 
 	go func() {
 		defer func() {
+			if r := recover(); r != nil {
+				ph.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+			}
 			ph.quitListenRequestTxChannelComplete <- struct{}{}
 		}()
 

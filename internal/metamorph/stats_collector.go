@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -107,6 +108,9 @@ func (p *Processor) StartCollectStats() error {
 	}
 	go func() {
 		defer func() {
+			if r := recover(); r != nil {
+				p.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+			}
 			p.quitCollectStatsComplete <- struct{}{}
 
 			unregisterStats(

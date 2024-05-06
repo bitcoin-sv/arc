@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -43,6 +44,12 @@ type HttpClient interface {
 }
 
 func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+		}
+	}()
+
 	sleepDuration := CallbackIntervalSeconds
 	statusString := tx.Status.String()
 	blockHash := ""

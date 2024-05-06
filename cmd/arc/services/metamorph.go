@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -135,6 +136,9 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	}
 
 	go func() {
+		if r := recover(); r != nil {
+			logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+		}
 		for message := range statusMessageCh {
 			err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
 			if err != nil {
@@ -272,6 +276,9 @@ func StartHealthServerMetamorph(serv *metamorph.Server, logger *slog.Logger) (*g
 	}
 
 	go func() {
+		if r := recover(); r != nil {
+			logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+		}
 		logger.Info("GRPC health server listening", slog.String("address", address))
 		err = gs.Serve(listener)
 		if err != nil {

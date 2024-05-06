@@ -759,52 +759,94 @@ func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (int64,
 	return rows, nil
 }
 
-func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time) (*store.Stats, error) {
+func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
 	q := `
-		SELECT
-			t.status,
-			count(*)
-		FROM
-			metamorph.transactions t WHERE t.inserted_at_num > $1 AND t.locked_by = $2
-		GROUP BY
-			t.status
+	SELECT
+	max(status_counts.status_count) FILTER (where status_counts.status = $3 )
+	,max(status_counts.status_count) FILTER (where status_counts.status = $4 )
+	,max(status_counts.status_count) FILTER (where status_counts.status = $5 )
+	,max(status_counts.status_count) FILTER (where status_counts.status = $6 )
+	,max(status_counts.status_count) FILTER (where status_counts.status = $7 )
+	,max(status_counts.status_count) FILTER (where status_counts.status = $8 )
+	,max(status_counts.status_count) FILTER (where status_counts.status = $9 )
+	,max(status_counts.status_count) FILTER (where status_counts.status = $10 )
+	,max(status_counts.status_count) FILTER (where status_counts.status = $11 )
+	FROM
+	(SELECT all_statuses.status, COALESCE (found_statuses.status_count, 0) AS status_count FROM
+	(SELECT unnest(ARRAY[
+	    $3::integer,
+	    $4::integer,
+	    $5::integer,
+	    $6::integer,
+	    $7::integer,
+	    $8::integer,
+	    $9::integer,
+	    $10::integer,
+	    $11::integer]) AS status) AS all_statuses
+	LEFT JOIN
+	(
+	SELECT
+		t.status,
+		count(*) AS status_count
+	FROM
+		metamorph.transactions t WHERE t.inserted_at_num > $1 AND t.locked_by = $2
+	GROUP BY
+		t.status
+	) AS found_statuses ON found_statuses.status = all_statuses.status) AS status_counts
 	;
 	`
-	rows, err := p.db.QueryContext(ctx, q, since.Format(numericalDateHourLayout), p.hostname)
+
+	stats := &store.Stats{}
+
+	err := p.db.QueryRowContext(ctx, q, since.Format(numericalDateHourLayout), p.hostname,
+		metamorph_api.Status_STORED,
+		metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		metamorph_api.Status_REQUESTED_BY_NETWORK,
+		metamorph_api.Status_SENT_TO_NETWORK,
+		metamorph_api.Status_ACCEPTED_BY_NETWORK,
+		metamorph_api.Status_SEEN_ON_NETWORK,
+		metamorph_api.Status_MINED,
+		metamorph_api.Status_REJECTED,
+		metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL,
+	).Scan(
+		&stats.StatusStored,
+		&stats.StatusAnnouncedToNetwork,
+		&stats.StatusRequestedByNetwork,
+		&stats.StatusSentToNetwork,
+		&stats.StatusAcceptedByNetwork,
+		&stats.StatusSeenOnNetwork,
+		&stats.StatusMined,
+		&stats.StatusRejected,
+		&stats.StatusSeenInOrphanMempool,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	stats := &store.Stats{}
-	defer rows.Close()
-	for rows.Next() {
-		var status metamorph_api.Status
-		var count int64
-		err = rows.Scan(&status, &count)
-		if err != nil {
-			return nil, err
-		}
+	qNotSeen := `
+	SELECT
+		count(*)
+	FROM
+		metamorph.transactions t
+		WHERE t.inserted_at_num > $1 AND status < $2 AND t.locked_by = $3
+		AND $4 - t.stored_at > $5
+`
+	err = p.db.QueryRowContext(ctx, qNotSeen, since.Format(numericalDateHourLayout), metamorph_api.Status_SEEN_ON_NETWORK, p.hostname, p.now(), notSeenLimit.Seconds()).Scan(&stats.StatusNotSeen)
+	if err != nil {
+		return nil, err
+	}
 
-		switch status {
-		case metamorph_api.Status_STORED:
-			stats.StatusStored = count
-		case metamorph_api.Status_ANNOUNCED_TO_NETWORK:
-			stats.StatusAnnouncedToNetwork = count
-		case metamorph_api.Status_REQUESTED_BY_NETWORK:
-			stats.StatusRequestedByNetwork = count
-		case metamorph_api.Status_SENT_TO_NETWORK:
-			stats.StatusSentToNetwork = count
-		case metamorph_api.Status_ACCEPTED_BY_NETWORK:
-			stats.StatusAcceptedByNetwork = count
-		case metamorph_api.Status_SEEN_ON_NETWORK:
-			stats.StatusSeenOnNetwork = count
-		case metamorph_api.Status_MINED:
-			stats.StatusMined = count
-		case metamorph_api.Status_REJECTED:
-			stats.StatusRejected = count
-		case metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL:
-			stats.StatusSeenInOrphanMempool = count
-		}
+	qNotMined := `
+	SELECT
+		count(*)
+	FROM
+		metamorph.transactions t
+		WHERE t.inserted_at_num > $1 AND status = $2 AND t.locked_by = $3
+		AND EXTRACT(EPOCH FROM ($4 - t.stored_at)) > $5
+`
+	err = p.db.QueryRowContext(ctx, qNotMined, since.Format(numericalDateHourLayout), metamorph_api.Status_SEEN_ON_NETWORK, p.hostname, p.now(), notMinedLimit.Seconds()).Scan(&stats.StatusNotMined)
+	if err != nil {
+		return nil, err
 	}
 
 	return stats, nil

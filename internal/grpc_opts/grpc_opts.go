@@ -31,7 +31,7 @@ func InterceptorLogger(l *slog.Logger) logging.Logger {
 		case logging.LevelDebug:
 			l.Debug(msg, fields...)
 		case logging.LevelInfo:
-			l.Info(msg, fields...)
+			l.Debug(msg, fields...)
 		case logging.LevelWarn:
 			l.Warn(msg, fields...)
 		case logging.LevelError:

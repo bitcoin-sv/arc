@@ -477,7 +477,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 	if ok {
 		processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
 			Status:    status,
-			StatusErr: nil,
+			StatusErr: statusErr,
 		})
 	}
 

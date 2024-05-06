@@ -37,9 +37,6 @@ jobs:
 
       - name: Build and push image
         uses: docker/build-push-action@v5
-        env:
-          APP_COMMIT: ${{ steps.build_args.outputs.APP_COMMIT }}
-          APP_VERSION: ${{ steps.build_args.outputs.APP_VERSION }}
         with:
           context: .
           file: ./Dockerfile
@@ -47,5 +44,5 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            APP_COMMIT=$APP_COMMIT
-            APP_VERSION=$APP_VERSION
+            APP_COMMIT=${{ steps.build_args.outputs.APP_COMMIT }}
+            APP_VERSION=${{ steps.build_args.outputs.APP_VERSION }}

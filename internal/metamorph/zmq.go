@@ -97,7 +97,11 @@ func (z *ZMQ) Start(zmqi ZMQI) {
 				z.Stats.hashTx.Add(1)
 				z.Logger.Debugf("hashtx %s", c[1])
 
-				hash, _ := chainhash.NewHashFromStr(c[1])
+				hash, err := chainhash.NewHashFromStr(c[1])
+				if err != nil {
+					z.Logger.Errorf("failed to get hash from string of topic hashtx2: %v", err)
+					continue
+				}
 
 				z.statusMessageCh <- &PeerTxMessage{
 					Start:  time.Now(),
@@ -129,7 +133,12 @@ func (z *ZMQ) Start(zmqi ZMQI) {
 
 				z.Logger.Debugf("invalidtx %s: %s", txInfo.TxID, errReason)
 
-				hash, _ := chainhash.NewHashFromStr(txInfo.TxID)
+				hash, err := chainhash.NewHashFromStr(txInfo.TxID)
+				if err != nil {
+					z.Logger.Errorf("failed to get hash from string of topic invalidtx: %v", err)
+					continue
+				}
+
 				z.statusMessageCh <- &PeerTxMessage{
 					Start:  time.Now(),
 					Hash:   hash,
@@ -148,7 +157,11 @@ func (z *ZMQ) Start(zmqi ZMQI) {
 
 				z.Logger.Debugf("discardedfrommempool %s: %s - %#v", txInfo.TxID, txInfo.Reason, txInfo.CollidedWith)
 
-				hash, _ := chainhash.NewHashFromStr(txInfo.TxID)
+				hash, err := chainhash.NewHashFromStr(txInfo.TxID)
+				if err != nil {
+					z.Logger.Errorf("failed to get hash from string of topic discardedfrommempool: %v", err)
+					continue
+				}
 
 				z.statusMessageCh <- &PeerTxMessage{
 					Start:  time.Now(),

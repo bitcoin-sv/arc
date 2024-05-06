@@ -40,7 +40,7 @@ func NewServer(storeI store.BlocktxStore, logger *slog.Logger, peers []p2p.PeerI
 func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheusEndpoint string, logger *slog.Logger) error {
 
 	// LEVEL 0 - no security / no encryption
-	srvMetrics, opts, cleanup, err := grpc_opts.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize)
+	srvMetrics, opts, cleanup, err := grpc_opts.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize, "blocktx")
 	if err != nil {
 		return err
 	}

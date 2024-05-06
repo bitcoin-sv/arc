@@ -42,7 +42,7 @@ func InterceptorLogger(l *slog.Logger) logging.Logger {
 	})
 }
 
-func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
+func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int, service string) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
 	// Setup logging.
 	rpcLogger := logger.With(slog.String("service", "gRPC/server"))
 	logTraceID := func(ctx context.Context) logging.Fields {
@@ -68,7 +68,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 
 	// Setup metric for panic recoveries.
 	panicsTotal := prometheusclient.NewCounter(prometheusclient.CounterOpts{
-		Name: "grpc_req_panics_recovered_total",
+		Name: fmt.Sprintf("grpc_req_panics_recovered_%s_total", service),
 		Help: "Total number of gRPC requests recovered from internal panic.",
 	})
 

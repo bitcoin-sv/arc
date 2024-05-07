@@ -433,6 +433,8 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *
 	}
 
 	return api.StatusOK, api.TransactionResponse{
+		Status:      int(api.StatusOK),
+		Title:       "OK",
 		BlockHash:   &tx.BlockHash,
 		BlockHeight: &tx.BlockHeight,
 		TxStatus:    tx.Status,
@@ -490,6 +492,8 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 
 	for ind, tx := range txStatuses {
 		transactionOutput = append(transactionOutput, api.TransactionResponse{
+			Status:      int(api.StatusOK),
+			Title:       "OK",
 			BlockHash:   &txStatuses[ind].BlockHash,
 			BlockHeight: &txStatuses[ind].BlockHeight,
 			TxStatus:    tx.Status,

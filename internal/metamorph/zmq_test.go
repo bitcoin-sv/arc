@@ -1,7 +1,10 @@
 package metamorph_test
 
 import (
+	"github.com/stretchr/testify/require"
+	"log/slog"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph"
@@ -12,6 +15,8 @@ import (
 
 //go:generate moq -pkg mocks -out ./mocks/zmq_mock.go . ZMQI
 func TestMissingInputsZMQI(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	// make and configure a mocked ZMQI
 	mockedZMQI := &mocks.ZMQIMock{
 		SubscribeFunc: func(s string, stringsCh chan []string) error {
@@ -28,15 +33,19 @@ func TestMissingInputsZMQI(t *testing.T) {
 	}
 
 	statuses := make(chan *metamorph.PeerTxMessage, 1)
-	url, _ := url.Parse("https://some-url.com")
-	zmq := metamorph.NewZMQ(url, statuses)
-	zmq.Start(mockedZMQI)
+	zmqURL, err := url.Parse("https://some-url.com")
+	require.NoError(t, err)
+	zmq := metamorph.NewZMQ(zmqURL, statuses, logger)
+	err = zmq.Start(mockedZMQI)
+	require.NoError(t, err)
 	status := <-statuses
 
 	assert.Equal(t, status.Status, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
 }
 
 func TestInvalidTxZMQI(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	// make and configure a mocked ZMQI
 	mockedZMQI := &mocks.ZMQIMock{
 		SubscribeFunc: func(s string, stringsCh chan []string) error {
@@ -53,9 +62,12 @@ func TestInvalidTxZMQI(t *testing.T) {
 	}
 
 	statuses := make(chan *metamorph.PeerTxMessage, 1)
-	url, _ := url.Parse("https://some-url.com")
-	zmq := metamorph.NewZMQ(url, statuses)
-	zmq.Start(mockedZMQI)
+	zmqURL, err := url.Parse("https://some-url.com")
+	require.NoError(t, err)
+	zmq := metamorph.NewZMQ(zmqURL, statuses, logger)
+	err = zmq.Start(mockedZMQI)
+	require.NoError(t, err)
+
 	status := <-statuses
 
 	assert.Equal(t, status.Status, metamorph_api.Status_ACCEPTED_BY_NETWORK)

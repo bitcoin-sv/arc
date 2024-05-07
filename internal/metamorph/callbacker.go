@@ -46,7 +46,7 @@ type HttpClient interface {
 func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+			logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 		}
 	}()
 

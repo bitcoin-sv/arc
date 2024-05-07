@@ -203,7 +203,7 @@ func (p *Processor) StartProcessMinedCallbacks() {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 			p.quitProcessMinedCallbacksComplete <- struct{}{}
 		}()
@@ -260,7 +260,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 			p.quitProcessStatusUpdatesInStorageComplete <- struct{}{}
 		}()
@@ -311,7 +311,7 @@ func (p *Processor) StartLockTransactions() {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 			p.quitLockTransactionsComplete <- struct{}{}
 		}()
@@ -339,7 +339,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 			p.quitProcessSeenOnNetworkTxRequestingComplete <- struct{}{}
 		}()
@@ -394,7 +394,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 			p.quitProcessExpiredTransactionsComplete <- struct{}{}
 		}()
@@ -562,7 +562,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 		}()
 		time.Sleep(req.Timeout + time.Second)

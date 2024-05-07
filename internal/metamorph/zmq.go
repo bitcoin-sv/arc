@@ -94,7 +94,7 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				z.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+				z.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 		}()
 		var err error

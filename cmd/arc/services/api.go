@@ -53,7 +53,7 @@ func StartAPIServer(logger *slog.Logger) (func(), error) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 		}()
 

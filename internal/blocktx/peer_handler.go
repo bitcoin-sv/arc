@@ -235,7 +235,7 @@ func (ph *PeerHandler) startPeerWorker() {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				ph.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+				ph.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 			ph.quitPeerWorkerComplete <- struct{}{}
 		}()
@@ -295,7 +295,7 @@ func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				ph.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+				ph.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 			ph.quitFillBlockGapComplete <- struct{}{}
 		}()
@@ -330,7 +330,7 @@ func (ph *PeerHandler) startProcessTxs() {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				ph.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+				ph.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 			ph.quitListenTxChannelComplete <- struct{}{}
 		}()
@@ -379,7 +379,7 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				ph.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+				ph.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 			ph.quitListenRequestTxChannelComplete <- struct{}{}
 		}()

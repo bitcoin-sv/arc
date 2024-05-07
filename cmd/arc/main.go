@@ -95,7 +95,7 @@ func run() error {
 
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+			logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 		}
 	}()
 
@@ -135,7 +135,7 @@ func run() error {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 		}()
 		profilerAddr := viper.GetString("profilerAddr")
@@ -152,7 +152,7 @@ func run() error {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 		}()
 
@@ -238,7 +238,7 @@ func appCleanup(logger *slog.Logger, shutdownFns []func()) {
 		go func(fn func()) {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+					logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 				}
 				wg.Done()
 			}()

@@ -92,9 +92,11 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 	const invalidTxTopic = "invalidtx"
 	const discardedFromMempoolTopic = "discardedfrommempool"
 	go func() {
-		if r := recover(); r != nil {
-			z.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				z.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+			}
+		}()
 		var err error
 		for c := range ch {
 			switch c[0] {

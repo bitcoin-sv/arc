@@ -560,9 +560,11 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// we no longer need processor response object after client disconnects
 	go func() {
-		if r := recover(); r != nil {
-			p.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				p.logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+			}
+		}()
 		time.Sleep(req.Timeout + time.Second)
 		p.ProcessorResponseMap.Delete(req.Data.Hash)
 	}()

@@ -133,9 +133,11 @@ func run() error {
 	}
 
 	go func() {
-		if r := recover(); r != nil {
-			logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+			}
+		}()
 		profilerAddr := viper.GetString("profilerAddr")
 		if profilerAddr != "" {
 			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", profilerAddr))
@@ -148,9 +150,12 @@ func run() error {
 	}()
 
 	go func() {
-		if r := recover(); r != nil {
-			logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+			}
+		}()
+
 		prometheusAddr := viper.GetString("prometheusAddr")
 		prometheusEndpoint := viper.GetString("prometheusEndpoint")
 		if prometheusEndpoint != "" && prometheusAddr != "" {

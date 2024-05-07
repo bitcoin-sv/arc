@@ -64,9 +64,12 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheus
 	reflection.Register(s.grpcServer)
 
 	go func() {
-		if r := recover(); r != nil {
-			logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+			}
+		}()
+
 		s.logger.Info("GRPC server listening", slog.String("address", address))
 		err = s.grpcServer.Serve(lis)
 		if err != nil {

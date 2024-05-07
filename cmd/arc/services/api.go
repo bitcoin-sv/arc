@@ -51,9 +51,11 @@ func StartAPIServer(logger *slog.Logger) (func(), error) {
 	}
 	// Serve HTTP until the world ends.
 	go func() {
-		if r := recover(); r != nil {
-			logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+			}
+		}()
 
 		logger.Info("Starting API server", slog.String("address", apiAddress))
 		err := e.Start(apiAddress)

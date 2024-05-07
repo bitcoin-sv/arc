@@ -221,9 +221,11 @@ func StartHealthServerBlocktx(serv *blocktx.Server, logger *slog.Logger) (*grpc.
 	}
 
 	go func() {
-		if r := recover(); r != nil {
-			logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("Recovered from panic", slog.String("stacktrace", string(debug.Stack())))
+			}
+		}()
 		logger.Info("GRPC health server listening", slog.String("address", address))
 		err = gs.Serve(listener)
 		if err != nil {

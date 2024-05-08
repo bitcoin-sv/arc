@@ -64,7 +64,7 @@ func TestDoubleSpend(t *testing.T) {
 
 			generate(t, 10)
 
-			time.Sleep(15 * time.Second) // give ARC time to perform the status update on DB
+			time.Sleep(5 * time.Second) // give ARC time to perform the status update on DB
 
 			ctx := context.Background()
 			var statusResponse *api.GETTransactionStatusResponse

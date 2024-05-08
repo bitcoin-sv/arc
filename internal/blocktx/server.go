@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"runtime/debug"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -63,6 +64,12 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheus
 	reflection.Register(s.grpcServer)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
+			}
+		}()
+
 		s.logger.Info("GRPC server listening", slog.String("address", address))
 		err = s.grpcServer.Serve(lis)
 		if err != nil {

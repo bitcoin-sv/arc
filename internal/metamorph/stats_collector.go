@@ -181,10 +181,10 @@ func (p *Processor) StartCollectStats() error {
 }
 
 func registerStats(cs ...prometheus.Collector) error {
-	for _, c := range cs {
+	for i, c := range cs {
 		err := prometheus.Register(c)
 		if err != nil {
-			return fmt.Errorf("failed to register stats collector: %w", err)
+			return fmt.Errorf("failed to register stats collector %d: %w", i+1, err)
 		}
 	}
 

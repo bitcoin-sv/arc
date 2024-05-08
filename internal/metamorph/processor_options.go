@@ -8,6 +8,12 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 )
 
+func WithStatTimeLimits(notSeenLimit time.Duration, notMinedLimit time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.stats = newProcessorStats(WithLimits(notSeenLimit, notMinedLimit))
+	}
+}
+
 func WithSeenOnNetworkTxTime(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.seenOnNetworkTxTime = d

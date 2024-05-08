@@ -12,11 +12,14 @@ import (
 
 const (
 	statCollectionIntervalDefault = 60 * time.Second
-	notSeenLimit                  = 10 * time.Minute
-	notMinedLimit                 = 20 * time.Minute
+	notSeenLimitDefault           = 10 * time.Minute
+	notMinedLimitDefault          = 20 * time.Minute
 )
 
 type processorStats struct {
+	notSeenLimit  time.Duration
+	notMinedLimit time.Duration
+
 	mu                        sync.RWMutex
 	statusStored              prometheus.Gauge
 	statusAnnouncedToNetwork  prometheus.Gauge
@@ -31,8 +34,15 @@ type processorStats struct {
 	statusNotSeen             prometheus.Gauge
 }
 
-func newProcessorStats() *processorStats {
-	c := &processorStats{
+func WithLimits(notSeenLimit time.Duration, notMinedLimit time.Duration) func(*processorStats) {
+	return func(p *processorStats) {
+		p.notSeenLimit = notSeenLimit
+		p.notMinedLimit = notMinedLimit
+	}
+}
+
+func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
+	p := &processorStats{
 		statusStored: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_status_stored_count",
 			Help: "Number of monitored transactions with status STORED",
@@ -69,17 +79,24 @@ func newProcessorStats() *processorStats {
 			Name: "arc_status_seen_in_orphan_mempool_count",
 			Help: "Number of monitored transactions with status SEEN_IN_ORPHAN_MEMPOOL",
 		}),
-		statusNotMined: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "arc_status_not_mined_count",
-			Help: fmt.Sprintf("Number of monitored transactions which are SEEN_ON_NETWORK but haven reached status MINED for more than %s", notMinedLimit.String()),
-		}),
-		statusNotSeen: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "arc_status_not_seen_count",
-			Help: fmt.Sprintf("Number of monitored transactions which are not SEEN_ON_NETWORK for more than %s", notSeenLimit.String()),
-		}),
+		notSeenLimit:  notSeenLimitDefault,
+		notMinedLimit: notMinedLimitDefault,
 	}
 
-	return c
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	p.statusNotMined = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "arc_status_not_mined_count",
+		Help: fmt.Sprintf("Number of monitored transactions which are SEEN_ON_NETWORK but haven reached status MINED for more than %s", p.notMinedLimit.String()),
+	})
+	p.statusNotSeen = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "arc_status_not_seen_count",
+		Help: fmt.Sprintf("Number of monitored transactions which are not SEEN_ON_NETWORK for more than %s", p.notSeenLimit.String()),
+	})
+
+	return p
 }
 
 func (p *Processor) StartCollectStats() error {
@@ -132,7 +149,7 @@ func (p *Processor) StartCollectStats() error {
 
 				getStatsSince := p.now().Add(-1 * p.mapExpiryTime)
 
-				collectedStats, err := p.store.GetStats(ctx, getStatsSince, notSeenLimit, notMinedLimit)
+				collectedStats, err := p.store.GetStats(ctx, getStatsSince, p.stats.notSeenLimit, p.stats.notMinedLimit)
 				if err != nil {
 					p.logger.Error("failed to get stats", slog.String("err", err.Error()))
 					continue

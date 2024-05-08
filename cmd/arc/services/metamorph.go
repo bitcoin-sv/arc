@@ -71,6 +71,16 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
+	statsNotSeenTimeLimit, err := cfg.GetDuration("metamorph.stats.notSeenTimeLimit")
+	if err != nil {
+		return nil, err
+	}
+
+	statsNotMinedTimeLimit, err := cfg.GetDuration("metamorph.stats.notMinedTimeLimit")
+	if err != nil {
+		return nil, err
+	}
+
 	natsURL, err := cfg.GetString("queueURL")
 	if err != nil {
 		return nil, err
@@ -117,7 +127,8 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),
-		metamorph.WithCallbackSender(metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})))
+		metamorph.WithCallbackSender(metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})),
+		metamorph.WithStatTimeLimits(statsNotSeenTimeLimit, statsNotMinedTimeLimit))
 	if err != nil {
 		return nil, err
 	}

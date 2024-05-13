@@ -408,6 +408,8 @@ func (p *Processor) StartProcessExpiredTransactions() {
 				getUnminedSince := p.now().Add(-1 * p.mapExpiryTime)
 				var offset int64
 
+				requested := 0
+				announced := 0
 				for {
 					// get all transactions since then chunk by chunk
 					unminedTxs, err := p.store.GetUnmined(ctx, getUnminedSince, loadUnminedLimit, offset)
@@ -436,18 +438,18 @@ func (p *Processor) StartProcessExpiredTransactions() {
 							// Sending GETDATA to peers to see if they have it
 							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.RequestTransaction(tx.Hash)
+							requested++
 							continue
 						}
 
-						} else {
-							p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
-							p.pm.AnnounceTransaction(tx.Hash, nil)
-						}
-					}
 						p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
 						p.pm.AnnounceTransaction(tx.Hash, nil)
+						announced++
 					}
 				}
+
+				if announced > 0 || requested > 0 {
+					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested))
 				}
 			}
 		}

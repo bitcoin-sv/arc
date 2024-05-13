@@ -215,8 +215,6 @@ func setupPostgresTest(t testing.TB) (ctx context.Context, now time.Time, db *Po
 		t.Errorf("error setup tests %s", err.Error())
 	}
 
-	ctx = context.TODO()
-
 	return
 }
 
@@ -322,7 +320,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		var blocks []Block
 
-		require.NoError(t, d.Select(&blocks, "SELECT id FROM blocks"))
+		require.NoError(t, d.Select(&blocks, "SELECT id FROM blocktx.blocks"))
 
 		require.Len(t, blocks, 1)
 
@@ -331,7 +329,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, int64(5), resp.Rows)
 
 		var mps []BlockTransactionMap
-		require.NoError(t, d.Select(&mps, "SELECT blockid FROM block_transactions_map"))
+		require.NoError(t, d.Select(&mps, "SELECT blockid FROM blocktx.block_transactions_map"))
 
 		require.Len(t, mps, 5)
 
@@ -340,7 +338,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, int64(5), resp.Rows)
 
 		var txs []Transaction
-		require.NoError(t, d.Select(&txs, "SELECT id FROM transactions"))
+		require.NoError(t, d.Select(&txs, "SELECT id FROM blocktx.transactions"))
 
 		require.Len(t, txs, 5)
 	})
@@ -389,7 +387,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		var block Block
 
-		require.NoError(t, d.Get(&block, "SELECT * FROM blocks WHERE hash=$1", bh1[:]))
+		require.NoError(t, d.Get(&block, "SELECT * FROM blocktx.blocks WHERE hash=$1", bh1[:]))
 
 		require.NotNil(t, block.Size)
 		require.Equal(t, int64(500), *block.Size)

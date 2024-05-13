@@ -2,6 +2,7 @@ package postgresql
 
 import (
 	"context"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -28,9 +29,9 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainha
        ,b.hash
 	   ,b.height
 	   ,t.merkle_path
-	   FROM transactions as t
-	   JOIN block_transactions_map ON t.id = block_transactions_map.txid
-	   JOIN blocks as b ON block_transactions_map.blockid = b.id
+	   FROM blocktx.transactions as t
+	   JOIN blocktx.block_transactions_map ON t.id = blocktx.block_transactions_map.txid
+	   JOIN blocktx.blocks as b ON blocktx.block_transactions_map.blockid = b.id
 	   WHERE t.hash = ANY($1)
 	`
 

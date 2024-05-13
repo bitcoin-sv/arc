@@ -660,7 +660,7 @@ curl -X POST https://tapi.taal.com/arc/v1/tx \
 
 `POST /v1/tx`
 
-This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.  The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
+This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.
 
 > Body parameter
 
@@ -936,7 +936,7 @@ curl -X POST https://tapi.taal.com/arc/v1/txs \
 
 `POST /v1/txs`
 
-This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates. The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
+This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates.
 
 > Body parameter
 

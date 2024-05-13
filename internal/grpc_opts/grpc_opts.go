@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime/debug"
-	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
@@ -20,8 +19,7 @@ import (
 )
 
 const (
-	maxRetries      = 3
-	perRetryTimeout = 2000 * time.Millisecond
+	maxRetries = 3
 )
 
 // InterceptorLogger adapts slog logger to interceptor logger.
@@ -31,7 +29,7 @@ func InterceptorLogger(l *slog.Logger) logging.Logger {
 		case logging.LevelDebug:
 			l.Debug(msg, fields...)
 		case logging.LevelInfo:
-			l.Info(msg, fields...)
+			l.Debug(msg, fields...)
 		case logging.LevelWarn:
 			l.Warn(msg, fields...)
 		case logging.LevelError:
@@ -42,7 +40,7 @@ func InterceptorLogger(l *slog.Logger) logging.Logger {
 	})
 }
 
-func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
+func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int, service string) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
 	// Setup logging.
 	rpcLogger := logger.With(slog.String("service", "gRPC/server"))
 	logTraceID := func(ctx context.Context) logging.Fields {
@@ -68,7 +66,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 
 	// Setup metric for panic recoveries.
 	panicsTotal := prometheusclient.NewCounter(prometheusclient.CounterOpts{
-		Name: "grpc_req_panics_recovered_total",
+		Name: fmt.Sprintf("grpc_req_panics_recovered_%s_total", service),
 		Help: "Total number of gRPC requests recovered from internal panic.",
 	})
 
@@ -108,7 +106,6 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 func GetGRPCClientOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int) ([]grpc.DialOption, error) {
 	retryOpts := []retry.CallOption{
 		retry.WithMax(maxRetries),
-		retry.WithPerRetryTimeout(perRetryTimeout),
 		retry.WithCodes(codes.NotFound, codes.Aborted),
 	}
 

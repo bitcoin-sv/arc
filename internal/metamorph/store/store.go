@@ -40,9 +40,10 @@ type Stats struct {
 	StatusAcceptedByNetwork   int64
 	StatusSeenOnNetwork       int64
 	StatusMined               int64
-	StatusConfirmed           int64
 	StatusRejected            int64
 	StatusSeenInOrphanMempool int64
+	StatusNotSeen             int64
+	StatusNotMined            int64
 }
 
 type MetamorphStore interface {
@@ -62,7 +63,7 @@ type MetamorphStore interface {
 	ClearData(ctx context.Context, retentionDays int32) (int64, error)
 	Ping(ctx context.Context) error
 
-	GetStats(ctx context.Context, since time.Time) (*Stats, error)
+	GetStats(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*Stats, error)
 }
 
 type UpdateStatus struct {

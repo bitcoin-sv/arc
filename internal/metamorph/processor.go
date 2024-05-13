@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -201,6 +202,9 @@ func (p *Processor) StartProcessMinedCallbacks() {
 
 	go func() {
 		defer func() {
+			if r := recover(); r != nil {
+				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
+			}
 			p.quitProcessMinedCallbacksComplete <- struct{}{}
 		}()
 
@@ -255,6 +259,9 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 
 	go func() {
 		defer func() {
+			if r := recover(); r != nil {
+				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
+			}
 			p.quitProcessStatusUpdatesInStorageComplete <- struct{}{}
 		}()
 
@@ -303,6 +310,9 @@ func (p *Processor) StartLockTransactions() {
 
 	go func() {
 		defer func() {
+			if r := recover(); r != nil {
+				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
+			}
 			p.quitLockTransactionsComplete <- struct{}{}
 		}()
 		for {
@@ -328,6 +338,9 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 
 	go func() {
 		defer func() {
+			if r := recover(); r != nil {
+				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
+			}
 			p.quitProcessSeenOnNetworkTxRequestingComplete <- struct{}{}
 		}()
 
@@ -380,6 +393,9 @@ func (p *Processor) StartProcessExpiredTransactions() {
 
 	go func() {
 		defer func() {
+			if r := recover(); r != nil {
+				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
+			}
 			p.quitProcessExpiredTransactionsComplete <- struct{}{}
 		}()
 
@@ -477,7 +493,7 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 	if ok {
 		processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
 			Status:    status,
-			StatusErr: nil,
+			StatusErr: statusErr,
 		})
 	}
 
@@ -544,6 +560,11 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// we no longer need processor response object after client disconnects
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
+			}
+		}()
 		time.Sleep(req.Timeout + time.Second)
 		p.ProcessorResponseMap.Delete(req.Data.Hash)
 	}()

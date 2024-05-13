@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -107,6 +108,9 @@ func (c *Watcher) Start() error {
 func (c *Watcher) watchBlocktx() {
 	go func() {
 		defer func() {
+			if r := recover(); r != nil {
+				c.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
+			}
 			c.shutdownBlocktxComplete <- struct{}{}
 		}()
 
@@ -153,6 +157,9 @@ func (c *Watcher) watchBlocktx() {
 func (c *Watcher) watchMetamorph() {
 	go func() {
 		defer func() {
+			if r := recover(); r != nil {
+				c.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
+			}
 			c.shutdownMetamorphComplete <- struct{}{}
 		}()
 

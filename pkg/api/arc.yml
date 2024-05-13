@@ -92,7 +92,7 @@ paths:
         - Arc
       summary: Submit a transaction.
       description: >-
-        This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.  The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
+        This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.
       parameters:
         - $ref: '#/components/parameters/callbackUrl'
         - $ref: '#/components/parameters/fullStatusUpdates'
@@ -132,7 +132,9 @@ paths:
                     blockHeight: 736228
                     extraInfo: ""
                     merklePath: "fe54251800020400028d97f9ebeddd9f9aa8e0e953b3a76f316298ab05e9834aa811716e9d397564e501025f64aa8e012e26a5c5803c9f94d1c2c8ea68ecef1415011e1c2e26b9c966b6ad02021f5fa39607ca3b48d53c902bd5bb4bbf6a7ac99cf9fda45cc21b71e6e2f7889603024a2bb116e86325c9b8512f10b22c228ab3272fe3f373b1bd4a9a6b334b068bb602000061793b278303101a1390ceae5a713de0eabd9cda63702fe84c928970acf7c45e0100a567e3d066e38638b27897559302eabc85eb69b202c2e86d4338bab73008f460"
+                    status: 200
                     timestamp: "2023-03-09T12:03:48.382910514Z"
+                    title: "OK"
                     txStatus: "MINED"
                     txid: "b68b064b336b9a4abdb173f3e32f27b38a222cb2102f51b8c92563e816b12b4a"
                 mempool:
@@ -141,7 +143,9 @@ paths:
                     blockHash: ""
                     blockHeight: 0
                     extraInfo: ""
+                    status: 200
                     timestamp: "2023-03-09T12:03:48.382910514Z"
+                    title: "OK"
                     txStatus: "SEEN_ON_NETWORK"
                     txid: "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
                     merklePath: ""
@@ -151,6 +155,8 @@ paths:
                     detail: Transaction is invalid because the outputs are non-existent or invalid
                     extraInfo: "arc error 463: arc error 463: transaction output 0 satoshis is invalid"
                     instance: null
+                    status: 463
+                    title: Invalid outputs
                     txid: "a0d69a2dfad710770ed282cce316c5792f6101a68046a263a17a1ae02676015e"
                     type: https://bitcoin-sv.github.io/arc/#/errors?id=_463"
         400:
@@ -216,7 +222,7 @@ paths:
         - Arc
       summary: Submit multiple transactions.
       description: >-
-        This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates. The header parameters can be used to override the global settings in your Arc dashboard for these transactions.
+        This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates.
       parameters:
         - $ref: '#/components/parameters/callbackUrl'
         - $ref: '#/components/parameters/fullStatusUpdates'
@@ -258,7 +264,9 @@ paths:
                         "blockHash": "0000000000000aac89fbed163ed60061ba33bc0ab9de8e7fd8b34ad94c2414cd",
                         "blockHeight": 761868,
                         "extraInfo": "",
+                        "status": 200,
                         "timestamp": "2023-03-09T12:03:48.382910514Z",
+                        "title": "OK",
                         "txStatus": "MINED",
                         "txid": "b68b064b336b9a4abdb173f3e32f27b38a222cb2102f51b8c92563e816b12b4a",
                         "merklePath": "fe54251800020400028d97f9ebeddd9f9aa8e0e953b3a76f316298ab05e9834aa811716e9d397564e501025f64aa8e012e26a5c5803c9f94d1c2c8ea68ecef1415011e1c2e26b9c966b6ad02021f5fa39607ca3b48d53c902bd5bb4bbf6a7ac99cf9fda45cc21b71e6e2f7889603024a2bb116e86325c9b8512f10b22c228ab3272fe3f373b1bd4a9a6b334b068bb602000061793b278303101a1390ceae5a713de0eabd9cda63702fe84c928970acf7c45e0100a567e3d066e38638b27897559302eabc85eb69b202c2e86d4338bab73008f460"
@@ -272,7 +280,9 @@ paths:
                         "blockHash": "",
                         "blockHeight": 0,
                         "extraInfo": "",
+                        "status": 200,
                         "timestamp": "2023-03-09T12:03:48.382910514Z",
+                        "title": "OK",
                         "txStatus": "SEEN_ON_NETWORK",
                         "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
                         "merklePath": ""
@@ -286,6 +296,8 @@ paths:
                         "detail": "Transaction is invalid because the outputs are non-existent or invalid",
                         "extraInfo": "arc error 463: arc error 463: transaction output 0 satoshis is invalid",
                         "instance": null,
+                        "status": 463,
+                        "title": "Invalid outputs",
                         "txid": "a0d69a2dfad710770ed282cce316c5792f6101a68046a263a17a1ae02676015e",
                         "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_463"
                       }
@@ -498,6 +510,7 @@ components:
         - type: object
           required:
             - txid
+            - status
           properties:
             txid:
               type: string
@@ -520,6 +533,24 @@ components:
               example: null
           additionalProperties: false
 
+    TransactionSubmitStatus:
+      type: object
+      required:
+        - status
+        - title
+      description: Transaction submit status
+      properties:
+        status:
+          type: integer
+          format: int
+          example: 201
+          nullable: false
+          description: Status
+        title:
+          type: string
+          description: Title
+          example: "Added to mempool"
+          nullable: false
 
     TransactionResponses:
       allOf:
@@ -541,6 +572,7 @@ components:
       required:
         - txid
       allOf:
+        - $ref: '#/components/schemas/TransactionSubmitStatus'
         - type: object
           properties:
             txid:
@@ -579,7 +611,9 @@ components:
               "blockHash": "",
               "blockHeight": 0,
               "extraInfo": "",
+              "status": 200,
               "timestamp": "2023-03-09T12:03:48.382910514Z",
+              "title": "OK",
               "txStatus": "SEEN_ON_NETWORK",
               "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
               "merklePath": "0000"
@@ -612,6 +646,10 @@ components:
           properties:
             type:
               example: "https://bitcoin-sv.github.io/arc/#/errors?id=_400"
+            title:
+              example: "Bad request"
+            status:
+              example: 400
             detail:
               example: "The request seems to be malformed and cannot be processed"
             instance:
@@ -624,6 +662,10 @@ components:
           properties:
             type:
               example: "https://bitcoin-sv.github.io/arc/#/errors?id=_404"
+            title:
+              example: "Not found"
+            status:
+              example: 404
             detail:
               example: "The requested resource could not be found"
             instance:
@@ -636,6 +678,10 @@ components:
           properties:
             type:
               example: "https://bitcoin-sv.github.io/arc/#/errors?id=_409"
+            title:
+              example: "Generic error"
+            status:
+              example: 409
             detail:
               example: "Transaction could not be processed"
             instance:
@@ -648,6 +694,10 @@ components:
           properties:
             type:
               example: "https://bitcoin-sv.github.io/arc/#/errors?id=_460"
+            title:
+              example: "Not extended format"
+            status:
+              example: 460
             detail:
               example: "Transaction is not in extended format, missing input scripts"
             instance:
@@ -660,6 +710,10 @@ components:
           properties:
             type:
               example: "https://bitcoin-sv.github.io/arc/#/errors?id=_461"
+            title:
+              example: "Malformed transaction"
+            status:
+              example: 461
             detail:
               example: "Transaction is malformed and cannot be processed"
             instance:
@@ -672,6 +726,10 @@ components:
           properties:
             type:
               example: "https://bitcoin-sv.github.io/arc/#/errors?id=_462"
+            title:
+              example: "Invalid inputs"
+            status:
+              example: 462
             detail:
               example: "Transaction is invalid because the inputs are non-existent or spent"
             instance:
@@ -684,6 +742,10 @@ components:
           properties:
             type:
               example: "https://bitcoin-sv.github.io/arc/#/errors?id=_463"
+            title:
+              example: "Malformed transaction"
+            status:
+              example: 463
             detail:
               example: "Transaction is malformed and cannot be processed"
             instance:
@@ -696,6 +758,10 @@ components:
           properties:
             type:
               example: "https://bitcoin-sv.github.io/arc/#/errors?id=_464"
+            title:
+              example: "Invalid outputs"
+            status:
+              example: 464
             detail:
               example: "Transaction is invalid because the outputs are non-existent or invalid"
             instance:
@@ -708,6 +774,10 @@ components:
           properties:
             type:
               example: "https://bitcoin-sv.github.io/arc/#/errors?id=_465"
+            title:
+              example: "Fee too low"
+            status:
+              example: 465
             detail:
               example: "The fees are too low"
             instance:
@@ -720,6 +790,10 @@ components:
           properties:
             type:
               example: "https://bitcoin-sv.github.io/arc/#/errors?id=_466"
+            title:
+              example: "Conflicting tx found"
+            status:
+              example: 466
             detail:
               example: "Transaction is valid, but there is a conflicting tx in the block template"
             instance:
@@ -732,6 +806,10 @@ components:
           properties:
             type:
               example: "https://bitcoin-sv.github.io/arc/#/errors?id=_471"
+            title:
+              example: "Input Frozen"
+            status:
+              example: 471
             detail:
               example: "Input Frozen (blacklist manager policy blacklisted)"
             instance:
@@ -744,6 +822,10 @@ components:
           properties:
             type:
               example: "https://bitcoin-sv.github.io/arc/#/errors?id=_472"
+            title:
+              example: "Input Frozen"
+            status:
+              example: 472
             detail:
               example: "Input Frozen (blacklist manager consensus blacklisted)"
             instance:
@@ -752,12 +834,17 @@ components:
       type: object
       required:
         - type
+        - title
         - status
         - detail
       properties:
         type:
           type: string
           description: Type of error, with link to more information
+          nullable: false
+        title:
+          type: string
+          description: Descriptive text for error
           nullable: false
         status:
           type: integer

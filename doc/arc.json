@@ -127,7 +127,7 @@
           "Arc"
         ],
         "summary": "Submit a transaction.",
-        "description": "This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.  The header parameters can be used to override the global settings in your Arc dashboard for these transactions.",
+        "description": "This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.",
         "parameters": [
           {
             "$ref": "#/components/parameters/callbackUrl"
@@ -327,7 +327,7 @@
           "Arc"
         ],
         "summary": "Submit multiple transactions.",
-        "description": "This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates. The header parameters can be used to override the global settings in your Arc dashboard for these transactions.",
+        "description": "This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates.",
         "parameters": [
           {
             "$ref": "#/components/parameters/callbackUrl"

@@ -599,6 +599,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 		name           string
 		retries        int
 		updateMinedErr error
+		panic          bool
 
 		expectedSendCallbackCalls int
 	}{
@@ -612,6 +613,12 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 
 			expectedSendCallbackCalls: 0,
 		},
+		{
+			name:  "panic",
+			panic: true,
+
+			expectedSendCallbackCalls: 0,
+		},
 	}
 
 	for _, tc := range tt {
@@ -619,6 +626,9 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 
 			metamorphStore := &mocks.MetamorphStoreMock{
 				UpdateMinedFunc: func(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
+					if tc.panic {
+						panic("panic in updated mined function")
+					}
 					return []*store.StoreData{{CallbackUrl: "http://callback.com"}, {CallbackUrl: "http://callback.com"}, {}}, tc.updateMinedErr
 				},
 			}

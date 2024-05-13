@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ordishs/go-utils/safemap"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -67,6 +69,16 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	}
 
 	checkSeenOnNetworkPeriod, err := cfg.GetDuration("metamorph.checkSeenOnNetworkPeriod")
+	if err != nil {
+		return nil, err
+	}
+
+	statsNotSeenTimeLimit, err := cfg.GetDuration("metamorph.stats.notSeenTimeLimit")
+	if err != nil {
+		return nil, err
+	}
+
+	statsNotMinedTimeLimit, err := cfg.GetDuration("metamorph.stats.notMinedTimeLimit")
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +129,8 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),
-		metamorph.WithCallbackSender(metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})))
+		metamorph.WithCallbackSender(metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})),
+		metamorph.WithStatTimeLimits(statsNotSeenTimeLimit, statsNotMinedTimeLimit))
 	if err != nil {
 		return nil, err
 	}
@@ -135,6 +148,12 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
+			}
+		}()
+
 		for message := range statusMessageCh {
 			err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
 			if err != nil {
@@ -214,16 +233,22 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 			continue
 		}
 
-		zmq := metamorph.NewZMQ(zmqURL, statusMessageCh)
-		zmqCollector.Set(zmqURL.Host, zmq.Stats)
-		port, err := strconv.Atoi(zmq.URL.Port())
+		zmq := metamorph.NewZMQ(zmqURL, statusMessageCh, logger)
+		zmqCollector.Set(zmqURL.Host, zmq.GetStats())
+
+		port, err := strconv.Atoi(zmqURL.Port())
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse port from peer settings: %v", err)
 		}
 
-		zmq.Logger.Info("Listening to ZMQ", slog.String("host", zmq.URL.Hostname()), slog.Int("port", port))
+		logger.Info("Listening to ZMQ", slog.String("host", zmqURL.Hostname()), slog.Int("port", port))
 
-		go zmq.Start(bitcoin.NewZMQ(zmq.URL.Hostname(), port, zmq.Logger))
+		zmqLogger := logrus.New()
+		zmqLogger.SetFormatter(&logrus.JSONFormatter{})
+		err = zmq.Start(bitcoin.NewZMQ(zmqURL.Hostname(), port, zmqLogger))
+		if err != nil {
+			return nil, fmt.Errorf("failed to start ZMQ: %v", err)
+		}
 	}
 
 	// pass all the started peers to the collector
@@ -272,6 +297,12 @@ func StartHealthServerMetamorph(serv *metamorph.Server, logger *slog.Logger) (*g
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
+			}
+		}()
+
 		logger.Info("GRPC health server listening", slog.String("address", address))
 		err = gs.Serve(listener)
 		if err != nil {

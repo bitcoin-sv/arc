@@ -31,7 +31,7 @@ func TestStartCollectStats(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			mtmStore := &mocks.MetamorphStoreMock{
-				GetStatsFunc: func(ctx context.Context, since time.Time) (*store.Stats, error) {
+				GetStatsFunc: func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
 					return &store.Stats{
 						StatusStored:              15,
 						StatusAnnouncedToNetwork:  20,
@@ -40,7 +40,6 @@ func TestStartCollectStats(t *testing.T) {
 						StatusAcceptedByNetwork:   21,
 						StatusSeenOnNetwork:       55,
 						StatusMined:               75,
-						StatusConfirmed:           123,
 						StatusRejected:            683,
 						StatusSeenInOrphanMempool: 8,
 					}, tc.getStatsErr

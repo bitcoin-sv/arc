@@ -4,13 +4,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/url"
+	"runtime/debug"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/sirupsen/logrus"
 )
 
 type ZMQStats struct {
@@ -20,10 +22,14 @@ type ZMQStats struct {
 }
 
 type ZMQ struct {
-	URL             *url.URL
-	Stats           *ZMQStats
+	url             *url.URL
+	stats           *ZMQStats
 	statusMessageCh chan<- *PeerTxMessage
-	Logger          logrus.FieldLogger
+	logger          *slog.Logger
+}
+
+func (z *ZMQ) GetStats() *ZMQStats {
+	return z.stats
 }
 
 type ZMQTxInfo struct {
@@ -60,19 +66,16 @@ type ZMQDiscardFromMempool struct {
 	BlockHash string `json:"blockhash"`
 }
 
-func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage) *ZMQ {
-	logger := logrus.New()
-	logger.SetFormatter(&logrus.JSONFormatter{})
-
+func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage, logger *slog.Logger) *ZMQ {
 	z := &ZMQ{
-		URL: zmqURL,
-		Stats: &ZMQStats{
+		url: zmqURL,
+		stats: &ZMQStats{
 			hashTx:               atomic.Uint64{},
 			invalidTx:            atomic.Uint64{},
 			discardedFromMempool: atomic.Uint64{},
 		},
 		statusMessageCh: statusMessageCh,
-		Logger:          logger,
+		logger:          logger,
 	}
 
 	return z
@@ -82,33 +85,45 @@ type ZMQI interface {
 	Subscribe(string, chan []string) error
 }
 
-func (z *ZMQ) Start(zmqi ZMQI) {
+func (z *ZMQ) Start(zmqi ZMQI) error {
 	ch := make(chan []string)
 
+	const hashtxTopic = "hashtx2"
+	const invalidTxTopic = "invalidtx"
+	const discardedFromMempoolTopic = "discardedfrommempool"
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				z.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
+			}
+		}()
 		var err error
 		for c := range ch {
 			switch c[0] {
-			case "hashtx2":
-				z.Stats.hashTx.Add(1)
-				z.Logger.Debugf("hashtx %s", c[1])
+			case hashtxTopic:
+				z.stats.hashTx.Add(1)
+				z.logger.Debug(hashtxTopic, slog.String("hash", c[1]))
 
-				hash, _ := chainhash.NewHashFromStr(c[1])
+				hash, err := chainhash.NewHashFromStr(c[1])
+				if err != nil {
+					z.logger.Error("failed to get hash from string", slog.String("topic", hashtxTopic), slog.String("err", err.Error()))
+					continue
+				}
 
 				z.statusMessageCh <- &PeerTxMessage{
 					Start:  time.Now(),
 					Hash:   hash,
 					Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
-					Peer:   z.URL.String(),
+					Peer:   z.url.String(),
 				}
-			case "invalidtx":
-				z.Stats.invalidTx.Add(1)
+			case invalidTxTopic:
+				z.stats.invalidTx.Add(1)
 				// c[1] is lots of info about the tx in json format encoded in hex
 				var txInfo *ZMQTxInfo
 				status := metamorph_api.Status_REJECTED
 				txInfo, err = z.parseTxInfo(c)
 				if err != nil {
-					z.Logger.Errorf("invalidtx: failed to parse: %v", err)
+					z.logger.Error("failed to parse tx info", slog.String("topic", invalidTxTopic), slog.String("err", err.Error()))
 					continue
 				}
 				errReason := "invalid transaction"
@@ -123,53 +138,63 @@ func (z *ZMQ) Start(zmqi ZMQI) {
 					errReason += " - double spend"
 				}
 
-				z.Logger.Debugf("invalidtx %s: %s", txInfo.TxID, errReason)
+				z.logger.Debug(invalidTxTopic, slog.String("hash", txInfo.TxID), slog.String("reason", errReason))
 
-				hash, _ := chainhash.NewHashFromStr(txInfo.TxID)
+				hash, err := chainhash.NewHashFromStr(txInfo.TxID)
+				if err != nil {
+					z.logger.Error("failed to get hash from string", slog.String("topic", invalidTxTopic), slog.String("err", err.Error()))
+					continue
+				}
+
 				z.statusMessageCh <- &PeerTxMessage{
 					Start:  time.Now(),
 					Hash:   hash,
 					Status: status,
-					Peer:   z.URL.String(),
+					Peer:   z.url.String(),
 					Err:    fmt.Errorf(errReason),
 				}
-			case "discardedfrommempool":
-				z.Stats.discardedFromMempool.Add(1)
+			case discardedFromMempoolTopic:
+				z.stats.discardedFromMempool.Add(1)
 				var txInfo *ZMQDiscardFromMempool
 				txInfo, err = z.parseDiscardedInfo(c)
 				if err != nil {
-					z.Logger.Errorf("discardedfrommempool: failed to parse: %v", err)
+					z.logger.Error("failed to parse", slog.String("topic", discardedFromMempoolTopic), slog.String("err", err.Error()))
 					continue
 				}
 
-				z.Logger.Debugf("discardedfrommempool %s: %s - %#v", txInfo.TxID, txInfo.Reason, txInfo.CollidedWith)
-
-				hash, _ := chainhash.NewHashFromStr(txInfo.TxID)
+				z.logger.Debug(discardedFromMempoolTopic, slog.String("hash", txInfo.TxID), slog.String("reason", txInfo.Reason), slog.String("collidedWith", txInfo.CollidedWith.TxID))
+				hash, err := chainhash.NewHashFromStr(txInfo.TxID)
+				if err != nil {
+					z.logger.Error("failed to get hash from string", slog.String("topic", discardedFromMempoolTopic), slog.String("err", err.Error()))
+					continue
+				}
 
 				z.statusMessageCh <- &PeerTxMessage{
 					Start:  time.Now(),
 					Hash:   hash,
 					Status: metamorph_api.Status_REJECTED,
-					Peer:   z.URL.String(),
+					Peer:   z.url.String(),
 					Err:    fmt.Errorf("discarded from mempool: %s", txInfo.Reason),
 				}
 			default:
-				z.Logger.Info("Unhandled ZMQ message", c)
+				z.logger.Info("Unhandled ZMQ message", slog.String("msg", strings.Join(c, ",")))
 			}
 		}
 	}()
 
-	if err := zmqi.Subscribe("hashtx2", ch); err != nil {
-		z.Logger.Fatal(err)
+	if err := zmqi.Subscribe(hashtxTopic, ch); err != nil {
+		return err
 	}
 
-	if err := zmqi.Subscribe("invalidtx", ch); err != nil {
-		z.Logger.Fatal(err)
+	if err := zmqi.Subscribe(invalidTxTopic, ch); err != nil {
+		return err
 	}
 
-	if err := zmqi.Subscribe("discardedfrommempool", ch); err != nil {
-		z.Logger.Fatal(err)
+	if err := zmqi.Subscribe(discardedFromMempoolTopic, ch); err != nil {
+		return err
 	}
+
+	return nil
 }
 
 func (z *ZMQ) parseTxInfo(c []string) (*ZMQTxInfo, error) {

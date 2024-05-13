@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"runtime/debug"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -40,7 +41,7 @@ func NewServer(storeI store.BlocktxStore, logger *slog.Logger, peers []p2p.PeerI
 func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheusEndpoint string, logger *slog.Logger) error {
 
 	// LEVEL 0 - no security / no encryption
-	srvMetrics, opts, cleanup, err := grpc_opts.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize)
+	srvMetrics, opts, cleanup, err := grpc_opts.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize, "blocktx")
 	if err != nil {
 		return err
 	}
@@ -63,6 +64,12 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheus
 	reflection.Register(s.grpcServer)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
+			}
+		}()
+
 		s.logger.Info("GRPC server listening", slog.String("address", address))
 		err = s.grpcServer.Serve(lis)
 		if err != nil {

@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	// maxRetries number of times we will retry announcing transaction if we haven't seen it on the network
-	maxRetries = 1000
+	// maxRetriesDefault number of times we will retry announcing transaction if we haven't seen it on the network
+	maxRetriesDefault = 1000
 	// length of interval for checking transactions if they are seen on the network
 	// if not we resend them again for a few times
 	unseenTransactionRebroadcastingInterval    = 60 * time.Second
@@ -99,13 +99,13 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 	}
 
 	p := &Processor{
-		store:                    s,
-		pm:                       pm,
-		mapExpiryTime:            mapExpiryTimeDefault,
-		seenOnNetworkTxTime:      seenOnNetworkTxTimeDefault,
-		seenOnNetworkTxTimeUntil: seenOnNetworkTxTimeUntilDefault,
-		now:                      time.Now,
-
+		store:                           s,
+		pm:                              pm,
+		mapExpiryTime:                   mapExpiryTimeDefault,
+		seenOnNetworkTxTime:             seenOnNetworkTxTimeDefault,
+		seenOnNetworkTxTimeUntil:        seenOnNetworkTxTimeUntilDefault,
+		now:                             time.Now,
+		maxRetries:                      maxRetriesDefault,
 		processExpiredTxsInterval:       unseenTransactionRebroadcastingInterval,
 		processSeenOnNetworkTxsInterval: seenOnNetworkTransactionRequestingInterval,
 		lockTransactionsInterval:        unseenTransactionRebroadcastingInterval,
@@ -424,7 +424,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 					}
 
 					for _, tx := range unminedTxs {
-						if tx.Retries > maxRetries {
+						if tx.Retries > p.maxRetries {
 							continue
 						}
 

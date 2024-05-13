@@ -43,6 +43,7 @@ metamorph:
       maxOpenConns: 80
       sslMode: disable
   processorCacheExpiryTime: 24h
+  maxRetries: 1000
   processStatusUpdateInterval: 50ms
   checkSeenOnNetworkOlderThan: 3h
   checkSeenOnNetworkPeriod: 4h

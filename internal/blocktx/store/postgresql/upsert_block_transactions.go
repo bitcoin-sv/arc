@@ -31,7 +31,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 	}
 
 	qBulkUpsert := `
-		INSERT INTO transactions (hash, merkle_path)
+		INSERT INTO blocktx.transactions (hash, merkle_path)
 			SELECT hash, merkle_path
 			FROM UNNEST($1::BYTEA[], $2::TEXT[]) AS t(hash, merkle_path)
 		ON CONFLICT (hash) DO UPDATE SET

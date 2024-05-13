@@ -11,21 +11,21 @@ func (p *PostgreSQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]
 
 	q := `
 			SELECT DISTINCT all_missing.height, all_missing.hash FROM
-			(SELECT missing_blocks.missing_block_height AS height, blocks.prevhash AS hash FROM blocks
+			(SELECT missing_blocks.missing_block_height AS height, blocktx.blocks.prevhash AS hash FROM blocktx.blocks
 				JOIN (
 				SELECT bl.block_heights AS missing_block_height FROM (
 				SELECT unnest(ARRAY(
 					SELECT a.n
-					FROM generate_series((SELECT max(height) - $1 AS block_height FROM blocks b), (SELECT max(height) AS block_height FROM blocks b)) AS a(n)
+					FROM generate_series((SELECT max(height) - $1 AS block_height FROM blocktx.blocks b), (SELECT max(height) AS block_height FROM blocktx.blocks b)) AS a(n)
 				)) AS block_heights) AS bl
-				LEFT JOIN blocks blks ON blks.height = bl.block_heights
+				LEFT JOIN blocktx.blocks blks ON blks.height = bl.block_heights
 				WHERE blks.height IS NULL
-				) AS missing_blocks ON blocks.height = missing_blocks.missing_block_height + 1
+				) AS missing_blocks ON blocktx.blocks.height = missing_blocks.missing_block_height + 1
 			UNION
-			SELECT height, hash FROM blocks WHERE processed_at IS NULL AND height < (SELECT max(height) AS block_height FROM blocks b)
-			AND height > (SELECT max(height) - $1 AS block_height FROM blocks b)
+			SELECT height, hash FROM blocktx.blocks WHERE processed_at IS NULL AND height < (SELECT max(height) AS block_height FROM blocktx.blocks b)
+			AND height > (SELECT max(height) - $1 AS block_height FROM blocktx.blocks b)
 			) AS all_missing
-			LEFT JOIN block_processing bp ON bp.block_hash = all_missing.hash
+			LEFT JOIN blocktx.block_processing bp ON bp.block_hash = all_missing.hash
 			WHERE bp IS NULL ORDER BY all_missing.height DESC
 			;
 			`

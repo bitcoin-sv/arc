@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	// MaxRetries number of times we will retry announcing transaction if we haven't seen it on the network
-	MaxRetries = 15
+	// maxRetries number of times we will retry announcing transaction if we haven't seen it on the network
+	maxRetries = 1000
 	// length of interval for checking transactions if they are seen on the network
 	// if not we resend them again for a few times
 	unseenTransactionRebroadcastingInterval    = 60 * time.Second
@@ -53,8 +53,8 @@ type Processor struct {
 	seenOnNetworkTxTimeUntil time.Duration
 	now                      func() time.Time
 	stats                    *processorStats
-
-	callbackSender CallbackSender
+	maxRetries               int
+	callbackSender           CallbackSender
 
 	cancelCollectStats       context.CancelFunc
 	quitCollectStatsComplete chan struct{}
@@ -422,21 +422,32 @@ func (p *Processor) StartProcessExpiredTransactions() {
 					}
 
 					for _, tx := range unminedTxs {
+						if tx.Retries > maxRetries {
+							continue
+						}
+
 						// mark that we retried processing this transaction once more
 						if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
 							p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
 						}
 
-						if tx.Retries > MaxRetries {
+						// every second time request tx, every other time announce tx
+						if tx.Retries%2 == 0 {
 							// Sending GETDATA to peers to see if they have it
 							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.RequestTransaction(tx.Hash)
+							continue
+						}
 
 						} else {
 							p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.AnnounceTransaction(tx.Hash, nil)
 						}
 					}
+						p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
+						p.pm.AnnounceTransaction(tx.Hash, nil)
+					}
+				}
 				}
 			}
 		}

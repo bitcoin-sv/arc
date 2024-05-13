@@ -14,7 +14,7 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 
 	// Try to set a block as being processed by this instance
 	qInsert := `
-		INSERT INTO block_processing (block_hash, processed_by)
+		INSERT INTO blocktx.block_processing (block_hash, processed_by)
 		VALUES ($1 ,$2 )
 		RETURNING processed_by
 	`
@@ -25,7 +25,7 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 		var pqErr *pq.Error
 
 		if errors.As(err, &pqErr) && pqErr.Code == pq.ErrorCode("23505") {
-			err = p.db.QueryRowContext(ctx, `SELECT processed_by FROM block_processing WHERE block_hash = $1`, hash[:]).Scan(&processedBy)
+			err = p.db.QueryRowContext(ctx, `SELECT processed_by FROM blocktx.block_processing WHERE block_hash = $1`, hash[:]).Scan(&processedBy)
 			if err != nil {
 				return "", fmt.Errorf("failed to set block processing: %v", err)
 			}
@@ -45,7 +45,7 @@ func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Has
 	}
 
 	q := `
-		DELETE FROM block_processing WHERE block_hash = $1 AND processed_by = $2;
+		DELETE FROM blocktx.block_processing WHERE block_hash = $1 AND processed_by = $2;
     `
 
 	res, err := p.db.ExecContext(ctx, q, hash[:], processedBy)
@@ -63,8 +63,8 @@ func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Has
 func (p *PostgreSQL) GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
 	// Check how many blocks this instance is currently processing
 	q := `
-	SELECT bp.block_hash FROM block_processing bp
-	LEFT JOIN blocks b ON b.hash = bp.block_hash
+	SELECT bp.block_hash FROM blocktx.block_processing bp
+	LEFT JOIN blocktx.blocks b ON b.hash = bp.block_hash
 	WHERE b.processed_at IS NULL AND bp.processed_by = $1;
     `
 

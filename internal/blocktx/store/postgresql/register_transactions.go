@@ -16,7 +16,7 @@ func (p *PostgreSQL) RegisterTransactions(ctx context.Context, transactions []*b
 		hashes[i] = transaction.Hash
 	}
 
-	const q = `INSERT INTO transactions (hash, is_registered)
+	const q = `INSERT INTO blocktx.transactions (hash, is_registered)
 					SELECT hash, TRUE 
 					FROM UNNEST ($1::BYTEA[]) as hash
 				ON CONFLICT (hash) DO UPDATE 

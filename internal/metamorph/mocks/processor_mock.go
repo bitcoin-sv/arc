@@ -6,8 +6,6 @@ package mocks
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"sync"
 )
 
@@ -33,9 +31,6 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //			ProcessTransactionFunc: func(ctx context.Context, req *metamorph.ProcessorRequest)  {
 //				panic("mock out the ProcessTransaction method")
 //			},
-//			SendStatusForTransactionFunc: func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) error {
-//				panic("mock out the SendStatusForTransaction method")
-//			},
 //			ShutdownFunc: func()  {
 //				panic("mock out the Shutdown method")
 //			},
@@ -57,9 +52,6 @@ type ProcessorIMock struct {
 
 	// ProcessTransactionFunc mocks the ProcessTransaction method.
 	ProcessTransactionFunc func(ctx context.Context, req *metamorph.ProcessorRequest)
-
-	// SendStatusForTransactionFunc mocks the SendStatusForTransaction method.
-	SendStatusForTransactionFunc func(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) error
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func()
@@ -84,27 +76,15 @@ type ProcessorIMock struct {
 			// Req is the req argument value.
 			Req *metamorph.ProcessorRequest
 		}
-		// SendStatusForTransaction holds details about calls to the SendStatusForTransaction method.
-		SendStatusForTransaction []struct {
-			// Hash is the hash argument value.
-			Hash *chainhash.Hash
-			// Status is the status argument value.
-			Status metamorph_api.Status
-			// ID is the id argument value.
-			ID string
-			// Err is the err argument value.
-			Err error
-		}
 		// Shutdown holds details about calls to the Shutdown method.
 		Shutdown []struct {
 		}
 	}
-	lockGetPeers                 sync.RWMutex
-	lockGetStats                 sync.RWMutex
-	lockHealth                   sync.RWMutex
-	lockProcessTransaction       sync.RWMutex
-	lockSendStatusForTransaction sync.RWMutex
-	lockShutdown                 sync.RWMutex
+	lockGetPeers           sync.RWMutex
+	lockGetStats           sync.RWMutex
+	lockHealth             sync.RWMutex
+	lockProcessTransaction sync.RWMutex
+	lockShutdown           sync.RWMutex
 }
 
 // GetPeers calls GetPeersFunc.
@@ -226,50 +206,6 @@ func (mock *ProcessorIMock) ProcessTransactionCalls() []struct {
 	mock.lockProcessTransaction.RLock()
 	calls = mock.calls.ProcessTransaction
 	mock.lockProcessTransaction.RUnlock()
-	return calls
-}
-
-// SendStatusForTransaction calls SendStatusForTransactionFunc.
-func (mock *ProcessorIMock) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) error {
-	if mock.SendStatusForTransactionFunc == nil {
-		panic("ProcessorIMock.SendStatusForTransactionFunc: method is nil but ProcessorI.SendStatusForTransaction was just called")
-	}
-	callInfo := struct {
-		Hash   *chainhash.Hash
-		Status metamorph_api.Status
-		ID     string
-		Err    error
-	}{
-		Hash:   hash,
-		Status: status,
-		ID:     id,
-		Err:    err,
-	}
-	mock.lockSendStatusForTransaction.Lock()
-	mock.calls.SendStatusForTransaction = append(mock.calls.SendStatusForTransaction, callInfo)
-	mock.lockSendStatusForTransaction.Unlock()
-	return mock.SendStatusForTransactionFunc(hash, status, id, err)
-}
-
-// SendStatusForTransactionCalls gets all the calls that were made to SendStatusForTransaction.
-// Check the length with:
-//
-//	len(mockedProcessorI.SendStatusForTransactionCalls())
-func (mock *ProcessorIMock) SendStatusForTransactionCalls() []struct {
-	Hash   *chainhash.Hash
-	Status metamorph_api.Status
-	ID     string
-	Err    error
-} {
-	var calls []struct {
-		Hash   *chainhash.Hash
-		Status metamorph_api.Status
-		ID     string
-		Err    error
-	}
-	mock.lockSendStatusForTransaction.RLock()
-	calls = mock.calls.SendStatusForTransaction
-	mock.lockSendStatusForTransaction.RUnlock()
 	return calls
 }
 

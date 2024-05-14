@@ -195,7 +195,7 @@ Metamorph publishes new transactions to the message queue and BlockTx subscribes
 
 ## K8s-Watcher
 
-The K8s-Watcher is a service which is needed for a special use case. If ARC runs on a Kubernetes cluster and is configured to run with AWS DynamoDB as a `metamorph` centralised storage, then the K8s-Watcher can be run as a safety measure. Due to the centralisation of `metamorph` storage, each `metamorph` pod has to ensure the exclusive processing of records by locking the records. If `metamorph` shuts down gracefully it will unlock all the records it holds in memory. The graceful shutdown is not guaranteed though. For this eventuality the K8s-Watcher can be run in a separate pod. K8s-Watcher detects when `metamorph` pods are terminated and will additionally call on the `metamorph` service to unlock the records of that terminated `metamorph` pod. This ensures that no records will stay in a locked state.
+The K8s-Watcher is a service which is needed for a special use case. If ARC runs on a Kubernetes cluster, then the K8s-Watcher can be run as a safety measure. Due to the centralisation of `metamorph` storage, each `metamorph` pod has to ensure the exclusive processing of records by locking the records. If `metamorph` shuts down gracefully it will unlock all the records it holds in memory. The graceful shutdown is not guaranteed though. For this eventuality the K8s-Watcher can be run in a separate pod. K8s-Watcher detects when `metamorph` pods are terminated and will additionally call on the `metamorph` service to unlock the records of that terminated `metamorph` pod. This ensures that no records will stay in a locked state.
 
 The K8s-Watcher can be started as follows
 
@@ -270,7 +270,7 @@ make test
 ```
 
 ### Integration tests
-Integration tests of DynamoDB need docker installed to run them. If `colima` implementation of Docker is being used on macOS, the `DOCKER_HOST` environment variable may need to be given as follows
+Integration tests of the postgres database need docker installed to run them. If `colima` implementation of Docker is being used on macOS, the `DOCKER_HOST` environment variable may need to be given as follows
 ```bash
 DOCKER_HOST=unix:///Users/<username>/.colima/default/docker.sock make test
 ```

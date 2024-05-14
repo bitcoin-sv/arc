@@ -42,7 +42,6 @@ type BitcoinNode interface {
 
 type ProcessorI interface {
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
-	SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, id string, err error) error
 	GetStats(debugItems bool) *ProcessorStats
 	GetPeers() ([]string, []string)
 	Shutdown()

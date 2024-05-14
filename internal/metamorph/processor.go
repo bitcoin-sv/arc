@@ -40,20 +40,20 @@ const (
 )
 
 type Processor struct {
-	store                    store.MetamorphStore
-	hostname                 string
-	ProcessorResponseMap     *ProcessorResponseMap
-	pm                       p2p.PeerManagerI
-	mqClient                 MessageQueueClient
-	logger                   *slog.Logger
-	mapExpiryTime            time.Duration
-	seenOnNetworkTxTime      time.Duration
-	seenOnNetworkTxTimeUntil time.Duration
-	now                      func() time.Time
-	stats                    *processorStats
-	maxRetries               int
+	store                     store.MetamorphStore
+	hostname                  string
+	ProcessorResponseMap      *ProcessorResponseMap
+	pm                        p2p.PeerManagerI
+	mqClient                  MessageQueueClient
+	logger                    *slog.Logger
+	mapExpiryTime             time.Duration
+	seenOnNetworkTxTime       time.Duration
+	seenOnNetworkTxTimeUntil  time.Duration
+	now                       func() time.Time
+	stats                     *processorStats
+	maxRetries                int
 	minimumHealthyConnections int
-	callbackSender           CallbackSender
+	callbackSender            CallbackSender
 
 	cancelCollectStats       context.CancelFunc
 	quitCollectStatsComplete chan struct{}
@@ -103,14 +103,14 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 	}
 
 	p := &Processor{
-		store:                           s,
-		hostname:                        hostname,
-		pm:                              pm,
-		mapExpiryTime:                   mapExpiryTimeDefault,
-		seenOnNetworkTxTime:             seenOnNetworkTxTimeDefault,
-		seenOnNetworkTxTimeUntil:        seenOnNetworkTxTimeUntilDefault,
-		now:                             time.Now,
-		maxRetries:                      maxRetriesDefault,
+		store:                     s,
+		hostname:                  hostname,
+		pm:                        pm,
+		mapExpiryTime:             mapExpiryTimeDefault,
+		seenOnNetworkTxTime:       seenOnNetworkTxTimeDefault,
+		seenOnNetworkTxTimeUntil:  seenOnNetworkTxTimeUntilDefault,
+		now:                       time.Now,
+		maxRetries:                maxRetriesDefault,
 		minimumHealthyConnections: minimumHealthyConnectionsDefault,
 
 		processExpiredTxsInterval:       unseenTransactionRebroadcastingInterval,

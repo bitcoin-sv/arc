@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	// MaxRetries number of times we will retry announcing transaction if we haven't seen it on the network
-	MaxRetries = 15
+	// maxRetriesDefault number of times we will retry announcing transaction if we haven't seen it on the network
+	maxRetriesDefault = 1000
 	// length of interval for checking transactions if they are seen on the network
 	// if not we resend them again for a few times
 	unseenTransactionRebroadcastingInterval    = 60 * time.Second
@@ -53,8 +53,8 @@ type Processor struct {
 	seenOnNetworkTxTimeUntil time.Duration
 	now                      func() time.Time
 	stats                    *processorStats
-
-	callbackSender CallbackSender
+	maxRetries               int
+	callbackSender           CallbackSender
 
 	cancelCollectStats       context.CancelFunc
 	quitCollectStatsComplete chan struct{}
@@ -99,13 +99,13 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 	}
 
 	p := &Processor{
-		store:                    s,
-		pm:                       pm,
-		mapExpiryTime:            mapExpiryTimeDefault,
-		seenOnNetworkTxTime:      seenOnNetworkTxTimeDefault,
-		seenOnNetworkTxTimeUntil: seenOnNetworkTxTimeUntilDefault,
-		now:                      time.Now,
-
+		store:                           s,
+		pm:                              pm,
+		mapExpiryTime:                   mapExpiryTimeDefault,
+		seenOnNetworkTxTime:             seenOnNetworkTxTimeDefault,
+		seenOnNetworkTxTimeUntil:        seenOnNetworkTxTimeUntilDefault,
+		now:                             time.Now,
+		maxRetries:                      maxRetriesDefault,
 		processExpiredTxsInterval:       unseenTransactionRebroadcastingInterval,
 		processSeenOnNetworkTxsInterval: seenOnNetworkTransactionRequestingInterval,
 		lockTransactionsInterval:        unseenTransactionRebroadcastingInterval,
@@ -408,12 +408,14 @@ func (p *Processor) StartProcessExpiredTransactions() {
 				getUnminedSince := p.now().Add(-1 * p.mapExpiryTime)
 				var offset int64
 
+				requested := 0
+				announced := 0
 				for {
 					// get all transactions since then chunk by chunk
 					unminedTxs, err := p.store.GetUnmined(ctx, getUnminedSince, loadUnminedLimit, offset)
 					if err != nil {
 						p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
-						continue
+						break
 					}
 
 					offset += loadUnminedLimit
@@ -422,21 +424,32 @@ func (p *Processor) StartProcessExpiredTransactions() {
 					}
 
 					for _, tx := range unminedTxs {
+						if tx.Retries > p.maxRetries {
+							continue
+						}
+
 						// mark that we retried processing this transaction once more
 						if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
 							p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
 						}
 
-						if tx.Retries > MaxRetries {
+						// every second time request tx, every other time announce tx
+						if tx.Retries%2 == 0 {
 							// Sending GETDATA to peers to see if they have it
 							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.RequestTransaction(tx.Hash)
-
-						} else {
-							p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
-							p.pm.AnnounceTransaction(tx.Hash, nil)
+							requested++
+							continue
 						}
+
+						p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
+						p.pm.AnnounceTransaction(tx.Hash, nil)
+						announced++
 					}
+				}
+
+				if announced > 0 || requested > 0 {
+					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested))
 				}
 			}
 		}

@@ -494,8 +494,9 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 func TestProcessExpiredTransactions(t *testing.T) {
 	tt := []struct {
-		name    string
-		retries int
+		name          string
+		retries       int
+		getUnminedErr error
 
 		expectedRequests      int
 		expectedAnnouncements int
@@ -504,20 +505,30 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			name:    "expired txs",
 			retries: 4,
 
-			expectedAnnouncements: 4,
-			expectedRequests:      0,
+			expectedAnnouncements: 2,
+			expectedRequests:      2,
 		},
 		{
 			name:    "expired txs - max retries exceeded",
 			retries: 16,
 
 			expectedAnnouncements: 0,
-			expectedRequests:      4,
+			expectedRequests:      0,
+		},
+		{
+			name:          "error - get unmined",
+			retries:       4,
+			getUnminedErr: errors.New("failed to get unmined"),
+
+			expectedAnnouncements: 0,
+			expectedRequests:      0,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+
+			retries := tc.retries
 
 			metamorphStore := &mocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
@@ -528,22 +539,26 @@ func TestProcessExpiredTransactions(t *testing.T) {
 					if offset != 0 {
 						return nil, nil
 					}
-					return []*store.StoreData{
+					unminedData := []*store.StoreData{
 						{
 							StoredAt:    time.Now(),
 							AnnouncedAt: time.Now(),
 							Hash:        testdata.TX4Hash,
 							Status:      metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-							Retries:     tc.retries,
+							Retries:     retries,
 						},
 						{
 							StoredAt:    time.Now(),
 							AnnouncedAt: time.Now(),
 							Hash:        testdata.TX5Hash,
 							Status:      metamorph_api.Status_STORED,
-							Retries:     tc.retries,
+							Retries:     retries,
 						},
-					}, nil
+					}
+
+					retries++
+
+					return unminedData, tc.getUnminedErr
 				},
 				IncrementRetriesFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 					return nil
@@ -570,6 +585,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			processor, err := metamorph.NewProcessor(metamorphStore, pm,
 				metamorph.WithMessageQueueClient(publisher),
 				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
+				metamorph.WithMaxRetries(10),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
 				}),

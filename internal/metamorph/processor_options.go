@@ -50,6 +50,12 @@ func WithProcessExpiredTxsInterval(d time.Duration) func(*Processor) {
 	}
 }
 
+func WithMaxRetries(maxRetries int) func(*Processor) {
+	return func(p *Processor) {
+		p.maxRetries = maxRetries
+	}
+}
+
 func WithLockTxsInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.lockTransactionsInterval = d

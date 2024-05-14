@@ -88,6 +88,11 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
+	maxRetries, err := cfg.GetInt("metamorph.maxRetries")
+	if err != nil {
+		return nil, err
+	}
+
 	// The tx channel needs the capacity so that it could potentially buffer up to a certain nr of transactions per second
 	const targetTps = 6000
 	const avgMinPerBlock = 10
@@ -130,7 +135,9 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),
 		metamorph.WithCallbackSender(metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})),
-		metamorph.WithStatTimeLimits(statsNotSeenTimeLimit, statsNotMinedTimeLimit))
+		metamorph.WithStatTimeLimits(statsNotSeenTimeLimit, statsNotMinedTimeLimit),
+		metamorph.WithMaxRetries(maxRetries),
+	)
 	if err != nil {
 		return nil, err
 	}

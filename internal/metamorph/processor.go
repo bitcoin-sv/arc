@@ -31,9 +31,9 @@ const (
 	seenOnNetworkTxTimeUntilDefault = 2 * time.Hour
 	LogLevelDefault                 = slog.LevelInfo
 
-	loadUnminedLimit          = int64(5000)
-	loadSeenOnNetworkLimit    = int64(5000)
-	minimumHealthyConnections = 2
+	loadUnminedLimit                 = int64(5000)
+	loadSeenOnNetworkLimit           = int64(5000)
+	minimumHealthyConnectionsDefault = 2
 
 	processStatusUpdatesIntervalDefault  = 500 * time.Millisecond
 	processStatusUpdatesBatchSizeDefault = 1000
@@ -52,6 +52,7 @@ type Processor struct {
 	now                      func() time.Time
 	stats                    *processorStats
 	maxRetries               int
+	minimumHealthyConnections int
 	callbackSender           CallbackSender
 
 	cancelCollectStats       context.CancelFunc
@@ -110,6 +111,8 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		seenOnNetworkTxTimeUntil:        seenOnNetworkTxTimeUntilDefault,
 		now:                             time.Now,
 		maxRetries:                      maxRetriesDefault,
+		minimumHealthyConnections: minimumHealthyConnectionsDefault,
+
 		processExpiredTxsInterval:       unseenTransactionRebroadcastingInterval,
 		processSeenOnNetworkTxsInterval: seenOnNetworkTransactionRequestingInterval,
 		lockTransactionsInterval:        unseenTransactionRebroadcastingInterval,
@@ -597,7 +600,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 }
 
 var (
-	ErrUnhealthy = fmt.Errorf("processor has less than %d healthy peer connections", minimumHealthyConnections)
+	ErrUnhealthy = fmt.Errorf("processor has less than %d healthy peer connections", minimumHealthyConnectionsDefault)
 )
 
 func (p *Processor) Health() error {
@@ -609,7 +612,7 @@ func (p *Processor) Health() error {
 		}
 	}
 
-	if healthyConnections < minimumHealthyConnections {
+	if healthyConnections < p.minimumHealthyConnections {
 		p.logger.Warn("Less than expected healthy peers", slog.Int("connections", healthyConnections))
 		return ErrUnhealthy
 	}

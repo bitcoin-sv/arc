@@ -31,12 +31,12 @@ var tracer trace.Tracer
 const (
 	transactionStoringBatchsizeDefault = 8192 // power of 2 for easier memory allocation
 	maxRequestBlocks                   = 1
+	maxBlocksInProgress                = 1
 	fillGapsInterval                   = 15 * time.Minute
 	registerTxsIntervalDefault         = time.Second * 10
 	registerRequestTxsIntervalDefault  = time.Second * 5
 	registerTxsBatchSizeDefault        = 100
 	registerRequestTxBatchSizeDefault  = 100
-	maxBlocksInProgress                = 1
 )
 
 func init() {

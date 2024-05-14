@@ -3,6 +3,7 @@ package metamorph
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"runtime/debug"
@@ -36,10 +37,6 @@ const (
 
 	processStatusUpdatesIntervalDefault  = 500 * time.Millisecond
 	processStatusUpdatesBatchSizeDefault = 1000
-)
-
-var (
-	ErrUnhealthy = errors.New("processor has less than 2 healthy peer connections")
 )
 
 type Processor struct {
@@ -599,6 +596,10 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	}
 }
 
+var (
+	ErrUnhealthy = fmt.Errorf("processor has less than %d healthy peer connections", minimumHealthyConnections)
+)
+
 func (p *Processor) Health() error {
 	healthyConnections := 0
 
@@ -609,12 +610,7 @@ func (p *Processor) Health() error {
 	}
 
 	if healthyConnections < minimumHealthyConnections {
-		p.logger.Warn("Less than expected healthy peers", slog.Int("number", healthyConnections))
-		return nil
-	}
-
-	if healthyConnections == 0 {
-		p.logger.Error("Metamorph not healthy")
+		p.logger.Warn("Less than expected healthy peers", slog.Int("connections", healthyConnections))
 		return ErrUnhealthy
 	}
 

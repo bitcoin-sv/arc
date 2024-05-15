@@ -116,6 +116,7 @@ func TestStartLockTransactions(t *testing.T) {
 					require.Equal(t, int64(5000), limit)
 					return tc.setLockedErr
 				},
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
 
 			pm := &mocks.PeerManagerMock{}
@@ -645,6 +646,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 					}
 					return []*store.StoreData{{CallbackUrl: "http://callback.com"}, {CallbackUrl: "http://callback.com"}, {}}, tc.updateMinedErr
 				},
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
 			pm := &mocks.PeerManagerMock{}
 			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 5)

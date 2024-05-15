@@ -44,6 +44,7 @@ func TestStartCollectStats(t *testing.T) {
 						StatusSeenInOrphanMempool: 8,
 					}, tc.getStatsErr
 				},
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
 
 			pm := &mocks.PeerManagerMock{}

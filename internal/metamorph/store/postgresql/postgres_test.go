@@ -23,7 +23,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -315,64 +314,41 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("update status", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
-
-		tx1Data := &store.StoreData{
-			RawTx:  testdata.TX1RawBytes,
-			Hash:   testdata.TX1Hash,
-			Status: metamorph_api.Status_STORED,
-		}
-		err = postgresDB.Set(ctx, testdata.TX1Hash[:], tx1Data)
-		require.NoError(t, err)
-
-		tx6Data := &store.StoreData{
-			RawTx:  testdata.TX6RawBytes,
-			Hash:   testdata.TX6Hash,
-			Status: metamorph_api.Status_STORED,
-		}
-
-		err = postgresDB.Set(ctx, testdata.TX6Hash[:], tx6Data)
-		require.NoError(t, err)
-
-		// will now be updated even though it is locked by metamorph-3
-		metamorph3Hash := revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
-
-		// will not be updated because has already status seen on network
-		seenOnNetworkHash := revChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
-
-		// will not be updated because has already status mined
-		minedHash = revChainhash(t, "a24845611f9518f0c1a5978b77a18317b6878086ce5d81f65c3d778db33a7b1d")
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/update_status"))
 
 		updates := []store.UpdateStatus{
 			{
-				Hash:         *testdata.TX1Hash,
-				Status:       metamorph_api.Status_REQUESTED_BY_NETWORK,
-				RejectReason: "",
+				Hash:   *revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), // update expected
+				Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
 			},
 			{
-				Hash:         *testdata.TX6Hash,
+				Hash:   *revChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), // update not expected - old status = new status
+				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
+			},
+			{
+				Hash:         *revChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), // update expected
 				Status:       metamorph_api.Status_REJECTED,
 				RejectReason: "missing inputs",
 			},
 			{
-				Hash:   *testdata.TX3Hash, // hash non-existent in db
-				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+				Hash:   *revChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa"), // update expected
+				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			},
 			{
-				Hash:   *testdata.TX4Hash, // hash non-existent in db
-				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-			},
-			{
-				Hash:   *metamorph3Hash,
-				Status: metamorph_api.Status_MINED,
-			},
-			{
-				Hash:   *seenOnNetworkHash,
-				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
-			},
-			{
-				Hash:   *minedHash,
+				Hash:   *revChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update not expected - status is mined
 				Status: metamorph_api.Status_SENT_TO_NETWORK,
+			},
+			{
+				Hash:   *revChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update not expected - old status > new status
+				Status: metamorph_api.Status_SENT_TO_NETWORK,
+			},
+			{
+				Hash:   *revChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update not expected - hash non-existent in db
+				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			},
+			{
+				Hash:   *revChainhash(t, "7e3350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"), // update not expected - hash non-existent in db
+				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			},
 		}
 
@@ -380,36 +356,23 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 3)
 
-		assert.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, statusUpdates[1].Status)
-		assert.Equal(t, testdata.TX1RawBytes, statusUpdates[1].RawTx)
+		require.Equal(t, metamorph_api.Status_ACCEPTED_BY_NETWORK, statusUpdates[0].Status)
+		require.Equal(t, *revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), *statusUpdates[0].Hash)
 
-		assert.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[2].Status)
-		assert.Equal(t, "missing inputs", statusUpdates[2].RejectReason)
-		assert.Equal(t, testdata.TX6RawBytes, statusUpdates[2].RawTx)
+		require.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[1].Status)
+		require.Equal(t, "missing inputs", statusUpdates[1].RejectReason)
+		require.Equal(t, *revChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), *statusUpdates[1].Hash)
 
-		returnedDataRejected, err := postgresDB.Get(ctx, testdata.TX1Hash[:])
+		require.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, statusUpdates[2].Status)
+		require.Equal(t, *revChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa"), *statusUpdates[2].Hash)
+
+		returnedDataRequested, err := postgresDB.Get(ctx, revChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f")[:])
 		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_REQUESTED_BY_NETWORK, returnedDataRejected.Status)
-		assert.Equal(t, "", returnedDataRejected.RejectReason)
-		assert.Equal(t, testdata.TX1RawBytes, returnedDataRejected.RawTx)
-
-		returnedDataRequested, err := postgresDB.Get(ctx, testdata.TX6Hash[:])
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_REJECTED, returnedDataRequested.Status)
-		assert.Equal(t, "missing inputs", returnedDataRequested.RejectReason)
-		assert.Equal(t, testdata.TX6RawBytes, returnedDataRequested.RawTx)
-
-		returnedDataSeen, err := postgresDB.Get(ctx, seenOnNetworkHash[:])
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, returnedDataSeen.Status)
-
-		returnedDataMined, err := postgresDB.Get(ctx, minedHash[:])
-		require.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_MINED, returnedDataMined.Status)
+		require.Equal(t, metamorph_api.Status_ACCEPTED_BY_NETWORK, returnedDataRequested.Status)
 
 		statusUpdates, err = postgresDB.UpdateStatusBulk(ctx, updates)
 		require.NoError(t, err)
-		require.Len(t, statusUpdates, 2)
+		require.Len(t, statusUpdates, 0)
 	})
 
 	t.Run("update mined", func(t *testing.T) {

@@ -44,6 +44,7 @@ var (
 
 type Processor struct {
 	store                    store.MetamorphStore
+	hostname                 string
 	ProcessorResponseMap     *ProcessorResponseMap
 	pm                       p2p.PeerManagerI
 	mqClient                 MessageQueueClient
@@ -98,8 +99,14 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		return nil, errors.New("peer manager cannot be nil")
 	}
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+
 	p := &Processor{
 		store:                           s,
+		hostname:                        hostname,
 		pm:                              pm,
 		mapExpiryTime:                   mapExpiryTimeDefault,
 		seenOnNetworkTxTime:             seenOnNetworkTxTimeDefault,
@@ -138,7 +145,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 func (p *Processor) Shutdown() {
 	p.logger.Info("Shutting down processor")
 
-	err := p.unlockItems()
+	err := p.unlockRecords()
 	if err != nil {
 		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
 	}
@@ -174,23 +181,12 @@ func (p *Processor) Shutdown() {
 	}
 }
 
-func (p *Processor) unlockItems() error {
-	items := p.ProcessorResponseMap.Items()
-	hashes := make([]*chainhash.Hash, len(items))
-	index := 0
-	for key := range items {
-		hash, err := chainhash.NewHash(key.CloneBytes())
-		if err != nil {
-			return err
-		}
-		hashes[index] = hash
-		index++
+func (p *Processor) unlockRecords() error {
+	unlockedItems, err := p.store.SetUnlockedByName(context.Background(), p.hostname)
+	if err != nil {
+		return err
 	}
-
-	if len(hashes) > 0 {
-		p.logger.Info("unlocking items", slog.Int("number", len(hashes)))
-		return p.store.SetUnlocked(context.Background(), hashes)
-	}
+	p.logger.Info("unlocked items", slog.Int64("number", unlockedItems))
 
 	return nil
 }

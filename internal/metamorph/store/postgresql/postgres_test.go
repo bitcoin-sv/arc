@@ -192,24 +192,9 @@ func TestPostgresDB(t *testing.T) {
 		LockedBy:    "metamorph-1",
 	}
 
-	hash1, err := hex.DecodeString("b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430") // sent
-	require.NoError(t, err)
-	chainHash1, err := chainhash.NewHash(hash1)
-	require.NoError(t, err)
-
 	hash2, err := hex.DecodeString("ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa") // seen
 	require.NoError(t, err)
 	chainHash2, err := chainhash.NewHash(hash2)
-	require.NoError(t, err)
-
-	hash3, err := hex.DecodeString("3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd") // announced
-	require.NoError(t, err)
-	chainHash3, err := chainhash.NewHash(hash3)
-	require.NoError(t, err)
-
-	hash4, err := hex.DecodeString("213a8c87c5460e82b5ae529212956b853c7ce6bf06e56b2e040eb063cf9a49f0") // mined
-	require.NoError(t, err)
-	chainHash4, err := chainhash.NewHash(hash4)
 	require.NoError(t, err)
 
 	postgresDB, err := New(dbInfo, "metamorph-1", 10, 10, WithNow(func() time.Time {
@@ -307,37 +292,27 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, "NONE", dataReturned.LockedBy)
 	})
 
-	t.Run("set unlocked", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
-
-		err = postgresDB.SetUnlocked(ctx, []*chainhash.Hash{chainHash1, chainHash2, chainHash3, chainHash4})
-		require.NoError(t, err)
-
-		dataReturned1, err := postgresDB.Get(ctx, chainHash1[:])
-		require.NoError(t, err)
-		require.Equal(t, "NONE", dataReturned1.LockedBy)
-
-		dataReturned2, err := postgresDB.Get(ctx, chainHash2[:])
-		require.NoError(t, err)
-		require.Equal(t, "NONE", dataReturned2.LockedBy)
-		dataReturned3, err := postgresDB.Get(ctx, chainHash3[:])
-		require.NoError(t, err)
-		require.Equal(t, "NONE", dataReturned3.LockedBy)
-		dataReturned4, err := postgresDB.Get(ctx, chainHash4[:])
-		require.NoError(t, err)
-		require.Equal(t, "NONE", dataReturned4.LockedBy)
-	})
-
 	t.Run("set unlocked by name", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/set_unlocked_by_name"))
 
 		rows, err := postgresDB.SetUnlockedByName(ctx, "metamorph-3")
 		require.NoError(t, err)
 		require.Equal(t, int64(2), rows)
+
+		hash1, err := chainhash.NewHashFromStr("538808e847d0add40ed9622fff53954c79e1f52db7c47ea0b6cdc0df972f3dcd")
+		require.NoError(t, err)
+		hash1Data, err := postgresDB.Get(ctx, hash1[:])
+		require.NoError(t, err)
+		require.Equal(t, "NONE", hash1Data.LockedBy)
+
+		hash2, err := chainhash.NewHashFromStr("4e6b3dd04f51ac6ce3d051f80d819bed366a4ff29143bb58c01154cb322d1321")
+		require.NoError(t, err)
+		hash2Data, err := postgresDB.Get(ctx, hash2[:])
+		require.NoError(t, err)
+		require.Equal(t, "NONE", hash2Data.LockedBy)
+
 	})
 
 	t.Run("update status", func(t *testing.T) {

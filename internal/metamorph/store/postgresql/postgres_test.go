@@ -39,6 +39,15 @@ var (
 	dbInfo string
 )
 
+func revChainhash(t *testing.T, hashString string) *chainhash.Hash {
+	hash, err := hex.DecodeString(hashString)
+	require.NoError(t, err)
+	txHash, err := chainhash.NewHash(hash)
+	require.NoError(t, err)
+
+	return txHash
+}
+
 func TestMain(m *testing.M) {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
@@ -192,11 +201,6 @@ func TestPostgresDB(t *testing.T) {
 		LockedBy:    "metamorph-1",
 	}
 
-	hash2, err := hex.DecodeString("ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa") // seen
-	require.NoError(t, err)
-	chainHash2, err := chainhash.NewHash(hash2)
-	require.NoError(t, err)
-
 	postgresDB, err := New(dbInfo, "metamorph-1", 10, 10, WithNow(func() time.Time {
 		return now
 	}))
@@ -240,16 +244,14 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
 
 		// locked by metamorph-1
-		expectedHash0, err := chainhash.NewHashFromStr("cd8e0640fadac1f9ed854174558e37a54ede58bc85f49bf01041348c215b0b3e")
-		require.NoError(t, err)
+		expectedHash0 := revChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd")
 		// offset 0
 		records, err := postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1, 0)
 		require.NoError(t, err)
 		require.Equal(t, expectedHash0, records[0].Hash)
 
 		// locked by metamorph-1
-		expectedHash1, err := chainhash.NewHashFromStr("30f409d6951483e4d65a586205f373c2f72431ade49abb6f143e82fc53ea6cb1")
-		require.NoError(t, err)
+		expectedHash1 := revChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430")
 		// offset 1
 		records, err = postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1, 1)
 		require.NoError(t, err)
@@ -265,17 +267,14 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 
 		// locked by NONE
-		expectedHash2, err := chainhash.NewHashFromStr("57438c4340b9a5e0d77120d999765589048f6f2dd49a6325cdf14356fc4cc012")
-		require.NoError(t, err)
+		expectedHash2 := revChainhash(t, "12c04cfc5643f1cd25639ad42d6f8f0489557699d92071d7e0a5b940438c4357")
 
 		// locked by NONE
-		expectedHash3, err := chainhash.NewHashFromStr("6e17823257a83a3ab8f3f3774f740b42cbfa4596e394b4654a5eff91836cd678")
-		require.NoError(t, err)
+		expectedHash3 := revChainhash(t, "78d66c8391ff5e4a65b494e39645facb420b744f77f3f3b83a3aa8573282176e")
 
 		// check if previously unlocked tx has b
 		// locked by NONE
-		expectedHash4, err := chainhash.NewHashFromStr("43a754291d6cb1cbb2e5a7609253838c9bf445140d640220b78490d9b95e9b31")
-		require.NoError(t, err)
+		expectedHash4 := revChainhash(t, "319b5eb9d99084b72002640d1445f49b8c83539260a7e5b2cbb16c1d2954a743")
 
 		// check if previously unlocked tx has been locked
 		dataReturned, err := postgresDB.Get(ctx, expectedHash2[:])
@@ -301,14 +300,12 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, int64(2), rows)
 
-		hash1, err := chainhash.NewHashFromStr("538808e847d0add40ed9622fff53954c79e1f52db7c47ea0b6cdc0df972f3dcd")
-		require.NoError(t, err)
+		hash1 := revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
 		hash1Data, err := postgresDB.Get(ctx, hash1[:])
 		require.NoError(t, err)
 		require.Equal(t, "NONE", hash1Data.LockedBy)
 
-		hash2, err := chainhash.NewHashFromStr("4e6b3dd04f51ac6ce3d051f80d819bed366a4ff29143bb58c01154cb322d1321")
-		require.NoError(t, err)
+		hash2 := revChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")
 		hash2Data, err := postgresDB.Get(ctx, hash2[:])
 		require.NoError(t, err)
 		require.Equal(t, "NONE", hash2Data.LockedBy)
@@ -338,16 +335,13 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 
 		// will now be updated even though it is locked by metamorph-3
-		metamorph3Hash, err := chainhash.NewHashFromStr("538808e847d0add40ed9622fff53954c79e1f52db7c47ea0b6cdc0df972f3dcd")
-		require.NoError(t, err)
+		metamorph3Hash := revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
 
 		// will not be updated because has already status seen on network
-		seenOnNetworkHash, err := chainhash.NewHashFromStr("aaf6dcac409778330982371560bd4e4f7064e4154aa1e66a3e3d8946b7f576ee")
-		require.NoError(t, err)
+		seenOnNetworkHash := revChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
 
 		// will not be updated because has already status mined
-		minedHash, err := chainhash.NewHashFromStr("1d7b3ab38d773d5cf6815dce868087b61783a1778b97a5c1f018951f614548a2")
-		require.NoError(t, err)
+		minedHash = revChainhash(t, "a24845611f9518f0c1a5978b77a18317b6878086ce5d81f65c3d778db33a7b1d")
 
 		updates := []store.UpdateStatus{
 			{
@@ -426,6 +420,8 @@ func TestPostgresDB(t *testing.T) {
 		unmined := *unminedData
 		err = postgresDB.Set(ctx, unminedHash[:], &unmined)
 		require.NoError(t, err)
+
+		chainHash2 := revChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
 
 		txBlocks := &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{
 			{
@@ -524,7 +520,7 @@ func TestPostgresDB(t *testing.T) {
 
 		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
 
-		txHash, err := chainhash.NewHashFromStr("0fb1bc42190ef7e3080a9cc8147b67393765971285fe61a552df2014ea2a5b85")
+		txHash := revChainhash(t, "855b2aea1420df52a561fe851297653739677b14c89c0a08e3f70e1942bcb10f")
 		require.NoError(t, err)
 
 		records, err := postgresDB.GetSeenOnNetwork(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), time.Date(2023, 1, 1, 3, 0, 0, 0, time.UTC), 2, 0)

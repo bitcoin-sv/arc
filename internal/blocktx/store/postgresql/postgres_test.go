@@ -56,15 +56,6 @@ type BlockTransactionMap struct {
 	Pos           int64 `db:"pos"`
 }
 
-func revChainhash(t *testing.T, hashString string) *chainhash.Hash {
-	hash, err := hex.DecodeString(hashString)
-	require.NoError(t, err)
-	txHash, err := chainhash.NewHash(hash)
-	require.NoError(t, err)
-
-	return txHash
-}
-
 const (
 	postgresPort   = "5432"
 	migrationsPath = "file://migrations"
@@ -74,6 +65,15 @@ const (
 )
 
 var dbInfo string
+
+func revChainhash(t *testing.T, hashString string) *chainhash.Hash {
+	hash, err := hex.DecodeString(hashString)
+	require.NoError(t, err)
+	txHash, err := chainhash.NewHash(hash)
+	require.NoError(t, err)
+
+	return txHash
+}
 
 func TestMain(m *testing.M) {
 	pool, err := dockertest.NewPool("")
@@ -199,14 +199,6 @@ func TestPostgresDB(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	blockHash2, err := chainhash.NewHashFromStr("00000000000000000a081a539601645abe977946f8f6466a3c9e0c34d50be4a8")
-	require.NoError(t, err)
-
-	blockHash1, err := chainhash.NewHashFromStr("000000000000000001b8adefc1eb98896c80e30e517b9e2655f1f929d9958a48")
-	require.NoError(t, err)
-
-	merkleRoot, err := chainhash.NewHashFromStr("31e25c5ac7c143687f55fc49caf0f552ba6a16d4f785e4c9a9a842179a085f0c")
-	require.NoError(t, err)
 	now := time.Date(2023, 12, 22, 12, 0, 0, 0, time.UTC)
 	postgresDB, err := New(dbInfo, 10, 10, WithNow(func() time.Time {
 		return now
@@ -220,6 +212,9 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("insert block / get block", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
+		blockHash1 := revChainhash(t, "000000000000000001b8adefc1eb98896c80e30e517b9e2655f1f929d9958a48")
+		blockHash2 := revChainhash(t, "00000000000000000a081a539601645abe977946f8f6466a3c9e0c34d50be4a8")
+		merkleRoot := revChainhash(t, "31e25c5ac7c143687f55fc49caf0f552ba6a16d4f785e4c9a9a842179a085f0c")
 		block := &blocktx_api.Block{
 			Hash:         blockHash2[:],
 			PreviousHash: blockHash1[:],
@@ -319,14 +314,10 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 4, len(blockGaps))
 
-		hash822014, err := chainhash.NewHashFromStr("0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
-		require.NoError(t, err)
-		hash822019, err := chainhash.NewHashFromStr("00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656")
-		require.NoError(t, err)
-		hash822020, err := chainhash.NewHashFromStr("00000000000000000a5c4d27edc0178e953a5bb0ab0081e66cb30c8890484076")
-		require.NoError(t, err)
-		hash822009, err := chainhash.NewHashFromStr("00000000000000000e3f79a11df0f07581b91bc7a8c7d80e9a1264a4b173d74a")
-		require.NoError(t, err)
+		hash822014 := revChainhash(t, "67708796ef57464ed9eaf2a663d3da32372e4c2fb65558020000000000000000")
+		hash822019 := revChainhash(t, "5696fc6e504b6aa2ae5d9c46b9418192dc61bd1b2e3364030000000000000000")
+		hash822020 := revChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
+		hash822009 := revChainhash(t, "4ad773b1a464129a0ed8c7a8c71bb98175f0f01da1793f0e0000000000000000")
 
 		expectedBlockGaps := []*store.BlockGap{
 			{ // gap
@@ -362,8 +353,7 @@ func TestPostgresDB(t *testing.T) {
 		txHash1 := revChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")
 		txHash2 := revChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")
 
-		txHashNotRegistered, err := chainhash.NewHashFromStr("edd33fdcdfa68444d227780e2b62a4437c00120c5320d2026aeb24a781f4c3f1")
-		require.NoError(t, err)
+		txHashNotRegistered := revChainhash(t, "edd33fdcdfa68444d227780e2b62a4437c00120c5320d2026aeb24a781f4c3f1")
 
 		_, err = postgresDB.UpdateBlockTransactions(context.Background(), testBlockID, []*blocktx_api.TransactionAndSource{
 			{
@@ -529,8 +519,7 @@ func TestPostgresDB(t *testing.T) {
 
 		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/block_processing"))
 
-		bh1, err := chainhash.NewHashFromStr("0000000000000000021957ec4c210f9b6327cfe1ad77a29aba39667ecf687474")
-		require.NoError(t, err)
+		bh1 := revChainhash(t, "747468cf7e6639ba9aa277ade1cf27639b0f214cec5719020000000000000000")
 
 		processedBy, err := postgresDB.SetBlockProcessing(ctx, bh1, "pod-1")
 		require.NoError(t, err)
@@ -541,8 +530,7 @@ func TestPostgresDB(t *testing.T) {
 		require.ErrorIs(t, err, store.ErrBlockProcessingDuplicateKey)
 		require.Equal(t, "pod-1", processedBy)
 
-		bhInProgress, err := chainhash.NewHashFromStr("000000000000000005aa39a25e7e8bf440c270ec9a1bd30e99ab026f39207ef9")
-		require.NoError(t, err)
+		bhInProgress := revChainhash(t, "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000")
 
 		blockHashes, err := postgresDB.GetBlockHashesProcessingInProgress(ctx, "pod-2")
 		require.NoError(t, err)
@@ -565,8 +553,7 @@ func TestPostgresDB(t *testing.T) {
 
 		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/mark_block_as_done"))
 
-		bh1, err := chainhash.NewHashFromStr("0000000000000000072ded7ebd9ca6202a1894cc9dc5cd71ad6cf9c563b01ab7")
-		require.NoError(t, err)
+		bh1 := revChainhash(t, "b71ab063c5f96cad71cdc59dcc94182a20a69cbd7eed2d070000000000000000")
 
 		err = postgresDB.MarkBlockAsDone(ctx, bh1, 500, 75)
 		require.NoError(t, err)

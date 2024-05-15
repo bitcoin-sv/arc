@@ -32,7 +32,7 @@ func TestNewProcessor(t *testing.T) {
 		GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 			return &store.StoreData{Hash: testdata.TX2Hash}, nil
 		},
-		SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+		SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 	}
 
 	pm := &mocks.PeerManagerMock{}
@@ -430,9 +430,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
-				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
-					return nil
-				},
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 				UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
 					if len(tc.updateResp) > 0 {
 						counter++
@@ -534,7 +532,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
-				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 					if offset != 0 {
 						return nil, nil
@@ -699,7 +697,7 @@ func TestProcessorHealth(t *testing.T) {
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
-				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 					if offset != 0 {
 						return nil, nil

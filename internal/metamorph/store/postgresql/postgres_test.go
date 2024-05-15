@@ -192,24 +192,9 @@ func TestPostgresDB(t *testing.T) {
 		LockedBy:    "metamorph-1",
 	}
 
-	hash1, err := hex.DecodeString("b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430") // sent
-	require.NoError(t, err)
-	chainHash1, err := chainhash.NewHash(hash1)
-	require.NoError(t, err)
-
 	hash2, err := hex.DecodeString("ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa") // seen
 	require.NoError(t, err)
 	chainHash2, err := chainhash.NewHash(hash2)
-	require.NoError(t, err)
-
-	hash3, err := hex.DecodeString("3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd") // announced
-	require.NoError(t, err)
-	chainHash3, err := chainhash.NewHash(hash3)
-	require.NoError(t, err)
-
-	hash4, err := hex.DecodeString("213a8c87c5460e82b5ae529212956b853c7ce6bf06e56b2e040eb063cf9a49f0") // mined
-	require.NoError(t, err)
-	chainHash4, err := chainhash.NewHash(hash4)
 	require.NoError(t, err)
 
 	postgresDB, err := New(dbInfo, "metamorph-1", 10, 10, WithNow(func() time.Time {
@@ -305,29 +290,6 @@ func TestPostgresDB(t *testing.T) {
 		dataReturned, err = postgresDB.Get(ctx, expectedHash4[:])
 		require.NoError(t, err)
 		require.Equal(t, "NONE", dataReturned.LockedBy)
-	})
-
-	t.Run("set unlocked", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
-
-		err = postgresDB.SetUnlocked(ctx, []*chainhash.Hash{chainHash1, chainHash2, chainHash3, chainHash4})
-		require.NoError(t, err)
-
-		dataReturned1, err := postgresDB.Get(ctx, chainHash1[:])
-		require.NoError(t, err)
-		require.Equal(t, "NONE", dataReturned1.LockedBy)
-
-		dataReturned2, err := postgresDB.Get(ctx, chainHash2[:])
-		require.NoError(t, err)
-		require.Equal(t, "NONE", dataReturned2.LockedBy)
-		dataReturned3, err := postgresDB.Get(ctx, chainHash3[:])
-		require.NoError(t, err)
-		require.Equal(t, "NONE", dataReturned3.LockedBy)
-		dataReturned4, err := postgresDB.Get(ctx, chainHash4[:])
-		require.NoError(t, err)
-		require.Equal(t, "NONE", dataReturned4.LockedBy)
 	})
 
 	t.Run("set unlocked by name", func(t *testing.T) {

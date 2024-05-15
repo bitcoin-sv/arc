@@ -295,11 +295,24 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("set unlocked by name", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/set_unlocked_by_name"))
 
 		rows, err := postgresDB.SetUnlockedByName(ctx, "metamorph-3")
 		require.NoError(t, err)
 		require.Equal(t, int64(2), rows)
+
+		hash1, err := chainhash.NewHashFromStr("538808e847d0add40ed9622fff53954c79e1f52db7c47ea0b6cdc0df972f3dcd")
+		require.NoError(t, err)
+		hash1Data, err := postgresDB.Get(ctx, hash1[:])
+		require.NoError(t, err)
+		require.Equal(t, "NONE", hash1Data.LockedBy)
+
+		hash2, err := chainhash.NewHashFromStr("4e6b3dd04f51ac6ce3d051f80d819bed366a4ff29143bb58c01154cb322d1321")
+		require.NoError(t, err)
+		hash2Data, err := postgresDB.Get(ctx, hash2[:])
+		require.NoError(t, err)
+		require.Equal(t, "NONE", hash2Data.LockedBy)
+
 	})
 
 	t.Run("update status", func(t *testing.T) {

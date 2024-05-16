@@ -19,9 +19,9 @@ enum Status {
   ACCEPTED_BY_NETWORK = 7;
   SEEN_ON_NETWORK = 8;
   MINED = 9;
+  SEEN_IN_ORPHAN_MEMPOOL = 10;
   CONFIRMED = 108; // 100 confirmation blocks
   REJECTED = 109;
-  SEEN_IN_ORPHAN_MEMPOOL = 10;
 }
 
 service MetaMorphAPI {

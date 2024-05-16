@@ -1,0 +1,34 @@
+- hash: 0xcd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853
+  locked_by: metamorph-3
+  status: 6
+  stored_at: 2023-10-01 14:00:00
+  inserted_at_num: 2023100114
+- hash: 0x21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e
+  locked_by: metamorph-3
+  status: 5
+  stored_at: 2023-10-01 14:00:00
+  inserted_at_num: 2023100114
+- hash: 0xb16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430
+  locked_by: metamorph-1
+  status: 8
+  stored_at: 2023-10-01 14:00:00
+  announced_at: 2023-10-01 14:05:00
+  inserted_at_num: 2023100114
+- hash: 0xee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa
+  locked_by: metamorph-1
+  status: 10
+  stored_at: 2023-10-01 14:00:00
+  announced_at: 2023-10-01 14:05:00
+  inserted_at_num: 2023100114
+- hash: 0x3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd
+  locked_by: metamorph-1
+  status: 9
+  stored_at: 2023-10-01 14:00:00
+  announced_at: 2023-10-01 14:05:00
+  inserted_at_num: 2023100114
+- hash: 0x7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f
+  locked_by: metamorph-1
+  status: 7
+  stored_at: 2023-10-01 14:00:00
+  announced_at: 2023-10-01 14:05:00
+  inserted_at_num: 2023100114

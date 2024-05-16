@@ -3,6 +3,7 @@ package handler
 import (
 	"bufio"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -121,44 +122,15 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		return ctx.JSON(e.Status, e)
 	}
 
-	body, err := io.ReadAll(ctx.Request().Body)
-	if err != nil {
-		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-		return ctx.JSON(e.Status, e)
-	}
-
-	var transaction *bt.Tx
 	contentType := ctx.Request().Header.Get("Content-Type")
-	switch contentType {
-	case "text/plain":
-		if transaction, err = bt.NewTxFromString(string(body)); err != nil {
-			e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-			return ctx.JSON(e.Status, e)
-		}
-	case "application/json":
-		var txHex string
-		var txBody api.POSTTransactionJSONRequestBody
-		if err = json.Unmarshal(body, &txBody); err != nil {
-			e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-			return ctx.JSON(e.Status, e)
-		}
-		txHex = txBody.RawTx
-
-		if transaction, err = bt.NewTxFromString(txHex); err != nil {
-			e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-			return ctx.JSON(e.Status, e)
-		}
-	case "application/octet-stream":
-		if transaction, err = bt.NewTxFromBytes(body); err != nil {
-			e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-			return ctx.JSON(e.Status, e)
-		}
-	default:
-		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("given content-type %s does not match any of the allowed content-types", contentType))
+	// TODO: return a format (BEEF, EF) here
+	transactionHex, e := parseTransactionFromRequest(ctx.Request().Body, contentType)
+	if e != nil {
 		return ctx.JSON(e.Status, e)
 	}
 
-	status, response, responseErr := m.processTransaction(ctx.Request().Context(), transaction, transactionOptions)
+	// TODO: pass the format here
+	status, response, responseErr := m.processTransaction(ctx.Request().Context(), transactionHex, transactionOptions)
 	if responseErr != nil {
 		// if an error is returned, the processing failed, and we should return a 500 error
 		return ctx.JSON(int(status), response)
@@ -175,7 +147,6 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 // GETTransactionStatus ...
 func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) error {
-
 	tx, err := m.getTransactionStatus(ctx.Request().Context(), id)
 	if err != nil {
 		if errors.Is(err, metamorph.ErrTransactionNotFound) {
@@ -393,8 +364,48 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 	return transactionOptions, nil
 }
 
-func (m ArcDefaultHandler) processTransaction(ctx context.Context, transaction *bt.Tx, transactionOptions *metamorph.TransactionOptions) (api.StatusCode, interface{}, error) {
+func parseTransactionFromRequest(requestBody io.ReadCloser, contentType string) ([]byte, *api.ErrorFields) {
+	body, err := io.ReadAll(requestBody)
+	if err != nil {
+		return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+	}
+
+	var txHex []byte
+
+	switch contentType {
+	case "text/plain":
+		txHex, err = hex.DecodeString(string(body))
+		if err != nil {
+			return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+		}
+	case "application/json":
+		var txBody api.POSTTransactionJSONRequestBody
+		if err = json.Unmarshal(body, &txBody); err != nil {
+			return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+		}
+
+		txHex, err = hex.DecodeString(txBody.RawTx)
+		if err != nil {
+			return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+		}
+	case "application/octet-stream":
+		txHex = body
+	default:
+		return nil, api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("given content-type %s does not match any of the allowed content-types", contentType))
+	}
+
+	return txHex, nil
+}
+
+func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHex []byte, transactionOptions *metamorph.TransactionOptions) (api.StatusCode, interface{}, error) {
 	txValidator := defaultValidator.New(m.NodePolicy)
+
+	// TODO: based on format, validate EF or validate BEEF
+	// NOTE: maybe implement a validator that would use Validate from internal/beef package
+	transaction, err := bt.NewTxFromBytes(transactionHex)
+	if err != nil {
+		return api.ErrStatusBadRequest, api.NewErrorFields(api.ErrStatusBadRequest, err.Error()), err
+	}
 
 	// the validator expects an extended transaction
 	// we must enrich the transaction with the missing data

@@ -98,3 +98,9 @@ func WithStatCollectionInterval(statCollectionInterval time.Duration) func(*Proc
 		p.statCollectionInterval = statCollectionInterval
 	}
 }
+
+func WithMinimumHealthyConnections(minimumHealthyConnections int) func(*Processor) {
+	return func(p *Processor) {
+		p.minimumHealthyConnections = minimumHealthyConnections
+	}
+}

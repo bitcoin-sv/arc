@@ -20,7 +20,7 @@ import (
 
 const (
 	// maxRetriesDefault number of times we will retry announcing transaction if we haven't seen it on the network
-	maxRetriesDefault = 1000
+	maxRetriesDefault = 20
 	// length of interval for checking transactions if they are seen on the network
 	// if not we resend them again for a few times
 	unseenTransactionRebroadcastingInterval    = 60 * time.Second
@@ -420,17 +420,12 @@ func (p *Processor) StartProcessExpiredTransactions() {
 					}
 
 					for _, tx := range unminedTxs {
-						if tx.Retries > p.maxRetries {
-							continue
-						}
-
 						// mark that we retried processing this transaction once more
 						if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
 							p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
 						}
 
-						// every second time request tx, every other time announce tx
-						if tx.Retries%2 == 0 {
+						if tx.Retries > p.maxRetries {
 							// Sending GETDATA to peers to see if they have it
 							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.RequestTransaction(tx.Hash)

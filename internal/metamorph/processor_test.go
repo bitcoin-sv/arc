@@ -504,15 +504,15 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			name:    "expired txs",
 			retries: 4,
 
-			expectedAnnouncements: 2,
-			expectedRequests:      2,
+			expectedAnnouncements: 4,
+			expectedRequests:      0,
 		},
 		{
 			name:    "expired txs - max retries exceeded",
 			retries: 16,
 
 			expectedAnnouncements: 0,
-			expectedRequests:      0,
+			expectedRequests:      4,
 		},
 		{
 			name:          "error - get unmined",

@@ -448,8 +448,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 			) AS bulk_query
 			WHERE
 			metamorph.transactions.hash=bulk_query.hash
-				AND ( metamorph.transactions.status < bulk_query.status OR ( metamorph.transactions.status = $5 AND bulk_query.status = $4 ))
-			    AND metamorph.transactions.status != $6
+				AND metamorph.transactions.status < bulk_query.status
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.announced_at
 		,metamorph.transactions.mined_at

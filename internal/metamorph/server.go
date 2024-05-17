@@ -265,7 +265,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	}
 
 	// Return the status if it has greater or equal value
-	if statusValueMap[returnedStatus.GetStatus()] >= statusValueMap[waitForStatus] {
+	if returnedStatus.GetStatus() >= waitForStatus {
 		return returnedStatus
 	}
 
@@ -296,7 +296,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 			}
 
 			// Return the status if it has greater or equal value
-			if statusValueMap[returnedStatus.GetStatus()] >= statusValueMap[waitForStatus] {
+			if returnedStatus.GetStatus() >= waitForStatus {
 				return returnedStatus
 			}
 		}

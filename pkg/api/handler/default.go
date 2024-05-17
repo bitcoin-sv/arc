@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/pkg/api"
@@ -122,27 +123,24 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		return ctx.JSON(e.Status, e)
 	}
 
-	contentType := ctx.Request().Header.Get("Content-Type")
-	// TODO: return a format (BEEF, EF) here
-	transactionHex, e := parseTransactionFromRequest(ctx.Request().Body, contentType)
+	transactionHex, e := parseTransactionFromRequest(ctx.Request())
 	if e != nil {
 		return ctx.JSON(e.Status, e)
 	}
 
-	// TODO: pass the format here
-	status, response, responseErr := m.processTransaction(ctx.Request().Context(), transactionHex, transactionOptions)
+	transaction, response, responseErr := m.processTransaction(ctx.Request().Context(), transactionHex, transactionOptions)
 	if responseErr != nil {
 		// if an error is returned, the processing failed, and we should return a 500 error
-		return ctx.JSON(int(status), response)
+		return ctx.JSON(response.Status, response)
 	}
 
 	sizingInfo := make([][]uint64, 1)
-
 	normalBytes, dataBytes, feeAmount := getSizings(transaction)
 	sizingInfo[0] = []uint64{normalBytes, dataBytes, feeAmount}
 	sizingCtx := context.WithValue(ctx.Request().Context(), ContextSizings, sizingInfo)
 	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
-	return ctx.JSON(int(status), response)
+
+	return ctx.JSON(response.Status, response)
 }
 
 // GETTransactionStatus ...
@@ -364,7 +362,10 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 	return transactionOptions, nil
 }
 
-func parseTransactionFromRequest(requestBody io.ReadCloser, contentType string) ([]byte, *api.ErrorFields) {
+func parseTransactionFromRequest(request *http.Request) ([]byte, *api.ErrorFields) {
+	requestBody := request.Body
+	contentType := request.Header.Get("Content-Type")
+
 	body, err := io.ReadAll(requestBody)
 	if err != nil {
 		return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
@@ -397,32 +398,33 @@ func parseTransactionFromRequest(requestBody io.ReadCloser, contentType string) 
 	return txHex, nil
 }
 
-func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHex []byte, transactionOptions *metamorph.TransactionOptions) (api.StatusCode, interface{}, error) {
+func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHex []byte, transactionOptions *metamorph.TransactionOptions) (*bt.Tx, *api.TransactionResponse, *api.ErrorFields) {
 	txValidator := defaultValidator.New(m.NodePolicy)
+	isBeefFormat := txValidator.IsBeef(transactionHex)
 
-	// TODO: based on format, validate EF or validate BEEF
-	// NOTE: maybe implement a validator that would use Validate from internal/beef package
-	transaction, err := bt.NewTxFromBytes(transactionHex)
-	if err != nil {
-		return api.ErrStatusBadRequest, api.NewErrorFields(api.ErrStatusBadRequest, err.Error()), err
-	}
+	var transaction *bt.Tx
 
-	// the validator expects an extended transaction
-	// we must enrich the transaction with the missing data
-	if !txValidator.IsExtended(transaction) {
-		err := m.extendTransaction(ctx, transaction)
+	if isBeefFormat {
+		var beefTx *beef.BEEF
+		var err error
+
+		transaction, beefTx, err = beef.DecodeBEEF(transactionHex)
 		if err != nil {
-			statusCode, arcError := m.handleError(ctx, transaction, err)
-			m.logger.Error("failed to extend transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
-			return statusCode, arcError, err
+			return nil, nil, api.NewErrorFields(api.ErrStatusTxFormat, err.Error())
 		}
-	}
 
-	if !transactionOptions.SkipTxValidation {
-		if err := txValidator.ValidateTransaction(transaction, transactionOptions.SkipFeeValidation, transactionOptions.SkipScriptValidation); err != nil {
-			statusCode, arcError := m.handleError(ctx, transaction, err)
-			m.logger.Error("failed to validate transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
-			return statusCode, arcError, err
+		if err := txValidator.ValidateBeef(beefTx); err != nil {
+			_, arcError := m.handleError(ctx, transaction, err)
+			return nil, nil, arcError
+		}
+	} else {
+		transaction, err := bt.NewTxFromBytes(transactionHex)
+		if err != nil {
+			return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+		}
+
+		if arcError := m.validateEFTransaction(ctx, txValidator, transaction, transactionOptions); arcError != nil {
+			return nil, nil, arcError
 		}
 	}
 
@@ -430,7 +432,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHe
 	if err != nil {
 		statusCode, arcError := m.handleError(ctx, transaction, err)
 		m.logger.Error("failed to submit transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
-		return statusCode, arcError, err
+		return nil, nil, arcError
 	}
 
 	txID := tx.TxID
@@ -443,7 +445,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHe
 		extraInfo = tx.ExtraInfo
 	}
 
-	return api.StatusOK, api.TransactionResponse{
+	return transaction, &api.TransactionResponse{
 		Status:      int(api.StatusOK),
 		Title:       "OK",
 		BlockHash:   &tx.BlockHash,
@@ -499,7 +501,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	}
 
 	// process returned transaction statuses and return to user
-	var transactionOutput []interface{} = make([]interface{}, 0, len(transactions))
+	transactionOutput := make([]interface{}, 0, len(transactions))
 
 	for ind, tx := range txStatuses {
 		transactionOutput = append(transactionOutput, api.TransactionResponse{
@@ -518,6 +520,29 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	transactionOutput = append(transactionOutput, txErrors...)
 
 	return api.StatusOK, transactionOutput, nil
+}
+
+func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.Validator, transaction *bt.Tx, transactionOptions *metamorph.TransactionOptions) *api.ErrorFields {
+	// the validator expects an extended transaction
+	// we must enrich the transaction with the missing data
+	if !txValidator.IsExtended(transaction) {
+		err := m.extendTransaction(ctx, transaction)
+		if err != nil {
+			statusCode, arcError := m.handleError(ctx, transaction, err)
+			m.logger.Error("failed to extend transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
+			return arcError
+		}
+	}
+
+	if !transactionOptions.SkipTxValidation {
+		if err := txValidator.ValidateTransaction(transaction, transactionOptions.SkipFeeValidation, transactionOptions.SkipScriptValidation); err != nil {
+			statusCode, arcError := m.handleError(ctx, transaction, err)
+			m.logger.Error("failed to validate transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
+			return arcError
+		}
+	}
+
+	return nil
 }
 
 func (m ArcDefaultHandler) extendTransaction(ctx context.Context, transaction *bt.Tx) (err error) {

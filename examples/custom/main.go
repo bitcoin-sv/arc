@@ -70,7 +70,7 @@ func main() {
 
 	grpcMessageSize := viper.GetInt("grpcMessageSize")
 	// add a single metamorph, with the BlockTx client we want to use
-	conn, err := metamorph.DialGRPC(logger, "localhost:8011", "", grpcMessageSize)
+	conn, err := metamorph.DialGRPC("localhost:8011", "", grpcMessageSize)
 	if err != nil {
 		panic(err)
 	}

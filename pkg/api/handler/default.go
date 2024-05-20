@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"bufio"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -181,126 +180,27 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		return ctx.JSON(e.Status, e)
 	}
 
-	// Set the transaction reader function to read a text/plain by default.
-	// If the mimetype is application/octet-stream, then we will replace this
-	// function with one that reads the raw bytes in the switch statement below.
-	transactionReaderFn := func(r io.Reader) (*bt.Tx, error) {
-		reader := bufio.NewReader(r)
-		b, _, err := reader.ReadLine()
-		if err != nil {
-			return nil, err
-		}
-
-		return bt.NewTxFromString(string(b))
-	}
-
-	var transactions []interface{}
-	sizingInfo := make([][]uint64, 0)
-
-	var transactionInputs []*bt.Tx
-	var sizingMap map[string][]uint64
-
-	var status api.StatusCode
-
-	contentType := ctx.Request().Header.Get("Content-Type")
-	switch contentType {
-	case "application/json":
-		body, err := io.ReadAll(ctx.Request().Body)
-		if err != nil {
-			e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-			return ctx.JSON(e.Status, e)
-		}
-
-		var txBody api.POSTTransactionsJSONBody
-		if err = json.Unmarshal(body, &txBody); err != nil {
-			e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-			return ctx.JSON(e.Status, e)
-		}
-
-		sizingMap = make(map[string][]uint64)
-		transactionInputs = make([]*bt.Tx, 0, len(txBody))
-		for index, tx := range txBody {
-			transaction, err := bt.NewTxFromString(tx.RawTx)
-			if err != nil {
-				e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-				transactions[index] = e
-				return ctx.JSON(e.Status, e)
-			}
-			transactionInputs = append(transactionInputs, transaction)
-			normalBytes, dataBytes, feeAmount := getSizings(transaction)
-			sizingMap[transaction.TxID()] = []uint64{normalBytes, dataBytes, feeAmount}
-		}
-	case "application/octet-stream":
-		transactionReaderFn = func(r io.Reader) (*bt.Tx, error) {
-			btTx := new(bt.Tx)
-			if _, err := btTx.ReadFrom(r); err != nil {
-				return nil, err
-			}
-			return btTx, nil
-		}
-		fallthrough
-	case "text/plain":
-		reader := ctx.Request().Body
-		transactionInputs = make([]*bt.Tx, 0)
-		sizingMap = make(map[string][]uint64)
-
-		isFirstTransaction := true
-
-		// parse each transaction from request body and prepare
-		// slice of transactions to process before submitting to metamorph
-		for {
-			btTx, err := transactionReaderFn(reader)
-			if err != nil {
-				if !errors.Is(err, io.EOF) {
-					e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-					return ctx.JSON(e.Status, e)
-				}
-			}
-
-			// we reached the end of request body
-			if btTx == nil {
-				if isFirstTransaction {
-					// no transactions found in the request body
-					e := api.NewErrorFields(api.ErrStatusBadRequest, "no transactions found in the request body")
-					return ctx.JSON(e.Status, e)
-				}
-				// no more transaction data found, stop the loop
-				break
-			}
-
-			isFirstTransaction = false
-			transactionInputs = append(transactionInputs, btTx)
-			normalBytes, dataBytes, feeAmount := getSizings(btTx)
-			sizingMap[btTx.TxID()] = []uint64{normalBytes, dataBytes, feeAmount}
-		}
-
-	default:
-		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("given content-type %s does not match any of the allowed content-types", contentType))
+	txsHexes, e := parseTransactionFromRequest(ctx.Request())
+	if e != nil {
 		return ctx.JSON(e.Status, e)
 	}
 
 	// process all transactions
-	status, transactions, err = m.processTransactions(ctx.Request().Context(), transactionInputs, transactionOptions)
-	if err != nil {
-		e := api.NewErrorFields(api.ErrStatusGeneric, fmt.Errorf("failed to process transactions: %v", err).Error())
+	transactions, responses, e := m.processTransactions(ctx.Request().Context(), txsHexes, transactionOptions)
+	if e != nil {
 		return ctx.JSON(e.Status, e)
 	}
 
+	sizingInfo := make([][]uint64, 0)
 	for _, btTx := range transactions {
-		if tx, ok := btTx.(api.TransactionResponse); ok {
-			sizing, found := sizingMap[tx.Txid]
-			if !found {
-				m.logger.Warn("tx id not found in sizing map", slog.String("id", tx.Txid))
-			}
-
-			sizingInfo = append(sizingInfo, sizing)
-		}
+		normalBytes, dataBytes, feeAmount := getSizings(btTx)
+		sizingInfo = append(sizingInfo, []uint64{normalBytes, dataBytes, feeAmount})
 	}
 	sizingCtx := context.WithValue(ctx.Request().Context(), ContextSizings, sizingInfo)
 	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
 	// we cannot really return any other status here
 	// each transaction in the slice will have the result of the transaction submission
-	return ctx.JSON(int(status), transactions)
+	return ctx.JSON(int(api.StatusOK), responses)
 }
 
 func getTransactionOptions(params api.POSTTransactionParams, rejectedCallbackUrlSubstrings []string) (*metamorph.TransactionOptions, error) {
@@ -408,7 +308,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHe
 		var beefTx *beef.BEEF
 		var err error
 
-		transaction, beefTx, err = beef.DecodeBEEF(transactionHex)
+		transaction, beefTx, _, err = beef.DecodeBEEF(transactionHex)
 		if err != nil {
 			return nil, nil, api.NewErrorFields(api.ErrStatusTxFormat, err.Error())
 		}
@@ -459,52 +359,72 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHe
 }
 
 // processTransactions validates all the transactions in the array and submits to metamorph for processing.
-func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions []*bt.Tx, transactionOptions *metamorph.TransactionOptions) (api.StatusCode, []interface{}, error) {
-	m.logger.Info(fmt.Sprintf("Starting to process %d transactions", len(transactions)))
+func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactionsHexes []byte, transactionOptions *metamorph.TransactionOptions) ([]*bt.Tx, []interface{}, *api.ErrorFields) {
+	m.logger.Info("Starting to process transactions")
 
 	// validate before submitting array of transactions to metamorph
-	transactionsInput := make([][]byte, 0, len(transactions))
-	txErrors := make([]interface{}, 0, len(transactions))
+	transactions := make([]*bt.Tx, 0)
+	transactionsBytes := make([][]byte, 0)
+	txErrors := make([]interface{}, 0)
 
-	for _, transaction := range transactions {
-		txValidator := defaultValidator.New(m.NodePolicy)
+	txValidator := defaultValidator.New(m.NodePolicy)
 
-		// the validator expects an extended transaction
-		// we must enrich the transaction with the missing data
-		if !txValidator.IsExtended(transaction) {
-			err := m.extendTransaction(ctx, transaction)
+	for {
+		var transaction *bt.Tx
+		isBeefFormat := txValidator.IsBeef(transactionsHexes)
+
+		if isBeefFormat {
+			var beefTx *beef.BEEF
+			var err error
+			var remainingBytes []byte
+
+			transaction, beefTx, remainingBytes, err = beef.DecodeBEEF(transactionsHexes)
 			if err != nil {
-				statusCode, arcError := m.handleError(ctx, transaction, err)
-				m.logger.Error("failed to extend transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
-				txErrors = append(txErrors, arcError)
-				continue
+				return nil, nil, api.NewErrorFields(api.ErrStatusTxFormat, err.Error())
 			}
-		}
 
-		if !transactionOptions.SkipTxValidation {
-			// validate transaction
-			if err := txValidator.ValidateTransaction(transaction, transactionOptions.SkipFeeValidation, transactionOptions.SkipScriptValidation); err != nil {
+			transactionsHexes = remainingBytes
+
+			if err := txValidator.ValidateBeef(beefTx); err != nil {
 				_, arcError := m.handleError(ctx, transaction, err)
 				txErrors = append(txErrors, arcError)
 				continue
 			}
+		} else {
+			transaction, bytesUsed, err := bt.NewTxFromStream(transactionsHexes)
+			if err != nil {
+				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+			}
+
+			transactionsHexes = transactionsHexes[bytesUsed:]
+
+			if arcError := m.validateEFTransaction(ctx, txValidator, transaction, transactionOptions); arcError != nil {
+				txErrors = append(txErrors, arcError)
+				continue
+			}
 		}
-		transactionsInput = append(transactionsInput, transaction.Bytes())
+
+		transactions = append(transactions, transaction)
+		transactionsBytes = append(transactionsBytes, transaction.Bytes())
+
+		if len(transactionsHexes) == 0 {
+			break
+		}
 	}
 
 	// submit all the validated array of transactions to metamorph endpoint
-	txStatuses, err := m.TransactionHandler.SubmitTransactions(ctx, transactionsInput, transactionOptions)
+	txStatuses, err := m.TransactionHandler.SubmitTransactions(ctx, transactionsBytes, transactionOptions)
 	if err != nil {
 		statusCode, arcError := m.handleError(ctx, nil, err)
-		m.logger.Error("failed to submit transactions", slog.Int("txs", len(transactions)), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
-		return statusCode, []interface{}{arcError}, err
+		m.logger.Error("failed to submit transactions", slog.Int("txs", len(transactionsHexes)), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
+		return nil, nil, arcError
 	}
 
 	// process returned transaction statuses and return to user
-	transactionOutput := make([]interface{}, 0, len(transactions))
+	transactionsOutputs := make([]interface{}, 0, len(transactions))
 
 	for ind, tx := range txStatuses {
-		transactionOutput = append(transactionOutput, api.TransactionResponse{
+		transactionsOutputs = append(transactionsOutputs, api.TransactionResponse{
 			Status:      int(api.StatusOK),
 			Title:       "OK",
 			BlockHash:   &txStatuses[ind].BlockHash,
@@ -517,9 +437,9 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		})
 	}
 
-	transactionOutput = append(transactionOutput, txErrors...)
+	transactionsOutputs = append(transactionsOutputs, txErrors...)
 
-	return api.StatusOK, transactionOutput, nil
+	return transactions, transactionsOutputs, nil
 }
 
 func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.Validator, transaction *bt.Tx, transactionOptions *metamorph.TransactionOptions) *api.ErrorFields {

@@ -48,20 +48,20 @@ func CheckBeefFormat(txHex []byte) bool {
 	return true
 }
 
-func DecodeBEEF(beefHex []byte) (*bt.Tx, *BEEF, error) {
+func DecodeBEEF(beefHex []byte) (*bt.Tx, *BEEF, []byte, error) {
 	beefBytes, err := extractBytesWithoutVersionAndMarker(beefHex)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	bumps, remainingBytes, err := decodeBUMPs(beefBytes)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	transactions, err := decodeTransactionsWithPathIndexes(remainingBytes)
+	transactions, remainingBytes, err := decodeTransactionsWithPathIndexes(remainingBytes)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	decodedBeef := &BEEF{
@@ -69,7 +69,7 @@ func DecodeBEEF(beefHex []byte) (*bt.Tx, *BEEF, error) {
 		Transactions: transactions,
 	}
 
-	return decodedBeef.GetLatestTx(), decodedBeef, nil
+	return decodedBeef.GetLatestTx(), decodedBeef, remainingBytes, nil
 }
 
 func (d *BEEF) GetLatestTx() *bt.Tx {
@@ -190,11 +190,11 @@ func decodeBUMPLevel(nLeaves bt.VarInt, hexBytes []byte) ([]BUMPLeaf, []byte, er
 	return bumpPath, hexBytes, nil
 }
 
-func decodeTransactionsWithPathIndexes(bytes []byte) ([]*TxData, error) {
+func decodeTransactionsWithPathIndexes(bytes []byte) ([]*TxData, []byte, error) {
 	nTransactions, offset := bt.NewVarIntFromBytes(bytes)
 
 	if nTransactions < 2 {
-		return nil, errors.New("invalid BEEF- not enough transactions provided to decode BEEF")
+		return nil, nil, errors.New("invalid BEEF- not enough transactions provided to decode BEEF")
 	}
 
 	bytes = bytes[offset:]
@@ -204,7 +204,7 @@ func decodeTransactionsWithPathIndexes(bytes []byte) ([]*TxData, error) {
 	for i := 0; i < int(nTransactions); i++ {
 		tx, offset, err := bt.NewTxFromStream(bytes)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		bytes = bytes[offset:]
 
@@ -218,7 +218,7 @@ func decodeTransactionsWithPathIndexes(bytes []byte) ([]*TxData, error) {
 		case HasNoBump:
 			bytes = bytes[1:]
 		default:
-			return nil, fmt.Errorf("invalid HasCMP flag for transaction at index %d", i)
+			return nil, nil, fmt.Errorf("invalid HasCMP flag for transaction at index %d", i)
 		}
 
 		transactions = append(transactions, &TxData{
@@ -227,7 +227,7 @@ func decodeTransactionsWithPathIndexes(bytes []byte) ([]*TxData, error) {
 		})
 	}
 
-	return transactions, nil
+	return transactions, bytes, nil
 }
 
 func extractBytesWithoutVersionAndMarker(beefBytes []byte) ([]byte, error) {

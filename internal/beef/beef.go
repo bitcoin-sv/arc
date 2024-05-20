@@ -38,6 +38,10 @@ type BEEF struct {
 }
 
 func CheckBeefFormat(txHex []byte) bool {
+	if len(txHex) < versionBytesCount+markerBytesCount {
+		return false
+	}
+
 	// removes version bytes
 	txHex = txHex[versionBytesCount:]
 

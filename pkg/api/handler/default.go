@@ -2,11 +2,8 @@ package handler
 
 import (
 	"context"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -130,7 +127,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	transaction, response, responseErr := m.processTransaction(ctx.Request().Context(), transactionHex, transactionOptions)
 	if responseErr != nil {
 		// if an error is returned, the processing failed, and we should return a 500 error
-		return ctx.JSON(response.Status, response)
+		return ctx.JSON(responseErr.Status, responseErr)
 	}
 
 	sizingInfo := make([][]uint64, 1)
@@ -180,7 +177,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		return ctx.JSON(e.Status, e)
 	}
 
-	txsHexes, e := parseTransactionFromRequest(ctx.Request())
+	txsHexes, e := parseTransactionsFromRequest(ctx.Request())
 	if e != nil {
 		return ctx.JSON(e.Status, e)
 	}
@@ -262,42 +259,6 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 	return transactionOptions, nil
 }
 
-func parseTransactionFromRequest(request *http.Request) ([]byte, *api.ErrorFields) {
-	requestBody := request.Body
-	contentType := request.Header.Get("Content-Type")
-
-	body, err := io.ReadAll(requestBody)
-	if err != nil {
-		return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-	}
-
-	var txHex []byte
-
-	switch contentType {
-	case "text/plain":
-		txHex, err = hex.DecodeString(string(body))
-		if err != nil {
-			return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-		}
-	case "application/json":
-		var txBody api.POSTTransactionJSONRequestBody
-		if err = json.Unmarshal(body, &txBody); err != nil {
-			return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-		}
-
-		txHex, err = hex.DecodeString(txBody.RawTx)
-		if err != nil {
-			return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-		}
-	case "application/octet-stream":
-		txHex = body
-	default:
-		return nil, api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("given content-type %s does not match any of the allowed content-types", contentType))
-	}
-
-	return txHex, nil
-}
-
 func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHex []byte, transactionOptions *metamorph.TransactionOptions) (*bt.Tx, *api.TransactionResponse, *api.ErrorFields) {
 	txValidator := defaultValidator.New(m.NodePolicy)
 	isBeefFormat := txValidator.IsBeef(transactionHex)
@@ -318,7 +279,8 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHe
 			return nil, nil, arcError
 		}
 	} else {
-		transaction, err := bt.NewTxFromBytes(transactionHex)
+		var err error
+		transaction, err = bt.NewTxFromBytes(transactionHex)
 		if err != nil {
 			return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 		}
@@ -369,7 +331,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 
 	txValidator := defaultValidator.New(m.NodePolicy)
 
-	for {
+	for len(transactionsHexes) != 0 {
 		var transaction *bt.Tx
 		isBeefFormat := txValidator.IsBeef(transactionsHexes)
 
@@ -391,7 +353,11 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 				continue
 			}
 		} else {
-			transaction, bytesUsed, err := bt.NewTxFromStream(transactionsHexes)
+			var bytesUsed int
+			var err error
+
+			m.logger.Info("TX", slog.String("hex", string(transactionsHexes)), slog.Int("len", len(transactionsHexes)))
+			transaction, bytesUsed, err = bt.NewTxFromStream(transactionsHexes)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			}
@@ -406,10 +372,6 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 
 		transactions = append(transactions, transaction)
 		transactionsBytes = append(transactionsBytes, transaction.Bytes())
-
-		if len(transactionsHexes) == 0 {
-			break
-		}
 	}
 
 	// submit all the validated array of transactions to metamorph endpoint

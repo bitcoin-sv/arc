@@ -295,21 +295,21 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			contentType: contentTypes[0],
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "EOF"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "no transaction found - empty request body"),
 		},
 		{
 			name:        "invalid tx - application/json",
 			contentType: contentTypes[1],
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "unexpected end of JSON input"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "no transaction found - empty request body"),
 		},
 		{
 			name:        "empty tx - application/octet-stream",
 			contentType: contentTypes[2],
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "EOF"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "no transaction found - empty request body"),
 		},
 		{
 			name:        "invalid mime type",
@@ -701,7 +701,6 @@ func Test_calcFeesFromBSVPerKB(t *testing.T) {
 }
 
 func TestArcDefaultHandler_extendTransaction(t *testing.T) {
-
 	tests := []struct {
 		name          string
 		transaction   string
@@ -724,7 +723,6 @@ func TestArcDefaultHandler_extendTransaction(t *testing.T) {
 	ctx := context.Background()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			count := 0
 			node := &mock.TransactionHandlerMock{GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
 				if count == 0 && tt.missingParent {

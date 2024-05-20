@@ -568,7 +568,7 @@ func TestStartGRPCServer(t *testing.T) {
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{}, nil
 				},
-				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
 
 			processor := &mocks.ProcessorIMock{

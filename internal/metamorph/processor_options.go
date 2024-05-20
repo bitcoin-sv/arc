@@ -50,6 +50,12 @@ func WithProcessExpiredTxsInterval(d time.Duration) func(*Processor) {
 	}
 }
 
+func WithMaxRetries(maxRetries int) func(*Processor) {
+	return func(p *Processor) {
+		p.maxRetries = maxRetries
+	}
+}
+
 func WithLockTxsInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.lockTransactionsInterval = d
@@ -90,5 +96,11 @@ func WithCallbackSender(callbackSender CallbackSender) func(processor *Processor
 func WithStatCollectionInterval(statCollectionInterval time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.statCollectionInterval = statCollectionInterval
+	}
+}
+
+func WithMinimumHealthyConnections(minimumHealthyConnections int) func(*Processor) {
+	return func(p *Processor) {
+		p.minimumHealthyConnections = minimumHealthyConnections
 	}
 }

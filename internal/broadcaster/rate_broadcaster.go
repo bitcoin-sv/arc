@@ -808,7 +808,7 @@ func (b *RateBroadcaster) broadcastBatch(ctx context.Context, txs []*bt.Tx, resu
 	resp, err := b.client.BroadcastTransactions(ctxWithTimeout, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, skipFeeValidation)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			b.logger.Error("broadcasting canceled", slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
+			b.logger.Debug("broadcasting canceled", slog.String("address", b.fundingKeyset.Address(!b.isTestnet)))
 			return
 		}
 		errCh <- err

@@ -53,26 +53,10 @@ func New(dbInfo string, hostname string, idleConns int, maxOpenConns int, opts .
 	return p, nil
 }
 
-func (p *PostgreSQL) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
-	var hashSlice [][]byte
-	for _, hash := range hashes {
-		hashSlice = append(hashSlice, hash[:])
-	}
-
-	q := `UPDATE metamorph.transactions SET locked_by = 'NONE' WHERE hash = ANY($1);`
-
-	_, err := p.db.ExecContext(ctx, q, pq.Array(hashSlice))
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error) {
-	q := "UPDATE metamorph.transactions SET locked_by = 'NONE' WHERE locked_by = $1;"
+	q := "UPDATE metamorph.transactions SET locked_by = 'NONE' WHERE locked_by = $1 AND (status < $2 OR status = $3);"
 
-	rows, err := p.db.ExecContext(ctx, q, lockedBy)
+	rows, err := p.db.ExecContext(ctx, q, lockedBy, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
 	if err != nil {
 		return 0, err
 	}
@@ -463,7 +447,9 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 				AS t(hash, status, reject_reason)
 			) AS bulk_query
 			WHERE
-			metamorph.transactions.hash=bulk_query.hash AND metamorph.transactions.status != $4 AND metamorph.transactions.status != $5
+			metamorph.transactions.hash=bulk_query.hash
+				AND ( metamorph.transactions.status < bulk_query.status OR ( metamorph.transactions.status = $5 AND bulk_query.status = $4 ))
+			    AND metamorph.transactions.status != $6
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.announced_at
 		,metamorph.transactions.mined_at
@@ -495,7 +481,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_MINED)
+	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, metamorph_api.Status_MINED)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			return nil, err

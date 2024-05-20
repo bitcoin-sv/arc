@@ -32,7 +32,7 @@ func TestNewProcessor(t *testing.T) {
 		GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 			return &store.StoreData{Hash: testdata.TX2Hash}, nil
 		},
-		SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+		SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 	}
 
 	pm := &mocks.PeerManagerMock{}
@@ -116,6 +116,7 @@ func TestStartLockTransactions(t *testing.T) {
 					require.Equal(t, int64(5000), limit)
 					return tc.setLockedErr
 				},
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
 
 			pm := &mocks.PeerManagerMock{}
@@ -430,9 +431,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
-				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
-					return nil
-				},
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 				UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
 					if len(tc.updateResp) > 0 {
 						counter++
@@ -494,8 +493,9 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 func TestProcessExpiredTransactions(t *testing.T) {
 	tt := []struct {
-		name    string
-		retries int
+		name          string
+		retries       int
+		getUnminedErr error
 
 		expectedRequests      int
 		expectedAnnouncements int
@@ -504,46 +504,60 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			name:    "expired txs",
 			retries: 4,
 
-			expectedAnnouncements: 4,
-			expectedRequests:      0,
+			expectedAnnouncements: 2,
+			expectedRequests:      2,
 		},
 		{
 			name:    "expired txs - max retries exceeded",
 			retries: 16,
 
 			expectedAnnouncements: 0,
-			expectedRequests:      4,
+			expectedRequests:      0,
+		},
+		{
+			name:          "error - get unmined",
+			retries:       4,
+			getUnminedErr: errors.New("failed to get unmined"),
+
+			expectedAnnouncements: 0,
+			expectedRequests:      0,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 
+			retries := tc.retries
+
 			metamorphStore := &mocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
-				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 					if offset != 0 {
 						return nil, nil
 					}
-					return []*store.StoreData{
+					unminedData := []*store.StoreData{
 						{
 							StoredAt:    time.Now(),
 							AnnouncedAt: time.Now(),
 							Hash:        testdata.TX4Hash,
 							Status:      metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-							Retries:     tc.retries,
+							Retries:     retries,
 						},
 						{
 							StoredAt:    time.Now(),
 							AnnouncedAt: time.Now(),
 							Hash:        testdata.TX5Hash,
 							Status:      metamorph_api.Status_STORED,
-							Retries:     tc.retries,
+							Retries:     retries,
 						},
-					}, nil
+					}
+
+					retries++
+
+					return unminedData, tc.getUnminedErr
 				},
 				IncrementRetriesFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 					return nil
@@ -570,6 +584,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			processor, err := metamorph.NewProcessor(metamorphStore, pm,
 				metamorph.WithMessageQueueClient(publisher),
 				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
+				metamorph.WithMaxRetries(10),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
 				}),
@@ -631,6 +646,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 					}
 					return []*store.StoreData{{CallbackUrl: "http://callback.com"}, {CallbackUrl: "http://callback.com"}, {}}, tc.updateMinedErr
 				},
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
 			pm := &mocks.PeerManagerMock{}
 			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 5)
@@ -673,7 +689,7 @@ func TestProcessorHealth(t *testing.T) {
 			name:       "1 healthy peer",
 			peersAdded: 1,
 
-			expectedErr: nil,
+			expectedErr: metamorph.ErrUnhealthy,
 		},
 	}
 
@@ -683,7 +699,7 @@ func TestProcessorHealth(t *testing.T) {
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
-				SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error { return nil },
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 					if offset != 0 {
 						return nil, nil

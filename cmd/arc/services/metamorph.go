@@ -83,7 +83,17 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
+	minimumHealthyConnections, err := cfg.GetInt("metamorph.health.minimumHealthyConnections")
+	if err != nil {
+		return nil, err
+	}
+
 	natsURL, err := cfg.GetString("queueURL")
+	if err != nil {
+		return nil, err
+	}
+
+	maxRetries, err := cfg.GetInt("metamorph.maxRetries")
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +140,10 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),
 		metamorph.WithCallbackSender(metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})),
-		metamorph.WithStatTimeLimits(statsNotSeenTimeLimit, statsNotMinedTimeLimit))
+		metamorph.WithStatTimeLimits(statsNotSeenTimeLimit, statsNotMinedTimeLimit),
+		metamorph.WithMaxRetries(maxRetries),
+		metamorph.WithMinimumHealthyConnections(minimumHealthyConnections),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +299,7 @@ func StartHealthServerMetamorph(serv *metamorph.Server, logger *slog.Logger) (*g
 	// register your own services
 	reflection.Register(gs)
 
-	address, err := cfg.GetString("metamorph.healthServerDialAddr") //"localhost:8005"
+	address, err := cfg.GetString("metamorph.health.serverDialAddr") //"localhost:8005"
 	if err != nil {
 		return nil, err
 	}

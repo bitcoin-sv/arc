@@ -55,9 +55,6 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			SetLockedFunc: func(ctx context.Context, since time.Time, limit int64) error {
 //				panic("mock out the SetLocked method")
 //			},
-//			SetUnlockedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
-//				panic("mock out the SetUnlocked method")
-//			},
 //			SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
 //				panic("mock out the SetUnlockedByName method")
 //			},
@@ -106,9 +103,6 @@ type MetamorphStoreMock struct {
 
 	// SetLockedFunc mocks the SetLocked method.
 	SetLockedFunc func(ctx context.Context, since time.Time, limit int64) error
-
-	// SetUnlockedFunc mocks the SetUnlocked method.
-	SetUnlockedFunc func(ctx context.Context, hashes []*chainhash.Hash) error
 
 	// SetUnlockedByNameFunc mocks the SetUnlockedByName method.
 	SetUnlockedByNameFunc func(ctx context.Context, lockedBy string) (int64, error)
@@ -212,13 +206,6 @@ type MetamorphStoreMock struct {
 			// Limit is the limit argument value.
 			Limit int64
 		}
-		// SetUnlocked holds details about calls to the SetUnlocked method.
-		SetUnlocked []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Hashes is the hashes argument value.
-			Hashes []*chainhash.Hash
-		}
 		// SetUnlockedByName holds details about calls to the SetUnlockedByName method.
 		SetUnlockedByName []struct {
 			// Ctx is the ctx argument value.
@@ -252,7 +239,6 @@ type MetamorphStoreMock struct {
 	lockPing              sync.RWMutex
 	lockSet               sync.RWMutex
 	lockSetLocked         sync.RWMutex
-	lockSetUnlocked       sync.RWMutex
 	lockSetUnlockedByName sync.RWMutex
 	lockUpdateMined       sync.RWMutex
 	lockUpdateStatusBulk  sync.RWMutex
@@ -679,42 +665,6 @@ func (mock *MetamorphStoreMock) SetLockedCalls() []struct {
 	mock.lockSetLocked.RLock()
 	calls = mock.calls.SetLocked
 	mock.lockSetLocked.RUnlock()
-	return calls
-}
-
-// SetUnlocked calls SetUnlockedFunc.
-func (mock *MetamorphStoreMock) SetUnlocked(ctx context.Context, hashes []*chainhash.Hash) error {
-	if mock.SetUnlockedFunc == nil {
-		panic("MetamorphStoreMock.SetUnlockedFunc: method is nil but MetamorphStore.SetUnlocked was just called")
-	}
-	callInfo := struct {
-		Ctx    context.Context
-		Hashes []*chainhash.Hash
-	}{
-		Ctx:    ctx,
-		Hashes: hashes,
-	}
-	mock.lockSetUnlocked.Lock()
-	mock.calls.SetUnlocked = append(mock.calls.SetUnlocked, callInfo)
-	mock.lockSetUnlocked.Unlock()
-	return mock.SetUnlockedFunc(ctx, hashes)
-}
-
-// SetUnlockedCalls gets all the calls that were made to SetUnlocked.
-// Check the length with:
-//
-//	len(mockedMetamorphStore.SetUnlockedCalls())
-func (mock *MetamorphStoreMock) SetUnlockedCalls() []struct {
-	Ctx    context.Context
-	Hashes []*chainhash.Hash
-} {
-	var calls []struct {
-		Ctx    context.Context
-		Hashes []*chainhash.Hash
-	}
-	mock.lockSetUnlocked.RLock()
-	calls = mock.calls.SetUnlocked
-	mock.lockSetUnlocked.RUnlock()
 	return calls
 }
 

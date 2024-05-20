@@ -43,12 +43,15 @@ metamorph:
       maxOpenConns: 80
       sslMode: disable
   processorCacheExpiryTime: 24h
+  maxRetries: 1000
   processStatusUpdateInterval: 50ms
   checkSeenOnNetworkOlderThan: 3h
   checkSeenOnNetworkPeriod: 4h
   checkUtxos: false
   profilerAddr: localhost:9992
-  healthServerDialAddr: localhost:8005
+  health:
+    serverDialAddr: localhost:8005
+    minimumHealthyConnections: 2
   rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
   stats:
     notSeenTimeLimit: 10m

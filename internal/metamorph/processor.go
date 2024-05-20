@@ -3,6 +3,7 @@ package metamorph
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"runtime/debug"
@@ -18,8 +19,8 @@ import (
 )
 
 const (
-	// MaxRetries number of times we will retry announcing transaction if we haven't seen it on the network
-	MaxRetries = 15
+	// maxRetriesDefault number of times we will retry announcing transaction if we haven't seen it on the network
+	maxRetriesDefault = 1000
 	// length of interval for checking transactions if they are seen on the network
 	// if not we resend them again for a few times
 	unseenTransactionRebroadcastingInterval    = 60 * time.Second
@@ -30,31 +31,29 @@ const (
 	seenOnNetworkTxTimeUntilDefault = 2 * time.Hour
 	LogLevelDefault                 = slog.LevelInfo
 
-	loadUnminedLimit          = int64(5000)
-	loadSeenOnNetworkLimit    = int64(5000)
-	minimumHealthyConnections = 2
+	loadUnminedLimit                 = int64(5000)
+	loadSeenOnNetworkLimit           = int64(5000)
+	minimumHealthyConnectionsDefault = 2
 
 	processStatusUpdatesIntervalDefault  = 500 * time.Millisecond
 	processStatusUpdatesBatchSizeDefault = 1000
 )
 
-var (
-	ErrUnhealthy = errors.New("processor has less than 2 healthy peer connections")
-)
-
 type Processor struct {
-	store                    store.MetamorphStore
-	ProcessorResponseMap     *ProcessorResponseMap
-	pm                       p2p.PeerManagerI
-	mqClient                 MessageQueueClient
-	logger                   *slog.Logger
-	mapExpiryTime            time.Duration
-	seenOnNetworkTxTime      time.Duration
-	seenOnNetworkTxTimeUntil time.Duration
-	now                      func() time.Time
-	stats                    *processorStats
-
-	callbackSender CallbackSender
+	store                     store.MetamorphStore
+	hostname                  string
+	ProcessorResponseMap      *ProcessorResponseMap
+	pm                        p2p.PeerManagerI
+	mqClient                  MessageQueueClient
+	logger                    *slog.Logger
+	mapExpiryTime             time.Duration
+	seenOnNetworkTxTime       time.Duration
+	seenOnNetworkTxTimeUntil  time.Duration
+	now                       func() time.Time
+	stats                     *processorStats
+	maxRetries                int
+	minimumHealthyConnections int
+	callbackSender            CallbackSender
 
 	cancelCollectStats       context.CancelFunc
 	quitCollectStatsComplete chan struct{}
@@ -98,13 +97,21 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		return nil, errors.New("peer manager cannot be nil")
 	}
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+
 	p := &Processor{
-		store:                    s,
-		pm:                       pm,
-		mapExpiryTime:            mapExpiryTimeDefault,
-		seenOnNetworkTxTime:      seenOnNetworkTxTimeDefault,
-		seenOnNetworkTxTimeUntil: seenOnNetworkTxTimeUntilDefault,
-		now:                      time.Now,
+		store:                     s,
+		hostname:                  hostname,
+		pm:                        pm,
+		mapExpiryTime:             mapExpiryTimeDefault,
+		seenOnNetworkTxTime:       seenOnNetworkTxTimeDefault,
+		seenOnNetworkTxTimeUntil:  seenOnNetworkTxTimeUntilDefault,
+		now:                       time.Now,
+		maxRetries:                maxRetriesDefault,
+		minimumHealthyConnections: minimumHealthyConnectionsDefault,
 
 		processExpiredTxsInterval:       unseenTransactionRebroadcastingInterval,
 		processSeenOnNetworkTxsInterval: seenOnNetworkTransactionRequestingInterval,
@@ -138,7 +145,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 func (p *Processor) Shutdown() {
 	p.logger.Info("Shutting down processor")
 
-	err := p.unlockItems()
+	err := p.unlockRecords()
 	if err != nil {
 		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
 	}
@@ -174,23 +181,12 @@ func (p *Processor) Shutdown() {
 	}
 }
 
-func (p *Processor) unlockItems() error {
-	items := p.ProcessorResponseMap.Items()
-	hashes := make([]*chainhash.Hash, len(items))
-	index := 0
-	for key := range items {
-		hash, err := chainhash.NewHash(key.CloneBytes())
-		if err != nil {
-			return err
-		}
-		hashes[index] = hash
-		index++
+func (p *Processor) unlockRecords() error {
+	unlockedItems, err := p.store.SetUnlockedByName(context.Background(), p.hostname)
+	if err != nil {
+		return err
 	}
-
-	if len(hashes) > 0 {
-		p.logger.Info("unlocking items", slog.Int("number", len(hashes)))
-		return p.store.SetUnlocked(context.Background(), hashes)
-	}
+	p.logger.Info("unlocked items", slog.Int64("number", unlockedItems))
 
 	return nil
 }
@@ -408,12 +404,14 @@ func (p *Processor) StartProcessExpiredTransactions() {
 				getUnminedSince := p.now().Add(-1 * p.mapExpiryTime)
 				var offset int64
 
+				requested := 0
+				announced := 0
 				for {
 					// get all transactions since then chunk by chunk
 					unminedTxs, err := p.store.GetUnmined(ctx, getUnminedSince, loadUnminedLimit, offset)
 					if err != nil {
 						p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
-						continue
+						break
 					}
 
 					offset += loadUnminedLimit
@@ -422,21 +420,32 @@ func (p *Processor) StartProcessExpiredTransactions() {
 					}
 
 					for _, tx := range unminedTxs {
+						if tx.Retries > p.maxRetries {
+							continue
+						}
+
 						// mark that we retried processing this transaction once more
 						if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
 							p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
 						}
 
-						if tx.Retries > MaxRetries {
+						// every second time request tx, every other time announce tx
+						if tx.Retries%2 == 0 {
 							// Sending GETDATA to peers to see if they have it
 							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.RequestTransaction(tx.Hash)
-
-						} else {
-							p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
-							p.pm.AnnounceTransaction(tx.Hash, nil)
+							requested++
+							continue
 						}
+
+						p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
+						p.pm.AnnounceTransaction(tx.Hash, nil)
+						announced++
 					}
+				}
+
+				if announced > 0 || requested > 0 {
+					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested))
 				}
 			}
 		}
@@ -590,6 +599,10 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	}
 }
 
+var (
+	ErrUnhealthy = fmt.Errorf("processor has less than %d healthy peer connections", minimumHealthyConnectionsDefault)
+)
+
 func (p *Processor) Health() error {
 	healthyConnections := 0
 
@@ -599,13 +612,8 @@ func (p *Processor) Health() error {
 		}
 	}
 
-	if healthyConnections < minimumHealthyConnections {
-		p.logger.Warn("Less than expected healthy peers", slog.Int("number", healthyConnections))
-		return nil
-	}
-
-	if healthyConnections == 0 {
-		p.logger.Error("Metamorph not healthy")
+	if healthyConnections < p.minimumHealthyConnections {
+		p.logger.Warn("Less than expected healthy peers", slog.Int("connections", healthyConnections))
 		return ErrUnhealthy
 	}
 

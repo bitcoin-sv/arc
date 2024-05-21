@@ -34,10 +34,14 @@ var (
 		echo.MIMEApplicationJSON,
 		echo.MIMEOctetStream,
 	}
-	validTx         = "0100000001358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffff02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
-	validTxBytes, _ = hex.DecodeString(validTx)
-	validExtendedTx = "010000000000000000ef01358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffffc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
-	validTxID       = "a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"
+	validTx                = "0100000001358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffff02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
+	validTxBytes, _        = hex.DecodeString(validTx)
+	validExtendedTx        = "010000000000000000ef01358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffffc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
+	validTxID              = "a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"
+	validBeef              = "0100beef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000000"
+	validBeefBytes, _      = hex.DecodeString(validBeef)
+	validBeefTxID          = "157428aee67d11123203735e4c540fa1bdab3b36d5882c6f8c5ff79f07d20d1c"
+	invalidBeefNoBUMPIndex = "0100beef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001"
 
 	inputTxLowFees         = "0100000001fbbe01d83cb1f53a63ef91c0fce5750cbd8075efef5acd2ff229506a45ab832c010000006a473044022064be2f304950a87782b44e772390836aa613f40312a0df4993e9c5123d0c492d02202009b084b66a3da939fb7dc5d356043986539cac4071372d0a6481d5b5e418ca412103fc12a81e5213e30c7facc15581ac1acbf26a8612a3590ffb48045084b097d52cffffffff02bf010000000000001976a914c2ca67db517c0c972b9a6eb1181880ed3a528e3188acD0070000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac00000000"
 	inputTxLowFeesBytes, _ = hex.DecodeString(inputTxLowFees)
@@ -277,6 +281,8 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	errFieldValidation := *api.NewErrorFields(api.ErrStatusFees, "arc error 465: transaction fee of 0 sat is too low - minimum expected fee is 0 sat")
 	errFieldValidation.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
+	errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error decoding BEEF: invalid BEEF - HasBUMP flag set, but no BUMP index")
+
 	now := time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC)
 
 	tt := []struct {
@@ -404,6 +410,92 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				Title:       "OK",
 				TxStatus:    "SEEN_ON_NETWORK",
 				Txid:        validTxID,
+			},
+		},
+		{
+			name:        "invalid BEEF - text/plain",
+			contentType: contentTypes[0],
+			txHexString: invalidBeefNoBUMPIndex,
+
+			expectedStatus:   463,
+			expectedResponse: errBEEFDecode,
+		},
+		{
+			name:        "valid BEEF - success - text/plain",
+			contentType: contentTypes[0],
+			txHexString: validBeef,
+
+			submitTxResponse: &metamorph.TransactionStatus{
+				TxID:        validBeefTxID,
+				BlockHash:   "",
+				BlockHeight: 0,
+				Status:      "SEEN_ON_NETWORK",
+				Timestamp:   time.Now().Unix(),
+			},
+
+			expectedStatus: 200,
+			expectedResponse: api.TransactionResponse{
+				BlockHash:   PtrTo(""),
+				BlockHeight: PtrTo(uint64(0)),
+				ExtraInfo:   PtrTo(""),
+				MerklePath:  PtrTo(""),
+				Status:      200,
+				Timestamp:   now,
+				Title:       "OK",
+				TxStatus:    "SEEN_ON_NETWORK",
+				Txid:        validBeefTxID,
+			},
+		},
+		{
+			name:        "valid BEEF - success - application/json",
+			contentType: contentTypes[1],
+			txHexString: fmt.Sprintf("{\"rawTx\": \"%s\"}", validBeef),
+
+			submitTxResponse: &metamorph.TransactionStatus{
+				TxID:        validBeefTxID,
+				BlockHash:   "",
+				BlockHeight: 0,
+				Status:      "SEEN_ON_NETWORK",
+				Timestamp:   time.Now().Unix(),
+			},
+
+			expectedStatus: 200,
+			expectedResponse: api.TransactionResponse{
+				BlockHash:   PtrTo(""),
+				BlockHeight: PtrTo(uint64(0)),
+				ExtraInfo:   PtrTo(""),
+				MerklePath:  PtrTo(""),
+				Status:      200,
+				Timestamp:   now,
+				Title:       "OK",
+				TxStatus:    "SEEN_ON_NETWORK",
+				Txid:        validBeefTxID,
+			},
+		},
+		{
+			name:        "valid BEEF - success - application/octet-stream",
+			contentType: contentTypes[2],
+			txHexString: string(validBeefBytes),
+
+			submitTxResponse: &metamorph.TransactionStatus{
+				TxID:        validBeefTxID,
+				BlockHash:   "",
+				BlockHeight: 0,
+				Status:      "SEEN_ON_NETWORK",
+				Timestamp:   time.Now().Unix(),
+			},
+
+			expectedStatus: 200,
+			expectedResponse: api.TransactionResponse{
+				BlockHash:   PtrTo(""),
+				BlockHeight: PtrTo(uint64(0)),
+				ExtraInfo:   PtrTo(""),
+				MerklePath:  PtrTo(""),
+				Status:      200,
+				Timestamp:   now,
+				Title:       "OK",
+				TxStatus:    "SEEN_ON_NETWORK",
+				Txid:        validBeefTxID,
 			},
 		},
 	}
@@ -630,6 +722,142 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			_ = json.Unmarshal(b, &bResponse)
 
 			require.Equal(t, validTxID, bResponse[0].Txid)
+		}
+	})
+
+	t.Run("invalid tx - beef", func(t *testing.T) {
+		errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error decoding BEEF: invalid BEEF - HasBUMP flag set, but no BUMP index")
+		// set the node/metamorph responses for the 3 test requests
+		txHandler := &mock.TransactionHandlerMock{
+			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+				return nil, nil
+			},
+
+			HealthFunc: func(ctx context.Context) error {
+				return nil
+			},
+		}
+
+		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
+		require.NoError(t, err)
+
+		invalidBeefNoBUMPIndexBytes, _ := hex.DecodeString(invalidBeefNoBUMPIndex)
+		inputTxs := map[string]io.Reader{
+			echo.MIMETextPlain:       strings.NewReader(invalidBeefNoBUMPIndex + "\n"),
+			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + invalidBeefNoBUMPIndex + "\"}]"),
+			echo.MIMEOctetStream:     bytes.NewReader(invalidBeefNoBUMPIndexBytes),
+		}
+
+		for contentType, inputTx := range inputTxs {
+			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
+			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
+			require.NoError(t, err)
+			assert.Equal(t, int(api.ErrStatusMalformed), rec.Code)
+
+			b := rec.Body.Bytes()
+			var bResponse api.ErrorFields
+			_ = json.Unmarshal(b, &bResponse)
+
+			require.Equal(t, errBEEFDecode, bResponse)
+		}
+	})
+
+	t.Run("valid tx - beef", func(t *testing.T) {
+		txResult := &metamorph.TransactionStatus{
+			TxID:        validBeefTxID,
+			BlockHash:   "",
+			BlockHeight: 0,
+			Status:      "OK",
+			Timestamp:   time.Now().Unix(),
+		}
+		// set the node/metamorph responses for the 3 test requests
+		txHandler := &mock.TransactionHandlerMock{
+			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+				txStatuses := []*metamorph.TransactionStatus{txResult}
+				return txStatuses, nil
+			},
+
+			HealthFunc: func(ctx context.Context) error {
+				return nil
+			},
+		}
+
+		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
+		require.NoError(t, err)
+
+		inputTxs := map[string]io.Reader{
+			echo.MIMETextPlain:       strings.NewReader(validBeef + "\n"),
+			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validBeef + "\"}]"),
+			echo.MIMEOctetStream:     bytes.NewReader(validBeefBytes),
+		}
+
+		for contentType, inputTx := range inputTxs {
+			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
+			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusOK, rec.Code)
+
+			b := rec.Body.Bytes()
+			var bResponse []api.TransactionResponse
+			_ = json.Unmarshal(b, &bResponse)
+
+			require.Equal(t, validBeefTxID, bResponse[0].Txid)
+		}
+	})
+
+	t.Run("multiple formats - success", func(t *testing.T) {
+		txResults := []*metamorph.TransactionStatus{
+			{
+				TxID:        validTxID,
+				BlockHash:   "",
+				BlockHeight: 0,
+				Status:      "OK",
+				Timestamp:   time.Now().Unix(),
+			},
+			{
+				TxID:        validBeefTxID,
+				BlockHash:   "",
+				BlockHeight: 0,
+				Status:      "OK",
+				Timestamp:   time.Now().Unix(),
+			},
+		}
+		// set the node/metamorph responses for the 3 test requests
+		txHandler := &mock.TransactionHandlerMock{
+			GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
+				return inputTxLowFeesBytes, nil
+			},
+
+			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+				return txResults, nil
+			},
+
+			HealthFunc: func(ctx context.Context) error {
+				return nil
+			},
+		}
+
+		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
+		require.NoError(t, err)
+
+		inputTxs := map[string]io.Reader{
+			echo.MIMETextPlain:       strings.NewReader(validTx + "\n" + validBeef + "\n"),
+			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validTx + "\"}, {\"rawTx\":\"" + validBeef + "\"}]"),
+			echo.MIMEOctetStream:     bytes.NewReader(append(validTxBytes, validBeefBytes...)),
+		}
+
+		for contentType, inputTx := range inputTxs {
+			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
+			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusOK, rec.Code)
+
+			b := rec.Body.Bytes()
+			var bResponse []api.TransactionResponse
+			_ = json.Unmarshal(b, &bResponse)
+
+			require.Equal(t, validTxID, bResponse[0].Txid)
+			require.Equal(t, validBeefTxID, bResponse[1].Txid)
 		}
 	})
 }

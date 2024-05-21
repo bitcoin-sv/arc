@@ -101,6 +101,10 @@ func decodeBUMPs(beefBytes []byte) ([]*BUMP, []byte, error) {
 		blockHeight, bytesUsed := bt.NewVarIntFromBytes(beefBytes)
 		beefBytes = beefBytes[bytesUsed:]
 
+		if len(beefBytes) == 0 {
+			return nil, nil, errors.New("insufficient bytes to extract BUMP treeHeight")
+		}
+
 		treeHeight := beefBytes[0]
 		if int(treeHeight) > maxTreeHeight {
 			return nil, nil, fmt.Errorf("invalid BEEF - treeHeight cannot be grater than %d", maxTreeHeight)
@@ -195,6 +199,10 @@ func decodeBUMPLevel(nLeaves bt.VarInt, hexBytes []byte) ([]BUMPLeaf, []byte, er
 }
 
 func decodeTransactionsWithPathIndexes(bytes []byte) ([]*TxData, []byte, error) {
+	if len(bytes) == 0 {
+		return nil, nil, errors.New("invalid BEEF - no transaction")
+	}
+
 	nTransactions, offset := bt.NewVarIntFromBytes(bytes)
 
 	if nTransactions < 2 {
@@ -212,13 +220,21 @@ func decodeTransactionsWithPathIndexes(bytes []byte) ([]*TxData, []byte, error) 
 		}
 		bytes = bytes[offset:]
 
+		if len(bytes) == 0 {
+			return nil, nil, errors.New("invalid BEEF - no HasBUMP flag")
+		}
+
 		var pathIndex *bt.VarInt
 
 		switch bytes[0] {
 		case HasBump:
-			value, offset := bt.NewVarIntFromBytes(bytes[1:])
+			bytes = bytes[1:]
+			if len(bytes) == 0 {
+				return nil, nil, errors.New("invalid BEEF - HasBUMP flag set, but no BUMP index")
+			}
+			value, offset := bt.NewVarIntFromBytes(bytes)
 			pathIndex = &value
-			bytes = bytes[1+offset:]
+			bytes = bytes[offset:]
 		case HasNoBump:
 			bytes = bytes[1:]
 		default:

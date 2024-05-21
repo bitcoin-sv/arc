@@ -266,18 +266,19 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHe
 	var transaction *bt.Tx
 
 	if isBeefFormat {
-		var beefTx *beef.BEEF
 		var err error
 
-		transaction, beefTx, _, err = beef.DecodeBEEF(transactionHex)
+		transaction, _, _, err = beef.DecodeBEEF(transactionHex)
 		if err != nil {
-			return nil, nil, api.NewErrorFields(api.ErrStatusTxFormat, err.Error())
+			errStr := fmt.Sprintf("error decoding BEEF: %s", err.Error())
+			return nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
 		}
 
-		if err := txValidator.ValidateBeef(beefTx); err != nil {
-			_, arcError := m.handleError(ctx, transaction, err)
-			return nil, nil, arcError
-		}
+		// TODO: validate BEEF in the next task
+		// if err := txValidator.ValidateBeef(beefTx); err != nil {
+		// 	_, arcError := m.handleError(ctx, transaction, err)
+		// 	return nil, nil, arcError
+		// }
 	} else {
 		var err error
 		transaction, err = bt.NewTxFromBytes(transactionHex)
@@ -336,27 +337,27 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		isBeefFormat := txValidator.IsBeef(transactionsHexes)
 
 		if isBeefFormat {
-			var beefTx *beef.BEEF
 			var err error
 			var remainingBytes []byte
 
-			transaction, beefTx, remainingBytes, err = beef.DecodeBEEF(transactionsHexes)
+			transaction, _, remainingBytes, err = beef.DecodeBEEF(transactionsHexes)
 			if err != nil {
-				return nil, nil, api.NewErrorFields(api.ErrStatusTxFormat, err.Error())
+				errStr := fmt.Sprintf("error decoding BEEF: %s", err.Error())
+				return nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
 			}
 
 			transactionsHexes = remainingBytes
 
-			if err := txValidator.ValidateBeef(beefTx); err != nil {
-				_, arcError := m.handleError(ctx, transaction, err)
-				txErrors = append(txErrors, arcError)
-				continue
-			}
+			// TODO: Validate BEEF in next task
+			// if err := txValidator.ValidateBeef(beefTx); err != nil {
+			// 	_, arcError := m.handleError(ctx, transaction, err)
+			// 	txErrors = append(txErrors, arcError)
+			// 	continue
+			// }
 		} else {
 			var bytesUsed int
 			var err error
 
-			m.logger.Info("TX", slog.String("hex", string(transactionsHexes)), slog.Int("len", len(transactionsHexes)))
 			transaction, bytesUsed, err = bt.NewTxFromStream(transactionsHexes)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
@@ -386,6 +387,10 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	transactionsOutputs := make([]interface{}, 0, len(transactions))
 
 	for ind, tx := range txStatuses {
+		txID := tx.TxID
+		if txID == "" {
+			txID = transactions[ind].TxID()
+		}
 		transactionsOutputs = append(transactionsOutputs, api.TransactionResponse{
 			Status:      int(api.StatusOK),
 			Title:       "OK",
@@ -394,7 +399,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 			TxStatus:    tx.Status,
 			ExtraInfo:   &txStatuses[ind].ExtraInfo,
 			Timestamp:   m.now(),
-			Txid:        transactions[ind].TxID(),
+			Txid:        txID,
 			MerklePath:  &txStatuses[ind].MerklePath,
 		})
 	}

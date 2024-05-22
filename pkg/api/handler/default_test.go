@@ -301,21 +301,21 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			contentType: contentTypes[0],
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "no transaction found - empty request body"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
 		},
 		{
 			name:        "invalid tx - application/json",
 			contentType: contentTypes[1],
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "no transaction found - empty request body"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
 		},
 		{
 			name:        "empty tx - application/octet-stream",
 			contentType: contentTypes[2],
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "no transaction found - empty request body"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
 		},
 		{
 			name:        "invalid mime type",
@@ -323,7 +323,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: validTx,
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "given content-type application/xml does not match any of the allowed content-types"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: given content-type application/xml does not match any of the allowed content-types"),
 		},
 		{
 			name:        "invalid tx - text/plain",
@@ -331,7 +331,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: "test",
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "encoding/hex: invalid byte: U+0074 't'"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: encoding/hex: invalid byte: U+0074 't'"),
 		},
 		{
 			name:        "invalid json - application/json",
@@ -339,7 +339,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: "test",
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "invalid character 'e' in literal true (expecting 'r')"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: invalid character 'e' in literal true (expecting 'r')"),
 		},
 		{
 			name:        "invalid tx - application/json",
@@ -614,8 +614,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		require.NoError(t, err)
 
 		expectedErrors := map[string]string{
-			echo.MIMETextPlain:       "encoding/hex: invalid byte: U+0074 't'",
-			echo.MIMEApplicationJSON: "invalid character 'e' in literal true (expecting 'r')",
+			echo.MIMETextPlain:       "error parsing transaction from request: encoding/hex: invalid byte: U+0074 't'",
+			echo.MIMEApplicationJSON: "error parsing transaction from request: invalid character 'e' in literal true (expecting 'r')",
 			echo.MIMEOctetStream:     "",
 		}
 

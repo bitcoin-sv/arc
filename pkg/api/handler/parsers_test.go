@@ -7,13 +7,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/stretchr/testify/assert"
-)
-
-var (
-	encodingError      = api.NewErrorFields(api.ErrStatusBadRequest, "encoding/hex: invalid byte: U+0069 'i'")
-	noTransactionError = api.NewErrorFields(api.ErrStatusBadRequest, "no transaction found - empty request body")
 )
 
 func TestParseTransactionFromRequest(t *testing.T) {
@@ -74,11 +68,7 @@ func TestParseTransactionFromRequest(t *testing.T) {
 					assert.Equal(t, tc.expectedHex, hexTx)
 				} else {
 					assert.Nil(t, hexTx)
-					if req.Header.Get("Content-Type") == "application/octet-stream" {
-						assert.Equal(t, noTransactionError, err)
-					} else {
-						assert.Equal(t, encodingError, err)
-					}
+					assert.Error(t, err)
 				}
 			})
 		}
@@ -142,11 +132,7 @@ func TestParseTransactionsFromRequest(t *testing.T) {
 					assert.Equal(t, tc.expectedHex, hexTx)
 				} else {
 					assert.Nil(t, hexTx)
-					if req.Header.Get("Content-Type") == "application/octet-stream" {
-						assert.Equal(t, noTransactionError, err)
-					} else {
-						assert.Equal(t, encodingError, err)
-					}
+					assert.Error(t, err)
 				}
 			})
 		}

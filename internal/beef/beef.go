@@ -27,8 +27,6 @@ const (
 type TxData struct {
 	Transaction *bt.Tx
 	BumpIndex   *bt.VarInt
-
-	txID string
 }
 
 type BEEF struct {

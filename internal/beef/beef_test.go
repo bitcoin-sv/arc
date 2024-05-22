@@ -158,7 +158,7 @@ func TestDecodeBEEF_DecodeBEEF_HandlingErrors(t *testing.T) {
 			name:                         "too short hex stream",
 			hexStream:                    "001",
 			expectedDecodedBEEF:          nil,
-			expectedError:                errors.New("invalid beef hex stream"),
+			expectedError:                errors.New("invalid format of transaction, BEEF marker not found"),
 			expectedCMPForTheOldestInput: false,
 		},
 		{

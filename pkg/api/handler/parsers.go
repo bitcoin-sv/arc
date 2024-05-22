@@ -1,95 +1,104 @@
 package handler
 
 import (
+	"bufio"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/labstack/echo/v4"
 )
 
-func parseTransactionFromRequest(request *http.Request) ([]byte, *api.ErrorFields) {
-	requestBody := request.Body
-	contentType := request.Header.Get("Content-Type")
+var errEmptyBody = errors.New("no transaction found - empty request body")
 
-	body, err := io.ReadAll(requestBody)
+func parseTransactionFromRequest(request *http.Request) ([]byte, error) {
+	body, err := io.ReadAll(request.Body)
 	if err != nil {
-		return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+		return nil, err
 	}
 
 	if len(body) == 0 {
-		return nil, api.NewErrorFields(api.ErrStatusBadRequest, "no transaction found - empty request body")
+		return nil, errEmptyBody
 	}
 
 	var txHex []byte
 
+	contentType := request.Header.Get(echo.HeaderContentType)
+
 	switch contentType {
-	case "text/plain":
+	case echo.MIMETextPlain:
 		txHex, err = hex.DecodeString(string(body))
 		if err != nil {
-			return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+			return nil, err
 		}
-	case "application/json":
+	case echo.MIMEApplicationJSON:
 		var txBody api.POSTTransactionJSONRequestBody
 		if err = json.Unmarshal(body, &txBody); err != nil {
-			return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+			return nil, err
 		}
 
 		txHex, err = hex.DecodeString(txBody.RawTx)
 		if err != nil {
-			return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+			return nil, err
 		}
-	case "application/octet-stream":
+	case echo.MIMEOctetStream:
 		txHex = body
 	default:
-		return nil, api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("given content-type %s does not match any of the allowed content-types", contentType))
+		return nil, fmt.Errorf("given content-type %s does not match any of the allowed content-types", contentType)
 	}
 
 	return txHex, nil
 }
 
-func parseTransactionsFromRequest(request *http.Request) ([]byte, *api.ErrorFields) {
-	requestBody := request.Body
-	contentType := request.Header.Get("Content-Type")
-
-	body, err := io.ReadAll(requestBody)
-	if err != nil {
-		return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-	}
-
-	if len(body) == 0 {
-		return nil, api.NewErrorFields(api.ErrStatusBadRequest, "no transaction found - empty request body")
-	}
-
+func parseTransactionsFromRequest(request *http.Request) ([]byte, error) {
 	var txHex []byte
 
+	contentType := request.Header.Get(echo.HeaderContentType)
+
 	switch contentType {
-	case "text/plain":
-		strBody := strings.ReplaceAll(string(body), "\n", "")
-		txHex, err = hex.DecodeString(strBody)
-		if err != nil {
-			return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+	case echo.MIMETextPlain:
+		scanner := bufio.NewScanner(request.Body)
+
+		for scanner.Scan() {
+			partialHex, err := hex.DecodeString(scanner.Text())
+			if err != nil {
+				return nil, err
+			}
+			txHex = append(txHex, partialHex...)
 		}
-	case "application/json":
+
+		if err := scanner.Err(); err != nil {
+			return nil, err
+		}
+	case echo.MIMEApplicationJSON:
 		var txBody api.POSTTransactionsJSONRequestBody
-		if err = json.Unmarshal(body, &txBody); err != nil {
-			return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+		if err := json.NewDecoder(request.Body).Decode(&txBody); err != nil {
+			return nil, err
 		}
 
 		for _, tx := range txBody {
 			partialHex, err := hex.DecodeString(tx.RawTx)
 			if err != nil {
-				return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+				return nil, err
 			}
 			txHex = append(txHex, partialHex...)
 		}
-	case "application/octet-stream":
+	case echo.MIMEOctetStream:
+		body, err := io.ReadAll(request.Body)
+		if err != nil {
+			return nil, err
+		}
 		txHex = body
 	default:
-		return nil, api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("given content-type %s does not match any of the allowed content-types", contentType))
+		return nil, fmt.Errorf("given content-type %s does not match any of the allowed content-types", contentType)
+	}
+
+	if len(txHex) == 0 {
+		return nil, errEmptyBody
 	}
 
 	return txHex, nil

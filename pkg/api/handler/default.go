@@ -119,8 +119,9 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		return ctx.JSON(e.Status, e)
 	}
 
-	transactionHex, e := parseTransactionFromRequest(ctx.Request())
-	if e != nil {
+	transactionHex, err := parseTransactionFromRequest(ctx.Request())
+	if err != nil {
+		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("error parsing transaction from request: %s", err.Error()))
 		return ctx.JSON(e.Status, e)
 	}
 
@@ -177,8 +178,9 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		return ctx.JSON(e.Status, e)
 	}
 
-	txsHexes, e := parseTransactionsFromRequest(ctx.Request())
-	if e != nil {
+	txsHexes, err := parseTransactionsFromRequest(ctx.Request())
+	if err != nil {
+		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("error parsing transaction from request: %s", err.Error()))
 		return ctx.JSON(e.Status, e)
 	}
 

@@ -9,20 +9,19 @@ import (
 )
 
 const (
-	versionBytesCount = 2
-	markerBytesCount  = 2
-	hashBytesCount    = 32
-	maxTreeHeight     = 64
+	beefVersionBytesCount = 4
+	hashBytesCount        = 32
+	maxTreeHeight         = 64
 )
 
 const (
-	BEEFMarkerPart1 = 0xBE
-	BEEFMarkerPart2 = 0xEF
+	beefMarkerPart1 = 0xBE
+	beefMarkerPart2 = 0xEF
 )
 
 const (
-	HasNoBump = 0x00
-	HasBump   = 0x01
+	hasNoBump = 0x00
+	hasBump   = 0x01
 )
 
 type TxData struct {
@@ -38,14 +37,11 @@ type BEEF struct {
 }
 
 func CheckBeefFormat(txHex []byte) bool {
-	if len(txHex) < versionBytesCount+markerBytesCount {
+	if len(txHex) < beefVersionBytesCount {
 		return false
 	}
 
-	// removes version bytes
-	txHex = txHex[versionBytesCount:]
-
-	if txHex[0] != BEEFMarkerPart1 || txHex[1] != BEEFMarkerPart2 {
+	if txHex[2] != beefMarkerPart1 || txHex[3] != beefMarkerPart2 {
 		return false
 	}
 
@@ -227,7 +223,7 @@ func decodeTransactionsWithPathIndexes(bytes []byte) ([]*TxData, []byte, error) 
 		var pathIndex *bt.VarInt
 
 		switch bytes[0] {
-		case HasBump:
+		case hasBump:
 			bytes = bytes[1:]
 			if len(bytes) == 0 {
 				return nil, nil, errors.New("invalid BEEF - HasBUMP flag set, but no BUMP index")
@@ -235,7 +231,7 @@ func decodeTransactionsWithPathIndexes(bytes []byte) ([]*TxData, []byte, error) 
 			value, offset := bt.NewVarIntFromBytes(bytes)
 			pathIndex = &value
 			bytes = bytes[offset:]
-		case HasNoBump:
+		case hasNoBump:
 			bytes = bytes[1:]
 		default:
 			return nil, nil, fmt.Errorf("invalid HasCMP flag for transaction at index %d", i)
@@ -251,27 +247,11 @@ func decodeTransactionsWithPathIndexes(bytes []byte) ([]*TxData, []byte, error) 
 }
 
 func extractBytesWithoutVersionAndMarker(beefBytes []byte) ([]byte, error) {
-	if len(beefBytes) < 4 {
-		return nil, errors.New("invalid beef hex stream")
+	if !CheckBeefFormat(beefBytes) {
+		return nil, errors.New("invalid format of transaction, BEEF marker not found")
 	}
 
-	// removes version bytes
-	beefBytes = beefBytes[versionBytesCount:]
-	err := validateMarker(beefBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	// removes marker bytes
-	beefBytes = beefBytes[markerBytesCount:]
+	beefBytes = beefBytes[beefVersionBytesCount:]
 
 	return beefBytes, nil
-}
-
-func validateMarker(bytes []byte) error {
-	if bytes[0] != BEEFMarkerPart1 || bytes[1] != BEEFMarkerPart2 {
-		return errors.New("invalid format of transaction, BEEF marker not found")
-	}
-
-	return nil
 }

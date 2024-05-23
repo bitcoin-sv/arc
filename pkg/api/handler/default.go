@@ -272,18 +272,18 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHe
 
 	if isBeefFormat {
 		var err error
+		var beefTx *beef.BEEF
 
-		transaction, _, _, err = beef.DecodeBEEF(transactionHex)
+		transaction, beefTx, _, err = beef.DecodeBEEF(transactionHex)
 		if err != nil {
 			errStr := fmt.Sprintf("error decoding BEEF: %s", err.Error())
 			return nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
 		}
 
-		// TODO: validate BEEF in the next task
-		// if err := txValidator.ValidateBeef(beefTx); err != nil {
-		// 	_, arcError := m.handleError(ctx, transaction, err)
-		// 	return nil, nil, arcError
-		// }
+		if err := txValidator.ValidateBeef(beefTx); err != nil {
+			_, arcError := m.handleError(ctx, transaction, err)
+			return nil, nil, arcError
+		}
 	} else {
 		var err error
 		transaction, err = bt.NewTxFromBytes(transactionHex)

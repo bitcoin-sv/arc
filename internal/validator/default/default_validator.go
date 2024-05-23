@@ -34,18 +34,46 @@ func New(policy *bitcoin.Settings) validator.Validator {
 }
 
 func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx, skipFeeValidation bool, skipScriptValidation bool) error { //nolint:funlen - mostly comments
-	//
-	// Each node will verify every transaction against a long checklist of criteria:
-	//
-	txSize := tx.Size()
-
-	// fmt.Println(hex.EncodeToString(tx.ExtendedBytes()))
-
 	// 0) Check whether we have a complete transaction in extended format, with all input information
 	//    we cannot check the satoshi input, OP_RETURN is allowed 0 satoshis
 	if !v.IsExtended(tx) {
 		return validator.NewError(fmt.Errorf("transaction is not in extended format"), api.ErrStatusTxFormat)
 	}
+
+	// The rest of the validation steps
+	err := v.validateTransaction(tx, skipFeeValidation, skipScriptValidation)
+	if err != nil {
+		return err
+	}
+
+	// everything checks out
+	return nil
+}
+
+func (v *DefaultValidator) ValidateBeef(beefTx *beef.BEEF, skipFeeValidation, skipScriptValidation bool) error {
+	for _, beefTx := range beefTx.Transactions {
+		if beefTx.Unmined() {
+			tx := beefTx.Transaction
+
+			err := v.ValidateTransaction(tx, skipFeeValidation, skipScriptValidation)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := v.verifyMerkleRoots(beefTx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (v *DefaultValidator) validateTransaction(tx *bt.Tx, skipFeeValidation, skipScriptValidation bool) error {
+	//
+	// Each node will verify every transaction against a long checklist of criteria:
+	//
+	txSize := tx.Size()
 
 	// 1) Neither lists of inputs or outputs are empty
 	if len(tx.Inputs) == 0 || len(tx.Outputs) == 0 {
@@ -106,10 +134,6 @@ func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx, skipFeeValidation bool
 	return nil
 }
 
-func (v *DefaultValidator) ValidateBeef(beefTx *beef.BEEF) error {
-	return beef.Validate(beefTx)
-}
-
 func (v *DefaultValidator) IsExtended(tx *bt.Tx) bool {
 	if tx == nil || tx.Inputs == nil {
 		return false
@@ -126,6 +150,18 @@ func (v *DefaultValidator) IsExtended(tx *bt.Tx) bool {
 
 func (v *DefaultValidator) IsBeef(txHex []byte) bool {
 	return beef.CheckBeefFormat(txHex)
+}
+
+func (v *DefaultValidator) verifyMerkleRoots(beefTx *beef.BEEF) error {
+	// 4. Validate MerkleRoots
+	//     a. ensure there's a mined parent (with BUMP)
+	if err := beef.EnsureAncestorsArePresentInBump(beefTx.GetLatestTx(), beefTx); err != nil {
+		return err
+	}
+	//     b. calculate merkleroots from bumps
+	//     c. validate with headerservice
+
+	return nil
 }
 
 func checkTxSize(txSize int, policy *bitcoin.Settings) error {

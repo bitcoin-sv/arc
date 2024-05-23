@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -156,7 +157,9 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 		peers[i] = peer
 	}
 
-	peerHandler.StartFillGaps(peers)
+	var ctx context.Context
+	ctx, peerHandler.CancelFillBlockGap = context.WithCancel(context.Background())
+	peerHandler.StartFillGaps(ctx, peers)
 
 	server := blocktx.NewServer(blockStore, logger, peers)
 

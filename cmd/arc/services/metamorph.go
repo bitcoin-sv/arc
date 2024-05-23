@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime/debug"
 	"strconv"
+	"sync"
 	"time"
 
 	cfg "github.com/bitcoin-sv/arc/internal/config"
@@ -148,14 +149,40 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	metamorphProcessor.StartLockTransactions()
+	waitGroup := sync.WaitGroup{}
+	var ctx context.Context
+	var cancel context.CancelFunc
+
+	ctx, cancel = context.WithCancel(context.Background())
+	metamorphProcessor.CancelLockTransactions = cancel
+	waitGroup.Add(1)
+	metamorphProcessor.StartLockTransactions(ctx, &waitGroup)
 	time.Sleep(200 * time.Millisecond) // wait a short time so that process expired transactions will start shortly after lock transactions go routine
 
-	metamorphProcessor.StartProcessExpiredTransactions()
-	metamorphProcessor.StartRequestingSeenOnNetworkTxs()
-	metamorphProcessor.StartProcessStatusUpdatesInStorage()
-	metamorphProcessor.StartProcessMinedCallbacks()
-	err = metamorphProcessor.StartCollectStats()
+	ctx, cancel = context.WithCancel(context.Background())
+	metamorphProcessor.CancelProcessExpiredTransactions = cancel
+	waitGroup.Add(1)
+	metamorphProcessor.StartProcessExpiredTransactions(ctx, &waitGroup)
+
+	ctx, cancel = context.WithCancel(context.Background())
+	metamorphProcessor.CancelProcessSeenOnNetworkTxRequesting = cancel
+	waitGroup.Add(1)
+	metamorphProcessor.StartRequestingSeenOnNetworkTxs(ctx, &waitGroup)
+
+	ctx, cancel = context.WithCancel(context.Background())
+	metamorphProcessor.CancelProcessStatusUpdatesInStorage = cancel
+	waitGroup.Add(1)
+	metamorphProcessor.StartProcessStatusUpdatesInStorage(ctx, &waitGroup)
+
+	ctx, cancel = context.WithCancel(context.Background())
+	metamorphProcessor.CancelMinedCallbacks = cancel
+	waitGroup.Add(1)
+	metamorphProcessor.StartProcessMinedCallbacks(ctx, &waitGroup)
+
+	ctx, cancel = context.WithCancel(context.Background())
+	metamorphProcessor.CancelCollectStats = cancel
+	err = metamorphProcessor.StartCollectStats(ctx, &waitGroup)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to start collecting stats: %v", err)
 	}

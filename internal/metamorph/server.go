@@ -136,7 +136,6 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheus
 
 func (s *Server) Shutdown() {
 	s.logger.Info("Shutting down")
-	s.processor.Shutdown()
 	s.grpcServer.GracefulStop()
 	s.grpcServer.Stop()
 	s.cleanup()

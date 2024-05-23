@@ -100,11 +100,7 @@ func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
 	return p
 }
 
-func (p *Processor) StartCollectStats() error {
-	ctx, cancel := context.WithCancel(context.Background())
-	p.cancelCollectStats = cancel
-	p.quitCollectStatsComplete = make(chan struct{})
-
+func (p *Processor) StartCollectStats(ctx context.Context, wg *sync.WaitGroup) error {
 	ticker := time.NewTicker(p.statCollectionInterval)
 
 	err := registerStats(
@@ -121,6 +117,7 @@ func (p *Processor) StartCollectStats() error {
 		p.stats.statusNotSeen,
 	)
 	if err != nil {
+		wg.Done()
 		return err
 	}
 	go func() {
@@ -128,7 +125,6 @@ func (p *Processor) StartCollectStats() error {
 			if r := recover(); r != nil {
 				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
-			p.quitCollectStatsComplete <- struct{}{}
 
 			unregisterStats(
 				p.stats.statusStored,
@@ -143,11 +139,13 @@ func (p *Processor) StartCollectStats() error {
 				p.stats.statusNotMined,
 				p.stats.statusNotSeen,
 			)
+			wg.Done()
 		}()
 
 		for {
 			select {
 			case <-ctx.Done():
+				wg.Done()
 				return
 			case <-ticker.C:
 

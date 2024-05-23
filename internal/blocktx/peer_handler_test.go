@@ -305,12 +305,13 @@ func TestStartFillGaps(t *testing.T) {
 
 			getBlockErrCh := make(chan error)
 
+			getBlockGapTestErr := tc.getBlockGapsErr
 			storeMock := &store.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 
-					if tc.getBlockGapsErr != nil {
-						getBlockErrCh <- tc.getBlockGapsErr
-						return nil, tc.getBlockGapsErr
+					if getBlockGapTestErr != nil {
+						getBlockErrCh <- getBlockGapTestErr
+						return nil, getBlockGapTestErr
 					}
 
 					return tc.blockGaps, nil
@@ -328,7 +329,9 @@ func TestStartFillGaps(t *testing.T) {
 			}
 			peers := []p2p.PeerI{peerMock}
 
-			peerHandler.StartFillGaps(peers)
+			var ctx context.Context
+			ctx, peerHandler.CancelFillBlockGap = context.WithCancel(context.Background())
+			peerHandler.StartFillGaps(ctx, peers)
 
 			select {
 			case hashPeer := <-peerHandler.workerCh:
@@ -367,9 +370,10 @@ func TestStartProcessTxs(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			registerErrTest := tc.registerErr
 			storeMock := &store.BlocktxStoreMock{
 				RegisterTransactionsFunc: func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error {
-					return tc.registerErr
+					return registerErrTest
 				},
 			}
 
@@ -384,7 +388,9 @@ func TestStartProcessTxs(t *testing.T) {
 			peerHandler, err := NewPeerHandler(logger, storeMock, WithRegisterTxsInterval(time.Millisecond*20), WithTxChan(txChan), WithRegisterTxsBatchSize(3))
 			require.NoError(t, err)
 
-			peerHandler.startProcessTxs()
+			var ctx context.Context
+			ctx, peerHandler.cancelProcessTxs = context.WithCancel(context.Background())
+			peerHandler.startProcessTxs(ctx)
 
 			time.Sleep(120 * time.Millisecond)
 			peerHandler.Shutdown()
@@ -453,18 +459,21 @@ func TestStartPeerWorker(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			setBlockProcessingErrTest := tc.setBlockProcessingErr
+			bhsProcInProgErr := tc.bhsProcInProg
 			storeMock := &store.BlocktxStoreMock{
 				SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
-					return "abc", tc.setBlockProcessingErr
+					return "abc", setBlockProcessingErrTest
 				},
 				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
-					return tc.bhsProcInProg, nil
+					return bhsProcInProgErr, nil
 				},
 			}
 
+			writeMsgErrTest := tc.writeMsgErr
 			peerMock := &PeerMock{
 				WriteMsgFunc: func(msg wire.Message) error {
-					return tc.writeMsgErr
+					return writeMsgErrTest
 				},
 				StringFunc: func() string {
 					return ""
@@ -480,7 +489,9 @@ func TestStartPeerWorker(t *testing.T) {
 				Peer: peerMock,
 			}
 
-			peerHandler.startPeerWorker()
+			var ctx context.Context
+			ctx, peerHandler.cancelPeerWorker = context.WithCancel(context.Background())
+			peerHandler.startPeerWorker(ctx)
 
 			// call tested function
 			require.NoError(t, err)
@@ -559,6 +570,8 @@ func TestStartProcessRequestTxs(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			publishMinedErrTest := tc.publishMinedErr
+			getMinedErrTest := tc.getMinedErr
 			storeMock := &store.BlocktxStoreMock{
 				GetMinedTransactionsFunc: func(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
 					for _, hash := range hashes {
@@ -569,13 +582,13 @@ func TestStartProcessRequestTxs(t *testing.T) {
 						TxHash:      testdata.TX1Hash[:],
 						BlockHash:   testdata.Block1Hash[:],
 						BlockHeight: 1,
-					}}, tc.getMinedErr
+					}}, getMinedErrTest
 				},
 			}
 
 			mq := &MessageQueueClientMock{
 				PublishMinedTxsFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error {
-					return tc.publishMinedErr
+					return publishMinedErrTest
 				},
 			}
 
@@ -583,7 +596,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			peerHandler, err := NewPeerHandler(logger, storeMock,
-				WithRegisterRequestTxsInterval(20*time.Millisecond),
+				WithRegisterRequestTxsInterval(15*time.Millisecond),
 				WithRegisterRequestTxsBatchSize(3),
 				WithRequestTxChan(requestTxChannel),
 				WithMessageQueueClient(mq))
@@ -593,7 +606,9 @@ func TestStartProcessRequestTxs(t *testing.T) {
 				requestTxChannel <- tc.requestedTx
 			}
 
-			peerHandler.startProcessRequestTxs()
+			var ctx context.Context
+			ctx, peerHandler.cancelProcessRequestTxs = context.WithCancel(context.Background())
+			peerHandler.startProcessRequestTxs(ctx)
 
 			// call tested function
 			require.NoError(t, err)

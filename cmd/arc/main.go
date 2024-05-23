@@ -12,7 +12,6 @@ import (
 	"os/signal"
 	"runtime/debug"
 	"strings"
-	"sync"
 	"syscall"
 
 	cmd "github.com/bitcoin-sv/arc/cmd/arc/services"
@@ -220,33 +219,13 @@ func run() error {
 	// setup signal catching
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGTERM)
+	signal.Notify(signalChan, syscall.SIGINT)
 
 	<-signalChan
-	appCleanup(logger, shutdownFns)
-
-	return nil
-}
-
-func appCleanup(logger *slog.Logger, shutdownFns []func()) {
-	logger.Info("Shutting down")
-
-	var wg sync.WaitGroup
 	for _, fn := range shutdownFns {
-		// fire the shutdown functions off in the background
-		// they might be relying on each other, and this allows them to gracefully stop
-		wg.Add(1)
-		go func(fn func()) {
-			defer func() {
-				if r := recover(); r != nil {
-					logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-				}
-				wg.Done()
-			}()
-
-			fn()
-		}(fn)
+		fn()
 	}
-	wg.Wait()
+	return nil
 }
 
 func isFlagPassed(name string) bool {

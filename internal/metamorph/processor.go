@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime/debug"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
@@ -55,31 +56,25 @@ type Processor struct {
 	minimumHealthyConnections int
 	callbackSender            CallbackSender
 
-	cancelCollectStats       context.CancelFunc
-	quitCollectStatsComplete chan struct{}
-	statCollectionInterval   time.Duration
+	CancelCollectStats     context.CancelFunc
+	statCollectionInterval time.Duration
 
-	lockTransactionsInterval     time.Duration
-	cancelLockTransactions       context.CancelFunc
-	quitLockTransactionsComplete chan struct{}
+	lockTransactionsInterval time.Duration
+	CancelLockTransactions   context.CancelFunc
 
-	cancelMinedCallbacks              context.CancelFunc
-	quitProcessMinedCallbacksComplete chan struct{}
-	minedTxsChan                      chan *blocktx_api.TransactionBlocks
+	CancelMinedCallbacks context.CancelFunc
+	minedTxsChan         chan *blocktx_api.TransactionBlocks
 
-	storageStatusUpdateCh                     chan store.UpdateStatus
-	cancelProcessStatusUpdatesInStorage       context.CancelFunc
-	quitProcessStatusUpdatesInStorageComplete chan struct{}
-	processStatusUpdatesInterval              time.Duration
-	processStatusUpdatesBatchSize             int
+	storageStatusUpdateCh               chan store.UpdateStatus
+	CancelProcessStatusUpdatesInStorage context.CancelFunc
+	processStatusUpdatesInterval        time.Duration
+	processStatusUpdatesBatchSize       int
 
-	processExpiredTxsInterval              time.Duration
-	processSeenOnNetworkTxsInterval        time.Duration
-	cancelProcessExpiredTransactions       context.CancelFunc
-	quitProcessExpiredTransactionsComplete chan struct{}
+	processExpiredTxsInterval        time.Duration
+	processSeenOnNetworkTxsInterval  time.Duration
+	CancelProcessExpiredTransactions context.CancelFunc
 
-	cancelProcessSeenOnNetworkTxRequesting       context.CancelFunc
-	quitProcessSeenOnNetworkTxRequestingComplete chan struct{}
+	CancelProcessSeenOnNetworkTxRequesting context.CancelFunc
 }
 
 type Option func(f *Processor)
@@ -150,34 +145,28 @@ func (p *Processor) Shutdown() {
 		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
 	}
 
-	if p.cancelLockTransactions != nil {
-		p.cancelLockTransactions()
-		<-p.quitLockTransactionsComplete
+	if p.CancelLockTransactions != nil {
+		p.CancelLockTransactions()
 	}
 
-	if p.cancelMinedCallbacks != nil {
-		p.cancelMinedCallbacks()
-		<-p.quitProcessMinedCallbacksComplete
+	if p.CancelMinedCallbacks != nil {
+		p.CancelMinedCallbacks()
 	}
 
-	if p.cancelProcessStatusUpdatesInStorage != nil {
-		p.cancelProcessStatusUpdatesInStorage()
-		<-p.quitProcessStatusUpdatesInStorageComplete
+	if p.CancelProcessStatusUpdatesInStorage != nil {
+		p.CancelProcessStatusUpdatesInStorage()
 	}
 
-	if p.cancelProcessExpiredTransactions != nil {
-		p.cancelProcessExpiredTransactions()
-		<-p.quitProcessExpiredTransactionsComplete
+	if p.CancelProcessExpiredTransactions != nil {
+		p.CancelProcessExpiredTransactions()
 	}
 
-	if p.cancelProcessSeenOnNetworkTxRequesting != nil {
-		p.cancelProcessSeenOnNetworkTxRequesting()
-		<-p.quitProcessSeenOnNetworkTxRequestingComplete
+	if p.CancelProcessSeenOnNetworkTxRequesting != nil {
+		p.CancelProcessSeenOnNetworkTxRequesting()
 	}
 
-	if p.cancelCollectStats != nil {
-		p.cancelCollectStats()
-		<-p.quitCollectStatsComplete
+	if p.CancelCollectStats != nil {
+		p.CancelCollectStats()
 	}
 }
 
@@ -191,18 +180,9 @@ func (p *Processor) unlockRecords() error {
 	return nil
 }
 
-func (p *Processor) StartProcessMinedCallbacks() {
-	ctx, cancel := context.WithCancel(context.Background())
-	p.cancelMinedCallbacks = cancel
-	p.quitProcessMinedCallbacksComplete = make(chan struct{})
-
+func (p *Processor) StartProcessMinedCallbacks(ctx context.Context, wg *sync.WaitGroup) {
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitProcessMinedCallbacksComplete <- struct{}{}
-		}()
+		defer wg.Done()
 
 		for {
 			select {
@@ -247,20 +227,11 @@ func (p *Processor) CheckAndUpdate(statusUpdatesMap *map[chainhash.Hash]store.Up
 	*statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 }
 
-func (p *Processor) StartProcessStatusUpdatesInStorage() {
+func (p *Processor) StartProcessStatusUpdatesInStorage(ctx context.Context, wg *sync.WaitGroup) {
 	ticker := time.NewTicker(p.processStatusUpdatesInterval)
-	ctx, cancel := context.WithCancel(context.Background())
-	p.cancelProcessStatusUpdatesInStorage = cancel
-	p.quitProcessStatusUpdatesInStorageComplete = make(chan struct{})
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitProcessStatusUpdatesInStorageComplete <- struct{}{}
-		}()
-
+		defer wg.Done()
 		statusUpdatesMap := map[chainhash.Hash]store.UpdateStatus{}
 
 		for {
@@ -298,19 +269,10 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus)
 	return nil
 }
 
-func (p *Processor) StartLockTransactions() {
-	ctx, cancel := context.WithCancel(context.Background())
+func (p *Processor) StartLockTransactions(ctx context.Context, wg *sync.WaitGroup) {
 	ticker := time.NewTicker(p.lockTransactionsInterval)
-	p.cancelLockTransactions = cancel
-	p.quitLockTransactionsComplete = make(chan struct{})
-
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitLockTransactionsComplete <- struct{}{}
-		}()
+		defer wg.Done()
 		for {
 			select {
 			case <-ctx.Done():
@@ -326,20 +288,10 @@ func (p *Processor) StartLockTransactions() {
 	}()
 }
 
-func (p *Processor) StartRequestingSeenOnNetworkTxs() {
-	ctx, cancel := context.WithCancel(context.Background())
+func (p *Processor) StartRequestingSeenOnNetworkTxs(ctx context.Context, wg *sync.WaitGroup) {
 	ticker := time.NewTicker(p.processSeenOnNetworkTxsInterval)
-	p.cancelProcessSeenOnNetworkTxRequesting = cancel
-	p.quitProcessSeenOnNetworkTxRequestingComplete = make(chan struct{})
-
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitProcessSeenOnNetworkTxRequestingComplete <- struct{}{}
-		}()
-
+		defer wg.Done()
 		for {
 			select {
 			case <-ctx.Done():
@@ -381,20 +333,10 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 	}()
 }
 
-func (p *Processor) StartProcessExpiredTransactions() {
-	ctx, cancel := context.WithCancel(context.Background())
+func (p *Processor) StartProcessExpiredTransactions(ctx context.Context, wg *sync.WaitGroup) {
 	ticker := time.NewTicker(p.processExpiredTxsInterval)
-	p.cancelProcessExpiredTransactions = cancel
-	p.quitProcessExpiredTransactionsComplete = make(chan struct{})
-
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitProcessExpiredTransactionsComplete <- struct{}{}
-		}()
-
+		defer wg.Done()
 		for {
 			select {
 			case <-ctx.Done():

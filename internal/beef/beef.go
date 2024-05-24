@@ -47,12 +47,12 @@ func CheckBeefFormat(txHex []byte) bool {
 }
 
 func DecodeBEEF(beefHex []byte) (*bt.Tx, *BEEF, []byte, error) {
-	beefBytes, err := extractBytesWithoutVersionAndMarker(beefHex)
+	remainingBytes, err := extractBytesWithoutVersionAndMarker(beefHex)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	bumps, remainingBytes, err := decodeBUMPs(beefBytes)
+	bumps, remainingBytes, err := decodeBUMPs(remainingBytes)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -89,10 +89,6 @@ func decodeBUMPs(beefBytes []byte) ([]*bc.BUMP, []byte, error) {
 
 	bumps := make([]*bc.BUMP, 0, uint64(nBump))
 	for i := uint64(0); i < uint64(nBump); i++ {
-		if len(beefBytes) == 0 {
-			return nil, nil, errors.New("insufficient bytes to extract BUMP blockHeight")
-		}
-
 		bump, bytesUsed, err := bc.NewBUMPFromStream(beefBytes)
 		if err != nil {
 			return nil, nil, err
@@ -106,45 +102,45 @@ func decodeBUMPs(beefBytes []byte) ([]*bc.BUMP, []byte, error) {
 	return bumps, beefBytes, nil
 }
 
-func decodeTransactionsWithPathIndexes(bytes []byte) ([]*TxData, []byte, error) {
-	if len(bytes) == 0 {
+func decodeTransactionsWithPathIndexes(beefBytes []byte) ([]*TxData, []byte, error) {
+	if len(beefBytes) == 0 {
 		return nil, nil, errors.New("invalid BEEF - no transaction")
 	}
 
-	nTransactions, offset := bt.NewVarIntFromBytes(bytes)
+	nTransactions, bytesUsed := bt.NewVarIntFromBytes(beefBytes)
 
 	if nTransactions < 2 {
 		return nil, nil, errors.New("invalid BEEF- not enough transactions provided to decode BEEF")
 	}
 
-	bytes = bytes[offset:]
+	beefBytes = beefBytes[bytesUsed:]
 
 	transactions := make([]*TxData, 0, int(nTransactions))
 
 	for i := 0; i < int(nTransactions); i++ {
-		tx, offset, err := bt.NewTxFromStream(bytes)
+		tx, bytesUsed, err := bt.NewTxFromStream(beefBytes)
 		if err != nil {
 			return nil, nil, err
 		}
-		bytes = bytes[offset:]
+		beefBytes = beefBytes[bytesUsed:]
 
-		if len(bytes) == 0 {
+		if len(beefBytes) == 0 {
 			return nil, nil, errors.New("invalid BEEF - no HasBUMP flag")
 		}
 
 		var pathIndex *bt.VarInt
 
-		switch bytes[0] {
+		switch beefBytes[0] {
 		case hasBump:
-			bytes = bytes[1:]
-			if len(bytes) == 0 {
+			beefBytes = beefBytes[1:]
+			if len(beefBytes) == 0 {
 				return nil, nil, errors.New("invalid BEEF - HasBUMP flag set, but no BUMP index")
 			}
-			value, offset := bt.NewVarIntFromBytes(bytes)
+			value, bytesUsed := bt.NewVarIntFromBytes(beefBytes)
 			pathIndex = &value
-			bytes = bytes[offset:]
+			beefBytes = beefBytes[bytesUsed:]
 		case hasNoBump:
-			bytes = bytes[1:]
+			beefBytes = beefBytes[1:]
 		default:
 			return nil, nil, fmt.Errorf("invalid HasCMP flag for transaction at index %d", i)
 		}
@@ -155,7 +151,7 @@ func decodeTransactionsWithPathIndexes(bytes []byte) ([]*TxData, []byte, error) 
 		})
 	}
 
-	return transactions, bytes, nil
+	return transactions, beefBytes, nil
 }
 
 func extractBytesWithoutVersionAndMarker(beefBytes []byte) ([]byte, error) {

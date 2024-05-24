@@ -155,7 +155,7 @@ func TestDecodeBEEF_DecodeBEEF_HandlingErrors(t *testing.T) {
 			name:                "unable to decode BUMP block height - proper BEEF marker and number of bumps",
 			hexStream:           "0100beef01",
 			expectedDecodedBEEF: nil,
-			expectedError:       errors.New("insufficient bytes to extract BUMP blockHeight"),
+			expectedError:       bumpError,
 		},
 		{
 			name:                "unable to decode BUMP number of leaves - proper BEEF marker, number of bumps, block height and tree height but end of stream at this point",

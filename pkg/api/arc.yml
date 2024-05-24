@@ -378,6 +378,11 @@ components:
           nullable: false
           example: false
           description: whether healthy or not
+        version:
+          type: string
+          nullable: false
+          example: "v1.0.0"
+          description: version of the ARC package
         reason:
           type: string
           nullable: true

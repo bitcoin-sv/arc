@@ -33,7 +33,7 @@ func New(policy *bitcoin.Settings) validator.Validator {
 	}
 }
 
-func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx, skipFeeValidation bool, skipScriptValidation bool) error { //nolint:funlen - mostly comments
+func (v *DefaultValidator) ValidateEFTransaction(tx *bt.Tx, skipFeeValidation bool, skipScriptValidation bool) error { //nolint:funlen - mostly comments
 	// 0) Check whether we have a complete transaction in extended format, with all input information
 	//    we cannot check the satoshi input, OP_RETURN is allowed 0 satoshis
 	if !v.IsExtended(tx) {
@@ -55,7 +55,7 @@ func (v *DefaultValidator) ValidateBeef(beefTx *beef.BEEF, skipFeeValidation, sk
 		if beefTx.Unmined() {
 			tx := beefTx.Transaction
 
-			err := v.ValidateTransaction(tx, skipFeeValidation, skipScriptValidation)
+			err := v.validateTransaction(tx, skipFeeValidation, skipScriptValidation)
 			if err != nil {
 				return err
 			}
@@ -153,8 +153,6 @@ func (v *DefaultValidator) IsBeef(txHex []byte) bool {
 }
 
 func (v *DefaultValidator) verifyMerkleRoots(beefTx *beef.BEEF) error {
-	// 4. Validate MerkleRoots
-	//     a. ensure there's a mined parent (with BUMP)
 	if err := beef.EnsureAncestorsArePresentInBump(beefTx.GetLatestTx(), beefTx); err != nil {
 		return err
 	}

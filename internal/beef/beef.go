@@ -163,7 +163,5 @@ func extractBytesWithoutVersionAndMarker(beefBytes []byte) ([]byte, error) {
 		return nil, errors.New("invalid format of transaction, BEEF marker not found")
 	}
 
-	beefBytes = beefBytes[beefVersionBytesCount:]
-
-	return beefBytes, nil
+	return beefBytes[beefVersionBytesCount:], nil
 }

@@ -2,6 +2,7 @@ package defaultvalidator
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 
@@ -156,8 +157,36 @@ func (v *DefaultValidator) verifyMerkleRoots(beefTx *beef.BEEF) error {
 	if err := beef.EnsureAncestorsArePresentInBump(beefTx.GetLatestTx(), beefTx); err != nil {
 		return err
 	}
-	//     b. calculate merkleroots from bumps
-	//     c. validate with headerservice
+
+	// b. calculate merkleroots from bumps
+	merkleRoots := make([]string, len(beefTx.BUMPs))
+	for _, bump := range beefTx.BUMPs {
+		blockMerkleRoot := ""
+		for _, txId := range bump.Txids() {
+			mr, err := bump.CalculateRootGivenTxid(txId)
+			if err != nil {
+				return err
+			}
+
+			if blockMerkleRoot == "" {
+				blockMerkleRoot = mr
+			} else if blockMerkleRoot != mr {
+				return errors.New("different merkle roots from the same block")
+			}
+		}
+
+		if blockMerkleRoot == "" {
+			return errors.New("no expected transactions in bump")
+		}
+
+		merkleRoots = append(merkleRoots, blockMerkleRoot)
+	}
+
+	if len(merkleRoots) == 0 {
+		return errors.New("no merkle roots found for validation")
+	}
+
+	// c. validate with headerservice
 
 	return nil
 }

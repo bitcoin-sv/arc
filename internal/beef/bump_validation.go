@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/libsv/go-bc"
 	"github.com/libsv/go-bt/v2"
 )
 
@@ -67,7 +68,7 @@ func findParentForInput(input *bt.Input, parentTxs []*TxData) *TxData {
 	return nil
 }
 
-func existsInBumps(tx *TxData, bumps []*BUMP) bool {
+func existsInBumps(tx *TxData, bumps []*bc.BUMP) bool {
 	bumpIdx := int(*tx.BumpIndex)
 	txID := tx.GetTxID()
 
@@ -75,7 +76,7 @@ func existsInBumps(tx *TxData, bumps []*BUMP) bool {
 		leafs := bumps[bumpIdx].Path[0]
 
 		for _, lf := range leafs {
-			if txID == lf.Hash {
+			if txID == *lf.Hash {
 				return true
 			}
 		}

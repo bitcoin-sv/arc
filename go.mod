@@ -14,10 +14,10 @@ require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/labstack/echo/v4 v4.11.1
 	github.com/lib/pq v1.10.9
-	github.com/libsv/go-bc v0.1.29
+	github.com/libsv/go-bc v0.1.28
 	github.com/libsv/go-bk v0.1.6
 	github.com/libsv/go-bt/v2 v2.2.5
-	github.com/libsv/go-p2p v0.2.3
+	github.com/libsv/go-p2p v0.2.2
 	github.com/lmittmann/tint v1.0.3
 	github.com/nats-io/nats.go v1.31.0
 	github.com/oapi-codegen/runtime v1.0.0
@@ -35,7 +35,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.25.0
 	go.opentelemetry.io/otel/sdk v1.26.0
 	go.opentelemetry.io/otel/trace v1.26.0
-	golang.org/x/sys v0.20.0
+	golang.org/x/sys v0.19.0
 	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.33.0
 	k8s.io/api v0.28.4
@@ -138,13 +138,13 @@ require (
 	go.opentelemetry.io/otel/metric v1.26.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.1.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	golang.org/x/crypto v0.23.0 // indirect
+	golang.org/x/crypto v0.22.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/oauth2 v0.17.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
-	golang.org/x/term v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
+	golang.org/x/term v0.19.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.16.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect

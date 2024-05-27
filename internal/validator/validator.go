@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/libsv/go-bt/v2"
 )
 
@@ -17,5 +18,7 @@ type OutpointData struct {
 type Validator interface {
 	// ValidateTransaction Please note that bt.Tx should have all the fields of each input populated.
 	ValidateTransaction(tx *bt.Tx, skipFeeValidation bool, skipScriptValidation bool) error
+	ValidateBeef(beef *beef.BEEF) error
 	IsExtended(tx *bt.Tx) bool
+	IsBeef(txHex []byte) bool
 }

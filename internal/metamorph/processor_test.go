@@ -111,10 +111,11 @@ func TestStartLockTransactions(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			setLockedErrTest := tc.setLockedErr
 			metamorphStore := &mocks.MetamorphStoreMock{
 				SetLockedFunc: func(ctx context.Context, since time.Time, limit int64) error {
 					require.Equal(t, int64(5000), limit)
-					return tc.setLockedErr
+					return setLockedErrTest
 				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
@@ -426,18 +427,19 @@ func TestSendStatusForTransaction(t *testing.T) {
 
 			counter := 0
 			callbackSent := make(chan struct{})
-
+			updateErrTest := tc.updateErr
+			updateRespTest := tc.updateResp
 			metamorphStore := &mocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 				UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
-					if len(tc.updateResp) > 0 {
+					if len(updateRespTest) > 0 {
 						counter++
-						return tc.updateResp[counter-1], tc.updateErr
+						return updateRespTest[counter-1], updateErrTest
 					}
-					return nil, tc.updateErr
+					return nil, updateErrTest
 				},
 				IncrementRetriesFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 					return nil
@@ -528,12 +530,14 @@ func TestProcessExpiredTransactions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			retries := tc.retries
+			getUnminedErrTest := tc.getUnminedErr
 
 			metamorphStore := &mocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
+
 				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 					if offset != 0 {
 						return nil, nil
@@ -557,7 +561,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 					retries++
 
-					return unminedData, tc.getUnminedErr
+					return unminedData, getUnminedErrTest
 				},
 				IncrementRetriesFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 					return nil

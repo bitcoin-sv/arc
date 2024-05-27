@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"runtime/debug"
 	"sync"
 	"time"
 
@@ -103,7 +102,6 @@ func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
 func (p *Processor) StartCollectStats() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	p.cancelCollectStats = cancel
-	p.quitCollectStatsComplete = make(chan struct{})
 
 	ticker := time.NewTicker(p.statCollectionInterval)
 
@@ -124,30 +122,22 @@ func (p *Processor) StartCollectStats() error {
 		return err
 	}
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitCollectStatsComplete <- struct{}{}
-
-			unregisterStats(
-				p.stats.statusStored,
-				p.stats.statusAnnouncedToNetwork,
-				p.stats.statusRequestedByNetwork,
-				p.stats.statusSentToNetwork,
-				p.stats.statusAcceptedByNetwork,
-				p.stats.statusSeenOnNetwork,
-				p.stats.statusMined,
-				p.stats.statusRejected,
-				p.stats.statusSeenInOrphanMempool,
-				p.stats.statusNotMined,
-				p.stats.statusNotSeen,
-			)
-		}()
-
 		for {
 			select {
 			case <-ctx.Done():
+				unregisterStats(
+					p.stats.statusStored,
+					p.stats.statusAnnouncedToNetwork,
+					p.stats.statusRequestedByNetwork,
+					p.stats.statusSentToNetwork,
+					p.stats.statusAcceptedByNetwork,
+					p.stats.statusSeenOnNetwork,
+					p.stats.statusMined,
+					p.stats.statusRejected,
+					p.stats.statusSeenInOrphanMempool,
+					p.stats.statusNotMined,
+					p.stats.statusNotSeen,
+				)
 				return
 			case <-ticker.C:
 

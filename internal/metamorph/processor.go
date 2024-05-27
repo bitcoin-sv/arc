@@ -55,31 +55,25 @@ type Processor struct {
 	minimumHealthyConnections int
 	callbackSender            CallbackSender
 
-	cancelCollectStats       context.CancelFunc
-	quitCollectStatsComplete chan struct{}
-	statCollectionInterval   time.Duration
+	cancelCollectStats     context.CancelFunc
+	statCollectionInterval time.Duration
 
-	lockTransactionsInterval     time.Duration
-	cancelLockTransactions       context.CancelFunc
-	quitLockTransactionsComplete chan struct{}
+	lockTransactionsInterval time.Duration
+	cancelLockTransactions   context.CancelFunc
 
-	cancelMinedCallbacks              context.CancelFunc
-	quitProcessMinedCallbacksComplete chan struct{}
-	minedTxsChan                      chan *blocktx_api.TransactionBlocks
+	cancelMinedCallbacks context.CancelFunc
+	minedTxsChan         chan *blocktx_api.TransactionBlocks
 
-	storageStatusUpdateCh                     chan store.UpdateStatus
-	cancelProcessStatusUpdatesInStorage       context.CancelFunc
-	quitProcessStatusUpdatesInStorageComplete chan struct{}
-	processStatusUpdatesInterval              time.Duration
-	processStatusUpdatesBatchSize             int
+	storageStatusUpdateCh               chan store.UpdateStatus
+	cancelProcessStatusUpdatesInStorage context.CancelFunc
+	processStatusUpdatesInterval        time.Duration
+	processStatusUpdatesBatchSize       int
 
-	processExpiredTxsInterval              time.Duration
-	processSeenOnNetworkTxsInterval        time.Duration
-	cancelProcessExpiredTransactions       context.CancelFunc
-	quitProcessExpiredTransactionsComplete chan struct{}
+	processExpiredTxsInterval        time.Duration
+	processSeenOnNetworkTxsInterval  time.Duration
+	cancelProcessExpiredTransactions context.CancelFunc
 
-	cancelProcessSeenOnNetworkTxRequesting       context.CancelFunc
-	quitProcessSeenOnNetworkTxRequestingComplete chan struct{}
+	cancelProcessSeenOnNetworkTxRequesting context.CancelFunc
 }
 
 type Option func(f *Processor)
@@ -152,32 +146,26 @@ func (p *Processor) Shutdown() {
 
 	if p.cancelLockTransactions != nil {
 		p.cancelLockTransactions()
-		<-p.quitLockTransactionsComplete
 	}
 
 	if p.cancelMinedCallbacks != nil {
 		p.cancelMinedCallbacks()
-		<-p.quitProcessMinedCallbacksComplete
 	}
 
 	if p.cancelProcessStatusUpdatesInStorage != nil {
 		p.cancelProcessStatusUpdatesInStorage()
-		<-p.quitProcessStatusUpdatesInStorageComplete
 	}
 
 	if p.cancelProcessExpiredTransactions != nil {
 		p.cancelProcessExpiredTransactions()
-		<-p.quitProcessExpiredTransactionsComplete
 	}
 
 	if p.cancelProcessSeenOnNetworkTxRequesting != nil {
 		p.cancelProcessSeenOnNetworkTxRequesting()
-		<-p.quitProcessSeenOnNetworkTxRequestingComplete
 	}
 
 	if p.cancelCollectStats != nil {
 		p.cancelCollectStats()
-		<-p.quitCollectStatsComplete
 	}
 }
 
@@ -194,16 +182,8 @@ func (p *Processor) unlockRecords() error {
 func (p *Processor) StartProcessMinedCallbacks() {
 	ctx, cancel := context.WithCancel(context.Background())
 	p.cancelMinedCallbacks = cancel
-	p.quitProcessMinedCallbacksComplete = make(chan struct{})
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitProcessMinedCallbacksComplete <- struct{}{}
-		}()
-
 		for {
 			select {
 			case <-ctx.Done():
@@ -251,16 +231,8 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	ticker := time.NewTicker(p.processStatusUpdatesInterval)
 	ctx, cancel := context.WithCancel(context.Background())
 	p.cancelProcessStatusUpdatesInStorage = cancel
-	p.quitProcessStatusUpdatesInStorageComplete = make(chan struct{})
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitProcessStatusUpdatesInStorageComplete <- struct{}{}
-		}()
-
 		statusUpdatesMap := map[chainhash.Hash]store.UpdateStatus{}
 
 		for {
@@ -302,15 +274,8 @@ func (p *Processor) StartLockTransactions() {
 	ctx, cancel := context.WithCancel(context.Background())
 	ticker := time.NewTicker(p.lockTransactionsInterval)
 	p.cancelLockTransactions = cancel
-	p.quitLockTransactionsComplete = make(chan struct{})
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitLockTransactionsComplete <- struct{}{}
-		}()
 		for {
 			select {
 			case <-ctx.Done():
@@ -330,16 +295,8 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 	ctx, cancel := context.WithCancel(context.Background())
 	ticker := time.NewTicker(p.processSeenOnNetworkTxsInterval)
 	p.cancelProcessSeenOnNetworkTxRequesting = cancel
-	p.quitProcessSeenOnNetworkTxRequestingComplete = make(chan struct{})
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitProcessSeenOnNetworkTxRequestingComplete <- struct{}{}
-		}()
-
 		for {
 			select {
 			case <-ctx.Done():
@@ -385,16 +342,8 @@ func (p *Processor) StartProcessExpiredTransactions() {
 	ctx, cancel := context.WithCancel(context.Background())
 	ticker := time.NewTicker(p.processExpiredTxsInterval)
 	p.cancelProcessExpiredTransactions = cancel
-	p.quitProcessExpiredTransactionsComplete = make(chan struct{})
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitProcessExpiredTransactionsComplete <- struct{}{}
-		}()
-
 		for {
 			select {
 			case <-ctx.Done():

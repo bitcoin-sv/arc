@@ -450,6 +450,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {
 					callbackSent <- struct{}{}
 				},
+				ShutdownFunc: func(logger *slog.Logger) {},
 			}
 
 			processor, err := metamorph.NewProcessor(
@@ -652,6 +653,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 5)
 			callbackSender := &mocks.CallbackSenderMock{
 				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {},
+				ShutdownFunc:     func(logger *slog.Logger) {},
 			}
 			processor, err := metamorph.NewProcessor(
 				metamorphStore,

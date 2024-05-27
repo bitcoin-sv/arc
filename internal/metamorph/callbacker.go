@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -31,6 +32,8 @@ type Callback struct {
 
 type Callbacker struct {
 	httpClient HttpClient
+	disposed   bool
+	wg         sync.WaitGroup
 }
 
 func NewCallbacker(httpClient HttpClient) *Callbacker {
@@ -49,6 +52,14 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 			logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 		}
 	}()
+
+	if p.disposed {
+		logger.Error("cannot send callback, callbacker is disposed already")
+		return
+	}
+
+	p.wg.Add(1)
+	defer p.wg.Done()
 
 	sleepDuration := CallbackIntervalSeconds
 	statusString := tx.Status.String()
@@ -108,4 +119,16 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 	}
 
 	logger.Warn("Couldn't send transaction callback after tries", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.Int("retries", CallbackTries))
+}
+
+func (p *Callbacker) Shutdown(logger *slog.Logger) {
+	if p.disposed {
+		logger.Info("callbacker is down already")
+		return
+	}
+
+	logger.Info("Shutting down callbacker")
+
+	p.disposed = true
+	p.wg.Wait()
 }

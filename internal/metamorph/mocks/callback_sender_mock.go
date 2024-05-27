@@ -23,6 +23,9 @@ var _ metamorph.CallbackSender = &CallbackSenderMock{}
 //			SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData)  {
 //				panic("mock out the SendCallback method")
 //			},
+//			ShutdownFunc: func(logger *slog.Logger)  {
+//				panic("mock out the Shutdown method")
+//			},
 //		}
 //
 //		// use mockedCallbackSender in code that requires metamorph.CallbackSender
@@ -33,6 +36,9 @@ type CallbackSenderMock struct {
 	// SendCallbackFunc mocks the SendCallback method.
 	SendCallbackFunc func(logger *slog.Logger, tx *store.StoreData)
 
+	// ShutdownFunc mocks the Shutdown method.
+	ShutdownFunc func(logger *slog.Logger)
+
 	// calls tracks calls to the methods.
 	calls struct {
 		// SendCallback holds details about calls to the SendCallback method.
@@ -42,8 +48,14 @@ type CallbackSenderMock struct {
 			// Tx is the tx argument value.
 			Tx *store.StoreData
 		}
+		// Shutdown holds details about calls to the Shutdown method.
+		Shutdown []struct {
+			// Logger is the logger argument value.
+			Logger *slog.Logger
+		}
 	}
 	lockSendCallback sync.RWMutex
+	lockShutdown     sync.RWMutex
 }
 
 // SendCallback calls SendCallbackFunc.
@@ -79,5 +91,37 @@ func (mock *CallbackSenderMock) SendCallbackCalls() []struct {
 	mock.lockSendCallback.RLock()
 	calls = mock.calls.SendCallback
 	mock.lockSendCallback.RUnlock()
+	return calls
+}
+
+// Shutdown calls ShutdownFunc.
+func (mock *CallbackSenderMock) Shutdown(logger *slog.Logger) {
+	if mock.ShutdownFunc == nil {
+		panic("CallbackSenderMock.ShutdownFunc: method is nil but CallbackSender.Shutdown was just called")
+	}
+	callInfo := struct {
+		Logger *slog.Logger
+	}{
+		Logger: logger,
+	}
+	mock.lockShutdown.Lock()
+	mock.calls.Shutdown = append(mock.calls.Shutdown, callInfo)
+	mock.lockShutdown.Unlock()
+	mock.ShutdownFunc(logger)
+}
+
+// ShutdownCalls gets all the calls that were made to Shutdown.
+// Check the length with:
+//
+//	len(mockedCallbackSender.ShutdownCalls())
+func (mock *CallbackSenderMock) ShutdownCalls() []struct {
+	Logger *slog.Logger
+} {
+	var calls []struct {
+		Logger *slog.Logger
+	}
+	mock.lockShutdown.RLock()
+	calls = mock.calls.Shutdown
+	mock.lockShutdown.RUnlock()
 	return calls
 }

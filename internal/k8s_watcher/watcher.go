@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"runtime/debug"
 	"strings"
 	"time"
 
@@ -24,17 +23,15 @@ type K8sClient interface {
 }
 
 type Watcher struct {
-	metamorphClient           metamorph.TransactionMaintainer
-	blocktxClient             blocktx.BlocktxClient
-	k8sClient                 K8sClient
-	logger                    *slog.Logger
-	tickerMetamorph           Ticker
-	tickerBlocktx             Ticker
-	namespace                 string
-	shutdownMetamorph         chan struct{}
-	shutdownMetamorphComplete chan struct{}
-	shutdownBlocktx           chan struct{}
-	shutdownBlocktxComplete   chan struct{}
+	metamorphClient   metamorph.TransactionMaintainer
+	blocktxClient     blocktx.BlocktxClient
+	k8sClient         K8sClient
+	logger            *slog.Logger
+	tickerMetamorph   Ticker
+	tickerBlocktx     Ticker
+	namespace         string
+	shutdownMetamorph context.CancelFunc
+	shutdownBlocktx   context.CancelFunc
 }
 
 func WithLogger(logger *slog.Logger) func(*Watcher) {
@@ -52,14 +49,10 @@ func New(metamorphClient metamorph.TransactionMaintainer, blocktxClient blocktx.
 		blocktxClient:   blocktxClient,
 		k8sClient:       k8sClient,
 
-		namespace:                 namespace,
-		logger:                    slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "k8s-watcher")),
-		shutdownMetamorph:         make(chan struct{}),
-		shutdownMetamorphComplete: make(chan struct{}),
-		shutdownBlocktx:           make(chan struct{}),
-		shutdownBlocktxComplete:   make(chan struct{}),
-		tickerMetamorph:           NewDefaultTicker(intervalDefault),
-		tickerBlocktx:             NewDefaultTicker(intervalDefault),
+		namespace:       namespace,
+		logger:          slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "k8s-watcher")),
+		tickerMetamorph: NewDefaultTicker(intervalDefault),
+		tickerBlocktx:   NewDefaultTicker(intervalDefault),
 	}
 	for _, opt := range opts {
 		opt(watcher)
@@ -98,26 +91,25 @@ func WithBlocktxTicker(t Ticker) func(*Watcher) {
 }
 
 func (c *Watcher) Start() error {
-	c.watchMetamorph()
+	ctx, cancel := context.WithCancel(context.Background())
+	c.shutdownMetamorph = cancel
+	c.watchMetamorph(ctx)
 
-	c.watchBlocktx()
+	ctx, cancel = context.WithCancel(context.Background())
+	c.shutdownBlocktx = cancel
+	c.watchBlocktx(ctx)
 
 	return nil
 }
 
-func (c *Watcher) watchBlocktx() {
+func (c *Watcher) watchBlocktx(ctx context.Context) {
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				c.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			c.shutdownBlocktxComplete <- struct{}{}
-		}()
-
 		var runningPods map[string]struct{}
 
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case <-c.tickerBlocktx.Tick():
 				// Update the list of running pods. Detect those which have been terminated and call them to delete unfinished block processing
 				ctx := context.Background()
@@ -146,27 +138,19 @@ func (c *Watcher) watchBlocktx() {
 				}
 
 				runningPods = runningPodsK8s
-
-			case <-c.shutdownBlocktx:
-				return
 			}
 		}
 	}()
 }
 
-func (c *Watcher) watchMetamorph() {
+func (c *Watcher) watchMetamorph(ctx context.Context) {
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				c.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			c.shutdownMetamorphComplete <- struct{}{}
-		}()
-
 		var runningPods map[string]struct{}
 
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case <-c.tickerMetamorph.Tick():
 				// Update the list of running pods. Detect those which have been terminated and unlock records for these pods
 				ctx := context.Background()
@@ -196,19 +180,16 @@ func (c *Watcher) watchMetamorph() {
 				}
 
 				runningPods = runningPodsK8s
-
-			case <-c.shutdownMetamorph:
-				return
-			}
 		}
 	}()
 }
 
 func (c *Watcher) Shutdown() {
-	c.tickerMetamorph.Stop()
-	c.shutdownMetamorph <- struct{}{}
-	<-c.shutdownMetamorphComplete
+	if c.shutdownMetamorph != nil {
+		c.shutdownMetamorph()
+	}
 
-	c.shutdownBlocktx <- struct{}{}
-	<-c.shutdownBlocktxComplete
+	if c.shutdownBlocktx != nil {
+		c.shutdownBlocktx()
+	}
 }

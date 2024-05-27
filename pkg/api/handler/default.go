@@ -15,6 +15,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/validator"
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
+	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
@@ -88,12 +89,14 @@ func (m ArcDefaultHandler) GETHealth(ctx echo.Context) error {
 		reason := err.Error()
 		return ctx.JSON(http.StatusOK, api.Health{
 			Healthy: PtrTo(false),
+			Version: &version.Version,
 			Reason:  &reason,
 		})
 	}
 
 	return ctx.JSON(http.StatusOK, api.Health{
 		Healthy: PtrTo(true),
+		Version: &version.Version,
 		Reason:  nil,
 	})
 }

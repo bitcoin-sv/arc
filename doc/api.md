@@ -318,6 +318,7 @@ Checks if metamorph is healthy and running
 ```json
 {
   "healthy": false,
+  "version": "v1.0.0",
   "reason": "no db connection"
 }
 ```
@@ -1097,6 +1098,7 @@ Common response object
 ```json
 {
   "healthy": false,
+  "version": "v1.0.0",
   "reason": "no db connection"
 }
 
@@ -1109,6 +1111,7 @@ healthy or not
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
 |healthy|boolean|false|none|whether healthy or not|
+|version|string|false|none|version of the ARC package|
 |reason|string¦null|false|none|explains the problem with metamorph|
 
 <h2 id="tocS_ChainInfo">ChainInfo</h2>

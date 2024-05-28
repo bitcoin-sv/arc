@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"runtime/debug"
 	"strconv"
 	"sync"
 	"time"
@@ -56,7 +55,7 @@ type Processor struct {
 	minimumHealthyConnections int
 	callbackSender            CallbackSender
 
-	WaitGroup *sync.WaitGroup
+	waitGroup *sync.WaitGroup
 
 	CancelCollectStats     context.CancelFunc
 	statCollectionInterval time.Duration
@@ -83,6 +82,7 @@ type Option func(f *Processor)
 
 type CallbackSender interface {
 	SendCallback(logger *slog.Logger, tx *store.StoreData)
+	Shutdown(logger *slog.Logger)
 }
 
 func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (*Processor, error) {
@@ -173,7 +173,7 @@ func (p *Processor) Shutdown() {
 	}
 
 	// wait for all of those above to finish
-	p.WaitGroup.Wait()
+	p.waitGroup.Wait()
 }
 
 func (p *Processor) unlockRecords() error {
@@ -186,9 +186,12 @@ func (p *Processor) unlockRecords() error {
 	return nil
 }
 
-func (p *Processor) StartProcessMinedCallbacks(ctx context.Context) {
+func (p *Processor) StartProcessMinedCallbacks() {
+	ctx, cancel := context.WithCancel(context.Background())
+	p.CancelMinedCallbacks = cancel
+	p.waitGroup.Add(1)
 	go func() {
-		defer p.WaitGroup.Done()
+		defer p.waitGroup.Done()
 
 		for {
 			select {
@@ -233,16 +236,18 @@ func (p *Processor) CheckAndUpdate(statusUpdatesMap *map[chainhash.Hash]store.Up
 	*statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 }
 
-func (p *Processor) StartProcessStatusUpdatesInStorage(ctx context.Context) {
+func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	ticker := time.NewTicker(p.processStatusUpdatesInterval)
+	ctx, cancel := context.WithCancel(context.Background())
+	p.CancelProcessStatusUpdatesInStorage = cancel
+	p.waitGroup.Add(1)
 	go func() {
-		defer p.WaitGroup.Done()
+		defer p.waitGroup.Done()
 		statusUpdatesMap := map[chainhash.Hash]store.UpdateStatus{}
 
 		for {
 			select {
 			case <-ctx.Done():
-				p.WaitGroup.Done()
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
 				// Ensure no duplicate hashes, overwrite value if the status has higher value than existing status
@@ -275,10 +280,14 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus)
 	return nil
 }
 
-func (p *Processor) StartLockTransactions(ctx context.Context) {
+func (p *Processor) StartLockTransactions() {
+	ctx, cancel := context.WithCancel(context.Background())
+	p.CancelLockTransactions = cancel
+	p.waitGroup.Add(1)
+
 	ticker := time.NewTicker(p.lockTransactionsInterval)
 	go func() {
-		defer p.WaitGroup.Done()
+		defer p.waitGroup.Done()
 		for {
 			select {
 			case <-ctx.Done():
@@ -294,10 +303,13 @@ func (p *Processor) StartLockTransactions(ctx context.Context) {
 	}()
 }
 
-func (p *Processor) StartRequestingSeenOnNetworkTxs(ctx context.Context) {
+func (p *Processor) StartRequestingSeenOnNetworkTxs() {
+	ctx, cancel := context.WithCancel(context.Background())
+	p.CancelProcessSeenOnNetworkTxRequesting = cancel
+	p.waitGroup.Add(1)
 	ticker := time.NewTicker(p.processSeenOnNetworkTxsInterval)
 	go func() {
-		defer p.WaitGroup.Done()
+		defer p.waitGroup.Done()
 		for {
 			select {
 			case <-ctx.Done():
@@ -339,10 +351,13 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs(ctx context.Context) {
 	}()
 }
 
-func (p *Processor) StartProcessExpiredTransactions(ctx context.Context) {
+func (p *Processor) StartProcessExpiredTransactions() {
+	ctx, cancel := context.WithCancel(context.Background())
+	p.CancelProcessExpiredTransactions = cancel
+	p.waitGroup.Add(1)
 	ticker := time.NewTicker(p.processExpiredTxsInterval)
 	go func() {
-		defer p.WaitGroup.Done()
+		defer p.waitGroup.Done()
 		for {
 			select {
 			case <-ctx.Done():
@@ -517,11 +532,6 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// we no longer need processor response object after client disconnects
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-		}()
 		time.Sleep(req.Timeout + time.Second)
 		p.ProcessorResponseMap.Delete(req.Data.Hash)
 	}()

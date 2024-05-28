@@ -328,10 +328,8 @@ func TestStartFillGaps(t *testing.T) {
 				},
 			}
 			peers := []p2p.PeerI{peerMock}
-
-			var ctx context.Context
-			ctx, peerHandler.CancelFillBlockGap = context.WithCancel(context.Background())
-			peerHandler.StartFillGaps(ctx, peers)
+)
+			peerHandler.StartFillGaps(peers)
 
 			select {
 			case hashPeer := <-peerHandler.workerCh:
@@ -388,9 +386,7 @@ func TestStartProcessTxs(t *testing.T) {
 			peerHandler, err := NewPeerHandler(logger, storeMock, WithRegisterTxsInterval(time.Millisecond*20), WithTxChan(txChan), WithRegisterTxsBatchSize(3))
 			require.NoError(t, err)
 
-			var ctx context.Context
-			ctx, peerHandler.cancelProcessTxs = context.WithCancel(context.Background())
-			peerHandler.startProcessTxs(ctx)
+			peerHandler.startProcessTxs()
 
 			time.Sleep(120 * time.Millisecond)
 			peerHandler.Shutdown()
@@ -489,10 +485,7 @@ func TestStartPeerWorker(t *testing.T) {
 				Peer: peerMock,
 			}
 
-			var ctx context.Context
-			ctx, peerHandler.cancelPeerWorker = context.WithCancel(context.Background())
-			peerHandler.WaitGroup.Add(1)
-			peerHandler.startPeerWorker(ctx)
+			peerHandler.startPeerWorker()
 
 			// call tested function
 			require.NoError(t, err)
@@ -597,7 +590,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			peerHandler, err := NewPeerHandler(logger, storeMock,
-				WithRegisterRequestTxsInterval(15*time.Millisecond),
+				WithRegisterRequestTxsInterval(20*time.Millisecond),
 				WithRegisterRequestTxsBatchSize(3),
 				WithRequestTxChan(requestTxChannel),
 				WithMessageQueueClient(mq))
@@ -607,9 +600,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 				requestTxChannel <- tc.requestedTx
 			}
 
-			var ctx context.Context
-			ctx, peerHandler.cancelProcessRequestTxs = context.WithCancel(context.Background())
-			peerHandler.startProcessRequestTxs(ctx)
+			peerHandler.startProcessRequestTxs()
 
 			// call tested function
 			require.NoError(t, err)

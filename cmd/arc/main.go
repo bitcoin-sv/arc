@@ -10,7 +10,6 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"runtime/debug"
 	"strings"
 	"syscall"
 
@@ -92,12 +91,6 @@ func run() error {
 
 	shutdownFns := make([]func(), 0)
 
-	defer func() {
-		if r := recover(); r != nil {
-			logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-		}
-	}()
-
 	tracingAddr := viper.GetString("tracing.dialAddr")
 	tracingEnabled := false
 	if tracingAddr != "" {
@@ -132,11 +125,7 @@ func run() error {
 	}
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-		}()
+
 		profilerAddr := viper.GetString("profilerAddr")
 		if profilerAddr != "" {
 			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", profilerAddr))
@@ -149,11 +138,6 @@ func run() error {
 	}()
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-		}()
 
 		prometheusAddr := viper.GetString("prometheusAddr")
 		prometheusEndpoint := viper.GetString("prometheusEndpoint")

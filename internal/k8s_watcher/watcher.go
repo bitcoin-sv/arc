@@ -31,7 +31,7 @@ type Watcher struct {
 	tickerMetamorph   Ticker
 	tickerBlocktx     Ticker
 	namespace         string
-	WaitGroup         *sync.WaitGroup
+	waitGroup         *sync.WaitGroup
 	shutdownMetamorph context.CancelFunc
 	shutdownBlocktx   context.CancelFunc
 }
@@ -94,27 +94,22 @@ func WithBlocktxTicker(t Ticker) func(*Watcher) {
 }
 
 func (c *Watcher) Start() error {
-	ctx, cancel := context.WithCancel(context.Background())
-	c.shutdownMetamorph = cancel
-	c.WaitGroup.Add(1)
-	c.watchMetamorph(ctx)
-
-	ctx, cancel = context.WithCancel(context.Background())
-	c.shutdownBlocktx = cancel
-	c.WaitGroup.Add(1)
-	c.watchBlocktx(ctx)
-
+	c.watchMetamorph()
+	c.watchBlocktx()
 	return nil
 }
 
-func (c *Watcher) watchBlocktx(ctx context.Context) {
+func (c *Watcher) watchBlocktx() {
+	ctx, cancel := context.WithCancel(context.Background())
+	c.shutdownBlocktx = cancel
+	c.waitGroup.Add(1)
 	go func() {
 		var runningPods map[string]struct{}
 
 		for {
 			select {
 			case <-ctx.Done():
-				c.WaitGroup.Done()
+				c.waitGroup.Done()
 				return
 			case <-c.tickerBlocktx.Tick():
 				// Update the list of running pods. Detect those which have been terminated and call them to delete unfinished block processing
@@ -149,14 +144,17 @@ func (c *Watcher) watchBlocktx(ctx context.Context) {
 	}()
 }
 
-func (c *Watcher) watchMetamorph(ctx context.Context) {
+func (c *Watcher) watchMetamorph() {
+	ctx, cancel := context.WithCancel(context.Background())
+	c.shutdownMetamorph = cancel
+	c.waitGroup.Add(1)
 	go func() {
 		var runningPods map[string]struct{}
 
 		for {
 			select {
 			case <-ctx.Done():
-				c.WaitGroup.Done()
+				c.waitGroup.Done()
 				return
 			case <-c.tickerMetamorph.Tick():
 				// Update the list of running pods. Detect those which have been terminated and unlock records for these pods
@@ -200,5 +198,5 @@ func (c *Watcher) Shutdown() {
 		c.shutdownBlocktx()
 	}
 
-	c.WaitGroup.Wait()
+	c.waitGroup.Wait()
 }

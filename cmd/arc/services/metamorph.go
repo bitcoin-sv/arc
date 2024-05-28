@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -148,51 +147,24 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	var ctx context.Context
-	var cancel context.CancelFunc
-
-	ctx, cancel = context.WithCancel(context.Background())
-	metamorphProcessor.CancelLockTransactions = cancel
-	metamorphProcessor.WaitGroup.Add(1)
-	metamorphProcessor.StartLockTransactions(ctx)
+	metamorphProcessor.StartLockTransactions()
 	time.Sleep(200 * time.Millisecond) // wait a short time so that process expired transactions will start shortly after lock transactions go routine
 
-	ctx, cancel = context.WithCancel(context.Background())
-	metamorphProcessor.CancelProcessExpiredTransactions = cancel
-	metamorphProcessor.WaitGroup.Add(1)
-	metamorphProcessor.StartProcessExpiredTransactions(ctx)
+	metamorphProcessor.StartProcessExpiredTransactions()
 
-	ctx, cancel = context.WithCancel(context.Background())
-	metamorphProcessor.CancelProcessSeenOnNetworkTxRequesting = cancel
-	metamorphProcessor.WaitGroup.Add(1)
-	metamorphProcessor.StartRequestingSeenOnNetworkTxs(ctx)
+	metamorphProcessor.StartRequestingSeenOnNetworkTxs()
 
-	ctx, cancel = context.WithCancel(context.Background())
-	metamorphProcessor.CancelProcessStatusUpdatesInStorage = cancel
-	metamorphProcessor.WaitGroup.Add(1)
-	metamorphProcessor.StartProcessStatusUpdatesInStorage(ctx)
+	metamorphProcessor.StartProcessStatusUpdatesInStorage()
 
-	ctx, cancel = context.WithCancel(context.Background())
-	metamorphProcessor.CancelMinedCallbacks = cancel
-	metamorphProcessor.WaitGroup.Add(1)
-	metamorphProcessor.StartProcessMinedCallbacks(ctx)
+	metamorphProcessor.StartProcessMinedCallbacks()
 
-	ctx, cancel = context.WithCancel(context.Background())
-	metamorphProcessor.CancelCollectStats = cancel
-	metamorphProcessor.WaitGroup.Add(1)
-	err = metamorphProcessor.StartCollectStats(ctx)
+	err = metamorphProcessor.StartCollectStats()
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to start collecting stats: %v", err)
 	}
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-		}()
-
 		for message := range statusMessageCh {
 			err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
 			if err != nil {
@@ -335,11 +307,6 @@ func StartHealthServerMetamorph(serv *metamorph.Server, logger *slog.Logger) (*g
 	}
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-		}()
 
 		logger.Info("GRPC health server listening", slog.String("address", address))
 		err = gs.Serve(listener)

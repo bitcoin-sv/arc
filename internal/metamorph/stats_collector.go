@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"runtime/debug"
 	"sync"
 	"time"
 
@@ -100,7 +99,11 @@ func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
 	return p
 }
 
-func (p *Processor) StartCollectStats(ctx context.Context) error {
+func (p *Processor) StartCollectStats() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	p.CancelCollectStats = cancel
+	p.waitGroup.Add(1)
+
 	ticker := time.NewTicker(p.statCollectionInterval)
 
 	err := registerStats(
@@ -117,14 +120,11 @@ func (p *Processor) StartCollectStats(ctx context.Context) error {
 		p.stats.statusNotSeen,
 	)
 	if err != nil {
-		p.WaitGroup.Done()
+		p.waitGroup.Done()
 		return err
 	}
 	go func() {
 		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
 
 			unregisterStats(
 				p.stats.statusStored,
@@ -139,13 +139,12 @@ func (p *Processor) StartCollectStats(ctx context.Context) error {
 				p.stats.statusNotMined,
 				p.stats.statusNotSeen,
 			)
-			p.WaitGroup.Done()
+			p.waitGroup.Done()
 		}()
 
 		for {
 			select {
 			case <-ctx.Done():
-				p.WaitGroup.Done()
 				return
 			case <-ticker.C:
 

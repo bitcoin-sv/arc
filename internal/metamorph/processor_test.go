@@ -129,10 +129,7 @@ func TestStartLockTransactions(t *testing.T) {
 			require.NoError(t, err)
 			defer processor.Shutdown()
 
-			ctx, cancel := context.WithCancel(context.Background())
-			processor.CancelLockTransactions = cancel
-			processor.WaitGroup.Add(1)
-			processor.StartLockTransactions(ctx)
+			processor.StartLockTransactions()
 			time.Sleep(50 * time.Millisecond)
 
 			require.Equal(t, tc.expectedSetLockedCalls, len(metamorphStore.SetLockedCalls()))
@@ -454,6 +451,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {
 					callbackSent <- struct{}{}
 				},
+				ShutdownFunc: func(logger *slog.Logger) {},
 			}
 
 			processor, err := metamorph.NewProcessor(
@@ -632,12 +630,6 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 
 			expectedSendCallbackCalls: 0,
 		},
-		{
-			name:  "panic",
-			panic: true,
-
-			expectedSendCallbackCalls: 0,
-		},
 	}
 
 	for _, tc := range tt {
@@ -656,6 +648,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 5)
 			callbackSender := &mocks.CallbackSenderMock{
 				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {},
+				ShutdownFunc:     func(logger *slog.Logger) {},
 			}
 			processor, err := metamorph.NewProcessor(
 				metamorphStore,

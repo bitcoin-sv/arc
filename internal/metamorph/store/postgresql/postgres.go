@@ -17,7 +17,6 @@ import (
 const (
 	postgresDriverName      = "postgres"
 	numericalDateHourLayout = "2006010215"
-	until                   = -1 * 2 * time.Hour
 )
 
 type PostgreSQL struct {
@@ -54,9 +53,9 @@ func New(dbInfo string, hostname string, idleConns int, maxOpenConns int, opts .
 }
 
 func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error) {
-	q := "UPDATE metamorph.transactions SET locked_by = 'NONE' WHERE locked_by = $1 AND (status < $2 OR status = $3);"
+	q := "UPDATE metamorph.transactions SET locked_by = 'NONE' WHERE locked_by = $1 AND status < $2;"
 
-	rows, err := p.db.ExecContext(ctx, q, lockedBy, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
+	rows, err := p.db.ExecContext(ctx, q, lockedBy, metamorph_api.Status_SEEN_ON_NETWORK)
 	if err != nil {
 		return 0, err
 	}
@@ -296,14 +295,14 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 		   SELECT t2.hash
 		   FROM metamorph.transactions t2
 		   WHERE t2.locked_by = 'NONE'
-		   AND (t2.status < $3 OR t2.status = $4)
-		   AND inserted_at_num > $5
+		   AND t2.status < $3
+		   AND inserted_at_num > $4
 		   LIMIT $2
 		   FOR UPDATE SKIP LOCKED
 		);
 	;`
 
-	_, err := p.db.ExecContext(ctx, q, p.hostname, limit, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout))
+	_, err := p.db.ExecContext(ctx, q, p.hostname, limit, metamorph_api.Status_SEEN_ON_NETWORK, since.Format(numericalDateHourLayout))
 	if err != nil {
 		return err
 	}
@@ -330,13 +329,13 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
      	,merkle_path
 		,retries
 		FROM metamorph.transactions
-		WHERE locked_by = $6
-		AND (status < $1 OR status = $2)
-		AND inserted_at_num > $3
+		WHERE locked_by = $5
+		AND status < $1
+		AND inserted_at_num > $2
 		ORDER BY inserted_at_num DESC
-		LIMIT $4 OFFSET $5;`
+		LIMIT $3 OFFSET $4;`
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout), limit, offset, p.hostname)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since.Format(numericalDateHourLayout), limit, offset, p.hostname)
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +479,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, metamorph_api.Status_MINED)
+	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons))
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			return nil, err

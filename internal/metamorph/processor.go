@@ -38,6 +38,8 @@ const (
 
 	processStatusUpdatesIntervalDefault  = 500 * time.Millisecond
 	processStatusUpdatesBatchSizeDefault = 1000
+
+	monitorPeersIntervalDefault = 60 * time.Second
 )
 
 type Processor struct {
@@ -82,8 +84,9 @@ type Processor struct {
 	cancelProcessSeenOnNetworkTxRequesting       context.CancelFunc
 	quitProcessSeenOnNetworkTxRequestingComplete chan struct{}
 
-	cancelMonitorPeers context.CancelFunc
-	wgMonitorPeers     *sync.WaitGroup
+	cancelMonitorPeers   context.CancelFunc
+	wgMonitorPeers       *sync.WaitGroup
+	monitorPeersInterval time.Duration
 }
 
 type Option func(f *Processor)
@@ -129,7 +132,8 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 
 		statCollectionInterval: statCollectionIntervalDefault,
 
-		wgMonitorPeers: &sync.WaitGroup{},
+		wgMonitorPeers:       &sync.WaitGroup{},
+		monitorPeersInterval: monitorPeersIntervalDefault,
 	}
 
 	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm"))
@@ -211,7 +215,7 @@ func (p *Processor) StartMonitorPeers() {
 	ctx, cancel := context.WithCancel(context.Background())
 	p.cancelMonitorPeers = cancel
 
-	ticker := time.NewTicker(60 * time.Second)
+	ticker := time.NewTicker(p.monitorPeersInterval)
 	p.wgMonitorPeers.Add(1)
 	go func() {
 		defer func() {

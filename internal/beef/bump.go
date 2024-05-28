@@ -7,7 +7,7 @@ import (
 )
 
 func CalculateMerkleRootsFromBumps(bumps []*bc.BUMP) ([]string, error) {
-	merkleRoots := make([]string, len(bumps))
+	merkleRoots := make([]string, 0)
 
 	for _, bump := range bumps {
 		blockMerkleRoot := ""

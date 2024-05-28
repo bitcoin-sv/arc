@@ -9,19 +9,22 @@ type StatusCode int
 const (
 	arcDocServerErrorsUrl = "https://bitcoin-sv.github.io/arc/#/errors?id=_"
 
-	StatusOK                  StatusCode = 200
-	ErrStatusBadRequest       StatusCode = 400
-	ErrStatusNotFound         StatusCode = 404
-	ErrStatusGeneric          StatusCode = 409
-	ErrStatusTxFormat         StatusCode = 460
-	ErrStatusUnlockingScripts StatusCode = 461
-	ErrStatusInputs           StatusCode = 462
-	ErrStatusMalformed        StatusCode = 463
-	ErrStatusOutputs          StatusCode = 464
-	ErrStatusFees             StatusCode = 465
-	ErrStatusConflict         StatusCode = 466
-	ErrStatusFrozenPolicy     StatusCode = 471
-	ErrStatusFrozenConsensus  StatusCode = 472
+	StatusOK                      StatusCode = 200
+	ErrStatusBadRequest           StatusCode = 400
+	ErrStatusNotFound             StatusCode = 404
+	ErrStatusGeneric              StatusCode = 409
+	ErrStatusTxFormat             StatusCode = 460
+	ErrStatusUnlockingScripts     StatusCode = 461
+	ErrStatusInputs               StatusCode = 462
+	ErrStatusMalformed            StatusCode = 463
+	ErrStatusOutputs              StatusCode = 464
+	ErrStatusFees                 StatusCode = 465
+	ErrStatusConflict             StatusCode = 466
+	ErrStatusFrozenPolicy         StatusCode = 471
+	ErrStatusFrozenConsensus      StatusCode = 472
+	ErrBeefMinedAncestorsNotFound StatusCode = 473
+	ErrBeefCalculatingMerkleRoots StatusCode = 474
+	ErrBeefValidatingMerkleRoots  StatusCode = 475
 )
 
 func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {

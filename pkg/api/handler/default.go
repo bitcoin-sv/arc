@@ -280,9 +280,8 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHe
 			return nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
 		}
 
-		if err := m.validateBEEFTransaction(txValidator, beefTx, transactionOptions); err != nil {
-			_, arcError := m.handleError(ctx, transaction, err)
-			return nil, nil, arcError
+		if err := m.validateBEEFTransaction(ctx, txValidator, beefTx, transactionOptions); err != nil {
+			return nil, nil, err
 		}
 	} else {
 		var err error
@@ -470,16 +469,15 @@ func (m ArcDefaultHandler) extendTransaction(ctx context.Context, transaction *b
 	return nil
 }
 
-func (m ArcDefaultHandler) validateBEEFTransaction(txValidator validator.Validator, beefTx *beef.BEEF, transactionOptions *metamorph.TransactionOptions) error {
-	// 1. Validate unmined beef and ensure parents in bumps
+func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.Validator, beefTx *beef.BEEF, transactionOptions *metamorph.TransactionOptions) *api.ErrorFields {
 	if err := txValidator.ValidateBeef(beefTx, transactionOptions.SkipFeeValidation, transactionOptions.SkipTxValidation); err != nil {
-		return err
+		_, arcError := m.handleError(ctx, beefTx.GetLatestTx(), err)
+		return arcError
 	}
 
-	// 2. Get merkleroots from beef package
 	_, err := beef.CalculateMerkleRootsFromBumps(beefTx.BUMPs)
 	if err != nil {
-		return err
+		return api.NewErrorFields(api.ErrBeefCalculatingMerkleRoots, err.Error())
 	}
 
 	// 3. Validate merkle roots with an grcp call to BlockTx

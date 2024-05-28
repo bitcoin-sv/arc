@@ -100,7 +100,7 @@ func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
 	return p
 }
 
-func (p *Processor) StartCollectStats(ctx context.Context, wg *sync.WaitGroup) error {
+func (p *Processor) StartCollectStats(ctx context.Context) error {
 	ticker := time.NewTicker(p.statCollectionInterval)
 
 	err := registerStats(
@@ -117,7 +117,7 @@ func (p *Processor) StartCollectStats(ctx context.Context, wg *sync.WaitGroup) e
 		p.stats.statusNotSeen,
 	)
 	if err != nil {
-		wg.Done()
+		p.WaitGroup.Done()
 		return err
 	}
 	go func() {
@@ -139,13 +139,13 @@ func (p *Processor) StartCollectStats(ctx context.Context, wg *sync.WaitGroup) e
 				p.stats.statusNotMined,
 				p.stats.statusNotSeen,
 			)
-			wg.Done()
+			p.WaitGroup.Done()
 		}()
 
 		for {
 			select {
 			case <-ctx.Done():
-				wg.Done()
+				p.WaitGroup.Done()
 				return
 			case <-ticker.C:
 

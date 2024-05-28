@@ -128,7 +128,11 @@ func TestStartLockTransactions(t *testing.T) {
 			)
 			require.NoError(t, err)
 			defer processor.Shutdown()
-			processor.StartLockTransactions()
+
+			ctx, cancel := context.WithCancel(context.Background())
+			processor.CancelLockTransactions = cancel
+			processor.WaitGroup.Add(1)
+			processor.StartLockTransactions(ctx)
 			time.Sleep(50 * time.Millisecond)
 
 			require.Equal(t, tc.expectedSetLockedCalls, len(metamorphStore.SetLockedCalls()))

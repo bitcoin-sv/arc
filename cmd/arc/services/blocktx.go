@@ -159,6 +159,7 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 
 	var ctx context.Context
 	ctx, peerHandler.CancelFillBlockGap = context.WithCancel(context.Background())
+	peerHandler.WaitGroup.Add(1)
 	peerHandler.StartFillGaps(ctx, peers)
 
 	server := blocktx.NewServer(blockStore, logger, peers)

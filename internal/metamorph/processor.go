@@ -56,6 +56,8 @@ type Processor struct {
 	minimumHealthyConnections int
 	callbackSender            CallbackSender
 
+	WaitGroup *sync.WaitGroup
+
 	CancelCollectStats     context.CancelFunc
 	statCollectionInterval time.Duration
 
@@ -116,6 +118,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		processStatusUpdatesBatchSize: processStatusUpdatesBatchSizeDefault,
 		storageStatusUpdateCh:         make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
 		stats:                         newProcessorStats(),
+		WaitGroup:                     &sync.WaitGroup{},
 
 		statCollectionInterval: statCollectionIntervalDefault,
 	}
@@ -168,6 +171,9 @@ func (p *Processor) Shutdown() {
 	if p.CancelCollectStats != nil {
 		p.CancelCollectStats()
 	}
+
+	// wait for all of those above to finish
+	p.WaitGroup.Wait()
 }
 
 func (p *Processor) unlockRecords() error {
@@ -180,9 +186,9 @@ func (p *Processor) unlockRecords() error {
 	return nil
 }
 
-func (p *Processor) StartProcessMinedCallbacks(ctx context.Context, wg *sync.WaitGroup) {
+func (p *Processor) StartProcessMinedCallbacks(ctx context.Context) {
 	go func() {
-		defer wg.Done()
+		defer p.WaitGroup.Done()
 
 		for {
 			select {
@@ -227,16 +233,16 @@ func (p *Processor) CheckAndUpdate(statusUpdatesMap *map[chainhash.Hash]store.Up
 	*statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 }
 
-func (p *Processor) StartProcessStatusUpdatesInStorage(ctx context.Context, wg *sync.WaitGroup) {
+func (p *Processor) StartProcessStatusUpdatesInStorage(ctx context.Context) {
 	ticker := time.NewTicker(p.processStatusUpdatesInterval)
-
 	go func() {
-		defer wg.Done()
+		defer p.WaitGroup.Done()
 		statusUpdatesMap := map[chainhash.Hash]store.UpdateStatus{}
 
 		for {
 			select {
 			case <-ctx.Done():
+				p.WaitGroup.Done()
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
 				// Ensure no duplicate hashes, overwrite value if the status has higher value than existing status
@@ -269,10 +275,10 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus)
 	return nil
 }
 
-func (p *Processor) StartLockTransactions(ctx context.Context, wg *sync.WaitGroup) {
+func (p *Processor) StartLockTransactions(ctx context.Context) {
 	ticker := time.NewTicker(p.lockTransactionsInterval)
 	go func() {
-		defer wg.Done()
+		defer p.WaitGroup.Done()
 		for {
 			select {
 			case <-ctx.Done():
@@ -288,10 +294,10 @@ func (p *Processor) StartLockTransactions(ctx context.Context, wg *sync.WaitGrou
 	}()
 }
 
-func (p *Processor) StartRequestingSeenOnNetworkTxs(ctx context.Context, wg *sync.WaitGroup) {
+func (p *Processor) StartRequestingSeenOnNetworkTxs(ctx context.Context) {
 	ticker := time.NewTicker(p.processSeenOnNetworkTxsInterval)
 	go func() {
-		defer wg.Done()
+		defer p.WaitGroup.Done()
 		for {
 			select {
 			case <-ctx.Done():
@@ -333,10 +339,10 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs(ctx context.Context, wg *syn
 	}()
 }
 
-func (p *Processor) StartProcessExpiredTransactions(ctx context.Context, wg *sync.WaitGroup) {
+func (p *Processor) StartProcessExpiredTransactions(ctx context.Context) {
 	ticker := time.NewTicker(p.processExpiredTxsInterval)
 	go func() {
-		defer wg.Done()
+		defer p.WaitGroup.Done()
 		for {
 			select {
 			case <-ctx.Done():

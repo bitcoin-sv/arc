@@ -491,6 +491,7 @@ func TestStartPeerWorker(t *testing.T) {
 
 			var ctx context.Context
 			ctx, peerHandler.cancelPeerWorker = context.WithCancel(context.Background())
+			peerHandler.WaitGroup.Add(1)
 			peerHandler.startPeerWorker(ctx)
 
 			// call tested function

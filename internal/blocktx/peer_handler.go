@@ -10,6 +10,7 @@ import (
 	"math"
 	"os"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -113,6 +114,7 @@ type PeerHandler struct {
 	registerRequestTxsBatchSize int
 
 	fillGapsTicker          *time.Ticker
+	WaitGroup               *sync.WaitGroup
 	CancelFillBlockGap      context.CancelFunc
 	cancelProcessTxs        context.CancelFunc
 	cancelPeerWorker        context.CancelFunc
@@ -203,6 +205,7 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
 		registerRequestTxsBatchSize: registerRequestTxBatchSizeDefault,
 		hostname:                    hostname,
+		WaitGroup:                   &sync.WaitGroup{},
 
 		fillGapsTicker: time.NewTicker(fillGapsInterval),
 	}
@@ -221,12 +224,15 @@ func (ph *PeerHandler) Start() {
 	var ctx context.Context
 
 	ctx, ph.cancelPeerWorker = context.WithCancel(context.Background())
+	ph.WaitGroup.Add(1)
 	ph.startPeerWorker(ctx)
 
 	ctx, ph.cancelProcessTxs = context.WithCancel(context.Background())
+	ph.WaitGroup.Add(1)
 	ph.startProcessTxs(ctx)
 
 	ctx, ph.cancelProcessRequestTxs = context.WithCancel(context.Background())
+	ph.WaitGroup.Add(1)
 	ph.startProcessRequestTxs(ctx)
 }
 
@@ -235,6 +241,7 @@ func (ph *PeerHandler) startPeerWorker(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
+				ph.WaitGroup.Done()
 				return
 			case workerItem := <-ph.workerCh:
 				hash := workerItem.Hash
@@ -287,6 +294,7 @@ func (ph *PeerHandler) StartFillGaps(ctx context.Context, peers []p2p.PeerI) {
 		for {
 			select {
 			case <-ctx.Done():
+				ph.WaitGroup.Done()
 				return
 			case <-ph.fillGapsTicker.C:
 				if peerIndex >= len(peers) {
@@ -312,6 +320,7 @@ func (ph *PeerHandler) startProcessTxs(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
+				ph.WaitGroup.Done()
 				return
 			case txHash := <-ph.txChannel:
 				txHashes = append(txHashes, &blocktx_api.TransactionAndSource{
@@ -349,6 +358,7 @@ func (ph *PeerHandler) startProcessRequestTxs(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
+				ph.WaitGroup.Done()
 				return
 			case txHash := <-ph.requestTxChannel:
 				tx, err := chainhash.NewHash(txHash)
@@ -826,6 +836,8 @@ func (ph *PeerHandler) Shutdown() {
 		ph.cancelProcessRequestTxs()
 	}
 	ph.unregisterTracing()
+
+	ph.WaitGroup.Wait()
 }
 
 func (ph *PeerHandler) unregisterTracing() {

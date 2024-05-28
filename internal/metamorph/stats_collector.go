@@ -33,6 +33,7 @@ type processorStats struct {
 	statusSeenInOrphanMempool prometheus.Gauge
 	statusNotMined            prometheus.Gauge
 	statusNotSeen             prometheus.Gauge
+	healthyPeerConnections    prometheus.Gauge
 }
 
 func WithLimits(notSeenLimit time.Duration, notMinedLimit time.Duration) func(*processorStats) {
@@ -80,6 +81,10 @@ func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
 			Name: "arc_status_seen_in_orphan_mempool_count",
 			Help: "Number of monitored transactions with status SEEN_IN_ORPHAN_MEMPOOL",
 		}),
+		healthyPeerConnections: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "arc_healthy_peers_count",
+			Help: "Number of healthy peer connections",
+		}),
 		notSeenLimit:  notSeenLimitDefault,
 		notMinedLimit: notMinedLimitDefault,
 	}
@@ -119,6 +124,7 @@ func (p *Processor) StartCollectStats() error {
 		p.stats.statusSeenInOrphanMempool,
 		p.stats.statusNotMined,
 		p.stats.statusNotSeen,
+		p.stats.healthyPeerConnections,
 	)
 	if err != nil {
 		return err
@@ -142,6 +148,7 @@ func (p *Processor) StartCollectStats() error {
 				p.stats.statusSeenInOrphanMempool,
 				p.stats.statusNotMined,
 				p.stats.statusNotSeen,
+				p.stats.healthyPeerConnections,
 			)
 		}()
 
@@ -159,6 +166,15 @@ func (p *Processor) StartCollectStats() error {
 					continue
 				}
 
+				healthyConnections := 0
+
+				for _, peer := range p.pm.GetPeers() {
+					if peer.Connected() && peer.IsHealthy() {
+						healthyConnections++
+						continue
+					}
+				}
+
 				p.stats.mu.Lock()
 				p.stats.statusStored.Set(float64(collectedStats.StatusStored))
 				p.stats.statusAnnouncedToNetwork.Set(float64(collectedStats.StatusAnnouncedToNetwork))
@@ -171,10 +187,10 @@ func (p *Processor) StartCollectStats() error {
 				p.stats.statusSeenInOrphanMempool.Set(float64(collectedStats.StatusSeenInOrphanMempool))
 				p.stats.statusNotMined.Set(float64(collectedStats.StatusNotMined))
 				p.stats.statusNotSeen.Set(float64(collectedStats.StatusNotSeen))
+				p.stats.healthyPeerConnections.Set(float64(healthyConnections))
 				p.stats.mu.Unlock()
 			}
 		}
-
 	}()
 
 	return nil

@@ -32,8 +32,9 @@ type Callback struct {
 
 type Callbacker struct {
 	httpClient HttpClient
-	disposed   bool
 	wg         sync.WaitGroup
+	mu         sync.Mutex
+	disposed   bool
 }
 
 func NewCallbacker(httpClient HttpClient) *Callbacker {
@@ -53,10 +54,13 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 		}
 	}()
 
+	p.mu.Lock()
 	if p.disposed {
 		logger.Error("cannot send callback, callbacker is disposed already")
+		p.mu.Unlock()
 		return
 	}
+	p.mu.Unlock()
 
 	p.wg.Add(1)
 	defer p.wg.Done()
@@ -122,13 +126,16 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 }
 
 func (p *Callbacker) Shutdown(logger *slog.Logger) {
+	p.mu.Lock()
 	if p.disposed {
 		logger.Info("callbacker is down already")
+		p.mu.Unlock()
 		return
 	}
 
-	logger.Info("Shutting down callbacker")
-
 	p.disposed = true
+	p.mu.Unlock()
+
+	logger.Info("Shutting down callbacker")
 	p.wg.Wait()
 }

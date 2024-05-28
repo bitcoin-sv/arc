@@ -86,6 +86,7 @@ type Option func(f *Processor)
 
 type CallbackSender interface {
 	SendCallback(logger *slog.Logger, tx *store.StoreData)
+	Shutdown(logger *slog.Logger)
 }
 
 func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (*Processor, error) {
@@ -148,6 +149,10 @@ func (p *Processor) Shutdown() {
 	err := p.unlockRecords()
 	if err != nil {
 		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
+	}
+
+	if p.callbackSender != nil {
+		p.callbackSender.Shutdown(p.logger)
 	}
 
 	if p.cancelLockTransactions != nil {

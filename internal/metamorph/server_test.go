@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/libsv/go-p2p"
 	"log/slog"
 	"os"
 	"testing"
@@ -43,8 +44,8 @@ func TestHealth(t *testing.T) {
 		processor.GetStatsFunc = func(debugItems bool) *metamorph.ProcessorStats {
 			return expectedStats
 		}
-		processor.GetPeersFunc = func() ([]string, []string) {
-			return []string{"peer1"}, []string{}
+		processor.GetPeersFunc = func() []p2p.PeerI {
+			return []p2p.PeerI{}
 		}
 
 		server := metamorph.NewServer(nil, processor)

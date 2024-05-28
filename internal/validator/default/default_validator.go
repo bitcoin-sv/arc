@@ -2,7 +2,6 @@ package defaultvalidator
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"math"
 
@@ -63,7 +62,8 @@ func (v *DefaultValidator) ValidateBeef(beefTx *beef.BEEF, skipFeeValidation, sk
 		}
 	}
 
-	if err := v.verifyMerkleRoots(beefTx); err != nil {
+	if err := beef.EnsureAncestorsArePresentInBump(beefTx.GetLatestTx(), beefTx); err != nil {
+		// TODO: return a validator error with new error code
 		return err
 	}
 
@@ -151,44 +151,6 @@ func (v *DefaultValidator) IsExtended(tx *bt.Tx) bool {
 
 func (v *DefaultValidator) IsBeef(txHex []byte) bool {
 	return beef.CheckBeefFormat(txHex)
-}
-
-func (v *DefaultValidator) verifyMerkleRoots(beefTx *beef.BEEF) error {
-	if err := beef.EnsureAncestorsArePresentInBump(beefTx.GetLatestTx(), beefTx); err != nil {
-		return err
-	}
-
-	// b. calculate merkleroots from bumps
-	merkleRoots := make([]string, len(beefTx.BUMPs))
-	for _, bump := range beefTx.BUMPs {
-		blockMerkleRoot := ""
-		for _, txId := range bump.Txids() {
-			mr, err := bump.CalculateRootGivenTxid(txId)
-			if err != nil {
-				return err
-			}
-
-			if blockMerkleRoot == "" {
-				blockMerkleRoot = mr
-			} else if blockMerkleRoot != mr {
-				return errors.New("different merkle roots from the same block")
-			}
-		}
-
-		if blockMerkleRoot == "" {
-			return errors.New("no expected transactions in bump")
-		}
-
-		merkleRoots = append(merkleRoots, blockMerkleRoot)
-	}
-
-	if len(merkleRoots) == 0 {
-		return errors.New("no merkle roots found for validation")
-	}
-
-	// c. validate with headerservice
-
-	return nil
 }
 
 func checkTxSize(txSize int, policy *bitcoin.Settings) error {

@@ -280,7 +280,7 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHe
 			return nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
 		}
 
-		if err := txValidator.ValidateBeef(beefTx, transactionOptions.SkipFeeValidation, transactionOptions.SkipTxValidation); err != nil {
+		if err := m.validateBEEFTransaction(txValidator, beefTx, transactionOptions); err != nil {
 			_, arcError := m.handleError(ctx, transaction, err)
 			return nil, nil, arcError
 		}
@@ -466,6 +466,23 @@ func (m ArcDefaultHandler) extendTransaction(ctx context.Context, transaction *b
 		input.PreviousTxScript = output.LockingScript
 		input.PreviousTxSatoshis = output.Satoshis
 	}
+
+	return nil
+}
+
+func (m ArcDefaultHandler) validateBEEFTransaction(txValidator validator.Validator, beefTx *beef.BEEF, transactionOptions *metamorph.TransactionOptions) error {
+	// 1. Validate unmined beef and ensure parents in bumps
+	if err := txValidator.ValidateBeef(beefTx, transactionOptions.SkipFeeValidation, transactionOptions.SkipTxValidation); err != nil {
+		return err
+	}
+
+	// 2. Get merkleroots from beef package
+	_, err := beef.CalculateMerkleRootsFromBumps(beefTx.BUMPs)
+	if err != nil {
+		return err
+	}
+
+	// 3. Validate merkle roots with an grcp call to BlockTx
 
 	return nil
 }

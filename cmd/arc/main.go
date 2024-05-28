@@ -218,8 +218,7 @@ func run() error {
 
 	// setup signal catching
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGTERM)
-	signal.Notify(signalChan, syscall.SIGINT)
+	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
 
 	<-signalChan
 	for _, fn := range shutdownFns {

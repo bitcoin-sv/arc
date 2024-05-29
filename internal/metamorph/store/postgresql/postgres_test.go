@@ -489,8 +489,8 @@ func TestPostgresDB(t *testing.T) {
 		records, err := postgresDB.GetSeenOnNetwork(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), time.Date(2023, 1, 1, 3, 0, 0, 0, time.UTC), 2, 0)
 		require.NoError(t, err)
 
-		require.Equal(t, txHash, records[0].Hash)
 		require.Equal(t, 1, len(records))
+		require.Equal(t, txHash, records[0].Hash)
 		require.Equal(t, records[0].LockedBy, postgresDB.hostname)
 	})
 

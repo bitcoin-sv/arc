@@ -15,6 +15,7 @@ import (
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/labstack/echo/v4"
@@ -28,6 +29,7 @@ const (
 
 type ArcDefaultHandler struct {
 	TransactionHandler            metamorph.TransactionHandler
+	MerkleRootsVerificator        blocktx.MerkleRootsVerificator
 	NodePolicy                    *bitcoin.Settings
 	logger                        *slog.Logger
 	now                           func() time.Time
@@ -48,12 +50,13 @@ func WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings []string) func(*A
 
 type Option func(f *ArcDefaultHandler)
 
-func NewDefault(logger *slog.Logger, transactionHandler metamorph.TransactionHandler, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
+func NewDefault(logger *slog.Logger, transactionHandler metamorph.TransactionHandler, merkleRootsVerificator blocktx.MerkleRootsVerificator, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
 	handler := &ArcDefaultHandler{
-		TransactionHandler: transactionHandler,
-		NodePolicy:         policy,
-		logger:             logger,
-		now:                time.Now,
+		TransactionHandler:     transactionHandler,
+		MerkleRootsVerificator: merkleRootsVerificator,
+		NodePolicy:             policy,
+		logger:                 logger,
+		now:                    time.Now,
 	}
 
 	// apply options
@@ -475,12 +478,20 @@ func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValida
 		return arcError
 	}
 
-	_, err := beef.CalculateMerkleRootsFromBumps(beefTx.BUMPs)
+	merkleRoots, err := beef.CalculateMerkleRootsFromBumps(beefTx.BUMPs)
 	if err != nil {
 		return api.NewErrorFields(api.ErrBeefCalculatingMerkleRoots, err.Error())
 	}
 
-	// 3. Validate merkle roots with an grcp call to BlockTx
+	unverifiedBlockHeights, err := m.MerkleRootsVerificator.VerifyMerkleRoots(ctx, merkleRoots)
+	if err != nil {
+		return api.NewErrorFields(api.ErrBeefValidatingMerkleRoots, err.Error())
+	}
+
+	if len(unverifiedBlockHeights) == 0 {
+		err := fmt.Errorf("unable to verify BUMPs with block heights: %v", unverifiedBlockHeights)
+		return api.NewErrorFields(api.ErrBeefValidatingMerkleRoots, err.Error())
+	}
 
 	return nil
 }

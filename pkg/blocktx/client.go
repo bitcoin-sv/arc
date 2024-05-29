@@ -3,6 +3,7 @@ package blocktx
 import (
 	"context"
 
+	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"google.golang.org/grpc"
@@ -15,6 +16,10 @@ type BlocktxClient interface {
 	ClearBlocks(ctx context.Context, retentionDays int32) (int64, error)
 	ClearBlockTransactionsMap(ctx context.Context, retentionDays int32) (int64, error)
 	DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) error
+}
+
+type MerkleRootsVerificator interface {
+	VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []beef.MerkleRootVerificationRequest) ([]uint64, error)
 }
 
 type Client struct {
@@ -68,6 +73,18 @@ func (btc *Client) ClearBlockTransactionsMap(ctx context.Context, retentionDays 
 		return 0, err
 	}
 	return resp.Rows, nil
+}
+
+func (btc *Client) VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []beef.MerkleRootVerificationRequest) ([]uint64, error) {
+	merkleRoots := make([]*blocktx_api.MerkleRootVerificationRequest, 0)
+
+	for _, mr := range merkleRootVerificationRequest {
+		merkleRoots = append(merkleRoots, &blocktx_api.MerkleRootVerificationRequest{MerkleRoot: mr.MerkleRoot, BlockHeight: mr.BlockHeight})
+	}
+
+	resp, err := btc.client.VerifyMerkleRoots(ctx, &blocktx_api.MerkleRootsVerificationRequest{MerkleRoots: merkleRoots})
+
+	return resp.UnverifiedBlockHeights, err
 }
 
 func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int) (*grpc.ClientConn, error) {

@@ -6,8 +6,13 @@ import (
 	"github.com/libsv/go-bc"
 )
 
-func CalculateMerkleRootsFromBumps(bumps []*bc.BUMP) ([]string, error) {
-	merkleRoots := make([]string, 0)
+type MerkleRootVerificationRequest struct {
+	MerkleRoot  string
+	BlockHeight uint64
+}
+
+func CalculateMerkleRootsFromBumps(bumps []*bc.BUMP) ([]MerkleRootVerificationRequest, error) {
+	merkleRoots := make([]MerkleRootVerificationRequest, 0)
 
 	for _, bump := range bumps {
 		blockMerkleRoot := ""
@@ -28,7 +33,10 @@ func CalculateMerkleRootsFromBumps(bumps []*bc.BUMP) ([]string, error) {
 			return nil, errors.New("no transactions marked as expected to verify in bump")
 		}
 
-		merkleRoots = append(merkleRoots, blockMerkleRoot)
+		merkleRoots = append(merkleRoots, MerkleRootVerificationRequest{
+			MerkleRoot:  blockMerkleRoot,
+			BlockHeight: bump.BlockHeight,
+		})
 	}
 
 	if len(merkleRoots) == 0 {

@@ -38,7 +38,6 @@ func NewServer(storeI store.BlocktxStore, logger *slog.Logger, peers []p2p.PeerI
 
 // StartGRPCServer function.
 func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheusEndpoint string, logger *slog.Logger) error {
-
 	// LEVEL 0 - no security / no encryption
 	srvMetrics, opts, cleanup, err := grpc_opts.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize, "blocktx")
 	if err != nil {
@@ -106,6 +105,10 @@ func (s *Server) DelUnfinishedBlockProcessing(ctx context.Context, req *blocktx_
 	}
 
 	return &emptypb.Empty{}, nil
+}
+
+func (s *Server) VerifyMerkleRoots(ctx context.Context, req *blocktx_api.MerkleRootsVerificationRequest) (*blocktx_api.MerkleRootVerificationResponse, error) {
+	return s.store.VerifyMerkleRoots(ctx, req.GetMerkleRoots())
 }
 
 func (s *Server) Shutdown() {

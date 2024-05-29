@@ -11,6 +11,8 @@ import (
 	cfg "github.com/bitcoin-sv/arc/internal/config"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
+	"github.com/bitcoin-sv/arc/pkg/blocktx"
+	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/labstack/echo/v4"
@@ -84,6 +86,11 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 		return err
 	}
 
+	blocktxAddress, err := cfg.GetString("blocktx.dialAddr")
+	if err != nil {
+		return err
+	}
+
 	grpcMessageSize, err := cfg.GetInt("grpcMessageSize")
 	if err != nil {
 		return err
@@ -98,6 +105,12 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
+	btcConn, err := metamorph.DialGRPC(logger, blocktxAddress, prometheusEndpoint, grpcMessageSize)
+	if err != nil {
+		return fmt.Errorf("failed to connect to metamorph server: %v", err)
+	}
+	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
+
 	var policy *bitcoin.Settings
 	policy, err = getPolicyFromNode()
 	if err != nil {
@@ -110,7 +123,7 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 	rejectedCallbackUrlSubstrings := viper.GetStringSlice("metamorph.rejectCallbackContaining")
 
 	// TODO WithSecurityConfig(appConfig.Security)
-	apiHandler, err := handler.NewDefault(logger, metamorphClient, policy, handler.WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings))
+	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, handler.WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings))
 	if err != nil {
 		return err
 	}

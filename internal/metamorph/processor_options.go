@@ -104,3 +104,9 @@ func WithMinimumHealthyConnections(minimumHealthyConnections int) func(*Processo
 		p.minimumHealthyConnections = minimumHealthyConnections
 	}
 }
+
+func WithMonitorPeersInterval(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.monitorPeersInterval = d
+	}
+}

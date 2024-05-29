@@ -3,7 +3,6 @@ package metamorph
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -55,8 +54,8 @@ func NewClient(client metamorph_api.MetaMorphAPIClient) *Metamorph {
 	}
 }
 
-func DialGRPC(logger *slog.Logger, address string, prometheusEndpoint string, grpcMessageSize int) (*grpc.ClientConn, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(logger, prometheusEndpoint, grpcMessageSize)
+func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int) (*grpc.ClientConn, error) {
+	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize)
 	if err != nil {
 		return nil, err
 	}

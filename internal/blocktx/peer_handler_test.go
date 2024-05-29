@@ -328,7 +328,7 @@ func TestStartFillGaps(t *testing.T) {
 				},
 			}
 			peers := []p2p.PeerI{peerMock}
-)
+
 			peerHandler.StartFillGaps(peers)
 
 			select {

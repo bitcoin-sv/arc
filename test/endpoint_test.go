@@ -137,7 +137,7 @@ func TestBatchChainedTxs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			address, privateKey := getNewWalletAddress(t)
 
-			generate(t, 100)
+			generate(t, 10)
 
 			t.Logf("generated address: %s", address)
 
@@ -277,7 +277,7 @@ func TestPostCallbackToken(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			address, privateKey := getNewWalletAddress(t)
 
-			generate(t, 100)
+			generate(t, 10)
 
 			t.Logf("generated address: %s", address)
 
@@ -479,7 +479,7 @@ func TestPostSkipFee(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			address, privateKey := getNewWalletAddress(t)
 
-			generate(t, 100)
+			generate(t, 10)
 
 			t.Logf("generated address: %s", address)
 
@@ -525,7 +525,7 @@ func TestPostSkipTxValidation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			address, privateKey := getNewWalletAddress(t)
 
-			generate(t, 100)
+			generate(t, 10)
 
 			t.Logf("generated address: %s", address)
 
@@ -712,7 +712,7 @@ func postTx(t *testing.T, jsonPayload string, headers map[string]string) (*http.
 func createTxHexStringExtended(t *testing.T) *bt.Tx {
 	address, privateKey := getNewWalletAddress(t)
 
-	generate(t, 100)
+	generate(t, 10)
 	t.Logf("generated address: %s", address)
 
 	sendToAddress(t, address, 0.001)

@@ -85,7 +85,7 @@ type Processor struct {
 	quitProcessSeenOnNetworkTxRequestingComplete chan struct{}
 
 	cancelMonitorPeers   context.CancelFunc
-	wgMonitorPeers       *sync.WaitGroup
+	wgMonitorPeers       sync.WaitGroup
 	monitorPeersInterval time.Duration
 }
 
@@ -132,7 +132,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 
 		statCollectionInterval: statCollectionIntervalDefault,
 
-		wgMonitorPeers:       &sync.WaitGroup{},
+		wgMonitorPeers:       sync.WaitGroup{},
 		monitorPeersInterval: monitorPeersIntervalDefault,
 	}
 

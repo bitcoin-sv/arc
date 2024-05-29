@@ -128,7 +128,7 @@ func (c *Watcher) watchBlocktx() {
 				}
 
 				for podName := range runningPods {
-					// Ignore all other serivces than metamorph
+					// Ignore all other services than blocktx
 					if !strings.Contains(podName, blocktxService) {
 						continue
 					}
@@ -177,7 +177,7 @@ func (c *Watcher) watchMetamorph() {
 				}
 
 				for podName := range runningPods {
-					// Ignore all other serivces than metamorph
+					// Ignore all other services than metamorph
 					if !strings.Contains(podName, metamorphService) {
 						continue
 					}

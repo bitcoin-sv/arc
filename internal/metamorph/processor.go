@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime/debug"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
@@ -37,6 +38,8 @@ const (
 
 	processStatusUpdatesIntervalDefault  = 500 * time.Millisecond
 	processStatusUpdatesBatchSizeDefault = 1000
+
+	monitorPeersIntervalDefault = 60 * time.Second
 )
 
 type Processor struct {
@@ -80,6 +83,10 @@ type Processor struct {
 
 	cancelProcessSeenOnNetworkTxRequesting       context.CancelFunc
 	quitProcessSeenOnNetworkTxRequestingComplete chan struct{}
+
+	cancelMonitorPeers   context.CancelFunc
+	wgMonitorPeers       sync.WaitGroup
+	monitorPeersInterval time.Duration
 }
 
 type Option func(f *Processor)
@@ -124,6 +131,9 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		stats:                         newProcessorStats(),
 
 		statCollectionInterval: statCollectionIntervalDefault,
+
+		wgMonitorPeers:       sync.WaitGroup{},
+		monitorPeersInterval: monitorPeersIntervalDefault,
 	}
 
 	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm"))
@@ -184,6 +194,11 @@ func (p *Processor) Shutdown() {
 		p.cancelCollectStats()
 		<-p.quitCollectStatsComplete
 	}
+
+	if p.cancelMonitorPeers != nil {
+		p.cancelMonitorPeers()
+		p.wgMonitorPeers.Wait()
+	}
 }
 
 func (p *Processor) unlockRecords() error {
@@ -194,6 +209,40 @@ func (p *Processor) unlockRecords() error {
 	p.logger.Info("unlocked items", slog.Int64("number", unlockedItems))
 
 	return nil
+}
+
+func (p *Processor) StartMonitorPeers() {
+	ctx, cancel := context.WithCancel(context.Background())
+	p.cancelMonitorPeers = cancel
+
+	ticker := time.NewTicker(p.monitorPeersInterval)
+	p.wgMonitorPeers.Add(1)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
+			}
+			p.wgMonitorPeers.Done()
+		}()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+
+				peers := p.GetPeers()
+
+				for _, peer := range peers {
+					if !peer.Connected() || !peer.IsHealthy() {
+						p.logger.Warn("Unhealthy peer", slog.String("address", peer.String()), slog.Bool("connected", peer.Connected()), slog.Bool("healthy", peer.IsHealthy()))
+					}
+				}
+
+				// Todo: restart unhealthy peers
+			}
+		}
+	}()
 }
 
 func (p *Processor) StartProcessMinedCallbacks() {
@@ -450,7 +499,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 				}
 
 				if announced > 0 || requested > 0 {
-					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested))
+					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested), slog.String("since", getUnminedSince.String()))
 				}
 			}
 		}
@@ -458,19 +507,8 @@ func (p *Processor) StartProcessExpiredTransactions() {
 }
 
 // GetPeers returns a list of connected and a list of disconnected peers
-func (p *Processor) GetPeers() ([]string, []string) {
-	peers := p.pm.GetPeers()
-	peersConnected := make([]string, 0, len(peers))
-	peersDisconnected := make([]string, 0, len(peers))
-	for _, peer := range peers {
-		if peer.Connected() {
-			peersConnected = append(peersConnected, peer.String())
-		} else {
-			peersDisconnected = append(peersDisconnected, peer.String())
-		}
-	}
-
-	return peersConnected, peersDisconnected
+func (p *Processor) GetPeers() []p2p.PeerI {
+	return p.pm.GetPeers()
 }
 
 var statusValueMap = map[metamorph_api.Status]int{

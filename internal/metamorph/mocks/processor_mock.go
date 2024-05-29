@@ -6,6 +6,7 @@ package mocks
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/libsv/go-p2p"
 	"sync"
 )
 
@@ -19,7 +20,7 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //
 //		// make and configure a mocked metamorph.ProcessorI
 //		mockedProcessorI := &ProcessorIMock{
-//			GetPeersFunc: func() ([]string, []string) {
+//			GetPeersFunc: func() []p2p.PeerI {
 //				panic("mock out the GetPeers method")
 //			},
 //			GetStatsFunc: func(debugItems bool) *metamorph.ProcessorStats {
@@ -42,7 +43,7 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //	}
 type ProcessorIMock struct {
 	// GetPeersFunc mocks the GetPeers method.
-	GetPeersFunc func() ([]string, []string)
+	GetPeersFunc func() []p2p.PeerI
 
 	// GetStatsFunc mocks the GetStats method.
 	GetStatsFunc func(debugItems bool) *metamorph.ProcessorStats
@@ -88,7 +89,7 @@ type ProcessorIMock struct {
 }
 
 // GetPeers calls GetPeersFunc.
-func (mock *ProcessorIMock) GetPeers() ([]string, []string) {
+func (mock *ProcessorIMock) GetPeers() []p2p.PeerI {
 	if mock.GetPeersFunc == nil {
 		panic("ProcessorIMock.GetPeersFunc: method is nil but ProcessorI.GetPeers was just called")
 	}

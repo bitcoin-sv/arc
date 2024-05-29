@@ -155,6 +155,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	metamorphProcessor.StartRequestingSeenOnNetworkTxs()
 	metamorphProcessor.StartProcessStatusUpdatesInStorage()
 	metamorphProcessor.StartProcessMinedCallbacks()
+	metamorphProcessor.StartMonitorPeers()
 	err = metamorphProcessor.StartCollectStats()
 	if err != nil {
 		return nil, fmt.Errorf("failed to start collecting stats: %v", err)

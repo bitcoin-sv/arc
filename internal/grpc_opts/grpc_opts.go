@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	prometheusclient "github.com/prometheus/client_golang/prometheus"
@@ -21,9 +22,33 @@ const (
 	maxRetries = 3
 )
 
+// InterceptorLogger adapts slog logger to interceptor logger.
+func InterceptorLogger(l *slog.Logger) logging.Logger {
+	return logging.LoggerFunc(func(_ context.Context, lvl logging.Level, msg string, fields ...any) {
+		switch lvl {
+		case logging.LevelDebug:
+			l.Debug(msg, fields...)
+		case logging.LevelInfo:
+			l.Debug(msg, fields...)
+		case logging.LevelWarn:
+			l.Warn(msg, fields...)
+		case logging.LevelError:
+			l.Error(msg, fields...)
+		default:
+			panic(fmt.Sprintf("unknown level %v", lvl))
+		}
+	})
+}
+
 func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int, service string) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
 	// Setup logging.
 	rpcLogger := logger.With(slog.String("service", "gRPC/server"))
+	logTraceID := func(ctx context.Context) logging.Fields {
+		if span := trace.SpanContextFromContext(ctx); span.IsSampled() {
+			return logging.Fields{"traceID", span.TraceID().String()}
+		}
+		return nil
+	}
 
 	// Setup metrics.
 	srvMetrics := prometheus.NewServerMetrics(
@@ -63,6 +88,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	}
 
 	chainUnaryInterceptors = append(chainUnaryInterceptors, // Order matters e.g. tracing interceptor have to create span first for the later exemplars to work.
+		logging.UnaryServerInterceptor(InterceptorLogger(rpcLogger), logging.WithFieldsFromContext(logTraceID)),
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpcPanicRecoveryHandler)))
 
 	opts := []grpc.ServerOption{
@@ -77,7 +103,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	return srvMetrics, opts, cleanup, err
 }
 
-func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int) ([]grpc.DialOption, error) {
+func GetGRPCClientOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int) ([]grpc.DialOption, error) {
 	retryOpts := []retry.CallOption{
 		retry.WithMax(maxRetries),
 		retry.WithCodes(codes.NotFound, codes.Aborted),
@@ -104,6 +130,7 @@ func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int) ([]grpc.D
 
 	chainUnaryInterceptors = append(chainUnaryInterceptors, // Order matters e.g. tracing interceptor have to create span first for the later exemplars to work.
 		retry.UnaryClientInterceptor(retryOpts...),
+		logging.UnaryClientInterceptor(InterceptorLogger(logger)),
 	)
 
 	dialOpts := []grpc.DialOption{

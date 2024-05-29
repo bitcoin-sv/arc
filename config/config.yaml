@@ -75,7 +75,6 @@ blocktx:
   recordRetentionDays: 14 # number of days for which data integrity is ensured
   profilerAddr: localhost:9993 # address to start profiler server on
   registerTxsInterval: 10s # time interval to read from the channel registered transactions
-  fillGapsInterval: 15m # time interval to check and fill gaps in processed blocks
   mq:
     txsMinedMaxBatchSize: 20 # size of batches for transactions which got mined to be published to the message queue
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"runtime/debug"
 	"strconv"
 	"sync"
 	"time"
@@ -38,8 +37,6 @@ const (
 
 	processStatusUpdatesIntervalDefault  = 500 * time.Millisecond
 	processStatusUpdatesBatchSizeDefault = 1000
-
-	monitorPeersIntervalDefault = 60 * time.Second
 )
 
 type Processor struct {
@@ -79,10 +76,6 @@ type Processor struct {
 	CancelProcessExpiredTransactions context.CancelFunc
 
 	CancelProcessSeenOnNetworkTxRequesting context.CancelFunc
-
-	cancelMonitorPeers   context.CancelFunc
-	wgMonitorPeers       sync.WaitGroup
-	monitorPeersInterval time.Duration
 }
 
 type Option func(f *Processor)
@@ -125,12 +118,9 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		processStatusUpdatesBatchSize: processStatusUpdatesBatchSizeDefault,
 		storageStatusUpdateCh:         make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
 		stats:                         newProcessorStats(),
-		waitGroup:                     &sync.WaitGroup{},
+		WaitGroup:                     &sync.WaitGroup{},
 
 		statCollectionInterval: statCollectionIntervalDefault,
-
-		wgMonitorPeers:       sync.WaitGroup{},
-		monitorPeersInterval: monitorPeersIntervalDefault,
 	}
 
 	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm"))
@@ -182,11 +172,7 @@ func (p *Processor) Shutdown() {
 		p.CancelCollectStats()
 	}
 
-	if p.cancelMonitorPeers != nil {
-		p.cancelMonitorPeers()
-		p.wgMonitorPeers.Wait()
-	}
-
+	// wait for all of those above to finish
 	p.waitGroup.Wait()
 }
 
@@ -198,40 +184,6 @@ func (p *Processor) unlockRecords() error {
 	p.logger.Info("unlocked items", slog.Int64("number", unlockedItems))
 
 	return nil
-}
-
-func (p *Processor) StartMonitorPeers() {
-	ctx, cancel := context.WithCancel(context.Background())
-	p.cancelMonitorPeers = cancel
-
-	ticker := time.NewTicker(p.monitorPeersInterval)
-	p.wgMonitorPeers.Add(1)
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.wgMonitorPeers.Done()
-		}()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-
-				peers := p.GetPeers()
-
-				for _, peer := range peers {
-					if !peer.Connected() || !peer.IsHealthy() {
-						p.logger.Warn("Unhealthy peer", slog.String("address", peer.String()), slog.Bool("connected", peer.Connected()), slog.Bool("healthy", peer.IsHealthy()))
-					}
-				}
-
-				// Todo: restart unhealthy peers
-			}
-		}
-	}()
 }
 
 func (p *Processor) StartProcessMinedCallbacks() {
@@ -456,7 +408,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 				}
 
 				if announced > 0 || requested > 0 {
-					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested), slog.String("since", getUnminedSince.String()))
+					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested))
 				}
 			}
 		}
@@ -464,8 +416,19 @@ func (p *Processor) StartProcessExpiredTransactions() {
 }
 
 // GetPeers returns a list of connected and a list of disconnected peers
-func (p *Processor) GetPeers() []p2p.PeerI {
-	return p.pm.GetPeers()
+func (p *Processor) GetPeers() ([]string, []string) {
+	peers := p.pm.GetPeers()
+	peersConnected := make([]string, 0, len(peers))
+	peersDisconnected := make([]string, 0, len(peers))
+	for _, peer := range peers {
+		if peer.Connected() {
+			peersConnected = append(peersConnected, peer.String())
+		} else {
+			peersDisconnected = append(peersDisconnected, peer.String())
+		}
+	}
+
+	return peersConnected, peersDisconnected
 }
 
 var statusValueMap = map[metamorph_api.Status]int{

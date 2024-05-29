@@ -29,7 +29,7 @@ func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 
 	prometheusEndpoint := viper.GetString("prometheusEndpoint")
 
-	mtmConn, err := metamorph.DialGRPC(metamorphAddress, prometheusEndpoint, grpcMessageSize)
+	mtmConn, err := metamorph.DialGRPC(logger, metamorphAddress, prometheusEndpoint, grpcMessageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
@@ -51,7 +51,7 @@ func StartK8sWatcher(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	blocktxConn, err := blocktx.DialGRPC(blocktxAddress, prometheusEndpoint, grpcMessageSize)
+	blocktxConn, err := blocktx.DialGRPC(logger, blocktxAddress, prometheusEndpoint, grpcMessageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
 	}

@@ -38,6 +38,9 @@ func TestDoubleSpend(t *testing.T) {
 
 			sendToAddress(t, address, 0.001)
 
+			txID := sendToAddress(t, address, 0.02)
+			t.Logf("sent 0.02 BSV to: %s", txID)
+
 			hash := generate(t, 1)
 			t.Logf("generated 1 block: %s", hash)
 

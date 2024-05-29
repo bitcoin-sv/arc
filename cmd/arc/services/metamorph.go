@@ -158,7 +158,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 
 	metamorphProcessor.StartProcessMinedCallbacks()
 
-	metamorphProcessor.StartMonitorPeers()
 	err = metamorphProcessor.StartCollectStats()
 
 	if err != nil {

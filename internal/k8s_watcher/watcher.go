@@ -55,7 +55,7 @@ func New(metamorphClient metamorph.TransactionMaintainer, blocktxClient blocktx.
 		logger:          slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "k8s-watcher")),
 		tickerMetamorph: NewDefaultTicker(intervalDefault),
 		tickerBlocktx:   NewDefaultTicker(intervalDefault),
-		waitGroup:       &sync.WaitGroup{},
+		WaitGroup:       &sync.WaitGroup{},
 	}
 	for _, opt := range opts {
 		opt(watcher)
@@ -121,7 +121,7 @@ func (c *Watcher) watchBlocktx() {
 				}
 
 				for podName := range runningPods {
-					// Ignore all other services than blocktx
+					// Ignore all other serivces than metamorph
 					if !strings.Contains(podName, blocktxService) {
 						continue
 					}
@@ -166,7 +166,7 @@ func (c *Watcher) watchMetamorph() {
 				}
 
 				for podName := range runningPods {
-					// Ignore all other services than metamorph
+					// Ignore all other serivces than metamorph
 					if !strings.Contains(podName, metamorphService) {
 						continue
 					}

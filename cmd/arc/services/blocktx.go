@@ -57,11 +57,6 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 		return nil, err
 	}
 
-	fillGapsInterval, err := cfg.GetDuration("blocktx.fillGapsInterval")
-	if err != nil {
-		return nil, err
-	}
-
 	// The tx channel needs the capacity so that it could potentially buffer up to a certain nr of transactions per second
 	const targetTps = 6000
 	capacityRequired := int(registerTxInterval.Seconds() * targetTps)
@@ -108,7 +103,6 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 		blocktx.WithRequestTxChan(requestTxChannel),
 		blocktx.WithRegisterTxsInterval(registerTxInterval),
 		blocktx.WithMessageQueueClient(mqClient),
-		blocktx.WithFillGapsInterval(fillGapsInterval),
 	}
 	if tracingEnabled {
 		peerHandlerOpts = append(peerHandlerOpts, blocktx.WithTracer())

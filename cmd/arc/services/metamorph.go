@@ -151,15 +151,11 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	time.Sleep(200 * time.Millisecond) // wait a short time so that process expired transactions will start shortly after lock transactions go routine
 
 	metamorphProcessor.StartProcessExpiredTransactions()
-
 	metamorphProcessor.StartRequestingSeenOnNetworkTxs()
-
 	metamorphProcessor.StartProcessStatusUpdatesInStorage()
-
 	metamorphProcessor.StartProcessMinedCallbacks()
-
+	metamorphProcessor.StartMonitorPeers()
 	err = metamorphProcessor.StartCollectStats()
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to start collecting stats: %v", err)
 	}

@@ -87,6 +87,18 @@ func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {
 		errFields.Detail = "Input Frozen (blacklist manager consensus blacklisted)"
 		errFields.Title = "Input Frozen"
 		errFields.Type = arcDocServerErrorsUrl + strconv.Itoa(int(ErrStatusFrozenConsensus))
+	case ErrBeefMinedAncestorsNotFound:
+		errFields.Detail = "Error validating BEEF: mined ancestors not found in transaction inputs"
+		errFields.Title = "Mined ancestors not found"
+		errFields.Type = arcDocServerErrorsUrl + strconv.Itoa(int(ErrBeefMinedAncestorsNotFound))
+	case ErrBeefCalculatingMerkleRoots:
+		errFields.Detail = "Error validating BEEF: could not calculate Merkle Roots from given BUMPs"
+		errFields.Title = "Invalid BUMPs"
+		errFields.Type = arcDocServerErrorsUrl + strconv.Itoa(int(ErrBeefCalculatingMerkleRoots))
+	case ErrBeefValidatingMerkleRoots:
+		errFields.Detail = "Error validating BEEF: could not validate Merkle Roots"
+		errFields.Title = "Merkle Roots validation failed"
+		errFields.Type = arcDocServerErrorsUrl + strconv.Itoa(int(ErrBeefValidatingMerkleRoots))
 	default:
 		errFields.Status = int(ErrStatusGeneric)
 		errFields.Detail = "Transaction could not be processed"

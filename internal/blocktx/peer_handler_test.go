@@ -305,12 +305,13 @@ func TestStartFillGaps(t *testing.T) {
 
 			getBlockErrCh := make(chan error)
 
+			getBlockGapTestErr := tc.getBlockGapsErr
 			storeMock := &store.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 
-					if tc.getBlockGapsErr != nil {
-						getBlockErrCh <- tc.getBlockGapsErr
-						return nil, tc.getBlockGapsErr
+					if getBlockGapTestErr != nil {
+						getBlockErrCh <- getBlockGapTestErr
+						return nil, getBlockGapTestErr
 					}
 
 					return tc.blockGaps, nil
@@ -367,9 +368,10 @@ func TestStartProcessTxs(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			registerErrTest := tc.registerErr
 			storeMock := &store.BlocktxStoreMock{
 				RegisterTransactionsFunc: func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error {
-					return tc.registerErr
+					return registerErrTest
 				},
 			}
 
@@ -453,18 +455,21 @@ func TestStartPeerWorker(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			setBlockProcessingErrTest := tc.setBlockProcessingErr
+			bhsProcInProgErr := tc.bhsProcInProg
 			storeMock := &store.BlocktxStoreMock{
 				SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
-					return "abc", tc.setBlockProcessingErr
+					return "abc", setBlockProcessingErrTest
 				},
 				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
-					return tc.bhsProcInProg, nil
+					return bhsProcInProgErr, nil
 				},
 			}
 
+			writeMsgErrTest := tc.writeMsgErr
 			peerMock := &PeerMock{
 				WriteMsgFunc: func(msg wire.Message) error {
-					return tc.writeMsgErr
+					return writeMsgErrTest
 				},
 				StringFunc: func() string {
 					return ""
@@ -559,6 +564,8 @@ func TestStartProcessRequestTxs(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			publishMinedErrTest := tc.publishMinedErr
+			getMinedErrTest := tc.getMinedErr
 			storeMock := &store.BlocktxStoreMock{
 				GetMinedTransactionsFunc: func(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
 					for _, hash := range hashes {
@@ -569,13 +576,13 @@ func TestStartProcessRequestTxs(t *testing.T) {
 						TxHash:      testdata.TX1Hash[:],
 						BlockHash:   testdata.Block1Hash[:],
 						BlockHeight: 1,
-					}}, tc.getMinedErr
+					}}, getMinedErrTest
 				},
 			}
 
 			mq := &MessageQueueClientMock{
 				PublishMinedTxsFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error {
-					return tc.publishMinedErr
+					return publishMinedErrTest
 				},
 			}
 

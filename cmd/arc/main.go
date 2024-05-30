@@ -10,9 +10,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"runtime/debug"
 	"strings"
-	"sync"
 	"syscall"
 
 	cmd "github.com/bitcoin-sv/arc/cmd/arc/services"
@@ -92,13 +90,6 @@ func run() error {
 	logger.Info("Starting arc", slog.String("version", version.Version), slog.String("commit", version.Commit))
 
 	shutdownFns := make([]func(), 0)
-
-	defer func() {
-		if r := recover(); r != nil {
-			logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-		}
-	}()
-
 	tracingAddr := viper.GetString("tracing.dialAddr")
 	tracingEnabled := false
 	if tracingAddr != "" {
@@ -133,11 +124,6 @@ func run() error {
 	}
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-		}()
 		profilerAddr := viper.GetString("profilerAddr")
 		if profilerAddr != "" {
 			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", profilerAddr))
@@ -150,12 +136,6 @@ func run() error {
 	}()
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-		}()
-
 		prometheusAddr := viper.GetString("prometheusAddr")
 		prometheusEndpoint := viper.GetString("prometheusEndpoint")
 		if prometheusEndpoint != "" && prometheusAddr != "" {
@@ -229,24 +209,9 @@ func run() error {
 
 func appCleanup(logger *slog.Logger, shutdownFns []func()) {
 	logger.Info("Shutting down")
-
-	var wg sync.WaitGroup
 	for _, fn := range shutdownFns {
-		// fire the shutdown functions off in the background
-		// they might be relying on each other, and this allows them to gracefully stop
-		wg.Add(1)
-		go func(fn func()) {
-			defer func() {
-				if r := recover(); r != nil {
-					logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-				}
-				wg.Done()
-			}()
-
-			fn()
-		}(fn)
+		fn()
 	}
-	wg.Wait()
 }
 
 func isFlagPassed(name string) bool {

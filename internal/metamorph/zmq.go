@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
-	"runtime/debug"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -92,11 +91,6 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 	const invalidTxTopic = "invalidtx"
 	const discardedFromMempoolTopic = "discardedfrommempool"
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				z.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-		}()
 		var err error
 		for c := range ch {
 			switch c[0] {

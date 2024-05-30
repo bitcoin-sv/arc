@@ -630,12 +630,6 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 
 			expectedSendCallbackCalls: 0,
 		},
-		{
-			name:  "panic",
-			panic: true,
-
-			expectedSendCallbackCalls: 0,
-		},
 	}
 
 	for _, tc := range tt {
@@ -795,6 +789,9 @@ func TestMonitorPeers(t *testing.T) {
 							},
 							IsHealthyFunc: func() bool {
 								return tc.healthy
+							},
+							StringFunc: func() string {
+								return ""
 							},
 						}
 					}

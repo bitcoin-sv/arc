@@ -15,7 +15,6 @@ import (
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/labstack/echo/v4"
@@ -29,7 +28,7 @@ const (
 
 type ArcDefaultHandler struct {
 	TransactionHandler            metamorph.TransactionHandler
-	MerkleRootsVerificator        blocktx.MerkleRootsVerificator
+	MerkleRootsVerificator        beef.MerkleRootsVerificator
 	NodePolicy                    *bitcoin.Settings
 	logger                        *slog.Logger
 	now                           func() time.Time
@@ -50,7 +49,7 @@ func WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings []string) func(*A
 
 type Option func(f *ArcDefaultHandler)
 
-func NewDefault(logger *slog.Logger, transactionHandler metamorph.TransactionHandler, merkleRootsVerificator blocktx.MerkleRootsVerificator, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
+func NewDefault(logger *slog.Logger, transactionHandler metamorph.TransactionHandler, merkleRootsVerificator beef.MerkleRootsVerificator, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
 	handler := &ArcDefaultHandler{
 		TransactionHandler:     transactionHandler,
 		MerkleRootsVerificator: merkleRootsVerificator,

@@ -16,9 +16,6 @@ type BlocktxClient interface {
 	ClearBlocks(ctx context.Context, retentionDays int32) (int64, error)
 	ClearBlockTransactionsMap(ctx context.Context, retentionDays int32) (int64, error)
 	DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) error
-}
-
-type MerkleRootsVerificator interface {
 	VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []beef.MerkleRootVerificationRequest) ([]uint64, error)
 }
 

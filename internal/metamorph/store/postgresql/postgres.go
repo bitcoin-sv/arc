@@ -76,7 +76,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	   stored_at
 		,announced_at
 		,mined_at
-		,inserted_at_num
+		,last_submitted_at
 		,hash
 		,status
 		,block_height
@@ -96,7 +96,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	var storedAt sql.NullTime
 	var announcedAt sql.NullTime
 	var minedAt sql.NullTime
-	var intertedAtNum sql.NullInt32
+	var lastSubmittedAtNum sql.NullInt32
 	var blockHeight sql.NullInt64
 	var txHash []byte
 	var blockHash []byte
@@ -113,7 +113,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		&storedAt,
 		&announcedAt,
 		&minedAt,
-		&intertedAtNum,
+		&lastSubmittedAtNum,
 		&txHash,
 		&status,
 		&blockHeight,
@@ -160,8 +160,8 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		data.MinedAt = minedAt.Time.UTC()
 	}
 
-	if intertedAtNum.Valid {
-		data.InsertedAtNum = int(intertedAtNum.Int32)
+	if lastSubmittedAtNum.Valid {
+		data.LastSubmittedAtNum = int(lastSubmittedAtNum.Int32)
 	}
 
 	if status.Valid {
@@ -231,7 +231,7 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		,reject_reason
 		,raw_tx
 		,locked_by
-		,inserted_at_num
+		,last_submitted_at
 	) VALUES (
 		 $1
 		,$2
@@ -247,7 +247,7 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		,$12
 		,$13
 		,$14
-	) ON CONFLICT (hash) DO UPDATE SET inserted_at_num=$14`
+	) ON CONFLICT (hash) DO UPDATE SET last_submitted_at=$14`
 
 	var txHash []byte
 	var blockHash []byte
@@ -279,7 +279,7 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		value.RejectReason,
 		value.RawTx,
 		p.hostname,
-		value.InsertedAtNum,
+		value.LastSubmittedAtNum,
 	)
 	if err != nil {
 		return err
@@ -297,7 +297,7 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 		   FROM metamorph.transactions t2
 		   WHERE t2.locked_by = 'NONE'
 		   AND (t2.status < $3 OR t2.status = $4)
-		   AND inserted_at_num > $5
+		   AND last_submitted_at > $5
 		   LIMIT $2
 		   FOR UPDATE SKIP LOCKED
 		);
@@ -332,8 +332,8 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 		FROM metamorph.transactions
 		WHERE locked_by = $6
 		AND (status < $1 OR status = $2)
-		AND inserted_at_num > $3
-		ORDER BY inserted_at_num DESC
+		AND last_submitted_at > $3
+		ORDER BY last_submitted_at DESC
 		LIMIT $4 OFFSET $5;`
 
 	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since.Format(numericalDateHourLayout), limit, offset, p.hostname)
@@ -354,8 +354,8 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 			FROM metamorph.transactions
 			WHERE (locked_by = $6 OR locked_by = 'NONE')
 			AND status = $1
-			AND inserted_at_num >= $2
-			AND inserted_at_num <= $3
+			AND last_submitted_at >= $2
+			AND last_submitted_at <= $3
 			ORDER BY hash DESC
 			LIMIT $4 OFFSET $5)
 		as t
@@ -386,8 +386,8 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 	FROM metamorph.transactions
 	WHERE (locked_by = $6 OR locked_by = 'NONE')
 	AND status = $1
-	AND inserted_at_num > $2
-	AND inserted_at_num <= $3
+	AND last_submitted_at > $2
+	AND last_submitted_at <= $3
 	ORDER BY hash DESC
 	LIMIT $4 OFFSET $5
 	FOR UPDATE`, metamorph_api.Status_SEEN_ON_NETWORK, since.Format(numericalDateHourLayout), untilTime.Format(numericalDateHourLayout), limit, offset, p.hostname)
@@ -732,7 +732,7 @@ func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (int64,
 
 	deleteBeforeDate := start.Add(-24 * time.Hour * time.Duration(retentionDays))
 
-	res, err := p.db.ExecContext(ctx, "DELETE FROM metamorph.transactions WHERE inserted_at_num <= $1::int", deleteBeforeDate.Format(numericalDateHourLayout))
+	res, err := p.db.ExecContext(ctx, "DELETE FROM metamorph.transactions WHERE last_submitted_at <= $1::int", deleteBeforeDate.Format(numericalDateHourLayout))
 	if err != nil {
 		return 0, err
 	}
@@ -775,7 +775,7 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 		t.status,
 		count(*) AS status_count
 	FROM
-		metamorph.transactions t WHERE t.inserted_at_num > $1 AND t.locked_by = $2
+		metamorph.transactions t WHERE t.last_submitted_at > $1 AND t.locked_by = $2
 	GROUP BY
 		t.status
 	) AS found_statuses ON found_statuses.status = all_statuses.status) AS status_counts
@@ -814,7 +814,7 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 		count(*)
 	FROM
 		metamorph.transactions t
-		WHERE t.inserted_at_num > $1 AND status < $2 AND t.locked_by = $3
+		WHERE t.last_submitted_at > $1 AND status < $2 AND t.locked_by = $3
 		AND $4 - t.stored_at > $5
 `
 	err = p.db.QueryRowContext(ctx, qNotSeen, since.Format(numericalDateHourLayout), metamorph_api.Status_SEEN_ON_NETWORK, p.hostname, p.now(), notSeenLimit.Seconds()).Scan(&stats.StatusNotSeen)
@@ -827,7 +827,7 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 		count(*)
 	FROM
 		metamorph.transactions t
-		WHERE t.inserted_at_num > $1 AND status = $2 AND t.locked_by = $3
+		WHERE t.last_submitted_at > $1 AND status = $2 AND t.locked_by = $3
 		AND EXTRACT(EPOCH FROM ($4 - t.stored_at)) > $5
 `
 	err = p.db.QueryRowContext(ctx, qNotMined, since.Format(numericalDateHourLayout), metamorph_api.Status_SEEN_ON_NETWORK, p.hostname, p.now(), notMinedLimit.Seconds()).Scan(&stats.StatusNotMined)

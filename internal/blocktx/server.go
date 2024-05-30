@@ -20,19 +20,21 @@ import (
 // Server type carries the logger within it.
 type Server struct {
 	blocktx_api.UnsafeBlockTxAPIServer
-	store      store.BlocktxStore
-	logger     *slog.Logger
-	grpcServer *grpc.Server
-	peers      []p2p.PeerI
-	cleanup    func()
+	store                         store.BlocktxStore
+	logger                        *slog.Logger
+	grpcServer                    *grpc.Server
+	peers                         []p2p.PeerI
+	cleanup                       func()
+	maxAllowedBlockHeightMismatch int
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(storeI store.BlocktxStore, logger *slog.Logger, peers []p2p.PeerI) *Server {
+func NewServer(storeI store.BlocktxStore, logger *slog.Logger, peers []p2p.PeerI, maxAllowedBlockHeightMismatch int) *Server {
 	return &Server{
-		store:  storeI,
-		logger: logger,
-		peers:  peers,
+		store:                         storeI,
+		logger:                        logger,
+		peers:                         peers,
+		maxAllowedBlockHeightMismatch: maxAllowedBlockHeightMismatch,
 	}
 }
 
@@ -108,7 +110,7 @@ func (s *Server) DelUnfinishedBlockProcessing(ctx context.Context, req *blocktx_
 }
 
 func (s *Server) VerifyMerkleRoots(ctx context.Context, req *blocktx_api.MerkleRootsVerificationRequest) (*blocktx_api.MerkleRootVerificationResponse, error) {
-	return s.store.VerifyMerkleRoots(ctx, req.GetMerkleRoots())
+	return s.store.VerifyMerkleRoots(ctx, req.GetMerkleRoots(), s.maxAllowedBlockHeightMismatch)
 }
 
 func (s *Server) Shutdown() {

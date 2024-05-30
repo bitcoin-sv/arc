@@ -18,7 +18,9 @@ type BlocktxClient interface {
 	VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error)
 }
 
+// MerkleRootsVerificator verifies the merkle roots existance in blocktx db and returns unverified block heights.
 type MerkleRootsVerificator interface {
+	// VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights.
 	VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error)
 }
 

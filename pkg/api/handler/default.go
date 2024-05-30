@@ -490,7 +490,7 @@ func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValida
 		return api.NewErrorFields(api.ErrBeefValidatingMerkleRoots, err.Error())
 	}
 
-	if len(unverifiedBlockHeights) == 0 {
+	if len(unverifiedBlockHeights) > 0 {
 		err := fmt.Errorf("unable to verify BUMPs with block heights: %v", unverifiedBlockHeights)
 		return api.NewErrorFields(api.ErrBeefValidatingMerkleRoots, err.Error())
 	}

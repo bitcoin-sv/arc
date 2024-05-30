@@ -9,7 +9,11 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 )
 
-func (p *PostgreSQL) VerifyMerkleRoots(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest) (*blocktx_api.MerkleRootVerificationResponse, error) {
+func (p *PostgreSQL) VerifyMerkleRoots(
+	ctx context.Context,
+	merkleRoots []*blocktx_api.MerkleRootVerificationRequest,
+	maxAllowedBlockHeightMismatch int,
+) (*blocktx_api.MerkleRootVerificationResponse, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -28,7 +32,7 @@ func (p *PostgreSQL) VerifyMerkleRoots(ctx context.Context, merkleRoots []*block
 	}
 
 	qMerkleRoot := `
-		SELECT b.height FROM blocks b WHERE b.merkleroot = $1 AND b.orphanedyn = false
+		SELECT b.height FROM blocks b WHERE b.merkleroot = $1 AND b.height = $2 AND b.orphanedyn = false
 	`
 
 	var unverifiedBlockHeights []uint64
@@ -36,10 +40,12 @@ func (p *PostgreSQL) VerifyMerkleRoots(ctx context.Context, merkleRoots []*block
 	for _, mr := range merkleRoots {
 		var hash []byte
 
-		err := p.db.QueryRowContext(ctx, qMerkleRoot, mr.MerkleRoot).Scan(&hash)
+		err := p.db.QueryRowContext(ctx, qMerkleRoot, mr.MerkleRoot, mr.BlockHeight).Scan(&hash)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				unverifiedBlockHeights = append(unverifiedBlockHeights, mr.BlockHeight)
+				if !isWithinAllowedMismatch(mr.BlockHeight, topHeight, maxAllowedBlockHeightMismatch) {
+					unverifiedBlockHeights = append(unverifiedBlockHeights, mr.BlockHeight)
+				}
 				continue
 			}
 			return nil, err
@@ -47,4 +53,8 @@ func (p *PostgreSQL) VerifyMerkleRoots(ctx context.Context, merkleRoots []*block
 	}
 
 	return &blocktx_api.MerkleRootVerificationResponse{UnverifiedBlockHeights: unverifiedBlockHeights}, nil
+}
+
+func isWithinAllowedMismatch(blockHeight uint64, topHeight int64, maxMismatch int) bool {
+	return blockHeight > uint64(topHeight) && blockHeight-uint64(topHeight) <= uint64(maxMismatch)
 }

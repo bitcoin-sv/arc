@@ -6,6 +6,11 @@ import (
 	"github.com/libsv/go-bc"
 )
 
+type MerkleRootVerificationRequest struct {
+	MerkleRoot  string
+	BlockHeight uint64
+}
+
 func CalculateMerkleRootsFromBumps(bumps []*bc.BUMP) ([]MerkleRootVerificationRequest, error) {
 	merkleRoots := make([]MerkleRootVerificationRequest, 0)
 

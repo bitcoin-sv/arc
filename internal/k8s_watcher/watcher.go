@@ -14,12 +14,12 @@ import (
 )
 
 const (
-	logLevelDefault  = slog.LevelInfo
-	metamorphService = "metamorph"
-	blocktxService   = "blocktx"
-	intervalDefault  = 15 * time.Second
-	maxRetries       = 5
-	retryInterval    = 2 * time.Second
+	logLevelDefault      = slog.LevelInfo
+	metamorphService     = "metamorph"
+	blocktxService       = "blocktx"
+	intervalDefault      = 15 * time.Second
+	maxRetries           = 5
+	retryIntervalDefault = 2 * time.Second
 )
 
 type K8sClient interface {
@@ -37,11 +37,18 @@ type Watcher struct {
 	waitGroup         *sync.WaitGroup
 	shutdownMetamorph context.CancelFunc
 	shutdownBlocktx   context.CancelFunc
+	retryInterval     time.Duration
 }
 
 func WithLogger(logger *slog.Logger) func(*Watcher) {
 	return func(p *Watcher) {
 		p.logger = logger.With(slog.String("service", "k8s-watcher"))
+	}
+}
+
+func WithRetryInterval(d time.Duration) func(*Watcher) {
+	return func(p *Watcher) {
+		p.retryInterval = d
 	}
 }
 
@@ -59,6 +66,7 @@ func New(metamorphClient metamorph.TransactionMaintainer, blocktxClient blocktx.
 		tickerMetamorph: NewDefaultTicker(intervalDefault),
 		tickerBlocktx:   NewDefaultTicker(intervalDefault),
 		waitGroup:       &sync.WaitGroup{},
+		retryInterval:   retryIntervalDefault,
 	}
 	for _, opt := range opts {
 		opt(watcher)
@@ -134,7 +142,7 @@ func (c *Watcher) watchBlocktx() {
 					if !found {
 						// A previously running pod has been terminated => set records locked by this pod unlocked
 
-						retryTicker := time.NewTicker(retryInterval)
+						retryTicker := time.NewTicker(c.retryInterval)
 						i := 0
 
 					retryLoop:
@@ -142,7 +150,7 @@ func (c *Watcher) watchBlocktx() {
 							i++
 
 							if i > maxRetries {
-								c.logger.Error(fmt.Sprintf("Failed to delete unfinished block processing after %d retries", maxRetries), slog.String("pod-name", podName), slog.String("err", err.Error()))
+								c.logger.Error(fmt.Sprintf("Failed to delete unfinished block processing after %d retries", maxRetries), slog.String("pod-name", podName))
 								break retryLoop
 							}
 
@@ -194,7 +202,7 @@ func (c *Watcher) watchMetamorph() {
 					if !found {
 						// A previously running pod has been terminated => set records locked by this pod unlocked
 
-						retryTicker := time.NewTicker(retryInterval)
+						retryTicker := time.NewTicker(c.retryInterval)
 						i := 0
 
 					retryLoop:
@@ -202,7 +210,7 @@ func (c *Watcher) watchMetamorph() {
 							i++
 
 							if i > maxRetries {
-								c.logger.Error(fmt.Sprintf("failed to unlock metamorph records after %d retries", maxRetries), slog.String("pod-name", podName), slog.String("err", err.Error()))
+								c.logger.Error(fmt.Sprintf("failed to unlock metamorph records after %d retries", maxRetries), slog.String("pod-name", podName))
 								break retryLoop
 							}
 

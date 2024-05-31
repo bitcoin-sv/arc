@@ -232,7 +232,7 @@ func isFeePaidEnough(fees *bt.FeeQuote, tx *bt.Tx) (bool, uint64, uint64, error)
 	totalOutputSatoshis := tx.TotalOutputSatoshis()
 
 	if totalInputSatoshis < totalOutputSatoshis {
-		return false, 0, 0, nil
+		return false, expFeesPaid, 0, nil
 	}
 
 	actualFeePaid := totalInputSatoshis - totalOutputSatoshis
@@ -273,14 +273,14 @@ func sigOpsCheck(tx *bt.Tx, policy *bitcoin.Settings) error {
 	}
 
 	numSigOps := int64(0)
-	for _, input := range tx.Inputs {
+	for _, output := range tx.Outputs {
 		parser := interpreter.DefaultOpcodeParser{}
-		parsedUnlockingScript, err := parser.Parse(input.PreviousTxScript)
+		parsedLockingScript, err := parser.Parse(output.LockingScript)
 		if err != nil {
 			return err
 		}
 
-		for _, op := range parsedUnlockingScript {
+		for _, op := range parsedLockingScript {
 			if op.Value() == bscript.OpCHECKSIG || op.Value() == bscript.OpCHECKSIGVERIFY {
 				numSigOps++
 				if numSigOps > maxSigOps {

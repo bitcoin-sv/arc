@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"runtime/debug"
 	"sync"
 	"time"
 
@@ -48,12 +47,6 @@ type HttpClient interface {
 }
 
 func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
-	defer func() {
-		if r := recover(); r != nil {
-			logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-		}
-	}()
-
 	p.mu.Lock()
 	if p.disposed {
 		logger.Error("cannot send callback, callbacker is disposed already")

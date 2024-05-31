@@ -107,8 +107,8 @@ func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
 
 func (p *Processor) StartCollectStats() error {
 	ctx, cancel := context.WithCancel(context.Background())
-	p.cancelCollectStats = cancel
-	p.quitCollectStatsComplete = make(chan struct{})
+	p.CancelCollectStats = cancel
+	p.waitGroup.Add(1)
 
 	ticker := time.NewTicker(p.statCollectionInterval)
 
@@ -127,6 +127,7 @@ func (p *Processor) StartCollectStats() error {
 		p.stats.healthyPeerConnections,
 	)
 	if err != nil {
+		p.waitGroup.Done()
 		return err
 	}
 	go func() {
@@ -134,23 +135,22 @@ func (p *Processor) StartCollectStats() error {
 			if r := recover(); r != nil {
 				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
-			p.quitCollectStatsComplete <- struct{}{}
-
-			unregisterStats(
-				p.stats.statusStored,
-				p.stats.statusAnnouncedToNetwork,
-				p.stats.statusRequestedByNetwork,
-				p.stats.statusSentToNetwork,
-				p.stats.statusAcceptedByNetwork,
-				p.stats.statusSeenOnNetwork,
-				p.stats.statusMined,
-				p.stats.statusRejected,
-				p.stats.statusSeenInOrphanMempool,
-				p.stats.statusNotMined,
-				p.stats.statusNotSeen,
-				p.stats.healthyPeerConnections,
-			)
 		}()
+		defer p.waitGroup.Done()
+		defer unregisterStats(
+			p.stats.statusStored,
+			p.stats.statusAnnouncedToNetwork,
+			p.stats.statusRequestedByNetwork,
+			p.stats.statusSentToNetwork,
+			p.stats.statusAcceptedByNetwork,
+			p.stats.statusSeenOnNetwork,
+			p.stats.statusMined,
+			p.stats.statusRejected,
+			p.stats.statusSeenInOrphanMempool,
+			p.stats.statusNotMined,
+			p.stats.statusNotSeen,
+			p.stats.healthyPeerConnections,
+		)
 
 		for {
 			select {

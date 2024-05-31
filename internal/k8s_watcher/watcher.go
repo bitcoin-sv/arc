@@ -2,6 +2,7 @@ package k8s_watcher
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -17,6 +18,8 @@ const (
 	metamorphService = "metamorph"
 	blocktxService   = "blocktx"
 	intervalDefault  = 15 * time.Second
+	maxRetries       = 5
+	retryInterval    = 2 * time.Second
 )
 
 type K8sClient interface {
@@ -130,12 +133,27 @@ func (c *Watcher) watchBlocktx() {
 					_, found := runningPodsK8s[podName]
 					if !found {
 						// A previously running pod has been terminated => set records locked by this pod unlocked
-						err = c.blocktxClient.DelUnfinishedBlockProcessing(ctx, podName)
-						if err != nil {
-							c.logger.Error("failed to delete unfinished block processing", slog.String("pod-name", podName), slog.String("err", err.Error()))
-							continue
+
+						retryTicker := time.NewTicker(retryInterval)
+						i := 0
+
+					retryLoop:
+						for range retryTicker.C {
+							i++
+
+							if i > maxRetries {
+								c.logger.Error(fmt.Sprintf("Failed to delete unfinished block processing after %d retries", maxRetries), slog.String("pod-name", podName), slog.String("err", err.Error()))
+								break retryLoop
+							}
+
+							err = c.blocktxClient.DelUnfinishedBlockProcessing(ctx, podName)
+							if err != nil {
+								c.logger.Error("Failed to delete unfinished block processing", slog.String("pod-name", podName), slog.String("err", err.Error()))
+								continue
+							}
+							c.logger.Info("Deleted unfinished block processing", slog.String("pod-name", podName))
+							break
 						}
-						c.logger.Info("Deleted unfinished block processing", slog.String("pod-name", podName))
 					}
 				}
 
@@ -175,13 +193,27 @@ func (c *Watcher) watchMetamorph() {
 					_, found := runningPodsK8s[podName]
 					if !found {
 						// A previously running pod has been terminated => set records locked by this pod unlocked
-						resp, err := c.metamorphClient.SetUnlockedByName(ctx, podName)
-						if err != nil {
-							c.logger.Error("failed to unlock metamorph records", slog.String("pod-name", podName), slog.String("err", err.Error()))
-							continue
-						}
 
-						c.logger.Info("records unlocked", slog.Int64("rows-affected", resp), slog.String("pod-name", podName))
+						retryTicker := time.NewTicker(retryInterval)
+						i := 0
+
+					retryLoop:
+						for range retryTicker.C {
+							i++
+
+							if i > maxRetries {
+								c.logger.Error(fmt.Sprintf("failed to unlock metamorph records after %d retries", maxRetries), slog.String("pod-name", podName), slog.String("err", err.Error()))
+								break retryLoop
+							}
+
+							resp, err := c.metamorphClient.SetUnlockedByName(ctx, podName)
+							if err != nil {
+								c.logger.Error("failed to unlock metamorph records", slog.String("pod-name", podName), slog.String("err", err.Error()))
+								continue
+							}
+							c.logger.Info("records unlocked", slog.Int64("rows-affected", resp), slog.String("pod-name", podName))
+							break
+						}
 					}
 				}
 

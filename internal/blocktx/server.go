@@ -81,32 +81,35 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.Healt
 	}, nil
 }
 
-func (s *Server) ClearTransactions(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
+func (s *Server) ClearTransactions(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {
 	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "transactions")
 }
 
-func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
+func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {
 	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "blocks")
 }
 
-func (s *Server) ClearBlockTransactionsMap(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
+func (s *Server) ClearBlockTransactionsMap(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {
 	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "block_transactions_map")
 }
 
-func (s *Server) DelUnfinishedBlockProcessing(ctx context.Context, req *blocktx_api.DelUnfinishedBlockProcessingRequest) (*emptypb.Empty, error) {
+func (s *Server) DelUnfinishedBlockProcessing(ctx context.Context, req *blocktx_api.DelUnfinishedBlockProcessingRequest) (*blocktx_api.RowsAffectedResponse, error) {
 	bhs, err := s.store.GetBlockHashesProcessingInProgress(ctx, req.GetProcessedBy())
 	if err != nil {
-		return &emptypb.Empty{}, err
+		return &blocktx_api.RowsAffectedResponse{}, err
 	}
 
+	var rowsTotal int64
 	for _, bh := range bhs {
-		err = s.store.DelBlockProcessing(ctx, bh, req.GetProcessedBy())
+		rows, err := s.store.DelBlockProcessing(ctx, bh, req.GetProcessedBy())
 		if err != nil {
-			return &emptypb.Empty{}, err
+			return &blocktx_api.RowsAffectedResponse{}, err
 		}
+
+		rowsTotal += rows
 	}
 
-	return &emptypb.Empty{}, nil
+	return &blocktx_api.RowsAffectedResponse{Rows: rowsTotal}, nil
 }
 
 func (s *Server) VerifyMerkleRoots(ctx context.Context, req *blocktx_api.MerkleRootsVerificationRequest) (*blocktx_api.MerkleRootVerificationResponse, error) {

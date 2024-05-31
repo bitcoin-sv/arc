@@ -20,13 +20,13 @@ var _ BlocktxStore = &BlocktxStoreMock{}
 //
 //		// make and configure a mocked BlocktxStore
 //		mockedBlocktxStore := &BlocktxStoreMock{
-//			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.ClearDataResponse, error) {
+//			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearBlocktxTable method")
 //			},
 //			CloseFunc: func() error {
 //				panic("mock out the Close method")
 //			},
-//			DelBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) error {
+//			DelBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
 //				panic("mock out the DelBlockProcessing method")
 //			},
 //			GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*BlockGap, error) {
@@ -67,13 +67,13 @@ var _ BlocktxStore = &BlocktxStoreMock{}
 //	}
 type BlocktxStoreMock struct {
 	// ClearBlocktxTableFunc mocks the ClearBlocktxTable method.
-	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.ClearDataResponse, error)
+	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
 
 	// CloseFunc mocks the Close method.
 	CloseFunc func() error
 
 	// DelBlockProcessingFunc mocks the DelBlockProcessing method.
-	DelBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, processedBy string) error
+	DelBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error)
 
 	// GetBlockGapsFunc mocks the GetBlockGaps method.
 	GetBlockGapsFunc func(ctx context.Context, heightRange int) ([]*BlockGap, error)
@@ -225,7 +225,7 @@ type BlocktxStoreMock struct {
 }
 
 // ClearBlocktxTable calls ClearBlocktxTableFunc.
-func (mock *BlocktxStoreMock) ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.ClearDataResponse, error) {
+func (mock *BlocktxStoreMock) ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error) {
 	if mock.ClearBlocktxTableFunc == nil {
 		panic("BlocktxStoreMock.ClearBlocktxTableFunc: method is nil but BlocktxStore.ClearBlocktxTable was just called")
 	}
@@ -292,7 +292,7 @@ func (mock *BlocktxStoreMock) CloseCalls() []struct {
 }
 
 // DelBlockProcessing calls DelBlockProcessingFunc.
-func (mock *BlocktxStoreMock) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) error {
+func (mock *BlocktxStoreMock) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
 	if mock.DelBlockProcessingFunc == nil {
 		panic("BlocktxStoreMock.DelBlockProcessingFunc: method is nil but BlocktxStore.DelBlockProcessing was just called")
 	}

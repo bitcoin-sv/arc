@@ -154,12 +154,12 @@ func (c *Watcher) watchBlocktx() {
 								break retryLoop
 							}
 
-							err = c.blocktxClient.DelUnfinishedBlockProcessing(ctx, podName)
+							rows, err := c.blocktxClient.DelUnfinishedBlockProcessing(ctx, podName)
 							if err != nil {
 								c.logger.Error("Failed to delete unfinished block processing", slog.String("pod-name", podName), slog.String("err", err.Error()))
 								continue
 							}
-							c.logger.Info("Deleted unfinished block processing", slog.String("pod-name", podName))
+							c.logger.Info("Deleted unfinished block processing", slog.Int64("rows-affected", rows), slog.String("pod-name", podName))
 							break
 						}
 					}
@@ -210,16 +210,16 @@ func (c *Watcher) watchMetamorph() {
 							i++
 
 							if i > maxRetries {
-								c.logger.Error(fmt.Sprintf("failed to unlock metamorph records after %d retries", maxRetries), slog.String("pod-name", podName))
+								c.logger.Error(fmt.Sprintf("Failed to unlock metamorph records after %d retries", maxRetries), slog.String("pod-name", podName))
 								break retryLoop
 							}
 
-							resp, err := c.metamorphClient.SetUnlockedByName(ctx, podName)
+							rows, err := c.metamorphClient.SetUnlockedByName(ctx, podName)
 							if err != nil {
-								c.logger.Error("failed to unlock metamorph records", slog.String("pod-name", podName), slog.String("err", err.Error()))
+								c.logger.Error("Failed to unlock metamorph records", slog.String("pod-name", podName), slog.String("err", err.Error()))
 								continue
 							}
-							c.logger.Info("records unlocked", slog.Int64("rows-affected", resp), slog.String("pod-name", podName))
+							c.logger.Info("Records unlocked", slog.Int64("rows-affected", rows), slog.String("pod-name", podName))
 							break
 						}
 					}

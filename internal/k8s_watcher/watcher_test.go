@@ -161,9 +161,7 @@ func TestStartBlocktxWatcher(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphMock := &mock.TransactionMaintainerMock{}
 			blocktxMock := &mock.BlocktxClientMock{
-				DelUnfinishedBlockProcessingFunc: func(ctx context.Context, processedBy string) error {
-					return nil
-				},
+				DelUnfinishedBlockProcessingFunc: func(ctx context.Context, processedBy string) (int64, error) { return 0, nil },
 			}
 
 			iteration := 0

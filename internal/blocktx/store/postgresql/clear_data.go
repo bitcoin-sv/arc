@@ -13,7 +13,7 @@ const (
 	numericalDateHourLayout = "2006010215"
 )
 
-func (p *PostgreSQL) ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.ClearDataResponse, error) {
+func (p *PostgreSQL) ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error) {
 
 	now := p.now()
 	deleteBeforeDate := now.Add(-24 * time.Hour * time.Duration(retentionDays))
@@ -28,5 +28,5 @@ func (p *PostgreSQL) ClearBlocktxTable(ctx context.Context, retentionDays int32,
 		return nil, fmt.Errorf("unable to delete rows: %v", err)
 	}
 	rows, _ := res.RowsAffected()
-	return &blocktx_api.ClearDataResponse{Rows: rows}, nil
+	return &blocktx_api.RowsAffectedResponse{Rows: rows}, nil
 }

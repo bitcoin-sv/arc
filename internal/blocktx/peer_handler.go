@@ -483,7 +483,7 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, _ p2p.PeerI) error {
 
 	blockId, err := ph.insertBlock(ctx, &blockHash, &merkleRoot, &previousBlockHash, msg.Height)
 	if err != nil {
-		errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
+		_, errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
 		if errDel != nil {
 			ph.logger.Error("failed to delete block processing - after inserting block failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}
@@ -493,7 +493,7 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, _ p2p.PeerI) error {
 	calculatedMerkleTree := buildMerkleTreeStoreChainHash(ctx, msg.TransactionHashes)
 
 	if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
-		errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
+		_, errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
 		if errDel != nil {
 			ph.logger.Error("failed to delete block processing - after merkle root mismatch", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}
@@ -501,7 +501,7 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, _ p2p.PeerI) error {
 	}
 
 	if err = ph.markTransactionsAsMined(ctx, blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
-		errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
+		_, errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
 		if errDel != nil {
 			ph.logger.Error("failed to delete block processing - after marking transactions as mined failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}
@@ -518,7 +518,7 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, _ p2p.PeerI) error {
 	}
 
 	if err = ph.markBlockAsProcessed(ctx, block); err != nil {
-		errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
+		_, errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
 		if errDel != nil {
 			ph.logger.Error("failed to delete block processing - after marking block as processed failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}

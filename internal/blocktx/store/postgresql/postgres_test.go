@@ -367,10 +367,10 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, blockHashes, 1)
 		require.True(t, bhInProgress.IsEqual(blockHashes[0]))
 
-		err = postgresDB.DelBlockProcessing(ctx, bhInProgress, "pod-1")
+		_, err = postgresDB.DelBlockProcessing(ctx, bhInProgress, "pod-1")
 		require.ErrorIs(t, err, store.ErrBlockNotFound)
 
-		err = postgresDB.DelBlockProcessing(ctx, bhInProgress, "pod-2")
+		_, err = postgresDB.DelBlockProcessing(ctx, bhInProgress, "pod-2")
 		require.NoError(t, err)
 
 		blockHashes, err = postgresDB.GetBlockHashesProcessingInProgress(ctx, "pod-2")

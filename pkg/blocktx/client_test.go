@@ -10,7 +10,6 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/blocktx/mocks"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 //go:generate moq -pkg mocks -out ./mocks/blocktx_api_mock.go ./blocktx_api BlockTxAPIClient
@@ -36,13 +35,13 @@ func TestClient_DelUnfinishedBlockProcessing(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			apiClient := &mocks.BlockTxAPIClientMock{
-				DelUnfinishedBlockProcessingFunc: func(ctx context.Context, in *blocktx_api.DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-					return &emptypb.Empty{}, tc.delErr
+				DelUnfinishedBlockProcessingFunc: func(ctx context.Context, in *blocktx_api.DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
+					return &blocktx_api.RowsAffectedResponse{}, tc.delErr
 				},
 			}
 			client := blocktx.NewClient(apiClient)
 
-			err := client.DelUnfinishedBlockProcessing(context.Background(), "test-1")
+			_, err := client.DelUnfinishedBlockProcessing(context.Background(), "test-1")
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)
 			} else {
@@ -74,8 +73,8 @@ func TestClient_ClearBlocks(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			apiClient := &mocks.BlockTxAPIClientMock{
-				ClearBlocksFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.ClearDataResponse, error) {
-					return &blocktx_api.ClearDataResponse{Rows: 5}, tc.clearErr
+				ClearBlocksFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
+					return &blocktx_api.RowsAffectedResponse{Rows: 5}, tc.clearErr
 				},
 			}
 			client := blocktx.NewClient(apiClient)
@@ -114,8 +113,8 @@ func TestClient_ClearTransactions(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			apiClient := &mocks.BlockTxAPIClientMock{
-				ClearTransactionsFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.ClearDataResponse, error) {
-					return &blocktx_api.ClearDataResponse{Rows: 5}, tc.clearErr
+				ClearTransactionsFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
+					return &blocktx_api.RowsAffectedResponse{Rows: 5}, tc.clearErr
 				},
 			}
 			client := blocktx.NewClient(apiClient)
@@ -154,8 +153,8 @@ func TestClient_ClearBlockTransactionsMap(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			apiClient := &mocks.BlockTxAPIClientMock{
-				ClearBlockTransactionsMapFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.ClearDataResponse, error) {
-					return &blocktx_api.ClearDataResponse{Rows: 5}, tc.clearErr
+				ClearBlockTransactionsMapFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
+					return &blocktx_api.RowsAffectedResponse{Rows: 5}, tc.clearErr
 				},
 			}
 			client := blocktx.NewClient(apiClient)

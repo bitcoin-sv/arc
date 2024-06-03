@@ -112,8 +112,18 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 				if txInfo.IsDoubleSpendDetected {
 					errReason += " - double spend"
 				}
-
-				z.logger.Debug(invalidTxTopic, slog.String("hash", txInfo.TxID), slog.String("reason", errReason))
+				if len(txInfo.CollidedWith) > 0 {
+					for _, collidedWith := range txInfo.CollidedWith {
+						collisions, ok := collidedWith.(map[string]interface{})
+						if !ok {
+							z.logger.Error("parsing collisions failed")
+							break
+						}
+						z.logger.Debug(invalidTxTopic, slog.String("hash", txInfo.TxID), slog.String("reason", errReason), slog.String("colliding tx id", collisions["txid"].(string)), slog.String("colliding tx hex", collisions["hex"].(string)))
+					}
+				} else {
+					z.logger.Debug(invalidTxTopic, slog.String("hash", txInfo.TxID), slog.String("reason", errReason))
+				}
 
 				hash, err := chainhash.NewHashFromStr(txInfo.TxID)
 				if err != nil {

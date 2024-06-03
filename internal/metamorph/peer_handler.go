@@ -55,6 +55,7 @@ func (m *PeerHandler) HandleTransactionRejection(rejMsg *wire.MsgReject, peer p2
 	m.messageCh <- &PeerTxMessage{
 		Hash:   &rejMsg.Hash,
 		Status: metamorph_api.Status_REJECTED,
+		Peer:   peer.String(),
 		Err:    fmt.Errorf("transaction rejected by peer %s: %s", peer.String(), rejMsg.Reason),
 	}
 

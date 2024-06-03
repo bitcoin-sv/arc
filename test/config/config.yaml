@@ -75,6 +75,7 @@ blocktx:
   recordRetentionDays: 14
   profilerAddr: localhost:9993
   registerTxsInterval: 200ms
+  fillGapsInterval: 15m
   mq:
     txsMinedMaxBatchSize: 20
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/libsv/go-bt/v2"
@@ -105,6 +106,10 @@ func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx, skipFeeValidation bool
 	return nil
 }
 
+func (v *DefaultValidator) ValidateBeef(beefTx *beef.BEEF) error {
+	return beef.Validate(beefTx)
+}
+
 func (v *DefaultValidator) IsExtended(tx *bt.Tx) bool {
 	if tx == nil || tx.Inputs == nil {
 		return false
@@ -117,6 +122,10 @@ func (v *DefaultValidator) IsExtended(tx *bt.Tx) bool {
 	}
 
 	return true
+}
+
+func (v *DefaultValidator) IsBeef(txHex []byte) bool {
+	return beef.CheckBeefFormat(txHex)
 }
 
 func checkTxSize(txSize int, policy *bitcoin.Settings) error {

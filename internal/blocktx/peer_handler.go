@@ -10,7 +10,7 @@ import (
 	"math"
 	"os"
 	"runtime"
-	"runtime/debug"
+	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -31,12 +31,12 @@ var tracer trace.Tracer
 const (
 	transactionStoringBatchsizeDefault = 8192 // power of 2 for easier memory allocation
 	maxRequestBlocks                   = 1
+	maxBlocksInProgress                = 1
 	fillGapsInterval                   = 15 * time.Minute
 	registerTxsIntervalDefault         = time.Second * 10
 	registerRequestTxsIntervalDefault  = time.Second * 5
 	registerTxsBatchSizeDefault        = 100
 	registerRequestTxBatchSizeDefault  = 100
-	maxBlocksInProgress                = 1
 )
 
 func init() {
@@ -113,15 +113,12 @@ type PeerHandler struct {
 	registerTxsBatchSize        int
 	registerRequestTxsBatchSize int
 
-	fillGapsTicker                     *time.Ticker
-	quitFillBlockGap                   chan struct{}
-	quitFillBlockGapComplete           chan struct{}
-	quitPeerWorker                     chan struct{}
-	quitPeerWorkerComplete             chan struct{}
-	quitListenTxChannel                chan struct{}
-	quitListenTxChannelComplete        chan struct{}
-	cancelListenRequestTxChannel       context.CancelFunc
-	quitListenRequestTxChannelComplete chan struct{}
+	fillGapsTicker          *time.Ticker
+	waitGroup               *sync.WaitGroup
+	CancelFillBlockGap      context.CancelFunc
+	cancelProcessTxs        context.CancelFunc
+	cancelPeerWorker        context.CancelFunc
+	cancelProcessRequestTxs context.CancelFunc
 }
 
 func WithMessageQueueClient(mqClient MessageQueueClient) func(handler *PeerHandler) {
@@ -208,8 +205,8 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
 		registerRequestTxsBatchSize: registerRequestTxBatchSizeDefault,
 		hostname:                    hostname,
-
-		fillGapsTicker: time.NewTicker(fillGapsInterval),
+		waitGroup:                   &sync.WaitGroup{},
+		fillGapsTicker:              time.NewTicker(fillGapsInterval),
 	}
 
 	for _, opt := range opts {
@@ -229,19 +226,15 @@ func (ph *PeerHandler) Start() {
 }
 
 func (ph *PeerHandler) startPeerWorker() {
-	ph.quitPeerWorker = make(chan struct{})
-	ph.quitPeerWorkerComplete = make(chan struct{})
+	var ctx context.Context
+	ctx, ph.cancelPeerWorker = context.WithCancel(context.Background())
+	ph.waitGroup.Add(1)
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				ph.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			ph.quitPeerWorkerComplete <- struct{}{}
-		}()
+		defer ph.waitGroup.Done()
 		for {
 			select {
-			case <-ph.quitPeerWorker:
+			case <-ctx.Done():
 				return
 			case workerItem := <-ph.workerCh:
 				hash := workerItem.Hash
@@ -289,21 +282,16 @@ func (ph *PeerHandler) startPeerWorker() {
 }
 
 func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
-	ph.quitFillBlockGap = make(chan struct{})
-	ph.quitFillBlockGapComplete = make(chan struct{})
+	var ctx context.Context
+	ctx, ph.CancelFillBlockGap = context.WithCancel(context.Background())
+	ph.waitGroup.Add(1)
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				ph.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			ph.quitFillBlockGapComplete <- struct{}{}
-		}()
-
+		defer ph.waitGroup.Done()
 		peerIndex := 0
 		for {
 			select {
-			case <-ph.quitFillBlockGap:
+			case <-ctx.Done():
 				return
 			case <-ph.fillGapsTicker.C:
 				if peerIndex >= len(peers) {
@@ -322,22 +310,17 @@ func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
 }
 
 func (ph *PeerHandler) startProcessTxs() {
-	ph.quitListenTxChannel = make(chan struct{})
-	ph.quitListenTxChannelComplete = make(chan struct{})
+	var ctx context.Context
+	ctx, ph.cancelProcessTxs = context.WithCancel(context.Background())
+	ph.waitGroup.Add(1)
 	txHashes := make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
 
 	ticker := time.NewTicker(ph.registerTxsInterval)
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				ph.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			ph.quitListenTxChannelComplete <- struct{}{}
-		}()
-
+		defer ph.waitGroup.Done()
 		for {
 			select {
-			case <-ph.quitListenTxChannel:
+			case <-ctx.Done():
 				return
 			case txHash := <-ph.txChannel:
 				txHashes = append(txHashes, &blocktx_api.TransactionAndSource{
@@ -368,21 +351,16 @@ func (ph *PeerHandler) startProcessTxs() {
 }
 
 func (ph *PeerHandler) startProcessRequestTxs() {
-	ctx, cancel := context.WithCancel(context.Background())
-	ph.cancelListenRequestTxChannel = cancel
-	ph.quitListenRequestTxChannelComplete = make(chan struct{})
+	var ctx context.Context
+	ctx, ph.cancelProcessRequestTxs = context.WithCancel(context.Background())
+	ph.waitGroup.Add(1)
 
 	txHashes := make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)
 
 	ticker := time.NewTicker(ph.registerRequestTxsInterval)
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				ph.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			ph.quitListenRequestTxChannelComplete <- struct{}{}
-		}()
+		defer ph.waitGroup.Done()
 
 		for {
 			select {
@@ -848,27 +826,23 @@ func extractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
 }
 
 func (ph *PeerHandler) Shutdown() {
-	if ph.quitFillBlockGap != nil {
-		ph.quitFillBlockGap <- struct{}{}
-		<-ph.quitFillBlockGapComplete
-		ph.fillGapsTicker.Stop()
+	if ph.CancelFillBlockGap != nil {
+		ph.CancelFillBlockGap()
 	}
 
-	if ph.quitPeerWorker != nil {
-		ph.quitPeerWorker <- struct{}{}
-		<-ph.quitPeerWorkerComplete
+	if ph.cancelPeerWorker != nil {
+		ph.cancelPeerWorker()
 	}
 
-	if ph.quitListenTxChannel != nil {
-		ph.quitListenTxChannel <- struct{}{}
-		<-ph.quitListenTxChannelComplete
+	if ph.cancelProcessTxs != nil {
+		ph.cancelProcessTxs()
 	}
 
-	if ph.cancelListenRequestTxChannel != nil {
-		ph.cancelListenRequestTxChannel()
-		<-ph.quitListenRequestTxChannelComplete
+	if ph.cancelProcessRequestTxs != nil {
+		ph.cancelProcessRequestTxs()
 	}
 	ph.unregisterTracing()
+	ph.waitGroup.Wait()
 }
 
 func (ph *PeerHandler) unregisterTracing() {

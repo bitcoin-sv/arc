@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"runtime/debug"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
@@ -58,6 +57,11 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 		return nil, err
 	}
 
+	fillGapsInterval, err := cfg.GetDuration("blocktx.fillGapsInterval")
+	if err != nil {
+		return nil, err
+	}
+
 	// The tx channel needs the capacity so that it could potentially buffer up to a certain nr of transactions per second
 	const targetTps = 6000
 	capacityRequired := int(registerTxInterval.Seconds() * targetTps)
@@ -104,6 +108,7 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 		blocktx.WithRequestTxChan(requestTxChannel),
 		blocktx.WithRegisterTxsInterval(registerTxInterval),
 		blocktx.WithMessageQueueClient(mqClient),
+		blocktx.WithFillGapsInterval(fillGapsInterval),
 	}
 	if tracingEnabled {
 		peerHandlerOpts = append(peerHandlerOpts, blocktx.WithTracer())
@@ -221,11 +226,6 @@ func StartHealthServerBlocktx(serv *blocktx.Server, logger *slog.Logger) (*grpc.
 	}
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-		}()
 		logger.Info("GRPC health server listening", slog.String("address", address))
 		err = gs.Serve(listener)
 		if err != nil {

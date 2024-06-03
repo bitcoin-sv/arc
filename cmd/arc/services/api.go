@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"runtime/debug"
 	"time"
 
 	cfg "github.com/bitcoin-sv/arc/internal/config"
@@ -51,12 +50,6 @@ func StartAPIServer(logger *slog.Logger) (func(), error) {
 	}
 	// Serve HTTP until the world ends.
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-		}()
-
 		logger.Info("Starting API server", slog.String("address", apiAddress))
 		err := e.Start(apiAddress)
 		if err != nil {
@@ -98,7 +91,7 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 
 	prometheusEndpoint := viper.GetString("prometheusEndpoint")
 
-	conn, err := metamorph.DialGRPC(logger, metamorphAddress, prometheusEndpoint, grpcMessageSize)
+	conn, err := metamorph.DialGRPC(metamorphAddress, prometheusEndpoint, grpcMessageSize)
 	if err != nil {
 		return fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}

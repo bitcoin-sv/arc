@@ -26,6 +26,7 @@ import (
 //go:generate moq -pkg mocks -out ./mocks/message_queue_mock.go . MessageQueueClient
 //go:generate moq -pkg mocks -out ./mocks/callback_sender_mock.go . CallbackSender
 //go:generate moq -pkg mocks -out ./mocks/peer_manager_mock.go . PeerManager
+//go:generate moq -pkg mocks -out ./mocks/peer_mock.go . PeerI
 
 func TestNewProcessor(t *testing.T) {
 	mtmStore := &mocks.MetamorphStoreMock{
@@ -450,6 +451,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {
 					callbackSent <- struct{}{}
 				},
+				ShutdownFunc: func(logger *slog.Logger) {},
 			}
 
 			processor, err := metamorph.NewProcessor(
@@ -628,12 +630,6 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 
 			expectedSendCallbackCalls: 0,
 		},
-		{
-			name:  "panic",
-			panic: true,
-
-			expectedSendCallbackCalls: 0,
-		},
 	}
 
 	for _, tc := range tt {
@@ -652,6 +648,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 5)
 			callbackSender := &mocks.CallbackSenderMock{
 				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {},
+				ShutdownFunc:     func(logger *slog.Logger) {},
 			}
 			processor, err := metamorph.NewProcessor(
 				metamorphStore,
@@ -747,6 +744,74 @@ func TestProcessorHealth(t *testing.T) {
 			err = processor.Health()
 
 			require.ErrorIs(t, err, tc.expectedErr)
+		})
+	}
+}
+
+func TestMonitorPeers(t *testing.T) {
+	tt := []struct {
+		name      string
+		connected bool
+		healthy   bool
+	}{
+		{
+			name:      "3 healthy peers",
+			connected: true,
+			healthy:   true,
+		},
+		{
+			name:      "3 disconnected peers",
+			connected: false,
+			healthy:   true,
+		},
+		{
+			name:      "3 unhealthy peers",
+			connected: true,
+			healthy:   false,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			metamorphStore := &mocks.MetamorphStoreMock{
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
+					return 0, nil
+				},
+			}
+
+			pm := &mocks.PeerManagerMock{
+				GetPeersFunc: func() []p2p.PeerI {
+					peers := make([]p2p.PeerI, 3)
+					for i := 0; i < 3; i++ {
+						peers[i] = &mocks.PeerIMock{
+							ConnectedFunc: func() bool {
+								return tc.connected
+							},
+							IsHealthyFunc: func() bool {
+								return tc.healthy
+							},
+							StringFunc: func() string {
+								return ""
+							},
+						}
+					}
+
+					return peers
+				},
+			}
+
+			processor, err := metamorph.NewProcessor(
+				metamorphStore,
+				pm,
+				metamorph.WithMonitorPeersInterval(time.Millisecond*20),
+			)
+			require.NoError(t, err)
+
+			processor.StartMonitorPeers()
+
+			time.Sleep(50 * time.Millisecond)
+
+			processor.Shutdown()
 		})
 	}
 }

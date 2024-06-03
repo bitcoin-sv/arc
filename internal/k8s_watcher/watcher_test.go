@@ -60,12 +60,13 @@ func TestStartMetamorphWatcher(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			setUnlockedErrTest := tc.setUnlockedErr
 			metamorphMock := &mock.TransactionMaintainerMock{
 				SetUnlockedByNameFunc: func(ctx context.Context, name string) (int64, error) {
 					require.Equal(t, "metamorph-pod-2", name)
 
-					if tc.setUnlockedErr != nil {
-						return 0, tc.setUnlockedErr
+					if setUnlockedErrTest != nil {
+						return 0, setUnlockedErrTest
 					}
 
 					return 3, nil
@@ -74,13 +75,15 @@ func TestStartMetamorphWatcher(t *testing.T) {
 			blocktxMock := &mock.BlocktxClientMock{}
 
 			iteration := 0
+			getPodNamesErrTest := tc.getPodNamesErr
+			podNamestTest := tc.podNames
 			k8sClientMock := &mock.K8sClientMock{
 				GetRunningPodNamesFunc: func(ctx context.Context, namespace string, service string) (map[string]struct{}, error) {
-					if tc.getPodNamesErr != nil {
-						return nil, tc.getPodNamesErr
+					if getPodNamesErrTest != nil {
+						return nil, getPodNamesErrTest
 					}
 
-					podNames := tc.podNames[iteration]
+					podNames := podNamestTest[iteration]
 
 					iteration++
 
@@ -163,13 +166,15 @@ func TestStartBlocktxWatcher(t *testing.T) {
 			}
 
 			iteration := 0
+			getPodNamesErrTest := tc.getPodNamesErr
+			podNamesTest := tc.podNames
 			k8sClientMock := &mock.K8sClientMock{
 				GetRunningPodNamesFunc: func(ctx context.Context, namespace string, service string) (map[string]struct{}, error) {
-					if tc.getPodNamesErr != nil {
-						return nil, tc.getPodNamesErr
+					if getPodNamesErrTest != nil {
+						return nil, getPodNamesErrTest
 					}
 
-					podNames := tc.podNames[iteration]
+					podNames := podNamesTest[iteration]
 
 					iteration++
 

@@ -17,6 +17,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,8 +44,8 @@ func TestHealth(t *testing.T) {
 		processor.GetStatsFunc = func(debugItems bool) *metamorph.ProcessorStats {
 			return expectedStats
 		}
-		processor.GetPeersFunc = func() ([]string, []string) {
-			return []string{"peer1"}, []string{}
+		processor.GetPeersFunc = func() []p2p.PeerI {
+			return []p2p.PeerI{}
 		}
 
 		server := metamorph.NewServer(nil, processor)

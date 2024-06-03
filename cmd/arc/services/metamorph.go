@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -155,18 +154,13 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	metamorphProcessor.StartRequestingSeenOnNetworkTxs()
 	metamorphProcessor.StartProcessStatusUpdatesInStorage()
 	metamorphProcessor.StartProcessMinedCallbacks()
+	metamorphProcessor.StartMonitorPeers()
 	err = metamorphProcessor.StartCollectStats()
 	if err != nil {
 		return nil, fmt.Errorf("failed to start collecting stats: %v", err)
 	}
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-		}()
-
 		for message := range statusMessageCh {
 			err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
 			if err != nil {
@@ -280,7 +274,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 			logger.Error("failed to shutdown mqClient", slog.String("err", err.Error()))
 		}
 
-		metamorphProcessor.Shutdown()
 		err = s.Close(context.Background())
 		if err != nil {
 			logger.Error("Could not close store", slog.String("err", err.Error()))
@@ -310,12 +303,6 @@ func StartHealthServerMetamorph(serv *metamorph.Server, logger *slog.Logger) (*g
 	}
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-		}()
-
 		logger.Info("GRPC health server listening", slog.String("address", address))
 		err = gs.Serve(listener)
 		if err != nil {

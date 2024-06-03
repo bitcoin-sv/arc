@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"runtime/debug"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
@@ -37,6 +37,8 @@ const (
 
 	processStatusUpdatesIntervalDefault  = 500 * time.Millisecond
 	processStatusUpdatesBatchSizeDefault = 1000
+
+	monitorPeersIntervalDefault = 60 * time.Second
 )
 
 type Processor struct {
@@ -55,37 +57,38 @@ type Processor struct {
 	minimumHealthyConnections int
 	callbackSender            CallbackSender
 
-	cancelCollectStats       context.CancelFunc
-	quitCollectStatsComplete chan struct{}
-	statCollectionInterval   time.Duration
+	waitGroup *sync.WaitGroup
 
-	lockTransactionsInterval     time.Duration
-	cancelLockTransactions       context.CancelFunc
-	quitLockTransactionsComplete chan struct{}
+	CancelCollectStats     context.CancelFunc
+	statCollectionInterval time.Duration
 
-	cancelMinedCallbacks              context.CancelFunc
-	quitProcessMinedCallbacksComplete chan struct{}
-	minedTxsChan                      chan *blocktx_api.TransactionBlocks
+	lockTransactionsInterval time.Duration
+	CancelLockTransactions   context.CancelFunc
 
-	storageStatusUpdateCh                     chan store.UpdateStatus
-	cancelProcessStatusUpdatesInStorage       context.CancelFunc
-	quitProcessStatusUpdatesInStorageComplete chan struct{}
-	processStatusUpdatesInterval              time.Duration
-	processStatusUpdatesBatchSize             int
+	CancelMinedCallbacks context.CancelFunc
+	minedTxsChan         chan *blocktx_api.TransactionBlocks
 
-	processExpiredTxsInterval              time.Duration
-	processSeenOnNetworkTxsInterval        time.Duration
-	cancelProcessExpiredTransactions       context.CancelFunc
-	quitProcessExpiredTransactionsComplete chan struct{}
+	storageStatusUpdateCh               chan store.UpdateStatus
+	CancelProcessStatusUpdatesInStorage context.CancelFunc
+	processStatusUpdatesInterval        time.Duration
+	processStatusUpdatesBatchSize       int
 
-	cancelProcessSeenOnNetworkTxRequesting       context.CancelFunc
-	quitProcessSeenOnNetworkTxRequestingComplete chan struct{}
+	processExpiredTxsInterval        time.Duration
+	processSeenOnNetworkTxsInterval  time.Duration
+	CancelProcessExpiredTransactions context.CancelFunc
+
+	CancelProcessSeenOnNetworkTxRequesting context.CancelFunc
+
+	cancelMonitorPeers   context.CancelFunc
+	wgMonitorPeers       sync.WaitGroup
+	monitorPeersInterval time.Duration
 }
 
 type Option func(f *Processor)
 
 type CallbackSender interface {
 	SendCallback(logger *slog.Logger, tx *store.StoreData)
+	Shutdown(logger *slog.Logger)
 }
 
 func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (*Processor, error) {
@@ -121,8 +124,12 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		processStatusUpdatesBatchSize: processStatusUpdatesBatchSizeDefault,
 		storageStatusUpdateCh:         make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
 		stats:                         newProcessorStats(),
+		waitGroup:                     &sync.WaitGroup{},
 
 		statCollectionInterval: statCollectionIntervalDefault,
+
+		wgMonitorPeers:       sync.WaitGroup{},
+		monitorPeersInterval: monitorPeersIntervalDefault,
 	}
 
 	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm"))
@@ -145,40 +152,45 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 func (p *Processor) Shutdown() {
 	p.logger.Info("Shutting down processor")
 
+	if p.callbackSender != nil {
+		p.callbackSender.Shutdown(p.logger)
+	}
+
 	err := p.unlockRecords()
 	if err != nil {
 		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
 	}
 
-	if p.cancelLockTransactions != nil {
-		p.cancelLockTransactions()
-		<-p.quitLockTransactionsComplete
+	if p.CancelLockTransactions != nil {
+		p.CancelLockTransactions()
 	}
 
-	if p.cancelMinedCallbacks != nil {
-		p.cancelMinedCallbacks()
-		<-p.quitProcessMinedCallbacksComplete
+	if p.CancelMinedCallbacks != nil {
+		p.CancelMinedCallbacks()
 	}
 
-	if p.cancelProcessStatusUpdatesInStorage != nil {
-		p.cancelProcessStatusUpdatesInStorage()
-		<-p.quitProcessStatusUpdatesInStorageComplete
+	if p.CancelProcessStatusUpdatesInStorage != nil {
+		p.CancelProcessStatusUpdatesInStorage()
 	}
 
-	if p.cancelProcessExpiredTransactions != nil {
-		p.cancelProcessExpiredTransactions()
-		<-p.quitProcessExpiredTransactionsComplete
+	if p.CancelProcessExpiredTransactions != nil {
+		p.CancelProcessExpiredTransactions()
 	}
 
-	if p.cancelProcessSeenOnNetworkTxRequesting != nil {
-		p.cancelProcessSeenOnNetworkTxRequesting()
-		<-p.quitProcessSeenOnNetworkTxRequestingComplete
+	if p.CancelProcessSeenOnNetworkTxRequesting != nil {
+		p.CancelProcessSeenOnNetworkTxRequesting()
 	}
 
-	if p.cancelCollectStats != nil {
-		p.cancelCollectStats()
-		<-p.quitCollectStatsComplete
+	if p.CancelCollectStats != nil {
+		p.CancelCollectStats()
 	}
+
+	if p.cancelMonitorPeers != nil {
+		p.cancelMonitorPeers()
+		p.wgMonitorPeers.Wait()
+	}
+
+	p.waitGroup.Wait()
 }
 
 func (p *Processor) unlockRecords() error {
@@ -191,19 +203,41 @@ func (p *Processor) unlockRecords() error {
 	return nil
 }
 
+func (p *Processor) StartMonitorPeers() {
+	ctx, cancel := context.WithCancel(context.Background())
+	p.cancelMonitorPeers = cancel
+
+	ticker := time.NewTicker(p.monitorPeersInterval)
+	p.wgMonitorPeers.Add(1)
+	go func() {
+		defer p.wgMonitorPeers.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+
+				peers := p.GetPeers()
+
+				for _, peer := range peers {
+					if !peer.Connected() || !peer.IsHealthy() {
+						p.logger.Warn("Unhealthy peer", slog.String("address", peer.String()), slog.Bool("connected", peer.Connected()), slog.Bool("healthy", peer.IsHealthy()))
+					}
+				}
+
+				// Todo: restart unhealthy peers
+			}
+		}
+	}()
+}
+
 func (p *Processor) StartProcessMinedCallbacks() {
 	ctx, cancel := context.WithCancel(context.Background())
-	p.cancelMinedCallbacks = cancel
-	p.quitProcessMinedCallbacksComplete = make(chan struct{})
+	p.CancelMinedCallbacks = cancel
+	p.waitGroup.Add(1)
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitProcessMinedCallbacksComplete <- struct{}{}
-		}()
-
+		defer p.waitGroup.Done()
 		for {
 			select {
 			case <-ctx.Done():
@@ -250,16 +284,11 @@ func (p *Processor) CheckAndUpdate(statusUpdatesMap *map[chainhash.Hash]store.Up
 func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	ticker := time.NewTicker(p.processStatusUpdatesInterval)
 	ctx, cancel := context.WithCancel(context.Background())
-	p.cancelProcessStatusUpdatesInStorage = cancel
-	p.quitProcessStatusUpdatesInStorageComplete = make(chan struct{})
+	p.CancelProcessStatusUpdatesInStorage = cancel
+	p.waitGroup.Add(1)
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitProcessStatusUpdatesInStorageComplete <- struct{}{}
-		}()
+		defer p.waitGroup.Done()
 
 		statusUpdatesMap := map[chainhash.Hash]store.UpdateStatus{}
 
@@ -301,16 +330,11 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus)
 func (p *Processor) StartLockTransactions() {
 	ctx, cancel := context.WithCancel(context.Background())
 	ticker := time.NewTicker(p.lockTransactionsInterval)
-	p.cancelLockTransactions = cancel
-	p.quitLockTransactionsComplete = make(chan struct{})
+	p.CancelLockTransactions = cancel
+	p.waitGroup.Add(1)
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitLockTransactionsComplete <- struct{}{}
-		}()
+		defer p.waitGroup.Done()
 		for {
 			select {
 			case <-ctx.Done():
@@ -329,16 +353,11 @@ func (p *Processor) StartLockTransactions() {
 func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 	ctx, cancel := context.WithCancel(context.Background())
 	ticker := time.NewTicker(p.processSeenOnNetworkTxsInterval)
-	p.cancelProcessSeenOnNetworkTxRequesting = cancel
-	p.quitProcessSeenOnNetworkTxRequestingComplete = make(chan struct{})
+	p.CancelProcessSeenOnNetworkTxRequesting = cancel
+	p.waitGroup.Add(1)
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitProcessSeenOnNetworkTxRequestingComplete <- struct{}{}
-		}()
+		defer p.waitGroup.Done()
 
 		for {
 			select {
@@ -384,17 +403,11 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 func (p *Processor) StartProcessExpiredTransactions() {
 	ctx, cancel := context.WithCancel(context.Background())
 	ticker := time.NewTicker(p.processExpiredTxsInterval)
-	p.cancelProcessExpiredTransactions = cancel
-	p.quitProcessExpiredTransactionsComplete = make(chan struct{})
+	p.CancelProcessExpiredTransactions = cancel
+	p.waitGroup.Add(1)
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-			p.quitProcessExpiredTransactionsComplete <- struct{}{}
-		}()
-
+		defer p.waitGroup.Done()
 		for {
 			select {
 			case <-ctx.Done():
@@ -445,7 +458,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 				}
 
 				if announced > 0 || requested > 0 {
-					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested))
+					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested), slog.String("since", getUnminedSince.String()))
 				}
 			}
 		}
@@ -453,19 +466,8 @@ func (p *Processor) StartProcessExpiredTransactions() {
 }
 
 // GetPeers returns a list of connected and a list of disconnected peers
-func (p *Processor) GetPeers() ([]string, []string) {
-	peers := p.pm.GetPeers()
-	peersConnected := make([]string, 0, len(peers))
-	peersDisconnected := make([]string, 0, len(peers))
-	for _, peer := range peers {
-		if peer.Connected() {
-			peersConnected = append(peersConnected, peer.String())
-		} else {
-			peersDisconnected = append(peersDisconnected, peer.String())
-		}
-	}
-
-	return peersConnected, peersDisconnected
+func (p *Processor) GetPeers() []p2p.PeerI {
+	return p.pm.GetPeers()
 }
 
 var statusValueMap = map[metamorph_api.Status]int{
@@ -569,11 +571,6 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// we no longer need processor response object after client disconnects
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-		}()
 		time.Sleep(req.Timeout + time.Second)
 		p.ProcessorResponseMap.Delete(req.Data.Hash)
 	}()

@@ -17,6 +17,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
 	"google.golang.org/grpc"
@@ -43,7 +44,7 @@ type BitcoinNode interface {
 type ProcessorI interface {
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
 	GetStats(debugItems bool) *ProcessorStats
-	GetPeers() ([]string, []string)
+	GetPeers() []p2p.PeerI
 	Shutdown()
 	Health() error
 }
@@ -145,7 +146,17 @@ func (s *Server) Shutdown() {
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.HealthResponse, error) {
 	stats := s.processor.GetStats(false)
 
-	peersConnected, peersDisconnected := s.processor.GetPeers()
+	peers := s.processor.GetPeers()
+
+	peersConnected := make([]string, 0, len(peers))
+	peersDisconnected := make([]string, 0, len(peers))
+	for _, peer := range peers {
+		if peer.Connected() {
+			peersConnected = append(peersConnected, peer.String())
+		} else {
+			peersDisconnected = append(peersDisconnected, peer.String())
+		}
+	}
 
 	return &metamorph_api.HealthResponse{
 		Timestamp:         timestamppb.New(time.Now()),

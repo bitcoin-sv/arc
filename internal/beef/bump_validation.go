@@ -6,7 +6,55 @@ import (
 
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-bt/v2/bscript/interpreter"
 )
+
+func CalculateInputsOutputsSatoshis(tx *bt.Tx, inputTxs []*TxData) (uint64, uint64, error) {
+	inputSum := uint64(0)
+
+	for _, input := range tx.Inputs {
+		inputParentTx := findParentForInput(input, inputTxs)
+
+		if inputParentTx == nil {
+			return 0, 0, errors.New("invalid parent transactions, no matching trasactions for input")
+		}
+
+		inputSum += inputParentTx.Transaction.Outputs[input.PreviousTxOutIndex].Satoshis
+	}
+
+	outputSum := tx.TotalOutputSatoshis()
+
+	return inputSum, outputSum, nil
+}
+
+func ValidateScripts(tx *bt.Tx, inputTxs []*TxData) error {
+	for i, input := range tx.Inputs {
+		inputParentTx := findParentForInput(input, inputTxs)
+		if inputParentTx == nil {
+			return errors.New("invalid parent transactions, no matching trasactions for input")
+		}
+
+		err := verifyScripts(tx, inputParentTx.Transaction, i)
+		if err != nil {
+			return errors.New("invalid script")
+		}
+	}
+
+	return nil
+}
+
+func verifyScripts(tx, prevTx *bt.Tx, inputIdx int) error {
+	input := tx.InputIdx(inputIdx)
+	prevOutput := prevTx.OutputIdx(int(input.PreviousTxOutIndex))
+
+	err := interpreter.NewEngine().Execute(
+		interpreter.WithTx(tx, inputIdx, prevOutput),
+		interpreter.WithForkID(),
+		interpreter.WithAfterGenesis(),
+	)
+
+	return err
+}
 
 func EnsureAncestorsArePresentInBump(tx *bt.Tx, beefTx *BEEF) error {
 	minedAncestors := make([]*TxData, 0)

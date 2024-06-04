@@ -105,7 +105,7 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
-	btcConn, err := blocktx.DialGRPC(logger, blocktxAddress, prometheusEndpoint, grpcMessageSize)
+	btcConn, err := blocktx.DialGRPC(blocktxAddress, prometheusEndpoint, grpcMessageSize)
 	if err != nil {
 		return fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}

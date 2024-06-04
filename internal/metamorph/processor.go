@@ -221,11 +221,10 @@ func (p *Processor) StartMonitorPeers() {
 
 				for _, peer := range peers {
 					if !peer.Connected() || !peer.IsHealthy() {
-						p.logger.Warn("Unhealthy peer", slog.String("address", peer.String()), slog.Bool("connected", peer.Connected()), slog.Bool("healthy", peer.IsHealthy()))
+						p.logger.Warn("Peer unhealthy - restarting", slog.String("address", peer.String()), slog.Bool("connected", peer.Connected()), slog.Bool("healthy", peer.IsHealthy()))
+						peer.Restart()
 					}
 				}
-
-				// Todo: restart unhealthy peers
 			}
 		}
 	}()

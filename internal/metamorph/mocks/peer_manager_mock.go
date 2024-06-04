@@ -38,6 +38,9 @@ var _ metamorph.PeerManager = &PeerManagerMock{}
 //			RequestTransactionFunc: func(txHash *chainhash.Hash) p2p.PeerI {
 //				panic("mock out the RequestTransaction method")
 //			},
+//			ShutdownFunc: func()  {
+//				panic("mock out the Shutdown method")
+//			},
 //		}
 //
 //		// use mockedPeerManager in code that requires metamorph.PeerManager
@@ -62,6 +65,9 @@ type PeerManagerMock struct {
 
 	// RequestTransactionFunc mocks the RequestTransaction method.
 	RequestTransactionFunc func(txHash *chainhash.Hash) p2p.PeerI
+
+	// ShutdownFunc mocks the Shutdown method.
+	ShutdownFunc func()
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -97,6 +103,9 @@ type PeerManagerMock struct {
 			// TxHash is the txHash argument value.
 			TxHash *chainhash.Hash
 		}
+		// Shutdown holds details about calls to the Shutdown method.
+		Shutdown []struct {
+		}
 	}
 	lockAddPeer             sync.RWMutex
 	lockAnnounceBlock       sync.RWMutex
@@ -104,6 +113,7 @@ type PeerManagerMock struct {
 	lockGetPeers            sync.RWMutex
 	lockRequestBlock        sync.RWMutex
 	lockRequestTransaction  sync.RWMutex
+	lockShutdown            sync.RWMutex
 }
 
 // AddPeer calls AddPeerFunc.
@@ -298,5 +308,32 @@ func (mock *PeerManagerMock) RequestTransactionCalls() []struct {
 	mock.lockRequestTransaction.RLock()
 	calls = mock.calls.RequestTransaction
 	mock.lockRequestTransaction.RUnlock()
+	return calls
+}
+
+// Shutdown calls ShutdownFunc.
+func (mock *PeerManagerMock) Shutdown() {
+	if mock.ShutdownFunc == nil {
+		panic("PeerManagerMock.ShutdownFunc: method is nil but PeerManager.Shutdown was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockShutdown.Lock()
+	mock.calls.Shutdown = append(mock.calls.Shutdown, callInfo)
+	mock.lockShutdown.Unlock()
+	mock.ShutdownFunc()
+}
+
+// ShutdownCalls gets all the calls that were made to Shutdown.
+// Check the length with:
+//
+//	len(mockedPeerManager.ShutdownCalls())
+func (mock *PeerManagerMock) ShutdownCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockShutdown.RLock()
+	calls = mock.calls.Shutdown
+	mock.lockShutdown.RUnlock()
 	return calls
 }

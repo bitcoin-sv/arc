@@ -41,6 +41,12 @@ var _ metamorph.PeerI = &PeerIMock{}
 //			RequestTransactionFunc: func(txHash *chainhash.Hash)  {
 //				panic("mock out the RequestTransaction method")
 //			},
+//			RestartFunc: func()  {
+//				panic("mock out the Restart method")
+//			},
+//			ShutdownFunc: func()  {
+//				panic("mock out the Shutdown method")
+//			},
 //			StringFunc: func() string {
 //				panic("mock out the String method")
 //			},
@@ -74,6 +80,12 @@ type PeerIMock struct {
 
 	// RequestTransactionFunc mocks the RequestTransaction method.
 	RequestTransactionFunc func(txHash *chainhash.Hash)
+
+	// RestartFunc mocks the Restart method.
+	RestartFunc func()
+
+	// ShutdownFunc mocks the Shutdown method.
+	ShutdownFunc func()
 
 	// StringFunc mocks the String method.
 	StringFunc func() string
@@ -112,6 +124,12 @@ type PeerIMock struct {
 			// TxHash is the txHash argument value.
 			TxHash *chainhash.Hash
 		}
+		// Restart holds details about calls to the Restart method.
+		Restart []struct {
+		}
+		// Shutdown holds details about calls to the Shutdown method.
+		Shutdown []struct {
+		}
 		// String holds details about calls to the String method.
 		String []struct {
 		}
@@ -128,6 +146,8 @@ type PeerIMock struct {
 	lockNetwork             sync.RWMutex
 	lockRequestBlock        sync.RWMutex
 	lockRequestTransaction  sync.RWMutex
+	lockRestart             sync.RWMutex
+	lockShutdown            sync.RWMutex
 	lockString              sync.RWMutex
 	lockWriteMsg            sync.RWMutex
 }
@@ -338,6 +358,60 @@ func (mock *PeerIMock) RequestTransactionCalls() []struct {
 	mock.lockRequestTransaction.RLock()
 	calls = mock.calls.RequestTransaction
 	mock.lockRequestTransaction.RUnlock()
+	return calls
+}
+
+// Restart calls RestartFunc.
+func (mock *PeerIMock) Restart() {
+	if mock.RestartFunc == nil {
+		panic("PeerIMock.RestartFunc: method is nil but PeerI.Restart was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockRestart.Lock()
+	mock.calls.Restart = append(mock.calls.Restart, callInfo)
+	mock.lockRestart.Unlock()
+	mock.RestartFunc()
+}
+
+// RestartCalls gets all the calls that were made to Restart.
+// Check the length with:
+//
+//	len(mockedPeerI.RestartCalls())
+func (mock *PeerIMock) RestartCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockRestart.RLock()
+	calls = mock.calls.Restart
+	mock.lockRestart.RUnlock()
+	return calls
+}
+
+// Shutdown calls ShutdownFunc.
+func (mock *PeerIMock) Shutdown() {
+	if mock.ShutdownFunc == nil {
+		panic("PeerIMock.ShutdownFunc: method is nil but PeerI.Shutdown was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockShutdown.Lock()
+	mock.calls.Shutdown = append(mock.calls.Shutdown, callInfo)
+	mock.lockShutdown.Unlock()
+	mock.ShutdownFunc()
+}
+
+// ShutdownCalls gets all the calls that were made to Shutdown.
+// Check the length with:
+//
+//	len(mockedPeerI.ShutdownCalls())
+func (mock *PeerIMock) ShutdownCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockShutdown.RLock()
+	calls = mock.calls.Shutdown
+	mock.lockShutdown.RUnlock()
 	return calls
 }
 

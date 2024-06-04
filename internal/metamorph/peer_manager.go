@@ -12,4 +12,5 @@ type PeerManager interface {
 	RequestBlock(blockHash *chainhash.Hash) p2p.PeerI
 	AddPeer(peer p2p.PeerI) error
 	GetPeers() []p2p.PeerI
+	Shutdown()
 }

@@ -793,6 +793,7 @@ func TestMonitorPeers(t *testing.T) {
 							StringFunc: func() string {
 								return ""
 							},
+							RestartFunc: func() {},
 						}
 					}
 

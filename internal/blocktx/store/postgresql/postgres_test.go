@@ -25,6 +25,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -570,5 +571,46 @@ func TestPostgresDB(t *testing.T) {
 		require.NotNil(t, block.TxCount)
 		require.Equal(t, int64(75), *block.TxCount)
 		require.Equal(t, now.UTC(), block.ProcessedAt.UTC())
+	})
+
+	t.Run("verify merkle roots", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/verify_merkle_roots"))
+
+		merkleRequests := []*blocktx_api.MerkleRootVerificationRequest{
+			{
+				// correct merkleroot - should not return its height
+				MerkleRoot:  "80d8a6a8306626fa25bd7e1bdae587805fc1f7d41e8aba0353488f8094153d4f",
+				BlockHeight: 812010,
+			},
+			{
+				// correct merkleroot but incorrect height - should return its height
+				MerkleRoot:  "80d8a6a8306626fa25bd7e1bdae587805fc1f7d41e8aba0353488f8094153d4f",
+				BlockHeight: 812011,
+			},
+			{
+				// incorrect merkleroot - should return its height
+				MerkleRoot:  "incorrect_merkle_root",
+				BlockHeight: 822010,
+			},
+			{
+				// merkleroot above top height, but within limits - should not return its height
+				MerkleRoot:  "fc377968f64fdcb6386ca7fcb6e6f8693a988663a07f552269823099909ea790",
+				BlockHeight: 822030,
+			},
+			{
+				// merkleroot above top height and above limits - should return its height
+				MerkleRoot:  "fc377968f64fdcb6386ca7fcb6e6f8693a988663a07f552269823099909ea790",
+				BlockHeight: 822032,
+			},
+		}
+		maxAllowedBlockHeightMismatch := 10
+		expectedUnverifiedBlockHeights := []uint64{812011, 822010, 822032}
+
+		res, err := postgresDB.VerifyMerkleRoots(ctx, merkleRequests, maxAllowedBlockHeightMismatch)
+		require.NoError(t, err)
+
+		assert.Equal(t, expectedUnverifiedBlockHeights, res.UnverifiedBlockHeights)
 	})
 }

@@ -271,26 +271,11 @@ setting in the settings file to activate prometheus. Normally you would want to 
 
 ## Client Libraries
 
-### Javascript
+### Typescript
 
-A typescript library is available in the [arc-client](https://github.com/bitcoin-sv/arc-client-js) repository.
+A typescript library is available in the [@bsv/sdk](https://github.com/bitcoin-sv/ts-sdk) repository.
 
-Example usage:
-
-```javascript
-import { ArcClient } from '@bitcoin-a/arc-client';
-
-const arcClient = new ArcClient({
-  host: 'localhost',
-  port: 8080,
-  authorization: '<api-key>'
-});
-
-const txid = 'd4b0e1b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0c0b0';
-const result = await arcClient.getTransactionStatus(txid);
-```
-
-See the repository for more information.
+Please note that [arc-client-js](https://github.com/bitcoin-sv/arc-client-js) is deprecated.
 
 ## Process flow diagrams
 

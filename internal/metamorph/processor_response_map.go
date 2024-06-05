@@ -1,7 +1,6 @@
 package metamorph
 
 import (
-	"log/slog"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
@@ -134,13 +133,4 @@ func (m *ProcessorResponseMap) Items(filterFunc ...func(*processor_response.Proc
 	}
 
 	return items
-}
-
-func (m *ProcessorResponseMap) logMapItems(logger *slog.Logger) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	for hash, processorResponse := range m.ResponseItems {
-		logger.Debug("Processor response map item", slog.String("hash", hash.String()), slog.String("status", processorResponse.GetStatus().String()), slog.String("err", processorResponse.Err.Error()))
-	}
 }

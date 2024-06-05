@@ -72,7 +72,7 @@ blocktx:
       maxIdleConns: 10
       maxOpenConns: 80
       sslMode: disable
-  recordRetentionDays: 14
+  recordRetentionDays: 28
   profilerAddr: localhost:9993
   registerTxsInterval: 200ms
   fillGapsInterval: 15m

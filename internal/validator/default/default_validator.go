@@ -52,27 +52,30 @@ func (v *DefaultValidator) ValidateEFTransaction(tx *bt.Tx, skipFeeValidation bo
 
 func (v *DefaultValidator) ValidateBeef(beefTx *beef.BEEF, skipFeeValidation, skipScriptValidation bool) error {
 	for _, btx := range beefTx.Transactions {
-		if !btx.IsMined() {
-			tx := btx.Transaction
+		// verify only unmined transactions
+		if btx.IsMined() {
+			continue
+		}
 
-			// needs to be calculated here, because txs in beef are not in EF format
-			if !skipFeeValidation {
-				if err := v.validateBeefFees(tx, beefTx); err != nil {
-					return err
-				}
-			}
+		tx := btx.Transaction
 
-			// needs to be calculated here, because txs in beef are not in EF format
-			if !skipScriptValidation {
-				if err := beef.ValidateScripts(tx, beefTx.Transactions); err != nil {
-					return validator.NewError(err, api.ErrStatusUnlockingScripts)
-				}
-			}
-
-			// purposefully skip the fee and scripts validation, because it's done above
-			if err := v.validateTransaction(tx, true, true); err != nil {
+		// needs to be calculated here, because txs in beef are not in EF format
+		if !skipFeeValidation {
+			if err := v.validateBeefFees(tx, beefTx); err != nil {
 				return err
 			}
+		}
+
+		// needs to be calculated here, because txs in beef are not in EF format
+		if !skipScriptValidation {
+			if err := beef.ValidateScripts(tx, beefTx.Transactions); err != nil {
+				return validator.NewError(err, api.ErrStatusUnlockingScripts)
+			}
+		}
+
+		// purposefully skip the fee and scripts validation, because it's done above
+		if err := v.validateTransaction(tx, true, true); err != nil {
+			return err
 		}
 	}
 

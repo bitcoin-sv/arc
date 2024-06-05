@@ -44,6 +44,7 @@ type BitcoinNode interface {
 type ProcessorI interface {
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
 	GetStats(debugItems bool) *ProcessorStats
+	GetCallbackerStats() CallbackerStats
 	GetPeers() []p2p.PeerI
 	Shutdown()
 	Health() error

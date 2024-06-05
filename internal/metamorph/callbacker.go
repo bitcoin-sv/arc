@@ -8,9 +8,11 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/ordishs/go-utils"
 )
 
@@ -18,6 +20,14 @@ const (
 	CallbackTries           = 5
 	CallbackIntervalSeconds = 5
 )
+
+type CallbackerStats struct {
+	callbackSeenOnNetworkCount       int32
+	callbackSeenInOrphanMempoolCount int32
+	callbackRejectedCount            int32
+	callbackMinedCount               int32
+	callbackFailedCount              int32
+}
 
 type Callback struct {
 	BlockHash   *string   `json:"blockHash,omitempty"`
@@ -30,15 +40,17 @@ type Callback struct {
 }
 
 type Callbacker struct {
-	httpClient HttpClient
-	wg         sync.WaitGroup
-	mu         sync.Mutex
-	disposed   bool
+	httpClient      HttpClient
+	wg              sync.WaitGroup
+	mu              sync.Mutex
+	disposed        bool
+	callbackerStats *CallbackerStats
 }
 
 func NewCallbacker(httpClient HttpClient) *Callbacker {
 	return &Callbacker{
-		httpClient: httpClient,
+		httpClient:      httpClient,
+		callbackerStats: new(CallbackerStats),
 	}
 }
 
@@ -104,6 +116,16 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 
 		// if callback was sent successfully we stop here
 		if response.StatusCode == http.StatusOK {
+			switch tx.Status {
+			case metamorph_api.Status_SEEN_ON_NETWORK:
+				atomic.AddInt32(&p.callbackerStats.callbackSeenOnNetworkCount, 1)
+			case metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL:
+				atomic.AddInt32(&p.callbackerStats.callbackSeenInOrphanMempoolCount, 1)
+			case metamorph_api.Status_MINED:
+				atomic.AddInt32(&p.callbackerStats.callbackMinedCount, 1)
+			case metamorph_api.Status_REJECTED:
+				atomic.AddInt32(&p.callbackerStats.callbackRejectedCount, 1)
+			}
 			return
 		}
 
@@ -115,7 +137,12 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 		sleepDuration *= 2
 	}
 
+	atomic.AddInt32(&p.callbackerStats.callbackFailedCount, 1)
 	logger.Warn("Couldn't send transaction callback after tries", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.Int("retries", CallbackTries))
+}
+
+func (p *Callbacker) GetCallbackCounts() CallbackerStats {
+	return *p.callbackerStats
 }
 
 func (p *Callbacker) Shutdown(logger *slog.Logger) {

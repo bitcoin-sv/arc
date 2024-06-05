@@ -20,6 +20,9 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //
 //		// make and configure a mocked metamorph.ProcessorI
 //		mockedProcessorI := &ProcessorIMock{
+//			GetCallbackerStatsFunc: func() metamorph.CallbackerStats {
+//				panic("mock out the GetCallbackerStats method")
+//			},
 //			GetPeersFunc: func() []p2p.PeerI {
 //				panic("mock out the GetPeers method")
 //			},
@@ -42,6 +45,9 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //
 //	}
 type ProcessorIMock struct {
+	// GetCallbackerStatsFunc mocks the GetCallbackerStats method.
+	GetCallbackerStatsFunc func() metamorph.CallbackerStats
+
 	// GetPeersFunc mocks the GetPeers method.
 	GetPeersFunc func() []p2p.PeerI
 
@@ -59,6 +65,9 @@ type ProcessorIMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// GetCallbackerStats holds details about calls to the GetCallbackerStats method.
+		GetCallbackerStats []struct {
+		}
 		// GetPeers holds details about calls to the GetPeers method.
 		GetPeers []struct {
 		}
@@ -81,11 +90,39 @@ type ProcessorIMock struct {
 		Shutdown []struct {
 		}
 	}
+	lockGetCallbackerStats sync.RWMutex
 	lockGetPeers           sync.RWMutex
 	lockGetStats           sync.RWMutex
 	lockHealth             sync.RWMutex
 	lockProcessTransaction sync.RWMutex
 	lockShutdown           sync.RWMutex
+}
+
+// GetCallbackerStats calls GetCallbackerStatsFunc.
+func (mock *ProcessorIMock) GetCallbackerStats() metamorph.CallbackerStats {
+	if mock.GetCallbackerStatsFunc == nil {
+		panic("ProcessorIMock.GetCallbackerStatsFunc: method is nil but ProcessorI.GetCallbackerStats was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockGetCallbackerStats.Lock()
+	mock.calls.GetCallbackerStats = append(mock.calls.GetCallbackerStats, callInfo)
+	mock.lockGetCallbackerStats.Unlock()
+	return mock.GetCallbackerStatsFunc()
+}
+
+// GetCallbackerStatsCalls gets all the calls that were made to GetCallbackerStats.
+// Check the length with:
+//
+//	len(mockedProcessorI.GetCallbackerStatsCalls())
+func (mock *ProcessorIMock) GetCallbackerStatsCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockGetCallbackerStats.RLock()
+	calls = mock.calls.GetCallbackerStats
+	mock.lockGetCallbackerStats.RUnlock()
+	return calls
 }
 
 // GetPeers calls GetPeersFunc.

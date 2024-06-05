@@ -30,8 +30,8 @@ type TxData struct {
 	txID        string
 }
 
-func (td *TxData) Unmined() bool {
-	return td.BumpIndex == nil
+func (td *TxData) IsMined() bool {
+	return td.BumpIndex != nil
 }
 
 func (td *TxData) GetTxID() string {

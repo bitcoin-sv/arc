@@ -52,7 +52,7 @@ func (v *DefaultValidator) ValidateEFTransaction(tx *bt.Tx, skipFeeValidation bo
 
 func (v *DefaultValidator) ValidateBeef(beefTx *beef.BEEF, skipFeeValidation, skipScriptValidation bool) error {
 	for _, btx := range beefTx.Transactions {
-		if btx.Unmined() {
+		if !btx.IsMined() {
 			tx := btx.Transaction
 
 			// needs to be calculated here, because txs in beef are not in EF format

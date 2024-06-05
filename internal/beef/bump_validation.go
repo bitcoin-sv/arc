@@ -80,7 +80,7 @@ func findMinedAncestorsForInput(input *bt.Input, ancestors []*TxData, minedAnces
 		return fmt.Errorf("invalid BUMP - cannot find mined parent for input %s", input.String())
 	}
 
-	if !parent.Unmined() {
+	if parent.IsMined() {
 		*minedAncestors = append(*minedAncestors, parent)
 		return nil
 	}

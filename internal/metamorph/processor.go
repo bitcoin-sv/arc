@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
@@ -613,8 +612,8 @@ func (p *Processor) storeData(ctx context.Context, data *store.StoreData) error 
 		to make sure it will be loaded and (re-)broadcasted if needed.
 	*/
 
-	nowNum, _ := strconv.Atoi(p.now().Format("2006010215"))
-	data.LastSubmittedAtNum = nowNum
+	nowNum := p.now()
+	data.LastSubmittedAt = nowNum
 
 	err := p.store.Set(ctx, data.Hash[:], data)
 	if err != nil {

@@ -219,13 +219,13 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, dataReturned, &mined)
 
-		mined.LastSubmittedAtNum = 1234
+		mined.LastSubmittedAt = time.Date(2024, 5, 31, 15, 16, 0, 0, time.UTC)
 		err = postgresDB.Set(ctx, minedHash[:], &mined)
 		require.NoError(t, err)
 
 		dataReturned2, err := postgresDB.Get(ctx, minedHash[:])
 		require.NoError(t, err)
-		require.Equal(t, 1234, dataReturned2.LastSubmittedAtNum)
+		require.Equal(t, time.Date(2024, 5, 31, 15, 16, 0, 0, time.UTC), dataReturned2.LastSubmittedAt)
 
 		err = postgresDB.Del(ctx, minedHash[:])
 		require.NoError(t, err)

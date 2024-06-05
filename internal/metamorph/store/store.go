@@ -13,23 +13,23 @@ import (
 var ErrNotFound = errors.New("key could not be found")
 
 type StoreData struct {
-	RawTx              []byte
-	StoredAt           time.Time
-	AnnouncedAt        time.Time
-	MinedAt            time.Time
-	Hash               *chainhash.Hash
-	Status             metamorph_api.Status
-	BlockHeight        uint64
-	BlockHash          *chainhash.Hash
-	CallbackUrl        string
-	FullStatusUpdates  bool
-	CallbackToken      string
-	RejectReason       string
-	LockedBy           string
-	Ttl                int64
-	MerklePath         string
-	LastSubmittedAtNum int
-	Retries            int
+	RawTx             []byte
+	StoredAt          time.Time
+	AnnouncedAt       time.Time
+	MinedAt           time.Time
+	Hash              *chainhash.Hash
+	Status            metamorph_api.Status
+	BlockHeight       uint64
+	BlockHash         *chainhash.Hash
+	CallbackUrl       string
+	FullStatusUpdates bool
+	CallbackToken     string
+	RejectReason      string
+	LockedBy          string
+	Ttl               int64
+	MerklePath        string
+	LastSubmittedAt   time.Time
+	Retries           int
 }
 
 type Stats struct {

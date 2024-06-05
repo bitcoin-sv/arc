@@ -595,6 +595,11 @@ func TestPostgresDB(t *testing.T) {
 				BlockHeight: 822010,
 			},
 			{
+				// merkleroot below lowest height - should not return its height
+				MerkleRoot:  "fc377968f64fdcb6386ca7fcb6e6f8693a988663a07f552269823099909ea790",
+				BlockHeight: 800000,
+			},
+			{
 				// merkleroot above top height, but within limits - should not return its height
 				MerkleRoot:  "fc377968f64fdcb6386ca7fcb6e6f8693a988663a07f552269823099909ea790",
 				BlockHeight: 822030,

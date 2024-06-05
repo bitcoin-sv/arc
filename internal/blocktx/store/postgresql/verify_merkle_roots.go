@@ -17,12 +17,13 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 	maxAllowedBlockHeightMismatch int,
 ) (*blocktx_api.MerkleRootVerificationResponse, error) {
 	qTopHeight := `
-		SELECT MAX(b.height) FROM blocks b WHERE b.orphanedyn = false
+		SELECT MAX(b.height), MIN(b.height) FROM blocks b WHERE b.orphanedyn = false
 	`
 
-	var topHeight int64
+	var topHeight uint64
+	var lowestHeight uint64
 
-	err := p.db.QueryRow(qTopHeight).Scan(&topHeight)
+	err := p.db.QueryRow(qTopHeight).Scan(&topHeight, &lowestHeight)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, store.ErrNotFound
@@ -47,19 +48,29 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 
 		err = p.db.QueryRow(qMerkleRoot, merkleBytes, mr.BlockHeight).Scan(new(interface{}))
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				if !isWithinAllowedMismatch(mr.BlockHeight, topHeight, maxAllowedBlockHeightMismatch) {
-					unverifiedBlockHeights = append(unverifiedBlockHeights, mr.BlockHeight)
-				}
+			if !errors.Is(err, sql.ErrNoRows) {
+				return nil, err
+			}
+
+			if isOlderThanLowestHeight(mr.BlockHeight, lowestHeight) {
 				continue
 			}
-			return nil, err
+
+			if isWithinAllowedMismatch(mr.BlockHeight, topHeight, maxAllowedBlockHeightMismatch) {
+				continue
+			}
+
+			unverifiedBlockHeights = append(unverifiedBlockHeights, mr.BlockHeight)
 		}
 	}
 
 	return &blocktx_api.MerkleRootVerificationResponse{UnverifiedBlockHeights: unverifiedBlockHeights}, nil
 }
 
-func isWithinAllowedMismatch(blockHeight uint64, topHeight int64, maxMismatch int) bool {
-	return blockHeight > uint64(topHeight) && blockHeight-uint64(topHeight) <= uint64(maxMismatch)
+func isOlderThanLowestHeight(blockHeight, lowestHeight uint64) bool {
+	return blockHeight < lowestHeight
+}
+
+func isWithinAllowedMismatch(blockHeight, topHeight uint64, maxMismatch int) bool {
+	return blockHeight > topHeight && blockHeight-topHeight <= uint64(maxMismatch)
 }

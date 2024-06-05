@@ -8,6 +8,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
+	"github.com/libsv/go-bt/v2"
 )
 
 func (p *PostgreSQL) VerifyMerkleRoots(
@@ -42,7 +43,7 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 			continue
 		}
 
-		merkleBytes = reverseBytes(merkleBytes)
+		merkleBytes = bt.ReverseBytes(merkleBytes)
 
 		err = p.db.QueryRow(qMerkleRoot, merkleBytes, mr.BlockHeight).Scan(new(interface{}))
 		if err != nil {
@@ -57,15 +58,6 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 	}
 
 	return &blocktx_api.MerkleRootVerificationResponse{UnverifiedBlockHeights: unverifiedBlockHeights}, nil
-}
-
-func reverseBytes(b []byte) []byte {
-	n := len(b)
-	reversed := make([]byte, n)
-	for i := 0; i < n; i++ {
-		reversed[i] = b[n-1-i]
-	}
-	return reversed
 }
 
 func isWithinAllowedMismatch(blockHeight uint64, topHeight int64, maxMismatch int) bool {

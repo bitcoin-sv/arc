@@ -312,15 +312,16 @@ func sigOpsCheck(tx *bt.Tx, policy *bitcoin.Settings) error {
 		maxSigOps = int64(MaxTxSigopsCountPolicyAfterGenesis)
 	}
 
+	parser := interpreter.DefaultOpcodeParser{}
 	numSigOps := int64(0)
+
 	for _, input := range tx.Inputs {
-		parser := interpreter.DefaultOpcodeParser{}
-		parsedLockingScript, err := parser.Parse(input.UnlockingScript)
+		parsedUnlockingScript, err := parser.Parse(input.UnlockingScript)
 		if err != nil {
 			return err
 		}
 
-		for _, op := range parsedLockingScript {
+		for _, op := range parsedUnlockingScript {
 			if op.Value() == bscript.OpCHECKSIG || op.Value() == bscript.OpCHECKSIGVERIFY {
 				numSigOps++
 			}
@@ -328,7 +329,6 @@ func sigOpsCheck(tx *bt.Tx, policy *bitcoin.Settings) error {
 	}
 
 	for _, output := range tx.Outputs {
-		parser := interpreter.DefaultOpcodeParser{}
 		parsedLockingScript, err := parser.Parse(output.LockingScript)
 		if err != nil {
 			return err

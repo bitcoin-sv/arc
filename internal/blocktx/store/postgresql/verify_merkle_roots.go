@@ -11,20 +11,17 @@ import (
 )
 
 func (p *PostgreSQL) VerifyMerkleRoots(
-	ctx context.Context,
+	_ context.Context,
 	merkleRoots []*blocktx_api.MerkleRootVerificationRequest,
 	maxAllowedBlockHeightMismatch int,
 ) (*blocktx_api.MerkleRootVerificationResponse, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	qTopHeight := `
 		SELECT MAX(b.height) FROM blocks b WHERE b.orphanedyn = false
 	`
 
 	var topHeight int64
 
-	err := p.db.QueryRowContext(ctx, qTopHeight).Scan(&topHeight)
+	err := p.db.QueryRow(qTopHeight).Scan(&topHeight)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, store.ErrNotFound
@@ -50,7 +47,7 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 		merkleBytes = reverseBytes(merkleBytes)
 		// merkleBytesQueryStr := fmt.Sprintf("0x%x", merkleBytes)
 
-		err = p.db.QueryRowContext(ctx, qMerkleRoot, merkleBytes, mr.BlockHeight).Scan(&hash)
+		err = p.db.QueryRow(qMerkleRoot, merkleBytes, mr.BlockHeight).Scan(&hash)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				if !isWithinAllowedMismatch(mr.BlockHeight, topHeight, maxAllowedBlockHeightMismatch) {

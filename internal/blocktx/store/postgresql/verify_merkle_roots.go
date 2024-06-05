@@ -36,8 +36,6 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 	var unverifiedBlockHeights []uint64
 
 	for _, mr := range merkleRoots {
-		var hash []byte
-
 		merkleBytes, err := hex.DecodeString(mr.MerkleRoot)
 		if err != nil {
 			unverifiedBlockHeights = append(unverifiedBlockHeights, mr.BlockHeight)
@@ -45,9 +43,8 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 		}
 
 		merkleBytes = reverseBytes(merkleBytes)
-		// merkleBytesQueryStr := fmt.Sprintf("0x%x", merkleBytes)
 
-		err = p.db.QueryRow(qMerkleRoot, merkleBytes, mr.BlockHeight).Scan(&hash)
+		err = p.db.QueryRow(qMerkleRoot, merkleBytes, mr.BlockHeight).Scan(new(interface{}))
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				if !isWithinAllowedMismatch(mr.BlockHeight, topHeight, maxAllowedBlockHeightMismatch) {

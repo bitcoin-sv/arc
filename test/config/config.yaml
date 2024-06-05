@@ -76,7 +76,7 @@ blocktx:
   profilerAddr: localhost:9993
   registerTxsInterval: 200ms
   fillGapsInterval: 15m
-  maxAllowedBlockHeightMismatch: 10
+  maxAllowedBlockHeightMismatch: 3
   mq:
     txsMinedMaxBatchSize: 20
 

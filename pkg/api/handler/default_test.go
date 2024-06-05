@@ -84,7 +84,7 @@ var (
 )
 
 //go:generate moq -pkg mock -out ./mock/transaction_handler_mock.go ../../metamorph/ TransactionHandler
-//go:generate moq -pkg mock -out ./mock/merkle_roots_verificator.go ../../blocktx/ MerkleRootsVerificator
+//go:generate moq -pkg mock -out ./mock/merkle_roots_verificator_mock.go ../../blocktx/ MerkleRootsVerificator
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {

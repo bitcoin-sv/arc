@@ -8,12 +8,12 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/ordishs/go-utils"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -22,11 +22,11 @@ const (
 )
 
 type CallbackerStats struct {
-	callbackSeenOnNetworkCount       int32
-	callbackSeenInOrphanMempoolCount int32
-	callbackRejectedCount            int32
-	callbackMinedCount               int32
-	callbackFailedCount              int32
+	callbackSeenOnNetworkCount       prometheus.Gauge
+	callbackSeenInOrphanMempoolCount prometheus.Gauge
+	callbackRejectedCount            prometheus.Gauge
+	callbackMinedCount               prometheus.Gauge
+	callbackFailedCount              prometheus.Gauge
 }
 
 type Callback struct {
@@ -47,11 +47,45 @@ type Callbacker struct {
 	callbackerStats *CallbackerStats
 }
 
-func NewCallbacker(httpClient HttpClient) *Callbacker {
-	return &Callbacker{
-		httpClient:      httpClient,
-		callbackerStats: new(CallbackerStats),
+func NewCallbacker(httpClient HttpClient) (*Callbacker, error) {
+	callbacker := &Callbacker{
+		httpClient: httpClient,
+		callbackerStats: &CallbackerStats{
+			callbackSeenOnNetworkCount: prometheus.NewGauge(prometheus.GaugeOpts{
+				Name: "arc_callback_seen_on_network_count",
+				Help: "Number of arc_callback_seen_on_network_count transactions",
+			}),
+			callbackSeenInOrphanMempoolCount: prometheus.NewGauge(prometheus.GaugeOpts{
+				Name: "arc_callback_seen_in_orphan_mempool_count",
+				Help: "Number of arc_callback_seen_in_orphan_mempool_count transactions",
+			}),
+			callbackRejectedCount: prometheus.NewGauge(prometheus.GaugeOpts{
+				Name: "arc_callback_rejected_count",
+				Help: "Number of arc_callback_rejected_count transactions",
+			}),
+			callbackMinedCount: prometheus.NewGauge(prometheus.GaugeOpts{
+				Name: "arc_callback_mined_count",
+				Help: "Number of arc_callback_mined_count transactions",
+			}),
+			callbackFailedCount: prometheus.NewGauge(prometheus.GaugeOpts{
+				Name: "arc_callback_failed_count",
+				Help: "Number of arc_callback_failed_count transactions",
+			}),
+		},
 	}
+
+	err := registerStats(
+		callbacker.callbackerStats.callbackSeenOnNetworkCount,
+		callbacker.callbackerStats.callbackSeenInOrphanMempoolCount,
+		callbacker.callbackerStats.callbackRejectedCount,
+		callbacker.callbackerStats.callbackMinedCount,
+		callbacker.callbackerStats.callbackFailedCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return callbacker, nil
 }
 
 type HttpClient interface {
@@ -118,13 +152,13 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 		if response.StatusCode == http.StatusOK {
 			switch tx.Status {
 			case metamorph_api.Status_SEEN_ON_NETWORK:
-				atomic.AddInt32(&p.callbackerStats.callbackSeenOnNetworkCount, 1)
+				p.callbackerStats.callbackSeenOnNetworkCount.Inc()
 			case metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL:
-				atomic.AddInt32(&p.callbackerStats.callbackSeenInOrphanMempoolCount, 1)
+				p.callbackerStats.callbackSeenInOrphanMempoolCount.Inc()
 			case metamorph_api.Status_MINED:
-				atomic.AddInt32(&p.callbackerStats.callbackMinedCount, 1)
+				p.callbackerStats.callbackMinedCount.Inc()
 			case metamorph_api.Status_REJECTED:
-				atomic.AddInt32(&p.callbackerStats.callbackRejectedCount, 1)
+				p.callbackerStats.callbackRejectedCount.Inc()
 			}
 			return
 		}
@@ -137,12 +171,8 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 		sleepDuration *= 2
 	}
 
-	atomic.AddInt32(&p.callbackerStats.callbackFailedCount, 1)
+	p.callbackerStats.callbackFailedCount.Inc()
 	logger.Warn("Couldn't send transaction callback after tries", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.Int("retries", CallbackTries))
-}
-
-func (p *Callbacker) GetCallbackCounts() CallbackerStats {
-	return *p.callbackerStats
 }
 
 func (p *Callbacker) Shutdown(logger *slog.Logger) {
@@ -152,6 +182,14 @@ func (p *Callbacker) Shutdown(logger *slog.Logger) {
 		p.mu.Unlock()
 		return
 	}
+
+	unregisterStats(
+		p.callbackerStats.callbackSeenOnNetworkCount,
+		p.callbackerStats.callbackSeenInOrphanMempoolCount,
+		p.callbackerStats.callbackRejectedCount,
+		p.callbackerStats.callbackMinedCount,
+		p.callbackerStats.callbackFailedCount,
+	)
 
 	p.disposed = true
 	p.mu.Unlock()

@@ -20,14 +20,14 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //
 //		// make and configure a mocked metamorph.ProcessorI
 //		mockedProcessorI := &ProcessorIMock{
-//			GetCallbackerStatsFunc: func() metamorph.CallbackerStats {
-//				panic("mock out the GetCallbackerStats method")
-//			},
 //			GetPeersFunc: func() []p2p.PeerI {
 //				panic("mock out the GetPeers method")
 //			},
-//			GetStatsFunc: func(debugItems bool) *metamorph.ProcessorStats {
-//				panic("mock out the GetStats method")
+//			GetProcessorMapSizeFunc: func() int {
+//				panic("mock out the GetProcessorMapSize method")
+//			},
+//			GetStatusNotSeenFunc: func() int64 {
+//				panic("mock out the GetStatusNotSeen method")
 //			},
 //			HealthFunc: func() error {
 //				panic("mock out the Health method")
@@ -45,14 +45,14 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //
 //	}
 type ProcessorIMock struct {
-	// GetCallbackerStatsFunc mocks the GetCallbackerStats method.
-	GetCallbackerStatsFunc func() metamorph.CallbackerStats
-
 	// GetPeersFunc mocks the GetPeers method.
 	GetPeersFunc func() []p2p.PeerI
 
-	// GetStatsFunc mocks the GetStats method.
-	GetStatsFunc func(debugItems bool) *metamorph.ProcessorStats
+	// GetProcessorMapSizeFunc mocks the GetProcessorMapSize method.
+	GetProcessorMapSizeFunc func() int
+
+	// GetStatusNotSeenFunc mocks the GetStatusNotSeen method.
+	GetStatusNotSeenFunc func() int64
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func() error
@@ -65,16 +65,14 @@ type ProcessorIMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// GetCallbackerStats holds details about calls to the GetCallbackerStats method.
-		GetCallbackerStats []struct {
-		}
 		// GetPeers holds details about calls to the GetPeers method.
 		GetPeers []struct {
 		}
-		// GetStats holds details about calls to the GetStats method.
-		GetStats []struct {
-			// DebugItems is the debugItems argument value.
-			DebugItems bool
+		// GetProcessorMapSize holds details about calls to the GetProcessorMapSize method.
+		GetProcessorMapSize []struct {
+		}
+		// GetStatusNotSeen holds details about calls to the GetStatusNotSeen method.
+		GetStatusNotSeen []struct {
 		}
 		// Health holds details about calls to the Health method.
 		Health []struct {
@@ -90,39 +88,12 @@ type ProcessorIMock struct {
 		Shutdown []struct {
 		}
 	}
-	lockGetCallbackerStats sync.RWMutex
-	lockGetPeers           sync.RWMutex
-	lockGetStats           sync.RWMutex
-	lockHealth             sync.RWMutex
-	lockProcessTransaction sync.RWMutex
-	lockShutdown           sync.RWMutex
-}
-
-// GetCallbackerStats calls GetCallbackerStatsFunc.
-func (mock *ProcessorIMock) GetCallbackerStats() metamorph.CallbackerStats {
-	if mock.GetCallbackerStatsFunc == nil {
-		panic("ProcessorIMock.GetCallbackerStatsFunc: method is nil but ProcessorI.GetCallbackerStats was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockGetCallbackerStats.Lock()
-	mock.calls.GetCallbackerStats = append(mock.calls.GetCallbackerStats, callInfo)
-	mock.lockGetCallbackerStats.Unlock()
-	return mock.GetCallbackerStatsFunc()
-}
-
-// GetCallbackerStatsCalls gets all the calls that were made to GetCallbackerStats.
-// Check the length with:
-//
-//	len(mockedProcessorI.GetCallbackerStatsCalls())
-func (mock *ProcessorIMock) GetCallbackerStatsCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockGetCallbackerStats.RLock()
-	calls = mock.calls.GetCallbackerStats
-	mock.lockGetCallbackerStats.RUnlock()
-	return calls
+	lockGetPeers            sync.RWMutex
+	lockGetProcessorMapSize sync.RWMutex
+	lockGetStatusNotSeen    sync.RWMutex
+	lockHealth              sync.RWMutex
+	lockProcessTransaction  sync.RWMutex
+	lockShutdown            sync.RWMutex
 }
 
 // GetPeers calls GetPeersFunc.
@@ -152,35 +123,57 @@ func (mock *ProcessorIMock) GetPeersCalls() []struct {
 	return calls
 }
 
-// GetStats calls GetStatsFunc.
-func (mock *ProcessorIMock) GetStats(debugItems bool) *metamorph.ProcessorStats {
-	if mock.GetStatsFunc == nil {
-		panic("ProcessorIMock.GetStatsFunc: method is nil but ProcessorI.GetStats was just called")
+// GetProcessorMapSize calls GetProcessorMapSizeFunc.
+func (mock *ProcessorIMock) GetProcessorMapSize() int {
+	if mock.GetProcessorMapSizeFunc == nil {
+		panic("ProcessorIMock.GetProcessorMapSizeFunc: method is nil but ProcessorI.GetProcessorMapSize was just called")
 	}
 	callInfo := struct {
-		DebugItems bool
-	}{
-		DebugItems: debugItems,
-	}
-	mock.lockGetStats.Lock()
-	mock.calls.GetStats = append(mock.calls.GetStats, callInfo)
-	mock.lockGetStats.Unlock()
-	return mock.GetStatsFunc(debugItems)
+	}{}
+	mock.lockGetProcessorMapSize.Lock()
+	mock.calls.GetProcessorMapSize = append(mock.calls.GetProcessorMapSize, callInfo)
+	mock.lockGetProcessorMapSize.Unlock()
+	return mock.GetProcessorMapSizeFunc()
 }
 
-// GetStatsCalls gets all the calls that were made to GetStats.
+// GetProcessorMapSizeCalls gets all the calls that were made to GetProcessorMapSize.
 // Check the length with:
 //
-//	len(mockedProcessorI.GetStatsCalls())
-func (mock *ProcessorIMock) GetStatsCalls() []struct {
-	DebugItems bool
+//	len(mockedProcessorI.GetProcessorMapSizeCalls())
+func (mock *ProcessorIMock) GetProcessorMapSizeCalls() []struct {
 } {
 	var calls []struct {
-		DebugItems bool
 	}
-	mock.lockGetStats.RLock()
-	calls = mock.calls.GetStats
-	mock.lockGetStats.RUnlock()
+	mock.lockGetProcessorMapSize.RLock()
+	calls = mock.calls.GetProcessorMapSize
+	mock.lockGetProcessorMapSize.RUnlock()
+	return calls
+}
+
+// GetStatusNotSeen calls GetStatusNotSeenFunc.
+func (mock *ProcessorIMock) GetStatusNotSeen() int64 {
+	if mock.GetStatusNotSeenFunc == nil {
+		panic("ProcessorIMock.GetStatusNotSeenFunc: method is nil but ProcessorI.GetStatusNotSeen was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockGetStatusNotSeen.Lock()
+	mock.calls.GetStatusNotSeen = append(mock.calls.GetStatusNotSeen, callInfo)
+	mock.lockGetStatusNotSeen.Unlock()
+	return mock.GetStatusNotSeenFunc()
+}
+
+// GetStatusNotSeenCalls gets all the calls that were made to GetStatusNotSeen.
+// Check the length with:
+//
+//	len(mockedProcessorI.GetStatusNotSeenCalls())
+func (mock *ProcessorIMock) GetStatusNotSeenCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockGetStatusNotSeen.RLock()
+	calls = mock.calls.GetStatusNotSeen
+	mock.lockGetStatusNotSeen.RUnlock()
 	return calls
 }
 

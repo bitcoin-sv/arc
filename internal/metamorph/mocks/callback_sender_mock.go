@@ -20,9 +20,6 @@ var _ metamorph.CallbackSender = &CallbackSenderMock{}
 //
 //		// make and configure a mocked metamorph.CallbackSender
 //		mockedCallbackSender := &CallbackSenderMock{
-//			GetCallbackCountsFunc: func() metamorph.CallbackerStats {
-//				panic("mock out the GetCallbackCounts method")
-//			},
 //			SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData)  {
 //				panic("mock out the SendCallback method")
 //			},
@@ -36,9 +33,6 @@ var _ metamorph.CallbackSender = &CallbackSenderMock{}
 //
 //	}
 type CallbackSenderMock struct {
-	// GetCallbackCountsFunc mocks the GetCallbackCounts method.
-	GetCallbackCountsFunc func() metamorph.CallbackerStats
-
 	// SendCallbackFunc mocks the SendCallback method.
 	SendCallbackFunc func(logger *slog.Logger, tx *store.StoreData)
 
@@ -47,9 +41,6 @@ type CallbackSenderMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// GetCallbackCounts holds details about calls to the GetCallbackCounts method.
-		GetCallbackCounts []struct {
-		}
 		// SendCallback holds details about calls to the SendCallback method.
 		SendCallback []struct {
 			// Logger is the logger argument value.
@@ -63,36 +54,8 @@ type CallbackSenderMock struct {
 			Logger *slog.Logger
 		}
 	}
-	lockGetCallbackCounts sync.RWMutex
-	lockSendCallback      sync.RWMutex
-	lockShutdown          sync.RWMutex
-}
-
-// GetCallbackCounts calls GetCallbackCountsFunc.
-func (mock *CallbackSenderMock) GetCallbackCounts() metamorph.CallbackerStats {
-	if mock.GetCallbackCountsFunc == nil {
-		panic("CallbackSenderMock.GetCallbackCountsFunc: method is nil but CallbackSender.GetCallbackCounts was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockGetCallbackCounts.Lock()
-	mock.calls.GetCallbackCounts = append(mock.calls.GetCallbackCounts, callInfo)
-	mock.lockGetCallbackCounts.Unlock()
-	return mock.GetCallbackCountsFunc()
-}
-
-// GetCallbackCountsCalls gets all the calls that were made to GetCallbackCounts.
-// Check the length with:
-//
-//	len(mockedCallbackSender.GetCallbackCountsCalls())
-func (mock *CallbackSenderMock) GetCallbackCountsCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockGetCallbackCounts.RLock()
-	calls = mock.calls.GetCallbackCounts
-	mock.lockGetCallbackCounts.RUnlock()
-	return calls
+	lockSendCallback sync.RWMutex
+	lockShutdown     sync.RWMutex
 }
 
 // SendCallback calls SendCallbackFunc.

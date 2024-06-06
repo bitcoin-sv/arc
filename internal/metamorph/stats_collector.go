@@ -17,7 +17,7 @@ const (
 	notMinedLimitDefault          = 20 * time.Minute
 )
 
-type ProcessorStatsCollector struct {
+type processorStats struct {
 	notSeenLimit  time.Duration
 	notMinedLimit time.Duration
 
@@ -33,18 +33,18 @@ type ProcessorStatsCollector struct {
 	statusSeenInOrphanMempool prometheus.Gauge
 	statusNotMined            prometheus.Gauge
 	statusNotSeen             prometheus.Gauge
-	healthyPeerConnections    prometheus.Gauge
+	statusNotSeenStat         int64
 }
 
-func WithLimits(notSeenLimit time.Duration, notMinedLimit time.Duration) func(*ProcessorStatsCollector) {
-	return func(p *ProcessorStatsCollector) {
+func WithLimits(notSeenLimit time.Duration, notMinedLimit time.Duration) func(*processorStats) {
+	return func(p *processorStats) {
 		p.notSeenLimit = notSeenLimit
 		p.notMinedLimit = notMinedLimit
 	}
 }
 
-func newProcessorStats(opts ...func(stats *ProcessorStatsCollector)) *ProcessorStatsCollector {
-	p := &ProcessorStatsCollector{
+func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
+	p := &processorStats{
 		statusStored: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_status_stored_count",
 			Help: "Number of monitored transactions with status STORED",
@@ -81,10 +81,6 @@ func newProcessorStats(opts ...func(stats *ProcessorStatsCollector)) *ProcessorS
 			Name: "arc_status_seen_in_orphan_mempool_count",
 			Help: "Number of monitored transactions with status SEEN_IN_ORPHAN_MEMPOOL",
 		}),
-		healthyPeerConnections: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "arc_healthy_peers_count",
-			Help: "Number of healthy peer connections",
-		}),
 		notSeenLimit:  notSeenLimitDefault,
 		notMinedLimit: notMinedLimitDefault,
 	}
@@ -105,6 +101,12 @@ func newProcessorStats(opts ...func(stats *ProcessorStatsCollector)) *ProcessorS
 	return p
 }
 
+func (p *Processor) GetStatusNotSeen() int64 {
+	p.stats.mu.Lock()
+	defer p.stats.mu.Unlock()
+	return p.stats.statusNotSeenStat
+}
+
 func (p *Processor) StartCollectStats() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	p.CancelCollectStats = cancel
@@ -113,18 +115,17 @@ func (p *Processor) StartCollectStats() error {
 	ticker := time.NewTicker(p.statCollectionInterval)
 
 	err := registerStats(
-		p.Stats.statusStored,
-		p.Stats.statusAnnouncedToNetwork,
-		p.Stats.statusRequestedByNetwork,
-		p.Stats.statusSentToNetwork,
-		p.Stats.statusAcceptedByNetwork,
-		p.Stats.statusSeenOnNetwork,
-		p.Stats.statusMined,
-		p.Stats.statusRejected,
-		p.Stats.statusSeenInOrphanMempool,
-		p.Stats.statusNotMined,
-		p.Stats.statusNotSeen,
-		p.Stats.healthyPeerConnections,
+		p.stats.statusStored,
+		p.stats.statusAnnouncedToNetwork,
+		p.stats.statusRequestedByNetwork,
+		p.stats.statusSentToNetwork,
+		p.stats.statusAcceptedByNetwork,
+		p.stats.statusSeenOnNetwork,
+		p.stats.statusMined,
+		p.stats.statusRejected,
+		p.stats.statusSeenInOrphanMempool,
+		p.stats.statusNotMined,
+		p.stats.statusNotSeen,
 	)
 	if err != nil {
 		p.waitGroup.Done()
@@ -138,18 +139,17 @@ func (p *Processor) StartCollectStats() error {
 		}()
 		defer p.waitGroup.Done()
 		defer unregisterStats(
-			p.Stats.statusStored,
-			p.Stats.statusAnnouncedToNetwork,
-			p.Stats.statusRequestedByNetwork,
-			p.Stats.statusSentToNetwork,
-			p.Stats.statusAcceptedByNetwork,
-			p.Stats.statusSeenOnNetwork,
-			p.Stats.statusMined,
-			p.Stats.statusRejected,
-			p.Stats.statusSeenInOrphanMempool,
-			p.Stats.statusNotMined,
-			p.Stats.statusNotSeen,
-			p.Stats.healthyPeerConnections,
+			p.stats.statusStored,
+			p.stats.statusAnnouncedToNetwork,
+			p.stats.statusRequestedByNetwork,
+			p.stats.statusSentToNetwork,
+			p.stats.statusAcceptedByNetwork,
+			p.stats.statusSeenOnNetwork,
+			p.stats.statusMined,
+			p.stats.statusRejected,
+			p.stats.statusSeenInOrphanMempool,
+			p.stats.statusNotMined,
+			p.stats.statusNotSeen,
 		)
 
 		for {
@@ -160,35 +160,26 @@ func (p *Processor) StartCollectStats() error {
 
 				getStatsSince := p.now().Add(-1 * p.mapExpiryTime)
 
-				collectedStats, err := p.store.GetStats(ctx, getStatsSince, p.Stats.notSeenLimit, p.Stats.notMinedLimit)
+				collectedStats, err := p.store.GetStats(ctx, getStatsSince, p.stats.notSeenLimit, p.stats.notMinedLimit)
 				if err != nil {
 					p.logger.Error("failed to get stats", slog.String("err", err.Error()))
 					continue
 				}
 
-				healthyConnections := 0
-
-				for _, peer := range p.pm.GetPeers() {
-					if peer.Connected() && peer.IsHealthy() {
-						healthyConnections++
-						continue
-					}
-				}
-
-				p.Stats.mu.Lock()
-				p.Stats.statusStored.Set(float64(collectedStats.StatusStored))
-				p.Stats.statusAnnouncedToNetwork.Set(float64(collectedStats.StatusAnnouncedToNetwork))
-				p.Stats.statusRequestedByNetwork.Set(float64(collectedStats.StatusRequestedByNetwork))
-				p.Stats.statusSentToNetwork.Set(float64(collectedStats.StatusSentToNetwork))
-				p.Stats.statusAcceptedByNetwork.Set(float64(collectedStats.StatusAcceptedByNetwork))
-				p.Stats.statusSeenOnNetwork.Set(float64(collectedStats.StatusSeenOnNetwork))
-				p.Stats.statusMined.Set(float64(collectedStats.StatusMined))
-				p.Stats.statusRejected.Set(float64(collectedStats.StatusRejected))
-				p.Stats.statusSeenInOrphanMempool.Set(float64(collectedStats.StatusSeenInOrphanMempool))
-				p.Stats.statusNotMined.Set(float64(collectedStats.StatusNotMined))
-				p.Stats.statusNotSeen.Set(float64(collectedStats.StatusNotSeen))
-				p.Stats.healthyPeerConnections.Set(float64(healthyConnections))
-				p.Stats.mu.Unlock()
+				p.stats.mu.Lock()
+				p.stats.statusStored.Set(float64(collectedStats.StatusStored))
+				p.stats.statusAnnouncedToNetwork.Set(float64(collectedStats.StatusAnnouncedToNetwork))
+				p.stats.statusRequestedByNetwork.Set(float64(collectedStats.StatusRequestedByNetwork))
+				p.stats.statusSentToNetwork.Set(float64(collectedStats.StatusSentToNetwork))
+				p.stats.statusAcceptedByNetwork.Set(float64(collectedStats.StatusAcceptedByNetwork))
+				p.stats.statusSeenOnNetwork.Set(float64(collectedStats.StatusSeenOnNetwork))
+				p.stats.statusMined.Set(float64(collectedStats.StatusMined))
+				p.stats.statusRejected.Set(float64(collectedStats.StatusRejected))
+				p.stats.statusSeenInOrphanMempool.Set(float64(collectedStats.StatusSeenInOrphanMempool))
+				p.stats.statusNotMined.Set(float64(collectedStats.StatusNotMined))
+				p.stats.statusNotSeen.Set(float64(collectedStats.StatusNotSeen))
+				p.stats.statusNotSeenStat = collectedStats.StatusNotSeen
+				p.stats.mu.Unlock()
 			}
 		}
 	}()

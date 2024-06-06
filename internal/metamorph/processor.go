@@ -52,7 +52,7 @@ type Processor struct {
 	seenOnNetworkTxTime       time.Duration
 	seenOnNetworkTxTimeUntil  time.Duration
 	now                       func() time.Time
-	Stats                     *ProcessorStatsCollector
+	stats                     *processorStats
 	maxRetries                int
 	minimumHealthyConnections int
 	callbackSender            CallbackSender
@@ -88,7 +88,6 @@ type Option func(f *Processor)
 
 type CallbackSender interface {
 	SendCallback(logger *slog.Logger, tx *store.StoreData)
-	GetCallbackCounts() CallbackerStats
 	Shutdown(logger *slog.Logger)
 }
 
@@ -124,8 +123,8 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		processStatusUpdatesInterval:  processStatusUpdatesIntervalDefault,
 		processStatusUpdatesBatchSize: processStatusUpdatesBatchSizeDefault,
 		storageStatusUpdateCh:         make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
+		stats:                         newProcessorStats(),
 		waitGroup:                     &sync.WaitGroup{},
-		Stats:                         newProcessorStats(),
 
 		statCollectionInterval: statCollectionIntervalDefault,
 
@@ -144,13 +143,12 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 
 	p.logger.Info("Starting processor", slog.String("cacheExpiryTime", p.mapExpiryTime.String()))
 
-	_ = newPrometheusCollector(p)
+	err = newPrometheusCollector(p)
+	if err != nil {
+		return nil, err
+	}
 
 	return p, nil
-}
-
-func (p *Processor) GetCallbackerStats() CallbackerStats {
-	return p.callbackSender.GetCallbackCounts()
 }
 
 // Shutdown closes all channels and goroutines gracefully

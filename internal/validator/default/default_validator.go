@@ -33,19 +33,64 @@ func New(policy *bitcoin.Settings) validator.Validator {
 	}
 }
 
-func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx, skipFeeValidation bool, skipScriptValidation bool) error { //nolint:funlen - mostly comments
-	//
-	// Each node will verify every transaction against a long checklist of criteria:
-	//
-	txSize := tx.Size()
-
-	// fmt.Println(hex.EncodeToString(tx.ExtendedBytes()))
-
+func (v *DefaultValidator) ValidateEFTransaction(tx *bt.Tx, skipFeeValidation bool, skipScriptValidation bool) error { //nolint:funlen - mostly comments
 	// 0) Check whether we have a complete transaction in extended format, with all input information
 	//    we cannot check the satoshi input, OP_RETURN is allowed 0 satoshis
 	if !v.IsExtended(tx) {
 		return validator.NewError(fmt.Errorf("transaction is not in extended format"), api.ErrStatusTxFormat)
 	}
+
+	// The rest of the validation steps
+	err := v.validateTransaction(tx, skipFeeValidation, skipScriptValidation)
+	if err != nil {
+		return err
+	}
+
+	// everything checks out
+	return nil
+}
+
+func (v *DefaultValidator) ValidateBeef(beefTx *beef.BEEF, skipFeeValidation, skipScriptValidation bool) error {
+	for _, btx := range beefTx.Transactions {
+		// verify only unmined transactions
+		if btx.IsMined() {
+			continue
+		}
+
+		tx := btx.Transaction
+
+		// needs to be calculated here, because txs in beef are not in EF format
+		if !skipFeeValidation {
+			if err := v.validateBeefFees(tx, beefTx); err != nil {
+				return err
+			}
+		}
+
+		// needs to be calculated here, because txs in beef are not in EF format
+		if !skipScriptValidation {
+			if err := beef.ValidateScripts(tx, beefTx.Transactions); err != nil {
+				return validator.NewError(err, api.ErrStatusUnlockingScripts)
+			}
+		}
+
+		// purposefully skip the fee and scripts validation, because it's done above
+		if err := v.validateTransaction(tx, true, true); err != nil {
+			return err
+		}
+	}
+
+	if err := beef.EnsureAncestorsArePresentInBump(beefTx.GetLatestTx(), beefTx); err != nil {
+		return validator.NewError(err, api.ErrBeefMinedAncestorsNotFound)
+	}
+
+	return nil
+}
+
+func (v *DefaultValidator) validateTransaction(tx *bt.Tx, skipFeeValidation, skipScriptValidation bool) error {
+	//
+	// Each node will verify every transaction against a long checklist of criteria:
+	//
+	txSize := tx.Size()
 
 	// 1) Neither lists of inputs or outputs are empty
 	if len(tx.Inputs) == 0 || len(tx.Outputs) == 0 {
@@ -106,8 +151,30 @@ func (v *DefaultValidator) ValidateTransaction(tx *bt.Tx, skipFeeValidation bool
 	return nil
 }
 
-func (v *DefaultValidator) ValidateBeef(beefTx *beef.BEEF) error {
-	return beef.Validate(beefTx)
+func (v *DefaultValidator) validateBeefFees(tx *bt.Tx, beefTx *beef.BEEF) error {
+	expectedFees, err := calculateMiningFeesRequired(tx.SizeWithTypes(), api.FeesToBtFeeQuote(v.policy.MinMiningTxFee))
+	if err != nil {
+		return validator.NewError(err, api.ErrStatusFees)
+	}
+
+	inputSatoshis, outputSatoshis, err := beef.CalculateInputsOutputsSatoshis(tx, beefTx.Transactions)
+	if err != nil {
+		return validator.NewError(err, api.ErrStatusFees)
+	}
+
+	actualFeePaid := inputSatoshis - outputSatoshis
+
+	if inputSatoshis < outputSatoshis {
+		// force an error without wrong negative values
+		actualFeePaid = 0
+	}
+
+	if actualFeePaid < expectedFees {
+		err := fmt.Errorf("transaction fee of %d sat is too low - minimum expected fee is %d sat", actualFeePaid, expectedFees)
+		return validator.NewError(err, api.ErrStatusFees)
+	}
+
+	return nil
 }
 
 func (v *DefaultValidator) IsExtended(tx *bt.Tx) bool {
@@ -208,7 +275,7 @@ func isFeePaidEnough(fees *bt.FeeQuote, tx *bt.Tx) (bool, uint64, uint64, error)
 	totalOutputSatoshis := tx.TotalOutputSatoshis()
 
 	if totalInputSatoshis < totalOutputSatoshis {
-		return false, 0, 0, nil
+		return false, expFeesPaid, 0, nil
 	}
 
 	actualFeePaid := totalInputSatoshis - totalOutputSatoshis
@@ -248,10 +315,11 @@ func sigOpsCheck(tx *bt.Tx, policy *bitcoin.Settings) error {
 		maxSigOps = int64(MaxTxSigopsCountPolicyAfterGenesis)
 	}
 
+	parser := interpreter.DefaultOpcodeParser{}
 	numSigOps := int64(0)
+
 	for _, input := range tx.Inputs {
-		parser := interpreter.DefaultOpcodeParser{}
-		parsedUnlockingScript, err := parser.Parse(input.PreviousTxScript)
+		parsedUnlockingScript, err := parser.Parse(input.UnlockingScript)
 		if err != nil {
 			return err
 		}
@@ -259,11 +327,25 @@ func sigOpsCheck(tx *bt.Tx, policy *bitcoin.Settings) error {
 		for _, op := range parsedUnlockingScript {
 			if op.Value() == bscript.OpCHECKSIG || op.Value() == bscript.OpCHECKSIGVERIFY {
 				numSigOps++
-				if numSigOps > maxSigOps {
-					return fmt.Errorf("transaction unlocking scripts have too many sigops (%d)", numSigOps)
-				}
 			}
 		}
+	}
+
+	for _, output := range tx.Outputs {
+		parsedLockingScript, err := parser.Parse(output.LockingScript)
+		if err != nil {
+			return err
+		}
+
+		for _, op := range parsedLockingScript {
+			if op.Value() == bscript.OpCHECKSIG || op.Value() == bscript.OpCHECKSIGVERIFY {
+				numSigOps++
+			}
+		}
+	}
+
+	if numSigOps > maxSigOps {
+		return fmt.Errorf("transaction unlocking scripts have too many sigops (%d)", numSigOps)
 	}
 
 	return nil

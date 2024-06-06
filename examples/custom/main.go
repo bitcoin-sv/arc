@@ -10,6 +10,8 @@ import (
 
 	"github.com/bitcoin-sv/arc/pkg/api"
 	apiHandler "github.com/bitcoin-sv/arc/pkg/api/handler"
+	"github.com/bitcoin-sv/arc/pkg/blocktx"
+	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
@@ -22,7 +24,6 @@ import (
 // This example does not use the configuration files or env variables,
 // but demonstrates how to initialize the arc server in a completely custom way
 func main() {
-
 	// Set up a basic logger
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
@@ -77,6 +78,14 @@ func main() {
 
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
+	// add blocktx as MerkleRootsVerifier
+	btcConn, err := blocktx.DialGRPC("localhost:8011", "", grpcMessageSize)
+	if err != nil {
+		panic(err)
+	}
+
+	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
+
 	defaultPolicy, err := apiHandler.GetDefaultPolicy()
 	if err != nil {
 		logger.Error("failed to get default policy", slog.String("err", err.Error()))
@@ -86,7 +95,7 @@ func main() {
 
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
-	if handler, err = apiHandler.NewDefault(logger, metamorphClient, defaultPolicy); err != nil {
+	if handler, err = apiHandler.NewDefault(logger, metamorphClient, blockTxClient, defaultPolicy); err != nil {
 		panic(err)
 	}
 

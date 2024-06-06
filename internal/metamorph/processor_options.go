@@ -10,7 +10,7 @@ import (
 
 func WithStatTimeLimits(notSeenLimit time.Duration, notMinedLimit time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.Stats = newProcessorStats(WithLimits(notSeenLimit, notMinedLimit))
+		p.stats = newProcessorStats(WithLimits(notSeenLimit, notMinedLimit))
 	}
 }
 

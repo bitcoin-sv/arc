@@ -309,6 +309,8 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 			logger.Error("failed to shutdown mqClient", slog.String("err", err.Error()))
 		}
 
+		peerHandler.Shutdown()
+
 		server.Shutdown()
 
 		err = metamorphStore.Close(context.Background())

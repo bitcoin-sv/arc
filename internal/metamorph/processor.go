@@ -143,7 +143,10 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 
 	p.logger.Info("Starting processor", slog.String("cacheExpiryTime", p.mapExpiryTime.String()))
 
-	_ = newPrometheusCollector(p)
+	err = newPrometheusCollector(p)
+	if err != nil {
+		return nil, err
+	}
 
 	return p, nil
 }

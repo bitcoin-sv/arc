@@ -43,7 +43,8 @@ type BitcoinNode interface {
 
 type ProcessorI interface {
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
-	GetStats(debugItems bool) *ProcessorStats
+	GetProcessorMapSize() int
+	GetStatusNotSeen() int64
 	GetPeers() []p2p.PeerI
 	Shutdown()
 	Health() error
@@ -144,7 +145,7 @@ func (s *Server) Shutdown() {
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.HealthResponse, error) {
-	stats := s.processor.GetStats(false)
+	processorMapSize := s.processor.GetProcessorMapSize()
 
 	peers := s.processor.GetPeers()
 
@@ -160,7 +161,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 
 	return &metamorph_api.HealthResponse{
 		Timestamp:         timestamppb.New(time.Now()),
-		MapSize:           stats.ChannelMapSize,
+		MapSize:           int32(processorMapSize),
 		PeersConnected:    strings.Join(peersConnected, ","),
 		PeersDisconnected: strings.Join(peersDisconnected, ","),
 	}, nil

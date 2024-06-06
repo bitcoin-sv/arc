@@ -9,10 +9,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
-type ProcessorStats struct {
-	ChannelMapSize int32
-}
-
 type ProcessorRequest struct {
 	Data            *store.StoreData
 	ResponseChannel chan processor_response.StatusAndError

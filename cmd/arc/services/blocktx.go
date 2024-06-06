@@ -195,6 +195,10 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 	return func() {
 		logger.Info("Shutting down blocktx store")
 
+		peerHandler.Shutdown()
+
+		server.Shutdown()
+
 		err = mqClient.Shutdown()
 		if err != nil {
 			logger.Error("Failed to shutdown mqClient", slog.String("err", err.Error()))
@@ -204,10 +208,6 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 		if err != nil {
 			logger.Error("Failed to close blocktx store", slog.String("err", err.Error()))
 		}
-
-		peerHandler.Shutdown()
-
-		server.Shutdown()
 
 		healthServer.Stop()
 	}, nil

@@ -38,12 +38,7 @@ func TestNewServer(t *testing.T) {
 func TestHealth(t *testing.T) {
 	t.Run("Health", func(t *testing.T) {
 		processor := &mocks.ProcessorIMock{}
-		expectedStats := &metamorph.ProcessorStats{
-			ChannelMapSize: 22,
-		}
-		processor.GetStatsFunc = func(debugItems bool) *metamorph.ProcessorStats {
-			return expectedStats
-		}
+		processor.GetProcessorMapSizeFunc = func() int { return 22 }
 		processor.GetPeersFunc = func() []p2p.PeerI {
 			return []p2p.PeerI{}
 		}
@@ -51,7 +46,7 @@ func TestHealth(t *testing.T) {
 		server := metamorph.NewServer(nil, processor)
 		stats, err := server.Health(context.Background(), &emptypb.Empty{})
 		assert.NoError(t, err)
-		assert.Equal(t, expectedStats.ChannelMapSize, stats.GetMapSize())
+		assert.Equal(t, int32(22), stats.GetMapSize())
 	})
 }
 

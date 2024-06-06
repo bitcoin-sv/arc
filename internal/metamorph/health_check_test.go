@@ -17,14 +17,23 @@ func TestCheck(t *testing.T) {
 		service            string
 		pingErr            error
 		processorHealthErr error
+		statusNotSeen      int64
 
 		expectedStatus grpc_health_v1.HealthCheckResponse_ServingStatus
 	}{
 		{
-			name:    "liveness - healthy",
-			service: "liveness",
+			name:          "liveness - healthy",
+			service:       "liveness",
+			statusNotSeen: 0,
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_SERVING,
+		},
+		{
+			name:          "liveness - unhealthy",
+			service:       "liveness",
+			statusNotSeen: 1,
+
+			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 		},
 		{
 			name:    "readiness - healthy",
@@ -65,6 +74,7 @@ func TestCheck(t *testing.T) {
 				HealthFunc: func() error {
 					return tc.processorHealthErr
 				},
+				GetStatusNotSeenFunc: func() int64 { return tc.statusNotSeen },
 			}
 
 			server := metamorph.NewServer(metamorphStore, processor)
@@ -83,14 +93,23 @@ func TestWatch(t *testing.T) {
 		service            string
 		pingErr            error
 		processorHealthErr error
+		statusNotSeen      int64
 
 		expectedStatus grpc_health_v1.HealthCheckResponse_ServingStatus
 	}{
 		{
-			name:    "liveness - healthy",
-			service: "liveness",
+			name:          "liveness - healthy",
+			service:       "liveness",
+			statusNotSeen: 0,
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_SERVING,
+		},
+		{
+			name:          "liveness - unhealthy",
+			service:       "liveness",
+			statusNotSeen: 1,
+
+			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 		},
 		{
 			name:    "readiness - healty",
@@ -131,6 +150,7 @@ func TestWatch(t *testing.T) {
 				HealthFunc: func() error {
 					return tc.processorHealthErr
 				},
+				GetStatusNotSeenFunc: func() int64 { return tc.statusNotSeen },
 			}
 
 			server := metamorph.NewServer(metamorphStore, processor)

@@ -50,9 +50,9 @@ func newProcessorResponse(hash *chainhash.Hash, status metamorph_api.Status, ch 
 
 func (r *ProcessorResponse) UpdateStatus(statusUpdate *ProcessorResponseStatusUpdate) {
 	if statusUpdate.StatusErr != nil {
-		_ = r.setStatusAndError(statusUpdate.Status, statusUpdate.StatusErr)
+		r.setStatusAndError(statusUpdate.Status, statusUpdate.StatusErr)
 	} else {
-		_ = r.setStatus(statusUpdate.Status)
+		r.setStatus(statusUpdate.Status)
 	}
 
 }
@@ -67,7 +67,7 @@ func (r *ProcessorResponse) String() string {
 	return fmt.Sprintf("%v: [%s]", r.Hash, r.Status.String())
 }
 
-func (r *ProcessorResponse) setStatus(status metamorph_api.Status) bool {
+func (r *ProcessorResponse) setStatus(status metamorph_api.Status) {
 	r.mu.Lock()
 	r.Status = status
 
@@ -78,10 +78,8 @@ func (r *ProcessorResponse) setStatus(status metamorph_api.Status) bool {
 	r.mu.Unlock()
 
 	if r.callerCh != nil {
-		return utils.SafeSend(r.callerCh, sae)
+		utils.SafeSend(r.callerCh, sae)
 	}
-
-	return true
 }
 
 func (r *ProcessorResponse) GetStatus() metamorph_api.Status {
@@ -118,7 +116,7 @@ func (r *ProcessorResponse) GetErr() error {
 	return r.Err
 }
 
-func (r *ProcessorResponse) setStatusAndError(status metamorph_api.Status, err error) bool {
+func (r *ProcessorResponse) setStatusAndError(status metamorph_api.Status, err error) {
 	r.Status = status
 	r.Err = err
 
@@ -129,8 +127,7 @@ func (r *ProcessorResponse) setStatusAndError(status metamorph_api.Status, err e
 	}
 
 	if r.callerCh != nil {
-		return utils.SafeSend(r.callerCh, sae)
+		utils.SafeSend(r.callerCh, sae)
 	}
 
-	return true
 }

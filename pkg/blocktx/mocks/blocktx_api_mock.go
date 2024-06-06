@@ -36,6 +36,9 @@ var _ blocktx_api.BlockTxAPIClient = &BlockTxAPIClientMock{}
 //			HealthFunc: func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error) {
 //				panic("mock out the Health method")
 //			},
+//			VerifyMerkleRootsFunc: func(ctx context.Context, in *blocktx_api.MerkleRootsVerificationRequest, opts ...grpc.CallOption) (*blocktx_api.MerkleRootVerificationResponse, error) {
+//				panic("mock out the VerifyMerkleRoots method")
+//			},
 //		}
 //
 //		// use mockedBlockTxAPIClient in code that requires blocktx_api.BlockTxAPIClient
@@ -57,6 +60,9 @@ type BlockTxAPIClientMock struct {
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error)
+
+	// VerifyMerkleRootsFunc mocks the VerifyMerkleRoots method.
+	VerifyMerkleRootsFunc func(ctx context.Context, in *blocktx_api.MerkleRootsVerificationRequest, opts ...grpc.CallOption) (*blocktx_api.MerkleRootVerificationResponse, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -105,12 +111,22 @@ type BlockTxAPIClientMock struct {
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
+		// VerifyMerkleRoots holds details about calls to the VerifyMerkleRoots method.
+		VerifyMerkleRoots []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// In is the in argument value.
+			In *blocktx_api.MerkleRootsVerificationRequest
+			// Opts is the opts argument value.
+			Opts []grpc.CallOption
+		}
 	}
 	lockClearBlockTransactionsMap    sync.RWMutex
 	lockClearBlocks                  sync.RWMutex
 	lockClearTransactions            sync.RWMutex
 	lockDelUnfinishedBlockProcessing sync.RWMutex
 	lockHealth                       sync.RWMutex
+	lockVerifyMerkleRoots            sync.RWMutex
 }
 
 // ClearBlockTransactionsMap calls ClearBlockTransactionsMapFunc.
@@ -310,5 +326,45 @@ func (mock *BlockTxAPIClientMock) HealthCalls() []struct {
 	mock.lockHealth.RLock()
 	calls = mock.calls.Health
 	mock.lockHealth.RUnlock()
+	return calls
+}
+
+// VerifyMerkleRoots calls VerifyMerkleRootsFunc.
+func (mock *BlockTxAPIClientMock) VerifyMerkleRoots(ctx context.Context, in *blocktx_api.MerkleRootsVerificationRequest, opts ...grpc.CallOption) (*blocktx_api.MerkleRootVerificationResponse, error) {
+	if mock.VerifyMerkleRootsFunc == nil {
+		panic("BlockTxAPIClientMock.VerifyMerkleRootsFunc: method is nil but BlockTxAPIClient.VerifyMerkleRoots was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		In   *blocktx_api.MerkleRootsVerificationRequest
+		Opts []grpc.CallOption
+	}{
+		Ctx:  ctx,
+		In:   in,
+		Opts: opts,
+	}
+	mock.lockVerifyMerkleRoots.Lock()
+	mock.calls.VerifyMerkleRoots = append(mock.calls.VerifyMerkleRoots, callInfo)
+	mock.lockVerifyMerkleRoots.Unlock()
+	return mock.VerifyMerkleRootsFunc(ctx, in, opts...)
+}
+
+// VerifyMerkleRootsCalls gets all the calls that were made to VerifyMerkleRoots.
+// Check the length with:
+//
+//	len(mockedBlockTxAPIClient.VerifyMerkleRootsCalls())
+func (mock *BlockTxAPIClientMock) VerifyMerkleRootsCalls() []struct {
+	Ctx  context.Context
+	In   *blocktx_api.MerkleRootsVerificationRequest
+	Opts []grpc.CallOption
+} {
+	var calls []struct {
+		Ctx  context.Context
+		In   *blocktx_api.MerkleRootsVerificationRequest
+		Opts []grpc.CallOption
+	}
+	mock.lockVerifyMerkleRoots.RLock()
+	calls = mock.calls.VerifyMerkleRoots
+	mock.lockVerifyMerkleRoots.RUnlock()
 	return calls
 }

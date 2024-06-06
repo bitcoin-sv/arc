@@ -15,6 +15,7 @@ import (
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/labstack/echo/v4"
@@ -28,6 +29,7 @@ const (
 
 type ArcDefaultHandler struct {
 	TransactionHandler            metamorph.TransactionHandler
+	MerkleRootsVerifier           blocktx.MerkleRootsVerifier
 	NodePolicy                    *bitcoin.Settings
 	logger                        *slog.Logger
 	now                           func() time.Time
@@ -48,12 +50,13 @@ func WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings []string) func(*A
 
 type Option func(f *ArcDefaultHandler)
 
-func NewDefault(logger *slog.Logger, transactionHandler metamorph.TransactionHandler, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
+func NewDefault(logger *slog.Logger, transactionHandler metamorph.TransactionHandler, merkleRootsVerifier blocktx.MerkleRootsVerifier, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
 	handler := &ArcDefaultHandler{
-		TransactionHandler: transactionHandler,
-		NodePolicy:         policy,
-		logger:             logger,
-		now:                time.Now,
+		TransactionHandler:  transactionHandler,
+		MerkleRootsVerifier: merkleRootsVerifier,
+		NodePolicy:          policy,
+		logger:              logger,
+		now:                 time.Now,
 	}
 
 	// apply options
@@ -272,18 +275,17 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHe
 
 	if isBeefFormat {
 		var err error
+		var beefTx *beef.BEEF
 
-		transaction, _, _, err = beef.DecodeBEEF(transactionHex)
+		transaction, beefTx, _, err = beef.DecodeBEEF(transactionHex)
 		if err != nil {
 			errStr := fmt.Sprintf("error decoding BEEF: %s", err.Error())
 			return nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
 		}
 
-		// TODO: validate BEEF in the next task
-		// if err := txValidator.ValidateBeef(beefTx); err != nil {
-		// 	_, arcError := m.handleError(ctx, transaction, err)
-		// 	return nil, nil, arcError
-		// }
+		if err := m.validateBEEFTransaction(ctx, txValidator, beefTx, transactionOptions); err != nil {
+			return nil, nil, err
+		}
 	} else {
 		var err error
 		transaction, err = bt.NewTxFromBytes(transactionHex)
@@ -344,8 +346,9 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		if isBeefFormat {
 			var err error
 			var remainingBytes []byte
+			var beefTx *beef.BEEF
 
-			transaction, _, remainingBytes, err = beef.DecodeBEEF(transactionsHexes)
+			transaction, beefTx, remainingBytes, err = beef.DecodeBEEF(transactionsHexes)
 			if err != nil {
 				errStr := fmt.Sprintf("error decoding BEEF: %s", err.Error())
 				return nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
@@ -353,12 +356,11 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 
 			transactionsHexes = remainingBytes
 
-			// TODO: Validate BEEF in next task
-			// if err := txValidator.ValidateBeef(beefTx); err != nil {
-			// 	_, arcError := m.handleError(ctx, transaction, err)
-			// 	txErrors = append(txErrors, arcError)
-			// 	continue
-			// }
+			if err := txValidator.ValidateBeef(beefTx, transactionOptions.SkipFeeValidation, transactionOptions.SkipScriptValidation); err != nil {
+				_, arcError := m.handleError(ctx, transaction, err)
+				txErrors = append(txErrors, arcError)
+				continue
+			}
 		} else {
 			var bytesUsed int
 			var err error
@@ -427,7 +429,7 @@ func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidato
 	}
 
 	if !transactionOptions.SkipTxValidation {
-		if err := txValidator.ValidateTransaction(transaction, transactionOptions.SkipFeeValidation, transactionOptions.SkipScriptValidation); err != nil {
+		if err := txValidator.ValidateEFTransaction(transaction, transactionOptions.SkipFeeValidation, transactionOptions.SkipScriptValidation); err != nil {
 			statusCode, arcError := m.handleError(ctx, transaction, err)
 			m.logger.Error("failed to validate transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
 			return arcError
@@ -465,6 +467,32 @@ func (m ArcDefaultHandler) extendTransaction(ctx context.Context, transaction *b
 
 		input.PreviousTxScript = output.LockingScript
 		input.PreviousTxSatoshis = output.Satoshis
+	}
+
+	return nil
+}
+
+func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.Validator, beefTx *beef.BEEF, transactionOptions *metamorph.TransactionOptions) *api.ErrorFields {
+	if err := txValidator.ValidateBeef(beefTx, transactionOptions.SkipFeeValidation, transactionOptions.SkipTxValidation); err != nil {
+		_, arcError := m.handleError(ctx, beefTx.GetLatestTx(), err)
+		return arcError
+	}
+
+	merkleRoots, err := beef.CalculateMerkleRootsFromBumps(beefTx.BUMPs)
+	if err != nil {
+		return api.NewErrorFields(api.ErrBeefCalculatingMerkleRoots, err.Error())
+	}
+
+	merkleRootsRequest := convertMerkleRootsRequest(merkleRoots)
+
+	unverifiedBlockHeights, err := m.MerkleRootsVerifier.VerifyMerkleRoots(ctx, merkleRootsRequest)
+	if err != nil {
+		return api.NewErrorFields(api.ErrBeefValidatingMerkleRoots, err.Error())
+	}
+
+	if len(unverifiedBlockHeights) > 0 {
+		err := fmt.Errorf("unable to verify BUMPs with block heights: %v", unverifiedBlockHeights)
+		return api.NewErrorFields(api.ErrBeefValidatingMerkleRoots, err.Error())
 	}
 
 	return nil

@@ -20,25 +20,26 @@ import (
 // Server type carries the logger within it.
 type Server struct {
 	blocktx_api.UnsafeBlockTxAPIServer
-	store      store.BlocktxStore
-	logger     *slog.Logger
-	grpcServer *grpc.Server
-	peers      []p2p.PeerI
-	cleanup    func()
+	store                         store.BlocktxStore
+	logger                        *slog.Logger
+	grpcServer                    *grpc.Server
+	peers                         []p2p.PeerI
+	cleanup                       func()
+	maxAllowedBlockHeightMismatch int
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(storeI store.BlocktxStore, logger *slog.Logger, peers []p2p.PeerI) *Server {
+func NewServer(storeI store.BlocktxStore, logger *slog.Logger, peers []p2p.PeerI, maxAllowedBlockHeightMismatch int) *Server {
 	return &Server{
-		store:  storeI,
-		logger: logger,
-		peers:  peers,
+		store:                         storeI,
+		logger:                        logger,
+		peers:                         peers,
+		maxAllowedBlockHeightMismatch: maxAllowedBlockHeightMismatch,
 	}
 }
 
 // StartGRPCServer function.
 func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheusEndpoint string, logger *slog.Logger) error {
-
 	// LEVEL 0 - no security / no encryption
 	srvMetrics, opts, cleanup, err := grpc_opts.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize, "blocktx")
 	if err != nil {
@@ -106,6 +107,10 @@ func (s *Server) DelUnfinishedBlockProcessing(ctx context.Context, req *blocktx_
 	}
 
 	return &emptypb.Empty{}, nil
+}
+
+func (s *Server) VerifyMerkleRoots(ctx context.Context, req *blocktx_api.MerkleRootsVerificationRequest) (*blocktx_api.MerkleRootVerificationResponse, error) {
+	return s.store.VerifyMerkleRoots(ctx, req.GetMerkleRoots(), s.maxAllowedBlockHeightMismatch)
 }
 
 func (s *Server) Shutdown() {

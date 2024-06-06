@@ -25,6 +25,7 @@ const (
 	BlockTxAPI_ClearBlocks_FullMethodName                  = "/blocktx_api.BlockTxAPI/ClearBlocks"
 	BlockTxAPI_ClearBlockTransactionsMap_FullMethodName    = "/blocktx_api.BlockTxAPI/ClearBlockTransactionsMap"
 	BlockTxAPI_DelUnfinishedBlockProcessing_FullMethodName = "/blocktx_api.BlockTxAPI/DelUnfinishedBlockProcessing"
+	BlockTxAPI_VerifyMerkleRoots_FullMethodName            = "/blocktx_api.BlockTxAPI/VerifyMerkleRoots"
 )
 
 // BlockTxAPIClient is the client API for BlockTxAPI service.
@@ -41,6 +42,8 @@ type BlockTxAPIClient interface {
 	ClearBlockTransactionsMap(ctx context.Context, in *ClearData, opts ...grpc.CallOption) (*ClearDataResponse, error)
 	// DelUnfinishedBlockProcessing deletes unfinished block processing
 	DelUnfinishedBlockProcessing(ctx context.Context, in *DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights
+	VerifyMerkleRoots(ctx context.Context, in *MerkleRootsVerificationRequest, opts ...grpc.CallOption) (*MerkleRootVerificationResponse, error)
 }
 
 type blockTxAPIClient struct {
@@ -96,6 +99,15 @@ func (c *blockTxAPIClient) DelUnfinishedBlockProcessing(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *blockTxAPIClient) VerifyMerkleRoots(ctx context.Context, in *MerkleRootsVerificationRequest, opts ...grpc.CallOption) (*MerkleRootVerificationResponse, error) {
+	out := new(MerkleRootVerificationResponse)
+	err := c.cc.Invoke(ctx, BlockTxAPI_VerifyMerkleRoots_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlockTxAPIServer is the server API for BlockTxAPI service.
 // All implementations must embed UnimplementedBlockTxAPIServer
 // for forward compatibility
@@ -110,6 +122,8 @@ type BlockTxAPIServer interface {
 	ClearBlockTransactionsMap(context.Context, *ClearData) (*ClearDataResponse, error)
 	// DelUnfinishedBlockProcessing deletes unfinished block processing
 	DelUnfinishedBlockProcessing(context.Context, *DelUnfinishedBlockProcessingRequest) (*emptypb.Empty, error)
+	// VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights
+	VerifyMerkleRoots(context.Context, *MerkleRootsVerificationRequest) (*MerkleRootVerificationResponse, error)
 	mustEmbedUnimplementedBlockTxAPIServer()
 }
 
@@ -131,6 +145,9 @@ func (UnimplementedBlockTxAPIServer) ClearBlockTransactionsMap(context.Context, 
 }
 func (UnimplementedBlockTxAPIServer) DelUnfinishedBlockProcessing(context.Context, *DelUnfinishedBlockProcessingRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DelUnfinishedBlockProcessing not implemented")
+}
+func (UnimplementedBlockTxAPIServer) VerifyMerkleRoots(context.Context, *MerkleRootsVerificationRequest) (*MerkleRootVerificationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VerifyMerkleRoots not implemented")
 }
 func (UnimplementedBlockTxAPIServer) mustEmbedUnimplementedBlockTxAPIServer() {}
 
@@ -235,6 +252,24 @@ func _BlockTxAPI_DelUnfinishedBlockProcessing_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlockTxAPI_VerifyMerkleRoots_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MerkleRootsVerificationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlockTxAPIServer).VerifyMerkleRoots(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlockTxAPI_VerifyMerkleRoots_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlockTxAPIServer).VerifyMerkleRoots(ctx, req.(*MerkleRootsVerificationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BlockTxAPI_ServiceDesc is the grpc.ServiceDesc for BlockTxAPI service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -261,6 +296,10 @@ var BlockTxAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DelUnfinishedBlockProcessing",
 			Handler:    _BlockTxAPI_DelUnfinishedBlockProcessing_Handler,
+		},
+		{
+			MethodName: "VerifyMerkleRoots",
+			Handler:    _BlockTxAPI_VerifyMerkleRoots_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

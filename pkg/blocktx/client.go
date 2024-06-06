@@ -15,6 +15,18 @@ type BlocktxClient interface {
 	ClearBlocks(ctx context.Context, retentionDays int32) (int64, error)
 	ClearBlockTransactionsMap(ctx context.Context, retentionDays int32) (int64, error)
 	DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) error
+	VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error)
+}
+
+// MerkleRootsVerifier verifies the merkle roots existance in blocktx db and returns unverified block heights.
+type MerkleRootsVerifier interface {
+	// VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights.
+	VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error)
+}
+
+type MerkleRootVerificationRequest struct {
+	MerkleRoot  string
+	BlockHeight uint64
 }
 
 type Client struct {
@@ -68,6 +80,18 @@ func (btc *Client) ClearBlockTransactionsMap(ctx context.Context, retentionDays 
 		return 0, err
 	}
 	return resp.Rows, nil
+}
+
+func (btc *Client) VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error) {
+	merkleRoots := make([]*blocktx_api.MerkleRootVerificationRequest, 0)
+
+	for _, mr := range merkleRootVerificationRequest {
+		merkleRoots = append(merkleRoots, &blocktx_api.MerkleRootVerificationRequest{MerkleRoot: mr.MerkleRoot, BlockHeight: mr.BlockHeight})
+	}
+
+	resp, err := btc.client.VerifyMerkleRoots(ctx, &blocktx_api.MerkleRootsVerificationRequest{MerkleRoots: merkleRoots})
+
+	return resp.UnverifiedBlockHeights, err
 }
 
 func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int) (*grpc.ClientConn, error) {

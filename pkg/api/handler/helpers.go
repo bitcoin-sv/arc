@@ -9,8 +9,10 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/dictionary"
+	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3"
@@ -145,4 +147,17 @@ func CheckSwagger(e *echo.Echo) *openapi3.T {
 	e.Use(middleware.OapiRequestValidator(swagger))
 
 	return swagger
+}
+
+func convertMerkleRootsRequest(beefMerkleRoots []beef.MerkleRootVerificationRequest) []blocktx.MerkleRootVerificationRequest {
+	merkleRoots := make([]blocktx.MerkleRootVerificationRequest, 0)
+
+	for _, mr := range beefMerkleRoots {
+		merkleRoots = append(merkleRoots, blocktx.MerkleRootVerificationRequest{
+			BlockHeight: mr.BlockHeight,
+			MerkleRoot:  mr.MerkleRoot,
+		})
+	}
+
+	return merkleRoots
 }

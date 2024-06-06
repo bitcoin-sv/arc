@@ -7,7 +7,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/pkg/api"
 	apiHandler "github.com/bitcoin-sv/arc/pkg/api/handler"
-	merklerootsverificator "github.com/bitcoin-sv/arc/pkg/api/merkle_roots_verificator"
+	merklerootsverifier "github.com/bitcoin-sv/arc/pkg/api/merkle_roots_verifier"
 	"github.com/bitcoin-sv/arc/pkg/api/transaction_handler"
 	"github.com/labstack/echo/v4"
 )
@@ -22,8 +22,8 @@ func main() {
 		panic(err)
 	}
 
-	// add merkle roots verificator
-	merkleRootsVerificator := merklerootsverificator.NewAllowAllVerificator()
+	// add merkle roots verifier
+	merkleRootsVerifier := merklerootsverifier.NewAllowAllVerifier()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
@@ -36,7 +36,7 @@ func main() {
 
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
-	if handler, err = apiHandler.NewDefault(logger, txHandler, merkleRootsVerificator, defaultPolicy); err != nil {
+	if handler, err = apiHandler.NewDefault(logger, txHandler, merkleRootsVerifier, defaultPolicy); err != nil {
 		panic(err)
 	}
 

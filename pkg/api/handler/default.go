@@ -29,7 +29,7 @@ const (
 
 type ArcDefaultHandler struct {
 	TransactionHandler            metamorph.TransactionHandler
-	MerkleRootsVerificator        blocktx.MerkleRootsVerificator
+	MerkleRootsVerifier           blocktx.MerkleRootsVerifier
 	NodePolicy                    *bitcoin.Settings
 	logger                        *slog.Logger
 	now                           func() time.Time
@@ -50,13 +50,13 @@ func WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings []string) func(*A
 
 type Option func(f *ArcDefaultHandler)
 
-func NewDefault(logger *slog.Logger, transactionHandler metamorph.TransactionHandler, merkleRootsVerificator blocktx.MerkleRootsVerificator, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
+func NewDefault(logger *slog.Logger, transactionHandler metamorph.TransactionHandler, merkleRootsVerifier blocktx.MerkleRootsVerifier, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
 	handler := &ArcDefaultHandler{
-		TransactionHandler:     transactionHandler,
-		MerkleRootsVerificator: merkleRootsVerificator,
-		NodePolicy:             policy,
-		logger:                 logger,
-		now:                    time.Now,
+		TransactionHandler:  transactionHandler,
+		MerkleRootsVerifier: merkleRootsVerifier,
+		NodePolicy:          policy,
+		logger:              logger,
+		now:                 time.Now,
 	}
 
 	// apply options
@@ -485,7 +485,7 @@ func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValida
 
 	merkleRootsRequest := convertMerkleRootsRequest(merkleRoots)
 
-	unverifiedBlockHeights, err := m.MerkleRootsVerificator.VerifyMerkleRoots(ctx, merkleRootsRequest)
+	unverifiedBlockHeights, err := m.MerkleRootsVerifier.VerifyMerkleRoots(ctx, merkleRootsRequest)
 	if err != nil {
 		return api.NewErrorFields(api.ErrBeefValidatingMerkleRoots, err.Error())
 	}

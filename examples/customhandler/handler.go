@@ -19,9 +19,9 @@ type CustomHandler struct {
 	MyCustomVar string `json:"my_custom_var"`
 }
 
-type CustomMerkleRootsVerificator struct{}
+type CustomMerkleRootsVerifier struct{}
 
-func (c *CustomMerkleRootsVerificator) VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
+func (c *CustomMerkleRootsVerifier) VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 	// Custom Merkle Roots Verification Logic
 	return nil, nil
 }
@@ -33,13 +33,13 @@ func NewCustomHandler() (api.ServerInterface, error) {
 		return nil, err
 	}
 
-	// add blocktx, header service or custom implementation of merkle roots verificator
-	merkleRootVerificator := &CustomMerkleRootsVerificator{}
+	// add blocktx, header service or custom implementation of merkle roots verifier
+	merkleRootVerifier := &CustomMerkleRootsVerifier{}
 
 	bitcoinHandler := &CustomHandler{
 		ArcDefaultHandler: handler.ArcDefaultHandler{
-			TransactionHandler:     node,
-			MerkleRootsVerificator: merkleRootVerificator,
+			TransactionHandler:  node,
+			MerkleRootsVerifier: merkleRootVerifier,
 		},
 	}
 

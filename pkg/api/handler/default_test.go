@@ -84,7 +84,7 @@ var (
 )
 
 //go:generate moq -pkg mock -out ./mock/transaction_handler_mock.go ../../metamorph/ TransactionHandler
-//go:generate moq -pkg mock -out ./mock/merkle_roots_verificator_mock.go ../../blocktx/ MerkleRootsVerificator
+//go:generate moq -pkg mock -out ./mock/merkle_roots_verifier_mock.go ../../blocktx/ MerkleRootsVerifier
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {
@@ -543,13 +543,13 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				},
 			}
 
-			merkleRootsVerificator := &mock.MerkleRootsVerificatorMock{
+			merkleRootsVerifier := &mock.MerkleRootsVerifierMock{
 				VerifyMerkleRootsFunc: func(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 					return nil, nil
 				},
 			}
 
-			defaultHandler, err := NewDefault(testLogger, txHandler, merkleRootsVerificator, defaultPolicy, WithNow(func() time.Time { return now }))
+			defaultHandler, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, WithNow(func() time.Time { return now }))
 			require.NoError(t, err)
 
 			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})

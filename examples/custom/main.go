@@ -78,7 +78,7 @@ func main() {
 
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
-	// add blocktx as MerkleRootsVerificator
+	// add blocktx as MerkleRootsVerifier
 	btcConn, err := blocktx.DialGRPC("localhost:8011", "", grpcMessageSize)
 	if err != nil {
 		panic(err)

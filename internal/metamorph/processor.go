@@ -54,6 +54,9 @@ type Processor struct {
 	minimumHealthyConnections int
 	callbackSender            CallbackSender
 
+	statusMessageCh         chan *PeerTxMessage
+	CancelSendStatusMessage context.CancelFunc
+
 	waitGroup *sync.WaitGroup
 
 	statCollectionInterval time.Duration
@@ -80,7 +83,7 @@ type CallbackSender interface {
 	Shutdown(logger *slog.Logger)
 }
 
-func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (*Processor, error) {
+func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChannel chan *PeerTxMessage, opts ...Option) (*Processor, error) {
 	if s == nil {
 		return nil, errors.New("store cannot be nil")
 	}
@@ -104,6 +107,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		now:                       time.Now,
 		maxRetries:                maxRetriesDefault,
 		minimumHealthyConnections: minimumHealthyConnectionsDefault,
+		statusMessageCh:           statusMessageChannel,
 
 		processExpiredTxsInterval:       unseenTransactionRebroadcastingInterval,
 		processSeenOnNetworkTxsInterval: seenOnNetworkTransactionRequestingInterval,
@@ -202,6 +206,26 @@ func (p *Processor) StartProcessMinedCallbacks() {
 		}
 	}()
 }
+
+func (p *Processor) StartSendStatusUpdate() {
+	p.waitGroup.Add(1)
+	go func() {
+		defer p.waitGroup.Done()
+		for {
+			select {
+			case <-p.ctx.Done():
+				return
+
+			case message := <-p.statusMessageCh:
+				err := p.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
+				if err != nil {
+					p.logger.Error("Could not send status for transaction", slog.String("hash", message.Hash.String()), slog.String("err", err.Error()))
+				}
+			}
+		}
+	}()
+}
+
 
 func (p *Processor) CheckAndUpdate(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
 	if len(statusUpdatesMap) == 0 {

@@ -15,7 +15,7 @@ type PeerHandler struct {
 	messageCh chan *PeerTxMessage
 }
 
-func NewPeerHandler(s store.MetamorphStore, messageCh chan *PeerTxMessage) p2p.PeerHandlerI {
+func NewPeerHandler(s store.MetamorphStore, messageCh chan *PeerTxMessage) *PeerHandler {
 	ph := &PeerHandler{
 		store:     s,
 		messageCh: messageCh,

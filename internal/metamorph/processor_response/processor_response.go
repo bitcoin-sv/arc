@@ -2,11 +2,12 @@ package processor_response
 
 import (
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
-	"github.com/sasha-s/go-deadlock"
 )
 
 type StatusAndError struct {
@@ -24,7 +25,7 @@ type ProcessorResponse struct {
 	callerCh chan StatusAndError
 	Hash     *chainhash.Hash `json:"hash"`
 	// The following fields are protected by the mutex
-	mu     deadlock.RWMutex
+	mu     sync.RWMutex
 	Err    error                `json:"err"`
 	Status metamorph_api.Status `json:"status"`
 }

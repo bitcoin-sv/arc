@@ -1,11 +1,7 @@
 package metamorph
 
-func (p *Processor) GetStats(debugItems bool) *ProcessorStats {
-	if debugItems {
-		p.ProcessorResponseMap.logMapItems(p.logger)
-	}
+func (p *Processor) GetProcessorMapSize() int {
 
-	return &ProcessorStats{
-		ChannelMapSize: int32(p.ProcessorResponseMap.Len()),
-	}
+	return p.ProcessorResponseMap.Len()
+
 }

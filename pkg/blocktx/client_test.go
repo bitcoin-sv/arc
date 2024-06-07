@@ -172,3 +172,50 @@ func TestClient_ClearBlockTransactionsMap(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_VerifyMerkleRoots(t *testing.T) {
+	tt := []struct {
+		name      string
+		verifyErr error
+
+		expectedErrorStr string
+	}{
+		{
+			name:      "success",
+			verifyErr: nil,
+		},
+		{
+			name:             "err",
+			verifyErr:        errors.New("failed to verify merkle roots"),
+			expectedErrorStr: "failed to verify merkle roots",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			apiClient := &mocks.BlockTxAPIClientMock{
+				VerifyMerkleRootsFunc: func(ctx context.Context, in *blocktx_api.MerkleRootsVerificationRequest, opts ...grpc.CallOption) (*blocktx_api.MerkleRootVerificationResponse, error) {
+					return &blocktx_api.MerkleRootVerificationResponse{
+						UnverifiedBlockHeights: []uint64{81190, 89022},
+					}, tc.verifyErr
+				},
+			}
+			client := blocktx.NewClient(apiClient)
+
+			merkleRootsRequest := []blocktx.MerkleRootVerificationRequest{
+				{MerkleRoot: "merkle_root", BlockHeight: 81190},
+				{MerkleRoot: "merkle_root_2", BlockHeight: 89022},
+			}
+
+			res, err := client.VerifyMerkleRoots(context.Background(), merkleRootsRequest)
+			if tc.expectedErrorStr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tc.expectedErrorStr)
+				return
+			}
+
+			require.Equal(t, []uint64{81190, 89022}, res)
+		})
+	}
+}

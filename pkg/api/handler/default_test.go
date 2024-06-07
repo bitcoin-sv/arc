@@ -19,6 +19,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler/mock"
+	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/labstack/echo/v4"
@@ -34,14 +35,16 @@ var (
 		echo.MIMEApplicationJSON,
 		echo.MIMEOctetStream,
 	}
-	validTx                = "0100000001358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffff02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
-	validTxBytes, _        = hex.DecodeString(validTx)
-	validExtendedTx        = "010000000000000000ef01358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffffc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
-	validTxID              = "a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"
-	validBeef              = "0100beef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000000"
-	validBeefBytes, _      = hex.DecodeString(validBeef)
-	validBeefTxID          = "157428aee67d11123203735e4c540fa1bdab3b36d5882c6f8c5ff79f07d20d1c"
-	invalidBeefNoBUMPIndex = "0100beef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001"
+	validTx                   = "0100000001358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffff02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
+	validTxBytes, _           = hex.DecodeString(validTx)
+	validExtendedTx           = "010000000000000000ef01358eb38f1f910e76b33788ff9395a5d2af87721e950ebd3d60cf64bb43e77485010000006a47304402203be8a3ba74e7b770afa2addeff1bbc1eaeb0cedf6b4096c8eb7ec29f1278752602205dc1d1bedf2cab46096bb328463980679d4ce2126cdd6ed191d6224add9910884121021358f252895263cd7a85009fcc615b57393daf6f976662319f7d0c640e6189fcffffffffc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac02bf010000000000001976a91449f066fccf8d392ff6a0a33bc766c9f3436c038a88acfc080000000000001976a914a7dcbd14f83c564e0025a57f79b0b8b591331ae288ac00000000"
+	validTxID                 = "a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"
+	validBeef                 = "0100beef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000000"
+	validBeefBytes, _         = hex.DecodeString(validBeef)
+	validBeefTxID             = "157428aee67d11123203735e4c540fa1bdab3b36d5882c6f8c5ff79f07d20d1c"
+	invalidBeefNoBUMPIndex    = "0100beef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001"
+	invalidBeefLowFees        = "0100beef01fe4e6d0c001002fd9c67028ae36502fdc82837319362c488fb9cb978e064daf600bbfc48389663fc5c160cfd9d6700db1332728830a58c83a5970dcd111a575a585b43b0492361ea8082f41668f8bd01fdcf3300e568706954aae516ef6df7b5db7828771a1f3fcf1b6d65389ec8be8c46057a3c01fde6190001a6028d13cc988f55c8765e3ffcdcfc7d5185a8ebd68709c0adbe37b528557b01fdf20c001cc64f09a217e1971cabe751b925f246e3c2a8e145c49be7b831eaea3e064d7501fd7806009ccf122626a20cdb054877ef3f8ae2d0503bb7a8704fdb6295b3001b5e8876a101fd3d0300aeea966733175ff60b55bc77edcb83c0fce3453329f51195e5cbc7a874ee47ad01fd9f0100f67f50b53d73ffd6e84c02ee1903074b9a5b2ac64c508f7f26349b73cca9d7e901ce006ce74c7beed0c61c50dda8b578f0c0dc5a393e1f8758af2fb65edf483afcaa68016600e32475e17bdd141d62524d0005989dd1db6ca92c6af70791b0e4802be4c5c8c1013200b88162f494f26cc3a1a4a7dcf2829a295064e93b3dbb2f72e21a73522869277a011800a938d3f80dd25b6a3a80e450403bf7d62a1068e2e4b13f0656c83f764c55bb77010d006feac6e4fea41c37c508b5bfdc00d582f6e462e6754b338c95b448df37bd342c010700bf5448356be23b2b9afe53d00cee047065bbc16d0bbcc5f80aa8c1b509e45678010200c2e37431a437ee311a737aecd3caae1213db353847f33792fd539e380bdb4d440100005d5aef298770e2702448af2ce014f8bfcded5896df5006a44b5f1b6020007aeb01010091484f513003fcdb25f336b9b56dafcb05fbc739593ab573a2c6516b344ca5320201000000027b0a1b12c7c9e48015e78d3a08a4d62e439387df7e0d7a810ebd4af37661daaa000000006a47304402207d972759afba7c0ffa6cfbbf39a31c2aeede1dae28d8841db56c6dd1197d56a20220076a390948c235ba8e72b8e43a7b4d4119f1a81a77032aa6e7b7a51be5e13845412103f78ec31cf94ca8d75fb1333ad9fc884e2d489422034a1efc9d66a3b72eddca0fffffffff7f36874f858fb43ffcf4f9e3047825619bad0e92d4b9ad4ba5111d1101cbddfe010000006a473044022043f048043d56eb6f75024808b78f18808b7ab45609e4c4c319e3a27f8246fc3002204b67766b62f58bf6f30ea608eaba76b8524ed49f67a90f80ac08a9b96a6922cd41210254a583c1c51a06e10fab79ddf922915da5f5c1791ef87739f40cb68638397248ffffffff03e8030000000000001976a914b08f70bc5010fb026de018f19e7792385a146b4a88acf3010000000000001976a9147d48635f889372c3da12d75ce246c59f4ab907ed88acf7000000000000001976a914b8fbd58685b6920d8f9a8f1b274d8696708b51b088ac00000000010001000000018ae36502fdc82837319362c488fb9cb978e064daf600bbfc48389663fc5c160c000000006b483045022100e47fbd96b59e2c22be273dcacea74a4be568b3e61da7eddddb6ce43d459c4cf202201a580f3d9442d5dce3f2ced03256ca147bcd230975a6067954e22415715f4490412102b0c8980f5d2cab77c92c68ac46442feba163a9d306913f6a34911fc618c3c4e7ffffffff0188130000000000001976a9148a8c4546a95e6fc8d18076a9980d59fd882b4e6988ac0000000000"
+	invalidBeefInvalidScripts = "0100beef01fe4e6d0c001002fd909002088a382ec07a8cf47c6158b68e5822852362102d8571482d1257e0b7527e1882fd91900065cb01218f2506bb51155d243e4d6b32d69d1b5f2221c52e26963cfd8cf7283201fd4948008d7a44ae384797b0ae84db0c857e8c1083425d64d09ef8bc5e2e9d270677260501fd25240060f38aa33631c8d70adbac1213e7a5b418c90414e919e3a12ced63dd152fd85a01fd1312005ff132ee64a7a0c79150a29f66ef861e552d3a05b47d6303f5d8a2b2a09bc61501fd080900cc0baf21cf06b9439dfe05dce9bdb14ddc2ca2d560b1138296ef5769851a84b301fd85040063ccb26232a6e1d3becdb47a0f19a67a562b754e8894155b3ae7bba10335ce5101fd430200e153fc455a0f2c8372885c11af70af904dcf44740b9ebf3b3e5b2234cce550bc01fd20010077d5ea69d1dcc379dde65d6adcebde1838190118a8fae928c037275e78bd87910191000263e4f31684a25169857f2788aeef603504931f92585f02c4c9e023b2aa43d1014900de72292e0b3e5eeacfa2b657bf4d46c885559b081ee78632a99b318c1148d85c01250068a5f831ca99b9e7f3720920d6ea977fd2ab52b83d1a6567dafa4c8cafd941ed0113006a0b91d83f9056b702d6a8056af6365c7da626fc3818b815dd4b0de22d05450f0108009876ce56b68545a75859e93d200bdde7880d46f39384818b259ed847a9664ddf010500990bc5e95cacbc927b5786ec39a183f983fe160d52829cf47521c7eb369771c30103004fe794e50305f590b6010a51d050bf47dfeaabfdb949c5ee0673f577a59537d70100004dad44a358aea4d8bc1917912539901f5ae44e07a4748e1a9d3018814b0759d0020100000002704273c86298166ac351c3aa9ac90a8029e4213b5f1b03c3bbf4bc5fb09cdd43010000006a4730440220398d6389e8a156a3c6c1ca355e446d844fd480193a93af832afd1c87d0f04784022050091076b8f7405b37ce6e795d1b92526396ac2b14f08e91649b908e711e2b044121030ef6975d46dbab4b632ef62fdbe97de56d183be1acc0be641d2c400ae01cf136ffffffff2f41ed6a2488ac3ba4a3c330a15fa8193af87f0192aa59935e6c6401d92dc3a00a0000006a47304402200ad9cf0dc9c90a4c58b08910740b4a8b3e1a7e37db1bc5f656361b93f412883d0220380b6b3d587103fc8bf3fe7bed19ab375766984c67ebb7d43c993bcd199f32a441210205ef4171f58213b5a2ddf16ac6038c10a2a8c3edc1e6275cb943af4bb3a58182ffffffff03e8030000000000001976a9148a8c4546a95e6fc8d18076a9980d59fd882b4e6988acf4010000000000001976a914c7662da5e0a6a179141a7872045538126f1e954288acf5000000000000001976a914765bdf10934f5aac894cf8a3795c9eeb494c013488ac0000000001000100000001088a382ec07a8cf47c6158b68e5822852362102d8571482d1257e0b7527e1882000000006a4730440220610bba9ed83a47641c34bbbcf8eeb536d2ae6cfddc7644a8c520bb747f798c3702206a23c9f45273772dd7e80ba21a5c4613d6ffe7ba1c75b729eae0cdd484fee2bd412103c0cd91af135d09f98d57e34af28e307daf36bccd4764708e8a3f7ea5cebf01a9ffffffff01c8000000000000001976a9148ce2d21f9a75e98600be76b25b91c4fef6b40bcd88ac0000000000"
 
 	inputTxLowFees         = "0100000001fbbe01d83cb1f53a63ef91c0fce5750cbd8075efef5acd2ff229506a45ab832c010000006a473044022064be2f304950a87782b44e772390836aa613f40312a0df4993e9c5123d0c492d02202009b084b66a3da939fb7dc5d356043986539cac4071372d0a6481d5b5e418ca412103fc12a81e5213e30c7facc15581ac1acbf26a8612a3590ffb48045084b097d52cffffffff02bf010000000000001976a914c2ca67db517c0c972b9a6eb1181880ed3a528e3188acD0070000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac00000000"
 	inputTxLowFeesBytes, _ = hex.DecodeString(inputTxLowFees)
@@ -81,10 +84,11 @@ var (
 )
 
 //go:generate moq -pkg mock -out ./mock/transaction_handler_mock.go ../../metamorph/ TransactionHandler
+//go:generate moq -pkg mock -out ./mock/merkle_roots_verifier_mock.go ../../blocktx/ MerkleRootsVerifier
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {
-		defaultHandler, err := NewDefault(testLogger, nil, nil)
+		defaultHandler, err := NewDefault(testLogger, nil, nil, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, defaultHandler)
 	})
@@ -92,7 +96,7 @@ func TestNewDefault(t *testing.T) {
 
 func TestGETPolicy(t *testing.T) {
 	t.Run("default policy", func(t *testing.T) {
-		defaultHandler, err := NewDefault(testLogger, nil, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, nil, nil, defaultPolicy)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/policy", strings.NewReader(""))
@@ -126,7 +130,7 @@ func TestGETHealth(t *testing.T) {
 			},
 		}
 
-		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, txHandler, nil, defaultPolicy)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))
@@ -241,7 +245,7 @@ func TestGETTransactionStatus(t *testing.T) {
 				},
 			}
 
-			defaultHandler, err := NewDefault(testLogger, txHandler, nil, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
+			defaultHandler, err := NewDefault(testLogger, txHandler, nil, nil, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
 			require.NoError(t, err)
 
 			err = defaultHandler.GETTransactionStatus(ctx, "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
@@ -278,10 +282,14 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	errFieldSubmitTx := *api.NewErrorFields(api.ErrStatusGeneric, "failed to submit tx")
 	errFieldSubmitTx.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
-	errFieldValidation := *api.NewErrorFields(api.ErrStatusFees, "arc error 465: transaction fee of 0 sat is too low - minimum expected fee is 0 sat")
+	errFieldValidation := *api.NewErrorFields(api.ErrStatusFees, "arc error 465: transaction fee of 0 sat is too low - minimum expected fee is 1 sat")
 	errFieldValidation.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
 	errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error decoding BEEF: invalid BEEF - HasBUMP flag set, but no BUMP index")
+	errBEEFLowFees := *api.NewErrorFields(api.ErrStatusFees, "arc error 465: transaction fee of 0 sat is too low - minimum expected fee is 1 sat")
+	errBEEFLowFees.Txid = PtrTo("8184849de6af441c7de088428073c2a9131b08f7d878d9f49c3faf6d941eb168")
+	errBEEFInvalidScripts := *api.NewErrorFields(api.ErrStatusUnlockingScripts, "arc error 461: invalid script")
+	errBEEFInvalidScripts.Txid = PtrTo("ea2924da32c47b9942cda5ad30d3c01610ca554ca3a9ca01b2ccfe72bf0667be")
 
 	now := time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC)
 
@@ -413,12 +421,28 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			},
 		},
 		{
-			name:        "invalid BEEF - text/plain",
+			name:        "invalid BEEF - text/plain - no BUMP index",
 			contentType: contentTypes[0],
 			txHexString: invalidBeefNoBUMPIndex,
 
 			expectedStatus:   463,
 			expectedResponse: errBEEFDecode,
+		},
+		{
+			name:        "invalid BEEF - text/plain - low fees",
+			contentType: contentTypes[0],
+			txHexString: invalidBeefLowFees,
+
+			expectedStatus:   465,
+			expectedResponse: errBEEFLowFees,
+		},
+		{
+			name:        "invalid BEEF - text/plain - invalid scripts",
+			contentType: contentTypes[0],
+			txHexString: invalidBeefInvalidScripts,
+
+			expectedStatus:   461,
+			expectedResponse: errBEEFInvalidScripts,
 		},
 		{
 			name:        "valid BEEF - success - text/plain",
@@ -519,7 +543,13 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				},
 			}
 
-			defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy, WithNow(func() time.Time { return now }))
+			merkleRootsVerifier := &mock.MerkleRootsVerifierMock{
+				VerifyMerkleRootsFunc: func(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
+					return nil, nil
+				},
+			}
+
+			defaultHandler, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, WithNow(func() time.Time { return now }))
 			require.NoError(t, err)
 
 			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
@@ -551,7 +581,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	t.Run("empty tx", func(t *testing.T) {
-		defaultHandler, err := NewDefault(testLogger, nil, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, nil, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		for _, contentType := range contentTypes {
@@ -571,7 +601,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	t.Run("invalid parameters", func(t *testing.T) {
 		inputTx := strings.NewReader(validExtendedTx)
 		rec, ctx := createEchoPostRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
-		defaultHandler, err := NewDefault(testLogger, nil, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, nil, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
@@ -595,7 +625,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("invalid mime type", func(t *testing.T) {
-		defaultHandler, err := NewDefault(testLogger, nil, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, nil, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		e := echo.New()
@@ -610,7 +640,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("invalid txs", func(t *testing.T) {
-		defaultHandler, err := NewDefault(testLogger, nil, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, nil, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		expectedErrors := map[string]string{
@@ -656,7 +686,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil
 			},
 		}
-		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, txHandler, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		validTxBytes, _ := hex.DecodeString(validTx)
@@ -701,7 +731,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, txHandler, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)
@@ -738,7 +768,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, txHandler, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		invalidBeefNoBUMPIndexBytes, _ := hex.DecodeString(invalidBeefNoBUMPIndex)
@@ -782,7 +812,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, txHandler, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{
@@ -837,7 +867,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		defaultHandler, err := NewDefault(testLogger, txHandler, defaultPolicy)
+		defaultHandler, err := NewDefault(testLogger, txHandler, nil, defaultPolicy)
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{

@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/api/transaction_handler"
+	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 )
@@ -17,6 +19,13 @@ type CustomHandler struct {
 	MyCustomVar string `json:"my_custom_var"`
 }
 
+type CustomMerkleRootsVerifier struct{}
+
+func (c *CustomMerkleRootsVerifier) VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
+	// Custom Merkle Roots Verification Logic
+	return nil, nil
+}
+
 func NewCustomHandler() (api.ServerInterface, error) {
 	// add a single bitcoin node
 	node, err := transaction_handler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
@@ -24,9 +33,13 @@ func NewCustomHandler() (api.ServerInterface, error) {
 		return nil, err
 	}
 
+	// add blocktx, header service or custom implementation of merkle roots verifier
+	merkleRootVerifier := &CustomMerkleRootsVerifier{}
+
 	bitcoinHandler := &CustomHandler{
 		ArcDefaultHandler: handler.ArcDefaultHandler{
-			TransactionHandler: node,
+			TransactionHandler:  node,
+			MerkleRootsVerifier: merkleRootVerifier,
 		},
 	}
 
@@ -35,7 +48,6 @@ func NewCustomHandler() (api.ServerInterface, error) {
 
 // GetArcV1Policy our custom policy request handler
 func (c *CustomHandler) GetArcV1Policy(ctx echo.Context) error {
-
 	arcPolicy := bitcoin.Settings{}
 
 	//

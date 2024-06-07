@@ -42,6 +42,11 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 		return nil, err
 	}
 
+	maxAllowedBlockHeightMismatch, err := cfg.GetInt("blocktx.maxAllowedBlockHeightMismatch")
+	if err != nil {
+		return nil, err
+	}
+
 	network, err := cfg.GetNetwork()
 	if err != nil {
 		return nil, err
@@ -163,7 +168,7 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 
 	peerHandler.StartFillGaps(peers)
 
-	server := blocktx.NewServer(blockStore, logger, peers)
+	server := blocktx.NewServer(blockStore, logger, peers, maxAllowedBlockHeightMismatch)
 
 	blocktxGRPCListenAddress, err := cfg.GetString("blocktx.listenAddr")
 	if err != nil {
@@ -190,6 +195,10 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 	return func() {
 		logger.Info("Shutting down blocktx store")
 
+		peerHandler.Shutdown()
+
+		server.Shutdown()
+
 		err = mqClient.Shutdown()
 		if err != nil {
 			logger.Error("Failed to shutdown mqClient", slog.String("err", err.Error()))
@@ -199,10 +208,6 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 		if err != nil {
 			logger.Error("Failed to close blocktx store", slog.String("err", err.Error()))
 		}
-
-		peerHandler.Shutdown()
-
-		server.Shutdown()
 
 		healthServer.Stop()
 	}, nil

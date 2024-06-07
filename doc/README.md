@@ -25,87 +25,35 @@ ARC is a transaction processor for Bitcoin that keeps track of the life cycle of
 
 If a transaction is not `SEEN_ON_NETWORK` within a certain time period (60 seconds by default), ARC will re-send the transaction to the Bitcoin network. ARC also monitors the Bitcoin network for transaction and block messages, and will notify the client when a transaction has been mined, or rejected.
 
-```plantuml
-@startuml
-title Transaction lifecycle
+```mermaid
+stateDiagram-v2
+    state UNKNOWN
+    state RECEIVED
+    state STORED
+    state ANNOUNCED_TO_NETWORK
+    state ERROR
+    state REQUESTED_BY_NETWORK
+    state SENT_TO_NETWORK
+    state ACCEPTED_BY_NETWORK
+    state SEEN_ON_NETWORK
+    state REJECTED
+    state SEEN_IN_ORPHAN_MEMPOOL
+    state MINED
 
-state UNKNOWN
-state RECEIVED
-state STORED
-state ANNOUNCED
-state ERROR
-state REQUESTED_BY_NETWORK
-state SENT_TO_NETWORK
-state ACCEPTED
-state SEEN_ON_NETWORK
-state REJECTED
-state SEEN_IN_ORPHAN_MEMPOOL
-state MINED
-
-[*] --> UNKNOWN
-
-UNKNOWN --> RECEIVED
-note on link
-  Transaction has passed all checks except
-  for verifying each UTXO is correct. This
-  check is done by the nodes themselves.
-end note
-UNKNOWN -> ERROR: transaction validation failed
-
-RECEIVED --> STORED
-note on link
-  Transaction has been stored in ARC.
-end note
-
-
-STORED --> ANNOUNCED
-note on link
-  Transaction ID has been announced to P2P
-  network via an INV message.
-end note
-
-ANNOUNCED --> REQUESTED_BY_NETWORK
-note on link
-  Peer has requested the transaction with a
-  GETDATA message.
-end note
-
-REQUESTED_BY_NETWORK --> SENT_TO_NETWORK
-note on link
-  Transaction has been sent to peer.
-end note
-
-
-SENT_TO_NETWORK -> REJECTED
-note on link
-  Peer has sent a REJECT message.
-end note
-
-SENT_TO_NETWORK -> SEEN_IN_ORPHAN_MEMPOOL
-note on link
-  Peer has sent a 'missing inputs' message.
-end note
-
-SENT_TO_NETWORK --> ACCEPTED
-note on link
-  The transaction has been accepted by a connected Bitcoin node on the ZMQ interface.
-end note
-
-ACCEPTED --> SEEN_ON_NETWORK
-note on link
-  Transaction ID has been announced to us
-  from another peer.
-end note
-
-SEEN_ON_NETWORK --> MINED
-note on link
-  Transaction ID was included in a BLOCK message.
-end note
-
-
-MINED --> [*]
-
-@enduml
+    [*] --> UNKNOWN
+    UNKNOWN --> RECEIVED: Transaction validation passed
+    UNKNOWN --> ERROR: Transaction validation failed
+    RECEIVED --> STORED: Transaction has been stored in ARC
+    STORED --> ANNOUNCED_TO_NETWORK: Transaction ID has been announced to P2P network via an INV message
+    ANNOUNCED_TO_NETWORK --> REQUESTED_BY_NETWORK: Peer has requested the transaction with a GETDATA message
+    REQUESTED_BY_NETWORK --> SENT_TO_NETWORK: Transaction has been sent to peer
+    SENT_TO_NETWORK --> REJECTED: Peer has sent a REJECT message
+    SENT_TO_NETWORK --> SEEN_IN_ORPHAN_MEMPOOL: Peer has sent a 'missing inputs' message.
+    SENT_TO_NETWORK --> ACCEPTED_BY_NETWORK: The transaction has been accepted by peer on the ZMQ interface.
+    SEEN_IN_ORPHAN_MEMPOOL --> ACCEPTED_BY_NETWORK: All parent transactions have been received by peer
+    ACCEPTED_BY_NETWORK --> SEEN_ON_NETWORK: ARC has received Transaction ID announcement from another peer
+    SEEN_ON_NETWORK --> MINED: Transaction ID was included in a BLOCK message
+    MINED --> [*]
 ```
 ## Microservices
 
@@ -128,7 +76,7 @@ When possible, the API is responsible for rejecting transactions that would be u
 Metamorph is a microservice that is responsible for processing transactions sent by the API to the Bitcoin network. It takes care of re-sending transactions if they are not acknowledged by the network within a certain time period (60 seconds by default).
 
 Metamorph also can send callbacks to a specified URL. To register a callback, the client must add the `X-CallbackUrl` header to the request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
-the body. By default callbacks are sent to the specified URL in case the submitted transaction has status `REJECTED` or `MINED`. In case the client wants to receive the intermediate status updates (`SEEN_IN_ORPHAN_MEMPOOL` and `SEEN_ON_NETWORK`) about the transaction, additionally the `X-FullStatusUpdates` header needs to be set to `true`. See the [API documentation](/arc/api.html) for more information.
+the body. By default, callbacks are sent to the specified URL in case the submitted transaction has status `REJECTED` or `MINED`. In case the client wants to receive the intermediate status updates (`SEEN_IN_ORPHAN_MEMPOOL` and `SEEN_ON_NETWORK`) about the transaction, additionally the `X-FullStatusUpdates` header needs to be set to `true`. See the [API documentation](/arc/api.html) for more information.
 `X-MaxTimeout` header determines maximum number of seconds to wait for transaction new statuses before request expires (default 5sec, max value 30s).
 The following example shows the format of a callback body
 

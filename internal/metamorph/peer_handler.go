@@ -13,6 +13,9 @@ import (
 type PeerHandler struct {
 	store     store.MetamorphStore
 	messageCh chan *PeerTxMessage
+
+	cancelAll context.CancelFunc
+	ctx       context.Context
 }
 
 func NewPeerHandler(s store.MetamorphStore, messageCh chan *PeerTxMessage) *PeerHandler {
@@ -20,6 +23,10 @@ func NewPeerHandler(s store.MetamorphStore, messageCh chan *PeerTxMessage) *Peer
 		store:     s,
 		messageCh: messageCh,
 	}
+
+	ctx, cancelAll := context.WithCancel(context.Background())
+	ph.cancelAll = cancelAll
+	ph.ctx = ctx
 
 	return ph
 }
@@ -71,7 +78,7 @@ func (m *PeerHandler) HandleTransactionGet(msg *wire.InvVect, peer p2p.PeerI) ([
 		Peer:   peer.String(),
 	}
 
-	sd, err := m.store.Get(context.Background(), msg.Hash.CloneBytes())
+	sd, err := m.store.Get(m.ctx, msg.Hash.CloneBytes())
 	if err != nil {
 		return nil, err
 	}
@@ -102,4 +109,11 @@ func (m *PeerHandler) HandleBlockAnnouncement(_ *wire.InvVect, _ p2p.PeerI) erro
 func (m *PeerHandler) HandleBlock(_ wire.Message, _ p2p.PeerI) error {
 
 	return nil
+}
+
+func (m *PeerHandler) Shutdown() {
+
+	if m.cancelAll != nil {
+		m.cancelAll()
+	}
 }

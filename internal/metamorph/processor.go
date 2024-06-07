@@ -158,6 +158,8 @@ func (p *Processor) Shutdown() {
 		p.callbackSender.Shutdown(p.logger)
 	}
 
+	p.pm.Shutdown()
+
 	err := p.unlockRecords()
 	if err != nil {
 		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))

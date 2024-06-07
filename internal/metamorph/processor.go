@@ -265,13 +265,13 @@ func (p *Processor) StartProcessMinedCallbacks() {
 	}()
 }
 
-func (p *Processor) CheckAndUpdate(statusUpdatesMap *map[chainhash.Hash]store.UpdateStatus) {
-	if len(*statusUpdatesMap) == 0 {
+func (p *Processor) CheckAndUpdate(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
+	if len(statusUpdatesMap) == 0 {
 		return
 	}
 
 	statusUpdates := make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
-	for _, distinctStatusUpdate := range *statusUpdatesMap {
+	for _, distinctStatusUpdate := range statusUpdatesMap {
 		statusUpdates = append(statusUpdates, distinctStatusUpdate)
 	}
 
@@ -279,8 +279,6 @@ func (p *Processor) CheckAndUpdate(statusUpdatesMap *map[chainhash.Hash]store.Up
 	if err != nil {
 		p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
 	}
-
-	*statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 }
 
 func (p *Processor) StartProcessStatusUpdatesInStorage() {
@@ -306,10 +304,14 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				}
 
 				if len(statusUpdatesMap) >= p.processStatusUpdatesBatchSize {
-					p.CheckAndUpdate(&statusUpdatesMap)
+					p.CheckAndUpdate(statusUpdatesMap)
+					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 				}
 			case <-ticker.C:
-				p.CheckAndUpdate(&statusUpdatesMap)
+				if len(statusUpdatesMap) > 0 {
+					p.CheckAndUpdate(statusUpdatesMap)
+					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
+				}
 			}
 		}
 	}()

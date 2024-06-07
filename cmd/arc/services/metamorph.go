@@ -128,6 +128,11 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
+	callbacker, err := metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})
+	if err != nil {
+		return nil, err
+	}
+
 	metamorphProcessor, err := metamorph.NewProcessor(
 		metamorphStore,
 		pm,
@@ -138,7 +143,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),
-		metamorph.WithCallbackSender(metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})),
+		metamorph.WithCallbackSender(callbacker),
 		metamorph.WithStatTimeLimits(statsNotSeenTimeLimit, statsNotMinedTimeLimit),
 		metamorph.WithMaxRetries(maxRetries),
 		metamorph.WithMinimumHealthyConnections(minimumHealthyConnections),

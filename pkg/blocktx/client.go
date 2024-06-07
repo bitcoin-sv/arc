@@ -90,8 +90,11 @@ func (btc *Client) VerifyMerkleRoots(ctx context.Context, merkleRootVerification
 	}
 
 	resp, err := btc.client.VerifyMerkleRoots(ctx, &blocktx_api.MerkleRootsVerificationRequest{MerkleRoots: merkleRoots})
+	if err != nil {
+		return nil, err
+	}
 
-	return resp.UnverifiedBlockHeights, err
+	return resp.UnverifiedBlockHeights, nil
 }
 
 func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int) (*grpc.ClientConn, error) {

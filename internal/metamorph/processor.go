@@ -521,7 +521,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	data, err := p.store.Get(ctx, req.Data.Hash[:])
 	if err == nil {
 		/*
-			When transaction is re-submitted we make last_submitted_at_num to be now()
+			When transaction is re-submitted we make last_submitted_at to be now()
 			to make sure it will be loaded and re-broadcasted if needed.
 		*/
 		_ = p.storeData(ctx, data)
@@ -541,16 +541,37 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		return
 	}
 
+	if !errors.Is(err, store.ErrNotFound) {
+		// issue with the store itself
+		// notify the client instantly and return
+		req.ResponseChannel <- processor_response.StatusAndError{
+			Hash:   req.Data.Hash,
+			Status: metamorph_api.Status_RECEIVED,
+			Err:    err,
+		}
+
+		return
+	}
+
+	// store in database
+	req.Data.Status = metamorph_api.Status_STORED
+	if err = p.storeData(ctx, req.Data); err != nil {
+		// issue with the store itself
+		// notify the client instantly and return
+		req.ResponseChannel <- processor_response.StatusAndError{
+			Hash:   req.Data.Hash,
+			Status: metamorph_api.Status_RECEIVED,
+			Err:    err,
+		}
+		return
+	}
+
 	// register transaction in blocktx using message queue
 	if err = p.mqClient.PublishRegisterTxs(req.Data.Hash[:]); err != nil {
 		p.logger.Error("failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 	}
 
-	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel, req.Timeout)
-
-	// store in database
-	req.Data.Status = metamorph_api.Status_STORED
-	_ = p.storeData(ctx, req.Data)
+	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel)
 
 	// broadcast that transaction is stored to client
 	processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
@@ -611,12 +632,11 @@ func (p *Processor) Health() error {
 
 func (p *Processor) storeData(ctx context.Context, data *store.StoreData) error {
 	/*
-		We make last_submitted_at_num to be now()
+		We make last_submitted_at to be now()
 		to make sure it will be loaded and (re-)broadcasted if needed.
 	*/
 
-	nowNum := p.now()
-	data.LastSubmittedAt = nowNum
+	data.LastSubmittedAt = p.now()
 
 	err := p.store.Set(ctx, data.Hash[:], data)
 	if err != nil {

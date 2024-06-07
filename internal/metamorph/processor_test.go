@@ -2,6 +2,7 @@ package metamorph_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"os"
@@ -150,7 +151,7 @@ func TestProcessTransaction(t *testing.T) {
 		{
 			name:            "record not found",
 			storeData:       nil,
-			storeDataGetErr: metamorph.ErrNotFound,
+			storeDataGetErr: store.ErrNotFound,
 
 			expectedResponses: []metamorph_api.Status{
 				metamorph_api.Status_STORED,
@@ -172,6 +173,16 @@ func TestProcessTransaction(t *testing.T) {
 				metamorph_api.Status_REJECTED,
 			},
 			expectedSetCalls: 1,
+		},
+		{
+			name:            "store unavailable",
+			storeData:       nil,
+			storeDataGetErr: sql.ErrConnDone,
+
+			expectedResponses: []metamorph_api.Status{
+				metamorph_api.Status_RECEIVED,
+			},
+			expectedSetCalls: 0,
 		},
 	}
 

@@ -109,12 +109,10 @@ type PeerHandler struct {
 	registerTxsBatchSize        int
 	registerRequestTxsBatchSize int
 
-	fillGapsTicker          *time.Ticker
-	waitGroup               *sync.WaitGroup
-	CancelFillBlockGap      context.CancelFunc
-	cancelProcessTxs        context.CancelFunc
-	cancelPeerWorker        context.CancelFunc
-	cancelProcessRequestTxs context.CancelFunc
+	fillGapsTicker *time.Ticker
+	waitGroup      *sync.WaitGroup
+	cancelAll      context.CancelFunc
+	ctx            context.Context
 }
 
 func WithMessageQueueClient(mqClient MessageQueueClient) func(handler *PeerHandler) {
@@ -208,6 +206,10 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func
 		opt(ph)
 	}
 
+	ctx, cancelAll := context.WithCancel(context.Background())
+	ph.cancelAll = cancelAll
+	ph.ctx = ctx
+
 	return ph, nil
 }
 
@@ -218,23 +220,19 @@ func (ph *PeerHandler) Start() {
 }
 
 func (ph *PeerHandler) startPeerWorker() {
-	var ctx context.Context
-	ctx, ph.cancelPeerWorker = context.WithCancel(context.Background())
 	ph.waitGroup.Add(1)
 
 	go func() {
 		defer ph.waitGroup.Done()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-ph.ctx.Done():
 				return
 			case workerItem := <-ph.workerCh:
 				hash := workerItem.Hash
 				peer := workerItem.Peer
 
-				ctx := context.Background()
-
-				bhs, err := ph.store.GetBlockHashesProcessingInProgress(ctx, ph.hostname)
+				bhs, err := ph.store.GetBlockHashesProcessingInProgress(ph.ctx, ph.hostname)
 				if err != nil {
 					ph.logger.Error("failed to get block hashes where processing in progress", slog.String("err", err.Error()))
 				}
@@ -244,7 +242,7 @@ func (ph *PeerHandler) startPeerWorker() {
 					continue
 				}
 
-				processedBy, err := ph.store.SetBlockProcessing(ctx, hash, ph.hostname)
+				processedBy, err := ph.store.SetBlockProcessing(ph.ctx, hash, ph.hostname)
 				if err != nil {
 					// block is already being processed by another blocktx instance
 					if errors.Is(err, store.ErrBlockProcessingDuplicateKey) {
@@ -274,8 +272,6 @@ func (ph *PeerHandler) startPeerWorker() {
 }
 
 func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
-	var ctx context.Context
-	ctx, ph.CancelFillBlockGap = context.WithCancel(context.Background())
 	ph.waitGroup.Add(1)
 
 	go func() {
@@ -283,7 +279,7 @@ func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
 		peerIndex := 0
 		for {
 			select {
-			case <-ctx.Done():
+			case <-ph.ctx.Done():
 				return
 			case <-ph.fillGapsTicker.C:
 				if peerIndex >= len(peers) {
@@ -302,8 +298,6 @@ func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
 }
 
 func (ph *PeerHandler) startProcessTxs() {
-	var ctx context.Context
-	ctx, ph.cancelProcessTxs = context.WithCancel(context.Background())
 	ph.waitGroup.Add(1)
 	txHashes := make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
 
@@ -312,7 +306,7 @@ func (ph *PeerHandler) startProcessTxs() {
 		defer ph.waitGroup.Done()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-ph.ctx.Done():
 				return
 			case txHash := <-ph.txChannel:
 				txHashes = append(txHashes, &blocktx_api.TransactionAndSource{
@@ -322,7 +316,7 @@ func (ph *PeerHandler) startProcessTxs() {
 				if len(txHashes) < ph.registerTxsBatchSize {
 					continue
 				}
-				err := ph.store.RegisterTransactions(context.Background(), txHashes)
+				err := ph.store.RegisterTransactions(ph.ctx, txHashes)
 				if err != nil {
 					ph.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 				}
@@ -332,7 +326,7 @@ func (ph *PeerHandler) startProcessTxs() {
 				if len(txHashes) == 0 {
 					continue
 				}
-				err := ph.store.RegisterTransactions(context.Background(), txHashes)
+				err := ph.store.RegisterTransactions(ph.ctx, txHashes)
 				if err != nil {
 					ph.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 				}
@@ -343,8 +337,6 @@ func (ph *PeerHandler) startProcessTxs() {
 }
 
 func (ph *PeerHandler) startProcessRequestTxs() {
-	var ctx context.Context
-	ctx, ph.cancelProcessRequestTxs = context.WithCancel(context.Background())
 	ph.waitGroup.Add(1)
 
 	txHashes := make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)
@@ -356,7 +348,7 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 
 		for {
 			select {
-			case <-ctx.Done():
+			case <-ph.ctx.Done():
 				return
 			case txHash := <-ph.requestTxChannel:
 				tx, err := chainhash.NewHash(txHash)
@@ -371,7 +363,7 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 					continue
 				}
 
-				err = ph.publishMinedTxs(ctx, txHashes)
+				err = ph.publishMinedTxs(ph.ctx, txHashes)
 				if err != nil {
 					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 					continue
@@ -384,7 +376,7 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 					continue
 				}
 
-				err := ph.publishMinedTxs(ctx, txHashes)
+				err := ph.publishMinedTxs(ph.ctx, txHashes)
 				if err != nil {
 					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 					continue
@@ -468,7 +460,7 @@ func buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash)
 }
 
 func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, _ p2p.PeerI) error {
-	ctx := context.Background()
+	ctx := ph.ctx
 
 	if tracer != nil {
 		var span trace.Span
@@ -548,7 +540,7 @@ func (ph *PeerHandler) FillGaps(peer p2p.PeerI) error {
 
 	heightRange := ph.dataRetentionDays * hoursPerDay * blocksPerHour
 
-	blockHeightGaps, err := ph.store.GetBlockGaps(context.Background(), heightRange)
+	blockHeightGaps, err := ph.store.GetBlockGaps(ph.ctx, heightRange)
 	if err != nil {
 		return err
 	}
@@ -753,21 +745,10 @@ func extractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
 }
 
 func (ph *PeerHandler) Shutdown() {
-	if ph.CancelFillBlockGap != nil {
-		ph.CancelFillBlockGap()
-	}
 
-	if ph.cancelPeerWorker != nil {
-		ph.cancelPeerWorker()
+	if ph.cancelAll != nil {
+		ph.cancelAll()
 	}
-
-	if ph.cancelProcessTxs != nil {
-		ph.cancelProcessTxs()
-	}
-
-	if ph.cancelProcessRequestTxs != nil {
-		ph.cancelProcessRequestTxs()
-	}
-
 	ph.waitGroup.Wait()
+
 }

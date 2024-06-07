@@ -12,9 +12,6 @@ import (
 
 func (p *PostgreSQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	q := `
 		SELECT
 		 b.hash

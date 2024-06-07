@@ -9,9 +9,6 @@ import (
 
 func (p *PostgreSQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]*store.BlockGap, error) {
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	q := `
 			SELECT DISTINCT all_missing.height, all_missing.hash FROM
 			(SELECT missing_blocks.missing_block_height AS height, blocks.prevhash AS hash FROM blocks

@@ -15,9 +15,6 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainha
 		defer span.End()
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	var hashSlice [][]byte
 	for _, hash := range hashes {
 		hashSlice = append(hashSlice, hash[:])

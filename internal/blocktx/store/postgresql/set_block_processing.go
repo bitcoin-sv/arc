@@ -13,8 +13,6 @@ import (
 
 func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string) (string, error) {
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 	// Try to set a block as being processed by this instance
 	qInsert := `
 		INSERT INTO block_processing (block_hash, processed_by)
@@ -47,9 +45,6 @@ func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Has
 		defer span.End()
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	q := `
 		DELETE FROM block_processing WHERE block_hash = $1 AND processed_by = $2;
     `
@@ -67,10 +62,6 @@ func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Has
 }
 
 func (p *PostgreSQL) GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	// Check how many blocks this instance is currently processing
 	q := `
 	SELECT bp.block_hash FROM block_processing bp

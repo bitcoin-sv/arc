@@ -1,6 +1,45 @@
 # ARC
 ARC is a transaction processor for Bitcoin that keeps track of the life cycle of a transaction as it is processed by the Bitcoin network. Next to the mining status of a transaction, ARC also keeps track of the various states that a transaction can be in.
 
+## Table of Contents
+- [Documentation](#documentation)
+- [Configuration](#configuration)
+- [How to run ARC](#how-to-run-arc)
+  - [Docker](#docker)
+- [Microservices](#microservices)
+  - [API](#api)
+    - [Integration into an echo server](#integration-into-an-echo-server)
+  - [Metamorph](#metamorph)
+    - [Metamorph transaction statuses](#metamorph-transaction-statuses)
+    - [Metamorph stores](#metamorph-stores)
+    - [Connections to Bitcoin nodes](#connections-to-bitcoin-nodes)
+    - [Whitelisting](#whitelisting)
+    - [ZMQ](#zmq)
+  - [BlockTx](#blocktx)
+    - [BlockTx stores](#blocktx-stores)
+- [Message Queue](#message-queue)
+- [K8s-Watcher](#k8s-watcher)
+- [Broadcaster-cli](#broadcaster-cli)
+  - [Installation](#installation)
+  - [Configuration](#configuration-1)
+  - [How to use broadcaster-cli to send batches of transactions to ARC](#how-to-use-broadcaster-cli-to-send-batches-of-transactions-to-arc)
+- [Tests](#tests)
+  - [Unit tests](#unit-tests)
+  - [Integration tests](#integration-tests)
+  - [E2E tests](#e2e-tests)
+- [Monitoring](#monitoring)
+  - [Prometheus](#prometheus)
+  - [Profiler](#profiler)
+  - [Tracing](#tracing)
+- [Building ARC](#building-arc)
+  - [Generate grpc code](#generate-grpc-code)
+  - [Generate REST API](#generate-rest-api)
+  - [Generate REST API documentation](#generate-rest-api-documentation)
+- [Acknowledgements](#acknowledgements)
+- [Contribution Guidelines](#contribution-guidelines)
+- [Support \& Contacts](#support--contacts)
+
+
 ## Documentation
 
 - Find full documentation at [https://bitcoin-sv.github.io/arc](https://bitcoin-sv.github.io/arc)
@@ -367,5 +406,24 @@ Once that is done the documentation can be created by running
 make docs
 ```
 
-# Acknowledgements
+## Acknowledgements
 Special thanks to [rloadd](https://github.com/rloadd/) for his inputs to the documentation of ARC.
+
+## Contribution Guidelines
+
+We're always looking for contributors to help us improve the project. Whether it's bug reports, feature requests, or pull requests - all contributions are welcome.
+
+1. **Fork & Clone**: Fork this repository and clone it to your local machine.
+2. **Set Up**: Run `make deps` to install all dependencies.
+3. **Make Changes**: Create a new branch and make your changes.
+4. **Test**: Ensure all tests pass by running `make test` and `make clean_restart_e2e_test`.
+5. **Commit**: Commit your changes and push to your fork.
+6. **Pull Request**: Open a pull request from your fork to this repository.
+
+For more details, check the [contribution guidelines](./CONTRIBUTING.md).
+
+For information on past releases, check out the [changelog](./CHANGELOG.md).
+
+## Support & Contacts
+
+For questions, bug reports, or feature requests, please open an issue on GitHub.

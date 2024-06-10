@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
@@ -524,14 +523,10 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	data, err := p.store.Get(ctx, req.Data.Hash[:])
 	if err == nil {
 		/*
-			When transaction is re-submitted we make inserted_at_num to be now()
+			When transaction is re-submitted we make last_submitted_at to be now()
 			to make sure it will be loaded and re-broadcasted if needed.
 		*/
-		insertedAtNum, _ := strconv.Atoi(p.now().Format("2006010215"))
-		data.InsertedAtNum = insertedAtNum
-		if setErr := p.store.Set(ctx, req.Data.Hash[:], data); setErr != nil {
-			p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", setErr.Error()))
-		}
+		_ = p.storeData(ctx, data)
 
 		var rejectErr error
 		if data.RejectReason != "" {
@@ -548,21 +543,37 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		return
 	}
 
+	if !errors.Is(err, store.ErrNotFound) {
+		// issue with the store itself
+		// notify the client instantly and return
+		req.ResponseChannel <- processor_response.StatusAndError{
+			Hash:   req.Data.Hash,
+			Status: metamorph_api.Status_RECEIVED,
+			Err:    err,
+		}
+
+		return
+	}
+
+	// store in database
+	req.Data.Status = metamorph_api.Status_STORED
+	if err = p.storeData(ctx, req.Data); err != nil {
+		// issue with the store itself
+		// notify the client instantly and return
+		req.ResponseChannel <- processor_response.StatusAndError{
+			Hash:   req.Data.Hash,
+			Status: metamorph_api.Status_RECEIVED,
+			Err:    err,
+		}
+		return
+	}
+
 	// register transaction in blocktx using message queue
 	if err = p.mqClient.PublishRegisterTxs(req.Data.Hash[:]); err != nil {
 		p.logger.Error("failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 	}
 
-	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel, req.Timeout)
-
-	// store in database
-	req.Data.Status = metamorph_api.Status_STORED
-	insertedAtNum, _ := strconv.Atoi(p.now().Format("2006010215"))
-	req.Data.InsertedAtNum = insertedAtNum
-	err = p.store.Set(ctx, req.Data.Hash[:], req.Data)
-	if err != nil {
-		p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
-	}
+	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel)
 
 	// broadcast that transaction is stored to client
 	processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
@@ -619,4 +630,20 @@ func (p *Processor) Health() error {
 	}
 
 	return nil
+}
+
+func (p *Processor) storeData(ctx context.Context, data *store.StoreData) error {
+	/*
+		We make last_submitted_at to be now()
+		to make sure it will be loaded and (re-)broadcasted if needed.
+	*/
+
+	data.LastSubmittedAt = p.now()
+
+	err := p.store.Set(ctx, data.Hash[:], data)
+	if err != nil {
+		p.logger.Error("Failed to store transaction", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
+	}
+
+	return err
 }

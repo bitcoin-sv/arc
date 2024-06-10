@@ -322,6 +322,36 @@
                 }
               }
             }
+          },
+          "467": {
+            "description": "Mined ancestors not found in BEEF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMinedAncestorsNotFound"
+                }
+              }
+            }
+          },
+          "468": {
+            "description": "Invalid BUMPs in BEEF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorCalculatingMerkleRoots"
+                }
+              }
+            }
+          },
+          "469": {
+            "description": "Invalid Merkle Roots",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorValidatingMerkleRoots"
+                }
+              }
+            }
           }
         }
       }
@@ -523,6 +553,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorFee"
+                }
+              }
+            }
+          },
+          "467": {
+            "description": "Mined ancestors not found in BEEF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMinedAncestorsNotFound"
+                }
+              }
+            }
+          },
+          "468": {
+            "description": "Invalid BUMPs in BEEF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorCalculatingMerkleRoots"
+                }
+              }
+            }
+          },
+          "469": {
+            "description": "Invalid Merkle Roots",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorValidatingMerkleRoots"
                 }
               }
             }
@@ -903,6 +963,15 @@
             "$ref": "#/components/schemas/ErrorMalformed"
           },
           {
+            "$ref": "#/components/schemas/ErrorMinedAncestorsNotFound"
+          },
+          {
+            "$ref": "#/components/schemas/ErrorCalculatingMerkleRoots"
+          },
+          {
+            "$ref": "#/components/schemas/ErrorValidatingMerkleRoots"
+          },
+          {
             "$ref": "#/components/schemas/ErrorFrozenPolicy"
           },
           {
@@ -1182,6 +1251,90 @@
               },
               "detail": {
                 "example": "Transaction is valid, but there is a conflicting tx in the block template"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/123453"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorMinedAncestorsNotFound": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_467"
+              },
+              "title": {
+                "example": "Mined ancestors not found"
+              },
+              "status": {
+                "example": 467
+              },
+              "detail": {
+                "example": "Error validating BEEF: mined ancestors not found in transaction inputs"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/123453"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorCalculatingMerkleRoots": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_468"
+              },
+              "title": {
+                "example": "Invalid BUMPs"
+              },
+              "status": {
+                "example": 468
+              },
+              "detail": {
+                "example": "Error validating BEEF: could not calculate Merkle Roots from given BUMPs"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/123453"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorValidatingMerkleRoots": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_469"
+              },
+              "title": {
+                "example": "Merkle Roots validation failed"
+              },
+              "status": {
+                "example": 469
+              },
+              "detail": {
+                "example": "Error validating BEEF: could not validate Merkle Roots"
               },
               "instance": {
                 "example": "https://arc.taal.com/errors/123453"

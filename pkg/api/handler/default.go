@@ -480,19 +480,19 @@ func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValida
 
 	merkleRoots, err := beef.CalculateMerkleRootsFromBumps(beefTx.BUMPs)
 	if err != nil {
-		return api.NewErrorFields(api.ErrBeefCalculatingMerkleRoots, err.Error())
+		return api.NewErrorFields(api.ErrStatusCalculatingMerkleRoots, err.Error())
 	}
 
 	merkleRootsRequest := convertMerkleRootsRequest(merkleRoots)
 
 	unverifiedBlockHeights, err := m.MerkleRootsVerifier.VerifyMerkleRoots(ctx, merkleRootsRequest)
 	if err != nil {
-		return api.NewErrorFields(api.ErrBeefValidatingMerkleRoots, err.Error())
+		return api.NewErrorFields(api.ErrStatusValidatingMerkleRoots, err.Error())
 	}
 
 	if len(unverifiedBlockHeights) > 0 {
 		err := fmt.Errorf("unable to verify BUMPs with block heights: %v", unverifiedBlockHeights)
-		return api.NewErrorFields(api.ErrBeefValidatingMerkleRoots, err.Error())
+		return api.NewErrorFields(api.ErrStatusValidatingMerkleRoots, err.Error())
 	}
 
 	return nil

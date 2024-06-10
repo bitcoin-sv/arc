@@ -80,7 +80,7 @@ func (v *DefaultValidator) ValidateBeef(beefTx *beef.BEEF, skipFeeValidation, sk
 	}
 
 	if err := beef.EnsureAncestorsArePresentInBump(beefTx.GetLatestTx(), beefTx); err != nil {
-		return validator.NewError(err, api.ErrBeefMinedAncestorsNotFound)
+		return validator.NewError(err, api.ErrStatusMinedAncestorsNotFound)
 	}
 
 	return nil

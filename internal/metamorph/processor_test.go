@@ -2,6 +2,7 @@ package metamorph_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"os"
@@ -36,7 +37,7 @@ func TestNewProcessor(t *testing.T) {
 		SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 	}
 
-	pm := &mocks.PeerManagerMock{}
+	pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
 	tt := []struct {
 		name  string
@@ -120,7 +121,7 @@ func TestStartLockTransactions(t *testing.T) {
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
 
-			pm := &mocks.PeerManagerMock{}
+			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
 			processor, err := metamorph.NewProcessor(
 				metamorphStore,
@@ -150,7 +151,7 @@ func TestProcessTransaction(t *testing.T) {
 		{
 			name:            "record not found",
 			storeData:       nil,
-			storeDataGetErr: metamorph.ErrNotFound,
+			storeDataGetErr: store.ErrNotFound,
 
 			expectedResponses: []metamorph_api.Status{
 				metamorph_api.Status_STORED,
@@ -172,6 +173,16 @@ func TestProcessTransaction(t *testing.T) {
 				metamorph_api.Status_REJECTED,
 			},
 			expectedSetCalls: 1,
+		},
+		{
+			name:            "store unavailable",
+			storeData:       nil,
+			storeDataGetErr: sql.ErrConnDone,
+
+			expectedResponses: []metamorph_api.Status{
+				metamorph_api.Status_RECEIVED,
+			},
+			expectedSetCalls: 0,
 		},
 	}
 
@@ -445,7 +456,7 @@ func TestSendStatusForTransaction(t *testing.T) {
 				},
 			}
 
-			pm := &mocks.PeerManagerMock{}
+			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
 			callbackSender := &mocks.CallbackSenderMock{
 				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {
@@ -572,6 +583,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				AnnounceTransactionFunc: func(txHash *chainhash.Hash, peers []p2p.PeerI) []p2p.PeerI {
 					return nil
 				},
+				ShutdownFunc: func() {},
 			}
 
 			publisher := &mocks.MessageQueueClientMock{
@@ -644,7 +656,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
-			pm := &mocks.PeerManagerMock{}
+			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 5)
 			callbackSender := &mocks.CallbackSenderMock{
 				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {},
@@ -730,6 +742,7 @@ func TestProcessorHealth(t *testing.T) {
 
 					return peers
 				},
+				ShutdownFunc: func() {},
 			}
 
 			processor, err := metamorph.NewProcessor(metamorphStore, pm,
@@ -799,6 +812,7 @@ func TestMonitorPeers(t *testing.T) {
 
 					return peers
 				},
+				ShutdownFunc: func() {},
 			}
 
 			processor, err := metamorph.NewProcessor(

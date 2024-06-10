@@ -2,7 +2,6 @@ package processor_response
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -31,14 +30,14 @@ type ProcessorResponse struct {
 }
 
 func NewProcessorResponse(hash *chainhash.Hash) *ProcessorResponse {
-	return newProcessorResponse(hash, metamorph_api.Status_RECEIVED, nil, time.Second)
+	return newProcessorResponse(hash, metamorph_api.Status_RECEIVED, nil)
 }
 
-func NewProcessorResponseWithChannel(hash *chainhash.Hash, ch chan StatusAndError, timeout time.Duration) *ProcessorResponse {
-	return newProcessorResponse(hash, metamorph_api.Status_RECEIVED, ch, timeout)
+func NewProcessorResponseWithChannel(hash *chainhash.Hash, ch chan StatusAndError) *ProcessorResponse {
+	return newProcessorResponse(hash, metamorph_api.Status_RECEIVED, ch)
 }
 
-func newProcessorResponse(hash *chainhash.Hash, status metamorph_api.Status, ch chan StatusAndError, timeout time.Duration) *ProcessorResponse {
+func newProcessorResponse(hash *chainhash.Hash, status metamorph_api.Status, ch chan StatusAndError) *ProcessorResponse {
 	pr := &ProcessorResponse{
 		Hash:     hash,
 		Status:   status,

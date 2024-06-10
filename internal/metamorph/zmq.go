@@ -7,28 +7,16 @@ import (
 	"log/slog"
 	"net/url"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
-type ZMQStats struct {
-	hashTx               atomic.Uint64
-	invalidTx            atomic.Uint64
-	discardedFromMempool atomic.Uint64
-}
-
 type ZMQ struct {
 	url             *url.URL
-	stats           *ZMQStats
 	statusMessageCh chan<- *PeerTxMessage
 	logger          *slog.Logger
-}
-
-func (z *ZMQ) GetStats() *ZMQStats {
-	return z.stats
 }
 
 type ZMQTxInfo struct {
@@ -67,12 +55,7 @@ type ZMQDiscardFromMempool struct {
 
 func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage, logger *slog.Logger) *ZMQ {
 	z := &ZMQ{
-		url: zmqURL,
-		stats: &ZMQStats{
-			hashTx:               atomic.Uint64{},
-			invalidTx:            atomic.Uint64{},
-			discardedFromMempool: atomic.Uint64{},
-		},
+		url:             zmqURL,
 		statusMessageCh: statusMessageCh,
 		logger:          logger,
 	}
@@ -95,7 +78,6 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 		for c := range ch {
 			switch c[0] {
 			case hashtxTopic:
-				z.stats.hashTx.Add(1)
 				z.logger.Debug(hashtxTopic, slog.String("hash", c[1]))
 
 				hash, err := chainhash.NewHashFromStr(c[1])
@@ -111,7 +93,6 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 					Peer:   z.url.String(),
 				}
 			case invalidTxTopic:
-				z.stats.invalidTx.Add(1)
 				// c[1] is lots of info about the tx in json format encoded in hex
 				var txInfo *ZMQTxInfo
 				status := metamorph_api.Status_REJECTED
@@ -148,7 +129,6 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 					Err:    fmt.Errorf(errReason),
 				}
 			case discardedFromMempoolTopic:
-				z.stats.discardedFromMempool.Add(1)
 				var txInfo *ZMQDiscardFromMempool
 				txInfo, err = z.parseDiscardedInfo(c)
 				if err != nil {

@@ -47,7 +47,7 @@ func TestStartCollectStats(t *testing.T) {
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
 
-			pm := &mocks.PeerManagerMock{}
+			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 			processor, err := metamorph.NewProcessor(mtmStore, pm,
 				metamorph.WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: metamorph.LogLevelDefault}))),
 				metamorph.WithStatCollectionInterval(10*time.Millisecond),

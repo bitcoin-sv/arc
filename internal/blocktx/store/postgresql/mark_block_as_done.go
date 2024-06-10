@@ -14,9 +14,6 @@ func (p *PostgreSQL) MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, 
 		defer span.End()
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	q := `
 		UPDATE blocks
 		SET processed_at = $4

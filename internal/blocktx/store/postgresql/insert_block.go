@@ -15,9 +15,6 @@ func (p *PostgreSQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) 
 		defer span.End()
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	qInsert := `
 		INSERT INTO blocks (hash, prevhash, merkleroot, height)
 		VALUES ($1 ,$2 , $3, $4)

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
@@ -59,28 +58,22 @@ type Processor struct {
 
 	waitGroup *sync.WaitGroup
 
-	CancelCollectStats     context.CancelFunc
 	statCollectionInterval time.Duration
 
+	cancelAll context.CancelFunc
+	ctx       context.Context
+
 	lockTransactionsInterval time.Duration
-	CancelLockTransactions   context.CancelFunc
 
-	CancelMinedCallbacks context.CancelFunc
-	minedTxsChan         chan *blocktx_api.TransactionBlocks
+	minedTxsChan chan *blocktx_api.TransactionBlocks
 
-	storageStatusUpdateCh               chan store.UpdateStatus
-	CancelProcessStatusUpdatesInStorage context.CancelFunc
-	processStatusUpdatesInterval        time.Duration
-	processStatusUpdatesBatchSize       int
+	storageStatusUpdateCh         chan store.UpdateStatus
+	processStatusUpdatesInterval  time.Duration
+	processStatusUpdatesBatchSize int
 
-	processExpiredTxsInterval        time.Duration
-	processSeenOnNetworkTxsInterval  time.Duration
-	CancelProcessExpiredTransactions context.CancelFunc
+	processExpiredTxsInterval       time.Duration
+	processSeenOnNetworkTxsInterval time.Duration
 
-	CancelProcessSeenOnNetworkTxRequesting context.CancelFunc
-
-	cancelMonitorPeers   context.CancelFunc
-	wgMonitorPeers       sync.WaitGroup
 	monitorPeersInterval time.Duration
 }
 
@@ -128,7 +121,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 
 		statCollectionInterval: statCollectionIntervalDefault,
 
-		wgMonitorPeers:       sync.WaitGroup{},
 		monitorPeersInterval: monitorPeersIntervalDefault,
 	}
 
@@ -142,6 +134,10 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 	p.ProcessorResponseMap = NewProcessorResponseMap(p.mapExpiryTime, WithNowResponseMap(p.now))
 
 	p.logger.Info("Starting processor", slog.String("cacheExpiryTime", p.mapExpiryTime.String()))
+
+	ctx, cancelAll := context.WithCancel(context.Background())
+	p.cancelAll = cancelAll
+	p.ctx = ctx
 
 	err = newPrometheusCollector(p)
 	if err != nil {
@@ -159,38 +155,15 @@ func (p *Processor) Shutdown() {
 		p.callbackSender.Shutdown(p.logger)
 	}
 
+	p.pm.Shutdown()
+
 	err := p.unlockRecords()
 	if err != nil {
 		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
 	}
 
-	if p.CancelLockTransactions != nil {
-		p.CancelLockTransactions()
-	}
-
-	if p.CancelMinedCallbacks != nil {
-		p.CancelMinedCallbacks()
-	}
-
-	if p.CancelProcessStatusUpdatesInStorage != nil {
-		p.CancelProcessStatusUpdatesInStorage()
-	}
-
-	if p.CancelProcessExpiredTransactions != nil {
-		p.CancelProcessExpiredTransactions()
-	}
-
-	if p.CancelProcessSeenOnNetworkTxRequesting != nil {
-		p.CancelProcessSeenOnNetworkTxRequesting()
-	}
-
-	if p.CancelCollectStats != nil {
-		p.CancelCollectStats()
-	}
-
-	if p.cancelMonitorPeers != nil {
-		p.cancelMonitorPeers()
-		p.wgMonitorPeers.Wait()
+	if p.cancelAll != nil {
+		p.cancelAll()
 	}
 
 	p.waitGroup.Wait()
@@ -207,16 +180,13 @@ func (p *Processor) unlockRecords() error {
 }
 
 func (p *Processor) StartMonitorPeers() {
-	ctx, cancel := context.WithCancel(context.Background())
-	p.cancelMonitorPeers = cancel
-
 	ticker := time.NewTicker(p.monitorPeersInterval)
-	p.wgMonitorPeers.Add(1)
+	p.waitGroup.Add(1)
 	go func() {
-		defer p.wgMonitorPeers.Done()
+		defer p.waitGroup.Done()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
 
@@ -234,22 +204,20 @@ func (p *Processor) StartMonitorPeers() {
 }
 
 func (p *Processor) StartProcessMinedCallbacks() {
-	ctx, cancel := context.WithCancel(context.Background())
-	p.CancelMinedCallbacks = cancel
 	p.waitGroup.Add(1)
 
 	go func() {
 		defer p.waitGroup.Done()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-p.ctx.Done():
 				return
 			case txBlocks := <-p.minedTxsChan:
 				if txBlocks == nil {
 					continue
 				}
 
-				updatedData, err := p.store.UpdateMined(ctx, txBlocks)
+				updatedData, err := p.store.UpdateMined(p.ctx, txBlocks)
 				if err != nil {
 					p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 					return
@@ -283,8 +251,6 @@ func (p *Processor) CheckAndUpdate(statusUpdatesMap map[chainhash.Hash]store.Upd
 
 func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	ticker := time.NewTicker(p.processStatusUpdatesInterval)
-	ctx, cancel := context.WithCancel(context.Background())
-	p.CancelProcessStatusUpdatesInStorage = cancel
 	p.waitGroup.Add(1)
 
 	go func() {
@@ -294,7 +260,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 
 		for {
 			select {
-			case <-ctx.Done():
+			case <-p.ctx.Done():
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
 				// Ensure no duplicate hashes, overwrite value if the status has higher value than existing status
@@ -332,20 +298,18 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus)
 }
 
 func (p *Processor) StartLockTransactions() {
-	ctx, cancel := context.WithCancel(context.Background())
 	ticker := time.NewTicker(p.lockTransactionsInterval)
-	p.CancelLockTransactions = cancel
 	p.waitGroup.Add(1)
 
 	go func() {
 		defer p.waitGroup.Done()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
 				expiredSince := p.now().Add(-1 * p.mapExpiryTime)
-				err := p.store.SetLocked(ctx, expiredSince, loadUnminedLimit)
+				err := p.store.SetLocked(p.ctx, expiredSince, loadUnminedLimit)
 				if err != nil {
 					p.logger.Error("Failed to set transactions locked", slog.String("err", err.Error()))
 				}
@@ -355,9 +319,7 @@ func (p *Processor) StartLockTransactions() {
 }
 
 func (p *Processor) StartRequestingSeenOnNetworkTxs() {
-	ctx, cancel := context.WithCancel(context.Background())
 	ticker := time.NewTicker(p.processSeenOnNetworkTxsInterval)
-	p.CancelProcessSeenOnNetworkTxRequesting = cancel
 	p.waitGroup.Add(1)
 
 	go func() {
@@ -365,7 +327,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 
 		for {
 			select {
-			case <-ctx.Done():
+			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
 				// Periodically read SEEN_ON_NETWORK transactions from database check their status in blocktx
@@ -375,7 +337,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 				var totalSeenOnNetworkTxs int
 
 				for {
-					seenOnNetworkTxs, err := p.store.GetSeenOnNetwork(ctx, getSeenOnNetworkSince, getSeenOnNetworkUntil, loadSeenOnNetworkLimit, offset)
+					seenOnNetworkTxs, err := p.store.GetSeenOnNetwork(p.ctx, getSeenOnNetworkSince, getSeenOnNetworkUntil, loadSeenOnNetworkLimit, offset)
 					offset += loadSeenOnNetworkLimit
 					if err != nil {
 						p.logger.Error("Failed to get SeenOnNetwork transactions", slog.String("err", err.Error()))
@@ -405,16 +367,14 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 }
 
 func (p *Processor) StartProcessExpiredTransactions() {
-	ctx, cancel := context.WithCancel(context.Background())
 	ticker := time.NewTicker(p.processExpiredTxsInterval)
-	p.CancelProcessExpiredTransactions = cancel
 	p.waitGroup.Add(1)
 
 	go func() {
 		defer p.waitGroup.Done()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-p.ctx.Done():
 				return
 			case <-ticker.C: // Periodically read unmined transactions from database and announce them again
 				// define from what point in time we are interested in unmined transactions
@@ -425,7 +385,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 				announced := 0
 				for {
 					// get all transactions since then chunk by chunk
-					unminedTxs, err := p.store.GetUnmined(ctx, getUnminedSince, loadUnminedLimit, offset)
+					unminedTxs, err := p.store.GetUnmined(p.ctx, getUnminedSince, loadUnminedLimit, offset)
 					if err != nil {
 						p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
 						break
@@ -442,7 +402,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 						}
 
 						// mark that we retried processing this transaction once more
-						if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
+						if err = p.store.IncrementRetries(p.ctx, tx.Hash); err != nil {
 							p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
 						}
 
@@ -524,14 +484,10 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	data, err := p.store.Get(ctx, req.Data.Hash[:])
 	if err == nil {
 		/*
-			When transaction is re-submitted we make inserted_at_num to be now()
+			When transaction is re-submitted we make last_submitted_at to be now()
 			to make sure it will be loaded and re-broadcasted if needed.
 		*/
-		insertedAtNum, _ := strconv.Atoi(p.now().Format("2006010215"))
-		data.InsertedAtNum = insertedAtNum
-		if setErr := p.store.Set(ctx, req.Data.Hash[:], data); setErr != nil {
-			p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", setErr.Error()))
-		}
+		_ = p.storeData(ctx, data)
 
 		var rejectErr error
 		if data.RejectReason != "" {
@@ -548,21 +504,37 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		return
 	}
 
+	if !errors.Is(err, store.ErrNotFound) {
+		// issue with the store itself
+		// notify the client instantly and return
+		req.ResponseChannel <- processor_response.StatusAndError{
+			Hash:   req.Data.Hash,
+			Status: metamorph_api.Status_RECEIVED,
+			Err:    err,
+		}
+
+		return
+	}
+
+	// store in database
+	req.Data.Status = metamorph_api.Status_STORED
+	if err = p.storeData(ctx, req.Data); err != nil {
+		// issue with the store itself
+		// notify the client instantly and return
+		req.ResponseChannel <- processor_response.StatusAndError{
+			Hash:   req.Data.Hash,
+			Status: metamorph_api.Status_RECEIVED,
+			Err:    err,
+		}
+		return
+	}
+
 	// register transaction in blocktx using message queue
 	if err = p.mqClient.PublishRegisterTxs(req.Data.Hash[:]); err != nil {
 		p.logger.Error("failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 	}
 
-	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel, req.Timeout)
-
-	// store in database
-	req.Data.Status = metamorph_api.Status_STORED
-	insertedAtNum, _ := strconv.Atoi(p.now().Format("2006010215"))
-	req.Data.InsertedAtNum = insertedAtNum
-	err = p.store.Set(ctx, req.Data.Hash[:], req.Data)
-	if err != nil {
-		p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
-	}
+	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel)
 
 	// broadcast that transaction is stored to client
 	processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
@@ -619,4 +591,20 @@ func (p *Processor) Health() error {
 	}
 
 	return nil
+}
+
+func (p *Processor) storeData(ctx context.Context, data *store.StoreData) error {
+	/*
+		We make last_submitted_at to be now()
+		to make sure it will be loaded and (re-)broadcasted if needed.
+	*/
+
+	data.LastSubmittedAt = p.now()
+
+	err := p.store.Set(ctx, data.Hash[:], data)
+	if err != nil {
+		p.logger.Error("Failed to store transaction", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
+	}
+
+	return err
 }

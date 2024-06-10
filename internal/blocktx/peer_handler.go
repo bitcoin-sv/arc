@@ -14,14 +14,12 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/bitcoin-sv/arc/internal/metrics"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
-	"github.com/ordishs/go-utils/safemap"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -101,9 +99,7 @@ type PeerHandler struct {
 	workerCh                    chan hashPeer
 	store                       store.BlocktxStore
 	logger                      *slog.Logger
-	stats                       *safemap.Safemap[string, *metrics.PeerHandlerStats]
 	transactionStorageBatchSize int
-	peerHandlerCollector        *metrics.PeerHandlerCollector
 	dataRetentionDays           int
 	mqClient                    MessageQueueClient
 	txChannel                   chan []byte
@@ -113,12 +109,10 @@ type PeerHandler struct {
 	registerTxsBatchSize        int
 	registerRequestTxsBatchSize int
 
-	fillGapsTicker          *time.Ticker
-	waitGroup               *sync.WaitGroup
-	CancelFillBlockGap      context.CancelFunc
-	cancelProcessTxs        context.CancelFunc
-	cancelPeerWorker        context.CancelFunc
-	cancelProcessRequestTxs context.CancelFunc
+	fillGapsTicker *time.Ticker
+	waitGroup      *sync.WaitGroup
+	cancelAll      context.CancelFunc
+	ctx            context.Context
 }
 
 func WithMessageQueueClient(mqClient MessageQueueClient) func(handler *PeerHandler) {
@@ -198,7 +192,6 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func
 		store:                       storeI,
 		logger:                      logger,
 		workerCh:                    make(chan hashPeer, 100),
-		stats:                       safemap.New[string, *metrics.PeerHandlerStats](),
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
 		registerTxsInterval:         registerTxsIntervalDefault,
 		registerRequestTxsInterval:  registerRequestTxsIntervalDefault,
@@ -213,8 +206,9 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func
 		opt(ph)
 	}
 
-	ph.peerHandlerCollector = metrics.NewPeerHandlerCollector("blocktx", ph.stats)
-	metrics.Register(ph.peerHandlerCollector)
+	ctx, cancelAll := context.WithCancel(context.Background())
+	ph.cancelAll = cancelAll
+	ph.ctx = ctx
 
 	return ph, nil
 }
@@ -226,23 +220,19 @@ func (ph *PeerHandler) Start() {
 }
 
 func (ph *PeerHandler) startPeerWorker() {
-	var ctx context.Context
-	ctx, ph.cancelPeerWorker = context.WithCancel(context.Background())
 	ph.waitGroup.Add(1)
 
 	go func() {
 		defer ph.waitGroup.Done()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-ph.ctx.Done():
 				return
 			case workerItem := <-ph.workerCh:
 				hash := workerItem.Hash
 				peer := workerItem.Peer
 
-				ctx := context.Background()
-
-				bhs, err := ph.store.GetBlockHashesProcessingInProgress(ctx, ph.hostname)
+				bhs, err := ph.store.GetBlockHashesProcessingInProgress(ph.ctx, ph.hostname)
 				if err != nil {
 					ph.logger.Error("failed to get block hashes where processing in progress", slog.String("err", err.Error()))
 				}
@@ -252,7 +242,7 @@ func (ph *PeerHandler) startPeerWorker() {
 					continue
 				}
 
-				processedBy, err := ph.store.SetBlockProcessing(ctx, hash, ph.hostname)
+				processedBy, err := ph.store.SetBlockProcessing(ph.ctx, hash, ph.hostname)
 				if err != nil {
 					// block is already being processed by another blocktx instance
 					if errors.Is(err, store.ErrBlockProcessingDuplicateKey) {
@@ -282,8 +272,6 @@ func (ph *PeerHandler) startPeerWorker() {
 }
 
 func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
-	var ctx context.Context
-	ctx, ph.CancelFillBlockGap = context.WithCancel(context.Background())
 	ph.waitGroup.Add(1)
 
 	go func() {
@@ -291,7 +279,7 @@ func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
 		peerIndex := 0
 		for {
 			select {
-			case <-ctx.Done():
+			case <-ph.ctx.Done():
 				return
 			case <-ph.fillGapsTicker.C:
 				if peerIndex >= len(peers) {
@@ -310,8 +298,6 @@ func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
 }
 
 func (ph *PeerHandler) startProcessTxs() {
-	var ctx context.Context
-	ctx, ph.cancelProcessTxs = context.WithCancel(context.Background())
 	ph.waitGroup.Add(1)
 	txHashes := make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
 
@@ -320,7 +306,7 @@ func (ph *PeerHandler) startProcessTxs() {
 		defer ph.waitGroup.Done()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-ph.ctx.Done():
 				return
 			case txHash := <-ph.txChannel:
 				txHashes = append(txHashes, &blocktx_api.TransactionAndSource{
@@ -330,7 +316,7 @@ func (ph *PeerHandler) startProcessTxs() {
 				if len(txHashes) < ph.registerTxsBatchSize {
 					continue
 				}
-				err := ph.store.RegisterTransactions(context.Background(), txHashes)
+				err := ph.store.RegisterTransactions(ph.ctx, txHashes)
 				if err != nil {
 					ph.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 				}
@@ -340,7 +326,7 @@ func (ph *PeerHandler) startProcessTxs() {
 				if len(txHashes) == 0 {
 					continue
 				}
-				err := ph.store.RegisterTransactions(context.Background(), txHashes)
+				err := ph.store.RegisterTransactions(ph.ctx, txHashes)
 				if err != nil {
 					ph.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 				}
@@ -351,8 +337,6 @@ func (ph *PeerHandler) startProcessTxs() {
 }
 
 func (ph *PeerHandler) startProcessRequestTxs() {
-	var ctx context.Context
-	ctx, ph.cancelProcessRequestTxs = context.WithCancel(context.Background())
 	ph.waitGroup.Add(1)
 
 	txHashes := make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)
@@ -364,7 +348,7 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 
 		for {
 			select {
-			case <-ctx.Done():
+			case <-ph.ctx.Done():
 				return
 			case txHash := <-ph.requestTxChannel:
 				tx, err := chainhash.NewHash(txHash)
@@ -379,7 +363,7 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 					continue
 				}
 
-				err = ph.publishMinedTxs(ctx, txHashes)
+				err = ph.publishMinedTxs(ph.ctx, txHashes)
 				if err != nil {
 					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 					continue
@@ -392,7 +376,7 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 					continue
 				}
 
-				err := ph.publishMinedTxs(ctx, txHashes)
+				err := ph.publishMinedTxs(ph.ctx, txHashes)
 				if err != nil {
 					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 					continue
@@ -429,86 +413,31 @@ func (ph *PeerHandler) publishMinedTxs(ctx context.Context, txHashes []*chainhas
 }
 
 func (ph *PeerHandler) HandleTransactionGet(_ *wire.InvVect, peer p2p.PeerI) ([]byte, error) {
-	peerStr := peer.String()
-
-	stat, ok := ph.stats.Get(peerStr)
-	if !ok {
-		stat = &metrics.PeerHandlerStats{}
-		ph.stats.Set(peerStr, stat)
-	}
-
-	stat.TransactionGet.Add(1)
 
 	return nil, nil
 }
 
 func (ph *PeerHandler) HandleTransactionSent(_ *wire.MsgTx, peer p2p.PeerI) error {
-	peerStr := peer.String()
-
-	stat, ok := ph.stats.Get(peerStr)
-	if !ok {
-		stat = &metrics.PeerHandlerStats{}
-		ph.stats.Set(peerStr, stat)
-	}
-
-	stat.TransactionSent.Add(1)
 
 	return nil
 }
 
 func (ph *PeerHandler) HandleTransactionAnnouncement(_ *wire.InvVect, peer p2p.PeerI) error {
-	peerStr := peer.String()
-
-	stat, ok := ph.stats.Get(peerStr)
-	if !ok {
-		stat = &metrics.PeerHandlerStats{}
-		ph.stats.Set(peerStr, stat)
-	}
-
-	stat.TransactionAnnouncement.Add(1)
 
 	return nil
 }
 
-func (ph *PeerHandler) HandleTransactionRejection(_ *wire.MsgReject, peer p2p.PeerI) error {
-	peerStr := peer.String()
-
-	stat, ok := ph.stats.Get(peerStr)
-	if !ok {
-		stat = &metrics.PeerHandlerStats{}
-		ph.stats.Set(peerStr, stat)
-	}
-
-	stat.TransactionRejection.Add(1)
+func (ph *PeerHandler) HandleTransactionRejection(_ *wire.MsgReject, _ p2p.PeerI) error {
 
 	return nil
 }
 
-func (ph *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error {
-	peerStr := peer.String()
-
-	stat, ok := ph.stats.Get(peerStr)
-	if !ok {
-		stat = &metrics.PeerHandlerStats{}
-		ph.stats.Set(peerStr, stat)
-	}
-
-	stat.Transaction.Add(1)
+func (ph *PeerHandler) HandleTransaction(_ *wire.MsgTx, _ p2p.PeerI) error {
 
 	return nil
 }
 
 func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI) error {
-
-	peerStr := peer.String()
-
-	stat, ok := ph.stats.Get(peerStr)
-	if !ok {
-		stat = &metrics.PeerHandlerStats{}
-		ph.stats.Set(peerStr, stat)
-	}
-
-	stat.BlockAnnouncement.Add(1)
 
 	pair := hashPeer{
 		Hash: &msg.Hash,
@@ -530,23 +459,14 @@ func buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash)
 	return bc.BuildMerkleTreeStoreChainHash(txids)
 }
 
-func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
-	ctx := context.Background()
+func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, _ p2p.PeerI) error {
+	ctx := ph.ctx
 
 	if tracer != nil {
 		var span trace.Span
 		ctx, span = tracer.Start(ctx, "HandleBlock")
 		defer span.End()
 	}
-	peerStr := peer.String()
-
-	stat, ok := ph.stats.Get(peerStr)
-	if !ok {
-		stat = &metrics.PeerHandlerStats{}
-		ph.stats.Set(peerStr, stat)
-	}
-
-	stat.Block.Add(1)
 
 	timeStart := time.Now()
 
@@ -606,7 +526,6 @@ func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, peer p2p.PeerI) error {
 	}
 
 	// add the total block processing time to the stats
-	stat.BlockProcessingMs.Add(uint64(time.Since(timeStart).Milliseconds()))
 	ph.logger.Info("Processed block", slog.String("hash", blockHash.String()), slog.Int("txs", len(msg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))
 
 	return nil
@@ -621,7 +540,7 @@ func (ph *PeerHandler) FillGaps(peer p2p.PeerI) error {
 
 	heightRange := ph.dataRetentionDays * hoursPerDay * blocksPerHour
 
-	blockHeightGaps, err := ph.store.GetBlockGaps(context.Background(), heightRange)
+	blockHeightGaps, err := ph.store.GetBlockGaps(ph.ctx, heightRange)
 	if err != nil {
 		return err
 	}
@@ -826,25 +745,10 @@ func extractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
 }
 
 func (ph *PeerHandler) Shutdown() {
-	if ph.CancelFillBlockGap != nil {
-		ph.CancelFillBlockGap()
-	}
 
-	if ph.cancelPeerWorker != nil {
-		ph.cancelPeerWorker()
+	if ph.cancelAll != nil {
+		ph.cancelAll()
 	}
-
-	if ph.cancelProcessTxs != nil {
-		ph.cancelProcessTxs()
-	}
-
-	if ph.cancelProcessRequestTxs != nil {
-		ph.cancelProcessRequestTxs()
-	}
-	ph.unregisterTracing()
 	ph.waitGroup.Wait()
-}
 
-func (ph *PeerHandler) unregisterTracing() {
-	metrics.Unregister(ph.peerHandlerCollector)
 }

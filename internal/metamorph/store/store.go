@@ -28,7 +28,7 @@ type StoreData struct {
 	LockedBy          string
 	Ttl               int64
 	MerklePath        string
-	InsertedAtNum     int
+	LastSubmittedAt   time.Time
 	Retries           int
 }
 

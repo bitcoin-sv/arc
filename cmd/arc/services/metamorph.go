@@ -22,7 +22,6 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
-	"github.com/ordishs/go-utils/safemap"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -236,8 +235,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to get peer settings: %v", err)
 	}
 
-	zmqCollector := safemap.New[string, *metamorph.ZMQStats]()
-
 	for i, peerSetting := range peerSettings {
 		zmqURL, err := peerSetting.GetZMQUrl()
 		if err != nil {
@@ -246,7 +243,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		}
 
 		zmq := metamorph.NewZMQ(zmqURL, statusMessageCh, logger)
-		zmqCollector.Set(zmqURL.Host, zmq.GetStats())
 
 		port, err := strconv.Atoi(zmqURL.Port())
 		if err != nil {
@@ -262,9 +258,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 			return nil, fmt.Errorf("failed to start ZMQ: %v", err)
 		}
 	}
-
-	// pass all the started peers to the collector
-	_ = metamorph.NewZMQCollector(zmqCollector)
 
 	healthServer, err := StartHealthServerMetamorph(server, logger)
 	if err != nil {

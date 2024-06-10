@@ -416,7 +416,10 @@ func (p *Processor) StartProcessExpiredTransactions() {
 						}
 
 						p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
-						p.pm.AnnounceTransaction(tx.Hash, nil)
+						peers := p.pm.AnnounceTransaction(tx.Hash, nil)
+						if len(peers) == 0 {
+							p.logger.Warn("transaction was not announced to any peer during rebroadcast", slog.String("hash", tx.Hash.String()))
+						}
 						announced++
 					}
 				}
@@ -553,7 +556,10 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// Announce transaction to network and save peers
 	p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
-	p.pm.AnnounceTransaction(req.Data.Hash, nil)
+	peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
+	if len(peers) == 0 {
+		p.logger.Warn("transaction was not announced to any peer", slog.String("hash", req.Data.Hash.String()))
+	}
 
 	// notify existing client about new status
 	processorResponse, ok := p.ProcessorResponseMap.Get(req.Data.Hash)

@@ -3,7 +3,6 @@ package processor_response
 import (
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -129,5 +128,4 @@ func (r *ProcessorResponse) setStatusAndError(status metamorph_api.Status, err e
 	if r.callerCh != nil {
 		utils.SafeSend(r.callerCh, sae)
 	}
-
 }

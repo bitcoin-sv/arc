@@ -311,8 +311,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 
 		peerHandler.Shutdown()
 
-		server.Shutdown()
-
 		err = metamorphStore.Close(context.Background())
 		if err != nil {
 			logger.Error("Could not close store", slog.String("err", err.Error()))

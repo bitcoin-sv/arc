@@ -226,7 +226,6 @@ func (p *Processor) StartSendStatusUpdate() {
 	}()
 }
 
-
 func (p *Processor) CheckAndUpdate(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
 	if len(statusUpdatesMap) == 0 {
 		return

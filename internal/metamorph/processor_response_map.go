@@ -1,7 +1,6 @@
 package metamorph
 
 import (
-	"log/slog"
 	"sync"
 	"time"
 

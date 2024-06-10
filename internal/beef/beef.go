@@ -27,6 +27,19 @@ const (
 type TxData struct {
 	Transaction *bt.Tx
 	BumpIndex   *bt.VarInt
+	txID        string
+}
+
+func (td *TxData) IsMined() bool {
+	return td.BumpIndex != nil
+}
+
+func (td *TxData) GetTxID() string {
+	if len(td.txID) == 0 {
+		td.txID = td.Transaction.TxID()
+	}
+
+	return td.txID
 }
 
 type BEEF struct {
@@ -148,6 +161,7 @@ func decodeTransactionsWithPathIndexes(beefBytes []byte) ([]*TxData, []byte, err
 		transactions = append(transactions, &TxData{
 			Transaction: tx,
 			BumpIndex:   pathIndex,
+			txID:        tx.TxID(),
 		})
 	}
 

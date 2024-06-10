@@ -22,6 +22,9 @@ service BlockTxAPI {
 
   // DelUnfinishedBlockProcessing deletes unfinished block processing
   rpc DelUnfinishedBlockProcessing(DelUnfinishedBlockProcessingRequest) returns (google.protobuf.Empty) {}
+
+	// VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights
+	rpc VerifyMerkleRoots(MerkleRootsVerificationRequest) returns (MerkleRootVerificationResponse) {}
 }
 
 // swagger:model HealthResponse
@@ -82,4 +85,18 @@ message TransactionAndSource {
 
 message DelUnfinishedBlockProcessingRequest {
   string processed_by = 1;
+}
+
+
+message MerkleRootVerificationRequest {
+	string merkle_root = 1;
+	uint64 block_height = 2;
+}
+
+message MerkleRootsVerificationRequest {
+	repeated MerkleRootVerificationRequest merkle_roots = 1;
+}
+
+message MerkleRootVerificationResponse {
+	repeated uint64 unverified_block_heights = 1;
 }

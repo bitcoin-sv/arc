@@ -143,7 +143,10 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 
 	p.logger.Info("Starting processor", slog.String("cacheExpiryTime", p.mapExpiryTime.String()))
 
-	_ = newPrometheusCollector(p)
+	err = newPrometheusCollector(p)
+	if err != nil {
+		return nil, err
+	}
 
 	return p, nil
 }
@@ -221,11 +224,10 @@ func (p *Processor) StartMonitorPeers() {
 
 				for _, peer := range peers {
 					if !peer.Connected() || !peer.IsHealthy() {
-						p.logger.Warn("Unhealthy peer", slog.String("address", peer.String()), slog.Bool("connected", peer.Connected()), slog.Bool("healthy", peer.IsHealthy()))
+						p.logger.Warn("Peer unhealthy - restarting", slog.String("address", peer.String()), slog.Bool("connected", peer.Connected()), slog.Bool("healthy", peer.IsHealthy()))
+						peer.Restart()
 					}
 				}
-
-				// Todo: restart unhealthy peers
 			}
 		}
 	}()
@@ -263,13 +265,13 @@ func (p *Processor) StartProcessMinedCallbacks() {
 	}()
 }
 
-func (p *Processor) CheckAndUpdate(statusUpdatesMap *map[chainhash.Hash]store.UpdateStatus) {
-	if len(*statusUpdatesMap) == 0 {
+func (p *Processor) CheckAndUpdate(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
+	if len(statusUpdatesMap) == 0 {
 		return
 	}
 
 	statusUpdates := make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
-	for _, distinctStatusUpdate := range *statusUpdatesMap {
+	for _, distinctStatusUpdate := range statusUpdatesMap {
 		statusUpdates = append(statusUpdates, distinctStatusUpdate)
 	}
 
@@ -277,8 +279,6 @@ func (p *Processor) CheckAndUpdate(statusUpdatesMap *map[chainhash.Hash]store.Up
 	if err != nil {
 		p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
 	}
-
-	*statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 }
 
 func (p *Processor) StartProcessStatusUpdatesInStorage() {
@@ -304,10 +304,14 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				}
 
 				if len(statusUpdatesMap) >= p.processStatusUpdatesBatchSize {
-					p.CheckAndUpdate(&statusUpdatesMap)
+					p.CheckAndUpdate(statusUpdatesMap)
+					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 				}
 			case <-ticker.C:
-				p.CheckAndUpdate(&statusUpdatesMap)
+				if len(statusUpdatesMap) > 0 {
+					p.CheckAndUpdate(statusUpdatesMap)
+					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
+				}
 			}
 		}
 	}()

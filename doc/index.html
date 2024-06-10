@@ -10,8 +10,19 @@
 </head>
 <body>
   <div id="app"></div>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true });
+    window.mermaid = mermaid;
+  </script>
+  <script src="//unpkg.com/docsify-mermaid@2.0.1/dist/docsify-mermaid.js"></script>
   <script>
+    var num = 0;
+    mermaid.initialize({ startOnLoad: false });
     window.$docsify = {
+      mermaidConfig: {
+        querySelector: ".mermaid"
+      },
       name: 'ARC',
       repo: 'https://github.com/bitcoin-sv/arc',
       tabs: {

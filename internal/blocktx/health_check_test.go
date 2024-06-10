@@ -50,7 +50,7 @@ func TestCheck(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			const batchSize = 4
 
-			var storeMock = &store.BlocktxStoreMock{
+			storeMock := &store.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return nil, nil
 				},
@@ -68,7 +68,7 @@ func TestCheck(t *testing.T) {
 			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
 
-			server := blocktx.NewServer(storeMock, logger, nil)
+			server := blocktx.NewServer(storeMock, logger, nil, 0)
 			resp, err := server.Check(context.Background(), req)
 			require.NoError(t, err)
 
@@ -114,7 +114,7 @@ func TestWatch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			const batchSize = 4
 
-			var storeMock = &store.BlocktxStoreMock{
+			storeMock := &store.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return nil, nil
 				},
@@ -132,7 +132,7 @@ func TestWatch(t *testing.T) {
 			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
 
-			server := blocktx.NewServer(storeMock, logger, nil)
+			server := blocktx.NewServer(storeMock, logger, nil, 0)
 
 			watchServer := &mocks.HealthWatchServerMock{
 				SendFunc: func(healthCheckResponse *grpc_health_v1.HealthCheckResponse) error {

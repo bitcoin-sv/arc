@@ -91,7 +91,7 @@ The latest docker image of ARC can be found [here](https://hub.docker.com/r/bsvb
 
 API is the REST API microservice for interacting with ARC. See the [API documentation](https://bitcoin-sv.github.io/arc/api.html) for more information.
 
-The API takes care of authentication, validation, and sending transactions to Metamorph.  The API talks to one or more Metamorph instances using client-based, round robin load balancing.
+The API takes care of authentication, validation, and sending transactions to Metamorph. The API talks to one or more Metamorph instances using client-based, round robin load balancing.
 
 To register a callback, the client must add the `X-CallbackUrl` header to the
 request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in

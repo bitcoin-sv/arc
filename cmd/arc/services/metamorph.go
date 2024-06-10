@@ -42,12 +42,12 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, errors.New("metamorph.db.mode not found in config")
 	}
 
-	s, err := NewMetamorphStore(dbMode)
+	metamorphStore, err := NewMetamorphStore(dbMode)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
 
-	pm, statusMessageCh, err := initPeerManager(logger.With(slog.String("module", "mtm-peer-handler")), s)
+	pm, statusMessageCh, err := initPeerManager(logger.With(slog.String("module", "mtm-peer-handler")), metamorphStore)
 	if err != nil {
 		return nil, err
 	}
@@ -128,8 +128,13 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
+	callbacker, err := metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})
+	if err != nil {
+		return nil, err
+	}
+
 	metamorphProcessor, err := metamorph.NewProcessor(
-		s,
+		metamorphStore,
 		pm,
 		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithSeenOnNetworkTxTimeUntil(seenOnNetworkOlderThan),
@@ -138,7 +143,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),
-		metamorph.WithCallbackSender(metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})),
+		metamorph.WithCallbackSender(callbacker),
 		metamorph.WithStatTimeLimits(statsNotSeenTimeLimit, statsNotMinedTimeLimit),
 		metamorph.WithMaxRetries(maxRetries),
 		metamorph.WithMinimumHealthyConnections(minimumHealthyConnections),
@@ -207,7 +212,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		optsServer = append(optsServer, metamorph.WithForceCheckUtxos(node))
 	}
 
-	server := metamorph.NewServer(s, metamorphProcessor, optsServer...)
+	server := metamorph.NewServer(metamorphStore, metamorphProcessor, optsServer...)
 
 	metamorphGRPCListenAddress, err := cfg.GetString("metamorph.listenAddr")
 	if err != nil {
@@ -269,17 +274,17 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	return func() {
 		logger.Info("Shutting down metamorph")
 
+		server.Shutdown()
+
 		err = mqClient.Shutdown()
 		if err != nil {
 			logger.Error("failed to shutdown mqClient", slog.String("err", err.Error()))
 		}
 
-		err = s.Close(context.Background())
+		err = metamorphStore.Close(context.Background())
 		if err != nil {
 			logger.Error("Could not close store", slog.String("err", err.Error()))
 		}
-
-		server.Shutdown()
 
 		healthServer.Stop()
 	}, nil

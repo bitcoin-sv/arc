@@ -15,4 +15,6 @@ type Peer interface {
 	RequestBlock(blockHash *chainhash.Hash)
 	Network() wire.BitcoinNet
 	IsHealthy() bool
+	Shutdown()
+	Restart()
 }

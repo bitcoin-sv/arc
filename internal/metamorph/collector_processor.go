@@ -7,15 +7,16 @@ import (
 )
 
 type prometheusCollector struct {
-	processor      ProcessorI
-	channelMapSize *prometheus.Desc
+	processor              ProcessorI
+	channelMapSize         *prometheus.Desc
+	healthyPeerConnections *prometheus.Desc
 }
 
 var collectorLoaded = atomic.Bool{}
 
 // You must create a constructor for you prometheusCollector that
 // initializes every descriptor and returns a pointer to the prometheusCollector
-func newPrometheusCollector(p ProcessorI) *prometheusCollector {
+func newPrometheusCollector(p ProcessorI) error {
 	if !collectorLoaded.CompareAndSwap(false, true) {
 		return nil
 	}
@@ -26,11 +27,10 @@ func newPrometheusCollector(p ProcessorI) *prometheusCollector {
 			"Number of ResponseItems in the processor map",
 			nil, nil,
 		),
+		healthyPeerConnections: prometheus.NewDesc("arc_healthy_peers_count", "Number of healthy peer connections", nil, nil),
 	}
 
-	prometheus.MustRegister(c)
-
-	return c
+	return prometheus.Register(c)
 }
 
 // Describe writes all descriptors to the prometheus desc channel.
@@ -41,8 +41,19 @@ func (c *prometheusCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements required collect function for all prometheus collectors
 func (c *prometheusCollector) Collect(ch chan<- prometheus.Metric) {
-	stats := c.processor.GetStats(false)
+	stats := c.processor.GetProcessorMapSize()
 
 	//Note that you can pass erValue, GaugeValue, or UntypedValue types here.
-	ch <- prometheus.MustNewConstMetric(c.channelMapSize, prometheus.GaugeValue, float64(stats.ChannelMapSize))
+	ch <- prometheus.MustNewConstMetric(c.channelMapSize, prometheus.GaugeValue, float64(stats))
+
+	healthyConnections := 0
+
+	for _, peer := range c.processor.GetPeers() {
+		if peer.Connected() && peer.IsHealthy() {
+			healthyConnections++
+			continue
+		}
+	}
+
+	ch <- prometheus.MustNewConstMetric(c.healthyPeerConnections, prometheus.GaugeValue, float64(healthyConnections))
 }

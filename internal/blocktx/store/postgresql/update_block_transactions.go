@@ -19,9 +19,6 @@ func (p *PostgreSQL) UpdateBlockTransactions(ctx context.Context, blockId uint64
 		defer span.End()
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	if len(transactions) != len(merklePaths) {
 		return nil, fmt.Errorf("transactions (len=%d) and Merkle paths (len=%d) have not the same lengths", len(transactions), len(merklePaths))
 	}

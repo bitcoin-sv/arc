@@ -1,7 +1,6 @@
 package metamorph
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"runtime/debug"
@@ -108,8 +107,6 @@ func (p *Processor) GetStatusNotSeen() int64 {
 }
 
 func (p *Processor) StartCollectStats() error {
-	ctx, cancel := context.WithCancel(context.Background())
-	p.CancelCollectStats = cancel
 	p.waitGroup.Add(1)
 
 	ticker := time.NewTicker(p.statCollectionInterval)
@@ -154,13 +151,13 @@ func (p *Processor) StartCollectStats() error {
 
 		for {
 			select {
-			case <-ctx.Done():
+			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
 
 				getStatsSince := p.now().Add(-1 * p.mapExpiryTime)
 
-				collectedStats, err := p.store.GetStats(ctx, getStatsSince, p.stats.notSeenLimit, p.stats.notMinedLimit)
+				collectedStats, err := p.store.GetStats(p.ctx, getStatsSince, p.stats.notSeenLimit, p.stats.notMinedLimit)
 				if err != nil {
 					p.logger.Error("failed to get stats", slog.String("err", err.Error()))
 					continue

@@ -251,7 +251,6 @@ func TestHandleBlock(t *testing.T) {
 			require.NoError(t, err)
 			time.Sleep(20 * time.Millisecond)
 			require.ElementsMatch(t, expectedInsertedTransactions, insertedBlockTransactions)
-			peerHandler.unregisterTracing()
 		})
 	}
 }

@@ -559,6 +559,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
 	if len(peers) == 0 {
 		p.logger.Warn("transaction was not announced to any peer", slog.String("hash", req.Data.Hash.String()))
+		return
 	}
 
 	// notify existing client about new status

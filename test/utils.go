@@ -1,7 +1,6 @@
 package test
 
 import (
-	"fmt"
 	"log"
 	"testing"
 	"time"
@@ -30,12 +29,20 @@ type NodeUnspentUtxo struct {
 	Safe          bool    `json:"safe"`
 }
 
-var (
-	bitcoind *bitcoin.Bitcoind
-)
+type RawTransaction struct {
+	Hex       string `json:"hex"`
+	BlockHash string `json:"blockhash,omitempty"`
+}
+
+type BlockData struct {
+	Height     uint64   `json:"height"`
+	Txs        []string `json:"txs"`
+	MerkleRoot string   `json:"merkleroot"`
+}
+
+var bitcoind *bitcoin.Bitcoind
 
 func init() {
-
 	var err error
 	bitcoind, err = bitcoin.New(host, port, user, password, false)
 	if err != nil {
@@ -59,7 +66,6 @@ func init() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
 }
 
 func getNewWalletAddress(t *testing.T) (address, privateKey string) {
@@ -112,7 +118,7 @@ func generate(t *testing.T, amount uint64) string {
 
 func execCommandGenerate(t *testing.T, amount uint64) string {
 	t.Helper()
-	fmt.Println("Amount to generate:", amount)
+	t.Logf("Amount to generate: %d", amount)
 
 	hashes, err := bitcoind.Generate(float64(amount))
 	require.NoError(t, err)
@@ -129,7 +135,7 @@ func getUtxos(t *testing.T, address string) []NodeUnspentUtxo {
 	result := make([]NodeUnspentUtxo, len(data))
 
 	for index, utxo := range data {
-		fmt.Printf("UTXO Txid: %s, Amount: %f, Address: %s\n", utxo.TXID, utxo.Amount, utxo.Address)
+		t.Logf("UTXO Txid: %s, Amount: %f, Address: %s\n", utxo.TXID, utxo.Amount, utxo.Address)
 		result[index] = NodeUnspentUtxo{
 			Txid:          utxo.TXID,
 			Vout:          utxo.Vout,
@@ -149,4 +155,29 @@ func getBlockRootByHeight(t *testing.T, blockHeight int) string {
 	require.NoError(t, err)
 
 	return block.MerkleRoot
+}
+
+func getRawTx(t *testing.T, txID string) RawTransaction {
+	t.Helper()
+
+	rawTx, err := bitcoind.GetRawTransaction(txID)
+	require.NoError(t, err)
+
+	return RawTransaction{
+		Hex:       rawTx.Hex,
+		BlockHash: rawTx.BlockHash,
+	}
+}
+
+func getBlockDataByBlockHash(t *testing.T, blockHash string) BlockData {
+	t.Helper()
+
+	block, err := bitcoind.GetBlock(blockHash)
+	require.NoError(t, err)
+
+	return BlockData{
+		Height:     block.Height,
+		Txs:        block.Tx,
+		MerkleRoot: block.MerkleRoot,
+	}
 }

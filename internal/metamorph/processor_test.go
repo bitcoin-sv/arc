@@ -264,7 +264,7 @@ func TestProcessTransaction(t *testing.T) {
 	}
 }
 
-func TestSendStatusForTransaction(t *testing.T) {
+func TestStartSendStatusForTransaction(t *testing.T) {
 	type input struct {
 		hash      *chainhash.Hash
 		newStatus metamorph_api.Status
@@ -460,15 +460,21 @@ func TestSendStatusForTransaction(t *testing.T) {
 				ShutdownFunc: func(logger *slog.Logger) {},
 			}
 
-			processor, err := metamorph.NewProcessor(metamorphStore, pm, nil, metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }), metamorph.WithProcessStatusUpdatesInterval(50*time.Millisecond), metamorph.WithProcessStatusUpdatesBatchSize(3), metamorph.WithCallbackSender(callbackSender))
+			statusMessageChannel := make(chan *metamorph.PeerTxMessage, 5)
+
+			processor, err := metamorph.NewProcessor(metamorphStore, pm, statusMessageChannel, metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }), metamorph.WithProcessStatusUpdatesInterval(50*time.Millisecond), metamorph.WithProcessStatusUpdatesBatchSize(3), metamorph.WithCallbackSender(callbackSender))
 			require.NoError(t, err)
 
 			processor.StartProcessStatusUpdatesInStorage()
+			processor.StartSendStatusUpdate()
 
 			assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
 			for _, testInput := range tc.inputs {
-				sendErr := processor.SendStatusForTransaction(testInput.hash, testInput.newStatus, "test", testInput.statusErr)
-				assert.NoError(t, sendErr)
+				statusMessageChannel <- &metamorph.PeerTxMessage{
+					Hash:   testInput.hash,
+					Status: testInput.newStatus,
+					Err:    testInput.statusErr,
+				}
 			}
 
 			callbackCounter := 0

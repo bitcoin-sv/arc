@@ -409,6 +409,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 						peers := p.pm.AnnounceTransaction(tx.Hash, nil)
 						if len(peers) == 0 {
 							p.logger.Warn("transaction was not announced to any peer during rebroadcast", slog.String("hash", tx.Hash.String()))
+							continue
 						}
 						announced++
 					}

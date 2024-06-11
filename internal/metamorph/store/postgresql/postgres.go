@@ -72,11 +72,10 @@ func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 // If the key does not exist an error is returned, otherwise the retrieved value.
 func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
 	q := `SELECT
-	   stored_at
+	    stored_at
 		,announced_at
 		,mined_at
 		,last_submitted_at
-		,hash
 		,status
 		,block_height
 		,block_hash
@@ -90,21 +89,19 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		,retries
 	 	FROM metamorph.transactions WHERE hash = $1 LIMIT 1;`
 
-	data := &store.StoreData{}
-
-	var storedAt sql.NullTime
+	var storedAt time.Time
 	var announcedAt sql.NullTime
 	var minedAt sql.NullTime
-	var lastSubmittedAt sql.NullTime
+	var lastSubmittedAt time.Time
+	var status sql.NullInt32
 	var blockHeight sql.NullInt64
-	var txHash []byte
 	var blockHash []byte
 	var callbackUrl sql.NullString
 	var callbackToken sql.NullString
-	var fullStatusUpdates sql.NullBool
+	var fullStatusUpdates bool
 	var rejectReason sql.NullString
-	var lockedBy sql.NullString
-	var status sql.NullInt32
+	var rawTx []byte
+	var lockedBy string
 	var merklePath sql.NullString
 	var retries sql.NullInt32
 
@@ -113,7 +110,6 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		&announcedAt,
 		&minedAt,
 		&lastSubmittedAt,
-		&txHash,
 		&status,
 		&blockHeight,
 		&blockHash,
@@ -121,7 +117,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		&callbackToken,
 		&fullStatusUpdates,
 		&rejectReason,
-		&data.RawTx,
+		&rawTx,
 		&lockedBy,
 		&merklePath,
 		&retries,
@@ -133,11 +129,10 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		return nil, err
 	}
 
-	if len(txHash) > 0 {
-		data.Hash, err = chainhash.NewHash(txHash)
-		if err != nil {
-			return nil, err
-		}
+	data := &store.StoreData{}
+	data.Hash, err = chainhash.NewHash(hash)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(blockHash) > 0 {
@@ -147,9 +142,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		}
 	}
 
-	if storedAt.Valid {
-		data.StoredAt = storedAt.Time.UTC()
-	}
+	data.StoredAt = storedAt.UTC()
 
 	if announcedAt.Valid {
 		data.AnnouncedAt = announcedAt.Time.UTC()
@@ -159,9 +152,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		data.MinedAt = minedAt.Time.UTC()
 	}
 
-	if lastSubmittedAt.Valid {
-		data.LastSubmittedAt = lastSubmittedAt.Time.UTC()
-	}
+	data.LastSubmittedAt = lastSubmittedAt.UTC()
 
 	if status.Valid {
 		data.Status = metamorph_api.Status(status.Int32)
@@ -179,17 +170,13 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		data.CallbackToken = callbackToken.String
 	}
 
-	if fullStatusUpdates.Valid {
-		data.FullStatusUpdates = fullStatusUpdates.Bool
-	}
+	data.FullStatusUpdates = fullStatusUpdates
 
 	if rejectReason.Valid {
 		data.RejectReason = rejectReason.String
 	}
 
-	if lockedBy.Valid {
-		data.LockedBy = lockedBy.String
-	}
+	data.LockedBy = lockedBy
 
 	if merklePath.Valid {
 		data.MerklePath = merklePath.String
@@ -591,23 +578,22 @@ func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, e
 	for rows.Next() {
 		data := &store.StoreData{}
 
-		var storedAt sql.NullTime
 		var announcedAt sql.NullTime
 		var minedAt sql.NullTime
-		var txHash []byte
 		var status sql.NullInt32
+
+		var txHash []byte
 		var blockHeight sql.NullInt64
 		var blockHash []byte
+
 		var callbackUrl sql.NullString
 		var callbackToken sql.NullString
-		var fullStatusUpdates sql.NullBool
 		var rejectReason sql.NullString
-		var lockedBy sql.NullString
 		var merklePath sql.NullString
 		var retries sql.NullInt32
 
 		err := rows.Scan(
-			&storedAt,
+			&data.StoredAt,
 			&announcedAt,
 			&minedAt,
 			&txHash,
@@ -616,17 +602,14 @@ func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, e
 			&blockHash,
 			&callbackUrl,
 			&callbackToken,
-			&fullStatusUpdates,
+			&data.FullStatusUpdates,
 			&rejectReason,
 			&data.RawTx,
-			&lockedBy,
+			&data.LockedBy,
 			&merklePath,
 			&retries,
 		)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return nil, store.ErrNotFound
-			}
 			return nil, err
 		}
 
@@ -642,10 +625,6 @@ func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, e
 			if err != nil {
 				return nil, err
 			}
-		}
-
-		if storedAt.Valid {
-			data.StoredAt = storedAt.Time.UTC()
 		}
 
 		if announcedAt.Valid {
@@ -672,16 +651,8 @@ func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, e
 			data.CallbackToken = callbackToken.String
 		}
 
-		if fullStatusUpdates.Valid {
-			data.FullStatusUpdates = fullStatusUpdates.Bool
-		}
-
 		if rejectReason.Valid {
 			data.RejectReason = rejectReason.String
-		}
-
-		if lockedBy.Valid {
-			data.LockedBy = lockedBy.String
 		}
 
 		if merklePath.Valid {

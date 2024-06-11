@@ -132,9 +132,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, err
 	}
 
-	metamorphProcessor, err := metamorph.NewProcessor(
-		metamorphStore,
-		pm,
+	processorOpts := []metamorph.Option{
 		metamorph.WithCacheExpiryTime(mapExpiry),
 		metamorph.WithSeenOnNetworkTxTimeUntil(seenOnNetworkOlderThan),
 		metamorph.WithSeenOnNetworkTxTime(checkSeenOnNetworkPeriod),
@@ -146,6 +144,17 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithStatTimeLimits(statsNotSeenTimeLimit, statsNotMinedTimeLimit),
 		metamorph.WithMaxRetries(maxRetries),
 		metamorph.WithMinimumHealthyConnections(minimumHealthyConnections),
+	}
+
+	monitorPeersInterval := viper.GetDuration("metamorph.monitorPeersInterval")
+	if monitorPeersInterval != 0 {
+		processorOpts = append(processorOpts, metamorph.WithMonitorPeersInterval(monitorPeersInterval))
+	}
+
+	metamorphProcessor, err := metamorph.NewProcessor(
+		metamorphStore,
+		pm,
+		processorOpts...,
 	)
 	if err != nil {
 		return nil, err

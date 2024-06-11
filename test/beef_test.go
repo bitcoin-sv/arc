@@ -16,77 +16,54 @@ import (
 
 func TestBeef(t *testing.T) {
 	testCases := []struct {
-		name string
+		name           string
+		expectedStatus metamorph_api.Status
 	}{
 		{
-			name: "valid beef",
+			name:           "valid beef",
+			expectedStatus: metamorph_api.Status_SEEN_ON_NETWORK,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			arcClient, err := api.NewClientWithResponses(arcEndpoint)
 			require.NoError(t, err)
 
 			address, privateKey := getNewWalletAddress(t)
+			dstAddress, _ := getNewWalletAddress(t)
 
 			generate(t, 200)
-
 			txID := sendToAddress(t, address, 0.001)
-
 			hash := generate(t, 1)
 
-			rawTx := getRawTx(t, txID)
-			t.Logf("rawTx: %+v", rawTx)
-			require.Equal(t, hash, rawTx.BlockHash, "block hash mismatch")
-
-			blockData := getBlockDataByBlockHash(t, hash)
-			t.Logf("blockdata: %+v", blockData)
-
-			merkleHashes, txIndex := prepareMerkleHashesAndTxIndex(t, blockData.Txs, txID)
-			merkleTree := bc.BuildMerkleTreeStoreChainHash(merkleHashes)
-			bump, err := bc.NewBUMPFromMerkleTreeAndIndex(blockData.Height, merkleTree, txIndex)
-			require.NoError(t, err, "error creating BUMP from merkle hashes")
-
-			merkleRootFromBump, err := bump.CalculateRootGivenTxid(txID)
-			require.NoError(t, err, "error calculating merkle root from bump")
-			t.Logf("merkleroot from bump: %s", merkleRootFromBump)
-			require.Equal(t, blockData.MerkleRoot, merkleRootFromBump, "merkle roots mismatch")
-
-			utxos := getUtxos(t, address)
-			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
-
-			newAddr, _ := getNewWalletAddress(t)
-
-			tx, err := createTx(privateKey, newAddr, utxos[0])
-			require.NoError(t, err, "could not create tx")
-			t.Logf("tx created, hex: %s", tx.String())
-
-			beef := buildBeef(t, rawTx.Hex, bump, tx)
-			t.Logf("beef created, hex: %s", beef)
+			beef, tx := prepareBeef(t, txID, hash, address, dstAddress, privateKey)
 
 			body := api.POSTTransactionJSONRequestBody{
 				RawTx: beef,
 			}
 
-			expectedStatus := metamorph_api.Status_SEEN_ON_NETWORK
+			waitForStatus := api.WaitForStatus(tc.expectedStatus)
+			params := &api.POSTTransactionParams{XWaitForStatus: &waitForStatus}
 
-			waitForStatus := api.WaitForStatus(expectedStatus)
-			params := &api.POSTTransactionParams{
-				XWaitForStatus: &waitForStatus,
-			}
-
+			// when
 			response, err := arcClient.POSTTransactionWithResponse(context.Background(), params, body)
+
+			// then
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, response.StatusCode())
 			require.NotNil(t, response.JSON200)
-			require.Equal(t, expectedStatus.String(), response.JSON200.TxStatus, "status not SEEN_ON_NETWORK")
+			require.Equal(t, tc.expectedStatus.String(), response.JSON200.TxStatus, "status not SEEN_ON_NETWORK")
 
+			// when
 			generate(t, 10)
 			t.Log("waiting for 15s to give ARC time to perform the status update on DB")
 			time.Sleep(15 * time.Second)
 
 			statusResponse, err := arcClient.GETTransactionStatusWithResponse(context.Background(), tx.TxID())
+
+			// then
 			require.NoError(t, err)
 			require.Equal(t, metamorph_api.Status_MINED.String(), *statusResponse.JSON200.TxStatus)
 		})
@@ -128,6 +105,37 @@ func TestBeef_Fail(t *testing.T) {
 	}
 }
 
+func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, privateKey string) (string, *bt.Tx) {
+	rawTx := getRawTx(t, inputTxID)
+	t.Logf("rawTx: %+v", rawTx)
+	require.Equal(t, blockHash, rawTx.BlockHash, "block hash mismatch")
+
+	blockData := getBlockDataByBlockHash(t, blockHash)
+	t.Logf("blockdata: %+v", blockData)
+
+	merkleHashes, txIndex := prepareMerkleHashesAndTxIndex(t, blockData.Txs, inputTxID)
+	merkleTree := bc.BuildMerkleTreeStoreChainHash(merkleHashes)
+	bump, err := bc.NewBUMPFromMerkleTreeAndIndex(blockData.Height, merkleTree, txIndex)
+	require.NoError(t, err, "error creating BUMP from merkle hashes")
+
+	merkleRootFromBump, err := bump.CalculateRootGivenTxid(inputTxID)
+	require.NoError(t, err, "error calculating merkle root from bump")
+	t.Logf("merkleroot from bump: %s", merkleRootFromBump)
+	require.Equal(t, blockData.MerkleRoot, merkleRootFromBump, "merkle roots mismatch")
+
+	utxos := getUtxos(t, fromAddress)
+	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+
+	tx, err := createTx(privateKey, toAddress, utxos[0])
+	require.NoError(t, err, "could not create tx")
+	t.Logf("tx created, hex: %s", tx.String())
+
+	beef := buildBeefString(t, rawTx.Hex, bump, tx)
+	t.Logf("beef created, hex: %s", beef)
+
+	return beef, tx
+}
+
 func prepareMerkleHashesAndTxIndex(t *testing.T, txs []string, txID string) ([]*chainhash.Hash, uint64) {
 	var merkleHashes []*chainhash.Hash
 	var txIndex uint64
@@ -145,7 +153,7 @@ func prepareMerkleHashesAndTxIndex(t *testing.T, txs []string, txID string) ([]*
 	return merkleHashes, txIndex
 }
 
-func buildBeef(t *testing.T, inputTxHex string, bump *bc.BUMP, newTx *bt.Tx) string {
+func buildBeefString(t *testing.T, inputTxHex string, bump *bc.BUMP, newTx *bt.Tx) string {
 	versionMarker := "0100beef"
 	nBumps := "01"
 	bumpData, err := bump.String()

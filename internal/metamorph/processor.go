@@ -217,10 +217,7 @@ func (p *Processor) StartSendStatusUpdate() {
 				return
 
 			case message := <-p.statusMessageCh:
-				err := p.SendStatusForTransaction(message.Hash, message.Status, message.Err)
-				if err != nil {
-					p.logger.Error("Could not send status for transaction", slog.String("hash", message.Hash.String()), slog.String("err", err.Error()))
-				}
+				p.SendStatusForTransaction(message.Hash, message.Status, message.Err)
 			}
 		}
 	}()
@@ -446,7 +443,7 @@ var statusValueMap = map[metamorph_api.Status]int{
 	metamorph_api.Status_CONFIRMED:              12,
 }
 
-func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, statusErr error) error {
+func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, statusErr error) {
 	// make sure we update the transaction status in database
 	var rejectReason string
 	if statusErr != nil {
@@ -469,7 +466,6 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 	}
 
 	p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
-	return nil
 }
 
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {

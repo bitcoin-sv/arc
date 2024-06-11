@@ -56,14 +56,11 @@ func TestBeef(t *testing.T) {
 			require.NotNil(t, response.JSON200)
 			require.Equal(t, tc.expectedStatus.String(), response.JSON200.TxStatus, "status not SEEN_ON_NETWORK")
 
-			// when
 			generate(t, 10)
 			t.Log("waiting for 15s to give ARC time to perform the status update on DB")
 			time.Sleep(15 * time.Second)
 
 			statusResponse, err := arcClient.GETTransactionStatusWithResponse(context.Background(), tx.TxID())
-
-			// then
 			require.NoError(t, err)
 			require.Equal(t, metamorph_api.Status_MINED.String(), *statusResponse.JSON200.TxStatus)
 		})

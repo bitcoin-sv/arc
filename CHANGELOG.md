@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.1.84](#1184---2024-06-10)
 - [1.1.53](#1152---2024-04-11)
 - [1.1.32](#1132---2024-02-21)
 - [1.1.19](#1119---2024-02-05)
@@ -13,6 +14,10 @@ All notable changes to this project will be documented in this file. The format 
 - [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
 
 ## [Unreleased]
+
+## [1.1.84] - 2024-06-10
+
+- [BEEF format](https://bsv.brc.dev/transactions/0062) is now supported. Simple Payment Verification (SPV) is performed on transactions coming in BEEF format, with a limited Merkle Roots verification against blocktx.
 
 ## [1.1.53] - 2024-04-11
 

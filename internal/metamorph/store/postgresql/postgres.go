@@ -142,6 +142,8 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		}
 	}
 
+	data.RawTx = rawTx
+
 	data.StoredAt = storedAt.UTC()
 
 	if announcedAt.Valid {

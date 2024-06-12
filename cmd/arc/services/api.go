@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/bitcoin-sv/arc/config"
 	cfg "github.com/bitcoin-sv/arc/internal/config"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
@@ -22,7 +23,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func StartAPIServer(logger *slog.Logger) (func(), error) {
+func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
 	// Set up a basic Echo router
 	e := echo.New()
 	e.HideBanner = true
@@ -42,7 +43,7 @@ func StartAPIServer(logger *slog.Logger) (func(), error) {
 
 	// load the ARC handler from config
 	// If you want to customize this for your own server, see examples dir
-	if err := LoadArcHandler(e, logger); err != nil {
+	if err := LoadArcHandler(e, logger, arcConfig); err != nil {
 		return nil, err
 	}
 
@@ -75,7 +76,7 @@ func StartAPIServer(logger *slog.Logger) (func(), error) {
 	}, nil
 }
 
-func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
+func LoadArcHandler(e *echo.Echo, logger *slog.Logger, arcConfig *config.ArcConfig) error {
 	// check the swagger definition against our requests
 	handler.CheckSwagger(e)
 
@@ -112,7 +113,7 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
 	var policy *bitcoin.Settings
-	policy, err = getPolicyFromNode()
+	policy, err = getPolicyFromNode(arcConfig.PeerRpc)
 	if err != nil {
 		policy, err = handler.GetDefaultPolicy()
 		if err != nil {
@@ -134,28 +135,8 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 	return nil
 }
 
-func getPolicyFromNode() (*bitcoin.Settings, error) {
-	peerRpcPassword := viper.GetString("peerRpc.password")
-	if peerRpcPassword == "" {
-		return nil, errors.Errorf("setting peerRpc.password not found")
-	}
-
-	peerRpcUser := viper.GetString("peerRpc.user")
-	if peerRpcUser == "" {
-		return nil, errors.Errorf("setting peerRpc.user not found")
-	}
-
-	peerRpcHost := viper.GetString("peerRpc.host")
-	if peerRpcHost == "" {
-		return nil, errors.Errorf("setting peerRpc.host not found")
-	}
-
-	peerRpcPort := viper.GetInt("peerRpc.port")
-	if peerRpcPort == 0 {
-		return nil, errors.Errorf("setting peerRpc.port not found")
-	}
-
-	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
+func getPolicyFromNode(peerRpcConfig *config.PeerRpcConfig) (*bitcoin.Settings, error) {
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcConfig.User, peerRpcConfig.Password, peerRpcConfig.Host, peerRpcConfig.Port))
 	if err != nil {
 		return nil, errors.Errorf("failed to parse rpc URL: %v", err)
 	}

@@ -10,10 +10,10 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	cmd "github.com/bitcoin-sv/arc/cmd/arc/services"
+	"github.com/bitcoin-sv/arc/config"
 	cfg "github.com/bitcoin-sv/arc/internal/config"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/version"
@@ -38,7 +38,7 @@ func run() error {
 	startBlockTx := flag.Bool("blocktx", false, "start blocktx")
 	startK8sWatcher := flag.Bool("k8s-watcher", false, "start k8s-watcher")
 	help := flag.Bool("help", false, "Show help")
-	config := flag.String("config", ".", "path to configuration yaml file")
+	configFile := flag.String("config", ".", "path to configuration yaml file")
 
 	flag.Parse()
 
@@ -64,15 +64,9 @@ func run() error {
 		return nil
 	}
 
-	viper.AddConfigPath(*config) // optionally look for config in the working directory
-	viper.AutomaticEnv()         // read in environment variables that match
-	viper.SetEnvPrefix("ARC")
-	replacer := strings.NewReplacer(".", "_")
-	viper.SetEnvKeyReplacer(replacer)
-
-	err := viper.ReadInConfig() // Find and read the config file
-	if err != nil {             // Handle errors reading the config file
-		return fmt.Errorf("failed to read config file: %v", err)
+	arcConfig, err := config.Load(*configFile)
+	if err != nil {
+		return fmt.Errorf("failed to load app config: %w", err)
 	}
 
 	logger, err := cfg.NewLogger()
@@ -180,7 +174,7 @@ func run() error {
 
 	if startApi != nil && *startApi {
 		logger.Info("Starting API")
-		shutdown, err := cmd.StartAPIServer(logger)
+		shutdown, err := cmd.StartAPIServer(logger, arcConfig)
 		if err != nil {
 			return fmt.Errorf("failed to start api: %v", err)
 		}

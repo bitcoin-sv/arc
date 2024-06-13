@@ -47,6 +47,7 @@ metamorph:
   processStatusUpdateInterval: 50ms
   checkSeenOnNetworkOlderThan: 3h
   checkSeenOnNetworkPeriod: 4h
+  monitorPeersInterval: 10s
   checkUtxos: false
   profilerAddr: localhost:9992
   health:

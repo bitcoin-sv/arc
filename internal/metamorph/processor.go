@@ -36,8 +36,6 @@ const (
 
 	processStatusUpdatesIntervalDefault  = 500 * time.Millisecond
 	processStatusUpdatesBatchSizeDefault = 1000
-
-	monitorPeersIntervalDefault = 60 * time.Second
 )
 
 type Processor struct {
@@ -73,8 +71,6 @@ type Processor struct {
 
 	processExpiredTxsInterval       time.Duration
 	processSeenOnNetworkTxsInterval time.Duration
-
-	monitorPeersInterval time.Duration
 }
 
 type Option func(f *Processor)
@@ -120,8 +116,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		waitGroup:                     &sync.WaitGroup{},
 
 		statCollectionInterval: statCollectionIntervalDefault,
-
-		monitorPeersInterval: monitorPeersIntervalDefault,
 	}
 
 	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm"))
@@ -177,30 +171,6 @@ func (p *Processor) unlockRecords() error {
 	p.logger.Info("unlocked items", slog.Int64("number", unlockedItems))
 
 	return nil
-}
-
-func (p *Processor) StartMonitorPeers() {
-	ticker := time.NewTicker(p.monitorPeersInterval)
-	p.waitGroup.Add(1)
-	go func() {
-		defer p.waitGroup.Done()
-		for {
-			select {
-			case <-p.ctx.Done():
-				return
-			case <-ticker.C:
-
-				peers := p.GetPeers()
-
-				for _, peer := range peers {
-					if !peer.Connected() || !peer.IsHealthy() {
-						p.logger.Warn("Peer unhealthy - restarting", slog.String("address", peer.String()), slog.Bool("connected", peer.Connected()), slog.Bool("healthy", peer.IsHealthy()))
-						peer.Restart()
-					}
-				}
-			}
-		}
-	}()
 }
 
 func (p *Processor) StartProcessMinedCallbacks() {
@@ -416,7 +386,10 @@ func (p *Processor) StartProcessExpiredTransactions() {
 						}
 
 						p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
-						p.pm.AnnounceTransaction(tx.Hash, nil)
+						peers := p.pm.AnnounceTransaction(tx.Hash, nil)
+						if len(peers) == 0 {
+							p.logger.Warn("transaction was not announced to any peer during rebroadcast", slog.String("hash", tx.Hash.String()))
+						}
 						announced++
 					}
 				}
@@ -553,7 +526,11 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// Announce transaction to network and save peers
 	p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
-	p.pm.AnnounceTransaction(req.Data.Hash, nil)
+	peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
+	if len(peers) == 0 {
+		p.logger.Warn("transaction was not announced to any peer", slog.String("hash", req.Data.Hash.String()))
+		return
+	}
 
 	// notify existing client about new status
 	processorResponse, ok := p.ProcessorResponseMap.Get(req.Data.Hash)

@@ -766,6 +766,9 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |463|Unknown|Malformed transaction|[ErrorMalformed](#schemaerrormalformed)|
 |464|Unknown|Invalid outputs|[ErrorOutputs](#schemaerroroutputs)|
 |465|Unknown|Fee too low|[ErrorFee](#schemaerrorfee)|
+|467|Unknown|Mined ancestors not found in BEEF|[ErrorMinedAncestorsNotFound](#schemaerrorminedancestorsnotfound)|
+|468|Unknown|Invalid BUMPs in BEEF|[ErrorCalculatingMerkleRoots](#schemaerrorcalculatingmerkleroots)|
+|469|Unknown|Invalid Merkle Roots|[ErrorValidatingMerkleRoots](#schemaerrorvalidatingmerkleroots)|
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
@@ -1058,6 +1061,9 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 |463|Unknown|Malformed transaction|[ErrorMalformed](#schemaerrormalformed)|
 |464|Unknown|Invalid outputs|[ErrorOutputs](#schemaerroroutputs)|
 |465|Unknown|Fee too low|[ErrorFee](#schemaerrorfee)|
+|467|Unknown|Mined ancestors not found in BEEF|[ErrorMinedAncestorsNotFound](#schemaerrorminedancestorsnotfound)|
+|468|Unknown|Invalid BUMPs in BEEF|[ErrorCalculatingMerkleRoots](#schemaerrorcalculatingmerkleroots)|
+|469|Unknown|Invalid Merkle Roots|[ErrorValidatingMerkleRoots](#schemaerrorvalidatingmerkleroots)|
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
@@ -1532,6 +1538,24 @@ xor
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
+|*anonymous*|[ErrorMinedAncestorsNotFound](#schemaerrorminedancestorsnotfound)|false|none|none|
+
+xor
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|[ErrorCalculatingMerkleRoots](#schemaerrorcalculatingmerkleroots)|false|none|none|
+
+xor
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|[ErrorValidatingMerkleRoots](#schemaerrorvalidatingmerkleroots)|false|none|none|
+
+xor
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
 |*anonymous*|[ErrorFrozenPolicy](#schemaerrorfrozenpolicy)|false|none|none|
 
 xor
@@ -1930,6 +1954,123 @@ and
 |» detail|any|false|none|none|
 |» instance|any|false|none|none|
 
+<h2 id="tocS_ErrorMinedAncestorsNotFound">ErrorMinedAncestorsNotFound</h2>
+<!-- backwards compatibility -->
+<a id="schemaerrorminedancestorsnotfound"></a>
+<a id="schema_ErrorMinedAncestorsNotFound"></a>
+<a id="tocSerrorminedancestorsnotfound"></a>
+<a id="tocserrorminedancestorsnotfound"></a>
+
+```json
+{
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_467",
+  "title": "Mined ancestors not found",
+  "status": 467,
+  "detail": "Error validating BEEF: mined ancestors not found in transaction inputs",
+  "instance": "https://arc.taal.com/errors/123453",
+  "txid": "string",
+  "extraInfo": "string"
+}
+
+```
+
+### Properties
+
+allOf
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|[ErrorFields](#schemaerrorfields)|false|none|none|
+
+and
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|object|false|none|none|
+|» type|any|false|none|none|
+|» title|any|false|none|none|
+|» status|any|false|none|none|
+|» detail|any|false|none|none|
+|» instance|any|false|none|none|
+
+<h2 id="tocS_ErrorCalculatingMerkleRoots">ErrorCalculatingMerkleRoots</h2>
+<!-- backwards compatibility -->
+<a id="schemaerrorcalculatingmerkleroots"></a>
+<a id="schema_ErrorCalculatingMerkleRoots"></a>
+<a id="tocSerrorcalculatingmerkleroots"></a>
+<a id="tocserrorcalculatingmerkleroots"></a>
+
+```json
+{
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_468",
+  "title": "Invalid BUMPs",
+  "status": 468,
+  "detail": "Error validating BEEF: could not calculate Merkle Roots from given BUMPs",
+  "instance": "https://arc.taal.com/errors/123453",
+  "txid": "string",
+  "extraInfo": "string"
+}
+
+```
+
+### Properties
+
+allOf
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|[ErrorFields](#schemaerrorfields)|false|none|none|
+
+and
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|object|false|none|none|
+|» type|any|false|none|none|
+|» title|any|false|none|none|
+|» status|any|false|none|none|
+|» detail|any|false|none|none|
+|» instance|any|false|none|none|
+
+<h2 id="tocS_ErrorValidatingMerkleRoots">ErrorValidatingMerkleRoots</h2>
+<!-- backwards compatibility -->
+<a id="schemaerrorvalidatingmerkleroots"></a>
+<a id="schema_ErrorValidatingMerkleRoots"></a>
+<a id="tocSerrorvalidatingmerkleroots"></a>
+<a id="tocserrorvalidatingmerkleroots"></a>
+
+```json
+{
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_469",
+  "title": "Merkle Roots validation failed",
+  "status": 469,
+  "detail": "Error validating BEEF: could not validate Merkle Roots",
+  "instance": "https://arc.taal.com/errors/123453",
+  "txid": "string",
+  "extraInfo": "string"
+}
+
+```
+
+### Properties
+
+allOf
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|[ErrorFields](#schemaerrorfields)|false|none|none|
+
+and
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|object|false|none|none|
+|» type|any|false|none|none|
+|» title|any|false|none|none|
+|» status|any|false|none|none|
+|» detail|any|false|none|none|
+|» instance|any|false|none|none|
+
 <h2 id="tocS_ErrorFrozenPolicy">ErrorFrozenPolicy</h2>
 <!-- backwards compatibility -->
 <a id="schemaerrorfrozenpolicy"></a>
@@ -2039,3 +2180,4 @@ and
 |instance|string¦null|false|none|(Optional) Link to actual error on server|
 |txid|string¦null|false|none|Transaction ID this error is referring to|
 |extraInfo|string¦null|false|none|Optional extra information about the error from the miner|
+

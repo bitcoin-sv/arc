@@ -155,7 +155,6 @@ func TestProcessTransaction(t *testing.T) {
 
 			expectedResponses: []metamorph_api.Status{
 				metamorph_api.Status_STORED,
-				metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			},
 			expectedResponseMapItems: 1,
 			expectedSetCalls:         1,
@@ -258,7 +257,7 @@ func TestProcessTransaction(t *testing.T) {
 				require.Equal(t, tc.expectedResponseMapItems, processor.ProcessorResponseMap.Len())
 				items := processor.ProcessorResponseMap.Items()
 				require.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
-				require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, items[*testdata.TX1Hash].GetStatus())
+				require.Equal(t, metamorph_api.Status_STORED, items[*testdata.TX1Hash].GetStatus())
 
 				require.Len(t, pm.AnnounceTransactionCalls(), 1)
 
@@ -757,76 +756,6 @@ func TestProcessorHealth(t *testing.T) {
 			err = processor.Health()
 
 			require.ErrorIs(t, err, tc.expectedErr)
-		})
-	}
-}
-
-func TestMonitorPeers(t *testing.T) {
-	tt := []struct {
-		name      string
-		connected bool
-		healthy   bool
-	}{
-		{
-			name:      "3 healthy peers",
-			connected: true,
-			healthy:   true,
-		},
-		{
-			name:      "3 disconnected peers",
-			connected: false,
-			healthy:   true,
-		},
-		{
-			name:      "3 unhealthy peers",
-			connected: true,
-			healthy:   false,
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &mocks.MetamorphStoreMock{
-				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
-					return 0, nil
-				},
-			}
-
-			pm := &mocks.PeerManagerMock{
-				GetPeersFunc: func() []p2p.PeerI {
-					peers := make([]p2p.PeerI, 3)
-					for i := 0; i < 3; i++ {
-						peers[i] = &mocks.PeerIMock{
-							ConnectedFunc: func() bool {
-								return tc.connected
-							},
-							IsHealthyFunc: func() bool {
-								return tc.healthy
-							},
-							StringFunc: func() string {
-								return ""
-							},
-							RestartFunc: func() {},
-						}
-					}
-
-					return peers
-				},
-				ShutdownFunc: func() {},
-			}
-
-			processor, err := metamorph.NewProcessor(
-				metamorphStore,
-				pm,
-				metamorph.WithMonitorPeersInterval(time.Millisecond*20),
-			)
-			require.NoError(t, err)
-
-			processor.StartMonitorPeers()
-
-			time.Sleep(50 * time.Millisecond)
-
-			processor.Shutdown()
 		})
 	}
 }

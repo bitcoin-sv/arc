@@ -354,3 +354,29 @@ worker -> store: mark txs mined
 
 @enduml
 ```
+
+## Outcome in different scenarios
+1. A transaction A is submitted to the network. Shortly later a transaction B spending one of the same outputs as transaction A (double spend) is submitted to ARC
+   1. Expected outcome
+      1. If transaction A was also submitted to ARC it has status `SEEN_ON_NETWORK`
+      2. Transaction B has status `REJECTED`
+   2. The planned feature ![Double spending detection](../ROADMAP.md#double-spending-detection) will ensure that both transaction have status `DOUBLE_SPENT_ATTEMPTED` until one or the other transactions is mined. The mined transaction gets status `MINED` and the other gets status `REJECTED`
+2. A transaction is submitted to ARC to the same ARC instance twice
+   1. Expected outcome
+      1. At the second submission ARC simply returns the current status in the response. Changed or updated request headers are ignored
+   2. The planned feature ![Multiple different callbacks per transaction](../ROADMAP.md#multiple-different-callbacks-per-transaction) will allow that the same transaction can be submitted multiple times with differing callback URL and token. Callbacks will then be sent to each callback URL with specified token
+3. A transaction has been submitted to the network by any other means than a specific ARC instance
+   1. The transaction is additionally submitted to ARC while it has already been mined
+      1. Expected outcome
+         1. ARC will return response with status `ANNOUNCED_TO_NETWORK`
+         2. The status will not switch to `MINED` with the respective block information
+      2. The planned feature ![Idempotent transactions](../ROADMAP.md#idempotent-transactions) will ensure that ARC responds with the `MINED` status, block information and Merkle path
+   2. The transaction is additionally submitted to ARC while it has not yet been mined
+      1. Expected outcome
+         1. ARC responds with status `ANNOUNCED_TO_NETWORK` or `SEEN_ON_NETWORK`
+         2. At latest a couple of minutes later the status will switch to `SEEN_ON_NETWORK`
+4. A block reorg happens and two different blocks get announced at the same block height
+   1. Expected outcome
+      1. ARC does not update the transaction statuses according to the block in the longest chain.
+      2. Information and Merkle path of the block received first will be persisted in the transaction record and not overwritten
+   2. The planned feature ![Update of transactions in case of block reorgs](../ROADMAP.md#update-of-transactions-in-case-of-block-reorgs) will ensure that ARC updates the statuses of transactions. Transactions which are not in the block of the longest chain will be updated to `REJECTED` status and transactions which are included in the block of the longest chain are updated to `MINED` status.

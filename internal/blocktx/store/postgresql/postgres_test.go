@@ -46,9 +46,10 @@ type Block struct {
 }
 
 type Transaction struct {
-	ID         int64  `db:"id"`
-	Hash       []byte `db:"hash"`
-	MerklePath string `db:"merkle_path"`
+	ID           int64  `db:"id"`
+	Hash         []byte `db:"hash"`
+	MerklePath   string `db:"merkle_path"`
+	IsRegistered bool   `db:"is_registered"`
 }
 
 type BlockTransactionMap struct {
@@ -255,26 +256,14 @@ func TestPostgresDB(t *testing.T) {
 		d, err := sqlx.Open("postgres", dbInfo)
 		require.NoError(t, err)
 
-		var storedtx Transaction
-		err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(txs[0].GetHash()))
-		require.NoError(t, err)
+		for _, tx := range txs {
+			var storedtx Transaction
+			err = d.Get(&storedtx, "SELECT id, hash, merkle_path, is_registered from transactions WHERE hash=$1", string(tx.GetHash()))
+			require.NoError(t, err)
 
-		require.True(t, bytes.Equal(txs[0].GetHash(), storedtx.Hash))
-
-		err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(txs[1].GetHash()))
-		require.NoError(t, err)
-
-		require.True(t, bytes.Equal(txs[1].GetHash(), storedtx.Hash))
-
-		err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(txs[2].GetHash()))
-		require.NoError(t, err)
-
-		require.True(t, bytes.Equal(txs[2].GetHash(), storedtx.Hash))
-
-		err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(txs[3].GetHash()))
-		require.NoError(t, err)
-
-		require.True(t, bytes.Equal(txs[3].GetHash(), storedtx.Hash))
+			require.True(t, bytes.Equal(tx.GetHash(), storedtx.Hash))
+			require.True(t, storedtx.IsRegistered)
+		}
 
 		newHash1, err := hex.DecodeString("bb6817dad4c9a0e34803c2f1dec13ac8b89d539a57749be808d61f314bbbd855")
 		require.NoError(t, err)
@@ -295,15 +284,18 @@ func TestPostgresDB(t *testing.T) {
 		err = postgresDB.RegisterTransactions(context.Background(), txs2)
 		require.NoError(t, err)
 
-		err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(txs2[2].GetHash()))
+		var storedtx Transaction
+		err = d.Get(&storedtx, "SELECT id, hash, merkle_path, is_registered from transactions WHERE hash=$1", string(txs2[2].GetHash()))
 		require.NoError(t, err)
 
 		require.True(t, bytes.Equal(txs2[2].GetHash(), storedtx.Hash))
+		require.True(t, storedtx.IsRegistered)
 
-		err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", string(txs2[3].GetHash()))
+		err = d.Get(&storedtx, "SELECT id, hash, merkle_path, is_registered from transactions WHERE hash=$1", string(txs2[3].GetHash()))
 		require.NoError(t, err)
 
 		require.True(t, bytes.Equal(txs2[3].GetHash(), storedtx.Hash))
+		require.True(t, storedtx.IsRegistered)
 	})
 
 	t.Run("get block gaps", func(t *testing.T) {

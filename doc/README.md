@@ -55,6 +55,7 @@ stateDiagram-v2
     SEEN_ON_NETWORK --> MINED: Transaction ID was included in a BLOCK message
     MINED --> [*]
 ```
+
 ## Microservices
 
 ### API
@@ -228,6 +229,8 @@ Please note that [arc-client-js](https://github.com/bitcoin-sv/arc-client-js) is
 
 ## Process flow diagrams
 
+The following diagram shows the process of how a transaction goes through the different statuses of the transaction lifecycle before it gets mined.
+
 ```plantuml
 @startuml
 hide footbox
@@ -305,6 +308,8 @@ return last status
 @enduml
 
 ```
+
+The following diagram shows the process of how a transaction finally gets updated to status `MINED`.
 
 ```plantuml
 @startuml

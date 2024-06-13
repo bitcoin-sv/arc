@@ -11,11 +11,11 @@ import (
 func (p *PostgreSQL) RegisterTransactions(ctx context.Context, transactions []*blocktx_api.TransactionAndSource) error {
 
 	hashes := make([][]byte, len(transactions))
-	falses := make([]bool, len(transactions))
+	booleans := make([]bool, len(transactions))
 
 	for i, transaction := range transactions {
 		hashes[i] = transaction.Hash
-		falses[i] = true
+		booleans[i] = true
 	}
 
 	q := `
@@ -23,7 +23,7 @@ func (p *PostgreSQL) RegisterTransactions(ctx context.Context, transactions []*b
 			SELECT * FROM UNNEST ($1::BYTEA[], $2::BOOLEAN[])
 			ON CONFLICT DO NOTHING
 			`
-	_, err := p.db.ExecContext(ctx, q, pq.Array(hashes), pq.Array(falses))
+	_, err := p.db.ExecContext(ctx, q, pq.Array(hashes), pq.Array(booleans))
 	if err != nil {
 		return fmt.Errorf("failed to bulk insert transactions: %v", err)
 	}

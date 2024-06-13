@@ -116,6 +116,6 @@ func (s *Server) VerifyMerkleRoots(ctx context.Context, req *blocktx_api.MerkleR
 func (s *Server) Shutdown() {
 	s.logger.Info("Shutting down")
 	s.grpcServer.Stop()
-
+	s.pm.Shutdown()
 	s.cleanup()
 }

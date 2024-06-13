@@ -146,11 +146,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithMinimumHealthyConnections(minimumHealthyConnections),
 	}
 
-	monitorPeersInterval := viper.GetDuration("metamorph.monitorPeersInterval")
-	if monitorPeersInterval != 0 {
-		processorOpts = append(processorOpts, metamorph.WithMonitorPeersInterval(monitorPeersInterval))
-	}
-
 	metamorphProcessor, err := metamorph.NewProcessor(
 		metamorphStore,
 		pm,
@@ -167,7 +162,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	metamorphProcessor.StartRequestingSeenOnNetworkTxs()
 	metamorphProcessor.StartProcessStatusUpdatesInStorage()
 	metamorphProcessor.StartProcessMinedCallbacks()
-	metamorphProcessor.StartMonitorPeers()
 	err = metamorphProcessor.StartCollectStats()
 	if err != nil {
 		return nil, fmt.Errorf("failed to start collecting stats: %v", err)
@@ -383,7 +377,14 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore) (p2p.PeerManag
 	logger.Info("Assuming bitcoin network", "network", network)
 
 	messageCh := make(chan *metamorph.PeerTxMessage)
-	pm := p2p.NewPeerManager(logger, network)
+
+	monitorPeersInterval := viper.GetDuration("metamorph.monitorPeersInterval")
+	var pmOpts []p2p.PeerManagerOptions
+
+	if monitorPeersInterval > 0 {
+		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers(monitorPeersInterval))
+	}
+	pm := p2p.NewPeerManager(logger, network, pmOpts...)
 
 	peerHandler := metamorph.NewPeerHandler(s, messageCh)
 

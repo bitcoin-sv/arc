@@ -23,17 +23,17 @@ type Server struct {
 	store                         store.BlocktxStore
 	logger                        *slog.Logger
 	grpcServer                    *grpc.Server
-	peers                         []p2p.PeerI
+	pm                            p2p.PeerManagerI
 	cleanup                       func()
 	maxAllowedBlockHeightMismatch int
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(storeI store.BlocktxStore, logger *slog.Logger, peers []p2p.PeerI, maxAllowedBlockHeightMismatch int) *Server {
+func NewServer(storeI store.BlocktxStore, logger *slog.Logger, pm p2p.PeerManagerI, maxAllowedBlockHeightMismatch int) *Server {
 	return &Server{
 		store:                         storeI,
 		logger:                        logger,
-		peers:                         peers,
+		pm:                            pm,
 		maxAllowedBlockHeightMismatch: maxAllowedBlockHeightMismatch,
 	}
 }

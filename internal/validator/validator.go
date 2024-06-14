@@ -18,7 +18,7 @@ type OutpointData struct {
 type Validator interface {
 	// ValidateEFTransaction Please note that bt.Tx should have all the fields of each input populated.
 	ValidateEFTransaction(tx *bt.Tx, skipFeeValidation bool, skipScriptValidation bool) error
-	ValidateBeef(beef *beef.BEEF, skipFeeValidation bool, skipScriptValidation bool) error
+	ValidateBeef(beef *beef.BEEF, skipFeeValidation bool, skipScriptValidation bool) (*bt.Tx, error)
 	IsExtended(tx *bt.Tx) bool
 	IsBeef(txHex []byte) bool
 }

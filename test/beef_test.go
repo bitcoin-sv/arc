@@ -107,7 +107,7 @@ func TestBeef_Fail(t *testing.T) {
 			require.Equal(t, tc.expectedErrCode, response.StatusCode())
 			require.NotNil(t, response.JSON465)
 			require.Equal(t, tc.expectedErrMsgDetail, response.JSON465.Detail)
-			require.Equal(t, tc.expectedErrTxID, response.JSON465.Txid)
+			require.Equal(t, tc.expectedErrTxID, *response.JSON465.Txid)
 		})
 	}
 }

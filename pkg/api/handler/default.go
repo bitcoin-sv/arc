@@ -356,8 +356,8 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 
 			transactionsHexes = remainingBytes
 
-			if err := txValidator.ValidateBeef(beefTx, transactionOptions.SkipFeeValidation, transactionOptions.SkipScriptValidation); err != nil {
-				_, arcError := m.handleError(ctx, transaction, err)
+			if errTx, err := txValidator.ValidateBeef(beefTx, transactionOptions.SkipFeeValidation, transactionOptions.SkipScriptValidation); err != nil {
+				_, arcError := m.handleError(ctx, errTx, err)
 				txErrors = append(txErrors, arcError)
 				continue
 			}

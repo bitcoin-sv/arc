@@ -651,7 +651,7 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 
 		merklePaths = append(merklePaths, bumpHex)
 		if (txIndex+1)%ph.transactionStorageBatchSize == 0 {
-			updateResp, err := ph.store.UpdateBlockTransactions(ctx, blockId, txs, merklePaths)
+			updateResp, err := ph.store.UpsertBlockTransactions(ctx, blockId, txs, merklePaths)
 			if err != nil {
 				return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 			}
@@ -689,7 +689,7 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 	}
 
 	// update all remaining transactions
-	updateResp, err := ph.store.UpdateBlockTransactions(ctx, blockId, txs, merklePaths)
+	updateResp, err := ph.store.UpsertBlockTransactions(ctx, blockId, txs, merklePaths)
 	if err != nil {
 		return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 	}

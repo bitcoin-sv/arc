@@ -1,13 +1,9 @@
 package config
 
 import (
-	"fmt"
-	"strings"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
 	"github.com/ordishs/go-bitcoin"
-	"github.com/spf13/viper"
 )
 
 type ArcConfig struct {
@@ -117,48 +113,4 @@ type ApiConfig struct {
 
 type K8sWatcherConfig struct {
 	Namespace string `json:"namespace" mapstructure:"namespace"`
-}
-
-func Load(configFile string) (*ArcConfig, error) {
-	arcConfig := getDefaultArcConfig()
-
-	// set defaults in viper
-	err := setDefaults(arcConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	// set ENV config
-	viper.SetEnvPrefix("ARC")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	viper.AutomaticEnv()
-
-	// read app config from file into viper (overriding specified defaults)
-	viper.AddConfigPath(configFile)
-	err = viper.ReadInConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	// unmarshall viper into arcConfig
-	err = viper.Unmarshal(arcConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	return arcConfig, nil
-}
-
-func setDefaults(defaultConfig *ArcConfig) error {
-	defaultsMap := make(map[string]interface{})
-	if err := mapstructure.Decode(defaultConfig, &defaultsMap); err != nil {
-		err = fmt.Errorf("error occurred while setting defaults: %w", err)
-		return err
-	}
-
-	for key, value := range defaultsMap {
-		viper.SetDefault(key, value)
-	}
-
-	return nil
 }

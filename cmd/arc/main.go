@@ -14,7 +14,7 @@ import (
 
 	cmd "github.com/bitcoin-sv/arc/cmd/arc/services"
 	"github.com/bitcoin-sv/arc/config"
-	cfg "github.com/bitcoin-sv/arc/internal/config"
+	"github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -69,7 +69,7 @@ func run() error {
 		return fmt.Errorf("failed to load app config: %w", err)
 	}
 
-	logger, err := cfg.NewLogger()
+	logger, err := logger.NewLogger(arcConfig.LogLevel, arcConfig.LogFormat)
 	if err != nil {
 		return fmt.Errorf("failed to create logger: %v", err)
 	}

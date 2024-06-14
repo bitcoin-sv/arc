@@ -85,14 +85,11 @@ func run() error {
 
 	shutdownFns := make([]func(), 0)
 
-	tracingEnabled := false
-
 	if arcConfig.Tracing != nil {
 		cleanup, err := enableTracing(logger, arcConfig.Tracing.DialAddr)
 		if err != nil {
 			return err
 		}
-		tracingEnabled = true
 		shutdownFns = append(shutdownFns, cleanup)
 	}
 
@@ -118,23 +115,23 @@ func run() error {
 		}
 	}()
 
-	if !isFlagPassed("api") && !isFlagPassed("blocktx") && !isFlagPassed("metamorph") && !isFlagPassed("k8s-watcher") {
+	if !isAnyFlagPassed("api", "blocktx", "metamorph", "k8s-watcher") {
 		logger.Info("No service selected, starting all")
 		*startApi = true
 		*startMetamorph = true
 		*startBlockTx = true
 	}
 
-	if startBlockTx != nil && *startBlockTx {
+	if *startBlockTx {
 		logger.Info("Starting BlockTx")
-		shutdown, err := cmd.StartBlockTx(logger, tracingEnabled)
+		shutdown, err := cmd.StartBlockTx(logger, arcConfig)
 		if err != nil {
 			return fmt.Errorf("failed to start blocktx: %v", err)
 		}
 		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}
 
-	if startMetamorph != nil && *startMetamorph {
+	if *startMetamorph {
 		logger.Info("Starting Metamorph")
 		shutdown, err := cmd.StartMetamorph(logger)
 		if err != nil {
@@ -143,7 +140,7 @@ func run() error {
 		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}
 
-	if startApi != nil && *startApi {
+	if *startApi {
 		logger.Info("Starting API")
 		shutdown, err := cmd.StartAPIServer(logger, arcConfig)
 		if err != nil {
@@ -153,7 +150,7 @@ func run() error {
 		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}
 
-	if startK8sWatcher != nil && *startK8sWatcher {
+	if *startK8sWatcher {
 		logger.Info("Starting K8s-Watcher")
 		shutdown, err := cmd.StartK8sWatcher(logger)
 		if err != nil {
@@ -179,14 +176,19 @@ func appCleanup(logger *slog.Logger, shutdownFns []func()) {
 	}
 }
 
-func isFlagPassed(name string) bool {
-	found := false
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == name {
-			found = true
+func isAnyFlagPassed(flags ...string) bool {
+	for _, name := range flags {
+		found := false
+		flag.Visit(func(f *flag.Flag) {
+			if f.Name == name {
+				found = true
+			}
+		})
+		if found {
+			return true
 		}
-	})
-	return found
+	}
+	return false
 }
 
 func enableTracing(logger *slog.Logger, tracingAddr string) (func(), error) {

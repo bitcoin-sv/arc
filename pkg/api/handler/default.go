@@ -234,9 +234,10 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 		}
 
 		transactionOptions.CallbackURL = *params.XCallbackUrl
-		if params.XCallbackToken != nil {
-			transactionOptions.CallbackToken = *params.XCallbackToken
-		}
+	}
+
+	if params.XCallbackToken != nil {
+		transactionOptions.CallbackToken = *params.XCallbackToken
 	}
 	if params.XWaitForStatus != nil {
 		transactionOptions.WaitForStatus = metamorph_api.Status(*params.XWaitForStatus)

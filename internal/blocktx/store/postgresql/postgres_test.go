@@ -644,7 +644,7 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			prepareDb(t, sut.db, "fixtures/register_transactions")
 
-			err := sut.RegisterTransactions(ctx, tc.txs)
+			_, err := sut.RegisterTransactions(ctx, tc.txs)
 			require.NoError(t, err)
 
 			// assert data are correctly saved in the store

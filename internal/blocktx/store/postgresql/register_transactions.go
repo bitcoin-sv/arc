@@ -3,30 +3,48 @@ package postgresql
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/lib/pq"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
-func (p *PostgreSQL) RegisterTransactions(ctx context.Context, transactions []*blocktx_api.TransactionAndSource) error {
-
+func (p *PostgreSQL) RegisterTransactions(ctx context.Context, transactions []*blocktx_api.TransactionAndSource) ([]*chainhash.Hash, error) {
 	hashes := make([][]byte, len(transactions))
-	booleans := make([]bool, len(transactions))
-
 	for i, transaction := range transactions {
 		hashes[i] = transaction.Hash
-		booleans[i] = true
 	}
 
 	q := `
-			INSERT INTO transactions (hash, is_registered)
-			SELECT * FROM UNNEST ($1::BYTEA[], $2::BOOLEAN[])
-			ON CONFLICT (hash) DO UPDATE SET is_registered = TRUE
+			INSERT INTO transactions (hash, is_registered )
+				SELECT hash, TRUE 
+				FROM UNNEST ($1::BYTEA[]) as hash
+			ON CONFLICT (hash) DO UPDATE 
+				SET is_registered = TRUE
+			RETURNING hash, inserted_at_num
 		`
-	_, err := p.db.ExecContext(ctx, q, pq.Array(hashes), pq.Array(booleans))
+	now, _ := strconv.Atoi(p.now().Format("2006010215"))
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(hashes))
 	if err != nil {
-		return fmt.Errorf("failed to bulk insert transactions: %v", err)
+		return nil, fmt.Errorf("failed to bulk insert transactions: %v", err)
 	}
 
-	return nil
+	updatedTxs := make([]*chainhash.Hash, 0)
+	for rows.Next() {
+		var hash []byte
+		var insertedAt int
+
+		err = rows.Scan(&hash, &insertedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get rows: %v", err)
+		}
+
+		if insertedAt < now {
+			ch, _ := chainhash.NewHash(hash)
+			updatedTxs = append(updatedTxs, ch)
+		}
+	}
+
+	return updatedTxs, nil
 }

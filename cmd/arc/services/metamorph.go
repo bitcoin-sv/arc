@@ -61,7 +61,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers(monitorPeersInterval))
 	}
 
-
 	pm := p2p.NewPeerManager(logger, network, pmOpts...)
 
 	peerHandler := metamorph.NewPeerHandler(metamorphStore, statusMessageCh)

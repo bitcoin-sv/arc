@@ -202,7 +202,7 @@ func TestHandleBlock(t *testing.T) {
 
 			var insertedBlockTransactions []*blocktx_api.TransactionAndSource
 
-			storeMock.UpdateBlockTransactionsFunc = func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpdateBlockTransactionsResult, error) {
+			storeMock.UpsertBlockTransactionsFunc = func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpsertBlockTransactionsResult, error) {
 				require.True(t, len(merklePaths) <= batchSize)
 				require.True(t, len(transactions) <= batchSize)
 
@@ -219,9 +219,9 @@ func TestHandleBlock(t *testing.T) {
 
 				insertedBlockTransactions = append(insertedBlockTransactions, transactions...)
 
-				result := make([]store.UpdateBlockTransactionsResult, len(transactions))
+				result := make([]store.UpsertBlockTransactionsResult, len(transactions))
 				for i, tx := range transactions {
-					result[i] = store.UpdateBlockTransactionsResult{TxHash: tx.Hash}
+					result[i] = store.UpsertBlockTransactionsResult{TxHash: tx.Hash}
 				}
 
 				return result, nil

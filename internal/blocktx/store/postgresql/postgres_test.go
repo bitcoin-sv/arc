@@ -158,41 +158,67 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func loadFixtures(db *sql.DB, path string) error {
+func prepareDb(t testing.TB, db *sql.DB, fixture string) {
+	t.Helper()
+	pruneTables(t, db)
+
+	if fixture != "" {
+		loadFixtures(t, db, fixture)
+	}
+}
+
+func pruneTables(t testing.TB, db *sql.DB) {
+	t.Helper()
+
+	_, err := db.Exec("TRUNCATE TABLE blocks;")
+	if err != nil {
+		t.Fatalf("cannot clear blocks table: %v", err)
+	}
+
+	_, err = db.Exec("TRUNCATE TABLE transactions;")
+	if err != nil {
+		t.Fatalf("cannot clear transactions table: %v", err)
+	}
+
+	_, err = db.Exec("TRUNCATE TABLE block_transactions_map;")
+	if err != nil {
+		t.Fatalf("cannot clear block_transactions_map table: %v", err)
+	}
+}
+
+func loadFixtures(t testing.TB, db *sql.DB, path string) {
+	t.Helper()
+
 	fixtures, err := testfixtures.New(
 		testfixtures.Database(db),
 		testfixtures.Dialect("postgresql"),
 		testfixtures.Directory(path), // The directory containing the YAML files
 	)
 	if err != nil {
-		log.Fatalf("failed to create fixtures: %v", err)
+		t.Fatalf("failed to create fixtures: %v", err)
 	}
 
 	err = fixtures.Load()
 	if err != nil {
-		return fmt.Errorf("failed to load fixtures: %v", err)
+		t.Fatalf("failed to load fixtures: %v", err)
 	}
-
-	return nil
 }
 
-func pruneTables(db *sql.DB) error {
-	_, err := db.Exec("TRUNCATE TABLE blocks;")
+func setupPostgresTest(t testing.TB) (ctx context.Context, now time.Time, db *PostgreSQL) {
+	t.Helper()
+
+	now = time.Date(2023, 12, 22, 12, 0, 0, 0, time.UTC)
+	db, err := New(dbInfo, 10, 10, WithNow(func() time.Time {
+		return now
+	}))
+
 	if err != nil {
-		return err
+		t.Errorf("error setup tests %s", err.Error())
 	}
 
-	_, err = db.Exec("TRUNCATE TABLE transactions;")
-	if err != nil {
-		return err
-	}
+	ctx = context.TODO()
 
-	_, err = db.Exec("TRUNCATE TABLE block_transactions_map;")
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return
 }
 
 func TestPostgresDB(t *testing.T) {
@@ -201,18 +227,14 @@ func TestPostgresDB(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	now := time.Date(2023, 12, 22, 12, 0, 0, 0, time.UTC)
-	postgresDB, err := New(dbInfo, 10, 10, WithNow(func() time.Time {
-		return now
-	}))
-	ctx := context.Background()
-	require.NoError(t, err)
-	defer func() {
-		postgresDB.Close()
-	}()
+	// common setup for test cases
+	ctx, now, postgresDB := setupPostgresTest(t)
+	defer postgresDB.Close()
+
+	var err error
 
 	t.Run("insert block / get block", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
+		prepareDb(t, postgresDB.db, "")
 
 		blockHash1 := revChainhash(t, "000000000000000001b8adefc1eb98896c80e30e517b9e2655f1f929d9958a48")
 		blockHash2 := revChainhash(t, "00000000000000000a081a539601645abe977946f8f6466a3c9e0c34d50be4a8")
@@ -233,75 +255,8 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, block, blockResp)
 	})
 
-	t.Run("register transactions", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
-		txs := []*blocktx_api.TransactionAndSource{
-			{
-				Hash: testdata.TX1Hash[:],
-			},
-			{
-				Hash: testdata.TX2Hash[:],
-			},
-			{
-				Hash: testdata.TX3Hash[:],
-			},
-			{
-				Hash: testdata.TX4Hash[:],
-			},
-		}
-		err = postgresDB.RegisterTransactions(context.Background(), txs)
-		require.NoError(t, err)
-
-		d, err := sqlx.Open("postgres", dbInfo)
-		require.NoError(t, err)
-
-		for _, tx := range txs {
-			var storedtx Transaction
-			err = d.Get(&storedtx, "SELECT id, hash, merkle_path, is_registered from transactions WHERE hash=$1", string(tx.GetHash()))
-			require.NoError(t, err)
-
-			require.True(t, bytes.Equal(tx.GetHash(), storedtx.Hash))
-			require.True(t, storedtx.IsRegistered)
-		}
-
-		newHash1, err := hex.DecodeString("bb6817dad4c9a0e34803c2f1dec13ac8b89d539a57749be808d61f314bbbd855")
-		require.NoError(t, err)
-
-		newHash2, err := hex.DecodeString("ec52c6f777e6cb254d596001050f4151ef74cea78b6d50163407bf54bdd54e3f")
-		require.NoError(t, err)
-		// Register transactions which are partly already registered
-		txs2 := []*blocktx_api.TransactionAndSource{
-			txs[0],
-			txs[2],
-			{
-				Hash: newHash1,
-			},
-			{
-				Hash: newHash2,
-			},
-		}
-		err = postgresDB.RegisterTransactions(context.Background(), txs2)
-		require.NoError(t, err)
-
-		var storedtx Transaction
-		err = d.Get(&storedtx, "SELECT id, hash, merkle_path, is_registered from transactions WHERE hash=$1", string(txs2[2].GetHash()))
-		require.NoError(t, err)
-
-		require.True(t, bytes.Equal(txs2[2].GetHash(), storedtx.Hash))
-		require.True(t, storedtx.IsRegistered)
-
-		err = d.Get(&storedtx, "SELECT id, hash, merkle_path, is_registered from transactions WHERE hash=$1", string(txs2[3].GetHash()))
-		require.NoError(t, err)
-
-		require.True(t, bytes.Equal(txs2[3].GetHash(), storedtx.Hash))
-		require.True(t, storedtx.IsRegistered)
-	})
-
 	t.Run("get block gaps", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/get_block_gaps"))
+		prepareDb(t, postgresDB.db, "fixtures/get_block_gaps")
 
 		blockGaps, err := postgresDB.GetBlockGaps(ctx, 12)
 		require.NoError(t, err)
@@ -334,122 +289,8 @@ func TestPostgresDB(t *testing.T) {
 		require.ElementsMatch(t, expectedBlockGaps, blockGaps)
 	})
 
-	t.Run("update block transactions", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-		postgresDB.maxPostgresBulkInsertRows = 5
-
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/update_block_transactions"))
-
-		testMerklePaths := []string{"test1", "test2", "test3"}
-		testBlockID := uint64(9736)
-
-		txHash1 := revChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")
-		txHash2 := revChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")
-
-		txHashNotRegistered := revChainhash(t, "edd33fdcdfa68444d227780e2b62a4437c00120c5320d2026aeb24a781f4c3f1")
-
-		_, err = postgresDB.UpdateBlockTransactions(context.Background(), testBlockID, []*blocktx_api.TransactionAndSource{
-			{
-				Hash: txHash1[:],
-			},
-			{
-				Hash: txHash2[:],
-			},
-			{
-				Hash: txHashNotRegistered[:],
-			},
-		}, []string{"test1"})
-
-		require.ErrorContains(t, err, "transactions (len=3) and Merkle paths (len=1) have not the same lengths")
-
-		updateResult, err := postgresDB.UpdateBlockTransactions(context.Background(), testBlockID, []*blocktx_api.TransactionAndSource{
-			{
-				Hash: txHash1[:],
-			},
-			{
-				Hash: txHash2[:],
-			},
-			{
-				Hash: txHashNotRegistered[:],
-			},
-		}, testMerklePaths)
-		require.NoError(t, err)
-
-		require.True(t, bytes.Equal(txHash1[:], updateResult[0].TxHash))
-		require.Equal(t, testMerklePaths[0], updateResult[0].MerklePath)
-
-		require.True(t, bytes.Equal(txHash2[:], updateResult[1].TxHash))
-		require.Equal(t, testMerklePaths[1], updateResult[1].MerklePath)
-
-		d, err := sqlx.Open("postgres", dbInfo)
-		require.NoError(t, err)
-
-		var storedtx Transaction
-
-		err = d.Get(&storedtx, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", txHash1[:])
-		require.NoError(t, err)
-
-		require.Equal(t, txHash1[:], storedtx.Hash)
-		require.Equal(t, testMerklePaths[0], storedtx.MerklePath)
-
-		var mp BlockTransactionMap
-		err = d.Get(&mp, "SELECT blockid, txid, pos from block_transactions_map WHERE txid=$1", storedtx.ID)
-		require.NoError(t, err)
-
-		require.Equal(t, storedtx.ID, mp.TransactionID)
-		require.Equal(t, testBlockID, uint64(mp.BlockID))
-
-		var storedtx2 Transaction
-
-		err = d.Get(&storedtx2, "SELECT id, hash, merkle_path from transactions WHERE hash=$1", txHash2[:])
-		require.NoError(t, err)
-
-		require.Equal(t, txHash2[:], storedtx2.Hash)
-		require.Equal(t, testMerklePaths[1], storedtx2.MerklePath)
-
-		var mp2 BlockTransactionMap
-		err = d.Get(&mp2, "SELECT blockid, txid, pos from block_transactions_map WHERE txid=$1", storedtx2.ID)
-		require.NoError(t, err)
-
-		require.Equal(t, storedtx2.ID, mp2.TransactionID)
-		require.Equal(t, testBlockID, uint64(mp2.BlockID))
-
-		// update exceeds max batch size
-
-		txHash3 := revChainhash(t, "b4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743")
-		txHash4 := revChainhash(t, "37bd6c87927e75faeb3b3c939f64721cda48e1bb98742676eebe83aceee1a669")
-		txHash5 := revChainhash(t, "952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb")
-		txHash6 := revChainhash(t, "861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608")
-		txHash7 := revChainhash(t, "9421cc760c5405af950a76dc3e4345eaefd4e7322f172a3aee5e0ddc7b4f8313")
-		txHash8 := revChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")
-
-		_, err = postgresDB.UpdateBlockTransactions(context.Background(), testBlockID, []*blocktx_api.TransactionAndSource{
-			{
-				Hash: txHash3[:],
-			},
-			{
-				Hash: txHash4[:],
-			},
-			{
-				Hash: txHash5[:],
-			},
-			{
-				Hash: txHash6[:],
-			},
-			{
-				Hash: txHash7[:],
-			},
-			{
-				Hash: txHash8[:],
-			},
-		}, []string{"test1", "test2", "test3", "test4", "test5", "test6"})
-		require.NoError(t, err)
-	})
-
 	t.Run("test getting mined txs", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/get_mined_transactions"))
+		prepareDb(t, postgresDB.db, "fixtures/get_mined_transactions")
 
 		txHash1 := revChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")
 		txHash2 := revChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")
@@ -472,9 +313,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("clear data", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/clear_data"))
+		prepareDb(t, postgresDB.db, "fixtures/clear_data")
 
 		resp, err := postgresDB.ClearBlocktxTable(context.Background(), 10, "blocks")
 		require.NoError(t, err)
@@ -508,9 +347,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("set/get/del block processing", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/block_processing"))
+		prepareDb(t, postgresDB.db, "fixtures/block_processing")
 
 		bh1 := revChainhash(t, "747468cf7e6639ba9aa277ade1cf27639b0f214cec5719020000000000000000")
 
@@ -542,9 +379,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("mark block as done", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/mark_block_as_done"))
+		prepareDb(t, postgresDB.db, "fixtures/mark_block_as_done")
 
 		bh1 := revChainhash(t, "b71ab063c5f96cad71cdc59dcc94182a20a69cbd7eed2d070000000000000000")
 
@@ -566,9 +401,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("verify merkle roots", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/verify_merkle_roots"))
+		prepareDb(t, postgresDB.db, "fixtures/verify_merkle_roots")
 
 		merkleRequests := []*blocktx_api.MerkleRootVerificationRequest{
 			{
@@ -610,4 +443,222 @@ func TestPostgresDB(t *testing.T) {
 
 		assert.Equal(t, expectedUnverifiedBlockHeights, res.UnverifiedBlockHeights)
 	})
+}
+
+func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	tcs := []struct {
+		name        string
+		txs         []*blocktx_api.TransactionAndSource
+		merklePaths []string
+
+		expectedErr           error
+		expectedUpdatedResLen int
+	}{
+		{
+			name: "mismatched lengths of merkle paths and transactions",
+			txs: []*blocktx_api.TransactionAndSource{
+				{
+					Hash: revChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")[:],
+				},
+				{
+					Hash: revChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")[:],
+				},
+			},
+			merklePaths: []string{"test1"},
+			expectedErr: errors.New("transactions (len=2) and Merkle paths (len=1) have not the same lengths"),
+		},
+		{
+			name: "upsert all registered transactions (updates only)",
+			txs: []*blocktx_api.TransactionAndSource{
+				{
+					Hash: revChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")[:],
+				},
+				{
+					Hash: revChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")[:],
+				},
+			},
+			merklePaths:           []string{"test1", "test2"},
+			expectedUpdatedResLen: 2,
+		},
+		{
+			name: "upsert all non-registered transactions (inserts only)",
+			txs: []*blocktx_api.TransactionAndSource{
+				{
+					Hash: revChainhash(t, "edd33fdcdfa68444d227780e2b62a4437c00120c5320d2026aeb24a781f4c3f1")[:],
+				},
+			},
+			merklePaths:           []string{"test1"},
+			expectedUpdatedResLen: 0,
+		},
+		{
+			name: "update exceeds max batch size (more txs than 5)",
+			txs: []*blocktx_api.TransactionAndSource{
+				{
+					Hash: revChainhash(t, "b4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743")[:],
+				},
+				{
+					Hash: revChainhash(t, "37bd6c87927e75faeb3b3c939f64721cda48e1bb98742676eebe83aceee1a669")[:],
+				},
+				{
+					Hash: revChainhash(t, "952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb")[:],
+				},
+				{
+					Hash: revChainhash(t, "861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608")[:],
+				},
+				{
+					Hash: revChainhash(t, "9421cc760c5405af950a76dc3e4345eaefd4e7322f172a3aee5e0ddc7b4f8313")[:],
+				},
+				{
+					Hash: revChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
+				},
+			},
+			merklePaths:           []string{"test1", "test2", "test3", "test4", "test5", "test6"},
+			expectedUpdatedResLen: 6,
+		},
+	}
+
+	// common setup for test cases
+	ctx, _, sut := setupPostgresTest(t)
+	defer sut.Close()
+	sut.maxPostgresBulkInsertRows = 5
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			prepareDb(t, sut.db, "fixtures/upsert_block_transactions")
+
+			testBlockID := uint64(9736)
+
+			res, err := sut.UpsertBlockTransactions(ctx, testBlockID, tc.txs, tc.merklePaths)
+
+			if tc.expectedErr != nil {
+				require.ErrorContains(t, err, tc.expectedErr.Error())
+				return
+			} else {
+				require.NoError(t, err)
+			}
+
+			require.Equal(t, tc.expectedUpdatedResLen, len(res))
+
+			// assert correctness of returned values
+			// assume registered transactions are at the beginning of tc.txs
+			for i := 0; i < tc.expectedUpdatedResLen; i++ {
+				require.True(t, bytes.Equal(tc.txs[i].Hash, res[i].TxHash))
+				require.Equal(t, tc.merklePaths[i], res[i].MerklePath)
+			}
+
+			// assert data are correctly saved in the store
+			d, err := sqlx.Open("postgres", dbInfo)
+			require.NoError(t, err)
+
+			for i, tx := range tc.txs {
+				var storedtx Transaction
+
+				err = d.Get(&storedtx, "SELECT id, hash, merkle_path, is_registered from transactions WHERE hash=$1", tx.Hash[:])
+				require.NoError(t, err, "error during getting transaction")
+
+				require.Equal(t, tc.merklePaths[i], storedtx.MerklePath)
+				require.Equal(t, i < tc.expectedUpdatedResLen, storedtx.IsRegistered)
+
+				var mp BlockTransactionMap
+				err = d.Get(&mp, "SELECT blockid, txid, pos from block_transactions_map WHERE txid=$1", storedtx.ID)
+				require.NoError(t, err, "error during getting block transactions map")
+
+				require.Equal(t, storedtx.ID, mp.TransactionID)
+				require.Equal(t, testBlockID, uint64(mp.BlockID))
+			}
+		})
+	}
+}
+
+func TestPostgresStore_RegisterTransactions(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	tcs := []struct {
+		name string
+		txs  []*blocktx_api.TransactionAndSource
+	}{
+		{
+			name: "register new transactions",
+			txs: []*blocktx_api.TransactionAndSource{
+				{
+					Hash: testdata.TX1Hash[:],
+				},
+				{
+					Hash: testdata.TX2Hash[:],
+				},
+				{
+					Hash: testdata.TX3Hash[:],
+				},
+				{
+					Hash: testdata.TX4Hash[:],
+				},
+			},
+		},
+		{
+			name: "register already known, not registered transactions",
+			txs: []*blocktx_api.TransactionAndSource{
+				{
+					Hash: revChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")[:],
+				},
+				{
+					Hash: revChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")[:],
+				},
+				{
+					Hash: revChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
+				},
+				{
+					Hash: revChainhash(t, "9421cc760c5405af950a76dc3e4345eaefd4e7322f172a3aee5e0ddc7b4f8313")[:],
+				},
+			},
+		},
+		{
+			name: "register already registered transactions",
+			txs: []*blocktx_api.TransactionAndSource{
+				{
+					Hash: revChainhash(t, "b4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743")[:],
+				},
+				{
+					Hash: revChainhash(t, "37bd6c87927e75faeb3b3c939f64721cda48e1bb98742676eebe83aceee1a669")[:],
+				},
+				{
+					Hash: revChainhash(t, "952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb")[:],
+				},
+				{
+					Hash: revChainhash(t, "861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608")[:],
+				},
+			},
+		},
+	}
+
+	// common setup for test cases
+	ctx, _, sut := setupPostgresTest(t)
+	defer sut.Close()
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			prepareDb(t, sut.db, "fixtures/register_transactions")
+
+			err := sut.RegisterTransactions(ctx, tc.txs)
+			require.NoError(t, err)
+
+			// assert data are correctly saved in the store
+			d, err := sqlx.Open("postgres", dbInfo)
+			require.NoError(t, err)
+
+			for _, tx := range tc.txs {
+				var storedtx Transaction
+				err = d.Get(&storedtx, "SELECT id, hash, is_registered from transactions WHERE hash=$1", string(tx.GetHash()))
+				require.NoError(t, err)
+
+				require.NotNil(t, storedtx)
+				require.True(t, storedtx.IsRegistered)
+			}
+		})
+	}
 }

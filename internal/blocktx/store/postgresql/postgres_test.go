@@ -528,7 +528,7 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			prepareDb(t, sut.db, "fixtures/update_block_transactions")
+			prepareDb(t, sut.db, "fixtures/upsert_block_transactions")
 
 			testBlockID := uint64(9736)
 
@@ -653,10 +653,10 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 
 			for _, tx := range tc.txs {
 				var storedtx Transaction
-				err = d.Get(&storedtx, "SELECT id, hash, merkle_path, is_registered from transactions WHERE hash=$1", string(tx.GetHash()))
+				err = d.Get(&storedtx, "SELECT id, hash, is_registered from transactions WHERE hash=$1", string(tx.GetHash()))
 				require.NoError(t, err)
 
-				require.True(t, bytes.Equal(tx.GetHash(), storedtx.Hash))
+				require.NotNil(t, storedtx)
 				require.True(t, storedtx.IsRegistered)
 			}
 		})

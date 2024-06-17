@@ -54,6 +54,9 @@ type Processor struct {
 	minimumHealthyConnections int
 	callbackSender            CallbackSender
 
+	statusMessageCh         chan *PeerTxMessage
+	CancelSendStatusMessage context.CancelFunc
+
 	waitGroup *sync.WaitGroup
 
 	statCollectionInterval time.Duration
@@ -80,7 +83,7 @@ type CallbackSender interface {
 	Shutdown(logger *slog.Logger)
 }
 
-func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (*Processor, error) {
+func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChannel chan *PeerTxMessage, opts ...Option) (*Processor, error) {
 	if s == nil {
 		return nil, errors.New("store cannot be nil")
 	}
@@ -104,6 +107,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, opts ...Option) (
 		now:                       time.Now,
 		maxRetries:                maxRetriesDefault,
 		minimumHealthyConnections: minimumHealthyConnectionsDefault,
+		statusMessageCh:           statusMessageChannel,
 
 		processExpiredTxsInterval:       unseenTransactionRebroadcastingInterval,
 		processSeenOnNetworkTxsInterval: seenOnNetworkTransactionRequestingInterval,
@@ -198,6 +202,22 @@ func (p *Processor) StartProcessMinedCallbacks() {
 						go p.callbackSender.SendCallback(p.logger, data)
 					}
 				}
+			}
+		}
+	}()
+}
+
+func (p *Processor) StartSendStatusUpdate() {
+	p.waitGroup.Add(1)
+	go func() {
+		defer p.waitGroup.Done()
+		for {
+			select {
+			case <-p.ctx.Done():
+				return
+
+			case message := <-p.statusMessageCh:
+				p.SendStatusForTransaction(message.Hash, message.Status, message.Err)
 			}
 		}
 	}()
@@ -389,6 +409,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 						peers := p.pm.AnnounceTransaction(tx.Hash, nil)
 						if len(peers) == 0 {
 							p.logger.Warn("transaction was not announced to any peer during rebroadcast", slog.String("hash", tx.Hash.String()))
+							continue
 						}
 						announced++
 					}
@@ -423,7 +444,7 @@ var statusValueMap = map[metamorph_api.Status]int{
 	metamorph_api.Status_CONFIRMED:              12,
 }
 
-func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, source string, statusErr error) error {
+func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, statusErr error) {
 	// make sure we update the transaction status in database
 	var rejectReason string
 	if statusErr != nil {
@@ -446,7 +467,6 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 	}
 
 	p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
-	return nil
 }
 
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {

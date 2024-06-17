@@ -46,9 +46,52 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
 
-	pm, statusMessageCh, err := initPeerManager(logger.With(slog.String("module", "mtm-peer-handler")), metamorphStore)
+	network, err := cfg.GetNetwork()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get network: %v", err)
+	}
+
+	logger.Info("Assuming bitcoin network", "network", network)
+
+	statusMessageCh := make(chan *metamorph.PeerTxMessage)
+	monitorPeersInterval := viper.GetDuration("metamorph.monitorPeersInterval")
+	var pmOpts []p2p.PeerManagerOptions
+
+	if monitorPeersInterval > 0 {
+		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers(monitorPeersInterval))
+	}
+
+	pm := p2p.NewPeerManager(logger, network, pmOpts...)
+
+	peerHandler := metamorph.NewPeerHandler(metamorphStore, statusMessageCh)
+
+	peerSettings, err := cfg.GetPeerSettings()
+	if err != nil {
+		return nil, fmt.Errorf("error getting peer settings: %v", err)
+	}
+
+	opts := make([]p2p.PeerOptions, 0)
+	if version.Version != "" {
+		opts = append(opts, p2p.WithUserAgent("ARC", version.Version))
+	}
+
+	opts = append(opts, p2p.WithRetryReadWriteMessageInterval(5*time.Second))
+
+	for _, peerSetting := range peerSettings {
+		peerUrl, err := peerSetting.GetP2PUrl()
+		if err != nil {
+			return nil, fmt.Errorf("error getting peer url: %v", err)
+		}
+
+		var peer *p2p.Peer
+		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("error creating peer %s: %v", peerUrl, err)
+		}
+
+		if err = pm.AddPeer(peer); err != nil {
+			return nil, fmt.Errorf("error adding peer %s: %v", peerUrl, err)
+		}
 	}
 
 	mapExpiryStr, err := cfg.GetString("metamorph.processorCacheExpiryTime")
@@ -149,6 +192,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	metamorphProcessor, err := metamorph.NewProcessor(
 		metamorphStore,
 		pm,
+		statusMessageCh,
 		processorOpts...,
 	)
 	if err != nil {
@@ -166,15 +210,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to start collecting stats: %v", err)
 	}
-
-	go func() {
-		for message := range statusMessageCh {
-			err = metamorphProcessor.SendStatusForTransaction(message.Hash, message.Status, message.Peer, message.Err)
-			if err != nil {
-				logger.Error("Could not send status for transaction", slog.String("hash", message.Hash.String()), slog.String("err", err.Error()))
-			}
-		}
-	}()
+	metamorphProcessor.StartSendStatusUpdate()
 
 	optsServer := []metamorph.ServerOption{
 		metamorph.WithLogger(logger.With(slog.String("module", "mtm-server"))),
@@ -233,11 +269,6 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		return nil, fmt.Errorf("GRPCServer failed: %v", err)
 	}
 
-	peerSettings, err := cfg.GetPeerSettings()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get peer settings: %v", err)
-	}
-
 	for i, peerSetting := range peerSettings {
 		zmqURL, err := peerSetting.GetZMQUrl()
 		if err != nil {
@@ -276,6 +307,8 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		if err != nil {
 			logger.Error("failed to shutdown mqClient", slog.String("err", err.Error()))
 		}
+
+		peerHandler.Shutdown()
 
 		err = metamorphStore.Close(context.Background())
 		if err != nil {
@@ -365,57 +398,4 @@ func NewMetamorphStore(dbMode string) (s store.MetamorphStore, err error) {
 	}
 
 	return s, err
-}
-
-func initPeerManager(logger *slog.Logger, s store.MetamorphStore) (p2p.PeerManagerI, chan *metamorph.PeerTxMessage, error) {
-
-	network, err := cfg.GetNetwork()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get network: %v", err)
-	}
-
-	logger.Info("Assuming bitcoin network", "network", network)
-
-	messageCh := make(chan *metamorph.PeerTxMessage)
-
-	monitorPeersInterval := viper.GetDuration("metamorph.monitorPeersInterval")
-	var pmOpts []p2p.PeerManagerOptions
-
-	if monitorPeersInterval > 0 {
-		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers(monitorPeersInterval))
-	}
-	pm := p2p.NewPeerManager(logger, network, pmOpts...)
-
-	peerHandler := metamorph.NewPeerHandler(s, messageCh)
-
-	peerSettings, err := cfg.GetPeerSettings()
-	if err != nil {
-		return nil, nil, fmt.Errorf("error getting peer settings: %v", err)
-	}
-
-	opts := make([]p2p.PeerOptions, 0)
-	if version.Version != "" {
-		opts = append(opts, p2p.WithUserAgent("ARC", version.Version))
-	}
-
-	opts = append(opts, p2p.WithRetryReadWriteMessageInterval(5*time.Second))
-
-	for _, peerSetting := range peerSettings {
-		peerUrl, err := peerSetting.GetP2PUrl()
-		if err != nil {
-			return nil, nil, fmt.Errorf("error getting peer url: %v", err)
-		}
-
-		var peer *p2p.Peer
-		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network, opts...)
-		if err != nil {
-			return nil, nil, fmt.Errorf("error creating peer %s: %v", peerUrl, err)
-		}
-
-		if err = pm.AddPeer(peer); err != nil {
-			return nil, nil, fmt.Errorf("error adding peer %s: %v", peerUrl, err)
-		}
-	}
-
-	return pm, messageCh, nil
 }

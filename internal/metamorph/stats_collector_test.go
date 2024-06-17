@@ -48,7 +48,7 @@ func TestStartCollectStats(t *testing.T) {
 			}
 
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
-			processor, err := metamorph.NewProcessor(mtmStore, pm,
+			processor, err := metamorph.NewProcessor(mtmStore, pm, nil,
 				metamorph.WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: metamorph.LogLevelDefault}))),
 				metamorph.WithStatCollectionInterval(10*time.Millisecond),
 			)

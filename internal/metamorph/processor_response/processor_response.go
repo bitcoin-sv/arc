@@ -2,11 +2,11 @@ package processor_response
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
-	"github.com/sasha-s/go-deadlock"
 )
 
 type StatusAndError struct {
@@ -24,7 +24,7 @@ type ProcessorResponse struct {
 	callerCh chan StatusAndError
 	Hash     *chainhash.Hash `json:"hash"`
 	// The following fields are protected by the mutex
-	mu     deadlock.RWMutex
+	mu     sync.RWMutex
 	Err    error                `json:"err"`
 	Status metamorph_api.Status `json:"status"`
 }
@@ -49,9 +49,9 @@ func newProcessorResponse(hash *chainhash.Hash, status metamorph_api.Status, ch 
 
 func (r *ProcessorResponse) UpdateStatus(statusUpdate *ProcessorResponseStatusUpdate) {
 	if statusUpdate.StatusErr != nil {
-		_ = r.setStatusAndError(statusUpdate.Status, statusUpdate.StatusErr)
+		r.setStatusAndError(statusUpdate.Status, statusUpdate.StatusErr)
 	} else {
-		_ = r.setStatus(statusUpdate.Status)
+		r.setStatus(statusUpdate.Status)
 	}
 
 }
@@ -66,7 +66,7 @@ func (r *ProcessorResponse) String() string {
 	return fmt.Sprintf("%v: [%s]", r.Hash, r.Status.String())
 }
 
-func (r *ProcessorResponse) setStatus(status metamorph_api.Status) bool {
+func (r *ProcessorResponse) setStatus(status metamorph_api.Status) {
 	r.mu.Lock()
 	r.Status = status
 
@@ -77,10 +77,8 @@ func (r *ProcessorResponse) setStatus(status metamorph_api.Status) bool {
 	r.mu.Unlock()
 
 	if r.callerCh != nil {
-		return utils.SafeSend(r.callerCh, sae)
+		utils.SafeSend(r.callerCh, sae)
 	}
-
-	return true
 }
 
 func (r *ProcessorResponse) GetStatus() metamorph_api.Status {
@@ -117,7 +115,7 @@ func (r *ProcessorResponse) GetErr() error {
 	return r.Err
 }
 
-func (r *ProcessorResponse) setStatusAndError(status metamorph_api.Status, err error) bool {
+func (r *ProcessorResponse) setStatusAndError(status metamorph_api.Status, err error) {
 	r.Status = status
 	r.Err = err
 
@@ -128,8 +126,6 @@ func (r *ProcessorResponse) setStatusAndError(status metamorph_api.Status, err e
 	}
 
 	if r.callerCh != nil {
-		return utils.SafeSend(r.callerCh, sae)
+		utils.SafeSend(r.callerCh, sae)
 	}
-
-	return true
 }

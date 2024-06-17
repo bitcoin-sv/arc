@@ -107,8 +107,6 @@ func (p *Processor) GetStatusNotSeen() int64 {
 }
 
 func (p *Processor) StartCollectStats() error {
-	p.waitGroup.Add(1)
-
 	ticker := time.NewTicker(p.statCollectionInterval)
 
 	err := registerStats(
@@ -125,9 +123,11 @@ func (p *Processor) StartCollectStats() error {
 		p.stats.statusNotSeen,
 	)
 	if err != nil {
-		p.waitGroup.Done()
 		return err
 	}
+
+	p.waitGroup.Add(1)
+
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {

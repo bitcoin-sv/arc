@@ -28,7 +28,7 @@ var _ blocktx.BlocktxClient = &BlocktxClientMock{}
 //			ClearTransactionsFunc: func(ctx context.Context, retentionDays int32) (int64, error) {
 //				panic("mock out the ClearTransactions method")
 //			},
-//			DelUnfinishedBlockProcessingFunc: func(ctx context.Context, processedBy string) error {
+//			DelUnfinishedBlockProcessingFunc: func(ctx context.Context, processedBy string) (int64, error) {
 //				panic("mock out the DelUnfinishedBlockProcessing method")
 //			},
 //			HealthFunc: func(ctx context.Context) error {
@@ -54,7 +54,7 @@ type BlocktxClientMock struct {
 	ClearTransactionsFunc func(ctx context.Context, retentionDays int32) (int64, error)
 
 	// DelUnfinishedBlockProcessingFunc mocks the DelUnfinishedBlockProcessing method.
-	DelUnfinishedBlockProcessingFunc func(ctx context.Context, processedBy string) error
+	DelUnfinishedBlockProcessingFunc func(ctx context.Context, processedBy string) (int64, error)
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context) error
@@ -222,7 +222,7 @@ func (mock *BlocktxClientMock) ClearTransactionsCalls() []struct {
 }
 
 // DelUnfinishedBlockProcessing calls DelUnfinishedBlockProcessingFunc.
-func (mock *BlocktxClientMock) DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) error {
+func (mock *BlocktxClientMock) DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) (int64, error) {
 	if mock.DelUnfinishedBlockProcessingFunc == nil {
 		panic("BlocktxClientMock.DelUnfinishedBlockProcessingFunc: method is nil but BlocktxClient.DelUnfinishedBlockProcessing was just called")
 	}

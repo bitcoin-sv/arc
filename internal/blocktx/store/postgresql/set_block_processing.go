@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -38,7 +37,7 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 	return processedBy, nil
 }
 
-func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) error {
+func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
 	if tracer != nil {
 		var span trace.Span
 		ctx, span = tracer.Start(ctx, "InsertBlock")
@@ -51,14 +50,14 @@ func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Has
 
 	res, err := p.db.ExecContext(ctx, q, hash[:], processedBy)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	rowsAffected, _ := res.RowsAffected()
 	if rowsAffected != 1 {
-		return store.ErrBlockNotFound
+		return 0, store.ErrBlockNotFound
 	}
 
-	return nil
+	return rowsAffected, nil
 }
 
 func (p *PostgreSQL) GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {

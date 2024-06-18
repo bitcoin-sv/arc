@@ -14,7 +14,7 @@ type BlocktxClient interface {
 	ClearTransactions(ctx context.Context, retentionDays int32) (int64, error)
 	ClearBlocks(ctx context.Context, retentionDays int32) (int64, error)
 	ClearBlockTransactionsMap(ctx context.Context, retentionDays int32) (int64, error)
-	DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) error
+	DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) (int64, error)
 	VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error)
 }
 
@@ -50,12 +50,12 @@ func (btc *Client) Health(ctx context.Context) error {
 	return nil
 }
 
-func (btc *Client) DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) error {
-	_, err := btc.client.DelUnfinishedBlockProcessing(ctx, &blocktx_api.DelUnfinishedBlockProcessingRequest{ProcessedBy: processedBy})
+func (btc *Client) DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) (int64, error) {
+	resp, err := btc.client.DelUnfinishedBlockProcessing(ctx, &blocktx_api.DelUnfinishedBlockProcessingRequest{ProcessedBy: processedBy})
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	return resp.Rows, nil
 }
 
 func (btc *Client) ClearTransactions(ctx context.Context, retentionDays int32) (int64, error) {

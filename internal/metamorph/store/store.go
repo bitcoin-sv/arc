@@ -44,6 +44,8 @@ type Stats struct {
 	StatusSeenInOrphanMempool int64
 	StatusNotSeen             int64
 	StatusNotMined            int64
+	StatusSeenOnNetworkTotal  int64
+	StatusMinedTotal          int64
 }
 
 type MetamorphStore interface {

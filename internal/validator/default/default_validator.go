@@ -50,7 +50,7 @@ func (v *DefaultValidator) ValidateEFTransaction(tx *bt.Tx, skipFeeValidation bo
 	return nil
 }
 
-func (v *DefaultValidator) ValidateBeef(beefTx *beef.BEEF, skipFeeValidation, skipScriptValidation bool) error {
+func (v *DefaultValidator) ValidateBeef(beefTx *beef.BEEF, skipFeeValidation, skipScriptValidation bool) (*bt.Tx, error) {
 	for _, btx := range beefTx.Transactions {
 		// verify only unmined transactions
 		if btx.IsMined() {
@@ -62,28 +62,28 @@ func (v *DefaultValidator) ValidateBeef(beefTx *beef.BEEF, skipFeeValidation, sk
 		// needs to be calculated here, because txs in beef are not in EF format
 		if !skipFeeValidation {
 			if err := v.validateBeefFees(tx, beefTx); err != nil {
-				return err
+				return tx, err
 			}
 		}
 
 		// needs to be calculated here, because txs in beef are not in EF format
 		if !skipScriptValidation {
 			if err := beef.ValidateScripts(tx, beefTx.Transactions); err != nil {
-				return validator.NewError(err, api.ErrStatusUnlockingScripts)
+				return tx, validator.NewError(err, api.ErrStatusUnlockingScripts)
 			}
 		}
 
 		// purposefully skip the fee and scripts validation, because it's done above
 		if err := v.validateTransaction(tx, true, true); err != nil {
-			return err
+			return tx, err
 		}
 	}
 
 	if err := beef.EnsureAncestorsArePresentInBump(beefTx.GetLatestTx(), beefTx); err != nil {
-		return validator.NewError(err, api.ErrStatusMinedAncestorsNotFound)
+		return beefTx.GetLatestTx(), validator.NewError(err, api.ErrStatusMinedAncestorsNotFound)
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (v *DefaultValidator) validateTransaction(tx *bt.Tx, skipFeeValidation, skipScriptValidation bool) error {

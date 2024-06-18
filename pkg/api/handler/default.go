@@ -357,8 +357,8 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 
 			transactionsHexes = remainingBytes
 
-			if err := txValidator.ValidateBeef(beefTx, transactionOptions.SkipFeeValidation, transactionOptions.SkipScriptValidation); err != nil {
-				_, arcError := m.handleError(ctx, transaction, err)
+			if errTx, err := txValidator.ValidateBeef(beefTx, transactionOptions.SkipFeeValidation, transactionOptions.SkipScriptValidation); err != nil {
+				_, arcError := m.handleError(ctx, errTx, err)
 				txErrors = append(txErrors, arcError)
 				continue
 			}
@@ -474,8 +474,8 @@ func (m ArcDefaultHandler) extendTransaction(ctx context.Context, transaction *b
 }
 
 func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.Validator, beefTx *beef.BEEF, transactionOptions *metamorph.TransactionOptions) *api.ErrorFields {
-	if err := txValidator.ValidateBeef(beefTx, transactionOptions.SkipFeeValidation, transactionOptions.SkipTxValidation); err != nil {
-		_, arcError := m.handleError(ctx, beefTx.GetLatestTx(), err)
+	if errTx, err := txValidator.ValidateBeef(beefTx, transactionOptions.SkipFeeValidation, transactionOptions.SkipTxValidation); err != nil {
+		_, arcError := m.handleError(ctx, errTx, err)
 		return arcError
 	}
 

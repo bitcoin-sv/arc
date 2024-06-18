@@ -111,7 +111,7 @@ The first format is called the extended format, and is a superset of the raw tra
 
 The only check that cannot be done on a transaction in the extended format is the check for double spends. This can only be done by downloading the parent transactions, or by querying a utxo store. A robust utxo store is still in development and will be added to ARC when it is ready. At this moment, the utxo check is performed in the Bitcoin node when a transaction is sent to the network.
 
-The second format is called Background Evaluation Extended Format, or BEEF, in short. BEEF was created to enable and facilitate Simple Payment Verification (SPV) when sending transactions between peers and to allow for validation of transactions, the inputs of which may not yet be mined. Although this format is mainly used in peer-to-peer transactions, a peer ultimately has to submit the transaction to the nodes, and to help with that, Arc not only accepts that format, but also performs the SPV.
+The second format is called Background Evaluation Extended Format, or BEEF, in short. BEEF was created to enable and facilitate Simplified Payment Verification (SPV) when sending transactions between peers which allows validation of transactions, the inputs of which may not yet be mined. Although this format is mainly used in peer-to-peer transactions, a peer ultimately has to submit the transaction to the nodes, and to help with that, Arc not only accepts that format, but also performs the SPV.
 
 BEEF includes the transaction which constitutes the payment, as well as transactions whose outputs are used as inputs to the payment transaction (parent transactions) with their corresponding Merkle paths in the form of [BUMP](https://bsv.brc.dev/transactions/0074). In cases where the parent transaction is not yet mined, each ancestral transaction is included until the ancestor transaction is mined and has a corresponding Merkle path.
 
@@ -125,7 +125,7 @@ Storing all block headers is a very network-heavy process, therefore Arc stores 
 
 With the successful adoption of Bitcoin ARC, these formats should establish themselves as the new standard of interchange between wallets and non-mining nodes on the network.
 
-The Extended Format has been described in detail in [BIP-239](BIP-239).
+The Extended Format has been described in detail in [BRC-30](https://bsv.brc.dev/transactions/0030).
 The Background Evaluation Extended Format has been described in detail in [BRC-62](https://bsv.brc.dev/transactions/0062).
 
 The following diagrams show the difference between validating a transaction in the standard format, the Extended Format and BEEF:
@@ -175,9 +175,9 @@ return status
 ```
 For each request ARC receives in standard format, it must request the utxos from the Bitcoin node. This is a slow process, as it requires a round trip to the Bitcoin node for each input.
 
-For this reason it is expected that transactions come in an extended format or BEEF. Transactions in standard format requires a pretreatment to convert each tx into one in extended format to pass through the ARC pipeline.
+For this reason it is expected that transactions come in an extended format or BEEF. Transactions in standard format require a pretreatment to convert each tx into extended format to pass through the ARC pipeline.
 
-That pretreatment detracts from the expected efficiency of the process because it requires extra requests to the Bitcoin network. Therefore, it is expected that the trend will be to use the extended format or BEEF, which may be the only ones supported in the future.
+That pretreatment detracts from the expected efficiency of the process because it requires extra requests to the Bitcoin network. Therefore, it is expected that the trend will be to use the EF or BEEF, which may be the only supported formats in future.
 
 
 #### Extended format flow

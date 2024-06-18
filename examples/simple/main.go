@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	apiHandler "github.com/bitcoin-sv/arc/pkg/api/handler"
 	merklerootsverifier "github.com/bitcoin-sv/arc/pkg/api/merkle_roots_verifier"
@@ -15,6 +16,12 @@ import (
 func main() {
 	// Set up a basic Echo router
 	e := echo.New()
+
+	// Get app config
+	arcConfig, err := config.Load()
+	if err != nil {
+		panic(err)
+	}
 
 	// add a single bitcoin node
 	txHandler, err := transaction_handler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
@@ -27,16 +34,9 @@ func main() {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	defaultPolicy, err := apiHandler.GetDefaultPolicy()
-	if err != nil {
-		logger.Error("failed to get default policy", slog.String("err", err.Error()))
-		// this is a fatal error, we cannot start the server without a valid default policy
-		panic(err)
-	}
-
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
-	if handler, err = apiHandler.NewDefault(logger, txHandler, merkleRootsVerifier, defaultPolicy); err != nil {
+	if handler, err = apiHandler.NewDefault(logger, txHandler, merkleRootsVerifier, arcConfig.Api.DefaultPolicy, arcConfig.PeerRpc, arcConfig.Api); err != nil {
 		panic(err)
 	}
 

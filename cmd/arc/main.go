@@ -33,38 +33,9 @@ func main() {
 }
 
 func run() error {
-	startApi := flag.Bool("api", false, "start ARC api server")
-	startMetamorph := flag.Bool("metamorph", false, "start metamorph")
-	startBlockTx := flag.Bool("blocktx", false, "start blocktx")
-	startK8sWatcher := flag.Bool("k8s-watcher", false, "start k8s-watcher")
-	help := flag.Bool("help", false, "Show help")
-	configFile := flag.String("config", ".", "path to configuration yaml file")
+	configFile, startApi, startMetamorph, startBlockTx, startK8sWatcher := parseFlags()
 
-	flag.Parse()
-
-	if help != nil && *help {
-		fmt.Println("usage: main [options]")
-		fmt.Println("where options are:")
-		fmt.Println("")
-		fmt.Println("    -api=<true|false>")
-		fmt.Println("          whether to start ARC api server (default=true)")
-		fmt.Println("")
-		fmt.Println("    -metamorph=<true|false>")
-		fmt.Println("          whether to start metamorph (default=true)")
-		fmt.Println("")
-		fmt.Println("    -blocktx=<true|false>")
-		fmt.Println("          whether to start block tx (default=true)")
-		fmt.Println("")
-		fmt.Println("    -k8s-watcher=<true|false>")
-		fmt.Println("          whether to start k8s-watcher (default=true)")
-		fmt.Println("")
-		fmt.Println("    -config=/location")
-		fmt.Println("          directory to look for config.yaml (default='')")
-		fmt.Println("")
-		return nil
-	}
-
-	arcConfig, err := config.Load(*configFile)
+	arcConfig, err := config.Load(configFile)
 	if err != nil {
 		return fmt.Errorf("failed to load app config: %w", err)
 	}
@@ -117,12 +88,12 @@ func run() error {
 
 	if !isAnyFlagPassed("api", "blocktx", "metamorph", "k8s-watcher") {
 		logger.Info("No service selected, starting all")
-		*startApi = true
-		*startMetamorph = true
-		*startBlockTx = true
+		startApi = true
+		startMetamorph = true
+		startBlockTx = true
 	}
 
-	if *startBlockTx {
+	if startBlockTx {
 		logger.Info("Starting BlockTx")
 		shutdown, err := cmd.StartBlockTx(logger, arcConfig)
 		if err != nil {
@@ -131,16 +102,16 @@ func run() error {
 		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}
 
-	if *startMetamorph {
+	if startMetamorph {
 		logger.Info("Starting Metamorph")
-		shutdown, err := cmd.StartMetamorph(logger)
+		shutdown, err := cmd.StartMetamorph(logger, arcConfig)
 		if err != nil {
 			return fmt.Errorf("failed to start metamorph: %v", err)
 		}
 		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}
 
-	if *startApi {
+	if startApi {
 		logger.Info("Starting API")
 		shutdown, err := cmd.StartAPIServer(logger, arcConfig)
 		if err != nil {
@@ -150,9 +121,9 @@ func run() error {
 		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}
 
-	if *startK8sWatcher {
+	if startK8sWatcher {
 		logger.Info("Starting K8s-Watcher")
-		shutdown, err := cmd.StartK8sWatcher(logger)
+		shutdown, err := cmd.StartK8sWatcher(logger, arcConfig)
 		if err != nil {
 			return fmt.Errorf("failed to start k8s-watcher: %v", err)
 		}
@@ -174,6 +145,41 @@ func appCleanup(logger *slog.Logger, shutdownFns []func()) {
 	for _, fn := range shutdownFns {
 		fn()
 	}
+}
+
+func parseFlags() (string, bool, bool, bool, bool) {
+	startApi := flag.Bool("api", false, "start ARC api server")
+	startMetamorph := flag.Bool("metamorph", false, "start metamorph")
+	startBlockTx := flag.Bool("blocktx", false, "start blocktx")
+	startK8sWatcher := flag.Bool("k8s-watcher", false, "start k8s-watcher")
+	help := flag.Bool("help", false, "Show help")
+	configFile := flag.String("config", ".", "path to configuration yaml file")
+
+	flag.Parse()
+
+	if *help {
+		fmt.Println("usage: main [options]")
+		fmt.Println("where options are:")
+		fmt.Println("")
+		fmt.Println("    -api=<true|false>")
+		fmt.Println("          whether to start ARC api server (default=true)")
+		fmt.Println("")
+		fmt.Println("    -metamorph=<true|false>")
+		fmt.Println("          whether to start metamorph (default=true)")
+		fmt.Println("")
+		fmt.Println("    -blocktx=<true|false>")
+		fmt.Println("          whether to start block tx (default=true)")
+		fmt.Println("")
+		fmt.Println("    -k8s-watcher=<true|false>")
+		fmt.Println("          whether to start k8s-watcher (default=true)")
+		fmt.Println("")
+		fmt.Println("    -config=/location")
+		fmt.Println("          directory to look for config.yaml (default='')")
+		fmt.Println("")
+		os.Exit(0)
+	}
+
+	return *configFile, *startApi, *startMetamorph, *startBlockTx, *startK8sWatcher
 }
 
 func isAnyFlagPassed(flags ...string) bool {

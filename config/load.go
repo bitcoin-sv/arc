@@ -2,13 +2,14 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 )
 
-func Load(configFile string) (*ArcConfig, error) {
+func Load(configFilePaths ...string) (*ArcConfig, error) {
 	arcConfig := getDefaultArcConfig()
 
 	err := setDefaults(arcConfig)
@@ -20,8 +21,7 @@ func Load(configFile string) (*ArcConfig, error) {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
-	viper.AddConfigPath(configFile)
-	err = viper.ReadInConfig()
+	err = overrideWithFiles(configFilePaths...)
 	if err != nil {
 		return nil, err
 	}
@@ -43,6 +43,31 @@ func setDefaults(defaultConfig *ArcConfig) error {
 
 	for key, value := range defaultsMap {
 		viper.SetDefault(key, value)
+	}
+
+	return nil
+}
+
+func overrideWithFiles(configFilePaths ...string) error {
+	if len(configFilePaths) == 0 {
+		return nil
+	}
+
+	for _, path := range configFilePaths {
+		stat, err := os.Stat(path)
+		if !stat.IsDir() {
+			return fmt.Errorf("config path: %s should be a directory", path)
+		}
+		if os.IsNotExist(err) {
+			return fmt.Errorf("config path: %s does not exist", path)
+		}
+
+		viper.AddConfigPath(path)
+	}
+
+	err := viper.ReadInConfig()
+	if err != nil {
+		return err
 	}
 
 	return nil

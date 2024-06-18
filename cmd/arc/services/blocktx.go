@@ -28,14 +28,14 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	tracingEnabled := arcConfig.Tracing != nil
 	btxConfig := arcConfig.Blocktx
 
-	blockStore, err := NewBlocktxStore(logger, btxConfig.Db, tracingEnabled)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
-	}
-
 	network, err := config.GetNetwork(arcConfig.Network)
 	if err != nil {
 		return nil, err
+	}
+
+	blockStore, err := NewBlocktxStore(logger, btxConfig.Db, tracingEnabled)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
 
 	// The tx channel needs the capacity so that it could potentially buffer up to a certain nr of transactions per second
@@ -85,37 +85,29 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		peerHandlerOpts = append(peerHandlerOpts, blocktx.WithTracer())
 	}
 
-	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore,
-		peerHandlerOpts...)
+	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore, peerHandlerOpts...)
 	if err != nil {
 		return nil, err
 	}
 
 	peerHandler.Start()
 
-	pm := p2p.NewPeerManager(logger, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
+	peerOpts := make([]p2p.PeerOptions, 0)
+	peerOpts = append(peerOpts, p2p.WithMaximumMessageSize(maximumBlockSize))
+	if version.Version != "" {
+		peerOpts = append(peerOpts, p2p.WithUserAgent("ARC", version.Version))
+	}
+	peerOpts = append(peerOpts, p2p.WithRetryReadWriteMessageInterval(5*time.Second))
 
-	peerURLs := make([]string, len(arcConfig.Peers))
+	pm := p2p.NewPeerManager(logger, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
+	peers := make([]p2p.PeerI, len(arcConfig.Peers))
+
 	for i, peerSetting := range arcConfig.Peers {
-		peerUrl, err := peerSetting.GetP2PUrl()
+		peerURL, err := peerSetting.GetP2PUrl()
 		if err != nil {
 			return nil, fmt.Errorf("error getting peer url: %v", err)
 		}
-		peerURLs[i] = peerUrl
-	}
-	peers := make([]p2p.PeerI, len(peerURLs))
-
-	opts := make([]p2p.PeerOptions, 0)
-
-	opts = append(opts, p2p.WithMaximumMessageSize(maximumBlockSize))
-	if version.Version != "" {
-		opts = append(opts, p2p.WithUserAgent("ARC", version.Version))
-	}
-
-	opts = append(opts, p2p.WithRetryReadWriteMessageInterval(5*time.Second))
-
-	for i, peerURL := range peerURLs {
-		peer, err := p2p.NewPeer(logger, peerURL, peerHandler, network, opts...)
+		peer, err := p2p.NewPeer(logger, peerURL, peerHandler, network, peerOpts...)
 		if err != nil {
 			return nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
 		}

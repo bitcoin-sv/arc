@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/config"
-	cfg "github.com/bitcoin-sv/arc/internal/config"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
@@ -20,7 +19,6 @@ import (
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 )
 
 func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
@@ -47,14 +45,10 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, err
 	}
 
-	apiAddress, err := cfg.GetString("api.address")
-	if apiAddress == "" {
-		return nil, err
-	}
 	// Serve HTTP until the world ends.
 	go func() {
-		logger.Info("Starting API server", slog.String("address", apiAddress))
-		err := e.Start(apiAddress)
+		logger.Info("Starting API server", slog.String("address", arcConfig.Api.Address))
+		err := e.Start(arcConfig.Api.Address)
 		if err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
 				logger.Info("API http server closed")
@@ -80,33 +74,14 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger, arcConfig *config.ArcConf
 	// check the swagger definition against our requests
 	handler.CheckSwagger(e)
 
-	// Check the security requirements
-
-	metamorphAddress, err := cfg.GetString("metamorph.dialAddr")
-	if err != nil {
-		return err
-	}
-
-	blocktxAddress, err := cfg.GetString("blocktx.dialAddr")
-	if err != nil {
-		return err
-	}
-
-	grpcMessageSize, err := cfg.GetInt("grpcMessageSize")
-	if err != nil {
-		return err
-	}
-
-	prometheusEndpoint := viper.GetString("prometheusEndpoint")
-
-	conn, err := metamorph.DialGRPC(metamorphAddress, prometheusEndpoint, grpcMessageSize)
+	conn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize)
 	if err != nil {
 		return fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
 
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
-	btcConn, err := blocktx.DialGRPC(blocktxAddress, prometheusEndpoint, grpcMessageSize)
+	btcConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize)
 	if err != nil {
 		return fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
@@ -115,16 +90,15 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger, arcConfig *config.ArcConf
 	var policy *bitcoin.Settings
 	policy, err = getPolicyFromNode(arcConfig.PeerRpc)
 	if err != nil {
-		policy, err = handler.GetDefaultPolicy()
-		if err != nil {
-			return err
-		}
+		policy = arcConfig.Api.DefaultPolicy
 	}
 
-	rejectedCallbackUrlSubstrings := viper.GetStringSlice("metamorph.rejectCallbackContaining")
+	// TODO: WithSecurityConfig(appConfig.Security)
+	apiOpts := []handler.Option{
+		handler.WithCallbackUrlRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
+	}
 
-	// TODO WithSecurityConfig(appConfig.Security)
-	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, handler.WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings))
+	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, arcConfig.PeerRpc, arcConfig.Api, apiOpts...)
 	if err != nil {
 		return err
 	}

@@ -1,0 +1,6 @@
+---
+logLevel: INFO
+logFormat: text
+network: mainnet
+tracing:
+  dialAddr: http://tracing:1234

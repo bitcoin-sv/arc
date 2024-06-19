@@ -4,7 +4,7 @@ logFormat: text # format of logging. Value can be one of text | json | tint
 profilerAddr: localhost:9999 # address to start profiler server on (optional)
 prometheusEndpoint: /metrics # endpoint for prometheus metrics (optional)
 grpcMessageSize: 100000000 # maximum grpc message size
-network: regtest # bitcoin network to connect to
+network: regtest # bitcoin network to connect to. Value can be one of mainnet | testnet | regtest
 queueURL: nats://nats:4222 # URL for message queue
 tracing: # (optional)
   dialAddr: http://localhost:4317 # address where traces are exported to

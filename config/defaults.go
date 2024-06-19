@@ -10,25 +10,18 @@ func getDefaultArcConfig() *ArcConfig {
 	return &ArcConfig{
 		LogLevel:           "DEBUG",
 		LogFormat:          "text",
-		ProfilerAddr:       "localhost:9999",
-		PrometheusEndpoint: "/metrics",
-		PrometheusAddr:     ":2112",
+		ProfilerAddr:       "", // optional
+		PrometheusEndpoint: "", // optional
 		GrpcMessageSize:    100000000,
 		Network:            "regtest",
 		QueueURL:           "nats://nats:4222",
-		Tracing:            getTracingConfig(),
+		Tracing:            nil, // optional
 		PeerRpc:            getDefaultPeerRpcConfig(),
 		Peers:              getPeersConfig(),
 		Metamorph:          getMetamorphConfig(),
 		Blocktx:            getBlocktxConfig(),
 		Api:                getApiConfig(),
-		K8sWatcher:         getK8sWatcherConfig(),
-	}
-}
-
-func getTracingConfig() *TracingConfig {
-	return &TracingConfig{
-		DialAddr: "http://localhost:4317",
+		K8sWatcher:         nil, // optional
 	}
 }
 
@@ -73,9 +66,8 @@ func getMetamorphConfig() *MetamorphConfig {
 		ProcessorCacheExpiryTime:    24 * time.Hour,
 		CheckSeenOnNetworkOlderThan: 3 * time.Hour,
 		CheckSeenOnNetworkPeriod:    4 * time.Hour,
-		MonitorPeersInterval:        60 * time.Second,
+		MonitorPeersInterval:        0, // optional
 		CheckUtxos:                  false,
-		ProfilerAddr:                "localhost:9992",
 		Health: &HealthConfig{
 			SeverDialAddr:             "localhost:8005",
 			MinimumHealthyConnections: 2,
@@ -95,7 +87,6 @@ func getBlocktxConfig() *BlocktxConfig {
 		HealthServerDialAddr:          "localhost:8006",
 		Db:                            getDbConfig("blocktx"),
 		RecordRetentionDays:           28,
-		ProfilerAddr:                  "localhost:9993",
 		RegisterTxsInterval:           10 * time.Second,
 		FillGapsInterval:              15 * time.Minute,
 		MaxAllowedBlockHeightMismatch: 3,
@@ -140,12 +131,6 @@ func getApiConfig() *ApiConfig {
 			MinConsolidationInputMaturity:   6,
 			AcceptNonStdConsolidationInput:  false,
 		},
-	}
-}
-
-func getK8sWatcherConfig() *K8sWatcherConfig {
-	return &K8sWatcherConfig{
-		Namespace: "arc-testnetj",
 	}
 }
 

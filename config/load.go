@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func Load(configFilePaths ...string) (*ArcConfig, error) {
+func Load(configFileDirs ...string) (*ArcConfig, error) {
 	arcConfig := getDefaultArcConfig()
 
 	err := setDefaults(arcConfig)
@@ -21,7 +21,7 @@ func Load(configFilePaths ...string) (*ArcConfig, error) {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
-	err = overrideWithFiles(configFilePaths...)
+	err = overrideWithFiles(configFileDirs...)
 	if err != nil {
 		return nil, err
 	}
@@ -48,12 +48,12 @@ func setDefaults(defaultConfig *ArcConfig) error {
 	return nil
 }
 
-func overrideWithFiles(configFilePaths ...string) error {
-	if len(configFilePaths) == 0 {
+func overrideWithFiles(configFileDirs ...string) error {
+	if len(configFileDirs) == 0 || configFileDirs[0] == "" {
 		return nil
 	}
 
-	for _, path := range configFilePaths {
+	for _, path := range configFileDirs {
 		stat, err := os.Stat(path)
 		if !stat.IsDir() {
 			return fmt.Errorf("config path: %s should be a directory", path)

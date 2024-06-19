@@ -33,11 +33,15 @@ func main() {
 }
 
 func run() error {
-	configFile, startApi, startMetamorph, startBlockTx, startK8sWatcher := parseFlags()
+	configDir, startApi, startMetamorph, startBlockTx, startK8sWatcher, dumpConfigFile := parseFlags()
 
-	arcConfig, err := config.Load(configFile)
+	arcConfig, err := config.Load(configDir)
 	if err != nil {
 		return fmt.Errorf("failed to load app config: %w", err)
+	}
+
+	if dumpConfigFile != "" {
+		return config.DumpConfig(dumpConfigFile)
 	}
 
 	logger, err := logger.NewLogger(arcConfig.LogLevel, arcConfig.LogFormat)
@@ -147,13 +151,14 @@ func appCleanup(logger *slog.Logger, shutdownFns []func()) {
 	}
 }
 
-func parseFlags() (string, bool, bool, bool, bool) {
+func parseFlags() (string, bool, bool, bool, bool, string) {
 	startApi := flag.Bool("api", false, "start ARC api server")
 	startMetamorph := flag.Bool("metamorph", false, "start metamorph")
 	startBlockTx := flag.Bool("blocktx", false, "start blocktx")
 	startK8sWatcher := flag.Bool("k8s-watcher", false, "start k8s-watcher")
 	help := flag.Bool("help", false, "Show help")
-	configFile := flag.String("config", ".", "path to configuration yaml file")
+	dumpConfigFile := flag.String("dump_config", "", "dump config to specified file and exit")
+	configFile := flag.String("config", "", "path to configuration yaml file")
 
 	flag.Parse()
 
@@ -176,10 +181,13 @@ func parseFlags() (string, bool, bool, bool, bool) {
 		fmt.Println("    -config=/location")
 		fmt.Println("          directory to look for config.yaml (default='')")
 		fmt.Println("")
+		fmt.Println("    -dump_config=/file.yaml")
+		fmt.Println("          dump config to specified file and exit (default='config/dumped_config.yaml')")
+		fmt.Println("")
 		os.Exit(0)
 	}
 
-	return *configFile, *startApi, *startMetamorph, *startBlockTx, *startK8sWatcher
+	return *configFile, *startApi, *startMetamorph, *startBlockTx, *startK8sWatcher, *dumpConfigFile
 }
 
 func isAnyFlagPassed(flags ...string) bool {

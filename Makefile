@@ -118,5 +118,11 @@ gh-pages:
 api:
 	oapi-codegen -config pkg/api/config.yaml pkg/api/arc.yml > pkg/api/arc.go
 
+.PHONY: compare_config
+compare_config:
+	rm -f ./config/dumped_config.yaml
+	go run ./cmd/arc/main.go -dump_config "./config/dumped_config.yaml" && go run ./scripts/compare_yamls.go
+	rm ./config/dumped_config.yaml
+
 .PHONY: clean_restart_e2e_test
 clean_restart_e2e_test: clean_e2e_tests build_docker run_e2e_tests

@@ -5,7 +5,16 @@ import (
 	"net/url"
 
 	"github.com/libsv/go-p2p/wire"
+	"github.com/spf13/viper"
 )
+
+func DumpConfig(configFile string) error {
+	err := viper.SafeWriteConfigAs(configFile)
+	if err != nil {
+		return fmt.Errorf("error while dumping config: %v", err.Error())
+	}
+	return nil
+}
 
 func GetNetwork(networkStr string) (wire.BitcoinNet, error) {
 	var network wire.BitcoinNet

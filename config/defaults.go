@@ -64,6 +64,8 @@ func getMetamorphConfig() *MetamorphConfig {
 		DialAddr:                    "localhost:8001",
 		Db:                          getDbConfig("metamorph"),
 		ProcessorCacheExpiryTime:    24 * time.Hour,
+		MaxRetries:                  1000,
+		ProcessStatusUpdateInterval: 5 * time.Second,
 		CheckSeenOnNetworkOlderThan: 3 * time.Hour,
 		CheckSeenOnNetworkPeriod:    4 * time.Hour,
 		MonitorPeersInterval:        0, // optional

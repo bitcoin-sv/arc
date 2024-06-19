@@ -24,13 +24,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	RootCmd.PersistentFlags().String("keyfile", "", "Comma separated list of paths to private key files")
-	err = viper.BindPFlag("keyFile", RootCmd.PersistentFlags().Lookup("keyfile"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	RootCmd.PersistentFlags().String("keys", "", "Comma separated list of private keys")
+	RootCmd.PersistentFlags().String("keys", "", "Comma separated list of selected private keys")
 	err = viper.BindPFlag("keys", RootCmd.PersistentFlags().Lookup("keys"))
 	if err != nil {
 		log.Fatal(err)

@@ -20,7 +20,7 @@ func Test_Load(t *testing.T) {
 	t.Run("partial file override", func(t *testing.T) {
 		defaultConfig := getDefaultArcConfig()
 
-		config, err := Load("./test_files/partial_config.yaml")
+		config, err := Load("./test_files/")
 		require.NoError(t, err, "error loading config")
 
 		// verify not overriden default example value

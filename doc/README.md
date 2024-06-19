@@ -55,11 +55,12 @@ stateDiagram-v2
     SEEN_ON_NETWORK --> MINED: Transaction ID was included in a BLOCK message
     MINED --> [*]
 ```
+
 ## Microservices
 
 ### API
 
-API is the REST API microservice for interacting with ARC. See the [API documentation](/arc/api.html) for more information.
+API is the REST API microservice for interacting with ARC. See the [API documentation](api.html) for more information.
 
 The API takes care of validation and sending transactions to Metamorph. The API talks to one or more Metamorph instances using client-based, round robin load balancing.
 
@@ -75,9 +76,10 @@ When possible, the API is responsible for rejecting transactions that would be u
 
 Metamorph is a microservice that is responsible for processing transactions sent by the API to the Bitcoin network. It takes care of re-sending transactions if they are not acknowledged by the network within a certain time period (60 seconds by default).
 
-Metamorph also can send callbacks to a specified URL. To register a callback, the client must add the `X-CallbackUrl` header to the request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
-the body. By default, callbacks are sent to the specified URL in case the submitted transaction has status `REJECTED` or `MINED`. In case the client wants to receive the intermediate status updates (`SEEN_IN_ORPHAN_MEMPOOL` and `SEEN_ON_NETWORK`) about the transaction, additionally the `X-FullStatusUpdates` header needs to be set to `true`. See the [API documentation](/arc/api.html) for more information.
-`X-MaxTimeout` header determines maximum number of seconds to wait for transaction new statuses before request expires (default 5sec, max value 30s).
+#### Callbacks
+
+Metamorph also can send callbacks to a specified URL. To register a callback, the client must add the `X-CallbackUrl` header to the request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in the body.
+
 The following example shows the format of a callback body
 
 ```json
@@ -91,8 +93,8 @@ The following example shows the format of a callback body
   "txid": "48ccf56b16ec11ddd9cfafc4f28492fb7e989d58594a0acd150a1592570ccd13"
 }
 ```
-
-Metamorph is designed to be horizontally scalable. As a result, the metamorphs do not communicate with each other and remain unaware of each other's existence.
+By default, callbacks are sent to the specified URL in case the submitted transaction has status `REJECTED` or `MINED`. In case the client wants to receive the intermediate status updates (`SEEN_IN_ORPHAN_MEMPOOL` and `SEEN_ON_NETWORK`) about the transaction, additionally the `X-FullStatusUpdates` header needs to be set to `true`. See the [API documentation](api.html) for more information.
+`X-MaxTimeout` header determines maximum number of seconds to wait for transaction new statuses before request expires (default 5sec, max value 30s).
 
 ### BlockTx
 
@@ -227,6 +229,8 @@ Please note that [arc-client-js](https://github.com/bitcoin-sv/arc-client-js) is
 
 ## Process flow diagrams
 
+The following diagram shows the process of how a transaction goes through the different statuses of the transaction lifecycle before it gets mined.
+
 ```plantuml
 @startuml
 hide footbox
@@ -305,6 +309,8 @@ return last status
 
 ```
 
+The following diagram shows the process of how a transaction finally gets updated to status `MINED`.
+
 ```plantuml
 @startuml
 hide footbox
@@ -348,3 +354,52 @@ worker -> store: mark txs mined
 
 @enduml
 ```
+
+## Outcome in different scenarios
+
+### Double spending
+
+A transaction `A` is submitted to the network. Shortly later a transaction `B` spending one of the same outputs as transaction `A` (double spend) is submitted to ARC
+
+Expected outcome:
+* If transaction `A` was also submitted to ARC it has status `SEEN_ON_NETWORK`
+* Transaction `B` has status `REJECTED`
+
+The planned feature ![Double spending detection](../ROADMAP.md#double-spending-detection) will ensure that both transaction have status `DOUBLE_SPENT_ATTEMPTED` until one or the other transactions is mined. The mined transaction gets status `MINED` and the other gets status `REJECTED`
+
+### Multiple submissions to the same ARC instance
+
+A transaction is submitted to the same ARC instance twice
+
+Expected outcome:
+* At the second submission ARC simply returns the current status in the response. Changed or updated request headers are ignored
+
+The planned feature ![Multiple different callbacks per transaction](../ROADMAP.md#multiple-different-callbacks-per-transaction) will allow that the same transaction can be submitted multiple times with differing callback URL and token. Callbacks will then be sent to each callback URL with specified token
+
+### Multiple submissions to ARC and other transaction processors
+
+A transaction has been submitted to the network by any other means than a specific ARC instance. The same transaction is additionally submitted to ARC
+
+#### Transaction has already been mined
+
+Expected outcome
+* ARC returns response with status `ANNOUNCED_TO_NETWORK`
+* The status will not switch to `MINED` with the respective block information
+
+The planned feature ![Idempotent transactions](../ROADMAP.md#idempotent-transactions) will ensure that ARC responds with the `MINED` status, block information and Merkle path
+
+#### Transaction has not yet been mined
+
+Expected outcome
+* ARC responds with status `ANNOUNCED_TO_NETWORK` or `SEEN_ON_NETWORK`
+* At latest a couple of minutes later the status will switch to `SEEN_ON_NETWORK`
+
+### Block reorg
+
+A block reorg happens and two different blocks get announced at the same block height
+
+Expected outcome:
+* ARC does not update the transaction statuses according to the block in the longest chain.
+* Information and Merkle path of the block received first will be persisted in the transaction record and not overwritten
+
+The planned feature ![Update of transactions in case of block reorgs](../ROADMAP.md#update-of-transactions-in-case-of-block-reorgs) will ensure that ARC updates the statuses of transactions. Transactions which are not in the block of the longest chain will be updated to `REJECTED` status and transactions which are included in the block of the longest chain are updated to `MINED` status.

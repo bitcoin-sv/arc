@@ -8,23 +8,8 @@ import (
 	"github.com/lmittmann/tint"
 )
 
-func GetSlogLevel(logLevel string) (slog.Level, error) {
-	switch logLevel {
-	case "INFO":
-		return slog.LevelInfo, nil
-	case "WARN":
-		return slog.LevelWarn, nil
-	case "ERROR":
-		return slog.LevelError, nil
-	case "DEBUG":
-		return slog.LevelDebug, nil
-	}
-
-	return slog.LevelInfo, fmt.Errorf("invalid log level: %s", logLevel)
-}
-
 func NewLogger(logLevel, logFormat string) (*slog.Logger, error) {
-	slogLevel, err := GetSlogLevel(logLevel)
+	slogLevel, err := getSlogLevel(logLevel)
 	if err != nil {
 		return nil, err
 	}
@@ -39,4 +24,19 @@ func NewLogger(logLevel, logFormat string) (*slog.Logger, error) {
 	}
 
 	return nil, fmt.Errorf("invalid log format: %s", logFormat)
+}
+
+func getSlogLevel(logLevel string) (slog.Level, error) {
+	switch logLevel {
+	case "INFO":
+		return slog.LevelInfo, nil
+	case "WARN":
+		return slog.LevelWarn, nil
+	case "ERROR":
+		return slog.LevelError, nil
+	case "DEBUG":
+		return slog.LevelDebug, nil
+	}
+
+	return slog.LevelInfo, fmt.Errorf("invalid log level: %s", logLevel)
 }

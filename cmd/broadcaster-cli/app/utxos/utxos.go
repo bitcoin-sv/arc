@@ -44,14 +44,14 @@ func init() {
 		log.Fatal(err)
 	}
 
-	Cmd.PersistentFlags().Int("miningfeesatperkb", 1, "Mining fee offered in transactions [sat/kb]")
-	err = viper.BindPFlag("miningFeeSatPerKb", Cmd.PersistentFlags().Lookup("miningfeesatperkb"))
+	Cmd.PersistentFlags().Int("miningFeeSatPerKb", 1, "Mining fee offered in transactions [sat/kb]")
+	err = viper.BindPFlag("miningFeeSatPerKb", Cmd.PersistentFlags().Lookup("miningFeeSatPerKb"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	Cmd.PersistentFlags().BoolP("fullstatusupdates", "f", false, fmt.Sprintf("Send callbacks for %s or %s status", metamorph_api.Status_SEEN_ON_NETWORK.String(), metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL.String()))
-	err = viper.BindPFlag("fullStatusUpdates", Cmd.PersistentFlags().Lookup("fullstatusupdates"))
+	Cmd.PersistentFlags().BoolP("fullStatusUpdates", "f", false, fmt.Sprintf("Send callbacks for %s or %s status", metamorph_api.Status_SEEN_ON_NETWORK.String(), metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL.String()))
+	err = viper.BindPFlag("fullStatusUpdates", Cmd.PersistentFlags().Lookup("fullStatusUpdates"))
 	if err != nil {
 		log.Fatal(err)
 	}

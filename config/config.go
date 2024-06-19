@@ -11,7 +11,6 @@ type ArcConfig struct {
 	LogFormat          string            `json:"logFormat" mapstructure:"logFormat"`
 	ProfilerAddr       string            `json:"profilerAddr" mapstructure:"profilerAddr"`
 	PrometheusEndpoint string            `json:"prometheusEndpoint" mapstructure:"prometheusEndpoint"`
-	PrometheusAddr     string            `json:"prometheusAddr" mapstructure:"prometheusAddr"`
 	GrpcMessageSize    int               `json:"grpcMessageSize" mapstructure:"grpcMessageSize"`
 	Network            string            `json:"network" mapstructure:"network"`
 	QueueURL           string            `json:"queueURL" mapstructure:"queueURL"`
@@ -56,7 +55,6 @@ type MetamorphConfig struct {
 	CheckSeenOnNetworkPeriod    time.Duration `json:"checkSeenOnNetworkPeriod" mapstructure:"checkSeenOnNetworkPeriod"`
 	MonitorPeersInterval        time.Duration `json:"monitorPeersInterval" mapstructure:"monitorPeersInterval"`
 	CheckUtxos                  bool          `json:"checkUtxos" mapstructure:"checkUtxos"`
-	ProfilerAddr                string        `json:"profilerAddr" mapstructure:"profilerAddr"`
 	Health                      *HealthConfig `json:"health" mapstructure:"health"`
 	RejectCallbackContaining    []string      `json:"rejectCallbackContaining" mapstructure:"rejectCallbackContaining"`
 	Stats                       *StatsConfig  `json:"stats" mapstructure:"stats"`
@@ -68,7 +66,6 @@ type BlocktxConfig struct {
 	HealthServerDialAddr          string              `json:"healthServerDialAddr" mapstructure:"healthServerDialAddr"`
 	Db                            *DbConfig           `json:"db" mapstructure:"db"`
 	RecordRetentionDays           int                 `json:"recordRetentionDays" mapstructure:"recordRetentionDays"`
-	ProfilerAddr                  string              `json:"profilerAddr" mapstructure:"profilerAddr"`
 	RegisterTxsInterval           time.Duration       `json:"registerTxsInterval" mapstructure:"registerTxsInterval"`
 	FillGapsInterval              time.Duration       `json:"fillGapsInterval" mapstructure:"fillGapsInterval"`
 	MaxAllowedBlockHeightMismatch int                 `json:"maxAllowedBlockHeightMismatch" mapstructure:"maxAllowedBlockHeightMismatch"`

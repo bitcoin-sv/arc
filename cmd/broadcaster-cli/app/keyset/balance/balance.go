@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
@@ -32,41 +33,41 @@ var Cmd = &cobra.Command{
 
 		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
-		var keys []string
-		err = viper.UnmarshalKey("keys", &keys)
+		keysFlag := viper.GetString("keys")
+		selectedKeys := strings.Split(keysFlag, ",")
+
+		var keys map[string]string
+		err = viper.UnmarshalKey("privateKeys", &keys)
 		if err != nil {
 			return err
-		}
-
-		var keyFiles []string
-		err = viper.UnmarshalKey("keyfile", &keyFiles)
-		if err != nil {
-			return err
-		}
-
-		if len(keyFiles) == 0 && len(keys) == 0 {
-			return errors.New("no keys given in configuration")
 		}
 
 		var keySets []*keyset.KeySet
 
 		if len(keys) > 0 {
-			for _, key := range keys {
-				fundingKeySet, _, err := helper.GetKeySetsXpriv(key)
-				if err != nil {
-					return fmt.Errorf("failed to get key abc sets: %v", err)
+			if len(selectedKeys) > 0 {
+				for _, selectedKey := range selectedKeys {
+					key, found := keys[selectedKey]
+					if !found {
+						return fmt.Errorf("key not found: %s", selectedKey)
+					}
+					fundingKeySet, _, err := helper.GetKeySetsXpriv(key)
+					if err != nil {
+						return fmt.Errorf("failed to get key sets: %v", err)
+					}
+					keySets = append(keySets, fundingKeySet)
 				}
-				keySets = append(keySets, fundingKeySet)
-			}
-		}
-		if len(keyFiles) > 0 {
-			for _, kf := range keyFiles {
-				fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
-				if err != nil {
-					return fmt.Errorf("failed to get key sets: %v", err)
+			} else {
+				for _, key := range keys {
+					fundingKeySet, _, err := helper.GetKeySetsXpriv(key)
+					if err != nil {
+						return fmt.Errorf("failed to get key sets: %v", err)
+					}
+					keySets = append(keySets, fundingKeySet)
 				}
-				keySets = append(keySets, fundingKeySet)
 			}
+		} else {
+			return errors.New("no keys given in configuration")
 		}
 
 		for _, keySet := range keySets {

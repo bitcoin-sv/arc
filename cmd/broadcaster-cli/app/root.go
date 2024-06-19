@@ -30,6 +30,12 @@ func init() {
 		log.Fatal(err)
 	}
 
+	RootCmd.PersistentFlags().String("keys", "", "Comma separated list of private keys")
+	err = viper.BindPFlag("keys", RootCmd.PersistentFlags().Lookup("keys"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	RootCmd.PersistentFlags().String("wocAPIKey", "", "Optional WhatsOnChain API key for allowing for higher request rates")
 	err = viper.BindPFlag("wocAPIKey", RootCmd.PersistentFlags().Lookup("wocAPIKey"))
 	if err != nil {

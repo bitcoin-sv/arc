@@ -55,11 +55,14 @@ func overrideWithFiles(configFileDirs ...string) error {
 
 	for _, path := range configFileDirs {
 		stat, err := os.Stat(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf("config path: %s does not exist", path)
+			}
+			return err
+		}
 		if !stat.IsDir() {
 			return fmt.Errorf("config path: %s should be a directory", path)
-		}
-		if os.IsNotExist(err) {
-			return fmt.Errorf("config path: %s does not exist", path)
 		}
 
 		viper.AddConfigPath(path)

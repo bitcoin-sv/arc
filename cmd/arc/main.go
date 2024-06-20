@@ -158,7 +158,7 @@ func parseFlags() (string, bool, bool, bool, bool, string) {
 	startK8sWatcher := flag.Bool("k8s-watcher", false, "start k8s-watcher")
 	help := flag.Bool("help", false, "Show help")
 	dumpConfigFile := flag.String("dump_config", "", "dump config to specified file and exit")
-	configFile := flag.String("config", "", "path to configuration yaml file")
+	configDir := flag.String("config", "", "path to configuration yaml file")
 
 	flag.Parse()
 
@@ -187,7 +187,7 @@ func parseFlags() (string, bool, bool, bool, bool, string) {
 		os.Exit(0)
 	}
 
-	return *configFile, *startApi, *startMetamorph, *startBlockTx, *startK8sWatcher, *dumpConfigFile
+	return *configDir, *startApi, *startMetamorph, *startBlockTx, *startK8sWatcher, *dumpConfigFile
 }
 
 func isAnyFlagPassed(flags ...string) bool {

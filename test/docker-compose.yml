@@ -116,8 +116,8 @@ services:
     expose:
       - "8011"
     volumes:
-      - ./config/config.yaml:/service/config.yaml
-    command: [ "./arc", "-blocktx=true" ]
+      - ./config/config.yaml:/config.yaml
+    command: [ "./arc", "-blocktx=true", "-config='.'" ]
     depends_on:
       - node1
       - node2
@@ -135,9 +135,9 @@ services:
     image: test-arc:latest
     expose:
       - "8001"
-    command: [ "./arc", "-metamorph=true" ]
+    command: [ "./arc", "-metamorph=true", "-config='.'" ]
     volumes:
-      - ./config/config.yaml:/service/config.yaml
+      - ./config/config.yaml:/config.yaml
     depends_on:
       arc-blocktx:
         condition: service_healthy
@@ -155,9 +155,9 @@ services:
       - "9999:9999"
     expose:
       - "9090"
-    command: [ "./arc", "-api=true" ]
+    command: [ "./arc", "-api=true", "-config='.'" ]
     volumes:
-      - ./config/config.yaml:/service/config.yaml
+      - ./config/config.yaml:/config.yaml
     depends_on:
       arc-metamorph:
         condition: service_healthy

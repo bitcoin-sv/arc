@@ -19,7 +19,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// unmarshal ymal
+	// unmarshal yaml
 	exampleConfig := make(map[string]interface{})
 	if err := yaml.Unmarshal(exampleConfigFile, &exampleConfig); err != nil {
 		log.Fatal(err)
@@ -32,11 +32,11 @@ func main() {
 	}
 
 	// iterate key in dumped config
-	for new_key := range newConfig {
+	for newKey := range newConfig {
 		// check whether key exists in example_config
-		if _, ok := exampleConfig[new_key]; !ok {
+		if _, ok := exampleConfig[newKey]; !ok {
 			// return an error if not
-			log.Fatalf("key: %s does not exist in /config/example_config.yaml", new_key)
+			log.Fatalf("key: %s does not exist in /config/example_config.yaml", newKey)
 		}
 	}
 }

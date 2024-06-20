@@ -17,7 +17,7 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 	maxAllowedBlockHeightMismatch int,
 ) (*blocktx_api.MerkleRootVerificationResponse, error) {
 	qTopHeight := `
-		SELECT MAX(b.height), MIN(b.height) FROM blocks b WHERE b.orphanedyn = false
+		SELECT MAX(b.height), MIN(b.height) FROM blocktx.blocks b WHERE b.orphanedyn = false
 	`
 
 	var topHeight uint64
@@ -32,7 +32,7 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 	}
 
 	qMerkleRoot := `
-		SELECT b.height FROM blocks b WHERE b.merkleroot = $1 AND b.height = $2 AND b.orphanedyn = false
+		SELECT b.height FROM blocktx.blocks b WHERE b.merkleroot = $1 AND b.height = $2 AND b.orphanedyn = false
 	`
 
 	var unverifiedBlockHeights []uint64

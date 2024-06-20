@@ -94,7 +94,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 
 func (p *PostgreSQL) insertTxsIntoBlockMap(ctx context.Context, blockId uint64, blockIDs, txIDs []uint64, positions []int) error {
 	const qMap = `
-		INSERT INTO block_transactions_map (
+		INSERT INTO blocktx.block_transactions_map (
 			blockid
 			,txid
 			,pos

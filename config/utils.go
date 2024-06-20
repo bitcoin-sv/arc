@@ -34,7 +34,7 @@ func GetNetwork(networkStr string) (wire.BitcoinNet, error) {
 }
 
 func (p *PeerConfig) GetZMQUrl() (*url.URL, error) {
-	if p.Port.ZMQ == 0 {
+	if p.Port == nil || p.Port.ZMQ == 0 {
 		return nil, fmt.Errorf("port_zmq not set for peer %s", p.Host)
 	}
 
@@ -44,7 +44,7 @@ func (p *PeerConfig) GetZMQUrl() (*url.URL, error) {
 }
 
 func (p *PeerConfig) GetP2PUrl() (string, error) {
-	if p.Port.P2P == 0 {
+	if p.Port == nil || p.Port.P2P == 0 {
 		return "", fmt.Errorf("port_p2p not set for peer %s", p.Host)
 	}
 

@@ -46,10 +46,11 @@ type Block struct {
 }
 
 type Transaction struct {
-	ID           int64  `db:"id"`
-	Hash         []byte `db:"hash"`
-	MerklePath   string `db:"merkle_path"`
-	IsRegistered bool   `db:"is_registered"`
+	ID           int64     `db:"id"`
+	Hash         []byte    `db:"hash"`
+	MerklePath   string    `db:"merkle_path"`
+	IsRegistered bool      `db:"is_registered"`
+	InsertedAt   time.Time `db:"inserted_at"`
 }
 
 type BlockTransactionMap struct {
@@ -637,20 +638,27 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 	}
 
 	// common setup for test cases
-	ctx, _, sut := setupPostgresTest(t)
+	ctx, now, sut := setupPostgresTest(t)
 	defer sut.Close()
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			prepareDb(t, sut.db, "fixtures/register_transactions")
 
-			_, err := sut.RegisterTransactions(ctx, tc.txs)
+			result, err := sut.RegisterTransactions(ctx, tc.txs)
 			require.NoError(t, err)
+			require.NotNil(t, result)
+
+			resultmap := make(map[chainhash.Hash]bool)
+			for _, h := range result {
+				resultmap[*h] = false
+			}
 
 			// assert data are correctly saved in the store
 			d, err := sqlx.Open("postgres", dbInfo)
 			require.NoError(t, err)
 
+			updatedCounter := 0
 			for _, tx := range tc.txs {
 				var storedtx Transaction
 				err = d.Get(&storedtx, "SELECT id, hash, is_registered from transactions WHERE hash=$1", string(tx.GetHash()))
@@ -658,7 +666,17 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 
 				require.NotNil(t, storedtx)
 				require.True(t, storedtx.IsRegistered)
+
+				if _, found := resultmap[chainhash.Hash(storedtx.Hash)]; found {
+					require.Greater(t, storedtx.InsertedAt, now)
+					updatedCounter++
+				} else {
+					require.Less(t, storedtx.InsertedAt, now)
+				}
 			}
+
+			require.Equal(t, len(result), updatedCounter)
+
 		})
 	}
 }

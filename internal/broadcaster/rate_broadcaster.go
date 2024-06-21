@@ -6,8 +6,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/gosuri/uilive"
 	"log/slog"
 	"math"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -31,11 +33,14 @@ type UtxoClient interface {
 
 type RateBroadcaster struct {
 	Broadcaster
-	wg         sync.WaitGroup
-	totalTxs   int64
-	shutdown   chan struct{}
-	mu         sync.RWMutex
-	satoshiMap map[string]uint64
+	wg              sync.WaitGroup
+	totalTxs        int64
+	connectionCount int32
+	shutdown        chan struct{}
+	connectionCh    chan struct{}
+	utxoCh          chan *bt.UTXO
+	mu              sync.RWMutex
+	satoshiMap      map[string]uint64
 }
 
 func NewRateBroadcaster(logger *slog.Logger, client ArcClient, keySets []*keyset.KeySet, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (*RateBroadcaster, error) {
@@ -46,17 +51,25 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, keySets []*keyset
 	}
 
 	rb := &RateBroadcaster{
-		Broadcaster: *b,
-		totalTxs:    0,
-		mu:          sync.RWMutex{},
-		shutdown:    make(chan struct{}, 10),
-		satoshiMap:  map[string]uint64{},
-		wg:          sync.WaitGroup{},
+		Broadcaster:  *b,
+		totalTxs:     0,
+		mu:           sync.RWMutex{},
+		shutdown:     make(chan struct{}, 10),
+		connectionCh: make(chan struct{}, 10),
+		satoshiMap:   map[string]uint64{},
+		wg:           sync.WaitGroup{},
 	}
 
+	rb.startPrintStats()
+
 	go func() {
-		for range rb.shutdown {
-			rb.cancelAll()
+		for {
+			select {
+			case <-rb.shutdown:
+				rb.cancelAll()
+			case <-rb.ctx.Done():
+				return
+			}
 		}
 	}()
 
@@ -114,7 +127,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int64
 			return fmt.Errorf("size of utxo set %d is smaller than requested batch size %d - create more utxos first", len(utxoSet), b.batchSize)
 		}
 
-		utxoCh := make(chan *bt.UTXO, len(utxoSet))
+		b.utxoCh = make(chan *bt.UTXO, len(utxoSet))
 
 		for _, utxo := range utxoSet {
 			utxoCh <- utxo
@@ -122,8 +135,6 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int64
 
 		submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
 		submitBatchTicker := time.NewTicker(submitBatchInterval)
-
-		logSummaryTicker := time.NewTicker(3 * time.Second)
 
 		responseCh := make(chan *metamorph_api.TransactionStatus, 100)
 		errCh := make(chan error, 100)
@@ -133,11 +144,9 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int64
 		counter := 0
 
 		b.wg.Add(1)
-		go func() {
-
+		go func(keySet *keyset.KeySet) {
 			defer func() {
-
-				b.logger.Info("shutting down broadcaster", slog.String("address", ks.Address(!b.isTestnet)))
+				b.logger.Info("shutting down broadcaster", slog.String("address", keySet.Address(!b.isTestnet)))
 				b.wg.Done()
 			}()
 
@@ -149,23 +158,14 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int64
 					return
 				case <-submitBatchTicker.C:
 
-					txs, err := b.createSelfPayingTxs(utxoCh, ks)
+					txs, err := b.createSelfPayingTxs(b.utxoCh, keySet)
 					if err != nil {
 						b.logger.Error("failed to create self paying txs", slog.String("err", err.Error()))
 						b.shutdown <- struct{}{}
 						continue
 					}
 
-					go b.broadcastBatch(txs, responseCh, errCh, utxoCh, false, metamorph_api.Status_RECEIVED, limit, ks)
-
-				case <-logSummaryTicker.C:
-
-					total := atomic.LoadInt64(&b.totalTxs)
-					b.logger.Info("summary",
-						slog.String("address", ks.Address(!b.isTestnet)),
-						slog.Int("utxo set length", len(utxoCh)),
-						slog.Int64("total", total),
-					)
+					go b.broadcastBatch(txs, responseCh, errCh, b.utxoCh, false, metamorph_api.Status_RECEIVED, limit, keySet)
 
 				case responseErr := <-errCh:
 					b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
@@ -174,7 +174,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int64
 					resultsMap[res.Status]++
 				}
 			}
-		}()
+		}(ks)
 	}
 	return nil
 }
@@ -221,9 +221,12 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos chan *bt.UTXO, ks *keyset.Ke
 }
 
 func (b *RateBroadcaster) broadcastBatch(txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error, utxoCh chan *bt.UTXO, skipFeeValidation bool, waitForStatus metamorph_api.Status, limit int64, ks *keyset.KeySet) {
+
 	if limit > 0 && atomic.LoadInt64(&b.totalTxs) >= limit {
 		return
 	}
+
+	b.connectionCh <- struct{}{}
 
 	limitReachedNotified := false
 
@@ -252,8 +255,8 @@ func (b *RateBroadcaster) broadcastBatch(txs []*bt.Tx, resultCh chan *metamorph_
 			Satoshis:      b.satoshiMap[res.Txid],
 		}
 		utxoCh <- newUtxo
-
 		delete(b.satoshiMap, res.Txid)
+		b.mu.Unlock()
 
 		atomic.AddInt64(&b.totalTxs, 1)
 		if limit > 0 && atomic.LoadInt64(&b.totalTxs) >= limit && !limitReachedNotified {
@@ -261,39 +264,35 @@ func (b *RateBroadcaster) broadcastBatch(txs []*bt.Tx, resultCh chan *metamorph_
 			b.shutdown <- struct{}{}
 			limitReachedNotified = true
 		}
-		b.mu.Unlock()
 	}
 }
 
 func (b *RateBroadcaster) Shutdown() {
-	if b.cancelAll != nil {
-		b.cancelAll()
-		b.wg.Wait()
-	}
+	b.cancelAll()
+	b.wg.Wait()
 }
 
-//
-//ch := make(chan bool)
-//var count int32
-//go func() {
-//	var m runtime.MemStats
-//	var writer = uilive.New()
-//	writer.Start()
-//	for {
-//
-//		b.logger.Info("summary",
-//			slog.String("address", b.fundingKeyset.Address(!b.isTestnet)),
-//			slog.Int("utxo set length", len(utxoCh)),
-//			slog.Int64("total", b.totalTxs),
-//		)
-//
-//		<-ch
-//		_, _ = fmt.Fprintf(writer, "Current connections count: %d\n", atomic.LoadInt32(&count))
-//		_, _ = fmt.Fprintf(writer, "Current connections count: %d\n", b.totalTxs.Load())
-//		runtime.ReadMemStats(&m)
-//		_, _ = fmt.Fprintf(writer, "Alloc = %v MiB\n", m.Alloc/1024/1024)
-//		_, _ = fmt.Fprintf(writer, "TotalAlloc = %v MiB\n", m.TotalAlloc/1024/1024)
-//		_, _ = fmt.Fprintf(writer, "Sys = %v MiB\n", m.Sys/1024/1024)
-//		_, _ = fmt.Fprintf(writer, "NumGC = %v\n", m.NumGC)
-//	}
-//}()
+func (b *RateBroadcaster) startPrintStats() {
+	b.wg.Add(1)
+	go func() {
+		defer b.wg.Done()
+		var m runtime.MemStats
+		var writer = uilive.New()
+		writer.Start()
+		for {
+			select {
+			case <-b.connectionCh:
+				_, _ = fmt.Fprintf(writer, "Current connections count: %d\n", atomic.LoadInt32(&b.connectionCount))
+				_, _ = fmt.Fprintf(writer, "Tx count: %d\n", b.totalTxs.Load())
+				_, _ = fmt.Fprintf(writer, "UTXO set length: %d\n", len(b.utxoCh))
+				runtime.ReadMemStats(&m)
+				_, _ = fmt.Fprintf(writer, "Alloc = %v MiB\n", m.Alloc/1024/1024)
+				_, _ = fmt.Fprintf(writer, "TotalAlloc = %v MiB\n", m.TotalAlloc/1024/1024)
+				_, _ = fmt.Fprintf(writer, "Sys = %v MiB\n", m.Sys/1024/1024)
+				_, _ = fmt.Fprintf(writer, "NumGC = %v\n", m.NumGC)
+			case <-b.ctx.Done():
+				return
+			}
+		}
+	}()
+}

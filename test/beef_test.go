@@ -34,7 +34,6 @@ func TestBeef(t *testing.T) {
 			address, privateKey := getNewWalletAddress(t)
 			dstAddress, _ := getNewWalletAddress(t)
 
-			generate(t, 200)
 			txID := sendToAddress(t, address, 0.001)
 			hash := generate(t, 1)
 
@@ -95,8 +94,6 @@ func TestBeef_Fail(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			arcClient, err := api.NewClientWithResponses(arcEndpoint)
 			require.NoError(t, err)
-
-			generate(t, 100)
 
 			body := api.POSTTransactionJSONRequestBody{
 				RawTx: tc.beefStr,

@@ -731,3 +731,136 @@ func createTxHexStringExtended(t *testing.T) *bt.Tx {
 
 	return tx
 }
+
+func TestSubmitMinedTx(t *testing.T) {
+	// submit an unregistered, already mined transaction. ARC should return the status as MINED for the transaction.
+
+	// given
+
+	// fund wallet
+	address, _ := getNewWalletAddress(t)
+	txID := sendToAddress(t, address, 0.001)
+
+	// mine block with the transaction from above
+	generate(t, 1)
+	time.Sleep(5 * time.Second)
+
+	rawTx, _ := bitcoind.GetRawTransaction(txID)
+	tx, _ := bt.NewTxFromString(rawTx.Hex)
+
+	callbackReceivedChan := make(chan *api.TransactionStatus)
+	callbackErrChan := make(chan error)
+
+	callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan)
+	defer shutdown()
+
+	arcClient, _ := api.NewClientWithResponses(arcEndpoint)
+
+	// when
+	params := &api.POSTTransactionParams{
+		XWaitForStatus: handler.PtrTo(api.WaitForStatus(metamorph_api.Status_MINED)),
+		XCallbackUrl:   &callbackUrl,
+		XCallbackToken: &token,
+	}
+	arcBody := api.POSTTransactionJSONRequestBody{
+		RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+	}
+
+	submitResult, submitErr := arcClient.POSTTransactionWithResponse(context.TODO(), params, arcBody)
+
+	// then
+	require.NoError(t, submitErr)
+	require.Equal(t, http.StatusOK, submitResult.StatusCode())
+
+	// wait for callback
+	callbackTimeout := time.After(10 * time.Second)
+
+	select {
+	case status := <-callbackReceivedChan:
+		require.Equal(t, txID, status.Txid)
+		require.Equal(t, metamorph_api.Status_MINED.String(), *status.TxStatus)
+	case <-callbackTimeout:
+		t.Fatal("callback exceeded timeout")
+	}
+}
+
+func startCallbackSrv(t *testing.T, callbackReceivedChan chan *api.TransactionStatus, errChan chan error) (callbackUrl, token string, shutdownFn func()) {
+	t.Helper()
+	callback := generateRandomString(16)
+	token = "1234"
+	expectedAuthHeader := fmt.Sprintf("Bearer %s", token)
+
+	hostname, err := os.Hostname()
+	require.NoError(t, err)
+
+	callbackUrl = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
+
+	srv := &http.Server{Addr: ":9000"}
+	shutdownFn = func() {
+		t.Log("shutting down callback listener")
+		close(callbackReceivedChan)
+		close(errChan)
+
+		if err := srv.Shutdown(context.TODO()); err != nil {
+			t.Fatal("failed to shut down server")
+		}
+	}
+
+	readResponse := func(req *http.Request) (*api.TransactionStatus, error) {
+		defer func() {
+			err := req.Body.Close()
+			if err != nil {
+				t.Log("failed to close body")
+			}
+		}()
+
+		bodyBytes, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		var status api.TransactionStatus
+		err = json.Unmarshal(bodyBytes, &status)
+		if err != nil {
+			return nil, err
+		}
+
+		return &status, nil
+	}
+
+	http.HandleFunc(fmt.Sprintf("/%s", callback), func(w http.ResponseWriter, req *http.Request) {
+		// check auth
+		if expectedAuthHeader != req.Header.Get("Authorization") {
+			errChan <- fmt.Errorf("auth header %s not as expected %s", expectedAuthHeader, req.Header.Get("Authorization"))
+			err = respondToCallback(w, false)
+			if err != nil {
+				t.Fatalf("Failed to respond to callback: %v", err)
+			}
+			return
+		}
+
+		// read response
+		status, err := readResponse(req)
+		if err != nil {
+			t.Fatalf("Failed to read response from callback: %v", err)
+		}
+
+		t.Log("callback received, responding success")
+		err = respondToCallback(w, true)
+		if err != nil {
+			t.Fatalf("Failed to respond to callback: %v", err)
+		}
+
+		callbackReceivedChan <- status
+	})
+
+	go func(server *http.Server) {
+		t.Log("starting callback server")
+		err := server.ListenAndServe()
+		if err != nil {
+			return
+		}
+	}(srv)
+
+	return
+}

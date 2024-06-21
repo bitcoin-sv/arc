@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -25,16 +24,6 @@ import (
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/libsv/go-bt/v2/unlocker"
 	"github.com/stretchr/testify/require"
-)
-
-const (
-	feeSat = 10
-
-	arcEndpoint      = "http://arc:9090/"
-	v1Tx             = "v1/tx"
-	v1Txs            = "v1/txs"
-	arcEndpointV1Tx  = arcEndpoint + v1Tx
-	arcEndpointV1Txs = arcEndpoint + v1Txs
 )
 
 type Response struct {
@@ -56,72 +45,6 @@ type TxStatusResponse struct {
 	TxStatus    string      `json:"txStatus"`
 	Txid        string      `json:"txid"`
 	MerklePath  string      `json:"merklePath"`
-}
-
-func TestMain(m *testing.M) {
-	info, err := bitcoind.GetInfo()
-	if err != nil {
-		log.Fatalf("failed to get info: %v", err)
-	}
-
-	log.Printf("current block height: %d", info.Blocks)
-
-	os.Exit(m.Run())
-}
-
-func createTx(privateKey string, address string, utxo NodeUnspentUtxo, fee ...uint64) (*bt.Tx, error) {
-	tx := bt.NewTx()
-
-	// Add an input using the first UTXO
-	utxoTxID := utxo.Txid
-	utxoVout := utxo.Vout
-	utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
-	utxoScript := utxo.ScriptPubKey
-
-	err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
-	if err != nil {
-		return nil, fmt.Errorf("failed adding input: %v", err)
-	}
-
-	// Add an output to the address you've previously created
-	recipientAddress := address
-
-	var feeValue uint64
-	if len(fee) > 0 {
-		feeValue = fee[0]
-	} else {
-		feeValue = 20 // Set your default fee value here
-	}
-	amountToSend := uint64(30) - feeValue // Example value - 0.009 BTC (taking fees into account)
-
-	recipientScript, err := bscript.NewP2PKHFromAddress(recipientAddress)
-	if err != nil {
-		return nil, fmt.Errorf("failed converting address to script: %v", err)
-	}
-
-	err = tx.PayTo(recipientScript, amountToSend)
-	if err != nil {
-		return nil, fmt.Errorf("failed adding output: %v", err)
-	}
-
-	// Sign the input
-
-	wif, err := bsvutil.DecodeWIF(privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode WIF: %v", err)
-	}
-
-	// Extract raw private key bytes directly from the WIF structure
-	privateKeyDecoded := wif.PrivKey.Serialize()
-
-	pk, _ := bec.PrivKeyFromBytes(bsvec.S256(), privateKeyDecoded)
-	unlockerGetter := unlocker.Getter{PrivateKey: pk}
-	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
-	if err != nil {
-		return nil, fmt.Errorf("sign failed: %v", err)
-	}
-
-	return tx, nil
 }
 
 func TestBatchChainedTxs(t *testing.T) {

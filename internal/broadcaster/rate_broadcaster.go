@@ -186,7 +186,6 @@ func (b *RateBroadcaster) broadcastBatchAsync(txs []*bt.Tx, errCh chan error, wa
 		resp, err := b.client.BroadcastTransactions(b.ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
-				b.logger.Debug("broadcasting canceled", slog.String("address", b.ks.Address(!b.isTestnet)))
 				return
 			}
 			errCh <- err

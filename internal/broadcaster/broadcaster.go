@@ -7,7 +7,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 )
@@ -32,7 +31,6 @@ type UtxoClient interface {
 type Broadcaster struct {
 	logger            *slog.Logger
 	client            ArcClient
-	keySets           []*keyset.KeySet
 	isTestnet         bool
 	feeQuote          *bt.FeeQuote
 	utxoClient        UtxoClient
@@ -94,12 +92,11 @@ func WithFees(miningFeeSatPerKb int) func(broadcaster *Broadcaster) {
 	}
 }
 
-func NewBroadcaster(logger *slog.Logger, client ArcClient, fromKeySet []*keyset.KeySet, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (*Broadcaster, error) {
+func NewBroadcaster(logger *slog.Logger, client ArcClient, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (*Broadcaster, error) {
 
 	b := &Broadcaster{
 		logger:     logger,
 		client:     client,
-		keySets:    fromKeySet,
 		isTestnet:  isTestnetDefault,
 		batchSize:  batchSizeDefault,
 		maxInputs:  maxInputsDefault,

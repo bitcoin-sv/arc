@@ -17,16 +17,18 @@ import (
 
 type UTXOCreator struct {
 	Broadcaster
+	keySets []*keyset.KeySet
 }
 
 func NewUTXOCreator(logger *slog.Logger, client ArcClient, keySets []*keyset.KeySet, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (*UTXOCreator, error) {
-	b, err := NewBroadcaster(logger, client, keySets, utxoClient, opts...)
+	b, err := NewBroadcaster(logger, client, utxoClient, opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	creator := &UTXOCreator{
 		Broadcaster: *b,
+		keySets:     keySets,
 	}
 
 	return creator, nil

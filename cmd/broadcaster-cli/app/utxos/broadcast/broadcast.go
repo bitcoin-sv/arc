@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"strings"
@@ -120,7 +121,7 @@ var Cmd = &cobra.Command{
 
 		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
-		rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySets, wocClient, broadcaster.WithFees(miningFeeSat), broadcaster.WithIsTestnet(isTestnet), broadcaster.WithCallback(callbackURL, callbackToken), broadcaster.WithFullstatusUpdates(fullStatusUpdates), broadcaster.WithBatchSize(batchSize))
+		rateBroadcaster, err := broadcaster.NewMultiRateBroadcaster(logger, client, fundingKeySets, wocClient, broadcaster.WithFees(miningFeeSat), broadcaster.WithIsTestnet(isTestnet), broadcaster.WithCallback(callbackURL, callbackToken), broadcaster.WithFullstatusUpdates(fullStatusUpdates), broadcaster.WithBatchSize(batchSize))
 		if err != nil {
 			return fmt.Errorf("failed to create rate broadcaster: %v", err)
 		}
@@ -133,7 +134,8 @@ var Cmd = &cobra.Command{
 			rateBroadcaster.Shutdown()
 		}()
 
-		err = rateBroadcaster.StartRateBroadcaster(rateTxsPerSecond, limit)
+		logger.Info("starting broadcasting", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", batchSize))
+		err = rateBroadcaster.Start(rateTxsPerSecond, limit)
 		if err != nil {
 			return fmt.Errorf("failed to start rate broadcaster: %v", err)
 		}

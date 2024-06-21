@@ -18,17 +18,19 @@ import (
 
 type UTXOConsolidator struct {
 	Broadcaster
+	keySets []*keyset.KeySet
 }
 
 func NewUTXOConsolidator(logger *slog.Logger, client ArcClient, keySets []*keyset.KeySet, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (*UTXOConsolidator, error) {
 
-	b, err := NewBroadcaster(logger, client, keySets, utxoClient, opts...)
+	b, err := NewBroadcaster(logger, client, utxoClient, opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	consolidator := &UTXOConsolidator{
 		Broadcaster: *b,
+		keySets:     keySets,
 	}
 
 	return consolidator, nil

@@ -1,11 +1,15 @@
 package broadcaster
 
 import (
+	"container/list"
 	"context"
-	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/libsv/go-bt/v2"
 	"log/slog"
 	"math"
+	"time"
+
+	"github.com/bitcoin-sv/arc/pkg/keyset"
+	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-bt/v2/bscript"
 )
 
 const (
@@ -14,6 +18,16 @@ const (
 	isTestnetDefault      = true
 	millisecondsPerSecond = 1000
 )
+
+type UtxoClient interface {
+	GetUTXOs(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
+	GetUTXOsWithRetries(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) ([]*bt.UTXO, error)
+	GetUTXOsList(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string) (*list.List, error)
+	GetUTXOsListWithRetries(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) (*list.List, error)
+	GetBalance(ctx context.Context, mainnet bool, address string) (int64, int64, error)
+	GetBalanceWithRetries(ctx context.Context, mainnet bool, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error)
+	TopUp(ctx context.Context, mainnet bool, address string) error
+}
 
 type Broadcaster struct {
 	logger            *slog.Logger

@@ -1,7 +1,6 @@
 package broadcaster
 
 import (
-	"container/list"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -17,19 +16,8 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/libsv/go-bt/v2/unlocker"
 )
-
-type UtxoClient interface {
-	GetUTXOs(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
-	GetUTXOsWithRetries(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) ([]*bt.UTXO, error)
-	GetUTXOsList(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string) (*list.List, error)
-	GetUTXOsListWithRetries(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) (*list.List, error)
-	GetBalance(ctx context.Context, mainnet bool, address string) (int64, int64, error)
-	GetBalanceWithRetries(ctx context.Context, mainnet bool, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error)
-	TopUp(ctx context.Context, mainnet bool, address string) error
-}
 
 type RateBroadcaster struct {
 	Broadcaster
@@ -194,6 +182,8 @@ func (b *RateBroadcaster) createSelfPayingTxs(ks *keyset.KeySet) ([]*bt.Tx, erro
 		if err != nil {
 			return nil, err
 		}
+
+		// Todo: Add OP_RETURN with text "ARC testing" so that WoC can tag it
 
 		unlockerGetter := unlocker.Getter{PrivateKey: ks.PrivateKey}
 		err = tx.FillAllInputs(context.Background(), &unlockerGetter)

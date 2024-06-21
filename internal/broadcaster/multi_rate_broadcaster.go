@@ -22,14 +22,14 @@ type MultiRateBroadcaster struct {
 
 func NewMultiRateBroadcaster(logger *slog.Logger, client ArcClient, keySets []*keyset.KeySet, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (*MultiRateBroadcaster, error) {
 
-	b, err := NewBroadcaster(logger, client, utxoClient, opts...)
-	if err != nil {
-		return nil, err
-	}
 	rbs := make([]*RateBroadcaster, 0, len(keySets))
 	for _, key := range keySets {
+		b, err := NewBroadcaster(logger, client, utxoClient, opts...)
+		if err != nil {
+			return nil, err
+		}
 		rb := &RateBroadcaster{
-			Broadcaster: *b,
+			Broadcaster: b,
 			totalTxs:    0,
 			shutdown:    make(chan struct{}, 10),
 			wg:          sync.WaitGroup{},

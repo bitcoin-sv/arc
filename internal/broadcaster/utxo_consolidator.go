@@ -29,7 +29,7 @@ func NewUTXOConsolidator(logger *slog.Logger, client ArcClient, keySets []*keyse
 	}
 
 	consolidator := &UTXOConsolidator{
-		Broadcaster: *b,
+		Broadcaster: b,
 		keySets:     keySets,
 	}
 

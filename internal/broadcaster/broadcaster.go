@@ -92,9 +92,9 @@ func WithFees(miningFeeSatPerKb int) func(broadcaster *Broadcaster) {
 	}
 }
 
-func NewBroadcaster(logger *slog.Logger, client ArcClient, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (*Broadcaster, error) {
+func NewBroadcaster(logger *slog.Logger, client ArcClient, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (Broadcaster, error) {
 
-	b := &Broadcaster{
+	b := Broadcaster{
 		logger:     logger,
 		client:     client,
 		isTestnet:  isTestnetDefault,
@@ -106,13 +106,13 @@ func NewBroadcaster(logger *slog.Logger, client ArcClient, utxoClient UtxoClient
 
 	standardFee, err := b.feeQuote.Fee(bt.FeeTypeStandard)
 	if err != nil {
-		return nil, err
+		return Broadcaster{}, err
 	}
 
 	b.standardMiningFee = standardFee.MiningFee
 
 	for _, opt := range opts {
-		opt(b)
+		opt(&b)
 	}
 
 	ctx, cancelAll := context.WithCancel(context.Background())

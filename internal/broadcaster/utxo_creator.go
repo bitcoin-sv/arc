@@ -27,7 +27,7 @@ func NewUTXOCreator(logger *slog.Logger, client ArcClient, keySets []*keyset.Key
 	}
 
 	creator := &UTXOCreator{
-		Broadcaster: *b,
+		Broadcaster: b,
 		keySets:     keySets,
 	}
 
@@ -171,7 +171,7 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs int, requestedSatoshisPerOut
 	for front := utxoSet.Front(); front != nil; front = next {
 		next = front.Next()
 
-		if outputs >= requestedOutputs {
+		if front == nil || outputs >= requestedOutputs {
 			break
 		}
 

@@ -125,11 +125,6 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create rate broadcaster: %v", err)
 		}
 
-		err = rateBroadcaster.StartRateBroadcaster(rateTxsPerSecond, limit)
-		if err != nil {
-			return fmt.Errorf("failed to start rate broadcaster: %v", err)
-		}
-
 		go func() {
 			signalChan := make(chan os.Signal, 1)
 			signal.Notify(signalChan, os.Interrupt) // Signal from Ctrl+C
@@ -137,6 +132,11 @@ var Cmd = &cobra.Command{
 
 			rateBroadcaster.Shutdown()
 		}()
+
+		err = rateBroadcaster.StartRateBroadcaster(rateTxsPerSecond, limit)
+		if err != nil {
+			return fmt.Errorf("failed to start rate broadcaster: %v", err)
+		}
 
 		return nil
 	},

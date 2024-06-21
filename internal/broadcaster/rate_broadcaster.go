@@ -158,6 +158,9 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int64
 			}
 		}(ks)
 	}
+
+	b.wg.Wait()
+
 	return nil
 }
 
@@ -192,6 +195,8 @@ func (b *RateBroadcaster) createSelfPayingTxs(ks *keyset.KeySet) ([]*bt.Tx, erro
 		}
 
 		b.satoshiMap.Store(tx.TxID(), tx.Outputs[0].Satoshis)
+
+		fmt.Println(tx.String())
 
 		txs = append(txs, tx)
 
@@ -245,13 +250,11 @@ func (b *RateBroadcaster) broadcastBatchAsync(txs []*bt.Tx, ks *keyset.KeySet, e
 
 			atomic.AddInt64(&b.totalTxs, 1)
 		}
-
 	}()
 }
 
 func (b *RateBroadcaster) Shutdown() {
 	b.cancelAll()
-	b.wg.Wait()
 }
 
 func (b *RateBroadcaster) startPrintStats() {

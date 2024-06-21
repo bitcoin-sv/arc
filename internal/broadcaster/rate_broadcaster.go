@@ -156,7 +156,7 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int64
 						continue
 					}
 
-					go b.broadcastBatch(txs, responseCh, errCh, utxoCh, false, metamorph_api.Status_STORED, limit, ks)
+					go b.broadcastBatch(txs, responseCh, errCh, utxoCh, false, metamorph_api.Status_RECEIVED, limit, ks)
 
 				case <-logSummaryTicker.C:
 

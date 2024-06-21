@@ -33,14 +33,13 @@ type UtxoClient interface {
 
 type RateBroadcaster struct {
 	Broadcaster
-	wg              sync.WaitGroup
 	totalTxs        int64
 	connectionCount int32
 	shutdown        chan struct{}
 	connectionCh    chan struct{}
 	utxoCh          chan *bt.UTXO
-	mu              sync.RWMutex
-	satoshiMap      map[string]uint64
+	wg              sync.WaitGroup
+	satoshiMap      sync.Map
 }
 
 func NewRateBroadcaster(logger *slog.Logger, client ArcClient, keySets []*keyset.KeySet, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (*RateBroadcaster, error) {
@@ -53,10 +52,8 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, keySets []*keyset
 	rb := &RateBroadcaster{
 		Broadcaster:  *b,
 		totalTxs:     0,
-		mu:           sync.RWMutex{},
 		shutdown:     make(chan struct{}, 10),
 		connectionCh: make(chan struct{}, 10),
-		satoshiMap:   map[string]uint64{},
 		wg:           sync.WaitGroup{},
 	}
 
@@ -130,18 +127,13 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int64
 		b.utxoCh = make(chan *bt.UTXO, len(utxoSet))
 
 		for _, utxo := range utxoSet {
-			utxoCh <- utxo
+			b.utxoCh <- utxo
 		}
 
 		submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
 		submitBatchTicker := time.NewTicker(submitBatchInterval)
 
-		responseCh := make(chan *metamorph_api.TransactionStatus, 100)
 		errCh := make(chan error, 100)
-
-		resultsMap := map[metamorph_api.Status]int64{}
-
-		counter := 0
 
 		b.wg.Add(1)
 		go func(keySet *keyset.KeySet) {
@@ -158,20 +150,22 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int64
 					return
 				case <-submitBatchTicker.C:
 
-					txs, err := b.createSelfPayingTxs(b.utxoCh, keySet)
+					txs, err := b.createSelfPayingTxs(keySet)
 					if err != nil {
 						b.logger.Error("failed to create self paying txs", slog.String("err", err.Error()))
 						b.shutdown <- struct{}{}
 						continue
 					}
 
-					go b.broadcastBatch(txs, responseCh, errCh, b.utxoCh, false, metamorph_api.Status_RECEIVED, limit, keySet)
+					if limit > 0 && atomic.LoadInt64(&b.totalTxs) >= limit {
+						b.logger.Info("limit reached", slog.Int64("total", atomic.LoadInt64(&b.totalTxs)), slog.String("address", ks.Address(!b.isTestnet)))
+						b.shutdown <- struct{}{}
+					}
+
+					b.broadcastBatchAsync(txs, keySet, errCh, metamorph_api.Status_RECEIVED)
 
 				case responseErr := <-errCh:
 					b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
-					counter++
-				case res := <-responseCh:
-					resultsMap[res.Status]++
 				}
 			}
 		}(ks)
@@ -179,10 +173,10 @@ func (b *RateBroadcaster) StartRateBroadcaster(rateTxsPerSecond int, limit int64
 	return nil
 }
 
-func (b *RateBroadcaster) createSelfPayingTxs(utxos chan *bt.UTXO, ks *keyset.KeySet) ([]*bt.Tx, error) {
+func (b *RateBroadcaster) createSelfPayingTxs(ks *keyset.KeySet) ([]*bt.Tx, error) {
 	txs := make([]*bt.Tx, 0, b.batchSize)
 
-	for utxo := range utxos {
+	for utxo := range b.utxoCh {
 		tx := bt.NewTx()
 
 		err := tx.FromUTXOs(utxo)
@@ -207,9 +201,8 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos chan *bt.UTXO, ks *keyset.Ke
 			return nil, err
 		}
 
-		b.mu.Lock()
-		b.satoshiMap[tx.TxID()] = tx.Outputs[0].Satoshis
-		b.mu.Unlock()
+		b.satoshiMap.Store(tx.TxID(), tx.Outputs[0].Satoshis)
+
 		txs = append(txs, tx)
 
 		if len(txs) >= b.batchSize {
@@ -220,51 +213,50 @@ func (b *RateBroadcaster) createSelfPayingTxs(utxos chan *bt.UTXO, ks *keyset.Ke
 	return txs, nil
 }
 
-func (b *RateBroadcaster) broadcastBatch(txs []*bt.Tx, resultCh chan *metamorph_api.TransactionStatus, errCh chan error, utxoCh chan *bt.UTXO, skipFeeValidation bool, waitForStatus metamorph_api.Status, limit int64, ks *keyset.KeySet) {
+func (b *RateBroadcaster) broadcastBatchAsync(txs []*bt.Tx, ks *keyset.KeySet, errCh chan error, waitForStatus metamorph_api.Status) {
 
-	if limit > 0 && atomic.LoadInt64(&b.totalTxs) >= limit {
-		return
-	}
+	b.wg.Add(1)
+	go func() {
+		defer b.wg.Done()
 
-	b.connectionCh <- struct{}{}
-
-	limitReachedNotified := false
-
-	resp, err := b.client.BroadcastTransactions(b.ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, skipFeeValidation)
-	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			b.logger.Debug("broadcasting canceled", slog.String("address", ks.Address(!b.isTestnet)))
-			return
-		}
-		errCh <- err
-	}
-
-	for _, res := range resp {
-		resultCh <- res
-
-		txIDBytes, err := hex.DecodeString(res.Txid)
+		resp, err := b.client.BroadcastTransactions(b.ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 		if err != nil {
-			b.logger.Error("failed to decode txid", slog.String("err", err.Error()))
-			continue
+			if errors.Is(err, context.Canceled) {
+				b.logger.Debug("broadcasting canceled", slog.String("address", ks.Address(!b.isTestnet)))
+				return
+			}
+			errCh <- err
 		}
-		b.mu.Lock()
-		newUtxo := &bt.UTXO{
-			TxID:          txIDBytes,
-			Vout:          0,
-			LockingScript: ks.Script,
-			Satoshis:      b.satoshiMap[res.Txid],
-		}
-		utxoCh <- newUtxo
-		delete(b.satoshiMap, res.Txid)
-		b.mu.Unlock()
+		atomic.AddInt32(&b.connectionCount, 1)
+		b.connectionCh <- struct{}{}
 
-		atomic.AddInt64(&b.totalTxs, 1)
-		if limit > 0 && atomic.LoadInt64(&b.totalTxs) >= limit && !limitReachedNotified {
-			b.logger.Info("limit reached", slog.Int64("total", atomic.LoadInt64(&b.totalTxs)), slog.String("address", ks.Address(!b.isTestnet)))
-			b.shutdown <- struct{}{}
-			limitReachedNotified = true
+		for _, res := range resp {
+
+			txIDBytes, err := hex.DecodeString(res.Txid)
+			if err != nil {
+				b.logger.Error("failed to decode txid", slog.String("err", err.Error()))
+				continue
+			}
+
+			sat, found := b.satoshiMap.Load(res.Txid)
+			satoshis, isValid := sat.(uint64)
+
+			if found && isValid {
+				newUtxo := &bt.UTXO{
+					TxID:          txIDBytes,
+					Vout:          0,
+					LockingScript: ks.Script,
+					Satoshis:      satoshis,
+				}
+				b.utxoCh <- newUtxo
+			}
+
+			b.satoshiMap.Delete(res.Txid)
+
+			atomic.AddInt64(&b.totalTxs, 1)
 		}
-	}
+
+	}()
 }
 
 func (b *RateBroadcaster) Shutdown() {
@@ -283,7 +275,7 @@ func (b *RateBroadcaster) startPrintStats() {
 			select {
 			case <-b.connectionCh:
 				_, _ = fmt.Fprintf(writer, "Current connections count: %d\n", atomic.LoadInt32(&b.connectionCount))
-				_, _ = fmt.Fprintf(writer, "Tx count: %d\n", b.totalTxs.Load())
+				_, _ = fmt.Fprintf(writer, "Tx count: %d\n", atomic.LoadInt64(&b.totalTxs))
 				_, _ = fmt.Fprintf(writer, "UTXO set length: %d\n", len(b.utxoCh))
 				runtime.ReadMemStats(&m)
 				_, _ = fmt.Fprintf(writer, "Alloc = %v MiB\n", m.Alloc/1024/1024)

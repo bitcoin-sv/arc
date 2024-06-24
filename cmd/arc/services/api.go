@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	cfg "github.com/bitcoin-sv/arc/internal/config"
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
@@ -19,10 +19,9 @@ import (
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 )
 
-func StartAPIServer(logger *slog.Logger) (func(), error) {
+func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
 	// Set up a basic Echo router
 	e := echo.New()
 	e.HideBanner = true
@@ -42,18 +41,14 @@ func StartAPIServer(logger *slog.Logger) (func(), error) {
 
 	// load the ARC handler from config
 	// If you want to customize this for your own server, see examples dir
-	if err := LoadArcHandler(e, logger); err != nil {
+	if err := LoadArcHandler(e, logger, arcConfig); err != nil {
 		return nil, err
 	}
 
-	apiAddress, err := cfg.GetString("api.address")
-	if apiAddress == "" {
-		return nil, err
-	}
 	// Serve HTTP until the world ends.
 	go func() {
-		logger.Info("Starting API server", slog.String("address", apiAddress))
-		err := e.Start(apiAddress)
+		logger.Info("Starting API server", slog.String("address", arcConfig.Api.Address))
+		err := e.Start(arcConfig.Api.Address)
 		if err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
 				logger.Info("API http server closed")
@@ -75,55 +70,35 @@ func StartAPIServer(logger *slog.Logger) (func(), error) {
 	}, nil
 }
 
-func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
+func LoadArcHandler(e *echo.Echo, logger *slog.Logger, arcConfig *config.ArcConfig) error {
 	// check the swagger definition against our requests
 	handler.CheckSwagger(e)
 
-	// Check the security requirements
-
-	metamorphAddress, err := cfg.GetString("metamorph.dialAddr")
-	if err != nil {
-		return err
-	}
-
-	blocktxAddress, err := cfg.GetString("blocktx.dialAddr")
-	if err != nil {
-		return err
-	}
-
-	grpcMessageSize, err := cfg.GetInt("grpcMessageSize")
-	if err != nil {
-		return err
-	}
-
-	prometheusEndpoint := viper.GetString("prometheusEndpoint")
-
-	conn, err := metamorph.DialGRPC(metamorphAddress, prometheusEndpoint, grpcMessageSize)
+	conn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize)
 	if err != nil {
 		return fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
 
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
-	btcConn, err := blocktx.DialGRPC(blocktxAddress, prometheusEndpoint, grpcMessageSize)
+	btcConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize)
 	if err != nil {
 		return fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
 	var policy *bitcoin.Settings
-	policy, err = getPolicyFromNode()
+	policy, err = getPolicyFromNode(arcConfig.PeerRpc)
 	if err != nil {
-		policy, err = handler.GetDefaultPolicy()
-		if err != nil {
-			return err
-		}
+		policy = arcConfig.Api.DefaultPolicy
 	}
 
-	rejectedCallbackUrlSubstrings := viper.GetStringSlice("metamorph.rejectCallbackContaining")
+	// TODO: WithSecurityConfig(appConfig.Security)
+	apiOpts := []handler.Option{
+		handler.WithCallbackUrlRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
+	}
 
-	// TODO WithSecurityConfig(appConfig.Security)
-	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, handler.WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings))
+	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, arcConfig.PeerRpc, arcConfig.Api, apiOpts...)
 	if err != nil {
 		return err
 	}
@@ -134,28 +109,8 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger) error {
 	return nil
 }
 
-func getPolicyFromNode() (*bitcoin.Settings, error) {
-	peerRpcPassword := viper.GetString("peerRpc.password")
-	if peerRpcPassword == "" {
-		return nil, errors.Errorf("setting peerRpc.password not found")
-	}
-
-	peerRpcUser := viper.GetString("peerRpc.user")
-	if peerRpcUser == "" {
-		return nil, errors.Errorf("setting peerRpc.user not found")
-	}
-
-	peerRpcHost := viper.GetString("peerRpc.host")
-	if peerRpcHost == "" {
-		return nil, errors.Errorf("setting peerRpc.host not found")
-	}
-
-	peerRpcPort := viper.GetInt("peerRpc.port")
-	if peerRpcPort == 0 {
-		return nil, errors.Errorf("setting peerRpc.port not found")
-	}
-
-	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
+func getPolicyFromNode(peerRpcConfig *config.PeerRpcConfig) (*bitcoin.Settings, error) {
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcConfig.User, peerRpcConfig.Password, peerRpcConfig.Host, peerRpcConfig.Port))
 	if err != nil {
 		return nil, errors.Errorf("failed to parse rpc URL: %v", err)
 	}

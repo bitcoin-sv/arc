@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
@@ -34,6 +35,8 @@ type ArcDefaultHandler struct {
 	logger                        *slog.Logger
 	now                           func() time.Time
 	rejectedCallbackUrlSubstrings []string
+	peerRpcConfig                 *config.PeerRpcConfig
+	apiConfig                     *config.ApiConfig
 }
 
 func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
@@ -50,13 +53,23 @@ func WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings []string) func(*A
 
 type Option func(f *ArcDefaultHandler)
 
-func NewDefault(logger *slog.Logger, transactionHandler metamorph.TransactionHandler, merkleRootsVerifier blocktx.MerkleRootsVerifier, policy *bitcoin.Settings, opts ...Option) (api.ServerInterface, error) {
+func NewDefault(
+	logger *slog.Logger,
+	transactionHandler metamorph.TransactionHandler,
+	merkleRootsVerifier blocktx.MerkleRootsVerifier,
+	policy *bitcoin.Settings,
+	peerRpcConfig *config.PeerRpcConfig,
+	apiConfig *config.ApiConfig,
+	opts ...Option,
+) (api.ServerInterface, error) {
 	handler := &ArcDefaultHandler{
 		TransactionHandler:  transactionHandler,
 		MerkleRootsVerifier: merkleRootsVerifier,
 		NodePolicy:          policy,
 		logger:              logger,
 		now:                 time.Now,
+		peerRpcConfig:       peerRpcConfig,
+		apiConfig:           apiConfig,
 	}
 
 	// apply options
@@ -543,7 +556,7 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 	}
 
 	// get from node
-	txBytes, err := getTransactionFromNode(ctx, inputTxID)
+	txBytes, err := getTransactionFromNode(m.peerRpcConfig, inputTxID)
 	if err != nil {
 		m.logger.Warn("failed to get transaction from node", slog.String("id", inputTxID), slog.String("err", err.Error()))
 	}
@@ -553,7 +566,7 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 	}
 
 	// get from woc
-	txBytes, err = getTransactionFromWhatsOnChain(ctx, inputTxID)
+	txBytes, err = getTransactionFromWhatsOnChain(ctx, m.apiConfig.WocApiKey, inputTxID)
 	if err != nil {
 		m.logger.Warn("failed to get transaction from WhatsOnChain", slog.String("id", inputTxID), slog.String("err", err.Error()))
 	}

@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	apiHandler "github.com/bitcoin-sv/arc/pkg/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
@@ -18,7 +19,6 @@ import (
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
-	"github.com/spf13/viper"
 )
 
 // This example does not use the configuration files or env variables,
@@ -69,9 +69,14 @@ func main() {
 		}),
 	)
 
-	grpcMessageSize := viper.GetInt("grpcMessageSize")
+	// Get app config
+	arcConfig, err := config.Load("/path/to/custom/config/")
+	if err != nil {
+		panic(err)
+	}
+
 	// add a single metamorph, with the BlockTx client we want to use
-	conn, err := metamorph.DialGRPC("localhost:8011", "", grpcMessageSize)
+	conn, err := metamorph.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize)
 	if err != nil {
 		panic(err)
 	}
@@ -79,23 +84,16 @@ func main() {
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
 	// add blocktx as MerkleRootsVerifier
-	btcConn, err := blocktx.DialGRPC("localhost:8011", "", grpcMessageSize)
+	btcConn, err := blocktx.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize)
 	if err != nil {
 		panic(err)
 	}
 
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
-	defaultPolicy, err := apiHandler.GetDefaultPolicy()
-	if err != nil {
-		logger.Error("failed to get default policy", slog.String("err", err.Error()))
-		// this is a fatal error, we cannot start the server without a valid default policy
-		panic(err)
-	}
-
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
-	if handler, err = apiHandler.NewDefault(logger, metamorphClient, blockTxClient, defaultPolicy); err != nil {
+	if handler, err = apiHandler.NewDefault(logger, metamorphClient, blockTxClient, arcConfig.Api.DefaultPolicy, arcConfig.PeerRpc, arcConfig.Api); err != nil {
 		panic(err)
 	}
 

@@ -21,9 +21,9 @@ type UTXOConsolidator struct {
 	keySets []*keyset.KeySet
 }
 
-func NewUTXOConsolidator(logger *slog.Logger, client ArcClient, keySets []*keyset.KeySet, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (*UTXOConsolidator, error) {
+func NewUTXOConsolidator(logger *slog.Logger, client ArcClient, keySets []*keyset.KeySet, utxoClient UtxoClient, isTestnet bool, opts ...func(p *Broadcaster)) (*UTXOConsolidator, error) {
 
-	b, err := NewBroadcaster(logger, client, utxoClient, opts...)
+	b, err := NewBroadcaster(logger, client, utxoClient, isTestnet, opts...)
 	if err != nil {
 		return nil, err
 	}

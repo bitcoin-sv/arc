@@ -2,44 +2,36 @@ package broadcaster
 
 import (
 	"context"
-	"fmt"
+	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"log/slog"
 	"runtime"
 	"sync"
 	"time"
-
-	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/gosuri/uilive"
 )
 
-type MultiRateBroadcaster struct {
-	rbs []*RateBroadcaster
+type MultiKeyRateBroadcaster struct {
+	rbs    []*RateBroadcaster
+	logger *slog.Logger
 
 	cancelAll context.CancelFunc
 	ctx       context.Context
 	wg        sync.WaitGroup
 }
 
-func NewMultiRateBroadcaster(logger *slog.Logger, client ArcClient, keySets []*keyset.KeySet, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (*MultiRateBroadcaster, error) {
-
+func NewMultiKeyRateBroadcaster(logger *slog.Logger, client ArcClient, keySets []*keyset.KeySet, utxoClient UtxoClient, isTestnet bool, opts ...func(p *Broadcaster)) (*MultiKeyRateBroadcaster, error) {
 	rbs := make([]*RateBroadcaster, 0, len(keySets))
-	for _, key := range keySets {
-		b, err := NewBroadcaster(logger, client, utxoClient, opts...)
+	for _, ks := range keySets {
+		rb, err := NewRateBroadcaster(logger, client, ks, utxoClient, isTestnet, opts...)
 		if err != nil {
 			return nil, err
 		}
-		rb := &RateBroadcaster{
-			Broadcaster: b,
-			totalTxs:    0,
-			shutdown:    make(chan struct{}, 10),
-			wg:          sync.WaitGroup{},
-			ks:          key,
-		}
+
 		rbs = append(rbs, rb)
 	}
 
-	mrb := &MultiRateBroadcaster{
-		rbs: rbs,
+	mrb := &MultiKeyRateBroadcaster{
+		rbs:    rbs,
+		logger: logger,
 	}
 
 	ctx, cancelAll := context.WithCancel(context.Background())
@@ -49,8 +41,8 @@ func NewMultiRateBroadcaster(logger *slog.Logger, client ArcClient, keySets []*k
 	return mrb, nil
 }
 
-func (mrb *MultiRateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
-	mrb.startPrintStats()
+func (mrb *MultiKeyRateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
+	mrb.logStats()
 
 	for _, rb := range mrb.rbs {
 		err := rb.Start(rateTxsPerSecond, limit)
@@ -66,40 +58,47 @@ func (mrb *MultiRateBroadcaster) Start(rateTxsPerSecond int, limit int64) error 
 	return nil
 }
 
-func (mrb *MultiRateBroadcaster) Shutdown() {
+func (mrb *MultiKeyRateBroadcaster) Shutdown() {
+	mrb.cancelAll()
 	for _, rb := range mrb.rbs {
 		rb.Shutdown()
 	}
 
-	mrb.cancelAll()
-
 	mrb.wg.Wait()
 }
 
-func (mrb *MultiRateBroadcaster) startPrintStats() {
+func (mrb *MultiKeyRateBroadcaster) logStats() {
 	mrb.wg.Add(1)
+	bToMb := func(b uint64) uint64 {
+		return b / 1024 / 1024
+	}
 	go func() {
 		defer mrb.wg.Done()
-		var m runtime.MemStats
-		var writer = uilive.New()
-		writer.Start()
+		var mem runtime.MemStats
 		for {
 			select {
-			case <-time.NewTicker(500 * time.Millisecond).C:
+			case <-time.NewTicker(2 * time.Second).C:
+				totalTxsCount := int64(0)
+				totalConnectionCount := int64(0)
+				totalUtxoSetLength := 0
 
 				for _, rb := range mrb.rbs {
-					totalTxsCount := rb.GetTxCount()
-					totalConnectionCount := rb.GetConnectionCount()
-					totalUtxoSetLength := rb.GetUtxoSetLen()
+					totalTxsCount += rb.GetTxCount()
+					totalConnectionCount += rb.GetConnectionCount()
+					totalUtxoSetLength += rb.GetUtxoSetLen()
 
-					_, _ = fmt.Fprintf(writer, "Address: %s\tCurrent connections count: %d\tTx count: %d\tUTXO set length: %d\n", rb.ks.Address(!rb.isTestnet), totalConnectionCount, totalTxsCount, totalUtxoSetLength)
 				}
-
-				runtime.ReadMemStats(&m)
-				_, _ = fmt.Fprintf(writer, "Alloc:\t\t%v MiB\n", m.Alloc/1024/1024)
-				_, _ = fmt.Fprintf(writer, "TotalAlloc:\t%v MiB\n", m.TotalAlloc/1024/1024)
-				_, _ = fmt.Fprintf(writer, "Sys:\t\t%v MiB\n", m.Sys/1024/1024)
-				_, _ = fmt.Fprintf(writer, "NumGC:\t\t%v\n", m.NumGC)
+				mrb.logger.Info("summary",
+					slog.Int64("txs", totalTxsCount),
+					slog.Int64("connections", totalConnectionCount),
+					slog.Int("utxos", totalUtxoSetLength),
+				)
+				mrb.logger.Debug("stats",
+					slog.Uint64("Alloc [MiB]", bToMb(mem.Alloc)),
+					slog.Uint64("TotalAlloc [MiB]", bToMb(mem.TotalAlloc)),
+					slog.Uint64("Sys [MiB]", bToMb(mem.Sys)),
+					slog.Int64("NumGC [MiB]", int64(mem.NumGC)),
+				)
 			case <-mrb.ctx.Done():
 				return
 			}

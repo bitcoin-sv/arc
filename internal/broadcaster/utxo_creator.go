@@ -20,8 +20,8 @@ type UTXOCreator struct {
 	keySets []*keyset.KeySet
 }
 
-func NewUTXOCreator(logger *slog.Logger, client ArcClient, keySets []*keyset.KeySet, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (*UTXOCreator, error) {
-	b, err := NewBroadcaster(logger, client, utxoClient, opts...)
+func NewUTXOCreator(logger *slog.Logger, client ArcClient, keySets []*keyset.KeySet, utxoClient UtxoClient, isTestnet bool, opts ...func(p *Broadcaster)) (*UTXOCreator, error) {
+	b, err := NewBroadcaster(logger, client, utxoClient, isTestnet, opts...)
 	if err != nil {
 		return nil, err
 	}

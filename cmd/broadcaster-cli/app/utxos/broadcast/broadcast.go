@@ -80,6 +80,9 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
+		slog.Default().Info("mining fee set", "mining fee satoshis", miningFeeSat)
+
 		if miningFeeSat == 0 {
 			return errors.New("no mining fee was given")
 		}
@@ -121,7 +124,12 @@ var Cmd = &cobra.Command{
 
 		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
-		rateBroadcaster, err := broadcaster.NewMultiRateBroadcaster(logger, client, fundingKeySets, wocClient, broadcaster.WithFees(miningFeeSat), broadcaster.WithIsTestnet(isTestnet), broadcaster.WithCallback(callbackURL, callbackToken), broadcaster.WithFullstatusUpdates(fullStatusUpdates), broadcaster.WithBatchSize(batchSize))
+		rateBroadcaster, err := broadcaster.NewMultiKeyRateBroadcaster(logger, client, fundingKeySets, wocClient, isTestnet,
+			broadcaster.WithFees(miningFeeSat),
+			broadcaster.WithCallback(callbackURL, callbackToken),
+			broadcaster.WithFullstatusUpdates(fullStatusUpdates),
+			broadcaster.WithBatchSize(batchSize),
+		)
 		if err != nil {
 			return fmt.Errorf("failed to create rate broadcaster: %v", err)
 		}
@@ -131,10 +139,11 @@ var Cmd = &cobra.Command{
 			signal.Notify(signalChan, os.Interrupt) // Signal from Ctrl+C
 			<-signalChan
 
+			logger.Info("Shutting down broadcaster")
 			rateBroadcaster.Shutdown()
 		}()
 
-		logger.Info("starting broadcasting", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", batchSize))
+		logger.Info("Starting broadcaster", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", batchSize))
 		err = rateBroadcaster.Start(rateTxsPerSecond, limit)
 		if err != nil {
 			return fmt.Errorf("failed to start rate broadcaster: %v", err)

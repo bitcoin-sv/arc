@@ -95,9 +95,8 @@ var Cmd = &cobra.Command{
 			fundingKeySets[i] = fundingKeySet
 		}
 
-		rateBroadcaster, err := broadcaster.NewUTXOConsolidator(logger, client, fundingKeySets, wocClient,
+		rateBroadcaster, err := broadcaster.NewUTXOConsolidator(logger, client, fundingKeySets, wocClient, isTestnet,
 			broadcaster.WithFees(miningFeeSat),
-			broadcaster.WithIsTestnet(isTestnet),
 			broadcaster.WithCallback(callbackURL, callbackToken),
 			broadcaster.WithFullstatusUpdates(fullStatusUpdates),
 		)

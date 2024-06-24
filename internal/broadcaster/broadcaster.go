@@ -14,7 +14,6 @@ import (
 const (
 	maxInputsDefault      = 100
 	batchSizeDefault      = 20
-	isTestnetDefault      = true
 	millisecondsPerSecond = 1000
 )
 
@@ -42,12 +41,6 @@ type Broadcaster struct {
 	ctx               context.Context
 	maxInputs         int
 	batchSize         int
-}
-
-func WithIsTestnet(isTestnet bool) func(broadcaster *Broadcaster) {
-	return func(broadcaster *Broadcaster) {
-		broadcaster.isTestnet = isTestnet
-	}
 }
 
 func WithBatchSize(batchSize int) func(broadcaster *Broadcaster) {
@@ -92,16 +85,20 @@ func WithFees(miningFeeSatPerKb int) func(broadcaster *Broadcaster) {
 	}
 }
 
-func NewBroadcaster(logger *slog.Logger, client ArcClient, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (Broadcaster, error) {
+func NewBroadcaster(logger *slog.Logger, client ArcClient, utxoClient UtxoClient, isTestnet bool, opts ...func(p *Broadcaster)) (Broadcaster, error) {
 
 	b := Broadcaster{
 		logger:     logger,
 		client:     client,
-		isTestnet:  isTestnetDefault,
+		isTestnet:  isTestnet,
 		batchSize:  batchSizeDefault,
 		maxInputs:  maxInputsDefault,
 		feeQuote:   bt.NewFeeQuote(),
 		utxoClient: utxoClient,
+	}
+
+	for _, opt := range opts {
+		opt(&b)
 	}
 
 	standardFee, err := b.feeQuote.Fee(bt.FeeTypeStandard)
@@ -110,10 +107,6 @@ func NewBroadcaster(logger *slog.Logger, client ArcClient, utxoClient UtxoClient
 	}
 
 	b.standardMiningFee = standardFee.MiningFee
-
-	for _, opt := range opts {
-		opt(&b)
-	}
 
 	ctx, cancelAll := context.WithCancel(context.Background())
 	b.cancelAll = cancelAll

@@ -15,7 +15,7 @@ func (p *PostgreSQL) MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, 
 	}
 
 	q := `
-		UPDATE blocktx.blocks
+		UPDATE blocks
 		SET processed_at = $4
 		,size = $1
 		,tx_count = $2

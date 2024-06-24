@@ -170,17 +170,17 @@ func prepareDb(t testing.TB, db *sql.DB, fixture string) {
 func pruneTables(t testing.TB, db *sql.DB) {
 	t.Helper()
 
-	_, err := db.Exec("TRUNCATE TABLE blocktx.blocks;")
+	_, err := db.Exec("TRUNCATE TABLE blocks;")
 	if err != nil {
-		t.Fatalf("cannot clear blocktx.blocks table: %v", err)
+		t.Fatalf("cannot clear blocks table: %v", err)
 	}
 
-	_, err = db.Exec("TRUNCATE TABLE blocktx.transactions;")
+	_, err = db.Exec("TRUNCATE TABLE transactions;")
 	if err != nil {
 		t.Fatalf("cannot clear transactions table: %v", err)
 	}
 
-	_, err = db.Exec("TRUNCATE TABLE blocktx.block_transactions_map;")
+	_, err = db.Exec("TRUNCATE TABLE block_transactions_map;")
 	if err != nil {
 		t.Fatalf("cannot clear block_transactions_map table: %v", err)
 	}
@@ -323,7 +323,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		var blocks []Block
 
-		require.NoError(t, d.Select(&blocks, "SELECT id FROM blocktx.blocks"))
+		require.NoError(t, d.Select(&blocks, "SELECT id FROM blocks"))
 
 		require.Len(t, blocks, 1)
 
@@ -332,7 +332,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, int64(5), resp.Rows)
 
 		var mps []BlockTransactionMap
-		require.NoError(t, d.Select(&mps, "SELECT blockid FROM blocktx.block_transactions_map"))
+		require.NoError(t, d.Select(&mps, "SELECT blockid FROM block_transactions_map"))
 
 		require.Len(t, mps, 5)
 
@@ -341,7 +341,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, int64(5), resp.Rows)
 
 		var txs []Transaction
-		require.NoError(t, d.Select(&txs, "SELECT id FROM blocktx.transactions"))
+		require.NoError(t, d.Select(&txs, "SELECT id FROM transactions"))
 
 		require.Len(t, txs, 5)
 	})
@@ -390,7 +390,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		var block Block
 
-		require.NoError(t, d.Get(&block, "SELECT * FROM blocktx.blocks WHERE hash=$1", bh1[:]))
+		require.NoError(t, d.Get(&block, "SELECT * FROM blocks WHERE hash=$1", bh1[:]))
 
 		require.NotNil(t, block.Size)
 		require.Equal(t, int64(500), *block.Size)
@@ -557,14 +557,14 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			for i, tx := range tc.txs {
 				var storedtx Transaction
 
-				err = d.Get(&storedtx, "SELECT id, hash, merkle_path, is_registered from blocktx.transactions WHERE hash=$1", tx.Hash[:])
+				err = d.Get(&storedtx, "SELECT id, hash, merkle_path, is_registered from transactions WHERE hash=$1", tx.Hash[:])
 				require.NoError(t, err, "error during getting transaction")
 
 				require.Equal(t, tc.merklePaths[i], storedtx.MerklePath)
 				require.Equal(t, i < tc.expectedUpdatedResLen, storedtx.IsRegistered)
 
 				var mp BlockTransactionMap
-				err = d.Get(&mp, "SELECT blockid, txid, pos from blocktx.block_transactions_map WHERE txid=$1", storedtx.ID)
+				err = d.Get(&mp, "SELECT blockid, txid, pos from block_transactions_map WHERE txid=$1", storedtx.ID)
 				require.NoError(t, err, "error during getting block transactions map")
 
 				require.Equal(t, storedtx.ID, mp.TransactionID)
@@ -653,7 +653,7 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 
 			for _, tx := range tc.txs {
 				var storedtx Transaction
-				err = d.Get(&storedtx, "SELECT id, hash, is_registered from blocktx.transactions WHERE hash=$1", string(tx.GetHash()))
+				err = d.Get(&storedtx, "SELECT id, hash, is_registered from transactions WHERE hash=$1", string(tx.GetHash()))
 				require.NoError(t, err)
 
 				require.NotNil(t, storedtx)

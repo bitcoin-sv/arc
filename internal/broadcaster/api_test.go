@@ -17,7 +17,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_BroadcastTransactions(t *testing.T) {
+func TestNewHTTPBroadcaster(t *testing.T) {
+	broadcaster, err := NewHTTPBroadcaster("arc:9090", nil)
+	require.NoError(t, err)
+	require.NotNil(t, broadcaster)
+}
+
+func TestBroadcastTransactions(t *testing.T) {
 	testCases := []struct {
 		name               string
 		httpStatusCode     int
@@ -101,7 +107,7 @@ func Test_BroadcastTransactions(t *testing.T) {
 	}
 }
 
-func Test_BroadcastTransaction(t *testing.T) {
+func TestBroadcastTransaction(t *testing.T) {
 	testCases := []struct {
 		name             string
 		httpStatusCode   int
@@ -181,7 +187,7 @@ func Test_BroadcastTransaction(t *testing.T) {
 	}
 }
 
-func Test_getArcClient(t *testing.T) {
+func TestGetArcClient(t *testing.T) {
 	testCases := []struct {
 		name          string
 		url           string

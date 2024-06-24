@@ -18,7 +18,7 @@ func (p *PostgreSQL) ClearBlocktxTable(ctx context.Context, retentionDays int32,
 	now := p.now()
 	deleteBeforeDate := now.Add(-24 * time.Hour * time.Duration(retentionDays))
 
-	stmt, err := p.db.Prepare(fmt.Sprintf("DELETE FROM blocktx.%s WHERE inserted_at_num <= $1::int", table))
+	stmt, err := p.db.Prepare(fmt.Sprintf("DELETE FROM %s WHERE inserted_at_num <= $1::int", table))
 	if err != nil {
 		return nil, fmt.Errorf("unable to prepare statement: %v", err)
 	}

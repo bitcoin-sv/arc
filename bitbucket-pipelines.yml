@@ -13,6 +13,34 @@ pipelines:
             - git merge public/main
             - git push --tags origin main
 
+    arc-image:
+      - step:
+          runs-on:
+            - taal.aws.runner
+            - self.hosted
+            - linux
+          name: Get build tag
+          services:
+            - docker
+          script:
+            - git describe --abbrev=0 --tags
+            - echo export BUILD_TAG=$(git describe --abbrev=0 --tags) > build.env
+          artifacts:
+            - build.env
+      - step:
+          name: Build and push arc image
+          image: amazon/aws-cli
+          services:
+            - docker
+          script:
+            - source build.env
+            - echo $BUILD_TAG
+            - echo "Logging in to Amazon ECR..."
+            - aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REGISTRY_ARC}
+            - aws ecr list-images --repository-name ${ECR_REPOSITORY_NAME_ARC}
+            - docker build -t ${ECR_REGISTRY_ARC}:${BUILD_TAG} . -f Dockerfile
+            - docker push ${ECR_REGISTRY_ARC}:${BUILD_TAG}
+
     blocktx-migrations-image:
       - step:
           runs-on:

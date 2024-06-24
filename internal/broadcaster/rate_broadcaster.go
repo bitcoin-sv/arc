@@ -30,7 +30,7 @@ type RateBroadcaster struct {
 
 func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet, utxoClient UtxoClient, isTestnet bool, opts ...func(p *Broadcaster)) (*RateBroadcaster, error) {
 
-	b, err := NewBroadcaster(logger.With(slog.String("address", ks.Address(isTestnet))), client, utxoClient, isTestnet, opts...)
+	b, err := NewBroadcaster(logger.With(slog.String("address", ks.Address(!isTestnet))), client, utxoClient, isTestnet, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -117,6 +117,8 @@ func (b *RateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
 	submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
 	submitBatchTicker := time.NewTicker(submitBatchInterval)
 
+	b.logger.Info("batch interval", slog.Duration("interval", submitBatchInterval))
+
 	errCh := make(chan error, 100)
 
 	b.wg.Add(1)
@@ -158,12 +160,13 @@ func (b *RateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
 func (b *RateBroadcaster) createSelfPayingTxs() ([]*bt.Tx, error) {
 	txs := make([]*bt.Tx, 0, b.batchSize)
 
+utxoLoop:
 	for {
 		select {
 		case <-b.ctx.Done():
 			return txs, nil
-		case <-time.NewTimer(1 * time.Second).C:
-			return txs, nil
+		//case <-time.NewTimer(1 * time.Second).C:
+		//	return txs, nil
 		case utxo := <-b.utxoCh:
 			tx := bt.NewTx()
 
@@ -175,6 +178,7 @@ func (b *RateBroadcaster) createSelfPayingTxs() ([]*bt.Tx, error) {
 			fee := b.calculateFeeSat(tx)
 
 			if utxo.Satoshis <= fee {
+				b.logger.Debug("fees too low", slog.Uint64("fee", fee), slog.Uint64("utxo sat", utxo.Satoshis))
 				continue
 			}
 
@@ -196,19 +200,18 @@ func (b *RateBroadcaster) createSelfPayingTxs() ([]*bt.Tx, error) {
 			txs = append(txs, tx)
 
 			if len(txs) >= b.batchSize {
-				return txs, nil
+				break utxoLoop
 			}
 		}
-
-		return txs, nil
 	}
+
+	return txs, nil
 }
 
 func (b *RateBroadcaster) broadcastBatchAsync(txs []*bt.Tx, errCh chan error, waitForStatus metamorph_api.Status) {
 	b.wg.Add(1)
 	go func() {
 		defer b.wg.Done()
-
 		atomic.AddInt64(&b.connectionCount, 1)
 		resp, err := b.client.BroadcastTransactions(b.ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 		if err != nil {

@@ -72,12 +72,16 @@ func (mrb *MultiKeyRateBroadcaster) logStats() {
 	bToMb := func(b uint64) uint64 {
 		return b / 1024 / 1024
 	}
+
+	logStatsTicker := time.NewTicker(2 * time.Second)
+	logMemStatsTicker := time.NewTicker(10 * time.Second)
+
 	go func() {
 		defer mrb.wg.Done()
 		var mem runtime.MemStats
 		for {
 			select {
-			case <-time.NewTicker(2 * time.Second).C:
+			case <-logStatsTicker.C:
 				totalTxsCount := int64(0)
 				totalConnectionCount := int64(0)
 				totalUtxoSetLength := 0
@@ -88,12 +92,13 @@ func (mrb *MultiKeyRateBroadcaster) logStats() {
 					totalUtxoSetLength += rb.GetUtxoSetLen()
 
 				}
-				mrb.logger.Info("summary",
+				mrb.logger.Info("stats",
 					slog.Int64("txs", totalTxsCount),
 					slog.Int64("connections", totalConnectionCount),
 					slog.Int("utxos", totalUtxoSetLength),
 				)
-				mrb.logger.Debug("stats",
+			case <-logMemStatsTicker.C:
+				mrb.logger.Info("memory",
 					slog.Uint64("Alloc [MiB]", bToMb(mem.Alloc)),
 					slog.Uint64("TotalAlloc [MiB]", bToMb(mem.TotalAlloc)),
 					slog.Uint64("Sys [MiB]", bToMb(mem.Sys)),

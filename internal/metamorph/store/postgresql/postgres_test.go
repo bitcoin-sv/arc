@@ -513,5 +513,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, int64(0), res.StatusSeenInOrphanMempool)
 		require.Equal(t, int64(1), res.StatusNotMined)
 		require.Equal(t, int64(2), res.StatusNotSeen)
+		require.Equal(t, int64(6), res.StatusMinedTotal)
+		require.Equal(t, int64(2), res.StatusSeenOnNetworkTotal)
 	})
 }

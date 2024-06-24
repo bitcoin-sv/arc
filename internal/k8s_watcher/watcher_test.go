@@ -54,7 +54,7 @@ func TestStartMetamorphWatcher(t *testing.T) {
 			},
 			setUnlockedErr: errors.New("failed to set unlocked"),
 
-			expectedMetamorphSetUnlockedByNameCalls: 1,
+			expectedMetamorphSetUnlockedByNameCalls: 5,
 		},
 	}
 
@@ -102,6 +102,7 @@ func TestStartMetamorphWatcher(t *testing.T) {
 
 			watcher := k8s_watcher.New(metamorphMock, blocktxMock, k8sClientMock, "test-namespace", k8s_watcher.WithMetamorphTicker(ticker),
 				k8s_watcher.WithLogger(slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo, TimeFormat: time.Kitchen}))),
+				k8s_watcher.WithRetryInterval(20*time.Millisecond),
 			)
 			err := watcher.Start()
 			require.NoError(t, err)
@@ -160,9 +161,7 @@ func TestStartBlocktxWatcher(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphMock := &mock.TransactionMaintainerMock{}
 			blocktxMock := &mock.BlocktxClientMock{
-				DelUnfinishedBlockProcessingFunc: func(ctx context.Context, processedBy string) error {
-					return nil
-				},
+				DelUnfinishedBlockProcessingFunc: func(ctx context.Context, processedBy string) (int64, error) { return 0, nil },
 			}
 
 			iteration := 0

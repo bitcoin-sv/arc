@@ -32,6 +32,8 @@ type processorStats struct {
 	statusSeenInOrphanMempool prometheus.Gauge
 	statusNotMined            prometheus.Gauge
 	statusNotSeen             prometheus.Gauge
+	statusMinedTotal          prometheus.Gauge
+	statusSeenOnNetworkTotal  prometheus.Gauge
 	statusNotSeenStat         int64
 }
 
@@ -80,6 +82,14 @@ func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
 			Name: "arc_status_seen_in_orphan_mempool_count",
 			Help: "Number of monitored transactions with status SEEN_IN_ORPHAN_MEMPOOL",
 		}),
+		statusSeenOnNetworkTotal: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "arc_status_seen_on_network_total_count",
+			Help: "Total number of monitored transactions with status SEEN_ON_NETWORK",
+		}),
+		statusMinedTotal: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "arc_status_mined_total_count",
+			Help: "Total number of monitored transactions with status MINED",
+		}),
 		notSeenLimit:  notSeenLimitDefault,
 		notMinedLimit: notMinedLimitDefault,
 	}
@@ -107,8 +117,6 @@ func (p *Processor) GetStatusNotSeen() int64 {
 }
 
 func (p *Processor) StartCollectStats() error {
-	p.waitGroup.Add(1)
-
 	ticker := time.NewTicker(p.statCollectionInterval)
 
 	err := registerStats(
@@ -123,11 +131,15 @@ func (p *Processor) StartCollectStats() error {
 		p.stats.statusSeenInOrphanMempool,
 		p.stats.statusNotMined,
 		p.stats.statusNotSeen,
+		p.stats.statusSeenOnNetworkTotal,
+		p.stats.statusMinedTotal,
 	)
 	if err != nil {
-		p.waitGroup.Done()
 		return err
 	}
+
+	p.waitGroup.Add(1)
+
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -147,6 +159,8 @@ func (p *Processor) StartCollectStats() error {
 			p.stats.statusSeenInOrphanMempool,
 			p.stats.statusNotMined,
 			p.stats.statusNotSeen,
+			p.stats.statusSeenOnNetworkTotal,
+			p.stats.statusMinedTotal,
 		)
 
 		for {
@@ -176,6 +190,8 @@ func (p *Processor) StartCollectStats() error {
 				p.stats.statusNotMined.Set(float64(collectedStats.StatusNotMined))
 				p.stats.statusNotSeen.Set(float64(collectedStats.StatusNotSeen))
 				p.stats.statusNotSeenStat = collectedStats.StatusNotSeen
+				p.stats.statusSeenOnNetworkTotal.Set(float64(collectedStats.StatusSeenOnNetworkTotal))
+				p.stats.statusMinedTotal.Set(float64(collectedStats.StatusMinedTotal))
 				p.stats.mu.Unlock()
 			}
 		}

@@ -9,7 +9,7 @@ type BlockGap struct {
 	Hash   *chainhash.Hash
 }
 
-type UpdateBlockTransactionsResult struct {
+type UpsertBlockTransactionsResult struct {
 	TxHash     []byte
 	MerklePath string
 }

@@ -1,15 +1,15 @@
 package metamorph
 
 import (
+	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/sasha-s/go-deadlock"
 )
 
 type ProcessorResponseMap struct {
-	mu            deadlock.RWMutex
+	mu            sync.RWMutex
 	ResponseItems map[chainhash.Hash]*processor_response.ProcessorResponse
 	now           func() time.Time
 }

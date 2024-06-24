@@ -21,16 +21,16 @@ var _ blocktx_api.BlockTxAPIClient = &BlockTxAPIClientMock{}
 //
 //		// make and configure a mocked blocktx_api.BlockTxAPIClient
 //		mockedBlockTxAPIClient := &BlockTxAPIClientMock{
-//			ClearBlockTransactionsMapFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.ClearDataResponse, error) {
+//			ClearBlockTransactionsMapFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearBlockTransactionsMap method")
 //			},
-//			ClearBlocksFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.ClearDataResponse, error) {
+//			ClearBlocksFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearBlocks method")
 //			},
-//			ClearTransactionsFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.ClearDataResponse, error) {
+//			ClearTransactionsFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearTransactions method")
 //			},
-//			DelUnfinishedBlockProcessingFunc: func(ctx context.Context, in *blocktx_api.DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+//			DelUnfinishedBlockProcessingFunc: func(ctx context.Context, in *blocktx_api.DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the DelUnfinishedBlockProcessing method")
 //			},
 //			HealthFunc: func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error) {
@@ -47,16 +47,16 @@ var _ blocktx_api.BlockTxAPIClient = &BlockTxAPIClientMock{}
 //	}
 type BlockTxAPIClientMock struct {
 	// ClearBlockTransactionsMapFunc mocks the ClearBlockTransactionsMap method.
-	ClearBlockTransactionsMapFunc func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.ClearDataResponse, error)
+	ClearBlockTransactionsMapFunc func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error)
 
 	// ClearBlocksFunc mocks the ClearBlocks method.
-	ClearBlocksFunc func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.ClearDataResponse, error)
+	ClearBlocksFunc func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error)
 
 	// ClearTransactionsFunc mocks the ClearTransactions method.
-	ClearTransactionsFunc func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.ClearDataResponse, error)
+	ClearTransactionsFunc func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error)
 
 	// DelUnfinishedBlockProcessingFunc mocks the DelUnfinishedBlockProcessing method.
-	DelUnfinishedBlockProcessingFunc func(ctx context.Context, in *blocktx_api.DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DelUnfinishedBlockProcessingFunc func(ctx context.Context, in *blocktx_api.DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error)
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error)
@@ -130,7 +130,7 @@ type BlockTxAPIClientMock struct {
 }
 
 // ClearBlockTransactionsMap calls ClearBlockTransactionsMapFunc.
-func (mock *BlockTxAPIClientMock) ClearBlockTransactionsMap(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.ClearDataResponse, error) {
+func (mock *BlockTxAPIClientMock) ClearBlockTransactionsMap(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 	if mock.ClearBlockTransactionsMapFunc == nil {
 		panic("BlockTxAPIClientMock.ClearBlockTransactionsMapFunc: method is nil but BlockTxAPIClient.ClearBlockTransactionsMap was just called")
 	}
@@ -170,7 +170,7 @@ func (mock *BlockTxAPIClientMock) ClearBlockTransactionsMapCalls() []struct {
 }
 
 // ClearBlocks calls ClearBlocksFunc.
-func (mock *BlockTxAPIClientMock) ClearBlocks(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.ClearDataResponse, error) {
+func (mock *BlockTxAPIClientMock) ClearBlocks(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 	if mock.ClearBlocksFunc == nil {
 		panic("BlockTxAPIClientMock.ClearBlocksFunc: method is nil but BlockTxAPIClient.ClearBlocks was just called")
 	}
@@ -210,7 +210,7 @@ func (mock *BlockTxAPIClientMock) ClearBlocksCalls() []struct {
 }
 
 // ClearTransactions calls ClearTransactionsFunc.
-func (mock *BlockTxAPIClientMock) ClearTransactions(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.ClearDataResponse, error) {
+func (mock *BlockTxAPIClientMock) ClearTransactions(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 	if mock.ClearTransactionsFunc == nil {
 		panic("BlockTxAPIClientMock.ClearTransactionsFunc: method is nil but BlockTxAPIClient.ClearTransactions was just called")
 	}
@@ -250,7 +250,7 @@ func (mock *BlockTxAPIClientMock) ClearTransactionsCalls() []struct {
 }
 
 // DelUnfinishedBlockProcessing calls DelUnfinishedBlockProcessingFunc.
-func (mock *BlockTxAPIClientMock) DelUnfinishedBlockProcessing(ctx context.Context, in *blocktx_api.DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (mock *BlockTxAPIClientMock) DelUnfinishedBlockProcessing(ctx context.Context, in *blocktx_api.DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 	if mock.DelUnfinishedBlockProcessingFunc == nil {
 		panic("BlockTxAPIClientMock.DelUnfinishedBlockProcessingFunc: method is nil but BlockTxAPIClient.DelUnfinishedBlockProcessing was just called")
 	}

@@ -3,6 +3,7 @@ package blocktx_test
 import (
 	"context"
 	"errors"
+	"github.com/libsv/go-p2p"
 	"log/slog"
 	"os"
 	"testing"
@@ -16,10 +17,9 @@ import (
 
 func TestCheck(t *testing.T) {
 	tt := []struct {
-		name               string
-		service            string
-		pingErr            error
-		processorHealthErr error
+		name    string
+		service string
+		pingErr error
 
 		expectedStatus grpc_health_v1.HealthCheckResponse_ServingStatus
 	}{
@@ -67,8 +67,17 @@ func TestCheck(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
-
-			server := blocktx.NewServer(storeMock, logger, nil, 0)
+			pm := &blocktx.PeerManagerMock{GetPeersFunc: func() []p2p.PeerI {
+				return []p2p.PeerI{&blocktx.PeerMock{
+					IsHealthyFunc: func() bool {
+						return false
+					},
+					ConnectedFunc: func() bool {
+						return false
+					},
+				}}
+			}}
+			server := blocktx.NewServer(storeMock, logger, pm, 0)
 			resp, err := server.Check(context.Background(), req)
 			require.NoError(t, err)
 
@@ -131,8 +140,17 @@ func TestWatch(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
-
-			server := blocktx.NewServer(storeMock, logger, nil, 0)
+			pm := &blocktx.PeerManagerMock{GetPeersFunc: func() []p2p.PeerI {
+				return []p2p.PeerI{&blocktx.PeerMock{
+					IsHealthyFunc: func() bool {
+						return false
+					},
+					ConnectedFunc: func() bool {
+						return false
+					},
+				}}
+			}}
+			server := blocktx.NewServer(storeMock, logger, pm, 0)
 
 			watchServer := &mocks.HealthWatchServerMock{
 				SendFunc: func(healthCheckResponse *grpc_health_v1.HealthCheckResponse) error {

@@ -23,17 +23,17 @@ type Server struct {
 	store                         store.BlocktxStore
 	logger                        *slog.Logger
 	grpcServer                    *grpc.Server
-	peers                         []p2p.PeerI
+	pm                            p2p.PeerManagerI
 	cleanup                       func()
 	maxAllowedBlockHeightMismatch int
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(storeI store.BlocktxStore, logger *slog.Logger, peers []p2p.PeerI, maxAllowedBlockHeightMismatch int) *Server {
+func NewServer(storeI store.BlocktxStore, logger *slog.Logger, pm p2p.PeerManagerI, maxAllowedBlockHeightMismatch int) *Server {
 	return &Server{
 		store:                         storeI,
 		logger:                        logger,
-		peers:                         peers,
+		pm:                            pm,
 		maxAllowedBlockHeightMismatch: maxAllowedBlockHeightMismatch,
 	}
 }
@@ -81,32 +81,35 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.Healt
 	}, nil
 }
 
-func (s *Server) ClearTransactions(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
+func (s *Server) ClearTransactions(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {
 	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "transactions")
 }
 
-func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
+func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {
 	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "blocks")
 }
 
-func (s *Server) ClearBlockTransactionsMap(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.ClearDataResponse, error) {
+func (s *Server) ClearBlockTransactionsMap(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {
 	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "block_transactions_map")
 }
 
-func (s *Server) DelUnfinishedBlockProcessing(ctx context.Context, req *blocktx_api.DelUnfinishedBlockProcessingRequest) (*emptypb.Empty, error) {
+func (s *Server) DelUnfinishedBlockProcessing(ctx context.Context, req *blocktx_api.DelUnfinishedBlockProcessingRequest) (*blocktx_api.RowsAffectedResponse, error) {
 	bhs, err := s.store.GetBlockHashesProcessingInProgress(ctx, req.GetProcessedBy())
 	if err != nil {
-		return &emptypb.Empty{}, err
+		return &blocktx_api.RowsAffectedResponse{}, err
 	}
 
+	var rowsTotal int64
 	for _, bh := range bhs {
-		err = s.store.DelBlockProcessing(ctx, bh, req.GetProcessedBy())
+		rows, err := s.store.DelBlockProcessing(ctx, bh, req.GetProcessedBy())
 		if err != nil {
-			return &emptypb.Empty{}, err
+			return &blocktx_api.RowsAffectedResponse{}, err
 		}
+
+		rowsTotal += rows
 	}
 
-	return &emptypb.Empty{}, nil
+	return &blocktx_api.RowsAffectedResponse{Rows: rowsTotal}, nil
 }
 
 func (s *Server) VerifyMerkleRoots(ctx context.Context, req *blocktx_api.MerkleRootsVerificationRequest) (*blocktx_api.MerkleRootVerificationResponse, error) {
@@ -116,6 +119,6 @@ func (s *Server) VerifyMerkleRoots(ctx context.Context, req *blocktx_api.MerkleR
 func (s *Server) Shutdown() {
 	s.logger.Info("Shutting down")
 	s.grpcServer.Stop()
-
+	s.pm.Shutdown()
 	s.cleanup()
 }

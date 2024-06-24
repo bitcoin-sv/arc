@@ -167,8 +167,7 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 	}
 
 	peerHandler.StartFillGaps(peers)
-
-	server := blocktx.NewServer(blockStore, logger, peers, maxAllowedBlockHeightMismatch)
+	server := blocktx.NewServer(blockStore, logger, pm, maxAllowedBlockHeightMismatch)
 
 	blocktxGRPCListenAddress, err := cfg.GetString("blocktx.listenAddr")
 	if err != nil {

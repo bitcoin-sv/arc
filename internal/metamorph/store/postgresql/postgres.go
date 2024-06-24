@@ -780,6 +780,39 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 		return nil, err
 	}
 
+	q = `
+	SELECT
+	max(status_counts.status_count) FILTER (where status_counts.status = $2 )
+	,max(status_counts.status_count) FILTER (where status_counts.status = $3 )
+	FROM
+	(SELECT all_statuses.status, COALESCE (found_statuses.status_count, 0) AS status_count FROM
+	(SELECT unnest(ARRAY[
+	    $2::integer,
+	    $3::integer]) AS status) AS all_statuses
+	LEFT JOIN
+	(
+	SELECT
+		t.status,
+		count(*) AS status_count
+	FROM
+		metamorph.transactions t WHERE t.last_submitted_at > $1
+	GROUP BY
+		t.status
+	) AS found_statuses ON found_statuses.status = all_statuses.status) AS status_counts
+	;
+	`
+
+	err = p.db.QueryRowContext(ctx, q, since,
+		metamorph_api.Status_SEEN_ON_NETWORK,
+		metamorph_api.Status_MINED,
+	).Scan(
+		&stats.StatusSeenOnNetworkTotal,
+		&stats.StatusMinedTotal,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	qNotSeen := `
 	SELECT
 		count(*)

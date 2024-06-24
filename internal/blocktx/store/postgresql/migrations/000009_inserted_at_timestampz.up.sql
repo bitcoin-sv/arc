@@ -17,7 +17,7 @@ ADD COLUMN inserted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP;
 UPDATE block_transactions_map
 SET inserted_at = TO_TIMESTAMP(inserted_at_num::text, 'YYYYMMDDHH24');
 
-DROP INDEX ix_blocks_inserted_at;
+DROP INDEX ix_block_transactions_map_inserted_at;
 ALTER TABLE block_transactions_map DROP COLUMN inserted_at_num;
 
-CREATE INDEX ix_blocks_inserted_at ON block_transactions_map (inserted_at);
+CREATE INDEX ix_block_transactions_map_inserted_at ON block_transactions_map (inserted_at);

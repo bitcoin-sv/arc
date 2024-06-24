@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
@@ -15,8 +16,7 @@ import (
 )
 
 type APIBroadcaster struct {
-	arcServer string
-	auth      *Auth
+	arcClient api.ClientInterface
 }
 
 type Auth struct {
@@ -32,19 +32,16 @@ type Response struct {
 	BlockHash   string `json:"blockHash"`
 }
 
-func NewHTTPBroadcaster(arcServer string, auth *Auth) *APIBroadcaster {
-	return &APIBroadcaster{
-		arcServer: arcServer,
-		auth:      auth,
-	}
-}
-
-func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
-	arcClient, err := a.getArcClient()
+func NewHTTPBroadcaster(arcServer string, auth *Auth) (*APIBroadcaster, error) {
+	arcClient, err := getArcClient(arcServer, auth)
 	if err != nil {
 		return nil, err
 	}
 
+	return &APIBroadcaster{arcClient: arcClient}, nil
+}
+
+func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
 	waitFor := api.WaitForStatus(waitForStatus)
 	params := &api.POSTTransactionsParams{
 		XWaitForStatus: &waitFor,
@@ -70,7 +67,7 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx
 	}
 
 	var response *http.Response
-	response, err = arcClient.POSTTransactions(ctx, params, body)
+	response, err := a.arcClient.POSTTransactions(ctx, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -118,11 +115,6 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx
 }
 
 func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitFor metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error) {
-	arcClient, err := a.getArcClient()
-	if err != nil {
-		return nil, err
-	}
-
 	waitForStatus := api.WaitForStatus(waitFor)
 	params := &api.POSTTransactionParams{
 		XWaitForStatus: &waitForStatus,
@@ -136,60 +128,67 @@ func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, wa
 		RawTx: hex.EncodeToString(tx.ExtendedBytes()),
 	}
 
-	var response *api.POSTTransactionResponse
-	response, err = arcClient.POSTTransactionWithResponse(ctx, params, arcBody)
+	response, err := a.arcClient.POSTTransaction(ctx, params, arcBody)
 	if err != nil {
 		return nil, err
 	}
 
-	if response.StatusCode() != http.StatusOK && response.StatusCode() != http.StatusCreated {
-		if response != nil && response.HTTPResponse != nil {
+	var bodyBytes []byte
+	bodyBytes, err = io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
+		if response.Body != nil {
 			// read body into json map
 			var body map[string]interface{}
-			err = json.Unmarshal(response.Body, &body)
+			err = json.Unmarshal(bodyBytes, &body)
 			if err == nil {
 				responseBody, ok := body["detail"].(string)
 				if ok {
 					return nil, errors.New(responseBody)
 				}
-				return nil, fmt.Errorf("error: %s", string(response.Body))
+				return nil, fmt.Errorf("error: %s", string(bodyBytes))
 			}
 		}
-		return nil, errors.New("error: " + response.Status())
+		return nil, errors.New("error: " + response.Status)
 	}
 
-	bodyResponse := response.JSON200
-
-	blockHeight := *bodyResponse.BlockHeight
-	txStatus := bodyResponse.TxStatus
+	var bodyResponse Response
+	err = json.Unmarshal(bodyBytes, &bodyResponse)
+	if err != nil {
+		return nil, err
+	}
 
 	res := &metamorph_api.TransactionStatus{
-		Txid:        bodyResponse.Txid,
-		Status:      metamorph_api.Status(metamorph_api.Status_value[txStatus]),
-		BlockHeight: blockHeight,
-		BlockHash:   *bodyResponse.BlockHash,
-	}
-
-	if bodyResponse.ExtraInfo != nil {
-		res.RejectReason = *bodyResponse.ExtraInfo
+		Txid:         bodyResponse.Txid,
+		Status:       metamorph_api.Status(metamorph_api.Status_value[bodyResponse.TxStatus]),
+		BlockHeight:  bodyResponse.BlockHeight,
+		BlockHash:    bodyResponse.BlockHash,
+		RejectReason: bodyResponse.ExtraInfo,
 	}
 
 	return res, nil
 }
 
-func (a *APIBroadcaster) getArcClient() (*api.ClientWithResponses, error) {
+func getArcClient(arcServer string, auth *Auth) (*api.Client, error) {
+	_, err := url.Parse(arcServer)
+	if arcServer == "" || err != nil {
+		return nil, errors.New("arcUrl is not a valid url")
+	}
 
 	opts := make([]api.ClientOption, 0)
 
-	if a.auth.Authorization != "" {
+	if auth != nil && auth.Authorization != "" {
 		// custom provider
 		opts = append(opts, api.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
-			req.Header.Add("Authorization", a.auth.Authorization)
+			req.Header.Add("Authorization", auth.Authorization)
 			return nil
 		}))
 	}
 
-	arcClient, err := api.NewClientWithResponses(a.arcServer, opts...)
+	arcClient, err := api.NewClient(arcServer, opts...)
 	if err != nil {
 		return nil, err
 	}

@@ -23,7 +23,10 @@ func (p *PostgreSQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) 
 	`
 
 	var blockId uint64
-
+	fmt.Println(block.GetHash())
+	fmt.Println(block.GetPreviousHash())
+	fmt.Println(block.GetMerkleRoot())
+	fmt.Println(block.GetHeight())
 	err := p.db.QueryRowContext(ctx, qInsert, block.GetHash(), block.GetPreviousHash(), block.GetMerkleRoot(), block.GetHeight()).Scan(&blockId)
 	if err != nil {
 		return 0, fmt.Errorf("failed when inserting block: %v", err)

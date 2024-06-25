@@ -171,19 +171,19 @@ func prepareDb(t testing.TB, db *sql.DB, fixture string) {
 func pruneTables(t testing.TB, db *sql.DB) {
 	t.Helper()
 
-	_, err := db.Exec("TRUNCATE TABLE blocks;")
+	_, err := db.Exec("TRUNCATE TABLE blocktx.blocks;")
 	if err != nil {
-		t.Fatalf("cannot clear blocks table: %v", err)
+		t.Fatalf("cannot clear blocktx.blocks table: %v", err)
 	}
 
-	_, err = db.Exec("TRUNCATE TABLE transactions;")
+	_, err = db.Exec("TRUNCATE TABLE blocktx.transactions;")
 	if err != nil {
-		t.Fatalf("cannot clear transactions table: %v", err)
+		t.Fatalf("cannot clear blocktx.transactions table: %v", err)
 	}
 
-	_, err = db.Exec("TRUNCATE TABLE block_transactions_map;")
+	_, err = db.Exec("TRUNCATE TABLE blocktx.block_transactions_map;")
 	if err != nil {
-		t.Fatalf("cannot clear block_transactions_map table: %v", err)
+		t.Fatalf("cannot clear blocktx.block_transactions_map table: %v", err)
 	}
 }
 
@@ -556,14 +556,14 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			for i, tx := range tc.txs {
 				var storedtx Transaction
 
-				err = d.Get(&storedtx, "SELECT id, hash, merkle_path, is_registered from transactions WHERE hash=$1", tx.Hash[:])
+				err = d.Get(&storedtx, "SELECT id, hash, merkle_path, is_registered from blocktx.transactions WHERE hash=$1", tx.Hash[:])
 				require.NoError(t, err, "error during getting transaction")
 
 				require.Equal(t, tc.merklePaths[i], storedtx.MerklePath)
 				require.Equal(t, i < tc.expectedUpdatedResLen, storedtx.IsRegistered)
 
 				var mp BlockTransactionMap
-				err = d.Get(&mp, "SELECT blockid, txid, pos from block_transactions_map WHERE txid=$1", storedtx.ID)
+				err = d.Get(&mp, "SELECT blockid, txid, pos from blocktx.block_transactions_map WHERE txid=$1", storedtx.ID)
 				require.NoError(t, err, "error during getting block transactions map")
 
 				require.Equal(t, storedtx.ID, mp.TransactionID)
@@ -659,7 +659,7 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 			updatedCounter := 0
 			for _, tx := range tc.txs {
 				var storedtx Transaction
-				err = d.Get(&storedtx, "SELECT id, hash, is_registered from transactions WHERE hash=$1", string(tx.GetHash()))
+				err = d.Get(&storedtx, "SELECT id, hash, is_registered from blocktx.transactions WHERE hash=$1", string(tx.GetHash()))
 				require.NoError(t, err)
 
 				require.NotNil(t, storedtx)

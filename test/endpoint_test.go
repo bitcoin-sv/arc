@@ -213,14 +213,41 @@ func TestPostCallbackToken(t *testing.T) {
 
 			ctx := context.Background()
 
-			hostname, err := os.Hostname()
-			require.NoError(t, err)
+			callbackReceivedChan := make(chan *api.TransactionStatus)
+			callbackErrChan := make(chan error)
+			callbackIterations := 0
+			calbackResponseFn := func(w http.ResponseWriter, rc chan *api.TransactionStatus, ec chan error, status *api.TransactionStatus) {
+
+				// Let ARC send the callback 2 times. First one fails.
+				if callbackIterations == 0 {
+					t.Log("callback received, responding bad request")
+
+					err = respondToCallback(w, false)
+					if err != nil {
+						t.Fatalf("Failed to respond to callback: %v", err)
+					}
+
+					rc <- status
+					callbackIterations++
+					return
+				}
+
+				t.Log("callback received, responding success")
+
+				err = respondToCallback(w, true)
+				if err != nil {
+					t.Fatalf("Failed to respond to callback: %v", err)
+				}
+				rc <- status
+			}
+			callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
+			defer shutdown()
 
 			waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
 			params := &api.POSTTransactionParams{
 				XWaitForStatus: &waitForStatus,
-				XCallbackUrl:   handler.PtrTo(fmt.Sprintf("http://%s:9000/callback", hostname)),
-				XCallbackToken: handler.PtrTo("1234"),
+				XCallbackUrl:   &callbackUrl,
+				XCallbackToken: &token,
 			}
 
 			arcBody := api.POSTTransactionJSONRequestBody{
@@ -235,81 +262,13 @@ func TestPostCallbackToken(t *testing.T) {
 			require.NotNil(t, response.JSON200)
 			require.Equal(t, "SEEN_ON_NETWORK", response.JSON200.TxStatus)
 
-			callbackReceivedChan := make(chan *api.TransactionStatus, 2)
-			errChan := make(chan error, 2)
-
-			expectedAuthHeader := "Bearer 1234"
-			srv := &http.Server{Addr: ":9000"}
-			defer func() {
-				t.Log("shutting down callback listener")
-				if err = srv.Shutdown(context.TODO()); err != nil {
-					t.Fatal("failed to shut down server")
-				}
-			}()
-
-			iterations := 0
-			http.HandleFunc("/callback", func(w http.ResponseWriter, req *http.Request) {
-
-				defer func() {
-					err := req.Body.Close()
-					if err != nil {
-						t.Log("failed to close body")
-					}
-				}()
-
-				bodyBytes, err := io.ReadAll(req.Body)
-				if err != nil {
-					errChan <- err
-				}
-
-				var status api.TransactionStatus
-				err = json.Unmarshal(bodyBytes, &status)
-				if err != nil {
-					errChan <- err
-				}
-
-				if expectedAuthHeader != req.Header.Get("Authorization") {
-					errChan <- fmt.Errorf("auth header %s not as expected %s", expectedAuthHeader, req.Header.Get("Authorization"))
-				}
-
-				// Let ARC send the callback 2 times. First one fails.
-				if iterations == 0 {
-					t.Log("callback received, responding bad request")
-
-					err = respondToCallback(w, false)
-					if err != nil {
-						t.Fatalf("Failed to respond to callback: %v", err)
-					}
-
-					callbackReceivedChan <- &status
-
-					iterations++
-					return
-				}
-
-				t.Log("callback received, responding success")
-
-				err = respondToCallback(w, true)
-				if err != nil {
-					t.Fatalf("Failed to respond to callback: %v", err)
-				}
-				callbackReceivedChan <- &status
-			})
-
-			go func(server *http.Server) {
-				t.Log("starting callback server")
-				err = server.ListenAndServe()
-				if err != nil {
-					return
-				}
-			}(srv)
-
 			generate(t, 10)
-
 			time.Sleep(15 * time.Second) // give ARC time to perform the status update on DB
 
 			var statusResponse *api.GETTransactionStatusResponse
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
+			require.NoError(t, err)
+
 			seenOnNetworkReceived := false
 
 			for i := 0; i <= 1; i++ {
@@ -333,7 +292,7 @@ func TestPostCallbackToken(t *testing.T) {
 					_, err = bc.NewBUMPFromStr(*statusResponse.JSON200.MerklePath)
 					require.NoError(t, err)
 
-				case err := <-errChan:
+				case err := <-callbackErrChan:
 					t.Fatalf("callback received - failed to parse callback %v", err)
 				case <-time.NewTicker(time.Second * 15).C:
 					t.Fatal("callback not received")
@@ -459,28 +418,6 @@ func TestPostSkipTxValidation(t *testing.T) {
 
 		})
 	}
-}
-
-func respondToCallback(w http.ResponseWriter, success bool) error {
-	resp := make(map[string]string)
-	if success {
-		resp["message"] = "Success"
-		w.WriteHeader(http.StatusOK)
-	} else {
-		resp["message"] = "Bad Request"
-		w.WriteHeader(http.StatusBadRequest)
-	}
-
-	jsonResp, err := json.Marshal(resp)
-	if err != nil {
-		return err
-	}
-
-	_, err = w.Write(jsonResp)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func Test_E2E_Success(t *testing.T) {
@@ -640,7 +577,7 @@ func TestSubmitMinedTx(t *testing.T) {
 	address, _ := getNewWalletAddress(t)
 	txID := sendToAddress(t, address, 0.001)
 
-	// mine block with the transaction from above
+	// mine a block with the transaction from above
 	generate(t, 1)
 	time.Sleep(5 * time.Second)
 
@@ -650,7 +587,7 @@ func TestSubmitMinedTx(t *testing.T) {
 	callbackReceivedChan := make(chan *api.TransactionStatus)
 	callbackErrChan := make(chan error)
 
-	callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan)
+	callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
 	defer shutdown()
 
 	arcClient, _ := api.NewClientWithResponses(arcEndpoint)
@@ -683,7 +620,12 @@ func TestSubmitMinedTx(t *testing.T) {
 	}
 }
 
-func startCallbackSrv(t *testing.T, callbackReceivedChan chan *api.TransactionStatus, errChan chan error) (callbackUrl, token string, shutdownFn func()) {
+type callbackResponseFn func(w http.ResponseWriter, rc chan *api.TransactionStatus, ec chan error, status *api.TransactionStatus)
+
+func startCallbackSrv(t *testing.T, receivedChan chan *api.TransactionStatus, errChan chan error,
+	alternativeResponseFn callbackResponseFn) (
+	callbackUrl, token string, shutdownFn func()) {
+
 	t.Helper()
 	callback := generateRandomString(16)
 	token = "1234"
@@ -697,7 +639,7 @@ func startCallbackSrv(t *testing.T, callbackReceivedChan chan *api.TransactionSt
 	srv := &http.Server{Addr: ":9000"}
 	shutdownFn = func() {
 		t.Log("shutting down callback listener")
-		close(callbackReceivedChan)
+		close(receivedChan)
 		close(errChan)
 
 		if err := srv.Shutdown(context.TODO()); err != nil {
@@ -738,19 +680,22 @@ func startCallbackSrv(t *testing.T, callbackReceivedChan chan *api.TransactionSt
 			return
 		}
 
-		// read response
 		status, err := readResponse(req)
 		if err != nil {
 			t.Fatalf("Failed to read response from callback: %v", err)
 		}
 
-		t.Log("callback received, responding success")
-		err = respondToCallback(w, true)
-		if err != nil {
-			t.Fatalf("Failed to respond to callback: %v", err)
-		}
+		if alternativeResponseFn != nil {
+			alternativeResponseFn(w, receivedChan, errChan, status)
+		} else {
+			t.Log("callback received, responding success")
+			err = respondToCallback(w, true)
+			if err != nil {
+				t.Fatalf("Failed to respond to callback: %v", err)
+			}
 
-		callbackReceivedChan <- status
+			receivedChan <- status
+		}
 	})
 
 	go func(server *http.Server) {
@@ -762,4 +707,26 @@ func startCallbackSrv(t *testing.T, callbackReceivedChan chan *api.TransactionSt
 	}(srv)
 
 	return
+}
+
+func respondToCallback(w http.ResponseWriter, success bool) error {
+	resp := make(map[string]string)
+	if success {
+		resp["message"] = "Success"
+		w.WriteHeader(http.StatusOK)
+	} else {
+		resp["message"] = "Bad Request"
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
+	jsonResp, err := json.Marshal(resp)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(jsonResp)
+	if err != nil {
+		return err
+	}
+	return nil
 }

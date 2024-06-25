@@ -81,8 +81,6 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		slog.Default().Info("mining fee set", "mining fee satoshis", miningFeeSat)
-
 		if miningFeeSat == 0 {
 			return errors.New("no mining fee was given")
 		}

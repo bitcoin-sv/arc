@@ -117,8 +117,6 @@ func (b *RateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
 	submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
 	submitBatchTicker := time.NewTicker(submitBatchInterval)
 
-	b.logger.Info("batch interval", slog.Duration("interval", submitBatchInterval))
-
 	errCh := make(chan error, 100)
 
 	b.wg.Add(1)
@@ -178,7 +176,6 @@ utxoLoop:
 			fee := b.calculateFeeSat(tx)
 
 			if utxo.Satoshis <= fee {
-				b.logger.Debug("fees too low", slog.Uint64("fee", fee), slog.Uint64("utxo sat", utxo.Satoshis))
 				continue
 			}
 

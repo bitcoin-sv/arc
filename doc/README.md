@@ -422,7 +422,7 @@ Expected outcome:
 * If transaction `A` was also submitted to ARC it has status `SEEN_ON_NETWORK`
 * Transaction `B` has status `REJECTED`
 
-The planned feature ![Double spending detection](../ROADMAP.md#double-spending-detection) will ensure that both transaction have status `DOUBLE_SPENT_ATTEMPTED` until one or the other transactions is mined. The mined transaction gets status `MINED` and the other gets status `REJECTED`
+The planned feature ![Double spending detection](https://github.com/bitcoin-sv/arc/blob/main/ROADMAP.md#double-spending-detection) will ensure that both transaction have status `DOUBLE_SPENT_ATTEMPTED` until one or the other transactions is mined. The mined transaction gets status `MINED` and the other gets status `REJECTED`
 
 ### Multiple submissions to the same ARC instance
 
@@ -431,7 +431,7 @@ A transaction is submitted to the same ARC instance twice
 Expected outcome:
 * At the second submission ARC simply returns the current status in the response. Changed or updated request headers are ignored
 
-The planned feature ![Multiple different callbacks per transaction](../ROADMAP.md#multiple-different-callbacks-per-transaction) will allow that the same transaction can be submitted multiple times with differing callback URL and token. Callbacks will then be sent to each callback URL with specified token
+The planned feature ![Multiple different callbacks per transaction](https://github.com/bitcoin-sv/arc/blob/main/ROADMAP.md#multiple-different-callbacks-per-transaction) will allow that the same transaction can be submitted multiple times with differing callback URL and token. Callbacks will then be sent to each callback URL with specified token
 
 ### Multiple submissions to ARC and other transaction processors
 
@@ -443,7 +443,7 @@ Expected outcome
 * ARC returns response with status `ANNOUNCED_TO_NETWORK`
 * The status will not switch to `MINED` with the respective block information
 
-The planned feature ![Idempotent transactions](../ROADMAP.md#idempotent-transactions) will ensure that ARC responds with the `MINED` status, block information and Merkle path
+The planned feature ![Idempotent transactions](https://github.com/bitcoin-sv/arc/blob/main/ROADMAP.md#idempotent-transactions) will ensure that ARC responds with the `MINED` status, block information and Merkle path
 
 #### Transaction has not yet been mined
 
@@ -459,4 +459,4 @@ Expected outcome:
 * ARC does not update the transaction statuses according to the block in the longest chain.
 * Information and Merkle path of the block received first will be persisted in the transaction record and not overwritten
 
-The planned feature ![Update of transactions in case of block reorgs](../ROADMAP.md#update-of-transactions-in-case-of-block-reorgs) will ensure that ARC updates the statuses of transactions. Transactions which are not in the block of the longest chain will be updated to `REJECTED` status and transactions which are included in the block of the longest chain are updated to `MINED` status.
+The planned feature ![Update of transactions in case of block reorgs](https://github.com/bitcoin-sv/arc/blob/main/ROADMAP.md#update-of-transactions-in-case-of-block-reorgs) will ensure that ARC updates the statuses of transactions. Transactions which are not in the block of the longest chain will be updated to `REJECTED` status and transactions which are included in the block of the longest chain are updated to `MINED` status.

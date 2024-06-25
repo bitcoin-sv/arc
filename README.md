@@ -65,8 +65,19 @@ ARC is a transaction processor for Bitcoin that keeps track of the life cycle of
 - Find full documentation at [https://bitcoin-sv.github.io/arc](https://bitcoin-sv.github.io/arc)
 
 ## Configuration
-Settings for ARC are defined in a configuration file. The default configuration file is `config/config.yaml`. Each setting is documented in the file itself.
+Settings for ARC are defined in a configuration file. The default configuration is shown in `config/example_config.yaml`. Each setting is documented in the file itself.
 If you want to load `config.yaml` from a different location, you can specify it on the command line using the `-config=<path>` flag.
+
+Arc also has a default configuration specified in code (`config/defaults.go`), therefore, in your `config.yaml` you can specify only the values that you want override. Example:
+```yaml
+---
+logLevel: INFO
+logFormat: text
+network: mainnet
+tracing:
+  dialAddr: http://tracing:1234
+```
+The rest of the settings will be taken from defaults.
 
 Each setting in the file `config.yaml` can be overridden with an environment variable. The environment variable needs to have this prefix `ARC_`. A sub setting will be separated using an underscore character. For example the following config setting could be overridden by the environment variable `ARC_METAMORPH_LISTENADDR`
 ```yaml
@@ -98,8 +109,14 @@ where options are:
     -blocktx=<true|false>
           whether to start block tx (default=true)
 
-    -config=<path>
-          path to config file (default='')
+    -k8s-watcher=<true|false>
+          whether to start k8s-watcher (default=true)
+
+    -config=/location
+          directory to look for config.yaml (default='')
+
+    -dump_config=/file.yaml
+          dump config to specified file and exit (default='config/dumped_config.yaml')
 ```
 
 Each individual microservice can also be started individually by running e.g. `go run main.go -api=true`.

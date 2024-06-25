@@ -6,15 +6,14 @@ import (
 	"net"
 	"time"
 
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
-	cfg "github.com/bitcoin-sv/arc/internal/config"
 	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
@@ -25,51 +24,23 @@ const (
 	service          = "blocktx"
 )
 
-func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
-	dbMode, err := cfg.GetString("blocktx.db.mode")
+func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
+	tracingEnabled := arcConfig.Tracing != nil
+	btxConfig := arcConfig.Blocktx
+
+	network, err := config.GetNetwork(arcConfig.Network)
 	if err != nil {
 		return nil, err
 	}
 
-	// dbMode can be sqlite, sqlite_memory or postgres
-	blockStore, err := NewBlocktxStore(dbMode, logger, tracingEnabled)
+	blockStore, err := NewBlocktxStore(logger, btxConfig.Db, tracingEnabled)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
 
-	recordRetentionDays, err := cfg.GetInt("blocktx.recordRetentionDays")
-	if err != nil {
-		return nil, err
-	}
-
-	maxAllowedBlockHeightMismatch, err := cfg.GetInt("blocktx.maxAllowedBlockHeightMismatch")
-	if err != nil {
-		return nil, err
-	}
-
-	network, err := cfg.GetNetwork()
-	if err != nil {
-		return nil, err
-	}
-
-	natsURL, err := cfg.GetString("queueURL")
-	if err != nil {
-		return nil, err
-	}
-
-	registerTxInterval, err := cfg.GetDuration("blocktx.registerTxsInterval")
-	if err != nil {
-		return nil, err
-	}
-
-	fillGapsInterval, err := cfg.GetDuration("blocktx.fillGapsInterval")
-	if err != nil {
-		return nil, err
-	}
-
 	// The tx channel needs the capacity so that it could potentially buffer up to a certain nr of transactions per second
 	const targetTps = 6000
-	capacityRequired := int(registerTxInterval.Seconds() * targetTps)
+	capacityRequired := int(btxConfig.RegisterTxsInterval.Seconds() * targetTps)
 	if capacityRequired < 100 {
 		capacityRequired = 100
 	}
@@ -77,18 +48,13 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 	txChannel := make(chan []byte, capacityRequired)
 	requestTxChannel := make(chan []byte, capacityRequired)
 
-	natsClient, err := nats_mq.NewNatsClient(natsURL)
+	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", natsURL, err)
-	}
-
-	maxBatchSize, err := cfg.GetInt("blocktx.mq.txsMinedMaxBatchSize")
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.QueueURL, err)
 	}
 
 	mqOpts := []func(handler *async.MQClient){
-		async.WithMaxBatchSize(maxBatchSize),
+		async.WithMaxBatchSize(btxConfig.MessageQueue.TxsMinedMaxBatchSize),
 	}
 
 	if tracingEnabled {
@@ -108,53 +74,40 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 	}
 
 	peerHandlerOpts := []func(handler *blocktx.PeerHandler){
-		blocktx.WithRetentionDays(recordRetentionDays),
+		blocktx.WithRetentionDays(btxConfig.RecordRetentionDays),
 		blocktx.WithTxChan(txChannel),
 		blocktx.WithRequestTxChan(requestTxChannel),
-		blocktx.WithRegisterTxsInterval(registerTxInterval),
+		blocktx.WithRegisterTxsInterval(btxConfig.RegisterTxsInterval),
 		blocktx.WithMessageQueueClient(mqClient),
-		blocktx.WithFillGapsInterval(fillGapsInterval),
+		blocktx.WithFillGapsInterval(btxConfig.FillGapsInterval),
 	}
 	if tracingEnabled {
 		peerHandlerOpts = append(peerHandlerOpts, blocktx.WithTracer())
 	}
 
-	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore,
-		peerHandlerOpts...)
+	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore, peerHandlerOpts...)
 	if err != nil {
 		return nil, err
 	}
 
 	peerHandler.Start()
 
-	pm := p2p.NewPeerManager(logger, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
-
-	peerSettings, err := cfg.GetPeerSettings()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get peer settings: %v", err)
+	peerOpts := make([]p2p.PeerOptions, 0)
+	peerOpts = append(peerOpts, p2p.WithMaximumMessageSize(maximumBlockSize))
+	if version.Version != "" {
+		peerOpts = append(peerOpts, p2p.WithUserAgent("ARC", version.Version))
 	}
+	peerOpts = append(peerOpts, p2p.WithRetryReadWriteMessageInterval(5*time.Second))
 
-	peerURLs := make([]string, len(peerSettings))
-	for i, peerSetting := range peerSettings {
-		peerUrl, err := peerSetting.GetP2PUrl()
+	pm := p2p.NewPeerManager(logger, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
+	peers := make([]p2p.PeerI, len(arcConfig.Peers))
+
+	for i, peerSetting := range arcConfig.Peers {
+		peerURL, err := peerSetting.GetP2PUrl()
 		if err != nil {
 			return nil, fmt.Errorf("error getting peer url: %v", err)
 		}
-		peerURLs[i] = peerUrl
-	}
-	peers := make([]p2p.PeerI, len(peerURLs))
-
-	opts := make([]p2p.PeerOptions, 0)
-
-	opts = append(opts, p2p.WithMaximumMessageSize(maximumBlockSize))
-	if version.Version != "" {
-		opts = append(opts, p2p.WithUserAgent("ARC", version.Version))
-	}
-
-	opts = append(opts, p2p.WithRetryReadWriteMessageInterval(5*time.Second))
-
-	for i, peerURL := range peerURLs {
-		peer, err := p2p.NewPeer(logger, peerURL, peerHandler, network, opts...)
+		peer, err := p2p.NewPeer(logger, peerURL, peerHandler, network, peerOpts...)
 		if err != nil {
 			return nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
 		}
@@ -167,26 +120,15 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 	}
 
 	peerHandler.StartFillGaps(peers)
-	server := blocktx.NewServer(blockStore, logger, pm, maxAllowedBlockHeightMismatch)
 
-	blocktxGRPCListenAddress, err := cfg.GetString("blocktx.listenAddr")
-	if err != nil {
-		return nil, err
-	}
+	server := blocktx.NewServer(blockStore, logger, pm, btxConfig.MaxAllowedBlockHeightMismatch)
 
-	grpcMessageSize, err := cfg.GetInt("grpcMessageSize")
-	if err != nil {
-		return nil, err
-	}
-
-	prometheusEndpoint := viper.GetString("prometheusEndpoint")
-
-	err = server.StartGRPCServer(blocktxGRPCListenAddress, grpcMessageSize, prometheusEndpoint, logger)
+	err = server.StartGRPCServer(btxConfig.ListenAddr, arcConfig.GrpcMessageSize, arcConfig.PrometheusEndpoint, logger)
 	if err != nil {
 		return nil, fmt.Errorf("GRPCServer failed: %v", err)
 	}
 
-	healthServer, err := StartHealthServerBlocktx(server, logger)
+	healthServer, err := StartHealthServerBlocktx(server, logger, btxConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start health server: %v", err)
 	}
@@ -212,25 +154,20 @@ func StartBlockTx(logger *slog.Logger, tracingEnabled bool) (func(), error) {
 	}, nil
 }
 
-func StartHealthServerBlocktx(serv *blocktx.Server, logger *slog.Logger) (*grpc.Server, error) {
+func StartHealthServerBlocktx(serv *blocktx.Server, logger *slog.Logger, btxConfig *config.BlocktxConfig) (*grpc.Server, error) {
 	gs := grpc.NewServer()
 
 	grpc_health_v1.RegisterHealthServer(gs, serv) // registration
 	// register your own services
 	reflection.Register(gs)
 
-	address, err := cfg.GetString("blocktx.healthServerDialAddr") //"localhost:8005"
-	if err != nil {
-		return nil, err
-	}
-
-	listener, err := net.Listen("tcp", address)
+	listener, err := net.Listen("tcp", btxConfig.HealthServerDialAddr)
 	if err != nil {
 		return nil, err
 	}
 
 	go func() {
-		logger.Info("GRPC health server listening", slog.String("address", address))
+		logger.Info("GRPC health server listening", slog.String("address", btxConfig.HealthServerDialAddr))
 		err = gs.Serve(listener)
 		if err != nil {
 			logger.Error("GRPC health server failed to serve", slog.String("err", err.Error()))
@@ -240,57 +177,32 @@ func StartHealthServerBlocktx(serv *blocktx.Server, logger *slog.Logger) (*grpc.
 	return gs, nil
 }
 
-func NewBlocktxStore(dbMode string, logger *slog.Logger, tracingEnabled bool) (s store.BlocktxStore, err error) {
-	switch dbMode {
+func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingEnabled bool) (s store.BlocktxStore, err error) {
+	switch dbConfig.Mode {
 	case DbModePostgres:
-		dbHost, err := cfg.GetString("blocktx.db.postgres.host")
-		if err != nil {
-			return nil, err
-		}
-		dbPort, err := cfg.GetInt("blocktx.db.postgres.port")
-		if err != nil {
-			return nil, err
-		}
-		dbName, err := cfg.GetString("blocktx.db.postgres.name")
-		if err != nil {
-			return nil, err
-		}
-		dbUser, err := cfg.GetString("blocktx.db.postgres.user")
-		if err != nil {
-			return nil, err
-		}
-		dbPassword, err := cfg.GetString("blocktx.db.postgres.password")
-		if err != nil {
-			return nil, err
-		}
-		sslMode, err := cfg.GetString("blocktx.db.postgres.sslMode")
-		if err != nil {
-			return nil, err
-		}
-		idleConns, err := cfg.GetInt("blocktx.db.postgres.maxIdleConns")
-		if err != nil {
-			return nil, err
-		}
-		maxOpenConns, err := cfg.GetInt("blocktx.db.postgres.maxOpenConns")
-		if err != nil {
-			return nil, err
-		}
+		postgres := dbConfig.Postgres
 
-		logger.Info(fmt.Sprintf("db connection: user=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbName, dbHost, dbPort, sslMode))
+		logger.Info(fmt.Sprintf(
+			"db connection: user=%s dbname=%s host=%s port=%d sslmode=%s",
+			postgres.User, postgres.Name, postgres.Host, postgres.Port, postgres.SslMode,
+		))
 
-		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbPassword, dbName, dbHost, dbPort, sslMode)
+		dbInfo := fmt.Sprintf(
+			"user=%s password=%s dbname=%s host=%s port=%d sslmode=%s",
+			postgres.User, postgres.Password, postgres.Name, postgres.Host, postgres.Port, postgres.SslMode,
+		)
 
 		var postgresOpts []func(handler *postgresql.PostgreSQL)
 		if tracingEnabled {
 			postgresOpts = append(postgresOpts, postgresql.WithTracer())
 		}
 
-		s, err = postgresql.New(dbInfo, idleConns, maxOpenConns, postgresOpts...)
+		s, err = postgresql.New(dbInfo, postgres.MaxIdleConns, postgres.MaxOpenConns, postgresOpts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
 		}
 	default:
-		return nil, fmt.Errorf("db mode %s is invalid", dbMode)
+		return nil, fmt.Errorf("db mode %s is invalid", dbConfig.Mode)
 	}
 
 	return s, err

@@ -66,7 +66,7 @@ The API takes care of validation and sending transactions to Metamorph. The API 
 
 #### Validation
 
-The API is the first component of ARC and therefore the one that by design derives a benefit for ARC performing a preliminar validation of transactions thanks to the use of the [extended transaction format](#extended-format).
+The API is the first component of ARC and therefore the one that by design derives a benefit for ARC performing a preliminar validation of transactions thanks to the use of the [extended transaction formats](#extended-format-ef-and-background-evaluation-extended-format-beef).
 
 However, sending transactions in classic format is supported through the ARC API.
 
@@ -104,22 +104,36 @@ By default, callbacks are sent to the specified URL in case the submitted transa
 BlockTx is a microservice that is responsible for processing blocks mined on the Bitcoin network, and for propagating
 the status of transactions to each Metamorph that has subscribed to this service.
 
-The main purpose of BlockTx is to de-duplicate processing of (large) blocks. As an incoming block is processed by BlockTx, Metamorph is notified about mined transactions by means of a message queue.  BlockTx does not store the transaction data, but instead stores only the transaction IDs and the block height in which they were mined. Metamorph is responsible for storing the transaction data.
+The main purpose of BlockTx is to de-duplicate processing of (large) blocks. As an incoming block is processed by BlockTx, Metamorph is notified about mined transactions by means of a message queue. BlockTx does not store the transaction data, but instead stores only the transaction IDs and the block height in which they were mined. Metamorph is responsible for storing the transaction data.
 
-## Extended format
+BlockTx also stores information about mined blocks, such as the Merkle roots, which are used in [BEEF validation process](#extended-format-ef-and-background-evaluation-extended-format-beef).
 
-For optimal performance, ARC uses a custom format for transactions. This format is called the extended format, and is a superset of the raw transaction format. The extended format includes the satoshis and scriptPubKey for each input, which makes it possible for ARC to validate the transaction without having to download the parent transactions. In most cases the sender already has all the information from the parent transaction, as this is needed to sign the transaction.
+## Extended Format (EF) and Background Evaluation Extended Format (BEEF)
+
+For optimal performance, ARC uses custom formats for transactions.
+
+The first format is called the extended format, and is a superset of the raw transaction format. The extended format includes the satoshis and scriptPubKey for each input, which makes it possible for ARC to validate the transaction without having to download the parent transactions. In most cases the sender already has all the information from the parent transaction, as this is needed to sign the transaction.
 
 The only check that cannot be done on a transaction in the extended format is the check for double spends. This can only be done by downloading the parent transactions, or by querying a utxo store. A robust utxo store is still in development and will be added to ARC when it is ready. At this moment, the utxo check is performed in the Bitcoin node when a transaction is sent to the network.
 
-### Extended format efficiency
+The second format is called Background Evaluation Extended Format, or BEEF, in short. BEEF was created to enable and facilitate Simplified Payment Verification (SPV) when sending transactions between peers which allows validation of transactions, the inputs of which may not yet be mined. Although this format is mainly used in peer-to-peer transactions, a peer ultimately has to submit the transaction to the nodes, and to help with that, Arc not only accepts that format, but also performs the SPV.
 
-With the successful adoption of Bitcoin ARC, this format should establish itself as the new standard of interchange
-between wallets and non-mining nodes on the network.
+BEEF includes the transaction which constitutes the payment, as well as transactions whose outputs are used as inputs to the payment transaction (parent transactions) with their corresponding Merkle paths in the form of [BUMP](https://bsv.brc.dev/transactions/0074). In cases where the parent transaction is not yet mined, each ancestral transaction is included until the ancestor transaction is mined and has a corresponding Merkle path.
 
-The extended format has been described in detail in [BIP-239](BIP-239).
+Arc validates each unmined transaction in BEEF in the same way it does an Extended Transaction. For each transaction with Merkle path (BUMP), the Merkle root is calculated and verified against [BlockTx](#BlockTx), which will prove that the Merkle roots provided are all part of block headers within the longest chain.
 
-The following diagrams show the difference between validating a transaction in the standard and extended format:
+Storing all block headers is a very network-heavy process, therefore Arc stores information only about the most recent blocks and verifies Merkle roots against them. If an older Merkle root is included in BEEF, and everything else during the transaction validation checks out, the transaction is left to be validated by the nodes. The premise for that is twofold:
+1. transactions are usually made from fresh UTXOs,
+2. full SPV should also be performed in peer-to-peer transaction process (e.g. between SPV wallets), where at least one of the peers has an independent source of Block Headers indexed by Merkle Root.
+
+### Extended Formats efficiency
+
+With the successful adoption of Bitcoin ARC, these formats should establish themselves as the new standard of interchange between wallets and non-mining nodes on the network.
+
+The Extended Format has been described in detail in [BRC-30](https://bsv.brc.dev/transactions/0030).
+The Background Evaluation Extended Format has been described in detail in [BRC-62](https://bsv.brc.dev/transactions/0062).
+
+The following diagrams show the difference between validating a transaction in the standard format, the Extended Format and BEEF:
 
 #### Standard format flow
 
@@ -166,9 +180,9 @@ return status
 ```
 For each request ARC receives in standard format, it must request the utxos from the Bitcoin node. This is a slow process, as it requires a round trip to the Bitcoin node for each input.
 
-For this reason it is expected that transactions come in an extended format. Transactions in standard format requires a pretreatment to convert each tx into one in extended format to pass through the ARC pipeline.
+For this reason it is expected that transactions come in an extended format or BEEF. Transactions in standard format require a pretreatment to convert each tx into extended format to pass through the ARC pipeline.
 
-That pretreatment detracts from the expected efficiency of the process because it requires extra requests to the Bitcoin network. Therefore, it is expected that the trend will be to use the extended format, which may be the only one supported in the future.
+That pretreatment detracts from the expected efficiency of the process because it requires extra requests to the Bitcoin network. Therefore, it is expected that the trend will be to use the EF or BEEF, which may be the only supported formats in future.
 
 
 #### Extended format flow
@@ -210,8 +224,48 @@ return status
 ```
 In contrast, the extended format allows the API to perform a preliminary validation and rule out malformed transactions by reviewing the transaction data provided in the extended fashion. Obviously, double spending (for example) cannot be checked without an updated utxo set and it is assumed that the API does not have this data. Therefore, the "validator" subfunction within the API filters as much as it can to reduce spurious transactions passing through the pipeline but leaves others for the bitcoin nodes themselves.
 
-
 This [validation](#validation) takes place in the ARC API microservice. The actual utxos are left to be checked by the Bitcoin node itself, like it would do anyway, regardless of where the transaction is coming from. With this process flow we save the node from having to lookup and send the input utxos to the ARC API, which could be slow under heavy load.
+
+#### BEEF flow
+
+```plantuml
+@startuml
+hide footbox
+skinparam ParticipantPadding 15
+skinparam BoxPadding 100
+
+actor "client" as tx
+
+
+box ARC
+participant api
+participant validator
+participant blocktx
+participant metamorph
+database "bitcoin" as bsv
+end box
+
+title Submit transaction (BEEF)
+
+tx -> tx: prepare tx in BEEF
+
+tx -> api ++: raw tx (BEEF)
+  api -> validator ++: validate unmined txs
+  return ok
+
+  api -> blocktx ++: verify Merkle roots from BUMPs
+  return ok
+
+  api -> metamorph ++: send tx
+    metamorph -> bsv
+  return status
+
+return status
+
+@enduml
+```
+
+BEEF flow is very similar to Extended Format flow, with an additional step of Merkle roots verification in a call to blocktx. This step makes the whole validation process more thorough and allows for validation of transactions whose inputs are not yet mined without recursively asking the nodes for them.
 
 ## Settings
 

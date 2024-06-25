@@ -1,13 +1,12 @@
 ---
 logLevel: DEBUG # mode of logging. Value can be one of DEBUG | INFO | WARN | ERROR
 logFormat: text # format of logging. Value can be one of text | json | tint
-profilerAddr: localhost:9999 # address to start profiler server on
-prometheusEndpoint: /metrics # endpoint for prometheus metrics
-prometheusAddr: :2112 # port for serving prometheus metrics
+profilerAddr: localhost:9999 # address to start profiler server on (optional)
+prometheusEndpoint: /metrics # endpoint for prometheus metrics (optional)
 grpcMessageSize: 100000000 # maximum grpc message size
-network: regtest # bitcoin network to connect to
+network: regtest # bitcoin network to connect to. Value can be one of mainnet | testnet | regtest
 queueURL: nats://nats:4222 # URL for message queue
-tracing:
+tracing: # (optional)
   dialAddr: http://localhost:4317 # address where traces are exported to
 
 peerRpc: # rpc configuration for bitcoin node
@@ -49,7 +48,6 @@ metamorph:
   checkSeenOnNetworkPeriod: 4h # transactions with SEEN_ON_NETWORK status will be re-requested from blocktx which are inserted in the last checkSeenOnNetworkPeriod
   monitorPeersInterval: 60s # interval in which health of peers is checked (optional, disabled if not given)
   checkUtxos: false # force check each utxo for validity. If enabled ARC connects to bitcoin node using rpc for each utxo
-  profilerAddr: localhost:9992 # address to start profiler server on
   health:
     serverDialAddr: localhost:8005 # address at which the grpc health server is exposed
     minimumHealthyConnections: 2 # minimum number of healthy peer connections for the processor to be considered healthy
@@ -74,7 +72,6 @@ blocktx:
       maxOpenConns: 80 # maximum open connections
       sslMode: disable
   recordRetentionDays: 28 # number of days for which data integrity is ensured
-  profilerAddr: localhost:9993 # address to start profiler server on
   registerTxsInterval: 10s # time interval to read from the channel registered transactions
   fillGapsInterval: 15m # time interval to check and fill gaps in processed blocks
   maxAllowedBlockHeightMismatch: 3 # maximum number of blocks that can be ahead of current highest block in blocktx, used for merkle roots verification
@@ -115,5 +112,5 @@ api:
     minconsolidationinputmaturity: 6
     acceptnonstdconsolidationinput: false
 
-k8sWatcher:
+k8sWatcher: # (optional, used only when deploying arc to k8s)
   namespace: arc-testnet

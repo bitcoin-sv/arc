@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -12,7 +11,7 @@ import (
 	"strconv"
 	"time"
 
-	cfg "github.com/bitcoin-sv/arc/internal/config"
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/async"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -23,7 +22,6 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
@@ -33,108 +31,16 @@ const (
 	DbModePostgres = "postgres"
 )
 
-func StartMetamorph(logger *slog.Logger) (func(), error) {
+func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "mtm"))
+	mtmConfig := arcConfig.Metamorph
 
-	dbMode, err := cfg.GetString("metamorph.db.mode")
-	if dbMode == "" {
-		return nil, errors.New("metamorph.db.mode not found in config")
-	}
-
-	metamorphStore, err := NewMetamorphStore(dbMode)
+	metamorphStore, err := NewMetamorphStore(mtmConfig.Db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
 
-	network, err := cfg.GetNetwork()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get network: %v", err)
-	}
-
-	logger.Info("Assuming bitcoin network", "network", network)
-
-	statusMessageCh := make(chan *metamorph.PeerTxMessage)
-	monitorPeersInterval := viper.GetDuration("metamorph.monitorPeersInterval")
-	var pmOpts []p2p.PeerManagerOptions
-
-	if monitorPeersInterval > 0 {
-		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers(monitorPeersInterval))
-	}
-
-	pm := p2p.NewPeerManager(logger, network, pmOpts...)
-
-	peerHandler := metamorph.NewPeerHandler(metamorphStore, statusMessageCh)
-
-	peerSettings, err := cfg.GetPeerSettings()
-	if err != nil {
-		return nil, fmt.Errorf("error getting peer settings: %v", err)
-	}
-
-	opts := make([]p2p.PeerOptions, 0)
-	if version.Version != "" {
-		opts = append(opts, p2p.WithUserAgent("ARC", version.Version))
-	}
-
-	opts = append(opts, p2p.WithRetryReadWriteMessageInterval(5*time.Second))
-
-	for _, peerSetting := range peerSettings {
-		peerUrl, err := peerSetting.GetP2PUrl()
-		if err != nil {
-			return nil, fmt.Errorf("error getting peer url: %v", err)
-		}
-
-		var peer *p2p.Peer
-		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network, opts...)
-		if err != nil {
-			return nil, fmt.Errorf("error creating peer %s: %v", peerUrl, err)
-		}
-
-		if err = pm.AddPeer(peer); err != nil {
-			return nil, fmt.Errorf("error adding peer %s: %v", peerUrl, err)
-		}
-	}
-
-	mapExpiryStr, err := cfg.GetString("metamorph.processorCacheExpiryTime")
-	if err != nil {
-		return nil, err
-	}
-
-	mapExpiry, err := time.ParseDuration(mapExpiryStr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid metamorph.processorCacheExpiryTime: %s", mapExpiryStr)
-	}
-
-	seenOnNetworkOlderThan, err := cfg.GetDuration("metamorph.checkSeenOnNetworkOlderThan")
-	if err != nil {
-		return nil, err
-	}
-
-	checkSeenOnNetworkPeriod, err := cfg.GetDuration("metamorph.checkSeenOnNetworkPeriod")
-	if err != nil {
-		return nil, err
-	}
-
-	statsNotSeenTimeLimit, err := cfg.GetDuration("metamorph.stats.notSeenTimeLimit")
-	if err != nil {
-		return nil, err
-	}
-
-	statsNotMinedTimeLimit, err := cfg.GetDuration("metamorph.stats.notMinedTimeLimit")
-	if err != nil {
-		return nil, err
-	}
-
-	minimumHealthyConnections, err := cfg.GetInt("metamorph.health.minimumHealthyConnections")
-	if err != nil {
-		return nil, err
-	}
-
-	natsURL, err := cfg.GetString("queueURL")
-	if err != nil {
-		return nil, err
-	}
-
-	maxRetries, err := cfg.GetInt("metamorph.maxRetries")
+	pm, peerHandler, statusMessageCh, err := initPeerManager(logger, metamorphStore, arcConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -144,23 +50,14 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	const avgMinPerBlock = 10
 	const secPerMin = 60
 
-	maxBatchSize, err := cfg.GetInt("blocktx.mq.txsMinedMaxBatchSize")
-	if err != nil {
-		return nil, err
-	}
-
-	processStatusUpdateInterval, err := cfg.GetDuration("metamorph.processStatusUpdateInterval")
-	if err != nil {
-		return nil, err
-	}
-
 	// maximum amount of messages that could be coming from a single block
+	maxBatchSize := arcConfig.Blocktx.MessageQueue.TxsMinedMaxBatchSize
 	capacityRequired := int(float64(targetTps*avgMinPerBlock*secPerMin) / float64(maxBatchSize))
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, capacityRequired)
 
-	natsClient, err := nats_mq.NewNatsClient(natsURL)
+	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", natsURL, err)
+		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.QueueURL, err)
 	}
 
 	mqClient := async.NewNatsMQClient(natsClient, minedTxsChan, logger)
@@ -176,17 +73,17 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	}
 
 	processorOpts := []metamorph.Option{
-		metamorph.WithCacheExpiryTime(mapExpiry),
-		metamorph.WithSeenOnNetworkTxTimeUntil(seenOnNetworkOlderThan),
-		metamorph.WithSeenOnNetworkTxTime(checkSeenOnNetworkPeriod),
+		metamorph.WithCacheExpiryTime(mtmConfig.ProcessorCacheExpiryTime),
+		metamorph.WithSeenOnNetworkTxTimeUntil(mtmConfig.CheckSeenOnNetworkOlderThan),
+		metamorph.WithSeenOnNetworkTxTime(mtmConfig.CheckSeenOnNetworkPeriod),
 		metamorph.WithProcessorLogger(logger.With(slog.String("module", "mtm-proc"))),
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
-		metamorph.WithProcessStatusUpdatesInterval(processStatusUpdateInterval),
+		metamorph.WithProcessStatusUpdatesInterval(mtmConfig.ProcessStatusUpdateInterval),
 		metamorph.WithCallbackSender(callbacker),
-		metamorph.WithStatTimeLimits(statsNotSeenTimeLimit, statsNotMinedTimeLimit),
-		metamorph.WithMaxRetries(maxRetries),
-		metamorph.WithMinimumHealthyConnections(minimumHealthyConnections),
+		metamorph.WithStatTimeLimits(mtmConfig.Stats.NotSeenTimeLimit, mtmConfig.Stats.NotMinedTimeLimit),
+		metamorph.WithMaxRetries(mtmConfig.MaxRetries),
+		metamorph.WithMinimumHealthyConnections(mtmConfig.Health.MinimumHealthyConnections),
 	}
 
 	metamorphProcessor, err := metamorph.NewProcessor(
@@ -216,28 +113,10 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		metamorph.WithLogger(logger.With(slog.String("module", "mtm-server"))),
 	}
 
-	if viper.GetBool("metamorph.checkUtxos") {
-		peerRpcPassword, err := cfg.GetString("peerRpc.password")
-		if err != nil {
-			return nil, err
-		}
+	if mtmConfig.CheckUtxos {
+		peerRpc := arcConfig.PeerRpc
 
-		peerRpcUser, err := cfg.GetString("peerRpc.user")
-		if err != nil {
-			return nil, err
-		}
-
-		peerRpcHost, err := cfg.GetString("peerRpc.host")
-		if err != nil {
-			return nil, err
-		}
-
-		peerRpcPort := viper.GetInt("peerRpc.port")
-		if peerRpcPort == 0 {
-			return nil, errors.New("setting peerRpc.port not found")
-		}
-
-		rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
+		rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpc.User, peerRpc.Password, peerRpc.Host, peerRpc.Port))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse rpc URL: %v", err)
 		}
@@ -252,24 +131,12 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 
 	server := metamorph.NewServer(metamorphStore, metamorphProcessor, optsServer...)
 
-	metamorphGRPCListenAddress, err := cfg.GetString("metamorph.listenAddr")
-	if err != nil {
-		return nil, err
-	}
-
-	grpcMessageSize, err := cfg.GetInt("grpcMessageSize")
-	if err != nil {
-		return nil, err
-	}
-
-	prometheusEndpoint := viper.GetString("prometheusEndpoint")
-
-	err = server.StartGRPCServer(metamorphGRPCListenAddress, grpcMessageSize, prometheusEndpoint, logger)
+	err = server.StartGRPCServer(mtmConfig.ListenAddr, arcConfig.GrpcMessageSize, arcConfig.PrometheusEndpoint, logger)
 	if err != nil {
 		return nil, fmt.Errorf("GRPCServer failed: %v", err)
 	}
 
-	for i, peerSetting := range peerSettings {
+	for i, peerSetting := range arcConfig.Peers {
 		zmqURL, err := peerSetting.GetZMQUrl()
 		if err != nil {
 			logger.Warn("failed to get zmq URL for peer", slog.Int("index", i), slog.String("err", err.Error()))
@@ -293,7 +160,7 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 		}
 	}
 
-	healthServer, err := StartHealthServerMetamorph(server, logger)
+	healthServer, err := StartHealthServerMetamorph(server, mtmConfig.Health, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start health server: %v", err)
 	}
@@ -319,25 +186,20 @@ func StartMetamorph(logger *slog.Logger) (func(), error) {
 	}, nil
 }
 
-func StartHealthServerMetamorph(serv *metamorph.Server, logger *slog.Logger) (*grpc.Server, error) {
+func StartHealthServerMetamorph(serv *metamorph.Server, healthConfig *config.HealthConfig, logger *slog.Logger) (*grpc.Server, error) {
 	gs := grpc.NewServer()
 
 	grpc_health_v1.RegisterHealthServer(gs, serv) // registration
 	// register your own services
 	reflection.Register(gs)
 
-	address, err := cfg.GetString("metamorph.health.serverDialAddr") //"localhost:8005"
-	if err != nil {
-		return nil, err
-	}
-
-	listener, err := net.Listen("tcp", address)
+	listener, err := net.Listen("tcp", healthConfig.SeverDialAddr)
 	if err != nil {
 		return nil, err
 	}
 
 	go func() {
-		logger.Info("GRPC health server listening", slog.String("address", address))
+		logger.Info("GRPC health server listening", slog.String("address", healthConfig.SeverDialAddr))
 		err = gs.Serve(listener)
 		if err != nil {
 			logger.Error("GRPC health server failed to serve", slog.String("err", err.Error()))
@@ -347,55 +209,75 @@ func StartHealthServerMetamorph(serv *metamorph.Server, logger *slog.Logger) (*g
 	return gs, nil
 }
 
-func NewMetamorphStore(dbMode string) (s store.MetamorphStore, err error) {
+func NewMetamorphStore(dbConfig *config.DbConfig) (s store.MetamorphStore, err error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
 	}
 
-	switch dbMode {
+	switch dbConfig.Mode {
 	case DbModePostgres:
-		dbHost, err := cfg.GetString("metamorph.db.postgres.host")
-		if err != nil {
-			return nil, err
-		}
-		dbPort, err := cfg.GetInt("metamorph.db.postgres.port")
-		if err != nil {
-			return nil, err
-		}
-		dbName, err := cfg.GetString("metamorph.db.postgres.name")
-		if err != nil {
-			return nil, err
-		}
-		dbUser, err := cfg.GetString("metamorph.db.postgres.user")
-		if err != nil {
-			return nil, err
-		}
-		dbPassword, err := cfg.GetString("metamorph.db.postgres.password")
-		if err != nil {
-			return nil, err
-		}
-		sslMode, err := cfg.GetString("metamorph.db.postgres.sslMode")
-		if err != nil {
-			return nil, err
-		}
-		idleConns, err := cfg.GetInt("metamorph.db.postgres.maxIdleConns")
-		if err != nil {
-			return nil, err
-		}
-		maxOpenConns, err := cfg.GetInt("metamorph.db.postgres.maxOpenConns")
-		if err != nil {
-			return nil, err
-		}
+		postgres := dbConfig.Postgres
 
-		dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", dbUser, dbPassword, dbName, dbHost, dbPort, sslMode)
-		s, err = postgresql.New(dbInfo, hostname, idleConns, maxOpenConns)
+		dbInfo := fmt.Sprintf(
+			"user=%s password=%s dbname=%s host=%s port=%d sslmode=%s",
+			postgres.User, postgres.Password, postgres.Name, postgres.Host, postgres.Port, postgres.SslMode,
+		)
+		s, err = postgresql.New(dbInfo, hostname, postgres.MaxIdleConns, postgres.MaxOpenConns)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
 		}
 	default:
-		return nil, fmt.Errorf("db mode %s is invalid", dbMode)
+		return nil, fmt.Errorf("db mode %s is invalid", dbConfig.Mode)
 	}
 
 	return s, err
+}
+
+func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *config.ArcConfig) (p2p.PeerManagerI, *metamorph.PeerHandler, chan *metamorph.PeerTxMessage, error) {
+	logger = logger.With(slog.String("module", "mtm-peer-handler"))
+
+	network, err := config.GetNetwork(arcConfig.Network)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to get network: %v", err)
+	}
+
+	logger.Info("Assuming bitcoin network", "network", network)
+
+	messageCh := make(chan *metamorph.PeerTxMessage)
+	var pmOpts []p2p.PeerManagerOptions
+
+	if arcConfig.Metamorph.MonitorPeersInterval > 0 {
+		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers(arcConfig.Metamorph.MonitorPeersInterval))
+	}
+
+	pm := p2p.NewPeerManager(logger, network, pmOpts...)
+
+	peerHandler := metamorph.NewPeerHandler(s, messageCh)
+
+	opts := make([]p2p.PeerOptions, 0)
+	if version.Version != "" {
+		opts = append(opts, p2p.WithUserAgent("ARC", version.Version))
+	}
+
+	opts = append(opts, p2p.WithRetryReadWriteMessageInterval(5*time.Second))
+
+	for _, peerSetting := range arcConfig.Peers {
+		peerUrl, err := peerSetting.GetP2PUrl()
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("error getting peer url: %v", err)
+		}
+
+		var peer *p2p.Peer
+		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network, opts...)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("error creating peer %s: %v", peerUrl, err)
+		}
+
+		if err = pm.AddPeer(peer); err != nil {
+			return nil, nil, nil, fmt.Errorf("error adding peer %s: %v", peerUrl, err)
+		}
+	}
+
+	return pm, peerHandler, messageCh, nil
 }

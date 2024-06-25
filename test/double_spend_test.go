@@ -31,11 +31,6 @@ func TestDoubleSpend(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			address, privateKey := getNewWalletAddress(t)
-
-			generate(t, 100)
-
-			t.Logf("generated address: %s", address)
-
 			sendToAddress(t, address, 0.001)
 
 			hash := generate(t, 1)

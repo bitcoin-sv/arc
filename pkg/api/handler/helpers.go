@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/dictionary"
@@ -18,32 +19,10 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
-	"github.com/spf13/viper"
 )
 
-func getTransactionFromNode(ctx context.Context, inputTxID string) ([]byte, error) {
-	viper.AddConfigPath("../../config/")
-	peerRpcPassword := viper.GetString("peerRpc.password")
-	if peerRpcPassword == "" {
-		return nil, fmt.Errorf("setting peerRpc.password not found")
-	}
-
-	peerRpcUser := viper.GetString("peerRpc.user")
-	if peerRpcUser == "" {
-		return nil, fmt.Errorf("setting peerRpc.user not found")
-	}
-
-	peerRpcHost := viper.GetString("peerRpc.host")
-	if peerRpcHost == "" {
-		return nil, fmt.Errorf("setting peerRpc.host not found")
-	}
-
-	peerRpcPort := viper.GetInt("peerRpc.port")
-	if peerRpcPort == 0 {
-		return nil, fmt.Errorf("setting peerRpc.port not found")
-	}
-
-	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcUser, peerRpcPassword, peerRpcHost, peerRpcPort))
+func getTransactionFromNode(peerRpc *config.PeerRpcConfig, inputTxID string) ([]byte, error) {
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpc.User, peerRpc.Password, peerRpc.Host, peerRpc.Port))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse rpc URL: %v", err)
 	}
@@ -72,13 +51,7 @@ func getTransactionFromNode(ctx context.Context, inputTxID string) ([]byte, erro
 	return nil, metamorph.ErrParentTransactionNotFound
 }
 
-func getTransactionFromWhatsOnChain(ctx context.Context, inputTxID string) ([]byte, error) {
-	wocApiKey := viper.GetString("api.wocApiKey")
-
-	if wocApiKey == "" {
-		return nil, fmt.Errorf("setting wocApiKey not found")
-	}
-
+func getTransactionFromWhatsOnChain(ctx context.Context, wocApiKey, inputTxID string) ([]byte, error) {
 	wocURL := fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/tx/%s/hex", "main", inputTxID)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, wocURL, nil)
 	if err != nil {
@@ -117,17 +90,6 @@ func getTransactionFromWhatsOnChain(ctx context.Context, inputTxID string) ([]by
 	}
 
 	return nil, metamorph.ErrParentTransactionNotFound
-}
-
-func GetDefaultPolicy() (*bitcoin.Settings, error) {
-	defaultPolicy := &bitcoin.Settings{}
-	viper.AddConfigPath("../../config/")
-	err := viper.UnmarshalKey("api.defaultPolicy", defaultPolicy)
-	if err != nil {
-		return nil, err
-	}
-
-	return defaultPolicy, nil
 }
 
 // CheckSwagger validates the request against the swagger definition.

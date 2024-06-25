@@ -8,17 +8,12 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	prometheusclient "github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
-)
-
-const (
-	maxRetries = 3
 )
 
 func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int, service string) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
@@ -78,10 +73,6 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 }
 
 func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int) ([]grpc.DialOption, error) {
-	retryOpts := []retry.CallOption{
-		retry.WithMax(maxRetries),
-		retry.WithCodes(codes.NotFound, codes.Aborted),
-	}
 
 	clientMetrics := prometheus.NewClientMetrics(
 		prometheus.WithClientHandlingTimeHistogram(
@@ -101,10 +92,6 @@ func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int) ([]grpc.D
 	if prometheusEndpoint != "" {
 		chainUnaryInterceptors = append(chainUnaryInterceptors, clientMetrics.UnaryClientInterceptor(prometheus.WithExemplarFromContext(exemplarFromContext)))
 	}
-
-	chainUnaryInterceptors = append(chainUnaryInterceptors, // Order matters e.g. tracing interceptor have to create span first for the later exemplars to work.
-		retry.UnaryClientInterceptor(retryOpts...),
-	)
 
 	dialOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

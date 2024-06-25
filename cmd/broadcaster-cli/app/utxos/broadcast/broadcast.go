@@ -1,21 +1,18 @@
 package broadcast
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
+	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -42,11 +39,6 @@ var Cmd = &cobra.Command{
 		}
 
 		limit, err := helper.GetInt64("limit")
-		if err != nil {
-			return err
-		}
-
-		store, err := helper.GetBool("store")
 		if err != nil {
 			return err
 		}
@@ -88,6 +80,7 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
 		if miningFeeSat == 0 {
 			return errors.New("no mining fee was given")
 		}
@@ -116,63 +109,27 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %v", err)
 		}
 
-		rbs := make([]*broadcaster.RateBroadcaster, len(keyFiles))
-
-		wg := &sync.WaitGroup{}
-
-		var resultsPath string
-		if store {
-			network := "mainnet"
-			if isTestnet {
-				network = "testnet"
-			}
-			resultsPath = filepath.Join(".", fmt.Sprintf("results/%s-%s-rate-%d-batchsize-%d", network, time.Now().Format(time.DateTime), rateTxsPerSecond, batchSize))
-			err := os.MkdirAll(resultsPath, os.ModePerm)
-			if err != nil {
-				return err
-			}
-		}
-
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
+		fundingKeySets := make([]*keyset.KeySet, len(keyFiles))
 		for i, kf := range keyFiles {
-
-			wg.Add(1)
 
 			fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
 			if err != nil {
 				return fmt.Errorf("failed to get key sets: %v", err)
 			}
 
-			wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
+			fundingKeySets[i] = fundingKeySet
+		}
 
-			var writer io.Writer
-			if store {
+		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
-				_, keyFileName := filepath.Split(kf)
-
-				file, err := os.Create(fmt.Sprintf("%s/%s.json", resultsPath, keyFileName))
-				if err != nil {
-					return err
-				}
-
-				writer = file
-
-				defer file.Close()
-			}
-
-			rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, wocClient, broadcaster.WithFees(miningFeeSat), broadcaster.WithIsTestnet(isTestnet), broadcaster.WithCallback(callbackURL, callbackToken), broadcaster.WithFullstatusUpdates(fullStatusUpdates), broadcaster.WithBatchSize(batchSize), broadcaster.WithStoreWriter(writer, 50))
-			if err != nil {
-				return fmt.Errorf("failed to create rate broadcaster: %v", err)
-			}
-
-			rbs[i] = rateBroadcaster
-
-			err = rateBroadcaster.StartRateBroadcaster(ctx, rateTxsPerSecond, limit, wg)
-			if err != nil {
-				return fmt.Errorf("failed to start rate broadcaster: %v", err)
-			}
+		rateBroadcaster, err := broadcaster.NewMultiKeyRateBroadcaster(logger, client, fundingKeySets, wocClient, isTestnet,
+			broadcaster.WithFees(miningFeeSat),
+			broadcaster.WithCallback(callbackURL, callbackToken),
+			broadcaster.WithFullstatusUpdates(fullStatusUpdates),
+			broadcaster.WithBatchSize(batchSize),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create rate broadcaster: %v", err)
 		}
 
 		go func() {
@@ -180,10 +137,15 @@ var Cmd = &cobra.Command{
 			signal.Notify(signalChan, os.Interrupt) // Signal from Ctrl+C
 			<-signalChan
 
-			cancel()
+			logger.Info("Shutting down broadcaster")
+			rateBroadcaster.Shutdown()
 		}()
 
-		wg.Wait()
+		logger.Info("Starting broadcaster", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", batchSize))
+		err = rateBroadcaster.Start(rateTxsPerSecond, limit)
+		if err != nil {
+			return fmt.Errorf("failed to start rate broadcaster: %v", err)
+		}
 
 		return nil
 	},
@@ -206,12 +168,6 @@ func init() {
 
 	Cmd.Flags().Int("limit", 0, "Limit to number of transactions to be submitted after which broadcaster will stop per key set, default: no limit")
 	err = viper.BindPFlag("limit", Cmd.Flags().Lookup("limit"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	Cmd.Flags().Bool("store", false, "Store results in a json file instead of printing")
-	err = viper.BindPFlag("store", Cmd.Flags().Lookup("store"))
 	if err != nil {
 		log.Fatal(err)
 	}

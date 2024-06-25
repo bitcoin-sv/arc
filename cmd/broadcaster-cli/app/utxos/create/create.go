@@ -1,17 +1,15 @@
 package create
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
-	"log/slog"
 	"strings"
-	"time"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
+	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -103,32 +101,30 @@ var Cmd = &cobra.Command{
 
 		keyFiles := strings.Split(keyFile, ",")
 
-		for _, kf := range keyFiles {
+		fundingKeySets := make([]*keyset.KeySet, len(keyFiles))
 
-			if wocApiKey == "" {
-				time.Sleep(1 * time.Second)
-			}
+		for i, kf := range keyFiles {
 
 			fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
 			if err != nil {
 				return fmt.Errorf("failed to get key sets: %v", err)
 			}
 
-			rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, wocClient,
-				broadcaster.WithFees(miningFeeSat),
-				broadcaster.WithIsTestnet(isTestnet),
-				broadcaster.WithCallback(callbackURL, callbackToken),
-				broadcaster.WithFullstatusUpdates(fullStatusUpdates),
-			)
-			if err != nil {
-				return fmt.Errorf("failed to create broadcaster: %v", err)
-			}
+			fundingKeySets[i] = fundingKeySet
+		}
 
-			logger.Info("creating utxos", slog.String("key", kf), slog.String("address", fundingKeySet.Address(!isTestnet)))
-			err = rateBroadcaster.CreateUtxos(context.Background(), outputs, satoshisPerOutput)
-			if err != nil {
-				return fmt.Errorf("failed to create utxos: %v", err)
-			}
+		rateBroadcaster, err := broadcaster.NewUTXOCreator(logger, client, fundingKeySets, wocClient, isTestnet,
+			broadcaster.WithFees(miningFeeSat),
+			broadcaster.WithCallback(callbackURL, callbackToken),
+			broadcaster.WithFullstatusUpdates(fullStatusUpdates),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create broadcaster: %v", err)
+		}
+
+		err = rateBroadcaster.CreateUtxos(outputs, satoshisPerOutput)
+		if err != nil {
+			return fmt.Errorf("failed to create utxos: %v", err)
 		}
 
 		return nil

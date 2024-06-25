@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -25,16 +24,6 @@ import (
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/libsv/go-bt/v2/unlocker"
 	"github.com/stretchr/testify/require"
-)
-
-const (
-	feeSat = 10
-
-	arcEndpoint      = "http://arc:9090/"
-	v1Tx             = "v1/tx"
-	v1Txs            = "v1/txs"
-	arcEndpointV1Tx  = arcEndpoint + v1Tx
-	arcEndpointV1Txs = arcEndpoint + v1Txs
 )
 
 type Response struct {
@@ -58,72 +47,6 @@ type TxStatusResponse struct {
 	MerklePath  string      `json:"merklePath"`
 }
 
-func TestMain(m *testing.M) {
-	info, err := bitcoind.GetInfo()
-	if err != nil {
-		log.Fatalf("failed to get info: %v", err)
-	}
-
-	log.Printf("current block height: %d", info.Blocks)
-
-	os.Exit(m.Run())
-}
-
-func createTx(privateKey string, address string, utxo NodeUnspentUtxo, fee ...uint64) (*bt.Tx, error) {
-	tx := bt.NewTx()
-
-	// Add an input using the first UTXO
-	utxoTxID := utxo.Txid
-	utxoVout := utxo.Vout
-	utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
-	utxoScript := utxo.ScriptPubKey
-
-	err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
-	if err != nil {
-		return nil, fmt.Errorf("failed adding input: %v", err)
-	}
-
-	// Add an output to the address you've previously created
-	recipientAddress := address
-
-	var feeValue uint64
-	if len(fee) > 0 {
-		feeValue = fee[0]
-	} else {
-		feeValue = 20 // Set your default fee value here
-	}
-	amountToSend := uint64(30) - feeValue // Example value - 0.009 BTC (taking fees into account)
-
-	recipientScript, err := bscript.NewP2PKHFromAddress(recipientAddress)
-	if err != nil {
-		return nil, fmt.Errorf("failed converting address to script: %v", err)
-	}
-
-	err = tx.PayTo(recipientScript, amountToSend)
-	if err != nil {
-		return nil, fmt.Errorf("failed adding output: %v", err)
-	}
-
-	// Sign the input
-
-	wif, err := bsvutil.DecodeWIF(privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode WIF: %v", err)
-	}
-
-	// Extract raw private key bytes directly from the WIF structure
-	privateKeyDecoded := wif.PrivKey.Serialize()
-
-	pk, _ := bec.PrivKeyFromBytes(bsvec.S256(), privateKeyDecoded)
-	unlockerGetter := unlocker.Getter{PrivateKey: pk}
-	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
-	if err != nil {
-		return nil, fmt.Errorf("sign failed: %v", err)
-	}
-
-	return tx, nil
-}
-
 func TestBatchChainedTxs(t *testing.T) {
 	tt := []struct {
 		name string
@@ -136,12 +59,7 @@ func TestBatchChainedTxs(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			address, privateKey := getNewWalletAddress(t)
-
-			generate(t, 10)
-
 			t.Logf("generated address: %s", address)
-
-			sendToAddress(t, address, 0.001)
 
 			txID := sendToAddress(t, address, 0.02)
 			t.Logf("sent 0.02 BSV to: %s", txID)
@@ -276,12 +194,7 @@ func TestPostCallbackToken(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			address, privateKey := getNewWalletAddress(t)
-
-			generate(t, 10)
-
 			t.Logf("generated address: %s", address)
-
-			sendToAddress(t, address, 0.001)
 
 			txID := sendToAddress(t, address, 0.02)
 			t.Logf("sent 0.02 BSV to: %s", txID)
@@ -300,14 +213,41 @@ func TestPostCallbackToken(t *testing.T) {
 
 			ctx := context.Background()
 
-			hostname, err := os.Hostname()
-			require.NoError(t, err)
+			callbackReceivedChan := make(chan *api.TransactionStatus)
+			callbackErrChan := make(chan error)
+			callbackIterations := 0
+			calbackResponseFn := func(w http.ResponseWriter, rc chan *api.TransactionStatus, ec chan error, status *api.TransactionStatus) {
+
+				// Let ARC send the callback 2 times. First one fails.
+				if callbackIterations == 0 {
+					t.Log("callback received, responding bad request")
+
+					err = respondToCallback(w, false)
+					if err != nil {
+						t.Fatalf("Failed to respond to callback: %v", err)
+					}
+
+					rc <- status
+					callbackIterations++
+					return
+				}
+
+				t.Log("callback received, responding success")
+
+				err = respondToCallback(w, true)
+				if err != nil {
+					t.Fatalf("Failed to respond to callback: %v", err)
+				}
+				rc <- status
+			}
+			callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
+			defer shutdown()
 
 			waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
 			params := &api.POSTTransactionParams{
 				XWaitForStatus: &waitForStatus,
-				XCallbackUrl:   handler.PtrTo(fmt.Sprintf("http://%s:9000/callback", hostname)),
-				XCallbackToken: handler.PtrTo("1234"),
+				XCallbackUrl:   &callbackUrl,
+				XCallbackToken: &token,
 			}
 
 			arcBody := api.POSTTransactionJSONRequestBody{
@@ -322,81 +262,13 @@ func TestPostCallbackToken(t *testing.T) {
 			require.NotNil(t, response.JSON200)
 			require.Equal(t, "SEEN_ON_NETWORK", response.JSON200.TxStatus)
 
-			callbackReceivedChan := make(chan *api.TransactionStatus, 2)
-			errChan := make(chan error, 2)
-
-			expectedAuthHeader := "Bearer 1234"
-			srv := &http.Server{Addr: ":9000"}
-			defer func() {
-				t.Log("shutting down callback listener")
-				if err = srv.Shutdown(context.TODO()); err != nil {
-					t.Fatal("failed to shut down server")
-				}
-			}()
-
-			iterations := 0
-			http.HandleFunc("/callback", func(w http.ResponseWriter, req *http.Request) {
-
-				defer func() {
-					err := req.Body.Close()
-					if err != nil {
-						t.Log("failed to close body")
-					}
-				}()
-
-				bodyBytes, err := io.ReadAll(req.Body)
-				if err != nil {
-					errChan <- err
-				}
-
-				var status api.TransactionStatus
-				err = json.Unmarshal(bodyBytes, &status)
-				if err != nil {
-					errChan <- err
-				}
-
-				if expectedAuthHeader != req.Header.Get("Authorization") {
-					errChan <- fmt.Errorf("auth header %s not as expected %s", expectedAuthHeader, req.Header.Get("Authorization"))
-				}
-
-				// Let ARC send the callback 2 times. First one fails.
-				if iterations == 0 {
-					t.Log("callback received, responding bad request")
-
-					err = respondToCallback(w, false)
-					if err != nil {
-						t.Fatalf("Failed to respond to callback: %v", err)
-					}
-
-					callbackReceivedChan <- &status
-
-					iterations++
-					return
-				}
-
-				t.Log("callback received, responding success")
-
-				err = respondToCallback(w, true)
-				if err != nil {
-					t.Fatalf("Failed to respond to callback: %v", err)
-				}
-				callbackReceivedChan <- &status
-			})
-
-			go func(server *http.Server) {
-				t.Log("starting callback server")
-				err = server.ListenAndServe()
-				if err != nil {
-					return
-				}
-			}(srv)
-
 			generate(t, 10)
-
 			time.Sleep(15 * time.Second) // give ARC time to perform the status update on DB
 
 			var statusResponse *api.GETTransactionStatusResponse
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
+			require.NoError(t, err)
+
 			seenOnNetworkReceived := false
 
 			for i := 0; i <= 1; i++ {
@@ -420,7 +292,7 @@ func TestPostCallbackToken(t *testing.T) {
 					_, err = bc.NewBUMPFromStr(*statusResponse.JSON200.MerklePath)
 					require.NoError(t, err)
 
-				case err := <-errChan:
+				case err := <-callbackErrChan:
 					t.Fatalf("callback received - failed to parse callback %v", err)
 				case <-time.NewTicker(time.Second * 15).C:
 					t.Fatal("callback not received")
@@ -478,12 +350,7 @@ func TestPostSkipFee(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			address, privateKey := getNewWalletAddress(t)
-
-			generate(t, 10)
-
 			t.Logf("generated address: %s", address)
-
-			sendToAddress(t, address, 0.001)
 
 			txID := sendToAddress(t, address, 0.02)
 			t.Logf("sent 0.02 BSV to: %s", txID)
@@ -524,12 +391,7 @@ func TestPostSkipTxValidation(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			address, privateKey := getNewWalletAddress(t)
-
-			generate(t, 10)
-
 			t.Logf("generated address: %s", address)
-
-			sendToAddress(t, address, 0.001)
 
 			txID := sendToAddress(t, address, 0.02)
 			t.Logf("sent 0.02 BSV to: %s", txID)
@@ -556,28 +418,6 @@ func TestPostSkipTxValidation(t *testing.T) {
 
 		})
 	}
-}
-
-func respondToCallback(w http.ResponseWriter, success bool) error {
-	resp := make(map[string]string)
-	if success {
-		resp["message"] = "Success"
-		w.WriteHeader(http.StatusOK)
-	} else {
-		resp["message"] = "Bad Request"
-		w.WriteHeader(http.StatusBadRequest)
-	}
-
-	jsonResp, err := json.Marshal(resp)
-	if err != nil {
-		return err
-	}
-
-	_, err = w.Write(jsonResp)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func Test_E2E_Success(t *testing.T) {
@@ -711,11 +551,7 @@ func postTx(t *testing.T, jsonPayload string, headers map[string]string) (*http.
 
 func createTxHexStringExtended(t *testing.T) *bt.Tx {
 	address, privateKey := getNewWalletAddress(t)
-
-	generate(t, 10)
 	t.Logf("generated address: %s", address)
-
-	sendToAddress(t, address, 0.001)
 
 	txID := sendToAddress(t, address, 0.02)
 	t.Logf("sent 0.02 BSV to: %s", txID)
@@ -730,4 +566,167 @@ func createTxHexStringExtended(t *testing.T) *bt.Tx {
 	require.NoError(t, err)
 
 	return tx
+}
+
+func TestSubmitMinedTx(t *testing.T) {
+	// submit an unregistered, already mined transaction. ARC should return the status as MINED for the transaction.
+
+	// given
+
+	// fund wallet
+	address, _ := getNewWalletAddress(t)
+	txID := sendToAddress(t, address, 0.001)
+
+	// mine a block with the transaction from above
+	generate(t, 1)
+	time.Sleep(5 * time.Second)
+
+	rawTx, _ := bitcoind.GetRawTransaction(txID)
+	tx, _ := bt.NewTxFromString(rawTx.Hex)
+
+	callbackReceivedChan := make(chan *api.TransactionStatus)
+	callbackErrChan := make(chan error)
+
+	callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
+	defer shutdown()
+
+	arcClient, _ := api.NewClientWithResponses(arcEndpoint)
+
+	// when
+	params := &api.POSTTransactionParams{
+		XWaitForStatus: handler.PtrTo(api.WaitForStatus(metamorph_api.Status_MINED)),
+		XCallbackUrl:   &callbackUrl,
+		XCallbackToken: &token,
+	}
+	arcBody := api.POSTTransactionJSONRequestBody{
+		RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+	}
+
+	submitResult, submitErr := arcClient.POSTTransactionWithResponse(context.TODO(), params, arcBody)
+
+	// then
+	require.NoError(t, submitErr)
+	require.Equal(t, http.StatusOK, submitResult.StatusCode())
+
+	// wait for callback
+	callbackTimeout := time.After(10 * time.Second)
+
+	select {
+	case status := <-callbackReceivedChan:
+		require.Equal(t, txID, status.Txid)
+		require.Equal(t, metamorph_api.Status_MINED.String(), *status.TxStatus)
+	case <-callbackTimeout:
+		t.Fatal("callback exceeded timeout")
+	}
+}
+
+type callbackResponseFn func(w http.ResponseWriter, rc chan *api.TransactionStatus, ec chan error, status *api.TransactionStatus)
+
+func startCallbackSrv(t *testing.T, receivedChan chan *api.TransactionStatus, errChan chan error,
+	alternativeResponseFn callbackResponseFn) (
+	callbackUrl, token string, shutdownFn func()) {
+
+	t.Helper()
+	callback := generateRandomString(16)
+	token = "1234"
+	expectedAuthHeader := fmt.Sprintf("Bearer %s", token)
+
+	hostname, err := os.Hostname()
+	require.NoError(t, err)
+
+	callbackUrl = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
+
+	srv := &http.Server{Addr: ":9000"}
+	shutdownFn = func() {
+		t.Log("shutting down callback listener")
+		close(receivedChan)
+		close(errChan)
+
+		if err := srv.Shutdown(context.TODO()); err != nil {
+			t.Fatal("failed to shut down server")
+		}
+	}
+
+	readResponse := func(req *http.Request) (*api.TransactionStatus, error) {
+		defer func() {
+			err := req.Body.Close()
+			if err != nil {
+				t.Log("failed to close body")
+			}
+		}()
+
+		bodyBytes, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		var status api.TransactionStatus
+		err = json.Unmarshal(bodyBytes, &status)
+		if err != nil {
+			return nil, err
+		}
+
+		return &status, nil
+	}
+
+	http.HandleFunc(fmt.Sprintf("/%s", callback), func(w http.ResponseWriter, req *http.Request) {
+		// check auth
+		if expectedAuthHeader != req.Header.Get("Authorization") {
+			errChan <- fmt.Errorf("auth header %s not as expected %s", expectedAuthHeader, req.Header.Get("Authorization"))
+			err = respondToCallback(w, false)
+			if err != nil {
+				t.Fatalf("Failed to respond to callback: %v", err)
+			}
+			return
+		}
+
+		status, err := readResponse(req)
+		if err != nil {
+			t.Fatalf("Failed to read response from callback: %v", err)
+		}
+
+		if alternativeResponseFn != nil {
+			alternativeResponseFn(w, receivedChan, errChan, status)
+		} else {
+			t.Log("callback received, responding success")
+			err = respondToCallback(w, true)
+			if err != nil {
+				t.Fatalf("Failed to respond to callback: %v", err)
+			}
+
+			receivedChan <- status
+		}
+	})
+
+	go func(server *http.Server) {
+		t.Log("starting callback server")
+		err := server.ListenAndServe()
+		if err != nil {
+			return
+		}
+	}(srv)
+
+	return
+}
+
+func respondToCallback(w http.ResponseWriter, success bool) error {
+	resp := make(map[string]string)
+	if success {
+		resp["message"] = "Success"
+		w.WriteHeader(http.StatusOK)
+	} else {
+		resp["message"] = "Bad Request"
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
+	jsonResp, err := json.Marshal(resp)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(jsonResp)
+	if err != nil {
+		return err
+	}
+	return nil
 }

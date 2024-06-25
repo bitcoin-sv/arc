@@ -1,19 +1,19 @@
 package test
 
 import (
-	"log"
+	"context"
+	"fmt"
+	"math/rand"
 	"testing"
 	"time"
 
-	"github.com/ordishs/go-bitcoin"
+	"github.com/bitcoinsv/bsvd/bsvec"
+	"github.com/bitcoinsv/bsvutil"
+	"github.com/libsv/go-bk/bec"
+	"github.com/libsv/go-bt/v2"
+	"github.com/libsv/go-bt/v2/bscript"
+	"github.com/libsv/go-bt/v2/unlocker"
 	"github.com/stretchr/testify/require"
-)
-
-const (
-	host     = "node1"
-	port     = 18332
-	user     = "bitcoin"
-	password = "bitcoin"
 )
 
 type NodeUnspentUtxo struct {
@@ -38,34 +38,6 @@ type BlockData struct {
 	Height     uint64   `json:"height"`
 	Txs        []string `json:"txs"`
 	MerkleRoot string   `json:"merkleroot"`
-}
-
-var bitcoind *bitcoin.Bitcoind
-
-func init() {
-	var err error
-	bitcoind, err = bitcoin.New(host, port, user, password, false)
-	if err != nil {
-		log.Fatalln("Failed to create bitcoind instance:", err)
-	}
-
-	info, err := bitcoind.GetInfo()
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	if info.Blocks < 100 {
-		_, err = bitcoind.Generate(100)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		time.Sleep(5 * time.Second)
-	}
-
-	info, err = bitcoind.GetInfo()
-	if err != nil {
-		log.Fatalln(err)
-	}
 }
 
 func getNewWalletAddress(t *testing.T) (address, privateKey string) {
@@ -180,4 +152,69 @@ func getBlockDataByBlockHash(t *testing.T, blockHash string) BlockData {
 		Txs:        block.Tx,
 		MerkleRoot: block.MerkleRoot,
 	}
+}
+
+func createTx(privateKey string, address string, utxo NodeUnspentUtxo, fee ...uint64) (*bt.Tx, error) {
+	tx := bt.NewTx()
+
+	// Add an input using the first UTXO
+	utxoTxID := utxo.Txid
+	utxoVout := utxo.Vout
+	utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
+	utxoScript := utxo.ScriptPubKey
+
+	err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
+	if err != nil {
+		return nil, fmt.Errorf("failed adding input: %v", err)
+	}
+
+	// Add an output to the address you've previously created
+	recipientAddress := address
+
+	var feeValue uint64
+	if len(fee) > 0 {
+		feeValue = fee[0]
+	} else {
+		feeValue = 20 // Set your default fee value here
+	}
+	amountToSend := uint64(30) - feeValue // Example value - 0.009 BTC (taking fees into account)
+
+	recipientScript, err := bscript.NewP2PKHFromAddress(recipientAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed converting address to script: %v", err)
+	}
+
+	err = tx.PayTo(recipientScript, amountToSend)
+	if err != nil {
+		return nil, fmt.Errorf("failed adding output: %v", err)
+	}
+
+	// Sign the input
+
+	wif, err := bsvutil.DecodeWIF(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode WIF: %v", err)
+	}
+
+	// Extract raw private key bytes directly from the WIF structure
+	privateKeyDecoded := wif.PrivKey.Serialize()
+
+	pk, _ := bec.PrivKeyFromBytes(bsvec.S256(), privateKeyDecoded)
+	unlockerGetter := unlocker.Getter{PrivateKey: pk}
+	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
+	if err != nil {
+		return nil, fmt.Errorf("sign failed: %v", err)
+	}
+
+	return tx, nil
+}
+
+func generateRandomString(length int) string {
+	const letterBytes = "abcdefghijklmnopqrstuvwxyz0123456789"
+
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
 }

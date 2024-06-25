@@ -316,20 +316,16 @@ func (ph *PeerHandler) startProcessTxs() {
 				if len(txHashes) < ph.registerTxsBatchSize {
 					continue
 				}
-				err := ph.store.RegisterTransactions(ph.ctx, txHashes)
-				if err != nil {
-					ph.logger.Error("failed to register transactions", slog.String("err", err.Error()))
-				}
+
+				ph.registerTransactions(txHashes[:])
 				txHashes = make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
 
 			case <-ticker.C:
 				if len(txHashes) == 0 {
 					continue
 				}
-				err := ph.store.RegisterTransactions(ph.ctx, txHashes)
-				if err != nil {
-					ph.logger.Error("failed to register transactions", slog.String("err", err.Error()))
-				}
+
+				ph.registerTransactions(txHashes[:])
 				txHashes = make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
 			}
 		}
@@ -363,7 +359,7 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 					continue
 				}
 
-				err = ph.publishMinedTxs(ph.ctx, txHashes)
+				err = ph.publishMinedTxs(txHashes)
 				if err != nil {
 					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 					continue
@@ -376,7 +372,7 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 					continue
 				}
 
-				err := ph.publishMinedTxs(ph.ctx, txHashes)
+				err := ph.publishMinedTxs(txHashes)
 				if err != nil {
 					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 					continue
@@ -388,8 +384,8 @@ func (ph *PeerHandler) startProcessRequestTxs() {
 	}()
 }
 
-func (ph *PeerHandler) publishMinedTxs(ctx context.Context, txHashes []*chainhash.Hash) error {
-	minedTxs, err := ph.store.GetMinedTransactions(ctx, txHashes)
+func (ph *PeerHandler) publishMinedTxs(txHashes []*chainhash.Hash) error {
+	minedTxs, err := ph.store.GetMinedTransactions(ph.ctx, txHashes)
 	if err != nil {
 		return fmt.Errorf("failed to get mined transactions: %v", err)
 	}
@@ -404,12 +400,26 @@ func (ph *PeerHandler) publishMinedTxs(ctx context.Context, txHashes []*chainhas
 		})
 	}
 
-	err = ph.mqClient.PublishMinedTxs(ctx, updatesBatch)
+	err = ph.mqClient.PublishMinedTxs(ph.ctx, updatesBatch)
 	if err != nil {
 		return fmt.Errorf("failed to publish mined transactions: %v", err)
 	}
 
 	return nil
+}
+
+func (ph *PeerHandler) registerTransactions(txHashes []*blocktx_api.TransactionAndSource) {
+	updatedTxs, err := ph.store.RegisterTransactions(ph.ctx, txHashes)
+	if err != nil {
+		ph.logger.Error("failed to register transactions", slog.String("err", err.Error()))
+	}
+
+	if len(updatedTxs) > 0 {
+		err = ph.publishMinedTxs(updatedTxs)
+		if err != nil {
+			ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+		}
+	}
 }
 
 func (ph *PeerHandler) HandleTransactionGet(_ *wire.InvVect, peer p2p.PeerI) ([]byte, error) {

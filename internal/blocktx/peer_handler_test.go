@@ -369,8 +369,8 @@ func TestStartProcessTxs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			registerErrTest := tc.registerErr
 			storeMock := &store.BlocktxStoreMock{
-				RegisterTransactionsFunc: func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) error {
-					return registerErrTest
+				RegisterTransactionsFunc: func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) ([]*chainhash.Hash, error) {
+					return nil, registerErrTest
 				},
 			}
 

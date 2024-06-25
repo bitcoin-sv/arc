@@ -215,6 +215,8 @@ func setupPostgresTest(t testing.TB) (ctx context.Context, now time.Time, db *Po
 		t.Errorf("error setup tests %s", err.Error())
 	}
 
+	ctx = context.TODO()
+
 	return
 }
 

@@ -230,6 +230,8 @@ func TestPostgresDB(t *testing.T) {
 	ctx, now, postgresDB := setupPostgresTest(t)
 	defer postgresDB.Close()
 
+	fmt.Println("shota", postgresDB)
+
 	var err error
 
 	t.Run("insert block / get block", func(t *testing.T) {

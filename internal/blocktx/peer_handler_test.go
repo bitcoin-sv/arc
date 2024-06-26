@@ -483,7 +483,8 @@ func TestStartPeerWorker(t *testing.T) {
 			require.NoError(t, err)
 
 			// send msg Inv to workerCh
-			peerHandler.HandleBlockAnnouncement(wire.NewInvVect(wire.InvTypeBlock, blockHash), peerMock)
+			err = peerHandler.HandleBlockAnnouncement(wire.NewInvVect(wire.InvTypeBlock, blockHash), peerMock)
+			require.NoError(t, err)
 
 			peerHandler.Start()
 

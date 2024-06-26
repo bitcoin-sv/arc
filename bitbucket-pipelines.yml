@@ -16,6 +16,7 @@ pipelines:
     sync-branch-from-github:
       - variables:
           - name: BRANCH
+            description: Name of the branch to be synced from the public ARC repository
       - step:
           runs-on:
             - taal.aws.runner

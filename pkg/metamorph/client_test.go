@@ -12,8 +12,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-//go:generate moq -pkg mocks -out ./mocks/metamorph_api_mock.go ./metamorph_api MetaMorphAPIClient
-
 func TestClient_SetUnlockedByName(t *testing.T) {
 	tt := []struct {
 		name           string

@@ -12,8 +12,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-//go:generate moq -pkg mocks -out ./mocks/blocktx_api_mock.go ./blocktx_api BlockTxAPIClient
-
 func TestClient_DelUnfinishedBlockProcessing(t *testing.T) {
 	tt := []struct {
 		name   string

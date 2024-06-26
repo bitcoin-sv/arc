@@ -1,4 +1,4 @@
-package blocktx
+package blocktx_test
 
 import (
 	"bytes"
@@ -10,7 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/libsv/go-bc"
@@ -23,10 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:generate moq -out ./store/blocktx_store_mock.go ./store BlocktxStore
-//go:generate moq -out ./mq_mock.go . MessageQueueClient
-//go:generate moq -out ./peer_mock.go . Peer
-
 func TestExtractHeight(t *testing.T) {
 	coinbase, _ := hex.DecodeString("01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff570350cc0b041547b5630cfabe6d6d0000000000000000000000000000000000000000000000000000000000000000010000000000000047ed20542096bd0000000000143362663865373833636662643732306431383436000000000140be4025000000001976a914c9b0abe09b7dd8e9d1e8c1e3502d32ab0d7119e488ac00000000")
 	tx, err := bsvutil.NewTxFromBytes(coinbase)
@@ -38,7 +37,7 @@ func TestExtractHeight(t *testing.T) {
 	btTx, err := bt.NewTxFromBytes(buff.Bytes())
 	require.NoError(t, err)
 
-	height := extractHeightFromCoinbaseTx(btTx)
+	height := blocktx.ExtractHeightFromCoinbaseTx(btTx)
 
 	assert.Equalf(t, uint64(773200), height, "height should be 773200, got %d", height)
 }
@@ -54,7 +53,7 @@ func TestExtractHeightForRegtest(t *testing.T) {
 	btTx, err := bt.NewTxFromBytes(buff.Bytes())
 	require.NoError(t, err)
 
-	height := extractHeightFromCoinbaseTx(btTx)
+	height := blocktx.ExtractHeightFromCoinbaseTx(btTx)
 
 	assert.Equalf(t, uint64(2012), height, "height should be 2012, got %d", height)
 }
@@ -170,7 +169,7 @@ func TestHandleBlock(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			batchSize := 4
-			storeMock := &store.BlocktxStoreMock{
+			storeMock := &storeMocks.BlocktxStoreMock{
 				InsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
 					return 0, nil
 				},
@@ -179,7 +178,7 @@ func TestHandleBlock(t *testing.T) {
 				},
 			}
 
-			mq := &MessageQueueClientMock{
+			mq := &mocks.MessageQueueClientMock{
 				PublishMinedTxsFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error {
 					return nil
 				},
@@ -187,7 +186,7 @@ func TestHandleBlock(t *testing.T) {
 
 			// build peer manager
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := NewPeerHandler(logger, storeMock, WithTransactionBatchSize(batchSize), WithMessageQueueClient(mq))
+			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithTransactionBatchSize(batchSize), blocktx.WithMessageQueueClient(mq))
 			require.NoError(t, err)
 
 			var expectedInsertedTransactions []*blocktx_api.TransactionAndSource
@@ -227,7 +226,7 @@ func TestHandleBlock(t *testing.T) {
 				return result, nil
 			}
 
-			peer := &PeerMock{
+			peer := &mocks.PeerMock{
 				StringFunc: func() string {
 					return ""
 				},
@@ -301,13 +300,11 @@ func TestStartFillGaps(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			getBlockErrCh := make(chan error)
 
 			getBlockGapTestErr := tc.getBlockGapsErr
-			storeMock := &store.BlocktxStoreMock{
+			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
-
 					if getBlockGapTestErr != nil {
 						getBlockErrCh <- getBlockGapTestErr
 						return nil, getBlockGapTestErr
@@ -318,10 +315,10 @@ func TestStartFillGaps(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := NewPeerHandler(logger, storeMock, WithFillGapsInterval(time.Millisecond*20))
+			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithFillGapsInterval(time.Millisecond*20))
 			require.NoError(t, err)
 
-			peerMock := &PeerMock{
+			peerMock := &mocks.PeerMock{
 				StringFunc: func() string {
 					return ""
 				},
@@ -331,7 +328,7 @@ func TestStartFillGaps(t *testing.T) {
 			peerHandler.StartFillGaps(peers)
 
 			select {
-			case hashPeer := <-peerHandler.workerCh:
+			case hashPeer := <-peerHandler.GetWorkerCh():
 				require.True(t, testdata.Block1Hash.IsEqual(hashPeer.Hash))
 			case err = <-getBlockErrCh:
 				require.ErrorIs(t, err, tc.getBlockGapsErr)
@@ -368,7 +365,7 @@ func TestStartProcessTxs(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			registerErrTest := tc.registerErr
-			storeMock := &store.BlocktxStoreMock{
+			storeMock := &storeMocks.BlocktxStoreMock{
 				RegisterTransactionsFunc: func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) ([]*chainhash.Hash, error) {
 					return nil, registerErrTest
 				},
@@ -382,10 +379,16 @@ func TestStartProcessTxs(t *testing.T) {
 			txChan <- testdata.TX4Hash[:]
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := NewPeerHandler(logger, storeMock, WithRegisterTxsInterval(time.Millisecond*20), WithTxChan(txChan), WithRegisterTxsBatchSize(3))
+			peerHandler, err := blocktx.NewPeerHandler(
+				logger,
+				storeMock,
+				blocktx.WithRegisterTxsInterval(time.Millisecond*20),
+				blocktx.WithTxChan(txChan),
+				blocktx.WithRegisterTxsBatchSize(3),
+			)
 			require.NoError(t, err)
 
-			peerHandler.startProcessTxs()
+			peerHandler.Start()
 
 			time.Sleep(120 * time.Millisecond)
 			peerHandler.Shutdown()
@@ -456,7 +459,7 @@ func TestStartPeerWorker(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			setBlockProcessingErrTest := tc.setBlockProcessingErr
 			bhsProcInProgErr := tc.bhsProcInProg
-			storeMock := &store.BlocktxStoreMock{
+			storeMock := &storeMocks.BlocktxStoreMock{
 				SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
 					return "abc", setBlockProcessingErrTest
 				},
@@ -466,7 +469,7 @@ func TestStartPeerWorker(t *testing.T) {
 			}
 
 			writeMsgErrTest := tc.writeMsgErr
-			peerMock := &PeerMock{
+			peerMock := &mocks.PeerMock{
 				WriteMsgFunc: func(msg wire.Message) error {
 					return writeMsgErrTest
 				},
@@ -476,15 +479,14 @@ func TestStartPeerWorker(t *testing.T) {
 			}
 			// build peer manager
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := NewPeerHandler(logger, storeMock)
+			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock)
 			require.NoError(t, err)
 
-			peerHandler.workerCh <- hashPeer{
-				Hash: blockHash,
-				Peer: peerMock,
-			}
+			// send msg Inv to workerCh
+			err = peerHandler.HandleBlockAnnouncement(wire.NewInvVect(wire.InvTypeBlock, blockHash), peerMock)
+			require.NoError(t, err)
 
-			peerHandler.startPeerWorker()
+			peerHandler.Start()
 
 			// call tested function
 			require.NoError(t, err)
@@ -565,7 +567,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			publishMinedErrTest := tc.publishMinedErr
 			getMinedErrTest := tc.getMinedErr
-			storeMock := &store.BlocktxStoreMock{
+			storeMock := &storeMocks.BlocktxStoreMock{
 				GetMinedTransactionsFunc: func(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
 					for _, hash := range hashes {
 						require.Equal(t, testdata.TX1Hash, hash)
@@ -579,7 +581,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 				},
 			}
 
-			mq := &MessageQueueClientMock{
+			mq := &mocks.MessageQueueClientMock{
 				PublishMinedTxsFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error {
 					return publishMinedErrTest
 				},
@@ -588,18 +590,18 @@ func TestStartProcessRequestTxs(t *testing.T) {
 			requestTxChannel := make(chan []byte, 5)
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := NewPeerHandler(logger, storeMock,
-				WithRegisterRequestTxsInterval(20*time.Millisecond),
-				WithRegisterRequestTxsBatchSize(3),
-				WithRequestTxChan(requestTxChannel),
-				WithMessageQueueClient(mq))
+			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock,
+				blocktx.WithRegisterRequestTxsInterval(20*time.Millisecond),
+				blocktx.WithRegisterRequestTxsBatchSize(3),
+				blocktx.WithRequestTxChan(requestTxChannel),
+				blocktx.WithMessageQueueClient(mq))
 			require.NoError(t, err)
 
 			for i := 0; i < tc.requests; i++ {
 				requestTxChannel <- tc.requestedTx
 			}
 
-			peerHandler.startProcessRequestTxs()
+			peerHandler.Start()
 
 			// call tested function
 			require.NoError(t, err)

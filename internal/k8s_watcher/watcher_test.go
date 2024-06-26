@@ -9,15 +9,12 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher"
-	"github.com/bitcoin-sv/arc/internal/k8s_watcher/mock"
+	"github.com/bitcoin-sv/arc/internal/k8s_watcher/mocks"
+	btxMocks "github.com/bitcoin-sv/arc/pkg/blocktx/mocks"
+	mtmMocks "github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
 	"github.com/lmittmann/tint"
 	"github.com/stretchr/testify/require"
 )
-
-//go:generate moq -pkg mock -out ./mock/metamorph_client_mock.go ../../pkg/metamorph TransactionMaintainer
-//go:generate moq -pkg mock -out ./mock/blocktx_client_mock.go ../../pkg/blocktx BlocktxClient
-//go:generate moq -pkg mock -out ./mock/k8s_client_client_mock.go . K8sClient
-//go:generate moq -pkg mock -out ./mock/ticker_mock.go . Ticker
 
 func TestStartMetamorphWatcher(t *testing.T) {
 	tt := []struct {
@@ -61,7 +58,7 @@ func TestStartMetamorphWatcher(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			setUnlockedErrTest := tc.setUnlockedErr
-			metamorphMock := &mock.TransactionMaintainerMock{
+			metamorphMock := &mtmMocks.TransactionMaintainerMock{
 				SetUnlockedByNameFunc: func(ctx context.Context, name string) (int64, error) {
 					require.Equal(t, "metamorph-pod-2", name)
 
@@ -72,12 +69,12 @@ func TestStartMetamorphWatcher(t *testing.T) {
 					return 3, nil
 				},
 			}
-			blocktxMock := &mock.BlocktxClientMock{}
+			blocktxMock := &btxMocks.BlocktxClientMock{}
 
 			iteration := 0
 			getPodNamesErrTest := tc.getPodNamesErr
 			podNamestTest := tc.podNames
-			k8sClientMock := &mock.K8sClientMock{
+			k8sClientMock := &mocks.K8sClientMock{
 				GetRunningPodNamesFunc: func(ctx context.Context, namespace string, service string) (map[string]struct{}, error) {
 					if getPodNamesErrTest != nil {
 						return nil, getPodNamesErrTest
@@ -93,7 +90,7 @@ func TestStartMetamorphWatcher(t *testing.T) {
 
 			tickerChannel := make(chan time.Time, 1)
 
-			ticker := &mock.TickerMock{
+			ticker := &mocks.TickerMock{
 				TickFunc: func() <-chan time.Time {
 					return tickerChannel
 				},
@@ -159,15 +156,15 @@ func TestStartBlocktxWatcher(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphMock := &mock.TransactionMaintainerMock{}
-			blocktxMock := &mock.BlocktxClientMock{
+			metamorphMock := &mtmMocks.TransactionMaintainerMock{}
+			blocktxMock := &btxMocks.BlocktxClientMock{
 				DelUnfinishedBlockProcessingFunc: func(ctx context.Context, processedBy string) (int64, error) { return 0, nil },
 			}
 
 			iteration := 0
 			getPodNamesErrTest := tc.getPodNamesErr
 			podNamesTest := tc.podNames
-			k8sClientMock := &mock.K8sClientMock{
+			k8sClientMock := &mocks.K8sClientMock{
 				GetRunningPodNamesFunc: func(ctx context.Context, namespace string, service string) (map[string]struct{}, error) {
 					if getPodNamesErrTest != nil {
 						return nil, getPodNamesErrTest
@@ -183,7 +180,7 @@ func TestStartBlocktxWatcher(t *testing.T) {
 
 			tickerChannel := make(chan time.Time, 1)
 
-			ticker := &mock.TickerMock{
+			ticker := &mocks.TickerMock{
 				TickFunc: func() <-chan time.Time {
 					return tickerChannel
 				},

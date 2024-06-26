@@ -19,10 +19,11 @@ import (
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/api/handler/mock"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
+	btxMocks "github.com/bitcoin-sv/arc/pkg/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
+	mtmMocks "github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/go-bitcoin"
@@ -84,9 +85,6 @@ var (
 	testLogger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 )
 
-//go:generate moq -pkg mock -out ./mock/transaction_handler_mock.go ../../metamorph/ TransactionHandler
-//go:generate moq -pkg mock -out ./mock/merkle_roots_verifier_mock.go ../../blocktx/ MerkleRootsVerifier
-
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {
 		defaultHandler, err := NewDefault(testLogger, nil, nil, nil, nil, nil)
@@ -125,7 +123,7 @@ func TestGETPolicy(t *testing.T) {
 
 func TestGETHealth(t *testing.T) {
 	t.Run("health check", func(t *testing.T) {
-		txHandler := &mock.TransactionHandlerMock{
+		txHandler := &mtmMocks.TransactionHandlerMock{
 			HealthFunc: func(ctx context.Context) error {
 				return nil
 			},
@@ -240,7 +238,7 @@ func TestGETTransactionStatus(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			rec, ctx := createEchoGetRequest("/v1/tx/c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
 
-			txHandler := &mock.TransactionHandlerMock{
+			txHandler := &mtmMocks.TransactionHandlerMock{
 				GetTransactionStatusFunc: func(ctx context.Context, txID string) (*metamorph.TransactionStatus, error) {
 					return tc.txHandlerStatusFound, tc.txHandlerErr
 				},
@@ -530,7 +528,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			inputTx := strings.NewReader(tc.txHexString)
 			rec, ctx := createEchoPostRequest(inputTx, tc.contentType, "/v1/tx")
 
-			txHandler := &mock.TransactionHandlerMock{
+			txHandler := &mtmMocks.TransactionHandlerMock{
 				HealthFunc: func(ctx context.Context) error {
 					return nil
 				},
@@ -544,7 +542,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				},
 			}
 
-			merkleRootsVerifier := &mock.MerkleRootsVerifierMock{
+			merkleRootsVerifier := &btxMocks.MerkleRootsVerifierMock{
 				VerifyMerkleRootsFunc: func(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 					return nil, nil
 				},
@@ -677,7 +675,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("valid tx - missing inputs", func(t *testing.T) {
-		txHandler := &mock.TransactionHandlerMock{
+		txHandler := &mtmMocks.TransactionHandlerMock{
 			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				txStatuses := []*metamorph.TransactionStatus{}
 				return txStatuses, nil
@@ -729,7 +727,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			Timestamp:   time.Now().Unix(),
 		}
 		// set the node/metamorph responses for the 3 test requests
-		txHandler := &mock.TransactionHandlerMock{
+		txHandler := &mtmMocks.TransactionHandlerMock{
 			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				txStatuses := []*metamorph.TransactionStatus{txResult}
 				return txStatuses, nil
@@ -767,7 +765,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	t.Run("invalid tx - beef", func(t *testing.T) {
 		errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error decoding BEEF: invalid BEEF - HasBUMP flag set, but no BUMP index")
 		// set the node/metamorph responses for the 3 test requests
-		txHandler := &mock.TransactionHandlerMock{
+		txHandler := &mtmMocks.TransactionHandlerMock{
 			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				return nil, nil
 			},
@@ -810,7 +808,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			Timestamp:   time.Now().Unix(),
 		}
 		// set the node/metamorph responses for the 3 test requests
-		txHandler := &mock.TransactionHandlerMock{
+		txHandler := &mtmMocks.TransactionHandlerMock{
 			SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				txStatuses := []*metamorph.TransactionStatus{txResult}
 				return txStatuses, nil
@@ -862,7 +860,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 		// set the node/metamorph responses for the 3 test requests
-		txHandler := &mock.TransactionHandlerMock{
+		txHandler := &mtmMocks.TransactionHandlerMock{
 			GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
 				return inputTxLowFeesBytes, nil
 			},
@@ -991,7 +989,7 @@ func TestArcDefaultHandler_extendTransaction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			count := 0
-			node := &mock.TransactionHandlerMock{GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
+			node := &mtmMocks.TransactionHandlerMock{GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
 				if count == 0 && tt.missingParent {
 					return nil, nil
 				}

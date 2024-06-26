@@ -14,6 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
@@ -24,9 +25,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-//go:generate moq -pkg mocks -out ./mocks/processor_mock.go . ProcessorI
-//go:generate moq -pkg mocks -out ./mocks/bitcon_mock.go . BitcoinNode
 
 func TestNewServer(t *testing.T) {
 	t.Run("NewServer", func(t *testing.T) {
@@ -52,7 +50,7 @@ func TestHealth(t *testing.T) {
 
 func TestPutTransaction(t *testing.T) {
 	t.Run("PutTransaction - ANNOUNCED", func(t *testing.T) {
-		s := &mocks.MetamorphStoreMock{}
+		s := &storeMocks.MetamorphStoreMock{}
 
 		processor := &mocks.ProcessorIMock{}
 
@@ -80,7 +78,7 @@ func TestPutTransaction(t *testing.T) {
 	})
 
 	t.Run("PutTransaction - SEEN to network", func(t *testing.T) {
-		s := &mocks.MetamorphStoreMock{}
+		s := &storeMocks.MetamorphStoreMock{}
 
 		processor := &mocks.ProcessorIMock{}
 
@@ -105,7 +103,7 @@ func TestPutTransaction(t *testing.T) {
 	})
 
 	t.Run("PutTransaction - Err", func(t *testing.T) {
-		s := &mocks.MetamorphStoreMock{}
+		s := &storeMocks.MetamorphStoreMock{}
 
 		processor := &mocks.ProcessorIMock{}
 
@@ -134,7 +132,6 @@ func TestPutTransaction(t *testing.T) {
 }
 
 func TestServer_GetTransactionStatus(t *testing.T) {
-
 	errFailedToGetTxData := errors.New("failed to get transaction data")
 
 	tests := []struct {
@@ -229,7 +226,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metamorphStore := &mocks.MetamorphStoreMock{
+			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					data := &store.StoreData{
 						StoredAt:      testdata.Time,
@@ -523,7 +520,7 @@ func TestSetUnlockedbyName(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &mocks.MetamorphStoreMock{
+			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{}, nil
 				},
@@ -560,7 +557,7 @@ func TestStartGRPCServer(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &mocks.MetamorphStoreMock{
+			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{}, nil
 				},

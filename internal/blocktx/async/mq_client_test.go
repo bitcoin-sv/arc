@@ -1,16 +1,16 @@
-package async
+package async_test
 
 import (
 	"context"
 	"errors"
 	"testing"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/async"
+	"github.com/bitcoin-sv/arc/internal/blocktx/async/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/stretchr/testify/require"
 )
-
-//go:generate moq -out ./nats_client_mock.go . NatsClient
 
 func TestMQClient_PublishMinedTxs(t *testing.T) {
 	txBlock := &blocktx_api.TransactionBlock{
@@ -70,8 +70,7 @@ func TestMQClient_PublishMinedTxs(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
-			natsMock := &NatsClientMock{
+			natsMock := &mocks.NatsClientMock{
 				PublishFunc: func(subj string, data []byte) error {
 					return tc.publishErr
 				},
@@ -80,7 +79,7 @@ func TestMQClient_PublishMinedTxs(t *testing.T) {
 			txChannel := make(chan []byte, 10)
 			requestTxChannel := make(chan []byte, 10)
 
-			mqClient := NewNatsMQClient(natsMock, txChannel, requestTxChannel, WithMaxBatchSize(5), WithTracer())
+			mqClient := async.NewNatsMQClient(natsMock, txChannel, requestTxChannel, async.WithMaxBatchSize(5), async.WithTracer())
 
 			err := mqClient.PublishMinedTxs(context.Background(), tc.txsBlocks)
 
@@ -92,7 +91,6 @@ func TestMQClient_PublishMinedTxs(t *testing.T) {
 			}
 
 			require.Equal(t, tc.expectedPublishCalls, len(natsMock.PublishCalls()))
-
 		})
 	}
 }

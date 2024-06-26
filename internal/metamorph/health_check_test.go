@@ -7,6 +7,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
+	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -59,8 +60,7 @@ func TestCheck(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
-			metamorphStore := &mocks.MetamorphStoreMock{
+			metamorphStore := &storeMocks.MetamorphStoreMock{
 				PingFunc: func(ctx context.Context) error {
 					return tc.pingErr
 				},
@@ -135,8 +135,7 @@ func TestWatch(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
-			metamorphStore := &mocks.MetamorphStoreMock{
+			metamorphStore := &storeMocks.MetamorphStoreMock{
 				PingFunc: func(ctx context.Context) error {
 					return tc.pingErr
 				},

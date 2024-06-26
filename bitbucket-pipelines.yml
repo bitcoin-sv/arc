@@ -29,26 +29,14 @@ pipelines:
             - git push origin ${BRANCH}
 
     arc-image:
-      - step:
-          runs-on:
-            - taal.aws.runner
-            - self.hosted
-            - linux
-          name: Get build tag
-          services:
-            - docker
-          script:
-            - git describe --abbrev=0 --tags
-            - echo export BUILD_TAG=$(git describe --abbrev=0 --tags) > build.env
-          artifacts:
-            - build.env
+      - variables:
+          - name: BUILD_TAG
       - step:
           name: Build and push arc image
           image: amazon/aws-cli
           services:
             - docker
           script:
-            - source build.env
             - echo $BUILD_TAG
             - echo "Logging in to Amazon ECR..."
             - aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REGISTRY_ARC}

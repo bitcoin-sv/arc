@@ -13,6 +13,21 @@ pipelines:
             - git merge public/main
             - git push --tags origin main
 
+    sync-branch-from-github:
+      - variables:
+          - name: BRANCH
+      - step:
+          runs-on:
+            - taal.aws.runner
+            - self.hosted
+            - linux
+          name: Sync specific branch from GitHub ARC Repo
+          script:
+            - git remote add public https://github.com/bitcoin-sv/arc.git || true # The "|| true" ensures the command doesn't fail if the remote already exists.
+            - git pull public ${BRANCH}
+            - git checkout ${BRANCH}
+            - git push origin ${BRANCH}
+
     arc-image:
       - step:
           runs-on:

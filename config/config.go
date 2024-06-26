@@ -11,6 +11,7 @@ type ArcConfig struct {
 	LogFormat          string            `mapstructure:"logFormat"`
 	ProfilerAddr       string            `mapstructure:"profilerAddr"`
 	PrometheusEndpoint string            `mapstructure:"prometheusEndpoint"`
+	PrometheusAddr     string            `mapstructure:"prometheusAddr"`
 	GrpcMessageSize    int               `mapstructure:"grpcMessageSize"`
 	Network            string            `mapstructure:"network"`
 	QueueURL           string            `mapstructure:"queueURL"`

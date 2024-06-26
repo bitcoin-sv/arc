@@ -26,6 +26,7 @@ pipelines:
             - git remote add public https://github.com/bitcoin-sv/arc.git || true # The "|| true" ensures the command doesn't fail if the remote already exists.
             - git pull public ${BRANCH}
             - git checkout ${BRANCH}
+            - git merge main # Merge main so that bitbucket pipelines are available
             - git push origin ${BRANCH}
 
     arc-image:

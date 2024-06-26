@@ -1,11 +1,9 @@
 package helper
 
 import (
-	"errors"
 	"fmt"
 	"github.com/lmittmann/tint"
 	"log/slog"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -16,11 +14,7 @@ import (
 )
 
 func CreateClient(auth *broadcaster.Auth, arcServer string) (broadcaster.ArcClient, error) {
-	arcServerUrl, err := url.Parse(arcServer)
-	if err != nil {
-		return nil, errors.New("arcUrl is not a valid url")
-	}
-	return broadcaster.NewHTTPBroadcaster(arcServerUrl.String(), auth), nil
+	return broadcaster.NewHTTPBroadcaster(arcServer, auth)
 }
 
 func GetKeySetsKeyFile(keyFile string) (fundingKeySet *keyset.KeySet, receivingKeySet *keyset.KeySet, err error) {

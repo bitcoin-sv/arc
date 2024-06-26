@@ -1,0 +1,113 @@
+pipelines:
+  custom:
+    sync-from-github:
+      - step:
+          runs-on:
+            - taal.aws.runner
+            - self.hosted
+            - linux
+          name: Sync from GitHub ARC Repo
+          script:
+            - git remote add public https://github.com/bitcoin-sv/arc.git || true # The "|| true" ensures the command doesn't fail if the remote already exists.
+            - git fetch --tags public
+            - git merge public/main
+            - git push --tags origin main
+
+    sync-branch-from-github:
+      - variables:
+          - name: BRANCH
+            description: Name of the branch to be synced from the public ARC repository
+      - step:
+          runs-on:
+            - taal.aws.runner
+            - self.hosted
+            - linux
+          name: Sync specific branch from GitHub ARC Repo
+          script:
+            - git remote add public https://github.com/bitcoin-sv/arc.git || true # The "|| true" ensures the command doesn't fail if the remote already exists.
+            - git pull public ${BRANCH}
+            - git checkout ${BRANCH}
+            - git merge main # Merge main so that bitbucket pipelines are available
+            - git push origin ${BRANCH}
+
+    arc-image:
+      - variables:
+          - name: BUILD_TAG
+      - step:
+          name: Build and push arc image
+          image: amazon/aws-cli
+          services:
+            - docker
+          script:
+            - echo $BUILD_TAG
+            - echo "Logging in to Amazon ECR..."
+            - aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REGISTRY_ARC}
+            - aws ecr list-images --repository-name ${ECR_REPOSITORY_NAME_ARC}
+            - docker build -t ${ECR_REGISTRY_ARC}:${BUILD_TAG} . -f Dockerfile
+            - docker push ${ECR_REGISTRY_ARC}:${BUILD_TAG}
+
+    blocktx-migrations-image:
+      - variables:
+          - name: BUILD_TAG
+            description: Tag for docker image. If left empty, latest git tag will be used
+      - step:
+          runs-on:
+            - taal.aws.runner
+            - self.hosted
+            - linux
+          name: Get build tag
+          services:
+            - docker
+          script:
+            - if [[ -z "${BUILD_TAG}" ]]; then
+            - git describe --abbrev=0 --tags
+            - echo export BUILD_TAG=$(git describe --abbrev=0 --tags) > build.env
+            - fi
+          artifacts:
+            - build.env
+      - step:
+          name: Build and push blocktx migrations image
+          image: amazon/aws-cli
+          services:
+            - docker
+          script:
+            - source build.env
+            - echo $BUILD_TAG
+            - echo "Logging in to Amazon ECR..."
+            - aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REGISTRY_BLOCKTX}
+            - aws ecr list-images --repository-name ${ECR_REPOSITORY_NAME_BLOCKTX}
+            - docker build -t ${ECR_REGISTRY_BLOCKTX}:${BUILD_TAG} . -f Dockerfile.blocktx_migrations
+            - docker push ${ECR_REGISTRY_BLOCKTX}:${BUILD_TAG}
+
+    metamorph-migrations-image:
+      - variables:
+          - name: BUILD_TAG
+            description: Tag for docker image. If left empty, latest git tag will be used
+      - step:
+          runs-on:
+            - taal.aws.runner
+            - self.hosted
+            - linux
+          name: Get build tag
+          services:
+            - docker
+          script:
+            - if [[ -z "${BUILD_TAG}" ]]; then
+            - git describe --abbrev=0 --tags
+            - echo export BUILD_TAG=$(git describe --abbrev=0 --tags) > build.env
+            - fi
+          artifacts:
+            - build.env
+      - step:
+          name: Build and push metamorph migrations image
+          image: amazon/aws-cli
+          services:
+            - docker
+          script:
+            - source build.env
+            - echo $BUILD_TAG
+            - echo "Logging in to Amazon ECR..."
+            - aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REGISTRY_METAMORPH}
+            - aws ecr list-images --repository-name ${ECR_REPOSITORY_NAME_METAMORPH}
+            - docker build -t ${ECR_REGISTRY_METAMORPH}:${BUILD_TAG} . -f Dockerfile.metamorph_migrations
+            - docker push ${ECR_REGISTRY_METAMORPH}:${BUILD_TAG}

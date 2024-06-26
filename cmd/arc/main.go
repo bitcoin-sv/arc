@@ -80,10 +80,10 @@ func run() error {
 	}()
 
 	go func() {
-		if arcConfig.PrometheusEndpoint != "" && arcConfig.ProfilerAddr != "" {
+		if arcConfig.PrometheusEndpoint != "" && arcConfig.PrometheusAddr != "" {
 			logger.Info("Starting prometheus", slog.String("endpoint", arcConfig.PrometheusEndpoint))
 			http.Handle(arcConfig.PrometheusEndpoint, promhttp.Handler())
-			err = http.ListenAndServe(arcConfig.ProfilerAddr, nil)
+			err = http.ListenAndServe(arcConfig.PrometheusAddr, nil)
 			if err != nil {
 				logger.Error("failed to start prometheus server", slog.String("err", err.Error()))
 			}

@@ -12,6 +12,7 @@ func getDefaultArcConfig() *ArcConfig {
 		LogFormat:          "text",
 		ProfilerAddr:       "", // optional
 		PrometheusEndpoint: "", // optional
+		PrometheusAddr:     "", // optional
 		GrpcMessageSize:    100000000,
 		Network:            "regtest",
 		QueueURL:           "nats://nats:4222",

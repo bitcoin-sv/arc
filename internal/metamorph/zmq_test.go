@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:generate moq -pkg mocks -out ./mocks/zmq_mock.go . ZMQI
 func TestMissingInputsZMQI(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 

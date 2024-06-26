@@ -3,14 +3,16 @@ package blocktx_test
 import (
 	"context"
 	"errors"
-	"github.com/libsv/go-p2p"
 	"log/slog"
 	"os"
 	"testing"
 
+	"github.com/libsv/go-p2p"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -50,7 +52,7 @@ func TestCheck(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			const batchSize = 4
 
-			storeMock := &store.BlocktxStoreMock{
+			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return nil, nil
 				},
@@ -67,8 +69,8 @@ func TestCheck(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
-			pm := &blocktx.PeerManagerMock{GetPeersFunc: func() []p2p.PeerI {
-				return []p2p.PeerI{&blocktx.PeerMock{
+			pm := &mocks.PeerManagerMock{GetPeersFunc: func() []p2p.PeerI {
+				return []p2p.PeerI{&mocks.PeerMock{
 					IsHealthyFunc: func() bool {
 						return false
 					},
@@ -123,7 +125,7 @@ func TestWatch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			const batchSize = 4
 
-			storeMock := &store.BlocktxStoreMock{
+			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return nil, nil
 				},
@@ -140,8 +142,8 @@ func TestWatch(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
-			pm := &blocktx.PeerManagerMock{GetPeersFunc: func() []p2p.PeerI {
-				return []p2p.PeerI{&blocktx.PeerMock{
+			pm := &mocks.PeerManagerMock{GetPeersFunc: func() []p2p.PeerI {
+				return []p2p.PeerI{&mocks.PeerMock{
 					IsHealthyFunc: func() bool {
 						return false
 					},

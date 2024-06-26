@@ -1,0 +1,23 @@
+package metamorph
+
+// from health_check.go
+//go:generate moq -pkg mocks -out ./mocks/health_watch_server_mock.go . HealthWatchServer
+
+// from mq_client.go
+//go:generate moq -pkg mocks -out ./mocks/message_queue_mock.go . MessageQueueClient
+
+// from processor.go
+//go:generate moq -pkg mocks -out ./mocks/callback_sender_mock.go . CallbackSender
+
+// from peer_manager.go
+//go:generate moq -pkg mocks -out ./mocks/peer_manager_mock.go . PeerManager
+
+// from peer.go
+//go:generate moq -pkg mocks -out ./mocks/peer_mock.go . PeerI
+
+// from zmq.go
+//go:generate moq -pkg mocks -out ./mocks/zmq_mock.go . ZMQI
+
+// from server.go
+//go:generate moq -pkg mocks -out ./mocks/processor_mock.go . ProcessorI
+//go:generate moq -pkg mocks -out ./mocks/bitcon_mock.go . BitcoinNode

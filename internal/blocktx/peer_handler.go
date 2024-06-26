@@ -79,7 +79,7 @@ func init() {
 			blockMessage.TransactionHashes[i] = hash
 
 			if i == 0 {
-				blockMessage.Height = extractHeightFromCoinbaseTx(tx)
+				blockMessage.Height = ExtractHeightFromCoinbaseTx(tx)
 			}
 		}
 
@@ -286,7 +286,7 @@ func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
 					peerIndex = 0
 				}
 
-				err := ph.FillGaps(peers[peerIndex])
+				err := ph.fillGaps(peers[peerIndex])
 				if err != nil {
 					ph.logger.Error("failed to fill gaps", slog.String("error", err.Error()))
 				}
@@ -546,7 +546,7 @@ const (
 	blocksPerHour = 6
 )
 
-func (ph *PeerHandler) FillGaps(peer p2p.PeerI) error {
+func (ph *PeerHandler) fillGaps(peer p2p.PeerI) error {
 
 	heightRange := ph.dataRetentionDays * hoursPerDay * blocksPerHour
 
@@ -734,7 +734,8 @@ func (ph *PeerHandler) markBlockAsProcessed(ctx context.Context, block *p2p.Bloc
 	return nil
 }
 
-func extractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
+// exported for testing purposes
+func ExtractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
 	// Coinbase tx has a special format, the height is encoded in the first 4 bytes of the scriptSig
 	// https://en.bitcoin.it/wiki/Protocol_documentation#tx
 	// Get the length
@@ -761,4 +762,9 @@ func (ph *PeerHandler) Shutdown() {
 	}
 	ph.waitGroup.Wait()
 
+}
+
+// for testing purposes
+func (ph *PeerHandler) GetWorkerCh() chan hashPeer {
+	return ph.workerCh
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
@@ -23,14 +24,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:generate moq -pkg mocks -out ./mocks/store_mock.go ./store/ MetamorphStore
-//go:generate moq -pkg mocks -out ./mocks/message_queue_mock.go . MessageQueueClient
-//go:generate moq -pkg mocks -out ./mocks/callback_sender_mock.go . CallbackSender
-//go:generate moq -pkg mocks -out ./mocks/peer_manager_mock.go . PeerManager
-//go:generate moq -pkg mocks -out ./mocks/peer_mock.go . PeerI
-
 func TestNewProcessor(t *testing.T) {
-	mtmStore := &mocks.MetamorphStoreMock{
+	mtmStore := &storeMocks.MetamorphStoreMock{
 		GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 			return &store.StoreData{Hash: testdata.TX2Hash}, nil
 		},
@@ -113,7 +108,7 @@ func TestStartLockTransactions(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &mocks.MetamorphStoreMock{
+			metamorphStore := &storeMocks.MetamorphStoreMock{
 				SetLockedFunc: func(ctx context.Context, since time.Time, limit int64) error {
 					require.Equal(t, int64(5000), limit)
 					return tc.setLockedErr
@@ -183,7 +178,7 @@ func TestProcessTransaction(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			s := &mocks.MetamorphStoreMock{
+			s := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					require.Equal(t, testdata.TX1Hash[:], key)
 
@@ -430,11 +425,10 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			counter := 0
 			callbackSent := make(chan struct{})
 
-			metamorphStore := &mocks.MetamorphStoreMock{
+			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
@@ -533,10 +527,9 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			retries := tc.retries
 
-			metamorphStore := &mocks.MetamorphStoreMock{
+			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},
@@ -635,8 +628,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
-			metamorphStore := &mocks.MetamorphStoreMock{
+			metamorphStore := &storeMocks.MetamorphStoreMock{
 				UpdateMinedFunc: func(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
 					if tc.panic {
 						panic("panic in updated mined function")
@@ -694,7 +686,7 @@ func TestProcessorHealth(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metamorphStore := &mocks.MetamorphStoreMock{
+			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{Hash: testdata.TX2Hash}, nil
 				},

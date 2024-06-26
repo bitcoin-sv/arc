@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -19,7 +19,7 @@ import (
 
 func TestPeerHandler(t *testing.T) {
 	messageCh := make(chan *metamorph.PeerTxMessage)
-	mtmStore := &mocks.MetamorphStoreMock{
+	mtmStore := &storeMocks.MetamorphStoreMock{
 		GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 			return &store.StoreData{
 				RawTx: []byte("1234"),

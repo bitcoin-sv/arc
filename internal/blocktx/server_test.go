@@ -1,4 +1,4 @@
-package blocktx
+package blocktx_test
 
 import (
 	"context"
@@ -8,14 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
+	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 )
-
-//go:generate moq -out ./peer_manager_mock.go . PeerManager
 
 func TestStartGRPCServer(t *testing.T) {
 	tt := []struct {
@@ -29,9 +29,9 @@ func TestStartGRPCServer(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			storeMock := &store.BlocktxStoreMock{}
-			pm := &PeerManagerMock{ShutdownFunc: func() {}}
-			server := NewServer(storeMock, logger, pm, 0)
+			storeMock := &storeMocks.BlocktxStoreMock{}
+			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
+			server := blocktx.NewServer(storeMock, logger, pm, 0)
 
 			err := server.StartGRPCServer("localhost:7000", 10000, "", logger)
 			require.NoError(t, err)
@@ -75,7 +75,7 @@ func TestDelUnfinishedBlock(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			storeMock := &store.BlocktxStoreMock{
+			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
 					return []*chainhash.Hash{testdata.TX1Hash, testdata.TX2Hash}, tc.getBlockHashesProcessingInProgressErr
 				},
@@ -85,7 +85,7 @@ func TestDelUnfinishedBlock(t *testing.T) {
 				},
 			}
 
-			server := NewServer(storeMock, logger, nil, 0)
+			server := blocktx.NewServer(storeMock, logger, nil, 0)
 
 			resp, err := server.DelUnfinishedBlockProcessing(context.Background(), &blocktx_api.DelUnfinishedBlockProcessingRequest{
 				ProcessedBy: "host",

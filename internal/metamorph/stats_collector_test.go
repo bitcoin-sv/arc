@@ -11,6 +11,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,7 +31,7 @@ func TestStartCollectStats(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			mtmStore := &mocks.MetamorphStoreMock{
+			mtmStore := &storeMocks.MetamorphStoreMock{
 				GetStatsFunc: func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
 					return &store.Stats{
 						StatusStored:              15,

@@ -46,6 +46,9 @@ pipelines:
             - docker push ${ECR_REGISTRY_ARC}:${BUILD_TAG}
 
     blocktx-migrations-image:
+      - variables:
+          - name: BUILD_TAG
+            description: Tag for docker image. If left empty, latest git tag will be used
       - step:
           runs-on:
             - taal.aws.runner
@@ -55,8 +58,10 @@ pipelines:
           services:
             - docker
           script:
+            - if [[ -z "${BUILD_TAG}" ]]; then
             - git describe --abbrev=0 --tags
             - echo export BUILD_TAG=$(git describe --abbrev=0 --tags) > build.env
+            - fi
           artifacts:
             - build.env
       - step:
@@ -74,6 +79,9 @@ pipelines:
             - docker push ${ECR_REGISTRY_BLOCKTX}:${BUILD_TAG}
 
     metamorph-migrations-image:
+      - variables:
+          - name: BUILD_TAG
+            description: Tag for docker image. If left empty, latest git tag will be used
       - step:
           runs-on:
             - taal.aws.runner
@@ -83,8 +91,10 @@ pipelines:
           services:
             - docker
           script:
+            - if [[ -z "${BUILD_TAG}" ]]; then
             - git describe --abbrev=0 --tags
             - echo export BUILD_TAG=$(git describe --abbrev=0 --tags) > build.env
+            - fi
           artifacts:
             - build.env
       - step:

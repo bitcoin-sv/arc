@@ -60,8 +60,6 @@ func TestBeef(t *testing.T) {
 			response, err := arcClient.POSTTransactionWithResponse(context.Background(), params, body)
 
 			// then
-			t.Logf("response txid: %s", *response.JSON465.Txid)
-			t.Logf("response extra info: %s", *response.JSON465.ExtraInfo)
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, response.StatusCode())
 			require.NotNil(t, response.JSON200)
@@ -175,7 +173,7 @@ func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, pri
 		Txid:         middleTx.TxID(),
 		Vout:         0,
 		ScriptPubKey: middleTx.Outputs[0].LockingScriptHexString(),
-		Amount:       float64(middleTx.Outputs[0].Satoshis),
+		Amount:       float64(middleTx.Outputs[0].Satoshis) / 1e8, // satoshis to BSV
 	}
 
 	tx, err := createTx(middlePrivKey, toAddress, middleUtxo)

@@ -60,6 +60,8 @@ func TestBeef(t *testing.T) {
 			response, err := arcClient.POSTTransactionWithResponse(context.Background(), params, body)
 
 			// then
+			t.Logf("response txid: %s", *response.JSON465.Txid)
+			t.Logf("response extra info: %s", *response.JSON465.ExtraInfo)
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, response.StatusCode())
 			require.NotNil(t, response.JSON200)
@@ -167,6 +169,7 @@ func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, pri
 	middleAddress, middlePrivKey := getNewWalletAddress(t)
 	middleTx, err := createTx(privateKey, middleAddress, utxos[0])
 	require.NoError(t, err, "could not create middle tx for beef")
+	t.Logf("middle tx created, hex: %s, txid: %s", middleTx.String(), middleTx.TxID())
 
 	middleUtxo := NodeUnspentUtxo{
 		Txid:         middleTx.TxID(),
@@ -177,7 +180,7 @@ func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, pri
 
 	tx, err := createTx(middlePrivKey, toAddress, middleUtxo)
 	require.NoError(t, err, "could not create tx")
-	t.Logf("tx created, hex: %s", tx.String())
+	t.Logf("tx created, hex: %s, txid: %s", tx.String(), tx.TxID())
 
 	beef := buildBeefString(t, rawTx.Hex, bump, middleTx, tx)
 	t.Logf("beef created, hex: %s", beef)

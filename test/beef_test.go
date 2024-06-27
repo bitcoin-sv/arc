@@ -80,10 +80,10 @@ func TestBeef(t *testing.T) {
 			select {
 			case status := <-callbackReceivedChan:
 				if status.Txid == middleTx.TxID() {
-					require.Equal(t, metamorph_api.Status_MINED.String(), status.TxStatus)
+					require.Equal(t, metamorph_api.Status_MINED.String(), *status.TxStatus)
 					middleTxCallbackReceived = true
 				} else if status.Txid == tx.TxID() {
-					require.Equal(t, metamorph_api.Status_MINED.String(), status.TxStatus)
+					require.Equal(t, metamorph_api.Status_MINED.String(), *status.TxStatus)
 					lastTxCallbackReceived = true
 				} else {
 					t.Fatalf("received unknown status for txid: %s", status.Txid)

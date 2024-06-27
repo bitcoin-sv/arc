@@ -61,7 +61,8 @@ func TestBeef(t *testing.T) {
 
 			// then
 			require.NoError(t, err)
-			t.Logf("response: %+v", response)
+			t.Logf("response txid: %s", *response.JSON465.Txid)
+			t.Logf("response extra info: %s", *response.JSON465.ExtraInfo)
 			require.Equal(t, http.StatusOK, response.StatusCode())
 			require.NotNil(t, response.JSON200)
 			require.Equal(t, tc.expectedStatus.String(), response.JSON200.TxStatus, "status not SEEN_ON_NETWORK")

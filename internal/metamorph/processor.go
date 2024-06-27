@@ -208,6 +208,43 @@ func (p *Processor) StartProcessMinedCallbacks() {
 	}()
 }
 
+func (p *Processor) StartProcessSubmittedTxs() {
+	p.waitGroup.Add(1)
+
+	go func() {
+		defer p.waitGroup.Done()
+		for {
+			select {
+			case <-p.ctx.Done():
+				return
+			case submittedTx := <-p.submittedTxsChan:
+				if submittedTx == nil {
+					continue
+				}
+
+				hash := PtrTo(chainhash.DoubleHashH(submittedTx.GetRawTx()))
+				statusReceived := metamorph_api.Status_RECEIVED
+
+				sReq := &store.StoreData{
+					Hash:              hash,
+					Status:            statusReceived,
+					CallbackUrl:       submittedTx.GetCallbackUrl(),
+					CallbackToken:     submittedTx.GetCallbackToken(),
+					FullStatusUpdates: submittedTx.GetFullStatusUpdates(),
+					RawTx:             submittedTx.GetRawTx(),
+				}
+
+				req := &ProcessorRequest{
+					Data:    sReq,
+					Timeout: 5 * time.Second,
+				}
+
+				p.ProcessTransaction(p.ctx, req)
+			}
+		}
+	}()
+}
+
 func (p *Processor) StartSendStatusUpdate() {
 	p.waitGroup.Add(1)
 	go func() {

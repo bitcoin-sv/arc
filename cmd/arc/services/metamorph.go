@@ -116,6 +116,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, fmt.Errorf("failed to start collecting stats: %v", err)
 	}
 	metamorphProcessor.StartSendStatusUpdate()
+	metamorphProcessor.StartProcessSubmittedTxs()
 
 	optsServer := []metamorph.ServerOption{
 		metamorph.WithLogger(logger.With(slog.String("module", "mtm-server"))),

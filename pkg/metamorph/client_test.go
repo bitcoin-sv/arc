@@ -38,7 +38,7 @@ func TestClient_SetUnlockedByName(t *testing.T) {
 				},
 			}
 
-			client := metamorph.NewClient(apiClient, nil)
+			client := metamorph.NewClient(apiClient)
 
 			res, err := client.SetUnlockedByName(context.Background(), "test-1")
 			if tc.expectedErrorStr == "" {

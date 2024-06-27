@@ -249,7 +249,7 @@ func ValidateCallbackURL(callbackURL string, rejectedCallbackUrlSubstrings []str
 }
 
 func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackUrlSubstrings []string) (*metamorph.TransactionOptions, error) {
-	transactionOptions := &metamorph.TransactionOptions{}
+	transactionOptions := metamorph.NewTransactionOptions()
 	if params.XCallbackUrl != nil {
 		if err := ValidateCallbackURL(*params.XCallbackUrl, rejectedCallbackUrlSubstrings); err != nil {
 			return nil, err

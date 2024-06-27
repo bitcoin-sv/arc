@@ -32,7 +32,7 @@ func PtrTo[T any](v T) *T {
 }
 
 const (
-	responseTimeout = 5 * time.Second
+	responseTimeoutDefault = 5 * time.Second
 )
 
 var ErrNotFound = errors.New("key could not be found")
@@ -84,7 +84,7 @@ func NewServer(s store.MetamorphStore, p ProcessorI, opts ...ServerOption) *Serv
 		logger:          slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm")),
 		processor:       p,
 		store:           s,
-		timeout:         responseTimeout,
+		timeout:         responseTimeoutDefault,
 		forceCheckUtxos: false,
 	}
 

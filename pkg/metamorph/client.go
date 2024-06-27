@@ -16,6 +16,10 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+const (
+	maxTimeoutSecondsDefault = 5
+)
+
 var (
 	ErrTransactionNotFound       = errors.New("transaction not found")
 	ErrParentTransactionNotFound = errors.New("parent transaction not found")
@@ -270,4 +274,10 @@ type TransactionOptions struct {
 	WaitForStatus        metamorph_api.Status `json:"wait_for_status,omitempty"`
 	FullStatusUpdates    bool                 `json:"full_status_updates,omitempty"`
 	MaxTimeout           int                  `json:"max_timeout,omitempty"`
+}
+
+func NewTransactionOptions() *TransactionOptions {
+	return &TransactionOptions{
+		MaxTimeout: maxTimeoutSecondsDefault,
+	}
 }

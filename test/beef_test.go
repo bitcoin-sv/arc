@@ -34,7 +34,7 @@ func TestBeef(t *testing.T) {
 			address, privateKey := getNewWalletAddress(t)
 			dstAddress, _ := getNewWalletAddress(t)
 
-			txID := sendToAddress(t, address, 0.001)
+			txID := sendToAddress(t, address, 0.002)
 			hash := generate(t, 1)
 
 			beef, middleTx, tx := prepareBeef(t, txID, hash, address, dstAddress, privateKey)
@@ -61,6 +61,7 @@ func TestBeef(t *testing.T) {
 
 			// then
 			require.NoError(t, err)
+			t.Logf("response: %+v", response)
 			require.Equal(t, http.StatusOK, response.StatusCode())
 			require.NotNil(t, response.JSON200)
 			require.Equal(t, tc.expectedStatus.String(), response.JSON200.TxStatus, "status not SEEN_ON_NETWORK")

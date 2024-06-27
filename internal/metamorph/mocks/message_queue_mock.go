@@ -30,6 +30,9 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //			SubscribeMinedTxsFunc: func() error {
 //				panic("mock out the SubscribeMinedTxs method")
 //			},
+//			SubscribeSubmittedTxFunc: func() error {
+//				panic("mock out the SubscribeSubmittedTx method")
+//			},
 //		}
 //
 //		// use mockedMessageQueueClient in code that requires metamorph.MessageQueueClient
@@ -49,6 +52,9 @@ type MessageQueueClientMock struct {
 	// SubscribeMinedTxsFunc mocks the SubscribeMinedTxs method.
 	SubscribeMinedTxsFunc func() error
 
+	// SubscribeSubmittedTxFunc mocks the SubscribeSubmittedTx method.
+	SubscribeSubmittedTxFunc func() error
+
 	// calls tracks calls to the methods.
 	calls struct {
 		// PublishRegisterTxs holds details about calls to the PublishRegisterTxs method.
@@ -67,11 +73,15 @@ type MessageQueueClientMock struct {
 		// SubscribeMinedTxs holds details about calls to the SubscribeMinedTxs method.
 		SubscribeMinedTxs []struct {
 		}
+		// SubscribeSubmittedTx holds details about calls to the SubscribeSubmittedTx method.
+		SubscribeSubmittedTx []struct {
+		}
 	}
-	lockPublishRegisterTxs sync.RWMutex
-	lockPublishRequestTx   sync.RWMutex
-	lockShutdown           sync.RWMutex
-	lockSubscribeMinedTxs  sync.RWMutex
+	lockPublishRegisterTxs   sync.RWMutex
+	lockPublishRequestTx     sync.RWMutex
+	lockShutdown             sync.RWMutex
+	lockSubscribeMinedTxs    sync.RWMutex
+	lockSubscribeSubmittedTx sync.RWMutex
 }
 
 // PublishRegisterTxs calls PublishRegisterTxsFunc.
@@ -189,5 +199,32 @@ func (mock *MessageQueueClientMock) SubscribeMinedTxsCalls() []struct {
 	mock.lockSubscribeMinedTxs.RLock()
 	calls = mock.calls.SubscribeMinedTxs
 	mock.lockSubscribeMinedTxs.RUnlock()
+	return calls
+}
+
+// SubscribeSubmittedTx calls SubscribeSubmittedTxFunc.
+func (mock *MessageQueueClientMock) SubscribeSubmittedTx() error {
+	if mock.SubscribeSubmittedTxFunc == nil {
+		panic("MessageQueueClientMock.SubscribeSubmittedTxFunc: method is nil but MessageQueueClient.SubscribeSubmittedTx was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockSubscribeSubmittedTx.Lock()
+	mock.calls.SubscribeSubmittedTx = append(mock.calls.SubscribeSubmittedTx, callInfo)
+	mock.lockSubscribeSubmittedTx.Unlock()
+	return mock.SubscribeSubmittedTxFunc()
+}
+
+// SubscribeSubmittedTxCalls gets all the calls that were made to SubscribeSubmittedTx.
+// Check the length with:
+//
+//	len(mockedMessageQueueClient.SubscribeSubmittedTxCalls())
+func (mock *MessageQueueClientMock) SubscribeSubmittedTxCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockSubscribeSubmittedTx.RLock()
+	calls = mock.calls.SubscribeSubmittedTx
+	mock.lockSubscribeSubmittedTx.RUnlock()
 	return calls
 }

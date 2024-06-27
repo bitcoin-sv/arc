@@ -77,21 +77,23 @@ func TestBeef(t *testing.T) {
 			lastTxCallbackReceived := false
 			middleTxCallbackReceived := false
 
-			select {
-			case status := <-callbackReceivedChan:
-				if status.Txid == middleTx.TxID() {
-					require.Equal(t, metamorph_api.Status_MINED.String(), *status.TxStatus)
-					middleTxCallbackReceived = true
-				} else if status.Txid == tx.TxID() {
-					require.Equal(t, metamorph_api.Status_MINED.String(), *status.TxStatus)
-					lastTxCallbackReceived = true
-				} else {
-					t.Fatalf("received unknown status for txid: %s", status.Txid)
+			for i := 0; i < 2; i++ {
+				select {
+				case status := <-callbackReceivedChan:
+					if status.Txid == middleTx.TxID() {
+						require.Equal(t, metamorph_api.Status_MINED.String(), *status.TxStatus)
+						middleTxCallbackReceived = true
+					} else if status.Txid == tx.TxID() {
+						require.Equal(t, metamorph_api.Status_MINED.String(), *status.TxStatus)
+						lastTxCallbackReceived = true
+					} else {
+						t.Fatalf("received unknown status for txid: %s", status.Txid)
+					}
+				case err := <-callbackErrChan:
+					t.Fatalf("callback received - failed to parse callback %v", err)
+				case <-time.After(10 * time.Second):
+					t.Fatal("callback exceeded timeout")
 				}
-			case err := <-callbackErrChan:
-				t.Fatalf("callback received - failed to parse callback %v", err)
-			case <-time.After(10 * time.Second):
-				t.Fatal("callback exceeded timeout")
 			}
 
 			require.Equal(t, true, lastTxCallbackReceived)

@@ -49,12 +49,23 @@ type Metamorph struct {
 	mqClient MessageQueueClient
 }
 
-// NewClient creates a connection to a list of metamorph servers via gRPC.
-func NewClient(client metamorph_api.MetaMorphAPIClient, mqClilent MessageQueueClient) *Metamorph {
-	return &Metamorph{
-		client:   client,
-		mqClient: mqClilent,
+func WithMqClient(mqClient MessageQueueClient) func(*Metamorph) {
+	return func(m *Metamorph) {
+		m.mqClient = mqClient
 	}
+}
+
+// NewClient creates a connection to a list of metamorph servers via gRPC.
+func NewClient(client metamorph_api.MetaMorphAPIClient, opts ...func(client *Metamorph)) *Metamorph {
+	m := &Metamorph{
+		client: client,
+	}
+
+	for _, opt := range opts {
+		opt(m)
+	}
+
+	return m
 }
 
 func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int) (*grpc.ClientConn, error) {
@@ -133,16 +144,20 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *bt.Tx, options *T
 	}
 	response, err := m.client.PutTransaction(ctx, request)
 	if err != nil {
-		err = m.mqClient.PublishSubmitTx(request)
-		if err != nil {
-			return nil, err
+		if m.mqClient != nil {
+			err = m.mqClient.PublishSubmitTx(request)
+			if err != nil {
+				return nil, err
+			}
+
+			return &TransactionStatus{
+				TxID:      tx.TxID(),
+				Status:    metamorph_api.Status_QUEUED.String(),
+				Timestamp: time.Now().Unix(),
+			}, nil
 		}
 
-		return &TransactionStatus{
-			TxID:      tx.TxID(),
-			Status:    metamorph_api.Status_QUEUED.String(),
-			Timestamp: time.Now().Unix(),
-		}, nil
+		return nil, err
 	}
 
 	return &TransactionStatus{
@@ -175,22 +190,26 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs []*bt.Tx, option
 	// put all transactions together
 	responses, err := m.client.PutTransactions(ctx, in)
 	if err != nil {
-		err = m.mqClient.PublishSubmitTxs(in)
-		if err != nil {
-			return nil, err
+		if m.mqClient != nil {
+			err = m.mqClient.PublishSubmitTxs(in)
+			if err != nil {
+				return nil, err
+			}
+
+			// parse response and return to user
+			ret := make([]*TransactionStatus, 0)
+			for _, tx := range txs {
+				ret = append(ret, &TransactionStatus{
+					TxID:      tx.TxID(),
+					Status:    metamorph_api.Status_QUEUED.String(),
+					Timestamp: time.Now().Unix(),
+				})
+			}
+
+			return ret, nil
 		}
 
-		// parse response and return to user
-		ret := make([]*TransactionStatus, 0)
-		for _, tx := range txs {
-			ret = append(ret, &TransactionStatus{
-				TxID:      tx.TxID(),
-				Status:    metamorph_api.Status_QUEUED.String(),
-				Timestamp: time.Now().Unix(),
-			})
-		}
-
-		return ret, nil
+		return nil, err
 	}
 
 	// parse response and return to user

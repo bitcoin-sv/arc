@@ -302,7 +302,7 @@ func (m ArcDefaultHandler) processEFTransaction(ctx context.Context, transaction
 		return nil, nil, arcError
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(transactionOptions.MaxTimeout)*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(transactionOptions.MaxTimeout+2)*time.Second)
 	defer cancel()
 
 	tx, err := m.TransactionHandler.SubmitTransaction(timeoutCtx, transaction, transactionOptions)
@@ -430,7 +430,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		}
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(transactionOptions.MaxTimeout)*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(transactionOptions.MaxTimeout+2)*time.Second)
 	defer cancel()
 
 	// submit all the validated array of transactions to metamorph endpoint

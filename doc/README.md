@@ -28,6 +28,7 @@ If a transaction is not `SEEN_ON_NETWORK` within a certain time period (60 secon
 ```mermaid
 stateDiagram-v2
     state UNKNOWN
+    state QUEUED
     state RECEIVED
     state STORED
     state ANNOUNCED_TO_NETWORK
@@ -42,16 +43,18 @@ stateDiagram-v2
 
     [*] --> UNKNOWN
     UNKNOWN --> RECEIVED: Transaction validation passed
+    UNKNOWN --> QUEUED: Transaction could not be transmitted\n to metamorph within timeout duration
+    QUEUED --> RECEIVED: Transaction received by metamorph
     UNKNOWN --> ERROR: Transaction validation failed
     RECEIVED --> STORED: Transaction has been stored in ARC
-    STORED --> ANNOUNCED_TO_NETWORK: Transaction ID has been announced to P2P network via an INV message
-    ANNOUNCED_TO_NETWORK --> REQUESTED_BY_NETWORK: Peer has requested the transaction with a GETDATA message
+    STORED --> ANNOUNCED_TO_NETWORK: Transaction ID has been announced to\n P2P network via an INV message
+    ANNOUNCED_TO_NETWORK --> REQUESTED_BY_NETWORK: Peer has requested the transaction\n with a GETDATA message
     REQUESTED_BY_NETWORK --> SENT_TO_NETWORK: Transaction has been sent to peer
     SENT_TO_NETWORK --> REJECTED: Peer has sent a REJECT message
     SENT_TO_NETWORK --> SEEN_IN_ORPHAN_MEMPOOL: Peer has sent a 'missing inputs' message.
-    SENT_TO_NETWORK --> ACCEPTED_BY_NETWORK: The transaction has been accepted by peer on the ZMQ interface.
-    SEEN_IN_ORPHAN_MEMPOOL --> ACCEPTED_BY_NETWORK: All parent transactions have been received by peer
-    ACCEPTED_BY_NETWORK --> SEEN_ON_NETWORK: ARC has received Transaction ID announcement from another peer
+    SENT_TO_NETWORK --> ACCEPTED_BY_NETWORK: The transaction has been accepted\n by peer on the ZMQ interface.
+    SEEN_IN_ORPHAN_MEMPOOL --> ACCEPTED_BY_NETWORK: All parent transactions\n have been received by peer
+    ACCEPTED_BY_NETWORK --> SEEN_ON_NETWORK: ARC has received Transaction ID\n announcement from another peer
     SEEN_ON_NETWORK --> MINED: Transaction ID was included in a BLOCK message
     MINED --> [*]
 ```

@@ -302,7 +302,10 @@ func (m ArcDefaultHandler) processEFTransaction(ctx context.Context, transaction
 		return nil, nil, arcError
 	}
 
-	tx, err := m.TransactionHandler.SubmitTransaction(ctx, transaction, transactionOptions)
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(transactionOptions.MaxTimeout)*time.Second)
+	defer cancel()
+
+	tx, err := m.TransactionHandler.SubmitTransaction(timeoutCtx, transaction, transactionOptions)
 	if err != nil {
 		statusCode, arcError := m.handleError(ctx, transaction, err)
 		m.logger.Error("failed to submit transaction", slog.String("id", transaction.TxID()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
@@ -316,7 +319,7 @@ func (m ArcDefaultHandler) processEFTransaction(ctx context.Context, transaction
 		BlockHash:   &tx.BlockHash,
 		BlockHeight: &tx.BlockHeight,
 		TxStatus:    tx.Status,
-		ExtraInfo:   &tx.ExtraInfo,
+		ExtraInfo:   PtrTo(tx.ExtraInfo),
 		Timestamp:   m.now(),
 		Txid:        transaction.TxID(),
 		MerklePath:  &tx.MerklePath,
@@ -427,8 +430,11 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		}
 	}
 
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(transactionOptions.MaxTimeout)*time.Second)
+	defer cancel()
+
 	// submit all the validated array of transactions to metamorph endpoint
-	txStatuses, err := m.TransactionHandler.SubmitTransactions(ctx, transactions, transactionOptions)
+	txStatuses, err := m.TransactionHandler.SubmitTransactions(timeoutCtx, transactions, transactionOptions)
 	if err != nil {
 		statusCode, arcError := m.handleError(ctx, nil, err)
 		m.logger.Error("failed to submit transactions", slog.Int("txs", len(transactions)), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))

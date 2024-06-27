@@ -9,6 +9,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
+	"github.com/libsv/go-bt/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -22,8 +23,8 @@ type TransactionHandler interface {
 	Health(ctx context.Context) error
 	GetTransaction(ctx context.Context, txID string) ([]byte, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
-	SubmitTransaction(ctx context.Context, tx []byte, options *TransactionOptions) (*TransactionStatus, error)
-	SubmitTransactions(ctx context.Context, tx [][]byte, options *TransactionOptions) ([]*TransactionStatus, error)
+	SubmitTransaction(ctx context.Context, tx *bt.Tx, options *TransactionOptions) (*TransactionStatus, error)
+	SubmitTransactions(ctx context.Context, tx []*bt.Tx, options *TransactionOptions) ([]*TransactionStatus, error)
 }
 
 type TransactionMaintainer interface {
@@ -44,13 +45,15 @@ type TransactionStatus struct {
 
 // Metamorph is the connector to a metamorph server.
 type Metamorph struct {
-	client metamorph_api.MetaMorphAPIClient
+	client   metamorph_api.MetaMorphAPIClient
+	mqClient MessageQueueClient
 }
 
 // NewClient creates a connection to a list of metamorph servers via gRPC.
-func NewClient(client metamorph_api.MetaMorphAPIClient) *Metamorph {
+func NewClient(client metamorph_api.MetaMorphAPIClient, mqClilent MessageQueueClient) *Metamorph {
 	return &Metamorph{
-		client: client,
+		client:   client,
+		mqClient: mqClilent,
 	}
 }
 
@@ -119,17 +122,27 @@ func (m *Metamorph) Health(ctx context.Context) error {
 }
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
-func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions *TransactionOptions) (*TransactionStatus, error) {
-	response, err := m.client.PutTransaction(ctx, &metamorph_api.TransactionRequest{
-		RawTx:             tx,
-		CallbackUrl:       txOptions.CallbackURL,
-		CallbackToken:     txOptions.CallbackToken,
-		WaitForStatus:     txOptions.WaitForStatus,
-		FullStatusUpdates: txOptions.FullStatusUpdates,
-		MaxTimeout:        int64(txOptions.MaxTimeout),
-	})
+func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *bt.Tx, options *TransactionOptions) (*TransactionStatus, error) {
+	request := &metamorph_api.TransactionRequest{
+		RawTx:             tx.Bytes(),
+		CallbackUrl:       options.CallbackURL,
+		CallbackToken:     options.CallbackToken,
+		WaitForStatus:     options.WaitForStatus,
+		FullStatusUpdates: options.FullStatusUpdates,
+		MaxTimeout:        int64(options.MaxTimeout),
+	}
+	response, err := m.client.PutTransaction(ctx, request)
 	if err != nil {
-		return nil, err
+		err = m.mqClient.PublishSubmitTx(request)
+		if err != nil {
+			return nil, err
+		}
+
+		return &TransactionStatus{
+			TxID:      tx.TxID(),
+			Status:    metamorph_api.Status_QUEUED.String(),
+			Timestamp: time.Now().Unix(),
+		}, nil
 	}
 
 	return &TransactionStatus{
@@ -144,25 +157,40 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx []byte, txOptions 
 }
 
 // SubmitTransactions submits transactions to the bitcoin network and returns the transaction in raw format.
-func (m *Metamorph) SubmitTransactions(ctx context.Context, txs [][]byte, txOptions *TransactionOptions) ([]*TransactionStatus, error) {
+func (m *Metamorph) SubmitTransactions(ctx context.Context, txs []*bt.Tx, options *TransactionOptions) ([]*TransactionStatus, error) {
 	// prepare transaction inputs
 	in := new(metamorph_api.TransactionRequests)
 	in.Transactions = make([]*metamorph_api.TransactionRequest, 0)
 	for _, tx := range txs {
 		in.Transactions = append(in.GetTransactions(), &metamorph_api.TransactionRequest{
-			RawTx:             tx,
-			CallbackUrl:       txOptions.CallbackURL,
-			CallbackToken:     txOptions.CallbackToken,
-			WaitForStatus:     txOptions.WaitForStatus,
-			FullStatusUpdates: txOptions.FullStatusUpdates,
-			MaxTimeout:        int64(txOptions.MaxTimeout),
+			RawTx:             tx.Bytes(),
+			CallbackUrl:       options.CallbackURL,
+			CallbackToken:     options.CallbackToken,
+			WaitForStatus:     options.WaitForStatus,
+			FullStatusUpdates: options.FullStatusUpdates,
+			MaxTimeout:        int64(options.MaxTimeout),
 		})
 	}
 
 	// put all transactions together
 	responses, err := m.client.PutTransactions(ctx, in)
 	if err != nil {
-		return nil, err
+		err = m.mqClient.PublishSubmitTxs(in)
+		if err != nil {
+			return nil, err
+		}
+
+		// parse response and return to user
+		ret := make([]*TransactionStatus, 0)
+		for _, tx := range txs {
+			ret = append(ret, &TransactionStatus{
+				TxID:      tx.TxID(),
+				Status:    metamorph_api.Status_QUEUED.String(),
+				Timestamp: time.Now().Unix(),
+			})
+		}
+
+		return ret, nil
 	}
 
 	// parse response and return to user

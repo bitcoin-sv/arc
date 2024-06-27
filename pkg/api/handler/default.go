@@ -302,16 +302,12 @@ func (m ArcDefaultHandler) processEFTransaction(ctx context.Context, transaction
 		return nil, nil, arcError
 	}
 
-	tx, err := m.TransactionHandler.SubmitTransaction(ctx, transaction.Bytes(), transactionOptions)
+	tx, err := m.TransactionHandler.SubmitTransaction(ctx, transaction, transactionOptions)
 	if err != nil {
 		statusCode, arcError := m.handleError(ctx, transaction, err)
-		m.logger.Error("failed to submit transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
-		return nil, nil, arcError
-	}
+		m.logger.Error("failed to submit transaction", slog.String("id", transaction.TxID()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 
-	txID := tx.TxID
-	if txID == "" {
-		txID = transaction.TxID()
+		return nil, nil, arcError
 	}
 
 	return transaction, &api.TransactionResponse{
@@ -322,7 +318,7 @@ func (m ArcDefaultHandler) processEFTransaction(ctx context.Context, transaction
 		TxStatus:    tx.Status,
 		ExtraInfo:   &tx.ExtraInfo,
 		Timestamp:   m.now(),
-		Txid:        txID,
+		Txid:        transaction.TxID(),
 		MerklePath:  &tx.MerklePath,
 	}, nil
 }
@@ -383,7 +379,6 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 
 	// validate before submitting array of transactions to metamorph
 	transactions := make([]*bt.Tx, 0)
-	transactionsBytes := make([][]byte, 0)
 	txIds := make([]string, 0)
 	txErrors := make([]interface{}, 0)
 
@@ -409,7 +404,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 
 			for _, tx := range beefTx.Transactions {
 				if !tx.IsMined() {
-					transactionsBytes = append(transactionsBytes, tx.Transaction.Bytes())
+					transactions = append(transactions, tx.Transaction)
 				}
 			}
 			transactions = append(transactions, beefTx.GetLatestTx())
@@ -427,14 +422,13 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 				continue
 			}
 
-			transactionsBytes = append(transactionsBytes, transaction.Bytes())
 			transactions = append(transactions, transaction)
 			txIds = append(txIds, transaction.TxID())
 		}
 	}
 
 	// submit all the validated array of transactions to metamorph endpoint
-	txStatuses, err := m.TransactionHandler.SubmitTransactions(ctx, transactionsBytes, transactionOptions)
+	txStatuses, err := m.TransactionHandler.SubmitTransactions(ctx, transactions, transactionOptions)
 	if err != nil {
 		statusCode, arcError := m.handleError(ctx, nil, err)
 		m.logger.Error("failed to submit transactions", slog.Int("txs", len(transactions)), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))

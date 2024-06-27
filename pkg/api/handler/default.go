@@ -144,7 +144,16 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		return ctx.JSON(e.Status, e)
 	}
 
-	transaction, response, responseErr := m.processTransaction(ctx.Request().Context(), transactionHex, transactionOptions)
+	var transaction *bt.Tx
+	var response *api.TransactionResponse
+	var responseErr *api.ErrorFields
+
+	if beef.CheckBeefFormat(transactionHex) {
+		transaction, response, responseErr = m.processBEEFTransaction(ctx.Request().Context(), transactionHex, transactionOptions)
+	} else {
+		transaction, response, responseErr = m.processEFTransaction(ctx.Request().Context(), transactionHex, transactionOptions)
+	}
+
 	if responseErr != nil {
 		// if an error is returned, the processing failed, and we should return a 500 error
 		return ctx.JSON(responseErr.Status, responseErr)
@@ -281,35 +290,16 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 	return transactionOptions, nil
 }
 
-func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHex []byte, transactionOptions *metamorph.TransactionOptions) (*bt.Tx, *api.TransactionResponse, *api.ErrorFields) {
+func (m ArcDefaultHandler) processEFTransaction(ctx context.Context, transactionHex []byte, transactionOptions *metamorph.TransactionOptions) (*bt.Tx, *api.TransactionResponse, *api.ErrorFields) {
 	txValidator := defaultValidator.New(m.NodePolicy)
-	isBeefFormat := txValidator.IsBeef(transactionHex)
 
-	var transaction *bt.Tx
+	transaction, err := bt.NewTxFromBytes(transactionHex)
+	if err != nil {
+		return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+	}
 
-	if isBeefFormat {
-		var err error
-		var beefTx *beef.BEEF
-
-		transaction, beefTx, _, err = beef.DecodeBEEF(transactionHex)
-		if err != nil {
-			errStr := fmt.Sprintf("error decoding BEEF: %s", err.Error())
-			return nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
-		}
-
-		if err := m.validateBEEFTransaction(ctx, txValidator, beefTx, transactionOptions); err != nil {
-			return nil, nil, err
-		}
-	} else {
-		var err error
-		transaction, err = bt.NewTxFromBytes(transactionHex)
-		if err != nil {
-			return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-		}
-
-		if arcError := m.validateEFTransaction(ctx, txValidator, transaction, transactionOptions); arcError != nil {
-			return nil, nil, arcError
-		}
+	if arcError := m.validateEFTransaction(ctx, txValidator, transaction, transactionOptions); arcError != nil {
+		return nil, nil, arcError
 	}
 
 	tx, err := m.TransactionHandler.SubmitTransaction(ctx, transaction.Bytes(), transactionOptions)
@@ -324,21 +314,66 @@ func (m ArcDefaultHandler) processTransaction(ctx context.Context, transactionHe
 		txID = transaction.TxID()
 	}
 
-	var extraInfo string
-	if tx.ExtraInfo != "" {
-		extraInfo = tx.ExtraInfo
-	}
-
 	return transaction, &api.TransactionResponse{
 		Status:      int(api.StatusOK),
 		Title:       "OK",
 		BlockHash:   &tx.BlockHash,
 		BlockHeight: &tx.BlockHeight,
 		TxStatus:    tx.Status,
-		ExtraInfo:   &extraInfo,
+		ExtraInfo:   &tx.ExtraInfo,
 		Timestamp:   m.now(),
 		Txid:        txID,
 		MerklePath:  &tx.MerklePath,
+	}, nil
+}
+
+func (m ArcDefaultHandler) processBEEFTransaction(ctx context.Context, transactionHex []byte, transactionOptions *metamorph.TransactionOptions) (*bt.Tx, *api.TransactionResponse, *api.ErrorFields) {
+	txValidator := defaultValidator.New(m.NodePolicy)
+
+	_, beefTx, _, err := beef.DecodeBEEF(transactionHex)
+	if err != nil {
+		errStr := fmt.Sprintf("error decoding BEEF: %s", err.Error())
+		return nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
+	}
+
+	if err := m.validateBEEFTransaction(ctx, txValidator, beefTx, transactionOptions); err != nil {
+		return nil, nil, err
+	}
+
+	transactionsBytes := make([][]byte, 0)
+
+	for _, tx := range beefTx.Transactions {
+		if !tx.IsMined() {
+			transactionsBytes = append(transactionsBytes, tx.Transaction.Bytes())
+		}
+	}
+
+	if len(transactionsBytes) == 0 {
+		return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, "all transactions in BEEF are mined")
+	}
+
+	txStatuses, err := m.TransactionHandler.SubmitTransactions(ctx, transactionsBytes, transactionOptions)
+	if err != nil {
+		statusCode, arcError := m.handleError(ctx, nil, err)
+		m.logger.Error("failed to submit transactions", slog.Int("txs", len(transactionsBytes)), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
+		return nil, nil, arcError
+	}
+
+	lastStatus := findLastStatus(beefTx.GetLatestTx().TxID(), txStatuses)
+	if lastStatus == nil {
+		return nil, nil, api.NewErrorFields(api.ErrStatusNotFound, "last tx of BEEF not found in metamorph submit response")
+	}
+
+	return beefTx.GetLatestTx(), &api.TransactionResponse{
+		Status:      int(api.StatusOK),
+		Title:       "OK",
+		BlockHash:   &lastStatus.BlockHash,
+		BlockHeight: &lastStatus.BlockHeight,
+		TxStatus:    lastStatus.Status,
+		ExtraInfo:   &lastStatus.ExtraInfo,
+		Timestamp:   m.now(),
+		Txid:        lastStatus.TxID,
+		MerklePath:  &lastStatus.MerklePath,
 	}, nil
 }
 
@@ -349,6 +384,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	// validate before submitting array of transactions to metamorph
 	transactions := make([]*bt.Tx, 0)
 	transactionsBytes := make([][]byte, 0)
+	txIds := make([]string, 0)
 	txErrors := make([]interface{}, 0)
 
 	txValidator := defaultValidator.New(m.NodePolicy)
@@ -362,7 +398,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 			var remainingBytes []byte
 			var beefTx *beef.BEEF
 
-			transaction, beefTx, remainingBytes, err = beef.DecodeBEEF(transactionsHexes)
+			_, beefTx, remainingBytes, err = beef.DecodeBEEF(transactionsHexes)
 			if err != nil {
 				errStr := fmt.Sprintf("error decoding BEEF: %s", err.Error())
 				return nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
@@ -375,6 +411,14 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 				txErrors = append(txErrors, arcError)
 				continue
 			}
+
+			for _, tx := range beefTx.Transactions {
+				if !tx.IsMined() {
+					transactionsBytes = append(transactionsBytes, tx.Transaction.Bytes())
+				}
+			}
+			transactions = append(transactions, transaction)
+			txIds = append(txIds, beefTx.GetLatestTx().TxID())
 		} else {
 			var bytesUsed int
 			var err error
@@ -390,19 +434,22 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 				txErrors = append(txErrors, arcError)
 				continue
 			}
-		}
 
-		transactions = append(transactions, transaction)
-		transactionsBytes = append(transactionsBytes, transaction.Bytes())
+			transactionsBytes = append(transactionsBytes, transaction.Bytes())
+			transactions = append(transactions, transaction)
+			txIds = append(txIds, transaction.TxID())
+		}
 	}
 
 	// submit all the validated array of transactions to metamorph endpoint
 	txStatuses, err := m.TransactionHandler.SubmitTransactions(ctx, transactionsBytes, transactionOptions)
 	if err != nil {
 		statusCode, arcError := m.handleError(ctx, nil, err)
-		m.logger.Error("failed to submit transactions", slog.Int("txs", len(transactionsHexes)), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
+		m.logger.Error("failed to submit transactions", slog.Int("txs", len(transactions)), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
 		return nil, nil, arcError
 	}
+
+	txStatuses = filterStatusesOfInterest(txIds, txStatuses)
 
 	// process returned transaction statuses and return to user
 	transactionsOutputs := make([]interface{}, 0, len(transactions))

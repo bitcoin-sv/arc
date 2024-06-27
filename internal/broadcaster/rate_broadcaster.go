@@ -214,8 +214,23 @@ func (b *RateBroadcaster) broadcastBatchAsync(txs []*bt.Tx, errCh chan error, wa
 		defer cancel()
 
 		atomic.AddInt64(&b.connectionCount, 1)
-		resp, err := b.client.BroadcastTransactions(b.ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
+
+		resp, err := b.client.BroadcastTransactions(ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 		if err != nil {
+
+			// In case of error put utxos back in channel
+			for _, tx := range txs {
+				for _, input := range tx.Inputs {
+					unusedUtxo := &bt.UTXO{
+						TxID:          input.PreviousTxID(),
+						Vout:          0,
+						LockingScript: b.ks.Script,
+						Satoshis:      input.PreviousTxSatoshis,
+					}
+					b.utxoCh <- unusedUtxo
+				}
+			}
+
 			if errors.Is(err, context.Canceled) {
 				return
 			}

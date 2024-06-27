@@ -66,7 +66,8 @@ type Processor struct {
 
 	lockTransactionsInterval time.Duration
 
-	minedTxsChan chan *blocktx_api.TransactionBlocks
+	minedTxsChan     chan *blocktx_api.TransactionBlocks
+	submittedTxsChan chan *metamorph_api.TransactionRequest
 
 	storageStatusUpdateCh         chan store.UpdateStatus
 	processStatusUpdatesInterval  time.Duration
@@ -476,28 +477,31 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	// check if tx already stored, return it
 	data, err := p.store.Get(ctx, req.Data.Hash[:])
 	if err == nil {
-		/*
-			When transaction is re-submitted we make last_submitted_at to be now()
-			to make sure it will be loaded and re-broadcasted if needed.
-		*/
-		_ = p.storeData(ctx, data)
+		//	When transaction is re-submitted we update last_submitted_at with now()
+		//	to make sure it will be loaded and re-broadcast if needed.
+		err = p.storeData(ctx, data)
+		if err != nil {
+			p.logger.Error("failed to update data", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+		}
 
 		var rejectErr error
 		if data.RejectReason != "" {
 			rejectErr = errors.New(data.RejectReason)
 		}
 
-		// notify the client instantly and return without waiting for any specific status
-		req.ResponseChannel <- processor_response.StatusAndError{
-			Hash:   data.Hash,
-			Status: data.Status,
-			Err:    rejectErr,
+		if req.ResponseChannel != nil {
+			// notify the client instantly and return without waiting for any specific status
+			req.ResponseChannel <- processor_response.StatusAndError{
+				Hash:   data.Hash,
+				Status: data.Status,
+				Err:    rejectErr,
+			}
 		}
 
 		return
 	}
 
-	if !errors.Is(err, store.ErrNotFound) {
+	if !errors.Is(err, store.ErrNotFound) && req.ResponseChannel != nil {
 		// issue with the store itself
 		// notify the client instantly and return
 		req.ResponseChannel <- processor_response.StatusAndError{
@@ -514,10 +518,13 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	if err = p.storeData(ctx, req.Data); err != nil {
 		// issue with the store itself
 		// notify the client instantly and return
-		req.ResponseChannel <- processor_response.StatusAndError{
-			Hash:   req.Data.Hash,
-			Status: metamorph_api.Status_RECEIVED,
-			Err:    err,
+
+		if req.ResponseChannel != nil {
+			req.ResponseChannel <- processor_response.StatusAndError{
+				Hash:   req.Data.Hash,
+				Status: metamorph_api.Status_RECEIVED,
+				Err:    err,
+			}
 		}
 		return
 	}

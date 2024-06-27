@@ -93,7 +93,7 @@ func TestNatsClient(t *testing.T) {
 	}
 
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 100)
-	mqClient := NewNatsMQClient(natsConnClient, minedTxsChan, slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	mqClient := NewNatsMQClient(natsConnClient, minedTxsChan, nil, slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
 
 	t.Run("publish mined txs", func(t *testing.T) {
 

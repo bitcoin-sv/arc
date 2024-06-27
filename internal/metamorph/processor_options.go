@@ -6,6 +6,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 )
 
 func WithStatTimeLimits(notSeenLimit time.Duration, notMinedLimit time.Duration) func(*Processor) {
@@ -84,6 +85,12 @@ func WithMessageQueueClient(mqClient MessageQueueClient) func(processor *Process
 func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlocks) func(processor *Processor) {
 	return func(p *Processor) {
 		p.minedTxsChan = minedTxsChan
+	}
+}
+
+func WithSubmitedTxsChan(submittedTxsChan chan *metamorph_api.TransactionRequest) func(processor *Processor) {
+	return func(p *Processor) {
+		p.submittedTxsChan = submittedTxsChan
 	}
 }
 

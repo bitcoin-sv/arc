@@ -207,7 +207,7 @@ func isAnyFlagPassed(flags ...string) bool {
 
 func enableTracing(logger *slog.Logger, tracingAddr string) (func(), error) {
 	if tracingAddr == "" {
-		return nil, errors.New("tracing enabled, but tracing addressj empty")
+		return nil, errors.New("tracing enabled, but tracing address empty")
 	}
 
 	ctx := context.Background()

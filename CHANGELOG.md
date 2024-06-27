@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.1.91](#1191---2024-06-26)
 - [1.1.87](#1187---2024-06-10)
 - [1.1.53](#1152---2024-04-11)
 - [1.1.32](#1132---2024-02-21)
@@ -15,8 +16,14 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [1.1.91] - 2024-06-26
+
+### Changed
+- Idempotent transactions - when submitting an already mined but unregistered transaction, ARC will respond with either `ANNOUNCED_TO_NETWORK` or `SEEN_ON_NETWORK`. Additionally, ARC will send a callback with the `MINED` status, including block information and the Merkle Path.
+
 ## [1.1.87] - 2024-06-10
 
+### Added
 - [BEEF format](https://bsv.brc.dev/transactions/0062) is now supported. Simple Payment Verification (SPV) is performed on transactions coming in BEEF format, with a limited Merkle Roots verification against blocktx.
 
 ## [1.1.53] - 2024-04-11

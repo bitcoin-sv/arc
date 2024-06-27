@@ -3,6 +3,8 @@ package metamorph
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -47,6 +49,7 @@ type TransactionStatus struct {
 type Metamorph struct {
 	client   metamorph_api.MetaMorphAPIClient
 	mqClient MessageQueueClient
+	logger   *slog.Logger
 }
 
 func WithMqClient(mqClient MessageQueueClient) func(*Metamorph) {
@@ -55,10 +58,17 @@ func WithMqClient(mqClient MessageQueueClient) func(*Metamorph) {
 	}
 }
 
+func WithLogger(logger *slog.Logger) func(*Metamorph) {
+	return func(m *Metamorph) {
+		m.logger = logger
+	}
+}
+
 // NewClient creates a connection to a list of metamorph servers via gRPC.
 func NewClient(client metamorph_api.MetaMorphAPIClient, opts ...func(client *Metamorph)) *Metamorph {
 	m := &Metamorph{
 		client: client,
+		logger: slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
 	}
 
 	for _, opt := range opts {
@@ -144,6 +154,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *bt.Tx, options *T
 	}
 	response, err := m.client.PutTransaction(ctx, request)
 	if err != nil {
+		m.logger.Warn("Failed to submit transaction", slog.String("hash", tx.TxID()), slog.String("key", err.Error()))
 		if m.mqClient != nil {
 			err = m.mqClient.PublishSubmitTx(request)
 			if err != nil {
@@ -190,6 +201,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs []*bt.Tx, option
 	// put all transactions together
 	responses, err := m.client.PutTransactions(ctx, in)
 	if err != nil {
+		m.logger.Warn("Failed to submit transactions", slog.String("key", err.Error()))
 		if m.mqClient != nil {
 			err = m.mqClient.PublishSubmitTxs(in)
 			if err != nil {

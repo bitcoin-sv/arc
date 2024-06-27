@@ -88,7 +88,11 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger, arcConfig *config.ArcConf
 
 	mq := async.NewNatsMQClient(natsClient)
 
-	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn), metamorph.WithMqClient(mq))
+	metamorphClient := metamorph.NewClient(
+		metamorph_api.NewMetaMorphAPIClient(conn),
+		metamorph.WithMqClient(mq),
+		metamorph.WithLogger(logger),
+	)
 
 	btcConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize)
 	if err != nil {

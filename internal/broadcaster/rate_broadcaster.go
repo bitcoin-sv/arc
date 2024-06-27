@@ -209,6 +209,10 @@ func (b *RateBroadcaster) broadcastBatchAsync(txs []*bt.Tx, errCh chan error, wa
 	b.wg.Add(1)
 	go func() {
 		defer b.wg.Done()
+
+		ctx, cancel := context.WithTimeout(b.ctx, 5*time.Second)
+		defer cancel()
+
 		atomic.AddInt64(&b.connectionCount, 1)
 		resp, err := b.client.BroadcastTransactions(b.ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 		if err != nil {

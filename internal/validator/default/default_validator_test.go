@@ -173,7 +173,7 @@ func TestBeefValidator(t *testing.T) {
 			beefHex, err := hex.DecodeString(tc.beefStr)
 			require.NoError(t, err)
 
-			_, beef, _, err := beef.DecodeBEEF(beefHex)
+			beef, _, err := beef.DecodeBEEF(beefHex)
 			require.NoError(t, err)
 
 			policy := getPolicy(1)

@@ -41,10 +41,10 @@ func TestCalculateInputOutputsSatoshis(t *testing.T) {
 			beefHex, err := hex.DecodeString(tc.beefStr)
 			require.NoError(t, err)
 
-			tx, beefTx, _, err := DecodeBEEF(beefHex)
+			beefTx, _, err := DecodeBEEF(beefHex)
 			require.NoError(t, err)
 
-			inputs, outputs, err := CalculateInputsOutputsSatoshis(tx, beefTx.Transactions)
+			inputs, outputs, err := CalculateInputsOutputsSatoshis(beefTx.GetLatestTx(), beefTx.Transactions)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedInputs, inputs)
 			assert.Equal(t, tc.expectedOutputs, outputs)
@@ -80,10 +80,10 @@ func TestValidateScripts(t *testing.T) {
 			beefHex, err := hex.DecodeString(tc.beefStr)
 			require.NoError(t, err)
 
-			tx, beefTx, _, err := DecodeBEEF(beefHex)
+			beefTx, _, err := DecodeBEEF(beefHex)
 			require.NoError(t, err)
 
-			err = ValidateScripts(tx, beefTx.Transactions)
+			err = ValidateScripts(beefTx.GetLatestTx(), beefTx.Transactions)
 			assert.Equal(t, tc.expectedError, err)
 		})
 	}
@@ -121,10 +121,10 @@ func TestEnsureAncestorsArePresentInBump(t *testing.T) {
 		beefHex, err := hex.DecodeString(tc.beefStr)
 		require.NoError(t, err)
 
-		tx, beefTx, _, err := DecodeBEEF(beefHex)
+		beefTx, _, err := DecodeBEEF(beefHex)
 		require.NoError(t, err)
 
-		err = EnsureAncestorsArePresentInBump(tx, beefTx)
+		err = EnsureAncestorsArePresentInBump(beefTx.GetLatestTx(), beefTx)
 		assert.Equal(t, tc.expectedError, err)
 	}
 }

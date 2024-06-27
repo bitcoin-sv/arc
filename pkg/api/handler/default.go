@@ -330,7 +330,7 @@ func (m ArcDefaultHandler) processEFTransaction(ctx context.Context, transaction
 func (m ArcDefaultHandler) processBEEFTransaction(ctx context.Context, transactionHex []byte, transactionOptions *metamorph.TransactionOptions) (*bt.Tx, *api.TransactionResponse, *api.ErrorFields) {
 	txValidator := defaultValidator.New(m.NodePolicy)
 
-	_, beefTx, _, err := beef.DecodeBEEF(transactionHex)
+	beefTx, _, err := beef.DecodeBEEF(transactionHex)
 	if err != nil {
 		errStr := fmt.Sprintf("error decoding BEEF: %s", err.Error())
 		return nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
@@ -390,15 +390,10 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	txValidator := defaultValidator.New(m.NodePolicy)
 
 	for len(transactionsHexes) != 0 {
-		var transaction *bt.Tx
 		isBeefFormat := txValidator.IsBeef(transactionsHexes)
 
 		if isBeefFormat {
-			var err error
-			var remainingBytes []byte
-			var beefTx *beef.BEEF
-
-			_, beefTx, remainingBytes, err = beef.DecodeBEEF(transactionsHexes)
+			beefTx, remainingBytes, err := beef.DecodeBEEF(transactionsHexes)
 			if err != nil {
 				errStr := fmt.Sprintf("error decoding BEEF: %s", err.Error())
 				return nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
@@ -417,13 +412,10 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 					transactionsBytes = append(transactionsBytes, tx.Transaction.Bytes())
 				}
 			}
-			transactions = append(transactions, transaction)
+			transactions = append(transactions, beefTx.GetLatestTx())
 			txIds = append(txIds, beefTx.GetLatestTx().TxID())
 		} else {
-			var bytesUsed int
-			var err error
-
-			transaction, bytesUsed, err = bt.NewTxFromStream(transactionsHexes)
+			transaction, bytesUsed, err := bt.NewTxFromStream(transactionsHexes)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			}

@@ -540,6 +540,10 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				SubmitTransactionFunc: func(ctx context.Context, tx []byte, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 					return tc.submitTxResponse, tc.submitTxErr
 				},
+
+				SubmitTransactionsFunc: func(ctx context.Context, tx [][]byte, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+					return []*metamorph.TransactionStatus{tc.submitTxResponse}, tc.submitTxErr
+				},
 			}
 
 			merkleRootsVerifier := &btxMocks.MerkleRootsVerifierMock{
@@ -845,14 +849,14 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	t.Run("multiple formats - success", func(t *testing.T) {
 		txResults := []*metamorph.TransactionStatus{
 			{
-				TxID:        validTxID,
+				TxID:        validBeefTxID,
 				BlockHash:   "",
 				BlockHeight: 0,
 				Status:      "OK",
 				Timestamp:   time.Now().Unix(),
 			},
 			{
-				TxID:        validBeefTxID,
+				TxID:        validTxID,
 				BlockHash:   "",
 				BlockHeight: 0,
 				Status:      "OK",
@@ -878,9 +882,9 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{
-			echo.MIMETextPlain:       strings.NewReader(validTx + "\n" + validBeef + "\n"),
-			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validTx + "\"}, {\"rawTx\":\"" + validBeef + "\"}]"),
-			echo.MIMEOctetStream:     bytes.NewReader(append(validTxBytes, validBeefBytes...)),
+			echo.MIMETextPlain:       strings.NewReader(validBeef + "\n" + validTx + "\n"),
+			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validBeef + "\"}, {\"rawTx\":\"" + validTx + "\"}]"),
+			echo.MIMEOctetStream:     bytes.NewReader(append(validBeefBytes, validTxBytes...)),
 		}
 
 		for contentType, inputTx := range inputTxs {
@@ -893,8 +897,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			var bResponse []api.TransactionResponse
 			_ = json.Unmarshal(b, &bResponse)
 
-			require.Equal(t, validTxID, bResponse[0].Txid)
-			require.Equal(t, validBeefTxID, bResponse[1].Txid)
+			require.Equal(t, validBeefTxID, bResponse[0].Txid)
+			require.Equal(t, validTxID, bResponse[1].Txid)
 		}
 	})
 }

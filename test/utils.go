@@ -177,7 +177,7 @@ func createTx(privateKey string, address string, utxo NodeUnspentUtxo, fee ...ui
 	} else {
 		feeValue = 20 // Set your default fee value here
 	}
-	amountToSend := uint64(30) - feeValue // Example value - 0.009 BTC (taking fees into account)
+	amountToSend := uint64(utxoSatoshis) - feeValue
 
 	recipientScript, err := bscript.NewP2PKHFromAddress(recipientAddress)
 	if err != nil {

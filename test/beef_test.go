@@ -37,7 +37,7 @@ func TestBeef(t *testing.T) {
 			txID := sendToAddress(t, address, 0.002)
 			hash := generate(t, 1)
 
-			beef, middleTx, tx := prepareBeef(t, txID, hash, address, dstAddress, privateKey)
+			beef, middleTx, tx, expectedCallbacks := prepareBeef(t, txID, hash, address, dstAddress, privateKey)
 
 			body := api.POSTTransactionJSONRequestBody{
 				RawTx: beef,
@@ -74,7 +74,6 @@ func TestBeef(t *testing.T) {
 			require.Equal(t, metamorph_api.Status_MINED.String(), *statusResponse.JSON200.TxStatus)
 
 			// verify callbacks for both unmined txs in BEEF
-			expectedCallbacks := 2
 			lastTxCallbackReceived := false
 			middleTxCallbackReceived := false
 
@@ -146,7 +145,9 @@ func TestBeef_Fail(t *testing.T) {
 	}
 }
 
-func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, privateKey string) (string, *bt.Tx, *bt.Tx) {
+func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, privateKey string) (string, *bt.Tx, *bt.Tx, int) {
+	expectedCallbacks := 0
+
 	rawTx := getRawTx(t, inputTxID)
 	t.Logf("rawTx: %+v", rawTx)
 	require.Equal(t, blockHash, rawTx.BlockHash, "block hash mismatch")
@@ -171,6 +172,7 @@ func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, pri
 	middleTx, err := createTx(privateKey, middleAddress, utxos[0])
 	require.NoError(t, err, "could not create middle tx for beef")
 	t.Logf("middle tx created, hex: %s, txid: %s", middleTx.String(), middleTx.TxID())
+	expectedCallbacks += 1
 
 	middleUtxo := NodeUnspentUtxo{
 		Txid:         middleTx.TxID(),
@@ -182,11 +184,12 @@ func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, pri
 	tx, err := createTx(middlePrivKey, toAddress, middleUtxo)
 	require.NoError(t, err, "could not create tx")
 	t.Logf("tx created, hex: %s, txid: %s", tx.String(), tx.TxID())
+	expectedCallbacks += 1
 
 	beef := buildBeefString(t, rawTx.Hex, bump, middleTx, tx)
 	t.Logf("beef created, hex: %s", beef)
 
-	return beef, middleTx, tx
+	return beef, middleTx, tx, expectedCallbacks
 }
 
 func prepareMerkleHashesAndTxIndex(t *testing.T, txs []string, txID string) ([]*chainhash.Hash, uint64) {

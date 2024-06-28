@@ -1,4 +1,4 @@
-FROM golang:1.21.3
+FROM golang:1.21.3-alpine
 
 # Set the Current Working Directory inside the container
 WORKDIR /app

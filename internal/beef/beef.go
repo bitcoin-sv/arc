@@ -59,20 +59,20 @@ func CheckBeefFormat(txHex []byte) bool {
 	return true
 }
 
-func DecodeBEEF(beefHex []byte) (*bt.Tx, *BEEF, []byte, error) {
+func DecodeBEEF(beefHex []byte) (*BEEF, []byte, error) {
 	remainingBytes, err := extractBytesWithoutVersionAndMarker(beefHex)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	bumps, remainingBytes, err := decodeBUMPs(remainingBytes)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	transactions, remainingBytes, err := decodeTransactionsWithPathIndexes(remainingBytes)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	decodedBeef := &BEEF{
@@ -80,7 +80,7 @@ func DecodeBEEF(beefHex []byte) (*bt.Tx, *BEEF, []byte, error) {
 		Transactions: transactions,
 	}
 
-	return decodedBeef.GetLatestTx(), decodedBeef, remainingBytes, nil
+	return decodedBeef, remainingBytes, nil
 }
 
 func (d *BEEF) GetLatestTx() *bt.Tx {

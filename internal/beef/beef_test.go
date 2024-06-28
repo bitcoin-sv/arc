@@ -111,7 +111,7 @@ func TestDecodeBEEF_DecodeBEEF_HappyPaths(t *testing.T) {
 			require.Nil(t, err)
 
 			// when
-			_, decodedBEEF, _, err := DecodeBEEF(beefHex)
+			decodedBEEF, _, err := DecodeBEEF(beefHex)
 
 			// then
 			assert.Nil(t, err)
@@ -221,7 +221,7 @@ func TestDecodeBEEF_DecodeBEEF_HandlingErrors(t *testing.T) {
 			beefHex, _ := hex.DecodeString(tc.hexStream)
 
 			// when
-			_, result, _, err := DecodeBEEF(beefHex)
+			result, _, err := DecodeBEEF(beefHex)
 
 			// then
 			assert.Equal(t, tc.expectedError, err, "expected error %v, but got %v", tc.expectedError, err)
@@ -283,7 +283,7 @@ func TestDecodeBEEF_InvalidBeef_ReturnError(t *testing.T) {
 			require.Nil(t, err)
 
 			// when
-			_, result, _, err := DecodeBEEF(beefHex)
+			result, _, err := DecodeBEEF(beefHex)
 
 			// then
 			assert.Equal(t, tc.expectedError, err, "expected error %v, but got %v", tc.expectedError, err)

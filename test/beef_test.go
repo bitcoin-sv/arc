@@ -20,7 +20,7 @@ func TestBeef(t *testing.T) {
 		expectedStatus metamorph_api.Status
 	}{
 		{
-			name:           "valid beef",
+			name:           "valid beef with unmined parents - response for the tip, callback for each",
 			expectedStatus: metamorph_api.Status_SEEN_ON_NETWORK,
 		},
 	}
@@ -34,17 +34,27 @@ func TestBeef(t *testing.T) {
 			address, privateKey := getNewWalletAddress(t)
 			dstAddress, _ := getNewWalletAddress(t)
 
-			txID := sendToAddress(t, address, 0.001)
+			txID := sendToAddress(t, address, 0.002)
 			hash := generate(t, 1)
 
-			beef, tx := prepareBeef(t, txID, hash, address, dstAddress, privateKey)
+			beef, middleTx, tx, expectedCallbacks := prepareBeef(t, txID, hash, address, dstAddress, privateKey)
 
 			body := api.POSTTransactionJSONRequestBody{
 				RawTx: beef,
 			}
 
+			callbackReceivedChan := make(chan *api.TransactionStatus)
+			callbackErrChan := make(chan error)
+
+			callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
+			defer shutdown()
+
 			waitForStatus := api.WaitForStatus(tc.expectedStatus)
-			params := &api.POSTTransactionParams{XWaitForStatus: &waitForStatus}
+			params := &api.POSTTransactionParams{
+				XWaitForStatus: &waitForStatus,
+				XCallbackUrl:   &callbackUrl,
+				XCallbackToken: &token,
+			}
 
 			// when
 			response, err := arcClient.POSTTransactionWithResponse(context.Background(), params, body)
@@ -62,6 +72,32 @@ func TestBeef(t *testing.T) {
 			statusResponse, err := arcClient.GETTransactionStatusWithResponse(context.Background(), tx.TxID())
 			require.NoError(t, err)
 			require.Equal(t, metamorph_api.Status_MINED.String(), *statusResponse.JSON200.TxStatus)
+
+			// verify callbacks for both unmined txs in BEEF
+			lastTxCallbackReceived := false
+			middleTxCallbackReceived := false
+
+			for i := 0; i < expectedCallbacks; i++ {
+				select {
+				case status := <-callbackReceivedChan:
+					if status.Txid == middleTx.TxID() {
+						require.Equal(t, metamorph_api.Status_MINED.String(), *status.TxStatus)
+						middleTxCallbackReceived = true
+					} else if status.Txid == tx.TxID() {
+						require.Equal(t, metamorph_api.Status_MINED.String(), *status.TxStatus)
+						lastTxCallbackReceived = true
+					} else {
+						t.Fatalf("received unknown status for txid: %s", status.Txid)
+					}
+				case err := <-callbackErrChan:
+					t.Fatalf("callback received - failed to parse callback %v", err)
+				case <-time.After(10 * time.Second):
+					t.Fatal("callback exceeded timeout")
+				}
+			}
+
+			require.Equal(t, true, lastTxCallbackReceived)
+			require.Equal(t, true, middleTxCallbackReceived)
 		})
 	}
 }
@@ -109,7 +145,9 @@ func TestBeef_Fail(t *testing.T) {
 	}
 }
 
-func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, privateKey string) (string, *bt.Tx) {
+func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, privateKey string) (string, *bt.Tx, *bt.Tx, int) {
+	expectedCallbacks := 0
+
 	rawTx := getRawTx(t, inputTxID)
 	t.Logf("rawTx: %+v", rawTx)
 	require.Equal(t, blockHash, rawTx.BlockHash, "block hash mismatch")
@@ -130,14 +168,28 @@ func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, pri
 	utxos := getUtxos(t, fromAddress)
 	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-	tx, err := createTx(privateKey, toAddress, utxos[0])
-	require.NoError(t, err, "could not create tx")
-	t.Logf("tx created, hex: %s", tx.String())
+	middleAddress, middlePrivKey := getNewWalletAddress(t)
+	middleTx, err := createTx(privateKey, middleAddress, utxos[0])
+	require.NoError(t, err, "could not create middle tx for beef")
+	t.Logf("middle tx created, hex: %s, txid: %s", middleTx.String(), middleTx.TxID())
+	expectedCallbacks += 1
 
-	beef := buildBeefString(t, rawTx.Hex, bump, tx)
+	middleUtxo := NodeUnspentUtxo{
+		Txid:         middleTx.TxID(),
+		Vout:         0,
+		ScriptPubKey: middleTx.Outputs[0].LockingScriptHexString(),
+		Amount:       float64(middleTx.Outputs[0].Satoshis) / 1e8, // satoshis to BSV
+	}
+
+	tx, err := createTx(middlePrivKey, toAddress, middleUtxo)
+	require.NoError(t, err, "could not create tx")
+	t.Logf("tx created, hex: %s, txid: %s", tx.String(), tx.TxID())
+	expectedCallbacks += 1
+
+	beef := buildBeefString(t, rawTx.Hex, bump, middleTx, tx)
 	t.Logf("beef created, hex: %s", beef)
 
-	return beef, tx
+	return beef, middleTx, tx, expectedCallbacks
 }
 
 func prepareMerkleHashesAndTxIndex(t *testing.T, txs []string, txID string) ([]*chainhash.Hash, uint64) {
@@ -157,16 +209,18 @@ func prepareMerkleHashesAndTxIndex(t *testing.T, txs []string, txID string) ([]*
 	return merkleHashes, txIndex
 }
 
-func buildBeefString(t *testing.T, inputTxHex string, bump *bc.BUMP, newTx *bt.Tx) string {
+func buildBeefString(t *testing.T, inputTxHex string, bump *bc.BUMP, middleTx, newTx *bt.Tx) string {
 	versionMarker := "0100beef"
 	nBumps := "01"
 	bumpData, err := bump.String()
 	require.NoError(t, err, "could not get bump string")
 
-	nTransactions := "02"
+	nTransactions := "03"
 	rawParentTx := inputTxHex
 	parentHasBump := "01"
 	parentBumpIndex := "00"
+	middleRawTx := middleTx.String()
+	middleHasBump := "00"
 	rawTx := newTx.String()
 	hasBump := "00"
 
@@ -177,6 +231,8 @@ func buildBeefString(t *testing.T, inputTxHex string, bump *bc.BUMP, newTx *bt.T
 		rawParentTx +
 		parentHasBump +
 		parentBumpIndex +
+		middleRawTx +
+		middleHasBump +
 		rawTx +
 		hasBump
 

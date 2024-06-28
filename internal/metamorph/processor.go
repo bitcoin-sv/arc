@@ -236,7 +236,7 @@ func (p *Processor) StartProcessSubmittedTxs() {
 
 				req := &ProcessorRequest{
 					Data:    sReq,
-					Timeout: 5 * time.Second,
+					Timeout: time.Duration(submittedTx.MaxTimeout) * time.Second,
 				}
 
 				p.ProcessTransaction(p.ctx, req)
@@ -582,7 +582,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	// Add this transaction to the map of transactions that client is listening to with open connection.
 	p.ProcessorResponseMap.Set(req.Data.Hash, processorResponse)
 
-	// we no longer need processor response object after client disconnects
+	// we no longer need processor response object after response has been returned
 	go func() {
 		time.Sleep(req.Timeout + time.Second)
 		p.ProcessorResponseMap.Delete(req.Data.Hash)
@@ -596,7 +596,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		return
 	}
 
-	// notify existing client about new status
+	// update status in response
 	processorResponse, ok := p.ProcessorResponseMap.Get(req.Data.Hash)
 	if ok {
 		processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
@@ -605,7 +605,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		})
 	}
 
-	// broadcast that transaction is announced to network (eventually active clientს catch that)
+	// update status in storage
 	p.storageStatusUpdateCh <- store.UpdateStatus{
 		Hash:         *req.Data.Hash,
 		Status:       metamorph_api.Status_ANNOUNCED_TO_NETWORK,

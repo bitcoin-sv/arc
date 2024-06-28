@@ -32,7 +32,7 @@ func PtrTo[T any](v T) *T {
 }
 
 const (
-	responseTimeoutDefault = 5 * time.Second
+	maxTimeoutDefault = 5 * time.Second
 )
 
 var ErrNotFound = errors.New("key could not be found")
@@ -53,14 +53,14 @@ type ProcessorI interface {
 // Server type carries the zmqLogger within it
 type Server struct {
 	metamorph_api.UnimplementedMetaMorphAPIServer
-	logger          *slog.Logger
-	processor       ProcessorI
-	store           store.MetamorphStore
-	timeout         time.Duration
-	grpcServer      *grpc.Server
-	bitcoinNode     BitcoinNode
-	forceCheckUtxos bool
-	cleanup         func()
+	logger            *slog.Logger
+	processor         ProcessorI
+	store             store.MetamorphStore
+	maxTimeoutDefault time.Duration
+	grpcServer        *grpc.Server
+	bitcoinNode       BitcoinNode
+	forceCheckUtxos   bool
+	cleanup           func()
 }
 
 func WithLogger(logger *slog.Logger) func(*Server) {
@@ -76,16 +76,22 @@ func WithForceCheckUtxos(bitcoinNode BitcoinNode) func(*Server) {
 	}
 }
 
+func WithMaxTimeoutDefault(timeout time.Duration) func(*Server) {
+	return func(s *Server) {
+		s.maxTimeoutDefault = timeout
+	}
+}
+
 type ServerOption func(s *Server)
 
 // NewServer will return a server instance with the zmqLogger stored within it
 func NewServer(s store.MetamorphStore, p ProcessorI, opts ...ServerOption) *Server {
 	server := &Server{
-		logger:          slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm")),
-		processor:       p,
-		store:           s,
-		timeout:         responseTimeoutDefault,
-		forceCheckUtxos: false,
+		logger:            slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm")),
+		processor:         p,
+		store:             s,
+		maxTimeoutDefault: maxTimeoutDefault,
+		forceCheckUtxos:   false,
 	}
 
 	for _, opt := range opts {
@@ -93,10 +99,6 @@ func NewServer(s store.MetamorphStore, p ProcessorI, opts ...ServerOption) *Serv
 	}
 
 	return server
-}
-
-func (s *Server) SetTimeout(timeout time.Duration) {
-	s.timeout = timeout
 }
 
 // StartGRPCServer function
@@ -245,7 +247,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	responseChannel := make(chan processor_response.StatusAndError, 10)
 
 	// normally a node would respond very quickly, unless it's under heavy load
-	timeDuration := s.timeout
+	timeDuration := s.maxTimeoutDefault
 	if timeoutSeconds > 0 {
 		timeDuration = time.Second * time.Duration(timeoutSeconds)
 	}

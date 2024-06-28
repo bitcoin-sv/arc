@@ -54,8 +54,7 @@ func TestPutTransaction(t *testing.T) {
 
 		processor := &mocks.ProcessorIMock{}
 
-		server := metamorph.NewServer(s, processor)
-		server.SetTimeout(100 * time.Millisecond)
+		server := metamorph.NewServer(s, processor, metamorph.WithMaxTimeoutDefault(100*time.Millisecond))
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
@@ -473,9 +472,8 @@ func TestPutTransactions(t *testing.T) {
 			}
 
 			serverLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			server := metamorph.NewServer(nil, processor, metamorph.WithLogger(serverLogger))
+			server := metamorph.NewServer(nil, processor, metamorph.WithLogger(serverLogger), metamorph.WithMaxTimeoutDefault(5*time.Second))
 
-			server.SetTimeout(5 * time.Second)
 			statuses, err := server.PutTransactions(context.Background(), tc.requests)
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)

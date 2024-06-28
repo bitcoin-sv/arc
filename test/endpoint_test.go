@@ -247,7 +247,6 @@ func TestPostCallbackToken(t *testing.T) {
 			require.Equal(t, "SEEN_ON_NETWORK", response.JSON200.TxStatus)
 
 			generate(t, 10)
-			time.Sleep(5 * time.Second) // give ARC time to perform the status update on DB
 
 			var statusResponse *api.GETTransactionStatusResponse
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
@@ -414,8 +413,6 @@ func Test_E2E_Success(t *testing.T) {
 	t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
 	generate(t, 10)
-
-	time.Sleep(15 * time.Second) // give ARC time to perform the status update on DB
 
 	statusResp, err = http.Get(statusUrl)
 	require.NoError(t, err)

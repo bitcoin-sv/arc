@@ -66,8 +66,6 @@ func TestBeef(t *testing.T) {
 			require.Equal(t, tc.expectedStatus.String(), response.JSON200.TxStatus, "status not SEEN_ON_NETWORK")
 
 			generate(t, 10)
-			t.Log("waiting for 10s to give ARC time to perform the status update on DB")
-			time.Sleep(10 * time.Second)
 
 			statusResponse, err := arcClient.GETTransactionStatusWithResponse(context.Background(), tx.TxID())
 			require.NoError(t, err)

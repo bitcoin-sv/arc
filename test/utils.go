@@ -79,7 +79,6 @@ func generate(t *testing.T, amount uint64) string {
 
 	// run command instead
 	blockHash := execCommandGenerate(t, amount)
-
 	time.Sleep(5 * time.Second)
 
 	t.Logf(
@@ -87,8 +86,6 @@ func generate(t *testing.T, amount uint64) string {
 		amount,
 		blockHash,
 	)
-
-	time.Sleep(1 * time.Second)
 
 	return blockHash
 }

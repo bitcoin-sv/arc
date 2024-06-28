@@ -54,11 +54,18 @@ type Metamorph struct {
 	client   metamorph_api.MetaMorphAPIClient
 	mqClient MessageQueueClient
 	logger   *slog.Logger
+	now      func() time.Time
 }
 
 func WithMqClient(mqClient MessageQueueClient) func(*Metamorph) {
 	return func(m *Metamorph) {
 		m.mqClient = mqClient
+	}
+}
+
+func WithNow(nowFunc func() time.Time) func(*Metamorph) {
+	return func(p *Metamorph) {
+		p.now = nowFunc
 	}
 }
 
@@ -73,6 +80,7 @@ func NewClient(client metamorph_api.MetaMorphAPIClient, opts ...func(client *Met
 	m := &Metamorph{
 		client: client,
 		logger: slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
+		now:    time.Now,
 	}
 
 	for _, opt := range opts {
@@ -133,7 +141,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 		Status:      tx.GetStatus().String(),
 		BlockHash:   tx.GetBlockHash(),
 		BlockHeight: tx.GetBlockHeight(),
-		Timestamp:   time.Now().Unix(),
+		Timestamp:   m.now().Unix(),
 	}, nil
 }
 
@@ -166,7 +174,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *bt.Tx, options *T
 		return &TransactionStatus{
 			TxID:      tx.TxID(),
 			Status:    metamorph_api.Status_QUEUED.String(),
-			Timestamp: time.Now().Unix(),
+			Timestamp: m.now().Unix(),
 		}, nil
 	}
 
@@ -182,7 +190,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *bt.Tx, options *T
 			return &TransactionStatus{
 				TxID:      tx.TxID(),
 				Status:    metamorph_api.Status_QUEUED.String(),
-				Timestamp: time.Now().Unix(),
+				Timestamp: m.now().Unix(),
 			}, nil
 		}
 
@@ -196,7 +204,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *bt.Tx, options *T
 		BlockHash:   response.GetBlockHash(),
 		BlockHeight: response.GetBlockHeight(),
 		MerklePath:  response.GetMerklePath(),
-		Timestamp:   time.Now().Unix(),
+		Timestamp:   m.now().Unix(),
 	}, nil
 }
 
@@ -228,7 +236,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs []*bt.Tx, option
 			ret = append(ret, &TransactionStatus{
 				TxID:      tx.TxID(),
 				Status:    metamorph_api.Status_QUEUED.String(),
-				Timestamp: time.Now().Unix(),
+				Timestamp: m.now().Unix(),
 			})
 		}
 
@@ -251,7 +259,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs []*bt.Tx, option
 				ret = append(ret, &TransactionStatus{
 					TxID:      tx.TxID(),
 					Status:    metamorph_api.Status_QUEUED.String(),
-					Timestamp: time.Now().Unix(),
+					Timestamp: m.now().Unix(),
 				})
 			}
 
@@ -271,7 +279,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs []*bt.Tx, option
 			ExtraInfo:   response.GetRejectReason(),
 			BlockHash:   response.GetBlockHash(),
 			BlockHeight: response.GetBlockHeight(),
-			Timestamp:   time.Now().Unix(),
+			Timestamp:   m.now().Unix(),
 		})
 	}
 

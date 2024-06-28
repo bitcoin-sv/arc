@@ -212,27 +212,25 @@ func TestPostCallbackToken(t *testing.T) {
 
 			ctx := context.Background()
 
-			callbackReceivedChan := make(chan *api.TransactionStatus)
-			callbackErrChan := make(chan error)
-			callbackIterations := 0
+			const callbackNumbers = 2                                                  // cannot be greater than 5
+			callbackReceivedChan := make(chan *api.TransactionStatus, callbackNumbers) // do not block callback server responses
+			callbackErrChan := make(chan error, callbackNumbers)
+			callbackIteration := 0
 			calbackResponseFn := func(w http.ResponseWriter, rc chan *api.TransactionStatus, ec chan error, status *api.TransactionStatus) {
-				// Let ARC send the callback 2 times. First one fails.
-				if callbackIterations == 0 {
-					t.Log("callback received, responding bad request")
+				callbackIteration++
 
-					err = respondToCallback(w, false)
-					if err != nil {
-						t.Fatalf("Failed to respond to callback: %v", err)
-					}
+				// Let ARC send the callback few times. Respond with success on the last one.
+				respondWithSuccess := false
+				if callbackIteration < callbackNumbers {
+					t.Logf("%d callback received, responding bad request", callbackIteration)
+					respondWithSuccess = false
 
-					rc <- status
-					callbackIterations++
-					return
+				} else {
+					t.Logf("%d callback received, responding success", callbackIteration)
+					respondWithSuccess = true
 				}
 
-				t.Log("callback received, responding success")
-
-				err = respondToCallback(w, true)
+				err = respondToCallback(w, respondWithSuccess)
 				if err != nil {
 					t.Fatalf("Failed to respond to callback: %v", err)
 				}
@@ -261,42 +259,39 @@ func TestPostCallbackToken(t *testing.T) {
 			require.Equal(t, "SEEN_ON_NETWORK", response.JSON200.TxStatus)
 
 			generate(t, 10)
-			time.Sleep(15 * time.Second) // give ARC time to perform the status update on DB
+			time.Sleep(5 * time.Second) // give ARC time to perform the status update on DB
 
 			var statusResponse *api.GETTransactionStatusResponse
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
 			require.NoError(t, err)
+			require.NotNil(t, statusResponse)
+			require.NotNil(t, statusResponse.JSON200)
+			t.Logf("GETTransactionStatusWithResponse result: %s", *statusResponse.JSON200.TxStatus)
 
-			seenOnNetworkReceived := false
+			require.NotNil(t, statusResponse.JSON200.MerklePath)
+			_, err = bc.NewBUMPFromStr(*statusResponse.JSON200.MerklePath)
+			require.NoError(t, err)
 
-			for i := 0; i <= 1; i++ {
+			for i := 0; i < callbackNumbers; i++ {
 				t.Logf("callback iteration %d", i)
+				callbackTimeout := time.After(time.Second * time.Duration(i) * 2 * 5)
+
 				select {
 				case callback := <-callbackReceivedChan:
-					t.Logf(*statusResponse.JSON200.TxStatus)
-					t.Logf(*callback.TxStatus)
-					if *callback.TxStatus == "SEEN_ON_NETWORK" {
-						seenOnNetworkReceived = true
-						continue
-					}
-					require.NotNil(t, statusResponse)
-					require.NotNil(t, statusResponse.JSON200)
 					require.NotNil(t, callback)
+
+					t.Logf("Callback %d result: %s", i, *callback.TxStatus)
 					require.Equal(t, statusResponse.JSON200.Txid, callback.Txid)
 					require.Equal(t, *statusResponse.JSON200.BlockHeight, *callback.BlockHeight)
 					require.Equal(t, *statusResponse.JSON200.BlockHash, *callback.BlockHash)
 					require.Equal(t, "MINED", *callback.TxStatus)
-					require.NotNil(t, statusResponse.JSON200.MerklePath)
-					_, err = bc.NewBUMPFromStr(*statusResponse.JSON200.MerklePath)
-					require.NoError(t, err)
 
 				case err := <-callbackErrChan:
 					t.Fatalf("callback received - failed to parse callback %v", err)
-				case <-time.NewTicker(time.Second * 15).C:
-					t.Fatal("callback not received")
+				case <-callbackTimeout:
+					t.Fatal("callback not received - timeout")
 				}
 			}
-			require.Equal(t, false, seenOnNetworkReceived)
 		})
 	}
 }

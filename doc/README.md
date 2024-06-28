@@ -440,10 +440,8 @@ A transaction has been submitted to the network by any other means than a specif
 #### Transaction has already been mined
 
 Expected outcome
-* ARC returns response with status `ANNOUNCED_TO_NETWORK`
-* The status will not switch to `MINED` with the respective block information
-
-The planned feature [Idempotent transactions](https://github.com/bitcoin-sv/arc/blob/main/ROADMAP.md#idempotent-transactions) will ensure that ARC responds with the `MINED` status, block information and Merkle path
+* ARC returns a response with the status `ANNOUNCED_TO_NETWORK`
+* The status will switch to `MINED`, including the respective block information and Merkle path.
 
 #### Transaction has not yet been mined
 

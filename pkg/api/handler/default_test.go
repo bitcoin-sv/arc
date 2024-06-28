@@ -1034,7 +1034,19 @@ func TestGetTransactionOptions(t *testing.T) {
 			name:   "no options",
 			params: api.POSTTransactionParams{},
 
-			expectedOptions: &metamorph.TransactionOptions{},
+			expectedOptions: &metamorph.TransactionOptions{
+				MaxTimeout: 5,
+			},
+		},
+		{
+			name: "max timeout",
+			params: api.POSTTransactionParams{
+				XMaxTimeout: PtrTo(20),
+			},
+
+			expectedOptions: &metamorph.TransactionOptions{
+				MaxTimeout: 20,
+			},
 		},
 		{
 			name: "valid callback url",
@@ -1046,6 +1058,7 @@ func TestGetTransactionOptions(t *testing.T) {
 			expectedOptions: &metamorph.TransactionOptions{
 				CallbackURL:   "http://api.callme.com",
 				CallbackToken: "1234",
+				MaxTimeout:    5,
 			},
 		},
 		{
@@ -1064,6 +1077,7 @@ func TestGetTransactionOptions(t *testing.T) {
 
 			expectedOptions: &metamorph.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_QUEUED,
+				MaxTimeout:    5,
 			},
 		},
 		{
@@ -1074,6 +1088,7 @@ func TestGetTransactionOptions(t *testing.T) {
 
 			expectedOptions: &metamorph.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_RECEIVED,
+				MaxTimeout:    5,
 			},
 		},
 		{
@@ -1084,6 +1099,7 @@ func TestGetTransactionOptions(t *testing.T) {
 
 			expectedOptions: &metamorph.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
+				MaxTimeout:    5,
 			},
 		},
 		{
@@ -1094,6 +1110,7 @@ func TestGetTransactionOptions(t *testing.T) {
 
 			expectedOptions: &metamorph.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+				MaxTimeout:    5,
 			},
 		},
 	}

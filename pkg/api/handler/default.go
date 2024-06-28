@@ -25,7 +25,8 @@ import (
 )
 
 const (
-	maxTimeout = 30
+	maxTimeout               = 30
+	maxTimeoutSecondsDefault = 5
 )
 
 type ArcDefaultHandler struct {
@@ -249,7 +250,9 @@ func ValidateCallbackURL(callbackURL string, rejectedCallbackUrlSubstrings []str
 }
 
 func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackUrlSubstrings []string) (*metamorph.TransactionOptions, error) {
-	transactionOptions := metamorph.NewTransactionOptions()
+	transactionOptions := &metamorph.TransactionOptions{
+		MaxTimeout: maxTimeoutSecondsDefault,
+	}
 	if params.XCallbackUrl != nil {
 		if err := ValidateCallbackURL(*params.XCallbackUrl, rejectedCallbackUrlSubstrings); err != nil {
 			return nil, err

@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/bitcoinsv/bsvd/bsvec"
 	"github.com/bitcoinsv/bsvutil"
@@ -227,9 +226,8 @@ func TestPostCallbackToken(t *testing.T) {
 			callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
 			defer shutdown()
 
-			waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
 			params := &api.POSTTransactionParams{
-				XWaitForStatus: &waitForStatus,
+				XWaitForStatus: PtrTo(api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)),
 				XCallbackUrl:   &callbackUrl,
 				XCallbackToken: &token,
 			}
@@ -285,19 +283,18 @@ func TestPostCallbackToken(t *testing.T) {
 
 func postTxWithHeadersChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus string, skipFeeValidation bool, skipTxValidation bool) {
 	ctx := context.Background()
-	waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
 
 	var skipFeeValidationPtr *bool
 	if skipFeeValidation {
-		skipFeeValidationPtr = handler.PtrTo(true)
+		skipFeeValidationPtr = PtrTo(true)
 	}
 
 	var skipTxValidationPtr *bool
 	if skipTxValidation {
-		skipTxValidationPtr = handler.PtrTo(true)
+		skipTxValidationPtr = PtrTo(true)
 	}
 	params := &api.POSTTransactionParams{
-		XWaitForStatus:     &waitForStatus,
+		XWaitForStatus:     PtrTo(api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)),
 		XSkipFeeValidation: skipFeeValidationPtr,
 		XSkipTxValidation:  skipTxValidationPtr,
 	}
@@ -590,7 +587,7 @@ func TestSubmitMinedTx(t *testing.T) {
 
 	// when
 	params := &api.POSTTransactionParams{
-		XWaitForStatus: handler.PtrTo(api.WaitForStatus(metamorph_api.Status_MINED)),
+		XWaitForStatus: PtrTo(api.WaitForStatus(metamorph_api.Status_MINED)),
 		XCallbackUrl:   &callbackUrl,
 		XCallbackToken: &token,
 	}

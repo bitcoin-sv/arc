@@ -72,9 +72,8 @@ func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx
 	}
 
 	ctx := context.Background()
-	waitForStatus := api.WaitForStatus(expectedStatus)
 	params := &api.POSTTransactionParams{
-		XWaitForStatus: &waitForStatus,
+		XWaitForStatus: PtrTo(api.WaitForStatus(expectedStatus)),
 	}
 	response, err := client.POSTTransactionWithResponse(ctx, params, body)
 	require.NoError(t, err)

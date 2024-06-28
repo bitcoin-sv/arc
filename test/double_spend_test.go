@@ -37,9 +37,7 @@ func TestDoubleSpend(t *testing.T) {
 			tx, err := createTx(privateKey, address, utxos[0])
 			require.NoError(t, err)
 
-			url := arcEndpoint
-
-			arcClient, err := api.NewClientWithResponses(url)
+			arcClient, err := api.NewClientWithResponses(arcEndpoint)
 			require.NoError(t, err)
 
 			//submit first transaction

@@ -440,6 +440,57 @@ func Test_E2E_Success(t *testing.T) {
 	require.Equal(t, blockRoot, root)
 }
 
+func TestPostTx_Queued(t *testing.T) {
+	t.Run("queued", func(t *testing.T) {
+
+		address, privateKey := getNewWalletAddress(t)
+		sendToAddress(t, address, 0.001)
+
+		hash := generate(t, 1)
+		t.Logf("generated 1 block: %s", hash)
+
+		utxos := getUtxos(t, address)
+		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+
+		tx, err := createTx(privateKey, address, utxos[0])
+		require.NoError(t, err)
+
+		arcClient, err := api.NewClientWithResponses(arcEndpoint)
+		require.NoError(t, err)
+
+		rawTxString := hex.EncodeToString(tx.ExtendedBytes())
+		body := api.POSTTransactionJSONRequestBody{
+			RawTx: rawTxString,
+		}
+
+		ctx := context.Background()
+
+		expectedStatus := metamorph_api.Status_QUEUED
+		params := &api.POSTTransactionParams{
+			XWaitForStatus: PtrTo(api.WaitForStatus(metamorph_api.Status_QUEUED)),
+			XMaxTimeout:    PtrTo(1),
+		}
+		response, err := arcClient.POSTTransactionWithResponse(ctx, params, body)
+		require.NoError(t, err)
+
+		require.Equal(t, http.StatusOK, response.StatusCode())
+		require.NotNil(t, response.JSON200)
+		require.Equalf(t, expectedStatus.String(), response.JSON200.TxStatus, "status of response: %s does not match expected status: %s for tx ID %s", response.JSON200.TxStatus, expectedStatus.String(), tx.TxID())
+
+		time.Sleep(10 * time.Second)
+		statusResponse, err := arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
+		require.NoError(t, err)
+		require.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK.String(), *statusResponse.JSON200.TxStatus)
+
+		generate(t, 10)
+
+		time.Sleep(15 * time.Second) // give ARC time to perform the status update on DB
+
+		statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
+		require.Equal(t, metamorph_api.Status_MINED.String(), *statusResponse.JSON200.TxStatus)
+	})
+}
+
 func postSingleRequest(t *testing.T, client *http.Client, req *http.Request) string {
 	httpResp, err := client.Do(req)
 	require.NoError(t, err)

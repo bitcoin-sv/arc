@@ -339,22 +339,22 @@ func (m ArcDefaultHandler) processBEEFTransaction(ctx context.Context, transacti
 		return nil, nil, err
 	}
 
-	transactionsBytes := make([][]byte, 0)
+	transactions := make([]*bt.Tx, 0)
 
 	for _, tx := range beefTx.Transactions {
 		if !tx.IsMined() {
-			transactionsBytes = append(transactionsBytes, tx.Transaction.Bytes())
+			transactions = append(transactions, tx.Transaction)
 		}
 	}
 
-	if len(transactionsBytes) == 0 {
+	if len(transactions) == 0 {
 		return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, "all transactions in BEEF are mined")
 	}
 
-	txStatuses, err := m.TransactionHandler.SubmitTransactions(ctx, transactionsBytes, transactionOptions)
+	txStatuses, err := m.TransactionHandler.SubmitTransactions(ctx, transactions, transactionOptions)
 	if err != nil {
 		statusCode, arcError := m.handleError(ctx, nil, err)
-		m.logger.Error("failed to submit transactions", slog.Int("txs", len(transactionsBytes)), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
+		m.logger.Error("failed to submit transactions", slog.Int("txs", len(transactions)), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
 		return nil, nil, arcError
 	}
 

@@ -359,7 +359,7 @@ func (m ArcDefaultHandler) processBEEFTransaction(ctx context.Context, transacti
 		return nil, nil, arcError
 	}
 
-	lastStatus := findLastStatus(beefTx.GetLatestTx().TxID(), txStatuses)
+	lastStatus := findStatusByTxID(beefTx.GetLatestTx().TxID(), txStatuses)
 	if lastStatus == nil {
 		return nil, nil, api.NewErrorFields(api.ErrStatusNotFound, "last tx of BEEF not found in metamorph submit response")
 	}
@@ -441,7 +441,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 		return nil, nil, arcError
 	}
 
-	txStatuses = filterStatusesOfInterest(txIds, txStatuses)
+	txStatuses = filterStatusesByTxIDs(txIds, txStatuses)
 
 	// process returned transaction statuses and return to user
 	transactionsOutputs := make([]interface{}, 0, len(transactions))

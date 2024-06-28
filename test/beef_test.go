@@ -74,10 +74,11 @@ func TestBeef(t *testing.T) {
 			require.Equal(t, metamorph_api.Status_MINED.String(), *statusResponse.JSON200.TxStatus)
 
 			// verify callbacks for both unmined txs in BEEF
+			expectedCallbacks := 2
 			lastTxCallbackReceived := false
 			middleTxCallbackReceived := false
 
-			for i := 0; i < 2; i++ {
+			for i := 0; i < expectedCallbacks; i++ {
 				select {
 				case status := <-callbackReceivedChan:
 					if status.Txid == middleTx.TxID() {

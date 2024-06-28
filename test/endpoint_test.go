@@ -125,7 +125,6 @@ func postBatchRequest(t *testing.T, client *http.Client, req *http.Request) {
 }
 
 func createTxChain(privateKey string, utxo0 NodeUnspentUtxo, length int) ([]*bt.Tx, error) {
-
 	batch := make([]*bt.Tx, length)
 
 	utxoTxID := utxo0.Txid
@@ -217,7 +216,6 @@ func TestPostCallbackToken(t *testing.T) {
 			callbackErrChan := make(chan error)
 			callbackIterations := 0
 			calbackResponseFn := func(w http.ResponseWriter, rc chan *api.TransactionStatus, ec chan error, status *api.TransactionStatus) {
-
 				// Let ARC send the callback 2 times. First one fails.
 				if callbackIterations == 0 {
 					t.Log("callback received, responding bad request")
@@ -304,7 +302,6 @@ func TestPostCallbackToken(t *testing.T) {
 }
 
 func postTxWithHeadersChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus string, skipFeeValidation bool, skipTxValidation bool) {
-
 	ctx := context.Background()
 	waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
 
@@ -374,7 +371,6 @@ func TestPostSkipFee(t *testing.T) {
 			require.NoError(t, err)
 
 			postTxWithHeadersChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", true, false)
-
 		})
 	}
 }
@@ -415,13 +411,11 @@ func TestPostSkipTxValidation(t *testing.T) {
 			require.NoError(t, err)
 
 			postTxWithHeadersChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", false, true)
-
 		})
 	}
 }
 
 func Test_E2E_Success(t *testing.T) {
-
 	tx := createTxHexStringExtended(t)
 	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, hex.EncodeToString(tx.ExtendedBytes()))
 
@@ -479,7 +473,6 @@ func Test_E2E_Success(t *testing.T) {
 
 	blockRoot := getBlockRootByHeight(t, statusResponse.BlockHeight)
 	require.Equal(t, blockRoot, root)
-
 }
 
 func postSingleRequest(t *testing.T, client *http.Client, req *http.Request) string {
@@ -618,115 +611,4 @@ func TestSubmitMinedTx(t *testing.T) {
 	case <-callbackTimeout:
 		t.Fatal("callback exceeded timeout")
 	}
-}
-
-type callbackResponseFn func(w http.ResponseWriter, rc chan *api.TransactionStatus, ec chan error, status *api.TransactionStatus)
-
-func startCallbackSrv(t *testing.T, receivedChan chan *api.TransactionStatus, errChan chan error,
-	alternativeResponseFn callbackResponseFn) (
-	callbackUrl, token string, shutdownFn func()) {
-
-	t.Helper()
-	callback := generateRandomString(16)
-	token = "1234"
-	expectedAuthHeader := fmt.Sprintf("Bearer %s", token)
-
-	hostname, err := os.Hostname()
-	require.NoError(t, err)
-
-	callbackUrl = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
-
-	srv := &http.Server{Addr: ":9000"}
-	shutdownFn = func() {
-		t.Log("shutting down callback listener")
-		close(receivedChan)
-		close(errChan)
-
-		if err := srv.Shutdown(context.TODO()); err != nil {
-			t.Fatal("failed to shut down server")
-		}
-	}
-
-	readResponse := func(req *http.Request) (*api.TransactionStatus, error) {
-		defer func() {
-			err := req.Body.Close()
-			if err != nil {
-				t.Log("failed to close body")
-			}
-		}()
-
-		bodyBytes, err := io.ReadAll(req.Body)
-		if err != nil {
-			return nil, err
-		}
-
-		var status api.TransactionStatus
-		err = json.Unmarshal(bodyBytes, &status)
-		if err != nil {
-			return nil, err
-		}
-
-		return &status, nil
-	}
-
-	http.HandleFunc(fmt.Sprintf("/%s", callback), func(w http.ResponseWriter, req *http.Request) {
-		// check auth
-		if expectedAuthHeader != req.Header.Get("Authorization") {
-			errChan <- fmt.Errorf("auth header %s not as expected %s", expectedAuthHeader, req.Header.Get("Authorization"))
-			err = respondToCallback(w, false)
-			if err != nil {
-				t.Fatalf("Failed to respond to callback: %v", err)
-			}
-			return
-		}
-
-		status, err := readResponse(req)
-		if err != nil {
-			t.Fatalf("Failed to read response from callback: %v", err)
-		}
-
-		if alternativeResponseFn != nil {
-			alternativeResponseFn(w, receivedChan, errChan, status)
-		} else {
-			t.Log("callback received, responding success")
-			err = respondToCallback(w, true)
-			if err != nil {
-				t.Fatalf("Failed to respond to callback: %v", err)
-			}
-
-			receivedChan <- status
-		}
-	})
-
-	go func(server *http.Server) {
-		t.Log("starting callback server")
-		err := server.ListenAndServe()
-		if err != nil {
-			return
-		}
-	}(srv)
-
-	return
-}
-
-func respondToCallback(w http.ResponseWriter, success bool) error {
-	resp := make(map[string]string)
-	if success {
-		resp["message"] = "Success"
-		w.WriteHeader(http.StatusOK)
-	} else {
-		resp["message"] = "Bad Request"
-		w.WriteHeader(http.StatusBadRequest)
-	}
-
-	jsonResp, err := json.Marshal(resp)
-	if err != nil {
-		return err
-	}
-
-	_, err = w.Write(jsonResp)
-	if err != nil {
-		return err
-	}
-	return nil
 }

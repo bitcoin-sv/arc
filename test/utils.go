@@ -2,11 +2,16 @@ package test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
+	"net/http"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoinsv/bsvd/bsvec"
 	"github.com/bitcoinsv/bsvutil"
 	"github.com/libsv/go-bk/bec"
@@ -217,4 +222,115 @@ func generateRandomString(length int) string {
 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
 	}
 	return string(b)
+}
+
+type callbackResponseFn func(w http.ResponseWriter, rc chan *api.TransactionStatus, ec chan error, status *api.TransactionStatus)
+
+func startCallbackSrv(t *testing.T, receivedChan chan *api.TransactionStatus, errChan chan error,
+	alternativeResponseFn callbackResponseFn) (
+	callbackUrl, token string, shutdownFn func(),
+) {
+	t.Helper()
+	callback := generateRandomString(16)
+	token = "1234"
+	expectedAuthHeader := fmt.Sprintf("Bearer %s", token)
+
+	hostname, err := os.Hostname()
+	require.NoError(t, err)
+
+	callbackUrl = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
+
+	srv := &http.Server{Addr: ":9000"}
+	shutdownFn = func() {
+		t.Log("shutting down callback listener")
+		close(receivedChan)
+		close(errChan)
+
+		if err := srv.Shutdown(context.TODO()); err != nil {
+			t.Fatal("failed to shut down server")
+		}
+	}
+
+	readResponse := func(req *http.Request) (*api.TransactionStatus, error) {
+		defer func() {
+			err := req.Body.Close()
+			if err != nil {
+				t.Log("failed to close body")
+			}
+		}()
+
+		bodyBytes, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		var status api.TransactionStatus
+		err = json.Unmarshal(bodyBytes, &status)
+		if err != nil {
+			return nil, err
+		}
+
+		return &status, nil
+	}
+
+	http.HandleFunc(fmt.Sprintf("/%s", callback), func(w http.ResponseWriter, req *http.Request) {
+		// check auth
+		if expectedAuthHeader != req.Header.Get("Authorization") {
+			errChan <- fmt.Errorf("auth header %s not as expected %s", expectedAuthHeader, req.Header.Get("Authorization"))
+			err = respondToCallback(w, false)
+			if err != nil {
+				t.Fatalf("Failed to respond to callback: %v", err)
+			}
+			return
+		}
+
+		status, err := readResponse(req)
+		if err != nil {
+			t.Fatalf("Failed to read response from callback: %v", err)
+		}
+
+		if alternativeResponseFn != nil {
+			alternativeResponseFn(w, receivedChan, errChan, status)
+		} else {
+			t.Log("callback received, responding success")
+			err = respondToCallback(w, true)
+			if err != nil {
+				t.Fatalf("Failed to respond to callback: %v", err)
+			}
+
+			receivedChan <- status
+		}
+	})
+
+	go func(server *http.Server) {
+		t.Log("starting callback server")
+		err := server.ListenAndServe()
+		if err != nil {
+			return
+		}
+	}(srv)
+
+	return
+}
+
+func respondToCallback(w http.ResponseWriter, success bool) error {
+	resp := make(map[string]string)
+	if success {
+		resp["message"] = "Success"
+		w.WriteHeader(http.StatusOK)
+	} else {
+		resp["message"] = "Bad Request"
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
+	jsonResp, err := json.Marshal(resp)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(jsonResp)
+	if err != nil {
+		return err
+	}
+	return nil
 }

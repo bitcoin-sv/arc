@@ -58,14 +58,7 @@ func TestBatchChainedTxs(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			address, privateKey := getNewWalletAddress(t)
-			t.Logf("generated address: %s", address)
-
-			txID := sendToAddress(t, address, 0.02)
-			t.Logf("sent 0.02 BSV to: %s", txID)
-
-			hash := generate(t, 1)
-			t.Logf("generated 1 block: %s", hash)
+			address, privateKey := fundNewWallet(t)
 
 			utxos := getUtxos(t, address)
 			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
@@ -192,14 +185,7 @@ func TestPostCallbackToken(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			address, privateKey := getNewWalletAddress(t)
-			t.Logf("generated address: %s", address)
-
-			txID := sendToAddress(t, address, 0.02)
-			t.Logf("sent 0.02 BSV to: %s", txID)
-
-			hash := generate(t, 1)
-			t.Logf("generated 1 block: %s", hash)
+			address, privateKey := fundNewWallet(t)
 
 			utxos := getUtxos(t, address)
 			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
@@ -216,6 +202,7 @@ func TestPostCallbackToken(t *testing.T) {
 			callbackReceivedChan := make(chan *api.TransactionStatus, callbackNumbers) // do not block callback server responses
 			callbackErrChan := make(chan error, callbackNumbers)
 			callbackIteration := 0
+
 			calbackResponseFn := func(w http.ResponseWriter, rc chan *api.TransactionStatus, ec chan error, status *api.TransactionStatus) {
 				callbackIteration++
 
@@ -234,6 +221,7 @@ func TestPostCallbackToken(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to respond to callback: %v", err)
 				}
+
 				rc <- status
 			}
 			callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
@@ -341,14 +329,7 @@ func TestPostSkipFee(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			address, privateKey := getNewWalletAddress(t)
-			t.Logf("generated address: %s", address)
-
-			txID := sendToAddress(t, address, 0.02)
-			t.Logf("sent 0.02 BSV to: %s", txID)
-
-			hash := generate(t, 1)
-			t.Logf("generated 1 block: %s", hash)
+			address, privateKey := fundNewWallet(t)
 
 			utxos := getUtxos(t, address)
 			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
@@ -381,15 +362,7 @@ func TestPostSkipTxValidation(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			address, privateKey := getNewWalletAddress(t)
-			t.Logf("generated address: %s", address)
-
-			txID := sendToAddress(t, address, 0.02)
-			t.Logf("sent 0.02 BSV to: %s", txID)
-
-			hash := generate(t, 1)
-			t.Logf("generated 1 block: %s", hash)
-
+			address, privateKey := fundNewWallet(t)
 			utxos := getUtxos(t, address)
 			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
@@ -538,14 +511,7 @@ func postTx(t *testing.T, jsonPayload string, headers map[string]string) (*http.
 }
 
 func createTxHexStringExtended(t *testing.T) *bt.Tx {
-	address, privateKey := getNewWalletAddress(t)
-	t.Logf("generated address: %s", address)
-
-	txID := sendToAddress(t, address, 0.02)
-	t.Logf("sent 0.02 BSV to: %s", txID)
-
-	hash := generate(t, 1)
-	t.Logf("generated 1 block: %s", hash)
+	address, privateKey := fundNewWallet(t)
 
 	utxos := getUtxos(t, address)
 	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
@@ -560,16 +526,10 @@ func TestSubmitMinedTx(t *testing.T) {
 	// submit an unregistered, already mined transaction. ARC should return the status as MINED for the transaction.
 
 	// given
+	address, _ := fundNewWallet(t)
+	utxos := getUtxos(t, address)
 
-	// fund wallet
-	address, _ := getNewWalletAddress(t)
-	txID := sendToAddress(t, address, 0.001)
-
-	// mine a block with the transaction from above
-	generate(t, 1)
-	time.Sleep(5 * time.Second)
-
-	rawTx, _ := bitcoind.GetRawTransaction(txID)
+	rawTx, _ := bitcoind.GetRawTransaction(utxos[0].Txid)
 	tx, _ := bt.NewTxFromString(rawTx.Hex)
 
 	callbackReceivedChan := make(chan *api.TransactionStatus)
@@ -601,8 +561,10 @@ func TestSubmitMinedTx(t *testing.T) {
 
 	select {
 	case status := <-callbackReceivedChan:
-		require.Equal(t, txID, status.Txid)
+		require.Equal(t, rawTx.TxID, status.Txid)
 		require.Equal(t, metamorph_api.Status_MINED.String(), *status.TxStatus)
+	case err := <-callbackErrChan:
+		t.Fatalf("callback error: %v", err)
 	case <-callbackTimeout:
 		t.Fatal("callback exceeded timeout")
 	}

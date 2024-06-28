@@ -240,18 +240,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *api.TransactionStatus, er
 
 	callbackUrl = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
 
-	srv := &http.Server{Addr: ":9000"}
-	shutdownFn = func() {
-		t.Log("shutting down callback listener")
-		close(receivedChan)
-		close(errChan)
-
-		if err := srv.Shutdown(context.TODO()); err != nil {
-			t.Fatal("failed to shut down server")
-		}
-	}
-
-	readResponse := func(req *http.Request) (*api.TransactionStatus, error) {
+	readPayload := func(req *http.Request) (*api.TransactionStatus, error) {
 		defer func() {
 			err := req.Body.Close()
 			if err != nil {
@@ -284,9 +273,10 @@ func startCallbackSrv(t *testing.T, receivedChan chan *api.TransactionStatus, er
 			return
 		}
 
-		status, err := readResponse(req)
+		status, err := readPayload(req)
 		if err != nil {
-			t.Fatalf("Failed to read response from callback: %v", err)
+			errChan <- fmt.Errorf("read callback payload failed: %v", err)
+			return
 		}
 
 		if alternativeResponseFn != nil {
@@ -301,6 +291,18 @@ func startCallbackSrv(t *testing.T, receivedChan chan *api.TransactionStatus, er
 			receivedChan <- status
 		}
 	})
+
+	srv := &http.Server{Addr: ":9000"}
+	shutdownFn = func() {
+		t.Log("shutting down callback listener")
+		close(receivedChan)
+		close(errChan)
+
+		if err := srv.Shutdown(context.TODO()); err != nil {
+			t.Fatal("failed to shut down server")
+		}
+		t.Log("callback listener is down")
+	}
 
 	go func(server *http.Server) {
 		t.Log("starting callback server")
@@ -323,14 +325,21 @@ func respondToCallback(w http.ResponseWriter, success bool) error {
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
-	jsonResp, err := json.Marshal(resp)
-	if err != nil {
-		return err
-	}
-
-	_, err = w.Write(jsonResp)
+	jsonResp, _ := json.Marshal(resp)
+	_, err := w.Write(jsonResp)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func fundNewWallet(t *testing.T) (addr, privKey string) {
+	t.Helper()
+
+	addr, privKey = getNewWalletAddress(t)
+	sendToAddress(t, addr, 0.001)
+	// mine a block with the transaction from above
+	generate(t, 1)
+
+	return
 }

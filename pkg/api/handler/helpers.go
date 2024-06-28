@@ -124,18 +124,18 @@ func convertMerkleRootsRequest(beefMerkleRoots []beef.MerkleRootVerificationRequ
 	return merkleRoots
 }
 
-func findStatusByTxID(lastTxId string, statuses []*metamorph.TransactionStatus) *metamorph.TransactionStatus {
+func findStatusByTxID(txID string, statuses []*metamorph.TransactionStatus) *metamorph.TransactionStatus {
 	for _, status := range statuses {
-		if status.TxID == lastTxId {
+		if status.TxID == txID {
 			return status
 		}
 	}
 	return nil
 }
 
-func filterStatusesByTxIDs(txIds []string, allStatuses []*metamorph.TransactionStatus) []*metamorph.TransactionStatus {
+func filterStatusesByTxIDs(txIDs []string, allStatuses []*metamorph.TransactionStatus) []*metamorph.TransactionStatus {
 	idsMap := make(map[string]struct{})
-	for _, id := range txIds {
+	for _, id := range txIDs {
 		idsMap[id] = struct{}{}
 	}
 

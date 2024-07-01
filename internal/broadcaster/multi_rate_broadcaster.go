@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"log/slog"
-	"runtime"
 	"sync"
 	"time"
 )
@@ -69,16 +68,11 @@ func (mrb *MultiKeyRateBroadcaster) Shutdown() {
 
 func (mrb *MultiKeyRateBroadcaster) logStats() {
 	mrb.wg.Add(1)
-	bToMb := func(b uint64) uint64 {
-		return b / 1024 / 1024
-	}
 
 	logStatsTicker := time.NewTicker(2 * time.Second)
-	logMemStatsTicker := time.NewTicker(10 * time.Second)
 
 	go func() {
 		defer mrb.wg.Done()
-		var mem runtime.MemStats
 		for {
 			select {
 			case <-logStatsTicker.C:
@@ -96,13 +90,6 @@ func (mrb *MultiKeyRateBroadcaster) logStats() {
 					slog.Int64("txs", totalTxsCount),
 					slog.Int64("connections", totalConnectionCount),
 					slog.Int("utxos", totalUtxoSetLength),
-				)
-			case <-logMemStatsTicker.C:
-				mrb.logger.Info("memory",
-					slog.Uint64("Alloc [MiB]", bToMb(mem.Alloc)),
-					slog.Uint64("TotalAlloc [MiB]", bToMb(mem.TotalAlloc)),
-					slog.Uint64("Sys [MiB]", bToMb(mem.Sys)),
-					slog.Int64("NumGC [MiB]", int64(mem.NumGC)),
 				)
 			case <-mrb.ctx.Done():
 				return

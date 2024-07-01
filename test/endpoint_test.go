@@ -58,14 +58,7 @@ func TestBatchChainedTxs(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			address, privateKey := getNewWalletAddress(t)
-			t.Logf("generated address: %s", address)
-
-			txID := sendToAddress(t, address, 0.02)
-			t.Logf("sent 0.02 BSV to: %s", txID)
-
-			hash := generate(t, 1)
-			t.Logf("generated 1 block: %s", hash)
+			address, privateKey := fundNewWallet(t)
 
 			utxos := getUtxos(t, address)
 			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
@@ -192,14 +185,7 @@ func TestPostCallbackToken(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			address, privateKey := getNewWalletAddress(t)
-			t.Logf("generated address: %s", address)
-
-			txID := sendToAddress(t, address, 0.02)
-			t.Logf("sent 0.02 BSV to: %s", txID)
-
-			hash := generate(t, 1)
-			t.Logf("generated 1 block: %s", hash)
+			address, privateKey := fundNewWallet(t)
 
 			utxos := getUtxos(t, address)
 			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
@@ -212,30 +198,30 @@ func TestPostCallbackToken(t *testing.T) {
 
 			ctx := context.Background()
 
-			callbackReceivedChan := make(chan *api.TransactionStatus)
-			callbackErrChan := make(chan error)
-			callbackIterations := 0
+			const callbackNumbers = 2                                                  // cannot be greater than 5
+			callbackReceivedChan := make(chan *api.TransactionStatus, callbackNumbers) // do not block callback server responses
+			callbackErrChan := make(chan error, callbackNumbers)
+			callbackIteration := 0
+
 			calbackResponseFn := func(w http.ResponseWriter, rc chan *api.TransactionStatus, ec chan error, status *api.TransactionStatus) {
-				// Let ARC send the callback 2 times. First one fails.
-				if callbackIterations == 0 {
-					t.Log("callback received, responding bad request")
+				callbackIteration++
 
-					err = respondToCallback(w, false)
-					if err != nil {
-						t.Fatalf("Failed to respond to callback: %v", err)
-					}
+				// Let ARC send the callback few times. Respond with success on the last one.
+				respondWithSuccess := false
+				if callbackIteration < callbackNumbers {
+					t.Logf("%d callback received, responding bad request", callbackIteration)
+					respondWithSuccess = false
 
-					rc <- status
-					callbackIterations++
-					return
+				} else {
+					t.Logf("%d callback received, responding success", callbackIteration)
+					respondWithSuccess = true
 				}
 
-				t.Log("callback received, responding success")
-
-				err = respondToCallback(w, true)
+				err = respondToCallback(w, respondWithSuccess)
 				if err != nil {
 					t.Fatalf("Failed to respond to callback: %v", err)
 				}
+
 				rc <- status
 			}
 			callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
@@ -261,42 +247,38 @@ func TestPostCallbackToken(t *testing.T) {
 			require.Equal(t, "SEEN_ON_NETWORK", response.JSON200.TxStatus)
 
 			generate(t, 10)
-			time.Sleep(15 * time.Second) // give ARC time to perform the status update on DB
 
 			var statusResponse *api.GETTransactionStatusResponse
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, response.JSON200.Txid)
 			require.NoError(t, err)
+			require.NotNil(t, statusResponse)
+			require.NotNil(t, statusResponse.JSON200)
+			t.Logf("GETTransactionStatusWithResponse result: %s", *statusResponse.JSON200.TxStatus)
 
-			seenOnNetworkReceived := false
+			require.NotNil(t, statusResponse.JSON200.MerklePath)
+			_, err = bc.NewBUMPFromStr(*statusResponse.JSON200.MerklePath)
+			require.NoError(t, err)
 
-			for i := 0; i <= 1; i++ {
+			for i := 0; i < callbackNumbers; i++ {
 				t.Logf("callback iteration %d", i)
+				callbackTimeout := time.After(time.Second * time.Duration(i) * 2 * 5)
+
 				select {
 				case callback := <-callbackReceivedChan:
-					t.Logf(*statusResponse.JSON200.TxStatus)
-					t.Logf(*callback.TxStatus)
-					if *callback.TxStatus == "SEEN_ON_NETWORK" {
-						seenOnNetworkReceived = true
-						continue
-					}
-					require.NotNil(t, statusResponse)
-					require.NotNil(t, statusResponse.JSON200)
 					require.NotNil(t, callback)
+
+					t.Logf("Callback %d result: %s", i, *callback.TxStatus)
 					require.Equal(t, statusResponse.JSON200.Txid, callback.Txid)
 					require.Equal(t, *statusResponse.JSON200.BlockHeight, *callback.BlockHeight)
 					require.Equal(t, *statusResponse.JSON200.BlockHash, *callback.BlockHash)
 					require.Equal(t, "MINED", *callback.TxStatus)
-					require.NotNil(t, statusResponse.JSON200.MerklePath)
-					_, err = bc.NewBUMPFromStr(*statusResponse.JSON200.MerklePath)
-					require.NoError(t, err)
 
 				case err := <-callbackErrChan:
 					t.Fatalf("callback received - failed to parse callback %v", err)
-				case <-time.NewTicker(time.Second * 15).C:
-					t.Fatal("callback not received")
+				case <-callbackTimeout:
+					t.Fatal("callback not received - timeout")
 				}
 			}
-			require.Equal(t, false, seenOnNetworkReceived)
 		})
 	}
 }
@@ -346,14 +328,7 @@ func TestPostSkipFee(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			address, privateKey := getNewWalletAddress(t)
-			t.Logf("generated address: %s", address)
-
-			txID := sendToAddress(t, address, 0.02)
-			t.Logf("sent 0.02 BSV to: %s", txID)
-
-			hash := generate(t, 1)
-			t.Logf("generated 1 block: %s", hash)
+			address, privateKey := fundNewWallet(t)
 
 			utxos := getUtxos(t, address)
 			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
@@ -386,15 +361,7 @@ func TestPostSkipTxValidation(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			address, privateKey := getNewWalletAddress(t)
-			t.Logf("generated address: %s", address)
-
-			txID := sendToAddress(t, address, 0.02)
-			t.Logf("sent 0.02 BSV to: %s", txID)
-
-			hash := generate(t, 1)
-			t.Logf("generated 1 block: %s", hash)
-
+			address, privateKey := fundNewWallet(t)
 			utxos := getUtxos(t, address)
 			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
@@ -446,8 +413,6 @@ func Test_E2E_Success(t *testing.T) {
 	t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
 	generate(t, 10)
-
-	time.Sleep(15 * time.Second) // give ARC time to perform the status update on DB
 
 	statusResp, err = http.Get(statusUrl)
 	require.NoError(t, err)
@@ -543,14 +508,7 @@ func postTx(t *testing.T, jsonPayload string, headers map[string]string) (*http.
 }
 
 func createTxHexStringExtended(t *testing.T) *bt.Tx {
-	address, privateKey := getNewWalletAddress(t)
-	t.Logf("generated address: %s", address)
-
-	txID := sendToAddress(t, address, 0.02)
-	t.Logf("sent 0.02 BSV to: %s", txID)
-
-	hash := generate(t, 1)
-	t.Logf("generated 1 block: %s", hash)
+	address, privateKey := fundNewWallet(t)
 
 	utxos := getUtxos(t, address)
 	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
@@ -565,16 +523,10 @@ func TestSubmitMinedTx(t *testing.T) {
 	// submit an unregistered, already mined transaction. ARC should return the status as MINED for the transaction.
 
 	// given
+	address, _ := fundNewWallet(t)
+	utxos := getUtxos(t, address)
 
-	// fund wallet
-	address, _ := getNewWalletAddress(t)
-	txID := sendToAddress(t, address, 0.001)
-
-	// mine a block with the transaction from above
-	generate(t, 1)
-	time.Sleep(5 * time.Second)
-
-	rawTx, _ := bitcoind.GetRawTransaction(txID)
+	rawTx, _ := bitcoind.GetRawTransaction(utxos[0].Txid)
 	tx, _ := bt.NewTxFromString(rawTx.Hex)
 
 	callbackReceivedChan := make(chan *api.TransactionStatus)
@@ -606,8 +558,10 @@ func TestSubmitMinedTx(t *testing.T) {
 
 	select {
 	case status := <-callbackReceivedChan:
-		require.Equal(t, txID, status.Txid)
+		require.Equal(t, rawTx.TxID, status.Txid)
 		require.Equal(t, metamorph_api.Status_MINED.String(), *status.TxStatus)
+	case err := <-callbackErrChan:
+		t.Fatalf("callback error: %v", err)
 	case <-callbackTimeout:
 		t.Fatal("callback exceeded timeout")
 	}

@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
@@ -30,11 +29,7 @@ func TestDoubleSpend(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			address, privateKey := getNewWalletAddress(t)
-			sendToAddress(t, address, 0.001)
-
-			hash := generate(t, 1)
-			t.Logf("generated 1 block: %s", hash)
+			address, privateKey := fundNewWallet(t)
 
 			utxos := getUtxos(t, address)
 			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
@@ -56,12 +51,10 @@ func TestDoubleSpend(t *testing.T) {
 
 			generate(t, 10)
 
-			time.Sleep(15 * time.Second) // give ARC time to perform the status update on DB
-
 			ctx := context.Background()
 			var statusResponse *api.GETTransactionStatusResponse
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
-
+			require.NoError(t, err)
 			require.Equal(t, "MINED", *statusResponse.JSON200.TxStatus)
 
 			// send double spending transaction when first tx was mined
@@ -95,7 +88,7 @@ func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx
 
 func createTxToNewAddress(t *testing.T, privateKey string, utxo NodeUnspentUtxo) *bt.Tx {
 	address, err := bitcoind.GetNewAddress()
-
+	require.NoError(t, err)
 	tx1, err := createTx(privateKey, address, utxo)
 	require.NoError(t, err)
 

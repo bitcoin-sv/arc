@@ -63,9 +63,4 @@ func setupSut() {
 		}
 		time.Sleep(5 * time.Second)
 	}
-
-	info, err = bitcoind.GetInfo()
-	if err != nil {
-		log.Fatalln(err)
-	}
 }

@@ -2,6 +2,7 @@ package async
 
 import (
 	"fmt"
+	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"log"
 	"log/slog"
 	"os"
@@ -93,9 +94,10 @@ func TestNatsClient(t *testing.T) {
 	}
 
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 100)
-	mqClient := NewNatsMQClient(natsConnClient, minedTxsChan, slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
+	mqClient := NewNatsMQClient(natsConnClient, minedTxsChan, submittedTxsChan, slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
 
-	t.Run("publish mined txs", func(t *testing.T) {
+	t.Run("subscribe mined txs", func(t *testing.T) {
 
 		t.Log("subscribing to mined txs")
 		err := mqClient.SubscribeMinedTxs()
@@ -122,13 +124,41 @@ func TestNatsClient(t *testing.T) {
 
 				t.Logf("counter, %d", counter)
 			}
-
-			if counter >= 1 {
+			if counter > 1 {
 				break
 			}
 		}
 
 		require.Len(t, txBlockBatch, counter)
+	})
+	t.Run("subscribe submitted txs", func(t *testing.T) {
+
+		t.Log("subscribing to submitted txs")
+		err := mqClient.SubscribeSubmittedTx()
+		require.NoError(t, err)
+
+		txRequest := &metamorph_api.TransactionRequest{
+			CallbackUrl:   "callback.example.com",
+			CallbackToken: "test-token",
+			RawTx:         testdata.TX1RawBytes,
+			WaitForStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		}
+
+		data, err := proto.Marshal(txRequest)
+		require.NoError(t, err)
+
+		err = natsConn.Publish(submitTxTopic, data)
+		require.NoError(t, err)
+
+		for submittedTx := range submittedTxsChan {
+			require.Equal(t, txRequest.CallbackUrl, submittedTx.CallbackUrl)
+			require.Equal(t, txRequest.CallbackToken, submittedTx.CallbackToken)
+			require.Equal(t, txRequest.RawTx, submittedTx.RawTx)
+			require.Equal(t, txRequest.WaitForStatus, submittedTx.WaitForStatus)
+
+			break
+		}
+
 	})
 
 	t.Run("publish register txs", func(t *testing.T) {
@@ -165,7 +195,7 @@ func TestNatsClient(t *testing.T) {
 			case data := <-registerTxsChannel:
 				counter++
 				require.Equal(t, testdata.TX1Hash[:], data)
-				if counter == 4 {
+				if counter >= 4 {
 					break loop
 				}
 			}
@@ -207,7 +237,7 @@ func TestNatsClient(t *testing.T) {
 			case data := <-requestChannel:
 				counter++
 				require.Equal(t, testdata.TX1Hash[:], data)
-				if counter == 4 {
+				if counter >= 4 {
 					break loop
 				}
 			}

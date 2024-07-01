@@ -1,6 +1,7 @@
 package metamorph_test
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -488,6 +489,98 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			assert.Equal(t, tc.expectedUpdateStatusCalls, len(metamorphStore.UpdateStatusBulkCalls()))
 			assert.Equal(t, tc.expectedCallbacks, len(callbackSender.SendCallbackCalls()))
 			processor.Shutdown()
+		})
+	}
+}
+
+func TestStartProcessSubmittedTxs(t *testing.T) {
+	tt := []struct {
+		name            string
+		storeDataGetErr error
+
+		expectedSetCalls int
+	}{
+		{
+			name:            "1 submitted tx",
+			storeDataGetErr: store.ErrNotFound,
+
+			expectedSetCalls: 1,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+
+			wg := &sync.WaitGroup{}
+
+			s := &storeMocks.MetamorphStoreMock{
+				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+					require.Equal(t, testdata.TX1Hash[:], key)
+
+					return nil, tc.storeDataGetErr
+				},
+				SetFunc: func(ctx context.Context, key []byte, value *store.StoreData) error {
+					require.Equal(t, testdata.TX1Hash[:], key)
+
+					return nil
+				},
+				UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+					require.Len(t, updates, 1)
+
+					require.True(t, bytes.Equal(testdata.TX1Hash[:], updates[0].Hash[:]))
+					require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, updates[0].Status)
+					wg.Done()
+					return nil, nil
+				},
+				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
+			}
+			pm := &mocks.PeerManagerMock{
+				AnnounceTransactionFunc: func(txHash *chainhash.Hash, peers []p2p.PeerI) []p2p.PeerI {
+					require.True(t, testdata.TX1Hash.IsEqual(txHash))
+					return []p2p.PeerI{&mocks.PeerIMock{}}
+				},
+				ShutdownFunc: func() {},
+			}
+
+			publisher := &mocks.MessageQueueClientMock{
+				PublishRegisterTxsFunc: func(hash []byte) error {
+					return nil
+				},
+			}
+			const submittedTxsBuffer = 5
+			submittedTxsChan := make(chan *metamorph_api.TransactionRequest, submittedTxsBuffer)
+			processor, err := metamorph.NewProcessor(s, pm, nil,
+				metamorph.WithMessageQueueClient(publisher),
+				metamorph.WithSubmittedTxsChan(submittedTxsChan),
+				metamorph.WithProcessStatusUpdatesInterval(20*time.Millisecond),
+			)
+			require.NoError(t, err)
+			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
+
+			processor.StartProcessSubmittedTxs()
+			processor.StartProcessStatusUpdatesInStorage()
+			defer processor.Shutdown()
+			wg.Add(1)
+			submittedTxsChan <- &metamorph_api.TransactionRequest{
+				CallbackUrl:   "callback.example.com",
+				CallbackToken: "token-1",
+				RawTx:         testdata.TX1RawBytes,
+				WaitForStatus: metamorph_api.Status_RECEIVED,
+				MaxTimeout:    10,
+			}
+
+			c := make(chan struct{})
+			go func() {
+				wg.Wait()
+				c <- struct{}{}
+			}()
+
+			select {
+			case <-time.NewTimer(2 * time.Second).C:
+				t.Fatal("failed for submitted txs to be stored")
+			case <-c:
+			}
+			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
 		})
 	}
 }

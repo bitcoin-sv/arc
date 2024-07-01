@@ -19,6 +19,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/sirupsen/logrus"
@@ -54,15 +55,21 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	maxBatchSize := arcConfig.Blocktx.MessageQueue.TxsMinedMaxBatchSize
 	capacityRequired := int(float64(targetTps*avgMinPerBlock*secPerMin) / float64(maxBatchSize))
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, capacityRequired)
+	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, capacityRequired)
 
 	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.QueueURL, err)
 	}
 
-	mqClient := async.NewNatsMQClient(natsClient, minedTxsChan, logger)
+	mqClient := async.NewNatsMQClient(natsClient, minedTxsChan, submittedTxsChan, logger)
 
 	err = mqClient.SubscribeMinedTxs()
+	if err != nil {
+		return nil, err
+	}
+
+	err = mqClient.SubscribeSubmittedTx()
 	if err != nil {
 		return nil, err
 	}
@@ -79,6 +86,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		metamorph.WithProcessorLogger(logger.With(slog.String("module", "mtm-proc"))),
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
+		metamorph.WithSubmittedTxsChan(submittedTxsChan),
 		metamorph.WithProcessStatusUpdatesInterval(mtmConfig.ProcessStatusUpdateInterval),
 		metamorph.WithCallbackSender(callbacker),
 		metamorph.WithStatTimeLimits(mtmConfig.Stats.NotSeenTimeLimit, mtmConfig.Stats.NotMinedTimeLimit),
@@ -108,6 +116,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, fmt.Errorf("failed to start collecting stats: %v", err)
 	}
 	metamorphProcessor.StartSendStatusUpdate()
+	metamorphProcessor.StartProcessSubmittedTxs()
 
 	optsServer := []metamorph.ServerOption{
 		metamorph.WithLogger(logger.With(slog.String("module", "mtm-server"))),

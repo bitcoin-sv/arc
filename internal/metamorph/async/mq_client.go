@@ -1,6 +1,7 @@
 package async
 
 import (
+	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"log/slog"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph"
@@ -15,6 +16,8 @@ const (
 
 	consumerQueue = "mined-txs-group"
 	minedTxsTopic = "mined-txs"
+
+	submitTxTopic = "submit-tx"
 )
 
 type NatsClient interface {
@@ -25,14 +28,15 @@ type NatsClient interface {
 }
 
 type MQClient struct {
-	nc           NatsClient
-	logger       *slog.Logger
-	minedTxsChan chan *blocktx_api.TransactionBlocks
-	subscription *nats.Subscription
+	nc               NatsClient
+	logger           *slog.Logger
+	minedTxsChan     chan *blocktx_api.TransactionBlocks
+	submittedTxsChan chan *metamorph_api.TransactionRequest
+	subscription     *nats.Subscription
 }
 
-func NewNatsMQClient(nc NatsClient, minedTxsChan chan *blocktx_api.TransactionBlocks, logger *slog.Logger) metamorph.MessageQueueClient {
-	return &MQClient{nc: nc, logger: logger, minedTxsChan: minedTxsChan}
+func NewNatsMQClient(nc NatsClient, minedTxsChan chan *blocktx_api.TransactionBlocks, submittedTxsChan chan *metamorph_api.TransactionRequest, logger *slog.Logger) metamorph.MessageQueueClient {
+	return &MQClient{nc: nc, logger: logger, minedTxsChan: minedTxsChan, submittedTxsChan: submittedTxsChan}
 }
 
 func (c MQClient) PublishRegisterTxs(hash []byte) error {
@@ -46,6 +50,29 @@ func (c MQClient) PublishRegisterTxs(hash []byte) error {
 
 func (c MQClient) PublishRequestTx(hash []byte) error {
 	err := c.nc.Publish(requestTxTopic, hash)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c MQClient) SubscribeSubmittedTx() error {
+
+	subscription, err := c.nc.QueueSubscribe(submitTxTopic, consumerQueue, func(msg *nats.Msg) {
+
+		serialized := &metamorph_api.TransactionRequest{}
+		err := proto.Unmarshal(msg.Data, serialized)
+		if err != nil {
+			c.logger.Error("failed to unmarshal message", slog.String("err", err.Error()))
+			return
+		}
+
+		c.submittedTxsChan <- serialized
+	})
+
+	c.subscription = subscription
+
 	if err != nil {
 		return err
 	}

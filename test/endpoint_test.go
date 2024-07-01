@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/bitcoinsv/bsvd/bsvec"
 	"github.com/bitcoinsv/bsvutil"
@@ -227,9 +226,8 @@ func TestPostCallbackToken(t *testing.T) {
 			callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
 			defer shutdown()
 
-			waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
 			params := &api.POSTTransactionParams{
-				XWaitForStatus: &waitForStatus,
+				XWaitForStatus: PtrTo(api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)),
 				XCallbackUrl:   &callbackUrl,
 				XCallbackToken: &token,
 			}
@@ -285,19 +283,18 @@ func TestPostCallbackToken(t *testing.T) {
 
 func postTxWithHeadersChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus string, skipFeeValidation bool, skipTxValidation bool) {
 	ctx := context.Background()
-	waitForStatus := api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)
 
 	var skipFeeValidationPtr *bool
 	if skipFeeValidation {
-		skipFeeValidationPtr = handler.PtrTo(true)
+		skipFeeValidationPtr = PtrTo(true)
 	}
 
 	var skipTxValidationPtr *bool
 	if skipTxValidation {
-		skipTxValidationPtr = handler.PtrTo(true)
+		skipTxValidationPtr = PtrTo(true)
 	}
 	params := &api.POSTTransactionParams{
-		XWaitForStatus:     &waitForStatus,
+		XWaitForStatus:     PtrTo(api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)),
 		XSkipFeeValidation: skipFeeValidationPtr,
 		XSkipTxValidation:  skipTxValidationPtr,
 	}
@@ -340,9 +337,7 @@ func TestPostSkipFee(t *testing.T) {
 
 			fmt.Println("Transaction with Zero fee:", tx)
 
-			url := arcEndpoint
-
-			arcClient, err := api.NewClientWithResponses(url)
+			arcClient, err := api.NewClientWithResponses(arcEndpoint)
 			require.NoError(t, err)
 
 			postTxWithHeadersChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", true, false)
@@ -372,9 +367,7 @@ func TestPostSkipTxValidation(t *testing.T) {
 
 			fmt.Println("Transaction with Zero fee:", tx)
 
-			url := arcEndpoint
-
-			arcClient, err := api.NewClientWithResponses(url)
+			arcClient, err := api.NewClientWithResponses(arcEndpoint)
 			require.NoError(t, err)
 
 			postTxWithHeadersChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", false, true)
@@ -438,6 +431,77 @@ func Test_E2E_Success(t *testing.T) {
 
 	blockRoot := getBlockRootByHeight(t, statusResponse.BlockHeight)
 	require.Equal(t, blockRoot, root)
+}
+
+func TestPostTx_Queued(t *testing.T) {
+	t.Run("queued", func(t *testing.T) {
+
+		address, privateKey := getNewWalletAddress(t)
+		sendToAddress(t, address, 0.001)
+
+		hash := generate(t, 1)
+		t.Logf("generated 1 block: %s", hash)
+
+		utxos := getUtxos(t, address)
+		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+
+		tx, err := createTx(privateKey, address, utxos[0])
+		require.NoError(t, err)
+
+		arcClient, err := api.NewClientWithResponses(arcEndpoint)
+		require.NoError(t, err)
+
+		rawTxString := hex.EncodeToString(tx.ExtendedBytes())
+		body := api.POSTTransactionJSONRequestBody{
+			RawTx: rawTxString,
+		}
+
+		ctx := context.Background()
+
+		expectedStatus := metamorph_api.Status_QUEUED
+		params := &api.POSTTransactionParams{
+			XWaitForStatus: PtrTo(api.WaitForStatus(metamorph_api.Status_QUEUED)),
+			XMaxTimeout:    PtrTo(1),
+		}
+		response, err := arcClient.POSTTransactionWithResponse(ctx, params, body)
+		require.NoError(t, err)
+
+		require.Equal(t, http.StatusOK, response.StatusCode())
+		require.NotNil(t, response.JSON200)
+		require.Equalf(t, expectedStatus.String(), response.JSON200.TxStatus, "status of response: %s does not match expected status: %s for tx ID %s", response.JSON200.TxStatus, expectedStatus.String(), tx.TxID())
+
+	checkSeenLoop:
+		for {
+			select {
+			case <-time.NewTicker(1 * time.Second).C:
+				statusResponse, err := arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
+				require.NoError(t, err)
+
+				if metamorph_api.Status_SEEN_ON_NETWORK.String() == *statusResponse.JSON200.TxStatus {
+					break checkSeenLoop
+				}
+			case <-time.NewTimer(10 * time.Second).C:
+				t.Fatal("transaction not seen on network after 10s")
+			}
+		}
+
+		generate(t, 10)
+
+	checkMinedLoop:
+		for {
+			select {
+			case <-time.NewTicker(1 * time.Second).C:
+				statusResponse, err := arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
+				require.NoError(t, err)
+
+				if metamorph_api.Status_MINED.String() == *statusResponse.JSON200.TxStatus {
+					break checkMinedLoop
+				}
+			case <-time.NewTimer(15 * time.Second).C:
+				t.Fatal("transaction not mined after 15s")
+			}
+		}
+	})
 }
 
 func postSingleRequest(t *testing.T, client *http.Client, req *http.Request) string {
@@ -539,7 +603,7 @@ func TestSubmitMinedTx(t *testing.T) {
 
 	// when
 	params := &api.POSTTransactionParams{
-		XWaitForStatus: handler.PtrTo(api.WaitForStatus(metamorph_api.Status_MINED)),
+		XWaitForStatus: PtrTo(api.WaitForStatus(metamorph_api.Status_MINED)),
 		XCallbackUrl:   &callbackUrl,
 		XCallbackToken: &token,
 	}

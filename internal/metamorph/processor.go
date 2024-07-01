@@ -66,7 +66,8 @@ type Processor struct {
 
 	lockTransactionsInterval time.Duration
 
-	minedTxsChan chan *blocktx_api.TransactionBlocks
+	minedTxsChan     chan *blocktx_api.TransactionBlocks
+	submittedTxsChan chan *metamorph_api.TransactionRequest
 
 	storageStatusUpdateCh         chan store.UpdateStatus
 	processStatusUpdatesInterval  time.Duration
@@ -202,6 +203,43 @@ func (p *Processor) StartProcessMinedCallbacks() {
 						go p.callbackSender.SendCallback(p.logger, data)
 					}
 				}
+			}
+		}
+	}()
+}
+
+func (p *Processor) StartProcessSubmittedTxs() {
+	p.waitGroup.Add(1)
+
+	go func() {
+		defer p.waitGroup.Done()
+		for {
+			select {
+			case <-p.ctx.Done():
+				return
+			case submittedTx := <-p.submittedTxsChan:
+				if submittedTx == nil {
+					continue
+				}
+
+				hash := PtrTo(chainhash.DoubleHashH(submittedTx.GetRawTx()))
+				statusReceived := metamorph_api.Status_RECEIVED
+
+				sReq := &store.StoreData{
+					Hash:              hash,
+					Status:            statusReceived,
+					CallbackUrl:       submittedTx.GetCallbackUrl(),
+					CallbackToken:     submittedTx.GetCallbackToken(),
+					FullStatusUpdates: submittedTx.GetFullStatusUpdates(),
+					RawTx:             submittedTx.GetRawTx(),
+				}
+
+				req := &ProcessorRequest{
+					Data:    sReq,
+					Timeout: time.Duration(submittedTx.MaxTimeout) * time.Second,
+				}
+
+				p.ProcessTransaction(p.ctx, req)
 			}
 		}
 	}()
@@ -476,34 +514,39 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	// check if tx already stored, return it
 	data, err := p.store.Get(ctx, req.Data.Hash[:])
 	if err == nil {
-		/*
-			When transaction is re-submitted we make last_submitted_at to be now()
-			to make sure it will be loaded and re-broadcasted if needed.
-		*/
-		_ = p.storeData(ctx, data)
+		//	When transaction is re-submitted we update last_submitted_at with now()
+		//	to make sure it will be loaded and re-broadcast if needed.
+		err = p.storeData(ctx, data)
+		if err != nil {
+			p.logger.Error("failed to update data", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+		}
 
 		var rejectErr error
 		if data.RejectReason != "" {
 			rejectErr = errors.New(data.RejectReason)
 		}
 
-		// notify the client instantly and return without waiting for any specific status
-		req.ResponseChannel <- processor_response.StatusAndError{
-			Hash:   data.Hash,
-			Status: data.Status,
-			Err:    rejectErr,
+		if req.ResponseChannel != nil {
+			// notify the client instantly and return without waiting for any specific status
+			req.ResponseChannel <- processor_response.StatusAndError{
+				Hash:   data.Hash,
+				Status: data.Status,
+				Err:    rejectErr,
+			}
 		}
 
 		return
 	}
 
 	if !errors.Is(err, store.ErrNotFound) {
-		// issue with the store itself
-		// notify the client instantly and return
-		req.ResponseChannel <- processor_response.StatusAndError{
-			Hash:   req.Data.Hash,
-			Status: metamorph_api.Status_RECEIVED,
-			Err:    err,
+		if req.ResponseChannel != nil {
+			// issue with the store itself
+			// notify the client instantly and return
+			req.ResponseChannel <- processor_response.StatusAndError{
+				Hash:   req.Data.Hash,
+				Status: metamorph_api.Status_RECEIVED,
+				Err:    err,
+			}
 		}
 
 		return
@@ -514,10 +557,13 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	if err = p.storeData(ctx, req.Data); err != nil {
 		// issue with the store itself
 		// notify the client instantly and return
-		req.ResponseChannel <- processor_response.StatusAndError{
-			Hash:   req.Data.Hash,
-			Status: metamorph_api.Status_RECEIVED,
-			Err:    err,
+
+		if req.ResponseChannel != nil {
+			req.ResponseChannel <- processor_response.StatusAndError{
+				Hash:   req.Data.Hash,
+				Status: metamorph_api.Status_RECEIVED,
+				Err:    err,
+			}
 		}
 		return
 	}
@@ -538,7 +584,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	// Add this transaction to the map of transactions that client is listening to with open connection.
 	p.ProcessorResponseMap.Set(req.Data.Hash, processorResponse)
 
-	// we no longer need processor response object after client disconnects
+	// we no longer need processor response object after response has been returned
 	go func() {
 		time.Sleep(req.Timeout + time.Second)
 		p.ProcessorResponseMap.Delete(req.Data.Hash)
@@ -552,7 +598,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		return
 	}
 
-	// notify existing client about new status
+	// update status in response
 	processorResponse, ok := p.ProcessorResponseMap.Get(req.Data.Hash)
 	if ok {
 		processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
@@ -561,7 +607,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		})
 	}
 
-	// broadcast that transaction is announced to network (eventually active clientს catch that)
+	// update status in storage
 	p.storageStatusUpdateCh <- store.UpdateStatus{
 		Hash:         *req.Data.Hash,
 		Status:       metamorph_api.Status_ANNOUNCED_TO_NETWORK,

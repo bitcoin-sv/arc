@@ -45,6 +45,11 @@ type BlockData struct {
 	MerkleRoot string   `json:"merkleroot"`
 }
 
+// PtrTo returns a pointer to the given value.
+func PtrTo[T any](v T) *T {
+	return &v
+}
+
 func getNewWalletAddress(t *testing.T) (address, privateKey string) {
 	address, err := bitcoind.GetNewAddress()
 	require.NoError(t, err)

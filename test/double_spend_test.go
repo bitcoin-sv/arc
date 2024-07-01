@@ -37,9 +37,7 @@ func TestDoubleSpend(t *testing.T) {
 			tx, err := createTx(privateKey, address, utxos[0])
 			require.NoError(t, err)
 
-			url := arcEndpoint
-
-			arcClient, err := api.NewClientWithResponses(url)
+			arcClient, err := api.NewClientWithResponses(arcEndpoint)
 			require.NoError(t, err)
 
 			//submit first transaction
@@ -74,9 +72,8 @@ func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx
 	}
 
 	ctx := context.Background()
-	waitForStatus := api.WaitForStatus(expectedStatus)
 	params := &api.POSTTransactionParams{
-		XWaitForStatus: &waitForStatus,
+		XWaitForStatus: PtrTo(api.WaitForStatus(expectedStatus)),
 	}
 	response, err := client.POSTTransactionWithResponse(ctx, params, body)
 	require.NoError(t, err)

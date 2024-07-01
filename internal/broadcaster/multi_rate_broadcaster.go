@@ -9,9 +9,9 @@ import (
 )
 
 type MultiKeyRateBroadcaster struct {
-	rbs    []*RateBroadcaster
-	logger *slog.Logger
-
+	rbs       []*RateBroadcaster
+	logger    *slog.Logger
+	target    int64
 	cancelAll context.CancelFunc
 	ctx       context.Context
 	wg        sync.WaitGroup
@@ -42,12 +42,14 @@ func NewMultiKeyRateBroadcaster(logger *slog.Logger, client ArcClient, keySets [
 
 func (mrb *MultiKeyRateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
 	mrb.logStats()
-
+	mrb.target = 0
 	for _, rb := range mrb.rbs {
 		err := rb.Start(rateTxsPerSecond, limit)
 		if err != nil {
 			return err
 		}
+
+		mrb.target += limit
 	}
 
 	for _, rb := range mrb.rbs {
@@ -88,6 +90,8 @@ func (mrb *MultiKeyRateBroadcaster) logStats() {
 				}
 				mrb.logger.Info("stats",
 					slog.Int64("txs", totalTxsCount),
+					slog.Int64("target", mrb.target),
+					slog.Float64("percentage", float64(totalTxsCount)/float64(mrb.target)),
 					slog.Int64("connections", totalConnectionCount),
 					slog.Int("utxos", totalUtxoSetLength),
 				)

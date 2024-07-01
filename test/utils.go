@@ -223,6 +223,7 @@ func generateRandomString(length int) string {
 
 type callbackResponseFn func(w http.ResponseWriter, rc chan *api.TransactionStatus, ec chan error, status *api.TransactionStatus)
 
+// use buffered channels for multiple callbacks
 func startCallbackSrv(t *testing.T, receivedChan chan *api.TransactionStatus, errChan chan error,
 	alternativeResponseFn callbackResponseFn) (
 	callbackUrl, token string, shutdownFn func(),

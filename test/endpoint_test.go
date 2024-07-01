@@ -337,9 +337,7 @@ func TestPostSkipFee(t *testing.T) {
 
 			fmt.Println("Transaction with Zero fee:", tx)
 
-			url := arcEndpoint
-
-			arcClient, err := api.NewClientWithResponses(url)
+			arcClient, err := api.NewClientWithResponses(arcEndpoint)
 			require.NoError(t, err)
 
 			postTxWithHeadersChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", true, false)
@@ -369,9 +367,7 @@ func TestPostSkipTxValidation(t *testing.T) {
 
 			fmt.Println("Transaction with Zero fee:", tx)
 
-			url := arcEndpoint
-
-			arcClient, err := api.NewClientWithResponses(url)
+			arcClient, err := api.NewClientWithResponses(arcEndpoint)
 			require.NoError(t, err)
 
 			postTxWithHeadersChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", false, true)
@@ -474,17 +470,37 @@ func TestPostTx_Queued(t *testing.T) {
 		require.NotNil(t, response.JSON200)
 		require.Equalf(t, expectedStatus.String(), response.JSON200.TxStatus, "status of response: %s does not match expected status: %s for tx ID %s", response.JSON200.TxStatus, expectedStatus.String(), tx.TxID())
 
-		time.Sleep(10 * time.Second)
-		statusResponse, err := arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
-		require.NoError(t, err)
-		require.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK.String(), *statusResponse.JSON200.TxStatus)
+	checkSeenLoop:
+		for {
+			select {
+			case <-time.NewTicker(1 * time.Second).C:
+				statusResponse, err := arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
+				require.NoError(t, err)
+
+				if metamorph_api.Status_SEEN_ON_NETWORK.String() == *statusResponse.JSON200.TxStatus {
+					break checkSeenLoop
+				}
+			case <-time.NewTimer(10 * time.Second).C:
+				t.Fatal("transaction not seen on network after 10s")
+			}
+		}
 
 		generate(t, 10)
 
-		time.Sleep(15 * time.Second) // give ARC time to perform the status update on DB
+	checkMinedLoop:
+		for {
+			select {
+			case <-time.NewTicker(1 * time.Second).C:
+				statusResponse, err := arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
+				require.NoError(t, err)
 
-		statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
-		require.Equal(t, metamorph_api.Status_MINED.String(), *statusResponse.JSON200.TxStatus)
+				if metamorph_api.Status_MINED.String() == *statusResponse.JSON200.TxStatus {
+					break checkMinedLoop
+				}
+			case <-time.NewTimer(15 * time.Second).C:
+				t.Fatal("transaction not mined after 15s")
+			}
+		}
 	})
 }
 

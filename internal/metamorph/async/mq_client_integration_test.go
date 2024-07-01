@@ -147,8 +147,6 @@ func TestNatsClient(t *testing.T) {
 		data, err := proto.Marshal(txRequest)
 		require.NoError(t, err)
 
-		time.Sleep(1 * time.Second)
-
 		err = natsConn.Publish(submitTxTopic, data)
 		require.NoError(t, err)
 

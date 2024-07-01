@@ -88,7 +88,7 @@ func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlocks) func(pro
 	}
 }
 
-func WithSubmitedTxsChan(submittedTxsChan chan *metamorph_api.TransactionRequest) func(processor *Processor) {
+func WithSubmittedTxsChan(submittedTxsChan chan *metamorph_api.TransactionRequest) func(processor *Processor) {
 	return func(p *Processor) {
 		p.submittedTxsChan = submittedTxsChan
 	}

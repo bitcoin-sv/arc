@@ -322,7 +322,7 @@ func (m ArcDefaultHandler) processEFTransaction(ctx context.Context, transaction
 		BlockHash:   &tx.BlockHash,
 		BlockHeight: &tx.BlockHeight,
 		TxStatus:    tx.Status,
-		ExtraInfo:   PtrTo(tx.ExtraInfo),
+		ExtraInfo:   &tx.ExtraInfo,
 		Timestamp:   m.now(),
 		Txid:        transaction.TxID(),
 		MerklePath:  &tx.MerklePath,

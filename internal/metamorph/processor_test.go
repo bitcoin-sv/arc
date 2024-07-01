@@ -547,10 +547,11 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 					return nil
 				},
 			}
-			submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 5)
+			const submittedTxsBuffer = 5
+			submittedTxsChan := make(chan *metamorph_api.TransactionRequest, submittedTxsBuffer)
 			processor, err := metamorph.NewProcessor(s, pm, nil,
 				metamorph.WithMessageQueueClient(publisher),
-				metamorph.WithSubmitedTxsChan(submittedTxsChan),
+				metamorph.WithSubmittedTxsChan(submittedTxsChan),
 				metamorph.WithProcessStatusUpdatesInterval(20*time.Millisecond),
 			)
 			require.NoError(t, err)
@@ -558,6 +559,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 
 			processor.StartProcessSubmittedTxs()
 			processor.StartProcessStatusUpdatesInStorage()
+			defer processor.Shutdown()
 			wg.Add(1)
 			submittedTxsChan <- &metamorph_api.TransactionRequest{
 				CallbackUrl:   "callback.example.com",
@@ -579,7 +581,6 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			case <-c:
 			}
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
-			processor.Shutdown()
 		})
 	}
 }

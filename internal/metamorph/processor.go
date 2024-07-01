@@ -538,13 +538,15 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		return
 	}
 
-	if !errors.Is(err, store.ErrNotFound) && req.ResponseChannel != nil {
-		// issue with the store itself
-		// notify the client instantly and return
-		req.ResponseChannel <- processor_response.StatusAndError{
-			Hash:   req.Data.Hash,
-			Status: metamorph_api.Status_RECEIVED,
-			Err:    err,
+	if !errors.Is(err, store.ErrNotFound) {
+		if req.ResponseChannel != nil {
+			// issue with the store itself
+			// notify the client instantly and return
+			req.ResponseChannel <- processor_response.StatusAndError{
+				Hash:   req.Data.Hash,
+				Status: metamorph_api.Status_RECEIVED,
+				Err:    err,
+			}
 		}
 
 		return

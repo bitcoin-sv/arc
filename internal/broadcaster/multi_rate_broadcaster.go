@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"log/slog"
+	"math"
 	"sync"
 	"time"
 )
@@ -91,7 +92,7 @@ func (mrb *MultiKeyRateBroadcaster) logStats() {
 				mrb.logger.Info("stats",
 					slog.Int64("txs", totalTxsCount),
 					slog.Int64("target", mrb.target),
-					slog.Float64("percentage", float64(totalTxsCount)/float64(mrb.target)),
+					slog.Float64("percentage", roundFloat(float64(totalTxsCount)/float64(mrb.target)*100, 2)),
 					slog.Int64("connections", totalConnectionCount),
 					slog.Int("utxos", totalUtxoSetLength),
 				)
@@ -100,4 +101,9 @@ func (mrb *MultiKeyRateBroadcaster) logStats() {
 			}
 		}
 	}()
+}
+
+func roundFloat(val float64, precision uint) float64 {
+	ratio := math.Pow(10, float64(precision))
+	return math.Round(val*ratio) / ratio
 }

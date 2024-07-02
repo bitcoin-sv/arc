@@ -297,7 +297,7 @@ func TestPostgresDB(t *testing.T) {
 
 		rows, err := postgresDB.SetUnlockedByName(ctx, "metamorph-3")
 		require.NoError(t, err)
-		require.Equal(t, int64(2), rows)
+		require.Equal(t, int64(4), rows)
 
 		hash1 := revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
 		hash1Data, err := postgresDB.Get(ctx, hash1[:])
@@ -308,6 +308,16 @@ func TestPostgresDB(t *testing.T) {
 		hash2Data, err := postgresDB.Get(ctx, hash2[:])
 		require.NoError(t, err)
 		require.Equal(t, "NONE", hash2Data.LockedBy)
+
+		hash3 := revChainhash(t, "f791ec50447e3001b9348930659527ea92dee506e9950014bcc7c5b146e2417f")
+		hash3Data, err := postgresDB.Get(ctx, hash3[:])
+		require.NoError(t, err)
+		require.Equal(t, "NONE", hash3Data.LockedBy)
+
+		hash4 := revChainhash(t, "89714f129748e5176a07fc4eb89cf27a9e60340117e6b56bb742acb2873f8140")
+		hash4Data, err := postgresDB.Get(ctx, hash4[:])
+		require.NoError(t, err)
+		require.Equal(t, "NONE", hash4Data.LockedBy)
 
 	})
 

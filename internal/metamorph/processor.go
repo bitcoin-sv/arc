@@ -635,17 +635,6 @@ func (p *Processor) Health() error {
 }
 
 func (p *Processor) storeData(ctx context.Context, data *store.StoreData) error {
-	/*
-		We make last_submitted_at to be now()
-		to make sure it will be loaded and (re-)broadcasted if needed.
-	*/
-
 	data.LastSubmittedAt = p.now()
-
-	err := p.store.Set(ctx, data.Hash[:], data)
-	if err != nil {
-		p.logger.Error("Failed to store transaction", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
-	}
-
-	return err
+	return p.store.Set(ctx, data)
 }

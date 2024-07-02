@@ -61,7 +61,7 @@ func TestPutTransaction(t *testing.T) {
 			RawTx: testdata.TX1RawBytes,
 		}
 
-		processor.ProcessTransactionFunc = func(ctx context.Context, req *metamorph.ProcessorRequest) {
+		processor.ProcessTransactionFunc = func(req *metamorph.ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
 
 			req.ResponseChannel <- processor_response.StatusAndError{
@@ -88,7 +88,7 @@ func TestPutTransaction(t *testing.T) {
 			RawTx: testdata.TX1RawBytes,
 		}
 
-		processor.ProcessTransactionFunc = func(ctx context.Context, req *metamorph.ProcessorRequest) {
+		processor.ProcessTransactionFunc = func(req *metamorph.ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
 			req.ResponseChannel <- processor_response.StatusAndError{
 				Hash:   testdata.TX1Hash,
@@ -113,7 +113,7 @@ func TestPutTransaction(t *testing.T) {
 			RawTx:         testdata.TX1RawBytes,
 			WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
 		}
-		processor.ProcessTransactionFunc = func(ctx context.Context, req *metamorph.ProcessorRequest) {
+		processor.ProcessTransactionFunc = func(req *metamorph.ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
 			req.ResponseChannel <- processor_response.StatusAndError{
 				Hash:   testdata.TX1Hash,
@@ -463,7 +463,7 @@ func TestPutTransactions(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			processor := &mocks.ProcessorIMock{
-				ProcessTransactionFunc: func(_ context.Context, req *metamorph.ProcessorRequest) {
+				ProcessTransactionFunc: func(req *metamorph.ProcessorRequest) {
 					resp, found := tc.processorResponse[req.Data.Hash.String()]
 					if found {
 						req.ResponseChannel <- *resp

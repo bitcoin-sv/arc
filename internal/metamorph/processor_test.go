@@ -237,7 +237,7 @@ func TestProcessTransaction(t *testing.T) {
 				}
 			}()
 
-			processor.ProcessTransaction(context.TODO(), &metamorph.ProcessorRequest{
+			processor.ProcessTransaction(&metamorph.ProcessorRequest{
 				Data: &store.StoreData{
 					Hash: testdata.TX1Hash,
 				},

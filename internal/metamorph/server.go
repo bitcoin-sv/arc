@@ -42,7 +42,7 @@ type BitcoinNode interface {
 }
 
 type ProcessorI interface {
-	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
+	ProcessTransaction(req *ProcessorRequest)
 	GetProcessorMapSize() int
 	GetStatusNotSeen() int64
 	GetPeers() []p2p.PeerI
@@ -253,7 +253,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	}
 
 	// TODO check the context when API call ends
-	s.processor.ProcessTransaction(ctx, &ProcessorRequest{Data: data, ResponseChannel: responseChannel, Timeout: timeDuration})
+	s.processor.ProcessTransaction(&ProcessorRequest{Data: data, ResponseChannel: responseChannel, Timeout: timeDuration})
 
 	if waitForStatus == 0 {
 		// wait for seen by default, this is the safest option
@@ -274,6 +274,10 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 
 	for {
 		select {
+		case <-ctx.Done():
+			// Ensure that function returns at latest when context times out
+			returnedStatus.TimedOut = true
+			return returnedStatus
 		case <-t.C:
 			returnedStatus.TimedOut = true
 			return returnedStatus

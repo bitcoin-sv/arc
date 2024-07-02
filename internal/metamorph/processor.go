@@ -507,18 +507,16 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 	p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
 }
 
-func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
-	// we need to decouple the Context from the request, so that we don't get cancelled
-	// when the request is cancelled
+func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 
 	// check if tx already stored, return it
-	data, err := p.store.Get(ctx, req.Data.Hash[:])
+	data, err := p.store.Get(p.ctx, req.Data.Hash[:])
 	if err == nil {
 		//	When transaction is re-submitted we update last_submitted_at with now()
 		//	to make sure it will be loaded and re-broadcast if needed.
-		err = p.storeData(ctx, data)
+		err = p.storeData(p.ctx, data)
 		if err != nil {
-			p.logger.Error("failed to update data", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+			p.logger.Error("Failed to update data", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 		}
 
 		var rejectErr error
@@ -554,10 +552,10 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// store in database
 	req.Data.Status = metamorph_api.Status_STORED
-	if err = p.storeData(ctx, req.Data); err != nil {
+	if err = p.storeData(p.ctx, req.Data); err != nil {
 		// issue with the store itself
 		// notify the client instantly and return
-
+		p.logger.Error("Failed to store transaction", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
 		if req.ResponseChannel != nil {
 			req.ResponseChannel <- processor_response.StatusAndError{
 				Hash:   req.Data.Hash,

@@ -185,8 +185,8 @@ func TestProcessTransaction(t *testing.T) {
 
 					return tc.storeData, tc.storeDataGetErr
 				},
-				SetFunc: func(ctx context.Context, key []byte, value *store.StoreData) error {
-					require.Equal(t, testdata.TX1Hash[:], key)
+				SetFunc: func(ctx context.Context, value *store.StoreData) error {
+					require.Equal(t, testdata.TX1Hash[:], value.Hash)
 
 					return nil
 				},
@@ -519,8 +519,8 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 
 					return nil, tc.storeDataGetErr
 				},
-				SetFunc: func(ctx context.Context, key []byte, value *store.StoreData) error {
-					require.Equal(t, testdata.TX1Hash[:], key)
+				SetFunc: func(ctx context.Context, value *store.StoreData) error {
+					require.Equal(t, testdata.TX1Hash[:], value.Hash)
 
 					return nil
 				},

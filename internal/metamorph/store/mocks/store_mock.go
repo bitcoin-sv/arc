@@ -49,8 +49,11 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			PingFunc: func(ctx context.Context) error {
 //				panic("mock out the Ping method")
 //			},
-//			SetFunc: func(ctx context.Context, key []byte, value *store.StoreData) error {
+//			SetFunc: func(ctx context.Context, value *store.StoreData) error {
 //				panic("mock out the Set method")
+//			},
+//			SetBulkFunc: func(ctx context.Context, data []*store.StoreData) error {
+//				panic("mock out the SetBulk method")
 //			},
 //			SetLockedFunc: func(ctx context.Context, since time.Time, limit int64) error {
 //				panic("mock out the SetLocked method")
@@ -99,7 +102,10 @@ type MetamorphStoreMock struct {
 	PingFunc func(ctx context.Context) error
 
 	// SetFunc mocks the Set method.
-	SetFunc func(ctx context.Context, key []byte, value *store.StoreData) error
+	SetFunc func(ctx context.Context, value *store.StoreData) error
+
+	// SetBulkFunc mocks the SetBulk method.
+	SetBulkFunc func(ctx context.Context, data []*store.StoreData) error
 
 	// SetLockedFunc mocks the SetLocked method.
 	SetLockedFunc func(ctx context.Context, since time.Time, limit int64) error
@@ -192,10 +198,15 @@ type MetamorphStoreMock struct {
 		Set []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// Key is the key argument value.
-			Key []byte
 			// Value is the value argument value.
 			Value *store.StoreData
+		}
+		// SetBulk holds details about calls to the SetBulk method.
+		SetBulk []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Data is the data argument value.
+			Data []*store.StoreData
 		}
 		// SetLocked holds details about calls to the SetLocked method.
 		SetLocked []struct {
@@ -238,6 +249,7 @@ type MetamorphStoreMock struct {
 	lockIncrementRetries  sync.RWMutex
 	lockPing              sync.RWMutex
 	lockSet               sync.RWMutex
+	lockSetBulk           sync.RWMutex
 	lockSetLocked         sync.RWMutex
 	lockSetUnlockedByName sync.RWMutex
 	lockUpdateMined       sync.RWMutex
@@ -589,23 +601,21 @@ func (mock *MetamorphStoreMock) PingCalls() []struct {
 }
 
 // Set calls SetFunc.
-func (mock *MetamorphStoreMock) Set(ctx context.Context, key []byte, value *store.StoreData) error {
+func (mock *MetamorphStoreMock) Set(ctx context.Context, value *store.StoreData) error {
 	if mock.SetFunc == nil {
 		panic("MetamorphStoreMock.SetFunc: method is nil but MetamorphStore.Set was just called")
 	}
 	callInfo := struct {
 		Ctx   context.Context
-		Key   []byte
 		Value *store.StoreData
 	}{
 		Ctx:   ctx,
-		Key:   key,
 		Value: value,
 	}
 	mock.lockSet.Lock()
 	mock.calls.Set = append(mock.calls.Set, callInfo)
 	mock.lockSet.Unlock()
-	return mock.SetFunc(ctx, key, value)
+	return mock.SetFunc(ctx, value)
 }
 
 // SetCalls gets all the calls that were made to Set.
@@ -614,17 +624,51 @@ func (mock *MetamorphStoreMock) Set(ctx context.Context, key []byte, value *stor
 //	len(mockedMetamorphStore.SetCalls())
 func (mock *MetamorphStoreMock) SetCalls() []struct {
 	Ctx   context.Context
-	Key   []byte
 	Value *store.StoreData
 } {
 	var calls []struct {
 		Ctx   context.Context
-		Key   []byte
 		Value *store.StoreData
 	}
 	mock.lockSet.RLock()
 	calls = mock.calls.Set
 	mock.lockSet.RUnlock()
+	return calls
+}
+
+// SetBulk calls SetBulkFunc.
+func (mock *MetamorphStoreMock) SetBulk(ctx context.Context, data []*store.StoreData) error {
+	if mock.SetBulkFunc == nil {
+		panic("MetamorphStoreMock.SetBulkFunc: method is nil but MetamorphStore.SetBulk was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Data []*store.StoreData
+	}{
+		Ctx:  ctx,
+		Data: data,
+	}
+	mock.lockSetBulk.Lock()
+	mock.calls.SetBulk = append(mock.calls.SetBulk, callInfo)
+	mock.lockSetBulk.Unlock()
+	return mock.SetBulkFunc(ctx, data)
+}
+
+// SetBulkCalls gets all the calls that were made to SetBulk.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.SetBulkCalls())
+func (mock *MetamorphStoreMock) SetBulkCalls() []struct {
+	Ctx  context.Context
+	Data []*store.StoreData
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Data []*store.StoreData
+	}
+	mock.lockSetBulk.RLock()
+	calls = mock.calls.SetBulk
+	mock.lockSetBulk.RUnlock()
 	return calls
 }
 

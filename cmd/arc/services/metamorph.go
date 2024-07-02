@@ -150,8 +150,8 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	processorOpts = append(processorOpts, metamorph.WithCacheExpiryTime(mtmConfig.ProcessorCacheExpiryTime),
 		metamorph.WithProcessExpiredTxsInterval(mtmConfig.UnseenTransactionRebroadcastingInterval),
-		metamorph.WithSeenOnNetworkTxTimeUntil(mtmConfig.CheckSeenOnNetworkOlderThan),
-		metamorph.WithSeenOnNetworkTxTime(mtmConfig.CheckSeenOnNetworkPeriod),
+		metamorph.WithRecheckSeenUntilAgo(mtmConfig.RecheckSeen.UntilAgo),
+		metamorph.WithRecheckSeenFromAgo(mtmConfig.RecheckSeen.FromAgo),
 		metamorph.WithProcessorLogger(procLogger),
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),

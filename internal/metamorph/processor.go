@@ -29,10 +29,10 @@ const (
 	unseenTransactionRebroadcastingInterval    = 60 * time.Second
 	seenOnNetworkTransactionRequestingInterval = 3 * time.Minute
 
-	mapExpiryTimeDefault            = 24 * time.Hour
-	seenOnNetworkTxTimeDefault      = 3 * 24 * time.Hour
-	seenOnNetworkTxTimeUntilDefault = 2 * time.Hour
-	LogLevelDefault                 = slog.LevelInfo
+	mapExpiryTimeDefault       = 24 * time.Hour
+	recheckSeenFromAgo         = 24 * time.Hour
+	recheckSeenUntilAgoDefault = 1 * time.Hour
+	LogLevelDefault            = slog.LevelInfo
 
 	txCacheTTL = 10 * time.Minute
 
@@ -67,8 +67,8 @@ type Processor struct {
 	mqClient                  MessageQueue
 	logger                    *slog.Logger
 	mapExpiryTime             time.Duration
-	seenOnNetworkTxTime       time.Duration
-	seenOnNetworkTxTimeUntil  time.Duration
+	recheckSeenFromAgo        time.Duration
+	recheckSeenUntilAgo       time.Duration
 	now                       func() time.Time
 	stats                     *processorStats
 	maxRetries                int
@@ -133,8 +133,8 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, st
 		hostname:                  hostname,
 		pm:                        pm,
 		mapExpiryTime:             mapExpiryTimeDefault,
-		seenOnNetworkTxTime:       seenOnNetworkTxTimeDefault,
-		seenOnNetworkTxTimeUntil:  seenOnNetworkTxTimeUntilDefault,
+		recheckSeenFromAgo:        recheckSeenFromAgo,
+		recheckSeenUntilAgo:       recheckSeenUntilAgoDefault,
 		now:                       time.Now,
 		maxRetries:                maxRetriesDefault,
 		minimumHealthyConnections: minimumHealthyConnectionsDefault,
@@ -599,13 +599,13 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 				ctx, span := tracing.StartTracing(p.ctx, "StartRequestingSeenOnNetworkTxs", p.tracingEnabled, p.tracingAttributes...)
 
 				// Periodically read SEEN_ON_NETWORK transactions from database check their status in blocktx
-				getSeenOnNetworkSince := p.now().Add(-1 * p.seenOnNetworkTxTime)
-				getSeenOnNetworkUntil := p.now().Add(-1 * p.seenOnNetworkTxTimeUntil)
+				getSeenOnNetworkFrom := p.now().Add(-1 * p.recheckSeenFromAgo)
+				getSeenOnNetworkUntil := p.now().Add(-1 * p.recheckSeenUntilAgo)
 				var offset int64
 				var totalSeenOnNetworkTxs int
 
 				for {
-					seenOnNetworkTxs, err := p.store.GetSeenOnNetwork(ctx, getSeenOnNetworkSince, getSeenOnNetworkUntil, loadSeenOnNetworkLimit, offset)
+					seenOnNetworkTxs, err := p.store.GetSeenOnNetwork(ctx, getSeenOnNetworkFrom, getSeenOnNetworkUntil, loadSeenOnNetworkLimit, offset)
 					offset += loadSeenOnNetworkLimit
 					if err != nil {
 						p.logger.Error("Failed to get SeenOnNetwork transactions", slog.String("err", err.Error()))

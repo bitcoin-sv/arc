@@ -107,8 +107,7 @@ type MetamorphConfig struct {
 	UnseenTransactionRebroadcastingInterval time.Duration `mapstructure:"unseenTransactionRebroadcastingInterval"`
 	MaxRetries                              int           `mapstructure:"maxRetries"`
 	ProcessStatusUpdateInterval             time.Duration `mapstructure:"processStatusUpdateInterval"`
-	CheckSeenOnNetworkOlderThan             time.Duration `mapstructure:"checkSeenOnNetworkOlderThan"`
-	CheckSeenOnNetworkPeriod                time.Duration `mapstructure:"checkSeenOnNetworkPeriod"`
+	RecheckSeen                             RecheckSeen   `mapstructure:"recheckSeen"`
 	MonitorPeers                            bool          `mapstructure:"monitorPeers"`
 	CheckUtxos                              bool          `mapstructure:"checkUtxos"`
 	Health                                  *HealthConfig `mapstructure:"health"`
@@ -170,6 +169,11 @@ type HealthConfig struct {
 type StatsConfig struct {
 	NotSeenTimeLimit  time.Duration `mapstructure:"notSeenTimeLimit"`
 	NotFinalTimeLimit time.Duration `mapstructure:"notFinalTimeLimit"`
+}
+
+type RecheckSeen struct {
+	FromAgo  time.Duration `mapstructure:"fromAgo"`
+	UntilAgo time.Duration `mapstructure:"untilAgo"`
 }
 
 type FillGapsConfig struct {

@@ -74,8 +74,9 @@ metamorph:
   unseenTransactionRebroadcastingInterval: 60s # time interval in which unseen transactions are re-broadcasted
   maxRetries: 1000 # maximum number of times a transaction is re-broadcasted
   processStatusUpdateInterval: 5s # interval of processing status updates
-  checkSeenOnNetworkOlderThan: 3h # transactions with SEEN_ON_NETWORK status will be re-requested from blocktx which are older than checkSeenOnNetworkOlderThan
-  checkSeenOnNetworkPeriod: 4h # transactions with SEEN_ON_NETWORK status will be re-requested from blocktx which are inserted in the last checkSeenOnNetworkPeriod
+  recheckSeen: # re-check SEEN_ON_NETWORK transactions that have been last submitted inside a moving time window in the past whether they were mined
+    fromAgo: 24h # start of moving time window
+    untilAgo: 1h # end of moving time window
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
   checkUtxos: false # force check each utxo for validity. If enabled ARC connects to bitcoin node using rpc for each utxo
   health:
@@ -110,7 +111,7 @@ blocktx:
     interval: 15m # time interval to check and fill gaps in processed blocks
   maxAllowedBlockHeightMismatch: 3 # maximum number of blocks that can be ahead of current highest block in blocktx, used for merkle roots verification
   p2pReadBufferSize: 8388608 # size of read buffer for p2p messeges
-  
+
 api:
   address: localhost:9090 # address to start api server on
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX" # api key for www.whatsonchain.com

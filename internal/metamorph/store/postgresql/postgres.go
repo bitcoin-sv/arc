@@ -275,7 +275,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 	return nil
 }
 
-// SetBulk bulk inserts records into the transactions table
+// SetBulk bulk inserts records into the transactions table. If a record with the same hash already exists the field last_submitted_at will be overwritten with NOW()
 func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error {
 	storedAt := make([]time.Time, len(data))
 	hashes := make([][]byte, len(data))
@@ -310,7 +310,7 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 		,last_submitted_at
 		)
 		SELECT * FROM UNNEST($1::TIMESTAMPTZ[], $2::BYTEA[], $3::INT[], $4::TEXT[], $5::TEXT[], $6::BOOL[], $7::BYTEA[], $8::TEXT[], $9::TIMESTAMPTZ[])
-		ON CONFLICT (hash) DO NOTHING
+		ON CONFLICT (hash) DO UPDATE SET last_submitted_at = $10
 		`
 	_, err := p.db.ExecContext(ctx, q,
 		pq.Array(storedAt),
@@ -322,6 +322,7 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 		pq.Array(rawTxs),
 		pq.Array(lockedBy),
 		pq.Array(lastSubmittedAt),
+		p.now(),
 	)
 	if err != nil {
 		return err

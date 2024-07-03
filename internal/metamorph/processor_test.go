@@ -495,16 +495,16 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 
 func TestStartProcessSubmittedTxs(t *testing.T) {
 	tt := []struct {
-		name            string
-		storeDataGetErr error
+		name string
 
-		expectedSetCalls int
+		expectedSetBulkCalls     int
+		expectedAnnouncedTxCalls int
 	}{
 		{
-			name:            "1 submitted tx",
-			storeDataGetErr: store.ErrNotFound,
+			name: "2 submitted txs",
 
-			expectedSetCalls: 1,
+			expectedSetBulkCalls:     1,
+			expectedAnnouncedTxCalls: 2,
 		},
 	}
 
@@ -514,29 +514,30 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			wg := &sync.WaitGroup{}
 
 			s := &storeMocks.MetamorphStoreMock{
-				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-					require.Equal(t, testdata.TX1Hash[:], key)
-
-					return nil, tc.storeDataGetErr
-				},
-				SetFunc: func(ctx context.Context, value *store.StoreData) error {
-					require.Equal(t, testdata.TX1Hash[:], value.Hash)
-
+				SetBulkFunc: func(ctx context.Context, data []*store.StoreData) error {
+					require.True(t, bytes.Equal(testdata.TX1Hash[:], data[0].Hash[:]))
 					return nil
 				},
 				UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
-					require.Len(t, updates, 1)
+					require.Len(t, updates, 2)
 
-					require.True(t, bytes.Equal(testdata.TX1Hash[:], updates[0].Hash[:]))
 					require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, updates[0].Status)
+					require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, updates[1].Status)
 					wg.Done()
 					return nil, nil
 				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
+			counter := 0
 			pm := &mocks.PeerManagerMock{
 				AnnounceTransactionFunc: func(txHash *chainhash.Hash, peers []p2p.PeerI) []p2p.PeerI {
-					require.True(t, testdata.TX1Hash.IsEqual(txHash))
+					switch counter {
+					case 0:
+						require.True(t, testdata.TX1Hash.IsEqual(txHash))
+					case 1:
+						require.True(t, testdata.TX6Hash.IsEqual(txHash))
+					}
+					counter++
 					return []p2p.PeerI{&mocks.PeerIMock{}}
 				},
 				ShutdownFunc: func() {},
@@ -553,6 +554,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				metamorph.WithMessageQueueClient(publisher),
 				metamorph.WithSubmittedTxsChan(submittedTxsChan),
 				metamorph.WithProcessStatusUpdatesInterval(20*time.Millisecond),
+				metamorph.WithBulkProcessInterval(20*time.Millisecond),
 			)
 			require.NoError(t, err)
 			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
@@ -562,9 +564,16 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			defer processor.Shutdown()
 			wg.Add(1)
 			submittedTxsChan <- &metamorph_api.TransactionRequest{
-				CallbackUrl:   "callback.example.com",
+				CallbackUrl:   "callback-1.example.com",
 				CallbackToken: "token-1",
-				RawTx:         testdata.TX1RawBytes,
+				RawTx:         testdata.TX1Raw.Bytes(),
+				WaitForStatus: metamorph_api.Status_RECEIVED,
+				MaxTimeout:    10,
+			}
+			submittedTxsChan <- &metamorph_api.TransactionRequest{
+				CallbackUrl:   "callback-2.example.com",
+				CallbackToken: "token-2",
+				RawTx:         testdata.TX6Raw.Bytes(),
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 				MaxTimeout:    10,
 			}
@@ -577,10 +586,13 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 
 			select {
 			case <-time.NewTimer(2 * time.Second).C:
-				t.Fatal("failed for submitted txs to be stored")
+				t.Fatal("submitted txs not stored in ")
 			case <-c:
 			}
-			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
+			require.Equal(t, tc.expectedSetBulkCalls, len(s.SetBulkCalls()))
+			require.Equal(t, tc.expectedAnnouncedTxCalls, len(pm.AnnounceTransactionCalls()))
+
+			//fmt.Println(testdata.TX6HString)
 		})
 	}
 }

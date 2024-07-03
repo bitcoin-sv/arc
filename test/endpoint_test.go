@@ -477,7 +477,7 @@ func TestPostTx_Queued(t *testing.T) {
 				statusResponse, err := arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
 				require.NoError(t, err)
 
-				if metamorph_api.Status_SEEN_ON_NETWORK.String() == *statusResponse.JSON200.TxStatus {
+				if statusResponse != nil && statusResponse.JSON200 != nil && statusResponse.JSON200.TxStatus != nil && metamorph_api.Status_SEEN_ON_NETWORK.String() == *statusResponse.JSON200.TxStatus {
 					break checkSeenLoop
 				}
 			case <-time.NewTimer(10 * time.Second).C:
@@ -494,7 +494,7 @@ func TestPostTx_Queued(t *testing.T) {
 				statusResponse, err := arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
 				require.NoError(t, err)
 
-				if metamorph_api.Status_MINED.String() == *statusResponse.JSON200.TxStatus {
+				if statusResponse != nil && statusResponse.JSON200 != nil && statusResponse.JSON200.TxStatus != nil && metamorph_api.Status_MINED.String() == *statusResponse.JSON200.TxStatus {
 					break checkMinedLoop
 				}
 			case <-time.NewTimer(15 * time.Second).C:

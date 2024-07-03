@@ -554,7 +554,8 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				metamorph.WithMessageQueueClient(publisher),
 				metamorph.WithSubmittedTxsChan(submittedTxsChan),
 				metamorph.WithProcessStatusUpdatesInterval(20*time.Millisecond),
-				metamorph.WithBulkProcessInterval(20*time.Millisecond),
+				metamorph.WithProcessTransactionsInterval(20*time.Millisecond),
+				metamorph.WithProcessTransactionsBatchSize(4),
 			)
 			require.NoError(t, err)
 			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
@@ -592,7 +593,6 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			require.Equal(t, tc.expectedSetBulkCalls, len(s.SetBulkCalls()))
 			require.Equal(t, tc.expectedAnnouncedTxCalls, len(pm.AnnounceTransactionCalls()))
 
-			//fmt.Println(testdata.TX6HString)
 		})
 	}
 }

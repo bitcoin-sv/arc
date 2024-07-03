@@ -37,8 +37,8 @@ const (
 	processStatusUpdatesIntervalDefault  = 500 * time.Millisecond
 	processStatusUpdatesBatchSizeDefault = 1000
 
-	bulkProcessBatchSizeDefault = 200
-	bulkProcessIntervalDefault  = 2 * time.Second
+	processTransactionsBatchSizeDefault = 200
+	processTransactionsIntervalDefault  = 2 * time.Second
 )
 
 type Processor struct {
@@ -79,7 +79,8 @@ type Processor struct {
 	processExpiredTxsInterval       time.Duration
 	processSeenOnNetworkTxsInterval time.Duration
 
-	bulkProcessInterval time.Duration
+	processTransactionsInterval  time.Duration
+	processTransactionsBatchSize int
 }
 
 type Option func(f *Processor)
@@ -125,8 +126,9 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChan
 		stats:                         newProcessorStats(),
 		waitGroup:                     &sync.WaitGroup{},
 
-		statCollectionInterval: statCollectionIntervalDefault,
-		bulkProcessInterval:    bulkProcessIntervalDefault,
+		statCollectionInterval:       statCollectionIntervalDefault,
+		processTransactionsInterval:  processTransactionsIntervalDefault,
+		processTransactionsBatchSize: processTransactionsBatchSizeDefault,
 	}
 
 	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm"))
@@ -216,7 +218,7 @@ func (p *Processor) StartProcessMinedCallbacks() {
 
 func (p *Processor) StartProcessSubmittedTxs() {
 	p.waitGroup.Add(1)
-	ticker := time.NewTicker(p.bulkProcessInterval)
+	ticker := time.NewTicker(p.processTransactionsInterval)
 	go func() {
 		defer p.waitGroup.Done()
 
@@ -227,7 +229,7 @@ func (p *Processor) StartProcessSubmittedTxs() {
 				return
 			case <-ticker.C:
 				if len(reqs) > 0 {
-					p.BulkProcessTransaction(reqs)
+					p.ProcessTransactions(reqs)
 					reqs = []*ProcessorRequest{}
 				}
 			case submittedTx := <-p.submittedTxsChan:
@@ -251,9 +253,10 @@ func (p *Processor) StartProcessSubmittedTxs() {
 				}
 
 				reqs = append(reqs, req)
-				if len(reqs) >= bulkProcessBatchSizeDefault {
-					p.BulkProcessTransaction(reqs)
+				if len(reqs) >= p.processTransactionsBatchSize {
+					p.ProcessTransactions(reqs)
 					reqs = []*ProcessorRequest{}
+					ticker.Reset(p.processTransactionsInterval)
 				}
 			}
 		}
@@ -628,7 +631,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	}
 }
 
-func (p *Processor) BulkProcessTransaction(reqs []*ProcessorRequest) {
+func (p *Processor) ProcessTransactions(reqs []*ProcessorRequest) {
 	ctx := context.Background()
 
 	// store in database

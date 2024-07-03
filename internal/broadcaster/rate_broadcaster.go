@@ -144,7 +144,7 @@ func (b *RateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
 					b.shutdown <- struct{}{}
 				}
 
-				b.broadcastBatchAsync(txs, errCh, metamorph_api.Status_RECEIVED)
+				b.broadcastBatchAsync(txs, errCh, metamorph_api.Status_QUEUED)
 
 			case responseErr := <-errCh:
 				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
@@ -163,8 +163,6 @@ utxoLoop:
 		select {
 		case <-b.ctx.Done():
 			return txs, nil
-		//case <-time.NewTimer(1 * time.Second).C:
-		//	return txs, nil
 		case utxo := <-b.utxoCh:
 			tx := bt.NewTx()
 

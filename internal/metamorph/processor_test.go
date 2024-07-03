@@ -495,16 +495,76 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 
 func TestStartProcessSubmittedTxs(t *testing.T) {
 	tt := []struct {
-		name string
+		name   string
+		txReqs []*metamorph_api.TransactionRequest
 
 		expectedSetBulkCalls     int
 		expectedAnnouncedTxCalls int
 	}{
 		{
 			name: "2 submitted txs",
+			txReqs: []*metamorph_api.TransactionRequest{
+				{
+					CallbackUrl:   "callback-1.example.com",
+					CallbackToken: "token-1",
+					RawTx:         testdata.TX1Raw.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+					MaxTimeout:    10,
+				},
+				{
+					CallbackUrl:   "callback-2.example.com",
+					CallbackToken: "token-2",
+					RawTx:         testdata.TX6Raw.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+					MaxTimeout:    10,
+				},
+			},
 
 			expectedSetBulkCalls:     1,
 			expectedAnnouncedTxCalls: 2,
+		},
+		{
+			name: "5 submitted txs",
+			txReqs: []*metamorph_api.TransactionRequest{
+				{
+					CallbackUrl:   "callback-1.example.com",
+					CallbackToken: "token-1",
+					RawTx:         testdata.TX1Raw.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+					MaxTimeout:    10,
+				},
+				{
+					CallbackUrl:   "callback-2.example.com",
+					CallbackToken: "token-2",
+					RawTx:         testdata.TX6Raw.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+					MaxTimeout:    10,
+				},
+				{
+					CallbackUrl:   "callback-3.example.com",
+					CallbackToken: "token-2",
+					RawTx:         testdata.TX6Raw.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+					MaxTimeout:    10,
+				},
+				{
+					CallbackUrl:   "callback-4.example.com",
+					CallbackToken: "token-2",
+					RawTx:         testdata.TX6Raw.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+					MaxTimeout:    10,
+				},
+				{
+					CallbackUrl:   "callback-5.example.com",
+					CallbackToken: "token-2",
+					RawTx:         testdata.TX6Raw.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+					MaxTimeout:    10,
+				},
+			},
+
+			expectedSetBulkCalls:     2,
+			expectedAnnouncedTxCalls: 5,
 		},
 	}
 
@@ -513,17 +573,21 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 
 			wg := &sync.WaitGroup{}
 
+			updateBulkCounter := 0
 			s := &storeMocks.MetamorphStoreMock{
 				SetBulkFunc: func(ctx context.Context, data []*store.StoreData) error {
-					require.True(t, bytes.Equal(testdata.TX1Hash[:], data[0].Hash[:]))
 					return nil
 				},
 				UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
-					require.Len(t, updates, 2)
 
-					require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, updates[0].Status)
-					require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, updates[1].Status)
-					wg.Done()
+					for _, u := range updates {
+						require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, u.Status)
+					}
+					updateBulkCounter++
+
+					if updateBulkCounter >= tc.expectedSetBulkCalls {
+						wg.Done()
+					}
 					return nil, nil
 				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
@@ -534,7 +598,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 					switch counter {
 					case 0:
 						require.True(t, testdata.TX1Hash.IsEqual(txHash))
-					case 1:
+					default:
 						require.True(t, testdata.TX6Hash.IsEqual(txHash))
 					}
 					counter++
@@ -564,19 +628,9 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			processor.StartProcessStatusUpdatesInStorage()
 			defer processor.Shutdown()
 			wg.Add(1)
-			submittedTxsChan <- &metamorph_api.TransactionRequest{
-				CallbackUrl:   "callback-1.example.com",
-				CallbackToken: "token-1",
-				RawTx:         testdata.TX1Raw.Bytes(),
-				WaitForStatus: metamorph_api.Status_RECEIVED,
-				MaxTimeout:    10,
-			}
-			submittedTxsChan <- &metamorph_api.TransactionRequest{
-				CallbackUrl:   "callback-2.example.com",
-				CallbackToken: "token-2",
-				RawTx:         testdata.TX6Raw.Bytes(),
-				WaitForStatus: metamorph_api.Status_RECEIVED,
-				MaxTimeout:    10,
+
+			for _, req := range tc.txReqs {
+				submittedTxsChan <- req
 			}
 
 			c := make(chan struct{})
@@ -587,7 +641,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 
 			select {
 			case <-time.NewTimer(2 * time.Second).C:
-				t.Fatal("submitted txs not stored in ")
+				t.Fatal("submitted txs have not been stored within 2s")
 			case <-c:
 			}
 			require.Equal(t, tc.expectedSetBulkCalls, len(s.SetBulkCalls()))

@@ -140,7 +140,7 @@ func TestNatsClient(t *testing.T) {
 		txRequest := &metamorph_api.TransactionRequest{
 			CallbackUrl:   "callback.example.com",
 			CallbackToken: "test-token",
-			RawTx:         testdata.TX1RawBytes,
+			RawTx:         testdata.TX1Raw.Bytes(),
 			WaitForStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 		}
 

@@ -75,12 +75,12 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 			},
 			putTxStatus: &metamorph_api.TransactionStatus{
-				Txid:   testdata.TX1,
+				Txid:   testdata.TX1Hash.String(),
 				Status: metamorph_api.Status_RECEIVED,
 			},
 
 			expectedStatus: &metamorph.TransactionStatus{
-				TxID:      testdata.TX1,
+				TxID:      testdata.TX1Hash.String(),
 				Status:    metamorph_api.Status_RECEIVED.String(),
 				Timestamp: now.Unix(),
 			},
@@ -91,7 +91,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 			},
 			putTxStatus: &metamorph_api.TransactionStatus{
-				Txid:   testdata.TX1,
+				Txid:   testdata.TX1Hash.String(),
 				Status: metamorph_api.Status_RECEIVED,
 			},
 			putTxErr:     errors.New("failed to put tx"),
@@ -106,14 +106,14 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 			},
 			putTxStatus: &metamorph_api.TransactionStatus{
-				Txid:   testdata.TX1,
+				Txid:   testdata.TX1Hash.String(),
 				Status: metamorph_api.Status_RECEIVED,
 			},
 			putTxErr:     errors.New("failed to put tx"),
 			withMqClient: true,
 
 			expectedStatus: &metamorph.TransactionStatus{
-				TxID:      testdata.TX1,
+				TxID:      testdata.TX1Hash.String(),
 				Status:    metamorph_api.Status_QUEUED.String(),
 				Timestamp: now.Unix(),
 			},
@@ -124,7 +124,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 			},
 			putTxStatus: &metamorph_api.TransactionStatus{
-				Txid:   testdata.TX1,
+				Txid:   testdata.TX1Hash.String(),
 				Status: metamorph_api.Status_RECEIVED,
 			},
 			putTxErr:           errors.New("failed to put tx"),
@@ -142,7 +142,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			withMqClient: true,
 
 			expectedStatus: &metamorph.TransactionStatus{
-				TxID:      testdata.TX1,
+				TxID:      testdata.TX1Hash.String(),
 				Status:    metamorph_api.Status_QUEUED.String(),
 				Timestamp: now.Unix(),
 			},
@@ -176,7 +176,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 
 			client := metamorph.NewClient(apiClient, opts...)
 
-			tx, err := bt.NewTxFromString(testdata.TX1Raw)
+			tx, err := bt.NewTxFromString(testdata.TX1RawString)
 			require.NoError(t, err)
 			status, err := client.SubmitTransaction(context.Background(), tx, tc.options)
 

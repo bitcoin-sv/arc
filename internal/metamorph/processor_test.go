@@ -185,8 +185,8 @@ func TestProcessTransaction(t *testing.T) {
 
 					return tc.storeData, tc.storeDataGetErr
 				},
-				SetFunc: func(ctx context.Context, key []byte, value *store.StoreData) error {
-					require.Equal(t, testdata.TX1Hash[:], key)
+				SetFunc: func(ctx context.Context, value *store.StoreData) error {
+					require.True(t, bytes.Equal(testdata.TX1Hash[:], value.Hash[:]))
 
 					return nil
 				},
@@ -237,7 +237,7 @@ func TestProcessTransaction(t *testing.T) {
 				}
 			}()
 
-			processor.ProcessTransaction(context.TODO(), &metamorph.ProcessorRequest{
+			processor.ProcessTransaction(&metamorph.ProcessorRequest{
 				Data: &store.StoreData{
 					Hash: testdata.TX1Hash,
 				},
@@ -495,16 +495,76 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 
 func TestStartProcessSubmittedTxs(t *testing.T) {
 	tt := []struct {
-		name            string
-		storeDataGetErr error
+		name   string
+		txReqs []*metamorph_api.TransactionRequest
 
-		expectedSetCalls int
+		expectedSetBulkCalls     int
+		expectedAnnouncedTxCalls int
 	}{
 		{
-			name:            "1 submitted tx",
-			storeDataGetErr: store.ErrNotFound,
+			name: "2 submitted txs",
+			txReqs: []*metamorph_api.TransactionRequest{
+				{
+					CallbackUrl:   "callback-1.example.com",
+					CallbackToken: "token-1",
+					RawTx:         testdata.TX1Raw.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+					MaxTimeout:    10,
+				},
+				{
+					CallbackUrl:   "callback-2.example.com",
+					CallbackToken: "token-2",
+					RawTx:         testdata.TX6Raw.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+					MaxTimeout:    10,
+				},
+			},
 
-			expectedSetCalls: 1,
+			expectedSetBulkCalls:     1,
+			expectedAnnouncedTxCalls: 2,
+		},
+		{
+			name: "5 submitted txs",
+			txReqs: []*metamorph_api.TransactionRequest{
+				{
+					CallbackUrl:   "callback-1.example.com",
+					CallbackToken: "token-1",
+					RawTx:         testdata.TX1Raw.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+					MaxTimeout:    10,
+				},
+				{
+					CallbackUrl:   "callback-2.example.com",
+					CallbackToken: "token-2",
+					RawTx:         testdata.TX6Raw.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+					MaxTimeout:    10,
+				},
+				{
+					CallbackUrl:   "callback-3.example.com",
+					CallbackToken: "token-2",
+					RawTx:         testdata.TX6Raw.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+					MaxTimeout:    10,
+				},
+				{
+					CallbackUrl:   "callback-4.example.com",
+					CallbackToken: "token-2",
+					RawTx:         testdata.TX6Raw.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+					MaxTimeout:    10,
+				},
+				{
+					CallbackUrl:   "callback-5.example.com",
+					CallbackToken: "token-2",
+					RawTx:         testdata.TX6Raw.Bytes(),
+					WaitForStatus: metamorph_api.Status_RECEIVED,
+					MaxTimeout:    10,
+				},
+			},
+
+			expectedSetBulkCalls:     2,
+			expectedAnnouncedTxCalls: 5,
 		},
 	}
 
@@ -513,30 +573,35 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 
 			wg := &sync.WaitGroup{}
 
+			updateBulkCounter := 0
 			s := &storeMocks.MetamorphStoreMock{
-				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-					require.Equal(t, testdata.TX1Hash[:], key)
-
-					return nil, tc.storeDataGetErr
-				},
-				SetFunc: func(ctx context.Context, key []byte, value *store.StoreData) error {
-					require.Equal(t, testdata.TX1Hash[:], key)
-
+				SetBulkFunc: func(ctx context.Context, data []*store.StoreData) error {
 					return nil
 				},
 				UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
-					require.Len(t, updates, 1)
 
-					require.True(t, bytes.Equal(testdata.TX1Hash[:], updates[0].Hash[:]))
-					require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, updates[0].Status)
-					wg.Done()
+					for _, u := range updates {
+						require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, u.Status)
+					}
+					updateBulkCounter++
+
+					if updateBulkCounter >= tc.expectedSetBulkCalls {
+						wg.Done()
+					}
 					return nil, nil
 				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
+			counter := 0
 			pm := &mocks.PeerManagerMock{
 				AnnounceTransactionFunc: func(txHash *chainhash.Hash, peers []p2p.PeerI) []p2p.PeerI {
-					require.True(t, testdata.TX1Hash.IsEqual(txHash))
+					switch counter {
+					case 0:
+						require.True(t, testdata.TX1Hash.IsEqual(txHash))
+					default:
+						require.True(t, testdata.TX6Hash.IsEqual(txHash))
+					}
+					counter++
 					return []p2p.PeerI{&mocks.PeerIMock{}}
 				},
 				ShutdownFunc: func() {},
@@ -553,6 +618,8 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				metamorph.WithMessageQueueClient(publisher),
 				metamorph.WithSubmittedTxsChan(submittedTxsChan),
 				metamorph.WithProcessStatusUpdatesInterval(20*time.Millisecond),
+				metamorph.WithProcessTransactionsInterval(20*time.Millisecond),
+				metamorph.WithProcessTransactionsBatchSize(4),
 			)
 			require.NoError(t, err)
 			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
@@ -561,12 +628,9 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			processor.StartProcessStatusUpdatesInStorage()
 			defer processor.Shutdown()
 			wg.Add(1)
-			submittedTxsChan <- &metamorph_api.TransactionRequest{
-				CallbackUrl:   "callback.example.com",
-				CallbackToken: "token-1",
-				RawTx:         testdata.TX1RawBytes,
-				WaitForStatus: metamorph_api.Status_RECEIVED,
-				MaxTimeout:    10,
+
+			for _, req := range tc.txReqs {
+				submittedTxsChan <- req
 			}
 
 			c := make(chan struct{})
@@ -577,10 +641,12 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 
 			select {
 			case <-time.NewTimer(2 * time.Second).C:
-				t.Fatal("failed for submitted txs to be stored")
+				t.Fatal("submitted txs have not been stored within 2s")
 			case <-c:
 			}
-			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
+			require.Equal(t, tc.expectedSetBulkCalls, len(s.SetBulkCalls()))
+			require.Equal(t, tc.expectedAnnouncedTxCalls, len(pm.AnnounceTransactionCalls()))
+
 		})
 	}
 }

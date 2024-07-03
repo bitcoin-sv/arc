@@ -69,6 +69,18 @@ func WithProcessStatusUpdatesInterval(d time.Duration) func(*Processor) {
 	}
 }
 
+func WithProcessTransactionsInterval(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.processTransactionsInterval = d
+	}
+}
+
+func WithProcessTransactionsBatchSize(batchSize int) func(*Processor) {
+	return func(p *Processor) {
+		p.processTransactionsBatchSize = batchSize
+	}
+}
+
 func WithProcessStatusUpdatesBatchSize(size int) func(*Processor) {
 	return func(p *Processor) {
 		p.processStatusUpdatesBatchSize = size

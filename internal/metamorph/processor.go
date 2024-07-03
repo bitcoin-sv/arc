@@ -36,6 +36,9 @@ const (
 
 	processStatusUpdatesIntervalDefault  = 500 * time.Millisecond
 	processStatusUpdatesBatchSizeDefault = 1000
+
+	processTransactionsBatchSizeDefault = 200
+	processTransactionsIntervalDefault  = 1 * time.Second
 )
 
 type Processor struct {
@@ -75,6 +78,9 @@ type Processor struct {
 
 	processExpiredTxsInterval       time.Duration
 	processSeenOnNetworkTxsInterval time.Duration
+
+	processTransactionsInterval  time.Duration
+	processTransactionsBatchSize int
 }
 
 type Option func(f *Processor)
@@ -120,7 +126,9 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChan
 		stats:                         newProcessorStats(),
 		waitGroup:                     &sync.WaitGroup{},
 
-		statCollectionInterval: statCollectionIntervalDefault,
+		statCollectionInterval:       statCollectionIntervalDefault,
+		processTransactionsInterval:  processTransactionsIntervalDefault,
+		processTransactionsBatchSize: processTransactionsBatchSizeDefault,
 	}
 
 	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm"))
@@ -210,36 +218,40 @@ func (p *Processor) StartProcessMinedCallbacks() {
 
 func (p *Processor) StartProcessSubmittedTxs() {
 	p.waitGroup.Add(1)
-
+	ticker := time.NewTicker(p.processTransactionsInterval)
 	go func() {
 		defer p.waitGroup.Done()
+
+		reqs := make([]*store.StoreData, 0, p.processTransactionsBatchSize)
 		for {
 			select {
 			case <-p.ctx.Done():
 				return
+			case <-ticker.C:
+				if len(reqs) > 0 {
+					p.ProcessTransactions(reqs)
+					reqs = make([]*store.StoreData, 0, p.processTransactionsBatchSize)
+				}
 			case submittedTx := <-p.submittedTxsChan:
 				if submittedTx == nil {
 					continue
 				}
 
-				hash := PtrTo(chainhash.DoubleHashH(submittedTx.GetRawTx()))
-				statusReceived := metamorph_api.Status_RECEIVED
-
 				sReq := &store.StoreData{
-					Hash:              hash,
-					Status:            statusReceived,
+					Hash:              PtrTo(chainhash.DoubleHashH(submittedTx.GetRawTx())),
+					Status:            metamorph_api.Status_STORED,
 					CallbackUrl:       submittedTx.GetCallbackUrl(),
 					CallbackToken:     submittedTx.GetCallbackToken(),
 					FullStatusUpdates: submittedTx.GetFullStatusUpdates(),
 					RawTx:             submittedTx.GetRawTx(),
 				}
 
-				req := &ProcessorRequest{
-					Data:    sReq,
-					Timeout: time.Duration(submittedTx.MaxTimeout) * time.Second,
+				reqs = append(reqs, sReq)
+				if len(reqs) >= p.processTransactionsBatchSize {
+					p.ProcessTransactions(reqs)
+					reqs = make([]*store.StoreData, 0, p.processTransactionsBatchSize)
+					ticker.Reset(p.processTransactionsInterval)
 				}
-
-				p.ProcessTransaction(p.ctx, req)
 			}
 		}
 	}()
@@ -507,18 +519,16 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 	p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
 }
 
-func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
-	// we need to decouple the Context from the request, so that we don't get cancelled
-	// when the request is cancelled
+func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 
 	// check if tx already stored, return it
-	data, err := p.store.Get(ctx, req.Data.Hash[:])
+	data, err := p.store.Get(p.ctx, req.Data.Hash[:])
 	if err == nil {
 		//	When transaction is re-submitted we update last_submitted_at with now()
 		//	to make sure it will be loaded and re-broadcast if needed.
-		err = p.storeData(ctx, data)
+		err = p.storeData(p.ctx, data)
 		if err != nil {
-			p.logger.Error("failed to update data", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+			p.logger.Error("Failed to update data", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 		}
 
 		var rejectErr error
@@ -554,10 +564,10 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// store in database
 	req.Data.Status = metamorph_api.Status_STORED
-	if err = p.storeData(ctx, req.Data); err != nil {
+	if err = p.storeData(p.ctx, req.Data); err != nil {
 		// issue with the store itself
 		// notify the client instantly and return
-
+		p.logger.Error("Failed to store transaction", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
 		if req.ResponseChannel != nil {
 			req.ResponseChannel <- processor_response.StatusAndError{
 				Hash:   req.Data.Hash,
@@ -615,6 +625,39 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	}
 }
 
+func (p *Processor) ProcessTransactions(sReq []*store.StoreData) {
+	ctx := context.Background()
+
+	// store in database
+	err := p.store.SetBulk(ctx, sReq)
+	if err != nil {
+		p.logger.Error("Failed to bulk store txs", slog.Int("number", len(sReq)), slog.String("err", err.Error()))
+		return
+	}
+
+	for _, data := range sReq {
+		// register transaction in blocktx using message queue
+		err = p.mqClient.PublishRegisterTxs(data.Hash[:])
+		if err != nil {
+			p.logger.Error("Failed to register tx in blocktx", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
+		}
+
+		// Announce transaction to network and save peers
+		peers := p.pm.AnnounceTransaction(data.Hash, nil)
+		if len(peers) == 0 {
+			p.logger.Warn("transaction was not announced to any peer", slog.String("hash", data.Hash.String()))
+			continue
+		}
+
+		// update status in storage
+		p.storageStatusUpdateCh <- store.UpdateStatus{
+			Hash:         *data.Hash,
+			Status:       metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			RejectReason: "",
+		}
+	}
+}
+
 var (
 	ErrUnhealthy = fmt.Errorf("processor has less than %d healthy peer connections", minimumHealthyConnectionsDefault)
 )
@@ -637,17 +680,6 @@ func (p *Processor) Health() error {
 }
 
 func (p *Processor) storeData(ctx context.Context, data *store.StoreData) error {
-	/*
-		We make last_submitted_at to be now()
-		to make sure it will be loaded and (re-)broadcasted if needed.
-	*/
-
 	data.LastSubmittedAt = p.now()
-
-	err := p.store.Set(ctx, data.Hash[:], data)
-	if err != nil {
-		p.logger.Error("Failed to store transaction", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
-	}
-
-	return err
+	return p.store.Set(ctx, data)
 }

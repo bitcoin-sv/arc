@@ -50,7 +50,8 @@ type Stats struct {
 
 type MetamorphStore interface {
 	Get(ctx context.Context, key []byte) (*StoreData, error)
-	Set(ctx context.Context, key []byte, value *StoreData) error
+	Set(ctx context.Context, value *StoreData) error
+	SetBulk(ctx context.Context, data []*StoreData) error
 	Del(ctx context.Context, key []byte) error
 
 	SetLocked(ctx context.Context, since time.Time, limit int64) error

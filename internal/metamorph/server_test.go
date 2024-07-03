@@ -58,10 +58,10 @@ func TestPutTransaction(t *testing.T) {
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
-			RawTx: testdata.TX1RawBytes,
+			RawTx: testdata.TX1Raw.Bytes(),
 		}
 
-		processor.ProcessTransactionFunc = func(ctx context.Context, req *metamorph.ProcessorRequest) {
+		processor.ProcessTransactionFunc = func(req *metamorph.ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
 
 			req.ResponseChannel <- processor_response.StatusAndError{
@@ -85,10 +85,10 @@ func TestPutTransaction(t *testing.T) {
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
-			RawTx: testdata.TX1RawBytes,
+			RawTx: testdata.TX1Raw.Bytes(),
 		}
 
-		processor.ProcessTransactionFunc = func(ctx context.Context, req *metamorph.ProcessorRequest) {
+		processor.ProcessTransactionFunc = func(req *metamorph.ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
 			req.ResponseChannel <- processor_response.StatusAndError{
 				Hash:   testdata.TX1Hash,
@@ -110,10 +110,10 @@ func TestPutTransaction(t *testing.T) {
 
 		var txStatus *metamorph_api.TransactionStatus
 		txRequest := &metamorph_api.TransactionRequest{
-			RawTx:         testdata.TX1RawBytes,
+			RawTx:         testdata.TX1Raw.Bytes(),
 			WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
 		}
-		processor.ProcessTransactionFunc = func(ctx context.Context, req *metamorph.ProcessorRequest) {
+		processor.ProcessTransactionFunc = func(req *metamorph.ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
 			req.ResponseChannel <- processor_response.StatusAndError{
 				Hash:   testdata.TX1Hash,
@@ -171,7 +171,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 		{
 			name: "GetTransactionStatus - test.TX1",
 			req: &metamorph_api.TransactionStatusRequest{
-				Txid: testdata.TX1,
+				Txid: testdata.TX1Hash.String(),
 			},
 			status:     metamorph_api.Status_SENT_TO_NETWORK,
 			merklePath: "00000",
@@ -180,7 +180,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				StoredAt:    timestamppb.New(testdata.Time),
 				AnnouncedAt: timestamppb.New(testdata.Time.Add(1 * time.Second)),
 				MinedAt:     timestamppb.New(testdata.Time.Add(2 * time.Second)),
-				Txid:        testdata.TX1,
+				Txid:        testdata.TX1Hash.String(),
 				Status:      metamorph_api.Status_SENT_TO_NETWORK,
 				MerklePath:  "00000",
 			},
@@ -189,7 +189,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 		{
 			name: "GetTransactionStatus - test.TX1 - error",
 			req: &metamorph_api.TransactionStatusRequest{
-				Txid: testdata.TX1,
+				Txid: testdata.TX1Hash.String(),
 			},
 			status:             metamorph_api.Status_SENT_TO_NETWORK,
 			getTxMerklePathErr: errors.New("failed to get tx merkle path"),
@@ -198,7 +198,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				StoredAt:    timestamppb.New(testdata.Time),
 				AnnouncedAt: timestamppb.New(testdata.Time.Add(1 * time.Second)),
 				MinedAt:     timestamppb.New(testdata.Time.Add(2 * time.Second)),
-				Txid:        testdata.TX1,
+				Txid:        testdata.TX1Hash.String(),
 				Status:      metamorph_api.Status_SENT_TO_NETWORK,
 				MerklePath:  "00000",
 			},
@@ -207,7 +207,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 		{
 			name: "GetTransactionStatus - test.TX1 - tx not found for Merkle path",
 			req: &metamorph_api.TransactionStatusRequest{
-				Txid: testdata.TX1,
+				Txid: testdata.TX1Hash.String(),
 			},
 			status:             metamorph_api.Status_MINED,
 			getTxMerklePathErr: blocktx.ErrMerklePathNotFoundForTransaction,
@@ -216,7 +216,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				StoredAt:    timestamppb.New(testdata.Time),
 				AnnouncedAt: timestamppb.New(testdata.Time.Add(1 * time.Second)),
 				MinedAt:     timestamppb.New(testdata.Time.Add(2 * time.Second)),
-				Txid:        testdata.TX1,
+				Txid:        testdata.TX1Hash.String(),
 				Status:      metamorph_api.Status_MINED,
 				MerklePath:  "00000",
 			},
@@ -463,7 +463,7 @@ func TestPutTransactions(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			processor := &mocks.ProcessorIMock{
-				ProcessTransactionFunc: func(_ context.Context, req *metamorph.ProcessorRequest) {
+				ProcessTransactionFunc: func(req *metamorph.ProcessorRequest) {
 					resp, found := tc.processorResponse[req.Data.Hash.String()]
 					if found {
 						req.ResponseChannel <- *resp

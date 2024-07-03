@@ -212,7 +212,7 @@ func TestPostgresDB(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
 		mined := *minedData
-		err = postgresDB.Set(ctx, minedHash[:], &mined)
+		err = postgresDB.Set(ctx, &mined)
 		require.NoError(t, err)
 
 		dataReturned, err := postgresDB.Get(ctx, minedHash[:])
@@ -220,7 +220,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, dataReturned, &mined)
 
 		mined.LastSubmittedAt = time.Date(2024, 5, 31, 15, 16, 0, 0, time.UTC)
-		err = postgresDB.Set(ctx, minedHash[:], &mined)
+		err = postgresDB.Set(ctx, &mined)
 		require.NoError(t, err)
 
 		dataReturned2, err := postgresDB.Get(ctx, minedHash[:])
@@ -235,6 +235,67 @@ func TestPostgresDB(t *testing.T) {
 
 		_, err = postgresDB.Get(ctx, []byte("not to be found"))
 		require.True(t, errors.Is(err, store.ErrNotFound))
+	})
+
+	t.Run("set bulk", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/set_bulk"))
+
+		hash2 := revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853") // hash already existing in db - no update expected
+
+		data := []*store.StoreData{
+			{
+				RawTx:             testdata.TX1Raw.Bytes(),
+				StoredAt:          now,
+				Hash:              testdata.TX1Hash,
+				Status:            metamorph_api.Status_STORED,
+				CallbackUrl:       "callback.example.com",
+				FullStatusUpdates: false,
+				CallbackToken:     "1234",
+				LastSubmittedAt:   now,
+				LockedBy:          "metamorph-1",
+			},
+			{
+				RawTx:             testdata.TX6Raw.Bytes(),
+				StoredAt:          now,
+				Hash:              testdata.TX6Hash,
+				Status:            metamorph_api.Status_STORED,
+				CallbackUrl:       "callback-2.example.com",
+				FullStatusUpdates: true,
+				CallbackToken:     "5678",
+				LastSubmittedAt:   now,
+				LockedBy:          "metamorph-1",
+			},
+			{
+				RawTx:             testdata.TX6Raw.Bytes(),
+				StoredAt:          now,
+				Hash:              hash2,
+				Status:            metamorph_api.Status_STORED,
+				CallbackUrl:       "callback-3.example.com",
+				FullStatusUpdates: true,
+				CallbackToken:     "5678",
+				LastSubmittedAt:   now,
+				LockedBy:          "metamorph-1",
+			},
+		}
+
+		err = postgresDB.SetBulk(ctx, data)
+		require.NoError(t, err)
+
+		data0, err := postgresDB.Get(ctx, testdata.TX1Hash[:])
+		require.NoError(t, err)
+		require.Equal(t, data[0], data0)
+
+		data1, err := postgresDB.Get(ctx, testdata.TX6Hash[:])
+		require.NoError(t, err)
+		require.Equal(t, data[1], data1)
+
+		data2, err := postgresDB.Get(ctx, hash2[:])
+		require.NoError(t, err)
+		require.NotEqual(t, data[2], data2)
+		require.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, data2.Status)
+		require.Equal(t, "metamorph-3", data2.LockedBy)
 	})
 
 	t.Run("get unmined", func(t *testing.T) {
@@ -381,7 +442,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
 
 		unmined := *unminedData
-		err = postgresDB.Set(ctx, unminedHash[:], &unmined)
+		err = postgresDB.Set(ctx, &unmined)
 		require.NoError(t, err)
 
 		chainHash2 := revChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
@@ -442,7 +503,7 @@ func TestPostgresDB(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
 		unmined := *unminedData
-		err = postgresDB.Set(ctx, unminedHash[:], &unmined)
+		err = postgresDB.Set(ctx, &unmined)
 		require.NoError(t, err)
 		txBlocks := &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{{
 			BlockHash:       nil,

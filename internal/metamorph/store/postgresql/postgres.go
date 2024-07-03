@@ -202,9 +202,8 @@ func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash)
 	return nil
 }
 
-// Set implements the MetamorphStore interface. It attempts to store a value for a given key
-// and namespace. If the key/value pair cannot be saved, an error is returned.
-func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) error {
+// Set stores a single record in the transactions table.
+func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 	q := `INSERT INTO metamorph.transactions (
 		 stored_at
 		,announced_at
@@ -268,6 +267,61 @@ func (p *PostgreSQL) Set(ctx context.Context, _ []byte, value *store.StoreData) 
 		value.RawTx,
 		p.hostname,
 		value.LastSubmittedAt,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SetBulk bulk inserts records into the transactions table
+func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error {
+	storedAt := make([]time.Time, len(data))
+	hashes := make([][]byte, len(data))
+	statuses := make([]int, len(data))
+	callbackURL := make([]string, len(data))
+	callbackToken := make([]string, len(data))
+	fullStatusUpdate := make([]bool, len(data))
+	rawTxs := make([][]byte, len(data))
+	lockedBy := make([]string, len(data))
+	lastSubmittedAt := make([]time.Time, len(data))
+	for i, txData := range data {
+		storedAt[i] = txData.StoredAt
+		hashes[i] = txData.Hash[:]
+		statuses[i] = int(txData.Status)
+		callbackURL[i] = txData.CallbackUrl
+		callbackToken[i] = txData.CallbackToken
+		fullStatusUpdate[i] = txData.FullStatusUpdates
+		rawTxs[i] = txData.RawTx
+		lockedBy[i] = p.hostname
+		lastSubmittedAt[i] = txData.LastSubmittedAt
+	}
+
+	q := `INSERT INTO metamorph.transactions (
+		 stored_at
+		,hash
+		,status
+		,callback_url
+		,callback_token
+		,full_status_updates
+		,raw_tx
+		,locked_by
+		,last_submitted_at
+		)
+		SELECT * FROM UNNEST($1::TIMESTAMPTZ[], $2::BYTEA[], $3::INT[], $4::TEXT[], $5::TEXT[], $6::BOOL[], $7::BYTEA[], $8::TEXT[], $9::TIMESTAMPTZ[])
+		ON CONFLICT (hash) DO NOTHING
+		`
+	_, err := p.db.ExecContext(ctx, q,
+		pq.Array(storedAt),
+		pq.Array(hashes),
+		pq.Array(statuses),
+		pq.Array(callbackURL),
+		pq.Array(callbackToken),
+		pq.Array(fullStatusUpdate),
+		pq.Array(rawTxs),
+		pq.Array(lockedBy),
+		pq.Array(lastSubmittedAt),
 	)
 	if err != nil {
 		return err

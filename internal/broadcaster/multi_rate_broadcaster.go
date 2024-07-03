@@ -61,11 +61,11 @@ func (mrb *MultiKeyRateBroadcaster) Start(rateTxsPerSecond int, limit int64) err
 }
 
 func (mrb *MultiKeyRateBroadcaster) Shutdown() {
-	mrb.cancelAll()
 	for _, rb := range mrb.rbs {
 		rb.Shutdown()
 	}
 
+	mrb.cancelAll()
 	mrb.wg.Wait()
 }
 

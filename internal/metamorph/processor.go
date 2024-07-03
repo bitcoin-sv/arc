@@ -38,7 +38,7 @@ const (
 	processStatusUpdatesBatchSizeDefault = 1000
 
 	processTransactionsBatchSizeDefault = 200
-	processTransactionsIntervalDefault  = 2 * time.Second
+	processTransactionsIntervalDefault  = 1 * time.Second
 )
 
 type Processor struct {
@@ -222,7 +222,7 @@ func (p *Processor) StartProcessSubmittedTxs() {
 	go func() {
 		defer p.waitGroup.Done()
 
-		var reqs []*ProcessorRequest
+		reqs := make([]*store.StoreData, 0, p.processTransactionsBatchSize)
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -230,32 +230,26 @@ func (p *Processor) StartProcessSubmittedTxs() {
 			case <-ticker.C:
 				if len(reqs) > 0 {
 					p.ProcessTransactions(reqs)
-					reqs = []*ProcessorRequest{}
+					reqs = make([]*store.StoreData, 0, p.processTransactionsBatchSize)
 				}
 			case submittedTx := <-p.submittedTxsChan:
 				if submittedTx == nil {
 					continue
 				}
-				hash := PtrTo(chainhash.DoubleHashH(submittedTx.GetRawTx()))
 
 				sReq := &store.StoreData{
-					Hash:              hash,
-					Status:            metamorph_api.Status_RECEIVED,
+					Hash:              PtrTo(chainhash.DoubleHashH(submittedTx.GetRawTx())),
+					Status:            metamorph_api.Status_STORED,
 					CallbackUrl:       submittedTx.GetCallbackUrl(),
 					CallbackToken:     submittedTx.GetCallbackToken(),
 					FullStatusUpdates: submittedTx.GetFullStatusUpdates(),
 					RawTx:             submittedTx.GetRawTx(),
 				}
 
-				req := &ProcessorRequest{
-					Data:    sReq,
-					Timeout: time.Duration(submittedTx.MaxTimeout) * time.Second,
-				}
-
-				reqs = append(reqs, req)
+				reqs = append(reqs, sReq)
 				if len(reqs) >= p.processTransactionsBatchSize {
 					p.ProcessTransactions(reqs)
-					reqs = []*ProcessorRequest{}
+					reqs = make([]*store.StoreData, 0, p.processTransactionsBatchSize)
 					ticker.Reset(p.processTransactionsInterval)
 				}
 			}
@@ -631,40 +625,33 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	}
 }
 
-func (p *Processor) ProcessTransactions(reqs []*ProcessorRequest) {
+func (p *Processor) ProcessTransactions(sReq []*store.StoreData) {
 	ctx := context.Background()
 
 	// store in database
-	var data []*store.StoreData
-
-	for _, req := range reqs {
-		req.Data.Status = metamorph_api.Status_STORED
-		data = append(data, req.Data)
-	}
-
-	err := p.store.SetBulk(ctx, data)
+	err := p.store.SetBulk(ctx, sReq)
 	if err != nil {
-		p.logger.Error("Failed to bulk store txs", slog.Int("number", len(data)), slog.String("err", err.Error()))
+		p.logger.Error("Failed to bulk store txs", slog.Int("number", len(sReq)), slog.String("err", err.Error()))
 		return
 	}
 
-	for _, req := range reqs {
+	for _, data := range sReq {
 		// register transaction in blocktx using message queue
-		err = p.mqClient.PublishRegisterTxs(req.Data.Hash[:])
+		err = p.mqClient.PublishRegisterTxs(data.Hash[:])
 		if err != nil {
-			p.logger.Error("Failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+			p.logger.Error("Failed to register tx in blocktx", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
 		}
 
 		// Announce transaction to network and save peers
-		peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
+		peers := p.pm.AnnounceTransaction(data.Hash, nil)
 		if len(peers) == 0 {
-			p.logger.Warn("transaction was not announced to any peer", slog.String("hash", req.Data.Hash.String()))
-			return
+			p.logger.Warn("transaction was not announced to any peer", slog.String("hash", data.Hash.String()))
+			continue
 		}
 
 		// update status in storage
 		p.storageStatusUpdateCh <- store.UpdateStatus{
-			Hash:         *req.Data.Hash,
+			Hash:         *data.Hash,
 			Status:       metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			RejectReason: "",
 		}

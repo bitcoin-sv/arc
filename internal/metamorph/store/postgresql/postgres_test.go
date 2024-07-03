@@ -246,7 +246,7 @@ func TestPostgresDB(t *testing.T) {
 
 		data := []*store.StoreData{
 			{
-				RawTx:             testdata.TX1RawBytes,
+				RawTx:             testdata.TX1Raw.Bytes(),
 				StoredAt:          now,
 				Hash:              testdata.TX1Hash,
 				Status:            metamorph_api.Status_STORED,
@@ -257,7 +257,7 @@ func TestPostgresDB(t *testing.T) {
 				LockedBy:          "metamorph-1",
 			},
 			{
-				RawTx:             testdata.TX6RawBytes,
+				RawTx:             testdata.TX6Raw.Bytes(),
 				StoredAt:          now,
 				Hash:              testdata.TX6Hash,
 				Status:            metamorph_api.Status_STORED,
@@ -268,7 +268,7 @@ func TestPostgresDB(t *testing.T) {
 				LockedBy:          "metamorph-1",
 			},
 			{
-				RawTx:             testdata.TX6RawBytes,
+				RawTx:             testdata.TX6Raw.Bytes(),
 				StoredAt:          now,
 				Hash:              hash2,
 				Status:            metamorph_api.Status_STORED,

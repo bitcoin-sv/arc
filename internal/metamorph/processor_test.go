@@ -186,7 +186,7 @@ func TestProcessTransaction(t *testing.T) {
 					return tc.storeData, tc.storeDataGetErr
 				},
 				SetFunc: func(ctx context.Context, value *store.StoreData) error {
-					require.Equal(t, testdata.TX1Hash[:], value.Hash)
+					require.True(t, bytes.Equal(testdata.TX1Hash[:], value.Hash[:]))
 
 					return nil
 				},

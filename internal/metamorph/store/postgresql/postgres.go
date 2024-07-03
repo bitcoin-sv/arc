@@ -53,9 +53,9 @@ func New(dbInfo string, hostname string, idleConns int, maxOpenConns int, opts .
 }
 
 func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error) {
-	q := "UPDATE metamorph.transactions SET locked_by = 'NONE' WHERE locked_by = $1 AND (status < $2 OR status = $3);"
+	q := "UPDATE metamorph.transactions SET locked_by = 'NONE' WHERE locked_by = $1;"
 
-	rows, err := p.db.ExecContext(ctx, q, lockedBy, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL)
+	rows, err := p.db.ExecContext(ctx, q, lockedBy)
 	if err != nil {
 		return 0, err
 	}

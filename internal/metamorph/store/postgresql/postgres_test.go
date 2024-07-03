@@ -296,6 +296,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NotEqual(t, data[2], data2)
 		require.Equal(t, metamorph_api.Status_SENT_TO_NETWORK, data2.Status)
 		require.Equal(t, "metamorph-3", data2.LockedBy)
+		require.Equal(t, now, data2.LastSubmittedAt)
 	})
 
 	t.Run("get unmined", func(t *testing.T) {

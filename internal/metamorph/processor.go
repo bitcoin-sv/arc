@@ -236,7 +236,7 @@ func (p *Processor) StartProcessSubmittedTxs() {
 				if submittedTx == nil {
 					continue
 				}
-
+				now := p.now()
 				sReq := &store.StoreData{
 					Hash:              PtrTo(chainhash.DoubleHashH(submittedTx.GetRawTx())),
 					Status:            metamorph_api.Status_STORED,
@@ -244,6 +244,8 @@ func (p *Processor) StartProcessSubmittedTxs() {
 					CallbackToken:     submittedTx.GetCallbackToken(),
 					FullStatusUpdates: submittedTx.GetFullStatusUpdates(),
 					RawTx:             submittedTx.GetRawTx(),
+					StoredAt:          now,
+					LastSubmittedAt:   now,
 				}
 
 				reqs = append(reqs, sReq)
@@ -626,10 +628,9 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 }
 
 func (p *Processor) ProcessTransactions(sReq []*store.StoreData) {
-	ctx := context.Background()
 
 	// store in database
-	err := p.store.SetBulk(ctx, sReq)
+	err := p.store.SetBulk(p.ctx, sReq)
 	if err != nil {
 		p.logger.Error("Failed to bulk store txs", slog.Int("number", len(sReq)), slog.String("err", err.Error()))
 		return

@@ -599,7 +599,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 
 		// we no longer need processor response object after response has been returned
 		go func() {
-			time.Sleep(req.Timeout * time.Second)
+			time.Sleep(req.Timeout)
 			p.ProcessorResponseMap.Delete(req.Data.Hash)
 		}()
 	}

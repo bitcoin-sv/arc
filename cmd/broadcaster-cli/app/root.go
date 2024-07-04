@@ -2,12 +2,13 @@ package app
 
 import (
 	"errors"
+	"log"
+
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"golang.org/x/sys/unix"
-	"log"
 )
 
 var RootCmd = &cobra.Command{
@@ -23,8 +24,8 @@ func init() {
 		log.Fatal(err)
 	}
 
-	RootCmd.PersistentFlags().String("keyfile", "", "Comma separated list of paths to private key files")
-	err = viper.BindPFlag("keyFile", RootCmd.PersistentFlags().Lookup("keyfile"))
+	RootCmd.PersistentFlags().String("keys", "", "Comma separated list of selected private keys")
+	err = viper.BindPFlag("keys", RootCmd.PersistentFlags().Lookup("keys"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -37,10 +38,11 @@ func init() {
 
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("./cmd/broadcaster-cli/")
-
-	viper.SetConfigName(".env")
-	viper.SetConfigType("env")
+	viper.SetConfigName("broadcaster-cli")
 	err = viper.ReadInConfig()
+	if err != nil {
+		log.Fatalf("failed to read config file: %v", err)
+	}
 
 	var viperErr viper.ConfigFileNotFoundError
 	isConfigFileNotFoundErr := errors.As(err, &viperErr)

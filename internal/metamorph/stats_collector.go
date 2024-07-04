@@ -35,7 +35,6 @@ type processorStats struct {
 	statusNotSeen              prometheus.Gauge
 	statusMinedTotal           prometheus.Gauge
 	statusSeenOnNetworkTotal   prometheus.Gauge
-	statusNotSeenStat          int64
 }
 
 func WithLimits(notSeenLimit time.Duration, notMinedLimit time.Duration) func(*processorStats) {
@@ -113,12 +112,6 @@ func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
 	})
 
 	return p
-}
-
-func (p *Processor) GetStatusNotSeen() int64 {
-	p.stats.mu.Lock()
-	defer p.stats.mu.Unlock()
-	return p.stats.statusNotSeenStat
 }
 
 func (p *Processor) StartCollectStats() error {
@@ -199,7 +192,6 @@ func (p *Processor) StartCollectStats() error {
 				p.stats.statusMined.Set(float64(collectedStats.StatusMined))
 				p.stats.statusNotMined.Set(float64(collectedStats.StatusNotMined))
 				p.stats.statusNotSeen.Set(float64(collectedStats.StatusNotSeen))
-				p.stats.statusNotSeenStat = collectedStats.StatusNotSeen
 				p.stats.statusSeenOnNetworkTotal.Set(float64(collectedStats.StatusSeenOnNetworkTotal))
 				p.stats.statusMinedTotal.Set(float64(collectedStats.StatusMinedTotal))
 				p.stats.mu.Unlock()

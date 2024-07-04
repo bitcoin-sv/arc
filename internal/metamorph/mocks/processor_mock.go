@@ -26,9 +26,6 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //			GetProcessorMapSizeFunc: func() int {
 //				panic("mock out the GetProcessorMapSize method")
 //			},
-//			GetStatusNotSeenFunc: func() int64 {
-//				panic("mock out the GetStatusNotSeen method")
-//			},
 //			HealthFunc: func() error {
 //				panic("mock out the Health method")
 //			},
@@ -51,9 +48,6 @@ type ProcessorIMock struct {
 	// GetProcessorMapSizeFunc mocks the GetProcessorMapSize method.
 	GetProcessorMapSizeFunc func() int
 
-	// GetStatusNotSeenFunc mocks the GetStatusNotSeen method.
-	GetStatusNotSeenFunc func() int64
-
 	// HealthFunc mocks the Health method.
 	HealthFunc func() error
 
@@ -71,9 +65,6 @@ type ProcessorIMock struct {
 		// GetProcessorMapSize holds details about calls to the GetProcessorMapSize method.
 		GetProcessorMapSize []struct {
 		}
-		// GetStatusNotSeen holds details about calls to the GetStatusNotSeen method.
-		GetStatusNotSeen []struct {
-		}
 		// Health holds details about calls to the Health method.
 		Health []struct {
 		}
@@ -90,7 +81,6 @@ type ProcessorIMock struct {
 	}
 	lockGetPeers            sync.RWMutex
 	lockGetProcessorMapSize sync.RWMutex
-	lockGetStatusNotSeen    sync.RWMutex
 	lockHealth              sync.RWMutex
 	lockProcessTransaction  sync.RWMutex
 	lockShutdown            sync.RWMutex
@@ -147,33 +137,6 @@ func (mock *ProcessorIMock) GetProcessorMapSizeCalls() []struct {
 	mock.lockGetProcessorMapSize.RLock()
 	calls = mock.calls.GetProcessorMapSize
 	mock.lockGetProcessorMapSize.RUnlock()
-	return calls
-}
-
-// GetStatusNotSeen calls GetStatusNotSeenFunc.
-func (mock *ProcessorIMock) GetStatusNotSeen() int64 {
-	if mock.GetStatusNotSeenFunc == nil {
-		panic("ProcessorIMock.GetStatusNotSeenFunc: method is nil but ProcessorI.GetStatusNotSeen was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockGetStatusNotSeen.Lock()
-	mock.calls.GetStatusNotSeen = append(mock.calls.GetStatusNotSeen, callInfo)
-	mock.lockGetStatusNotSeen.Unlock()
-	return mock.GetStatusNotSeenFunc()
-}
-
-// GetStatusNotSeenCalls gets all the calls that were made to GetStatusNotSeen.
-// Check the length with:
-//
-//	len(mockedProcessorI.GetStatusNotSeenCalls())
-func (mock *ProcessorIMock) GetStatusNotSeenCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockGetStatusNotSeen.RLock()
-	calls = mock.calls.GetStatusNotSeen
-	mock.lockGetStatusNotSeen.RUnlock()
 	return calls
 }
 

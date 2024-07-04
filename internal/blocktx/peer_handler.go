@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"math"
 	"os"
-	"runtime"
 	"sync"
 	"time"
 
@@ -590,20 +589,6 @@ func (ph *PeerHandler) insertBlock(ctx context.Context, blockHash *chainhash.Has
 	return ph.store.InsertBlock(ctx, block)
 }
 
-func (ph *PeerHandler) printMemStats() {
-	bToMb := func(b uint64) uint64 {
-		return b / 1024 / 1024
-	}
-	var mem runtime.MemStats
-	runtime.ReadMemStats(&mem)
-	ph.logger.Debug("stats",
-		slog.Uint64("Alloc [MiB]", bToMb(mem.Alloc)),
-		slog.Uint64("TotalAlloc [MiB]", bToMb(mem.TotalAlloc)),
-		slog.Uint64("Sys [MiB]", bToMb(mem.Sys)),
-		slog.Int64("NumGC [MiB]", int64(mem.NumGC)),
-	)
-}
-
 func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
 	if tracer != nil {
 		var span trace.Span
@@ -686,11 +671,6 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 					ph.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
 				}
 			}
-
-			// print stats, call gc and check the result
-			ph.printMemStats()
-			runtime.GC()
-			ph.printMemStats()
 		}
 	}
 

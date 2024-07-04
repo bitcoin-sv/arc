@@ -54,7 +54,7 @@ func (b *UTXOConsolidator) Consolidate() error {
 
 		if utxoSet.Len() == 1 {
 			b.logger.Info("utxos already consolidated")
-			return nil
+			continue
 		}
 
 		satoshiMap := map[string]uint64{}

@@ -144,7 +144,7 @@ func (b *RateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
 					b.shutdown <- struct{}{}
 				}
 
-				b.broadcastBatchAsync(txs, errCh, metamorph_api.Status_RECEIVED)
+				b.broadcastBatchAsync(txs, errCh, metamorph_api.Status_QUEUED)
 
 			case responseErr := <-errCh:
 				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
@@ -163,8 +163,6 @@ utxoLoop:
 		select {
 		case <-b.ctx.Done():
 			return txs, nil
-		//case <-time.NewTimer(1 * time.Second).C:
-		//	return txs, nil
 		case utxo := <-b.utxoCh:
 			tx := bt.NewTx()
 
@@ -209,10 +207,30 @@ func (b *RateBroadcaster) broadcastBatchAsync(txs []*bt.Tx, errCh chan error, wa
 	b.wg.Add(1)
 	go func() {
 		defer b.wg.Done()
+
+		ctx, cancel := context.WithTimeout(b.ctx, 10*time.Second)
+		defer cancel()
+
 		atomic.AddInt64(&b.connectionCount, 1)
-		resp, err := b.client.BroadcastTransactions(b.ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
+
+		resp, err := b.client.BroadcastTransactions(ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 		if err != nil {
+
+			// In case of error put utxos back in channel
+			for _, tx := range txs {
+				for _, input := range tx.Inputs {
+					unusedUtxo := &bt.UTXO{
+						TxID:          input.PreviousTxID(),
+						Vout:          0,
+						LockingScript: b.ks.Script,
+						Satoshis:      input.PreviousTxSatoshis,
+					}
+					b.utxoCh <- unusedUtxo
+				}
+			}
+
 			if errors.Is(err, context.Canceled) {
+				atomic.AddInt64(&b.connectionCount, -1)
 				return
 			}
 			errCh <- err

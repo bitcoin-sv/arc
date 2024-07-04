@@ -4,15 +4,15 @@ import (
 	"context"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"log/slog"
-	"runtime"
+	"math"
 	"sync"
 	"time"
 )
 
 type MultiKeyRateBroadcaster struct {
-	rbs    []*RateBroadcaster
-	logger *slog.Logger
-
+	rbs       []*RateBroadcaster
+	logger    *slog.Logger
+	target    int64
 	cancelAll context.CancelFunc
 	ctx       context.Context
 	wg        sync.WaitGroup
@@ -43,12 +43,14 @@ func NewMultiKeyRateBroadcaster(logger *slog.Logger, client ArcClient, keySets [
 
 func (mrb *MultiKeyRateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
 	mrb.logStats()
-
+	mrb.target = 0
 	for _, rb := range mrb.rbs {
 		err := rb.Start(rateTxsPerSecond, limit)
 		if err != nil {
 			return err
 		}
+
+		mrb.target += limit
 	}
 
 	for _, rb := range mrb.rbs {
@@ -59,26 +61,21 @@ func (mrb *MultiKeyRateBroadcaster) Start(rateTxsPerSecond int, limit int64) err
 }
 
 func (mrb *MultiKeyRateBroadcaster) Shutdown() {
-	mrb.cancelAll()
 	for _, rb := range mrb.rbs {
 		rb.Shutdown()
 	}
 
+	mrb.cancelAll()
 	mrb.wg.Wait()
 }
 
 func (mrb *MultiKeyRateBroadcaster) logStats() {
 	mrb.wg.Add(1)
-	bToMb := func(b uint64) uint64 {
-		return b / 1024 / 1024
-	}
 
 	logStatsTicker := time.NewTicker(2 * time.Second)
-	logMemStatsTicker := time.NewTicker(10 * time.Second)
 
 	go func() {
 		defer mrb.wg.Done()
-		var mem runtime.MemStats
 		for {
 			select {
 			case <-logStatsTicker.C:
@@ -94,19 +91,19 @@ func (mrb *MultiKeyRateBroadcaster) logStats() {
 				}
 				mrb.logger.Info("stats",
 					slog.Int64("txs", totalTxsCount),
+					slog.Int64("target", mrb.target),
+					slog.Float64("percentage", roundFloat(float64(totalTxsCount)/float64(mrb.target)*100, 2)),
 					slog.Int64("connections", totalConnectionCount),
 					slog.Int("utxos", totalUtxoSetLength),
-				)
-			case <-logMemStatsTicker.C:
-				mrb.logger.Info("memory",
-					slog.Uint64("Alloc [MiB]", bToMb(mem.Alloc)),
-					slog.Uint64("TotalAlloc [MiB]", bToMb(mem.TotalAlloc)),
-					slog.Uint64("Sys [MiB]", bToMb(mem.Sys)),
-					slog.Int64("NumGC [MiB]", int64(mem.NumGC)),
 				)
 			case <-mrb.ctx.Done():
 				return
 			}
 		}
 	}()
+}
+
+func roundFloat(val float64, precision uint) float64 {
+	ratio := math.Pow(10, float64(precision))
+	return math.Round(val*ratio) / ratio
 }

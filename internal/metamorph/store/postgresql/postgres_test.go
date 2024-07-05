@@ -23,6 +23,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,9 +35,7 @@ const (
 	dbPassword     = "arcpass"
 )
 
-var (
-	dbInfo string
-)
+var dbInfo string
 
 func revChainhash(t *testing.T, hashString string) *chainhash.Hash {
 	hash, err := hex.DecodeString(hashString)
@@ -237,6 +236,53 @@ func TestPostgresDB(t *testing.T) {
 		require.True(t, errors.Is(err, store.ErrNotFound))
 	})
 
+	t.Run("get bulk", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/get_bulk"))
+
+		hash1 := "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"
+		hash2 := "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"
+		hash3 := "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"
+
+		hashes := make([][]byte, 0)
+		hashes = append(hashes, revChainhash(t, hash1).CloneBytes())
+		hashes = append(hashes, revChainhash(t, hash2).CloneBytes())
+		hashes = append(hashes, revChainhash(t, hash3).CloneBytes())
+
+		expectedTime, err := time.Parse("2006-01-02 15:04:05", "2023-10-01 14:00:00")
+		require.NoError(t, err)
+
+		expectedStoreData := []*store.StoreData{
+			{
+				Hash:            revChainhash(t, hash1),
+				Status:          metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+				LockedBy:        "metamorph-3",
+				StoredAt:        expectedTime,
+				LastSubmittedAt: expectedTime,
+			},
+			{
+				Hash:            revChainhash(t, hash2),
+				Status:          metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+				LockedBy:        "metamorph-3",
+				StoredAt:        expectedTime,
+				LastSubmittedAt: expectedTime,
+			},
+			{
+				Hash:            revChainhash(t, hash3),
+				Status:          metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+				LockedBy:        "metamorph-1",
+				StoredAt:        expectedTime,
+				LastSubmittedAt: expectedTime,
+			},
+		}
+
+		storeDataSlice, err := postgresDB.GetBulk(context.Background(), hashes)
+		require.NoError(t, err)
+
+		assert.Equal(t, expectedStoreData, storeDataSlice)
+	})
+
 	t.Run("set bulk", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
@@ -380,7 +426,6 @@ func TestPostgresDB(t *testing.T) {
 		hash4Data, err := postgresDB.Get(ctx, hash4[:])
 		require.NoError(t, err)
 		require.Equal(t, "NONE", hash4Data.LockedBy)
-
 	})
 
 	t.Run("update status", func(t *testing.T) {

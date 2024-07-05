@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -191,6 +192,178 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	return data, nil
 }
 
+// GetBulk implements the MetamorphStore interface. It attempts to get values for given keys.
+// If the keys do not exist an error is returned, otherwise the retrieved values.
+func (p *PostgreSQL) GetBulk(ctx context.Context, hashes [][]byte) ([]*store.StoreData, error) {
+	retData := make([]*store.StoreData, 0)
+
+	// Batch process hashes to avoid SQL limits
+	batchSize := 1000
+	for i := 0; i < len(hashes); i += batchSize {
+		end := i + batchSize
+		if end > len(hashes) {
+			end = len(hashes)
+		}
+		batch := hashes[i:end]
+		query, args := buildGetBulkQuery(batch)
+
+		rows, err := p.db.QueryContext(ctx, query, args...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		var hash []byte
+		var storedAt time.Time
+		var announcedAt sql.NullTime
+		var minedAt sql.NullTime
+		var lastSubmittedAt time.Time
+		var status sql.NullInt32
+		var blockHeight sql.NullInt64
+		var blockHash []byte
+		var callbackUrl sql.NullString
+		var callbackToken sql.NullString
+		var fullStatusUpdates bool
+		var rejectReason sql.NullString
+		var rawTx []byte
+		var lockedBy string
+		var merklePath sql.NullString
+		var retries sql.NullInt32
+
+		for rows.Next() {
+			err := rows.Scan(
+				&hash,
+				&storedAt,
+				&announcedAt,
+				&minedAt,
+				&lastSubmittedAt,
+				&status,
+				&blockHeight,
+				&blockHash,
+				&callbackUrl,
+				&callbackToken,
+				&fullStatusUpdates,
+				&rejectReason,
+				&rawTx,
+				&lockedBy,
+				&merklePath,
+				&retries,
+			)
+			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					// continue to the next row, check for NotFoundErr at the very end
+					continue
+				}
+				return nil, err
+			}
+			data := &store.StoreData{}
+			data.Hash, err = chainhash.NewHash(hash)
+			if err != nil {
+				return nil, err
+			}
+
+			if len(blockHash) > 0 {
+				data.BlockHash, err = chainhash.NewHash(blockHash)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			data.RawTx = rawTx
+			data.StoredAt = storedAt.UTC()
+
+			if announcedAt.Valid {
+				data.AnnouncedAt = announcedAt.Time.UTC()
+			}
+
+			if minedAt.Valid {
+				data.MinedAt = minedAt.Time.UTC()
+			}
+
+			data.LastSubmittedAt = lastSubmittedAt.UTC()
+
+			if status.Valid {
+				data.Status = metamorph_api.Status(status.Int32)
+			}
+
+			if blockHeight.Valid {
+				data.BlockHeight = uint64(blockHeight.Int64)
+			}
+
+			if callbackUrl.Valid {
+				data.CallbackUrl = callbackUrl.String
+			}
+
+			if callbackToken.Valid {
+				data.CallbackToken = callbackToken.String
+			}
+
+			data.FullStatusUpdates = fullStatusUpdates
+
+			if rejectReason.Valid {
+				data.RejectReason = rejectReason.String
+			}
+
+			data.LockedBy = lockedBy
+
+			if merklePath.Valid {
+				data.MerklePath = merklePath.String
+			}
+
+			if retries.Valid {
+				data.Retries = int(retries.Int32)
+			}
+
+			retData = append(retData, data)
+		}
+
+		// Check for any errors encountered during iteration
+		if err := rows.Err(); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// continue to the next batch, check for NotFoundErr at the very end
+				continue
+			}
+			return nil, err
+		}
+	}
+
+	if len(retData) == 0 {
+		return nil, store.ErrNotFound
+	}
+
+	return retData, nil
+}
+
+// buildQuery constructs a query for a batch of hash strings
+func buildGetBulkQuery(hashes [][]byte) (string, []interface{}) {
+	placeholders := make([]string, len(hashes))
+	args := make([]interface{}, len(hashes))
+	for i, hash := range hashes {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = hash
+	}
+	query := fmt.Sprintf(`SELECT
+		hash,
+		stored_at,
+		announced_at,
+		mined_at,
+		last_submitted_at,
+		status,
+		block_height,
+		block_hash,
+		callback_url,
+		callback_token,
+		full_status_updates,
+		reject_reason,
+		raw_tx,
+		locked_by,
+		merkle_path,
+		retries
+		FROM metamorph.transactions
+		WHERE hash IN (%s);`, strings.Join(placeholders, ", "))
+	return query, args
+}
+
 func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash) error {
 	q := `UPDATE metamorph.transactions SET retries = retries+1 WHERE hash = $1;`
 
@@ -355,7 +528,6 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 }
 
 func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
-
 	q := `SELECT
 	     stored_at
 		,announced_at

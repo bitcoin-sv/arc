@@ -34,6 +34,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 //				panic("mock out the Get method")
 //			},
+//			GetBulkFunc: func(ctx context.Context, keys [][]byte) ([]*store.StoreData, error) {
+//				panic("mock out the GetBulk method")
+//			},
 //			GetSeenOnNetworkFunc: func(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 //				panic("mock out the GetSeenOnNetwork method")
 //			},
@@ -85,6 +88,9 @@ type MetamorphStoreMock struct {
 
 	// GetFunc mocks the Get method.
 	GetFunc func(ctx context.Context, key []byte) (*store.StoreData, error)
+
+	// GetBulkFunc mocks the GetBulk method.
+	GetBulkFunc func(ctx context.Context, keys [][]byte) ([]*store.StoreData, error)
 
 	// GetSeenOnNetworkFunc mocks the GetSeenOnNetwork method.
 	GetSeenOnNetworkFunc func(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.StoreData, error)
@@ -146,6 +152,13 @@ type MetamorphStoreMock struct {
 			Ctx context.Context
 			// Key is the key argument value.
 			Key []byte
+		}
+		// GetBulk holds details about calls to the GetBulk method.
+		GetBulk []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Keys is the keys argument value.
+			Keys [][]byte
 		}
 		// GetSeenOnNetwork holds details about calls to the GetSeenOnNetwork method.
 		GetSeenOnNetwork []struct {
@@ -243,6 +256,7 @@ type MetamorphStoreMock struct {
 	lockClose             sync.RWMutex
 	lockDel               sync.RWMutex
 	lockGet               sync.RWMutex
+	lockGetBulk           sync.RWMutex
 	lockGetSeenOnNetwork  sync.RWMutex
 	lockGetStats          sync.RWMutex
 	lockGetUnmined        sync.RWMutex
@@ -393,6 +407,42 @@ func (mock *MetamorphStoreMock) GetCalls() []struct {
 	mock.lockGet.RLock()
 	calls = mock.calls.Get
 	mock.lockGet.RUnlock()
+	return calls
+}
+
+// GetBulk calls GetBulkFunc.
+func (mock *MetamorphStoreMock) GetBulk(ctx context.Context, keys [][]byte) ([]*store.StoreData, error) {
+	if mock.GetBulkFunc == nil {
+		panic("MetamorphStoreMock.GetBulkFunc: method is nil but MetamorphStore.GetBulk was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Keys [][]byte
+	}{
+		Ctx:  ctx,
+		Keys: keys,
+	}
+	mock.lockGetBulk.Lock()
+	mock.calls.GetBulk = append(mock.calls.GetBulk, callInfo)
+	mock.lockGetBulk.Unlock()
+	return mock.GetBulkFunc(ctx, keys)
+}
+
+// GetBulkCalls gets all the calls that were made to GetBulk.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.GetBulkCalls())
+func (mock *MetamorphStoreMock) GetBulkCalls() []struct {
+	Ctx  context.Context
+	Keys [][]byte
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Keys [][]byte
+	}
+	mock.lockGetBulk.RLock()
+	calls = mock.calls.GetBulk
+	mock.lockGetBulk.RUnlock()
 	return calls
 }
 

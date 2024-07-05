@@ -148,7 +148,7 @@ func TestProcessTransaction(t *testing.T) {
 			expectedResponses: []metamorph_api.Status{
 				metamorph_api.Status_STORED,
 			},
-			expectedResponseMapItems: 1,
+			expectedResponseMapItems: 0,
 			expectedSetCalls:         1,
 		},
 		{

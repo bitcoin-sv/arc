@@ -593,14 +593,16 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		StatusErr: err,
 	})
 
-	// Add this transaction to the map of transactions that client is listening to with open connection.
-	p.ProcessorResponseMap.Set(req.Data.Hash, processorResponse)
+	if req.Timeout != 0 {
+		// Add this transaction to the map of transactions that client is listening to with open connection.
+		p.ProcessorResponseMap.Set(req.Data.Hash, processorResponse)
 
-	// we no longer need processor response object after response has been returned
-	go func() {
-		time.Sleep(req.Timeout + time.Second)
-		p.ProcessorResponseMap.Delete(req.Data.Hash)
-	}()
+		// we no longer need processor response object after response has been returned
+		go func() {
+			time.Sleep(req.Timeout)
+			p.ProcessorResponseMap.Delete(req.Data.Hash)
+		}()
+	}
 
 	// Announce transaction to network and save peers
 	p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))

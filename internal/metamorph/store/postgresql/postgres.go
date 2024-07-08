@@ -192,7 +192,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 }
 
 // GetRawTxs implements the MetamorphStore interface. It attempts to get rawTxs for given hashes.
-// If the hashes do not exist an error is returned, otherwise the retrieved values.
+// If the hashes do not exist an empty array is returned, otherwise the retrieved values.
 // If an error happens during the process of getting the results, the error is returned
 // along with already found rawTxs up to the error point.
 func (p *PostgreSQL) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, error) {

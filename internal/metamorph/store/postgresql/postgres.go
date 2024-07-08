@@ -206,6 +206,7 @@ func (p *PostgreSQL) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, 
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var rawTx []byte
@@ -561,6 +562,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		}
 		return nil, err
 	}
+	defer rows.Close()
 
 	res, err := p.getStoreDataFromRows(rows)
 	if err != nil {
@@ -646,6 +648,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 		}
 		return nil, err
 	}
+	defer rows.Close()
 
 	res, err := p.getStoreDataFromRows(rows)
 	if err != nil {
@@ -776,11 +779,12 @@ func (p *PostgreSQL) Close(ctx context.Context) error {
 }
 
 func (p *PostgreSQL) Ping(ctx context.Context) error {
-	_, err := p.db.QueryContext(ctx, "SELECT 1;")
+	rows, err := p.db.QueryContext(ctx, "SELECT 1;")
 	if err != nil {
 		return err
 	}
 
+	rows.Close()
 	return nil
 }
 

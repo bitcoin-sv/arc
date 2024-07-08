@@ -784,8 +784,7 @@ func (p *PostgreSQL) Ping(ctx context.Context) error {
 		return err
 	}
 
-	rows.Close()
-	return nil
+	return rows.Close()
 }
 
 func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (int64, error) {

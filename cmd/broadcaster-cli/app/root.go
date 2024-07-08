@@ -2,12 +2,12 @@ package app
 
 import (
 	"errors"
+	"log"
+
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"golang.org/x/sys/unix"
-	"log"
 )
 
 var RootCmd = &cobra.Command{
@@ -45,7 +45,7 @@ func init() {
 	var viperErr viper.ConfigFileNotFoundError
 	isConfigFileNotFoundErr := errors.As(err, &viperErr)
 
-	if err != nil && !errors.Is(err, unix.ENOENT) && !isConfigFileNotFoundErr {
+	if err != nil && !isConfigFileNotFoundErr {
 		log.Fatal(err)
 	}
 

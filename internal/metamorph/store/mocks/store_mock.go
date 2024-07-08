@@ -34,8 +34,8 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 //				panic("mock out the Get method")
 //			},
-//			GetBulkFunc: func(ctx context.Context, keys [][]byte) ([]*store.StoreData, error) {
-//				panic("mock out the GetBulk method")
+//			GetRawTxsFunc: func(ctx context.Context, hashes [][]byte) ([][]byte, error) {
+//				panic("mock out the GetRawTxs method")
 //			},
 //			GetSeenOnNetworkFunc: func(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 //				panic("mock out the GetSeenOnNetwork method")
@@ -89,8 +89,8 @@ type MetamorphStoreMock struct {
 	// GetFunc mocks the Get method.
 	GetFunc func(ctx context.Context, key []byte) (*store.StoreData, error)
 
-	// GetBulkFunc mocks the GetBulk method.
-	GetBulkFunc func(ctx context.Context, keys [][]byte) ([]*store.StoreData, error)
+	// GetRawTxsFunc mocks the GetRawTxs method.
+	GetRawTxsFunc func(ctx context.Context, hashes [][]byte) ([][]byte, error)
 
 	// GetSeenOnNetworkFunc mocks the GetSeenOnNetwork method.
 	GetSeenOnNetworkFunc func(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.StoreData, error)
@@ -153,12 +153,12 @@ type MetamorphStoreMock struct {
 			// Key is the key argument value.
 			Key []byte
 		}
-		// GetBulk holds details about calls to the GetBulk method.
-		GetBulk []struct {
+		// GetRawTxs holds details about calls to the GetRawTxs method.
+		GetRawTxs []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// Keys is the keys argument value.
-			Keys [][]byte
+			// Hashes is the hashes argument value.
+			Hashes [][]byte
 		}
 		// GetSeenOnNetwork holds details about calls to the GetSeenOnNetwork method.
 		GetSeenOnNetwork []struct {
@@ -256,7 +256,7 @@ type MetamorphStoreMock struct {
 	lockClose             sync.RWMutex
 	lockDel               sync.RWMutex
 	lockGet               sync.RWMutex
-	lockGetBulk           sync.RWMutex
+	lockGetRawTxs         sync.RWMutex
 	lockGetSeenOnNetwork  sync.RWMutex
 	lockGetStats          sync.RWMutex
 	lockGetUnmined        sync.RWMutex
@@ -410,39 +410,39 @@ func (mock *MetamorphStoreMock) GetCalls() []struct {
 	return calls
 }
 
-// GetBulk calls GetBulkFunc.
-func (mock *MetamorphStoreMock) GetBulk(ctx context.Context, keys [][]byte) ([]*store.StoreData, error) {
-	if mock.GetBulkFunc == nil {
-		panic("MetamorphStoreMock.GetBulkFunc: method is nil but MetamorphStore.GetBulk was just called")
+// GetRawTxs calls GetRawTxsFunc.
+func (mock *MetamorphStoreMock) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, error) {
+	if mock.GetRawTxsFunc == nil {
+		panic("MetamorphStoreMock.GetRawTxsFunc: method is nil but MetamorphStore.GetRawTxs was just called")
 	}
 	callInfo := struct {
-		Ctx  context.Context
-		Keys [][]byte
+		Ctx    context.Context
+		Hashes [][]byte
 	}{
-		Ctx:  ctx,
-		Keys: keys,
+		Ctx:    ctx,
+		Hashes: hashes,
 	}
-	mock.lockGetBulk.Lock()
-	mock.calls.GetBulk = append(mock.calls.GetBulk, callInfo)
-	mock.lockGetBulk.Unlock()
-	return mock.GetBulkFunc(ctx, keys)
+	mock.lockGetRawTxs.Lock()
+	mock.calls.GetRawTxs = append(mock.calls.GetRawTxs, callInfo)
+	mock.lockGetRawTxs.Unlock()
+	return mock.GetRawTxsFunc(ctx, hashes)
 }
 
-// GetBulkCalls gets all the calls that were made to GetBulk.
+// GetRawTxsCalls gets all the calls that were made to GetRawTxs.
 // Check the length with:
 //
-//	len(mockedMetamorphStore.GetBulkCalls())
-func (mock *MetamorphStoreMock) GetBulkCalls() []struct {
-	Ctx  context.Context
-	Keys [][]byte
+//	len(mockedMetamorphStore.GetRawTxsCalls())
+func (mock *MetamorphStoreMock) GetRawTxsCalls() []struct {
+	Ctx    context.Context
+	Hashes [][]byte
 } {
 	var calls []struct {
-		Ctx  context.Context
-		Keys [][]byte
+		Ctx    context.Context
+		Hashes [][]byte
 	}
-	mock.lockGetBulk.RLock()
-	calls = mock.calls.GetBulk
-	mock.lockGetBulk.RUnlock()
+	mock.lockGetRawTxs.RLock()
+	calls = mock.calls.GetRawTxs
+	mock.lockGetRawTxs.RUnlock()
 	return calls
 }
 

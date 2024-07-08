@@ -50,7 +50,6 @@ type Stats struct {
 
 type MetamorphStore interface {
 	Get(ctx context.Context, key []byte) (*StoreData, error)
-	GetBulk(ctx context.Context, keys [][]byte) ([]*StoreData, error)
 	Set(ctx context.Context, value *StoreData) error
 	SetBulk(ctx context.Context, data []*StoreData) error
 	Del(ctx context.Context, key []byte) error
@@ -67,6 +66,7 @@ type MetamorphStore interface {
 	Ping(ctx context.Context) error
 
 	GetStats(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*Stats, error)
+	GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, error)
 }
 
 type UpdateStatus struct {

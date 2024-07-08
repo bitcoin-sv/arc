@@ -77,20 +77,10 @@ func (m *PeerHandler) HandleTransactionsGet(msgs []*wire.InvVect, peer p2p.PeerI
 			Peer:   peer.String(),
 		}
 
-		hashes[i] = msg.Hash.CloneBytes()
+		hashes[i] = msg.Hash[:]
 	}
 
-	storeDataSlice, err := m.store.GetBulk(m.ctx, hashes)
-	if err != nil {
-		return nil, err
-	}
-
-	rawTxs := make([][]byte, len(storeDataSlice))
-	for i, sd := range storeDataSlice {
-		rawTxs[i] = sd.RawTx
-	}
-
-	return rawTxs, nil
+	return m.store.GetRawTxs(m.ctx, hashes)
 }
 
 // HandleTransaction is called when a transaction is received from a peer.

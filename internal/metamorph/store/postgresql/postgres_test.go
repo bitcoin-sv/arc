@@ -236,10 +236,10 @@ func TestPostgresDB(t *testing.T) {
 		require.True(t, errors.Is(err, store.ErrNotFound))
 	})
 
-	t.Run("get bulk", func(t *testing.T) {
+	t.Run("get raw txs", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/get_bulk"))
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/get_rawtxs"))
 
 		hash1 := "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"
 		hash2 := "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"
@@ -250,37 +250,24 @@ func TestPostgresDB(t *testing.T) {
 		hashes = append(hashes, revChainhash(t, hash2).CloneBytes())
 		hashes = append(hashes, revChainhash(t, hash3).CloneBytes())
 
-		expectedTime, err := time.Parse("2006-01-02 15:04:05", "2023-10-01 14:00:00")
+		expectedRawTxs := make([][]byte, 0)
+
+		rawTx, err := hex.DecodeString("010000000000000000ef016f8828b2d3f8085561d0b4ff6f5d17c269206fa3d32bcd3b22e26ce659ed12e7000000006b483045022100d3649d120249a09af44b4673eecec873109a3e120b9610b78858087fb225c9b9022037f16999b7a4fecdd9f47ebdc44abd74567a18940c37e1481ab0fe84d62152e4412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffe7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01e7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
+		require.NoError(t, err)
+		expectedRawTxs = append(expectedRawTxs, rawTx)
+
+		rawTx, err = hex.DecodeString("020000000000000000ef016f8828b2d3f8085561d0b4ff6f5d17c269206fa3d32bcd3b22e26ce659ed12e7000000006b483045022100d3649d120249a09af44b4673eecec873109a3e120b9610b78858087fb225c9b9022037f16999b7a4fecdd9f47ebdc44abd74567a18940c37e1481ab0fe84d62152e4412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffe7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01e7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
+		require.NoError(t, err)
+		expectedRawTxs = append(expectedRawTxs, rawTx)
+
+		rawTx, err = hex.DecodeString("030000000000000000ef016f8828b2d3f8085561d0b4ff6f5d17c269206fa3d32bcd3b22e26ce659ed12e7000000006b483045022100d3649d120249a09af44b4673eecec873109a3e120b9610b78858087fb225c9b9022037f16999b7a4fecdd9f47ebdc44abd74567a18940c37e1481ab0fe84d62152e4412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffe7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01e7030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
+		require.NoError(t, err)
+		expectedRawTxs = append(expectedRawTxs, rawTx)
+
+		rawTxs, err := postgresDB.GetRawTxs(context.Background(), hashes)
 		require.NoError(t, err)
 
-		expectedStoreData := []*store.StoreData{
-			{
-				Hash:            revChainhash(t, hash1),
-				Status:          metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-				LockedBy:        "metamorph-3",
-				StoredAt:        expectedTime,
-				LastSubmittedAt: expectedTime,
-			},
-			{
-				Hash:            revChainhash(t, hash2),
-				Status:          metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-				LockedBy:        "metamorph-3",
-				StoredAt:        expectedTime,
-				LastSubmittedAt: expectedTime,
-			},
-			{
-				Hash:            revChainhash(t, hash3),
-				Status:          metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-				LockedBy:        "metamorph-1",
-				StoredAt:        expectedTime,
-				LastSubmittedAt: expectedTime,
-			},
-		}
-
-		storeDataSlice, err := postgresDB.GetBulk(context.Background(), hashes)
-		require.NoError(t, err)
-
-		assert.Equal(t, expectedStoreData, storeDataSlice)
+		assert.Equal(t, expectedRawTxs, rawTxs)
 	})
 
 	t.Run("set bulk", func(t *testing.T) {

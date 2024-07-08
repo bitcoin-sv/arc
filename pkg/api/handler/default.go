@@ -154,8 +154,8 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	}
 
 	if len(failOutputs) > 0 {
+		// if an error is returned, the processing failed
 		e = failOutputs[0]
-		// if an error is returned, the processing failed, and we should return a 500 error
 		return ctx.JSON(e.Status, e)
 	}
 
@@ -221,7 +221,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		return ctx.JSON(e.Status, e)
 	}
 
-	sizingInfo := make([][]uint64, 0)
+	sizingInfo := make([][]uint64, 0, len(txs))
 	for _, btTx := range txs {
 		normalBytes, dataBytes, feeAmount := getSizings(btTx)
 		sizingInfo = append(sizingInfo, []uint64{normalBytes, dataBytes, feeAmount})
@@ -336,6 +336,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 					submitedTxs = append(submitedTxs, tx.Transaction)
 				}
 			}
+
 			txIds = append(txIds, beefTx.GetLatestTx().TxID())
 		} else {
 			transaction, bytesUsed, err := bt.NewTxFromStream(txsHex)
@@ -355,6 +356,10 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 		}
 	}
 
+	if len(submitedTxs) == 0 {
+		return nil, nil, failOutputs, nil
+	}
+
 	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(transactionOptions.MaxTimeout+2)*time.Second)
 	defer cancel()
 
@@ -367,6 +372,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 	// process returned transaction statuses and return to user
 	txStatuses = filterStatusesByTxIDs(txIds, txStatuses)
 
+	now := m.now()
 	outputs = make([]*api.TransactionResponse, 0, len(submitedTxs))
 
 	for idx, tx := range txStatuses {
@@ -377,11 +383,11 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 		outputs = append(outputs, &api.TransactionResponse{
 			Status:      int(api.StatusOK),
 			Title:       "OK",
-			BlockHash:   &txStatuses[idx].BlockHash,
-			BlockHeight: &txStatuses[idx].BlockHeight,
+			BlockHash:   &tx.BlockHash,
+			BlockHeight: &tx.BlockHeight,
 			TxStatus:    tx.Status,
-			ExtraInfo:   &txStatuses[idx].ExtraInfo,
-			Timestamp:   m.now(),
+			ExtraInfo:   &tx.ExtraInfo,
+			Timestamp:   now,
 			Txid:        txID,
 			MerklePath:  &tx.MerklePath,
 		})

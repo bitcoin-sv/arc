@@ -1,6 +1,7 @@
 package woc_client
 
 import (
+	"bytes"
 	"container/list"
 	"context"
 	"encoding/hex"
@@ -56,6 +57,15 @@ type wocUtxo struct {
 type wocBalance struct {
 	Confirmed   int64 `json:"confirmed"`
 	Unconfirmed int64 `json:"unconfirmed"`
+}
+
+type wocRawTx struct {
+	TxID          string `json:"txid"`
+	Hex           string `json:"hex"`
+	BlockHash     string `json:"blockhash"`
+	BlockHeight   uint64 `json:"blockheight"`
+	BlockTime     uint64 `json:"blocktime"`
+	Confirmations uint64 `json:"confirmations"`
 }
 
 func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) ([]*bt.UTXO, error) {
@@ -275,4 +285,62 @@ func (w *WocClient) TopUp(ctx context.Context, mainnet bool, address string) err
 	}
 
 	return nil
+}
+
+func (w *WocClient) GetRawTxs(ctx context.Context, mainnet bool, ids []string) ([]*wocRawTx, error) {
+	const maxIDsNum = 20 // value from doc
+
+	var result []*wocRawTx
+
+	net := "test"
+	if mainnet {
+		net = "main"
+	}
+
+	for len(ids) > 0 {
+		bsize := min(maxIDsNum, len(ids))
+		batch := ids[:bsize]
+
+		txs, err := w.getRawTxs(ctx, net, batch)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, txs...)
+		ids = ids[bsize:] // move batch window
+	}
+
+	return result, nil
+}
+
+func (w *WocClient) getRawTxs(ctx context.Context, net string, batch []string) ([]*wocRawTx, error) {
+	payload := map[string][]string{"txs": batch}
+	body, _ := json.Marshal(payload)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/txs/hex", net), bytes.NewBuffer(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to crreate request: %v", err)
+	}
+
+	if w.authorization != "" {
+		req.Header.Set("Authorization", w.authorization)
+	}
+
+	resp, err := w.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request to get balance failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("response status not OK: %s", resp.Status)
+	}
+
+	var res []*wocRawTx
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	return res, nil
 }

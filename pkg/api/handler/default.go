@@ -551,7 +551,7 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 	}
 
 	// get from node
-	txBytes, err := getTransactionFromNode(m.peerRpcConfig, inputTxID)
+	txBytes, err := getTransactionFromNode_old(m.peerRpcConfig, inputTxID)
 	if err != nil {
 		m.logger.Warn("failed to get transaction from node", slog.String("id", inputTxID), slog.String("err", err.Error()))
 	}

@@ -21,7 +21,21 @@ import (
 	"github.com/ordishs/go-bitcoin"
 )
 
-func getTransactionFromNode(peerRpc *config.PeerRpcConfig, inputTxID string) ([]byte, error) {
+func getTransactionFromNode(peerRpc *config.PeerRpcConfig, inputTxID string) (*bitcoin.RawTransaction, error) {
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpc.User, peerRpc.Password, peerRpc.Host, peerRpc.Port))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse rpc URL: %v", err)
+	}
+	// get the transaction from the bitcoin node rpc
+	node, err := bitcoin.NewFromURL(rpcURL, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return node.GetRawTransaction(inputTxID)
+}
+
+func getTransactionFromNode_old(peerRpc *config.PeerRpcConfig, inputTxID string) ([]byte, error) {
 	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpc.User, peerRpc.Password, peerRpc.Host, peerRpc.Port))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse rpc URL: %v", err)

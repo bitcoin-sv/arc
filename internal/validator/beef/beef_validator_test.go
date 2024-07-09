@@ -119,7 +119,7 @@ func TestValidateScripts(t *testing.T) {
 	testCases := []struct {
 		name          string
 		beefStr       string
-		expectedError error
+		expectedError *validation.Error
 	}{
 		{
 			name:          "Valid Full Mined Beef",
@@ -146,8 +146,8 @@ func TestValidateScripts(t *testing.T) {
 			beefTx, _, err := beef.DecodeBEEF(beefHex)
 			require.NoError(t, err)
 
-			err = validateScripts(beefTx.GetLatestTx(), beefTx.Transactions)
-			assert.Equal(t, tc.expectedError, err)
+			vErr := validateScripts(beefTx.GetLatestTx(), beefTx.Transactions)
+			assert.Equal(t, tc.expectedError, vErr)
 		})
 	}
 }

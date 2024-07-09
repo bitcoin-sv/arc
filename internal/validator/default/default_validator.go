@@ -70,7 +70,7 @@ func (v *DefaultValidator) IsExtended(tx *bt.Tx) bool {
 	return true
 }
 
-func standardCheckFees(tx *bt.Tx, feeQuote *bt.FeeQuote) error {
+func standardCheckFees(tx *bt.Tx, feeQuote *bt.FeeQuote) *validator.Error {
 	feesOK, expFeesPaid, actualFeePaid, err := isFeePaidEnough(feeQuote, tx)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusFees)

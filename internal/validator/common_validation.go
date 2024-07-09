@@ -47,7 +47,7 @@ func CalculateMiningFeesRequired(size *bt.TxSize, fees *bt.FeeQuote) (uint64, er
 	return feesRequiredRounded, nil
 }
 
-func CommonValidateTransaction(policy *bitcoin.Settings, tx *bt.Tx) error {
+func CommonValidateTransaction(policy *bitcoin.Settings, tx *bt.Tx) *Error {
 	//
 	// Each node will verify every transaction against a long checklist of criteria:
 	//
@@ -110,7 +110,7 @@ func checkTxSize(txSize int, policy *bitcoin.Settings) error {
 	return nil
 }
 
-func checkOutputs(tx *bt.Tx) error {
+func checkOutputs(tx *bt.Tx) *Error {
 	total := uint64(0)
 	for index, output := range tx.Outputs {
 		isData := output.LockingScript.IsData()
@@ -130,7 +130,7 @@ func checkOutputs(tx *bt.Tx) error {
 	return nil
 }
 
-func checkInputs(tx *bt.Tx) error {
+func checkInputs(tx *bt.Tx) *Error {
 	total := uint64(0)
 	for index, input := range tx.Inputs {
 		if hex.EncodeToString(input.PreviousTxID()) == coinbaseTxID {

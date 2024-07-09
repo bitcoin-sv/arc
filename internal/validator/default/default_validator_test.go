@@ -194,8 +194,8 @@ func Test_standardCheckFeesTxs(t *testing.T) {
 		feeQuote := bt.NewFeeQuote()
 		setFees(feeQuote, 50)
 
-		err = standardCheckFees(tx, feeQuote)
-		require.NoError(t, err)
+		vErr := standardCheckFees(tx, feeQuote)
+		require.Nil(t, vErr)
 	})
 }
 

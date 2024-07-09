@@ -61,7 +61,7 @@ func (v *BeefValidator) ValidateTransaction(ctx context.Context, beefTx *beef.BE
 	return nil, nil
 }
 
-func standardCheckFees(tx *bt.Tx, beefTx *beef.BEEF, feeQuote *bt.FeeQuote) error {
+func standardCheckFees(tx *bt.Tx, beefTx *beef.BEEF, feeQuote *bt.FeeQuote) *validator.Error {
 	expectedFees, err := validator.CalculateMiningFeesRequired(tx.SizeWithTypes(), feeQuote)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusFees)
@@ -105,7 +105,7 @@ func calculateInputsOutputsSatoshis(tx *bt.Tx, inputTxs []*beef.TxData) (uint64,
 	return inputSum, outputSum, nil
 }
 
-func validateScripts(tx *bt.Tx, inputTxs []*beef.TxData) error {
+func validateScripts(tx *bt.Tx, inputTxs []*beef.TxData) *validator.Error {
 	for i, input := range tx.Inputs {
 		inputParentTx := findParentForInput(input, inputTxs)
 		if inputParentTx == nil {

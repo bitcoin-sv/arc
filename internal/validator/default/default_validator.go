@@ -42,8 +42,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *bt.Tx, f
 			return err
 		}
 	case validator.NoneFeeValidation:
-		fallthrough
-	default:
+		// Do not handle the default case on purpose; we shouldn't assume that other types of validation should be omitted
 	}
 
 	// 12) The unlocking scripts for each input must validate against the corresponding output locking scripts

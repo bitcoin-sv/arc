@@ -93,27 +93,6 @@ func CommonValidateTransaction(policy *bitcoin.Settings, tx *bt.Tx) error {
 		return NewError(err, api.ErrStatusMalformed)
 	}
 
-	// // 10) Reject if the sum of input values is less than sum of output values
-	// // 11) Reject if transaction fee would be too low (minRelayTxFee) to get into an empty block.
-	// switch feeValidation {
-	// case StandardFeeValidation:
-	// 	if err := checkFees(tx, api.FeesToBtFeeQuote(policy.MinMiningTxFee)); err != nil {
-	// 		return NewError(err, api.ErrStatusFees)
-	// 	}
-	// case DeepFeeValidation:
-	// 	if err := v.deepCheckFees(ctx, tx, api.FeesToBtFeeQuote(policy.MinMiningTxFee)); err != nil {
-	// 		return NewError(err, api.ErrStatusFees) // TODO: add new status
-	// 	}
-	// default:
-	// }
-
-	// // 12) The unlocking scripts for each input must validate against the corresponding output locking scripts
-	// if scriptValidation == StandardScriptValidation {
-	// 	if err := checkScripts(tx); err != nil {
-	// 		return NewError(err, api.ErrStatusUnlockingScripts)
-	// 	}
-	// }
-
 	// everything checks out
 	return nil
 }
@@ -157,12 +136,7 @@ func checkInputs(tx *bt.Tx) error {
 		if hex.EncodeToString(input.PreviousTxID()) == coinbaseTxID {
 			return NewError(fmt.Errorf("transaction input %d is a coinbase input", index), api.ErrStatusInputs)
 		}
-		/* lots of our valid test transactions have this sequence number, is this not allowed?
-		if input.SequenceNumber == 0xffffffff {
-			fmt.Printf("input %d has sequence number 0xffffffff, txid = %s", index, tx.TxID())
-			return validator.NewError(fmt.Errorf("transaction input %d sequence number is invalid", index), arc.ErrStatusInputs)
-		}
-		*/
+
 		if input.PreviousTxSatoshis > maxSatoshis {
 			return NewError(fmt.Errorf("transaction input %d satoshis is too high", index), api.ErrStatusInputs)
 		}

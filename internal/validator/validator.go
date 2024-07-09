@@ -43,21 +43,21 @@ type BeefValidator interface {
 type HexFormat byte
 
 const (
-	Raw HexFormat = iota
-	Ef
-	Beef
+	RawHex HexFormat = iota
+	EfHex
+	BeefHex
 )
 
 func GetHexFormat(hex []byte) HexFormat {
 	if beef.CheckBeefFormat(hex) {
-		return Beef
+		return BeefHex
 	}
 
 	if isEf(hex) {
-		return Ef
+		return EfHex
 	}
 
-	return Raw
+	return RawHex
 }
 
 func isEf(hex []byte) bool {

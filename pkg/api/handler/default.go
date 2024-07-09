@@ -151,7 +151,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	var responseErr *api.ErrorFields
 
 	hexFormat := validator.GetHexFormat(transactionHex)
-	if hexFormat == validator.Beef {
+	if hexFormat == validator.BeefHex {
 		transaction, response, responseErr = m.processBEEFTransaction(ctx.Request().Context(), transactionHex, transactionOptions)
 	} else {
 		transaction, response, responseErr = m.processEFTransaction(ctx.Request().Context(), transactionHex, transactionOptions)
@@ -393,7 +393,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	for len(transactionsHexes) != 0 {
 		hexFormat := validator.GetHexFormat(transactionsHexes)
 
-		if hexFormat == validator.Beef {
+		if hexFormat == validator.BeefHex {
 			beefTx, remainingBytes, err := beef.DecodeBEEF(transactionsHexes)
 			if err != nil {
 				errStr := fmt.Sprintf("error decoding BEEF: %s", err.Error())

@@ -33,7 +33,6 @@ const (
 
 type DefaultValidator interface {
 	ValidateTransaction(ctx context.Context, tx *bt.Tx, feeValidation FeeValidation, scriptValidation ScriptValidation) error
-	IsExtended(tx *bt.Tx) bool
 }
 
 type BeefValidator interface {

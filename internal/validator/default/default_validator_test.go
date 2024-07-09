@@ -32,7 +32,7 @@ func TestValidator(t *testing.T) {
 		tx, _ := bt.NewTxFromString("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
 
 		policy := getPolicy(500)
-		validator := New(policy)
+		validator := New(policy, nil)
 
 		err := validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
 		require.NoError(t, err)
@@ -43,7 +43,7 @@ func TestValidator(t *testing.T) {
 		tx, _ := bt.NewTxFromString("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00e40b5402000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
 
 		policy := getPolicy(500)
-		validator := New(policy)
+		validator := New(policy, nil)
 
 		err := validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
 		require.Error(t, err, "Validation should have returned an error")
@@ -61,7 +61,7 @@ func TestValidator(t *testing.T) {
 		tx, _ := bt.NewTxFromString("010000000000000000ef01a7968c39fe10ae04686061ab99dc6774f0ebbd8679e521e6fc944d919d9d19a1020000006a4730440220318d23e6fd7dd5ace6e8dc1888b363a053552f48ecc166403a1cc65db5e16aca02203a9ad254cb262f50c89487ffd72e8ddd8536c07f4b230d13a2ccd1435898e89b412102dd7dce95e52345704bbb4df4e4cfed1f8eaabf8260d33597670e3d232c491089ffffffff44040000000000001976a914cd43ba65ce83778ef04b207de14498440f3bd46c88ac013a040000000000001976a9141754f52fc862c7a6106c964c35db7d92a57fec2488ac00000000")
 
 		policy := getPolicy(500)
-		validator := New(policy)
+		validator := New(policy, nil)
 		err := validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
 		require.Error(t, err)
 	})
@@ -71,7 +71,7 @@ func TestValidator(t *testing.T) {
 		tx, _ := bt.NewTxFromString("010000000000000000ef01a7968c39fe10ae04686061ab99dc6774f0ebbd8679e521e6fc944d919d9d19a1020000006a4730440220318d23e6fd7dd5ace6e8dc1888b363a053552f48ecc166403a1cc65db5e16aca02203a9ad254cb262f50c89487ffd72e8ddd8536c07f4b230d13a2ccd1435898e89b412102dd7dce95e52345704bbb4df4e4cfed1f8eaabf8260d33597670e3d232c491089ffffffff44040000000000001976a914cd43ba65ce83778ef04b207de14498440f3bd46c88ac013a040000000000001976a9141754f52fc862c7a6106c964c35db7d92a57fec2488ac00000000")
 
 		policy := getPolicy(5)
-		validator := New(policy)
+		validator := New(policy, nil)
 		err := validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
 		require.NoError(t, err)
 	})
@@ -89,7 +89,7 @@ func TestValidator(t *testing.T) {
 			require.NoError(t, err, "Could not parse tx hex")
 
 			policy := getPolicy(5)
-			validator := New(policy)
+			validator := New(policy, nil)
 			err = validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
 			require.NoError(t, err, "Failed to validate tx %d", txIndex)
 		}
@@ -119,7 +119,7 @@ func TestValidator(t *testing.T) {
 		}
 
 		policy := getPolicy(5)
-		validator := New(policy)
+		validator := New(policy, nil)
 		err = validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
 		require.NoError(t, err, "Failed to validate tx")
 	})
@@ -247,7 +247,7 @@ func BenchmarkValidator(b *testing.B) {
 	tx, _ := bt.NewTxFromString("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
 
 	policy := getPolicy(500)
-	validator := New(policy)
+	validator := New(policy, nil)
 
 	for i := 0; i < b.N; i++ {
 		_ = validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
@@ -259,7 +259,7 @@ func TestFeeCalculation(t *testing.T) {
 	require.NoError(t, err)
 
 	policy := getPolicy(50)
-	validator := New(policy)
+	validator := New(policy, nil)
 
 	err = validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
 	t.Log(err)

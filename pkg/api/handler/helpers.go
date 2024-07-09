@@ -1,12 +1,8 @@
 package handler
 
 import (
-	"context"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"net/url"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -35,76 +31,46 @@ func getTransactionFromNode(peerRpc *config.PeerRpcConfig, inputTxID string) (*b
 	return node.GetRawTransaction(inputTxID)
 }
 
-func getTransactionFromNode_old(peerRpc *config.PeerRpcConfig, inputTxID string) ([]byte, error) {
-	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpc.User, peerRpc.Password, peerRpc.Host, peerRpc.Port))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse rpc URL: %v", err)
-	}
-	// get the transaction from the bitcoin node rpc
-	node, err := bitcoin.NewFromURL(rpcURL, false)
-	if err != nil {
-		return nil, err
-	}
+// func getTransactionFromWhatsOnChain(ctx context.Context, wocApiKey, inputTxID string) ([]byte, error) {
+// 	wocURL := fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/tx/%s/hex", "main", inputTxID)
+// 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, wocURL, nil)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	var tx *bitcoin.RawTransaction
-	tx, err = node.GetRawTransaction(inputTxID)
-	if err != nil {
-		return nil, err
-	}
+// 	req.Header.Set("Authorization", wocApiKey)
 
-	var txBytes []byte
-	txBytes, err = hex.DecodeString(tx.Hex)
-	if err != nil {
-		return nil, err
-	}
+// 	var resp *http.Response
+// 	resp, err = http.DefaultClient.Do(req)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	if txBytes != nil {
-		return txBytes, nil
-	}
+// 	defer resp.Body.Close()
 
-	return nil, metamorph.ErrParentTransactionNotFound
-}
+// 	if resp.StatusCode != 200 {
+// 		return nil, metamorph.ErrParentTransactionNotFound
+// 	}
 
-func getTransactionFromWhatsOnChain(ctx context.Context, wocApiKey, inputTxID string) ([]byte, error) {
-	wocURL := fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/tx/%s/hex", "main", inputTxID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, wocURL, nil)
-	if err != nil {
-		return nil, err
-	}
+// 	var txHexBytes []byte
+// 	txHexBytes, err = io.ReadAll(resp.Body)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	txHex := string(txHexBytes)
 
-	req.Header.Set("Authorization", wocApiKey)
+// 	var txBytes []byte
+// 	txBytes, err = hex.DecodeString(txHex)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	var resp *http.Response
-	resp, err = http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
+// 	if txBytes != nil {
+// 		return txBytes, nil
+// 	}
 
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, metamorph.ErrParentTransactionNotFound
-	}
-
-	var txHexBytes []byte
-	txHexBytes, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	txHex := string(txHexBytes)
-
-	var txBytes []byte
-	txBytes, err = hex.DecodeString(txHex)
-	if err != nil {
-		return nil, err
-	}
-
-	if txBytes != nil {
-		return txBytes, nil
-	}
-
-	return nil, metamorph.ErrParentTransactionNotFound
-}
+// 	return nil, metamorph.ErrParentTransactionNotFound
+// }
 
 // CheckSwagger validates the request against the swagger definition.
 func CheckSwagger(e *echo.Echo) *openapi3.T {

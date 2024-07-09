@@ -12,20 +12,25 @@ import (
 )
 
 type DefaultValidator struct {
-	policy *bitcoin.Settings
+	policy   *bitcoin.Settings
+	txFinder validator.TxFinderI
 }
 
-func New(policy *bitcoin.Settings) *DefaultValidator {
+func New(policy *bitcoin.Settings, finder validator.TxFinderI) *DefaultValidator {
 	return &DefaultValidator{
-		policy: policy,
+		policy:   policy,
+		txFinder: finder,
 	}
 }
 
 func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *bt.Tx, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) error { //nolint:funlen - mostly comments
 	// 0) Check whether we have a complete transaction in extended format, with all input information
 	//    we cannot check the satoshi input, OP_RETURN is allowed 0 satoshis
-	if !v.IsExtended(tx) {
-		return validator.NewError(fmt.Errorf("transaction is not in extended format"), api.ErrStatusTxFormat)
+	if needExtention(tx, feeValidation, scriptValidation) {
+		err := extendTx(ctx, v.txFinder, tx)
+		if err != nil {
+			return validator.NewError(err, api.ErrStatusGeneric)
+		}
 	}
 
 	// The rest of the validation steps
@@ -56,7 +61,17 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *bt.Tx, f
 	return nil
 }
 
-func (v *DefaultValidator) IsExtended(tx *bt.Tx) bool {
+func needExtention(tx *bt.Tx, fv validator.FeeValidation, sv validator.ScriptValidation) bool {
+	// don't need if we don't validate fee AND scripts
+	if fv == validator.NoneFeeValidation && sv == validator.NoneScriptValidation {
+		return false
+	}
+
+	// don't need if is extended already
+	return !isExtended(tx)
+}
+
+func isExtended(tx *bt.Tx) bool {
 	if tx == nil || tx.Inputs == nil {
 		return false
 	}

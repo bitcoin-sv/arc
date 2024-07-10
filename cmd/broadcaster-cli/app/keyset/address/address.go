@@ -19,23 +19,10 @@ var (
 				return err
 			}
 
-			// keysFlag := viper.GetString("keys")
-			// selectedKeys := strings.Split(keysFlag, ",")
-
 			keySets, err := helper.GetKeySets()
 			if err != nil {
 				return err
 			}
-
-			// keys, err := helper.GetPrivateKeys()
-			// if err != nil {
-			// 	return err
-			// }
-
-			// keySets, err := helper.GetKeySets(keys, selectedKeys)
-			// if err != nil {
-			// 	return err
-			// }
 
 			for _, keySet := range keySets {
 

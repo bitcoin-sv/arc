@@ -9,6 +9,9 @@ import (
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	validation "github.com/bitcoin-sv/arc/internal/validator"
 
+	fixture "github.com/bitcoin-sv/arc/internal/validator/default/testdata"
+	"github.com/bitcoin-sv/arc/internal/validator/mocks"
+
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/ordishs/go-bitcoin"
@@ -122,6 +125,26 @@ func TestValidator(t *testing.T) {
 		validator := New(policy, nil)
 		err = validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
 		require.NoError(t, err, "Failed to validate tx")
+	})
+
+	t.Run("valid Raw Format tx - expect success", func(t *testing.T) {
+		// when
+		txFinder := mocks.TxFinderIMock{
+			GetRawTxsFunc: func(ctx context.Context, ids []string) ([]validation.RawTx, error) {
+				res := []validation.RawTx{fixture.ParentTx_1, fixture.ParentTx_2}
+				return res, nil
+			},
+		}
+
+		rawTx, _ := bt.NewTxFromString(fixture.ValidTxRawHex)
+
+		sut := New(getPolicy(5), &txFinder)
+
+		// then
+		err := sut.ValidateTransaction(context.TODO(), rawTx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+
+		// assert
+		require.NoError(t, err)
 	})
 }
 
@@ -263,4 +286,50 @@ func TestFeeCalculation(t *testing.T) {
 
 	err = validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
 	t.Log(err)
+}
+
+func Test_needExtention(t *testing.T) {
+	tcs := []struct {
+		name           string
+		txHex          string
+		feeOpt         validation.FeeValidation
+		scriptOpt      validation.ScriptValidation
+		expectedResult bool
+	}{
+		{
+			name:           "raw hex - expect true",
+			txHex:          testdata.TX1RawString,
+			feeOpt:         validation.StandardFeeValidation,
+			scriptOpt:      validation.StandardScriptValidation,
+			expectedResult: true,
+		},
+		{
+			name:           "ef hex - expect false",
+			txHex:          "020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000",
+			feeOpt:         validation.StandardFeeValidation,
+			scriptOpt:      validation.StandardScriptValidation,
+			expectedResult: false,
+		},
+		{
+			name:           "raw hex, skip fee and script validation - expect false",
+			txHex:          testdata.TX1RawString,
+			feeOpt:         validation.NoneFeeValidation,
+			scriptOpt:      validation.NoneScriptValidation,
+			expectedResult: false,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			tx, _ := bt.NewTxFromString(tc.txHex)
+
+			// then
+			result := needExtention(tx, tc.feeOpt, tc.scriptOpt)
+
+			// assert
+			require.Equal(t, tc.expectedResult, result)
+
+		})
+	}
 }

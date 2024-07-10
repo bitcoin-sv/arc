@@ -993,61 +993,6 @@ func Test_calcFeesFromBSVPerKB(t *testing.T) {
 	}
 }
 
-// TODO: move tests to validator!!
-
-// func TestArcDefaultHandler_extendTransaction(t *testing.T) {
-// 	tests := []struct {
-// 		name          string
-// 		transaction   string
-// 		missingParent bool
-// 		err           error
-// 	}{
-// 		{
-// 			name:          "valid normal transaction - missing parent",
-// 			transaction:   validTx,
-// 			missingParent: true,
-// 			err:           metamorph.ErrParentTransactionNotFound,
-// 		},
-// 		{
-// 			name:        "valid normal transaction",
-// 			transaction: validTx,
-// 			err:         nil,
-// 		},
-// 	}
-
-// 	ctx := context.Background()
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			count := 0
-// 			node := &mtmMocks.TransactionHandlerMock{GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
-// 				if count == 0 && tt.missingParent {
-// 					return nil, nil
-// 				}
-// 				count++
-// 				return validTxBytes, nil
-// 			}}
-
-// 			arcConfig, err := config.Load()
-// 			require.NoError(t, err, "could not load default config")
-
-// 			handler := &ArcDefaultHandler{
-// 				TransactionHandler: node,
-// 				NodePolicy:         &bitcoin.Settings{},
-// 				logger:             testLogger,
-// 				peerRpcConfig:      arcConfig.PeerRpc,
-// 				apiConfig:          arcConfig.Api,
-// 			}
-// 			btTx, err := bt.NewTxFromString(tt.transaction)
-// 			require.NoError(t, err)
-// 			if tt.err != nil {
-// 				assert.ErrorIs(t, handler.extendTransaction(ctx, btTx), tt.err, fmt.Sprintf("extendTransaction(%v)", tt.transaction))
-// 			} else {
-// 				assert.NoError(t, handler.extendTransaction(ctx, btTx), fmt.Sprintf("extendTransaction(%v)", tt.transaction))
-// 			}
-// 		})
-// 	}
-// }
-
 func TestGetTransactionOptions(t *testing.T) {
 	tt := []struct {
 		name   string

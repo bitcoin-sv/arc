@@ -2,11 +2,9 @@ package address
 
 import (
 	"log/slog"
-	"strings"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var (
@@ -21,18 +19,23 @@ var (
 				return err
 			}
 
-			keysFlag := viper.GetString("keys")
-			selectedKeys := strings.Split(keysFlag, ",")
+			// keysFlag := viper.GetString("keys")
+			// selectedKeys := strings.Split(keysFlag, ",")
 
-			keys, err := helper.GetPrivateKeys()
+			keySets, err := helper.GetKeySets()
 			if err != nil {
 				return err
 			}
 
-			keySets, err := helper.GetKeySets(keys, selectedKeys)
-			if err != nil {
-				return err
-			}
+			// keys, err := helper.GetPrivateKeys()
+			// if err != nil {
+			// 	return err
+			// }
+
+			// keySets, err := helper.GetKeySets(keys, selectedKeys)
+			// if err != nil {
+			// 	return err
+			// }
 
 			for _, keySet := range keySets {
 

@@ -3,13 +3,11 @@ package topup
 import (
 	"context"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var Cmd = &cobra.Command{
@@ -29,15 +27,20 @@ var Cmd = &cobra.Command{
 
 		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
-		keysFlag := viper.GetString("keys")
-		selectedKeys := strings.Split(keysFlag, ",")
+		// keysFlag := viper.GetString("keys")
+		// selectedKeys := strings.Split(keysFlag, ",")
 
-		keys, err := helper.GetPrivateKeys()
-		if err != nil {
-			return err
-		}
+		// keys, err := helper.GetPrivateKeys()
+		// if err != nil {
+		// 	return err
+		// }
 
-		keySets, err := helper.GetKeySets(keys, selectedKeys)
+		// keySets, err := helper.GetKeySets(keys, selectedKeys)
+		// if err != nil {
+		// 	return err
+		// }
+
+		keySets, err := helper.GetKeySets()
 		if err != nil {
 			return err
 		}

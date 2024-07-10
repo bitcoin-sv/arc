@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
@@ -61,12 +61,9 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		keyFile, err := helper.GetString("keyFile")
+		keySets, err := helper.GetKeySets()
 		if err != nil {
 			return err
-		}
-		if keyFile == "" {
-			return errors.New("no key file was given")
 		}
 
 		miningFeeSat, err := helper.GetInt("miningFeeSatPerKb")
@@ -101,20 +98,20 @@ var Cmd = &cobra.Command{
 
 		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
-		keyFiles := strings.Split(keyFile, ",")
+		// keyFiles := strings.Split(keyFile, ",")
 
-		for _, kf := range keyFiles {
+		for i, keyset := range keySets {
 
 			if wocApiKey == "" {
 				time.Sleep(1 * time.Second)
 			}
 
-			fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
-			if err != nil {
-				return fmt.Errorf("failed to get key sets: %v", err)
-			}
+			// fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
+			// if err != nil {
+			// 	return fmt.Errorf("failed to get key sets: %v", err)
+			// }
 
-			rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, wocClient,
+			rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, keyset, wocClient,
 				broadcaster.WithFees(miningFeeSat),
 				broadcaster.WithIsTestnet(isTestnet),
 				broadcaster.WithCallback(callbackURL, callbackToken),
@@ -124,7 +121,7 @@ var Cmd = &cobra.Command{
 				return fmt.Errorf("failed to create broadcaster: %v", err)
 			}
 
-			logger.Info("creating utxos", slog.String("key", kf), slog.String("address", fundingKeySet.Address(!isTestnet)))
+			logger.Info("creating utxos", slog.String("key", "key-"+strconv.Itoa(i)), slog.String("address", keyset.Address(!isTestnet)))
 			err = rateBroadcaster.CreateUtxos(context.Background(), outputs, satoshisPerOutput)
 			if err != nil {
 				return fmt.Errorf("failed to create utxos: %v", err)

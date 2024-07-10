@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
+	"strconv"
 	"sync"
 	"time"
 
@@ -76,12 +76,17 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		keyFile, err := helper.GetString("keyFile")
+		// keyFile, err := helper.GetString("keyFile")
+		// if err != nil {
+		// 	return err
+		// }
+		// if keyFile == "" {
+		// 	return errors.New("no key file was given")
+		// }
+
+		keySets, err := helper.GetKeySets()
 		if err != nil {
 			return err
-		}
-		if keyFile == "" {
-			return errors.New("no key file was given")
 		}
 
 		miningFeeSat, err := helper.GetInt("miningFeeSatPerKb")
@@ -105,7 +110,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		keyFiles := strings.Split(keyFile, ",")
+		// keyFiles := strings.Split(keyFile, ",")
 
 		logger := helper.GetLogger()
 
@@ -116,7 +121,7 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %v", err)
 		}
 
-		rbs := make([]*broadcaster.RateBroadcaster, len(keyFiles))
+		rbs := make([]*broadcaster.RateBroadcaster, len(keySets))
 
 		wg := &sync.WaitGroup{}
 
@@ -136,23 +141,23 @@ var Cmd = &cobra.Command{
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		for i, kf := range keyFiles {
+		for i, keyset := range keySets {
 
 			wg.Add(1)
 
-			fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
-			if err != nil {
-				return fmt.Errorf("failed to get key sets: %v", err)
-			}
+			// fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
+			// if err != nil {
+			// 	return fmt.Errorf("failed to get key sets: %v", err)
+			// }
 
 			wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
 			var writer io.Writer
 			if store {
 
-				_, keyFileName := filepath.Split(kf)
+				// _, keyFileName := filepath.Split(kf)
 
-				file, err := os.Create(fmt.Sprintf("%s/%s.json", resultsPath, keyFileName))
+				file, err := os.Create(fmt.Sprintf("%s/%s.json", resultsPath, "key-"+strconv.Itoa(i)))
 				if err != nil {
 					return err
 				}
@@ -162,7 +167,7 @@ var Cmd = &cobra.Command{
 				defer file.Close()
 			}
 
-			rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, fundingKeySet, wocClient, broadcaster.WithFees(miningFeeSat), broadcaster.WithIsTestnet(isTestnet), broadcaster.WithCallback(callbackURL, callbackToken), broadcaster.WithFullstatusUpdates(fullStatusUpdates), broadcaster.WithBatchSize(batchSize), broadcaster.WithStoreWriter(writer, 50))
+			rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, keyset, wocClient, broadcaster.WithFees(miningFeeSat), broadcaster.WithIsTestnet(isTestnet), broadcaster.WithCallback(callbackURL, callbackToken), broadcaster.WithFullstatusUpdates(fullStatusUpdates), broadcaster.WithBatchSize(batchSize), broadcaster.WithStoreWriter(writer, 50))
 			if err != nil {
 				return fmt.Errorf("failed to create rate broadcaster: %v", err)
 			}

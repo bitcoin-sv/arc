@@ -1,0 +1,15 @@
+privateKeys:
+  key-1: xprv9s21ZrQH143K3w4ZJkMuy1Zez1XbNtXbnBdcEVPKpgyQYSbmPcvt3Rd2cDVucgbnvmQoxgdUcrbgwWfBVDVhv3AM3BuLyA5zfc6P6tjWw4j
+  key-2: xprv9s21ZrQH143K2g8XXRC27L4QjeXcNnVkRonabPWGEAU8TVrMy1tNwBG2g4kT3hpZ4Aq5hZxALb5tDnyWmaRznysWEAiYHVzCmv4m8bPfy8s
+  key-3: xprv9s21ZrQH143K31hRxu6YtazuRcBYWZjS32VsWG7FjggC4yvZ8EAfFx9bwY7u2vXQxvdhG7qEGm4JMQZd5h5kiiBwQovRtEYJMySdHhZbVYi
+  key-4: xprv9s21ZrQH143K2qd5FyiEX82KvxWnC5Nkx2f9qao8XMW7qsXPH6177MwZJim77gTqYS6Eef4CAhrFUNAAVgSBbhwtU6N434RBLWtvETJGNSX
+  key-5: xprv9s21ZrQH143K2gmB1F8CwgVYfBjKo6LoDxB9aLYv6Bb8oXWhfawENNAAD1Ny3wjG4d9YjnEpaUPbdvvGp4ndBtLU3Jo2gGJeYsqNRj7ipMA
+
+miningfeesatperkb: 1
+authorization: testnet_9e1f312f7fb909af6a72862dc6d41472
+apiurl: https://arc-test.taal.com
+callback: http://callbacks.arc-testnet:8080
+callbackToken: TVHAmvQoPsgmsAeSmx_11
+wocAPIKey: testnet_9e1f312f7fb909af6a72862dc6d41472
+testnet: true
+keys: key-1,key-2,key-3,key-4

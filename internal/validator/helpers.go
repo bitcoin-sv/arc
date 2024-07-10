@@ -24,6 +24,10 @@ type RawTx struct {
 	IsMined bool
 }
 
+type MerkleVerifier interface {
+	Verify(ctx context.Context, request []beef.MerkleRootVerificationRequest) ([]uint64, error)
+}
+
 func GetHexFormat(hex []byte) HexFormat {
 	if beef.CheckBeefFormat(hex) {
 		return BeefHex

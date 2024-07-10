@@ -15,12 +15,14 @@ import (
 )
 
 type BeefValidator struct {
-	policy *bitcoin.Settings
+	policy     *bitcoin.Settings
+	mrVerifier validator.MerkleVerifier
 }
 
-func New(policy *bitcoin.Settings) *BeefValidator {
+func New(policy *bitcoin.Settings, mrVerifier validator.MerkleVerifier) *BeefValidator {
 	return &BeefValidator{
-		policy: policy,
+		policy:     policy,
+		mrVerifier: mrVerifier,
 	}
 }
 
@@ -56,7 +58,9 @@ func (v *BeefValidator) ValidateTransaction(ctx context.Context, beefTx *beef.BE
 		return beefTx.GetLatestTx(), validator.NewError(err, api.ErrStatusMinedAncestorsNotFound)
 	}
 
-	// TODO: verify merkle roots
+	if vErr := verifyMerkleRoots(ctx, v.mrVerifier, beefTx); vErr != nil {
+		return beefTx.GetLatestTx(), vErr
+	}
 
 	return nil, nil
 }
@@ -116,6 +120,25 @@ func validateScripts(tx *bt.Tx, inputTxs []*beef.TxData) *validator.Error {
 		if err != nil {
 			return validator.NewError(errors.New("invalid script"), api.ErrStatusUnlockingScripts)
 		}
+	}
+
+	return nil
+}
+
+func verifyMerkleRoots(ctx context.Context, v validator.MerkleVerifier, beefTx *beef.BEEF) *validator.Error {
+	mr, err := beef.CalculateMerkleRootsFromBumps(beefTx.BUMPs)
+	if err != nil {
+		return validator.NewError(err, api.ErrStatusCalculatingMerkleRoots)
+	}
+
+	unverifiedBlocks, err := v.Verify(ctx, mr)
+	if err != nil {
+		return validator.NewError(err, api.ErrStatusValidatingMerkleRoots)
+	}
+
+	if len(unverifiedBlocks) > 0 {
+		err := fmt.Errorf("unable to verify BUMPs with block heights: %v", unverifiedBlocks)
+		return validator.NewError(err, api.ErrStatusValidatingMerkleRoots)
 	}
 
 	return nil

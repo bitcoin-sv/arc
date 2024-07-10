@@ -325,7 +325,7 @@ func Test_needExtention(t *testing.T) {
 			tx, _ := bt.NewTxFromString(tc.txHex)
 
 			// then
-			result := needExtention(tx, tc.feeOpt, tc.scriptOpt)
+			result := needsExtention(tx, tc.feeOpt, tc.scriptOpt)
 
 			// assert
 			require.Equal(t, tc.expectedResult, result)

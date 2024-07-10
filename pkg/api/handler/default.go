@@ -33,7 +33,6 @@ const (
 
 type ArcDefaultHandler struct {
 	TransactionHandler            metamorph.TransactionHandler
-	MerkleRootsVerifier           blocktx.MerkleRootsVerifier
 	NodePolicy                    *bitcoin.Settings
 	logger                        *slog.Logger
 	now                           func() time.Time
@@ -41,7 +40,8 @@ type ArcDefaultHandler struct {
 	peerRpcConfig                 *config.PeerRpcConfig
 	apiConfig                     *config.ApiConfig
 
-	txFinder validator.TxFinderI
+	txFinder   validator.TxFinderI
+	mrVerifier validator.MerkleVerifier
 }
 
 func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
@@ -84,15 +84,19 @@ func NewDefault(
 		useMainnet: true, // TODO: refactor in scope of ARCO-147
 	}
 
+	mr := merkleVerifier{
+		v: merkleRootsVerifier,
+	}
+
 	handler := &ArcDefaultHandler{
-		TransactionHandler:  transactionHandler,
-		MerkleRootsVerifier: merkleRootsVerifier,
-		NodePolicy:          policy,
-		logger:              logger,
-		now:                 time.Now,
-		peerRpcConfig:       peerRpcConfig,
-		apiConfig:           apiConfig,
-		txFinder:            &finder,
+		TransactionHandler: transactionHandler,
+		NodePolicy:         policy,
+		logger:             logger,
+		now:                time.Now,
+		peerRpcConfig:      peerRpcConfig,
+		apiConfig:          apiConfig,
+		txFinder:           &finder,
+		mrVerifier:         mr,
 	}
 
 	// apply options
@@ -338,7 +342,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 
 			txsHex = remainingBytes
 
-			v := beefValidator.New(m.NodePolicy)
+			v := beefValidator.New(m.NodePolicy, m.mrVerifier)
 			if arcError := m.validateBEEFTransaction(ctx, v, beefTx, options); arcError != nil {
 				fails = append(fails, arcError)
 				continue
@@ -437,23 +441,6 @@ func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValida
 	if errTx, err := txValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts); err != nil {
 		_, arcError := m.handleError(ctx, errTx, err)
 		return arcError
-	}
-
-	merkleRoots, err := beef.CalculateMerkleRootsFromBumps(beefTx.BUMPs)
-	if err != nil {
-		return api.NewErrorFields(api.ErrStatusCalculatingMerkleRoots, err.Error())
-	}
-
-	merkleRootsRequest := convertMerkleRootsRequest(merkleRoots)
-
-	unverifiedBlockHeights, err := m.MerkleRootsVerifier.VerifyMerkleRoots(ctx, merkleRootsRequest)
-	if err != nil {
-		return api.NewErrorFields(api.ErrStatusValidatingMerkleRoots, err.Error())
-	}
-
-	if len(unverifiedBlockHeights) > 0 {
-		err := fmt.Errorf("unable to verify BUMPs with block heights: %v", unverifiedBlockHeights)
-		return api.NewErrorFields(api.ErrStatusValidatingMerkleRoots, err.Error())
 	}
 
 	return nil

@@ -34,12 +34,12 @@ func NewCustomHandler() (api.ServerInterface, error) {
 	}
 
 	// add blocktx, header service or custom implementation of merkle roots verifier
-	merkleRootVerifier := &CustomMerkleRootsVerifier{}
+	//merkleRootVerifier := &CustomMerkleRootsVerifier{}
 
 	bitcoinHandler := &CustomHandler{
 		ArcDefaultHandler: handler.ArcDefaultHandler{
-			TransactionHandler:  node,
-			MerkleRootsVerifier: merkleRootVerifier,
+			TransactionHandler: node,
+			// TODO:	MerkleRootsVerifier: merkleRootVerifier,
 		},
 	}
 

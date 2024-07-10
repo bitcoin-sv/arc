@@ -38,6 +38,7 @@ func TestCheckSwagger(t *testing.T) {
 	}
 }
 
+// TODO: move to adapter tests
 func TestConvertMerkleRootsRequest(t *testing.T) {
 	testCases := []struct {
 		name            string
@@ -71,7 +72,7 @@ func TestConvertMerkleRootsRequest(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			request := convertMerkleRootsRequest(tc.request)
+			request := convertToBlocktxMerkleVerRequest(tc.request)
 			assert.Equal(t, tc.expectedRequest, request)
 		})
 	}

@@ -24,7 +24,7 @@ func (f txFinder) GetRawTxs(ctx context.Context, ids []string) ([]validator.RawT
 
 	// TODO: discuss if it's worth to have implementation for len(ids) == 1
 
-	foundTxs := make([]validator.RawTx, len(ids))
+	foundTxs := make([]validator.RawTx, 0, len(ids))
 	var remainingIDs []string
 
 	// first get transactions from the handler

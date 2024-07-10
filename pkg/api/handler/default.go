@@ -67,10 +67,19 @@ func NewDefault(
 	apiConfig *config.ApiConfig,
 	opts ...Option,
 ) (api.ServerInterface, error) {
-	wocClient := woc_client.New(woc_client.WithAuth(apiConfig.WocApiKey))
+
+	// TODO: I don't like it
+	var wocClient *woc_client.WocClient
+	if apiConfig != nil {
+		wocClient = woc_client.New(woc_client.WithAuth(apiConfig.WocApiKey))
+	} else {
+		wocClient = woc_client.New()
+	}
+
 	finder := txFinder{
 		th:         transactionHandler,
 		pc:         peerRpcConfig,
+		l:          logger,
 		w:          wocClient,
 		useMainnet: true, // TODO: refactor in scope of ARCO-147
 	}
@@ -418,9 +427,10 @@ func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidato
 }
 
 func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.BeefValidator, beefTx *beef.BEEF, options *metamorph.TransactionOptions) *api.ErrorFields {
-	if options.SkipTxValidation {
-		return nil
-	}
+	// TODO: wait for the decision from the managment
+	// if transactionOptions.SkipTxValidation {
+	// 	return nil
+	// }
 
 	feeOpts, scriptOpts := toValidationOpts(options)
 
@@ -502,8 +512,6 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, subm
 	ok := errors.As(submitErr, &validatorErr)
 	if ok {
 		status = validatorErr.ArcErrorStatus
-	} else if errors.Is(submitErr, metamorph.ErrParentTransactionNotFound) {
-		status = api.ErrStatusTxFormat
 	}
 
 	// enrich the response with the error details

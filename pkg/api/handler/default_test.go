@@ -277,7 +277,7 @@ func TestGETTransactionStatus(t *testing.T) {
 }
 
 func TestPOSTTransaction(t *testing.T) { //nolint:funlen
-	errFieldMissingInputs := *api.NewErrorFields(api.ErrStatusTxFormat, "parent transaction not found")
+	errFieldMissingInputs := *api.NewErrorFields(api.ErrStatusTxFormat, "arc error 460: parent transaction not found")
 	errFieldMissingInputs.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
 	errFieldSubmitTx := *api.NewErrorFields(api.ErrStatusGeneric, "failed to submit tx")
@@ -720,7 +720,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			_ = json.Unmarshal(b, &bErr)
 
 			assert.Equal(t, int(api.ErrStatusTxFormat), bErr[0].Status)
-			assert.Equal(t, "parent transaction not found", *bErr[0].ExtraInfo)
+			assert.Equal(t, "arc error 460: parent transaction not found", *bErr[0].ExtraInfo)
 		}
 	})
 
@@ -1203,13 +1203,16 @@ func Test_handleError(t *testing.T) {
 			},
 		},
 		{
-			name:        "parent not found error",
-			submitError: metamorph.ErrParentTransactionNotFound,
+			name: "parent not found error",
+			submitError: &validator.Error{
+				ArcErrorStatus: api.ErrStatusTxFormat,
+				Err:            errors.New("parent transaction not found"),
+			},
 
 			expectedStatus: api.ErrStatusTxFormat,
 			expectedArcErr: &api.ErrorFields{
 				Detail:    "Transaction is not in extended format, missing input scripts",
-				ExtraInfo: PtrTo("parent transaction not found"),
+				ExtraInfo: PtrTo("arc error 460: parent transaction not found"),
 				Title:     "Not extended format",
 				Type:      "https://bitcoin-sv.github.io/arc/#/errors?id=_460",
 				Txid:      PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118"),

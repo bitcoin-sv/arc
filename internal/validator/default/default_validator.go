@@ -29,7 +29,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *bt.Tx, f
 	if needExtention(tx, feeValidation, scriptValidation) {
 		err := extendTx(ctx, v.txFinder, tx)
 		if err != nil {
-			return validator.NewError(err, api.ErrStatusGeneric)
+			return validator.NewError(err, api.ErrStatusTxFormat)
 		}
 	}
 

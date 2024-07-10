@@ -45,7 +45,11 @@ func extendTx(ctx context.Context, w validator.TxFinderI, rawTx *bt.Tx) error {
 
 	// extend inputs with partents data
 	for _, p := range parentsTxs {
-		childInputs := parentInputMap[p.TxID]
+		childInputs, found := parentInputMap[p.TxID]
+		if !found {
+			return errParentNotFound
+		}
+
 		if err = extendInputs(p.Bytes, childInputs); err != nil {
 			return err
 		}

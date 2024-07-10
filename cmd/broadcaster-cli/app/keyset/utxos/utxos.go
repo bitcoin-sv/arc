@@ -2,13 +2,13 @@ package utxos
 
 import (
 	"context"
-	"errors"
+
 	"fmt"
 	"log"
-	"path/filepath"
+
 	"sort"
 	"strconv"
-	"strings"
+
 	"time"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
@@ -24,14 +24,6 @@ var Cmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		maxRows := viper.GetInt("rows")
 
-		keyFile, err := helper.GetString("keyFile")
-		if err != nil {
-			return err
-		}
-		if keyFile == "" {
-			return errors.New("no key file was given")
-		}
-
 		isTestnet, err := helper.GetBool("testnet")
 		if err != nil {
 			return err
@@ -44,35 +36,28 @@ var Cmd = &cobra.Command{
 		logger := helper.GetLogger()
 		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
-		keyFiles := strings.Split(keyFile, ",")
+		keySets, err := helper.GetKeySets()
+		if err != nil {
+			return err
+		}
 		t := table.NewWriter()
 
 		type row struct {
 			satoshis string
 			outputs  string
 		}
-		columns := make([][]row, len(keyFiles))
+		columns := make([][]row, len(keySets))
 		maxRowNr := 0
 
-		keyTotalOutputs := make([]int, len(keyFiles))
+		keyTotalOutputs := make([]int, len(keySets))
 		keyHeaderRow := make([]interface{}, 0)
 		headerRow := make([]interface{}, 0)
-		for i, kf := range keyFiles {
+		for i, keyset := range keySets {
 
-			_, keyName := filepath.Split(kf)
 			headerRow = append(headerRow, "Sat", "Outputs")
-			keyHeaderRow = append(keyHeaderRow, keyName, "")
+			keyHeaderRow = append(keyHeaderRow, "key-"+strconv.Itoa(i), "")
 
-			fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
-			if err != nil {
-				return fmt.Errorf("failed to get key sets: %v", err)
-			}
-
-			if err != nil {
-				return err
-			}
-
-			utxos, err := wocClient.GetUTXOsWithRetries(context.Background(), !isTestnet, fundingKeySet.Script, fundingKeySet.Address(!isTestnet), 1*time.Second, 5)
+			utxos, err := wocClient.GetUTXOsWithRetries(context.Background(), !isTestnet, keyset.Script, keyset.Address(!isTestnet), 1*time.Second, 5)
 			if err != nil {
 				return fmt.Errorf("failed to get utxos from WoC: %v", err)
 			}

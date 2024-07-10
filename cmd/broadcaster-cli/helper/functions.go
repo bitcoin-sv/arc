@@ -2,11 +2,12 @@ package helper
 
 import (
 	"fmt"
-	"github.com/lmittmann/tint"
 	"log/slog"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/lmittmann/tint"
 
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
@@ -135,7 +136,7 @@ func GetLogger() *slog.Logger {
 	return slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelDebug}))
 }
 
-func GetKeySets(keys map[string]string, selectedKeys []string) ([]*keyset.KeySet, error) {
+func GetKeySetsFor(keys map[string]string, selectedKeys []string) ([]*keyset.KeySet, error) {
 	var keySets []*keyset.KeySet
 
 	if len(keys) == 0 {
@@ -174,4 +175,16 @@ func GetPrivateKeys() (map[string]string, error) {
 		return nil, err
 	}
 	return keys, nil
+}
+
+func GetKeySets() ([]*keyset.KeySet, error) {
+	keysFlag := viper.GetString("keys")
+	selectedKeys := strings.Split(keysFlag, ",")
+
+	keys, err := GetPrivateKeys()
+	if err != nil {
+		return nil, err
+	}
+
+	return GetKeySetsFor(keys, selectedKeys)
 }

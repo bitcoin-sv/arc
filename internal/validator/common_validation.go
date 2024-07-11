@@ -209,3 +209,17 @@ func pushDataCheck(tx *bt.Tx) error {
 
 	return nil
 }
+
+func CheckScript(tx *bt.Tx, inputIdx int, prevTxOutput *bt.Output) error {
+	err := interpreter.NewEngine().Execute(
+		interpreter.WithTx(tx, inputIdx, prevTxOutput),
+		interpreter.WithForkID(),
+		interpreter.WithAfterGenesis(),
+	)
+
+	if err != nil {
+		return fmt.Errorf("script execution failed: %w", err)
+	}
+
+	return nil
+}

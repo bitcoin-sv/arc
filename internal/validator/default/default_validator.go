@@ -7,7 +7,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-bt/v2/bscript/interpreter"
 	"github.com/ordishs/go-bitcoin"
 )
 
@@ -123,12 +122,8 @@ func checkScripts(tx *bt.Tx) error {
 			LockingScript: in.PreviousTxScript,
 		}
 
-		if err := interpreter.NewEngine().Execute(
-			interpreter.WithTx(tx, i, prevOutput),
-			interpreter.WithForkID(),
-			interpreter.WithAfterGenesis(),
-		); err != nil {
-			return fmt.Errorf("script execution failed: %w", err)
+		if err := validator.CheckScript(tx, i, prevOutput); err != nil {
+			return err
 		}
 	}
 

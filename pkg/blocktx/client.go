@@ -9,13 +9,16 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+// check if Client implements all necessary interfaces
+var _ BlocktxClient = &Client{}
+var _ MerkleRootsVerifier = &Client{}
+
 type BlocktxClient interface {
 	Health(ctx context.Context) error
 	ClearTransactions(ctx context.Context, retentionDays int32) (int64, error)
 	ClearBlocks(ctx context.Context, retentionDays int32) (int64, error)
 	ClearBlockTransactionsMap(ctx context.Context, retentionDays int32) (int64, error)
 	DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) (int64, error)
-	VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error)
 }
 
 // MerkleRootsVerifier verifies the merkle roots existance in blocktx db and returns unverified block heights.
@@ -33,7 +36,7 @@ type Client struct {
 	client blocktx_api.BlockTxAPIClient
 }
 
-func NewClient(client blocktx_api.BlockTxAPIClient) BlocktxClient {
+func NewClient(client blocktx_api.BlockTxAPIClient) *Client {
 	btc := &Client{
 		client: client,
 	}

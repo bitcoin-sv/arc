@@ -32,16 +32,14 @@ const (
 )
 
 type ArcDefaultHandler struct {
-	TransactionHandler            metamorph.TransactionHandler
-	NodePolicy                    *bitcoin.Settings
+	TransactionHandler metamorph.TransactionHandler
+	NodePolicy         *bitcoin.Settings
+
 	logger                        *slog.Logger
 	now                           func() time.Time
 	rejectedCallbackUrlSubstrings []string
-	peerRpcConfig                 *config.PeerRpcConfig
-	apiConfig                     *config.ApiConfig
-
-	txFinder   validator.TxFinderI
-	mrVerifier validator.MerkleVerifier
+	txFinder                      validator.TxFinderI
+	mrVerifier                    validator.MerkleVerifier
 }
 
 func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
@@ -56,18 +54,6 @@ func WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings []string) func(*A
 	}
 }
 
-func WithTxFinder(f validator.TxFinderI) func(*ArcDefaultHandler) {
-	return func(p *ArcDefaultHandler) {
-		p.txFinder = f
-	}
-}
-
-func WithMerkleVerifier(v validator.MerkleVerifier) func(*ArcDefaultHandler) {
-	return func(p *ArcDefaultHandler) {
-		p.mrVerifier = v
-	}
-}
-
 type Option func(f *ArcDefaultHandler)
 
 func NewDefault(
@@ -78,7 +64,7 @@ func NewDefault(
 	peerRpcConfig *config.PeerRpcConfig,
 	apiConfig *config.ApiConfig,
 	opts ...Option,
-) (api.ServerInterface, error) {
+) (*ArcDefaultHandler, error) {
 
 	var wocClient *woc_client.WocClient
 	if apiConfig != nil {
@@ -104,8 +90,6 @@ func NewDefault(
 		NodePolicy:         policy,
 		logger:             logger,
 		now:                time.Now,
-		peerRpcConfig:      peerRpcConfig,
-		apiConfig:          apiConfig,
 		txFinder:           &finder,
 		mrVerifier:         mr,
 	}

@@ -10,7 +10,6 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-bt/v2/bscript/interpreter"
 	"github.com/ordishs/go-bitcoin"
 )
 
@@ -144,18 +143,11 @@ func verifyMerkleRoots(ctx context.Context, v validator.MerkleVerifier, beefTx *
 	return nil
 }
 
-// TODO move to common
 func checkScripts(tx, prevTx *bt.Tx, inputIdx int) error {
 	input := tx.InputIdx(inputIdx)
 	prevOutput := prevTx.OutputIdx(int(input.PreviousTxOutIndex))
 
-	err := interpreter.NewEngine().Execute(
-		interpreter.WithTx(tx, inputIdx, prevOutput),
-		interpreter.WithForkID(),
-		interpreter.WithAfterGenesis(),
-	)
-
-	return err
+	return validator.CheckScript(tx, inputIdx, prevOutput)
 }
 
 func ensureAncestorsArePresentInBump(tx *bt.Tx, beefTx *beef.BEEF) error {

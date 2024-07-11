@@ -29,47 +29,6 @@ func getTransactionFromNode(peerRpc *config.PeerRpcConfig, inputTxID string) (*b
 	return node.GetRawTransaction(inputTxID)
 }
 
-// func getTransactionFromWhatsOnChain(ctx context.Context, wocApiKey, inputTxID string) ([]byte, error) {
-// 	wocURL := fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/tx/%s/hex", "main", inputTxID)
-// 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, wocURL, nil)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	req.Header.Set("Authorization", wocApiKey)
-
-// 	var resp *http.Response
-// 	resp, err = http.DefaultClient.Do(req)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	defer resp.Body.Close()
-
-// 	if resp.StatusCode != 200 {
-// 		return nil, metamorph.ErrParentTransactionNotFound
-// 	}
-
-// 	var txHexBytes []byte
-// 	txHexBytes, err = io.ReadAll(resp.Body)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	txHex := string(txHexBytes)
-
-// 	var txBytes []byte
-// 	txBytes, err = hex.DecodeString(txHex)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	if txBytes != nil {
-// 		return txBytes, nil
-// 	}
-
-// 	return nil, metamorph.ErrParentTransactionNotFound
-// }
-
 // CheckSwagger validates the request against the swagger definition.
 func CheckSwagger(e *echo.Echo) *openapi3.T {
 	swagger, err := api.GetSwagger()

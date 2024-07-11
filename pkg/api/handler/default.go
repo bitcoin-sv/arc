@@ -56,6 +56,18 @@ func WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings []string) func(*A
 	}
 }
 
+func WithTxFinder(f validator.TxFinderI) func(*ArcDefaultHandler) {
+	return func(p *ArcDefaultHandler) {
+		p.txFinder = f
+	}
+}
+
+func WithMerkleVerifier(v validator.MerkleVerifier) func(*ArcDefaultHandler) {
+	return func(p *ArcDefaultHandler) {
+		p.mrVerifier = v
+	}
+}
+
 type Option func(f *ArcDefaultHandler)
 
 func NewDefault(
@@ -68,7 +80,6 @@ func NewDefault(
 	opts ...Option,
 ) (api.ServerInterface, error) {
 
-	// TODO: I don't like it
 	var wocClient *woc_client.WocClient
 	if apiConfig != nil {
 		wocClient = woc_client.New(woc_client.WithAuth(apiConfig.WocApiKey))

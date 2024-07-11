@@ -12,11 +12,11 @@ type merkleVerifier struct {
 }
 
 func (a merkleVerifier) Verify(ctx context.Context, request []beef.MerkleRootVerificationRequest) ([]uint64, error) {
-	blocktxReq := convertToBlocktxMerkleVerRequest(request)
+	blocktxReq := mapToBlocktxMerkleVerRequest(request)
 	return a.v.VerifyMerkleRoots(ctx, blocktxReq)
 }
 
-func convertToBlocktxMerkleVerRequest(mrReq []beef.MerkleRootVerificationRequest) []blocktx.MerkleRootVerificationRequest {
+func mapToBlocktxMerkleVerRequest(mrReq []beef.MerkleRootVerificationRequest) []blocktx.MerkleRootVerificationRequest {
 	merkleRoots := make([]blocktx.MerkleRootVerificationRequest, 0, len(mrReq))
 
 	for _, mr := range mrReq {

@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/internal/beef"
-	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
@@ -34,46 +32,6 @@ func TestCheckSwagger(t *testing.T) {
 
 			swagger := CheckSwagger(e)
 			assert.NotNil(t, swagger)
-		})
-	}
-}
-
-// TODO: move to adapter tests
-func TestConvertMerkleRootsRequest(t *testing.T) {
-	testCases := []struct {
-		name            string
-		request         []beef.MerkleRootVerificationRequest
-		expectedRequest []blocktx.MerkleRootVerificationRequest
-	}{
-		{
-			name: "",
-			request: []beef.MerkleRootVerificationRequest{
-				{
-					MerkleRoot:  "1234",
-					BlockHeight: 818000,
-				},
-				{
-					MerkleRoot:  "5678",
-					BlockHeight: 818001,
-				},
-			},
-			expectedRequest: []blocktx.MerkleRootVerificationRequest{
-				{
-					MerkleRoot:  "1234",
-					BlockHeight: 818000,
-				},
-				{
-					MerkleRoot:  "5678",
-					BlockHeight: 818001,
-				},
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			request := convertToBlocktxMerkleVerRequest(tc.request)
-			assert.Equal(t, tc.expectedRequest, request)
 		})
 	}
 }

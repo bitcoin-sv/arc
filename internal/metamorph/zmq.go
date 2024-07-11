@@ -38,8 +38,14 @@ type ZMQTxInfo struct {
 	RejectionCode               int           `json:"rejectionCode"`
 	Reason                      string        `json:"reason"`
 	RejectionReason             string        `json:"rejectionReason"`
-	CollidedWith                []interface{} `json:"collidedWith"`
+	CollidedWith                []CollidingTx `json:"collidedWith"`
 	RejectionTime               string        `json:"rejectionTime"`
+}
+
+type CollidingTx struct {
+	Hex  string `json:"hex"`
+	Size int    `json:"size"`
+	TxID string `json:"txid"`
 }
 
 type ZMQDiscardFromMempool struct {
@@ -93,50 +99,19 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 					Peer:   z.url.String(),
 				}
 			case invalidTxTopic:
-				// c[1] is lots of info about the tx in json format encoded in hex
-				var txInfo *ZMQTxInfo
-				status := metamorph_api.Status_REJECTED
-				txInfo, err = z.parseTxInfo(c)
+				hash, status, txErr, competingTxs, err := z.handleInvalidTx(c)
 				if err != nil {
 					z.logger.Error("failed to parse tx info", slog.String("topic", invalidTxTopic), slog.String("err", err.Error()))
 					continue
 				}
-				errReason := "invalid transaction"
-				if txInfo.RejectionReason != "" {
-					errReason += ": " + txInfo.RejectionReason
-				}
-				if txInfo.IsMissingInputs {
-					errReason = ""
-					status = metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL
-				}
-				if txInfo.IsDoubleSpendDetected {
-					errReason += " - double spend"
-				}
-				if len(txInfo.CollidedWith) > 0 {
-					for _, collidedWith := range txInfo.CollidedWith {
-						collisions, ok := collidedWith.(map[string]interface{})
-						if !ok {
-							z.logger.Error("parsing collisions failed")
-							break
-						}
-						z.logger.Debug(invalidTxTopic, slog.String("hash", txInfo.TxID), slog.String("reason", errReason), slog.String("colliding tx id", collisions["txid"].(string)), slog.String("colliding tx hex", collisions["hex"].(string)))
-					}
-				} else {
-					z.logger.Debug(invalidTxTopic, slog.String("hash", txInfo.TxID), slog.String("reason", errReason))
-				}
-
-				hash, err := chainhash.NewHashFromStr(txInfo.TxID)
-				if err != nil {
-					z.logger.Error("failed to get hash from string", slog.String("topic", invalidTxTopic), slog.String("err", err.Error()))
-					continue
-				}
 
 				z.statusMessageCh <- &PeerTxMessage{
-					Start:  time.Now(),
-					Hash:   hash,
-					Status: status,
-					Peer:   z.url.String(),
-					Err:    fmt.Errorf(errReason),
+					Start:        time.Now(),
+					Hash:         hash,
+					Status:       status,
+					Peer:         z.url.String(),
+					Err:          txErr,
+					CompetingTxs: competingTxs,
 				}
 			case discardedFromMempoolTopic:
 				var txInfo *ZMQDiscardFromMempool
@@ -179,6 +154,44 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 	}
 
 	return nil
+}
+
+func (z *ZMQ) handleInvalidTx(msg []string) (hash *chainhash.Hash, status metamorph_api.Status, txErr error, competingTxs []string, err error) {
+	txInfo, err := z.parseTxInfo(msg)
+	if err != nil {
+		return
+	}
+
+	hash, err = chainhash.NewHashFromStr(txInfo.TxID)
+	if err != nil {
+		return
+	}
+
+	if txInfo.IsMissingInputs {
+		status = metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL
+		return
+	}
+
+	errReason := "invalid transaction"
+
+	if txInfo.IsMempoolConflictDetected || txInfo.IsDoubleSpendDetected || len(txInfo.CollidedWith) > 0 {
+		status = metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED
+		// TODO: we probably shouldn't return an error here, as this tx can still be mined
+		errReason += ": double spend detected"
+		for _, ctx := range txInfo.CollidedWith {
+			competingTxs = append(competingTxs, ctx.TxID)
+			z.logger.Debug("invalidtx", slog.String("hash", txInfo.TxID), slog.String("colliding tx id", ctx.TxID), slog.String("colliding tx hex", ctx.Hex))
+		}
+	} else {
+		status = metamorph_api.Status_REJECTED
+		if txInfo.RejectionReason != "" {
+			errReason += ": " + txInfo.RejectionReason
+		}
+	}
+
+	z.logger.Debug("invalidtx", slog.String("hash", txInfo.TxID), slog.String("reason", errReason))
+	txErr = fmt.Errorf(errReason)
+	return
 }
 
 func (z *ZMQ) parseTxInfo(c []string) (*ZMQTxInfo, error) {

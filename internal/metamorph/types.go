@@ -16,9 +16,10 @@ type ProcessorRequest struct {
 }
 
 type PeerTxMessage struct {
-	Start  time.Time
-	Hash   *chainhash.Hash
-	Status metamorph_api.Status
-	Peer   string
-	Err    error
+	Start        time.Time
+	Hash         *chainhash.Hash
+	Status       metamorph_api.Status
+	Peer         string
+	Err          error
+	CompetingTxs []string
 }

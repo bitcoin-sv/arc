@@ -10,26 +10,26 @@ import (
 	"sync"
 )
 
-// Ensure, that MerkleVerifierMock does implement validator.MerkleVerifier.
+// Ensure, that MerkleVerifierIMock does implement validator.MerkleVerifierI.
 // If this is not the case, regenerate this file with moq.
-var _ validator.MerkleVerifierI = &MerkleVerifierMock{}
+var _ validator.MerkleVerifierI = &MerkleVerifierIMock{}
 
-// MerkleVerifierMock is a mock implementation of validator.MerkleVerifier.
+// MerkleVerifierIMock is a mock implementation of validator.MerkleVerifierI.
 //
-//	func TestSomethingThatUsesMerkleVerifier(t *testing.T) {
+//	func TestSomethingThatUsesMerkleVerifierI(t *testing.T) {
 //
-//		// make and configure a mocked validator.MerkleVerifier
-//		mockedMerkleVerifier := &MerkleVerifierMock{
+//		// make and configure a mocked validator.MerkleVerifierI
+//		mockedMerkleVerifierI := &MerkleVerifierIMock{
 //			VerifyFunc: func(ctx context.Context, request []beef.MerkleRootVerificationRequest) ([]uint64, error) {
 //				panic("mock out the Verify method")
 //			},
 //		}
 //
-//		// use mockedMerkleVerifier in code that requires validator.MerkleVerifier
+//		// use mockedMerkleVerifierI in code that requires validator.MerkleVerifierI
 //		// and then make assertions.
 //
 //	}
-type MerkleVerifierMock struct {
+type MerkleVerifierIMock struct {
 	// VerifyFunc mocks the Verify method.
 	VerifyFunc func(ctx context.Context, request []beef.MerkleRootVerificationRequest) ([]uint64, error)
 
@@ -47,9 +47,9 @@ type MerkleVerifierMock struct {
 }
 
 // Verify calls VerifyFunc.
-func (mock *MerkleVerifierMock) Verify(ctx context.Context, request []beef.MerkleRootVerificationRequest) ([]uint64, error) {
+func (mock *MerkleVerifierIMock) Verify(ctx context.Context, request []beef.MerkleRootVerificationRequest) ([]uint64, error) {
 	if mock.VerifyFunc == nil {
-		panic("MerkleVerifierMock.VerifyFunc: method is nil but MerkleVerifier.Verify was just called")
+		panic("MerkleVerifierIMock.VerifyFunc: method is nil but MerkleVerifierI.Verify was just called")
 	}
 	callInfo := struct {
 		Ctx     context.Context
@@ -67,8 +67,8 @@ func (mock *MerkleVerifierMock) Verify(ctx context.Context, request []beef.Merkl
 // VerifyCalls gets all the calls that were made to Verify.
 // Check the length with:
 //
-//	len(mockedMerkleVerifier.VerifyCalls())
-func (mock *MerkleVerifierMock) VerifyCalls() []struct {
+//	len(mockedMerkleVerifierI.VerifyCalls())
+func (mock *MerkleVerifierIMock) VerifyCalls() []struct {
 	Ctx     context.Context
 	Request []beef.MerkleRootVerificationRequest
 } {

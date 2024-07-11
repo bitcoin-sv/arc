@@ -34,9 +34,6 @@ var _ blocktx.BlocktxClient = &BlocktxClientMock{}
 //			HealthFunc: func(ctx context.Context) error {
 //				panic("mock out the Health method")
 //			},
-//			VerifyMerkleRootsFunc: func(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
-//				panic("mock out the VerifyMerkleRoots method")
-//			},
 //		}
 //
 //		// use mockedBlocktxClient in code that requires blocktx.BlocktxClient
@@ -58,9 +55,6 @@ type BlocktxClientMock struct {
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context) error
-
-	// VerifyMerkleRootsFunc mocks the VerifyMerkleRoots method.
-	VerifyMerkleRootsFunc func(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -97,20 +91,12 @@ type BlocktxClientMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
-		// VerifyMerkleRoots holds details about calls to the VerifyMerkleRoots method.
-		VerifyMerkleRoots []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// MerkleRootVerificationRequest is the merkleRootVerificationRequest argument value.
-			MerkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest
-		}
 	}
 	lockClearBlockTransactionsMap    sync.RWMutex
 	lockClearBlocks                  sync.RWMutex
 	lockClearTransactions            sync.RWMutex
 	lockDelUnfinishedBlockProcessing sync.RWMutex
 	lockHealth                       sync.RWMutex
-	lockVerifyMerkleRoots            sync.RWMutex
 }
 
 // ClearBlockTransactionsMap calls ClearBlockTransactionsMapFunc.
@@ -286,41 +272,5 @@ func (mock *BlocktxClientMock) HealthCalls() []struct {
 	mock.lockHealth.RLock()
 	calls = mock.calls.Health
 	mock.lockHealth.RUnlock()
-	return calls
-}
-
-// VerifyMerkleRoots calls VerifyMerkleRootsFunc.
-func (mock *BlocktxClientMock) VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
-	if mock.VerifyMerkleRootsFunc == nil {
-		panic("BlocktxClientMock.VerifyMerkleRootsFunc: method is nil but BlocktxClient.VerifyMerkleRoots was just called")
-	}
-	callInfo := struct {
-		Ctx                           context.Context
-		MerkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest
-	}{
-		Ctx:                           ctx,
-		MerkleRootVerificationRequest: merkleRootVerificationRequest,
-	}
-	mock.lockVerifyMerkleRoots.Lock()
-	mock.calls.VerifyMerkleRoots = append(mock.calls.VerifyMerkleRoots, callInfo)
-	mock.lockVerifyMerkleRoots.Unlock()
-	return mock.VerifyMerkleRootsFunc(ctx, merkleRootVerificationRequest)
-}
-
-// VerifyMerkleRootsCalls gets all the calls that were made to VerifyMerkleRoots.
-// Check the length with:
-//
-//	len(mockedBlocktxClient.VerifyMerkleRootsCalls())
-func (mock *BlocktxClientMock) VerifyMerkleRootsCalls() []struct {
-	Ctx                           context.Context
-	MerkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest
-} {
-	var calls []struct {
-		Ctx                           context.Context
-		MerkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest
-	}
-	mock.lockVerifyMerkleRoots.RLock()
-	calls = mock.calls.VerifyMerkleRoots
-	mock.lockVerifyMerkleRoots.RUnlock()
 	return calls
 }

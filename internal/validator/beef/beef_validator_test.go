@@ -61,7 +61,7 @@ func TestBeefValidator(t *testing.T) {
 			beefTx, _, err := beef.DecodeBEEF(beefHex)
 			require.NoError(t, err)
 
-			mrVerifier := mocks.MerkleVerifierMock{
+			mrVerifier := mocks.MerkleVerifierIMock{
 				VerifyFunc: func(ctx context.Context, request []beef.MerkleRootVerificationRequest) ([]uint64, error) {
 					return nil, nil
 				},

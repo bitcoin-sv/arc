@@ -124,11 +124,13 @@ func convertMerkleRootsRequest(beefMerkleRoots []beef.MerkleRootVerificationRequ
 	return merkleRoots
 }
 
-func filterStatusesByTxIDs(txIDs []string, allStatuses []*metamorph.TransactionStatus) []*metamorph.TransactionStatus {
-	if len(txIDs) == 1 && len(allStatuses) == 1 {
-		if allStatuses[0].TxID == txIDs[0] {
-			return allStatuses
+func filterStatusesByTxIDs(txIDs []string, statuses []*metamorph.TransactionStatus) []*metamorph.TransactionStatus {
+	if len(txIDs) == 1 && len(statuses) == 1 { // optimization for a common scenario
+		if statuses[0].TxID == txIDs[0] {
+			return statuses
 		}
+
+		return make([]*metamorph.TransactionStatus, 0)
 	}
 
 	idsMap := make(map[string]struct{})
@@ -137,7 +139,7 @@ func filterStatusesByTxIDs(txIDs []string, allStatuses []*metamorph.TransactionS
 	}
 
 	filteredStatuses := make([]*metamorph.TransactionStatus, 0)
-	for _, txStatus := range allStatuses {
+	for _, txStatus := range statuses {
 		if _, ok := idsMap[txStatus.TxID]; ok {
 			filteredStatuses = append(filteredStatuses, txStatus)
 		}

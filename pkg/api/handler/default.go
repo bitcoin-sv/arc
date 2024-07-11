@@ -140,34 +140,30 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		return ctx.JSON(e.Status, e)
 	}
 
-	transactionHex, err := parseTransactionFromRequest(ctx.Request())
+	txHex, err := parseTransactionFromRequest(ctx.Request())
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("error parsing transaction from request: %s", err.Error()))
 		return ctx.JSON(e.Status, e)
 	}
 
-	txs, outputs, failOutputs, e := m.processTransactions(ctx.Request().Context(), transactionHex, transactionOptions)
+	reqCtx := ctx.Request().Context()
+	txs, successes, fails, e := m.processTransactions(reqCtx, txHex, transactionOptions)
 
 	if e != nil {
-		// if an error is returned, the processing failed, and we should return a 500 error
-		return ctx.JSON(e.Status, e)
-	}
-
-	if len(failOutputs) > 0 {
 		// if an error is returned, the processing failed
-		e = failOutputs[0]
 		return ctx.JSON(e.Status, e)
 	}
 
-	transaction := txs[0]
-	response := outputs[0]
+	if len(fails) > 0 {
+		// if an fail result is returned, the processing/validation failed
+		e = fails[0]
+		return ctx.JSON(e.Status, e)
+	}
 
-	sizingInfo := make([][]uint64, 1)
-	normalBytes, dataBytes, feeAmount := getSizings(transaction)
-	sizingInfo[0] = []uint64{normalBytes, dataBytes, feeAmount}
-	sizingCtx := context.WithValue(ctx.Request().Context(), ContextSizings, sizingInfo)
+	sizingCtx := context.WithValue(reqCtx, ContextSizings, prepareSizingInfo(txs))
 	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
 
+	response := successes[0]
 	return ctx.JSON(response.Status, response)
 }
 
@@ -209,34 +205,29 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		return ctx.JSON(e.Status, e)
 	}
 
-	txsHexes, err := parseTransactionsFromRequest(ctx.Request())
+	txsHex, err := parseTransactionsFromRequest(ctx.Request())
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("error parsing transaction from request: %s", err.Error()))
 		return ctx.JSON(e.Status, e)
 	}
 
-	// process all txs
-	txs, outputs, failOutputs, e := m.processTransactions(ctx.Request().Context(), txsHexes, transactionOptions)
+	reqCtx := ctx.Request().Context()
+	txs, successes, fails, e := m.processTransactions(reqCtx, txsHex, transactionOptions)
 	if e != nil {
 		return ctx.JSON(e.Status, e)
 	}
 
-	sizingInfo := make([][]uint64, 0, len(txs))
-	for _, btTx := range txs {
-		normalBytes, dataBytes, feeAmount := getSizings(btTx)
-		sizingInfo = append(sizingInfo, []uint64{normalBytes, dataBytes, feeAmount})
-	}
-	sizingCtx := context.WithValue(ctx.Request().Context(), ContextSizings, sizingInfo)
+	sizingCtx := context.WithValue(reqCtx, ContextSizings, prepareSizingInfo(txs))
 	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
 	// we cannot really return any other status here
 	// each transaction in the slice will have the result of the transaction submission
 
-	// merge success and fail outputs
-	responses := make([]any, 0, len(outputs)+len(failOutputs))
-	for _, o := range outputs {
+	// merge success and fail results
+	responses := make([]any, 0, len(successes)+len(fails))
+	for _, o := range successes {
 		responses = append(responses, o)
 	}
-	for _, fo := range failOutputs {
+	for _, fo := range fails {
 		responses = append(responses, fo)
 	}
 
@@ -306,12 +297,13 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 }
 
 // processTransactions validates all the transactions in the array and submits to metamorph for processing.
-func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byte, transactionOptions *metamorph.TransactionOptions) (
-	submitedTxs []*bt.Tx, outputs []*api.TransactionResponse, failOutputs []*api.ErrorFields, pErr *api.ErrorFields) {
+func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byte, options *metamorph.TransactionOptions) (
+	submittedTxs []*bt.Tx, successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields) {
 	m.logger.Info("Starting to process transactions")
 
 	// decode and validate txs
-	txIds := make([]string, 0)
+	var txIds []string
+
 	for len(txsHex) != 0 {
 		hexFormat := validator.GetHexFormat(txsHex)
 
@@ -326,14 +318,14 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			txsHex = remainingBytes
 
 			v := beefValidator.New(m.NodePolicy)
-			if arcError := m.validateBEEFTransaction(ctx, v, beefTx, transactionOptions); arcError != nil {
-				failOutputs = append(failOutputs, arcError)
+			if arcError := m.validateBEEFTransaction(ctx, v, beefTx, options); arcError != nil {
+				fails = append(fails, arcError)
 				continue
 			}
 
 			for _, tx := range beefTx.Transactions {
 				if !tx.IsMined() {
-					submitedTxs = append(submitedTxs, tx.Transaction)
+					submittedTxs = append(submittedTxs, tx.Transaction)
 				}
 			}
 
@@ -346,41 +338,41 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 
 			txsHex = txsHex[bytesUsed:]
 			v := defaultValidator.New(m.NodePolicy)
-			if arcError := m.validateEFTransaction(ctx, v, transaction, transactionOptions); arcError != nil {
-				failOutputs = append(failOutputs, arcError)
+			if arcError := m.validateEFTransaction(ctx, v, transaction, options); arcError != nil {
+				fails = append(fails, arcError)
 				continue
 			}
 
-			submitedTxs = append(submitedTxs, transaction)
+			submittedTxs = append(submittedTxs, transaction)
 			txIds = append(txIds, transaction.TxID())
 		}
 	}
 
-	if len(submitedTxs) == 0 {
-		return nil, nil, failOutputs, nil
+	if len(submittedTxs) == 0 {
+		return nil, nil, fails, nil
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(transactionOptions.MaxTimeout+2)*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(options.MaxTimeout+2)*time.Second)
 	defer cancel()
 
-	// submit validated transactions to metamorph
-	txStatuses, e := m.submitTransactions(timeoutCtx, submitedTxs, transactionOptions)
+	// submit valid transactions to metamorph
+	txStatuses, e := m.submitTransactions(timeoutCtx, submittedTxs, options)
 	if e != nil {
 		return nil, nil, nil, e
 	}
 
-	// process returned transaction statuses and return to user
+	// prepare success results
 	txStatuses = filterStatusesByTxIDs(txIds, txStatuses)
 
 	now := m.now()
-	outputs = make([]*api.TransactionResponse, 0, len(submitedTxs))
+	successes = make([]*api.TransactionResponse, 0, len(submittedTxs))
 
 	for idx, tx := range txStatuses {
 		txID := tx.TxID
 		if txID == "" {
-			txID = submitedTxs[idx].TxID()
+			txID = submittedTxs[idx].TxID()
 		}
-		outputs = append(outputs, &api.TransactionResponse{
+		successes = append(successes, &api.TransactionResponse{
 			Status:      int(api.StatusOK),
 			Title:       "OK",
 			BlockHash:   &tx.BlockHash,
@@ -393,13 +385,12 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 		})
 	}
 
-	return submitedTxs, outputs, failOutputs, nil
+	return submittedTxs, successes, fails, nil
 }
 
-func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.DefaultValidator, transaction *bt.Tx, transactionOptions *metamorph.TransactionOptions) *api.ErrorFields {
+func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.DefaultValidator, transaction *bt.Tx, options *metamorph.TransactionOptions) *api.ErrorFields {
 	// the validator expects an extended transaction
 	// we must enrich the transaction with the missing data
-	// TODO: move morphing to validator
 	if !txValidator.IsExtended(transaction) {
 		err := m.extendTransaction(ctx, transaction)
 		if err != nil {
@@ -409,8 +400,8 @@ func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidato
 		}
 	}
 
-	if !transactionOptions.SkipTxValidation {
-		feeOpts, scriptOpts := toValidationOpts(transactionOptions)
+	if !options.SkipTxValidation {
+		feeOpts, scriptOpts := toValidationOpts(options)
 
 		if err := txValidator.ValidateTransaction(ctx, transaction, feeOpts, scriptOpts); err != nil {
 			statusCode, arcError := m.handleError(ctx, transaction, err)
@@ -455,8 +446,8 @@ func (m ArcDefaultHandler) extendTransaction(ctx context.Context, transaction *b
 	return nil
 }
 
-func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.BeefValidator, beefTx *beef.BEEF, transactionOptions *metamorph.TransactionOptions) *api.ErrorFields {
-	feeOpts, scriptOpts := toValidationOpts(transactionOptions)
+func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.BeefValidator, beefTx *beef.BEEF, options *metamorph.TransactionOptions) *api.ErrorFields {
+	feeOpts, scriptOpts := toValidationOpts(options)
 
 	if errTx, err := txValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts); err != nil {
 		_, arcError := m.handleError(ctx, errTx, err)
@@ -489,7 +480,7 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*bt.Tx,
 	if len(txs) == 1 {
 		tx := txs[0]
 
-		// probably we could use SubmitTransactions() as well, but right now I don't want to create potential performance issues
+		// SubmitTransaction() used to avoid performance issue
 		status, err := m.TransactionHandler.SubmitTransaction(ctx, tx, options)
 
 		if err != nil {
@@ -580,6 +571,16 @@ func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string)
 	}
 
 	return nil, metamorph.ErrParentTransactionNotFound
+}
+
+func prepareSizingInfo(txs []*bt.Tx) [][]uint64 {
+	sizingInfo := make([][]uint64, 0, len(txs))
+	for _, btTx := range txs {
+		normalBytes, dataBytes, feeAmount := getSizings(btTx)
+		sizingInfo = append(sizingInfo, []uint64{normalBytes, dataBytes, feeAmount})
+	}
+
+	return sizingInfo
 }
 
 func getSizings(tx *bt.Tx) (uint64, uint64, uint64) {

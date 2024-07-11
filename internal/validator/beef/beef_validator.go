@@ -15,10 +15,10 @@ import (
 
 type BeefValidator struct {
 	policy     *bitcoin.Settings
-	mrVerifier validator.MerkleVerifier
+	mrVerifier validator.MerkleVerifierI
 }
 
-func New(policy *bitcoin.Settings, mrVerifier validator.MerkleVerifier) *BeefValidator {
+func New(policy *bitcoin.Settings, mrVerifier validator.MerkleVerifierI) *BeefValidator {
 	return &BeefValidator{
 		policy:     policy,
 		mrVerifier: mrVerifier,
@@ -124,7 +124,7 @@ func validateScripts(tx *bt.Tx, inputTxs []*beef.TxData) *validator.Error {
 	return nil
 }
 
-func verifyMerkleRoots(ctx context.Context, v validator.MerkleVerifier, beefTx *beef.BEEF) *validator.Error {
+func verifyMerkleRoots(ctx context.Context, v validator.MerkleVerifierI, beefTx *beef.BEEF) *validator.Error {
 	mr, err := beef.CalculateMerkleRootsFromBumps(beefTx.BUMPs)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusCalculatingMerkleRoots)

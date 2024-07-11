@@ -39,7 +39,7 @@ type ArcDefaultHandler struct {
 	now                           func() time.Time
 	rejectedCallbackUrlSubstrings []string
 	txFinder                      validator.TxFinderI
-	mrVerifier                    validator.MerkleVerifier
+	mrVerifier                    validator.MerkleVerifierI
 }
 
 func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {

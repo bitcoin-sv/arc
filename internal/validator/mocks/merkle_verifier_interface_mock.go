@@ -12,7 +12,7 @@ import (
 
 // Ensure, that MerkleVerifierMock does implement validator.MerkleVerifier.
 // If this is not the case, regenerate this file with moq.
-var _ validator.MerkleVerifier = &MerkleVerifierMock{}
+var _ validator.MerkleVerifierI = &MerkleVerifierMock{}
 
 // MerkleVerifierMock is a mock implementation of validator.MerkleVerifier.
 //

@@ -24,7 +24,7 @@ type RawTx struct {
 	IsMined bool
 }
 
-type MerkleVerifier interface {
+type MerkleVerifierI interface {
 	Verify(ctx context.Context, request []beef.MerkleRootVerificationRequest) ([]uint64, error)
 }
 

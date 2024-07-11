@@ -7,16 +7,6 @@ import (
 	"github.com/libsv/go-bt/v2"
 )
 
-type Outpoint struct {
-	Txid string
-	Idx  uint32
-}
-
-type OutpointData struct {
-	ScriptPubKey []byte
-	Satoshis     int64
-}
-
 type FeeValidation byte
 
 const (

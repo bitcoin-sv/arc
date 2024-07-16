@@ -191,6 +191,39 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	return data, nil
 }
 
+// GetRawTxs implements the MetamorphStore interface. It attempts to get rawTxs for given hashes.
+// If the hashes do not exist an empty array is returned, otherwise the retrieved values.
+// If an error happens during the process of getting the results, the error is returned
+// along with already found rawTxs up to the error point.
+func (p *PostgreSQL) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, error) {
+	retRawTxs := make([][]byte, 0)
+
+	q := `SELECT raw_tx
+		FROM metamorph.transactions
+		WHERE hash in (SELECT UNNEST($1::BYTEA[]))`
+
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(hashes))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var rawTx []byte
+		err = rows.Scan(&rawTx)
+		if err != nil {
+			return retRawTxs, err
+		}
+		retRawTxs = append(retRawTxs, rawTx)
+	}
+
+	if err = rows.Err(); err != nil {
+		return retRawTxs, err
+	}
+
+	return retRawTxs, nil
+}
+
 func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash) error {
 	q := `UPDATE metamorph.transactions SET retries = retries+1 WHERE hash = $1;`
 
@@ -355,7 +388,6 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 }
 
 func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
-
 	q := `SELECT
 	     stored_at
 		,announced_at
@@ -530,6 +562,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		}
 		return nil, err
 	}
+	defer rows.Close()
 
 	res, err := p.getStoreDataFromRows(rows)
 	if err != nil {
@@ -615,6 +648,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 		}
 		return nil, err
 	}
+	defer rows.Close()
 
 	res, err := p.getStoreDataFromRows(rows)
 	if err != nil {
@@ -745,12 +779,12 @@ func (p *PostgreSQL) Close(ctx context.Context) error {
 }
 
 func (p *PostgreSQL) Ping(ctx context.Context) error {
-	_, err := p.db.QueryContext(ctx, "SELECT 1;")
+	rows, err := p.db.QueryContext(ctx, "SELECT 1;")
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return rows.Close()
 }
 
 func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (int64, error) {

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p"
@@ -20,10 +19,9 @@ import (
 func TestPeerHandler(t *testing.T) {
 	messageCh := make(chan *metamorph.PeerTxMessage)
 	mtmStore := &storeMocks.MetamorphStoreMock{
-		GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-			return &store.StoreData{
-				RawTx: []byte("1234"),
-			}, nil
+		GetRawTxsFunc: func(ctx context.Context, hashes [][]byte) ([][]byte, error) {
+			rawTx := []byte("1234")
+			return [][]byte{rawTx, rawTx}, nil
 		},
 	}
 
@@ -102,28 +100,40 @@ func TestPeerHandler(t *testing.T) {
 		}
 	})
 
-	t.Run("HandleTransactionGet", func(t *testing.T) {
-		hash, err := chainhash.NewHashFromStr("1234")
-		require.NoError(t, err)
+	t.Run("HandleTransactionsGet", func(t *testing.T) {
+		txsCount := 2
+		invMsgs := make([]*wire.InvVect, txsCount)
+		expectedMsgs := make([]*metamorph.PeerTxMessage, txsCount)
 
-		msgInv := wire.NewInvVect(wire.InvTypeBlock, hash)
-		require.NoError(t, err)
+		for i := 0; i < txsCount; i++ {
+			hash, err := chainhash.NewHashFromStr("1234")
+			require.NoError(t, err)
 
-		expectedMsg := &metamorph.PeerTxMessage{
-			Hash:   &msgInv.Hash,
-			Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
-			Peer:   "mock_peer",
+			msgInv := wire.NewInvVect(wire.InvTypeTx, hash)
+			require.NoError(t, err)
+
+			invMsgs[i] = msgInv
+
+			expectedMsgs[i] = &metamorph.PeerTxMessage{
+				Hash:   hash,
+				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
+				Peer:   "mock_peer",
+			}
 		}
 
 		go func() {
-			_, _ = peerHandler.HandleTransactionGet(msgInv, peer)
+			_, _ = peerHandler.HandleTransactionsGet(invMsgs, peer)
 		}()
 
-		select {
-		case msg := <-messageCh:
-			assert.Equal(t, expectedMsg, msg)
-		case <-time.After(time.Second):
-			t.Fatal("test timed out or error while executing goroutine")
+		counter := 0
+		for i := 0; i < txsCount; i++ {
+			select {
+			case msg := <-messageCh:
+				assert.Equal(t, expectedMsgs[counter], msg)
+				counter++
+			case <-time.After(5 * time.Second):
+				t.Fatal("test timed out or error while executing goroutine")
+			}
 		}
 	})
 

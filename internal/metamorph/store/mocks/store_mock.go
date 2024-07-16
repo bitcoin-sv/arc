@@ -34,6 +34,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 //				panic("mock out the Get method")
 //			},
+//			GetRawTxsFunc: func(ctx context.Context, hashes [][]byte) ([][]byte, error) {
+//				panic("mock out the GetRawTxs method")
+//			},
 //			GetSeenOnNetworkFunc: func(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 //				panic("mock out the GetSeenOnNetwork method")
 //			},
@@ -85,6 +88,9 @@ type MetamorphStoreMock struct {
 
 	// GetFunc mocks the Get method.
 	GetFunc func(ctx context.Context, key []byte) (*store.StoreData, error)
+
+	// GetRawTxsFunc mocks the GetRawTxs method.
+	GetRawTxsFunc func(ctx context.Context, hashes [][]byte) ([][]byte, error)
 
 	// GetSeenOnNetworkFunc mocks the GetSeenOnNetwork method.
 	GetSeenOnNetworkFunc func(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.StoreData, error)
@@ -146,6 +152,13 @@ type MetamorphStoreMock struct {
 			Ctx context.Context
 			// Key is the key argument value.
 			Key []byte
+		}
+		// GetRawTxs holds details about calls to the GetRawTxs method.
+		GetRawTxs []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hashes is the hashes argument value.
+			Hashes [][]byte
 		}
 		// GetSeenOnNetwork holds details about calls to the GetSeenOnNetwork method.
 		GetSeenOnNetwork []struct {
@@ -243,6 +256,7 @@ type MetamorphStoreMock struct {
 	lockClose             sync.RWMutex
 	lockDel               sync.RWMutex
 	lockGet               sync.RWMutex
+	lockGetRawTxs         sync.RWMutex
 	lockGetSeenOnNetwork  sync.RWMutex
 	lockGetStats          sync.RWMutex
 	lockGetUnmined        sync.RWMutex
@@ -393,6 +407,42 @@ func (mock *MetamorphStoreMock) GetCalls() []struct {
 	mock.lockGet.RLock()
 	calls = mock.calls.Get
 	mock.lockGet.RUnlock()
+	return calls
+}
+
+// GetRawTxs calls GetRawTxsFunc.
+func (mock *MetamorphStoreMock) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, error) {
+	if mock.GetRawTxsFunc == nil {
+		panic("MetamorphStoreMock.GetRawTxsFunc: method is nil but MetamorphStore.GetRawTxs was just called")
+	}
+	callInfo := struct {
+		Ctx    context.Context
+		Hashes [][]byte
+	}{
+		Ctx:    ctx,
+		Hashes: hashes,
+	}
+	mock.lockGetRawTxs.Lock()
+	mock.calls.GetRawTxs = append(mock.calls.GetRawTxs, callInfo)
+	mock.lockGetRawTxs.Unlock()
+	return mock.GetRawTxsFunc(ctx, hashes)
+}
+
+// GetRawTxsCalls gets all the calls that were made to GetRawTxs.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.GetRawTxsCalls())
+func (mock *MetamorphStoreMock) GetRawTxsCalls() []struct {
+	Ctx    context.Context
+	Hashes [][]byte
+} {
+	var calls []struct {
+		Ctx    context.Context
+		Hashes [][]byte
+	}
+	mock.lockGetRawTxs.RLock()
+	calls = mock.calls.GetRawTxs
+	mock.lockGetRawTxs.RUnlock()
 	return calls
 }
 

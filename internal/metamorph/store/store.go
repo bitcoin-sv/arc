@@ -66,6 +66,7 @@ type MetamorphStore interface {
 	Ping(ctx context.Context) error
 
 	GetStats(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*Stats, error)
+	GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, error)
 }
 
 type UpdateStatus struct {

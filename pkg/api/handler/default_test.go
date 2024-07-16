@@ -1094,9 +1094,9 @@ func TestGetTransactionOptions(t *testing.T) {
 			expectedErrorStr: "invalid callback URL",
 		},
 		{
-			name: "wait for status - 1",
+			name: "wait for status - QUEUED",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(1),
+				XWaitForStatus: PtrTo(int(metamorph_api.Status_QUEUED)),
 			},
 
 			expectedOptions: &metamorph.TransactionOptions{
@@ -1105,9 +1105,9 @@ func TestGetTransactionOptions(t *testing.T) {
 			},
 		},
 		{
-			name: "wait for status - 2",
+			name: "wait for status - RECEIVED",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(2),
+				XWaitForStatus: PtrTo(int(metamorph_api.Status_RECEIVED)),
 			},
 
 			expectedOptions: &metamorph.TransactionOptions{
@@ -1116,9 +1116,9 @@ func TestGetTransactionOptions(t *testing.T) {
 			},
 		},
 		{
-			name: "wait for status - 6",
+			name: "wait for status - SENT_TO_NETWORK",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(6),
+				XWaitForStatus: PtrTo(int(metamorph_api.Status_SENT_TO_NETWORK)),
 			},
 
 			expectedOptions: &metamorph.TransactionOptions{
@@ -1127,9 +1127,9 @@ func TestGetTransactionOptions(t *testing.T) {
 			},
 		},
 		{
-			name: "wait for status - 7",
+			name: "wait for status - ACCEPTED_BY_NETWORK",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(7),
+				XWaitForStatus: PtrTo(int(metamorph_api.Status_ACCEPTED_BY_NETWORK)),
 			},
 
 			expectedOptions: &metamorph.TransactionOptions{

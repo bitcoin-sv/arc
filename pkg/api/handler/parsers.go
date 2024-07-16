@@ -51,6 +51,10 @@ func parseTransactionFromRequest(request *http.Request) ([]byte, error) {
 		return nil, fmt.Errorf("given content-type %s does not match any of the allowed content-types", contentType)
 	}
 
+	if len(txHex) == 0 {
+		return nil, errEmptyBody
+	}
+
 	return txHex, nil
 }
 

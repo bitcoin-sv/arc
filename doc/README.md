@@ -36,9 +36,10 @@ stateDiagram-v2
     state REQUESTED_BY_NETWORK
     state SENT_TO_NETWORK
     state ACCEPTED_BY_NETWORK
+    state SEEN_IN_ORPHAN_MEMPOOL
+    state DOUBLE_SPEND_ATTEMPTED
     state SEEN_ON_NETWORK
     state REJECTED
-    state SEEN_IN_ORPHAN_MEMPOOL
     state MINED
 
     [*] --> UNKNOWN
@@ -51,9 +52,13 @@ stateDiagram-v2
     ANNOUNCED_TO_NETWORK --> REQUESTED_BY_NETWORK: Peer has requested the transaction\n with a GETDATA message
     REQUESTED_BY_NETWORK --> SENT_TO_NETWORK: Transaction has been sent to peer
     SENT_TO_NETWORK --> REJECTED: Peer has sent a REJECT message
-    SENT_TO_NETWORK --> SEEN_IN_ORPHAN_MEMPOOL: Peer has sent a 'missing inputs' message.
     SENT_TO_NETWORK --> ACCEPTED_BY_NETWORK: The transaction has been accepted\n by peer on the ZMQ interface.
-    SEEN_IN_ORPHAN_MEMPOOL --> ACCEPTED_BY_NETWORK: All parent transactions\n have been received by peer
+    ACCEPTED_BY_NETWORK --> DOUBLE_SPEND_ATTEMPTED: This transaction has competing transactions.
+    DOUBLE_SPEND_ATTEMPTED --> SEEN_ON_NETWORK: Nodes agreed that this transaction was\nfirst and will be included in the block.
+    DOUBLE_SPEND_ATTEMPTED --> REJECTED: This transaction was rejected in favor of\none of the competing transactions.
+    ACCEPTED_BY_NETWORK --> SEEN_IN_ORPHAN_MEMPOOL: Peer has sent a 'missing inputs' message.
+    SEEN_IN_ORPHAN_MEMPOOL --> SEEN_ON_NETWORK: All parent transactions\n have been received by peer
+    SEEN_IN_ORPHAN_MEMPOOL --> DOUBLE_SPEND_ATTEMPTED: Double spend attempt detected after\nparent transactions were received.
     ACCEPTED_BY_NETWORK --> SEEN_ON_NETWORK: ARC has received Transaction ID\n announcement from another peer
     SEEN_ON_NETWORK --> MINED: Transaction ID was included in a BLOCK message
     MINED --> [*]

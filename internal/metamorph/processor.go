@@ -307,7 +307,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 			case statusUpdate := <-p.storageStatusUpdateCh:
 				// Ensure no duplicate hashes, overwrite value if the status has higher value than existing status
 				foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
-				if !found || (found && statusValueMap[foundStatusUpdate.Status] < statusValueMap[statusUpdate.Status]) {
+				if !found || (found && statusUpdate.Status > foundStatusUpdate.Status) {
 					statusUpdatesMap[statusUpdate.Hash] = statusUpdate
 				}
 
@@ -480,22 +480,6 @@ func (p *Processor) GetPeers() []p2p.PeerI {
 	return p.pm.GetPeers()
 }
 
-var statusValueMap = map[metamorph_api.Status]int{
-	metamorph_api.Status_UNKNOWN:                0,
-	metamorph_api.Status_QUEUED:                 1,
-	metamorph_api.Status_RECEIVED:               2,
-	metamorph_api.Status_STORED:                 3,
-	metamorph_api.Status_ANNOUNCED_TO_NETWORK:   4,
-	metamorph_api.Status_REQUESTED_BY_NETWORK:   5,
-	metamorph_api.Status_SENT_TO_NETWORK:        6,
-	metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL: 7,
-	metamorph_api.Status_ACCEPTED_BY_NETWORK:    8,
-	metamorph_api.Status_SEEN_ON_NETWORK:        9,
-	metamorph_api.Status_REJECTED:               10,
-	metamorph_api.Status_MINED:                  11,
-	metamorph_api.Status_CONFIRMED:              12,
-}
-
 func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, statusErr error) {
 	// make sure we update the transaction status in database
 	var rejectReason string
@@ -522,7 +506,6 @@ func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamo
 }
 
 func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
-
 	// check if tx already stored, return it
 	data, err := p.store.Get(p.ctx, req.Data.Hash[:])
 	if err == nil {
@@ -630,7 +613,6 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 }
 
 func (p *Processor) ProcessTransactions(sReq []*store.StoreData) {
-
 	// store in database
 	err := p.store.SetBulk(p.ctx, sReq)
 	if err != nil {
@@ -661,9 +643,7 @@ func (p *Processor) ProcessTransactions(sReq []*store.StoreData) {
 	}
 }
 
-var (
-	ErrUnhealthy = fmt.Errorf("processor has less than %d healthy peer connections", minimumHealthyConnectionsDefault)
-)
+var ErrUnhealthy = fmt.Errorf("processor has less than %d healthy peer connections", minimumHealthyConnectionsDefault)
 
 func (p *Processor) Health() error {
 	healthyConnections := 0

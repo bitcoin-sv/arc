@@ -13,6 +13,7 @@ import (
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/validator"
+	beefValidator "github.com/bitcoin-sv/arc/internal/validator/beef"
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/api"
@@ -149,7 +150,8 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	var response *api.TransactionResponse
 	var responseErr *api.ErrorFields
 
-	if beef.CheckBeefFormat(transactionHex) {
+	hexFormat := validator.GetHexFormat(transactionHex)
+	if hexFormat == validator.BeefHex {
 		transaction, response, responseErr = m.processBEEFTransaction(ctx.Request().Context(), transactionHex, transactionOptions)
 	} else {
 		transaction, response, responseErr = m.processEFTransaction(ctx.Request().Context(), transactionHex, transactionOptions)
@@ -294,14 +296,14 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 }
 
 func (m ArcDefaultHandler) processEFTransaction(ctx context.Context, transactionHex []byte, transactionOptions *metamorph.TransactionOptions) (*bt.Tx, *api.TransactionResponse, *api.ErrorFields) {
-	txValidator := defaultValidator.New(m.NodePolicy)
 
 	transaction, err := bt.NewTxFromBytes(transactionHex)
 	if err != nil {
 		return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 	}
 
-	if arcError := m.validateEFTransaction(ctx, txValidator, transaction, transactionOptions); arcError != nil {
+	v := defaultValidator.New(m.NodePolicy)
+	if arcError := m.validateEFTransaction(ctx, v, transaction, transactionOptions); arcError != nil {
 		return nil, nil, arcError
 	}
 
@@ -330,7 +332,6 @@ func (m ArcDefaultHandler) processEFTransaction(ctx context.Context, transaction
 }
 
 func (m ArcDefaultHandler) processBEEFTransaction(ctx context.Context, transactionHex []byte, transactionOptions *metamorph.TransactionOptions) (*bt.Tx, *api.TransactionResponse, *api.ErrorFields) {
-	txValidator := defaultValidator.New(m.NodePolicy)
 
 	beefTx, _, err := beef.DecodeBEEF(transactionHex)
 	if err != nil {
@@ -338,7 +339,8 @@ func (m ArcDefaultHandler) processBEEFTransaction(ctx context.Context, transacti
 		return nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
 	}
 
-	if err := m.validateBEEFTransaction(ctx, txValidator, beefTx, transactionOptions); err != nil {
+	v := beefValidator.New(m.NodePolicy)
+	if err := m.validateBEEFTransaction(ctx, v, beefTx, transactionOptions); err != nil {
 		return nil, nil, err
 	}
 
@@ -388,12 +390,10 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	txIds := make([]string, 0)
 	txErrors := make([]interface{}, 0)
 
-	txValidator := defaultValidator.New(m.NodePolicy)
-
 	for len(transactionsHexes) != 0 {
-		isBeefFormat := txValidator.IsBeef(transactionsHexes)
+		hexFormat := validator.GetHexFormat(transactionsHexes)
 
-		if isBeefFormat {
+		if hexFormat == validator.BeefHex {
 			beefTx, remainingBytes, err := beef.DecodeBEEF(transactionsHexes)
 			if err != nil {
 				errStr := fmt.Sprintf("error decoding BEEF: %s", err.Error())
@@ -402,7 +402,10 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 
 			transactionsHexes = remainingBytes
 
-			if errTx, err := txValidator.ValidateBeef(beefTx, transactionOptions.SkipFeeValidation, transactionOptions.SkipScriptValidation); err != nil {
+			feeOpts, scriptOpts := toValidationOpts(transactionOptions)
+			v := beefValidator.New(m.NodePolicy)
+
+			if errTx, err := v.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts); err != nil {
 				_, arcError := m.handleError(ctx, errTx, err)
 				txErrors = append(txErrors, arcError)
 				continue
@@ -422,8 +425,8 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 			}
 
 			transactionsHexes = transactionsHexes[bytesUsed:]
-
-			if arcError := m.validateEFTransaction(ctx, txValidator, transaction, transactionOptions); arcError != nil {
+			v := defaultValidator.New(m.NodePolicy)
+			if arcError := m.validateEFTransaction(ctx, v, transaction, transactionOptions); arcError != nil {
 				txErrors = append(txErrors, arcError)
 				continue
 			}
@@ -472,9 +475,10 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, transactions
 	return transactions, transactionsOutputs, nil
 }
 
-func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.Validator, transaction *bt.Tx, transactionOptions *metamorph.TransactionOptions) *api.ErrorFields {
+func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.DefaultValidator, transaction *bt.Tx, transactionOptions *metamorph.TransactionOptions) *api.ErrorFields {
 	// the validator expects an extended transaction
 	// we must enrich the transaction with the missing data
+	// TODO: move morphing to validator
 	if !txValidator.IsExtended(transaction) {
 		err := m.extendTransaction(ctx, transaction)
 		if err != nil {
@@ -485,7 +489,9 @@ func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidato
 	}
 
 	if !transactionOptions.SkipTxValidation {
-		if err := txValidator.ValidateEFTransaction(transaction, transactionOptions.SkipFeeValidation, transactionOptions.SkipScriptValidation); err != nil {
+		feeOpts, scriptOpts := toValidationOpts(transactionOptions)
+
+		if err := txValidator.ValidateTransaction(ctx, transaction, feeOpts, scriptOpts); err != nil {
 			statusCode, arcError := m.handleError(ctx, transaction, err)
 			m.logger.Error("failed to validate transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
 			return arcError
@@ -528,8 +534,10 @@ func (m ArcDefaultHandler) extendTransaction(ctx context.Context, transaction *b
 	return nil
 }
 
-func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.Validator, beefTx *beef.BEEF, transactionOptions *metamorph.TransactionOptions) *api.ErrorFields {
-	if errTx, err := txValidator.ValidateBeef(beefTx, transactionOptions.SkipFeeValidation, transactionOptions.SkipTxValidation); err != nil {
+func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.BeefValidator, beefTx *beef.BEEF, transactionOptions *metamorph.TransactionOptions) *api.ErrorFields {
+	feeOpts, scriptOpts := toValidationOpts(transactionOptions)
+
+	if errTx, err := txValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts); err != nil {
 		_, arcError := m.handleError(ctx, errTx, err)
 		return arcError
 	}
@@ -656,4 +664,18 @@ const (
 // PtrTo returns a pointer to the given value.
 func PtrTo[T any](v T) *T {
 	return &v
+}
+
+func toValidationOpts(opts *metamorph.TransactionOptions) (validator.FeeValidation, validator.ScriptValidation) {
+	fv := validator.StandardFeeValidation
+	if opts.SkipFeeValidation {
+		fv = validator.NoneFeeValidation
+	}
+
+	sv := validator.StandardScriptValidation
+	if opts.SkipScriptValidation {
+		sv = validator.NoneScriptValidation
+	}
+
+	return fv, sv
 }

@@ -346,7 +346,7 @@ func (p *Processor) StartSendStatusUpdate() {
 				return
 
 			case message := <-p.statusMessageCh:
-				p.SendStatusForTransaction(message.Hash, message.Status, message.Err)
+				p.SendStatusForTransaction(message)
 			}
 		}
 	}()
@@ -409,6 +409,7 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus)
 	}
 
 	for _, data := range updatedData {
+		// TODO: review this check
 		if ((data.Status == metamorph_api.Status_SEEN_ON_NETWORK || data.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL) && data.FullStatusUpdates || data.Status == metamorph_api.Status_REJECTED) && data.CallbackUrl != "" {
 			go p.callbackSender.SendCallback(p.logger, data)
 		}
@@ -557,29 +558,30 @@ func (p *Processor) GetPeers() []p2p.PeerI {
 	return p.pm.GetPeers()
 }
 
-func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, statusErr error) {
+func (p *Processor) SendStatusForTransaction(msg *PeerTxMessage) {
 	// make sure we update the transaction status in database
 	var rejectReason string
-	if statusErr != nil {
-		rejectReason = statusErr.Error()
+	if msg.Err != nil {
+		rejectReason = msg.Err.Error()
 	}
 
 	p.storageStatusUpdateCh <- store.UpdateStatus{
-		Hash:         *hash,
-		Status:       status,
+		Hash:         *msg.Hash,
+		Status:       msg.Status,
 		RejectReason: rejectReason,
+		CompetingTxs: msg.CompetingTxs,
 	}
 
 	// if we receive new update check if we have client connection waiting for status and send it
-	processorResponse, ok := p.ProcessorResponseMap.Get(hash)
+	processorResponse, ok := p.ProcessorResponseMap.Get(msg.Hash)
 	if ok {
 		processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-			Status:    status,
-			StatusErr: statusErr,
+			Status:    msg.Status,
+			StatusErr: msg.Err,
 		})
 	}
 
-	p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
+	p.logger.Debug("Status reported for tx", slog.String("status", msg.Status.String()), slog.String("hash", msg.Hash.String()))
 }
 
 func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
@@ -650,7 +652,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	// broadcast that transaction is stored to client
 	processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
 		Status:    metamorph_api.Status_STORED,
-		StatusErr: err,
+		StatusErr: nil,
 	})
 
 	if req.Timeout != 0 {

@@ -499,11 +499,17 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	txHashes := make([][]byte, len(updates))
 	statuses := make([]metamorph_api.Status, len(updates))
 	rejectReasons := make([]string, len(updates))
+	competingTxs := make([][]string, len(updates))
 
 	for i, update := range updates {
 		txHashes[i] = update.Hash.CloneBytes()
 		statuses[i] = update.Status
 		rejectReasons[i] = update.RejectReason
+		if update.CompetingTxs == nil {
+			competingTxs[i] = []string{}
+		} else {
+			competingTxs[i] = update.CompetingTxs
+		}
 	}
 
 	qBulk := `
@@ -511,12 +517,13 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 			SET
 			status=bulk_query.status,
 			reject_reason=bulk_query.reject_reason
+			competing_txs=ARRAY_CAT(competing_txs, bulk_query.competing_txs)
 			FROM
 			(
 				SELECT *
 						FROM
-						UNNEST($1::BYTEA[], $2::INT[], $3::TEXT[])
-				AS t(hash, status, reject_reason)
+						UNNEST($1::BYTEA[], $2::INT[], $3::TEXT[], $4::TEXT[][])
+				AS t(hash, status, reject_reason, competing_txs)
 			) AS bulk_query
 			WHERE metamorph.transactions.hash=bulk_query.hash
 				AND metamorph.transactions.status < bulk_query.status
@@ -531,6 +538,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		,metamorph.transactions.callback_token
 		,metamorph.transactions.full_status_updates
 		,metamorph.transactions.reject_reason
+		,metamorph.transactions.competing_txs
 		,metamorph.transactions.raw_tx
 		,metamorph.transactions.locked_by
 		,metamorph.transactions.merkle_path
@@ -551,7 +559,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons))
+	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(competingTxs))
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			return nil, err

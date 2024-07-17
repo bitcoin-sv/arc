@@ -17,7 +17,7 @@ UPDATE metamorph.transactions SET status = 7 WHERE status = 70;
 UPDATE metamorph.transactions SET status = 10 WHERE status = 80;
 -- SEEN_ON_NETWORK
 UPDATE metamorph.transactions SET status = 8 WHERE status = 100;
--- MINED
-UPDATE metamorph.transactions SET status = 9 WHERE status = 110;
 -- REJECTED
-UPDATE metamorph.transactions SET status = 109 WHERE status = 120;
+UPDATE metamorph.transactions SET status = 109 WHERE status = 110;
+-- MINED
+UPDATE metamorph.transactions SET status = 9 WHERE status = 120;

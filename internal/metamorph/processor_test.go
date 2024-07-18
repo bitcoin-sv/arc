@@ -139,6 +139,8 @@ func TestProcessTransaction(t *testing.T) {
 		expectedResponseMapItems int
 		expectedResponses        []metamorph_api.Status
 		expectedSetCalls         int
+		expectedAnnounceCalls    int
+		expectedRequestCalls     int
 	}{
 		{
 			name:            "record not found",
@@ -150,6 +152,8 @@ func TestProcessTransaction(t *testing.T) {
 			},
 			expectedResponseMapItems: 0,
 			expectedSetCalls:         1,
+			expectedAnnounceCalls:    1,
+			expectedRequestCalls:     1,
 		},
 		{
 			name: "record found",
@@ -163,7 +167,9 @@ func TestProcessTransaction(t *testing.T) {
 			expectedResponses: []metamorph_api.Status{
 				metamorph_api.Status_REJECTED,
 			},
-			expectedSetCalls: 1,
+			expectedSetCalls:      1,
+			expectedAnnounceCalls: 0,
+			expectedRequestCalls:  0,
 		},
 		{
 			name:            "store unavailable",
@@ -173,7 +179,9 @@ func TestProcessTransaction(t *testing.T) {
 			expectedResponses: []metamorph_api.Status{
 				metamorph_api.Status_RECEIVED,
 			},
-			expectedSetCalls: 0,
+			expectedSetCalls:      0,
+			expectedAnnounceCalls: 0,
+			expectedRequestCalls:  0,
 		},
 	}
 
@@ -207,10 +215,13 @@ func TestProcessTransaction(t *testing.T) {
 					return nil
 				},
 			}
-			pm := &mocks.PeerManagerMock{AnnounceTransactionFunc: func(txHash *chainhash.Hash, peers []p2p.PeerI) []p2p.PeerI {
-				require.True(t, testdata.TX1Hash.IsEqual(txHash))
-				return nil
-			}}
+			pm := &mocks.PeerManagerMock{
+				AnnounceTransactionFunc: func(txHash *chainhash.Hash, peers []p2p.PeerI) []p2p.PeerI {
+					require.True(t, testdata.TX1Hash.IsEqual(txHash))
+					return nil
+				},
+				RequestTransactionFunc: func(txHash *chainhash.Hash) p2p.PeerI { return nil },
+			}
 
 			publisher := &mocks.MessageQueueClientMock{
 				PublishRegisterTxsFunc: func(hash []byte) error {
@@ -256,6 +267,8 @@ func TestProcessTransaction(t *testing.T) {
 			}
 
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
+			require.Equal(t, tc.expectedAnnounceCalls, len(pm.AnnounceTransactionCalls()))
+			require.Equal(t, tc.expectedRequestCalls, len(pm.RequestTransactionCalls()))
 		})
 	}
 }

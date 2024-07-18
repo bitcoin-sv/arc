@@ -7,9 +7,7 @@ import (
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
-	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 var Cmd = &cobra.Command{
@@ -41,14 +39,10 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		keyFile, err := helper.GetString("keyFile")
+		keySets, err := helper.GetKeySets()
 		if err != nil {
 			return err
 		}
-		if keyFile == "" {
-			return errors.New("no key file was given")
-		}
-
 		miningFeeSat, err := helper.GetInt("miningFeeSatPerKb")
 		if err != nil {
 			return err
@@ -81,21 +75,7 @@ var Cmd = &cobra.Command{
 
 		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
-		keyFiles := strings.Split(keyFile, ",")
-
-		fundingKeySets := make([]*keyset.KeySet, len(keyFiles))
-
-		for i, kf := range keyFiles {
-
-			fundingKeySet, _, err := helper.GetKeySetsKeyFile(kf)
-			if err != nil {
-				return fmt.Errorf("failed to get key sets: %v", err)
-			}
-
-			fundingKeySets[i] = fundingKeySet
-		}
-
-		rateBroadcaster, err := broadcaster.NewUTXOConsolidator(logger, client, fundingKeySets, wocClient, isTestnet,
+		rateBroadcaster, err := broadcaster.NewUTXOConsolidator(logger, client, keySets, wocClient, isTestnet,
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithCallback(callbackURL, callbackToken),
 			broadcaster.WithFullstatusUpdates(fullStatusUpdates),

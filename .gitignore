@@ -10,4 +10,5 @@ gosec-report.json
 gotest.out
 *.env
 report.xml
+broadcaster-cli.yaml
 coverage-report.html

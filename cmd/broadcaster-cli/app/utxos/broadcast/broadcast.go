@@ -148,7 +148,7 @@ var Cmd = &cobra.Command{
 
 				defer file.Close()
 			}
-			rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, keyset, wocClient, isTestnet, broadcaster.WithFees(miningFeeSat), broadcaster.WithIsTestnet(isTestnet), broadcaster.WithCallback(callbackURL, callbackToken), broadcaster.WithFullstatusUpdates(fullStatusUpdates), broadcaster.WithBatchSize(batchSize))
+			rateBroadcaster, err := broadcaster.NewRateBroadcaster(logger, client, keyset, wocClient, isTestnet, broadcaster.WithFees(miningFeeSat), broadcaster.WithCallback(callbackURL, callbackToken), broadcaster.WithFullstatusUpdates(fullStatusUpdates), broadcaster.WithBatchSize(batchSize))
 			if err != nil {
 				return fmt.Errorf("failed to create rate broadcaster: %v", err)
 			}

@@ -24,7 +24,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	RootCmd.PersistentFlags().String("keys", "", "Comma separated list of selected private keys")
+	RootCmd.PersistentFlags().StringSlice("keys", []string{}, "List of selected private keys")
 	err = viper.BindPFlag("keys", RootCmd.PersistentFlags().Lookup("keys"))
 	if err != nil {
 		log.Fatal(err)
@@ -39,6 +39,8 @@ func init() {
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("./cmd/broadcaster-cli/")
 	viper.SetConfigName("broadcaster-cli")
+	// Todo: Allow setting alternative config file name with flag: e.g. --config=brc-config.yaml
+
 	err = viper.ReadInConfig()
 	if err != nil {
 		log.Fatalf("failed to read config file: %v", err)

@@ -81,6 +81,7 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
 		if miningFeeSat == 0 {
 			return errors.New("no mining fee was given")
 		}

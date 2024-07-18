@@ -91,6 +91,7 @@ func (b *RateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
 	if math.Abs(float64(unconfirmed)) > 0 {
 		return fmt.Errorf("key with address %s balance has unconfirmed amount %d sat", b.ks.Address(!b.isTestnet), unconfirmed)
 	}
+	b.logger.Info("Start broadcasting", slog.String("wait for status", b.waitForStatus.String()))
 
 	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, !b.isTestnet, b.ks.Script, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
@@ -142,7 +143,7 @@ func (b *RateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
 					b.shutdown <- struct{}{}
 				}
 
-				b.broadcastBatchAsync(txs, errCh, metamorph_api.Status_QUEUED)
+				b.broadcastBatchAsync(txs, errCh, b.waitForStatus)
 
 			case responseErr := <-errCh:
 				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))

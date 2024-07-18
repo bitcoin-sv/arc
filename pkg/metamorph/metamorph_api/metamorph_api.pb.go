@@ -7,13 +7,12 @@
 package metamorph_api
 
 import (
-	reflect "reflect"
-	sync "sync"
-
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	reflect "reflect"
+	sync "sync"
 )
 
 const (
@@ -38,8 +37,8 @@ const (
 	Status_SENT_TO_NETWORK        Status = 60
 	Status_ACCEPTED_BY_NETWORK    Status = 70
 	Status_SEEN_IN_ORPHAN_MEMPOOL Status = 80
-	Status_DOUBLE_SPEND_ATTEMPTED Status = 90
-	Status_SEEN_ON_NETWORK        Status = 100
+	Status_SEEN_ON_NETWORK        Status = 90
+	Status_DOUBLE_SPEND_ATTEMPTED Status = 100
 	Status_REJECTED               Status = 110
 	Status_MINED                  Status = 120
 )
@@ -56,8 +55,8 @@ var (
 		60:  "SENT_TO_NETWORK",
 		70:  "ACCEPTED_BY_NETWORK",
 		80:  "SEEN_IN_ORPHAN_MEMPOOL",
-		90:  "DOUBLE_SPEND_ATTEMPTED",
-		100: "SEEN_ON_NETWORK",
+		90:  "SEEN_ON_NETWORK",
+		100: "DOUBLE_SPEND_ATTEMPTED",
 		110: "REJECTED",
 		120: "MINED",
 	}
@@ -71,8 +70,8 @@ var (
 		"SENT_TO_NETWORK":        60,
 		"ACCEPTED_BY_NETWORK":    70,
 		"SEEN_IN_ORPHAN_MEMPOOL": 80,
-		"DOUBLE_SPEND_ATTEMPTED": 90,
-		"SEEN_ON_NETWORK":        100,
+		"SEEN_ON_NETWORK":        90,
+		"DOUBLE_SPEND_ATTEMPTED": 100,
 		"REJECTED":               110,
 		"MINED":                  120,
 	}
@@ -1026,10 +1025,10 @@ var file_pkg_metamorph_metamorph_api_metamorph_api_proto_rawDesc = []byte{
 	0x4b, 0x10, 0x3c, 0x12, 0x17, 0x0a, 0x13, 0x41, 0x43, 0x43, 0x45, 0x50, 0x54, 0x45, 0x44, 0x5f,
 	0x42, 0x59, 0x5f, 0x4e, 0x45, 0x54, 0x57, 0x4f, 0x52, 0x4b, 0x10, 0x46, 0x12, 0x1a, 0x0a, 0x16,
 	0x53, 0x45, 0x45, 0x4e, 0x5f, 0x49, 0x4e, 0x5f, 0x4f, 0x52, 0x50, 0x48, 0x41, 0x4e, 0x5f, 0x4d,
-	0x45, 0x4d, 0x50, 0x4f, 0x4f, 0x4c, 0x10, 0x50, 0x12, 0x1a, 0x0a, 0x16, 0x44, 0x4f, 0x55, 0x42,
-	0x4c, 0x45, 0x5f, 0x53, 0x50, 0x45, 0x4e, 0x44, 0x5f, 0x41, 0x54, 0x54, 0x45, 0x4d, 0x50, 0x54,
-	0x45, 0x44, 0x10, 0x5a, 0x12, 0x13, 0x0a, 0x0f, 0x53, 0x45, 0x45, 0x4e, 0x5f, 0x4f, 0x4e, 0x5f,
-	0x4e, 0x45, 0x54, 0x57, 0x4f, 0x52, 0x4b, 0x10, 0x64, 0x12, 0x0c, 0x0a, 0x08, 0x52, 0x45, 0x4a,
+	0x45, 0x4d, 0x50, 0x4f, 0x4f, 0x4c, 0x10, 0x50, 0x12, 0x13, 0x0a, 0x0f, 0x53, 0x45, 0x45, 0x4e,
+	0x5f, 0x4f, 0x4e, 0x5f, 0x4e, 0x45, 0x54, 0x57, 0x4f, 0x52, 0x4b, 0x10, 0x5a, 0x12, 0x1a, 0x0a,
+	0x16, 0x44, 0x4f, 0x55, 0x42, 0x4c, 0x45, 0x5f, 0x53, 0x50, 0x45, 0x4e, 0x44, 0x5f, 0x41, 0x54,
+	0x54, 0x45, 0x4d, 0x50, 0x54, 0x45, 0x44, 0x10, 0x64, 0x12, 0x0c, 0x0a, 0x08, 0x52, 0x45, 0x4a,
 	0x45, 0x43, 0x54, 0x45, 0x44, 0x10, 0x6e, 0x12, 0x09, 0x0a, 0x05, 0x4d, 0x49, 0x4e, 0x45, 0x44,
 	0x10, 0x78, 0x32, 0x81, 0x05, 0x0a, 0x0c, 0x4d, 0x65, 0x74, 0x61, 0x4d, 0x6f, 0x72, 0x70, 0x68,
 	0x41, 0x50, 0x49, 0x12, 0x41, 0x0a, 0x06, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x12, 0x16, 0x2e,
@@ -1088,26 +1087,24 @@ func file_pkg_metamorph_metamorph_api_metamorph_api_proto_rawDescGZIP() []byte {
 	return file_pkg_metamorph_metamorph_api_metamorph_api_proto_rawDescData
 }
 
-var (
-	file_pkg_metamorph_metamorph_api_metamorph_api_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-	file_pkg_metamorph_metamorph_api_metamorph_api_proto_msgTypes  = make([]protoimpl.MessageInfo, 11)
-	file_pkg_metamorph_metamorph_api_metamorph_api_proto_goTypes   = []interface{}{
-		(Status)(0),                       // 0: metamorph_api.Status
-		(*HealthResponse)(nil),            // 1: metamorph_api.HealthResponse
-		(*TransactionRequest)(nil),        // 2: metamorph_api.TransactionRequest
-		(*TransactionRequests)(nil),       // 3: metamorph_api.TransactionRequests
-		(*Transaction)(nil),               // 4: metamorph_api.Transaction
-		(*TransactionStatus)(nil),         // 5: metamorph_api.TransactionStatus
-		(*TransactionStatuses)(nil),       // 6: metamorph_api.TransactionStatuses
-		(*TransactionStatusRequest)(nil),  // 7: metamorph_api.TransactionStatusRequest
-		(*SetUnlockedByNameRequest)(nil),  // 8: metamorph_api.SetUnlockedByNameRequest
-		(*SetUnlockedByNameResponse)(nil), // 9: metamorph_api.SetUnlockedByNameResponse
-		(*ClearDataRequest)(nil),          // 10: metamorph_api.ClearDataRequest
-		(*ClearDataResponse)(nil),         // 11: metamorph_api.ClearDataResponse
-		(*timestamppb.Timestamp)(nil),     // 12: google.protobuf.Timestamp
-		(*emptypb.Empty)(nil),             // 13: google.protobuf.Empty
-	}
-)
+var file_pkg_metamorph_metamorph_api_metamorph_api_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_pkg_metamorph_metamorph_api_metamorph_api_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_pkg_metamorph_metamorph_api_metamorph_api_proto_goTypes = []interface{}{
+	(Status)(0),                       // 0: metamorph_api.Status
+	(*HealthResponse)(nil),            // 1: metamorph_api.HealthResponse
+	(*TransactionRequest)(nil),        // 2: metamorph_api.TransactionRequest
+	(*TransactionRequests)(nil),       // 3: metamorph_api.TransactionRequests
+	(*Transaction)(nil),               // 4: metamorph_api.Transaction
+	(*TransactionStatus)(nil),         // 5: metamorph_api.TransactionStatus
+	(*TransactionStatuses)(nil),       // 6: metamorph_api.TransactionStatuses
+	(*TransactionStatusRequest)(nil),  // 7: metamorph_api.TransactionStatusRequest
+	(*SetUnlockedByNameRequest)(nil),  // 8: metamorph_api.SetUnlockedByNameRequest
+	(*SetUnlockedByNameResponse)(nil), // 9: metamorph_api.SetUnlockedByNameResponse
+	(*ClearDataRequest)(nil),          // 10: metamorph_api.ClearDataRequest
+	(*ClearDataResponse)(nil),         // 11: metamorph_api.ClearDataResponse
+	(*timestamppb.Timestamp)(nil),     // 12: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),             // 13: google.protobuf.Empty
+}
 var file_pkg_metamorph_metamorph_api_metamorph_api_proto_depIdxs = []int32{
 	12, // 0: metamorph_api.HealthResponse.timestamp:type_name -> google.protobuf.Timestamp
 	0,  // 1: metamorph_api.TransactionRequest.wait_for_status:type_name -> metamorph_api.Status

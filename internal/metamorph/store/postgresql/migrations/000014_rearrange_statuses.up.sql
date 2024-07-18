@@ -16,7 +16,7 @@ UPDATE metamorph.transactions SET status = 70 WHERE status = 7;
 -- SEEN_IN_ORPHAN_MEMPOOL
 UPDATE metamorph.transactions SET status = 80 WHERE status = 10;
 -- SEEN_ON_NETWORK
-UPDATE metamorph.transactions SET status = 100 WHERE status = 8;
+UPDATE metamorph.transactions SET status = 90 WHERE status = 8;
 -- REJECTED
 UPDATE metamorph.transactions SET status = 110 WHERE status = 109;
 -- MINED

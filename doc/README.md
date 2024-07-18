@@ -43,24 +43,23 @@ stateDiagram-v2
     state MINED
 
     [*] --> UNKNOWN
+    UNKNOWN --> ERROR: Transaction validation failed
     UNKNOWN --> RECEIVED: Transaction validation passed
     UNKNOWN --> QUEUED: Transaction could not be transmitted\n to metamorph within timeout duration
     QUEUED --> RECEIVED: Transaction received by metamorph
-    UNKNOWN --> ERROR: Transaction validation failed
     RECEIVED --> STORED: Transaction has been stored in ARC
     STORED --> ANNOUNCED_TO_NETWORK: Transaction ID has been announced to\n P2P network via an INV message
     ANNOUNCED_TO_NETWORK --> REQUESTED_BY_NETWORK: Peer has requested the transaction\n with a GETDATA message
     REQUESTED_BY_NETWORK --> SENT_TO_NETWORK: Transaction has been sent to peer
+    SENT_TO_NETWORK --> ACCEPTED_BY_NETWORK: The transaction has been accepted\n by peer on the ZMQ interface
     SENT_TO_NETWORK --> REJECTED: Peer has sent a REJECT message
-    SENT_TO_NETWORK --> ACCEPTED_BY_NETWORK: The transaction has been accepted\n by peer on the ZMQ interface.
-    ACCEPTED_BY_NETWORK --> DOUBLE_SPEND_ATTEMPTED: This transaction has competing transactions.
-    DOUBLE_SPEND_ATTEMPTED --> SEEN_ON_NETWORK: Nodes agreed that this transaction was\nfirst and will be included in the block.
-    DOUBLE_SPEND_ATTEMPTED --> REJECTED: This transaction was rejected in favor of\none of the competing transactions.
-    ACCEPTED_BY_NETWORK --> SEEN_IN_ORPHAN_MEMPOOL: Peer has sent a 'missing inputs' message.
-    SEEN_IN_ORPHAN_MEMPOOL --> SEEN_ON_NETWORK: All parent transactions\n have been received by peer
-    SEEN_IN_ORPHAN_MEMPOOL --> DOUBLE_SPEND_ATTEMPTED: Double spend attempt detected after\nparent transactions were received.
     ACCEPTED_BY_NETWORK --> SEEN_ON_NETWORK: ARC has received Transaction ID\n announcement from another peer
+    ACCEPTED_BY_NETWORK --> SEEN_IN_ORPHAN_MEMPOOL: Peer has sent a 'missing inputs' message
+    SEEN_IN_ORPHAN_MEMPOOL --> SEEN_ON_NETWORK: All parent transactions\n have been received by peer
     SEEN_ON_NETWORK --> MINED: Transaction ID was included in a BLOCK message
+    SEEN_ON_NETWORK --> DOUBLE_SPEND_ATTEMPTED: This transaction has competing transactions
+    DOUBLE_SPEND_ATTEMPTED --> MINED: This transaction was accepted and mined
+    DOUBLE_SPEND_ATTEMPTED --> REJECTED: This transaction was rejected in favor\n of one of the competing transactions
     MINED --> [*]
 ```
 

@@ -206,7 +206,7 @@ func (b *RateBroadcaster) broadcastBatchAsync(txs []*bt.Tx, errCh chan error, wa
 	go func() {
 		defer b.wg.Done()
 
-		ctx, cancel := context.WithTimeout(b.ctx, 10*time.Second)
+		ctx, cancel := context.WithTimeout(b.ctx, 20*time.Second)
 		defer cancel()
 
 		atomic.AddInt64(&b.connectionCount, 1)

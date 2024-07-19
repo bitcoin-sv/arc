@@ -271,14 +271,18 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 	// NOTE: deprecated header, to be removed soon
 	if params.XWaitForStatus != nil {
 		oldStatusesMap := map[int]string{
-			1: "QUEUED",
-			2: "RECEIVED",
-			3: "STORED",
-			4: "ANNOUNCED_TO_NETWORK",
-			5: "REQUESTED_BY_NETWORK",
-			6: "SENT_TO_NETWORK",
-			7: "ACCEPTED_BY_NETWORK",
-			8: "SEEN_ON_NETWORK",
+			1:   "QUEUED",
+			2:   "RECEIVED",
+			3:   "STORED",
+			4:   "ANNOUNCED_TO_NETWORK",
+			5:   "REQUESTED_BY_NETWORK",
+			6:   "SENT_TO_NETWORK",
+			7:   "ACCEPTED_BY_NETWORK",
+			8:   "SEEN_ON_NETWORK",
+			9:   "MINED",
+			10:  "SEEN_IN_ORPHAN_MEMPOOL",
+			108: "CONFIRMED",
+			109: "REJECTED",
 		}
 		statusString, ok := oldStatusesMap[*params.XWaitForStatus]
 		if !ok {

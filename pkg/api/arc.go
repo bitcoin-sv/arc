@@ -1720,6 +1720,7 @@ func ParseGETHealthResponse(rsp *http.Response) (*GETHealthResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
 	}
 
 	return response, nil
@@ -1745,6 +1746,7 @@ func ParseGETPolicyResponse(rsp *http.Response) (*GETPolicyResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
 	}
 
 	return response, nil
@@ -2412,6 +2414,7 @@ func RegisterHandlers(router EchoRouter, si ServerInterface) {
 // Registers handlers, and prepends BaseURL to the paths, so that the paths
 // can be served under a prefix.
 func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL string) {
+
 	wrapper := ServerInterfaceWrapper{
 		Handler: si,
 	}
@@ -2421,10 +2424,12 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.POST(baseURL+"/v1/tx", wrapper.POSTTransaction)
 	router.GET(baseURL+"/v1/tx/:txid", wrapper.GETTransactionStatus)
 	router.POST(baseURL+"/v1/txs", wrapper.POSTTransactions)
+
 }
 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
+
 	"H4sIAAAAAAAC/+x8fW/jOJL3VyG0D9DdgJNI1HuAwYMk7ezkZjrJJs7M3fUEDZIqxdzWi0+k0s4M8t0P",
 	"pCRbsmXHTjuZud30H43YZJHFqmJV8cei/zBYnk7yDDIpjMM/jAkpSAoSCv2JkSShhH0d5V8hU19EIFjB",
 	"J5LnmXFoHDEGQiCpWlGcFyjLJY85I6odNcQIsmiS80zuozOJvvEkQRRQKSBCRCCCjko5zgv+e0U1BhJB",

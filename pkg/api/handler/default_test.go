@@ -1097,7 +1097,7 @@ func TestGetTransactionOptions(t *testing.T) {
 			// NOTE: deprecated, to be removed soon
 			name: "wait for status - QUEUED",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(int(metamorph_api.Status_QUEUED)),
+				XWaitForStatus: PtrTo(1),
 			},
 
 			expectedOptions: &metamorph.TransactionOptions{
@@ -1109,7 +1109,7 @@ func TestGetTransactionOptions(t *testing.T) {
 			// NOTE: deprecated, to be removed soon
 			name: "wait for status - RECEIVED",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(int(metamorph_api.Status_RECEIVED)),
+				XWaitForStatus: PtrTo(2),
 			},
 
 			expectedOptions: &metamorph.TransactionOptions{
@@ -1121,7 +1121,7 @@ func TestGetTransactionOptions(t *testing.T) {
 			// NOTE: deprecated, to be removed soon
 			name: "wait for status - SENT_TO_NETWORK",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(int(metamorph_api.Status_SENT_TO_NETWORK)),
+				XWaitForStatus: PtrTo(6),
 			},
 
 			expectedOptions: &metamorph.TransactionOptions{
@@ -1133,7 +1133,7 @@ func TestGetTransactionOptions(t *testing.T) {
 			// NOTE: deprecated, to be removed soon
 			name: "wait for status - ACCEPTED_BY_NETWORK",
 			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(int(metamorph_api.Status_ACCEPTED_BY_NETWORK)),
+				XWaitForStatus: PtrTo(7),
 			},
 
 			expectedOptions: &metamorph.TransactionOptions{

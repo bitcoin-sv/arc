@@ -314,7 +314,7 @@ func (w *WocClient) GetRawTxs(ctx context.Context, mainnet bool, ids []string) (
 }
 
 func (w *WocClient) getRawTxs(ctx context.Context, net string, batch []string) ([]*wocRawTx, error) {
-	payload := map[string][]string{"txs": batch}
+	payload := map[string][]string{"txids": batch}
 	body, _ := json.Marshal(payload)
 
 	req, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/txs/hex", net), bytes.NewBuffer(body))

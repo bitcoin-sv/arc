@@ -450,7 +450,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 
 						// every second time request tx, every other time announce tx
 						if tx.Retries%2 == 0 {
-							// Sending GETDATA to peers to see if they have it
+							// Send GETDATA to peers to see if they have it
 							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.RequestTransaction(tx.Hash)
 							requested++
@@ -604,7 +604,10 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		}()
 	}
 
-	// Announce transaction to network and save peers
+	// Send GETDATA to peers to see if they have it
+	p.pm.RequestTransaction(req.Data.Hash)
+
+	// Announce transaction to network peers
 	p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
 	peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
 	if len(peers) == 0 {

@@ -152,6 +152,9 @@
           },
           {
             "$ref": "#/components/parameters/waitForStatus"
+          },
+          {
+            "$ref": "#/components/parameters/waitFor"
           }
         ],
         "requestBody": {
@@ -388,6 +391,9 @@
           },
           {
             "$ref": "#/components/parameters/waitForStatus"
+          },
+          {
+            "$ref": "#/components/parameters/waitFor"
           }
         ],
         "requestBody": {
@@ -1521,9 +1527,17 @@
       "waitForStatus": {
         "name": "X-WaitForStatus",
         "in": "header",
-        "description": "Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)",
+        "description": "DEPRECATED, soon will become unsupported, please use 'X-WaitFor' header. Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)",
         "schema": {
           "type": "integer"
+        }
+      },
+      "waitFor": {
+        "name": "X-WaitFor",
+        "in": "header",
+        "description": "Which status to wait for from the server before returning ('QUEUED', 'RECEIVED', 'STORED', 'ANNOUNCED_TO_NETWORK', 'REQUESTED_BY_NETWORK', 'SENT_TO_NETWORK', 'ACCEPTED_BY_NETWORK', 'SEEN_ON_NETWORK')",
+        "schema": {
+          "type": "string"
         }
       }
     }

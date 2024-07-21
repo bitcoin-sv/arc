@@ -25,7 +25,7 @@ func New(policy *bitcoin.Settings, finder validator.TxFinderI) *DefaultValidator
 func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *bt.Tx, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) error { //nolint:funlen - mostly comments
 	// 0) Check whether we have a complete transaction in extended format, with all input information
 	//    we cannot check the satoshi input, OP_RETURN is allowed 0 satoshis
-	if needsExtention(tx, feeValidation, scriptValidation) {
+	if needsExtension(tx, feeValidation, scriptValidation) {
 		err := extendTx(ctx, v.txFinder, tx)
 		if err != nil {
 			return validator.NewError(err, api.ErrStatusTxFormat)
@@ -60,7 +60,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *bt.Tx, f
 	return nil
 }
 
-func needsExtention(tx *bt.Tx, fv validator.FeeValidation, sv validator.ScriptValidation) bool {
+func needsExtension(tx *bt.Tx, fv validator.FeeValidation, sv validator.ScriptValidation) bool {
 	// don't need if we don't validate fee AND scripts
 	if fv == validator.NoneFeeValidation && sv == validator.NoneScriptValidation {
 		return false

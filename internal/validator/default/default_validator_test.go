@@ -131,7 +131,7 @@ func TestValidator(t *testing.T) {
 		// when
 		txFinder := mocks.TxFinderIMock{
 			GetRawTxsFunc: func(ctx context.Context, ids []string) ([]validation.RawTx, error) {
-				res := []validation.RawTx{fixture.ParentTx_1, fixture.ParentTx_2}
+				res := []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}
 				return res, nil
 			},
 		}
@@ -325,7 +325,7 @@ func Test_needExtention(t *testing.T) {
 			tx, _ := bt.NewTxFromString(tc.txHex)
 
 			// then
-			result := needsExtention(tx, tc.feeOpt, tc.scriptOpt)
+			result := needsExtension(tx, tc.feeOpt, tc.scriptOpt)
 
 			// assert
 			require.Equal(t, tc.expectedResult, result)

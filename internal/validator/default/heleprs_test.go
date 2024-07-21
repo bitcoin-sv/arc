@@ -27,19 +27,19 @@ func TestDefaultValidator_helpers_extendTx(t *testing.T) {
 		{
 			name:              "cannot find all parents",
 			txHex:             testdata.ValidTxRawHex,
-			foundTransactions: []validator.RawTx{testdata.ParentTx_1},
+			foundTransactions: []validator.RawTx{testdata.ParentTx1},
 			expectedErr:       errParentNotFound,
 		},
 		{
 			name:              "tx finder returns rubbish",
 			txHex:             testdata.ValidTxRawHex,
-			foundTransactions: []validator.RawTx{testdata.ParentTx_1, testdata.RandomTx_1},
+			foundTransactions: []validator.RawTx{testdata.ParentTx1, testdata.RandomTx1},
 			expectedErr:       errParentNotFound,
 		},
 		{
 			name:              "success",
 			txHex:             testdata.ValidTxRawHex,
-			foundTransactions: []validator.RawTx{testdata.ParentTx_1, testdata.ParentTx_2},
+			foundTransactions: []validator.RawTx{testdata.ParentTx1, testdata.ParentTx2},
 			expectedErr:       nil,
 		},
 	}

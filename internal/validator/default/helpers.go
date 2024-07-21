@@ -36,7 +36,7 @@ func extendTx(ctx context.Context, w validator.TxFinderI, rawTx *bt.Tx) error {
 	// get parents
 	parentsTxs, err := w.GetRawTxs(ctx, parentsIDs)
 	if err != nil {
-		return fmt.Errorf("cannot extend tx: %w", err)
+		return fmt.Errorf("failed to get raw transactions for parent: %v. Reason: %w", parentsIDs, err)
 	}
 
 	if len(parentsTxs) != len(parentsIDs) {

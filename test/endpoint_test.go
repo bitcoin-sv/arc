@@ -350,7 +350,7 @@ func TestPostSkipTxValidation(t *testing.T) {
 		name string
 	}{
 		{
-			name: "post transaction with skip fee",
+			name: "post transaction with skip script validation",
 		},
 	}
 
@@ -373,6 +373,26 @@ func TestPostSkipTxValidation(t *testing.T) {
 			postTxWithHeadersChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", false, true)
 		})
 	}
+}
+
+func TestPostWholeValidation(t *testing.T) {
+	t.Run("post tx without validation", func(t *testing.T) {
+		address, privateKey := fundNewWallet(t)
+		utxos := getUtxos(t, address)
+		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+
+		customFee := uint64(0)
+
+		tx, err := createTx(privateKey, address, utxos[0], customFee)
+		require.NoError(t, err)
+
+		fmt.Println("Transaction with Zero fee:", tx)
+
+		arcClient, err := api.NewClientWithResponses(arcEndpoint)
+		require.NoError(t, err)
+
+		postTxWithHeadersChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", true, true)
+	})
 }
 
 func Test_E2E_Success(t *testing.T) {
@@ -524,6 +544,26 @@ func TestPostTx_Success(t *testing.T) {
 	resp, err := postTx(t, jsonPayload, nil) // no extra headers
 	require.NoError(t, err)
 	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestPostTx_RawFormat_Success(t *testing.T) {
+	// when
+	address, privateKey := fundNewWallet(t)
+
+	utxos := getUtxos(t, address)
+	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+	tx, err := createTx(privateKey, address, utxos[0])
+	require.NoError(t, err)
+
+	rawFormatHex := hex.EncodeToString(tx.Bytes())
+
+	// then
+	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, rawFormatHex)
+	resp, err := postTx(t, jsonPayload, nil) // no extra headers
+
+	// assert
+	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
 

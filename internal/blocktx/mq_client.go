@@ -2,7 +2,8 @@ package blocktx
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 )
 
 type MessageQueueClient interface {

@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/unlocker"
 )
@@ -29,7 +29,6 @@ type RateBroadcaster struct {
 }
 
 func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet, utxoClient UtxoClient, isTestnet bool, opts ...func(p *Broadcaster)) (*RateBroadcaster, error) {
-
 	b, err := NewBroadcaster(logger.With(slog.String("address", ks.Address(!isTestnet))), client, utxoClient, isTestnet, opts...)
 	if err != nil {
 		return nil, err
@@ -72,7 +71,6 @@ func (b *RateBroadcaster) calculateFeeSat(tx *bt.Tx) uint64 {
 }
 
 func (b *RateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
-
 	b.wg.Add(1)
 	go func() {
 		defer b.wg.Done()
@@ -265,6 +263,7 @@ func (b *RateBroadcaster) broadcastBatchAsync(txs []*bt.Tx, errCh chan error, wa
 		}
 	}()
 }
+
 func (b *RateBroadcaster) Shutdown() {
 	b.cancelAll()
 

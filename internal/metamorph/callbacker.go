@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/ordishs/go-utils"
 	"github.com/prometheus/client_golang/prometheus"
 )

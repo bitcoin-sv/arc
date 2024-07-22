@@ -1,8 +1,8 @@
 package async
 
 import (
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 )
@@ -27,7 +27,6 @@ func NewNatsMQClient(nc NatsClient) metamorph.MessageQueueClient {
 }
 
 func (c MQClient) PublishSubmitTx(tx *metamorph_api.TransactionRequest) error {
-
 	data, err := proto.Marshal(tx)
 	if err != nil {
 		return err
@@ -52,7 +51,6 @@ func (c MQClient) PublishSubmitTxs(txs *metamorph_api.TransactionRequests) error
 }
 
 func (c MQClient) Shutdown() error {
-
 	err := c.nc.Drain()
 	if err != nil {
 		return err

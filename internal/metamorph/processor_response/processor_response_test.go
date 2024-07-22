@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/stretchr/testify/assert"
 )
 

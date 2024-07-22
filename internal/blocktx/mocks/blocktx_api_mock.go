@@ -5,7 +5,7 @@ package mocks
 
 import (
 	context "context"
-	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	grpc "google.golang.org/grpc"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	sync "sync"

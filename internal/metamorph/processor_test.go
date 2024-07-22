@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
@@ -583,7 +583,6 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			wg := &sync.WaitGroup{}
 
 			updateBulkCounter := 0
@@ -592,7 +591,6 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 					return nil
 				},
 				UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
-
 					for _, u := range updates {
 						require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, u.Status)
 					}
@@ -659,7 +657,6 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			}
 			require.Equal(t, tc.expectedSetBulkCalls, len(s.SetBulkCalls()))
 			require.Equal(t, tc.expectedAnnouncedTxCalls, len(pm.AnnounceTransactionCalls()))
-
 		})
 	}
 }

@@ -3,10 +3,11 @@ package transaction_handler
 import (
 	"context"
 	"encoding/hex"
+
 	"github.com/libsv/go-bt/v2"
 
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/ordishs/go-bitcoin"
 )
 

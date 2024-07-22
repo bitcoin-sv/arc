@@ -225,7 +225,7 @@ func TestPostCallbackToken(t *testing.T) {
 			callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
 			defer shutdown()
 
-			waitFor := string(Status_SEEN_ON_NETWORK)
+			waitFor := Status_SEEN_ON_NETWORK
 			params := &api.POSTTransactionParams{
 				XWaitFor:       &waitFor,
 				XCallbackUrl:   &callbackUrl,
@@ -281,7 +281,7 @@ func TestPostCallbackToken(t *testing.T) {
 	}
 }
 
-func postTxWithHeadersChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus ExpectedStatus, skipFeeValidation bool, skipTxValidation bool) {
+func postTxWithHeadersChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus string, skipFeeValidation bool, skipTxValidation bool) {
 	ctx := context.Background()
 
 	var skipFeeValidationPtr *bool
@@ -293,9 +293,8 @@ func postTxWithHeadersChecksStatus(t *testing.T, client *api.ClientWithResponses
 	if skipTxValidation {
 		skipTxValidationPtr = PtrTo(true)
 	}
-	waitFor := string(expectedStatus)
 	params := &api.POSTTransactionParams{
-		XWaitFor:           &waitFor,
+		XWaitFor:           &expectedStatus,
 		XSkipFeeValidation: skipFeeValidationPtr,
 		XSkipTxValidation:  skipTxValidationPtr,
 	}
@@ -477,7 +476,7 @@ func TestPostTx_Queued(t *testing.T) {
 				statusResponse, err := arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
 				require.NoError(t, err)
 
-				if statusResponse != nil && statusResponse.JSON200 != nil && statusResponse.JSON200.TxStatus != nil && string(Status_SEEN_ON_NETWORK) == *statusResponse.JSON200.TxStatus {
+				if statusResponse != nil && statusResponse.JSON200 != nil && statusResponse.JSON200.TxStatus != nil && Status_SEEN_ON_NETWORK == *statusResponse.JSON200.TxStatus {
 					break checkSeenLoop
 				}
 			case <-time.NewTimer(10 * time.Second).C:
@@ -494,7 +493,7 @@ func TestPostTx_Queued(t *testing.T) {
 				statusResponse, err := arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
 				require.NoError(t, err)
 
-				if statusResponse != nil && statusResponse.JSON200 != nil && statusResponse.JSON200.TxStatus != nil && string(Status_MINED) == *statusResponse.JSON200.TxStatus {
+				if statusResponse != nil && statusResponse.JSON200 != nil && statusResponse.JSON200.TxStatus != nil && Status_MINED == *statusResponse.JSON200.TxStatus {
 					break checkMinedLoop
 				}
 			case <-time.NewTimer(15 * time.Second).C:

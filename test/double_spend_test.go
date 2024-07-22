@@ -61,7 +61,7 @@ func TestDoubleSpend(t *testing.T) {
 	}
 }
 
-func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus ExpectedStatus, extFormat bool) {
+func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus string, extFormat bool) {
 	rawTxString := hex.EncodeToString(tx.Bytes())
 	if extFormat {
 		rawTxString = hex.EncodeToString(tx.ExtendedBytes())
@@ -71,9 +71,8 @@ func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx
 	}
 
 	ctx := context.Background()
-	waitForStatus := string(expectedStatus)
 	params := &api.POSTTransactionParams{
-		XWaitFor: &waitForStatus,
+		XWaitFor: &expectedStatus,
 	}
 	response, err := client.POSTTransactionWithResponse(ctx, params, body)
 	require.NoError(t, err)

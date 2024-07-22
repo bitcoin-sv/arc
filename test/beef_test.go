@@ -16,7 +16,7 @@ import (
 func TestBeef(t *testing.T) {
 	testCases := []struct {
 		name           string
-		expectedStatus ExpectedStatus
+		expectedStatus string
 	}{
 		{
 			name:           "valid beef with unmined parents - response for the tip, callback for each",
@@ -48,9 +48,8 @@ func TestBeef(t *testing.T) {
 			callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
 			defer shutdown()
 
-			waitForStatus := string(tc.expectedStatus)
 			params := &api.POSTTransactionParams{
-				XWaitFor:       &waitForStatus,
+				XWaitFor:       &tc.expectedStatus,
 				XCallbackUrl:   &callbackUrl,
 				XCallbackToken: &token,
 			}

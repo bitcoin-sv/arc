@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
 	"github.com/stretchr/testify/require"
 )
@@ -40,12 +39,12 @@ func TestDoubleSpend(t *testing.T) {
 			arcClient, err := api.NewClientWithResponses(arcEndpoint)
 			require.NoError(t, err)
 
-			//submit first transaction
-			postTxChecksStatus(t, arcClient, tx, metamorph_api.Status_SEEN_ON_NETWORK, tc.extFormat)
+			// submit first transaction
+			postTxChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, tc.extFormat)
 
 			// send double spending transaction when first tx is in mempool
 			txMempool := createTxToNewAddress(t, privateKey, utxos[0])
-			postTxChecksStatus(t, arcClient, txMempool, metamorph_api.Status_REJECTED, tc.extFormat)
+			postTxChecksStatus(t, arcClient, txMempool, Status_REJECTED, tc.extFormat)
 
 			generate(t, 10)
 
@@ -53,16 +52,16 @@ func TestDoubleSpend(t *testing.T) {
 			var statusResponse *api.GETTransactionStatusResponse
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
 			require.NoError(t, err)
-			require.Equal(t, "MINED", *statusResponse.JSON200.TxStatus)
+			require.Equal(t, Status_MINED, *statusResponse.JSON200.TxStatus)
 
 			// send double spending transaction when first tx was mined
 			txMined := createTxToNewAddress(t, privateKey, utxos[0])
-			postTxChecksStatus(t, arcClient, txMined, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, tc.extFormat)
+			postTxChecksStatus(t, arcClient, txMined, Status_SEEN_IN_ORPHAN_MEMPOOL, tc.extFormat)
 		})
 	}
 }
 
-func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus metamorph_api.Status, extFormat bool) {
+func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus ExpectedStatus, extFormat bool) {
 	rawTxString := hex.EncodeToString(tx.Bytes())
 	if extFormat {
 		rawTxString = hex.EncodeToString(tx.ExtendedBytes())
@@ -72,15 +71,16 @@ func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx
 	}
 
 	ctx := context.Background()
+	waitForStatus := string(expectedStatus)
 	params := &api.POSTTransactionParams{
-		XWaitForStatus: PtrTo(api.WaitForStatus(expectedStatus)),
+		XWaitFor: &waitForStatus,
 	}
 	response, err := client.POSTTransactionWithResponse(ctx, params, body)
 	require.NoError(t, err)
 
 	require.Equal(t, http.StatusOK, response.StatusCode())
 	require.NotNil(t, response.JSON200)
-	require.Equalf(t, expectedStatus.String(), response.JSON200.TxStatus, "status of response: %s does not match expected status: %s for tx ID %s", response.JSON200.TxStatus, expectedStatus.String(), tx.TxID())
+	require.Equalf(t, expectedStatus, response.JSON200.TxStatus, "status of response: %s does not match expected status: %s for tx ID %s", response.JSON200.TxStatus, expectedStatus, tx.TxID())
 }
 
 func createTxToNewAddress(t *testing.T, privateKey string, utxo NodeUnspentUtxo) *bt.Tx {

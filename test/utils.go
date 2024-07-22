@@ -21,6 +21,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type ExpectedStatus string
+
+const (
+	Status_QUEUED                 ExpectedStatus = "QUEUED"
+	Status_RECEIVED               ExpectedStatus = "RECEIVED"
+	Status_STORED                 ExpectedStatus = "STORED"
+	Status_ANNOUNCED_TO_NETWORK   ExpectedStatus = "ANNOUNCED_TO_NETWORK"
+	Status_REQUESTED_BY_NETWORK   ExpectedStatus = "REQUESTED_BY_NETWORK"
+	Status_SENT_TO_NETWORK        ExpectedStatus = "SENT_TO_NETWORK"
+	Status_ACCEPTED_BY_NETWORK    ExpectedStatus = "ACCEPTED_BY_NETWORK"
+	Status_SEEN_IN_ORPHAN_MEMPOOL ExpectedStatus = "SEEN_IN_ORPHAN_MEMPOOL"
+	Status_SEEN_ON_NETWORK        ExpectedStatus = "SEEN_ON_NETWORK"
+	Status_DOUBLE_SPEND_ATTEMPTED ExpectedStatus = "DOUBLE_SPEND_ATTEMPTED"
+	Status_REJECTED               ExpectedStatus = "REJECTED"
+	Status_MINED                  ExpectedStatus = "MINED"
+)
+
 type NodeUnspentUtxo struct {
 	Txid          string  `json:"txid"`
 	Vout          uint32  `json:"vout"`

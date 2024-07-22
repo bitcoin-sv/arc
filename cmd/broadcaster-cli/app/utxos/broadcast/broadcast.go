@@ -1,14 +1,11 @@
 package broadcast
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
-
-	"sync"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
@@ -103,13 +100,6 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %v", err)
 		}
 
-		wg := &sync.WaitGroup{}
-
-		_, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		wg.Add(1)
-
 		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
 		rateBroadcaster, err := broadcaster.NewMultiKeyRateBroadcaster(logger, client, keySets, wocClient, isTestnet, broadcaster.WithFees(miningFeeSat), broadcaster.WithCallback(callbackURL, callbackToken), broadcaster.WithFullstatusUpdates(fullStatusUpdates), broadcaster.WithBatchSize(batchSize))
@@ -122,16 +112,20 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to start rate broadcaster: %v", err)
 		}
 
-		go func() {
-			signalChan := make(chan os.Signal, 1)
-			signal.Notify(signalChan, os.Interrupt) // Signal from Ctrl+C
-			<-signalChan
+		shutdownChan := make(chan struct{}) // Channel to signal completion of shutdown
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, os.Interrupt) // Listen for Ctrl+C
 
-			cancel()
+		go func() {
+			<-signalChan // Wait for signal
+			fmt.Println("Shutdown signal received. Shutting down the rate broadcaster.")
+			rateBroadcaster.Shutdown() // Shutdown the broadcaster
+			close(shutdownChan)        // Signal that shutdown is complete
 		}()
 
-		wg.Wait()
-
+		// Block until shutdown is complete
+		<-shutdownChan
+		fmt.Println("Broadcaster shutdown complete.")
 		return nil
 	},
 }

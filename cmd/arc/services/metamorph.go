@@ -255,21 +255,21 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 
 	messageCh := make(chan *metamorph.PeerTxMessage)
 	var pmOpts []p2p.PeerManagerOptions
-
-	if arcConfig.Metamorph.MonitorPeersInterval > 0 {
-		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers(arcConfig.Metamorph.MonitorPeersInterval))
+	if arcConfig.Metamorph.MonitorPeers {
+		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())
 	}
 
 	pm := p2p.NewPeerManager(logger, network, pmOpts...)
 
 	peerHandler := metamorph.NewPeerHandler(s, messageCh)
 
-	opts := make([]p2p.PeerOptions, 0)
-	if version.Version != "" {
-		opts = append(opts, p2p.WithUserAgent("ARC", version.Version))
+	peerOpts := []p2p.PeerOptions{
+		p2p.WithRetryReadWriteMessageInterval(5 * time.Second),
+		p2p.WithPingInterval(30*time.Second, 1*time.Minute),
 	}
-
-	opts = append(opts, p2p.WithRetryReadWriteMessageInterval(5*time.Second))
+	if version.Version != "" {
+		peerOpts = append(peerOpts, p2p.WithUserAgent("ARC", version.Version))
+	}
 
 	for _, peerSetting := range arcConfig.Peers {
 		peerUrl, err := peerSetting.GetP2PUrl()
@@ -278,7 +278,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 		}
 
 		var peer *p2p.Peer
-		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network, opts...)
+		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network, peerOpts...)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("error creating peer %s: %v", peerUrl, err)
 		}

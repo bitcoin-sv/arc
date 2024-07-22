@@ -32,6 +32,9 @@ var _ metamorph.PeerI = &PeerIMock{}
 //			IsHealthyFunc: func() bool {
 //				panic("mock out the IsHealthy method")
 //			},
+//			IsUnhealthyChFunc: func() <-chan struct{} {
+//				panic("mock out the IsUnhealthyCh method")
+//			},
 //			NetworkFunc: func() wire.BitcoinNet {
 //				panic("mock out the Network method")
 //			},
@@ -72,6 +75,9 @@ type PeerIMock struct {
 	// IsHealthyFunc mocks the IsHealthy method.
 	IsHealthyFunc func() bool
 
+	// IsUnhealthyChFunc mocks the IsUnhealthyCh method.
+	IsUnhealthyChFunc func() <-chan struct{}
+
 	// NetworkFunc mocks the Network method.
 	NetworkFunc func() wire.BitcoinNet
 
@@ -111,6 +117,9 @@ type PeerIMock struct {
 		// IsHealthy holds details about calls to the IsHealthy method.
 		IsHealthy []struct {
 		}
+		// IsUnhealthyCh holds details about calls to the IsUnhealthyCh method.
+		IsUnhealthyCh []struct {
+		}
 		// Network holds details about calls to the Network method.
 		Network []struct {
 		}
@@ -143,6 +152,7 @@ type PeerIMock struct {
 	lockAnnounceTransaction sync.RWMutex
 	lockConnected           sync.RWMutex
 	lockIsHealthy           sync.RWMutex
+	lockIsUnhealthyCh       sync.RWMutex
 	lockNetwork             sync.RWMutex
 	lockRequestBlock        sync.RWMutex
 	lockRequestTransaction  sync.RWMutex
@@ -267,6 +277,33 @@ func (mock *PeerIMock) IsHealthyCalls() []struct {
 	mock.lockIsHealthy.RLock()
 	calls = mock.calls.IsHealthy
 	mock.lockIsHealthy.RUnlock()
+	return calls
+}
+
+// IsUnhealthyCh calls IsUnhealthyChFunc.
+func (mock *PeerIMock) IsUnhealthyCh() <-chan struct{} {
+	if mock.IsUnhealthyChFunc == nil {
+		panic("PeerIMock.IsUnhealthyChFunc: method is nil but PeerI.IsUnhealthyCh was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockIsUnhealthyCh.Lock()
+	mock.calls.IsUnhealthyCh = append(mock.calls.IsUnhealthyCh, callInfo)
+	mock.lockIsUnhealthyCh.Unlock()
+	return mock.IsUnhealthyChFunc()
+}
+
+// IsUnhealthyChCalls gets all the calls that were made to IsUnhealthyCh.
+// Check the length with:
+//
+//	len(mockedPeerI.IsUnhealthyChCalls())
+func (mock *PeerIMock) IsUnhealthyChCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockIsUnhealthyCh.RLock()
+	calls = mock.calls.IsUnhealthyCh
+	mock.lockIsUnhealthyCh.RUnlock()
 	return calls
 }
 

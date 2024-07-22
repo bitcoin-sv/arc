@@ -21,7 +21,6 @@ import (
 
 const (
 	maximumBlockSize = 4294967296 // 4Gb
-	service          = "blocktx"
 )
 
 func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
@@ -92,14 +91,22 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	peerHandler.Start()
 
-	peerOpts := make([]p2p.PeerOptions, 0)
-	peerOpts = append(peerOpts, p2p.WithMaximumMessageSize(maximumBlockSize))
+	peerOpts := []p2p.PeerOptions{
+		p2p.WithMaximumMessageSize(maximumBlockSize),
+		p2p.WithRetryReadWriteMessageInterval(5 * time.Second),
+		p2p.WithPingInterval(30*time.Second, 1*time.Minute),
+	}
+
 	if version.Version != "" {
 		peerOpts = append(peerOpts, p2p.WithUserAgent("ARC", version.Version))
 	}
-	peerOpts = append(peerOpts, p2p.WithRetryReadWriteMessageInterval(5*time.Second))
 
-	pm := p2p.NewPeerManager(logger, network, p2p.WithExcessiveBlockSize(maximumBlockSize))
+	pmOpts := []p2p.PeerManagerOptions{p2p.WithExcessiveBlockSize(maximumBlockSize)}
+	if arcConfig.Metamorph.MonitorPeers {
+		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())
+	}
+
+	pm := p2p.NewPeerManager(logger, network, pmOpts...)
 	peers := make([]p2p.PeerI, len(arcConfig.Peers))
 
 	for i, peerSetting := range arcConfig.Peers {

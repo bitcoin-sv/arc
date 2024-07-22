@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 
@@ -114,6 +115,7 @@ var Cmd = &cobra.Command{
 		go func() {
 			// Start the broadcasting process
 			err := rateBroadcaster.Start(rateTxsPerSecond, limit)
+			logger.Info("Starting broadcaster", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", batchSize))
 			doneChan <- err // Send the completion or error signal
 		}()
 

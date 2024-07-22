@@ -163,26 +163,26 @@ go run main.go -metamorph=true
 
 #### Metamorph transaction statuses
 
-Metamorph keeps track of the lifecycle of a transaction, and assigns it a status. The following statuses are
-available:
+Metamorph keeps track of the lifecycle of a transaction, and assigns it a status, which is returned in the `txStatus` field whenever the transaction is queried.
+The following statuses are available:
 
-| Code | Status                 | Description                                                                                                                                                                                              |
-|-----|------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 0   | `UNKNOWN`              | The transaction has been sent to metamorph, but no processing has taken place. This should never be the case, unless something goes wrong.                                                               |
-| 1   | `QUEUED`               | The transaction has been queued for processing.                                                                                                                                                          |
-| 2   | `RECEIVED`             | The transaction has been properly received by the metamorph processor.                                                                                                                                   |
-| 3   | `STORED`               | The transaction has been stored in the metamorph store. This should ensure the transaction will be processed and retried if not picked up immediately by a mining node.                                  |
-| 4   | `ANNOUNCED_TO_NETWORK` | The transaction has been announced (INV message) to the Bitcoin network.                                                                                                                                 |
-| 5   | `REQUESTED_BY_NETWORK` | The transaction has been requested from metamorph by a Bitcoin node.                                                                                                                                     |
-| 6   | `SENT_TO_NETWORK`      | The transaction has been sent to at least 1 Bitcoin node.                                                                                                                                                |
-| 7   | `ACCEPTED_BY_NETWORK`  | The transaction has been accepted by a connected Bitcoin node on the ZMQ interface. If metamorph is not connected to ZMQ, this status will never by set.                                                 |
-| 8   | `SEEN_ON_NETWORK`      | The transaction has been seen on the Bitcoin network and propagated to other nodes. This status is set when metamorph receives an INV message for the transaction from another node than it was sent to. |
-| 9   | `MINED`                | The transaction has been mined into a block by a mining node.                                                                                                                                            |
-| 10  | `SEEN_IN_ORPHAN_MEMPOOL`             | The transaction has been sent to at least 1 Bitcoin node but parent transaction was not found. |
-| 108 | `CONFIRMED`            | The transaction is marked as confirmed when it is in a block with 100 blocks built on top of that block (Currently this status is not maintained)                                                                                                 |
-| 109 | `REJECTED`             | The transaction has been rejected by the Bitcoin network.                                                                                                                                                |
+| Code | Status                   | Description                                                                                                                                                                                              |
+|------|--------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 0    | `UNKNOWN`                | The transaction has been sent to metamorph, but no processing has taken place. This should never be the case, unless something goes wrong.                                                               |
+| 10   | `QUEUED`                 | The transaction has been queued for processing.                                                                                                                                                          |
+| 20   | `RECEIVED`               | The transaction has been properly received by the metamorph processor.                                                                                                                                   |
+| 30   | `STORED`                 | The transaction has been stored in the metamorph store. This should ensure the transaction will be processed and retried if not picked up immediately by a mining node.                                  |
+| 40   | `ANNOUNCED_TO_NETWORK`   | The transaction has been announced (INV message) to the Bitcoin network.                                                                                                                                 |
+| 50   | `REQUESTED_BY_NETWORK`   | The transaction has been requested from metamorph by a Bitcoin node.                                                                                                                                     |
+| 60   | `SENT_TO_NETWORK`        | The transaction has been sent to at least 1 Bitcoin node.                                                                                                                                                |
+| 70   | `ACCEPTED_BY_NETWORK`    | The transaction has been accepted by a connected Bitcoin node on the ZMQ interface. If metamorph is not connected to ZMQ, this status will never by set.                                                 |
+| 80   | `SEEN_IN_ORPHAN_MEMPOOL` | The transaction has been sent to at least 1 Bitcoin node but parent transaction was not found.                                                                                                           |
+| 90   | `SEEN_ON_NETWORK`        | The transaction has been seen on the Bitcoin network and propagated to other nodes. This status is set when metamorph receives an INV message for the transaction from another node than it was sent to. |
+| 100  | `DOUBLE_SPEND_ATTEMPTED` | The transaction is a double spend attempt. Competing transaction(s) will be returned with this status.                                                                                                   |
+| 110  | `REJECTED`               | The transaction has been rejected by the Bitcoin network.                                                                                                                                                |
+| 120  | `MINED`                  | The transaction has been mined into a block by a mining node.                                                                                                                                            |
 
-This status is returned in the `txStatus` field whenever the transaction is queried.
+The statuses have a difference between the codes in order to make it possible to add more statuses in between the existing ones without creating a breaking change.
 
 #### Metamorph stores
 

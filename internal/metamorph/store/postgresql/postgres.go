@@ -371,15 +371,13 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 		WHERE t.hash IN (
 		   SELECT t2.hash
 		   FROM metamorph.transactions t2
-		   WHERE t2.locked_by = 'NONE'
-		   AND (t2.status < $3 OR t2.status = $4)
-		   AND last_submitted_at > $5
+		   WHERE t2.locked_by = 'NONE' AND t2.status < $3 AND last_submitted_at > $4
 		   LIMIT $2
 		   FOR UPDATE SKIP LOCKED
 		);
 	;`
 
-	_, err := p.db.ExecContext(ctx, q, p.hostname, limit, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since)
+	_, err := p.db.ExecContext(ctx, q, p.hostname, limit, metamorph_api.Status_SEEN_ON_NETWORK, since)
 	if err != nil {
 		return err
 	}
@@ -389,7 +387,7 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 
 func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
 	q := `SELECT
-	     stored_at
+		stored_at
 		,announced_at
 		,mined_at
 		,hash
@@ -399,19 +397,19 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 		,callback_url
 		,callback_token
 		,full_status_updates
-     	,reject_reason
+		,reject_reason
 		,raw_tx
 		,locked_by
-     	,merkle_path
+		,merkle_path
 		,retries
 		FROM metamorph.transactions
-		WHERE locked_by = $6
-		AND (status < $1 OR status = $2)
-		AND last_submitted_at > $3
+		WHERE locked_by = $5
+		AND status < $1
+		AND last_submitted_at > $2
 		ORDER BY last_submitted_at DESC
-		LIMIT $4 OFFSET $5;`
+		LIMIT $3 OFFSET $4;`
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since, limit, offset, p.hostname)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since, limit, offset, p.hostname)
 	if err != nil {
 		return nil, err
 	}
@@ -456,7 +454,7 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 		as t
 		WHERE metamorph.transactions.hash = t.hash
 		RETURNING
-	     stored_at
+	  stored_at
 		,announced_at
 		,mined_at
 		,t.hash
@@ -466,10 +464,10 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 		,callback_url
 		,callback_token
 		,full_status_updates
-     	,reject_reason
+    ,reject_reason
 		,raw_tx
 		,locked_by
-     	,merkle_path
+    ,merkle_path
 		,retries;`
 
 	rows, err := tx.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since, untilTime, limit, offset, p.hostname)
@@ -520,10 +518,8 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 						UNNEST($1::BYTEA[], $2::INT[], $3::TEXT[])
 				AS t(hash, status, reject_reason)
 			) AS bulk_query
-			WHERE
-			metamorph.transactions.hash=bulk_query.hash
-				AND ( metamorph.transactions.status < bulk_query.status OR ( metamorph.transactions.status = $5 AND bulk_query.status = $4 ))
-			    AND metamorph.transactions.status != $6
+			WHERE metamorph.transactions.hash=bulk_query.hash
+				AND metamorph.transactions.status < bulk_query.status
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.announced_at
 		,metamorph.transactions.mined_at
@@ -555,7 +551,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, metamorph_api.Status_MINED)
+	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons))
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			return nil, err

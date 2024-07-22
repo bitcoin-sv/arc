@@ -267,9 +267,42 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 	if params.XCallbackToken != nil {
 		transactionOptions.CallbackToken = *params.XCallbackToken
 	}
+
+	// NOTE: deprecated header, to be removed soon
 	if params.XWaitForStatus != nil {
-		transactionOptions.WaitForStatus = metamorph_api.Status(*params.XWaitForStatus)
+		oldStatusesMap := map[int]string{
+			1:   "QUEUED",
+			2:   "RECEIVED",
+			3:   "STORED",
+			4:   "ANNOUNCED_TO_NETWORK",
+			5:   "REQUESTED_BY_NETWORK",
+			6:   "SENT_TO_NETWORK",
+			7:   "ACCEPTED_BY_NETWORK",
+			8:   "SEEN_ON_NETWORK",
+			9:   "MINED",
+			10:  "SEEN_IN_ORPHAN_MEMPOOL",
+			108: "CONFIRMED",
+			109: "REJECTED",
+		}
+		statusString, ok := oldStatusesMap[*params.XWaitForStatus]
+		if !ok {
+			return nil, fmt.Errorf("status with code: %d not supported", *params.XWaitForStatus)
+		}
+		newStatusValue, ok := metamorph_api.Status_value[statusString]
+		if !ok {
+			return nil, fmt.Errorf("status: %s not supported", statusString)
+		}
+		transactionOptions.WaitForStatus = metamorph_api.Status(newStatusValue)
 	}
+
+	if params.XWaitFor != nil {
+		value, ok := metamorph_api.Status_value[*params.XWaitFor]
+		if !ok {
+			return nil, fmt.Errorf("status: %s not supported", *params.XWaitFor)
+		}
+		transactionOptions.WaitForStatus = metamorph_api.Status(value)
+	}
+
 	if params.XSkipFeeValidation != nil {
 		transactionOptions.SkipFeeValidation = *params.XSkipFeeValidation
 	}
@@ -298,7 +331,8 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 
 // processTransactions validates all the transactions in the array and submits to metamorph for processing.
 func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byte, options *metamorph.TransactionOptions) (
-	submittedTxs []*bt.Tx, successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields) {
+	submittedTxs []*bt.Tx, successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields,
+) {
 	m.logger.Info("Starting to process transactions")
 
 	// decode and validate txs
@@ -309,7 +343,6 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 
 		if hexFormat == validator.BeefHex {
 			beefTx, remainingBytes, err := beef.DecodeBEEF(txsHex)
-
 			if err != nil {
 				errStr := fmt.Sprintf("error decoding BEEF: %s", err.Error())
 				return nil, nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
@@ -482,7 +515,6 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*bt.Tx,
 
 		// SubmitTransaction() used to avoid performance issue
 		status, err := m.TransactionHandler.SubmitTransaction(ctx, tx, options)
-
 		if err != nil {
 			statusCode, arcError := m.handleError(ctx, tx, err)
 			m.logger.Error("failed to submit transaction", slog.String("id", tx.TxID()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
@@ -495,7 +527,6 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*bt.Tx,
 	} else {
 		var err error
 		submitStatuses, err = m.TransactionHandler.SubmitTransactions(ctx, txs, options)
-
 		if err != nil {
 			statusCode, arcError := m.handleError(ctx, nil, err)
 			m.logger.Error("failed to submit transactions", slog.Int("txs", len(txs)), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))

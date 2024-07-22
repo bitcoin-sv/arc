@@ -107,24 +107,31 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create rate broadcaster: %v", err)
 		}
 
-		err = rateBroadcaster.Start(rateTxsPerSecond, limit)
-		if err != nil {
-			return fmt.Errorf("failed to start rate broadcaster: %v", err)
-		}
-
-		shutdownChan := make(chan struct{}) // Channel to signal completion of shutdown
+		doneChan := make(chan error) // Channel to signal the completion of Start
 		signalChan := make(chan os.Signal, 1)
 		signal.Notify(signalChan, os.Interrupt) // Listen for Ctrl+C
 
 		go func() {
-			<-signalChan // Wait for signal
-			fmt.Println("Shutdown signal received. Shutting down the rate broadcaster.")
-			rateBroadcaster.Shutdown() // Shutdown the broadcaster
-			close(shutdownChan)        // Signal that shutdown is complete
+			// Start the broadcasting process
+			err := rateBroadcaster.Start(rateTxsPerSecond, limit)
+			doneChan <- err // Send the completion or error signal
 		}()
 
-		// Block until shutdown is complete
-		<-shutdownChan
+		select {
+		case <-signalChan:
+			// If an interrupt signal is received
+			fmt.Println("Shutdown signal received. Shutting down the rate broadcaster.")
+		case err := <-doneChan:
+			// Or wait for the normal completion
+			if err != nil {
+				fmt.Printf("Error during broadcasting: %v\n", err)
+			} else {
+				fmt.Println("Broadcasting completed successfully.")
+			}
+		}
+
+		// Shutdown the broadcaster in all cases
+		rateBroadcaster.Shutdown()
 		fmt.Println("Broadcaster shutdown complete.")
 		return nil
 	},

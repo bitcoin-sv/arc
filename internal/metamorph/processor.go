@@ -560,15 +560,10 @@ func (p *Processor) GetPeers() []p2p.PeerI {
 
 func (p *Processor) SendStatusForTransaction(msg *PeerTxMessage) {
 	// make sure we update the transaction status in database
-	var rejectReason string
-	if msg.Err != nil {
-		rejectReason = msg.Err.Error()
-	}
-
 	p.storageStatusUpdateCh <- store.UpdateStatus{
 		Hash:         *msg.Hash,
 		Status:       msg.Status,
-		RejectReason: rejectReason,
+		Error:        msg.Err,
 		CompetingTxs: msg.CompetingTxs,
 	}
 
@@ -688,9 +683,8 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 
 	// update status in storage
 	p.storageStatusUpdateCh <- store.UpdateStatus{
-		Hash:         *req.Data.Hash,
-		Status:       metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-		RejectReason: "",
+		Hash:   *req.Data.Hash,
+		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 	}
 }
 
@@ -718,9 +712,8 @@ func (p *Processor) ProcessTransactions(sReq []*store.StoreData) {
 
 		// update status in storage
 		p.storageStatusUpdateCh <- store.UpdateStatus{
-			Hash:         *data.Hash,
-			Status:       metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-			RejectReason: "",
+			Hash:   *data.Hash,
+			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 		}
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"go.opentelemetry.io/otel/trace"
 )
 

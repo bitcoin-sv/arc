@@ -2,16 +2,17 @@ package async
 
 import (
 	"fmt"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"log"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/nats-io/nats.go"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
@@ -98,7 +99,6 @@ func TestNatsClient(t *testing.T) {
 	mqClient := NewNatsMQClient(natsConnClient, minedTxsChan, submittedTxsChan, slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
 
 	t.Run("subscribe mined txs", func(t *testing.T) {
-
 		t.Log("subscribing to mined txs")
 		err := mqClient.SubscribeMinedTxs()
 		require.NoError(t, err)
@@ -132,7 +132,6 @@ func TestNatsClient(t *testing.T) {
 		require.Len(t, txBlockBatch, counter)
 	})
 	t.Run("subscribe submitted txs", func(t *testing.T) {
-
 		t.Log("subscribing to submitted txs")
 		err := mqClient.SubscribeSubmittedTx()
 		require.NoError(t, err)
@@ -158,11 +157,9 @@ func TestNatsClient(t *testing.T) {
 
 			break
 		}
-
 	})
 
 	t.Run("publish register txs", func(t *testing.T) {
-
 		registerTxsChannel := make(chan []byte, 10)
 
 		t.Log("subscribe to register txs")
@@ -203,7 +200,6 @@ func TestNatsClient(t *testing.T) {
 	})
 
 	t.Run("publish request txs", func(t *testing.T) {
-
 		requestChannel := make(chan []byte, 10)
 
 		t.Log("subscribe to request txs")

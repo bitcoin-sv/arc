@@ -4,9 +4,9 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 )
 
 func WithStatTimeLimits(notSeenLimit time.Duration, notMinedLimit time.Duration) func(*Processor) {

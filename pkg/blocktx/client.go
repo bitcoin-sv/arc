@@ -3,8 +3,8 @@ package blocktx
 import (
 	"context"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
-	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 )

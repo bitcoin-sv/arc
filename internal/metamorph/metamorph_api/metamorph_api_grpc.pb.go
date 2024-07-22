@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             v5.26.1
-// source: pkg/metamorph/metamorph_api/metamorph_api.proto
+// source: internal/metamorph/metamorph_api/metamorph_api.proto
 
 package metamorph_api
 
@@ -328,5 +328,5 @@ var MetaMorphAPI_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "pkg/metamorph/metamorph_api/metamorph_api.proto",
+	Metadata: "internal/metamorph/metamorph_api/metamorph_api.proto",
 }

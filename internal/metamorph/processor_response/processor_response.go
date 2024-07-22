@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-utils"
 )
@@ -53,7 +53,6 @@ func (r *ProcessorResponse) UpdateStatus(statusUpdate *ProcessorResponseStatusUp
 	} else {
 		r.setStatus(statusUpdate.Status)
 	}
-
 }
 
 func (r *ProcessorResponse) String() string {

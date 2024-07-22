@@ -504,7 +504,12 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	for i, update := range updates {
 		txHashes[i] = update.Hash.CloneBytes()
 		statuses[i] = update.Status
-		rejectReasons[i] = update.RejectReason
+
+		rejectReasons[i] = ""
+		if update.Error != nil {
+			rejectReasons[i] = update.Error.Error()
+		}
+
 		if update.CompetingTxs == nil {
 			competingTxs[i] = []string{}
 		} else {

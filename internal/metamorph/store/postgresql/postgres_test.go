@@ -430,9 +430,9 @@ func TestPostgresDB(t *testing.T) {
 				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
 			},
 			{
-				Hash:         *revChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), // update expected
-				Status:       metamorph_api.Status_REJECTED,
-				RejectReason: "missing inputs",
+				Hash:   *revChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), // update expected
+				Status: metamorph_api.Status_REJECTED,
+				Error:  errors.New("missing inputs"),
 			},
 			{
 				Hash:   *revChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa"), // update expected

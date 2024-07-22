@@ -93,6 +93,7 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 					Hash:   hash,
 					Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
 					Peer:   z.url.String(),
+					Err:    nil,
 				}
 			case invalidTxTopic:
 				hash, status, txErr, competingTxs, err := z.handleInvalidTx(c)

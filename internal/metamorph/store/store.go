@@ -72,6 +72,6 @@ type MetamorphStore interface {
 type UpdateStatus struct {
 	Hash         chainhash.Hash
 	Status       metamorph_api.Status
-	RejectReason string
+	Error        error
 	CompetingTxs []string
 }

@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/bitcoinsv/bsvd/bsvec"
 	"github.com/bitcoinsv/bsvutil"
 	"github.com/libsv/go-bc"
@@ -112,7 +111,7 @@ func postBatchRequest(t *testing.T, client *http.Client, req *http.Request) {
 
 	for i, txResponse := range bodyResponse {
 		require.NoError(t, err)
-		require.Equalf(t, "SEEN_ON_NETWORK", txResponse.TxStatus, "status of tx %d in chain not as expected", i)
+		require.Equalf(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
 	}
 }
 
@@ -226,8 +225,9 @@ func TestPostCallbackToken(t *testing.T) {
 			callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
 			defer shutdown()
 
+			waitFor := Status_SEEN_ON_NETWORK
 			params := &api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)),
+				XWaitFor:       &waitFor,
 				XCallbackUrl:   &callbackUrl,
 				XCallbackToken: &token,
 			}
@@ -242,7 +242,7 @@ func TestPostCallbackToken(t *testing.T) {
 
 			require.Equal(t, http.StatusOK, response.StatusCode())
 			require.NotNil(t, response.JSON200)
-			require.Equal(t, "SEEN_ON_NETWORK", response.JSON200.TxStatus)
+			require.Equal(t, Status_SEEN_ON_NETWORK, response.JSON200.TxStatus)
 
 			generate(t, 10)
 
@@ -269,7 +269,7 @@ func TestPostCallbackToken(t *testing.T) {
 					require.Equal(t, statusResponse.JSON200.Txid, callback.Txid)
 					require.Equal(t, *statusResponse.JSON200.BlockHeight, *callback.BlockHeight)
 					require.Equal(t, *statusResponse.JSON200.BlockHash, *callback.BlockHash)
-					require.Equal(t, "MINED", *callback.TxStatus)
+					require.Equal(t, Status_MINED, *callback.TxStatus)
 
 				case err := <-callbackErrChan:
 					t.Fatalf("callback received - failed to parse callback %v", err)
@@ -294,7 +294,7 @@ func postTxWithHeadersChecksStatus(t *testing.T, client *api.ClientWithResponses
 		skipTxValidationPtr = PtrTo(true)
 	}
 	params := &api.POSTTransactionParams{
-		XWaitForStatus:     PtrTo(api.WaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK)),
+		XWaitFor:           &expectedStatus,
 		XSkipFeeValidation: skipFeeValidationPtr,
 		XSkipTxValidation:  skipTxValidationPtr,
 	}
@@ -340,7 +340,7 @@ func TestPostSkipFee(t *testing.T) {
 			arcClient, err := api.NewClientWithResponses(arcEndpoint)
 			require.NoError(t, err)
 
-			postTxWithHeadersChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", true, false)
+			postTxWithHeadersChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, true, false)
 		})
 	}
 }
@@ -370,7 +370,7 @@ func TestPostSkipTxValidation(t *testing.T) {
 			arcClient, err := api.NewClientWithResponses(arcEndpoint)
 			require.NoError(t, err)
 
-			postTxWithHeadersChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", false, true)
+			postTxWithHeadersChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, false, true)
 		})
 	}
 }
@@ -401,7 +401,7 @@ func Test_E2E_Success(t *testing.T) {
 
 	var statusResponse TxStatusResponse
 	require.NoError(t, json.NewDecoder(statusResp.Body).Decode(&statusResponse))
-	require.Equalf(t, "SEEN_ON_NETWORK", statusResponse.TxStatus, "Expected txStatus to be 'SEEN_ON_NETWORK' for tx id %s", txID)
+	require.Equalf(t, Status_SEEN_ON_NETWORK, statusResponse.TxStatus, "Expected txStatus to be 'SEEN_ON_NETWORK' for tx id %s", txID)
 
 	t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
@@ -413,7 +413,7 @@ func Test_E2E_Success(t *testing.T) {
 
 	require.NoError(t, json.NewDecoder(statusResp.Body).Decode(&statusResponse))
 
-	require.Equal(t, "MINED", statusResponse.TxStatus, "Expected txStatus to be 'MINED'")
+	require.Equal(t, Status_MINED, statusResponse.TxStatus, "Expected txStatus to be 'MINED'")
 	t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
 	// Check Merkle path
@@ -435,7 +435,6 @@ func Test_E2E_Success(t *testing.T) {
 
 func TestPostTx_Queued(t *testing.T) {
 	t.Run("queued", func(t *testing.T) {
-
 		address, privateKey := getNewWalletAddress(t)
 		sendToAddress(t, address, 0.001)
 
@@ -458,17 +457,17 @@ func TestPostTx_Queued(t *testing.T) {
 
 		ctx := context.Background()
 
-		expectedStatus := metamorph_api.Status_QUEUED
+		expectedStatus := string(Status_QUEUED)
 		params := &api.POSTTransactionParams{
-			XWaitForStatus: PtrTo(api.WaitForStatus(metamorph_api.Status_QUEUED)),
-			XMaxTimeout:    PtrTo(1),
+			XWaitFor:    &expectedStatus,
+			XMaxTimeout: PtrTo(1),
 		}
 		response, err := arcClient.POSTTransactionWithResponse(ctx, params, body)
 		require.NoError(t, err)
 
 		require.Equal(t, http.StatusOK, response.StatusCode())
 		require.NotNil(t, response.JSON200)
-		require.Equalf(t, expectedStatus.String(), response.JSON200.TxStatus, "status of response: %s does not match expected status: %s for tx ID %s", response.JSON200.TxStatus, expectedStatus.String(), tx.TxID())
+		require.Equalf(t, expectedStatus, response.JSON200.TxStatus, "status of response: %s does not match expected status: %s for tx ID %s", response.JSON200.TxStatus, expectedStatus, tx.TxID())
 
 	checkSeenLoop:
 		for {
@@ -477,7 +476,7 @@ func TestPostTx_Queued(t *testing.T) {
 				statusResponse, err := arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
 				require.NoError(t, err)
 
-				if statusResponse != nil && statusResponse.JSON200 != nil && statusResponse.JSON200.TxStatus != nil && metamorph_api.Status_SEEN_ON_NETWORK.String() == *statusResponse.JSON200.TxStatus {
+				if statusResponse != nil && statusResponse.JSON200 != nil && statusResponse.JSON200.TxStatus != nil && Status_SEEN_ON_NETWORK == *statusResponse.JSON200.TxStatus {
 					break checkSeenLoop
 				}
 			case <-time.NewTimer(10 * time.Second).C:
@@ -494,7 +493,7 @@ func TestPostTx_Queued(t *testing.T) {
 				statusResponse, err := arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
 				require.NoError(t, err)
 
-				if statusResponse != nil && statusResponse.JSON200 != nil && statusResponse.JSON200.TxStatus != nil && metamorph_api.Status_MINED.String() == *statusResponse.JSON200.TxStatus {
+				if statusResponse != nil && statusResponse.JSON200 != nil && statusResponse.JSON200.TxStatus != nil && Status_MINED == *statusResponse.JSON200.TxStatus {
 					break checkMinedLoop
 				}
 			case <-time.NewTimer(15 * time.Second).C:
@@ -513,7 +512,7 @@ func postSingleRequest(t *testing.T, client *http.Client, req *http.Request) str
 
 	var response Response
 	require.NoError(t, json.NewDecoder(httpResp.Body).Decode(&response))
-	require.Equal(t, "SEEN_ON_NETWORK", response.TxStatus)
+	require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
 
 	return response.Txid
 }
@@ -602,8 +601,9 @@ func TestSubmitMinedTx(t *testing.T) {
 	arcClient, _ := api.NewClientWithResponses(arcEndpoint)
 
 	// when
+	waitFor := string(Status_MINED)
 	params := &api.POSTTransactionParams{
-		XWaitForStatus: PtrTo(api.WaitForStatus(metamorph_api.Status_MINED)),
+		XWaitFor:       &waitFor,
 		XCallbackUrl:   &callbackUrl,
 		XCallbackToken: &token,
 	}
@@ -623,7 +623,7 @@ func TestSubmitMinedTx(t *testing.T) {
 	select {
 	case status := <-callbackReceivedChan:
 		require.Equal(t, rawTx.TxID, status.Txid)
-		require.Equal(t, metamorph_api.Status_MINED.String(), *status.TxStatus)
+		require.Equal(t, Status_MINED, *status.TxStatus)
 	case err := <-callbackErrChan:
 		t.Fatalf("callback error: %v", err)
 	case <-callbackTimeout:

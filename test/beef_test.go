@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -17,11 +16,11 @@ import (
 func TestBeef(t *testing.T) {
 	testCases := []struct {
 		name           string
-		expectedStatus metamorph_api.Status
+		expectedStatus string
 	}{
 		{
 			name:           "valid beef with unmined parents - response for the tip, callback for each",
-			expectedStatus: metamorph_api.Status_SEEN_ON_NETWORK,
+			expectedStatus: Status_SEEN_ON_NETWORK,
 		},
 	}
 
@@ -49,9 +48,8 @@ func TestBeef(t *testing.T) {
 			callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
 			defer shutdown()
 
-			waitForStatus := api.WaitForStatus(tc.expectedStatus)
 			params := &api.POSTTransactionParams{
-				XWaitForStatus: &waitForStatus,
+				XWaitFor:       &tc.expectedStatus,
 				XCallbackUrl:   &callbackUrl,
 				XCallbackToken: &token,
 			}
@@ -63,13 +61,13 @@ func TestBeef(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, response.StatusCode())
 			require.NotNil(t, response.JSON200)
-			require.Equal(t, tc.expectedStatus.String(), response.JSON200.TxStatus, "status not SEEN_ON_NETWORK")
+			require.Equal(t, tc.expectedStatus, response.JSON200.TxStatus, "status not SEEN_ON_NETWORK")
 
 			generate(t, 10)
 
 			statusResponse, err := arcClient.GETTransactionStatusWithResponse(context.Background(), tx.TxID())
 			require.NoError(t, err)
-			require.Equal(t, metamorph_api.Status_MINED.String(), *statusResponse.JSON200.TxStatus)
+			require.Equal(t, Status_MINED, *statusResponse.JSON200.TxStatus)
 
 			// verify callbacks for both unmined txs in BEEF
 			lastTxCallbackReceived := false
@@ -79,10 +77,10 @@ func TestBeef(t *testing.T) {
 				select {
 				case status := <-callbackReceivedChan:
 					if status.Txid == middleTx.TxID() {
-						require.Equal(t, metamorph_api.Status_MINED.String(), *status.TxStatus)
+						require.Equal(t, Status_MINED, *status.TxStatus)
 						middleTxCallbackReceived = true
 					} else if status.Txid == tx.TxID() {
-						require.Equal(t, metamorph_api.Status_MINED.String(), *status.TxStatus)
+						require.Equal(t, Status_MINED, *status.TxStatus)
 						lastTxCallbackReceived = true
 					} else {
 						t.Fatalf("received unknown status for txid: %s", status.Txid)

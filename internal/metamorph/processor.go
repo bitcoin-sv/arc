@@ -409,8 +409,14 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus)
 	}
 
 	for _, data := range updatedData {
-		// TODO: review this check
-		if ((data.Status == metamorph_api.Status_SEEN_ON_NETWORK || data.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL) && data.FullStatusUpdates || data.Status == metamorph_api.Status_REJECTED) && data.CallbackUrl != "" {
+		sendCallback := false
+		if data.FullStatusUpdates {
+			sendCallback = data.Status >= metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL
+		} else {
+			sendCallback = data.Status >= metamorph_api.Status_REJECTED
+		}
+
+		if sendCallback && data.CallbackUrl != "" {
 			go p.callbackSender.SendCallback(p.logger, data)
 		}
 	}

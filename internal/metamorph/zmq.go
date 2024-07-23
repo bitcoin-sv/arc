@@ -95,6 +95,7 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 					Peer:   z.url.String(),
 					Err:    nil,
 				}
+
 			case invalidTxTopic:
 				hash, status, txErr, competingTxs, err := z.handleInvalidTx(c)
 				if err != nil {
@@ -102,14 +103,23 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 					continue
 				}
 
-				z.statusMessageCh <- &PeerTxMessage{
-					Start:        time.Now(),
-					Hash:         hash,
-					Status:       status,
-					Peer:         z.url.String(),
-					Err:          txErr,
-					CompetingTxs: competingTxs,
+				if status != metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED {
+					z.statusMessageCh <- &PeerTxMessage{
+						Start:        time.Now(),
+						Hash:         hash,
+						Status:       status,
+						Peer:         z.url.String(),
+						Err:          txErr,
+						CompetingTxs: competingTxs,
+					}
+					continue
 				}
+
+				msgs := z.prepareCompetingTxMsgs(hash, competingTxs)
+				for _, msg := range msgs {
+					z.statusMessageCh <- msg
+				}
+
 			case discardedFromMempoolTopic:
 				hash, txErr, err := z.handleDiscardedFromMempool(c)
 				if err != nil {
@@ -203,6 +213,60 @@ func (z *ZMQ) parseTxInfo(c []string) (*ZMQTxInfo, error) {
 		return nil, err
 	}
 	return &txInfo, nil
+}
+
+func (z *ZMQ) prepareCompetingTxMsgs(hash *chainhash.Hash, competingTxs []string) []*PeerTxMessage {
+	msgs := []*PeerTxMessage{{
+		Start:        time.Now(),
+		Hash:         hash,
+		Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+		Peer:         z.url.String(),
+		Err:          nil,
+		CompetingTxs: competingTxs,
+	}}
+
+	allCompetingTxs := append(competingTxs, hash.String())
+
+	for _, tx := range competingTxs {
+		competingHash, err := chainhash.NewHashFromStr(tx)
+		if err != nil {
+			z.logger.Debug("could not parse competing tx hash",
+				slog.String("reportingTxHash", hash.String()),
+				slog.String("err", err.Error()),
+				slog.String("competingTxID", tx))
+			continue
+		}
+
+		// remove the hash of the current tx from all competing txs
+		// and return a copy of the slice
+		txsWithoutSelf := removeCompetingSelf(allCompetingTxs, tx)
+
+		msgs = append(msgs, &PeerTxMessage{
+			Start:        time.Now(),
+			Hash:         competingHash,
+			Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+			Peer:         z.url.String(),
+			Err:          nil,
+			CompetingTxs: txsWithoutSelf,
+		})
+	}
+
+	return msgs
+}
+
+func removeCompetingSelf(competingTxs []string, self string) []string {
+	copyTxs := make([]string, len(competingTxs))
+	copy(copyTxs, competingTxs)
+
+	for i, hash := range copyTxs {
+		if hash == self {
+			// Remove the self hash
+			return append(copyTxs[:i], copyTxs[i+1:]...)
+		}
+	}
+
+	// Return the slice unchanged if the value was not found
+	return copyTxs
 }
 
 func (z *ZMQ) handleDiscardedFromMempool(msg []string) (hash *chainhash.Hash, txErr, err error) {

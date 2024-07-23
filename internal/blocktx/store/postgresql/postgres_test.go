@@ -14,8 +14,8 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/testdata"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/go-testfixtures/testfixtures/v3"
 	"github.com/golang-migrate/migrate/v4"
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -211,7 +211,6 @@ func setupPostgresTest(t testing.TB) (ctx context.Context, now time.Time, db *Po
 	db, err := New(dbInfo, 10, 10, WithNow(func() time.Time {
 		return now
 	}))
-
 	if err != nil {
 		t.Errorf("error setup tests %s", err.Error())
 	}
@@ -675,7 +674,6 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 			}
 
 			require.Equal(t, len(result), updatedCounter)
-
 		})
 	}
 }

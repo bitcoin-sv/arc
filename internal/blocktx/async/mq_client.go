@@ -2,8 +2,9 @@ package async
 
 import (
 	"context"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/nats-io/nats.go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
@@ -59,7 +60,6 @@ func NewNatsMQClient(nc NatsClient, registerTxsChannel chan []byte, requestTxCha
 }
 
 func (c MQClient) SubscribeRegisterTxs() error {
-
 	subscription, err := c.nc.QueueSubscribe(registerTxTopic, consumerQueue, func(msg *nats.Msg) {
 		c.registerTxsChannel <- msg.Data
 	})
@@ -133,7 +133,6 @@ func (c MQClient) publishMinedTxs(txBlockBatch []*blocktx_api.TransactionBlock) 
 }
 
 func (c MQClient) Shutdown() error {
-
 	err := c.nc.Drain()
 	if err != nil {
 		return err

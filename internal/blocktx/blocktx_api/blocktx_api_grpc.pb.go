@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             v5.26.1
-// source: pkg/blocktx/blocktx_api/blocktx_api.proto
+// source: internal/blocktx/blocktx_api/blocktx_api.proto
 
 package blocktx_api
 
@@ -303,5 +303,5 @@ var BlockTxAPI_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "pkg/blocktx/blocktx_api/blocktx_api.proto",
+	Metadata: "internal/blocktx/blocktx_api/blocktx_api.proto",
 }

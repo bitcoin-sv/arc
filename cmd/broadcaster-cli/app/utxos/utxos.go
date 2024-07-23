@@ -7,7 +7,7 @@ import (
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/broadcast"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/consolidate"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/create"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

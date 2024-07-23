@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
@@ -191,6 +191,39 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	return data, nil
 }
 
+// GetRawTxs implements the MetamorphStore interface. It attempts to get rawTxs for given hashes.
+// If the hashes do not exist an empty array is returned, otherwise the retrieved values.
+// If an error happens during the process of getting the results, the error is returned
+// along with already found rawTxs up to the error point.
+func (p *PostgreSQL) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, error) {
+	retRawTxs := make([][]byte, 0)
+
+	q := `SELECT raw_tx
+		FROM metamorph.transactions
+		WHERE hash in (SELECT UNNEST($1::BYTEA[]))`
+
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(hashes))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var rawTx []byte
+		err = rows.Scan(&rawTx)
+		if err != nil {
+			return retRawTxs, err
+		}
+		retRawTxs = append(retRawTxs, rawTx)
+	}
+
+	if err = rows.Err(); err != nil {
+		return retRawTxs, err
+	}
+
+	return retRawTxs, nil
+}
+
 func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash) error {
 	q := `UPDATE metamorph.transactions SET retries = retries+1 WHERE hash = $1;`
 
@@ -338,15 +371,13 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 		WHERE t.hash IN (
 		   SELECT t2.hash
 		   FROM metamorph.transactions t2
-		   WHERE t2.locked_by = 'NONE'
-		   AND (t2.status < $3 OR t2.status = $4)
-		   AND last_submitted_at > $5
+		   WHERE t2.locked_by = 'NONE' AND t2.status < $3 AND last_submitted_at > $4
 		   LIMIT $2
 		   FOR UPDATE SKIP LOCKED
 		);
 	;`
 
-	_, err := p.db.ExecContext(ctx, q, p.hostname, limit, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since)
+	_, err := p.db.ExecContext(ctx, q, p.hostname, limit, metamorph_api.Status_SEEN_ON_NETWORK, since)
 	if err != nil {
 		return err
 	}
@@ -355,9 +386,8 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 }
 
 func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
-
 	q := `SELECT
-	     stored_at
+		stored_at
 		,announced_at
 		,mined_at
 		,hash
@@ -367,19 +397,19 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 		,callback_url
 		,callback_token
 		,full_status_updates
-     	,reject_reason
+		,reject_reason
 		,raw_tx
 		,locked_by
-     	,merkle_path
+		,merkle_path
 		,retries
 		FROM metamorph.transactions
-		WHERE locked_by = $6
-		AND (status < $1 OR status = $2)
-		AND last_submitted_at > $3
+		WHERE locked_by = $5
+		AND status < $1
+		AND last_submitted_at > $2
 		ORDER BY last_submitted_at DESC
-		LIMIT $4 OFFSET $5;`
+		LIMIT $3 OFFSET $4;`
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, since, limit, offset, p.hostname)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since, limit, offset, p.hostname)
 	if err != nil {
 		return nil, err
 	}
@@ -424,7 +454,7 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 		as t
 		WHERE metamorph.transactions.hash = t.hash
 		RETURNING
-	     stored_at
+	  stored_at
 		,announced_at
 		,mined_at
 		,t.hash
@@ -434,10 +464,10 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 		,callback_url
 		,callback_token
 		,full_status_updates
-     	,reject_reason
+    ,reject_reason
 		,raw_tx
 		,locked_by
-     	,merkle_path
+    ,merkle_path
 		,retries;`
 
 	rows, err := tx.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since, untilTime, limit, offset, p.hostname)
@@ -488,10 +518,8 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 						UNNEST($1::BYTEA[], $2::INT[], $3::TEXT[])
 				AS t(hash, status, reject_reason)
 			) AS bulk_query
-			WHERE
-			metamorph.transactions.hash=bulk_query.hash
-				AND ( metamorph.transactions.status < bulk_query.status OR ( metamorph.transactions.status = $5 AND bulk_query.status = $4 ))
-			    AND metamorph.transactions.status != $6
+			WHERE metamorph.transactions.hash=bulk_query.hash
+				AND metamorph.transactions.status < bulk_query.status
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.announced_at
 		,metamorph.transactions.mined_at
@@ -523,13 +551,14 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, metamorph_api.Status_MINED)
+	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons))
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			return nil, err
 		}
 		return nil, err
 	}
+	defer rows.Close()
 
 	res, err := p.getStoreDataFromRows(rows)
 	if err != nil {
@@ -615,6 +644,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.Tra
 		}
 		return nil, err
 	}
+	defer rows.Close()
 
 	res, err := p.getStoreDataFromRows(rows)
 	if err != nil {
@@ -745,12 +775,12 @@ func (p *PostgreSQL) Close(ctx context.Context) error {
 }
 
 func (p *PostgreSQL) Ping(ctx context.Context) error {
-	_, err := p.db.QueryContext(ctx, "SELECT 1;")
+	rows, err := p.db.QueryContext(ctx, "SELECT 1;")
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return rows.Close()
 }
 
 func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (int64, error) {

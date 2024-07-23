@@ -2,12 +2,13 @@ package async
 
 import (
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"log"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/testdata"
 
 	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"github.com/nats-io/nats.go"
@@ -84,12 +85,10 @@ func TestMain(m *testing.M) {
 }
 
 func TestNatsClient(t *testing.T) {
-
 	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
 	mqClient := NewNatsMQClient(natsConnClient)
 
 	t.Run("publish register txs", func(t *testing.T) {
-
 		t.Log("subscribe to register txs")
 		_, err := natsConnClient.QueueSubscribe(submitTxTopic, "queue", func(msg *nats.Msg) {
 			serialized := &metamorph_api.TransactionRequest{}

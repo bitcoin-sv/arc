@@ -2,26 +2,19 @@ package topup
 
 import (
 	"context"
-	"errors"
-	"fmt"
+	"log/slog"
+
+	"time"
+
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/spf13/cobra"
-	"log/slog"
 )
 
 var Cmd = &cobra.Command{
 	Use:   "topup",
 	Short: "Top up funding address with BSV",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		keyFile, err := helper.GetString("keyFile")
-		if err != nil {
-			return err
-		}
-		if keyFile == "" {
-			return errors.New("no key file given")
-		}
-
 		isTestnet, err := helper.GetBool("testnet")
 		if err != nil {
 			return err
@@ -30,19 +23,28 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
 		logger := helper.GetLogger()
 
 		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
-		fundingKeySet, _, err := helper.GetKeySetsKeyFile(keyFile)
-		if err != nil {
-			return fmt.Errorf("failed to get key sets: %v", err)
-		}
 
-		err = wocClient.TopUp(context.Background(), !isTestnet, fundingKeySet.Address(!isTestnet))
+		keySets, err := helper.GetKeySets()
 		if err != nil {
 			return err
 		}
-		logger.Info("top up complete", slog.String("address", fundingKeySet.Address(!isTestnet)))
+
+		for _, keySet := range keySets {
+
+			if wocApiKey == "" {
+				time.Sleep(500 * time.Millisecond)
+			}
+			err = wocClient.TopUp(context.Background(), !isTestnet, keySet.Address(!isTestnet))
+
+			if err != nil {
+				return err
+			}
+			logger.Info("top up complete", slog.String("address", keySet.Address(!isTestnet)))
+		}
 
 		return nil
 	},

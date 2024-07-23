@@ -10,8 +10,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/unlocker"
 )
@@ -22,7 +22,6 @@ type UTXOConsolidator struct {
 }
 
 func NewUTXOConsolidator(logger *slog.Logger, client ArcClient, keySets []*keyset.KeySet, utxoClient UtxoClient, isTestnet bool, opts ...func(p *Broadcaster)) (*UTXOConsolidator, error) {
-
 	b, err := NewBroadcaster(logger, client, utxoClient, isTestnet, opts...)
 	if err != nil {
 		return nil, err

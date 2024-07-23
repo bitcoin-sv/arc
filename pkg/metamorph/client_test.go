@@ -3,13 +3,15 @@ package metamorph_test
 import (
 	"context"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/libsv/go-bt/v2"
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/testdata"
+	"github.com/libsv/go-bt/v2"
+
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	apiMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -35,7 +37,7 @@ func TestClient_SetUnlockedByName(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			apiClient := &mocks.MetaMorphAPIClientMock{
+			apiClient := &apiMocks.MetaMorphAPIClientMock{
 				SetUnlockedByNameFunc: func(ctx context.Context, in *metamorph_api.SetUnlockedByNameRequest, opts ...grpc.CallOption) (*metamorph_api.SetUnlockedByNameResponse, error) {
 					return &metamorph_api.SetUnlockedByNameResponse{RecordsAffected: 5}, tc.setUnlockedErr
 				},
@@ -162,7 +164,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			apiClient := &mocks.MetaMorphAPIClientMock{
+			apiClient := &apiMocks.MetaMorphAPIClientMock{
 				PutTransactionFunc: func(ctx context.Context, in *metamorph_api.TransactionRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
 					return tc.putTxStatus, tc.putTxErr
 				},
@@ -388,7 +390,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			apiClient := &mocks.MetaMorphAPIClientMock{
+			apiClient := &apiMocks.MetaMorphAPIClientMock{
 				PutTransactionsFunc: func(ctx context.Context, in *metamorph_api.TransactionRequests, opts ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
 					return tc.putTxStatus, tc.putTxErr
 				},

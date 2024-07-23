@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -268,7 +268,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	}
 
 	// Return the status if it has greater or equal value
-	if statusValueMap[returnedStatus.GetStatus()] >= statusValueMap[waitForStatus] {
+	if returnedStatus.GetStatus() >= waitForStatus {
 		return returnedStatus
 	}
 
@@ -303,7 +303,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 			}
 
 			// Return the status if it has greater or equal value
-			if statusValueMap[returnedStatus.GetStatus()] >= statusValueMap[waitForStatus] {
+			if returnedStatus.GetStatus() >= waitForStatus {
 				return returnedStatus
 			}
 		}

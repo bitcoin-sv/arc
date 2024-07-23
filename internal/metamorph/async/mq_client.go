@@ -1,11 +1,12 @@
 package async
 
 import (
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	"log/slog"
 
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 )
@@ -58,9 +59,7 @@ func (c MQClient) PublishRequestTx(hash []byte) error {
 }
 
 func (c MQClient) SubscribeSubmittedTx() error {
-
 	subscription, err := c.nc.QueueSubscribe(submitTxTopic, consumerQueue, func(msg *nats.Msg) {
-
 		serialized := &metamorph_api.TransactionRequest{}
 		err := proto.Unmarshal(msg.Data, serialized)
 		if err != nil {
@@ -81,9 +80,7 @@ func (c MQClient) SubscribeSubmittedTx() error {
 }
 
 func (c MQClient) SubscribeMinedTxs() error {
-
 	subscription, err := c.nc.QueueSubscribe(minedTxsTopic, consumerQueue, func(msg *nats.Msg) {
-
 		serialized := &blocktx_api.TransactionBlocks{}
 		err := proto.Unmarshal(msg.Data, serialized)
 		if err != nil {
@@ -104,7 +101,6 @@ func (c MQClient) SubscribeMinedTxs() error {
 }
 
 func (c MQClient) Shutdown() error {
-
 	err := c.nc.Drain()
 	if err != nil {
 		return err

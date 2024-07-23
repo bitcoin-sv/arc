@@ -6,8 +6,8 @@ import (
 	"encoding/hex"
 	"errors"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/libsv/go-bt/v2"
 )
 

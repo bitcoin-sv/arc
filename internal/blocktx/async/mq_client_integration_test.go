@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/nats-io/nats.go"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
@@ -93,7 +93,6 @@ func TestNatsClient(t *testing.T) {
 	}
 
 	t.Run("publish mined txs", func(t *testing.T) {
-
 		minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 100)
 
 		_, err := natsConn.QueueSubscribe(minedTxsTopic, "queue", func(msg *nats.Msg) {
@@ -173,7 +172,6 @@ func TestNatsClient(t *testing.T) {
 				}
 			}
 		}
-
 	})
 
 	t.Run("subscribe request txs", func(t *testing.T) {

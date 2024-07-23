@@ -63,7 +63,7 @@ gen:
 	--go_opt=paths=source_relative \
 	--go-grpc_out=. \
 	--go-grpc_opt=paths=source_relative \
-	pkg/metamorph/metamorph_api/metamorph_api.proto
+	internal/metamorph/metamorph_api/metamorph_api.proto
 
 	protoc \
 	--proto_path=. \
@@ -71,7 +71,7 @@ gen:
 	--go_opt=paths=source_relative \
 	--go-grpc_out=. \
 	--go-grpc_opt=paths=source_relative \
-	pkg/blocktx/blocktx_api/blocktx_api.proto
+	internal/blocktx/blocktx_api/blocktx_api.proto
 
 .PHONY: clean_gen
 clean_gen:

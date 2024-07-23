@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
@@ -66,6 +66,7 @@ type MetamorphStore interface {
 	Ping(ctx context.Context) error
 
 	GetStats(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*Stats, error)
+	GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, error)
 }
 
 type UpdateStatus struct {

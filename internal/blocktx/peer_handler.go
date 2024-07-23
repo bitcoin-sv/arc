@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/bitcoin-sv/arc/pkg/blocktx/blocktx_api"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
@@ -181,7 +181,6 @@ func WithTracer() func(handler *PeerHandler) {
 }
 
 func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func(*PeerHandler)) (*PeerHandler, error) {
-
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -421,33 +420,27 @@ func (ph *PeerHandler) registerTransactions(txHashes []*blocktx_api.TransactionA
 	}
 }
 
-func (ph *PeerHandler) HandleTransactionGet(_ *wire.InvVect, peer p2p.PeerI) ([]byte, error) {
-
+func (ph *PeerHandler) HandleTransactionsGet(_ []*wire.InvVect, peer p2p.PeerI) ([][]byte, error) {
 	return nil, nil
 }
 
 func (ph *PeerHandler) HandleTransactionSent(_ *wire.MsgTx, peer p2p.PeerI) error {
-
 	return nil
 }
 
 func (ph *PeerHandler) HandleTransactionAnnouncement(_ *wire.InvVect, peer p2p.PeerI) error {
-
 	return nil
 }
 
 func (ph *PeerHandler) HandleTransactionRejection(_ *wire.MsgReject, _ p2p.PeerI) error {
-
 	return nil
 }
 
 func (ph *PeerHandler) HandleTransaction(_ *wire.MsgTx, _ p2p.PeerI) error {
-
 	return nil
 }
 
 func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI) error {
-
 	pair := hashPeer{
 		Hash: &msg.Hash,
 		Peer: peer,
@@ -546,7 +539,6 @@ const (
 )
 
 func (ph *PeerHandler) fillGaps(peer p2p.PeerI) error {
-
 	heightRange := ph.dataRetentionDays * hoursPerDay * blocksPerHour
 
 	blockHeightGaps, err := ph.store.GetBlockGaps(ph.ctx, heightRange)
@@ -576,7 +568,6 @@ func (ph *PeerHandler) fillGaps(peer p2p.PeerI) error {
 }
 
 func (ph *PeerHandler) insertBlock(ctx context.Context, blockHash *chainhash.Hash, merkleRoot *chainhash.Hash, previousBlockHash *chainhash.Hash, height uint64) (uint64, error) {
-
 	ph.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Int64("height", int64(height)))
 
 	block := &blocktx_api.Block{
@@ -736,12 +727,10 @@ func ExtractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
 }
 
 func (ph *PeerHandler) Shutdown() {
-
 	if ph.cancelAll != nil {
 		ph.cancelAll()
 	}
 	ph.waitGroup.Wait()
-
 }
 
 // for testing purposes

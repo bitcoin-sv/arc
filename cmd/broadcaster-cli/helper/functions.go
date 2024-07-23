@@ -2,11 +2,12 @@ package helper
 
 import (
 	"fmt"
-	"github.com/lmittmann/tint"
 	"log/slog"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/lmittmann/tint"
 
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
@@ -133,4 +134,57 @@ func GetBool(settingName string) (bool, error) {
 
 func GetLogger() *slog.Logger {
 	return slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelDebug}))
+}
+
+func GetKeySetsFor(keys map[string]string, selectedKeys []string) ([]*keyset.KeySet, error) {
+	var keySets []*keyset.KeySet
+
+	if len(keys) == 0 {
+		return nil, fmt.Errorf("no keys given in configuration")
+	}
+
+	if len(selectedKeys) > 0 {
+		for _, selectedKey := range selectedKeys {
+			key, found := keys[selectedKey]
+			if !found {
+				return nil, fmt.Errorf("key not found: %s", selectedKey)
+			}
+			fundingKeySet, _, err := GetKeySetsXpriv(key)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get key sets: %v", err)
+			}
+			keySets = append(keySets, fundingKeySet)
+		}
+	} else {
+		for _, key := range keys {
+			fundingKeySet, _, err := GetKeySetsXpriv(key)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get key sets: %v", err)
+			}
+			keySets = append(keySets, fundingKeySet)
+		}
+	}
+
+	return keySets, nil
+}
+
+func GetPrivateKeys() (map[string]string, error) {
+	var keys map[string]string
+	err := viper.UnmarshalKey("privateKeys", &keys)
+	if err != nil {
+		return nil, err
+	}
+	return keys, nil
+}
+
+func GetKeySets() ([]*keyset.KeySet, error) {
+	keysFlag := viper.GetString("keys")
+	selectedKeys := strings.Split(keysFlag, ",")
+
+	keys, err := GetPrivateKeys()
+	if err != nil {
+		return nil, err
+	}
+
+	return GetKeySetsFor(keys, selectedKeys)
 }

@@ -17,12 +17,12 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/config"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	btxMocks "github.com/bitcoin-sv/arc/pkg/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/metamorph_api"
 	mtmMocks "github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
 	"github.com/labstack/echo/v4"
 	"github.com/libsv/go-bt/v2"
@@ -619,7 +619,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		options := api.POSTTransactionsParams{
 			XCallbackUrl:   PtrTo("callback.example.com"),
 			XCallbackToken: PtrTo("test-token"),
-			XWaitForStatus: PtrTo(4),
+			XWaitFor:       PtrTo(metamorph_api.Status_name[int32(metamorph_api.Status_ANNOUNCED_TO_NETWORK)]),
 		}
 
 		err = defaultHandler.POSTTransactions(ctx, options)
@@ -1041,7 +1041,8 @@ func TestGetTransactionOptions(t *testing.T) {
 			expectedErrorStr: "invalid callback URL",
 		},
 		{
-			name: "wait for status - 1",
+			// NOTE: deprecated, to be removed soon
+			name: "wait for status - QUEUED",
 			params: api.POSTTransactionParams{
 				XWaitForStatus: PtrTo(1),
 			},
@@ -1052,7 +1053,8 @@ func TestGetTransactionOptions(t *testing.T) {
 			},
 		},
 		{
-			name: "wait for status - 2",
+			// NOTE: deprecated, to be removed soon
+			name: "wait for status - RECEIVED",
 			params: api.POSTTransactionParams{
 				XWaitForStatus: PtrTo(2),
 			},
@@ -1063,7 +1065,8 @@ func TestGetTransactionOptions(t *testing.T) {
 			},
 		},
 		{
-			name: "wait for status - 6",
+			// NOTE: deprecated, to be removed soon
+			name: "wait for status - SENT_TO_NETWORK",
 			params: api.POSTTransactionParams{
 				XWaitForStatus: PtrTo(6),
 			},
@@ -1074,13 +1077,69 @@ func TestGetTransactionOptions(t *testing.T) {
 			},
 		},
 		{
-			name: "wait for status - 7",
+			// NOTE: deprecated, to be removed soon
+			name: "wait for status - ACCEPTED_BY_NETWORK",
 			params: api.POSTTransactionParams{
 				XWaitForStatus: PtrTo(7),
 			},
 
 			expectedOptions: &metamorph.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+				MaxTimeout:    5,
+			},
+		},
+		{
+			name: "wait for - QUEUED",
+			params: api.POSTTransactionParams{
+				XWaitFor: PtrTo("QUEUED"),
+			},
+
+			expectedOptions: &metamorph.TransactionOptions{
+				WaitForStatus: metamorph_api.Status_QUEUED,
+				MaxTimeout:    5,
+			},
+		},
+		{
+			name: "wait for - RECEIVED",
+			params: api.POSTTransactionParams{
+				XWaitFor: PtrTo("RECEIVED"),
+			},
+
+			expectedOptions: &metamorph.TransactionOptions{
+				WaitForStatus: metamorph_api.Status_RECEIVED,
+				MaxTimeout:    5,
+			},
+		},
+		{
+			name: "wait for - SENT_TO_NETWORK",
+			params: api.POSTTransactionParams{
+				XWaitFor: PtrTo("SENT_TO_NETWORK"),
+			},
+
+			expectedOptions: &metamorph.TransactionOptions{
+				WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
+				MaxTimeout:    5,
+			},
+		},
+		{
+			name: "wait for - ACCEPTED_BY_NETWORK",
+			params: api.POSTTransactionParams{
+				XWaitFor: PtrTo("ACCEPTED_BY_NETWORK"),
+			},
+
+			expectedOptions: &metamorph.TransactionOptions{
+				WaitForStatus: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+				MaxTimeout:    5,
+			},
+		},
+		{
+			name: "wait for - SEEN_ON_NETWORK",
+			params: api.POSTTransactionParams{
+				XWaitFor: PtrTo("SEEN_ON_NETWORK"),
+			},
+
+			expectedOptions: &metamorph.TransactionOptions{
+				WaitForStatus: metamorph_api.Status_SEEN_ON_NETWORK,
 				MaxTimeout:    5,
 			},
 		},

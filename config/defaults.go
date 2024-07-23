@@ -69,7 +69,7 @@ func getMetamorphConfig() *MetamorphConfig {
 		ProcessStatusUpdateInterval: 5 * time.Second,
 		CheckSeenOnNetworkOlderThan: 3 * time.Hour,
 		CheckSeenOnNetworkPeriod:    4 * time.Hour,
-		MonitorPeersInterval:        0, // optional
+		MonitorPeers:                false,
 		CheckUtxos:                  false,
 		Health: &HealthConfig{
 			SeverDialAddr:             "localhost:8005",
@@ -91,6 +91,7 @@ func getBlocktxConfig() *BlocktxConfig {
 		Db:                            getDbConfig("blocktx"),
 		RecordRetentionDays:           28,
 		RegisterTxsInterval:           10 * time.Second,
+		MonitorPeers:                  false,
 		FillGapsInterval:              15 * time.Minute,
 		MaxAllowedBlockHeightMismatch: 3,
 		MessageQueue: &MessageQueueConfig{

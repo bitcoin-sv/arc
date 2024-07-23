@@ -54,7 +54,7 @@ type MetamorphConfig struct {
 	ProcessStatusUpdateInterval time.Duration `mapstructure:"processStatusUpdateInterval"`
 	CheckSeenOnNetworkOlderThan time.Duration `mapstructure:"checkSeenOnNetworkOlderThan"`
 	CheckSeenOnNetworkPeriod    time.Duration `mapstructure:"checkSeenOnNetworkPeriod"`
-	MonitorPeersInterval        time.Duration `mapstructure:"monitorPeersInterval"`
+	MonitorPeers                bool          `mapstructure:"monitorPeers"`
 	CheckUtxos                  bool          `mapstructure:"checkUtxos"`
 	Health                      *HealthConfig `mapstructure:"health"`
 	RejectCallbackContaining    []string      `mapstructure:"rejectCallbackContaining"`
@@ -68,6 +68,7 @@ type BlocktxConfig struct {
 	Db                            *DbConfig           `mapstructure:"db"`
 	RecordRetentionDays           int                 `mapstructure:"recordRetentionDays"`
 	RegisterTxsInterval           time.Duration       `mapstructure:"registerTxsInterval"`
+	MonitorPeers                  bool                `mapstructure:"monitorPeers"`
 	FillGapsInterval              time.Duration       `mapstructure:"fillGapsInterval"`
 	MaxAllowedBlockHeightMismatch int                 `mapstructure:"maxAllowedBlockHeightMismatch"`
 	MessageQueue                  *MessageQueueConfig `mapstructure:"mq"`

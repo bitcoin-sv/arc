@@ -334,6 +334,41 @@ func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.Transact
 	return txn, nil
 }
 
+func (s *Server) GetManyTransactions(ctx context.Context, req *metamorph_api.ManyTransactionsStatusRequest) (*metamorph_api.Transactions, error) {
+	data, err := s.getTransactionsData(ctx, req)
+	if err != nil {
+		s.logger.Error("failed to get transactions", slog.String("err", err.Error()))
+		return nil, err
+	}
+
+	res := make([]*metamorph_api.Transaction, 0, len(data))
+	for _, sd := range data {
+		txn := &metamorph_api.Transaction{
+			Txid:         sd.Hash.String(),
+			Status:       sd.Status,
+			BlockHeight:  sd.BlockHeight,
+			RejectReason: sd.RejectReason,
+			RawTx:        sd.RawTx,
+		}
+		if sd.BlockHash != nil {
+			txn.BlockHash = sd.BlockHash.String()
+		}
+		if !sd.AnnouncedAt.IsZero() {
+			txn.AnnouncedAt = timestamppb.New(sd.AnnouncedAt)
+		}
+		if !sd.MinedAt.IsZero() {
+			txn.MinedAt = timestamppb.New(sd.MinedAt)
+		}
+		if !sd.StoredAt.IsZero() {
+			txn.StoredAt = timestamppb.New(sd.StoredAt)
+		}
+
+		res = append(res, txn)
+	}
+
+	return &metamorph_api.Transactions{Transactions: res}, nil
+}
+
 func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.TransactionStatus, error) {
 	data, announcedAt, minedAt, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
@@ -390,6 +425,21 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 	}
 
 	return data, announcedAt, minedAt, storedAt, nil
+}
+
+func (s *Server) getTransactionsData(ctx context.Context, req *metamorph_api.ManyTransactionsStatusRequest) ([]*store.StoreData, error) {
+	keys := make([][]byte, 0, len(req.TxIDs))
+	for _, id := range req.TxIDs {
+
+		idBytes, err := hex.DecodeString(id)
+		if err != nil {
+			return nil, err
+		}
+
+		keys = append(keys, bt.ReverseBytes(idBytes))
+	}
+
+	return s.store.GetMany(ctx, keys)
 }
 
 func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (*metamorph_api.SetUnlockedByNameResponse, error) {

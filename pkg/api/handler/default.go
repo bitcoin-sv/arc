@@ -325,6 +325,8 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 
 	if params.XSkipFeeValidation != nil {
 		transactionOptions.SkipFeeValidation = *params.XSkipFeeValidation
+	} else if params.XCumulativeFeeValidation != nil {
+		transactionOptions.CumulativeFeeValidation = *params.XCumulativeFeeValidation
 	}
 
 	if params.XSkipScriptValidation != nil {
@@ -459,10 +461,9 @@ func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidato
 }
 
 func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.BeefValidator, beefTx *beef.BEEF, options *metamorph.TransactionOptions) *api.ErrorFields {
-	// TODO: wait for the decision from the managment
-	// if transactionOptions.SkipTxValidation {
-	// 	return nil
-	// }
+	if options.SkipTxValidation {
+		return nil
+	}
 
 	feeOpts, scriptOpts := toValidationOpts(options)
 
@@ -589,6 +590,8 @@ func toValidationOpts(opts *metamorph.TransactionOptions) (validator.FeeValidati
 	fv := validator.StandardFeeValidation
 	if opts.SkipFeeValidation {
 		fv = validator.NoneFeeValidation
+	} else if opts.CumulativeFeeValidation {
+		fv = validator.CumulativeFeeValidation
 	}
 
 	sv := validator.StandardScriptValidation

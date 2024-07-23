@@ -101,6 +101,7 @@ paths:
         - $ref: '#/components/parameters/skipFeeValidation'
         - $ref: '#/components/parameters/skipScriptValidation'
         - $ref: '#/components/parameters/skipTxValidation'
+        - $ref: '#/components/parameters/cumulativeFeeValidation'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/waitForStatus'
         - $ref: '#/components/parameters/waitFor'
@@ -251,6 +252,7 @@ paths:
         - $ref: '#/components/parameters/skipFeeValidation'
         - $ref: '#/components/parameters/skipScriptValidation'
         - $ref: '#/components/parameters/skipTxValidation'
+        - $ref: '#/components/parameters/cumulativeFeeValidation'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/waitForStatus'
         - $ref: '#/components/parameters/waitFor'
@@ -1019,6 +1021,13 @@ components:
       in: header
       description: >-
         Whether we should skip overall tx validation or not.
+      schema:
+        type: boolean
+    cumulativeFeeValidation:
+      name: X-CumulativeFeeValidation
+      in: header
+      description: >-
+        Whether we should perform cumulative fee validation for fee consolidation txs or not.
       schema:
         type: boolean
     callbackToken:

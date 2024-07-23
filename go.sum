@@ -351,7 +351,6 @@ github.com/libsv/go-bt v1.0.8 h1:nWLLcnUm0dxNO3exqrL5jvAcTGkl0dsnBuQqB6+M6vQ=
 github.com/libsv/go-bt v1.0.8/go.mod h1:yO023bNYLh5DwcOYl+ZqLAeTemoy6K+2UbQlIBMv+EQ=
 github.com/libsv/go-bt/v2 v2.2.5 h1:VoggBLMRW9NYoFujqe5bSYKqnw5y+fYfufgERSoubog=
 github.com/libsv/go-bt/v2 v2.2.5/go.mod h1:cV45+jDlPOLfhJLfpLmpQoWzrIvVth9Ao2ZO1f6CcqU=
-github.com/libsv/go-p2p v0.3.0/go.mod h1:TENFxbTT/bfSfuiirjU6l+PfAWxwZgF8GYUxs5tzc/M=
 github.com/libsv/go-p2p v0.3.1 h1:vMXj0Y3cLgVHvbt5t700BHJHf3dop2RAmcUf4qn/RIo=
 github.com/libsv/go-p2p v0.3.1/go.mod h1:TENFxbTT/bfSfuiirjU6l+PfAWxwZgF8GYUxs5tzc/M=
 github.com/lmittmann/tint v1.0.3 h1:W5PHeA2D8bBJVvabNfQD/XW9HPLZK1XoPZH0cq8NouQ=

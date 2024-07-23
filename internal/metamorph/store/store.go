@@ -25,6 +25,7 @@ type StoreData struct {
 	FullStatusUpdates bool
 	CallbackToken     string
 	RejectReason      string
+	CompetingTxs      []string
 	LockedBy          string
 	Ttl               int64
 	MerklePath        string

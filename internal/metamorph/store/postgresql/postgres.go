@@ -83,6 +83,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		,callback_token
 		,full_status_updates
 		,reject_reason
+		,competingTxs
 		,raw_tx
 		,locked_by
 		,merkle_path
@@ -100,6 +101,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	var callbackToken sql.NullString
 	var fullStatusUpdates bool
 	var rejectReason sql.NullString
+	var competingTxs []string
 	var rawTx []byte
 	var lockedBy string
 	var merklePath sql.NullString
@@ -117,6 +119,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		&callbackToken,
 		&fullStatusUpdates,
 		&rejectReason,
+		&competingTxs,
 		&rawTx,
 		&lockedBy,
 		&merklePath,
@@ -398,6 +401,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 		,callback_token
 		,full_status_updates
 		,reject_reason
+		,competing_txs
 		,raw_tx
 		,locked_by
 		,merkle_path
@@ -465,6 +469,7 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 		,callback_token
 		,full_status_updates
     ,reject_reason
+		,competing_txs
 		,raw_tx
 		,locked_by
     ,merkle_path
@@ -510,9 +515,8 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 			rejectReasons[i] = update.Error.Error()
 		}
 
-		if update.CompetingTxs == nil {
-			competingTxs[i] = []string{}
-		} else {
+		competingTxs[i] = []string{}
+		if update.CompetingTxs != nil {
 			competingTxs[i] = update.CompetingTxs
 		}
 	}
@@ -631,6 +635,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 		,t.callback_token
 		,t.full_status_updates
 		,t.reject_reason
+		,t.competing_txs
 		,t.raw_tx
 		,t.locked_by
 		,t.merkle_path
@@ -689,6 +694,7 @@ func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, e
 		var callbackUrl sql.NullString
 		var callbackToken sql.NullString
 		var rejectReason sql.NullString
+		var competingTxs []string
 		var merklePath sql.NullString
 		var retries sql.NullInt32
 
@@ -704,6 +710,7 @@ func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, e
 			&callbackToken,
 			&data.FullStatusUpdates,
 			&rejectReason,
+			&competingTxs,
 			&data.RawTx,
 			&data.LockedBy,
 			&merklePath,
@@ -753,6 +760,10 @@ func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, e
 
 		if rejectReason.Valid {
 			data.RejectReason = rejectReason.String
+		}
+
+		if competingTxs != nil {
+			data.CompetingTxs = competingTxs
 		}
 
 		if merklePath.Valid {

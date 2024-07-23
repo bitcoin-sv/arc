@@ -111,18 +111,23 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 		blockHash = utils.ReverseAndHexEncodeSlice(tx.BlockHash.CloneBytes())
 	}
 
+	status := &Callback{
+		BlockHash:   &blockHash,
+		BlockHeight: &tx.BlockHeight,
+		TxStatus:    &statusString,
+		Txid:        tx.Hash.String(),
+		Timestamp:   time.Now(),
+		MerklePath:  &tx.MerklePath,
+	}
+
+	if tx.RejectReason != "" {
+		status.ExtraInfo = &tx.RejectReason
+	}
+
 	for i := 0; i < CallbackTries; i++ {
 
 		logger.Debug("Sending callback for transaction", slog.String("hash", tx.Hash.String()), slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("status", statusString), slog.Uint64("block height", tx.BlockHeight), slog.String("block hash", blockHash))
 
-		status := &Callback{
-			BlockHash:   &blockHash,
-			BlockHeight: &tx.BlockHeight,
-			TxStatus:    &statusString,
-			Txid:        tx.Hash.String(),
-			Timestamp:   time.Now(),
-			MerklePath:  &tx.MerklePath,
-		}
 		statusBytes, err := json.Marshal(status)
 		if err != nil {
 			logger.Error("Couldn't marshal status", slog.String("err", err.Error()))

@@ -270,6 +270,25 @@ func TestPostgresDB(t *testing.T) {
 		assert.Equal(t, expectedRawTxs, rawTxs)
 	})
 
+	t.Run("get many", func(t *testing.T) {
+		// when
+		defer require.NoError(t, pruneTables(postgresDB.db))
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+
+		keys := [][]byte{
+			revChainhash(t, "0xcd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")[:],
+			revChainhash(t, "0xee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")[:],
+		}
+
+		// then
+		res, err := postgresDB.GetMany(ctx, keys)
+
+		// assert
+		require.NoError(t, err)
+		require.Len(t, res, len(keys))
+
+	})
+
 	t.Run("set bulk", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 

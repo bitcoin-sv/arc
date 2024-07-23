@@ -3,11 +3,13 @@ package defaultvalidator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	validation "github.com/bitcoin-sv/arc/internal/validator"
+	"github.com/bitcoin-sv/arc/pkg/api"
 
 	fixture "github.com/bitcoin-sv/arc/internal/validator/default/testdata"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
@@ -15,6 +17,7 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/ordishs/go-bitcoin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -130,7 +133,7 @@ func TestValidator(t *testing.T) {
 	t.Run("valid Raw Format tx - expect success", func(t *testing.T) {
 		// when
 		txFinder := mocks.TxFinderIMock{
-			GetRawTxsFunc: func(ctx context.Context, ids []string) ([]validation.RawTx, error) {
+			GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
 				res := []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}
 				return res, nil
 			},
@@ -332,4 +335,101 @@ func Test_needExtention(t *testing.T) {
 
 		})
 	}
+}
+
+func Test_cumulativeCheckFees(t *testing.T) {
+	t.Run("no unmined ancestors - valid fee", func(t *testing.T) {
+		// when
+		txFinder := mocks.TxFinderIMock{
+			GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+				return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
+			},
+		}
+
+		feeQuote := bt.NewFeeQuote()
+		tx, _ := bt.NewTxFromString(fixture.ValidTxRawHex)
+
+		// then
+		vErr := cumulativeCheckFees(context.TODO(), &txFinder, tx, feeQuote)
+
+		// assert
+		require.Nil(t, vErr)
+	})
+
+	t.Run("no unmined ancestors - to low fee", func(t *testing.T) {
+		// when
+		txFinder := mocks.TxFinderIMock{
+			GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+				return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
+			},
+		}
+
+		feeQuote := bt.NewFeeQuote()
+		setFees(feeQuote, 50)
+		tx, _ := bt.NewTxFromString(fixture.ValidTxRawHex)
+
+		// then
+		vErr := cumulativeCheckFees(context.TODO(), &txFinder, tx, feeQuote)
+
+		// assert
+		require.NotNil(t, vErr)
+		assert.Equal(t, "cumulative transaction fee of 16 sat is too low - minimum expected fee is 19 sat", vErr.Err.Error())
+	})
+
+	t.Run("cumulative fees too low", func(t *testing.T) {
+		// when
+		txFinder := mocks.TxFinderIMock{
+			GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+				return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
+			},
+		}
+
+		feeQuote := bt.NewFeeQuote()
+		setFees(feeQuote, 50)
+		tx, _ := bt.NewTxFromString(fixture.ValidTxRawHex)
+
+		// then
+		vErr := cumulativeCheckFees(context.TODO(), &txFinder, tx, feeQuote)
+
+		// assert
+		require.NotNil(t, vErr)
+		assert.Equal(t, "cumulative transaction fee of 16 sat is too low - minimum expected fee is 19 sat", vErr.Err.Error())
+	})
+
+	t.Run("cumulative fees sufficient", func(t *testing.T) {
+		// when
+		txFinder := mocks.TxFinderIMock{
+			GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+				return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
+			},
+		}
+
+		feeQuote := bt.NewFeeQuote()
+		tx, _ := bt.NewTxFromString(fixture.ValidTxRawHex)
+
+		// then
+		vErr := cumulativeCheckFees(context.TODO(), &txFinder, tx, feeQuote)
+
+		// assert
+		require.Nil(t, vErr)
+	})
+
+	t.Run("issue with getUnminedAncestors", func(t *testing.T) {
+		// when
+		txFinder := mocks.TxFinderIMock{
+			GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+				return nil, errors.New("test error")
+			},
+		}
+
+		feeQuote := bt.NewFeeQuote()
+		tx, _ := bt.NewTxFromString(fixture.ValidTxRawHex)
+
+		// then
+		vErr := cumulativeCheckFees(context.TODO(), &txFinder, tx, feeQuote)
+
+		// assert
+		require.NotNil(t, vErr)
+		assert.Equal(t, api.ErrStatusCumulativeFees, vErr.ArcErrorStatus)
+	})
 }

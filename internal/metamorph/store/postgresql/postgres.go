@@ -224,6 +224,36 @@ func (p *PostgreSQL) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, 
 	return retRawTxs, nil
 }
 
+func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) ([]*store.StoreData, error) {
+	const q = `
+	 SELECT
+	 	hash 
+	 	,stored_at
+		,announced_at
+		,mined_at
+		,last_submitted_at
+		,status
+		,block_height
+		,block_hash
+		,callback_url
+		,callback_token
+		,full_status_updates
+		,reject_reason
+		,raw_tx
+		,locked_by
+		,merkle_path
+		,retries
+	 FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[]));`
+
+	rows, err := p.db.QueryContext(ctx, q, keys)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	return p.getStoreDataFromRows(rows)
+}
+
 func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash) error {
 	q := `UPDATE metamorph.transactions SET retries = retries+1 WHERE hash = $1;`
 

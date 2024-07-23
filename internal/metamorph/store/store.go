@@ -50,6 +50,7 @@ type Stats struct {
 
 type MetamorphStore interface {
 	Get(ctx context.Context, key []byte) (*StoreData, error)
+	GetMany(ctx context.Context, keys [][]byte) ([]*StoreData, error)
 	Set(ctx context.Context, value *StoreData) error
 	SetBulk(ctx context.Context, data []*StoreData) error
 	Del(ctx context.Context, key []byte) error

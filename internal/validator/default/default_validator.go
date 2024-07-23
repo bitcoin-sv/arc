@@ -45,6 +45,10 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *bt.Tx, f
 		if err := standardCheckFees(tx, api.FeesToBtFeeQuote(v.policy.MinMiningTxFee)); err != nil {
 			return err
 		}
+	case validator.CumulativeFeeValidation:
+		if err := cumulativeCheckFees(ctx, v.txFinder, tx, api.FeesToBtFeeQuote(v.policy.MinMiningTxFee)); err != nil {
+			return err
+		}
 	case validator.NoneFeeValidation:
 		// Do not handle the default case on purpose; we shouldn't assume that other types of validation should be omitted
 	}
@@ -93,6 +97,34 @@ func standardCheckFees(tx *bt.Tx, feeQuote *bt.FeeQuote) *validator.Error {
 	if !feesOK {
 		err = fmt.Errorf("transaction fee of %d sat is too low - minimum expected fee is %d sat", actualFeePaid, expFeesPaid)
 		return validator.NewError(err, api.ErrStatusFees)
+	}
+
+	return nil
+}
+
+func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *bt.Tx, feeQuote *bt.FeeQuote) *validator.Error {
+	txSet, err := getUnminedAncestors(ctx, txFinder, tx)
+	if err != nil {
+		return validator.NewError(err, api.ErrStatusCumulativeFees)
+	}
+	txSet[""] = tx // do not need to care about key in the set
+
+	cumulativeExpFee := uint64(0)
+	cumulativePaidFee := uint64(0)
+
+	for _, tx := range txSet {
+		expFees, err := validator.CalculateMiningFeesRequired(tx.SizeWithTypes(), feeQuote)
+		if err != nil {
+			return validator.NewError(err, api.ErrStatusCumulativeFees)
+		}
+
+		cumulativeExpFee += expFees
+		cumulativePaidFee += (tx.TotalInputSatoshis() - tx.TotalOutputSatoshis())
+	}
+
+	if cumulativeExpFee > cumulativePaidFee {
+		err = fmt.Errorf("cumulative transaction fee of %d sat is too low - minimum expected fee is %d sat", cumulativePaidFee, cumulativeExpFee)
+		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}
 
 	return nil

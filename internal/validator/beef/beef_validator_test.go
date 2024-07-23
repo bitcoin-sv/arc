@@ -73,7 +73,6 @@ func TestBeefValidator(t *testing.T) {
 			errTx, err := validator.ValidateTransaction(context.TODO(), beefTx, validation.StandardFeeValidation, validation.StandardScriptValidation)
 
 			// assert
-
 			assert.Equal(t, tc.expectedErr, err)
 			if tc.expectedErrTxID != "" {
 				assert.NotNil(t, errTx)

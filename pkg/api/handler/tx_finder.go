@@ -19,7 +19,7 @@ type txFinder struct {
 	useMainnet bool
 }
 
-func (f txFinder) GetRawTxs(ctx context.Context, ids []string) ([]validator.RawTx, error) {
+func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
 	// NOTE: we can ignore ALL errors from providers, if one returns err we go to another
 
 	// TODO: discuss if it's worth to have implementation for len(ids) == 1
@@ -28,20 +28,31 @@ func (f txFinder) GetRawTxs(ctx context.Context, ids []string) ([]validator.RawT
 	var remainingIDs []string
 
 	// first get transactions from the handler
-	// improvement idea: implement getMany method
-	for _, id := range ids {
-		txBytes, _ := f.th.GetTransaction(ctx, id)
-		if txBytes != nil {
+	if source.Has(validator.SourceTransactionHandler) {
+		txs, _ := f.th.GetManyTransactions(ctx, ids)
+		for _, tx := range txs {
 			rt := validator.RawTx{
-				TxID:  id,
-				Bytes: txBytes,
-				// TODO: add block info?
+				TxID:    tx.TxID,
+				Bytes:   tx.Bytes,
+				IsMined: tx.BlockHeight > 0,
 			}
 
 			foundTxs = append(foundTxs, rt)
+		}
 
-		} else {
-			remainingIDs = append(remainingIDs, id)
+		// add remaining ids
+		for _, id := range ids {
+			found := false
+			for _, tx := range foundTxs {
+				if tx.TxID == id {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				remainingIDs = append(remainingIDs, id)
+			}
 		}
 	}
 
@@ -49,33 +60,37 @@ func (f txFinder) GetRawTxs(ctx context.Context, ids []string) ([]validator.RawT
 	remainingIDs = make([]string, 0)
 
 	// try to get remaining txs from the node
-	for _, id := range ids {
-		nTx, err := getTransactionFromNode(f.pc, id)
-		if err != nil {
-			// do we really need this info?
-			f.l.Warn("failed to get transaction from node", slog.String("id", id), slog.String("err", err.Error()))
+	if source.Has(validator.SourceNodes) {
+		for _, id := range ids {
+			nTx, err := getTransactionFromNode(f.pc, id)
+			if err != nil {
+				// do we really need this info?
+				f.l.Warn("failed to get transaction from node", slog.String("id", id), slog.String("err", err.Error()))
+			}
+			if nTx != nil {
+				rt, e := newRawTx(nTx.TxID, nTx.Hex, nTx.BlockHeight)
+				if e != nil {
+					return nil, e
+				}
+
+				foundTxs = append(foundTxs, rt)
+			} else {
+				remainingIDs = append(remainingIDs, id)
+			}
 		}
-		if nTx != nil {
-			rt, e := newRawTx(nTx.TxID, nTx.Hex, nTx.BlockHeight)
+	}
+
+	// at last try the WoC
+	if source.Has(validator.SourceWoC) {
+		wocTxs, _ := f.w.GetRawTxs(ctx, f.useMainnet, remainingIDs)
+		for _, wTx := range wocTxs {
+			rt, e := newRawTx(wTx.TxID, wTx.Hex, wTx.BlockHeight)
 			if e != nil {
 				return nil, e
 			}
 
 			foundTxs = append(foundTxs, rt)
-		} else {
-			remainingIDs = append(remainingIDs, id)
 		}
-	}
-
-	// at last try the WoC
-	wocTxs, _ := f.w.GetRawTxs(ctx, f.useMainnet, remainingIDs)
-	for _, wTx := range wocTxs {
-		rt, e := newRawTx(wTx.TxID, wTx.Hex, wTx.BlockHeight)
-		if e != nil {
-			return nil, e
-		}
-
-		foundTxs = append(foundTxs, rt)
 	}
 
 	return foundTxs, nil

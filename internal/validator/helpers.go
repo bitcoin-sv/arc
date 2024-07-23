@@ -14,8 +14,20 @@ const (
 	BeefHex
 )
 
+type FindSourceFlag byte
+
+const (
+	SourceTransactionHandler = 1
+	SourceNodes              = 2
+	SourceWoC                = 4
+)
+
+func (flag FindSourceFlag) Has(v FindSourceFlag) bool {
+	return v&flag != 0
+}
+
 type TxFinderI interface {
-	GetRawTxs(ctx context.Context, ids []string) ([]RawTx, error)
+	GetRawTxs(ctx context.Context, source FindSourceFlag, ids []string) ([]RawTx, error)
 }
 
 type RawTx struct {

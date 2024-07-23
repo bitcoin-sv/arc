@@ -25,6 +25,7 @@ const (
 	ErrStatusValidatingMerkleRoots  StatusCode = 469
 	ErrStatusFrozenPolicy           StatusCode = 471
 	ErrStatusFrozenConsensus        StatusCode = 472
+	ErrStatusCumulativeFees         StatusCode = 473
 )
 
 func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {

@@ -18,7 +18,7 @@ require (
 	github.com/libsv/go-bk v0.1.6
 	github.com/libsv/go-bt v1.0.8
 	github.com/libsv/go-bt/v2 v2.2.5
-	github.com/libsv/go-p2p v0.3.1
+	github.com/libsv/go-p2p v0.3.2
 	github.com/lmittmann/tint v1.0.3
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/nats-io/nats.go v1.31.0

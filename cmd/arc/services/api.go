@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/config"
+	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/nats_mq"
@@ -16,7 +17,6 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/async"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/ordishs/go-bitcoin"
@@ -81,7 +81,7 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger, arcConfig *config.ArcConf
 		return fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
 
-	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL)
+	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL, logger)
 	if err != nil {
 		return fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.QueueURL, err)
 	}

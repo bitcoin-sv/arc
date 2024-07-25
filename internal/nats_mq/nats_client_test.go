@@ -3,6 +3,7 @@ package nats_mq
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"testing"
 
@@ -81,7 +82,7 @@ func TestNewNatsClient(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewNatsClient(tc.url)
+			_, err := NewNatsClient(tc.url, slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return

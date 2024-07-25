@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/config"
+	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/internal/metamorph/async"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
@@ -57,12 +57,12 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, capacityRequired)
 	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, capacityRequired)
 
-	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL)
+	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.QueueURL, err)
 	}
 
-	mqClient := async.NewNatsMQClient(natsClient, minedTxsChan, submittedTxsChan, logger)
+	mqClient := async.NewNatsMQClient(natsClient, async.WithLogger(logger), async.WithMinedTxsChan(minedTxsChan), async.WithSubmittedTxsChan(submittedTxsChan))
 
 	err = mqClient.SubscribeMinedTxs()
 	if err != nil {

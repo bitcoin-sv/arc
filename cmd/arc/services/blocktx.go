@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/config"
+	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/nats_mq"
@@ -44,23 +44,25 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		capacityRequired = 100
 	}
 
-	txChannel := make(chan []byte, capacityRequired)
+	registerTxsChan := make(chan []byte, capacityRequired)
 	requestTxChannel := make(chan []byte, capacityRequired)
 
-	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL)
+	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.QueueURL, err)
 	}
 
 	mqOpts := []func(handler *async.MQClient){
 		async.WithMaxBatchSize(btxConfig.MessageQueue.TxsMinedMaxBatchSize),
+		async.WithRequestTxsChan(requestTxChannel),
+		async.WithRegisterTxsChan(registerTxsChan),
 	}
 
 	if tracingEnabled {
 		mqOpts = append(mqOpts, async.WithTracer())
 	}
 
-	mqClient := async.NewNatsMQClient(natsClient, txChannel, requestTxChannel, mqOpts...)
+	mqClient := async.NewNatsMQClient(natsClient, mqOpts...)
 
 	err = mqClient.SubscribeRegisterTxs()
 	if err != nil {
@@ -74,7 +76,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	peerHandlerOpts := []func(handler *blocktx.PeerHandler){
 		blocktx.WithRetentionDays(btxConfig.RecordRetentionDays),
-		blocktx.WithTxChan(txChannel),
+		blocktx.WithRegisterTxsChan(registerTxsChan),
 		blocktx.WithRequestTxChan(requestTxChannel),
 		blocktx.WithRegisterTxsInterval(btxConfig.RegisterTxsInterval),
 		blocktx.WithMessageQueueClient(mqClient),

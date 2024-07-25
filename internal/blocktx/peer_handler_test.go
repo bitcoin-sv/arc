@@ -383,7 +383,7 @@ func TestStartProcessTxs(t *testing.T) {
 				logger,
 				storeMock,
 				blocktx.WithRegisterTxsInterval(time.Millisecond*20),
-				blocktx.WithTxChan(txChan),
+				blocktx.WithRegisterTxsChan(txChan),
 				blocktx.WithRegisterTxsBatchSize(3),
 			)
 			require.NoError(t, err)

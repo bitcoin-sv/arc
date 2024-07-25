@@ -101,7 +101,7 @@ type PeerHandler struct {
 	transactionStorageBatchSize int
 	dataRetentionDays           int
 	mqClient                    MessageQueueClient
-	txChannel                   chan []byte
+	registerTxsChan             chan []byte
 	requestTxChannel            chan []byte
 	registerTxsInterval         time.Duration
 	registerRequestTxsInterval  time.Duration
@@ -150,9 +150,9 @@ func WithRegisterRequestTxsInterval(d time.Duration) func(handler *PeerHandler) 
 	}
 }
 
-func WithTxChan(txChannel chan []byte) func(handler *PeerHandler) {
+func WithRegisterTxsChan(registerTxsChan chan []byte) func(handler *PeerHandler) {
 	return func(handler *PeerHandler) {
-		handler.txChannel = txChannel
+		handler.registerTxsChan = registerTxsChan
 	}
 }
 
@@ -306,7 +306,7 @@ func (ph *PeerHandler) startProcessTxs() {
 			select {
 			case <-ph.ctx.Done():
 				return
-			case txHash := <-ph.txChannel:
+			case txHash := <-ph.registerTxsChan:
 				txHashes = append(txHashes, &blocktx_api.TransactionAndSource{
 					Hash: txHash,
 				})

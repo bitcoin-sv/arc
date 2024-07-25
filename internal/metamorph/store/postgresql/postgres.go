@@ -227,11 +227,10 @@ func (p *PostgreSQL) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, 
 func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) ([]*store.StoreData, error) {
 	const q = `
 	 SELECT
-	 	hash 
-	 	,stored_at
+	 	stored_at
 		,announced_at
 		,mined_at
-		,last_submitted_at
+		,hash
 		,status
 		,block_height
 		,block_hash
@@ -245,7 +244,7 @@ func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) ([]*store.Store
 		,retries
 	 FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[]));`
 
-	rows, err := p.db.QueryContext(ctx, q, keys)
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(keys))
 	if err != nil {
 		return nil, err
 	}

@@ -127,11 +127,7 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 					return []validator.RawTx{testdata.AncestorTx1, testdata.AncestorTx2}
 				}
 
-				if i > 1 {
-					panic("error in geting uncestor algorythm - too many cals for partent txs")
-				}
-
-				return nil
+				panic("too many calls")
 			},
 		},
 		{
@@ -147,13 +143,13 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
 
-			var GetRawTxsFuncCounter int = 0
-			var grtfcPtr *int = &GetRawTxsFuncCounter
+			var getTxsCounter int = 0
+			var counterPtr *int = &getTxsCounter
 
 			txFinder := mocks.TxFinderIMock{
 				GetRawTxsFunc: func(ctx context.Context, sf validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
-					iteration := *grtfcPtr
-					*grtfcPtr = iteration + 1
+					iteration := *counterPtr
+					*counterPtr = iteration + 1
 					return tc.foundTransactionsFn(iteration), nil
 				},
 			}
@@ -166,10 +162,10 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 			// assert
 			require.Equal(t, tc.expectedErr, err)
 
-			if tc.expectedErr != nil {
+			if tc.expectedErr == nil {
 				expectedUnminedAncestors := make([]validator.RawTx, 0)
 
-				for i := 0; i < GetRawTxsFuncCounter; i++ {
+				for i := 0; i < getTxsCounter; i++ {
 					for _, t := range tc.foundTransactionsFn(i) {
 						if !t.IsMined {
 							expectedUnminedAncestors = append(expectedUnminedAncestors, t)

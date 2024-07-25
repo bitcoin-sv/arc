@@ -347,6 +347,7 @@ func Test_cumulativeCheckFees(t *testing.T) {
 		}
 
 		feeQuote := bt.NewFeeQuote()
+		setFees(feeQuote, 1)
 		tx, _ := bt.NewTxFromString(fixture.ValidTxRawHex)
 
 		// then
@@ -378,9 +379,28 @@ func Test_cumulativeCheckFees(t *testing.T) {
 
 	t.Run("cumulative fees too low", func(t *testing.T) {
 		// when
+		var getRawTxCount int = 0
+		var couterPtr *int = &getRawTxCount
+
 		txFinder := mocks.TxFinderIMock{
 			GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
-				return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
+				i := *couterPtr
+				*couterPtr = i + 1
+
+				if i == 0 {
+					p1 := validation.RawTx{
+						TxID:    fixture.ParentTx1.TxID,
+						Bytes:   fixture.ParentTx1.Bytes,
+						IsMined: false,
+					}
+					return []validation.RawTx{p1, fixture.ParentTx2}, nil
+				}
+
+				if i == 1 {
+					return []validation.RawTx{fixture.AncestorTx1, fixture.AncestorTx2}, nil
+				}
+
+				panic("to many calls")
 			},
 		}
 
@@ -393,18 +413,38 @@ func Test_cumulativeCheckFees(t *testing.T) {
 
 		// assert
 		require.NotNil(t, vErr)
-		assert.Equal(t, "cumulative transaction fee of 16 sat is too low - minimum expected fee is 19 sat", vErr.Err.Error())
+		assert.Equal(t, "cumulative transaction fee of 32 sat is too low - minimum expected fee is 38 sat", vErr.Err.Error())
 	})
 
 	t.Run("cumulative fees sufficient", func(t *testing.T) {
 		// when
+		var getRawTxCount int = 0
+		var couterPtr *int = &getRawTxCount
+
 		txFinder := mocks.TxFinderIMock{
 			GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
-				return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
+				i := *couterPtr
+				*couterPtr = i + 1
+
+				if i == 0 {
+					p1 := validation.RawTx{
+						TxID:    fixture.ParentTx1.TxID,
+						Bytes:   fixture.ParentTx1.Bytes,
+						IsMined: false,
+					}
+					return []validation.RawTx{p1, fixture.ParentTx2}, nil
+				}
+
+				if i == 1 {
+					return []validation.RawTx{fixture.AncestorTx1, fixture.AncestorTx2}, nil
+				}
+
+				panic("to many calls")
 			},
 		}
 
 		feeQuote := bt.NewFeeQuote()
+		setFees(feeQuote, 1)
 		tx, _ := bt.NewTxFromString(fixture.ValidTxRawHex)
 
 		// then

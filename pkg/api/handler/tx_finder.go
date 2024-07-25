@@ -81,7 +81,7 @@ func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag
 	}
 
 	// at last try the WoC
-	if source.Has(validator.SourceWoC) {
+	if source.Has(validator.SourceWoC) && len(remainingIDs) > 0 {
 		wocTxs, _ := f.w.GetRawTxs(ctx, f.useMainnet, remainingIDs)
 		for _, wTx := range wocTxs {
 			rt, e := newRawTx(wTx.TxID, wTx.Hex, wTx.BlockHeight)

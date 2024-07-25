@@ -114,8 +114,8 @@ func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *bt.Tx) 
 			continue // we don't need its ancestors
 		}
 
-		// TODO: refactorize it
 		bt, _ := bt.NewTxFromBytes(p.Bytes)
+		unmindedAncestorsSet[p.TxID] = bt
 
 		// get parent ancestors
 		parentAncestorsSet, err := getUnminedAncestors(ctx, w, bt)

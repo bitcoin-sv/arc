@@ -283,7 +283,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	errFieldSubmitTx := *api.NewErrorFields(api.ErrStatusGeneric, "failed to submit tx")
 	errFieldSubmitTx.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
-	errFieldValidation := *api.NewErrorFields(api.ErrStatusFees, "arc error 465: transaction fee of 0 sat is too low - minimum expected fee is 1 sat")
+	errFieldValidation := *api.NewErrorFields(api.ErrStatusFees, "arc error 465: transaction fee of 12 sat is too low - minimum expected fee is 22500000000 sat")
 	errFieldValidation.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
 	errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error decoding BEEF: invalid BEEF - HasBUMP flag set, but no BUMP index")
@@ -304,6 +304,8 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 		expectedStatus   api.StatusCode
 		expectedResponse any
+
+		expectedFee uint64
 	}{
 		{
 			name:        "empty tx - text/plain",
@@ -378,7 +380,8 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			name:        "valid tx - fees too low",
 			contentType: contentTypes[0],
 			txHexString: validTx,
-			getTx:       inputTxLowFeesBytes,
+			getTx:       validTxParentBytes,
+			expectedFee: 1000,
 
 			expectedStatus:   465,
 			expectedResponse: errFieldValidation,
@@ -387,7 +390,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			name:             "valid tx - submit error",
 			contentType:      contentTypes[0],
 			txHexString:      validExtendedTx,
-			getTx:            inputTxLowFeesBytes,
+			getTx:            validTxParentBytes,
 			submitTxErr:      errors.New("failed to submit tx"),
 			submitTxResponse: nil,
 
@@ -527,16 +530,30 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			inputTx := strings.NewReader(tc.txHexString)
-			rec, ctx := createEchoPostRequest(inputTx, tc.contentType, "/v1/tx")
+			// when
+			policy := *defaultPolicy
+			if tc.expectedFee > 0 {
+				policy.MinMiningTxFee = float64(tc.expectedFee)
+			}
 
 			txHandler := &mtmMocks.TransactionHandlerMock{
 				HealthFunc: func(ctx context.Context) error {
 					return nil
 				},
 
-				GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
-					return tc.getTx, nil
+				GetManyTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+					if tc.getTx != nil {
+						bt, _ := bt.NewTxFromBytes(tc.getTx)
+
+						mt := metamorph.Transaction{
+							TxID:        bt.TxID(),
+							Bytes:       tc.getTx,
+							BlockHeight: 100,
+						}
+						return []*metamorph.Transaction{&mt}, nil
+					}
+
+					return nil, nil
 				},
 
 				SubmitTransactionFunc: func(ctx context.Context, tx *bt.Tx, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
@@ -558,10 +575,16 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			arcConfig, err := config.Load()
 			require.NoError(t, err, "error loading config")
 
-			defaultHandler, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, arcConfig.PeerRpc, arcConfig.Api, WithNow(func() time.Time { return now }))
+			sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, &policy, arcConfig.PeerRpc, arcConfig.Api, WithNow(func() time.Time { return now }))
 			require.NoError(t, err)
 
-			err = defaultHandler.POSTTransaction(ctx, api.POSTTransactionParams{})
+			inputTx := strings.NewReader(tc.txHexString)
+			rec, ctx := createEchoPostRequest(inputTx, tc.contentType, "/v1/tx")
+
+			// then
+			err = sut.POSTTransaction(ctx, api.POSTTransactionParams{})
+
+			// assert
 			require.NoError(t, err)
 
 			assert.Equal(t, int(tc.expectedStatus), rec.Code)
@@ -687,6 +710,9 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return txStatuses, nil
 			},
 
+			GetManyTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+				return nil, metamorph.ErrTransactionNotFound
+			},
 			GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
 				return nil, metamorph.ErrTransactionNotFound
 			},
@@ -875,6 +901,16 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mtmMocks.TransactionHandlerMock{
+			GetManyTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+				bt, _ := bt.NewTxFromBytes(validTxParentBytes)
+				return []*metamorph.Transaction{
+					{
+						TxID:        bt.TxID(),
+						Bytes:       validTxParentBytes,
+						BlockHeight: 100,
+					},
+				}, nil
+			},
 			GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
 				return validTxParentBytes, nil
 			},

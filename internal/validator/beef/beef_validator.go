@@ -101,6 +101,10 @@ func cumulativeCheckFees(beefTx *beef.BEEF, feeQuote *bt.FeeQuote) *validator.Er
 	cumulativePaidFee := uint64(0)
 
 	for _, bTx := range beefTx.Transactions {
+		if bTx.IsMined() {
+			continue
+		}
+
 		tx := bTx.Transaction
 
 		expFees, err := validator.CalculateMiningFeesRequired(tx.SizeWithTypes(), feeQuote)

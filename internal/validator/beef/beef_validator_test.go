@@ -10,6 +10,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	validation "github.com/bitcoin-sv/arc/internal/validator"
+	"github.com/bitcoin-sv/arc/internal/validator/mocks"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/assert"
@@ -53,16 +54,26 @@ func TestBeefValidator(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// when
 			beefHex, err := hex.DecodeString(tc.beefStr)
 			require.NoError(t, err)
 
-			beef, _, err := beef.DecodeBEEF(beefHex)
+			beefTx, _, err := beef.DecodeBEEF(beefHex)
 			require.NoError(t, err)
 
-			policy := getPolicy(1)
-			validator := New(policy)
+			mrVerifier := mocks.MerkleVerifierIMock{
+				VerifyFunc: func(ctx context.Context, request []beef.MerkleRootVerificationRequest) ([]uint64, error) {
+					return nil, nil
+				},
+			}
 
-			errTx, err := validator.ValidateTransaction(context.TODO(), beef, validation.StandardFeeValidation, validation.StandardScriptValidation)
+			validator := New(getPolicy(1), &mrVerifier)
+
+			//then
+			errTx, err := validator.ValidateTransaction(context.TODO(), beefTx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+
+			// assert
+
 			assert.Equal(t, tc.expectedErr, err)
 			if tc.expectedErrTxID != "" {
 				assert.NotNil(t, errTx)
@@ -119,7 +130,7 @@ func TestValidateScripts(t *testing.T) {
 	testCases := []struct {
 		name          string
 		beefStr       string
-		expectedError error
+		expectedError *validation.Error
 	}{
 		{
 			name:          "Valid Full Mined Beef",
@@ -146,8 +157,8 @@ func TestValidateScripts(t *testing.T) {
 			beefTx, _, err := beef.DecodeBEEF(beefHex)
 			require.NoError(t, err)
 
-			err = validateScripts(beefTx.GetLatestTx(), beefTx.Transactions)
-			assert.Equal(t, tc.expectedError, err)
+			vErr := validateScripts(beefTx.GetLatestTx(), beefTx.Transactions)
+			assert.Equal(t, tc.expectedError, vErr)
 		})
 	}
 }

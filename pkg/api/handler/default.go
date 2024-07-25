@@ -17,6 +17,7 @@ import (
 	beefValidator "github.com/bitcoin-sv/arc/internal/validator/beef"
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/internal/version"
+	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
@@ -31,14 +32,14 @@ const (
 )
 
 type ArcDefaultHandler struct {
-	TransactionHandler            metamorph.TransactionHandler
-	MerkleRootsVerifier           blocktx.MerkleRootsVerifier
-	NodePolicy                    *bitcoin.Settings
+	TransactionHandler metamorph.TransactionHandler
+	NodePolicy         *bitcoin.Settings
+
 	logger                        *slog.Logger
 	now                           func() time.Time
 	rejectedCallbackUrlSubstrings []string
-	peerRpcConfig                 *config.PeerRpcConfig
-	apiConfig                     *config.ApiConfig
+	txFinder                      validator.TxFinderI
+	mrVerifier                    validator.MerkleVerifierI
 }
 
 func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
@@ -63,15 +64,34 @@ func NewDefault(
 	peerRpcConfig *config.PeerRpcConfig,
 	apiConfig *config.ApiConfig,
 	opts ...Option,
-) (api.ServerInterface, error) {
+) (*ArcDefaultHandler, error) {
+
+	var wocClient *woc_client.WocClient
+	if apiConfig != nil {
+		wocClient = woc_client.New(woc_client.WithAuth(apiConfig.WocApiKey))
+	} else {
+		wocClient = woc_client.New()
+	}
+
+	finder := txFinder{
+		th:         transactionHandler,
+		pc:         peerRpcConfig,
+		l:          logger,
+		w:          wocClient,
+		useMainnet: true, // TODO: refactor in scope of ARCO-147
+	}
+
+	mr := merkleVerifier{
+		v: merkleRootsVerifier,
+	}
+
 	handler := &ArcDefaultHandler{
-		TransactionHandler:  transactionHandler,
-		MerkleRootsVerifier: merkleRootsVerifier,
-		NodePolicy:          policy,
-		logger:              logger,
-		now:                 time.Now,
-		peerRpcConfig:       peerRpcConfig,
-		apiConfig:           apiConfig,
+		TransactionHandler: transactionHandler,
+		NodePolicy:         policy,
+		logger:             logger,
+		now:                time.Now,
+		txFinder:           &finder,
+		mrVerifier:         mr,
 	}
 
 	// apply options
@@ -350,7 +370,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 
 			txsHex = remainingBytes
 
-			v := beefValidator.New(m.NodePolicy)
+			v := beefValidator.New(m.NodePolicy, m.mrVerifier)
 			if arcError := m.validateBEEFTransaction(ctx, v, beefTx, options); arcError != nil {
 				fails = append(fails, arcError)
 				continue
@@ -370,7 +390,8 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			}
 
 			txsHex = txsHex[bytesUsed:]
-			v := defaultValidator.New(m.NodePolicy)
+
+			v := defaultValidator.New(m.NodePolicy, m.txFinder)
 			if arcError := m.validateEFTransaction(ctx, v, transaction, options); arcError != nil {
 				fails = append(fails, arcError)
 				continue
@@ -422,86 +443,32 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 }
 
 func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.DefaultValidator, transaction *bt.Tx, options *metamorph.TransactionOptions) *api.ErrorFields {
-	// the validator expects an extended transaction
-	// we must enrich the transaction with the missing data
-	if !txValidator.IsExtended(transaction) {
-		err := m.extendTransaction(ctx, transaction)
-		if err != nil {
-			statusCode, arcError := m.handleError(ctx, transaction, err)
-			m.logger.Error("failed to extend transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
-			return arcError
-		}
+	if options.SkipTxValidation {
+		return nil
 	}
 
-	if !options.SkipTxValidation {
-		feeOpts, scriptOpts := toValidationOpts(options)
+	feeOpts, scriptOpts := toValidationOpts(options)
 
-		if err := txValidator.ValidateTransaction(ctx, transaction, feeOpts, scriptOpts); err != nil {
-			statusCode, arcError := m.handleError(ctx, transaction, err)
-			m.logger.Error("failed to validate transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
-			return arcError
-		}
-	}
-
-	return nil
-}
-
-func (m ArcDefaultHandler) extendTransaction(ctx context.Context, transaction *bt.Tx) (err error) {
-	parentTxBytes := make(map[string][]byte)
-	var btParentTx *bt.Tx
-
-	// get the missing input data for the transaction
-	for _, input := range transaction.Inputs {
-		parentTxIDStr := input.PreviousTxIDStr()
-		b, ok := parentTxBytes[parentTxIDStr]
-		if !ok {
-			b, err = m.getTransaction(ctx, parentTxIDStr)
-			if err != nil {
-				return err
-			}
-			parentTxBytes[parentTxIDStr] = b
-		}
-
-		btParentTx, err = bt.NewTxFromBytes(b)
-		if err != nil {
-			return err
-		}
-
-		if len(btParentTx.Outputs) < int(input.PreviousTxOutIndex) {
-			return fmt.Errorf("output %d not found in transaction %s", input.PreviousTxOutIndex, parentTxIDStr)
-		}
-		output := btParentTx.Outputs[input.PreviousTxOutIndex]
-
-		input.PreviousTxScript = output.LockingScript
-		input.PreviousTxSatoshis = output.Satoshis
+	if err := txValidator.ValidateTransaction(ctx, transaction, feeOpts, scriptOpts); err != nil {
+		statusCode, arcError := m.handleError(ctx, transaction, err)
+		m.logger.Error("failed to validate transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
+		return arcError
 	}
 
 	return nil
 }
 
 func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.BeefValidator, beefTx *beef.BEEF, options *metamorph.TransactionOptions) *api.ErrorFields {
+	// TODO: wait for the decision from the managment
+	// if transactionOptions.SkipTxValidation {
+	// 	return nil
+	// }
+
 	feeOpts, scriptOpts := toValidationOpts(options)
 
 	if errTx, err := txValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts); err != nil {
 		_, arcError := m.handleError(ctx, errTx, err)
 		return arcError
-	}
-
-	merkleRoots, err := beef.CalculateMerkleRootsFromBumps(beefTx.BUMPs)
-	if err != nil {
-		return api.NewErrorFields(api.ErrStatusCalculatingMerkleRoots, err.Error())
-	}
-
-	merkleRootsRequest := convertMerkleRootsRequest(merkleRoots)
-
-	unverifiedBlockHeights, err := m.MerkleRootsVerifier.VerifyMerkleRoots(ctx, merkleRootsRequest)
-	if err != nil {
-		return api.NewErrorFields(api.ErrStatusValidatingMerkleRoots, err.Error())
-	}
-
-	if len(unverifiedBlockHeights) > 0 {
-		err := fmt.Errorf("unable to verify BUMPs with block heights: %v", unverifiedBlockHeights)
-		return api.NewErrorFields(api.ErrStatusValidatingMerkleRoots, err.Error())
 	}
 
 	return nil
@@ -558,8 +525,6 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, subm
 	ok := errors.As(submitErr, &validatorErr)
 	if ok {
 		status = validatorErr.ArcErrorStatus
-	} else if errors.Is(submitErr, metamorph.ErrParentTransactionNotFound) {
-		status = api.ErrStatusTxFormat
 	}
 
 	// enrich the response with the error details
@@ -570,38 +535,6 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, subm
 	}
 
 	return status, arcError
-}
-
-// getTransaction returns the transaction with the given id from a store.
-func (m ArcDefaultHandler) getTransaction(ctx context.Context, inputTxID string) ([]byte, error) {
-	// get from our transaction handler
-	txBytes, _ := m.TransactionHandler.GetTransaction(ctx, inputTxID)
-	// ignore error, we try other options if we don't find it
-	if txBytes != nil {
-		return txBytes, nil
-	}
-
-	// get from node
-	txBytes, err := getTransactionFromNode(m.peerRpcConfig, inputTxID)
-	if err != nil {
-		m.logger.Warn("failed to get transaction from node", slog.String("id", inputTxID), slog.String("err", err.Error()))
-	}
-	// we can ignore any error here, we just check whether we have the transaction
-	if txBytes != nil {
-		return txBytes, nil
-	}
-
-	// get from woc
-	txBytes, err = getTransactionFromWhatsOnChain(ctx, m.apiConfig.WocApiKey, inputTxID)
-	if err != nil {
-		m.logger.Warn("failed to get transaction from WhatsOnChain", slog.String("id", inputTxID), slog.String("err", err.Error()))
-	}
-	// we can ignore any error here, we just check whether we have the transaction
-	if txBytes != nil {
-		return txBytes, nil
-	}
-
-	return nil, metamorph.ErrParentTransactionNotFound
 }
 
 func prepareSizingInfo(txs []*bt.Tx) [][]uint64 {

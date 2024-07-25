@@ -7,25 +7,29 @@ import (
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-bt/v2/bscript/interpreter"
 	"github.com/ordishs/go-bitcoin"
 )
 
 type DefaultValidator struct {
-	policy *bitcoin.Settings
+	policy   *bitcoin.Settings
+	txFinder validator.TxFinderI
 }
 
-func New(policy *bitcoin.Settings) *DefaultValidator {
+func New(policy *bitcoin.Settings, finder validator.TxFinderI) *DefaultValidator {
 	return &DefaultValidator{
-		policy: policy,
+		policy:   policy,
+		txFinder: finder,
 	}
 }
 
 func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *bt.Tx, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) error { //nolint:funlen - mostly comments
 	// 0) Check whether we have a complete transaction in extended format, with all input information
 	//    we cannot check the satoshi input, OP_RETURN is allowed 0 satoshis
-	if !v.IsExtended(tx) {
-		return validator.NewError(fmt.Errorf("transaction is not in extended format"), api.ErrStatusTxFormat)
+	if needsExtension(tx, feeValidation, scriptValidation) {
+		err := extendTx(ctx, v.txFinder, tx)
+		if err != nil {
+			return validator.NewError(err, api.ErrStatusTxFormat)
+		}
 	}
 
 	// The rest of the validation steps
@@ -56,7 +60,17 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *bt.Tx, f
 	return nil
 }
 
-func (v *DefaultValidator) IsExtended(tx *bt.Tx) bool {
+func needsExtension(tx *bt.Tx, fv validator.FeeValidation, sv validator.ScriptValidation) bool {
+	// don't need if we don't validate fee AND scripts
+	if fv == validator.NoneFeeValidation && sv == validator.NoneScriptValidation {
+		return false
+	}
+
+	// don't need if is extended already
+	return !isExtended(tx)
+}
+
+func isExtended(tx *bt.Tx) bool {
 	if tx == nil || tx.Inputs == nil {
 		return false
 	}
@@ -70,7 +84,7 @@ func (v *DefaultValidator) IsExtended(tx *bt.Tx) bool {
 	return true
 }
 
-func standardCheckFees(tx *bt.Tx, feeQuote *bt.FeeQuote) error {
+func standardCheckFees(tx *bt.Tx, feeQuote *bt.FeeQuote) *validator.Error {
 	feesOK, expFeesPaid, actualFeePaid, err := isFeePaidEnough(feeQuote, tx)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusFees)
@@ -108,12 +122,8 @@ func checkScripts(tx *bt.Tx) error {
 			LockingScript: in.PreviousTxScript,
 		}
 
-		if err := interpreter.NewEngine().Execute(
-			interpreter.WithTx(tx, i, prevOutput),
-			interpreter.WithForkID(),
-			interpreter.WithAfterGenesis(),
-		); err != nil {
-			return fmt.Errorf("script execution failed: %w", err)
+		if err := validator.CheckScript(tx, i, prevOutput); err != nil {
+			return err
 		}
 	}
 

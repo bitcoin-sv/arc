@@ -10,17 +10,18 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-bt/v2/bscript/interpreter"
 	"github.com/ordishs/go-bitcoin"
 )
 
 type BeefValidator struct {
-	policy *bitcoin.Settings
+	policy     *bitcoin.Settings
+	mrVerifier validator.MerkleVerifierI
 }
 
-func New(policy *bitcoin.Settings) *BeefValidator {
+func New(policy *bitcoin.Settings, mrVerifier validator.MerkleVerifierI) *BeefValidator {
 	return &BeefValidator{
-		policy: policy,
+		policy:     policy,
+		mrVerifier: mrVerifier,
 	}
 }
 
@@ -56,12 +57,14 @@ func (v *BeefValidator) ValidateTransaction(ctx context.Context, beefTx *beef.BE
 		return beefTx.GetLatestTx(), validator.NewError(err, api.ErrStatusMinedAncestorsNotFound)
 	}
 
-	// TODO: verify merkle roots
+	if vErr := verifyMerkleRoots(ctx, v.mrVerifier, beefTx); vErr != nil {
+		return beefTx.GetLatestTx(), vErr
+	}
 
 	return nil, nil
 }
 
-func standardCheckFees(tx *bt.Tx, beefTx *beef.BEEF, feeQuote *bt.FeeQuote) error {
+func standardCheckFees(tx *bt.Tx, beefTx *beef.BEEF, feeQuote *bt.FeeQuote) *validator.Error {
 	expectedFees, err := validator.CalculateMiningFeesRequired(tx.SizeWithTypes(), feeQuote)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusFees)
@@ -105,7 +108,7 @@ func calculateInputsOutputsSatoshis(tx *bt.Tx, inputTxs []*beef.TxData) (uint64,
 	return inputSum, outputSum, nil
 }
 
-func validateScripts(tx *bt.Tx, inputTxs []*beef.TxData) error {
+func validateScripts(tx *bt.Tx, inputTxs []*beef.TxData) *validator.Error {
 	for i, input := range tx.Inputs {
 		inputParentTx := findParentForInput(input, inputTxs)
 		if inputParentTx == nil {
@@ -121,18 +124,30 @@ func validateScripts(tx *bt.Tx, inputTxs []*beef.TxData) error {
 	return nil
 }
 
-// TODO move to common
+func verifyMerkleRoots(ctx context.Context, v validator.MerkleVerifierI, beefTx *beef.BEEF) *validator.Error {
+	mr, err := beef.CalculateMerkleRootsFromBumps(beefTx.BUMPs)
+	if err != nil {
+		return validator.NewError(err, api.ErrStatusCalculatingMerkleRoots)
+	}
+
+	unverifiedBlocks, err := v.Verify(ctx, mr)
+	if err != nil {
+		return validator.NewError(err, api.ErrStatusValidatingMerkleRoots)
+	}
+
+	if len(unverifiedBlocks) > 0 {
+		err := fmt.Errorf("unable to verify BUMPs with block heights: %v", unverifiedBlocks)
+		return validator.NewError(err, api.ErrStatusValidatingMerkleRoots)
+	}
+
+	return nil
+}
+
 func checkScripts(tx, prevTx *bt.Tx, inputIdx int) error {
 	input := tx.InputIdx(inputIdx)
 	prevOutput := prevTx.OutputIdx(int(input.PreviousTxOutIndex))
 
-	err := interpreter.NewEngine().Execute(
-		interpreter.WithTx(tx, inputIdx, prevOutput),
-		interpreter.WithForkID(),
-		interpreter.WithAfterGenesis(),
-	)
-
-	return err
+	return validator.CheckScript(tx, inputIdx, prevOutput)
 }
 
 func ensureAncestorsArePresentInBump(tx *bt.Tx, beefTx *beef.BEEF) error {

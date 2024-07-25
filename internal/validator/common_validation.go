@@ -47,7 +47,7 @@ func CalculateMiningFeesRequired(size *bt.TxSize, fees *bt.FeeQuote) (uint64, er
 	return feesRequiredRounded, nil
 }
 
-func CommonValidateTransaction(policy *bitcoin.Settings, tx *bt.Tx) error {
+func CommonValidateTransaction(policy *bitcoin.Settings, tx *bt.Tx) *Error {
 	//
 	// Each node will verify every transaction against a long checklist of criteria:
 	//
@@ -110,7 +110,7 @@ func checkTxSize(txSize int, policy *bitcoin.Settings) error {
 	return nil
 }
 
-func checkOutputs(tx *bt.Tx) error {
+func checkOutputs(tx *bt.Tx) *Error {
 	total := uint64(0)
 	for index, output := range tx.Outputs {
 		isData := output.LockingScript.IsData()
@@ -130,7 +130,7 @@ func checkOutputs(tx *bt.Tx) error {
 	return nil
 }
 
-func checkInputs(tx *bt.Tx) error {
+func checkInputs(tx *bt.Tx) *Error {
 	total := uint64(0)
 	for index, input := range tx.Inputs {
 		if hex.EncodeToString(input.PreviousTxID()) == coinbaseTxID {
@@ -205,6 +205,20 @@ func pushDataCheck(tx *bt.Tx) error {
 		if !parsedUnlockingScript.IsPushOnly() {
 			return fmt.Errorf("transaction input %d unlocking script is not push only", index)
 		}
+	}
+
+	return nil
+}
+
+func CheckScript(tx *bt.Tx, inputIdx int, prevTxOutput *bt.Output) error {
+	err := interpreter.NewEngine().Execute(
+		interpreter.WithTx(tx, inputIdx, prevTxOutput),
+		interpreter.WithForkID(),
+		interpreter.WithAfterGenesis(),
+	)
+
+	if err != nil {
+		return fmt.Errorf("script execution failed: %w", err)
 	}
 
 	return nil

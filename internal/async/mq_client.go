@@ -1,6 +1,7 @@
 package async
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -9,10 +10,14 @@ import (
 	"github.com/nats-io/nats.go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
 	maxBatchSizeDefault = 20
+
+	SubmitTxTopic = "submit-tx"
+	submitTxGroup = "submit-tx-group"
 )
 
 var tracer trace.Tracer
@@ -98,6 +103,29 @@ func (c MQClient) Shutdown() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (c MQClient) Publish(topic string, hash []byte) error {
+	err := c.nc.Publish(topic, hash)
+	if err != nil {
+		return fmt.Errorf("failed to publish on %s topic: %w", topic, err)
+	}
+
+	return nil
+}
+
+func (c MQClient) PublishMarshal(topic string, m proto.Message) error {
+	data, err := proto.Marshal(m)
+	if err != nil {
+		return err
+	}
+
+	err = c.nc.Publish(topic, data)
+	if err != nil {
+		return fmt.Errorf("failed to publish on %s topic: %w", topic, err)
 	}
 
 	return nil

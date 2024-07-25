@@ -1,9 +1,10 @@
 package metamorph
 
-import "github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+import (
+	"google.golang.org/protobuf/proto"
+)
 
 type MessageQueueClient interface {
-	PublishSubmitTx(tx *metamorph_api.TransactionRequest) error
-	PublishSubmitTxs(txs *metamorph_api.TransactionRequests) error
+	PublishMarshal(topic string, m proto.Message) error
 	Shutdown() error
 }

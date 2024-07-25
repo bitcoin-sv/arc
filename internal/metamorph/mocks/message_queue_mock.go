@@ -18,11 +18,8 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //
 //		// make and configure a mocked metamorph.MessageQueueClient
 //		mockedMessageQueueClient := &MessageQueueClientMock{
-//			PublishRegisterTxsFunc: func(hash []byte) error {
-//				panic("mock out the PublishRegisterTxs method")
-//			},
-//			PublishRequestTxFunc: func(hash []byte) error {
-//				panic("mock out the PublishRequestTx method")
+//			PublishFunc: func(topic string, hash []byte) error {
+//				panic("mock out the Publish method")
 //			},
 //			ShutdownFunc: func() error {
 //				panic("mock out the Shutdown method")
@@ -40,11 +37,8 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //
 //	}
 type MessageQueueClientMock struct {
-	// PublishRegisterTxsFunc mocks the PublishRegisterTxs method.
-	PublishRegisterTxsFunc func(hash []byte) error
-
-	// PublishRequestTxFunc mocks the PublishRequestTx method.
-	PublishRequestTxFunc func(hash []byte) error
+	// PublishFunc mocks the Publish method.
+	PublishFunc func(topic string, hash []byte) error
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func() error
@@ -57,13 +51,10 @@ type MessageQueueClientMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// PublishRegisterTxs holds details about calls to the PublishRegisterTxs method.
-		PublishRegisterTxs []struct {
-			// Hash is the hash argument value.
-			Hash []byte
-		}
-		// PublishRequestTx holds details about calls to the PublishRequestTx method.
-		PublishRequestTx []struct {
+		// Publish holds details about calls to the Publish method.
+		Publish []struct {
+			// Topic is the topic argument value.
+			Topic string
 			// Hash is the hash argument value.
 			Hash []byte
 		}
@@ -77,74 +68,45 @@ type MessageQueueClientMock struct {
 		SubscribeSubmittedTx []struct {
 		}
 	}
-	lockPublishRegisterTxs   sync.RWMutex
-	lockPublishRequestTx     sync.RWMutex
+	lockPublish              sync.RWMutex
 	lockShutdown             sync.RWMutex
 	lockSubscribeMinedTxs    sync.RWMutex
 	lockSubscribeSubmittedTx sync.RWMutex
 }
 
-// PublishRegisterTxs calls PublishRegisterTxsFunc.
-func (mock *MessageQueueClientMock) PublishRegisterTxs(hash []byte) error {
-	if mock.PublishRegisterTxsFunc == nil {
-		panic("MessageQueueClientMock.PublishRegisterTxsFunc: method is nil but MessageQueueClient.PublishRegisterTxs was just called")
+// Publish calls PublishFunc.
+func (mock *MessageQueueClientMock) Publish(topic string, hash []byte) error {
+	if mock.PublishFunc == nil {
+		panic("MessageQueueClientMock.PublishFunc: method is nil but MessageQueueClient.Publish was just called")
 	}
 	callInfo := struct {
-		Hash []byte
+		Topic string
+		Hash  []byte
 	}{
-		Hash: hash,
+		Topic: topic,
+		Hash:  hash,
 	}
-	mock.lockPublishRegisterTxs.Lock()
-	mock.calls.PublishRegisterTxs = append(mock.calls.PublishRegisterTxs, callInfo)
-	mock.lockPublishRegisterTxs.Unlock()
-	return mock.PublishRegisterTxsFunc(hash)
+	mock.lockPublish.Lock()
+	mock.calls.Publish = append(mock.calls.Publish, callInfo)
+	mock.lockPublish.Unlock()
+	return mock.PublishFunc(topic, hash)
 }
 
-// PublishRegisterTxsCalls gets all the calls that were made to PublishRegisterTxs.
+// PublishCalls gets all the calls that were made to Publish.
 // Check the length with:
 //
-//	len(mockedMessageQueueClient.PublishRegisterTxsCalls())
-func (mock *MessageQueueClientMock) PublishRegisterTxsCalls() []struct {
-	Hash []byte
+//	len(mockedMessageQueueClient.PublishCalls())
+func (mock *MessageQueueClientMock) PublishCalls() []struct {
+	Topic string
+	Hash  []byte
 } {
 	var calls []struct {
-		Hash []byte
+		Topic string
+		Hash  []byte
 	}
-	mock.lockPublishRegisterTxs.RLock()
-	calls = mock.calls.PublishRegisterTxs
-	mock.lockPublishRegisterTxs.RUnlock()
-	return calls
-}
-
-// PublishRequestTx calls PublishRequestTxFunc.
-func (mock *MessageQueueClientMock) PublishRequestTx(hash []byte) error {
-	if mock.PublishRequestTxFunc == nil {
-		panic("MessageQueueClientMock.PublishRequestTxFunc: method is nil but MessageQueueClient.PublishRequestTx was just called")
-	}
-	callInfo := struct {
-		Hash []byte
-	}{
-		Hash: hash,
-	}
-	mock.lockPublishRequestTx.Lock()
-	mock.calls.PublishRequestTx = append(mock.calls.PublishRequestTx, callInfo)
-	mock.lockPublishRequestTx.Unlock()
-	return mock.PublishRequestTxFunc(hash)
-}
-
-// PublishRequestTxCalls gets all the calls that were made to PublishRequestTx.
-// Check the length with:
-//
-//	len(mockedMessageQueueClient.PublishRequestTxCalls())
-func (mock *MessageQueueClientMock) PublishRequestTxCalls() []struct {
-	Hash []byte
-} {
-	var calls []struct {
-		Hash []byte
-	}
-	mock.lockPublishRequestTx.RLock()
-	calls = mock.calls.PublishRequestTx
-	mock.lockPublishRequestTx.RUnlock()
+	mock.lockPublish.RLock()
+	calls = mock.calls.Publish
+	mock.lockPublish.RUnlock()
 	return calls
 }
 

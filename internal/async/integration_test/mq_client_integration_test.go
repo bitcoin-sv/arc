@@ -127,7 +127,7 @@ func TestNatsClient(t *testing.T) {
 		time.Sleep(1 * time.Second)
 
 		t.Log("publish")
-		err = mqClient.PublishSubmitTxs(txRequests)
+		err = mqClient.PublishMarshal(async.SubmitTxTopic, txRequests)
 		require.NoError(t, err)
 
 		counter := 0
@@ -236,7 +236,7 @@ func TestNatsClient(t *testing.T) {
 		time.Sleep(1 * time.Second)
 
 		t.Log("publish")
-		err = mqClient.PublishSubmitTxs(txRequests)
+		err = mqClient.PublishMarshal(async.SubmitTxTopic, txRequests)
 		require.NoError(t, err)
 
 		counter := 0
@@ -271,13 +271,13 @@ func TestNatsClient(t *testing.T) {
 		time.Sleep(1 * time.Second)
 
 		t.Log("publish")
-		err = mqClient.PublishRegisterTxs(testdata.TX1Hash[:])
+		err = mqClient.Publish(async.RegisterTxTopic, testdata.TX1Hash[:])
 		require.NoError(t, err)
-		err = mqClient.PublishRegisterTxs(testdata.TX1Hash[:])
+		err = mqClient.Publish(async.RegisterTxTopic, testdata.TX1Hash[:])
 		require.NoError(t, err)
-		err = mqClient.PublishRegisterTxs(testdata.TX1Hash[:])
+		err = mqClient.Publish(async.RegisterTxTopic, testdata.TX1Hash[:])
 		require.NoError(t, err)
-		err = mqClient.PublishRegisterTxs(testdata.TX1Hash[:])
+		err = mqClient.Publish(async.RegisterTxTopic, testdata.TX1Hash[:])
 		require.NoError(t, err)
 
 		counter := 0
@@ -311,13 +311,13 @@ func TestNatsClient(t *testing.T) {
 		time.Sleep(1 * time.Second)
 
 		t.Log("publish")
-		err = mqClient.PublishRequestTx(testdata.TX1Hash[:])
+		err = mqClient.Publish(async.RequestTxTopic, testdata.TX1Hash[:])
 		require.NoError(t, err)
-		err = mqClient.PublishRequestTx(testdata.TX1Hash[:])
+		err = mqClient.Publish(async.RequestTxTopic, testdata.TX1Hash[:])
 		require.NoError(t, err)
-		err = mqClient.PublishRequestTx(testdata.TX1Hash[:])
+		err = mqClient.Publish(async.RequestTxTopic, testdata.TX1Hash[:])
 		require.NoError(t, err)
-		err = mqClient.PublishRequestTx(testdata.TX1Hash[:])
+		err = mqClient.Publish(async.RequestTxTopic, testdata.TX1Hash[:])
 		require.NoError(t, err)
 
 		counter := 0

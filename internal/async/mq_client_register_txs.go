@@ -29,11 +29,3 @@ func (c MQClient) SubscribeRegisterTxs() error {
 
 	return nil
 }
-func (c MQClient) PublishRegisterTxs(hash []byte) error {
-	err := c.nc.Publish(RegisterTxTopic, hash)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}

@@ -56,7 +56,7 @@ func (c MQClient) publishMinedTxs(txBlockBatch []*blocktx_api.TransactionBlock) 
 
 	err = c.nc.Publish(MinedTxsTopic, data)
 	if err != nil {
-		return fmt.Errorf("failed to publish on %s topic %w", MinedTxsTopic, err)
+		return fmt.Errorf("failed to publish on %s topic: %w", MinedTxsTopic, err)
 	}
 
 	return nil

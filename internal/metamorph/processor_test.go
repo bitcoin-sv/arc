@@ -224,7 +224,7 @@ func TestProcessTransaction(t *testing.T) {
 			}
 
 			publisher := &mocks.MessageQueueClientMock{
-				PublishRegisterTxsFunc: func(hash []byte) error {
+				PublishFunc: func(topic string, hash []byte) error {
 					return nil
 				},
 			}
@@ -619,7 +619,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			}
 
 			publisher := &mocks.MessageQueueClientMock{
-				PublishRegisterTxsFunc: func(hash []byte) error {
+				PublishFunc: func(topic string, hash []byte) error {
 					return nil
 				},
 			}
@@ -743,10 +743,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			}
 
 			publisher := &mocks.MessageQueueClientMock{
-				PublishRegisterTxsFunc: func(hash []byte) error {
-					return nil
-				},
-				PublishRequestTxFunc: func(hash []byte) error {
+				PublishFunc: func(topic string, hash []byte) error {
 					return nil
 				},
 			}

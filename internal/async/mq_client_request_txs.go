@@ -29,12 +29,3 @@ func (c MQClient) SubscribeRequestTxs() error {
 
 	return nil
 }
-
-func (c MQClient) PublishRequestTx(hash []byte) error {
-	err := c.nc.Publish(RequestTxTopic, hash)
-	if err != nil {
-		return fmt.Errorf("failed to publish on %s topic %w", RequestTxTopic, err)
-	}
-
-	return nil
-}

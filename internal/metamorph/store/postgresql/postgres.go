@@ -526,7 +526,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 			SET
 			status=bulk_query.status,
 			reject_reason=bulk_query.reject_reason
-			competing_txs=ARRAY_CAT(competing_txs, bulk_query.competing_txs)
+			competing_txs=bulk_query.competing_txs
 			FROM
 			(
 				SELECT *

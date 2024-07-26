@@ -34,19 +34,20 @@ type StoreData struct {
 }
 
 type Stats struct {
-	StatusStored              int64
-	StatusAnnouncedToNetwork  int64
-	StatusRequestedByNetwork  int64
-	StatusSentToNetwork       int64
-	StatusAcceptedByNetwork   int64
-	StatusSeenOnNetwork       int64
-	StatusMined               int64
-	StatusRejected            int64
-	StatusSeenInOrphanMempool int64
-	StatusNotSeen             int64
-	StatusNotMined            int64
-	StatusSeenOnNetworkTotal  int64
-	StatusMinedTotal          int64
+	StatusStored               int64
+	StatusAnnouncedToNetwork   int64
+	StatusRequestedByNetwork   int64
+	StatusSentToNetwork        int64
+	StatusAcceptedByNetwork    int64
+	StatusSeenInOrphanMempool  int64
+	StatusSeenOnNetwork        int64
+	StatusDoubleSpendAttempted int64
+	StatusRejected             int64
+	StatusMined                int64
+	StatusNotSeen              int64
+	StatusNotMined             int64
+	StatusSeenOnNetworkTotal   int64
+	StatusMinedTotal           int64
 }
 
 type MetamorphStore interface {
@@ -62,6 +63,7 @@ type MetamorphStore interface {
 	GetSeenOnNetwork(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*StoreData, error)
 	UpdateStatusBulk(ctx context.Context, updates []UpdateStatus) ([]*StoreData, error)
 	UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*StoreData, error)
+	UpdateDoubleSpend(ctx context.Context, updates []UpdateStatus) ([]*StoreData, error)
 	Close(ctx context.Context) error
 	ClearData(ctx context.Context, retentionDays int32) (int64, error)
 	Ping(ctx context.Context) error

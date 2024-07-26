@@ -352,22 +352,6 @@ func (p *Processor) StartSendStatusUpdate() {
 	}()
 }
 
-func (p *Processor) CheckAndUpdate(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
-	if len(statusUpdatesMap) == 0 {
-		return
-	}
-
-	statusUpdates := make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
-	for _, distinctStatusUpdate := range statusUpdatesMap {
-		statusUpdates = append(statusUpdates, distinctStatusUpdate)
-	}
-
-	err := p.statusUpdateWithCallback(statusUpdates)
-	if err != nil {
-		p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
-	}
-}
-
 func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	ticker := time.NewTicker(p.processStatusUpdatesInterval)
 	p.waitGroup.Add(1)
@@ -389,12 +373,12 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				}
 
 				if len(statusUpdatesMap) >= p.processStatusUpdatesBatchSize {
-					p.CheckAndUpdate(statusUpdatesMap)
+					p.checkAndUpdate(statusUpdatesMap)
 					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 				}
 			case <-ticker.C:
 				if len(statusUpdatesMap) > 0 {
-					p.CheckAndUpdate(statusUpdatesMap)
+					p.checkAndUpdate(statusUpdatesMap)
 					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 				}
 			}
@@ -402,10 +386,40 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	}()
 }
 
-func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus) error {
+func (p *Processor) checkAndUpdate(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
+	if len(statusUpdatesMap) == 0 {
+		return
+	}
+
+	statusUpdates := make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
+	doubleSpendUpdates := make([]store.UpdateStatus, 0)
+
+	for _, status := range statusUpdatesMap {
+		if len(status.CompetingTxs) > 0 {
+			doubleSpendUpdates = append(doubleSpendUpdates, status)
+		} else {
+			statusUpdates = append(statusUpdates, status)
+		}
+	}
+
+	err := p.statusUpdateWithCallback(statusUpdates, doubleSpendUpdates)
+	if err != nil {
+		p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
+	}
+}
+
+func (p *Processor) statusUpdateWithCallback(statusUpdates, doubleSpendUpdates []store.UpdateStatus) error {
 	updatedData, err := p.store.UpdateStatusBulk(context.Background(), statusUpdates)
 	if err != nil {
 		return err
+	}
+
+	if len(doubleSpendUpdates) > 0 {
+		updatedDoubleSpendData, err := p.store.UpdateDoubleSpend(context.Background(), doubleSpendUpdates)
+		if err != nil {
+			return err
+		}
+		updatedData = append(updatedData, updatedDoubleSpendData...)
 	}
 
 	for _, data := range updatedData {

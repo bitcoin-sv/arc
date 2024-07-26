@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -83,7 +84,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		,callback_token
 		,full_status_updates
 		,reject_reason
-		,competingTxs
+		,competing_txs
 		,raw_tx
 		,locked_by
 		,merkle_path
@@ -101,7 +102,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	var callbackToken sql.NullString
 	var fullStatusUpdates bool
 	var rejectReason sql.NullString
-	var competingTxs []string
+	var competingTxs string
 	var rawTx []byte
 	var lockedBy string
 	var merklePath sql.NullString
@@ -181,6 +182,10 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		data.RejectReason = rejectReason.String
 	}
 
+	if competingTxs != "" {
+		data.CompetingTxs = strings.Split(competingTxs, ",")
+	}
+
 	data.LockedBy = lockedBy
 
 	if merklePath.Valid {
@@ -252,6 +257,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		,callback_token
 		,full_status_updates
 		,reject_reason
+		,competing_txs
 		,raw_tx
 		,locked_by
 		,last_submitted_at
@@ -270,7 +276,8 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		,$12
 		,$13
 		,$14
-	) ON CONFLICT (hash) DO UPDATE SET last_submitted_at=$14`
+		,$15
+	) ON CONFLICT (hash) DO UPDATE SET last_submitted_at=$15`
 
 	var txHash []byte
 	var blockHash []byte
@@ -300,6 +307,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		value.CallbackToken,
 		value.FullStatusUpdates,
 		value.RejectReason,
+		strings.Join(value.CompetingTxs, ","),
 		value.RawTx,
 		p.hostname,
 		value.LastSubmittedAt,
@@ -504,7 +512,6 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	txHashes := make([][]byte, len(updates))
 	statuses := make([]metamorph_api.Status, len(updates))
 	rejectReasons := make([]string, len(updates))
-	competingTxs := make([][]string, len(updates))
 
 	for i, update := range updates {
 		txHashes[i] = update.Hash.CloneBytes()
@@ -514,11 +521,6 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		if update.Error != nil {
 			rejectReasons[i] = update.Error.Error()
 		}
-
-		competingTxs[i] = []string{}
-		if update.CompetingTxs != nil {
-			competingTxs[i] = update.CompetingTxs
-		}
 	}
 
 	qBulk := `
@@ -526,13 +528,12 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 			SET
 			status=bulk_query.status,
 			reject_reason=bulk_query.reject_reason
-			competing_txs=bulk_query.competing_txs
 			FROM
 			(
 				SELECT *
 						FROM
-						UNNEST($1::BYTEA[], $2::INT[], $3::TEXT[], $4::TEXT[][])
-				AS t(hash, status, reject_reason, competing_txs)
+						UNNEST($1::BYTEA[], $2::INT[], $3::TEXT[])
+				AS t(hash, status, reject_reason)
 			) AS bulk_query
 			WHERE metamorph.transactions.hash=bulk_query.hash
 				AND metamorph.transactions.status < bulk_query.status
@@ -568,7 +569,128 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(competingTxs))
+	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons))
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	res, err := p.getStoreDataFromRows(rows)
+	if err != nil {
+		return res, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+	qBulk := `
+		UPDATE metamorph.transactions
+			SET
+			status=bulk_query.status,
+			competing_txs=bulk_query.competing_txs
+			FROM
+			(
+				SELECT * FROM UNNEST($1::BYTEA[], $2::INT[], $3::TEXT[])
+				AS t(hash, status, competing_txs)
+			) AS bulk_query
+			WHERE metamorph.transactions.hash=bulk_query.hash
+		RETURNING metamorph.transactions.stored_at
+		,metamorph.transactions.announced_at
+		,metamorph.transactions.mined_at
+		,metamorph.transactions.hash
+		,metamorph.transactions.status
+		,metamorph.transactions.block_height
+		,metamorph.transactions.block_hash
+		,metamorph.transactions.callback_url
+		,metamorph.transactions.callback_token
+		,metamorph.transactions.full_status_updates
+		,metamorph.transactions.reject_reason
+		,metamorph.transactions.competing_txs
+		,metamorph.transactions.raw_tx
+		,metamorph.transactions.locked_by
+		,metamorph.transactions.merkle_path
+		,metamorph.transactions.retries
+		;
+    `
+
+	txHashes := make([][]byte, len(updates))
+	for i, update := range updates {
+		txHashes[i] = update.Hash.CloneBytes()
+	}
+
+	tx, err := p.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get current competing transactions and lock them for update
+	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) FOR UPDATE`, pq.Array(txHashes))
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	dbData := make([]*store.StoreData, 0)
+	for rows.Next() {
+		data := &store.StoreData{}
+
+		var hash []byte
+		var competingTxs []string
+
+		err := rows.Scan(
+			&hash,
+			&competingTxs,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(hash) > 0 {
+			data.Hash, err = chainhash.NewHash(hash)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if len(competingTxs) > 0 {
+			data.CompetingTxs = competingTxs
+		}
+
+		dbData = append(dbData, data)
+	}
+
+	txHashes = make([][]byte, len(updates))
+	statuses := make([]metamorph_api.Status, len(updates))
+	competingTxs := make([]string, len(updates))
+
+	for i, update := range updates {
+		txHashes[i] = update.Hash.CloneBytes()
+		statuses[i] = update.Status
+
+		for _, data := range dbData {
+			if data.Hash.IsEqual(&update.Hash) {
+				// get unique values from merged existing competing txs
+				// and incoming ones to avoid duplicates or overridings
+				uniqueTxs := mergeUnique(update.CompetingTxs, data.CompetingTxs)
+				competingTxs[i] = strings.Join(uniqueTxs, ",")
+				break
+			}
+		}
+	}
+
+	rows, err = tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(competingTxs))
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			return nil, err
@@ -694,7 +816,7 @@ func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, e
 		var callbackUrl sql.NullString
 		var callbackToken sql.NullString
 		var rejectReason sql.NullString
-		var competingTxs []string
+		var competingTxs string
 		var merklePath sql.NullString
 		var retries sql.NullInt32
 
@@ -762,8 +884,8 @@ func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, e
 			data.RejectReason = rejectReason.String
 		}
 
-		if competingTxs != nil {
-			data.CompetingTxs = competingTxs
+		if competingTxs != "" {
+			data.CompetingTxs = strings.Split(competingTxs, ",")
 		}
 
 		if merklePath.Valid {
@@ -837,6 +959,7 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 	,max(status_counts.status_count) FILTER (where status_counts.status = $9 )
 	,max(status_counts.status_count) FILTER (where status_counts.status = $10 )
 	,max(status_counts.status_count) FILTER (where status_counts.status = $11 )
+	,max(status_counts.status_count) FILTER (where status_counts.status = $12 )
 	FROM
 	(SELECT all_statuses.status, COALESCE (found_statuses.status_count, 0) AS status_count FROM
 	(SELECT unnest(ARRAY[
@@ -848,7 +971,8 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 	    $8::integer,
 	    $9::integer,
 	    $10::integer,
-	    $11::integer]) AS status) AS all_statuses
+	    $11::integer,
+	    $12::integer]) AS status) AS all_statuses
 	LEFT JOIN
 	(
 	SELECT
@@ -870,20 +994,22 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 		metamorph_api.Status_REQUESTED_BY_NETWORK,
 		metamorph_api.Status_SENT_TO_NETWORK,
 		metamorph_api.Status_ACCEPTED_BY_NETWORK,
-		metamorph_api.Status_SEEN_ON_NETWORK,
-		metamorph_api.Status_MINED,
-		metamorph_api.Status_REJECTED,
 		metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL,
+		metamorph_api.Status_SEEN_ON_NETWORK,
+		metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+		metamorph_api.Status_REJECTED,
+		metamorph_api.Status_MINED,
 	).Scan(
 		&stats.StatusStored,
 		&stats.StatusAnnouncedToNetwork,
 		&stats.StatusRequestedByNetwork,
 		&stats.StatusSentToNetwork,
 		&stats.StatusAcceptedByNetwork,
-		&stats.StatusSeenOnNetwork,
-		&stats.StatusMined,
-		&stats.StatusRejected,
 		&stats.StatusSeenInOrphanMempool,
+		&stats.StatusSeenOnNetwork,
+		&stats.StatusDoubleSpendAttempted,
+		&stats.StatusRejected,
+		&stats.StatusMined,
 	)
 	if err != nil {
 		return nil, err

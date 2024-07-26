@@ -129,20 +129,6 @@ services:
       - nats2-data:/data
       - ./config/nats-server-host-2.conf:/nats-server.conf
 
-  nats-3:
-    image: nats:2.10.10
-    container_name: nats-server-3
-    restart: no
-    ports:
-      - "4224:4222"
-    entrypoint: /nats-server
-    command:
-      - -c=./nats-server.conf
-    hostname: nats-server
-    volumes:
-      - nats3-data:/data
-      - ./config/nats-server-host-3.conf:/nats-server.conf
-
   arc-blocktx:
     image: test-arc:latest
     expose:
@@ -158,7 +144,6 @@ services:
       - migrate-metamorph
       - nats-1
       - nats-2
-      - nats-3
     healthcheck:
       test: ["CMD", "/bin/grpc_health_probe", "-addr=:8006", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
@@ -211,6 +196,4 @@ volumes:
   nats1-data:
     external: false
   nats2-data:
-    external: false
-  nats3-data:
     external: false

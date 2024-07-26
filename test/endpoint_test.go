@@ -281,39 +281,6 @@ func TestPostCallbackToken(t *testing.T) {
 	}
 }
 
-func postTxWithHeadersChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus string, skipFeeValidation bool, skipTxValidation bool) {
-	ctx := context.Background()
-
-	var skipFeeValidationPtr *bool
-	if skipFeeValidation {
-		skipFeeValidationPtr = PtrTo(true)
-	}
-
-	var skipTxValidationPtr *bool
-	if skipTxValidation {
-		skipTxValidationPtr = PtrTo(true)
-	}
-	params := &api.POSTTransactionParams{
-		XWaitFor:           &expectedStatus,
-		XSkipFeeValidation: skipFeeValidationPtr,
-		XSkipTxValidation:  skipTxValidationPtr,
-	}
-
-	arcBody := api.POSTTransactionJSONRequestBody{
-		RawTx: hex.EncodeToString(tx.ExtendedBytes()),
-	}
-
-	var response *api.POSTTransactionResponse
-	response, err := client.POSTTransactionWithResponse(ctx, params, arcBody)
-	require.NoError(t, err)
-	fmt.Println("Response Transaction with Zero fee:", response)
-	fmt.Println("Response Transaction with Zero fee:", response.JSON200)
-
-	require.Equal(t, http.StatusOK, response.StatusCode())
-	require.NotNil(t, response.JSON200)
-	require.Equalf(t, expectedStatus, response.JSON200.TxStatus, "status of response: %s does not match expected status: %s for tx ID %s", response.JSON200.TxStatus, expectedStatus, tx.TxID())
-}
-
 func TestPostSkipFee(t *testing.T) {
 	tt := []struct {
 		name string
@@ -340,7 +307,11 @@ func TestPostSkipFee(t *testing.T) {
 			arcClient, err := api.NewClientWithResponses(arcEndpoint)
 			require.NoError(t, err)
 
-			postTxWithHeadersChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, true, false)
+			options := validationOpts{
+				skipFeeValidation: true,
+			}
+
+			postTxWithHeadersChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, options)
 		})
 	}
 }
@@ -350,7 +321,7 @@ func TestPostSkipTxValidation(t *testing.T) {
 		name string
 	}{
 		{
-			name: "post transaction with skip script validation",
+			name: "post transaction with skip tx validation",
 		},
 	}
 
@@ -370,29 +341,13 @@ func TestPostSkipTxValidation(t *testing.T) {
 			arcClient, err := api.NewClientWithResponses(arcEndpoint)
 			require.NoError(t, err)
 
-			postTxWithHeadersChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, false, true)
+			options := validationOpts{
+				skipTxValidation: true,
+			}
+
+			postTxWithHeadersChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, options)
 		})
 	}
-}
-
-func TestPostWholeValidation(t *testing.T) {
-	t.Run("post tx without validation", func(t *testing.T) {
-		address, privateKey := fundNewWallet(t)
-		utxos := getUtxos(t, address)
-		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
-
-		customFee := uint64(0)
-
-		tx, err := createTx(privateKey, address, utxos[0], customFee)
-		require.NoError(t, err)
-
-		fmt.Println("Transaction with Zero fee:", tx)
-
-		arcClient, err := api.NewClientWithResponses(arcEndpoint)
-		require.NoError(t, err)
-
-		postTxWithHeadersChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", true, true)
-	})
 }
 
 func Test_E2E_Success(t *testing.T) {
@@ -669,4 +624,170 @@ func TestSubmitMinedTx(t *testing.T) {
 	case <-callbackTimeout:
 		t.Fatal("callback exceeded timeout")
 	}
+}
+
+func TestPostCumulativeFeesValidation(t *testing.T) {
+	tt := []struct {
+		name       string
+		options    validationOpts
+		lastTxFee  uint64
+		shouldPass bool
+	}{
+		{
+			name: "post zero fee txs chain with cumulative fees validation and with skiping fee validation - fee validation is ommited",
+			options: validationOpts{
+				performCumulativeFeesValidation: true,
+				skipFeeValidation:               true,
+			},
+			shouldPass: true,
+		},
+		{
+			name: "post zero fee tx with cumulative fees validation and with skiping cumulative fee validation - cumulative fee validation is ommited",
+			options: validationOpts{
+				performCumulativeFeesValidation: false,
+			},
+			lastTxFee:  10,
+			shouldPass: true,
+		},
+		{
+			name: "post  txs chain with too low fee with cumulative fees validation",
+			options: validationOpts{
+				performCumulativeFeesValidation: true,
+			},
+			lastTxFee:  1,
+			shouldPass: false,
+		},
+		{
+			name: "post  txs chain with suficient fee with cumulative fees validation",
+			options: validationOpts{
+				performCumulativeFeesValidation: true,
+			},
+			lastTxFee:  40,
+			shouldPass: true,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			arcClient, err := api.NewClientWithResponses(arcEndpoint)
+			require.NoError(t, err)
+
+			address, privateKey := fundNewWallet(t)
+
+			// create mined ancestor
+			utxos := getUtxos(t, address)
+			require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
+
+			minedTx, err := createTx(privateKey, address, utxos[0], 10)
+			require.NoError(t, err)
+
+			// create unmined zero fee ancestors chain
+			const zeroFee = uint64(0)
+			const zeroChainCount = 3
+			ancestors := make([]*bt.Tx, zeroChainCount)
+
+			parentTx := minedTx
+			for i := 0; i < zeroChainCount; i++ {
+				output := parentTx.Outputs[0]
+				utxo := NodeUnspentUtxo{
+					Txid:         parentTx.TxID(),
+					Vout:         0,
+					Address:      address,
+					ScriptPubKey: output.LockingScript.String(),
+					Amount:       float64(float64(output.Satoshis) / 1e8),
+				}
+
+				tx, err := createTx(privateKey, address, utxo, zeroFee)
+				require.NoError(t, err)
+
+				ancestors[i] = tx
+				parentTx = tx
+			}
+
+			// post ancestor transactions
+			postTxWithHeadersChecksStatus(t, arcClient, minedTx, Status_SEEN_ON_NETWORK, validationOpts{})
+			generate(t, 1) // mine posted transaction
+
+			noValidation := validationOpts{skipTxValidation: true}
+			for _, tx := range ancestors {
+				postTxWithHeadersChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, noValidation)
+			}
+
+			// then
+			// create last transaction in chain
+			parentTx = ancestors[len(ancestors)-1]
+			output := parentTx.Outputs[0]
+			utxo := NodeUnspentUtxo{
+				Txid:         parentTx.TxID(),
+				Vout:         0,
+				Address:      address,
+				ScriptPubKey: output.LockingScript.String(),
+				Amount:       float64(float64(output.Satoshis) / 1e8),
+			}
+
+			childTx, err := createTx(privateKey, address, utxo, tc.lastTxFee)
+			require.NoError(t, err)
+
+			response := postTxWithHeaders(t, arcClient, childTx, Status_SEEN_ON_NETWORK, tc.options)
+
+			// assert
+			if tc.shouldPass {
+				require.Equal(t, int(api.StatusOK), response.StatusCode())
+				require.NotNil(t, response.JSON200)
+				require.Equal(t, Status_SEEN_ON_NETWORK, response.JSON200.TxStatus)
+			} else {
+				require.Equal(t, int(api.ErrStatusCumulativeFees), response.StatusCode())
+			}
+		})
+	}
+}
+
+type validationOpts struct {
+	skipFeeValidation, skipTxValidation, performCumulativeFeesValidation bool
+}
+
+func postTxWithHeadersChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus string, vOpts validationOpts) {
+	t.Helper()
+
+	response := postTxWithHeaders(t, client, tx, expectedStatus, vOpts)
+	require.Equal(t, http.StatusOK, response.StatusCode())
+	require.NotNil(t, response.JSON200)
+	require.Equalf(t, expectedStatus, response.JSON200.TxStatus, "status of response: %s does not match expected status: %s for tx ID %s", response.JSON200.TxStatus, expectedStatus, tx.TxID())
+}
+
+func postTxWithHeaders(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus string, vOpts validationOpts) *api.POSTTransactionResponse {
+	t.Helper()
+
+	var skipFeeValidationPtr *bool
+	if vOpts.skipFeeValidation {
+		skipFeeValidationPtr = PtrTo(true)
+	}
+
+	var skipTxValidationPtr *bool
+	if vOpts.skipTxValidation {
+		skipTxValidationPtr = PtrTo(true)
+	}
+
+	var performCumulativeFeesValidationPtr *bool
+	if vOpts.performCumulativeFeesValidation {
+		performCumulativeFeesValidationPtr = PtrTo(true)
+	}
+
+	params := &api.POSTTransactionParams{
+		XWaitFor:                 &expectedStatus,
+		XSkipFeeValidation:       skipFeeValidationPtr,
+		XSkipTxValidation:        skipTxValidationPtr,
+		XCumulativeFeeValidation: performCumulativeFeesValidationPtr,
+	}
+
+	arcBody := api.POSTTransactionJSONRequestBody{
+		RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+	}
+
+	var response *api.POSTTransactionResponse
+	response, err := client.POSTTransactionWithResponse(context.Background(), params, arcBody)
+	require.NoError(t, err)
+
+	return response
 }

@@ -70,13 +70,14 @@ func (c MQClient) PublishMarshal(topic string, m proto.Message) error {
 		return err
 	}
 
-	err = c.nc.Publish(topic, data)
+	err = c.Publish(topic, data)
 	if err != nil {
 		return fmt.Errorf("failed to publish on %s topic: %w", topic, err)
 	}
 
 	return nil
 }
+
 func (c MQClient) Subscribe(topic string, cb nats.MsgHandler) error {
 
 	_, err := c.nc.QueueSubscribe(topic, topic+"-group", cb)

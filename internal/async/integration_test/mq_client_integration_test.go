@@ -27,6 +27,7 @@ const (
 var (
 	natsConnClient *nats.Conn
 	natsConn       *nats.Conn
+	mqClient       *async.MQClient
 )
 
 func TestMain(m *testing.M) {
@@ -45,6 +46,7 @@ func TestMain(m *testing.M) {
 				{HostIP: "0.0.0.0", HostPort: port},
 			},
 		},
+		Name: "nats-server",
 	}
 
 	resource, err := pool.RunWithOptions(&opts, func(config *docker.HostConfig) {
@@ -73,12 +75,16 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to create nats connection: %v", err)
 	}
 
+	time.Sleep(5 * time.Second)
+
 	code := m.Run()
 
 	err = natsConn.Drain()
 	if err != nil {
 		log.Fatalf("failed to drain nats connection: %v", err)
 	}
+
+	mqClient.Shutdown()
 
 	err = pool.Purge(resource)
 	if err != nil {
@@ -100,12 +106,9 @@ func TestNatsClient(t *testing.T) {
 		MerklePath:      "mp-1",
 	}
 
-	minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
-	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
-
-	mqClient := async.NewNatsMQClient(natsConnClient)
-
 	t.Run("publish", func(t *testing.T) {
+		mqClient = async.NewNatsMQClient(natsConnClient)
+		submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
 		t.Log("subscribe to topic")
 		_, err := natsConnClient.QueueSubscribe(async.SubmitTxTopic, "queue", func(msg *nats.Msg) {
 			serialized := &metamorph_api.TransactionRequest{}
@@ -121,35 +124,44 @@ func TestNatsClient(t *testing.T) {
 			RawTx:         testdata.TX1Raw.Bytes(),
 			WaitForStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 		}
-		txRequests := &metamorph_api.TransactionRequests{Transactions: []*metamorph_api.TransactionRequest{txRequest, txRequest, txRequest, txRequest}}
 
 		time.Sleep(1 * time.Second)
 
 		t.Log("publish")
-		err = mqClient.PublishMarshal(async.SubmitTxTopic, txRequests)
+		err = mqClient.PublishMarshal(async.SubmitTxTopic, txRequest)
+		require.NoError(t, err)
+		err = mqClient.PublishMarshal(async.SubmitTxTopic, txRequest)
+		require.NoError(t, err)
+		err = mqClient.PublishMarshal(async.SubmitTxTopic, txRequest)
+		require.NoError(t, err)
+		err = mqClient.PublishMarshal(async.SubmitTxTopic, txRequest)
 		require.NoError(t, err)
 
 		counter := 0
 		t.Log("wait for submitted txs")
+
 	loop:
 		for {
 			select {
-			case <-time.NewTimer(15 * time.Second).C:
-				t.Fatal("receiving submitted tx timed out")
+			case <-time.NewTimer(500 * time.Millisecond).C:
+				t.Log("timer finished")
+				break loop
 			case data := <-submittedTxsChan:
 				counter++
 				require.Equal(t, txRequest.CallbackUrl, data.CallbackUrl)
 				require.Equal(t, txRequest.CallbackToken, data.CallbackToken)
 				require.Equal(t, txRequest.RawTx, data.RawTx)
 				require.Equal(t, txRequest.WaitForStatus, data.WaitForStatus)
-				if counter >= 4 {
-					break loop
-				}
 			}
 		}
+
+		require.Equal(t, 4, counter)
 	})
 
 	t.Run("subscribe", func(t *testing.T) {
+		mqClient := async.NewNatsMQClient(natsConnClient)
+		minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
+
 		err := mqClient.Subscribe(async.MinedTxsTopic, func(msg *nats.Msg) {
 			serialized := &blocktx_api.TransactionBlock{}
 			err := proto.Unmarshal(msg.Data, serialized)
@@ -158,35 +170,34 @@ func TestNatsClient(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		txBlockBatch := []*blocktx_api.TransactionBlock{txBlock, txBlock, txBlock}
-
-		data, err := proto.Marshal(&blocktx_api.TransactionBlocks{TransactionBlocks: txBlockBatch})
+		data, err := proto.Marshal(txBlock)
 		require.NoError(t, err)
 
 		time.Sleep(1 * time.Second)
 
 		err = natsConn.Publish(async.MinedTxsTopic, data)
 		require.NoError(t, err)
+		err = natsConn.Publish(async.MinedTxsTopic, data)
+		require.NoError(t, err)
+		err = natsConn.Publish(async.MinedTxsTopic, data)
+		require.NoError(t, err)
 
 		counter := 0
-		for minedTxBlock := range minedTxsChan {
 
-			require.Equal(t, minedTxBlock.BlockHash, txBlock.BlockHash)
-			require.Equal(t, minedTxBlock.BlockHeight, txBlock.BlockHeight)
-			require.Equal(t, minedTxBlock.TransactionHash, txBlock.TransactionHash)
-			require.Equal(t, minedTxBlock.MerklePath, txBlock.MerklePath)
-			counter++
-
-			t.Logf("counter, %d", counter)
-			if counter > 1 {
-				break
+	loop:
+		for {
+			select {
+			case <-time.NewTimer(500 * time.Millisecond).C:
+				break loop
+			case minedTxBlock := <-minedTxsChan:
+				counter++
+				require.Equal(t, minedTxBlock.BlockHash, txBlock.BlockHash)
+				require.Equal(t, minedTxBlock.BlockHeight, txBlock.BlockHeight)
+				require.Equal(t, minedTxBlock.TransactionHash, txBlock.TransactionHash)
+				require.Equal(t, minedTxBlock.MerklePath, txBlock.MerklePath)
 			}
 		}
-
-		require.Len(t, txBlockBatch, counter)
-
-		err = natsConn.Publish(async.MinedTxsTopic, []byte("not a valid data format"))
-		require.NoError(t, err)
+		require.Equal(t, 3, counter)
 
 	})
 }

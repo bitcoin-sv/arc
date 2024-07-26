@@ -21,13 +21,11 @@ import (
 	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
-	"github.com/nats-io/nats.go"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -60,34 +58,6 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	mqClient := async.NewNatsMQClient(natsClient, async.WithLogger(logger))
 
-	err = mqClient.Subscribe(async.MinedTxsTopic, func(msg *nats.Msg) {
-		serialized := &blocktx_api.TransactionBlock{}
-		err = proto.Unmarshal(msg.Data, serialized)
-		if err != nil {
-			logger.Error("failed to unmarshal message", slog.String("err", err.Error()))
-			return
-		}
-
-		minedTxsChan <- serialized
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	err = mqClient.Subscribe(async.SubmitTxTopic, func(msg *nats.Msg) {
-		serialized := &metamorph_api.TransactionRequest{}
-		err = proto.Unmarshal(msg.Data, serialized)
-		if err != nil {
-			logger.Error("failed to unmarshal message", slog.String("err", err.Error()))
-			return
-		}
-
-		submittedTxsChan <- serialized
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	callbacker, err := metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})
 	if err != nil {
 		return nil, err
@@ -108,7 +78,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		metamorph.WithMinimumHealthyConnections(mtmConfig.Health.MinimumHealthyConnections),
 	}
 
-	metamorphProcessor, err := metamorph.NewProcessor(
+	processor, err := metamorph.NewProcessor(
 		metamorphStore,
 		pm,
 		statusMessageCh,
@@ -117,20 +87,10 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	if err != nil {
 		return nil, err
 	}
-
-	metamorphProcessor.StartLockTransactions()
-	time.Sleep(200 * time.Millisecond) // wait a short time so that process expired transactions will start shortly after lock transactions go routine
-
-	metamorphProcessor.StartProcessExpiredTransactions()
-	metamorphProcessor.StartRequestingSeenOnNetworkTxs()
-	metamorphProcessor.StartProcessStatusUpdatesInStorage()
-	metamorphProcessor.StartProcessMinedCallbacks()
-	err = metamorphProcessor.StartCollectStats()
+	err = processor.Start()
 	if err != nil {
-		return nil, fmt.Errorf("failed to start collecting stats: %v", err)
+		return nil, fmt.Errorf("failed to start metamorph processor: %v", err)
 	}
-	metamorphProcessor.StartSendStatusUpdate()
-	metamorphProcessor.StartProcessSubmittedTxs()
 
 	optsServer := []metamorph.ServerOption{
 		metamorph.WithLogger(logger.With(slog.String("module", "mtm-server"))),
@@ -152,7 +112,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		optsServer = append(optsServer, metamorph.WithForceCheckUtxos(node))
 	}
 
-	server := metamorph.NewServer(metamorphStore, metamorphProcessor, optsServer...)
+	server := metamorph.NewServer(metamorphStore, processor, optsServer...)
 
 	err = server.StartGRPCServer(mtmConfig.ListenAddr, arcConfig.GrpcMessageSize, arcConfig.PrometheusEndpoint, logger)
 	if err != nil {

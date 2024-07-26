@@ -389,7 +389,7 @@ func TestStartProcessTxs(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			peerHandler.Start()
+			peerHandler.StartProcessTxs()
 
 			time.Sleep(120 * time.Millisecond)
 			peerHandler.Shutdown()
@@ -487,7 +487,7 @@ func TestStartPeerWorker(t *testing.T) {
 			err = peerHandler.HandleBlockAnnouncement(wire.NewInvVect(wire.InvTypeBlock, blockHash), peerMock)
 			require.NoError(t, err)
 
-			peerHandler.Start()
+			peerHandler.StartPeerWorker()
 
 			// call tested function
 			require.NoError(t, err)
@@ -602,7 +602,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 				requestTxChannel <- tc.requestedTx
 			}
 
-			peerHandler.Start()
+			peerHandler.StartProcessRequestTxs()
 
 			// call tested function
 			require.NoError(t, err)

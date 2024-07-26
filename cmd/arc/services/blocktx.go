@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/nats-io/nats.go"
 	"log/slog"
 	"net"
 	"time"
@@ -48,20 +47,6 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	mqClient := async.NewNatsMQClient(natsClient, async.WithLogger(logger))
 
-	err = mqClient.Subscribe(async.RegisterTxTopic, func(msg *nats.Msg) {
-		registerTxsChan <- msg.Data
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	err = mqClient.Subscribe(async.RequestTxTopic, func(msg *nats.Msg) {
-		requestTxChannel <- msg.Data
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	peerHandlerOpts := []func(handler *blocktx.PeerHandler){
 		blocktx.WithRetentionDays(btxConfig.RecordRetentionDays),
 		blocktx.WithRegisterTxsChan(registerTxsChan),
@@ -79,7 +64,10 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, err
 	}
 
-	peerHandler.Start()
+	err = peerHandler.Start()
+	if err != nil {
+		return nil, fmt.Errorf("failed to start peer handler: %v", err)
+	}
 
 	peerOpts := []p2p.PeerOptions{
 		p2p.WithMaximumMessageSize(maximumBlockSize),

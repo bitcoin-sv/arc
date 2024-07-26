@@ -4,18 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/async"
-	"log/slog"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/nats-io/nats.go"
+	"google.golang.org/protobuf/proto"
+	"log/slog"
 )
 
 const (
@@ -162,6 +164,52 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChan
 	}
 
 	return p, nil
+}
+
+func (p *Processor) Start() error {
+	err := p.mqClient.Subscribe(async.MinedTxsTopic, func(msg *nats.Msg) {
+		serialized := &blocktx_api.TransactionBlock{}
+		err := proto.Unmarshal(msg.Data, serialized)
+		if err != nil {
+			p.logger.Error("failed to unmarshal message", slog.String("err", err.Error()))
+			return
+		}
+
+		p.minedTxsChan <- serialized
+	})
+	if err != nil {
+		return err
+	}
+
+	err = p.mqClient.Subscribe(async.SubmitTxTopic, func(msg *nats.Msg) {
+		serialized := &metamorph_api.TransactionRequest{}
+		err = proto.Unmarshal(msg.Data, serialized)
+		if err != nil {
+			p.logger.Error("failed to unmarshal message", slog.String("err", err.Error()))
+			return
+		}
+
+		p.submittedTxsChan <- serialized
+	})
+	if err != nil {
+		return err
+	}
+
+	p.StartLockTransactions()
+	time.Sleep(200 * time.Millisecond) // wait a short time so that process expired transactions will start shortly after lock transactions go routine
+
+	p.StartProcessExpiredTransactions()
+	p.StartRequestingSeenOnNetworkTxs()
+	p.StartProcessStatusUpdatesInStorage()
+	p.StartProcessMinedCallbacks()
+	err = p.StartCollectStats()
+	if err != nil {
+		return fmt.Errorf("failed to start collecting stats: %v", err)
+	}
+	p.StartSendStatusUpdate()
+	p.StartProcessSubmittedTxs()
+
+	return nil
 }
 
 // Shutdown closes all channels and goroutines gracefully

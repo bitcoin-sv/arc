@@ -6,7 +6,6 @@ import (
 )
 
 type MessageQueueClient interface {
-	Subscribe(topic string, cb nats.MsgHandler) error
 	PublishMarshal(topic string, m proto.Message) error
-	Shutdown()
+	Subscribe(topic string, cb nats.MsgHandler) error
 }

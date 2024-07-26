@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bitcoin-sv/arc/internal/async"
+	"github.com/nats-io/nats.go"
 	"io"
 	"log/slog"
 	"math"
@@ -212,13 +213,30 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func
 	return ph, nil
 }
 
-func (ph *PeerHandler) Start() {
-	ph.startPeerWorker()
-	ph.startProcessTxs()
-	ph.startProcessRequestTxs()
+func (ph *PeerHandler) Start() error {
+
+	err := ph.mqClient.Subscribe(async.RegisterTxTopic, func(msg *nats.Msg) {
+		ph.registerTxsChan <- msg.Data
+	})
+	if err != nil {
+		return err
+	}
+
+	err = ph.mqClient.Subscribe(async.RequestTxTopic, func(msg *nats.Msg) {
+		ph.requestTxChannel <- msg.Data
+	})
+	if err != nil {
+		return err
+	}
+
+	ph.StartPeerWorker()
+	ph.StartProcessTxs()
+	ph.StartProcessRequestTxs()
+
+	return nil
 }
 
-func (ph *PeerHandler) startPeerWorker() {
+func (ph *PeerHandler) StartPeerWorker() {
 	ph.waitGroup.Add(1)
 
 	go func() {
@@ -296,7 +314,7 @@ func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
 	}()
 }
 
-func (ph *PeerHandler) startProcessTxs() {
+func (ph *PeerHandler) StartProcessTxs() {
 	ph.waitGroup.Add(1)
 	txHashes := make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
 
@@ -331,7 +349,7 @@ func (ph *PeerHandler) startProcessTxs() {
 	}()
 }
 
-func (ph *PeerHandler) startProcessRequestTxs() {
+func (ph *PeerHandler) StartProcessRequestTxs() {
 	ph.waitGroup.Add(1)
 
 	txHashes := make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)

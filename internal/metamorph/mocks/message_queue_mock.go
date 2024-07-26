@@ -5,6 +5,7 @@ package mocks
 
 import (
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/nats-io/nats.go"
 	"sync"
 )
 
@@ -21,8 +22,8 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //			PublishFunc: func(topic string, hash []byte) error {
 //				panic("mock out the Publish method")
 //			},
-//			ShutdownFunc: func()  {
-//				panic("mock out the Shutdown method")
+//			SubscribeFunc: func(topic string, cb nats.MsgHandler) error {
+//				panic("mock out the Subscribe method")
 //			},
 //		}
 //
@@ -34,8 +35,8 @@ type MessageQueueClientMock struct {
 	// PublishFunc mocks the Publish method.
 	PublishFunc func(topic string, hash []byte) error
 
-	// ShutdownFunc mocks the Shutdown method.
-	ShutdownFunc func()
+	// SubscribeFunc mocks the Subscribe method.
+	SubscribeFunc func(topic string, cb nats.MsgHandler) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -46,12 +47,16 @@ type MessageQueueClientMock struct {
 			// Hash is the hash argument value.
 			Hash []byte
 		}
-		// Shutdown holds details about calls to the Shutdown method.
-		Shutdown []struct {
+		// Subscribe holds details about calls to the Subscribe method.
+		Subscribe []struct {
+			// Topic is the topic argument value.
+			Topic string
+			// Cb is the cb argument value.
+			Cb nats.MsgHandler
 		}
 	}
-	lockPublish  sync.RWMutex
-	lockShutdown sync.RWMutex
+	lockPublish   sync.RWMutex
+	lockSubscribe sync.RWMutex
 }
 
 // Publish calls PublishFunc.
@@ -90,29 +95,38 @@ func (mock *MessageQueueClientMock) PublishCalls() []struct {
 	return calls
 }
 
-// Shutdown calls ShutdownFunc.
-func (mock *MessageQueueClientMock) Shutdown() {
-	if mock.ShutdownFunc == nil {
-		panic("MessageQueueClientMock.ShutdownFunc: method is nil but MessageQueueClient.Shutdown was just called")
+// Subscribe calls SubscribeFunc.
+func (mock *MessageQueueClientMock) Subscribe(topic string, cb nats.MsgHandler) error {
+	if mock.SubscribeFunc == nil {
+		panic("MessageQueueClientMock.SubscribeFunc: method is nil but MessageQueueClient.Subscribe was just called")
 	}
 	callInfo := struct {
-	}{}
-	mock.lockShutdown.Lock()
-	mock.calls.Shutdown = append(mock.calls.Shutdown, callInfo)
-	mock.lockShutdown.Unlock()
-	mock.ShutdownFunc()
+		Topic string
+		Cb    nats.MsgHandler
+	}{
+		Topic: topic,
+		Cb:    cb,
+	}
+	mock.lockSubscribe.Lock()
+	mock.calls.Subscribe = append(mock.calls.Subscribe, callInfo)
+	mock.lockSubscribe.Unlock()
+	return mock.SubscribeFunc(topic, cb)
 }
 
-// ShutdownCalls gets all the calls that were made to Shutdown.
+// SubscribeCalls gets all the calls that were made to Subscribe.
 // Check the length with:
 //
-//	len(mockedMessageQueueClient.ShutdownCalls())
-func (mock *MessageQueueClientMock) ShutdownCalls() []struct {
+//	len(mockedMessageQueueClient.SubscribeCalls())
+func (mock *MessageQueueClientMock) SubscribeCalls() []struct {
+	Topic string
+	Cb    nats.MsgHandler
 } {
 	var calls []struct {
+		Topic string
+		Cb    nats.MsgHandler
 	}
-	mock.lockShutdown.RLock()
-	calls = mock.calls.Shutdown
-	mock.lockShutdown.RUnlock()
+	mock.lockSubscribe.RLock()
+	calls = mock.calls.Subscribe
+	mock.lockSubscribe.RUnlock()
 	return calls
 }

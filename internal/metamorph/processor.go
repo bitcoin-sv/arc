@@ -40,6 +40,9 @@ const (
 
 	processTransactionsBatchSizeDefault = 200
 	processTransactionsIntervalDefault  = 1 * time.Second
+
+	processMinedBatchSizeDefault = 200
+	processMinedIntervalDefault  = 1 * time.Second
 )
 
 type Processor struct {
@@ -82,6 +85,9 @@ type Processor struct {
 
 	processTransactionsInterval  time.Duration
 	processTransactionsBatchSize int
+
+	processMinedInterval  time.Duration
+	processMinedBatchSize int
 }
 
 type Option func(f *Processor)
@@ -130,6 +136,9 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChan
 		statCollectionInterval:       statCollectionIntervalDefault,
 		processTransactionsInterval:  processTransactionsIntervalDefault,
 		processTransactionsBatchSize: processTransactionsBatchSizeDefault,
+
+		processMinedInterval:  processMinedIntervalDefault,
+		processMinedBatchSize: processMinedBatchSizeDefault,
 	}
 
 	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm"))
@@ -190,7 +199,7 @@ func (p *Processor) unlockRecords() error {
 func (p *Processor) StartProcessMinedCallbacks() {
 	p.waitGroup.Add(1)
 	var txsBlocks []*blocktx_api.TransactionBlock
-	ticker := time.NewTicker(p.processStatusUpdatesInterval)
+	ticker := time.NewTicker(p.processMinedInterval)
 	go func() {
 		defer p.waitGroup.Done()
 		for {
@@ -204,7 +213,7 @@ func (p *Processor) StartProcessMinedCallbacks() {
 
 				txsBlocks = append(txsBlocks, txBlock)
 
-				if len(txsBlocks) < p.processTransactionsBatchSize {
+				if len(txsBlocks) < p.processMinedBatchSize {
 					continue
 				}
 

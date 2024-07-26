@@ -773,20 +773,36 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 func TestStartProcessMinedCallbacks(t *testing.T) {
 	tt := []struct {
-		name           string
-		retries        int
-		updateMinedErr error
-		panic          bool
+		name                  string
+		retries               int
+		updateMinedErr        error
+		processMinedBatchSize int
+		processMinedInterval  time.Duration
 
+		expectedTxsBlocks         int
 		expectedSendCallbackCalls int
 	}{
 		{
-			name:                      "success",
+			name:                  "success - batch size reached",
+			processMinedBatchSize: 3,
+			processMinedInterval:  20 * time.Second,
+
+			expectedTxsBlocks:         3,
 			expectedSendCallbackCalls: 2,
 		},
 		{
-			name:           "error - updated mined",
-			updateMinedErr: errors.New("update failed"),
+			name:                  "success - interval reached",
+			processMinedBatchSize: 50,
+			processMinedInterval:  20 * time.Millisecond,
+
+			expectedTxsBlocks:         4,
+			expectedSendCallbackCalls: 2,
+		},
+		{
+			name:                  "error - updated mined",
+			updateMinedErr:        errors.New("update failed"),
+			processMinedBatchSize: 50,
+			processMinedInterval:  20 * time.Second,
 
 			expectedSendCallbackCalls: 0,
 		},
@@ -796,9 +812,8 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				UpdateMinedFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.StoreData, error) {
-					if tc.panic {
-						panic("panic in updated mined function")
-					}
+					require.Len(t, txsBlocks, tc.expectedTxsBlocks)
+
 					return []*store.StoreData{{CallbackUrl: "http://callback.com"}, {CallbackUrl: "http://callback.com"}, {}}, tc.updateMinedErr
 				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
@@ -815,9 +830,12 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				nil,
 				metamorph.WithMinedTxsChan(minedTxsChan),
 				metamorph.WithCallbackSender(callbackSender),
+				metamorph.WithProcessMinedBatchSize(tc.processMinedBatchSize),
+				metamorph.WithProcessMinedInterval(tc.processMinedInterval),
 			)
 			require.NoError(t, err)
 
+			minedTxsChan <- &blocktx_api.TransactionBlock{}
 			minedTxsChan <- &blocktx_api.TransactionBlock{}
 			minedTxsChan <- &blocktx_api.TransactionBlock{}
 			minedTxsChan <- &blocktx_api.TransactionBlock{}

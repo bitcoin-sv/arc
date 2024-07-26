@@ -101,15 +101,33 @@ services:
         condition: service_healthy
     restart: on-failure
 
-  nats:
+  nats-1:
     image: nats:2.10.10
-    container_name: 'nats-server'
-    restart: on-failure
-    expose:
-      - "4222"
+    container_name: nats-server-1
+    restart: no
     ports:
-      - "8222:8222"
+      - "4222:4222"
+    entrypoint: /nats-server
+    command:
+      - -c=./nats-server.conf
     hostname: nats-server
+    volumes:
+      - nats1-data:/data
+      - ./config/nats-server-host-1.conf:/nats-server.conf
+
+  nats-2:
+    image: nats:2.10.10
+    container_name: nats-server-2
+    restart: no
+    ports:
+      - "4223:4222"
+    entrypoint: /nats-server
+    command:
+      - -c=./nats-server.conf
+    hostname: nats-server
+    volumes:
+      - nats2-data:/data
+      - ./config/nats-server-host-2.conf:/nats-server.conf
 
   arc-blocktx:
     image: test-arc:latest
@@ -124,7 +142,8 @@ services:
       - node3
       - migrate-blocktx
       - migrate-metamorph
-      - nats
+      - nats-1
+      - nats-2
     healthcheck:
       test: ["CMD", "/bin/grpc_health_probe", "-addr=:8006", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
@@ -173,4 +192,8 @@ volumes:
   node2-data:
     external: false
   node3-data:
+    external: false
+  nats1-data:
+    external: false
+  nats2-data:
     external: false

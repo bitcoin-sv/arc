@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/nats-io/nats.go"
 	"log/slog"
 	"net"
 	"time"
@@ -37,35 +38,26 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
 
-	// The tx channel needs the capacity so that it could potentially buffer up to a certain nr of transactions per second
-	const targetTps = 6000
-	capacityRequired := int(btxConfig.RegisterTxsInterval.Seconds() * targetTps)
-	if capacityRequired < 100 {
-		capacityRequired = 100
-	}
-
-	registerTxsChan := make(chan []byte, capacityRequired)
-	requestTxChannel := make(chan []byte, capacityRequired)
+	registerTxsChan := make(chan []byte, chanBufferSize)
+	requestTxChannel := make(chan []byte, chanBufferSize)
 
 	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.QueueURL, err)
 	}
 
-	mqOpts := []func(handler *async.MQClient){
-		async.WithMaxBatchSize(btxConfig.MessageQueue.TxsMinedMaxBatchSize),
-		async.WithRequestTxsChan(requestTxChannel),
-		async.WithRegisterTxsChan(registerTxsChan),
-	}
+	mqClient := async.NewNatsMQClient(natsClient, async.WithLogger(logger))
 
-	mqClient := async.NewNatsMQClient(natsClient, mqOpts...)
-
-	err = mqClient.SubscribeRegisterTxs()
+	err = mqClient.Subscribe(async.RegisterTxTopic, func(msg *nats.Msg) {
+		registerTxsChan <- msg.Data
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	err = mqClient.SubscribeRequestTxs()
+	err = mqClient.Subscribe(async.RequestTxTopic, func(msg *nats.Msg) {
+		requestTxChannel <- msg.Data
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -145,10 +137,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 		server.Shutdown()
 
-		err = mqClient.Shutdown()
-		if err != nil {
-			logger.Error("Failed to shutdown mqClient", slog.String("err", err.Error()))
-		}
+		mqClient.Shutdown()
 
 		err = blockStore.Close()
 		if err != nil {

@@ -5,17 +5,15 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 )
 
 const (
-	maxBatchSizeDefault = 20
-
-	SubmitTxTopic = "submit-tx"
-	submitTxGroup = "submit-tx-group"
+	SubmitTxTopic   = "submit-tx"
+	MinedTxsTopic   = "mined-txs"
+	RegisterTxTopic = "register-tx"
+	RequestTxTopic  = "request-tx"
 )
 
 type NatsClient interface {
@@ -26,22 +24,8 @@ type NatsClient interface {
 }
 
 type MQClient struct {
-	nc                      NatsClient
-	logger                  *slog.Logger
-	registerTxsSubscription *nats.Subscription
-	requestSubscription     *nats.Subscription
-	minedTxsSubscription    *nats.Subscription
-	maxBatchSize            int
-	registerTxsChannel      chan []byte
-	requestTxChannel        chan []byte
-	minedTxsChan            chan *blocktx_api.TransactionBlock
-	submittedTxsChan        chan *metamorph_api.TransactionRequest
-}
-
-func WithMaxBatchSize(size int) func(*MQClient) {
-	return func(m *MQClient) {
-		m.maxBatchSize = size
-	}
+	nc     NatsClient
+	logger *slog.Logger
 }
 
 func WithLogger(logger *slog.Logger) func(handler *MQClient) {
@@ -50,35 +34,10 @@ func WithLogger(logger *slog.Logger) func(handler *MQClient) {
 	}
 }
 
-func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlock) func(handler *MQClient) {
-	return func(m *MQClient) {
-		m.minedTxsChan = minedTxsChan
-	}
-}
-
-func WithSubmittedTxsChan(submittedTxsChan chan *metamorph_api.TransactionRequest) func(handler *MQClient) {
-	return func(m *MQClient) {
-		m.submittedTxsChan = submittedTxsChan
-	}
-}
-
-func WithRegisterTxsChan(registerTxsChannel chan []byte) func(handler *MQClient) {
-	return func(m *MQClient) {
-		m.registerTxsChannel = registerTxsChannel
-	}
-}
-
-func WithRequestTxsChan(requestTxChannel chan []byte) func(handler *MQClient) {
-	return func(m *MQClient) {
-		m.requestTxChannel = requestTxChannel
-	}
-}
-
 func NewNatsMQClient(nc NatsClient, opts ...func(client *MQClient)) *MQClient {
 	m := &MQClient{
-		nc:           nc,
-		logger:       slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
-		maxBatchSize: maxBatchSizeDefault,
+		nc:     nc,
+		logger: slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -87,15 +46,13 @@ func NewNatsMQClient(nc NatsClient, opts ...func(client *MQClient)) *MQClient {
 	return m
 }
 
-func (c MQClient) Shutdown() error {
+func (c MQClient) Shutdown() {
 	if c.nc != nil {
 		err := c.nc.Drain()
 		if err != nil {
-			return err
+			c.logger.Error("failed to drain nats connection", slog.String("err", err.Error()))
 		}
 	}
-
-	return nil
 }
 
 func (c MQClient) Publish(topic string, hash []byte) error {
@@ -116,6 +73,15 @@ func (c MQClient) PublishMarshal(topic string, m proto.Message) error {
 	err = c.nc.Publish(topic, data)
 	if err != nil {
 		return fmt.Errorf("failed to publish on %s topic: %w", topic, err)
+	}
+
+	return nil
+}
+func (c MQClient) Subscribe(topic string, cb nats.MsgHandler) error {
+
+	_, err := c.nc.QueueSubscribe(topic, topic+"-group", cb)
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to %s topic: %w", topic, err)
 	}
 
 	return nil

@@ -78,8 +78,6 @@ blocktx:
   registerTxsInterval: 200ms
   fillGapsInterval: 15m
   maxAllowedBlockHeightMismatch: 3
-  mq:
-    txsMinedMaxBatchSize: 20
 
 api:
   address: 0.0.0.0:9090

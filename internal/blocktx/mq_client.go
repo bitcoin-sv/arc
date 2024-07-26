@@ -1,12 +1,12 @@
 package blocktx
 
 import (
+	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 )
 
 type MessageQueueClient interface {
-	SubscribeRegisterTxs() error
-	SubscribeRequestTxs() error
+	Subscribe(topic string, cb nats.MsgHandler) error
 	PublishMarshal(topic string, m proto.Message) error
-	Shutdown() error
+	Shutdown()
 }

@@ -22,7 +22,7 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //			PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error {
 //				panic("mock out the PublishMarshal method")
 //			},
-//			ShutdownFunc: func() error {
+//			ShutdownFunc: func()  {
 //				panic("mock out the Shutdown method")
 //			},
 //		}
@@ -36,7 +36,7 @@ type MessageQueueClientMock struct {
 	PublishMarshalFunc func(topic string, m protoreflect.ProtoMessage) error
 
 	// ShutdownFunc mocks the Shutdown method.
-	ShutdownFunc func() error
+	ShutdownFunc func()
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -92,7 +92,7 @@ func (mock *MessageQueueClientMock) PublishMarshalCalls() []struct {
 }
 
 // Shutdown calls ShutdownFunc.
-func (mock *MessageQueueClientMock) Shutdown() error {
+func (mock *MessageQueueClientMock) Shutdown() {
 	if mock.ShutdownFunc == nil {
 		panic("MessageQueueClientMock.ShutdownFunc: method is nil but MessageQueueClient.Shutdown was just called")
 	}
@@ -101,7 +101,7 @@ func (mock *MessageQueueClientMock) Shutdown() error {
 	mock.lockShutdown.Lock()
 	mock.calls.Shutdown = append(mock.calls.Shutdown, callInfo)
 	mock.lockShutdown.Unlock()
-	return mock.ShutdownFunc()
+	mock.ShutdownFunc()
 }
 
 // ShutdownCalls gets all the calls that were made to Shutdown.

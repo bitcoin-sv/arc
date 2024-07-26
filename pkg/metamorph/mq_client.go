@@ -6,5 +6,5 @@ import (
 
 type MessageQueueClient interface {
 	PublishMarshal(topic string, m proto.Message) error
-	Shutdown() error
+	Shutdown()
 }

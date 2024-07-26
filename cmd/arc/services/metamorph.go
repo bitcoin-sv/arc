@@ -21,15 +21,18 @@ import (
 	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
+	"github.com/nats-io/nats.go"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
 	DbModePostgres = "postgres"
+	chanBufferSize = 4000
 )
 
 func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
@@ -46,30 +49,41 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, err
 	}
 
-	// The tx channel needs the capacity so that it could potentially buffer up to a certain nr of transactions per second
-	const targetTps = 6000
-	const avgMinPerBlock = 10
-	const secPerMin = 60
-
 	// maximum amount of messages that could be coming from a single block
-	maxBatchSize := arcConfig.Blocktx.MessageQueue.TxsMinedMaxBatchSize
-	capacityRequired := int(float64(targetTps*avgMinPerBlock*secPerMin) / float64(maxBatchSize))
-	minedTxsChan := make(chan *blocktx_api.TransactionBlock, capacityRequired)
-	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, capacityRequired)
+	minedTxsChan := make(chan *blocktx_api.TransactionBlock, chanBufferSize)
+	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, chanBufferSize)
 
 	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.QueueURL, err)
 	}
 
-	mqClient := async.NewNatsMQClient(natsClient, async.WithLogger(logger), async.WithMinedTxsChan(minedTxsChan), async.WithSubmittedTxsChan(submittedTxsChan))
+	mqClient := async.NewNatsMQClient(natsClient, async.WithLogger(logger))
 
-	err = mqClient.SubscribeMinedTxs()
+	err = mqClient.Subscribe(async.MinedTxsTopic, func(msg *nats.Msg) {
+		serialized := &blocktx_api.TransactionBlock{}
+		err = proto.Unmarshal(msg.Data, serialized)
+		if err != nil {
+			logger.Error("failed to unmarshal message", slog.String("err", err.Error()))
+			return
+		}
+
+		minedTxsChan <- serialized
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	err = mqClient.SubscribeSubmittedTx()
+	err = mqClient.Subscribe(async.SubmitTxTopic, func(msg *nats.Msg) {
+		serialized := &metamorph_api.TransactionRequest{}
+		err = proto.Unmarshal(msg.Data, serialized)
+		if err != nil {
+			logger.Error("failed to unmarshal message", slog.String("err", err.Error()))
+			return
+		}
+
+		submittedTxsChan <- serialized
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +193,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 		server.Shutdown()
 
-		err = mqClient.Shutdown()
+		mqClient.Shutdown()
 		if err != nil {
 			logger.Error("failed to shutdown mqClient", slog.String("err", err.Error()))
 		}

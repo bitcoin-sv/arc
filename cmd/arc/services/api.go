@@ -86,11 +86,11 @@ func LoadArcHandler(e *echo.Echo, logger *slog.Logger, arcConfig *config.ArcConf
 		return fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.QueueURL, err)
 	}
 
-	mq := async.NewNatsMQClient(natsClient)
+	mqClient := async.NewNatsMQClient(natsClient, async.WithLogger(logger))
 
 	metamorphClient := metamorph.NewClient(
 		metamorph_api.NewMetaMorphAPIClient(conn),
-		metamorph.WithMqClient(mq),
+		metamorph.WithMqClient(mqClient),
 		metamorph.WithLogger(logger),
 	)
 

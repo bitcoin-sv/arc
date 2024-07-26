@@ -5,14 +5,12 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/async"
-	"github.com/nats-io/nats.go"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
@@ -25,8 +23,10 @@ import (
 	"github.com/libsv/go-p2p/bsvutil"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
+	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func TestExtractHeight(t *testing.T) {

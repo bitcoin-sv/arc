@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"google.golang.org/protobuf/proto"
 	"log/slog"
 	"os"
 	"sync"
@@ -26,6 +25,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestNewProcessor(t *testing.T) {

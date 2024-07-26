@@ -2,13 +2,13 @@ package async_test
 
 import (
 	"errors"
-	"github.com/nats-io/nats.go"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/async/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/testdata"
+	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
 )
 

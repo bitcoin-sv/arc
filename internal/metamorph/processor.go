@@ -178,7 +178,7 @@ func (p *Processor) Start() error {
 		p.minedTxsChan <- serialized
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to subscribe to %s topic: %w", async.MinedTxsTopic, err)
 	}
 
 	err = p.mqClient.Subscribe(async.SubmitTxTopic, func(msg *nats.Msg) {
@@ -192,7 +192,7 @@ func (p *Processor) Start() error {
 		p.submittedTxsChan <- serialized
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to subscribe to %s topic: %w", async.SubmitTxTopic, err)
 	}
 
 	p.StartLockTransactions()

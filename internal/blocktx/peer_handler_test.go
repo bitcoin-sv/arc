@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"github.com/bitcoin-sv/arc/internal/async"
+	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"log/slog"
 	"os"
@@ -611,6 +613,59 @@ func TestStartProcessRequestTxs(t *testing.T) {
 
 			require.Equal(t, tc.expectedGetMinedCalls, len(storeMock.GetMinedTransactionsCalls()))
 			require.Equal(t, tc.expectedPublishMinedCalls, len(mq.PublishMarshalCalls()))
+		})
+	}
+}
+
+func TestStart(t *testing.T) {
+	tt := []struct {
+		name     string
+		topicErr map[string]error
+
+		expectedErrorStr string
+	}{
+		{
+			name: "success",
+		},
+		{
+			name:     "error - subscribe mined txs",
+			topicErr: map[string]error{async.RegisterTxTopic: errors.New("failed to subscribe")},
+
+			expectedErrorStr: "failed to subscribe to register-tx topic: failed to subscribe",
+		},
+		{
+			name:     "error - subscribe submit txs",
+			topicErr: map[string]error{async.RequestTxTopic: errors.New("failed to subscribe")},
+
+			expectedErrorStr: "failed to subscribe to request-tx topic: failed to subscribe",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			storeMock := &storeMocks.BlocktxStoreMock{}
+
+			mqClient := &mocks.MessageQueueClientMock{
+				SubscribeFunc: func(topic string, cb nats.MsgHandler) error {
+					err, ok := tc.topicErr[topic]
+					if ok {
+						return err
+					}
+					return nil
+				},
+			}
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithMessageQueueClient(mqClient))
+			require.NoError(t, err)
+			err = peerHandler.Start()
+			if tc.expectedErrorStr != "" || err != nil {
+				require.ErrorContains(t, err, tc.expectedErrorStr)
+				return
+			} else {
+				require.NoError(t, err)
+			}
+
+			peerHandler.Shutdown()
 		})
 	}
 }

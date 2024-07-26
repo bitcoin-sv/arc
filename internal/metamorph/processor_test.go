@@ -5,12 +5,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"google.golang.org/protobuf/proto"
 	"log/slog"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -21,6 +23,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -925,6 +928,93 @@ func TestProcessorHealth(t *testing.T) {
 			err = processor.Health()
 
 			require.ErrorIs(t, err, tc.expectedErr)
+		})
+	}
+}
+
+func TestStart(t *testing.T) {
+	tt := []struct {
+		name     string
+		topicErr map[string]error
+
+		expectedErrorStr string
+	}{
+		{
+			name: "success",
+		},
+		{
+			name:     "error - subscribe mined txs",
+			topicErr: map[string]error{async.MinedTxsTopic: errors.New("failed to subscribe")},
+
+			expectedErrorStr: "failed to subscribe to mined-txs topic: failed to subscribe",
+		},
+		{
+			name:     "error - subscribe submit txs",
+			topicErr: map[string]error{async.SubmitTxTopic: errors.New("failed to subscribe")},
+
+			expectedErrorStr: "failed to subscribe to submit-tx topic: failed to subscribe",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			metamorphStore := &storeMocks.MetamorphStoreMock{SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
+				return 0, nil
+			}}
+
+			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
+
+			var subscribeMinedTxsFunction nats.MsgHandler
+			var subscribeSubmitTxsFunction nats.MsgHandler
+			mqClient := &mocks.MessageQueueClientMock{
+				SubscribeFunc: func(topic string, cb nats.MsgHandler) error {
+
+					switch topic {
+					case async.MinedTxsTopic:
+						subscribeMinedTxsFunction = cb
+					case async.SubmitTxTopic:
+						subscribeSubmitTxsFunction = cb
+					}
+
+					err, ok := tc.topicErr[topic]
+					if ok {
+						return err
+					}
+					return nil
+				},
+			}
+
+			submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 2)
+			minedTxsChan := make(chan *blocktx_api.TransactionBlock, 2)
+
+			processor, err := metamorph.NewProcessor(metamorphStore, pm, nil,
+				metamorph.WithMessageQueueClient(mqClient),
+				metamorph.WithSubmittedTxsChan(submittedTxsChan),
+				metamorph.WithMinedTxsChan(minedTxsChan),
+			)
+			require.NoError(t, err)
+			err = processor.Start()
+			if tc.expectedErrorStr != "" || err != nil {
+				require.ErrorContains(t, err, tc.expectedErrorStr)
+				return
+			} else {
+				require.NoError(t, err)
+			}
+
+			txBlock := &blocktx_api.TransactionBlock{}
+			data, err := proto.Marshal(txBlock)
+			require.NoError(t, err)
+
+			subscribeMinedTxsFunction(&nats.Msg{Data: []byte("invalid data")})
+			subscribeMinedTxsFunction(&nats.Msg{Data: data})
+
+			txRequest := &metamorph_api.TransactionRequest{}
+			data, err = proto.Marshal(txRequest)
+			require.NoError(t, err)
+			subscribeSubmitTxsFunction(&nats.Msg{Data: []byte("invalid data")})
+			subscribeSubmitTxsFunction(&nats.Msg{Data: data})
+
+			processor.Shutdown()
 		})
 	}
 }

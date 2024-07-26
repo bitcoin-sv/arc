@@ -219,14 +219,14 @@ func (ph *PeerHandler) Start() error {
 		ph.registerTxsChan <- msg.Data
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to subscribe to %s topic: %w", async.RegisterTxTopic, err)
 	}
 
 	err = ph.mqClient.Subscribe(async.RequestTxTopic, func(msg *nats.Msg) {
 		ph.requestTxChannel <- msg.Data
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to subscribe to %s topic: %w", async.RequestTxTopic, err)
 	}
 
 	ph.StartPeerWorker()

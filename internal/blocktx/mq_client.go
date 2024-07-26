@@ -1,14 +1,12 @@
 package blocktx
 
 import (
-	"context"
-
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"google.golang.org/protobuf/proto"
 )
 
 type MessageQueueClient interface {
 	SubscribeRegisterTxs() error
 	SubscribeRequestTxs() error
-	PublishMinedTxs(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error
+	PublishMarshal(topic string, m proto.Message) error
 	Shutdown() error
 }

@@ -8,8 +8,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/nats-io/nats.go"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -19,8 +17,6 @@ const (
 	SubmitTxTopic = "submit-tx"
 	submitTxGroup = "submit-tx-group"
 )
-
-var tracer trace.Tracer
 
 type NatsClient interface {
 	QueueSubscribe(subj, queue string, cb nats.MsgHandler) (*nats.Subscription, error)
@@ -38,7 +34,7 @@ type MQClient struct {
 	maxBatchSize            int
 	registerTxsChannel      chan []byte
 	requestTxChannel        chan []byte
-	minedTxsChan            chan *blocktx_api.TransactionBlocks
+	minedTxsChan            chan *blocktx_api.TransactionBlock
 	submittedTxsChan        chan *metamorph_api.TransactionRequest
 }
 
@@ -48,19 +44,13 @@ func WithMaxBatchSize(size int) func(*MQClient) {
 	}
 }
 
-func WithTracer() func(handler *MQClient) {
-	return func(_ *MQClient) {
-		tracer = otel.GetTracerProvider().Tracer("")
-	}
-}
-
 func WithLogger(logger *slog.Logger) func(handler *MQClient) {
 	return func(m *MQClient) {
 		m.logger = logger
 	}
 }
 
-func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlocks) func(handler *MQClient) {
+func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlock) func(handler *MQClient) {
 	return func(m *MQClient) {
 		m.minedTxsChan = minedTxsChan
 	}

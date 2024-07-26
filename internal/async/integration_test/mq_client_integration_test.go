@@ -1,7 +1,6 @@
 package integration_test
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"log/slog"
@@ -101,7 +100,7 @@ func TestNatsClient(t *testing.T) {
 		MerklePath:      "mp-1",
 	}
 
-	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 100)
+	minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
 	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
 
 	mqClient := async.NewNatsMQClient(natsConnClient, async.WithMinedTxsChan(minedTxsChan), async.WithSubmittedTxsChan(submittedTxsChan))
@@ -166,16 +165,15 @@ func TestNatsClient(t *testing.T) {
 		require.NoError(t, err)
 
 		counter := 0
-		for minedTxBlocks := range minedTxsChan {
-			for _, minedTxBlock := range minedTxBlocks.TransactionBlocks {
-				require.Equal(t, minedTxBlock.BlockHash, txBlock.BlockHash)
-				require.Equal(t, minedTxBlock.BlockHeight, txBlock.BlockHeight)
-				require.Equal(t, minedTxBlock.TransactionHash, txBlock.TransactionHash)
-				require.Equal(t, minedTxBlock.MerklePath, txBlock.MerklePath)
-				counter++
+		for minedTxBlock := range minedTxsChan {
 
-				t.Logf("counter, %d", counter)
-			}
+			require.Equal(t, minedTxBlock.BlockHash, txBlock.BlockHash)
+			require.Equal(t, minedTxBlock.BlockHeight, txBlock.BlockHeight)
+			require.Equal(t, minedTxBlock.TransactionHash, txBlock.TransactionHash)
+			require.Equal(t, minedTxBlock.MerklePath, txBlock.MerklePath)
+			counter++
+
+			t.Logf("counter, %d", counter)
 			if counter > 1 {
 				break
 			}
@@ -340,10 +338,10 @@ func TestNatsClient(t *testing.T) {
 	})
 
 	t.Run("publish mined txs", func(t *testing.T) {
-		minedTxsChan = make(chan *blocktx_api.TransactionBlocks, 100)
+		minedTxsChan = make(chan *blocktx_api.TransactionBlock, 100)
 
 		_, err := natsConn.QueueSubscribe(async.MinedTxsTopic, "queue", func(msg *nats.Msg) {
-			serialized := &blocktx_api.TransactionBlocks{}
+			serialized := &blocktx_api.TransactionBlock{}
 			unmarshalErr := proto.Unmarshal(msg.Data, serialized)
 			if unmarshalErr != nil {
 				t.Logf("failed to unmarshal message: %v", unmarshalErr)
@@ -354,32 +352,32 @@ func TestNatsClient(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		txsBlocks := []*blocktx_api.TransactionBlock{
-			txBlock, txBlock, txBlock, txBlock, txBlock,
-		}
-
 		mqClient = async.NewNatsMQClient(natsConnClient, async.WithMaxBatchSize(5))
 
 		time.Sleep(1 * time.Second)
 
 		t.Log("publish mined txs")
-		err = mqClient.PublishMinedTxs(context.Background(), txsBlocks)
+		err = mqClient.PublishMarshal(async.MinedTxsTopic, txBlock)
+		require.NoError(t, err)
+		err = mqClient.PublishMarshal(async.MinedTxsTopic, txBlock)
+		require.NoError(t, err)
+		err = mqClient.PublishMarshal(async.MinedTxsTopic, txBlock)
+		require.NoError(t, err)
+		err = mqClient.PublishMarshal(async.MinedTxsTopic, txBlock)
 		require.NoError(t, err)
 
 		counter := 0
-		for minedTxBlocks := range minedTxsChan {
-			for _, minedTxBlock := range minedTxBlocks.TransactionBlocks {
-				require.Equal(t, minedTxBlock.BlockHash, txBlock.BlockHash)
-				require.Equal(t, minedTxBlock.BlockHeight, txBlock.BlockHeight)
-				require.Equal(t, minedTxBlock.TransactionHash, txBlock.TransactionHash)
-				require.Equal(t, minedTxBlock.MerklePath, txBlock.MerklePath)
-				counter++
-			}
+		for minedTxBlock := range minedTxsChan {
+			require.Equal(t, minedTxBlock.BlockHash, txBlock.BlockHash)
+			require.Equal(t, minedTxBlock.BlockHeight, txBlock.BlockHeight)
+			require.Equal(t, minedTxBlock.TransactionHash, txBlock.TransactionHash)
+			require.Equal(t, minedTxBlock.MerklePath, txBlock.MerklePath)
+			counter++
 
-			close(minedTxsChan)
 		}
+		close(minedTxsChan)
 
-		require.Len(t, txsBlocks, counter)
+		require.Equal(t, 4, counter)
 	})
 
 	t.Run("subscribe register txs", func(t *testing.T) {

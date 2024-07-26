@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/async"
 	"io"
 	"log/slog"
 	"math"
@@ -388,17 +389,16 @@ func (ph *PeerHandler) publishMinedTxs(txHashes []*chainhash.Hash) error {
 		return fmt.Errorf("failed to get mined transactions: %v", err)
 	}
 
-	updatesBatch := make([]*blocktx_api.TransactionBlock, 0, ph.registerRequestTxsBatchSize)
 	for _, minedTx := range minedTxs {
-		updatesBatch = append(updatesBatch, &blocktx_api.TransactionBlock{
+		txBlock := &blocktx_api.TransactionBlock{
 			TransactionHash: minedTx.TxHash,
 			BlockHash:       minedTx.BlockHash,
 			BlockHeight:     minedTx.BlockHeight,
 			MerklePath:      minedTx.MerklePath,
-		})
+		}
+		err = ph.mqClient.PublishMarshal(async.MinedTxsTopic, txBlock)
 	}
 
-	err = ph.mqClient.PublishMinedTxs(ph.ctx, updatesBatch)
 	if err != nil {
 		return fmt.Errorf("failed to publish mined transactions: %v", err)
 	}
@@ -645,19 +645,14 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 			txs = make([]*blocktx_api.TransactionAndSource, 0, ph.transactionStorageBatchSize)
 			merklePaths = make([]string, 0, ph.transactionStorageBatchSize)
 
-			updatesBatch := make([]*blocktx_api.TransactionBlock, len(updateResp))
-
-			for i, updResp := range updateResp {
-				updatesBatch[i] = &blocktx_api.TransactionBlock{
+			for _, updResp := range updateResp {
+				txBlock := &blocktx_api.TransactionBlock{
 					TransactionHash: updResp.TxHash[:],
 					BlockHash:       blockhash[:],
 					BlockHeight:     blockHeight,
 					MerklePath:      updResp.MerklePath,
 				}
-			}
-
-			if len(updatesBatch) > 0 {
-				err = ph.mqClient.PublishMinedTxs(ctx, updatesBatch)
+				err = ph.mqClient.PublishMarshal(async.MinedTxsTopic, txBlock)
 				if err != nil {
 					ph.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
 				}
@@ -675,21 +670,16 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 		return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 	}
 
-	updatesBatch := make([]*blocktx_api.TransactionBlock, len(updateResp))
-
-	for i, updResp := range updateResp {
-		updatesBatch[i] = &blocktx_api.TransactionBlock{
+	for _, updResp := range updateResp {
+		txBlock := &blocktx_api.TransactionBlock{
 			TransactionHash: updResp.TxHash[:],
 			BlockHash:       blockhash[:],
 			BlockHeight:     blockHeight,
 			MerklePath:      updResp.MerklePath,
 		}
-	}
-
-	if len(updatesBatch) > 0 {
-		err = ph.mqClient.PublishMinedTxs(ctx, updatesBatch)
+		err = ph.mqClient.PublishMarshal(async.MinedTxsTopic, txBlock)
 		if err != nil {
-			ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+			ph.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
 		}
 	}
 

@@ -70,7 +70,7 @@ type Processor struct {
 
 	lockTransactionsInterval time.Duration
 
-	minedTxsChan     chan *blocktx_api.TransactionBlocks
+	minedTxsChan     chan *blocktx_api.TransactionBlock
 	submittedTxsChan chan *metamorph_api.TransactionRequest
 
 	storageStatusUpdateCh         chan store.UpdateStatus
@@ -189,32 +189,51 @@ func (p *Processor) unlockRecords() error {
 
 func (p *Processor) StartProcessMinedCallbacks() {
 	p.waitGroup.Add(1)
-
+	var txsBlocks []*blocktx_api.TransactionBlock
+	ticker := time.NewTicker(p.processStatusUpdatesInterval)
 	go func() {
 		defer p.waitGroup.Done()
 		for {
 			select {
 			case <-p.ctx.Done():
 				return
-			case txBlocks := <-p.minedTxsChan:
-				if txBlocks == nil {
+			case txBlock := <-p.minedTxsChan:
+				if txBlock == nil {
 					continue
 				}
 
-				updatedData, err := p.store.UpdateMined(p.ctx, txBlocks)
-				if err != nil {
-					p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
-					return
+				txsBlocks = append(txsBlocks, txBlock)
+
+				if len(txsBlocks) < p.processTransactionsBatchSize {
+					continue
 				}
 
-				for _, data := range updatedData {
-					if data.CallbackUrl != "" {
-						go p.callbackSender.SendCallback(p.logger, data)
-					}
+				p.updateMined(txsBlocks)
+				txsBlocks = []*blocktx_api.TransactionBlock{}
+
+			case <-ticker.C:
+				if len(txsBlocks) == 0 {
+					continue
 				}
+
+				p.updateMined(txsBlocks)
+				txsBlocks = []*blocktx_api.TransactionBlock{}
 			}
 		}
 	}()
+}
+func (p *Processor) updateMined(txsBlocks []*blocktx_api.TransactionBlock) {
+	updatedData, err := p.store.UpdateMined(p.ctx, txsBlocks)
+	if err != nil {
+		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
+		return
+	}
+
+	for _, data := range updatedData {
+		if data.CallbackUrl != "" {
+			go p.callbackSender.SendCallback(p.logger, data)
+		}
+	}
 }
 
 func (p *Processor) StartProcessSubmittedTxs() {

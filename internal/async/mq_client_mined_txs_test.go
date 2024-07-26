@@ -1,7 +1,6 @@
 package async_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -23,45 +22,21 @@ func TestMQClient_PublishMinedTxs(t *testing.T) {
 
 	tt := []struct {
 		name       string
-		txsBlocks  []*blocktx_api.TransactionBlock
+		txsBlock   *blocktx_api.TransactionBlock
 		publishErr error
 
 		expectedErrorStr     string
 		expectedPublishCalls int
 	}{
 		{
-			name: "small batch",
-			txsBlocks: []*blocktx_api.TransactionBlock{
-				txBlock,
-				txBlock,
-			},
+			name:     "success",
+			txsBlock: txBlock,
 
 			expectedPublishCalls: 1,
 		},
 		{
-			name: "exactly batch size",
-			txsBlocks: []*blocktx_api.TransactionBlock{
-				txBlock, txBlock, txBlock, txBlock, txBlock,
-			},
-
-			expectedPublishCalls: 1,
-		},
-		{
-			name: "large batch",
-			txsBlocks: []*blocktx_api.TransactionBlock{
-				txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock,
-				txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock,
-				txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock, txBlock,
-				txBlock,
-			},
-
-			expectedPublishCalls: 7,
-		},
-		{
-			name: "publish err",
-			txsBlocks: []*blocktx_api.TransactionBlock{
-				txBlock, txBlock,
-			},
+			name:       "publish err",
+			txsBlock:   txBlock,
 			publishErr: errors.New("failed to publish"),
 
 			expectedErrorStr:     "failed to publish",
@@ -81,10 +56,9 @@ func TestMQClient_PublishMinedTxs(t *testing.T) {
 			mqClient := async.NewNatsMQClient(
 				natsMock,
 				async.WithMaxBatchSize(5),
-				async.WithTracer(),
 			)
 
-			err := mqClient.PublishMinedTxs(context.Background(), tc.txsBlocks)
+			err := mqClient.PublishMarshal(async.MinedTxsTopic, tc.txsBlock)
 
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)
@@ -140,11 +114,10 @@ func TestMQClient_SubscribeMinedTxs(t *testing.T) {
 
 			opts := []func(*async.MQClient){
 				async.WithMaxBatchSize(5),
-				async.WithTracer(),
 			}
 
 			if tc.withMinedTxsChan {
-				minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 1)
+				minedTxsChan := make(chan *blocktx_api.TransactionBlock, 1)
 				opts = append(opts, async.WithMinedTxsChan(minedTxsChan))
 			}
 

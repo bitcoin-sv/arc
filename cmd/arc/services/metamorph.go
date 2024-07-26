@@ -54,7 +54,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	// maximum amount of messages that could be coming from a single block
 	maxBatchSize := arcConfig.Blocktx.MessageQueue.TxsMinedMaxBatchSize
 	capacityRequired := int(float64(targetTps*avgMinPerBlock*secPerMin) / float64(maxBatchSize))
-	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, capacityRequired)
+	minedTxsChan := make(chan *blocktx_api.TransactionBlock, capacityRequired)
 	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, capacityRequired)
 
 	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL, logger)

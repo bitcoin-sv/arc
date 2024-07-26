@@ -795,7 +795,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				UpdateMinedFunc: func(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
+				UpdateMinedFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.StoreData, error) {
 					if tc.panic {
 						panic("panic in updated mined function")
 					}
@@ -804,7 +804,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
-			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 5)
+			minedTxsChan := make(chan *blocktx_api.TransactionBlock, 5)
 			callbackSender := &mocks.CallbackSenderMock{
 				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {},
 				ShutdownFunc:     func(logger *slog.Logger) {},
@@ -818,7 +818,9 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			minedTxsChan <- &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{{}, {}, {}}}
+			minedTxsChan <- &blocktx_api.TransactionBlock{}
+			minedTxsChan <- &blocktx_api.TransactionBlock{}
+			minedTxsChan <- &blocktx_api.TransactionBlock{}
 			minedTxsChan <- nil
 
 			processor.StartProcessMinedCallbacks()

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"log/slog"
 	"os"
 	"testing"
@@ -179,7 +180,7 @@ func TestHandleBlock(t *testing.T) {
 			}
 
 			mq := &mocks.MessageQueueClientMock{
-				PublishMinedTxsFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error {
+				PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error {
 					return nil
 				},
 			}
@@ -582,7 +583,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 			}
 
 			mq := &mocks.MessageQueueClientMock{
-				PublishMinedTxsFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error {
+				PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error {
 					return publishMinedErrTest
 				},
 			}
@@ -609,7 +610,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 			peerHandler.Shutdown()
 
 			require.Equal(t, tc.expectedGetMinedCalls, len(storeMock.GetMinedTransactionsCalls()))
-			require.Equal(t, tc.expectedPublishMinedCalls, len(mq.PublishMinedTxsCalls()))
+			require.Equal(t, tc.expectedPublishMinedCalls, len(mq.PublishMarshalCalls()))
 		})
 	}
 }

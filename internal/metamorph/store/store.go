@@ -60,7 +60,7 @@ type MetamorphStore interface {
 	GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*StoreData, error)
 	GetSeenOnNetwork(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*StoreData, error)
 	UpdateStatusBulk(ctx context.Context, updates []UpdateStatus) ([]*StoreData, error)
-	UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*StoreData, error)
+	UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*StoreData, error)
 	Close(ctx context.Context) error
 	ClearData(ctx context.Context, retentionDays int32) (int64, error)
 	Ping(ctx context.Context) error

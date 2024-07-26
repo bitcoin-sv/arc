@@ -490,7 +490,7 @@ func TestPostgresDB(t *testing.T) {
 
 		chainHash2 := revChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
 
-		txBlocks := &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{
+		txBlocks := []*blocktx_api.TransactionBlock{
 			{
 				BlockHash:       testdata.Block1Hash[:],
 				BlockHeight:     100,
@@ -509,7 +509,7 @@ func TestPostgresDB(t *testing.T) {
 				TransactionHash: testdata.TX3Hash[:], // hash non-existent in db
 				MerklePath:      "merkle-path-3",
 			},
-		}}
+		}
 
 		updated, err := postgresDB.UpdateMined(ctx, txBlocks)
 		require.NoError(t, err)
@@ -532,7 +532,7 @@ func TestPostgresDB(t *testing.T) {
 		unmined.MerklePath = "merkle-path-1"
 		require.Equal(t, dataReturned, &unmined)
 
-		updated, err = postgresDB.UpdateMined(ctx, &blocktx_api.TransactionBlocks{})
+		updated, err = postgresDB.UpdateMined(ctx, []*blocktx_api.TransactionBlock{})
 		require.NoError(t, err)
 		require.Len(t, updated, 0)
 		require.Len(t, updated, 0)
@@ -548,12 +548,12 @@ func TestPostgresDB(t *testing.T) {
 		unmined := *unminedData
 		err = postgresDB.Set(ctx, &unmined)
 		require.NoError(t, err)
-		txBlocks := &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{{
+		txBlocks := []*blocktx_api.TransactionBlock{{
 			BlockHash:       nil,
 			BlockHeight:     0,
 			TransactionHash: unminedHash[:],
 			MerklePath:      "",
-		}}}
+		}}
 
 		_, err := postgresDB.UpdateMined(ctx, txBlocks)
 		require.NoError(t, err)

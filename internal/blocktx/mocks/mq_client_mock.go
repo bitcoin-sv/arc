@@ -4,9 +4,8 @@
 package mocks
 
 import (
-	"context"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"sync"
 )
 
@@ -20,8 +19,8 @@ var _ blocktx.MessageQueueClient = &MessageQueueClientMock{}
 //
 //		// make and configure a mocked blocktx.MessageQueueClient
 //		mockedMessageQueueClient := &MessageQueueClientMock{
-//			PublishMinedTxsFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error {
-//				panic("mock out the PublishMinedTxs method")
+//			PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error {
+//				panic("mock out the PublishMarshal method")
 //			},
 //			ShutdownFunc: func() error {
 //				panic("mock out the Shutdown method")
@@ -39,8 +38,8 @@ var _ blocktx.MessageQueueClient = &MessageQueueClientMock{}
 //
 //	}
 type MessageQueueClientMock struct {
-	// PublishMinedTxsFunc mocks the PublishMinedTxs method.
-	PublishMinedTxsFunc func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error
+	// PublishMarshalFunc mocks the PublishMarshal method.
+	PublishMarshalFunc func(topic string, m protoreflect.ProtoMessage) error
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func() error
@@ -53,12 +52,12 @@ type MessageQueueClientMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// PublishMinedTxs holds details about calls to the PublishMinedTxs method.
-		PublishMinedTxs []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// TxsBlocks is the txsBlocks argument value.
-			TxsBlocks []*blocktx_api.TransactionBlock
+		// PublishMarshal holds details about calls to the PublishMarshal method.
+		PublishMarshal []struct {
+			// Topic is the topic argument value.
+			Topic string
+			// M is the m argument value.
+			M protoreflect.ProtoMessage
 		}
 		// Shutdown holds details about calls to the Shutdown method.
 		Shutdown []struct {
@@ -70,45 +69,45 @@ type MessageQueueClientMock struct {
 		SubscribeRequestTxs []struct {
 		}
 	}
-	lockPublishMinedTxs      sync.RWMutex
+	lockPublishMarshal       sync.RWMutex
 	lockShutdown             sync.RWMutex
 	lockSubscribeRegisterTxs sync.RWMutex
 	lockSubscribeRequestTxs  sync.RWMutex
 }
 
-// PublishMinedTxs calls PublishMinedTxsFunc.
-func (mock *MessageQueueClientMock) PublishMinedTxs(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error {
-	if mock.PublishMinedTxsFunc == nil {
-		panic("MessageQueueClientMock.PublishMinedTxsFunc: method is nil but MessageQueueClient.PublishMinedTxs was just called")
+// PublishMarshal calls PublishMarshalFunc.
+func (mock *MessageQueueClientMock) PublishMarshal(topic string, m protoreflect.ProtoMessage) error {
+	if mock.PublishMarshalFunc == nil {
+		panic("MessageQueueClientMock.PublishMarshalFunc: method is nil but MessageQueueClient.PublishMarshal was just called")
 	}
 	callInfo := struct {
-		Ctx       context.Context
-		TxsBlocks []*blocktx_api.TransactionBlock
+		Topic string
+		M     protoreflect.ProtoMessage
 	}{
-		Ctx:       ctx,
-		TxsBlocks: txsBlocks,
+		Topic: topic,
+		M:     m,
 	}
-	mock.lockPublishMinedTxs.Lock()
-	mock.calls.PublishMinedTxs = append(mock.calls.PublishMinedTxs, callInfo)
-	mock.lockPublishMinedTxs.Unlock()
-	return mock.PublishMinedTxsFunc(ctx, txsBlocks)
+	mock.lockPublishMarshal.Lock()
+	mock.calls.PublishMarshal = append(mock.calls.PublishMarshal, callInfo)
+	mock.lockPublishMarshal.Unlock()
+	return mock.PublishMarshalFunc(topic, m)
 }
 
-// PublishMinedTxsCalls gets all the calls that were made to PublishMinedTxs.
+// PublishMarshalCalls gets all the calls that were made to PublishMarshal.
 // Check the length with:
 //
-//	len(mockedMessageQueueClient.PublishMinedTxsCalls())
-func (mock *MessageQueueClientMock) PublishMinedTxsCalls() []struct {
-	Ctx       context.Context
-	TxsBlocks []*blocktx_api.TransactionBlock
+//	len(mockedMessageQueueClient.PublishMarshalCalls())
+func (mock *MessageQueueClientMock) PublishMarshalCalls() []struct {
+	Topic string
+	M     protoreflect.ProtoMessage
 } {
 	var calls []struct {
-		Ctx       context.Context
-		TxsBlocks []*blocktx_api.TransactionBlock
+		Topic string
+		M     protoreflect.ProtoMessage
 	}
-	mock.lockPublishMinedTxs.RLock()
-	calls = mock.calls.PublishMinedTxs
-	mock.lockPublishMinedTxs.RUnlock()
+	mock.lockPublishMarshal.RLock()
+	calls = mock.calls.PublishMarshal
+	mock.lockPublishMarshal.RUnlock()
 	return calls
 }
 

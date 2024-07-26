@@ -58,10 +58,6 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		async.WithRegisterTxsChan(registerTxsChan),
 	}
 
-	if tracingEnabled {
-		mqOpts = append(mqOpts, async.WithTracer())
-	}
-
 	mqClient := async.NewNatsMQClient(natsClient, mqOpts...)
 
 	err = mqClient.SubscribeRegisterTxs()

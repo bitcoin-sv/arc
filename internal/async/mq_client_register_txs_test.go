@@ -103,11 +103,10 @@ func TestMQClient_SubscribeRegisterTxs(t *testing.T) {
 
 			opts := []func(*async.MQClient){
 				async.WithMaxBatchSize(5),
-				async.WithTracer(),
 			}
 
 			if tc.withRegisterTxsChan {
-				minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 1)
+				minedTxsChan := make(chan *blocktx_api.TransactionBlock, 5)
 				opts = append(opts, async.WithMinedTxsChan(minedTxsChan))
 			}
 

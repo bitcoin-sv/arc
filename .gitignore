@@ -10,3 +10,4 @@ gosec-report.json
 gotest.out
 *.env
 report.xml
+coverage-report.html

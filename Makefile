@@ -81,8 +81,8 @@ clean_gen:
 .PHONY: coverage
 coverage:
 	rm -f ./cov.out
-	go test -coverprofile=./cov.out -covermode=atomic ./... 2>&1 > gotest.out
-	cat gotest.out | go-junit-report -set-exit-code > report.xml
+	go test -coverprofile=./cov.out -covermode=atomic  ./... 2>&1 > gotest.out
+	go tool cover -html=cov.out -o coverage-report.html
 	goverreport -coverprofile cov.out -packages -sort block
 
 .PHONY: install_coverage

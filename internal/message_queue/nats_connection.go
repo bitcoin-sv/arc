@@ -9,10 +9,6 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-func WithLogin(user string, password string) nats.Option {
-	return nats.UserInfo(user, password)
-}
-
 type NatsConnection interface {
 	QueueSubscribe(subj, queue string, cb nats.MsgHandler) (*nats.Subscription, error)
 	Close()
@@ -20,7 +16,7 @@ type NatsConnection interface {
 	Drain() error
 }
 
-func NewNatsConnection(natsURL string, logger *slog.Logger, natsOpts ...nats.Option) (*nats.Conn, error) {
+func NewNatsConnection(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 	var nc *nats.Conn
 	var err error
 
@@ -53,8 +49,6 @@ func NewNatsConnection(natsURL string, logger *slog.Logger, natsOpts ...nats.Opt
 		nats.MaxReconnects(60),
 		nats.ReconnectWait(2 * time.Second),
 	}
-
-	opts = append(opts, natsOpts...)
 
 	nc, err = nats.Connect(natsURL, opts...)
 	if err != nil {

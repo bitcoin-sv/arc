@@ -64,6 +64,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
 //				panic("mock out the SetUnlockedByName method")
 //			},
+//			UpdateDoubleSpendFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+//				panic("mock out the UpdateDoubleSpend method")
+//			},
 //			UpdateMinedFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.StoreData, error) {
 //				panic("mock out the UpdateMined method")
 //			},
@@ -118,6 +121,9 @@ type MetamorphStoreMock struct {
 
 	// SetUnlockedByNameFunc mocks the SetUnlockedByName method.
 	SetUnlockedByNameFunc func(ctx context.Context, lockedBy string) (int64, error)
+
+	// UpdateDoubleSpendFunc mocks the UpdateDoubleSpend method.
+	UpdateDoubleSpendFunc func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error)
 
 	// UpdateMinedFunc mocks the UpdateMined method.
 	UpdateMinedFunc func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.StoreData, error)
@@ -237,6 +243,13 @@ type MetamorphStoreMock struct {
 			// LockedBy is the lockedBy argument value.
 			LockedBy string
 		}
+		// UpdateDoubleSpend holds details about calls to the UpdateDoubleSpend method.
+		UpdateDoubleSpend []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Updates is the updates argument value.
+			Updates []store.UpdateStatus
+		}
 		// UpdateMined holds details about calls to the UpdateMined method.
 		UpdateMined []struct {
 			// Ctx is the ctx argument value.
@@ -266,6 +279,7 @@ type MetamorphStoreMock struct {
 	lockSetBulk           sync.RWMutex
 	lockSetLocked         sync.RWMutex
 	lockSetUnlockedByName sync.RWMutex
+	lockUpdateDoubleSpend sync.RWMutex
 	lockUpdateMined       sync.RWMutex
 	lockUpdateStatusBulk  sync.RWMutex
 }
@@ -795,6 +809,42 @@ func (mock *MetamorphStoreMock) SetUnlockedByNameCalls() []struct {
 	mock.lockSetUnlockedByName.RLock()
 	calls = mock.calls.SetUnlockedByName
 	mock.lockSetUnlockedByName.RUnlock()
+	return calls
+}
+
+// UpdateDoubleSpend calls UpdateDoubleSpendFunc.
+func (mock *MetamorphStoreMock) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+	if mock.UpdateDoubleSpendFunc == nil {
+		panic("MetamorphStoreMock.UpdateDoubleSpendFunc: method is nil but MetamorphStore.UpdateDoubleSpend was just called")
+	}
+	callInfo := struct {
+		Ctx     context.Context
+		Updates []store.UpdateStatus
+	}{
+		Ctx:     ctx,
+		Updates: updates,
+	}
+	mock.lockUpdateDoubleSpend.Lock()
+	mock.calls.UpdateDoubleSpend = append(mock.calls.UpdateDoubleSpend, callInfo)
+	mock.lockUpdateDoubleSpend.Unlock()
+	return mock.UpdateDoubleSpendFunc(ctx, updates)
+}
+
+// UpdateDoubleSpendCalls gets all the calls that were made to UpdateDoubleSpend.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.UpdateDoubleSpendCalls())
+func (mock *MetamorphStoreMock) UpdateDoubleSpendCalls() []struct {
+	Ctx     context.Context
+	Updates []store.UpdateStatus
+} {
+	var calls []struct {
+		Ctx     context.Context
+		Updates []store.UpdateStatus
+	}
+	mock.lockUpdateDoubleSpend.RLock()
+	calls = mock.calls.UpdateDoubleSpend
+	mock.lockUpdateDoubleSpend.RUnlock()
 	return calls
 }
 

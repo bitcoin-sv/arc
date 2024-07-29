@@ -416,83 +416,141 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, "NONE", hash4Data.LockedBy)
 	})
 
-	// t.Run("update status", func(t *testing.T) {
-	// 	defer require.NoError(t, pruneTables(postgresDB.db))
-	//
-	// 	require.NoError(t, loadFixtures(postgresDB.db, "fixtures/update_status"))
-	//
-	// 	updates := []store.UpdateStatus{
-	// 		{
-	// 			// updated
-	// 			Hash:   *revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), // update expected
-	// 			Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
-	// 		},
-	// 		{
-	// 			// not updated
-	// 			Hash:   *revChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), // update not expected - old status = new status
-	// 			Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
-	// 		},
-	// 		{
-	// 			// updated
-	// 			Hash:   *revChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), // update expected
-	// 			Status: metamorph_api.Status_REJECTED,
-	// 			Error:  errors.New("missing inputs"),
-	// 		},
-	// 		{
-	// 			// updated
-	// 			Hash:   *revChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa"), // update expected
-	// 			Status: metamorph_api.Status_SEEN_ON_NETWORK,
-	// 		},
-	// 		{
-	// 			// not updated
-	// 			Hash:   *revChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update not expected - status is mined
-	// 			Status: metamorph_api.Status_SENT_TO_NETWORK,
-	// 		},
-	// 		{
-	// 			// updated
-	// 			Hash:         *revChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update not expected - old status > new status
-	// 			Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-	// 			CompetingTxs: []string{"21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"},
-	// 		},
-	// 		{
-	// 			// not updated
-	// 			Hash:   *revChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update not expected - hash non-existent in db
-	// 			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-	// 		},
-	// 		{
-	// 			// not updated
-	// 			Hash:   *revChainhash(t, "7e3350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"), // update not expected - hash non-existent in db
-	// 			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-	// 		},
-	// 	}
-	// 	updatedStatuses := 4
-	//
-	// 	statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
-	// 	require.NoError(t, err)
-	// 	require.Len(t, statusUpdates, updatedStatuses)
-	//
-	// 	require.Equal(t, metamorph_api.Status_ACCEPTED_BY_NETWORK, statusUpdates[0].Status)
-	// 	require.Equal(t, *revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), *statusUpdates[0].Hash)
-	//
-	// 	require.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[1].Status)
-	// 	require.Equal(t, "missing inputs", statusUpdates[1].RejectReason)
-	// 	require.Equal(t, *revChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), *statusUpdates[1].Hash)
-	//
-	// 	require.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, statusUpdates[2].Status)
-	// 	require.Equal(t, *revChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa"), *statusUpdates[2].Hash)
-	//
-	// 	require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[3].Status)
-	// 	require.Equal(t, *revChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), *statusUpdates[1].Hash)
-	// 	require.Equal(t, []string{"21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[3].CompetingTxs)
-	//
-	// 	returnedDataRequested, err := postgresDB.Get(ctx, revChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f")[:])
-	// 	require.NoError(t, err)
-	// 	require.Equal(t, metamorph_api.Status_ACCEPTED_BY_NETWORK, returnedDataRequested.Status)
-	//
-	// 	statusUpdates, err = postgresDB.UpdateStatusBulk(ctx, updates)
-	// 	require.NoError(t, err)
-	// 	require.Len(t, statusUpdates, 0)
-	// })
+	t.Run("update status", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/update_status"))
+
+		updates := []store.UpdateStatus{
+			{
+				Hash:   *revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), // update expected
+				Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+			},
+			{
+				Hash:   *revChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), // update not expected - old status = new status
+				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
+			},
+			{
+				Hash:   *revChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), // update expected
+				Status: metamorph_api.Status_REJECTED,
+				Error:  errors.New("missing inputs"),
+			},
+			{
+				Hash:   *revChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa"), // update expected
+				Status: metamorph_api.Status_SEEN_ON_NETWORK,
+			},
+			{
+				Hash:   *revChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update not expected - status is mined
+				Status: metamorph_api.Status_SENT_TO_NETWORK,
+			},
+			{
+				Hash:   *revChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update not expected - old status > new status
+				Status: metamorph_api.Status_SENT_TO_NETWORK,
+			},
+			{
+				Hash:   *revChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update not expected - hash non-existent in db
+				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			},
+			{
+				Hash:   *revChainhash(t, "7e3350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"), // update not expected - hash non-existent in db
+				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			},
+		}
+		updatedStatuses := 3
+
+		statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
+		require.NoError(t, err)
+		require.Len(t, statusUpdates, updatedStatuses)
+
+		require.Equal(t, metamorph_api.Status_ACCEPTED_BY_NETWORK, statusUpdates[0].Status)
+		require.Equal(t, *revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), *statusUpdates[0].Hash)
+
+		require.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[1].Status)
+		require.Equal(t, "missing inputs", statusUpdates[1].RejectReason)
+		require.Equal(t, *revChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), *statusUpdates[1].Hash)
+
+		require.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, statusUpdates[2].Status)
+		require.Equal(t, *revChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa"), *statusUpdates[2].Hash)
+
+		returnedDataRequested, err := postgresDB.Get(ctx, revChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f")[:])
+		require.NoError(t, err)
+		require.Equal(t, metamorph_api.Status_ACCEPTED_BY_NETWORK, returnedDataRequested.Status)
+
+		statusUpdates, err = postgresDB.UpdateStatusBulk(ctx, updates)
+		require.NoError(t, err)
+		require.Len(t, statusUpdates, 0)
+	})
+
+	t.Run("update double spend status", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/update_double_spend"))
+
+		updates := []store.UpdateStatus{
+			{
+				Hash:         *revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), // update expected
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+				CompetingTxs: []string{"5678"},
+			},
+			{
+				Hash:         *revChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), // update expected
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+				CompetingTxs: []string{"9999", "8888"},
+			},
+			{
+				Hash:         *revChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), // update expected
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+				CompetingTxs: []string{"1234"},
+			},
+			{
+				Hash:         *revChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update not expected - status is mined
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+				CompetingTxs: []string{"1234"},
+			},
+			{
+				Hash:         *revChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update expected - old status < new status
+				Status:       metamorph_api.Status_REJECTED,
+				CompetingTxs: []string{"1234"},
+				Error:        errors.New("txn-mempool-conflict"),
+			},
+			{
+				Hash:         *revChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update not expected - hash non-existent in db
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+				CompetingTxs: []string{"1234"},
+			},
+			{
+				Hash:         *revChainhash(t, "7e3350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"), // update not expected - hash non-existent in db
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+				CompetingTxs: []string{"1234"},
+			},
+		}
+		updatedStatuses := 4
+
+		statusUpdates, err := postgresDB.UpdateDoubleSpend(ctx, updates)
+		require.NoError(t, err)
+		require.Len(t, statusUpdates, updatedStatuses)
+
+		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[0].Status)
+		require.Equal(t, *revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), *statusUpdates[0].Hash)
+		require.True(t, unorderedEqual([]string{"5678", "1234"}, statusUpdates[0].CompetingTxs))
+
+		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[1].Status)
+		require.Equal(t, *revChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), *statusUpdates[1].Hash)
+		require.True(t, unorderedEqual([]string{"9999", "8888", "1234", "5678"}, statusUpdates[1].CompetingTxs))
+
+		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[2].Status)
+		require.Equal(t, *revChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), *statusUpdates[2].Hash)
+		require.Equal(t, []string{"1234"}, statusUpdates[2].CompetingTxs)
+
+		require.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[3].Status)
+		require.Equal(t, *revChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), *statusUpdates[3].Hash)
+		require.Equal(t, []string{"1234"}, statusUpdates[3].CompetingTxs)
+		require.Equal(t, "txn-mempool-conflict", statusUpdates[3].RejectReason)
+
+		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates)
+		require.NoError(t, err)
+		require.Len(t, statusUpdates, 0)
+	})
 
 	t.Run("update mined", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
@@ -630,9 +688,32 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, int64(0), res.StatusSentToNetwork)
 		require.Equal(t, int64(1), res.StatusRejected)
 		require.Equal(t, int64(0), res.StatusSeenInOrphanMempool)
+		require.Equal(t, int64(1), res.StatusDoubleSpendAttempted)
 		require.Equal(t, int64(1), res.StatusNotMined)
 		require.Equal(t, int64(2), res.StatusNotSeen)
 		require.Equal(t, int64(6), res.StatusMinedTotal)
 		require.Equal(t, int64(2), res.StatusSeenOnNetworkTotal)
 	})
+}
+
+// unorderedEqual checks if two string slices contain
+// the same elements, regardless of order
+func unorderedEqual(sliceOne, sliceTwo []string) bool {
+	if len(sliceOne) != len(sliceTwo) {
+		return false
+	}
+
+	exists := make(map[string]bool)
+
+	for _, value := range sliceOne {
+		exists[value] = true
+	}
+
+	for _, value := range sliceTwo {
+		if !exists[value] {
+			return false
+		}
+	}
+
+	return true
 }

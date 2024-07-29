@@ -605,6 +605,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			) AS bulk_query
 			WHERE metamorph.transactions.hash=bulk_query.hash
 				AND metamorph.transactions.status <= bulk_query.status
+				AND LENGTH(metamorph.transactions.competing_txs) < LENGTH(bulk_query.competing_txs)
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.announced_at
 		,metamorph.transactions.mined_at
@@ -673,31 +674,25 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		dbData = append(dbData, data)
 	}
 
-	txHashes = make([][]byte, 0)
-	statuses := make([]metamorph_api.Status, 0)
-	competingTxs := make([]string, 0)
-	rejectReasons := make([]string, 0)
+	statuses := make([]metamorph_api.Status, len(updates))
+	competingTxs := make([]string, len(updates))
+	rejectReasons := make([]string, len(updates))
 
-	for _, update := range updates {
+	for i, update := range updates {
+		txHashes[i] = update.Hash.CloneBytes()
+		statuses[i] = update.Status
+
+		rejectReasons[i] = ""
+		if update.Error != nil {
+			rejectReasons[i] = update.Error.Error()
+		}
+
 		for _, data := range dbData {
 			if data.Hash.IsEqual(&update.Hash) {
 				// get unique values from merged existing competing txs
 				// and incoming ones to avoid duplicates or overridings
 				uniqueTxs := mergeUnique(update.CompetingTxs, data.CompetingTxs)
-
-				// make update to db only if the uniqueTxs slice has more elements
-				// than the already existing in db slice of competing txs
-				if len(uniqueTxs) > len(data.CompetingTxs) {
-					txHashes = append(txHashes, update.Hash.CloneBytes())
-					statuses = append(statuses, update.Status)
-					competingTxs = append(competingTxs, strings.Join(uniqueTxs, ","))
-					if update.Error != nil {
-						rejectReasons = append(rejectReasons, update.Error.Error())
-					} else {
-						rejectReasons = append(rejectReasons, "")
-					}
-				}
-
+				competingTxs[i] = strings.Join(uniqueTxs, ",")
 				break
 			}
 		}

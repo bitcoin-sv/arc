@@ -162,11 +162,12 @@ func TestNatsClient(t *testing.T) {
 		mqClient := async.NewNatsMQClient(natsConnClient)
 		minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
 
-		err := mqClient.Subscribe(async.MinedTxsTopic, func(msg *nats.Msg) {
+		err := mqClient.Subscribe(async.MinedTxsTopic, func(msg []byte) error {
 			serialized := &blocktx_api.TransactionBlock{}
-			err := proto.Unmarshal(msg.Data, serialized)
+			err := proto.Unmarshal(msg, serialized)
 			require.NoError(t, err)
 			minedTxsChan <- serialized
+			return nil
 		})
 		require.NoError(t, err)
 

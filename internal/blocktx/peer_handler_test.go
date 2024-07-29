@@ -23,7 +23,6 @@ import (
 	"github.com/libsv/go-p2p/bsvutil"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
-	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -646,7 +645,7 @@ func TestStart(t *testing.T) {
 			storeMock := &storeMocks.BlocktxStoreMock{}
 
 			mqClient := &mocks.MessageQueueClientMock{
-				SubscribeFunc: func(topic string, cb nats.MsgHandler) error {
+				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
 					err, ok := tc.topicErr[topic]
 					if ok {
 						return err

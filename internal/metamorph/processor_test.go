@@ -22,7 +22,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -983,15 +982,16 @@ func TestStart(t *testing.T) {
 
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
-			var subscribeMinedTxsFunction nats.MsgHandler
-			var subscribeSubmitTxsFunction nats.MsgHandler
+			var subscribeMinedTxsFunction func([]byte) error
+			var subscribeSubmitTxsFunction func([]byte) error
 			mqClient := &mocks.MessageQueueClientMock{
-				SubscribeFunc: func(topic string, cb nats.MsgHandler) error {
+				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
+
 					switch topic {
 					case async.MinedTxsTopic:
-						subscribeMinedTxsFunction = cb
+						subscribeMinedTxsFunction = msgFunc
 					case async.SubmitTxTopic:
-						subscribeSubmitTxsFunction = cb
+						subscribeSubmitTxsFunction = msgFunc
 					}
 
 					err, ok := tc.topicErr[topic]
@@ -1023,14 +1023,14 @@ func TestStart(t *testing.T) {
 			data, err := proto.Marshal(txBlock)
 			require.NoError(t, err)
 
-			subscribeMinedTxsFunction(&nats.Msg{Data: []byte("invalid data")})
-			subscribeMinedTxsFunction(&nats.Msg{Data: data})
+			_ = subscribeMinedTxsFunction([]byte("invalid data"))
+			_ = subscribeMinedTxsFunction(data)
 
 			txRequest := &metamorph_api.TransactionRequest{}
 			data, err = proto.Marshal(txRequest)
 			require.NoError(t, err)
-			subscribeSubmitTxsFunction(&nats.Msg{Data: []byte("invalid data")})
-			subscribeSubmitTxsFunction(&nats.Msg{Data: data})
+			_ = subscribeSubmitTxsFunction([]byte("invalid data"))
+			_ = subscribeSubmitTxsFunction(data)
 
 			processor.Shutdown()
 		})

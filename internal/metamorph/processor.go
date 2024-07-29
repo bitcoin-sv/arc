@@ -15,7 +15,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 	"log/slog"
 )
@@ -167,29 +166,29 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChan
 }
 
 func (p *Processor) Start() error {
-	err := p.mqClient.Subscribe(async.MinedTxsTopic, func(msg *nats.Msg) {
+	err := p.mqClient.Subscribe(async.MinedTxsTopic, func(msg []byte) error {
 		serialized := &blocktx_api.TransactionBlock{}
-		err := proto.Unmarshal(msg.Data, serialized)
+		err := proto.Unmarshal(msg, serialized)
 		if err != nil {
-			p.logger.Error("failed to unmarshal message", slog.String("err", err.Error()))
-			return
+			return fmt.Errorf("failed to unmarshal message subscribed on %s topic: %w", async.MinedTxsTopic, err)
 		}
 
 		p.minedTxsChan <- serialized
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to %s topic: %w", async.MinedTxsTopic, err)
 	}
 
-	err = p.mqClient.Subscribe(async.SubmitTxTopic, func(msg *nats.Msg) {
+	err = p.mqClient.Subscribe(async.SubmitTxTopic, func(msg []byte) error {
 		serialized := &metamorph_api.TransactionRequest{}
-		err = proto.Unmarshal(msg.Data, serialized)
+		err = proto.Unmarshal(msg, serialized)
 		if err != nil {
-			p.logger.Error("failed to unmarshal message", slog.String("err", err.Error()))
-			return
+			return fmt.Errorf("failed to unmarshal message subscribed on %s topic: %w", async.SubmitTxTopic, err)
 		}
 
 		p.submittedTxsChan <- serialized
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to %s topic: %w", async.SubmitTxTopic, err)

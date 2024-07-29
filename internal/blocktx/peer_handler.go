@@ -20,7 +20,6 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
-	"github.com/nats-io/nats.go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -215,15 +214,17 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func
 
 func (ph *PeerHandler) Start() error {
 
-	err := ph.mqClient.Subscribe(async.RegisterTxTopic, func(msg *nats.Msg) {
-		ph.registerTxsChan <- msg.Data
+	err := ph.mqClient.Subscribe(async.RegisterTxTopic, func(msg []byte) error {
+		ph.registerTxsChan <- msg
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to %s topic: %w", async.RegisterTxTopic, err)
 	}
 
-	err = ph.mqClient.Subscribe(async.RequestTxTopic, func(msg *nats.Msg) {
-		ph.requestTxChannel <- msg.Data
+	err = ph.mqClient.Subscribe(async.RequestTxTopic, func(msg []byte) error {
+		ph.requestTxChannel <- msg
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to %s topic: %w", async.RequestTxTopic, err)
@@ -366,7 +367,7 @@ func (ph *PeerHandler) StartProcessRequestTxs() {
 			case txHash := <-ph.requestTxChannel:
 				tx, err := chainhash.NewHash(txHash)
 				if err != nil {
-					ph.logger.Error("Couldn't create tx from byte array")
+					ph.logger.Error("Failed to create hash from byte array", slog.String("err", err.Error()))
 					continue
 				}
 

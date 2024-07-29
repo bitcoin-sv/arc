@@ -78,9 +78,14 @@ func (c MQClient) PublishMarshal(topic string, m proto.Message) error {
 	return nil
 }
 
-func (c MQClient) Subscribe(topic string, cb nats.MsgHandler) error {
+func (c MQClient) Subscribe(topic string, msgFunc func([]byte) error) error {
 
-	_, err := c.nc.QueueSubscribe(topic, topic+"-group", cb)
+	_, err := c.nc.QueueSubscribe(topic, topic+"-group", func(msg *nats.Msg) {
+		err := msgFunc(msg.Data)
+		if err != nil {
+			c.logger.Error(fmt.Sprintf("failed to subscribe on %s topic", topic))
+		}
+	})
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to %s topic: %w", topic, err)
 	}

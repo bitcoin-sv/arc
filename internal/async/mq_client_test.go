@@ -155,7 +155,7 @@ func TestSubscribe(t *testing.T) {
 				natsMock,
 			)
 
-			err := mqClient.Subscribe(async.RegisterTxTopic, func(msg *nats.Msg) {})
+			err := mqClient.Subscribe(async.RegisterTxTopic, func(bytes []byte) error { return nil })
 
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)

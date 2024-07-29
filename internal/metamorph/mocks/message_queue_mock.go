@@ -5,7 +5,6 @@ package mocks
 
 import (
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/nats-io/nats.go"
 	"sync"
 )
 
@@ -22,7 +21,7 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //			PublishFunc: func(topic string, data []byte) error {
 //				panic("mock out the Publish method")
 //			},
-//			SubscribeFunc: func(topic string, cb nats.MsgHandler) error {
+//			SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
 //				panic("mock out the Subscribe method")
 //			},
 //		}
@@ -36,7 +35,7 @@ type MessageQueueClientMock struct {
 	PublishFunc func(topic string, data []byte) error
 
 	// SubscribeFunc mocks the Subscribe method.
-	SubscribeFunc func(topic string, cb nats.MsgHandler) error
+	SubscribeFunc func(topic string, msgFunc func([]byte) error) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -51,8 +50,8 @@ type MessageQueueClientMock struct {
 		Subscribe []struct {
 			// Topic is the topic argument value.
 			Topic string
-			// Cb is the cb argument value.
-			Cb nats.MsgHandler
+			// MsgFunc is the msgFunc argument value.
+			MsgFunc func([]byte) error
 		}
 	}
 	lockPublish   sync.RWMutex
@@ -96,21 +95,21 @@ func (mock *MessageQueueClientMock) PublishCalls() []struct {
 }
 
 // Subscribe calls SubscribeFunc.
-func (mock *MessageQueueClientMock) Subscribe(topic string, cb nats.MsgHandler) error {
+func (mock *MessageQueueClientMock) Subscribe(topic string, msgFunc func([]byte) error) error {
 	if mock.SubscribeFunc == nil {
 		panic("MessageQueueClientMock.SubscribeFunc: method is nil but MessageQueueClient.Subscribe was just called")
 	}
 	callInfo := struct {
-		Topic string
-		Cb    nats.MsgHandler
+		Topic   string
+		MsgFunc func([]byte) error
 	}{
-		Topic: topic,
-		Cb:    cb,
+		Topic:   topic,
+		MsgFunc: msgFunc,
 	}
 	mock.lockSubscribe.Lock()
 	mock.calls.Subscribe = append(mock.calls.Subscribe, callInfo)
 	mock.lockSubscribe.Unlock()
-	return mock.SubscribeFunc(topic, cb)
+	return mock.SubscribeFunc(topic, msgFunc)
 }
 
 // SubscribeCalls gets all the calls that were made to Subscribe.
@@ -118,12 +117,12 @@ func (mock *MessageQueueClientMock) Subscribe(topic string, cb nats.MsgHandler) 
 //
 //	len(mockedMessageQueueClient.SubscribeCalls())
 func (mock *MessageQueueClientMock) SubscribeCalls() []struct {
-	Topic string
-	Cb    nats.MsgHandler
+	Topic   string
+	MsgFunc func([]byte) error
 } {
 	var calls []struct {
-		Topic string
-		Cb    nats.MsgHandler
+		Topic   string
+		MsgFunc func([]byte) error
 	}
 	mock.lockSubscribe.RLock()
 	calls = mock.calls.Subscribe

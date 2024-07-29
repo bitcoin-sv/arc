@@ -26,8 +26,7 @@ func (p *PostgreSQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]
 			AND height > (SELECT max(height) - $1 AS block_height FROM blocktx.blocks b)
 			) AS all_missing
 			LEFT JOIN blocktx.block_processing bp ON bp.block_hash = all_missing.hash
-			WHERE bp IS NULL ORDER BY all_missing.height DESC
-			;
+			WHERE bp IS NULL ORDER BY all_missing.height DESC;
 			`
 
 	rows, err := p.db.QueryContext(ctx, q, blockHeightRange)

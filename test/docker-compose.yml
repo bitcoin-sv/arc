@@ -102,32 +102,36 @@ services:
     restart: on-failure
 
   nats-1:
-    image: nats:2.10.10
+    image: nats:2.10.18-alpine3.20
     container_name: nats-server-1
     restart: no
     ports:
       - "4222:4222"
-    entrypoint: /nats-server
-    command:
-      - -c=./nats-server.conf
     hostname: nats-server
     volumes:
       - nats1-data:/data
-      - ./config/nats-server-host-1.conf:/nats-server.conf
+      - ./config/nats-server-host-1.conf:/etc/nats/nats-server.conf
+    healthcheck:
+      test: wget http://localhost:8222/healthz -q -S -O -
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   nats-2:
-    image: nats:2.10.10
+    image: nats:2.10.18-alpine3.20
     container_name: nats-server-2
     restart: no
     ports:
       - "4223:4222"
-    entrypoint: /nats-server
-    command:
-      - -c=./nats-server.conf
     hostname: nats-server
     volumes:
       - nats2-data:/data
-      - ./config/nats-server-host-2.conf:/nats-server.conf
+      - ./config/nats-server-host-2.conf:/etc/nats/nats-server.conf
+    healthcheck:
+      test: wget http://localhost:8222/healthz -q -S -O -
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   arc-blocktx:
     image: test-arc:latest
@@ -137,13 +141,21 @@ services:
       - ./config/config.yaml:/service/config.yaml
     command: [ "./arc", "-blocktx=true", "-config=." ]
     depends_on:
-      - node1
-      - node2
-      - node3
-      - migrate-blocktx
-      - migrate-metamorph
-      - nats-1
-      - nats-2
+      nats-1:
+        condition: service_healthy
+      nats-2:
+        condition: service_healthy
+      node1:
+        condition: service_healthy
+      node2:
+        condition: service_healthy
+      node3:
+        condition: service_healthy
+      migrate-blocktx:
+        condition: service_completed_successfully
+      migrate-metamorph:
+        condition: service_completed_successfully
+
     healthcheck:
       test: ["CMD", "/bin/grpc_health_probe", "-addr=:8006", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s

@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"log/slog"
 	"net"
 	"net/http"
@@ -13,8 +12,8 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/config"
-	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/message_queue"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -52,22 +51,22 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, chanBufferSize)
 
 	var mqClient metamorph.MessageQueueClient
-	natsClient, err := nats_mq.NewNatsClient(arcConfig.MessageQueue.URL, logger)
+	natsClient, err := message_queue.NewNatsConnection(arcConfig.MessageQueue.URL, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
 
 	if arcConfig.MessageQueue.EnableStreaming {
 		ctx := context.Background()
-		mqClient, err = async.NewJetStreamClient(ctx, natsClient, logger, arcConfig.MessageQueue.URL,
+		mqClient, err = message_queue.NewNatsJetStreamClient(ctx, natsClient, logger, arcConfig.MessageQueue.URL,
 			[]string{metamorph.MinedTxsTopic, metamorph.SubmitTxTopic, metamorph.RegisterTxTopic, metamorph.RequestTxTopic},
-			async.WithSubscribedTopics(metamorph.MinedTxsTopic, metamorph.SubmitTxTopic),
+			message_queue.WithSubscribedTopics(metamorph.MinedTxsTopic, metamorph.SubmitTxTopic),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}
 	} else {
-		mqClient = async.NewNatsMQClient(natsClient, async.WithLogger(logger))
+		mqClient = message_queue.NewNatsCoreClient(natsClient, message_queue.WithLogger(logger))
 	}
 
 	callbacker, err := metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})

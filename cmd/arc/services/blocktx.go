@@ -3,16 +3,15 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"log/slog"
 	"net"
 	"time"
 
 	"github.com/bitcoin-sv/arc/config"
-	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
+	"github.com/bitcoin-sv/arc/internal/message_queue"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
 	"google.golang.org/grpc"
@@ -42,21 +41,21 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	requestTxChannel := make(chan []byte, chanBufferSize)
 
 	var mqClient blocktx.MessageQueueClient
-	natsClient, err := nats_mq.NewNatsClient(arcConfig.MessageQueue.URL, logger)
+	natsClient, err := message_queue.NewNatsConnection(arcConfig.MessageQueue.URL, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
 
 	if arcConfig.MessageQueue.EnableStreaming {
 		ctx := context.Background()
-		mqClient, err = async.NewJetStreamClient(ctx, natsClient, logger, arcConfig.MessageQueue.URL,
+		mqClient, err = message_queue.NewNatsJetStreamClient(ctx, natsClient, logger, arcConfig.MessageQueue.URL,
 			[]string{blocktx.MinedTxsTopic, blocktx.RegisterTxTopic, blocktx.RequestTxTopic},
-			async.WithSubscribedTopics(blocktx.RegisterTxTopic, blocktx.RequestTxTopic))
+			message_queue.WithSubscribedTopics(blocktx.RegisterTxTopic, blocktx.RequestTxTopic))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}
 	} else {
-		mqClient = async.NewNatsMQClient(natsClient, async.WithLogger(logger))
+		mqClient = message_queue.NewNatsCoreClient(natsClient, message_queue.WithLogger(logger))
 	}
 
 	peerHandlerOpts := []func(handler *blocktx.PeerHandler){

@@ -1,4 +1,4 @@
-package nats_mq
+package message_queue
 
 import (
 	"fmt"
@@ -13,7 +13,14 @@ func WithLogin(user string, password string) nats.Option {
 	return nats.UserInfo(user, password)
 }
 
-func NewNatsClient(natsURL string, logger *slog.Logger, natsOpts ...nats.Option) (*nats.Conn, error) {
+type NatsConnection interface {
+	QueueSubscribe(subj, queue string, cb nats.MsgHandler) (*nats.Subscription, error)
+	Close()
+	Publish(subj string, data []byte) error
+	Drain() error
+}
+
+func NewNatsConnection(natsURL string, logger *slog.Logger, natsOpts ...nats.Option) (*nats.Conn, error) {
 	var nc *nats.Conn
 	var err error
 

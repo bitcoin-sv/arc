@@ -1,12 +1,12 @@
-package async_test
+package message_queue_test
 
 import (
 	"errors"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/internal/async"
-	"github.com/bitcoin-sv/arc/internal/async/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/message_queue"
+	"github.com/bitcoin-sv/arc/internal/message_queue/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
@@ -57,7 +57,7 @@ func TestPublishMarshal(t *testing.T) {
 				},
 			}
 
-			mqClient := async.NewNatsMQClient(natsMock)
+			mqClient := message_queue.NewNatsCoreClient(natsMock)
 
 			err := mqClient.PublishMarshal(MinedTxsTopic, tc.txsBlock)
 
@@ -104,7 +104,7 @@ func TestPublish(t *testing.T) {
 				},
 			}
 
-			mqClient := async.NewNatsMQClient(
+			mqClient := message_queue.NewNatsCoreClient(
 				natsMock,
 			)
 
@@ -156,7 +156,7 @@ func TestSubscribe(t *testing.T) {
 				},
 			}
 
-			mqClient := async.NewNatsMQClient(
+			mqClient := message_queue.NewNatsCoreClient(
 				natsMock,
 			)
 
@@ -197,7 +197,7 @@ func TestShutdown(t *testing.T) {
 				},
 			}
 
-			mqClient := async.NewNatsMQClient(
+			mqClient := message_queue.NewNatsCoreClient(
 				natsMock,
 			)
 

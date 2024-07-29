@@ -1,28 +1,28 @@
-package async
+package message_queue
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nats-io/nats.go"
 	"log/slog"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 )
 
-type Client struct {
+type NatsJetStreamClient struct {
 	url       string
 	js        jetstream.JetStream
-	nc        NatsClient
+	nc        NatsConnection
 	logger    *slog.Logger
 	consumers map[string]jetstream.Consumer
 	ctx       context.Context
 }
 
-func WithSubscribedTopics(topics ...string) func(handler *Client) error {
-	return func(c *Client) error {
+func WithSubscribedTopics(topics ...string) func(handler *NatsJetStreamClient) error {
+	return func(c *NatsJetStreamClient) error {
 		for _, topic := range topics {
 			streamMinedTxs, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic))
 			if err != nil {
@@ -41,9 +41,9 @@ func WithSubscribedTopics(topics ...string) func(handler *Client) error {
 	}
 }
 
-func NewJetStreamClient(ctx context.Context, nc *nats.Conn, logger *slog.Logger, url string, topics []string, opts ...func(client *Client) error) (*Client, error) {
+func NewNatsJetStreamClient(ctx context.Context, nc *nats.Conn, logger *slog.Logger, url string, topics []string, opts ...func(client *NatsJetStreamClient) error) (*NatsJetStreamClient, error) {
 
-	p := &Client{
+	p := &NatsJetStreamClient{
 		logger:    logger,
 		url:       url,
 		ctx:       ctx,
@@ -74,14 +74,14 @@ func NewJetStreamClient(ctx context.Context, nc *nats.Conn, logger *slog.Logger,
 	return p, nil
 }
 
-func (cl *Client) Close() error {
+func (cl *NatsJetStreamClient) Close() error {
 	if cl.nc != nil {
 		return cl.nc.Drain()
 	}
 	return nil
 }
 
-func (cl *Client) getStream(topicName string, streamName string) (jetstream.Stream, error) {
+func (cl *NatsJetStreamClient) getStream(topicName string, streamName string) (jetstream.Stream, error) {
 
 	streamCtx, cancel := context.WithTimeout(cl.ctx, 60*time.Second)
 	defer cancel()
@@ -114,7 +114,7 @@ func (cl *Client) getStream(topicName string, streamName string) (jetstream.Stre
 	return stream, nil
 }
 
-func (cl *Client) getConsumer(stream jetstream.Stream, consumerName string) (jetstream.Consumer, error) {
+func (cl *NatsJetStreamClient) getConsumer(stream jetstream.Stream, consumerName string) (jetstream.Consumer, error) {
 	consCtx, cancel := context.WithTimeout(cl.ctx, 30*time.Second)
 	defer cancel()
 
@@ -140,7 +140,7 @@ func (cl *Client) getConsumer(stream jetstream.Stream, consumerName string) (jet
 	return cons, err
 }
 
-func (cl *Client) Publish(topic string, hash []byte) error {
+func (cl *NatsJetStreamClient) Publish(topic string, hash []byte) error {
 	_, err := cl.js.Publish(cl.ctx, topic, hash)
 	if err != nil {
 		return fmt.Errorf("failed to publish on %s topic: %w", topic, err)
@@ -149,7 +149,7 @@ func (cl *Client) Publish(topic string, hash []byte) error {
 	return nil
 }
 
-func (cl *Client) PublishMarshal(topic string, m proto.Message) error {
+func (cl *NatsJetStreamClient) PublishMarshal(topic string, m proto.Message) error {
 	data, err := proto.Marshal(m)
 	if err != nil {
 		return err
@@ -163,7 +163,7 @@ func (cl *Client) PublishMarshal(topic string, m proto.Message) error {
 	return nil
 }
 
-func (cl *Client) Subscribe(topic string, msgFunc func([]byte) error) error {
+func (cl *NatsJetStreamClient) Subscribe(topic string, msgFunc func([]byte) error) error {
 	consumer, found := cl.consumers[topic]
 
 	if !found {
@@ -189,7 +189,7 @@ func (cl *Client) Subscribe(topic string, msgFunc func([]byte) error) error {
 	return nil
 }
 
-func (cl *Client) Shutdown() {
+func (cl *NatsJetStreamClient) Shutdown() {
 	if cl.nc != nil {
 		err := cl.nc.Drain()
 		if err != nil {

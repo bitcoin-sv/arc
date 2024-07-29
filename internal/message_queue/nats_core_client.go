@@ -1,4 +1,4 @@
-package async
+package message_queue
 
 import (
 	"fmt"
@@ -9,26 +9,19 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type NatsClient interface {
-	QueueSubscribe(subj, queue string, cb nats.MsgHandler) (*nats.Subscription, error)
-	Close()
-	Publish(subj string, data []byte) error
-	Drain() error
-}
-
-type MQClient struct {
-	nc     NatsClient
+type NatsCoreClient struct {
+	nc     NatsConnection
 	logger *slog.Logger
 }
 
-func WithLogger(logger *slog.Logger) func(handler *MQClient) {
-	return func(m *MQClient) {
+func WithLogger(logger *slog.Logger) func(handler *NatsCoreClient) {
+	return func(m *NatsCoreClient) {
 		m.logger = logger
 	}
 }
 
-func NewNatsMQClient(nc NatsClient, opts ...func(client *MQClient)) *MQClient {
-	m := &MQClient{
+func NewNatsCoreClient(nc NatsConnection, opts ...func(client *NatsCoreClient)) *NatsCoreClient {
+	m := &NatsCoreClient{
 		nc:     nc,
 		logger: slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
 	}
@@ -39,7 +32,7 @@ func NewNatsMQClient(nc NatsClient, opts ...func(client *MQClient)) *MQClient {
 	return m
 }
 
-func (c MQClient) Shutdown() {
+func (c NatsCoreClient) Shutdown() {
 	if c.nc != nil {
 		err := c.nc.Drain()
 		if err != nil {
@@ -48,7 +41,7 @@ func (c MQClient) Shutdown() {
 	}
 }
 
-func (c MQClient) Publish(topic string, data []byte) error {
+func (c NatsCoreClient) Publish(topic string, data []byte) error {
 	err := c.nc.Publish(topic, data)
 	if err != nil {
 		return fmt.Errorf("failed to publish on %s topic: %w", topic, err)
@@ -57,7 +50,7 @@ func (c MQClient) Publish(topic string, data []byte) error {
 	return nil
 }
 
-func (c MQClient) PublishMarshal(topic string, m proto.Message) error {
+func (c NatsCoreClient) PublishMarshal(topic string, m proto.Message) error {
 	data, err := proto.Marshal(m)
 	if err != nil {
 		return err
@@ -71,7 +64,7 @@ func (c MQClient) PublishMarshal(topic string, m proto.Message) error {
 	return nil
 }
 
-func (c MQClient) Subscribe(topic string, msgFunc func([]byte) error) error {
+func (c NatsCoreClient) Subscribe(topic string, msgFunc func([]byte) error) error {
 
 	_, err := c.nc.QueueSubscribe(topic, topic+"-group", func(msg *nats.Msg) {
 		err := msgFunc(msg.Data)

@@ -8,10 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/message_queue"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/nats-io/nats.go"
 	"github.com/ory/dockertest/v3"
@@ -31,7 +30,7 @@ const (
 var (
 	natsConnClient *nats.Conn
 	natsConn       *nats.Conn
-	mqClient       *async.MQClient
+	mqClient       *message_queue.NatsCoreClient
 )
 
 func TestMain(m *testing.M) {
@@ -69,12 +68,12 @@ func TestMain(m *testing.M) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	natsConnClient, err = nats_mq.NewNatsClient(natsURL, logger)
+	natsConnClient, err = message_queue.NewNatsConnection(natsURL, logger)
 	if err != nil {
 		log.Fatalf("failed to create nats connection: %v", err)
 	}
 
-	natsConn, err = nats_mq.NewNatsClient(natsURL, logger)
+	natsConn, err = message_queue.NewNatsConnection(natsURL, logger)
 	if err != nil {
 		log.Fatalf("failed to create nats connection: %v", err)
 	}
@@ -111,7 +110,7 @@ func TestNatsClient(t *testing.T) {
 	}
 
 	t.Run("publish", func(t *testing.T) {
-		mqClient = async.NewNatsMQClient(natsConnClient)
+		mqClient = message_queue.NewNatsCoreClient(natsConnClient)
 		submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
 		t.Log("subscribe to topic")
 		_, err := natsConnClient.QueueSubscribe(SubmitTxTopic, "queue", func(msg *nats.Msg) {
@@ -163,7 +162,7 @@ func TestNatsClient(t *testing.T) {
 	})
 
 	t.Run("subscribe", func(t *testing.T) {
-		mqClient := async.NewNatsMQClient(natsConnClient)
+		mqClient := message_queue.NewNatsCoreClient(natsConnClient)
 		minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
 
 		err := mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {

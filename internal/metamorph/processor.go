@@ -366,11 +366,8 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 			case <-p.ctx.Done():
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
-				// Ensure no duplicate hashes, overwrite value if the status has higher value than existing status
-				foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
-				if !found || (found && statusUpdate.Status > foundStatusUpdate.Status) {
-					statusUpdatesMap[statusUpdate.Hash] = statusUpdate
-				}
+				// Ensure no duplicate statuses
+				updateStatusMap(statusUpdatesMap, statusUpdate)
 
 				if len(statusUpdatesMap) >= p.processStatusUpdatesBatchSize {
 					p.checkAndUpdate(statusUpdatesMap)
@@ -409,9 +406,14 @@ func (p *Processor) checkAndUpdate(statusUpdatesMap map[chainhash.Hash]store.Upd
 }
 
 func (p *Processor) statusUpdateWithCallback(statusUpdates, doubleSpendUpdates []store.UpdateStatus) error {
-	updatedData, err := p.store.UpdateStatusBulk(context.Background(), statusUpdates)
-	if err != nil {
-		return err
+	var updatedData []*store.StoreData
+	var err error
+
+	if len(statusUpdates) > 0 {
+		updatedData, err = p.store.UpdateStatusBulk(context.Background(), statusUpdates)
+		if err != nil {
+			return err
+		}
 	}
 
 	if len(doubleSpendUpdates) > 0 {

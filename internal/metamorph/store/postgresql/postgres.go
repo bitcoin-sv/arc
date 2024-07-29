@@ -596,13 +596,15 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		UPDATE metamorph.transactions
 			SET
 			status=bulk_query.status,
+			reject_reason=bulk_query.reject_reason,
 			competing_txs=bulk_query.competing_txs
 			FROM
 			(
-				SELECT * FROM UNNEST($1::BYTEA[], $2::INT[], $3::TEXT[])
-				AS t(hash, status, competing_txs)
+				SELECT * FROM UNNEST($1::BYTEA[], $2::INT[], $3::TEXT[], $4::TEXT[])
+				AS t(hash, status, reject_reason, competing_txs)
 			) AS bulk_query
 			WHERE metamorph.transactions.hash=bulk_query.hash
+				AND metamorph.transactions.status <= bulk_query.status
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.announced_at
 		,metamorph.transactions.mined_at
@@ -647,7 +649,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		data := &store.StoreData{}
 
 		var hash []byte
-		var competingTxs []string
+		var competingTxs string
 
 		err := rows.Scan(
 			&hash,
@@ -664,33 +666,44 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			}
 		}
 
-		if len(competingTxs) > 0 {
-			data.CompetingTxs = competingTxs
+		if competingTxs != "" {
+			data.CompetingTxs = strings.Split(competingTxs, ",")
 		}
 
 		dbData = append(dbData, data)
 	}
 
-	txHashes = make([][]byte, len(updates))
-	statuses := make([]metamorph_api.Status, len(updates))
-	competingTxs := make([]string, len(updates))
+	txHashes = make([][]byte, 0)
+	statuses := make([]metamorph_api.Status, 0)
+	competingTxs := make([]string, 0)
+	rejectReasons := make([]string, 0)
 
-	for i, update := range updates {
-		txHashes[i] = update.Hash.CloneBytes()
-		statuses[i] = update.Status
-
+	for _, update := range updates {
 		for _, data := range dbData {
 			if data.Hash.IsEqual(&update.Hash) {
 				// get unique values from merged existing competing txs
 				// and incoming ones to avoid duplicates or overridings
 				uniqueTxs := mergeUnique(update.CompetingTxs, data.CompetingTxs)
-				competingTxs[i] = strings.Join(uniqueTxs, ",")
+
+				// make update to db only if the uniqueTxs slice has more elements
+				// than the already existing in db slice of competing txs
+				if len(uniqueTxs) > len(data.CompetingTxs) {
+					txHashes = append(txHashes, update.Hash.CloneBytes())
+					statuses = append(statuses, update.Status)
+					competingTxs = append(competingTxs, strings.Join(uniqueTxs, ","))
+					if update.Error != nil {
+						rejectReasons = append(rejectReasons, update.Error.Error())
+					} else {
+						rejectReasons = append(rejectReasons, "")
+					}
+				}
+
 				break
 			}
 		}
 	}
 
-	rows, err = tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(competingTxs))
+	rows, err = tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(competingTxs))
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			return nil, err

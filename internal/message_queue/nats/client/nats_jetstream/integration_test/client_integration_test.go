@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/testdata"
@@ -29,7 +29,9 @@ const (
 var (
 	natsConnClient *nats.Conn
 	natsConn       *nats.Conn
-	mqClient       *nats_core.Client
+	mqClient       *nats_jetstream.Client
+	err            error
+	logger         *slog.Logger
 )
 
 func TestMain(m *testing.M) {
@@ -38,7 +40,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to create pool: %v", err)
 	}
 
-	port := "4336"
+	port := "4337"
 	opts := dockertest.RunOptions{
 		Repository:   "nats",
 		Tag:          "2.10.10",
@@ -48,7 +50,8 @@ func TestMain(m *testing.M) {
 				{HostIP: "0.0.0.0", HostPort: port},
 			},
 		},
-		Name: "nats-server",
+		Name: "nats-jetstream",
+		Cmd:  []string{"--js"}, // start NATS server with JetStream enabled
 	}
 
 	resource, err := pool.RunWithOptions(&opts, func(config *docker.HostConfig) {
@@ -65,7 +68,7 @@ func TestMain(m *testing.M) {
 	hostPort := resource.GetPort(fmt.Sprintf("%s/tcp", natsPort))
 	natsURL := fmt.Sprintf("nats://localhost:%s", hostPort)
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	natsConnClient, err = nats_connection.New(natsURL, logger)
 	if err != nil {
@@ -109,10 +112,11 @@ func TestNatsClient(t *testing.T) {
 	}
 
 	t.Run("publish", func(t *testing.T) {
-		mqClient = nats_core.New(natsConnClient)
+		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{SubmitTxTopic})
+		require.NoError(t, err)
 		submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
 		t.Log("subscribe to topic")
-		_, err := natsConnClient.QueueSubscribe(SubmitTxTopic, "queue", func(msg *nats.Msg) {
+		_, err = natsConnClient.QueueSubscribe(SubmitTxTopic, "queue", func(msg *nats.Msg) {
 			serialized := &metamorph_api.TransactionRequest{}
 			err := proto.Unmarshal(msg.Data, serialized)
 			require.NoError(t, err)
@@ -161,16 +165,30 @@ func TestNatsClient(t *testing.T) {
 	})
 
 	t.Run("subscribe", func(t *testing.T) {
-		mqClient := nats_core.New(natsConnClient)
+		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{MinedTxsTopic})
+		require.NoError(t, err)
 		minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
 
-		err := mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
+		err = mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
 			serialized := &blocktx_api.TransactionBlock{}
 			err := proto.Unmarshal(msg, serialized)
 			require.NoError(t, err)
 			minedTxsChan <- serialized
 			return nil
 		})
+		require.ErrorIs(t, err, nats_jetstream.ErrConsumerNotInitialized)
+
+		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{MinedTxsTopic}, nats_jetstream.WithSubscribedTopics(MinedTxsTopic))
+		require.NoError(t, err)
+
+		err = mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
+			serialized := &blocktx_api.TransactionBlock{}
+			err := proto.Unmarshal(msg, serialized)
+			require.NoError(t, err)
+			minedTxsChan <- serialized
+			return nil
+		})
+
 		require.NoError(t, err)
 
 		data, err := proto.Marshal(txBlock)

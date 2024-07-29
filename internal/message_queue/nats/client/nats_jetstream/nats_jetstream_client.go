@@ -90,13 +90,6 @@ func New(nc *nats.Conn, logger *slog.Logger, topics []string, opts ...Option) (*
 	return p, nil
 }
 
-func (cl *Client) Close() error {
-	if cl.nc != nil {
-		return cl.nc.Drain()
-	}
-	return nil
-}
-
 func (cl *Client) getStream(topicName string, streamName string) (jetstream.Stream, error) {
 
 	streamCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -153,7 +146,7 @@ func (cl *Client) getConsumer(stream jetstream.Stream, consumerName string) (jet
 	}
 
 	cl.logger.Info(fmt.Sprintf("consumer %s found", consumerName))
-	return cons, err
+	return cons, nil
 }
 
 func (cl *Client) Publish(topic string, hash []byte) error {

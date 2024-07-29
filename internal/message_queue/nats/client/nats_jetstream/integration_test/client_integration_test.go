@@ -131,8 +131,6 @@ func TestNatsClient(t *testing.T) {
 			WaitForStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 		}
 
-		time.Sleep(1 * time.Second)
-
 		t.Log("publish")
 		err = mqClient.PublishMarshal(SubmitTxTopic, txRequest)
 		require.NoError(t, err)
@@ -169,38 +167,36 @@ func TestNatsClient(t *testing.T) {
 		require.NoError(t, err)
 		minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
 
+		// subscribe without initialized consumer, expect error
 		err = mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
-			serialized := &blocktx_api.TransactionBlock{}
-			err := proto.Unmarshal(msg, serialized)
-			require.NoError(t, err)
-			minedTxsChan <- serialized
 			return nil
 		})
 		require.ErrorIs(t, err, nats_jetstream.ErrConsumerNotInitialized)
 
+		// subscribe with initialized consumer
 		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{MinedTxsTopic}, nats_jetstream.WithSubscribedTopics(MinedTxsTopic))
 		require.NoError(t, err)
 
 		err = mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
 			serialized := &blocktx_api.TransactionBlock{}
-			err := proto.Unmarshal(msg, serialized)
-			require.NoError(t, err)
+			unmarshalErr := proto.Unmarshal(msg, serialized)
+			if unmarshalErr != nil {
+				return unmarshalErr
+			}
 			minedTxsChan <- serialized
 			return nil
 		})
-
 		require.NoError(t, err)
 
 		data, err := proto.Marshal(txBlock)
 		require.NoError(t, err)
-
-		time.Sleep(1 * time.Second)
-
 		err = natsConn.Publish(MinedTxsTopic, data)
 		require.NoError(t, err)
 		err = natsConn.Publish(MinedTxsTopic, data)
 		require.NoError(t, err)
 		err = natsConn.Publish(MinedTxsTopic, data)
+		require.NoError(t, err)
+		err = natsConn.Publish(MinedTxsTopic, []byte("not valid data"))
 		require.NoError(t, err)
 
 		counter := 0
@@ -220,5 +216,11 @@ func TestNatsClient(t *testing.T) {
 		}
 		require.Equal(t, 3, counter)
 
+	})
+
+	t.Run("shutdown", func(t *testing.T) {
+		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{SubmitTxTopic})
+		require.NoError(t, err)
+		mqClient.Shutdown()
 	})
 }

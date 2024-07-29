@@ -49,7 +49,9 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	if arcConfig.MessageQueue.EnableStreaming {
 		ctx := context.Background()
-		mqClient, err = async.NewJetStreamClient(ctx, natsClient, logger, arcConfig.MessageQueue.URL, async.WithConsumer())
+		mqClient, err = async.NewJetStreamClient(ctx, natsClient, logger, arcConfig.MessageQueue.URL,
+			[]string{blocktx.MinedTxsTopic, blocktx.RegisterTxTopic, blocktx.RequestTxTopic},
+			async.WithSubscribedTopics(blocktx.RegisterTxTopic, blocktx.RequestTxTopic))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}

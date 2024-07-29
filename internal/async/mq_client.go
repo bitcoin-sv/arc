@@ -9,13 +9,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const (
-	SubmitTxTopic   = "submit-tx"
-	MinedTxsTopic   = "mined-txs"
-	RegisterTxTopic = "register-tx"
-	RequestTxTopic  = "request-tx"
-)
-
 type NatsClient interface {
 	QueueSubscribe(subj, queue string, cb nats.MsgHandler) (*nats.Subscription, error)
 	Close()

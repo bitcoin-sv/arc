@@ -59,7 +59,10 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	if arcConfig.MessageQueue.EnableStreaming {
 		ctx := context.Background()
-		mqClient, err = async.NewJetStreamClient(ctx, natsClient, logger, arcConfig.MessageQueue.URL, async.WithConsumer())
+		mqClient, err = async.NewJetStreamClient(ctx, natsClient, logger, arcConfig.MessageQueue.URL,
+			[]string{metamorph.MinedTxsTopic, metamorph.SubmitTxTopic, metamorph.RegisterTxTopic, metamorph.RequestTxTopic},
+			async.WithSubscribedTopics(metamorph.MinedTxsTopic, metamorph.SubmitTxTopic),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}

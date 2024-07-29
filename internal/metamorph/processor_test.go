@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -962,13 +961,13 @@ func TestStart(t *testing.T) {
 		},
 		{
 			name:     "error - subscribe mined txs",
-			topicErr: map[string]error{async.MinedTxsTopic: errors.New("failed to subscribe")},
+			topicErr: map[string]error{metamorph.MinedTxsTopic: errors.New("failed to subscribe")},
 
 			expectedErrorStr: "failed to subscribe to mined-txs topic: failed to subscribe",
 		},
 		{
 			name:     "error - subscribe submit txs",
-			topicErr: map[string]error{async.SubmitTxTopic: errors.New("failed to subscribe")},
+			topicErr: map[string]error{metamorph.SubmitTxTopic: errors.New("failed to subscribe")},
 
 			expectedErrorStr: "failed to subscribe to submit-tx topic: failed to subscribe",
 		},
@@ -988,9 +987,9 @@ func TestStart(t *testing.T) {
 				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
 
 					switch topic {
-					case async.MinedTxsTopic:
+					case metamorph.MinedTxsTopic:
 						subscribeMinedTxsFunction = msgFunc
-					case async.SubmitTxTopic:
+					case metamorph.SubmitTxTopic:
 						subscribeSubmitTxsFunction = msgFunc
 					}
 

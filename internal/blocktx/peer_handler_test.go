@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
@@ -628,13 +627,13 @@ func TestStart(t *testing.T) {
 		},
 		{
 			name:     "error - subscribe mined txs",
-			topicErr: map[string]error{async.RegisterTxTopic: errors.New("failed to subscribe")},
+			topicErr: map[string]error{blocktx.RegisterTxTopic: errors.New("failed to subscribe")},
 
 			expectedErrorStr: "failed to subscribe to register-tx topic: failed to subscribe",
 		},
 		{
 			name:     "error - subscribe submit txs",
-			topicErr: map[string]error{async.RequestTxTopic: errors.New("failed to subscribe")},
+			topicErr: map[string]error{blocktx.RequestTxTopic: errors.New("failed to subscribe")},
 
 			expectedErrorStr: "failed to subscribe to request-tx topic: failed to subscribe",
 		},

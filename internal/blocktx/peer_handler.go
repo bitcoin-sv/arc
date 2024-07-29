@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/libsv/go-bc"
@@ -214,20 +213,20 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func
 
 func (ph *PeerHandler) Start() error {
 
-	err := ph.mqClient.Subscribe(async.RegisterTxTopic, func(msg []byte) error {
+	err := ph.mqClient.Subscribe(RegisterTxTopic, func(msg []byte) error {
 		ph.registerTxsChan <- msg
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to %s topic: %w", async.RegisterTxTopic, err)
+		return fmt.Errorf("failed to subscribe to %s topic: %w", RegisterTxTopic, err)
 	}
 
-	err = ph.mqClient.Subscribe(async.RequestTxTopic, func(msg []byte) error {
+	err = ph.mqClient.Subscribe(RequestTxTopic, func(msg []byte) error {
 		ph.requestTxChannel <- msg
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to %s topic: %w", async.RequestTxTopic, err)
+		return fmt.Errorf("failed to subscribe to %s topic: %w", RequestTxTopic, err)
 	}
 
 	ph.StartPeerWorker()
@@ -415,7 +414,7 @@ func (ph *PeerHandler) publishMinedTxs(txHashes []*chainhash.Hash) error {
 			BlockHeight:     minedTx.BlockHeight,
 			MerklePath:      minedTx.MerklePath,
 		}
-		err = ph.mqClient.PublishMarshal(async.MinedTxsTopic, txBlock)
+		err = ph.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
 	}
 
 	if err != nil {
@@ -671,7 +670,7 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 					BlockHeight:     blockHeight,
 					MerklePath:      updResp.MerklePath,
 				}
-				err = ph.mqClient.PublishMarshal(async.MinedTxsTopic, txBlock)
+				err = ph.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
 				if err != nil {
 					ph.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
 				}
@@ -696,7 +695,7 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 			BlockHeight:     blockHeight,
 			MerklePath:      updResp.MerklePath,
 		}
-		err = ph.mqClient.PublishMarshal(async.MinedTxsTopic, txBlock)
+		err = ph.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
 		if err != nil {
 			ph.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
 		}

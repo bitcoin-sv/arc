@@ -21,7 +21,11 @@ import (
 )
 
 const (
-	natsPort = "4222"
+	natsPort        = "4222"
+	SubmitTxTopic   = "submit-tx"
+	MinedTxsTopic   = "mined-txs"
+	RegisterTxTopic = "register-tx"
+	RequestTxTopic  = "request-tx"
 )
 
 var (
@@ -110,7 +114,7 @@ func TestNatsClient(t *testing.T) {
 		mqClient = async.NewNatsMQClient(natsConnClient)
 		submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
 		t.Log("subscribe to topic")
-		_, err := natsConnClient.QueueSubscribe(async.SubmitTxTopic, "queue", func(msg *nats.Msg) {
+		_, err := natsConnClient.QueueSubscribe(SubmitTxTopic, "queue", func(msg *nats.Msg) {
 			serialized := &metamorph_api.TransactionRequest{}
 			err := proto.Unmarshal(msg.Data, serialized)
 			require.NoError(t, err)
@@ -128,13 +132,13 @@ func TestNatsClient(t *testing.T) {
 		time.Sleep(1 * time.Second)
 
 		t.Log("publish")
-		err = mqClient.PublishMarshal(async.SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(SubmitTxTopic, txRequest)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(async.SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(SubmitTxTopic, txRequest)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(async.SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(SubmitTxTopic, txRequest)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(async.SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(SubmitTxTopic, txRequest)
 		require.NoError(t, err)
 
 		counter := 0
@@ -162,7 +166,7 @@ func TestNatsClient(t *testing.T) {
 		mqClient := async.NewNatsMQClient(natsConnClient)
 		minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
 
-		err := mqClient.Subscribe(async.MinedTxsTopic, func(msg []byte) error {
+		err := mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
 			serialized := &blocktx_api.TransactionBlock{}
 			err := proto.Unmarshal(msg, serialized)
 			require.NoError(t, err)
@@ -176,11 +180,11 @@ func TestNatsClient(t *testing.T) {
 
 		time.Sleep(1 * time.Second)
 
-		err = natsConn.Publish(async.MinedTxsTopic, data)
+		err = natsConn.Publish(MinedTxsTopic, data)
 		require.NoError(t, err)
-		err = natsConn.Publish(async.MinedTxsTopic, data)
+		err = natsConn.Publish(MinedTxsTopic, data)
 		require.NoError(t, err)
-		err = natsConn.Publish(async.MinedTxsTopic, data)
+		err = natsConn.Publish(MinedTxsTopic, data)
 		require.NoError(t, err)
 
 		counter := 0

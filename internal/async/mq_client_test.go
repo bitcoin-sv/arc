@@ -12,6 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	MinedTxsTopic   = "mined-txs"
+	RegisterTxTopic = "register-tx"
+)
+
 func TestPublishMarshal(t *testing.T) {
 	txBlock := &blocktx_api.TransactionBlock{
 		BlockHash:       testdata.Block1Hash[:],
@@ -54,7 +59,7 @@ func TestPublishMarshal(t *testing.T) {
 
 			mqClient := async.NewNatsMQClient(natsMock)
 
-			err := mqClient.PublishMarshal(async.MinedTxsTopic, tc.txsBlock)
+			err := mqClient.PublishMarshal(MinedTxsTopic, tc.txsBlock)
 
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)
@@ -103,7 +108,7 @@ func TestPublish(t *testing.T) {
 				natsMock,
 			)
 
-			err := mqClient.Publish(async.RegisterTxTopic, []byte("tx"))
+			err := mqClient.Publish(RegisterTxTopic, []byte("tx"))
 
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)
@@ -155,7 +160,7 @@ func TestSubscribe(t *testing.T) {
 				natsMock,
 			)
 
-			err := mqClient.Subscribe(async.RegisterTxTopic, func(bytes []byte) error { return nil })
+			err := mqClient.Subscribe(RegisterTxTopic, func(bytes []byte) error { return nil })
 
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)

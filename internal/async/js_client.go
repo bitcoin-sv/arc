@@ -13,33 +13,42 @@ import (
 )
 
 type Client struct {
-	url         string
-	js          jetstream.JetStream
-	nc          NatsClient
-	stream      jetstream.Stream
-	logger      *slog.Logger
-	consumer    jetstream.Consumer
-	ctx         context.Context
-	hasConsumer bool
+	url       string
+	js        jetstream.JetStream
+	nc        NatsClient
+	logger    *slog.Logger
+	consumers map[string]jetstream.Consumer
+	ctx       context.Context
 }
 
-func WithConsumer() func(handler *Client) {
-	return func(m *Client) {
-		m.hasConsumer = true
+func WithSubscribedTopics(topics ...string) func(handler *Client) error {
+	return func(c *Client) error {
+		for _, topic := range topics {
+			streamMinedTxs, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic))
+			if err != nil {
+				return fmt.Errorf("failed to get stream: %v", err)
+			}
+
+			cons, err := c.getConsumer(streamMinedTxs, fmt.Sprintf("%s-cons", topic))
+			if err != nil {
+				return fmt.Errorf("failed to get consumer: %v", err)
+			}
+
+			c.consumers[topic] = cons
+		}
+
+		return nil
 	}
 }
 
-func NewJetStreamClient(ctx context.Context, nc *nats.Conn, logger *slog.Logger, url string, opts ...func(client *Client)) (*Client, error) {
+func NewJetStreamClient(ctx context.Context, nc *nats.Conn, logger *slog.Logger, url string, topics []string, opts ...func(client *Client) error) (*Client, error) {
 
 	p := &Client{
-		logger: logger,
-		url:    url,
-		ctx:    ctx,
-		nc:     nc,
-	}
-
-	for _, opt := range opts {
-		opt(p)
+		logger:    logger,
+		url:       url,
+		ctx:       ctx,
+		nc:        nc,
+		consumers: map[string]jetstream.Consumer{},
 	}
 
 	js, err := jetstream.New(nc)
@@ -49,22 +58,19 @@ func NewJetStreamClient(ctx context.Context, nc *nats.Conn, logger *slog.Logger,
 
 	p.js = js
 
-	stream, err := p.getStream()
-	if err != nil {
-		return nil, err
-	}
-
-	p.stream = stream
-
-	if p.hasConsumer {
-		cons, err := p.getConsumer()
+	for _, topic := range topics {
+		_, err = p.getStream(topic, fmt.Sprintf("%s-stream", topic))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get stream: %v", err)
 		}
-
-		p.consumer = cons
 	}
 
+	for _, opt := range opts {
+		err = opt(p)
+		if err != nil {
+			return nil, fmt.Errorf("failed to apply option: %v", err)
+		}
+	}
 	return p, nil
 }
 
@@ -75,27 +81,25 @@ func (cl *Client) Close() error {
 	return nil
 }
 
-func (cl *Client) getStream() (jetstream.Stream, error) {
-	streamName := "nats-stream"
-	cfg := jetstream.StreamConfig{
-		Name:        streamName,
-		Description: "Stream for microservice asynchronous messaging",
-		Subjects:    []string{MinedTxsTopic, SubmitTxTopic, RequestTxTopic, RegisterTxTopic},
-		Retention:   jetstream.WorkQueuePolicy,
-		Discard:     jetstream.DiscardOld,
-		MaxAge:      10 * time.Minute,
-		Storage:     jetstream.MemoryStorage,
-		NoAck:       false,
-	}
+func (cl *Client) getStream(topicName string, streamName string) (jetstream.Stream, error) {
 
 	streamCtx, cancel := context.WithTimeout(cl.ctx, 60*time.Second)
 	defer cancel()
 
 	stream, err := cl.js.Stream(streamCtx, streamName)
 	if errors.Is(err, jetstream.ErrStreamNotFound) {
-		cl.logger.Error(fmt.Sprintf("stream %s not found, creating new", streamName))
+		cl.logger.Info(fmt.Sprintf("stream %s not found, creating new", streamName))
 
-		stream, err = cl.js.CreateStream(streamCtx, cfg)
+		stream, err = cl.js.CreateStream(streamCtx, jetstream.StreamConfig{
+			Name:        streamName,
+			Description: "Stream for topic " + topicName,
+			Subjects:    []string{topicName},
+			Retention:   jetstream.WorkQueuePolicy,
+			Discard:     jetstream.DiscardOld,
+			MaxAge:      10 * time.Minute,
+			Storage:     jetstream.MemoryStorage,
+			NoAck:       false,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create stream: %v", err)
 		}
@@ -110,15 +114,14 @@ func (cl *Client) getStream() (jetstream.Stream, error) {
 	return stream, nil
 }
 
-func (cl *Client) getConsumer() (jetstream.Consumer, error) {
-	consumerName := "nats-consumer"
+func (cl *Client) getConsumer(stream jetstream.Stream, consumerName string) (jetstream.Consumer, error) {
 	consCtx, cancel := context.WithTimeout(cl.ctx, 30*time.Second)
 	defer cancel()
 
-	cons, err := cl.stream.Consumer(consCtx, consumerName)
+	cons, err := stream.Consumer(consCtx, consumerName)
 	if errors.Is(err, jetstream.ErrConsumerNotFound) {
 		cl.logger.Error(fmt.Sprintf("consumer %s not found, creating new", consumerName))
-		cons, err = cl.stream.CreateConsumer(consCtx, jetstream.ConsumerConfig{
+		cons, err = stream.CreateConsumer(consCtx, jetstream.ConsumerConfig{
 			Durable:   consumerName,
 			AckPolicy: jetstream.AckExplicitPolicy,
 		})
@@ -161,12 +164,13 @@ func (cl *Client) PublishMarshal(topic string, m proto.Message) error {
 }
 
 func (cl *Client) Subscribe(topic string, msgFunc func([]byte) error) error {
+	consumer, found := cl.consumers[topic]
 
-	if !cl.hasConsumer || cl.consumer == nil {
+	if !found {
 		return errors.New("consumer not initialized")
 	}
 
-	_, err := cl.consumer.Consume(func(msg jetstream.Msg) {
+	_, err := consumer.Consume(func(msg jetstream.Msg) {
 		msgErr := msgFunc(msg.Data())
 		if msgErr != nil {
 			cl.logger.Error(fmt.Sprintf("failed to consume message on %s topic: %s", topic, string(msg.Data())))

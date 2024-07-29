@@ -38,7 +38,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
   			merkle_path = EXCLUDED.merkle_path
 		RETURNING id, hash, merkle_path, is_registered;
 		
-		`
+	`
 
 	rows, err := p.db.QueryContext(ctx, qBulkUpsert, pq.Array(txHashes), pq.Array(merklePaths))
 	if err != nil {

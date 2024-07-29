@@ -4,21 +4,21 @@
 package mocks
 
 import (
-	"github.com/bitcoin-sv/arc/internal/message_queue"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
 	"github.com/nats-io/nats.go"
 	"sync"
 )
 
-// Ensure, that NatsClientMock does implement message_queue.NatsConnection.
+// Ensure, that NatsConnectionMock does implement nats_core.NatsConnection.
 // If this is not the case, regenerate this file with moq.
-var _ message_queue.NatsConnection = &NatsClientMock{}
+var _ nats_core.NatsConnection = &NatsConnectionMock{}
 
-// NatsClientMock is a mock implementation of message_queue.NatsConnection.
+// NatsConnectionMock is a mock implementation of nats_core.NatsConnection.
 //
-//	func TestSomethingThatUsesNatsClient(t *testing.T) {
+//	func TestSomethingThatUsesNatsConnection(t *testing.T) {
 //
-//		// make and configure a mocked message_queue.NatsConnection
-//		mockedNatsClient := &NatsClientMock{
+//		// make and configure a mocked nats_core.NatsConnection
+//		mockedNatsConnection := &NatsConnectionMock{
 //			CloseFunc: func()  {
 //				panic("mock out the Close method")
 //			},
@@ -33,11 +33,11 @@ var _ message_queue.NatsConnection = &NatsClientMock{}
 //			},
 //		}
 //
-//		// use mockedNatsClient in code that requires message_queue.NatsConnection
+//		// use mockedNatsConnection in code that requires nats_core.NatsConnection
 //		// and then make assertions.
 //
 //	}
-type NatsClientMock struct {
+type NatsConnectionMock struct {
 	// CloseFunc mocks the Close method.
 	CloseFunc func()
 
@@ -82,9 +82,9 @@ type NatsClientMock struct {
 }
 
 // Close calls CloseFunc.
-func (mock *NatsClientMock) Close() {
+func (mock *NatsConnectionMock) Close() {
 	if mock.CloseFunc == nil {
-		panic("NatsClientMock.CloseFunc: method is nil but NatsConnection.Close was just called")
+		panic("NatsConnectionMock.CloseFunc: method is nil but NatsConnection.Close was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -97,8 +97,8 @@ func (mock *NatsClientMock) Close() {
 // CloseCalls gets all the calls that were made to Close.
 // Check the length with:
 //
-//	len(mockedNatsClient.CloseCalls())
-func (mock *NatsClientMock) CloseCalls() []struct {
+//	len(mockedNatsConnection.CloseCalls())
+func (mock *NatsConnectionMock) CloseCalls() []struct {
 } {
 	var calls []struct {
 	}
@@ -109,9 +109,9 @@ func (mock *NatsClientMock) CloseCalls() []struct {
 }
 
 // Drain calls DrainFunc.
-func (mock *NatsClientMock) Drain() error {
+func (mock *NatsConnectionMock) Drain() error {
 	if mock.DrainFunc == nil {
-		panic("NatsClientMock.DrainFunc: method is nil but NatsConnection.Drain was just called")
+		panic("NatsConnectionMock.DrainFunc: method is nil but NatsConnection.Drain was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -124,8 +124,8 @@ func (mock *NatsClientMock) Drain() error {
 // DrainCalls gets all the calls that were made to Drain.
 // Check the length with:
 //
-//	len(mockedNatsClient.DrainCalls())
-func (mock *NatsClientMock) DrainCalls() []struct {
+//	len(mockedNatsConnection.DrainCalls())
+func (mock *NatsConnectionMock) DrainCalls() []struct {
 } {
 	var calls []struct {
 	}
@@ -136,9 +136,9 @@ func (mock *NatsClientMock) DrainCalls() []struct {
 }
 
 // Publish calls PublishFunc.
-func (mock *NatsClientMock) Publish(subj string, data []byte) error {
+func (mock *NatsConnectionMock) Publish(subj string, data []byte) error {
 	if mock.PublishFunc == nil {
-		panic("NatsClientMock.PublishFunc: method is nil but NatsConnection.Publish was just called")
+		panic("NatsConnectionMock.PublishFunc: method is nil but NatsConnection.Publish was just called")
 	}
 	callInfo := struct {
 		Subj string
@@ -156,8 +156,8 @@ func (mock *NatsClientMock) Publish(subj string, data []byte) error {
 // PublishCalls gets all the calls that were made to Publish.
 // Check the length with:
 //
-//	len(mockedNatsClient.PublishCalls())
-func (mock *NatsClientMock) PublishCalls() []struct {
+//	len(mockedNatsConnection.PublishCalls())
+func (mock *NatsConnectionMock) PublishCalls() []struct {
 	Subj string
 	Data []byte
 } {
@@ -172,9 +172,9 @@ func (mock *NatsClientMock) PublishCalls() []struct {
 }
 
 // QueueSubscribe calls QueueSubscribeFunc.
-func (mock *NatsClientMock) QueueSubscribe(subj string, queue string, cb nats.MsgHandler) (*nats.Subscription, error) {
+func (mock *NatsConnectionMock) QueueSubscribe(subj string, queue string, cb nats.MsgHandler) (*nats.Subscription, error) {
 	if mock.QueueSubscribeFunc == nil {
-		panic("NatsClientMock.QueueSubscribeFunc: method is nil but NatsConnection.QueueSubscribe was just called")
+		panic("NatsConnectionMock.QueueSubscribeFunc: method is nil but NatsConnection.QueueSubscribe was just called")
 	}
 	callInfo := struct {
 		Subj  string
@@ -194,8 +194,8 @@ func (mock *NatsClientMock) QueueSubscribe(subj string, queue string, cb nats.Ms
 // QueueSubscribeCalls gets all the calls that were made to QueueSubscribe.
 // Check the length with:
 //
-//	len(mockedNatsClient.QueueSubscribeCalls())
-func (mock *NatsClientMock) QueueSubscribeCalls() []struct {
+//	len(mockedNatsConnection.QueueSubscribeCalls())
+func (mock *NatsConnectionMock) QueueSubscribeCalls() []struct {
 	Subj  string
 	Queue string
 	Cb    nats.MsgHandler

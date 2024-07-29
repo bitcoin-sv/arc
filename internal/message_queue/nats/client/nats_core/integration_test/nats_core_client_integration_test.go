@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/message_queue"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/nats-io/nats.go"
@@ -20,17 +21,15 @@ import (
 )
 
 const (
-	natsPort        = "4222"
-	SubmitTxTopic   = "submit-tx"
-	MinedTxsTopic   = "mined-txs"
-	RegisterTxTopic = "register-tx"
-	RequestTxTopic  = "request-tx"
+	natsPort      = "4222"
+	SubmitTxTopic = "submit-tx"
+	MinedTxsTopic = "mined-txs"
 )
 
 var (
 	natsConnClient *nats.Conn
 	natsConn       *nats.Conn
-	mqClient       *message_queue.NatsCoreClient
+	mqClient       *nats_core.Client
 )
 
 func TestMain(m *testing.M) {
@@ -68,12 +67,12 @@ func TestMain(m *testing.M) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	natsConnClient, err = message_queue.NewNatsConnection(natsURL, logger)
+	natsConnClient, err = nats_connection.New(natsURL, logger)
 	if err != nil {
 		log.Fatalf("failed to create nats connection: %v", err)
 	}
 
-	natsConn, err = message_queue.NewNatsConnection(natsURL, logger)
+	natsConn, err = nats_connection.New(natsURL, logger)
 	if err != nil {
 		log.Fatalf("failed to create nats connection: %v", err)
 	}
@@ -110,7 +109,7 @@ func TestNatsClient(t *testing.T) {
 	}
 
 	t.Run("publish", func(t *testing.T) {
-		mqClient = message_queue.NewNatsCoreClient(natsConnClient)
+		mqClient = nats_core.New(natsConnClient)
 		submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
 		t.Log("subscribe to topic")
 		_, err := natsConnClient.QueueSubscribe(SubmitTxTopic, "queue", func(msg *nats.Msg) {
@@ -162,7 +161,7 @@ func TestNatsClient(t *testing.T) {
 	})
 
 	t.Run("subscribe", func(t *testing.T) {
-		mqClient := message_queue.NewNatsCoreClient(natsConnClient)
+		mqClient := nats_core.New(natsConnClient)
 		minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
 
 		err := mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {

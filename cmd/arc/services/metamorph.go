@@ -3,6 +3,9 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"log/slog"
 	"net"
 	"net/http"
@@ -13,7 +16,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/message_queue"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -51,22 +53,21 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, chanBufferSize)
 
 	var mqClient metamorph.MessageQueueClient
-	natsClient, err := message_queue.NewNatsConnection(arcConfig.MessageQueue.URL, logger)
+	natsClient, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
 
 	if arcConfig.MessageQueue.EnableStreaming {
-		ctx := context.Background()
-		mqClient, err = message_queue.NewNatsJetStreamClient(ctx, natsClient, logger, arcConfig.MessageQueue.URL,
+		mqClient, err = nats_jetstream.New(natsClient, logger,
 			[]string{metamorph.MinedTxsTopic, metamorph.SubmitTxTopic, metamorph.RegisterTxTopic, metamorph.RequestTxTopic},
-			message_queue.WithSubscribedTopics(metamorph.MinedTxsTopic, metamorph.SubmitTxTopic),
+			nats_jetstream.WithSubscribedTopics(metamorph.MinedTxsTopic, metamorph.SubmitTxTopic),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}
 	} else {
-		mqClient = message_queue.NewNatsCoreClient(natsClient, message_queue.WithLogger(logger))
+		mqClient = nats_core.New(natsClient, nats_core.WithLogger(logger))
 	}
 
 	callbacker, err := metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})
@@ -177,6 +178,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		}
 
 		healthServer.Stop()
+
 	}, nil
 }
 

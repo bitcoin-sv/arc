@@ -1,4 +1,4 @@
-package message_queue
+package nats_connection
 
 import (
 	"fmt"
@@ -9,14 +9,7 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-type NatsConnection interface {
-	QueueSubscribe(subj, queue string, cb nats.MsgHandler) (*nats.Subscription, error)
-	Close()
-	Publish(subj string, data []byte) error
-	Drain() error
-}
-
-func NewNatsConnection(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
+func New(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 	var nc *nats.Conn
 	var err error
 
@@ -27,14 +20,18 @@ func NewNatsConnection(natsURL string, logger *slog.Logger) (*nats.Conn, error) 
 	opts := []nats.Option{
 		nats.Name(hostname),
 		nats.ErrorHandler(func(c *nats.Conn, s *nats.Subscription, err error) {
-			logger.Error("connection error", slog.String("err", err.Error()))
+			if err != nil {
+				logger.Error("connection error", slog.String("err", err.Error()))
+			}
 		}),
 		nats.DiscoveredServersHandler(func(nc *nats.Conn) {
-			logger.Info(fmt.Sprintf("Known servers: %v\n", nc.Servers()))
-			logger.Info(fmt.Sprintf("Discovered servers: %v\n", nc.DiscoveredServers()))
+			logger.Info(fmt.Sprintf("Known servers: %v", nc.Servers()))
+			logger.Info(fmt.Sprintf("Discovered servers: %v", nc.DiscoveredServers()))
 		}),
 		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
-			logger.Error("client disconnected", slog.String("err", err.Error()))
+			if err != nil {
+				logger.Error("client disconnected", slog.String("err", err.Error()))
+			}
 		}),
 		nats.ReconnectHandler(func(_ *nats.Conn) {
 			logger.Info("client reconnected")

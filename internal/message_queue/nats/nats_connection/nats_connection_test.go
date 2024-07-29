@@ -1,4 +1,4 @@
-package message_queue
+package nats_connection
 
 import (
 	"fmt"
@@ -83,7 +83,7 @@ func TestNewNatsConnection(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewNatsConnection(tc.url, slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
+			_, err := New(tc.url, slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return

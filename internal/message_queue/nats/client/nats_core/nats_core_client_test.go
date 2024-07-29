@@ -1,12 +1,12 @@
-package message_queue_test
+package nats_core_test
 
 import (
 	"errors"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core/mocks"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/message_queue"
-	"github.com/bitcoin-sv/arc/internal/message_queue/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
@@ -51,13 +51,13 @@ func TestPublishMarshal(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			natsMock := &mocks.NatsClientMock{
+			natsMock := &mocks.NatsConnectionMock{
 				PublishFunc: func(subj string, data []byte) error {
 					return tc.publishErr
 				},
 			}
 
-			mqClient := message_queue.NewNatsCoreClient(natsMock)
+			mqClient := nats_core.New(natsMock)
 
 			err := mqClient.PublishMarshal(MinedTxsTopic, tc.txsBlock)
 
@@ -98,13 +98,13 @@ func TestPublish(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			natsMock := &mocks.NatsClientMock{
+			natsMock := &mocks.NatsConnectionMock{
 				PublishFunc: func(subj string, data []byte) error {
 					return tc.publishErr
 				},
 			}
 
-			mqClient := message_queue.NewNatsCoreClient(
+			mqClient := nats_core.New(
 				natsMock,
 			)
 
@@ -147,7 +147,7 @@ func TestSubscribe(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			natsMock := &mocks.NatsClientMock{
+			natsMock := &mocks.NatsConnectionMock{
 				QueueSubscribeFunc: func(subj string, queue string, cb nats.MsgHandler) (*nats.Subscription, error) {
 					require.Equal(t, "register-tx", subj)
 					require.Equal(t, "register-tx-group", queue)
@@ -156,7 +156,7 @@ func TestSubscribe(t *testing.T) {
 				},
 			}
 
-			mqClient := message_queue.NewNatsCoreClient(
+			mqClient := nats_core.New(
 				natsMock,
 			)
 
@@ -191,13 +191,13 @@ func TestShutdown(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			natsMock := &mocks.NatsClientMock{
+			natsMock := &mocks.NatsConnectionMock{
 				DrainFunc: func() error {
 					return tc.drainErr
 				},
 			}
 
-			mqClient := message_queue.NewNatsCoreClient(
+			mqClient := nats_core.New(
 				natsMock,
 			)
 

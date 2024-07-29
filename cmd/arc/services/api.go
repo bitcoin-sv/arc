@@ -3,6 +3,9 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -10,7 +13,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/message_queue"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
@@ -51,19 +53,18 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	}
 
 	var mqClient metamorph.MessageQueueClient
-	natsClient, err := message_queue.NewNatsConnection(arcConfig.MessageQueue.URL, logger)
+	natsClient, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
 
 	if arcConfig.MessageQueue.EnableStreaming {
-		ctx := context.Background()
-		mqClient, err = message_queue.NewNatsJetStreamClient(ctx, natsClient, logger, arcConfig.MessageQueue.URL, []string{metamorph.SubmitTxTopic})
+		mqClient, err = nats_jetstream.New(natsClient, logger, []string{metamorph.SubmitTxTopic})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}
 	} else {
-		mqClient = message_queue.NewNatsCoreClient(natsClient, message_queue.WithLogger(logger))
+		mqClient = nats_core.New(natsClient, nats_core.WithLogger(logger))
 	}
 
 	metamorphClient := metamorph.NewClient(

@@ -1,4 +1,4 @@
-package message_queue
+package nats_jetstream
 
 import (
 	"context"
@@ -12,8 +12,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type NatsJetStreamClient struct {
-	url       string
+type NatsConnection interface {
+	Drain() error
+}
+
+type Client struct {
 	js        jetstream.JetStream
 	nc        NatsConnection
 	logger    *slog.Logger
@@ -21,8 +24,12 @@ type NatsJetStreamClient struct {
 	ctx       context.Context
 }
 
-func WithSubscribedTopics(topics ...string) func(handler *NatsJetStreamClient) error {
-	return func(c *NatsJetStreamClient) error {
+var (
+	ErrConsumerNotInitialized = errors.New("consumer for topic not initialized")
+)
+
+func WithSubscribedTopics(topics ...string) func(handler *Client) error {
+	return func(c *Client) error {
 		for _, topic := range topics {
 			streamMinedTxs, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic))
 			if err != nil {
@@ -41,12 +48,11 @@ func WithSubscribedTopics(topics ...string) func(handler *NatsJetStreamClient) e
 	}
 }
 
-func NewNatsJetStreamClient(ctx context.Context, nc *nats.Conn, logger *slog.Logger, url string, topics []string, opts ...func(client *NatsJetStreamClient) error) (*NatsJetStreamClient, error) {
+func New(nc *nats.Conn, logger *slog.Logger, topics []string, opts ...func(client *Client) error) (*Client, error) {
 
-	p := &NatsJetStreamClient{
+	p := &Client{
 		logger:    logger,
-		url:       url,
-		ctx:       ctx,
+		ctx:       context.Background(),
 		nc:        nc,
 		consumers: map[string]jetstream.Consumer{},
 	}
@@ -74,14 +80,14 @@ func NewNatsJetStreamClient(ctx context.Context, nc *nats.Conn, logger *slog.Log
 	return p, nil
 }
 
-func (cl *NatsJetStreamClient) Close() error {
+func (cl *Client) Close() error {
 	if cl.nc != nil {
 		return cl.nc.Drain()
 	}
 	return nil
 }
 
-func (cl *NatsJetStreamClient) getStream(topicName string, streamName string) (jetstream.Stream, error) {
+func (cl *Client) getStream(topicName string, streamName string) (jetstream.Stream, error) {
 
 	streamCtx, cancel := context.WithTimeout(cl.ctx, 60*time.Second)
 	defer cancel()
@@ -114,7 +120,7 @@ func (cl *NatsJetStreamClient) getStream(topicName string, streamName string) (j
 	return stream, nil
 }
 
-func (cl *NatsJetStreamClient) getConsumer(stream jetstream.Stream, consumerName string) (jetstream.Consumer, error) {
+func (cl *Client) getConsumer(stream jetstream.Stream, consumerName string) (jetstream.Consumer, error) {
 	consCtx, cancel := context.WithTimeout(cl.ctx, 30*time.Second)
 	defer cancel()
 
@@ -140,7 +146,7 @@ func (cl *NatsJetStreamClient) getConsumer(stream jetstream.Stream, consumerName
 	return cons, err
 }
 
-func (cl *NatsJetStreamClient) Publish(topic string, hash []byte) error {
+func (cl *Client) Publish(topic string, hash []byte) error {
 	_, err := cl.js.Publish(cl.ctx, topic, hash)
 	if err != nil {
 		return fmt.Errorf("failed to publish on %s topic: %w", topic, err)
@@ -149,7 +155,7 @@ func (cl *NatsJetStreamClient) Publish(topic string, hash []byte) error {
 	return nil
 }
 
-func (cl *NatsJetStreamClient) PublishMarshal(topic string, m proto.Message) error {
+func (cl *Client) PublishMarshal(topic string, m proto.Message) error {
 	data, err := proto.Marshal(m)
 	if err != nil {
 		return err
@@ -163,11 +169,11 @@ func (cl *NatsJetStreamClient) PublishMarshal(topic string, m proto.Message) err
 	return nil
 }
 
-func (cl *NatsJetStreamClient) Subscribe(topic string, msgFunc func([]byte) error) error {
+func (cl *Client) Subscribe(topic string, msgFunc func([]byte) error) error {
 	consumer, found := cl.consumers[topic]
 
 	if !found {
-		return errors.New("consumer not initialized")
+		return ErrConsumerNotInitialized
 	}
 
 	_, err := consumer.Consume(func(msg jetstream.Msg) {
@@ -189,7 +195,7 @@ func (cl *NatsJetStreamClient) Subscribe(topic string, msgFunc func([]byte) erro
 	return nil
 }
 
-func (cl *NatsJetStreamClient) Shutdown() {
+func (cl *Client) Shutdown() {
 	if cl.nc != nil {
 		err := cl.nc.Drain()
 		if err != nil {

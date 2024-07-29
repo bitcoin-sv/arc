@@ -21,6 +21,9 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //			PublishFunc: func(topic string, data []byte) error {
 //				panic("mock out the Publish method")
 //			},
+//			ShutdownFunc: func()  {
+//				panic("mock out the Shutdown method")
+//			},
 //			SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
 //				panic("mock out the Subscribe method")
 //			},
@@ -34,6 +37,9 @@ type MessageQueueClientMock struct {
 	// PublishFunc mocks the Publish method.
 	PublishFunc func(topic string, data []byte) error
 
+	// ShutdownFunc mocks the Shutdown method.
+	ShutdownFunc func()
+
 	// SubscribeFunc mocks the Subscribe method.
 	SubscribeFunc func(topic string, msgFunc func([]byte) error) error
 
@@ -46,6 +52,9 @@ type MessageQueueClientMock struct {
 			// Data is the data argument value.
 			Data []byte
 		}
+		// Shutdown holds details about calls to the Shutdown method.
+		Shutdown []struct {
+		}
 		// Subscribe holds details about calls to the Subscribe method.
 		Subscribe []struct {
 			// Topic is the topic argument value.
@@ -55,6 +64,7 @@ type MessageQueueClientMock struct {
 		}
 	}
 	lockPublish   sync.RWMutex
+	lockShutdown  sync.RWMutex
 	lockSubscribe sync.RWMutex
 }
 
@@ -91,6 +101,33 @@ func (mock *MessageQueueClientMock) PublishCalls() []struct {
 	mock.lockPublish.RLock()
 	calls = mock.calls.Publish
 	mock.lockPublish.RUnlock()
+	return calls
+}
+
+// Shutdown calls ShutdownFunc.
+func (mock *MessageQueueClientMock) Shutdown() {
+	if mock.ShutdownFunc == nil {
+		panic("MessageQueueClientMock.ShutdownFunc: method is nil but MessageQueueClient.Shutdown was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockShutdown.Lock()
+	mock.calls.Shutdown = append(mock.calls.Shutdown, callInfo)
+	mock.lockShutdown.Unlock()
+	mock.ShutdownFunc()
+}
+
+// ShutdownCalls gets all the calls that were made to Shutdown.
+// Check the length with:
+//
+//	len(mockedMessageQueueClient.ShutdownCalls())
+func (mock *MessageQueueClientMock) ShutdownCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockShutdown.RLock()
+	calls = mock.calls.Shutdown
+	mock.lockShutdown.RUnlock()
 	return calls
 }
 

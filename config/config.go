@@ -7,21 +7,26 @@ import (
 )
 
 type ArcConfig struct {
-	LogLevel           string            `mapstructure:"logLevel"`
-	LogFormat          string            `mapstructure:"logFormat"`
-	ProfilerAddr       string            `mapstructure:"profilerAddr"`
-	PrometheusEndpoint string            `mapstructure:"prometheusEndpoint"`
-	PrometheusAddr     string            `mapstructure:"prometheusAddr"`
-	GrpcMessageSize    int               `mapstructure:"grpcMessageSize"`
-	Network            string            `mapstructure:"network"`
-	QueueURL           string            `mapstructure:"queueURL"`
-	Tracing            *TracingConfig    `mapstructure:"tracing"`
-	PeerRpc            *PeerRpcConfig    `mapstructure:"peerRpc"`
-	Peers              []*PeerConfig     `mapstructure:"peers"`
-	Metamorph          *MetamorphConfig  `mapstructure:"metamorph"`
-	Blocktx            *BlocktxConfig    `mapstructure:"blocktx"`
-	Api                *ApiConfig        `mapstructure:"api"`
-	K8sWatcher         *K8sWatcherConfig `mapstructure:"k8sWatcher"`
+	LogLevel           string              `mapstructure:"logLevel"`
+	LogFormat          string              `mapstructure:"logFormat"`
+	ProfilerAddr       string              `mapstructure:"profilerAddr"`
+	PrometheusEndpoint string              `mapstructure:"prometheusEndpoint"`
+	PrometheusAddr     string              `mapstructure:"prometheusAddr"`
+	GrpcMessageSize    int                 `mapstructure:"grpcMessageSize"`
+	Network            string              `mapstructure:"network"`
+	MessageQueue       *MessageQueueConfig `mapstructure:"messageQueue"`
+	Tracing            *TracingConfig      `mapstructure:"tracing"`
+	PeerRpc            *PeerRpcConfig      `mapstructure:"peerRpc"`
+	Peers              []*PeerConfig       `mapstructure:"peers"`
+	Metamorph          *MetamorphConfig    `mapstructure:"metamorph"`
+	Blocktx            *BlocktxConfig      `mapstructure:"blocktx"`
+	Api                *ApiConfig          `mapstructure:"api"`
+	K8sWatcher         *K8sWatcherConfig   `mapstructure:"k8sWatcher"`
+}
+
+type MessageQueueConfig struct {
+	EnableStreaming bool   `mapstructure:"enableStreaming"`
+	URL             string `mapstructure:"url"`
 }
 
 type TracingConfig struct {
@@ -98,9 +103,6 @@ type HealthConfig struct {
 type StatsConfig struct {
 	NotSeenTimeLimit  time.Duration `mapstructure:"notSeenTimeLimit"`
 	NotMinedTimeLimit time.Duration `mapstructure:"notMinedTimeLimit"`
-}
-
-type MessageQueueConfig struct {
 }
 
 type ApiConfig struct {

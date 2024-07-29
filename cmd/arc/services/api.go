@@ -51,12 +51,21 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
 
-	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL, logger)
+	var mqClient metamorph.MessageQueueClient
+	natsClient, err := nats_mq.NewNatsClient(arcConfig.MessageQueue.URL, logger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.QueueURL, err)
+		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
 
-	mqClient := async.NewNatsMQClient(natsClient, async.WithLogger(logger))
+	if arcConfig.MessageQueue.EnableStreaming {
+		ctx := context.Background()
+		mqClient, err = async.NewJetStreamClient(ctx, natsClient, logger, arcConfig.MessageQueue.URL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create nats client: %v", err)
+		}
+	} else {
+		mqClient = async.NewNatsMQClient(natsClient, async.WithLogger(logger))
+	}
 
 	metamorphClient := metamorph.NewClient(
 		metamorph_api.NewMetaMorphAPIClient(conn),

@@ -9,7 +9,11 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-func NewNatsClient(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
+func WithLogin(user string, password string) nats.Option {
+	return nats.UserInfo(user, password)
+}
+
+func NewNatsClient(natsURL string, logger *slog.Logger, natsOpts ...nats.Option) (*nats.Conn, error) {
 	var nc *nats.Conn
 	var err error
 
@@ -17,23 +21,17 @@ func NewNatsClient(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	nc, err = nats.Connect(
-		natsURL,
+	opts := []nats.Option{
 		nats.Name(hostname),
 		nats.ErrorHandler(func(c *nats.Conn, s *nats.Subscription, err error) {
-			if err != nil {
-				logger.Error("connection error", slog.String("err", err.Error()))
-			}
+			logger.Error("connection error", slog.String("err", err.Error()))
 		}),
 		nats.DiscoveredServersHandler(func(nc *nats.Conn) {
 			logger.Info(fmt.Sprintf("Known servers: %v\n", nc.Servers()))
 			logger.Info(fmt.Sprintf("Discovered servers: %v\n", nc.DiscoveredServers()))
 		}),
 		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
-			if err != nil {
-				logger.Error("client disconnected", slog.String("err", err.Error()))
-			}
+			logger.Error("client disconnected", slog.String("err", err.Error()))
 		}),
 		nats.ReconnectHandler(func(_ *nats.Conn) {
 			logger.Info("client reconnected")
@@ -42,12 +40,16 @@ func NewNatsClient(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 			logger.Info("client closed")
 		}),
 		nats.RetryOnFailedConnect(true),
-		nats.PingInterval(2*time.Minute),
+		nats.PingInterval(2 * time.Minute),
 		nats.MaxPingsOutstanding(2),
-		nats.ReconnectBufSize(8*1024*1024),
+		nats.ReconnectBufSize(8 * 1024 * 1024),
 		nats.MaxReconnects(60),
-		nats.ReconnectWait(2*time.Second),
-	)
+		nats.ReconnectWait(2 * time.Second),
+	}
+
+	opts = append(opts, natsOpts...)
+
+	nc, err = nats.Connect(natsURL, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to NATS server: %v", err)
 	}

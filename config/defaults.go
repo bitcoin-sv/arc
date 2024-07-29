@@ -15,7 +15,7 @@ func getDefaultArcConfig() *ArcConfig {
 		PrometheusAddr:     "", // optional
 		GrpcMessageSize:    100000000,
 		Network:            "regtest",
-		QueueURL:           "nats://nats:4222",
+		MessageQueue:       getDefaultMessageQueueConfig(),
 		Tracing:            nil, // optional
 		PeerRpc:            getDefaultPeerRpcConfig(),
 		Peers:              getPeersConfig(),
@@ -23,6 +23,13 @@ func getDefaultArcConfig() *ArcConfig {
 		Blocktx:            getBlocktxConfig(),
 		Api:                getApiConfig(),
 		K8sWatcher:         nil, // optional
+	}
+}
+
+func getDefaultMessageQueueConfig() *MessageQueueConfig {
+	return &MessageQueueConfig{
+		URL:             "nats://nats:4222",
+		EnableStreaming: false,
 	}
 }
 

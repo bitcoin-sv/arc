@@ -3,12 +3,12 @@ package metamorph
 import (
 	"context"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/async"
 	"log/slog"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"

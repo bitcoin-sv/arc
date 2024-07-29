@@ -7,7 +7,9 @@ prometheusAddr: :2112 # port for serving prometheus metrics
 grpcMessageSize: 100000000 # maximum grpc message size
 network: regtest # bitcoin network to connect to. Value can be one of mainnet | testnet | regtest
 messageQueue:
-  enableStreaming: false # if enabled, message queue can store messages
+  streaming:
+    enabled: false  # if enabled, message queue can store messages
+    fileStorage: false # if enabled messages are persisted on disk instead of in memory
   URL: nats://nats:4222 # URL for message queue
 tracing: # (optional)
   dialAddr: http://localhost:4317 # address where traces are exported to

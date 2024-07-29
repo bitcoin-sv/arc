@@ -7,7 +7,9 @@ prometheusAddr: :2112
 grpcMessageSize: 100000000
 network: regtest
 messageQueue:
-  enableStreaming: true
+  streaming:
+    enabled: true
+    fileStorage: false
   URL: nats://nats-1:4222,nats://nats-2:4223
 peerRpc:
   password: bitcoin

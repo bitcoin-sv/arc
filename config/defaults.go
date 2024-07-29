@@ -28,8 +28,11 @@ func getDefaultArcConfig() *ArcConfig {
 
 func getDefaultMessageQueueConfig() *MessageQueueConfig {
 	return &MessageQueueConfig{
-		URL:             "nats://nats:4222",
-		EnableStreaming: false,
+		URL: "nats://nats:4222",
+		Streaming: MessageQueueStreaming{
+			Enabled:     false,
+			FileStorage: false,
+		},
 	}
 }
 

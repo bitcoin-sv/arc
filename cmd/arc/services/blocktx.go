@@ -47,10 +47,16 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
 
-	if arcConfig.MessageQueue.EnableStreaming {
+	if arcConfig.MessageQueue.Streaming.Enabled {
+		opts := []nats_jetstream.Option{nats_jetstream.WithSubscribedTopics(blocktx.RegisterTxTopic, blocktx.RequestTxTopic)}
+		if arcConfig.MessageQueue.Streaming.FileStorage {
+			opts = append(opts, nats_jetstream.WithFileStorage())
+		}
+
 		mqClient, err = nats_jetstream.New(natsConnection, logger,
 			[]string{blocktx.MinedTxsTopic, blocktx.RegisterTxTopic, blocktx.RequestTxTopic},
-			nats_jetstream.WithSubscribedTopics(blocktx.RegisterTxTopic, blocktx.RequestTxTopic))
+			opts...,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}

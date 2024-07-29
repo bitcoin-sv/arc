@@ -24,9 +24,14 @@ type ArcConfig struct {
 	K8sWatcher         *K8sWatcherConfig   `mapstructure:"k8sWatcher"`
 }
 
+type MessageQueueStreaming struct {
+	Enabled     bool `mapstructure:"enabled"`
+	FileStorage bool `mapstructure:"fileStorage"`
+}
+
 type MessageQueueConfig struct {
-	EnableStreaming bool   `mapstructure:"enableStreaming"`
-	URL             string `mapstructure:"url"`
+	URL       string                `mapstructure:"url"`
+	Streaming MessageQueueStreaming `mapstructure:"streaming"`
 }
 
 type TracingConfig struct {

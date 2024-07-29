@@ -12,16 +12,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type NatsConnection interface {
-	Drain() error
-}
-
 type Client struct {
-	js        jetstream.JetStream
-	nc        NatsConnection
-	logger    *slog.Logger
-	consumers map[string]jetstream.Consumer
-	ctx       context.Context
+	js          jetstream.JetStream
+	nc          *nats.Conn
+	logger      *slog.Logger
+	consumers   map[string]jetstream.Consumer
+	storageType jetstream.StorageType
+	ctx         context.Context
+	cancelAll   context.CancelFunc
 }
 
 var (
@@ -48,13 +46,25 @@ func WithSubscribedTopics(topics ...string) func(handler *Client) error {
 	}
 }
 
-func New(nc *nats.Conn, logger *slog.Logger, topics []string, opts ...func(client *Client) error) (*Client, error) {
+func WithFileStorage() func(handler *Client) error {
+	return func(c *Client) error {
+		c.storageType = jetstream.FileStorage
+		return nil
+	}
+}
+
+type Option func(p *Client) error
+
+func New(nc *nats.Conn, logger *slog.Logger, topics []string, opts ...Option) (*Client, error) {
+	ctx, cancel := context.WithCancel(context.Background())
 
 	p := &Client{
-		logger:    logger,
-		ctx:       context.Background(),
-		nc:        nc,
-		consumers: map[string]jetstream.Consumer{},
+		logger:      logger,
+		nc:          nc,
+		consumers:   map[string]jetstream.Consumer{},
+		storageType: jetstream.MemoryStorage,
+		ctx:         ctx,
+		cancelAll:   cancel,
 	}
 
 	js, err := jetstream.New(nc)
@@ -89,7 +99,7 @@ func (cl *Client) Close() error {
 
 func (cl *Client) getStream(topicName string, streamName string) (jetstream.Stream, error) {
 
-	streamCtx, cancel := context.WithTimeout(cl.ctx, 60*time.Second)
+	streamCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	stream, err := cl.js.Stream(streamCtx, streamName)
@@ -103,7 +113,7 @@ func (cl *Client) getStream(topicName string, streamName string) (jetstream.Stre
 			Retention:   jetstream.WorkQueuePolicy,
 			Discard:     jetstream.DiscardOld,
 			MaxAge:      10 * time.Minute,
-			Storage:     jetstream.MemoryStorage,
+			Storage:     cl.storageType,
 			NoAck:       false,
 		})
 		if err != nil {
@@ -121,7 +131,7 @@ func (cl *Client) getStream(topicName string, streamName string) (jetstream.Stre
 }
 
 func (cl *Client) getConsumer(stream jetstream.Stream, consumerName string) (jetstream.Consumer, error) {
-	consCtx, cancel := context.WithTimeout(cl.ctx, 30*time.Second)
+	consCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	cons, err := stream.Consumer(consCtx, consumerName)
@@ -202,4 +212,6 @@ func (cl *Client) Shutdown() {
 			cl.logger.Error("failed to drain nats connection", slog.String("err", err.Error()))
 		}
 	}
+
+	cl.cancelAll()
 }

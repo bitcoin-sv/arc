@@ -58,8 +58,13 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
 
-	if arcConfig.MessageQueue.EnableStreaming {
-		mqClient, err = nats_jetstream.New(natsClient, logger, []string{metamorph.SubmitTxTopic})
+	if arcConfig.MessageQueue.Streaming.Enabled {
+		var opts []nats_jetstream.Option
+		if arcConfig.MessageQueue.Streaming.FileStorage {
+			opts = append(opts, nats_jetstream.WithFileStorage())
+		}
+
+		mqClient, err = nats_jetstream.New(natsClient, logger, []string{metamorph.SubmitTxTopic}, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}

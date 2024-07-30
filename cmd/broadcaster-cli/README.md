@@ -28,7 +28,7 @@ If file `broadcaster-cli.yaml` is present in either the folder where `broadcaste
 These instructions will provide the steps needed in order to use `broadcaster-cli` to send transactions to ARC.
 
 1. Create a new key set by running `broadcaster-cli keyset new`
-   1. The key set displayed has to be added under to config.yaml under `privateKeys`
+    1. The key set displayed has to be added under to config.yaml under `privateKeys`
 2. Add funds to the funding address
     1. Show the funding address by running `broadcaster-cli keyset address`
     2. In case of `testnet` (using the `--testnet` flag) funds can be added using the WoC faucet. For that you can use the command `broadcaster-cli keyset topup --testnet`
@@ -43,8 +43,8 @@ These instructions will provide the steps needed in order to use `broadcaster-cl
     1. Now `broadcaster-cli` can be used to broadcast transactions to ARC at a given rate using this command `broadcaster-cli utxos broadcast --rate=<txs per second> --batchsize=<nr ot txs per batch>`
     2. The limit flag `--limit=<nr of transactions at which broadcasting stops>` is optional. If not given `broadcaster-cli` will only stop at if `broadcaster-cli` is aborted e.g. using `CTRL+C`
     3. In order to broadcast a large number of transactions in parallel, multiple key sets can be given.
-         1. Each concurrently running broadcasting process will broadcast at the given rate
-         2. For example: If a rate of `--rate=100` is given with 3 key files `--keys=key-1,key-2,key-3`, then the final rate will be 300 transactions per second.
+        1. Each concurrently running broadcasting process will broadcast at the given rate
+        2. For example: If a rate of `--rate=100` is given with 3 key files `--keys=key-1,key-2,key-3`, then the final rate will be 300 transactions per second.
 5. Consolidate outputs
     1. If not enough outputs are available for another test run it is best to consolidate the outputs so that there remains only output using `broadcaster-cli utxos consolidate`
     2. After this step you can continue with step 4

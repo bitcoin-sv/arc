@@ -1,0 +1,31 @@
+# Stage 1: Build the broadcaster-cli binary
+FROM golang:1.21.3-alpine as builder
+
+# Set the Current Working Directory inside the container
+WORKDIR /app
+
+# Copy the Go Modules manifests
+COPY go.mod go.sum ./
+
+# Download all dependencies. Dependencies will be cached if the go.mod and go.sum files are not changed
+RUN go mod download
+
+# Copy the source code
+COPY ./cmd/broadcaster-cli ./cmd/broadcaster-cli
+COPY ./internal ./internal
+COPY ./pkg ./pkg
+
+# Build and install the broadcaster-cli binary
+RUN go install ./cmd/broadcaster-cli/
+
+# Stage 2: Create the final image
+FROM alpine:3.18
+
+# Copy the broadcaster-cli binary from the builder stage
+COPY --from=builder /go/bin/broadcaster-cli /usr/local/bin/
+
+# Copy the configuration file from the correct location
+COPY ./cmd/broadcaster-cli/broadcaster-cli.yaml /app/broadcaster-cli.yaml
+
+# Set the entry point to the broadcaster-cli
+ENTRYPOINT ["broadcaster-cli"]

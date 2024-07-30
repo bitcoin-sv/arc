@@ -1,4 +1,3 @@
-
 REPOSITORY := github.com/bitcoin-sv/arc
 APP_COMMIT := $(shell git rev-parse --short HEAD)
 APP_VERSION := $(shell git describe --tags --always --abbrev=0 --match='v[0-9]*.[0-9]*.[0-9]*' 2> /dev/null | sed 's/^.//')
@@ -13,6 +12,10 @@ deps:
 .PHONY: build
 build:
 	go build ./...
+
+.PHONY: build_broadcaster_cli
+build_broadcaster_cli:
+	go install ./cmd/broadcaster-cli/
 
 .PHONY: clean_e2e_tests
 clean_e2e_tests:
@@ -30,6 +33,24 @@ build_release:
 .PHONY: build_docker
 build_docker:
 	docker build . -t test-arc --build-arg="APP_COMMIT=$(APP_COMMIT)" --build-arg="APP_VERSION=$(APP_VERSION)"
+
+.PHONY: build_broadcaster_docker
+build_broadcaster_docker:
+	docker build . -f Dockerfile.broadcaster-cli -t broadcaster-cli --build-arg="APP_COMMIT=$(APP_COMMIT)" --build-arg="APP_VERSION=$(APP_VERSION)"
+
+.PHONY: start_arc
+start_arc: build_docker
+	docker-compose -f test/docker-compose.yml up -d arc
+
+.PHONY: run_broadcaster_cli
+run_broadcaster_cli: start_arc
+	# Ensure that arc is healthy before running broadcaster-cli
+	@echo "Waiting for arc service to be healthy..."
+	@until docker-compose -f test/docker-compose.yml exec arc curl -s http://localhost:8011/healthz | grep "ok"; do \
+	    echo "Waiting for arc service to start..."; \
+	    sleep 5; \
+	done
+	docker-compose -f test/docker-compose.yml run broadcaster-cli utxos broadcast --rate=1 --batchsize=5 --limit=2
 
 .PHONY: run_e2e_tests
 run_e2e_tests:

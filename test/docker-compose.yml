@@ -161,6 +161,16 @@ services:
     depends_on:
       arc-metamorph:
         condition: service_healthy
+  broadcaster-cli:
+    build:
+      context: .
+      dockerfile: Dockerfile.broadcaster-cli
+    container_name: broadcaster-cli
+    entrypoint: ["broadcaster-cli"]
+    volumes:
+      - ./cmd/broadcaster-cli/broadcaster-cli.yaml:/app/broadcaster-cli.yaml
+    depends_on:
+      - arc
 
   tests:
     build: .

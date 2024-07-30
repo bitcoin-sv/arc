@@ -688,7 +688,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		}
 
 		for _, data := range dbData {
-			if data.Hash.IsEqual(&update.Hash) {
+			if update.Hash.IsEqual(data.Hash) {
 				// get unique values from merged existing competing txs
 				// and incoming ones to avoid duplicates or overridings
 				uniqueTxs := mergeUnique(update.CompetingTxs, data.CompetingTxs)

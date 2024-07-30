@@ -40,7 +40,7 @@ func New(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 			logger.Info("client closed")
 		}),
 		nats.RetryOnFailedConnect(true),
-		nats.PingInterval(2 * time.Minute),
+		nats.PingInterval(30 * time.Second),
 		nats.MaxPingsOutstanding(2),
 		nats.ReconnectBufSize(8 * 1024 * 1024),
 		nats.MaxReconnects(60),

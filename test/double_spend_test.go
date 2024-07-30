@@ -57,7 +57,7 @@ func TestDoubleSpend(t *testing.T) {
 			require.Equal(t, Status_MINED, *statusResponse.JSON200.TxStatus)
 
 			// verify that the second tx was rejected
-			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
+			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, txMempool.TxID())
 			require.NoError(t, err)
 			require.Equal(t, Status_REJECTED, *statusResponse.JSON200.TxStatus)
 

@@ -55,8 +55,8 @@ func (c MQClient) Shutdown() {
 	}
 }
 
-func (c MQClient) Publish(topic string, hash []byte) error {
-	err := c.nc.Publish(topic, hash)
+func (c MQClient) Publish(topic string, data []byte) error {
+	err := c.nc.Publish(topic, data)
 	if err != nil {
 		return fmt.Errorf("failed to publish on %s topic: %w", topic, err)
 	}

@@ -19,7 +19,7 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //
 //		// make and configure a mocked metamorph.MessageQueueClient
 //		mockedMessageQueueClient := &MessageQueueClientMock{
-//			PublishFunc: func(topic string, hash []byte) error {
+//			PublishFunc: func(topic string, data []byte) error {
 //				panic("mock out the Publish method")
 //			},
 //			SubscribeFunc: func(topic string, cb nats.MsgHandler) error {
@@ -33,7 +33,7 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //	}
 type MessageQueueClientMock struct {
 	// PublishFunc mocks the Publish method.
-	PublishFunc func(topic string, hash []byte) error
+	PublishFunc func(topic string, data []byte) error
 
 	// SubscribeFunc mocks the Subscribe method.
 	SubscribeFunc func(topic string, cb nats.MsgHandler) error
@@ -44,8 +44,8 @@ type MessageQueueClientMock struct {
 		Publish []struct {
 			// Topic is the topic argument value.
 			Topic string
-			// Hash is the hash argument value.
-			Hash []byte
+			// Data is the data argument value.
+			Data []byte
 		}
 		// Subscribe holds details about calls to the Subscribe method.
 		Subscribe []struct {
@@ -60,21 +60,21 @@ type MessageQueueClientMock struct {
 }
 
 // Publish calls PublishFunc.
-func (mock *MessageQueueClientMock) Publish(topic string, hash []byte) error {
+func (mock *MessageQueueClientMock) Publish(topic string, data []byte) error {
 	if mock.PublishFunc == nil {
 		panic("MessageQueueClientMock.PublishFunc: method is nil but MessageQueueClient.Publish was just called")
 	}
 	callInfo := struct {
 		Topic string
-		Hash  []byte
+		Data  []byte
 	}{
 		Topic: topic,
-		Hash:  hash,
+		Data:  data,
 	}
 	mock.lockPublish.Lock()
 	mock.calls.Publish = append(mock.calls.Publish, callInfo)
 	mock.lockPublish.Unlock()
-	return mock.PublishFunc(topic, hash)
+	return mock.PublishFunc(topic, data)
 }
 
 // PublishCalls gets all the calls that were made to Publish.
@@ -83,11 +83,11 @@ func (mock *MessageQueueClientMock) Publish(topic string, hash []byte) error {
 //	len(mockedMessageQueueClient.PublishCalls())
 func (mock *MessageQueueClientMock) PublishCalls() []struct {
 	Topic string
-	Hash  []byte
+	Data  []byte
 } {
 	var calls []struct {
 		Topic string
-		Hash  []byte
+		Data  []byte
 	}
 	mock.lockPublish.RLock()
 	calls = mock.calls.Publish

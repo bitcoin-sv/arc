@@ -13,4 +13,6 @@ wocAPIKey: testnet_XXXX
 callback: http://callbacks.example.com
 callbackToken: some-token
 fullStatusUpdates: false
-keys: key-1,key-2
+keys:
+  - key-1
+  - key-2

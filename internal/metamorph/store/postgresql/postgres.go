@@ -573,17 +573,17 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	return res, nil
 }
 
-func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
+func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.StoreData, error) {
 	if txsBlocks == nil {
 		return nil, nil
 	}
 
-	txHashes := make([][]byte, len(txsBlocks.TransactionBlocks))
-	blockHashes := make([][]byte, len(txsBlocks.TransactionBlocks))
-	blockHeights := make([]uint64, len(txsBlocks.TransactionBlocks))
-	merklePaths := make([]string, len(txsBlocks.TransactionBlocks))
+	txHashes := make([][]byte, len(txsBlocks))
+	blockHashes := make([][]byte, len(txsBlocks))
+	blockHeights := make([]uint64, len(txsBlocks))
+	merklePaths := make([]string, len(txsBlocks))
 
-	for i, tx := range txsBlocks.TransactionBlocks {
+	for i, tx := range txsBlocks {
 		txHashes[i] = tx.TransactionHash
 		blockHashes[i] = tx.BlockHash
 		blockHeights[i] = tx.BlockHeight

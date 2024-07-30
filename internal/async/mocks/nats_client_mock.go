@@ -4,7 +4,7 @@
 package mocks
 
 import (
-	"github.com/bitcoin-sv/arc/internal/blocktx/async"
+	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/nats-io/nats.go"
 	"sync"
 )

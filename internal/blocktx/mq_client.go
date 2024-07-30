@@ -1,14 +1,11 @@
 package blocktx
 
 import (
-	"context"
-
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/nats-io/nats.go"
+	"google.golang.org/protobuf/proto"
 )
 
 type MessageQueueClient interface {
-	SubscribeRegisterTxs() error
-	SubscribeRequestTxs() error
-	PublishMinedTxs(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error
-	Shutdown() error
+	PublishMarshal(topic string, m proto.Message) error
+	Subscribe(topic string, cb nats.MsgHandler) error
 }

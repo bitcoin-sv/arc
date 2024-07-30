@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/libsv/go-bc"
@@ -19,6 +20,7 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
+	"github.com/nats-io/nats.go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -101,7 +103,7 @@ type PeerHandler struct {
 	transactionStorageBatchSize int
 	dataRetentionDays           int
 	mqClient                    MessageQueueClient
-	txChannel                   chan []byte
+	registerTxsChan             chan []byte
 	requestTxChannel            chan []byte
 	registerTxsInterval         time.Duration
 	registerRequestTxsInterval  time.Duration
@@ -150,9 +152,9 @@ func WithRegisterRequestTxsInterval(d time.Duration) func(handler *PeerHandler) 
 	}
 }
 
-func WithTxChan(txChannel chan []byte) func(handler *PeerHandler) {
+func WithRegisterTxsChan(registerTxsChan chan []byte) func(handler *PeerHandler) {
 	return func(handler *PeerHandler) {
-		handler.txChannel = txChannel
+		handler.registerTxsChan = registerTxsChan
 	}
 }
 
@@ -211,13 +213,30 @@ func NewPeerHandler(logger *slog.Logger, storeI store.BlocktxStore, opts ...func
 	return ph, nil
 }
 
-func (ph *PeerHandler) Start() {
-	ph.startPeerWorker()
-	ph.startProcessTxs()
-	ph.startProcessRequestTxs()
+func (ph *PeerHandler) Start() error {
+
+	err := ph.mqClient.Subscribe(async.RegisterTxTopic, func(msg *nats.Msg) {
+		ph.registerTxsChan <- msg.Data
+	})
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to %s topic: %w", async.RegisterTxTopic, err)
+	}
+
+	err = ph.mqClient.Subscribe(async.RequestTxTopic, func(msg *nats.Msg) {
+		ph.requestTxChannel <- msg.Data
+	})
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to %s topic: %w", async.RequestTxTopic, err)
+	}
+
+	ph.StartPeerWorker()
+	ph.StartProcessTxs()
+	ph.StartProcessRequestTxs()
+
+	return nil
 }
 
-func (ph *PeerHandler) startPeerWorker() {
+func (ph *PeerHandler) StartPeerWorker() {
 	ph.waitGroup.Add(1)
 
 	go func() {
@@ -295,7 +314,7 @@ func (ph *PeerHandler) StartFillGaps(peers []p2p.PeerI) {
 	}()
 }
 
-func (ph *PeerHandler) startProcessTxs() {
+func (ph *PeerHandler) StartProcessTxs() {
 	ph.waitGroup.Add(1)
 	txHashes := make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
 
@@ -306,7 +325,7 @@ func (ph *PeerHandler) startProcessTxs() {
 			select {
 			case <-ph.ctx.Done():
 				return
-			case txHash := <-ph.txChannel:
+			case txHash := <-ph.registerTxsChan:
 				txHashes = append(txHashes, &blocktx_api.TransactionAndSource{
 					Hash: txHash,
 				})
@@ -330,7 +349,7 @@ func (ph *PeerHandler) startProcessTxs() {
 	}()
 }
 
-func (ph *PeerHandler) startProcessRequestTxs() {
+func (ph *PeerHandler) StartProcessRequestTxs() {
 	ph.waitGroup.Add(1)
 
 	txHashes := make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)
@@ -388,17 +407,16 @@ func (ph *PeerHandler) publishMinedTxs(txHashes []*chainhash.Hash) error {
 		return fmt.Errorf("failed to get mined transactions: %v", err)
 	}
 
-	updatesBatch := make([]*blocktx_api.TransactionBlock, 0, ph.registerRequestTxsBatchSize)
 	for _, minedTx := range minedTxs {
-		updatesBatch = append(updatesBatch, &blocktx_api.TransactionBlock{
+		txBlock := &blocktx_api.TransactionBlock{
 			TransactionHash: minedTx.TxHash,
 			BlockHash:       minedTx.BlockHash,
 			BlockHeight:     minedTx.BlockHeight,
 			MerklePath:      minedTx.MerklePath,
-		})
+		}
+		err = ph.mqClient.PublishMarshal(async.MinedTxsTopic, txBlock)
 	}
 
-	err = ph.mqClient.PublishMinedTxs(ph.ctx, updatesBatch)
 	if err != nil {
 		return fmt.Errorf("failed to publish mined transactions: %v", err)
 	}
@@ -645,19 +663,14 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 			txs = make([]*blocktx_api.TransactionAndSource, 0, ph.transactionStorageBatchSize)
 			merklePaths = make([]string, 0, ph.transactionStorageBatchSize)
 
-			updatesBatch := make([]*blocktx_api.TransactionBlock, len(updateResp))
-
-			for i, updResp := range updateResp {
-				updatesBatch[i] = &blocktx_api.TransactionBlock{
+			for _, updResp := range updateResp {
+				txBlock := &blocktx_api.TransactionBlock{
 					TransactionHash: updResp.TxHash[:],
 					BlockHash:       blockhash[:],
 					BlockHeight:     blockHeight,
 					MerklePath:      updResp.MerklePath,
 				}
-			}
-
-			if len(updatesBatch) > 0 {
-				err = ph.mqClient.PublishMinedTxs(ctx, updatesBatch)
+				err = ph.mqClient.PublishMarshal(async.MinedTxsTopic, txBlock)
 				if err != nil {
 					ph.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
 				}
@@ -675,21 +688,16 @@ func (ph *PeerHandler) markTransactionsAsMined(ctx context.Context, blockId uint
 		return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 	}
 
-	updatesBatch := make([]*blocktx_api.TransactionBlock, len(updateResp))
-
-	for i, updResp := range updateResp {
-		updatesBatch[i] = &blocktx_api.TransactionBlock{
+	for _, updResp := range updateResp {
+		txBlock := &blocktx_api.TransactionBlock{
 			TransactionHash: updResp.TxHash[:],
 			BlockHash:       blockhash[:],
 			BlockHeight:     blockHeight,
 			MerklePath:      updResp.MerklePath,
 		}
-	}
-
-	if len(updatesBatch) > 0 {
-		err = ph.mqClient.PublishMinedTxs(ctx, updatesBatch)
+		err = ph.mqClient.PublishMarshal(async.MinedTxsTopic, txBlock)
 		if err != nil {
-			ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+			ph.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
 		}
 	}
 

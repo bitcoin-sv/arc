@@ -1,9 +1,8 @@
 package metamorph
 
+import "github.com/nats-io/nats.go"
+
 type MessageQueueClient interface {
-	PublishRegisterTxs(hash []byte) error
-	PublishRequestTx(hash []byte) error
-	SubscribeMinedTxs() error
-	SubscribeSubmittedTx() error
-	Shutdown() error
+	Publish(topic string, data []byte) error
+	Subscribe(topic string, cb nats.MsgHandler) error
 }

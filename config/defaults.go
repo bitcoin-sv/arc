@@ -94,9 +94,7 @@ func getBlocktxConfig() *BlocktxConfig {
 		MonitorPeers:                  false,
 		FillGapsInterval:              15 * time.Minute,
 		MaxAllowedBlockHeightMismatch: 3,
-		MessageQueue: &MessageQueueConfig{
-			TxsMinedMaxBatchSize: 20,
-		},
+		MessageQueue:                  &MessageQueueConfig{},
 	}
 }
 

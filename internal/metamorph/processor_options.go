@@ -81,6 +81,18 @@ func WithProcessTransactionsBatchSize(batchSize int) func(*Processor) {
 	}
 }
 
+func WithProcessMinedInterval(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.processMinedInterval = d
+	}
+}
+
+func WithProcessMinedBatchSize(batchSize int) func(*Processor) {
+	return func(p *Processor) {
+		p.processMinedBatchSize = batchSize
+	}
+}
+
 func WithProcessStatusUpdatesBatchSize(size int) func(*Processor) {
 	return func(p *Processor) {
 		p.processStatusUpdatesBatchSize = size
@@ -94,7 +106,7 @@ func WithMessageQueueClient(mqClient MessageQueueClient) func(processor *Process
 	}
 }
 
-func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlocks) func(processor *Processor) {
+func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlock) func(processor *Processor) {
 	return func(p *Processor) {
 		p.minedTxsChan = minedTxsChan
 	}

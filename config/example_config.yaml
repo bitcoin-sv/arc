@@ -77,8 +77,6 @@ blocktx:
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
   fillGapsInterval: 15m # time interval to check and fill gaps in processed blocks
   maxAllowedBlockHeightMismatch: 3 # maximum number of blocks that can be ahead of current highest block in blocktx, used for merkle roots verification
-  mq:
-    txsMinedMaxBatchSize: 20 # size of batches for transactions which got mined to be published to the message queue
 
 api:
   address: localhost:9090 # address to start api server on

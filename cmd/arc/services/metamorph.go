@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/config"
+	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/internal/metamorph/async"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
@@ -30,6 +30,7 @@ import (
 
 const (
 	DbModePostgres = "postgres"
+	chanBufferSize = 4000
 )
 
 func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
@@ -46,33 +47,16 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, err
 	}
 
-	// The tx channel needs the capacity so that it could potentially buffer up to a certain nr of transactions per second
-	const targetTps = 6000
-	const avgMinPerBlock = 10
-	const secPerMin = 60
-
 	// maximum amount of messages that could be coming from a single block
-	maxBatchSize := arcConfig.Blocktx.MessageQueue.TxsMinedMaxBatchSize
-	capacityRequired := int(float64(targetTps*avgMinPerBlock*secPerMin) / float64(maxBatchSize))
-	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, capacityRequired)
-	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, capacityRequired)
+	minedTxsChan := make(chan *blocktx_api.TransactionBlock, chanBufferSize)
+	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, chanBufferSize)
 
-	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL)
+	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.QueueURL, err)
 	}
 
-	mqClient := async.NewNatsMQClient(natsClient, minedTxsChan, submittedTxsChan, logger)
-
-	err = mqClient.SubscribeMinedTxs()
-	if err != nil {
-		return nil, err
-	}
-
-	err = mqClient.SubscribeSubmittedTx()
-	if err != nil {
-		return nil, err
-	}
+	mqClient := async.NewNatsMQClient(natsClient, async.WithLogger(logger))
 
 	callbacker, err := metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})
 	if err != nil {
@@ -94,7 +78,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		metamorph.WithMinimumHealthyConnections(mtmConfig.Health.MinimumHealthyConnections),
 	}
 
-	metamorphProcessor, err := metamorph.NewProcessor(
+	processor, err := metamorph.NewProcessor(
 		metamorphStore,
 		pm,
 		statusMessageCh,
@@ -103,20 +87,10 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	if err != nil {
 		return nil, err
 	}
-
-	metamorphProcessor.StartLockTransactions()
-	time.Sleep(200 * time.Millisecond) // wait a short time so that process expired transactions will start shortly after lock transactions go routine
-
-	metamorphProcessor.StartProcessExpiredTransactions()
-	metamorphProcessor.StartRequestingSeenOnNetworkTxs()
-	metamorphProcessor.StartProcessStatusUpdatesInStorage()
-	metamorphProcessor.StartProcessMinedCallbacks()
-	err = metamorphProcessor.StartCollectStats()
+	err = processor.Start()
 	if err != nil {
-		return nil, fmt.Errorf("failed to start collecting stats: %v", err)
+		return nil, fmt.Errorf("failed to start metamorph processor: %v", err)
 	}
-	metamorphProcessor.StartSendStatusUpdate()
-	metamorphProcessor.StartProcessSubmittedTxs()
 
 	optsServer := []metamorph.ServerOption{
 		metamorph.WithLogger(logger.With(slog.String("module", "mtm-server"))),
@@ -138,7 +112,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		optsServer = append(optsServer, metamorph.WithForceCheckUtxos(node))
 	}
 
-	server := metamorph.NewServer(metamorphStore, metamorphProcessor, optsServer...)
+	server := metamorph.NewServer(metamorphStore, processor, optsServer...)
 
 	err = server.StartGRPCServer(mtmConfig.ListenAddr, arcConfig.GrpcMessageSize, arcConfig.PrometheusEndpoint, logger)
 	if err != nil {
@@ -179,7 +153,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 		server.Shutdown()
 
-		err = mqClient.Shutdown()
+		mqClient.Shutdown()
 		if err != nil {
 			logger.Error("failed to shutdown mqClient", slog.String("err", err.Error()))
 		}

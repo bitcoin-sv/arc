@@ -3,6 +3,7 @@ package metamorph_test
 import (
 	"context"
 	"errors"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"testing"
 	"time"
 
@@ -172,7 +173,8 @@ func TestClient_SubmitTransaction(t *testing.T) {
 
 			opts := []func(client *metamorph.Metamorph){metamorph.WithNow(func() time.Time { return now })}
 			if tc.withMqClient {
-				mqClient := &mocks.MessageQueueClientMock{PublishSubmitTxFunc: func(tx *metamorph_api.TransactionRequest) error { return tc.publishSubmitTxErr }}
+				mqClient := &mocks.MessageQueueClientMock{
+					PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error { return tc.publishSubmitTxErr }}
 				opts = append(opts, metamorph.WithMqClient(mqClient))
 			}
 
@@ -398,7 +400,11 @@ func TestClient_SubmitTransactions(t *testing.T) {
 
 			opts := []func(client *metamorph.Metamorph){metamorph.WithNow(func() time.Time { return now })}
 			if tc.withMqClient {
-				mqClient := &mocks.MessageQueueClientMock{PublishSubmitTxsFunc: func(txs *metamorph_api.TransactionRequests) error { return tc.publishSubmitTxErr }}
+				mqClient := &mocks.MessageQueueClientMock{
+					PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error {
+						return tc.publishSubmitTxErr
+					},
+				}
 				opts = append(opts, metamorph.WithMqClient(mqClient))
 			}
 

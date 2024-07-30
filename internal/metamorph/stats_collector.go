@@ -146,22 +146,24 @@ func (p *Processor) StartCollectStats() error {
 				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 		}()
-		defer p.waitGroup.Done()
-		defer unregisterStats(
-			p.stats.statusStored,
-			p.stats.statusAnnouncedToNetwork,
-			p.stats.statusRequestedByNetwork,
-			p.stats.statusSentToNetwork,
-			p.stats.statusAcceptedByNetwork,
-			p.stats.statusSeenOnNetwork,
-			p.stats.statusMined,
-			p.stats.statusRejected,
-			p.stats.statusSeenInOrphanMempool,
-			p.stats.statusNotMined,
-			p.stats.statusNotSeen,
-			p.stats.statusSeenOnNetworkTotal,
-			p.stats.statusMinedTotal,
-		)
+		defer func() {
+			unregisterStats(
+				p.stats.statusStored,
+				p.stats.statusAnnouncedToNetwork,
+				p.stats.statusRequestedByNetwork,
+				p.stats.statusSentToNetwork,
+				p.stats.statusAcceptedByNetwork,
+				p.stats.statusSeenOnNetwork,
+				p.stats.statusMined,
+				p.stats.statusRejected,
+				p.stats.statusSeenInOrphanMempool,
+				p.stats.statusNotMined,
+				p.stats.statusNotSeen,
+				p.stats.statusSeenOnNetworkTotal,
+				p.stats.statusMinedTotal,
+			)
+			p.waitGroup.Done()
+		}()
 
 		for {
 			select {

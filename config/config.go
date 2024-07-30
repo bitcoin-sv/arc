@@ -101,7 +101,6 @@ type StatsConfig struct {
 }
 
 type MessageQueueConfig struct {
-	TxsMinedMaxBatchSize int `mapstructure:"txsMinedMaxBatchSize"`
 }
 
 type ApiConfig struct {

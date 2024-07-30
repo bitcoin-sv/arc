@@ -64,7 +64,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
 //				panic("mock out the SetUnlockedByName method")
 //			},
-//			UpdateMinedFunc: func(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
+//			UpdateMinedFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.StoreData, error) {
 //				panic("mock out the UpdateMined method")
 //			},
 //			UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
@@ -120,7 +120,7 @@ type MetamorphStoreMock struct {
 	SetUnlockedByNameFunc func(ctx context.Context, lockedBy string) (int64, error)
 
 	// UpdateMinedFunc mocks the UpdateMined method.
-	UpdateMinedFunc func(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error)
+	UpdateMinedFunc func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.StoreData, error)
 
 	// UpdateStatusBulkFunc mocks the UpdateStatusBulk method.
 	UpdateStatusBulkFunc func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error)
@@ -242,7 +242,7 @@ type MetamorphStoreMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// TxsBlocks is the txsBlocks argument value.
-			TxsBlocks *blocktx_api.TransactionBlocks
+			TxsBlocks []*blocktx_api.TransactionBlock
 		}
 		// UpdateStatusBulk holds details about calls to the UpdateStatusBulk method.
 		UpdateStatusBulk []struct {
@@ -799,13 +799,13 @@ func (mock *MetamorphStoreMock) SetUnlockedByNameCalls() []struct {
 }
 
 // UpdateMined calls UpdateMinedFunc.
-func (mock *MetamorphStoreMock) UpdateMined(ctx context.Context, txsBlocks *blocktx_api.TransactionBlocks) ([]*store.StoreData, error) {
+func (mock *MetamorphStoreMock) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.StoreData, error) {
 	if mock.UpdateMinedFunc == nil {
 		panic("MetamorphStoreMock.UpdateMinedFunc: method is nil but MetamorphStore.UpdateMined was just called")
 	}
 	callInfo := struct {
 		Ctx       context.Context
-		TxsBlocks *blocktx_api.TransactionBlocks
+		TxsBlocks []*blocktx_api.TransactionBlock
 	}{
 		Ctx:       ctx,
 		TxsBlocks: txsBlocks,
@@ -822,11 +822,11 @@ func (mock *MetamorphStoreMock) UpdateMined(ctx context.Context, txsBlocks *bloc
 //	len(mockedMetamorphStore.UpdateMinedCalls())
 func (mock *MetamorphStoreMock) UpdateMinedCalls() []struct {
 	Ctx       context.Context
-	TxsBlocks *blocktx_api.TransactionBlocks
+	TxsBlocks []*blocktx_api.TransactionBlock
 } {
 	var calls []struct {
 		Ctx       context.Context
-		TxsBlocks *blocktx_api.TransactionBlocks
+		TxsBlocks []*blocktx_api.TransactionBlock
 	}
 	mock.lockUpdateMined.RLock()
 	calls = mock.calls.UpdateMined

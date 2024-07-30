@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
@@ -22,8 +23,10 @@ import (
 	"github.com/libsv/go-p2p/bsvutil"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
+	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func TestExtractHeight(t *testing.T) {
@@ -179,7 +182,7 @@ func TestHandleBlock(t *testing.T) {
 			}
 
 			mq := &mocks.MessageQueueClientMock{
-				PublishMinedTxsFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error {
+				PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error {
 					return nil
 				},
 			}
@@ -383,12 +386,12 @@ func TestStartProcessTxs(t *testing.T) {
 				logger,
 				storeMock,
 				blocktx.WithRegisterTxsInterval(time.Millisecond*20),
-				blocktx.WithTxChan(txChan),
+				blocktx.WithRegisterTxsChan(txChan),
 				blocktx.WithRegisterTxsBatchSize(3),
 			)
 			require.NoError(t, err)
 
-			peerHandler.Start()
+			peerHandler.StartProcessTxs()
 
 			time.Sleep(120 * time.Millisecond)
 			peerHandler.Shutdown()
@@ -486,7 +489,7 @@ func TestStartPeerWorker(t *testing.T) {
 			err = peerHandler.HandleBlockAnnouncement(wire.NewInvVect(wire.InvTypeBlock, blockHash), peerMock)
 			require.NoError(t, err)
 
-			peerHandler.Start()
+			peerHandler.StartPeerWorker()
 
 			// call tested function
 			require.NoError(t, err)
@@ -582,7 +585,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 			}
 
 			mq := &mocks.MessageQueueClientMock{
-				PublishMinedTxsFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error {
+				PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error {
 					return publishMinedErrTest
 				},
 			}
@@ -601,7 +604,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 				requestTxChannel <- tc.requestedTx
 			}
 
-			peerHandler.Start()
+			peerHandler.StartProcessRequestTxs()
 
 			// call tested function
 			require.NoError(t, err)
@@ -609,7 +612,60 @@ func TestStartProcessRequestTxs(t *testing.T) {
 			peerHandler.Shutdown()
 
 			require.Equal(t, tc.expectedGetMinedCalls, len(storeMock.GetMinedTransactionsCalls()))
-			require.Equal(t, tc.expectedPublishMinedCalls, len(mq.PublishMinedTxsCalls()))
+			require.Equal(t, tc.expectedPublishMinedCalls, len(mq.PublishMarshalCalls()))
+		})
+	}
+}
+
+func TestStart(t *testing.T) {
+	tt := []struct {
+		name     string
+		topicErr map[string]error
+
+		expectedErrorStr string
+	}{
+		{
+			name: "success",
+		},
+		{
+			name:     "error - subscribe mined txs",
+			topicErr: map[string]error{async.RegisterTxTopic: errors.New("failed to subscribe")},
+
+			expectedErrorStr: "failed to subscribe to register-tx topic: failed to subscribe",
+		},
+		{
+			name:     "error - subscribe submit txs",
+			topicErr: map[string]error{async.RequestTxTopic: errors.New("failed to subscribe")},
+
+			expectedErrorStr: "failed to subscribe to request-tx topic: failed to subscribe",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			storeMock := &storeMocks.BlocktxStoreMock{}
+
+			mqClient := &mocks.MessageQueueClientMock{
+				SubscribeFunc: func(topic string, cb nats.MsgHandler) error {
+					err, ok := tc.topicErr[topic]
+					if ok {
+						return err
+					}
+					return nil
+				},
+			}
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithMessageQueueClient(mqClient))
+			require.NoError(t, err)
+			err = peerHandler.Start()
+			if tc.expectedErrorStr != "" || err != nil {
+				require.ErrorContains(t, err, tc.expectedErrorStr)
+				return
+			} else {
+				require.NoError(t, err)
+			}
+
+			peerHandler.Shutdown()
 		})
 	}
 }

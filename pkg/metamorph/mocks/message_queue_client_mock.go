@@ -4,8 +4,8 @@
 package mocks
 
 import (
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"sync"
 )
 
@@ -19,14 +19,8 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //
 //		// make and configure a mocked metamorph.MessageQueueClient
 //		mockedMessageQueueClient := &MessageQueueClientMock{
-//			PublishSubmitTxFunc: func(tx *metamorph_api.TransactionRequest) error {
-//				panic("mock out the PublishSubmitTx method")
-//			},
-//			PublishSubmitTxsFunc: func(txs *metamorph_api.TransactionRequests) error {
-//				panic("mock out the PublishSubmitTxs method")
-//			},
-//			ShutdownFunc: func() error {
-//				panic("mock out the Shutdown method")
+//			PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error {
+//				panic("mock out the PublishMarshal method")
 //			},
 //		}
 //
@@ -35,123 +29,54 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //
 //	}
 type MessageQueueClientMock struct {
-	// PublishSubmitTxFunc mocks the PublishSubmitTx method.
-	PublishSubmitTxFunc func(tx *metamorph_api.TransactionRequest) error
-
-	// PublishSubmitTxsFunc mocks the PublishSubmitTxs method.
-	PublishSubmitTxsFunc func(txs *metamorph_api.TransactionRequests) error
-
-	// ShutdownFunc mocks the Shutdown method.
-	ShutdownFunc func() error
+	// PublishMarshalFunc mocks the PublishMarshal method.
+	PublishMarshalFunc func(topic string, m protoreflect.ProtoMessage) error
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// PublishSubmitTx holds details about calls to the PublishSubmitTx method.
-		PublishSubmitTx []struct {
-			// Tx is the tx argument value.
-			Tx *metamorph_api.TransactionRequest
-		}
-		// PublishSubmitTxs holds details about calls to the PublishSubmitTxs method.
-		PublishSubmitTxs []struct {
-			// Txs is the txs argument value.
-			Txs *metamorph_api.TransactionRequests
-		}
-		// Shutdown holds details about calls to the Shutdown method.
-		Shutdown []struct {
+		// PublishMarshal holds details about calls to the PublishMarshal method.
+		PublishMarshal []struct {
+			// Topic is the topic argument value.
+			Topic string
+			// M is the m argument value.
+			M protoreflect.ProtoMessage
 		}
 	}
-	lockPublishSubmitTx  sync.RWMutex
-	lockPublishSubmitTxs sync.RWMutex
-	lockShutdown         sync.RWMutex
+	lockPublishMarshal sync.RWMutex
 }
 
-// PublishSubmitTx calls PublishSubmitTxFunc.
-func (mock *MessageQueueClientMock) PublishSubmitTx(tx *metamorph_api.TransactionRequest) error {
-	if mock.PublishSubmitTxFunc == nil {
-		panic("MessageQueueClientMock.PublishSubmitTxFunc: method is nil but MessageQueueClient.PublishSubmitTx was just called")
+// PublishMarshal calls PublishMarshalFunc.
+func (mock *MessageQueueClientMock) PublishMarshal(topic string, m protoreflect.ProtoMessage) error {
+	if mock.PublishMarshalFunc == nil {
+		panic("MessageQueueClientMock.PublishMarshalFunc: method is nil but MessageQueueClient.PublishMarshal was just called")
 	}
 	callInfo := struct {
-		Tx *metamorph_api.TransactionRequest
+		Topic string
+		M     protoreflect.ProtoMessage
 	}{
-		Tx: tx,
+		Topic: topic,
+		M:     m,
 	}
-	mock.lockPublishSubmitTx.Lock()
-	mock.calls.PublishSubmitTx = append(mock.calls.PublishSubmitTx, callInfo)
-	mock.lockPublishSubmitTx.Unlock()
-	return mock.PublishSubmitTxFunc(tx)
+	mock.lockPublishMarshal.Lock()
+	mock.calls.PublishMarshal = append(mock.calls.PublishMarshal, callInfo)
+	mock.lockPublishMarshal.Unlock()
+	return mock.PublishMarshalFunc(topic, m)
 }
 
-// PublishSubmitTxCalls gets all the calls that were made to PublishSubmitTx.
+// PublishMarshalCalls gets all the calls that were made to PublishMarshal.
 // Check the length with:
 //
-//	len(mockedMessageQueueClient.PublishSubmitTxCalls())
-func (mock *MessageQueueClientMock) PublishSubmitTxCalls() []struct {
-	Tx *metamorph_api.TransactionRequest
+//	len(mockedMessageQueueClient.PublishMarshalCalls())
+func (mock *MessageQueueClientMock) PublishMarshalCalls() []struct {
+	Topic string
+	M     protoreflect.ProtoMessage
 } {
 	var calls []struct {
-		Tx *metamorph_api.TransactionRequest
+		Topic string
+		M     protoreflect.ProtoMessage
 	}
-	mock.lockPublishSubmitTx.RLock()
-	calls = mock.calls.PublishSubmitTx
-	mock.lockPublishSubmitTx.RUnlock()
-	return calls
-}
-
-// PublishSubmitTxs calls PublishSubmitTxsFunc.
-func (mock *MessageQueueClientMock) PublishSubmitTxs(txs *metamorph_api.TransactionRequests) error {
-	if mock.PublishSubmitTxsFunc == nil {
-		panic("MessageQueueClientMock.PublishSubmitTxsFunc: method is nil but MessageQueueClient.PublishSubmitTxs was just called")
-	}
-	callInfo := struct {
-		Txs *metamorph_api.TransactionRequests
-	}{
-		Txs: txs,
-	}
-	mock.lockPublishSubmitTxs.Lock()
-	mock.calls.PublishSubmitTxs = append(mock.calls.PublishSubmitTxs, callInfo)
-	mock.lockPublishSubmitTxs.Unlock()
-	return mock.PublishSubmitTxsFunc(txs)
-}
-
-// PublishSubmitTxsCalls gets all the calls that were made to PublishSubmitTxs.
-// Check the length with:
-//
-//	len(mockedMessageQueueClient.PublishSubmitTxsCalls())
-func (mock *MessageQueueClientMock) PublishSubmitTxsCalls() []struct {
-	Txs *metamorph_api.TransactionRequests
-} {
-	var calls []struct {
-		Txs *metamorph_api.TransactionRequests
-	}
-	mock.lockPublishSubmitTxs.RLock()
-	calls = mock.calls.PublishSubmitTxs
-	mock.lockPublishSubmitTxs.RUnlock()
-	return calls
-}
-
-// Shutdown calls ShutdownFunc.
-func (mock *MessageQueueClientMock) Shutdown() error {
-	if mock.ShutdownFunc == nil {
-		panic("MessageQueueClientMock.ShutdownFunc: method is nil but MessageQueueClient.Shutdown was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockShutdown.Lock()
-	mock.calls.Shutdown = append(mock.calls.Shutdown, callInfo)
-	mock.lockShutdown.Unlock()
-	return mock.ShutdownFunc()
-}
-
-// ShutdownCalls gets all the calls that were made to Shutdown.
-// Check the length with:
-//
-//	len(mockedMessageQueueClient.ShutdownCalls())
-func (mock *MessageQueueClientMock) ShutdownCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockShutdown.RLock()
-	calls = mock.calls.Shutdown
-	mock.lockShutdown.RUnlock()
+	mock.lockPublishMarshal.RLock()
+	calls = mock.calls.PublishMarshal
+	mock.lockPublishMarshal.RUnlock()
 	return calls
 }

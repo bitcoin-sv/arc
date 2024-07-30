@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/config"
+	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/nats_mq"
@@ -37,44 +37,19 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
 
-	// The tx channel needs the capacity so that it could potentially buffer up to a certain nr of transactions per second
-	const targetTps = 6000
-	capacityRequired := int(btxConfig.RegisterTxsInterval.Seconds() * targetTps)
-	if capacityRequired < 100 {
-		capacityRequired = 100
-	}
+	registerTxsChan := make(chan []byte, chanBufferSize)
+	requestTxChannel := make(chan []byte, chanBufferSize)
 
-	txChannel := make(chan []byte, capacityRequired)
-	requestTxChannel := make(chan []byte, capacityRequired)
-
-	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL)
+	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.QueueURL, err)
 	}
 
-	mqOpts := []func(handler *async.MQClient){
-		async.WithMaxBatchSize(btxConfig.MessageQueue.TxsMinedMaxBatchSize),
-	}
-
-	if tracingEnabled {
-		mqOpts = append(mqOpts, async.WithTracer())
-	}
-
-	mqClient := async.NewNatsMQClient(natsClient, txChannel, requestTxChannel, mqOpts...)
-
-	err = mqClient.SubscribeRegisterTxs()
-	if err != nil {
-		return nil, err
-	}
-
-	err = mqClient.SubscribeRequestTxs()
-	if err != nil {
-		return nil, err
-	}
+	mqClient := async.NewNatsMQClient(natsClient, async.WithLogger(logger))
 
 	peerHandlerOpts := []func(handler *blocktx.PeerHandler){
 		blocktx.WithRetentionDays(btxConfig.RecordRetentionDays),
-		blocktx.WithTxChan(txChannel),
+		blocktx.WithRegisterTxsChan(registerTxsChan),
 		blocktx.WithRequestTxChan(requestTxChannel),
 		blocktx.WithRegisterTxsInterval(btxConfig.RegisterTxsInterval),
 		blocktx.WithMessageQueueClient(mqClient),
@@ -89,7 +64,10 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, err
 	}
 
-	peerHandler.Start()
+	err = peerHandler.Start()
+	if err != nil {
+		return nil, fmt.Errorf("failed to start peer handler: %v", err)
+	}
 
 	peerOpts := []p2p.PeerOptions{
 		p2p.WithMaximumMessageSize(maximumBlockSize),
@@ -147,10 +125,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 		server.Shutdown()
 
-		err = mqClient.Shutdown()
-		if err != nil {
-			logger.Error("Failed to shutdown mqClient", slog.String("err", err.Error()))
-		}
+		mqClient.Shutdown()
 
 		err = blockStore.Close()
 		if err != nil {

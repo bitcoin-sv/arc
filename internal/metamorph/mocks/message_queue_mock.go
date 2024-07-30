@@ -5,6 +5,7 @@ package mocks
 
 import (
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/nats-io/nats.go"
 	"sync"
 )
 
@@ -18,20 +19,11 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //
 //		// make and configure a mocked metamorph.MessageQueueClient
 //		mockedMessageQueueClient := &MessageQueueClientMock{
-//			PublishRegisterTxsFunc: func(hash []byte) error {
-//				panic("mock out the PublishRegisterTxs method")
+//			PublishFunc: func(topic string, data []byte) error {
+//				panic("mock out the Publish method")
 //			},
-//			PublishRequestTxFunc: func(hash []byte) error {
-//				panic("mock out the PublishRequestTx method")
-//			},
-//			ShutdownFunc: func() error {
-//				panic("mock out the Shutdown method")
-//			},
-//			SubscribeMinedTxsFunc: func() error {
-//				panic("mock out the SubscribeMinedTxs method")
-//			},
-//			SubscribeSubmittedTxFunc: func() error {
-//				panic("mock out the SubscribeSubmittedTx method")
+//			SubscribeFunc: func(topic string, cb nats.MsgHandler) error {
+//				panic("mock out the Subscribe method")
 //			},
 //		}
 //
@@ -40,191 +32,101 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //
 //	}
 type MessageQueueClientMock struct {
-	// PublishRegisterTxsFunc mocks the PublishRegisterTxs method.
-	PublishRegisterTxsFunc func(hash []byte) error
+	// PublishFunc mocks the Publish method.
+	PublishFunc func(topic string, data []byte) error
 
-	// PublishRequestTxFunc mocks the PublishRequestTx method.
-	PublishRequestTxFunc func(hash []byte) error
-
-	// ShutdownFunc mocks the Shutdown method.
-	ShutdownFunc func() error
-
-	// SubscribeMinedTxsFunc mocks the SubscribeMinedTxs method.
-	SubscribeMinedTxsFunc func() error
-
-	// SubscribeSubmittedTxFunc mocks the SubscribeSubmittedTx method.
-	SubscribeSubmittedTxFunc func() error
+	// SubscribeFunc mocks the Subscribe method.
+	SubscribeFunc func(topic string, cb nats.MsgHandler) error
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// PublishRegisterTxs holds details about calls to the PublishRegisterTxs method.
-		PublishRegisterTxs []struct {
-			// Hash is the hash argument value.
-			Hash []byte
+		// Publish holds details about calls to the Publish method.
+		Publish []struct {
+			// Topic is the topic argument value.
+			Topic string
+			// Data is the data argument value.
+			Data []byte
 		}
-		// PublishRequestTx holds details about calls to the PublishRequestTx method.
-		PublishRequestTx []struct {
-			// Hash is the hash argument value.
-			Hash []byte
-		}
-		// Shutdown holds details about calls to the Shutdown method.
-		Shutdown []struct {
-		}
-		// SubscribeMinedTxs holds details about calls to the SubscribeMinedTxs method.
-		SubscribeMinedTxs []struct {
-		}
-		// SubscribeSubmittedTx holds details about calls to the SubscribeSubmittedTx method.
-		SubscribeSubmittedTx []struct {
+		// Subscribe holds details about calls to the Subscribe method.
+		Subscribe []struct {
+			// Topic is the topic argument value.
+			Topic string
+			// Cb is the cb argument value.
+			Cb nats.MsgHandler
 		}
 	}
-	lockPublishRegisterTxs   sync.RWMutex
-	lockPublishRequestTx     sync.RWMutex
-	lockShutdown             sync.RWMutex
-	lockSubscribeMinedTxs    sync.RWMutex
-	lockSubscribeSubmittedTx sync.RWMutex
+	lockPublish   sync.RWMutex
+	lockSubscribe sync.RWMutex
 }
 
-// PublishRegisterTxs calls PublishRegisterTxsFunc.
-func (mock *MessageQueueClientMock) PublishRegisterTxs(hash []byte) error {
-	if mock.PublishRegisterTxsFunc == nil {
-		panic("MessageQueueClientMock.PublishRegisterTxsFunc: method is nil but MessageQueueClient.PublishRegisterTxs was just called")
+// Publish calls PublishFunc.
+func (mock *MessageQueueClientMock) Publish(topic string, data []byte) error {
+	if mock.PublishFunc == nil {
+		panic("MessageQueueClientMock.PublishFunc: method is nil but MessageQueueClient.Publish was just called")
 	}
 	callInfo := struct {
-		Hash []byte
+		Topic string
+		Data  []byte
 	}{
-		Hash: hash,
+		Topic: topic,
+		Data:  data,
 	}
-	mock.lockPublishRegisterTxs.Lock()
-	mock.calls.PublishRegisterTxs = append(mock.calls.PublishRegisterTxs, callInfo)
-	mock.lockPublishRegisterTxs.Unlock()
-	return mock.PublishRegisterTxsFunc(hash)
+	mock.lockPublish.Lock()
+	mock.calls.Publish = append(mock.calls.Publish, callInfo)
+	mock.lockPublish.Unlock()
+	return mock.PublishFunc(topic, data)
 }
 
-// PublishRegisterTxsCalls gets all the calls that were made to PublishRegisterTxs.
+// PublishCalls gets all the calls that were made to Publish.
 // Check the length with:
 //
-//	len(mockedMessageQueueClient.PublishRegisterTxsCalls())
-func (mock *MessageQueueClientMock) PublishRegisterTxsCalls() []struct {
-	Hash []byte
+//	len(mockedMessageQueueClient.PublishCalls())
+func (mock *MessageQueueClientMock) PublishCalls() []struct {
+	Topic string
+	Data  []byte
 } {
 	var calls []struct {
-		Hash []byte
+		Topic string
+		Data  []byte
 	}
-	mock.lockPublishRegisterTxs.RLock()
-	calls = mock.calls.PublishRegisterTxs
-	mock.lockPublishRegisterTxs.RUnlock()
+	mock.lockPublish.RLock()
+	calls = mock.calls.Publish
+	mock.lockPublish.RUnlock()
 	return calls
 }
 
-// PublishRequestTx calls PublishRequestTxFunc.
-func (mock *MessageQueueClientMock) PublishRequestTx(hash []byte) error {
-	if mock.PublishRequestTxFunc == nil {
-		panic("MessageQueueClientMock.PublishRequestTxFunc: method is nil but MessageQueueClient.PublishRequestTx was just called")
+// Subscribe calls SubscribeFunc.
+func (mock *MessageQueueClientMock) Subscribe(topic string, cb nats.MsgHandler) error {
+	if mock.SubscribeFunc == nil {
+		panic("MessageQueueClientMock.SubscribeFunc: method is nil but MessageQueueClient.Subscribe was just called")
 	}
 	callInfo := struct {
-		Hash []byte
+		Topic string
+		Cb    nats.MsgHandler
 	}{
-		Hash: hash,
+		Topic: topic,
+		Cb:    cb,
 	}
-	mock.lockPublishRequestTx.Lock()
-	mock.calls.PublishRequestTx = append(mock.calls.PublishRequestTx, callInfo)
-	mock.lockPublishRequestTx.Unlock()
-	return mock.PublishRequestTxFunc(hash)
+	mock.lockSubscribe.Lock()
+	mock.calls.Subscribe = append(mock.calls.Subscribe, callInfo)
+	mock.lockSubscribe.Unlock()
+	return mock.SubscribeFunc(topic, cb)
 }
 
-// PublishRequestTxCalls gets all the calls that were made to PublishRequestTx.
+// SubscribeCalls gets all the calls that were made to Subscribe.
 // Check the length with:
 //
-//	len(mockedMessageQueueClient.PublishRequestTxCalls())
-func (mock *MessageQueueClientMock) PublishRequestTxCalls() []struct {
-	Hash []byte
+//	len(mockedMessageQueueClient.SubscribeCalls())
+func (mock *MessageQueueClientMock) SubscribeCalls() []struct {
+	Topic string
+	Cb    nats.MsgHandler
 } {
 	var calls []struct {
-		Hash []byte
+		Topic string
+		Cb    nats.MsgHandler
 	}
-	mock.lockPublishRequestTx.RLock()
-	calls = mock.calls.PublishRequestTx
-	mock.lockPublishRequestTx.RUnlock()
-	return calls
-}
-
-// Shutdown calls ShutdownFunc.
-func (mock *MessageQueueClientMock) Shutdown() error {
-	if mock.ShutdownFunc == nil {
-		panic("MessageQueueClientMock.ShutdownFunc: method is nil but MessageQueueClient.Shutdown was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockShutdown.Lock()
-	mock.calls.Shutdown = append(mock.calls.Shutdown, callInfo)
-	mock.lockShutdown.Unlock()
-	return mock.ShutdownFunc()
-}
-
-// ShutdownCalls gets all the calls that were made to Shutdown.
-// Check the length with:
-//
-//	len(mockedMessageQueueClient.ShutdownCalls())
-func (mock *MessageQueueClientMock) ShutdownCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockShutdown.RLock()
-	calls = mock.calls.Shutdown
-	mock.lockShutdown.RUnlock()
-	return calls
-}
-
-// SubscribeMinedTxs calls SubscribeMinedTxsFunc.
-func (mock *MessageQueueClientMock) SubscribeMinedTxs() error {
-	if mock.SubscribeMinedTxsFunc == nil {
-		panic("MessageQueueClientMock.SubscribeMinedTxsFunc: method is nil but MessageQueueClient.SubscribeMinedTxs was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockSubscribeMinedTxs.Lock()
-	mock.calls.SubscribeMinedTxs = append(mock.calls.SubscribeMinedTxs, callInfo)
-	mock.lockSubscribeMinedTxs.Unlock()
-	return mock.SubscribeMinedTxsFunc()
-}
-
-// SubscribeMinedTxsCalls gets all the calls that were made to SubscribeMinedTxs.
-// Check the length with:
-//
-//	len(mockedMessageQueueClient.SubscribeMinedTxsCalls())
-func (mock *MessageQueueClientMock) SubscribeMinedTxsCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockSubscribeMinedTxs.RLock()
-	calls = mock.calls.SubscribeMinedTxs
-	mock.lockSubscribeMinedTxs.RUnlock()
-	return calls
-}
-
-// SubscribeSubmittedTx calls SubscribeSubmittedTxFunc.
-func (mock *MessageQueueClientMock) SubscribeSubmittedTx() error {
-	if mock.SubscribeSubmittedTxFunc == nil {
-		panic("MessageQueueClientMock.SubscribeSubmittedTxFunc: method is nil but MessageQueueClient.SubscribeSubmittedTx was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockSubscribeSubmittedTx.Lock()
-	mock.calls.SubscribeSubmittedTx = append(mock.calls.SubscribeSubmittedTx, callInfo)
-	mock.lockSubscribeSubmittedTx.Unlock()
-	return mock.SubscribeSubmittedTxFunc()
-}
-
-// SubscribeSubmittedTxCalls gets all the calls that were made to SubscribeSubmittedTx.
-// Check the length with:
-//
-//	len(mockedMessageQueueClient.SubscribeSubmittedTxCalls())
-func (mock *MessageQueueClientMock) SubscribeSubmittedTxCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockSubscribeSubmittedTx.RLock()
-	calls = mock.calls.SubscribeSubmittedTx
-	mock.lockSubscribeSubmittedTx.RUnlock()
+	mock.lockSubscribe.RLock()
+	calls = mock.calls.Subscribe
+	mock.lockSubscribe.RUnlock()
 	return calls
 }

@@ -2,7 +2,9 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"log"
+	"path/filepath"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos"
@@ -11,12 +13,13 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var RootCmd = &cobra.Command{
-	Use:   "broadcaster",
-	Short: "CLI tool to broadcast transactions to ARC",
-}
+var (
+	RootCmd        = &cobra.Command{}
+	ConfigFileName string
+)
 
-func init() {
+func Execute() error {
+
 	var err error
 	RootCmd.PersistentFlags().Bool("testnet", false, "Use testnet")
 	err = viper.BindPFlag("testnet", RootCmd.PersistentFlags().Lookup("testnet"))
@@ -36,10 +39,20 @@ func init() {
 		log.Fatal(err)
 	}
 
+	RootCmd.PersistentFlags().String("config", "", "Path to the config file to be used")
+
+	fp := filepath.Dir(ConfigFileName)
+	filename := filepath.Base(ConfigFileName)
+
+	fmt.Println("Config name: ", filename)
+
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("./cmd/broadcaster-cli/")
-	viper.SetConfigName("broadcaster-cli")
-	// Todo: Allow setting alternative config file name with flag: e.g. --config=brc-config.yaml
+	if fp != "" {
+		viper.AddConfigPath(fp)
+	}
+
+	viper.SetConfigName(filename)
 
 	err = viper.ReadInConfig()
 	if err != nil {
@@ -55,8 +68,6 @@ func init() {
 
 	RootCmd.AddCommand(keyset.Cmd)
 	RootCmd.AddCommand(utxos.Cmd)
-}
 
-func Execute() error {
 	return RootCmd.Execute()
 }

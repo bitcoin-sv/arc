@@ -342,7 +342,7 @@ func Test_cumulativeCheckFees(t *testing.T) {
 		name          string
 		hex           string
 		feeQuote      *bt.FeeQuote
-		getTxFinderFn func() mocks.TxFinderIMock
+		getTxFinderFn func(t *testing.T) mocks.TxFinderIMock
 
 		expectedErr *validation.Error
 	}{
@@ -354,7 +354,7 @@ func Test_cumulativeCheckFees(t *testing.T) {
 				setFees(feeQuote, 1)
 				return feeQuote
 			}(),
-			getTxFinderFn: func() mocks.TxFinderIMock {
+			getTxFinderFn: func(_ *testing.T) mocks.TxFinderIMock {
 				return mocks.TxFinderIMock{
 					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
 						return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
@@ -370,7 +370,7 @@ func Test_cumulativeCheckFees(t *testing.T) {
 				setFees(feeQuote, 50)
 				return feeQuote
 			}(),
-			getTxFinderFn: func() mocks.TxFinderIMock {
+			getTxFinderFn: func(_ *testing.T) mocks.TxFinderIMock {
 				return mocks.TxFinderIMock{
 					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
 						return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
@@ -387,7 +387,7 @@ func Test_cumulativeCheckFees(t *testing.T) {
 				setFees(feeQuote, 50)
 				return feeQuote
 			}(),
-			getTxFinderFn: func() mocks.TxFinderIMock {
+			getTxFinderFn: func(t *testing.T) mocks.TxFinderIMock {
 				var getRawTxCount int = 0
 				var couterPtr *int = &getRawTxCount
 
@@ -409,7 +409,8 @@ func Test_cumulativeCheckFees(t *testing.T) {
 							return []validation.RawTx{fixture.AncestorTx1, fixture.AncestorTx2}, nil
 						}
 
-						panic("to many calls")
+						t.Fatal("to many calls")
+						return nil, nil
 					},
 				}
 			},
@@ -423,7 +424,7 @@ func Test_cumulativeCheckFees(t *testing.T) {
 				setFees(feeQuote, 1)
 				return feeQuote
 			}(),
-			getTxFinderFn: func() mocks.TxFinderIMock {
+			getTxFinderFn: func(t *testing.T) mocks.TxFinderIMock {
 				var getRawTxCount int = 0
 				var couterPtr *int = &getRawTxCount
 
@@ -445,7 +446,8 @@ func Test_cumulativeCheckFees(t *testing.T) {
 							return []validation.RawTx{fixture.AncestorTx1, fixture.AncestorTx2}, nil
 						}
 
-						panic("to many calls")
+						t.Fatal("to many calls")
+						return nil, nil
 					},
 				}
 			},
@@ -454,7 +456,7 @@ func Test_cumulativeCheckFees(t *testing.T) {
 			name:     "issue with getUnminedAncestors",
 			hex:      fixture.ValidTxRawHex,
 			feeQuote: bt.NewFeeQuote(),
-			getTxFinderFn: func() mocks.TxFinderIMock {
+			getTxFinderFn: func(_ *testing.T) mocks.TxFinderIMock {
 				return mocks.TxFinderIMock{
 					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
 						return nil, errors.New("test error")
@@ -470,7 +472,7 @@ func Test_cumulativeCheckFees(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			txFinder := tc.getTxFinderFn()
+			txFinder := tc.getTxFinderFn(t)
 
 			tx, _ := bt.NewTxFromString(tc.hex)
 
@@ -484,7 +486,6 @@ func Test_cumulativeCheckFees(t *testing.T) {
 				require.NotNil(t, vErr)
 				assert.Equal(t, tc.expectedErr.Err.Error(), vErr.Err.Error())
 				assert.Equal(t, tc.expectedErr.ArcErrorStatus, vErr.ArcErrorStatus)
-
 			}
 		})
 	}

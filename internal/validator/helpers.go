@@ -17,9 +17,9 @@ const (
 type FindSourceFlag byte
 
 const (
-	SourceTransactionHandler = 1
-	SourceNodes              = 2
-	SourceWoC                = 4
+	SourceTransactionHandler FindSourceFlag = 1 << iota // 1 (binary 0001)
+	SourceNodes                                         // 2 (binary 0010)
+	SourceWoC                                           // 4 (binary 0100)
 )
 
 func (flag FindSourceFlag) Has(v FindSourceFlag) bool {

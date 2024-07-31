@@ -52,7 +52,12 @@ func extendTx(ctx context.Context, w validator.TxFinderI, rawTx *bt.Tx) error {
 			return errParentNotFound
 		}
 
-		if err = extendInputs(p.Bytes, childInputs); err != nil {
+		bt, err := bt.NewTxFromBytes(p.Bytes)
+		if err != nil {
+			return fmt.Errorf("cannot parse parent tx: %w", err)
+		}
+
+		if err = extendInputs(bt, childInputs); err != nil {
 			return err
 		}
 	}
@@ -87,7 +92,7 @@ func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *bt.Tx) 
 	const finderSource = validator.SourceTransactionHandler | validator.SourceWoC
 	parentsTxs, err := w.GetRawTxs(ctx, finderSource, parentsIDs)
 	if err != nil {
-		return nil, fmt.Errorf("cannot extend tx: %w", err)
+		return nil, fmt.Errorf("failed to get raw transactions for parent: %v. Reason: %w", parentsIDs, err)
 	}
 
 	if len(parentsTxs) != len(parentsIDs) {
@@ -104,8 +109,13 @@ func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *bt.Tx) 
 			return nil, errParentNotFound
 		}
 
-		// fulfill data about the parent for furhter validation
-		err := extendInputs(p.Bytes, childInputs)
+		// fulfill data about the parent for further validation
+		bt, err := bt.NewTxFromBytes(p.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse parent tx: %w", err)
+		}
+
+		err = extendInputs(bt, childInputs)
 		if err != nil {
 			return nil, err
 		}
@@ -114,7 +124,6 @@ func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *bt.Tx) 
 			continue // we don't need its ancestors
 		}
 
-		bt, _ := bt.NewTxFromBytes(p.Bytes)
 		unmindedAncestorsSet[p.TxID] = bt
 
 		// get parent ancestors
@@ -131,12 +140,7 @@ func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *bt.Tx) 
 	return unmindedAncestorsSet, nil
 }
 
-func extendInputs(prevTx []byte, childInputs []*bt.Input) error {
-	tx, err := bt.NewTxFromBytes(prevTx)
-	if err != nil {
-		return fmt.Errorf("cannot parse parent tx: %w", err)
-	}
-
+func extendInputs(tx *bt.Tx, childInputs []*bt.Input) error {
 	for _, input := range childInputs {
 		if len(tx.Outputs) < int(input.PreviousTxOutIndex) {
 			return fmt.Errorf("output %d not found in transaction %s", input.PreviousTxOutIndex, input.PreviousTxIDStr())

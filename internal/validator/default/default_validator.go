@@ -119,7 +119,7 @@ func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 		}
 
 		cumulativeExpFee += expFees
-		cumulativePaidFee += (tx.TotalInputSatoshis() - tx.TotalOutputSatoshis())
+		cumulativePaidFee += tx.TotalInputSatoshis() - tx.TotalOutputSatoshis()
 	}
 
 	if cumulativeExpFee > cumulativePaidFee {

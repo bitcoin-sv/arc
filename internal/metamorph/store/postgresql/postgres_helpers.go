@@ -3,6 +3,7 @@ package postgresql
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"strings"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -134,35 +135,9 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 	return storeData, nil
 }
 
-func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) []*store.StoreData {
-	qRejectDoubleSpends := `
-		UPDATE metamorph.transactions t
-		SET
-			status=$1,
-			reject_reason=$2
-		WHERE t.hash IN (SELECT UNNEST($3::BYTEA[]))
-			AND t.status < $1
-		RETURNING t.stored_at
-		,t.announced_at
-		,t.mined_at
-		,t.hash
-		,t.status
-		,t.block_height
-		,t.block_hash
-		,t.callback_url
-		,t.callback_token
-		,t.full_status_updates
-		,t.reject_reason
-		,t.competing_txs
-		,t.raw_tx
-		,t.locked_by
-		,t.merkle_path
-		,t.retries
-		;
-	`
-	rejectReason := "double spend attempted"
-
+func getCompetingTxsFromRows(rows *sql.Rows) []*store.StoreData {
 	dbData := make([]*store.StoreData, 0)
+
 	for rows.Next() {
 		data := &store.StoreData{}
 
@@ -191,13 +166,52 @@ func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) 
 		dbData = append(dbData, data)
 	}
 
+	return dbData
+}
+
+func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) []*store.StoreData {
+	qRejectDoubleSpends := `
+		UPDATE metamorph.transactions t
+		SET
+			status=$1,
+			reject_reason=$2
+		WHERE t.hash IN (SELECT UNNEST($3::BYTEA[]))
+			AND t.status < $1::INT
+		RETURNING t.stored_at
+		,t.announced_at
+		,t.mined_at
+		,t.hash
+		,t.status
+		,t.block_height
+		,t.block_hash
+		,t.callback_url
+		,t.callback_token
+		,t.full_status_updates
+		,t.reject_reason
+		,t.competing_txs
+		,t.raw_tx
+		,t.locked_by
+		,t.merkle_path
+		,t.retries
+		;
+	`
+	rejectReason := "double spend attempted"
+
+	dbData := getCompetingTxsFromRows(rows)
+
 	rejectedCompetingTxs := make([][]byte, 0)
 	for _, data := range dbData {
 		for _, competingTx := range data.CompetingTxs {
-			hash, err := chainhash.NewHashFromStr(competingTx)
+			decodedTx, err := hex.DecodeString(competingTx)
 			if err != nil {
 				continue
 			}
+
+			hash, err := chainhash.NewHash(decodedTx)
+			if err != nil {
+				continue
+			}
+
 			rejectedCompetingTxs = append(rejectedCompetingTxs, hash.CloneBytes())
 		}
 	}

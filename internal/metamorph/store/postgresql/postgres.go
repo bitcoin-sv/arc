@@ -645,34 +645,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	}
 	defer rows.Close()
 
-	dbData := make([]*store.StoreData, 0)
-	for rows.Next() {
-		data := &store.StoreData{}
-
-		var hash []byte
-		var competingTxs string
-
-		err := rows.Scan(
-			&hash,
-			&competingTxs,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(hash) > 0 {
-			data.Hash, err = chainhash.NewHash(hash)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if competingTxs != "" {
-			data.CompetingTxs = strings.Split(competingTxs, ",")
-		}
-
-		dbData = append(dbData, data)
-	}
+	dbData := getCompetingTxsFromRows(rows)
 
 	statuses := make([]metamorph_api.Status, len(updates))
 	competingTxs := make([]string, len(updates))

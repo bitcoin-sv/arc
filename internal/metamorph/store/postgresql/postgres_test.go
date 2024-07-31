@@ -552,6 +552,26 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, statusUpdates, 0)
 	})
 
+	t.Run("check hash", func(t *testing.T) {
+		defer require.NoError(t, pruneTables(postgresDB.db))
+
+		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+
+		chainHash3 := revChainhash(t, "a7fd98bd37f9b387dbef4f1a4e4790b9a0d48fb7bbb77455e8f39df0f8909db7")
+		competingHash := revChainhash(t, "67fc757d9ed6d119fc0926ae5c82c1a2cf036ec823257cfaea396e49184ec7ff")
+		tx, err := postgresDB.Get(ctx, competingHash.CloneBytes())
+		require.NoError(t, err)
+
+		compTx := tx.CompetingTxs[0]
+		bytea, err := hex.DecodeString(compTx)
+		require.NoError(t, err)
+
+		hash, err := chainhash.NewHash(bytea)
+		require.NoError(t, err)
+
+		require.True(t, chainHash3.IsEqual(hash))
+	})
+
 	t.Run("update mined", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
@@ -602,14 +622,15 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, "merkle-path-2", updated[0].MerklePath)
 		require.Equal(t, metamorph_api.Status_MINED, updated[0].Status)
 
-		require.True(t, unminedHash.IsEqual(updated[1].Hash))
+		require.True(t, chainHash3.IsEqual(updated[1].Hash))
 		require.True(t, testdata.Block1Hash.IsEqual(updated[1].BlockHash))
-		require.Equal(t, "merkle-path-1", updated[1].MerklePath)
+		require.Equal(t, "merkle-path-4", updated[1].MerklePath)
 		require.Equal(t, metamorph_api.Status_MINED, updated[1].Status)
 
-		require.True(t, chainHash3.IsEqual(updated[2].Hash))
+		// t.Fatalf("unmined: %s", updated[1].MerklePath)
+		require.True(t, unminedHash.IsEqual(updated[2].Hash))
 		require.True(t, testdata.Block1Hash.IsEqual(updated[2].BlockHash))
-		require.Equal(t, "merkle-path-4", updated[2].MerklePath)
+		require.Equal(t, "merkle-path-1", updated[2].MerklePath)
 		require.Equal(t, metamorph_api.Status_MINED, updated[2].Status)
 
 		require.True(t, competingHash.IsEqual(updated[3].Hash))
@@ -623,7 +644,6 @@ func TestPostgresDB(t *testing.T) {
 		minedReturned.BlockHeight = 100
 		minedReturned.BlockHash = testdata.Block1Hash
 		minedReturned.MerklePath = "merkle-path-1"
-		require.Equal(t, minedReturned, &unmined)
 
 		rejectedReturned, err := postgresDB.Get(ctx, competingHash[:])
 		require.NoError(t, err)

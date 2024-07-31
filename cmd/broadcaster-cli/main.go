@@ -33,7 +33,7 @@ func run() error {
 	RootCmd.PersistentFlags().StringSlice("keys", []string{}, "[IS NOT DISPLAYED]")
 	RootCmd.PersistentFlags().String("wocAPIKey", "", "[IS NOT DISPLAYED]")
 
-	RootCmd.PersistentFlags().String("config", "broadcaster-cli", "[IS NOT DISPLAYED]")
+	RootCmd.PersistentFlags().String("config", "broadcaster-cli.yaml", "[IS NOT DISPLAYED]")
 	err = viper.BindPFlag("config", RootCmd.PersistentFlags().Lookup("config"))
 	if err != nil {
 		log.Fatalf("failed to get config: %v", err)

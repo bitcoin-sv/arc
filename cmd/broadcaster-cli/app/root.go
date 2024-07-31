@@ -43,6 +43,15 @@ func Execute() error {
 
 	fp := filepath.Dir(ConfigFileName)
 	filename := filepath.Base(ConfigFileName)
+	extension := filepath.Ext(filename)
+
+	if extension == "" {
+		log.Fatal("config file extension missing")
+	}
+
+	if extension != ".yaml" {
+		log.Fatalf("config file extension needs to be yaml but is %s", extension)
+	}
 
 	fmt.Println("Config name: ", filename)
 
@@ -52,7 +61,7 @@ func Execute() error {
 		viper.AddConfigPath(fp)
 	}
 
-	viper.SetConfigName(filename)
+	viper.SetConfigName(filename[:len(filename)-len(extension)])
 
 	err = viper.ReadInConfig()
 	if err != nil {

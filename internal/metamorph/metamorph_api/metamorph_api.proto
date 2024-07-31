@@ -31,7 +31,7 @@ service MetaMorphAPI {
   rpc PutTransaction (TransactionRequest) returns (TransactionStatus) {}
   rpc PutTransactions (TransactionRequests) returns (TransactionStatuses) {}
   rpc GetTransaction (TransactionStatusRequest) returns (Transaction) {}
-  rpc GetManyTransactions (ManyTransactionsStatusRequest) returns (Transactions) {}
+  rpc GetTransactions (TransactionsStatusRequest) returns (Transactions) {}
   rpc GetTransactionStatus (TransactionStatusRequest) returns (TransactionStatus) {}
   rpc SetUnlockedByName (SetUnlockedByNameRequest) returns (SetUnlockedByNameResponse) {}
   rpc ClearData (ClearDataRequest) returns (ClearDataResponse) {}
@@ -123,8 +123,8 @@ message ClearDataResponse {
   int64 records_affected = 1;
 }
 
-// swagger:model ManyTransactionsStatusRequest
-message ManyTransactionsStatusRequest {
+// swagger:model TransactionsStatusRequest
+message TransactionsStatusRequest {
   repeated string txIDs = 1;
 }
 

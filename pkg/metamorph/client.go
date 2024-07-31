@@ -24,7 +24,7 @@ var (
 type TransactionHandler interface {
 	Health(ctx context.Context) error
 	GetTransaction(ctx context.Context, txID string) ([]byte, error)
-	GetManyTransactions(ctx context.Context, txIDs []string) ([]*Transaction, error)
+	GetTransactions(ctx context.Context, txIDs []string) ([]*Transaction, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
 	SubmitTransaction(ctx context.Context, tx *bt.Tx, options *TransactionOptions) (*TransactionStatus, error)
 	SubmitTransactions(ctx context.Context, tx []*bt.Tx, options *TransactionOptions) ([]*TransactionStatus, error)
@@ -118,9 +118,9 @@ func (m *Metamorph) GetTransaction(ctx context.Context, txID string) ([]byte, er
 	return tx.GetRawTx(), nil
 }
 
-// GetRawTransactions gets the transactions data from metamorph.
-func (m *Metamorph) GetManyTransactions(ctx context.Context, txIDs []string) ([]*Transaction, error) {
-	txs, err := m.client.GetManyTransactions(ctx, &metamorph_api.ManyTransactionsStatusRequest{
+// GetTransactions gets the transactions data from metamorph.
+func (m *Metamorph) GetTransactions(ctx context.Context, txIDs []string) ([]*Transaction, error) {
+	txs, err := m.client.GetTransactions(ctx, &metamorph_api.TransactionsStatusRequest{
 		TxIDs: txIDs[:],
 	})
 	if err != nil {

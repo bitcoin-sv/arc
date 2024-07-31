@@ -334,8 +334,8 @@ func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.Transact
 	return txn, nil
 }
 
-func (s *Server) GetManyTransactions(ctx context.Context, req *metamorph_api.ManyTransactionsStatusRequest) (*metamorph_api.Transactions, error) {
-	data, err := s.getTransactionsData(ctx, req)
+func (s *Server) GetTransactions(ctx context.Context, req *metamorph_api.TransactionsStatusRequest) (*metamorph_api.Transactions, error) {
+	data, err := s.getTransactions(ctx, req)
 	if err != nil {
 		s.logger.Error("failed to get transactions", slog.String("err", err.Error()))
 		return nil, err
@@ -427,7 +427,7 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 	return data, announcedAt, minedAt, storedAt, nil
 }
 
-func (s *Server) getTransactionsData(ctx context.Context, req *metamorph_api.ManyTransactionsStatusRequest) ([]*store.StoreData, error) {
+func (s *Server) getTransactions(ctx context.Context, req *metamorph_api.TransactionsStatusRequest) ([]*store.StoreData, error) {
 	keys := make([][]byte, 0, len(req.TxIDs))
 	for _, id := range req.TxIDs {
 

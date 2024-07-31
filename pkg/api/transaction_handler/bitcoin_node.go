@@ -44,8 +44,8 @@ func (b *BitcoinNode) GetTransaction(_ context.Context, txID string) (txBytes []
 	return txBytes, nil
 }
 
-// GetTransaction gets a raw transaction from the bitcoin node.
-func (b *BitcoinNode) GetManyTransactions(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+// GetTransactions gets a raw transactions from the bitcoin node.
+func (b *BitcoinNode) GetTransactions(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
 	txs := make([]*metamorph.Transaction, 0, len(txIDs))
 
 	for _, id := range txIDs {

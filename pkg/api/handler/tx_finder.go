@@ -30,7 +30,7 @@ func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag
 
 	// first get transactions from the handler
 	if source.Has(validator.SourceTransactionHandler) {
-		txs, _ := f.th.GetManyTransactions(ctx, ids)
+		txs, _ := f.th.GetTransactions(ctx, ids)
 		for _, tx := range txs {
 			rt := validator.RawTx{
 				TxID:    tx.TxID,

@@ -24,14 +24,14 @@ var _ metamorph_api.MetaMorphAPIClient = &MetaMorphAPIClientMock{}
 //			ClearDataFunc: func(ctx context.Context, in *metamorph_api.ClearDataRequest, opts ...grpc.CallOption) (*metamorph_api.ClearDataResponse, error) {
 //				panic("mock out the ClearData method")
 //			},
-//			GetManyTransactionsFunc: func(ctx context.Context, in *metamorph_api.ManyTransactionsStatusRequest, opts ...grpc.CallOption) (*metamorph_api.Transactions, error) {
-//				panic("mock out the GetManyTransactions method")
-//			},
 //			GetTransactionFunc: func(ctx context.Context, in *metamorph_api.TransactionStatusRequest, opts ...grpc.CallOption) (*metamorph_api.Transaction, error) {
 //				panic("mock out the GetTransaction method")
 //			},
 //			GetTransactionStatusFunc: func(ctx context.Context, in *metamorph_api.TransactionStatusRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
 //				panic("mock out the GetTransactionStatus method")
+//			},
+//			GetTransactionsFunc: func(ctx context.Context, in *metamorph_api.TransactionsStatusRequest, opts ...grpc.CallOption) (*metamorph_api.Transactions, error) {
+//				panic("mock out the GetTransactions method")
 //			},
 //			HealthFunc: func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*metamorph_api.HealthResponse, error) {
 //				panic("mock out the Health method")
@@ -55,14 +55,14 @@ type MetaMorphAPIClientMock struct {
 	// ClearDataFunc mocks the ClearData method.
 	ClearDataFunc func(ctx context.Context, in *metamorph_api.ClearDataRequest, opts ...grpc.CallOption) (*metamorph_api.ClearDataResponse, error)
 
-	// GetManyTransactionsFunc mocks the GetManyTransactions method.
-	GetManyTransactionsFunc func(ctx context.Context, in *metamorph_api.ManyTransactionsStatusRequest, opts ...grpc.CallOption) (*metamorph_api.Transactions, error)
-
 	// GetTransactionFunc mocks the GetTransaction method.
 	GetTransactionFunc func(ctx context.Context, in *metamorph_api.TransactionStatusRequest, opts ...grpc.CallOption) (*metamorph_api.Transaction, error)
 
 	// GetTransactionStatusFunc mocks the GetTransactionStatus method.
 	GetTransactionStatusFunc func(ctx context.Context, in *metamorph_api.TransactionStatusRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatus, error)
+
+	// GetTransactionsFunc mocks the GetTransactions method.
+	GetTransactionsFunc func(ctx context.Context, in *metamorph_api.TransactionsStatusRequest, opts ...grpc.CallOption) (*metamorph_api.Transactions, error)
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*metamorph_api.HealthResponse, error)
@@ -87,15 +87,6 @@ type MetaMorphAPIClientMock struct {
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
-		// GetManyTransactions holds details about calls to the GetManyTransactions method.
-		GetManyTransactions []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// In is the in argument value.
-			In *metamorph_api.ManyTransactionsStatusRequest
-			// Opts is the opts argument value.
-			Opts []grpc.CallOption
-		}
 		// GetTransaction holds details about calls to the GetTransaction method.
 		GetTransaction []struct {
 			// Ctx is the ctx argument value.
@@ -111,6 +102,15 @@ type MetaMorphAPIClientMock struct {
 			Ctx context.Context
 			// In is the in argument value.
 			In *metamorph_api.TransactionStatusRequest
+			// Opts is the opts argument value.
+			Opts []grpc.CallOption
+		}
+		// GetTransactions holds details about calls to the GetTransactions method.
+		GetTransactions []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// In is the in argument value.
+			In *metamorph_api.TransactionsStatusRequest
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
@@ -152,9 +152,9 @@ type MetaMorphAPIClientMock struct {
 		}
 	}
 	lockClearData            sync.RWMutex
-	lockGetManyTransactions  sync.RWMutex
 	lockGetTransaction       sync.RWMutex
 	lockGetTransactionStatus sync.RWMutex
+	lockGetTransactions      sync.RWMutex
 	lockHealth               sync.RWMutex
 	lockPutTransaction       sync.RWMutex
 	lockPutTransactions      sync.RWMutex
@@ -198,46 +198,6 @@ func (mock *MetaMorphAPIClientMock) ClearDataCalls() []struct {
 	mock.lockClearData.RLock()
 	calls = mock.calls.ClearData
 	mock.lockClearData.RUnlock()
-	return calls
-}
-
-// GetManyTransactions calls GetManyTransactionsFunc.
-func (mock *MetaMorphAPIClientMock) GetManyTransactions(ctx context.Context, in *metamorph_api.ManyTransactionsStatusRequest, opts ...grpc.CallOption) (*metamorph_api.Transactions, error) {
-	if mock.GetManyTransactionsFunc == nil {
-		panic("MetaMorphAPIClientMock.GetManyTransactionsFunc: method is nil but MetaMorphAPIClient.GetManyTransactions was just called")
-	}
-	callInfo := struct {
-		Ctx  context.Context
-		In   *metamorph_api.ManyTransactionsStatusRequest
-		Opts []grpc.CallOption
-	}{
-		Ctx:  ctx,
-		In:   in,
-		Opts: opts,
-	}
-	mock.lockGetManyTransactions.Lock()
-	mock.calls.GetManyTransactions = append(mock.calls.GetManyTransactions, callInfo)
-	mock.lockGetManyTransactions.Unlock()
-	return mock.GetManyTransactionsFunc(ctx, in, opts...)
-}
-
-// GetManyTransactionsCalls gets all the calls that were made to GetManyTransactions.
-// Check the length with:
-//
-//	len(mockedMetaMorphAPIClient.GetManyTransactionsCalls())
-func (mock *MetaMorphAPIClientMock) GetManyTransactionsCalls() []struct {
-	Ctx  context.Context
-	In   *metamorph_api.ManyTransactionsStatusRequest
-	Opts []grpc.CallOption
-} {
-	var calls []struct {
-		Ctx  context.Context
-		In   *metamorph_api.ManyTransactionsStatusRequest
-		Opts []grpc.CallOption
-	}
-	mock.lockGetManyTransactions.RLock()
-	calls = mock.calls.GetManyTransactions
-	mock.lockGetManyTransactions.RUnlock()
 	return calls
 }
 
@@ -318,6 +278,46 @@ func (mock *MetaMorphAPIClientMock) GetTransactionStatusCalls() []struct {
 	mock.lockGetTransactionStatus.RLock()
 	calls = mock.calls.GetTransactionStatus
 	mock.lockGetTransactionStatus.RUnlock()
+	return calls
+}
+
+// GetTransactions calls GetTransactionsFunc.
+func (mock *MetaMorphAPIClientMock) GetTransactions(ctx context.Context, in *metamorph_api.TransactionsStatusRequest, opts ...grpc.CallOption) (*metamorph_api.Transactions, error) {
+	if mock.GetTransactionsFunc == nil {
+		panic("MetaMorphAPIClientMock.GetTransactionsFunc: method is nil but MetaMorphAPIClient.GetTransactions was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		In   *metamorph_api.TransactionsStatusRequest
+		Opts []grpc.CallOption
+	}{
+		Ctx:  ctx,
+		In:   in,
+		Opts: opts,
+	}
+	mock.lockGetTransactions.Lock()
+	mock.calls.GetTransactions = append(mock.calls.GetTransactions, callInfo)
+	mock.lockGetTransactions.Unlock()
+	return mock.GetTransactionsFunc(ctx, in, opts...)
+}
+
+// GetTransactionsCalls gets all the calls that were made to GetTransactions.
+// Check the length with:
+//
+//	len(mockedMetaMorphAPIClient.GetTransactionsCalls())
+func (mock *MetaMorphAPIClientMock) GetTransactionsCalls() []struct {
+	Ctx  context.Context
+	In   *metamorph_api.TransactionsStatusRequest
+	Opts []grpc.CallOption
+} {
+	var calls []struct {
+		Ctx  context.Context
+		In   *metamorph_api.TransactionsStatusRequest
+		Opts []grpc.CallOption
+	}
+	mock.lockGetTransactions.RLock()
+	calls = mock.calls.GetTransactions
+	mock.lockGetTransactions.RUnlock()
 	return calls
 }
 

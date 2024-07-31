@@ -541,7 +541,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 					return nil
 				},
 
-				GetManyTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+				GetTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
 					if tc.getTx != nil {
 						bt, _ := bt.NewTxFromBytes(tc.getTx)
 
@@ -710,7 +710,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return txStatuses, nil
 			},
 
-			GetManyTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+			GetTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
 				return nil, metamorph.ErrTransactionNotFound
 			},
 			GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
@@ -901,7 +901,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mtmMocks.TransactionHandlerMock{
-			GetManyTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+			GetTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
 				bt, _ := bt.NewTxFromBytes(validTxParentBytes)
 				return []*metamorph.Transaction{
 					{

@@ -24,7 +24,7 @@ const (
 	MetaMorphAPI_PutTransaction_FullMethodName       = "/metamorph_api.MetaMorphAPI/PutTransaction"
 	MetaMorphAPI_PutTransactions_FullMethodName      = "/metamorph_api.MetaMorphAPI/PutTransactions"
 	MetaMorphAPI_GetTransaction_FullMethodName       = "/metamorph_api.MetaMorphAPI/GetTransaction"
-	MetaMorphAPI_GetManyTransactions_FullMethodName  = "/metamorph_api.MetaMorphAPI/GetManyTransactions"
+	MetaMorphAPI_GetTransactions_FullMethodName      = "/metamorph_api.MetaMorphAPI/GetTransactions"
 	MetaMorphAPI_GetTransactionStatus_FullMethodName = "/metamorph_api.MetaMorphAPI/GetTransactionStatus"
 	MetaMorphAPI_SetUnlockedByName_FullMethodName    = "/metamorph_api.MetaMorphAPI/SetUnlockedByName"
 	MetaMorphAPI_ClearData_FullMethodName            = "/metamorph_api.MetaMorphAPI/ClearData"
@@ -38,7 +38,7 @@ type MetaMorphAPIClient interface {
 	PutTransaction(ctx context.Context, in *TransactionRequest, opts ...grpc.CallOption) (*TransactionStatus, error)
 	PutTransactions(ctx context.Context, in *TransactionRequests, opts ...grpc.CallOption) (*TransactionStatuses, error)
 	GetTransaction(ctx context.Context, in *TransactionStatusRequest, opts ...grpc.CallOption) (*Transaction, error)
-	GetManyTransactions(ctx context.Context, in *ManyTransactionsStatusRequest, opts ...grpc.CallOption) (*Transactions, error)
+	GetTransactions(ctx context.Context, in *TransactionsStatusRequest, opts ...grpc.CallOption) (*Transactions, error)
 	GetTransactionStatus(ctx context.Context, in *TransactionStatusRequest, opts ...grpc.CallOption) (*TransactionStatus, error)
 	SetUnlockedByName(ctx context.Context, in *SetUnlockedByNameRequest, opts ...grpc.CallOption) (*SetUnlockedByNameResponse, error)
 	ClearData(ctx context.Context, in *ClearDataRequest, opts ...grpc.CallOption) (*ClearDataResponse, error)
@@ -88,9 +88,9 @@ func (c *metaMorphAPIClient) GetTransaction(ctx context.Context, in *Transaction
 	return out, nil
 }
 
-func (c *metaMorphAPIClient) GetManyTransactions(ctx context.Context, in *ManyTransactionsStatusRequest, opts ...grpc.CallOption) (*Transactions, error) {
+func (c *metaMorphAPIClient) GetTransactions(ctx context.Context, in *TransactionsStatusRequest, opts ...grpc.CallOption) (*Transactions, error) {
 	out := new(Transactions)
-	err := c.cc.Invoke(ctx, MetaMorphAPI_GetManyTransactions_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, MetaMorphAPI_GetTransactions_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ type MetaMorphAPIServer interface {
 	PutTransaction(context.Context, *TransactionRequest) (*TransactionStatus, error)
 	PutTransactions(context.Context, *TransactionRequests) (*TransactionStatuses, error)
 	GetTransaction(context.Context, *TransactionStatusRequest) (*Transaction, error)
-	GetManyTransactions(context.Context, *ManyTransactionsStatusRequest) (*Transactions, error)
+	GetTransactions(context.Context, *TransactionsStatusRequest) (*Transactions, error)
 	GetTransactionStatus(context.Context, *TransactionStatusRequest) (*TransactionStatus, error)
 	SetUnlockedByName(context.Context, *SetUnlockedByNameRequest) (*SetUnlockedByNameResponse, error)
 	ClearData(context.Context, *ClearDataRequest) (*ClearDataResponse, error)
@@ -155,8 +155,8 @@ func (UnimplementedMetaMorphAPIServer) PutTransactions(context.Context, *Transac
 func (UnimplementedMetaMorphAPIServer) GetTransaction(context.Context, *TransactionStatusRequest) (*Transaction, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransaction not implemented")
 }
-func (UnimplementedMetaMorphAPIServer) GetManyTransactions(context.Context, *ManyTransactionsStatusRequest) (*Transactions, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetManyTransactions not implemented")
+func (UnimplementedMetaMorphAPIServer) GetTransactions(context.Context, *TransactionsStatusRequest) (*Transactions, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTransactions not implemented")
 }
 func (UnimplementedMetaMorphAPIServer) GetTransactionStatus(context.Context, *TransactionStatusRequest) (*TransactionStatus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionStatus not implemented")
@@ -252,20 +252,20 @@ func _MetaMorphAPI_GetTransaction_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MetaMorphAPI_GetManyTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ManyTransactionsStatusRequest)
+func _MetaMorphAPI_GetTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TransactionsStatusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MetaMorphAPIServer).GetManyTransactions(ctx, in)
+		return srv.(MetaMorphAPIServer).GetTransactions(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: MetaMorphAPI_GetManyTransactions_FullMethodName,
+		FullMethod: MetaMorphAPI_GetTransactions_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MetaMorphAPIServer).GetManyTransactions(ctx, req.(*ManyTransactionsStatusRequest))
+		return srv.(MetaMorphAPIServer).GetTransactions(ctx, req.(*TransactionsStatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -348,8 +348,8 @@ var MetaMorphAPI_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _MetaMorphAPI_GetTransaction_Handler,
 		},
 		{
-			MethodName: "GetManyTransactions",
-			Handler:    _MetaMorphAPI_GetManyTransactions_Handler,
+			MethodName: "GetTransactions",
+			Handler:    _MetaMorphAPI_GetTransactions_Handler,
 		},
 		{
 			MethodName: "GetTransactionStatus",

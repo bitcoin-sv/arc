@@ -561,8 +561,11 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	defer rows.Close()
 
 	res, err := p.getStoreDataFromRows(rows)
-	if rollBackErr := tx.Rollback(); rollBackErr != nil {
-		return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+	if err != nil {
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+		}
+		return nil, err
 	}
 
 	err = tx.Commit()
@@ -647,8 +650,11 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	defer rows.Close()
 
 	res, err := p.getStoreDataFromRows(rows)
-	if rollBackErr := tx.Rollback(); rollBackErr != nil {
-		return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+	if err != nil {
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+		}
+		return nil, err
 	}
 
 	err = tx.Commit()

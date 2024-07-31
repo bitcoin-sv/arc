@@ -53,7 +53,7 @@ func Execute() error {
 		log.Fatalf("config file extension needs to be yaml but is %s", extension)
 	}
 
-	fmt.Println("Config name: ", filename)
+	fmt.Println("Config file: ", filename)
 
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("./cmd/broadcaster-cli/")

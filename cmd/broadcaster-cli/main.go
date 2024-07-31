@@ -29,11 +29,11 @@ func main() {
 func run() error {
 	var err error
 
-	RootCmd.PersistentFlags().Bool("testnet", false, "[IS NOT DISPLAYED]")
-	RootCmd.PersistentFlags().StringSlice("keys", []string{}, "[IS NOT DISPLAYED]")
-	RootCmd.PersistentFlags().String("wocAPIKey", "", "[IS NOT DISPLAYED]")
+	RootCmd.PersistentFlags().Bool("testnet", false, "Use testnet")
+	RootCmd.PersistentFlags().StringSlice("keys", []string{}, "List of selected private keys")
+	RootCmd.PersistentFlags().String("wocAPIKey", "", "Optional WhatsOnChain API key for allowing for higher request rates")
 
-	RootCmd.PersistentFlags().String("config", "broadcaster-cli.yaml", "[IS NOT DISPLAYED]")
+	RootCmd.PersistentFlags().String("config", "broadcaster-cli.yaml", "Path to the config file to be used")
 	err = viper.BindPFlag("config", RootCmd.PersistentFlags().Lookup("config"))
 	if err != nil {
 		log.Fatalf("failed to get config: %v", err)

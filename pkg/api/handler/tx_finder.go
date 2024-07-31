@@ -3,12 +3,15 @@ package handler
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"log/slog"
+	"net/url"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
+	"github.com/ordishs/go-bitcoin"
 )
 
 type txFinder struct {
@@ -21,8 +24,6 @@ type txFinder struct {
 
 func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
 	// NOTE: we can ignore ALL errors from providers, if one returns err we go to another
-
-	// TODO: discuss if it's worth to have implementation for len(ids) == 1
 
 	foundTxs := make([]validator.RawTx, 0, len(ids))
 	var remainingIDs []string
@@ -94,6 +95,20 @@ func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag
 	}
 
 	return foundTxs, nil
+}
+
+func getTransactionFromNode(peerRpc *config.PeerRpcConfig, inputTxID string) (*bitcoin.RawTransaction, error) {
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpc.User, peerRpc.Password, peerRpc.Host, peerRpc.Port))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse rpc URL: %v", err)
+	}
+	// get the transaction from the bitcoin node rpc
+	node, err := bitcoin.NewFromURL(rpcURL, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return node.GetRawTransaction(inputTxID)
 }
 
 func newRawTx(id, hexTx string, blockH uint64) (validator.RawTx, error) {

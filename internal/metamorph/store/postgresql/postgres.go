@@ -517,7 +517,6 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		txHashes[i] = update.Hash.CloneBytes()
 		statuses[i] = update.Status
 
-		rejectReasons[i] = ""
 		if update.Error != nil {
 			rejectReasons[i] = update.Error.Error()
 		}
@@ -627,7 +626,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 
 	txHashes := make([][]byte, len(updates))
 	for i, update := range updates {
-		txHashes[i] = update.Hash.CloneBytes()
+		txHashes[i] = update.Hash[:]
 	}
 
 	tx, err := p.db.Begin()
@@ -638,8 +637,8 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	// Get current competing transactions and lock them for update
 	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) FOR UPDATE`, pq.Array(txHashes))
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			return nil, err
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollbackErr))
 		}
 		return nil, err
 	}
@@ -679,7 +678,6 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	rejectReasons := make([]string, len(updates))
 
 	for i, update := range updates {
-		txHashes[i] = update.Hash.CloneBytes()
 		statuses[i] = update.Status
 
 		rejectReasons[i] = ""
@@ -700,8 +698,8 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 
 	rows, err = tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(competingTxs))
 	if err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollbackErr))
 		}
 		return nil, err
 	}
@@ -709,8 +707,8 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 
 	res, err := p.getStoreDataFromRows(rows)
 	if err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollbackErr))
 		}
 		return nil, err
 	}

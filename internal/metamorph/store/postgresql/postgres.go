@@ -680,7 +680,6 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	for i, update := range updates {
 		statuses[i] = update.Status
 
-		rejectReasons[i] = ""
 		if update.Error != nil {
 			rejectReasons[i] = update.Error.Error()
 		}

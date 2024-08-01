@@ -570,8 +570,8 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 
 	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons))
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			return nil, err
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
 		}
 		return nil, err
 	}
@@ -579,7 +579,10 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 
 	res, err := getStoreDataFromRows(rows)
 	if err != nil {
-		return res, err
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+		}
+		return nil, err
 	}
 
 	err = tx.Commit()

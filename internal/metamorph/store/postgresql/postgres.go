@@ -626,7 +626,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 
 	txHashes := make([][]byte, len(updates))
 	for i, update := range updates {
-		txHashes[i] = update.Hash[:]
+		txHashes[i] = update.Hash.CloneBytes()
 	}
 
 	tx, err := p.db.Begin()

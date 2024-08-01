@@ -987,7 +987,6 @@ func TestStart(t *testing.T) {
 			var subscribeSubmitTxsFunction nats.MsgHandler
 			mqClient := &mocks.MessageQueueClientMock{
 				SubscribeFunc: func(topic string, cb nats.MsgHandler) error {
-
 					switch topic {
 					case async.MinedTxsTopic:
 						subscribeMinedTxsFunction = cb

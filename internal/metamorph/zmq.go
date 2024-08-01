@@ -181,9 +181,9 @@ func (z *ZMQ) handleInvalidTx(msg []string) (hash *chainhash.Hash, status metamo
 		// because the node can accept one of the transactions from double spend and reject the other(s). Then,
 		// we will update the other transactions with the REJECTED status and an error.
 		status = metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED
-		for _, ctx := range txInfo.CollidedWith {
-			competingTxs = append(competingTxs, ctx.TxID)
-			z.logger.Debug("invalidtx", slog.String("hash", txInfo.TxID), slog.String("colliding tx id", ctx.TxID), slog.String("colliding tx hex", ctx.Hex))
+		for _, tx := range txInfo.CollidedWith {
+			competingTxs = append(competingTxs, tx.TxID)
+			z.logger.Debug("invalidtx", slog.String("hash", txInfo.TxID), slog.String("colliding tx id", tx.TxID), slog.String("colliding tx hex", tx.Hex))
 		}
 		return
 	}

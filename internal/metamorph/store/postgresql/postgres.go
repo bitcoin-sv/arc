@@ -446,8 +446,8 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 	LIMIT $4 OFFSET $5
 	FOR UPDATE`, metamorph_api.Status_SEEN_ON_NETWORK, since, untilTime, limit, offset, p.hostname)
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			return nil, err
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
 		}
 		return nil, err
 	}
@@ -485,16 +485,16 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 
 	rows, err := tx.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since, untilTime, limit, offset, p.hostname)
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			return nil, err
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
 		}
 		return nil, err
 	}
 
 	res, err := getStoreDataFromRows(rows)
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			return nil, err
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
 		}
 		return nil, err
 	}
@@ -517,7 +517,6 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		txHashes[i] = update.Hash.CloneBytes()
 		statuses[i] = update.Status
 
-		rejectReasons[i] = ""
 		if update.Error != nil {
 			rejectReasons[i] = update.Error.Error()
 		}
@@ -563,8 +562,8 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 
 	_, err = tx.Exec(`SELECT * FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			return nil, err
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
 		}
 		return nil, err
 	}
@@ -753,8 +752,8 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 
 	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			return nil, err
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
 		}
 		return nil, err
 	}
@@ -763,8 +762,8 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 
 	rows, err = tx.QueryContext(ctx, qBulkUpdate, metamorph_api.Status_MINED, p.now(), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			return nil, err
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
 		}
 		return nil, err
 	}
@@ -772,7 +771,10 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 
 	res, err := getStoreDataFromRows(rows)
 	if err != nil {
-		return res, err
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+		}
+		return nil, err
 	}
 
 	err = tx.Commit()

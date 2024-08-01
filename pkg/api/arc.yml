@@ -236,6 +236,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorValidatingMerkleRoots'
+        473:
+          description: Cumulative Fee too low
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorCumulativeFees'
 
   /v1/txs:
     post:
@@ -394,6 +400,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorValidatingMerkleRoots'
+        473:
+          description: Cumulative Fee too low
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorCumulativeFees'
 
 components:
   schemas:
@@ -930,6 +942,22 @@ components:
               example: 472
             detail:
               example: "Input Frozen (blacklist manager consensus blacklisted)"
+            instance:
+              example: "https://arc.taal.com/errors/123452"
+    ErrorCumulativeFees:
+      type: object
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_473"
+            title:
+              example: "Cumulative fee too low"
+            status:
+              example: 473
+            detail:
+              example: "The cumulative fee is too low"
             instance:
               example: "https://arc.taal.com/errors/123452"
     ErrorFields:

@@ -783,6 +783,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |467|Unknown|Mined ancestors not found in BEEF|[ErrorMinedAncestorsNotFound](#schemaerrorminedancestorsnotfound)|
 |468|Unknown|Invalid BUMPs in BEEF|[ErrorCalculatingMerkleRoots](#schemaerrorcalculatingmerkleroots)|
 |469|Unknown|Invalid Merkle Roots|[ErrorValidatingMerkleRoots](#schemaerrorvalidatingmerkleroots)|
+|473|Unknown|Cumulative Fee too low|[ErrorCumulativeFees](#schemaerrorcumulativefees)|
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
@@ -1092,6 +1093,7 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 |467|Unknown|Mined ancestors not found in BEEF|[ErrorMinedAncestorsNotFound](#schemaerrorminedancestorsnotfound)|
 |468|Unknown|Invalid BUMPs in BEEF|[ErrorCalculatingMerkleRoots](#schemaerrorcalculatingmerkleroots)|
 |469|Unknown|Invalid Merkle Roots|[ErrorValidatingMerkleRoots](#schemaerrorvalidatingmerkleroots)|
+|473|Unknown|Cumulative Fee too low|[ErrorCumulativeFees](#schemaerrorcumulativefees)|
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
@@ -2151,6 +2153,45 @@ and
   "title": "Input Frozen",
   "status": 472,
   "detail": "Input Frozen (blacklist manager consensus blacklisted)",
+  "instance": "https://arc.taal.com/errors/123452",
+  "txid": "string",
+  "extraInfo": "string"
+}
+
+```
+
+### Properties
+
+allOf
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|[ErrorFields](#schemaerrorfields)|false|none|none|
+
+and
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|object|false|none|none|
+|» type|any|false|none|none|
+|» title|any|false|none|none|
+|» status|any|false|none|none|
+|» detail|any|false|none|none|
+|» instance|any|false|none|none|
+
+<h2 id="tocS_ErrorCumulativeFees">ErrorCumulativeFees</h2>
+<!-- backwards compatibility -->
+<a id="schemaerrorcumulativefees"></a>
+<a id="schema_ErrorCumulativeFees"></a>
+<a id="tocSerrorcumulativefees"></a>
+<a id="tocserrorcumulativefees"></a>
+
+```json
+{
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_473",
+  "title": "Cumulative fee too low",
+  "status": 473,
+  "detail": "The cumulative fee is too low",
   "instance": "https://arc.taal.com/errors/123452",
   "txid": "string",
   "extraInfo": "string"

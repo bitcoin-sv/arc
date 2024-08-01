@@ -3,6 +3,7 @@ package metamorph
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -38,19 +39,21 @@ type ZMQTxInfo struct {
 	RejectionCode               int           `json:"rejectionCode"`
 	Reason                      string        `json:"reason"`
 	RejectionReason             string        `json:"rejectionReason"`
-	CollidedWith                []interface{} `json:"collidedWith"`
+	CollidedWith                []CollidingTx `json:"collidedWith"`
 	RejectionTime               string        `json:"rejectionTime"`
 }
 
 type ZMQDiscardFromMempool struct {
-	TxID         string `json:"txid"`
-	Reason       string `json:"reason"`
-	CollidedWith struct {
-		TxID string `json:"txid"`
-		Size int    `json:"size"`
-		Hex  string `json:"hex"`
-	} `json:"collidedWith"`
-	BlockHash string `json:"blockhash"`
+	TxID         string       `json:"txid"`
+	Reason       string       `json:"reason"`
+	CollidedWith *CollidingTx `json:"collidedWith"`
+	BlockHash    string       `json:"blockhash"`
+}
+
+type CollidingTx struct {
+	TxID string `json:"txid"`
+	Hex  string `json:"hex"`
+	Size int    `json:"size"`
 }
 
 func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage, logger *slog.Logger) *ZMQ {
@@ -74,7 +77,6 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 	const invalidTxTopic = "invalidtx"
 	const discardedFromMempoolTopic = "discardedfrommempool"
 	go func() {
-		var err error
 		for c := range ch {
 			switch c[0] {
 			case hashtxTopic:
@@ -91,65 +93,37 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 					Hash:   hash,
 					Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
 					Peer:   z.url.String(),
+					Err:    nil,
 				}
+
 			case invalidTxTopic:
-				// c[1] is lots of info about the tx in json format encoded in hex
-				var txInfo *ZMQTxInfo
-				status := metamorph_api.Status_REJECTED
-				txInfo, err = z.parseTxInfo(c)
+				hash, status, txErr, competingTxs, err := z.handleInvalidTx(c)
 				if err != nil {
 					z.logger.Error("failed to parse tx info", slog.String("topic", invalidTxTopic), slog.String("err", err.Error()))
 					continue
 				}
-				errReason := "invalid transaction"
-				if txInfo.RejectionReason != "" {
-					errReason += ": " + txInfo.RejectionReason
-				}
-				if txInfo.IsMissingInputs {
-					errReason = ""
-					status = metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL
-				}
-				if txInfo.IsDoubleSpendDetected {
-					errReason += " - double spend"
-				}
-				if len(txInfo.CollidedWith) > 0 {
-					for _, collidedWith := range txInfo.CollidedWith {
-						collisions, ok := collidedWith.(map[string]interface{})
-						if !ok {
-							z.logger.Error("parsing collisions failed")
-							break
-						}
-						z.logger.Debug(invalidTxTopic, slog.String("hash", txInfo.TxID), slog.String("reason", errReason), slog.String("colliding tx id", collisions["txid"].(string)), slog.String("colliding tx hex", collisions["hex"].(string)))
-					}
-				} else {
-					z.logger.Debug(invalidTxTopic, slog.String("hash", txInfo.TxID), slog.String("reason", errReason))
-				}
 
-				hash, err := chainhash.NewHashFromStr(txInfo.TxID)
-				if err != nil {
-					z.logger.Error("failed to get hash from string", slog.String("topic", invalidTxTopic), slog.String("err", err.Error()))
+				if status != metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED {
+					z.statusMessageCh <- &PeerTxMessage{
+						Start:        time.Now(),
+						Hash:         hash,
+						Status:       status,
+						Peer:         z.url.String(),
+						Err:          txErr,
+						CompetingTxs: competingTxs,
+					}
 					continue
 				}
 
-				z.statusMessageCh <- &PeerTxMessage{
-					Start:  time.Now(),
-					Hash:   hash,
-					Status: status,
-					Peer:   z.url.String(),
-					Err:    fmt.Errorf(errReason),
+				msgs := z.prepareCompetingTxMsgs(hash, competingTxs)
+				for _, msg := range msgs {
+					z.statusMessageCh <- msg
 				}
+
 			case discardedFromMempoolTopic:
-				var txInfo *ZMQDiscardFromMempool
-				txInfo, err = z.parseDiscardedInfo(c)
+				hash, txErr, err := z.handleDiscardedFromMempool(c)
 				if err != nil {
 					z.logger.Error("failed to parse", slog.String("topic", discardedFromMempoolTopic), slog.String("err", err.Error()))
-					continue
-				}
-
-				z.logger.Debug(discardedFromMempoolTopic, slog.String("hash", txInfo.TxID), slog.String("reason", txInfo.Reason), slog.String("collidedWith", txInfo.CollidedWith.TxID))
-				hash, err := chainhash.NewHashFromStr(txInfo.TxID)
-				if err != nil {
-					z.logger.Error("failed to get hash from string", slog.String("topic", discardedFromMempoolTopic), slog.String("err", err.Error()))
 					continue
 				}
 
@@ -158,7 +132,7 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 					Hash:   hash,
 					Status: metamorph_api.Status_REJECTED,
 					Peer:   z.url.String(),
-					Err:    fmt.Errorf("discarded from mempool: %s", txInfo.Reason),
+					Err:    txErr,
 				}
 			default:
 				z.logger.Info("Unhandled ZMQ message", slog.String("msg", strings.Join(c, ",")))
@@ -181,6 +155,53 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 	return nil
 }
 
+func (z *ZMQ) handleInvalidTx(msg []string) (hash *chainhash.Hash, status metamorph_api.Status, txErr error, competingTxs []string, err error) {
+	txInfo, err := z.parseTxInfo(msg)
+	if err != nil {
+		return
+	}
+
+	hash, err = chainhash.NewHashFromStr(txInfo.TxID)
+	if err != nil {
+		return
+	}
+
+	if txInfo.IsMissingInputs {
+		// Missing Inputs does not immediately mean it's an error. It may mean that transaction is temporarily waiting
+		// for its parents (e.g. in case of bulk submit). So we don't throw any error here, just update the status.
+		// If it's actually an error with transaction, it will be rejected when the parents arrive to node's memopool.
+		// If the parents never arrive, it will be discarded from mempool after some time - rejected.
+		status = metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL
+		return
+	}
+
+	if txInfo.IsMempoolConflictDetected || txInfo.IsDoubleSpendDetected || len(txInfo.CollidedWith) > 0 {
+		// In case of Double Spend Attempted, we don't want to add an error to the response, as it will immediately
+		// return this response to the user. We want to inform him about the status update by callback and wait,
+		// because the node can accept one of the transactions from double spend and reject the other(s). Then,
+		// we will update the other transactions with the REJECTED status and an error.
+		status = metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED
+		for _, tx := range txInfo.CollidedWith {
+			competingTxs = append(competingTxs, tx.TxID)
+			z.logger.Debug("invalidtx", slog.String("hash", txInfo.TxID), slog.String("colliding tx id", tx.TxID), slog.String("colliding tx hex", tx.Hex))
+		}
+		return
+	}
+
+	// If the error is not Missing Inputs, nor Double Spend Detected, then we can assume
+	// that the transaction was rejected by the nodes and update the status accordingly.
+	status = metamorph_api.Status_REJECTED
+
+	errReason := "invalid transaction"
+	if txInfo.RejectionReason != "" {
+		errReason += ": " + txInfo.RejectionReason
+	}
+	z.logger.Debug("invalidtx", slog.String("hash", txInfo.TxID), slog.String("reason", errReason))
+
+	txErr = fmt.Errorf(errReason)
+	return
+}
+
 func (z *ZMQ) parseTxInfo(c []string) (*ZMQTxInfo, error) {
 	var txInfo ZMQTxInfo
 	txInfoBytes, err := hex.DecodeString(c[1])
@@ -192,6 +213,83 @@ func (z *ZMQ) parseTxInfo(c []string) (*ZMQTxInfo, error) {
 		return nil, err
 	}
 	return &txInfo, nil
+}
+
+func (z *ZMQ) prepareCompetingTxMsgs(hash *chainhash.Hash, competingTxs []string) []*PeerTxMessage {
+	msgs := []*PeerTxMessage{{
+		Start:        time.Now(),
+		Hash:         hash,
+		Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+		Peer:         z.url.String(),
+		Err:          nil,
+		CompetingTxs: competingTxs,
+	}}
+
+	allCompetingTxs := append(competingTxs, hash.String())
+
+	for _, tx := range competingTxs {
+		competingHash, err := chainhash.NewHashFromStr(tx)
+		if err != nil {
+			z.logger.Debug("could not parse competing tx hash",
+				slog.String("reportingTxHash", hash.String()),
+				slog.String("err", err.Error()),
+				slog.String("competingTxID", tx))
+			continue
+		}
+
+		// remove the hash of the current tx from all competing txs
+		// and return a copy of the slice
+		txsWithoutSelf := removeCompetingSelf(allCompetingTxs, tx)
+
+		msgs = append(msgs, &PeerTxMessage{
+			Start:        time.Now(),
+			Hash:         competingHash,
+			Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+			Peer:         z.url.String(),
+			Err:          nil,
+			CompetingTxs: txsWithoutSelf,
+		})
+	}
+
+	return msgs
+}
+
+func removeCompetingSelf(competingTxs []string, self string) []string {
+	copyTxs := make([]string, len(competingTxs))
+	copy(copyTxs, competingTxs)
+
+	for i, hash := range copyTxs {
+		if hash == self {
+			// Remove the self hash
+			return append(copyTxs[:i], copyTxs[i+1:]...)
+		}
+	}
+
+	// Return the slice unchanged if the value was not found
+	return copyTxs
+}
+
+func (z *ZMQ) handleDiscardedFromMempool(msg []string) (hash *chainhash.Hash, txErr, err error) {
+	topic := "discardedfrommempool"
+	discardedInfo, err := z.parseDiscardedInfo(msg)
+	if err != nil {
+		return
+	}
+
+	hash, err = chainhash.NewHashFromStr(discardedInfo.TxID)
+	if err != nil {
+		return
+	}
+
+	if discardedInfo.CollidedWith != nil {
+		z.logger.Debug(topic, slog.String("hash", discardedInfo.TxID), slog.String("reason", discardedInfo.Reason), slog.String("collidedWith", discardedInfo.CollidedWith.TxID))
+		txErr = errors.New("discarded from mempool: double spend attempted")
+	} else {
+		z.logger.Debug(topic, slog.String("hash", discardedInfo.TxID), slog.String("reason", discardedInfo.Reason))
+		txErr = fmt.Errorf("discarded from mempool: %s", discardedInfo.Reason)
+	}
+
+	return
 }
 
 func (z *ZMQ) parseDiscardedInfo(c []string) (*ZMQDiscardFromMempool, error) {

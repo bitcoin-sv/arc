@@ -57,6 +57,9 @@ stateDiagram-v2
     ACCEPTED_BY_NETWORK --> SEEN_IN_ORPHAN_MEMPOOL: Peer has sent a 'missing inputs' message
     SEEN_IN_ORPHAN_MEMPOOL --> SEEN_ON_NETWORK: All parent transactions\n have been received by peer
     SEEN_ON_NETWORK --> MINED: Transaction ID was included in a BLOCK message
+    SEEN_ON_NETWORK --> DOUBLE_SPEND_ATTEMPTED: This transaction has competing transactions
+    DOUBLE_SPEND_ATTEMPTED --> MINED: This transaction was accepted and mined
+    DOUBLE_SPEND_ATTEMPTED --> REJECTED: This transaction was rejected in favor\n of one of the competing transactions
     MINED --> [*]
 ```
 

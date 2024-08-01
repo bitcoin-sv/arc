@@ -32,6 +32,12 @@
   stored_at: 2023-10-01 14:22:00
   announced_at: 2023-10-01 14:23:00
   last_submitted_at: 2023-10-01 14:00:00
+- hash: 0xa327ae118ed86ae548bda8a76b49d7075dee5bbc1fa623d2a4b089db314b38e8
+  locked_by: metamorph-1
+  status: 100
+  stored_at: 2023-10-01 14:00:00
+  announced_at: 2023-10-01 14:05:00
+  last_submitted_at: 2023-10-01 14:00:00
 - hash: 0x213a8c87c5460e82b5ae529212956b853c7ce6bf06e56b2e040eb063cf9a49f0
   locked_by: metamorph-2
   status: 120

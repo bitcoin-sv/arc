@@ -1,6 +1,7 @@
 package postgresql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -647,7 +648,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	}
 	defer rows.Close()
 
-	dbData := getCompetingTxsFromRows(rows)
+	competingTxsData := getCompetingTxsFromRows(rows)
 
 	statuses := make([]metamorph_api.Status, len(updates))
 	competingTxs := make([]string, len(updates))
@@ -660,11 +661,9 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			rejectReasons[i] = update.Error.Error()
 		}
 
-		for _, data := range dbData {
-			if update.Hash.IsEqual(data.Hash) {
-				// get unique values from merged existing competing txs
-				// and incoming ones to avoid duplicates or overridings
-				uniqueTxs := mergeUnique(update.CompetingTxs, data.CompetingTxs)
+		for _, tx := range competingTxsData {
+			if bytes.Equal(txHashes[i], tx.hash) {
+				uniqueTxs := mergeUnique(update.CompetingTxs, tx.competingTxs)
 				competingTxs[i] = strings.Join(uniqueTxs, ",")
 				break
 			}

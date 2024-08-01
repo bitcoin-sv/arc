@@ -12,6 +12,11 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
+type competingTxsData struct {
+	hash         []byte
+	competingTxs []string
+}
+
 // mergeUnique merges two string arrays into one with unique values
 func mergeUnique(arr1, arr2 []string) []string {
 	valueSet := make(map[string]struct{})
@@ -135,11 +140,11 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 	return storeData, nil
 }
 
-func getCompetingTxsFromRows(rows *sql.Rows) []*store.StoreData {
-	dbData := make([]*store.StoreData, 0)
+func getCompetingTxsFromRows(rows *sql.Rows) []competingTxsData {
+	dbData := make([]competingTxsData, 0)
 
 	for rows.Next() {
-		data := &store.StoreData{}
+		data := competingTxsData{}
 
 		var hash []byte
 		var competingTxs string
@@ -152,15 +157,10 @@ func getCompetingTxsFromRows(rows *sql.Rows) []*store.StoreData {
 			continue
 		}
 
-		if len(hash) > 0 {
-			data.Hash, err = chainhash.NewHash(hash)
-			if err != nil {
-				continue
-			}
-		}
+		data.hash = hash
 
 		if competingTxs != "" {
-			data.CompetingTxs = strings.Split(competingTxs, ",")
+			data.competingTxs = strings.Split(competingTxs, ",")
 		}
 
 		dbData = append(dbData, data)
@@ -197,22 +197,17 @@ func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) 
 	`
 	rejectReason := "double spend attempted"
 
-	dbData := getCompetingTxsFromRows(rows)
+	competingTxsData := getCompetingTxsFromRows(rows)
 
 	rejectedCompetingTxs := make([][]byte, 0)
-	for _, data := range dbData {
-		for _, competingTx := range data.CompetingTxs {
-			decodedTx, err := hex.DecodeString(competingTx)
+	for _, tx := range competingTxsData {
+		for _, competingTx := range tx.competingTxs {
+			txBytes, err := hex.DecodeString(competingTx)
 			if err != nil {
 				continue
 			}
 
-			hash, err := chainhash.NewHash(decodedTx)
-			if err != nil {
-				continue
-			}
-
-			rejectedCompetingTxs = append(rejectedCompetingTxs, hash.CloneBytes())
+			rejectedCompetingTxs = append(rejectedCompetingTxs, txBytes)
 		}
 	}
 

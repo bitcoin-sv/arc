@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/libsv/go-bt/v2"
@@ -48,6 +49,8 @@ func TestDoubleSpend(t *testing.T) {
 
 			var statusResponse *api.GETTransactionStatusResponse
 			ctx := context.Background()
+
+			time.Sleep(time.Second)
 
 			// verify that the first tx was also set to DOUBLE_SPEND_ATTEMPTED
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())

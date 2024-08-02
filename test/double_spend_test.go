@@ -46,10 +46,16 @@ func TestDoubleSpend(t *testing.T) {
 			txMempool := createTxToNewAddress(t, privateKey, utxos[0])
 			postTxChecksStatus(t, arcClient, txMempool, Status_DOUBLE_SPEND_ATTEMPTED, tc.extFormat)
 
-			generate(t, 10)
-
-			ctx := context.Background()
 			var statusResponse *api.GETTransactionStatusResponse
+			ctx := context.Background()
+
+			// verify that the first tx was also set to DOUBLE_SPEND_ATTEMPTED
+			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
+			require.NoError(t, err)
+			require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, *statusResponse.JSON200.TxStatus)
+
+			// mine the first tx
+			generate(t, 10)
 
 			// verify that the first tx was mined
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())

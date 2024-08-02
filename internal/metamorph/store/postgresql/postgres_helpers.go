@@ -3,7 +3,6 @@ package postgresql
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"strings"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -202,12 +201,12 @@ func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) 
 	rejectedCompetingTxs := make([][]byte, 0)
 	for _, tx := range competingTxsData {
 		for _, competingTx := range tx.competingTxs {
-			txBytes, err := hex.DecodeString(competingTx)
+			hash, err := chainhash.NewHashFromStr(competingTx)
 			if err != nil {
 				continue
 			}
 
-			rejectedCompetingTxs = append(rejectedCompetingTxs, txBytes)
+			rejectedCompetingTxs = append(rejectedCompetingTxs, hash[:])
 		}
 	}
 

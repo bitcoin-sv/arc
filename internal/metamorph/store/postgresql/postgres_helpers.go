@@ -206,7 +206,7 @@ func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) 
 				continue
 			}
 
-			rejectedCompetingTxs = append(rejectedCompetingTxs, hash[:])
+			rejectedCompetingTxs = append(rejectedCompetingTxs, hash.CloneBytes())
 		}
 	}
 

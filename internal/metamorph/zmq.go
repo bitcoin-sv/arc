@@ -228,16 +228,7 @@ func (z *ZMQ) prepareCompetingTxMsgs(hash *chainhash.Hash, competingTxs []string
 	allCompetingTxs := append(competingTxs, hash.String())
 
 	for _, tx := range competingTxs {
-		txBytes, err := hex.DecodeString(tx)
-		if err != nil {
-			z.logger.Debug("could not parse competing tx hash",
-				slog.String("reportingTxHash", hash.String()),
-				slog.String("err", err.Error()),
-				slog.String("competingTxID", tx))
-			continue
-		}
-
-		competingHash, err := chainhash.NewHash(txBytes)
+		competingHash, err := chainhash.NewHashFromStr(tx)
 		if err != nil {
 			z.logger.Debug("could not parse competing tx hash",
 				slog.String("reportingTxHash", hash.String()),

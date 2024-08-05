@@ -57,11 +57,11 @@ func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag
 		}
 	}
 
-	ids = remainingIDs[:]
-	remainingIDs = make([]string, 0)
-
 	// try to get remaining txs from the node
 	if source.Has(validator.SourceNodes) {
+		ids = remainingIDs[:]
+		remainingIDs = make([]string, 0)
+
 		for _, id := range ids {
 			nTx, err := getTransactionFromNode(f.pc, id)
 			if err != nil {

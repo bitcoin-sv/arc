@@ -738,6 +738,10 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 				require.Equal(t, Status_SEEN_ON_NETWORK, response.JSON200.TxStatus)
 			} else {
 				require.Equal(t, int(api.ErrStatusCumulativeFees), response.StatusCode())
+				require.NotNil(t, response.JSON473)
+
+				expectedInfo := fmt.Sprintf("arc error 473: cumulative transaction fee of %d sat is too low - minimum expected fee is %d sat", tc.lastTxFee, (1+zeroChainCount)*10)
+				require.Equal(t, expectedInfo, *response.JSON473.ExtraInfo)
 			}
 		})
 	}

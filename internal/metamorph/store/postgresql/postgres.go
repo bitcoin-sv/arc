@@ -245,6 +245,7 @@ func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) ([]*store.Store
 		,callback_token
 		,full_status_updates
 		,reject_reason
+		,competing_txs
 		,raw_tx
 		,locked_by
 		,merkle_path
@@ -494,22 +495,22 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 		as t
 		WHERE metamorph.transactions.hash = t.hash
 		RETURNING
-	  stored_at
-		,announced_at
-		,mined_at
-		,t.hash
-		,status
-		,block_height
-		,block_hash
-		,callback_url
-		,callback_token
-		,full_status_updates
-    ,reject_reason
-		,competing_txs
-		,raw_tx
-		,locked_by
-    ,merkle_path
-		,retries;`
+			stored_at
+			,announced_at
+			,mined_at
+			,t.hash
+			,status
+			,block_height
+			,block_hash
+			,callback_url
+			,callback_token
+			,full_status_updates
+			,reject_reason
+			,competing_txs
+			,raw_tx
+			,locked_by
+			,merkle_path
+			,retries;`
 
 	rows, err := tx.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since, untilTime, limit, offset, p.hostname)
 	if err != nil {

@@ -29,7 +29,7 @@ ErrStatusFees: The fees are too low, sum satoshis out is not less than sum satos
 ErrStatusConflict: Transaction is invalid because the network has already seen a tx which spends the same utxo.
 
 # 467
-ErrStatusMinedAncestorsNotFound: invalid BEEF, cannot fined mined ancestor of the transaction.
+ErrStatusMinedAncestorsNotFound: invalid BEEF, cannot find mined ancestor of the transaction.
 
 # 468
 ErrStatusCalculatingMerkleRoots: invalid BEEF, cannot calculate Merke Roots.

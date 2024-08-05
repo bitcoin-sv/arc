@@ -51,7 +51,7 @@ func TestDoubleSpend(t *testing.T) {
 			ctx := context.Background()
 
 			// give arc time to update the status of all competing transactions
-			time.Sleep(10 * time.Second)
+			time.Sleep(5 * time.Second)
 
 			// verify that the first tx was also set to DOUBLE_SPEND_ATTEMPTED
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
@@ -62,7 +62,7 @@ func TestDoubleSpend(t *testing.T) {
 			generate(t, 10)
 
 			// give arc time to update the status of all competing transactions
-			time.Sleep(10 * time.Second)
+			time.Sleep(5 * time.Second)
 
 			// verify that the first tx was mined
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())

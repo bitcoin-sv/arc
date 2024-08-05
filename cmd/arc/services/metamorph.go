@@ -126,6 +126,10 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 			continue
 		}
 
+		if zmqURL == nil {
+			continue
+		}
+
 		zmq := metamorph.NewZMQ(zmqURL, statusMessageCh, logger)
 
 		port, err := strconv.Atoi(zmqURL.Port())

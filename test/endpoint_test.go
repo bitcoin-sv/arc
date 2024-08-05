@@ -95,83 +95,6 @@ func TestBatchChainedTxs(t *testing.T) {
 	}
 }
 
-func postBatchRequest(t *testing.T, client *http.Client, req *http.Request) {
-	httpResp, err := client.Do(req)
-	require.NoError(t, err)
-	defer httpResp.Body.Close()
-
-	require.Equal(t, http.StatusOK, httpResp.StatusCode)
-
-	b, err := io.ReadAll(httpResp.Body)
-	require.NoError(t, err)
-
-	bodyResponse := make([]Response, 0)
-	err = json.Unmarshal(b, &bodyResponse)
-	require.NoError(t, err)
-
-	for i, txResponse := range bodyResponse {
-		require.NoError(t, err)
-		require.Equalf(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
-	}
-}
-
-func createTxChain(privateKey string, utxo0 NodeUnspentUtxo, length int) ([]*bt.Tx, error) {
-	batch := make([]*bt.Tx, length)
-
-	utxoTxID := utxo0.Txid
-	utxoVout := uint32(utxo0.Vout)
-	utxoSatoshis := uint64(utxo0.Amount * 1e8)
-	utxoScript := utxo0.ScriptPubKey
-	utxoAddress := utxo0.Address
-
-	for i := 0; i < length; i++ {
-		tx := bt.NewTx()
-
-		err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
-		if err != nil {
-			return nil, fmt.Errorf("failed adding input: %v", err)
-		}
-
-		amountToSend := utxoSatoshis - feeSat
-
-		recipientScript, err := bscript.NewP2PKHFromAddress(utxoAddress)
-		if err != nil {
-			return nil, fmt.Errorf("failed converting address to script: %v", err)
-		}
-
-		err = tx.PayTo(recipientScript, amountToSend)
-		if err != nil {
-			return nil, fmt.Errorf("failed adding output: %v", err)
-		}
-
-		// Sign the input
-
-		wif, err := bsvutil.DecodeWIF(privateKey)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode WIF: %v", err)
-		}
-
-		// Extract raw private key bytes directly from the WIF structure
-		privateKeyDecoded := wif.PrivKey.Serialize()
-
-		pk, _ := bec.PrivKeyFromBytes(bsvec.S256(), privateKeyDecoded)
-		unlockerGetter := unlocker.Getter{PrivateKey: pk}
-		err = tx.FillAllInputs(context.Background(), &unlockerGetter)
-		if err != nil {
-			return nil, fmt.Errorf("sign failed: %v", err)
-		}
-
-		batch[i] = tx
-
-		utxoTxID = tx.TxID()
-		utxoVout = 0
-		utxoSatoshis = amountToSend
-		utxoScript = utxo0.ScriptPubKey
-	}
-
-	return batch, nil
-}
-
 func TestPostCallbackToken(t *testing.T) {
 	tt := []struct {
 		name string
@@ -478,20 +401,6 @@ func TestPostTx_Queued(t *testing.T) {
 	})
 }
 
-func postSingleRequest(t *testing.T, client *http.Client, req *http.Request) string {
-	httpResp, err := client.Do(req)
-	require.NoError(t, err)
-	defer httpResp.Body.Close()
-
-	require.Equal(t, http.StatusOK, httpResp.StatusCode)
-
-	var response Response
-	require.NoError(t, json.NewDecoder(httpResp.Body).Decode(&response))
-	require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
-
-	return response.Txid
-}
-
 func TestPostTx_Success(t *testing.T) {
 	tx := createTxHexStringExtended(t) // This is a placeholder for the method to create a valid transaction string.
 	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, hex.EncodeToString(tx.ExtendedBytes()))
@@ -563,18 +472,6 @@ func postTx(t *testing.T, jsonPayload string, headers map[string]string) (*http.
 
 	client := &http.Client{}
 	return client.Do(req)
-}
-
-func createTxHexStringExtended(t *testing.T) *bt.Tx {
-	address, privateKey := fundNewWallet(t)
-
-	utxos := getUtxos(t, address)
-	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
-
-	tx, err := createTx(privateKey, address, utxos[0])
-	require.NoError(t, err)
-
-	return tx
 }
 
 func TestSubmitMinedTx(t *testing.T) {
@@ -794,4 +691,107 @@ func postTxWithHeaders(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx,
 	require.NoError(t, err)
 
 	return response
+}
+
+func createTxHexStringExtended(t *testing.T) *bt.Tx {
+	address, privateKey := fundNewWallet(t)
+
+	utxos := getUtxos(t, address)
+	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+
+	tx, err := createTx(privateKey, address, utxos[0])
+	require.NoError(t, err)
+
+	return tx
+}
+
+func postSingleRequest(t *testing.T, client *http.Client, req *http.Request) string {
+	httpResp, err := client.Do(req)
+	require.NoError(t, err)
+	defer httpResp.Body.Close()
+
+	require.Equal(t, http.StatusOK, httpResp.StatusCode)
+
+	var response Response
+	require.NoError(t, json.NewDecoder(httpResp.Body).Decode(&response))
+	require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
+
+	return response.Txid
+}
+
+func postBatchRequest(t *testing.T, client *http.Client, req *http.Request) {
+	httpResp, err := client.Do(req)
+	require.NoError(t, err)
+	defer httpResp.Body.Close()
+
+	require.Equal(t, http.StatusOK, httpResp.StatusCode)
+
+	b, err := io.ReadAll(httpResp.Body)
+	require.NoError(t, err)
+
+	bodyResponse := make([]Response, 0)
+	err = json.Unmarshal(b, &bodyResponse)
+	require.NoError(t, err)
+
+	for i, txResponse := range bodyResponse {
+		require.NoError(t, err)
+		require.Equalf(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
+	}
+}
+
+func createTxChain(privateKey string, utxo0 NodeUnspentUtxo, length int) ([]*bt.Tx, error) {
+	batch := make([]*bt.Tx, length)
+
+	utxoTxID := utxo0.Txid
+	utxoVout := uint32(utxo0.Vout)
+	utxoSatoshis := uint64(utxo0.Amount * 1e8)
+	utxoScript := utxo0.ScriptPubKey
+	utxoAddress := utxo0.Address
+
+	for i := 0; i < length; i++ {
+		tx := bt.NewTx()
+
+		err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
+		if err != nil {
+			return nil, fmt.Errorf("failed adding input: %v", err)
+		}
+
+		amountToSend := utxoSatoshis - feeSat
+
+		recipientScript, err := bscript.NewP2PKHFromAddress(utxoAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed converting address to script: %v", err)
+		}
+
+		err = tx.PayTo(recipientScript, amountToSend)
+		if err != nil {
+			return nil, fmt.Errorf("failed adding output: %v", err)
+		}
+
+		// Sign the input
+
+		wif, err := bsvutil.DecodeWIF(privateKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode WIF: %v", err)
+		}
+
+		// Extract raw private key bytes directly from the WIF structure
+		privateKeyDecoded := wif.PrivKey.Serialize()
+
+		pk, _ := bec.PrivKeyFromBytes(bsvec.S256(), privateKeyDecoded)
+		unlockerGetter := unlocker.Getter{PrivateKey: pk}
+		err = tx.FillAllInputs(context.Background(), &unlockerGetter)
+		if err != nil {
+			return nil, fmt.Errorf("sign failed: %v", err)
+		}
+
+		batch[i] = tx
+
+		utxoTxID = tx.TxID()
+		utxoVout = 0
+		utxoSatoshis = amountToSend
+		utxoScript = utxo0.ScriptPubKey
+	}
+
+	return batch, nil
 }

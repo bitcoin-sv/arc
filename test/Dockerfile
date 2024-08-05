@@ -9,6 +9,7 @@ COPY go.mod go.sum ./
 # Download all dependencies. Dependencies will be cached if the go.mod and the go.sum files are not changed
 RUN go mod download
 
+COPY ./e2e_globals.go ./e2e_globals.go
 COPY ./init_test.go ./init_test.go
 COPY ./utils.go ./utils.go
 COPY ./fixtures ./fixtures

@@ -1,4 +1,4 @@
-package nats_mq
+package nats_connection
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-func NewNatsClient(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
+func New(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 	var nc *nats.Conn
 	var err error
 
@@ -17,9 +17,7 @@ func NewNatsClient(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	nc, err = nats.Connect(
-		natsURL,
+	opts := []nats.Option{
 		nats.Name(hostname),
 		nats.ErrorHandler(func(c *nats.Conn, s *nats.Subscription, err error) {
 			if err != nil {
@@ -27,8 +25,8 @@ func NewNatsClient(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 			}
 		}),
 		nats.DiscoveredServersHandler(func(nc *nats.Conn) {
-			logger.Info(fmt.Sprintf("Known servers: %v\n", nc.Servers()))
-			logger.Info(fmt.Sprintf("Discovered servers: %v\n", nc.DiscoveredServers()))
+			logger.Info(fmt.Sprintf("Known servers: %v", nc.Servers()))
+			logger.Info(fmt.Sprintf("Discovered servers: %v", nc.DiscoveredServers()))
 		}),
 		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
 			if err != nil {
@@ -42,12 +40,14 @@ func NewNatsClient(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 			logger.Info("client closed")
 		}),
 		nats.RetryOnFailedConnect(true),
-		nats.PingInterval(2*time.Minute),
+		nats.PingInterval(30 * time.Second),
 		nats.MaxPingsOutstanding(2),
-		nats.ReconnectBufSize(8*1024*1024),
+		nats.ReconnectBufSize(8 * 1024 * 1024),
 		nats.MaxReconnects(60),
-		nats.ReconnectWait(2*time.Second),
-	)
+		nats.ReconnectWait(2 * time.Second),
+	}
+
+	nc, err = nats.Connect(natsURL, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to NATS server: %v", err)
 	}

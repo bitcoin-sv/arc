@@ -8,14 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 	"log/slog"
 )
@@ -167,32 +165,32 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChan
 }
 
 func (p *Processor) Start() error {
-	err := p.mqClient.Subscribe(async.MinedTxsTopic, func(msg *nats.Msg) {
+	err := p.mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
 		serialized := &blocktx_api.TransactionBlock{}
-		err := proto.Unmarshal(msg.Data, serialized)
+		err := proto.Unmarshal(msg, serialized)
 		if err != nil {
-			p.logger.Error("failed to unmarshal message", slog.String("err", err.Error()))
-			return
+			return fmt.Errorf("failed to unmarshal message subscribed on %s topic: %w", MinedTxsTopic, err)
 		}
 
 		p.minedTxsChan <- serialized
+		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to %s topic: %w", async.MinedTxsTopic, err)
+		return fmt.Errorf("failed to subscribe to %s topic: %w", MinedTxsTopic, err)
 	}
 
-	err = p.mqClient.Subscribe(async.SubmitTxTopic, func(msg *nats.Msg) {
+	err = p.mqClient.Subscribe(SubmitTxTopic, func(msg []byte) error {
 		serialized := &metamorph_api.TransactionRequest{}
-		err = proto.Unmarshal(msg.Data, serialized)
+		err = proto.Unmarshal(msg, serialized)
 		if err != nil {
-			p.logger.Error("failed to unmarshal message", slog.String("err", err.Error()))
-			return
+			return fmt.Errorf("failed to unmarshal message subscribed on %s topic: %w", SubmitTxTopic, err)
 		}
 
 		p.submittedTxsChan <- serialized
+		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to %s topic: %w", async.SubmitTxTopic, err)
+		return fmt.Errorf("failed to subscribe to %s topic: %w", SubmitTxTopic, err)
 	}
 
 	p.StartLockTransactions()
@@ -494,7 +492,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 
 					for _, tx := range seenOnNetworkTxs {
 						// by requesting tx, blocktx checks if it has the transaction mined in the database and sends it back
-						if err = p.mqClient.Publish(async.RequestTxTopic, tx.Hash[:]); err != nil {
+						if err = p.mqClient.Publish(RequestTxTopic, tx.Hash[:]); err != nil {
 							p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()))
 						}
 					}
@@ -660,7 +658,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	}
 
 	// register transaction in blocktx using message queue
-	if err = p.mqClient.Publish(async.RegisterTxTopic, req.Data.Hash[:]); err != nil {
+	if err = p.mqClient.Publish(RegisterTxTopic, req.Data.Hash[:]); err != nil {
 		p.logger.Error("failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 	}
 
@@ -720,7 +718,7 @@ func (p *Processor) ProcessTransactions(sReq []*store.StoreData) {
 
 	for _, data := range sReq {
 		// register transaction in blocktx using message queue
-		err = p.mqClient.Publish(async.RegisterTxTopic, data.Hash[:])
+		err = p.mqClient.Publish(RegisterTxTopic, data.Hash[:])
 		if err != nil {
 			p.logger.Error("Failed to register tx in blocktx", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
 		}

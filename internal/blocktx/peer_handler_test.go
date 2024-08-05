@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
@@ -23,7 +22,6 @@ import (
 	"github.com/libsv/go-p2p/bsvutil"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
-	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -629,13 +627,13 @@ func TestStart(t *testing.T) {
 		},
 		{
 			name:     "error - subscribe mined txs",
-			topicErr: map[string]error{async.RegisterTxTopic: errors.New("failed to subscribe")},
+			topicErr: map[string]error{blocktx.RegisterTxTopic: errors.New("failed to subscribe")},
 
 			expectedErrorStr: "failed to subscribe to register-tx topic: failed to subscribe",
 		},
 		{
 			name:     "error - subscribe submit txs",
-			topicErr: map[string]error{async.RequestTxTopic: errors.New("failed to subscribe")},
+			topicErr: map[string]error{blocktx.RequestTxTopic: errors.New("failed to subscribe")},
 
 			expectedErrorStr: "failed to subscribe to request-tx topic: failed to subscribe",
 		},
@@ -646,7 +644,7 @@ func TestStart(t *testing.T) {
 			storeMock := &storeMocks.BlocktxStoreMock{}
 
 			mqClient := &mocks.MessageQueueClientMock{
-				SubscribeFunc: func(topic string, cb nats.MsgHandler) error {
+				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
 					err, ok := tc.topicErr[topic]
 					if ok {
 						return err

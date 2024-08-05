@@ -17,7 +17,6 @@ import (
 
 const (
 	postgresDriverName = "postgres"
-	until              = -1 * 2 * time.Hour
 )
 
 type PostgreSQL struct {

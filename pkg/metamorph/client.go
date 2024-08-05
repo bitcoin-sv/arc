@@ -3,7 +3,6 @@ package metamorph
 import (
 	"context"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/async"
 	"log/slog"
 	"os"
 	"strings"
@@ -163,7 +162,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *bt.Tx, options *T
 	}
 
 	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
-		err := m.mqClient.PublishMarshal(async.SubmitTxTopic, request)
+		err := m.mqClient.PublishMarshal(SubmitTxTopic, request)
 		if err != nil {
 			return nil, err
 		}
@@ -179,7 +178,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *bt.Tx, options *T
 	if err != nil {
 		m.logger.Warn("Failed to submit transaction", slog.String("hash", tx.TxID()), slog.String("key", err.Error()))
 		if m.mqClient != nil {
-			err := m.mqClient.PublishMarshal(async.SubmitTxTopic, request)
+			err := m.mqClient.PublishMarshal(SubmitTxTopic, request)
 			if err != nil {
 				return nil, err
 			}
@@ -223,7 +222,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs []*bt.Tx, option
 
 	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
 		for _, tx := range in.Transactions {
-			err := m.mqClient.PublishMarshal(async.SubmitTxTopic, tx)
+			err := m.mqClient.PublishMarshal(SubmitTxTopic, tx)
 			if err != nil {
 				return nil, err
 			}
@@ -248,7 +247,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs []*bt.Tx, option
 		m.logger.Warn("Failed to submit transactions", slog.String("key", err.Error()))
 		if m.mqClient != nil {
 			for _, tx := range in.Transactions {
-				err := m.mqClient.PublishMarshal(async.SubmitTxTopic, tx)
+				err := m.mqClient.PublishMarshal(SubmitTxTopic, tx)
 				if err != nil {
 					return nil, err
 				}

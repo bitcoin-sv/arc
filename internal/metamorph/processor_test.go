@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -22,7 +21,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -963,13 +961,13 @@ func TestStart(t *testing.T) {
 		},
 		{
 			name:     "error - subscribe mined txs",
-			topicErr: map[string]error{async.MinedTxsTopic: errors.New("failed to subscribe")},
+			topicErr: map[string]error{metamorph.MinedTxsTopic: errors.New("failed to subscribe")},
 
 			expectedErrorStr: "failed to subscribe to mined-txs topic: failed to subscribe",
 		},
 		{
 			name:     "error - subscribe submit txs",
-			topicErr: map[string]error{async.SubmitTxTopic: errors.New("failed to subscribe")},
+			topicErr: map[string]error{metamorph.SubmitTxTopic: errors.New("failed to subscribe")},
 
 			expectedErrorStr: "failed to subscribe to submit-tx topic: failed to subscribe",
 		},
@@ -983,15 +981,16 @@ func TestStart(t *testing.T) {
 
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
-			var subscribeMinedTxsFunction nats.MsgHandler
-			var subscribeSubmitTxsFunction nats.MsgHandler
+			var subscribeMinedTxsFunction func([]byte) error
+			var subscribeSubmitTxsFunction func([]byte) error
 			mqClient := &mocks.MessageQueueClientMock{
-				SubscribeFunc: func(topic string, cb nats.MsgHandler) error {
+				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
+
 					switch topic {
-					case async.MinedTxsTopic:
-						subscribeMinedTxsFunction = cb
-					case async.SubmitTxTopic:
-						subscribeSubmitTxsFunction = cb
+					case metamorph.MinedTxsTopic:
+						subscribeMinedTxsFunction = msgFunc
+					case metamorph.SubmitTxTopic:
+						subscribeSubmitTxsFunction = msgFunc
 					}
 
 					err, ok := tc.topicErr[topic]
@@ -1023,14 +1022,14 @@ func TestStart(t *testing.T) {
 			data, err := proto.Marshal(txBlock)
 			require.NoError(t, err)
 
-			subscribeMinedTxsFunction(&nats.Msg{Data: []byte("invalid data")})
-			subscribeMinedTxsFunction(&nats.Msg{Data: data})
+			_ = subscribeMinedTxsFunction([]byte("invalid data"))
+			_ = subscribeMinedTxsFunction(data)
 
 			txRequest := &metamorph_api.TransactionRequest{}
 			data, err = proto.Marshal(txRequest)
 			require.NoError(t, err)
-			subscribeSubmitTxsFunction(&nats.Msg{Data: []byte("invalid data")})
-			subscribeSubmitTxsFunction(&nats.Msg{Data: data})
+			_ = subscribeSubmitTxsFunction([]byte("invalid data"))
+			_ = subscribeSubmitTxsFunction(data)
 
 			processor.Shutdown()
 		})

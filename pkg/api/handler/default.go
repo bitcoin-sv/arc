@@ -68,17 +68,16 @@ func NewDefault(
 
 	var wocClient *woc_client.WocClient
 	if apiConfig != nil {
-		wocClient = woc_client.New(woc_client.WithAuth(apiConfig.WocApiKey))
+		wocClient = woc_client.New(apiConfig.WocMainnet, woc_client.WithAuth(apiConfig.WocApiKey))
 	} else {
-		wocClient = woc_client.New()
+		wocClient = woc_client.New(false)
 	}
 
 	finder := txFinder{
-		th:         transactionHandler,
-		pc:         peerRpcConfig,
-		l:          logger,
-		w:          wocClient,
-		useMainnet: true, // TODO: refactor in scope of ARCO-147
+		th: transactionHandler,
+		pc: peerRpcConfig,
+		l:  logger,
+		w:  wocClient,
 	}
 
 	mr := merkleVerifier{

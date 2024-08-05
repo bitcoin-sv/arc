@@ -38,7 +38,7 @@ func NewUTXOConsolidator(logger *slog.Logger, client ArcClient, keySets []*keyse
 func (b *UTXOConsolidator) Consolidate() error {
 	for _, ks := range b.keySets {
 		b.logger.Info("consolidating utxos", slog.String("address", ks.Address(!b.isTestnet)))
-		_, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, !b.isTestnet, ks.Address(!b.isTestnet), 1*time.Second, 5)
+		_, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, ks.Address(!b.isTestnet), 1*time.Second, 5)
 		if err != nil {
 			return err
 		}
@@ -46,7 +46,7 @@ func (b *UTXOConsolidator) Consolidate() error {
 			return fmt.Errorf("key with address %s balance has unconfirmed amount %d sat", ks.Address(!b.isTestnet), unconfirmed)
 		}
 
-		utxoSet, err := b.utxoClient.GetUTXOsListWithRetries(b.ctx, !b.isTestnet, ks.Script, ks.Address(!b.isTestnet), 1*time.Second, 5)
+		utxoSet, err := b.utxoClient.GetUTXOsListWithRetries(b.ctx, ks.Script, ks.Address(!b.isTestnet), 1*time.Second, 5)
 		if err != nil {
 			return fmt.Errorf("failed to get utxos: %v", err)
 		}

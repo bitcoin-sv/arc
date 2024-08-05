@@ -84,7 +84,7 @@ func (b *RateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
 		}
 	}()
 
-	_, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, !b.isTestnet, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
+	_, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (b *RateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
 	}
 	b.logger.Info("Start broadcasting", slog.String("wait for status", b.waitForStatus.String()))
 
-	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, !b.isTestnet, b.ks.Script, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
+	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.ks.Script, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
 		return fmt.Errorf("failed to get utxos: %v", err)
 	}

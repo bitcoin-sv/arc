@@ -15,11 +15,10 @@ import (
 )
 
 type txFinder struct {
-	th         metamorph.TransactionHandler
-	pc         *config.PeerRpcConfig
-	l          *slog.Logger
-	w          *woc_client.WocClient
-	useMainnet bool
+	th metamorph.TransactionHandler
+	pc *config.PeerRpcConfig
+	l  *slog.Logger
+	w  *woc_client.WocClient
 }
 
 func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
@@ -83,7 +82,7 @@ func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag
 
 	// at last try the WoC
 	if source.Has(validator.SourceWoC) && len(remainingIDs) > 0 {
-		wocTxs, _ := f.w.GetRawTxs(ctx, f.useMainnet, remainingIDs)
+		wocTxs, _ := f.w.GetRawTxs(ctx, remainingIDs)
 		for _, wTx := range wocTxs {
 			rt, e := newRawTx(wTx.TxID, wTx.Hex, wTx.BlockHeight)
 			if e != nil {

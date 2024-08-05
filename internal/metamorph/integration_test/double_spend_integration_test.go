@@ -232,4 +232,5 @@ func TestDoubleSpendDetection(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, metamorph_api.Status_REJECTED, rejectedTxData.Status)
+	require.Equal(t, "double spend attempted", rejectedTxData.RejectReason)
 }

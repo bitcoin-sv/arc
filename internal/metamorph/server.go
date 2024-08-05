@@ -286,6 +286,8 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 
 			if res.Err != nil {
 				returnedStatus.RejectReason = res.Err.Error()
+				// Note: return here so that user doesn't have to wait for timeout in case of an error
+				return returnedStatus
 			} else {
 				returnedStatus.RejectReason = ""
 				if res.Status == metamorph_api.Status_MINED {

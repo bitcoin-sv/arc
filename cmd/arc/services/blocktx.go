@@ -2,16 +2,17 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"log/slog"
 	"net"
 	"time"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
-	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
 	"google.golang.org/grpc"
@@ -37,44 +38,35 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
 
-	// The tx channel needs the capacity so that it could potentially buffer up to a certain nr of transactions per second
-	const targetTps = 6000
-	capacityRequired := int(btxConfig.RegisterTxsInterval.Seconds() * targetTps)
-	if capacityRequired < 100 {
-		capacityRequired = 100
-	}
+	registerTxsChan := make(chan []byte, chanBufferSize)
+	requestTxChannel := make(chan []byte, chanBufferSize)
 
-	txChannel := make(chan []byte, capacityRequired)
-	requestTxChannel := make(chan []byte, capacityRequired)
-
-	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL)
+	var mqClient blocktx.MessageQueueClient
+	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.QueueURL, err)
+		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
 
-	mqOpts := []func(handler *async.MQClient){
-		async.WithMaxBatchSize(btxConfig.MessageQueue.TxsMinedMaxBatchSize),
-	}
+	if arcConfig.MessageQueue.Streaming.Enabled {
+		opts := []nats_jetstream.Option{nats_jetstream.WithSubscribedTopics(blocktx.RegisterTxTopic, blocktx.RequestTxTopic)}
+		if arcConfig.MessageQueue.Streaming.FileStorage {
+			opts = append(opts, nats_jetstream.WithFileStorage())
+		}
 
-	if tracingEnabled {
-		mqOpts = append(mqOpts, async.WithTracer())
-	}
-
-	mqClient := async.NewNatsMQClient(natsClient, txChannel, requestTxChannel, mqOpts...)
-
-	err = mqClient.SubscribeRegisterTxs()
-	if err != nil {
-		return nil, err
-	}
-
-	err = mqClient.SubscribeRequestTxs()
-	if err != nil {
-		return nil, err
+		mqClient, err = nats_jetstream.New(natsConnection, logger,
+			[]string{blocktx.MinedTxsTopic, blocktx.RegisterTxTopic, blocktx.RequestTxTopic},
+			opts...,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create nats client: %v", err)
+		}
+	} else {
+		mqClient = nats_core.New(natsConnection, nats_core.WithLogger(logger))
 	}
 
 	peerHandlerOpts := []func(handler *blocktx.PeerHandler){
 		blocktx.WithRetentionDays(btxConfig.RecordRetentionDays),
-		blocktx.WithTxChan(txChannel),
+		blocktx.WithRegisterTxsChan(registerTxsChan),
 		blocktx.WithRequestTxChan(requestTxChannel),
 		blocktx.WithRegisterTxsInterval(btxConfig.RegisterTxsInterval),
 		blocktx.WithMessageQueueClient(mqClient),
@@ -89,7 +81,10 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, err
 	}
 
-	peerHandler.Start()
+	err = peerHandler.Start()
+	if err != nil {
+		return nil, fmt.Errorf("failed to start peer handler: %v", err)
+	}
 
 	peerOpts := []p2p.PeerOptions{
 		p2p.WithMaximumMessageSize(maximumBlockSize),
@@ -147,10 +142,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 		server.Shutdown()
 
-		err = mqClient.Shutdown()
-		if err != nil {
-			logger.Error("Failed to shutdown mqClient", slog.String("err", err.Error()))
-		}
+		mqClient.Shutdown()
 
 		err = blockStore.Close()
 		if err != nil {

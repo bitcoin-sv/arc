@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"sync"
 	"time"
@@ -15,6 +14,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"google.golang.org/protobuf/proto"
+	"log/slog"
 )
 
 const (
@@ -39,6 +40,9 @@ const (
 
 	processTransactionsBatchSizeDefault = 200
 	processTransactionsIntervalDefault  = 1 * time.Second
+
+	processMinedBatchSizeDefault = 200
+	processMinedIntervalDefault  = 1 * time.Second
 )
 
 type Processor struct {
@@ -69,7 +73,7 @@ type Processor struct {
 
 	lockTransactionsInterval time.Duration
 
-	minedTxsChan     chan *blocktx_api.TransactionBlocks
+	minedTxsChan     chan *blocktx_api.TransactionBlock
 	submittedTxsChan chan *metamorph_api.TransactionRequest
 
 	storageStatusUpdateCh         chan store.UpdateStatus
@@ -81,6 +85,9 @@ type Processor struct {
 
 	processTransactionsInterval  time.Duration
 	processTransactionsBatchSize int
+
+	processMinedInterval  time.Duration
+	processMinedBatchSize int
 }
 
 type Option func(f *Processor)
@@ -129,6 +136,9 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChan
 		statCollectionInterval:       statCollectionIntervalDefault,
 		processTransactionsInterval:  processTransactionsIntervalDefault,
 		processTransactionsBatchSize: processTransactionsBatchSizeDefault,
+
+		processMinedInterval:  processMinedIntervalDefault,
+		processMinedBatchSize: processMinedBatchSizeDefault,
 	}
 
 	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm"))
@@ -152,6 +162,52 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChan
 	}
 
 	return p, nil
+}
+
+func (p *Processor) Start() error {
+	err := p.mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
+		serialized := &blocktx_api.TransactionBlock{}
+		err := proto.Unmarshal(msg, serialized)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal message subscribed on %s topic: %w", MinedTxsTopic, err)
+		}
+
+		p.minedTxsChan <- serialized
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to %s topic: %w", MinedTxsTopic, err)
+	}
+
+	err = p.mqClient.Subscribe(SubmitTxTopic, func(msg []byte) error {
+		serialized := &metamorph_api.TransactionRequest{}
+		err = proto.Unmarshal(msg, serialized)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal message subscribed on %s topic: %w", SubmitTxTopic, err)
+		}
+
+		p.submittedTxsChan <- serialized
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to %s topic: %w", SubmitTxTopic, err)
+	}
+
+	p.StartLockTransactions()
+	time.Sleep(200 * time.Millisecond) // wait a short time so that process expired transactions will start shortly after lock transactions go routine
+
+	p.StartProcessExpiredTransactions()
+	p.StartRequestingSeenOnNetworkTxs()
+	p.StartProcessStatusUpdatesInStorage()
+	p.StartProcessMinedCallbacks()
+	err = p.StartCollectStats()
+	if err != nil {
+		return fmt.Errorf("failed to start collecting stats: %v", err)
+	}
+	p.StartSendStatusUpdate()
+	p.StartProcessSubmittedTxs()
+
+	return nil
 }
 
 // Shutdown closes all channels and goroutines gracefully
@@ -188,32 +244,51 @@ func (p *Processor) unlockRecords() error {
 
 func (p *Processor) StartProcessMinedCallbacks() {
 	p.waitGroup.Add(1)
-
+	var txsBlocks []*blocktx_api.TransactionBlock
+	ticker := time.NewTicker(p.processMinedInterval)
 	go func() {
 		defer p.waitGroup.Done()
 		for {
 			select {
 			case <-p.ctx.Done():
 				return
-			case txBlocks := <-p.minedTxsChan:
-				if txBlocks == nil {
+			case txBlock := <-p.minedTxsChan:
+				if txBlock == nil {
 					continue
 				}
 
-				updatedData, err := p.store.UpdateMined(p.ctx, txBlocks)
-				if err != nil {
-					p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
-					return
+				txsBlocks = append(txsBlocks, txBlock)
+
+				if len(txsBlocks) < p.processMinedBatchSize {
+					continue
 				}
 
-				for _, data := range updatedData {
-					if data.CallbackUrl != "" {
-						go p.callbackSender.SendCallback(p.logger, data)
-					}
+				p.updateMined(txsBlocks)
+				txsBlocks = []*blocktx_api.TransactionBlock{}
+
+			case <-ticker.C:
+				if len(txsBlocks) == 0 {
+					continue
 				}
+
+				p.updateMined(txsBlocks)
+				txsBlocks = []*blocktx_api.TransactionBlock{}
 			}
 		}
 	}()
+}
+func (p *Processor) updateMined(txsBlocks []*blocktx_api.TransactionBlock) {
+	updatedData, err := p.store.UpdateMined(p.ctx, txsBlocks)
+	if err != nil {
+		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
+		return
+	}
+
+	for _, data := range updatedData {
+		if data.CallbackUrl != "" {
+			go p.callbackSender.SendCallback(p.logger, data)
+		}
+	}
 }
 
 func (p *Processor) StartProcessSubmittedTxs() {
@@ -269,26 +344,10 @@ func (p *Processor) StartSendStatusUpdate() {
 				return
 
 			case message := <-p.statusMessageCh:
-				p.SendStatusForTransaction(message.Hash, message.Status, message.Err)
+				p.SendStatusForTransaction(message)
 			}
 		}
 	}()
-}
-
-func (p *Processor) CheckAndUpdate(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
-	if len(statusUpdatesMap) == 0 {
-		return
-	}
-
-	statusUpdates := make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
-	for _, distinctStatusUpdate := range statusUpdatesMap {
-		statusUpdates = append(statusUpdates, distinctStatusUpdate)
-	}
-
-	err := p.statusUpdateWithCallback(statusUpdates)
-	if err != nil {
-		p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
-	}
 }
 
 func (p *Processor) StartProcessStatusUpdatesInStorage() {
@@ -305,19 +364,16 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 			case <-p.ctx.Done():
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
-				// Ensure no duplicate hashes, overwrite value if the status has higher value than existing status
-				foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
-				if !found || (found && statusUpdate.Status > foundStatusUpdate.Status) {
-					statusUpdatesMap[statusUpdate.Hash] = statusUpdate
-				}
+				// Ensure no duplicate statuses
+				updateStatusMap(statusUpdatesMap, statusUpdate)
 
 				if len(statusUpdatesMap) >= p.processStatusUpdatesBatchSize {
-					p.CheckAndUpdate(statusUpdatesMap)
+					p.checkAndUpdate(statusUpdatesMap)
 					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 				}
 			case <-ticker.C:
 				if len(statusUpdatesMap) > 0 {
-					p.CheckAndUpdate(statusUpdatesMap)
+					p.checkAndUpdate(statusUpdatesMap)
 					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 				}
 			}
@@ -325,14 +381,56 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	}()
 }
 
-func (p *Processor) statusUpdateWithCallback(statusUpdates []store.UpdateStatus) error {
-	updatedData, err := p.store.UpdateStatusBulk(context.Background(), statusUpdates)
+func (p *Processor) checkAndUpdate(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
+	if len(statusUpdatesMap) == 0 {
+		return
+	}
+
+	statusUpdates := make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
+	doubleSpendUpdates := make([]store.UpdateStatus, 0)
+
+	for _, status := range statusUpdatesMap {
+		if len(status.CompetingTxs) > 0 {
+			doubleSpendUpdates = append(doubleSpendUpdates, status)
+		} else {
+			statusUpdates = append(statusUpdates, status)
+		}
+	}
+
+	err := p.statusUpdateWithCallback(statusUpdates, doubleSpendUpdates)
 	if err != nil {
-		return err
+		p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
+	}
+}
+
+func (p *Processor) statusUpdateWithCallback(statusUpdates, doubleSpendUpdates []store.UpdateStatus) error {
+	var updatedData []*store.StoreData
+	var err error
+
+	if len(statusUpdates) > 0 {
+		updatedData, err = p.store.UpdateStatusBulk(context.Background(), statusUpdates)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(doubleSpendUpdates) > 0 {
+		updatedDoubleSpendData, err := p.store.UpdateDoubleSpend(context.Background(), doubleSpendUpdates)
+		if err != nil {
+			return err
+		}
+		updatedData = append(updatedData, updatedDoubleSpendData...)
 	}
 
 	for _, data := range updatedData {
-		if ((data.Status == metamorph_api.Status_SEEN_ON_NETWORK || data.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL) && data.FullStatusUpdates || data.Status == metamorph_api.Status_REJECTED) && data.CallbackUrl != "" {
+		sendCallback := false
+		if data.FullStatusUpdates {
+			sendCallback = data.Status >= metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL
+		} else {
+			sendCallback = data.Status >= metamorph_api.Status_REJECTED
+		}
+
+		if sendCallback && data.CallbackUrl != "" {
 			go p.callbackSender.SendCallback(p.logger, data)
 		}
 	}
@@ -394,7 +492,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 
 					for _, tx := range seenOnNetworkTxs {
 						// by requesting tx, blocktx checks if it has the transaction mined in the database and sends it back
-						if err = p.mqClient.PublishRequestTx(tx.Hash[:]); err != nil {
+						if err = p.mqClient.Publish(RequestTxTopic, tx.Hash[:]); err != nil {
 							p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()))
 						}
 					}
@@ -480,29 +578,25 @@ func (p *Processor) GetPeers() []p2p.PeerI {
 	return p.pm.GetPeers()
 }
 
-func (p *Processor) SendStatusForTransaction(hash *chainhash.Hash, status metamorph_api.Status, statusErr error) {
+func (p *Processor) SendStatusForTransaction(msg *PeerTxMessage) {
 	// make sure we update the transaction status in database
-	var rejectReason string
-	if statusErr != nil {
-		rejectReason = statusErr.Error()
-	}
-
 	p.storageStatusUpdateCh <- store.UpdateStatus{
-		Hash:         *hash,
-		Status:       status,
-		RejectReason: rejectReason,
+		Hash:         *msg.Hash,
+		Status:       msg.Status,
+		Error:        msg.Err,
+		CompetingTxs: msg.CompetingTxs,
 	}
 
 	// if we receive new update check if we have client connection waiting for status and send it
-	processorResponse, ok := p.ProcessorResponseMap.Get(hash)
+	processorResponse, ok := p.ProcessorResponseMap.Get(msg.Hash)
 	if ok {
 		processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-			Status:    status,
-			StatusErr: statusErr,
+			Status:    msg.Status,
+			StatusErr: msg.Err,
 		})
 	}
 
-	p.logger.Debug("Status reported for tx", slog.String("status", status.String()), slog.String("hash", hash.String()))
+	p.logger.Debug("Status reported for tx", slog.String("status", msg.Status.String()), slog.String("hash", msg.Hash.String()))
 }
 
 func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
@@ -564,7 +658,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	}
 
 	// register transaction in blocktx using message queue
-	if err = p.mqClient.PublishRegisterTxs(req.Data.Hash[:]); err != nil {
+	if err = p.mqClient.Publish(RegisterTxTopic, req.Data.Hash[:]); err != nil {
 		p.logger.Error("failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 	}
 
@@ -573,7 +667,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	// broadcast that transaction is stored to client
 	processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
 		Status:    metamorph_api.Status_STORED,
-		StatusErr: err,
+		StatusErr: nil,
 	})
 
 	if req.Timeout != 0 {
@@ -609,9 +703,8 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 
 	// update status in storage
 	p.storageStatusUpdateCh <- store.UpdateStatus{
-		Hash:         *req.Data.Hash,
-		Status:       metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-		RejectReason: "",
+		Hash:   *req.Data.Hash,
+		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 	}
 }
 
@@ -625,7 +718,7 @@ func (p *Processor) ProcessTransactions(sReq []*store.StoreData) {
 
 	for _, data := range sReq {
 		// register transaction in blocktx using message queue
-		err = p.mqClient.PublishRegisterTxs(data.Hash[:])
+		err = p.mqClient.Publish(RegisterTxTopic, data.Hash[:])
 		if err != nil {
 			p.logger.Error("Failed to register tx in blocktx", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
 		}
@@ -639,9 +732,8 @@ func (p *Processor) ProcessTransactions(sReq []*store.StoreData) {
 
 		// update status in storage
 		p.storageStatusUpdateCh <- store.UpdateStatus{
-			Hash:         *data.Hash,
-			Status:       metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-			RejectReason: "",
+			Hash:   *data.Hash,
+			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 		}
 	}
 }

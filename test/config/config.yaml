@@ -6,8 +6,11 @@ prometheusEndpoint: /metrics
 prometheusAddr: :2112
 grpcMessageSize: 100000000
 network: regtest
-queueURL: nats://nats:4222
-
+messageQueue:
+  streaming:
+    enabled: true
+    fileStorage: false
+  URL: nats://nats-1:4222,nats://nats-2:4223
 peerRpc:
   password: bitcoin
   user: bitcoin
@@ -78,8 +81,6 @@ blocktx:
   registerTxsInterval: 200ms
   fillGapsInterval: 15m
   maxAllowedBlockHeightMismatch: 3
-  mq:
-    txsMinedMaxBatchSize: 20
 
 api:
   address: 0.0.0.0:9090

@@ -1,9 +1,14 @@
 package metamorph
 
+const (
+	SubmitTxTopic   = "submit-tx"
+	MinedTxsTopic   = "mined-txs"
+	RegisterTxTopic = "register-tx"
+	RequestTxTopic  = "request-tx"
+)
+
 type MessageQueueClient interface {
-	PublishRegisterTxs(hash []byte) error
-	PublishRequestTx(hash []byte) error
-	SubscribeMinedTxs() error
-	SubscribeSubmittedTx() error
-	Shutdown() error
+	Publish(topic string, data []byte) error
+	Subscribe(topic string, msgFunc func([]byte) error) error
+	Shutdown()
 }

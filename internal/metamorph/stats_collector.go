@@ -20,21 +20,22 @@ type processorStats struct {
 	notSeenLimit  time.Duration
 	notMinedLimit time.Duration
 
-	mu                        sync.RWMutex
-	statusStored              prometheus.Gauge
-	statusAnnouncedToNetwork  prometheus.Gauge
-	statusRequestedByNetwork  prometheus.Gauge
-	statusSentToNetwork       prometheus.Gauge
-	statusAcceptedByNetwork   prometheus.Gauge
-	statusSeenOnNetwork       prometheus.Gauge
-	statusMined               prometheus.Gauge
-	statusRejected            prometheus.Gauge
-	statusSeenInOrphanMempool prometheus.Gauge
-	statusNotMined            prometheus.Gauge
-	statusNotSeen             prometheus.Gauge
-	statusMinedTotal          prometheus.Gauge
-	statusSeenOnNetworkTotal  prometheus.Gauge
-	statusNotSeenStat         int64
+	mu                         sync.RWMutex
+	statusStored               prometheus.Gauge
+	statusAnnouncedToNetwork   prometheus.Gauge
+	statusRequestedByNetwork   prometheus.Gauge
+	statusSentToNetwork        prometheus.Gauge
+	statusAcceptedByNetwork    prometheus.Gauge
+	statusSeenInOrphanMempool  prometheus.Gauge
+	statusSeenOnNetwork        prometheus.Gauge
+	statusDoubleSpendAttempted prometheus.Gauge
+	statusRejected             prometheus.Gauge
+	statusMined                prometheus.Gauge
+	statusNotMined             prometheus.Gauge
+	statusNotSeen              prometheus.Gauge
+	statusMinedTotal           prometheus.Gauge
+	statusSeenOnNetworkTotal   prometheus.Gauge
+	statusNotSeenStat          int64
 }
 
 func WithLimits(notSeenLimit time.Duration, notMinedLimit time.Duration) func(*processorStats) {
@@ -66,21 +67,25 @@ func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
 			Name: "arc_status_accepted_count",
 			Help: "Number of monitored transactions with status ACCEPTED_BY_NETWORK",
 		}),
+		statusSeenInOrphanMempool: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "arc_status_seen_in_orphan_mempool_count",
+			Help: "Number of monitored transactions with status SEEN_IN_ORPHAN_MEMPOOL",
+		}),
 		statusSeenOnNetwork: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_status_seen_on_network_count",
 			Help: "Number of monitored transactions with status SEEN_ON_NETWORK",
 		}),
-		statusMined: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "arc_status_mined_count",
-			Help: "Number of monitored transactions with status MINED",
+		statusDoubleSpendAttempted: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "arc_status_double_spend_attempted_count",
+			Help: "Number of monitored transactions with status DOUBLE_SPEND_ATTEMPTED",
 		}),
 		statusRejected: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_status_rejected_count",
 			Help: "Number of monitored transactions with status REJECTED",
 		}),
-		statusSeenInOrphanMempool: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "arc_status_seen_in_orphan_mempool_count",
-			Help: "Number of monitored transactions with status SEEN_IN_ORPHAN_MEMPOOL",
+		statusMined: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "arc_status_mined_count",
+			Help: "Number of monitored transactions with status MINED",
 		}),
 		statusSeenOnNetworkTotal: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_status_seen_on_network_total_count",
@@ -125,10 +130,11 @@ func (p *Processor) StartCollectStats() error {
 		p.stats.statusRequestedByNetwork,
 		p.stats.statusSentToNetwork,
 		p.stats.statusAcceptedByNetwork,
-		p.stats.statusSeenOnNetwork,
-		p.stats.statusMined,
-		p.stats.statusRejected,
 		p.stats.statusSeenInOrphanMempool,
+		p.stats.statusSeenOnNetwork,
+		p.stats.statusDoubleSpendAttempted,
+		p.stats.statusRejected,
+		p.stats.statusMined,
 		p.stats.statusNotMined,
 		p.stats.statusNotSeen,
 		p.stats.statusSeenOnNetworkTotal,
@@ -146,22 +152,25 @@ func (p *Processor) StartCollectStats() error {
 				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
 			}
 		}()
-		defer p.waitGroup.Done()
-		defer unregisterStats(
-			p.stats.statusStored,
-			p.stats.statusAnnouncedToNetwork,
-			p.stats.statusRequestedByNetwork,
-			p.stats.statusSentToNetwork,
-			p.stats.statusAcceptedByNetwork,
-			p.stats.statusSeenOnNetwork,
-			p.stats.statusMined,
-			p.stats.statusRejected,
-			p.stats.statusSeenInOrphanMempool,
-			p.stats.statusNotMined,
-			p.stats.statusNotSeen,
-			p.stats.statusSeenOnNetworkTotal,
-			p.stats.statusMinedTotal,
-		)
+		defer func() {
+			unregisterStats(
+				p.stats.statusStored,
+				p.stats.statusAnnouncedToNetwork,
+				p.stats.statusRequestedByNetwork,
+				p.stats.statusSentToNetwork,
+				p.stats.statusAcceptedByNetwork,
+				p.stats.statusSeenInOrphanMempool,
+				p.stats.statusSeenOnNetwork,
+				p.stats.statusDoubleSpendAttempted,
+				p.stats.statusRejected,
+				p.stats.statusMined,
+				p.stats.statusNotMined,
+				p.stats.statusNotSeen,
+				p.stats.statusSeenOnNetworkTotal,
+				p.stats.statusMinedTotal,
+			)
+			p.waitGroup.Done()
+		}()
 
 		for {
 			select {
@@ -183,10 +192,11 @@ func (p *Processor) StartCollectStats() error {
 				p.stats.statusRequestedByNetwork.Set(float64(collectedStats.StatusRequestedByNetwork))
 				p.stats.statusSentToNetwork.Set(float64(collectedStats.StatusSentToNetwork))
 				p.stats.statusAcceptedByNetwork.Set(float64(collectedStats.StatusAcceptedByNetwork))
-				p.stats.statusSeenOnNetwork.Set(float64(collectedStats.StatusSeenOnNetwork))
-				p.stats.statusMined.Set(float64(collectedStats.StatusMined))
-				p.stats.statusRejected.Set(float64(collectedStats.StatusRejected))
 				p.stats.statusSeenInOrphanMempool.Set(float64(collectedStats.StatusSeenInOrphanMempool))
+				p.stats.statusSeenOnNetwork.Set(float64(collectedStats.StatusSeenOnNetwork))
+				p.stats.statusDoubleSpendAttempted.Set(float64(collectedStats.StatusDoubleSpendAttempted))
+				p.stats.statusRejected.Set(float64(collectedStats.StatusRejected))
+				p.stats.statusMined.Set(float64(collectedStats.StatusMined))
 				p.stats.statusNotMined.Set(float64(collectedStats.StatusNotMined))
 				p.stats.statusNotSeen.Set(float64(collectedStats.StatusNotSeen))
 				p.stats.statusNotSeenStat = collectedStats.StatusNotSeen

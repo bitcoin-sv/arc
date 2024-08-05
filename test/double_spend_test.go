@@ -44,12 +44,14 @@ func TestDoubleSpend(t *testing.T) {
 
 			// send double spending transaction when first tx is in mempool
 			txMempool := createTxToNewAddress(t, privateKey, utxos[0])
-			postTxChecksStatus(t, arcClient, txMempool, Status_REJECTED, tc.extFormat)
+			postTxChecksStatus(t, arcClient, txMempool, Status_DOUBLE_SPEND_ATTEMPTED, tc.extFormat)
 
 			generate(t, 10)
 
 			ctx := context.Background()
 			var statusResponse *api.GETTransactionStatusResponse
+
+			// verify that the first tx was mined
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
 			require.NoError(t, err)
 			require.Equal(t, Status_MINED, *statusResponse.JSON200.TxStatus)

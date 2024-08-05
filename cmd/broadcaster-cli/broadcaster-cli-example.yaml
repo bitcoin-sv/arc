@@ -1,4 +1,4 @@
-privateKeys:
+privateKeys: # map of private keys
   key-1: xprv9s21ZrQH143K2XcKfb8mRDRcHdDLBpV2mrYon4JcYc2CZD4cii9Rbwo1fdcH28Md6FChCpm55dXg4NiyznuJ2PNEQfXbCR4pNRezAdcM131
   key-2: xprv9s21ZrQH143K4GD3dFcMGxeF2pWUQsx89PDT1345ZkinZ3qa6irjYfJ1t71PmQUfm1aCLsqM99fCxKjE13zNodgg4XVp8xSTw93erJTPLKf
   key-3: xprv9s21ZrQH143K4V3QE96dXDBrrxY63S3aRbr8pHoRTffsgjaWzPZLabkjkLgbCLJjvrkhNLLn8L2Vm9HGntxNc5bhkLfbTzuQShaCada49pv
@@ -6,11 +6,13 @@ privateKeys:
   key-5: xprv9s21ZrQH143K2dWRKF4eaffCiqM997F3Mz9JiF2jq345AjiDW3LG5LFHtoeKKrnpfyX3ebGPExmST1T9x9jMC3dsnEimF3S2tBeRwNEyfwh
 
 # flags
-miningFeeSatPerKb: 1
-apiURL: https://arc-test.taal.com
-testnet: true
-wocAPIKey: testnet_XXXX
-callback: http://callbacks.example.com
-callbackToken: some-token
-fullStatusUpdates: false
-keys: key-1,key-2
+miningFeeSatPerKb: 1 # Fee offered in transactions
+apiURL: https://arc-test.taal.com # URL of ARC instance
+testnet: true # Use testnet
+wocAPIKey: testnet_XXXX # WoC api key for faster requests to WoC
+callback: http://callbacks.example.com # callback URL header
+callbackToken: some-token # callback token header
+fullStatusUpdates: false # full status updates header
+keys: # list of selected private keys
+  - key-1
+  - key-2

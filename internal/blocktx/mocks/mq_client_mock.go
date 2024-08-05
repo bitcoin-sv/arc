@@ -4,9 +4,8 @@
 package mocks
 
 import (
-	"context"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"sync"
 )
 
@@ -20,17 +19,14 @@ var _ blocktx.MessageQueueClient = &MessageQueueClientMock{}
 //
 //		// make and configure a mocked blocktx.MessageQueueClient
 //		mockedMessageQueueClient := &MessageQueueClientMock{
-//			PublishMinedTxsFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error {
-//				panic("mock out the PublishMinedTxs method")
+//			PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error {
+//				panic("mock out the PublishMarshal method")
 //			},
-//			ShutdownFunc: func() error {
+//			ShutdownFunc: func()  {
 //				panic("mock out the Shutdown method")
 //			},
-//			SubscribeRegisterTxsFunc: func() error {
-//				panic("mock out the SubscribeRegisterTxs method")
-//			},
-//			SubscribeRequestTxsFunc: func() error {
-//				panic("mock out the SubscribeRequestTxs method")
+//			SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
+//				panic("mock out the Subscribe method")
 //			},
 //		}
 //
@@ -39,81 +35,78 @@ var _ blocktx.MessageQueueClient = &MessageQueueClientMock{}
 //
 //	}
 type MessageQueueClientMock struct {
-	// PublishMinedTxsFunc mocks the PublishMinedTxs method.
-	PublishMinedTxsFunc func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error
+	// PublishMarshalFunc mocks the PublishMarshal method.
+	PublishMarshalFunc func(topic string, m protoreflect.ProtoMessage) error
 
 	// ShutdownFunc mocks the Shutdown method.
-	ShutdownFunc func() error
+	ShutdownFunc func()
 
-	// SubscribeRegisterTxsFunc mocks the SubscribeRegisterTxs method.
-	SubscribeRegisterTxsFunc func() error
-
-	// SubscribeRequestTxsFunc mocks the SubscribeRequestTxs method.
-	SubscribeRequestTxsFunc func() error
+	// SubscribeFunc mocks the Subscribe method.
+	SubscribeFunc func(topic string, msgFunc func([]byte) error) error
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// PublishMinedTxs holds details about calls to the PublishMinedTxs method.
-		PublishMinedTxs []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// TxsBlocks is the txsBlocks argument value.
-			TxsBlocks []*blocktx_api.TransactionBlock
+		// PublishMarshal holds details about calls to the PublishMarshal method.
+		PublishMarshal []struct {
+			// Topic is the topic argument value.
+			Topic string
+			// M is the m argument value.
+			M protoreflect.ProtoMessage
 		}
 		// Shutdown holds details about calls to the Shutdown method.
 		Shutdown []struct {
 		}
-		// SubscribeRegisterTxs holds details about calls to the SubscribeRegisterTxs method.
-		SubscribeRegisterTxs []struct {
-		}
-		// SubscribeRequestTxs holds details about calls to the SubscribeRequestTxs method.
-		SubscribeRequestTxs []struct {
+		// Subscribe holds details about calls to the Subscribe method.
+		Subscribe []struct {
+			// Topic is the topic argument value.
+			Topic string
+			// MsgFunc is the msgFunc argument value.
+			MsgFunc func([]byte) error
 		}
 	}
-	lockPublishMinedTxs      sync.RWMutex
-	lockShutdown             sync.RWMutex
-	lockSubscribeRegisterTxs sync.RWMutex
-	lockSubscribeRequestTxs  sync.RWMutex
+	lockPublishMarshal sync.RWMutex
+	lockShutdown       sync.RWMutex
+	lockSubscribe      sync.RWMutex
 }
 
-// PublishMinedTxs calls PublishMinedTxsFunc.
-func (mock *MessageQueueClientMock) PublishMinedTxs(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) error {
-	if mock.PublishMinedTxsFunc == nil {
-		panic("MessageQueueClientMock.PublishMinedTxsFunc: method is nil but MessageQueueClient.PublishMinedTxs was just called")
+// PublishMarshal calls PublishMarshalFunc.
+func (mock *MessageQueueClientMock) PublishMarshal(topic string, m protoreflect.ProtoMessage) error {
+	if mock.PublishMarshalFunc == nil {
+		panic("MessageQueueClientMock.PublishMarshalFunc: method is nil but MessageQueueClient.PublishMarshal was just called")
 	}
 	callInfo := struct {
-		Ctx       context.Context
-		TxsBlocks []*blocktx_api.TransactionBlock
+		Topic string
+		M     protoreflect.ProtoMessage
 	}{
-		Ctx:       ctx,
-		TxsBlocks: txsBlocks,
+		Topic: topic,
+		M:     m,
 	}
-	mock.lockPublishMinedTxs.Lock()
-	mock.calls.PublishMinedTxs = append(mock.calls.PublishMinedTxs, callInfo)
-	mock.lockPublishMinedTxs.Unlock()
-	return mock.PublishMinedTxsFunc(ctx, txsBlocks)
+	mock.lockPublishMarshal.Lock()
+	mock.calls.PublishMarshal = append(mock.calls.PublishMarshal, callInfo)
+	mock.lockPublishMarshal.Unlock()
+	return mock.PublishMarshalFunc(topic, m)
 }
 
-// PublishMinedTxsCalls gets all the calls that were made to PublishMinedTxs.
+// PublishMarshalCalls gets all the calls that were made to PublishMarshal.
 // Check the length with:
 //
-//	len(mockedMessageQueueClient.PublishMinedTxsCalls())
-func (mock *MessageQueueClientMock) PublishMinedTxsCalls() []struct {
-	Ctx       context.Context
-	TxsBlocks []*blocktx_api.TransactionBlock
+//	len(mockedMessageQueueClient.PublishMarshalCalls())
+func (mock *MessageQueueClientMock) PublishMarshalCalls() []struct {
+	Topic string
+	M     protoreflect.ProtoMessage
 } {
 	var calls []struct {
-		Ctx       context.Context
-		TxsBlocks []*blocktx_api.TransactionBlock
+		Topic string
+		M     protoreflect.ProtoMessage
 	}
-	mock.lockPublishMinedTxs.RLock()
-	calls = mock.calls.PublishMinedTxs
-	mock.lockPublishMinedTxs.RUnlock()
+	mock.lockPublishMarshal.RLock()
+	calls = mock.calls.PublishMarshal
+	mock.lockPublishMarshal.RUnlock()
 	return calls
 }
 
 // Shutdown calls ShutdownFunc.
-func (mock *MessageQueueClientMock) Shutdown() error {
+func (mock *MessageQueueClientMock) Shutdown() {
 	if mock.ShutdownFunc == nil {
 		panic("MessageQueueClientMock.ShutdownFunc: method is nil but MessageQueueClient.Shutdown was just called")
 	}
@@ -122,7 +115,7 @@ func (mock *MessageQueueClientMock) Shutdown() error {
 	mock.lockShutdown.Lock()
 	mock.calls.Shutdown = append(mock.calls.Shutdown, callInfo)
 	mock.lockShutdown.Unlock()
-	return mock.ShutdownFunc()
+	mock.ShutdownFunc()
 }
 
 // ShutdownCalls gets all the calls that were made to Shutdown.
@@ -139,56 +132,38 @@ func (mock *MessageQueueClientMock) ShutdownCalls() []struct {
 	return calls
 }
 
-// SubscribeRegisterTxs calls SubscribeRegisterTxsFunc.
-func (mock *MessageQueueClientMock) SubscribeRegisterTxs() error {
-	if mock.SubscribeRegisterTxsFunc == nil {
-		panic("MessageQueueClientMock.SubscribeRegisterTxsFunc: method is nil but MessageQueueClient.SubscribeRegisterTxs was just called")
+// Subscribe calls SubscribeFunc.
+func (mock *MessageQueueClientMock) Subscribe(topic string, msgFunc func([]byte) error) error {
+	if mock.SubscribeFunc == nil {
+		panic("MessageQueueClientMock.SubscribeFunc: method is nil but MessageQueueClient.Subscribe was just called")
 	}
 	callInfo := struct {
-	}{}
-	mock.lockSubscribeRegisterTxs.Lock()
-	mock.calls.SubscribeRegisterTxs = append(mock.calls.SubscribeRegisterTxs, callInfo)
-	mock.lockSubscribeRegisterTxs.Unlock()
-	return mock.SubscribeRegisterTxsFunc()
+		Topic   string
+		MsgFunc func([]byte) error
+	}{
+		Topic:   topic,
+		MsgFunc: msgFunc,
+	}
+	mock.lockSubscribe.Lock()
+	mock.calls.Subscribe = append(mock.calls.Subscribe, callInfo)
+	mock.lockSubscribe.Unlock()
+	return mock.SubscribeFunc(topic, msgFunc)
 }
 
-// SubscribeRegisterTxsCalls gets all the calls that were made to SubscribeRegisterTxs.
+// SubscribeCalls gets all the calls that were made to Subscribe.
 // Check the length with:
 //
-//	len(mockedMessageQueueClient.SubscribeRegisterTxsCalls())
-func (mock *MessageQueueClientMock) SubscribeRegisterTxsCalls() []struct {
+//	len(mockedMessageQueueClient.SubscribeCalls())
+func (mock *MessageQueueClientMock) SubscribeCalls() []struct {
+	Topic   string
+	MsgFunc func([]byte) error
 } {
 	var calls []struct {
+		Topic   string
+		MsgFunc func([]byte) error
 	}
-	mock.lockSubscribeRegisterTxs.RLock()
-	calls = mock.calls.SubscribeRegisterTxs
-	mock.lockSubscribeRegisterTxs.RUnlock()
-	return calls
-}
-
-// SubscribeRequestTxs calls SubscribeRequestTxsFunc.
-func (mock *MessageQueueClientMock) SubscribeRequestTxs() error {
-	if mock.SubscribeRequestTxsFunc == nil {
-		panic("MessageQueueClientMock.SubscribeRequestTxsFunc: method is nil but MessageQueueClient.SubscribeRequestTxs was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockSubscribeRequestTxs.Lock()
-	mock.calls.SubscribeRequestTxs = append(mock.calls.SubscribeRequestTxs, callInfo)
-	mock.lockSubscribeRequestTxs.Unlock()
-	return mock.SubscribeRequestTxsFunc()
-}
-
-// SubscribeRequestTxsCalls gets all the calls that were made to SubscribeRequestTxs.
-// Check the length with:
-//
-//	len(mockedMessageQueueClient.SubscribeRequestTxsCalls())
-func (mock *MessageQueueClientMock) SubscribeRequestTxsCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockSubscribeRequestTxs.RLock()
-	calls = mock.calls.SubscribeRequestTxs
-	mock.lockSubscribeRequestTxs.RUnlock()
+	mock.lockSubscribe.RLock()
+	calls = mock.calls.Subscribe
+	mock.lockSubscribe.RUnlock()
 	return calls
 }

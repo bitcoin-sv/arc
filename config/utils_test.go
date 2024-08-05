@@ -53,8 +53,10 @@ func Test_GetNetwork(t *testing.T) {
 
 func Test_GetZMQUrl_GetP2PUrl(t *testing.T) {
 	testCases := []struct {
-		name             string
-		peerConfig       *PeerConfig
+		name       string
+		peerConfig *PeerConfig
+
+		expectedZmqIsNil bool
 		expectedP2PUrl   string
 		expectedZMQUrl   string
 		expectedP2PError error
@@ -82,10 +84,12 @@ func Test_GetZMQUrl_GetP2PUrl(t *testing.T) {
 					P2P: 18332,
 				},
 			},
+
+			expectedZmqIsNil: true,
 			expectedP2PUrl:   "localhost:18332",
 			expectedZMQUrl:   "",
 			expectedP2PError: nil,
-			expectedZMQError: errors.New("port_zmq not set for peer localhost"),
+			expectedZMQError: nil,
 		},
 		{
 			name: "p2p port missing",
@@ -107,6 +111,7 @@ func Test_GetZMQUrl_GetP2PUrl(t *testing.T) {
 			},
 			expectedP2PUrl:   "",
 			expectedZMQUrl:   "",
+			expectedZmqIsNil: true,
 			expectedP2PError: errors.New("port_p2p not set for peer localhost"),
 			expectedZMQError: errors.New("port_zmq not set for peer localhost"),
 		},
@@ -114,12 +119,18 @@ func Test_GetZMQUrl_GetP2PUrl(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			zmqUrl, zmqErr := tc.peerConfig.GetZMQUrl()
 			p2pUrl, p2pErr := tc.peerConfig.GetP2PUrl()
-
-			assert.Equal(t, tc.expectedZMQError, zmqErr)
 			assert.Equal(t, tc.expectedP2PError, p2pErr)
 			assert.Equal(t, tc.expectedP2PUrl, p2pUrl)
+
+			zmqUrl, zmqErr := tc.peerConfig.GetZMQUrl()
+			if tc.expectedZmqIsNil {
+				assert.Nil(t, zmqUrl)
+				return
+			} else {
+				assert.NotNil(t, zmqUrl)
+			}
+			assert.Equal(t, tc.expectedZMQError, zmqErr)
 			if tc.expectedZMQError == nil {
 				assert.Equal(t, tc.expectedZMQUrl, zmqUrl.String())
 			}

@@ -145,26 +145,27 @@ func GetKeySetsFor(keys map[string]string, selectedKeys []string) ([]*keyset.Key
 
 	if len(selectedKeys) > 0 {
 		for _, selectedKey := range selectedKeys {
+
 			key, found := keys[selectedKey]
 			if !found {
 				return nil, fmt.Errorf("key not found: %s", selectedKey)
 			}
 			fundingKeySet, _, err := GetKeySetsXpriv(key)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get key sets: %v", err)
+				return nil, fmt.Errorf("failed to get selected key set %s: %v", selectedKey, err)
 			}
 			keySets = append(keySets, fundingKeySet)
 		}
-	} else {
-		for _, key := range keys {
-			fundingKeySet, _, err := GetKeySetsXpriv(key)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get key sets: %v", err)
-			}
-			keySets = append(keySets, fundingKeySet)
-		}
+		return keySets, nil
 	}
 
+	for name, key := range keys {
+		fundingKeySet, _, err := GetKeySetsXpriv(key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get key set with name %s and value %s: %v", name, key, err)
+		}
+		keySets = append(keySets, fundingKeySet)
+	}
 	return keySets, nil
 }
 
@@ -177,13 +178,28 @@ func GetPrivateKeys() (map[string]string, error) {
 	return keys, nil
 }
 
+func GetSelectedKeys() ([]string, error) {
+	var keys []string
+	err := viper.UnmarshalKey("keys", &keys)
+	if err != nil {
+		return nil, err
+	}
+	return keys, nil
+}
+
 func GetKeySets() ([]*keyset.KeySet, error) {
-	keysFlag := viper.GetString("keys")
-	selectedKeys := strings.Split(keysFlag, ",")
+	selectedKeys, err := GetSelectedKeys()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get selected keys: %v", err)
+	}
 
 	keys, err := GetPrivateKeys()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get private keys: %v", err)
+	}
+
+	if len(keys) == 0 {
+		return nil, fmt.Errorf("no keys given in configuration")
 	}
 
 	return GetKeySetsFor(keys, selectedKeys)

@@ -6,7 +6,11 @@ prometheusEndpoint: /metrics # endpoint for prometheus metrics (optional)
 prometheusAddr: :2112 # port for serving prometheus metrics
 grpcMessageSize: 100000000 # maximum grpc message size
 network: regtest # bitcoin network to connect to. Value can be one of mainnet | testnet | regtest
-queueURL: nats://nats:4222 # URL for message queue
+messageQueue:
+  streaming:
+    enabled: false  # if enabled, message queue can store messages
+    fileStorage: false # if enabled messages are persisted on disk instead of in memory
+  URL: nats://nats:4222 # URL for message queue
 tracing: # (optional)
   dialAddr: http://localhost:4317 # address where traces are exported to
 
@@ -77,8 +81,6 @@ blocktx:
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
   fillGapsInterval: 15m # time interval to check and fill gaps in processed blocks
   maxAllowedBlockHeightMismatch: 3 # maximum number of blocks that can be ahead of current highest block in blocktx, used for merkle roots verification
-  mq:
-    txsMinedMaxBatchSize: 20 # size of batches for transactions which got mined to be published to the message queue
 
 api:
   address: localhost:9090 # address to start api server on

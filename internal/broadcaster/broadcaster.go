@@ -7,6 +7,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 )
@@ -41,11 +42,18 @@ type Broadcaster struct {
 	ctx               context.Context
 	maxInputs         int
 	batchSize         int
+	waitForStatus     metamorph_api.Status
 }
 
 func WithBatchSize(batchSize int) func(broadcaster *Broadcaster) {
 	return func(broadcaster *Broadcaster) {
 		broadcaster.batchSize = batchSize
+	}
+}
+
+func WithWaitForStatus(waitForStatus metamorph_api.Status) func(broadcaster *Broadcaster) {
+	return func(broadcaster *Broadcaster) {
+		broadcaster.waitForStatus = waitForStatus
 	}
 }
 
@@ -88,13 +96,14 @@ func WithFees(miningFeeSatPerKb int) func(broadcaster *Broadcaster) {
 func NewBroadcaster(logger *slog.Logger, client ArcClient, utxoClient UtxoClient, isTestnet bool, opts ...func(p *Broadcaster)) (Broadcaster, error) {
 
 	b := Broadcaster{
-		logger:     logger,
-		client:     client,
-		isTestnet:  isTestnet,
-		batchSize:  batchSizeDefault,
-		maxInputs:  maxInputsDefault,
-		feeQuote:   bt.NewFeeQuote(),
-		utxoClient: utxoClient,
+		logger:        logger,
+		client:        client,
+		isTestnet:     isTestnet,
+		batchSize:     batchSizeDefault,
+		maxInputs:     maxInputsDefault,
+		feeQuote:      bt.NewFeeQuote(),
+		utxoClient:    utxoClient,
+		waitForStatus: metamorph_api.Status_RECEIVED,
 	}
 
 	for _, opt := range opts {

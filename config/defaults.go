@@ -15,7 +15,7 @@ func getDefaultArcConfig() *ArcConfig {
 		PrometheusAddr:     "", // optional
 		GrpcMessageSize:    100000000,
 		Network:            "regtest",
-		QueueURL:           "nats://nats:4222",
+		MessageQueue:       getDefaultMessageQueueConfig(),
 		Tracing:            nil, // optional
 		PeerRpc:            getDefaultPeerRpcConfig(),
 		Peers:              getPeersConfig(),
@@ -23,6 +23,16 @@ func getDefaultArcConfig() *ArcConfig {
 		Blocktx:            getBlocktxConfig(),
 		Api:                getApiConfig(),
 		K8sWatcher:         nil, // optional
+	}
+}
+
+func getDefaultMessageQueueConfig() *MessageQueueConfig {
+	return &MessageQueueConfig{
+		URL: "nats://nats:4222",
+		Streaming: MessageQueueStreaming{
+			Enabled:     false,
+			FileStorage: false,
+		},
 	}
 }
 
@@ -94,9 +104,7 @@ func getBlocktxConfig() *BlocktxConfig {
 		MonitorPeers:                  false,
 		FillGapsInterval:              15 * time.Minute,
 		MaxAllowedBlockHeightMismatch: 3,
-		MessageQueue: &MessageQueueConfig{
-			TxsMinedMaxBatchSize: 20,
-		},
+		MessageQueue:                  &MessageQueueConfig{},
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -26,6 +27,11 @@ var Cmd = &cobra.Command{
 		}
 		if rateTxsPerSecond == 0 {
 			return errors.New("rate must be a value greater than 0")
+		}
+
+		waitForStatus, err := helper.GetInt("waitForStatus")
+		if err != nil {
+			return err
 		}
 
 		batchSize, err := helper.GetInt("batchsize")
@@ -75,6 +81,7 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
 		if miningFeeSat == 0 {
 			return errors.New("no mining fee was given")
 		}
@@ -103,7 +110,18 @@ var Cmd = &cobra.Command{
 
 		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
-		rateBroadcaster, err := broadcaster.NewMultiKeyRateBroadcaster(logger, client, keySets, wocClient, isTestnet, broadcaster.WithFees(miningFeeSat), broadcaster.WithCallback(callbackURL, callbackToken), broadcaster.WithFullstatusUpdates(fullStatusUpdates), broadcaster.WithBatchSize(batchSize))
+		opts := []func(p *broadcaster.Broadcaster){
+			broadcaster.WithFees(miningFeeSat),
+			broadcaster.WithCallback(callbackURL, callbackToken),
+			broadcaster.WithFullstatusUpdates(fullStatusUpdates),
+			broadcaster.WithBatchSize(batchSize),
+		}
+
+		if waitForStatus > 0 {
+			opts = append(opts, broadcaster.WithWaitForStatus(metamorph_api.Status(waitForStatus)))
+		}
+
+		rateBroadcaster, err := broadcaster.NewMultiKeyRateBroadcaster(logger, client, keySets, wocClient, isTestnet, opts...)
 		if err != nil {
 			return fmt.Errorf("failed to create rate broadcaster: %v", err)
 		}
@@ -156,6 +174,12 @@ func init() {
 
 	Cmd.Flags().Int("limit", 0, "Limit to number of transactions to be submitted after which broadcaster will stop per key set, default: no limit")
 	err = viper.BindPFlag("limit", Cmd.Flags().Lookup("limit"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	Cmd.Flags().Int("waitForStatus", 0, "Transaction status for which broadcaster should wait")
+	err = viper.BindPFlag("waitForStatus", Cmd.Flags().Lookup("waitForStatus"))
 	if err != nil {
 		log.Fatal(err)
 	}

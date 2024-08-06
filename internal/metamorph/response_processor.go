@@ -43,27 +43,39 @@ func (r *StatusResponse) UpdateStatus(status metamorph_api.Status, err error) {
 }
 
 type ResponseProcessor struct {
-	responseMap map[*chainhash.Hash]*StatusResponse
+	mu          sync.Mutex
+	responseMap map[chainhash.Hash]*StatusResponse
 }
 
 func NewResponseProcessor() *ResponseProcessor {
 	return &ResponseProcessor{
-		responseMap: make(map[*chainhash.Hash]*StatusResponse),
+		responseMap: make(map[chainhash.Hash]*StatusResponse),
 	}
 }
 
 func (p *ResponseProcessor) Add(statusRespone *StatusResponse, timeout time.Duration) {
-	p.responseMap[statusRespone.Hash] = statusRespone
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	_, found := p.responseMap[*statusRespone.Hash]
+	if found {
+		return
+	}
+
+	p.responseMap[*statusRespone.Hash] = statusRespone
 
 	// we no longer need status response object after response has been returned
 	go func() {
 		time.Sleep(timeout)
-		delete(p.responseMap, statusRespone.Hash)
+		delete(p.responseMap, *statusRespone.Hash)
 	}()
 }
 
 func (p *ResponseProcessor) UpdateStatus(hash *chainhash.Hash, status metamorph_api.Status, err error) {
-	res, ok := p.responseMap[hash]
+	p.mu.Lock()
+
+	res, ok := p.responseMap[*hash]
+	p.mu.Unlock()
 	if !ok {
 		return
 	}

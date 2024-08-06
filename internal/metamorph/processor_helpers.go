@@ -2,13 +2,15 @@ package metamorph
 
 import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 func (p *Processor) GetProcessorMapSize() int {
-	return p.ProcessorResponseMap.Len()
+	return len(p.responseProcessor.responseMap)
+}
+
+func (p *Processor) GetProcessorMap() map[*chainhash.Hash]*StatusResponse {
+	return p.responseProcessor.responseMap
 }
 
 func updateStatusMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus, statusUpdate store.UpdateStatus) {
@@ -35,11 +37,6 @@ func shouldUpdateStatus(statusUpdate, foundStatus store.UpdateStatus) bool {
 	}
 
 	return false
-}
-
-func cmpDiff(sliceOne, sliceTwo []string) bool {
-	comparator := func(a, b string) bool { return a < b }
-	return cmp.Diff(sliceOne, sliceTwo, cmpopts.SortSlices(comparator)) == ""
 }
 
 // unorderedEqual checks if two string slices contain

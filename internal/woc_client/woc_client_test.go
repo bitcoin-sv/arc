@@ -22,7 +22,7 @@ func Test_New(t *testing.T) {
 			expectedRequestPath: "/v1/bsv/main/",
 		},
 		{
-			name:                "clietn for testnet",
+			name:                "client for testnet",
 			useMainnet:          false,
 			expectedRequestPath: "/v1/bsv/test/",
 		},
@@ -116,14 +116,29 @@ func Test_TopUp(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	// when
-	sut := New(false)
+	t.Run("use on testnet", func(t *testing.T) {
+		// when
+		sut := New(false)
 
-	// then
-	err := sut.TopUp(context.TODO(), testnet_addr)
+		// then
+		err := sut.TopUp(context.TODO(), testnet_addr)
 
-	// assert
-	require.NoError(t, err)
+		// assert
+		require.NoError(t, err)
+	})
+
+	t.Run("try use on mainnet - should fail", func(t *testing.T) {
+		// when
+		const useOnMainnet = true
+		sut := New(useOnMainnet)
+
+		// then
+		err := sut.TopUp(context.TODO(), testnet_addr)
+
+		// assert
+		require.Error(t, err)
+		require.ErrorContains(t, err, "top up can only be done on testnet")
+	})
 }
 
 func Test_GetRawTxs(t *testing.T) {

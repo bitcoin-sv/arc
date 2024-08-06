@@ -241,13 +241,9 @@ func (w *WocClient) TopUp(ctx context.Context, address string) error {
 		return errors.New("top up can only be done on testnet")
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api-test.whatsonchain.com/v1/bsv/test/faucet/send/%s", address), nil)
+	req, err := w.httpRequest(ctx, "GET", fmt.Sprintf("faucet/send/%s", address), nil)
 	if err != nil {
-		return fmt.Errorf("failed to crreate request: %v", err)
-	}
-
-	if w.authorization != "" {
-		req.Header.Set("Authorization", w.authorization)
+		return err
 	}
 
 	resp, err := w.client.Do(req)

@@ -65,7 +65,6 @@ func NewDefault(
 	apiConfig *config.ApiConfig,
 	opts ...Option,
 ) (*ArcDefaultHandler, error) {
-
 	var wocClient *woc_client.WocClient
 	if apiConfig != nil {
 		wocClient = woc_client.New(woc_client.WithAuth(apiConfig.WocApiKey))
@@ -212,7 +211,7 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 		Timestamp:   m.now(),
 		Txid:        tx.TxID,
 		MerklePath:  &tx.MerklePath,
-		ExtraInfo:   PtrTo(""),
+		ExtraInfo:   &tx.ExtraInfo,
 	})
 }
 

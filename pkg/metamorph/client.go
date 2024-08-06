@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/async"
+
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -137,6 +139,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 		Status:      tx.GetStatus().String(),
 		BlockHash:   tx.GetBlockHash(),
 		BlockHeight: tx.GetBlockHeight(),
+		ExtraInfo:   tx.GetRejectReason(),
 		Timestamp:   m.now().Unix(),
 	}, nil
 }

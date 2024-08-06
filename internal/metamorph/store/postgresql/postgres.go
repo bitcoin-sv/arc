@@ -1,6 +1,7 @@
 package postgresql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -426,7 +427,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 	}
 	defer rows.Close()
 
-	return p.getStoreDataFromRows(rows)
+	return getStoreDataFromRows(rows)
 }
 
 func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, untilTime time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
@@ -490,7 +491,7 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 		return nil, err
 	}
 
-	res, err := p.getStoreDataFromRows(rows)
+	res, err := getStoreDataFromRows(rows)
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
@@ -576,7 +577,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	}
 	defer rows.Close()
 
-	res, err := p.getStoreDataFromRows(rows)
+	res, err := getStoreDataFromRows(rows)
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
@@ -627,8 +628,8 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
     `
 
 	txHashes := make([][]byte, len(updates))
-	for i, update := range updates {
-		txHashes[i] = update.Hash.CloneBytes()
+	for i := 0; i < len(updates); i++ {
+		txHashes[i] = updates[i].Hash[:]
 	}
 
 	tx, err := p.db.Begin()
@@ -646,34 +647,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	}
 	defer rows.Close()
 
-	dbData := make([]*store.StoreData, 0)
-	for rows.Next() {
-		data := &store.StoreData{}
-
-		var hash []byte
-		var competingTxs string
-
-		err := rows.Scan(
-			&hash,
-			&competingTxs,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(hash) > 0 {
-			data.Hash, err = chainhash.NewHash(hash)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if competingTxs != "" {
-			data.CompetingTxs = strings.Split(competingTxs, ",")
-		}
-
-		dbData = append(dbData, data)
-	}
+	competingTxsData := getCompetingTxsFromRows(rows)
 
 	statuses := make([]metamorph_api.Status, len(updates))
 	competingTxs := make([]string, len(updates))
@@ -686,11 +660,9 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			rejectReasons[i] = update.Error.Error()
 		}
 
-		for _, data := range dbData {
-			if update.Hash.IsEqual(data.Hash) {
-				// get unique values from merged existing competing txs
-				// and incoming ones to avoid duplicates or overridings
-				uniqueTxs := mergeUnique(update.CompetingTxs, data.CompetingTxs)
+		for _, tx := range competingTxsData {
+			if bytes.Equal(txHashes[i], tx.hash) {
+				uniqueTxs := mergeUnique(update.CompetingTxs, tx.competingTxs)
 				competingTxs[i] = strings.Join(uniqueTxs, ",")
 				break
 			}
@@ -706,7 +678,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	}
 	defer rows.Close()
 
-	res, err := p.getStoreDataFromRows(rows)
+	res, err := getStoreDataFromRows(rows)
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollbackErr))
@@ -773,13 +745,14 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 		,t.merkle_path
 		,t.retries
 		;
-`
+	`
+
 	tx, err := p.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = tx.Exec(`SELECT * FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
+	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
@@ -787,7 +760,9 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, qBulkUpdate, metamorph_api.Status_MINED, p.now(), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
+	rejectedResponses := updateDoubleSpendRejected(ctx, rows, tx)
+
+	rows, err = tx.QueryContext(ctx, qBulkUpdate, metamorph_api.Status_MINED, p.now(), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
@@ -796,7 +771,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	}
 	defer rows.Close()
 
-	res, err := p.getStoreDataFromRows(rows)
+	res, err := getStoreDataFromRows(rows)
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
@@ -809,110 +784,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 		return nil, err
 	}
 
-	return res, nil
-}
-
-func (p *PostgreSQL) getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
-	var storeData []*store.StoreData
-
-	for rows.Next() {
-		data := &store.StoreData{}
-
-		var announcedAt sql.NullTime
-		var minedAt sql.NullTime
-		var status sql.NullInt32
-
-		var txHash []byte
-		var blockHeight sql.NullInt64
-		var blockHash []byte
-
-		var callbackUrl sql.NullString
-		var callbackToken sql.NullString
-		var rejectReason sql.NullString
-		var competingTxs string
-		var merklePath sql.NullString
-		var retries sql.NullInt32
-
-		err := rows.Scan(
-			&data.StoredAt,
-			&announcedAt,
-			&minedAt,
-			&txHash,
-			&status,
-			&blockHeight,
-			&blockHash,
-			&callbackUrl,
-			&callbackToken,
-			&data.FullStatusUpdates,
-			&rejectReason,
-			&competingTxs,
-			&data.RawTx,
-			&data.LockedBy,
-			&merklePath,
-			&retries,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(txHash) > 0 {
-			data.Hash, err = chainhash.NewHash(txHash)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if len(blockHash) > 0 {
-			data.BlockHash, err = chainhash.NewHash(blockHash)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if announcedAt.Valid {
-			data.AnnouncedAt = announcedAt.Time.UTC()
-		}
-
-		if minedAt.Valid {
-			data.MinedAt = minedAt.Time.UTC()
-		}
-
-		if status.Valid {
-			data.Status = metamorph_api.Status(status.Int32)
-		}
-
-		if blockHeight.Valid {
-			data.BlockHeight = uint64(blockHeight.Int64)
-		}
-
-		if callbackUrl.Valid {
-			data.CallbackUrl = callbackUrl.String
-		}
-
-		if callbackToken.Valid {
-			data.CallbackToken = callbackToken.String
-		}
-
-		if rejectReason.Valid {
-			data.RejectReason = rejectReason.String
-		}
-
-		if competingTxs != "" {
-			data.CompetingTxs = strings.Split(competingTxs, ",")
-		}
-
-		if merklePath.Valid {
-			data.MerklePath = merklePath.String
-		}
-
-		if retries.Valid {
-			data.Retries = int(retries.Int32)
-		}
-
-		storeData = append(storeData, data)
-	}
-
-	return storeData, nil
+	return append(res, rejectedResponses...), nil
 }
 
 func (p *PostgreSQL) Del(ctx context.Context, key []byte) error {

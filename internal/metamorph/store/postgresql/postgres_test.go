@@ -562,6 +562,8 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 
 		chainHash2 := revChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
+		chainHash3 := revChainhash(t, "a7fd98bd37f9b387dbef4f1a4e4790b9a0d48fb7bbb77455e8f39df0f8909db7")
+		competingHash := revChainhash(t, "67fc757d9ed6d119fc0926ae5c82c1a2cf036ec823257cfaea396e49184ec7ff")
 
 		txBlocks := []*blocktx_api.TransactionBlock{
 			{
@@ -582,28 +584,49 @@ func TestPostgresDB(t *testing.T) {
 				TransactionHash: testdata.TX3Hash[:], // hash non-existent in db
 				MerklePath:      "merkle-path-3",
 			},
+			{
+				BlockHash:       testdata.Block1Hash[:],
+				BlockHeight:     100,
+				TransactionHash: chainHash3[:], // this one has competing transactions
+				MerklePath:      "merkle-path-4",
+			},
 		}
+		expectedUpdates := 4 // 3 for updates + 1 for rejected competing tx
 
 		updated, err := postgresDB.UpdateMined(ctx, txBlocks)
 		require.NoError(t, err)
-		require.Len(t, updated, 2)
+		require.Len(t, updated, expectedUpdates)
 
 		require.True(t, chainHash2.IsEqual(updated[0].Hash))
 		require.True(t, testdata.Block1Hash.IsEqual(updated[0].BlockHash))
 		require.Equal(t, "merkle-path-2", updated[0].MerklePath)
+		require.Equal(t, metamorph_api.Status_MINED, updated[0].Status)
 
-		require.True(t, unminedHash.IsEqual(updated[1].Hash))
+		require.True(t, chainHash3.IsEqual(updated[1].Hash))
 		require.True(t, testdata.Block1Hash.IsEqual(updated[1].BlockHash))
-		require.Equal(t, "merkle-path-1", updated[1].MerklePath)
+		require.Equal(t, "merkle-path-4", updated[1].MerklePath)
+		require.Equal(t, metamorph_api.Status_MINED, updated[1].Status)
 
-		dataReturned, err := postgresDB.Get(ctx, unminedHash[:])
+		require.True(t, unminedHash.IsEqual(updated[2].Hash))
+		require.True(t, testdata.Block1Hash.IsEqual(updated[2].BlockHash))
+		require.Equal(t, "merkle-path-1", updated[2].MerklePath)
+		require.Equal(t, metamorph_api.Status_MINED, updated[2].Status)
+
+		require.True(t, competingHash.IsEqual(updated[3].Hash))
+		require.Equal(t, metamorph_api.Status_REJECTED, updated[3].Status)
+		require.Equal(t, "double spend attempted", updated[3].RejectReason)
+
+		minedReturned, err := postgresDB.Get(ctx, unminedHash[:])
 		require.NoError(t, err)
-		unmined.Status = metamorph_api.Status_MINED
-		unmined.MinedAt = now
-		unmined.BlockHeight = 100
-		unmined.BlockHash = testdata.Block1Hash
-		unmined.MerklePath = "merkle-path-1"
-		require.Equal(t, dataReturned, &unmined)
+		minedReturned.Status = metamorph_api.Status_MINED
+		minedReturned.MinedAt = now
+		minedReturned.BlockHeight = 100
+		minedReturned.BlockHash = testdata.Block1Hash
+		minedReturned.MerklePath = "merkle-path-1"
+
+		rejectedReturned, err := postgresDB.Get(ctx, competingHash[:])
+		require.NoError(t, err)
+		rejectedReturned.Status = metamorph_api.Status_REJECTED
 
 		updated, err = postgresDB.UpdateMined(ctx, []*blocktx_api.TransactionBlock{})
 		require.NoError(t, err)
@@ -652,7 +675,7 @@ func TestPostgresDB(t *testing.T) {
 		var numberOfRemainingTxs int
 		err = postgresDB.db.QueryRowContext(ctx, "SELECT count(*) FROM metamorph.transactions;").Scan(&numberOfRemainingTxs)
 		require.NoError(t, err)
-		require.Equal(t, 10, numberOfRemainingTxs)
+		require.Equal(t, 12, numberOfRemainingTxs)
 	})
 
 	t.Run("get seen on network txs", func(t *testing.T) {

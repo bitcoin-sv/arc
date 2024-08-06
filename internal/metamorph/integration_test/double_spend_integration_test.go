@@ -68,7 +68,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to create pool: %v", err)
 	}
 
-	port := "5433"
+	port := "5435"
 	opts := dockertest.RunOptions{
 		Repository: "postgres",
 		Tag:        "15.4",

@@ -54,7 +54,7 @@ func TestBeef(t *testing.T) {
 				XWaitFor:       &tc.expectedStatus,
 				XCallbackUrl:   &callbackUrl,
 				XCallbackToken: &token,
-				XMaxTimeout: &waitForStatusTimeoutSeconds,
+				XMaxTimeout:    &waitForStatusTimeoutSeconds,
 			}
 
 			// when

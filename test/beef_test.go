@@ -48,10 +48,13 @@ func TestBeef(t *testing.T) {
 			callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
 			defer shutdown()
 
+			waitForStatusTimeoutSeconds := 30
+
 			params := &api.POSTTransactionParams{
 				XWaitFor:       &tc.expectedStatus,
 				XCallbackUrl:   &callbackUrl,
 				XCallbackToken: &token,
+				XMaxTimeout:    &waitForStatusTimeoutSeconds,
 			}
 
 			// when

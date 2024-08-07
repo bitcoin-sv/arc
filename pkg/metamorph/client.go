@@ -163,6 +163,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 		Status:      tx.GetStatus().String(),
 		BlockHash:   tx.GetBlockHash(),
 		BlockHeight: tx.GetBlockHeight(),
+		ExtraInfo:   tx.GetRejectReason(),
 		Timestamp:   m.now().Unix(),
 	}, nil
 }

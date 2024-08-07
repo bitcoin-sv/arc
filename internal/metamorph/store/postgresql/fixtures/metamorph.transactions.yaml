@@ -20,6 +20,20 @@
   stored_at: 2023-10-01 14:00:00
   announced_at: 2023-10-01 14:05:00
   last_submitted_at: 2023-10-01 14:00:00
+- hash: 0x67fc757d9ed6d119fc0926ae5c82c1a2cf036ec823257cfaea396e49184ec7ff
+  locked_by: metamorph-1
+  status: 100
+  stored_at: 2023-10-01 14:00:00
+  announced_at: 2023-10-01 14:05:00
+  last_submitted_at: 2023-10-01 14:00:00
+  competing_txs: b79d90f8f09df3e85574b7bbb78fd4a0b990474e1a4fefdb87b3f937bd98fda7
+- hash: 0xa7fd98bd37f9b387dbef4f1a4e4790b9a0d48fb7bbb77455e8f39df0f8909db7
+  locked_by: metamorph-1
+  status: 100
+  stored_at: 2023-10-01 14:00:00
+  announced_at: 2023-10-01 14:05:00
+  last_submitted_at: 2023-10-01 14:00:00
+  competing_txs: ffc74e18496e39eafa7c2523c86e03cfa2c1825cae2609fc19d1d69e7d75fc67
 - hash: 0x3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd
   locked_by: metamorph-1
   status: 40

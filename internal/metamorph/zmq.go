@@ -103,7 +103,7 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 					continue
 				}
 
-				if status != metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED {
+				if len(competingTxs) == 0 {
 					z.statusMessageCh <- &PeerTxMessage{
 						Start:        time.Now(),
 						Hash:         hash,

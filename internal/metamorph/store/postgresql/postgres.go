@@ -259,7 +259,7 @@ func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) ([]*store.Store
 	}
 
 	defer rows.Close()
-	return p.getStoreDataFromRows(rows)
+	return getStoreDataFromRows(rows)
 }
 
 func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash) error {

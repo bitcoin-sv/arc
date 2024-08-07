@@ -23,7 +23,6 @@ type txFinder struct {
 
 func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
 	// NOTE: we can ignore ALL errors from providers, if one returns err we go to another
-
 	foundTxs := make([]validator.RawTx, 0, len(ids))
 	var remainingIDs []string
 
@@ -54,17 +53,17 @@ func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag
 				remainingIDs = append(remainingIDs, id)
 			}
 		}
+
+		f.l.Warn("couldn't find transactions in TransactionHandler", slog.Any("ids", remainingIDs))
+		ids = remainingIDs[:]
+		remainingIDs = nil
 	}
 
 	// try to get remaining txs from the node
 	if source.Has(validator.SourceNodes) {
-		ids = remainingIDs[:]
-		remainingIDs = make([]string, 0)
-
 		for _, id := range ids {
 			nTx, err := getTransactionFromNode(f.pc, id)
 			if err != nil {
-				// do we really need this info?
 				f.l.Warn("failed to get transaction from node", slog.String("id", id), slog.String("err", err.Error()))
 			}
 			if nTx != nil {
@@ -78,11 +77,15 @@ func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag
 				remainingIDs = append(remainingIDs, id)
 			}
 		}
+
+		f.l.Warn("couldn't find transactions in node", slog.Any("ids", remainingIDs))
+		ids = remainingIDs[:]
+		remainingIDs = nil
 	}
 
 	// at last try the WoC
-	if source.Has(validator.SourceWoC) && len(remainingIDs) > 0 {
-		wocTxs, _ := f.w.GetRawTxs(ctx, remainingIDs)
+	if source.Has(validator.SourceWoC) && len(ids) > 0 {
+		wocTxs, _ := f.w.GetRawTxs(ctx, ids)
 		for _, wTx := range wocTxs {
 			rt, e := newRawTx(wTx.TxID, wTx.Hex, wTx.BlockHeight)
 			if e != nil {
@@ -91,6 +94,23 @@ func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag
 
 			foundTxs = append(foundTxs, rt)
 		}
+
+		// add remaining ids
+		for _, id := range ids {
+			found := false
+			for _, tx := range foundTxs {
+				if tx.TxID == id {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				remainingIDs = append(remainingIDs, id)
+			}
+		}
+
+		f.l.Warn("couldn't find transactions in node", slog.Any("ids", remainingIDs))
 	}
 
 	return foundTxs, nil

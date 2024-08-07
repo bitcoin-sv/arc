@@ -67,7 +67,7 @@ func (b *UTXORateBroadcaster) Start() error {
 
 	_, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get balance: %w", err)
 	}
 	if math.Abs(float64(unconfirmed)) > 0 {
 		return fmt.Errorf("key with address %s balance has unconfirmed amount %d sat", b.ks.Address(!b.isTestnet), unconfirmed)

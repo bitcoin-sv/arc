@@ -109,21 +109,25 @@ func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 	}
 	txSet[""] = tx // do not need to care about key in the set
 
-	cumulativeExpFee := uint64(0)
+	cumulativeSize := bt.TxSize{}
 	cumulativePaidFee := uint64(0)
 
 	for _, tx := range txSet {
-		expFees, err := validator.CalculateMiningFeesRequired(tx.SizeWithTypes(), feeQuote)
-		if err != nil {
-			return validator.NewError(err, api.ErrStatusCumulativeFees)
-		}
+		size := tx.SizeWithTypes()
+		cumulativeSize.TotalBytes += size.TotalBytes
+		cumulativeSize.TotalDataBytes += size.TotalDataBytes
+		cumulativeSize.TotalStdBytes += size.TotalStdBytes
 
-		cumulativeExpFee += expFees
 		cumulativePaidFee += tx.TotalInputSatoshis() - tx.TotalOutputSatoshis()
 	}
 
-	if cumulativeExpFee > cumulativePaidFee {
-		err = fmt.Errorf("cumulative transaction fee of %d sat is too low - minimum expected fee is %d sat", cumulativePaidFee, cumulativeExpFee)
+	expectedFee, err := validator.CalculateMiningFeesRequired(&cumulativeSize, feeQuote)
+	if err != nil {
+		return validator.NewError(err, api.ErrStatusCumulativeFees)
+	}
+
+	if expectedFee > cumulativePaidFee {
+		err = fmt.Errorf("cumulative transaction fee of %d sat is too low - minimum expected fee is %d sat", cumulativePaidFee, expectedFee)
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}
 

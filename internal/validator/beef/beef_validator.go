@@ -97,7 +97,7 @@ func standardCheckFees(tx *bt.Tx, beefTx *beef.BEEF, feeQuote *bt.FeeQuote) *val
 }
 
 func cumulativeCheckFees(beefTx *beef.BEEF, feeQuote *bt.FeeQuote) *validator.Error {
-	cumulativeExpFee := uint64(0)
+	cumulativeSize := bt.TxSize{}
 	cumulativePaidFee := uint64(0)
 
 	for _, bTx := range beefTx.Transactions {
@@ -107,12 +107,10 @@ func cumulativeCheckFees(beefTx *beef.BEEF, feeQuote *bt.FeeQuote) *validator.Er
 
 		tx := bTx.Transaction
 
-		expFees, err := validator.CalculateMiningFeesRequired(tx.SizeWithTypes(), feeQuote)
-		if err != nil {
-			return validator.NewError(err, api.ErrStatusCumulativeFees)
-		}
-
-		cumulativeExpFee += expFees
+		size := tx.SizeWithTypes()
+		cumulativeSize.TotalBytes += size.TotalBytes
+		cumulativeSize.TotalDataBytes += size.TotalDataBytes
+		cumulativeSize.TotalStdBytes += size.TotalStdBytes
 
 		totalInputSatoshis, totalOutputSatoshis, err := calculateInputsOutputsSatoshis(tx, beefTx.Transactions)
 		if err != nil {
@@ -122,8 +120,13 @@ func cumulativeCheckFees(beefTx *beef.BEEF, feeQuote *bt.FeeQuote) *validator.Er
 		cumulativePaidFee += (totalInputSatoshis - totalOutputSatoshis)
 	}
 
-	if cumulativeExpFee > cumulativePaidFee {
-		err := fmt.Errorf("cumulative transaction fee of %d sat is too low - minimum expected fee is %d sat", cumulativePaidFee, cumulativeExpFee)
+	expectedFee, err := validator.CalculateMiningFeesRequired(&cumulativeSize, feeQuote)
+	if err != nil {
+		return validator.NewError(err, api.ErrStatusCumulativeFees)
+	}
+
+	if expectedFee > cumulativePaidFee {
+		err := fmt.Errorf("cumulative transaction fee of %d sat is too low - minimum expected fee is %d sat", cumulativePaidFee, expectedFee)
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}
 

@@ -414,7 +414,7 @@ func Test_cumulativeCheckFees(t *testing.T) {
 					},
 				}
 			},
-			expectedErr: validation.NewError(errors.New("cumulative transaction fee of 32 sat is too low - minimum expected fee is 38 sat"), api.ErrStatusCumulativeFees),
+			expectedErr: validation.NewError(errors.New("cumulative transaction fee of 32 sat is too low - minimum expected fee is 37 sat"), api.ErrStatusCumulativeFees),
 		},
 		{
 			name: "cumulative fees sufficient",

@@ -578,7 +578,7 @@ func TestStartGRPCServer(t *testing.T) {
 	}
 }
 
-func Test_GetManyTransactions(t *testing.T) {
+func Test_GetTransactions(t *testing.T) {
 
 	tcs := []struct {
 		name    string

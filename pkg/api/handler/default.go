@@ -19,6 +19,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/bitcoin-sv/arc/pkg/api"
+	merkleverifier "github.com/bitcoin-sv/arc/pkg/api/handler/internal/MerkeVerifier"
+	txfinder "github.com/bitcoin-sv/arc/pkg/api/handler/internal/TxFinder"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/labstack/echo/v4"
@@ -72,16 +74,8 @@ func NewDefault(
 		wocClient = woc_client.New(false)
 	}
 
-	finder := txFinder{
-		th: transactionHandler,
-		pc: peerRpcConfig,
-		l:  logger,
-		w:  wocClient,
-	}
-
-	mr := merkleVerifier{
-		v: merkleRootsVerifier,
-	}
+	finder := txfinder.New(transactionHandler, peerRpcConfig, wocClient, logger)
+	mr := merkleverifier.New(merkleRootsVerifier)
 
 	handler := &ArcDefaultHandler{
 		TransactionHandler: transactionHandler,

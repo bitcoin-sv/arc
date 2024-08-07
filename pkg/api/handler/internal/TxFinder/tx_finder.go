@@ -1,4 +1,4 @@
-package handler
+package txfinder
 
 import (
 	"context"
@@ -14,14 +14,23 @@ import (
 	"github.com/ordishs/go-bitcoin"
 )
 
-type txFinder struct {
+type Finder struct {
 	th metamorph.TransactionHandler
 	pc *config.PeerRpcConfig
 	l  *slog.Logger
 	w  *woc_client.WocClient
 }
 
-func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
+func New(th metamorph.TransactionHandler, pc *config.PeerRpcConfig, w *woc_client.WocClient, l *slog.Logger) Finder {
+	return Finder{
+		th: th,
+		pc: pc,
+		l:  l,
+		w:  w,
+	}
+}
+
+func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
 	// NOTE: we can ignore ALL errors from providers, if one returns err we go to another
 	foundTxs := make([]validator.RawTx, 0, len(ids))
 	var remainingIDs []string
@@ -40,21 +49,11 @@ func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag
 		}
 
 		// add remaining ids
-		for _, id := range ids {
-			found := false
-			for _, tx := range foundTxs {
-				if tx.TxID == id {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				remainingIDs = append(remainingIDs, id)
-			}
+		remainingIDs = outerRightJoin(foundTxs, ids)
+		if len(remainingIDs) > 0 {
+			f.l.Warn("couldn't find transactions in TransactionHandler", slog.Any("ids", remainingIDs))
 		}
 
-		f.l.Warn("couldn't find transactions in TransactionHandler", slog.Any("ids", remainingIDs))
 		ids = remainingIDs[:]
 		remainingIDs = nil
 	}
@@ -78,7 +77,10 @@ func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag
 			}
 		}
 
-		f.l.Warn("couldn't find transactions in node", slog.Any("ids", remainingIDs))
+		if len(remainingIDs) > 0 {
+			f.l.Warn("couldn't find transactions in node", slog.Any("ids", remainingIDs))
+		}
+
 		ids = remainingIDs[:]
 		remainingIDs = nil
 	}
@@ -87,6 +89,10 @@ func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag
 	if source.Has(validator.SourceWoC) && len(ids) > 0 {
 		wocTxs, _ := f.w.GetRawTxs(ctx, ids)
 		for _, wTx := range wocTxs {
+			if wTx.Error != "" {
+				continue
+			}
+
 			rt, e := newRawTx(wTx.TxID, wTx.Hex, wTx.BlockHeight)
 			if e != nil {
 				return nil, e
@@ -96,21 +102,10 @@ func (f txFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag
 		}
 
 		// add remaining ids
-		for _, id := range ids {
-			found := false
-			for _, tx := range foundTxs {
-				if tx.TxID == id {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				remainingIDs = append(remainingIDs, id)
-			}
+		remainingIDs = outerRightJoin(foundTxs, ids)
+		if len(remainingIDs) > 0 {
+			f.l.Warn("couldn't find transactions in WoC", slog.Any("ids", remainingIDs))
 		}
-
-		f.l.Warn("couldn't find transactions in node", slog.Any("ids", remainingIDs))
 	}
 
 	return foundTxs, nil
@@ -126,7 +121,6 @@ func getTransactionFromNode(peerRpc *config.PeerRpcConfig, inputTxID string) (*b
 	if err != nil {
 		return nil, err
 	}
-
 	return node.GetRawTransaction(inputTxID)
 }
 
@@ -143,4 +137,24 @@ func newRawTx(id, hexTx string, blockH uint64) (validator.RawTx, error) {
 	}
 
 	return rt, nil
+}
+
+func outerRightJoin(left []validator.RawTx, right []string) []string {
+	var outerRight []string
+
+	for _, id := range right {
+		found := false
+		for _, tx := range left {
+			if tx.TxID == id {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			outerRight = append(outerRight, id)
+		}
+	}
+
+	return outerRight
 }

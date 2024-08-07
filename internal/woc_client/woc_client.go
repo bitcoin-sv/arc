@@ -74,6 +74,7 @@ type wocRawTx struct {
 	BlockHeight   uint64 `json:"blockheight"`
 	BlockTime     uint64 `json:"blocktime"`
 	Confirmations uint64 `json:"confirmations"`
+	Error         string `json:"error"`
 }
 
 func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) ([]*bt.UTXO, error) {

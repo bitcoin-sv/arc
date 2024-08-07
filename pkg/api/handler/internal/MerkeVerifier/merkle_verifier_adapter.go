@@ -1,4 +1,4 @@
-package handler
+package merkleverifier
 
 import (
 	"context"
@@ -7,11 +7,15 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 )
 
-type merkleVerifier struct {
+type MerkleVerifier struct {
 	v blocktx.MerkleRootsVerifier
 }
 
-func (a merkleVerifier) Verify(ctx context.Context, request []beef.MerkleRootVerificationRequest) ([]uint64, error) {
+func New(v blocktx.MerkleRootsVerifier) MerkleVerifier {
+	return MerkleVerifier{v: v}
+}
+
+func (a MerkleVerifier) Verify(ctx context.Context, request []beef.MerkleRootVerificationRequest) ([]uint64, error) {
 	blocktxReq := mapToBlocktxMerkleVerRequest(request)
 	return a.v.VerifyMerkleRoots(ctx, blocktxReq)
 }

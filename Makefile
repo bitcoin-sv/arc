@@ -102,9 +102,9 @@ install:
 
 .PHONY: install_gen
 install_gen:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.33.0
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
-	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.15.0
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.2
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
+	go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.3.0
 	go install github.com/matryer/moq@v0.3.4
 
 .PHONY: docs

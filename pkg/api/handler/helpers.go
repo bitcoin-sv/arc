@@ -9,9 +9,9 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/dictionary"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	"github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
+	middleware "github.com/oapi-codegen/echo-middleware"
 	"github.com/ordishs/go-bitcoin"
 )
 

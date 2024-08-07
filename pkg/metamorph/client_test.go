@@ -3,9 +3,10 @@ package metamorph_test
 import (
 	"context"
 	"errors"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/libsv/go-bt/v2"
@@ -86,6 +87,24 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				TxID:      testdata.TX1Hash.String(),
 				Status:    metamorph_api.Status_RECEIVED.String(),
 				Timestamp: now.Unix(),
+			},
+		},
+		{
+			name: "wait for seen - double spend attempted",
+			options: &metamorph.TransactionOptions{
+				WaitForStatus: metamorph_api.Status_SEEN_ON_NETWORK,
+			},
+			putTxStatus: &metamorph_api.TransactionStatus{
+				Txid:         testdata.TX1Hash.String(),
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+				CompetingTxs: []string{"1234"},
+			},
+
+			expectedStatus: &metamorph.TransactionStatus{
+				TxID:         testdata.TX1Hash.String(),
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED.String(),
+				Timestamp:    now.Unix(),
+				CompetingTxs: []string{"1234"},
 			},
 		},
 		{
@@ -174,7 +193,8 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			opts := []func(client *metamorph.Metamorph){metamorph.WithNow(func() time.Time { return now })}
 			if tc.withMqClient {
 				mqClient := &mocks.MessageQueueClientMock{
-					PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error { return tc.publishSubmitTxErr }}
+					PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error { return tc.publishSubmitTxErr },
+				}
 				opts = append(opts, metamorph.WithMqClient(mqClient))
 			}
 

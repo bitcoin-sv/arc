@@ -74,9 +74,10 @@ message Transaction {
   string txid = 5;
   Status status = 6;
   string reject_reason = 7;
-  uint64 block_height = 8;
-  string block_hash = 9;
-  bytes raw_tx = 10;
+	repeated string competingTxs = 8;
+  uint64 block_height = 9;
+  string block_hash = 10;
+  bytes raw_tx = 11;
 }
 
 // swagger:model TransactionStatus
@@ -88,9 +89,10 @@ message TransactionStatus {
   string txid = 5;
   Status status = 6;
   string reject_reason = 7;
-  uint64 block_height = 8;
-  string block_hash = 9;
-  string merkle_path = 10;
+	repeated string competingTxs = 8;
+  uint64 block_height = 9;
+  string block_hash = 10;
+  string merkle_path = 11;
 }
 
 // swagger:model TransactionStatuses

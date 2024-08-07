@@ -12,9 +12,10 @@ type StatusResponse struct {
 	statusCh chan StatusAndError
 	mu       sync.RWMutex
 
-	Status metamorph_api.Status
-	Hash   *chainhash.Hash
-	Err    error
+	Status       metamorph_api.Status
+	Hash         *chainhash.Hash
+	Err          error
+	CompetingTxs []string
 }
 
 func NewStatusResponse(hash *chainhash.Hash, statusChannel chan StatusAndError) *StatusResponse {
@@ -25,19 +26,21 @@ func NewStatusResponse(hash *chainhash.Hash, statusChannel chan StatusAndError) 
 	}
 }
 
-func (r *StatusResponse) UpdateStatus(status metamorph_api.Status, err error) {
+func (r *StatusResponse) UpdateStatus(statusAndError StatusAndError) {
 	r.mu.Lock()
 
-	r.Status = status
-	r.Err = err
+	r.Status = statusAndError.Status
+	r.Err = statusAndError.Err
+	r.CompetingTxs = statusAndError.CompetingTxs
 
 	r.mu.Unlock()
 
 	if r.statusCh != nil {
 		r.statusCh <- StatusAndError{
-			Hash:   r.Hash,
-			Status: status,
-			Err:    err,
+			Hash:         r.Hash,
+			Status:       statusAndError.Status,
+			Err:          statusAndError.Err,
+			CompetingTxs: statusAndError.CompetingTxs,
 		}
 	}
 }
@@ -73,7 +76,7 @@ func (p *ResponseProcessor) Add(statusResponse *StatusResponse, timeout time.Dur
 	}()
 }
 
-func (p *ResponseProcessor) UpdateStatus(hash *chainhash.Hash, status metamorph_api.Status, err error) {
+func (p *ResponseProcessor) UpdateStatus(hash *chainhash.Hash, statusAndError StatusAndError) {
 	p.mu.Lock()
 
 	res, ok := p.responseMap[*hash]
@@ -82,7 +85,7 @@ func (p *ResponseProcessor) UpdateStatus(hash *chainhash.Hash, status metamorph_
 		return
 	}
 
-	res.UpdateStatus(status, err)
+	res.UpdateStatus(statusAndError)
 }
 
 // use for tests only

@@ -287,6 +287,10 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 		case res := <-responseChannel:
 			returnedStatus.Status = res.Status
 
+			if len(res.CompetingTxs) > 0 {
+				returnedStatus.CompetingTxs = res.CompetingTxs
+			}
+
 			if res.Err != nil {
 				returnedStatus.RejectReason = res.Err.Error()
 				// Note: return here so that user doesn't have to wait for timeout in case of an error
@@ -398,6 +402,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		BlockHeight:  data.BlockHeight,
 		BlockHash:    blockHash,
 		RejectReason: data.RejectReason,
+		CompetingTxs: data.CompetingTxs,
 		MerklePath:   data.MerklePath,
 	}, nil
 }

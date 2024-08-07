@@ -558,6 +558,12 @@ components:
               type: string
               nullable: true
               description: Extra info
+            competingTxs:
+              type: array
+              nullable: true
+              items:
+                type: string
+              example: null
           additionalProperties: false
 
     TransactionStatus:
@@ -587,6 +593,12 @@ components:
               type: string
               nullable: true
               description: Extra information about the transaction
+              example: null
+            competingTxs:
+              type: array
+              nullable: true
+              items:
+                type: string
               example: null
           additionalProperties: false
 
@@ -650,19 +662,27 @@ components:
                 "ANNOUNCED_TO_NETWORK",
                 "REQUESTED_BY_NETWORK",
                 "SENT_TO_NETWORK",
+                "ACCEPTED_BY_NETWORK",
                 "SEEN_ON_NETWORK",
+                "SEEN_IN_ORPHAN_MEMPOOL",
+                "DOUBLE_SPEND_ATTEMPTED",
                 "MINED",
-                "CONFIRMED",
                 "REJECTED"
               ]
               description: Transaction status
-              example: "ACCEPTED"
+              example: "ACCEPTED_BY_NETWORK"
               nullable: false
             extraInfo:
               type: string
               description: Extra information about the transaction
               example: "Transaction is not valid"
               nullable: true
+            competingTxs:
+              type: array
+              nullable: true
+              items:
+                type: string
+              example: ["c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"]
           example:
             {
               "blockHash": "",

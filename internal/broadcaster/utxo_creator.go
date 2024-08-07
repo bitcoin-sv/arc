@@ -40,7 +40,7 @@ func (b *UTXOCreator) CreateUtxos(requestedOutputs int, requestedSatoshisPerOutp
 
 		requestedOutputsSatoshis := int64(requestedOutputs) * int64(requestedSatoshisPerOutput)
 
-		confirmed, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, !b.isTestnet, ks.Address(!b.isTestnet), 1*time.Second, 5)
+		confirmed, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, ks.Address(!b.isTestnet), 1*time.Second, 5)
 		if err != nil {
 			return err
 		}
@@ -55,7 +55,7 @@ func (b *UTXOCreator) CreateUtxos(requestedOutputs int, requestedSatoshisPerOutp
 			return fmt.Errorf("requested total of satoshis %d exceeds balance on funding keyset %d", requestedOutputsSatoshis, balance)
 		}
 
-		utxos, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, !b.isTestnet, ks.Script, ks.Address(!b.isTestnet), 1*time.Second, 5)
+		utxos, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, ks.Script, ks.Address(!b.isTestnet), 1*time.Second, 5)
 		if err != nil {
 			return err
 		}
@@ -171,7 +171,7 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs int, requestedSatoshisPerOut
 	for front := utxoSet.Front(); front != nil; front = next {
 		next = front.Next()
 
-		if front == nil || outputs >= requestedOutputs {
+		if outputs >= requestedOutputs {
 			break
 		}
 

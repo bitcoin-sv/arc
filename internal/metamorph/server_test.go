@@ -13,7 +13,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
-	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
@@ -64,7 +63,7 @@ func TestPutTransaction(t *testing.T) {
 		processor.ProcessTransactionFunc = func(req *metamorph.ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
 
-			req.ResponseChannel <- processor_response.StatusAndError{
+			req.ResponseChannel <- metamorph.StatusAndError{
 				Hash:   testdata.TX1Hash,
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			}
@@ -90,7 +89,7 @@ func TestPutTransaction(t *testing.T) {
 
 		processor.ProcessTransactionFunc = func(req *metamorph.ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
-			req.ResponseChannel <- processor_response.StatusAndError{
+			req.ResponseChannel <- metamorph.StatusAndError{
 				Hash:   testdata.TX1Hash,
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			}
@@ -115,7 +114,7 @@ func TestPutTransaction(t *testing.T) {
 		}
 		processor.ProcessTransactionFunc = func(req *metamorph.ProcessorRequest) {
 			time.Sleep(10 * time.Millisecond)
-			req.ResponseChannel <- processor_response.StatusAndError{
+			req.ResponseChannel <- metamorph.StatusAndError{
 				Hash:   testdata.TX1Hash,
 				Status: metamorph_api.Status_REJECTED,
 				Err:    fmt.Errorf("some error"),
@@ -273,7 +272,7 @@ func TestPutTransactions(t *testing.T) {
 
 	tt := []struct {
 		name              string
-		processorResponse map[string]*processor_response.StatusAndError
+		processorResponse map[string]*metamorph.StatusAndError
 		transactionFound  map[int]*store.StoreData
 		requests          *metamorph_api.TransactionRequests
 		getErr            error
@@ -292,7 +291,7 @@ func TestPutTransactions(t *testing.T) {
 					},
 				},
 			},
-			processorResponse: map[string]*processor_response.StatusAndError{hash0.String(): {
+			processorResponse: map[string]*metamorph.StatusAndError{hash0.String(): {
 				Hash:   hash0,
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 				Err:    nil,
@@ -318,7 +317,7 @@ func TestPutTransactions(t *testing.T) {
 					},
 				},
 			},
-			processorResponse: map[string]*processor_response.StatusAndError{hash0.String(): {
+			processorResponse: map[string]*metamorph.StatusAndError{hash0.String(): {
 				Hash:   hash0,
 				Status: metamorph_api.Status_STORED,
 				Err:    errors.New("unable to process transaction"),
@@ -395,7 +394,7 @@ func TestPutTransactions(t *testing.T) {
 				AnnouncedAt: time.Time{},
 				MinedAt:     time.Time{},
 			}},
-			processorResponse: map[string]*processor_response.StatusAndError{
+			processorResponse: map[string]*metamorph.StatusAndError{
 				hash0.String(): {
 					Hash:   hash0,
 					Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
@@ -441,7 +440,7 @@ func TestPutTransactions(t *testing.T) {
 					},
 				},
 			},
-			processorResponse: map[string]*processor_response.StatusAndError{hash0.String(): {
+			processorResponse: map[string]*metamorph.StatusAndError{hash0.String(): {
 				Hash:   hash0,
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 				Err:    nil,

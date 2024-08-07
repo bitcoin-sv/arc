@@ -4,18 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"google.golang.org/protobuf/proto"
-	"log/slog"
 )
 
 const (
@@ -48,7 +47,6 @@ const (
 type Processor struct {
 	store                     store.MetamorphStore
 	hostname                  string
-	ProcessorResponseMap      *ProcessorResponseMap
 	pm                        p2p.PeerManagerI
 	mqClient                  MessageQueueClient
 	logger                    *slog.Logger
@@ -61,8 +59,8 @@ type Processor struct {
 	minimumHealthyConnections int
 	callbackSender            CallbackSender
 
-	statusMessageCh         chan *PeerTxMessage
-	CancelSendStatusMessage context.CancelFunc
+	responseProcessor *ResponseProcessor
+	statusMessageCh   chan *PeerTxMessage
 
 	waitGroup *sync.WaitGroup
 
@@ -121,7 +119,9 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChan
 		now:                       time.Now,
 		maxRetries:                maxRetriesDefault,
 		minimumHealthyConnections: minimumHealthyConnectionsDefault,
-		statusMessageCh:           statusMessageChannel,
+
+		responseProcessor: NewResponseProcessor(),
+		statusMessageCh:   statusMessageChannel,
 
 		processExpiredTxsInterval:       unseenTransactionRebroadcastingInterval,
 		processSeenOnNetworkTxsInterval: seenOnNetworkTransactionRequestingInterval,
@@ -147,8 +147,6 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChan
 	for _, opt := range opts {
 		opt(p)
 	}
-
-	p.ProcessorResponseMap = NewProcessorResponseMap(p.mapExpiryTime, WithNowResponseMap(p.now))
 
 	p.logger.Info("Starting processor", slog.String("cacheExpiryTime", p.mapExpiryTime.String()))
 
@@ -277,6 +275,7 @@ func (p *Processor) StartProcessMinedCallbacks() {
 		}
 	}()
 }
+
 func (p *Processor) updateMined(txsBlocks []*blocktx_api.TransactionBlock) {
 	updatedData, err := p.store.UpdateMined(p.ctx, txsBlocks)
 	if err != nil {
@@ -588,18 +587,14 @@ func (p *Processor) SendStatusForTransaction(msg *PeerTxMessage) {
 	}
 
 	// if we receive new update check if we have client connection waiting for status and send it
-	processorResponse, ok := p.ProcessorResponseMap.Get(msg.Hash)
-	if ok {
-		processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-			Status:    msg.Status,
-			StatusErr: msg.Err,
-		})
-	}
+	p.responseProcessor.UpdateStatus(msg.Hash, msg.Status, msg.Err)
 
 	p.logger.Debug("Status reported for tx", slog.String("status", msg.Status.String()), slog.String("hash", msg.Hash.String()))
 }
 
 func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
+	statusResponse := NewStatusResponse(req.Data.Hash, req.ResponseChannel)
+
 	// check if tx already stored, return it
 	data, err := p.store.Get(p.ctx, req.Data.Hash[:])
 	if err == nil {
@@ -615,45 +610,22 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 			rejectErr = errors.New(data.RejectReason)
 		}
 
-		if req.ResponseChannel != nil {
-			// notify the client instantly and return without waiting for any specific status
-			req.ResponseChannel <- processor_response.StatusAndError{
-				Hash:   data.Hash,
-				Status: data.Status,
-				Err:    rejectErr,
-			}
-		}
-
+		// notify the client instantly and return without waiting for any specific status
+		statusResponse.UpdateStatus(data.Status, rejectErr)
 		return
 	}
 
 	if !errors.Is(err, store.ErrNotFound) {
-		if req.ResponseChannel != nil {
-			// issue with the store itself
-			// notify the client instantly and return
-			req.ResponseChannel <- processor_response.StatusAndError{
-				Hash:   req.Data.Hash,
-				Status: metamorph_api.Status_RECEIVED,
-				Err:    err,
-			}
-		}
-
+		statusResponse.UpdateStatus(metamorph_api.Status_RECEIVED, err)
 		return
 	}
 
 	// store in database
-	req.Data.Status = metamorph_api.Status_STORED
 	if err = p.storeData(p.ctx, req.Data); err != nil {
 		// issue with the store itself
 		// notify the client instantly and return
 		p.logger.Error("Failed to store transaction", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
-		if req.ResponseChannel != nil {
-			req.ResponseChannel <- processor_response.StatusAndError{
-				Hash:   req.Data.Hash,
-				Status: metamorph_api.Status_RECEIVED,
-				Err:    err,
-			}
-		}
+		statusResponse.UpdateStatus(metamorph_api.Status_RECEIVED, err)
 		return
 	}
 
@@ -662,24 +634,8 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		p.logger.Error("failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 	}
 
-	processorResponse := processor_response.NewProcessorResponseWithChannel(req.Data.Hash, req.ResponseChannel)
-
 	// broadcast that transaction is stored to client
-	processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-		Status:    metamorph_api.Status_STORED,
-		StatusErr: nil,
-	})
-
-	if req.Timeout != 0 {
-		// Add this transaction to the map of transactions that client is listening to with open connection.
-		p.ProcessorResponseMap.Set(req.Data.Hash, processorResponse)
-
-		// we no longer need processor response object after response has been returned
-		go func() {
-			time.Sleep(req.Timeout)
-			p.ProcessorResponseMap.Delete(req.Data.Hash)
-		}()
-	}
+	statusResponse.UpdateStatus(metamorph_api.Status_STORED, nil)
 
 	// Send GETDATA to peers to see if they have it
 	p.pm.RequestTransaction(req.Data.Hash)
@@ -693,18 +649,17 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	}
 
 	// update status in response
-	processorResponse, ok := p.ProcessorResponseMap.Get(req.Data.Hash)
-	if ok {
-		processorResponse.UpdateStatus(&processor_response.ProcessorResponseStatusUpdate{
-			Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-			StatusErr: nil,
-		})
-	}
+	statusResponse.UpdateStatus(metamorph_api.Status_ANNOUNCED_TO_NETWORK, nil)
 
 	// update status in storage
 	p.storageStatusUpdateCh <- store.UpdateStatus{
 		Hash:   *req.Data.Hash,
 		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+	}
+
+	// Add this transaction to the map of transactions that client is listening to with open connection
+	if req.Timeout != 0 {
+		p.responseProcessor.Add(statusResponse, req.Timeout)
 	}
 }
 

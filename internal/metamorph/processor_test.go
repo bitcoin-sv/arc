@@ -15,7 +15,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
-	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
@@ -232,9 +231,9 @@ func TestProcessTransaction(t *testing.T) {
 
 			processor, err := metamorph.NewProcessor(s, pm, nil, metamorph.WithMessageQueueClient(publisher))
 			require.NoError(t, err)
-			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
+			require.Equal(t, 0, processor.GetProcessorMapSize())
 
-			responseChannel := make(chan processor_response.StatusAndError)
+			responseChannel := make(chan metamorph.StatusAndError)
 
 			var wg sync.WaitGroup
 			wg.Add(len(tc.expectedResponses))
@@ -257,14 +256,13 @@ func TestProcessTransaction(t *testing.T) {
 			})
 			wg.Wait()
 
+			require.Equal(t, tc.expectedResponseMapItems, processor.GetProcessorMapSize())
 			if tc.expectedResponseMapItems > 0 {
-				require.Equal(t, tc.expectedResponseMapItems, processor.ProcessorResponseMap.Len())
-				items := processor.ProcessorResponseMap.Items()
+				items := processor.GetProcessorMap()
 				require.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
-				require.Equal(t, metamorph_api.Status_STORED, items[*testdata.TX1Hash].GetStatus())
+				require.Equal(t, metamorph_api.Status_STORED, items[*testdata.TX1Hash].Status)
 
 				require.Len(t, pm.AnnounceTransactionCalls(), 1)
-
 			}
 
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
@@ -494,7 +492,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			processor.StartProcessStatusUpdatesInStorage()
 			processor.StartSendStatusUpdate()
 
-			assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
+			assert.Equal(t, 0, processor.GetProcessorMapSize())
 			for _, testInput := range tc.inputs {
 				statusMessageChannel <- &metamorph.PeerTxMessage{
 					Hash:         testInput.hash,
@@ -653,7 +651,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				metamorph.WithProcessTransactionsBatchSize(4),
 			)
 			require.NoError(t, err)
-			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
+			require.Equal(t, 0, processor.GetProcessorMapSize())
 
 			processor.StartProcessSubmittedTxs()
 			processor.StartProcessStatusUpdatesInStorage()
@@ -776,12 +774,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 			processor.StartProcessExpiredTransactions()
 
-			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
-
-			// some dummy txs in map shouldn't affect announcements
-			processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponse(testdata.TX1Hash))
-			processor.ProcessorResponseMap.Set(testdata.TX2Hash, processor_response.NewProcessorResponse(testdata.TX2Hash))
-			processor.ProcessorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponse(testdata.TX3Hash))
+			require.Equal(t, 0, processor.GetProcessorMapSize())
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -985,7 +978,6 @@ func TestStart(t *testing.T) {
 			var subscribeSubmitTxsFunction func([]byte) error
 			mqClient := &mocks.MessageQueueClientMock{
 				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
-
 					switch topic {
 					case metamorph.MinedTxsTopic:
 						subscribeMinedTxsFunction = msgFunc

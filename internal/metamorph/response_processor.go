@@ -53,22 +53,22 @@ func NewResponseProcessor() *ResponseProcessor {
 	}
 }
 
-func (p *ResponseProcessor) Add(statusRespone *StatusResponse, timeout time.Duration) {
+func (p *ResponseProcessor) Add(statusResponse *StatusResponse, timeout time.Duration) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	_, found := p.responseMap[*statusRespone.Hash]
+	_, found := p.responseMap[*statusResponse.Hash]
 	if found {
 		return
 	}
 
-	p.responseMap[*statusRespone.Hash] = statusRespone
+	p.responseMap[*statusResponse.Hash] = statusResponse
 
 	// we no longer need status response object after response has been returned
 	go func() {
 		time.Sleep(timeout)
 		p.mu.Lock()
-		delete(p.responseMap, *statusRespone.Hash)
+		delete(p.responseMap, *statusResponse.Hash)
 		p.mu.Unlock()
 	}()
 }

@@ -259,8 +259,8 @@ func TestProcessTransaction(t *testing.T) {
 			require.Equal(t, tc.expectedResponseMapItems, processor.GetProcessorMapSize())
 			if tc.expectedResponseMapItems > 0 {
 				items := processor.GetProcessorMap()
-				require.Equal(t, testdata.TX1Hash, items[testdata.TX1Hash].Hash)
-				require.Equal(t, metamorph_api.Status_STORED, items[testdata.TX1Hash].Status)
+				require.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
+				require.Equal(t, metamorph_api.Status_STORED, items[*testdata.TX1Hash].Status)
 
 				require.Len(t, pm.AnnounceTransactionCalls(), 1)
 			}
@@ -978,7 +978,6 @@ func TestStart(t *testing.T) {
 			var subscribeSubmitTxsFunction func([]byte) error
 			mqClient := &mocks.MessageQueueClientMock{
 				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
-
 					switch topic {
 					case metamorph.MinedTxsTopic:
 						subscribeMinedTxsFunction = msgFunc

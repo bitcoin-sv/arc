@@ -9,7 +9,7 @@ func (p *Processor) GetProcessorMapSize() int {
 	return len(p.responseProcessor.responseMap)
 }
 
-func (p *Processor) GetProcessorMap() map[*chainhash.Hash]*StatusResponse {
+func (p *Processor) GetProcessorMap() map[chainhash.Hash]*StatusResponse {
 	return p.responseProcessor.responseMap
 }
 

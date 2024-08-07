@@ -6,11 +6,11 @@ import (
 )
 
 func (p *Processor) GetProcessorMapSize() int {
-	return len(p.responseProcessor.responseMap)
+	return p.responseProcessor.getMapLen()
 }
 
 func (p *Processor) GetProcessorMap() map[chainhash.Hash]*StatusResponse {
-	return p.responseProcessor.responseMap
+	return p.responseProcessor.getMap()
 }
 
 func updateStatusMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus, statusUpdate store.UpdateStatus) {

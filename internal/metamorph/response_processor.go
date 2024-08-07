@@ -67,7 +67,9 @@ func (p *ResponseProcessor) Add(statusRespone *StatusResponse, timeout time.Dura
 	// we no longer need status response object after response has been returned
 	go func() {
 		time.Sleep(timeout)
+		p.mu.Lock()
 		delete(p.responseMap, *statusRespone.Hash)
+		p.mu.Unlock()
 	}()
 }
 
@@ -81,4 +83,29 @@ func (p *ResponseProcessor) UpdateStatus(hash *chainhash.Hash, status metamorph_
 	}
 
 	res.UpdateStatus(status, err)
+}
+
+// use for tests only
+func (p *ResponseProcessor) getMap() map[chainhash.Hash]*StatusResponse {
+	retMap := make(map[chainhash.Hash]*StatusResponse)
+
+	p.mu.Lock()
+
+	for key, val := range p.responseMap {
+		retMap[key] = val
+	}
+
+	p.mu.Unlock()
+
+	return retMap
+}
+
+func (p *ResponseProcessor) getMapLen() int {
+	p.mu.Lock()
+
+	length := len(p.responseMap)
+
+	p.mu.Unlock()
+
+	return length
 }

@@ -75,7 +75,7 @@ func TestResponseProcessor(t *testing.T) {
 
 		time.Sleep(2 * timeout)
 
-		require.Empty(t, rp.responseMap)
+		require.Empty(t, rp.getMap())
 	})
 
 	t.Run("add and update status", func(t *testing.T) {
@@ -89,23 +89,27 @@ func TestResponseProcessor(t *testing.T) {
 		rp.Add(dummyStatus2, time.Second)
 		rp.Add(dummyStatus3, time.Second)
 
+		rpMap := rp.getMap()
+
 		require.Len(t, rp.responseMap, 3)
-		require.Equal(t, metamorph_api.Status_RECEIVED, rp.responseMap[*testdata.TX1Hash].Status)
-		require.Nil(t, rp.responseMap[*testdata.TX1Hash].Err)
-		require.Equal(t, metamorph_api.Status_RECEIVED, rp.responseMap[*testdata.TX2Hash].Status)
-		require.Nil(t, rp.responseMap[*testdata.TX2Hash].Err)
-		require.Equal(t, metamorph_api.Status_RECEIVED, rp.responseMap[*testdata.TX3Hash].Status)
-		require.Nil(t, rp.responseMap[*testdata.TX3Hash].Err)
+		require.Equal(t, metamorph_api.Status_RECEIVED, rpMap[*testdata.TX1Hash].Status)
+		require.Nil(t, rpMap[*testdata.TX1Hash].Err)
+		require.Equal(t, metamorph_api.Status_RECEIVED, rpMap[*testdata.TX2Hash].Status)
+		require.Nil(t, rpMap[*testdata.TX2Hash].Err)
+		require.Equal(t, metamorph_api.Status_RECEIVED, rpMap[*testdata.TX3Hash].Status)
+		require.Nil(t, rpMap[*testdata.TX3Hash].Err)
 
 		rp.UpdateStatus(testdata.TX1Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, nil)
 		rp.UpdateStatus(testdata.TX2Hash, metamorph_api.Status_RECEIVED, errors.New("error for tx2"))
 
-		require.Len(t, rp.responseMap, 3)
-		require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, rp.responseMap[*testdata.TX1Hash].Status)
-		require.Nil(t, rp.responseMap[*testdata.TX1Hash].Err)
-		require.Equal(t, metamorph_api.Status_RECEIVED, rp.responseMap[*testdata.TX2Hash].Status)
-		require.Equal(t, errors.New("error for tx2"), rp.responseMap[*testdata.TX2Hash].Err)
-		require.Equal(t, metamorph_api.Status_RECEIVED, rp.responseMap[*testdata.TX3Hash].Status)
-		require.Nil(t, rp.responseMap[*testdata.TX3Hash].Err)
+		rpMap = rp.getMap()
+
+		require.Len(t, rpMap, 3)
+		require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, rpMap[*testdata.TX1Hash].Status)
+		require.Nil(t, rpMap[*testdata.TX1Hash].Err)
+		require.Equal(t, metamorph_api.Status_RECEIVED, rpMap[*testdata.TX2Hash].Status)
+		require.Equal(t, errors.New("error for tx2"), rpMap[*testdata.TX2Hash].Err)
+		require.Equal(t, metamorph_api.Status_RECEIVED, rpMap[*testdata.TX3Hash].Status)
+		require.Nil(t, rpMap[*testdata.TX3Hash].Err)
 	})
 }

@@ -34,12 +34,12 @@ func TestStatusResponse(t *testing.T) {
 		},
 		{
 			name:   "announced_to_network - error",
-			hash:   testdata.TX1Hash,
+			hash:   testdata.TX2Hash,
 			status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			err:    errors.New("some error"),
 
 			expectedStatusAndError: StatusAndError{
-				Hash:   testdata.TX1Hash,
+				Hash:   testdata.TX2Hash,
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 				Err:    errors.New("some error"),
 			},
@@ -52,7 +52,10 @@ func TestStatusResponse(t *testing.T) {
 
 			statusResponse := NewStatusResponse(tc.hash, statusChannel)
 
-			statusResponse.UpdateStatus(tc.status, tc.err)
+			statusResponse.UpdateStatus(StatusAndError{
+				Status: tc.status,
+				Err:    tc.err,
+			})
 
 			select {
 			case retStatus := <-statusChannel:
@@ -99,8 +102,13 @@ func TestResponseProcessor(t *testing.T) {
 		require.Equal(t, metamorph_api.Status_RECEIVED, rpMap[*testdata.TX3Hash].Status)
 		require.Nil(t, rpMap[*testdata.TX3Hash].Err)
 
-		rp.UpdateStatus(testdata.TX1Hash, metamorph_api.Status_ANNOUNCED_TO_NETWORK, nil)
-		rp.UpdateStatus(testdata.TX2Hash, metamorph_api.Status_RECEIVED, errors.New("error for tx2"))
+		rp.UpdateStatus(testdata.TX1Hash, StatusAndError{
+			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		})
+		rp.UpdateStatus(testdata.TX2Hash, StatusAndError{
+			Status: metamorph_api.Status_RECEIVED,
+			Err:    errors.New("error for tx2"),
+		})
 
 		rpMap = rp.getMap()
 

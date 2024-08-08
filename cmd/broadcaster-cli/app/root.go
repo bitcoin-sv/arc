@@ -3,6 +3,7 @@ package app
 import (
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos"
@@ -53,6 +54,8 @@ func init() {
 			break
 		}
 	}
+
+	logger.Info("args", slog.String("args", strings.Join(args[:], " ")))
 
 	if configFilenameArg != "" {
 		viper.SetConfigFile(configFilenameArg)

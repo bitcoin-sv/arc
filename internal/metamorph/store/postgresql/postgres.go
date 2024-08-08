@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -98,7 +97,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	var status sql.NullInt32
 	var blockHeight sql.NullInt64
 	var blockHash []byte
-	var callbacksData sql.NullString
+	var callbacksData []byte
 	var fullStatusUpdates bool
 	var rejectReason sql.NullString
 	var competingTxs string
@@ -166,8 +165,8 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		data.BlockHeight = uint64(blockHeight.Int64)
 	}
 
-	if callbacksData.Valid {
-		callbacks, err := readCallbacksFromDB(callbacksData.String)
+	if len(callbacksData) > 0 {
+		callbacks, err := readCallbacksFromDB(callbacksData)
 		if err != nil {
 			return nil, err
 		}
@@ -412,23 +411,6 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 	}
 
 	return nil
-}
-
-func prepareCallbacksForSaving(callbacks []store.StoreCallback) ([]byte, error) {
-	callbacksBytes, err := json.Marshal(callbacks)
-	if err != nil {
-		return nil, err
-	}
-	return callbacksBytes, nil
-}
-
-func readCallbacksFromDB(callbacks string) ([]store.StoreCallback, error) {
-	var callbacksData []store.StoreCallback
-	err := json.Unmarshal([]byte(callbacks), &callbacksData)
-	if err != nil {
-		return nil, err
-	}
-	return callbacksData, nil
 }
 
 func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64) error {

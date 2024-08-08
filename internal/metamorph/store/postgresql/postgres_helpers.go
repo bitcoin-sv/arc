@@ -3,6 +3,7 @@ package postgresql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"strings"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -50,7 +51,7 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 		var blockHeight sql.NullInt64
 		var blockHash []byte
 
-		var callbacksData sql.NullString
+		var callbacksData []byte
 		var rejectReason sql.NullString
 		var competingTxs string
 		var merklePath sql.NullString
@@ -107,8 +108,8 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 			data.BlockHeight = uint64(blockHeight.Int64)
 		}
 
-		if callbacksData.Valid {
-			callbacks, err := readCallbacksFromDB(callbacksData.String)
+		if len(callbacksData) > 0 {
+			callbacks, err := readCallbacksFromDB(callbacksData)
 			if err != nil {
 				return nil, err
 			}
@@ -222,4 +223,21 @@ func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) 
 	}
 
 	return res
+}
+
+func prepareCallbacksForSaving(callbacks []store.StoreCallback) ([]byte, error) {
+	callbacksBytes, err := json.Marshal(callbacks)
+	if err != nil {
+		return nil, err
+	}
+	return callbacksBytes, nil
+}
+
+func readCallbacksFromDB(callbacks []byte) ([]store.StoreCallback, error) {
+	var callbacksData []store.StoreCallback
+	err := json.Unmarshal(callbacks, &callbacksData)
+	if err != nil {
+		return nil, err
+	}
+	return callbacksData, nil
 }

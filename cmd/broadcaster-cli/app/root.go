@@ -1,16 +1,14 @@
 package app
 
 import (
-	"errors"
+	"log/slog"
+	"os"
+
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"golang.org/x/sys/unix"
-	"log"
-	"log/slog"
-	"os"
 )
 
 var (
@@ -27,19 +25,24 @@ func init() {
 	RootCmd.PersistentFlags().Bool("testnet", false, "Use testnet")
 	err = viper.BindPFlag("testnet", RootCmd.PersistentFlags().Lookup("testnet"))
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("failed to bind flag testnet", slog.String("err", err.Error()))
+		os.Exit(1)
 	}
 
 	RootCmd.PersistentFlags().StringSlice("keys", []string{}, "List of selected private keys")
 	err = viper.BindPFlag("keys", RootCmd.PersistentFlags().Lookup("keys"))
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("failed to bind flag keys", slog.String("err", err.Error()))
+		os.Exit(1)
+
 	}
 
 	RootCmd.PersistentFlags().String("wocAPIKey", "", "Optional WhatsOnChain API key for allowing for higher request rates")
 	err = viper.BindPFlag("wocAPIKey", RootCmd.PersistentFlags().Lookup("wocAPIKey"))
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("failed to bind flag wocAPIKey", slog.String("err", err.Error()))
+		os.Exit(1)
+
 	}
 
 	var configFilenameArg string
@@ -47,6 +50,7 @@ func init() {
 	for i, arg := range args {
 		if arg == "-c" || arg == "--config" {
 			configFilenameArg = args[i+1]
+			break
 		}
 	}
 
@@ -64,14 +68,8 @@ func init() {
 
 	err = viper.ReadInConfig()
 	if err != nil {
-		log.Fatalf("failed to read config file: %v", err)
-	}
-
-	var viperErr viper.ConfigFileNotFoundError
-	isConfigFileNotFoundErr := errors.As(err, &viperErr)
-
-	if err != nil && !errors.Is(err, unix.ENOENT) && !isConfigFileNotFoundErr {
-		log.Fatal(err)
+		logger.Error("failed to read config file", slog.String("err", err.Error()))
+		os.Exit(1)
 	}
 
 	RootCmd.AddCommand(keyset.Cmd)

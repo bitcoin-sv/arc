@@ -284,7 +284,7 @@ func (p *Processor) updateMined(txsBlocks []*blocktx_api.TransactionBlock) {
 	}
 
 	for _, data := range updatedData {
-		if data.CallbackUrl != "" {
+		if len(data.Callbacks) > 0 {
 			go p.callbackSender.SendCallback(p.logger, data)
 		}
 	}
@@ -311,11 +311,14 @@ func (p *Processor) StartProcessSubmittedTxs() {
 					continue
 				}
 				now := p.now()
+				callback := store.StoreCallback{
+					CallbackURL:   submittedTx.GetCallbackUrl(),
+					CallbackToken: submittedTx.GetCallbackToken(),
+				}
 				sReq := &store.StoreData{
 					Hash:              PtrTo(chainhash.DoubleHashH(submittedTx.GetRawTx())),
 					Status:            metamorph_api.Status_STORED,
-					CallbackUrl:       submittedTx.GetCallbackUrl(),
-					CallbackToken:     submittedTx.GetCallbackToken(),
+					Callbacks:         []store.StoreCallback{callback},
 					FullStatusUpdates: submittedTx.GetFullStatusUpdates(),
 					RawTx:             submittedTx.GetRawTx(),
 					StoredAt:          now,
@@ -429,7 +432,7 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates, doubleSpendUpdates [
 			sendCallback = data.Status >= metamorph_api.Status_REJECTED
 		}
 
-		if sendCallback && data.CallbackUrl != "" {
+		if sendCallback && len(data.Callbacks) > 0 {
 			go p.callbackSender.SendCallback(p.logger, data)
 		}
 	}

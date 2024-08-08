@@ -50,8 +50,7 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 		var blockHeight sql.NullInt64
 		var blockHash []byte
 
-		var callbackUrl sql.NullString
-		var callbackToken sql.NullString
+		var callbacksData sql.NullString
 		var rejectReason sql.NullString
 		var competingTxs string
 		var merklePath sql.NullString
@@ -65,8 +64,7 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 			&status,
 			&blockHeight,
 			&blockHash,
-			&callbackUrl,
-			&callbackToken,
+			&callbacksData,
 			&data.FullStatusUpdates,
 			&rejectReason,
 			&competingTxs,
@@ -109,12 +107,12 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 			data.BlockHeight = uint64(blockHeight.Int64)
 		}
 
-		if callbackUrl.Valid {
-			data.CallbackUrl = callbackUrl.String
-		}
-
-		if callbackToken.Valid {
-			data.CallbackToken = callbackToken.String
+		if callbacksData.Valid {
+			callbacks, err := readCallbacksFromDB(callbacksData.String)
+			if err != nil {
+				return nil, err
+			}
+			data.Callbacks = callbacks
 		}
 
 		if rejectReason.Valid {
@@ -183,8 +181,7 @@ func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) 
 		,t.status
 		,t.block_height
 		,t.block_hash
-		,t.callback_url
-		,t.callback_token
+		,t.callbacks
 		,t.full_status_updates
 		,t.reject_reason
 		,t.competing_txs

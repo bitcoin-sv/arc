@@ -227,14 +227,13 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					data := &store.StoreData{
-						StoredAt:      testdata.Time,
-						AnnouncedAt:   testdata.Time.Add(1 * time.Second),
-						MinedAt:       testdata.Time.Add(2 * time.Second),
-						Hash:          testdata.TX1Hash,
-						Status:        tt.status,
-						CallbackUrl:   "https://test.com",
-						CallbackToken: "token",
-						MerklePath:    "00000",
+						StoredAt:    testdata.Time,
+						AnnouncedAt: testdata.Time.Add(1 * time.Second),
+						MinedAt:     testdata.Time.Add(2 * time.Second),
+						Hash:        testdata.TX1Hash,
+						Status:      tt.status,
+						Callbacks:   []store.StoreCallback{{CallbackURL: "https://test.com", CallbackToken: "token"}},
+						MerklePath:  "00000",
 					}
 					return data, tt.getErr
 				},

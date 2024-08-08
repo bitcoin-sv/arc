@@ -173,11 +173,14 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	statusReceived := metamorph_api.Status_RECEIVED
 
 	// Convert gRPC req to store.StoreData struct...
+	callback := store.StoreCallback{
+		CallbackURL:   req.GetCallbackUrl(),
+		CallbackToken: req.GetCallbackToken(),
+	}
 	sReq := &store.StoreData{
 		Hash:              hash,
 		Status:            statusReceived,
-		CallbackUrl:       req.GetCallbackUrl(),
-		CallbackToken:     req.GetCallbackToken(),
+		Callbacks:         []store.StoreCallback{callback},
 		FullStatusUpdates: req.GetFullStatusUpdates(),
 		RawTx:             req.GetRawTx(),
 	}
@@ -207,11 +210,14 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		timeout = txReq.GetMaxTimeout()
 
 		// Convert gRPC req to store.StoreData struct...
+		callback := store.StoreCallback{
+			CallbackURL:   txReq.GetCallbackUrl(),
+			CallbackToken: txReq.GetCallbackToken(),
+		}
 		sReq := &store.StoreData{
 			Hash:              hash,
 			Status:            statusReceived,
-			CallbackUrl:       txReq.GetCallbackUrl(),
-			CallbackToken:     txReq.GetCallbackToken(),
+			Callbacks:         []store.StoreCallback{callback},
 			FullStatusUpdates: txReq.GetFullStatusUpdates(),
 			RawTx:             txReq.GetRawTx(),
 		}

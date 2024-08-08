@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -80,8 +81,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		,status
 		,block_height
 		,block_hash
-		,callback_url
-		,callback_token
+		,callbacks
 		,full_status_updates
 		,reject_reason
 		,competing_txs
@@ -98,8 +98,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	var status sql.NullInt32
 	var blockHeight sql.NullInt64
 	var blockHash []byte
-	var callbackUrl sql.NullString
-	var callbackToken sql.NullString
+	var callbacksData sql.NullString
 	var fullStatusUpdates bool
 	var rejectReason sql.NullString
 	var competingTxs string
@@ -116,8 +115,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		&status,
 		&blockHeight,
 		&blockHash,
-		&callbackUrl,
-		&callbackToken,
+		&callbacksData,
 		&fullStatusUpdates,
 		&rejectReason,
 		&competingTxs,
@@ -168,12 +166,12 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		data.BlockHeight = uint64(blockHeight.Int64)
 	}
 
-	if callbackUrl.Valid {
-		data.CallbackUrl = callbackUrl.String
-	}
-
-	if callbackToken.Valid {
-		data.CallbackToken = callbackToken.String
+	if callbacksData.Valid {
+		callbacks, err := readCallbacksFromDB(callbacksData.String)
+		if err != nil {
+			return nil, err
+		}
+		data.Callbacks = callbacks
 	}
 
 	data.FullStatusUpdates = fullStatusUpdates
@@ -242,8 +240,7 @@ func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) ([]*store.Store
 		,status
 		,block_height
 		,block_hash
-		,callback_url
-		,callback_token
+		,callbacks
 		,full_status_updates
 		,reject_reason
 		,competing_txs
@@ -283,8 +280,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		,status
 		,block_height
 		,block_hash
-		,callback_url
-		,callback_token
+		,callbacks
 		,full_status_updates
 		,reject_reason
 		,competing_txs
@@ -306,8 +302,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		,$12
 		,$13
 		,$14
-		,$15
-	) ON CONFLICT (hash) DO UPDATE SET last_submitted_at=$15`
+	) ON CONFLICT (hash) DO UPDATE SET last_submitted_at=$14`
 
 	var txHash []byte
 	var blockHash []byte
@@ -325,7 +320,12 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		value.StoredAt = p.now()
 	}
 
-	_, err := p.db.ExecContext(ctx, q,
+	callbacksData, err := prepareCallbacksForSaving(value.Callbacks)
+	if err != nil {
+		return err
+	}
+
+	_, err = p.db.ExecContext(ctx, q,
 		value.StoredAt,
 		value.AnnouncedAt,
 		value.MinedAt,
@@ -333,8 +333,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		value.Status,
 		value.BlockHeight,
 		blockHash,
-		value.CallbackUrl,
-		value.CallbackToken,
+		callbacksData,
 		value.FullStatusUpdates,
 		value.RejectReason,
 		strings.Join(value.CompetingTxs, ","),
@@ -354,8 +353,7 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 	storedAt := make([]time.Time, len(data))
 	hashes := make([][]byte, len(data))
 	statuses := make([]int, len(data))
-	callbackURL := make([]string, len(data))
-	callbackToken := make([]string, len(data))
+	callbacks := make([]string, len(data))
 	fullStatusUpdate := make([]bool, len(data))
 	rawTxs := make([][]byte, len(data))
 	lockedBy := make([]string, len(data))
@@ -364,34 +362,45 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 		storedAt[i] = txData.StoredAt
 		hashes[i] = txData.Hash[:]
 		statuses[i] = int(txData.Status)
-		callbackURL[i] = txData.CallbackUrl
-		callbackToken[i] = txData.CallbackToken
 		fullStatusUpdate[i] = txData.FullStatusUpdates
 		rawTxs[i] = txData.RawTx
 		lockedBy[i] = p.hostname
 		lastSubmittedAt[i] = txData.LastSubmittedAt
+
+		callbacksData, err := prepareCallbacksForSaving(txData.Callbacks)
+		if err != nil {
+			return err
+		}
+		callbacks[i] = string(callbacksData)
 	}
 
 	q := `INSERT INTO metamorph.transactions (
 		 stored_at
 		,hash
 		,status
-		,callback_url
-		,callback_token
+		,callbacks
 		,full_status_updates
 		,raw_tx
 		,locked_by
 		,last_submitted_at
 		)
-		SELECT * FROM UNNEST($1::TIMESTAMPTZ[], $2::BYTEA[], $3::INT[], $4::TEXT[], $5::TEXT[], $6::BOOL[], $7::BYTEA[], $8::TEXT[], $9::TIMESTAMPTZ[])
-		ON CONFLICT (hash) DO UPDATE SET last_submitted_at = $10
+		SELECT
+			UNNEST($1::TIMESTAMPTZ[]),
+			UNNEST($2::BYTEA[]),
+			UNNEST($3::INT[]),
+			UNNEST($4::TEXT[])::JSONB,
+			UNNEST($5::BOOL[]),
+			UNNEST($6::BYTEA[]),
+			UNNEST($7::TEXT[]),
+			UNNEST($8::TIMESTAMPTZ[])
+		ON CONFLICT (hash) DO UPDATE SET last_submitted_at = $9
 		`
+
 	_, err := p.db.ExecContext(ctx, q,
 		pq.Array(storedAt),
 		pq.Array(hashes),
 		pq.Array(statuses),
-		pq.Array(callbackURL),
-		pq.Array(callbackToken),
+		pq.Array(callbacks),
 		pq.Array(fullStatusUpdate),
 		pq.Array(rawTxs),
 		pq.Array(lockedBy),
@@ -403,6 +412,26 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 	}
 
 	return nil
+}
+
+func prepareCallbacksForSaving(callbacks []store.StoreCallback) ([]byte, error) {
+	fmt.Println("prepareCallbacksForSaving")
+	fmt.Println(callbacks)
+
+	callbacksBytes, err := json.Marshal(callbacks)
+	if err != nil {
+		return nil, err
+	}
+	return callbacksBytes, nil
+}
+
+func readCallbacksFromDB(callbacks string) ([]store.StoreCallback, error) {
+	var callbacksData []store.StoreCallback
+	err := json.Unmarshal([]byte(callbacks), &callbacksData)
+	if err != nil {
+		return nil, err
+	}
+	return callbacksData, nil
 }
 
 func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64) error {
@@ -435,8 +464,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 		,status
 		,block_height
 		,block_hash
-		,callback_url
-		,callback_token
+		,callbacks
 		,full_status_updates
 		,reject_reason
 		,competing_txs
@@ -503,8 +531,7 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 			,status
 			,block_height
 			,block_hash
-			,callback_url
-			,callback_token
+			,callbacks
 			,full_status_updates
 			,reject_reason
 			,competing_txs
@@ -573,8 +600,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		,metamorph.transactions.status
 		,metamorph.transactions.block_height
 		,metamorph.transactions.block_hash
-		,metamorph.transactions.callback_url
-		,metamorph.transactions.callback_token
+		,metamorph.transactions.callbacks
 		,metamorph.transactions.full_status_updates
 		,metamorph.transactions.reject_reason
 		,metamorph.transactions.competing_txs
@@ -645,8 +671,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		,metamorph.transactions.status
 		,metamorph.transactions.block_height
 		,metamorph.transactions.block_hash
-		,metamorph.transactions.callback_url
-		,metamorph.transactions.callback_token
+		,metamorph.transactions.callbacks
 		,metamorph.transactions.full_status_updates
 		,metamorph.transactions.reject_reason
 		,metamorph.transactions.competing_txs
@@ -765,8 +790,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 		,t.status
 		,t.block_height
 		,t.block_hash
-		,t.callback_url
-		,t.callback_token
+		,t.callbacks
 		,t.full_status_updates
 		,t.reject_reason
 		,t.competing_txs

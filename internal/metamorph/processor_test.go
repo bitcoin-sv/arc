@@ -363,7 +363,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 						Hash:              testdata.TX1Hash,
 						Status:            metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL,
 						FullStatusUpdates: true,
-						CallbackUrl:       "http://callback.com",
+						Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.com"}},
 					},
 				},
 				{
@@ -372,7 +372,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 						Status:            metamorph_api.Status_SEEN_ON_NETWORK,
 						RejectReason:      "",
 						FullStatusUpdates: true,
-						CallbackUrl:       "http://callback.com",
+						Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.com"}},
 					},
 				},
 				{
@@ -380,7 +380,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 						Hash:              testdata.TX6Hash,
 						Status:            metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 						FullStatusUpdates: true,
-						CallbackUrl:       "http://callback.com",
+						Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.com"}},
 						CompetingTxs:      []string{"1234"},
 					},
 				},
@@ -424,7 +424,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				{
 					{
 						Hash:              testdata.TX1Hash,
-						CallbackUrl:       "http://callback.com",
+						Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.com"}},
 						FullStatusUpdates: true,
 						Status:            metamorph_api.Status_SEEN_ON_NETWORK,
 					},
@@ -432,7 +432,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				{
 					{
 						Hash:              testdata.TX2Hash,
-						CallbackUrl:       "http://callback.com",
+						Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.com"}},
 						FullStatusUpdates: true,
 						Status:            metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 						CompetingTxs:      []string{"1234", "different_competing_tx"},
@@ -827,7 +827,10 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				UpdateMinedFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.StoreData, error) {
 					require.Len(t, txsBlocks, tc.expectedTxsBlocks)
 
-					return []*store.StoreData{{CallbackUrl: "http://callback.com"}, {CallbackUrl: "http://callback.com"}, {}}, tc.updateMinedErr
+					return []*store.StoreData{
+						{Callbacks: []store.StoreCallback{{CallbackURL: "http://callback.com"}}},
+						{Callbacks: []store.StoreCallback{{CallbackURL: "http://callback.com"}}},
+						{}}, tc.updateMinedErr
 				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}

@@ -124,9 +124,14 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 		status.ExtraInfo = &tx.RejectReason
 	}
 
-	for i := 0; i < CallbackTries; i++ {
+	for _, callback := range tx.Callbacks {
+		p.sendCallback(logger, tx, callback, status, sleepDuration)
+	}
+}
 
-		logger.Debug("Sending callback for transaction", slog.String("hash", tx.Hash.String()), slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("status", statusString), slog.Uint64("block height", tx.BlockHeight), slog.String("block hash", blockHash))
+func (p *Callbacker) sendCallback(logger *slog.Logger, tx *store.StoreData, callback store.StoreCallback, status *Callback, sleepDuration int) {
+	for i := 0; i < CallbackTries; i++ {
+		logger.Debug("Sending callback for transaction", slog.String("hash", tx.Hash.String()), slog.String("url", callback.CallbackURL), slog.String("token", callback.CallbackToken), slog.String("status", *status.TxStatus), slog.Uint64("block height", tx.BlockHeight), slog.String("block hash", *status.BlockHash))
 
 		statusBytes, err := json.Marshal(status)
 		if err != nil {
@@ -135,23 +140,26 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 		}
 
 		var request *http.Request
-		request, err = http.NewRequest("POST", tx.CallbackUrl, bytes.NewBuffer(statusBytes))
+		request, err = http.NewRequest("POST", callback.CallbackURL, bytes.NewBuffer(statusBytes))
 		if err != nil {
-			logger.Error("Couldn't marshal status", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.String("err", errors.Join(err, fmt.Errorf("failed to post callback for transaction id %s", tx.Hash)).Error()))
+			logger.Error("Couldn't marshal status", slog.String("url", callback.CallbackURL), slog.String("token", callback.CallbackToken), slog.String("hash", tx.Hash.String()), slog.String("err", errors.Join(err, fmt.Errorf("failed to post callback for transaction id %s", tx.Hash)).Error()))
 			return
 		}
 		request.Header.Set("Content-Type", "application/json; charset=UTF-8")
-		if tx.CallbackToken != "" {
-			request.Header.Set("Authorization", "Bearer "+tx.CallbackToken)
+		if callback.CallbackToken != "" {
+			request.Header.Set("Authorization", "Bearer "+callback.CallbackToken)
 		}
 
 		var response *http.Response
 		response, err = p.httpClient.Do(request)
 		if err != nil {
-			logger.Debug("Couldn't send transaction callback", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
+			logger.Debug("Couldn't send transaction callback", slog.String("url", callback.CallbackURL), slog.String("token", callback.CallbackToken), slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
 			continue
 		}
-		defer response.Body.Close()
+
+		defer func() {
+			_ = response.Body.Close()
+		}()
 
 		// if callback was sent successfully we stop here
 		if response.StatusCode == http.StatusOK {
@@ -168,7 +176,7 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 			return
 		}
 
-		logger.Debug("Callback response status code not ok", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.Int("status", response.StatusCode))
+		logger.Debug("Callback response status code not ok", slog.String("url", callback.CallbackURL), slog.String("token", callback.CallbackToken), slog.String("hash", tx.Hash.String()), slog.Int("status", response.StatusCode))
 
 		// sleep before trying again
 		time.Sleep(time.Duration(sleepDuration) * time.Second)
@@ -177,7 +185,7 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 	}
 
 	p.callbackerStats.callbackFailedCount.Inc()
-	logger.Warn("Couldn't send transaction callback after tries", slog.String("url", tx.CallbackUrl), slog.String("token", tx.CallbackToken), slog.String("hash", tx.Hash.String()), slog.Int("retries", CallbackTries))
+	logger.Warn("Couldn't send transaction callback after tries", slog.String("url", callback.CallbackURL), slog.String("token", callback.CallbackToken), slog.String("hash", tx.Hash.String()), slog.Int("retries", CallbackTries))
 }
 
 func (p *Callbacker) Shutdown(logger *slog.Logger) {

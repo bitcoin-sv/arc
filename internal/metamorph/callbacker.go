@@ -125,7 +125,7 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 	}
 
 	for _, callback := range tx.Callbacks {
-		go p.sendCallback(logger, tx, callback, status, sleepDuration)
+		p.sendCallback(logger, tx, callback, status, sleepDuration)
 	}
 }
 

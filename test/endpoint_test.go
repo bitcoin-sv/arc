@@ -525,10 +525,12 @@ func TestSubmitMinedTx(t *testing.T) {
 
 func TestPostCumulativeFeesValidation(t *testing.T) {
 	tt := []struct {
-		name       string
-		options    validationOpts
-		lastTxFee  uint64
-		shouldPass bool
+		name            string
+		options         validationOpts
+		lastTxFee       uint64
+		chainLong       int
+		shouldPass      bool
+		expectedErrInfo string
 	}{
 		{
 			name: "post zero fee txs chain with cumulative fees validation and with skiping fee validation - fee validation is ommited",
@@ -543,7 +545,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			options: validationOpts{
 				performCumulativeFeesValidation: false,
 			},
-			lastTxFee:  10,
+			lastTxFee:  17,
 			shouldPass: true,
 		},
 		{
@@ -551,16 +553,27 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			options: validationOpts{
 				performCumulativeFeesValidation: true,
 			},
-			lastTxFee:  1,
-			shouldPass: false,
+			lastTxFee:       1,
+			shouldPass:      false,
+			expectedErrInfo: "arc error 473: cumulative transaction fee of 1 sat is too low",
 		},
 		{
 			name: "post  txs chain with suficient fee with cumulative fees validation",
 			options: validationOpts{
 				performCumulativeFeesValidation: true,
 			},
-			lastTxFee:  40,
+			lastTxFee:  80,
 			shouldPass: true,
+		},
+		{
+			name: "post  txs chain with cumulative fees validation - chain too long",
+			options: validationOpts{
+				performCumulativeFeesValidation: true,
+			},
+			lastTxFee:       247,
+			chainLong:       25,
+			shouldPass:      false,
+			expectedErrInfo: "arc error 473: too many unconfirmed parents, 25 [limit: 25]",
 		},
 	}
 
@@ -571,20 +584,29 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			require.NoError(t, err)
 
 			address, privateKey := fundNewWallet(t)
+			sendToAddress(t, address, 0.001)
 
-			// create mined ancestor
+			// create mined ancestors
 			utxos := getUtxos(t, address)
-			require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
+			require.GreaterOrEqual(t, len(utxos), 2, "No UTXOs available for the address")
 
-			minedTx, err := createTx(privateKey, address, utxos[0], 10)
+			minedTx1, err := createTx(privateKey, address, utxos[0], 10)
 			require.NoError(t, err)
 
-			// create unmined zero fee ancestors chain
-			const zeroFee = uint64(0)
-			const zeroChainCount = 3
-			ancestors := make([]*bt.Tx, zeroChainCount)
+			minedTx2, err := createTx(privateKey, address, utxos[1], 10)
+			require.NoError(t, err)
 
-			parentTx := minedTx
+			// create unmined zero fee ancestors graph
+			const zeroFee = uint64(0)
+			const defaultZeroChainCount = 3
+			zeroChainCount := defaultZeroChainCount
+			if tc.chainLong > 0 {
+				zeroChainCount = tc.chainLong / 2
+			}
+
+			// create chain from the first mined parent
+			firstAncetorsChain := make([]*bt.Tx, zeroChainCount)
+			parentTx := minedTx1
 			for i := 0; i < zeroChainCount; i++ {
 				output := parentTx.Outputs[0]
 				utxo := NodeUnspentUtxo{
@@ -598,24 +620,63 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 				tx, err := createTx(privateKey, address, utxo, zeroFee)
 				require.NoError(t, err)
 
-				ancestors[i] = tx
+				firstAncetorsChain[i] = tx
+				parentTx = tx
+			}
+
+			// create chain from the second mined parent
+			if tc.chainLong > 2*zeroChainCount {
+				zeroChainCount++
+			}
+
+			secondAncetorsChain := make([]*bt.Tx, zeroChainCount)
+			parentTx = minedTx2
+			for i := 0; i < zeroChainCount; i++ {
+				output := parentTx.Outputs[0]
+				utxo := NodeUnspentUtxo{
+					Txid:         parentTx.TxID(),
+					Vout:         0,
+					Address:      address,
+					ScriptPubKey: output.LockingScript.String(),
+					Amount:       float64(float64(output.Satoshis) / 1e8),
+				}
+
+				tx, err := createTx(privateKey, address, utxo, zeroFee)
+				require.NoError(t, err)
+
+				secondAncetorsChain[i] = tx
 				parentTx = tx
 			}
 
 			// post ancestor transactions
-			postTxWithHeadersChecksStatus(t, arcClient, minedTx, Status_SEEN_ON_NETWORK, validationOpts{})
-			generate(t, 1) // mine posted transaction
+			postTxWithHeadersChecksStatus(t, arcClient, minedTx1, Status_SEEN_ON_NETWORK, validationOpts{})
+			postTxWithHeadersChecksStatus(t, arcClient, minedTx2, Status_SEEN_ON_NETWORK, validationOpts{})
+			generate(t, 1) // mine posted transactions
 
-			noValidation := validationOpts{skipTxValidation: true}
-			for _, tx := range ancestors {
-				postTxWithHeadersChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, noValidation)
+			noFeeValidation := validationOpts{skipFeeValidation: true}
+			for _, tx := range firstAncetorsChain {
+				postTxWithHeadersChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, noFeeValidation)
+			}
+			for _, tx := range secondAncetorsChain {
+				postTxWithHeadersChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, noFeeValidation)
 			}
 
 			// then
 			// create last transaction in chain
-			parentTx = ancestors[len(ancestors)-1]
+			// get otput from the last tx from the first chain
+			parentTx = firstAncetorsChain[len(firstAncetorsChain)-1]
 			output := parentTx.Outputs[0]
-			utxo := NodeUnspentUtxo{
+			utxo1 := NodeUnspentUtxo{
+				Txid:         parentTx.TxID(),
+				Vout:         0,
+				Address:      address,
+				ScriptPubKey: output.LockingScript.String(),
+				Amount:       float64(float64(output.Satoshis) / 1e8),
+			}
+			// get otput from the last tx from the second chain
+			parentTx = secondAncetorsChain[len(secondAncetorsChain)-1]
+			output = parentTx.Outputs[0]
+			utxo2 := NodeUnspentUtxo{
 				Txid:         parentTx.TxID(),
 				Vout:         0,
 				Address:      address,
@@ -623,7 +684,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 				Amount:       float64(float64(output.Satoshis) / 1e8),
 			}
 
-			childTx, err := createTx(privateKey, address, utxo, tc.lastTxFee)
+			childTx, err := createTxFrom(privateKey, address, []NodeUnspentUtxo{utxo1, utxo2}, tc.lastTxFee)
 			require.NoError(t, err)
 
 			response := postTxWithHeaders(t, arcClient, childTx, Status_SEEN_ON_NETWORK, tc.options)
@@ -636,9 +697,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			} else {
 				require.Equal(t, int(api.ErrStatusCumulativeFees), response.StatusCode())
 				require.NotNil(t, response.JSON473)
-
-				expectedInfo := fmt.Sprintf("arc error 473: cumulative transaction fee of %d sat is too low - minimum expected fee is %d sat", tc.lastTxFee, (1+zeroChainCount)*10)
-				require.Equal(t, expectedInfo, *response.JSON473.ExtraInfo)
+				require.Contains(t, *response.JSON473.ExtraInfo, tc.expectedErrInfo)
 			}
 		})
 	}

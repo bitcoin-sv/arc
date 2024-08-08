@@ -32,7 +32,7 @@ type CallbackerStats struct {
 type Callback struct {
 	BlockHash    *string   `json:"blockHash,omitempty"`
 	BlockHeight  *uint64   `json:"blockHeight,omitempty"`
-	ExtraInfo    *string   `json:"extraInfo"`
+	ExtraInfo    *string   `json:"extraInfo,omitempty"`
 	MerklePath   *string   `json:"merklePath"`
 	Timestamp    time.Time `json:"timestamp"`
 	TxStatus     *string   `json:"txStatus,omitempty"`
@@ -132,6 +132,12 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 
 	if len(tx.CompetingTxs) > 0 {
 		status.CompetingTxs = tx.CompetingTxs
+	}
+
+	if tx.Status == metamorph_api.Status_MINED && len(tx.CompetingTxs) > 0 {
+		msg := minedDoubleSpendMsg
+		status.CompetingTxs = []string{}
+		status.ExtraInfo = &msg
 	}
 
 	for _, callback := range tx.Callbacks {

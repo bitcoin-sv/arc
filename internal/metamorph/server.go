@@ -31,7 +31,8 @@ func PtrTo[T any](v T) *T {
 }
 
 const (
-	maxTimeoutDefault = 5 * time.Second
+	maxTimeoutDefault   = 5 * time.Second
+	minedDoubleSpendMsg = "previously double spend attempted"
 )
 
 var ErrNotFound = errors.New("key could not be found")
@@ -393,7 +394,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		blockHash = data.BlockHash.String()
 	}
 
-	return &metamorph_api.TransactionStatus{
+	returnStatus := &metamorph_api.TransactionStatus{
 		Txid:         data.Hash.String(),
 		AnnouncedAt:  announcedAt,
 		StoredAt:     storedAt,
@@ -404,7 +405,14 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		RejectReason: data.RejectReason,
 		CompetingTxs: data.CompetingTxs,
 		MerklePath:   data.MerklePath,
-	}, nil
+	}
+
+	if returnStatus.Status == metamorph_api.Status_MINED && len(returnStatus.CompetingTxs) > 0 {
+		returnStatus.CompetingTxs = []string{}
+		returnStatus.RejectReason = minedDoubleSpendMsg
+	}
+
+	return returnStatus, nil
 }
 
 func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*store.StoreData, *timestamppb.Timestamp, *timestamppb.Timestamp, *timestamppb.Timestamp, error) {

@@ -215,6 +215,26 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			wantErr: assert.NoError,
 		},
 		{
+			name: "GetTransactionStatus - mined - previously double spend attempted",
+			req: &metamorph_api.TransactionStatusRequest{
+				Txid: testdata.TX1Hash.String(),
+			},
+			status:       metamorph_api.Status_MINED,
+			competingTxs: []string{"1234"},
+
+			want: &metamorph_api.TransactionStatus{
+				StoredAt:     timestamppb.New(testdata.Time),
+				AnnouncedAt:  timestamppb.New(testdata.Time.Add(1 * time.Second)),
+				MinedAt:      timestamppb.New(testdata.Time.Add(2 * time.Second)),
+				Txid:         testdata.TX1Hash.String(),
+				Status:       metamorph_api.Status_MINED,
+				CompetingTxs: []string{},
+				RejectReason: "previously double spend attempted",
+				MerklePath:   "00000",
+			},
+			wantErr: assert.NoError,
+		},
+		{
 			name: "GetTransactionStatus - test.TX1 - error",
 			req: &metamorph_api.TransactionStatusRequest{
 				Txid: testdata.TX1Hash.String(),

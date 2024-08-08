@@ -46,7 +46,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *bt.Tx, f
 			return err
 		}
 	case validator.CumulativeFeeValidation:
-		if err := cumulativeCheckFees(ctx, v.txFinder, tx, api.FeesToBtFeeQuote(v.policy.MinMiningTxFee)); err != nil {
+		if err := cumulativeCheckFees(ctx, v.txFinder, tx, api.FeesToBtFeeQuote(v.policy.MinMiningTxFee), v.policy.LimitCPFPGroupMembersCount); err != nil {
 			return err
 		}
 	case validator.NoneFeeValidation:
@@ -102,11 +102,15 @@ func standardCheckFees(tx *bt.Tx, feeQuote *bt.FeeQuote) *validator.Error {
 	return nil
 }
 
-func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *bt.Tx, feeQuote *bt.FeeQuote) *validator.Error {
+func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *bt.Tx, feeQuote *bt.FeeQuote, unminedAncestorsLimit int) *validator.Error {
 	txSet, err := getUnminedAncestors(ctx, txFinder, tx)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}
+	if len(txSet) >= unminedAncestorsLimit {
+		return validator.NewError(fmt.Errorf("too many unconfirmed parents, %d [limit: %d]", len(txSet), unminedAncestorsLimit), api.ErrStatusCumulativeFees)
+	}
+
 	txSet[""] = tx // do not need to care about key in the set
 
 	cumulativeSize := bt.TxSize{}

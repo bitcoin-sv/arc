@@ -19,16 +19,26 @@ go install ./cmd/broadcaster-cli/
 
 `broadcaster-cli` uses flags for adding context needed to run it. The flags and commands available can be shown by running `broadcaster-cli` with the flag `--help`.
 
-As there can be a lot of flags you can also define them in a `yaml` file. The file [broadcaster-cli-example.yaml](./broadcaster-cli-example.yaml) is an example of the configuration.
+As there can be a lot of flags you can also define them in a configuration file. The file [broadcaster-cli-example.yaml](./broadcaster-cli-example.yaml) is an example of the configuration. The format of the file can be the following: JSON, TOML, YAML, HCL, INI, envfile or Java properties formats.
 
-If file `broadcaster-cli.yaml` is present in either the folder where `broadcaster-cli` is run or the folder `./cmd/broadcaster-cli/`, then these values will be used as flags (if available to the command). You can still provide the flags, in that case the value provided in the flag will override the value provided in `broadcaster-cli.yaml`
+A specific config file can be selected using the `--config` flag. Example:
+```
+broadcaster-cli keyset address -- --config ./cmd/broadcaster-cli/broadcaster-cli-example.yaml
+```
+Note that the config has to be added as a subcommand with a double dash `--` as shown above. The path to the config file has to be separated by a space.
+
+If no config file is given using the `--config` flag, `broadcaster-cli` will search for `broadcaster-cli.yaml` in `.` and `./cmd/broadcaster-cli/` folders.
+
+If a config file was found, then these values will be used as flags (if available to the command). You can still provide the flags, in which case the value provided in the flag will override the value provided in `broadcaster-cli.yaml`.
+
+Note that a configuration file needs to be given at least for the private keys (see [broadcaster-cli-example.yaml](./broadcaster-cli-example.yaml)) as they cannot be passed as flags.
 
 ## How to use broadcaster-cli to send batches of transactions to ARC
 
 These instructions will provide the steps needed in order to use `broadcaster-cli` to send transactions to ARC.
 
 1. Create a new key set by running `broadcaster-cli keyset new`
-    1. The key set displayed has to be added under to config.yaml under `privateKeys`
+    1. The key set displayed has to be added to the configuration file under `privateKeys`
 2. Add funds to the funding address
     1. Show the funding address by running `broadcaster-cli keyset address`
     2. In case of `testnet` (using the `--testnet` flag) funds can be added using the WoC faucet. For that you can use the command `broadcaster-cli keyset topup --testnet`

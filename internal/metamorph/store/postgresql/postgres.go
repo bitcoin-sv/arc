@@ -415,9 +415,6 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 }
 
 func prepareCallbacksForSaving(callbacks []store.StoreCallback) ([]byte, error) {
-	fmt.Println("prepareCallbacksForSaving")
-	fmt.Println(callbacks)
-
 	callbacksBytes, err := json.Marshal(callbacks)
 	if err != nil {
 		return nil, err

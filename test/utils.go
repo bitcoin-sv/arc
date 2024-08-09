@@ -70,6 +70,10 @@ type NodeUnspentUtxo struct {
 	Safe          bool    `json:"safe"`
 }
 
+type TransactionRequest struct {
+	RawTx string `json:"rawTx"`
+}
+
 type RawTransaction struct {
 	Hex       string `json:"hex"`
 	BlockHash string `json:"blockhash,omitempty"`

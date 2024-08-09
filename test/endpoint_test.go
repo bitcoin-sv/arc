@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -24,95 +23,47 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type Response struct {
-	BlockHash   string `json:"blockHash"`
-	BlockHeight int    `json:"blockHeight"`
-	ExtraInfo   string `json:"extraInfo"`
-	Status      int    `json:"status"`
-	Timestamp   string `json:"timestamp"`
-	Title       string `json:"title"`
-	TxStatus    string `json:"txStatus"`
-	Txid        string `json:"txid"`
-}
-
-type TxStatusResponse struct {
-	BlockHash   string      `json:"blockHash"`
-	BlockHeight int         `json:"blockHeight"`
-	ExtraInfo   interface{} `json:"extraInfo"` // It could be null or any type, so we use interface{}
-	Timestamp   string      `json:"timestamp"`
-	TxStatus    string      `json:"txStatus"`
-	Txid        string      `json:"txid"`
-	MerklePath  string      `json:"merklePath"`
-}
-
 func TestBatchChainedTxs(t *testing.T) {
-	tt := []struct {
-		name string
-	}{
-		{
-			name: "submit batch of chained transactions - ext format",
-		},
-	}
 
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			address, privateKey := fundNewWallet(t)
+	t.Run("submit batch of chained transactions", func(t *testing.T) {
+		address, privateKey := fundNewWallet(t)
 
-			utxos := getUtxos(t, address)
-			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+		utxos := getUtxos(t, address)
+		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-			txs, err := createTxChain(privateKey, utxos[0], 30)
-			require.NoError(t, err)
-
-			arcBody := make([]api.TransactionRequest, len(txs))
-			for i, tx := range txs {
-				arcBody[i] = api.TransactionRequest{
-					RawTx: hex.EncodeToString(tx.ExtendedBytes()),
-				}
-			}
-
-			payLoad, err := json.Marshal(arcBody)
-			require.NoError(t, err)
-
-			buffer := bytes.NewBuffer(payLoad)
-
-			// Send POST request
-			req, err := http.NewRequest("POST", arcEndpointV1Txs, buffer)
-			require.NoError(t, err)
-
-			req.Header.Set("Content-Type", "application/json")
-			client := &http.Client{}
-
-			t.Logf("submitting batch of %d chained txs", len(txs))
-			postBatchRequest(t, client, req)
-
-			time.Sleep(1 * time.Second) // give ARC time to perform the status update on DB
-
-			// repeat request to ensure response remains the same
-			t.Logf("re-submitting batch of %d chained txs", len(txs))
-			postBatchRequest(t, client, req)
-		})
-	}
-}
-
-func postBatchRequest(t *testing.T, client *http.Client, req *http.Request) {
-	httpResp, err := client.Do(req)
-	require.NoError(t, err)
-	defer httpResp.Body.Close()
-
-	require.Equal(t, http.StatusOK, httpResp.StatusCode)
-
-	b, err := io.ReadAll(httpResp.Body)
-	require.NoError(t, err)
-
-	bodyResponse := make([]Response, 0)
-	err = json.Unmarshal(b, &bodyResponse)
-	require.NoError(t, err)
-
-	for i, txResponse := range bodyResponse {
+		txs, err := createTxChain(privateKey, utxos[0], 30)
 		require.NoError(t, err)
-		require.Equalf(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
-	}
+
+		arcBody := make([]TransactionRequest, len(txs))
+		for i, tx := range txs {
+			arcBody[i] = TransactionRequest{
+				RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+			}
+		}
+
+		payLoad, err := json.Marshal(arcBody)
+		require.NoError(t, err)
+
+		buffer := bytes.NewBuffer(payLoad)
+
+		// Send POST request
+		t.Logf("submitting batch of %d chained txs", len(txs))
+		resp := postRequest[[]Response](t, arcEndpointV1Txs, buffer)
+		for i, txResponse := range resp {
+			require.NoError(t, err)
+			require.Equalf(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
+		}
+
+		time.Sleep(1 * time.Second) // give ARC time to perform the status update on DB
+
+		// repeat request to ensure response remains the same
+		t.Logf("re-submitting batch of %d chained txs", len(txs))
+		resp = postRequest[[]Response](t, arcEndpointV1Txs, buffer)
+		for i, txResponse := range resp {
+			require.NoError(t, err)
+			require.Equalf(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
+		}
+	})
 }
 
 func createTxChain(privateKey string, utxo0 NodeUnspentUtxo, length int) ([]*bt.Tx, error) {

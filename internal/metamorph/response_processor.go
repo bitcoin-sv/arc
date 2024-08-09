@@ -46,69 +46,70 @@ func (r *StatusResponse) UpdateStatus(statusAndError StatusAndError) {
 }
 
 type ResponseProcessor struct {
-	mu          sync.Mutex
-	responseMap map[chainhash.Hash]*StatusResponse
+	resMap sync.Map
 }
 
 func NewResponseProcessor() *ResponseProcessor {
-	return &ResponseProcessor{
-		responseMap: make(map[chainhash.Hash]*StatusResponse),
-	}
+	return &ResponseProcessor{}
 }
 
 func (p *ResponseProcessor) Add(statusResponse *StatusResponse, timeout time.Duration) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	_, found := p.responseMap[*statusResponse.Hash]
-	if found {
+	_, loaded := p.resMap.LoadOrStore(*statusResponse.Hash, statusResponse)
+	if loaded {
 		return
 	}
-
-	p.responseMap[*statusResponse.Hash] = statusResponse
 
 	// we no longer need status response object after response has been returned
 	go func() {
 		time.Sleep(timeout)
-		p.mu.Lock()
-		delete(p.responseMap, *statusResponse.Hash)
-		p.mu.Unlock()
+		p.resMap.Delete(*statusResponse.Hash)
 	}()
 }
 
 func (p *ResponseProcessor) UpdateStatus(hash *chainhash.Hash, statusAndError StatusAndError) {
-	p.mu.Lock()
-
-	res, ok := p.responseMap[*hash]
-	p.mu.Unlock()
+	val, ok := p.resMap.Load(*hash)
 	if !ok {
 		return
 	}
 
-	res.UpdateStatus(statusAndError)
+	statusResponse, ok := val.(*StatusResponse)
+	if !ok {
+		return
+	}
+
+	statusResponse.UpdateStatus(statusAndError)
 }
 
 // use for tests only
 func (p *ResponseProcessor) getMap() map[chainhash.Hash]*StatusResponse {
 	retMap := make(map[chainhash.Hash]*StatusResponse)
 
-	p.mu.Lock()
+	p.resMap.Range(func(key, val any) bool {
+		k, ok := key.(chainhash.Hash)
+		if !ok {
+			return true // continue
+		}
 
-	for key, val := range p.responseMap {
-		retMap[key] = val
-	}
+		v, ok := val.(*StatusResponse)
+		if !ok {
+			return true // continue
+		}
 
-	p.mu.Unlock()
+		retMap[k] = v
+
+		return true // continue
+	})
 
 	return retMap
 }
 
 func (p *ResponseProcessor) getMapLen() int {
-	p.mu.Lock()
+	var length int
 
-	length := len(p.responseMap)
-
-	p.mu.Unlock()
+	p.resMap.Range(func(_, _ any) bool {
+		length++
+		return true
+	})
 
 	return length
 }

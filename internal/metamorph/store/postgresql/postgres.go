@@ -100,7 +100,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	var callbacksData []byte
 	var fullStatusUpdates bool
 	var rejectReason sql.NullString
-	var competingTxs string
+	var competingTxs sql.NullString
 	var rawTx []byte
 	var lockedBy string
 	var merklePath sql.NullString
@@ -173,25 +173,18 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		data.Callbacks = callbacks
 	}
 
-	data.FullStatusUpdates = fullStatusUpdates
-
-	if rejectReason.Valid {
-		data.RejectReason = rejectReason.String
-	}
-
-	if competingTxs != "" {
-		data.CompetingTxs = strings.Split(competingTxs, ",")
-	}
-
-	data.LockedBy = lockedBy
-
-	if merklePath.Valid {
-		data.MerklePath = merklePath.String
-	}
-
 	if retries.Valid {
 		data.Retries = int(retries.Int32)
 	}
+
+	if competingTxs.String != "" {
+		data.CompetingTxs = strings.Split(competingTxs.String, ",")
+	}
+
+	data.FullStatusUpdates = fullStatusUpdates
+	data.RejectReason = rejectReason.String
+	data.LockedBy = lockedBy
+	data.MerklePath = merklePath.String
 
 	return data, nil
 }

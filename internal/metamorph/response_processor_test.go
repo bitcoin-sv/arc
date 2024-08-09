@@ -94,7 +94,7 @@ func TestResponseProcessor(t *testing.T) {
 
 		rpMap := rp.getMap()
 
-		require.Len(t, rp.responseMap, 3)
+		require.Len(t, rpMap, 3)
 		require.Equal(t, metamorph_api.Status_RECEIVED, rpMap[*testdata.TX1Hash].Status)
 		require.Nil(t, rpMap[*testdata.TX1Hash].Err)
 		require.Equal(t, metamorph_api.Status_RECEIVED, rpMap[*testdata.TX2Hash].Status)

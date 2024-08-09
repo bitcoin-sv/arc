@@ -45,6 +45,12 @@ func (m *PeerHandler) HandleTransactionSent(msg *wire.MsgTx, peer p2p.PeerI) err
 
 // HandleTransactionAnnouncement is a message sent to the PeerHandler when a transaction INV message is received from a peer.
 func (m *PeerHandler) HandleTransactionAnnouncement(msg *wire.InvVect, peer p2p.PeerI) error {
+	m.messageCh <- &PeerTxMessage{
+		Hash:   &msg.Hash,
+		Status: metamorph_api.Status_SEEN_ON_NETWORK,
+		Peer:   peer.String(),
+	}
+
 	return nil
 }
 

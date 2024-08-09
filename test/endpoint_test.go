@@ -400,40 +400,29 @@ func Test_E2E_Success(t *testing.T) {
 	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, hex.EncodeToString(tx.ExtendedBytes()))
 
 	// Send POST request
-	req, err := http.NewRequest("POST", arcEndpointV1Tx, strings.NewReader(jsonPayload))
-	require.NoError(t, err)
-
-	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	txID := postSingleRequest(t, client, req)
+	response := postRequest[Response](t, arcEndpointV1Tx, strings.NewReader(jsonPayload))
+	txID := response.Txid
+	require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
 
 	time.Sleep(1 * time.Second) // give ARC time to perform the status update on DB
 
 	// repeat request to ensure response remains the same
-	txIDRepeat := postSingleRequest(t, client, req)
-	require.Equal(t, txID, txIDRepeat)
+	response = postRequest[Response](t, arcEndpointV1Tx, strings.NewReader(jsonPayload))
+	require.Equal(t, txID, response.Txid)
+	require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
 
 	// Check transaction status
 	statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID)
-	statusResp, err := http.Get(statusUrl)
-	require.NoError(t, err)
-	defer statusResp.Body.Close()
-
-	var statusResponse TxStatusResponse
-	require.NoError(t, json.NewDecoder(statusResp.Body).Decode(&statusResponse))
-	require.Equalf(t, Status_SEEN_ON_NETWORK, statusResponse.TxStatus, "Expected txStatus to be 'SEEN_ON_NETWORK' for tx id %s", txID)
+	statusResponse := getRequest[TxStatusResponse](t, statusUrl)
+	require.Equal(t, Status_SEEN_ON_NETWORK, statusResponse.TxStatus)
 
 	t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
 	generate(t, 10)
 
-	statusResp, err = http.Get(statusUrl)
-	require.NoError(t, err)
-	defer statusResp.Body.Close()
+	statusResponse = getRequest[TxStatusResponse](t, statusUrl)
+	require.Equal(t, Status_MINED, statusResponse.TxStatus)
 
-	require.NoError(t, json.NewDecoder(statusResp.Body).Decode(&statusResponse))
-
-	require.Equal(t, Status_MINED, statusResponse.TxStatus, "Expected txStatus to be 'MINED'")
 	t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
 	// Check Merkle path
@@ -521,20 +510,6 @@ func TestPostTx_Queued(t *testing.T) {
 			}
 		}
 	})
-}
-
-func postSingleRequest(t *testing.T, client *http.Client, req *http.Request) string {
-	httpResp, err := client.Do(req)
-	require.NoError(t, err)
-	defer httpResp.Body.Close()
-
-	require.Equal(t, http.StatusOK, httpResp.StatusCode)
-
-	var response Response
-	require.NoError(t, json.NewDecoder(httpResp.Body).Decode(&response))
-	require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
-
-	return response.Txid
 }
 
 func TestPostTx_Success(t *testing.T) {

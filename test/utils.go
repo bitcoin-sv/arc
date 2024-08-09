@@ -36,6 +36,27 @@ const (
 	Status_MINED                  = "MINED"
 )
 
+type Response struct {
+	BlockHash   string `json:"blockHash"`
+	BlockHeight int    `json:"blockHeight"`
+	ExtraInfo   string `json:"extraInfo"`
+	Status      int    `json:"status"`
+	Timestamp   string `json:"timestamp"`
+	Title       string `json:"title"`
+	TxStatus    string `json:"txStatus"`
+	Txid        string `json:"txid"`
+}
+
+type TxStatusResponse struct {
+	BlockHash   string      `json:"blockHash"`
+	BlockHeight int         `json:"blockHeight"`
+	ExtraInfo   interface{} `json:"extraInfo"` // It could be null or any type, so we use interface{}
+	Timestamp   string      `json:"timestamp"`
+	TxStatus    string      `json:"txStatus"`
+	Txid        string      `json:"txid"`
+	MerklePath  string      `json:"merklePath"`
+}
+
 type NodeUnspentUtxo struct {
 	Txid          string  `json:"txid"`
 	Vout          uint32  `json:"vout"`
@@ -58,6 +79,35 @@ type BlockData struct {
 	Height     uint64   `json:"height"`
 	Txs        []string `json:"txs"`
 	MerkleRoot string   `json:"merkleroot"`
+}
+
+func getRequest[T any](t *testing.T, url string) T {
+	getResp, err := http.Get(url)
+	require.NoError(t, err)
+	defer getResp.Body.Close()
+
+	var respBody T
+	require.NoError(t, json.NewDecoder(getResp.Body).Decode(&respBody))
+
+	return respBody
+}
+
+func postRequest[T any](t *testing.T, url string, reader io.Reader) T {
+	req, err := http.NewRequest("POST", url, reader)
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	httpResp, err := client.Do(req)
+	require.NoError(t, err)
+
+	defer httpResp.Body.Close()
+	require.Equal(t, http.StatusOK, httpResp.StatusCode)
+
+	var response T
+	require.NoError(t, json.NewDecoder(httpResp.Body).Decode(&response))
+
+	return response
 }
 
 // PtrTo returns a pointer to the given value.

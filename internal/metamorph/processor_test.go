@@ -153,7 +153,7 @@ func TestProcessTransaction(t *testing.T) {
 			expectedResponseMapItems: 0,
 			expectedSetCalls:         1,
 			expectedAnnounceCalls:    1,
-			expectedRequestCalls:     1,
+			expectedRequestCalls:     0,
 		},
 		{
 			name: "record found",

@@ -3,6 +3,7 @@ package create
 import (
 	"errors"
 	"fmt"
+	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"log"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
@@ -94,7 +95,13 @@ var Cmd = &cobra.Command{
 
 		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
-		rateBroadcaster, err := broadcaster.NewUTXOCreator(logger, client, keySets, wocClient, isTestnet,
+		ks := make([]*keyset.KeySet, len(keySets))
+		counter := 0
+		for _, keySet := range keySets {
+			ks[counter] = keySet
+			counter++
+		}
+		rateBroadcaster, err := broadcaster.NewUTXOCreator(logger, client, ks, wocClient, isTestnet,
 			broadcaster.WithFees(miningFeeSat),
 			broadcaster.WithCallback(callbackURL, callbackToken),
 			broadcaster.WithFullstatusUpdates(fullStatusUpdates),

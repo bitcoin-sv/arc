@@ -12,6 +12,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
+	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -121,7 +122,14 @@ var Cmd = &cobra.Command{
 			opts = append(opts, broadcaster.WithWaitForStatus(metamorph_api.Status(waitForStatus)))
 		}
 
-		rateBroadcaster, err := broadcaster.NewMultiKeyRateBroadcaster(logger, client, keySets, wocClient, isTestnet, opts...)
+		ks := make([]*keyset.KeySet, len(keySets))
+		counter := 0
+		for _, keySet := range keySets {
+			ks[counter] = keySet
+			counter++
+		}
+
+		rateBroadcaster, err := broadcaster.NewMultiKeyRateBroadcaster(logger, client, ks, wocClient, isTestnet, opts...)
 		if err != nil {
 			return fmt.Errorf("failed to create rate broadcaster: %v", err)
 		}

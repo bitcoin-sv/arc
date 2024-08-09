@@ -3,6 +3,7 @@ package consolidate
 import (
 	"errors"
 	"fmt"
+	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -27,7 +28,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		keySets, err := helper.GetKeySets()
+		keySetsMap, err := helper.GetKeySets()
 		if err != nil {
 			return err
 		}
@@ -56,6 +57,13 @@ var Cmd = &cobra.Command{
 		}, arcServer)
 		if err != nil {
 			return fmt.Errorf("failed to create client: %v", err)
+		}
+
+		keySets := make([]*keyset.KeySet, len(keySetsMap))
+		counter := 0
+		for _, keySet := range keySetsMap {
+			keySets[counter] = keySet
+			counter++
 		}
 
 		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))

@@ -24,9 +24,9 @@ var (
 				return err
 			}
 
-			for _, keySet := range keySets {
+			for name, keySet := range keySets {
 
-				logger.Info("address", slog.String("address", keySet.Address(!isTestnet)))
+				logger.Info("address", slog.String("name", name), slog.String("address", keySet.Address(!isTestnet)), slog.String("key", keySet.GetMaster().String()))
 			}
 
 			return nil

@@ -9,6 +9,12 @@ import (
 	"sync"
 	"time"
 
+<<<<<<< HEAD
+=======
+	"log/slog"
+
+	"github.com/bitcoin-sv/arc/internal/async"
+>>>>>>> fe783846 (remove handler)
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -657,8 +663,16 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		Status: metamorph_api.Status_STORED,
 	})
 
-	// Send GETDATA to peers to see if they have it
-	p.pm.RequestTransaction(req.Data.Hash)
+	if req.Timeout != 0 {
+		// Add this transaction to the map of transactions that client is listening to with open connection.
+		p.ProcessorResponseMap.Set(req.Data.Hash, processorResponse)
+
+		// we no longer need processor response object after response has been returned
+		go func() {
+			time.Sleep(req.Timeout)
+			p.ProcessorResponseMap.Delete(req.Data.Hash)
+		}()
+	}
 
 	// Announce transaction to network peers
 	p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
@@ -667,6 +681,9 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		p.logger.Warn("transaction was not announced to any peer", slog.String("hash", req.Data.Hash.String()))
 		return
 	}
+
+	// Send GETDATA to peers to see if they have it
+	p.pm.RequestTransaction(req.Data.Hash)
 
 	// update status in response
 	statusResponse.UpdateStatus(StatusAndError{

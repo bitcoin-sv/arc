@@ -19,7 +19,7 @@ func (p *PostgreSQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*block
 		,b.height
 		,b.processed_at
 		,b.orphanedyn
-		FROM blocks b
+		FROM blocktx.blocks b
 		WHERE b.hash = $1
 	`
 

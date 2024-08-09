@@ -157,9 +157,7 @@ func (p *Callbacker) sendCallback(logger *slog.Logger, tx *store.StoreData, call
 			continue
 		}
 
-		defer func() {
-			_ = response.Body.Close()
-		}()
+		defer response.Body.Close()
 
 		// if callback was sent successfully we stop here
 		if response.StatusCode == http.StatusOK {

@@ -53,7 +53,7 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 		var callbackUrl sql.NullString
 		var callbackToken sql.NullString
 		var rejectReason sql.NullString
-		var competingTxs string
+		var competingTxs sql.NullString
 		var merklePath sql.NullString
 		var retries sql.NullInt32
 
@@ -109,29 +109,18 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 			data.BlockHeight = uint64(blockHeight.Int64)
 		}
 
-		if callbackUrl.Valid {
-			data.CallbackUrl = callbackUrl.String
-		}
-
-		if callbackToken.Valid {
-			data.CallbackToken = callbackToken.String
-		}
-
-		if rejectReason.Valid {
-			data.RejectReason = rejectReason.String
-		}
-
-		if competingTxs != "" {
-			data.CompetingTxs = strings.Split(competingTxs, ",")
-		}
-
-		if merklePath.Valid {
-			data.MerklePath = merklePath.String
-		}
-
 		if retries.Valid {
 			data.Retries = int(retries.Int32)
 		}
+
+		if competingTxs.String != "" {
+			data.CompetingTxs = strings.Split(competingTxs.String, ",")
+		}
+
+		data.CallbackUrl = callbackUrl.String
+		data.CallbackToken = callbackToken.String
+		data.RejectReason = rejectReason.String
+		data.MerklePath = merklePath.String
 
 		storeData = append(storeData, data)
 	}
@@ -146,7 +135,7 @@ func getCompetingTxsFromRows(rows *sql.Rows) []competingTxsData {
 		data := competingTxsData{}
 
 		var hash []byte
-		var competingTxs string
+		var competingTxs sql.NullString
 
 		err := rows.Scan(
 			&hash,
@@ -158,8 +147,8 @@ func getCompetingTxsFromRows(rows *sql.Rows) []competingTxsData {
 
 		data.hash = hash
 
-		if competingTxs != "" {
-			data.competingTxs = strings.Split(competingTxs, ",")
+		if competingTxs.String != "" {
+			data.competingTxs = strings.Split(competingTxs.String, ",")
 		}
 
 		dbData = append(dbData, data)

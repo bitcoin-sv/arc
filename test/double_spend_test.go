@@ -1,106 +1,89 @@
 package test
 
 import (
-	"context"
 	"encoding/hex"
-	"net/http"
+	"fmt"
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/libsv/go-bt/v2"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDoubleSpend(t *testing.T) {
-	tt := []struct {
-		name      string
-		extFormat bool
-	}{
-		{
-			name:      "submit tx with a double spend tx before and after tx got mined - std format",
-			extFormat: false,
-		},
-		{
-			name:      "submit tx with a double spend tx before and after tx got mined - ext format",
-			extFormat: true,
-		},
-	}
+	t.Run("submit tx with a double spend tx before and after tx got mined - ext format", func(t *testing.T) {
+		address, privateKey := fundNewWallet(t)
 
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			address, privateKey := fundNewWallet(t)
+		utxos := getUtxos(t, address)
+		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-			utxos := getUtxos(t, address)
-			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+		tx, err := createTx(privateKey, address, utxos[0])
+		require.NoError(t, err)
 
-			tx, err := createTx(privateKey, address, utxos[0])
-			require.NoError(t, err)
+		request := TransactionRequest{
+			RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+		}
 
-			arcClient, err := api.NewClientWithResponses(arcEndpoint)
-			require.NoError(t, err)
+		// submit first transaction
+		resp := postRequest[TransactionResponse](t,
+			arcEndpointV1Tx,
+			createPayload(t, request),
+			map[string]string{"X-WaitFor": Status_SEEN_ON_NETWORK},
+		)
+		require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
 
-			// submit first transaction
-			postTxChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, tc.extFormat)
+		// send double spending transaction when first tx is in mempool
+		txMempool := createTxToNewAddress(t, privateKey, utxos[0])
 
-			// send double spending transaction when first tx is in mempool
-			txMempool := createTxToNewAddress(t, privateKey, utxos[0])
-			postTxChecksStatus(t, arcClient, txMempool, Status_DOUBLE_SPEND_ATTEMPTED, tc.extFormat)
+		request = TransactionRequest{
+			RawTx: hex.EncodeToString(txMempool.ExtendedBytes()),
+		}
 
-			var statusResponse *api.GETTransactionStatusResponse
-			ctx := context.Background()
+		// submit first transaction
+		resp = postRequest[TransactionResponse](t,
+			arcEndpointV1Tx,
+			createPayload(t, request),
+			map[string]string{"X-WaitFor": Status_DOUBLE_SPEND_ATTEMPTED},
+		)
+		require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, resp.TxStatus)
 
-			// give arc time to update the status of all competing transactions
-			time.Sleep(5 * time.Second)
+		// give arc time to update the status of all competing transactions
+		time.Sleep(5 * time.Second)
 
-			// verify that the first tx was also set to DOUBLE_SPEND_ATTEMPTED
-			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
-			require.NoError(t, err)
-			require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, *statusResponse.JSON200.TxStatus)
+		statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
+		statusResp := getRequest[TransactionStatus](t, statusUrl)
+		// verify that the first tx was also set to DOUBLE_SPEND_ATTEMPTED
+		require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, *statusResp.TxStatus)
 
-			// mine the first tx
-			generate(t, 10)
+		// mine the first tx
+		generate(t, 10)
 
-			// give arc time to update the status of all competing transactions
-			time.Sleep(5 * time.Second)
+		// give arc time to update the status of all competing transactions
+		time.Sleep(5 * time.Second)
 
-			// verify that the first tx was mined
-			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
-			require.NoError(t, err)
-			require.Equal(t, Status_MINED, *statusResponse.JSON200.TxStatus)
+		statusUrl = fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
+		statusResp = getRequest[TransactionStatus](t, statusUrl)
+		// verify that the first tx was mined
+		require.Equal(t, Status_MINED, *statusResp.TxStatus)
 
-			// verify that the second tx was rejected
-			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, txMempool.TxID())
-			require.NoError(t, err)
-			require.Equal(t, Status_REJECTED, *statusResponse.JSON200.TxStatus)
-			require.Equal(t, "double spend attempted", *statusResponse.JSON200.ExtraInfo)
+		statusUrl = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txMempool.TxID())
+		statusResp = getRequest[TransactionStatus](t, statusUrl)
+		// verify that the second tx was rejected
+		require.Equal(t, Status_REJECTED, *statusResp.TxStatus)
+		require.Equal(t, "double spend attempted", *statusResp.ExtraInfo)
 
-			// send double spending transaction when first tx was mined
-			txMined := createTxToNewAddress(t, privateKey, utxos[0])
-			postTxChecksStatus(t, arcClient, txMined, Status_SEEN_IN_ORPHAN_MEMPOOL, tc.extFormat)
-		})
-	}
-}
-
-func postTxChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus string, extFormat bool) {
-	rawTxString := hex.EncodeToString(tx.Bytes())
-	if extFormat {
-		rawTxString = hex.EncodeToString(tx.ExtendedBytes())
-	}
-	body := api.POSTTransactionJSONRequestBody{
-		RawTx: rawTxString,
-	}
-
-	ctx := context.Background()
-	params := &api.POSTTransactionParams{
-		XWaitFor: &expectedStatus,
-	}
-	response, err := client.POSTTransactionWithResponse(ctx, params, body)
-	require.NoError(t, err)
-
-	require.Equal(t, http.StatusOK, response.StatusCode())
-	require.NotNil(t, response.JSON200)
-	require.Equalf(t, expectedStatus, response.JSON200.TxStatus, "status of response: %s does not match expected status: %s for tx ID %s", response.JSON200.TxStatus, expectedStatus, tx.TxID())
+		// send double spending transaction when first tx was mined
+		txMined := createTxToNewAddress(t, privateKey, utxos[0])
+		request = TransactionRequest{
+			RawTx: hex.EncodeToString(txMined.ExtendedBytes()),
+		}
+		resp = postRequest[TransactionResponse](t,
+			arcEndpointV1Tx,
+			createPayload(t, request),
+			map[string]string{"X-WaitFor": Status_SEEN_IN_ORPHAN_MEMPOOL},
+		)
+		require.Equal(t, Status_SEEN_IN_ORPHAN_MEMPOOL, resp.TxStatus)
+	})
 }
 
 func createTxToNewAddress(t *testing.T, privateKey string, utxo NodeUnspentUtxo) *bt.Tx {

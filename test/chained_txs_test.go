@@ -1,10 +1,8 @@
 package test
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -29,21 +27,18 @@ func TestBatchChainedTxs(t *testing.T) {
 		txs, err := createTxChain(privateKey, utxos[0], 30)
 		require.NoError(t, err)
 
-		arcBody := make([]TransactionRequest, len(txs))
+		request := make([]TransactionRequest, len(txs))
 		for i, tx := range txs {
-			arcBody[i] = TransactionRequest{
+			request[i] = TransactionRequest{
 				RawTx: hex.EncodeToString(tx.ExtendedBytes()),
 			}
 		}
 
-		payLoad, err := json.Marshal(arcBody)
-		require.NoError(t, err)
-
-		buffer := bytes.NewBuffer(payLoad)
+		buffer := createPayload(t, request)
 
 		// Send POST request
 		t.Logf("submitting batch of %d chained txs", len(txs))
-		resp := postRequest[[]Response](t, arcEndpointV1Txs, buffer)
+		resp := postRequest[[]Response](t, arcEndpointV1Txs, buffer, nil)
 		for i, txResponse := range resp {
 			require.NoError(t, err)
 			require.Equalf(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
@@ -53,7 +48,7 @@ func TestBatchChainedTxs(t *testing.T) {
 
 		// repeat request to ensure response remains the same
 		t.Logf("re-submitting batch of %d chained txs", len(txs))
-		resp = postRequest[[]Response](t, arcEndpointV1Txs, buffer)
+		resp = postRequest[[]Response](t, arcEndpointV1Txs, buffer, nil)
 		for i, txResponse := range resp {
 			require.NoError(t, err)
 			require.Equalf(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)

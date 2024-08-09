@@ -1,6 +1,7 @@
 package test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -74,6 +75,56 @@ type TransactionRequest struct {
 	RawTx string `json:"rawTx"`
 }
 
+// TransactionResponse defines model for TransactionResponse.
+type TransactionResponse struct {
+	// BlockHash Block hash
+	BlockHash *string `json:"blockHash,omitempty"`
+
+	// BlockHeight Block height
+	BlockHeight *uint64 `json:"blockHeight,omitempty"`
+
+	// ExtraInfo Extra info
+	ExtraInfo *string `json:"extraInfo"`
+
+	// MerklePath Transaction Merkle path as a hex string in  BUMP format [BRC-74](https://brc.dev/74)
+	MerklePath *string `json:"merklePath"`
+
+	// Status Status
+	Status    int       `json:"status"`
+	Timestamp time.Time `json:"timestamp"`
+
+	// Title Title
+	Title string `json:"title"`
+
+	// TxStatus Transaction status
+	TxStatus string `json:"txStatus"`
+
+	// Txid Transaction ID in hex
+	Txid string `json:"txid"`
+}
+
+// TransactionStatus defines model for TransactionStatus.
+type TransactionStatus struct {
+	// BlockHash Block hash
+	BlockHash *string `json:"blockHash,omitempty"`
+
+	// BlockHeight Block height
+	BlockHeight *uint64 `json:"blockHeight,omitempty"`
+
+	// ExtraInfo Extra information about the transaction
+	ExtraInfo *string `json:"extraInfo"`
+
+	// MerklePath Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)
+	MerklePath *string   `json:"merklePath"`
+	Timestamp  time.Time `json:"timestamp"`
+
+	// TxStatus Transaction status
+	TxStatus *string `json:"txStatus,omitempty"`
+
+	// Txid Transaction ID in hex
+	Txid string `json:"txid"`
+}
+
 type RawTransaction struct {
 	Hex       string `json:"hex"`
 	BlockHash string `json:"blockhash,omitempty"`
@@ -83,6 +134,13 @@ type BlockData struct {
 	Height     uint64   `json:"height"`
 	Txs        []string `json:"txs"`
 	MerkleRoot string   `json:"merkleroot"`
+}
+
+func createPayload[T any](t *testing.T, body T) io.Reader {
+	payLoad, err := json.Marshal(body)
+	require.NoError(t, err)
+
+	return bytes.NewBuffer(payLoad)
 }
 
 func getRequest[T any](t *testing.T, url string) T {
@@ -96,10 +154,14 @@ func getRequest[T any](t *testing.T, url string) T {
 	return respBody
 }
 
-func postRequest[T any](t *testing.T, url string, reader io.Reader) T {
+func postRequest[T any](t *testing.T, url string, reader io.Reader, headers map[string]string) T {
 	req, err := http.NewRequest("POST", url, reader)
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
+
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
 
 	client := &http.Client{}
 	httpResp, err := client.Do(req)

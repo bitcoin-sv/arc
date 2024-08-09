@@ -576,3 +576,85 @@ func TestStartGRPCServer(t *testing.T) {
 		})
 	}
 }
+
+func Test_GetTransactions(t *testing.T) {
+
+	tcs := []struct {
+		name    string
+		request *metamorph_api.TransactionsStatusRequest
+
+		getFromStoreErr           error
+		getFromStoreResponseCount int
+	}{
+		{
+			name: "found all - success",
+			request: &metamorph_api.TransactionsStatusRequest{
+				TxIDs: []string{
+					testdata.TX1Hash.String(),
+					testdata.TX2Hash.String(),
+				},
+			},
+			getFromStoreResponseCount: 2,
+		},
+		{
+			name: "not found - success, return empty array",
+			request: &metamorph_api.TransactionsStatusRequest{
+				TxIDs: []string{
+					testdata.TX1Hash.String(),
+					testdata.TX2Hash.String(),
+				},
+			},
+		},
+		{
+			name: "failed to get data from the store",
+			request: &metamorph_api.TransactionsStatusRequest{
+				TxIDs: []string{
+					testdata.TX1Hash.String(),
+					testdata.TX2Hash.String(),
+				},
+			},
+			getFromStoreErr: errors.New("test error"),
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			store := storeMocks.MetamorphStoreMock{
+				GetManyFunc: func(ctx context.Context, keys [][]byte) ([]*store.StoreData, error) {
+					if tc.getFromStoreErr != nil {
+						return nil, tc.getFromStoreErr
+					}
+
+					res := make([]*store.StoreData, 0)
+					for _, hash := range tc.request.TxIDs {
+						h, _ := chainhash.NewHashFromStr(hash)
+						d := store.StoreData{
+							Hash: h,
+						}
+
+						res = append(res, &d)
+					}
+
+					res = res[:tc.getFromStoreResponseCount]
+					return res, nil
+				},
+			}
+
+			sut := metamorph.NewServer(&store, nil)
+
+			// then
+			res, err := sut.GetTransactions(context.TODO(), tc.request)
+
+			// assert
+			if tc.getFromStoreErr != nil {
+				require.Equal(t, tc.getFromStoreErr, err)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, res)
+				require.Len(t, res.Transactions, tc.getFromStoreResponseCount)
+			}
+
+		})
+	}
+}

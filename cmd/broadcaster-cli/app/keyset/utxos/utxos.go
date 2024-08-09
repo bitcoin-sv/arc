@@ -34,7 +34,7 @@ var Cmd = &cobra.Command{
 		}
 
 		logger := helper.GetLogger()
-		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
+		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
 		keySets, err := helper.GetKeySets()
 		if err != nil {
@@ -57,7 +57,7 @@ var Cmd = &cobra.Command{
 			headerRow = append(headerRow, "Sat", "Outputs")
 			keyHeaderRow = append(keyHeaderRow, "key-"+strconv.Itoa(i), "")
 
-			utxos, err := wocClient.GetUTXOsWithRetries(context.Background(), !isTestnet, keyset.Script, keyset.Address(!isTestnet), 1*time.Second, 5)
+			utxos, err := wocClient.GetUTXOsWithRetries(context.Background(), keyset.Script, keyset.Address(!isTestnet), 1*time.Second, 5)
 			if err != nil {
 				return fmt.Errorf("failed to get utxos from WoC: %v", err)
 			}

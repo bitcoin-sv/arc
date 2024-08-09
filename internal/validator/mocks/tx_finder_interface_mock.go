@@ -19,7 +19,7 @@ var _ validator.TxFinderI = &TxFinderIMock{}
 //
 //		// make and configure a mocked validator.TxFinderI
 //		mockedTxFinderI := &TxFinderIMock{
-//			GetRawTxsFunc: func(ctx context.Context, ids []string) ([]validator.RawTx, error) {
+//			GetRawTxsFunc: func(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
 //				panic("mock out the GetRawTxs method")
 //			},
 //		}
@@ -30,7 +30,7 @@ var _ validator.TxFinderI = &TxFinderIMock{}
 //	}
 type TxFinderIMock struct {
 	// GetRawTxsFunc mocks the GetRawTxs method.
-	GetRawTxsFunc func(ctx context.Context, ids []string) ([]validator.RawTx, error)
+	GetRawTxsFunc func(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]validator.RawTx, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -38,6 +38,8 @@ type TxFinderIMock struct {
 		GetRawTxs []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
+			// Source is the source argument value.
+			Source validator.FindSourceFlag
 			// Ids is the ids argument value.
 			Ids []string
 		}
@@ -46,21 +48,23 @@ type TxFinderIMock struct {
 }
 
 // GetRawTxs calls GetRawTxsFunc.
-func (mock *TxFinderIMock) GetRawTxs(ctx context.Context, ids []string) ([]validator.RawTx, error) {
+func (mock *TxFinderIMock) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
 	if mock.GetRawTxsFunc == nil {
 		panic("TxFinderIMock.GetRawTxsFunc: method is nil but TxFinderI.GetRawTxs was just called")
 	}
 	callInfo := struct {
-		Ctx context.Context
-		Ids []string
+		Ctx    context.Context
+		Source validator.FindSourceFlag
+		Ids    []string
 	}{
-		Ctx: ctx,
-		Ids: ids,
+		Ctx:    ctx,
+		Source: source,
+		Ids:    ids,
 	}
 	mock.lockGetRawTxs.Lock()
 	mock.calls.GetRawTxs = append(mock.calls.GetRawTxs, callInfo)
 	mock.lockGetRawTxs.Unlock()
-	return mock.GetRawTxsFunc(ctx, ids)
+	return mock.GetRawTxsFunc(ctx, source, ids)
 }
 
 // GetRawTxsCalls gets all the calls that were made to GetRawTxs.
@@ -68,12 +72,14 @@ func (mock *TxFinderIMock) GetRawTxs(ctx context.Context, ids []string) ([]valid
 //
 //	len(mockedTxFinderI.GetRawTxsCalls())
 func (mock *TxFinderIMock) GetRawTxsCalls() []struct {
-	Ctx context.Context
-	Ids []string
+	Ctx    context.Context
+	Source validator.FindSourceFlag
+	Ids    []string
 } {
 	var calls []struct {
-		Ctx context.Context
-		Ids []string
+		Ctx    context.Context
+		Source validator.FindSourceFlag
+		Ids    []string
 	}
 	mock.lockGetRawTxs.RLock()
 	calls = mock.calls.GetRawTxs

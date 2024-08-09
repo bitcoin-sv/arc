@@ -19,13 +19,13 @@ const (
 )
 
 type UtxoClient interface {
-	GetUTXOs(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
-	GetUTXOsWithRetries(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) ([]*bt.UTXO, error)
-	GetUTXOsList(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string) (*list.List, error)
-	GetUTXOsListWithRetries(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) (*list.List, error)
-	GetBalance(ctx context.Context, mainnet bool, address string) (int64, int64, error)
-	GetBalanceWithRetries(ctx context.Context, mainnet bool, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error)
-	TopUp(ctx context.Context, mainnet bool, address string) error
+	GetUTXOs(ctx context.Context, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
+	GetUTXOsWithRetries(ctx context.Context, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) ([]*bt.UTXO, error)
+	GetUTXOsList(ctx context.Context, lockingScript *bscript.Script, address string) (*list.List, error)
+	GetUTXOsListWithRetries(ctx context.Context, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) (*list.List, error)
+	GetBalance(ctx context.Context, address string) (int64, int64, error)
+	GetBalanceWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error)
+	TopUp(ctx context.Context, address string) error
 }
 
 type Broadcaster struct {

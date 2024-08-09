@@ -12,6 +12,7 @@ type FeeValidation byte
 const (
 	NoneFeeValidation FeeValidation = iota
 	StandardFeeValidation
+	CumulativeFeeValidation
 )
 
 type ScriptValidation byte

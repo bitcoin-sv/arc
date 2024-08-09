@@ -53,8 +53,14 @@ func (v *BeefValidator) ValidateTransaction(ctx context.Context, beefTx *beef.BE
 		}
 	}
 
+	if feeValidation == validator.CumulativeFeeValidation {
+		if err := cumulativeCheckFees(beefTx, feeQuote, v.policy.LimitCPFPGroupMembersCount); err != nil {
+			return beefTx.GetLatestTx(), err
+		}
+	}
+
 	if err := ensureAncestorsArePresentInBump(beefTx.GetLatestTx(), beefTx); err != nil {
-		return beefTx.GetLatestTx(), validator.NewError(err, api.ErrStatusMinedAncestorsNotFound)
+		return beefTx.GetLatestTx(), err
 	}
 
 	if vErr := verifyMerkleRoots(ctx, v.mrVerifier, beefTx); vErr != nil {
@@ -85,6 +91,48 @@ func standardCheckFees(tx *bt.Tx, beefTx *beef.BEEF, feeQuote *bt.FeeQuote) *val
 	if actualFeePaid < expectedFees {
 		err := fmt.Errorf("transaction fee of %d sat is too low - minimum expected fee is %d sat", actualFeePaid, expectedFees)
 		return validator.NewError(err, api.ErrStatusFees)
+	}
+
+	return nil
+}
+
+func cumulativeCheckFees(beefTx *beef.BEEF, feeQuote *bt.FeeQuote, unminedAncestorsLimit int) *validator.Error {
+	cumulativeSize := bt.TxSize{}
+	cumulativePaidFee := uint64(0)
+	unminedAncestorsCount := 0
+
+	for _, bTx := range beefTx.Transactions {
+		if bTx.IsMined() {
+			continue
+		}
+		unminedAncestorsCount++
+		if unminedAncestorsCount > unminedAncestorsLimit {
+			return validator.NewError(fmt.Errorf("too many unconfirmed parents, %d [limit: %d]", unminedAncestorsCount, unminedAncestorsLimit), api.ErrStatusCumulativeFees)
+		}
+
+		tx := bTx.Transaction
+
+		size := tx.SizeWithTypes()
+		cumulativeSize.TotalBytes += size.TotalBytes
+		cumulativeSize.TotalDataBytes += size.TotalDataBytes
+		cumulativeSize.TotalStdBytes += size.TotalStdBytes
+
+		totalInputSatoshis, totalOutputSatoshis, err := calculateInputsOutputsSatoshis(tx, beefTx.Transactions)
+		if err != nil {
+			return validator.NewError(err, api.ErrStatusCumulativeFees)
+		}
+
+		cumulativePaidFee += (totalInputSatoshis - totalOutputSatoshis)
+	}
+
+	expectedFee, err := validator.CalculateMiningFeesRequired(&cumulativeSize, feeQuote)
+	if err != nil {
+		return validator.NewError(err, api.ErrStatusCumulativeFees)
+	}
+
+	if expectedFee > cumulativePaidFee {
+		err := fmt.Errorf("cumulative transaction fee of %d sat is too low - minimum expected fee is %d sat", cumulativePaidFee, expectedFee)
+		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}
 
 	return nil
@@ -150,18 +198,19 @@ func checkScripts(tx, prevTx *bt.Tx, inputIdx int) error {
 	return validator.CheckScript(tx, inputIdx, prevOutput)
 }
 
-func ensureAncestorsArePresentInBump(tx *bt.Tx, beefTx *beef.BEEF) error {
+func ensureAncestorsArePresentInBump(tx *bt.Tx, beefTx *beef.BEEF) *validator.Error {
 	minedAncestors := make([]*beef.TxData, 0)
 
 	for _, input := range tx.Inputs {
 		if err := findMinedAncestorsForInput(input, beefTx.Transactions, &minedAncestors); err != nil {
-			return err
+			return validator.NewError(err, api.ErrStatusMinedAncestorsNotFound)
 		}
 	}
 
 	for _, tx := range minedAncestors {
 		if !existsInBumps(tx, beefTx.BUMPs) {
-			return errors.New("invalid BUMP - input mined ancestor is not present in BUMPs")
+			err := errors.New("invalid BUMP - input mined ancestor is not present in BUMPs")
+			return validator.NewError(err, api.ErrStatusMinedAncestorsNotFound)
 		}
 	}
 

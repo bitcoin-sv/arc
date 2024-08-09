@@ -101,6 +101,7 @@ paths:
         - $ref: '#/components/parameters/skipFeeValidation'
         - $ref: '#/components/parameters/skipScriptValidation'
         - $ref: '#/components/parameters/skipTxValidation'
+        - $ref: '#/components/parameters/cumulativeFeeValidation'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/waitForStatus'
         - $ref: '#/components/parameters/waitFor'
@@ -235,6 +236,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorValidatingMerkleRoots'
+        473:
+          description: Cumulative Fee too low
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorCumulativeFees'
 
   /v1/txs:
     post:
@@ -251,6 +258,7 @@ paths:
         - $ref: '#/components/parameters/skipFeeValidation'
         - $ref: '#/components/parameters/skipScriptValidation'
         - $ref: '#/components/parameters/skipTxValidation'
+        - $ref: '#/components/parameters/cumulativeFeeValidation'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/waitForStatus'
         - $ref: '#/components/parameters/waitFor'
@@ -392,6 +400,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorValidatingMerkleRoots'
+        473:
+          description: Cumulative Fee too low
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorCumulativeFees'
 
 components:
   schemas:
@@ -930,6 +944,22 @@ components:
               example: "Input Frozen (blacklist manager consensus blacklisted)"
             instance:
               example: "https://arc.taal.com/errors/123452"
+    ErrorCumulativeFees:
+      type: object
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_473"
+            title:
+              example: "Cumulative fee too low"
+            status:
+              example: 473
+            detail:
+              example: "The cumulative fee is too low"
+            instance:
+              example: "https://arc.taal.com/errors/123452"
     ErrorFields:
       type: object
       required:
@@ -1019,6 +1049,13 @@ components:
       in: header
       description: >-
         Whether we should skip overall tx validation or not.
+      schema:
+        type: boolean
+    cumulativeFeeValidation:
+      name: X-CumulativeFeeValidation
+      in: header
+      description: >-
+        Whether we should perform cumulative fee validation for fee consolidation txs or not.
       schema:
         type: boolean
     callbackToken:

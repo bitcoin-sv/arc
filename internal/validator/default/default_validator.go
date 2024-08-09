@@ -45,6 +45,10 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *bt.Tx, f
 		if err := standardCheckFees(tx, api.FeesToBtFeeQuote(v.policy.MinMiningTxFee)); err != nil {
 			return err
 		}
+	case validator.CumulativeFeeValidation:
+		if err := cumulativeCheckFees(ctx, v.txFinder, tx, api.FeesToBtFeeQuote(v.policy.MinMiningTxFee), v.policy.LimitCPFPGroupMembersCount); err != nil {
+			return err
+		}
 	case validator.NoneFeeValidation:
 		// Do not handle the default case on purpose; we shouldn't assume that other types of validation should be omitted
 	}
@@ -93,6 +97,43 @@ func standardCheckFees(tx *bt.Tx, feeQuote *bt.FeeQuote) *validator.Error {
 	if !feesOK {
 		err = fmt.Errorf("transaction fee of %d sat is too low - minimum expected fee is %d sat", actualFeePaid, expFeesPaid)
 		return validator.NewError(err, api.ErrStatusFees)
+	}
+
+	return nil
+}
+
+func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *bt.Tx, feeQuote *bt.FeeQuote, unminedAncestorsLimit int) *validator.Error {
+	txSet, err := getUnminedAncestors(ctx, txFinder, tx)
+	if err != nil {
+		return validator.NewError(err, api.ErrStatusCumulativeFees)
+	}
+	// the condition is the same as in the bitcoin node code: https://github.com/bitcoin-sv/bitcoin-sv/blob/master/src/txmempool.cpp#L228
+	if len(txSet) >= unminedAncestorsLimit {
+		return validator.NewError(fmt.Errorf("too many unconfirmed parents, %d [limit: %d]", len(txSet), unminedAncestorsLimit), api.ErrStatusCumulativeFees)
+	}
+
+	txSet[""] = tx // do not need to care about key in the set
+
+	cumulativeSize := bt.TxSize{}
+	cumulativePaidFee := uint64(0)
+
+	for _, tx := range txSet {
+		size := tx.SizeWithTypes()
+		cumulativeSize.TotalBytes += size.TotalBytes
+		cumulativeSize.TotalDataBytes += size.TotalDataBytes
+		cumulativeSize.TotalStdBytes += size.TotalStdBytes
+
+		cumulativePaidFee += tx.TotalInputSatoshis() - tx.TotalOutputSatoshis()
+	}
+
+	expectedFee, err := validator.CalculateMiningFeesRequired(&cumulativeSize, feeQuote)
+	if err != nil {
+		return validator.NewError(err, api.ErrStatusCumulativeFees)
+	}
+
+	if expectedFee > cumulativePaidFee {
+		err = fmt.Errorf("cumulative transaction fee of %d sat is too low - minimum expected fee is %d sat", cumulativePaidFee, expectedFee)
+		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}
 
 	return nil

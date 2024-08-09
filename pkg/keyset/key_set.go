@@ -1,13 +1,10 @@
 package keyset
 
 import (
+	"context"
 	"crypto/rand"
-	"encoding/hex"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"net/http"
 
+	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/libsv/go-bk/bec"
 	"github.com/libsv/go-bk/bip32"
 	"github.com/libsv/go-bk/chaincfg"
@@ -95,51 +92,10 @@ func (k *KeySet) DeriveChildFromPath(derivationPath string) (*KeySet, error) {
 	return NewFromExtendedKey(k.master, derivationPath)
 }
 
-type wocUtxo struct {
-	Txid     string `json:"tx_hash"`
-	Vout     uint32 `json:"tx_pos"`
-	Height   uint32 `json:"height"`
-	Satoshis uint64 `json:"value"`
-}
-
 func (k *KeySet) GetUTXOs(mainnet bool) ([]*bt.UTXO, error) {
 	// Get UTXOs from WhatsOnChain
-	net := "test"
-	if mainnet {
-		net = "main"
-	}
-	resp, err := http.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/unspent", net, k.Address(mainnet)))
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, errors.New("failed to get utxos")
-	}
-
-	var wocUnspent []*wocUtxo
-	err = json.NewDecoder(resp.Body).Decode(&wocUnspent)
-	if err != nil {
-		return nil, err
-	}
-
-	unspent := make([]*bt.UTXO, len(wocUnspent))
-	for i, utxo := range wocUnspent {
-		txIDBytes, err := hex.DecodeString(utxo.Txid)
-		if err != nil {
-			return nil, err
-		}
-
-		unspent[i] = &bt.UTXO{
-			TxID:          txIDBytes,
-			Vout:          utxo.Vout,
-			LockingScript: k.Script,
-			Satoshis:      utxo.Satoshis,
-		}
-	}
-
-	return unspent, nil
+	woc := woc_client.New(mainnet)
+	return woc.GetUTXOs(context.Background(), k.Script, k.Address(mainnet))
 }
 
 type WocBalance struct {
@@ -153,25 +109,8 @@ func (k *KeySet) GetMaster() *bip32.ExtendedKey {
 
 func (k *KeySet) GetBalance(mainnet bool) (WocBalance, error) {
 	// Get UTXOs from WhatsOnChain
-	net := "test"
-	if mainnet {
-		net = "main"
-	}
-	resp, err := http.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/balance", net, k.Address(mainnet)))
-	if err != nil {
-		return WocBalance{}, err
-	}
-	defer resp.Body.Close()
+	woc := woc_client.New(mainnet)
+	confirmed, unconfirmed, err := woc.GetBalance(context.Background(), k.Address(mainnet))
 
-	if resp.StatusCode != 200 {
-		return WocBalance{}, errors.New("failed to get utxos")
-	}
-
-	var balance WocBalance
-	err = json.NewDecoder(resp.Body).Decode(&balance)
-	if err != nil {
-		return WocBalance{}, err
-	}
-
-	return balance, nil
+	return WocBalance{Confirmed: uint64(confirmed), Unconfirmed: uint64(unconfirmed)}, err
 }

@@ -232,6 +232,36 @@ func (p *PostgreSQL) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, 
 	return retRawTxs, nil
 }
 
+func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) ([]*store.StoreData, error) {
+	const q = `
+	 SELECT
+	 	stored_at
+		,announced_at
+		,mined_at
+		,hash
+		,status
+		,block_height
+		,block_hash
+		,callback_url
+		,callback_token
+		,full_status_updates
+		,reject_reason
+		,competing_txs
+		,raw_tx
+		,locked_by
+		,merkle_path
+		,retries
+	 FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[]));`
+
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(keys))
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	return getStoreDataFromRows(rows)
+}
+
 func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash) error {
 	q := `UPDATE metamorph.transactions SET retries = retries+1 WHERE hash = $1;`
 
@@ -466,22 +496,22 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 		as t
 		WHERE metamorph.transactions.hash = t.hash
 		RETURNING
-	  stored_at
-		,announced_at
-		,mined_at
-		,t.hash
-		,status
-		,block_height
-		,block_hash
-		,callback_url
-		,callback_token
-		,full_status_updates
-    ,reject_reason
-		,competing_txs
-		,raw_tx
-		,locked_by
-    ,merkle_path
-		,retries;`
+			stored_at
+			,announced_at
+			,mined_at
+			,t.hash
+			,status
+			,block_height
+			,block_hash
+			,callback_url
+			,callback_token
+			,full_status_updates
+			,reject_reason
+			,competing_txs
+			,raw_tx
+			,locked_by
+			,merkle_path
+			,retries;`
 
 	rows, err := tx.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since, untilTime, limit, offset, p.hostname)
 	if err != nil {

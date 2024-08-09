@@ -113,6 +113,7 @@ type StatsConfig struct {
 type ApiConfig struct {
 	Address       string            `mapstructure:"address"`
 	WocApiKey     string            `mapstructure:"wocApiKey"`
+	WocMainnet    bool              `mapstructure:"wocMainnet"`
 	DefaultPolicy *bitcoin.Settings `mapstructure:"defaultPolicy"`
 }
 

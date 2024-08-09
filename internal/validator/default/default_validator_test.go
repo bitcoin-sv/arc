@@ -3,11 +3,13 @@ package defaultvalidator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	validation "github.com/bitcoin-sv/arc/internal/validator"
+	"github.com/bitcoin-sv/arc/pkg/api"
 
 	fixture "github.com/bitcoin-sv/arc/internal/validator/default/testdata"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
@@ -15,6 +17,7 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/ordishs/go-bitcoin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -130,7 +133,7 @@ func TestValidator(t *testing.T) {
 	t.Run("valid Raw Format tx - expect success", func(t *testing.T) {
 		// when
 		txFinder := mocks.TxFinderIMock{
-			GetRawTxsFunc: func(ctx context.Context, ids []string) ([]validation.RawTx, error) {
+			GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
 				res := []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}
 				return res, nil
 			},
@@ -330,6 +333,214 @@ func Test_needExtention(t *testing.T) {
 			// assert
 			require.Equal(t, tc.expectedResult, result)
 
+		})
+	}
+}
+
+func Test_cumulativeCheckFees(t *testing.T) {
+	tcs := []struct {
+		name            string
+		hex             string
+		feeQuote        *bt.FeeQuote
+		getTxFinderFn   func(t *testing.T) mocks.TxFinderIMock
+		asncestorsLimit int
+
+		expectedErr *validation.Error
+	}{
+		{
+			name: "no unmined ancestors - valid fee",
+			hex:  fixture.ValidTxRawHex,
+			feeQuote: func() *bt.FeeQuote {
+				feeQuote := bt.NewFeeQuote()
+				setFees(feeQuote, 1)
+				return feeQuote
+			}(),
+			getTxFinderFn: func(_ *testing.T) mocks.TxFinderIMock {
+				return mocks.TxFinderIMock{
+					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+						return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
+					},
+				}
+			},
+		},
+		{
+			name: "no unmined ancestors - to low fee",
+			hex:  fixture.ValidTxRawHex,
+			feeQuote: func() *bt.FeeQuote {
+				feeQuote := bt.NewFeeQuote()
+				setFees(feeQuote, 50)
+				return feeQuote
+			}(),
+			getTxFinderFn: func(_ *testing.T) mocks.TxFinderIMock {
+				return mocks.TxFinderIMock{
+					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+						return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
+					},
+				}
+			},
+			expectedErr: validation.NewError(errors.New("cumulative transaction fee of 16 sat is too low - minimum expected fee is 19 sat"), api.ErrStatusCumulativeFees),
+		},
+		{
+			name: "cumulative fees too low",
+			hex:  fixture.ValidTxRawHex,
+			feeQuote: func() *bt.FeeQuote {
+				feeQuote := bt.NewFeeQuote()
+				setFees(feeQuote, 50)
+				return feeQuote
+			}(),
+			getTxFinderFn: func(t *testing.T) mocks.TxFinderIMock {
+				var getRawTxCount int = 0
+				var couterPtr *int = &getRawTxCount
+
+				return mocks.TxFinderIMock{
+					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+						i := *couterPtr
+						*couterPtr = i + 1
+
+						if i == 0 {
+							p1 := validation.RawTx{
+								TxID:    fixture.ParentTx1.TxID,
+								Bytes:   fixture.ParentTx1.Bytes,
+								IsMined: false,
+							}
+							return []validation.RawTx{p1, fixture.ParentTx2}, nil
+						}
+
+						if i == 1 {
+							return []validation.RawTx{fixture.AncestorTx1, fixture.AncestorTx2}, nil
+						}
+
+						t.Fatal("to many calls")
+						return nil, nil
+					},
+				}
+			},
+			expectedErr: validation.NewError(errors.New("cumulative transaction fee of 32 sat is too low - minimum expected fee is 37 sat"), api.ErrStatusCumulativeFees),
+		},
+		{
+			name: "cumulative fees sufficient",
+			hex:  fixture.ValidTxRawHex,
+			feeQuote: func() *bt.FeeQuote {
+				feeQuote := bt.NewFeeQuote()
+				setFees(feeQuote, 1)
+				return feeQuote
+			}(),
+			getTxFinderFn: func(t *testing.T) mocks.TxFinderIMock {
+				var getRawTxCount int = 0
+				var couterPtr *int = &getRawTxCount
+
+				return mocks.TxFinderIMock{
+					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+						i := *couterPtr
+						*couterPtr = i + 1
+
+						if i == 0 {
+							p1 := validation.RawTx{
+								TxID:    fixture.ParentTx1.TxID,
+								Bytes:   fixture.ParentTx1.Bytes,
+								IsMined: false,
+							}
+							return []validation.RawTx{p1, fixture.ParentTx2}, nil
+						}
+
+						if i == 1 {
+							return []validation.RawTx{fixture.AncestorTx1, fixture.AncestorTx2}, nil
+						}
+
+						t.Fatal("to many calls")
+						return nil, nil
+					},
+				}
+			},
+		},
+		{
+			name:     "issue with getUnminedAncestors",
+			hex:      fixture.ValidTxRawHex,
+			feeQuote: bt.NewFeeQuote(),
+			getTxFinderFn: func(_ *testing.T) mocks.TxFinderIMock {
+				return mocks.TxFinderIMock{
+					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+						return nil, errors.New("test error")
+					},
+				}
+			},
+			expectedErr: validation.NewError(
+				errors.New("failed to get raw transactions for parent: [ec6d2b377a2ccb888a5272b89be49c5a4c57012ff3957b60e137e7115858f73d cc1affd62f6453e06e026cc4ea56bcf2c5aed5293d8b72414ba962b17fbd48eb]. Reason: test error"),
+				api.ErrStatusCumulativeFees),
+		},
+		{
+			name: "too many ancestors in mempool",
+			hex:  fixture.ValidTxRawHex,
+			feeQuote: func() *bt.FeeQuote {
+				feeQuote := bt.NewFeeQuote()
+				setFees(feeQuote, 1)
+				return feeQuote
+			}(),
+			asncestorsLimit: 1,
+			getTxFinderFn: func(t *testing.T) mocks.TxFinderIMock {
+				var getRawTxCount int = 0
+				var couterPtr *int = &getRawTxCount
+
+				return mocks.TxFinderIMock{
+					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+						i := *couterPtr
+						*couterPtr = i + 1
+
+						if i == 0 {
+							p1 := validation.RawTx{
+								TxID:    fixture.ParentTx1.TxID,
+								Bytes:   fixture.ParentTx1.Bytes,
+								IsMined: false,
+							}
+							return []validation.RawTx{p1, fixture.ParentTx2}, nil
+						}
+
+						if i == 1 {
+							a1 := validation.RawTx{
+								TxID:    fixture.AncestorTx1.TxID,
+								Bytes:   fixture.AncestorTx1.Bytes,
+								IsMined: false,
+							}
+							return []validation.RawTx{a1, fixture.AncestorTx2}, nil
+						}
+
+						if i == 2 {
+							return []validation.RawTx{fixture.AncestorOfAncestorTx1, fixture.AncestorOfAncestorTx2}, nil
+						}
+
+						t.Fatal("to many calls")
+						return nil, nil
+					},
+				}
+			},
+			expectedErr: validation.NewError(errors.New("too many unconfirmed parents, 2 [limit: 1]"), api.ErrStatusCumulativeFees),
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			const defaultAsncestorsLimit = 25
+			ancestorLimit := defaultAsncestorsLimit
+			if tc.asncestorsLimit > 0 {
+				ancestorLimit = tc.asncestorsLimit
+			}
+
+			txFinder := tc.getTxFinderFn(t)
+
+			tx, _ := bt.NewTxFromString(tc.hex)
+
+			// then
+			vErr := cumulativeCheckFees(context.TODO(), &txFinder, tx, tc.feeQuote, ancestorLimit)
+
+			// assert
+			if tc.expectedErr == nil {
+				require.Nil(t, vErr)
+			} else {
+				require.NotNil(t, vErr)
+				assert.Equal(t, tc.expectedErr.Err.Error(), vErr.Err.Error())
+				assert.Equal(t, tc.expectedErr.ArcErrorStatus, vErr.ArcErrorStatus)
+			}
 		})
 	}
 }

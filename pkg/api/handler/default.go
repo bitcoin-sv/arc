@@ -19,6 +19,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/bitcoin-sv/arc/pkg/api"
+	merkleverifier "github.com/bitcoin-sv/arc/pkg/api/handler/internal/MerkeVerifier"
+	txfinder "github.com/bitcoin-sv/arc/pkg/api/handler/internal/TxFinder"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/labstack/echo/v4"
@@ -67,22 +69,13 @@ func NewDefault(
 ) (*ArcDefaultHandler, error) {
 	var wocClient *woc_client.WocClient
 	if apiConfig != nil {
-		wocClient = woc_client.New(woc_client.WithAuth(apiConfig.WocApiKey))
+		wocClient = woc_client.New(apiConfig.WocMainnet, woc_client.WithAuth(apiConfig.WocApiKey))
 	} else {
-		wocClient = woc_client.New()
+		wocClient = woc_client.New(false)
 	}
 
-	finder := txFinder{
-		th:         transactionHandler,
-		pc:         peerRpcConfig,
-		l:          logger,
-		w:          wocClient,
-		useMainnet: true, // TODO: refactor in scope of ARCO-147
-	}
-
-	mr := merkleVerifier{
-		v: merkleRootsVerifier,
-	}
+	finder := txfinder.New(transactionHandler, peerRpcConfig, wocClient, logger)
+	mr := merkleverifier.New(merkleRootsVerifier)
 
 	handler := &ArcDefaultHandler{
 		TransactionHandler: transactionHandler,
@@ -324,6 +317,8 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 
 	if params.XSkipFeeValidation != nil {
 		transactionOptions.SkipFeeValidation = *params.XSkipFeeValidation
+	} else if params.XCumulativeFeeValidation != nil {
+		transactionOptions.CumulativeFeeValidation = *params.XCumulativeFeeValidation
 	}
 
 	if params.XSkipScriptValidation != nil {
@@ -458,10 +453,9 @@ func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidato
 }
 
 func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.BeefValidator, beefTx *beef.BEEF, options *metamorph.TransactionOptions) *api.ErrorFields {
-	// TODO: wait for the decision from the managment
-	// if transactionOptions.SkipTxValidation {
-	// 	return nil
-	// }
+	if options.SkipTxValidation {
+		return nil
+	}
 
 	feeOpts, scriptOpts := toValidationOpts(options)
 
@@ -588,6 +582,8 @@ func toValidationOpts(opts *metamorph.TransactionOptions) (validator.FeeValidati
 	fv := validator.StandardFeeValidation
 	if opts.SkipFeeValidation {
 		fv = validator.NoneFeeValidation
+	} else if opts.CumulativeFeeValidation {
+		fv = validator.CumulativeFeeValidation
 	}
 
 	sv := validator.StandardScriptValidation

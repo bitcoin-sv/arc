@@ -26,7 +26,7 @@ var Cmd = &cobra.Command{
 
 		logger := helper.GetLogger()
 
-		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
+		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
 		keySets, err := helper.GetKeySets()
 		if err != nil {
@@ -38,7 +38,7 @@ var Cmd = &cobra.Command{
 			if wocApiKey == "" {
 				time.Sleep(500 * time.Millisecond)
 			}
-			err = wocClient.TopUp(context.Background(), !isTestnet, keySet.Address(!isTestnet))
+			err = wocClient.TopUp(context.Background(), keySet.Address(!isTestnet))
 
 			if err != nil {
 				return err

@@ -465,3 +465,68 @@ Expected outcome:
 * Information and Merkle path of the block received first will be persisted in the transaction record and not overwritten
 
 The planned feature [Update of transactions in case of block reorgs](https://github.com/bitcoin-sv/arc/blob/main/ROADMAP.md#update-of-transactions-in-case-of-block-reorgs) will ensure that ARC updates the statuses of transactions. Transactions which are not in the block of the longest chain will be updated to `REJECTED` status and transactions which are included in the block of the longest chain are updated to `MINED` status.
+
+## Cumulative fees validation
+
+The "Cumulative Fee Validation" feature is designed to check if the chain of unmined transactions (submitted transaction and its unmined ancestors) has paid a sufficient amount of fees. This validation is carried out based on a specific HTTP header.
+
+### Usage
+
+To use the "Cumulative Fee Validation" feature, you need to send the `X-CumulativeFeeValidation` header with the value set to `true`. 
+
+Example usage:
+```
+X-CumulativeFeeValidation: true
+```
+
+#### Special Cases
+
+If the `X-SkipFeeValidation` header is also sent, the fee validation will be skipped even if `X-CumulativeFeeValidation` is set to `true`.
+
+Example usage:
+```
+X-CumulativeFeeValidation: true
+X-SkipFeeValidation: true
+```
+
+In this case, the fee validation will not be performed.
+
+### Validation Examples
+#### Example 1: Insufficient Fee Paid by One Ancestor
+Transaction t0 has two unmined ancestors t1 and t2.
+
+* t0 has paid a sufficient fee for itself.
+* t1 has not paid a sufficient fee.
+* t2 has paid a sufficient fee for itself.
+
+##### Validation Result:
+The validation will fail because t1 has not paid a sufficient fee and no other transaction cover it.
+
+#### Example 2: All Transactions Paid Their Own Fees
+Transaction t0 has two unmined ancestors t1 and t2.
+
+* t0 has paid a sufficient fee.
+* t1 has paid a sufficient fee.
+* t2 has paid a sufficient fee.
+
+##### Validation Result:
+The validation will pass because both t1 and t2 have paid sufficient fees.
+
+#### Example 3: Ancestors Did Not Pay, But Transaction Covers All Fees
+Transaction t0 has two unmined ancestors t1 and t2.
+
+* t1 has not paid a sufficient fee.
+* t2 has not paid a sufficient fee.
+* t0 covers the fees for itself and both t1 and t2.
+
+##### Validation Result:
+The validation will pass because t0 covers the cumulative fees for the entire chain, including t1 and t2.
+
+The system performs the fee validation and returns a result indicating that the chain of transactions has sufficient fees.
+
+### Notes
+
+- The `X-CumulativeFeeValidation` header must be set to `true` for the validation to be performed.
+- The `X-SkipFeeValidation` header takes precedence over `X-CumulativeFeeValidation` and causes the fee validation to be skipped.
+
+This feature is crucial to ensure that the chain of unmined transactions has sufficient fees, which is essential for the effective management of the transaction network.

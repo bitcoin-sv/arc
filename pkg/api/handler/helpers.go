@@ -1,33 +1,15 @@
 package handler
 
 import (
-	"fmt"
 	"log"
-	"net/url"
 
-	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/dictionary"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
 	middleware "github.com/oapi-codegen/echo-middleware"
-	"github.com/ordishs/go-bitcoin"
 )
-
-func getTransactionFromNode(peerRpc *config.PeerRpcConfig, inputTxID string) (*bitcoin.RawTransaction, error) {
-	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpc.User, peerRpc.Password, peerRpc.Host, peerRpc.Port))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse rpc URL: %v", err)
-	}
-	// get the transaction from the bitcoin node rpc
-	node, err := bitcoin.NewFromURL(rpcURL, false)
-	if err != nil {
-		return nil, err
-	}
-
-	return node.GetRawTransaction(inputTxID)
-}
 
 // CheckSwagger validates the request against the swagger definition.
 func CheckSwagger(e *echo.Echo) *openapi3.T {

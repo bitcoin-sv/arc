@@ -30,8 +30,6 @@ func shouldUpdateStatus(new, found store.UpdateStatus) bool {
 		return true
 	}
 
-	// If the statuses are both DOUBLE_SPEND_ATTEMPTED, but have
-	// different competing transactions - we want to update.
 	if new.Status == found.Status && !unorderedEqual(new.CompetingTxs, found.CompetingTxs) {
 		return true
 	}

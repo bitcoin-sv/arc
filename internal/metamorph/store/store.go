@@ -21,9 +21,8 @@ type StoreData struct {
 	Status            metamorph_api.Status
 	BlockHeight       uint64
 	BlockHash         *chainhash.Hash
-	CallbackUrl       string
+	Callbacks         []StoreCallback
 	FullStatusUpdates bool
-	CallbackToken     string
 	RejectReason      string
 	CompetingTxs      []string
 	LockedBy          string
@@ -31,6 +30,11 @@ type StoreData struct {
 	MerklePath        string
 	LastSubmittedAt   time.Time
 	Retries           int
+}
+
+type StoreCallback struct {
+	CallbackURL   string `json:"callback_url"`
+	CallbackToken string `json:"callback_token"`
 }
 
 type Stats struct {

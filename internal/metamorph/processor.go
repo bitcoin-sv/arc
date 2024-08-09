@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"log/slog"
+
 	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -17,7 +19,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
-	"log/slog"
 )
 
 const (
@@ -683,9 +684,6 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		}()
 	}
 
-	// Send GETDATA to peers to see if they have it
-	p.pm.RequestTransaction(req.Data.Hash)
-
 	// Announce transaction to network peers
 	p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
 	peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
@@ -693,6 +691,9 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		p.logger.Warn("transaction was not announced to any peer", slog.String("hash", req.Data.Hash.String()))
 		return
 	}
+
+	// Send GETDATA to peers to see if they have it
+	p.pm.RequestTransaction(req.Data.Hash)
 
 	// update status in response
 	processorResponse, ok := p.ProcessorResponseMap.Get(req.Data.Hash)

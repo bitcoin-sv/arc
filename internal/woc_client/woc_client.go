@@ -2,7 +2,6 @@ package woc_client
 
 import (
 	"bytes"
-	"container/list"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -145,50 +144,6 @@ func (w *WocClient) getUTXOs(ctx context.Context, mainnet bool, lockingScript *b
 // GetUTXOs Get UTXOs from WhatsOnChain
 func (w *WocClient) GetUTXOs(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error) {
 	return w.getUTXOs(ctx, mainnet, lockingScript, address)
-}
-
-func (w *WocClient) getUTXOsList(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string) (*list.List, error) {
-	utxos, err := w.getUTXOs(ctx, mainnet, lockingScript, address)
-	if err != nil {
-		return nil, err
-	}
-
-	values := list.New()
-	for _, utxo := range utxos {
-		values.PushBack(utxo)
-	}
-
-	return values, nil
-}
-
-// GetUTXOsList Get UTXOs from WhatsOnChain as a list
-func (w *WocClient) GetUTXOsList(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string) (*list.List, error) {
-	return w.getUTXOsList(ctx, mainnet, lockingScript, address)
-}
-
-func (w *WocClient) GetUTXOsListWithRetries(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) (*list.List, error) {
-	policy := backoff.WithMaxRetries(backoff.NewConstantBackOff(constantBackoff), retries)
-
-	policyContext := backoff.WithContext(policy, ctx)
-
-	operation := func() (*list.List, error) {
-		wocUtxos, err := w.getUTXOsList(ctx, mainnet, lockingScript, address)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get utxos from WoC: %v", err)
-		}
-		return wocUtxos, nil
-	}
-
-	notify := func(err error, nextTry time.Duration) {
-		w.logger.Error("failed to get utxos from WoC", slog.String("address", address), slog.String("next try", nextTry.String()), slog.String("err", err.Error()))
-	}
-
-	utxos, err := backoff.RetryNotifyWithData(operation, policyContext, notify)
-	if err != nil {
-		return nil, err
-	}
-
-	return utxos, nil
 }
 
 func (w *WocClient) getBalance(ctx context.Context, mainnet bool, address string) (int64, int64, error) {

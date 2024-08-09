@@ -1,15 +1,22 @@
-package async_test
+package nats_core_test
 
 import (
 	"errors"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core/mocks"
+	"log/slog"
+	"os"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/internal/async"
-	"github.com/bitcoin-sv/arc/internal/async/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
+)
+
+const (
+	MinedTxsTopic   = "mined-txs"
+	RegisterTxTopic = "register-tx"
 )
 
 func TestPublishMarshal(t *testing.T) {
@@ -46,15 +53,15 @@ func TestPublishMarshal(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			natsMock := &mocks.NatsClientMock{
+			natsMock := &mocks.NatsConnectionMock{
 				PublishFunc: func(subj string, data []byte) error {
 					return tc.publishErr
 				},
 			}
+			logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			mqClient := nats_core.New(natsMock, nats_core.WithLogger(logger))
 
-			mqClient := async.NewNatsMQClient(natsMock)
-
-			err := mqClient.PublishMarshal(async.MinedTxsTopic, tc.txsBlock)
+			err := mqClient.PublishMarshal(MinedTxsTopic, tc.txsBlock)
 
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)
@@ -93,17 +100,17 @@ func TestPublish(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			natsMock := &mocks.NatsClientMock{
+			natsMock := &mocks.NatsConnectionMock{
 				PublishFunc: func(subj string, data []byte) error {
 					return tc.publishErr
 				},
 			}
 
-			mqClient := async.NewNatsMQClient(
+			mqClient := nats_core.New(
 				natsMock,
 			)
 
-			err := mqClient.Publish(async.RegisterTxTopic, []byte("tx"))
+			err := mqClient.Publish(RegisterTxTopic, []byte("tx"))
 
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)
@@ -120,8 +127,10 @@ func TestPublish(t *testing.T) {
 func TestSubscribe(t *testing.T) {
 
 	tt := []struct {
-		name       string
-		publishErr error
+		name         string
+		subscribeErr error
+		msgFuncErr   error
+		runFunc      bool
 
 		expectedErrorStr            string
 		expectedQueueSubscribeCalls int
@@ -132,36 +141,49 @@ func TestSubscribe(t *testing.T) {
 			expectedQueueSubscribeCalls: 1,
 		},
 		{
-			name:       "error - publish",
-			publishErr: errors.New("failed to publish"),
+			name:         "error - publish",
+			subscribeErr: errors.New("failed to subscribe"),
 
 			expectedErrorStr:            "failed to subscribe to register-tx topic",
+			expectedQueueSubscribeCalls: 1,
+		},
+		{
+			name:       "error - msg function",
+			msgFuncErr: errors.New("function failed"),
+			runFunc:    true,
+
 			expectedQueueSubscribeCalls: 1,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			natsMock := &mocks.NatsClientMock{
+			var msgHandler nats.MsgHandler
+
+			natsMock := &mocks.NatsConnectionMock{
 				QueueSubscribeFunc: func(subj string, queue string, cb nats.MsgHandler) (*nats.Subscription, error) {
 					require.Equal(t, "register-tx", subj)
 					require.Equal(t, "register-tx-group", queue)
-
-					return nil, tc.publishErr
+					msgHandler = cb
+					return nil, tc.subscribeErr
 				},
 			}
 
-			mqClient := async.NewNatsMQClient(
+			mqClient := nats_core.New(
 				natsMock,
 			)
 
-			err := mqClient.Subscribe(async.RegisterTxTopic, func(msg *nats.Msg) {})
+			err := mqClient.Subscribe(RegisterTxTopic, func(bytes []byte) error { return tc.msgFuncErr })
 
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)
 			} else {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
+			}
+
+			if tc.runFunc {
+				msgHandler(&nats.Msg{})
 			}
 
 			require.Equal(t, tc.expectedQueueSubscribeCalls, len(natsMock.QueueSubscribeCalls()))
@@ -186,13 +208,13 @@ func TestShutdown(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			natsMock := &mocks.NatsClientMock{
+			natsMock := &mocks.NatsConnectionMock{
 				DrainFunc: func() error {
 					return tc.drainErr
 				},
 			}
 
-			mqClient := async.NewNatsMQClient(
+			mqClient := nats_core.New(
 				natsMock,
 			)
 

@@ -4,15 +4,20 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 type ProcessorRequest struct {
 	Data            *store.StoreData
-	ResponseChannel chan processor_response.StatusAndError
+	ResponseChannel chan StatusAndError
 	Timeout         time.Duration
+}
+
+type StatusAndError struct {
+	Hash   *chainhash.Hash
+	Status metamorph_api.Status
+	Err    error
 }
 
 type PeerTxMessage struct {

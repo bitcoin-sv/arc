@@ -9,7 +9,6 @@ import (
 	_ "github.com/lib/pq"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
-	_ "modernc.org/sqlite"
 )
 
 const (

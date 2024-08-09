@@ -1,4 +1,4 @@
-package async
+package nats_core
 
 import (
 	"fmt"
@@ -9,33 +9,25 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const (
-	SubmitTxTopic   = "submit-tx"
-	MinedTxsTopic   = "mined-txs"
-	RegisterTxTopic = "register-tx"
-	RequestTxTopic  = "request-tx"
-)
-
-type NatsClient interface {
+type NatsConnection interface {
 	QueueSubscribe(subj, queue string, cb nats.MsgHandler) (*nats.Subscription, error)
-	Close()
 	Publish(subj string, data []byte) error
 	Drain() error
 }
 
-type MQClient struct {
-	nc     NatsClient
+type Client struct {
+	nc     NatsConnection
 	logger *slog.Logger
 }
 
-func WithLogger(logger *slog.Logger) func(handler *MQClient) {
-	return func(m *MQClient) {
+func WithLogger(logger *slog.Logger) func(handler *Client) {
+	return func(m *Client) {
 		m.logger = logger
 	}
 }
 
-func NewNatsMQClient(nc NatsClient, opts ...func(client *MQClient)) *MQClient {
-	m := &MQClient{
+func New(nc NatsConnection, opts ...func(client *Client)) *Client {
+	m := &Client{
 		nc:     nc,
 		logger: slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
 	}
@@ -46,7 +38,7 @@ func NewNatsMQClient(nc NatsClient, opts ...func(client *MQClient)) *MQClient {
 	return m
 }
 
-func (c MQClient) Shutdown() {
+func (c Client) Shutdown() {
 	if c.nc != nil {
 		err := c.nc.Drain()
 		if err != nil {
@@ -55,7 +47,7 @@ func (c MQClient) Shutdown() {
 	}
 }
 
-func (c MQClient) Publish(topic string, data []byte) error {
+func (c Client) Publish(topic string, data []byte) error {
 	err := c.nc.Publish(topic, data)
 	if err != nil {
 		return fmt.Errorf("failed to publish on %s topic: %w", topic, err)
@@ -64,7 +56,7 @@ func (c MQClient) Publish(topic string, data []byte) error {
 	return nil
 }
 
-func (c MQClient) PublishMarshal(topic string, m proto.Message) error {
+func (c Client) PublishMarshal(topic string, m proto.Message) error {
 	data, err := proto.Marshal(m)
 	if err != nil {
 		return err
@@ -78,9 +70,14 @@ func (c MQClient) PublishMarshal(topic string, m proto.Message) error {
 	return nil
 }
 
-func (c MQClient) Subscribe(topic string, cb nats.MsgHandler) error {
+func (c Client) Subscribe(topic string, msgFunc func([]byte) error) error {
 
-	_, err := c.nc.QueueSubscribe(topic, topic+"-group", cb)
+	_, err := c.nc.QueueSubscribe(topic, topic+"-group", func(msg *nats.Msg) {
+		err := msgFunc(msg.Data)
+		if err != nil {
+			c.logger.Error(fmt.Sprintf("failed to run message function on %s topic", topic))
+		}
+	})
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to %s topic: %w", topic, err)
 	}

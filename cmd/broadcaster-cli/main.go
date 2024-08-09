@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app"
 	"log"
 	"os"
+
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app"
 )
 
 func main() {

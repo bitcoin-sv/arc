@@ -22,6 +22,9 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //			PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error {
 //				panic("mock out the PublishMarshal method")
 //			},
+//			ShutdownFunc: func()  {
+//				panic("mock out the Shutdown method")
+//			},
 //		}
 //
 //		// use mockedMessageQueueClient in code that requires metamorph.MessageQueueClient
@@ -32,6 +35,9 @@ type MessageQueueClientMock struct {
 	// PublishMarshalFunc mocks the PublishMarshal method.
 	PublishMarshalFunc func(topic string, m protoreflect.ProtoMessage) error
 
+	// ShutdownFunc mocks the Shutdown method.
+	ShutdownFunc func()
+
 	// calls tracks calls to the methods.
 	calls struct {
 		// PublishMarshal holds details about calls to the PublishMarshal method.
@@ -41,8 +47,12 @@ type MessageQueueClientMock struct {
 			// M is the m argument value.
 			M protoreflect.ProtoMessage
 		}
+		// Shutdown holds details about calls to the Shutdown method.
+		Shutdown []struct {
+		}
 	}
 	lockPublishMarshal sync.RWMutex
+	lockShutdown       sync.RWMutex
 }
 
 // PublishMarshal calls PublishMarshalFunc.
@@ -78,5 +88,32 @@ func (mock *MessageQueueClientMock) PublishMarshalCalls() []struct {
 	mock.lockPublishMarshal.RLock()
 	calls = mock.calls.PublishMarshal
 	mock.lockPublishMarshal.RUnlock()
+	return calls
+}
+
+// Shutdown calls ShutdownFunc.
+func (mock *MessageQueueClientMock) Shutdown() {
+	if mock.ShutdownFunc == nil {
+		panic("MessageQueueClientMock.ShutdownFunc: method is nil but MessageQueueClient.Shutdown was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockShutdown.Lock()
+	mock.calls.Shutdown = append(mock.calls.Shutdown, callInfo)
+	mock.lockShutdown.Unlock()
+	mock.ShutdownFunc()
+}
+
+// ShutdownCalls gets all the calls that were made to Shutdown.
+// Check the length with:
+//
+//	len(mockedMessageQueueClient.ShutdownCalls())
+func (mock *MessageQueueClientMock) ShutdownCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockShutdown.RLock()
+	calls = mock.calls.Shutdown
+	mock.lockShutdown.RUnlock()
 	return calls
 }

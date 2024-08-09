@@ -2,16 +2,17 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"log/slog"
 	"net"
 	"time"
 
 	"github.com/bitcoin-sv/arc/config"
-	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
-	"github.com/bitcoin-sv/arc/internal/nats_mq"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
 	"google.golang.org/grpc"
@@ -40,12 +41,28 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	registerTxsChan := make(chan []byte, chanBufferSize)
 	requestTxChannel := make(chan []byte, chanBufferSize)
 
-	natsClient, err := nats_mq.NewNatsClient(arcConfig.QueueURL, logger)
+	var mqClient blocktx.MessageQueueClient
+	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.QueueURL, err)
+		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
 
-	mqClient := async.NewNatsMQClient(natsClient, async.WithLogger(logger))
+	if arcConfig.MessageQueue.Streaming.Enabled {
+		opts := []nats_jetstream.Option{nats_jetstream.WithSubscribedTopics(blocktx.RegisterTxTopic, blocktx.RequestTxTopic)}
+		if arcConfig.MessageQueue.Streaming.FileStorage {
+			opts = append(opts, nats_jetstream.WithFileStorage())
+		}
+
+		mqClient, err = nats_jetstream.New(natsConnection, logger,
+			[]string{blocktx.MinedTxsTopic, blocktx.RegisterTxTopic, blocktx.RequestTxTopic},
+			opts...,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create nats client: %v", err)
+		}
+	} else {
+		mqClient = nats_core.New(natsConnection, nats_core.WithLogger(logger))
+	}
 
 	peerHandlerOpts := []func(handler *blocktx.PeerHandler){
 		blocktx.WithRetentionDays(btxConfig.RecordRetentionDays),

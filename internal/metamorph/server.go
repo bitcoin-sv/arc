@@ -14,7 +14,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
@@ -244,7 +243,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 }
 
 func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, timeoutSeconds int64, TxID string) *metamorph_api.TransactionStatus {
-	responseChannel := make(chan processor_response.StatusAndError, 10)
+	responseChannel := make(chan StatusAndError, 10)
 
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeDuration := s.maxTimeoutDefault

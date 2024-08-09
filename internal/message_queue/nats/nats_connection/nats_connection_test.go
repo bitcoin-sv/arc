@@ -1,4 +1,4 @@
-package nats_mq
+package nats_connection
 
 import (
 	"fmt"
@@ -61,7 +61,8 @@ func TestMain(m *testing.M) {
 
 	os.Exit(code)
 }
-func TestNewNatsClient(t *testing.T) {
+
+func TestNewNatsConnection(t *testing.T) {
 	tt := []struct {
 		name string
 		url  string
@@ -82,7 +83,7 @@ func TestNewNatsClient(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewNatsClient(tc.url, slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
+			_, err := New(tc.url, slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return

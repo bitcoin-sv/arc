@@ -11,18 +11,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/async"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
-	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -234,9 +231,9 @@ func TestProcessTransaction(t *testing.T) {
 
 			processor, err := metamorph.NewProcessor(s, pm, nil, metamorph.WithMessageQueueClient(publisher))
 			require.NoError(t, err)
-			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
+			require.Equal(t, 0, processor.GetProcessorMapSize())
 
-			responseChannel := make(chan processor_response.StatusAndError)
+			responseChannel := make(chan metamorph.StatusAndError)
 
 			var wg sync.WaitGroup
 			wg.Add(len(tc.expectedResponses))
@@ -259,14 +256,13 @@ func TestProcessTransaction(t *testing.T) {
 			})
 			wg.Wait()
 
+			require.Equal(t, tc.expectedResponseMapItems, processor.GetProcessorMapSize())
 			if tc.expectedResponseMapItems > 0 {
-				require.Equal(t, tc.expectedResponseMapItems, processor.ProcessorResponseMap.Len())
-				items := processor.ProcessorResponseMap.Items()
+				items := processor.GetProcessorMap()
 				require.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
-				require.Equal(t, metamorph_api.Status_STORED, items[*testdata.TX1Hash].GetStatus())
+				require.Equal(t, metamorph_api.Status_STORED, items[*testdata.TX1Hash].Status)
 
 				require.Len(t, pm.AnnounceTransactionCalls(), 1)
-
 			}
 
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
@@ -496,7 +492,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			processor.StartProcessStatusUpdatesInStorage()
 			processor.StartSendStatusUpdate()
 
-			assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
+			assert.Equal(t, 0, processor.GetProcessorMapSize())
 			for _, testInput := range tc.inputs {
 				statusMessageChannel <- &metamorph.PeerTxMessage{
 					Hash:         testInput.hash,
@@ -655,7 +651,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				metamorph.WithProcessTransactionsBatchSize(4),
 			)
 			require.NoError(t, err)
-			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
+			require.Equal(t, 0, processor.GetProcessorMapSize())
 
 			processor.StartProcessSubmittedTxs()
 			processor.StartProcessStatusUpdatesInStorage()
@@ -778,12 +774,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 			processor.StartProcessExpiredTransactions()
 
-			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
-
-			// some dummy txs in map shouldn't affect announcements
-			processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponse(testdata.TX1Hash))
-			processor.ProcessorResponseMap.Set(testdata.TX2Hash, processor_response.NewProcessorResponse(testdata.TX2Hash))
-			processor.ProcessorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponse(testdata.TX3Hash))
+			require.Equal(t, 0, processor.GetProcessorMapSize())
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -963,13 +954,13 @@ func TestStart(t *testing.T) {
 		},
 		{
 			name:     "error - subscribe mined txs",
-			topicErr: map[string]error{async.MinedTxsTopic: errors.New("failed to subscribe")},
+			topicErr: map[string]error{metamorph.MinedTxsTopic: errors.New("failed to subscribe")},
 
 			expectedErrorStr: "failed to subscribe to mined-txs topic: failed to subscribe",
 		},
 		{
 			name:     "error - subscribe submit txs",
-			topicErr: map[string]error{async.SubmitTxTopic: errors.New("failed to subscribe")},
+			topicErr: map[string]error{metamorph.SubmitTxTopic: errors.New("failed to subscribe")},
 
 			expectedErrorStr: "failed to subscribe to submit-tx topic: failed to subscribe",
 		},
@@ -983,15 +974,15 @@ func TestStart(t *testing.T) {
 
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
-			var subscribeMinedTxsFunction nats.MsgHandler
-			var subscribeSubmitTxsFunction nats.MsgHandler
+			var subscribeMinedTxsFunction func([]byte) error
+			var subscribeSubmitTxsFunction func([]byte) error
 			mqClient := &mocks.MessageQueueClientMock{
-				SubscribeFunc: func(topic string, cb nats.MsgHandler) error {
+				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
 					switch topic {
-					case async.MinedTxsTopic:
-						subscribeMinedTxsFunction = cb
-					case async.SubmitTxTopic:
-						subscribeSubmitTxsFunction = cb
+					case metamorph.MinedTxsTopic:
+						subscribeMinedTxsFunction = msgFunc
+					case metamorph.SubmitTxTopic:
+						subscribeSubmitTxsFunction = msgFunc
 					}
 
 					err, ok := tc.topicErr[topic]
@@ -1023,14 +1014,14 @@ func TestStart(t *testing.T) {
 			data, err := proto.Marshal(txBlock)
 			require.NoError(t, err)
 
-			subscribeMinedTxsFunction(&nats.Msg{Data: []byte("invalid data")})
-			subscribeMinedTxsFunction(&nats.Msg{Data: data})
+			_ = subscribeMinedTxsFunction([]byte("invalid data"))
+			_ = subscribeMinedTxsFunction(data)
 
 			txRequest := &metamorph_api.TransactionRequest{}
 			data, err = proto.Marshal(txRequest)
 			require.NoError(t, err)
-			subscribeSubmitTxsFunction(&nats.Msg{Data: []byte("invalid data")})
-			subscribeSubmitTxsFunction(&nats.Msg{Data: data})
+			_ = subscribeSubmitTxsFunction([]byte("invalid data"))
+			_ = subscribeSubmitTxsFunction(data)
 
 			processor.Shutdown()
 		})

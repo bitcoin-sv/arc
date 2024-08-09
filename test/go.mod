@@ -1,6 +1,6 @@
 module e2e_tests
 
-go 1.21.3
+go 1.22.5
 
 require (
 	github.com/bitcoin-sv/arc v1.1.98

@@ -33,9 +33,10 @@ func GetNetwork(networkStr string) (wire.BitcoinNet, error) {
 	return network, nil
 }
 
+// GetZMQUrl gets the URL of the ZMQ port if available. If not available, nil is returned
 func (p *PeerConfig) GetZMQUrl() (*url.URL, error) {
 	if p.Port == nil || p.Port.ZMQ == 0 {
-		return nil, fmt.Errorf("port_zmq not set for peer %s", p.Host)
+		return nil, nil
 	}
 
 	zmqURLString := fmt.Sprintf("zmq://%s:%d", p.Host, p.Port.ZMQ)

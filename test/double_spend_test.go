@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/libsv/go-bt/v2"
@@ -46,15 +47,33 @@ func TestDoubleSpend(t *testing.T) {
 			txMempool := createTxToNewAddress(t, privateKey, utxos[0])
 			postTxChecksStatus(t, arcClient, txMempool, Status_DOUBLE_SPEND_ATTEMPTED, tc.extFormat)
 
+			var statusResponse *api.GETTransactionStatusResponse
+			ctx := context.Background()
+
+			// give arc time to update the status of all competing transactions
+			time.Sleep(5 * time.Second)
+
+			// verify that the first tx was also set to DOUBLE_SPEND_ATTEMPTED
+			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
+			require.NoError(t, err)
+			require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, *statusResponse.JSON200.TxStatus)
+
+			// mine the first tx
 			generate(t, 10)
 
-			ctx := context.Background()
-			var statusResponse *api.GETTransactionStatusResponse
+			// give arc time to update the status of all competing transactions
+			time.Sleep(5 * time.Second)
 
 			// verify that the first tx was mined
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
 			require.NoError(t, err)
 			require.Equal(t, Status_MINED, *statusResponse.JSON200.TxStatus)
+
+			// verify that the second tx was rejected
+			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, txMempool.TxID())
+			require.NoError(t, err)
+			require.Equal(t, Status_REJECTED, *statusResponse.JSON200.TxStatus)
+			require.Equal(t, "double spend attempted", *statusResponse.JSON200.ExtraInfo)
 
 			// send double spending transaction when first tx was mined
 			txMined := createTxToNewAddress(t, privateKey, utxos[0])

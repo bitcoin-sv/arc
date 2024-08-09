@@ -3,9 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"log/slog"
 	"net"
 	"net/http"
@@ -13,6 +10,10 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -249,7 +250,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 
 	logger.Info("Assuming bitcoin network", "network", network)
 
-	messageCh := make(chan *metamorph.PeerTxMessage, 100)
+	messageCh := make(chan *metamorph.PeerTxMessage, 1000)
 	var pmOpts []p2p.PeerManagerOptions
 	if arcConfig.Metamorph.MonitorPeers {
 		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())

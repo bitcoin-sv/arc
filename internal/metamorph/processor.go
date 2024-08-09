@@ -640,9 +640,6 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	// broadcast that transaction is stored to client
 	statusResponse.UpdateStatus(metamorph_api.Status_STORED, nil)
 
-	// Send GETDATA to peers to see if they have it
-	p.pm.RequestTransaction(req.Data.Hash)
-
 	// Announce transaction to network peers
 	p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
 	peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
@@ -650,6 +647,9 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		p.logger.Warn("transaction was not announced to any peer", slog.String("hash", req.Data.Hash.String()))
 		return
 	}
+
+	// Send GETDATA to peers to see if they have it
+	p.pm.RequestTransaction(req.Data.Hash)
 
 	// update status in response
 	statusResponse.UpdateStatus(metamorph_api.Status_ANNOUNCED_TO_NETWORK, nil)

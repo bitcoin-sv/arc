@@ -107,6 +107,7 @@ func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}
+	// the condition is the same as in the bitcoin node code: https://github.com/bitcoin-sv/bitcoin-sv/blob/master/src/txmempool.cpp#L228
 	if len(txSet) >= unminedAncestorsLimit {
 		return validator.NewError(fmt.Errorf("too many unconfirmed parents, %d [limit: %d]", len(txSet), unminedAncestorsLimit), api.ErrStatusCumulativeFees)
 	}

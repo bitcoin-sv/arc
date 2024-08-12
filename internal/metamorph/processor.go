@@ -741,6 +741,9 @@ func (p *Processor) storeData(ctx context.Context, data *store.StoreData) error 
 }
 
 func addNewCallback(data, reqData *store.StoreData) {
+	if reqData.Callbacks == nil {
+		return
+	}
 	reqCallback := reqData.Callbacks[0]
 	if reqCallback.CallbackURL != "" && reqCallback.CallbackToken != "" && !callbackExists(reqCallback, data) {
 		data.Callbacks = append(data.Callbacks, reqCallback)

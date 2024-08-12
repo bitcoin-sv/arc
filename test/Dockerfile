@@ -16,6 +16,7 @@ COPY ./fixtures ./fixtures
 # Copy tests to run
 COPY ./beef_test.go ./beef_test.go
 COPY ./endpoint_test.go ./endpoint_test.go
+COPY ./chained_txs_test.go ./chained_txs_test.go
 COPY ./double_spend_test.go ./double_spend_test.go
 
 # This will compile and run the tests

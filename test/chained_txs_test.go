@@ -35,24 +35,20 @@ func TestBatchChainedTxs(t *testing.T) {
 			}
 		}
 
-		buffer := createPayload(t, request)
-
 		// Send POST request
 		t.Logf("submitting batch of %d chained txs", len(txs))
-		resp := postRequest[[]Response](t, arcEndpointV1Txs, buffer, nil, http.StatusOK)
-		for i, txResponse := range resp {
-			require.NoError(t, err)
-			require.Equalf(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
+		resp := postRequest[ResponseBatch](t, arcEndpointV1Txs, createPayload(t, request), nil, http.StatusOK)
+		for _, txResponse := range resp {
+			require.Equal(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus)
 		}
 
-		time.Sleep(1 * time.Second) // give ARC time to perform the status update on DB
+		time.Sleep(1 * time.Second)
 
 		// repeat request to ensure response remains the same
 		t.Logf("re-submitting batch of %d chained txs", len(txs))
-		resp = postRequest[[]Response](t, arcEndpointV1Txs, buffer, nil, http.StatusOK)
-		for i, txResponse := range resp {
-			require.NoError(t, err)
-			require.Equalf(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
+		resp = postRequest[ResponseBatch](t, arcEndpointV1Txs, createPayload(t, request), nil, http.StatusOK)
+		for _, txResponse := range resp {
+			require.Equal(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus)
 		}
 	})
 }

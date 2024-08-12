@@ -36,6 +36,8 @@ const (
 	Status_MINED                  = "MINED"
 )
 
+type ResponseBatch []Response
+
 type Response struct {
 	BlockHash   string `json:"blockHash"`
 	BlockHeight int    `json:"blockHeight"`
@@ -182,6 +184,13 @@ func postRequest[T any](t *testing.T, url string, reader io.Reader, headers map[
 	require.NoError(t, err)
 
 	defer httpResp.Body.Close()
+
+	if httpResp.StatusCode != expectedStatusCode {
+		bodyBytes, err := io.ReadAll(httpResp.Body)
+		require.NoError(t, err)
+		t.Logf("unexpected status code %d, body: %s", httpResp.StatusCode, string(bodyBytes))
+	}
+
 	require.Equal(t, expectedStatusCode, httpResp.StatusCode)
 
 	var response T

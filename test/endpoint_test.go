@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -16,7 +15,200 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPostCallbackToken(t *testing.T) {
+func TestSubmitSingle(t *testing.T) {
+	address, privateKey := fundNewWallet(t)
+
+	utxos := getUtxos(t, address)
+	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+
+	tx, err := createTx(privateKey, address, utxos[0])
+	require.NoError(t, err)
+
+	malFormedRawTx, err := os.ReadFile("./fixtures/malformedTxHexString.txt")
+	require.NoError(t, err)
+
+	type malformedTransactionRequest struct {
+		Transaction string `json:"transaction"`
+	}
+
+	tt := []struct {
+		name string
+		body any
+
+		expectedStatusCode int
+	}{
+		{
+			name: "post single - success",
+			body: TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())},
+
+			expectedStatusCode: http.StatusOK,
+		},
+		{
+			name: "post single - malformed tx",
+			body: TransactionRequest{RawTx: hex.EncodeToString(malFormedRawTx)},
+
+			expectedStatusCode: http.StatusBadRequest,
+		},
+		{
+			name: "post single - wrong payload",
+			body: malformedTransactionRequest{Transaction: "fake data"},
+
+			expectedStatusCode: http.StatusBadRequest,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+
+			// Send POST request
+			response := postRequest[Response](t, arcEndpointV1Tx, createPayload(t, tc.body), nil, http.StatusOK)
+			txID := response.Txid
+			require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
+
+			if tc.expectedStatusCode != http.StatusOK {
+				return
+			}
+
+			time.Sleep(1 * time.Second) // give ARC time to perform the status update on DB
+
+			// repeat request to ensure response remains the same
+			response = postRequest[Response](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}), nil, http.StatusOK)
+			require.Equal(t, txID, response.Txid)
+			require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
+
+			// Check transaction status
+			statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID)
+			statusResponse := getRequest[TxStatusResponse](t, fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID))
+			require.Equal(t, Status_SEEN_ON_NETWORK, statusResponse.TxStatus)
+
+			t.Logf("Transaction status: %s", statusResponse.TxStatus)
+
+			generate(t, 10)
+
+			statusResponse = getRequest[TxStatusResponse](t, statusUrl)
+			require.Equal(t, Status_MINED, statusResponse.TxStatus)
+
+			t.Logf("Transaction status: %s", statusResponse.TxStatus)
+
+			// Check Merkle path
+			t.Logf("BUMP: %s", statusResponse.MerklePath)
+
+			bump, err := bc.NewBUMPFromStr(statusResponse.MerklePath)
+			require.NoError(t, err)
+
+			jsonB, err := json.Marshal(bump)
+			require.NoError(t, err)
+			t.Logf("BUMPjson: %s", string(jsonB))
+
+			root, err := bump.CalculateRootGivenTxid(tx.TxID())
+			require.NoError(t, err)
+
+			blockRoot := getBlockRootByHeight(t, statusResponse.BlockHeight)
+			require.Equal(t, blockRoot, root)
+		})
+	}
+}
+
+func TestSubmitMined(t *testing.T) {
+	t.Run("submit mined tx", func(t *testing.T) {
+
+		// submit an unregistered, already mined transaction. ARC should return the status as MINED for the transaction.
+
+		// given
+		address, _ := fundNewWallet(t)
+		utxos := getUtxos(t, address)
+
+		rawTx, _ := bitcoind.GetRawTransaction(utxos[0].Txid)
+		tx, _ := bt.NewTxFromString(rawTx.Hex)
+
+		callbackReceivedChan := make(chan *TransactionStatus)
+		callbackErrChan := make(chan error)
+
+		callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
+		defer shutdown()
+
+		// when
+		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
+			map[string]string{
+				"X-WaitFor":       Status_MINED,
+				"X-CallbackUrl":   callbackUrl,
+				"X-CallbackToken": token,
+			}, http.StatusOK)
+
+		// then
+		require.Equal(t, Status_MINED, resp.TxStatus)
+
+		// wait for callback
+		callbackTimeout := time.After(10 * time.Second)
+
+		select {
+		case status := <-callbackReceivedChan:
+			require.Equal(t, rawTx.TxID, status.Txid)
+			require.Equal(t, Status_MINED, *status.TxStatus)
+		case err := <-callbackErrChan:
+			t.Fatalf("callback error: %v", err)
+		case <-callbackTimeout:
+			t.Fatal("callback exceeded timeout")
+		}
+	})
+}
+
+func TestSubmitQueued(t *testing.T) {
+	t.Run("queued", func(t *testing.T) {
+		address, privateKey := getNewWalletAddress(t)
+		sendToAddress(t, address, 0.001)
+
+		hash := generate(t, 1)
+		t.Logf("generated 1 block: %s", hash)
+
+		utxos := getUtxos(t, address)
+		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+
+		tx, err := createTx(privateKey, address, utxos[0])
+		require.NoError(t, err)
+
+		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
+			map[string]string{
+				"X-WaitFor":    Status_QUEUED,
+				"X-MaxTimeout": strconv.Itoa(1),
+			}, http.StatusOK)
+
+		require.Equal(t, Status_QUEUED, resp.TxStatus)
+
+		statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
+	checkSeenLoop:
+		for {
+			select {
+			case <-time.NewTicker(1 * time.Second).C:
+
+				statusResponse := getRequest[TxStatusResponse](t, statusUrl)
+				if statusResponse.TxStatus == Status_SEEN_ON_NETWORK {
+					break checkSeenLoop
+				}
+			case <-time.NewTimer(10 * time.Second).C:
+				t.Fatal("transaction not seen on network after 10s")
+			}
+		}
+
+		generate(t, 10)
+
+	checkMinedLoop:
+		for {
+			select {
+			case <-time.NewTicker(1 * time.Second).C:
+				statusResponse := getRequest[TxStatusResponse](t, statusUrl)
+				if statusResponse.TxStatus == Status_MINED {
+					break checkMinedLoop
+				}
+
+			case <-time.NewTimer(15 * time.Second).C:
+				t.Fatal("transaction not mined after 15s")
+			}
+		}
+	})
+}
+
+func TestCallback(t *testing.T) {
 
 	t.Run("post transaction with callback url and token", func(t *testing.T) {
 		address, privateKey := fundNewWallet(t)
@@ -143,232 +335,5 @@ func TestSkipValidation(t *testing.T) {
 
 			require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
 		})
-	}
-}
-
-func Test_E2E_Success(t *testing.T) {
-	tx := createTxHexStringExtended(t)
-
-	// Send POST request
-	response := postRequest[Response](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}), nil, http.StatusOK)
-	txID := response.Txid
-	require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
-
-	time.Sleep(1 * time.Second) // give ARC time to perform the status update on DB
-
-	// repeat request to ensure response remains the same
-	response = postRequest[Response](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}), nil, http.StatusOK)
-	require.Equal(t, txID, response.Txid)
-	require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
-
-	// Check transaction status
-	statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID)
-	statusResponse := getRequest[TxStatusResponse](t, fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID))
-	require.Equal(t, Status_SEEN_ON_NETWORK, statusResponse.TxStatus)
-
-	t.Logf("Transaction status: %s", statusResponse.TxStatus)
-
-	generate(t, 10)
-
-	statusResponse = getRequest[TxStatusResponse](t, statusUrl)
-	require.Equal(t, Status_MINED, statusResponse.TxStatus)
-
-	t.Logf("Transaction status: %s", statusResponse.TxStatus)
-
-	// Check Merkle path
-	t.Logf("BUMP: %s", statusResponse.MerklePath)
-
-	bump, err := bc.NewBUMPFromStr(statusResponse.MerklePath)
-	require.NoError(t, err)
-
-	jsonB, err := json.Marshal(bump)
-	require.NoError(t, err)
-	t.Logf("BUMPjson: %s", string(jsonB))
-
-	root, err := bump.CalculateRootGivenTxid(tx.TxID())
-	require.NoError(t, err)
-
-	blockRoot := getBlockRootByHeight(t, statusResponse.BlockHeight)
-	require.Equal(t, blockRoot, root)
-}
-
-func TestPostTx_Queued(t *testing.T) {
-	t.Run("queued", func(t *testing.T) {
-		address, privateKey := getNewWalletAddress(t)
-		sendToAddress(t, address, 0.001)
-
-		hash := generate(t, 1)
-		t.Logf("generated 1 block: %s", hash)
-
-		utxos := getUtxos(t, address)
-		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
-
-		tx, err := createTx(privateKey, address, utxos[0])
-		require.NoError(t, err)
-
-		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
-			map[string]string{
-				"X-WaitFor":    Status_QUEUED,
-				"X-MaxTimeout": strconv.Itoa(1),
-			}, http.StatusOK)
-
-		require.Equal(t, Status_QUEUED, resp.TxStatus)
-
-		statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
-	checkSeenLoop:
-		for {
-			select {
-			case <-time.NewTicker(1 * time.Second).C:
-
-				statusResponse := getRequest[TxStatusResponse](t, statusUrl)
-				if statusResponse.TxStatus == Status_SEEN_ON_NETWORK {
-					break checkSeenLoop
-				}
-			case <-time.NewTimer(10 * time.Second).C:
-				t.Fatal("transaction not seen on network after 10s")
-			}
-		}
-
-		generate(t, 10)
-
-	checkMinedLoop:
-		for {
-			select {
-			case <-time.NewTicker(1 * time.Second).C:
-				statusResponse := getRequest[TxStatusResponse](t, statusUrl)
-				if statusResponse.TxStatus == Status_MINED {
-					break checkMinedLoop
-				}
-
-			case <-time.NewTimer(15 * time.Second).C:
-				t.Fatal("transaction not mined after 15s")
-			}
-		}
-	})
-}
-
-func TestPostTx_Success(t *testing.T) {
-	tx := createTxHexStringExtended(t) // This is a placeholder for the method to create a valid transaction string.
-	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, hex.EncodeToString(tx.ExtendedBytes()))
-	resp, err := postTx(t, jsonPayload, nil) // no extra headers
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-}
-
-func TestPostTx_RawFormat_Success(t *testing.T) {
-	// when
-	address, privateKey := fundNewWallet(t)
-
-	utxos := getUtxos(t, address)
-	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
-	tx, err := createTx(privateKey, address, utxos[0])
-	require.NoError(t, err)
-
-	rawFormatHex := hex.EncodeToString(tx.Bytes())
-
-	// then
-	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, rawFormatHex)
-	resp, err := postTx(t, jsonPayload, nil) // no extra headers
-
-	// assert
-	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-}
-
-func TestPostTx_BadRequest(t *testing.T) {
-	jsonPayload := `{"rawTx": "invalidHexData"}` // intentionally malformed
-	resp, err := postTx(t, jsonPayload, nil)
-	require.NoError(t, err)
-	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected 400 Bad Request but got: %d", resp.StatusCode)
-}
-
-func TestPostTx_MalformedTransaction(t *testing.T) {
-	data, err := os.ReadFile("./fixtures/malformedTxHexString.txt")
-	require.NoError(t, err)
-
-	txHexString := string(data)
-	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, txHexString)
-	resp, err := postTx(t, jsonPayload, nil)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected 400 Bad Request but got: %d", resp.StatusCode)
-}
-
-func TestPostTx_BadRequestBodyFormat(t *testing.T) {
-	improperPayload := `{"transaction": "fakeData"}`
-
-	resp, err := postTx(t, improperPayload, nil) // Using the helper function for the single tx endpoint
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected 400 Bad Request but got: %d", resp.StatusCode)
-}
-
-func postTx(t *testing.T, jsonPayload string, headers map[string]string) (*http.Response, error) {
-	req, err := http.NewRequest("POST", arcEndpointV1Tx, strings.NewReader(jsonPayload))
-	if err != nil {
-		t.Fatalf("Error creating HTTP request: %s", err)
-	}
-
-	// Set headers
-	req.Header.Set("Content-Type", "application/json")
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
-
-	client := &http.Client{}
-	return client.Do(req)
-}
-
-func createTxHexStringExtended(t *testing.T) *bt.Tx {
-	address, privateKey := fundNewWallet(t)
-
-	utxos := getUtxos(t, address)
-	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
-
-	tx, err := createTx(privateKey, address, utxos[0])
-	require.NoError(t, err)
-
-	return tx
-}
-
-func TestSubmitMinedTx(t *testing.T) {
-	// submit an unregistered, already mined transaction. ARC should return the status as MINED for the transaction.
-
-	// given
-	address, _ := fundNewWallet(t)
-	utxos := getUtxos(t, address)
-
-	rawTx, _ := bitcoind.GetRawTransaction(utxos[0].Txid)
-	tx, _ := bt.NewTxFromString(rawTx.Hex)
-
-	callbackReceivedChan := make(chan *TransactionStatus)
-	callbackErrChan := make(chan error)
-
-	callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
-	defer shutdown()
-
-	// when
-	_ = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
-		map[string]string{
-			"X-WaitFor":       Status_MINED,
-			"X-CallbackUrl":   callbackUrl,
-			"X-CallbackToken": token,
-		}, http.StatusOK)
-
-	// then
-	//require.Equal(t, Status_MINED, resp.TxStatus)
-
-	// wait for callback
-	callbackTimeout := time.After(10 * time.Second)
-
-	select {
-	case status := <-callbackReceivedChan:
-		require.Equal(t, rawTx.TxID, status.Txid)
-		require.Equal(t, Status_MINED, *status.TxStatus)
-	case err := <-callbackErrChan:
-		t.Fatalf("callback error: %v", err)
-	case <-callbackTimeout:
-		t.Fatal("callback exceeded timeout")
 	}
 }

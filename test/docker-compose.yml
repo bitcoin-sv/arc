@@ -52,7 +52,7 @@ services:
     environment:
       - POSTGRES_USER=arcuser
       - POSTGRES_PASSWORD=arcpass
-      - POSTGRES_DB=blocktx
+      - POSTGRES_DB=main
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready", "-d blocktx", "-U arcuser" ]
       interval: 5s
@@ -72,7 +72,7 @@ services:
         "-path",
         "/migrations",
         "-database",
-        "postgres://arcuser:arcpass@db:5432/blocktx?sslmode=disable&x-migrations-table=blocktx",
+        "postgres://arcuser:arcpass@db:5432/main?sslmode=disable&x-migrations-table=blocktx",
       ]
     command: [ "up" ]
     volumes:
@@ -91,7 +91,7 @@ services:
         "-path",
         "/migrations",
         "-database",
-        "postgres://arcuser:arcpass@db:5432/blocktx?sslmode=disable&x-migrations-table=metamorph",
+        "postgres://arcuser:arcpass@db:5432/main?sslmode=disable&x-migrations-table=metamorph",
       ]
     command: [ "up" ]
     volumes:

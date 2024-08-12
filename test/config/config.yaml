@@ -39,7 +39,7 @@ metamorph:
     postgres:
       host: db
       port: 5432
-      name: blocktx
+      name: main
       user: arcuser
       password: arcpass
       maxIdleConns: 10
@@ -70,7 +70,7 @@ blocktx:
     postgres:
       host: db
       port: 5432
-      name: blocktx
+      name: main
       user: arcuser
       password: arcpass
       maxIdleConns: 10

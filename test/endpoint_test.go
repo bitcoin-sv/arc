@@ -84,18 +84,18 @@ func TestBatchChainedTxs(t *testing.T) {
 			client := &http.Client{}
 
 			t.Logf("submitting batch of %d chained txs", len(txs))
-			postBatchRequest(t, client, req, false)
+			postBatchRequest(t, client, req)
 
 			time.Sleep(1 * time.Second) // give ARC time to perform the status update on DB
 
 			// repeat request to ensure response remains the same
 			t.Logf("re-submitting batch of %d chained txs", len(txs))
-			postBatchRequest(t, client, req, true)
+			postBatchRequest(t, client, req)
 		})
 	}
 }
 
-func postBatchRequest(t *testing.T, client *http.Client, req *http.Request, repeated bool) {
+func postBatchRequest(t *testing.T, client *http.Client, req *http.Request) {
 	httpResp, err := client.Do(req)
 	require.NoError(t, err)
 	defer httpResp.Body.Close()
@@ -111,11 +111,7 @@ func postBatchRequest(t *testing.T, client *http.Client, req *http.Request, repe
 
 	for i, txResponse := range bodyResponse {
 		require.NoError(t, err)
-		if repeated {
-			require.Equalf(t, Status_SEEN_IN_ORPHAN_MEMPOOL, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
-		} else {
-			require.Equalf(t, Status_ACCEPTED_BY_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
-		}
+		require.Equalf(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
 	}
 }
 

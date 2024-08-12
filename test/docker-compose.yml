@@ -134,7 +134,7 @@ services:
       retries: 5
 
   arc-blocktx:
-    image: test-arc:latest
+    build: ../
     expose:
       - "8011"
     volumes:
@@ -163,7 +163,7 @@ services:
       retries: 3
 
   arc-metamorph:
-    image: test-arc:latest
+    build: ../
     expose:
       - "8001"
     command: [ "./arc", "-metamorph=true", "-config=." ]
@@ -179,7 +179,7 @@ services:
       retries: 3
 
   arc:
-    image: test-arc:latest
+    build: ../
     ports:
       - "8011:8011"
       - "9090:9090"

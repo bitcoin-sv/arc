@@ -14,14 +14,6 @@ deps:
 build:
 	go build ./...
 
-.PHONY: clean_e2e_tests
-clean_e2e_tests:
-	# Remove containers and images; avoid failure if the image doesn't exist
-	docker container stop test-tests-1 || true
-	docker container stop test-arc-1 || true
-	docker container rm test-tests-1 || true
-	docker container rm test-arc-1 || true
-
 .PHONY: build_release
 build_release:
 	mkdir -p build
@@ -33,9 +25,9 @@ build_docker:
 
 .PHONY: run_e2e_tests
 run_e2e_tests:
-	docker-compose -f test/docker-compose.yml down
+	docker-compose -f test/docker-compose.yml down --remove-orphans
 	docker-compose -f test/docker-compose.yml up --abort-on-container-exit migrate-blocktx migrate-metamorph
-	docker-compose -f test/docker-compose.yml up --exit-code-from tests tests arc-blocktx arc-metamorph arc --scale arc-blocktx=7 --scale arc-metamorph=2
+	docker-compose -f test/docker-compose.yml up --build --exit-code-from tests tests arc-blocktx arc-metamorph arc --scale arc-blocktx=7 --scale arc-metamorph=2
 	docker-compose -f test/docker-compose.yml down
 
 .PHONY: test
@@ -123,6 +115,3 @@ compare_config:
 	rm -f ./config/dumped_config.yaml
 	go run ./cmd/arc/main.go -dump_config "./config/dumped_config.yaml" && go run ./scripts/compare_yamls.go
 	rm ./config/dumped_config.yaml
-
-.PHONY: clean_restart_e2e_test
-clean_restart_e2e_test: clean_e2e_tests build_docker run_e2e_tests

@@ -532,7 +532,7 @@ func postSingleRequest(t *testing.T, client *http.Client, req *http.Request) str
 
 	var response Response
 	require.NoError(t, json.NewDecoder(httpResp.Body).Decode(&response))
-	require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
+	require.Equal(t, Status_ACCEPTED_BY_NETWORK, response.TxStatus)
 
 	return response.Txid
 }

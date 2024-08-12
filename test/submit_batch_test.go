@@ -37,7 +37,7 @@ func TestBatchChainedTxs(t *testing.T) {
 
 		// Send POST request
 		t.Logf("submitting batch of %d chained txs", len(txs))
-		resp := postRequest[ResponseBatch](t, arcEndpointV1Txs, createPayload(t, request), nil, http.StatusOK)
+		resp := postRequest[TransactionResponseBatch](t, arcEndpointV1Txs, createPayload(t, request), nil, http.StatusOK)
 		for _, txResponse := range resp {
 			require.Equal(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus)
 		}
@@ -46,7 +46,7 @@ func TestBatchChainedTxs(t *testing.T) {
 
 		// repeat request to ensure response remains the same
 		t.Logf("re-submitting batch of %d chained txs", len(txs))
-		resp = postRequest[ResponseBatch](t, arcEndpointV1Txs, createPayload(t, request), nil, http.StatusOK)
+		resp = postRequest[TransactionResponseBatch](t, arcEndpointV1Txs, createPayload(t, request), nil, http.StatusOK)
 		for _, txResponse := range resp {
 			require.Equal(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus)
 		}

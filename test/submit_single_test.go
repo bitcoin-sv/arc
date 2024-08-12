@@ -61,39 +61,39 @@ func TestSubmitSingle(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			// Send POST request
-			response := postRequest[Response](t, arcEndpointV1Tx, createPayload(t, tc.body), nil, http.StatusOK)
-			txID := response.Txid
-			require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
+			response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, tc.body), nil, tc.expectedStatusCode)
 
 			if tc.expectedStatusCode != http.StatusOK {
 				return
 			}
+			require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
 
 			time.Sleep(1 * time.Second) // give ARC time to perform the status update on DB
 
 			// repeat request to ensure response remains the same
-			response = postRequest[Response](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}), nil, http.StatusOK)
+			txID := response.Txid
+			response = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}), nil, http.StatusOK)
 			require.Equal(t, txID, response.Txid)
 			require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
 
 			// Check transaction status
 			statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID)
-			statusResponse := getRequest[TxStatusResponse](t, fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID))
+			statusResponse := getRequest[TransactionResponse](t, fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID))
 			require.Equal(t, Status_SEEN_ON_NETWORK, statusResponse.TxStatus)
 
 			t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
 			generate(t, 10)
 
-			statusResponse = getRequest[TxStatusResponse](t, statusUrl)
+			statusResponse = getRequest[TransactionResponse](t, statusUrl)
 			require.Equal(t, Status_MINED, statusResponse.TxStatus)
 
 			t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
 			// Check Merkle path
-			t.Logf("BUMP: %s", statusResponse.MerklePath)
-
-			bump, err := bc.NewBUMPFromStr(statusResponse.MerklePath)
+			require.NotNil(t, statusResponse.MerklePath)
+			t.Logf("BUMP: %s", *statusResponse.MerklePath)
+			bump, err := bc.NewBUMPFromStr(*statusResponse.MerklePath)
 			require.NoError(t, err)
 
 			jsonB, err := json.Marshal(bump)
@@ -103,7 +103,8 @@ func TestSubmitSingle(t *testing.T) {
 			root, err := bump.CalculateRootGivenTxid(tx.TxID())
 			require.NoError(t, err)
 
-			blockRoot := getBlockRootByHeight(t, statusResponse.BlockHeight)
+			require.NotNil(t, statusResponse.BlockHeight)
+			blockRoot := getBlockRootByHeight(t, int(*statusResponse.BlockHeight))
 			require.Equal(t, blockRoot, root)
 		})
 	}
@@ -121,22 +122,19 @@ func TestSubmitMined(t *testing.T) {
 		rawTx, _ := bitcoind.GetRawTransaction(utxos[0].Txid)
 		tx, _ := bt.NewTxFromString(rawTx.Hex)
 
-		callbackReceivedChan := make(chan *TransactionStatus)
+		callbackReceivedChan := make(chan *TransactionResponse)
 		callbackErrChan := make(chan error)
 
 		callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
 		defer shutdown()
 
 		// when
-		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
+		_ = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
 			map[string]string{
 				"X-WaitFor":       Status_MINED,
 				"X-CallbackUrl":   callbackUrl,
 				"X-CallbackToken": token,
 			}, http.StatusOK)
-
-		// then
-		require.Equal(t, Status_MINED, resp.TxStatus)
 
 		// wait for callback
 		callbackTimeout := time.After(10 * time.Second)
@@ -144,7 +142,7 @@ func TestSubmitMined(t *testing.T) {
 		select {
 		case status := <-callbackReceivedChan:
 			require.Equal(t, rawTx.TxID, status.Txid)
-			require.Equal(t, Status_MINED, *status.TxStatus)
+			require.Equal(t, Status_MINED, status.TxStatus)
 		case err := <-callbackErrChan:
 			t.Fatalf("callback error: %v", err)
 		case <-callbackTimeout:
@@ -181,7 +179,7 @@ func TestSubmitQueued(t *testing.T) {
 			select {
 			case <-time.NewTicker(1 * time.Second).C:
 
-				statusResponse := getRequest[TxStatusResponse](t, statusUrl)
+				statusResponse := getRequest[TransactionResponse](t, statusUrl)
 				if statusResponse.TxStatus == Status_SEEN_ON_NETWORK {
 					break checkSeenLoop
 				}
@@ -196,7 +194,7 @@ func TestSubmitQueued(t *testing.T) {
 		for {
 			select {
 			case <-time.NewTicker(1 * time.Second).C:
-				statusResponse := getRequest[TxStatusResponse](t, statusUrl)
+				statusResponse := getRequest[TransactionResponse](t, statusUrl)
 				if statusResponse.TxStatus == Status_MINED {
 					break checkMinedLoop
 				}
@@ -219,12 +217,12 @@ func TestCallback(t *testing.T) {
 		tx, err := createTx(privateKey, address, utxos[0])
 		require.NoError(t, err)
 
-		const callbackNumbers = 2                                              // cannot be greater than 5
-		callbackReceivedChan := make(chan *TransactionStatus, callbackNumbers) // do not block callback server responses
+		const callbackNumbers = 2                                                // cannot be greater than 5
+		callbackReceivedChan := make(chan *TransactionResponse, callbackNumbers) // do not block callback server responses
 		callbackErrChan := make(chan error, callbackNumbers)
 		callbackIteration := 0
 
-		calbackResponseFn := func(w http.ResponseWriter, rc chan *TransactionStatus, ec chan error, status *TransactionStatus) {
+		calbackResponseFn := func(w http.ResponseWriter, rc chan *TransactionResponse, ec chan error, status *TransactionResponse) {
 			callbackIteration++
 
 			// Let ARC send the callback few times. Respond with success on the last one.
@@ -260,7 +258,7 @@ func TestCallback(t *testing.T) {
 		generate(t, 10)
 
 		statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
-		statusResp := getRequest[TransactionStatus](t, statusUrl)
+		statusResp := getRequest[TransactionResponse](t, statusUrl)
 
 		require.NotNil(t, statusResp.MerklePath)
 		_, err = bc.NewBUMPFromStr(*statusResp.MerklePath)
@@ -274,11 +272,11 @@ func TestCallback(t *testing.T) {
 			case callback := <-callbackReceivedChan:
 				require.NotNil(t, callback)
 
-				t.Logf("Callback %d result: %s", i, *callback.TxStatus)
+				t.Logf("Callback %d result: %s", i, callback.TxStatus)
 				require.Equal(t, statusResp.Txid, callback.Txid)
 				require.Equal(t, *statusResp.BlockHeight, *callback.BlockHeight)
 				require.Equal(t, *statusResp.BlockHash, *callback.BlockHash)
-				require.Equal(t, Status_MINED, *callback.TxStatus)
+				require.Equal(t, Status_MINED, callback.TxStatus)
 
 			case err := <-callbackErrChan:
 				t.Fatalf("callback received - failed to parse callback %v", err)

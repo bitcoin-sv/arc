@@ -36,27 +36,27 @@ const (
 	Status_MINED                  = "MINED"
 )
 
-type ResponseBatch []Response
+type TransactionResponseBatch []TransactionResponse
 
-type Response struct {
-	BlockHash   string `json:"blockHash"`
-	BlockHeight int    `json:"blockHeight"`
-	ExtraInfo   string `json:"extraInfo"`
-	Status      int    `json:"status"`
-	Timestamp   string `json:"timestamp"`
-	Title       string `json:"title"`
-	TxStatus    string `json:"txStatus"`
-	Txid        string `json:"txid"`
+type TransactionRequest struct {
+	RawTx string `json:"rawTx"`
 }
 
-type TxStatusResponse struct {
-	BlockHash   string      `json:"blockHash"`
-	BlockHeight int         `json:"blockHeight"`
-	ExtraInfo   interface{} `json:"extraInfo"` // It could be null or any type, so we use interface{}
-	Timestamp   string      `json:"timestamp"`
-	TxStatus    string      `json:"txStatus"`
-	Txid        string      `json:"txid"`
-	MerklePath  string      `json:"merklePath"`
+type TransactionResponse struct {
+	BlockHash   *string   `json:"blockHash,omitempty"`
+	BlockHeight *uint64   `json:"blockHeight,omitempty"`
+	ExtraInfo   *string   `json:"extraInfo"`
+	MerklePath  *string   `json:"merklePath"`
+	Status      int       `json:"status"`
+	Timestamp   time.Time `json:"timestamp"`
+	Title       string    `json:"title"`
+	TxStatus    string    `json:"txStatus"`
+	Txid        string    `json:"txid"`
+}
+
+type ErrorFee struct {
+	Detail string `json:"detail"`
+	Txid   string `json:"txid"`
 }
 
 type NodeUnspentUtxo struct {
@@ -70,75 +70,6 @@ type NodeUnspentUtxo struct {
 	Spendable     bool    `json:"spendable"`
 	Solvable      bool    `json:"solvable"`
 	Safe          bool    `json:"safe"`
-}
-
-type TransactionRequest struct {
-	RawTx string `json:"rawTx"`
-}
-
-// TransactionResponse defines model for TransactionResponse.
-type TransactionResponse struct {
-	// BlockHash Block hash
-	BlockHash *string `json:"blockHash,omitempty"`
-
-	// BlockHeight Block height
-	BlockHeight *uint64 `json:"blockHeight,omitempty"`
-
-	// ExtraInfo Extra info
-	ExtraInfo *string `json:"extraInfo"`
-
-	// MerklePath Transaction Merkle path as a hex string in  BUMP format [BRC-74](https://brc.dev/74)
-	MerklePath *string `json:"merklePath"`
-
-	// Status Status
-	Status    int       `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-
-	// Title Title
-	Title string `json:"title"`
-
-	// TxStatus Transaction status
-	TxStatus string `json:"txStatus"`
-
-	// Txid Transaction ID in hex
-	Txid string `json:"txid"`
-}
-
-// ErrorFee defines model for ErrorFee.
-type ErrorFee struct {
-	Detail interface{} `json:"detail"`
-
-	// ExtraInfo Optional extra information about the error from the miner
-	ExtraInfo *string      `json:"extraInfo"`
-	Instance  *interface{} `json:"instance,omitempty"`
-	Status    interface{}  `json:"status"`
-	Title     interface{}  `json:"title"`
-
-	// Txid Transaction ID this error is referring to
-	Txid *string     `json:"txid"`
-	Type interface{} `json:"type"`
-}
-
-// TransactionStatus defines model for TransactionStatus.
-type TransactionStatus struct {
-	// BlockHash Block hash
-	BlockHash *string `json:"blockHash,omitempty"`
-
-	// BlockHeight Block height
-	BlockHeight *uint64 `json:"blockHeight,omitempty"`
-
-	// ExtraInfo Extra information about the transaction
-	ExtraInfo *string `json:"extraInfo"`
-
-	// MerklePath Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)
-	MerklePath *string   `json:"merklePath"`
-	Timestamp  time.Time `json:"timestamp"`
-
-	// TxStatus Transaction status
-	TxStatus *string `json:"txStatus,omitempty"`
-
-	// Txid Transaction ID in hex
-	Txid string `json:"txid"`
 }
 
 type RawTransaction struct {
@@ -380,10 +311,10 @@ func generateRandomString(length int) string {
 	return string(b)
 }
 
-type callbackResponseFn func(w http.ResponseWriter, rc chan *TransactionStatus, ec chan error, status *TransactionStatus)
+type callbackResponseFn func(w http.ResponseWriter, rc chan *TransactionResponse, ec chan error, status *TransactionResponse)
 
 // use buffered channels for multiple callbacks
-func startCallbackSrv(t *testing.T, receivedChan chan *TransactionStatus, errChan chan error, alternativeResponseFn callbackResponseFn) (callbackUrl, token string, shutdownFn func()) {
+func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errChan chan error, alternativeResponseFn callbackResponseFn) (callbackUrl, token string, shutdownFn func()) {
 	t.Helper()
 	callback := generateRandomString(16)
 	token = "1234"
@@ -394,7 +325,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *TransactionStatus, errCha
 
 	callbackUrl = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
 
-	readPayload := func(req *http.Request) (*TransactionStatus, error) {
+	readPayload := func(req *http.Request) (*TransactionResponse, error) {
 		defer func() {
 			err := req.Body.Close()
 			if err != nil {
@@ -407,7 +338,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *TransactionStatus, errCha
 			return nil, err
 		}
 
-		var status TransactionStatus
+		var status TransactionResponse
 		err = json.Unmarshal(bodyBytes, &status)
 		if err != nil {
 			return nil, err

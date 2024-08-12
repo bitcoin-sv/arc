@@ -36,10 +36,10 @@ func TestDoubleSpend(t *testing.T) {
 		time.Sleep(5 * time.Second)
 
 		statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
-		statusResp := getRequest[TransactionStatus](t, statusUrl)
+		statusResp := getRequest[TransactionResponse](t, statusUrl)
 		// verify that the first tx was also set to DOUBLE_SPEND_ATTEMPTED
-		require.NotNil(t, statusResp.TxStatus)
-		require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, *statusResp.TxStatus)
+
+		require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, statusResp.TxStatus)
 
 		// mine the first tx
 		generate(t, 10)
@@ -48,16 +48,14 @@ func TestDoubleSpend(t *testing.T) {
 		time.Sleep(5 * time.Second)
 
 		statusUrl = fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
-		statusResp = getRequest[TransactionStatus](t, statusUrl)
+		statusResp = getRequest[TransactionResponse](t, statusUrl)
 		// verify that the first tx was mined
-		require.NotNil(t, statusResp.TxStatus)
-		require.Equal(t, Status_MINED, *statusResp.TxStatus)
+		require.Equal(t, Status_MINED, statusResp.TxStatus)
 
 		statusUrl = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txMempool.TxID())
-		statusResp = getRequest[TransactionStatus](t, statusUrl)
+		statusResp = getRequest[TransactionResponse](t, statusUrl)
 		// verify that the second tx was rejected
-		require.NotNil(t, statusResp.TxStatus)
-		require.Equal(t, Status_REJECTED, *statusResp.TxStatus)
+		require.Equal(t, Status_REJECTED, statusResp.TxStatus)
 		require.Equal(t, "double spend attempted", *statusResp.ExtraInfo)
 
 		// send double spending transaction when first tx was mined

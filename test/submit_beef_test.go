@@ -26,7 +26,7 @@ func TestBeef(t *testing.T) {
 
 		beef, middleTx, tx, expectedCallbacks := prepareBeef(t, txID, hash, address, dstAddress, privateKey)
 
-		callbackReceivedChan := make(chan *TransactionStatus, expectedCallbacks) // do not block callback server responses
+		callbackReceivedChan := make(chan *TransactionResponse, expectedCallbacks) // do not block callback server responses
 		callbackErrChan := make(chan error, expectedCallbacks)
 
 		callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
@@ -48,9 +48,8 @@ func TestBeef(t *testing.T) {
 		generate(t, 10)
 
 		statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
-		statusResp := getRequest[TransactionStatus](t, statusUrl)
-		require.NotNil(t, statusResp.TxStatus)
-		require.Equal(t, Status_MINED, *statusResp.TxStatus)
+		statusResp := getRequest[TransactionResponse](t, statusUrl)
+		require.Equal(t, Status_MINED, statusResp.TxStatus)
 
 		// verify callbacks for both unmined txs in BEEF
 		lastTxCallbackReceived := false
@@ -60,10 +59,10 @@ func TestBeef(t *testing.T) {
 			select {
 			case status := <-callbackReceivedChan:
 				if status.Txid == middleTx.TxID() {
-					require.Equal(t, Status_MINED, *status.TxStatus)
+					require.Equal(t, Status_MINED, status.TxStatus)
 					middleTxCallbackReceived = true
 				} else if status.Txid == tx.TxID() {
-					require.Equal(t, Status_MINED, *status.TxStatus)
+					require.Equal(t, Status_MINED, status.TxStatus)
 					lastTxCallbackReceived = true
 				} else {
 					t.Fatalf("received unknown status for txid: %s", status.Txid)
@@ -110,8 +109,7 @@ func TestBeef_Fail(t *testing.T) {
 
 			resp := postRequest[ErrorFee](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: tc.beefStr}), nil, tc.expectedErrCode)
 			require.Equal(t, tc.expectedErrMsgDetail, resp.Detail)
-			require.NotNil(t, resp.Txid)
-			require.Equal(t, tc.expectedErrTxID, *resp.Txid)
+			require.Equal(t, tc.expectedErrTxID, resp.Txid)
 		})
 	}
 }

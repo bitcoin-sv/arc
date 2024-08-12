@@ -86,7 +86,7 @@ func TestBatchChainedTxs(t *testing.T) {
 			t.Logf("submitting batch of %d chained txs", len(txs))
 			postBatchRequest(t, client, req)
 
-			time.Sleep(1 * time.Second) // give ARC time to perform the status update on DB
+			time.Sleep(5 * time.Second) // give ARC time to perform the status update on DB
 
 			// repeat request to ensure response remains the same
 			t.Logf("re-submitting batch of %d chained txs", len(txs))

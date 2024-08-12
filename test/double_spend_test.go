@@ -41,7 +41,7 @@ func TestDoubleSpend(t *testing.T) {
 			require.NoError(t, err)
 
 			// submit first transaction
-			postTxChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, tc.extFormat)
+			postTxChecksStatus(t, arcClient, tx, Status_ACCEPTED_BY_NETWORK, tc.extFormat)
 
 			// send double spending transaction when first tx is in mempool
 			txMempool := createTxToNewAddress(t, privateKey, utxos[0])

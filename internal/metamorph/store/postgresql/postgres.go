@@ -301,7 +301,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		,$12
 		,$13
 		,$14
-	) ON CONFLICT (hash) DO UPDATE SET last_submitted_at=$14`
+	) ON CONFLICT (hash) DO UPDATE SET last_submitted_at=$14, callbacks=$8;`
 
 	var txHash []byte
 	var blockHash []byte

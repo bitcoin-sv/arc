@@ -608,7 +608,9 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	if err == nil {
 		//	When transaction is re-submitted we update last_submitted_at with now()
 		//	to make sure it will be loaded and re-broadcast if needed.
+		p.logger.Debug("Transaction already stored", slog.String("hash", req.Data.Hash.String()))
 		addNewCallback(data, req.Data)
+		fmt.Println("Callbacks: ", data.Callbacks)
 		err = p.storeData(p.ctx, data)
 		if err != nil {
 			p.logger.Error("Failed to update data", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
@@ -742,11 +744,14 @@ func (p *Processor) storeData(ctx context.Context, data *store.StoreData) error 
 
 func addNewCallback(data, reqData *store.StoreData) {
 	if reqData.Callbacks == nil {
+		fmt.Println("No callbacks to add")
 		return
 	}
 	reqCallback := reqData.Callbacks[0]
 	if reqCallback.CallbackURL != "" && reqCallback.CallbackToken != "" && !callbackExists(reqCallback, data) {
 		data.Callbacks = append(data.Callbacks, reqCallback)
+	} else {
+		fmt.Println("Callback already exists")
 	}
 }
 

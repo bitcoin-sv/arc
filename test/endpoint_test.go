@@ -242,7 +242,7 @@ func TestPostCallbackToken(t *testing.T) {
 
 			require.Equal(t, http.StatusOK, response.StatusCode())
 			require.NotNil(t, response.JSON200)
-			require.Equal(t, Status_SEEN_ON_NETWORK, response.JSON200.TxStatus)
+			require.Equal(t, Status_ACCEPTED_BY_NETWORK, response.JSON200.TxStatus)
 
 			generate(t, 10)
 

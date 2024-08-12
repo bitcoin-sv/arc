@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -126,45 +127,26 @@ func TestPostCallbackToken(t *testing.T) {
 	}
 }
 
-func postTxWithHeadersChecksStatus(t *testing.T, client *api.ClientWithResponses, tx *bt.Tx, expectedStatus string, skipFeeValidation bool, skipTxValidation bool) {
-	ctx := context.Background()
-
-	var skipFeeValidationPtr *bool
-	if skipFeeValidation {
-		skipFeeValidationPtr = PtrTo(true)
-	}
-
-	var skipTxValidationPtr *bool
-	if skipTxValidation {
-		skipTxValidationPtr = PtrTo(true)
-	}
-	params := &api.POSTTransactionParams{
-		XWaitFor:           &expectedStatus,
-		XSkipFeeValidation: skipFeeValidationPtr,
-		XSkipTxValidation:  skipTxValidationPtr,
-	}
-
-	arcBody := api.POSTTransactionJSONRequestBody{
-		RawTx: hex.EncodeToString(tx.ExtendedBytes()),
-	}
-
-	var response *api.POSTTransactionResponse
-	response, err := client.POSTTransactionWithResponse(ctx, params, arcBody)
-	require.NoError(t, err)
-	fmt.Println("Response Transaction with Zero fee:", response)
-	fmt.Println("Response Transaction with Zero fee:", response.JSON200)
-
-	require.Equal(t, http.StatusOK, response.StatusCode())
-	require.NotNil(t, response.JSON200)
-	require.Equalf(t, expectedStatus, response.JSON200.TxStatus, "status of response: %s does not match expected status: %s for tx ID %s", response.JSON200.TxStatus, expectedStatus, tx.TxID())
-}
-
-func TestPostSkipFee(t *testing.T) {
+func TestSkipValidation(t *testing.T) {
 	tt := []struct {
-		name string
+		name              string
+		skipFeeValidation bool
+		skipTxValidation  bool
 	}{
 		{
-			name: "post transaction with skip fee",
+			name:              "post transaction with skip fee",
+			skipFeeValidation: true,
+			skipTxValidation:  false,
+		},
+		{
+			name:              "post transaction with skip script validation",
+			skipFeeValidation: false,
+			skipTxValidation:  true,
+		},
+		{
+			name:              "post tx without validation",
+			skipFeeValidation: true,
+			skipTxValidation:  true,
 		},
 	}
 
@@ -175,69 +157,30 @@ func TestPostSkipFee(t *testing.T) {
 			utxos := getUtxos(t, address)
 			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-			customFee := uint64(0)
+			fee := uint64(0)
 
-			tx, err := createTx(privateKey, address, utxos[0], customFee)
+			tx, err := createTx(privateKey, address, utxos[0], fee)
 			require.NoError(t, err)
 
 			fmt.Println("Transaction with Zero fee:", tx)
 
-			arcClient, err := api.NewClientWithResponses(arcEndpoint)
-			require.NoError(t, err)
+			request := TransactionRequest{
+				RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+			}
 
-			postTxWithHeadersChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, true, false)
+			resp := postRequest[TransactionResponse](t,
+				arcEndpointV1Tx,
+				createPayload(t, request),
+				map[string]string{
+					"X-WaitFor":           Status_SEEN_ON_NETWORK,
+					"X-SkipFeeValidation": strconv.FormatBool(tc.skipFeeValidation),
+					"X-SkipTxValidation":  strconv.FormatBool(tc.skipTxValidation),
+				},
+			)
+
+			require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
 		})
 	}
-}
-
-func TestPostSkipTxValidation(t *testing.T) {
-	tt := []struct {
-		name string
-	}{
-		{
-			name: "post transaction with skip script validation",
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			address, privateKey := fundNewWallet(t)
-			utxos := getUtxos(t, address)
-			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
-
-			customFee := uint64(0)
-
-			tx, err := createTx(privateKey, address, utxos[0], customFee)
-			require.NoError(t, err)
-
-			fmt.Println("Transaction with Zero fee:", tx)
-
-			arcClient, err := api.NewClientWithResponses(arcEndpoint)
-			require.NoError(t, err)
-
-			postTxWithHeadersChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, false, true)
-		})
-	}
-}
-
-func TestPostWholeValidation(t *testing.T) {
-	t.Run("post tx without validation", func(t *testing.T) {
-		address, privateKey := fundNewWallet(t)
-		utxos := getUtxos(t, address)
-		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
-
-		customFee := uint64(0)
-
-		tx, err := createTx(privateKey, address, utxos[0], customFee)
-		require.NoError(t, err)
-
-		fmt.Println("Transaction with Zero fee:", tx)
-
-		arcClient, err := api.NewClientWithResponses(arcEndpoint)
-		require.NoError(t, err)
-
-		postTxWithHeadersChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", true, true)
-	})
 }
 
 func Test_E2E_Success(t *testing.T) {

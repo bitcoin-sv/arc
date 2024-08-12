@@ -57,7 +57,7 @@ func TestDoubleSpend(t *testing.T) {
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
 			require.NoError(t, err)
 			if tc.extFormat {
-				require.Equal(t, Status_ACCEPTED_BY_NETWORK, *statusResponse.JSON200.TxStatus)
+				require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, *statusResponse.JSON200.TxStatus)
 			} else {
 				require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, *statusResponse.JSON200.TxStatus)
 			}

@@ -103,6 +103,21 @@ type TransactionResponse struct {
 	Txid string `json:"txid"`
 }
 
+// ErrorFee defines model for ErrorFee.
+type ErrorFee struct {
+	Detail interface{} `json:"detail"`
+
+	// ExtraInfo Optional extra information about the error from the miner
+	ExtraInfo *string      `json:"extraInfo"`
+	Instance  *interface{} `json:"instance,omitempty"`
+	Status    interface{}  `json:"status"`
+	Title     interface{}  `json:"title"`
+
+	// Txid Transaction ID this error is referring to
+	Txid *string     `json:"txid"`
+	Type interface{} `json:"type"`
+}
+
 // TransactionStatus defines model for TransactionStatus.
 type TransactionStatus struct {
 	// BlockHash Block hash

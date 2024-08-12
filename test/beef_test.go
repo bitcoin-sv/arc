@@ -1,8 +1,8 @@
 package test
 
 import (
-	"context"
-	"net/http"
+	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -14,91 +14,76 @@ import (
 )
 
 func TestBeef(t *testing.T) {
-	testCases := []struct {
-		name           string
-		expectedStatus string
-	}{
-		{
-			name:           "valid beef with unmined parents - response for the tip, callback for each",
-			expectedStatus: Status_SEEN_ON_NETWORK,
-		},
-	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			arcClient, err := api.NewClientWithResponses(arcEndpoint)
-			require.NoError(t, err)
+	t.Run("valid beef with unmined parents - response for the tip, callback for each", func(t *testing.T) {
+		// given
 
-			address, privateKey := getNewWalletAddress(t)
-			dstAddress, _ := getNewWalletAddress(t)
+		address, privateKey := getNewWalletAddress(t)
+		dstAddress, _ := getNewWalletAddress(t)
 
-			txID := sendToAddress(t, address, 0.002)
-			hash := generate(t, 1)
+		txID := sendToAddress(t, address, 0.002)
+		hash := generate(t, 1)
 
-			beef, middleTx, tx, expectedCallbacks := prepareBeef(t, txID, hash, address, dstAddress, privateKey)
+		beef, middleTx, tx, expectedCallbacks := prepareBeef(t, txID, hash, address, dstAddress, privateKey)
 
-			body := api.POSTTransactionJSONRequestBody{
+		callbackReceivedChan := make(chan *api.TransactionStatus, expectedCallbacks) // do not block callback server responses
+		callbackErrChan := make(chan error, expectedCallbacks)
+
+		callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
+		defer shutdown()
+
+		waitForStatusTimeoutSeconds := 30
+
+		// when
+		resp := postRequest[TransactionResponse](t,
+			arcEndpointV1Tx,
+			createPayload(t, TransactionRequest{
 				RawTx: beef,
-			}
+			}),
+			map[string]string{
+				"X-WaitFor":       Status_SEEN_ON_NETWORK,
+				"X-CallbackUrl":   callbackUrl,
+				"X-CallbackToken": token,
+				"X-MaxTimeout":    strconv.Itoa(waitForStatusTimeoutSeconds),
+			},
+		)
 
-			callbackReceivedChan := make(chan *api.TransactionStatus, expectedCallbacks) // do not block callback server responses
-			callbackErrChan := make(chan error, expectedCallbacks)
+		// then
+		require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
 
-			callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
-			defer shutdown()
+		generate(t, 10)
 
-			waitForStatusTimeoutSeconds := 30
+		statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
+		statusResp := getRequest[TransactionStatus](t, statusUrl)
+		require.Equal(t, Status_MINED, statusResp.TxStatus)
 
-			params := &api.POSTTransactionParams{
-				XWaitFor:       &tc.expectedStatus,
-				XCallbackUrl:   &callbackUrl,
-				XCallbackToken: &token,
-				XMaxTimeout:    &waitForStatusTimeoutSeconds,
-			}
+		// verify callbacks for both unmined txs in BEEF
+		lastTxCallbackReceived := false
+		middleTxCallbackReceived := false
 
-			// when
-			response, err := arcClient.POSTTransactionWithResponse(context.Background(), params, body)
-
-			// then
-			require.NoError(t, err)
-			require.Equal(t, http.StatusOK, response.StatusCode())
-			require.NotNil(t, response.JSON200)
-			require.Equal(t, tc.expectedStatus, response.JSON200.TxStatus, "status not SEEN_ON_NETWORK")
-
-			generate(t, 10)
-
-			statusResponse, err := arcClient.GETTransactionStatusWithResponse(context.Background(), tx.TxID())
-			require.NoError(t, err)
-			require.Equal(t, Status_MINED, *statusResponse.JSON200.TxStatus)
-
-			// verify callbacks for both unmined txs in BEEF
-			lastTxCallbackReceived := false
-			middleTxCallbackReceived := false
-
-			for i := 0; i < expectedCallbacks; i++ {
-				select {
-				case status := <-callbackReceivedChan:
-					if status.Txid == middleTx.TxID() {
-						require.Equal(t, Status_MINED, *status.TxStatus)
-						middleTxCallbackReceived = true
-					} else if status.Txid == tx.TxID() {
-						require.Equal(t, Status_MINED, *status.TxStatus)
-						lastTxCallbackReceived = true
-					} else {
-						t.Fatalf("received unknown status for txid: %s", status.Txid)
-					}
-				case err := <-callbackErrChan:
-					t.Fatalf("callback received - failed to parse callback %v", err)
-				case <-time.After(10 * time.Second):
-					t.Fatal("callback exceeded timeout")
+		for i := 0; i < expectedCallbacks; i++ {
+			select {
+			case status := <-callbackReceivedChan:
+				if status.Txid == middleTx.TxID() {
+					require.Equal(t, Status_MINED, *status.TxStatus)
+					middleTxCallbackReceived = true
+				} else if status.Txid == tx.TxID() {
+					require.Equal(t, Status_MINED, *status.TxStatus)
+					lastTxCallbackReceived = true
+				} else {
+					t.Fatalf("received unknown status for txid: %s", status.Txid)
 				}
+			case err := <-callbackErrChan:
+				t.Fatalf("callback received - failed to parse callback %v", err)
+			case <-time.After(10 * time.Second):
+				t.Fatal("callback exceeded timeout")
 			}
+		}
 
-			require.Equal(t, true, lastTxCallbackReceived)
-			require.Equal(t, true, middleTxCallbackReceived)
-		})
-	}
+		require.Equal(t, true, lastTxCallbackReceived)
+		require.Equal(t, true, middleTxCallbackReceived)
+	})
+
 }
 
 func TestBeef_Fail(t *testing.T) {
@@ -127,19 +112,18 @@ func TestBeef_Fail(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			arcClient, err := api.NewClientWithResponses(arcEndpoint)
-			require.NoError(t, err)
 
-			body := api.POSTTransactionJSONRequestBody{
-				RawTx: tc.beefStr,
-			}
+			resp := postRequest[ErrorFee](t,
+				arcEndpointV1Tx,
+				createPayload(t, TransactionRequest{
+					RawTx: tc.beefStr,
+				}),
+				nil,
+			)
 
-			response, err := arcClient.POSTTransactionWithResponse(context.Background(), nil, body)
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedErrCode, response.StatusCode())
-			require.NotNil(t, response.JSON465)
-			require.Equal(t, tc.expectedErrMsgDetail, response.JSON465.Detail)
-			require.Equal(t, tc.expectedErrTxID, *response.JSON465.Txid)
+			require.Equal(t, tc.expectedErrCode, resp.Status)
+			require.Equal(t, tc.expectedErrMsgDetail, resp.Detail)
+			require.Equal(t, tc.expectedErrTxID, resp.Txid)
 		})
 	}
 }

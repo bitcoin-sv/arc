@@ -41,7 +41,7 @@ func TestDoubleSpend(t *testing.T) {
 			require.NoError(t, err)
 
 			// submit first transaction
-			postTxChecksStatus(t, arcClient, tx, Status_ACCEPTED_BY_NETWORK, tc.extFormat)
+			postTxChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, tc.extFormat)
 
 			// send double spending transaction when first tx is in mempool
 			txMempool := createTxToNewAddress(t, privateKey, utxos[0])
@@ -56,11 +56,7 @@ func TestDoubleSpend(t *testing.T) {
 			// verify that the first tx was also set to DOUBLE_SPEND_ATTEMPTED
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
 			require.NoError(t, err)
-			if tc.extFormat {
-				require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, *statusResponse.JSON200.TxStatus)
-			} else {
-				require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, *statusResponse.JSON200.TxStatus)
-			}
+			require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, *statusResponse.JSON200.TxStatus)
 
 			// mine the first tx
 			generate(t, 10)
@@ -71,11 +67,7 @@ func TestDoubleSpend(t *testing.T) {
 			// verify that the first tx was mined
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
 			require.NoError(t, err)
-			if tc.extFormat {
-				require.Equal(t, Status_MINED, *statusResponse.JSON200.TxStatus)
-			} else {
-				require.Equal(t, Status_MINED, *statusResponse.JSON200.TxStatus)
-			}
+			require.Equal(t, Status_MINED, *statusResponse.JSON200.TxStatus)
 
 			// verify that the second tx was rejected
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, txMempool.TxID())

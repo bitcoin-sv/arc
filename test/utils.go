@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoinsv/bsvd/bsvec"
 	"github.com/bitcoinsv/bsvutil"
 	"github.com/libsv/go-bk/bec"
@@ -372,13 +371,10 @@ func generateRandomString(length int) string {
 	return string(b)
 }
 
-type callbackResponseFn func(w http.ResponseWriter, rc chan *api.TransactionStatus, ec chan error, status *api.TransactionStatus)
+type callbackResponseFn func(w http.ResponseWriter, rc chan *TransactionStatus, ec chan error, status *TransactionStatus)
 
 // use buffered channels for multiple callbacks
-func startCallbackSrv(t *testing.T, receivedChan chan *api.TransactionStatus, errChan chan error,
-	alternativeResponseFn callbackResponseFn) (
-	callbackUrl, token string, shutdownFn func(),
-) {
+func startCallbackSrv(t *testing.T, receivedChan chan *TransactionStatus, errChan chan error, alternativeResponseFn callbackResponseFn) (callbackUrl, token string, shutdownFn func()) {
 	t.Helper()
 	callback := generateRandomString(16)
 	token = "1234"
@@ -389,7 +385,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *api.TransactionStatus, er
 
 	callbackUrl = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
 
-	readPayload := func(req *http.Request) (*api.TransactionStatus, error) {
+	readPayload := func(req *http.Request) (*TransactionStatus, error) {
 		defer func() {
 			err := req.Body.Close()
 			if err != nil {
@@ -402,7 +398,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *api.TransactionStatus, er
 			return nil, err
 		}
 
-		var status api.TransactionStatus
+		var status TransactionStatus
 		err = json.Unmarshal(bodyBytes, &status)
 		if err != nil {
 			return nil, err

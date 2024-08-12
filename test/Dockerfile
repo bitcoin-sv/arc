@@ -14,10 +14,10 @@ COPY ./utils.go ./utils.go
 COPY ./fixtures ./fixtures
 
 # Copy tests to run
-COPY ./beef_test.go ./beef_test.go
-COPY ./endpoint_test.go ./endpoint_test.go
-COPY ./chained_txs_test.go ./chained_txs_test.go
-COPY ./double_spend_test.go ./double_spend_test.go
+COPY ./submit_single_test.go.go ./submit_single_test.go.go
+COPY ./submit_batch_test.go.go ./submit_batch_test.go.go
+COPY ./submit_double_spending_test.go.go ./submit_double_spending_test.go.go
+COPY ./submit_beef_test.go.go ./submit_beef_test.go.go
 
 # This will compile and run the tests
 CMD [ "go", "test", "-v", "-failfast", "./..."]

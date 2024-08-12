@@ -391,7 +391,7 @@ func TestPostWholeValidation(t *testing.T) {
 		arcClient, err := api.NewClientWithResponses(arcEndpoint)
 		require.NoError(t, err)
 
-		postTxWithHeadersChecksStatus(t, arcClient, tx, "SEEN_ON_NETWORK", true, true)
+		postTxWithHeadersChecksStatus(t, arcClient, tx, "ACCEPTED_BY_NETWORK", true, true)
 	})
 }
 

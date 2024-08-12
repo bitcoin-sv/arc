@@ -111,7 +111,7 @@ func postBatchRequest(t *testing.T, client *http.Client, req *http.Request) {
 
 	for i, txResponse := range bodyResponse {
 		require.NoError(t, err)
-		require.Equalf(t, Status_ANNOUNCED_TO_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
+		require.Equalf(t, Status_ACCEPTED_BY_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
 	}
 }
 

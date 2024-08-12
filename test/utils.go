@@ -168,7 +168,7 @@ func getRequest[T any](t *testing.T, url string) T {
 	return respBody
 }
 
-func postRequest[T any](t *testing.T, url string, reader io.Reader, headers map[string]string) T {
+func postRequest[T any](t *testing.T, url string, reader io.Reader, headers map[string]string, expectedStatusCode int) T {
 	req, err := http.NewRequest("POST", url, reader)
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
@@ -182,7 +182,7 @@ func postRequest[T any](t *testing.T, url string, reader io.Reader, headers map[
 	require.NoError(t, err)
 
 	defer httpResp.Body.Close()
-	require.Equal(t, http.StatusOK, httpResp.StatusCode)
+	require.Equal(t, expectedStatusCode, httpResp.StatusCode)
 
 	var response T
 	require.NoError(t, json.NewDecoder(httpResp.Body).Decode(&response))

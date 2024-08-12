@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -38,7 +39,7 @@ func TestBatchChainedTxs(t *testing.T) {
 
 		// Send POST request
 		t.Logf("submitting batch of %d chained txs", len(txs))
-		resp := postRequest[[]Response](t, arcEndpointV1Txs, buffer, nil)
+		resp := postRequest[[]Response](t, arcEndpointV1Txs, buffer, nil, http.StatusOK)
 		for i, txResponse := range resp {
 			require.NoError(t, err)
 			require.Equalf(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
@@ -48,7 +49,7 @@ func TestBatchChainedTxs(t *testing.T) {
 
 		// repeat request to ensure response remains the same
 		t.Logf("re-submitting batch of %d chained txs", len(txs))
-		resp = postRequest[[]Response](t, arcEndpointV1Txs, buffer, nil)
+		resp = postRequest[[]Response](t, arcEndpointV1Txs, buffer, nil, http.StatusOK)
 		for i, txResponse := range resp {
 			require.NoError(t, err)
 			require.Equalf(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)

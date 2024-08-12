@@ -3,6 +3,7 @@ package test
 import (
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -25,11 +26,7 @@ func TestDoubleSpend(t *testing.T) {
 		}
 
 		// submit first transaction
-		resp := postRequest[TransactionResponse](t,
-			arcEndpointV1Tx,
-			createPayload(t, request),
-			map[string]string{"X-WaitFor": Status_SEEN_ON_NETWORK},
-		)
+		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, request), map[string]string{"X-WaitFor": Status_SEEN_ON_NETWORK}, http.StatusOK)
 		require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
 
 		// send double spending transaction when first tx is in mempool
@@ -40,11 +37,7 @@ func TestDoubleSpend(t *testing.T) {
 		}
 
 		// submit first transaction
-		resp = postRequest[TransactionResponse](t,
-			arcEndpointV1Tx,
-			createPayload(t, request),
-			map[string]string{"X-WaitFor": Status_DOUBLE_SPEND_ATTEMPTED},
-		)
+		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, request), map[string]string{"X-WaitFor": Status_DOUBLE_SPEND_ATTEMPTED}, http.StatusOK)
 		require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, resp.TxStatus)
 
 		// give arc time to update the status of all competing transactions
@@ -53,6 +46,7 @@ func TestDoubleSpend(t *testing.T) {
 		statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
 		statusResp := getRequest[TransactionStatus](t, statusUrl)
 		// verify that the first tx was also set to DOUBLE_SPEND_ATTEMPTED
+		require.NotNil(t, statusResp.TxStatus)
 		require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, *statusResp.TxStatus)
 
 		// mine the first tx
@@ -64,11 +58,13 @@ func TestDoubleSpend(t *testing.T) {
 		statusUrl = fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
 		statusResp = getRequest[TransactionStatus](t, statusUrl)
 		// verify that the first tx was mined
+		require.NotNil(t, statusResp.TxStatus)
 		require.Equal(t, Status_MINED, *statusResp.TxStatus)
 
 		statusUrl = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txMempool.TxID())
 		statusResp = getRequest[TransactionStatus](t, statusUrl)
 		// verify that the second tx was rejected
+		require.NotNil(t, statusResp.TxStatus)
 		require.Equal(t, Status_REJECTED, *statusResp.TxStatus)
 		require.Equal(t, "double spend attempted", *statusResp.ExtraInfo)
 
@@ -77,11 +73,7 @@ func TestDoubleSpend(t *testing.T) {
 		request = TransactionRequest{
 			RawTx: hex.EncodeToString(txMined.ExtendedBytes()),
 		}
-		resp = postRequest[TransactionResponse](t,
-			arcEndpointV1Tx,
-			createPayload(t, request),
-			map[string]string{"X-WaitFor": Status_SEEN_IN_ORPHAN_MEMPOOL},
-		)
+		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, request), map[string]string{"X-WaitFor": Status_SEEN_IN_ORPHAN_MEMPOOL}, http.StatusOK)
 		require.Equal(t, Status_SEEN_IN_ORPHAN_MEMPOOL, resp.TxStatus)
 	})
 }

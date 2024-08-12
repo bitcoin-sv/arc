@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"net/http"
 	"strconv"
 	"testing"
 	"time"
@@ -34,18 +35,14 @@ func TestBeef(t *testing.T) {
 		waitForStatusTimeoutSeconds := 30
 
 		// when
-		resp := postRequest[TransactionResponse](t,
-			arcEndpointV1Tx,
-			createPayload(t, TransactionRequest{
-				RawTx: beef,
-			}),
-			map[string]string{
-				"X-WaitFor":       Status_SEEN_ON_NETWORK,
-				"X-CallbackUrl":   callbackUrl,
-				"X-CallbackToken": token,
-				"X-MaxTimeout":    strconv.Itoa(waitForStatusTimeoutSeconds),
-			},
-		)
+		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{
+			RawTx: beef,
+		}), map[string]string{
+			"X-WaitFor":       Status_SEEN_ON_NETWORK,
+			"X-CallbackUrl":   callbackUrl,
+			"X-CallbackToken": token,
+			"X-MaxTimeout":    strconv.Itoa(waitForStatusTimeoutSeconds),
+		}, http.StatusOK)
 
 		// then
 		require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
@@ -54,7 +51,8 @@ func TestBeef(t *testing.T) {
 
 		statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
 		statusResp := getRequest[TransactionStatus](t, statusUrl)
-		require.Equal(t, Status_MINED, statusResp.TxStatus)
+		require.NotNil(t, statusResp.TxStatus)
+		require.Equal(t, Status_MINED, *statusResp.TxStatus)
 
 		// verify callbacks for both unmined txs in BEEF
 		lastTxCallbackReceived := false
@@ -112,17 +110,13 @@ func TestBeef_Fail(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 
-			resp := postRequest[ErrorFee](t,
-				arcEndpointV1Tx,
-				createPayload(t, TransactionRequest{
-					RawTx: tc.beefStr,
-				}),
-				nil,
-			)
+			resp := postRequest[ErrorFee](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{
+				RawTx: tc.beefStr,
+			}), nil, tc.expectedErrCode)
 
-			require.Equal(t, tc.expectedErrCode, resp.Status)
 			require.Equal(t, tc.expectedErrMsgDetail, resp.Detail)
-			require.Equal(t, tc.expectedErrTxID, resp.Txid)
+			require.NotNil(t, resp.Txid)
+			require.Equal(t, tc.expectedErrTxID, *resp.Txid)
 		})
 	}
 }

@@ -35,9 +35,7 @@ func TestBeef(t *testing.T) {
 		waitForStatusTimeoutSeconds := 30
 
 		// when
-		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{
-			RawTx: beef,
-		}), map[string]string{
+		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: beef}), map[string]string{
 			"X-WaitFor":       Status_SEEN_ON_NETWORK,
 			"X-CallbackUrl":   callbackUrl,
 			"X-CallbackToken": token,
@@ -110,10 +108,7 @@ func TestBeef_Fail(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 
-			resp := postRequest[ErrorFee](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{
-				RawTx: tc.beefStr,
-			}), nil, tc.expectedErrCode)
-
+			resp := postRequest[ErrorFee](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: tc.beefStr}), nil, tc.expectedErrCode)
 			require.Equal(t, tc.expectedErrMsgDetail, resp.Detail)
 			require.NotNil(t, resp.Txid)
 			require.Equal(t, tc.expectedErrTxID, *resp.Txid)

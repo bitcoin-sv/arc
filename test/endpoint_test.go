@@ -56,14 +56,12 @@ func TestPostCallbackToken(t *testing.T) {
 		callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
 		defer shutdown()
 
-		request := TransactionRequest{
-			RawTx: hex.EncodeToString(tx.ExtendedBytes()),
-		}
-		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, request), map[string]string{
-			"X-WaitFor":       Status_SEEN_ON_NETWORK,
-			"X-CallbackUrl":   callbackUrl,
-			"X-CallbackToken": token,
-		}, http.StatusOK)
+		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
+			map[string]string{
+				"X-WaitFor":       Status_SEEN_ON_NETWORK,
+				"X-CallbackUrl":   callbackUrl,
+				"X-CallbackToken": token,
+			}, http.StatusOK)
 
 		require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
 
@@ -136,15 +134,12 @@ func TestSkipValidation(t *testing.T) {
 
 			fmt.Println("Transaction with Zero fee:", tx)
 
-			request := TransactionRequest{
-				RawTx: hex.EncodeToString(tx.ExtendedBytes()),
-			}
-
-			resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, request), map[string]string{
-				"X-WaitFor":           Status_SEEN_ON_NETWORK,
-				"X-SkipFeeValidation": strconv.FormatBool(tc.skipFeeValidation),
-				"X-SkipTxValidation":  strconv.FormatBool(tc.skipTxValidation),
-			}, http.StatusOK)
+			resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
+				map[string]string{
+					"X-WaitFor":           Status_SEEN_ON_NETWORK,
+					"X-SkipFeeValidation": strconv.FormatBool(tc.skipFeeValidation),
+					"X-SkipTxValidation":  strconv.FormatBool(tc.skipTxValidation),
+				}, http.StatusOK)
 
 			require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
 		})
@@ -153,23 +148,22 @@ func TestSkipValidation(t *testing.T) {
 
 func Test_E2E_Success(t *testing.T) {
 	tx := createTxHexStringExtended(t)
-	jsonPayload := fmt.Sprintf(`{"rawTx": "%s"}`, hex.EncodeToString(tx.ExtendedBytes()))
 
 	// Send POST request
-	response := postRequest[Response](t, arcEndpointV1Tx, strings.NewReader(jsonPayload), nil, http.StatusOK)
+	response := postRequest[Response](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}), nil, http.StatusOK)
 	txID := response.Txid
 	require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
 
 	time.Sleep(1 * time.Second) // give ARC time to perform the status update on DB
 
 	// repeat request to ensure response remains the same
-	response = postRequest[Response](t, arcEndpointV1Tx, strings.NewReader(jsonPayload), nil, http.StatusOK)
+	response = postRequest[Response](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}), nil, http.StatusOK)
 	require.Equal(t, txID, response.Txid)
 	require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
 
 	// Check transaction status
 	statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID)
-	statusResponse := getRequest[TxStatusResponse](t, statusUrl)
+	statusResponse := getRequest[TxStatusResponse](t, fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID))
 	require.Equal(t, Status_SEEN_ON_NETWORK, statusResponse.TxStatus)
 
 	t.Logf("Transaction status: %s", statusResponse.TxStatus)
@@ -212,10 +206,11 @@ func TestPostTx_Queued(t *testing.T) {
 		tx, err := createTx(privateKey, address, utxos[0])
 		require.NoError(t, err)
 
-		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}), map[string]string{
-			"X-WaitFor":    Status_QUEUED,
-			"X-MaxTimeout": strconv.Itoa(1),
-		}, http.StatusOK)
+		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
+			map[string]string{
+				"X-WaitFor":    Status_QUEUED,
+				"X-MaxTimeout": strconv.Itoa(1),
+			}, http.StatusOK)
 
 		require.Equal(t, Status_QUEUED, resp.TxStatus)
 
@@ -354,11 +349,12 @@ func TestSubmitMinedTx(t *testing.T) {
 	defer shutdown()
 
 	// when
-	_ = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}), map[string]string{
-		"X-WaitFor":       Status_MINED,
-		"X-CallbackUrl":   callbackUrl,
-		"X-CallbackToken": token,
-	}, http.StatusOK)
+	_ = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
+		map[string]string{
+			"X-WaitFor":       Status_MINED,
+			"X-CallbackUrl":   callbackUrl,
+			"X-CallbackToken": token,
+		}, http.StatusOK)
 
 	// then
 	//require.Equal(t, Status_MINED, resp.TxStatus)

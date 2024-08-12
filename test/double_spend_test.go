@@ -21,23 +21,15 @@ func TestDoubleSpend(t *testing.T) {
 		tx, err := createTx(privateKey, address, utxos[0])
 		require.NoError(t, err)
 
-		request := TransactionRequest{
-			RawTx: hex.EncodeToString(tx.ExtendedBytes()),
-		}
-
 		// submit first transaction
-		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, request), map[string]string{"X-WaitFor": Status_SEEN_ON_NETWORK}, http.StatusOK)
+		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}), map[string]string{"X-WaitFor": Status_SEEN_ON_NETWORK}, http.StatusOK)
 		require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
 
 		// send double spending transaction when first tx is in mempool
 		txMempool := createTxToNewAddress(t, privateKey, utxos[0])
 
-		request = TransactionRequest{
-			RawTx: hex.EncodeToString(txMempool.ExtendedBytes()),
-		}
-
 		// submit first transaction
-		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, request), map[string]string{"X-WaitFor": Status_DOUBLE_SPEND_ATTEMPTED}, http.StatusOK)
+		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(txMempool.ExtendedBytes())}), map[string]string{"X-WaitFor": Status_DOUBLE_SPEND_ATTEMPTED}, http.StatusOK)
 		require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, resp.TxStatus)
 
 		// give arc time to update the status of all competing transactions
@@ -70,10 +62,7 @@ func TestDoubleSpend(t *testing.T) {
 
 		// send double spending transaction when first tx was mined
 		txMined := createTxToNewAddress(t, privateKey, utxos[0])
-		request = TransactionRequest{
-			RawTx: hex.EncodeToString(txMined.ExtendedBytes()),
-		}
-		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, request), map[string]string{"X-WaitFor": Status_SEEN_IN_ORPHAN_MEMPOOL}, http.StatusOK)
+		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(txMined.ExtendedBytes())}), map[string]string{"X-WaitFor": Status_SEEN_IN_ORPHAN_MEMPOOL}, http.StatusOK)
 		require.Equal(t, Status_SEEN_IN_ORPHAN_MEMPOOL, resp.TxStatus)
 	})
 }

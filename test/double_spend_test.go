@@ -73,7 +73,7 @@ func TestDoubleSpend(t *testing.T) {
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, txMempool.TxID())
 			require.NoError(t, err)
 			require.Equal(t, Status_REJECTED, *statusResponse.JSON200.TxStatus)
-			require.Equal(t, "double spend attempted", *statusResponse.JSON200.ExtraInfo)
+			require.Equal(t, "discarded from mempool: double spend attempted", *statusResponse.JSON200.ExtraInfo)
 
 			// send double spending transaction when first tx was mined
 			txMined := createTxToNewAddress(t, privateKey, utxos[0])

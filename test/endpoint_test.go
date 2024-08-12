@@ -401,24 +401,19 @@ func TestSubmitMinedTx(t *testing.T) {
 	callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
 	defer shutdown()
 
-	arcClient, _ := api.NewClientWithResponses(arcEndpoint)
-
 	// when
-	waitFor := string(Status_MINED)
-	params := &api.POSTTransactionParams{
-		XWaitFor:       &waitFor,
-		XCallbackUrl:   &callbackUrl,
-		XCallbackToken: &token,
-	}
-	arcBody := api.POSTTransactionJSONRequestBody{
-		RawTx: hex.EncodeToString(tx.ExtendedBytes()),
-	}
-
-	submitResult, submitErr := arcClient.POSTTransactionWithResponse(context.TODO(), params, arcBody)
+	_ = postRequest[TransactionResponse](t,
+		arcEndpointV1Tx,
+		createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
+		map[string]string{
+			"X-WaitFor":       Status_MINED,
+			"X-CallbackUrl":   callbackUrl,
+			"X-CallbackToken": token,
+		},
+	)
 
 	// then
-	require.NoError(t, submitErr)
-	require.Equal(t, http.StatusOK, submitResult.StatusCode())
+	//require.Equal(t, Status_MINED, resp.TxStatus)
 
 	// wait for callback
 	callbackTimeout := time.After(10 * time.Second)

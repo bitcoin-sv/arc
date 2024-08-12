@@ -84,7 +84,7 @@ func TestBatchChainedTxs(t *testing.T) {
 			client := &http.Client{}
 
 			t.Logf("submitting batch of %d chained txs", len(txs))
-			postBatchRequest(t, client, req, Status_ACCEPTED_BY_NETWORK)
+			postBatchRequest(t, client, req, Status_SEEN_ON_NETWORK)
 
 			time.Sleep(5 * time.Second) // give ARC time to perform the status update on DB
 

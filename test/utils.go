@@ -428,3 +428,43 @@ func fundNewWallet(t *testing.T) (addr, privKey string) {
 
 	return
 }
+
+func testTxSubmission(t *testing.T, callbackUrl string, token string, tx *bt.Tx) {
+	response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
+		map[string]string{
+			"X-WaitFor":       Status_SEEN_ON_NETWORK,
+			"X-CallbackUrl":   callbackUrl,
+			"X-CallbackToken": token,
+		}, http.StatusOK)
+	require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
+}
+
+func prepareCallback(t *testing.T, callbackNumbers int) (chan *TransactionResponse, chan error, callbackResponseFn) {
+	callbackReceivedChan := make(chan *TransactionResponse, callbackNumbers) // do not block callback server responses
+	callbackErrChan := make(chan error, callbackNumbers)
+	callbackIteration := 0
+
+	calbackResponseFn := func(w http.ResponseWriter, rc chan *TransactionResponse, ec chan error, status *TransactionResponse) {
+		callbackIteration++
+
+		// Let ARC send the callback few times. Respond with success on the last one.
+		respondWithSuccess := false
+		if callbackIteration < callbackNumbers {
+			t.Logf("%d callback received, responding bad request", callbackIteration)
+			respondWithSuccess = false
+
+		} else {
+			t.Logf("callback interation:  %v", callbackIteration)
+			t.Logf("%d callback received, responding success", callbackIteration)
+			respondWithSuccess = true
+		}
+
+		err := respondToCallback(w, respondWithSuccess)
+		if err != nil {
+			t.Fatalf("Failed to respond to callback: %v", err)
+		}
+
+		rc <- status
+	}
+	return callbackReceivedChan, callbackErrChan, calbackResponseFn
+}

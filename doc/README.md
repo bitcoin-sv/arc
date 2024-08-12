@@ -23,7 +23,7 @@ The ARC architecture has been designed to assist in the management of the transa
 
 ARC is a transaction processor for Bitcoin that keeps track of the life cycle of a transaction as it is processed by the Bitcoin network. Next to the mining status of a transaction, ARC also keeps track of the various states that a transaction can be in, such as `ANNOUNCED_TO_NETWORK`, `SEEN_IN_ORPHAN_MEMPOOL`, `SENT_TO_NETWORK`, `SEEN_ON_NETWORK`, `MINED`, `REJECTED`, etc.
 
-If a transaction is not `SEEN_ON_NETWORK` within a certain time period (60 seconds by default), ARC will re-send the transaction to the Bitcoin network. ARC also monitors the Bitcoin network for transaction and block messages, and will notify the client when a transaction has been mined, or rejected.
+If a transaction is not at least `SEEN_ON_NETWORK` within a certain time period (60 seconds by default), ARC will re-send the transaction to the Bitcoin network. ARC also monitors the Bitcoin network for transaction and block messages, and will notify the client when a transaction has been mined, or rejected.
 
 ```mermaid
 stateDiagram-v2
@@ -423,13 +423,66 @@ worker -> store: mark txs mined
 
 ### Double spending
 
-A transaction `A` is submitted to the network. Shortly later a transaction `B` spending one of the same outputs as transaction `A` (double spend) is submitted to ARC
+In a following situation:
+> Transaction `A` is submitted to the network. Shortly later, or in exactly the same time, transaction `B` spending one of the same outputs as transaction `A` (double spend) is submitted to ARC.
 
-Expected outcome:
-* If transaction `A` was also submitted to ARC it has status `SEEN_ON_NETWORK`
-* Transaction `B` has status `REJECTED`
+These things will happen:
+1. Both transaction `A` and `B` will receive status `DOUBLE_SPEND_ATTEMPTED`.
+	* A callback will be sent for every double spend transaction (provided that `X-FullStatusUpdates` header is set).
+	* For each transaction - its competing transactions IDs (hashes) will be returned in the response and/or in the callback.
+2. When either transactions `A` or `B` is mined, the other will be rejected. The mined transaction gets status `MINED` and the other gets status `REJECTED`.
+	* Querying ARC for `MINED` transaction `A` will return an extra information that this transaction was previously a double spend attempt.
+	* Querying ARC for `REJECTED` transaction `B` will return "double spend attempted" information as rejection reason.
 
-The planned feature [Double spending detection](https://github.com/bitcoin-sv/arc/blob/main/ROADMAP.md#double-spending-detection) will ensure that both transaction have status `DOUBLE_SPENT_ATTEMPTED` until one or the other transactions is mined. The mined transaction gets status `MINED` and the other gets status `REJECTED`
+The same applies to all transactions, if more than two transactions are trying to spend the same UTXO.
+
+#### Double Spend flow - Examples
+
+**Situation:**
+> Transaction `A` is submitted to the network NOT through Arc.
+> A short moment later, transaction `B` spending the same output is submitted to Arc.
+> Later, transaction `A` is mined.
+
+Outcome:
+1. A response to submitting transaction `B` will include `DOUBLE_SPEND_ATTEMPTED` status and an ID (hash) of transaction `A` as a competing transaction.
+2. After transaction `A` is mined, transaction `B` will be rejected and receive status `REJECTED`.
+3. If callback URL is specified - the callback with status `REJECTED` and information about rejection reason (double spend) will be sent for transaction `B`.
+
+
+**Situation:**
+> Transaction `A` is submitted to the network through Arc.
+> A short moment later, transaction `B` spending the same output is submitted to Arc.
+> Later, transaction `A` is mined.
+
+Outcome:
+1. A response for submitting transaction `A` will include `SEEN_ON_NETWORK` status without any information about competing transactions.
+2. A response for submitting transaction `B` will include `DOUBLE_SPEND_ATTEMPTED` status and an ID (hash) of transaction `A` as a competing transaction.
+	* Transaction `A` status will be internally changed to `DOUBLE_SPEND_ATTEMPTED`.
+	* If callback URL is specified for transaction `A` - the callback with status `DOUBLE_SPEND_ATTEMPTED` and an ID (hash) of transaction `B` as a competing transaction will be sent for transaction `A`.
+3. Querying for transaction `A` will now also result in `DOUBLE_SPEND_ATTEMPTED` status and an ID (hash) of transaction `B` as a competing transaction.
+4. After transaction `A` is mined, it will receive status `MINED`.
+	* If callback URL is specified for transaction `A` - a callback with status `DOUBLE_SPEND_ATTEMPTED` and an extra information that this transactions was previously a double spend attempt will be sent.
+5. Transaction `B` will be rejected and receive status `REJECTED`. The callback will be sent with an information.
+	* If callback URL is specified for transaction `B` - a callback with status `REJECTED` and an extra information that this transactions was a double spend attempt will be sent.
+6. Querying for transaction `A` will now also result in `MINED` status and an extra information that this transactions was previously a double spend attempt.
+7. Querying for transaction `B` will now also result in `REJECTED` status and an extra information that this transactions was a double spend attempt.
+
+
+**Situation:**
+> Transaction `A` is submitted outside of Arc to a node that is not directly connected to Arc.
+> Transaction `B` spending the same output is submitted to Arc at **exactly** the same moment.
+
+Outcome:
+1. Submitting transaction `B` will initially result in status `SEEN_ON_NETWORK` and no competing transactions.
+2. Status for transaction `B` will be changed to `DOUBLE_SPEND_ATTEMPTED` as soon as nodes share transactions `A` and `B` with each other, which usually is a matter of seconds maximum.
+	* If callback URL is specified for transaction `B` - the callback with status `DOUBLE_SPEND_ATTEMPTED` and an ID (hash) of transaction `A` as a competing transaction will be sent for transaction `B`.
+3. If transaction `A` will be mined, transaction `B` will receive status `REJECTED` and a callback will be sent (if callback URL is set).
+
+#### Edge case
+If transactions `A` and `B` are submitted at exactly the same time to different nodes through ARC, they both may initially receive status `SEEN_ON_NETWORK`. The status for both will be updated to `DOUBLE_SPEND_ATTEMPTED` as soon as nodes will share these transactions with each other and therefore realise it's a double spend attempt, which is usually instantaneous.
+
+The chance of this situation happening is extremely low when submitting transactions through Arc.
+
 
 ### Multiple submissions to the same ARC instance
 

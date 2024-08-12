@@ -340,7 +340,7 @@ func TestPostSkipFee(t *testing.T) {
 			arcClient, err := api.NewClientWithResponses(arcEndpoint)
 			require.NoError(t, err)
 
-			postTxWithHeadersChecksStatus(t, arcClient, tx, Status_SEEN_ON_NETWORK, true, false)
+			postTxWithHeadersChecksStatus(t, arcClient, tx, Status_ACCEPTED_BY_NETWORK, true, false)
 		})
 	}
 }

@@ -112,7 +112,7 @@ func postBatchRequest(t *testing.T, client *http.Client, req *http.Request, repe
 	for i, txResponse := range bodyResponse {
 		require.NoError(t, err)
 		if repeated {
-			require.Equalf(t, Status_ACCEPTED_BY_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
+			require.Equalf(t, Status_SEEN_IN_ORPHAN_MEMPOOL, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
 		} else {
 			require.Equalf(t, Status_ACCEPTED_BY_NETWORK, txResponse.TxStatus, "status of tx %d in chain not as expected", i)
 		}

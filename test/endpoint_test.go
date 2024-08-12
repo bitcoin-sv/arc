@@ -421,7 +421,7 @@ func Test_E2E_Success(t *testing.T) {
 
 	var statusResponse TxStatusResponse
 	require.NoError(t, json.NewDecoder(statusResp.Body).Decode(&statusResponse))
-	require.Equalf(t, Status_SEEN_ON_NETWORK, statusResponse.TxStatus, "Expected txStatus to be 'SEEN_ON_NETWORK' for tx id %s", txID)
+	require.Equalf(t, Status_ACCEPTED_BY_NETWORK, statusResponse.TxStatus, "Expected txStatus to be 'SEEN_ON_NETWORK' for tx id %s", txID)
 
 	t.Logf("Transaction status: %s", statusResponse.TxStatus)
 

@@ -56,7 +56,11 @@ func TestDoubleSpend(t *testing.T) {
 			// verify that the first tx was also set to DOUBLE_SPEND_ATTEMPTED
 			statusResponse, err = arcClient.GETTransactionStatusWithResponse(ctx, tx.TxID())
 			require.NoError(t, err)
-			require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, *statusResponse.JSON200.TxStatus)
+			if tc.extFormat {
+				require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, *statusResponse.JSON200.TxStatus)
+			} else {
+				require.Equal(t, Status_ACCEPTED_BY_NETWORK, *statusResponse.JSON200.TxStatus)
+			}
 
 			// mine the first tx
 			generate(t, 10)

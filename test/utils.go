@@ -1,6 +1,7 @@
 package test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoinsv/bsvd/bsvec"
 	"github.com/bitcoinsv/bsvutil"
 	"github.com/libsv/go-bk/bec"
@@ -36,6 +36,29 @@ const (
 	Status_MINED                  = "MINED"
 )
 
+type TransactionResponseBatch []TransactionResponse
+
+type TransactionRequest struct {
+	RawTx string `json:"rawTx"`
+}
+
+type TransactionResponse struct {
+	BlockHash   *string   `json:"blockHash,omitempty"`
+	BlockHeight *uint64   `json:"blockHeight,omitempty"`
+	ExtraInfo   *string   `json:"extraInfo"`
+	MerklePath  *string   `json:"merklePath"`
+	Status      int       `json:"status"`
+	Timestamp   time.Time `json:"timestamp"`
+	Title       string    `json:"title"`
+	TxStatus    string    `json:"txStatus"`
+	Txid        string    `json:"txid"`
+}
+
+type ErrorFee struct {
+	Detail string `json:"detail"`
+	Txid   string `json:"txid"`
+}
+
 type NodeUnspentUtxo struct {
 	Txid          string  `json:"txid"`
 	Vout          uint32  `json:"vout"`
@@ -58,6 +81,53 @@ type BlockData struct {
 	Height     uint64   `json:"height"`
 	Txs        []string `json:"txs"`
 	MerkleRoot string   `json:"merkleroot"`
+}
+
+func createPayload[T any](t *testing.T, body T) io.Reader {
+	payLoad, err := json.Marshal(body)
+	require.NoError(t, err)
+
+	return bytes.NewBuffer(payLoad)
+}
+
+func getRequest[T any](t *testing.T, url string) T {
+	getResp, err := http.Get(url)
+	require.NoError(t, err)
+	defer getResp.Body.Close()
+
+	var respBody T
+	require.NoError(t, json.NewDecoder(getResp.Body).Decode(&respBody))
+
+	return respBody
+}
+
+func postRequest[T any](t *testing.T, url string, reader io.Reader, headers map[string]string, expectedStatusCode int) T {
+	req, err := http.NewRequest("POST", url, reader)
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	client := &http.Client{}
+	httpResp, err := client.Do(req)
+	require.NoError(t, err)
+
+	defer httpResp.Body.Close()
+
+	if httpResp.StatusCode != expectedStatusCode {
+		bodyBytes, err := io.ReadAll(httpResp.Body)
+		require.NoError(t, err)
+		t.Logf("unexpected status code %d, body: %s", httpResp.StatusCode, string(bodyBytes))
+	}
+
+	require.Equal(t, expectedStatusCode, httpResp.StatusCode)
+
+	var response T
+	require.NoError(t, json.NewDecoder(httpResp.Body).Decode(&response))
+
+	return response
 }
 
 // PtrTo returns a pointer to the given value.
@@ -241,13 +311,10 @@ func generateRandomString(length int) string {
 	return string(b)
 }
 
-type callbackResponseFn func(w http.ResponseWriter, rc chan *api.TransactionStatus, ec chan error, status *api.TransactionStatus)
+type callbackResponseFn func(w http.ResponseWriter, rc chan *TransactionResponse, ec chan error, status *TransactionResponse)
 
 // use buffered channels for multiple callbacks
-func startCallbackSrv(t *testing.T, receivedChan chan *api.TransactionStatus, errChan chan error,
-	alternativeResponseFn callbackResponseFn) (
-	callbackUrl, token string, shutdownFn func(),
-) {
+func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errChan chan error, alternativeResponseFn callbackResponseFn) (callbackUrl, token string, shutdownFn func()) {
 	t.Helper()
 	callback := generateRandomString(16)
 	token = "1234"
@@ -258,7 +325,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *api.TransactionStatus, er
 
 	callbackUrl = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
 
-	readPayload := func(req *http.Request) (*api.TransactionStatus, error) {
+	readPayload := func(req *http.Request) (*TransactionResponse, error) {
 		defer func() {
 			err := req.Body.Close()
 			if err != nil {
@@ -271,7 +338,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *api.TransactionStatus, er
 			return nil, err
 		}
 
-		var status api.TransactionStatus
+		var status TransactionResponse
 		err = json.Unmarshal(bodyBytes, &status)
 		if err != nil {
 			return nil, err

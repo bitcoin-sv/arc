@@ -348,8 +348,6 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byte, options *metamorph.TransactionOptions) (
 	submittedTxs []*bt.Tx, successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields,
 ) {
-	m.logger.Info("Starting to process transactions")
-
 	// decode and validate txs
 	var txIds []string
 

@@ -714,6 +714,8 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	})
 	p.announcedTransactionsLock.Unlock()
 
+	p.RequestTransaction(req.Data.Hash)
+
 	// update status in response
 	statusResponse.UpdateStatus(StatusAndError{
 		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
@@ -729,6 +731,16 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	if req.Timeout != 0 {
 		p.responseProcessor.Add(statusResponse, req.Timeout)
 	}
+}
+
+func (p *Processor) RequestTransaction(txHash *chainhash.Hash) {
+	p.announcedTransactionsLock.Lock()
+	p.logger.Info("Added transaction - ", slog.String("hash", txHash.String()))
+	p.announcedTransactions = append(p.announcedTransactions, AnnouncedTransaction{
+		second: uint64(time.Now().Unix()),
+		hash:   txHash,
+	})
+	p.announcedTransactionsLock.Unlock()
 }
 
 func (p *Processor) ProcessTransactions(sReq []*store.StoreData) {

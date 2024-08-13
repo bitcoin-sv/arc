@@ -981,10 +981,7 @@ func TestStartCheckingTransactionsInNetwork(t *testing.T) {
 
 	require.Equal(t, 0, processor.GetProcessorMapSize())
 
-	processor.announcedTransactions = append(processor.announcedTransactions, metamorph.AnnouncedTransaction{
-		uint64(time.Now().Unix()),
-		testdata.TX2Hash,
-	})
+	processor.RequestTransaction(testdata.TX2Hash)
 
 	time.Sleep(1 * time.Second)
 	require.Equal(t, 0, len(pm.RequestTransactionCalls()))

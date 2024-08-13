@@ -92,6 +92,14 @@ type Processor struct {
 
 	processMinedInterval  time.Duration
 	processMinedBatchSize int
+
+	announcedTransactions     []AnnouncedTransaction
+	announcedTransactionsLock sync.Mutex
+}
+
+type AnnouncedTransaction struct {
+	second uint64
+	hash   chainhash.Hash
 }
 
 type Option func(f *Processor)
@@ -126,8 +134,9 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChan
 		maxRetries:                maxRetriesDefault,
 		minimumHealthyConnections: minimumHealthyConnectionsDefault,
 
-		responseProcessor: NewResponseProcessor(),
-		statusMessageCh:   statusMessageChannel,
+		responseProcessor:     NewResponseProcessor(),
+		statusMessageCh:       statusMessageChannel,
+		announcedTransactions: make([]AnnouncedTransaction, 0),
 
 		processExpiredTxsInterval:       unseenTransactionRebroadcastingInterval,
 		processSeenOnNetworkTxsInterval: seenOnNetworkTransactionRequestingInterval,
@@ -203,6 +212,7 @@ func (p *Processor) Start() error {
 	p.StartProcessExpiredTransactions()
 	p.StartRequestingSeenOnNetworkTxs()
 	p.StartProcessStatusUpdatesInStorage()
+	p.StartCheckingTransactionsInNetwork()
 	p.StartProcessMinedCallbacks()
 	err = p.StartCollectStats()
 	if err != nil {
@@ -353,6 +363,36 @@ func (p *Processor) StartSendStatusUpdate() {
 
 			case message := <-p.statusMessageCh:
 				p.SendStatusForTransaction(message)
+			}
+		}
+	}()
+}
+
+func (p *Processor) StartCheckingTransactionsInNetwork() {
+	p.waitGroup.Add(1)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	go func() {
+		defer p.waitGroup.Done()
+		for {
+			select {
+			case <-p.ctx.Done():
+				return
+
+			case <-ticker.C:
+				p.announcedTransactionsLock.Lock()
+				for k := 0; k < len(p.announcedTransactions); k++ {
+					if p.announcedTransactions[k].second < uint64(time.Now().Unix())-3 {
+						p.pm.RequestTransaction((*chainhash.Hash)(&p.announcedTransactions[k].hash))
+					} else {
+						p.announcedTransactions = p.announcedTransactions[k:]
+						break
+					}
+				}
+
+				if len(p.announcedTransactions) == 0 {
+					p.announcedTransactions = []AnnouncedTransaction{}
+				}
+				p.announcedTransactionsLock.Unlock()
 			}
 		}
 	}()
@@ -682,8 +722,12 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		return
 	}
 
-	// Send GETDATA to peers to see if they have it
-	p.pm.RequestTransaction(req.Data.Hash)
+	p.announcedTransactionsLock.Lock()
+	p.announcedTransactions = append(p.announcedTransactions, AnnouncedTransaction{
+		second: uint64(time.Now().Unix()),
+		hash:   req.Data.Hash,
+	})
+	p.announcedTransactionsLock.Unlock()
 
 	// update status in response
 	statusResponse.UpdateStatus(StatusAndError{

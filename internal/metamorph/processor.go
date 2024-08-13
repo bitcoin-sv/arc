@@ -345,8 +345,25 @@ func (p *Processor) StartSendStatusUpdate() {
 			case <-p.ctx.Done():
 				return
 
-			case message := <-p.statusMessageCh:
-				p.SendStatusForTransaction(message)
+			case msg := <-p.statusMessageCh:
+
+				// update status of transaction in storage
+				p.storageStatusUpdateCh <- store.UpdateStatus{
+					Hash:         *msg.Hash,
+					Status:       msg.Status,
+					Error:        msg.Err,
+					CompetingTxs: msg.CompetingTxs,
+				}
+
+				// if we receive new update check if we have client connection waiting for status and send it
+				p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
+					Hash:         msg.Hash,
+					Status:       msg.Status,
+					Err:          msg.Err,
+					CompetingTxs: msg.CompetingTxs,
+				})
+
+				p.logger.Debug("Status reported for tx", slog.String("status", msg.Status.String()), slog.String("hash", msg.Hash.String()))
 			}
 		}
 	}()
@@ -578,26 +595,6 @@ func (p *Processor) StartProcessExpiredTransactions() {
 // GetPeers returns a list of connected and a list of disconnected peers
 func (p *Processor) GetPeers() []p2p.PeerI {
 	return p.pm.GetPeers()
-}
-
-func (p *Processor) SendStatusForTransaction(msg *PeerTxMessage) {
-	// make sure we update the transaction status in database
-	p.storageStatusUpdateCh <- store.UpdateStatus{
-		Hash:         *msg.Hash,
-		Status:       msg.Status,
-		Error:        msg.Err,
-		CompetingTxs: msg.CompetingTxs,
-	}
-
-	// if we receive new update check if we have client connection waiting for status and send it
-	p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
-		Hash:         msg.Hash,
-		Status:       msg.Status,
-		Err:          msg.Err,
-		CompetingTxs: msg.CompetingTxs,
-	})
-
-	p.logger.Debug("Status reported for tx", slog.String("status", msg.Status.String()), slog.String("hash", msg.Hash.String()))
 }
 
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {

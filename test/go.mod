@@ -20,7 +20,6 @@ require (
 	github.com/go-zeromq/zmq4 v0.15.0 // indirect
 	github.com/libsv/go-bt v1.0.8 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
-	github.com/perimeterx/marshmallow v1.1.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect

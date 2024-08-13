@@ -472,7 +472,8 @@ This endpoint is used to get the current status of a previously submitted transa
   "txid": "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e",
   "merklePath": "string",
   "txStatus": "MINED",
-  "extraInfo": null
+  "extraInfo": null,
+  "competingTxs": null
 }
 ```
 
@@ -1300,7 +1301,8 @@ and
   "extraInfo": "string",
   "txStatus": "string",
   "txid": "string",
-  "merklePath": "string"
+  "merklePath": "string",
+  "competingTxs": null
 }
 
 ```
@@ -1334,6 +1336,7 @@ and
 |» txStatus|string|true|none|Transaction status|
 |» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in  BUMP format [BRC-74](https://brc.dev/74)|
 |» extraInfo|string¦null|true|none|Extra info|
+|» competingTxs|[string]¦null|false|none|none|
 
 <h2 id="tocS_TransactionStatus">TransactionStatus</h2>
 <!-- backwards compatibility -->
@@ -1350,7 +1353,8 @@ and
   "txid": "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e",
   "merklePath": "string",
   "txStatus": "MINED",
-  "extraInfo": null
+  "extraInfo": null,
+  "competingTxs": null
 }
 
 ```
@@ -1378,6 +1382,7 @@ and
 |» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)|
 |» txStatus|string|false|none|Transaction status|
 |» extraInfo|string¦null|false|none|Extra information about the transaction|
+|» competingTxs|[string]¦null|false|none|none|
 
 <h2 id="tocS_TransactionSubmitStatus">TransactionSubmitStatus</h2>
 <!-- backwards compatibility -->
@@ -1506,6 +1511,7 @@ and
 |» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)|
 |» txStatus|string|false|none|Transaction status|
 |» extraInfo|string¦null|false|none|Extra information about the transaction|
+|» competingTxs|[string]¦null|false|none|none|
 
 #### Enumerated Values
 
@@ -1517,9 +1523,11 @@ and
 |txStatus|ANNOUNCED_TO_NETWORK|
 |txStatus|REQUESTED_BY_NETWORK|
 |txStatus|SENT_TO_NETWORK|
+|txStatus|ACCEPTED_BY_NETWORK|
 |txStatus|SEEN_ON_NETWORK|
+|txStatus|SEEN_IN_ORPHAN_MEMPOOL|
+|txStatus|DOUBLE_SPEND_ATTEMPTED|
 |txStatus|MINED|
-|txStatus|CONFIRMED|
 |txStatus|REJECTED|
 
 <h2 id="tocS_Error">Error</h2>

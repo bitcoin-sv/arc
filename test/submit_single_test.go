@@ -153,11 +153,7 @@ func TestSubmitMined(t *testing.T) {
 
 func TestSubmitQueued(t *testing.T) {
 	t.Run("queued", func(t *testing.T) {
-		address, privateKey := getNewWalletAddress(t)
-		sendToAddress(t, address, 0.001)
-
-		hash := generate(t, 1)
-		t.Logf("generated 1 block: %s", hash)
+		address, privateKey := fundNewWallet(t)
 
 		utxos := getUtxos(t, address)
 		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
@@ -288,25 +284,34 @@ func TestCallback(t *testing.T) {
 }
 
 func TestSkipValidation(t *testing.T) {
+
 	tt := []struct {
 		name              string
 		skipFeeValidation bool
 		skipTxValidation  bool
+
+		expectedStatusCode int
 	}{
 		{
-			name:              "post transaction with skip fee",
+			name:              "post transaction with without fee validation",
 			skipFeeValidation: true,
 			skipTxValidation:  false,
+
+			expectedStatusCode: http.StatusOK,
 		},
 		{
-			name:              "post transaction with skip script validation",
+			name:              "post low fee tx without tx validation",
 			skipFeeValidation: false,
 			skipTxValidation:  true,
+
+			expectedStatusCode: http.StatusOK,
 		},
 		{
-			name:              "post tx without validation",
-			skipFeeValidation: true,
-			skipTxValidation:  true,
+			name:              "post low fee tx with fee validation",
+			skipFeeValidation: false,
+			skipTxValidation:  false,
+
+			expectedStatusCode: 465,
 		},
 	}
 
@@ -319,19 +324,19 @@ func TestSkipValidation(t *testing.T) {
 
 			fee := uint64(0)
 
-			tx, err := createTx(privateKey, address, utxos[0], fee)
+			lowFeeTx, err := createTx(privateKey, address, utxos[0], fee)
 			require.NoError(t, err)
 
-			fmt.Println("Transaction with Zero fee:", tx)
-
-			resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
+			resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(lowFeeTx.ExtendedBytes())}),
 				map[string]string{
 					"X-WaitFor":           Status_SEEN_ON_NETWORK,
 					"X-SkipFeeValidation": strconv.FormatBool(tc.skipFeeValidation),
 					"X-SkipTxValidation":  strconv.FormatBool(tc.skipTxValidation),
-				}, http.StatusOK)
+				}, tc.expectedStatusCode)
 
-			require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
+			if tc.expectedStatusCode == http.StatusOK {
+				require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
+			}
 		})
 	}
 }

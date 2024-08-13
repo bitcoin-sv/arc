@@ -374,18 +374,22 @@ func (p *Processor) StartCheckingTransactionsInNetwork() {
 
 			case <-ticker.C:
 				p.announcedTransactionsLock.Lock()
-				for k := 0; k < len(p.announcedTransactions); k++ {
-					if p.announcedTransactions[k].second < uint64(time.Now().Unix())-3 {
+				var k int
+				for {
+					if len(p.announcedTransactions) == 0 || k == len(p.announcedTransactions) {
+						p.announcedTransactions = []AnnouncedTransaction{}
+						break
+					}
+
+					if p.announcedTransactions[k].second < uint64(time.Now().Unix())-2 {
 						p.logger.Info("Requested transaction", slog.String("hash", p.announcedTransactions[k].hash.String()))
 						p.pm.RequestTransaction((*chainhash.Hash)(p.announcedTransactions[k].hash))
+						k++
+						continue
 					} else {
 						p.announcedTransactions = p.announcedTransactions[k:]
 						break
 					}
-				}
-
-				if len(p.announcedTransactions) == 0 {
-					p.announcedTransactions = []AnnouncedTransaction{}
 				}
 				p.announcedTransactionsLock.Unlock()
 			}

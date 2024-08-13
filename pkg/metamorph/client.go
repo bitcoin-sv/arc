@@ -37,13 +37,14 @@ type TransactionMaintainer interface {
 
 // TransactionStatus defines model for TransactionStatus.
 type TransactionStatus struct {
-	TxID        string
-	MerklePath  string
-	BlockHash   string
-	BlockHeight uint64
-	Status      string
-	ExtraInfo   string
-	Timestamp   int64
+	TxID         string
+	MerklePath   string
+	BlockHash    string
+	BlockHeight  uint64
+	Status       string
+	ExtraInfo    string
+	CompetingTxs []string
+	Timestamp    int64
 }
 
 // Metamorph is the connector to a metamorph server.
@@ -158,13 +159,14 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 	}
 
 	return &TransactionStatus{
-		TxID:        txID,
-		MerklePath:  tx.GetMerklePath(),
-		Status:      tx.GetStatus().String(),
-		BlockHash:   tx.GetBlockHash(),
-		BlockHeight: tx.GetBlockHeight(),
-		ExtraInfo:   tx.GetRejectReason(),
-		Timestamp:   m.now().Unix(),
+		TxID:         txID,
+		MerklePath:   tx.GetMerklePath(),
+		Status:       tx.GetStatus().String(),
+		BlockHash:    tx.GetBlockHash(),
+		BlockHeight:  tx.GetBlockHeight(),
+		ExtraInfo:    tx.GetRejectReason(),
+		CompetingTxs: tx.GetCompetingTxs(),
+		Timestamp:    m.now().Unix(),
 	}, nil
 }
 
@@ -221,13 +223,14 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *bt.Tx, options *T
 	}
 
 	return &TransactionStatus{
-		TxID:        response.GetTxid(),
-		Status:      response.GetStatus().String(),
-		ExtraInfo:   response.GetRejectReason(),
-		BlockHash:   response.GetBlockHash(),
-		BlockHeight: response.GetBlockHeight(),
-		MerklePath:  response.GetMerklePath(),
-		Timestamp:   m.now().Unix(),
+		TxID:         response.GetTxid(),
+		Status:       response.GetStatus().String(),
+		ExtraInfo:    response.GetRejectReason(),
+		CompetingTxs: response.GetCompetingTxs(),
+		BlockHash:    response.GetBlockHash(),
+		BlockHeight:  response.GetBlockHeight(),
+		MerklePath:   response.GetMerklePath(),
+		Timestamp:    m.now().Unix(),
 	}, nil
 }
 
@@ -300,13 +303,14 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs []*bt.Tx, option
 	ret := make([]*TransactionStatus, 0)
 	for _, response := range responses.GetStatuses() {
 		ret = append(ret, &TransactionStatus{
-			TxID:        response.GetTxid(),
-			MerklePath:  response.GetMerklePath(),
-			Status:      response.GetStatus().String(),
-			ExtraInfo:   response.GetRejectReason(),
-			BlockHash:   response.GetBlockHash(),
-			BlockHeight: response.GetBlockHeight(),
-			Timestamp:   m.now().Unix(),
+			TxID:         response.GetTxid(),
+			MerklePath:   response.GetMerklePath(),
+			Status:       response.GetStatus().String(),
+			ExtraInfo:    response.GetRejectReason(),
+			CompetingTxs: response.GetCompetingTxs(),
+			BlockHash:    response.GetBlockHash(),
+			BlockHeight:  response.GetBlockHeight(),
+			Timestamp:    m.now().Unix(),
 		})
 	}
 

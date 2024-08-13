@@ -25,14 +25,12 @@ func updateStatusMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus, sta
 	}
 }
 
-func shouldUpdateStatus(statusUpdate, foundStatus store.UpdateStatus) bool {
-	if statusUpdate.Status > foundStatus.Status {
+func shouldUpdateStatus(new, found store.UpdateStatus) bool {
+	if new.Status > found.Status {
 		return true
 	}
 
-	// If the statuses are both DOUBLE_SPEND_ATTEMPTED, but have
-	// different competing transactions - we want to update.
-	if !unorderedEqual(statusUpdate.CompetingTxs, foundStatus.CompetingTxs) {
+	if new.Status == found.Status && !unorderedEqual(new.CompetingTxs, found.CompetingTxs) {
 		return true
 	}
 

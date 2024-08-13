@@ -946,11 +946,29 @@ func TestProcessorHealth(t *testing.T) {
 }
 
 func TestStartCheckingTransactionsInNetwork(t *testing.T) {
+	metamorphStore := &storeMocks.MetamorphStoreMock{
+		GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+			return &store.StoreData{Hash: testdata.TX2Hash}, nil
+		},
+		SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
+		GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+			return nil, nil
+		},
+		IncrementRetriesFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+			return nil
+		},
+	}
 	pm := &mocks.PeerManagerMock{
 		RequestTransactionFunc: func(txHash *chainhash.Hash) p2p.PeerI {
 			return nil
 		},
 		ShutdownFunc: func() {},
+	}
+
+	publisher := &mocks.MessageQueueClientMock{
+		PublishFunc: func(topic string, hash []byte) error {
+			return nil
+		},
 	}
 
 	processor, err := metamorph.NewProcessor(metamorphStore, pm, nil, metamorph.WithMessageQueueClient(publisher), metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20), metamorph.WithMaxRetries(10), metamorph.WithNow(func() time.Time {

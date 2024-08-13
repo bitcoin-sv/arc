@@ -635,7 +635,8 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			) AS bulk_query
 			WHERE metamorph.transactions.hash=bulk_query.hash
 				AND metamorph.transactions.status <= bulk_query.status
-				AND LENGTH(metamorph.transactions.competing_txs) < LENGTH(bulk_query.competing_txs)
+				AND (metamorph.transactions.competing_txs IS NULL
+						OR LENGTH(metamorph.transactions.competing_txs) < LENGTH(bulk_query.competing_txs))
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.announced_at
 		,metamorph.transactions.mined_at

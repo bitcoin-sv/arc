@@ -286,7 +286,6 @@ func TestPostgresDB(t *testing.T) {
 		// assert
 		require.NoError(t, err)
 		require.Len(t, res, len(keys))
-
 	})
 
 	t.Run("set bulk", func(t *testing.T) {
@@ -526,7 +525,7 @@ func TestPostgresDB(t *testing.T) {
 				Hash:         *revChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update expected - old status < new status
 				Status:       metamorph_api.Status_REJECTED,
 				CompetingTxs: []string{"1234"},
-				Error:        errors.New("txn-mempool-conflict"),
+				Error:        errors.New("double spend attempted"),
 			},
 			{
 				Hash:         *revChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update not expected - hash non-existent in db
@@ -560,7 +559,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[3].Status)
 		require.Equal(t, *revChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), *statusUpdates[3].Hash)
 		require.Equal(t, []string{"1234"}, statusUpdates[3].CompetingTxs)
-		require.Equal(t, "txn-mempool-conflict", statusUpdates[3].RejectReason)
+		require.Equal(t, "double spend attempted", statusUpdates[3].RejectReason)
 
 		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates)
 		require.NoError(t, err)

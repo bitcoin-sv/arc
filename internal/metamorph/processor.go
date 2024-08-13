@@ -745,14 +745,14 @@ func addNewCallback(data, reqData *store.StoreData) {
 		return
 	}
 	reqCallback := reqData.Callbacks[0]
-	if reqCallback.CallbackURL != "" && reqCallback.CallbackToken != "" && !callbackExists(reqCallback, data) {
+	if reqCallback.CallbackURL != "" && !callbackExists(reqCallback, data) {
 		data.Callbacks = append(data.Callbacks, reqCallback)
 	}
 }
 
 func callbackExists(callback store.StoreCallback, data *store.StoreData) bool {
 	for _, c := range data.Callbacks {
-		if c.CallbackURL == callback.CallbackURL && c.CallbackToken == callback.CallbackToken {
+		if c == callback {
 			return true
 		}
 	}

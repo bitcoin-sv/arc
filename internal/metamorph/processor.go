@@ -699,17 +699,6 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		Status: metamorph_api.Status_STORED,
 	})
 
-	if req.Timeout != 0 {
-		// Add this transaction to the map of transactions that client is listening to with open connection.
-		p.ProcessorResponseMap.Set(req.Data.Hash, processorResponse)
-
-		// we no longer need processor response object after response has been returned
-		go func() {
-			time.Sleep(req.Timeout)
-			p.ProcessorResponseMap.Delete(req.Data.Hash)
-		}()
-	}
-
 	// Announce transaction to network peers
 	p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
 	peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)

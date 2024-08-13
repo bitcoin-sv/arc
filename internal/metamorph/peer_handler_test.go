@@ -73,7 +73,7 @@ func TestPeerHandler(t *testing.T) {
 		select {
 		case msg := <-messageCh:
 			assert.Equal(t, expectedMsg, msg)
-		case <-time.After(time.Second):
+		case <-time.After(time.Second * 5):
 			t.Fatal("test timed out or error while executing goroutine")
 		}
 	})

@@ -211,6 +211,27 @@ func TestGETTransactionStatus(t *testing.T) {
 			},
 		},
 		{
+			name: "success - double spend attempted",
+			txHandlerStatusFound: &metamorph.TransactionStatus{
+				TxID:         "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46",
+				Status:       "DOUBLE_SPEND_ATTEMPTED",
+				Timestamp:    time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC).Unix(),
+				CompetingTxs: []string{"1234"},
+			},
+
+			expectedStatus: api.StatusOK,
+			expectedResponse: api.TransactionStatus{
+				MerklePath:   PtrTo(""),
+				BlockHeight:  PtrTo(uint64(0)),
+				BlockHash:    PtrTo(""),
+				ExtraInfo:    PtrTo(""),
+				Timestamp:    time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC),
+				TxStatus:     PtrTo("DOUBLE_SPEND_ATTEMPTED"),
+				Txid:         "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46",
+				CompetingTxs: PtrTo([]string{"1234"}),
+			},
+		},
+		{
 			name:                 "error - tx not found",
 			txHandlerStatusFound: nil,
 			txHandlerErr:         metamorph.ErrTransactionNotFound,
@@ -422,6 +443,35 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				Title:       "OK",
 				TxStatus:    "SEEN_ON_NETWORK",
 				Txid:        validTxID,
+			},
+		},
+		{
+			name:        "valid tx - double spend attempted",
+			contentType: contentTypes[0],
+			txHexString: validExtendedTx,
+			getTx:       inputTxLowFeesBytes,
+
+			submitTxResponse: &metamorph.TransactionStatus{
+				TxID:         validTxID,
+				BlockHash:    "",
+				BlockHeight:  0,
+				Status:       "DOUBLE_SPEND_ATTEMPTED",
+				CompetingTxs: []string{"1234"},
+				Timestamp:    time.Now().Unix(),
+			},
+
+			expectedStatus: 200,
+			expectedResponse: api.TransactionResponse{
+				BlockHash:    PtrTo(""),
+				BlockHeight:  PtrTo(uint64(0)),
+				ExtraInfo:    PtrTo(""),
+				CompetingTxs: PtrTo([]string{"1234"}),
+				MerklePath:   PtrTo(""),
+				Status:       200,
+				Timestamp:    now,
+				Title:        "OK",
+				TxStatus:     "DOUBLE_SPEND_ATTEMPTED",
+				Txid:         validTxID,
 			},
 		},
 		{

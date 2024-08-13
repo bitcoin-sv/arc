@@ -590,7 +590,12 @@ func (p *Processor) SendStatusForTransaction(msg *PeerTxMessage) {
 	}
 
 	// if we receive new update check if we have client connection waiting for status and send it
-	p.responseProcessor.UpdateStatus(msg.Hash, msg.Status, msg.Err)
+	p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
+		Hash:         msg.Hash,
+		Status:       msg.Status,
+		Err:          msg.Err,
+		CompetingTxs: msg.CompetingTxs,
+	})
 
 	p.logger.Debug("Status reported for tx", slog.String("status", msg.Status.String()), slog.String("hash", msg.Hash.String()))
 }
@@ -614,12 +619,19 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		}
 
 		// notify the client instantly and return without waiting for any specific status
-		statusResponse.UpdateStatus(data.Status, rejectErr)
+		statusResponse.UpdateStatus(StatusAndError{
+			Status:       data.Status,
+			Err:          rejectErr,
+			CompetingTxs: data.CompetingTxs,
+		})
 		return
 	}
 
 	if !errors.Is(err, store.ErrNotFound) {
-		statusResponse.UpdateStatus(metamorph_api.Status_RECEIVED, err)
+		statusResponse.UpdateStatus(StatusAndError{
+			Status: metamorph_api.Status_RECEIVED,
+			Err:    err,
+		})
 		return
 	}
 
@@ -628,7 +640,10 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		// issue with the store itself
 		// notify the client instantly and return
 		p.logger.Error("Failed to store transaction", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
-		statusResponse.UpdateStatus(metamorph_api.Status_RECEIVED, err)
+		statusResponse.UpdateStatus(StatusAndError{
+			Status: metamorph_api.Status_RECEIVED,
+			Err:    err,
+		})
 		return
 	}
 
@@ -638,7 +653,9 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	}
 
 	// broadcast that transaction is stored to client
-	statusResponse.UpdateStatus(metamorph_api.Status_STORED, nil)
+	statusResponse.UpdateStatus(StatusAndError{
+		Status: metamorph_api.Status_STORED,
+	})
 
 	// Send GETDATA to peers to see if they have it
 	p.pm.RequestTransaction(req.Data.Hash)
@@ -652,7 +669,9 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	}
 
 	// update status in response
-	statusResponse.UpdateStatus(metamorph_api.Status_ANNOUNCED_TO_NETWORK, nil)
+	statusResponse.UpdateStatus(StatusAndError{
+		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+	})
 
 	// update status in storage
 	p.storageStatusUpdateCh <- store.UpdateStatus{

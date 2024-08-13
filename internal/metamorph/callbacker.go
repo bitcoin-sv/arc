@@ -12,7 +12,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/ordishs/go-utils"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -22,21 +21,23 @@ const (
 )
 
 type CallbackerStats struct {
-	callbackSeenOnNetworkCount       prometheus.Gauge
-	callbackSeenInOrphanMempoolCount prometheus.Gauge
-	callbackRejectedCount            prometheus.Gauge
-	callbackMinedCount               prometheus.Gauge
-	callbackFailedCount              prometheus.Gauge
+	callbackSeenOnNetworkCount        prometheus.Gauge
+	callbackSeenInOrphanMempoolCount  prometheus.Gauge
+	callbackDoubleSpendAttemptedCount prometheus.Gauge
+	callbackRejectedCount             prometheus.Gauge
+	callbackMinedCount                prometheus.Gauge
+	callbackFailedCount               prometheus.Gauge
 }
 
 type Callback struct {
-	BlockHash   *string   `json:"blockHash,omitempty"`
-	BlockHeight *uint64   `json:"blockHeight,omitempty"`
-	ExtraInfo   *string   `json:"extraInfo"`
-	MerklePath  *string   `json:"merklePath"`
-	Timestamp   time.Time `json:"timestamp"`
-	TxStatus    *string   `json:"txStatus,omitempty"`
-	Txid        string    `json:"txid"`
+	BlockHash    *string   `json:"blockHash,omitempty"`
+	BlockHeight  *uint64   `json:"blockHeight,omitempty"`
+	ExtraInfo    *string   `json:"extraInfo,omitempty"`
+	MerklePath   *string   `json:"merklePath"`
+	Timestamp    time.Time `json:"timestamp"`
+	TxStatus     *string   `json:"txStatus,omitempty"`
+	Txid         string    `json:"txid"`
+	CompetingTxs []string  `json:"competingTxs,omitempty"`
 }
 
 type Callbacker struct {
@@ -59,6 +60,10 @@ func NewCallbacker(httpClient HttpClient) (*Callbacker, error) {
 				Name: "arc_callback_seen_in_orphan_mempool_count",
 				Help: "Number of arc_callback_seen_in_orphan_mempool_count transactions",
 			}),
+			callbackDoubleSpendAttemptedCount: prometheus.NewGauge(prometheus.GaugeOpts{
+				Name: "arc_callback_double_spend_attempted_count",
+				Help: "Number of arc_callback_double_spend_attempted_count transactions",
+			}),
 			callbackRejectedCount: prometheus.NewGauge(prometheus.GaugeOpts{
 				Name: "arc_callback_rejected_count",
 				Help: "Number of arc_callback_rejected_count transactions",
@@ -77,6 +82,7 @@ func NewCallbacker(httpClient HttpClient) (*Callbacker, error) {
 	err := registerStats(
 		callbacker.callbackerStats.callbackSeenOnNetworkCount,
 		callbacker.callbackerStats.callbackSeenInOrphanMempoolCount,
+		callbacker.callbackerStats.callbackDoubleSpendAttemptedCount,
 		callbacker.callbackerStats.callbackRejectedCount,
 		callbacker.callbackerStats.callbackMinedCount,
 		callbacker.callbackerStats.callbackFailedCount,
@@ -108,7 +114,7 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 	statusString := tx.Status.String()
 	blockHash := ""
 	if tx.BlockHash != nil {
-		blockHash = utils.ReverseAndHexEncodeSlice(tx.BlockHash.CloneBytes())
+		blockHash = tx.BlockHash.String()
 	}
 
 	status := &Callback{
@@ -122,6 +128,16 @@ func (p *Callbacker) SendCallback(logger *slog.Logger, tx *store.StoreData) {
 
 	if tx.RejectReason != "" {
 		status.ExtraInfo = &tx.RejectReason
+	}
+
+	if len(tx.CompetingTxs) > 0 {
+		status.CompetingTxs = tx.CompetingTxs
+	}
+
+	if tx.Status == metamorph_api.Status_MINED && len(tx.CompetingTxs) > 0 {
+		msg := minedDoubleSpendMsg
+		status.CompetingTxs = []string{}
+		status.ExtraInfo = &msg
 	}
 
 	for _, callback := range tx.Callbacks {
@@ -166,6 +182,8 @@ func (p *Callbacker) sendCallback(logger *slog.Logger, tx *store.StoreData, call
 				p.callbackerStats.callbackSeenOnNetworkCount.Inc()
 			case metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL:
 				p.callbackerStats.callbackSeenInOrphanMempoolCount.Inc()
+			case metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED:
+				p.callbackerStats.callbackDoubleSpendAttemptedCount.Inc()
 			case metamorph_api.Status_MINED:
 				p.callbackerStats.callbackMinedCount.Inc()
 			case metamorph_api.Status_REJECTED:
@@ -197,6 +215,7 @@ func (p *Callbacker) Shutdown(logger *slog.Logger) {
 	unregisterStats(
 		p.callbackerStats.callbackSeenOnNetworkCount,
 		p.callbackerStats.callbackSeenInOrphanMempoolCount,
+		p.callbackerStats.callbackDoubleSpendAttemptedCount,
 		p.callbackerStats.callbackRejectedCount,
 		p.callbackerStats.callbackMinedCount,
 		p.callbackerStats.callbackFailedCount,

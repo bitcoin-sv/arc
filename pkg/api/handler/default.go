@@ -198,13 +198,14 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 	}
 
 	return ctx.JSON(http.StatusOK, api.TransactionStatus{
-		BlockHash:   &tx.BlockHash,
-		BlockHeight: &tx.BlockHeight,
-		TxStatus:    &tx.Status,
-		Timestamp:   m.now(),
-		Txid:        tx.TxID,
-		MerklePath:  &tx.MerklePath,
-		ExtraInfo:   &tx.ExtraInfo,
+		BlockHash:    &tx.BlockHash,
+		BlockHeight:  &tx.BlockHeight,
+		TxStatus:     &tx.Status,
+		Timestamp:    m.now(),
+		Txid:         tx.TxID,
+		MerklePath:   &tx.MerklePath,
+		ExtraInfo:    &tx.ExtraInfo,
+		CompetingTxs: &tx.CompetingTxs,
 	})
 }
 
@@ -421,15 +422,16 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			txID = submittedTxs[idx].TxID()
 		}
 		successes = append(successes, &api.TransactionResponse{
-			Status:      int(api.StatusOK),
-			Title:       "OK",
-			BlockHash:   &tx.BlockHash,
-			BlockHeight: &tx.BlockHeight,
-			TxStatus:    tx.Status,
-			ExtraInfo:   &tx.ExtraInfo,
-			Timestamp:   now,
-			Txid:        txID,
-			MerklePath:  &tx.MerklePath,
+			Status:       int(api.StatusOK),
+			Title:        "OK",
+			BlockHash:    &tx.BlockHash,
+			BlockHeight:  &tx.BlockHeight,
+			TxStatus:     tx.Status,
+			ExtraInfo:    &tx.ExtraInfo,
+			CompetingTxs: &tx.CompetingTxs,
+			Timestamp:    now,
+			Txid:         txID,
+			MerklePath:   &tx.MerklePath,
 		})
 	}
 

@@ -48,85 +48,96 @@ func TestHealth(t *testing.T) {
 }
 
 func TestPutTransaction(t *testing.T) {
-	t.Run("PutTransaction - ANNOUNCED", func(t *testing.T) {
-		s := &storeMocks.MetamorphStoreMock{}
+	testCases := []struct {
+		name              string
+		processorResponse metamorph.StatusAndError
+		waitForStatus     metamorph_api.Status
 
-		processor := &mocks.ProcessorIMock{}
-
-		server := metamorph.NewServer(s, processor, metamorph.WithMaxTimeoutDefault(100*time.Millisecond))
-
-		var txStatus *metamorph_api.TransactionStatus
-		txRequest := &metamorph_api.TransactionRequest{
-			RawTx: testdata.TX1Raw.Bytes(),
-		}
-
-		processor.ProcessTransactionFunc = func(req *metamorph.ProcessorRequest) {
-			time.Sleep(10 * time.Millisecond)
-
-			req.ResponseChannel <- metamorph.StatusAndError{
+		expectedStatus         metamorph_api.Status
+		expectedRejectedReason string
+		expectedCompetingTxs   []string
+		expectedTimeout        bool
+	}{
+		{
+			name: "announced to network",
+			processorResponse: metamorph.StatusAndError{
 				Hash:   testdata.TX1Hash,
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-			}
-		}
+			},
+			waitForStatus: metamorph_api.Status_SEEN_ON_NETWORK,
 
-		txStatus, err := server.PutTransaction(context.Background(), txRequest)
-		assert.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, txStatus.GetStatus())
-		assert.True(t, txStatus.GetTimedOut())
-	})
-
-	t.Run("PutTransaction - SEEN to network", func(t *testing.T) {
-		s := &storeMocks.MetamorphStoreMock{}
-
-		processor := &mocks.ProcessorIMock{}
-
-		server := metamorph.NewServer(s, processor)
-
-		var txStatus *metamorph_api.TransactionStatus
-		txRequest := &metamorph_api.TransactionRequest{
-			RawTx: testdata.TX1Raw.Bytes(),
-		}
-
-		processor.ProcessTransactionFunc = func(req *metamorph.ProcessorRequest) {
-			time.Sleep(10 * time.Millisecond)
-			req.ResponseChannel <- metamorph.StatusAndError{
+			expectedStatus:  metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			expectedTimeout: true,
+		},
+		{
+			name: "seen on network",
+			processorResponse: metamorph.StatusAndError{
 				Hash:   testdata.TX1Hash,
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
-			}
-		}
-		txStatus, err := server.PutTransaction(context.Background(), txRequest)
-		assert.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, txStatus.GetStatus())
-		assert.False(t, txStatus.GetTimedOut())
-	})
+			},
+			waitForStatus: metamorph_api.Status_SEEN_ON_NETWORK,
 
-	t.Run("PutTransaction - Err", func(t *testing.T) {
-		s := &storeMocks.MetamorphStoreMock{}
+			expectedStatus:  metamorph_api.Status_SEEN_ON_NETWORK,
+			expectedTimeout: false,
+		},
+		{
+			name: "double spend attempted",
+			processorResponse: metamorph.StatusAndError{
+				Hash:         testdata.TX1Hash,
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+				CompetingTxs: []string{"1234"},
+			},
+			waitForStatus: metamorph_api.Status_SEEN_ON_NETWORK,
 
-		processor := &mocks.ProcessorIMock{}
-
-		server := metamorph.NewServer(s, processor)
-
-		var txStatus *metamorph_api.TransactionStatus
-		txRequest := &metamorph_api.TransactionRequest{
-			RawTx:         testdata.TX1Raw.Bytes(),
-			WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
-		}
-		processor.ProcessTransactionFunc = func(req *metamorph.ProcessorRequest) {
-			time.Sleep(10 * time.Millisecond)
-			req.ResponseChannel <- metamorph.StatusAndError{
+			expectedStatus:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+			expectedCompetingTxs: []string{"1234"},
+			expectedTimeout:      false,
+		},
+		{
+			name: "error",
+			processorResponse: metamorph.StatusAndError{
 				Hash:   testdata.TX1Hash,
 				Status: metamorph_api.Status_REJECTED,
 				Err:    fmt.Errorf("some error"),
-			}
-		}
+			},
+			waitForStatus: metamorph_api.Status_SEEN_ON_NETWORK,
 
-		txStatus, err := server.PutTransaction(context.Background(), txRequest)
-		assert.NoError(t, err)
-		assert.Equal(t, metamorph_api.Status_REJECTED, txStatus.GetStatus())
-		assert.Equal(t, "some error", txStatus.GetRejectReason())
-		assert.False(t, txStatus.GetTimedOut())
-	})
+			expectedStatus:         metamorph_api.Status_REJECTED,
+			expectedRejectedReason: "some error",
+			expectedTimeout:        false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &storeMocks.MetamorphStoreMock{}
+
+			processor := &mocks.ProcessorIMock{
+				ProcessTransactionFunc: func(req *metamorph.ProcessorRequest) {
+					time.Sleep(10 * time.Millisecond)
+					req.ResponseChannel <- tc.processorResponse
+				},
+			}
+
+			server := metamorph.NewServer(s, processor, metamorph.WithMaxTimeoutDefault(100*time.Millisecond))
+
+			txRequest := &metamorph_api.TransactionRequest{
+				RawTx:         testdata.TX1Raw.Bytes(),
+				WaitForStatus: tc.waitForStatus,
+			}
+
+			txStatus, err := server.PutTransaction(context.Background(), txRequest)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedStatus, txStatus.GetStatus())
+			assert.Equal(t, tc.expectedRejectedReason, txStatus.GetRejectReason())
+			assert.Equal(t, tc.expectedCompetingTxs, txStatus.CompetingTxs)
+
+			if tc.expectedTimeout {
+				assert.True(t, txStatus.GetTimedOut())
+			}
+		})
+	}
 }
 
 func TestServer_GetTransactionStatus(t *testing.T) {
@@ -138,7 +149,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 		getTxMerklePathErr error
 		getErr             error
 		status             metamorph_api.Status
-		merklePath         string
+		competingTxs       []string
 
 		want    *metamorph_api.TransactionStatus
 		wantErr assert.ErrorAssertionFunc
@@ -172,8 +183,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			req: &metamorph_api.TransactionStatusRequest{
 				Txid: testdata.TX1Hash.String(),
 			},
-			status:     metamorph_api.Status_SENT_TO_NETWORK,
-			merklePath: "00000",
+			status: metamorph_api.Status_SENT_TO_NETWORK,
 
 			want: &metamorph_api.TransactionStatus{
 				StoredAt:    timestamppb.New(testdata.Time),
@@ -182,6 +192,45 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				Txid:        testdata.TX1Hash.String(),
 				Status:      metamorph_api.Status_SENT_TO_NETWORK,
 				MerklePath:  "00000",
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "GetTransactionStatus - double spend attempted",
+			req: &metamorph_api.TransactionStatusRequest{
+				Txid: testdata.TX1Hash.String(),
+			},
+			status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+			competingTxs: []string{"1234"},
+
+			want: &metamorph_api.TransactionStatus{
+				StoredAt:     timestamppb.New(testdata.Time),
+				AnnouncedAt:  timestamppb.New(testdata.Time.Add(1 * time.Second)),
+				MinedAt:      timestamppb.New(testdata.Time.Add(2 * time.Second)),
+				Txid:         testdata.TX1Hash.String(),
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+				CompetingTxs: []string{"1234"},
+				MerklePath:   "00000",
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "GetTransactionStatus - mined - previously double spend attempted",
+			req: &metamorph_api.TransactionStatusRequest{
+				Txid: testdata.TX1Hash.String(),
+			},
+			status:       metamorph_api.Status_MINED,
+			competingTxs: []string{"1234"},
+
+			want: &metamorph_api.TransactionStatus{
+				StoredAt:     timestamppb.New(testdata.Time),
+				AnnouncedAt:  timestamppb.New(testdata.Time.Add(1 * time.Second)),
+				MinedAt:      timestamppb.New(testdata.Time.Add(2 * time.Second)),
+				Txid:         testdata.TX1Hash.String(),
+				Status:       metamorph_api.Status_MINED,
+				CompetingTxs: []string{},
+				RejectReason: "previously double spend attempted",
+				MerklePath:   "00000",
 			},
 			wantErr: assert.NoError,
 		},
@@ -227,13 +276,14 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					data := &store.StoreData{
-						StoredAt:    testdata.Time,
-						AnnouncedAt: testdata.Time.Add(1 * time.Second),
-						MinedAt:     testdata.Time.Add(2 * time.Second),
-						Hash:        testdata.TX1Hash,
-						Status:      tt.status,
-						Callbacks:   []store.StoreCallback{{CallbackURL: "https://test.com", CallbackToken: "token"}},
-						MerklePath:  "00000",
+						StoredAt:     testdata.Time,
+						AnnouncedAt:  testdata.Time.Add(1 * time.Second),
+						MinedAt:      testdata.Time.Add(2 * time.Second),
+						Hash:         testdata.TX1Hash,
+						Status:       tt.status,
+						CompetingTxs: tt.competingTxs,
+						Callbacks:    []store.StoreCallback{{CallbackURL: "https://test.com", CallbackToken: "token"}},
+						MerklePath:   "00000",
 					}
 					return data, tt.getErr
 				},
@@ -302,6 +352,34 @@ func TestPutTransactions(t *testing.T) {
 					{
 						Txid:   hash0.String(),
 						Status: metamorph_api.Status_SEEN_ON_NETWORK,
+					},
+				},
+			},
+		},
+		{
+			name: "single new transaction - double spend attempted",
+			requests: &metamorph_api.TransactionRequests{
+				Transactions: []*metamorph_api.TransactionRequest{
+					{
+						RawTx:         tx0.Bytes(),
+						WaitForStatus: metamorph_api.Status_SEEN_ON_NETWORK,
+					},
+				},
+			},
+			processorResponse: map[string]*metamorph.StatusAndError{hash0.String(): {
+				Hash:         hash0,
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+				Err:          nil,
+				CompetingTxs: []string{"1234"},
+			}},
+
+			expectedProcessorProcessTransactionCalls: 1,
+			expectedStatuses: &metamorph_api.TransactionStatuses{
+				Statuses: []*metamorph_api.TransactionStatus{
+					{
+						Txid:         hash0.String(),
+						Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+						CompetingTxs: []string{"1234"},
 					},
 				},
 			},
@@ -577,7 +655,6 @@ func TestStartGRPCServer(t *testing.T) {
 }
 
 func Test_GetTransactions(t *testing.T) {
-
 	tcs := []struct {
 		name    string
 		request *metamorph_api.TransactionsStatusRequest
@@ -653,7 +730,6 @@ func Test_GetTransactions(t *testing.T) {
 				require.NotNil(t, res)
 				require.Len(t, res.Transactions, tc.getFromStoreResponseCount)
 			}
-
 		})
 	}
 }

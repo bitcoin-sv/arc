@@ -9,12 +9,8 @@ import (
 	"sync"
 	"time"
 
-<<<<<<< HEAD
-=======
 	"log/slog"
 
-	"github.com/bitcoin-sv/arc/internal/async"
->>>>>>> fe783846 (remove handler)
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"

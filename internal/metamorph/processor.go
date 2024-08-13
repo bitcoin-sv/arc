@@ -707,7 +707,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	}
 
 	p.announcedTransactionsLock.Lock()
-	p.logger.Info("Added transaction - ", slog.String("hash", req.Data.Hash))
+	p.logger.Info("Added transaction - ", slog.String("hash", req.Data.Hash.String()))
 	p.announcedTransactions = append(p.announcedTransactions, AnnouncedTransaction{
 		second: uint64(time.Now().Unix()),
 		hash:   req.Data.Hash,

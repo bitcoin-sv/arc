@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"log/slog"
-
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -95,7 +93,7 @@ type Processor struct {
 
 type AnnouncedTransaction struct {
 	second uint64
-	hash   chainhash.Hash
+	hash   *chainhash.Hash
 }
 
 type Option func(f *Processor)
@@ -378,7 +376,7 @@ func (p *Processor) StartCheckingTransactionsInNetwork() {
 				p.announcedTransactionsLock.Lock()
 				for k := 0; k < len(p.announcedTransactions); k++ {
 					if p.announcedTransactions[k].second < uint64(time.Now().Unix())-3 {
-						p.pm.RequestTransaction((*chainhash.Hash)(&p.announcedTransactions[k].hash))
+						p.pm.RequestTransaction((*chainhash.Hash)(p.announcedTransactions[k].hash))
 					} else {
 						p.announcedTransactions = p.announcedTransactions[k:]
 						break

@@ -601,7 +601,7 @@ func (p *Processor) SendStatusForTransaction(msg *PeerTxMessage) {
 }
 
 func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
-	statusResponse := NewStatusResponse(req.Data.Hash, req.ResponseChannel)
+	statusResponse := NewStatusResponse(req.Ctx, req.Data.Hash, req.ResponseChannel)
 
 	// check if tx already stored, return it
 	data, err := p.store.Get(p.ctx, req.Data.Hash[:])
@@ -679,10 +679,8 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 	}
 
-	// Add this transaction to the map of transactions that client is listening to with open connection
-	if req.Timeout != 0 {
-		p.responseProcessor.Add(statusResponse, req.Timeout)
-	}
+	// Client is still waiting for further status update
+	p.responseProcessor.Add(statusResponse)
 }
 
 func (p *Processor) ProcessTransactions(sReq []*store.StoreData) {

@@ -249,6 +249,7 @@ func TestProcessTransaction(t *testing.T) {
 			}()
 
 			processor.ProcessTransaction(&metamorph.ProcessorRequest{
+				Ctx: context.Background(),
 				Data: &store.StoreData{
 					Hash: testdata.TX1Hash,
 				},
@@ -830,7 +831,8 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 					return []*store.StoreData{
 						{Callbacks: []store.StoreCallback{{CallbackURL: "http://callback.com"}}},
 						{Callbacks: []store.StoreCallback{{CallbackURL: "http://callback.com"}}},
-						{}}, tc.updateMinedErr
+						{},
+					}, tc.updateMinedErr
 				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}

@@ -256,15 +256,19 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 		timeDuration = time.Second * time.Duration(timeoutSeconds)
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, timeDuration)
+	defer func() {
+		cancel()
+		close(responseChannel)
+	}()
+
 	// TODO check the context when API call ends
-	s.processor.ProcessTransaction(&ProcessorRequest{Data: data, ResponseChannel: responseChannel, Timeout: timeDuration})
+	s.processor.ProcessTransaction(&ProcessorRequest{Ctx: ctx, Data: data, ResponseChannel: responseChannel})
 
 	if waitForStatus == 0 {
 		// wait for seen by default, this is the safest option
 		waitForStatus = metamorph_api.Status_SEEN_ON_NETWORK
 	}
-
-	t := time.NewTimer(timeDuration)
 
 	returnedStatus := &metamorph_api.TransactionStatus{
 		Txid:   TxID,
@@ -280,9 +284,6 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 		select {
 		case <-ctx.Done():
 			// Ensure that function returns at latest when context times out
-			returnedStatus.TimedOut = true
-			return returnedStatus
-		case <-t.C:
 			returnedStatus.TimedOut = true
 			return returnedStatus
 		case res := <-responseChannel:

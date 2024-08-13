@@ -1,6 +1,7 @@
 package metamorph
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -50,7 +51,10 @@ func TestStatusResponse(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			statusChannel := make(chan StatusAndError, len(testCases))
 
-			statusResponse := NewStatusResponse(tc.hash, statusChannel)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
+			statusResponse := NewStatusResponse(ctx, tc.hash, statusChannel)
 
 			statusResponse.UpdateStatus(StatusAndError{
 				Status: tc.status,
@@ -60,7 +64,7 @@ func TestStatusResponse(t *testing.T) {
 			select {
 			case retStatus := <-statusChannel:
 				require.Equal(t, tc.expectedStatusAndError, retStatus)
-			case <-time.After(time.Second):
+			case <-ctx.Done():
 				t.Fatal("test timout")
 			}
 		})
@@ -69,12 +73,15 @@ func TestStatusResponse(t *testing.T) {
 
 func TestResponseProcessor(t *testing.T) {
 	t.Run("test timeout", func(t *testing.T) {
+		timeout := 100 * time.Millisecond
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+
 		rp := NewResponseProcessor()
 
-		dummyStatus := NewStatusResponse(testdata.TX1Hash, nil)
+		dummyStatus := NewStatusResponse(ctx, testdata.TX1Hash, nil)
 
-		timeout := 100 * time.Millisecond
-		rp.Add(dummyStatus, timeout)
+		rp.Add(dummyStatus)
 
 		time.Sleep(2 * timeout)
 
@@ -82,15 +89,18 @@ func TestResponseProcessor(t *testing.T) {
 	})
 
 	t.Run("add and update status", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
 		rp := NewResponseProcessor()
 
-		dummyStatus := NewStatusResponse(testdata.TX1Hash, nil)
-		dummyStatus2 := NewStatusResponse(testdata.TX2Hash, nil)
-		dummyStatus3 := NewStatusResponse(testdata.TX3Hash, nil)
+		dummyStatus := NewStatusResponse(ctx, testdata.TX1Hash, nil)
+		dummyStatus2 := NewStatusResponse(ctx, testdata.TX2Hash, nil)
+		dummyStatus3 := NewStatusResponse(ctx, testdata.TX3Hash, nil)
 
-		rp.Add(dummyStatus, time.Second)
-		rp.Add(dummyStatus2, time.Second)
-		rp.Add(dummyStatus3, time.Second)
+		rp.Add(dummyStatus)
+		rp.Add(dummyStatus2)
+		rp.Add(dummyStatus3)
 
 		rpMap := rp.getMap()
 

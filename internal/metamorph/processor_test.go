@@ -248,13 +248,13 @@ func TestProcessTransaction(t *testing.T) {
 				}
 			}()
 
-			processor.ProcessTransaction(&metamorph.ProcessorRequest{
-				Ctx: context.Background(),
-				Data: &store.StoreData{
-					Hash: testdata.TX1Hash,
-				},
-				ResponseChannel: responseChannel,
-			})
+			processor.ProcessTransaction(context.Background(),
+				&metamorph.ProcessorRequest{
+					Data: &store.StoreData{
+						Hash: testdata.TX1Hash,
+					},
+					ResponseChannel: responseChannel,
+				})
 			wg.Wait()
 
 			require.Equal(t, tc.expectedResponseMapItems, processor.GetProcessorMapSize())

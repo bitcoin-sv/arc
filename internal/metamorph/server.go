@@ -42,7 +42,7 @@ type BitcoinNode interface {
 }
 
 type ProcessorI interface {
-	ProcessTransaction(req *ProcessorRequest)
+	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
 	GetProcessorMapSize() int
 	GetStatusNotSeen() int64
 	GetPeers() []p2p.PeerI
@@ -262,7 +262,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 		close(responseChannel)
 	}()
 
-	s.processor.ProcessTransaction(&ProcessorRequest{Ctx: ctx, Data: data, ResponseChannel: responseChannel})
+	s.processor.ProcessTransaction(ctx, &ProcessorRequest{Data: data, ResponseChannel: responseChannel})
 
 	if waitForStatus == 0 {
 		// wait for seen by default, this is the safest option

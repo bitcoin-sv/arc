@@ -1,7 +1,6 @@
 package metamorph
 
 import (
-	"context"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -10,7 +9,6 @@ import (
 )
 
 type ProcessorRequest struct {
-	Ctx             context.Context
 	Data            *store.StoreData
 	ResponseChannel chan StatusAndError
 }

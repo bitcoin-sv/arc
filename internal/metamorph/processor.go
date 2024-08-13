@@ -600,8 +600,8 @@ func (p *Processor) SendStatusForTransaction(msg *PeerTxMessage) {
 	p.logger.Debug("Status reported for tx", slog.String("status", msg.Status.String()), slog.String("hash", msg.Hash.String()))
 }
 
-func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
-	statusResponse := NewStatusResponse(req.Ctx, req.Data.Hash, req.ResponseChannel)
+func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
+	statusResponse := NewStatusResponse(ctx, req.Data.Hash, req.ResponseChannel)
 
 	// check if tx already stored, return it
 	data, err := p.store.Get(p.ctx, req.Data.Hash[:])

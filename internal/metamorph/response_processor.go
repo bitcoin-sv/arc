@@ -4,19 +4,14 @@ import (
 	"context"
 	"sync"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 type StatusResponse struct {
 	ctx      context.Context
 	statusCh chan StatusAndError
-	mu       sync.RWMutex
 
-	Status       metamorph_api.Status
-	Hash         *chainhash.Hash
-	Err          error
-	CompetingTxs []string
+	Hash *chainhash.Hash
 }
 
 func NewStatusResponse(ctx context.Context, hash *chainhash.Hash, statusChannel chan StatusAndError) *StatusResponse {
@@ -24,19 +19,10 @@ func NewStatusResponse(ctx context.Context, hash *chainhash.Hash, statusChannel 
 		ctx:      ctx,
 		statusCh: statusChannel,
 		Hash:     hash,
-		Status:   metamorph_api.Status_RECEIVED, // if it got to the point of creating this object, the status is RECEIVED
 	}
 }
 
 func (r *StatusResponse) UpdateStatus(statusAndError StatusAndError) {
-	r.mu.Lock()
-
-	r.Status = statusAndError.Status
-	r.Err = statusAndError.Err
-	r.CompetingTxs = statusAndError.CompetingTxs
-
-	r.mu.Unlock()
-
 	if r.statusCh != nil && r.ctx != nil {
 		select {
 		case <-r.ctx.Done():

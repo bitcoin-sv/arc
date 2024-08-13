@@ -88,23 +88,18 @@ func TestResponseProcessor(t *testing.T) {
 	t.Run("add and update status", func(t *testing.T) {
 		rp := NewResponseProcessor()
 
-		dummyStatus := NewStatusResponse(context.Background(), testdata.TX1Hash, nil)
-		dummyStatus2 := NewStatusResponse(context.Background(), testdata.TX2Hash, nil)
+		tx1Ch := make(chan StatusAndError, 1)
+		tx2Ch := make(chan StatusAndError, 1)
+
+		dummyStatus := NewStatusResponse(context.Background(), testdata.TX1Hash, tx1Ch)
+		dummyStatus2 := NewStatusResponse(context.Background(), testdata.TX2Hash, tx2Ch)
 		dummyStatus3 := NewStatusResponse(context.Background(), testdata.TX3Hash, nil)
 
 		rp.Add(dummyStatus)
 		rp.Add(dummyStatus2)
 		rp.Add(dummyStatus3)
 
-		rpMap := rp.getMap()
-
-		require.Len(t, rpMap, 3)
-		require.Equal(t, metamorph_api.Status_RECEIVED, rpMap[*testdata.TX1Hash].Status)
-		require.Nil(t, rpMap[*testdata.TX1Hash].Err)
-		require.Equal(t, metamorph_api.Status_RECEIVED, rpMap[*testdata.TX2Hash].Status)
-		require.Nil(t, rpMap[*testdata.TX2Hash].Err)
-		require.Equal(t, metamorph_api.Status_RECEIVED, rpMap[*testdata.TX3Hash].Status)
-		require.Nil(t, rpMap[*testdata.TX3Hash].Err)
+		require.Equal(t, 3, rp.getMapLen())
 
 		rp.UpdateStatus(testdata.TX1Hash, StatusAndError{
 			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
@@ -114,14 +109,15 @@ func TestResponseProcessor(t *testing.T) {
 			Err:    errors.New("error for tx2"),
 		})
 
-		rpMap = rp.getMap()
-
-		require.Len(t, rpMap, 3)
-		require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, rpMap[*testdata.TX1Hash].Status)
-		require.Nil(t, rpMap[*testdata.TX1Hash].Err)
-		require.Equal(t, metamorph_api.Status_RECEIVED, rpMap[*testdata.TX2Hash].Status)
-		require.Equal(t, errors.New("error for tx2"), rpMap[*testdata.TX2Hash].Err)
-		require.Equal(t, metamorph_api.Status_RECEIVED, rpMap[*testdata.TX3Hash].Status)
-		require.Nil(t, rpMap[*testdata.TX3Hash].Err)
+		select {
+		case res := <-tx1Ch:
+			require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, res.Status)
+			require.Nil(t, res.Err)
+		case res := <-tx2Ch:
+			require.Equal(t, metamorph_api.Status_RECEIVED, res.Status)
+			require.Equal(t, errors.New("error for tx2"), res.Err)
+		case <-time.After(time.Second):
+			t.Fatal("test timeout")
+		}
 	})
 }

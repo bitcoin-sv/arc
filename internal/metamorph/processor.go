@@ -376,7 +376,6 @@ func (p *Processor) StartCheckingTransactionsInNetwork() {
 				p.announcedTransactionsLock.Lock()
 				for k := 0; k < len(p.announcedTransactions); k++ {
 					if p.announcedTransactions[k].second < uint64(time.Now().Unix())-2 {
-						p.logger.Info("Requested transaction", slog.String("hash", p.announcedTransactions[k].hash.String()))
 						p.pm.RequestTransaction((*chainhash.Hash)(p.announcedTransactions[k].hash))
 						if k == len(p.announcedTransactions)-1 {
 							p.announcedTransactions = []AnnouncedTransaction{}
@@ -706,14 +705,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		return
 	}
 
-	p.announcedTransactionsLock.Lock()
-	p.logger.Info("Added transaction - ", slog.String("hash", req.Data.Hash.String()))
-	p.announcedTransactions = append(p.announcedTransactions, AnnouncedTransaction{
-		second: uint64(time.Now().Unix()),
-		hash:   req.Data.Hash,
-	})
-	p.announcedTransactionsLock.Unlock()
-
+	// will be requesting transaction after ~2 seconds to get SEEN_ON_NETWORK status
 	p.RequestTransaction(req.Data.Hash)
 
 	// update status in response
@@ -735,7 +727,6 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 
 func (p *Processor) RequestTransaction(txHash *chainhash.Hash) {
 	p.announcedTransactionsLock.Lock()
-	p.logger.Info("Added transaction - ", slog.String("hash", txHash.String()))
 	p.announcedTransactions = append(p.announcedTransactions, AnnouncedTransaction{
 		second: uint64(time.Now().Unix()),
 		hash:   txHash,

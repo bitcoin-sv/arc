@@ -376,7 +376,7 @@ func (p *Processor) StartCheckingTransactionsInNetwork() {
 				p.announcedTransactionsLock.Lock()
 				for k := 0; k < len(p.announcedTransactions); k++ {
 					if p.announcedTransactions[k].second < uint64(time.Now().Unix())-3 {
-						p.logger.Info("Requested transaction", slog.String("hash", p.announcedTransactions[k].hash))
+						p.logger.Info("Requested transaction", slog.String("hash", p.announcedTransactions[k].hash.String()))
 						p.pm.RequestTransaction((*chainhash.Hash)(p.announcedTransactions[k].hash))
 					} else {
 						p.announcedTransactions = p.announcedTransactions[k:]

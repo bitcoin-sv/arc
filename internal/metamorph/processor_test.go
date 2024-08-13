@@ -153,7 +153,7 @@ func TestProcessTransaction(t *testing.T) {
 			expectedResponseMapItems: 0,
 			expectedSetCalls:         1,
 			expectedAnnounceCalls:    1,
-			expectedRequestCalls:     0,
+			expectedRequestCalls:     1,
 		},
 		{
 			name: "record found",
@@ -943,6 +943,35 @@ func TestProcessorHealth(t *testing.T) {
 			require.ErrorIs(t, err, tc.expectedErr)
 		})
 	}
+}
+
+func TestStartCheckingTransactionsInNetwork(t *testing.T) {
+	pm := &mocks.PeerManagerMock{
+		RequestTransactionFunc: func(txHash *chainhash.Hash) p2p.PeerI {
+			return nil
+		},
+		ShutdownFunc: func() {},
+	}
+
+	processor, err := metamorph.NewProcessor(metamorphStore, pm, nil, metamorph.WithMessageQueueClient(publisher), metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20), metamorph.WithMaxRetries(10), metamorph.WithNow(func() time.Time {
+		return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
+	}))
+	require.NoError(t, err)
+	defer processor.Shutdown()
+
+	processor.StartCheckingTransactionsInNetwork()
+
+	require.Equal(t, 0, processor.GetProcessorMapSize())
+
+	processor.announcedTransactions = append(p.announcedTransactions, metamorph.AnnouncedTransaction{
+		second: uint64(time.Now().Unix()),
+		hash:   testdata.TX2Hash,
+	})
+
+	time.Sleep(1 * time.Second)
+	require.Equal(t, 0, len(pm.RequestTransactionCalls()))
+	time.Sleep(2 * time.Second)
+	require.Equal(t, 1, len(pm.RequestTransactionCalls()))
 }
 
 func TestStart(t *testing.T) {

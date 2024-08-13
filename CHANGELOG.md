@@ -17,10 +17,11 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
-## [1.1.103] - 2024-08-13
+## [1.2.0] - 2024-08-13
 
 ### Added
 - [Double Spend Detection](https://bitcoin-sv.github.io/arc/#/?id=double-spending) is a feature that introduces `DOUBLE_SPEND_ATTEMPTED` status to transactions that attempt double spend together with `CompetingTxs` field in the API responses and callbacks.
+- [Cumulative Fees Validation](https://bitcoin-sv.github.io/arc/#/?id=cumulative-fees-validation) is a feature that checks if a transaction has a sufficient fee not only for itself but also for all unmined ancestors that do not have sufficient fees.
 
 ## [1.1.91] - 2024-06-26
 

@@ -25,10 +25,10 @@ build_docker:
 
 .PHONY: run_e2e_tests
 run_e2e_tests:
-	docker-compose -f test/docker-compose.yml down --remove-orphans
-	docker-compose -f test/docker-compose.yml up --abort-on-container-exit migrate-blocktx migrate-metamorph
-	docker-compose -f test/docker-compose.yml up --build --exit-code-from tests tests arc-blocktx arc-metamorph arc --scale arc-blocktx=2 --scale arc-metamorph=2
-	docker-compose -f test/docker-compose.yml down
+	docker compose -f test/docker-compose.yml down --remove-orphans
+	docker compose -f test/docker-compose.yml up --abort-on-container-exit migrate-blocktx migrate-metamorph
+	docker compose -f test/docker-compose.yml up --build --exit-code-from tests tests arc-blocktx arc-metamorph arc --scale arc-blocktx=2 --scale arc-metamorph=2
+	docker compose -f test/docker-compose.yml down
 
 .PHONY: test
 test:

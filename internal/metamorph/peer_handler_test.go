@@ -53,6 +53,31 @@ func TestPeerHandler(t *testing.T) {
 		}
 	})
 
+	t.Run("HandleTransactionAnnouncement", func(t *testing.T) {
+		hash, err := chainhash.NewHashFromStr("1234")
+		require.NoError(t, err)
+
+		msgInv := wire.NewInvVect(wire.InvTypeBlock, hash)
+		require.NoError(t, err)
+
+		expectedMsg := &metamorph.PeerTxMessage{
+			Hash:   &msgInv.Hash,
+			Status: metamorph_api.Status_SEEN_ON_NETWORK,
+			Peer:   "mock_peer",
+		}
+
+		go func() {
+			_ = peerHandler.HandleTransactionAnnouncement(msgInv, peer)
+		}()
+
+		select {
+		case msg := <-messageCh:
+			assert.Equal(t, expectedMsg, msg)
+		case <-time.After(time.Second):
+			t.Fatal("test timed out or error while executing goroutine")
+		}
+	})
+
 	t.Run("HandleTransactionRejection", func(t *testing.T) {
 		msgReject := wire.NewMsgReject("command", wire.RejectMalformed, "malformed")
 

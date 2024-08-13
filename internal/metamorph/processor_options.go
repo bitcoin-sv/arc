@@ -6,7 +6,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
 
 func WithStatTimeLimits(notSeenLimit time.Duration, notMinedLimit time.Duration) func(*Processor) {
@@ -96,7 +95,6 @@ func WithProcessMinedBatchSize(batchSize int) func(*Processor) {
 func WithProcessStatusUpdatesBatchSize(size int) func(*Processor) {
 	return func(p *Processor) {
 		p.processStatusUpdatesBatchSize = size
-		p.storageStatusUpdateCh = make(chan store.UpdateStatus, size)
 	}
 }
 

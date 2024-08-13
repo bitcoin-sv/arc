@@ -31,13 +31,12 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 	}
 
 	qBulkUpsert := `
-		INSERT INTO transactions (hash, merkle_path)
+		INSERT INTO blocktx.transactions (hash, merkle_path)
 			SELECT hash, merkle_path
 			FROM UNNEST($1::BYTEA[], $2::TEXT[]) AS t(hash, merkle_path)
 		ON CONFLICT (hash) DO UPDATE SET
   			merkle_path = EXCLUDED.merkle_path
-		RETURNING id, hash, merkle_path, is_registered;
-`
+		RETURNING id, hash, merkle_path, is_registered`
 
 	rows, err := p.db.QueryContext(ctx, qBulkUpsert, pq.Array(txHashes), pq.Array(merklePaths))
 	if err != nil {
@@ -94,7 +93,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 
 func (p *PostgreSQL) insertTxsIntoBlockMap(ctx context.Context, blockId uint64, blockIDs, txIDs []uint64, positions []int) error {
 	const qMap = `
-		INSERT INTO block_transactions_map (
+		INSERT INTO blocktx.block_transactions_map (
 			blockid
 			,txid
 			,pos

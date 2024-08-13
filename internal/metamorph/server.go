@@ -262,7 +262,6 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 		close(responseChannel)
 	}()
 
-	// TODO check the context when API call ends
 	s.processor.ProcessTransaction(&ProcessorRequest{Ctx: ctx, Data: data, ResponseChannel: responseChannel})
 
 	if waitForStatus == 0 {

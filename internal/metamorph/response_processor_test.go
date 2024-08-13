@@ -51,10 +51,7 @@ func TestStatusResponse(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			statusChannel := make(chan StatusAndError, len(testCases))
 
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			defer cancel()
-
-			statusResponse := NewStatusResponse(ctx, tc.hash, statusChannel)
+			statusResponse := NewStatusResponse(context.Background(), tc.hash, statusChannel)
 
 			statusResponse.UpdateStatus(StatusAndError{
 				Status: tc.status,
@@ -64,7 +61,7 @@ func TestStatusResponse(t *testing.T) {
 			select {
 			case retStatus := <-statusChannel:
 				require.Equal(t, tc.expectedStatusAndError, retStatus)
-			case <-ctx.Done():
+			case <-time.After(time.Second):
 				t.Fatal("test timout")
 			}
 		})
@@ -89,14 +86,11 @@ func TestResponseProcessor(t *testing.T) {
 	})
 
 	t.Run("add and update status", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-
 		rp := NewResponseProcessor()
 
-		dummyStatus := NewStatusResponse(ctx, testdata.TX1Hash, nil)
-		dummyStatus2 := NewStatusResponse(ctx, testdata.TX2Hash, nil)
-		dummyStatus3 := NewStatusResponse(ctx, testdata.TX3Hash, nil)
+		dummyStatus := NewStatusResponse(context.Background(), testdata.TX1Hash, nil)
+		dummyStatus2 := NewStatusResponse(context.Background(), testdata.TX2Hash, nil)
+		dummyStatus3 := NewStatusResponse(context.Background(), testdata.TX3Hash, nil)
 
 		rp.Add(dummyStatus)
 		rp.Add(dummyStatus2)

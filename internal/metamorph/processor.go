@@ -679,7 +679,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 	}
 
-	// Client is still waiting for further status update
+	// Add this transaction to the map of transactions that client is listening to with open connection
 	p.responseProcessor.Add(statusResponse)
 }
 

@@ -430,7 +430,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 				zeroChainCount = tc.chainLong / 2
 			}
 
-			var zereFeeChains [][]*bt.Tx
+			var zeroFeeChains [][]*bt.Tx
 			for i, minedTx := range minedAncestors {
 				if i+1 == len(minedAncestors) {
 					zeroChainCount++
@@ -456,7 +456,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 					parentTx = tx
 				}
 
-				zereFeeChains = append(zereFeeChains, chain)
+				zeroFeeChains = append(zeroFeeChains, chain)
 			}
 
 			// post ancestor transactions
@@ -469,7 +469,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			}
 			generate(t, 1) // mine posted transactions
 
-			for _, chain := range zereFeeChains {
+			for _, chain := range zeroFeeChains {
 				for _, tx := range chain {
 					body := TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}
 					resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, body),
@@ -485,7 +485,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			// then
 			// create last transaction
 			var nodeUtxos []NodeUnspentUtxo
-			for _, chain := range zereFeeChains {
+			for _, chain := range zeroFeeChains {
 				// get otput from the lastes tx in the chain
 				parentTx := chain[len(chain)-1]
 				output := parentTx.Outputs[0]

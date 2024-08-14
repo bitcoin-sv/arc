@@ -23,17 +23,19 @@ func NewStatusResponse(ctx context.Context, hash *chainhash.Hash, statusChannel 
 }
 
 func (r *StatusResponse) UpdateStatus(statusAndError StatusAndError) {
-	if r.statusCh != nil && r.ctx != nil {
-		select {
-		case <-r.ctx.Done():
-			return
-		default:
-			r.statusCh <- StatusAndError{
-				Hash:         r.Hash,
-				Status:       statusAndError.Status,
-				Err:          statusAndError.Err,
-				CompetingTxs: statusAndError.CompetingTxs,
-			}
+	if r.statusCh == nil || r.ctx == nil {
+		return
+	}
+
+	select {
+	case <-r.ctx.Done():
+		return
+	default:
+		r.statusCh <- StatusAndError{
+			Hash:         r.Hash,
+			Status:       statusAndError.Status,
+			Err:          statusAndError.Err,
+			CompetingTxs: statusAndError.CompetingTxs,
 		}
 	}
 }

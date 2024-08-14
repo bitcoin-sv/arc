@@ -248,19 +248,24 @@ func getBlockDataByBlockHash(t *testing.T, blockHash string) BlockData {
 }
 
 func createTx(privateKey string, address string, utxo NodeUnspentUtxo, fee ...uint64) (*bt.Tx, error) {
+	return createTxFrom(privateKey, address, []NodeUnspentUtxo{utxo}, fee...)
+}
+
+func createTxFrom(privateKey string, address string, utxos []NodeUnspentUtxo, fee ...uint64) (*bt.Tx, error) {
 	tx := bt.NewTx()
 
-	// Add an input using the first UTXO
-	utxoTxID := utxo.Txid
-	utxoVout := utxo.Vout
-	utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
-	utxoScript := utxo.ScriptPubKey
+	// Add an input using the UTXOs
+	for _, utxo := range utxos {
+		utxoTxID := utxo.Txid
+		utxoVout := utxo.Vout
+		utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
+		utxoScript := utxo.ScriptPubKey
 
-	err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
-	if err != nil {
-		return nil, fmt.Errorf("failed adding input: %v", err)
+		err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
+		if err != nil {
+			return nil, fmt.Errorf("failed adding input: %v", err)
+		}
 	}
-
 	// Add an output to the address you've previously created
 	recipientAddress := address
 
@@ -270,7 +275,7 @@ func createTx(privateKey string, address string, utxo NodeUnspentUtxo, fee ...ui
 	} else {
 		feeValue = 20 // Set your default fee value here
 	}
-	amountToSend := utxoSatoshis - feeValue
+	amountToSend := tx.TotalInputSatoshis() - feeValue
 
 	recipientScript, err := bscript.NewP2PKHFromAddress(recipientAddress)
 	if err != nil {

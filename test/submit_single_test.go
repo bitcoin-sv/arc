@@ -353,3 +353,182 @@ func TestSkipValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestPostCumulativeFeesValidation(t *testing.T) {
+	type validationOpts struct {
+		performCumulativeFeesValidation bool
+		skipFeeValidation               bool
+	}
+
+	tt := []struct {
+		name      string
+		options   validationOpts
+		lastTxFee uint64
+		chainLong int
+
+		expectedStatusCode int
+		expectedErrInfo    string
+	}{
+		{
+			name: "post zero fee txs chain with cumulative fees validation and with skiping fee validation - fee validation is ommited",
+			options: validationOpts{
+				performCumulativeFeesValidation: true,
+				skipFeeValidation:               true,
+			},
+			expectedStatusCode: 200,
+		},
+		{
+			name: "post zero fee tx with cumulative fees validation and with skiping cumulative fee validation - cumulative fee validation is ommited",
+			options: validationOpts{
+				performCumulativeFeesValidation: false,
+			},
+			lastTxFee:          17,
+			expectedStatusCode: 200,
+		},
+		{
+			name: "post  txs chain with too low fee with cumulative fees validation",
+			options: validationOpts{
+				performCumulativeFeesValidation: true,
+			},
+			lastTxFee:          1,
+			expectedStatusCode: 473,
+			expectedErrInfo:    "arc error 473: cumulative transaction fee of 1 sat is too low",
+		},
+		{
+			name: "post  txs chain with suficient fee with cumulative fees validation",
+			options: validationOpts{
+				performCumulativeFeesValidation: true,
+			},
+			lastTxFee:          90,
+			expectedStatusCode: 200,
+		},
+		{
+			name: "post  txs chain with cumulative fees validation - chain too long",
+			options: validationOpts{
+				performCumulativeFeesValidation: true,
+			},
+			lastTxFee:          247,
+			chainLong:          25,
+			expectedStatusCode: 473,
+			expectedErrInfo:    "arc error 473: too many unconfirmed parents, 25 [limit: 25]",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			address, privateKey := getNewWalletAddress(t)
+
+			// create mined ancestors
+			const minedAncestorsCount = 2
+			var minedAncestors []*bt.Tx
+
+			sendToAddress(t, address, 0.0001)
+			sendToAddress(t, address, 0.00011)
+			utxos := getUtxos(t, address)
+			require.GreaterOrEqual(t, len(utxos), minedAncestorsCount, "No UTXOs available for the address")
+
+			for i := range minedAncestorsCount {
+				minedTx, err := createTx(privateKey, address, utxos[i], 10)
+				require.NoError(t, err)
+
+				minedAncestors = append(minedAncestors, minedTx)
+			}
+
+			// create unmined zero fee ancestors graph
+			const zeroFee = uint64(0)
+			const defaultZeroChainCount = 3
+			zeroChainCount := defaultZeroChainCount
+			if tc.chainLong > 0 {
+				zeroChainCount = tc.chainLong / 2
+			}
+
+			var zeroFeeChains [][]*bt.Tx
+			for i, minedTx := range minedAncestors {
+				if i+1 == len(minedAncestors) {
+					zeroChainCount++
+				}
+
+				chain := make([]*bt.Tx, zeroChainCount)
+				parentTx := minedTx
+
+				for i := 0; i < zeroChainCount; i++ {
+					output := parentTx.Outputs[0]
+					utxo := NodeUnspentUtxo{
+						Txid:         parentTx.TxID(),
+						Vout:         0,
+						Address:      address,
+						ScriptPubKey: output.LockingScript.String(),
+						Amount:       float64(float64(output.Satoshis) / 1e8),
+					}
+
+					tx, err := createTx(privateKey, address, utxo, zeroFee)
+					require.NoError(t, err)
+
+					chain[i] = tx
+					parentTx = tx
+				}
+
+				zeroFeeChains = append(zeroFeeChains, chain)
+			}
+
+			// post ancestor transactions
+			for _, tx := range minedAncestors {
+				body := TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}
+				resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, body),
+					map[string]string{"X-WaitFor": Status_SEEN_ON_NETWORK}, 200)
+
+				require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
+			}
+			generate(t, 1) // mine posted transactions
+
+			for _, chain := range zeroFeeChains {
+				for _, tx := range chain {
+					body := TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}
+					resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, body),
+						map[string]string{
+							"X-WaitFor":           Status_SEEN_ON_NETWORK,
+							"X-SkipFeeValidation": strconv.FormatBool(true),
+						}, 200)
+
+					require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
+				}
+			}
+
+			// then
+			// create last transaction
+			var nodeUtxos []NodeUnspentUtxo
+			for _, chain := range zeroFeeChains {
+				// get otput from the lastes tx in the chain
+				parentTx := chain[len(chain)-1]
+				output := parentTx.Outputs[0]
+				utxo := NodeUnspentUtxo{
+					Txid:         parentTx.TxID(),
+					Vout:         0,
+					Address:      address,
+					ScriptPubKey: output.LockingScript.String(),
+					Amount:       float64(float64(output.Satoshis) / 1e8),
+				}
+
+				nodeUtxos = append(nodeUtxos, utxo)
+			}
+
+			lastTx, err := createTxFrom(privateKey, address, nodeUtxos, tc.lastTxFee)
+			require.NoError(t, err)
+
+			response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(lastTx.ExtendedBytes())}),
+				map[string]string{
+					"X-WaitFor":                 Status_SEEN_ON_NETWORK,
+					"X-CumulativeFeeValidation": strconv.FormatBool(tc.options.performCumulativeFeesValidation),
+					"X-SkipFeeValidation":       strconv.FormatBool(tc.options.skipFeeValidation),
+				}, tc.expectedStatusCode)
+
+			// assert
+			if tc.expectedStatusCode == http.StatusOK {
+				require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
+			} else {
+				require.Contains(t, *response.ExtraInfo, tc.expectedErrInfo)
+			}
+		})
+	}
+}

@@ -439,7 +439,7 @@ The same applies to all transactions, if more than two transactions are trying t
 
 #### Double Spend flow - Examples
 
-##### Scenario 1:
+##### Scenario 1
 > Transaction `A` is submitted to the network NOT through Arc.
 > A short moment later, transaction `B` spending the same output is submitted to Arc.
 > Later, transaction `A` is mined.
@@ -450,7 +450,7 @@ Outcome:
 3. If callback URL is specified - the callback with status `REJECTED` and information about rejection reason (double spend) will be sent for transaction `B`.
 
 
-##### Scenario 2:
+##### Scenario 2
 > Transaction `A` is submitted to the network through Arc.
 > A short moment later, transaction `B` spending the same output is submitted to Arc.
 > Later, transaction `A` is mined.
@@ -469,7 +469,7 @@ Outcome:
 7. Querying for transaction `B` will now also result in `REJECTED` status and an extra information that this transactions was a double spend attempt.
 
 
-##### Scenario 3:
+##### Scenario 3
 > Transaction `A` is submitted outside of Arc to a node that is not directly connected to Arc.
 > Transaction `B` spending the same output is submitted to Arc at **exactly** the same moment.
 

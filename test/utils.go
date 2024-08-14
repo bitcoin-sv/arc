@@ -44,15 +44,16 @@ type TransactionRequest struct {
 }
 
 type TransactionResponse struct {
-	BlockHash   *string   `json:"blockHash,omitempty"`
-	BlockHeight *uint64   `json:"blockHeight,omitempty"`
-	ExtraInfo   *string   `json:"extraInfo"`
-	MerklePath  *string   `json:"merklePath"`
-	Status      int       `json:"status"`
-	Timestamp   time.Time `json:"timestamp"`
-	Title       string    `json:"title"`
-	TxStatus    string    `json:"txStatus"`
-	Txid        string    `json:"txid"`
+	BlockHash    *string   `json:"blockHash,omitempty"`
+	BlockHeight  *uint64   `json:"blockHeight,omitempty"`
+	ExtraInfo    *string   `json:"extraInfo"`
+	MerklePath   *string   `json:"merklePath"`
+	Status       int       `json:"status"`
+	CompetingTxs *[]string `json:"competingTxs"`
+	Timestamp    time.Time `json:"timestamp"`
+	Title        string    `json:"title"`
+	TxStatus     string    `json:"txStatus"`
+	Txid         string    `json:"txid"`
 }
 
 type ErrorFee struct {

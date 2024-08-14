@@ -264,6 +264,10 @@ func (p *Processor) StartProcessMinedCallbacks() {
 				p.updateMined(txsBlocks)
 				txsBlocks = []*blocktx_api.TransactionBlock{}
 
+				// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
+				// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
+				ticker.Reset(p.processMinedInterval)
+
 			case <-ticker.C:
 				if len(txsBlocks) == 0 {
 					continue
@@ -271,6 +275,10 @@ func (p *Processor) StartProcessMinedCallbacks() {
 
 				p.updateMined(txsBlocks)
 				txsBlocks = []*blocktx_api.TransactionBlock{}
+
+				// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
+				// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
+				ticker.Reset(p.processMinedInterval)
 			}
 		}
 	}()
@@ -305,6 +313,10 @@ func (p *Processor) StartProcessSubmittedTxs() {
 				if len(reqs) > 0 {
 					p.ProcessTransactions(reqs)
 					reqs = make([]*store.StoreData, 0, p.processTransactionsBatchSize)
+
+					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
+					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
+					ticker.Reset(p.processTransactionsInterval)
 				}
 			case submittedTx := <-p.submittedTxsChan:
 				if submittedTx == nil {
@@ -329,6 +341,9 @@ func (p *Processor) StartProcessSubmittedTxs() {
 				if len(reqs) >= p.processTransactionsBatchSize {
 					p.ProcessTransactions(reqs)
 					reqs = make([]*store.StoreData, 0, p.processTransactionsBatchSize)
+
+					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
+					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 					ticker.Reset(p.processTransactionsInterval)
 				}
 			}
@@ -389,11 +404,19 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				if len(statusUpdatesMap) >= p.processStatusUpdatesBatchSize {
 					p.checkAndUpdate(statusUpdatesMap)
 					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
+
+					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
+					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
+					ticker.Reset(p.processStatusUpdatesInterval)
 				}
 			case <-ticker.C:
 				if len(statusUpdatesMap) > 0 {
 					p.checkAndUpdate(statusUpdatesMap)
 					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
+
+					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
+					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
+					ticker.Reset(p.processStatusUpdatesInterval)
 				}
 			}
 		}
@@ -405,7 +428,7 @@ func (p *Processor) checkAndUpdate(statusUpdatesMap map[chainhash.Hash]store.Upd
 		return
 	}
 
-	statusUpdates := make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
+	statusUpdates := make([]store.UpdateStatus, 0, len(statusUpdatesMap))
 	doubleSpendUpdates := make([]store.UpdateStatus, 0)
 
 	for _, status := range statusUpdatesMap {

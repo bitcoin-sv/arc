@@ -52,12 +52,13 @@ stateDiagram-v2
     ANNOUNCED_TO_NETWORK --> REQUESTED_BY_NETWORK: Peer has requested the transaction\n with a GETDATA message
     REQUESTED_BY_NETWORK --> SENT_TO_NETWORK: Transaction has been sent to peer
     SENT_TO_NETWORK --> ACCEPTED_BY_NETWORK: The transaction has been accepted\n by peer on the ZMQ interface
+    SENT_TO_NETWORK --> DOUBLE_SPEND_ATTEMPTED: This transaction has competing transactions
     SENT_TO_NETWORK --> REJECTED: Peer has sent a REJECT message
     ACCEPTED_BY_NETWORK --> SEEN_ON_NETWORK: ARC has received Transaction ID\n announcement from another peer
     ACCEPTED_BY_NETWORK --> SEEN_IN_ORPHAN_MEMPOOL: Peer has sent a 'missing inputs' message
     SEEN_IN_ORPHAN_MEMPOOL --> SEEN_ON_NETWORK: All parent transactions\n have been received by peer
     SEEN_ON_NETWORK --> MINED: Transaction ID was included in a BLOCK message
-    SEEN_ON_NETWORK --> DOUBLE_SPEND_ATTEMPTED: This transaction has competing transactions
+    SEEN_ON_NETWORK --> DOUBLE_SPEND_ATTEMPTED: A competing transactions entered the mempool
     DOUBLE_SPEND_ATTEMPTED --> MINED: This transaction was accepted and mined
     DOUBLE_SPEND_ATTEMPTED --> REJECTED: This transaction was rejected in favor\n of one of the competing transactions
     MINED --> [*]

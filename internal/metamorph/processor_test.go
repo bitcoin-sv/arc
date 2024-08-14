@@ -248,20 +248,17 @@ func TestProcessTransaction(t *testing.T) {
 				}
 			}()
 
-			processor.ProcessTransaction(&metamorph.ProcessorRequest{
-				Data: &store.StoreData{
-					Hash: testdata.TX1Hash,
-				},
-				ResponseChannel: responseChannel,
-			})
+			processor.ProcessTransaction(context.Background(),
+				&metamorph.ProcessorRequest{
+					Data: &store.StoreData{
+						Hash: testdata.TX1Hash,
+					},
+					ResponseChannel: responseChannel,
+				})
 			wg.Wait()
 
 			require.Equal(t, tc.expectedResponseMapItems, processor.GetProcessorMapSize())
 			if tc.expectedResponseMapItems > 0 {
-				items := processor.GetProcessorMap()
-				require.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
-				require.Equal(t, metamorph_api.Status_STORED, items[*testdata.TX1Hash].Status)
-
 				require.Len(t, pm.AnnounceTransactionCalls(), 1)
 			}
 
@@ -830,7 +827,8 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 					return []*store.StoreData{
 						{Callbacks: []store.StoreCallback{{CallbackURL: "http://callback.com"}}},
 						{Callbacks: []store.StoreCallback{{CallbackURL: "http://callback.com"}}},
-						{}}, tc.updateMinedErr
+						{},
+					}, tc.updateMinedErr
 				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}

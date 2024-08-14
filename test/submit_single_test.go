@@ -204,83 +204,96 @@ func TestSubmitQueued(t *testing.T) {
 
 func TestCallback(t *testing.T) {
 
-	t.Run("post transaction with callback url and token", func(t *testing.T) {
-		address, privateKey := fundNewWallet(t)
+	tt := []struct {
+		name                       string
+		numberOfCallbackServers    int
+		attemptMultipleSubmissions bool
+	}{
+		{
+			name:                    "post transaction with one callback",
+			numberOfCallbackServers: 1,
+		},
+		{
+			name:                    "post transaction with multiple callbacks",
+			numberOfCallbackServers: 2,
+		},
+		{
+			name:                       "post transaction with one callback - multiple submissions",
+			numberOfCallbackServers:    1,
+			attemptMultipleSubmissions: true,
+		},
+	}
 
-		utxos := getUtxos(t, address)
-		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			address, privateKey := fundNewWallet(t)
 
-		tx, err := createTx(privateKey, address, utxos[0])
-		require.NoError(t, err)
+			utxos := getUtxos(t, address)
+			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-		const callbackNumbers = 2                                                // cannot be greater than 5
-		callbackReceivedChan := make(chan *TransactionResponse, callbackNumbers) // do not block callback server responses
-		callbackErrChan := make(chan error, callbackNumbers)
-		callbackIteration := 0
+			tx, err := createTx(privateKey, address, utxos[0])
+			require.NoError(t, err)
 
-		calbackResponseFn := func(w http.ResponseWriter, rc chan *TransactionResponse, ec chan error, status *TransactionResponse) {
-			callbackIteration++
+			const callbackNumbers = 2 // cannot be greater than 5
+			callbackReceivedChannels := make([]chan *TransactionResponse, tc.numberOfCallbackServers)
+			callbackErrChannels := make([]chan error, tc.numberOfCallbackServers)
+			callbackShutdowns := make([]func(), tc.numberOfCallbackServers)
 
-			// Let ARC send the callback few times. Respond with success on the last one.
-			respondWithSuccess := false
-			if callbackIteration < callbackNumbers {
-				t.Logf("%d callback received, responding bad request", callbackIteration)
-				respondWithSuccess = false
+			for i := 0; i < tc.numberOfCallbackServers; i++ {
+				callbackReceivedChan, callbackErrChan, calbackResponseFn := prepareCallback(t, callbackNumbers)
+				callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
+				callbackReceivedChannels[i] = callbackReceivedChan
+				callbackErrChannels[i] = callbackErrChan
+				callbackShutdowns[i] = shutdown
 
-			} else {
-				t.Logf("%d callback received, responding success", callbackIteration)
-				respondWithSuccess = true
+				testTxSubmission(t, callbackUrl, token, tx)
+				// This is to test the multiple submissions with the same callback URL and token
+				// Expected behavior is that the callback should not be added to tx and the server should receive the callback only once
+				if tc.attemptMultipleSubmissions {
+					testTxSubmission(t, callbackUrl, token, tx)
+				}
 			}
 
-			err = respondToCallback(w, respondWithSuccess)
-			if err != nil {
-				t.Fatalf("Failed to respond to callback: %v", err)
+			defer func() {
+				for _, shutdown := range callbackShutdowns {
+					shutdown()
+				}
+			}()
+
+			generate(t, 10)
+
+			statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
+			statusResp := getRequest[TransactionResponse](t, statusUrl)
+
+			require.NotNil(t, statusResp.MerklePath)
+			_, err = bc.NewBUMPFromStr(*statusResp.MerklePath)
+			require.NoError(t, err)
+
+			for i := 0; i < tc.numberOfCallbackServers; i++ {
+				t.Logf("callback %d", i)
+				for j := 0; j < callbackNumbers; j++ {
+					t.Logf("callback iteration %d", j)
+					callbackTimeout := time.After(time.Second * time.Duration(j+1) * 2 * 5)
+
+					select {
+					case callback := <-callbackReceivedChannels[i]:
+						require.NotNil(t, callback)
+
+						t.Logf("Callback %d iteration %d result: %s", i, j, callback.TxStatus)
+						require.Equal(t, statusResp.Txid, callback.Txid)
+						require.Equal(t, *statusResp.BlockHeight, *callback.BlockHeight)
+						require.Equal(t, *statusResp.BlockHash, *callback.BlockHash)
+						require.Equal(t, Status_MINED, callback.TxStatus)
+
+					case err := <-callbackErrChannels[i]:
+						t.Fatalf("callback received - failed to parse callback %v", err)
+					case <-callbackTimeout:
+						t.Fatal("callback not received - timeout")
+					}
+				}
 			}
-
-			rc <- status
-		}
-		callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
-		defer shutdown()
-
-		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
-			map[string]string{
-				"X-WaitFor":       Status_SEEN_ON_NETWORK,
-				"X-CallbackUrl":   callbackUrl,
-				"X-CallbackToken": token,
-			}, http.StatusOK)
-
-		require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
-
-		generate(t, 10)
-
-		statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
-		statusResp := getRequest[TransactionResponse](t, statusUrl)
-
-		require.NotNil(t, statusResp.MerklePath)
-		_, err = bc.NewBUMPFromStr(*statusResp.MerklePath)
-		require.NoError(t, err)
-
-		for i := 0; i < callbackNumbers; i++ {
-			t.Logf("callback iteration %d", i)
-			callbackTimeout := time.After(time.Second * time.Duration(i) * 2 * 5)
-
-			select {
-			case callback := <-callbackReceivedChan:
-				require.NotNil(t, callback)
-
-				t.Logf("Callback %d result: %s", i, callback.TxStatus)
-				require.Equal(t, statusResp.Txid, callback.Txid)
-				require.Equal(t, *statusResp.BlockHeight, *callback.BlockHeight)
-				require.Equal(t, *statusResp.BlockHash, *callback.BlockHash)
-				require.Equal(t, Status_MINED, callback.TxStatus)
-
-			case err := <-callbackErrChan:
-				t.Fatalf("callback received - failed to parse callback %v", err)
-			case <-callbackTimeout:
-				t.Fatal("callback not received - timeout")
-			}
-		}
-	})
+		})
+	}
 }
 
 func TestSkipValidation(t *testing.T) {

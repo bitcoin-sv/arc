@@ -226,6 +226,14 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, time.Date(2024, 5, 31, 15, 16, 0, 0, time.UTC), dataReturned2.LastSubmittedAt)
 
+		mined.Callbacks = append(mined.Callbacks, store.StoreCallback{CallbackURL: "http://callback.example2.com", CallbackToken: "67890"})
+		err = postgresDB.Set(ctx, &mined)
+		require.NoError(t, err)
+
+		dataReturned3, err := postgresDB.Get(ctx, minedHash[:])
+		require.NoError(t, err)
+		require.Equal(t, dataReturned3.Callbacks, mined.Callbacks)
+
 		err = postgresDB.Del(ctx, minedHash[:])
 		require.NoError(t, err)
 

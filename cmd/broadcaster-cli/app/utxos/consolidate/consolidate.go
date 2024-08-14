@@ -58,7 +58,7 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %v", err)
 		}
 
-		wocClient := woc_client.New(!isTestnet,woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
+		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 		cs := make([]broadcaster.Consolidator, 0, len(keySets))
 		for _, ks := range keySets {
 			c, err := broadcaster.NewUTXOConsolidator(logger.With(slog.String("address", ks.Address(!isTestnet))), client, ks, wocClient, isTestnet, broadcaster.WithFees(miningFeeSat))

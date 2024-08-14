@@ -93,10 +93,10 @@ func TestStart(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			utxoClient := &mocks.UtxoClientMock{
-				GetBalanceWithRetriesFunc: func(ctx context.Context, mainnet bool, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error) {
+				GetBalanceWithRetriesFunc: func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error) {
 					return 1000, 0, tc.getBalanceWithRetriesErr
 				},
-				GetUTXOsWithRetriesFunc: func(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) ([]*bt.UTXO, error) {
+				GetUTXOsWithRetriesFunc: func(ctx context.Context, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) ([]*bt.UTXO, error) {
 					utxos := []*bt.UTXO{utxo1, utxo2, utxo3, utxo4}
 
 					return utxos, tc.getUTXOsWithRetriesErr

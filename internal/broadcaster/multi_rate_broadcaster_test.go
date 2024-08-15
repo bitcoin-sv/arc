@@ -44,7 +44,6 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 					GetTxCountFunc:         func() int64 { return 5 },
 					GetConnectionCountFunc: func() int64 { return 2 },
 					GetLimitFunc:           func() int64 { return 100 },
-					GetKeyNameFunc:         func() string { return "key-01" },
 					GetUtxoSetLenFunc:      func() int { return 1000 },
 				},
 				&mocks.RateBroadcasterMock{
@@ -54,7 +53,6 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 					GetTxCountFunc:         func() int64 { return 10 },
 					GetConnectionCountFunc: func() int64 { return 1 },
 					GetLimitFunc:           func() int64 { return 200 },
-					GetKeyNameFunc:         func() string { return "key-02" },
 					GetUtxoSetLenFunc:      func() int { return 1000 },
 				},
 			}

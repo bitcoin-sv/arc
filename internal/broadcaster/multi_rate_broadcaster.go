@@ -95,19 +95,20 @@ func (mrb *MultiKeyRateBroadcaster) logStats() {
 			case <-logStatsTicker.C:
 				totalTxsCount := int64(0)
 				totalConnectionCount := int64(0)
-				var logArgs []slog.Attr
+				totalUtxoSetLength := 0
+
 				for _, rb := range mrb.rbs {
 					totalTxsCount += rb.GetTxCount()
 					totalConnectionCount += rb.GetConnectionCount()
-					logArgs = append(logArgs, slog.Int(rb.GetKeyName(), rb.GetUtxoSetLen()))
+					totalUtxoSetLength += rb.GetUtxoSetLen()
 				}
 				target := atomic.LoadInt64(&mrb.target)
 				mrb.logger.Info("stats",
 					slog.Int64("txs", totalTxsCount),
 					slog.Int64("target", target),
-					slog.Float64("percentage", roundFloat(float64(totalTxsCount)/float64(target)*100, 2)),
+					slog.Float64("percentage", roundFloat(float64(totalTxsCount)/float64(mrb.target)*100, 2)),
 					slog.Int64("connections", totalConnectionCount),
-					"utxos", logArgs,
+					slog.Int("utxos", totalUtxoSetLength),
 				)
 			case <-mrb.ctx.Done():
 				return

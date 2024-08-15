@@ -523,7 +523,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 					offset += loadSeenOnNetworkLimit
 					if err != nil {
 						p.logger.Error("Failed to get SeenOnNetwork transactions", slog.String("err", err.Error()))
-						continue
+						break
 					}
 
 					if len(seenOnNetworkTxs) == 0 {

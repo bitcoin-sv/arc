@@ -318,10 +318,10 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 
 	if params.XSkipFeeValidation != nil {
 		transactionOptions.SkipFeeValidation = *params.XSkipFeeValidation
-	} else if params.XCumulativeFeeValidation != nil {
+	}
+	if params.XCumulativeFeeValidation != nil {
 		transactionOptions.CumulativeFeeValidation = *params.XCumulativeFeeValidation
 	}
-
 	if params.XSkipScriptValidation != nil {
 		transactionOptions.SkipScriptValidation = *params.XSkipScriptValidation
 	}

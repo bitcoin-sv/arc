@@ -11,7 +11,6 @@ import (
 type ProcessorRequest struct {
 	Data            *store.StoreData
 	ResponseChannel chan StatusAndError
-	Timeout         time.Duration
 }
 
 type StatusAndError struct {

@@ -3,6 +3,7 @@ package test
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -43,15 +44,16 @@ type TransactionRequest struct {
 }
 
 type TransactionResponse struct {
-	BlockHash   *string   `json:"blockHash,omitempty"`
-	BlockHeight *uint64   `json:"blockHeight,omitempty"`
-	ExtraInfo   *string   `json:"extraInfo"`
-	MerklePath  *string   `json:"merklePath"`
-	Status      int       `json:"status"`
-	Timestamp   time.Time `json:"timestamp"`
-	Title       string    `json:"title"`
-	TxStatus    string    `json:"txStatus"`
-	Txid        string    `json:"txid"`
+	BlockHash    *string   `json:"blockHash,omitempty"`
+	BlockHeight  *uint64   `json:"blockHeight,omitempty"`
+	ExtraInfo    *string   `json:"extraInfo"`
+	MerklePath   *string   `json:"merklePath"`
+	Status       int       `json:"status"`
+	CompetingTxs *[]string `json:"competingTxs"`
+	Timestamp    time.Time `json:"timestamp"`
+	Title        string    `json:"title"`
+	TxStatus     string    `json:"txStatus"`
+	Txid         string    `json:"txid"`
 }
 
 type ErrorFee struct {
@@ -247,19 +249,24 @@ func getBlockDataByBlockHash(t *testing.T, blockHash string) BlockData {
 }
 
 func createTx(privateKey string, address string, utxo NodeUnspentUtxo, fee ...uint64) (*bt.Tx, error) {
+	return createTxFrom(privateKey, address, []NodeUnspentUtxo{utxo}, fee...)
+}
+
+func createTxFrom(privateKey string, address string, utxos []NodeUnspentUtxo, fee ...uint64) (*bt.Tx, error) {
 	tx := bt.NewTx()
 
-	// Add an input using the first UTXO
-	utxoTxID := utxo.Txid
-	utxoVout := utxo.Vout
-	utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
-	utxoScript := utxo.ScriptPubKey
+	// Add an input using the UTXOs
+	for _, utxo := range utxos {
+		utxoTxID := utxo.Txid
+		utxoVout := utxo.Vout
+		utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
+		utxoScript := utxo.ScriptPubKey
 
-	err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
-	if err != nil {
-		return nil, fmt.Errorf("failed adding input: %v", err)
+		err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
+		if err != nil {
+			return nil, fmt.Errorf("failed adding input: %v", err)
+		}
 	}
-
 	// Add an output to the address you've previously created
 	recipientAddress := address
 
@@ -269,7 +276,7 @@ func createTx(privateKey string, address string, utxo NodeUnspentUtxo, fee ...ui
 	} else {
 		feeValue = 20 // Set your default fee value here
 	}
-	amountToSend := utxoSatoshis - feeValue
+	amountToSend := tx.TotalInputSatoshis() - feeValue
 
 	recipientScript, err := bscript.NewP2PKHFromAddress(recipientAddress)
 	if err != nil {
@@ -314,6 +321,7 @@ func generateRandomString(length int) string {
 type callbackResponseFn func(w http.ResponseWriter, rc chan *TransactionResponse, ec chan error, status *TransactionResponse)
 
 // use buffered channels for multiple callbacks
+
 func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errChan chan error, alternativeResponseFn callbackResponseFn) (callbackUrl, token string, shutdownFn func()) {
 	t.Helper()
 	callback := generateRandomString(16)
@@ -427,4 +435,44 @@ func fundNewWallet(t *testing.T) (addr, privKey string) {
 	generate(t, 1)
 
 	return
+}
+
+func testTxSubmission(t *testing.T, callbackUrl string, token string, tx *bt.Tx) {
+	response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
+		map[string]string{
+			"X-WaitFor":       Status_SEEN_ON_NETWORK,
+			"X-CallbackUrl":   callbackUrl,
+			"X-CallbackToken": token,
+		}, http.StatusOK)
+	require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
+}
+
+func prepareCallback(t *testing.T, callbackNumbers int) (chan *TransactionResponse, chan error, callbackResponseFn) {
+	callbackReceivedChan := make(chan *TransactionResponse, callbackNumbers) // do not block callback server responses
+	callbackErrChan := make(chan error, callbackNumbers)
+	callbackIteration := 0
+
+	calbackResponseFn := func(w http.ResponseWriter, rc chan *TransactionResponse, ec chan error, status *TransactionResponse) {
+		callbackIteration++
+
+		// Let ARC send the callback few times. Respond with success on the last one.
+		respondWithSuccess := false
+		if callbackIteration < callbackNumbers {
+			t.Logf("%d callback received, responding bad request", callbackIteration)
+			respondWithSuccess = false
+
+		} else {
+			t.Logf("callback interation:  %v", callbackIteration)
+			t.Logf("%d callback received, responding success", callbackIteration)
+			respondWithSuccess = true
+		}
+
+		err := respondToCallback(w, respondWithSuccess)
+		if err != nil {
+			t.Fatalf("Failed to respond to callback: %v", err)
+		}
+
+		rc <- status
+	}
+	return callbackReceivedChan, callbackErrChan, calbackResponseFn
 }

@@ -16,7 +16,7 @@ func (p *PostgreSQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) 
 	}
 
 	qInsert := `
-		INSERT INTO blocks (hash, prevhash, merkleroot, height)
+		INSERT INTO blocktx.blocks (hash, prevhash, merkleroot, height)
 		VALUES ($1 ,$2 , $3, $4)
 		ON CONFLICT (hash) DO UPDATE SET orphanedyn = FALSE
 		RETURNING id

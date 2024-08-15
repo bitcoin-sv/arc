@@ -17,7 +17,7 @@ import (
 )
 
 func TestPeerHandler(t *testing.T) {
-	messageCh := make(chan *metamorph.PeerTxMessage)
+	messageCh := make(chan *metamorph.PeerTxMessage, 100)
 	mtmStore := &storeMocks.MetamorphStoreMock{
 		GetRawTxsFunc: func(ctx context.Context, hashes [][]byte) ([][]byte, error) {
 			rawTx := []byte("1234")

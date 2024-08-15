@@ -1,41 +1,36 @@
 package metamorph
 
 import (
+	"context"
 	"sync"
-	"time"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 type StatusResponse struct {
+	ctx      context.Context
 	statusCh chan StatusAndError
-	mu       sync.RWMutex
 
-	Status       metamorph_api.Status
-	Hash         *chainhash.Hash
-	Err          error
-	CompetingTxs []string
+	Hash *chainhash.Hash
 }
 
-func NewStatusResponse(hash *chainhash.Hash, statusChannel chan StatusAndError) *StatusResponse {
+func NewStatusResponse(ctx context.Context, hash *chainhash.Hash, statusChannel chan StatusAndError) *StatusResponse {
 	return &StatusResponse{
+		ctx:      ctx,
 		statusCh: statusChannel,
 		Hash:     hash,
-		Status:   metamorph_api.Status_RECEIVED, // if it got to the point of creating this object, the status is RECEIVED
 	}
 }
 
 func (r *StatusResponse) UpdateStatus(statusAndError StatusAndError) {
-	r.mu.Lock()
+	if r.statusCh == nil || r.ctx == nil {
+		return
+	}
 
-	r.Status = statusAndError.Status
-	r.Err = statusAndError.Err
-	r.CompetingTxs = statusAndError.CompetingTxs
-
-	r.mu.Unlock()
-
-	if r.statusCh != nil {
+	select {
+	case <-r.ctx.Done():
+		return
+	default:
 		r.statusCh <- StatusAndError{
 			Hash:         r.Hash,
 			Status:       statusAndError.Status,
@@ -46,69 +41,74 @@ func (r *StatusResponse) UpdateStatus(statusAndError StatusAndError) {
 }
 
 type ResponseProcessor struct {
-	mu          sync.Mutex
-	responseMap map[chainhash.Hash]*StatusResponse
+	resMap sync.Map
 }
 
 func NewResponseProcessor() *ResponseProcessor {
-	return &ResponseProcessor{
-		responseMap: make(map[chainhash.Hash]*StatusResponse),
-	}
+	return &ResponseProcessor{}
 }
 
-func (p *ResponseProcessor) Add(statusResponse *StatusResponse, timeout time.Duration) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	_, found := p.responseMap[*statusResponse.Hash]
-	if found {
+func (p *ResponseProcessor) Add(statusResponse *StatusResponse) {
+	if statusResponse.ctx == nil {
 		return
 	}
 
-	p.responseMap[*statusResponse.Hash] = statusResponse
+	_, loaded := p.resMap.LoadOrStore(*statusResponse.Hash, statusResponse)
+	if loaded {
+		return
+	}
 
 	// we no longer need status response object after response has been returned
 	go func() {
-		time.Sleep(timeout)
-		p.mu.Lock()
-		delete(p.responseMap, *statusResponse.Hash)
-		p.mu.Unlock()
+		<-statusResponse.ctx.Done()
+		p.resMap.Delete(*statusResponse.Hash)
 	}()
 }
 
 func (p *ResponseProcessor) UpdateStatus(hash *chainhash.Hash, statusAndError StatusAndError) {
-	p.mu.Lock()
-
-	res, ok := p.responseMap[*hash]
-	p.mu.Unlock()
+	val, ok := p.resMap.Load(*hash)
 	if !ok {
 		return
 	}
 
-	res.UpdateStatus(statusAndError)
+	statusResponse, ok := val.(*StatusResponse)
+	if !ok {
+		return
+	}
+
+	statusResponse.UpdateStatus(statusAndError)
 }
 
 // use for tests only
 func (p *ResponseProcessor) getMap() map[chainhash.Hash]*StatusResponse {
 	retMap := make(map[chainhash.Hash]*StatusResponse)
 
-	p.mu.Lock()
+	p.resMap.Range(func(key, val any) bool {
+		k, ok := key.(chainhash.Hash)
+		if !ok {
+			return true // continue
+		}
 
-	for key, val := range p.responseMap {
-		retMap[key] = val
-	}
+		v, ok := val.(*StatusResponse)
+		if !ok {
+			return true // continue
+		}
 
-	p.mu.Unlock()
+		retMap[k] = v
+
+		return true // continue
+	})
 
 	return retMap
 }
 
 func (p *ResponseProcessor) getMapLen() int {
-	p.mu.Lock()
+	var length int
 
-	length := len(p.responseMap)
-
-	p.mu.Unlock()
+	p.resMap.Range(func(_, _ any) bool {
+		length++
+		return true
+	})
 
 	return length
 }

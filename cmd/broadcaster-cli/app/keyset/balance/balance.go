@@ -34,7 +34,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		for _, keySet := range keySets {
+		for name, keySet := range keySets {
 
 			if wocApiKey == "" {
 				time.Sleep(500 * time.Millisecond)
@@ -43,7 +43,7 @@ var Cmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			logger.Info("balance", slog.String("address", keySet.Address(!isTestnet)), slog.Int64("confirmed", confirmed), slog.Int64("unconfirmed", unconfirmed))
+			logger.Info("balance", slog.String("name", name), slog.String("address", keySet.Address(!isTestnet)), slog.Int64("confirmed", confirmed), slog.Int64("unconfirmed", unconfirmed))
 		}
 
 		return nil

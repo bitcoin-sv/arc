@@ -100,7 +100,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	var callbacksData []byte
 	var fullStatusUpdates bool
 	var rejectReason sql.NullString
-	var competingTxs string
+	var competingTxs sql.NullString
 	var rawTx []byte
 	var lockedBy string
 	var merklePath sql.NullString
@@ -173,25 +173,18 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		data.Callbacks = callbacks
 	}
 
-	data.FullStatusUpdates = fullStatusUpdates
-
-	if rejectReason.Valid {
-		data.RejectReason = rejectReason.String
-	}
-
-	if competingTxs != "" {
-		data.CompetingTxs = strings.Split(competingTxs, ",")
-	}
-
-	data.LockedBy = lockedBy
-
-	if merklePath.Valid {
-		data.MerklePath = merklePath.String
-	}
-
 	if retries.Valid {
 		data.Retries = int(retries.Int32)
 	}
+
+	if competingTxs.String != "" {
+		data.CompetingTxs = strings.Split(competingTxs.String, ",")
+	}
+
+	data.FullStatusUpdates = fullStatusUpdates
+	data.RejectReason = rejectReason.String
+	data.LockedBy = lockedBy
+	data.MerklePath = merklePath.String
 
 	return data, nil
 }
@@ -301,7 +294,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		,$12
 		,$13
 		,$14
-	) ON CONFLICT (hash) DO UPDATE SET last_submitted_at=$14`
+	) ON CONFLICT (hash) DO UPDATE SET last_submitted_at=$14, callbacks=$8;`
 
 	var txHash []byte
 	var blockHash []byte
@@ -642,7 +635,8 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			) AS bulk_query
 			WHERE metamorph.transactions.hash=bulk_query.hash
 				AND metamorph.transactions.status <= bulk_query.status
-				AND LENGTH(metamorph.transactions.competing_txs) < LENGTH(bulk_query.competing_txs)
+				AND (metamorph.transactions.competing_txs IS NULL
+						OR LENGTH(metamorph.transactions.competing_txs) < LENGTH(bulk_query.competing_txs))
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.announced_at
 		,metamorph.transactions.mined_at

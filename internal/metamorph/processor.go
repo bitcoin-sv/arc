@@ -274,6 +274,10 @@ func (p *Processor) StartProcessMinedCallbacks() {
 				p.updateMined(txsBlocks)
 				txsBlocks = []*blocktx_api.TransactionBlock{}
 
+				// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
+				// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
+				ticker.Reset(p.processMinedInterval)
+
 			case <-ticker.C:
 				if len(txsBlocks) == 0 {
 					continue
@@ -281,6 +285,10 @@ func (p *Processor) StartProcessMinedCallbacks() {
 
 				p.updateMined(txsBlocks)
 				txsBlocks = []*blocktx_api.TransactionBlock{}
+
+				// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
+				// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
+				ticker.Reset(p.processMinedInterval)
 			}
 		}
 	}()
@@ -315,6 +323,10 @@ func (p *Processor) StartProcessSubmittedTxs() {
 				if len(reqs) > 0 {
 					p.ProcessTransactions(reqs)
 					reqs = make([]*store.StoreData, 0, p.processTransactionsBatchSize)
+
+					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
+					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
+					ticker.Reset(p.processTransactionsInterval)
 				}
 			case submittedTx := <-p.submittedTxsChan:
 				if submittedTx == nil {
@@ -339,6 +351,9 @@ func (p *Processor) StartProcessSubmittedTxs() {
 				if len(reqs) >= p.processTransactionsBatchSize {
 					p.ProcessTransactions(reqs)
 					reqs = make([]*store.StoreData, 0, p.processTransactionsBatchSize)
+
+					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
+					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 					ticker.Reset(p.processTransactionsInterval)
 				}
 			}
@@ -355,8 +370,25 @@ func (p *Processor) StartSendStatusUpdate() {
 			case <-p.ctx.Done():
 				return
 
-			case message := <-p.statusMessageCh:
-				p.SendStatusForTransaction(message)
+			case msg := <-p.statusMessageCh:
+
+				// update status of transaction in storage
+				p.storageStatusUpdateCh <- store.UpdateStatus{
+					Hash:         *msg.Hash,
+					Status:       msg.Status,
+					Error:        msg.Err,
+					CompetingTxs: msg.CompetingTxs,
+				}
+
+				// if we receive new update check if we have client connection waiting for status and send it
+				p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
+					Hash:         msg.Hash,
+					Status:       msg.Status,
+					Err:          msg.Err,
+					CompetingTxs: msg.CompetingTxs,
+				})
+
+				p.logger.Debug("Status reported for tx", slog.String("status", msg.Status.String()), slog.String("hash", msg.Hash.String()))
 			}
 		}
 	}()
@@ -412,11 +444,19 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				if len(statusUpdatesMap) >= p.processStatusUpdatesBatchSize {
 					p.checkAndUpdate(statusUpdatesMap)
 					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
+
+					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
+					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
+					ticker.Reset(p.processStatusUpdatesInterval)
 				}
 			case <-ticker.C:
 				if len(statusUpdatesMap) > 0 {
 					p.checkAndUpdate(statusUpdatesMap)
 					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
+
+					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
+					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
+					ticker.Reset(p.processStatusUpdatesInterval)
 				}
 			}
 		}
@@ -428,7 +468,7 @@ func (p *Processor) checkAndUpdate(statusUpdatesMap map[chainhash.Hash]store.Upd
 		return
 	}
 
-	statusUpdates := make([]store.UpdateStatus, 0, p.processStatusUpdatesBatchSize)
+	statusUpdates := make([]store.UpdateStatus, 0, len(statusUpdatesMap))
 	doubleSpendUpdates := make([]store.UpdateStatus, 0)
 
 	for _, status := range statusUpdatesMap {
@@ -523,7 +563,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 					offset += loadSeenOnNetworkLimit
 					if err != nil {
 						p.logger.Error("Failed to get SeenOnNetwork transactions", slog.String("err", err.Error()))
-						continue
+						break
 					}
 
 					if len(seenOnNetworkTxs) == 0 {
@@ -620,34 +660,15 @@ func (p *Processor) GetPeers() []p2p.PeerI {
 	return p.pm.GetPeers()
 }
 
-func (p *Processor) SendStatusForTransaction(msg *PeerTxMessage) {
-	// make sure we update the transaction status in database
-	p.storageStatusUpdateCh <- store.UpdateStatus{
-		Hash:         *msg.Hash,
-		Status:       msg.Status,
-		Error:        msg.Err,
-		CompetingTxs: msg.CompetingTxs,
-	}
-
-	// if we receive new update check if we have client connection waiting for status and send it
-	p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
-		Hash:         msg.Hash,
-		Status:       msg.Status,
-		Err:          msg.Err,
-		CompetingTxs: msg.CompetingTxs,
-	})
-
-	p.logger.Debug("Status reported for tx", slog.String("status", msg.Status.String()), slog.String("hash", msg.Hash.String()))
-}
-
-func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
-	statusResponse := NewStatusResponse(req.Data.Hash, req.ResponseChannel)
+func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
+	statusResponse := NewStatusResponse(ctx, req.Data.Hash, req.ResponseChannel)
 
 	// check if tx already stored, return it
 	data, err := p.store.Get(p.ctx, req.Data.Hash[:])
 	if err == nil {
 		//	When transaction is re-submitted we update last_submitted_at with now()
 		//	to make sure it will be loaded and re-broadcast if needed.
+		addNewCallback(data, req.Data)
 		err = p.storeData(p.ctx, data)
 		if err != nil {
 			p.logger.Error("Failed to update data", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
@@ -720,9 +741,7 @@ func (p *Processor) ProcessTransaction(req *ProcessorRequest) {
 	}
 
 	// Add this transaction to the map of transactions that client is listening to with open connection
-	if req.Timeout != 0 {
-		p.responseProcessor.Add(statusResponse, req.Timeout)
-	}
+	p.responseProcessor.Add(statusResponse)
 }
 
 func (p *Processor) RequestTransaction(txHash *chainhash.Hash) {
@@ -786,4 +805,23 @@ func (p *Processor) Health() error {
 func (p *Processor) storeData(ctx context.Context, data *store.StoreData) error {
 	data.LastSubmittedAt = p.now()
 	return p.store.Set(ctx, data)
+}
+
+func addNewCallback(data, reqData *store.StoreData) {
+	if reqData.Callbacks == nil {
+		return
+	}
+	reqCallback := reqData.Callbacks[0]
+	if reqCallback.CallbackURL != "" && !callbackExists(reqCallback, data) {
+		data.Callbacks = append(data.Callbacks, reqCallback)
+	}
+}
+
+func callbackExists(callback store.StoreCallback, data *store.StoreData) bool {
+	for _, c := range data.Callbacks {
+		if c == callback {
+			return true
+		}
+	}
+	return false
 }

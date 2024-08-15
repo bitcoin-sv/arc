@@ -1,7 +1,6 @@
 package broadcaster
 
 import (
-	"container/list"
 	"context"
 	"log/slog"
 	"math"
@@ -21,8 +20,6 @@ const (
 type UtxoClient interface {
 	GetUTXOs(ctx context.Context, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error)
 	GetUTXOsWithRetries(ctx context.Context, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) ([]*bt.UTXO, error)
-	GetUTXOsList(ctx context.Context, lockingScript *bscript.Script, address string) (*list.List, error)
-	GetUTXOsListWithRetries(ctx context.Context, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) (*list.List, error)
 	GetBalance(ctx context.Context, address string) (int64, int64, error)
 	GetBalanceWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error)
 	TopUp(ctx context.Context, address string) error

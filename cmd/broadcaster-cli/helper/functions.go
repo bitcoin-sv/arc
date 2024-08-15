@@ -136,8 +136,8 @@ func GetLogger() *slog.Logger {
 	return slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelDebug}))
 }
 
-func GetKeySetsFor(keys map[string]string, selectedKeys []string) ([]*keyset.KeySet, error) {
-	var keySets []*keyset.KeySet
+func GetKeySetsFor(keys map[string]string, selectedKeys []string) (map[string]*keyset.KeySet, error) {
+	keySets := map[string]*keyset.KeySet{}
 
 	if len(keys) == 0 {
 		return nil, fmt.Errorf("no keys given in configuration")
@@ -154,7 +154,7 @@ func GetKeySetsFor(keys map[string]string, selectedKeys []string) ([]*keyset.Key
 			if err != nil {
 				return nil, fmt.Errorf("failed to get selected key set %s: %v", selectedKey, err)
 			}
-			keySets = append(keySets, fundingKeySet)
+			keySets[selectedKey] = fundingKeySet
 		}
 		return keySets, nil
 	}
@@ -164,7 +164,7 @@ func GetKeySetsFor(keys map[string]string, selectedKeys []string) ([]*keyset.Key
 		if err != nil {
 			return nil, fmt.Errorf("failed to get key set with name %s and value %s: %v", name, key, err)
 		}
-		keySets = append(keySets, fundingKeySet)
+		keySets[name] = fundingKeySet
 	}
 	return keySets, nil
 }
@@ -187,7 +187,7 @@ func GetSelectedKeys() ([]string, error) {
 	return keys, nil
 }
 
-func GetKeySets() ([]*keyset.KeySet, error) {
+func GetKeySets() (map[string]*keyset.KeySet, error) {
 	selectedKeys, err := GetSelectedKeys()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get selected keys: %v", err)

@@ -250,7 +250,8 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 
 	logger.Info("Assuming bitcoin network", "network", network)
 
-	messageCh := make(chan *metamorph.PeerTxMessage, 1000)
+
+	messageCh := make(chan *metamorph.PeerTxMessage, 10000)
 	var pmOpts []p2p.PeerManagerOptions
 	if arcConfig.Metamorph.MonitorPeers {
 		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())

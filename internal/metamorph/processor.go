@@ -87,8 +87,8 @@ type Processor struct {
 	processMinedInterval  time.Duration
 	processMinedBatchSize int
 
-	announcedTransactions     []AnnouncedTransaction
-	announcedTransactionsLock sync.Mutex
+	orderedDnnouncedTransactions []AnnouncedTransaction
+	announcedTransactionsLock    sync.Mutex
 }
 
 type AnnouncedTransaction struct {
@@ -128,9 +128,9 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChan
 		maxRetries:                maxRetriesDefault,
 		minimumHealthyConnections: minimumHealthyConnectionsDefault,
 
-		responseProcessor:     NewResponseProcessor(),
-		statusMessageCh:       statusMessageChannel,
-		announcedTransactions: make([]AnnouncedTransaction, 0),
+		responseProcessor:            NewResponseProcessor(),
+		statusMessageCh:              statusMessageChannel,
+		orderedDnnouncedTransactions: make([]AnnouncedTransaction, 0),
 
 		processExpiredTxsInterval:       unseenTransactionRebroadcastingInterval,
 		processSeenOnNetworkTxsInterval: seenOnNetworkTransactionRequestingInterval,
@@ -406,20 +406,21 @@ func (p *Processor) StartCheckingTransactionsInNetwork() {
 
 			case <-ticker.C:
 				p.announcedTransactionsLock.Lock()
-				for k := 0; k < len(p.announcedTransactions); k++ {
-					if p.announcedTransactions[k].second < uint64(time.Now().Unix())-1 {
-						p.logger.Info("requested transaction", slog.String("hash", p.announcedTransactions[k].hash.String()))
-						p.pm.RequestTransaction((*chainhash.Hash)(p.announcedTransactions[k].hash))
-						if k == len(p.announcedTransactions)-1 {
-							p.announcedTransactions = []AnnouncedTransaction{}
+				for k := 0; k < len(p.orderedDnnouncedTransactions); k++ {
+					if p.orderedDnnouncedTransactions[k].second < uint64(p.now().Unix())-1 {
+						p.logger.Info("requested transaction", slog.String("hash", p.orderedDnnouncedTransactions[k].hash.String()))
+						p.pm.RequestTransaction((p.orderedDnnouncedTransactions[k].hash))
+						if k == len(p.orderedDnnouncedTransactions)-1 {
+							p.orderedDnnouncedTransactions = []AnnouncedTransaction{}
 							break
 						}
 					} else {
-						p.announcedTransactions = p.announcedTransactions[k:]
+						p.orderedDnnouncedTransactions = p.orderedDnnouncedTransactions[k:]
 						break
 					}
 				}
 				p.announcedTransactionsLock.Unlock()
+				ticker.Reset(100 * time.Millisecond)
 			}
 		}
 	}()
@@ -747,8 +748,8 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 func (p *Processor) RequestTransaction(txHash *chainhash.Hash) {
 	p.announcedTransactionsLock.Lock()
-	p.announcedTransactions = append(p.announcedTransactions, AnnouncedTransaction{
-		second: uint64(time.Now().Unix()),
+	p.orderedDnnouncedTransactions = append(p.orderedDnnouncedTransactions, AnnouncedTransaction{
+		second: uint64(p.now().Unix()),
 		hash:   txHash,
 	})
 	p.announcedTransactionsLock.Unlock()

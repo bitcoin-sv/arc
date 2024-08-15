@@ -24,7 +24,7 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 			name: "start and shutdown",
 		},
 		{
-			name:     "start and shutdown",
+			name:     "error - failed to start",
 			startErr: errors.New("failed to start"),
 
 			expectedErrorStr: "failed to start",
@@ -61,6 +61,7 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 
 			mcs := broadcaster.NewMultiKeyRateBroadcaster(logger, cs, broadcaster.WithLogInterval(20*time.Millisecond))
 			err := mcs.Start()
+			defer mcs.Shutdown()
 
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
@@ -70,7 +71,6 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 			}
 
 			time.Sleep(50 * time.Millisecond)
-			mcs.Shutdown()
 		})
 	}
 

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -41,6 +42,7 @@ func NewMultiKeyRateBroadcaster(logger *slog.Logger, rbs []RateBroadcaster, opts
 		rbs:         rbs,
 		logger:      logger,
 		logInterval: 2 * time.Second,
+		target:      0,
 	}
 
 	for _, opt := range opts {
@@ -56,9 +58,10 @@ func NewMultiKeyRateBroadcaster(logger *slog.Logger, rbs []RateBroadcaster, opts
 
 func (mrb *MultiKeyRateBroadcaster) Start() error {
 	mrb.logStats()
-	mrb.target = 0
 	for _, rb := range mrb.rbs {
 		err := rb.Start()
+
+		atomic.AddInt64(&mrb.target, rb.GetLimit())
 		if err != nil {
 			return err
 		}
@@ -96,14 +99,13 @@ func (mrb *MultiKeyRateBroadcaster) logStats() {
 				for _, rb := range mrb.rbs {
 					totalTxsCount += rb.GetTxCount()
 					totalConnectionCount += rb.GetConnectionCount()
-					mrb.target += rb.GetLimit()
 					logArgs = append(logArgs, slog.Int(rb.GetKeyName(), rb.GetUtxoSetLen()))
 				}
-
+				target := atomic.LoadInt64(&mrb.target)
 				mrb.logger.Info("stats",
 					slog.Int64("txs", totalTxsCount),
-					slog.Int64("target", mrb.target),
-					slog.Float64("percentage", roundFloat(float64(totalTxsCount)/float64(mrb.target)*100, 2)),
+					slog.Int64("target", target),
+					slog.Float64("percentage", roundFloat(float64(totalTxsCount)/float64(target)*100, 2)),
 					slog.Int64("connections", totalConnectionCount),
 					"utxos", logArgs,
 				)

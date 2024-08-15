@@ -173,18 +173,22 @@ utxoLoop:
 
 			err := tx.FromUTXOs(utxo)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to add input: %v", err)
 			}
 
 			fee := b.calculateFeeSat(tx)
 
 			if utxo.Satoshis <= fee {
+				if len(b.utxoCh) == 0 {
+					return nil, errors.New("no utxos with sufficient funds left")
+				}
+
 				continue
 			}
-
-			err = tx.PayTo(b.ks.Script, utxo.Satoshis-fee)
+			amount := utxo.Satoshis - fee
+			err = tx.PayTo(b.ks.Script, amount)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to pay transaction %d: %v", amount, err)
 			}
 
 			// Todo: Add OP_RETURN with text "ARC testing" so that WoC can tag it
@@ -192,7 +196,7 @@ utxoLoop:
 			unlockerGetter := unlocker.Getter{PrivateKey: b.ks.PrivateKey}
 			err = tx.FillAllInputs(context.Background(), &unlockerGetter)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to fill input transactions: %v", err)
 			}
 
 			b.satoshiMap.Store(tx.TxID(), tx.Outputs[0].Satoshis)

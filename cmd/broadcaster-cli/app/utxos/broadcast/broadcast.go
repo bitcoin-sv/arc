@@ -155,19 +155,14 @@ var Cmd = &cobra.Command{
 		select {
 		case <-signalChan:
 			// If an interrupt signal is received
-			fmt.Println("Shutdown signal received. Shutting down the rate broadcaster.")
+			logger.Info("Shutdown signal received. Shutting down the rate broadcaster.")
 		case err := <-doneChan:
-			// Or wait for the normal completion
-			if err != nil {
-				fmt.Printf("Error during broadcasting: %v\n", err)
-			} else {
-				fmt.Println("Broadcasting completed successfully.")
-			}
+			logger.Error("Error during broadcasting", slog.String("err", err.Error()))
 		}
 
 		// Shutdown the broadcaster in all cases
 		rateBroadcaster.Shutdown()
-		fmt.Println("Broadcaster shutdown complete.")
+		logger.Info("Broadcasting shutdown complete")
 		return nil
 	},
 }

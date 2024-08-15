@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -203,4 +204,16 @@ func GetKeySets() (map[string]*keyset.KeySet, error) {
 	}
 
 	return GetKeySetsFor(keys, selectedKeys)
+}
+
+func GetOrderedKeys[T any](keysMap map[string]T) []string {
+
+	var keys []string
+
+	for key := range keysMap {
+		keys = append(keys, key)
+	}
+
+	sort.Strings(keys)
+	return keys
 }

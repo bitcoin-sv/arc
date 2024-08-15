@@ -3,6 +3,7 @@ package utxos
 import (
 	"context"
 	"errors"
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"log/slog"
 	"sort"
 	"strconv"
@@ -25,7 +26,11 @@ func getUtxosTable(ctx context.Context, logger *slog.Logger, keySets map[string]
 	columns := make([][]row, len(keySets))
 	maxRowNr := 0
 	counter := 0
-	for name, ks := range keySets {
+	names := helper.GetOrderedKeys(keySets)
+
+	for _, name := range names {
+
+		ks := keySets[name]
 		utxos, err := wocClient.GetUTXOsWithRetries(ctx, ks.Script, ks.Address(!isTestnet), 1*time.Second, 5)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {

@@ -24,7 +24,10 @@ var (
 				return err
 			}
 
-			for name, keySet := range keySets {
+			names := helper.GetOrderedKeys(keySets)
+
+			for _, name := range names {
+				keySet := keySets[name]
 
 				logger.Info("address", slog.String("name", name), slog.String("address", keySet.Address(!isTestnet)), slog.String("key", keySet.GetMaster().String()))
 			}

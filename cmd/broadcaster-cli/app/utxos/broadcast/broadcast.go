@@ -157,7 +157,9 @@ var Cmd = &cobra.Command{
 			// If an interrupt signal is received
 			logger.Info("Shutdown signal received. Shutting down the rate broadcaster.")
 		case err := <-doneChan:
-			logger.Error("Error during broadcasting", slog.String("err", err.Error()))
+			if err != nil {
+				logger.Error("Error during broadcasting", slog.String("err", err.Error()))
+			}
 		}
 
 		// Shutdown the broadcaster in all cases

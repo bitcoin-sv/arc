@@ -20,19 +20,31 @@ type RateBroadcaster interface {
 }
 
 type MultiKeyRateBroadcaster struct {
-	rbs       []RateBroadcaster
-	logger    *slog.Logger
-	target    int64
-	cancelAll context.CancelFunc
-	ctx       context.Context
-	wg        sync.WaitGroup
+	rbs         []RateBroadcaster
+	logger      *slog.Logger
+	target      int64
+	cancelAll   context.CancelFunc
+	ctx         context.Context
+	wg          sync.WaitGroup
+	logInterval time.Duration
 }
 
-func NewMultiKeyRateBroadcaster(logger *slog.Logger, rbs []RateBroadcaster) *MultiKeyRateBroadcaster {
+func WithLogInterval(d time.Duration) func(*MultiKeyRateBroadcaster) {
+	return func(p *MultiKeyRateBroadcaster) {
+		p.logInterval = d
+	}
+}
+
+func NewMultiKeyRateBroadcaster(logger *slog.Logger, rbs []RateBroadcaster, opts ...func(client *MultiKeyRateBroadcaster)) *MultiKeyRateBroadcaster {
 
 	mrb := &MultiKeyRateBroadcaster{
-		rbs:    rbs,
-		logger: logger,
+		rbs:         rbs,
+		logger:      logger,
+		logInterval: 2 * time.Second,
+	}
+
+	for _, opt := range opts {
+		opt(mrb)
 	}
 
 	ctx, cancelAll := context.WithCancel(context.Background())
@@ -71,7 +83,7 @@ func (mrb *MultiKeyRateBroadcaster) Shutdown() {
 func (mrb *MultiKeyRateBroadcaster) logStats() {
 	mrb.wg.Add(1)
 
-	logStatsTicker := time.NewTicker(2 * time.Second)
+	logStatsTicker := time.NewTicker(mrb.logInterval)
 
 	go func() {
 		defer mrb.wg.Done()

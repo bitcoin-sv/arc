@@ -2,15 +2,25 @@ package broadcaster
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"log/slog"
 	"math"
 	"sync"
 	"time"
 )
 
+type RateBroadcaster interface {
+	Start() error
+	Wait()
+	Shutdown()
+	GetLimit() int64
+	GetTxCount() int64
+	GetConnectionCount() int64
+	GetUtxoSetLen() int
+	GetKeyName() string
+}
+
 type MultiKeyRateBroadcaster struct {
-	rbs       []*RateBroadcaster
+	rbs       []RateBroadcaster
 	logger    *slog.Logger
 	target    int64
 	cancelAll context.CancelFunc
@@ -18,16 +28,7 @@ type MultiKeyRateBroadcaster struct {
 	wg        sync.WaitGroup
 }
 
-func NewMultiKeyRateBroadcaster(logger *slog.Logger, client ArcClient, keySets []*keyset.KeySet, utxoClient UtxoClient, isTestnet bool, opts ...func(p *Broadcaster)) (*MultiKeyRateBroadcaster, error) {
-	rbs := make([]*RateBroadcaster, 0, len(keySets))
-	for _, ks := range keySets {
-		rb, err := NewRateBroadcaster(logger, client, ks, utxoClient, isTestnet, opts...)
-		if err != nil {
-			return nil, err
-		}
-
-		rbs = append(rbs, rb)
-	}
+func NewMultiKeyRateBroadcaster(logger *slog.Logger, rbs []RateBroadcaster) *MultiKeyRateBroadcaster {
 
 	mrb := &MultiKeyRateBroadcaster{
 		rbs:    rbs,
@@ -38,23 +39,21 @@ func NewMultiKeyRateBroadcaster(logger *slog.Logger, client ArcClient, keySets [
 	mrb.cancelAll = cancelAll
 	mrb.ctx = ctx
 
-	return mrb, nil
+	return mrb
 }
 
-func (mrb *MultiKeyRateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
+func (mrb *MultiKeyRateBroadcaster) Start() error {
 	mrb.logStats()
 	mrb.target = 0
 	for _, rb := range mrb.rbs {
-		err := rb.Start(rateTxsPerSecond, limit)
+		err := rb.Start()
 		if err != nil {
 			return err
 		}
-
-		mrb.target += limit
 	}
 
 	for _, rb := range mrb.rbs {
-		rb.wg.Wait()
+		rb.Wait()
 	}
 
 	return nil
@@ -81,20 +80,20 @@ func (mrb *MultiKeyRateBroadcaster) logStats() {
 			case <-logStatsTicker.C:
 				totalTxsCount := int64(0)
 				totalConnectionCount := int64(0)
-				totalUtxoSetLength := 0
-
+				var logArgs []slog.Attr
 				for _, rb := range mrb.rbs {
 					totalTxsCount += rb.GetTxCount()
 					totalConnectionCount += rb.GetConnectionCount()
-					totalUtxoSetLength += rb.GetUtxoSetLen()
-
+					mrb.target += rb.GetLimit()
+					logArgs = append(logArgs, slog.Int(rb.GetKeyName(), rb.GetUtxoSetLen()))
 				}
+
 				mrb.logger.Info("stats",
 					slog.Int64("txs", totalTxsCount),
 					slog.Int64("target", mrb.target),
 					slog.Float64("percentage", roundFloat(float64(totalTxsCount)/float64(mrb.target)*100, 2)),
 					slog.Int64("connections", totalConnectionCount),
-					slog.Int("utxos", totalUtxoSetLength),
+					"utxos", logArgs,
 				)
 			case <-mrb.ctx.Done():
 				return

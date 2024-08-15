@@ -34,8 +34,10 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		for name, keySet := range keySets {
+		names := helper.GetOrderedKeys(keySets)
 
+		for _, name := range names {
+			keySet := keySets[name]
 			if wocApiKey == "" {
 				time.Sleep(500 * time.Millisecond)
 			}

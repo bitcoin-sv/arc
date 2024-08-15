@@ -62,14 +62,14 @@ func init() {
 		viper.SetConfigName("broadcaster-cli")
 	}
 
-	if viper.ConfigFileUsed() != "" {
-		logger.Info("Config file used", slog.String("filename", viper.ConfigFileUsed()))
-	}
-
 	err = viper.ReadInConfig()
 	if err != nil {
 		logger.Error("failed to read config file", slog.String("err", err.Error()))
 		os.Exit(1)
+	}
+
+	if viper.ConfigFileUsed() != "" {
+		logger.Info("Config file used", slog.String("filename", viper.ConfigFileUsed()))
 	}
 
 	RootCmd.AddCommand(keyset.Cmd)

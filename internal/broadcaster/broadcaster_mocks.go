@@ -8,3 +8,6 @@ package broadcaster
 
 // from mutli_utxo_consolidator.go
 //go:generate moq -pkg mocks -out ./mocks/consolidator_mock.go . Consolidator
+
+// from multi_rate_broadcaster.go
+//go:generate moq -pkg mocks -out ./mocks/rate_broadcaster_mock.go . RateBroadcaster

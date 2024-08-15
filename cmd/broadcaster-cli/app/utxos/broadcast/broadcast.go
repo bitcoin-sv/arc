@@ -129,10 +129,17 @@ var Cmd = &cobra.Command{
 			counter++
 		}
 
-		rateBroadcaster, err := broadcaster.NewMultiKeyRateBroadcaster(logger, client, ks, wocClient, isTestnet, opts...)
-		if err != nil {
-			return fmt.Errorf("failed to create rate broadcaster: %v", err)
+		rbs := make([]broadcaster.RateBroadcaster, 0, len(keySets))
+		for keyName, ks := range keySets {
+			rb, err := broadcaster.NewRateBroadcaster(logger, client, ks, wocClient, isTestnet, keyName, rateTxsPerSecond, limit, opts...)
+			if err != nil {
+				return err
+			}
+
+			rbs = append(rbs, rb)
 		}
+
+		rateBroadcaster := broadcaster.NewMultiKeyRateBroadcaster(logger, rbs)
 
 		doneChan := make(chan error) // Channel to signal the completion of Start
 		signalChan := make(chan os.Signal, 1)
@@ -140,7 +147,7 @@ var Cmd = &cobra.Command{
 
 		go func() {
 			// Start the broadcasting process
-			err := rateBroadcaster.Start(rateTxsPerSecond, limit)
+			err := rateBroadcaster.Start()
 			logger.Info("Starting broadcaster", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", batchSize))
 			doneChan <- err // Send the completion or error signal
 		}()
@@ -148,19 +155,16 @@ var Cmd = &cobra.Command{
 		select {
 		case <-signalChan:
 			// If an interrupt signal is received
-			fmt.Println("Shutdown signal received. Shutting down the rate broadcaster.")
+			logger.Info("Shutdown signal received. Shutting down the rate broadcaster.")
 		case err := <-doneChan:
-			// Or wait for the normal completion
 			if err != nil {
-				fmt.Printf("Error during broadcasting: %v\n", err)
-			} else {
-				fmt.Println("Broadcasting completed successfully.")
+				logger.Error("Error during broadcasting", slog.String("err", err.Error()))
 			}
 		}
 
 		// Shutdown the broadcaster in all cases
 		rateBroadcaster.Shutdown()
-		fmt.Println("Broadcaster shutdown complete.")
+		logger.Info("Broadcasting shutdown complete")
 		return nil
 	},
 }

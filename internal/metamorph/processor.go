@@ -729,7 +729,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	}
 
 	// will be requesting transaction after ~2 seconds to get SEEN_ON_NETWORK status
-	p.RequestTransaction(req.Data.Hash)
+	p.DeferRequestTransaction(req.Data.Hash)
 
 	// update status in response
 	statusResponse.UpdateStatus(StatusAndError{
@@ -746,7 +746,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	p.responseProcessor.Add(statusResponse)
 }
 
-func (p *Processor) RequestTransaction(txHash *chainhash.Hash) {
+func (p *Processor) DeferRequestTransaction(txHash *chainhash.Hash) {
 	p.announcedTransactionsLock.Lock()
 	p.orderedDnnouncedTransactions = append(p.orderedDnnouncedTransactions, AnnouncedTransaction{
 		second: uint64(p.now().Unix()),

@@ -27,6 +27,11 @@ func (c GrpcCallbacker) SendCallback(tx *store.StoreData) {
 	}
 
 	in := toGrpcInput(tx)
+	if in == nil {
+		c.l.Warn("no url to send callback", slog.Any("callbacks", tx.Callbacks))
+		return
+	}
+
 	_, err := c.cc.SendCallback(context.Background(), in)
 	if err != nil {
 		c.l.Error("sending callback failed", slog.String("err", err.Error()), slog.Any("input", in))
@@ -37,10 +42,16 @@ func toGrpcInput(d *store.StoreData) *callbacker_api.SendCallbackRequest {
 	endpoints := make([]*callbacker_api.CallbackEndpoint, 0, len(d.Callbacks))
 
 	for _, c := range d.Callbacks {
-		endpoints = append(endpoints, &callbacker_api.CallbackEndpoint{
-			Url:   c.CallbackURL,
-			Token: c.CallbackToken,
-		})
+		if c.CallbackURL != "" {
+			endpoints = append(endpoints, &callbacker_api.CallbackEndpoint{
+				Url:   c.CallbackURL,
+				Token: c.CallbackToken,
+			})
+		}
+	}
+
+	if len(endpoints) == 0 {
+		return nil
 	}
 
 	in := callbacker_api.SendCallbackRequest{

@@ -104,7 +104,9 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*callbacker_api.He
 func (s *Server) SendCallback(_ context.Context, request *callbacker_api.SendCallbackRequest) (*emptypb.Empty, error) {
 	dto := toCallbackDto(request)
 	for _, callbackEndpoint := range request.CallbackEndpoints {
-		s.callbacker.Send(callbackEndpoint.Url, callbackEndpoint.Token, dto)
+		if callbackEndpoint.Url != "" {
+			s.callbacker.Send(callbackEndpoint.Url, callbackEndpoint.Token, dto)
+		}
 	}
 
 	return nil, nil

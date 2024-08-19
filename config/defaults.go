@@ -23,6 +23,7 @@ func getDefaultArcConfig() *ArcConfig {
 		Blocktx:            getBlocktxConfig(),
 		Api:                getApiConfig(),
 		K8sWatcher:         nil, // optional
+		Callbacker:         getCallbackerConfig(),
 	}
 }
 
@@ -158,6 +159,16 @@ func getDbConfig(dbName string) *DbConfig {
 			MaxIdleConns: 10,
 			MaxOpenConns: 80,
 			SslMode:      "disable",
+		},
+	}
+}
+
+func getCallbackerConfig() *CallbackerConfig {
+	return &CallbackerConfig{
+		ListenAddr: "localhost:8021",
+		DialAddr:   "localhost:8021",
+		Health: &HealthConfig{
+			SeverDialAddr: "localhost:8025",
 		},
 	}
 }

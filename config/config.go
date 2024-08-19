@@ -22,6 +22,7 @@ type ArcConfig struct {
 	Blocktx            *BlocktxConfig      `mapstructure:"blocktx"`
 	Api                *ApiConfig          `mapstructure:"api"`
 	K8sWatcher         *K8sWatcherConfig   `mapstructure:"k8sWatcher"`
+	Callbacker         *CallbackerConfig   `mapstructure:"callbacker"`
 }
 
 type MessageQueueConfig struct {
@@ -119,4 +120,10 @@ type ApiConfig struct {
 
 type K8sWatcherConfig struct {
 	Namespace string `mapstructure:"namespace"`
+}
+
+type CallbackerConfig struct {
+	ListenAddr string        `mapstructure:"listenAddr"`
+	DialAddr   string        `mapstructure:"dialAddr"`
+	Health     *HealthConfig `mapstructure:"health"`
 }

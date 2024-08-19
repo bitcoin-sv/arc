@@ -46,7 +46,7 @@ func (b *UTXOCreator) CreateUtxos(requestedOutputs int, requestedSatoshisPerOutp
 		}
 
 		if unconfirmed > 0 {
-			return fmt.Errorf("total balance not confirmed yet")
+			return errors.New("total balance not confirmed yet")
 		}
 
 		balance := confirmed + unconfirmed

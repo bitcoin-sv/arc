@@ -98,7 +98,7 @@ func TestPutTransaction(t *testing.T) {
 			processorResponse: metamorph.StatusAndError{
 				Hash:   testdata.TX1Hash,
 				Status: metamorph_api.Status_REJECTED,
-				Err:    fmt.Errorf("some error"),
+				Err:    errors.New("some error"),
 			},
 			waitForStatus: metamorph_api.Status_SEEN_ON_NETWORK,
 

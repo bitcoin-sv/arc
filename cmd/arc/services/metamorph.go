@@ -3,16 +3,18 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"log/slog"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -75,16 +77,19 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		mqClient = nats_core.New(natsClient, nats_core.WithLogger(logger))
 	}
 
-	callbacker, err := metamorph.NewCallbacker(&http.Client{Timeout: 5 * time.Second})
+	procLogger := logger.With(slog.String("module", "mtm-proc"))
+
+	callbackerConn, err := initGrpCallbackerConn(arcConfig.Callbacker.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
 	}
+	callbacker := metamorph.NewGrpcCallbacker(callbackerConn, procLogger)
 
 	processorOpts := []metamorph.Option{
 		metamorph.WithCacheExpiryTime(mtmConfig.ProcessorCacheExpiryTime),
 		metamorph.WithSeenOnNetworkTxTimeUntil(mtmConfig.CheckSeenOnNetworkOlderThan),
 		metamorph.WithSeenOnNetworkTxTime(mtmConfig.CheckSeenOnNetworkPeriod),
-		metamorph.WithProcessorLogger(logger.With(slog.String("module", "mtm-proc"))),
+		metamorph.WithProcessorLogger(procLogger),
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithSubmittedTxsChan(submittedTxsChan),
@@ -285,4 +290,17 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 	}
 
 	return pm, peerHandler, messageCh, nil
+}
+
+func initGrpCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int) (callbacker_api.CallbackerAPIClient, error) {
+	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize)
+	if err != nil {
+		return nil, err
+	}
+	callbackerConn, err := grpc.NewClient(address, dialOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return callbacker_api.NewCallbackerAPIClient(callbackerConn), nil
 }

@@ -475,10 +475,9 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
 			callbackSender := &mocks.CallbackSenderMock{
-				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {
+				SendCallbackFunc: func(tx *store.StoreData) {
 					callbackSent <- struct{}{}
 				},
-				ShutdownFunc: func(logger *slog.Logger) {},
 			}
 
 			statusMessageChannel := make(chan *metamorph.PeerTxMessage, 10)
@@ -835,8 +834,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 			minedTxsChan := make(chan *blocktx_api.TransactionBlock, 5)
 			callbackSender := &mocks.CallbackSenderMock{
-				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {},
-				ShutdownFunc:     func(logger *slog.Logger) {},
+				SendCallbackFunc: func(tx *store.StoreData) {},
 			}
 			processor, err := metamorph.NewProcessor(
 				metamorphStore,

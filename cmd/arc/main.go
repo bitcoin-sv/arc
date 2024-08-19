@@ -63,9 +63,10 @@ func run() error {
 	if arcConfig.Tracing != nil {
 		cleanup, err := enableTracing(logger, arcConfig.Tracing.DialAddr)
 		if err != nil {
-			return err
+			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
+		} else {
+			shutdownFns = append(shutdownFns, cleanup)
 		}
-		shutdownFns = append(shutdownFns, cleanup)
 	}
 
 	go func() {

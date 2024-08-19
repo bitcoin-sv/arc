@@ -6,7 +6,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/semconv/v1.24.0"
+	"go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 func NewExporter(ctx context.Context, endpointURL string) (trace.SpanExporter, error) {

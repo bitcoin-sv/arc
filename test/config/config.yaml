@@ -115,3 +115,9 @@ api:
     minconfconsolidationinput: 6
     minconsolidationinputmaturity: 6
     acceptnonstdconsolidationinput: false
+
+callbacker:
+  listenAddr: 0.0.0.0:8021
+  dialAddr: arc-callbacker:8021
+  health:
+    serverDialAddr: localhost:8007

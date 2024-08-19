@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -50,7 +51,7 @@ func main() {
 						return nil
 					}
 
-					return fmt.Errorf("could not authenticate user")
+					return errors.New("could not authenticate user")
 				},
 			},
 		}),

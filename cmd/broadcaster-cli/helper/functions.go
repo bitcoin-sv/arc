@@ -201,7 +201,7 @@ func GetKeySets() (map[string]*keyset.KeySet, error) {
 	}
 
 	if len(keys) == 0 {
-		return nil, fmt.Errorf("no keys given in configuration")
+		return nil, errors.New("no keys given in configuration")
 	}
 
 	return GetKeySetsFor(keys, selectedKeys)

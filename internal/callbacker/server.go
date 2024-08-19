@@ -37,7 +37,7 @@ func WithLogger(logger *slog.Logger) func(*Server) {
 	}
 }
 
-// NewServer will return a server instance with the zmqLogger stored within it
+// NewServer will return a server instance
 func NewServer(callbacker CallbackerI, opts ...ServerOption) *Server {
 	server := &Server{
 		callbacker: callbacker,

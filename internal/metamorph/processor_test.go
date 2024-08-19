@@ -446,7 +446,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			counter := 0
-			callbackSent := make(chan struct{})
+			callbackSent := make(chan struct{}, tc.expectedCallbacks)
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
@@ -498,6 +498,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				}
 			}
 
+			timeoutTimer := time.NewTimer(time.Second * 5)
 			callbackCounter := 0
 			if tc.expectedCallbacks > 0 {
 				select {
@@ -506,7 +507,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 					if callbackCounter == tc.expectedCallbacks {
 						break
 					}
-				case <-time.NewTimer(time.Second * 5).C:
+				case <-timeoutTimer.C:
 					t.Fatal("expected callbacks never sent")
 				}
 			}

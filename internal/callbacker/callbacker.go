@@ -36,12 +36,12 @@ type HttpClient interface {
 }
 
 type Callbacker struct {
-	httpClient      HttpClient
-	wg              sync.WaitGroup
-	mu              sync.Mutex
-	disposed        bool
-	callbackerStats *stats
-	logger          *slog.Logger
+	httpClient HttpClient
+	wg         sync.WaitGroup
+	mu         sync.Mutex
+	disposed   bool
+	stats      *stats
+	logger     *slog.Logger
 }
 
 func New(httpClient HttpClient, logger *slog.Logger) (*Callbacker, error) {
@@ -60,9 +60,9 @@ func New(httpClient HttpClient, logger *slog.Logger) (*Callbacker, error) {
 	}
 
 	callbacker := &Callbacker{
-		httpClient:      httpClient,
-		callbackerStats: stats,
-		logger:          logger.With(slog.String("module", "callbacker")),
+		httpClient: httpClient,
+		stats:      stats,
+		logger:     logger.With(slog.String("module", "callbacker")),
 	}
 
 	return callbacker, nil
@@ -81,12 +81,12 @@ func (p *Callbacker) GracefulStop() {
 	p.wg.Wait()
 
 	unregisterStats(
-		p.callbackerStats.callbackSeenOnNetworkCount,
-		p.callbackerStats.callbackSeenInOrphanMempoolCount,
-		p.callbackerStats.callbackDoubleSpendAttemptedCount,
-		p.callbackerStats.callbackRejectedCount,
-		p.callbackerStats.callbackMinedCount,
-		p.callbackerStats.callbackFailedCount,
+		p.stats.callbackSeenOnNetworkCount,
+		p.stats.callbackSeenInOrphanMempoolCount,
+		p.stats.callbackDoubleSpendAttemptedCount,
+		p.stats.callbackRejectedCount,
+		p.stats.callbackMinedCount,
+		p.stats.callbackFailedCount,
 	)
 
 	p.disposed = true
@@ -120,7 +120,7 @@ func (p *Callbacker) Send(url, token string, dto *Callback) {
 				slog.String("hash", dto.Txid),
 				slog.Int("retries", retries))
 
-			p.callbackerStats.callbackFailedCount.Inc()
+			p.stats.callbackFailedCount.Inc()
 		}
 	}()
 }
@@ -172,7 +172,8 @@ func (p *Callbacker) sendCallback(url, token string, dto *Callback) (ok, retry b
 	defer response.Body.Close()
 
 	ok = response.StatusCode >= http.StatusOK && response.StatusCode < 300
-	return ok, true // return 'retry' true in case statuscode was not a success code
+	retry = !ok
+	return
 }
 
 func (p *Callbacker) updateSuccessStats(txStatus string) {
@@ -180,15 +181,15 @@ func (p *Callbacker) updateSuccessStats(txStatus string) {
 	if ok {
 		switch callbacker_api.Status(status) {
 		case callbacker_api.Status_SEEN_ON_NETWORK:
-			p.callbackerStats.callbackSeenOnNetworkCount.Inc()
+			p.stats.callbackSeenOnNetworkCount.Inc()
 		case callbacker_api.Status_SEEN_IN_ORPHAN_MEMPOOL:
-			p.callbackerStats.callbackSeenInOrphanMempoolCount.Inc()
+			p.stats.callbackSeenInOrphanMempoolCount.Inc()
 		case callbacker_api.Status_DOUBLE_SPEND_ATTEMPTED:
-			p.callbackerStats.callbackDoubleSpendAttemptedCount.Inc()
+			p.stats.callbackDoubleSpendAttemptedCount.Inc()
 		case callbacker_api.Status_MINED:
-			p.callbackerStats.callbackMinedCount.Inc()
+			p.stats.callbackMinedCount.Inc()
 		case callbacker_api.Status_REJECTED:
-			p.callbackerStats.callbackRejectedCount.Inc()
+			p.stats.callbackRejectedCount.Inc()
 		}
 	}
 }

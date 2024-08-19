@@ -173,7 +173,7 @@ services:
       arc-blocktx:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8007", "-service=liveness", "-rpc-timeout=5s"]
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8022", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
       timeout: 5s
       retries: 3

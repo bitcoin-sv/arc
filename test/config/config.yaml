@@ -120,4 +120,4 @@ callbacker:
   listenAddr: 0.0.0.0:8021
   dialAddr: arc-callbacker:8021
   health:
-    serverDialAddr: localhost:8007
+    serverDialAddr: localhost:8022

@@ -16,11 +16,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type CallbackerI interface {
-	Send(url, token string, callback *Callback)
-	Health() error
-}
-
 type Server struct {
 	callbacker_api.UnimplementedCallbackerAPIServer
 	callbacker CallbackerI

@@ -18,7 +18,7 @@ func StartCallbacker(logger *slog.Logger, config *config.ArcConfig) (func(), err
 	logger = logger.With(slog.String("service", "callbacker"))
 	logger.Info("Starting")
 
-	callbackSrv, err := callbacker.New(&http.Client{Timeout: 5 * time.Second}, logger)
+	callbackSrv, err := callbacker.NewSender(&http.Client{Timeout: 5 * time.Second}, logger)
 	if err != nil {
 		return nil, fmt.Errorf("callbacker failed: %v", err)
 	}

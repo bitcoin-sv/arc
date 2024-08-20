@@ -89,7 +89,6 @@ func (s *Server) Shutdown() {
 	s.logger.Info("Shutting down")
 
 	s.grpcServer.GracefulStop()
-	s.grpcServer.Stop()
 
 	s.cleanup()
 	s.logger.Info("Shutted down")

@@ -79,7 +79,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))
 
-	callbackerConn, err := initGrpCallbackerConn(arcConfig.Callbacker.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize)
+	callbackerConn, err := initGrpcCallbackerConn(arcConfig.Callbacker.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
 	}
@@ -292,7 +292,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 	return pm, peerHandler, messageCh, nil
 }
 
-func initGrpCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int) (callbacker_api.CallbackerAPIClient, error) {
+func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int) (callbacker_api.CallbackerAPIClient, error) {
 	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize)
 	if err != nil {
 		return nil, err

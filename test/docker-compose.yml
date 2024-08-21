@@ -162,6 +162,22 @@ services:
       timeout: 5s
       retries: 3
 
+  arc-callbacker:
+    build: ../
+    expose:
+      - "8021"
+    command: [ "./arc", "-callbacker=true", "-config=." ]
+    volumes:
+      - ./config/config.yaml:/service/config.yaml
+    depends_on:
+      arc-blocktx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8022", "-service=liveness", "-rpc-timeout=5s"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   arc-metamorph:
     build: ../
     expose:
@@ -171,6 +187,8 @@ services:
       - ./config/config.yaml:/service/config.yaml
     depends_on:
       arc-blocktx:
+        condition: service_healthy
+      arc-callbacker:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "/bin/grpc_health_probe", "-addr=:8005", "-service=liveness", "-rpc-timeout=5s"]

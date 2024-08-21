@@ -446,7 +446,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			counter := 0
-			callbackSent := make(chan struct{})
+			callbackSent := make(chan struct{}, tc.expectedCallbacks)
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
@@ -475,10 +475,9 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
 			callbackSender := &mocks.CallbackSenderMock{
-				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {
+				SendCallbackFunc: func(tx *store.StoreData) {
 					callbackSent <- struct{}{}
 				},
-				ShutdownFunc: func(logger *slog.Logger) {},
 			}
 
 			statusMessageChannel := make(chan *metamorph.PeerTxMessage, 10)
@@ -499,6 +498,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				}
 			}
 
+			timeoutTimer := time.NewTimer(time.Second * 5)
 			callbackCounter := 0
 			if tc.expectedCallbacks > 0 {
 				select {
@@ -507,7 +507,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 					if callbackCounter == tc.expectedCallbacks {
 						break
 					}
-				case <-time.NewTimer(time.Second * 5).C:
+				case <-timeoutTimer.C:
 					t.Fatal("expected callbacks never sent")
 				}
 			}
@@ -835,8 +835,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 			minedTxsChan := make(chan *blocktx_api.TransactionBlock, 5)
 			callbackSender := &mocks.CallbackSenderMock{
-				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {},
-				ShutdownFunc:     func(logger *slog.Logger) {},
+				SendCallbackFunc: func(tx *store.StoreData) {},
 			}
 			processor, err := metamorph.NewProcessor(
 				metamorphStore,

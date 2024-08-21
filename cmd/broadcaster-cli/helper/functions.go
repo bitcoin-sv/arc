@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -141,7 +142,7 @@ func GetKeySetsFor(keys map[string]string, selectedKeys []string) (map[string]*k
 	keySets := map[string]*keyset.KeySet{}
 
 	if len(keys) == 0 {
-		return nil, fmt.Errorf("no keys given in configuration")
+		return nil, errors.New("no keys given in configuration")
 	}
 
 	if len(selectedKeys) > 0 {
@@ -200,7 +201,7 @@ func GetKeySets() (map[string]*keyset.KeySet, error) {
 	}
 
 	if len(keys) == 0 {
-		return nil, fmt.Errorf("no keys given in configuration")
+		return nil, errors.New("no keys given in configuration")
 	}
 
 	return GetKeySetsFor(keys, selectedKeys)

@@ -91,8 +91,7 @@ type Processor struct {
 type Option func(f *Processor)
 
 type CallbackSender interface {
-	SendCallback(logger *slog.Logger, tx *store.StoreData)
-	Shutdown(logger *slog.Logger)
+	SendCallback(data *store.StoreData)
 }
 
 func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChannel chan *PeerTxMessage, opts ...Option) (*Processor, error) {
@@ -212,10 +211,6 @@ func (p *Processor) Start() error {
 func (p *Processor) Shutdown() {
 	p.logger.Info("Shutting down processor")
 
-	if p.callbackSender != nil {
-		p.callbackSender.Shutdown(p.logger)
-	}
-
 	p.pm.Shutdown()
 
 	err := p.unlockRecords()
@@ -293,7 +288,7 @@ func (p *Processor) updateMined(txsBlocks []*blocktx_api.TransactionBlock) {
 
 	for _, data := range updatedData {
 		if len(data.Callbacks) > 0 {
-			go p.callbackSender.SendCallback(p.logger, data)
+			p.callbackSender.SendCallback(data)
 		}
 	}
 }
@@ -473,7 +468,7 @@ func (p *Processor) statusUpdateWithCallback(statusUpdates, doubleSpendUpdates [
 		}
 
 		if sendCallback && len(data.Callbacks) > 0 {
-			go p.callbackSender.SendCallback(p.logger, data)
+			p.callbackSender.SendCallback(data)
 		}
 	}
 	return nil

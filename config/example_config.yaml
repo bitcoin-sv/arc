@@ -119,3 +119,9 @@ api:
 
 k8sWatcher: # (optional, used only when deploying arc to k8s)
   namespace: arc-testnet
+
+callbacker:
+  listenAddr: localhost:8021 # address space for callbacker to listen on. Can be for example localhost:8021 or :8021 for listening on all addresses
+  dialAddr: localhost:8021 # address for other services to dial callbacker service
+  health:
+    serverDialAddr: localhost:8025 # address at which the grpc health server is exposed

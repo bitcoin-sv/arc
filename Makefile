@@ -27,7 +27,7 @@ build_docker:
 run_e2e_tests:
 	docker compose -f test/docker-compose.yml down --remove-orphans
 	docker compose -f test/docker-compose.yml up --abort-on-container-exit migrate-blocktx migrate-metamorph
-	docker compose -f test/docker-compose.yml up --build --exit-code-from tests tests arc-blocktx arc-metamorph arc --scale arc-blocktx=2 --scale arc-metamorph=2
+	docker compose -f test/docker-compose.yml up --build --exit-code-from tests tests arc-blocktx arc-callbacker arc-metamorph arc --scale arc-blocktx=4 --scale arc-metamorph=2
 	docker compose -f test/docker-compose.yml down
 
 .PHONY: test
@@ -65,10 +65,19 @@ gen:
 	--go-grpc_opt=paths=source_relative \
 	internal/blocktx/blocktx_api/blocktx_api.proto
 
+	protoc \
+	--proto_path=. \
+	--go_out=. \
+	--go_opt=paths=source_relative \
+	--go-grpc_out=. \
+	--go-grpc_opt=paths=source_relative \
+	internal/callbacker/callbacker_api/callbacker_api.proto
+
 .PHONY: clean_gen
 clean_gen:
-	rm -f ./pkg/metamorph/metamorph_api/*.pb.go
-	rm -f ./pkg/blocktx/blocktx_api/*.pb.go
+	rm -f ./internal/metamorph/metamorph_api/*.pb.go
+	rm -f ./internal/blocktx/blocktx_api/*.pb.go
+	rm -f ./internal/callbacker/callbacker_api/*.pb.go
 
 .PHONY: coverage
 coverage:

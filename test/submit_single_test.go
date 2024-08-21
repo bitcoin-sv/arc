@@ -286,9 +286,9 @@ func TestCallback(t *testing.T) {
 						require.Equal(t, Status_MINED, callback.TxStatus)
 
 					case err := <-callbackErrChannels[i]:
-						t.Fatalf("callback received - failed to parse callback %v", err)
+						t.Fatalf("callback %d received - failed to parse callback %v", i, err)
 					case <-callbackTimeout:
-						t.Fatal("callback not received - timeout")
+						t.Fatalf("callback %d not received - timeout", i)
 					}
 				}
 			}

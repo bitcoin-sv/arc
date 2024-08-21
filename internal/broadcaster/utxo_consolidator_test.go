@@ -3,6 +3,11 @@ package broadcaster_test
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -11,10 +16,6 @@ import (
 	"github.com/bitcoin-sv/go-sdk/script"
 	"github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
-	"log/slog"
-	"os"
-	"testing"
-	"time"
 )
 
 func TestStart(t *testing.T) {

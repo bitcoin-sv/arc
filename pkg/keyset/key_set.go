@@ -3,14 +3,14 @@ package keyset
 import (
 	"context"
 	"crypto/rand"
-	primitives "github.com/bitcoin-sv/go-sdk/primitives/ec"
-	"github.com/bitcoin-sv/go-sdk/script"
-	"github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
 
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	bip32 "github.com/bitcoin-sv/go-sdk/compat/bip32"
+	primitives "github.com/bitcoin-sv/go-sdk/primitives/ec"
+	"github.com/bitcoin-sv/go-sdk/script"
+	"github.com/bitcoin-sv/go-sdk/transaction"
 	chaincfg "github.com/bitcoin-sv/go-sdk/transaction/chaincfg"
+	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
 )
 
 type KeySet struct {

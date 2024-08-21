@@ -2,12 +2,12 @@ package defaultvalidator
 
 import (
 	"context"
-	"github.com/bitcoin-sv/go-sdk/transaction"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/internal/validator/default/testdata"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
+	"github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 )
 

@@ -2,9 +2,9 @@ package beef
 
 import (
 	"errors"
-	"github.com/bitcoin-sv/go-sdk/transaction"
 	"testing"
 
+	"github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

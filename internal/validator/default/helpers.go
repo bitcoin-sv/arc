@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/go-sdk/transaction"
 
 	"github.com/bitcoin-sv/arc/internal/validator"
+	"github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 var errParentNotFound = errors.New("parent transaction not found")

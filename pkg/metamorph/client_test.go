@@ -3,19 +3,18 @@ package metamorph_test
 import (
 	"context"
 	"errors"
-	"github.com/bitcoin-sv/go-sdk/transaction"
 	"testing"
 	"time"
-
-	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	apiMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
+	"github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func TestClient_SetUnlockedByName(t *testing.T) {

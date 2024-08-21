@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+
 	"github.com/bitcoin-sv/go-sdk/transaction"
 )
 

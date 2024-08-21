@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/go-sdk/transaction"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -24,6 +23,7 @@ import (
 	txfinder "github.com/bitcoin-sv/arc/pkg/api/handler/internal/TxFinder"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
+	"github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 )

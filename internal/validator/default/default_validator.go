@@ -3,6 +3,7 @@ package defaultvalidator
 import (
 	"context"
 	"fmt"
+
 	"github.com/bitcoin-sv/arc/internal/fees"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"

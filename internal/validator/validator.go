@@ -2,9 +2,9 @@ package validator
 
 import (
 	"context"
-	"github.com/bitcoin-sv/go-sdk/transaction"
 
 	"github.com/bitcoin-sv/arc/internal/beef"
+	"github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 type FeeValidation byte

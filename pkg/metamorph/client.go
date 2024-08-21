@@ -3,7 +3,6 @@ package metamorph
 import (
 	"context"
 	"errors"
-	"github.com/bitcoin-sv/go-sdk/transaction"
 	"log/slog"
 	"os"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/go-sdk/transaction"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 )

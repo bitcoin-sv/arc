@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/go-sdk/transaction"
 	"log/slog"
 	"math"
 	"sync"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
+	"github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 type UTXORateBroadcaster struct {

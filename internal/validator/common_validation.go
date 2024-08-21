@@ -2,6 +2,7 @@ package validator
 
 import (
 	"fmt"
+
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/go-sdk/script"
 	"github.com/bitcoin-sv/go-sdk/script/interpreter"

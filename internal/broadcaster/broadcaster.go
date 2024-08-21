@@ -2,12 +2,12 @@ package broadcaster
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/internal/fees"
-	"github.com/bitcoin-sv/go-sdk/script"
 	"log/slog"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/fees"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/go-sdk/script"
 	"github.com/bitcoin-sv/go-sdk/transaction"
 )
 

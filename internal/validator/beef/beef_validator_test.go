@@ -5,10 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/fees"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/beef"
+	"github.com/bitcoin-sv/arc/internal/fees"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	validation "github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"

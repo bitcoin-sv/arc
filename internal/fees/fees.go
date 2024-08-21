@@ -1,8 +1,9 @@
 package fees
 
 import (
-	"github.com/bitcoin-sv/go-sdk/transaction"
 	"math"
+
+	"github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 type FeeModel interface {

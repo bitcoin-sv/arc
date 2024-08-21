@@ -2,6 +2,7 @@ package beef
 
 import (
 	"errors"
+
 	"github.com/bitcoin-sv/go-sdk/transaction"
 )
 

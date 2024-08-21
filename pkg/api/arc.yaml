@@ -237,7 +237,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorValidatingMerkleRoots'
         473:
-          description: Cumulative Fee too low
+          description: Cumulative Fee validation failed
           content:
             application/json:
               schema:

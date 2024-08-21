@@ -283,7 +283,7 @@ The tests can be executed like this:
 make clean_restart_e2e_test
 ```
 
-The [docker-compose](./test/docker-compose.yml) file also shows the minimum setup that is needed for ARC to run.
+The [docker-compose](./test/docker-compose.yaml) file also shows the minimum setup that is needed for ARC to run.
 
 
 ## Monitoring
@@ -350,7 +350,7 @@ make gen
 
 ### Generate REST API
 
-The rest api is defined in a [yaml file](./api/arc.yml) following the OpenAPI 3.0.0 specification. Before the rest API can be generated install the necessary tools by running
+The rest api is defined in a [yaml file](./api/arc.yaml) following the OpenAPI 3.0.0 specification. Before the rest API can be generated install the necessary tools by running
 ```
 make install_gen
 ```

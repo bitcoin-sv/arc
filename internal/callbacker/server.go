@@ -36,7 +36,7 @@ func WithLogger(logger *slog.Logger) func(*Server) {
 func NewServer(callbacker CallbackerI, opts ...ServerOption) *Server {
 	server := &Server{
 		callbacker: callbacker,
-		logger:     slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})).With(slog.String("service", "callbacker")),
+		logger:     slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})).With(slog.String("module", "server")),
 	}
 
 	for _, opt := range opts {
@@ -80,7 +80,7 @@ func (s *Server) Serve(address string, grpcMessageSize int, prometheusEndpoint s
 	return nil
 }
 
-func (s *Server) Shutdown() {
+func (s *Server) GracefulStop() {
 	s.logger.Info("Shutting down")
 
 	s.grpcServer.GracefulStop()

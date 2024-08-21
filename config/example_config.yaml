@@ -125,3 +125,4 @@ callbacker:
   dialAddr: localhost:8021 # address for other services to dial callbacker service
   health:
     serverDialAddr: localhost:8025 # address at which the grpc health server is exposed
+  pause: 0s # pause between sending next callback to the same receiver

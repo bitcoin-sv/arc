@@ -170,5 +170,6 @@ func getCallbackerConfig() *CallbackerConfig {
 		Health: &HealthConfig{
 			SeverDialAddr: "localhost:8025",
 		},
+		Pause: 0,
 	}
 }

@@ -1,19 +1,16 @@
 package test
 
 import (
-	"context"
-	"encoding/hex"
 	"fmt"
+	"github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
+	"github.com/bitcoinsv/bsvutil"
+
+	ec "github.com/bitcoin-sv/go-sdk/primitives/ec"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/bitcoinsv/bsvd/bsvec"
-	"github.com/bitcoinsv/bsvutil"
-	"github.com/libsv/go-bk/bec"
-	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-bt/v2/bscript"
-	"github.com/libsv/go-bt/v2/unlocker"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,8 +27,10 @@ func TestBatchChainedTxs(t *testing.T) {
 
 		request := make([]TransactionRequest, len(txs))
 		for i, tx := range txs {
+			rawTx, err := tx.EFHex()
+			require.NoError(t, err)
 			request[i] = TransactionRequest{
-				RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+				RawTx: rawTx,
 			}
 		}
 
@@ -53,8 +52,8 @@ func TestBatchChainedTxs(t *testing.T) {
 	})
 }
 
-func createTxChain(privateKey string, utxo0 NodeUnspentUtxo, length int) ([]*bt.Tx, error) {
-	batch := make([]*bt.Tx, length)
+func createTxChain(privateKey string, utxo0 NodeUnspentUtxo, length int) ([]*transaction.Transaction, error) {
+	batch := make([]*transaction.Transaction, length)
 
 	utxoTxID := utxo0.Txid
 	utxoVout := uint32(utxo0.Vout)
@@ -63,40 +62,46 @@ func createTxChain(privateKey string, utxo0 NodeUnspentUtxo, length int) ([]*bt.
 	utxoAddress := utxo0.Address
 
 	for i := 0; i < length; i++ {
-		tx := bt.NewTx()
+		tx := transaction.NewTransaction()
 
-		err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
+		utxo, err := transaction.NewUTXO(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
+		if err != nil {
+			return nil, fmt.Errorf("failed creating UTXO: %v", err)
+		}
+
+		err = tx.AddInputsFromUTXOs(utxo)
 		if err != nil {
 			return nil, fmt.Errorf("failed adding input: %v", err)
 		}
 
 		amountToSend := utxoSatoshis - feeSat
 
-		recipientScript, err := bscript.NewP2PKHFromAddress(utxoAddress)
+		err = tx.PayToAddress(utxoAddress, amountToSend)
 		if err != nil {
-			return nil, fmt.Errorf("failed converting address to script: %v", err)
-		}
-
-		err = tx.PayTo(recipientScript, amountToSend)
-		if err != nil {
-			return nil, fmt.Errorf("failed adding output: %v", err)
+			return nil, fmt.Errorf("failed to pay to address: %v", err)
 		}
 
 		// Sign the input
-
 		wif, err := bsvutil.DecodeWIF(privateKey)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode WIF: %v", err)
+			return nil, err
 		}
 
-		// Extract raw private key bytes directly from the WIF structure
 		privateKeyDecoded := wif.PrivKey.Serialize()
+		pk, _ := ec.PrivateKeyFromBytes(privateKeyDecoded)
 
-		pk, _ := bec.PrivKeyFromBytes(bsvec.S256(), privateKeyDecoded)
-		unlockerGetter := unlocker.Getter{PrivateKey: pk}
-		err = tx.FillAllInputs(context.Background(), &unlockerGetter)
+		unlockingScriptTemplate, err := p2pkh.Unlock(pk, nil)
 		if err != nil {
-			return nil, fmt.Errorf("sign failed: %v", err)
+			return nil, err
+		}
+
+		for _, input := range tx.Inputs {
+			input.UnlockingScriptTemplate = unlockingScriptTemplate
+		}
+
+		err = tx.Sign()
+		if err != nil {
+			return nil, err
 		}
 
 		batch[i] = tx

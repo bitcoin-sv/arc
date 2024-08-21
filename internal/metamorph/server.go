@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/bitcoin-sv/go-sdk/util"
 	"log/slog"
 	"net"
 	"os"
@@ -15,7 +16,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
@@ -421,7 +421,7 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 		return nil, nil, nil, nil, err
 	}
 
-	hash := bt.ReverseBytes(txBytes)
+	hash := util.ReverseBytes(txBytes)
 
 	var data *store.StoreData
 	data, err = s.store.Get(ctx, hash)
@@ -454,7 +454,7 @@ func (s *Server) getTransactions(ctx context.Context, req *metamorph_api.Transac
 			return nil, err
 		}
 
-		keys = append(keys, bt.ReverseBytes(idBytes))
+		keys = append(keys, util.ReverseBytes(idBytes))
 	}
 
 	return s.store.GetMany(ctx, keys)

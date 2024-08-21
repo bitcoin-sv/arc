@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/bitcoin-sv/go-sdk/transaction"
 	"log/slog"
 	"math"
 	"sync"
@@ -13,8 +14,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-bt/v2/unlocker"
 )
 
 type UTXORateBroadcaster struct {
@@ -22,7 +21,7 @@ type UTXORateBroadcaster struct {
 	totalTxs         int64
 	connectionCount  int64
 	shutdown         chan struct{}
-	utxoCh           chan *bt.UTXO
+	utxoCh           chan *transaction.UTXO
 	wg               sync.WaitGroup
 	satoshiMap       sync.Map
 	ks               *keyset.KeySet
@@ -53,27 +52,8 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet
 	return rb, nil
 }
 
-func (b *UTXORateBroadcaster) calculateFeeSat(tx *bt.Tx) uint64 {
-	size, err := tx.EstimateSizeWithTypes()
-	if err != nil {
-		return 0
-	}
-	varIntUpper := bt.VarInt(tx.OutputCount()).UpperLimitInc()
-	if varIntUpper == -1 {
-		return 0
-	}
-
-	changeOutputFee := varIntUpper
-	changeP2pkhByteLen := uint64(8 + 1 + 25)
-
-	totalBytes := size.TotalStdBytes + changeP2pkhByteLen
-
-	miningFeeSat := float64(totalBytes*uint64(b.standardMiningFee.Satoshis)) / float64(b.standardMiningFee.Bytes)
-
-	sFees := uint64(math.Ceil(miningFeeSat))
-	txFees := sFees + uint64(changeOutputFee)
-
-	return txFees
+func (b *UTXORateBroadcaster) calculateFeeSat(tx *transaction.Transaction) uint64 {
+	return CalculateFeeSat(tx, b.standardMiningFee)
 }
 
 func (b *UTXORateBroadcaster) Start() error {
@@ -114,7 +94,7 @@ func (b *UTXORateBroadcaster) Start() error {
 		return fmt.Errorf("size of utxo set %d is smaller than requested batch size %d - create more utxos first", len(utxoSet), b.batchSize)
 	}
 
-	b.utxoCh = make(chan *bt.UTXO, 100000)
+	b.utxoCh = make(chan *transaction.UTXO, 100000)
 	for _, utxo := range utxoSet {
 		b.utxoCh <- utxo
 	}
@@ -160,8 +140,8 @@ func (b *UTXORateBroadcaster) Start() error {
 	return nil
 }
 
-func (b *UTXORateBroadcaster) createSelfPayingTxs() ([]*bt.Tx, error) {
-	txs := make([]*bt.Tx, 0, b.batchSize)
+func (b *UTXORateBroadcaster) createSelfPayingTxs() (transaction.Transactions, error) {
+	txs := make(transaction.Transactions, 0, b.batchSize)
 
 utxoLoop:
 	for {
@@ -169,9 +149,9 @@ utxoLoop:
 		case <-b.ctx.Done():
 			return txs, nil
 		case utxo := <-b.utxoCh:
-			tx := bt.NewTx()
+			tx := &transaction.Transaction{}
 
-			err := tx.FromUTXOs(utxo)
+			err := tx.AddInputsFromUTXOs(utxo)
 			if err != nil {
 				return nil, fmt.Errorf("failed to add input: %v", err)
 			}
@@ -186,15 +166,17 @@ utxoLoop:
 				continue
 			}
 			amount := utxo.Satoshis - fee
-			err = tx.PayTo(b.ks.Script, amount)
+			err = PayTo(tx, b.ks.Script, amount)
 			if err != nil {
 				return nil, fmt.Errorf("failed to pay transaction %d: %v", amount, err)
 			}
 
-			// Todo: Add OP_RETURN with text "ARC testing" so that WoC can tag it
+			err = tx.AddOpReturnOutput([]byte("ARC testing"))
+			if err != nil {
+				return nil, err
+			}
 
-			unlockerGetter := unlocker.Getter{PrivateKey: b.ks.PrivateKey}
-			err = tx.FillAllInputs(context.Background(), &unlockerGetter)
+			err = SignAllInputs(tx, b.ks.PrivateKey)
 			if err != nil {
 				return nil, fmt.Errorf("failed to fill input transactions: %v", err)
 			}
@@ -212,7 +194,7 @@ utxoLoop:
 	return txs, nil
 }
 
-func (b *UTXORateBroadcaster) broadcastBatchAsync(txs []*bt.Tx, errCh chan error, waitForStatus metamorph_api.Status) {
+func (b *UTXORateBroadcaster) broadcastBatchAsync(txs transaction.Transactions, errCh chan error, waitForStatus metamorph_api.Status) {
 	b.wg.Add(1)
 	go func() {
 		defer b.wg.Done()
@@ -228,11 +210,11 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs []*bt.Tx, errCh chan error
 			// In case of error put utxos back in channel
 			for _, tx := range txs {
 				for _, input := range tx.Inputs {
-					unusedUtxo := &bt.UTXO{
-						TxID:          input.PreviousTxID(),
+					unusedUtxo := &transaction.UTXO{
+						TxID:          input.SourceTXID,
 						Vout:          0,
 						LockingScript: b.ks.Script,
-						Satoshis:      input.PreviousTxSatoshis,
+						Satoshis:      *input.SourceTxSatoshis(),
 					}
 					b.utxoCh <- unusedUtxo
 				}
@@ -259,7 +241,7 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs []*bt.Tx, errCh chan error
 			satoshis, isValid := sat.(uint64)
 
 			if found && isValid {
-				newUtxo := &bt.UTXO{
+				newUtxo := &transaction.UTXO{
 					TxID:          txIDBytes,
 					Vout:          0,
 					LockingScript: b.ks.Script,

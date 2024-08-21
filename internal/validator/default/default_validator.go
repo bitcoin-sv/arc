@@ -3,10 +3,10 @@ package defaultvalidator
 import (
 	"context"
 	"fmt"
-
+	"github.com/bitcoin-sv/arc/internal/fees"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/libsv/go-bt/v2"
+	"github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
 )
 
@@ -22,7 +22,7 @@ func New(policy *bitcoin.Settings, finder validator.TxFinderI) *DefaultValidator
 	}
 }
 
-func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *bt.Tx, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) error { //nolint:funlen - mostly comments
+func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *transaction.Transaction, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) error { //nolint:funlen - mostly comments
 	// 0) Check whether we have a complete transaction in extended format, with all input information
 	//    we cannot check the satoshi input, OP_RETURN is allowed 0 satoshis
 	if needsExtension(tx, feeValidation, scriptValidation) {
@@ -42,11 +42,11 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *bt.Tx, f
 	// 11) Reject if transaction fee would be too low (minRelayTxFee) to get into an empty block.
 	switch feeValidation {
 	case validator.StandardFeeValidation:
-		if err := standardCheckFees(tx, api.FeesToBtFeeQuote(v.policy.MinMiningTxFee)); err != nil {
+		if err := standardCheckFees(tx, api.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
 			return err
 		}
 	case validator.CumulativeFeeValidation:
-		if err := cumulativeCheckFees(ctx, v.txFinder, tx, api.FeesToBtFeeQuote(v.policy.MinMiningTxFee), v.policy.LimitCPFPGroupMembersCount); err != nil {
+		if err := cumulativeCheckFees(ctx, v.txFinder, tx, api.FeesToFeeModel(v.policy.MinMiningTxFee), v.policy.LimitCPFPGroupMembersCount); err != nil {
 			return err
 		}
 	case validator.NoneFeeValidation:
@@ -64,7 +64,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *bt.Tx, f
 	return nil
 }
 
-func needsExtension(tx *bt.Tx, fv validator.FeeValidation, sv validator.ScriptValidation) bool {
+func needsExtension(tx *transaction.Transaction, fv validator.FeeValidation, sv validator.ScriptValidation) bool {
 	// don't need if we don't validate fee AND scripts
 	if fv == validator.NoneFeeValidation && sv == validator.NoneScriptValidation {
 		return false
@@ -74,13 +74,13 @@ func needsExtension(tx *bt.Tx, fv validator.FeeValidation, sv validator.ScriptVa
 	return !isExtended(tx)
 }
 
-func isExtended(tx *bt.Tx) bool {
+func isExtended(tx *transaction.Transaction) bool {
 	if tx == nil || tx.Inputs == nil {
 		return false
 	}
 
 	for _, input := range tx.Inputs {
-		if input.PreviousTxScript == nil || (input.PreviousTxSatoshis == 0 && !input.PreviousTxScript.IsData()) {
+		if input.SourceTxScript() == nil || (*input.SourceTxSatoshis() == 0 && !input.SourceTxScript().IsData()) {
 			return false
 		}
 	}
@@ -88,8 +88,8 @@ func isExtended(tx *bt.Tx) bool {
 	return true
 }
 
-func standardCheckFees(tx *bt.Tx, feeQuote *bt.FeeQuote) *validator.Error {
-	feesOK, expFeesPaid, actualFeePaid, err := isFeePaidEnough(feeQuote, tx)
+func standardCheckFees(tx *transaction.Transaction, feeModel transaction.FeeModel) *validator.Error {
+	feesOK, expFeesPaid, actualFeePaid, err := isFeePaidEnough(feeModel, tx)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusFees)
 	}
@@ -102,7 +102,7 @@ func standardCheckFees(tx *bt.Tx, feeQuote *bt.FeeQuote) *validator.Error {
 	return nil
 }
 
-func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *bt.Tx, feeQuote *bt.FeeQuote, unminedAncestorsLimit int) *validator.Error {
+func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *transaction.Transaction, feeModel *fees.SatoshisPerKilobyte, unminedAncestorsLimit int) *validator.Error {
 	txSet, err := getUnminedAncestors(ctx, txFinder, tx)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
@@ -114,19 +114,20 @@ func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 
 	txSet[""] = tx // do not need to care about key in the set
 
-	cumulativeSize := bt.TxSize{}
+	cumulativeSize := 0
 	cumulativePaidFee := uint64(0)
 
 	for _, tx := range txSet {
-		size := tx.SizeWithTypes()
-		cumulativeSize.TotalBytes += size.TotalBytes
-		cumulativeSize.TotalDataBytes += size.TotalDataBytes
-		cumulativeSize.TotalStdBytes += size.TotalStdBytes
+		cumulativeSize += tx.Size()
+		//cumulativeSize.TotalBytes += size.TotalBytes
+		//cumulativeSize.TotalDataBytes += size.TotalDataBytes
+		//cumulativeSize.TotalStdBytes += size.TotalStdBytes
 
 		cumulativePaidFee += tx.TotalInputSatoshis() - tx.TotalOutputSatoshis()
 	}
 
-	expectedFee, err := validator.CalculateMiningFeesRequired(&cumulativeSize, feeQuote)
+	//expectedFee, err := validator.CalculateMiningFeesRequired(&cumulativeSize, feeQuote)
+	expectedFee, err := feeModel.ComputeFeeBasedOnSize(uint64(cumulativeSize))
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}
@@ -139,8 +140,9 @@ func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 	return nil
 }
 
-func isFeePaidEnough(fees *bt.FeeQuote, tx *bt.Tx) (bool, uint64, uint64, error) {
-	expFeesPaid, err := validator.CalculateMiningFeesRequired(tx.SizeWithTypes(), fees)
+func isFeePaidEnough(feeModel transaction.FeeModel, tx *transaction.Transaction) (bool, uint64, uint64, error) {
+	//expFeesPaid, err := validator.CalculateMiningFeesRequired(tx.SizeWithTypes(), fees)
+	expFeesPaid, err := feeModel.ComputeFee(tx)
 	if err != nil {
 		return false, 0, 0, err
 	}
@@ -156,11 +158,11 @@ func isFeePaidEnough(fees *bt.FeeQuote, tx *bt.Tx) (bool, uint64, uint64, error)
 	return actualFeePaid >= expFeesPaid, expFeesPaid, actualFeePaid, nil
 }
 
-func checkScripts(tx *bt.Tx) error {
+func checkScripts(tx *transaction.Transaction) error {
 	for i, in := range tx.Inputs {
-		prevOutput := &bt.Output{
-			Satoshis:      in.PreviousTxSatoshis,
-			LockingScript: in.PreviousTxScript,
+		prevOutput := &transaction.TransactionOutput{
+			Satoshis:      *in.SourceTxSatoshis(),
+			LockingScript: in.SourceTxScript(),
 		}
 
 		if err := validator.CheckScript(tx, i, prevOutput); err != nil {

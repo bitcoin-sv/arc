@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"github.com/bitcoin-sv/arc/internal/beef"
+	"github.com/bitcoin-sv/arc/internal/fees"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/libsv/go-bc"
-	"github.com/libsv/go-bt/v2"
+	"github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
 )
 
@@ -25,8 +24,8 @@ func New(policy *bitcoin.Settings, mrVerifier validator.MerkleVerifierI) *BeefVa
 	}
 }
 
-func (v *BeefValidator) ValidateTransaction(ctx context.Context, beefTx *beef.BEEF, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (*bt.Tx, error) {
-	feeQuote := api.FeesToBtFeeQuote(v.policy.MinMiningTxFee)
+func (v *BeefValidator) ValidateTransaction(ctx context.Context, beefTx *beef.BEEF, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (*transaction.Transaction, error) {
+	feeModel := api.FeesToFeeModel(v.policy.MinMiningTxFee)
 
 	for _, btx := range beefTx.Transactions {
 		// verify only unmined transactions
@@ -41,7 +40,7 @@ func (v *BeefValidator) ValidateTransaction(ctx context.Context, beefTx *beef.BE
 		}
 
 		if feeValidation == validator.StandardFeeValidation {
-			if err := standardCheckFees(tx, beefTx, feeQuote); err != nil {
+			if err := standardCheckFees(tx, beefTx, feeModel); err != nil {
 				return tx, err
 			}
 		}
@@ -54,7 +53,7 @@ func (v *BeefValidator) ValidateTransaction(ctx context.Context, beefTx *beef.BE
 	}
 
 	if feeValidation == validator.CumulativeFeeValidation {
-		if err := cumulativeCheckFees(beefTx, feeQuote, v.policy.LimitCPFPGroupMembersCount); err != nil {
+		if err := cumulativeCheckFees(beefTx, feeModel, v.policy.LimitCPFPGroupMembersCount); err != nil {
 			return beefTx.GetLatestTx(), err
 		}
 	}
@@ -70,8 +69,8 @@ func (v *BeefValidator) ValidateTransaction(ctx context.Context, beefTx *beef.BE
 	return nil, nil
 }
 
-func standardCheckFees(tx *bt.Tx, beefTx *beef.BEEF, feeQuote *bt.FeeQuote) *validator.Error {
-	expectedFees, err := validator.CalculateMiningFeesRequired(tx.SizeWithTypes(), feeQuote)
+func standardCheckFees(tx *transaction.Transaction, beefTx *beef.BEEF, feeModel transaction.FeeModel) *validator.Error {
+	expectedFees, err := feeModel.ComputeFee(tx)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusFees)
 	}
@@ -96,9 +95,9 @@ func standardCheckFees(tx *bt.Tx, beefTx *beef.BEEF, feeQuote *bt.FeeQuote) *val
 	return nil
 }
 
-func cumulativeCheckFees(beefTx *beef.BEEF, feeQuote *bt.FeeQuote, unminedAncestorsLimit int) *validator.Error {
-	cumulativeSize := bt.TxSize{}
+func cumulativeCheckFees(beefTx *beef.BEEF, feeModel *fees.SatoshisPerKilobyte, unminedAncestorsLimit int) *validator.Error {
 	cumulativePaidFee := uint64(0)
+	expectedFees := uint64(0)
 	unminedAncestorsCount := 0
 
 	for _, bTx := range beefTx.Transactions {
@@ -112,33 +111,29 @@ func cumulativeCheckFees(beefTx *beef.BEEF, feeQuote *bt.FeeQuote, unminedAncest
 
 		tx := bTx.Transaction
 
-		size := tx.SizeWithTypes()
-		cumulativeSize.TotalBytes += size.TotalBytes
-		cumulativeSize.TotalDataBytes += size.TotalDataBytes
-		cumulativeSize.TotalStdBytes += size.TotalStdBytes
-
 		totalInputSatoshis, totalOutputSatoshis, err := calculateInputsOutputsSatoshis(tx, beefTx.Transactions)
 		if err != nil {
 			return validator.NewError(err, api.ErrStatusCumulativeFees)
 		}
 
-		cumulativePaidFee += (totalInputSatoshis - totalOutputSatoshis)
+		cumulativePaidFee += totalInputSatoshis - totalOutputSatoshis
+
+		expectedFee, err := feeModel.ComputeFee(tx)
+		if err != nil {
+			return validator.NewError(err, api.ErrStatusCumulativeFees)
+		}
+		expectedFees += expectedFee
 	}
 
-	expectedFee, err := validator.CalculateMiningFeesRequired(&cumulativeSize, feeQuote)
-	if err != nil {
-		return validator.NewError(err, api.ErrStatusCumulativeFees)
-	}
-
-	if expectedFee > cumulativePaidFee {
-		err := fmt.Errorf("cumulative transaction fee of %d sat is too low - minimum expected fee is %d sat", cumulativePaidFee, expectedFee)
+	if expectedFees > cumulativePaidFee {
+		err := fmt.Errorf("cumulative transaction fee of %d sat is too low - minimum expected fee is %d sat", cumulativePaidFee, expectedFees)
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}
 
 	return nil
 }
 
-func calculateInputsOutputsSatoshis(tx *bt.Tx, inputTxs []*beef.TxData) (uint64, uint64, error) {
+func calculateInputsOutputsSatoshis(tx *transaction.Transaction, inputTxs []*beef.TxData) (uint64, uint64, error) {
 	inputSum := uint64(0)
 
 	for _, input := range tx.Inputs {
@@ -148,7 +143,7 @@ func calculateInputsOutputsSatoshis(tx *bt.Tx, inputTxs []*beef.TxData) (uint64,
 			return 0, 0, errors.New("invalid parent transactions, no matching trasactions for input")
 		}
 
-		inputSum += inputParentTx.Transaction.Outputs[input.PreviousTxOutIndex].Satoshis
+		inputSum += inputParentTx.Transaction.Outputs[input.SourceTxOutIndex].Satoshis
 	}
 
 	outputSum := tx.TotalOutputSatoshis()
@@ -156,7 +151,7 @@ func calculateInputsOutputsSatoshis(tx *bt.Tx, inputTxs []*beef.TxData) (uint64,
 	return inputSum, outputSum, nil
 }
 
-func validateScripts(tx *bt.Tx, inputTxs []*beef.TxData) *validator.Error {
+func validateScripts(tx *transaction.Transaction, inputTxs []*beef.TxData) *validator.Error {
 	for i, input := range tx.Inputs {
 		inputParentTx := findParentForInput(input, inputTxs)
 		if inputParentTx == nil {
@@ -191,14 +186,14 @@ func verifyMerkleRoots(ctx context.Context, v validator.MerkleVerifierI, beefTx 
 	return nil
 }
 
-func checkScripts(tx, prevTx *bt.Tx, inputIdx int) error {
+func checkScripts(tx, prevTx *transaction.Transaction, inputIdx int) error {
 	input := tx.InputIdx(inputIdx)
-	prevOutput := prevTx.OutputIdx(int(input.PreviousTxOutIndex))
+	prevOutput := prevTx.OutputIdx(int(input.SourceTxOutIndex))
 
 	return validator.CheckScript(tx, inputIdx, prevOutput)
 }
 
-func ensureAncestorsArePresentInBump(tx *bt.Tx, beefTx *beef.BEEF) *validator.Error {
+func ensureAncestorsArePresentInBump(tx *transaction.Transaction, beefTx *beef.BEEF) *validator.Error {
 	minedAncestors := make([]*beef.TxData, 0)
 
 	for _, input := range tx.Inputs {
@@ -217,7 +212,7 @@ func ensureAncestorsArePresentInBump(tx *bt.Tx, beefTx *beef.BEEF) *validator.Er
 	return nil
 }
 
-func findMinedAncestorsForInput(input *bt.Input, ancestors []*beef.TxData, minedAncestors *[]*beef.TxData) error {
+func findMinedAncestorsForInput(input *transaction.TransactionInput, ancestors []*beef.TxData, minedAncestors *[]*beef.TxData) error {
 	parent := findParentForInput(input, ancestors)
 	if parent == nil {
 		return fmt.Errorf("invalid BUMP - cannot find mined parent for input %s", input.String())
@@ -238,7 +233,7 @@ func findMinedAncestorsForInput(input *bt.Input, ancestors []*beef.TxData, mined
 	return nil
 }
 
-func findParentForInput(input *bt.Input, parentTxs []*beef.TxData) *beef.TxData {
+func findParentForInput(input *transaction.TransactionInput, parentTxs []*beef.TxData) *beef.TxData {
 	parentID := input.PreviousTxIDStr()
 
 	for _, ptx := range parentTxs {
@@ -250,7 +245,7 @@ func findParentForInput(input *bt.Input, parentTxs []*beef.TxData) *beef.TxData 
 	return nil
 }
 
-func existsInBumps(tx *beef.TxData, bumps []*bc.BUMP) bool {
+func existsInBumps(tx *beef.TxData, bumps []*transaction.MerklePath) bool {
 	bumpIdx := int(*tx.BumpIndex)
 	txID := tx.GetTxID()
 
@@ -258,7 +253,7 @@ func existsInBumps(tx *beef.TxData, bumps []*bc.BUMP) bool {
 		leafs := bumps[bumpIdx].Path[0]
 
 		for _, lf := range leafs {
-			if txID == *lf.Hash {
+			if txID == lf.Hash.String() {
 				return true
 			}
 		}

@@ -1,14 +1,11 @@
 package validator
 
 import (
-	"encoding/hex"
 	"fmt"
-	"math"
-
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/libsv/go-bt/bscript"
-	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-bt/v2/bscript/interpreter"
+	"github.com/bitcoin-sv/go-sdk/script"
+	"github.com/bitcoin-sv/go-sdk/script/interpreter"
+	"github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
 )
 
@@ -21,33 +18,7 @@ const (
 	minTxSizeBytes                     = 61
 )
 
-func CalculateMiningFeesRequired(size *bt.TxSize, fees *bt.FeeQuote) (uint64, error) {
-	var feesRequired float64
-
-	feeStandard, err := fees.Fee(bt.FeeTypeStandard)
-	if err != nil {
-		return 0, err
-	}
-
-	feesRequired += float64(size.TotalStdBytes) * float64(feeStandard.MiningFee.Satoshis) / float64(feeStandard.MiningFee.Bytes)
-
-	feeData, err := fees.Fee(bt.FeeTypeData)
-	if err != nil {
-		return 0, err
-	}
-
-	feesRequired += float64(size.TotalDataBytes) * float64(feeData.MiningFee.Satoshis) / float64(feeData.MiningFee.Bytes)
-
-	// the minimum fees required is 1 satoshi
-	feesRequiredRounded := uint64(math.Round(feesRequired))
-	if feesRequiredRounded < 1 {
-		feesRequiredRounded = 1
-	}
-
-	return feesRequiredRounded, nil
-}
-
-func CommonValidateTransaction(policy *bitcoin.Settings, tx *bt.Tx) *Error {
+func CommonValidateTransaction(policy *bitcoin.Settings, tx *transaction.Transaction) *Error {
 	//
 	// Each node will verify every transaction against a long checklist of criteria:
 	//
@@ -110,12 +81,12 @@ func checkTxSize(txSize int, policy *bitcoin.Settings) error {
 	return nil
 }
 
-func checkOutputs(tx *bt.Tx) *Error {
+func checkOutputs(tx *transaction.Transaction) *Error {
 	total := uint64(0)
 	for index, output := range tx.Outputs {
 		isData := output.LockingScript.IsData()
 		switch {
-		case !isData && (output.Satoshis > maxSatoshis || output.Satoshis < bt.DustLimit):
+		case !isData && (output.Satoshis > maxSatoshis || output.Satoshis < DustLimit):
 			return NewError(fmt.Errorf("transaction output %d satoshis is invalid", index), api.ErrStatusOutputs)
 		case isData && output.Satoshis != 0:
 			return NewError(fmt.Errorf("transaction output %d has non 0 value op return", index), api.ErrStatusOutputs)
@@ -130,17 +101,22 @@ func checkOutputs(tx *bt.Tx) *Error {
 	return nil
 }
 
-func checkInputs(tx *bt.Tx) *Error {
+func checkInputs(tx *transaction.Transaction) *Error {
 	total := uint64(0)
 	for index, input := range tx.Inputs {
-		if hex.EncodeToString(input.PreviousTxID()) == coinbaseTxID {
+		if input.PreviousTxIDStr() == coinbaseTxID {
 			return NewError(fmt.Errorf("transaction input %d is a coinbase input", index), api.ErrStatusInputs)
 		}
 
-		if input.PreviousTxSatoshis > maxSatoshis {
+		inputSatoshis := uint64(0)
+		if input.SourceTxSatoshis() != nil {
+			inputSatoshis = *input.SourceTxSatoshis()
+		}
+
+		if inputSatoshis > maxSatoshis {
 			return NewError(fmt.Errorf("transaction input %d satoshis is too high", index), api.ErrStatusInputs)
 		}
-		total += input.PreviousTxSatoshis
+		total += inputSatoshis
 	}
 	if total > maxSatoshis {
 		return NewError(fmt.Errorf("transaction input total satoshis is too high"), api.ErrStatusInputs)
@@ -149,7 +125,7 @@ func checkInputs(tx *bt.Tx) *Error {
 	return nil
 }
 
-func sigOpsCheck(tx *bt.Tx, policy *bitcoin.Settings) error {
+func sigOpsCheck(tx *transaction.Transaction, policy *bitcoin.Settings) error {
 	maxSigOps := policy.MaxTxSigopsCountsPolicy
 
 	if maxSigOps == 0 {
@@ -166,7 +142,7 @@ func sigOpsCheck(tx *bt.Tx, policy *bitcoin.Settings) error {
 		}
 
 		for _, op := range parsedUnlockingScript {
-			if op.Value() == bscript.OpCHECKSIG || op.Value() == bscript.OpCHECKSIGVERIFY {
+			if op.Value() == script.OpCHECKSIG || op.Value() == script.OpCHECKSIGVERIFY {
 				numSigOps++
 			}
 		}
@@ -179,7 +155,7 @@ func sigOpsCheck(tx *bt.Tx, policy *bitcoin.Settings) error {
 		}
 
 		for _, op := range parsedLockingScript {
-			if op.Value() == bscript.OpCHECKSIG || op.Value() == bscript.OpCHECKSIGVERIFY {
+			if op.Value() == script.OpCHECKSIG || op.Value() == script.OpCHECKSIGVERIFY {
 				numSigOps++
 			}
 		}
@@ -192,7 +168,7 @@ func sigOpsCheck(tx *bt.Tx, policy *bitcoin.Settings) error {
 	return nil
 }
 
-func pushDataCheck(tx *bt.Tx) error {
+func pushDataCheck(tx *transaction.Transaction) error {
 	for index, input := range tx.Inputs {
 		if input.UnlockingScript == nil {
 			return fmt.Errorf("transaction input %d unlocking script is empty", index)
@@ -210,7 +186,7 @@ func pushDataCheck(tx *bt.Tx) error {
 	return nil
 }
 
-func CheckScript(tx *bt.Tx, inputIdx int, prevTxOutput *bt.Output) error {
+func CheckScript(tx *transaction.Transaction, inputIdx int, prevTxOutput *transaction.TransactionOutput) error {
 	err := interpreter.NewEngine().Execute(
 		interpreter.WithTx(tx, inputIdx, prevTxOutput),
 		interpreter.WithForkID(),

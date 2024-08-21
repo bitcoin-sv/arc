@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/bitcoin-sv/go-sdk/transaction"
 	"log/slog"
 	"math"
 	"sync"
@@ -13,8 +14,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-bt/v2/unlocker"
 )
 
 type UTXOConsolidator struct {
@@ -134,7 +133,7 @@ func (b *UTXOConsolidator) Start() error {
 						continue
 					}
 
-					newUtxo := &bt.UTXO{
+					newUtxo := &transaction.UTXO{
 						TxID:          txIDBytes,
 						Vout:          0,
 						LockingScript: b.keySet.Script,
@@ -152,18 +151,18 @@ func (b *UTXOConsolidator) Start() error {
 	return nil
 }
 
-func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap map[string]uint64, fundingKeySet *keyset.KeySet) ([][]*bt.Tx, error) {
-	tx := bt.NewTx()
+func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap map[string]uint64, fundingKeySet *keyset.KeySet) ([]transaction.Transactions, error) {
+	tx := transaction.NewTransaction()
 	txSatoshis := uint64(0)
-	txsConsolidationBatches := make([][]*bt.Tx, 0)
-	txsConsolidation := make([]*bt.Tx, 0)
+	txsConsolidationBatches := make([]transaction.Transactions, 0)
+	txsConsolidation := make(transaction.Transactions, 0)
 	const consolidateBatchSize = 20
 
 	var next *list.Element
 	for front := utxoSet.Front(); front != nil; front = next {
 		next = front.Next()
 		utxoSet.Remove(front)
-		utxo, ok := front.Value.(*bt.UTXO)
+		utxo, ok := front.Value.(*transaction.UTXO)
 		if !ok {
 			return nil, errors.New("failed to parse value to utxo")
 		}
@@ -171,7 +170,7 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 		txSatoshis += utxo.Satoshis
 		if next == nil {
 			if len(tx.Inputs) > 0 {
-				err := tx.FromUTXOs(utxo)
+				err := tx.AddInputsFromUTXOs(utxo)
 				if err != nil {
 					return nil, err
 				}
@@ -191,7 +190,7 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 			break
 		}
 
-		err := tx.FromUTXOs(utxo)
+		err := tx.AddInputsFromUTXOs(utxo)
 		if err != nil {
 			return nil, err
 		}
@@ -205,13 +204,13 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 			txsConsolidation = append(txsConsolidation, tx)
 
 			satoshiMap[tx.TxID()] = tx.TotalOutputSatoshis()
-			tx = bt.NewTx()
+			tx = transaction.NewTransaction()
 			txSatoshis = 0
 		}
 
 		if len(txsConsolidation) >= consolidateBatchSize {
 			txsConsolidationBatches = append(txsConsolidationBatches, txsConsolidation)
-			txsConsolidation = make([]*bt.Tx, 0)
+			txsConsolidation = make(transaction.Transactions, 0)
 		}
 
 	}
@@ -219,14 +218,15 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 	return txsConsolidationBatches, nil
 }
 
-func (b *UTXOConsolidator) consolidateToFundingKeyset(tx *bt.Tx, txSatoshis uint64, fundingKeySet *keyset.KeySet) error {
+func (b *UTXOConsolidator) consolidateToFundingKeyset(tx *transaction.Transaction, txSatoshis uint64, fundingKeySet *keyset.KeySet) error {
 	fee := b.calculateFeeSat(tx)
-	err := tx.PayTo(fundingKeySet.Script, txSatoshis-fee)
+
+	err := PayTo(tx, fundingKeySet.Script, txSatoshis-fee)
 	if err != nil {
 		return err
 	}
-	unlockerGetter := unlocker.Getter{PrivateKey: fundingKeySet.PrivateKey}
-	err = tx.FillAllInputs(b.ctx, &unlockerGetter)
+
+	err = SignAllInputs(tx, fundingKeySet.PrivateKey)
 	if err != nil {
 		return err
 	}

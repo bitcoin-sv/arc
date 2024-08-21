@@ -3,6 +3,7 @@ module github.com/bitcoin-sv/arc
 go 1.22.5
 
 require (
+	github.com/bitcoin-sv/go-sdk v1.0.0
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/getkin/kin-openapi v0.127.0
 	github.com/go-testfixtures/testfixtures/v3 v3.9.0
@@ -14,9 +15,6 @@ require (
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/lib/pq v1.10.9
 	github.com/libsv/go-bc v0.1.29
-	github.com/libsv/go-bk v0.1.6
-	github.com/libsv/go-bt v1.0.8
-	github.com/libsv/go-bt/v2 v2.2.5
 	github.com/libsv/go-p2p v0.3.2
 	github.com/lmittmann/tint v1.0.5
 	github.com/mitchellh/mapstructure v1.5.0
@@ -93,6 +91,8 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
+	github.com/libsv/go-bk v0.1.6 // indirect
+	github.com/libsv/go-bt/v2 v2.2.5 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
@@ -165,3 +165,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
+
+replace github.com/bitcoin-sv/go-sdk => ../go-sdk

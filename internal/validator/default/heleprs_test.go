@@ -2,12 +2,12 @@ package defaultvalidator
 
 import (
 	"context"
+	"github.com/bitcoin-sv/go-sdk/transaction"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/internal/validator/default/testdata"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
-	"github.com/libsv/go-bt/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -53,7 +53,7 @@ func TestDefaultValidator_helpers_extendTx(t *testing.T) {
 				},
 			}
 
-			tx, _ := bt.NewTxFromString(tc.txHex)
+			tx, _ := transaction.NewTransactionFromHex(tc.txHex)
 
 			// then
 			err := extendTx(context.TODO(), &txFinder, tx)
@@ -66,7 +66,7 @@ func TestDefaultValidator_helpers_extendTx(t *testing.T) {
 				// check if really is extended
 				isEF := true
 				for _, input := range tx.Inputs {
-					if input.PreviousTxScript == nil || (input.PreviousTxSatoshis == 0 && !input.PreviousTxScript.IsData()) {
+					if input.SourceTxScript() == nil || (*input.SourceTxSatoshis() == uint64(0) && !input.SourceTxScript().IsData()) {
 						isEF = false
 						break
 					}
@@ -154,7 +154,7 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 				},
 			}
 
-			tx, _ := bt.NewTxFromString(tc.txHex)
+			tx, _ := transaction.NewTransactionFromHex(tc.txHex)
 
 			// then
 			res, err := getUnminedAncestors(context.TODO(), &txFinder, tx)
@@ -178,5 +178,4 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 
 		})
 	}
-
 }

@@ -1,5 +1,7 @@
 bitbucket.org/simon_ordish/cryptolib v1.0.48 h1:bz3DsRCQK1tPQ59d1KwqDCkS0wW2PU6VoLlgTK/jKZM=
 bitbucket.org/simon_ordish/cryptolib v1.0.48/go.mod h1:Zt5cEbIFQyX6LxtDy7rZ5Bo2irVWJPZ1gQXWCsc66ZE=
+github.com/bitcoin-sv/go-sdk v1.0.0 h1:jAx0Ib5rtCC5eeY2h6JD/2ojSe6IYY50F4SWu78Yv34=
+github.com/bitcoin-sv/go-sdk v1.0.0/go.mod h1:NOAkJLbjqKOLuxJmb9ABG86ExTZp4HS8+iygiDIUps4=
 github.com/bitcoinsv/bsvd v0.0.0-20190609155523-4c29707f7173 h1:2yTIV9u7H0BhRDGXH5xrAwAz7XibWJtX2dNezMeNsUo=
 github.com/bitcoinsv/bsvd v0.0.0-20190609155523-4c29707f7173/go.mod h1:BZ1UcC9+tmcDEcdVXgpt13hMczwJxWzpAn68wNs7zRA=
 github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9 h1:hFI8rT84FCA0FFy3cFrkW5Nz4FyNKlIdCvEvvTNySKg=

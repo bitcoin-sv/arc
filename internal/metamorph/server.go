@@ -44,7 +44,6 @@ type BitcoinNode interface {
 type ProcessorI interface {
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
 	GetProcessorMapSize() int
-	GetStatusNotSeen() int64
 	GetPeers() []p2p.PeerI
 	Shutdown()
 	Health() error

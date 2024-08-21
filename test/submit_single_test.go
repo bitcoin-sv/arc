@@ -1,6 +1,7 @@
 package test
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/bitcoin-sv/go-sdk/transaction"
@@ -25,11 +26,7 @@ func TestSubmitSingle(t *testing.T) {
 	rawTx, err := tx.EFHex()
 	require.NoError(t, err)
 
-	malFormedTxBytes, err := os.ReadFile("./fixtures/malformedTxHexString.txt")
-	require.NoError(t, err)
-	malFormedTx, err := transaction.NewTransactionFromBytes(malFormedTxBytes)
-	require.NoError(t, err)
-	malformedRawTx, err := malFormedTx.EFHex()
+	malFormedRawTx, err := os.ReadFile("./fixtures/malformedTxHexString.txt")
 	require.NoError(t, err)
 
 	type malformedTransactionRequest struct {
@@ -50,7 +47,7 @@ func TestSubmitSingle(t *testing.T) {
 		},
 		{
 			name: "post single - malformed tx",
-			body: TransactionRequest{RawTx: malformedRawTx},
+			body: TransactionRequest{RawTx: hex.EncodeToString(malFormedRawTx)},
 
 			expectedStatusCode: http.StatusBadRequest,
 		},

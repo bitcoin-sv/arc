@@ -111,9 +111,9 @@ Additionally, ARC relies on a message queue to communicate between Metamorph and
 docker run -p 4222:4222 nats
 ```
 
-The [docker-compose file](./deployments/docker-compose.yml) additionally shows how ARC can be run with the message queue and the Postgres database and db migrations. You can run ARC with all components with the following command
+You can run ARC with all components using the [docker-compose.yaml](./test/docker-compose.yaml) file by using the following make command
 ```
-docker-compose -f deployments/docker-compose.yml up
+make run
 ```
 
 ### Docker

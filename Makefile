@@ -23,6 +23,13 @@ build_release:
 build_docker:
 	docker build . -t test-arc --build-arg="APP_COMMIT=$(APP_COMMIT)" --build-arg="APP_VERSION=$(APP_VERSION)"
 
+.PHONY: run
+run:
+	docker compose -f test/docker-compose.yaml down --remove-orphans
+	docker compose -f test/docker-compose.yaml up --abort-on-container-exit migrate-blocktx migrate-metamorph
+	docker compose -f test/docker-compose.yaml up --build arc-blocktx arc-callbacker arc-metamorph arc
+	docker compose -f test/docker-compose.yaml down
+
 .PHONY: run_e2e_tests
 run_e2e_tests:
 	docker compose -f test/docker-compose.yaml down --remove-orphans

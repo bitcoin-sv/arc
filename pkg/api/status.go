@@ -101,8 +101,8 @@ func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {
 		errFields.Title = "Merkle Roots validation failed"
 		errFields.Type = arcDocServerErrorsUrl + strconv.Itoa(int(ErrStatusValidatingMerkleRoots))
 	case ErrStatusCumulativeFees:
-		errFields.Detail = "Cumulative fees are too low"
-		errFields.Title = "Cumulative fee too low"
+		errFields.Detail = "Cumulative fee validation failed"
+		errFields.Title = "Cumulative fee validation failed"
 		errFields.Type = arcDocServerErrorsUrl + strconv.Itoa(int(ErrStatusCumulativeFees))
 	default:
 		errFields.Status = int(ErrStatusGeneric)

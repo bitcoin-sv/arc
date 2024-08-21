@@ -784,7 +784,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |467|Unknown|Mined ancestors not found in BEEF|[ErrorMinedAncestorsNotFound](#schemaerrorminedancestorsnotfound)|
 |468|Unknown|Invalid BUMPs in BEEF|[ErrorCalculatingMerkleRoots](#schemaerrorcalculatingmerkleroots)|
 |469|Unknown|Invalid Merkle Roots|[ErrorValidatingMerkleRoots](#schemaerrorvalidatingmerkleroots)|
-|473|Unknown|Cumulative Fee too low|[ErrorCumulativeFees](#schemaerrorcumulativefees)|
+|473|Unknown|Cumulative Fee validation failed|[ErrorCumulativeFees](#schemaerrorcumulativefees)|
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
@@ -2257,4 +2257,3 @@ and
 |instance|string¦null|false|none|(Optional) Link to actual error on server|
 |txid|string¦null|false|none|Transaction ID this error is referring to|
 |extraInfo|string¦null|false|none|Optional extra information about the error from the miner|
-

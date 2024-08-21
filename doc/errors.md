@@ -41,4 +41,4 @@ ErrStatusFrozenPolicy: Input Frozen (blacklist manager policy blacklisted). The 
 ErrStatusFrozenConsensus: Input Frozen (blacklist manager consensus blacklisted) The transaction is attempting to spend frozen digital assets.
 
 # 473
-ErrStatusCumulativeFees: Cumulative fees of all transactions in chain is too low.
+ErrStatusCumulativeFees: Cumulative fee validation failed

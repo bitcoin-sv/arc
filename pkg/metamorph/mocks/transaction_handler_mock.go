@@ -32,10 +32,10 @@ var _ metamorph.TransactionHandler = &TransactionHandlerMock{}
 //			HealthFunc: func(ctx context.Context) error {
 //				panic("mock out the Health method")
 //			},
-//			SubmitTransactionFunc: func(ctx context.Context, tx *bt.Tx, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
+//			SubmitTransactionFunc: func(ctx context.Context, tx *transaction.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 //				panic("mock out the SubmitTransaction method")
 //			},
-//			SubmitTransactionsFunc: func(ctx context.Context, tx []*bt.Tx, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+//			SubmitTransactionsFunc: func(ctx context.Context, tx transaction.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 //				panic("mock out the SubmitTransactions method")
 //			},
 //		}

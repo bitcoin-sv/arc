@@ -28,10 +28,10 @@ var _ broadcaster.UtxoClient = &UtxoClientMock{}
 //			GetBalanceWithRetriesFunc: func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error) {
 //				panic("mock out the GetBalanceWithRetries method")
 //			},
-//			GetUTXOsFunc: func(ctx context.Context, lockingScript *bscript.Script, address string) (transaction.UTXOs, error) {
+//			GetUTXOsFunc: func(ctx context.Context, lockingScript *script.Script, address string) (transaction.UTXOs, error) {
 //				panic("mock out the GetUTXOs method")
 //			},
-//			GetUTXOsWithRetriesFunc: func(ctx context.Context, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) (transaction.UTXOs, error) {
+//			GetUTXOsWithRetriesFunc: func(ctx context.Context, lockingScript *script.Script, address string, constantBackoff time.Duration, retries uint64) (transaction.UTXOs, error) {
 //				panic("mock out the GetUTXOsWithRetries method")
 //			},
 //			TopUpFunc: func(ctx context.Context, address string) error {

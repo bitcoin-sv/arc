@@ -11,7 +11,7 @@ possible to connect to a large number of nodes without incurring large bandwidth
 
 The ARC design decouples the core functions of a transaction processor and encapsulates them as microservices with the ability to scale horizontally adaptively. Interaction between microservices is decoupled using asynchronous messaging where possible.
 
-ARC consists of 3 core microservices: [API](#API), [Metamorph](#Metamorph) and [BlockTx](#BlockTx), which are all described below.
+ARC consists of 4 core microservices: [API](#API), [Metamorph](#Metamorph), [Callbacker](#Callbacker) and [BlockTx](#BlockTx), which are all described below.
 
 All the microservices are designed to be horizontally scalable, and can be deployed on a single machine or on multiple machines. Each one has been programmed with a store interface. The default store is postgres, but any database that implements the store interface can be used.
 
@@ -84,9 +84,9 @@ When possible, the API is responsible for rejecting transactions that would be u
 
 Metamorph is a microservice that is responsible for processing transactions sent by the API to the Bitcoin network. It takes care of re-sending transactions if they are not acknowledged by the network within a certain time period (60 seconds by default).
 
-#### Callbacks
+### Callbacker
 
-Metamorph also can send callbacks to a specified URL. To register a callback, the client must add the `X-CallbackUrl` header to the request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in the body.
+Callbacker is a microservice that sends callbacks to a specified URL. To register a callback, the client must add the `X-CallbackUrl` header to the request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in the body.
 
 The following example shows the format of a callback body
 

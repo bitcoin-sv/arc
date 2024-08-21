@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.3.0](#130---2024-08-21)
 - [1.2.0](#120---2024-08-13)
 - [1.1.91](#1191---2024-06-26)
 - [1.1.87](#1187---2024-06-10)
@@ -16,6 +17,11 @@ All notable changes to this project will be documented in this file. The format 
 - [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
 
 ## [Unreleased]
+
+## [1.3.0] - 2024-08-21
+
+### Changed
+- The functionality for callbacks has been moved from the `metamorph` microservice to the new `callbacker` microservice.
 
 ## [1.2.0] - 2024-08-13
 

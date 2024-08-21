@@ -70,6 +70,8 @@ func TestBroadcasterWithPredefinedUTXOs(t *testing.T) {
 	require.Equal(t, int64(batchSizeDefault), batchSize)
 	require.Equal(t, int64(maxInputsDefault), maxInputs)
 
+	//To do include test for other functions
+
 }
 
 type MockUtxoClient struct {

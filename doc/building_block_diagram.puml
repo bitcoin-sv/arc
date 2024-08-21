@@ -1,4 +1,3 @@
-```plantuml
 @startuml
 digraph arc {
   rankdir=TB;
@@ -14,16 +13,15 @@ digraph arc {
 		color=black;
 
     api [shape=rectangle, label="API", style=filled, fillcolor=yellow]
-    api -> metamorph
-
     validation [shape=rectangle, label="validation"]
-    api -> validation
+    empty [width=0 height=0 label="" margin="0.5,0" color="white"]  // to adjust nodes to the left
+    
+    api -> {validation metamorph }
 
-    { rank=same; api; validation; }
-    { rank=same; metamorph; blocktx; }
+    { rank=same; api; validation; empty; }
+    { rank=same; metamorph; blocktx; callbacker; }
 
-
-    metamorph -> blocktx [style="dashed", dir="both"]
+    metamorph -> {blocktx [style="dashed", dir="both"] callbacker}  
 
     subgraph cluster_mtm {
       label = "metamorph";
@@ -33,13 +31,17 @@ digraph arc {
       metamorph -> node_connection [style="dashed", arrowhead=none]
     }
 
-
     subgraph cluster_blocktx {
       label = "blocktx";
       blocktx_store [shape=cylinder, label="store", style=filled]
       blocktx [shape=rectangle, label="service", style=filled, fillcolor=yellow]
       blocktx -> blocktx_store
       blocktx -> node_connection [style="dashed", arrowhead=none]
+    }
+
+    subgraph cluster_callbacker {
+      label = "callbacker";
+      callbacker [shape=rectangle, label="service", style=filled, fillcolor=yellow]
     }
 	}
 

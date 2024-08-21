@@ -23,12 +23,19 @@ build_release:
 build_docker:
 	docker build . -t test-arc --build-arg="APP_COMMIT=$(APP_COMMIT)" --build-arg="APP_VERSION=$(APP_VERSION)"
 
+.PHONY: run
+run:
+	docker compose -f test/docker-compose.yaml down --remove-orphans
+	docker compose -f test/docker-compose.yaml up --abort-on-container-exit migrate-blocktx migrate-metamorph
+	docker compose -f test/docker-compose.yaml up --build arc-blocktx arc-callbacker arc-metamorph arc
+	docker compose -f test/docker-compose.yaml down
+
 .PHONY: run_e2e_tests
 run_e2e_tests:
-	docker compose -f test/docker-compose.yml down --remove-orphans
-	docker compose -f test/docker-compose.yml up --abort-on-container-exit migrate-blocktx migrate-metamorph
-	docker compose -f test/docker-compose.yml up --build --exit-code-from tests tests arc-blocktx arc-callbacker arc-metamorph arc --scale arc-blocktx=4 --scale arc-metamorph=2
-	docker compose -f test/docker-compose.yml down
+	docker compose -f test/docker-compose.yaml down --remove-orphans
+	docker compose -f test/docker-compose.yaml up --abort-on-container-exit migrate-blocktx migrate-metamorph
+	docker compose -f test/docker-compose.yaml up --build --exit-code-from tests tests arc-blocktx arc-callbacker arc-metamorph arc --scale arc-blocktx=4 --scale arc-metamorph=2
+	docker compose -f test/docker-compose.yaml down
 
 .PHONY: test
 test:
@@ -40,7 +47,7 @@ install_lint:
 
 .PHONY: lint
 lint:
-	golangci-lint run --config=config/.golangci.yml -v ./...
+	golangci-lint run --config=config/.golangci.yaml -v ./...
 	staticcheck ./...
 
 .PHONY: gen_go
@@ -117,7 +124,7 @@ gh-pages:
 
 .PHONY: api
 api:
-	oapi-codegen -config pkg/api/config.yaml pkg/api/arc.yml > pkg/api/arc.go
+	oapi-codegen -config pkg/api/config.yaml pkg/api/arc.yaml > pkg/api/arc.go
 
 .PHONY: compare_config
 compare_config:

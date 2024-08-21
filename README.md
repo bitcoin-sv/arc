@@ -111,9 +111,9 @@ Additionally, ARC relies on a message queue to communicate between Metamorph and
 docker run -p 4222:4222 nats
 ```
 
-The [docker-compose file](./deployments/docker-compose.yml) additionally shows how ARC can be run with the message queue and the Postgres database and db migrations. You can run ARC with all components with the following command
+You can run ARC with all components using the [docker-compose.yaml](./test/docker-compose.yaml) file by using the following make command
 ```
-docker-compose -f deployments/docker-compose.yml up
+make run
 ```
 
 ### Docker
@@ -166,21 +166,21 @@ go run main.go -metamorph=true
 Metamorph keeps track of the lifecycle of a transaction, and assigns it a status, which is returned in the `txStatus` field whenever the transaction is queried.
 The following statuses are available:
 
-| Code | Status                   | Description                                                                                                                                                                                              |
-|------|--------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 0    | `UNKNOWN`                | The transaction has been sent to metamorph, but no processing has taken place. This should never be the case, unless something goes wrong.                                                               |
-| 10   | `QUEUED`                 | The transaction has been queued for processing.                                                                                                                                                          |
-| 20   | `RECEIVED`               | The transaction has been properly received by the metamorph processor.                                                                                                                                   |
-| 30   | `STORED`                 | The transaction has been stored in the metamorph store. This should ensure the transaction will be processed and retried if not picked up immediately by a mining node.                                  |
-| 40   | `ANNOUNCED_TO_NETWORK`   | The transaction has been announced (INV message) to the Bitcoin network.                                                                                                                                 |
-| 50   | `REQUESTED_BY_NETWORK`   | The transaction has been requested from metamorph by a Bitcoin node.                                                                                                                                     |
-| 60   | `SENT_TO_NETWORK`        | The transaction has been sent to at least 1 Bitcoin node.                                                                                                                                                |
-| 70   | `ACCEPTED_BY_NETWORK`    | The transaction has been accepted by a connected Bitcoin node on the ZMQ interface. If metamorph is not connected to ZMQ, this status will never by set.                                                 |
-| 80   | `SEEN_IN_ORPHAN_MEMPOOL` | The transaction has been sent to at least 1 Bitcoin node but parent transaction was not found.                                                                                                           |
-| 90   | `SEEN_ON_NETWORK`        | The transaction has been seen on the Bitcoin network and propagated to other nodes. This status is set when metamorph receives an INV message for the transaction from another node than it was sent to. |
-| 100  | `DOUBLE_SPEND_ATTEMPTED` | The transaction is a double spend attempt. Competing transaction(s) will be returned with this status.                                                                                                   |
-| 110  | `REJECTED`               | The transaction has been rejected by the Bitcoin network.                                                                                                                                                |
-| 120  | `MINED`                  | The transaction has been mined into a block by a mining node.                                                                                                                                            |
+| Status                   | Description                                                                                                                                                                                              |
+|--------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `UNKNOWN`                | The transaction has been sent to metamorph, but no processing has taken place. This should never be the case, unless something goes wrong.                                                               |
+| `QUEUED`                 | The transaction has been queued for processing.                                                                                                                                                          |
+| `RECEIVED`               | The transaction has been properly received by the metamorph processor.                                                                                                                                   |
+| `STORED`                 | The transaction has been stored in the metamorph store. This should ensure the transaction will be processed and retried if not picked up immediately by a mining node.                                  |
+| `ANNOUNCED_TO_NETWORK`   | The transaction has been announced (INV message) to the Bitcoin network.                                                                                                                                 |
+| `REQUESTED_BY_NETWORK`   | The transaction has been requested from metamorph by a Bitcoin node.                                                                                                                                     |
+| `SENT_TO_NETWORK`        | The transaction has been sent to at least 1 Bitcoin node.                                                                                                                                                |
+| `ACCEPTED_BY_NETWORK`    | The transaction has been accepted by a connected Bitcoin node on the ZMQ interface. If metamorph is not connected to ZMQ, this status will never by set.                                                 |
+| `SEEN_IN_ORPHAN_MEMPOOL` | The transaction has been sent to at least 1 Bitcoin node but parent transaction was not found.                                                                                                           |
+| `SEEN_ON_NETWORK`        | The transaction has been seen on the Bitcoin network and propagated to other nodes. This status is set when metamorph receives an INV message for the transaction from another node than it was sent to. |
+| `DOUBLE_SPEND_ATTEMPTED` | The transaction is a double spend attempt. Competing transaction(s) will be returned with this status.                                                                                                   |
+| `REJECTED`               | The transaction has been rejected by the Bitcoin network.                                                                                                                                                |
+| `MINED`                  | The transaction has been mined into a block by a mining node.                                                                                                                                            |
 
 The statuses have a difference between the codes in order to make it possible to add more statuses in between the existing ones without creating a breaking change.
 
@@ -283,7 +283,7 @@ The tests can be executed like this:
 make clean_restart_e2e_test
 ```
 
-The [docker-compose](./test/docker-compose.yml) file also shows the minimum setup that is needed for ARC to run.
+The [docker-compose](./test/docker-compose.yaml) file also shows the minimum setup that is needed for ARC to run.
 
 
 ## Monitoring
@@ -350,7 +350,7 @@ make gen
 
 ### Generate REST API
 
-The rest api is defined in a [yaml file](./api/arc.yml) following the OpenAPI 3.0.0 specification. Before the rest API can be generated install the necessary tools by running
+The rest api is defined in a [yaml file](./api/arc.yaml) following the OpenAPI 3.0.0 specification. Before the rest API can be generated install the necessary tools by running
 ```
 make install_gen
 ```

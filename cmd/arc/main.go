@@ -169,7 +169,7 @@ func parseFlags() (string, bool, bool, bool, bool, bool, string) {
 	startCallbacker := flag.Bool("callbacker", false, "start callbacker")
 	help := flag.Bool("help", false, "Show help")
 	dumpConfigFile := flag.String("dump_config", "", "dump config to specified file and exit")
-	configDir := flag.String("config", "", "path to configuration yaml file")
+	configDir := flag.String("config", "", "path to configuration file")
 
 	flag.Parse()
 
@@ -193,7 +193,7 @@ func parseFlags() (string, bool, bool, bool, bool, bool, string) {
 		fmt.Println("          whether to start callbacker (default=true)")
 		fmt.Println("")
 		fmt.Println("    -config=/location")
-		fmt.Println("          directory to look for config.yaml (default='')")
+		fmt.Println("          directory to look for config (default='')")
 		fmt.Println("")
 		fmt.Println("    -dump_config=/file.yaml")
 		fmt.Println("          dump config to specified file and exit (default='config/dumped_config.yaml')")

@@ -360,7 +360,7 @@
             }
           },
           "473": {
-            "description": "Cumulative Fee too low",
+            "description": "Cumulative Fee validation failed",
             "content": {
               "application/json": {
                 "schema": {

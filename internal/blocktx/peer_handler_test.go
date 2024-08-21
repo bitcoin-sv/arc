@@ -187,7 +187,7 @@ func TestHandleBlock(t *testing.T) {
 
 			// build peer manager
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithTransactionBatchSize(batchSize), blocktx.WithMessageQueueClient(mq))
+			peerHandler, err := blocktx.NewProcessor(logger, storeMock, blocktx.WithTransactionBatchSize(batchSize), blocktx.WithMessageQueueClient(mq))
 			require.NoError(t, err)
 
 			var expectedInsertedTransactions []*blocktx_api.TransactionAndSource
@@ -316,7 +316,7 @@ func TestStartFillGaps(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithFillGapsInterval(time.Millisecond*20))
+			peerHandler, err := blocktx.NewProcessor(logger, storeMock, blocktx.WithFillGapsInterval(time.Millisecond*20))
 			require.NoError(t, err)
 
 			peerMock := &mocks.PeerMock{
@@ -380,7 +380,7 @@ func TestStartProcessTxs(t *testing.T) {
 			txChan <- testdata.TX4Hash[:]
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := blocktx.NewPeerHandler(
+			peerHandler, err := blocktx.NewProcessor(
 				logger,
 				storeMock,
 				blocktx.WithRegisterTxsInterval(time.Millisecond*20),
@@ -480,7 +480,7 @@ func TestStartPeerWorker(t *testing.T) {
 			}
 			// build peer manager
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock)
+			peerHandler, err := blocktx.NewProcessor(logger, storeMock)
 			require.NoError(t, err)
 
 			// send msg Inv to workerCh
@@ -591,7 +591,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 			requestTxChannel := make(chan []byte, 5)
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock,
+			peerHandler, err := blocktx.NewProcessor(logger, storeMock,
 				blocktx.WithRegisterRequestTxsInterval(20*time.Millisecond),
 				blocktx.WithRegisterRequestTxsBatchSize(3),
 				blocktx.WithRequestTxChan(requestTxChannel),
@@ -653,7 +653,7 @@ func TestStart(t *testing.T) {
 				},
 			}
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithMessageQueueClient(mqClient))
+			peerHandler, err := blocktx.NewProcessor(logger, storeMock, blocktx.WithMessageQueueClient(mqClient))
 			require.NoError(t, err)
 			err = peerHandler.Start()
 			if tc.expectedErrorStr != "" || err != nil {

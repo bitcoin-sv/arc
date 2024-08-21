@@ -119,14 +119,9 @@ func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 
 	for _, tx := range txSet {
 		cumulativeSize += tx.Size()
-		//cumulativeSize.TotalBytes += size.TotalBytes
-		//cumulativeSize.TotalDataBytes += size.TotalDataBytes
-		//cumulativeSize.TotalStdBytes += size.TotalStdBytes
-
 		cumulativePaidFee += tx.TotalInputSatoshis() - tx.TotalOutputSatoshis()
 	}
 
-	//expectedFee, err := validator.CalculateMiningFeesRequired(&cumulativeSize, feeQuote)
 	expectedFee, err := feeModel.ComputeFeeBasedOnSize(uint64(cumulativeSize))
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
@@ -141,7 +136,6 @@ func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 }
 
 func isFeePaidEnough(feeModel transaction.FeeModel, tx *transaction.Transaction) (bool, uint64, uint64, error) {
-	//expFeesPaid, err := validator.CalculateMiningFeesRequired(tx.SizeWithTypes(), fees)
 	expFeesPaid, err := feeModel.ComputeFee(tx)
 	if err != nil {
 		return false, 0, 0, err

@@ -101,18 +101,20 @@ func decodeBUMPs(beefBytes []byte) ([]*transaction.MerklePath, []byte, error) {
 
 	bumps := make([]*transaction.MerklePath, 0, uint64(nBump))
 	for i := uint64(0); i < uint64(nBump); i++ {
+		fmt.Println(len(beefBytes))
 		bump, err := transaction.NewMerklePathFromBinary(beefBytes)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		// calculate the number of bytes used to encode the bump
-		usedBytes := beefBytes[:len(bump.Bytes())]
-		if !bytes.Equal(bump.Bytes(), usedBytes) {
-			return nil, nil, errors.New("error")
+		bumpBytes := bump.Bytes()
+		usedBytes := beefBytes[:len(bumpBytes)]
+		if !bytes.Equal(bumpBytes, usedBytes) {
+			return nil, nil, errors.New("beef bytes not equal")
 		}
 
-		beefBytes = beefBytes[len(bump.Bytes()):]
+		beefBytes = beefBytes[len(bumpBytes):]
 
 		bumps = append(bumps, bump)
 	}

@@ -124,6 +124,7 @@ func TestDecodeBEEF_DecodeBEEF_HappyPaths(t *testing.T) {
 
 func TestDecodeBEEF_DecodeBEEF_HandlingErrors(t *testing.T) {
 	bumpError := errors.New("BUMP bytes do not contain enough data to be valid")
+	varIntError := errors.New("could not read varint type: EOF")
 	testCases := []struct {
 		name                         string
 		hexStream                    string
@@ -202,9 +203,9 @@ func TestDecodeBEEF_DecodeBEEF_HandlingErrors(t *testing.T) {
 		},
 		{
 			name:                "unable to decode BUMP leaf - not enough bytes for hash - proper BEEF marker, number of bumps, block height and tree height, nLeaves, offset and flag but with not enough bytes for hash",
-			hexStream:           "0100beef01fe8a6a0c000c04fde80b0011774f01d26412f0d16ea3f0447be0b5ebec67b0782e321a7a0",
+			hexStream:           "0100beef01fe8a6a0c000c04fde80b0011774f01d26412f0d16ea3f0447be0b5ebec67b0782e321a7a01cbdf7f734e",
 			expectedDecodedBEEF: nil,
-			expectedError:       bumpError,
+			expectedError:       varIntError,
 		},
 	}
 	for _, tc := range testCases {

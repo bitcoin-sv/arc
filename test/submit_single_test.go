@@ -123,8 +123,7 @@ func TestSubmitMined(t *testing.T) {
 
 		rawTx, _ := bitcoind.GetRawTransaction(utxos[0].Txid)
 		tx, _ := transaction.NewTransactionFromHex(rawTx.Hex)
-		exRawTx, err := tx.EFHex()
-		require.NoError(t, err)
+		exRawTx := tx.String()
 
 		callbackReceivedChan := make(chan *TransactionResponse)
 		callbackErrChan := make(chan error)

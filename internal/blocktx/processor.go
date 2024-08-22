@@ -13,8 +13,8 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/libsv/go-bc"
-	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
@@ -654,7 +654,7 @@ func (ph *Processor) markBlockAsProcessed(ctx context.Context, block *p2p.Block)
 }
 
 // exported for testing purposes
-func ExtractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
+func ExtractHeightFromCoinbaseTx(tx *sdkTx.Transaction) uint64 {
 	// Coinbase tx has a special format, the height is encoded in the first 4 bytes of the scriptSig
 	// https://en.bitcoin.it/wiki/Protocol_documentation#tx
 	// Get the length

@@ -122,7 +122,7 @@ func TestSubmitMined(t *testing.T) {
 		utxos := getUtxos(t, address)
 
 		rawTx, _ := bitcoind.GetRawTransaction(utxos[0].Txid)
-		tx, _ := transaction.NewTransactionFromHex(rawTx.Hex)
+		tx, _ := sdkTx.NewTransactionFromHex(rawTx.Hex)
 		exRawTx := tx.String()
 
 		callbackReceivedChan := make(chan *TransactionResponse)
@@ -430,7 +430,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 
 			// create mined ancestors
 			const minedAncestorsCount = 2
-			var minedAncestors transaction.Transactions
+			var minedAncestors sdkTx.Transactions
 
 			sendToAddress(t, address, 0.0001)
 			sendToAddress(t, address, 0.00011)
@@ -452,13 +452,13 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 				zeroChainCount = tc.chainLong / 2
 			}
 
-			var zeroFeeChains []transaction.Transactions
+			var zeroFeeChains []sdkTx.Transactions
 			for i, minedTx := range minedAncestors {
 				if i+1 == len(minedAncestors) {
 					zeroChainCount++
 				}
 
-				chain := make(transaction.Transactions, zeroChainCount)
+				chain := make(sdkTx.Transactions, zeroChainCount)
 				parentTx := minedTx
 
 				for i := 0; i < zeroChainCount; i++ {

@@ -114,7 +114,7 @@ func TestBeef_Fail(t *testing.T) {
 	}
 }
 
-func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, privateKey string) (string, *transaction.Transaction, *transaction.Transaction, int) {
+func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, privateKey string) (string, *sdkTx.Transaction, *sdkTx.Transaction, int) {
 	expectedCallbacks := 0
 
 	rawTx := getRawTx(t, inputTxID)
@@ -178,7 +178,7 @@ func prepareMerkleHashesAndTxIndex(t *testing.T, txs []string, txID string) ([]*
 	return merkleHashes, txIndex
 }
 
-func buildBeefString(t *testing.T, inputTxHex string, bump *bc.BUMP, middleTx, newTx *transaction.Transaction) string {
+func buildBeefString(t *testing.T, inputTxHex string, bump *bc.BUMP, middleTx, newTx *sdkTx.Transaction) string {
 	versionMarker := "0100beef"
 	nBumps := "01"
 	bumpData, err := bump.String()

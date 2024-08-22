@@ -75,7 +75,7 @@ func TestDoubleSpend(t *testing.T) {
 	})
 }
 
-func createTxToNewAddress(t *testing.T, privateKey string, utxo NodeUnspentUtxo) *transaction.Transaction {
+func createTxToNewAddress(t *testing.T, privateKey string, utxo NodeUnspentUtxo) *sdkTx.Transaction {
 	address, err := bitcoind.GetNewAddress()
 	require.NoError(t, err)
 	tx1, err := createTx(privateKey, address, utxo)

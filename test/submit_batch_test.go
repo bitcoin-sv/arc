@@ -52,8 +52,8 @@ func TestBatchChainedTxs(t *testing.T) {
 	})
 }
 
-func createTxChain(privateKey string, utxo0 NodeUnspentUtxo, length int) ([]*transaction.Transaction, error) {
-	batch := make([]*transaction.Transaction, length)
+func createTxChain(privateKey string, utxo0 NodeUnspentUtxo, length int) ([]*sdkTx.Transaction, error) {
+	batch := make([]*sdkTx.Transaction, length)
 
 	utxoTxID := utxo0.Txid
 	utxoVout := uint32(utxo0.Vout)
@@ -62,9 +62,9 @@ func createTxChain(privateKey string, utxo0 NodeUnspentUtxo, length int) ([]*tra
 	utxoAddress := utxo0.Address
 
 	for i := 0; i < length; i++ {
-		tx := transaction.NewTransaction()
+		tx := sdkTx.NewTransaction()
 
-		utxo, err := transaction.NewUTXO(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
+		utxo, err := sdkTx.NewUTXO(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
 		if err != nil {
 			return nil, fmt.Errorf("failed creating UTXO: %v", err)
 		}

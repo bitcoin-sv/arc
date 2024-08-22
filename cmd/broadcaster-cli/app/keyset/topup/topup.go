@@ -3,12 +3,12 @@ package topup
 import (
 	"context"
 	"log/slog"
-
 	"time"
+
+	"github.com/spf13/cobra"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
-	"github.com/spf13/cobra"
 )
 
 var Cmd = &cobra.Command{
@@ -28,13 +28,12 @@ var Cmd = &cobra.Command{
 
 		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
-		keySets, err := helper.GetKeySets()
+		keySetsMap, err := helper.GetSelectedKeySets()
 		if err != nil {
 			return err
 		}
 
-		for _, keySet := range keySets {
-
+		for keyName, keySet := range keySetsMap {
 			if wocApiKey == "" {
 				time.Sleep(500 * time.Millisecond)
 			}
@@ -43,7 +42,7 @@ var Cmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			logger.Info("top up complete", slog.String("address", keySet.Address(!isTestnet)))
+			logger.Info("top up complete", slog.String("address", keySet.Address(!isTestnet)), slog.String("name", keyName))
 		}
 
 		return nil

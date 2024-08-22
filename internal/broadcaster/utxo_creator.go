@@ -9,9 +9,10 @@ import (
 	"log/slog"
 	"time"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 type UTXOCreator struct {
@@ -42,10 +43,6 @@ func (b *UTXOCreator) CreateUtxos(requestedOutputs int, requestedSatoshisPerOutp
 		confirmed, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, ks.Address(!b.isTestnet), 1*time.Second, 5)
 		if err != nil {
 			return err
-		}
-
-		if unconfirmed > 0 {
-			return errors.New("total balance not confirmed yet")
 		}
 
 		balance := confirmed + unconfirmed
@@ -108,7 +105,7 @@ func (b *UTXOCreator) CreateUtxos(requestedOutputs int, requestedSatoshisPerOutp
 
 				b.logger.Info(fmt.Sprintf("broadcasting splitting batch %d/%d", i+1, len(txsSplitBatches)), slog.Int("size", len(batch)), slog.Int("inputs", nrInputs), slog.Int("outputs", nrOutputs))
 
-				resp, err := b.client.BroadcastTransactions(context.Background(), batch, metamorph_api.Status_SEEN_ON_NETWORK, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
+				resp, err := b.client.BroadcastTransactions(context.Background(), batch, metamorph_api.Status_SEEN_ON_NETWORK, "", "", false, false)
 				if err != nil {
 					return fmt.Errorf("failed to braodcast tx: %v", err)
 				}
@@ -228,8 +225,14 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis 
 	counter := 0
 
 	remaining := int64(splitSatoshis)
+
+	fee, err := b.feeModel.ComputeFee(tx)
+	if err != nil {
+		return 0, err
+	}
+
 	for remaining > int64(requestedSatoshis) && counter < requestedOutputs {
-		if uint64(remaining)-requestedSatoshis < b.calculateFeeSat(tx) {
+		if uint64(remaining)-requestedSatoshis < fee {
 			break
 		}
 
@@ -243,7 +246,10 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis 
 
 	}
 
-	fee := b.calculateFeeSat(tx)
+	fee, err = b.feeModel.ComputeFee(tx)
+	if err != nil {
+		return 0, err
+	}
 
 	err = PayTo(tx, fundingKeySet.Script, uint64(remaining)-fee)
 	if err != nil {

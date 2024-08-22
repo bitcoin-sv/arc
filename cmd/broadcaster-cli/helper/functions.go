@@ -11,9 +11,10 @@ import (
 
 	"github.com/lmittmann/tint"
 
+	"github.com/spf13/viper"
+
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/spf13/viper"
 )
 
 func CreateClient(auth *broadcaster.Auth, arcServer string) (broadcaster.ArcClient, error) {
@@ -199,7 +200,7 @@ func GetSelectedKeys() ([]string, error) {
 	return keys, nil
 }
 
-func GetKeySets() (map[string]*keyset.KeySet, error) {
+func GetSelectedKeySets() (map[string]*keyset.KeySet, error) {
 	selectedKeys, err := GetSelectedKeys()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get selected keys: %v", err)

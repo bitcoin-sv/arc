@@ -81,7 +81,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		keySetsMap, err := helper.GetKeySets()
+		keySetsMap, err := helper.GetSelectedKeySets()
 		if err != nil {
 			return err
 		}

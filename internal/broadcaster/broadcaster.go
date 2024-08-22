@@ -5,10 +5,11 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/fees"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+
+	"github.com/bitcoin-sv/arc/internal/fees"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )
 
 const (
@@ -31,7 +32,6 @@ type Broadcaster struct {
 	isTestnet         bool
 	feeModel          fees.FeeModel
 	utxoClient        UtxoClient
-	standardMiningFee fees.FeeModel
 	callbackURL       string
 	callbackToken     string
 	fullStatusUpdates bool
@@ -75,8 +75,7 @@ func WithFullstatusUpdates(fullStatusUpdates bool) func(broadcaster *Broadcaster
 
 func WithFees(miningFeeSatPerKb int) func(broadcaster *Broadcaster) {
 	return func(broadcaster *Broadcaster) {
-		feeModel := fees.SatoshisPerKilobyte{Satoshis: uint64(miningFeeSatPerKb)}
-		broadcaster.feeModel = feeModel
+		broadcaster.feeModel = fees.SatoshisPerKilobyte{Satoshis: uint64(miningFeeSatPerKb)}
 	}
 }
 
@@ -97,15 +96,9 @@ func NewBroadcaster(logger *slog.Logger, client ArcClient, utxoClient UtxoClient
 		opt(&b)
 	}
 
-	b.standardMiningFee = fees.DefaultSatoshisPerKilobyte()
-
 	ctx, cancelAll := context.WithCancel(context.Background())
 	b.cancelAll = cancelAll
 	b.ctx = ctx
 
 	return b, nil
-}
-
-func (b *Broadcaster) calculateFeeSat(tx *sdkTx.Transaction) uint64 {
-	return CalculateFeeSat(tx, b.standardMiningFee)
 }

@@ -3,15 +3,15 @@ package consolidate
 import (
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"log/slog"
 	"os"
 	"os/signal"
 
+	"github.com/spf13/cobra"
+
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
-	"github.com/spf13/cobra"
 )
 
 var Cmd = &cobra.Command{
@@ -28,7 +28,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		keySetsMap, err := helper.GetKeySets()
+		keySetsMap, err := helper.GetSelectedKeySets()
 		if err != nil {
 			return err
 		}
@@ -59,17 +59,13 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %v", err)
 		}
 
-		keySets := make([]*keyset.KeySet, len(keySetsMap))
-		counter := 0
-		for _, keySet := range keySetsMap {
-			keySets[counter] = keySet
-			counter++
-		}
+		names := helper.GetOrderedKeys(keySetsMap)
 
 		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
-		cs := make([]broadcaster.Consolidator, 0, len(keySets))
-		for _, ks := range keySets {
-			c, err := broadcaster.NewUTXOConsolidator(logger.With(slog.String("address", ks.Address(!isTestnet))), client, ks, wocClient, isTestnet, broadcaster.WithFees(miningFeeSat))
+		cs := make([]broadcaster.Consolidator, 0, len(keySetsMap))
+		for _, keyName := range names {
+			ks := keySetsMap[keyName]
+			c, err := broadcaster.NewUTXOConsolidator(logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)), client, ks, wocClient, isTestnet, broadcaster.WithFees(miningFeeSat))
 			if err != nil {
 				return err
 			}
@@ -111,6 +107,10 @@ func init() {
 			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
 		}
 		err = command.Flags().MarkHidden("fullStatusUpdates")
+		if err != nil {
+			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+		}
+		err = command.Flags().MarkHidden("satoshis")
 		if err != nil {
 			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
 		}

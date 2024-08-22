@@ -350,7 +350,7 @@ func (ph *Processor) StartProcessRequestTxs() {
 				err = ph.publishMinedTxs(txHashes)
 				if err != nil {
 					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
-					continue
+					continue // retry, don't clear the txHashes slice
 				}
 
 				txHashes = make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)
@@ -364,7 +364,8 @@ func (ph *Processor) StartProcessRequestTxs() {
 				err := ph.publishMinedTxs(txHashes)
 				if err != nil {
 					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
-					continue
+					ticker.Reset(ph.registerRequestTxsInterval)
+					continue // retry, don't clear the txHashes slice
 				}
 
 				txHashes = make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)
@@ -674,9 +675,7 @@ func ExtractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
 }
 
 func (ph *Processor) Shutdown() {
-	if ph.cancelAll != nil {
-		ph.cancelAll()
-	}
+	ph.cancelAll()
 	ph.waitGroup.Wait()
 }
 

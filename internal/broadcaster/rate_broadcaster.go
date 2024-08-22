@@ -26,13 +26,12 @@ type UTXORateBroadcaster struct {
 	wg               sync.WaitGroup
 	satoshiMap       sync.Map
 	ks               *keyset.KeySet
-	keyName          string
 	rateTxsPerSecond int
 	limit            int64
 }
 
-func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet, utxoClient UtxoClient, isTestnet bool, keyName string, rateTxsPerSecond int, limit int64, opts ...func(p *Broadcaster)) (*UTXORateBroadcaster, error) {
-	b, err := NewBroadcaster(logger.With(slog.String("address", ks.Address(!isTestnet))), client, utxoClient, isTestnet, opts...)
+func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet, utxoClient UtxoClient, isTestnet bool, rateTxsPerSecond int, limit int64, opts ...func(p *Broadcaster)) (*UTXORateBroadcaster, error) {
+	b, err := NewBroadcaster(logger, client, utxoClient, isTestnet, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -45,16 +44,11 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet
 		ks:               ks,
 		totalTxs:         0,
 		connectionCount:  0,
-		keyName:          keyName,
 		rateTxsPerSecond: rateTxsPerSecond,
 		limit:            limit,
 	}
 
 	return rb, nil
-}
-
-func (b *UTXORateBroadcaster) calculateFeeSat(tx *sdkTx.Transaction) uint64 {
-	return CalculateFeeSat(tx, b.standardMiningFee)
 }
 
 func (b *UTXORateBroadcaster) Start() error {
@@ -157,7 +151,10 @@ utxoLoop:
 				return nil, fmt.Errorf("failed to add input: %v", err)
 			}
 
-			fee := b.calculateFeeSat(tx)
+			fee, err := b.feeModel.ComputeFee(tx)
+			if err != nil {
+				return nil, err
+			}
 
 			if utxo.Satoshis <= fee {
 				if len(b.utxoCh) == 0 {
@@ -283,8 +280,4 @@ func (b *UTXORateBroadcaster) GetConnectionCount() int64 {
 
 func (b *UTXORateBroadcaster) GetUtxoSetLen() int {
 	return len(b.utxoCh)
-}
-
-func (b *UTXORateBroadcaster) GetKeyName() string {
-	return b.keyName
 }

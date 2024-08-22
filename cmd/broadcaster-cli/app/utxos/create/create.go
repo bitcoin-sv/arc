@@ -3,14 +3,17 @@ package create
 import (
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"log"
+	"log/slog"
+
+	"github.com/bitcoin-sv/arc/pkg/keyset"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var Cmd = &cobra.Command{
@@ -33,22 +36,7 @@ var Cmd = &cobra.Command{
 			return errors.New("satoshis must be a value greater than 0")
 		}
 
-		fullStatusUpdates, err := helper.GetBool("fullStatusUpdates")
-		if err != nil {
-			return err
-		}
-
 		isTestnet, err := helper.GetBool("testnet")
-		if err != nil {
-			return err
-		}
-
-		callbackURL, err := helper.GetString("callback")
-		if err != nil {
-			return err
-		}
-
-		callbackToken, err := helper.GetString("callbackToken")
 		if err != nil {
 			return err
 		}
@@ -58,7 +46,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		keySets, err := helper.GetKeySets()
+		keySetsMap, err := helper.GetSelectedKeySets()
 		if err != nil {
 			return err
 		}
@@ -89,28 +77,23 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to create client: %v", err)
 		}
-		if err != nil {
-			return fmt.Errorf("failed to create client: %v", err)
-		}
 
 		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
-		ks := make([]*keyset.KeySet, len(keySets))
+		ks := make([]*keyset.KeySet, len(keySetsMap))
 		counter := 0
-		for _, keySet := range keySets {
+		for _, keySet := range keySetsMap {
 			ks[counter] = keySet
 			counter++
 		}
 		rateBroadcaster, err := broadcaster.NewUTXOCreator(logger, client, ks, wocClient, isTestnet,
 			broadcaster.WithFees(miningFeeSat),
-			broadcaster.WithCallback(callbackURL, callbackToken),
-			broadcaster.WithFullstatusUpdates(fullStatusUpdates),
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create broadcaster: %v", err)
 		}
 
-		err = rateBroadcaster.CreateUtxos(outputs, satoshisPerOutput)
+		err = rateBroadcaster.CreateUtxos(outputs, uint64(satoshisPerOutput))
 		if err != nil {
 			return fmt.Errorf("failed to create utxos: %v", err)
 		}
@@ -120,6 +103,30 @@ var Cmd = &cobra.Command{
 }
 
 func init() {
+
+	logger := helper.GetLogger()
+	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
+		// Hide unused persistent flags
+		err := command.Flags().MarkHidden("fullStatusUpdates")
+		if err != nil {
+			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+		}
+		err = command.Flags().MarkHidden("callback")
+		if err != nil {
+			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+		}
+		err = command.Flags().MarkHidden("callbackToken")
+		if err != nil {
+			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+		}
+		err = command.Flags().MarkHidden("fullStatusUpdates")
+		if err != nil {
+			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+		}
+		// Call parent help func
+		command.Parent().HelpFunc()(command, strings)
+	})
+
 	var err error
 
 	Cmd.Flags().Int("outputs", 0, "Nr of requested outputs")

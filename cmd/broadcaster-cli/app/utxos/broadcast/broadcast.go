@@ -8,13 +8,13 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
-	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var Cmd = &cobra.Command{
@@ -73,7 +73,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		keySets, err := helper.GetKeySets()
+		keySetsMap, err := helper.GetSelectedKeySets()
 		if err != nil {
 			return err
 		}
@@ -122,16 +122,9 @@ var Cmd = &cobra.Command{
 			opts = append(opts, broadcaster.WithWaitForStatus(metamorph_api.Status(waitForStatus)))
 		}
 
-		ks := make([]*keyset.KeySet, len(keySets))
-		counter := 0
-		for _, keySet := range keySets {
-			ks[counter] = keySet
-			counter++
-		}
-
-		rbs := make([]broadcaster.RateBroadcaster, 0, len(keySets))
-		for keyName, ks := range keySets {
-			rb, err := broadcaster.NewRateBroadcaster(logger, client, ks, wocClient, isTestnet, keyName, rateTxsPerSecond, limit, opts...)
+		rbs := make([]broadcaster.RateBroadcaster, 0, len(keySetsMap))
+		for keyName, ks := range keySetsMap {
+			rb, err := broadcaster.NewRateBroadcaster(logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)), client, ks, wocClient, isTestnet, rateTxsPerSecond, limit, opts...)
 			if err != nil {
 				return err
 			}
@@ -170,8 +163,19 @@ var Cmd = &cobra.Command{
 }
 
 func init() {
-	var err error
+	logger := helper.GetLogger()
+	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
+		// Hide unused persistent flags
+		err := command.Flags().MarkHidden("satoshis")
+		if err != nil {
+			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+		}
 
+		// Call parent help func
+		command.Parent().HelpFunc()(command, strings)
+	})
+
+	var err error
 	Cmd.Flags().Int("rate", 10, "Transactions per second to be rate broad casted per key set")
 	err = viper.BindPFlag("rate", Cmd.Flags().Lookup("rate"))
 	if err != nil {
@@ -195,4 +199,5 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 }

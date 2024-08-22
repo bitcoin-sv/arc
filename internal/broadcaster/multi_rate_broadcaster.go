@@ -17,7 +17,6 @@ type RateBroadcaster interface {
 	GetTxCount() int64
 	GetConnectionCount() int64
 	GetUtxoSetLen() int
-	GetKeyName() string
 }
 
 type MultiKeyRateBroadcaster struct {

@@ -34,7 +34,7 @@ var Cmd = &cobra.Command{
 		logger := helper.GetLogger()
 		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
-		keySets, err := helper.GetKeySets()
+		keySetsMap, err := helper.GetSelectedKeySets()
 		if err != nil {
 			return err
 		}
@@ -49,12 +49,12 @@ var Cmd = &cobra.Command{
 			cancel()
 		}()
 
-		names := helper.GetOrderedKeys(keySets)
+		names := helper.GetOrderedKeys(keySetsMap)
 		counter := 0
 		var t table.Writer
 		ksRow := map[string]*keyset.KeySet{}
 		for _, name := range names {
-			ksRow[name] = keySets[name]
+			ksRow[name] = keySetsMap[name]
 			if counter >= 9 {
 				t = table.NewWriter()
 				t := getUtxosTable(ctx, logger, t, ksRow, isTestnet, wocClient, maxRows)

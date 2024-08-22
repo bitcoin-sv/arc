@@ -680,7 +680,7 @@ func (ph *Processor) Shutdown() {
 	ph.waitGroup.Wait()
 }
 
-// for testing purposes
-func (ph *Processor) GetWorkerCh() chan BlockRequest {
+// for testing purposes only
+func (ph *Processor) GetBlockRequestCh() chan BlockRequest {
 	return ph.blockRequestCh
 }

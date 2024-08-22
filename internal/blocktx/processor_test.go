@@ -189,7 +189,7 @@ func TestHandleBlock(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 			var blockRequestCh chan blocktx.BlockRequest = nil
-			blockProcessCh := make(chan *p2p.BlockMessage, 100)
+			blockProcessCh := make(chan *p2p.BlockMessage, 10)
 
 			peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
 			processor, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh, blocktx.WithTransactionBatchSize(batchSize), blocktx.WithMessageQueueClient(mq))

@@ -3,7 +3,7 @@ package beef
 import (
 	"errors"
 
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 type MerkleRootVerificationRequest struct {
@@ -11,7 +11,7 @@ type MerkleRootVerificationRequest struct {
 	BlockHeight uint64
 }
 
-func CalculateMerkleRootsFromBumps(bumps []*transaction.MerklePath) ([]MerkleRootVerificationRequest, error) {
+func CalculateMerkleRootsFromBumps(bumps []*sdkTx.MerklePath) ([]MerkleRootVerificationRequest, error) {
 	merkleRoots := make([]MerkleRootVerificationRequest, 0)
 
 	for _, bump := range bumps {
@@ -33,7 +33,7 @@ func CalculateMerkleRootsFromBumps(bumps []*transaction.MerklePath) ([]MerkleRoo
 	return merkleRoots, nil
 }
 
-func calculateMerkleRootFromBump(bump *transaction.MerklePath) (string, error) {
+func calculateMerkleRootFromBump(bump *sdkTx.MerklePath) (string, error) {
 	blockMerkleRoot := ""
 
 	for _, pathElement := range bump.Path {

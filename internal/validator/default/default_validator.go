@@ -7,7 +7,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/fees"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
 )
 
@@ -23,7 +23,7 @@ func New(policy *bitcoin.Settings, finder validator.TxFinderI) *DefaultValidator
 	}
 }
 
-func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *transaction.Transaction, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) error { //nolint:funlen - mostly comments
+func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Transaction, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) error { //nolint:funlen - mostly comments
 	// 0) Check whether we have a complete transaction in extended format, with all input information
 	//    we cannot check the satoshi input, OP_RETURN is allowed 0 satoshis
 	if needsExtension(tx, feeValidation, scriptValidation) {
@@ -65,7 +65,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *transact
 	return nil
 }
 
-func needsExtension(tx *transaction.Transaction, fv validator.FeeValidation, sv validator.ScriptValidation) bool {
+func needsExtension(tx *sdkTx.Transaction, fv validator.FeeValidation, sv validator.ScriptValidation) bool {
 	// don't need if we don't validate fee AND scripts
 	if fv == validator.NoneFeeValidation && sv == validator.NoneScriptValidation {
 		return false
@@ -75,7 +75,7 @@ func needsExtension(tx *transaction.Transaction, fv validator.FeeValidation, sv 
 	return !isExtended(tx)
 }
 
-func isExtended(tx *transaction.Transaction) bool {
+func isExtended(tx *sdkTx.Transaction) bool {
 	if tx == nil || tx.Inputs == nil {
 		return false
 	}
@@ -89,7 +89,7 @@ func isExtended(tx *transaction.Transaction) bool {
 	return true
 }
 
-func standardCheckFees(tx *transaction.Transaction, feeModel transaction.FeeModel) *validator.Error {
+func standardCheckFees(tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validator.Error {
 	feesOK, expFeesPaid, actualFeePaid, err := isFeePaidEnough(feeModel, tx)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusFees)
@@ -103,7 +103,7 @@ func standardCheckFees(tx *transaction.Transaction, feeModel transaction.FeeMode
 	return nil
 }
 
-func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *transaction.Transaction, feeModel *fees.SatoshisPerKilobyte, unminedAncestorsLimit int) *validator.Error {
+func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, feeModel *fees.SatoshisPerKilobyte, unminedAncestorsLimit int) *validator.Error {
 	txSet, err := getUnminedAncestors(ctx, txFinder, tx)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
@@ -136,7 +136,7 @@ func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 	return nil
 }
 
-func isFeePaidEnough(feeModel transaction.FeeModel, tx *transaction.Transaction) (bool, uint64, uint64, error) {
+func isFeePaidEnough(feeModel sdkTx.FeeModel, tx *sdkTx.Transaction) (bool, uint64, uint64, error) {
 	expFeesPaid, err := feeModel.ComputeFee(tx)
 	if err != nil {
 		return false, 0, 0, err
@@ -153,9 +153,9 @@ func isFeePaidEnough(feeModel transaction.FeeModel, tx *transaction.Transaction)
 	return actualFeePaid >= expFeesPaid, expFeesPaid, actualFeePaid, nil
 }
 
-func checkScripts(tx *transaction.Transaction) error {
+func checkScripts(tx *sdkTx.Transaction) error {
 	for i, in := range tx.Inputs {
-		prevOutput := &transaction.TransactionOutput{
+		prevOutput := &sdkTx.TransactionOutput{
 			Satoshis:      *in.SourceTxSatoshis(),
 			LockingScript: in.SourceTxScript(),
 		}

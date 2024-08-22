@@ -2,7 +2,7 @@ package test
 
 import (
 	"fmt"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
 	"github.com/bitcoinsv/bsvutil"
 

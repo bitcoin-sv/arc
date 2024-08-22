@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/go-sdk/script"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +18,7 @@ func TestComputeFee(t *testing.T) {
 		name         string
 		satsPerKB    uint64
 		txSize       uint64
-		tx           *transaction.Transaction
+		tx           *sdkTx.Transaction
 		estimatedFee uint64
 	}{
 		{
@@ -30,16 +30,16 @@ func TestComputeFee(t *testing.T) {
 		{
 			name:      "compute fee based on tx size",
 			satsPerKB: 50,
-			tx: &transaction.Transaction{
-				Inputs: []*transaction.TransactionInput{{
-					SourceTransaction: &transaction.Transaction{
-						Outputs: []*transaction.TransactionOutput{{
+			tx: &sdkTx.Transaction{
+				Inputs: []*sdkTx.TransactionInput{{
+					SourceTransaction: &sdkTx.Transaction{
+						Outputs: []*sdkTx.TransactionOutput{{
 							Satoshis: 150,
 						}},
 					},
 					UnlockingScript: validLockingScript,
 				}},
-				Outputs: []*transaction.TransactionOutput{{
+				Outputs: []*sdkTx.TransactionOutput{{
 					Satoshis:      100,
 					LockingScript: validLockingScript,
 				}},

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,10 +41,10 @@ func TestCalculateMerkleRootsFromBumps(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			bump, err := transaction.NewMerklePathFromHex(tc.bumpStr)
+			bump, err := sdkTx.NewMerklePathFromHex(tc.bumpStr)
 			require.NoError(t, err)
 
-			merkleRoots, err := CalculateMerkleRootsFromBumps([]*transaction.MerklePath{bump})
+			merkleRoots, err := CalculateMerkleRootsFromBumps([]*sdkTx.MerklePath{bump})
 
 			assert.Equal(t, tc.expectedResult, merkleRoots)
 			assert.Equal(t, tc.expectedError, err)

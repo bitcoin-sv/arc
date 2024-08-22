@@ -11,7 +11,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -198,7 +198,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 
 			client := metamorph.NewClient(apiClient, opts...)
 
-			tx, err := transaction.NewTransactionFromHex(testdata.TX1RawString)
+			tx, err := sdkTx.NewTransactionFromHex(testdata.TX1RawString)
 			require.NoError(t, err)
 			status, err := client.SubmitTransaction(context.Background(), tx, tc.options)
 
@@ -216,11 +216,11 @@ func TestClient_SubmitTransaction(t *testing.T) {
 
 func TestClient_SubmitTransactions(t *testing.T) {
 	now := time.Date(2024, 6, 1, 10, 0, 0, 0, time.UTC)
-	tx1, err := transaction.NewTransactionFromHex("010000000000000000ef016c50da4e8941c9b11720a4a29b40955c30f246b25740cd1aecffa2e3c4acd144000000006b483045022100eaf7791ec8ec1b9766473e70a5e41ac1734b6e43126d3dfa142c5f7670256cae02206169a3d22f0519b2631e8b952d8530db3502f2494ba038672e69b23a1e03340c412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffbf070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01be070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
+	tx1, err := sdkTx.NewTransactionFromHex("010000000000000000ef016c50da4e8941c9b11720a4a29b40955c30f246b25740cd1aecffa2e3c4acd144000000006b483045022100eaf7791ec8ec1b9766473e70a5e41ac1734b6e43126d3dfa142c5f7670256cae02206169a3d22f0519b2631e8b952d8530db3502f2494ba038672e69b23a1e03340c412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffbf070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01be070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
 	require.NoError(t, err)
-	tx2, err := transaction.NewTransactionFromHex("010000000000000000ef0159f09a1fc4f1df5790730de57f96840fc5fbbbb08ebff52c986fd43a842588e0000000006a473044022020152c7c9f09e6b31bce86fc2b21bf8b0e5edfdaba575196dc47b933b4ec6f9502201815515de957ff44d8f9a9368a055d04bc7e1a675ad8b34ca67e47b28459718f412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffbf070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01be070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
+	tx2, err := sdkTx.NewTransactionFromHex("010000000000000000ef0159f09a1fc4f1df5790730de57f96840fc5fbbbb08ebff52c986fd43a842588e0000000006a473044022020152c7c9f09e6b31bce86fc2b21bf8b0e5edfdaba575196dc47b933b4ec6f9502201815515de957ff44d8f9a9368a055d04bc7e1a675ad8b34ca67e47b28459718f412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffbf070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01be070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
 	require.NoError(t, err)
-	tx3, err := transaction.NewTransactionFromHex("010000000000000000ef016a4c158eb2906c84b3d95206a4dac765baf4dff63120e09ab0134dc6505a23bf000000006b483045022100a46fb3431796212efc3f78b2a8559ba66a5f197977ee983b765a8a1497c0e31a022077ff0eed59beadbdd08b9806ed1f83e41e57ef4892564a75ecbeddd99f14f60f412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffbf070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01be070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
+	tx3, err := sdkTx.NewTransactionFromHex("010000000000000000ef016a4c158eb2906c84b3d95206a4dac765baf4dff63120e09ab0134dc6505a23bf000000006b483045022100a46fb3431796212efc3f78b2a8559ba66a5f197977ee983b765a8a1497c0e31a022077ff0eed59beadbdd08b9806ed1f83e41e57ef4892564a75ecbeddd99f14f60f412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffbf070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01be070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
 	require.NoError(t, err)
 	tt := []struct {
 		name               string
@@ -428,7 +428,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 
 			client := metamorph.NewClient(apiClient, opts...)
 
-			statuses, err := client.SubmitTransactions(context.Background(), transaction.Transactions{tx1, tx2, tx3}, tc.options)
+			statuses, err := client.SubmitTransactions(context.Background(), sdkTx.Transactions{tx1, tx2, tx3}, tc.options)
 
 			require.Equal(t, tc.expectedStatuses, statuses)
 

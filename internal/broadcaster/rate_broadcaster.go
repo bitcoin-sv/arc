@@ -13,7 +13,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 type UTXORateBroadcaster struct {
@@ -21,7 +21,7 @@ type UTXORateBroadcaster struct {
 	totalTxs         int64
 	connectionCount  int64
 	shutdown         chan struct{}
-	utxoCh           chan *transaction.UTXO
+	utxoCh           chan *sdkTx.UTXO
 	wg               sync.WaitGroup
 	satoshiMap       sync.Map
 	ks               *keyset.KeySet
@@ -52,7 +52,7 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet
 	return rb, nil
 }
 
-func (b *UTXORateBroadcaster) calculateFeeSat(tx *transaction.Transaction) uint64 {
+func (b *UTXORateBroadcaster) calculateFeeSat(tx *sdkTx.Transaction) uint64 {
 	return CalculateFeeSat(tx, b.standardMiningFee)
 }
 
@@ -94,7 +94,7 @@ func (b *UTXORateBroadcaster) Start() error {
 		return fmt.Errorf("size of utxo set %d is smaller than requested batch size %d - create more utxos first", len(utxoSet), b.batchSize)
 	}
 
-	b.utxoCh = make(chan *transaction.UTXO, 100000)
+	b.utxoCh = make(chan *sdkTx.UTXO, 100000)
 	for _, utxo := range utxoSet {
 		b.utxoCh <- utxo
 	}
@@ -140,8 +140,8 @@ func (b *UTXORateBroadcaster) Start() error {
 	return nil
 }
 
-func (b *UTXORateBroadcaster) createSelfPayingTxs() (transaction.Transactions, error) {
-	txs := make(transaction.Transactions, 0, b.batchSize)
+func (b *UTXORateBroadcaster) createSelfPayingTxs() (sdkTx.Transactions, error) {
+	txs := make(sdkTx.Transactions, 0, b.batchSize)
 
 utxoLoop:
 	for {
@@ -149,7 +149,7 @@ utxoLoop:
 		case <-b.ctx.Done():
 			return txs, nil
 		case utxo := <-b.utxoCh:
-			tx := &transaction.Transaction{}
+			tx := &sdkTx.Transaction{}
 
 			err := tx.AddInputsFromUTXOs(utxo)
 			if err != nil {
@@ -171,10 +171,7 @@ utxoLoop:
 				return nil, fmt.Errorf("failed to pay transaction %d: %v", amount, err)
 			}
 
-			err = tx.AddOpReturnOutput([]byte("ARC testing"))
-			if err != nil {
-				return nil, err
-			}
+			// Todo: Add OP_RETURN with text "ARC testing" so that WoC can tag it
 
 			err = SignAllInputs(tx, b.ks.PrivateKey)
 			if err != nil {
@@ -194,7 +191,7 @@ utxoLoop:
 	return txs, nil
 }
 
-func (b *UTXORateBroadcaster) broadcastBatchAsync(txs transaction.Transactions, errCh chan error, waitForStatus metamorph_api.Status) {
+func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh chan error, waitForStatus metamorph_api.Status) {
 	b.wg.Add(1)
 	go func() {
 		defer b.wg.Done()
@@ -210,7 +207,7 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs transaction.Transactions, 
 			// In case of error put utxos back in channel
 			for _, tx := range txs {
 				for _, input := range tx.Inputs {
-					unusedUtxo := &transaction.UTXO{
+					unusedUtxo := &sdkTx.UTXO{
 						TxID:          input.SourceTXID,
 						Vout:          0,
 						LockingScript: b.ks.Script,
@@ -241,7 +238,7 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs transaction.Transactions, 
 			satoshis, isValid := sat.(uint64)
 
 			if found && isValid {
-				newUtxo := &transaction.UTXO{
+				newUtxo := &sdkTx.UTXO{
 					TxID:          txIDBytes,
 					Vout:          0,
 					LockingScript: b.ks.Script,

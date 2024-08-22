@@ -2,7 +2,7 @@ package test
 
 import (
 	"fmt"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"net/http"
 	"testing"
 	"time"

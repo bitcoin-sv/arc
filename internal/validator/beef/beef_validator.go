@@ -9,7 +9,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/fees"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
 )
 
@@ -25,7 +25,7 @@ func New(policy *bitcoin.Settings, mrVerifier validator.MerkleVerifierI) *BeefVa
 	}
 }
 
-func (v *BeefValidator) ValidateTransaction(ctx context.Context, beefTx *beef.BEEF, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (*transaction.Transaction, error) {
+func (v *BeefValidator) ValidateTransaction(ctx context.Context, beefTx *beef.BEEF, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (*sdkTx.Transaction, error) {
 	feeModel := api.FeesToFeeModel(v.policy.MinMiningTxFee)
 
 	for _, btx := range beefTx.Transactions {
@@ -70,7 +70,7 @@ func (v *BeefValidator) ValidateTransaction(ctx context.Context, beefTx *beef.BE
 	return nil, nil
 }
 
-func standardCheckFees(tx *transaction.Transaction, beefTx *beef.BEEF, feeModel transaction.FeeModel) *validator.Error {
+func standardCheckFees(tx *sdkTx.Transaction, beefTx *beef.BEEF, feeModel sdkTx.FeeModel) *validator.Error {
 	expectedFees, err := feeModel.ComputeFee(tx)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusFees)
@@ -134,7 +134,7 @@ func cumulativeCheckFees(beefTx *beef.BEEF, feeModel *fees.SatoshisPerKilobyte, 
 	return nil
 }
 
-func calculateInputsOutputsSatoshis(tx *transaction.Transaction, inputTxs []*beef.TxData) (uint64, uint64, error) {
+func calculateInputsOutputsSatoshis(tx *sdkTx.Transaction, inputTxs []*beef.TxData) (uint64, uint64, error) {
 	inputSum := uint64(0)
 
 	for _, input := range tx.Inputs {
@@ -152,7 +152,7 @@ func calculateInputsOutputsSatoshis(tx *transaction.Transaction, inputTxs []*bee
 	return inputSum, outputSum, nil
 }
 
-func validateScripts(tx *transaction.Transaction, inputTxs []*beef.TxData) *validator.Error {
+func validateScripts(tx *sdkTx.Transaction, inputTxs []*beef.TxData) *validator.Error {
 	for i, input := range tx.Inputs {
 		inputParentTx := findParentForInput(input, inputTxs)
 		if inputParentTx == nil {
@@ -187,14 +187,14 @@ func verifyMerkleRoots(ctx context.Context, v validator.MerkleVerifierI, beefTx 
 	return nil
 }
 
-func checkScripts(tx, prevTx *transaction.Transaction, inputIdx int) error {
+func checkScripts(tx, prevTx *sdkTx.Transaction, inputIdx int) error {
 	input := tx.InputIdx(inputIdx)
 	prevOutput := prevTx.OutputIdx(int(input.SourceTxOutIndex))
 
 	return validator.CheckScript(tx, inputIdx, prevOutput)
 }
 
-func ensureAncestorsArePresentInBump(tx *transaction.Transaction, beefTx *beef.BEEF) *validator.Error {
+func ensureAncestorsArePresentInBump(tx *sdkTx.Transaction, beefTx *beef.BEEF) *validator.Error {
 	minedAncestors := make([]*beef.TxData, 0)
 
 	for _, input := range tx.Inputs {
@@ -213,7 +213,7 @@ func ensureAncestorsArePresentInBump(tx *transaction.Transaction, beefTx *beef.B
 	return nil
 }
 
-func findMinedAncestorsForInput(input *transaction.TransactionInput, ancestors []*beef.TxData, minedAncestors *[]*beef.TxData) error {
+func findMinedAncestorsForInput(input *sdkTx.TransactionInput, ancestors []*beef.TxData, minedAncestors *[]*beef.TxData) error {
 	parent := findParentForInput(input, ancestors)
 	if parent == nil {
 		return fmt.Errorf("invalid BUMP - cannot find mined parent for input %s", input.String())
@@ -234,7 +234,7 @@ func findMinedAncestorsForInput(input *transaction.TransactionInput, ancestors [
 	return nil
 }
 
-func findParentForInput(input *transaction.TransactionInput, parentTxs []*beef.TxData) *beef.TxData {
+func findParentForInput(input *sdkTx.TransactionInput, parentTxs []*beef.TxData) *beef.TxData {
 	parentID := input.PreviousTxIDStr()
 
 	for _, ptx := range parentTxs {
@@ -246,7 +246,7 @@ func findParentForInput(input *transaction.TransactionInput, parentTxs []*beef.T
 	return nil
 }
 
-func existsInBumps(tx *beef.TxData, bumps []*transaction.MerklePath) bool {
+func existsInBumps(tx *beef.TxData, bumps []*sdkTx.MerklePath) bool {
 	bumpIdx := int(*tx.BumpIndex)
 	txID := tx.GetTxID()
 

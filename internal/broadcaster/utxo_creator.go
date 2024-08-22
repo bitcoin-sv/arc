@@ -11,7 +11,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 type UTXOCreator struct {
@@ -138,7 +138,7 @@ func (b *UTXOCreator) CreateUtxos(requestedOutputs int, requestedSatoshisPerOutp
 					}
 
 					for _, foundOutput := range foundOutputs {
-						newUtxo := &transaction.UTXO{
+						newUtxo := &sdkTx.UTXO{
 							TxID:          txIDBytes,
 							Vout:          foundOutput.vout,
 							LockingScript: ks.Script,
@@ -160,9 +160,9 @@ func (b *UTXOCreator) CreateUtxos(requestedOutputs int, requestedSatoshisPerOutp
 	return nil
 }
 
-func (b *UTXOCreator) splitOutputs(requestedOutputs int, requestedSatoshisPerOutput uint64, utxoSet *list.List, satoshiMap map[string][]splittingOutput, fundingKeySet *keyset.KeySet) ([]transaction.Transactions, error) {
-	txsSplitBatches := make([]transaction.Transactions, 0)
-	txsSplit := make(transaction.Transactions, 0)
+func (b *UTXOCreator) splitOutputs(requestedOutputs int, requestedSatoshisPerOutput uint64, utxoSet *list.List, satoshiMap map[string][]splittingOutput, fundingKeySet *keyset.KeySet) ([]sdkTx.Transactions, error) {
+	txsSplitBatches := make([]sdkTx.Transactions, 0)
+	txsSplit := make(sdkTx.Transactions, 0)
 	outputs := utxoSet.Len()
 	var err error
 
@@ -174,12 +174,12 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs int, requestedSatoshisPerOut
 			break
 		}
 
-		utxo, ok := front.Value.(*transaction.UTXO)
+		utxo, ok := front.Value.(*sdkTx.UTXO)
 		if !ok {
 			return nil, errors.New("failed to parse value to utxo")
 		}
 
-		tx := transaction.NewTransaction()
+		tx := sdkTx.NewTransaction()
 		err = tx.AddInputsFromUTXOs(utxo)
 		if err != nil {
 			return nil, err
@@ -210,7 +210,7 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs int, requestedSatoshisPerOut
 
 		if len(txsSplit) == b.batchSize {
 			txsSplitBatches = append(txsSplitBatches, txsSplit)
-			txsSplit = make(transaction.Transactions, 0)
+			txsSplit = make(sdkTx.Transactions, 0)
 		}
 	}
 
@@ -220,7 +220,7 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs int, requestedSatoshisPerOut
 	return txsSplitBatches, nil
 }
 
-func (b *UTXOCreator) splitToFundingKeyset(tx *transaction.Transaction, splitSatoshis uint64, requestedSatoshis uint64, requestedOutputs int, fundingKeySet *keyset.KeySet) (addedOutputs int, err error) {
+func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis uint64, requestedSatoshis uint64, requestedOutputs int, fundingKeySet *keyset.KeySet) (addedOutputs int, err error) {
 	if requestedSatoshis > splitSatoshis {
 		return 0, fmt.Errorf("requested satoshis %d greater than satoshis to be split %d", requestedSatoshis, splitSatoshis)
 	}

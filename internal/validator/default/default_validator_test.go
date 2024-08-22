@@ -14,7 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/go-sdk/script"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,7 +34,7 @@ func TestValidator(t *testing.T) {
 
 	t.Run("valid tx", func(t *testing.T) {
 		// extended tx
-		tx, _ := transaction.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
+		tx, _ := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
 
 		policy := getPolicy(500)
 		validator := New(policy, nil)
@@ -45,7 +45,7 @@ func TestValidator(t *testing.T) {
 
 	t.Run("invalid tx", func(t *testing.T) {
 		// extended tx
-		tx, _ := transaction.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00e40b5402000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
+		tx, _ := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00e40b5402000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
 
 		policy := getPolicy(500)
 		validator := New(policy, nil)
@@ -63,7 +63,7 @@ func TestValidator(t *testing.T) {
 
 	t.Run("low fee error", func(t *testing.T) {
 		// extended tx
-		tx, _ := transaction.NewTransactionFromHex("010000000000000000ef01a7968c39fe10ae04686061ab99dc6774f0ebbd8679e521e6fc944d919d9d19a1020000006a4730440220318d23e6fd7dd5ace6e8dc1888b363a053552f48ecc166403a1cc65db5e16aca02203a9ad254cb262f50c89487ffd72e8ddd8536c07f4b230d13a2ccd1435898e89b412102dd7dce95e52345704bbb4df4e4cfed1f8eaabf8260d33597670e3d232c491089ffffffff44040000000000001976a914cd43ba65ce83778ef04b207de14498440f3bd46c88ac013a040000000000001976a9141754f52fc862c7a6106c964c35db7d92a57fec2488ac00000000")
+		tx, _ := sdkTx.NewTransactionFromHex("010000000000000000ef01a7968c39fe10ae04686061ab99dc6774f0ebbd8679e521e6fc944d919d9d19a1020000006a4730440220318d23e6fd7dd5ace6e8dc1888b363a053552f48ecc166403a1cc65db5e16aca02203a9ad254cb262f50c89487ffd72e8ddd8536c07f4b230d13a2ccd1435898e89b412102dd7dce95e52345704bbb4df4e4cfed1f8eaabf8260d33597670e3d232c491089ffffffff44040000000000001976a914cd43ba65ce83778ef04b207de14498440f3bd46c88ac013a040000000000001976a9141754f52fc862c7a6106c964c35db7d92a57fec2488ac00000000")
 
 		policy := getPolicy(500)
 		validator := New(policy, nil)
@@ -73,7 +73,7 @@ func TestValidator(t *testing.T) {
 
 	t.Run("valid tx 2", func(t *testing.T) {
 		// extended tx
-		tx, _ := transaction.NewTransactionFromHex("010000000000000000ef01a7968c39fe10ae04686061ab99dc6774f0ebbd8679e521e6fc944d919d9d19a1020000006a4730440220318d23e6fd7dd5ace6e8dc1888b363a053552f48ecc166403a1cc65db5e16aca02203a9ad254cb262f50c89487ffd72e8ddd8536c07f4b230d13a2ccd1435898e89b412102dd7dce95e52345704bbb4df4e4cfed1f8eaabf8260d33597670e3d232c491089ffffffff44040000000000001976a914cd43ba65ce83778ef04b207de14498440f3bd46c88ac013a040000000000001976a9141754f52fc862c7a6106c964c35db7d92a57fec2488ac00000000")
+		tx, _ := sdkTx.NewTransactionFromHex("010000000000000000ef01a7968c39fe10ae04686061ab99dc6774f0ebbd8679e521e6fc944d919d9d19a1020000006a4730440220318d23e6fd7dd5ace6e8dc1888b363a053552f48ecc166403a1cc65db5e16aca02203a9ad254cb262f50c89487ffd72e8ddd8536c07f4b230d13a2ccd1435898e89b412102dd7dce95e52345704bbb4df4e4cfed1f8eaabf8260d33597670e3d232c491089ffffffff44040000000000001976a914cd43ba65ce83778ef04b207de14498440f3bd46c88ac013a040000000000001976a9141754f52fc862c7a6106c964c35db7d92a57fec2488ac00000000")
 
 		policy := getPolicy(5)
 		validator := New(policy, nil)
@@ -90,7 +90,7 @@ func TestValidator(t *testing.T) {
 		}
 
 		for txIndex, txStr := range txs {
-			tx, err := transaction.NewTransactionFromHex(txStr)
+			tx, err := sdkTx.NewTransactionFromHex(txStr)
 			require.NoError(t, err, "Could not parse tx hex")
 
 			policy := getPolicy(5)
@@ -105,7 +105,7 @@ func TestValidator(t *testing.T) {
 		require.NoError(t, err, "Failed to open file")
 		defer f.Close()
 
-		tx := &transaction.Transaction{}
+		tx := &sdkTx.Transaction{}
 		_, err = tx.ReadFrom(f)
 		require.NoError(t, err, "Failed to read tx from reader")
 
@@ -116,7 +116,7 @@ func TestValidator(t *testing.T) {
 		for index, in := range tx.Inputs {
 			parentHex := parentHexes[index]
 
-			parentTx, err := transaction.NewTransactionFromHex(parentHex)
+			parentTx, err := sdkTx.NewTransactionFromHex(parentHex)
 			require.NoError(t, err, "Could not parse parent tx hex")
 
 			in.SetPrevTxFromOutput(parentTx.Outputs[in.SourceTxOutIndex])
@@ -140,7 +140,7 @@ func TestValidator(t *testing.T) {
 			},
 		}
 
-		rawTx, _ := transaction.NewTransactionFromHex(fixture.ValidTxRawHex)
+		rawTx, _ := sdkTx.NewTransactionFromHex(fixture.ValidTxRawHex)
 
 		sut := New(getPolicy(5), &txFinder)
 
@@ -164,7 +164,7 @@ func getPolicy(satoshisPerKB uint64) *bitcoin.Settings {
 // no need to extensively test this function, it's just calling isFeePaidEnough
 func Test_standardCheckFees(t *testing.T) {
 	type args struct {
-		tx       *transaction.Transaction
+		tx       *sdkTx.Transaction
 		feeModel *fees.SatoshisPerKilobyte
 	}
 	tests := []struct {
@@ -175,15 +175,15 @@ func Test_standardCheckFees(t *testing.T) {
 		{
 			name: "no fee being paid",
 			args: args{
-				tx: &transaction.Transaction{
-					Inputs: []*transaction.TransactionInput{{
-						SourceTransaction: &transaction.Transaction{
-							Outputs: []*transaction.TransactionOutput{{
+				tx: &sdkTx.Transaction{
+					Inputs: []*sdkTx.TransactionInput{{
+						SourceTransaction: &sdkTx.Transaction{
+							Outputs: []*sdkTx.TransactionOutput{{
 								Satoshis: 100,
 							}},
 						},
 					}},
-					Outputs: []*transaction.TransactionOutput{{
+					Outputs: []*sdkTx.TransactionOutput{{
 						Satoshis:      100,
 						LockingScript: validLockingScript,
 					}},
@@ -195,16 +195,16 @@ func Test_standardCheckFees(t *testing.T) {
 		{
 			name: "valid fee being paid",
 			args: args{
-				tx: &transaction.Transaction{
-					Inputs: []*transaction.TransactionInput{{
-						SourceTransaction: &transaction.Transaction{
-							Outputs: []*transaction.TransactionOutput{{
+				tx: &sdkTx.Transaction{
+					Inputs: []*sdkTx.TransactionInput{{
+						SourceTransaction: &sdkTx.Transaction{
+							Outputs: []*sdkTx.TransactionOutput{{
 								Satoshis: 150,
 							}},
 						},
 						UnlockingScript: validLockingScript,
 					}},
-					Outputs: []*transaction.TransactionOutput{{
+					Outputs: []*sdkTx.TransactionOutput{{
 						Satoshis:      100,
 						LockingScript: validLockingScript,
 					}},
@@ -225,7 +225,7 @@ func Test_standardCheckFees(t *testing.T) {
 
 func Test_standardCheckFeesTxs(t *testing.T) {
 	t.Run("no fee being paid", func(t *testing.T) {
-		tx, err := transaction.NewTransactionFromHex(opReturnTx)
+		tx, err := sdkTx.NewTransactionFromHex(opReturnTx)
 		require.NoError(t, err)
 		feeModel := &fees.SatoshisPerKilobyte{Satoshis: 50}
 
@@ -236,7 +236,7 @@ func Test_standardCheckFeesTxs(t *testing.T) {
 
 func Test_checkScripts(t *testing.T) {
 	t.Run("valid op_return tx", func(t *testing.T) {
-		tx, err := transaction.NewTransactionFromHex(opReturnTx)
+		tx, err := sdkTx.NewTransactionFromHex(opReturnTx)
 		require.NoError(t, err)
 
 		err = checkScripts(tx)
@@ -244,7 +244,7 @@ func Test_checkScripts(t *testing.T) {
 	})
 
 	t.Run("valid run tx", func(t *testing.T) {
-		tx, err := transaction.NewTransactionFromHex(runTx)
+		tx, err := sdkTx.NewTransactionFromHex(runTx)
 		require.NoError(t, err)
 
 		err = checkScripts(tx)
@@ -254,7 +254,7 @@ func Test_checkScripts(t *testing.T) {
 
 func BenchmarkValidator(b *testing.B) {
 	// extended tx
-	tx, _ := transaction.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
+	tx, _ := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
 
 	policy := getPolicy(500)
 	validator := New(policy, nil)
@@ -265,7 +265,7 @@ func BenchmarkValidator(b *testing.B) {
 }
 
 func TestFeeCalculation(t *testing.T) {
-	tx, err := transaction.NewTransactionFromHex("010000000000000000ef03778462c25ddb306d312b422885446f26e3e0455e493a4d81daffe06961aae985c80000006a473044022001762f052785e65bc38512c77712e026088caee394122fe9dff95c577b16dfdf022016de0b27ea5068151ed19b9685f21164c794c23acdb9a407169bc65cb3bb857b412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffff7bd53001000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac7a629df9166996224ebbe6225388c8a0f6cbc21853e831cf52764270ac5f37ec000000006a473044022006a82dd662f9b21bfa2cd770a222bf359031ba02c72c6cbb2122c0cf31b7bd93022034d674785bd89bf5b4d9b59851f4342cc1058da4a05fd13b31984423c79c8a2f412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffffd0070000000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac7a629df9166996224ebbe6225388c8a0f6cbc21853e831cf52764270ac5f37ec010000006b483045022100f6340e82cd38b4e99d5603433a260fbc5e2b5a6978f75c60335401dc2e86f82002201d816a3b2219811991b767fa7902a3d3c54c03a7d2f6a6d23745c9c586ac7352412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffff05020000000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac0b1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288acfbdd3001000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac00000000")
+	tx, err := sdkTx.NewTransactionFromHex("010000000000000000ef03778462c25ddb306d312b422885446f26e3e0455e493a4d81daffe06961aae985c80000006a473044022001762f052785e65bc38512c77712e026088caee394122fe9dff95c577b16dfdf022016de0b27ea5068151ed19b9685f21164c794c23acdb9a407169bc65cb3bb857b412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffff7bd53001000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac7a629df9166996224ebbe6225388c8a0f6cbc21853e831cf52764270ac5f37ec000000006a473044022006a82dd662f9b21bfa2cd770a222bf359031ba02c72c6cbb2122c0cf31b7bd93022034d674785bd89bf5b4d9b59851f4342cc1058da4a05fd13b31984423c79c8a2f412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffffd0070000000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac7a629df9166996224ebbe6225388c8a0f6cbc21853e831cf52764270ac5f37ec010000006b483045022100f6340e82cd38b4e99d5603433a260fbc5e2b5a6978f75c60335401dc2e86f82002201d816a3b2219811991b767fa7902a3d3c54c03a7d2f6a6d23745c9c586ac7352412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffff05020000000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac0b1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288acfbdd3001000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac00000000")
 	require.NoError(t, err)
 
 	policy := getPolicy(50)
@@ -309,7 +309,7 @@ func Test_needExtension(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			tx, _ := transaction.NewTransactionFromHex(tc.txHex)
+			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
 
 			// then
 			result := needsExtension(tx, tc.feeOpt, tc.scriptOpt)
@@ -504,7 +504,7 @@ func Test_cumulativeCheckFees(t *testing.T) {
 
 			txFinder := tc.getTxFinderFn(t)
 
-			tx, _ := transaction.NewTransactionFromHex(tc.hex)
+			tx, _ := sdkTx.NewTransactionFromHex(tc.hex)
 
 			// then
 			vErr := cumulativeCheckFees(context.TODO(), &txFinder, tx, tc.feeModel, ancestorLimit)

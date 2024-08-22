@@ -11,7 +11,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -26,8 +26,8 @@ type TransactionHandler interface {
 	GetTransaction(ctx context.Context, txID string) ([]byte, error)
 	GetTransactions(ctx context.Context, txIDs []string) ([]*Transaction, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
-	SubmitTransaction(ctx context.Context, tx *transaction.Transaction, options *TransactionOptions) (*TransactionStatus, error)
-	SubmitTransactions(ctx context.Context, tx transaction.Transactions, options *TransactionOptions) ([]*TransactionStatus, error)
+	SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *TransactionOptions) (*TransactionStatus, error)
+	SubmitTransactions(ctx context.Context, tx sdkTx.Transactions, options *TransactionOptions) ([]*TransactionStatus, error)
 }
 
 type TransactionMaintainer interface {
@@ -180,7 +180,7 @@ func (m *Metamorph) Health(ctx context.Context) error {
 }
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
-func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *transaction.Transaction, options *TransactionOptions) (*TransactionStatus, error) {
+func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *TransactionOptions) (*TransactionStatus, error) {
 	request := &metamorph_api.TransactionRequest{
 		RawTx:             tx.Bytes(),
 		CallbackUrl:       options.CallbackURL,
@@ -235,7 +235,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *transaction.Trans
 }
 
 // SubmitTransactions submits transactions to the bitcoin network and returns the transaction in raw format.
-func (m *Metamorph) SubmitTransactions(ctx context.Context, txs transaction.Transactions, options *TransactionOptions) ([]*TransactionStatus, error) {
+func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactions, options *TransactionOptions) ([]*TransactionStatus, error) {
 	// prepare transaction inputs
 	in := new(metamorph_api.TransactionRequests)
 	in.Transactions = make([]*metamorph_api.TransactionRequest, 0)

@@ -24,7 +24,7 @@ import (
 	btxMocks "github.com/bitcoin-sv/arc/pkg/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	mtmMocks "github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/assert"
@@ -593,7 +593,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 				GetTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
 					if tc.getTx != nil {
-						tx, _ := transaction.NewTransactionFromBytes(tc.getTx)
+						tx, _ := sdkTx.NewTransactionFromBytes(tc.getTx)
 
 						mt := metamorph.Transaction{
 							TxID:        tx.TxID(),
@@ -606,11 +606,11 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 					return nil, nil
 				},
 
-				SubmitTransactionFunc: func(ctx context.Context, tx *transaction.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
+				SubmitTransactionFunc: func(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 					return tc.submitTxResponse, tc.submitTxErr
 				},
 
-				SubmitTransactionsFunc: func(ctx context.Context, tx transaction.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+				SubmitTransactionsFunc: func(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 					return []*metamorph.TransactionStatus{tc.submitTxResponse}, tc.submitTxErr
 				},
 			}
@@ -755,7 +755,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("valid tx - missing inputs", func(t *testing.T) {
 		txHandler := &mtmMocks.TransactionHandlerMock{
-			SubmitTransactionsFunc: func(ctx context.Context, tx transaction.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+			SubmitTransactionsFunc: func(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				var txStatuses []*metamorph.TransactionStatus
 				return txStatuses, nil
 			},
@@ -810,10 +810,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mtmMocks.TransactionHandlerMock{
-			SubmitTransactionFunc: func(ctx context.Context, tx *transaction.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
+			SubmitTransactionFunc: func(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 				return txResult, nil
 			},
-			SubmitTransactionsFunc: func(ctx context.Context, tx transaction.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+			SubmitTransactionsFunc: func(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				txStatuses := []*metamorph.TransactionStatus{txResult}
 				return txStatuses, nil
 			},
@@ -890,10 +890,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mtmMocks.TransactionHandlerMock{
-			SubmitTransactionFunc: func(ctx context.Context, tx *transaction.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
+			SubmitTransactionFunc: func(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 				return txResult, nil
 			},
-			SubmitTransactionsFunc: func(ctx context.Context, tx transaction.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+			SubmitTransactionsFunc: func(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				txStatuses := []*metamorph.TransactionStatus{txResult}
 				return txStatuses, nil
 			},
@@ -952,7 +952,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mtmMocks.TransactionHandlerMock{
 			GetTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
-				tx, _ := transaction.NewTransactionFromBytes(validTxParentBytes)
+				tx, _ := sdkTx.NewTransactionFromBytes(validTxParentBytes)
 				return []*metamorph.Transaction{
 					{
 						TxID:        tx.TxID(),
@@ -965,7 +965,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return validTxParentBytes, nil
 			},
 
-			SubmitTransactionsFunc: func(ctx context.Context, txs transaction.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+			SubmitTransactionsFunc: func(ctx context.Context, txs sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				var res []*metamorph.TransactionStatus
 				for _, t := range txs {
 					txID := t.TxID()
@@ -1315,7 +1315,7 @@ func Test_handleError(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			handler := ArcDefaultHandler{}
 
-			tx, err := transaction.NewTransactionFromHex(validTx)
+			tx, err := sdkTx.NewTransactionFromHex(validTx)
 			require.NoError(t, err)
 
 			ctx := context.Background()

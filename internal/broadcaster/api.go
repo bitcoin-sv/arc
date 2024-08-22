@@ -11,7 +11,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 type APIBroadcaster struct {
@@ -40,7 +40,7 @@ func NewHTTPBroadcaster(arcServer string, auth *Auth) (*APIBroadcaster, error) {
 	return &APIBroadcaster{arcClient: arcClient}, nil
 }
 
-func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs transaction.Transactions, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
+func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs sdkTx.Transactions, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
 	waitFor, ok := metamorph_api.Status_name[int32(waitForStatus)]
 	if !ok {
 		return nil, fmt.Errorf("status code %d not supported", waitForStatus)
@@ -120,7 +120,7 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs transact
 	return txStatuses, nil
 }
 
-func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *transaction.Transaction, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error) {
+func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *sdkTx.Transaction, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error) {
 	waitFor, ok := metamorph_api.Status_name[int32(waitForStatus)]
 	if !ok {
 		return nil, fmt.Errorf("status code %d not supported", waitForStatus)

@@ -6,7 +6,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
 )
 
@@ -95,7 +95,7 @@ func (b *BitcoinNode) GetTransactionStatus(_ context.Context, txID string) (stat
 }
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
-func (b *BitcoinNode) SubmitTransaction(ctx context.Context, tx *transaction.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
+func (b *BitcoinNode) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 	txID, err := b.Node.SendRawTransaction(hex.EncodeToString(tx.Bytes()))
 	if err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func (b *BitcoinNode) SubmitTransaction(ctx context.Context, tx *transaction.Tra
 }
 
 // SubmitTransactions submits a list of transaction to the bitcoin network and returns the transaction statuses.
-func (b *BitcoinNode) SubmitTransactions(ctx context.Context, txs transaction.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+func (b *BitcoinNode) SubmitTransactions(ctx context.Context, txs sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 	statuses := make([]*metamorph.TransactionStatus, 0, len(txs))
 	for _, tx := range txs {
 		txID, err := b.Node.SendRawTransaction(hex.EncodeToString(tx.Bytes()))

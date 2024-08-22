@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/go-sdk/script"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/cenkalti/backoff/v4"
 )
 
@@ -76,12 +76,12 @@ type wocRawTx struct {
 	Error         string `json:"error"`
 }
 
-func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, lockingScript *script.Script, address string, constantBackoff time.Duration, retries uint64) (transaction.UTXOs, error) {
+func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, lockingScript *script.Script, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error) {
 	policy := backoff.WithMaxRetries(backoff.NewConstantBackOff(constantBackoff), retries)
 
 	policyContext := backoff.WithContext(policy, ctx)
 
-	operation := func() (transaction.UTXOs, error) {
+	operation := func() (sdkTx.UTXOs, error) {
 		wocUtxos, err := w.GetUTXOs(ctx, lockingScript, address)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get utxos from WoC: %v", err)
@@ -102,7 +102,7 @@ func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, lockingScript *scri
 }
 
 // GetUTXOs Get UTXOs from WhatsOnChain
-func (w *WocClient) GetUTXOs(ctx context.Context, lockingScript *script.Script, address string) (transaction.UTXOs, error) {
+func (w *WocClient) GetUTXOs(ctx context.Context, lockingScript *script.Script, address string) (sdkTx.UTXOs, error) {
 	req, err := w.httpRequest(ctx, "GET", fmt.Sprintf("address/%s/unspent", address), nil)
 	if err != nil {
 		return nil, err
@@ -124,14 +124,14 @@ func (w *WocClient) GetUTXOs(ctx context.Context, lockingScript *script.Script, 
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	unspent := make(transaction.UTXOs, len(wocUnspent))
+	unspent := make(sdkTx.UTXOs, len(wocUnspent))
 	for i, utxo := range wocUnspent {
 		txIDBytes, err := hex.DecodeString(utxo.Txid)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode hex string: %v", err)
 		}
 
-		unspent[i] = &transaction.UTXO{
+		unspent[i] = &sdkTx.UTXO{
 			TxID:          txIDBytes,
 			Vout:          utxo.Vout,
 			LockingScript: lockingScript,

@@ -3,11 +3,11 @@ package fees
 import (
 	"math"
 
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 type FeeModel interface {
-	ComputeFee(tx *transaction.Transaction) (uint64, error)
+	ComputeFee(tx *sdkTx.Transaction) (uint64, error)
 	ComputeFeeBasedOnSize(txSize uint64) (uint64, error)
 }
 
@@ -31,7 +31,7 @@ type SatoshisPerKilobyte struct {
 // proportional to the transaction size. For instance, a transaction with 500 bytes
 // will now be charged 50% of the fee for a full kilobyte, ensuring a fairer and
 // more accurate fee calculation.
-func (s SatoshisPerKilobyte) ComputeFee(tx *transaction.Transaction) (uint64, error) {
+func (s SatoshisPerKilobyte) ComputeFee(tx *sdkTx.Transaction) (uint64, error) {
 	txSize := tx.Size()
 
 	feesRequiredRounded := computeFee(uint64(txSize), s)

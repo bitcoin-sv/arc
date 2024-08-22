@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	ec "github.com/bitcoin-sv/go-sdk/primitives/ec"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
 	"io"
 	"math/rand"
@@ -245,12 +245,12 @@ func getBlockDataByBlockHash(t *testing.T, blockHash string) BlockData {
 	}
 }
 
-func createTx(privateKey string, address string, utxo NodeUnspentUtxo, fee ...uint64) (*transaction.Transaction, error) {
+func createTx(privateKey string, address string, utxo NodeUnspentUtxo, fee ...uint64) (*sdkTx.Transaction, error) {
 	return createTxFrom(privateKey, address, []NodeUnspentUtxo{utxo}, fee...)
 }
 
-func createTxFrom(privateKey string, address string, utxos []NodeUnspentUtxo, fee ...uint64) (*transaction.Transaction, error) {
-	tx := transaction.NewTransaction()
+func createTxFrom(privateKey string, address string, utxos []NodeUnspentUtxo, fee ...uint64) (*sdkTx.Transaction, error) {
+	tx := sdkTx.NewTransaction()
 
 	// Add an input using the UTXOs
 	for _, utxo := range utxos {
@@ -259,7 +259,7 @@ func createTxFrom(privateKey string, address string, utxos []NodeUnspentUtxo, fe
 		utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
 		utxoScript := utxo.ScriptPubKey
 
-		u, err := transaction.NewUTXO(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
+		u, err := sdkTx.NewUTXO(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
 		if err != nil {
 			return nil, fmt.Errorf("failed creating UTXO: %v", err)
 		}
@@ -439,7 +439,7 @@ func fundNewWallet(t *testing.T) (addr, privKey string) {
 	return
 }
 
-func testTxSubmission(t *testing.T, callbackUrl string, token string, tx *transaction.Transaction) {
+func testTxSubmission(t *testing.T, callbackUrl string, token string, tx *sdkTx.Transaction) {
 	rawTx, err := tx.EFHex()
 	require.NoError(t, err)
 

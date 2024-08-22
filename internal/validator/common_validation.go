@@ -6,7 +6,7 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/go-sdk/script"
 	"github.com/bitcoin-sv/go-sdk/script/interpreter"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
 )
 
@@ -19,7 +19,7 @@ const (
 	minTxSizeBytes                     = 61
 )
 
-func CommonValidateTransaction(policy *bitcoin.Settings, tx *transaction.Transaction) *Error {
+func CommonValidateTransaction(policy *bitcoin.Settings, tx *sdkTx.Transaction) *Error {
 	//
 	// Each node will verify every transaction against a long checklist of criteria:
 	//
@@ -82,7 +82,7 @@ func checkTxSize(txSize int, policy *bitcoin.Settings) error {
 	return nil
 }
 
-func checkOutputs(tx *transaction.Transaction) *Error {
+func checkOutputs(tx *sdkTx.Transaction) *Error {
 	total := uint64(0)
 	for index, output := range tx.Outputs {
 		isData := output.LockingScript.IsData()
@@ -102,7 +102,7 @@ func checkOutputs(tx *transaction.Transaction) *Error {
 	return nil
 }
 
-func checkInputs(tx *transaction.Transaction) *Error {
+func checkInputs(tx *sdkTx.Transaction) *Error {
 	total := uint64(0)
 	for index, input := range tx.Inputs {
 		if input.PreviousTxIDStr() == coinbaseTxID {
@@ -126,7 +126,7 @@ func checkInputs(tx *transaction.Transaction) *Error {
 	return nil
 }
 
-func sigOpsCheck(tx *transaction.Transaction, policy *bitcoin.Settings) error {
+func sigOpsCheck(tx *sdkTx.Transaction, policy *bitcoin.Settings) error {
 	maxSigOps := policy.MaxTxSigopsCountsPolicy
 
 	if maxSigOps == 0 {
@@ -169,7 +169,7 @@ func sigOpsCheck(tx *transaction.Transaction, policy *bitcoin.Settings) error {
 	return nil
 }
 
-func pushDataCheck(tx *transaction.Transaction) error {
+func pushDataCheck(tx *sdkTx.Transaction) error {
 	for index, input := range tx.Inputs {
 		if input.UnlockingScript == nil {
 			return fmt.Errorf("transaction input %d unlocking script is empty", index)
@@ -187,7 +187,7 @@ func pushDataCheck(tx *transaction.Transaction) error {
 	return nil
 }
 
-func CheckScript(tx *transaction.Transaction, inputIdx int, prevTxOutput *transaction.TransactionOutput) error {
+func CheckScript(tx *sdkTx.Transaction, inputIdx int, prevTxOutput *sdkTx.TransactionOutput) error {
 	err := interpreter.NewEngine().Execute(
 		interpreter.WithTx(tx, inputIdx, prevTxOutput),
 		interpreter.WithForkID(),

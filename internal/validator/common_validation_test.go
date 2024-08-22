@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/go-sdk/script"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/require"
 )
@@ -68,7 +68,7 @@ func Test_checkTxSize(t *testing.T) {
 //nolint:funlen - don't need to check length of test functions
 func Test_checkOutputs(t *testing.T) {
 	type args struct {
-		tx *transaction.Transaction
+		tx *sdkTx.Transaction
 	}
 
 	tests := []struct {
@@ -79,8 +79,8 @@ func Test_checkOutputs(t *testing.T) {
 		{
 			name: "valid output",
 			args: args{
-				tx: &transaction.Transaction{
-					Outputs: []*transaction.TransactionOutput{{Satoshis: 100, LockingScript: validLockingScript}},
+				tx: &sdkTx.Transaction{
+					Outputs: []*sdkTx.TransactionOutput{{Satoshis: 100, LockingScript: validLockingScript}},
 				},
 			},
 			wantErr: false,
@@ -88,8 +88,8 @@ func Test_checkOutputs(t *testing.T) {
 		{
 			name: "invalid satoshis > max",
 			args: args{
-				tx: &transaction.Transaction{
-					Outputs: []*transaction.TransactionOutput{{Satoshis: maxSatoshis + 1, LockingScript: validLockingScript}},
+				tx: &sdkTx.Transaction{
+					Outputs: []*sdkTx.TransactionOutput{{Satoshis: maxSatoshis + 1, LockingScript: validLockingScript}},
 				},
 			},
 			wantErr: true,
@@ -97,8 +97,8 @@ func Test_checkOutputs(t *testing.T) {
 		{
 			name: "invalid satoshis == 0",
 			args: args{
-				tx: &transaction.Transaction{
-					Outputs: []*transaction.TransactionOutput{{Satoshis: 0, LockingScript: validLockingScript}},
+				tx: &sdkTx.Transaction{
+					Outputs: []*sdkTx.TransactionOutput{{Satoshis: 0, LockingScript: validLockingScript}},
 				},
 			},
 			wantErr: true,
@@ -106,8 +106,8 @@ func Test_checkOutputs(t *testing.T) {
 		{
 			name: "valid satoshis == 0, op return",
 			args: args{
-				tx: &transaction.Transaction{
-					Outputs: []*transaction.TransactionOutput{{Satoshis: 0, LockingScript: opReturnLockingScript}},
+				tx: &sdkTx.Transaction{
+					Outputs: []*sdkTx.TransactionOutput{{Satoshis: 0, LockingScript: opReturnLockingScript}},
 				},
 			},
 			wantErr: false,
@@ -115,8 +115,8 @@ func Test_checkOutputs(t *testing.T) {
 		{
 			name: "invalid satoshis, op return",
 			args: args{
-				tx: &transaction.Transaction{
-					Outputs: []*transaction.TransactionOutput{{Satoshis: 100, LockingScript: opReturnLockingScript}},
+				tx: &sdkTx.Transaction{
+					Outputs: []*sdkTx.TransactionOutput{{Satoshis: 100, LockingScript: opReturnLockingScript}},
 				},
 			},
 			wantErr: true,
@@ -124,8 +124,8 @@ func Test_checkOutputs(t *testing.T) {
 		{
 			name: "invalid total satoshis",
 			args: args{
-				tx: &transaction.Transaction{
-					Outputs: []*transaction.TransactionOutput{
+				tx: &sdkTx.Transaction{
+					Outputs: []*sdkTx.TransactionOutput{
 						{Satoshis: maxSatoshis - 100, LockingScript: validLockingScript},
 						{Satoshis: maxSatoshis - 100, LockingScript: validLockingScript},
 					},
@@ -145,11 +145,11 @@ func Test_checkOutputs(t *testing.T) {
 
 func Test_checkInputs(t *testing.T) {
 	type args struct {
-		tx *transaction.Transaction
+		tx *sdkTx.Transaction
 	}
 
-	coinbaseInput := &transaction.TransactionInput{}
-	coinbaseInput.SetPrevTxFromOutput(&transaction.TransactionOutput{Satoshis: 100})
+	coinbaseInput := &sdkTx.TransactionInput{}
+	coinbaseInput.SetPrevTxFromOutput(&sdkTx.TransactionOutput{Satoshis: 100})
 	hexTxId, _ := hex.DecodeString(coinbaseTxID)
 	coinbaseInput.SourceTXID = hexTxId
 
@@ -161,33 +161,32 @@ func Test_checkInputs(t *testing.T) {
 		{
 			name: "invalid coinbase input",
 			args: args{
-				tx: &transaction.Transaction{Inputs: []*transaction.TransactionInput{coinbaseInput}},
+				tx: &sdkTx.Transaction{Inputs: []*sdkTx.TransactionInput{coinbaseInput}},
 			},
 			wantErr: true,
 		},
 		{
 			name: "valid input",
 			args: args{
-				tx: &transaction.Transaction{Inputs: []*transaction.TransactionInput{{SourceTransaction: &transaction.Transaction{Outputs: []*transaction.TransactionOutput{{Satoshis: 100}}}}}},
+				tx: &sdkTx.Transaction{Inputs: []*sdkTx.TransactionInput{{SourceTransaction: &sdkTx.Transaction{Outputs: []*sdkTx.TransactionOutput{{Satoshis: 100}}}}}},
 			},
 			wantErr: false,
 		},
 		{
 			name: "invalid input satoshis",
 			args: args{
-				//tx: &transaction.Transaction{Inputs: []*transaction.TransactionInput{{PreviousTxSatoshis: maxSatoshis + 1}}},
-				tx: &transaction.Transaction{Inputs: []*transaction.TransactionInput{{SourceTransaction: &transaction.Transaction{Outputs: []*transaction.TransactionOutput{{Satoshis: maxSatoshis + 1}}}}}},
+				tx: &sdkTx.Transaction{Inputs: []*sdkTx.TransactionInput{{SourceTransaction: &sdkTx.Transaction{Outputs: []*sdkTx.TransactionOutput{{Satoshis: maxSatoshis + 1}}}}}},
 			},
 			wantErr: true,
 		},
 		{
 			name: "invalid input satoshis",
 			args: args{
-				tx: &transaction.Transaction{
-					Inputs: []*transaction.TransactionInput{{
-						SourceTransaction: &transaction.Transaction{Outputs: []*transaction.TransactionOutput{{Satoshis: maxSatoshis - 100}}},
+				tx: &sdkTx.Transaction{
+					Inputs: []*sdkTx.TransactionInput{{
+						SourceTransaction: &sdkTx.Transaction{Outputs: []*sdkTx.TransactionOutput{{Satoshis: maxSatoshis - 100}}},
 					}, {
-						SourceTransaction: &transaction.Transaction{Outputs: []*transaction.TransactionOutput{{Satoshis: maxSatoshis - 100}}},
+						SourceTransaction: &sdkTx.Transaction{Outputs: []*sdkTx.TransactionOutput{{Satoshis: maxSatoshis - 100}}},
 					},
 					},
 				},
@@ -206,7 +205,7 @@ func Test_checkInputs(t *testing.T) {
 
 func Test_sigOpsCheck(t *testing.T) {
 	type args struct {
-		tx     *transaction.Transaction
+		tx     *sdkTx.Transaction
 		policy *bitcoin.Settings
 	}
 	tests := []struct {
@@ -217,8 +216,8 @@ func Test_sigOpsCheck(t *testing.T) {
 		{
 			name: "valid sigops",
 			args: args{
-				tx: &transaction.Transaction{
-					Outputs: []*transaction.TransactionOutput{{LockingScript: validLockingScript}},
+				tx: &sdkTx.Transaction{
+					Outputs: []*sdkTx.TransactionOutput{{LockingScript: validLockingScript}},
 				},
 				policy: &bitcoin.Settings{
 					MaxTxSigopsCountsPolicy: 4294967295,
@@ -229,8 +228,8 @@ func Test_sigOpsCheck(t *testing.T) {
 		{
 			name: "invalid sigops - too many sigops",
 			args: args{
-				tx: &transaction.Transaction{
-					Outputs: []*transaction.TransactionOutput{
+				tx: &sdkTx.Transaction{
+					Outputs: []*sdkTx.TransactionOutput{
 						{
 							LockingScript: validLockingScript,
 						},
@@ -248,8 +247,8 @@ func Test_sigOpsCheck(t *testing.T) {
 		{
 			name: "valid sigops - default policy",
 			args: args{
-				tx: &transaction.Transaction{
-					Outputs: []*transaction.TransactionOutput{
+				tx: &sdkTx.Transaction{
+					Outputs: []*sdkTx.TransactionOutput{
 						{
 							LockingScript: validLockingScript,
 						},
@@ -276,7 +275,7 @@ func Test_sigOpsCheck(t *testing.T) {
 
 func Test_pushDataCheck(t *testing.T) {
 	type args struct {
-		tx *transaction.Transaction
+		tx *sdkTx.Transaction
 	}
 
 	validUnlockingBytes, _ := hex.DecodeString("4730440220318d23e6fd7dd5ace6e8dc1888b363a053552f48ecc166403a1cc65db5e16aca02203a9ad254cb262f50c89487ffd72e8ddd8536c07f4b230d13a2ccd1435898e89b412102dd7dce95e52345704bbb4df4e4cfed1f8eaabf8260d33597670e3d232c491089")
@@ -290,8 +289,8 @@ func Test_pushDataCheck(t *testing.T) {
 		{
 			name: "valid push data",
 			args: args{
-				tx: &transaction.Transaction{
-					Inputs: []*transaction.TransactionInput{{
+				tx: &sdkTx.Transaction{
+					Inputs: []*sdkTx.TransactionInput{{
 						UnlockingScript: &validUnlockingScript,
 					}},
 				},
@@ -301,8 +300,8 @@ func Test_pushDataCheck(t *testing.T) {
 		{
 			name: "invalid push data",
 			args: args{
-				tx: &transaction.Transaction{
-					Inputs: []*transaction.TransactionInput{{
+				tx: &sdkTx.Transaction{
+					Inputs: []*sdkTx.TransactionInput{{
 						UnlockingScript: validLockingScript,
 					}},
 				},
@@ -321,11 +320,11 @@ func Test_pushDataCheck(t *testing.T) {
 
 func Test_checkScripts(t *testing.T) {
 	t.Run("valid op_return tx", func(t *testing.T) {
-		tx, err := transaction.NewTransactionFromHex(opReturnTx)
+		tx, err := sdkTx.NewTransactionFromHex(opReturnTx)
 		require.NoError(t, err)
 
 		in := tx.Inputs[0]
-		prevOutput := &transaction.TransactionOutput{
+		prevOutput := &sdkTx.TransactionOutput{
 			Satoshis:      *in.SourceTxSatoshis(),
 			LockingScript: in.SourceTxScript(),
 		}
@@ -335,11 +334,11 @@ func Test_checkScripts(t *testing.T) {
 	})
 
 	t.Run("valid run tx", func(t *testing.T) {
-		tx, err := transaction.NewTransactionFromHex(runTx)
+		tx, err := sdkTx.NewTransactionFromHex(runTx)
 		require.NoError(t, err)
 
 		in := tx.Inputs[0]
-		prevOutput := &transaction.TransactionOutput{
+		prevOutput := &sdkTx.TransactionOutput{
 			Satoshis:      *in.SourceTxSatoshis(),
 			LockingScript: in.SourceTxScript(),
 		}

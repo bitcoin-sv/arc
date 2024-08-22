@@ -8,7 +8,7 @@ import (
 	bip32 "github.com/bitcoin-sv/go-sdk/compat/bip32"
 	primitives "github.com/bitcoin-sv/go-sdk/primitives/ec"
 	"github.com/bitcoin-sv/go-sdk/script"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	chaincfg "github.com/bitcoin-sv/go-sdk/transaction/chaincfg"
 	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
 )
@@ -97,7 +97,7 @@ func (k *KeySet) DeriveChildFromPath(derivationPath string) (*KeySet, error) {
 	return NewFromExtendedKey(k.master, derivationPath)
 }
 
-func (k *KeySet) GetUTXOs(mainnet bool) ([]*transaction.UTXO, error) {
+func (k *KeySet) GetUTXOs(mainnet bool) ([]*sdkTx.UTXO, error) {
 	// Get UTXOs from WhatsOnChain
 	woc := woc_client.New(mainnet)
 

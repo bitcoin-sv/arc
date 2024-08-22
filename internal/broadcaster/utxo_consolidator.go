@@ -13,7 +13,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 type UTXOConsolidator struct {
@@ -133,7 +133,7 @@ func (b *UTXOConsolidator) Start() error {
 						continue
 					}
 
-					newUtxo := &transaction.UTXO{
+					newUtxo := &sdkTx.UTXO{
 						TxID:          txIDBytes,
 						Vout:          0,
 						LockingScript: b.keySet.Script,
@@ -151,18 +151,18 @@ func (b *UTXOConsolidator) Start() error {
 	return nil
 }
 
-func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap map[string]uint64, fundingKeySet *keyset.KeySet) ([]transaction.Transactions, error) {
-	tx := transaction.NewTransaction()
+func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap map[string]uint64, fundingKeySet *keyset.KeySet) ([]sdkTx.Transactions, error) {
+	tx := sdkTx.NewTransaction()
 	txSatoshis := uint64(0)
-	txsConsolidationBatches := make([]transaction.Transactions, 0)
-	txsConsolidation := make(transaction.Transactions, 0)
+	txsConsolidationBatches := make([]sdkTx.Transactions, 0)
+	txsConsolidation := make(sdkTx.Transactions, 0)
 	const consolidateBatchSize = 20
 
 	var next *list.Element
 	for front := utxoSet.Front(); front != nil; front = next {
 		next = front.Next()
 		utxoSet.Remove(front)
-		utxo, ok := front.Value.(*transaction.UTXO)
+		utxo, ok := front.Value.(*sdkTx.UTXO)
 		if !ok {
 			return nil, errors.New("failed to parse value to utxo")
 		}
@@ -204,13 +204,13 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 			txsConsolidation = append(txsConsolidation, tx)
 
 			satoshiMap[tx.TxID()] = tx.TotalOutputSatoshis()
-			tx = transaction.NewTransaction()
+			tx = sdkTx.NewTransaction()
 			txSatoshis = 0
 		}
 
 		if len(txsConsolidation) >= consolidateBatchSize {
 			txsConsolidationBatches = append(txsConsolidationBatches, txsConsolidation)
-			txsConsolidation = make(transaction.Transactions, 0)
+			txsConsolidation = make(sdkTx.Transactions, 0)
 		}
 
 	}
@@ -218,7 +218,7 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 	return txsConsolidationBatches, nil
 }
 
-func (b *UTXOConsolidator) consolidateToFundingKeyset(tx *transaction.Transaction, txSatoshis uint64, fundingKeySet *keyset.KeySet) error {
+func (b *UTXOConsolidator) consolidateToFundingKeyset(tx *sdkTx.Transaction, txSatoshis uint64, fundingKeySet *keyset.KeySet) error {
 	fee := b.calculateFeeSat(tx)
 
 	err := PayTo(tx, fundingKeySet.Script, txSatoshis-fee)

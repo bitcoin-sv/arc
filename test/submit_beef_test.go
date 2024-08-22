@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/libsv/go-bc"
-	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 )
@@ -114,7 +114,7 @@ func TestBeef_Fail(t *testing.T) {
 	}
 }
 
-func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, privateKey string) (string, *bt.Tx, *bt.Tx, int) {
+func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, privateKey string) (string, *sdkTx.Transaction, *sdkTx.Transaction, int) {
 	expectedCallbacks := 0
 
 	rawTx := getRawTx(t, inputTxID)
@@ -146,7 +146,7 @@ func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, pri
 	middleUtxo := NodeUnspentUtxo{
 		Txid:         middleTx.TxID(),
 		Vout:         0,
-		ScriptPubKey: middleTx.Outputs[0].LockingScriptHexString(),
+		ScriptPubKey: middleTx.Outputs[0].LockingScriptHex(),
 		Amount:       float64(middleTx.Outputs[0].Satoshis) / 1e8, // satoshis to BSV
 	}
 
@@ -178,7 +178,7 @@ func prepareMerkleHashesAndTxIndex(t *testing.T, txs []string, txID string) ([]*
 	return merkleHashes, txIndex
 }
 
-func buildBeefString(t *testing.T, inputTxHex string, bump *bc.BUMP, middleTx, newTx *bt.Tx) string {
+func buildBeefString(t *testing.T, inputTxHex string, bump *bc.BUMP, middleTx, newTx *sdkTx.Transaction) string {
 	versionMarker := "0100beef"
 	nBumps := "01"
 	bumpData, err := bump.String()

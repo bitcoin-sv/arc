@@ -23,8 +23,8 @@ import (
 	txfinder "github.com/bitcoin-sv/arc/pkg/api/handler/internal/TxFinder"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
-	"github.com/libsv/go-bt/v2"
 	"github.com/ordishs/go-bitcoin"
 )
 
@@ -346,7 +346,7 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 
 // processTransactions validates all the transactions in the array and submits to metamorph for processing.
 func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byte, options *metamorph.TransactionOptions) (
-	submittedTxs []*bt.Tx, successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields,
+	submittedTxs []*sdkTx.Transaction, successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields,
 ) {
 	// decode and validate txs
 	var txIds []string
@@ -377,7 +377,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 
 			txIds = append(txIds, beefTx.GetLatestTx().TxID())
 		} else {
-			transaction, bytesUsed, err := bt.NewTxFromStream(txsHex)
+			transaction, bytesUsed, err := sdkTx.NewTransactionFromStream(txsHex)
 			if err != nil {
 				return nil, nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			}
@@ -436,7 +436,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 	return submittedTxs, successes, fails, nil
 }
 
-func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.DefaultValidator, transaction *bt.Tx, options *metamorph.TransactionOptions) *api.ErrorFields {
+func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.DefaultValidator, transaction *sdkTx.Transaction, options *metamorph.TransactionOptions) *api.ErrorFields {
 	if options.SkipTxValidation {
 		return nil
 	}
@@ -467,7 +467,7 @@ func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValida
 	return nil
 }
 
-func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*bt.Tx, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, *api.ErrorFields) {
+func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.Transaction, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, *api.ErrorFields) {
 	var submitStatuses []*metamorph.TransactionStatus
 
 	if len(txs) == 1 {
@@ -507,7 +507,7 @@ func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) 
 	return tx, nil
 }
 
-func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, submitErr error) (api.StatusCode, *api.ErrorFields) {
+func (ArcDefaultHandler) handleError(_ context.Context, transaction *sdkTx.Transaction, submitErr error) (api.StatusCode, *api.ErrorFields) {
 	if submitErr == nil {
 		return api.StatusOK, nil
 	}
@@ -530,7 +530,7 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *bt.Tx, subm
 	return status, arcError
 }
 
-func prepareSizingInfo(txs []*bt.Tx) [][]uint64 {
+func prepareSizingInfo(txs []*sdkTx.Transaction) [][]uint64 {
 	sizingInfo := make([][]uint64, 0, len(txs))
 	for _, btTx := range txs {
 		normalBytes, dataBytes, feeAmount := getSizings(btTx)
@@ -540,11 +540,11 @@ func prepareSizingInfo(txs []*bt.Tx) [][]uint64 {
 	return sizingInfo
 }
 
-func getSizings(tx *bt.Tx) (uint64, uint64, uint64) {
+func getSizings(tx *sdkTx.Transaction) (uint64, uint64, uint64) {
 	var feeAmount uint64
 
 	for _, in := range tx.Inputs {
-		feeAmount += in.PreviousTxSatoshis
+		feeAmount += *in.SourceTxSatoshis()
 	}
 
 	var dataBytes uint64

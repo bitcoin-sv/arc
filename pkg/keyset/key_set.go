@@ -5,24 +5,25 @@ import (
 	"crypto/rand"
 
 	"github.com/bitcoin-sv/arc/internal/woc_client"
-	"github.com/libsv/go-bk/bec"
-	"github.com/libsv/go-bk/bip32"
-	"github.com/libsv/go-bk/chaincfg"
-	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-bt/v2/bscript"
+	bip32 "github.com/bitcoin-sv/go-sdk/compat/bip32"
+	primitives "github.com/bitcoin-sv/go-sdk/primitives/ec"
+	"github.com/bitcoin-sv/go-sdk/script"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	chaincfg "github.com/bitcoin-sv/go-sdk/transaction/chaincfg"
+	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
 )
 
 type KeySet struct {
 	master        *bip32.ExtendedKey
 	Path          string
-	PrivateKey    *bec.PrivateKey
-	PublicKey     *bec.PublicKey
+	PrivateKey    *primitives.PrivateKey
+	PublicKey     *primitives.PublicKey
 	PublicKeyHash []byte
-	Script        *bscript.Script
+	Script        *script.Script
 }
 
 func (k *KeySet) Address(mainnet bool) string {
-	addr, err := bscript.NewAddressFromPublicKey(k.PrivateKey.PubKey(), mainnet)
+	addr, err := script.NewAddressFromPublicKey(k.PrivateKey.PubKey(), mainnet)
 	if err != nil {
 		panic(err)
 	}
@@ -73,7 +74,11 @@ func NewFromExtendedKey(extendedKey *bip32.ExtendedKey, derivationPath string) (
 
 	publicKey := privateKey.PubKey()
 
-	script, err := bscript.NewP2PKHFromPubKeyEC(publicKey)
+	address, err := script.NewAddressFromPublicKey(publicKey, true)
+	if err != nil {
+		return nil, err
+	}
+	p2pkhScript, err := p2pkh.Lock(address)
 	if err != nil {
 		return nil, err
 	}
@@ -83,8 +88,8 @@ func NewFromExtendedKey(extendedKey *bip32.ExtendedKey, derivationPath string) (
 		Path:          derivationPath,
 		PrivateKey:    privateKey,
 		PublicKey:     publicKey,
-		PublicKeyHash: publicKey.SerialiseCompressed(),
-		Script:        script,
+		PublicKeyHash: publicKey.SerializeCompressed(),
+		Script:        p2pkhScript,
 	}, nil
 }
 
@@ -92,9 +97,10 @@ func (k *KeySet) DeriveChildFromPath(derivationPath string) (*KeySet, error) {
 	return NewFromExtendedKey(k.master, derivationPath)
 }
 
-func (k *KeySet) GetUTXOs(mainnet bool) ([]*bt.UTXO, error) {
+func (k *KeySet) GetUTXOs(mainnet bool) ([]*sdkTx.UTXO, error) {
 	// Get UTXOs from WhatsOnChain
 	woc := woc_client.New(mainnet)
+
 	return woc.GetUTXOs(context.Background(), k.Script, k.Address(mainnet))
 }
 

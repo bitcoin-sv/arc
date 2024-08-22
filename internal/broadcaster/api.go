@@ -2,7 +2,6 @@ package broadcaster
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,7 +11,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/libsv/go-bt/v2"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 type APIBroadcaster struct {
@@ -41,7 +40,7 @@ func NewHTTPBroadcaster(arcServer string, auth *Auth) (*APIBroadcaster, error) {
 	return &APIBroadcaster{arcClient: arcClient}, nil
 }
 
-func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
+func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs sdkTx.Transactions, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
 	waitFor, ok := metamorph_api.Status_name[int32(waitForStatus)]
 	if !ok {
 		return nil, fmt.Errorf("status code %d not supported", waitForStatus)
@@ -63,8 +62,12 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx
 	body := make([]api.TransactionRequest, len(txs))
 	for i := range txs {
 		tx := txs[i]
+		rawTx, err := tx.EFHex()
+		if err != nil {
+			return nil, err
+		}
 		newApiTransactionRequest := api.TransactionRequest{
-			RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+			RawTx: rawTx,
 		}
 		body[i] = newApiTransactionRequest
 	}
@@ -117,7 +120,7 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs []*bt.Tx
 	return txStatuses, nil
 }
 
-func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error) {
+func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *sdkTx.Transaction, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error) {
 	waitFor, ok := metamorph_api.Status_name[int32(waitForStatus)]
 	if !ok {
 		return nil, fmt.Errorf("status code %d not supported", waitForStatus)
@@ -130,8 +133,12 @@ func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *bt.Tx, wa
 		params.XCallbackUrl = &callbackURL
 	}
 
+	rawTx, err := tx.EFHex()
+	if err != nil {
+		return nil, err
+	}
 	arcBody := api.POSTTransactionJSONRequestBody{
-		RawTx: hex.EncodeToString(tx.ExtendedBytes()),
+		RawTx: rawTx,
 	}
 
 	response, err := a.arcClient.POSTTransaction(ctx, params, arcBody)

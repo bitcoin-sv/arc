@@ -1,13 +1,12 @@
 package test
 
 import (
-	"encoding/hex"
 	"fmt"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/libsv/go-bt/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,14 +21,19 @@ func TestDoubleSpend(t *testing.T) {
 		require.NoError(t, err)
 
 		// submit first transaction
-		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}), map[string]string{"X-WaitFor": Status_SEEN_ON_NETWORK}, http.StatusOK)
+		rawTx, err := tx.EFHex()
+		require.NoError(t, err)
+
+		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), map[string]string{"X-WaitFor": Status_SEEN_ON_NETWORK}, http.StatusOK)
 		require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
 
 		// send double spending transaction when first tx is in mempool
 		txMempool := createTxToNewAddress(t, privateKey, utxos[0])
+		rawTx, err = txMempool.EFHex()
+		require.NoError(t, err)
 
 		// submit second transaction
-		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(txMempool.ExtendedBytes())}), map[string]string{"X-WaitFor": Status_DOUBLE_SPEND_ATTEMPTED}, http.StatusOK)
+		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), map[string]string{"X-WaitFor": Status_DOUBLE_SPEND_ATTEMPTED}, http.StatusOK)
 		require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, resp.TxStatus)
 		require.Equal(t, []string{tx.TxID()}, *resp.CompetingTxs)
 
@@ -63,12 +67,15 @@ func TestDoubleSpend(t *testing.T) {
 
 		// send double spending transaction when first tx was mined
 		txMined := createTxToNewAddress(t, privateKey, utxos[0])
-		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(txMined.ExtendedBytes())}), map[string]string{"X-WaitFor": Status_SEEN_IN_ORPHAN_MEMPOOL}, http.StatusOK)
+		rawTx, err = txMined.EFHex()
+		require.NoError(t, err)
+
+		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), map[string]string{"X-WaitFor": Status_SEEN_IN_ORPHAN_MEMPOOL}, http.StatusOK)
 		require.Equal(t, Status_SEEN_IN_ORPHAN_MEMPOOL, resp.TxStatus)
 	})
 }
 
-func createTxToNewAddress(t *testing.T, privateKey string, utxo NodeUnspentUtxo) *bt.Tx {
+func createTxToNewAddress(t *testing.T, privateKey string, utxo NodeUnspentUtxo) *sdkTx.Transaction {
 	address, err := bitcoind.GetNewAddress()
 	require.NoError(t, err)
 	tx1, err := createTx(privateKey, address, utxo)

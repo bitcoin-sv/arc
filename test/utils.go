@@ -3,9 +3,11 @@ package test
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	ec "github.com/bitcoin-sv/go-sdk/primitives/ec"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
 	"io"
 	"math/rand"
 	"net/http"
@@ -13,12 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoinsv/bsvd/bsvec"
 	"github.com/bitcoinsv/bsvutil"
-	"github.com/libsv/go-bk/bec"
-	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-bt/v2/bscript"
-	"github.com/libsv/go-bt/v2/unlocker"
 	"github.com/stretchr/testify/require"
 )
 
@@ -248,12 +245,12 @@ func getBlockDataByBlockHash(t *testing.T, blockHash string) BlockData {
 	}
 }
 
-func createTx(privateKey string, address string, utxo NodeUnspentUtxo, fee ...uint64) (*bt.Tx, error) {
+func createTx(privateKey string, address string, utxo NodeUnspentUtxo, fee ...uint64) (*sdkTx.Transaction, error) {
 	return createTxFrom(privateKey, address, []NodeUnspentUtxo{utxo}, fee...)
 }
 
-func createTxFrom(privateKey string, address string, utxos []NodeUnspentUtxo, fee ...uint64) (*bt.Tx, error) {
-	tx := bt.NewTx()
+func createTxFrom(privateKey string, address string, utxos []NodeUnspentUtxo, fee ...uint64) (*sdkTx.Transaction, error) {
+	tx := sdkTx.NewTransaction()
 
 	// Add an input using the UTXOs
 	for _, utxo := range utxos {
@@ -262,7 +259,11 @@ func createTxFrom(privateKey string, address string, utxos []NodeUnspentUtxo, fe
 		utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
 		utxoScript := utxo.ScriptPubKey
 
-		err := tx.From(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
+		u, err := sdkTx.NewUTXO(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
+		if err != nil {
+			return nil, fmt.Errorf("failed creating UTXO: %v", err)
+		}
+		err = tx.AddInputsFromUTXOs(u)
 		if err != nil {
 			return nil, fmt.Errorf("failed adding input: %v", err)
 		}
@@ -278,18 +279,12 @@ func createTxFrom(privateKey string, address string, utxos []NodeUnspentUtxo, fe
 	}
 	amountToSend := tx.TotalInputSatoshis() - feeValue
 
-	recipientScript, err := bscript.NewP2PKHFromAddress(recipientAddress)
+	err := tx.PayToAddress(recipientAddress, amountToSend)
 	if err != nil {
-		return nil, fmt.Errorf("failed converting address to script: %v", err)
-	}
-
-	err = tx.PayTo(recipientScript, amountToSend)
-	if err != nil {
-		return nil, fmt.Errorf("failed adding output: %v", err)
+		return nil, fmt.Errorf("failed to pay to address: %v", err)
 	}
 
 	// Sign the input
-
 	wif, err := bsvutil.DecodeWIF(privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode WIF: %v", err)
@@ -297,12 +292,20 @@ func createTxFrom(privateKey string, address string, utxos []NodeUnspentUtxo, fe
 
 	// Extract raw private key bytes directly from the WIF structure
 	privateKeyDecoded := wif.PrivKey.Serialize()
+	pk, _ := ec.PrivateKeyFromBytes(privateKeyDecoded)
 
-	pk, _ := bec.PrivKeyFromBytes(bsvec.S256(), privateKeyDecoded)
-	unlockerGetter := unlocker.Getter{PrivateKey: pk}
-	err = tx.FillAllInputs(context.Background(), &unlockerGetter)
+	unlockingScriptTemplate, err := p2pkh.Unlock(pk, nil)
 	if err != nil {
-		return nil, fmt.Errorf("sign failed: %v", err)
+		return nil, err
+	}
+
+	for _, input := range tx.Inputs {
+		input.UnlockingScriptTemplate = unlockingScriptTemplate
+	}
+
+	err = tx.Sign()
+	if err != nil {
+		return nil, err
 	}
 
 	return tx, nil
@@ -436,8 +439,11 @@ func fundNewWallet(t *testing.T) (addr, privKey string) {
 	return
 }
 
-func testTxSubmission(t *testing.T, callbackUrl string, token string, tx *bt.Tx) {
-	response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
+func testTxSubmission(t *testing.T, callbackUrl string, token string, tx *sdkTx.Transaction) {
+	rawTx, err := tx.EFHex()
+	require.NoError(t, err)
+
+	response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}),
 		map[string]string{
 			"X-WaitFor":       Status_SEEN_ON_NETWORK,
 			"X-CallbackUrl":   callbackUrl,

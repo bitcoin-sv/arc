@@ -8,7 +8,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/libsv/go-bt/v2"
+	"github.com/bitcoin-sv/go-sdk/util"
 )
 
 func (p *PostgreSQL) VerifyMerkleRoots(
@@ -44,7 +44,7 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 			continue
 		}
 
-		merkleBytes = bt.ReverseBytes(merkleBytes)
+		merkleBytes = util.ReverseBytes(merkleBytes)
 
 		err = p.db.QueryRow(qMerkleRoot, merkleBytes, mr.BlockHeight).Scan(new(interface{}))
 		if err != nil {

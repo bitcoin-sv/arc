@@ -16,8 +16,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/libsv/go-bc"
-	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/bsvutil"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -35,7 +35,7 @@ func TestExtractHeight(t *testing.T) {
 	buff := bytes.NewBuffer(nil)
 	err = tx.MsgTx().Serialize(buff)
 	require.NoError(t, err)
-	btTx, err := bt.NewTxFromBytes(buff.Bytes())
+	btTx, err := sdkTx.NewTransactionFromBytes(buff.Bytes())
 	require.NoError(t, err)
 
 	height := blocktx.ExtractHeightFromCoinbaseTx(btTx)
@@ -51,7 +51,7 @@ func TestExtractHeightForRegtest(t *testing.T) {
 	buff := bytes.NewBuffer(nil)
 	err = tx.MsgTx().Serialize(buff)
 	require.NoError(t, err)
-	btTx, err := bt.NewTxFromBytes(buff.Bytes())
+	btTx, err := sdkTx.NewTransactionFromBytes(buff.Bytes())
 	require.NoError(t, err)
 
 	height := blocktx.ExtractHeightFromCoinbaseTx(btTx)

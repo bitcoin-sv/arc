@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"net/http"
 	"os"
 	"strconv"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/libsv/go-bc"
-	"github.com/libsv/go-bt/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,6 +22,8 @@ func TestSubmitSingle(t *testing.T) {
 	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
 	tx, err := createTx(privateKey, address, utxos[0])
+	require.NoError(t, err)
+	rawTx, err := tx.EFHex()
 	require.NoError(t, err)
 
 	malFormedRawTx, err := os.ReadFile("./fixtures/malformedTxHexString.txt")
@@ -39,7 +41,7 @@ func TestSubmitSingle(t *testing.T) {
 	}{
 		{
 			name: "post single - success",
-			body: TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())},
+			body: TransactionRequest{RawTx: rawTx},
 
 			expectedStatusCode: http.StatusOK,
 		},
@@ -72,7 +74,7 @@ func TestSubmitSingle(t *testing.T) {
 
 			// repeat request to ensure response remains the same
 			txID := response.Txid
-			response = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}), nil, http.StatusOK)
+			response = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), nil, http.StatusOK)
 			require.Equal(t, txID, response.Txid)
 			require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
 
@@ -120,7 +122,8 @@ func TestSubmitMined(t *testing.T) {
 		utxos := getUtxos(t, address)
 
 		rawTx, _ := bitcoind.GetRawTransaction(utxos[0].Txid)
-		tx, _ := bt.NewTxFromString(rawTx.Hex)
+		tx, _ := sdkTx.NewTransactionFromHex(rawTx.Hex)
+		exRawTx := tx.String()
 
 		callbackReceivedChan := make(chan *TransactionResponse)
 		callbackErrChan := make(chan error)
@@ -129,7 +132,7 @@ func TestSubmitMined(t *testing.T) {
 		defer shutdown()
 
 		// when
-		_ = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
+		_ = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: exRawTx}),
 			map[string]string{
 				"X-WaitFor":       Status_MINED,
 				"X-CallbackUrl":   callbackUrl,
@@ -161,7 +164,10 @@ func TestSubmitQueued(t *testing.T) {
 		tx, err := createTx(privateKey, address, utxos[0])
 		require.NoError(t, err)
 
-		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}),
+		rawTx, err := tx.EFHex()
+		require.NoError(t, err)
+
+		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}),
 			map[string]string{
 				"X-WaitFor":    Status_QUEUED,
 				"X-MaxTimeout": strconv.Itoa(1),
@@ -340,7 +346,10 @@ func TestSkipValidation(t *testing.T) {
 			lowFeeTx, err := createTx(privateKey, address, utxos[0], fee)
 			require.NoError(t, err)
 
-			resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(lowFeeTx.ExtendedBytes())}),
+			lawFeeRawTx, err := lowFeeTx.EFHex()
+			require.NoError(t, err)
+
+			resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: lawFeeRawTx}),
 				map[string]string{
 					"X-WaitFor":           Status_SEEN_ON_NETWORK,
 					"X-SkipFeeValidation": strconv.FormatBool(tc.skipFeeValidation),
@@ -421,7 +430,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 
 			// create mined ancestors
 			const minedAncestorsCount = 2
-			var minedAncestors []*bt.Tx
+			var minedAncestors sdkTx.Transactions
 
 			sendToAddress(t, address, 0.0001)
 			sendToAddress(t, address, 0.00011)
@@ -443,13 +452,13 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 				zeroChainCount = tc.chainLong / 2
 			}
 
-			var zeroFeeChains [][]*bt.Tx
+			var zeroFeeChains []sdkTx.Transactions
 			for i, minedTx := range minedAncestors {
 				if i+1 == len(minedAncestors) {
 					zeroChainCount++
 				}
 
-				chain := make([]*bt.Tx, zeroChainCount)
+				chain := make(sdkTx.Transactions, zeroChainCount)
 				parentTx := minedTx
 
 				for i := 0; i < zeroChainCount; i++ {
@@ -474,7 +483,10 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 
 			// post ancestor transactions
 			for _, tx := range minedAncestors {
-				body := TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}
+				rawTx, err := tx.EFHex()
+				require.NoError(t, err)
+
+				body := TransactionRequest{RawTx: rawTx}
 				resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, body),
 					map[string]string{"X-WaitFor": Status_SEEN_ON_NETWORK}, 200)
 
@@ -484,7 +496,10 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 
 			for _, chain := range zeroFeeChains {
 				for _, tx := range chain {
-					body := TransactionRequest{RawTx: hex.EncodeToString(tx.ExtendedBytes())}
+					rawTx, err := tx.EFHex()
+					require.NoError(t, err)
+
+					body := TransactionRequest{RawTx: rawTx}
 					resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, body),
 						map[string]string{
 							"X-WaitFor":           Status_SEEN_ON_NETWORK,
@@ -516,7 +531,10 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			lastTx, err := createTxFrom(privateKey, address, nodeUtxos, tc.lastTxFee)
 			require.NoError(t, err)
 
-			response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: hex.EncodeToString(lastTx.ExtendedBytes())}),
+			rawTx, err := lastTx.EFHex()
+			require.NoError(t, err)
+
+			response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}),
 				map[string]string{
 					"X-WaitFor":                 Status_SEEN_ON_NETWORK,
 					"X-CumulativeFeeValidation": strconv.FormatBool(tc.options.performCumulativeFeesValidation),

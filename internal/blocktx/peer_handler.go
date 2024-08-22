@@ -14,8 +14,9 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/bitcoin-sv/go-sdk/util"
 	"github.com/libsv/go-bc"
-	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
@@ -50,7 +51,7 @@ func init() {
 		bytesRead += 80 // the bitcoin header is always 80 bytes
 
 		var read int64
-		var txCount bt.VarInt
+		var txCount sdkTx.VarInt
 		read, err = txCount.ReadFrom(reader)
 		if err != nil {
 			return bytesRead, nil, nil, err
@@ -59,18 +60,18 @@ func init() {
 
 		blockMessage.TransactionHashes = make([]*chainhash.Hash, txCount)
 
-		var tx *bt.Tx
+		var tx *sdkTx.Transaction
 		var hash *chainhash.Hash
 		var txBytes []byte
 		for i := 0; i < int(txCount); i++ {
-			tx = bt.NewTx()
+			tx = sdkTx.NewTransaction()
 			read, err = tx.ReadFrom(reader)
 			if err != nil {
 				return bytesRead, nil, nil, err
 			}
 			bytesRead += int(read)
 			txBytes = tx.TxIDBytes() // this returns the bytes in BigEndian
-			hash, err = chainhash.NewHash(bt.ReverseBytes(txBytes))
+			hash, err = chainhash.NewHash(util.ReverseBytes(txBytes))
 			if err != nil {
 				return 0, nil, nil, err
 			}
@@ -714,7 +715,7 @@ func (ph *PeerHandler) markBlockAsProcessed(ctx context.Context, block *p2p.Bloc
 }
 
 // exported for testing purposes
-func ExtractHeightFromCoinbaseTx(tx *bt.Tx) uint64 {
+func ExtractHeightFromCoinbaseTx(tx *sdkTx.Transaction) uint64 {
 	// Coinbase tx has a special format, the height is encoded in the first 4 bytes of the scriptSig
 	// https://en.bitcoin.it/wiki/Protocol_documentation#tx
 	// Get the length

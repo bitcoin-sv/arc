@@ -120,9 +120,6 @@ func TestValidator(t *testing.T) {
 			require.NoError(t, err, "Could not parse parent tx hex")
 
 			in.SetPrevTxFromOutput(parentTx.Outputs[in.SourceTxOutIndex])
-
-			//in.PreviousTxSatoshis = parentTx.Outputs[in.PreviousTxOutIndex].Satoshis
-			//in.PreviousTxScript = parentTx.Outputs[in.PreviousTxOutIndex].LockingScript
 		}
 
 		policy := getPolicy(5)

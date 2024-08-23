@@ -3,19 +3,19 @@ package utxos
 import (
 	"context"
 	"errors"
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"log/slog"
 	"sort"
 	"strconv"
 	"time"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/jedib0t/go-pretty/v6/table"
 )
 
-func getUtxosTable(ctx context.Context, logger *slog.Logger, keySets map[string]*keyset.KeySet, isTestnet bool, wocClient broadcaster.UtxoClient, maxRows int) table.Writer {
-	t := table.NewWriter()
+func getUtxosTable(ctx context.Context, logger *slog.Logger, t table.Writer, keySets map[string]*keyset.KeySet, isTestnet bool, wocClient broadcaster.UtxoClient, maxRows int) table.Writer {
 	keyTotalOutputs := make([]int, len(keySets))
 	keyHeaderRow := make([]interface{}, 0)
 	headerRow := make([]interface{}, 0)

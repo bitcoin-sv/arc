@@ -7,10 +7,13 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
-	"github.com/bitcoin-sv/arc/internal/woc_client"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
+	"github.com/bitcoin-sv/arc/internal/woc_client"
+	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 
 var Cmd = &cobra.Command{
@@ -46,8 +49,30 @@ var Cmd = &cobra.Command{
 			cancel()
 		}()
 
-		t := getUtxosTable(ctx, logger, keySets, isTestnet, wocClient, maxRows)
-		fmt.Println(t.Render())
+		names := helper.GetOrderedKeys(keySets)
+		counter := 0
+		var t table.Writer
+		ksRow := map[string]*keyset.KeySet{}
+		for _, name := range names {
+			ksRow[name] = keySets[name]
+			if counter >= 9 {
+				t = table.NewWriter()
+				t := getUtxosTable(ctx, logger, t, ksRow, isTestnet, wocClient, maxRows)
+				t.SetStyle(table.StyleColoredBright)
+				fmt.Println(t.Render())
+				fmt.Println()
+				ksRow = map[string]*keyset.KeySet{}
+				counter = 0
+				continue
+			}
+			counter++
+		}
+		if len(ksRow) > 0 {
+			t = table.NewWriter()
+			t := getUtxosTable(ctx, logger, t, ksRow, isTestnet, wocClient, maxRows)
+			t.SetStyle(table.StyleColoredBright)
+			fmt.Println(t.Render())
+		}
 
 		return nil
 	},

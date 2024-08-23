@@ -64,7 +64,7 @@ func Test_CallbackDispatcher(t *testing.T) {
 				sut.GracefulStop()
 			} else {
 				// give a chance to process
-				time.Sleep(5 * time.Millisecond)
+				time.Sleep(50 * time.Millisecond)
 			}
 
 			// then

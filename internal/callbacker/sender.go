@@ -93,15 +93,16 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) {
 
 	if ok {
 		p.updateSuccessStats(dto.TxStatus)
-	} else {
-		p.logger.Warn("Couldn't send transaction callback after retries",
-			slog.String("url", url),
-			slog.String("token", token),
-			slog.String("hash", dto.Txid),
-			slog.Int("retries", retries))
-
-		p.stats.callbackFailedCount.Inc()
+		return
 	}
+
+	p.logger.Warn("Couldn't send transaction callback after retries",
+		slog.String("url", url),
+		slog.String("token", token),
+		slog.String("hash", dto.Txid),
+		slog.Int("retries", retries))
+
+	p.stats.callbackFailedCount.Inc()
 }
 
 func (p *CallbackSender) sendCallbackWithRetries(url, token string, dto *Callback) bool {

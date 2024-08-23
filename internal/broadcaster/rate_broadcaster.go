@@ -144,7 +144,7 @@ utxoLoop:
 		case <-b.ctx.Done():
 			return txs, nil
 		case utxo := <-b.utxoCh:
-			tx := &sdkTx.Transaction{}
+			tx := sdkTx.NewTransaction()
 
 			err := tx.AddInputsFromUTXOs(utxo)
 			if err != nil {

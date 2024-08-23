@@ -72,7 +72,7 @@ type PeerHandler struct {
 
 func NewPeerHandler(logger *slog.Logger, blockRequestCh chan BlockRequest, blockProcessCh chan *p2p.BlockMessage) *PeerHandler {
 	return &PeerHandler{
-		logger:         logger,
+		logger:         logger.With(slog.String("module", "peer-handler")),
 		blockRequestCh: blockRequestCh,
 		blockProcessCh: blockProcessCh,
 	}

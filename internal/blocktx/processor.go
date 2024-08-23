@@ -137,7 +137,7 @@ func NewProcessor(
 
 	ph := &Processor{
 		store:                       storeI,
-		logger:                      logger,
+		logger:                      logger.With(slog.String("module", "processor")),
 		blockRequestCh:              blockRequestCh,
 		blockProcessCh:              blockProcessCh,
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,

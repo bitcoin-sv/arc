@@ -54,7 +54,7 @@ func init() {
 			blockMessage.TransactionHashes[i] = hash
 
 			if i == 0 {
-				blockMessage.Height = ExtractHeightFromCoinbaseTx(tx)
+				blockMessage.Height = extractHeightFromCoinbaseTx(tx)
 			}
 		}
 

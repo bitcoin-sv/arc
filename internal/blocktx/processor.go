@@ -2,7 +2,6 @@ package blocktx
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -649,27 +647,6 @@ func (ph *Processor) markBlockAsProcessed(ctx context.Context, block *p2p.Block)
 	}
 
 	return nil
-}
-
-// exported for testing purposes
-func ExtractHeightFromCoinbaseTx(tx *sdkTx.Transaction) uint64 {
-	// Coinbase tx has a special format, the height is encoded in the first 4 bytes of the scriptSig
-	// https://en.bitcoin.it/wiki/Protocol_documentation#tx
-	// Get the length
-	script := *(tx.Inputs[0].UnlockingScript)
-	length := int(script[0])
-
-	if len(script) < length+1 {
-		return 0
-	}
-
-	b := make([]byte, 8)
-
-	for i := 0; i < length; i++ {
-		b[i] = script[i+1]
-	}
-
-	return binary.LittleEndian.Uint64(b)
 }
 
 func (ph *Processor) Shutdown() {

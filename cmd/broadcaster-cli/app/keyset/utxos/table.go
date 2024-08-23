@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/enescakir/emoji"
 	"github.com/jedib0t/go-pretty/v6/table"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
@@ -63,11 +64,21 @@ func getUtxosTable(ctx context.Context, logger *slog.Logger, t table.Writer, key
 
 		totalOutputs := 0
 		for _, satoshi := range satoshiSlice {
+			satString := strconv.FormatUint(satoshi, 10)
+
+			if satoshi == 1 {
+				satString = satString + " " + emoji.CrossMark.String()
+			}
 
 			columns[counter] = append(columns[counter], row{
-				satoshis: strconv.FormatUint(satoshi, 10),
+				satoshis: satString,
 				outputs:  strconv.Itoa(outputsMap[satoshi]),
 			})
+
+			// Do not count 1-sat outputs, as they can't be used as utxos for transactions
+			if satoshi == 1 {
+				continue
+			}
 
 			totalOutputs += outputsMap[satoshi]
 		}

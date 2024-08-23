@@ -127,10 +127,4 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	Cmd.Flags().Int("satoshis", 0, "Nr of satoshis per output outputs")
-	err = viper.BindPFlag("satoshis", Cmd.Flags().Lookup("satoshis"))
-	if err != nil {
-		log.Fatal(err)
-	}
 }

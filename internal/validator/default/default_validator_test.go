@@ -488,6 +488,51 @@ func Test_cumulativeCheckFees(t *testing.T) {
 			},
 			expectedErr: validation.NewError(errors.New("too many unconfirmed parents, 2 [limit: 1]"), api.ErrStatusCumulativeFees),
 		},
+		{
+			name: "too many ancestors in mempool - ignore it",
+			hex:  fixture.ValidTxRawHex,
+			feeModel: func() *fees.SatoshisPerKilobyte {
+				return &fees.SatoshisPerKilobyte{Satoshis: 1}
+			}(),
+			ancestorsLimit: -1,
+			getTxFinderFn: func(t *testing.T) mocks.TxFinderIMock {
+				var getRawTxCount int = 0
+				var couterPtr *int = &getRawTxCount
+
+				return mocks.TxFinderIMock{
+					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+						i := *couterPtr
+						*couterPtr = i + 1
+
+						if i == 0 {
+							p1 := validation.RawTx{
+								TxID:    fixture.ParentTx1.TxID,
+								Bytes:   fixture.ParentTx1.Bytes,
+								IsMined: false,
+							}
+							return []validation.RawTx{p1, fixture.ParentTx2}, nil
+						}
+
+						if i == 1 {
+							a1 := validation.RawTx{
+								TxID:    fixture.AncestorTx1.TxID,
+								Bytes:   fixture.AncestorTx1.Bytes,
+								IsMined: false,
+							}
+							return []validation.RawTx{a1, fixture.AncestorTx2}, nil
+						}
+
+						if i == 2 {
+							return []validation.RawTx{fixture.AncestorOfAncestorTx1, fixture.AncestorOfAncestorTx2}, nil
+						}
+
+						t.Fatal("to many calls")
+						return nil, nil
+					},
+				}
+			},
+			expectedErr: nil,
+		},
 	}
 
 	for _, tc := range tcs {

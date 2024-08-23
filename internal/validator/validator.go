@@ -13,6 +13,7 @@ const (
 	NoneFeeValidation FeeValidation = iota
 	StandardFeeValidation
 	CumulativeFeeValidation
+	StrictCumulativeFeeValidation
 )
 
 const DustLimit = 1

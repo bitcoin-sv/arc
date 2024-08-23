@@ -4,12 +4,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"net/http"
 	"os"
 	"strconv"
 	"testing"
 	"time"
+
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 
 	"github.com/libsv/go-bc"
 	"github.com/stretchr/testify/require"
@@ -377,6 +378,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 
 		expectedStatusCode int
 		expectedErrInfo    string
+		expectedTxStatus   string
 	}{
 		{
 			name: "post zero fee txs chain with cumulative fees validation and with skiping fee validation - fee validation is ommited",
@@ -385,6 +387,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 				skipFeeValidation:               true,
 			},
 			expectedStatusCode: 200,
+			expectedTxStatus:   Status_SEEN_ON_NETWORK,
 		},
 		{
 			name: "post zero fee tx with cumulative fees validation and with skiping cumulative fee validation - cumulative fee validation is ommited",
@@ -393,6 +396,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			},
 			lastTxFee:          17,
 			expectedStatusCode: 200,
+			expectedTxStatus:   Status_SEEN_ON_NETWORK,
 		},
 		{
 			name: "post  txs chain with too low fee with cumulative fees validation",
@@ -410,16 +414,17 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			},
 			lastTxFee:          90,
 			expectedStatusCode: 200,
+			expectedTxStatus:   Status_SEEN_ON_NETWORK,
 		},
 		{
-			name: "post  txs chain with cumulative fees validation - chain too long",
+			name: "post  txs chain with cumulative fees validation - chain too long - ignore it",
 			options: validationOpts{
 				performCumulativeFeesValidation: true,
 			},
-			lastTxFee:          247,
+			lastTxFee:          260,
 			chainLong:          25,
-			expectedStatusCode: 473,
-			expectedErrInfo:    "arc error 473: too many unconfirmed parents, 25 [limit: 25]",
+			expectedStatusCode: 200,
+			expectedTxStatus:   Status_REJECTED,
 		},
 	}
 
@@ -543,7 +548,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 
 			// assert
 			if tc.expectedStatusCode == http.StatusOK {
-				require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
+				require.Equal(t, tc.expectedTxStatus, response.TxStatus)
 			} else {
 				require.Contains(t, *response.ExtraInfo, tc.expectedErrInfo)
 			}

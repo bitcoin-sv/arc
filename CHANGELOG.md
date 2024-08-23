@@ -18,6 +18,12 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+- [Cumulative Fees Validation](https://bitcoin-sv.github.io/arc/#/?id=cumulative-fees-validation) does not check unmined ancestors chain length anymore.
+
+### Added
+- `Strict Cumulative Fees Validation` - feature works same as [Cumulative Fees Validation](https://bitcoin-sv.github.io/arc/#/?id=cumulative-fees-validation) but with additional check of unmined ancestors chain length.
+
 ## [1.3.0] - 2024-08-21
 
 ### Changed

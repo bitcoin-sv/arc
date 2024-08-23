@@ -584,3 +584,31 @@ The system performs the fee validation and returns a result indicating that the 
 - The `X-SkipFeeValidation` header takes precedence over `X-CumulativeFeeValidation` and causes the fee validation to be skipped.
 
 This feature is crucial to ensure that the chain of unmined transactions has sufficient fees, which is essential for the effective management of the transaction network.
+
+## Strict cumulative fees validation
+
+The fature is extention of the "Cumulative Fee Validation". It adds checking the lenght of unmined ancestors chain to validation.
+
+### Usage
+
+To use the "Strict Cumulative Fee Validation" feature, you need to send the `X-StrictCumulativeFeeValidation` header with the value set to `true`. 
+
+Example usage:
+```
+X-StrictCumulativeFeeValidation: true
+```
+
+#### Special Cases
+
+If the `X-SkipFeeValidation` or `X-CumulativeFeeValidation` headers are also sent and set to `true`, the "Strict Cumulative Fee Validation" will be skipped even if `X-StrictCumulativeFeeValidation` is set to `true`.
+
+Example usage:
+```
+X-StrictCumulativeFeeValidation: true
+X-CumulativeFeeValidation: true
+```
+or
+```
+X-StrictCumulativeFeeValidation: true
+X-SkipFeeValidation: true
+```

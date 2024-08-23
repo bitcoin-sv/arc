@@ -78,6 +78,16 @@ func GetUint64(settingName string) (uint64, error) {
 	return getSettingFromEnvFile[uint64](settingName)
 }
 
+func GetUint32(settingName string) (uint32, error) {
+
+	setting := viper.GetUint32(settingName)
+	if setting != 0 {
+		return setting, nil
+	}
+
+	return getSettingFromEnvFile[uint32](settingName)
+}
+
 func GetInt64(settingName string) (int64, error) {
 
 	setting := viper.GetInt64(settingName)
@@ -205,6 +215,28 @@ func GetKeySets() (map[string]*keyset.KeySet, error) {
 	}
 
 	return GetKeySetsFor(keys, selectedKeys)
+}
+
+func GetAllKeySets() (map[string]*keyset.KeySet, error) {
+	keys, err := GetPrivateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get private keys: %v", err)
+	}
+
+	if len(keys) == 0 {
+		return nil, errors.New("no keys given in configuration")
+	}
+	keySets := map[string]*keyset.KeySet{}
+
+	for name, key := range keys {
+		fundingKeySet, _, err := GetKeySetsXpriv(key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get key set with name %s and value %s: %v", name, key, err)
+		}
+		keySets[name] = fundingKeySet
+	}
+
+	return keySets, nil
 }
 
 func GetOrderedKeys[T any](keysMap map[string]T) []string {

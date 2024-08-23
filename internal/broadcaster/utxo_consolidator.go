@@ -11,9 +11,10 @@ import (
 	"sync"
 	"time"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 type UTXOConsolidator struct {

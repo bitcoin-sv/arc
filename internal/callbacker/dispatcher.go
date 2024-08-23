@@ -94,17 +94,15 @@ func (m *sendManager) GracefulStop() {
 func (m *sendManager) run() {
 	go func() {
 		for {
-			select {
-			case callback, ok := <-m.ch:
-				if !ok {
-					return // exit the goroutine when channel is closed
-				}
-
-				m.c.Send(m.url, callback.token, callback.data)
-				m.wg.Done()
-
-				time.Sleep(m.sleep)
+			callback, ok := <-m.ch
+			if !ok {
+				return // exit the goroutine when channel is closed
 			}
+
+			m.c.Send(m.url, callback.token, callback.data)
+			m.wg.Done()
+
+			time.Sleep(m.sleep)
 		}
 	}()
 }

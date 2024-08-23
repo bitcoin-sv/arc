@@ -102,6 +102,7 @@ paths:
         - $ref: '#/components/parameters/skipScriptValidation'
         - $ref: '#/components/parameters/skipTxValidation'
         - $ref: '#/components/parameters/cumulativeFeeValidation'
+        - $ref: '#/components/parameters/strictCumulativeFeeValidation'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/waitForStatus'
         - $ref: '#/components/parameters/waitFor'
@@ -259,6 +260,7 @@ paths:
         - $ref: '#/components/parameters/skipScriptValidation'
         - $ref: '#/components/parameters/skipTxValidation'
         - $ref: '#/components/parameters/cumulativeFeeValidation'
+        - $ref: '#/components/parameters/strictCumulativeFeeValidation'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/waitForStatus'
         - $ref: '#/components/parameters/waitFor'
@@ -1076,6 +1078,13 @@ components:
       in: header
       description: >-
         Whether we should perform cumulative fee validation for fee consolidation txs or not.
+      schema:
+        type: boolean
+    strictCumulativeFeeValidation:
+      name: X-StrictCumulativeFeeValidation
+      in: header
+      description: >-
+        Whether we should perform cumulative fee validation for fee consolidation txs or not with unmined ancestors limit.
       schema:
         type: boolean
     callbackToken:

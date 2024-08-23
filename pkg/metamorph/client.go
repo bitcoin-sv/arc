@@ -337,16 +337,17 @@ func (m *Metamorph) SetUnlockedByName(ctx context.Context, name string) (int64, 
 
 // TransactionOptions options passed from header when creating transactions.
 type TransactionOptions struct {
-	ClientID                string               `json:"client_id"`
-	CallbackURL             string               `json:"callback_url,omitempty"`
-	CallbackToken           string               `json:"callback_token,omitempty"`
-	SkipFeeValidation       bool                 `json:"X-SkipFeeValidation,omitempty"`
-	SkipScriptValidation    bool                 `json:"X-SkipScriptValidation,omitempty"`
-	SkipTxValidation        bool                 `json:"X-SkipTxValidation,omitempty"`
-	CumulativeFeeValidation bool                 `json:"X-CumulativeFeeValidation,omitempty"`
-	WaitForStatus           metamorph_api.Status `json:"wait_for_status,omitempty"`
-	FullStatusUpdates       bool                 `json:"full_status_updates,omitempty"`
-	MaxTimeout              int                  `json:"max_timeout,omitempty"`
+	ClientID                      string               `json:"client_id"`
+	CallbackURL                   string               `json:"callback_url,omitempty"`
+	CallbackToken                 string               `json:"callback_token,omitempty"`
+	SkipFeeValidation             bool                 `json:"X-SkipFeeValidation,omitempty"`
+	SkipScriptValidation          bool                 `json:"X-SkipScriptValidation,omitempty"`
+	SkipTxValidation              bool                 `json:"X-SkipTxValidation,omitempty"`
+	CumulativeFeeValidation       bool                 `json:"X-CumulativeFeeValidation,omitempty"`
+	StrictCumulativeFeeValidation bool                 `json:"X-StrictCumulativeFeeValidation,omitempty"`
+	WaitForStatus                 metamorph_api.Status `json:"wait_for_status,omitempty"`
+	FullStatusUpdates             bool                 `json:"full_status_updates,omitempty"`
+	MaxTimeout                    int                  `json:"max_timeout,omitempty"`
 }
 
 type Transaction struct {

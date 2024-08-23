@@ -366,8 +366,9 @@ func TestSkipValidation(t *testing.T) {
 
 func TestPostCumulativeFeesValidation(t *testing.T) {
 	type validationOpts struct {
-		performCumulativeFeesValidation bool
-		skipFeeValidation               bool
+		performCumulativeFeesValidation       bool
+		performStrictCumulativeFeesValidation bool
+		skipFeeValidation                     bool
 	}
 
 	tt := []struct {
@@ -425,6 +426,16 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			chainLong:          25,
 			expectedStatusCode: 200,
 			expectedTxStatus:   Status_REJECTED,
+		},
+		{
+			name: "post  txs chain with cumulative fees validation - chain too long",
+			options: validationOpts{
+				performStrictCumulativeFeesValidation: true,
+			},
+			lastTxFee:          260,
+			chainLong:          25,
+			expectedStatusCode: 473,
+			expectedErrInfo:    "arc error 473: too many unconfirmed parents, 25 [limit: 25]",
 		},
 	}
 
@@ -541,9 +552,10 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 
 			response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}),
 				map[string]string{
-					"X-WaitFor":                 Status_SEEN_ON_NETWORK,
-					"X-CumulativeFeeValidation": strconv.FormatBool(tc.options.performCumulativeFeesValidation),
-					"X-SkipFeeValidation":       strconv.FormatBool(tc.options.skipFeeValidation),
+					"X-WaitFor":                       Status_SEEN_ON_NETWORK,
+					"X-CumulativeFeeValidation":       strconv.FormatBool(tc.options.performCumulativeFeesValidation),
+					"X-StrictCumulativeFeeValidation": strconv.FormatBool(tc.options.performStrictCumulativeFeesValidation),
+					"X-SkipFeeValidation":             strconv.FormatBool(tc.options.skipFeeValidation),
 				}, tc.expectedStatusCode)
 
 			// assert

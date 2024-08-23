@@ -322,6 +322,10 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 	if params.XCumulativeFeeValidation != nil {
 		transactionOptions.CumulativeFeeValidation = *params.XCumulativeFeeValidation
 	}
+	if params.XStrictCumulativeFeeValidation != nil {
+		transactionOptions.StrictCumulativeFeeValidation = *params.XStrictCumulativeFeeValidation
+	}
+
 	if params.XSkipScriptValidation != nil {
 		transactionOptions.SkipScriptValidation = *params.XSkipScriptValidation
 	}
@@ -584,6 +588,8 @@ func toValidationOpts(opts *metamorph.TransactionOptions) (validator.FeeValidati
 		fv = validator.NoneFeeValidation
 	} else if opts.CumulativeFeeValidation {
 		fv = validator.CumulativeFeeValidation
+	} else if opts.StrictCumulativeFeeValidation {
+		fv = validator.StrictCumulativeFeeValidation
 	}
 
 	sv := validator.StandardScriptValidation

@@ -217,21 +217,22 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs int, requestedSatoshisPerOut
 	return txsSplitBatches, nil
 }
 
-func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis uint64, requestedSatoshis uint64, requestedOutputs int, fundingKeySet *keyset.KeySet) (addedOutputs int, err error) {
+func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis uint64, requestedSatoshis uint64, requestedOutputs int, fundingKeySet *keyset.KeySet) (int, error) {
 	if requestedSatoshis > splitSatoshis {
 		return 0, fmt.Errorf("requested satoshis %d greater than satoshis to be split %d", requestedSatoshis, splitSatoshis)
 	}
 
 	counter := 0
+	var err error
+	var fee uint64
 
 	remaining := int64(splitSatoshis)
 
-	fee, err := b.feeModel.ComputeFee(tx)
-	if err != nil {
-		return 0, err
-	}
-
 	for remaining > int64(requestedSatoshis) && counter < requestedOutputs {
+		fee, err = b.feeModel.ComputeFee(tx)
+		if err != nil {
+			return 0, err
+		}
 		if uint64(remaining)-requestedSatoshis < fee {
 			break
 		}

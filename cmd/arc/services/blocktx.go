@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"log/slog"
 	"net"
 	"time"
+
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
@@ -21,7 +22,8 @@ import (
 )
 
 const (
-	maximumBlockSize = 4294967296 // 4Gb
+	maximumBlockSize      = 4294967296 // 4Gb
+	blockProcessingBuffer = 100
 )
 
 func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
@@ -64,7 +66,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		mqClient = nats_core.New(natsConnection, nats_core.WithLogger(logger))
 	}
 
-	peerHandlerOpts := []func(handler *blocktx.PeerHandler){
+	processorOpts := []func(handler *blocktx.Processor){
 		blocktx.WithRetentionDays(btxConfig.RecordRetentionDays),
 		blocktx.WithRegisterTxsChan(registerTxsChan),
 		blocktx.WithRequestTxChan(requestTxChannel),
@@ -73,15 +75,18 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		blocktx.WithFillGapsInterval(btxConfig.FillGapsInterval),
 	}
 	if tracingEnabled {
-		peerHandlerOpts = append(peerHandlerOpts, blocktx.WithTracer())
+		processorOpts = append(processorOpts, blocktx.WithTracer())
 	}
 
-	peerHandler, err := blocktx.NewPeerHandler(logger, blockStore, peerHandlerOpts...)
+	blockRequestCh := make(chan blocktx.BlockRequest, blockProcessingBuffer)
+	blockProcessCh := make(chan *p2p.BlockMessage, blockProcessingBuffer)
+
+	processor, err := blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockProcessCh, processorOpts...)
 	if err != nil {
 		return nil, err
 	}
 
-	err = peerHandler.Start()
+	err = processor.Start()
 	if err != nil {
 		return nil, fmt.Errorf("failed to start peer handler: %v", err)
 	}
@@ -104,6 +109,8 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	pm := p2p.NewPeerManager(logger, network, pmOpts...)
 	peers := make([]p2p.PeerI, len(arcConfig.Peers))
 
+	peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
+
 	for i, peerSetting := range arcConfig.Peers {
 		peerURL, err := peerSetting.GetP2PUrl()
 		if err != nil {
@@ -121,7 +128,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		peers[i] = peer
 	}
 
-	peerHandler.StartFillGaps(peers)
+	processor.StartFillGaps(peers)
 
 	server := blocktx.NewServer(blockStore, logger, pm, btxConfig.MaxAllowedBlockHeightMismatch)
 
@@ -138,7 +145,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	return func() {
 		logger.Info("Shutting down blocktx store")
 
-		peerHandler.Shutdown()
+		processor.Shutdown()
 
 		server.Shutdown()
 

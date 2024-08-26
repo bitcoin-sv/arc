@@ -105,7 +105,7 @@ func TestChainWork(t *testing.T) {
 		name := fmt.Sprintf("should evaluate bits %d from block %d as chainwork %s",
 			params.bits, params.height, params.expectedChainWork)
 		t.Run(name, func(t *testing.T) {
-			cw := CalculateChainwork(params.bits)
+			cw := calculateChainwork(params.bits)
 
 			require.Equal(t, cw.String(), params.expectedChainWork)
 		})

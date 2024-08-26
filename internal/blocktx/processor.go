@@ -1,11 +1,12 @@
 package blocktx
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
-	"math"
+	"math/big"
 	"os"
 	"sync"
 	"time"
@@ -133,7 +134,7 @@ func NewProcessor(
 		return nil, err
 	}
 
-	ph := &Processor{
+	p := &Processor{
 		store:                       storeI,
 		logger:                      logger.With(slog.String("module", "processor")),
 		blockRequestCh:              blockRequestCh,
@@ -149,232 +150,232 @@ func NewProcessor(
 	}
 
 	for _, opt := range opts {
-		opt(ph)
+		opt(p)
 	}
 
 	ctx, cancelAll := context.WithCancel(context.Background())
-	ph.cancelAll = cancelAll
-	ph.ctx = ctx
+	p.cancelAll = cancelAll
+	p.ctx = ctx
 
-	return ph, nil
+	return p, nil
 }
 
-func (ph *Processor) Start() error {
-	err := ph.mqClient.Subscribe(RegisterTxTopic, func(msg []byte) error {
-		ph.registerTxsChan <- msg
+func (p *Processor) Start() error {
+	err := p.mqClient.Subscribe(RegisterTxTopic, func(msg []byte) error {
+		p.registerTxsChan <- msg
 		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to %s topic: %w", RegisterTxTopic, err)
 	}
 
-	err = ph.mqClient.Subscribe(RequestTxTopic, func(msg []byte) error {
-		ph.requestTxChannel <- msg
+	err = p.mqClient.Subscribe(RequestTxTopic, func(msg []byte) error {
+		p.requestTxChannel <- msg
 		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to %s topic: %w", RequestTxTopic, err)
 	}
 
-	ph.StartBlockRequesting()
-	ph.StartBlockProcessing()
-	ph.StartProcessRegisterTxs()
-	ph.StartProcessRequestTxs()
+	p.StartBlockRequesting()
+	p.StartBlockProcessing()
+	p.StartProcessRegisterTxs()
+	p.StartProcessRequestTxs()
 
 	return nil
 }
 
-func (ph *Processor) StartBlockRequesting() {
-	ph.waitGroup.Add(1)
+func (p *Processor) StartBlockRequesting() {
+	p.waitGroup.Add(1)
 
 	go func() {
-		defer ph.waitGroup.Done()
+		defer p.waitGroup.Done()
 		for {
 			select {
-			case <-ph.ctx.Done():
+			case <-p.ctx.Done():
 				return
-			case req := <-ph.blockRequestCh:
+			case req := <-p.blockRequestCh:
 				hash := req.Hash
 				peer := req.Peer
 
-				bhs, err := ph.store.GetBlockHashesProcessingInProgress(ph.ctx, ph.hostname)
+				bhs, err := p.store.GetBlockHashesProcessingInProgress(p.ctx, p.hostname)
 				if err != nil {
-					ph.logger.Error("failed to get block hashes where processing in progress", slog.String("err", err.Error()))
+					p.logger.Error("failed to get block hashes where processing in progress", slog.String("err", err.Error()))
 				}
 
 				if len(bhs) >= maxBlocksInProgress {
-					ph.logger.Debug("max blocks being processed reached", slog.String("hash", hash.String()), slog.Int("max", maxBlocksInProgress), slog.Int("number", len(bhs)))
+					p.logger.Debug("max blocks being processed reached", slog.String("hash", hash.String()), slog.Int("max", maxBlocksInProgress), slog.Int("number", len(bhs)))
 					continue
 				}
 
-				processedBy, err := ph.store.SetBlockProcessing(ph.ctx, hash, ph.hostname)
+				processedBy, err := p.store.SetBlockProcessing(p.ctx, hash, p.hostname)
 				if err != nil {
 					// block is already being processed by another blocktx instance
 					if errors.Is(err, store.ErrBlockProcessingDuplicateKey) {
-						ph.logger.Debug("block processing already in progress", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
+						p.logger.Debug("block processing already in progress", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
 						continue
 					}
 
-					ph.logger.Error("failed to set block processing", slog.String("hash", hash.String()))
+					p.logger.Error("failed to set block processing", slog.String("hash", hash.String()))
 					continue
 				}
 
 				msg := wire.NewMsgGetData()
 				if err = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
-					ph.logger.Error("Failed to create InvVect for block request", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+					p.logger.Error("Failed to create InvVect for block request", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 					continue
 				}
 
 				if err = peer.WriteMsg(msg); err != nil {
-					ph.logger.Error("Failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+					p.logger.Error("Failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 					continue
 				}
 
-				ph.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
+				p.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 			}
 		}
 	}()
 }
 
-func (ph *Processor) StartBlockProcessing() {
-	ph.waitGroup.Add(1)
+func (p *Processor) StartBlockProcessing() {
+	p.waitGroup.Add(1)
 
 	go func() {
-		defer ph.waitGroup.Done()
+		defer p.waitGroup.Done()
 
 		for {
 			select {
-			case <-ph.ctx.Done():
+			case <-p.ctx.Done():
 				return
-			case blockMsg := <-ph.blockProcessCh:
-				ph.processBlock(blockMsg)
+			case blockMsg := <-p.blockProcessCh:
+				p.processBlock(blockMsg)
 			}
 		}
 	}()
 }
 
-func (ph *Processor) StartFillGaps(peers []p2p.PeerI) {
-	ph.waitGroup.Add(1)
+func (p *Processor) StartFillGaps(peers []p2p.PeerI) {
+	p.waitGroup.Add(1)
 
-	ticker := time.NewTicker(ph.fillGapsInterval)
+	ticker := time.NewTicker(p.fillGapsInterval)
 	go func() {
-		defer ph.waitGroup.Done()
+		defer p.waitGroup.Done()
 		peerIndex := 0
 		for {
 			select {
-			case <-ph.ctx.Done():
+			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
 				if peerIndex >= len(peers) {
 					peerIndex = 0
 				}
 
-				err := ph.fillGaps(peers[peerIndex])
+				err := p.fillGaps(peers[peerIndex])
 				if err != nil {
-					ph.logger.Error("failed to fill gaps", slog.String("error", err.Error()))
+					p.logger.Error("failed to fill gaps", slog.String("error", err.Error()))
 				}
 
 				peerIndex++
-				ticker.Reset(ph.fillGapsInterval)
+				ticker.Reset(p.fillGapsInterval)
 			}
 		}
 	}()
 }
 
-func (ph *Processor) StartProcessRegisterTxs() {
-	ph.waitGroup.Add(1)
-	txHashes := make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
+func (p *Processor) StartProcessRegisterTxs() {
+	p.waitGroup.Add(1)
+	txHashes := make([]*blocktx_api.TransactionAndSource, 0, p.registerTxsBatchSize)
 
-	ticker := time.NewTicker(ph.registerTxsInterval)
+	ticker := time.NewTicker(p.registerTxsInterval)
 	go func() {
-		defer ph.waitGroup.Done()
+		defer p.waitGroup.Done()
 		for {
 			select {
-			case <-ph.ctx.Done():
+			case <-p.ctx.Done():
 				return
-			case txHash := <-ph.registerTxsChan:
+			case txHash := <-p.registerTxsChan:
 				txHashes = append(txHashes, &blocktx_api.TransactionAndSource{
 					Hash: txHash,
 				})
 
-				if len(txHashes) < ph.registerTxsBatchSize {
+				if len(txHashes) < p.registerTxsBatchSize {
 					continue
 				}
 
-				ph.registerTransactions(txHashes[:])
-				txHashes = make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
-				ticker.Reset(ph.registerTxsInterval)
+				p.registerTransactions(txHashes[:])
+				txHashes = make([]*blocktx_api.TransactionAndSource, 0, p.registerTxsBatchSize)
+				ticker.Reset(p.registerTxsInterval)
 
 			case <-ticker.C:
 				if len(txHashes) == 0 {
 					continue
 				}
 
-				ph.registerTransactions(txHashes[:])
-				txHashes = make([]*blocktx_api.TransactionAndSource, 0, ph.registerTxsBatchSize)
-				ticker.Reset(ph.registerTxsInterval)
+				p.registerTransactions(txHashes[:])
+				txHashes = make([]*blocktx_api.TransactionAndSource, 0, p.registerTxsBatchSize)
+				ticker.Reset(p.registerTxsInterval)
 			}
 		}
 	}()
 }
 
-func (ph *Processor) StartProcessRequestTxs() {
-	ph.waitGroup.Add(1)
+func (p *Processor) StartProcessRequestTxs() {
+	p.waitGroup.Add(1)
 
-	txHashes := make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)
+	txHashes := make([]*chainhash.Hash, 0, p.registerRequestTxsBatchSize)
 
-	ticker := time.NewTicker(ph.registerRequestTxsInterval)
+	ticker := time.NewTicker(p.registerRequestTxsInterval)
 
 	go func() {
-		defer ph.waitGroup.Done()
+		defer p.waitGroup.Done()
 
 		for {
 			select {
-			case <-ph.ctx.Done():
+			case <-p.ctx.Done():
 				return
-			case txHash := <-ph.requestTxChannel:
+			case txHash := <-p.requestTxChannel:
 				tx, err := chainhash.NewHash(txHash)
 				if err != nil {
-					ph.logger.Error("Failed to create hash from byte array", slog.String("err", err.Error()))
+					p.logger.Error("Failed to create hash from byte array", slog.String("err", err.Error()))
 					continue
 				}
 
 				txHashes = append(txHashes, tx)
 
-				if len(txHashes) < ph.registerRequestTxsBatchSize || len(txHashes) == 0 {
+				if len(txHashes) < p.registerRequestTxsBatchSize || len(txHashes) == 0 {
 					continue
 				}
 
-				err = ph.publishMinedTxs(txHashes)
+				err = p.publishMinedTxs(txHashes)
 				if err != nil {
-					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+					p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 					continue // retry, don't clear the txHashes slice
 				}
 
-				txHashes = make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)
-				ticker.Reset(ph.registerRequestTxsInterval)
+				txHashes = make([]*chainhash.Hash, 0, p.registerRequestTxsBatchSize)
+				ticker.Reset(p.registerRequestTxsInterval)
 
 			case <-ticker.C:
 				if len(txHashes) == 0 {
 					continue
 				}
 
-				err := ph.publishMinedTxs(txHashes)
+				err := p.publishMinedTxs(txHashes)
 				if err != nil {
-					ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
-					ticker.Reset(ph.registerRequestTxsInterval)
+					p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+					ticker.Reset(p.registerRequestTxsInterval)
 					continue // retry, don't clear the txHashes slice
 				}
 
-				txHashes = make([]*chainhash.Hash, 0, ph.registerRequestTxsBatchSize)
-				ticker.Reset(ph.registerRequestTxsInterval)
+				txHashes = make([]*chainhash.Hash, 0, p.registerRequestTxsBatchSize)
+				ticker.Reset(p.registerRequestTxsInterval)
 			}
 		}
 	}()
 }
 
-func (ph *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
-	minedTxs, err := ph.store.GetMinedTransactions(ph.ctx, txHashes)
+func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
+	minedTxs, err := p.store.GetMinedTransactions(p.ctx, txHashes)
 	if err != nil {
 		return fmt.Errorf("failed to get mined transactions: %v", err)
 	}
@@ -386,7 +387,7 @@ func (ph *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 			BlockHeight:     minedTx.BlockHeight,
 			MerklePath:      minedTx.MerklePath,
 		}
-		err = ph.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
+		err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
 	}
 
 	if err != nil {
@@ -396,16 +397,16 @@ func (ph *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 	return nil
 }
 
-func (ph *Processor) registerTransactions(txHashes []*blocktx_api.TransactionAndSource) {
-	updatedTxs, err := ph.store.RegisterTransactions(ph.ctx, txHashes)
+func (p *Processor) registerTransactions(txHashes []*blocktx_api.TransactionAndSource) {
+	updatedTxs, err := p.store.RegisterTransactions(p.ctx, txHashes)
 	if err != nil {
-		ph.logger.Error("failed to register transactions", slog.String("err", err.Error()))
+		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 	}
 
 	if len(updatedTxs) > 0 {
-		err = ph.publishMinedTxs(updatedTxs)
+		err = p.publishMinedTxs(updatedTxs)
 		if err != nil {
-			ph.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+			p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 		}
 	}
 }
@@ -415,10 +416,10 @@ const (
 	blocksPerHour = 6
 )
 
-func (ph *Processor) fillGaps(peer p2p.PeerI) error {
-	heightRange := ph.dataRetentionDays * hoursPerDay * blocksPerHour
+func (p *Processor) fillGaps(peer p2p.PeerI) error {
+	heightRange := p.dataRetentionDays * hoursPerDay * blocksPerHour
 
-	blockHeightGaps, err := ph.store.GetBlockGaps(ph.ctx, heightRange)
+	blockHeightGaps, err := p.store.GetBlockGaps(p.ctx, heightRange)
 	if err != nil {
 		return err
 	}
@@ -432,29 +433,16 @@ func (ph *Processor) fillGaps(peer p2p.PeerI) error {
 			break
 		}
 
-		ph.logger.Info("Requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Int64("height", int64(gaps.Height)), slog.String("peer", peer.String()))
+		p.logger.Info("Requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Int64("height", int64(gaps.Height)), slog.String("peer", peer.String()))
 
 		pair := BlockRequest{
 			Hash: gaps.Hash,
 			Peer: peer,
 		}
-		ph.blockRequestCh <- pair
+		p.blockRequestCh <- pair
 	}
 
 	return nil
-}
-
-func (ph *Processor) insertBlock(ctx context.Context, blockHash *chainhash.Hash, merkleRoot *chainhash.Hash, previousBlockHash *chainhash.Hash, height uint64) (uint64, error) {
-	ph.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Int64("height", int64(height)))
-
-	block := &blocktx_api.Block{
-		Hash:         blockHash[:],
-		MerkleRoot:   merkleRoot[:],
-		PreviousHash: previousBlockHash[:],
-		Height:       height,
-	}
-
-	return ph.store.InsertBlock(ctx, block)
 }
 
 func buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash) []*chainhash.Hash {
@@ -467,8 +455,8 @@ func buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash)
 	return bc.BuildMerkleTreeStoreChainHash(txids)
 }
 
-func (ph *Processor) processBlock(msg *p2p.BlockMessage) {
-	ctx := ph.ctx
+func (p *Processor) processBlock(msg *p2p.BlockMessage) {
+	ctx := p.ctx
 
 	if tracer != nil {
 		var span trace.Span
@@ -479,38 +467,83 @@ func (ph *Processor) processBlock(msg *p2p.BlockMessage) {
 	timeStart := time.Now()
 
 	blockHash := msg.Header.BlockHash()
-
 	previousBlockHash := msg.Header.PrevBlock
-
 	merkleRoot := msg.Header.MerkleRoot
 
-	blockId, err := ph.insertBlock(ctx, &blockHash, &merkleRoot, &previousBlockHash, msg.Height)
-	if err != nil {
-		_, errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
+	prevBlock, err := p.store.GetBlock(ctx, &previousBlockHash)
+	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
+		_, errDel := p.store.DelBlockProcessing(ctx, &blockHash, p.hostname)
 		if errDel != nil {
-			ph.logger.Error("failed to delete block processing - after inserting block failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
+			p.logger.Error("failed to delete block processing - after getting previous block failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}
-		ph.logger.Error("unable to insert block at given height", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
+		p.logger.Error("unable to get previous block from db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("prevHash", previousBlockHash.String()), slog.String("err", err.Error()))
+		return
+	}
+
+	incomingBlock := createBlock(msg, prevBlock)
+
+	competing, err := p.competingChainsExist(ctx, incomingBlock)
+	if err != nil {
+		_, errDel := p.store.DelBlockProcessing(ctx, &blockHash, p.hostname)
+		if errDel != nil {
+			p.logger.Error("failed to delete block processing - after checking for competing chains", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
+		}
+		p.logger.Error("unable to check competing chains", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
+		return
+	}
+
+	if competing {
+		p.logger.Info("Competing blocks found", slog.String("incoming block hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
+
+		tip, err := p.store.GetChainTip(ctx)
+		if err != nil {
+			// TODO: handle this
+			return
+		}
+
+		tipChainWork := new(big.Int)
+		tipChainWork.SetString(tip.Chainwork, 10)
+
+		incomingBlockChainwork := new(big.Int)
+		incomingBlockChainwork.SetString(incomingBlock.Chainwork, 10)
+
+		if tipChainWork.Cmp(incomingBlockChainwork) < 0 {
+			incomingBlock.Status = blocktx_api.Status_LONGEST
+			// TODO: perform reorg
+		} else {
+			incomingBlock.Status = blocktx_api.Status_STALE
+		}
+	}
+
+	p.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
+
+	blockId, err := p.store.InsertBlock(ctx, incomingBlock)
+	if err != nil {
+		_, errDel := p.store.DelBlockProcessing(ctx, &blockHash, p.hostname)
+		if errDel != nil {
+			p.logger.Error("failed to delete block processing - after inserting block failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
+		}
+		p.logger.Error("unable to insert block at given height", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
 		return
 	}
 
 	calculatedMerkleTree := buildMerkleTreeStoreChainHash(ctx, msg.TransactionHashes)
 
 	if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
-		_, errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
+		_, errDel := p.store.DelBlockProcessing(ctx, &blockHash, p.hostname)
 		if errDel != nil {
-			ph.logger.Error("failed to delete block processing - after merkle root mismatch", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
+			p.logger.Error("failed to delete block processing - after merkle root mismatch", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}
-		ph.logger.Error("merkle root mismatch", slog.String("hash", blockHash.String()))
+		p.logger.Error("merkle root mismatch", slog.String("hash", blockHash.String()))
 		return
 	}
 
-	if err = ph.markTransactionsAsMined(ctx, blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
-		_, errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
+	if err = p.markTransactionsAsMined(ctx, blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
+		_, errDel := p.store.DelBlockProcessing(ctx, &blockHash, p.hostname)
 		if errDel != nil {
-			ph.logger.Error("failed to delete block processing - after marking transactions as mined failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
+			p.logger.Error("failed to delete block processing - after marking transactions as mined failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}
-		ph.logger.Error("unable to mark block as mined", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
+		p.logger.Error("unable to mark block as mined", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
 		return
 	}
 
@@ -523,27 +556,44 @@ func (ph *Processor) processBlock(msg *p2p.BlockMessage) {
 		TxCount:      uint64(len(msg.TransactionHashes)),
 	}
 
-	if err = ph.markBlockAsProcessed(ctx, block); err != nil {
-		_, errDel := ph.store.DelBlockProcessing(ctx, &blockHash, ph.hostname)
+	if err = p.markBlockAsProcessed(ctx, block); err != nil {
+		_, errDel := p.store.DelBlockProcessing(ctx, &blockHash, p.hostname)
 		if errDel != nil {
-			ph.logger.Error("failed to delete block processing - after marking block as processed failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
+			p.logger.Error("failed to delete block processing - after marking block as processed failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
 		}
-		ph.logger.Error("unable to mark block as processed", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
+		p.logger.Error("unable to mark block as processed", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
 		return
 	}
 
 	// add the total block processing time to the stats
-	ph.logger.Info("Processed block", slog.String("hash", blockHash.String()), slog.Int("txs", len(msg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))
+	p.logger.Info("Processed block", slog.String("hash", blockHash.String()), slog.Int("txs", len(msg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))
 }
 
-func (ph *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
+func (p *Processor) competingChainsExist(ctx context.Context, block *blocktx_api.Block) (bool, error) {
+	if block.Status == blocktx_api.Status_LONGEST {
+		competingBlock, err := p.store.GetBlockByHeight(ctx, block.Height)
+		if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
+			return false, err
+		}
+
+		if competingBlock != nil && !bytes.Equal(competingBlock.Hash, block.Hash) {
+			return true, nil
+		}
+
+		return false, nil
+	}
+	// If STALE status
+	return true, nil
+}
+
+func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
 	if tracer != nil {
 		var span trace.Span
 		ctx, span = tracer.Start(ctx, "markTransactionsAsMined")
 		defer span.End()
 	}
-	txs := make([]*blocktx_api.TransactionAndSource, 0, ph.transactionStorageBatchSize)
-	merklePaths := make([]string, 0, ph.transactionStorageBatchSize)
+	txs := make([]*blocktx_api.TransactionAndSource, 0, p.transactionStorageBatchSize)
+	merklePaths := make([]string, 0, p.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
 
 	var totalSize int
@@ -584,14 +634,14 @@ func (ph *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64
 		}
 
 		merklePaths = append(merklePaths, bumpHex)
-		if (txIndex+1)%ph.transactionStorageBatchSize == 0 {
-			updateResp, err := ph.store.UpsertBlockTransactions(ctx, blockId, txs, merklePaths)
+		if (txIndex+1)%p.transactionStorageBatchSize == 0 {
+			updateResp, err := p.store.UpsertBlockTransactions(ctx, blockId, txs, merklePaths)
 			if err != nil {
 				return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 			}
 			// free up memory
-			txs = make([]*blocktx_api.TransactionAndSource, 0, ph.transactionStorageBatchSize)
-			merklePaths = make([]string, 0, ph.transactionStorageBatchSize)
+			txs = make([]*blocktx_api.TransactionAndSource, 0, p.transactionStorageBatchSize)
+			merklePaths = make([]string, 0, p.transactionStorageBatchSize)
 
 			for _, updResp := range updateResp {
 				txBlock := &blocktx_api.TransactionBlock{
@@ -600,16 +650,16 @@ func (ph *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64
 					BlockHeight:     blockHeight,
 					MerklePath:      updResp.MerklePath,
 				}
-				err = ph.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
+				err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
 				if err != nil {
-					ph.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
+					p.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
 				}
 			}
 		}
 
 		if percentage, found := progress[txIndex+1]; found {
 			if totalSize > 0 {
-				ph.logger.Info(fmt.Sprintf("%d txs out of %d marked as mined", txIndex+1, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("duration", time.Since(now).String()))
+				p.logger.Info(fmt.Sprintf("%d txs out of %d marked as mined", txIndex+1, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("duration", time.Since(now).String()))
 			}
 		}
 	}
@@ -619,7 +669,7 @@ func (ph *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64
 	}
 
 	// update all remaining transactions
-	updateResp, err := ph.store.UpsertBlockTransactions(ctx, blockId, txs, merklePaths)
+	updateResp, err := p.store.UpsertBlockTransactions(ctx, blockId, txs, merklePaths)
 	if err != nil {
 		return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 	}
@@ -631,17 +681,17 @@ func (ph *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64
 			BlockHeight:     blockHeight,
 			MerklePath:      updResp.MerklePath,
 		}
-		err = ph.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
+		err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
 		if err != nil {
-			ph.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
+			p.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
 		}
 	}
 
 	return nil
 }
 
-func (ph *Processor) markBlockAsProcessed(ctx context.Context, block *p2p.Block) error {
-	err := ph.store.MarkBlockAsDone(ctx, block.Hash, block.Size, block.TxCount)
+func (p *Processor) markBlockAsProcessed(ctx context.Context, block *p2p.Block) error {
+	err := p.store.MarkBlockAsDone(ctx, block.Hash, block.Size, block.TxCount)
 	if err != nil {
 		return err
 	}
@@ -649,28 +699,12 @@ func (ph *Processor) markBlockAsProcessed(ctx context.Context, block *p2p.Block)
 	return nil
 }
 
-func (ph *Processor) Shutdown() {
-	ph.cancelAll()
-	ph.waitGroup.Wait()
+func (p *Processor) Shutdown() {
+	p.cancelAll()
+	p.waitGroup.Wait()
 }
 
 // for testing purposes only
-func (ph *Processor) GetBlockRequestCh() chan BlockRequest {
-	return ph.blockRequestCh
-}
-
-func progressIndices(total, steps int) map[int]int {
-	totalF := float64(total)
-	stepsF := float64(steps)
-
-	step := int(math.Max(math.Round(totalF/stepsF), 1))
-	stepF := float64(step)
-
-	progress := make(map[int]int)
-	for i := float64(1); i < stepsF; i++ {
-		progress[step*int(i)] = int(stepF * i / totalF * 100)
-	}
-
-	progress[total] = 100
-	return progress
+func (p *Processor) GetBlockRequestCh() chan BlockRequest {
+	return p.blockRequestCh
 }

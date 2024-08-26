@@ -13,12 +13,14 @@ import (
 func (p *PostgreSQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 	q := `
 		SELECT
-		 b.hash
-		,b.prevhash
-		,b.merkleroot
-		,b.height
-		,b.processed_at
-		,b.orphanedyn
+			b.hash,
+			b.prevhash,
+			b.merkleroot,
+			b.height,
+			b.processed_at,
+			b.orphanedyn,
+			b.status,
+			b.chainwork
 		FROM blocktx.blocks b
 		WHERE b.hash = $1
 	`
@@ -34,6 +36,8 @@ func (p *PostgreSQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*block
 		&block.Height,
 		&processed_at,
 		&block.Orphaned,
+		&block.Status,
+		&block.Chainwork,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, store.ErrBlockNotFound

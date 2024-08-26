@@ -2,9 +2,12 @@ package blocktx
 
 import (
 	"encoding/binary"
+	"math"
 	"math/big"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/libsv/go-p2p"
 )
 
 // exported for testing purposes
@@ -28,11 +31,27 @@ func extractHeightFromCoinbaseTx(tx *sdkTx.Transaction) uint64 {
 	return binary.LittleEndian.Uint64(b)
 }
 
-// CalculateChainwork calculates chainwork from the given difficulty bits
+func createBlock(msg *p2p.BlockMessage, prevBlock *blocktx_api.Block) *blocktx_api.Block {
+	hash := msg.Header.BlockHash()
+	prevHash := msg.Header.PrevBlock
+	merkleRoot := msg.Header.MerkleRoot
+	chainwork := calculateChainwork(msg.Header.Bits)
+
+	return &blocktx_api.Block{
+		Hash:         hash[:],
+		PreviousHash: prevHash[:],
+		MerkleRoot:   merkleRoot[:],
+		Height:       msg.Height,
+		Status:       prevBlock.Status,
+		Chainwork:    chainwork.String(),
+	}
+}
+
+// calculateChainwork calculates chainwork from the given difficulty bits
 //
 // This function comes from block-header-service:
 // https://github.com/bitcoin-sv/block-headers-service/blob/baa6f2a526f93f611eaf9ff9eb94356a50547ad5/domains/chainwork.go#L6
-func CalculateChainwork(bits uint32) *big.Int {
+func calculateChainwork(bits uint32) *big.Int {
 	// Return a work value of zero if the passed difficulty bits represent
 	// a negative number. Note this should not happen in practice with valid
 	// blocks, but an invalid block could trigger it.
@@ -78,4 +97,20 @@ func compactToBig(compact uint32) *big.Int {
 	}
 
 	return bn
+}
+
+func progressIndices(total, steps int) map[int]int {
+	totalF := float64(total)
+	stepsF := float64(steps)
+
+	step := int(math.Max(math.Round(totalF/stepsF), 1))
+	stepF := float64(step)
+
+	progress := make(map[int]int)
+	for i := float64(1); i < stepsF; i++ {
+		progress[step*int(i)] = int(stepF * i / totalF * 100)
+	}
+
+	progress[total] = 100
+	return progress
 }

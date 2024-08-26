@@ -587,7 +587,7 @@ This feature is crucial to ensure that the chain of unmined transactions has suf
 
 ## Strict cumulative fees validation
 
-The fature is extention of the "Cumulative Fee Validation". It adds checking the lenght of unmined ancestors chain to validation.
+This feature is an extension of the "Cumulative Fee Validation". It adds checking the length of unmined ancestors chain to validation. It adds checking the length of unmined ancestors chain against the setting of child pays for parent limitation `limitcpfpgroupmemberscount` of the connected nodes.
 
 ### Usage
 

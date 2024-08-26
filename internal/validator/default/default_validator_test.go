@@ -459,29 +459,27 @@ func Test_cumulativeCheckFees(t *testing.T) {
 						i := *couterPtr
 						*couterPtr = i + 1
 
-						if i == 0 {
+						switch i {
+						case 0:
 							p1 := validation.RawTx{
 								TxID:    fixture.ParentTx1.TxID,
 								Bytes:   fixture.ParentTx1.Bytes,
 								IsMined: false,
 							}
 							return []validation.RawTx{p1, fixture.ParentTx2}, nil
-						}
-
-						if i == 1 {
+						case 1:
 							a1 := validation.RawTx{
 								TxID:    fixture.AncestorTx1.TxID,
 								Bytes:   fixture.AncestorTx1.Bytes,
 								IsMined: false,
 							}
 							return []validation.RawTx{a1, fixture.AncestorTx2}, nil
-						}
-
-						if i == 2 {
+						case 2:
 							return []validation.RawTx{fixture.AncestorOfAncestorTx1, fixture.AncestorOfAncestorTx2}, nil
+						default:
+							t.Fatal("too many calls")
 						}
 
-						t.Fatal("to many calls")
 						return nil, nil
 					},
 				}
@@ -504,29 +502,27 @@ func Test_cumulativeCheckFees(t *testing.T) {
 						i := *couterPtr
 						*couterPtr = i + 1
 
-						if i == 0 {
+						switch i {
+						case 0:
 							p1 := validation.RawTx{
 								TxID:    fixture.ParentTx1.TxID,
 								Bytes:   fixture.ParentTx1.Bytes,
 								IsMined: false,
 							}
 							return []validation.RawTx{p1, fixture.ParentTx2}, nil
-						}
-
-						if i == 1 {
+						case 1:
 							a1 := validation.RawTx{
 								TxID:    fixture.AncestorTx1.TxID,
 								Bytes:   fixture.AncestorTx1.Bytes,
 								IsMined: false,
 							}
 							return []validation.RawTx{a1, fixture.AncestorTx2}, nil
-						}
-
-						if i == 2 {
+						case 2:
 							return []validation.RawTx{fixture.AncestorOfAncestorTx1, fixture.AncestorOfAncestorTx2}, nil
+						default:
+							t.Fatal("too many calls")
 						}
 
-						t.Fatal("to many calls")
 						return nil, nil
 					},
 				}

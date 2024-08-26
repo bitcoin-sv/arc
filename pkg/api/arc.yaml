@@ -1084,13 +1084,13 @@ components:
       name: X-StrictCumulativeFeeValidation
       in: header
       description: >-
-        Whether we should perform cumulative fee validation for fee consolidation txs or not with unmined ancestors limit.
+        Whether we should perform cumulative fee validation for fee consolidation txs with unmined ancestors limit or not.
       schema:
         type: boolean
     callbackToken:
       name: X-CallbackToken
       in: header
-      description: Access token for notification callback endpoint. It will be used as a Authorization header for the http callback
+      description: Access token for notification callback endpoint. It will be used as a Authorization header for the http callback.
       schema:
         type: string
     waitForStatus:

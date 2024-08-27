@@ -11,9 +11,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 type UTXORateBroadcaster struct {
@@ -161,6 +162,10 @@ utxoLoop:
 			if utxo.Satoshis <= fee {
 				if len(b.utxoCh) == 0 {
 					return nil, errors.New("no utxos with sufficient funds left")
+				}
+
+				if len(b.utxoCh) < b.batchSize {
+					return nil, errors.New("not enough utxos with sufficient funds left for another batch")
 				}
 
 				continue

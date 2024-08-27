@@ -23,7 +23,6 @@ type HttpClient interface {
 
 type CallbackSender struct {
 	httpClient HttpClient
-	wg         sync.WaitGroup
 	mu         sync.Mutex
 	disposed   bool
 	stats      *stats
@@ -48,7 +47,7 @@ func NewSender(httpClient HttpClient, logger *slog.Logger) (*CallbackSender, err
 	callbacker := &CallbackSender{
 		httpClient: httpClient,
 		stats:      stats,
-		logger:     logger.With(slog.String("module", "callbacker")),
+		logger:     logger.With(slog.String("module", "sender")),
 	}
 
 	return callbacker, nil
@@ -59,12 +58,11 @@ func (p *CallbackSender) GracefulStop() {
 	defer p.mu.Unlock()
 
 	if p.disposed {
-		p.logger.Info("Callbacker is already stopped")
+		p.logger.Info("Sender is already stopped")
 		return
 	}
 
-	p.logger.Info("Stopping callbacker")
-	p.wg.Wait()
+	p.logger.Info("Stopping Sender")
 
 	unregisterStats(
 		p.stats.callbackSeenOnNetworkCount,
@@ -76,7 +74,7 @@ func (p *CallbackSender) GracefulStop() {
 	)
 
 	p.disposed = true
-	p.logger.Info("Stopped Callbacker")
+	p.logger.Info("Stopped Sender")
 }
 
 func (p *CallbackSender) Health() error {
@@ -91,24 +89,20 @@ func (p *CallbackSender) Health() error {
 }
 
 func (p *CallbackSender) Send(url, token string, dto *Callback) {
-	p.wg.Add(1)
-	go func() {
-		defer p.wg.Done()
+	ok := p.sendCallbackWithRetries(url, token, dto)
 
-		ok := p.sendCallbackWithRetries(url, token, dto)
+	if ok {
+		p.updateSuccessStats(dto.TxStatus)
+		return
+	}
 
-		if ok {
-			p.updateSuccessStats(dto.TxStatus)
-		} else {
-			p.logger.Warn("Couldn't send transaction callback after retries",
-				slog.String("url", url),
-				slog.String("token", token),
-				slog.String("hash", dto.Txid),
-				slog.Int("retries", retries))
+	p.logger.Warn("Couldn't send transaction callback after retries",
+		slog.String("url", url),
+		slog.String("token", token),
+		slog.String("hash", dto.Txid),
+		slog.Int("retries", retries))
 
-			p.stats.callbackFailedCount.Inc()
-		}
-	}()
+	p.stats.callbackFailedCount.Inc()
 }
 
 func (p *CallbackSender) sendCallbackWithRetries(url, token string, dto *Callback) bool {

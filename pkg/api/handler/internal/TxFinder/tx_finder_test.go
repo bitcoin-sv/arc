@@ -139,7 +139,7 @@ func transactionHandler(_ *testing.T, thResponse func() ([]*metamorph.Transactio
 	return &mq
 }
 
-func peerRpcConfig(t *testing.T) *config.PeerRpcConfig {
+func peerRpcConfig(_ *testing.T) *config.PeerRpcConfig {
 	return &config.PeerRpcConfig{}
 }
 

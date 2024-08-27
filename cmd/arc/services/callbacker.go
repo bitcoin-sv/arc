@@ -14,25 +14,26 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-func StartCallbacker(logger *slog.Logger, config *config.ArcConfig) (func(), error) {
+func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "callbacker"))
 	logger.Info("Starting")
 
-	callbackSrv, err := callbacker.NewSender(&http.Client{Timeout: 5 * time.Second}, logger)
+	config := appConfig.Callbacker
+
+	callbackSender, err := callbacker.NewSender(&http.Client{Timeout: 5 * time.Second}, logger)
 	if err != nil {
 		return nil, fmt.Errorf("callbacker failed: %v", err)
 	}
 
-	srvOpts := []callbacker.ServerOption{
-		callbacker.WithLogger(logger.With(slog.String("module", "callbacker-server"))),
-	}
-	server := callbacker.NewServer(callbackSrv, srvOpts...)
-	err = server.Serve(config.Callbacker.ListenAddr, config.GrpcMessageSize, config.PrometheusEndpoint)
+	callbackDispatcher := callbacker.NewCallbackDispatcher(callbackSender, config.Pause)
+
+	server := callbacker.NewServer(callbackDispatcher, callbacker.WithLogger(logger.With(slog.String("module", "server"))))
+	err = server.Serve(config.ListenAddr, appConfig.GrpcMessageSize, appConfig.PrometheusEndpoint)
 	if err != nil {
 		return nil, fmt.Errorf("GRPCServer failed: %v", err)
 	}
 
-	healthServer, err := StartHealthServerCallbacker(server, config.Callbacker.Health, logger)
+	healthServer, err := StartHealthServerCallbacker(server, config.Health, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start health server: %v", err)
 	}
@@ -40,8 +41,13 @@ func StartCallbacker(logger *slog.Logger, config *config.ArcConfig) (func(), err
 	stopFn := func() {
 		logger.Info("Shutting down callbacker")
 
-		server.Shutdown()
-		callbackSrv.GracefulStop()
+		// dispose of dependencies in the correct order:
+		// 1. server - ensure no new callbacks will be received
+		// 2. dispatcher - ensure all already accepted callbacks are proccessed
+		// 3. sender - finally, stop the sender as there are no callbacks left to send.
+		server.GracefulStop()
+		callbackDispatcher.GracefulStop()
+		callbackSender.GracefulStop()
 
 		healthServer.Stop()
 

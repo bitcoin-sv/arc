@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -389,7 +390,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errC
 
 	srv := &http.Server{Addr: ":9000"}
 	shutdownFn = func() {
-		t.Log("shutting down callback listener")
+		t.Logf("shutting down callback listener %s", callbackUrl)
 		close(receivedChan)
 		close(errChan)
 
@@ -400,7 +401,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errC
 	}
 
 	go func(server *http.Server) {
-		t.Log("starting callback server")
+		t.Logf("starting callback server %s", callbackUrl)
 		err := server.ListenAndServe()
 		if err != nil {
 			return
@@ -453,22 +454,24 @@ func testTxSubmission(t *testing.T, callbackUrl string, token string, tx *sdkTx.
 }
 
 func prepareCallback(t *testing.T, callbackNumbers int) (chan *TransactionResponse, chan error, callbackResponseFn) {
-	callbackReceivedChan := make(chan *TransactionResponse, callbackNumbers) // do not block callback server responses
-	callbackErrChan := make(chan error, callbackNumbers)
-	callbackIteration := 0
+	callbackReceivedChan := make(chan *TransactionResponse, 100) // do not block callback server responses
+	callbackErrChan := make(chan error, 100)
+
+	responseVisitMap := make(map[string]int)
+	mu := &sync.Mutex{}
 
 	calbackResponseFn := func(w http.ResponseWriter, rc chan *TransactionResponse, ec chan error, status *TransactionResponse) {
-		callbackIteration++
-
-		// Let ARC send the callback few times. Respond with success on the last one.
+		mu.Lock()
+		callbackNumber := responseVisitMap[status.Txid]
+		callbackNumber++
+		responseVisitMap[status.Txid] = callbackNumber
+		mu.Unlock()
+		// Let ARC send the same callback few times. Respond with success on the last one.
 		respondWithSuccess := false
-		if callbackIteration < callbackNumbers {
-			t.Logf("%d callback received, responding bad request", callbackIteration)
+		if callbackNumber < callbackNumbers {
 			respondWithSuccess = false
 
 		} else {
-			t.Logf("callback interation:  %v", callbackIteration)
-			t.Logf("%d callback received, responding success", callbackIteration)
 			respondWithSuccess = true
 		}
 

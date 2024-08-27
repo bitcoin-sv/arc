@@ -126,4 +126,5 @@ type CallbackerConfig struct {
 	ListenAddr string        `mapstructure:"listenAddr"`
 	DialAddr   string        `mapstructure:"dialAddr"`
 	Health     *HealthConfig `mapstructure:"health"`
+	Pause      time.Duration `mapstructure:"pause"`
 }

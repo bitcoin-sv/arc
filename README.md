@@ -17,6 +17,7 @@ ARC is a transaction processor for Bitcoin that keeps track of the life cycle of
     - [ZMQ](#zmq)
   - [BlockTx](#blocktx)
     - [BlockTx stores](#blocktx-stores)
+  - [Callbacker](#callbacker)
 - [Message Queue](#message-queue)
 - [K8s-Watcher](#k8s-watcher)
 - [Broadcaster-cli](#broadcaster-cli)
@@ -91,6 +92,9 @@ where options are:
 
     -k8s-watcher=<true|false>
           whether to start k8s-watcher (default=true)
+
+    -callbacker=<true|false>
+          whether to start callbacker (default=true)
 
     -config=/location
           directory to look for config.yaml (default='')
@@ -248,6 +252,17 @@ Metamorph publishes new transactions to the message queue and BlockTx subscribes
 
 ![Message Queue](./doc/message_queue.png)
 
+### Callbacker
+
+Callbacker is a microservice that sends callbacks to a specified URL. 
+
+Callbacker is designed to be horizontally scalable, with each instance operating independently. As a result, they do not communicate with each other and remain unaware of each other's existence.
+
+You can run callbacker like this:
+
+```shell
+go run main.go -callbacker=true
+```
 
 ## K8s-Watcher
 

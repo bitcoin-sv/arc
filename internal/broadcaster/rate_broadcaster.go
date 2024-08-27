@@ -174,6 +174,11 @@ utxoLoop:
 			}
 
 			// Todo: Add OP_RETURN with text "ARC testing" so that WoC can tag it
+			err = tx.AddOpReturnOutput([]byte("ARC testing"))
+			if err != nil {
+				return nil, fmt.Errorf("failed to add OP_RETURN output: %v", err)
+			}
+			b.logger.Info("added OP_RETURN output")
 
 			err = SignAllInputs(tx, b.ks.PrivateKey)
 			if err != nil {
@@ -181,6 +186,8 @@ utxoLoop:
 			}
 
 			b.satoshiMap.Store(tx.TxID(), tx.Outputs[0].Satoshis)
+
+			b.logger.Info("tx id: %s", tx.TxID())
 
 			txs = append(txs, tx)
 
@@ -202,6 +209,8 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 		defer cancel()
 
 		atomic.AddInt64(&b.connectionCount, 1)
+
+		b.logger.Info("broadcastBatchAsync")
 
 		resp, err := b.client.BroadcastTransactions(ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 		if err != nil {

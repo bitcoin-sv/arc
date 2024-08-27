@@ -173,7 +173,6 @@ utxoLoop:
 				return nil, fmt.Errorf("failed to pay transaction %d: %v", amount, err)
 			}
 
-			// Todo: Add OP_RETURN with text "ARC testing" so that WoC can tag it
 			err = tx.AddOpReturnOutput([]byte("ARC testing"))
 			if err != nil {
 				return nil, fmt.Errorf("failed to add OP_RETURN output: %v", err)
@@ -187,7 +186,7 @@ utxoLoop:
 
 			b.satoshiMap.Store(tx.TxID(), tx.Outputs[0].Satoshis)
 
-			b.logger.Info("tx id: %s", tx.TxID())
+			b.logger.Info("tx submitted", slog.String("tx id", tx.TxID()))
 
 			txs = append(txs, tx)
 

@@ -30,11 +30,20 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			DelBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
 //				panic("mock out the DelBlockProcessing method")
 //			},
+//			GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+//				panic("mock out the GetBlock method")
+//			},
+//			GetBlockByHeightFunc: func(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
+//				panic("mock out the GetBlockByHeight method")
+//			},
 //			GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 //				panic("mock out the GetBlockGaps method")
 //			},
 //			GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
 //				panic("mock out the GetBlockHashesProcessingInProgress method")
+//			},
+//			GetChainTipFunc: func(ctx context.Context) (*blocktx_api.Block, error) {
+//				panic("mock out the GetChainTip method")
 //			},
 //			GetMinedTransactionsFunc: func(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
 //				panic("mock out the GetMinedTransactions method")
@@ -76,11 +85,20 @@ type BlocktxStoreMock struct {
 	// DelBlockProcessingFunc mocks the DelBlockProcessing method.
 	DelBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error)
 
+	// GetBlockFunc mocks the GetBlock method.
+	GetBlockFunc func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
+
+	// GetBlockByHeightFunc mocks the GetBlockByHeight method.
+	GetBlockByHeightFunc func(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error)
+
 	// GetBlockGapsFunc mocks the GetBlockGaps method.
 	GetBlockGapsFunc func(ctx context.Context, heightRange int) ([]*store.BlockGap, error)
 
 	// GetBlockHashesProcessingInProgressFunc mocks the GetBlockHashesProcessingInProgress method.
 	GetBlockHashesProcessingInProgressFunc func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)
+
+	// GetChainTipFunc mocks the GetChainTip method.
+	GetChainTipFunc func(ctx context.Context) (*blocktx_api.Block, error)
 
 	// GetMinedTransactionsFunc mocks the GetMinedTransactions method.
 	GetMinedTransactionsFunc func(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error)
@@ -129,6 +147,22 @@ type BlocktxStoreMock struct {
 			// ProcessedBy is the processedBy argument value.
 			ProcessedBy string
 		}
+		// GetBlock holds details about calls to the GetBlock method.
+		GetBlock []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hash is the hash argument value.
+			Hash *chainhash.Hash
+		}
+		// GetBlockByHeight holds details about calls to the GetBlockByHeight method.
+		GetBlockByHeight []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Height is the height argument value.
+			Height uint64
+			// Status is the status argument value.
+			Status blocktx_api.Status
+		}
 		// GetBlockGaps holds details about calls to the GetBlockGaps method.
 		GetBlockGaps []struct {
 			// Ctx is the ctx argument value.
@@ -142,6 +176,11 @@ type BlocktxStoreMock struct {
 			Ctx context.Context
 			// ProcessedBy is the processedBy argument value.
 			ProcessedBy string
+		}
+		// GetChainTip holds details about calls to the GetChainTip method.
+		GetChainTip []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 		}
 		// GetMinedTransactions holds details about calls to the GetMinedTransactions method.
 		GetMinedTransactions []struct {
@@ -213,8 +252,11 @@ type BlocktxStoreMock struct {
 	lockClearBlocktxTable                  sync.RWMutex
 	lockClose                              sync.RWMutex
 	lockDelBlockProcessing                 sync.RWMutex
+	lockGetBlock                           sync.RWMutex
+	lockGetBlockByHeight                   sync.RWMutex
 	lockGetBlockGaps                       sync.RWMutex
 	lockGetBlockHashesProcessingInProgress sync.RWMutex
+	lockGetChainTip                        sync.RWMutex
 	lockGetMinedTransactions               sync.RWMutex
 	lockInsertBlock                        sync.RWMutex
 	lockMarkBlockAsDone                    sync.RWMutex
@@ -332,6 +374,82 @@ func (mock *BlocktxStoreMock) DelBlockProcessingCalls() []struct {
 	return calls
 }
 
+// GetBlock calls GetBlockFunc.
+func (mock *BlocktxStoreMock) GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+	if mock.GetBlockFunc == nil {
+		panic("BlocktxStoreMock.GetBlockFunc: method is nil but BlocktxStore.GetBlock was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Hash *chainhash.Hash
+	}{
+		Ctx:  ctx,
+		Hash: hash,
+	}
+	mock.lockGetBlock.Lock()
+	mock.calls.GetBlock = append(mock.calls.GetBlock, callInfo)
+	mock.lockGetBlock.Unlock()
+	return mock.GetBlockFunc(ctx, hash)
+}
+
+// GetBlockCalls gets all the calls that were made to GetBlock.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.GetBlockCalls())
+func (mock *BlocktxStoreMock) GetBlockCalls() []struct {
+	Ctx  context.Context
+	Hash *chainhash.Hash
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Hash *chainhash.Hash
+	}
+	mock.lockGetBlock.RLock()
+	calls = mock.calls.GetBlock
+	mock.lockGetBlock.RUnlock()
+	return calls
+}
+
+// GetBlockByHeight calls GetBlockByHeightFunc.
+func (mock *BlocktxStoreMock) GetBlockByHeight(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
+	if mock.GetBlockByHeightFunc == nil {
+		panic("BlocktxStoreMock.GetBlockByHeightFunc: method is nil but BlocktxStore.GetBlockByHeight was just called")
+	}
+	callInfo := struct {
+		Ctx    context.Context
+		Height uint64
+		Status blocktx_api.Status
+	}{
+		Ctx:    ctx,
+		Height: height,
+		Status: status,
+	}
+	mock.lockGetBlockByHeight.Lock()
+	mock.calls.GetBlockByHeight = append(mock.calls.GetBlockByHeight, callInfo)
+	mock.lockGetBlockByHeight.Unlock()
+	return mock.GetBlockByHeightFunc(ctx, height, status)
+}
+
+// GetBlockByHeightCalls gets all the calls that were made to GetBlockByHeight.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.GetBlockByHeightCalls())
+func (mock *BlocktxStoreMock) GetBlockByHeightCalls() []struct {
+	Ctx    context.Context
+	Height uint64
+	Status blocktx_api.Status
+} {
+	var calls []struct {
+		Ctx    context.Context
+		Height uint64
+		Status blocktx_api.Status
+	}
+	mock.lockGetBlockByHeight.RLock()
+	calls = mock.calls.GetBlockByHeight
+	mock.lockGetBlockByHeight.RUnlock()
+	return calls
+}
+
 // GetBlockGaps calls GetBlockGapsFunc.
 func (mock *BlocktxStoreMock) GetBlockGaps(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 	if mock.GetBlockGapsFunc == nil {
@@ -401,6 +519,38 @@ func (mock *BlocktxStoreMock) GetBlockHashesProcessingInProgressCalls() []struct
 	mock.lockGetBlockHashesProcessingInProgress.RLock()
 	calls = mock.calls.GetBlockHashesProcessingInProgress
 	mock.lockGetBlockHashesProcessingInProgress.RUnlock()
+	return calls
+}
+
+// GetChainTip calls GetChainTipFunc.
+func (mock *BlocktxStoreMock) GetChainTip(ctx context.Context) (*blocktx_api.Block, error) {
+	if mock.GetChainTipFunc == nil {
+		panic("BlocktxStoreMock.GetChainTipFunc: method is nil but BlocktxStore.GetChainTip was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockGetChainTip.Lock()
+	mock.calls.GetChainTip = append(mock.calls.GetChainTip, callInfo)
+	mock.lockGetChainTip.Unlock()
+	return mock.GetChainTipFunc(ctx)
+}
+
+// GetChainTipCalls gets all the calls that were made to GetChainTip.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.GetChainTipCalls())
+func (mock *BlocktxStoreMock) GetChainTipCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockGetChainTip.RLock()
+	calls = mock.calls.GetChainTip
+	mock.lockGetChainTip.RUnlock()
 	return calls
 }
 

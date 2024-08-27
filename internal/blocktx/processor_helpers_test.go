@@ -56,6 +56,11 @@ func TestChainWork(t *testing.T) {
 			expectedChainWork: "4295032833",
 		},
 		{
+			height:            50_000,
+			bits:              0x1c2a1115,
+			expectedChainWork: "26137323115",
+		},
+		{
 			height:            100_000,
 			bits:              0x1b04864c,
 			expectedChainWork: "62209952899966",

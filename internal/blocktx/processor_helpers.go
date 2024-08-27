@@ -37,12 +37,19 @@ func createBlock(msg *p2p.BlockMessage, prevBlock *blocktx_api.Block) *blocktx_a
 	merkleRoot := msg.Header.MerkleRoot
 	chainwork := calculateChainwork(msg.Header.Bits)
 
+	var status blocktx_api.Status
+	if prevBlock == nil {
+		status = blocktx_api.Status_ORPHANED
+	} else {
+		status = prevBlock.Status
+	}
+
 	return &blocktx_api.Block{
 		Hash:         hash[:],
 		PreviousHash: prevHash[:],
 		MerkleRoot:   merkleRoot[:],
 		Height:       msg.Height,
-		Status:       prevBlock.Status,
+		Status:       status,
 		Chainwork:    chainwork.String(),
 	}
 }

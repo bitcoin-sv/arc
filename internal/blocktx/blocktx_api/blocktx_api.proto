@@ -40,6 +40,7 @@ enum Status {
 	UNKNOWN = 0; // This value is unused for now, but it's required by protobuf to have enum field with value 0
 	LONGEST = 10;
 	STALE = 20;
+	ORPHANED = 30;
 }
 
 // swagger:model Block {

@@ -49,7 +49,7 @@ func TestStart(t *testing.T) {
 	}
 	tt := []struct {
 		name                     string
-		getBalanceWithRetriesErr error
+		getUTXOsResp             sdkTx.UTXOs
 		getUTXOsWithRetriesErr   error
 		broadcastTransactionsErr error
 		responseStatus           metamorph_api.Status
@@ -60,14 +60,15 @@ func TestStart(t *testing.T) {
 		{
 			name:           "success",
 			responseStatus: metamorph_api.Status_SEEN_ON_NETWORK,
+			getUTXOsResp:   sdkTx.UTXOs{utxo1, utxo2, utxo3, utxo4},
 
 			expectedBroadcastTransactionsCalls: 2,
 		},
 		{
-			name:                     "error - failed to get balance",
-			getBalanceWithRetriesErr: errors.New("utxo client error"),
+			name:           "success - already consolidated",
+			responseStatus: metamorph_api.Status_SEEN_ON_NETWORK,
+			getUTXOsResp:   sdkTx.UTXOs{utxo1},
 
-			expectedErrorStr:                   "failed to get balance",
 			expectedBroadcastTransactionsCalls: 0,
 		},
 		{
@@ -80,12 +81,14 @@ func TestStart(t *testing.T) {
 		{
 			name:           "consolidation not successful - status rejected",
 			responseStatus: metamorph_api.Status_REJECTED,
+			getUTXOsResp:   sdkTx.UTXOs{utxo1, utxo2, utxo3, utxo4},
 
 			expectedBroadcastTransactionsCalls: 1,
 		},
 		{
 			name:                     "error - broadcast transactions",
 			broadcastTransactionsErr: errors.New("arc client error"),
+			getUTXOsResp:             sdkTx.UTXOs{utxo1, utxo2, utxo3, utxo4},
 
 			expectedBroadcastTransactionsCalls: 1,
 		},
@@ -95,13 +98,8 @@ func TestStart(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			utxoClient := &mocks.UtxoClientMock{
-				GetBalanceWithRetriesFunc: func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error) {
-					return 1000, 0, tc.getBalanceWithRetriesErr
-				},
 				GetUTXOsWithRetriesFunc: func(ctx context.Context, lockingScript *script.Script, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error) {
-					utxos := sdkTx.UTXOs{utxo1, utxo2, utxo3, utxo4}
-
-					return utxos, tc.getUTXOsWithRetriesErr
+					return tc.getUTXOsResp, tc.getUTXOsWithRetriesErr
 				},
 			}
 
@@ -124,10 +122,9 @@ func TestStart(t *testing.T) {
 				broadcaster.WithBatchSize(2),
 				broadcaster.WithMaxInputs(2),
 			)
-
+			defer c.Shutdown()
 			require.NoError(t, err)
-
-			err = c.Start(5)
+			err = c.Start(1200)
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
@@ -136,8 +133,6 @@ func TestStart(t *testing.T) {
 			}
 
 			time.Sleep(500 * time.Millisecond)
-
-			c.Shutdown()
 
 			require.Equal(t, tc.expectedBroadcastTransactionsCalls, len(client.BroadcastTransactionsCalls()))
 		})

@@ -4,13 +4,17 @@ import (
 	"log/slog"
 )
 
+const (
+	broadcastRateTxsPerMinute = 50 * 60
+)
+
 type MultiKeyUtxoConsolidator struct {
 	cs     []Consolidator
 	logger *slog.Logger
 }
 
 type Consolidator interface {
-	Start() error
+	Start(txsRateTxsPerSecond int) error
 	Wait()
 	Shutdown()
 }
@@ -25,8 +29,9 @@ func NewMultiKeyUtxoConsolidator(logger *slog.Logger, cs []Consolidator) *MultiK
 }
 
 func (mrb *MultiKeyUtxoConsolidator) Start() {
+	txsPerMinutePerBroadcaster := broadcastRateTxsPerMinute / len(mrb.cs)
 	for _, c := range mrb.cs {
-		err := c.Start()
+		err := c.Start(txsPerMinutePerBroadcaster)
 		if err != nil {
 			mrb.logger.Error("failed to start consolidator", slog.String("err", err.Error()))
 		}

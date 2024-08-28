@@ -2,12 +2,13 @@ package broadcaster_test
 
 import (
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/broadcaster"
-	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/bitcoin-sv/arc/internal/broadcaster"
+	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
 )
 
 func TestMultiKeyUtxoConsolidatorStart(t *testing.T) {
@@ -17,12 +18,12 @@ func TestMultiKeyUtxoConsolidatorStart(t *testing.T) {
 
 		cs := []broadcaster.Consolidator{
 			&mocks.ConsolidatorMock{
-				StartFunc:    func() error { return nil },
+				StartFunc:    func(txsRateTxsPerSecond int) error { return nil },
 				WaitFunc:     func() {},
 				ShutdownFunc: func() {},
 			},
 			&mocks.ConsolidatorMock{
-				StartFunc:    func() error { return errors.New("failed to start") },
+				StartFunc:    func(txsRateTxsPerSecond int) error { return errors.New("failed to start") },
 				WaitFunc:     func() {},
 				ShutdownFunc: func() {},
 			},

@@ -40,8 +40,11 @@ func (b *UTXOConsolidator) Wait() {
 	b.wg.Wait()
 }
 
-func (b *UTXOConsolidator) Start() error {
+func (b *UTXOConsolidator) Start(txsRateTxsPerMinute int) error {
 
+	submitBatchesPerMinute := float64(txsRateTxsPerMinute) / float64(b.batchSize)
+
+	submitBatchInterval := time.Duration(millisecondsPerSecond*60/float64(submitBatchesPerMinute)) * time.Millisecond
 	utxos, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.keySet.Script, b.keySet.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
 		return fmt.Errorf("failed to get utxos: %v", err)
@@ -59,6 +62,9 @@ func (b *UTXOConsolidator) Start() error {
 
 	satoshiMap := map[string]uint64{}
 	lastUtxoSetLen := 100_000_000
+
+	b.logger.Info("starting consolidator", slog.String("batch interval", submitBatchInterval.String()))
+
 	b.wg.Add(1)
 	go func() {
 		defer func() {
@@ -87,7 +93,7 @@ func (b *UTXOConsolidator) Start() error {
 			}
 
 			for i, batch := range consolidationTxsBatches {
-				time.Sleep(100 * time.Millisecond) // do not performance test ARC
+				time.Sleep(submitBatchInterval)
 
 				nrOutputs := 0
 				nrInputs := 0

@@ -21,9 +21,6 @@ var _ broadcaster.RateBroadcaster = &RateBroadcasterMock{}
 //			GetConnectionCountFunc: func() int64 {
 //				panic("mock out the GetConnectionCount method")
 //			},
-//			GetKeyNameFunc: func() string {
-//				panic("mock out the GetKeyName method")
-//			},
 //			GetLimitFunc: func() int64 {
 //				panic("mock out the GetLimit method")
 //			},
@@ -52,9 +49,6 @@ type RateBroadcasterMock struct {
 	// GetConnectionCountFunc mocks the GetConnectionCount method.
 	GetConnectionCountFunc func() int64
 
-	// GetKeyNameFunc mocks the GetKeyName method.
-	GetKeyNameFunc func() string
-
 	// GetLimitFunc mocks the GetLimit method.
 	GetLimitFunc func() int64
 
@@ -78,9 +72,6 @@ type RateBroadcasterMock struct {
 		// GetConnectionCount holds details about calls to the GetConnectionCount method.
 		GetConnectionCount []struct {
 		}
-		// GetKeyName holds details about calls to the GetKeyName method.
-		GetKeyName []struct {
-		}
 		// GetLimit holds details about calls to the GetLimit method.
 		GetLimit []struct {
 		}
@@ -101,7 +92,6 @@ type RateBroadcasterMock struct {
 		}
 	}
 	lockGetConnectionCount sync.RWMutex
-	lockGetKeyName         sync.RWMutex
 	lockGetLimit           sync.RWMutex
 	lockGetTxCount         sync.RWMutex
 	lockGetUtxoSetLen      sync.RWMutex
@@ -134,33 +124,6 @@ func (mock *RateBroadcasterMock) GetConnectionCountCalls() []struct {
 	mock.lockGetConnectionCount.RLock()
 	calls = mock.calls.GetConnectionCount
 	mock.lockGetConnectionCount.RUnlock()
-	return calls
-}
-
-// GetKeyName calls GetKeyNameFunc.
-func (mock *RateBroadcasterMock) GetKeyName() string {
-	if mock.GetKeyNameFunc == nil {
-		panic("RateBroadcasterMock.GetKeyNameFunc: method is nil but RateBroadcaster.GetKeyName was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockGetKeyName.Lock()
-	mock.calls.GetKeyName = append(mock.calls.GetKeyName, callInfo)
-	mock.lockGetKeyName.Unlock()
-	return mock.GetKeyNameFunc()
-}
-
-// GetKeyNameCalls gets all the calls that were made to GetKeyName.
-// Check the length with:
-//
-//	len(mockedRateBroadcaster.GetKeyNameCalls())
-func (mock *RateBroadcasterMock) GetKeyNameCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockGetKeyName.RLock()
-	calls = mock.calls.GetKeyName
-	mock.lockGetKeyName.RUnlock()
 	return calls
 }
 

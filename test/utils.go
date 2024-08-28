@@ -5,9 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	ec "github.com/bitcoin-sv/go-sdk/primitives/ec"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
 	"io"
 	"math/rand"
 	"net/http"
@@ -16,6 +13,10 @@ import (
 	"testing"
 	"time"
 
+	ec "github.com/bitcoin-sv/go-sdk/primitives/ec"
+	"github.com/bitcoin-sv/go-sdk/script"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
 	"github.com/bitcoinsv/bsvutil"
 	"github.com/stretchr/testify/require"
 )
@@ -483,4 +484,22 @@ func prepareCallback(t *testing.T, callbackNumbers int) (chan *TransactionRespon
 		rc <- status
 	}
 	return callbackReceivedChan, callbackErrChan, calbackResponseFn
+}
+
+func generateNewUnlockingScriptFromRandomKey() (*script.Script, error) {
+	privKey, err := ec.NewPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+
+	address, err := script.NewAddressFromPublicKey(privKey.PubKey(), false)
+	if err != nil {
+		return nil, err
+	}
+
+	sc, err := p2pkh.Lock(address)
+	if err != nil {
+		return nil, err
+	}
+	return sc, nil
 }

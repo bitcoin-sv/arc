@@ -106,10 +106,6 @@ func init() {
 		if err != nil {
 			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
 		}
-		err = command.Flags().MarkHidden("fullStatusUpdates")
-		if err != nil {
-			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
-		}
 		err = command.Flags().MarkHidden("satoshis")
 		if err != nil {
 			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))

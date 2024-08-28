@@ -283,6 +283,13 @@ func TestHandleBlockReorg(t *testing.T) {
 			hasGreaterChainwork: true,
 			expectedStatus:      blocktx_api.Status_LONGEST,
 		},
+		{
+			name:                "previous block orphaned - no competing - no reorg",
+			prevBlockStatus:     blocktx_api.Status_ORPHANED,
+			hasCompetingBlock:   false,
+			hasGreaterChainwork: false,
+			expectedStatus:      blocktx_api.Status_ORPHANED,
+		},
 	}
 
 	for _, tc := range testCases {

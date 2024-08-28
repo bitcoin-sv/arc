@@ -21,7 +21,7 @@ var _ broadcaster.Consolidator = &ConsolidatorMock{}
 //			ShutdownFunc: func()  {
 //				panic("mock out the Shutdown method")
 //			},
-//			StartFunc: func() error {
+//			StartFunc: func(txsRateTxsPerSecond int) error {
 //				panic("mock out the Start method")
 //			},
 //			WaitFunc: func()  {
@@ -38,7 +38,7 @@ type ConsolidatorMock struct {
 	ShutdownFunc func()
 
 	// StartFunc mocks the Start method.
-	StartFunc func() error
+	StartFunc func(txsRateTxsPerSecond int) error
 
 	// WaitFunc mocks the Wait method.
 	WaitFunc func()
@@ -50,6 +50,8 @@ type ConsolidatorMock struct {
 		}
 		// Start holds details about calls to the Start method.
 		Start []struct {
+			// TxsRateTxsPerSecond is the txsRateTxsPerSecond argument value.
+			TxsRateTxsPerSecond int
 		}
 		// Wait holds details about calls to the Wait method.
 		Wait []struct {
@@ -88,16 +90,19 @@ func (mock *ConsolidatorMock) ShutdownCalls() []struct {
 }
 
 // Start calls StartFunc.
-func (mock *ConsolidatorMock) Start() error {
+func (mock *ConsolidatorMock) Start(txsRateTxsPerSecond int) error {
 	if mock.StartFunc == nil {
 		panic("ConsolidatorMock.StartFunc: method is nil but Consolidator.Start was just called")
 	}
 	callInfo := struct {
-	}{}
+		TxsRateTxsPerSecond int
+	}{
+		TxsRateTxsPerSecond: txsRateTxsPerSecond,
+	}
 	mock.lockStart.Lock()
 	mock.calls.Start = append(mock.calls.Start, callInfo)
 	mock.lockStart.Unlock()
-	return mock.StartFunc()
+	return mock.StartFunc(txsRateTxsPerSecond)
 }
 
 // StartCalls gets all the calls that were made to Start.
@@ -105,8 +110,10 @@ func (mock *ConsolidatorMock) Start() error {
 //
 //	len(mockedConsolidator.StartCalls())
 func (mock *ConsolidatorMock) StartCalls() []struct {
+	TxsRateTxsPerSecond int
 } {
 	var calls []struct {
+		TxsRateTxsPerSecond int
 	}
 	mock.lockStart.RLock()
 	calls = mock.calls.Start

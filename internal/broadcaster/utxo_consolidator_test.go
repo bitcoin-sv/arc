@@ -8,14 +8,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/go-sdk/script"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/bitcoin-sv/go-sdk/script"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/stretchr/testify/require"
 )
 
 func TestStart(t *testing.T) {
@@ -126,7 +127,7 @@ func TestStart(t *testing.T) {
 
 			require.NoError(t, err)
 
-			err = c.Start()
+			err = c.Start(5)
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return

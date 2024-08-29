@@ -7,12 +7,12 @@ package integrationtest
 //
 // Flow of this test:
 // 		1. A list of blocks from height 822014 to 822017 is added to db from fixtures
-// 		2. A hardcoded msg with competing block at height 822015 is being send through the mocked PeerHandler
+// 		2. A hardcoded msg with competing block at height 822015 is being sent through the mocked PeerHandler
 // 		3. This block has a chainwork lower than the current tip of chain - becomes STALE
 // 		4. Next competing block, at height 822016 is being send through the mocked PeerHandler
 // 		5. This block has a greater chainwork than the current tip of longest chain - it becomes LONGEST despite not being the highest
 //
-// Future implementation in next tasks:
+// Todo: Next tasks:
 // 		- Verify if reorg was performed correctly, if previous blocks have updated statuses
 // 		- Include metamorph in this test and verify that transactions statuses are properly updated
 
@@ -132,7 +132,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestReorg(t *testing.T) {
+func TestBlockStatus(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}

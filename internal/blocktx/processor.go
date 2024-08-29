@@ -420,13 +420,13 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) {
 	if competing {
 		p.logger.Info("Competing blocks found", slog.String("incoming block hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
 
-		greatestChainwork, err := p.hasGreatestChainwork(ctx, incomingBlock)
+		hasGreatestChainwork, err := p.hasGreatestChainwork(ctx, incomingBlock)
 		if err != nil {
 			p.logger.Error("unable to get the chain tip to verify chainwork", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
 			return
 		}
 
-		if greatestChainwork {
+		if hasGreatestChainwork {
 			// TODO: perform reorg - next ticket
 			incomingBlock.Status = blocktx_api.Status_LONGEST
 		} else {
@@ -510,7 +510,11 @@ func (p *Processor) competingChainsExist(ctx context.Context, block *blocktx_api
 	if block.Status == blocktx_api.Status_LONGEST {
 		competingBlock, err := p.store.GetBlockByHeight(ctx, block.Height, blocktx_api.Status_LONGEST)
 		if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
-			blockHash := (*chainhash.Hash)(block.Hash)
+			blockHash, err := chainhash.NewHash(block.Hash)
+			if err != nil {
+				p.logger.Error("failed to create blockHash", slog.Uint64("height", block.Height), slog.String("err", err.Error()))
+				return false, err
+			}
 			_, errDel := p.store.DelBlockProcessing(ctx, blockHash, p.hostname)
 			if errDel != nil {
 				p.logger.Error("failed to delete block processing - after checking for competing chains", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
@@ -532,7 +536,11 @@ func (p *Processor) competingChainsExist(ctx context.Context, block *blocktx_api
 func (p *Processor) hasGreatestChainwork(ctx context.Context, incomingBlock *blocktx_api.Block) (bool, error) {
 	tip, err := p.store.GetChainTip(ctx)
 	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
-		blockHash := (*chainhash.Hash)(incomingBlock.Hash)
+		blockHash, err := chainhash.NewHash(incomingBlock.Hash)
+		if err != nil {
+			p.logger.Error("failed to create blockHash", slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+			return false, err
+		}
 		_, errDel := p.store.DelBlockProcessing(ctx, blockHash, p.hostname)
 		if errDel != nil {
 			p.logger.Error("failed to delete block processing - after checking for competing chains", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))

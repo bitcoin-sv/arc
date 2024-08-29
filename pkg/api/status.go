@@ -25,6 +25,7 @@ const (
 	ErrStatusValidatingMerkleRoots  StatusCode = 469
 	ErrStatusFrozenPolicy           StatusCode = 471
 	ErrStatusFrozenConsensus        StatusCode = 472
+	ErrStatusCumulativeFees         StatusCode = 473
 )
 
 func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {
@@ -99,6 +100,10 @@ func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {
 		errFields.Detail = "Error validating BEEF: could not validate Merkle Roots"
 		errFields.Title = "Merkle Roots validation failed"
 		errFields.Type = arcDocServerErrorsUrl + strconv.Itoa(int(ErrStatusValidatingMerkleRoots))
+	case ErrStatusCumulativeFees:
+		errFields.Detail = "Cumulative fee validation failed"
+		errFields.Title = "Cumulative fee validation failed"
+		errFields.Type = arcDocServerErrorsUrl + strconv.Itoa(int(ErrStatusCumulativeFees))
 	default:
 		errFields.Status = int(ErrStatusGeneric)
 		errFields.Detail = "Transaction could not be processed"

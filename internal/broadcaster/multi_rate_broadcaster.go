@@ -2,59 +2,72 @@ package broadcaster
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"log/slog"
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
-type MultiKeyRateBroadcaster struct {
-	rbs       []*RateBroadcaster
-	logger    *slog.Logger
-	target    int64
-	cancelAll context.CancelFunc
-	ctx       context.Context
-	wg        sync.WaitGroup
+type RateBroadcaster interface {
+	Start() error
+	Wait()
+	Shutdown()
+	GetLimit() int64
+	GetTxCount() int64
+	GetConnectionCount() int64
+	GetUtxoSetLen() int
 }
 
-func NewMultiKeyRateBroadcaster(logger *slog.Logger, client ArcClient, keySets []*keyset.KeySet, utxoClient UtxoClient, isTestnet bool, opts ...func(p *Broadcaster)) (*MultiKeyRateBroadcaster, error) {
-	rbs := make([]*RateBroadcaster, 0, len(keySets))
-	for _, ks := range keySets {
-		rb, err := NewRateBroadcaster(logger, client, ks, utxoClient, isTestnet, opts...)
-		if err != nil {
-			return nil, err
-		}
+type MultiKeyRateBroadcaster struct {
+	rbs         []RateBroadcaster
+	logger      *slog.Logger
+	target      int64
+	cancelAll   context.CancelFunc
+	ctx         context.Context
+	wg          sync.WaitGroup
+	logInterval time.Duration
+}
 
-		rbs = append(rbs, rb)
+func WithLogInterval(d time.Duration) func(*MultiKeyRateBroadcaster) {
+	return func(p *MultiKeyRateBroadcaster) {
+		p.logInterval = d
 	}
+}
+
+func NewMultiKeyRateBroadcaster(logger *slog.Logger, rbs []RateBroadcaster, opts ...func(client *MultiKeyRateBroadcaster)) *MultiKeyRateBroadcaster {
 
 	mrb := &MultiKeyRateBroadcaster{
-		rbs:    rbs,
-		logger: logger,
+		rbs:         rbs,
+		logger:      logger,
+		logInterval: 2 * time.Second,
+		target:      0,
+	}
+
+	for _, opt := range opts {
+		opt(mrb)
 	}
 
 	ctx, cancelAll := context.WithCancel(context.Background())
 	mrb.cancelAll = cancelAll
 	mrb.ctx = ctx
 
-	return mrb, nil
+	return mrb
 }
 
-func (mrb *MultiKeyRateBroadcaster) Start(rateTxsPerSecond int, limit int64) error {
+func (mrb *MultiKeyRateBroadcaster) Start() error {
 	mrb.logStats()
-	mrb.target = 0
 	for _, rb := range mrb.rbs {
-		err := rb.Start(rateTxsPerSecond, limit)
+		err := rb.Start()
+
+		atomic.AddInt64(&mrb.target, rb.GetLimit())
 		if err != nil {
 			return err
 		}
-
-		mrb.target += limit
 	}
 
 	for _, rb := range mrb.rbs {
-		rb.wg.Wait()
+		rb.Wait()
 	}
 
 	return nil
@@ -72,7 +85,7 @@ func (mrb *MultiKeyRateBroadcaster) Shutdown() {
 func (mrb *MultiKeyRateBroadcaster) logStats() {
 	mrb.wg.Add(1)
 
-	logStatsTicker := time.NewTicker(2 * time.Second)
+	logStatsTicker := time.NewTicker(mrb.logInterval)
 
 	go func() {
 		defer mrb.wg.Done()
@@ -87,11 +100,11 @@ func (mrb *MultiKeyRateBroadcaster) logStats() {
 					totalTxsCount += rb.GetTxCount()
 					totalConnectionCount += rb.GetConnectionCount()
 					totalUtxoSetLength += rb.GetUtxoSetLen()
-
 				}
+				target := atomic.LoadInt64(&mrb.target)
 				mrb.logger.Info("stats",
 					slog.Int64("txs", totalTxsCount),
-					slog.Int64("target", mrb.target),
+					slog.Int64("target", target),
 					slog.Float64("percentage", roundFloat(float64(totalTxsCount)/float64(mrb.target)*100, 2)),
 					slog.Int64("connections", totalConnectionCount),
 					slog.Int("utxos", totalUtxoSetLength),

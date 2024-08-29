@@ -22,6 +22,7 @@ type ArcConfig struct {
 	Blocktx            *BlocktxConfig      `mapstructure:"blocktx"`
 	Api                *ApiConfig          `mapstructure:"api"`
 	K8sWatcher         *K8sWatcherConfig   `mapstructure:"k8sWatcher"`
+	Callbacker         *CallbackerConfig   `mapstructure:"callbacker"`
 }
 
 type MessageQueueConfig struct {
@@ -113,9 +114,17 @@ type StatsConfig struct {
 type ApiConfig struct {
 	Address       string            `mapstructure:"address"`
 	WocApiKey     string            `mapstructure:"wocApiKey"`
+	WocMainnet    bool              `mapstructure:"wocMainnet"`
 	DefaultPolicy *bitcoin.Settings `mapstructure:"defaultPolicy"`
 }
 
 type K8sWatcherConfig struct {
 	Namespace string `mapstructure:"namespace"`
+}
+
+type CallbackerConfig struct {
+	ListenAddr string        `mapstructure:"listenAddr"`
+	DialAddr   string        `mapstructure:"dialAddr"`
+	Health     *HealthConfig `mapstructure:"health"`
+	Pause      time.Duration `mapstructure:"pause"`
 }

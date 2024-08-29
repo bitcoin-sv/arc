@@ -2,13 +2,11 @@ package metamorph
 
 import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 func (p *Processor) GetProcessorMapSize() int {
-	return p.ProcessorResponseMap.Len()
+	return p.responseProcessor.getMapLen()
 }
 
 func updateStatusMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus, statusUpdate store.UpdateStatus) {
@@ -23,23 +21,16 @@ func updateStatusMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus, sta
 	}
 }
 
-func shouldUpdateStatus(statusUpdate, foundStatus store.UpdateStatus) bool {
-	if statusUpdate.Status > foundStatus.Status {
+func shouldUpdateStatus(new, found store.UpdateStatus) bool {
+	if new.Status > found.Status {
 		return true
 	}
 
-	// If the statuses are both DOUBLE_SPEND_ATTEMPTED, but have
-	// different competing transactions - we want to update.
-	if !unorderedEqual(statusUpdate.CompetingTxs, foundStatus.CompetingTxs) {
+	if new.Status == found.Status && !unorderedEqual(new.CompetingTxs, found.CompetingTxs) {
 		return true
 	}
 
 	return false
-}
-
-func cmpDiff(sliceOne, sliceTwo []string) bool {
-	comparator := func(a, b string) bool { return a < b }
-	return cmp.Diff(sliceOne, sliceTwo, cmpopts.SortSlices(comparator)) == ""
 }
 
 // unorderedEqual checks if two string slices contain

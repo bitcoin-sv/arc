@@ -2,20 +2,18 @@ package utxos
 
 import (
 	"context"
-
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 
-	"sort"
-	"strconv"
-
-	"time"
-
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
-	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
+	"github.com/bitcoin-sv/arc/internal/woc_client"
+	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 
 var Cmd = &cobra.Command{
@@ -34,124 +32,47 @@ var Cmd = &cobra.Command{
 		}
 
 		logger := helper.GetLogger()
-		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
+		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
-		keySets, err := helper.GetKeySets()
+		keySetsMap, err := helper.GetSelectedKeySets()
 		if err != nil {
 			return err
 		}
-		t := table.NewWriter()
 
-		type row struct {
-			satoshis string
-			outputs  string
-		}
-		columns := make([][]row, len(keySets))
-		maxRowNr := 0
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, os.Interrupt) // Listen for Ctrl+C
 
-		keyTotalOutputs := make([]int, len(keySets))
-		keyHeaderRow := make([]interface{}, 0)
-		headerRow := make([]interface{}, 0)
-		for i, keyset := range keySets {
+		ctx, cancel := context.WithCancel(context.Background())
 
-			headerRow = append(headerRow, "Sat", "Outputs")
-			keyHeaderRow = append(keyHeaderRow, "key-"+strconv.Itoa(i), "")
+		go func() {
+			<-signalChan
+			cancel()
+		}()
 
-			utxos, err := wocClient.GetUTXOsWithRetries(context.Background(), !isTestnet, keyset.Script, keyset.Address(!isTestnet), 1*time.Second, 5)
-			if err != nil {
-				return fmt.Errorf("failed to get utxos from WoC: %v", err)
-			}
-
-			outputsMap := map[uint64]int{}
-			satoshiSlice := []uint64{}
-			var found bool
-			for _, utxo := range utxos {
-				_, found = outputsMap[utxo.Satoshis]
-				if found {
-					outputsMap[utxo.Satoshis]++
-					continue
-				}
-
-				outputsMap[utxo.Satoshis] = 1
-
-				satoshiSlice = append(satoshiSlice, utxo.Satoshis)
-			}
-
-			sort.Slice(satoshiSlice, func(i, j int) bool {
-				return satoshiSlice[j] < satoshiSlice[i]
-			})
-
-			totalOutputs := 0
-
-			for _, satoshi := range satoshiSlice {
-
-				columns[i] = append(columns[i], row{
-					satoshis: strconv.FormatUint(satoshi, 10),
-					outputs:  strconv.Itoa(outputsMap[satoshi]),
-				})
-
-				totalOutputs += outputsMap[satoshi]
-			}
-
-			keyTotalOutputs[i] = totalOutputs
-
-			if len(columns[i]) > maxRowNr {
-				maxRowNr = len(columns[i])
-			}
-		}
-
-		t.AppendHeader(keyHeaderRow)
-		t.AppendHeader(headerRow)
-
-		rows := make([][]string, maxRowNr)
-
-		for i := 0; i < maxRowNr; i++ {
-			for j := range columns {
-
-				if len(columns[j]) < i+1 {
-					rows[i] = append(rows[i], "")
-					rows[i] = append(rows[i], "")
-					continue
-				}
-
-				rows[i] = append(rows[i], columns[j][i].satoshis)
-				rows[i] = append(rows[i], columns[j][i].outputs)
-			}
-		}
-
-		for i, row := range rows {
-			tableRow := table.Row{}
-
-			if maxRows != 0 && i == maxRows+1 {
-				for range row {
-					tableRow = append(tableRow, "...")
-				}
-
-				t.AppendRow(tableRow)
-
+		names := helper.GetOrderedKeys(keySetsMap)
+		counter := 0
+		var t table.Writer
+		ksRow := map[string]*keyset.KeySet{}
+		for _, name := range names {
+			ksRow[name] = keySetsMap[name]
+			if counter >= 9 {
+				t = table.NewWriter()
+				t := getUtxosTable(ctx, logger, t, ksRow, isTestnet, wocClient, maxRows)
+				t.SetStyle(table.StyleColoredBright)
+				fmt.Println(t.Render())
+				fmt.Println()
+				ksRow = map[string]*keyset.KeySet{}
+				counter = 0
 				continue
 			}
-
-			if maxRows != 0 && i > maxRows {
-				continue
-			}
-
-			for _, rowVal := range row {
-				tableRow = append(tableRow, rowVal)
-			}
-
-			t.AppendRow(tableRow)
+			counter++
 		}
-
-		totalRow := table.Row{}
-		for _, total := range keyTotalOutputs {
-			totalRow = append(totalRow, "Total", total)
+		if len(ksRow) > 0 {
+			t = table.NewWriter()
+			t := getUtxosTable(ctx, logger, t, ksRow, isTestnet, wocClient, maxRows)
+			t.SetStyle(table.StyleColoredBright)
+			fmt.Println(t.Render())
 		}
-		t.AppendRow(totalRow)
-
-		// Todo: Add row with total Satoshis
-
-		fmt.Println(t.Render())
 
 		return nil
 	},

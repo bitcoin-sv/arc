@@ -4,9 +4,11 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.3.0](#130---2024-08-21)
+- [1.2.0](#120---2024-08-13)
 - [1.1.91](#1191---2024-06-26)
 - [1.1.87](#1187---2024-06-10)
-- [1.1.53](#1152---2024-04-11)
+- [1.1.53](#1153---2024-04-11)
 - [1.1.32](#1132---2024-02-21)
 - [1.1.19](#1119---2024-02-05)
 - [1.1.16](#1116---2024-01-23)
@@ -15,6 +17,21 @@ All notable changes to this project will be documented in this file. The format 
 - [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
 
 ## [Unreleased]
+
+### Changed
+- Callbacks are sent one by one to the same URL. In the previous implementation, each callback request created a new goroutine to send the callback, which could result in a potential DDoS of the callback receiver. The new approach sends callbacks to the same receiver in a serial manner. Note that URLs are not locked by the `callbacker` instance, so serial sends occur only within a single instance. In other words, the level of parallelism is determined by the number of `callbacker` instances.
+
+## [1.3.0] - 2024-08-21
+
+### Changed
+- The functionality for callbacks has been moved from the `metamorph` microservice to the new `callbacker` microservice.
+
+## [1.2.0] - 2024-08-13
+
+### Added
+- [Double Spend Detection](https://bitcoin-sv.github.io/arc/#/?id=double-spending) is a feature that introduces `DOUBLE_SPEND_ATTEMPTED` status to transactions that attempt double spend together with `CompetingTxs` field in the API responses and callbacks.
+- [Cumulative Fees Validation](https://bitcoin-sv.github.io/arc/#/?id=cumulative-fees-validation) is a feature that checks if a transaction has a sufficient fee not only for itself but also for all unmined ancestors that do not have sufficient fees.
+- [Multiple callbacks to single transaction](https://bitcoin-sv.github.io/arc/#/?id=callbacks) Is a feature that adds support for attaching multiple callbacks to a single transaction when submitting an existing transaction with a different data.
 
 ## [1.1.91] - 2024-06-26
 

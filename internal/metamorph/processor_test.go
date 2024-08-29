@@ -15,7 +15,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
-	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
@@ -232,9 +231,9 @@ func TestProcessTransaction(t *testing.T) {
 
 			processor, err := metamorph.NewProcessor(s, pm, nil, metamorph.WithMessageQueueClient(publisher))
 			require.NoError(t, err)
-			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
+			require.Equal(t, 0, processor.GetProcessorMapSize())
 
-			responseChannel := make(chan processor_response.StatusAndError)
+			responseChannel := make(chan metamorph.StatusAndError)
 
 			var wg sync.WaitGroup
 			wg.Add(len(tc.expectedResponses))
@@ -249,22 +248,18 @@ func TestProcessTransaction(t *testing.T) {
 				}
 			}()
 
-			processor.ProcessTransaction(&metamorph.ProcessorRequest{
-				Data: &store.StoreData{
-					Hash: testdata.TX1Hash,
-				},
-				ResponseChannel: responseChannel,
-			})
+			processor.ProcessTransaction(context.Background(),
+				&metamorph.ProcessorRequest{
+					Data: &store.StoreData{
+						Hash: testdata.TX1Hash,
+					},
+					ResponseChannel: responseChannel,
+				})
 			wg.Wait()
 
+			require.Equal(t, tc.expectedResponseMapItems, processor.GetProcessorMapSize())
 			if tc.expectedResponseMapItems > 0 {
-				require.Equal(t, tc.expectedResponseMapItems, processor.ProcessorResponseMap.Len())
-				items := processor.ProcessorResponseMap.Items()
-				require.Equal(t, testdata.TX1Hash, items[*testdata.TX1Hash].Hash)
-				require.Equal(t, metamorph_api.Status_STORED, items[*testdata.TX1Hash].GetStatus())
-
 				require.Len(t, pm.AnnounceTransactionCalls(), 1)
-
 			}
 
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
@@ -365,7 +360,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 						Hash:              testdata.TX1Hash,
 						Status:            metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL,
 						FullStatusUpdates: true,
-						CallbackUrl:       "http://callback.com",
+						Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.com"}},
 					},
 				},
 				{
@@ -374,7 +369,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 						Status:            metamorph_api.Status_SEEN_ON_NETWORK,
 						RejectReason:      "",
 						FullStatusUpdates: true,
-						CallbackUrl:       "http://callback.com",
+						Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.com"}},
 					},
 				},
 				{
@@ -382,7 +377,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 						Hash:              testdata.TX6Hash,
 						Status:            metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 						FullStatusUpdates: true,
-						CallbackUrl:       "http://callback.com",
+						Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.com"}},
 						CompetingTxs:      []string{"1234"},
 					},
 				},
@@ -426,7 +421,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				{
 					{
 						Hash:              testdata.TX1Hash,
-						CallbackUrl:       "http://callback.com",
+						Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.com"}},
 						FullStatusUpdates: true,
 						Status:            metamorph_api.Status_SEEN_ON_NETWORK,
 					},
@@ -434,7 +429,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				{
 					{
 						Hash:              testdata.TX2Hash,
-						CallbackUrl:       "http://callback.com",
+						Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.com"}},
 						FullStatusUpdates: true,
 						Status:            metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 						CompetingTxs:      []string{"1234", "different_competing_tx"},
@@ -451,7 +446,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			counter := 0
-			callbackSent := make(chan struct{})
+			callbackSent := make(chan struct{}, tc.expectedCallbacks)
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
@@ -480,10 +475,9 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
 			callbackSender := &mocks.CallbackSenderMock{
-				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {
+				SendCallbackFunc: func(tx *store.StoreData) {
 					callbackSent <- struct{}{}
 				},
-				ShutdownFunc: func(logger *slog.Logger) {},
 			}
 
 			statusMessageChannel := make(chan *metamorph.PeerTxMessage, 10)
@@ -494,7 +488,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			processor.StartProcessStatusUpdatesInStorage()
 			processor.StartSendStatusUpdate()
 
-			assert.Equal(t, 0, processor.ProcessorResponseMap.Len())
+			assert.Equal(t, 0, processor.GetProcessorMapSize())
 			for _, testInput := range tc.inputs {
 				statusMessageChannel <- &metamorph.PeerTxMessage{
 					Hash:         testInput.hash,
@@ -504,6 +498,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				}
 			}
 
+			timeoutTimer := time.NewTimer(time.Second * 5)
 			callbackCounter := 0
 			if tc.expectedCallbacks > 0 {
 				select {
@@ -512,7 +507,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 					if callbackCounter == tc.expectedCallbacks {
 						break
 					}
-				case <-time.NewTimer(time.Second * 5).C:
+				case <-timeoutTimer.C:
 					t.Fatal("expected callbacks never sent")
 				}
 			}
@@ -653,7 +648,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				metamorph.WithProcessTransactionsBatchSize(4),
 			)
 			require.NoError(t, err)
-			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
+			require.Equal(t, 0, processor.GetProcessorMapSize())
 
 			processor.StartProcessSubmittedTxs()
 			processor.StartProcessStatusUpdatesInStorage()
@@ -776,12 +771,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 			processor.StartProcessExpiredTransactions()
 
-			require.Equal(t, 0, processor.ProcessorResponseMap.Len())
-
-			// some dummy txs in map shouldn't affect announcements
-			processor.ProcessorResponseMap.Set(testdata.TX1Hash, processor_response.NewProcessorResponse(testdata.TX1Hash))
-			processor.ProcessorResponseMap.Set(testdata.TX2Hash, processor_response.NewProcessorResponse(testdata.TX2Hash))
-			processor.ProcessorResponseMap.Set(testdata.TX3Hash, processor_response.NewProcessorResponse(testdata.TX3Hash))
+			require.Equal(t, 0, processor.GetProcessorMapSize())
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -834,15 +824,18 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				UpdateMinedFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.StoreData, error) {
 					require.Len(t, txsBlocks, tc.expectedTxsBlocks)
 
-					return []*store.StoreData{{CallbackUrl: "http://callback.com"}, {CallbackUrl: "http://callback.com"}, {}}, tc.updateMinedErr
+					return []*store.StoreData{
+						{Callbacks: []store.StoreCallback{{CallbackURL: "http://callback.com"}}},
+						{Callbacks: []store.StoreCallback{{CallbackURL: "http://callback.com"}}},
+						{},
+					}, tc.updateMinedErr
 				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 			minedTxsChan := make(chan *blocktx_api.TransactionBlock, 5)
 			callbackSender := &mocks.CallbackSenderMock{
-				SendCallbackFunc: func(logger *slog.Logger, tx *store.StoreData) {},
-				ShutdownFunc:     func(logger *slog.Logger) {},
+				SendCallbackFunc: func(tx *store.StoreData) {},
 			}
 			processor, err := metamorph.NewProcessor(
 				metamorphStore,
@@ -985,7 +978,6 @@ func TestStart(t *testing.T) {
 			var subscribeSubmitTxsFunction func([]byte) error
 			mqClient := &mocks.MessageQueueClientMock{
 				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
-
 					switch topic {
 					case metamorph.MinedTxsTopic:
 						subscribeMinedTxsFunction = msgFunc

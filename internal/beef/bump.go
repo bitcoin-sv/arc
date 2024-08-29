@@ -3,7 +3,7 @@ package beef
 import (
 	"errors"
 
-	"github.com/libsv/go-bc"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 type MerkleRootVerificationRequest struct {
@@ -11,31 +11,18 @@ type MerkleRootVerificationRequest struct {
 	BlockHeight uint64
 }
 
-func CalculateMerkleRootsFromBumps(bumps []*bc.BUMP) ([]MerkleRootVerificationRequest, error) {
+func CalculateMerkleRootsFromBumps(bumps []*sdkTx.MerklePath) ([]MerkleRootVerificationRequest, error) {
 	merkleRoots := make([]MerkleRootVerificationRequest, 0)
 
 	for _, bump := range bumps {
-		blockMerkleRoot := ""
-
-		for _, txId := range bump.Txids() {
-			mr, err := bump.CalculateRootGivenTxid(txId)
-			if err != nil {
-				return nil, err
-			}
-			if blockMerkleRoot == "" {
-				blockMerkleRoot = mr
-			} else if blockMerkleRoot != mr {
-				return nil, errors.New("different merkle roots for the same block")
-			}
-		}
-
-		if blockMerkleRoot == "" {
-			return nil, errors.New("no transactions marked as expected to verify in bump")
+		blockMerkleRoot, err := calculateMerkleRootFromBump(bump)
+		if err != nil {
+			return nil, err
 		}
 
 		merkleRoots = append(merkleRoots, MerkleRootVerificationRequest{
 			MerkleRoot:  blockMerkleRoot,
-			BlockHeight: bump.BlockHeight,
+			BlockHeight: uint64(bump.BlockHeight),
 		})
 	}
 
@@ -44,4 +31,30 @@ func CalculateMerkleRootsFromBumps(bumps []*bc.BUMP) ([]MerkleRootVerificationRe
 	}
 
 	return merkleRoots, nil
+}
+
+func calculateMerkleRootFromBump(bump *sdkTx.MerklePath) (string, error) {
+	blockMerkleRoot := ""
+
+	for _, pathElement := range bump.Path {
+		for _, pe := range pathElement {
+			if pe.Txid != nil {
+				txId := pe.Hash.String()
+				mr, err := bump.ComputeRoot(&txId)
+				if err != nil {
+					return "", err
+				}
+				if blockMerkleRoot == "" {
+					blockMerkleRoot = mr
+				} else if blockMerkleRoot != mr {
+					return "", errors.New("different merkle roots for the same block")
+				}
+			}
+		}
+	}
+
+	if blockMerkleRoot == "" {
+		return "", errors.New("no transactions marked as expected to verify in bump")
+	}
+	return blockMerkleRoot, nil
 }

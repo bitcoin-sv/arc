@@ -11,7 +11,7 @@ possible to connect to a large number of nodes without incurring large bandwidth
 
 The ARC design decouples the core functions of a transaction processor and encapsulates them as microservices with the ability to scale horizontally adaptively. Interaction between microservices is decoupled using asynchronous messaging where possible.
 
-ARC consists of 3 core microservices: [API](#API), [Metamorph](#Metamorph) and [BlockTx](#BlockTx), which are all described below.
+ARC consists of 4 core microservices: [API](#API), [Metamorph](#Metamorph), [Callbacker](#Callbacker) and [BlockTx](#BlockTx), which are all described below.
 
 All the microservices are designed to be horizontally scalable, and can be deployed on a single machine or on multiple machines. Each one has been programmed with a store interface. The default store is postgres, but any database that implements the store interface can be used.
 
@@ -23,7 +23,7 @@ The ARC architecture has been designed to assist in the management of the transa
 
 ARC is a transaction processor for Bitcoin that keeps track of the life cycle of a transaction as it is processed by the Bitcoin network. Next to the mining status of a transaction, ARC also keeps track of the various states that a transaction can be in, such as `ANNOUNCED_TO_NETWORK`, `SEEN_IN_ORPHAN_MEMPOOL`, `SENT_TO_NETWORK`, `SEEN_ON_NETWORK`, `MINED`, `REJECTED`, etc.
 
-If a transaction is not `SEEN_ON_NETWORK` within a certain time period (60 seconds by default), ARC will re-send the transaction to the Bitcoin network. ARC also monitors the Bitcoin network for transaction and block messages, and will notify the client when a transaction has been mined, or rejected.
+If a transaction is not at least `SEEN_ON_NETWORK` within a certain time period (60 seconds by default), ARC will re-send the transaction to the Bitcoin network. ARC also monitors the Bitcoin network for transaction and block messages, and will notify the client when a transaction has been mined, or rejected.
 
 ```mermaid
 stateDiagram-v2
@@ -52,12 +52,13 @@ stateDiagram-v2
     ANNOUNCED_TO_NETWORK --> REQUESTED_BY_NETWORK: Peer has requested the transaction\n with a GETDATA message
     REQUESTED_BY_NETWORK --> SENT_TO_NETWORK: Transaction has been sent to peer
     SENT_TO_NETWORK --> ACCEPTED_BY_NETWORK: The transaction has been accepted\n by peer on the ZMQ interface
+    SENT_TO_NETWORK --> DOUBLE_SPEND_ATTEMPTED: This transaction has competing transactions
     SENT_TO_NETWORK --> REJECTED: Peer has sent a REJECT message
     ACCEPTED_BY_NETWORK --> SEEN_ON_NETWORK: ARC has received Transaction ID\n announcement from another peer
     ACCEPTED_BY_NETWORK --> SEEN_IN_ORPHAN_MEMPOOL: Peer has sent a 'missing inputs' message
     SEEN_IN_ORPHAN_MEMPOOL --> SEEN_ON_NETWORK: All parent transactions\n have been received by peer
     SEEN_ON_NETWORK --> MINED: Transaction ID was included in a BLOCK message
-    SEEN_ON_NETWORK --> DOUBLE_SPEND_ATTEMPTED: This transaction has competing transactions
+    SEEN_ON_NETWORK --> DOUBLE_SPEND_ATTEMPTED: A competing transactions entered the mempool
     DOUBLE_SPEND_ATTEMPTED --> MINED: This transaction was accepted and mined
     DOUBLE_SPEND_ATTEMPTED --> REJECTED: This transaction was rejected in favor\n of one of the competing transactions
     MINED --> [*]
@@ -83,9 +84,9 @@ When possible, the API is responsible for rejecting transactions that would be u
 
 Metamorph is a microservice that is responsible for processing transactions sent by the API to the Bitcoin network. It takes care of re-sending transactions if they are not acknowledged by the network within a certain time period (60 seconds by default).
 
-#### Callbacks
+### Callbacker
 
-Metamorph also can send callbacks to a specified URL. To register a callback, the client must add the `X-CallbackUrl` header to the request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in the body.
+Callbacker is a microservice that sends callbacks to a specified URL. To register a callback, the client must add the `X-CallbackUrl` header to the request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in the body.
 
 The following example shows the format of a callback body
 
@@ -423,13 +424,66 @@ worker -> store: mark txs mined
 
 ### Double spending
 
-A transaction `A` is submitted to the network. Shortly later a transaction `B` spending one of the same outputs as transaction `A` (double spend) is submitted to ARC
+In a following situation:
+> Transaction `A` is submitted to the network. Shortly later, or in exactly the same time, transaction `B` spending one of the same outputs as transaction `A` (double spend) is submitted to ARC.
 
-Expected outcome:
-* If transaction `A` was also submitted to ARC it has status `SEEN_ON_NETWORK`
-* Transaction `B` has status `REJECTED`
+These things will happen:
+1. Both transaction `A` and `B` will receive status `DOUBLE_SPEND_ATTEMPTED`.
+	* A callback will be sent for every double spend transaction (provided that `X-FullStatusUpdates` header is set).
+	* For each transaction - its competing transactions IDs (hashes) will be returned in the response and/or in the callback.
+2. When either transactions `A` or `B` is mined, the other will be rejected. The mined transaction gets status `MINED` and the other gets status `REJECTED`.
+	* Querying ARC for `MINED` transaction `A` will return an extra information that this transaction was previously a double spend attempt.
+	* Querying ARC for `REJECTED` transaction `B` will return "double spend attempted" information as rejection reason.
 
-The planned feature [Double spending detection](https://github.com/bitcoin-sv/arc/blob/main/ROADMAP.md#double-spending-detection) will ensure that both transaction have status `DOUBLE_SPENT_ATTEMPTED` until one or the other transactions is mined. The mined transaction gets status `MINED` and the other gets status `REJECTED`
+The same applies to all transactions, if more than two transactions are trying to spend the same UTXO.
+
+#### Double Spend flow - Examples
+
+##### Scenario 1
+> Transaction `A` is submitted to the network NOT through Arc.
+> A short moment later, transaction `B` spending the same output is submitted to Arc.
+> Later, transaction `A` is mined.
+
+Outcome:
+1. A response to submitting transaction `B` will include `DOUBLE_SPEND_ATTEMPTED` status and an ID (hash) of transaction `A` as a competing transaction.
+2. After transaction `A` is mined, transaction `B` will be rejected and receive status `REJECTED`.
+3. If callback URL is specified - the callback with status `REJECTED` and information about rejection reason (double spend) will be sent for transaction `B`.
+
+
+##### Scenario 2
+> Transaction `A` is submitted to the network through Arc.
+> A short moment later, transaction `B` spending the same output is submitted to Arc.
+> Later, transaction `A` is mined.
+
+Outcome:
+1. A response for submitting transaction `A` will include `SEEN_ON_NETWORK` status without any information about competing transactions.
+2. A response for submitting transaction `B` will include `DOUBLE_SPEND_ATTEMPTED` status and an ID (hash) of transaction `A` as a competing transaction.
+	* Transaction `A` status will be internally changed to `DOUBLE_SPEND_ATTEMPTED`.
+	* If callback URL is specified for transaction `A` - the callback with status `DOUBLE_SPEND_ATTEMPTED` and an ID (hash) of transaction `B` as a competing transaction will be sent for transaction `A`.
+3. Querying for transaction `A` will now also result in `DOUBLE_SPEND_ATTEMPTED` status and an ID (hash) of transaction `B` as a competing transaction.
+4. After transaction `A` is mined, it will receive status `MINED`.
+	* If callback URL is specified for transaction `A` - a callback with status `DOUBLE_SPEND_ATTEMPTED` and an extra information that this transactions was previously a double spend attempt will be sent.
+5. Transaction `B` will be rejected and receive status `REJECTED`. The callback will be sent with an information.
+	* If callback URL is specified for transaction `B` - a callback with status `REJECTED` and an extra information that this transactions was a double spend attempt will be sent.
+6. Querying for transaction `A` will now also result in `MINED` status and an extra information that this transactions was previously a double spend attempt.
+7. Querying for transaction `B` will now also result in `REJECTED` status and an extra information that this transactions was a double spend attempt.
+
+
+##### Scenario 3
+> Transaction `A` is submitted outside of Arc to a node that is not directly connected to Arc.
+> Transaction `B` spending the same output is submitted to Arc at **exactly** the same moment.
+
+Outcome:
+1. Submitting transaction `B` will initially result in status `SEEN_ON_NETWORK` and no competing transactions.
+2. Status for transaction `B` will be changed to `DOUBLE_SPEND_ATTEMPTED` as soon as nodes share transactions `A` and `B` with each other, which usually is a matter of seconds maximum.
+	* If callback URL is specified for transaction `B` - the callback with status `DOUBLE_SPEND_ATTEMPTED` and an ID (hash) of transaction `A` as a competing transaction will be sent for transaction `B`.
+3. If transaction `A` will be mined, transaction `B` will receive status `REJECTED` and a callback will be sent (if callback URL is set).
+
+#### Edge case
+If transactions `A` and `B` are submitted at exactly the same time to different nodes through ARC, they both may initially receive status `SEEN_ON_NETWORK`. The status for both will be updated to `DOUBLE_SPEND_ATTEMPTED` as soon as nodes will share these transactions with each other and therefore realise it's a double spend attempt, which is usually instantaneous.
+
+The chance of this situation happening is extremely low when submitting transactions through Arc.
+
 
 ### Multiple submissions to the same ARC instance
 
@@ -465,3 +519,68 @@ Expected outcome:
 * Information and Merkle path of the block received first will be persisted in the transaction record and not overwritten
 
 The planned feature [Update of transactions in case of block reorgs](https://github.com/bitcoin-sv/arc/blob/main/ROADMAP.md#update-of-transactions-in-case-of-block-reorgs) will ensure that ARC updates the statuses of transactions. Transactions which are not in the block of the longest chain will be updated to `REJECTED` status and transactions which are included in the block of the longest chain are updated to `MINED` status.
+
+## Cumulative fees validation
+
+The "Cumulative Fee Validation" feature is designed to check if the chain of unmined transactions (submitted transaction and its unmined ancestors) has paid a sufficient amount of fees. This validation is carried out based on a specific HTTP header.
+
+### Usage
+
+To use the "Cumulative Fee Validation" feature, you need to send the `X-CumulativeFeeValidation` header with the value set to `true`. 
+
+Example usage:
+```
+X-CumulativeFeeValidation: true
+```
+
+#### Special Cases
+
+If the `X-SkipFeeValidation` header is also sent, the fee validation will be skipped even if `X-CumulativeFeeValidation` is set to `true`.
+
+Example usage:
+```
+X-CumulativeFeeValidation: true
+X-SkipFeeValidation: true
+```
+
+In this case, the fee validation will not be performed.
+
+### Validation Examples
+#### Example 1: Insufficient Fee Paid by One Ancestor
+Transaction t0 has two unmined ancestors t1 and t2.
+
+* t0 has paid a sufficient fee for itself.
+* t1 has not paid a sufficient fee.
+* t2 has paid a sufficient fee for itself.
+
+##### Validation Result:
+The validation will fail because t1 has not paid a sufficient fee and no other transaction cover it.
+
+#### Example 2: All Transactions Paid Their Own Fees
+Transaction t0 has two unmined ancestors t1 and t2.
+
+* t0 has paid a sufficient fee.
+* t1 has paid a sufficient fee.
+* t2 has paid a sufficient fee.
+
+##### Validation Result:
+The validation will pass because both t1 and t2 have paid sufficient fees.
+
+#### Example 3: Ancestors Did Not Pay, But Transaction Covers All Fees
+Transaction t0 has two unmined ancestors t1 and t2.
+
+* t1 has not paid a sufficient fee.
+* t2 has not paid a sufficient fee.
+* t0 covers the fees for itself and both t1 and t2.
+
+##### Validation Result:
+The validation will pass because t0 covers the cumulative fees for the entire chain, including t1 and t2.
+
+The system performs the fee validation and returns a result indicating that the chain of transactions has sufficient fees.
+
+### Notes
+
+- The `X-CumulativeFeeValidation` header must be set to `true` for the validation to be performed.
+- The `X-SkipFeeValidation` header takes precedence over `X-CumulativeFeeValidation` and causes the fee validation to be skipped.
+
+This feature is crucial to ensure that the chain of unmined transactions has sufficient fees, which is essential for the effective management of the transaction network.

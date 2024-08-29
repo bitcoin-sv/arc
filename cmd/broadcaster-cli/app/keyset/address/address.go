@@ -3,8 +3,9 @@ package address
 import (
 	"log/slog"
 
-	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/spf13/cobra"
+
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 )
 
 var (
@@ -19,14 +20,17 @@ var (
 				return err
 			}
 
-			keySets, err := helper.GetKeySets()
+			keySetsMap, err := helper.GetSelectedKeySets()
 			if err != nil {
 				return err
 			}
 
-			for _, keySet := range keySets {
+			names := helper.GetOrderedKeys(keySetsMap)
 
-				logger.Info("address", slog.String("address", keySet.Address(!isTestnet)))
+			for _, name := range names {
+				keySet := keySetsMap[name]
+
+				logger.Info("address", slog.String("name", name), slog.String("address", keySet.Address(!isTestnet)), slog.String("key", keySet.GetMaster().String()))
 			}
 
 			return nil

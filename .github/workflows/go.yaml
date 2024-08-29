@@ -1,0 +1,85 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Go
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: "./go.mod"
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Install code generation tools
+        run: make install_gen
+
+      - name: Check go format
+        run: gofmt -s -w . && git diff --exit-code
+
+      - name: Check go generate
+        run: make gen_go && git diff --exit-code
+
+      - name: Check generate api
+        run: make api && git diff --exit-code
+
+      - name: Check config
+        run: make compare_config
+
+      - name: Build release
+        run: make build_release
+
+      - name: Store arc build
+        uses: actions/upload-artifact@v3
+        with:
+          name: arc-build
+          path: ./build
+          retention-days: 1
+
+  e2e:
+    name: e2e
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Download arc-build
+        uses: actions/download-artifact@v3
+        with:
+          name: arc-build
+          path: ./build
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: test-arc
+
+      - name: e2e test
+        run: |
+          docker compose up -d node1 node2 node3 db
+          docker compose up --abort-on-container-exit migrate-blocktx migrate-metamorph
+          docker compose up --exit-code-from tests tests arc-blocktx arc-callbacker arc-metamorph arc --scale arc-blocktx=5 --scale arc-metamorph=2
+          docker compose down
+        working-directory: ./test

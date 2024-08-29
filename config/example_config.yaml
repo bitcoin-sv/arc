@@ -85,6 +85,7 @@ blocktx:
 api:
   address: localhost:9090 # address to start api server on
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX" # api key for www.whatsonchain.com
+  wocMainnet: false # query main or test net on www.whatsonchain.com
   defaultPolicy: # default policy of bitcoin node
     excessiveblocksize: 2000000000
     blockmaxsize: 512000000
@@ -118,3 +119,10 @@ api:
 
 k8sWatcher: # (optional, used only when deploying arc to k8s)
   namespace: arc-testnet
+
+callbacker:
+  listenAddr: localhost:8021 # address space for callbacker to listen on. Can be for example localhost:8021 or :8021 for listening on all addresses
+  dialAddr: localhost:8021 # address for other services to dial callbacker service
+  health:
+    serverDialAddr: localhost:8025 # address at which the grpc health server is exposed
+  pause: 0s # pause between sending next callback to the same receiver

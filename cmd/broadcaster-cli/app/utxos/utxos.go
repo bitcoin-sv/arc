@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/broadcast"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/consolidate"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/create"
+	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos/split"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var Cmd = &cobra.Command{
@@ -56,7 +58,14 @@ func init() {
 		log.Fatal(err)
 	}
 
+	Cmd.PersistentFlags().Int("satoshis", 0, "Nr of satoshis per output outputs")
+	err = viper.BindPFlag("satoshis", Cmd.PersistentFlags().Lookup("satoshis"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	Cmd.AddCommand(create.Cmd)
 	Cmd.AddCommand(broadcast.Cmd)
 	Cmd.AddCommand(consolidate.Cmd)
+	Cmd.AddCommand(split.Cmd)
 }

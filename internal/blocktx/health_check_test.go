@@ -67,7 +67,7 @@ func TestCheck(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithTransactionBatchSize(batchSize))
+			processor, err := blocktx.NewProcessor(logger, storeMock, nil, nil, blocktx.WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
 			pm := &mocks.PeerManagerMock{GetPeersFunc: func() []p2p.PeerI {
 				return []p2p.PeerI{&mocks.PeerMock{
@@ -85,7 +85,7 @@ func TestCheck(t *testing.T) {
 
 			require.Equal(t, tc.expectedStatus, resp.Status)
 
-			peerHandler.Shutdown()
+			processor.Shutdown()
 		})
 	}
 }
@@ -140,7 +140,7 @@ func TestWatch(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			peerHandler, err := blocktx.NewPeerHandler(logger, storeMock, blocktx.WithTransactionBatchSize(batchSize))
+			processor, err := blocktx.NewProcessor(logger, storeMock, nil, nil, blocktx.WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
 			pm := &mocks.PeerManagerMock{GetPeersFunc: func() []p2p.PeerI {
 				return []p2p.PeerI{&mocks.PeerMock{
@@ -163,7 +163,7 @@ func TestWatch(t *testing.T) {
 
 			err = server.Watch(req, watchServer)
 			require.NoError(t, err)
-			peerHandler.Shutdown()
+			processor.Shutdown()
 		})
 	}
 }

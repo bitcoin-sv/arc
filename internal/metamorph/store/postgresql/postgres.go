@@ -80,8 +80,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		,status
 		,block_height
 		,block_hash
-		,callback_url
-		,callback_token
+		,callbacks
 		,full_status_updates
 		,reject_reason
 		,competing_txs
@@ -98,11 +97,10 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	var status sql.NullInt32
 	var blockHeight sql.NullInt64
 	var blockHash []byte
-	var callbackUrl sql.NullString
-	var callbackToken sql.NullString
+	var callbacksData []byte
 	var fullStatusUpdates bool
 	var rejectReason sql.NullString
-	var competingTxs string
+	var competingTxs sql.NullString
 	var rawTx []byte
 	var lockedBy string
 	var merklePath sql.NullString
@@ -116,8 +114,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		&status,
 		&blockHeight,
 		&blockHash,
-		&callbackUrl,
-		&callbackToken,
+		&callbacksData,
 		&fullStatusUpdates,
 		&rejectReason,
 		&competingTxs,
@@ -168,33 +165,26 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		data.BlockHeight = uint64(blockHeight.Int64)
 	}
 
-	if callbackUrl.Valid {
-		data.CallbackUrl = callbackUrl.String
-	}
-
-	if callbackToken.Valid {
-		data.CallbackToken = callbackToken.String
-	}
-
-	data.FullStatusUpdates = fullStatusUpdates
-
-	if rejectReason.Valid {
-		data.RejectReason = rejectReason.String
-	}
-
-	if competingTxs != "" {
-		data.CompetingTxs = strings.Split(competingTxs, ",")
-	}
-
-	data.LockedBy = lockedBy
-
-	if merklePath.Valid {
-		data.MerklePath = merklePath.String
+	if len(callbacksData) > 0 {
+		callbacks, err := readCallbacksFromDB(callbacksData)
+		if err != nil {
+			return nil, err
+		}
+		data.Callbacks = callbacks
 	}
 
 	if retries.Valid {
 		data.Retries = int(retries.Int32)
 	}
+
+	if competingTxs.String != "" {
+		data.CompetingTxs = strings.Split(competingTxs.String, ",")
+	}
+
+	data.FullStatusUpdates = fullStatusUpdates
+	data.RejectReason = rejectReason.String
+	data.LockedBy = lockedBy
+	data.MerklePath = merklePath.String
 
 	return data, nil
 }
@@ -232,6 +222,35 @@ func (p *PostgreSQL) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, 
 	return retRawTxs, nil
 }
 
+func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) ([]*store.StoreData, error) {
+	const q = `
+	 SELECT
+	 	stored_at
+		,announced_at
+		,mined_at
+		,hash
+		,status
+		,block_height
+		,block_hash
+		,callbacks
+		,full_status_updates
+		,reject_reason
+		,competing_txs
+		,raw_tx
+		,locked_by
+		,merkle_path
+		,retries
+	 FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[]));`
+
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(keys))
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	return getStoreDataFromRows(rows)
+}
+
 func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash) error {
 	q := `UPDATE metamorph.transactions SET retries = retries+1 WHERE hash = $1;`
 
@@ -253,8 +272,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		,status
 		,block_height
 		,block_hash
-		,callback_url
-		,callback_token
+		,callbacks
 		,full_status_updates
 		,reject_reason
 		,competing_txs
@@ -276,8 +294,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		,$12
 		,$13
 		,$14
-		,$15
-	) ON CONFLICT (hash) DO UPDATE SET last_submitted_at=$15`
+	) ON CONFLICT (hash) DO UPDATE SET last_submitted_at=$14, callbacks=$8;`
 
 	var txHash []byte
 	var blockHash []byte
@@ -295,7 +312,12 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		value.StoredAt = p.now()
 	}
 
-	_, err := p.db.ExecContext(ctx, q,
+	callbacksData, err := prepareCallbacksForSaving(value.Callbacks)
+	if err != nil {
+		return err
+	}
+
+	_, err = p.db.ExecContext(ctx, q,
 		value.StoredAt,
 		value.AnnouncedAt,
 		value.MinedAt,
@@ -303,8 +325,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		value.Status,
 		value.BlockHeight,
 		blockHash,
-		value.CallbackUrl,
-		value.CallbackToken,
+		callbacksData,
 		value.FullStatusUpdates,
 		value.RejectReason,
 		strings.Join(value.CompetingTxs, ","),
@@ -324,8 +345,7 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 	storedAt := make([]time.Time, len(data))
 	hashes := make([][]byte, len(data))
 	statuses := make([]int, len(data))
-	callbackURL := make([]string, len(data))
-	callbackToken := make([]string, len(data))
+	callbacks := make([]string, len(data))
 	fullStatusUpdate := make([]bool, len(data))
 	rawTxs := make([][]byte, len(data))
 	lockedBy := make([]string, len(data))
@@ -334,34 +354,45 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 		storedAt[i] = txData.StoredAt
 		hashes[i] = txData.Hash[:]
 		statuses[i] = int(txData.Status)
-		callbackURL[i] = txData.CallbackUrl
-		callbackToken[i] = txData.CallbackToken
 		fullStatusUpdate[i] = txData.FullStatusUpdates
 		rawTxs[i] = txData.RawTx
 		lockedBy[i] = p.hostname
 		lastSubmittedAt[i] = txData.LastSubmittedAt
+
+		callbacksData, err := prepareCallbacksForSaving(txData.Callbacks)
+		if err != nil {
+			return err
+		}
+		callbacks[i] = string(callbacksData)
 	}
 
 	q := `INSERT INTO metamorph.transactions (
 		 stored_at
 		,hash
 		,status
-		,callback_url
-		,callback_token
+		,callbacks
 		,full_status_updates
 		,raw_tx
 		,locked_by
 		,last_submitted_at
 		)
-		SELECT * FROM UNNEST($1::TIMESTAMPTZ[], $2::BYTEA[], $3::INT[], $4::TEXT[], $5::TEXT[], $6::BOOL[], $7::BYTEA[], $8::TEXT[], $9::TIMESTAMPTZ[])
-		ON CONFLICT (hash) DO UPDATE SET last_submitted_at = $10
+		SELECT
+			UNNEST($1::TIMESTAMPTZ[]),
+			UNNEST($2::BYTEA[]),
+			UNNEST($3::INT[]),
+			UNNEST($4::TEXT[])::JSONB,
+			UNNEST($5::BOOL[]),
+			UNNEST($6::BYTEA[]),
+			UNNEST($7::TEXT[]),
+			UNNEST($8::TIMESTAMPTZ[])
+		ON CONFLICT (hash) DO UPDATE SET last_submitted_at = $9
 		`
+
 	_, err := p.db.ExecContext(ctx, q,
 		pq.Array(storedAt),
 		pq.Array(hashes),
 		pq.Array(statuses),
-		pq.Array(callbackURL),
-		pq.Array(callbackToken),
+		pq.Array(callbacks),
 		pq.Array(fullStatusUpdate),
 		pq.Array(rawTxs),
 		pq.Array(lockedBy),
@@ -405,8 +436,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 		,status
 		,block_height
 		,block_hash
-		,callback_url
-		,callback_token
+		,callbacks
 		,full_status_updates
 		,reject_reason
 		,competing_txs
@@ -466,22 +496,21 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 		as t
 		WHERE metamorph.transactions.hash = t.hash
 		RETURNING
-	  stored_at
-		,announced_at
-		,mined_at
-		,t.hash
-		,status
-		,block_height
-		,block_hash
-		,callback_url
-		,callback_token
-		,full_status_updates
-    ,reject_reason
-		,competing_txs
-		,raw_tx
-		,locked_by
-    ,merkle_path
-		,retries;`
+			stored_at
+			,announced_at
+			,mined_at
+			,t.hash
+			,status
+			,block_height
+			,block_hash
+			,callbacks
+			,full_status_updates
+			,reject_reason
+			,competing_txs
+			,raw_tx
+			,locked_by
+			,merkle_path
+			,retries;`
 
 	rows, err := tx.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since, untilTime, limit, offset, p.hostname)
 	if err != nil {
@@ -543,8 +572,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		,metamorph.transactions.status
 		,metamorph.transactions.block_height
 		,metamorph.transactions.block_hash
-		,metamorph.transactions.callback_url
-		,metamorph.transactions.callback_token
+		,metamorph.transactions.callbacks
 		,metamorph.transactions.full_status_updates
 		,metamorph.transactions.reject_reason
 		,metamorph.transactions.competing_txs
@@ -607,7 +635,8 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			) AS bulk_query
 			WHERE metamorph.transactions.hash=bulk_query.hash
 				AND metamorph.transactions.status <= bulk_query.status
-				AND LENGTH(metamorph.transactions.competing_txs) < LENGTH(bulk_query.competing_txs)
+				AND (metamorph.transactions.competing_txs IS NULL
+						OR LENGTH(metamorph.transactions.competing_txs) < LENGTH(bulk_query.competing_txs))
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.announced_at
 		,metamorph.transactions.mined_at
@@ -615,8 +644,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		,metamorph.transactions.status
 		,metamorph.transactions.block_height
 		,metamorph.transactions.block_hash
-		,metamorph.transactions.callback_url
-		,metamorph.transactions.callback_token
+		,metamorph.transactions.callbacks
 		,metamorph.transactions.full_status_updates
 		,metamorph.transactions.reject_reason
 		,metamorph.transactions.competing_txs
@@ -735,8 +763,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 		,t.status
 		,t.block_height
 		,t.block_hash
-		,t.callback_url
-		,t.callback_token
+		,t.callbacks
 		,t.full_status_updates
 		,t.reject_reason
 		,t.competing_txs

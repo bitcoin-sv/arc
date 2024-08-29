@@ -1,26 +1,10 @@
 package api
 
 import (
-	"github.com/libsv/go-bt/v2"
+	"github.com/bitcoin-sv/arc/internal/fees"
 )
 
-func FeesToBtFeeQuote(minMiningFee float64) *bt.FeeQuote {
+func FeesToFeeModel(minMiningFee float64) *fees.SatoshisPerKilobyte {
 	satoshisPerKB := int(minMiningFee * 1e8)
-
-	btFeeQuote := bt.NewFeeQuote()
-
-	for _, feeType := range []bt.FeeType{bt.FeeTypeStandard, bt.FeeTypeData} {
-		btFeeQuote.AddQuote(feeType, &bt.Fee{
-			MiningFee: bt.FeeUnit{
-				Satoshis: satoshisPerKB,
-				Bytes:    1000,
-			},
-			RelayFee: bt.FeeUnit{
-				Satoshis: satoshisPerKB,
-				Bytes:    1000,
-			},
-		})
-	}
-
-	return btFeeQuote
+	return &fees.SatoshisPerKilobyte{Satoshis: uint64(satoshisPerKB)}
 }

@@ -3,6 +3,7 @@ package postgresql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"strings"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -50,10 +51,9 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 		var blockHeight sql.NullInt64
 		var blockHash []byte
 
-		var callbackUrl sql.NullString
-		var callbackToken sql.NullString
+		var callbacksData []byte
 		var rejectReason sql.NullString
-		var competingTxs string
+		var competingTxs sql.NullString
 		var merklePath sql.NullString
 		var retries sql.NullInt32
 
@@ -65,8 +65,7 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 			&status,
 			&blockHeight,
 			&blockHash,
-			&callbackUrl,
-			&callbackToken,
+			&callbacksData,
 			&data.FullStatusUpdates,
 			&rejectReason,
 			&competingTxs,
@@ -109,29 +108,24 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 			data.BlockHeight = uint64(blockHeight.Int64)
 		}
 
-		if callbackUrl.Valid {
-			data.CallbackUrl = callbackUrl.String
-		}
-
-		if callbackToken.Valid {
-			data.CallbackToken = callbackToken.String
-		}
-
-		if rejectReason.Valid {
-			data.RejectReason = rejectReason.String
-		}
-
-		if competingTxs != "" {
-			data.CompetingTxs = strings.Split(competingTxs, ",")
-		}
-
-		if merklePath.Valid {
-			data.MerklePath = merklePath.String
+		if len(callbacksData) > 0 {
+			callbacks, err := readCallbacksFromDB(callbacksData)
+			if err != nil {
+				return nil, err
+			}
+			data.Callbacks = callbacks
 		}
 
 		if retries.Valid {
 			data.Retries = int(retries.Int32)
 		}
+
+		if competingTxs.String != "" {
+			data.CompetingTxs = strings.Split(competingTxs.String, ",")
+		}
+
+		data.RejectReason = rejectReason.String
+		data.MerklePath = merklePath.String
 
 		storeData = append(storeData, data)
 	}
@@ -146,7 +140,7 @@ func getCompetingTxsFromRows(rows *sql.Rows) []competingTxsData {
 		data := competingTxsData{}
 
 		var hash []byte
-		var competingTxs string
+		var competingTxs sql.NullString
 
 		err := rows.Scan(
 			&hash,
@@ -158,8 +152,8 @@ func getCompetingTxsFromRows(rows *sql.Rows) []competingTxsData {
 
 		data.hash = hash
 
-		if competingTxs != "" {
-			data.competingTxs = strings.Split(competingTxs, ",")
+		if competingTxs.String != "" {
+			data.competingTxs = strings.Split(competingTxs.String, ",")
 		}
 
 		dbData = append(dbData, data)
@@ -183,8 +177,7 @@ func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) 
 		,t.status
 		,t.block_height
 		,t.block_hash
-		,t.callback_url
-		,t.callback_token
+		,t.callbacks
 		,t.full_status_updates
 		,t.reject_reason
 		,t.competing_txs
@@ -225,4 +218,21 @@ func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) 
 	}
 
 	return res
+}
+
+func prepareCallbacksForSaving(callbacks []store.StoreCallback) ([]byte, error) {
+	callbacksBytes, err := json.Marshal(callbacks)
+	if err != nil {
+		return nil, err
+	}
+	return callbacksBytes, nil
+}
+
+func readCallbacksFromDB(callbacks []byte) ([]store.StoreCallback, error) {
+	var callbacksData []store.StoreCallback
+	err := json.Unmarshal(callbacks, &callbacksData)
+	if err != nil {
+		return nil, err
+	}
+	return callbacksData, nil
 }

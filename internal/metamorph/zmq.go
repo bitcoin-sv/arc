@@ -198,7 +198,7 @@ func (z *ZMQ) handleInvalidTx(msg []string) (hash *chainhash.Hash, status metamo
 	}
 	z.logger.Debug("invalidtx", slog.String("hash", txInfo.TxID), slog.String("reason", errReason))
 
-	txErr = fmt.Errorf(errReason)
+	txErr = errors.New(errReason)
 	return
 }
 

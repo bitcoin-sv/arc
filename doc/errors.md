@@ -26,10 +26,19 @@ ErrStatusMalformed: Either the transaction is too small (61 bytes min), there ar
 ErrStatusFees: The fees are too low, sum satoshis out is not less than sum satoshis in.
 
 # 466
-Conflict: Transaction is invalid because the network has already seen a tx which spends the same utxo.
+ErrStatusConflict: Transaction is invalid because the network has already seen a tx which spends the same utxo.
 
-# 481
+# 467
+ErrStatusMinedAncestorsNotFound: invalid BEEF, cannot find mined ancestor of the transaction.
+
+# 468
+ErrStatusCalculatingMerkleRoots: invalid BEEF, cannot calculate Merke Roots.
+
+# 471
 ErrStatusFrozenPolicy: Input Frozen (blacklist manager policy blacklisted). The transaction is attempting to spend frozen digital assets.
 
-# 482
+# 472
 ErrStatusFrozenConsensus: Input Frozen (blacklist manager consensus blacklisted) The transaction is attempting to spend frozen digital assets.
+
+# 473
+ErrStatusCumulativeFees: Cumulative fee validation failed

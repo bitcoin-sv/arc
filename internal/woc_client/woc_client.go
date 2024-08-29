@@ -2,24 +2,25 @@ package woc_client
 
 import (
 	"bytes"
-	"container/list"
 	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/bitcoin-sv/go-sdk/script"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/cenkalti/backoff/v4"
-	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-bt/v2/bscript"
 )
 
 type WocClient struct {
 	client        http.Client
 	authorization string
+	net           string
 	logger        *slog.Logger
 }
 
@@ -35,9 +36,15 @@ func WithAuth(authorization string) func(*WocClient) {
 	}
 }
 
-func New(opts ...func(client *WocClient)) *WocClient {
+func New(mainnet bool, opts ...func(client *WocClient)) *WocClient {
+	net := "test"
+	if mainnet {
+		net = "main"
+	}
+
 	w := &WocClient{
 		client: http.Client{Timeout: 10 * time.Second},
+		net:    net,
 	}
 
 	for _, opt := range opts {
@@ -66,15 +73,16 @@ type wocRawTx struct {
 	BlockHeight   uint64 `json:"blockheight"`
 	BlockTime     uint64 `json:"blocktime"`
 	Confirmations uint64 `json:"confirmations"`
+	Error         string `json:"error"`
 }
 
-func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) ([]*bt.UTXO, error) {
+func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, lockingScript *script.Script, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error) {
 	policy := backoff.WithMaxRetries(backoff.NewConstantBackOff(constantBackoff), retries)
 
 	policyContext := backoff.WithContext(policy, ctx)
 
-	operation := func() ([]*bt.UTXO, error) {
-		wocUtxos, err := w.getUTXOs(ctx, mainnet, lockingScript, address)
+	operation := func() (sdkTx.UTXOs, error) {
+		wocUtxos, err := w.GetUTXOs(ctx, lockingScript, address)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get utxos from WoC: %v", err)
 		}
@@ -93,19 +101,11 @@ func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, mainnet bool, locki
 	return utxos, nil
 }
 
-func (w *WocClient) getUTXOs(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error) {
-	net := "test"
-	if mainnet {
-		net = "main"
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/unspent", net, address), nil)
+// GetUTXOs Get UTXOs from WhatsOnChain
+func (w *WocClient) GetUTXOs(ctx context.Context, lockingScript *script.Script, address string) (sdkTx.UTXOs, error) {
+	req, err := w.httpRequest(ctx, "GET", fmt.Sprintf("address/%s/unspent", address), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to crreate request: %v", err)
-	}
-
-	if w.authorization != "" {
-		req.Header.Set("Authorization", w.authorization)
+		return nil, err
 	}
 
 	resp, err := w.client.Do(req)
@@ -124,14 +124,14 @@ func (w *WocClient) getUTXOs(ctx context.Context, mainnet bool, lockingScript *b
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	unspent := make([]*bt.UTXO, len(wocUnspent))
+	unspent := make(sdkTx.UTXOs, len(wocUnspent))
 	for i, utxo := range wocUnspent {
 		txIDBytes, err := hex.DecodeString(utxo.Txid)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode hex string: %v", err)
 		}
 
-		unspent[i] = &bt.UTXO{
+		unspent[i] = &sdkTx.UTXO{
 			TxID:          txIDBytes,
 			Vout:          utxo.Vout,
 			LockingScript: lockingScript,
@@ -142,68 +142,10 @@ func (w *WocClient) getUTXOs(ctx context.Context, mainnet bool, lockingScript *b
 	return unspent, nil
 }
 
-// GetUTXOs Get UTXOs from WhatsOnChain
-func (w *WocClient) GetUTXOs(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string) ([]*bt.UTXO, error) {
-	return w.getUTXOs(ctx, mainnet, lockingScript, address)
-}
-
-func (w *WocClient) getUTXOsList(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string) (*list.List, error) {
-	utxos, err := w.getUTXOs(ctx, mainnet, lockingScript, address)
+func (w *WocClient) GetBalance(ctx context.Context, address string) (int64, int64, error) {
+	req, err := w.httpRequest(ctx, "GET", fmt.Sprintf("address/%s/balance", address), nil)
 	if err != nil {
-		return nil, err
-	}
-
-	values := list.New()
-	for _, utxo := range utxos {
-		values.PushBack(utxo)
-	}
-
-	return values, nil
-}
-
-// GetUTXOsList Get UTXOs from WhatsOnChain as a list
-func (w *WocClient) GetUTXOsList(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string) (*list.List, error) {
-	return w.getUTXOsList(ctx, mainnet, lockingScript, address)
-}
-
-func (w *WocClient) GetUTXOsListWithRetries(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) (*list.List, error) {
-	policy := backoff.WithMaxRetries(backoff.NewConstantBackOff(constantBackoff), retries)
-
-	policyContext := backoff.WithContext(policy, ctx)
-
-	operation := func() (*list.List, error) {
-		wocUtxos, err := w.getUTXOsList(ctx, mainnet, lockingScript, address)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get utxos from WoC: %v", err)
-		}
-		return wocUtxos, nil
-	}
-
-	notify := func(err error, nextTry time.Duration) {
-		w.logger.Error("failed to get utxos from WoC", slog.String("address", address), slog.String("next try", nextTry.String()), slog.String("err", err.Error()))
-	}
-
-	utxos, err := backoff.RetryNotifyWithData(operation, policyContext, notify)
-	if err != nil {
-		return nil, err
-	}
-
-	return utxos, nil
-}
-
-func (w *WocClient) getBalance(ctx context.Context, mainnet bool, address string) (int64, int64, error) {
-	net := "test"
-	if mainnet {
-		net = "main"
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/address/%s/balance", net, address), nil)
-	if err != nil {
-		return 0, 0, fmt.Errorf("failed to crreate request: %v", err)
-	}
-
-	if w.authorization != "" {
-		req.Header.Set("Authorization", w.authorization)
+		return 0, 0, err
 	}
 
 	resp, err := w.client.Do(req)
@@ -225,11 +167,7 @@ func (w *WocClient) getBalance(ctx context.Context, mainnet bool, address string
 	return balance.Confirmed, balance.Unconfirmed, nil
 }
 
-func (w *WocClient) GetBalance(ctx context.Context, mainnet bool, address string) (int64, int64, error) {
-	return w.getBalance(ctx, mainnet, address)
-}
-
-func (w *WocClient) GetBalanceWithRetries(ctx context.Context, mainnet bool, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error) {
+func (w *WocClient) GetBalanceWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error) {
 	policy := backoff.WithMaxRetries(backoff.NewConstantBackOff(constantBackoff), retries)
 
 	policyContext := backoff.WithContext(policy, ctx)
@@ -240,7 +178,7 @@ func (w *WocClient) GetBalanceWithRetries(ctx context.Context, mainnet bool, add
 	}
 
 	operation := func() (balanceResult, error) {
-		confirmed, unconfirmed, err := w.getBalance(ctx, mainnet, address)
+		confirmed, unconfirmed, err := w.GetBalance(ctx, address)
 		if err != nil {
 			return balanceResult{}, fmt.Errorf("failed to get utxos from WoC: %v", err)
 		}
@@ -259,19 +197,14 @@ func (w *WocClient) GetBalanceWithRetries(ctx context.Context, mainnet bool, add
 	return balanceRes.confirmed, balanceRes.unconfirmed, nil
 }
 
-func (w *WocClient) TopUp(ctx context.Context, mainnet bool, address string) error {
-	net := "test"
-	if mainnet {
+func (w *WocClient) TopUp(ctx context.Context, address string) error {
+	if w.net != "test" {
 		return errors.New("top up can only be done on testnet")
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api-test.whatsonchain.com/v1/bsv/%s/faucet/send/%s", net, address), nil)
+	req, err := w.httpRequest(ctx, "GET", fmt.Sprintf("faucet/send/%s", address), nil)
 	if err != nil {
-		return fmt.Errorf("failed to crreate request: %v", err)
-	}
-
-	if w.authorization != "" {
-		req.Header.Set("Authorization", w.authorization)
+		return err
 	}
 
 	resp, err := w.client.Do(req)
@@ -287,21 +220,16 @@ func (w *WocClient) TopUp(ctx context.Context, mainnet bool, address string) err
 	return nil
 }
 
-func (w *WocClient) GetRawTxs(ctx context.Context, mainnet bool, ids []string) ([]*wocRawTx, error) {
+func (w *WocClient) GetRawTxs(ctx context.Context, ids []string) ([]*wocRawTx, error) {
 	const maxIDsNum = 20 // value from doc
 
 	var result []*wocRawTx
-
-	net := "test"
-	if mainnet {
-		net = "main"
-	}
 
 	for len(ids) > 0 {
 		bsize := min(maxIDsNum, len(ids))
 		batch := ids[:bsize]
 
-		txs, err := w.getRawTxs(ctx, net, batch)
+		txs, err := w.getRawTxs(ctx, batch)
 		if err != nil {
 			return nil, err
 		}
@@ -313,17 +241,13 @@ func (w *WocClient) GetRawTxs(ctx context.Context, mainnet bool, ids []string) (
 	return result, nil
 }
 
-func (w *WocClient) getRawTxs(ctx context.Context, net string, batch []string) ([]*wocRawTx, error) {
+func (w *WocClient) getRawTxs(ctx context.Context, batch []string) ([]*wocRawTx, error) {
 	payload := map[string][]string{"txids": batch}
 	body, _ := json.Marshal(payload)
 
-	req, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/%s/txs/hex", net), bytes.NewBuffer(body))
+	req, err := w.httpRequest(ctx, "POST", "txs/hex", body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to crreate request: %v", err)
-	}
-
-	if w.authorization != "" {
-		req.Header.Set("Authorization", w.authorization)
+		return nil, err
 	}
 
 	resp, err := w.client.Do(req)
@@ -343,4 +267,24 @@ func (w *WocClient) getRawTxs(ctx context.Context, net string, batch []string) (
 	}
 
 	return res, nil
+}
+
+func (w WocClient) httpRequest(ctx context.Context, method string, endpoint string, payload []byte) (*http.Request, error) {
+	const apiUrl = "https://api.whatsonchain.com/v1/bsv"
+
+	var body io.Reader
+	if len(payload) > 0 {
+		body = bytes.NewBuffer(payload)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/%s/%s", apiUrl, w.net, endpoint), body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to crreate request: %v", err)
+	}
+
+	if w.authorization != "" {
+		req.Header.Set("Authorization", w.authorization)
+	}
+
+	return req, nil
 }

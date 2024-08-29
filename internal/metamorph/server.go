@@ -14,9 +14,8 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/processor_response"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/libsv/go-bt/v2"
+	"github.com/bitcoin-sv/go-sdk/util"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
@@ -32,7 +31,8 @@ func PtrTo[T any](v T) *T {
 }
 
 const (
-	maxTimeoutDefault = 5 * time.Second
+	maxTimeoutDefault   = 5 * time.Second
+	minedDoubleSpendMsg = "previously double spend attempted"
 )
 
 var ErrNotFound = errors.New("key could not be found")
@@ -42,9 +42,8 @@ type BitcoinNode interface {
 }
 
 type ProcessorI interface {
-	ProcessTransaction(req *ProcessorRequest)
+	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
 	GetProcessorMapSize() int
-	GetStatusNotSeen() int64
 	GetPeers() []p2p.PeerI
 	Shutdown()
 	Health() error
@@ -175,10 +174,12 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	// Convert gRPC req to store.StoreData struct...
 	sReq := &store.StoreData{
-		Hash:              hash,
-		Status:            statusReceived,
-		CallbackUrl:       req.GetCallbackUrl(),
-		CallbackToken:     req.GetCallbackToken(),
+		Hash:   hash,
+		Status: statusReceived,
+		Callbacks: []store.StoreCallback{{
+			CallbackURL:   req.GetCallbackUrl(),
+			CallbackToken: req.GetCallbackToken(),
+		}},
 		FullStatusUpdates: req.GetFullStatusUpdates(),
 		RawTx:             req.GetRawTx(),
 	}
@@ -209,10 +210,12 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 
 		// Convert gRPC req to store.StoreData struct...
 		sReq := &store.StoreData{
-			Hash:              hash,
-			Status:            statusReceived,
-			CallbackUrl:       txReq.GetCallbackUrl(),
-			CallbackToken:     txReq.GetCallbackToken(),
+			Hash:   hash,
+			Status: statusReceived,
+			Callbacks: []store.StoreCallback{{
+				CallbackURL:   txReq.GetCallbackUrl(),
+				CallbackToken: txReq.GetCallbackToken(),
+			}},
 			FullStatusUpdates: txReq.GetFullStatusUpdates(),
 			RawTx:             txReq.GetRawTx(),
 		}
@@ -244,7 +247,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 }
 
 func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, timeoutSeconds int64, TxID string) *metamorph_api.TransactionStatus {
-	responseChannel := make(chan processor_response.StatusAndError, 10)
+	responseChannel := make(chan StatusAndError, 10)
 
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeDuration := s.maxTimeoutDefault
@@ -252,15 +255,18 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 		timeDuration = time.Second * time.Duration(timeoutSeconds)
 	}
 
-	// TODO check the context when API call ends
-	s.processor.ProcessTransaction(&ProcessorRequest{Data: data, ResponseChannel: responseChannel, Timeout: timeDuration})
+	ctx, cancel := context.WithTimeout(ctx, timeDuration)
+	defer func() {
+		cancel()
+		close(responseChannel)
+	}()
+
+	s.processor.ProcessTransaction(ctx, &ProcessorRequest{Data: data, ResponseChannel: responseChannel})
 
 	if waitForStatus == 0 {
 		// wait for seen by default, this is the safest option
 		waitForStatus = metamorph_api.Status_SEEN_ON_NETWORK
 	}
-
-	t := time.NewTimer(timeDuration)
 
 	returnedStatus := &metamorph_api.TransactionStatus{
 		Txid:   TxID,
@@ -278,11 +284,12 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 			// Ensure that function returns at latest when context times out
 			returnedStatus.TimedOut = true
 			return returnedStatus
-		case <-t.C:
-			returnedStatus.TimedOut = true
-			return returnedStatus
 		case res := <-responseChannel:
 			returnedStatus.Status = res.Status
+
+			if len(res.CompetingTxs) > 0 {
+				returnedStatus.CompetingTxs = res.CompetingTxs
+			}
 
 			if res.Err != nil {
 				returnedStatus.RejectReason = res.Err.Error()
@@ -336,6 +343,41 @@ func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.Transact
 	return txn, nil
 }
 
+func (s *Server) GetTransactions(ctx context.Context, req *metamorph_api.TransactionsStatusRequest) (*metamorph_api.Transactions, error) {
+	data, err := s.getTransactions(ctx, req)
+	if err != nil {
+		s.logger.Error("failed to get transactions", slog.String("err", err.Error()))
+		return nil, err
+	}
+
+	res := make([]*metamorph_api.Transaction, 0, len(data))
+	for _, sd := range data {
+		txn := &metamorph_api.Transaction{
+			Txid:         sd.Hash.String(),
+			Status:       sd.Status,
+			BlockHeight:  sd.BlockHeight,
+			RejectReason: sd.RejectReason,
+			RawTx:        sd.RawTx,
+		}
+		if sd.BlockHash != nil {
+			txn.BlockHash = sd.BlockHash.String()
+		}
+		if !sd.AnnouncedAt.IsZero() {
+			txn.AnnouncedAt = timestamppb.New(sd.AnnouncedAt)
+		}
+		if !sd.MinedAt.IsZero() {
+			txn.MinedAt = timestamppb.New(sd.MinedAt)
+		}
+		if !sd.StoredAt.IsZero() {
+			txn.StoredAt = timestamppb.New(sd.StoredAt)
+		}
+
+		res = append(res, txn)
+	}
+
+	return &metamorph_api.Transactions{Transactions: res}, nil
+}
+
 func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.TransactionStatus, error) {
 	data, announcedAt, minedAt, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
@@ -351,7 +393,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		blockHash = data.BlockHash.String()
 	}
 
-	return &metamorph_api.TransactionStatus{
+	returnStatus := &metamorph_api.TransactionStatus{
 		Txid:         data.Hash.String(),
 		AnnouncedAt:  announcedAt,
 		StoredAt:     storedAt,
@@ -360,8 +402,16 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		BlockHeight:  data.BlockHeight,
 		BlockHash:    blockHash,
 		RejectReason: data.RejectReason,
+		CompetingTxs: data.CompetingTxs,
 		MerklePath:   data.MerklePath,
-	}, nil
+	}
+
+	if returnStatus.Status == metamorph_api.Status_MINED && len(returnStatus.CompetingTxs) > 0 {
+		returnStatus.CompetingTxs = []string{}
+		returnStatus.RejectReason = minedDoubleSpendMsg
+	}
+
+	return returnStatus, nil
 }
 
 func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*store.StoreData, *timestamppb.Timestamp, *timestamppb.Timestamp, *timestamppb.Timestamp, error) {
@@ -370,7 +420,7 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 		return nil, nil, nil, nil, err
 	}
 
-	hash := bt.ReverseBytes(txBytes)
+	hash := util.ReverseBytes(txBytes)
 
 	var data *store.StoreData
 	data, err = s.store.Get(ctx, hash)
@@ -392,6 +442,21 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 	}
 
 	return data, announcedAt, minedAt, storedAt, nil
+}
+
+func (s *Server) getTransactions(ctx context.Context, req *metamorph_api.TransactionsStatusRequest) ([]*store.StoreData, error) {
+	keys := make([][]byte, 0, len(req.TxIDs))
+	for _, id := range req.TxIDs {
+
+		idBytes, err := hex.DecodeString(id)
+		if err != nil {
+			return nil, err
+		}
+
+		keys = append(keys, util.ReverseBytes(idBytes))
+	}
+
+	return s.store.GetMany(ctx, keys)
 }
 
 func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (*metamorph_api.SetUnlockedByNameResponse, error) {

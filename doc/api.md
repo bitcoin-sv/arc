@@ -472,7 +472,8 @@ This endpoint is used to get the current status of a previously submitted transa
   "txid": "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e",
   "merklePath": "string",
   "txStatus": "MINED",
-  "extraInfo": null
+  "extraInfo": null,
+  "competingTxs": null
 }
 ```
 
@@ -507,6 +508,7 @@ X-MaxTimeout: 0
 X-SkipFeeValidation: true
 X-SkipScriptValidation: true
 X-SkipTxValidation: true
+X-CumulativeFeeValidation: true
 X-CallbackToken: string
 X-WaitForStatus: 0
 X-WaitFor: string
@@ -524,6 +526,7 @@ const headers = {
   'X-SkipFeeValidation':'true',
   'X-SkipScriptValidation':'true',
   'X-SkipTxValidation':'true',
+  'X-CumulativeFeeValidation':'true',
   'X-CallbackToken':'string',
   'X-WaitForStatus':'0',
   'X-WaitFor':'string',
@@ -580,6 +583,7 @@ func main() {
         "X-SkipFeeValidation": []string{"true"},
         "X-SkipScriptValidation": []string{"true"},
         "X-SkipTxValidation": []string{"true"},
+        "X-CumulativeFeeValidation": []string{"true"},
         "X-CallbackToken": []string{"string"},
         "X-WaitForStatus": []string{"0"},
         "X-WaitFor": []string{"string"},
@@ -610,6 +614,7 @@ headers = {
   'X-SkipFeeValidation' => 'true',
   'X-SkipScriptValidation' => 'true',
   'X-SkipTxValidation' => 'true',
+  'X-CumulativeFeeValidation' => 'true',
   'X-CallbackToken' => 'string',
   'X-WaitForStatus' => '0',
   'X-WaitFor' => 'string',
@@ -635,6 +640,7 @@ headers = {
   'X-SkipFeeValidation': 'true',
   'X-SkipScriptValidation': 'true',
   'X-SkipTxValidation': 'true',
+  'X-CumulativeFeeValidation': 'true',
   'X-CallbackToken': 'string',
   'X-WaitForStatus': '0',
   'X-WaitFor': 'string',
@@ -658,6 +664,7 @@ curl -X POST https://tapi.taal.com/arc/v1/tx \
   -H 'X-SkipFeeValidation: true' \
   -H 'X-SkipScriptValidation: true' \
   -H 'X-SkipTxValidation: true' \
+  -H 'X-CumulativeFeeValidation: true' \
   -H 'X-CallbackToken: string' \
   -H 'X-WaitForStatus: 0' \
   -H 'X-WaitFor: string' \
@@ -695,6 +702,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |X-SkipFeeValidation|header|boolean|false|Whether we should skip fee validation or not.|
 |X-SkipScriptValidation|header|boolean|false|Whether we should skip script validation or not.|
 |X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
+|X-CumulativeFeeValidation|header|boolean|false|Whether we should perform cumulative fee validation for fee consolidation txs or not.|
 |X-CallbackToken|header|string|false|Access token for notification callback endpoint. It will be used as a Authorization header for the http callback|
 |X-WaitForStatus|header|integer|false|DEPRECATED, soon will become unsupported, please use 'X-WaitFor' header. Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
 |X-WaitFor|header|string|false|Which status to wait for from the server before returning ('QUEUED', 'RECEIVED', 'STORED', 'ANNOUNCED_TO_NETWORK', 'REQUESTED_BY_NETWORK', 'SENT_TO_NETWORK', 'ACCEPTED_BY_NETWORK', 'SEEN_ON_NETWORK')|
@@ -776,6 +784,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |467|Unknown|Mined ancestors not found in BEEF|[ErrorMinedAncestorsNotFound](#schemaerrorminedancestorsnotfound)|
 |468|Unknown|Invalid BUMPs in BEEF|[ErrorCalculatingMerkleRoots](#schemaerrorcalculatingmerkleroots)|
 |469|Unknown|Invalid Merkle Roots|[ErrorValidatingMerkleRoots](#schemaerrorvalidatingmerkleroots)|
+|473|Unknown|Cumulative Fee validation failed|[ErrorCumulativeFees](#schemaerrorcumulativefees)|
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
@@ -799,6 +808,7 @@ X-MaxTimeout: 0
 X-SkipFeeValidation: true
 X-SkipScriptValidation: true
 X-SkipTxValidation: true
+X-CumulativeFeeValidation: true
 X-CallbackToken: string
 X-WaitForStatus: 0
 X-WaitFor: string
@@ -817,6 +827,7 @@ const headers = {
   'X-SkipFeeValidation':'true',
   'X-SkipScriptValidation':'true',
   'X-SkipTxValidation':'true',
+  'X-CumulativeFeeValidation':'true',
   'X-CallbackToken':'string',
   'X-WaitForStatus':'0',
   'X-WaitFor':'string',
@@ -873,6 +884,7 @@ func main() {
         "X-SkipFeeValidation": []string{"true"},
         "X-SkipScriptValidation": []string{"true"},
         "X-SkipTxValidation": []string{"true"},
+        "X-CumulativeFeeValidation": []string{"true"},
         "X-CallbackToken": []string{"string"},
         "X-WaitForStatus": []string{"0"},
         "X-WaitFor": []string{"string"},
@@ -903,6 +915,7 @@ headers = {
   'X-SkipFeeValidation' => 'true',
   'X-SkipScriptValidation' => 'true',
   'X-SkipTxValidation' => 'true',
+  'X-CumulativeFeeValidation' => 'true',
   'X-CallbackToken' => 'string',
   'X-WaitForStatus' => '0',
   'X-WaitFor' => 'string',
@@ -928,6 +941,7 @@ headers = {
   'X-SkipFeeValidation': 'true',
   'X-SkipScriptValidation': 'true',
   'X-SkipTxValidation': 'true',
+  'X-CumulativeFeeValidation': 'true',
   'X-CallbackToken': 'string',
   'X-WaitForStatus': '0',
   'X-WaitFor': 'string',
@@ -951,6 +965,7 @@ curl -X POST https://tapi.taal.com/arc/v1/txs \
   -H 'X-SkipFeeValidation: true' \
   -H 'X-SkipScriptValidation: true' \
   -H 'X-SkipTxValidation: true' \
+  -H 'X-CumulativeFeeValidation: true' \
   -H 'X-CallbackToken: string' \
   -H 'X-WaitForStatus: 0' \
   -H 'X-WaitFor: string' \
@@ -992,6 +1007,7 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 |X-SkipFeeValidation|header|boolean|false|Whether we should skip fee validation or not.|
 |X-SkipScriptValidation|header|boolean|false|Whether we should skip script validation or not.|
 |X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
+|X-CumulativeFeeValidation|header|boolean|false|Whether we should perform cumulative fee validation for fee consolidation txs or not.|
 |X-CallbackToken|header|string|false|Access token for notification callback endpoint. It will be used as a Authorization header for the http callback|
 |X-WaitForStatus|header|integer|false|DEPRECATED, soon will become unsupported, please use 'X-WaitFor' header. Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
 |X-WaitFor|header|string|false|Which status to wait for from the server before returning ('QUEUED', 'RECEIVED', 'STORED', 'ANNOUNCED_TO_NETWORK', 'REQUESTED_BY_NETWORK', 'SENT_TO_NETWORK', 'ACCEPTED_BY_NETWORK', 'SEEN_ON_NETWORK')|
@@ -1078,6 +1094,7 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 |467|Unknown|Mined ancestors not found in BEEF|[ErrorMinedAncestorsNotFound](#schemaerrorminedancestorsnotfound)|
 |468|Unknown|Invalid BUMPs in BEEF|[ErrorCalculatingMerkleRoots](#schemaerrorcalculatingmerkleroots)|
 |469|Unknown|Invalid Merkle Roots|[ErrorValidatingMerkleRoots](#schemaerrorvalidatingmerkleroots)|
+|473|Unknown|Cumulative Fee too low|[ErrorCumulativeFees](#schemaerrorcumulativefees)|
 
 <aside class="warning">
 To perform this operation, you must be authenticated by means of one of the following methods:
@@ -1284,7 +1301,8 @@ and
   "extraInfo": "string",
   "txStatus": "string",
   "txid": "string",
-  "merklePath": "string"
+  "merklePath": "string",
+  "competingTxs": null
 }
 
 ```
@@ -1318,6 +1336,7 @@ and
 |» txStatus|string|true|none|Transaction status|
 |» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in  BUMP format [BRC-74](https://brc.dev/74)|
 |» extraInfo|string¦null|true|none|Extra info|
+|» competingTxs|[string]¦null|false|none|none|
 
 <h2 id="tocS_TransactionStatus">TransactionStatus</h2>
 <!-- backwards compatibility -->
@@ -1334,7 +1353,8 @@ and
   "txid": "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e",
   "merklePath": "string",
   "txStatus": "MINED",
-  "extraInfo": null
+  "extraInfo": null,
+  "competingTxs": null
 }
 
 ```
@@ -1362,6 +1382,7 @@ and
 |» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)|
 |» txStatus|string|false|none|Transaction status|
 |» extraInfo|string¦null|false|none|Extra information about the transaction|
+|» competingTxs|[string]¦null|false|none|none|
 
 <h2 id="tocS_TransactionSubmitStatus">TransactionSubmitStatus</h2>
 <!-- backwards compatibility -->
@@ -1490,6 +1511,7 @@ and
 |» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)|
 |» txStatus|string|false|none|Transaction status|
 |» extraInfo|string¦null|false|none|Extra information about the transaction|
+|» competingTxs|[string]¦null|false|none|none|
 
 #### Enumerated Values
 
@@ -1501,9 +1523,11 @@ and
 |txStatus|ANNOUNCED_TO_NETWORK|
 |txStatus|REQUESTED_BY_NETWORK|
 |txStatus|SENT_TO_NETWORK|
+|txStatus|ACCEPTED_BY_NETWORK|
 |txStatus|SEEN_ON_NETWORK|
+|txStatus|SEEN_IN_ORPHAN_MEMPOOL|
+|txStatus|DOUBLE_SPEND_ATTEMPTED|
 |txStatus|MINED|
-|txStatus|CONFIRMED|
 |txStatus|REJECTED|
 
 <h2 id="tocS_Error">Error</h2>
@@ -2163,6 +2187,45 @@ and
 |» detail|any|false|none|none|
 |» instance|any|false|none|none|
 
+<h2 id="tocS_ErrorCumulativeFees">ErrorCumulativeFees</h2>
+<!-- backwards compatibility -->
+<a id="schemaerrorcumulativefees"></a>
+<a id="schema_ErrorCumulativeFees"></a>
+<a id="tocSerrorcumulativefees"></a>
+<a id="tocserrorcumulativefees"></a>
+
+```json
+{
+  "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_473",
+  "title": "Cumulative fee too low",
+  "status": 473,
+  "detail": "The cumulative fee is too low",
+  "instance": "https://arc.taal.com/errors/123452",
+  "txid": "string",
+  "extraInfo": "string"
+}
+
+```
+
+### Properties
+
+allOf
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|[ErrorFields](#schemaerrorfields)|false|none|none|
+
+and
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|object|false|none|none|
+|» type|any|false|none|none|
+|» title|any|false|none|none|
+|» status|any|false|none|none|
+|» detail|any|false|none|none|
+|» instance|any|false|none|none|
+
 <h2 id="tocS_ErrorFields">ErrorFields</h2>
 <!-- backwards compatibility -->
 <a id="schemaerrorfields"></a>
@@ -2194,4 +2257,3 @@ and
 |instance|string¦null|false|none|(Optional) Link to actual error on server|
 |txid|string¦null|false|none|Transaction ID this error is referring to|
 |extraInfo|string¦null|false|none|Optional extra information about the error from the miner|
-

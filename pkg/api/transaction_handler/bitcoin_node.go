@@ -4,10 +4,9 @@ import (
 	"context"
 	"encoding/hex"
 
-	"github.com/libsv/go-bt/v2"
-
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
 )
 
@@ -44,6 +43,31 @@ func (b *BitcoinNode) GetTransaction(_ context.Context, txID string) (txBytes []
 	return txBytes, nil
 }
 
+// GetTransactions gets a raw transactions from the bitcoin node.
+func (b *BitcoinNode) GetTransactions(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+	txs := make([]*metamorph.Transaction, 0, len(txIDs))
+
+	for _, id := range txIDs {
+		rawTx, err := b.Node.GetRawTransaction(id)
+		if err != nil {
+			return nil, err
+		}
+		txBytes, err := hex.DecodeString(rawTx.Hex)
+		if err != nil {
+			return nil, err
+		}
+
+		mtx := metamorph.Transaction{
+			TxID:        rawTx.TxID,
+			BlockHeight: rawTx.BlockHeight,
+			Bytes:       txBytes,
+		}
+		txs = append(txs, &mtx)
+	}
+
+	return txs, nil
+}
+
 func (b *BitcoinNode) Health(_ context.Context) error {
 	return nil
 }
@@ -71,7 +95,7 @@ func (b *BitcoinNode) GetTransactionStatus(_ context.Context, txID string) (stat
 }
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
-func (b *BitcoinNode) SubmitTransaction(ctx context.Context, tx *bt.Tx, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
+func (b *BitcoinNode) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 	txID, err := b.Node.SendRawTransaction(hex.EncodeToString(tx.Bytes()))
 	if err != nil {
 		return nil, err
@@ -92,7 +116,7 @@ func (b *BitcoinNode) SubmitTransaction(ctx context.Context, tx *bt.Tx, options 
 }
 
 // SubmitTransactions submits a list of transaction to the bitcoin network and returns the transaction statuses.
-func (b *BitcoinNode) SubmitTransactions(ctx context.Context, txs []*bt.Tx, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+func (b *BitcoinNode) SubmitTransactions(ctx context.Context, txs sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 	statuses := make([]*metamorph.TransactionStatus, 0, len(txs))
 	for _, tx := range txs {
 		txID, err := b.Node.SendRawTransaction(hex.EncodeToString(tx.Bytes()))

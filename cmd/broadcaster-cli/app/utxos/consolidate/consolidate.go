@@ -3,33 +3,22 @@ package consolidate
 import (
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"os/signal"
+
+	"github.com/spf13/cobra"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
-	"github.com/spf13/cobra"
 )
 
 var Cmd = &cobra.Command{
 	Use:   "consolidate",
 	Short: "Consolidate UTXO set to 1 output",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fullStatusUpdates, err := helper.GetBool("fullStatusUpdates")
-		if err != nil {
-			return err
-		}
-
 		isTestnet, err := helper.GetBool("testnet")
-		if err != nil {
-			return err
-		}
-
-		callbackURL, err := helper.GetString("callback")
-		if err != nil {
-			return err
-		}
-
-		callbackToken, err := helper.GetString("callbackToken")
 		if err != nil {
 			return err
 		}
@@ -39,7 +28,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		keySets, err := helper.GetKeySets()
+		keySetsMap, err := helper.GetSelectedKeySets()
 		if err != nil {
 			return err
 		}
@@ -69,26 +58,59 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to create client: %v", err)
 		}
-		if err != nil {
-			return fmt.Errorf("failed to create client: %v", err)
-		}
 
-		wocClient := woc_client.New(woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
+		names := helper.GetOrderedKeys(keySetsMap)
 
-		rateBroadcaster, err := broadcaster.NewUTXOConsolidator(logger, client, keySets, wocClient, isTestnet,
-			broadcaster.WithFees(miningFeeSat),
-			broadcaster.WithCallback(callbackURL, callbackToken),
-			broadcaster.WithFullstatusUpdates(fullStatusUpdates),
-		)
-		if err != nil {
-			return fmt.Errorf("failed to create broadcaster: %v", err)
-		}
+		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
+		cs := make([]broadcaster.Consolidator, 0, len(keySetsMap))
+		for _, keyName := range names {
+			ks := keySetsMap[keyName]
+			c, err := broadcaster.NewUTXOConsolidator(logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)), client, ks, wocClient, isTestnet, broadcaster.WithFees(miningFeeSat))
+			if err != nil {
+				return err
+			}
 
-		err = rateBroadcaster.Consolidate()
-		if err != nil {
-			return fmt.Errorf("failed to consolidate utxos: %v", err)
+			cs = append(cs, c)
 		}
+		consolidator := broadcaster.NewMultiKeyUtxoConsolidator(logger, cs)
+
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, os.Interrupt) // Listen for Ctrl+C
+
+		go func() {
+			<-signalChan
+			consolidator.Shutdown()
+		}()
+
+		logger.Info("Starting consolidator")
+		consolidator.Start()
 
 		return nil
 	},
+}
+
+func init() {
+	logger := helper.GetLogger()
+
+	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
+		// Hide unused persistent flags
+		err := command.Flags().MarkHidden("fullStatusUpdates")
+		if err != nil {
+			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+		}
+		err = command.Flags().MarkHidden("callback")
+		if err != nil {
+			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+		}
+		err = command.Flags().MarkHidden("callbackToken")
+		if err != nil {
+			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+		}
+		err = command.Flags().MarkHidden("satoshis")
+		if err != nil {
+			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+		}
+		// Call parent help func
+		command.Parent().HelpFunc()(command, strings)
+	})
 }

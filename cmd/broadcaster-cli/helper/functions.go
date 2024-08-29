@@ -1,17 +1,20 @@
 package helper
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/lmittmann/tint"
 
+	"github.com/spf13/viper"
+
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/spf13/viper"
 )
 
 func CreateClient(auth *broadcaster.Auth, arcServer string) (broadcaster.ArcClient, error) {
@@ -76,6 +79,16 @@ func GetUint64(settingName string) (uint64, error) {
 	return getSettingFromEnvFile[uint64](settingName)
 }
 
+func GetUint32(settingName string) (uint32, error) {
+
+	setting := viper.GetUint32(settingName)
+	if setting != 0 {
+		return setting, nil
+	}
+
+	return getSettingFromEnvFile[uint32](settingName)
+}
+
 func GetInt64(settingName string) (int64, error) {
 
 	setting := viper.GetInt64(settingName)
@@ -136,11 +149,11 @@ func GetLogger() *slog.Logger {
 	return slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelDebug}))
 }
 
-func GetKeySetsFor(keys map[string]string, selectedKeys []string) ([]*keyset.KeySet, error) {
-	var keySets []*keyset.KeySet
+func GetKeySetsFor(keys map[string]string, selectedKeys []string) (map[string]*keyset.KeySet, error) {
+	keySets := map[string]*keyset.KeySet{}
 
 	if len(keys) == 0 {
-		return nil, fmt.Errorf("no keys given in configuration")
+		return nil, errors.New("no keys given in configuration")
 	}
 
 	if len(selectedKeys) > 0 {
@@ -154,7 +167,7 @@ func GetKeySetsFor(keys map[string]string, selectedKeys []string) ([]*keyset.Key
 			if err != nil {
 				return nil, fmt.Errorf("failed to get selected key set %s: %v", selectedKey, err)
 			}
-			keySets = append(keySets, fundingKeySet)
+			keySets[selectedKey] = fundingKeySet
 		}
 		return keySets, nil
 	}
@@ -164,7 +177,7 @@ func GetKeySetsFor(keys map[string]string, selectedKeys []string) ([]*keyset.Key
 		if err != nil {
 			return nil, fmt.Errorf("failed to get key set with name %s and value %s: %v", name, key, err)
 		}
-		keySets = append(keySets, fundingKeySet)
+		keySets[name] = fundingKeySet
 	}
 	return keySets, nil
 }
@@ -187,7 +200,7 @@ func GetSelectedKeys() ([]string, error) {
 	return keys, nil
 }
 
-func GetKeySets() ([]*keyset.KeySet, error) {
+func GetSelectedKeySets() (map[string]*keyset.KeySet, error) {
 	selectedKeys, err := GetSelectedKeys()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get selected keys: %v", err)
@@ -199,8 +212,42 @@ func GetKeySets() ([]*keyset.KeySet, error) {
 	}
 
 	if len(keys) == 0 {
-		return nil, fmt.Errorf("no keys given in configuration")
+		return nil, errors.New("no keys given in configuration")
 	}
 
 	return GetKeySetsFor(keys, selectedKeys)
+}
+
+func GetAllKeySets() (map[string]*keyset.KeySet, error) {
+	keys, err := GetPrivateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get private keys: %v", err)
+	}
+
+	if len(keys) == 0 {
+		return nil, errors.New("no keys given in configuration")
+	}
+	keySets := map[string]*keyset.KeySet{}
+
+	for name, key := range keys {
+		fundingKeySet, _, err := GetKeySetsXpriv(key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get key set with name %s and value %s: %v", name, key, err)
+		}
+		keySets[name] = fundingKeySet
+	}
+
+	return keySets, nil
+}
+
+func GetOrderedKeys[T any](keysMap map[string]T) []string {
+
+	var keys []string
+
+	for key := range keysMap {
+		keys = append(keys, key)
+	}
+
+	sort.Strings(keys)
+	return keys
 }

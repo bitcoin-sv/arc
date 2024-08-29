@@ -4,6 +4,7 @@
 package mocks
 
 import (
+	"context"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/libsv/go-p2p"
 	"sync"
@@ -25,13 +26,10 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //			GetProcessorMapSizeFunc: func() int {
 //				panic("mock out the GetProcessorMapSize method")
 //			},
-//			GetStatusNotSeenFunc: func() int64 {
-//				panic("mock out the GetStatusNotSeen method")
-//			},
 //			HealthFunc: func() error {
 //				panic("mock out the Health method")
 //			},
-//			ProcessTransactionFunc: func(req *metamorph.ProcessorRequest)  {
+//			ProcessTransactionFunc: func(ctx context.Context, req *metamorph.ProcessorRequest)  {
 //				panic("mock out the ProcessTransaction method")
 //			},
 //			ShutdownFunc: func()  {
@@ -50,14 +48,11 @@ type ProcessorIMock struct {
 	// GetProcessorMapSizeFunc mocks the GetProcessorMapSize method.
 	GetProcessorMapSizeFunc func() int
 
-	// GetStatusNotSeenFunc mocks the GetStatusNotSeen method.
-	GetStatusNotSeenFunc func() int64
-
 	// HealthFunc mocks the Health method.
 	HealthFunc func() error
 
 	// ProcessTransactionFunc mocks the ProcessTransaction method.
-	ProcessTransactionFunc func(req *metamorph.ProcessorRequest)
+	ProcessTransactionFunc func(ctx context.Context, req *metamorph.ProcessorRequest)
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func()
@@ -70,14 +65,13 @@ type ProcessorIMock struct {
 		// GetProcessorMapSize holds details about calls to the GetProcessorMapSize method.
 		GetProcessorMapSize []struct {
 		}
-		// GetStatusNotSeen holds details about calls to the GetStatusNotSeen method.
-		GetStatusNotSeen []struct {
-		}
 		// Health holds details about calls to the Health method.
 		Health []struct {
 		}
 		// ProcessTransaction holds details about calls to the ProcessTransaction method.
 		ProcessTransaction []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 			// Req is the req argument value.
 			Req *metamorph.ProcessorRequest
 		}
@@ -87,7 +81,6 @@ type ProcessorIMock struct {
 	}
 	lockGetPeers            sync.RWMutex
 	lockGetProcessorMapSize sync.RWMutex
-	lockGetStatusNotSeen    sync.RWMutex
 	lockHealth              sync.RWMutex
 	lockProcessTransaction  sync.RWMutex
 	lockShutdown            sync.RWMutex
@@ -147,33 +140,6 @@ func (mock *ProcessorIMock) GetProcessorMapSizeCalls() []struct {
 	return calls
 }
 
-// GetStatusNotSeen calls GetStatusNotSeenFunc.
-func (mock *ProcessorIMock) GetStatusNotSeen() int64 {
-	if mock.GetStatusNotSeenFunc == nil {
-		panic("ProcessorIMock.GetStatusNotSeenFunc: method is nil but ProcessorI.GetStatusNotSeen was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockGetStatusNotSeen.Lock()
-	mock.calls.GetStatusNotSeen = append(mock.calls.GetStatusNotSeen, callInfo)
-	mock.lockGetStatusNotSeen.Unlock()
-	return mock.GetStatusNotSeenFunc()
-}
-
-// GetStatusNotSeenCalls gets all the calls that were made to GetStatusNotSeen.
-// Check the length with:
-//
-//	len(mockedProcessorI.GetStatusNotSeenCalls())
-func (mock *ProcessorIMock) GetStatusNotSeenCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockGetStatusNotSeen.RLock()
-	calls = mock.calls.GetStatusNotSeen
-	mock.lockGetStatusNotSeen.RUnlock()
-	return calls
-}
-
 // Health calls HealthFunc.
 func (mock *ProcessorIMock) Health() error {
 	if mock.HealthFunc == nil {
@@ -202,19 +168,21 @@ func (mock *ProcessorIMock) HealthCalls() []struct {
 }
 
 // ProcessTransaction calls ProcessTransactionFunc.
-func (mock *ProcessorIMock) ProcessTransaction(req *metamorph.ProcessorRequest) {
+func (mock *ProcessorIMock) ProcessTransaction(ctx context.Context, req *metamorph.ProcessorRequest) {
 	if mock.ProcessTransactionFunc == nil {
 		panic("ProcessorIMock.ProcessTransactionFunc: method is nil but ProcessorI.ProcessTransaction was just called")
 	}
 	callInfo := struct {
+		Ctx context.Context
 		Req *metamorph.ProcessorRequest
 	}{
+		Ctx: ctx,
 		Req: req,
 	}
 	mock.lockProcessTransaction.Lock()
 	mock.calls.ProcessTransaction = append(mock.calls.ProcessTransaction, callInfo)
 	mock.lockProcessTransaction.Unlock()
-	mock.ProcessTransactionFunc(req)
+	mock.ProcessTransactionFunc(ctx, req)
 }
 
 // ProcessTransactionCalls gets all the calls that were made to ProcessTransaction.
@@ -222,9 +190,11 @@ func (mock *ProcessorIMock) ProcessTransaction(req *metamorph.ProcessorRequest) 
 //
 //	len(mockedProcessorI.ProcessTransactionCalls())
 func (mock *ProcessorIMock) ProcessTransactionCalls() []struct {
+	Ctx context.Context
 	Req *metamorph.ProcessorRequest
 } {
 	var calls []struct {
+		Ctx context.Context
 		Req *metamorph.ProcessorRequest
 	}
 	mock.lockProcessTransaction.RLock()

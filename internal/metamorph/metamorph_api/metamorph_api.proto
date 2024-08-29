@@ -31,6 +31,7 @@ service MetaMorphAPI {
   rpc PutTransaction (TransactionRequest) returns (TransactionStatus) {}
   rpc PutTransactions (TransactionRequests) returns (TransactionStatuses) {}
   rpc GetTransaction (TransactionStatusRequest) returns (Transaction) {}
+  rpc GetTransactions (TransactionsStatusRequest) returns (Transactions) {}
   rpc GetTransactionStatus (TransactionStatusRequest) returns (TransactionStatus) {}
   rpc SetUnlockedByName (SetUnlockedByNameRequest) returns (SetUnlockedByNameResponse) {}
   rpc ClearData (ClearDataRequest) returns (ClearDataResponse) {}
@@ -73,9 +74,10 @@ message Transaction {
   string txid = 5;
   Status status = 6;
   string reject_reason = 7;
-  uint64 block_height = 8;
-  string block_hash = 9;
-  bytes raw_tx = 10;
+	repeated string competingTxs = 8;
+  uint64 block_height = 9;
+  string block_hash = 10;
+  bytes raw_tx = 11;
 }
 
 // swagger:model TransactionStatus
@@ -87,9 +89,10 @@ message TransactionStatus {
   string txid = 5;
   Status status = 6;
   string reject_reason = 7;
-  uint64 block_height = 8;
-  string block_hash = 9;
-  string merkle_path = 10;
+	repeated string competingTxs = 8;
+  uint64 block_height = 9;
+  string block_hash = 10;
+  string merkle_path = 11;
 }
 
 // swagger:model TransactionStatuses
@@ -120,4 +123,14 @@ message ClearDataRequest {
 // swagger:model ClearDataResponse
 message ClearDataResponse {
   int64 records_affected = 1;
+}
+
+// swagger:model TransactionsStatusRequest
+message TransactionsStatusRequest {
+  repeated string txIDs = 1;
+}
+
+// swagger:model Transactions
+message Transactions {
+  repeated Transaction transactions = 1;
 }

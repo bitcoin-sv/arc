@@ -39,7 +39,7 @@ metamorph:
     postgres:
       host: db
       port: 5432
-      name: blocktx
+      name: main
       user: arcuser
       password: arcpass
       maxIdleConns: 10
@@ -70,7 +70,7 @@ blocktx:
     postgres:
       host: db
       port: 5432
-      name: blocktx
+      name: main
       user: arcuser
       password: arcpass
       maxIdleConns: 10
@@ -115,3 +115,9 @@ api:
     minconfconsolidationinput: 6
     minconsolidationinputmaturity: 6
     acceptnonstdconsolidationinput: false
+
+callbacker:
+  listenAddr: 0.0.0.0:8021
+  dialAddr: arc-callbacker:8021
+  health:
+    serverDialAddr: localhost:8022

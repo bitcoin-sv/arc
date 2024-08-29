@@ -1,7 +1,6 @@
 package broadcaster_test
 
 import (
-	"context"
 	"errors"
 	"log/slog"
 	"os"
@@ -10,30 +9,23 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/bitcoin-sv/arc/pkg/keyset"
-	"github.com/libsv/go-bt/v2"
-	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMultiRateBroadcasterStart(t *testing.T) {
 
 	tt := []struct {
-		name     string
-		startErr error
-
-		expectedErrorStr string
+		name          string
+		startErr      error
+		expectedError string
 	}{
 		{
-			name: "start and shutdown",
+			name: "start and shutdown successfully",
 		},
 		{
-			name:     "error - failed to start",
-			startErr: errors.New("failed to start"),
-
-			expectedErrorStr: "failed to start",
+			name:          "error - failed to start",
+			startErr:      errors.New("failed to start"),
+			expectedError: "failed to start",
 		},
 	}
 
@@ -42,129 +34,38 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-			cs := []broadcaster.RateBroadcaster{
-				&mocks.RateBroadcasterMock{
-					StartFunc:              func() error { return nil },
-					WaitFunc:               func() {},
-					ShutdownFunc:           func() {},
-					GetTxCountFunc:         func() int64 { return 5 },
-					GetConnectionCountFunc: func() int64 { return 2 },
-					GetLimitFunc:           func() int64 { return 100 },
-					GetUtxoSetLenFunc:      func() int { return 1000 },
-				},
-				&mocks.RateBroadcasterMock{
-					StartFunc:              func() error { return tc.startErr },
-					WaitFunc:               func() {},
-					ShutdownFunc:           func() {},
-					GetTxCountFunc:         func() int64 { return 10 },
-					GetConnectionCountFunc: func() int64 { return 1 },
-					GetLimitFunc:           func() int64 { return 200 },
-					GetUtxoSetLenFunc:      func() int { return 1000 },
-				},
+			rateBroadcaster1 := &mocks.RateBroadcasterMock{
+				StartFunc:              func() error { return nil },
+				WaitFunc:               func() {},
+				ShutdownFunc:           func() {},
+				GetTxCountFunc:         func() int64 { return 5 },
+				GetConnectionCountFunc: func() int64 { return 2 },
+				GetLimitFunc:           func() int64 { return 100 },
+				GetUtxoSetLenFunc:      func() int { return 1000 },
 			}
 
-			mcs := broadcaster.NewMultiKeyRateBroadcaster(logger, cs, broadcaster.WithLogInterval(20*time.Millisecond))
+			rateBroadcaster2 := &mocks.RateBroadcasterMock{
+				StartFunc:              func() error { return tc.startErr },
+				WaitFunc:               func() {},
+				ShutdownFunc:           func() {},
+				GetTxCountFunc:         func() int64 { return 10 },
+				GetConnectionCountFunc: func() int64 { return 1 },
+				GetLimitFunc:           func() int64 { return 200 },
+				GetUtxoSetLenFunc:      func() int { return 1000 },
+			}
+
+			mcs := broadcaster.NewMultiKeyRateBroadcaster(logger, []broadcaster.RateBroadcaster{rateBroadcaster1, rateBroadcaster2})
+
 			err := mcs.Start()
 			defer mcs.Shutdown()
 
-			if tc.expectedErrorStr != "" || err != nil {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
-				return
+			if tc.expectedError != "" {
+				require.ErrorContains(t, err, tc.expectedError)
 			} else {
 				require.NoError(t, err)
 			}
 
 			time.Sleep(50 * time.Millisecond)
-		})
-	}
-
-}
-
-
-func TestMultiKeyRateBroadcaster_Start(t *testing.T) {
-	ks1, err := keyset.New()
-	require.NoError(t, err)
-
-	ks2, err := keyset.New()
-	require.NoError(t, err)
-
-	utxo1 := &bt.UTXO{
-		TxID:          testdata.TX1Hash[:],
-		Vout:          0,
-		LockingScript: ks1.Script,
-		Satoshis:      1000,
-	}
-	utxo2 := &bt.UTXO{
-		TxID:          testdata.TX2Hash[:],
-		Vout:          0,
-		LockingScript: ks2.Script,
-		Satoshis:      1000,
-	}
-
-	tt := []struct {
-		name                     string
-		getBalanceWithRetriesErr error
-		getUTXOsWithRetriesErr   error
-
-		expectedBroadcastTransactionsCalls int
-		expectedErrorStr                   string
-	}{
-		{
-			name: "success",
-
-			expectedBroadcastTransactionsCalls: 2,
-		},
-		{
-			name:                     "error - failed to get balance",
-			getBalanceWithRetriesErr: errors.New("utxo client error"),
-
-			expectedErrorStr:                   "failed to get balance",
-			expectedBroadcastTransactionsCalls: 0,
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-
-			utxoClient := &mocks.UtxoClientMock{
-				GetBalanceWithRetriesFunc: func(ctx context.Context, mainnet bool, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error) {
-					return 1000, 0, tc.getBalanceWithRetriesErr
-				},
-				GetUTXOsWithRetriesFunc: func(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) ([]*bt.UTXO, error) {
-					return []*bt.UTXO{utxo1, utxo2}, tc.getUTXOsWithRetriesErr
-				},
-			}
-
-			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-			client := &mocks.ArcClientMock{
-				BroadcastTransactionsFunc: func(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
-					var statuses []*metamorph_api.TransactionStatus
-
-					for _, tx := range txs {
-						statuses = append(statuses, &metamorph_api.TransactionStatus{
-							Txid:   tx.TxID(),
-							Status: metamorph_api.Status_SEEN_ON_NETWORK,
-						})
-					}
-
-					return statuses, nil
-				},
-			}
-
-			mrb, err := broadcaster.NewMultiKeyRateBroadcaster(logger, client, []*keyset.KeySet{ks1, ks2}, utxoClient, false, broadcaster.WithBatchSize(2))
-			require.NoError(t, err)
-
-			err = mrb.Start(10, 50)
-			if tc.expectedErrorStr != "" || err != nil {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
-				return
-			} else {
-				require.NoError(t, err)
-			}
-
-			time.Sleep(500 * time.Millisecond)
-
-			mrb.Shutdown()
 		})
 	}
 }

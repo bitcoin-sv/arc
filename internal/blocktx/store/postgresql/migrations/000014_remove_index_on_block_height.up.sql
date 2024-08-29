@@ -1,1 +1,1 @@
-DROP INDEX pux_blocks_height;
+DROP INDEX blocktx.pux_blocks_height;

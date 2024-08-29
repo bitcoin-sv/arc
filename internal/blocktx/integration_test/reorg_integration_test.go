@@ -138,7 +138,6 @@ func TestBlockStatus(t *testing.T) {
 	}
 
 	defer require.NoError(t, pruneTables(dbConn))
-	require.NoError(t, loadFixtures(dbConn, "fixtures"))
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
@@ -154,14 +153,48 @@ func TestBlockStatus(t *testing.T) {
 
 	processor.StartBlockProcessing()
 
-	prevBlockHash := revChainhash(t, "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000")
+	// test for empty database edge case before inserting fixtures
+	prevBlockHash := revChainhash(t, "00000000000000000a00c377b260a3219b0c314763f486bc363df7aa7e22ad72")
 	txHash, err := chainhash.NewHashFromStr("be181e91217d5f802f695e52144078f8dfbe51b8a815c3d6fb48c0d853ec683b")
 	require.NoError(t, err)
 	merkleRoot, err := chainhash.NewHashFromStr("be181e91217d5f802f695e52144078f8dfbe51b8a815c3d6fb48c0d853ec683b")
 	require.NoError(t, err)
 
-	// should become STALE
+	// should become LONGEST
 	blockMessage := &p2p.BlockMessage{
+		Header: &wire.BlockHeader{
+			Version:    541065216,
+			PrevBlock:  *prevBlockHash, // NON-existant in the db
+			MerkleRoot: *merkleRoot,
+			Bits:       0x1d00ffff,
+		},
+		Height:            uint64(822011),
+		TransactionHashes: []*chainhash.Hash{txHash},
+	}
+
+	err = peerHandler.HandleBlock(blockMessage, nil)
+	require.NoError(t, err)
+	// Allow DB to process the block
+	time.Sleep(200 * time.Millisecond)
+
+	blockHash := blockMessage.Header.BlockHash()
+
+	block, err := blocktxStore.GetBlock(context.Background(), &blockHash)
+	require.NoError(t, err)
+	require.Equal(t, uint64(822011), block.Height)
+	require.Equal(t, blocktx_api.Status_LONGEST, block.Status)
+
+	// only load fixtures at this point
+	require.NoError(t, loadFixtures(dbConn, "fixtures"))
+
+	prevBlockHash = revChainhash(t, "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000")
+	txHash, err = chainhash.NewHashFromStr("be181e91217d5f802f695e52144078f8dfbe51b8a815c3d6fb48c0d853ec683b")
+	require.NoError(t, err)
+	merkleRoot, err = chainhash.NewHashFromStr("be181e91217d5f802f695e52144078f8dfbe51b8a815c3d6fb48c0d853ec683b")
+	require.NoError(t, err)
+
+	// should become STALE
+	blockMessage = &p2p.BlockMessage{
 		Header: &wire.BlockHeader{
 			Version:    541065216,
 			PrevBlock:  *prevBlockHash, // block with status LONGEST at height 822014
@@ -177,9 +210,9 @@ func TestBlockStatus(t *testing.T) {
 	// Allow DB to process the block
 	time.Sleep(200 * time.Millisecond)
 
-	blockHash := blockMessage.Header.BlockHash()
+	blockHash = blockMessage.Header.BlockHash()
 
-	block, err := blocktxStore.GetBlock(context.Background(), &blockHash)
+	block, err = blocktxStore.GetBlock(context.Background(), &blockHash)
 	require.NoError(t, err)
 	require.Equal(t, uint64(822015), block.Height)
 	require.Equal(t, blocktx_api.Status_STALE, block.Status)

@@ -31,7 +31,7 @@ func extractHeightFromCoinbaseTx(tx *sdkTx.Transaction) uint64 {
 	return binary.LittleEndian.Uint64(b)
 }
 
-func createBlock(msg *p2p.BlockMessage, prevBlock *blocktx_api.Block) *blocktx_api.Block {
+func createBlock(msg *p2p.BlockMessage, prevBlock *blocktx_api.Block, longestTipExists bool) *blocktx_api.Block {
 	hash := msg.Header.BlockHash()
 	prevHash := msg.Header.PrevBlock
 	merkleRoot := msg.Header.MerkleRoot
@@ -39,7 +39,11 @@ func createBlock(msg *p2p.BlockMessage, prevBlock *blocktx_api.Block) *blocktx_a
 
 	var status blocktx_api.Status
 	if prevBlock == nil {
-		status = blocktx_api.Status_ORPHANED
+		if longestTipExists {
+			status = blocktx_api.Status_ORPHANED
+		} else {
+			status = blocktx_api.Status_LONGEST
+		}
 	} else {
 		status = prevBlock.Status
 	}

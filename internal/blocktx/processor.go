@@ -409,7 +409,18 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) {
 		return
 	}
 
-	incomingBlock := createBlock(msg, prevBlock)
+	longestTipExists := true
+	if prevBlock == nil {
+		// This check is only in case there's a fresh, empty database
+		// with no blocks, to mark the first block as the LONGEST chain
+		longestTipExists, err = p.longestTipExists(ctx)
+		if err != nil {
+			p.logger.Error("unable to verify the longest tip existance in db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
+			return
+		}
+	}
+
+	incomingBlock := createBlock(msg, prevBlock, longestTipExists)
 
 	competing, err := p.competingChainsExist(ctx, incomingBlock)
 	if err != nil {
@@ -488,6 +499,29 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) {
 	p.logger.Info("Processed block", slog.String("hash", blockHash.String()), slog.Int("txs", len(msg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))
 }
 
+func (p *Processor) createBlock(msg *p2p.BlockMessage, prevBlock *blocktx_api.Block) *blocktx_api.Block {
+	hash := msg.Header.BlockHash()
+	prevHash := msg.Header.PrevBlock
+	merkleRoot := msg.Header.MerkleRoot
+	chainwork := calculateChainwork(msg.Header.Bits)
+
+	var status blocktx_api.Status
+	if prevBlock == nil {
+		status = blocktx_api.Status_ORPHANED
+	} else {
+		status = prevBlock.Status
+	}
+
+	return &blocktx_api.Block{
+		Hash:         hash[:],
+		PreviousHash: prevHash[:],
+		MerkleRoot:   merkleRoot[:],
+		Height:       msg.Height,
+		Status:       status,
+		Chainwork:    chainwork.String(),
+	}
+}
+
 func (p *Processor) getPrevBlock(ctx context.Context, prevHash, blockHash *chainhash.Hash) (*blocktx_api.Block, error) {
 	prevBlock, err := p.store.GetBlock(ctx, prevHash)
 
@@ -500,6 +534,19 @@ func (p *Processor) getPrevBlock(ctx context.Context, prevHash, blockHash *chain
 	}
 
 	return prevBlock, nil
+}
+
+func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
+	_, err := p.store.GetChainTip(ctx)
+	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
+		return false, err
+	}
+
+	if errors.Is(err, store.ErrBlockNotFound) {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (p *Processor) competingChainsExist(ctx context.Context, block *blocktx_api.Block) (bool, error) {

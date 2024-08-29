@@ -3,6 +3,11 @@ package broadcaster_test
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -11,10 +16,6 @@ import (
 	"github.com/libsv/go-bt/v2"
 	"github.com/libsv/go-bt/v2/bscript"
 	"github.com/stretchr/testify/require"
-	"log/slog"
-	"os"
-	"testing"
-	"time"
 )
 
 func TestStart(t *testing.T) {
@@ -45,10 +46,13 @@ func TestStart(t *testing.T) {
 		LockingScript: ks.Script,
 		Satoshis:      1000,
 	}
+
 	tt := []struct {
 		name                     string
 		getBalanceWithRetriesErr error
 		getUTXOsWithRetriesErr   error
+		broadcastTransactionsErr error
+		limit                    int64
 
 		expectedBroadcastTransactionsCalls int
 		expectedErrorStr                   string
@@ -65,9 +69,23 @@ func TestStart(t *testing.T) {
 			expectedErrorStr:                   "failed to get balance",
 			expectedBroadcastTransactionsCalls: 0,
 		},
-		// Todo: "error - failed to get utxos",
-		// Todo: "error - broadcast transactions"
-		// Todo: "success - limit reached"
+		{
+			name:                   "error - failed to get utxos",
+			getUTXOsWithRetriesErr: errors.New("failed to get utxos"),
+
+			expectedErrorStr:                   "failed to get utxos",
+			expectedBroadcastTransactionsCalls: 0,
+		},
+		{
+			name:                               "broadcast transactions",
+			expectedBroadcastTransactionsCalls: 2,
+		},
+		{
+			name:  "success - limit reached",
+			limit: 2,
+
+			expectedBroadcastTransactionsCalls: 2,
+		},
 	}
 
 	for _, tc := range tt {
@@ -78,24 +96,26 @@ func TestStart(t *testing.T) {
 					return 1000, 0, tc.getBalanceWithRetriesErr
 				},
 				GetUTXOsWithRetriesFunc: func(ctx context.Context, mainnet bool, lockingScript *bscript.Script, address string, constantBackoff time.Duration, retries uint64) ([]*bt.UTXO, error) {
-					utxos := []*bt.UTXO{utxo1, utxo2, utxo3, utxo4}
-
-					return utxos, tc.getUTXOsWithRetriesErr
+					if tc.getUTXOsWithRetriesErr != nil {
+						return nil, tc.getUTXOsWithRetriesErr
+					}
+					return []*bt.UTXO{utxo1, utxo2, utxo3, utxo4}, nil
 				},
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			client := &mocks.ArcClientMock{
 				BroadcastTransactionsFunc: func(ctx context.Context, txs []*bt.Tx, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
+					if tc.broadcastTransactionsErr != nil {
+						return nil, tc.broadcastTransactionsErr
+					}
 					var statuses []*metamorph_api.TransactionStatus
-
 					for _, tx := range txs {
 						statuses = append(statuses, &metamorph_api.TransactionStatus{
 							Txid:   tx.TxID(),
 							Status: metamorph_api.Status_SEEN_ON_NETWORK,
 						})
 					}
-
 					return statuses, nil
 				},
 			}
@@ -103,8 +123,8 @@ func TestStart(t *testing.T) {
 
 			require.NoError(t, err)
 
-			err = rb.Start(10, 50)
-			if tc.expectedErrorStr != "" || err != nil {
+			err = rb.Start(10, tc.limit)
+			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			} else {

@@ -658,9 +658,6 @@ func TestScriptValidation(t *testing.T) {
 				"X-SkipTxValidation":     strconv.FormatBool(tc.skipTxValidation),
 			}, tc.expectedStatusCode)
 
-		fmt.Println(resp)
-		fmt.Println(resp.Status)
-
 		require.Equal(t, resp.Status, tc.expectedStatusCode)
 	}
 }

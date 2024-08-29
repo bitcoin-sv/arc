@@ -245,8 +245,6 @@ func NewMetamorphStore(dbConfig *config.DbConfig) (s store.MetamorphStore, err e
 }
 
 func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *config.ArcConfig) (p2p.PeerManagerI, *metamorph.PeerHandler, chan *metamorph.PeerTxMessage, error) {
-	logger = logger.With(slog.String("module", "mtm-peer-handler"))
-
 	network, err := config.GetNetwork(arcConfig.Network)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get network: %v", err)
@@ -260,7 +258,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())
 	}
 
-	pm := p2p.NewPeerManager(logger, network, pmOpts...)
+	pm := p2p.NewPeerManager(logger.With(slog.String("module", "peer-handler")), network, pmOpts...)
 
 	peerHandler := metamorph.NewPeerHandler(s, messageCh)
 
@@ -279,7 +277,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 		}
 
 		var peer *p2p.Peer
-		peer, err = p2p.NewPeer(logger, peerUrl, peerHandler, network, peerOpts...)
+		peer, err = p2p.NewPeer(logger.With(slog.String("module", "peer")), peerUrl, peerHandler, network, peerOpts...)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("error creating peer %s: %v", peerUrl, err)
 		}

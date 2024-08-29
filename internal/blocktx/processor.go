@@ -548,17 +548,15 @@ func (ph *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64
 	merklePaths := make([]string, 0, ph.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
 
-	totalSize := 0
-	for txIndex, hash := range leaves {
-		if hash == nil {
-			totalSize = txIndex
+	var totalSize int
+	for totalSize = 1; totalSize < len(leaves); totalSize++ {
+		if leaves[totalSize] == nil {
+			// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.
 			break
 		}
 	}
 
-	step := int(math.Ceil(float64(totalSize) / 5))
-	progressIndices := map[int]int{step: 20, step * 2: 40, step * 3: 60, step * 4: 80, step * 5: 100}
-
+	progress := progressIndices(totalSize, 5)
 	now := time.Now()
 
 	var iterateMerkleTree trace.Span
@@ -570,12 +568,6 @@ func (ph *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64
 		// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.
 		if hash == nil {
 			break
-		}
-
-		if percentage, found := progressIndices[txIndex]; found {
-			if totalSize > 0 {
-				ph.logger.Info(fmt.Sprintf("%d txs out of %d marked as mined", txIndex, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("duration", time.Since(now).String()))
-			}
 		}
 
 		// Otherwise they're txids, which should have merkle paths calculated.
@@ -612,8 +604,14 @@ func (ph *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64
 				}
 				err = ph.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
 				if err != nil {
-					ph.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
+					ph.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
 				}
+			}
+		}
+
+		if percentage, found := progress[txIndex+1]; found {
+			if totalSize > 0 {
+				ph.logger.Info(fmt.Sprintf("%d txs out of %d marked as mined", txIndex+1, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("duration", time.Since(now).String()))
 			}
 		}
 	}
@@ -682,4 +680,20 @@ func (ph *Processor) Shutdown() {
 // for testing purposes only
 func (ph *Processor) GetBlockRequestCh() chan BlockRequest {
 	return ph.blockRequestCh
+}
+
+func progressIndices(total, steps int) map[int]int {
+	totalF := float64(total)
+	stepsF := float64(steps)
+
+	step := int(math.Max(math.Round(totalF/stepsF), 1))
+	stepF := float64(step)
+
+	progress := make(map[int]int)
+	for i := float64(1); i < stepsF; i++ {
+		progress[step*int(i)] = int(stepF * i / totalF * 100)
+	}
+
+	progress[total] = 100
+	return progress
 }

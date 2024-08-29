@@ -138,6 +138,9 @@ func TestHandleBlock(t *testing.T) {
 				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 					return nil, store.ErrBlockNotFound
 				},
+				GetBlockByHeightFunc: func(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
+					return nil, store.ErrBlockNotFound
+				},
 				GetChainTipFunc: func(ctx context.Context) (*blocktx_api.Block, error) {
 					return nil, store.ErrBlockNotFound
 				},

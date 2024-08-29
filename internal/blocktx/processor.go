@@ -426,11 +426,11 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) {
 			return
 		}
 
+		incomingBlock.Status = blocktx_api.Status_STALE
+
 		if hasGreatestChainwork {
 			// TODO: perform reorg - next ticket
 			incomingBlock.Status = blocktx_api.Status_LONGEST
-		} else {
-			incomingBlock.Status = blocktx_api.Status_STALE
 		}
 	}
 

@@ -59,8 +59,9 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 			err := mcs.Start()
 			defer mcs.Shutdown()
 
-			if tc.expectedError != "" {
+			if tc.expectedError != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedError)
+				return
 			} else {
 				require.NoError(t, err)
 			}

@@ -47,7 +47,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 			return err
 		}
 	case validator.CumulativeFeeValidation:
-		if err := cumulativeCheckFees(ctx, v.txFinder, tx, api.FeesToFeeModel(v.policy.MinMiningTxFee), v.policy.LimitCPFPGroupMembersCount); err != nil {
+		if err := cumulativeCheckFees(ctx, v.txFinder, tx, api.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
 			return err
 		}
 	case validator.NoneFeeValidation:
@@ -103,16 +103,11 @@ func standardCheckFees(tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validato
 	return nil
 }
 
-func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, feeModel *fees.SatoshisPerKilobyte, unminedAncestorsLimit int) *validator.Error {
+func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, feeModel *fees.SatoshisPerKilobyte) *validator.Error {
 	txSet, err := getUnminedAncestors(ctx, txFinder, tx)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}
-	// the condition is the same as in the bitcoin node code: https://github.com/bitcoin-sv/bitcoin-sv/blob/master/src/txmempool.cpp#L228
-	if len(txSet) >= unminedAncestorsLimit {
-		return validator.NewError(fmt.Errorf("too many unconfirmed parents, %d [limit: %d]", len(txSet), unminedAncestorsLimit), api.ErrStatusCumulativeFees)
-	}
-
 	txSet[""] = tx // do not need to care about key in the set
 
 	cumulativeSize := 0

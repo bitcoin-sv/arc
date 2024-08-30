@@ -320,11 +320,10 @@ func Test_needExtension(t *testing.T) {
 
 func Test_cumulativeCheckFees(t *testing.T) {
 	tcs := []struct {
-		name           string
-		hex            string
-		feeModel       *fees.SatoshisPerKilobyte
-		getTxFinderFn  func(t *testing.T) mocks.TxFinderIMock
-		ancestorsLimit int
+		name          string
+		hex           string
+		feeModel      *fees.SatoshisPerKilobyte
+		getTxFinderFn func(t *testing.T) mocks.TxFinderIMock
 
 		expectedErr *validation.Error
 	}{
@@ -443,70 +442,19 @@ func Test_cumulativeCheckFees(t *testing.T) {
 				errors.New("failed to get raw transactions for parent: [ec6d2b377a2ccb888a5272b89be49c5a4c57012ff3957b60e137e7115858f73d cc1affd62f6453e06e026cc4ea56bcf2c5aed5293d8b72414ba962b17fbd48eb]. Reason: test error"),
 				api.ErrStatusCumulativeFees),
 		},
-		{
-			name: "too many ancestors in mempool",
-			hex:  fixture.ValidTxRawHex,
-			feeModel: func() *fees.SatoshisPerKilobyte {
-				return &fees.SatoshisPerKilobyte{Satoshis: 1}
-			}(),
-			ancestorsLimit: 1,
-			getTxFinderFn: func(t *testing.T) mocks.TxFinderIMock {
-				var getRawTxCount int = 0
-				var couterPtr *int = &getRawTxCount
-
-				return mocks.TxFinderIMock{
-					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
-						i := *couterPtr
-						*couterPtr = i + 1
-
-						if i == 0 {
-							p1 := validation.RawTx{
-								TxID:    fixture.ParentTx1.TxID,
-								Bytes:   fixture.ParentTx1.Bytes,
-								IsMined: false,
-							}
-							return []validation.RawTx{p1, fixture.ParentTx2}, nil
-						}
-
-						if i == 1 {
-							a1 := validation.RawTx{
-								TxID:    fixture.AncestorTx1.TxID,
-								Bytes:   fixture.AncestorTx1.Bytes,
-								IsMined: false,
-							}
-							return []validation.RawTx{a1, fixture.AncestorTx2}, nil
-						}
-
-						if i == 2 {
-							return []validation.RawTx{fixture.AncestorOfAncestorTx1, fixture.AncestorOfAncestorTx2}, nil
-						}
-
-						t.Fatal("to many calls")
-						return nil, nil
-					},
-				}
-			},
-			expectedErr: validation.NewError(errors.New("too many unconfirmed parents, 2 [limit: 1]"), api.ErrStatusCumulativeFees),
-		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			// when
-			const defaultAncestorsLimit = 25
-			ancestorLimit := defaultAncestorsLimit
-			if tc.ancestorsLimit > 0 {
-				ancestorLimit = tc.ancestorsLimit
-			}
-
+			// given
 			txFinder := tc.getTxFinderFn(t)
 
 			tx, _ := sdkTx.NewTransactionFromHex(tc.hex)
 
-			// then
-			vErr := cumulativeCheckFees(context.TODO(), &txFinder, tx, tc.feeModel, ancestorLimit)
+			// when
+			vErr := cumulativeCheckFees(context.TODO(), &txFinder, tx, tc.feeModel)
 
-			// assert
+			// then
 			if tc.expectedErr == nil {
 				require.Nil(t, vErr)
 			} else {

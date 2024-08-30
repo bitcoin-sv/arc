@@ -54,7 +54,7 @@ func (v *BeefValidator) ValidateTransaction(ctx context.Context, beefTx *beef.BE
 	}
 
 	if feeValidation == validator.CumulativeFeeValidation {
-		if err := cumulativeCheckFees(beefTx, feeModel, v.policy.LimitCPFPGroupMembersCount); err != nil {
+		if err := cumulativeCheckFees(beefTx, feeModel); err != nil {
 			return beefTx.GetLatestTx(), err
 		}
 	}
@@ -96,18 +96,13 @@ func standardCheckFees(tx *sdkTx.Transaction, beefTx *beef.BEEF, feeModel sdkTx.
 	return nil
 }
 
-func cumulativeCheckFees(beefTx *beef.BEEF, feeModel *fees.SatoshisPerKilobyte, unminedAncestorsLimit int) *validator.Error {
+func cumulativeCheckFees(beefTx *beef.BEEF, feeModel *fees.SatoshisPerKilobyte) *validator.Error {
 	cumulativePaidFee := uint64(0)
 	expectedFees := uint64(0)
-	unminedAncestorsCount := 0
 
 	for _, bTx := range beefTx.Transactions {
 		if bTx.IsMined() {
 			continue
-		}
-		unminedAncestorsCount++
-		if unminedAncestorsCount > unminedAncestorsLimit {
-			return validator.NewError(fmt.Errorf("too many unconfirmed parents, %d [limit: %d]", unminedAncestorsCount, unminedAncestorsLimit), api.ErrStatusCumulativeFees)
 		}
 
 		tx := bTx.Transaction

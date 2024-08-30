@@ -11,25 +11,44 @@ import (
 )
 
 func (p *PostgreSQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+	predicate := "WHERE hash = $1"
+
+	return p.queryBlockByPredicate(ctx, predicate, hash[:])
+}
+
+func (p *PostgreSQL) GetBlockByHeight(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
+	predicate := "WHERE height = $1 AND status = $2"
+
+	return p.queryBlockByPredicate(ctx, predicate, height, status)
+}
+
+func (p *PostgreSQL) GetChainTip(ctx context.Context) (*blocktx_api.Block, error) {
+	predicate := "WHERE height = (SELECT MAX(height) FROM blocktx.blocks blks WHERE blks.status = $1)"
+
+	return p.queryBlockByPredicate(ctx, predicate, blocktx_api.Status_LONGEST)
+}
+
+func (p *PostgreSQL) queryBlockByPredicate(ctx context.Context, predicate string, predicateParams ...any) (*blocktx_api.Block, error) {
 	q := `
 		SELECT
-			b.hash,
-			b.prevhash,
-			b.merkleroot,
-			b.height,
-			b.processed_at,
-			b.orphanedyn,
-			b.status,
-			b.chainwork
-		FROM blocktx.blocks b
-		WHERE b.hash = $1
+			hash
+		 ,prevhash
+		 ,merkleroot
+		 ,height
+		 ,processed_at
+		 ,orphanedyn
+		 ,status
+		 ,chainwork
+		FROM blocktx.blocks
 	`
+
+	q += " " + predicate
 
 	var block blocktx_api.Block
 
 	var processed_at sql.NullString
 
-	if err := p.db.QueryRowContext(ctx, q, hash[:]).Scan(
+	if err := p.db.QueryRowContext(ctx, q, predicateParams...).Scan(
 		&block.Hash,
 		&block.PreviousHash,
 		&block.MerkleRoot,

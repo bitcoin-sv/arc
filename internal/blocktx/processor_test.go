@@ -1,12 +1,11 @@
 package blocktx_test
 
 import (
-	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"log/slog"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,48 +15,13 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p"
-	"github.com/libsv/go-p2p/bsvutil"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
-
-func TestExtractHeight(t *testing.T) {
-	coinbase, _ := hex.DecodeString("01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff570350cc0b041547b5630cfabe6d6d0000000000000000000000000000000000000000000000000000000000000000010000000000000047ed20542096bd0000000000143362663865373833636662643732306431383436000000000140be4025000000001976a914c9b0abe09b7dd8e9d1e8c1e3502d32ab0d7119e488ac00000000")
-	tx, err := bsvutil.NewTxFromBytes(coinbase)
-	require.NoError(t, err)
-
-	buff := bytes.NewBuffer(nil)
-	err = tx.MsgTx().Serialize(buff)
-	require.NoError(t, err)
-	btTx, err := sdkTx.NewTransactionFromBytes(buff.Bytes())
-	require.NoError(t, err)
-
-	height := blocktx.ExtractHeightFromCoinbaseTx(btTx)
-
-	assert.Equalf(t, uint64(773200), height, "height should be 773200, got %d", height)
-}
-
-func TestExtractHeightForRegtest(t *testing.T) {
-	coinbase, _ := hex.DecodeString("02000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0502dc070101ffffffff012f500900000000002321032efe256e14fd77eea05d0453374f8920e0a7a4a573bb3937ef3f567f3937129cac00000000")
-	tx, err := bsvutil.NewTxFromBytes(coinbase)
-	require.NoError(t, err)
-
-	buff := bytes.NewBuffer(nil)
-	err = tx.MsgTx().Serialize(buff)
-	require.NoError(t, err)
-	btTx, err := sdkTx.NewTransactionFromBytes(buff.Bytes())
-	require.NoError(t, err)
-
-	height := blocktx.ExtractHeightFromCoinbaseTx(btTx)
-
-	assert.Equalf(t, uint64(2012), height, "height should be 2012, got %d", height)
-}
 
 func TestHandleBlock(t *testing.T) {
 	// define HandleBlock function parameters (BlockMessage and p2p.PeerI)
@@ -171,6 +135,15 @@ func TestHandleBlock(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			batchSize := 4
 			storeMock := &storeMocks.BlocktxStoreMock{
+				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+					return nil, store.ErrBlockNotFound
+				},
+				GetBlockByHeightFunc: func(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
+					return nil, store.ErrBlockNotFound
+				},
+				GetChainTipFunc: func(ctx context.Context) (*blocktx_api.Block, error) {
+					return nil, store.ErrBlockNotFound
+				},
 				InsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
 					return 0, nil
 				},
@@ -260,6 +233,153 @@ func TestHandleBlock(t *testing.T) {
 			processor.Shutdown()
 
 			require.ElementsMatch(t, expectedInsertedTransactions, insertedBlockTransactions)
+		})
+	}
+}
+
+func TestHandleBlockReorg(t *testing.T) {
+	testCases := []struct {
+		name                string
+		prevBlockStatus     blocktx_api.Status
+		hasCompetingBlock   bool
+		hasGreaterChainwork bool
+		expectedStatus      blocktx_api.Status
+	}{
+		{
+			name:              "previous block longest - no competing - no reorg",
+			prevBlockStatus:   blocktx_api.Status_LONGEST,
+			hasCompetingBlock: false,
+			expectedStatus:    blocktx_api.Status_LONGEST,
+		},
+		{
+			name:                "previous block longest - competing - no reorg",
+			prevBlockStatus:     blocktx_api.Status_LONGEST,
+			hasCompetingBlock:   true,
+			hasGreaterChainwork: false,
+			expectedStatus:      blocktx_api.Status_STALE,
+		},
+		{
+			name:                "previous block longest - competing - reorg",
+			prevBlockStatus:     blocktx_api.Status_LONGEST,
+			hasCompetingBlock:   true,
+			hasGreaterChainwork: true,
+			expectedStatus:      blocktx_api.Status_LONGEST,
+		},
+		{
+			name:                "previous block stale - competing - no reorg",
+			prevBlockStatus:     blocktx_api.Status_STALE,
+			hasCompetingBlock:   true,
+			hasGreaterChainwork: false,
+			expectedStatus:      blocktx_api.Status_STALE,
+		},
+		{
+			name:                "previous block stale - no competing - no reorg",
+			prevBlockStatus:     blocktx_api.Status_STALE,
+			hasCompetingBlock:   false,
+			hasGreaterChainwork: false,
+			expectedStatus:      blocktx_api.Status_STALE,
+		},
+		{
+			name:                "previous block stale - no competing - reorg",
+			prevBlockStatus:     blocktx_api.Status_STALE,
+			hasCompetingBlock:   false,
+			hasGreaterChainwork: true,
+			expectedStatus:      blocktx_api.Status_LONGEST,
+		},
+		{
+			name:                "previous block orphaned - no competing - no reorg",
+			prevBlockStatus:     blocktx_api.Status_ORPHANED,
+			hasCompetingBlock:   false,
+			hasGreaterChainwork: false,
+			expectedStatus:      blocktx_api.Status_ORPHANED,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			var mtx sync.Mutex
+			var insertedBlock *blocktx_api.Block
+
+			storeMock := &storeMocks.BlocktxStoreMock{
+				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+					return &blocktx_api.Block{
+						Status: tc.prevBlockStatus,
+					}, nil
+				},
+				GetBlockByHeightFunc: func(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
+					if tc.hasCompetingBlock {
+						blockHash, err := chainhash.NewHashFromStr("0000000000000000087590e1ad6360c0c491556c9af75c0d22ce9324cb5713cf")
+						require.NoError(t, err)
+
+						return &blocktx_api.Block{
+							Hash: blockHash[:],
+						}, nil
+					} else {
+						return nil, store.ErrBlockNotFound
+					}
+				},
+				GetChainTipFunc: func(ctx context.Context) (*blocktx_api.Block, error) {
+					if tc.hasGreaterChainwork {
+						return &blocktx_api.Block{
+							Chainwork: "42069",
+						}, nil
+					}
+
+					return &blocktx_api.Block{
+						Chainwork: "62209952899966",
+					}, nil
+				},
+				InsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+					mtx.Lock()
+					insertedBlock = block
+					mtx.Unlock()
+					return 1, nil
+				},
+				MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
+					return nil
+				},
+				UpsertBlockTransactionsFunc: func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpsertBlockTransactionsResult, error) {
+					return []store.UpsertBlockTransactionsResult{}, nil
+				},
+			}
+
+			// build peer manager and processor
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+			var blockRequestCh chan blocktx.BlockRequest = nil
+			blockProcessCh := make(chan *p2p.BlockMessage, 10)
+
+			peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
+			processor, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh)
+			require.NoError(t, err)
+
+			txHash, err := chainhash.NewHashFromStr("be181e91217d5f802f695e52144078f8dfbe51b8a815c3d6fb48c0d853ec683b")
+			require.NoError(t, err)
+			merkleRoot, err := chainhash.NewHashFromStr("be181e91217d5f802f695e52144078f8dfbe51b8a815c3d6fb48c0d853ec683b")
+			require.NoError(t, err)
+
+			blockMessage := &p2p.BlockMessage{
+				Header: &wire.BlockHeader{
+					Version:    541065216,
+					MerkleRoot: *merkleRoot,
+					Bits:       0x1c2a1115, // chainwork: "26137323115"
+				},
+				Height:            123,
+				TransactionHashes: []*chainhash.Hash{txHash},
+			}
+
+			// when
+			processor.StartBlockProcessing()
+
+			err = peerHandler.HandleBlock(blockMessage, nil)
+			require.NoError(t, err)
+
+			// then
+			time.Sleep(20 * time.Millisecond)
+			mtx.Lock()
+			require.Equal(t, tc.expectedStatus, insertedBlock.Status)
+			mtx.Unlock()
 		})
 	}
 }

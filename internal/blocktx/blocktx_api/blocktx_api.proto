@@ -34,6 +34,15 @@ message HealthResponse {
   google.protobuf.Timestamp timestamp = 3;
 }
 
+// Statuses have a difference between them in case
+// it's necessary to add more values in between.
+enum Status {
+	UNKNOWN = 0; // This value is unused for now, but it's required by protobuf to have enum field with value 0
+	LONGEST = 10;
+	STALE = 20;
+	ORPHANED = 30;
+}
+
 // swagger:model Block {
 message Block {
   bytes hash = 1; // Little endian
@@ -42,6 +51,8 @@ message Block {
   uint64 height = 4;
   bool orphaned = 5;
   bool processed = 6;
+	Status status = 7;
+	string chainwork = 8;
 }
 
 // swagger:model Transactions

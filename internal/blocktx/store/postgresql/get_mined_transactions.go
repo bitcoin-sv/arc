@@ -25,14 +25,14 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainha
 
 	q := `
 		SELECT
-		t.hash
-       ,b.hash
-	   ,b.height
-	   ,t.merkle_path
-	   FROM blocktx.transactions as t
-	   JOIN blocktx.block_transactions_map ON t.id = blocktx.block_transactions_map.txid
-	   JOIN blocktx.blocks as b ON blocktx.block_transactions_map.blockid = b.id
-	   WHERE t.hash = ANY($1)
+			t.hash,
+			b.hash,
+	  	b.height,
+	  	t.merkle_path
+	  FROM blocktx.transactions as t
+	  	JOIN blocktx.block_transactions_map ON t.id = blocktx.block_transactions_map.txid
+	  	JOIN blocktx.blocks as b ON blocktx.block_transactions_map.blockid = b.id
+	  WHERE t.hash = ANY($1)
 	`
 
 	rows, err := p.db.QueryContext(ctx, q, pq.Array(hashSlice))

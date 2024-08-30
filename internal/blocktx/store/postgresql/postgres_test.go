@@ -37,6 +37,8 @@ type Block struct {
 	MerklePath   *string   `db:"merkle_path"`
 	Height       int64     `db:"height"`
 	Orphaned     bool      `db:"orphanedyn"`
+	Status       int       `db:"status"`
+	Chainwork    string    `db:"chainwork"`
 	Size         *int64    `db:"size"`
 	TxCount      *int64    `db:"tx_count"`
 	Processed    bool      `db:"processed"`
@@ -252,6 +254,36 @@ func TestPostgresDB(t *testing.T) {
 		blockResp, err := postgresDB.GetBlock(ctx, blockHash2)
 		require.NoError(t, err)
 		require.Equal(t, block, blockResp)
+	})
+
+	t.Run("get block by height / get chain tip", func(t *testing.T) {
+		prepareDb(t, postgresDB.db, "fixtures/get_block_by_height")
+
+		height := uint64(822015)
+		hash_at_height_longest := revChainhash(t, "c9b4e1e4dcf9188416027511671b9346be8ef93c0ddf59060000000000000000")
+		hash_at_height_stale := revChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
+
+		height_not_found := uint64(812222)
+
+		tipHeight := uint64(822020)
+		hash_at_tip := revChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
+
+		block, err := postgresDB.GetBlockByHeight(context.Background(), height, blocktx_api.Status_LONGEST)
+		require.NoError(t, err)
+		require.Equal(t, hash_at_height_longest[:], block.Hash)
+
+		block, err = postgresDB.GetBlockByHeight(context.Background(), height, blocktx_api.Status_STALE)
+		require.NoError(t, err)
+		require.Equal(t, hash_at_height_stale[:], block.Hash)
+
+		block, err = postgresDB.GetBlockByHeight(context.Background(), height_not_found, blocktx_api.Status_LONGEST)
+		require.Nil(t, block)
+		require.Equal(t, store.ErrBlockNotFound, err)
+
+		block, err = postgresDB.GetChainTip(context.Background())
+		require.NoError(t, err)
+		require.Equal(t, hash_at_tip[:], block.Hash)
+		require.Equal(t, tipHeight, block.Height)
 	})
 
 	t.Run("get block gaps", func(t *testing.T) {

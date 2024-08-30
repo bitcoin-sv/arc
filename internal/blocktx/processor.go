@@ -181,7 +181,14 @@ func (p *Processor) StartBlockProcessing() {
 			case <-p.ctx.Done():
 				return
 			case blockMsg := <-p.blockProcessCh:
-				p.processBlock(blockMsg)
+				err := p.processBlock(blockMsg)
+				if err != nil {
+					blockhash := blockMsg.Header.BlockHash()
+					_, errDel := p.store.DelBlockProcessing(p.ctx, &blockhash, p.hostname)
+					if errDel != nil {
+						p.logger.Error("failed to delete block processing", slog.String("hash", blockhash.String()), slog.String("err", errDel.Error()))
+					}
+				}
 			}
 		}
 	}()
@@ -388,7 +395,7 @@ func buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash)
 	return bc.BuildMerkleTreeStoreChainHash(txids)
 }
 
-func (p *Processor) processBlock(msg *p2p.BlockMessage) {
+func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	ctx := p.ctx
 
 	if tracer != nil {
@@ -403,10 +410,10 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) {
 	previousBlockHash := msg.Header.PrevBlock
 	merkleRoot := msg.Header.MerkleRoot
 
-	prevBlock, err := p.getPrevBlock(ctx, &previousBlockHash, &blockHash)
+	prevBlock, err := p.getPrevBlock(ctx, &previousBlockHash)
 	if err != nil {
 		p.logger.Error("unable to get previous block from db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("prevHash", previousBlockHash.String()), slog.String("err", err.Error()))
-		return
+		return err
 	}
 
 	longestTipExists := true
@@ -416,7 +423,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) {
 		longestTipExists, err = p.longestTipExists(ctx)
 		if err != nil {
 			p.logger.Error("unable to verify the longest tip existance in db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
-			return
+			return err
 		}
 	}
 
@@ -425,7 +432,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) {
 	competing, err := p.competingChainsExist(ctx, incomingBlock)
 	if err != nil {
 		p.logger.Error("unable to check for competing chains", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
-		return
+		return err
 	}
 
 	if competing {
@@ -434,7 +441,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) {
 		hasGreatestChainwork, err := p.hasGreatestChainwork(ctx, incomingBlock)
 		if err != nil {
 			p.logger.Error("unable to get the chain tip to verify chainwork", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
-			return
+			return err
 		}
 
 		incomingBlock.Status = blocktx_api.Status_STALE
@@ -449,32 +456,20 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) {
 
 	blockId, err := p.store.InsertBlock(ctx, incomingBlock)
 	if err != nil {
-		_, errDel := p.store.DelBlockProcessing(ctx, &blockHash, p.hostname)
-		if errDel != nil {
-			p.logger.Error("failed to delete block processing - after inserting block failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
-		}
 		p.logger.Error("unable to insert block at given height", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
-		return
+		return err
 	}
 
 	calculatedMerkleTree := buildMerkleTreeStoreChainHash(ctx, msg.TransactionHashes)
 
 	if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
-		_, errDel := p.store.DelBlockProcessing(ctx, &blockHash, p.hostname)
-		if errDel != nil {
-			p.logger.Error("failed to delete block processing - after merkle root mismatch", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
-		}
 		p.logger.Error("merkle root mismatch", slog.String("hash", blockHash.String()))
-		return
+		return err
 	}
 
 	if err = p.markTransactionsAsMined(ctx, blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
-		_, errDel := p.store.DelBlockProcessing(ctx, &blockHash, p.hostname)
-		if errDel != nil {
-			p.logger.Error("failed to delete block processing - after marking transactions as mined failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
-		}
 		p.logger.Error("unable to mark block as mined", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
-		return
+		return err
 	}
 
 	block := &p2p.Block{
@@ -487,26 +482,19 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) {
 	}
 
 	if err = p.markBlockAsProcessed(ctx, block); err != nil {
-		_, errDel := p.store.DelBlockProcessing(ctx, &blockHash, p.hostname)
-		if errDel != nil {
-			p.logger.Error("failed to delete block processing - after marking block as processed failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
-		}
 		p.logger.Error("unable to mark block as processed", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
-		return
+		return err
 	}
 
 	// add the total block processing time to the stats
 	p.logger.Info("Processed block", slog.String("hash", blockHash.String()), slog.Int("txs", len(msg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))
+
+	return nil
 }
 
-func (p *Processor) getPrevBlock(ctx context.Context, prevHash, blockHash *chainhash.Hash) (*blocktx_api.Block, error) {
+func (p *Processor) getPrevBlock(ctx context.Context, prevHash *chainhash.Hash) (*blocktx_api.Block, error) {
 	prevBlock, err := p.store.GetBlock(ctx, prevHash)
-
 	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
-		_, errDel := p.store.DelBlockProcessing(ctx, blockHash, p.hostname)
-		if errDel != nil {
-			p.logger.Error("failed to delete block processing - after getting previous block failed", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
-		}
 		return nil, err
 	}
 
@@ -534,15 +522,6 @@ func (p *Processor) competingChainsExist(ctx context.Context, block *blocktx_api
 	if block.Status == blocktx_api.Status_LONGEST {
 		competingBlock, err := p.store.GetBlockByHeight(ctx, block.Height, blocktx_api.Status_LONGEST)
 		if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
-			blockHash, err := chainhash.NewHash(block.Hash)
-			if err != nil {
-				p.logger.Error("failed to create blockHash", slog.Uint64("height", block.Height), slog.String("err", err.Error()))
-				return false, err
-			}
-			_, errDel := p.store.DelBlockProcessing(ctx, blockHash, p.hostname)
-			if errDel != nil {
-				p.logger.Error("failed to delete block processing - after checking for competing chains", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
-			}
 			return false, err
 		}
 
@@ -560,15 +539,6 @@ func (p *Processor) competingChainsExist(ctx context.Context, block *blocktx_api
 func (p *Processor) hasGreatestChainwork(ctx context.Context, incomingBlock *blocktx_api.Block) (bool, error) {
 	tip, err := p.store.GetChainTip(ctx)
 	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
-		blockHash, err := chainhash.NewHash(incomingBlock.Hash)
-		if err != nil {
-			p.logger.Error("failed to create blockHash", slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
-			return false, err
-		}
-		_, errDel := p.store.DelBlockProcessing(ctx, blockHash, p.hostname)
-		if errDel != nil {
-			p.logger.Error("failed to delete block processing - after checking for competing chains", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
-		}
 		return false, err
 	}
 
@@ -583,11 +553,7 @@ func (p *Processor) hasGreatestChainwork(ctx context.Context, incomingBlock *blo
 	incomingBlockChainwork := new(big.Int)
 	incomingBlockChainwork.SetString(incomingBlock.Chainwork, 10)
 
-	if tipChainWork.Cmp(incomingBlockChainwork) < 0 {
-		return true, nil
-	}
-
-	return false, nil
+	return tipChainWork.Cmp(incomingBlockChainwork) < 0, nil
 }
 
 func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {

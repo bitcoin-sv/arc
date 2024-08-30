@@ -2,18 +2,19 @@ package broadcaster_test
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"testing"
 	"time"
 
-	"log/slog"
-
-	"github.com/bitcoin-sv/arc/internal/broadcaster"
-	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
-	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/broadcaster"
+	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 
 func TestBroadcaster(t *testing.T) {
@@ -59,6 +60,12 @@ func TestBroadcaster(t *testing.T) {
 		},
 	}
 
+	arcClient := &mocks.ArcClientMock{
+		BroadcastTransactionsFunc: func(ctx context.Context, txs sdkTx.Transactions, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
+			return nil, nil
+		},
+	}
+
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	ks, err := keyset.New()
@@ -66,7 +73,7 @@ func TestBroadcaster(t *testing.T) {
 
 	rb, err := broadcaster.NewRateBroadcaster(
 		logger,
-		nil,
+		arcClient,
 		ks,
 		mockedUtxoClient,
 		false,

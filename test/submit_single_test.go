@@ -11,7 +11,6 @@ import (
 	"time"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-
 	"github.com/libsv/go-bc"
 	"github.com/stretchr/testify/require"
 )
@@ -600,5 +599,65 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 				require.Contains(t, *response.ExtraInfo, tc.expectedErrInfo)
 			}
 		})
+	}
+}
+
+func TestScriptValidation(t *testing.T) {
+	tt := []struct {
+		name                 string
+		skipScriptValidation bool
+		skipTxValidation     bool
+
+		expectedStatusCode int
+	}{
+		{
+			name:                 "post transaction with invalid script with validation",
+			skipScriptValidation: false,
+			skipTxValidation:     false,
+
+			expectedStatusCode: 461, // ErrStatusUnlockingScripts
+		},
+		{
+			name:                 "post transaction with invalid script without script validation",
+			skipScriptValidation: true,
+			skipTxValidation:     false,
+
+			expectedStatusCode: http.StatusOK,
+		},
+		{
+			name:                 "post transaction with invalid script without tx validation",
+			skipScriptValidation: false,
+			skipTxValidation:     true,
+
+			expectedStatusCode: http.StatusOK,
+		},
+	}
+
+	for _, tc := range tt {
+		address, privateKey := fundNewWallet(t)
+
+		utxos := getUtxos(t, address)
+		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+
+		fee := uint64(10)
+
+		lowFeeTx, err := createTx(privateKey, address, utxos[0], fee)
+		require.NoError(t, err)
+
+		sc, err := generateNewUnlockingScriptFromRandomKey()
+		require.NoError(t, err)
+
+		lowFeeTx.Outputs[0].LockingScript = sc
+
+		lowFeeRawTx, err := lowFeeTx.EFHex()
+		require.NoError(t, err)
+
+		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: lowFeeRawTx}),
+			map[string]string{
+				"X-SkipScriptValidation": strconv.FormatBool(tc.skipScriptValidation),
+				"X-SkipTxValidation":     strconv.FormatBool(tc.skipTxValidation),
+			}, tc.expectedStatusCode)
+
+		require.Equal(t, resp.Status, tc.expectedStatusCode)
 	}
 }

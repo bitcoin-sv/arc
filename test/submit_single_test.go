@@ -86,7 +86,7 @@ func TestSubmitSingle(t *testing.T) {
 
 			t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
-			generate(t, 10)
+			generate(t, 1)
 
 			statusResponse = getRequest[TransactionResponse](t, statusUrl)
 			require.Equal(t, Status_MINED, statusResponse.TxStatus)
@@ -191,7 +191,7 @@ func TestSubmitQueued(t *testing.T) {
 			}
 		}
 
-		generate(t, 10)
+		generate(t, 1)
 
 	checkMinedLoop:
 		for {
@@ -307,7 +307,7 @@ func TestCallback(t *testing.T) {
 			}
 
 			// mine trasactions
-			generate(t, 2)
+			generate(t, 1)
 
 			// then
 

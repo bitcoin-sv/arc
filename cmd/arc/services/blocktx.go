@@ -27,6 +27,7 @@ const (
 )
 
 func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
+	logger = logger.With(slog.String("service", "blocktx"))
 	tracingEnabled := arcConfig.Tracing != nil
 	btxConfig := arcConfig.Blocktx
 
@@ -106,7 +107,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())
 	}
 
-	pm := p2p.NewPeerManager(logger, network, pmOpts...)
+	pm := p2p.NewPeerManager(logger.With(slog.String("module", "peer-mng")), network, pmOpts...)
 	peers := make([]p2p.PeerI, len(arcConfig.Peers))
 
 	peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
@@ -116,7 +117,8 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		if err != nil {
 			return nil, fmt.Errorf("error getting peer url: %v", err)
 		}
-		peer, err := p2p.NewPeer(logger, peerURL, peerHandler, network, peerOpts...)
+
+		peer, err := p2p.NewPeer(logger.With(slog.String("module", "peer")), peerURL, peerHandler, network, peerOpts...)
 		if err != nil {
 			return nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
 		}

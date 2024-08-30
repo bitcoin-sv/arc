@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test1(t *testing.T) {
+func TestRateBroadcaster(t *testing.T) {
 
 	ks, err := keyset.New()
 	require.NoError(t, err)

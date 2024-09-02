@@ -108,7 +108,7 @@ func (s *Server) SendCallback(_ context.Context, request *callbacker_api.SendCal
 
 func toCallbackDto(r *callbacker_api.SendCallbackRequest) *Callback {
 	dto := Callback{
-		Txid:      r.Txid,
+		TxID:      r.Txid,
 		TxStatus:  r.Status.String(),
 		Timestamp: time.Now().UTC(),
 	}

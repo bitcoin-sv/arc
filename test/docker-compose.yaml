@@ -101,6 +101,25 @@ services:
         condition: service_healthy
     restart: on-failure
 
+  migrate-callbacker:
+    container_name: migrate-callbacker
+    image: migrate/migrate:v4.16.2
+    entrypoint:
+      [
+        "migrate",
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://arcuser:arcpass@db:5432/main?sslmode=disable&x-migrations-table=callbacker",
+      ]
+    command: [ "up" ]
+    volumes:
+      - ../internal/callbacker/store/postgresql/migrations:/migrations
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
   nats-1:
     image: nats:2.10.18-alpine3.20
     container_name: nats-server-1
@@ -170,8 +189,8 @@ services:
     volumes:
       - ./config/config.yaml:/service/config.yaml
     depends_on:
-      arc-blocktx:
-        condition: service_healthy
+      migrate-callbacker:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "/bin/grpc_health_probe", "-addr=:8022", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s

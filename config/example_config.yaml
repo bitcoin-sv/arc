@@ -126,3 +126,15 @@ callbacker:
   health:
     serverDialAddr: localhost:8025 # address at which the grpc health server is exposed
   pause: 0s # pause between sending next callback to the same receiver
+  db:
+    mode: postgres # db mode indicates which db to use. At the moment only postgres is offered
+    postgres: # postgres db configuration in case that mode: postgres
+      host: localhost
+      port: 5432
+      name: callbacker
+      user: arc
+      password: arc
+      maxIdleConns: 10 # maximum idle connections
+      maxOpenConns: 80 # maximum open connections
+      sslMode: disable
+      

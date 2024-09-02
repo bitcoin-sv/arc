@@ -171,5 +171,6 @@ func getCallbackerConfig() *CallbackerConfig {
 			SeverDialAddr: "localhost:8025",
 		},
 		Pause: 0,
+		Db:    getDbConfig("callbacker"),
 	}
 }

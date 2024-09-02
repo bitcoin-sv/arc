@@ -121,3 +121,14 @@ callbacker:
   dialAddr: arc-callbacker:8021
   health:
     serverDialAddr: localhost:8022
+  db:
+    mode: postgres
+    postgres:
+      host: db
+      port: 5432
+      name: main
+      user: arcuser
+      password: arcpass
+      maxIdleConns: 10
+      maxOpenConns: 80
+      sslMode: disable

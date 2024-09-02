@@ -50,7 +50,7 @@ func (d *CallbackDispatcher) Init() error {
 
 	for {
 		callbacks, err := d.s.PopMany(ctx, bundleSize)
-		if err != nil || len(callbacks) > 0 {
+		if err != nil || len(callbacks) == 0 {
 			return err
 		}
 

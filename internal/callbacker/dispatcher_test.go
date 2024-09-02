@@ -3,6 +3,7 @@ package callbacker
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"testing"
 	"time"
@@ -87,6 +88,57 @@ func Test_CallbackDispatcher(t *testing.T) {
 				require.Empty(t, savedCallbacks)
 				require.Equal(t, tc.numOfReceivers*tc.numOfSendPerReceiver, len(cMq.SendCalls()))
 			}
+		})
+	}
+}
+
+func Test_CallbackDispatcher_Init(t *testing.T) {
+	tcs := []struct {
+		name                 string
+		danglingCallbacksNum int
+	}{
+		{
+			name:                 "no dangling callbacks",
+			danglingCallbacksNum: 0,
+		},
+		{
+			name:                 "callbacks to process on init",
+			danglingCallbacksNum: 259,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			var danglingCallbacks []*store.CallbackData
+			for range tc.danglingCallbacksNum {
+				danglingCallbacks = append(danglingCallbacks, &store.CallbackData{})
+			}
+
+			cMq := &CallbackerIMock{
+				SendFunc: func(url, token string, callback *Callback) {},
+			}
+
+			sMq := &mocks.CallbackerStoreMock{
+				PopManyFunc: func(ctx context.Context, limit int) ([]*store.CallbackData, error) {
+					limit = int(math.Min(float64(len(danglingCallbacks)), float64(limit)))
+
+					r := danglingCallbacks[:limit]
+					danglingCallbacks = danglingCallbacks[limit:]
+
+					return r, nil
+				},
+			}
+
+			sut := NewCallbackDispatcher(cMq, sMq, 0)
+
+			// when
+			err := sut.Init()
+			time.Sleep(50 * time.Millisecond)
+
+			// then
+			require.NoError(t, err)
+			require.Equal(t, tc.danglingCallbacksNum, len(cMq.SendCalls()))
 		})
 	}
 }

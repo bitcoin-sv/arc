@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -232,6 +233,53 @@ func TestPostgresDBt(t *testing.T) {
 		}
 
 		require.Empty(t, uniqueRecords)
+	})
+
+	t.Run("pop many", func(t *testing.T) {
+		// given
+		defer pruneTables(t, postgresDB.db)
+		loadFixtures(t, postgresDB.db, "fixtures/pop_many")
+
+		const concurentCalls = 5
+		const popLimit = 10
+
+		// count current records
+		count := tutils.CountCallbacks(t, postgresDB.db)
+		require.GreaterOrEqual(t, count, concurentCalls*popLimit)
+
+		ctx := context.Background()
+		start := make(chan struct{})
+		rm := sync.Map{}
+		wg := sync.WaitGroup{}
+
+		// when
+		wg.Add(concurentCalls)
+		for i := range concurentCalls {
+			go func() {
+				defer wg.Done()
+				<-start
+
+				records, err := postgresDB.PopMany(ctx, popLimit)
+				require.NoError(t, err)
+
+				rm.Store(i, records)
+			}()
+		}
+
+		close(start) // signal all goroutines to start
+		wg.Wait()
+
+		// then
+		count2 := tutils.CountCallbacks(t, postgresDB.db)
+		require.Equal(t, count-concurentCalls*popLimit, count2)
+
+		for i := range concurentCalls {
+			records, ok := rm.Load(i)
+			require.True(t, ok)
+
+			callbacks := records.([]*store.CallbackData)
+			require.Equal(t, popLimit, len(callbacks))
+		}
 	})
 
 }

@@ -69,6 +69,19 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 	return callbacks
 }
 
+func CountCallbacks(t *testing.T, db *sql.DB) int {
+	t.Helper()
+
+	var count int
+	row := db.QueryRow("SELECT COUNT(1) FROM callbacker.callbacks")
+
+	if err := row.Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+
+	return count
+}
+
 func ptrTo[T any](v T) *T {
 	return &v
 }

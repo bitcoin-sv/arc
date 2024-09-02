@@ -79,6 +79,13 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 	}
 
 	dispatcher = callbacker.NewCallbackDispatcher(sender, store, config.Pause)
+	logger.Info("Init callback dispatcher, add to processing abandoned callbacks")
+	err = dispatcher.Init()
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("failed to init callback dispatcher, couldn't process all abandoned callbacks: %v", err)
+	}
+
 	server = callbacker.NewServer(dispatcher, callbacker.WithLogger(logger.With(slog.String("module", "server"))))
 	err = server.Serve(config.ListenAddr, appConfig.GrpcMessageSize, appConfig.PrometheusEndpoint)
 	if err != nil {
@@ -91,6 +98,7 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 		stopFn()
 		return nil, fmt.Errorf("failed to start health server: %v", err)
 	}
+
 	logger.Info("Ready to work")
 	return stopFn, nil
 }

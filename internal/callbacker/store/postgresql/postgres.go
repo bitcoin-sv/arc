@@ -129,5 +129,97 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 }
 
 func (p *PostgreSQL) PopMany(ctx context.Context, limit int) ([]*store.CallbackData, error) {
-	return nil, nil
+	tx, err := p.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	const q = `DELETE FROM callbacker.callbacks
+				WHERE ctid IN (
+					SELECT ctid FROM callbacker.callbacks
+					ORDER BY timestamp
+					LIMIT $1
+					FOR UPDATE
+				)
+				RETURNING
+					url
+					,token
+					,tx_id
+					,tx_status
+					,extra_info
+					,merkle_path
+					,block_hash
+					,block_height
+					,competing_txs
+					,timestamp`
+
+	rows, err := tx.QueryContext(ctx, q, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	records := make([]*store.CallbackData, 0, limit)
+
+	for rows.Next() {
+		r := &store.CallbackData{}
+
+		var (
+			ts      time.Time
+			ei      sql.NullString
+			mp      sql.NullString
+			bh      sql.NullString
+			bHeight sql.NullInt64
+			ctxs    sql.NullString
+		)
+
+		err = rows.Scan(
+			&r.Url,
+			&r.Token,
+			&r.TxID,
+			&r.TxStatus,
+			&ei,
+			&mp,
+			&bh,
+			&bHeight,
+			&ctxs,
+			&ts,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		r.Timestamp = ts.UTC()
+
+		if ei.Valid {
+			r.ExtraInfo = ptrTo(ei.String)
+		}
+		if mp.Valid {
+			r.MerklePath = ptrTo(mp.String)
+		}
+		if bh.Valid {
+			r.BlockHash = ptrTo(bh.String)
+		}
+		if bHeight.Valid {
+			r.BlockHeight = ptrTo(uint64(bHeight.Int64))
+		}
+		if ctxs.String != "" {
+			r.CompetingTxs = strings.Split(ctxs.String, ",")
+		}
+
+		records = append(records, r)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
+
+// ptrTo returns a pointer to the given value.
+func ptrTo[T any](v T) *T {
+	return &v
 }

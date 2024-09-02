@@ -213,7 +213,6 @@ func TestPostgresDBt(t *testing.T) {
 			}
 		}
 		require.NotEmpty(t, uniqueRecords)
-		fmt.Println(uniqueRecords)
 
 		// read all from db
 		dbCallbacks := tutils.ReadAllCallbacks(t, postgresDB.db)
@@ -225,13 +224,14 @@ func TestPostgresDBt(t *testing.T) {
 				}
 
 				if tutils.CallbackRecordEqual(ur, c) {
-					// remove
+					// remove if found
 					delete(uniqueRecords, ur)
 					break
 				}
 			}
 		}
 
+		// uniqueRecords map should be empty if all entries have been visited
 		require.Empty(t, uniqueRecords)
 	})
 
@@ -284,15 +284,13 @@ func TestPostgresDBt(t *testing.T) {
 
 }
 
-func pruneTables(t *testing.T, db *sql.DB) error {
+func pruneTables(t *testing.T, db *sql.DB) {
 	t.Helper()
 
 	_, err := db.Exec("TRUNCATE TABLE callbacker.callbacks;")
 	if err != nil {
-		return err
+		t.Fatal(err)
 	}
-
-	return nil
 }
 
 func loadFixtures(t *testing.T, db *sql.DB, path string) {

@@ -16,17 +16,18 @@ func CallbackRecordEqual(a, b *store.CallbackData) bool {
 func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 	t.Helper()
 
-	r, err := db.Query(`SELECT url
-				,token
-				,tx_id
-				,tx_status
-				,extra_info
-				,merkle_path
-				,block_hash
-				,block_height
-				,timestamp
-				,competing_txs 
-				FROM callbacker.callbacks`,
+	r, err := db.Query(
+		`SELECT url
+			,token
+			,tx_id
+			,tx_status
+			,extra_info
+			,merkle_path
+			,block_hash
+			,block_height
+			,timestamp
+			,competing_txs 
+		FROM callbacker.callbacks`,
 	)
 
 	if err != nil {
@@ -44,7 +45,7 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 		var bheight sql.NullInt64
 		var competingTxs sql.NullString
 
-		r.Scan(&c.Url, &c.Token, &c.TxID, &c.TxStatus, &ei, &mp, &bh, &bheight, &c.Timestamp, &competingTxs)
+		_ = r.Scan(&c.Url, &c.Token, &c.TxID, &c.TxStatus, &ei, &mp, &bh, &bheight, &c.Timestamp, &competingTxs)
 
 		if ei.Valid {
 			c.ExtraInfo = &ei.String

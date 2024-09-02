@@ -3,6 +3,7 @@ package postgresql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -31,7 +32,6 @@ func New(dbInfo string, idleConns int, maxOpenConns int) (*PostgreSQL, error) {
 	return &PostgreSQL{db: db}, nil
 }
 
-// It closes the connection to the underlying database.
 func (p *PostgreSQL) Close() error {
 	return p.db.Close()
 }
@@ -108,8 +108,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 					,UNNEST($7::TEXT[])
 					,UNNEST($8::BIGINT[])
 					,UNNEST($9::TIMESTAMPTZ[])		
-					,UNNEST($10::TEXT[])
-					
+					,UNNEST($10::TEXT[])					
 				ON CONFLICT DO NOTHING`
 
 	_, err := p.db.ExecContext(ctx, query,
@@ -128,31 +127,37 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 	return err
 }
 
-func (p *PostgreSQL) PopMany(ctx context.Context, limit int) ([]*store.CallbackData, error) {
+func (p *PostgreSQL) PopMany(ctx context.Context, limit int) (res []*store.CallbackData, err error) {
 	tx, err := p.db.Begin()
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err != nil {
+			if rErr := tx.Rollback(); rErr != nil {
+				err = errors.Join(err, fmt.Errorf("failed to rollback: %v", rErr))
+			}
+		}
+	}()
 
 	const q = `DELETE FROM callbacker.callbacks
-				WHERE ctid IN (
-					SELECT ctid FROM callbacker.callbacks
-					ORDER BY timestamp
-					LIMIT $1
-					FOR UPDATE
-				)
-				RETURNING
-					url
-					,token
-					,tx_id
-					,tx_status
-					,extra_info
-					,merkle_path
-					,block_hash
-					,block_height
-					,competing_txs
-					,timestamp`
+			WHERE ctid IN (
+				SELECT ctid FROM callbacker.callbacks
+				ORDER BY timestamp
+				LIMIT $1
+				FOR UPDATE
+			)
+			RETURNING
+				url
+				,token
+				,tx_id
+				,tx_status
+				,extra_info
+				,merkle_path
+				,block_hash
+				,block_height
+				,competing_txs
+				,timestamp`
 
 	rows, err := tx.QueryContext(ctx, q, limit)
 	if err != nil {
@@ -219,7 +224,6 @@ func (p *PostgreSQL) PopMany(ctx context.Context, limit int) ([]*store.CallbackD
 	return records, nil
 }
 
-// ptrTo returns a pointer to the given value.
 func ptrTo[T any](v T) *T {
 	return &v
 }

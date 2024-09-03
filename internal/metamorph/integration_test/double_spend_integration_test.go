@@ -94,7 +94,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	defer require.NoError(t, pruneTables(dbConn))
+	defer pruneTables(t, dbConn)
 	testutils.LoadFixtures(t, dbConn, "fixtures")
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))

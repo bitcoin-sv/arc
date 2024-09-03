@@ -66,13 +66,8 @@ func testmain(m *testing.M) int {
 	return m.Run()
 }
 
-func pruneTables(db *sql.DB) error {
-	_, err := db.Exec("TRUNCATE TABLE metamorph.transactions;")
-	if err != nil {
-		return err
-	}
-
-	return nil
+func pruneTables(t *testing.T, db *sql.DB) {
+	testutils.PruneTables(t, db, "metamorph.transactions")
 }
 
 func TestPostgresDB(t *testing.T) {
@@ -116,7 +111,7 @@ func TestPostgresDB(t *testing.T) {
 	}()
 
 	t.Run("get/set/del", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
+		defer pruneTables(t, postgresDB.db)
 
 		mined := *minedData
 		err = postgresDB.Set(ctx, &mined)
@@ -153,8 +148,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("get raw txs", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
+		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_rawtxs")
 
 		hash1 := "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"
@@ -188,7 +182,7 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("get many", func(t *testing.T) {
 		// when
-		defer require.NoError(t, pruneTables(postgresDB.db))
+		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures")
 
 		keys := [][]byte{
@@ -205,7 +199,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("set bulk", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
+		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_bulk")
 
 		hash2 := revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853") // hash already existing in db - no update expected
@@ -263,8 +257,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("get unmined", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
+		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures")
 
 		// locked by metamorph-1
@@ -283,8 +276,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("set locked by", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
+		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures")
 
 		err := postgresDB.SetLocked(ctx, time.Date(2023, 9, 15, 1, 0, 0, 0, time.UTC), 2)
@@ -316,8 +308,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("set unlocked by name", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
+		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_unlocked_by_name")
 
 		rows, err := postgresDB.SetUnlockedByName(ctx, "metamorph-3")
@@ -346,8 +337,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("update status", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
+		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/update_status")
 
 		updates := []store.UpdateStatus{
@@ -411,8 +401,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("update double spend status", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
+		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/update_double_spend")
 
 		updates := []store.UpdateStatus{
@@ -482,7 +471,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("update mined", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
+		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures")
 
 		unmined := *unminedData
@@ -567,7 +556,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("update mined - missing block info", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
+		defer pruneTables(t, postgresDB.db)
 
 		unmined := *unminedData
 		err = postgresDB.Set(ctx, &unmined)
@@ -592,8 +581,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("clear data", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
+		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures")
 
 		res, err := postgresDB.ClearData(ctx, 14)
@@ -607,8 +595,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("get seen on network txs", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
+		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures")
 
 		txHash := revChainhash(t, "855b2aea1420df52a561fe851297653739677b14c89c0a08e3f70e1942bcb10f")
@@ -623,8 +610,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("get stats", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
-
+		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_stats")
 
 		res, err := postgresDB.GetStats(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 10*time.Minute, 20*time.Minute)

@@ -14,7 +14,7 @@ type Callback struct {
 
 	CompetingTxs []string `json:"competingTxs,omitempty"`
 
-	Txid       string  `json:"txid"`
+	TxID       string  `json:"txid"`
 	TxStatus   string  `json:"txStatus"`
 	ExtraInfo  *string `json:"extraInfo,omitempty"`
 	MerklePath *string `json:"merklePath,omitempty"`

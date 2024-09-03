@@ -9,6 +9,9 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/callbacker"
+	"github.com/bitcoin-sv/arc/internal/callbacker/store"
+	"github.com/bitcoin-sv/arc/internal/callbacker/store/postgresql"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
@@ -20,23 +23,16 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 
 	config := appConfig.Callbacker
 
-	callbackSender, err := callbacker.NewSender(&http.Client{Timeout: 5 * time.Second}, logger)
-	if err != nil {
-		return nil, fmt.Errorf("callbacker failed: %v", err)
-	}
+	var (
+		store      store.CallbackerStore
+		sender     *callbacker.CallbackSender
+		dispatcher *callbacker.CallbackDispatcher
 
-	callbackDispatcher := callbacker.NewCallbackDispatcher(callbackSender, config.Pause)
+		server       *callbacker.Server
+		healthServer *grpc.Server
 
-	server := callbacker.NewServer(callbackDispatcher, callbacker.WithLogger(logger.With(slog.String("module", "server"))))
-	err = server.Serve(config.ListenAddr, appConfig.GrpcMessageSize, appConfig.PrometheusEndpoint)
-	if err != nil {
-		return nil, fmt.Errorf("GRPCServer failed: %v", err)
-	}
-
-	healthServer, err := StartHealthServerCallbacker(server, config.Health, logger)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start health server: %v", err)
-	}
+		err error
+	)
 
 	stopFn := func() {
 		logger.Info("Shutting down callbacker")
@@ -45,17 +41,86 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 		// 1. server - ensure no new callbacks will be received
 		// 2. dispatcher - ensure all already accepted callbacks are proccessed
 		// 3. sender - finally, stop the sender as there are no callbacks left to send.
-		server.GracefulStop()
-		callbackDispatcher.GracefulStop()
-		callbackSender.GracefulStop()
+		// 4. store
 
-		healthServer.Stop()
+		if server != nil {
+			server.GracefulStop()
+		}
+		if dispatcher != nil {
+			dispatcher.GracefulStop()
+		}
+		if sender != nil {
+			sender.GracefulStop()
+		}
+
+		if store != nil {
+			err := store.Close()
+			if err != nil {
+				logger.Error("Could not close the store", slog.String("err", err.Error()))
+			}
+		}
+
+		if healthServer != nil {
+			healthServer.Stop()
+		}
 
 		logger.Info("Shutted down")
 	}
 
+	store, err = NewStore(config.Db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create callbacker store: %v", err)
+	}
+
+	sender, err = callbacker.NewSender(&http.Client{Timeout: 5 * time.Second}, logger)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("failed to create callback sender: %v", err)
+	}
+
+	dispatcher = callbacker.NewCallbackDispatcher(sender, store, config.Pause)
+	logger.Info("Init callback dispatcher, add to processing abandoned callbacks")
+	err = dispatcher.Init()
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("failed to init callback dispatcher, couldn't process all abandoned callbacks: %v", err)
+	}
+
+	server = callbacker.NewServer(dispatcher, callbacker.WithLogger(logger.With(slog.String("module", "server"))))
+	err = server.Serve(config.ListenAddr, appConfig.GrpcMessageSize, appConfig.PrometheusEndpoint)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("GRPCServer failed: %v", err)
+	}
+
+	healthServer, err = StartHealthServerCallbacker(server, config.Health, logger)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("failed to start health server: %v", err)
+	}
+
 	logger.Info("Ready to work")
 	return stopFn, nil
+}
+
+func NewStore(dbConfig *config.DbConfig) (s store.CallbackerStore, err error) {
+	switch dbConfig.Mode {
+	case DbModePostgres:
+		postgres := dbConfig.Postgres
+
+		dbInfo := fmt.Sprintf(
+			"user=%s password=%s dbname=%s host=%s port=%d sslmode=%s",
+			postgres.User, postgres.Password, postgres.Name, postgres.Host, postgres.Port, postgres.SslMode,
+		)
+		s, err = postgresql.New(dbInfo, postgres.MaxIdleConns, postgres.MaxOpenConns)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
+		}
+	default:
+		return nil, fmt.Errorf("db mode %s is invalid", dbConfig.Mode)
+	}
+
+	return s, err
 }
 
 func StartHealthServerCallbacker(serv *callbacker.Server, healthConfig *config.HealthConfig, logger *slog.Logger) (*grpc.Server, error) {

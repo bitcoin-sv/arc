@@ -99,7 +99,7 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) {
 	p.logger.Warn("Couldn't send transaction callback after retries",
 		slog.String("url", url),
 		slog.String("token", token),
-		slog.String("hash", dto.Txid),
+		slog.String("hash", dto.TxID),
 		slog.Int("retries", retries))
 
 	p.stats.callbackFailedCount.Inc()
@@ -135,7 +135,7 @@ func (p *CallbackSender) sendCallback(url, token string, dto *Callback) (ok, ret
 		p.logger.Error("Couldn't create HTTP request",
 			slog.String("url", url),
 			slog.String("token", token),
-			slog.String("hash", dto.Txid),
+			slog.String("hash", dto.TxID),
 			slog.String("err", err.Error()))
 		return false, false
 	}
@@ -145,7 +145,7 @@ func (p *CallbackSender) sendCallback(url, token string, dto *Callback) (ok, ret
 		p.logger.Warn("Couldn't send transaction callback",
 			slog.String("url", url),
 			slog.String("token", token),
-			slog.String("hash", dto.Txid),
+			slog.String("hash", dto.TxID),
 			slog.String("err", err.Error()))
 		return false, true
 	}

@@ -449,6 +449,11 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		if hasGreatestChainwork {
 			// TODO: perform reorg - next ticket
 			incomingBlock.Status = blocktx_api.Status_LONGEST
+			err := p.performReorg()
+			if err != nil {
+				// TODO: error log
+				return err
+			}
 		}
 	}
 
@@ -554,6 +559,15 @@ func (p *Processor) hasGreatestChainwork(ctx context.Context, incomingBlock *blo
 	incomingBlockChainwork.SetString(incomingBlock.Chainwork, 10)
 
 	return tipChainWork.Cmp(incomingBlockChainwork) < 0, nil
+}
+
+func (p *Processor) performReorg() error {
+	// get all blocks until the common ancestor of competing chains
+	// 		get entire STALE chain by performing a recursive query
+	// 		get lowest height of that chain
+	// 		get all headers from the longest chain from that height
+	// replace statuses of these blocks
+	return nil
 }
 
 func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {

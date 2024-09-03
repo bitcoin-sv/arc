@@ -37,7 +37,7 @@ func testmain(m *testing.M) int {
 		return 1
 	}
 
-	port := "5433"
+	port := "5436"
 	resource, connStr, err := testutils.RunAndMigratePostgresql(pool, port, "callbacker", migrationsPath)
 	if err != nil {
 		log.Print(err)

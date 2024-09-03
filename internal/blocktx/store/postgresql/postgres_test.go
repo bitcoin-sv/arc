@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"errors"
 	"log"
 	"os"
@@ -62,15 +61,6 @@ const (
 )
 
 var dbInfo string
-
-func revChainhash(t *testing.T, hashString string) *chainhash.Hash {
-	hash, err := hex.DecodeString(hashString)
-	require.NoError(t, err)
-	txHash, err := chainhash.NewHash(hash)
-	require.NoError(t, err)
-
-	return txHash
-}
 
 func TestMain(m *testing.M) {
 	os.Exit(testmain(m))
@@ -145,9 +135,9 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("insert block / get block", func(t *testing.T) {
 		prepareDb(t, postgresDB.db, "")
 
-		blockHash1 := revChainhash(t, "000000000000000001b8adefc1eb98896c80e30e517b9e2655f1f929d9958a48")
-		blockHash2 := revChainhash(t, "00000000000000000a081a539601645abe977946f8f6466a3c9e0c34d50be4a8")
-		merkleRoot := revChainhash(t, "31e25c5ac7c143687f55fc49caf0f552ba6a16d4f785e4c9a9a842179a085f0c")
+		blockHash1 := testutils.RevChainhash(t, "000000000000000001b8adefc1eb98896c80e30e517b9e2655f1f929d9958a48")
+		blockHash2 := testutils.RevChainhash(t, "00000000000000000a081a539601645abe977946f8f6466a3c9e0c34d50be4a8")
+		merkleRoot := testutils.RevChainhash(t, "31e25c5ac7c143687f55fc49caf0f552ba6a16d4f785e4c9a9a842179a085f0c")
 		block := &blocktx_api.Block{
 			Hash:         blockHash2[:],
 			PreviousHash: blockHash1[:],
@@ -201,10 +191,10 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 4, len(blockGaps))
 
-		hash822014 := revChainhash(t, "67708796ef57464ed9eaf2a663d3da32372e4c2fb65558020000000000000000")
-		hash822019 := revChainhash(t, "5696fc6e504b6aa2ae5d9c46b9418192dc61bd1b2e3364030000000000000000")
-		hash822020 := revChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
-		hash822009 := revChainhash(t, "4ad773b1a464129a0ed8c7a8c71bb98175f0f01da1793f0e0000000000000000")
+		hash822014 := testutils.RevChainhash(t, "67708796ef57464ed9eaf2a663d3da32372e4c2fb65558020000000000000000")
+		hash822019 := testutils.RevChainhash(t, "5696fc6e504b6aa2ae5d9c46b9418192dc61bd1b2e3364030000000000000000")
+		hash822020 := testutils.RevChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
+		hash822009 := testutils.RevChainhash(t, "4ad773b1a464129a0ed8c7a8c71bb98175f0f01da1793f0e0000000000000000")
 
 		expectedBlockGaps := []*store.BlockGap{
 			{ // gap
@@ -231,12 +221,12 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("test getting mined txs", func(t *testing.T) {
 		prepareDb(t, postgresDB.db, "fixtures/get_mined_transactions")
 
-		txHash1 := revChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")
-		txHash2 := revChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")
-		txHash3 := revChainhash(t, "dbbd24251b9bb824566412395bb76a579bca3477c2d0b4cbc210a769d3bb4177")
-		txHash4 := revChainhash(t, "0d60dd6dc1f2649efb2847f801dfaa61361a438deb526da2de5b6875e0016514")
+		txHash1 := testutils.RevChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")
+		txHash2 := testutils.RevChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")
+		txHash3 := testutils.RevChainhash(t, "dbbd24251b9bb824566412395bb76a579bca3477c2d0b4cbc210a769d3bb4177")
+		txHash4 := testutils.RevChainhash(t, "0d60dd6dc1f2649efb2847f801dfaa61361a438deb526da2de5b6875e0016514")
 
-		blockHash := revChainhash(t, "6258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")
+		blockHash := testutils.RevChainhash(t, "6258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")
 
 		// get mined transaction and corresponding block
 		minedTxs, err := postgresDB.GetMinedTransactions(ctx, []*chainhash.Hash{txHash1, txHash2, txHash3, txHash4})
@@ -288,7 +278,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("set/get/del block processing", func(t *testing.T) {
 		prepareDb(t, postgresDB.db, "fixtures/block_processing")
 
-		bh1 := revChainhash(t, "747468cf7e6639ba9aa277ade1cf27639b0f214cec5719020000000000000000")
+		bh1 := testutils.RevChainhash(t, "747468cf7e6639ba9aa277ade1cf27639b0f214cec5719020000000000000000")
 
 		processedBy, err := postgresDB.SetBlockProcessing(ctx, bh1, "pod-1")
 		require.NoError(t, err)
@@ -299,7 +289,7 @@ func TestPostgresDB(t *testing.T) {
 		require.ErrorIs(t, err, store.ErrBlockProcessingDuplicateKey)
 		require.Equal(t, "pod-1", processedBy)
 
-		bhInProgress := revChainhash(t, "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000")
+		bhInProgress := testutils.RevChainhash(t, "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000")
 
 		blockHashes, err := postgresDB.GetBlockHashesProcessingInProgress(ctx, "pod-2")
 		require.NoError(t, err)
@@ -320,7 +310,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("mark block as done", func(t *testing.T) {
 		prepareDb(t, postgresDB.db, "fixtures/mark_block_as_done")
 
-		bh1 := revChainhash(t, "b71ab063c5f96cad71cdc59dcc94182a20a69cbd7eed2d070000000000000000")
+		bh1 := testutils.RevChainhash(t, "b71ab063c5f96cad71cdc59dcc94182a20a69cbd7eed2d070000000000000000")
 
 		err = postgresDB.MarkBlockAsDone(ctx, bh1, 500, 75)
 		require.NoError(t, err)
@@ -401,10 +391,10 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			name: "mismatched lengths of merkle paths and transactions",
 			txs: []*blocktx_api.TransactionAndSource{
 				{
-					Hash: revChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")[:],
+					Hash: testutils.RevChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")[:],
 				},
 				{
-					Hash: revChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")[:],
+					Hash: testutils.RevChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")[:],
 				},
 			},
 			merklePaths: []string{"test1"},
@@ -414,10 +404,10 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			name: "upsert all registered transactions (updates only)",
 			txs: []*blocktx_api.TransactionAndSource{
 				{
-					Hash: revChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")[:],
+					Hash: testutils.RevChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")[:],
 				},
 				{
-					Hash: revChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")[:],
+					Hash: testutils.RevChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")[:],
 				},
 			},
 			merklePaths:           []string{"test1", "test2"},
@@ -427,7 +417,7 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			name: "upsert all non-registered transactions (inserts only)",
 			txs: []*blocktx_api.TransactionAndSource{
 				{
-					Hash: revChainhash(t, "edd33fdcdfa68444d227780e2b62a4437c00120c5320d2026aeb24a781f4c3f1")[:],
+					Hash: testutils.RevChainhash(t, "edd33fdcdfa68444d227780e2b62a4437c00120c5320d2026aeb24a781f4c3f1")[:],
 				},
 			},
 			merklePaths:           []string{"test1"},
@@ -437,22 +427,22 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			name: "update exceeds max batch size (more txs than 5)",
 			txs: []*blocktx_api.TransactionAndSource{
 				{
-					Hash: revChainhash(t, "b4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743")[:],
+					Hash: testutils.RevChainhash(t, "b4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743")[:],
 				},
 				{
-					Hash: revChainhash(t, "37bd6c87927e75faeb3b3c939f64721cda48e1bb98742676eebe83aceee1a669")[:],
+					Hash: testutils.RevChainhash(t, "37bd6c87927e75faeb3b3c939f64721cda48e1bb98742676eebe83aceee1a669")[:],
 				},
 				{
-					Hash: revChainhash(t, "952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb")[:],
+					Hash: testutils.RevChainhash(t, "952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb")[:],
 				},
 				{
-					Hash: revChainhash(t, "861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608")[:],
+					Hash: testutils.RevChainhash(t, "861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608")[:],
 				},
 				{
-					Hash: revChainhash(t, "9421cc760c5405af950a76dc3e4345eaefd4e7322f172a3aee5e0ddc7b4f8313")[:],
+					Hash: testutils.RevChainhash(t, "9421cc760c5405af950a76dc3e4345eaefd4e7322f172a3aee5e0ddc7b4f8313")[:],
 				},
 				{
-					Hash: revChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
+					Hash: testutils.RevChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
 				},
 			},
 			merklePaths:           []string{"test1", "test2", "test3", "test4", "test5", "test6"},
@@ -543,16 +533,16 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 			name: "register already known, not registered transactions",
 			txs: []*blocktx_api.TransactionAndSource{
 				{
-					Hash: revChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")[:],
+					Hash: testutils.RevChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")[:],
 				},
 				{
-					Hash: revChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")[:],
+					Hash: testutils.RevChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")[:],
 				},
 				{
-					Hash: revChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
+					Hash: testutils.RevChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
 				},
 				{
-					Hash: revChainhash(t, "9421cc760c5405af950a76dc3e4345eaefd4e7322f172a3aee5e0ddc7b4f8313")[:],
+					Hash: testutils.RevChainhash(t, "9421cc760c5405af950a76dc3e4345eaefd4e7322f172a3aee5e0ddc7b4f8313")[:],
 				},
 			},
 		},
@@ -560,16 +550,16 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 			name: "register already registered transactions",
 			txs: []*blocktx_api.TransactionAndSource{
 				{
-					Hash: revChainhash(t, "b4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743")[:],
+					Hash: testutils.RevChainhash(t, "b4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743")[:],
 				},
 				{
-					Hash: revChainhash(t, "37bd6c87927e75faeb3b3c939f64721cda48e1bb98742676eebe83aceee1a669")[:],
+					Hash: testutils.RevChainhash(t, "37bd6c87927e75faeb3b3c939f64721cda48e1bb98742676eebe83aceee1a669")[:],
 				},
 				{
-					Hash: revChainhash(t, "952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb")[:],
+					Hash: testutils.RevChainhash(t, "952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb")[:],
 				},
 				{
-					Hash: revChainhash(t, "861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608")[:],
+					Hash: testutils.RevChainhash(t, "861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608")[:],
 				},
 			},
 		},

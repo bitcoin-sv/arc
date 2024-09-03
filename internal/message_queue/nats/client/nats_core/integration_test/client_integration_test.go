@@ -1,7 +1,6 @@
 package integration_test
 
 import (
-	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -12,16 +11,15 @@ import (
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/nats-io/nats.go"
 	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
 
 const (
-	natsPort      = "4222"
 	SubmitTxTopic = "submit-tx"
 	MinedTxsTopic = "mined-txs"
 )
@@ -33,67 +31,54 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	os.Exit(testmain(m))
+}
+
+func testmain(m *testing.M) int {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
-		log.Fatalf("failed to create pool: %v", err)
+		log.Printf("failed to create pool: %v", err)
+		return 1
 	}
 
 	port := "4336"
-	opts := dockertest.RunOptions{
-		Repository:   "nats",
-		Tag:          "2.10.10",
-		ExposedPorts: []string{natsPort},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			natsPort: {
-				{HostIP: "0.0.0.0", HostPort: port},
-			},
-		},
-		Name: "nats-core",
-	}
-
-	resource, err := pool.RunWithOptions(&opts, func(config *docker.HostConfig) {
-		// set AutoRemove to true so that stopped container goes away by itself
-		config.AutoRemove = true
-		config.RestartPolicy = docker.RestartPolicy{
-			Name: "no",
-		}
-	})
+	name := "nats-core"
+	resource, natsURL, err := testutils.RunNats(pool, port, name)
 	if err != nil {
-		log.Fatalf("failed to create resource: %v", err)
+		log.Print(err)
+		return 1
 	}
-
-	hostPort := resource.GetPort(fmt.Sprintf("%s/tcp", natsPort))
-	natsURL := fmt.Sprintf("nats://localhost:%s", hostPort)
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	natsConnClient, err = nats_connection.New(natsURL, logger)
 	if err != nil {
-		log.Fatalf("failed to create nats connection: %v", err)
+		log.Printf("failed to create nats connection: %v", err)
+		return 1
 	}
 
 	natsConn, err = nats_connection.New(natsURL, logger)
 	if err != nil {
-		log.Fatalf("failed to create nats connection: %v", err)
+		log.Printf("failed to create nats connection: %v", err)
+		return 1
 	}
+
+	defer func() {
+		err = natsConn.Drain()
+		if err != nil {
+			log.Fatalf("failed to drain nats connection: %v", err)
+		}
+
+		mqClient.Shutdown()
+
+		err = pool.Purge(resource)
+		if err != nil {
+			log.Fatalf("failed to purge pool: %v", err)
+		}
+	}()
 
 	time.Sleep(5 * time.Second)
-
-	code := m.Run()
-
-	err = natsConn.Drain()
-	if err != nil {
-		log.Fatalf("failed to drain nats connection: %v", err)
-	}
-
-	mqClient.Shutdown()
-
-	err = pool.Purge(resource)
-	if err != nil {
-		log.Fatalf("failed to purge pool: %v", err)
-	}
-
-	os.Exit(code)
+	return m.Run()
 }
 
 func TestNatsClient(t *testing.T) {

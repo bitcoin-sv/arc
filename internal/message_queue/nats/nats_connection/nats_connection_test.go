@@ -1,19 +1,14 @@
 package nats_connection
 
 import (
-	"fmt"
 	"log"
 	"log/slog"
 	"os"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
-)
-
-const (
-	natsPort = "4222"
 )
 
 var (
@@ -21,45 +16,31 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	os.Exit(testmain(m))
+}
+
+func testmain(m *testing.M) int {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
-		log.Fatalf("failed to create pool: %v", err)
+		log.Printf("failed to create pool: %v", err)
+		return 1
 	}
 
 	port := "4334"
-	opts := dockertest.RunOptions{
-		Repository:   "nats",
-		Tag:          "2.10.10",
-		ExposedPorts: []string{natsPort},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			natsPort: {
-				{HostIP: "0.0.0.0", HostPort: port},
-			},
-		},
+	resource, natsInfo, err := testutils.RunNats(pool, port, "")
+	if err != nil {
+		log.Print(err)
+		return 1
 	}
-
-	resource, err := pool.RunWithOptions(&opts, func(config *docker.HostConfig) {
-		// set AutoRemove to true so that stopped container goes away by itself
-		config.AutoRemove = true
-		config.RestartPolicy = docker.RestartPolicy{
-			Name: "no",
+	defer func() {
+		err = pool.Purge(resource)
+		if err != nil {
+			log.Fatalf("failed to purge pool: %v", err)
 		}
-	})
-	if err != nil {
-		log.Fatalf("failed to create resource: %v", err)
-	}
+	}()
 
-	hostPort := resource.GetPort(fmt.Sprintf("%s/tcp", natsPort))
-	natsURL = fmt.Sprintf("nats://localhost:%s", hostPort)
-
-	code := m.Run()
-
-	err = pool.Purge(resource)
-	if err != nil {
-		log.Fatalf("failed to purge pool: %v", err)
-	}
-
-	os.Exit(code)
+	natsURL = natsInfo
+	return m.Run()
 }
 
 func TestNewNatsConnection(t *testing.T) {

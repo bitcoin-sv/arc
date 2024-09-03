@@ -186,12 +186,10 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			status: metamorph_api.Status_SENT_TO_NETWORK,
 
 			want: &metamorph_api.TransactionStatus{
-				StoredAt:    timestamppb.New(testdata.Time),
-				AnnouncedAt: timestamppb.New(testdata.Time.Add(1 * time.Second)),
-				MinedAt:     timestamppb.New(testdata.Time.Add(2 * time.Second)),
-				Txid:        testdata.TX1Hash.String(),
-				Status:      metamorph_api.Status_SENT_TO_NETWORK,
-				MerklePath:  "00000",
+				StoredAt:   timestamppb.New(testdata.Time),
+				Txid:       testdata.TX1Hash.String(),
+				Status:     metamorph_api.Status_SENT_TO_NETWORK,
+				MerklePath: "00000",
 			},
 			wantErr: assert.NoError,
 		},
@@ -205,8 +203,6 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 
 			want: &metamorph_api.TransactionStatus{
 				StoredAt:     timestamppb.New(testdata.Time),
-				AnnouncedAt:  timestamppb.New(testdata.Time.Add(1 * time.Second)),
-				MinedAt:      timestamppb.New(testdata.Time.Add(2 * time.Second)),
 				Txid:         testdata.TX1Hash.String(),
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 				CompetingTxs: []string{"1234"},
@@ -224,8 +220,6 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 
 			want: &metamorph_api.TransactionStatus{
 				StoredAt:     timestamppb.New(testdata.Time),
-				AnnouncedAt:  timestamppb.New(testdata.Time.Add(1 * time.Second)),
-				MinedAt:      timestamppb.New(testdata.Time.Add(2 * time.Second)),
 				Txid:         testdata.TX1Hash.String(),
 				Status:       metamorph_api.Status_MINED,
 				CompetingTxs: []string{},
@@ -243,12 +237,10 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			getTxMerklePathErr: errors.New("failed to get tx merkle path"),
 
 			want: &metamorph_api.TransactionStatus{
-				StoredAt:    timestamppb.New(testdata.Time),
-				AnnouncedAt: timestamppb.New(testdata.Time.Add(1 * time.Second)),
-				MinedAt:     timestamppb.New(testdata.Time.Add(2 * time.Second)),
-				Txid:        testdata.TX1Hash.String(),
-				Status:      metamorph_api.Status_SENT_TO_NETWORK,
-				MerklePath:  "00000",
+				StoredAt:   timestamppb.New(testdata.Time),
+				Txid:       testdata.TX1Hash.String(),
+				Status:     metamorph_api.Status_SENT_TO_NETWORK,
+				MerklePath: "00000",
 			},
 			wantErr: assert.NoError,
 		},
@@ -261,12 +253,10 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			getTxMerklePathErr: blocktx.ErrMerklePathNotFoundForTransaction,
 
 			want: &metamorph_api.TransactionStatus{
-				StoredAt:    timestamppb.New(testdata.Time),
-				AnnouncedAt: timestamppb.New(testdata.Time.Add(1 * time.Second)),
-				MinedAt:     timestamppb.New(testdata.Time.Add(2 * time.Second)),
-				Txid:        testdata.TX1Hash.String(),
-				Status:      metamorph_api.Status_MINED,
-				MerklePath:  "00000",
+				StoredAt:   timestamppb.New(testdata.Time),
+				Txid:       testdata.TX1Hash.String(),
+				Status:     metamorph_api.Status_MINED,
+				MerklePath: "00000",
 			},
 			wantErr: assert.NoError,
 		},

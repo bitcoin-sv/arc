@@ -17,8 +17,6 @@ package integrationtest
 import (
 	"context"
 	"database/sql"
-	"errors"
-	"fmt"
 	"log"
 	"log/slog"
 	"net/url"
@@ -31,13 +29,11 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
-	"github.com/golang-migrate/migrate/v4"
-	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
+	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,11 +46,7 @@ const (
 var hashes = []string{"8e75ae10f86d8a43044a54c3c57d660d20cdb74e233be4b5c90ba752ebdc7e88", "d64adfce6b105dc6bdf475494925bf06802a41a0582586f33c2b16d537a0b7b6"}
 
 const (
-	postgresPort   = "5432"
 	migrationsPath = "file://../store/postgresql/migrations"
-	dbName         = "main_test"
-	dbUsername     = "arcuser"
-	dbPassword     = "arcpass"
 )
 
 var (
@@ -63,80 +55,38 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	os.Exit(testmain(m))
+}
+
+func testmain(m *testing.M) int {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
-		log.Fatalf("failed to create pool: %v", err)
+		log.Printf("failed to create pool: %v", err)
+		return 1
 	}
 
 	port := "5435"
-	opts := dockertest.RunOptions{
-		Repository: "postgres",
-		Tag:        "15.4",
-		Env: []string{
-			fmt.Sprintf("POSTGRES_PASSWORD=%s", dbPassword),
-			fmt.Sprintf("POSTGRES_USER=%s", dbUsername),
-			fmt.Sprintf("POSTGRES_DB=%s", dbName),
-			"listen_addresses = '*'",
-		},
-		ExposedPorts: []string{"5432"},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			postgresPort: {
-				{HostIP: "0.0.0.0", HostPort: port},
-			},
-		},
-	}
-
-	resource, err := pool.RunWithOptions(&opts, func(config *docker.HostConfig) {
-		config.AutoRemove = true
-		config.RestartPolicy = docker.RestartPolicy{
-			Name: "no",
-		}
-		config.Tmpfs = map[string]string{
-			"/var/lib/postgresql/data": "",
-		}
-	})
+	resource, connStr, err := testutils.RunAndMigratePostgresql(pool, port, "metamorph", migrationsPath)
 	if err != nil {
-		log.Fatalf("failed to create resource: %v", err)
+		log.Print(err)
+		return 1
 	}
+	defer func() {
+		err = pool.Purge(resource)
+		if err != nil {
+			log.Fatalf("failed to purge pool: %v", err)
+		}
+	}()
 
-	hostPort := resource.GetPort("5432/tcp")
+	dbInfo = connStr
 
-	dbInfo = fmt.Sprintf("host=localhost port=%s user=%s password=%s dbname=%s sslmode=disable", hostPort, dbUsername, dbPassword, dbName)
 	dbConn, err = sql.Open("postgres", dbInfo)
 	if err != nil {
-		log.Fatalf("failed to create db connection: %v", err)
-	}
-	err = pool.Retry(func() error {
-		return dbConn.Ping()
-	})
-	if err != nil {
-		log.Fatalf("failed to connect to docker: %s", err)
+		log.Printf("failed to create db connection: %v", err)
+		return 1
 	}
 
-	driver, err := migratepostgres.WithInstance(dbConn, &migratepostgres.Config{
-		MigrationsTable: "metamorph",
-	})
-	if err != nil {
-		log.Fatalf("failed to create driver: %v", err)
-	}
-
-	migrations, err := migrate.NewWithDatabaseInstance(migrationsPath, "postgres", driver)
-	if err != nil {
-		log.Fatalf("failed to initialize migrate instance: %v", err)
-	}
-	err = migrations.Up()
-	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		log.Fatalf("failed to initialize migrate instance: %v", err)
-	}
-
-	code := m.Run()
-
-	err = pool.Purge(resource)
-	if err != nil {
-		log.Fatalf("failed to purge pool: %v", err)
-	}
-
-	os.Exit(code)
+	return m.Run()
 }
 
 func TestDoubleSpendDetection(t *testing.T) {

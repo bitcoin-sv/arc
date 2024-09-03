@@ -195,44 +195,25 @@ func TestPostgresDBt(t *testing.T) {
 		// then
 		require.NoError(t, err)
 
-		// check if every UNIQUE record has been saved
-		uniqueRecords := make(map[*store.CallbackData]struct{})
-
-		for _, dr := range data {
-			duplicate := false
-
-			for ur := range uniqueRecords {
-				if tutils.CallbackRecordEqual(ur, dr) {
-					duplicate = true
-					break
-				}
-			}
-
-			if !duplicate {
-				uniqueRecords[dr] = struct{}{}
-			}
-		}
-		require.NotEmpty(t, uniqueRecords)
-
 		// read all from db
 		dbCallbacks := tutils.ReadAllCallbacks(t, postgresDB.db)
 		for _, c := range dbCallbacks {
-			// check if exists in unique records
-			for ur := range uniqueRecords {
+			found := false
+			for i, ur := range data {
 				if ur == nil {
 					continue
 				}
 
 				if tutils.CallbackRecordEqual(ur, c) {
 					// remove if found
-					delete(uniqueRecords, ur)
+					data[i] = nil
+					found = true
 					break
 				}
 			}
-		}
 
-		// uniqueRecords map should be empty if all entries have been visited
-		require.Empty(t, uniqueRecords)
+			require.True(t, found)
+		}
 	})
 
 	t.Run("pop many", func(t *testing.T) {

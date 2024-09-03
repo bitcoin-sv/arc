@@ -1,6 +1,7 @@
 CREATE SCHEMA callbacker;
 
 CREATE TABLE callbacker.callbacks (
+    id BIGSERIAL PRIMARY KEY,
     url TEXT NOT NULL,
     token TEXT NOT NULL,
     tx_id TEXT NOT NULL,
@@ -13,4 +14,3 @@ CREATE TABLE callbacker.callbacks (
     timestamp TIMESTAMPTZ NOT NULL
 );
 
-CREATE UNIQUE INDEX ux_callbacker_callbacks_unique ON callbacker.callbacks (url, token, tx_id, tx_status);

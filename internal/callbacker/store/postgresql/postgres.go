@@ -131,9 +131,9 @@ func (p *PostgreSQL) PopMany(ctx context.Context, limit int) (res []*store.Callb
 	}()
 
 	const q = `DELETE FROM callbacker.callbacks
-			WHERE ctid IN (
-				SELECT ctid FROM callbacker.callbacks
-				ORDER BY timestamp
+			WHERE id IN (
+				SELECT id FROM callbacker.callbacks
+				ORDER BY id
 				LIMIT $1
 				FOR UPDATE
 			)

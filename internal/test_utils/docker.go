@@ -70,3 +70,33 @@ func RunPostgresql(pool *dockertest.Pool, port string) (*dockertest.Resource, st
 	dbInfo := fmt.Sprintf("host=localhost port=%s user=%s password=%s dbname=%s sslmode=disable", hostPort, dbUsername, dbPassword, dbName)
 	return resource, dbInfo, nil
 }
+
+func RunNats(pool *dockertest.Pool, port, name string, cmds ...string) (*dockertest.Resource, string, error) {
+	opts := dockertest.RunOptions{
+		Repository:   "nats",
+		Tag:          "2.10.10",
+		ExposedPorts: []string{"4222"},
+		PortBindings: map[docker.Port][]docker.PortBinding{
+			"4222": {
+				{HostIP: "0.0.0.0", HostPort: port},
+			},
+		},
+		Name: name,
+		Cmd:  cmds,
+	}
+	resource, err := pool.RunWithOptions(&opts, func(config *docker.HostConfig) {
+		// set AutoRemove to true so that stopped container goes away by itself
+		config.AutoRemove = true
+		config.RestartPolicy = docker.RestartPolicy{
+			Name: "no",
+		}
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create resource: %v", err)
+	}
+
+	hostPort := resource.GetPort("4222/tcp")
+	natsURL := fmt.Sprintf("nats://localhost:%s", hostPort)
+
+	return resource, natsURL, nil
+}

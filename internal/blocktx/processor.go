@@ -449,7 +449,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		if hasGreatestChainwork {
 			// TODO: perform reorg - next ticket
 			incomingBlock.Status = blocktx_api.Status_LONGEST
-			err := p.performReorg()
+			err := p.performReorg(ctx, incomingBlock, &previousBlockHash)
 			if err != nil {
 				// TODO: error log
 				return err
@@ -561,12 +561,22 @@ func (p *Processor) hasGreatestChainwork(ctx context.Context, incomingBlock *blo
 	return tipChainWork.Cmp(incomingBlockChainwork) < 0, nil
 }
 
-func (p *Processor) performReorg() error {
+func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api.Block, prevBlockHash *chainhash.Hash) error {
 	// get all blocks until the common ancestor of competing chains
 	// 		get entire STALE chain by performing a recursive query
+	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, prevBlockHash)
+	if err != nil {
+		return err
+	}
 	// 		get lowest height of that chain
+	lowestHeight := incomingBlock.Height
+	if len(staleBlocks) > 0 {
+		lowestHeight = getLowestHeight(staleBlocks)
+	}
 	// 		get all headers from the longest chain from that height
-	// replace statuses of these blocks
+	longestBlocks, err := p.store.GetLongestChainFromHeight(ctx, lowestHeight)
+	// 		replace statuses of these blocks
+	// 		update statuses in DB
 	return nil
 }
 

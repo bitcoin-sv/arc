@@ -15,7 +15,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/go-testfixtures/testfixtures/v3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -101,12 +100,12 @@ func testmain(m *testing.M) int {
 	return m.Run()
 }
 
-func prepareDb(t testing.TB, db *sql.DB, fixture string) {
+func prepareDb(t *testing.T, db *sql.DB, fixture string) {
 	t.Helper()
 	pruneTables(t, db)
 
 	if fixture != "" {
-		loadFixtures(t, db, fixture)
+		testutils.LoadFixtures(t, db, fixture)
 	}
 }
 
@@ -126,24 +125,6 @@ func pruneTables(t testing.TB, db *sql.DB) {
 	_, err = db.Exec("TRUNCATE TABLE blocktx.block_transactions_map;")
 	if err != nil {
 		t.Fatalf("cannot clear blocktx.block_transactions_map table: %v", err)
-	}
-}
-
-func loadFixtures(t testing.TB, db *sql.DB, path string) {
-	t.Helper()
-
-	fixtures, err := testfixtures.New(
-		testfixtures.Database(db),
-		testfixtures.Dialect("postgresql"),
-		testfixtures.Directory(path), // The directory containing the YAML files
-	)
-	if err != nil {
-		t.Fatalf("failed to create fixtures: %v", err)
-	}
-
-	err = fixtures.Load()
-	if err != nil {
-		t.Fatalf("failed to load fixtures: %v", err)
 	}
 }
 

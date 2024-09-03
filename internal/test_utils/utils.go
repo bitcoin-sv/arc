@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"testing"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/go-testfixtures/testfixtures/v3"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/stretchr/testify/require"
 
 	"github.com/golang-migrate/migrate/v4"
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -93,4 +96,15 @@ func PruneTables(t *testing.T, db *sql.DB, tables ...string) {
 			t.Fatal(err)
 		}
 	}
+}
+
+func RevChainhash(t *testing.T, hashString string) *chainhash.Hash {
+	t.Helper()
+
+	hash, err := hex.DecodeString(hashString)
+	require.NoError(t, err)
+	txHash, err := chainhash.NewHash(hash)
+	require.NoError(t, err)
+
+	return txHash
 }

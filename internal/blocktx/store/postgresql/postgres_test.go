@@ -158,13 +158,13 @@ func TestPostgresDB(t *testing.T) {
 		prepareDb(t, postgresDB.db, "fixtures/get_block_by_height")
 
 		height := uint64(822015)
-		hash_at_height_longest := revChainhash(t, "c9b4e1e4dcf9188416027511671b9346be8ef93c0ddf59060000000000000000")
-		hash_at_height_stale := revChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
+		hash_at_height_longest := testutils.RevChainhash(t, "c9b4e1e4dcf9188416027511671b9346be8ef93c0ddf59060000000000000000")
+		hash_at_height_stale := testutils.RevChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
 
 		height_not_found := uint64(812222)
 
 		tipHeight := uint64(822020)
-		hash_at_tip := revChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
+		hash_at_tip := testutils.RevChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
 
 		block, err := postgresDB.GetBlockByHeight(context.Background(), height, blocktx_api.Status_LONGEST)
 		require.NoError(t, err)

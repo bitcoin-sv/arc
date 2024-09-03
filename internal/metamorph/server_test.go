@@ -277,8 +277,6 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					data := &store.StoreData{
 						StoredAt:     testdata.Time,
-						AnnouncedAt:  testdata.Time.Add(1 * time.Second),
-						MinedAt:      testdata.Time.Add(2 * time.Second),
 						Hash:         testdata.TX1Hash,
 						Status:       tt.status,
 						CompetingTxs: tt.competingTxs,
@@ -465,11 +463,9 @@ func TestPutTransactions(t *testing.T) {
 				},
 			},
 			transactionFound: map[int]*store.StoreData{1: {
-				Status:      metamorph_api.Status_SENT_TO_NETWORK,
-				Hash:        hash1,
-				StoredAt:    time.Time{},
-				AnnouncedAt: time.Time{},
-				MinedAt:     time.Time{},
+				Status:   metamorph_api.Status_SENT_TO_NETWORK,
+				Hash:     hash1,
+				StoredAt: time.Time{},
 			}},
 			processorResponse: map[string]*metamorph.StatusAndError{
 				hash0.String(): {

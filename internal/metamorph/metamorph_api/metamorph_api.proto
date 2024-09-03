@@ -84,8 +84,6 @@ message Transaction {
 message TransactionStatus {
   bool timed_out = 1;
   google.protobuf.Timestamp stored_at = 2;
-  google.protobuf.Timestamp announced_at = 3;
-  google.protobuf.Timestamp mined_at = 4;
   string txid = 5;
   Status status = 6;
   string reject_reason = 7;

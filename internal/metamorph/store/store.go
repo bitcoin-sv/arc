@@ -15,13 +15,13 @@ var ErrNotFound = errors.New("key could not be found")
 type StoreData struct {
 	RawTx             []byte
 	StoredAt          time.Time
-	AnnouncedAt       time.Time
-	MinedAt           time.Time
+	LastModified      *time.Time
 	Hash              *chainhash.Hash
 	Status            metamorph_api.Status
 	BlockHeight       uint64
 	BlockHash         *chainhash.Hash
 	Callbacks         []StoreCallback
+	StatusHistory     []StoreStatus
 	FullStatusUpdates bool
 	RejectReason      string
 	CompetingTxs      []string
@@ -35,6 +35,11 @@ type StoreData struct {
 type StoreCallback struct {
 	CallbackURL   string `json:"callback_url"`
 	CallbackToken string `json:"callback_token"`
+}
+
+type StoreStatus struct {
+	Status    metamorph_api.Status
+	Timestamp time.Time
 }
 
 type Stats struct {

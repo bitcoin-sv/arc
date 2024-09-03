@@ -320,7 +320,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 }
 
 func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.Transaction, error) {
-	data, announcedAt, minedAt, storedAt, err := s.getTransactionData(ctx, req)
+	data, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
 		s.logger.Error("failed to get transaction", slog.String("hash", req.GetTxid()), slog.String("err", err.Error()))
 		return nil, err
@@ -328,9 +328,7 @@ func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	txn := &metamorph_api.Transaction{
 		Txid:         data.Hash.String(),
-		AnnouncedAt:  announcedAt,
 		StoredAt:     storedAt,
-		MinedAt:      minedAt,
 		Status:       data.Status,
 		BlockHeight:  data.BlockHeight,
 		RejectReason: data.RejectReason,
@@ -362,12 +360,6 @@ func (s *Server) GetTransactions(ctx context.Context, req *metamorph_api.Transac
 		if sd.BlockHash != nil {
 			txn.BlockHash = sd.BlockHash.String()
 		}
-		if !sd.AnnouncedAt.IsZero() {
-			txn.AnnouncedAt = timestamppb.New(sd.AnnouncedAt)
-		}
-		if !sd.MinedAt.IsZero() {
-			txn.MinedAt = timestamppb.New(sd.MinedAt)
-		}
 		if !sd.StoredAt.IsZero() {
 			txn.StoredAt = timestamppb.New(sd.StoredAt)
 		}
@@ -379,7 +371,7 @@ func (s *Server) GetTransactions(ctx context.Context, req *metamorph_api.Transac
 }
 
 func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.TransactionStatus, error) {
-	data, announcedAt, minedAt, storedAt, err := s.getTransactionData(ctx, req)
+	data, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, ErrNotFound
@@ -395,9 +387,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 
 	returnStatus := &metamorph_api.TransactionStatus{
 		Txid:         data.Hash.String(),
-		AnnouncedAt:  announcedAt,
 		StoredAt:     storedAt,
-		MinedAt:      minedAt,
 		Status:       data.Status,
 		BlockHeight:  data.BlockHeight,
 		BlockHash:    blockHash,
@@ -414,10 +404,10 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 	return returnStatus, nil
 }
 
-func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*store.StoreData, *timestamppb.Timestamp, *timestamppb.Timestamp, *timestamppb.Timestamp, error) {
+func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*store.StoreData, *timestamppb.Timestamp, error) {
 	txBytes, err := hex.DecodeString(req.GetTxid())
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	hash := util.ReverseBytes(txBytes)
@@ -425,23 +415,15 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 	var data *store.StoreData
 	data, err = s.store.Get(ctx, hash)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, err
 	}
 
-	var announcedAt *timestamppb.Timestamp
-	if !data.AnnouncedAt.IsZero() {
-		announcedAt = timestamppb.New(data.AnnouncedAt)
-	}
-	var minedAt *timestamppb.Timestamp
-	if !data.MinedAt.IsZero() {
-		minedAt = timestamppb.New(data.MinedAt)
-	}
 	var storedAt *timestamppb.Timestamp
 	if !data.StoredAt.IsZero() {
 		storedAt = timestamppb.New(data.StoredAt)
 	}
 
-	return data, announcedAt, minedAt, storedAt, nil
+	return data, storedAt, nil
 }
 
 func (s *Server) getTransactions(ctx context.Context, req *metamorph_api.TransactionsStatusRequest) ([]*store.StoreData, error) {

@@ -175,10 +175,9 @@ func TestPostgresDB(t *testing.T) {
 	now := time.Date(2023, 10, 1, 14, 25, 0, 0, time.UTC)
 	minedHash := testdata.TX1Hash
 	minedData := &store.StoreData{
-		RawTx:        make([]byte, 0),
-		StoredAt:     now,
-		AnnouncedAt:  time.Date(2023, 10, 1, 12, 5, 0, 0, time.UTC),
-		MinedAt:      time.Date(2023, 10, 1, 12, 10, 0, 0, time.UTC),
+		RawTx:    make([]byte, 0),
+		StoredAt: now,
+		//StatusHistory: nil,
 		Hash:         minedHash,
 		Status:       metamorph_api.Status_MINED,
 		BlockHeight:  100,
@@ -186,16 +185,17 @@ func TestPostgresDB(t *testing.T) {
 		Callbacks:    []store.StoreCallback{{CallbackURL: "http://callback.example.com", CallbackToken: "12345"}},
 		RejectReason: "not rejected",
 		LockedBy:     "metamorph-1",
+		LastModified: nil,
 	}
 
 	unminedHash := testdata.TX1Hash
 	unminedData := &store.StoreData{
-		RawTx:       make([]byte, 0),
-		StoredAt:    now,
-		AnnouncedAt: time.Date(2023, 10, 1, 12, 5, 0, 0, time.UTC),
-		Hash:        unminedHash,
-		Status:      metamorph_api.Status_SENT_TO_NETWORK,
-		LockedBy:    "metamorph-1",
+		RawTx:    make([]byte, 0),
+		StoredAt: now,
+		//AnnouncedAt: time.Date(2023, 10, 1, 12, 5, 0, 0, time.UTC),
+		Hash:     unminedHash,
+		Status:   metamorph_api.Status_SENT_TO_NETWORK,
+		LockedBy: "metamorph-1",
 	}
 
 	postgresDB, err := New(dbInfo, "metamorph-1", 10, 10, WithNow(func() time.Time {
@@ -641,7 +641,7 @@ func TestPostgresDB(t *testing.T) {
 		minedReturned, err := postgresDB.Get(ctx, unminedHash[:])
 		require.NoError(t, err)
 		minedReturned.Status = metamorph_api.Status_MINED
-		minedReturned.MinedAt = now
+		//minedReturned.MinedAt = now
 		minedReturned.BlockHeight = 100
 		minedReturned.BlockHash = testdata.Block1Hash
 		minedReturned.MerklePath = "merkle-path-1"
@@ -679,7 +679,7 @@ func TestPostgresDB(t *testing.T) {
 		dataReturned, err := postgresDB.Get(ctx, unminedHash[:])
 		require.NoError(t, err)
 		unmined.Status = metamorph_api.Status_MINED
-		unmined.MinedAt = now
+		//unmined.MinedAt = now
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
 		require.Equal(t, dataReturned, &unmined)

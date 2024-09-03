@@ -12,8 +12,8 @@ type CallbackDispatcher struct {
 	c CallbackerI
 	s store.CallbackerStore
 
-	managers map[string]*sendManager
-	mu       sync.Mutex
+	managers   map[string]*sendManager
+	managersMu sync.Mutex
 
 	sleep time.Duration
 }
@@ -36,8 +36,8 @@ func (d *CallbackDispatcher) Health() error {
 }
 
 func (d *CallbackDispatcher) GracefulStop() {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.managersMu.Lock()
+	defer d.managersMu.Unlock()
 
 	for _, m := range d.managers {
 		m.GracefulStop()
@@ -45,11 +45,11 @@ func (d *CallbackDispatcher) GracefulStop() {
 }
 
 func (d *CallbackDispatcher) Init() error {
-	const bundleSize = 100
+	const batchSize = 100
 	ctx := context.Background()
 
 	for {
-		callbacks, err := d.s.PopMany(ctx, bundleSize)
+		callbacks, err := d.s.PopMany(ctx, batchSize)
 		if err != nil || len(callbacks) == 0 {
 			return err
 		}
@@ -61,14 +61,14 @@ func (d *CallbackDispatcher) Init() error {
 }
 
 func (d *CallbackDispatcher) dispatch(url, token string, dto *Callback) {
-	d.mu.Lock()
+	d.managersMu.Lock()
 	m, ok := d.managers[url]
 
 	if !ok {
 		m = runNewSendManager(url, d.c, d.s, d.sleep)
 		d.managers[url] = m
 	}
-	d.mu.Unlock()
+	d.managersMu.Unlock()
 
 	m.Add(token, dto)
 }
@@ -78,8 +78,9 @@ type sendManager struct {
 	c   CallbackerI
 	s   store.CallbackerStore
 
-	wg       sync.WaitGroup
-	ch       chan *callbackEntry
+	entriesWg sync.WaitGroup
+	entries   chan *callbackEntry
+
 	stop     chan struct{}
 	stopping bool
 
@@ -98,8 +99,8 @@ func runNewSendManager(u string, c CallbackerI, s store.CallbackerStore, slp tim
 		s:     s,
 		sleep: slp,
 
-		ch:   make(chan *callbackEntry),
-		stop: make(chan struct{}),
+		entries: make(chan *callbackEntry),
+		stop:    make(chan struct{}),
 	}
 
 	m.run()
@@ -107,17 +108,17 @@ func runNewSendManager(u string, c CallbackerI, s store.CallbackerStore, slp tim
 }
 
 func (m *sendManager) Add(token string, dto *Callback) {
-	m.wg.Add(1)
+	m.entriesWg.Add(1) // count the callbacks accepted for processing
 	go func() {
-		m.ch <- &callbackEntry{token: token, data: dto}
+		m.entries <- &callbackEntry{token: token, data: dto}
 	}()
 }
 
 func (m *sendManager) GracefulStop() {
 	m.stop <- struct{}{} // signal the `run` goroutine to stop processing
-	m.wg.Wait()          // wait for all accepted callbacks to be consumed
+	m.entriesWg.Wait()   // wait for all accepted callbacks to be consumed
 
-	close(m.ch) // signal the `run` goroutine to exit
+	close(m.entries) // signal the `run` goroutine to exit
 
 	<-m.stop // wait for the `run` goroutine to exit
 	close(m.stop)
@@ -130,7 +131,7 @@ func (m *sendManager) run() {
 	handleCallbacks:
 		for {
 			select {
-			case callback, ok := <-m.ch:
+			case callback, ok := <-m.entries:
 				if !ok {
 					break handleCallbacks
 				}
@@ -143,7 +144,7 @@ func (m *sendManager) run() {
 					time.Sleep(m.sleep)
 				}
 
-				m.wg.Done()
+				m.entriesWg.Done() // decrease the number of callbacks that need to be processed (send or store on stop)
 
 			case <-m.stop:
 				m.stopping = true

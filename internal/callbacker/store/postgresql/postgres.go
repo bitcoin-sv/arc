@@ -57,32 +57,22 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 
 		if d.ExtraInfo != nil {
 			extraInfos[i] = sql.NullString{String: *d.ExtraInfo, Valid: true}
-		} else {
-			extraInfos[i] = sql.NullString{}
 		}
 
 		if d.MerklePath != nil {
 			merklePaths[i] = sql.NullString{String: *d.MerklePath, Valid: true}
-		} else {
-			merklePaths[i] = sql.NullString{}
 		}
 
 		if d.BlockHash != nil {
 			blockHashes[i] = sql.NullString{String: *d.BlockHash, Valid: true}
-		} else {
-			blockHashes[i] = sql.NullString{}
 		}
 
 		if d.BlockHeight != nil {
 			blockHeights[i] = sql.NullInt64{Int64: int64(*d.BlockHeight), Valid: true}
-		} else {
-			blockHeights[i] = sql.NullInt64{}
 		}
 
 		if len(d.CompetingTxs) > 0 {
 			competingTxs[i] = sql.NullString{String: strings.Join(d.CompetingTxs, ","), Valid: true}
-		} else {
-			competingTxs[i] = sql.NullString{}
 		}
 	}
 

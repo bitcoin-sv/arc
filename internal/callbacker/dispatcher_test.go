@@ -183,8 +183,8 @@ func Test_sendManager(t *testing.T) {
 				s:     sMq,
 				sleep: tc.sendInterval,
 
-				ch:   make(chan *callbackEntry),
-				stop: make(chan struct{}),
+				entries: make(chan *callbackEntry),
+				stop:    make(chan struct{}),
 			}
 
 			// add callbacks before starting the manager to queue them

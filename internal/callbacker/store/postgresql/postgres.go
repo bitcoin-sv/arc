@@ -98,8 +98,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 					,UNNEST($7::TEXT[])
 					,UNNEST($8::BIGINT[])
 					,UNNEST($9::TIMESTAMPTZ[])		
-					,UNNEST($10::TEXT[])					
-				ON CONFLICT DO NOTHING`
+					,UNNEST($10::TEXT[])`
 
 	_, err := p.db.ExecContext(ctx, query,
 		pq.Array(urls),

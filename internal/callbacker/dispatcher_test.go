@@ -29,7 +29,7 @@ func Test_CallbackDispatcher(t *testing.T) {
 		},
 		{
 			name:                 "process callbacks on stopping",
-			sendInterval:         time.Nanosecond, // set interval to give time to call stop function
+			sendInterval:         5 * time.Millisecond, // set interval to give time to call stop function
 			numOfReceivers:       100,
 			numOfSendPerReceiver: 200,
 			stopDispatcher:       true,

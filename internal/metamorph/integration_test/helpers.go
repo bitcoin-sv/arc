@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 )
@@ -18,11 +19,6 @@ func revChainhash(t *testing.T, hashString string) *chainhash.Hash {
 	return txHash
 }
 
-func pruneTables(db *sql.DB) error {
-	_, err := db.Exec("TRUNCATE TABLE metamorph.transactions;")
-	if err != nil {
-		return err
-	}
-
-	return nil
+func pruneTables(t *testing.T, db *sql.DB) {
+	testutils.PruneTables(t, db, "metamorph.transactions")
 }

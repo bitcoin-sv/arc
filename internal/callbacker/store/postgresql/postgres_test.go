@@ -204,10 +204,5 @@ func TestPostgresDBt(t *testing.T) {
 }
 
 func pruneTables(t *testing.T, db *sql.DB) {
-	t.Helper()
-
-	_, err := db.Exec("TRUNCATE TABLE callbacker.callbacks;")
-	if err != nil {
-		t.Fatal(err)
-	}
+	testutils.PruneTables(t, db, "callbacker.callbacks")
 }

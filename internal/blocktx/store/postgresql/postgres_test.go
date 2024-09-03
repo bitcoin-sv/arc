@@ -100,29 +100,15 @@ func testmain(m *testing.M) int {
 
 func prepareDb(t *testing.T, db *sql.DB, fixture string) {
 	t.Helper()
-	pruneTables(t, db)
+
+	testutils.PruneTables(t, db,
+		"blocktx.blocks",
+		"blocktx.transactions",
+		"blocktx.block_transactions_map",
+	)
 
 	if fixture != "" {
 		testutils.LoadFixtures(t, db, fixture)
-	}
-}
-
-func pruneTables(t testing.TB, db *sql.DB) {
-	t.Helper()
-
-	_, err := db.Exec("TRUNCATE TABLE blocktx.blocks;")
-	if err != nil {
-		t.Fatalf("cannot clear blocktx.blocks table: %v", err)
-	}
-
-	_, err = db.Exec("TRUNCATE TABLE blocktx.transactions;")
-	if err != nil {
-		t.Fatalf("cannot clear blocktx.transactions table: %v", err)
-	}
-
-	_, err = db.Exec("TRUNCATE TABLE blocktx.block_transactions_map;")
-	if err != nil {
-		t.Fatalf("cannot clear blocktx.block_transactions_map table: %v", err)
 	}
 }
 

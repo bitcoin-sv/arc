@@ -83,3 +83,14 @@ func LoadFixtures(t *testing.T, db *sql.DB, path string) {
 		t.Fatalf("failed to load fixtures: %v", err)
 	}
 }
+
+func PruneTables(t *testing.T, db *sql.DB, tables ...string) {
+	t.Helper()
+
+	for _, tab := range tables {
+		_, err := db.Exec("TRUNCATE TABLE " + tab + ";")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
